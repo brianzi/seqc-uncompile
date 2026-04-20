@@ -12,6 +12,11 @@
 //   - Node::type2str(NodeType) at 0x269970
 //   - Node::toString() at 0x264440
 //   - Node::waveAtCurrentDeviceIndex() at 0x1c7de0
+//   - Node::toJson() at 0x264b90
+//   - Node::fromJson() at 0x268280
+//   - Node::installPointers() at 0x269020
+//
+// Field names confirmed from toJson/fromJson JSON keys.
 // ============================================================================
 #pragma once
 
@@ -19,7 +24,10 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
+
+#include <boost/json.hpp>
 
 #include "asm_register.hpp"
 #include "play_config.hpp"
@@ -45,9 +53,9 @@ enum class NodeType : int {
     SyncCervino        = 0x0100,   // "sync_cervino"
     Table              = 0x0200,   // "table"
     SetPrecomp         = 0x1000,   // "setprecomp"
-    SyncHirzel         = 0x2000,   // "sync_hirzel"  (NEW — not in previous enum)
-    PlainLoad          = 0x4000,   // "plainload"    (was: Prefetch)
-    AwgReady           = 0x8000,   // "awg_ready"    (NEW)
+    SyncHirzel         = 0x2000,   // "sync_hirzel"
+    PlainLoad          = 0x4000,   // "plainload"
+    AwgReady           = 0x8000,   // "awg_ready"
     // All other values → "unknnown" (sic — typo in binary)
 };
 
@@ -55,72 +63,70 @@ enum class NodeType : int {
 // Node struct — complete field layout (0x110 bytes)
 //
 // Every offset confirmed from constructor stores & destructor teardown order.
+// Field names confirmed from toJson/fromJson JSON key strings in .rodata.
 //
-// Offset  Size  Type                             Name
+// Offset  Size  Type                             Name (JSON key)
 // ------  ----  ----                             ----
 // 0x00      8   shared_ptr control block ptr     _sp_ptr        \  These two form
 // 0x08      8   shared_ptr weak count ptr        _sp_ctrl       /  a shared_from_this base
 //                                                                  (weak_ptr<Node> embedded)
-// 0x10      4   int                              id             — from TLS counter
-// 0x14      4   int                              deviceIndex
+// 0x10      4   int                              nodeId         — from TLS counter (JSON: "nodeId")
+// 0x14      4   int                              asmId          — device/asm index (JSON: "asmId")
 // 0x18     16   (zero-initialized)               _reserved      — two 8-byte zero fields
-// 0x28     24   vector<optional<string>>          waves          — waveform names per device
-// 0x40      4   int                              waveformIndex  — index into waves; -1 = none
-// 0x44      4   NodeType (int)                   type
-// 0x48     32   PlayConfig                       playConfig1
-// 0x68     32   PlayConfig                       playConfig2
-// 0x88      8   AsmRegister                      reg1           — stored as 8 bytes at 0x88
-// 0x90      4   int                              regVal
-// 0x94      8   AsmRegister                      reg2           — stored as 8 bytes at 0x94
-// 0x9C      4   int                              tableIndex     — -1 = none
-// 0xA0     16   vector<weak_ptr<Node>>            weakRefs       — dtor calls __release_weak
-//                                                                  on each element
-// 0xB0      8   (zero, part of weakRefs capacity?)
-// 0xB8     16   shared_ptr<Node>                 sharedNode1    — e.g. someNodePtr param
-// 0xC8     24   vector<shared_ptr<Node>>          children
-// 0xE0     16   shared_ptr<Node>                 sharedNode2    — e.g. anotherNodePtr param
-// 0xF0     16   weak_ptr<Node>                   parent         — parentWeak param
-//                                                                  (ptr + ctrl, dtor releases weak)
-// 0x100     4   int                              intField1      — e.g. rate
-// 0x104     4   unsigned int                     uintField      — e.g. precompFlags
-// 0x108     1   bool                             boolField1
-// 0x109     1   bool                             boolField2
+// 0x28     24   vector<optional<string>>          wavesPerDev    — waveform names per device (JSON: "wavesPerDev")
+// 0x40      4   int                              deviceIndex    — index into wavesPerDev; -1 = none (JSON: "deviceIndex")
+// 0x44      4   NodeType (int)                   type           — (JSON: "type")
+// 0x48     32   PlayConfig                       config         — primary play config (JSON: "config")
+// 0x68     32   PlayConfig                       currentCwvf    — current CWVF config (JSON: "currentCwvf")
+// 0x88      8   AsmRegister                      lengthReg      — length register (JSON: "lengthReg")
+// 0x90      4   int                              length         — (JSON: "length")
+// 0x94      8   AsmRegister                      indexOffsetReg — index offset register (JSON: "indexOffsetReg")
+// 0x9C      4   int                              tableIndex     — -1 = none (JSON: "tableIndex")
+// 0xA0     24   vector<weak_ptr<Node>>            play           — play references (JSON: "play")
+// 0xB8     16   shared_ptr<Node>                 next           — next sibling in chain (JSON: "next")
+// 0xC8     24   vector<shared_ptr<Node>>          branches       — child branches (JSON: "branches")
+// 0xE0     16   shared_ptr<Node>                 loop           — loop/else branch link (JSON: "loop")
+// 0xF0     16   weak_ptr<Node>                   parent         — parent link (JSON: "parent")
+// 0x100     4   int                              globalRate     — rate for Rate nodes (JSON: "globalRate")
+// 0x104     4   unsigned int                     defaultPrecompFlags — (JSON: "defaultPrecompFlags")
+// 0x108     1   bool                             loopBodyRunsAtLeastOnce — (JSON: "loopBodyRunsAtLeastOnce")
+// 0x109     1   bool                             branchMaySkipAllBodies  — (JSON: "branchMaySkipAllBodies")
 // 0x10A     2   (padding)
-// 0x10C     4   int                              intField2
+// 0x10C     4   int                              trig           — trigger field (JSON: "trig")
 // ----------
 // 0x110         Total size
 // ============================================================================
 
 class Node : public std::enable_shared_from_this<Node> {
 public:
-    // --- Simple constructor: Node(NodeType type, int numWaveSlots, int extra)
+    // --- Simple constructor: Node(NodeType type, int numWaveSlots, int asmId)
     //     Address: 0x12ace0
-    //     Allocates `numWaveSlots` optional<string> entries in waves vector,
-    //     sets id from TLS counter, deviceIndex from extra, type at +0x44,
-    //     waveformIndex = -1, reg1/reg2 = AsmRegister(-1), tableIndex = -1,
-    //     intField1 = -1 (as 8-byte store 0x00000000FFFFFFFF).
-    Node(NodeType type, int numWaveSlots, int deviceIndex);
+    //     Allocates `numWaveSlots` optional<string> entries in wavesPerDev vector,
+    //     sets nodeId from TLS counter, asmId from param, type at +0x44,
+    //     deviceIndex = -1, lengthReg/indexOffsetReg = AsmRegister(-1), tableIndex = -1,
+    //     globalRate = -1 (as 8-byte store 0x00000000FFFFFFFF).
+    Node(NodeType type, int numWaveSlots, int asmId);
 
     // --- Full constructor (20 params): 0x26c4a0
-    Node(int id, int deviceIndex,
-         const std::vector<std::optional<std::string>>& waves,
-         int waveformIndex,
+    Node(int nodeId, int asmId,
+         const std::vector<std::optional<std::string>>& wavesPerDev,
+         int deviceIndex,
          NodeType type,
-         PlayConfig playConfig1,
-         PlayConfig playConfig2,
-         AsmRegister reg1,
-         int regVal,
-         AsmRegister reg2,
+         PlayConfig config,
+         PlayConfig currentCwvf,
+         AsmRegister lengthReg,
+         int length,
+         AsmRegister indexOffsetReg,
          int tableIndex,
-         std::shared_ptr<Node> nextSibling,
-         const std::vector<std::shared_ptr<Node>>& children,
-         std::shared_ptr<Node> elseBranch,
+         std::shared_ptr<Node> next,
+         const std::vector<std::shared_ptr<Node>>& branches,
+         std::shared_ptr<Node> loop,
          std::weak_ptr<Node> parent,
-         int intField1,
-         unsigned int uintField,
-         bool boolField1,
-         bool boolField2,
-         int intField2);
+         int globalRate,
+         unsigned int defaultPrecompFlags,
+         bool loopBodyRunsAtLeastOnce,
+         bool branchMaySkipAllBodies,
+         int trig);
 
     ~Node();  // 0x12afe0
 
@@ -135,113 +141,133 @@ public:
 
     // Node::toString() — "Node (asm id %d, type %s)"
     // Address: 0x264440
-    //   Reads this->deviceIndex (+0x14) and this->type (+0x44).
+    //   Reads this->asmId (+0x14) and this->type (+0x44).
     std::string toString();
 
     // Node::waveAtCurrentDeviceIndex() const — 0x1c7de0
-    //   Returns waves[waveformIndex] if waveformIndex >= 0, else empty optional.
-    //   Reads waveformIndex at +0x40, waves.data() at +0x28.
+    //   Returns wavesPerDev[deviceIndex] if deviceIndex >= 0, else empty optional.
+    //   Reads deviceIndex at +0x40, wavesPerDev.data() at +0x28.
     std::optional<std::string> waveAtCurrentDeviceIndex() const;
 
     // ---- Tree management methods ----
 
     // Node::last(node) — static, 0x1d5cb0
-    //   Follows node->nextSibling chain until null, returns last node.
+    //   Follows node->next chain until null, returns last node.
     static std::shared_ptr<Node> last(std::shared_ptr<Node> node);
 
     // Node::insertBefore(newNode) — 0x1cd860
     //   Inserts newNode before this node in the sibling chain.
-    //   Sets newNode->nextSibling = shared_from_this(),
+    //   Sets newNode->next = shared_from_this(),
     //   copies this->parent to newNode->parent,
     //   calls updateParent(parent, this, newNode),
     //   then sets this->parent = newNode.
     void insertBefore(std::shared_ptr<Node> newNode);
 
     // Node::updateParent(parent, oldChild, newChild) — static, 0x1d2f50
-    //   Replaces oldChild with newChild in parent's links (nextSibling, elseBranch,
-    //   or children vector). Then sets newChild->parent = parent (as weak_ptr).
-    //   If replacing with nullptr in children vector, erases the element.
+    //   Replaces oldChild with newChild in parent's links (next, loop,
+    //   or branches vector). Then sets newChild->parent = parent (as weak_ptr).
+    //   If replacing with nullptr in branches vector, erases the element.
     static void updateParent(std::shared_ptr<Node> parent,
                              std::shared_ptr<Node> oldChild,
                              std::shared_ptr<Node> newChild);
 
     // Node::remove(node) — static, 0x1d4440
-    //   Removes node from the tree. If node has nextSibling, splices it into
-    //   parent's slot. Then recursively removes elseBranch and each child.
+    //   Removes node from the tree. If node has next, splices it into
+    //   parent's slot. Then recursively removes loop and each branch.
     static void remove(std::shared_ptr<Node> node);
 
     // Node::swap(a, b) — static, 0x1d2720
     //   Precondition: b->parent.get() == a.get() (a is b's parent).
-    //   Walks up from a through Loop/Branch ancestors, copies deviceIndex to b.
+    //   Walks up from a through Loop/Branch ancestors, copies asmId to b.
     //   Then: updateParent(parentOfA, a, b)
-    //         updateParent(b, b->nextSibling, a)
-    //         updateParent(a, b, b->nextSibling)
+    //         updateParent(b, b->next, a)
+    //         updateParent(a, b, b->next)
     //   Net effect: a and b exchange structural positions.
     //   Throws error 0xa4 if precondition violated.
     static void swap(const std::shared_ptr<Node>& a,
                      const std::shared_ptr<Node>& b);
 
     // Node::clone() const — 0x1d5d40
-    //   Allocates new Node via simple ctor, copies: waveformIndex, waves,
-    //   weakRefs, reg1, reg2, tableIndex, intField2.
-    //   Does NOT copy: playConfigs, sharedNode1/2, children, parent, etc.
+    //   Allocates new Node via simple ctor, copies: deviceIndex, wavesPerDev,
+    //   play, lengthReg, indexOffsetReg, tableIndex, trig.
+    //   Does NOT copy: configs, next/loop/branches/parent, globalRate, etc.
     std::shared_ptr<Node> clone() const;
 
-    // ---- Fields (confirmed offsets) ----
+    // ---- Serialization methods ----
+
+    // Node::toJson(idMap) const — 0x264b90
+    //   Serializes this Node to a boost::json::value (object).
+    //   The idMap remaps internal nodeId values to serializable indices.
+    //   Pointer fields serialized as integer IDs (-1 = null).
+    boost::json::value toJson(const std::unordered_map<int,int>& idMap) const;
+
+    // Node::fromJson(json) — static, 0x268280
+    //   Deserializes scalar fields from JSON. Pointer fields left empty —
+    //   reconnected later by installPointers().
+    static std::shared_ptr<Node> fromJson(const boost::json::value& json);
+
+    // Node::installPointers(nodeMap, json) — 0x269020
+    //   Reconnects pointer fields (play, next, branches, loop, parent)
+    //   after deserialization using the nodeMap (int ID → shared_ptr<Node>).
+    void installPointers(const std::unordered_map<int, std::shared_ptr<Node>>& nodeMap,
+                         const boost::json::value& json);
+
+    // ---- Fields (confirmed offsets, names from JSON keys) ----
 
     // +0x00, +0x08: inherited from enable_shared_from_this<Node>
     //   (weak_ptr<Node> member — pointer + control block)
 
-    int id;                 // +0x10  — assigned from TLS counter (node_id++)
-    int deviceIndex;        // +0x14  — device index
+    int nodeId;             // +0x10  — assigned from TLS counter (node_id++)
+    int asmId;              // +0x14  — asm/device index
 
     // +0x18: 16 bytes zeroed in simple ctor (purpose unknown, possibly
     //        reserved or part of enable_shared_from_this padding)
     uint64_t _reserved0 = 0;  // +0x18
     uint64_t _reserved1 = 0;  // +0x20
 
-    std::vector<std::optional<std::string>> waves;  // +0x28 (24 bytes: begin/end/cap)
+    std::vector<std::optional<std::string>> wavesPerDev;  // +0x28 (24 bytes)
 
-    int waveformIndex = -1;   // +0x40  — index into waves; -1 = invalid
-    NodeType type;            // +0x44
+    int deviceIndex = -1;   // +0x40  — index into wavesPerDev; -1 = invalid
+    NodeType type;          // +0x44
 
-    PlayConfig playConfig1;   // +0x48  (0x20 bytes)
-    PlayConfig playConfig2;   // +0x68  (0x20 bytes)
+    PlayConfig config;      // +0x48  (0x20 bytes) — primary play config
+    PlayConfig currentCwvf; // +0x68  (0x20 bytes) — current CWVF config
 
-    AsmRegister reg1;         // +0x88  (8 bytes: int value + bool valid)
-    int regVal = 0;           // +0x90
-    AsmRegister reg2;         // +0x94  (8 bytes)
-    int tableIndex = -1;      // +0x9C
+    AsmRegister lengthReg;       // +0x88  (8 bytes: int value + bool valid)
+    int length = 0;              // +0x90
+    AsmRegister indexOffsetReg;  // +0x94  (8 bytes)
+    int tableIndex = -1;         // +0x9C
 
-    // +0xA0: vector of weak_ptr<Node> (24 bytes: begin/end/cap)
+    // +0xA0: vector of weak_ptr<Node> (24 bytes)
     // Destructor iterates and calls __release_weak() on each control block.
-    std::vector<std::weak_ptr<Node>> weakRefs;  // +0xA0
+    // JSON key: "play". In installPointers, reconnected from "play" array.
+    std::vector<std::weak_ptr<Node>> play;  // +0xA0
 
-    // +0xB8: shared_ptr<Node> — next sibling in tree (16 bytes: ptr + ctrl)
-    //   last() follows this chain; insertBefore sets newNode->nextSibling = this;
-    //   remove() splices this link; updateParent checks parent->nextSibling == oldChild.
-    std::shared_ptr<Node> nextSibling;  // +0xB8
+    // +0xB8: shared_ptr<Node> — next sibling in chain (16 bytes)
+    //   last() follows this chain; insertBefore sets newNode->next = this;
+    //   remove() splices this link; updateParent checks parent->next == oldChild.
+    std::shared_ptr<Node> next;  // +0xB8
 
-    // +0xC8: vector<shared_ptr<Node>> — child nodes (24 bytes: begin/end/cap)
+    // +0xC8: vector<shared_ptr<Node>> — child branches (24 bytes)
     //   Used when parent NodeType == Branch (0x4). updateParent scans this vector.
-    std::vector<std::shared_ptr<Node>> children;  // +0xC8
+    std::vector<std::shared_ptr<Node>> branches;  // +0xC8
 
-    // +0xE0: shared_ptr<Node> — auxiliary/else-branch link (16 bytes)
-    //   updateParent checks parent->elseBranch == oldChild as alternative to nextSibling.
+    // +0xE0: shared_ptr<Node> — loop/else-branch link (16 bytes)
+    //   updateParent checks parent->loop == oldChild as alternative to next.
     //   remove() recursively removes this if present.
-    std::shared_ptr<Node> elseBranch;  // +0xE0
+    std::shared_ptr<Node> loop;  // +0xE0
 
-    // +0xF0: weak_ptr<Node> — parent link (16 bytes: ptr + ctrl)
+    // +0xF0: weak_ptr<Node> — parent link (16 bytes)
     //   Destructor calls __release_weak() on the control block at +0xF8.
     //   insertBefore/updateParent set newChild->parent = parentNode.
     std::weak_ptr<Node> parent;  // +0xF0
 
-    int intField1 = -1;          // +0x100  (rate for Rate nodes)
-    unsigned int uintField = 0;  // +0x104  (precompFlags for SetPrecomp nodes)
-    bool boolField1 = false;     // +0x108
-    bool boolField2 = false;     // +0x109
+    int globalRate = -1;                     // +0x100  (rate for Rate nodes)
+    unsigned int defaultPrecompFlags = 0;    // +0x104
+    bool loopBodyRunsAtLeastOnce = false;    // +0x108
+    bool branchMaySkipAllBodies = false;     // +0x109
     // +0x10A: 2 bytes padding
-    int intField2 = 0;           // +0x10C
+    int trig = 0;                            // +0x10C
     // Total size: 0x110
 };
 

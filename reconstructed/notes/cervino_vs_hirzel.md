@@ -4,16 +4,17 @@
 
 `AsmCommandsImpl::getInstance()` selects the implementation based on `AwgDeviceType`:
 
-| Device Type | Value | Implementation |
-|-------------|-------|----------------|
-| HDAWG8      | 2     | Hirzel         |
-| HDAWG4      | 8     | Hirzel         |
-| UHFQA       | 16    | Hirzel         |
-| UHFAWG      | 32    | Hirzel         |
-| UHFLI       | 64    | Hirzel         |
-| SHFQA       | 128   | Hirzel         |
-| SHFSG       | 256   | Hirzel         |
-| (all other) | *     | Cervino        |
+| Device Type | Value | Codename      | Implementation |
+|-------------|-------|---------------|----------------|
+| UHFLI       | 1     | cervino       | Cervino        |
+| HDAWG       | 2     | hirzel        | Hirzel         |
+| UHFQA       | 4     | klausen       | Cervino        |
+| SHFQA       | 8     | grimsel_qa    | Hirzel         |
+| SHFSG       | 16    | grimsel_sg    | Hirzel         |
+| SHFQC_SG    | 32    | grimsel_qc_sg | Hirzel         |
+| SHFLI       | 64    | grimsel_li    | Hirzel         |
+| GHFLI       | 128   | gurnigel      | Cervino        |
+| VHFLI       | 256   | maloja        | Cervino        |
 
 Selection uses bitmask `0x4000000040004041` on `(val - 2)` for values 2..64,
 plus explicit checks for 128 and 256.

@@ -27,8 +27,8 @@ namespace zhinst {
 //   +0x10  unique_ptr<AsmCommandsImpl> impl_
 //   +0x20  shared_ptr<WavetableFront> wavetable_  (approx)
 //   +0x40  function<void(const string&)> errorHandler_
-//   +0x50  int wavetableFrontIndex_  (line number / context index)
-//   +0x54  int nodeExtraRef_         (passed to Node constructors)
+//   +0x50  int wavetableFrontIndex_  (line number / wavetable context; init=0)
+//   +0x54  int numChannelGroups_     (from AWGCompilerConfig+0x1c; 1/2/4; pre-alloc size for Node vectors)
 class AsmCommands {
 public:
     // Constructor (from construct_at signature in binary):
@@ -225,7 +225,7 @@ private:
     std::shared_ptr<WavetableFront> wavetable_;                  // ~+0x20
     std::function<void(const std::string&)> errorHandler_;       // ~+0x40
     int wavetableFrontIndex_ = 0;                                // +0x50
-    int nodeExtraRef_ = 0;                                       // +0x54
+    int numChannelGroups_ = 0;                                   // +0x54
 
     // Helper: build an AsmEntry from a local AssemblerInstr
     AsmEntry emitEntry(const AssemblerInstr& instr) const;

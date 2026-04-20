@@ -10,14 +10,14 @@
    +0x10 = id (TLS counter), +0x14 = deviceIndex, +0x18..+0x27 = two zeroed
    uint64_t fields (reserved / enable_shared_from_this padding).
 
-3. ~~**Node fields beyond +0x104**~~ **RESOLVED (Phase 2)**
-   +0x108 = boolField1, +0x109 = boolField2, +0x10A = padding, +0x10C = intField2.
-   Total size confirmed 0x110.
+3. ~~**Node fields beyond +0x104**~~ **RESOLVED (Phase 2d)**
+   +0x108 = loopBodyRunsAtLeastOnce (bool), +0x109 = branchMaySkipAllBodies (bool),
+   +0x10A = padding, +0x10C = trig (int). All field names confirmed from toJson JSON keys.
 
-4. **WaveformFront full layout**
-   We only know ~6 fields at specific offsets. The struct has at least 0xCA bytes
-   and likely much more. The name/string representation is accessed but the exact
-   mechanism (operator*, getName(), etc.) is unknown.
+4. ~~**WaveformFront full layout**~~ **RESOLVED (Phase 2e, CORRECTED Phase 3c)**
+   Full 0xF8-byte layout confirmed. Signal at +0x80 is 0x58 bytes (not 48 as
+   originally thought). Fields at +0xB0/+0xC8/+0xD0 are Signal's internal
+   markerBits_/channels_/length_ — not separate Waveform fields.
 
 ## Behavioral
 
@@ -26,14 +26,18 @@
    called "waveform commands"? Or is the field name wrong and it means something
    like "isPseudoInstruction"?
 
-6. **`nodeExtraRef_` at AsmCommands+0x54**
-   Passed as second argument to Node constructors. Purpose unclear — could be a
-   scope/context ID, a line number, or a reference count.
+6. ~~**`nodeExtraRef_` at AsmCommands+0x54**~~ **RESOLVED (Phase 3e)**
+   This is `numChannelGroups_` — copied from `AWGCompilerConfig+0x1c` (values 1, 2, or 4).
+   Passed as 3rd arg to `Node::Node(NodeType, int, int)` where it becomes the initial
+   capacity for `vector<optional<string>>` at Node+0x28 (one slot per channel group).
+   Renamed from `nodeExtraRef_` to `numChannelGroups_`.
 
-7. **Thread-local counter reset**
-   The TLS counter at offset 0x40 provides unique IDs but we don't know when/how
-   it's reset between compilation runs. If it isn't, IDs grow monotonically across
-   compilations.
+7. ~~**Thread-local counter reset**~~ **RESOLVED (Phase 3e)**
+   Both counters ARE reset to zero inside `Compiler::compile()`:
+   - TLS+0x40 (Asm nextID): unconditionally reset at start of compile (0x11f19f)
+   - TLS+0x44 (Node idCounter): conditionally reset later (0x1209c6), when byte [rbx+0x28]==1
+   - Both reset together at 0x1209b9 under the same condition (likely second-pass reset)
+   Counters restart from 0 each compilation — NOT monotonically increasing.
 
 8. **`syncCervino` and `unsyncCervino` complexity**
    Both are ~1000 lines of assembly each. They emit multi-instruction sequences
@@ -57,13 +61,36 @@
 12. ~~**PlayConfig static shift/mask constants**~~ **RESOLVED (Phase 2)**
     All shift/mask constants extracted. See play_config.hpp.
 
-13. **ErrorMessages format strings**
-    The actual format strings for ErrorMessageT values 0, 5, 11 are in .rodata.
-    Could be extracted by tracing the format() call addresses.
+13. ~~**ErrorMessages format strings**~~ **RESOLVED (Phase 3b)**
+    305 format strings extracted from global initializer at 0xd5de0. Stored in
+    std::map<int,string> at BSS 0xb84c38. Keys: 1–255 (compiler, gaps at 47/53),
+    16384–16389 (status), 32768–32800 (API), 36864–36877 (firmware).
+    boost::format syntax (%1%, %2%, etc.). Full enum in error_messages.hpp.
 
-14. **Assembler::commandToString() mapping**
-    Global cmdMap at 0xb84c20 — the full opcode-to-string table. Structure and
-    content not yet fully dumped.
+14. ~~**Assembler::commandToString() mapping**~~ **RESOLVED (Phase 2a)**
+    Full 43-entry cmdMap dumped. See notes/opcode_map.md.
+
+## NEW Phase 2d Questions
+
+23. **Node field name "deviceIndex" at +0x40 vs "asmId" at +0x14**
+    Confusingly, the JSON key "deviceIndex" maps to the field at +0x40 (previously
+    called waveformIndex — an index into wavesPerDev), while "asmId" at +0x14 is
+    what toString() prints as "asm id". The naming suggests +0x40 selects which
+    device's waveform to use, not a waveform slot index.
+
+24. **Node field "play" at +0xA0 (vector<weak_ptr<Node>>)**
+    JSON key is "play". This was previously called weakRefs. The name "play"
+    suggests these are references to Play nodes that this node depends on or is
+    associated with. Exact population mechanism still unknown.
+
+25. **Node field "length" at +0x90 (int)**
+    JSON key is "length", not "regVal" as previously assumed. This likely stores
+    a waveform/segment length value rather than a generic register value.
+
+26. **Node::toJson idMap uses asmId (+0x14), not nodeId (+0x10)**
+    The remapping `idMap.at(asmId)` for the "nodeId" JSON key suggests the external
+    caller maps by asmId, not by the internal nodeId. This is counter-intuitive —
+    needs investigation of the serialization call site.
 
 ## NEW Phase 2 Questions
 
@@ -95,3 +122,68 @@
 22. **PlayConfig::hold comparison is rate-gated**
     hold is only compared when rate > 0 in operator!=. This implies hold
     behavior is undefined/irrelevant for default-rate or stopped playback.
+
+## NEW Phase 2b Questions
+
+27. **serialize() opcode==4 skip**
+    In AsmList::serialize(), entries with opcode==4 (NOP) are skipped in the
+    idMap building pass. Why NOP specifically? Is this a "dead code elimination"
+    step during serialization?
+
+28. **serialize() " #disableOpt" suffix**
+    Appended when isWaveformCmd && opcode==5. What is opcode 5 (ERROR_MSG)?
+    The suffix suggests this marks instructions that should not be optimized by
+    downstream passes.
+
+29. **parseStringToAsmList hardcoded device type 2**
+    Calls getDeviceConstants(AwgDeviceType(2)) — always device type 2 regardless
+    of actual target. Is this a Hirzel default? Or does the serialized format
+    only support one device type?
+
+30. **Two TLS counters: TLS+0x40 (Asm::nextID) vs TLS+0x44 (Node::node_id_counter)**
+    Both live in .tbss. Confirmed: +0x40 = Asm sequenceId counter, +0x44 = Node
+    nodeId counter. They are adjacent but independent.
+
+## NEW Phase 3c Questions
+
+35. ~~**`operator==` epsilon value at 0x956350**~~ **RESOLVED (Phase 3c/3e)**
+    Confirmed: **1e-12** (read directly from binary at 0x956350). Updated in signal.cpp.
+
+36. **RawWaveData hierarchy**
+    `getRawData()` creates instances of RawWavePlaceHolder (vtable 0xb077c8, 0x28 bytes),
+    RawWaveCervino (vtable 0xb07868, 0x20 bytes with vector<uint16_t>), and
+    RawWaveHirzel16 (0x20 bytes, ctor at 0x297140). Full layouts and virtual methods
+    not yet reconstructed.
+
+37. ~~**`checkAllocation()` does NOT clear `reserveOnly_`**~~ **CLOSED (Phase 3c)**
+    Behavioral observation, not an open question. `checkAllocation()` is idempotent
+    by design — the size check (`totalSamples > samples_.size()`) means subsequent
+    calls are no-ops once vectors are materialized. The redundant calls in
+    `append(Signal&)` are defensive/compiler artifact.
+
+38. **Constructor #2 marker bit distribution logic**
+    `Signal(size_t, double, uint8_t, uint16_t)` iterates `channels + (channels>1?1:0)`
+    times, ORing marker into `markerBits_[i % size]`. The extra iteration when
+    channels>1 means the first slot gets an extra OR. Why?
+
+31. **RegisterBank field semantics**
+    The four RegisterBank sub-structs (waveformReg, commandTableReg, sequencerReg,
+    auxReg) each have base/stride/width/depth. The field names are inferred from
+    cross-device value patterns, not from debug info. The "stride" field in
+    particular varies wildly (0x200 to 0x100000) — it may be an address mask or
+    range rather than a linear stride.
+
+32. **DeviceConstants::Register anonymous enum naming**
+    `{unnamed type#7}` = 0x44 and `{unnamed type#8}` = 0x45 are used in
+    `unsyncCervino()` as sequencer register addresses. The numbering (#7, #8)
+    suggests there are at least 6 other anonymous enums (#1–#6) in the Register
+    type, but we haven't identified them yet. They may be used in other methods
+    we haven't fully disassembled (syncCervino, etc.).
+
+33. ~~**Device type 256 identity**~~ **RESOLVED (Phase 3d)**
+    Device type 256 is **VHFLI** (codename "maloja"). Display name "VHFLI".
+    Shares register config with SHFLI (type 64). Uses Cervino implementation.
+
+34. ~~**WaveformFront.field70 = DeviceConstants.sequencerReg.width (+0x40)**~~ **CLOSED (Phase 3a)**
+    Confirmed and renamed to `seqRegWidth` in waveform_front.hpp. Represents the
+    number of sequencer registers available for waveform addressing.

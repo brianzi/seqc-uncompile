@@ -26,20 +26,21 @@ class Resources;
 class SeqCAstNode;
 class CustomFunctions;
 
-// Device type enum — determines Cervino vs Hirzel instruction encoding.
-// getInstance() tests (val-2) against bitmask 0x4000000040004041:
-//   bits {0,6,14,30,62} → values {2,8,16,32,64} → Hirzel
-//   Also 128 and 256 → Hirzel
-//   Everything else → Cervino
-enum class AwgDeviceType : int {
-    HDAWG8 = 2,
-    HDAWG4 = 8,
-    UHFQA  = 16,
-    UHFAWG = 32,
-    UHFLI  = 64,
-    SHFQA  = 128,
-    SHFSG  = 256,
-    // All other values → Cervino
+// Device type enum — bitmask-style values.
+// Confirmed from getAwgDeviceTypeString (0x270080) and getAwgDeviceTypeFromString (0x270180).
+// getInstance() tests (val-2) against bitmask 0x4000000040004041 to select Cervino vs Hirzel.
+// Hirzel: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32), SHFLI(64)
+// Cervino: UHFLI(1), UHFQA(4), GHFLI(128), VHFLI(256)
+enum AwgDeviceType : int {
+    UHFLI      = 1,     // codename "cervino", display "UHFLI"
+    HDAWG      = 2,     // codename "hirzel",  display "HDAWG" — only Hirzel type
+    UHFQA      = 4,     // codename "klausen", display "UHFQA"
+    SHFQA      = 8,     // codename "grimsel_qa", display "SHFQA"
+    SHFSG      = 16,    // codename "grimsel_sg", display "SHFSG"
+    SHFQC_SG   = 32,    // codename "grimsel_qc_sg", display "SHFQC (SG)"
+    SHFLI      = 64,    // codename "grimsel_li", display "SHFLI"
+    GHFLI      = 128,   // codename "gurnigel", display "GHFLI"
+    VHFLI      = 256,   // codename "maloja", display "VHFLI"
 };
 
 } // namespace zhinst

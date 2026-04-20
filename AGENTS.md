@@ -44,6 +44,9 @@ re-derived.
   unknowns) that doesn't belong in source comments.
 - Each TODO.md phase ends with an explicit wrap-up step that triggers
   steps 2-4 above.
+- **Sub-phase wrap-ups:** Steps 2-4 also happen at the end of each
+  sub-phase (e.g. 2a, 2b, 2e), not only at the end of a full phase.
+  This ensures findings are documented and TODO.md stays current.
 - Reconstructed headers go in `reconstructed/include/zhinst/`.
 - Reconstructed implementations go in `reconstructed/src/`.
 - Every `.cpp` file should note the binary addresses of the functions

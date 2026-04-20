@@ -709,15 +709,15 @@ AsmEntry AsmCommands::asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf,
     AsmEntry result = emitNodeEntry(NodeType::LockPlaceholder);
     // Copy waveform name into node->strings[index]
     // TODO: wvf name access
-    result.node->waveformIndex = index;
+result.node->deviceIndex = index;
     return result;
 }
 
 AsmEntry AsmCommands::asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf,
-                                            int index) {
+                                             int index) {
     AsmEntry result = emitNodeEntry(NodeType::UnlockPlaceholder);
-    // Copy waveform name into node->strings[index]
-    result.node->waveformIndex = index;
+    // Copy waveform name into node->wavesPerDev[index]
+    result.node->deviceIndex = index;
     return result;
 }
 
@@ -728,15 +728,15 @@ AsmEntry AsmCommands::asmLoadPlaceholder() {
 AsmEntry AsmCommands::asmPrefetch(std::shared_ptr<WaveformFront> wvf,
                                    int nameIndex, int regVal, int extraVal) {
     AsmEntry result = emitNodeEntry(NodeType::Prefetch);
-    result.node->reg = static_cast<AsmRegister>(regVal);
-    result.node->regVal = extraVal;
+    result.node->lengthReg = static_cast<AsmRegister>(regVal);
+    result.node->length = extraVal;
 
     if (wvf) {
         wvf->used = true;
-        // Copy waveform name into node->strings[nameIndex]
+        // Copy waveform name into node->wavesPerDev[nameIndex]
     }
 
-    result.node->waveformIndex = nameIndex;
+    result.node->deviceIndex = nameIndex;
     return result;
 }
 
@@ -818,16 +818,16 @@ AsmEntry AsmCommands::asmPlay(
     AsmEntry result = emitNodeEntry(NodeType::Play);
     Node* node = result.node.get();
 
-    node->waveformIndex = nameIndex;
+    node->deviceIndex = nameIndex;
 
     // Build waveform name vector
     for (auto& wvf : waveforms) {
         WaveformFront* wf = wvf.get();
         if (wf) {
-            // node->strings.push_back(wf->getName());  // TODO: name access
-            node->strings.push_back(std::nullopt);  // placeholder
+            // node->wavesPerDev.push_back(wf->getName());  // TODO: name access
+            node->wavesPerDev.push_back(std::nullopt);  // placeholder
         } else {
-            node->strings.push_back(std::nullopt);
+            node->wavesPerDev.push_back(std::nullopt);
         }
     }
 
@@ -837,20 +837,20 @@ AsmEntry AsmCommands::asmPlay(
         currentWvf = waveforms[nameIndex];
     }
 
-    node->playConfig = genPlayConfig(currentWvf, isHold, fourChannel,
-                                      fourChannel, isBool, holdCount,
-                                      suppress, isHoldMode, trigger);
+    node->config = genPlayConfig(currentWvf, isHold, fourChannel,
+                                       fourChannel, isBool, holdCount,
+                                       suppress, isHoldMode, trigger);
 
     // Set register info
-    node->reg = reg;
-    node->reg2 = reg2;
-    node->regVal = regVal;
+    node->lengthReg = reg;
+    node->indexOffsetReg = reg2;
+    node->length = regVal;
 
     // Mark waveform as used and compute packed play word if needed
     if (currentWvf) {
         currentWvf->used = true;
         if (currentWvf->playIndex < 0) {
-            currentWvf->playWord = node->playConfig.pack();
+            currentWvf->playWord = node->config.pack();
         }
     }
 
@@ -864,19 +864,19 @@ AsmEntry AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront> wv
     AsmEntry result = emitNodeEntry(NodeType::Table);
     Node* node = result.node.get();
 
-    node->playConfig = genPlayConfig(wvf, isHold, fourChannel, fourChannel,
-                                      isHoldMode, holdCount, suppress,
-                                      false, 0);
+    node->config = genPlayConfig(wvf, isHold, fourChannel, fourChannel,
+                                       isHoldMode, holdCount, suppress,
+                                       false, 0);
 
-    node->reg = reg;
-    node->regVal = regVal;
+    node->lengthReg = reg;
+    node->length = regVal;
 
     if (wvf) {
         wvf->used = true;
-        // Copy waveform name into node->strings[nameIndex]
+        // Copy waveform name into node->wavesPerDev[nameIndex]
     }
 
-    node->waveformIndex = nameIndex;
+    node->deviceIndex = nameIndex;
     node->tableIndex = tableIndex;
 
     return result;
