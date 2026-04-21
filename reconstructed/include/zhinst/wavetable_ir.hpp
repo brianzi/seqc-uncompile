@@ -15,6 +15,7 @@
 #include "waveform_ir.hpp"
 #include "wave_index_tracker.hpp"
 #include "device_constants.hpp"
+#include "address_impl.hpp"
 
 #include <memory>
 #include <string>
@@ -36,8 +37,7 @@ class CachedParser;
 
 namespace detail {
     template<typename T> class WavetableManager;
-    template<typename T> struct AddressImpl;
-}
+}  // AddressImpl now via #include "address_impl.hpp"
 
 enum class WaveOrder : int {
     Natural = 0,       // No sorting

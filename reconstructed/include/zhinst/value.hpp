@@ -16,31 +16,14 @@
 // ============================================================================
 #pragma once
 
+#include "address_impl.hpp"
+
 #include <cstdint>
 #include <cmath>
 #include <ostream>
 #include <string>
 
 namespace zhinst {
-
-// ============================================================================
-// AddressImpl<T> — thin wrapper around an unsigned value
-// ============================================================================
-namespace detail {
-    template <typename T>
-    struct AddressImpl {
-        T value;
-
-        AddressImpl() : value(0) {}
-        explicit AddressImpl(T v) : value(v) {}
-
-        operator T() const { return value; }
-    };
-}
-
-// operator<<(ostream&, AddressImpl<uint>) — 0x1c7ce0
-// Formats as "%u" via boost::format.
-std::ostream& operator<<(std::ostream& os, detail::AddressImpl<uint32_t> addr);
 
 // ============================================================================
 // Immediate — std::variant<AddressImpl<uint>, int, std::string>

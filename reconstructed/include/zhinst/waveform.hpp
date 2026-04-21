@@ -24,17 +24,9 @@
 #include <vector>
 
 #include "signal.hpp"
-
-namespace boost { namespace json { class value; } }
+#include "address_impl.hpp"
 
 namespace zhinst {
-
-struct DeviceConstants;
-
-namespace detail {
-    template<typename T>
-    using AddressImpl = T;  // simplification — wraps a uint32_t
-}
 
 // ============================================================================
 // Waveform::File — source file reference (0x40 bytes)

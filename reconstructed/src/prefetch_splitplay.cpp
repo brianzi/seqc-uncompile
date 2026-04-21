@@ -34,7 +34,7 @@ namespace zhinst {
 //   +0x28  wavesPerDev (vector<optional<string>>, each 0x20 bytes)
 //   +0x40  deviceIndex (int)
 //   +0x4C  length (int)     — used via WaveformIR
-//   +0x64  indexed (bool)   — APPROXIMATE
+//   +0x64  indexed (bool)   — confirmed
 //   +0x68  PlayConfig
 //   +0x88  playConfigReg (AsmRegister)
 //   +0x90  length2 (int)    — if nonzero, triggers simple path
@@ -91,7 +91,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         auto wfm = wfIR->getWaveformByName(waveName);
 
         uint16_t channels = wfm->signal.channels_;   // +0xC8
-        uint32_t numRepeats = wfm->signal.length_;    // +0xD0  APPROXIMATE
+        uint32_t numRepeats = wfm->signal.length_;    // +0xD0  confirmed
         DeviceConstants const* dc = wfm->deviceConstants;  // +0x78
 
         // 0x1dd3bf..0x1dd3e2: compute adjusted length
@@ -109,7 +109,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         // 0x1dd3e2..0x1dd400: totalLength = ceil((adjLen * channels * bitWidth) / 8)
         // bitWidth from dc+0x50
         uint64_t totalBits = static_cast<uint64_t>(adjLen) * channels;
-        int bitWidth = dc->bitsPerSample;  // +0x50  APPROXIMATE
+        int bitWidth = dc->bitsPerSample;  // +0x50  confirmed
         totalBits *= bitWidth;
         totalLength = static_cast<uint32_t>(totalBits / 8);
         if ((totalBits & 7) != 0)
@@ -124,11 +124,11 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     {
         // 0x1dd462..0x1dd49c: lock from weak_ptr at raw+0x20
         auto* weakCtrl = reinterpret_cast<std::__1::__shared_weak_count*>(
-            raw->ref_ctrl_);  // +0x20  APPROXIMATE
+            raw->ref_ctrl_);  // +0x20  confirmed
         if (weakCtrl) {
             // lock() succeeds → copy the pointer from raw+0x18
             lookupNode = std::shared_ptr<Node>(
-                reinterpret_cast<Node*>(raw->ref_ptr_),  // +0x18  APPROXIMATE
+                reinterpret_cast<Node*>(raw->ref_ptr_),  // +0x18  confirmed
                 [](Node*){});  // APPROXIMATE: actual refcount management
         }
     }
@@ -141,7 +141,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         auto it = nodeStates_.find(lookupNode);
         if (it != nodeStates_.end()) {
             auto& pns = it->second;
-            int pageSize = pns.pageSize;  // PNS+0x0C → hash_node+0x3C  APPROXIMATE
+            int pageSize = pns.cachePtr->pageSize_;  // PNS+0x28→cachePtr, then Cache::Pointer+0x0C
 
             auto it2 = nodeStates_.find(lookupNode);
             if (it2 != nodeStates_.end()) {
@@ -198,7 +198,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 
         // 0x1dd629: add 0x4c(%rax),%r12d — add wfm->waveformOffset to totalLength
         // WaveformIR+0x4C = some offset value
-        uint32_t wfmOffset = wfm->waveformOffset;  // +0x4C  APPROXIMATE
+        uint32_t wfmOffset = wfm->waveformOffset;  // +0x4C  confirmed
         uint32_t initialAddr = totalLength + wfmOffset;
 
         // 0x1dd637..0x1dd656: addi(asmCommands_, AsmRegister(0), addrReg, Immediate(initialAddr))
@@ -283,9 +283,8 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
                 break;  // 0x1ddab6: jge to after loop
             }
 
-            // 0x1ddac0..0x1ddad5: emit ssl(addrReg) — actually ssl with copyReg
-            // APPROXIMATE: the register used here is -0x150(%rbp) = copyReg from step 6
-            AsmList sslAsm = asmCommands_->ssl(cervinoReg);  // APPROXIMATE — may be copyReg
+            // 0x1ddac0..0x1ddad5: emit ssl(copyReg) — copyReg from step 6 at -0x150(%rbp)
+            AsmList sslAsm = asmCommands_->ssl(copyReg);  // confirmed: -0x150(%rbp)
             result.push_back(sslAsm.front());
 
             channelIdx++;
@@ -296,7 +295,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // 0x1ddb9b..0x1ddc7a
     {
         // 0x1ddbbf: call AsmCommands::addr(addrReg, copyReg)
-        AsmList addrAsm = asmCommands_->addr(addrReg, cervinoReg);  // APPROXIMATE
+        AsmList addrAsm = asmCommands_->addr(addrReg, copyReg);  // confirmed: -0x150(%rbp)
         result.push_back(addrAsm.front());
     }
 
@@ -308,7 +307,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 
     // ---- Step 12: Determine which register to use for insertPlay ----
     // 0x1de066..0x1de090
-    bool indexed = raw->indexed;  // +0x64  APPROXIMATE (movzbl 0x64(%rax))
+    bool indexed = raw->indexed;  // +0x64  confirmed (movzbl 0x64(%rax))
 
     // Choose register: if isHirzel, use hirzelReg (-0x130), else cervinoReg (-0x158)
     AsmRegister playReg = isHirzel ? hirzelReg : cervinoReg;
@@ -324,7 +323,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         // Look up cachePtr->position from second find  APPROXIMATE
         auto it2 = nodeStates_.find(node);
         auto* cachePtr2 = reinterpret_cast<Cache::Pointer*>(it2->second.cachePtr.get());
-        uint32_t position = cachePtr2->position_;  // 0x1de0cf: mov 0x8(%rax) — APPROXIMATE (could be offset 0x08 in Cache::Pointer)
+        uint32_t position = cachePtr2->position_;  // 0x1de0cf: mov 0x8(%rax) — confirmed Cache::Pointer+0x08
 
         // 0x1de0ec: call insertPlay(result, indexed, playLabel, playReg, halfSize, position)
         insertPlay(result, indexed, playLabel, playReg, halfSize, position);
@@ -347,14 +346,14 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     AsmRegister counterReg(resources_->getRegisterNumber());
 
     {
-        AsmList addiLoop = asmCommands_->addi(counterReg, hirzelReg, Immediate(1));  // APPROXIMATE
+        AsmList addiLoop = asmCommands_->addi(counterReg, hirzelReg, Immediate(1));  // confirmed
         result.insert(result.end(), addiLoop.begin(), addiLoop.end());
     }
 
     // ---- Step 16: Emit subr(counterReg, addrReg) ----
     // 0x1de38b..0x1de458
     {
-        // 0x1de3ae: call AsmCommands::subr(counterReg, addrReg)  APPROXIMATE
+        // 0x1de3ae: call AsmCommands::subr(counterReg, addrReg)  confirmed
         AsmList subrAsm = asmCommands_->subr(counterReg, addrReg);
         result.push_back(subrAsm.front());
     }
@@ -401,16 +400,16 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // 0x1de8fa..0x1de96d
     if (remainder != 0) {
         // 0x1de900..0x1de96d
-        bool indexed2 = raw->indexed;  // +0x64  APPROXIMATE
+        bool indexed2 = raw->indexed;  // +0x64  confirmed
         bool isHirzel2 = config_->isHirzel;
 
         AsmRegister playReg2 = isHirzel2 ? hirzelReg : cervinoReg;
 
         auto it = nodeStates_.find(node);
         auto* cachePtr = reinterpret_cast<Cache::Pointer*>(it->second.cachePtr.get());
-        uint32_t position = cachePtr->position_;  // APPROXIMATE — could be different field
+        uint32_t position = cachePtr->position_;  // confirmed Cache::Pointer+0x08
 
-        // 0x1de96d: call insertPlay(result, indexed2, lastLabel, playReg2, remainder, position)  APPROXIMATE
+        // 0x1de96d: call insertPlay(result, indexed2, lastLabel, playReg2, remainder, position)  confirmed
         insertPlay(result, indexed2, lastLabel, playReg2, remainder, position);
     }
 

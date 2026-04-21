@@ -55,21 +55,11 @@
 #include <vector>
 
 #include "types.hpp"
+#include "address_impl.hpp"
 
 namespace zhinst {
 
-class DeviceConstants;
-class Signal;
-class WaveformFront;
-class Value;
-class CachedParser;
-
 namespace detail {
-
-template <typename T>
-struct AddressImpl {
-    uint32_t value;
-};
 
 // ============================================================================
 // WavetableManager<WaveformFront> — 0x48 bytes

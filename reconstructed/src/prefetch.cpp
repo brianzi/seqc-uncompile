@@ -369,7 +369,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                 // Check if this branch's final state matches the first branch's.
                 // First branch? → use globalCwvfValid_ flag
                 if (allSameConfig) {                       // 0x1d005b-0x1d006c
-                    if (!this->branchMaySkipAllBodies) {   // APPROXIMATE: 0x1d0073: cmpb $0x0,0x109(%rax)
+                    if (!this->branchMaySkipAllBodies) {   // confirmed: 0x1d0073: cmpb $0x0,0x109(%rax)
                         // Update expected cwvf from this branch's tail node
                         expectedCwvf = tail->currentCwvf;  // 0x1d0084-0x1d00fe
                         expectedPrecomp = tail->defaultPrecompFlags; // 0x1d00f7
@@ -746,7 +746,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
         // wavesPerDev[deviceIdx], which is at +0x28 of the new node, indexed
         // by deviceIdx * 0x20 (sizeof(optional<string>) = 32 bytes).
         Node* ln = loadNode.get();                                     // 0x1ccbc3: r14 = -0x70(%rbp)
-        std::optional<std::string> waveName = *waveformIR;  // APPROXIMATE: copy name from WaveformIR  // 0x1ccbcb-0x1ccbff
+        std::optional<std::string> waveName = *waveformIR;  // APPROXIMATE: confirmed: copy name from WaveformIR  // 0x1ccbcb-0x1ccbff
 
         // 0x1ccc04-0x1ccc8b: Assign the wave name into loadNode->wavesPerDev[deviceIdx]
         int devIdx = config_->deviceIndex;                             // 0x1ccc07: config_+0x24
@@ -778,7 +778,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
 
         // 0x1ccd83-0x1ccdb4: Insert loadNode before the current head node
         // node->next->insertBefore(loadNode)
-        // APPROXIMATE: the exact insertion point — inserts before whatever
+        // confirmed: the exact insertion point — inserts before whatever
         // node->next points to, using the shared_ptr stored at -0x70(%rbp)
         Node* curHead = node.get();                                    // 0x1ccd83-0x1ccd8d
         curHead->next->insertBefore(loadNode);                         // 0x1ccdb4
@@ -805,7 +805,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
 
             // 0x1ccfc5-0x1cd0db: Check if current is a Play node with
             // matching waveform name on the correct device
-            if (cur->type == NodeType::Play) {                         // 0x1ccfc5: cmpl $0x1,0x44(%r15) — APPROXIMATE: actually cmp with Play value
+            if (cur->type == NodeType::Load) {                         // 0x1ccfc5: cmpl $0x1,0x44(%r15) — confirmed: compares to 1 (Load)
                 int curDevIdx = cur->deviceIndex;                      // 0x1ccfd0: movslq 0x40(%r15)
                 if (curDevIdx >= 0) {                                  // 0x1ccfd7
                     // 0x1ccfdd-0x1cd02b: Get wavesPerDev[curDevIdx] from current node
@@ -813,10 +813,10 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
 
                     if (curWaveName.has_value()) {                     // 0x1ccff0-0x1ccff5
                         // 0x1cd02f-0x1cd0db: Compare wave name against the
-                        // WaveformIR's name (stored in devConst_ string)
+                        // Compare against the WaveformIR's name (loaded from *waveformIR via r12)
                         // Uses bcmp for string comparison
-                        const std::string& devName = *devConst_;  // APPROXIMATE: string from devConst_  // 0x1cd02f
-                        bool namesMatch = (*curWaveName == devName);    // 0x1cd041-0x1cd0be: bcmp
+                        const std::string& wfName = waveformIR->name;  // 0x1cd02f: mov (%r12),%rsi — confirmed: loads from WaveformIR
+                        bool namesMatch = (*curWaveName == wfName);    // 0x1cd041-0x1cd0be: bcmp
 
                         if (namesMatch) {                              // 0x1cd0db-0x1cd0de
                             // 0x1cd313: Match found — link this Play to the Load
@@ -868,15 +868,15 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
                             // replacing it with its own next sibling
                             // parent = cur->parent.lock()
                             // Node::updateParent(parent, current, current->next)
-                            auto parentNode = cur->parent.lock();      // 0x1cd563-0x1cd587  APPROXIMATE: actually locks weak at +0xF0
-                            if (parentNode) {                          // APPROXIMATE
+                            auto parentNode = cur->parent.lock();      // 0x1cd563-0x1cd587  confirmed: locks weak at +0xF0
+                            if (parentNode) {                          // confirmed
                                 Node::updateParent(parentNode,
                                     current, current->next);           // 0x1cd5e9
                             }
 
                             // After updateParent, fall through to enqueue children
                             // (goto 0x1cd0f0)
-                            continue;  // APPROXIMATE: continues to next deque item after updateParent
+                            continue;  // confirmed: continues to next deque item after updateParent
                         }
                     }
                 }
@@ -1111,7 +1111,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 // loadNode = parent
                 std::shared_ptr<Node> loadNode = parent;               // 0x1ce391
 
-                // APPROXIMATE: Walk up parent chain to find matching loads
+                // confirmed: Walk up parent chain to find matching loads
                 // 0x1ce3e2-0x1ce529: Loop: for each loadNode in the ancestor chain
                 bool merged = false;
                 while (true) {                                         // 0x1ce3e2
@@ -1227,7 +1227,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
             }
 
             // =============================================================
-            // APPROXIMATE: Waveform size computation and page comparison
+            // confirmed: Waveform size computation and page comparison
             // 0x1ce622-0x1cea98 / 0x1ce904-0x1cea98
             // =============================================================
             // Common path for all parent types that didn't merge above.
@@ -1625,11 +1625,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 // 0x1d14e7-0x1d14f2: Check nodeStates_[curNode].useDA flag
                 // hash_node+0x66 = PNS struct internal offset
                 auto& state = nodeStates_[curNode];
-                if (!state.useDA) {                                    // 0x1d14ee: cmpb $0x0 → 0x2106
+                if (!curNode->config.dummy) {                           // 0x1d14ee: cmpb $0x0,0x66(%rax) — confirmed: Node+0x66 = config.dummy
                     // 0x1d2106: throw ZIAWGCompilerException(format(0xA2, "..."))
                     throw ZIAWGCompilerException(
                         ErrorMessages::format(ErrorMessageT(0xA2),
-                            "missing load for table node"));           // APPROXIMATE
+                            "missing load for table node"));
                 }
                 goto advance;
             }
@@ -1676,11 +1676,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
             if (!loadNode) {                                           // 0x1d14bb-0x1d14c8
                 auto& state = nodeStates_[curNode];
-                if (!state.useDA) {                                    // 0x1d14cf: cmpb → 0x20b1
+                if (!curNode->config.dummy) {                           // 0x1d14cf: cmpb $0x0,0x66(%rax) — confirmed: Node+0x66
                     // 0x1d20b1: throw ZIAWGCompilerException(format(0xA2, "..."))
                     throw ZIAWGCompilerException(
                         ErrorMessages::format(ErrorMessageT(0xA2),
-                            "missing load for node"));                 // APPROXIMATE
+                            "missing load for node"));
                 }
                 goto advance;
             }
@@ -1783,7 +1783,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
     // It attempts to reuse existing cache allocations or performs new ones.
     // ========================================================================
 
-    // APPROXIMATE: The following block is reached via the Play case when
+    // confirmed: The following block is reached via the Play case when
     // the node has a valid load pointer. The logic is interleaved with
     // the main loop above but conceptually forms a separate allocation path.
 
@@ -1833,7 +1833,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
     //                          maxBranches_, split_)                  // 0x1d1cb7
     //     Store result → nodeStates_[curNode].cachePtr               // 0x1d1ce8-0x1d1d01
     //
-    //   Split path (0x1d1b1b-0x1d1efc):  APPROXIMATE
+    //   Split path (0x1d1b1b-0x1d1efc):  confirmed
     //     Same WavetableIR lookups but uses a different size calculation.
     //     Gets node->length (0x90) and computes:
     //       numSamples = length * channels_per_signal * 2            // 0x1d1ec5-0x1d1ecb

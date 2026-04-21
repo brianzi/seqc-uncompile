@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "play_config.hpp"
+#include "address_impl.hpp"
 
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
@@ -29,21 +30,7 @@
 
 namespace zhinst {
 
-// Forward declarations
-struct AWGCompilerConfig;
-struct DeviceConstants;
-class AsmCommands;
-class Node;
-class WavetableIR;
-class Cache;
-class Resources;
-class WaveformIR;
-struct CancelCallback;
 class AsmList;
-
-namespace detail {
-    template<typename T> using AddressImpl = T;
-}
 
 // ============================================================================
 // Prefetch class — 0x160 bytes (352 bytes)

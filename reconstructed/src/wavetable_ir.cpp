@@ -260,64 +260,85 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     }
 
     // Allocate waveforms within cache-line structure               // 0x29e477
-    // APPROXIMATE: allocation lambda assigns addresses using
-    // the cache-line usage vector (similar to MemoryAllocator::allocateCLAligned)
+    // Lambda $_1 operator() at 0x2a9c80
     forEachUsedWaveform(
         [&](const std::shared_ptr<WaveformIR>& wf) {
-            // Allocate waveform position within cache-line structure
-            // using computedOffset and cacheLineUsage vector
+            // 1. Add computed offset to waveform address                // 0x2a9c8b
+            wf->addressValue += computedOffset;
+
+            // 2. Compute allocation size in bytes from signal properties // 0x2a9c95
+            uint16_t channels = wf->signal.channels_;           // +0xC8
+            uint32_t length = (uint32_t)wf->signal.length_;     // +0xD0
+            DeviceConstants* dc = wf->deviceConstants;          // +0x78
+
+            uint32_t sizeInBlocks;
+            if (length == 0) {                                  // 0x2a9ca8
+                sizeInBlocks = 0;
+            } else {
+                uint32_t granularity = dc->waveformGranularity; // DC+0x40
+                uint32_t pageSize = dc->waveformPageSize;       // DC+0x44
+                // Round up to multiple of pageSize, cap at granularity
+                uint32_t rounded = ((length + pageSize - 1) / pageSize) * pageSize;
+                sizeInBlocks = std::min(rounded, granularity);  // 0x2a9cc6
+            }
+
+            // totalBits = sizeInBlocks * channels * bitsPerSample       // 0x2a9cdb
+            uint64_t totalBits = (uint64_t)sizeInBlocks * channels * dc->bitsPerSample;
+            uint32_t allocationBytes = (uint32_t)((totalBits + 7) / 8); // 0x2a9ce9
+
+            if (allocationBytes == 0)                           // 0x2a9cf6
+                return;
+
+            // 3. Cap to max allocation per cache line                   // 0x2a9d07
+            uint32_t maxPerCL = maxBlocksPerCL * alignment;
+            if (allocationBytes > maxPerCL)
+                allocationBytes = maxPerCL;
+
+            // 4. Check waveform fits within current cache line          // 0x2a9d12
+            uint32_t offsetInCL = wf->addressValue % memorySizeInSamples;
+            if (offsetInCL + allocationBytes > memorySizeInSamples) // 0x2a9d1a
+                return;  // crosses cache-line boundary
+
+            // 5. Determine block range [startBlock, endBlock)           // 0x2a9d22
+            uint32_t startBlock = offsetInCL / alignment;
+            uint32_t endBlock = (offsetInCL + allocationBytes - 1) / alignment + 1;
+
+            // 6. Verify all blocks in range are unused (0xFFFFFFFF)     // 0x2a9d60
+            bool conflict = false;
+            for (uint32_t i = startBlock; i < endBlock; ++i) {
+                if (cacheLineUsage[i] != 0xFFFFFFFF) {
+                    conflict = true;
+                    break;
+                }
+            }
+            if (conflict)                                       // 0x2a9e03
+                return;
+
+            // 7. Fill cache-line entries with sequential addresses      // 0x2a9e09
+            if (startBlock != endBlock) {
+                uint32_t addr = wf->addressValue - (wf->addressValue % alignment);
+                for (uint32_t i = startBlock; i < endBlock; ++i) { // 0x2a9e20
+                    cacheLineUsage[i] = addr;
+                    addr += alignment;
+                }
+            }
+
+            // 8. Decrement available cache-line count                   // 0x2a9e2f
+            uint32_t usedEntries = endBlock - startBlock;
+            if (numCacheLines >= usedEntries)
+                numCacheLines -= usedEntries;
+            else
+                numCacheLines = 0;
+
+            // 9. Mark waveform as successfully allocated                // 0x2a9e47
+            if (maxPerCL != 0)
+                wf->irBool1 = true;                             // +0xDA
         },
         WaveOrder::Natural);                                       // 0x29e4b1
 
     // Update member offsets                                        // 0x29e4d9
     firstWaveformOffset_ += computedOffset;                        // 0x29e4dc
     addressBase_ += computedOffset + totalSize;                    // 0x29e4e2
-}
-
-    // Phase 1: count total samples and total allocation size  // 0x29e398
-    // Lambda $_0 captures: &cancelLock, &totalSize, this, &totalSamples, &waveCount
-    forEachUsedWaveform(
-        [&](const std::shared_ptr<WaveformIR>& wf) {
-            // Accumulates totalSamples, totalSize, waveCount from each waveform
-            totalSamples += wf->getSampleCount();
-            totalSize += wf->allocationByteSize;
-            waveCount++;
-        },
-        fifoMode ? WaveOrder::Natural : WaveOrder::ByName);  // 0x29e3ec
-
-    // Compute firstWaveformOffset with alignment             // 0x29e3fa
-    uint32_t alignment = deviceConstants_->waveformAlignment; // DC+0x14
-    uint32_t computedOffset;
-    if (fifoMode) {                                           // 0x29e400
-        computedOffset = 0;
-    } else {                                                  // 0x29e409
-        uint64_t raw = totalSamples * 32 + alignment + 0x53;
-        computedOffset = (uint32_t)(raw - (raw % alignment));
-    }
-
-    // Phase 2: Build cache-line occupancy vector and allocate // 0x29e437
-    uint32_t memorySizeInSamples = deviceConstants_->waveformMemorySize;  // DC+0x0C
-    uint32_t maxBlocksPerCL = deviceConstants_->cachePageCount;           // DC+0x18
-    uint32_t numCacheLines = memorySizeInSamples / alignment;             // 0x29e458
-    std::vector<uint32_t> cacheLineUsage;
-    if (alignment <= memorySizeInSamples) {                                // 0x29e461
-        cacheLineUsage.resize(numCacheLines, unusedCacheLine);            // 0x29e472
-    }
-
-    // Lambda $_1 captures: &computedOffset, &stackAllocatorStruct        // 0x29e477
-    // Calls allocate on each waveform, assigning addresses/offsets
-    forEachUsedWaveform(
-        [&](const std::shared_ptr<WaveformIR>& wf) {
-            // Allocate waveform within the cache-line structure
-            // using computedOffset and the local allocator state
-            // (memorySizeInSamples, alignment, maxBlocksPerCL,
-            //  cacheLineUsage, numCacheLines)
-        },
-        WaveOrder::Natural);                                  // 0x29e4b1
-
-    // Update member offsets                                   // 0x29e4d9
-    firstWaveformOffset_ += computedOffset;                   // 0x29e4dc
-    addressBase_ += computedOffset + totalSize;               // 0x29e4e2
 }
 
 // 0x29e5e0 — WavetableIR::forEachUsedWaveform(function, WaveOrder) const
@@ -478,22 +499,45 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
     uint32_t maxBlocks = dc->maxBlocks;                      // DC+0x1C
 
     // Inlined MemoryAllocator construction                   // 0x29ed5a
-    uint32_t numCacheLines = memorySizeInSamples / alignment;
-    std::vector<uint32_t> cacheLineUsage;
-    if (alignment <= memorySizeInSamples) {
-        cacheLineUsage.resize(numCacheLines, 0xFFFFFFFF);    // sentinel fill
-    }
-    uint32_t lastAllocEnd = 0xFFFFFFFF;                       // sentinel
+    MemoryAllocator allocator(dc, /*startOffset=*/0);
 
-    // Phase 1: allocate each waveform via CL-aligned allocation // 0x29ee0d
+    // Phase 1: allocate waveforms with irBool0 == 1          // 0x29ee0d
     std::set<size_t> allocatedSet;
     try {
         forEachUsedWaveform(
             [&](const std::shared_ptr<WaveformIR>& wf) {
-                // allocateCLAligned with fallback to allocateReloadingCL
-                // Sets wf->addressValue (+0x4C) from allocation result
-                // Sets wf->irBool1 (+0xDA) = crossesCacheLine flag
-                // Tracks allocation in allocatedSet
+                // 0x2aa715: Skip if nothing to allocate
+                if (wf->allocationByteSize == 0)              // +0x74
+                    return;
+                // 0x2aa723: Only process waveforms flagged irBool0 == 1
+                if (!wf->irBool0)                             // +0xD9
+                    return;
+
+                // 0x2aa740: Allocate via cache-line-aligned strategy
+                MemoryBlock block = allocator.allocateCLAligned(wf->allocationByteSize);
+
+                // 0x2aa781: If allocation failed, throw
+                if (!(block.flags & 1)) {
+                    throw std::runtime_error("Waveform memory overflow in FIFO allocation");
+                }
+
+                // 0x2aa792: Track used cache lines if maxBlocks > 0
+                if (maxBlocks > 0) {
+                    uint32_t startAddr = block.start;
+                    uint32_t endAddr = block.end;
+                    if (startAddr < endAddr) {                // 0x2aa7c0
+                        uint32_t pos = startAddr;
+                        for (size_t i = 0; i < maxBlocks && pos < endAddr; ++i) {
+                            uint32_t clIdx = (pos % memorySizeInSamples) / alignment;
+                            allocatedSet.insert(static_cast<size_t>(clIdx));  // 0x2aa817
+                            pos += alignment;
+                        }
+                    }
+                }
+
+                // 0x2aa874: Set waveform address and crossing flag
+                wf->addressValue = block.start;               // +0x4C
+                wf->irBool1 = (block.flags >> 8) & 1;        // +0xDA (crossesCacheLine)
             },
             WaveOrder::Natural);                              // 0x29ee40
     } catch (const std::exception& e) {                       // 0x29f070
@@ -501,16 +545,45 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
             std::string("Waveform memory overflow: ") + e.what());
     }
 
-    // Phase 2: finalize offsets                               // 0x29ee67
+    // Phase 2: allocate remaining waveforms (irBool0 == 0)   // 0x29ee67
     forEachUsedWaveform(
         [&](const std::shared_ptr<WaveformIR>& wf) {
-            // Second pass to finalize waveform offsets
+            // 0x2acfc2: Skip if nothing to allocate
+            if (wf->allocationByteSize == 0)                  // +0x74
+                return;
+            // 0x2acfcd: Only process waveforms with irBool0 == 0
+            if (wf->irBool0)                                  // +0xD9
+                return;
+
+            // 0x2acfe7: Try cache-line-aligned allocation first
+            MemoryBlock block = allocator.allocateCLAligned(wf->allocationByteSize);
+
+            if (block.flags & 1) {                            // 0x2ad012
+                // Direct assignment — fits without reloading
+                wf->addressValue = block.start;               // +0x4C
+                wf->irBool1 = (block.flags >> 8) & 1;        // +0xDA
+                return;
+            }
+
+            // 0x2ad02e: Fall back to reloading allocation
+            std::set<size_t> localAllocSet(allocatedSet.begin(), allocatedSet.end());
+            MemoryBlock block2 = allocator.allocateReloadingCL(
+                wf->allocationByteSize, localAllocSet);       // 0x2ad087
+
+            if (!(block2.flags & 1)) {                        // 0x2ad09f
+                throw std::runtime_error("Waveform memory overflow in FIFO reloading");
+            }
+
+            wf->addressValue = block2.start;                  // +0x4C
+            wf->irBool1 = 0;                                 // +0xDA — reloaded, no CL crossing
         },
         WaveOrder::Natural);                                  // 0x29ee93
 
     // Update addressBase_ from last allocation position       // 0x29eef2
-    // Reads final position from deque page (division by 341 for page indexing)
-    // addressBase_ = finalPosition;
+    // Reads final position from deque end
+    if (!allocator.freeBlocks_.empty()) {
+        addressBase_ = allocator.freeBlocks_.back().end;
+    }
 }
 
 // 0x29f310 — WavetableIR::loadWaveform(shared_ptr<WaveformIR>)

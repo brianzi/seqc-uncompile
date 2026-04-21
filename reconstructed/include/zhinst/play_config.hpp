@@ -6,7 +6,7 @@
 
 #include <cstdint>
 #include <boost/json/value.hpp>
-#include "detail/address_impl.hpp"
+#include "address_impl.hpp"
 
 namespace zhinst {
 

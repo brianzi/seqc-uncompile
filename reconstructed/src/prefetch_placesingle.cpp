@@ -191,7 +191,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                     AsmList tempList2;
                     Node* lastCwvf = lastCwvfNode_.get();
-                    cwvfConfig_ = lastCwvf->playConfig;            // 0x1d803e  APPROXIMATE
+                    cwvfConfig_ = lastCwvf->playConfig;            // 0x1d803e  confirmed: movups 0x48(%rax) to 0xc0(%r15)
                     usageEntries_.push_back(cwvfConfig_);
 
                     Node* npEnc = node.get();
@@ -424,9 +424,8 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                     // ... see below
                                 } else if (nodeStates_[node].cachePtr->size_ == config_->cacheSize) {
                                     // Cache size matches config: split wvfImpl           // 0x1d9d5f
-                                    int halfPageCount = (int)((unsigned)pageCount2 >> 1) + 
-                                                        ((unsigned)pageCount2 & 1 ? 1 : 0);
-                                    // APPROXIMATE: roundUp(pageCount2/2)                // 0x1d9d68..0x1d9d75
+                                    int halfPageCount = pageCount2 / 2;  // signed div, rounds toward zero
+                                    // confirmed: shr $0x1f + add + sar $1 pattern = signed /2   // 0x1d9d68..0x1d9d75
                                     bool is4Ch = node.get()->is4Channel; // +0x64       // 0x1d9d78..0x1d9d7d
 
                                     // First wvfImpl call

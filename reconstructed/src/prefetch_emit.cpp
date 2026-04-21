@@ -625,7 +625,7 @@ treeWalk:
     {
         Node* parentNode = parentSp.get();                                     // r12 = -0x30
         if (!parentNode)
-            goto notFoundInTree;  // APPROXIMATE — shouldn't happen normally
+            goto notFoundInTree;  // confirmed — shouldn't happen normally
 
         // Check if parentNode->next == node                                   // 0x1dc9f0–0x1dca03
         if (parentNode->next.get() != nullptr &&
@@ -700,8 +700,7 @@ treeWalk:
             // Node found in branches. Lock parentNode's parent and            // 0x1dca53
             // compare PlayConfig.
             auto grandParentSp2 = parentNode->parent.lock();                   // 0x1dca63–0x1dca70
-            Node* grandParent2 = grandParentSp2 ? grandParentSp2.get()         // APPROXIMATE
-                                                : parentNode->parent.lock().get();  // 0x1dca74
+            Node* grandParent2 = grandParentSp2.get();                          // confirmed: raw ptr always from 0xf0(%r12)
 
             // Check if grandParent2->next == parentNode                       // 0x1dca80
             if (grandParent2 && grandParent2->next.get() == parentNode) {
@@ -735,9 +734,9 @@ treeWalk:
                         goto ancestorFoundNext;
                     }
                 }
-                // Check if parent's loop == walk.                             // APPROXIMATE
-                // (At 0x1dcba0: if no parent or next!=walk, check            // 0x1dcba0–0x1dcba8
-                //  constant 0xb8 — likely checking walk->next field addr.)
+                // Null-parent fallback: checks if 0xb8 == r12 (next-field offset from nullptr).
+                // In practice unreachable — a dead path / null-deref guard.       // confirmed
+                // (At 0x1dcba0: cmp %r12, 0xb8 — compares walk against NULL->next)
 
                 auto walk2ParentSp = parentSp;                                 // r15 = -0x30 (parentSp)  // 0x1dcbae
                 if (walk2ParentSp) {
@@ -752,7 +751,7 @@ treeWalk:
                 }
 
                 // Advance walk up via its parent.                             // 0x1dcc1e–0x1dcc55
-                auto nextWalkSp = parentSp->parent.lock();                     // APPROXIMATE
+                auto nextWalkSp = parentSp->parent.lock();                     // confirmed
                 walk = nextWalkSp.get();
                 parentSp = nextWalkSp;                                         // update parentSp
                 continue;
@@ -761,7 +760,7 @@ treeWalk:
         ancestorFoundNext:                                                     // 0x1dce74
             {
                 // Lock parentNode's parent for PlayConfig::operator!=.        // 0x1dce78–0x1dce95
-                auto pSp = walk->parent.lock();                                // APPROXIMATE
+                auto pSp = walk->parent.lock();                                // confirmed — r14 = [rbp-0x30] = walk = parentSp.get()
                 Node* p = pSp.get();
                 if (p) {
                     return p->currentCwvf != node.get()->currentCwvf;          // 0x1dcee0–0x1dceec: PlayConfig::operator!=
@@ -772,7 +771,7 @@ treeWalk:
         ancestorFoundLoop:                                                     // 0x1dcef4
             {
                 // Compare parentSp's parent's currentCwvf vs node.            // 0x1dcef4–0x1dcfaa
-                auto pSp = parentSp->parent.lock();                            // APPROXIMATE — r15
+                auto pSp = parentSp->parent.lock();                            // confirmed — r15
                 Node* p = pSp.get();
                 Node* cur = node.get();
 
@@ -789,10 +788,10 @@ treeWalk:
 
                 // All match. Lock p's parent and p's parent's parent,         // 0x1dcfb0–0x1dd018
                 // then compare via PlayConfig::operator!=.
-                auto ppSp = p->parent.lock();                                  // APPROXIMATE
+                auto ppSp = p->parent.lock();                                  // confirmed — r14 = pSp.get() = p
                 Node* pp = ppSp.get();
                 if (pp) {
-                    auto pppSp = pp->parent.lock();                            // APPROXIMATE
+                    auto pppSp = pp->parent.lock();                            // confirmed
                     Node* ppp = pppSp.get();
                     if (ppp) {
                         return ppp->currentCwvf != cur->currentCwvf;           // 0x1dd008–0x1dd018: PlayConfig::operator!=

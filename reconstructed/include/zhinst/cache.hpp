@@ -31,12 +31,9 @@
 #include <unordered_map>
 #include <vector>
 
-namespace zhinst {
+#include "address_impl.hpp"
 
-namespace detail {
-    template<typename T>
-    using AddressImpl = T;
-}
+namespace zhinst {
 
 struct WaveformIR;
 

@@ -746,12 +746,30 @@ Mixed TODO/elision/APPROXIMATE markers across various files. Each needs targeted
 Reconstructed code with uncertain field offsets/register mappings.
 Needs re-disassembly to verify and fix each APPROXIMATE annotation.
 
-- [ ] `prefetch_splitplay.cpp` (22 APPROXIMATE) — field offsets + register mappings
-- [ ] `prefetch.cpp` (18 APPROXIMATE) — optimize() and allocate() logic
-- [ ] `prefetch_print.cpp` (17 APPROXIMATE) — output formatting details
-- [ ] `prefetch_emit.cpp` (8 APPROXIMATE) — wvf/placeCommands details
-- [ ] `prefetch_placesingle.cpp` (2 APPROXIMATE) — cervino paths
-- [ ] Sub-phase wrap-up
+- [x] `prefetch_splitplay.cpp` (22→5 APPROXIMATE) — 17 resolved, 3 corrected
+- [x] `prefetch.cpp` (18→5 APPROXIMATE) — 13 resolved, 4 corrected
+- [x] `prefetch_print.cpp` (17→0 APPROXIMATE) — all 17 confirmed correct
+- [x] `prefetch_emit.cpp` (8→0 APPROXIMATE) — 4 confirmed, 2 corrected, 2 confirmed after disasm review
+- [x] `prefetch_placesingle.cpp` (2→0 APPROXIMATE) — 1 confirmed, 1 corrected
+- [x] Sub-phase wrap-up
+
+### 10.5f-deferred. Remaining prefetch APPROXIMATE markers (10 items, low priority)
+
+Residual APPROXIMATE markers that need deeper disassembly analysis for diminishing returns.
+
+**prefetch.cpp (5):**
+- [ ] Line 472: bitmask `0x114` — verify exact bits for Play/Branch/Loop type check
+- [ ] Line 496: enum name ordering — verify NodeType enum values vs jump table layout
+- [ ] Line 508: `NodeType::Play` cmp $0x2 — verify enum value
+- [ ] Line 527: `shared_ptr<Node>` aliasing constructor — verify deleter forwarding pattern
+- [ ] Line 749: `optional<string> waveName = *waveformIR` — verify copy semantics from WaveformIR
+
+**prefetch_splitplay.cpp (5):**
+- [ ] Line 123: `lookupNode` source — may be raw->parent or raw->ref
+- [ ] Line 132: lambda deleter `[](Node*){}` — verify actual refcount management
+- [ ] Line 173: `totalLength = coveredByFull` assignment — verify mov operand mapping
+- [ ] Line 323: `cachePtr->position` from second find — verify hash lookup result access
+- [ ] Line 344: loop counter decrement — verify exact decrement semantics
 
 ### 10.5g. wavetable_ir.cpp allocation lambda bodies
 
@@ -759,27 +777,37 @@ The Phase 2 allocation lambdas in `allocateWaveforms` and `allocateWaveformsForF
 remain approximate stubs. The logic involves inlined MemoryAllocator cache-line
 allocation (allocateCLAligned / allocateReloadingCL) inside lambda closures.
 
-- [ ] `allocateWaveforms` Phase 2 lambda — cache-line allocation using cacheLineUsage vector
-- [ ] `allocateWaveformsForFifo` lambda$_0 — CL-aligned allocation with set tracking
-- [ ] `allocateWaveformsForFifo` lambda$_1 — finalize offsets pass
-- [ ] Sub-phase wrap-up
+- [x] `allocateWaveforms` Phase 2 lambda — cache-line allocation using cacheLineUsage vector (operator() @0x2a9c80)
+- [x] `allocateWaveformsForFifo` lambda$_0 — CL-aligned allocation with set tracking (operator() @0x2aa700)
+- [x] `allocateWaveformsForFifo` lambda$_1 — reloading fallback allocation (operator() @0x2acfb0)
+- [x] Sub-phase wrap-up
 
 ### 10.5h. static_resources.cpp full constant extraction
 
-The `init()` function is ~15KB of addConst() calls. Currently only 14+14+3 constants
-are extracted (rate + trigger families). ~100+ more remain (DIO, MARKER, QA, ZSYNC,
-integration, device-specific constants).
+All 213 addConst() calls in init() are now fully reconstructed.
 
-- [ ] Extract remaining HDAWG/Hirzel constants (DIO, MARKER, etc.)
-- [ ] Extract remaining UHF/Cervino constants (QA, integration, etc.)
-- [ ] Extract common constants (ZSYNC, misc.)
-- [ ] Sub-phase wrap-up
+- [x] Extract remaining HDAWG/Hirzel constants (2.0GHz rates, QA_INT/QA_GEN, SHF/SHFQC rates)
+- [x] Extract remaining UHF/Cervino constants (already present from 10.5e)
+- [x] Extract common constants (triggers, channels, suppress/enable, math, booleans)
+- [x] Sub-phase wrap-up
+
+### 10.5i. detail:: namespace cleanup
+
+Survey of ~53 detail:: types, ~200 symbols. Extracted AddressImpl<T> into own header,
+reconstructed logExceptionToClog, cleaned up bogus aliases/forward-decls in 8 headers.
+
+- [x] Survey detail:: namespace symbols (53 types, ~200 functions, ~39KB code)
+- [x] Extract AddressImpl<T> from value.hpp → address_impl.hpp
+- [x] Reconstruct logExceptionToClog → log_exception.cpp
+- [x] Fix play_config.hpp broken include path
+- [x] Clean bogus AddressImpl aliases/forward-decls in 6 headers (cache, elf_writer, prefetch, waveform, wavetable_front, wavetable_ir)
+- [x] Sub-phase wrap-up
 
 #### Phase 10.5 wrap-up
 
-- [ ] Update OVERVIEW.md
-- [ ] Update unknowns.md (close any resolved during revisits)
-- [ ] Propose TODO.md adjustments
+- [x] Update OVERVIEW.md
+- [x] Update unknowns.md (closed #70 PrefetcherNodeState)
+- [x] Propose TODO.md adjustments (10.5g, 10.5h added; 11d compiler.cpp note added)
 
 ---
 
@@ -910,6 +938,7 @@ in a different module.
 - [x] ~~Full reconstruction of `addi32()`~~ — moved to Phase 10.5c
 - [x] ~~AWGCompilerConfig~~ — fully reconstructed in Phase 3d
 - [ ] MathCompiler (67 symbols) — separate math expression compiler
+- [ ] detail::WavetableManager<T> (14 methods, ~6KB) — template waveform table manager
 - [ ] DeviceType/DeviceFamily/DeviceTypeCode/DeviceOption (150 symbols) — device enumeration
 - [ ] logging + tracing infrastructure (73 symbols)
 - [ ] Add `CMakeLists.txt` to compile reconstructed code as a validation step

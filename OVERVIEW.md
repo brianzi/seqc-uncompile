@@ -72,6 +72,7 @@ reconstructed/
 │   ├── asm_register.hpp         # AsmRegister struct {int value; bool valid} (8 bytes)
 │   ├── value.hpp                # Immediate (28B std::variant), Value (40B boost::variant),
 │   │                            #   AddressImpl<T>, ValueException
+│   ├── address_impl.hpp         # detail::AddressImpl<T> — extracted from value.hpp
 │   ├── assembler.hpp            # AssemblerInstr (0x80 bytes), Assembler::Command enum (43 opcodes)
 │   ├── play_config.hpp          # PlayConfig struct — all shift/mask constants confirmed
 │   ├── node.hpp                 # Node class (0x110 bytes), NodeType enum (14 types)
@@ -171,6 +172,9 @@ reconstructed/
 │   │                                #   allocateReloadingCL (inlined),
 │   │                                #   allocateFirstSuitableFreeBlock<T> (3 instantiations)
 │   ├── callbacks.cpp                # ProgressCallback: dtor, setProgress (both empty defaults)
+│   ├── log_exception.cpp           # zhinst::detail::logExceptionToClog @0x314a30 (953 bytes)
+│   │                               #   Rethrows exception_ptr, catches boost::exception / std::exception / ...,
+│   │                               #   logs diagnostic info to std::clog
 │   ├── asm_expression.cpp          # AsmExpression: dtor, createValue, createRegister,
 │   │                              #   createName, createArgList, appendArgList (6 functions)
 │   ├── asm_parser_context.cpp      # AsmParserContext: 22 accessors, Label ctor/op==,
@@ -278,7 +282,7 @@ reconstructed/
 - `AsmCommands::alui()` — multi-instruction immediate splitting (core logic present, edge cases uncertain)
 - `AsmCommands::asmPlay()` — most complex method; waveform name vector, PlayConfig, packed play word
 - `AsmCommands::genPlayConfig()` — marker processing loop reconstructed
-- `AsmCommands::syncCervino()` / `unsyncCervino()` — stubbed; ~1000 asm lines each, deferred
+- `AsmCommands::syncCervino()` / `unsyncCervino()` — **fully reconstructed** (Phase 10.5d)
 - `AsmList::parseStringToAsmList()` — **fully reconstructed**; 0x266160–0x268130 (7632 bytes). Deserializes assembly text via AWGAssembler pipeline, rebuilds AsmList with register assignment via getRegisterOrder() switch, JSON-based Node reconstruction for placeholder entries, and Node::installPointers post-pass.
 - `AsmOptimize::registerAllocation()` — algorithm structure captured (live ranges, conflict graph, greedy allocation); full ~1900 asm lines are approximate
 - `AsmOptimize::removeUnusedRegs()` — core logic present, cancel callback and inner scan loop approximate
@@ -294,7 +298,7 @@ reconstructed/
 - Cache allocation: allocate (branch-scoped via Cache::getScope)
 - Helpers: backwardTree, removeBranches, expandSetVar, findLockedPlay, sameLoads, nodeByCachePointer
 - Queries: getMemoryHighWatermark, getRequiredMemory, getUsedChannels, getUsedFourChannelMode, clampToCache
-- `PrefetcherNodeState` — per-node state: 2 AsmRegisters, counter, refTrack, pageSize, usedCache, cachePtr, useDA
+- `PrefetcherNodeState` — per-node state (0x40 bytes): 2 AsmRegisters (hirzel/cervino), state (init=3, unloaded), branchCount (init=1), refTrack, pageSize (init=1), requiredSlots, shared_ptr\<Cache::Pointer\> cachePtr, useDA bool. Phase 10.5e: corrected init values and field types.
 
 *Phase 9a — ElfWriter:*
 - `ElfWriter` — 0x78-byte ELF output writer (inherits ELFIO::elfio). All 8 methods: ctor @0x2934a0, prepareHeader @0x2936b0, addCode @0x293710, addData @0x293990, addWaveform @0x2939f0 (returns unique_ptr\<RawWave\>), writeFile(ostream) @0x294030, writeFile(string) @0x2942a0, setMemoryOffset @0x294410. Phase 10.5b: replaced vtable-offset pseudocode with proper ELFIO API calls; fixed addWaveform return type (unique_ptr\<RawWave\>, not ElfWriter*) and NOBITS path (set_size, not set_link).
@@ -315,7 +319,7 @@ reconstructed/
 
 *Phase 10 — Scope & Symbol Management:*
 - `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed (Phase 10c). Factory functions: createValue, createRegister, createName, createArgList, appendArgList
-- `StaticResources` (0x110) — ctor, dtor, getVariable override (special name detection), init (~15KB of addConst calls for device constants)
+- `StaticResources` (0x110) — ctor, dtor, getVariable override (SSE checks for DEVICE_SAMPLE_RATE, AWG_MONITOR_TRIGGER, AWG_INTEGRATION_ARM/TRIGGER, ZSYNC_DATA_PROCESSED_*; reports error 0x34 for deprecated constants), init (**fully reconstructed**: all 213 addConst calls across ~15KB — 4 rate families, QA_INT/QA_GEN channel bitmasks, ZSYNC_DATA computed constants, 32 trigger indices, trigger bitmasks, channels/markers, suppress/enable, math constants, booleans)
 - `GlobalResources` (0xD8) — ctor (MT19937-64 PRNG seeding), dtor. TLS statics: regNumber, labelIndex, random[313]
 - `Resources` base (0xD8) — 20+ methods reconstructed: setState, hasMain, setReturnType/getReturnType (recursive parent walk), setReturnValue×2/getReturnValue, setReturnReg/getReturnReg (recursive), getRegisterNumber (TLS), getVariable (virtual, parent-walking search), print/toString/printAll/printScopes. Inner types: Variable (0x58 bytes: varType, boost::variant data, AsmRegister, name, flags; dtor @0x1e4be0), Function (0x78 bytes: name, signature, returnType, arguments vector, scope shared_ptr, body unique_ptr; ctor/dtor/resetScope/addArguments/addBody/getBody), State enum (Unset=0, Active=1, Paused=2, Locked=3), ResourcesException (ctor/dtor/what)
 
@@ -336,6 +340,14 @@ reconstructed/
 - `clampToCache` — address clamping with Hirzel alignment
 - Key discovery: AWGCompilerConfig+0x19 = `cacheType` (uint8_t, Normal=0 / Aligned=1)
 
+*Phase 10.5f — Prefetch APPROXIMATE Revisits (COMPLETE):*
+- Reduced 67 APPROXIMATE markers across 5 files to 10 (all in prefetch.cpp and prefetch_splitplay.cpp)
+- `prefetch_print.cpp`: all 17 confirmed correct (0 remaining)
+- `prefetch_emit.cpp`: 8→0 (fixed ternary in line 703, null-parent guard in 738, confirmed rest)
+- `prefetch_placesingle.cpp`: 2→0 (fixed halfPageCount signed-div, confirmed cwvfConfig copy)
+- `prefetch.cpp`: 18→5 (fixed NodeType::Play→Load, devConst_→waveformIR name, state.useDA→curNode->config.dummy ×2)
+- `prefetch_splitplay.cpp`: 22→5 (fixed pageSize access via cachePtr->pageSize_, ssl/addr register copyReg not cervinoReg)
+
 ## Key Technical Findings
 
 - **Return convention:** All `const` methods use sret (hidden first parameter = return value pointer). Actual `this` is in `rsi`.
@@ -352,7 +364,7 @@ reconstructed/
 - **Signal (Phase 3c):** 0x58 bytes (corrected from 48). Fuzzy float comparison: `|a-b| <= |b|*eps + eps` (eps=1e-12). `checkAllocation()` is a lazy materializer. `getRawData()` reveals RawWaveData hierarchy.
 - **AwgDeviceType (Phase 3d):** Major enum correction. 9 devices with codenames (cervino/hirzel/klausen/grimsel_*/gurnigel/maloja). 5 Hirzel, 4 Cervino. Channel grouping only for HDAWG.
 - **AWGAssembler (Phase 4):** Raw owning pointer pimpl. Six instruction encoding formats (opcode0–5). Pipeline: file→string→AST→expressions→evaluate→opcodeN. ELF output with .comment/.filename/.asm sections. Label resolution via boost::bimap.
-- **Waveform Complex (Phase 5):** Front/IR split architecture. `WavetableManager<T>` shared template. Wave index assignment: explicit or implicit (auto-fill gaps). Allocation is FIFO-deque based with device granularity alignment. `CachedParser` (0x60 bytes) embedded in both WavetableFront and WavetableIR — not yet reconstructed.
+- **Waveform Complex (Phase 5, updated 10.5g):** Front/IR split architecture. `WavetableManager<T>` shared template. Wave index assignment: explicit or implicit (auto-fill gaps). Allocation is FIFO-deque based with device granularity alignment. `CachedParser` (0x60 bytes) embedded in both WavetableFront and WavetableIR — not yet reconstructed. Phase 10.5e: `getJsonIndex` returns `std::string` via `boost::property_tree` (not `boost::json::value`); `alignWaveformSizes` uses `waveformPageSize` (DC+0x44) not `waveformAlignment`; `assignWaveformAllocationSizes` computes ceil(samples*channels*bitsPerSample/8) rounded to 64 bytes, with `bitsPerSample` at DC+0x50, `waveformGranularity` (DC+0x40) as max cap; `WaveformFront` inlined basic ctor takes `(name, fileType, devConst)`, sets waveIndex=-1, playIndex=1. Phase 10.5g: all 3 allocation lambda bodies fully reconstructed — `allocateWaveforms` Phase 2 lambda (0x2a9c80) performs per-waveform cache-line allocation with conflict checking; `allocateWaveformsForFifo` uses two-pass strategy: $_0 (0x2aa700) allocates irBool0==1 waveforms via `allocateCLAligned`, $_1 (0x2acfb0) handles irBool0==0 with `allocateReloadingCL` fallback. Key: `irBool0` (+0xD9) partitions waveforms into two allocation classes; `irBool1` (+0xDA) = crossesCacheLine flag from MemoryBlock.flags bit 8.
 - **AsmOptimize (Phase 6):** 0xA0-byte optimizer with flag-controlled passes. 5 optimization flags (0x01=jumpElim, 0x02=labelCleanup, 0x04=deadCode, 0x08=mergeZeroing, 0x10=regAlloc). Query helpers use `getCmdType()` bitmask (bit 0=reads, bit 1=writes). Register allocator is graph-coloring with greedy allocation; on failure, retries after `splitConstRegisters` (splits long live ranges of constant-loaded registers). `reportUserMessages` extracts MESSAGE/ERROR_MSG pseudo-instructions and routes them through std::function callbacks. `GlobalResources::regNumber` (TLS) provides fresh virtual register numbers for splitting. `OptimizeException` (0x20 bytes) inherits `std::exception` (not `std::runtime_error`).
 - **Compiler Pipeline (Phase 7a):** Compiler is a 0x138-byte orchestrator. Pipeline: parse (flex/bison) → toSeqCAst → FrontEndLoweringFacade::lower (virtual dispatch) → linearize → AsmOptimize::optimizePreWaveform → serialize/deserialize round-trip → runPrefetcher (Prefetch + WavetableIR waveform sizing/allocation/placement) → AsmOptimize::optimizePostWaveform → unsyncCervino → output. FrontEndLoweringFacade is a thin static facade — packs args into FrontendLoweringContext, dispatches to SeqCAstNode::lower() virtual. CompilerMessageCollection (0x20 bytes inline) accumulates errors/warnings with duplicate filtering. Debug flags at AWGCompilerConfig+0x90 control AST/tree/assembly printing.
 - **Cache (Phase 7b):** 0x28-byte waveform cache with sorted vector of Pointer entries. Two allocation modes: Normal (no alignment doubling) and Aligned (pageSize*2). Gap-finding algorithm (best-fit). PointerState machine: Ready→Playing→LastPlayed→Free. `getScope()` creates a snapshot copy. `unusedCacheLine` sentinel = 0xFFFFFFFF. Error messages use ErrorMessageT indices 0x13–0x16.

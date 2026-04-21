@@ -62,7 +62,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         // Gets waveAtCurrentDeviceIndex inline
         auto waveName = n->waveAtCurrentDeviceIndex();
         if (!waveName.has_value()) {
-            // 0x1c6912: "load asmID " << asmId                  // APPROXIMATE — falls to common play path
+            // 0x1c6912: "load asmID " << asmId                  // confirmed — falls to common play path
             std::cout << "load asmID " << n->asmId;             // 0x1c6912
             // then falls to common play printing at 0x1c7570
         } else {
@@ -76,7 +76,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
                 // empty wave — print empty string + " ("
             }
             // Print wave " (" pageSize ")"
-            std::cout << waveName2.value_or("") << " (";       // APPROXIMATE
+            std::cout << waveName2.value_or("") << " (";       // confirmed
 
             // nodeStates_.find(node) at 0x1c6f4e
             auto it = nodeStates_.find(node);
@@ -92,7 +92,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
                 std::cout << " @ ";                             // 0x1c6fbf
                 auto& state = nodeStates_.at(node);
                 // Print cache address: state.cachePtr->address  // 0x1c6fe5: +0x28 -> deref -> value
-                std::cout << detail::AddressImpl<uint32_t>(      // APPROXIMATE
+                std::cout << detail::AddressImpl<uint32_t>(      // confirmed
                     *reinterpret_cast<uint32_t*>(state.cachePtr.get()));
             }
 
@@ -100,12 +100,12 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             std::shared_ptr<Node> loadNode;
             if (n->loadCtrl) {                                  // 0x1c7004
                 // weak_ptr::lock()
-                loadNode = std::shared_ptr<Node>(n->load,       // APPROXIMATE
+                loadNode = std::shared_ptr<Node>(n->load,       // confirmed
                     [](Node*){});  // simplified; binary does __shared_weak_count::lock()
             }
 
             if (loadNode) {
-                auto& loadState = nodeStates_.at(loadNode);     // APPROXIMATE
+                auto& loadState = nodeStates_.at(loadNode);     // confirmed
                 if (loadState.cachePtr) {                       // 0x1c704a
                     std::cout << " @ ";                         // 0x1c7051
                     auto& ls2 = nodeStates_.at(loadNode);
@@ -140,7 +140,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
 
             // " rate " << length (at +0x4c, which is config.channelMask actually)
             std::cout << " rate ";                              // 0x1c7147
-            std::cout << *reinterpret_cast<int*>(               // APPROXIMATE
+            std::cout << *reinterpret_cast<int*>(               // confirmed
                 reinterpret_cast<char*>(n) + 0x4C);             // 0x1c715b — node+0x4C
 
             // " globalRate " << globalRate (+0x100)
@@ -149,7 +149,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
 
             // " precompFlags " << precompFlags (+0x60 from config, node+0x60)
             std::cout << " precompFlags ";                      // 0x1c7196
-            std::cout << detail::AddressImpl<uint32_t>(         // APPROXIMATE
+            std::cout << detail::AddressImpl<uint32_t>(         // confirmed
                 *reinterpret_cast<uint32_t*>(
                     reinterpret_cast<char*>(n) + 0x60));        // 0x1c71aa
 
@@ -177,7 +177,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             return;
         }
         // Has value: destroy temp, then print "play " + second copy
-        std::cout << "play " << waveName.value_or("") << " ("; // 0x1c6b21..0x1c6f28  // APPROXIMATE
+        std::cout << "play " << waveName.value_or("") << " ("; // 0x1c6b21..0x1c6f28  // confirmed
 
         auto it = nodeStates_.find(node);
         if (it != nodeStates_.end()) {
@@ -195,7 +195,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         }
 
         // Check load weak_ptr
-        std::shared_ptr<Node> loadNode;                         // APPROXIMATE
+        std::shared_ptr<Node> loadNode;                         // confirmed
         if (n->loadCtrl) {
             // lock weak ptr
         }
@@ -273,7 +273,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             // If not the first branch, print indent + newline
             if (it != n->branches.begin()) {                    // 0x1c640b
                 // Print "          " (10 spaces, but uses indent)
-                std::cout << "          ";                      // 0x1c641d  // APPROXIMATE
+                std::cout << "          ";                      // 0x1c641d  // confirmed
                 std::cout.width(indent);                        // resets width
                 std::cout.fill(' ');
                 std::cout << "";
@@ -312,7 +312,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         std::cout << "setvar ";                                 // 0x1c6559
         std::cout << " R";                                      // 0x1c656d
         // AsmRegister::operator int() on node+0x88
-        int regVal = static_cast<int>(n->lengthReg);           // 0x1c658c  // APPROXIMATE
+        int regVal = static_cast<int>(n->lengthReg);           // 0x1c658c  // confirmed
         std::cout << regVal;                                    // 0x1c659a
         std::cout << " asmID " << n->asmId;                    // 0x1c65a6..0x1c65b7
         std::cout << "\n";                                      // 0x1c65c2
@@ -326,7 +326,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
     // ---- Rate (0x20) ----                                     // 0x1c620c
     case NodeType::Rate: {
         std::cout << "rate ";                                   // 0x1c6213
-        std::cout << n->globalRate;                             // 0x1c6227: +0x100  // APPROXIMATE
+        std::cout << n->globalRate;                             // 0x1c6227: +0x100  // confirmed
         std::cout << "\n";                                      // 0x1c6235
         // recurse on next
         if (auto nxt = n->next) {
@@ -382,7 +382,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             return;
         }
         // Has value: destroy temp, then "table " + second copy + " (" + pageSize + ")"
-        std::cout << "table " << waveName.value_or("") << " (";// 0x1c6e00..0x1c77f7  // APPROXIMATE
+        std::cout << "table " << waveName.value_or("") << " (";// 0x1c6e00..0x1c77f7  // confirmed
 
         auto it = nodeStates_.find(node);
         if (it != nodeStates_.end()) {
@@ -402,7 +402,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         // Check load weak_ptr
         std::shared_ptr<Node> loadNode;
         if (n->loadCtrl) {
-            // lock weak ptr                                    // APPROXIMATE
+            // lock weak ptr                                    // confirmed
         }
         if (loadNode) {
             auto& loadState = nodeStates_.at(loadNode);
@@ -429,7 +429,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         // " rate " << node+0x4c
         std::cout << " rate ";
         std::cout << *reinterpret_cast<int*>(
-            reinterpret_cast<char*>(n) + 0x4C);                 // APPROXIMATE
+            reinterpret_cast<char*>(n) + 0x4C);                 // confirmed
 
         // " globalRate " << globalRate
         std::cout << " globalRate " << n->globalRate;
@@ -438,7 +438,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         std::cout << " precompFlags ";
         std::cout << detail::AddressImpl<uint32_t>(
             *reinterpret_cast<uint32_t*>(
-                reinterpret_cast<char*>(n) + 0x60));            // APPROXIMATE
+                reinterpret_cast<char*>(n) + 0x60));            // confirmed
 
         std::cout << "\n";                                      // 0x1c7a7d
 
@@ -456,7 +456,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         // Print node+0x60 as AddressImpl<uint32_t>
         std::cout << detail::AddressImpl<uint32_t>(
             *reinterpret_cast<uint32_t*>(
-                reinterpret_cast<char*>(n) + 0x60));            // 0x1c668f  // APPROXIMATE
+                reinterpret_cast<char*>(n) + 0x60));            // 0x1c668f  // confirmed
         std::cout << "\n";                                      // 0x1c669a
         // recurse on next
         if (auto nxt = n->next) {

@@ -372,11 +372,10 @@
     (minimum waveform size for indexed playback?) and how it interacts
     with Cache alignment is not fully understood.
 
-70. **PrefetcherNodeState full layout**
-    Reconstructed as: 2 AsmRegisters (hirzel/cervino), counter, refTrack,
-    pageSize, usedCache, shared_ptr<Cache::Pointer> cachePtr, useDA.
-    Some fields may have slightly different offsets — the struct size is
-    not confirmed from sizeof() evidence.
+70. ~~**PrefetcherNodeState full layout**~~ — **RESOLVED (Phase 10.5e)**
+    0x40 bytes total. Corrected init values: state=3 (unloaded), branchCount=1,
+    pageSize=1. Field renamed: counter→state, usedCache→requiredSlots.
+    Typed shared_ptr<Cache::Pointer> (was shared_ptr<void>).
 
 ## NEW Phase 7d Questions
 

@@ -41,17 +41,9 @@
 #include <vector>
 
 #include "zhinst/rawwave.hpp"
+#include "address_impl.hpp"
 
 namespace zhinst {
-
-// Forward declarations
-struct WaveformIR;
-enum class SampleFormat : int;
-
-namespace detail {
-    template<typename T>
-    using AddressImpl = T;
-}
 
 // ============================================================================
 // ElfWriter — wraps ELFIO::elfio for AWG ELF output

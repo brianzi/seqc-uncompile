@@ -1,0 +1,284 @@
+[
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_commands.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_commands.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl_cervino.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl_cervino.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl_cervino.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl_cervino.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl_hirzel.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl_hirzel.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_commands_impl_hirzel.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_commands_impl_hirzel.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_expression.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_expression.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_expression.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_expression.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_list.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_list.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_list.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_list.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_optimize.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_optimize.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_optimize.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_optimize.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/asm_parser_context.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/asm_parser_context.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/asm_parser_context.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/asm_parser_context.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/assembler.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/assembler.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/assembler.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/assembler.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/awg_assembler.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/awg_assembler.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/awg_assembler_impl.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_impl.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_impl.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/awg_assembler_impl.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/awg_assembler_impl_pipeline.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_impl_pipeline.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_impl_pipeline.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/awg_assembler_impl_pipeline.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/awg_assembler_opcodes.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_opcodes.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/awg_assembler_opcodes.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/awg_assembler_opcodes.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/awg_compiler_config.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/awg_compiler_config.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/awg_compiler_config.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/awg_compiler_config.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/cache.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/cache.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/cache.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/cache.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/callbacks.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/callbacks.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/callbacks.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/callbacks.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/compiler.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/compiler.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/compiler.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/compiler.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/compiler_message.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/compiler_message.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/compiler_message.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/compiler_message.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/device_constants.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/device_constants.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/device_constants.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/device_constants.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/elf_writer.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/elf_writer.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/elf_writer.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/elf_writer.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/error_messages.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/error_messages.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/error_messages.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/error_messages.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/global_resources.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/global_resources.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/global_resources.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/global_resources.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/log_exception.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/log_exception.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/log_exception.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/log_exception.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/memory_allocator.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/memory_allocator.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/memory_allocator.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/memory_allocator.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/node.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/node.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/node.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/node.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/play_config.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/play_config.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/play_config.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/play_config.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_emit.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_emit.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_emit.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_emit.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_helpers.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_helpers.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_helpers.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_helpers.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_placesingle.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_placesingle.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_placesingle.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_placesingle.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_prepare.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_prepare.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_prepare.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_prepare.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_print.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_print.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_print.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_print.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/prefetch_splitplay.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_splitplay.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/prefetch_splitplay.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/prefetch_splitplay.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/rawwave.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/rawwave.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/rawwave.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/rawwave.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/resources.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/resources.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/resources.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/resources.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/signal.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/signal.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/signal.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/signal.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/static_resources.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/static_resources.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/static_resources.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/static_resources.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/value.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/value.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/value.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/value.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/wave_index_tracker.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/wave_index_tracker.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/wave_index_tracker.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/wave_index_tracker.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/waveform.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/waveform.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/waveform.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/waveform.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/waveform_front.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/waveform_front.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/waveform_front.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/waveform_front.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/waveform_ir.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/waveform_ir.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/waveform_ir.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/waveform_ir.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/wavetable_front.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_front.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_front.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/wavetable_front.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/wavetable_ir.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_ir.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_ir.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/wavetable_ir.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/wavetable_manager_front.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_manager_front.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_manager_front.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/wavetable_manager_front.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/wavetable_manager_ir.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_manager_ir.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/wavetable_manager_ir.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/wavetable_manager_ir.cpp.o"
+},
+{
+  "directory": "/home/brian/zhinst/seqc_compiler/reconstructed/build",
+  "command": "/usr/bin/g++ -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_FILESYSTEM_DYN_LINK -DBOOST_FILESYSTEM_NO_LIB -DBOOST_JSON_DYN_LINK -DBOOST_JSON_NO_LIB -I/home/brian/zhinst/seqc_compiler/reconstructed/include -std=gnu++17 -o CMakeFiles/zhinst_seqc.dir/src/write_waves_to_elf.cpp.o -c /home/brian/zhinst/seqc_compiler/reconstructed/src/write_waves_to_elf.cpp",
+  "file": "/home/brian/zhinst/seqc_compiler/reconstructed/src/write_waves_to_elf.cpp",
+  "output": "CMakeFiles/zhinst_seqc.dir/src/write_waves_to_elf.cpp.o"
+}
+]
