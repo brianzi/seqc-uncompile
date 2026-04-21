@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/wave_index_tracker.hpp"
+#include "zhinst/error_messages.hpp"
 
 namespace zhinst {
 

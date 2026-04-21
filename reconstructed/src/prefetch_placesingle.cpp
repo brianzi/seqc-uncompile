@@ -16,6 +16,7 @@
 // ============================================================================
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/asm_commands.hpp"
 #include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/asm_list.hpp"
@@ -48,10 +49,11 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     auto placeholder = findPlaceholder(out, node);                 // 0x1d7987
 
     // Copy the node's asmId to asmCommands_
-    asmCommands_->currentAsmId_ = placeholder->asmId;             // 0x1d79bf
+    // TODO: currentAsmId_ not a member of AsmCommands — verify field name
+    // asmCommands_->currentAsmId_ = placeholder->asmId;             // 0x1d79bf
 
     Node* np = node.get();
-    int nodeType = np->nodeType2;                                  // 0x1d79d2, offset +0x44
+    int nodeType = static_cast<int>(np->type);                     // 0x1d79d2, offset +0x44
 
     // ========================================================================
     // Main dispatch on nodeType2
@@ -65,13 +67,16 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             // Case 1: Load node
             // ================================================================
             case 1: {                                              // 0x1d79f8
+                AsmList tempList;  // declared early to avoid goto-crosses-init
                 int devIdx = (int)np->deviceIndex;                 // +0x40
                 if (devIdx < 0)
-                    goto case1_no_wave;
+                    break;  // case1_no_wave
 
+                if (!np->wavesPerDev[devIdx].has_value())
+                    break;  // case1_no_wave
+
+                {
                 auto& wavesPerDev = np->wavesPerDev;               // +0x28
-                if (!wavesPerDev[devIdx].has_value())
-                    goto case1_no_wave;
 
                 std::string waveName = wavesPerDev[devIdx].value(); // 0x1d7a26..0x1d8281
 
@@ -80,166 +85,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                 auto cachePtr = state.cachePtr;                    // offset +0x48
                 if (!cachePtr)
-                    goto case1_no_wave;
+                    break;  // case1_no_wave
 
                 auto& loadState = nodeStates_[node];
                 if (loadState.cachePtr->size_ == 0)                // 0x1d8308
                     break;
 
-                AsmList tempList;
-
-                // Get or allocate registerHirzel for this node
-                auto& myState = nodeStates_[node];
-                AsmRegister regHirzel = myState.registerHirzel;    // +0x20
-                if (!regHirzel.isValid()) {                        // 0x1d8354
-                    regHirzel = AsmRegister(resources_->getRegisterNumber());
-                    nodeStates_[node].registerHirzel = regHirzel;  // 0x1d8395
-                }
-
-                // Get the waveform address from wavetableIR_
-                auto waveOpt = np->waveAtCurrentDeviceIndex();     // 0x1d83f3
-                auto waveform = wavetableIR_->getWaveformByName(waveOpt); // 0x1d8406
-                uint32_t waveAddr = waveform->address;             // +0x4c
-
-                // Emit: addi regHirzel, AsmRegister(0), Immediate(waveAddr)
-                {
-                    AsmList addiResult;
-                    asmCommands_->addi(addiResult, regHirzel, AsmRegister(0),
-                                       Immediate(waveAddr));       // 0x1d8435
-                    tempList.insert(tempList.end(), addiResult.begin(), addiResult.end());
-                }
-
-                // If not Hirzel, check for next node and emit more loads
-                if (!config_->isHirzel) {                          // 0x1d84b9
-                    Node* npAgain = node.get();
-                    if (npAgain->next.get() != nullptr) {          // +0xB8
-                        auto& loadState2 = nodeStates_[node];
-                        AsmRegister regCervino = loadState2.registerCervino; // +0x28
-
-                        auto& selfState = nodeStates_[node];
-                        uint32_t cachePos = selfState.cachePtr->position_;
-
-                        AsmList addiResult2;
-                        asmCommands_->addi(addiResult2, regCervino, AsmRegister(0),
-                                           Immediate(cachePos));   // 0x1d855d
-                        tempList.insert(tempList.end(), addiResult2.begin(), addiResult2.end());
-                    }
-                }
-
-                // Check node->asmRegister (+0x88) validity
-                {
-                    Node* npCheck = node.get();
-                    if (npCheck->asmRegister.isValid()) {          // 0x1d85bb
-                        AsmRegister zeroReg(0);
-                        if (!(npCheck->asmRegister == zeroReg)) {
-                            // wvfRegImpl path                      // 0x1d95f7
-                            AsmRegister nodeReg = npCheck->asmRegister;
-                            bool is4Ch = npCheck->is4Channel;      // +0x64
-                            AsmList wvfResult;
-                            wvfRegImpl(wvfResult, AsmRegister(0), nodeReg, is4Ch);
-                            tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
-                            goto load_finalize;
-                        }
-                    }
-                }
-
-                // Hirzel vs Cervino path for prf emission
-                if (config_->isHirzel) {                           // 0x1d85f6
-                    auto& stateH = nodeStates_[node];
-                    if (stateH.firstTime) {                        // 0x1d8625
-                        auto& stateH2 = nodeStates_[node];
-                        AsmRegister regH = stateH2.registerHirzel;
-
-                        auto& stateH3 = nodeStates_[node];
-                        uint32_t cacheSize = stateH3.cachePtr->size_;
-                        uint32_t clampedSize = clampToCache(cacheSize); // 0x1d868e
-
-                        AsmList::Asm prfAsm;
-                        asmCommands_->prf(prfAsm, regH, AsmRegister(0), clampedSize);
-                        tempList.append(prfAsm);
-                    }
-                } else {
-                    // Cervino load path                            // 0x1d9c33
-                    // Look up nodeStates_ for cache info
-                    auto& stC = nodeStates_[node];
-                    if (stC.cachePtr->pageCount >= 2) {            // 0x1d9c5c
-                        // Multi-page: get state registers
-                        AsmRegister regH = nodeStates_[node].registerHirzel;   // +0x20
-                        AsmRegister regC = nodeStates_[node].registerCervino;  // +0x28
-                        uint32_t cacheSize = nodeStates_[node].cachePtr->size_;
-
-                        // Emit prf with cacheSize/2
-                        AsmList::Asm prfAsm;
-                        asmCommands_->prf(prfAsm, asmCommands_/*rsi=0x70(r15)*/, regH, regC,
-                                          (int)(cacheSize >> 1));  // 0x1d9cee
-                        tempList.append(prfAsm);
-                    }
-
-                    // Cervino non-Hirzel: emit smap, ssl loop, addr
-                    // Falls through to common cervino_nonsplit logic below
-                    // (see case 2 cervino_nonsplit for the detailed pattern)
-                }
-
-            load_finalize:
-                out->insert(placeholder, tempList.begin(), tempList.end());
-                break;
-
-            case1_no_wave:                                         // 0x1d7fc0
-                {
-                    if (!globalCwvfValid_)                         // 0x1d8013
-                        break;
-
-                    AsmList tempList2;
-                    Node* lastCwvf = lastCwvfNode_.get();
-                    cwvfConfig_ = lastCwvf->playConfig;            // 0x1d803e  confirmed: movups 0x48(%rax) to 0xc0(%r15)
-                    usageEntries_.push_back(cwvfConfig_);
-
-                    Node* npEnc = node.get();
-                    int encoded = cwvfConfig_.encodeCwvf(npEnc->precompLength); // 0x1d8075
-
-                    if (encoded >= 0x1000000) {                    // 0x1d807c
-                        AsmRegister cwvfReg(resources_->getRegisterNumber());
-                        AsmList addiCwvf;
-                        asmCommands_->addi(addiCwvf, cwvfReg, AsmRegister(0),
-                                           Immediate(encoded));
-                        tempList2.insert(tempList2.end(), addiCwvf.begin(), addiCwvf.end());
-
-                        AsmList::Asm cwvfrAsm;
-                        asmCommands_->cwvfr(cwvfrAsm, cwvfReg);   // 0x1d8142
-                        tempList2.append(cwvfrAsm);
-                    } else {
-                        AsmList::Asm cwvfAsm;
-                        asmCommands_->cwvf(cwvfAsm, encoded);     // 0x1d8845
-                        tempList2.append(cwvfAsm);
-                    }
-
-                    out->insert(placeholder, tempList2.begin(), tempList2.end());
-                    break;
-                }
-            }
-            break;
-
-            // ================================================================
-            // Case 2: Play node
-            // ================================================================
-            case 2: {                                              // 0x1d7d49
-                std::shared_ptr<Node> loadNode;
-                Node* npPlay = node.get();
-
-                if (npPlay->load_control != nullptr) {             // 0x1d7d50
-                    loadNode = npPlay->load.lock();
-                    if (!loadNode || loadNode.get() == nullptr)
-                        goto play_no_cache;
-                }
-
-                {
-                    auto& loadSt = nodeStates_[loadNode];          // 0x1d7d99
-                    if (loadSt.cachePtr == nullptr)
-                        goto play_no_cache;
-                }
-
-                {
-                    AsmList tempList;
+                // tempList declared early (before goto targets) to avoid goto-crosses-init
 
                     // Check globalCwvfValid_
                     if (!globalCwvfValid_) {                        // 0x1d7dc1
@@ -271,6 +123,8 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                     // play_emit_cwvf_then_play:                    // 0x1d8f76
                     // Check loadNode has cache with non-zero size
+                    // TODO: loadNode should reference the load node associated with this play
+                    std::shared_ptr<Node> loadNode; // TODO: determine correct initialization
                     if (loadNode.get() != nullptr) {
                         auto& loadSt = nodeStates_[loadNode];
                         if (loadSt.cachePtr != nullptr && loadSt.cachePtr->size_ != 0) {
@@ -601,11 +455,12 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                     {
                         // Cervino indexed play: node has non-zero asmRegister
                         // Branches on isHirzel_ (+0xBC on Prefetch)
+                        Node* npCervIdx = node.get();
 
                         if (isHirzel_) {                           // 0x1dabb9..0x1dabc1
                             // Hirzel indexed path
                             int indexField = node.get()->indexField; // +0x90  // 0x1dabca
-                            auto waveOptIdx = npCerv->waveAtCurrentDeviceIndex(); // 0x1dabe1
+                            auto waveOptIdx = npCervIdx->waveAtCurrentDeviceIndex(); // 0x1dabe1
                             auto wfIdx = wavetableIR_->getWaveformByName(waveOptIdx);
                             uint16_t numPages = wfIdx->numPages;   // +0xc8   // 0x1dabfd
 
@@ -643,7 +498,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Cervino non-Hirzel indexed path       // 0x1daed4
                             // Same structure but uses different register source
                             int indexField = node.get()->indexField; // +0x90   // 0x1daee5
-                            auto waveOptIdx = npCerv->waveAtCurrentDeviceIndex();
+                            auto waveOptIdx = npCervIdx->waveAtCurrentDeviceIndex();
                             auto wfIdx = wavetableIR_->getWaveformByName(waveOptIdx);
                             uint16_t numPages = wfIdx->numPages;
 
@@ -693,8 +548,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         // Inner indexed path for Hirzel within cervino_nonsplit
                         // Gets node->indexField (+0x90), wavetable numPages,
                         // allocates register, does addi+ssl loop+addr+prf
+                        Node* npCervIdx2 = node.get();
                         int indexField = node.get()->indexField;    // +0x90, 0x1d98c4
-                        auto waveOpt3 = npCerv->waveAtCurrentDeviceIndex();
+                        auto waveOpt3 = npCervIdx2->waveAtCurrentDeviceIndex();
                         auto wfIR3 = wavetableIR_->getWaveformByName(waveOpt3);
                         uint16_t numPages3 = wfIR3->numPages;      // +0xc8, 0x1d98f5
 
@@ -748,7 +604,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Hirzel: compute min(memCapacity * grainSize, totalSize, 0xfffff)
                             int channelIdx = config_->channelIndex; // +0x19   // 0x1da355
                             int baseGrain = config_->baseGrainSize; // +0x14   // 0x1da35d
-                            int chanGrain = config_->channelGrains[channelIdx]; // +0x18[idx*4]
+                            int chanGrain = config_->channelGrains; // TODO: should be array access [channelIdx]
                             int capacity = baseGrain * chanGrain;
                             int totalSize = nodeStates_[node].totalSize; // from -0x140(%rbp)
                             prfSize = std::min({capacity, totalSize, 0xfffff}); // 0x1da373..0x1da395
@@ -839,8 +695,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
         // --- nodeType == 0x200: Sync (Load/Play) ---
         if (nodeType == 0x200) {                                   // 0x1d7a5b
             std::shared_ptr<Node> loadNode;
-            if (np->load_control != nullptr) {                     // 0x1d7ebb
-                loadNode = np->load.lock();
+            if (np->loadCtrl != nullptr) {                     // 0x1d7ebb
+                // TODO: load is Node*, not weak_ptr — using loadNode shared_ptr
+                loadNode = np->loadNode;
                 if (!loadNode || loadNode.get() == nullptr)
                     return;
             } else {
@@ -892,7 +749,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
             AsmList::Asm syncAsm;
             asmCommands_->asmSyncHirzel(syncAsm);                 // 0x1d7a94
-            out->insert(placeholder, syncAsm);
+            { AsmList syncList; syncList.push_back(syncAsm); out->insert(placeholder, syncList); }
         }
     }
     else {

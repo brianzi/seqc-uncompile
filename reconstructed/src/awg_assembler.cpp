@@ -32,7 +32,7 @@ void AWGAssembler::assembleString(std::string const& src)
 }
 
 // 0x2850f0
-void AWGAssembler::assembleAsmList(std::vector<Assembler> const& asmList)
+void AWGAssembler::assembleAsmList(std::vector<AssemblerInstr> const& asmList)
 {
     pImpl_->assembleAsmList(asmList);
 }

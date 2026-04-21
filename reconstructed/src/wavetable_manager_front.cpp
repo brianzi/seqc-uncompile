@@ -34,6 +34,22 @@ WavetableManager<WaveformFront>::~WavetableManager() {
     // Free bucket array (this+0x08)
 }
 
+// 0x2a1200 — WavetableManager<WaveformFront>::insertWaveform(shared_ptr<WaveformFront>)
+template<>
+void WavetableManager<WaveformFront>::insertWaveform(
+    std::shared_ptr<WaveformFront> wf)
+{
+    // Get current vector size (before insertion) as the index
+    size_t idx = waveforms_.size();
+
+    // Push back the shared_ptr into waveforms_
+    waveforms_.emplace_back(wf);
+
+    // Insert name -> idx mapping into nameToIndex_
+    const std::string& name = wf.get()->name;
+    nameToIndex_.emplace(name, idx);
+}
+
 // 0x29aec0 — WavetableManager<WaveformFront>::newEmptyWaveform(const string&, const DeviceConstants&)
 template<>
 std::shared_ptr<WaveformFront>
@@ -177,7 +193,7 @@ WavetableManager<WaveformFront>::newWaveform(
     auto wf = std::make_shared<WaveformFront>(name, Waveform::File::Type::GEN, dc);
     wf->signal = signal;                   // copy Signal data into +0x80
     wf->funDescrName_ = funName;           // string at +0x50
-    wf->args_ = args;                      // vector<Value> at +0xE0
+    wf->values = args;                     // vector<Value> at +0xE0
 
     // Insert
     insertWaveform(wf);
@@ -196,7 +212,7 @@ WavetableManager<WaveformFront>::getWaveformForFront(
         WaveformFront* wf = wf_ptr.get();
 
         // Skip if file type != GEN (2)
-        if (wf->fileType() != 2) continue;  // wf+0x18
+        if (wf->fileType != 2) continue;  // wf+0x18
 
         // Compare function name (wf+0x50 is a string field "funDescr")
         // Check string length matches, then memcmp content
@@ -204,15 +220,16 @@ WavetableManager<WaveformFront>::getWaveformForFront(
 
         // Compare args vector size
         // wf+0xE8 - wf+0xE0 must equal args size
-        if (wf->argsSize() != args.size()) continue;
+        if (wf->values.size() != args.size()) continue;
 
         // Check wf+0xDC == 0 (not modified flag)
-        if (wf->isModified()) continue;
+        if (wf->isModified) continue;
 
         // Compare each Value element
         bool match = true;
         for (size_t i = 0; i < args.size(); i++) {
-            if (!(wf->arg(i) == args[i])) {
+            // TODO: wf->values[i] == args[i] comparison needs Value::operator==
+            if (!(wf->values[i] == args[i])) {
                 match = false;
                 break;
             }
@@ -237,12 +254,12 @@ WavetableManager<WaveformFront>::copyWaveform(
     int counter = waveformCounter_;
     waveformCounter_ = counter + 1;
 
-    std::string uniqueName = getUniqueName(srcPtr->name(), baseIdx, counter);
+    std::string uniqueName = getUniqueName(srcPtr->name, baseIdx, counter);
 
     // allocate_shared<WaveformFront>(allocator, src, uniqueName)
     // This calls WaveformFront copy constructor with new name
     auto copy = std::allocate_shared<WaveformFront>(
-        std::allocator<WaveformFront>{}, *srcPtr, uniqueName);
+        std::allocator<WaveformFront>{}, src, uniqueName);
 
     insertWaveform(copy);
     return copy;
@@ -257,7 +274,7 @@ void WavetableManager<WaveformFront>::updateWave(
     WaveformFront* ptr = wf.get();
 
     // Get current name from waveform, find old index in nameToIndex_
-    const std::string& oldName = ptr->name();
+    const std::string& oldName = ptr->name;
     size_t oldIdx; // = nameToIndex_[oldName] — insert if not present
 
     // Find and remove old name mapping
@@ -272,23 +289,7 @@ void WavetableManager<WaveformFront>::updateWave(
     ptr->setName(newName);
 
     // Re-insert with new name mapping to same index
-    nameToIndex_[ptr->name()] = oldIdx;
-}
-
-// 0x2a1200 — WavetableManager<WaveformFront>::insertWaveform(shared_ptr<WaveformFront>)
-template<>
-void WavetableManager<WaveformFront>::insertWaveform(
-    std::shared_ptr<WaveformFront> wf)
-{
-    // Get current vector size (before insertion) as the index
-    size_t idx = waveforms_.size();
-
-    // Push back the shared_ptr into waveforms_
-    waveforms_.emplace_back(wf);
-
-    // Insert name -> idx mapping into nameToIndex_
-    const std::string& name = wf.get()->name();
-    nameToIndex_.emplace(name, idx);
+    nameToIndex_[ptr->name] = oldIdx;
 }
 
 } // namespace detail

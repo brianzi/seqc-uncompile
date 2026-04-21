@@ -47,7 +47,7 @@ AsmOptimize::~AsmOptimize() {  // 0x123200
 
 // 0x27d900
 bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
-    int cmdType = AssemblerInstr::getCmdType(instr.cmd);
+    int cmdType = Assembler::getCmdType(instr.cmd);
 
     // reg0 (+0x20) is always a read source
     if (instr.reg0 == reg) {
@@ -66,10 +66,10 @@ bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
 
 // 0x27d960
 bool AsmOptimize::isWritten(const AssemblerInstr& instr, AsmRegister reg) const {
-    int cmdType = AssemblerInstr::getCmdType(instr.cmd);
+    int cmdType = Assembler::getCmdType(instr.cmd);
 
     // dest (+0x28) is written if cmdType has bit 1 set
-    if (instr.dest == reg) {
+    if (instr.reg2 == reg) {
         if ((cmdType >> 1) & 1)
             return true;
     }
@@ -98,12 +98,12 @@ bool AsmOptimize::isLabelCalled(const std::string& label,
             reinterpret_cast<const char*>(this) + 0x18));
 
     for (auto pos = it; pos != AsmList::const_iterator(end); ++pos) {
-        auto cmd = pos->instr.cmd;
+        auto cmd = pos->assembler.cmd;
         // Check branch/jump opcodes
         if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
             cmd == Assembler::BRGZ || cmd == Assembler::JMP) {
             // Compare label string (at +0x58 in AsmList::Asm, i.e. instr.label)
-            if (pos->instr.label == label)
+            if (pos->assembler.label == label)
                 return true;
         }
     }
@@ -126,12 +126,12 @@ int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
 
     for (auto pos = it; pos != endIt; ++pos) {
         // Skip dead instructions (cmd == -1)
-        if (pos->instr.cmd == static_cast<Assembler::Command>(0xFFFFFFFF))
+        if (pos->assembler.cmd == static_cast<Assembler::Command>(0xFFFFFFFF))
             continue;
 
         // Check dest (+0x28)
-        if (pos->instr.dest == reg) {
-            auto cmd = pos->instr.cmd;
+        if (pos->assembler.reg2 == reg) {
+            auto cmd = pos->assembler.cmd;
             // Branch commands → return 3 immediately
             if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
                 cmd == Assembler::BRGZ || cmd == Assembler::JMP)
@@ -140,11 +140,11 @@ int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
         }
 
         // Check reg1 (+0x30)
-        if (pos->instr.reg1 == reg)
+        if (pos->assembler.reg1 == reg)
             result |= 2;  // written
 
         // Check reg2 (+0x38) — if found, return 3
-        if (pos->instr.reg2 == reg)
+        if (pos->assembler.reg2 == reg)
             return 3;
 
         if (result == 3)
@@ -167,14 +167,14 @@ bool AsmOptimize::registerIsNeverWritten(AsmList& list, AsmRegister reg,
         if (it == exclude)
             continue;
 
-        int cmdType = AssemblerInstr::getCmdType(it->instr.cmd);
+        int cmdType = Assembler::getCmdType(it->assembler.cmd);
 
         // dest (+0x30 in binary = reg1 in our naming) written if bit 1 set
-        if (it->instr.dest == reg && ((cmdType >> 1) & 1))
+        if (it->assembler.reg2 == reg && ((cmdType >> 1) & 1))
             return false;
 
         // reg2 (+0x38) written if cmdType == 7
-        if (it->instr.reg2 == reg && cmdType == 7)
+        if (it->assembler.reg2 == reg && cmdType == 7)
             return false;
     }
 
@@ -199,7 +199,7 @@ void AsmOptimize::prepareResources(const AsmList& asmList) const {
 // runs dead code elimination, returns the working list.
 AsmList AsmOptimize::optimizePreWaveform(const AsmList& input) {
     // Copy input into this->asm_ (the internal working vector at +0x10)
-    asm_ = input;
+    asm_ = input.entries;
 
     // If flag 0x04 set, run dead code elimination
     if (flags_ & 0x04) {
@@ -215,7 +215,7 @@ AsmList AsmOptimize::optimizePreWaveform(const AsmList& input) {
 // returns the optimized list.
 AsmList AsmOptimize::optimizePostWaveform(const AsmList& input) {
     // Copy input into working list
-    asm_ = input;
+    asm_ = input.entries;
 
     // Flag 0x01: one-step jump elimination
     if (flags_ & 0x01) {
@@ -238,13 +238,13 @@ AsmList AsmOptimize::optimizePostWaveform(const AsmList& input) {
         unsigned long numRegs = removeUnusedRegs();
 
         // Create a backup copy of the asm list
-        AsmList backup(asm_);
+        AsmList backup; backup.entries = asm_;
 
         try {
             registerAllocation(numRegs);
         } catch (...) {
             // On failure: swap backup back, split const registers, retry
-            std::swap(asm_, backup);
+            std::swap(asm_, backup.entries);
             unsigned long newNumRegs = splitConstRegisters(numRegs);
             registerAllocation(newNumRegs);
         }
@@ -267,21 +267,21 @@ void AsmOptimize::deadCodeElimination() {
     bool afterBranch = false;
 
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        auto cmd = it->instr.cmd;
+        auto cmd = it->assembler.cmd;
 
         if (afterBranch) {
             if (cmd == Assembler::LABEL) {
                 // Check if this label is called from anywhere before this point
                 afterBranch = true;
                 // Search backwards from asm_.begin() to see if label is referenced
-                if (!isLabelCalled(it->instr.label, asm_.cbegin()))
+                if (!isLabelCalled(it->assembler.label, asm_.cbegin()))
                     continue;  // label not called, stays dead
                 afterBranch = false;
                 continue;
             }
 
             // Mark instruction as dead
-            it->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+            it->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
             afterBranch = true;
 
             // Remove associated Node if present
@@ -296,7 +296,7 @@ void AsmOptimize::deadCodeElimination() {
             afterBranch = true;
         } else if (cmd == Assembler::BRZ) {
             // BRZ targeting register 0 is unconditional → dead code follows
-            if (it->instr.dest == AsmRegister(0)) {
+            if (it->assembler.reg2 == AsmRegister(0)) {
                 afterBranch = true;
             }
         } else {
@@ -312,21 +312,21 @@ void AsmOptimize::deadCodeElimination() {
 void AsmOptimize::oneStepJumpElimination() {
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
         // Skip instructions with noOpt flag at +0xA0
-        if (it->noOpt)
+        if (it->isWaveformCmd)
             continue;
 
-        auto cmd = it->instr.cmd;
+        auto cmd = it->assembler.cmd;
         // Only process branch/jump instructions
         if (cmd != Assembler::BRZ && cmd != Assembler::BRNZ &&
             cmd != Assembler::BRGZ && cmd != Assembler::JMP)
             continue;
 
         // Get the target label
-        const std::string& targetLabel = it->instr.label;
+        const std::string& targetLabel = it->assembler.label;
 
         // Scan forward looking for the target label
         for (auto next = it + 1; next != asm_.end(); ++next) {
-            auto nextCmd = next->instr.cmd;
+            auto nextCmd = next->assembler.cmd;
 
             // Skip dead/NOP instructions
             if (nextCmd == static_cast<Assembler::Command>(0xFFFFFFFF) ||
@@ -338,9 +338,9 @@ void AsmOptimize::oneStepJumpElimination() {
                 break;
 
             // Check if this label matches the target
-            if (next->instr.label == targetLabel) {
+            if (next->assembler.label == targetLabel) {
                 // The branch targets the very next reachable instruction → eliminate
-                it->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+                it->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
             }
             break;
         }
@@ -351,18 +351,18 @@ void AsmOptimize::oneStepJumpElimination() {
 // Remove labels that are never referenced by any branch/jump instruction.
 void AsmOptimize::removeUnusedLabels() {
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        if (it->instr.cmd != Assembler::LABEL)
+        if (it->assembler.cmd != Assembler::LABEL)
             continue;
 
-        const std::string& label = it->instr.label;
+        const std::string& label = it->assembler.label;
 
         // Search all instructions for a branch/jump referencing this label
         bool found = false;
         for (auto scan = asm_.cbegin(); scan != asm_.cend(); ++scan) {
-            auto cmd = scan->instr.cmd;
+            auto cmd = scan->assembler.cmd;
             if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
                 cmd == Assembler::BRGZ || cmd == Assembler::JMP) {
-                if (scan->instr.label == label) {
+                if (scan->assembler.label == label) {
                     found = true;
                     break;
                 }
@@ -371,8 +371,8 @@ void AsmOptimize::removeUnusedLabels() {
 
         if (!found) {
             // Label is unreferenced — mark as dead and clear the label string
-            it->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
-            it->instr.label.clear();
+            it->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+            it->assembler.label.clear();
         }
     }
 }
@@ -383,33 +383,33 @@ void AsmOptimize::removeUnusedLabels() {
 // then mark the second label as dead.
 void AsmOptimize::mergeLabels() {
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        if (it->instr.cmd != Assembler::LABEL)
+        if (it->assembler.cmd != Assembler::LABEL)
             continue;
 
-        const std::string firstLabel = it->instr.label;
+        const std::string firstLabel = it->assembler.label;
 
         // Look at the next instruction
         auto next = it + 1;
         if (next == asm_.end())
             break;
 
-        while (next != asm_.end() && next->instr.cmd == Assembler::LABEL) {
-            const std::string secondLabel = next->instr.label;
+        while (next != asm_.end() && next->assembler.cmd == Assembler::LABEL) {
+            const std::string secondLabel = next->assembler.label;
 
             // Replace all references to secondLabel with firstLabel
             for (auto scan = asm_.begin(); scan != asm_.end(); ++scan) {
-                auto cmd = scan->instr.cmd;
+                auto cmd = scan->assembler.cmd;
                 if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
                     cmd == Assembler::BRGZ || cmd == Assembler::JMP) {
-                    if (&*scan != &*it && scan->instr.label == secondLabel) {
-                        scan->instr.label = firstLabel;
+                    if (&*scan != &*it && scan->assembler.label == secondLabel) {
+                        scan->assembler.label = firstLabel;
                     }
                 }
             }
 
             // Mark second label as dead and clear its string
-            next->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
-            next->instr.label.clear();
+            next->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+            next->assembler.label.clear();
 
             ++next;
         }
@@ -423,39 +423,39 @@ void AsmOptimize::mergeLabels() {
 void AsmOptimize::mergeRegisterZeroing() {
     for (auto it = asm_.begin() + 1; it != asm_.end(); ++it) {
         // Skip instructions with noOpt flag
-        if (it->noOpt)
+        if (it->isWaveformCmd)
             continue;
 
         // Previous instruction must be ADDI (0x40000000)
         auto prev = it - 1;
-        if (prev->instr.cmd != Assembler::ADDI)
+        if (prev->assembler.cmd != Assembler::ADDI)
             continue;
 
         // ADDI's reg0 (+0x20) must be register 0
-        if (!(prev->instr.reg0 == AsmRegister(0)))
+        if (!(prev->assembler.reg0 == AsmRegister(0)))
             continue;
 
         // ADDI must have exactly one immediate operand with value 0
-        if (prev->instr.immediates.size() != 1)
+        if (prev->assembler.immediates.size() != 1)
             continue;
-        if (static_cast<int>(prev->instr.immediates.back()) != 0)
+        if (static_cast<int>(prev->assembler.immediates.back()) != 0)
             continue;
 
         // Current instruction must be XORR (0x50000000)
         // Wait — checking binary: 27e6ea checks cmd == 0x50000000 which is ALU_REG0 (ADDR)
         // Actually, looking more carefully at the opcodes... let me check the exact value
-        if (it->instr.cmd != Assembler::ADDR)
+        if (it->assembler.cmd != Assembler::ADDR)
             continue;
 
         // dest must equal reg0, and reg0 must equal prev's reg0
-        if (!(it->instr.dest == it->instr.reg1))
+        if (!(it->assembler.reg2 == it->assembler.reg1))
             continue;
-        if (!(it->instr.dest == prev->instr.reg0))
+        if (!(it->assembler.reg2 == prev->assembler.reg0))
             continue;
 
         // Merge: mark ADDI as dead, set XORR's dest to register 0
-        prev->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
-        it->instr.dest = AsmRegister(0);
+        prev->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+        it->assembler.reg2 = AsmRegister(0);
     }
 }
 
@@ -480,7 +480,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             // Call virtual isCancelled() — if true, return early
         }
 
-        auto cmd = it->instr.cmd;
+        auto cmd = it->assembler.cmd;
         // Skip dead/NOP/LABEL/MESSAGE/ERROR_MSG
         if (cmd == static_cast<Assembler::Command>(0xFFFFFFFF) ||
             cmd == Assembler::NOP || cmd == Assembler::LABEL ||
@@ -488,7 +488,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             continue;
 
         // Track highest register number
-        auto regInfo = it->instr.highestRegisterNumber();
+        auto regInfo = it->assembler.highestRegisterNumber();
         if (regInfo >> 32) {  // has valid register
             int regNum = regInfo & 0xFFFFFFFF;
             if (regNum > static_cast<int>(maxReg))
@@ -499,14 +499,14 @@ unsigned long AsmOptimize::removeUnusedRegs() {
         if (!(flags_ & 0x08))
             continue;
 
-        int cmdType = AssemblerInstr::getCmdType(cmd);
+        int cmdType = Assembler::getCmdType(cmd);
 
         // If instruction writes a register (bit 1 of cmdType set)
         if (cmdType & 0x02) {
-            AsmRegister destReg = it->instr.dest;
+            AsmRegister destReg = it->assembler.reg2;
             if (destReg.isValid() && !(destReg == AsmRegister(0))) {
                 // Use reg2 (+0x38) if dest is valid but not r0
-                destReg = it->instr.reg2;
+                destReg = it->assembler.reg2;
             }
 
             // Check if this register is in the writeOnlyRegs vector
@@ -544,11 +544,11 @@ unsigned long AsmOptimize::removeUnusedRegs() {
 // the error or warning callback. Then marks the instruction as dead.
 void AsmOptimize::reportUserMessages() {
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        auto cmd = it->instr.cmd;
+        auto cmd = it->assembler.cmd;
 
         if (cmd == Assembler::ERROR_MSG) {
             // Get the first immediate operand
-            Immediate imm = it->instr.immediates[0];
+            Immediate imm = it->assembler.immediates[0];
             std::string msg = toString(imm);
             int lineNr = it->lineNumber;  // at +0x88 in AsmList::Asm
 
@@ -559,12 +559,12 @@ void AsmOptimize::reportUserMessages() {
 
             // If flags byte at +0x08 is non-zero, mark as dead
             if (flags_) {
-                it->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+                it->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
             }
         }
 
         if (cmd == Assembler::MESSAGE) {
-            Immediate imm = it->instr.immediates[0];
+            Immediate imm = it->assembler.immediates[0];
             std::string msg = toString(imm);
             int lineNr = it->lineNumber;
 
@@ -574,7 +574,7 @@ void AsmOptimize::reportUserMessages() {
             }
 
             if (flags_) {
-                it->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+                it->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
             }
         }
     }
@@ -591,15 +591,15 @@ bool AsmOptimize::simplifyAssign(AsmList::iterator it) {
         return false;
 
     // Next must be ADDI (0x40000000)
-    if (next->instr.cmd != Assembler::ADDI)
+    if (next->assembler.cmd != Assembler::ADDI)
         return false;
 
     // Check if immediate is 0
     Immediate zero(0);
     bool canSimplify = false;
-    if (next->instr.immediates.back() == zero) {
+    if (next->assembler.immediates.back() == zero) {
         // Check if dest == reg1 (same register)
-        if (next->instr.dest == it->instr.reg1) {
+        if (next->assembler.reg2 == it->assembler.reg1) {
             canSimplify = true;
         }
     }
@@ -608,17 +608,17 @@ bool AsmOptimize::simplifyAssign(AsmList::iterator it) {
         return false;
 
     // Verify no subsequent instruction uses the dest register in a conflicting way
-    AsmRegister destReg = it->instr.reg1;
+    AsmRegister destReg = it->assembler.reg1;
     for (auto scan = next + 1; scan != asm_.end(); ++scan) {
-        if (scan->instr.dest == destReg)
+        if (scan->assembler.reg2 == destReg)
             return false;
-        if (scan->instr.reg1 == destReg)
+        if (scan->assembler.reg1 == destReg)
             return false;
     }
 
     // Simplify: copy src to dest directly, mark ADDI as dead
-    it->instr.reg1 = next->instr.reg0;
-    next->instr.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
+    it->assembler.reg1 = next->assembler.reg0;
+    next->assembler.cmd = static_cast<Assembler::Command>(0xFFFFFFFF);
     return true;
 }
 
@@ -680,11 +680,11 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
 
     // Scan all instructions, recording register usage
     for (size_t i = 0; i < asm_.size(); ++i) {
-        auto& instr = asm_[i].instr;
+        auto& instr = asm_[i].assembler;
         if (instr.cmd == static_cast<Assembler::Command>(0xFFFFFFFF))
             continue;
         addToLiveRange(instr.reg0, i);
-        addToLiveRange(instr.dest, i);
+        addToLiveRange(instr.reg2, i);
         addToLiveRange(instr.reg1, i);
         addToLiveRange(instr.reg2, i);
     }
@@ -767,12 +767,12 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
     unsigned long maxReg = numRegs;
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        if (it->instr.cmd != Assembler::ADDI)
+        if (it->assembler.cmd != Assembler::ADDI)
             continue;
-        if (!(it->instr.reg0 == AsmRegister(0)))
+        if (!(it->assembler.reg0 == AsmRegister(0)))
             continue;
 
-        AsmRegister destReg = it->instr.dest;
+        AsmRegister destReg = it->assembler.reg2;
         // Check if this register is used across a wide range
         // If so, split by calling splitReg
         // ... splitting logic ...
@@ -805,8 +805,8 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
     for (auto it = start; it != end; ++it) {
         // For each of dest, reg0, reg1, reg2: if matches reg, replace with newReg
         // (This is a const_iterator but the binary casts away const)
-        auto& instr = const_cast<AssemblerInstr&>(it->instr);
-        if (instr.dest == reg) instr.dest = newReg;
+        auto& instr = const_cast<AssemblerInstr&>(it->assembler);
+        if (instr.reg2 == reg) instr.reg2 = newReg;
         if (instr.reg0 == reg) instr.reg0 = newReg;
         if (instr.reg1 == reg) instr.reg1 = newReg;
         if (instr.reg2 == reg) instr.reg2 = newReg;
@@ -823,10 +823,10 @@ void AsmOptimize::registerUpdate(const std::vector<int>& indices,
     // Iterate indices in reverse (binary does backward iteration)
     for (auto it = indices.rbegin(); it != indices.rend(); ++it) {
         int idx = *it;
-        auto& instr = asm_[idx].instr;
+        auto& instr = asm_[idx].assembler;
 
-        if (instr.dest == oldReg)
-            instr.dest = newReg;
+        if (instr.reg2 == oldReg)
+            instr.reg2 = newReg;
         if (instr.reg1 == oldReg)
             instr.reg1 = newReg;
         if (instr.reg2 == oldReg)

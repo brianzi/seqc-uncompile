@@ -10,11 +10,14 @@
 // ============================================================================
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/resources.hpp"
 #include "zhinst/node.hpp"
 #include "zhinst/wavetable_ir.hpp"
 #include "zhinst/waveform_ir.hpp"
 #include "zhinst/signal.hpp"
 #include "zhinst/asm_register.hpp"
+#include "zhinst/awg_compiler_config.hpp"
+#include "zhinst/device_constants.hpp"
 
 #include <stack>
 #include <deque>
@@ -98,7 +101,7 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
         stack.pop_back();                         // 0x1c89b7..0x1c8a05
 
         if (!current)                             // 0x1c8a0c
-            goto cleanup_validwaves;
+            continue;  // skip to next iteration
 
         // Collect valid waves for this node (copy_if on wavesPerDev)
         // into a local vector<optional<string>>
@@ -130,11 +133,13 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             // Plays exist: for each valid wave, mark waveform as used (+0xD8)
             // 0x1c97b9..0x1c98c5 loop
             for (auto it = playBegin; it != playEnd; ++it) {
-                auto waveform = wavetableIR->getWaveformByName(*it); // 0x1c97fe
+                // TODO: *it is weak_ptr<Node>, need to lock and get wave name
+                auto lockedNode = it->lock();
+                if (!lockedNode) continue;
+                auto waveName = lockedNode->waveAtCurrentDeviceIndex();
+                auto waveform = wavetableIR->getWaveformByName(waveName); // 0x1c97fe
                 if (waveform) {
-                    // Get waveform again and set used flag
-                    auto wf2 = wavetableIR->getWaveformByName(*it); // 0x1c9844
-                    wf2->used_ = true;  // 0x1c9850: movb $0x1, 0xd8(%rax)
+                    waveform->used = true;  // 0x1c9850: movb $0x1, 0xd8(%rax)
                 }
             }
             // Then call collectUsedWaves on this node
@@ -153,7 +158,12 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
 
         // ---- Branch (0x04) ---- // jump table case 3 → 0x1c8cac
         case NodeType::Branch: {
-            removeBranches(current, stack);        // 0x1c8cd7
+            // TODO: stack is deque but removeBranches expects std::stack&
+            // removeBranches(current, stack);        // 0x1c8cd7
+            // Approximate: push each branch child onto stack
+            for (auto& branch : current->branches) {
+                stack.push_back(branch);
+            }
             goto cleanup_validwaves;
         }
 
@@ -518,6 +528,7 @@ void Prefetch::countBranches(std::shared_ptr<Node> node) // 0x1c9b30
             if (!current->next)                   // 0x1ca01b
                 goto check_loop;
 
+            {  // braces to avoid goto-crosses-init
             // Get branchCount from nodeStates_
             auto [it, _] = nodeStates_.emplace(
                 std::piecewise_construct,
@@ -534,6 +545,7 @@ void Prefetch::countBranches(std::shared_ptr<Node> node) // 0x1c9b30
 
             // Push next to stack
             stack.push_back(current->next);       // 0x1ca0c0
+            }  // end braces
 
 check_loop:
             // If loop child exists, propagate branchCount to it too
@@ -645,8 +657,9 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
             continue;
 
         // Check if config.field_0x1E is false (skip dynamic plays)
-        if (current->config./*field_0x1E*/unknown_1e) // 0x1ca7a0: cmpb $0, 0x66(%r14)
-            continue;                              // 0x66 = 0x48 (config offset) + 0x1E
+        // TODO: PlayConfig::unknown_1e — field not yet defined
+        // if (current->config./*field_0x1E*/unknown_1e) // 0x1ca7a0: cmpb $0, 0x66(%r14)
+        //     continue;                              // 0x66 = 0x48 (config offset) + 0x1E
 
         // ---- Compute play size ----
 
@@ -671,8 +684,8 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
             // Compute aligned play size
             // 0x1ca918..0x1ca945
             // sampleRate = devConst_->field at some offset
-            int granularity = waveform2->signal.granularity; // from signal chain
-            int maxLength = waveform2->signal.maxLength;
+            int granularity = waveform2->signal.granularity(); // from signal chain
+            int maxLength = waveform2->signal.maxLength();
             playSize = ((waveLength + granularity - 1) / granularity) * granularity;
             if ((unsigned)maxLength > (unsigned)playSize)
                 playSize = maxLength;
@@ -691,14 +704,16 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         // ---- Compute memory footprint ----
         // Look up waveform again
         auto waveform4 = wavetableIR_->getWaveformByName(waveName); // 0x1cab13
-        uint16_t channelCount = waveform4->channelCount; // +0xC8 as uint16
+        uint16_t channelCount = waveform4->signal.channels(); // +0xC8 as uint16
         int playCount = waveform4->playCount;      // +0xD0
-        auto* sig = waveform4->signal.data;        // +0x78 pointer
+        // TODO: signal.data() returns vector<double>&, not a pointer.
+        // The following pointer-based access pattern is approximate.
+        const Signal& sig = waveform4->signal;     // +0x78
         
         int memSize;
         if (playCount != 0) {
-            int maxPlay = sig->maxLength;          // +0x40
-            int sampleRate = sig->sampleRate;      // +0x44
+            int maxPlay = sig.maxLength();         // +0x40
+            int sampleRate = sig.granularity();    // +0x44
             int aligned = ((playCount + sampleRate - 1) / sampleRate) * sampleRate;
             aligned = std::min((unsigned)aligned, (unsigned)maxPlay);
             memSize = aligned;
@@ -707,15 +722,16 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         }
 
         // memoryBits = channelCount * memSize * sampleBits
-        int sampleBits = sig->sampleBits;          // +0x50
+        // TODO: sig-> but sig is Signal& not pointer; fix later
+        int sampleBits = devConst_->bitsPerSample;  // +0x50
         int64_t memBits = (int64_t)channelCount * memSize * sampleBits;
         // Convert bits to bytes, rounding up
         int memBytes = (int)memBits;
         int remainder = memBytes & 0x7;
         int memWords = (memBytes >> 3) + (remainder >= 1 ? 1 : 0);
 
-        // memPerPage = devConst_->waveformMemSize / this->maxBranches_
-        int wfMemSize = devConst_->/*waveformMemSize at +0xC*/field_0c;
+        // memPerPage = devConst_->waveformMemorySize / this->maxBranches_
+        int wfMemSize = devConst_->waveformMemorySize;
         int memPerPage = (unsigned)wfMemSize / (unsigned)this->maxBranches_;
 
         if ((unsigned)memPerPage < (unsigned)memWords) {

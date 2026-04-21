@@ -17,12 +17,17 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <stack>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "play_config.hpp"
 #include "address_impl.hpp"
+#include "asm_register.hpp"
+#include "cache.hpp"
+#include "waveform_ir.hpp"
+#include "assembler.hpp"
 
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
@@ -30,7 +35,15 @@
 
 namespace zhinst {
 
+// Forward declarations (used as pointer/shared_ptr members)
 class AsmList;
+class AsmCommands;
+class Node;
+class Resources;
+class CancelCallback;
+struct AWGCompilerConfig;
+struct DeviceConstants;
+struct WavetableIR;
 
 // ============================================================================
 // Prefetch class — 0x160 bytes (352 bytes)
@@ -116,6 +129,12 @@ public:
         int32_t _pad24 = 0;                                   // +0x24
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
         bool useDA = false;                                   // +0x38
+        bool firstTime = true;                                 // +0x39 — TODO: offset approximate
+        AsmRegister lengthReg;                                  // offset TBD — register for length
+        int counter = 0;                                        // offset TBD — reference counter
+        int totalSize = 0;                                      // offset TBD — total waveform size
+        int usedCache = 0;                                      // offset TBD — used cache amount
+        int playSize = 0;                                       // offset TBD — play size
     };
 
     // Constructor                                                     // 0x1c5850
@@ -177,14 +196,21 @@ public:
     detail::AddressImpl<uint32_t> clampToCache(
         detail::AddressImpl<uint32_t> addr) const;                     // 0x1d6c40
     AsmList wvfImpl(AsmRegister reg, int offset, bool indexed) const;  // 0x1d6ca0
+    // Output-param overload: appends result to out
+    void wvfImpl(AsmList& out, AsmRegister reg, int offset, bool indexed) const;
     AsmList wvfRegImpl(AsmRegister reg, AsmRegister offset,
         bool indexed) const;                                           // 0x1d7020
+    // Output-param overload
+    void wvfRegImpl(AsmList& out, AsmRegister reg, AsmRegister offset,
+        bool indexed) const;
     AsmList wvfs(Assembler::PlayDummyType type,
         AsmRegister reg, int offset) const;                            // 0x1d73e0
 
     // Analysis
     bool needsNewCwvf(std::shared_ptr<Node> node) const;               // 0x1dc620
     AsmList splitPlay(std::shared_ptr<Node> node) const;               // 0x1dd1a0
+    // Output-param overload
+    void splitPlay(AsmList& out, std::shared_ptr<Node> node) const;
     void insertPlay(AsmList& list, bool flag, std::string const& name,
         AsmRegister reg, detail::AddressImpl<uint32_t> addrA,
         detail::AddressImpl<uint32_t> addrB) const;                    // 0x1def50
@@ -229,7 +255,16 @@ private:
     //   +0xD8  precompFlags (init 0)
     //   +0xDD  hold
     //   +0xDE  dummy
-    std::vector</* UsageEntry 0x20 bytes */>               usageEntries_;  // +0xE0 (24 bytes)
+    // UsageEntry — 0x20 byte struct used in usageEntries_ vector
+    // TODO: internal layout not fully confirmed
+    struct UsageEntry {
+        PlayConfig config;  // first 0x20 bytes is a PlayConfig
+        // Implicit conversion from PlayConfig
+        UsageEntry() = default;
+        UsageEntry(const PlayConfig& pc) : config(pc) {}
+    };
+
+    std::vector<UsageEntry>                                usageEntries_;  // +0xE0 (24 bytes)
     std::shared_ptr<Node>                                  lastCwvfNode_;  // +0xF8 (last node seen in globalCwvf)
     bool                                                   globalCwvfValid_; // +0x108
     // 7 bytes padding
@@ -239,6 +274,12 @@ private:
     // 8 bytes padding at +0x148
     std::weak_ptr<CancelCallback>                          cancelCb_;      // +0x150
     // Total: 0x160 bytes
+
+    // TODO: These members are referenced in prefetch .cpp files but not yet
+    // placed in the layout above. May overlap with unknown_ fields.
+    int pageSize_ = 0;       // offset TBD — page size for cache
+    bool isHirzel_ = false;  // offset TBD — derived from config_->isHirzel
+    int npCerv = 0;          // offset TBD — Cervino-specific parameter
 };
 
 } // namespace zhinst

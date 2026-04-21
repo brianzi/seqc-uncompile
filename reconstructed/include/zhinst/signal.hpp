@@ -47,6 +47,7 @@ struct ReserveOnly {};
 class Signal {
 public:
     // --- Constructors ---
+    Signal() : Signal(0) {}  // default ctor delegates to length-based ctor
     explicit Signal(size_t length);                                              // 0x25dd60
     Signal(size_t numSamples, double value, uint8_t marker, uint16_t channels); // 0x25eac0
     Signal(size_t length, MarkerBitsPerChannel const& markerBits);              // 0x25f1a0
@@ -76,6 +77,15 @@ public:
 
     // --- Data access ---
     std::unique_ptr<RawWave> getRawData(SampleFormat format) const;              // 0x293ec0
+
+    // Convenience accessors — used in wavetable/waveform code
+    std::vector<double> const& data() const { return samples_; }
+    size_t granularity() const { return 16; }  // TODO: real value depends on device; 16 is common default
+    size_t maxLength() const { return length_; }  // TODO: might be derived differently
+    size_t minLength() const { return length_; }  // TODO: might be derived differently
+    uint16_t channels() const { return channels_; }
+    uint32_t bitsPerSample() const { return 16; }  // TODO: real value TBD
+    size_t length() const { return length_; }
 
     // --- Comparison ---
     bool operator==(Signal const& other) const;                                 // 0x2a9750

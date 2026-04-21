@@ -8,6 +8,7 @@
 #include "zhinst/value.hpp"
 
 #include <cstring>
+#include <variant>
 #include <boost/format.hpp>
 #include <boost/throw_exception.hpp>
 
@@ -113,7 +114,7 @@ Immediate::operator unsigned int() const {  // 0x290d00
 // If either is valueless or indices differ → false.
 // Otherwise dispatches per-type comparison via vtable at b070e0[index_].
 // ============================================================================
-bool Immediate::operator==(Immediate other) const {  // 0x290d40
+bool Immediate::operator==(Immediate const& other) const {  // 0x290d40
     if (index_ == 0xFFFFFFFF) return false;
     if (index_ != other.index_) return false;
     switch (index_) {

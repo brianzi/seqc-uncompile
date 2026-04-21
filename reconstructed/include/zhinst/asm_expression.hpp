@@ -109,6 +109,11 @@ struct AsmExpression {
     bool field_A0;          // +0xA0  isWaveformCmd override flag
     // 7 bytes padding       // +0xA1 to 0xA8
 
+    // Aliases used in pipeline code (map to existing fields):
+    bool& noOpt = hasComment;         // "noOpt" is hasComment in parseStringToAsmList
+    bool& labelType = hasLabel;       // "labelType" is hasLabel
+    int lineNumber = 0;               // TODO: offset TBD — may alias pad_58 or separate field
+
     ~AsmExpression();       // 0x28b1f0
 };
 

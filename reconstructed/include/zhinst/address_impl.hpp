@@ -20,8 +20,9 @@ struct AddressImpl {
     T value;
 
     AddressImpl() : value(0) {}
-    explicit AddressImpl(T v) : value(v) {}
+    AddressImpl(T v) : value(v) {}  // implicit — binary assigns uint directly
 
+    AddressImpl& operator=(T v) { value = v; return *this; }
     operator T() const { return value; }
 };
 

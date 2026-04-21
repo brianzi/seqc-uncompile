@@ -21,6 +21,8 @@
 
 namespace zhinst {
 
+using namespace ELFIO;  // for ET_NONE, SHT_PROGBITS, PT_LOAD, PF_R, etc.
+
 // ============================================================================
 // ElfWriter::ElfWriter(uint16_t machineType)                    // 0x2934a0
 //

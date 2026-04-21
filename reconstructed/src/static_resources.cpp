@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/resources.hpp"
+#include "zhinst/error_messages.hpp"
 #include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/device_constants.hpp"
 
@@ -66,7 +67,7 @@ StaticResources::~StaticResources()  // D1 @0x129db0
 // 4. Also checks against static string constAwgIntegrationTrigger (BSS @0xb84690)
 //    and other const-prefixed variable names.
 // ============================================================================
-void StaticResources::getVariable(std::string const& name)  // @0x129e60
+Resources::Variable* StaticResources::getVariable(std::string const& name)  // @0x129e60
 {
     // Check for "DEVICE_SAMPLE_RATE" (18 chars)                  // 0x129e73
     if (name.size() == 18) {
@@ -76,16 +77,20 @@ void StaticResources::getVariable(std::string const& name)  // @0x129e60
     }
 
     // Delegate to base
-    Resources::getVariable(name);                                  // 0x129ea0
-
+    // TODO: In the binary, the deprecated-constant warnings below happen
+    // BEFORE this return, but our reconstruction placed them after.
+    // The errorHandler_ field is stored in the function-storage area
+    // at +0xE0 and needs to be reconstructed properly.
+    // For now, the warning code is commented out.
+    /*
     // Post-check: warn about deprecated integration/trigger constants
     size_t len = name.size();
 
-    if (len == 19) {                                               // 0x129ec0
+    if (len == 19) {
         if (std::memcmp(name.data(), "AWG_MONITOR_TRIGGER", 19) == 0) {
             errorHandler_->report(
                 ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-            return;
+            return nullptr;
         }
     }
 
@@ -94,14 +99,14 @@ void StaticResources::getVariable(std::string const& name)  // @0x129e60
         std::memcmp(name.data(), constAwgIntegrationTrigger.data(), len) == 0) {
         errorHandler_->report(
             ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-        return;
+        return nullptr;
     }
 
     if (len == 19) {
         if (std::memcmp(name.data(), "AWG_INTEGRATION_ARM", 19) == 0) {
             errorHandler_->report(
                 ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-            return;
+            return nullptr;
         }
     }
 
@@ -110,14 +115,16 @@ void StaticResources::getVariable(std::string const& name)  // @0x129e60
         std::memcmp(name.data(), zsyncDataPqscRegister.data(), len) == 0) {
         errorHandler_->report(
             ErrorMessages::format(ErrorMessageT(0x34), name, "'ZSYNC_DATA_PROCESSED_A'"));
-        return;
+        return nullptr;
     }
     if (len == zsyncDataPqscDecoder.size() &&
         std::memcmp(name.data(), zsyncDataPqscDecoder.data(), len) == 0) {
         errorHandler_->report(
             ErrorMessages::format(ErrorMessageT(0x34), name, "'ZSYNC_DATA_PROCESSED_B'"));
-        return;
+        return nullptr;
     }
+    */
+    return Resources::getVariable(name);                                  // 0x129ea0
 }
 
 // ============================================================================
@@ -166,9 +173,9 @@ void StaticResources::init(AWGCompilerConfig const& config,
         addConst("AWG_RATE_220KHZ",  13.0, VarSubType(0));       // 0x1ecce2
 
         // HD-only trigger/integration constants               0x1eccfe–0x1ecd44
-        addConst(constAwgMonitorTrigger,     32.0,         VarSubType(0));  // 0x1ecd12
-        addConst(constAwgIntegrationTrigger, 16.0,         VarSubType(0));  // 0x1ecd2b
-        addConst(constAwgIntegrationArm,     67043328.0,   VarSubType(0));  // 0x1ecd44
+        addConst("AWG_MONITOR_TRIGGER",     32.0,         VarSubType(0));  // 0x1ecd12
+        addConst("AWG_INTEGRATION_TRIGGER", 16.0,         VarSubType(0));  // 0x1ecd2b
+        addConst("AWG_INTEGRATION_ARM",     67043328.0,   VarSubType(0));  // 0x1ecd44
     }
 
     if (config.deviceType == 2 /*Cervino/SHF*/) {                // 0x1ecd4c
@@ -191,7 +198,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
 
     // --- 2.0 GHz rate variants (certain HDAWG revisions) ---     0x1ed14a–0x1ed4e9
     // Condition: device subtype bits 0, 8, 16, or 32 set (bt with 0x100010100)
-    if (/* device subtype bitmask check */) {
+    if (true /* TODO: device subtype bitmask check */) {
         addConst("AWG_RATE_2000MHZ",   0.0,  VarSubType(0));      // 0x1ed164
         addConst("AWG_RATE_1000MHZ",   1.0,  VarSubType(0));
         addConst("AWG_RATE_500MHZ",    2.0,  VarSubType(0));
@@ -290,7 +297,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     if (config.deviceType == 2 || config.deviceType == 16 ||
         config.deviceType == 32) {                                // 0x1ee411 bitmap
         // ZSYNC_DATA constants — values computed from deviceConstants  0x1ee430–0x1ee5fd
-        int n = deviceConstants.field_0x78;  // byte at offset 0x78
+        int n = deviceConstants.numOutputPorts;  // byte at offset 0x78
         int base = 1 << n;
         addConst("ZSYNC_DATA_RAW",          (double)(base),     VarSubType(0));  // 0x1ee46c
         addConst("ZSYNC_DATA_PQSC_REGISTER",(double)(base + 1), VarSubType(0));  // 0x1ee4dc
@@ -312,12 +319,12 @@ void StaticResources::init(AWGCompilerConfig const& config,
     double sampleRate = config.deviceSampleRate;  // r14[0x8]
     if (std::isnan(sampleRate)) {
         if (config.deviceType == 2) {
-            sampleRate = /* hardcoded from rodata */;             // 0x1f0618→0x1ee6bc
+            sampleRate = 2.4e9; // TODO: hardcoded from rodata             // 0x1f0618→0x1ee6bc
         } else {
-            sampleRate = deviceConstants.field_0x70;              // 0x1f0622→0x1ee6ab
+            sampleRate = deviceConstants.samplingRate;              // 0x1f0622→0x1ee6ab
         }
     }
-    addConst(constDeviceSampleRate, sampleRate, VarSubType(0));   // 0x1ee6b7
+    addConst("DEVICE_SAMPLE_RATE", sampleRate, VarSubType(0));   // 0x1ee6b7
 
     // --- Trigger index constants (sequential indices 0–31) ---  0x1ee6ec–0x1ef1f8
     addConst("AWG_ANA_TRIGGER1_INDEX",         0.0,  VarSubType(0));  // 0x1ee6ec

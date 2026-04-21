@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -7,7 +8,7 @@
 namespace zhinst {
 
 class AWGAssemblerImpl;
-class Assembler;
+struct AssemblerInstr;
 struct DeviceConstants;
 
 // sizeof(AWGAssembler) = 0x8
@@ -18,15 +19,15 @@ public:
 
     void assembleFile(std::string const& path);
     void assembleString(std::string const& src);
-    void assembleAsmList(std::vector<Assembler> const& asmList);
+    void assembleAsmList(std::vector<AssemblerInstr> const& asmList);
     // Returns by value (sret); exact return type TBD (likely vector of expressions)
-    // vector<...> assembleStringToExpressionsVec(std::string const& src);
+    std::vector<std::shared_ptr<struct AsmExpression>> assembleStringToExpressionsVec(std::string const& src);
     void setMemoryOffset(unsigned int offset);
     void writeToFile(std::string const& path);
     // Returns pointer to internal vector<uint64_t> at impl+0x50
     std::vector<uint64_t> const& getOpcode() const;
     // Returns by value (sret); likely std::string
-    // std::string getReport() const;
+    std::string getReport() const;
     void printOpcode(int format) const;
 
 private:

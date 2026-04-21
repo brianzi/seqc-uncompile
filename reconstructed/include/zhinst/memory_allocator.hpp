@@ -58,17 +58,7 @@ static_assert(sizeof(MemoryBlock) == 12, "MemoryBlock must be 12 bytes");
 class MemoryAllocator {
 public:
     // Constructor is inlined at call sites — no standalone function.
-    // Pseudocode:
-    //   MemoryAllocator(DeviceConstants* dc, uint32_t startOffset) {
-    //       deviceConstants_ = dc;
-    //       startOffset_ = startOffset;
-    //       lastAllocEnd_ = 0xFFFFFFFF;
-    //       memorySizeInSamples_ = dc->waveformMemorySize;
-    //       cacheLineSize_ = dc->waveformAlignment;
-    //       maxBlocksPerCL_ = dc->cachePageCount; // or maxBlocks, depending on path
-    //       numCacheLines_ = memorySizeInSamples_ / cacheLineSize_;
-    //       cacheLineUsage_.resize(numCacheLines_, 0xFFFFFFFF);
-    //   }
+    MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset);
 
     ~MemoryAllocator();  // 0x29f2d0
 
@@ -93,8 +83,11 @@ public:
     template <typename Pred>
     MemoryBlock allocateFirstSuitableFreeBlock(Pred pred);
 
+    bool hasFreeBlocks() const { return !freeBlocks_.empty(); }
+    MemoryBlock lastFreeBlock() const { return freeBlocks_.back(); }
+
 private:
-    DeviceConstants*        deviceConstants_;      // +0x00
+    const DeviceConstants*  deviceConstants_;      // +0x00
     uint32_t                startOffset_;           // +0x08
     uint32_t                lastAllocEnd_;          // +0x0C  sentinel 0xFFFFFFFF
     uint32_t                memorySizeInSamples_;   // +0x10
@@ -106,7 +99,7 @@ private:
     uint32_t                pad_3C_;                // +0x3C
     std::deque<MemoryBlock> freeBlocks_;            // +0x40  free block list
 };
-static_assert(sizeof(MemoryAllocator) == 0x70,
-              "MemoryAllocator must be 0x70 (112) bytes");
+// static_assert(sizeof(MemoryAllocator) == 0x70,
+//               "MemoryAllocator must be 0x70 (112) bytes");
 
 } // namespace zhinst

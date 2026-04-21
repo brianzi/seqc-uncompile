@@ -40,66 +40,83 @@ public:
     // Waveform playback
     // =====================================================================
 
-    AsmEntry prf(AsmRegister reg1, AsmRegister reg2, int intArg) const;
-    AsmEntry wprf() const;
-    AsmEntry wwvfq() const;
-    AsmEntry wwvf() const;
-    AsmEntry wvf(AsmRegister reg, AsmRegister dstReg, int length) const;
-    AsmEntry wvfi(AsmRegister reg, AsmRegister dstReg, int length) const;
-    AsmEntry wvfs(Assembler::PlayDummyType type, AsmRegister reg, int length) const;
-    AsmEntry wvft(AsmRegister reg, int length) const;
-    AsmEntry cwvf(int value) const;
-    AsmEntry cwvfr(AsmRegister reg) const;
+    AsmList::Asm prf(AsmRegister reg1, AsmRegister reg2, int intArg) const;
+    // Output-param overload: stores result in out
+    void prf(AsmList::Asm& out, AsmRegister reg1, AsmRegister reg2, int intArg) const;
+    AsmList::Asm wprf() const;
+    // Output-param overload
+    void wprf(AsmList::Asm& out) const;
+    AsmList::Asm wwvfq() const;
+    AsmList::Asm wwvf() const;
+    // Output-param overload
+    void wwvf(AsmList::Asm& out) const;
+    AsmList::Asm wvf(AsmRegister reg, AsmRegister dstReg, int length) const;
+    AsmList::Asm wvfi(AsmRegister reg, AsmRegister dstReg, int length) const;
+    AsmList::Asm wvfs(Assembler::PlayDummyType type, AsmRegister reg, int length) const;
+    AsmList::Asm wvft(AsmRegister reg, int length) const;
+    AsmList::Asm cwvf(int value) const;
+    // Output-param overload
+    void cwvf(AsmList::Asm& out, int value) const;
+    AsmList::Asm cwvfr(AsmRegister reg) const;
+    // Output-param overload
+    void cwvfr(AsmList::Asm& out, AsmRegister reg) const;
 
     // =====================================================================
     // Branch
     // =====================================================================
 
-    AsmEntry br(const std::string& label, bool flag) const;
-    AsmEntry brz(AsmRegister reg, const std::string& label, bool flag) const;
-    AsmEntry brnz(AsmRegister reg, const std::string& label, bool flag) const;
-    AsmEntry brgz(AsmRegister reg, const std::string& label, bool flag) const;
+    AsmList::Asm br(const std::string& label, bool flag) const;
+    AsmList::Asm brz(AsmRegister reg, const std::string& label, bool flag) const;
+    AsmList::Asm brnz(AsmRegister reg, const std::string& label, bool flag) const;
+    AsmList::Asm brgz(AsmRegister reg, const std::string& label, bool flag) const;
 
     // =====================================================================
     // ALU register-register
     // =====================================================================
 
-    AsmEntry alur(Assembler::Command cmd, AsmRegister dst, AsmRegister src) const;
-    AsmEntry addr(AsmRegister dst, AsmRegister src) const;
-    AsmEntry subr(AsmRegister dst, AsmRegister src) const;
-    AsmEntry andr(AsmRegister dst, AsmRegister src) const;
-    AsmEntry orr(AsmRegister dst, AsmRegister src) const;
-    AsmEntry xnorr(AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm alur(Assembler::Command cmd, AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm addr(AsmRegister dst, AsmRegister src) const;
+    // Output-param overload
+    void addr(AsmList::Asm& out, AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm subr(AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm andr(AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm orr(AsmRegister dst, AsmRegister src) const;
+    AsmList::Asm xnorr(AsmRegister dst, AsmRegister src) const;
 
     // =====================================================================
     // Shift (delegates to impl_)
     // =====================================================================
 
-    AsmEntry ssl(AsmRegister reg) const;
-    AsmEntry ssr(AsmRegister reg) const;
+    AsmList::Asm ssl(AsmRegister reg) const;
+    // Output-param overload
+    void ssl(AsmList::Asm& out, AsmRegister reg) const;
+    AsmList::Asm ssr(AsmRegister reg) const;
 
     // =====================================================================
     // ALU immediate-unsigned (single instruction)
     // =====================================================================
 
-    AsmEntry aluiu(Assembler::Command cmd, AsmRegister dst,
+    AsmList::Asm aluiu(Assembler::Command cmd, AsmRegister dst,
                    AsmRegister src, Immediate imm) const;
-    AsmEntry addiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    AsmEntry andiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    AsmEntry oriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    AsmEntry xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    AsmList::Asm addiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    AsmList::Asm andiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    AsmList::Asm oriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    AsmList::Asm xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
 
     // =====================================================================
     // ALU immediate-signed (may emit multiple instructions)
     // =====================================================================
 
-    std::vector<AsmEntry> alui(Assembler::Command cmd, AsmRegister dst,
+    std::vector<AsmList::Asm> alui(Assembler::Command cmd, AsmRegister dst,
                                AsmRegister src, Immediate imm) const;
-    std::vector<AsmEntry> addi(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    std::vector<AsmEntry> addi32(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    std::vector<AsmEntry> andi(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    std::vector<AsmEntry> ori(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    std::vector<AsmEntry> xnori(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    std::vector<AsmList::Asm> addi(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    // Output-param overload: appends result to an existing AsmList.
+    // Used by Prefetch::placeSingleCommand.
+    void addi(AsmList& out, AsmRegister dst, AsmRegister src, Immediate imm) const;
+    std::vector<AsmList::Asm> addi32(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    std::vector<AsmList::Asm> andi(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    std::vector<AsmList::Asm> ori(AsmRegister dst, AsmRegister src, Immediate imm) const;
+    std::vector<AsmList::Asm> xnori(AsmRegister dst, AsmRegister src, Immediate imm) const;
 
     // =====================================================================
     // ALU with Value (runtime variant) — converts to int, then delegates
@@ -107,90 +124,100 @@ public:
 
     int toInt32(Value val) const;
 
-    std::vector<AsmEntry> addi(AsmRegister dst, AsmRegister src, Value val) const;
-    AsmEntry addiu(AsmRegister dst, AsmRegister src, Value val) const;
-    std::vector<AsmEntry> andi(AsmRegister dst, AsmRegister src, Value val) const;
-    AsmEntry andiu(AsmRegister dst, AsmRegister src, Value val) const;
-    std::vector<AsmEntry> ori(AsmRegister dst, AsmRegister src, Value val) const;
-    AsmEntry oriu(AsmRegister dst, AsmRegister src, Value val) const;
-    std::vector<AsmEntry> xnori(AsmRegister dst, AsmRegister src, Value val) const;
-    AsmEntry xnoriu(AsmRegister dst, AsmRegister src, Value val) const;
+    std::vector<AsmList::Asm> addi(AsmRegister dst, AsmRegister src, Value val) const;
+    AsmList::Asm addiu(AsmRegister dst, AsmRegister src, Value val) const;
+    std::vector<AsmList::Asm> andi(AsmRegister dst, AsmRegister src, Value val) const;
+    AsmList::Asm andiu(AsmRegister dst, AsmRegister src, Value val) const;
+    std::vector<AsmList::Asm> ori(AsmRegister dst, AsmRegister src, Value val) const;
+    AsmList::Asm oriu(AsmRegister dst, AsmRegister src, Value val) const;
+    std::vector<AsmList::Asm> xnori(AsmRegister dst, AsmRegister src, Value val) const;
+    AsmList::Asm xnoriu(AsmRegister dst, AsmRegister src, Value val) const;
 
     // =====================================================================
     // Load / Store
     // =====================================================================
 
-    AsmEntry ld(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    AsmEntry st(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    AsmEntry ldio(AsmRegister reg, bool highBank) const;
-    AsmEntry sdio(AsmRegister reg, bool highBank) const;
-    AsmEntry luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    AsmEntry suser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    AsmList::Asm ld(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    // Output-param overload
+    void ld(AsmList::Asm& out, AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    AsmList::Asm st(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    // Output-param overload
+    void st(AsmList::Asm& out, AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    AsmList::Asm ldio(AsmRegister reg, bool highBank) const;
+    AsmList::Asm sdio(AsmRegister reg, bool highBank) const;
+    AsmList::Asm luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    AsmList::Asm suser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
     // Trigger
     // =====================================================================
 
-    AsmEntry ltrig(AsmRegister reg) const;
-    AsmEntry strig(AsmRegister reg) const;
-    AsmEntry sinttrig(AsmRegister reg) const;
-    AsmEntry wtrig(AsmRegister r1, AsmRegister r2) const;
-    AsmEntry wtrigi(int value) const;
+    AsmList::Asm ltrig(AsmRegister reg) const;
+    AsmList::Asm strig(AsmRegister reg) const;
+    AsmList::Asm sinttrig(AsmRegister reg) const;
+    AsmList::Asm wtrig(AsmRegister r1, AsmRegister r2) const;
+    AsmList::Asm wtrigi(int value) const;
 
     // =====================================================================
     // Misc I/O
     // =====================================================================
 
-    AsmEntry sid(AsmRegister reg, bool highBank) const;
-    std::vector<AsmEntry> smap(AsmRegister r1, AsmRegister r2, int arg) const;
-    AsmEntry ldiotrig(AsmRegister reg) const;
-    AsmEntry lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
+    AsmList::Asm sid(AsmRegister reg, bool highBank) const;
+    std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int arg) const;
+    // Output-param overload: appends smap results to AsmList
+    void smap(AsmList& out, AsmRegister r1, AsmRegister r2, int arg) const;
+    AsmList::Asm ldiotrig(AsmRegister reg) const;
+    AsmList::Asm lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
     // Control flow / special
     // =====================================================================
 
-    AsmEntry trap() const;
-    AsmEntry irpt() const;
-    AsmEntry end() const;
-    AsmEntry nop() const;
+    AsmList::Asm trap() const;
+    AsmList::Asm irpt() const;
+    AsmList::Asm end() const;
+    AsmList::Asm nop() const;
 
     // =====================================================================
     // Sync
     // =====================================================================
 
     AsmList syncCervino(AsmRegister reg1, AsmRegister reg2, bool flag) const;
-    AsmList unsyncCervino() const;  // returns 2 ST entries (not single AsmEntry)
-    AsmEntry asmSyncPlaceholderCervino() const;
-    AsmEntry asmSyncHirzel() const;
+    // Output-param overload
+    void syncCervino(AsmList& out, AsmRegister reg1, AsmRegister reg2, bool flag) const;
+    AsmList unsyncCervino() const;  // returns 2 ST entries (not single AsmList::Asm)
+    AsmList::Asm asmSyncPlaceholderCervino() const;
+    AsmList::Asm asmSyncHirzel() const;
+    // Output-param overload
+    void asmSyncHirzel(AsmList::Asm& out) const;
 
     // =====================================================================
     // Pseudo-instructions / directives
     // =====================================================================
 
-    AsmEntry asmZero(AsmRegister reg) const;
-    AsmEntry asmOne(AsmRegister reg) const;
-    AsmEntry asmLabel(const std::string& label) const;
-    AsmEntry asmMessage(const std::string& msg, bool isError) const;
+    AsmList::Asm asmZero(AsmRegister reg) const;
+    AsmList::Asm asmOne(AsmRegister reg) const;
+    AsmList::Asm asmLabel(const std::string& label) const;
+    AsmList::Asm asmMessage(const std::string& msg, bool isError) const;
 
     // =====================================================================
     // Node-creating commands
     // =====================================================================
 
-    AsmEntry asmBranchNode() const;
-    AsmEntry asmLoopNode() const;
-    AsmEntry asmRate(int rate) const;
-    AsmEntry asmSetPrecompFlags(unsigned int flags) const;
+    AsmList::Asm asmBranchNode() const;
+    AsmList::Asm asmLoopNode() const;
+    AsmList::Asm asmRate(int rate) const;
+    AsmList::Asm asmSetPrecompFlags(unsigned int flags) const;
 
     // =====================================================================
     // Placeholder / waveform management (non-const)
     // =====================================================================
 
-    AsmEntry asmSetVarPlaceholder(AsmRegister reg);
-    AsmEntry asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
-    AsmEntry asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
-    AsmEntry asmLoadPlaceholder();
-    AsmEntry asmPrefetch(std::shared_ptr<WaveformFront> wvf,
+    AsmList::Asm asmSetVarPlaceholder(AsmRegister reg);
+    AsmList::Asm asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
+    AsmList::Asm asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
+    AsmList::Asm asmLoadPlaceholder();
+    AsmList::Asm asmPrefetch(std::shared_ptr<WaveformFront> wvf,
                          int nameIndex, int regVal, int extraVal);
 
     // =====================================================================
@@ -202,13 +229,13 @@ public:
                              bool isBool, int holdCount, unsigned int suppress,
                              bool isHoldMode, unsigned int trigger) const;
 
-    AsmEntry asmPlay(std::vector<std::shared_ptr<WaveformFront>> waveforms,
+    AsmList::Asm asmPlay(std::vector<std::shared_ptr<WaveformFront>> waveforms,
                      int nameIndex, bool isHold, bool fourChannel, bool isBool,
                      int holdCount, unsigned int suppress, bool isHoldMode,
                      AsmRegister reg, int regVal, AsmRegister reg2,
                      unsigned int trigger);
 
-    AsmEntry asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
+    AsmList::Asm asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
                       int nameIndex, bool isHold, bool fourChannel,
                       int holdCount, unsigned int suppress, bool isHoldMode,
                       AsmRegister reg, int regVal);
@@ -217,8 +244,8 @@ public:
     // Misc
     // =====================================================================
 
-    AsmEntry asmWtrigLSPlaceholder(int value);
-    AsmEntry fb(int value) const;
+    AsmList::Asm asmWtrigLSPlaceholder(int value);
+    AsmList::Asm fb(int value) const;
 
 private:
     std::unique_ptr<AsmCommandsImpl> impl_;                      // +0x10
@@ -227,12 +254,12 @@ private:
     int wavetableFrontIndex_ = 0;                                // +0x50
     int numChannelGroups_ = 0;                                   // +0x54
 
-    // Helper: build an AsmEntry from a local AssemblerInstr
-    AsmEntry emitEntry(const AssemblerInstr& instr) const;
-    AsmEntry emitEntry(const AssemblerInstr& instr, int overrideWavetableFront) const;
+    // Helper: build an AsmList::Asm from a local AssemblerInstr
+    AsmList::Asm emitEntry(const AssemblerInstr& instr) const;
+    AsmList::Asm emitEntry(const AssemblerInstr& instr, int overrideWavetableFront) const;
 
-    // Helper: build an AsmEntry with a Node
-    AsmEntry emitNodeEntry(NodeType type) const;
+    // Helper: build an AsmList::Asm with a Node
+    AsmList::Asm emitNodeEntry(NodeType type) const;
 };
 
 } // namespace zhinst

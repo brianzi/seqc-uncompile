@@ -6,6 +6,7 @@
 #include "zhinst/asm_commands_impl.hpp"
 #include "zhinst/asm_list.hpp"
 #include "zhinst/error_messages.hpp"
+#include "zhinst/resources.hpp"  // for ResourcesException
 
 namespace zhinst {
 
@@ -17,8 +18,8 @@ bool AsmCommandsImplHirzel::isCWVFRSupported() const {
 
 // --- wwvfq: opcode 0xF0000000 (same as Cervino's wprf) ---
 
-AsmEntry AsmCommandsImplHirzel::wwvfq(int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplHirzel::wwvfq(int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WPRF;
     result.wavetableFront = lineNumber;
@@ -28,8 +29,8 @@ AsmEntry AsmCommandsImplHirzel::wwvfq(int lineNumber) const {
 
 // --- wprf: sentinel opcode 0xFFFFFFFF (no-op on Hirzel) ---
 
-AsmEntry AsmCommandsImplHirzel::wprf(int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplHirzel::wprf(int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::INVALID;  // 0xFFFFFFFF
     result.wavetableFront = lineNumber;
@@ -39,9 +40,9 @@ AsmEntry AsmCommandsImplHirzel::wprf(int lineNumber) const {
 
 // --- wvf: 0xFA000000 (single-reg) or 0x20000000 (two-reg) ---
 
-AsmEntry AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerReg,
+AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerReg,
                                      int waveIndex, int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
 
     if (markerReg == AsmRegister::Reg(0)) {
@@ -63,7 +64,7 @@ AsmEntry AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerReg,
 
 // --- wvfi: always throws on Hirzel ---
 
-AsmEntry AsmCommandsImplHirzel::wvfi(AsmRegister, AsmRegister,
+AsmList::Asm AsmCommandsImplHirzel::wvfi(AsmRegister, AsmRegister,
                                       int, int) const {
     throw ResourcesException(
         ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
@@ -71,10 +72,10 @@ AsmEntry AsmCommandsImplHirzel::wvfi(AsmRegister, AsmRegister,
 
 // --- wvfs: opcode 0x30000001, dummyType→bool as first immediate ---
 
-AsmEntry AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
+AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
                                       AsmRegister reg, int arg,
                                       int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFS_H;
 
@@ -90,9 +91,9 @@ AsmEntry AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
 
 // --- wvft: opcode 0xFC000000 ---
 
-AsmEntry AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
+AsmList::Asm AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
                                       int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFET;
     result.assembler.reg0 = reg;
@@ -104,9 +105,9 @@ AsmEntry AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
 
 // --- brz: reg==R0 → 0xFE000000 (unconditional); else → 0xF3000000 ---
 
-AsmEntry AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& label,
+AsmList::Asm AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& label,
                                      bool flag, int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
 
     if (reg == AsmRegister::Reg(0)) {
@@ -125,8 +126,8 @@ AsmEntry AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& label,
 
 // --- ssl: 0x60000005, second slot = R0 (not same reg as Cervino) ---
 
-AsmEntry AsmCommandsImplHirzel::ssl(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplHirzel::ssl(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSL;
     result.assembler.reg2 = reg;
@@ -138,8 +139,8 @@ AsmEntry AsmCommandsImplHirzel::ssl(AsmRegister reg, int lineNumber) const {
 
 // --- ssr: 0x60000006, second slot = R0 ---
 
-AsmEntry AsmCommandsImplHirzel::ssr(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplHirzel::ssr(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSR;
     result.assembler.reg2 = reg;
@@ -151,8 +152,8 @@ AsmEntry AsmCommandsImplHirzel::ssr(AsmRegister reg, int lineNumber) const {
 
 // --- ldiotrig: LD from address 0x68 (Cervino uses 0x60) ---
 
-AsmEntry AsmCommandsImplHirzel::ldiotrig(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplHirzel::ldiotrig(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::LD;
     result.assembler.reg0 = reg;

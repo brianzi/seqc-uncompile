@@ -32,8 +32,8 @@ std::string WaveformFront::toString() const  // 0x2c5120
     }
     oss << typeStr;
 
-    oss << ") " << numSamples << " samples & "
-        << sampleWidth << " channels";
+    oss << ") " << sampleLength << " samples & "
+        << channels << " channels";
 
     return oss.str();
 }
@@ -53,11 +53,7 @@ std::string WaveformFront::toString() const  // 0x2c5120
 // ============================================================================
 WaveformFront::WaveformFront(std::shared_ptr<WaveformFront> source,
                              std::string const& newName)  // 0x2a2510
-    // Base class Waveform is constructed by calling:
-    //   Waveform::Waveform(shared_ptr<Waveform>(source), string(newName))
-    // which copies all base fields from source but replaces the name.
-    // (Represented here as a delegating call; actual binary uses explicit
-    //  shared_ptr copy + string copy on the stack before calling Waveform ctor.)
+    : Waveform(std::shared_ptr<Waveform>(source), std::string(newName))
 {
     // --- Extension field initialization ---
     frontField1 = 1;            // mov DWORD PTR [rbx+0xd8], 1

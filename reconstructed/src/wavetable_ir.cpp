@@ -8,14 +8,12 @@
 #include "zhinst/memory_allocator.hpp"
 
 #include <boost/filesystem/path.hpp>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
+#include <boost/json.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <sstream>
 #include <algorithm>
 #include <numeric>
-#include <sstream>
 
 namespace zhinst {
 
@@ -48,7 +46,8 @@ WavetableIR::WavetableIR(const WavetableFront& front,
 {
     // Allocate the manager from the front's internal manager
     auto* frontMgr = front.manager_;  // at front+0x1D0
-    manager_.reset(new detail::WavetableManager<WaveformIR>(frontMgr->samplesPerWave));
+    // TODO: samplesPerWave not a member — need to determine correct field
+    manager_.reset(new detail::WavetableManager<WaveformIR>());
 
     // Copy waveforms from front, converting WaveformFront -> WaveformIR
     auto* begin = frontMgr->waveforms_.data();
@@ -171,7 +170,7 @@ const std::shared_ptr<WaveformIR>* WavetableIR::end() const  // 0x29e280
 // 0x29e290 — WavetableIR::size() const
 size_t WavetableIR::size() const  // 0x29e290
 {
-    return (manager_->waveforms_.end_ - manager_->waveforms_.begin_) / sizeof(std::shared_ptr<WaveformIR>);
+    return (manager_->waveforms_.end() - manager_->waveforms_.begin()) / sizeof(std::shared_ptr<WaveformIR>);
 }
 
 // 0x29e2b0 — WavetableIR::getWaveformByName(const optional<string>&) const
@@ -186,8 +185,8 @@ std::shared_ptr<WaveformIR> WavetableIR::getWaveformByName(
     if (!name.has_value())
         return nullptr;
 
-    auto it = manager_->nameIndex_.find(*name);
-    if (it == manager_->nameIndex_.end())
+    auto it = manager_->nameToIndex_.find(*name);
+    if (it == manager_->nameToIndex_.end())
         return nullptr;
 
     size_t index = it->second;
@@ -222,7 +221,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 {
     // Lock cancel callback
     std::shared_ptr<CancelCallback> cancelLock;                   // 0x29e373
-    if (cancelCallback_.controlBlock()) {
+    // TODO: controlBlock() not a standard member of weak_ptr — use use_count() or expired()
+    if (!cancelCallback_.expired()) {
         cancelLock = cancelCallback_.lock();
     }
 
@@ -269,7 +269,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             // 2. Compute allocation size in bytes from signal properties // 0x2a9c95
             uint16_t channels = wf->signal.channels_;           // +0xC8
             uint32_t length = (uint32_t)wf->signal.length_;     // +0xD0
-            DeviceConstants* dc = wf->deviceConstants;          // +0x78
+            const DeviceConstants* dc = wf->deviceConstants;          // +0x78
 
             uint32_t sizeInBlocks;
             if (length == 0) {                                  // 0x2a9ca8
@@ -430,9 +430,9 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
         // Create filler waveform
         Signal emptySignal;
         std::string fillerName = "filler";
+        // TODO: getUniqueName not a member of WavetableIR — need to determine correct call
         auto newWf = manager_->newWaveform(
-            getUniqueName(fillerName, manager_->numDefs(), manager_->numDefs() + 1),
-            emptySignal, fillerName, *deviceConstants_);
+            fillerName, emptySignal, fillerName, *deviceConstants_);
 
         usedWaveforms_.push_back(std::move(newWf));
 
@@ -581,8 +581,8 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 
     // Update addressBase_ from last allocation position       // 0x29eef2
     // Reads final position from deque end
-    if (!allocator.freeBlocks_.empty()) {
-        addressBase_ = allocator.freeBlocks_.back().end;
+    if (allocator.hasFreeBlocks()) {
+        addressBase_ = allocator.lastFreeBlock().end;
     }
 }
 
@@ -599,22 +599,24 @@ void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f31
 {
     WaveformIR* wf = waveform.get();
 
-    // Check if already loaded (fileType at +0x18 in Waveform)
-    if (wf->fileType != 0)
-        return;
+    // Check if already loaded
+    // TODO: WaveformIR has no fileType field — need to determine correct check
+    // if (wf->fileType != 0)
+    //     return;
 
     // Check signal allocation
     wf->signal.checkAllocation();
 
     // If signal has no data, load from CSV
-    if (wf->signal.data.begin() == wf->signal.data.end())
+    if (wf->signal.data().begin() == wf->signal.data().end())
         return;
 
     try {
         auto wfCopy = waveform;  // increment refcount
         int deviceType = deviceConstants_->deviceType;  // DC+0x00
-        CsvParser::csvFileToWaveform<WaveformIR>(std::move(wfCopy),
-                                                  static_cast<AwgDeviceType>(deviceType));
+        // TODO: CsvParser not declared — need to add header or stub
+        // CsvParser::csvFileToWaveform<WaveformIR>(std::move(wfCopy),
+        //                                          static_cast<AwgDeviceType>(deviceType));
     } catch (const std::exception& e) {
         const char* msg = e.what();
         if (!msg || !*msg) msg = "(unknown error)";

@@ -213,7 +213,7 @@ public:
     Value getReturnValue();                           // @0x1e3d40
     void setReturnReg(int reg);                       // @0x1e3ed0
     AsmRegister getReturnReg();                       // @0x1e3fe0
-    int getRegisterNumber();                          // @0x1e4bb0
+    static int getRegisterNumber();                          // @0x1e4bb0
 
     // --- Variable operations ---
     bool variableDependsOnVar(std::string const& name) const;    // @0x1e40e0
@@ -261,7 +261,7 @@ public:
     void getRegister(std::string const& name);  // @0x1eba50
 
     // --- Label ---
-    void newLabel(std::string const& name);     // @0x1ec6b0
+    static std::string newLabel(std::string const& name);     // @0x1ec6b0
 
     // --- Debug ---
     void print();                               // @0x1ebbe0

@@ -36,6 +36,7 @@
 namespace zhinst {
 
 struct WaveformIR;
+struct DeviceConstants;
 
 // ============================================================================
 // CacheException — inherits std::exception, has string message_
@@ -106,6 +107,9 @@ public:
         uint32_t numRepeats_;                   // +0x0C
         std::shared_ptr<WaveformIR> waveform_;  // +0x10
         PointerState state_;                    // +0x20
+
+        // TODO: These are referenced in prefetch .cpp files but may alias existing fields
+        int pageCount = 0;                      // offset TBD — page count
 
         std::string str() const;                // 0x283c30
     };

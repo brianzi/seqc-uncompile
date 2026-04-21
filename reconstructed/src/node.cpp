@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "zhinst/node.hpp"
+#include "zhinst/error_messages.hpp"
 
 #include <sstream>
 #include <unordered_map>
@@ -417,6 +418,7 @@ void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
 
 throw_error:
     {
+        extern ErrorMessages errMsg;
         std::string errStr = errMsg[static_cast<ErrorMessageT>(0xa4)];
         std::string formatted = ErrorMessages::format(
             static_cast<ErrorMessageT>(0xa2), errStr);

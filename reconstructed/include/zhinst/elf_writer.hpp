@@ -32,9 +32,9 @@
 // ============================================================================
 #pragma once
 
-#include <elfio/elfio.hpp>
-
 #include <cstdint>
+
+#include <elfio/elfio.hpp>
 #include <memory>
 #include <ostream>
 #include <string>
@@ -42,8 +42,12 @@
 
 #include "zhinst/rawwave.hpp"
 #include "address_impl.hpp"
+#include "signal.hpp"        // for SampleFormat
 
 namespace zhinst {
+
+struct WaveformIR;  // forward declaration
+struct DeviceConstants;  // forward declaration
 
 // ============================================================================
 // ElfWriter — wraps ELFIO::elfio for AWG ELF output

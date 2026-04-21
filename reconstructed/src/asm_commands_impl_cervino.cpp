@@ -6,6 +6,7 @@
 #include "zhinst/asm_commands_impl.hpp"
 #include "zhinst/asm_list.hpp"
 #include "zhinst/error_messages.hpp"
+#include "zhinst/resources.hpp"  // for ResourcesException
 
 namespace zhinst {
 
@@ -17,15 +18,15 @@ bool AsmCommandsImplCervino::isCWVFRSupported() const {
 
 // --- wwvfq: unsupported on Cervino ---
 
-AsmEntry AsmCommandsImplCervino::wwvfq(int lineNumber) const {
+AsmList::Asm AsmCommandsImplCervino::wwvfq(int lineNumber) const {
     throw ResourcesException(
         ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wwvfq"));
 }
 
 // --- wprf: opcode 0xF0000000, no registers, no immediates ---
 
-AsmEntry AsmCommandsImplCervino::wprf(int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplCervino::wprf(int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WPRF;
     result.wavetableFront = lineNumber;
@@ -35,9 +36,9 @@ AsmEntry AsmCommandsImplCervino::wprf(int lineNumber) const {
 
 // --- wvf: opcode 0x20000000 ---
 
-AsmEntry AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister markerReg,
+AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister markerReg,
                                       int waveIndex, int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVF;
 
@@ -59,14 +60,14 @@ AsmEntry AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister markerReg,
 
 // --- wvfi: opcode 0x30000000 (only if markerReg == R0) ---
 
-AsmEntry AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister markerReg,
+AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister markerReg,
                                        int waveIndex, int lineNumber) const {
     if (markerReg != AsmRegister::Reg(0)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
     }
 
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFI;
     result.assembler.reg2 = waveReg;
@@ -79,7 +80,7 @@ AsmEntry AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister markerReg
 
 // --- wvfs: unsupported on Cervino ---
 
-AsmEntry AsmCommandsImplCervino::wvfs(Assembler::PlayDummyType, AsmRegister,
+AsmList::Asm AsmCommandsImplCervino::wvfs(Assembler::PlayDummyType, AsmRegister,
                                        int, int) const {
     throw ResourcesException(
         ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wvfs"));
@@ -87,16 +88,16 @@ AsmEntry AsmCommandsImplCervino::wvfs(Assembler::PlayDummyType, AsmRegister,
 
 // --- wvft: unsupported on Cervino ---
 
-AsmEntry AsmCommandsImplCervino::wvft(AsmRegister, int, int) const {
+AsmList::Asm AsmCommandsImplCervino::wvft(AsmRegister, int, int) const {
     throw ResourcesException(
         ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wvft"));
 }
 
 // --- brz: opcode 0xF3000000 ---
 
-AsmEntry AsmCommandsImplCervino::brz(AsmRegister reg, const std::string& label,
+AsmList::Asm AsmCommandsImplCervino::brz(AsmRegister reg, const std::string& label,
                                       bool flag, int lineNumber) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::BRZ;
     result.assembler.reg0 = reg;
@@ -108,8 +109,8 @@ AsmEntry AsmCommandsImplCervino::brz(AsmRegister reg, const std::string& label,
 
 // --- ssl: opcode 0x60000005, reg in both slots ---
 
-AsmEntry AsmCommandsImplCervino::ssl(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplCervino::ssl(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSL;
     result.assembler.reg2 = reg;  // dst
@@ -121,8 +122,8 @@ AsmEntry AsmCommandsImplCervino::ssl(AsmRegister reg, int lineNumber) const {
 
 // --- ssr: opcode 0x60000006, reg in both slots ---
 
-AsmEntry AsmCommandsImplCervino::ssr(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplCervino::ssr(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSR;
     result.assembler.reg2 = reg;
@@ -134,8 +135,8 @@ AsmEntry AsmCommandsImplCervino::ssr(AsmRegister reg, int lineNumber) const {
 
 // --- ldiotrig: LD from address 0x60 ---
 
-AsmEntry AsmCommandsImplCervino::ldiotrig(AsmRegister reg, int lineNumber) const {
-    AsmEntry result;
+AsmList::Asm AsmCommandsImplCervino::ldiotrig(AsmRegister reg, int lineNumber) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::LD;
     result.assembler.reg0 = reg;

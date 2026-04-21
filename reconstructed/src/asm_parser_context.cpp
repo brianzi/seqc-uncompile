@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "zhinst/asm_parser_context.hpp"
+#include "zhinst/asm_expression.hpp"
 
 #include <cstdlib>   // strdup, free
 #include <cstring>   // strlen
@@ -338,7 +339,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
     if (args) {
         // Extract command name from args' string field at +0x08
         // Find first space to isolate the command token
-        std::string nameStr(/* args->name, up to first space */);
+        std::string nameStr = args->name; /* TODO: up to first space */
 
         // Destroy the args expression (consumed)
         args->~AsmExpression();
@@ -349,7 +350,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
         if (resolved == static_cast<Assembler::Command>(0xFFFFFFFF)) {
             ctx->raiseError("Unknown command: " + nameStr);
         }
-        cmd->cmd = resolved;  // +0x38
+        cmd->command = resolved;  // +0x38
     }
 
     if (label) {
@@ -365,11 +366,11 @@ AsmExpression* addCommand(AsmParserContext* ctx,
 
         // If no args were provided, this is a pure label instruction
         if (!args) {
-            cmd->cmd = static_cast<Assembler::Command>(0x02);  // LABEL
+            cmd->command = static_cast<Assembler::Command>(0x02);  // LABEL
         }
 
         // Store Label data into the AsmExpression
-        Label lbl(pc, labelStr);
+        AsmParserContext::Label lbl(pc, labelStr);
         cmd->labelPc = lbl.pc;        // +0x58
         // Move/copy lbl.name into cmd's label string at +0x60
         // Set hasLabel flag at +0x78 = true

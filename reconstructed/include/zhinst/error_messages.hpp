@@ -390,6 +390,14 @@ enum ErrorMessageT : int {
     FwVectorExtraWords          = 36875,
     FwOutOfSequence             = 36876,
     FwVectorOutOfRange          = 36877,
+
+    // TODO: These names are used in asm_commands.cpp / asm_commands_impl_*.cpp
+    // but their numeric values are unknown. They may be aliases for existing
+    // enum values above (e.g., InvalidRegister might be RegisterNotExist=4).
+    // Added here as placeholders to allow compilation.
+    InvalidRegister             = -1,   // PLACEHOLDER — real value unknown
+    UnsupportedOp               = -2,   // PLACEHOLDER — real value unknown
+    ValueOverflow               = -3,   // PLACEHOLDER — real value unknown
 };
 
 // ============================================================================
@@ -408,9 +416,14 @@ public:
     // Binary address: 0x108380
     std::string const& operator[](ErrorMessageT id) const;
 
+    // Static lookup by integer key (used as ErrorMessages::get(n) in opcodes code)
+    static std::string const& get(int id) { return messages.at(id); }
+
     // Format a message with no arguments.
     // Binary address: 0x15d0d0
-    std::string format(ErrorMessageT id) const;
+    // NOTE: made static for compilation — underlying map is static (BSS).
+    // In the binary these are const member functions on a global instance.
+    static std::string format(ErrorMessageT id);
 
     // Format a message with arguments (variadic template).
     // ~40 instantiations in binary. Pattern:
@@ -419,33 +432,37 @@ public:
     //   3. feed args via boost::io::detail::feed_impl
     //   4. return basic_format::str()
     template <typename... Args>
-    std::string format(ErrorMessageT id, Args&&... args) const;
+    static std::string format(ErrorMessageT id, Args&&... args);
 
     // Static message map (BSS at 0xb84c38)
     static std::map<int, std::string> messages;
 };
 
-// ============================================================================
-// ResourcesException — thrown on validation failures
-//
-// Layout: vptr(8) + string(24) = 0x20 bytes
-// Inherits from std::exception (NOT std::runtime_error)
-// vtable at 0xb04ea8
-// ============================================================================
-class ResourcesException : public std::exception {
-public:
-    explicit ResourcesException(std::string const& msg);  // 0x1e3a20
-    ~ResourcesException() override;                       // 0x1f12f0
-    const char* what() const noexcept override;           // 0x1f1340
-
-private:
-    std::string message_;  // +0x08 (24 bytes)
-};
+// NOTE: ResourcesException is defined in resources.hpp (not duplicated here).
 
 // Free function: look up API error message by ZIResult_enum code.
 // Uses a separate hash table (apiErrorMessages, BSS at 0xb85230).
 // Returns static "unknownError" string if not found.
 // Binary address: 0x2e4820
 std::string const& getApiErrorMessage(int ziResultCode);
+
+// ============================================================================
+// ZIAWGCompilerException — thrown on compiler/assembler errors
+//
+// TODO: exact layout and vtable address not yet confirmed.
+// Used in awg_assembler_impl_pipeline.cpp and other compilation paths.
+// ============================================================================
+class ZIAWGCompilerException : public std::exception {
+public:
+    explicit ZIAWGCompilerException(std::string const& msg) : message_(msg) {}
+    explicit ZIAWGCompilerException(int code, std::string const& msg)
+        : code_(code), message_(msg) {}
+    ~ZIAWGCompilerException() override = default;
+    const char* what() const noexcept override { return message_.c_str(); }
+    int code() const { return code_; }
+private:
+    int code_ = 0;
+    std::string message_;
+};
 
 } // namespace zhinst

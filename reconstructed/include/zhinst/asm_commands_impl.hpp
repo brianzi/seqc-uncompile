@@ -37,24 +37,24 @@ public:
 
     virtual bool isCWVFRSupported() const = 0;
 
-    virtual AsmEntry wwvfq(int lineNumber) const = 0;
-    virtual AsmEntry wprf(int lineNumber) const = 0;
+    virtual AsmList::Asm wwvfq(int lineNumber) const = 0;
+    virtual AsmList::Asm wprf(int lineNumber) const = 0;
 
-    virtual AsmEntry wvf(AsmRegister waveReg, AsmRegister markerReg,
+    virtual AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
                          int waveIndex, int lineNumber) const = 0;
-    virtual AsmEntry wvfi(AsmRegister waveReg, AsmRegister markerReg,
+    virtual AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister markerReg,
                           int waveIndex, int lineNumber) const = 0;
-    virtual AsmEntry wvfs(Assembler::PlayDummyType dummyType,
+    virtual AsmList::Asm wvfs(Assembler::PlayDummyType dummyType,
                           AsmRegister reg, int arg, int lineNumber) const = 0;
-    virtual AsmEntry wvft(AsmRegister reg, int arg, int lineNumber) const = 0;
+    virtual AsmList::Asm wvft(AsmRegister reg, int arg, int lineNumber) const = 0;
 
-    virtual AsmEntry brz(AsmRegister reg, const std::string& label,
+    virtual AsmList::Asm brz(AsmRegister reg, const std::string& label,
                          bool flag, int lineNumber) const = 0;
 
-    virtual AsmEntry ssl(AsmRegister reg, int lineNumber) const = 0;
-    virtual AsmEntry ssr(AsmRegister reg, int lineNumber) const = 0;
+    virtual AsmList::Asm ssl(AsmRegister reg, int lineNumber) const = 0;
+    virtual AsmList::Asm ssr(AsmRegister reg, int lineNumber) const = 0;
 
-    virtual AsmEntry ldiotrig(AsmRegister reg, int lineNumber) const = 0;
+    virtual AsmList::Asm ldiotrig(AsmRegister reg, int lineNumber) const = 0;
 
     // Factory: selects Cervino or Hirzel based on device type.
     static std::unique_ptr<AsmCommandsImpl> getInstance(AwgDeviceType deviceType);
@@ -67,24 +67,24 @@ public:
 
     bool isCWVFRSupported() const override;  // returns false
 
-    AsmEntry wwvfq(int lineNumber) const override;  // throws (unsupported)
-    AsmEntry wprf(int lineNumber) const override;    // opcode 0xF0000000
+    AsmList::Asm wwvfq(int lineNumber) const override;  // throws (unsupported)
+    AsmList::Asm wprf(int lineNumber) const override;    // opcode 0xF0000000
 
-    AsmEntry wvf(AsmRegister waveReg, AsmRegister markerReg,
+    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
                  int waveIndex, int lineNumber) const override;   // 0x20000000
-    AsmEntry wvfi(AsmRegister waveReg, AsmRegister markerReg,
+    AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister markerReg,
                   int waveIndex, int lineNumber) const override;  // 0x30000000 or throws
-    AsmEntry wvfs(Assembler::PlayDummyType, AsmRegister, int,
+    AsmList::Asm wvfs(Assembler::PlayDummyType, AsmRegister, int,
                   int) const override;   // throws
-    AsmEntry wvft(AsmRegister, int, int) const override;  // throws
+    AsmList::Asm wvft(AsmRegister, int, int) const override;  // throws
 
-    AsmEntry brz(AsmRegister reg, const std::string& label,
+    AsmList::Asm brz(AsmRegister reg, const std::string& label,
                  bool flag, int lineNumber) const override;   // 0xF3000000
 
-    AsmEntry ssl(AsmRegister reg, int lineNumber) const override;  // 0x60000005
-    AsmEntry ssr(AsmRegister reg, int lineNumber) const override;  // 0x60000006
+    AsmList::Asm ssl(AsmRegister reg, int lineNumber) const override;  // 0x60000005
+    AsmList::Asm ssr(AsmRegister reg, int lineNumber) const override;  // 0x60000006
 
-    AsmEntry ldiotrig(AsmRegister reg, int lineNumber) const override;  // LD 0x60
+    AsmList::Asm ldiotrig(AsmRegister reg, int lineNumber) const override;  // LD 0x60
 };
 
 // Hirzel implementation — HDAWG, UHF, SHF devices.
@@ -94,30 +94,30 @@ public:
 
     bool isCWVFRSupported() const override;  // returns true
 
-    AsmEntry wwvfq(int lineNumber) const override;   // 0xF0000000
-    AsmEntry wprf(int lineNumber) const override;     // INVALID (sentinel/no-op)
+    AsmList::Asm wwvfq(int lineNumber) const override;   // 0xF0000000
+    AsmList::Asm wprf(int lineNumber) const override;     // INVALID (sentinel/no-op)
 
-    AsmEntry wvf(AsmRegister waveReg, AsmRegister markerReg,
+    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
                  int waveIndex, int lineNumber) const override;
         // markerReg==R0: 0xFA000000; else: 0x20000000
-    AsmEntry wvfi(AsmRegister, AsmRegister, int,
+    AsmList::Asm wvfi(AsmRegister, AsmRegister, int,
                   int) const override;  // always throws
-    AsmEntry wvfs(Assembler::PlayDummyType dummyType,
+    AsmList::Asm wvfs(Assembler::PlayDummyType dummyType,
                   AsmRegister reg, int arg, int lineNumber) const override;
         // 0x30000001
-    AsmEntry wvft(AsmRegister reg, int arg, int lineNumber) const override;
+    AsmList::Asm wvft(AsmRegister reg, int arg, int lineNumber) const override;
         // 0xFC000000
 
-    AsmEntry brz(AsmRegister reg, const std::string& label,
+    AsmList::Asm brz(AsmRegister reg, const std::string& label,
                  bool flag, int lineNumber) const override;
         // reg==R0: 0xFE000000; else: 0xF3000000
 
-    AsmEntry ssl(AsmRegister reg, int lineNumber) const override;
+    AsmList::Asm ssl(AsmRegister reg, int lineNumber) const override;
         // 0x60000005, second slot = R0
-    AsmEntry ssr(AsmRegister reg, int lineNumber) const override;
+    AsmList::Asm ssr(AsmRegister reg, int lineNumber) const override;
         // 0x60000006, second slot = R0
 
-    AsmEntry ldiotrig(AsmRegister reg, int lineNumber) const override;
+    AsmList::Asm ldiotrig(AsmRegister reg, int lineNumber) const override;
         // LD 0x68
 };
 

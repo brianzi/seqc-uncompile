@@ -33,9 +33,9 @@ namespace zhinst {
 //   [this+0x4C] addressValue    — AddressImpl<uint>, key "globalAddress" (len 13, at 0x90a370)
 //   [this+0x50] thirdString     — string, key "genFunc" (len 7, at 0x90a37e)
 //   [this+0x68] playWord        — uint32_t→int, key "playConfig" (len 10, at 0x90a3ad)
-//   [this+0x6C] playIndex       — int32_t, key "waveIndex" (len 9, at 0x90a350)
+//   [this+0x6C] waveIndex       — int32_t, key "waveIndex" (len 9, at 0x90a350)
 //   [this+0x70] seqRegWidth     — int, key "minLengthSamples" (len 16, at 0x90a386)
-//   [this+0x74] field74         — int, key "allocationSize" (len 14, at 0x90a397)
+//   [this+0x74] allocationByteSize         — int, key "allocationSize" (len 14, at 0x90a397)
 //   [this+0x80] signal          — Signal, key "signal" (len 6, at 0x90a3a6)
 //
 // Serialization order (from initializer_list construction, 12 pairs = edx=0xc):
@@ -46,9 +46,9 @@ namespace zhinst {
 //   {"load", used}
 //   {"globalAddress", addressValue}
 //   {"genFunc", thirdString}
-//   {"waveIndex", playIndex}
+//   {"waveIndex", waveIndex}
 //   {"minLengthSamples", seqRegWidth}
-//   {"allocationSize", field74}
+//   {"allocationSize", allocationByteSize}
 //   {"signal", signal.toJson()}
 //   {"playConfig", playWord}
 // ============================================================================
@@ -85,9 +85,9 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
         {"load",             used},              // +0x48, key at 0x9060f4
         {"globalAddress",    addressValue},      // +0x4C, key at 0x90a370
         {"genFunc",          thirdString},       // +0x50, key at 0x90a37e
-        {"waveIndex",        playIndex},         // +0x6C, key at 0x90a350
+        {"waveIndex",        waveIndex},         // +0x6C, key at 0x90a350
         {"minLengthSamples", seqRegWidth},       // +0x70, key at 0x90a386
-        {"allocationSize",   field74},           // +0x74, key at 0x90a397
+        {"allocationSize",   allocationByteSize},           // +0x74, key at 0x90a397
         {"signal",           std::move(signalJson)}, // +0x80, key at 0x90a3a6
         {"playConfig",       static_cast<int>(playWord)}  // +0x68, key at 0x90a3ad
     };
@@ -116,14 +116,14 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
 //   6. "globalAddress"    → to_number<uint64_t> (addressValue)
 //   7. "genFunc"          → as_string → construct std::string (thirdString)
 //   8. "playConfig"       → as_int64 (playWord)
-//   9. "waveIndex"        → as_int64 (playIndex)
+//   9. "waveIndex"        → as_int64 (waveIndex)
 //  10. "minLengthSamples" → as_int64 (seqRegWidth)
-//  11. "allocationSize"   → as_int64 (field74)
+//  11. "allocationSize"   → as_int64 (allocationByteSize)
 //  12. "signal"           → Signal::fromJson (signal)
 //
 // Then calls the full Waveform constructor at 0x2a71e0 with all 13 parameters
 // (name, fileType, secondaryName, filePtr, used, addressValue, genFunc,
-//  playWord, playIndex, seqRegWidth, field74, dc, signal)
+//  playWord, waveIndex, seqRegWidth, allocationByteSize, dc, signal)
 // on the stack (8 pushes for params beyond register capacity).
 // ============================================================================
 Waveform Waveform::fromJson(boost::json::value const& json,
@@ -279,7 +279,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     uint64_t addrVal = addrJson.to_number<uint64_t>(ec);
     if (ec) {
         // 0x2a5b79-0x2a5be0: construct source_location and throw
-        boost::json::throw_exception_from_error(ec, BOOST_CURRENT_LOCATION);
+        boost::system::throw_exception_from_error(ec, BOOST_CURRENT_LOCATION);
     }
     // stored at [rbp-0xf8] as uint64_t, later truncated to uint32_t
 
@@ -329,7 +329,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
         boost::system::error_code ec2;
         allocSizeVal = allocJson.to_number<int64_t>(ec2);
         if (ec2) {
-            boost::json::throw_exception_from_error(ec2, BOOST_CURRENT_LOCATION);
+            boost::system::throw_exception_from_error(ec2, BOOST_CURRENT_LOCATION);
         }
     }
 
@@ -353,9 +353,9 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     //   [rsp+0x00] = addrVal               — [rbp-0xf8] (uint64 → uint32)
     //   [rsp+0x08] = &genFuncStr           — [rbp-0x58] (string, moved)
     //   [rsp+0x10] = playConfigVal (r12)   — playWord (int)
-    //   [rsp+0x18] = waveIndexVal (r13)    — playIndex (int)
+    //   [rsp+0x18] = waveIndexVal (r13)    — waveIndex (int)
     //   [rsp+0x20] = minLengthVal          — [rbp-0xf0] (seqRegWidth, int)
-    //   [rsp+0x28] = allocSizeVal (r12_saved) — field74 (int)
+    //   [rsp+0x28] = allocSizeVal (r12_saved) — allocationByteSize (int)
     //   [rsp+0x30] = &dc                   — [rbp-0x100] (DeviceConstants const&)
     //   [rsp+0x38] = &sig                  — [rbp-0x378] (Signal, moved)
     //
@@ -369,9 +369,9 @@ Waveform Waveform::fromJson(boost::json::value const& json,
         static_cast<uint32_t>(addrVal),             // stack → addressValue (+0x4C)
         std::move(genFuncStr),                      // stack → thirdString (+0x50)
         static_cast<int>(playConfigVal),            // stack → playWord (+0x68)
-        static_cast<int>(waveIndexVal),             // stack → playIndex (+0x6C)
+        static_cast<int>(waveIndexVal),             // stack → waveIndex (+0x6C)
         static_cast<int>(minLengthVal),             // stack → seqRegWidth (+0x70)
-        static_cast<int>(allocSizeVal),             // stack → field74 (+0x74)
+        static_cast<int>(allocSizeVal),             // stack → allocationByteSize (+0x74)
         dc,                                          // stack → deviceConstants (+0x78)
         std::move(sig)                              // stack → signal (+0x80)
     );
@@ -411,7 +411,7 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
 {
     uint16_t channels = signal.channels_;           // 0x1d5c34: [rdi+0xC8]
     uint32_t length = (uint32_t)signal.length_;     // 0x1d5c3b: [rdi+0xD0]
-    DeviceConstants* dc = deviceConstants;           // 0x1d5c41: [rdi+0x78]
+    const DeviceConstants* dc = deviceConstants;      // 0x1d5c41: [rdi+0x78]
 
     // 0x1d5c45: test eax, eax
     // 0x1d5c47: je → return 0
@@ -474,9 +474,9 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
 //   0x2a9629: [rdi+0x4C] addressValue == [rsi+0x4C]              (DWORD ==)
 //   0x2a9632: [rdi+0x50] thirdString == [rsi+0x50]               (string ==)
 //   0x2a9643: [rdi+0x68] playWord == [rsi+0x68]                  (DWORD ==)
-//   0x2a964c: [rdi+0x6C] playIndex == [rsi+0x6C]                 (DWORD ==)
+//   0x2a964c: [rdi+0x6C] waveIndex == [rsi+0x6C]                 (DWORD ==)
 //   0x2a9655: [rdi+0x70] seqRegWidth == [rsi+0x70]               (DWORD ==)
-//   0x2a965e: [rdi+0x74] field74 == [rsi+0x74]                   (DWORD ==)
+//   0x2a965e: [rdi+0x74] allocationByteSize == [rsi+0x74]                   (DWORD ==)
 //   0x2a9667: [rdi+0x80] signal == [rsi+0x80]                    (tail-call Signal::operator==)
 // ============================================================================
 bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
@@ -540,9 +540,9 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (playWord != other.playWord)                 // 0x2a964a: jne → 2a95f6
         return false;
 
-    // --- Compare playIndex (int32_t at +0x6C) ---
+    // --- Compare waveIndex (int32_t at +0x6C) ---
     // 0x2a964c: mov eax, [r14+0x6C]; cmp eax, [rbx+0x6C]
-    if (playIndex != other.playIndex)               // 0x2a9653: jne → 2a95f6
+    if (waveIndex != other.waveIndex)               // 0x2a9653: jne → 2a95f6
         return false;
 
     // --- Compare seqRegWidth (int at +0x70) ---
@@ -550,9 +550,9 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (seqRegWidth != other.seqRegWidth)           // 0x2a965c: jne → 2a95f6
         return false;
 
-    // --- Compare field74 (int at +0x74) ---
+    // --- Compare allocationByteSize (int at +0x74) ---
     // 0x2a965e: mov eax, [r14+0x74]; cmp eax, [rbx+0x74]
-    if (field74 != other.field74)                   // 0x2a9665: jne → 2a95f6
+    if (allocationByteSize != other.allocationByteSize)                   // 0x2a9665: jne → 2a95f6
         return false;
 
     // --- Compare signal (Signal at +0x80, 0x58 bytes) ---
@@ -590,12 +590,12 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
 //   0x114f9b: mov [rbx+0x4C], ecx        — this->addressValue
 //   0x114f9e-0x114fcd: copy src->thirdString to this->thirdString (+0x50)
 //   0x114fcf: mov rsi, [r15]       — re-dereference source.get()
-//   0x114fd2: mov rax, [rsi+0x68]  — src->playWord+playIndex as qword
-//   0x114fd6: mov [rbx+0x68], rax  — this->playWord+playIndex
+//   0x114fd2: mov rax, [rsi+0x68]  — src->playWord+waveIndex as qword
+//   0x114fd6: mov [rbx+0x68], rax  — this->playWord+waveIndex
 //   0x114fda: mov eax, [rsi+0x70]  — src->seqRegWidth
 //   0x114fdd: mov [rbx+0x70], eax  — this->seqRegWidth
-//   0x114fe0: mov eax, [rsi+0x74]  — src->field74
-//   0x114fe3: mov [rbx+0x74], eax  — this->field74
+//   0x114fe0: mov eax, [rsi+0x74]  — src->allocationByteSize
+//   0x114fe3: mov [rbx+0x74], eax  — this->allocationByteSize
 //   0x114fe6: mov rax, [rsi+0x78]  — src->deviceConstants
 //   0x114fea: mov [rbx+0x78], rax  — this->deviceConstants
 //   0x114fee: lea rdi, [rbx+0x80]  — &this->signal
@@ -634,13 +634,13 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
     // Re-dereference
     src = source.get();                             // 0x114fcf: mov rsi, [r15]
 
-    // 0x114fd2-0x114fd6: copy 8 bytes (playWord + playIndex together)
+    // 0x114fd2-0x114fd6: copy 8 bytes (playWord + waveIndex together)
     playWord = src->playWord;                       // +0x68 ← [src+0x68]
-    playIndex = src->playIndex;                     // +0x6C ← [src+0x6C]
+    waveIndex = src->waveIndex;                     // +0x6C ← [src+0x6C]
 
     // 0x114fda-0x114fea
     seqRegWidth = src->seqRegWidth;                 // +0x70 ← [src+0x70]
-    field74 = src->field74;                         // +0x74 ← [src+0x74]
+    allocationByteSize = src->allocationByteSize;                         // +0x74 ← [src+0x74]
     deviceConstants = src->deviceConstants;          // +0x78 ← [src+0x78]
 
     // 0x114fee-0x114ff9: copy-construct Signal
@@ -678,14 +678,14 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
 //   0x2a3bb7-0x2a3bd1: found → copy string from [node+0x18] to return value
 //   0x2a3c58: not found → throw out_of_range
 // ============================================================================
-std::string Waveform::File::typeToStr(File::Type type)  // 0x2a3a90
+std::string Waveform::File::typeToStr(Waveform::File::Type type)  // 0x2a3a90
 {
     // 0x2a3aa2: movzx eax, BYTE [guard] — check if initialized
     // 0x2a3aa9: test al, al; je → first-time init path
-    static std::unordered_map<File::Type, std::string> typeToStrMap = {
-        {File::Type::CSV, "csv"},    // 0x2a3c7e: DWORD [rbp-0x2c] = 0; rdx → 0x90a3b8 "csv"
-        {File::Type::RAW, "raw"},    // 0x2a3ca3: DWORD [rbp-0x28] = 1; rdx → 0x90a3bc "raw"
-        {File::Type::GEN, "gen"},    // 0x2a3cc1: DWORD [rbp-0x24] = 2; rdx → 0x90a3c0 "gen"
+    static std::unordered_map<Waveform::File::Type, std::string> typeToStrMap = {
+        {Waveform::File::Type::CSV, "csv"},    // 0x2a3c7e: DWORD [rbp-0x2c] = 0; rdx → 0x90a3b8 "csv"
+        {Waveform::File::Type::RAW, "raw"},    // 0x2a3ca3: DWORD [rbp-0x28] = 1; rdx → 0x90a3bc "raw"
+        {Waveform::File::Type::GEN, "gen"},    // 0x2a3cc1: DWORD [rbp-0x24] = 2; rdx → 0x90a3c0 "gen"
     };
 
     // 0x2a3ac1-0x2a3c19: hash table lookup
@@ -725,10 +725,10 @@ std::string Waveform::File::typeToStr(File::Type type)  // 0x2a3a90
 Waveform::File::Type Waveform::File::typeFromStr(std::string str)  // 0x2a63c0
 {
     // 0x2a63d0: check guard byte
-    static std::unordered_map<std::string, File::Type> typeToStrMap = {
-        {"csv", File::Type::CSV},    // 0x2a6411: value=0, key from 0x90a3b8
-        {"raw", File::Type::RAW},    // 0x2a6436: value=1, key from 0x90a3bc
-        {"gen", File::Type::GEN},    // 0x2a6454: value=2, key from 0x90a3c0
+    static std::unordered_map<std::string, Waveform::File::Type> typeToStrMap = {
+        {"csv", Waveform::File::Type::CSV},    // 0x2a6411: value=0, key from 0x90a3b8
+        {"raw", Waveform::File::Type::RAW},    // 0x2a6436: value=1, key from 0x90a3bc
+        {"gen", Waveform::File::Type::GEN},    // 0x2a6454: value=2, key from 0x90a3c0
     };
 
     // 0x2a63e5: call hash_table::find(str)
@@ -767,7 +767,7 @@ Waveform::File::Type Waveform::File::typeFromStr(std::string str)  // 0x2a63c0
 //     0x2a972d: call bcmp                             — compare contents
 //   0x2a9734: sete al                                 — return bcmp==0
 // ============================================================================
-bool Waveform::File::operator==(File const& other) const  // 0x2a9680
+bool Waveform::File::operator==(Waveform::File const& other) const  // 0x2a9680
 {
     // r14 = this, rbx = &other
 
@@ -807,31 +807,31 @@ bool Waveform::File::operator==(File const& other) const  // 0x2a9680
     // 0x2a9725: sub rax, rsi                  — other data size
     // 0x2a9728: cmp rdx, rax                  — sizes must match
     // 0x2a972b: jne → 0x2a973c
-    size_t mySize = (size_t)((char*)data_end - (char*)data_begin);
-    size_t otherSize = (size_t)((char*)other.data_end - (char*)other.data_begin);
+    size_t mySize = (size_t)((char*)(data.data() + data.size()) - (char*)data.data());
+    size_t otherSize = (size_t)((char*)(other.data.data() + other.data.size()) - (char*)other.data.data());
     if (mySize != otherSize)
         return false;
 
     // 0x2a972d: call bcmp(rdi=this->data.begin, rsi=other->data.begin, rdx=size)
     // 0x2a9732: test eax, eax
     // 0x2a9734: sete al                       — return (bcmp == 0)
-    return memcmp(data_begin, other.data_begin, mySize) == 0;
+    return memcmp(data.data(), other.data.data(), mySize) == 0;
 }
 
 // ============================================================================
 // 9. Waveform::Waveform(string name, File::Type type, string secondaryName,
 //                        shared_ptr<File> file, bool used,
 //                        AddressImpl<uint> addr, string genFunc,
-//                        int playWord, int playIndex, int seqRegWidth,
-//                        int field74, DeviceConstants const& dc, Signal signal)
+//                        int playWord, int waveIndex, int seqRegWidth,
+//                        int allocationByteSize, DeviceConstants const& dc, Signal signal)
 // Binary address: 0x2a71e0 – 0x2a72f3
 // Mangled: _ZN6zhinst8WaveformC2E...
 // Calling convention:
 //   rdi=this, rsi=&name, edx=type, rcx=&secondaryName,
 //   r8=&file(shared_ptr), r9d=used,
 //   [rbp+0x10]=addr, [rbp+0x18]=&genFunc,
-//   [rbp+0x20]=playWord, [rbp+0x28]=playIndex,
-//   [rbp+0x30]=seqRegWidth, [rbp+0x38]=field74,
+//   [rbp+0x20]=playWord, [rbp+0x28]=waveIndex,
+//   [rbp+0x30]=seqRegWidth, [rbp+0x38]=allocationByteSize,
 //   [rbp+0x40]=&dc, [rbp+0x48]=&signal
 //
 // Full constructor — initializes all fields from parameters.
@@ -840,8 +840,8 @@ Waveform::Waveform(std::string name_, File::Type type_,
                    std::string secondaryName_, std::shared_ptr<File> file_,
                    bool used_, detail::AddressImpl<uint32_t> addr_,
                    std::string genFunc_,
-                   int playWord_, int playIndex_, int seqRegWidth_,
-                   int field74_,
+                   int playWord_, int waveIndex_, int seqRegWidth_,
+                   int allocationByteSize_,
                    DeviceConstants const& dc_, Signal signal_)  // 0x2a71e0
 {
     // rbx = this
@@ -881,17 +881,17 @@ Waveform::Waveform(std::string name_, File::Type type_,
     // 0x2a72c8: mov [rbx+0x68], r8d
     playWord = playWord_;                           // +0x68
 
-    // 0x2a72c1: mov edi, [rbp+0x28]   — playIndex from stack
+    // 0x2a72c1: mov edi, [rbp+0x28]   — waveIndex from stack
     // 0x2a72cc: mov [rbx+0x6C], edi
-    playIndex = playIndex_;                         // +0x6C
+    waveIndex = waveIndex_;                         // +0x6C
 
     // 0x2a72be: mov edx, [rbp+0x30]   — seqRegWidth from stack
     // 0x2a72cf: mov [rbx+0x70], edx
     seqRegWidth = seqRegWidth_;                     // +0x70
 
-    // 0x2a72bb: mov ecx, [rbp+0x38]   — field74 from stack
+    // 0x2a72bb: mov ecx, [rbp+0x38]   — allocationByteSize from stack
     // 0x2a72d2: mov [rbx+0x74], ecx
-    field74 = field74_;                             // +0x74
+    allocationByteSize = allocationByteSize_;                             // +0x74
 
     // 0x2a72b7: mov rax, [rbp+0x40]   — &dc from stack
     // 0x2a72d5: mov [rbx+0x78], rax
@@ -943,11 +943,11 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
     deviceConstants = other.deviceConstants;         // +0x78
 
     // 0x2a90b7: movups [r15+0x68] → [rbx+0x68]
-    //   (copies playWord + playIndex + seqRegWidth + field74 as 16 bytes)
+    //   (copies playWord + waveIndex + seqRegWidth + allocationByteSize as 16 bytes)
     playWord = other.playWord;                      // +0x68
-    playIndex = other.playIndex;                    // +0x6C
+    waveIndex = other.waveIndex;                    // +0x6C
     seqRegWidth = other.seqRegWidth;                // +0x70
-    field74 = other.field74;                        // +0x74
+    allocationByteSize = other.allocationByteSize;                        // +0x74
 
     // 0x2a90c0: lea rdi, [rbx+0x80]
     // 0x2a90c7: sub r15, -0x80 (= r15 + 0x80 = &other.signal)

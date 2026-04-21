@@ -1,16 +1,27 @@
 #pragma once
 
+#include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cstdint>
 
-// Forward declarations for boost bimap used at offset 0xb0-0xc8
-// The bimap is: bimap<string, multiset_of<int>>
+#include <boost/bimap.hpp>
+#include <boost/bimap/multiset_of.hpp>
+
+#include "asm_parser_context.hpp"
 
 namespace zhinst {
 
 struct DeviceConstants;
-class Assembler;
+struct AssemblerInstr;
+class AsmExpression;
+class AsmParserContext;
+
+// LabelBimap type alias — bimap<string, multiset_of<int>>
+using LabelBimap = boost::bimaps::bimap<
+    std::string,
+    boost::bimaps::multiset_of<int>>;
 
 // sizeof(AWGAssemblerImpl) = 0x170
 //
@@ -19,71 +30,101 @@ class Assembler;
 // Offset  Size  Type                              Field
 // ------  ----  ----                              -----
 // 0x00    0x08  DeviceConstants const*            deviceConstants_
-// 0x08    0x18  std::string                       str0_ (sourceFile? inputPath?)
-// 0x20    0x18  std::string                       str1_ (sourceString?)
-// 0x38    0x18  std::string                       str2_ (another string)
-// 0x50    0x18  std::vector<uint64_t>             opcodes_ (getOpcode returns &this+0x50)
+// 0x08    0x18  std::string                       filename_
+// 0x20    0x18  std::string                       asmSource_
+// 0x38    0x18  std::string                       str2_
+// 0x50    0x18  std::vector<uint64_t>             opcodes_
 // 0x68    0x04  uint32_t                          memoryOffset_
 // 0x6c    0x04  (padding)
-// 0x70    0x08  (ptr, part of next field)         \  
-// 0x78    0x18  std::vector<std::string>          strings_ (messages/source lines)
-// 0x90    0x18  std::vector<Message>              messages_ (AWGAssemblerImpl::Message)
-// 0xa8    0x08  (zero-initialized)                count/size for bimap?
-// 0xb0    0x08  ptr (self-ref to 0xc8)            bimap header ptr (left index sentinel)
-// 0xb8    0x08  (bimap internals)
-// 0xc0    0x08  ptr (heap alloc 0x50)             bimap core (allocated node storage)
-// 0xc8    0x18  (bimap sentinel node area)        bimap sentinel/header
-// 0xd0    0x08  size_t                            bimap node count
-// 0xd8    0x08  ptr (init to &0xc8)              bimap right index header.left
-// 0xe0    0x08  ptr (init to &0xc8)              bimap right index header.right
-// 0xe8    0x08  (padding/reserved)
-// 0xf0    0x04  uint32_t                          flags/state (init 0)
-// 0xf4    0x01  bool                              initialized_ (init true)
-// 0xf5    0x03  (padding)
-// 0xf8    0x28  std::string                       str3_ (or could be other obj; 0x28 to 0x120)
-//               NOTE: 0xf8-0x120 is 0x28 bytes. In dtor, 0x120 is checked
-//               against &(this+0x100) suggesting embedded buffer → libc++ string
-//               with inline buffer at 0x100. Actually this looks like an
-//               std::stringstream or similar object with vtable at 0x120.
-// 0x120   0x08  ptr (streambuf*/vtable obj)       streamObj_ (dtor checks if == &this+0x100)
-// 0x128   0x08  (padding/reserved)
-// 0x130   0x18  std::vector<?>                    vec3_ (some vector)
-// 0x148   0x08  ptr                               hashTable_/ptr (freed with size*8)
-// 0x150   0x08  size_t                            hashTableCapacity_
-// 0x158   0x08  ptr                               linkedList_ (linked list head, nodes 0x28 each)
-// 0x160   0x08  size_t                            count4_
-// 0x168   0x04  float                             sampleRate_ (init 1.0f = 0x3f800000)
-// 0x16c   0x04  (padding to 0x170)
+// 0x70    0x08  (ptr, part of next field)
+// 0x78    0x18  std::vector<std::string>          sourceLines_
+// 0x90    0x18  std::vector<Message>              messages_
+// 0xa8-0xe8     LabelBimap                        labelBimap_
+// 0xf0    0x04  uint32_t                          flags_
+// 0xf4    0x01  bool                              initialized_
+// 0xf5-0x170    remaining fields (parser context, hash table, etc.)
 
 class AWGAssemblerImpl {
 public:
+    // Message struct — stored in messages_ vector
+    struct Message {
+        int level = 0;         // 0=info, 1=warning, 2=error
+        int lineNumber = 0;    // source line number
+        std::string text;
+    };
+
     AWGAssemblerImpl(DeviceConstants const& dc);
     ~AWGAssemblerImpl();
 
     void assembleFile(std::string const& path);
     void assembleString(std::string const& src);
-    void assembleAsmList(std::vector<Assembler> const& asmList);
-    // vector<...> assembleStringToExpressionsVec(std::string const& src);
+    void assembleAsmList(std::vector<AssemblerInstr> const& asmList);
+    std::vector<std::shared_ptr<AsmExpression>> assembleStringToExpressionsVec(
+        std::string const& src);
     void setMemoryOffset(unsigned int offset);
     void writeToFile(std::string const& path);
     std::vector<uint64_t> const& getOpcode() const;
-    // std::string getReport() const;
+    std::string getReport() const;
     void printOpcode(int format) const;
 
-private:
+    // --- Opcode encoding methods (awg_assembler_opcodes.cpp) ---
+    unsigned int getReg(std::shared_ptr<AsmExpression> const& expr);     // 0x2892b0
+    unsigned int getVal(std::shared_ptr<AsmExpression> const& expr,
+                        int bits);                                       // 0x289370
+    uint64_t opcode0(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x2895c0
+    uint64_t opcode1(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289860
+    uint64_t opcode2(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289a10
+    uint64_t opcode3(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289c90
+    uint64_t opcode4(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x28a010
+    uint64_t opcode5(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x28a610
+
+    // --- Pipeline methods (awg_assembler_impl_pipeline.cpp) ---
+    void parseLine(std::string const& line);
+    void parseString(std::string const& src,
+                     std::vector<std::shared_ptr<AsmExpression>>& exprs);
+    void encodeExpressions(std::vector<std::shared_ptr<AsmExpression>> const& exprs);
+    std::shared_ptr<AsmExpression> getAST(std::string const& src);
+    void assembleExpressions(std::vector<std::shared_ptr<AsmExpression>> const& exprs,
+                             std::vector<uint64_t> const& offsets);
+    int evaluate(std::shared_ptr<AsmExpression> const& expr);
+    std::string extractComment(std::string const& line);
+
+    // --- Error reporting helper ---
+    // Stores error/warning message; used throughout opcode/pipeline methods.
+    void errorMessage(std::string const& msg);
+    void parserMessage(int level, std::string const& msg);
+
+    // --- Label access ---
+    LabelBimap const& getLabelBimap() const { return labelBimap_; }
+
     DeviceConstants const* deviceConstants_;   // 0x00
-    std::string str0_;                         // 0x08
-    std::string str1_;                         // 0x20
+    std::string filename_;                     // 0x08
+    std::string asmSource_;                    // 0x20
     std::string str2_;                         // 0x38
     std::vector<uint64_t> opcodes_;            // 0x50
-    uint32_t memoryOffset_;                    // 0x68
-    uint32_t pad0_;                            // 0x6c
-    // 0x70-0xa8: vectors of strings and messages
-    char fields_70_[0x38];                     // 0x70 (vec<string> + vec<Message>)
-    // 0xa8-0xc8: bimap header area
-    char bimap_[0x60];                         // 0xa8-0x108 (boost bimap internals)
-    // Remaining fields...
-    char fields_108_[0x68];                    // 0x108-0x170
+    uint32_t memoryOffset_ = 0;                // 0x68
+    uint32_t pad0_ = 0;                        // 0x6c
+
+    // 0x70: TODO — exact type at 0x70 unclear (ptr field)
+    void* field_70_ = nullptr;                 // 0x70
+
+    std::vector<std::string> sourceLines_;     // 0x78
+    std::vector<Message> messages_;              // 0x90
+
+    LabelBimap labelBimap_;                    // 0xa8 (approx 0x48 bytes)
+
+    // Remaining fields stored as opaque storage
+    // TODO: reconstruct individual fields as needed
+    char remaining_fields_[0x80]{};            // fills to 0x170
+
+    int lineNumber_ = 0;                       // used in pipeline
+    AsmParserContext parserCtx_;               // by-value parser context (offset ~0xF0)
+
+    // Raw pointer fields for opcode/source buffer management (used in pipeline)
+    uint64_t* opcodes_begin_ = nullptr;        // offset TBD
+    uint64_t* opcodes_end_ = nullptr;          // offset TBD
+    std::string* sourceLines_begin_ = nullptr; // offset TBD
+    std::string* sourceLines_end_ = nullptr;   // offset TBD
 };
 
 } // namespace zhinst

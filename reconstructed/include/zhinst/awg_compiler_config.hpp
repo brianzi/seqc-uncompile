@@ -67,7 +67,8 @@ struct AWGCompilerConfig {
     uint8_t cacheType;                  // 0x19 — 0=Normal, 1=Aligned (movzbl 0x19(%rax) at 0x1d6c4d)
     char pad_1a[2];                     // 0x1A — padding
     int numChannelGroups;               // 0x1C — 1, 2, or 4
-    uint64_t unknown_20;                // 0x20
+    int32_t unknown_20;                 // 0x20
+    int32_t deviceIndex;                // 0x24 — Device index for waveform lookup
     uint64_t unknown_28;                // 0x28
     std::string string_30;              // 0x30 — 24 bytes, conditionally owned
     bool string_30_owned;               // 0x48
@@ -78,10 +79,24 @@ struct AWGCompilerConfig {
     std::vector<std::string> includePaths; // 0x70 — begin/end/cap at 0x70/0x78/0x80
     uint64_t unknown_88;                // 0x88 — 8 bytes unknown
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
-    char unknown_94[12];                // 0x94 — 12 bytes unknown
+    int32_t numCores = 1;               // 0x94 — number of AWG cores
+    char unknown_98[8];                 // 0x98 — 8 bytes unknown
     int32_t wavetableSize;              // 0xA0 — sign-extended to size_t
     int32_t pad_a4;                     // 0xA4
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)
+
+    // TODO: These members are referenced in prefetch/static_resources .cpp files
+    // but their exact offsets within AWGCompilerConfig are not confirmed.
+    // They may be aliases for existing unknown_XX fields above.
+    int cacheSize = 0;          // offset TBD — cache size setting
+    int channelIndex = 0;       // offset TBD — channel index
+    bool appendMode = false;    // offset TBD — append mode flag
+    int splitIndex = 0;         // offset TBD — split index for multi-core
+    int baseGrainSize = 0;      // offset TBD — base grain size
+    int channelGrains = 0;      // offset TBD — channel grains
+    int syncVersion = 0;        // offset TBD — sync version
+    int seqCount = 0;           // offset TBD — sequence count
+    double deviceSampleRate = 0.0; // offset TBD — device sample rate
 
     ~AWGCompilerConfig();
 

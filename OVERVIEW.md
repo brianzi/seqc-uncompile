@@ -83,7 +83,7 @@ reconstructed/
 │   ├── wavetable_front.hpp      # WavetableFront (0x200 bytes) + WavetableManager<WaveformFront> (0x48 bytes)
 │   ├── wavetable_ir.hpp         # WavetableIR (0xC8 bytes)
 │   ├── asm_list.hpp             # AsmList::Asm record (0xA8 bytes), AsmList (vector wrapper, 0x18 bytes)
-│   ├── error_messages.hpp       # ErrorMessageT enum (305 values), ErrorMessages class, ResourcesException
+│   ├── error_messages.hpp       # ErrorMessageT enum (305 values), ErrorMessages class
 │   ├── asm_commands_impl.hpp    # AsmCommandsImpl base + Cervino/Hirzel declarations
 │   ├── asm_commands.hpp         # AsmCommands — all 83 method declarations
 │   ├── device_constants.hpp  # DeviceConstants (0x90 bytes POD), flat scalar fields, getDeviceConstants()
@@ -193,7 +193,7 @@ reconstructed/
     ├── cervino_vs_hirzel.md     # Device selection logic + per-method difference matrix
     ├── struct_layouts.md        # Raw byte-offset tables for all structs (updated Phase 5)
     ├── node_tree_structure.md   # Node tree model: sibling chain, elseBranch, children
-    ├── unknowns.md              # Open questions (34 closed, ~43 open)
+    ├── unknowns.md              # Open questions (~40 closed, ~37 open)
     ├── opcode_encoding.md       # AWGAssembler instruction encoding formats (6 types)
     ├── optimization_passes.md   # AsmOptimize pass details, flags, register allocator
     ├── pipeline.md              # Full compilation pipeline flow (Compiler::compile)
@@ -282,8 +282,6 @@ reconstructed/
 - `AsmCommands::alui()` — multi-instruction immediate splitting (core logic present, edge cases uncertain)
 - `AsmCommands::asmPlay()` — most complex method; waveform name vector, PlayConfig, packed play word
 - `AsmCommands::genPlayConfig()` — marker processing loop reconstructed
-- `AsmCommands::syncCervino()` / `unsyncCervino()` — **fully reconstructed** (Phase 10.5d)
-- `AsmList::parseStringToAsmList()` — **fully reconstructed**; 0x266160–0x268130 (7632 bytes). Deserializes assembly text via AWGAssembler pipeline, rebuilds AsmList with register assignment via getRegisterOrder() switch, JSON-based Node reconstruction for placeholder entries, and Node::installPointers post-pass.
 - `AsmOptimize::registerAllocation()` — algorithm structure captured (live ranges, conflict graph, greedy allocation); full ~1900 asm lines are approximate
 - `AsmOptimize::removeUnusedRegs()` — core logic present, cancel callback and inner scan loop approximate
 - `AsmOptimize::splitConstRegisters()` — splitting strategy captured, inner loop details approximate
@@ -315,13 +313,14 @@ reconstructed/
 **Not yet reconstructed:**
 - `CachedParser` — 0x60-byte tree-based cache, used by WavetableFront + WavetableIR
 - `WaveformGenerator` — 16 symbols, waveform DSP (createDummyWaveform, genericTriangle, reverse + 2 exception classes)
-- `AsmParserContext` — not listed here (already reconstructed Phase 9b, see above)
 
 *Phase 10 — Scope & Symbol Management:*
 - `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed (Phase 10c). Factory functions: createValue, createRegister, createName, createArgList, appendArgList
 - `StaticResources` (0x110) — ctor, dtor, getVariable override (SSE checks for DEVICE_SAMPLE_RATE, AWG_MONITOR_TRIGGER, AWG_INTEGRATION_ARM/TRIGGER, ZSYNC_DATA_PROCESSED_*; reports error 0x34 for deprecated constants), init (**fully reconstructed**: all 213 addConst calls across ~15KB — 4 rate families, QA_INT/QA_GEN channel bitmasks, ZSYNC_DATA computed constants, 32 trigger indices, trigger bitmasks, channels/markers, suppress/enable, math constants, booleans)
 - `GlobalResources` (0xD8) — ctor (MT19937-64 PRNG seeding), dtor. TLS statics: regNumber, labelIndex, random[313]
 - `Resources` base (0xD8) — 20+ methods reconstructed: setState, hasMain, setReturnType/getReturnType (recursive parent walk), setReturnValue×2/getReturnValue, setReturnReg/getReturnReg (recursive), getRegisterNumber (TLS), getVariable (virtual, parent-walking search), print/toString/printAll/printScopes. Inner types: Variable (0x58 bytes: varType, boost::variant data, AsmRegister, name, flags; dtor @0x1e4be0), Function (0x78 bytes: name, signature, returnType, arguments vector, scope shared_ptr, body unique_ptr; ctor/dtor/resetScope/addArguments/addBody/getBody), State enum (Unset=0, Active=1, Paused=2, Locked=3), ResourcesException (ctor/dtor/what)
+- `AsmCommands::syncCervino()` / `unsyncCervino()` — fully reconstructed (Phase 10.5d)
+- `AsmList::parseStringToAsmList()` — fully reconstructed; 0x266160–0x268130 (7632 bytes). Deserializes assembly text via AWGAssembler pipeline, rebuilds AsmList with register assignment via getRegisterOrder() switch, JSON-based Node reconstruction for placeholder entries, and Node::installPointers post-pass
 
 *Phase 7d — Prefetch Command Emission (COMPLETE):*
 - `placeSingleCommand` (0x1d7940, 20KB) — main node-type→assembly dispatch. Switch on node->type:
@@ -347,6 +346,25 @@ reconstructed/
 - `prefetch_placesingle.cpp`: 2→0 (fixed halfPageCount signed-div, confirmed cwvfConfig copy)
 - `prefetch.cpp`: 18→5 (fixed NodeType::Play→Load, devConst_→waveformIR name, state.useDA→curNode->config.dummy ×2)
 - `prefetch_splitplay.cpp`: 22→5 (fixed pageSize access via cachePtr->pageSize_, ssl/addr register copyReg not cervinoReg)
+
+*Phase 10.6 — Compilation Error Audit (COMPLETE):*
+- **Error count progression:** 5701 → 2356 → 1932 → 1853 → 1818 → 1709 → 1225 → 1182 → 754 → 534 → 457 → 252 → **0**
+- **All 47 source files now compile with zero errors** (1 warning: placement-new size mismatch in value.cpp due to libc++/libstdc++ string size difference)
+- Sub-phases 10.6a–l: ELFIO cstdint, AsmEntry→AsmList::Asm rename, value.hpp sizing, PlayConfig dedup, node.hpp fixes, struct members, ErrorMessages static, includes/forward-decls, boost path, header additions, Node/Waveform members, AsmCommands/Resources includes
+- Sub-phase 10.6m: 457→252 (205 fewer). Key fixes: ResourcesException dedup, 15+ Node TBD fields, WaveformIR/Front/DeviceConstants member additions, AsmCommands output-param overloads, AWGAssemblerImpl expansion
+- Sub-phase 10.6n: 252→0 (all remaining). Key fixes:
+  - **AsmList::Asm::operator==**: Added comparison operator (fixed 11 files at once)
+  - **Value() default ctor**: Added for Resources::Variable initialization
+  - **Waveform() default ctor**: Added for factory paths
+  - **Missing includes**: `<variant>` in value.cpp, `rawwave.hpp` in signal.cpp, `device_constants.hpp`+`<boost/property_tree/ptree.hpp>` in waveform_ir.cpp, `error_messages.hpp` in wave_index_tracker.cpp
+  - **MemoryAllocator**: Removed failing static_assert, added `hasFreeBlocks()`/`lastFreeBlock()` public accessors
+  - **WavetableManager<WaveformIR> field renames**: `numDefs_`→`lineNr_`, `numDefs2_`→`waveformCounter_`, `nameIndex_`→`nameToIndex_`
+  - **Signal field access fixes**: `data`→`data()`, `markers`→`markers_`, `playMarkers`→`markerBits_`, `metadata`→individual fields
+  - **File::Type::Generated**→`GEN`, removed insertWaveform<WaveformIR> specialization (uses general template)
+  - **asm_optimize.cpp**: `asm_ = input`→`asm_ = input.entries`, fixed swap
+  - **prefetch.cpp**: `this->branchMaySkipAllBodies`→`cur->branchMaySkipAllBodies`
+  - **const correctness**: DeviceConstants* → const DeviceConstants* in waveform.cpp/wavetable_ir.cpp
+  - **AsmList**: Added operator==, swap friend, insert(shared_ptr, AsmList&) overload
 
 ## Key Technical Findings
 

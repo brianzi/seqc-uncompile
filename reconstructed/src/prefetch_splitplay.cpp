@@ -7,6 +7,8 @@
 // ============================================================================
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/asm_commands.hpp"
+#include "zhinst/resources.hpp"
 #include "zhinst/node.hpp"
 #include "zhinst/cache.hpp"
 #include "zhinst/waveform_ir.hpp"
@@ -122,14 +124,11 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // for nodeStates_ lookups
     std::shared_ptr<Node> lookupNode;  // APPROXIMATE — may be raw->parent or raw->ref
     {
+        // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
         // 0x1dd462..0x1dd49c: lock from weak_ptr at raw+0x20
-        auto* weakCtrl = reinterpret_cast<std::__1::__shared_weak_count*>(
-            raw->ref_ctrl_);  // +0x20  confirmed
-        if (weakCtrl) {
-            // lock() succeeds → copy the pointer from raw+0x18
-            lookupNode = std::shared_ptr<Node>(
-                reinterpret_cast<Node*>(raw->ref_ptr_),  // +0x18  confirmed
-                [](Node*){});  // APPROXIMATE: actual refcount management
+        // Original code resolves weak_ptr to get lookupNode
+        if (raw->loadNode) {
+            lookupNode = raw->loadNode;
         }
     }
 
@@ -141,7 +140,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         auto it = nodeStates_.find(lookupNode);
         if (it != nodeStates_.end()) {
             auto& pns = it->second;
-            int pageSize = pns.cachePtr->pageSize_;  // PNS+0x28→cachePtr, then Cache::Pointer+0x0C
+            int pageSize = pns.cachePtr->size_;  // TODO: was pageSize_ — Cache::Pointer has size_, not pageSize_
 
             auto it2 = nodeStates_.find(lookupNode);
             if (it2 != nodeStates_.end()) {
@@ -210,11 +209,12 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 
     // ---- Step 6: Handle node's PlayConfig register (0x88) ----
     // 0x1dd7c8..0x1dd967
+    AsmRegister copyReg;  // declared here — used in later steps
     if (raw->playConfigReg.isValid() /* +0x88 */ ) {  // 0x1dd7d7: call isValid
         AsmRegister invalidReg(0);
         if (!(raw->playConfigReg == invalidReg)) {  // 0x1dd80d: call operator==
             // Get a new register, emit addi(newReg, playConfigReg, Immediate(0))
-            AsmRegister copyReg(resources_->getRegisterNumber());  // -0x150(%rbp)
+            copyReg = AsmRegister(resources_->getRegisterNumber());  // -0x150(%rbp)
 
             AsmList addiCopy = asmCommands_->addi(
                 copyReg,

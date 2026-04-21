@@ -39,22 +39,21 @@
    - Both reset together at 0x1209b9 under the same condition (likely second-pass reset)
    Counters restart from 0 each compilation — NOT monotonically increasing.
 
-8. **`syncCervino` and `unsyncCervino` complexity**
-   Both are ~1000 lines of assembly each. They emit multi-instruction sequences
-   for synchronization. Full reconstruction deferred — these are the most complex
-   methods in the class.
+8. ~~**`syncCervino` and `unsyncCervino` complexity**~~ **CLOSED (Phase 10.5d)**
+   Both fully reconstructed. syncCervino @0x275c50 (4.3KB): master/slave flag
+   sync via registers 0x44/0x45. unsyncCervino @0x276d10 (1.2KB): 2 ST instructions.
 
-9. **`addi32` exact behavior**
-   The full 32-bit immediate variant has complex multi-instruction logic that
-   differs from the standard `alui` path. Needs dedicated disassembly study.
+9. ~~**`addi32` exact behavior**~~ **CLOSED (Phase 10.5c)**
+   Confirmed: always 2-instruction sequence: ADDI(low12) + ADDIU(upper),
+   both with isWaveformCmd=true.
 
-10. **`smap` implementation**
-    The disassembly suggests it delegates through ADDI, but the exact mapping
-    semantics are unclear.
+10. **`smap` implementation** *(NARROWED Phase 10.5c)*
+    Calls alui(ADDI, r1, reg0, arg), but ~0x1E6 bytes of conditional logic
+    after the alui call remain unanalyzed. Marked APPROXIMATE in source.
 
-11. **`lcnt` and `luser`/`suser` opcodes**
-    These may use LD/ST or may have dedicated opcodes. Current reconstruction
-    assumes they reuse LD/ST.
+11. ~~**`lcnt` and `luser`/`suser` opcodes**~~ **CLOSED (Phase 10.5c)**
+    `luser`/`suser` confirmed as direct delegates to `ld`/`st` (same opcode).
+    `lcnt` remains a separate question but is low priority.
 
 ## Data
 

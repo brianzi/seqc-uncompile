@@ -5,6 +5,7 @@
 // ============================================================================
 
 #include "zhinst/signal.hpp"
+#include "zhinst/rawwave.hpp"
 
 #include <algorithm>
 #include <cmath>

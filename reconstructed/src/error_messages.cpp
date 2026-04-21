@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "zhinst/error_messages.hpp"
+#include "zhinst/resources.hpp"  // for ResourcesException
 
 #include <cstring>
 
@@ -39,7 +40,7 @@ std::string const& ErrorMessages::operator[](ErrorMessageT id) const  // 0x10838
 // Looks up format string, wraps in boost::basic_format, returns str().
 // No argument feeding since there are no parameters.
 // ============================================================================
-std::string ErrorMessages::format(ErrorMessageT id) const  // 0x15d0d0
+std::string ErrorMessages::format(ErrorMessageT id)  // 0x15d0d0
 {
     // In the binary this inlines the map lookup and constructs
     // boost::basic_format, then immediately calls .str().
@@ -112,7 +113,7 @@ std::string ErrorMessages::format(ErrorMessageT id) const  // 0x15d0d0
 // ============================================================================
 
 ResourcesException::ResourcesException(std::string const& msg)  // 0x1e3a20
-    : message_(msg)
+    : msg_(msg)
 {
     // Binary: sets vtable, copies string to this+0x08
 }
@@ -125,12 +126,12 @@ ResourcesException::~ResourcesException()  // 0x1f12f0
 
 const char* ResourcesException::what() const noexcept  // 0x1f1340
 {
-    // Returns message_.c_str()
+    // Returns msg_.c_str()
     // If string is empty (length == 0), returns static empty string at 0x8ffffd
-    if (message_.empty()) {
+    if (msg_.empty()) {
         return "";
     }
-    return message_.c_str();
+    return msg_.c_str();
 }
 
 // ============================================================================

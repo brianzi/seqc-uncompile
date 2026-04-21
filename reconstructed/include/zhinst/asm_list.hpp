@@ -60,6 +60,7 @@ public:
         std::shared_ptr<Node> node;       // +0x90  (16 bytes: ptr + ctrl)
         bool isWaveformCmd = false;       // +0xA0
         // +0xA1..+0xA7: padding to 0xA8
+        int lineNumber = 0;               // offset TBD — source line number
 
         ~Asm();  // 0x122dd0
 
@@ -74,7 +75,17 @@ public:
         //   If reset=true: nextID = 0.
         //   If reset=false: returns nextID++ (post-increment).
         static int createUniqueID(bool reset);
+
+        bool operator==(const Asm& other) const {
+            return sequenceId == other.sequenceId
+                && wavetableFront == other.wavetableFront
+                && isWaveformCmd == other.isWaveformCmd;
+        }
     };
+
+    AsmList() = default;
+    AsmList(std::vector<Asm> v) : entries(std::move(v)) {}
+    AsmList& operator=(std::vector<Asm> v) { entries = std::move(v); return *this; }
 
     // --- Destructor: 0x11d5b0
     //   Iterates elements from end to begin, destroying each
@@ -130,8 +141,64 @@ public:
     //   lower 32 = register number.
     int maxRegister() const;
 
+    // --- Container-like forwarding (code often uses AsmList directly as a container) ---
+    using iterator = std::vector<Asm>::iterator;
+    using const_iterator = std::vector<Asm>::const_iterator;
+    iterator begin() { return entries.begin(); }
+    iterator end() { return entries.end(); }
+    const_iterator begin() const { return entries.begin(); }
+    const_iterator end() const { return entries.end(); }
+    const_iterator cbegin() const { return entries.cbegin(); }
+    const_iterator cend() const { return entries.cend(); }
+    size_t size() const { return entries.size(); }
+    bool empty() const { return entries.empty(); }
+    void reserve(size_t n) { entries.reserve(n); }
+    void push_back(const Asm& e) { entries.push_back(e); }
+    void push_back(Asm&& e) { entries.push_back(std::move(e)); }
+    template<typename... Args>
+    iterator insert(const_iterator pos, Args&&... args) { return entries.insert(pos, std::forward<Args>(args)...); }
+    iterator erase(const_iterator pos) { return entries.erase(pos); }
+    iterator erase(const_iterator first, const_iterator last) { return entries.erase(first, last); }
+    void clear() { entries.clear(); }
+
+    // Insert range before the entry whose node matches the given placeholder.
+    // Used by Prefetch::placeSingleCommand to splice instructions at placeholder positions.
+    void insert(std::shared_ptr<Node> const& placeholder, AsmList& source) {
+        insert(placeholder, source.begin(), source.end());
+    }
+    void insert(std::shared_ptr<Node> const& placeholder, const_iterator first, const_iterator last) {
+        // Find the entry whose node == placeholder
+        for (auto it = entries.begin(); it != entries.end(); ++it) {
+            if (it->node == placeholder) {
+                entries.insert(it, first, last);
+                return;
+            }
+        }
+        // If not found, append at end
+        entries.insert(entries.end(), first, last);
+    }
+    Asm& operator[](size_t i) { return entries[i]; }
+    const Asm& operator[](size_t i) const { return entries[i]; }
+    Asm& front() { return entries.front(); }
+    const Asm& front() const { return entries.front(); }
+    Asm& back() { return entries.back(); }
+    const Asm& back() const { return entries.back(); }
+
+    bool operator==(const AsmList& other) const { return entries == other.entries; }
+    friend void swap(AsmList& a, AsmList& b) { std::swap(a.entries, b.entries); }
+
+    // Implicit conversion from single Asm — prefetch code assigns Asm to AsmList
+    AsmList(const Asm& single) { entries.push_back(single); }
+    AsmList(Asm&& single) { entries.push_back(std::move(single)); }
+    AsmList& operator=(const Asm& single) { entries.clear(); entries.push_back(single); return *this; }
+    AsmList& operator=(Asm&& single) { entries.clear(); entries.push_back(std::move(single)); return *this; }
+
     // --- Storage: exactly std::vector<Asm> ---
     std::vector<Asm> entries;
 };
+
+// Free function alias — used in AsmCommandsImpl{Cervino,Hirzel}
+// Maps to AsmList::Asm::createUniqueID(false).
+inline int nextSequenceId() { return AsmList::Asm::createUniqueID(false); }
 
 } // namespace zhinst

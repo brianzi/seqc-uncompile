@@ -62,6 +62,29 @@ struct WaveformFront : Waveform {
 
     // toString() const — 0x2c5120
     std::string toString() const;
+
+    // TODO: offset not confirmed — used in wavetable code
+    void setHasDuplicate(bool v) { frontBool2 = v; }  // might map to frontBool2
+    bool hasDuplicate() const { return frontBool2; }
+
+    // TODO: These members are referenced in wavetable_front.cpp / wavetable_manager_front.cpp
+    // but exact offsets not yet confirmed. They may be derived from Waveform base fields
+    // or additional WaveformFront-specific fields.
+    bool isAllocated = false;           // offset TBD
+    int channels = 0;                   // offset TBD — number of channels
+    int sampleLength = 0;               // offset TBD — length in samples
+    int fileType = 0;                   // offset TBD — file type enum
+    bool isModified = false;            // offset TBD
+    std::string funDescrName_;          // offset TBD — function descriptor name
+    std::vector<std::string> args_;     // offset TBD — arguments list
+
+    // Accessors
+    std::string funDescrName() const { return funDescrName_; }
+    size_t argsSize() const { return args_.size(); }
+    std::string arg(size_t i) const { return args_.at(i); }
+    void setFile(std::shared_ptr<Waveform::File> f) { file = std::move(f); }
+    void setName(const std::string& n) { name = n; }
+    void setWaveIndex(int idx) { waveIndex = idx; }
 };
 
 } // namespace zhinst

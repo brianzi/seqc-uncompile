@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/resources.hpp"
+#include "zhinst/seqc_ast_node.hpp"
 
 #include <iostream>
 #include <sstream>

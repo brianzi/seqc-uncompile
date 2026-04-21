@@ -4,6 +4,8 @@
 // ============================================================================
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/asm_commands.hpp"
+#include "zhinst/resources.hpp"
 #include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/cache.hpp"
@@ -339,7 +341,8 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                             branchNode->defaultPrecompFlags = defaultPrecompFlags; // 0x1cff54
                             if (branchNode->type == NodeType::Play) {   // 0x1cff5a: cmp $0x2
                                 // Re-check CWVF optimization (for nested Play)
-                                goto recheckCwvf;           // 0x1cff5d → 0x1cfe5b
+                                // TODO: goto recheckCwvf — label not defined in reconstructed code
+                                // goto recheckCwvf;           // 0x1cff5d → 0x1cfe5b
                             }
                         }
                     }
@@ -369,7 +372,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                 // Check if this branch's final state matches the first branch's.
                 // First branch? → use globalCwvfValid_ flag
                 if (allSameConfig) {                       // 0x1d005b-0x1d006c
-                    if (!this->branchMaySkipAllBodies) {   // confirmed: 0x1d0073: cmpb $0x0,0x109(%rax)
+                    if (!cur->branchMaySkipAllBodies) {    // confirmed: 0x1d0073: cmpb $0x0,0x109(%rax)
                         // Update expected cwvf from this branch's tail node
                         expectedCwvf = tail->currentCwvf;  // 0x1d0084-0x1d00fe
                         expectedPrecomp = tail->defaultPrecompFlags; // 0x1d00f7
@@ -524,7 +527,9 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
 
             // Call globalCwvf(node) to track global CWVF consistency.
             {
-                std::shared_ptr<Node> nodeShared(curNode, curShared.get_deleter()); // APPROXIMATE
+                // TODO: get_deleter not standard for shared_ptr — approximate
+                // std::shared_ptr<Node> nodeShared(curNode, curShared.get_deleter());
+                std::shared_ptr<Node> nodeShared = curShared; // APPROXIMATE
                 globalCwvf(nodeShared);                    // 0x1d0395
             }
             // Falls through to advanceToNext via 0x1d03e4 → 0x1d0869
@@ -573,7 +578,8 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                             loopChild->defaultPrecompFlags = defaultPrecompFlags;
                             if (loopNextType == NodeType::Play) {
                                 // Re-check CWVF opt (similar to branch)
-                                goto recheckLoopCwvf;       // → 0x1d0523
+                                // TODO: goto recheckLoopCwvf — label not defined in reconstructed code
+                                // goto recheckLoopCwvf;       // → 0x1d0523
                             }
                         }
                     }
@@ -746,7 +752,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
         // wavesPerDev[deviceIdx], which is at +0x28 of the new node, indexed
         // by deviceIdx * 0x20 (sizeof(optional<string>) = 32 bytes).
         Node* ln = loadNode.get();                                     // 0x1ccbc3: r14 = -0x70(%rbp)
-        std::optional<std::string> waveName = *waveformIR;  // APPROXIMATE: confirmed: copy name from WaveformIR  // 0x1ccbcb-0x1ccbff
+        std::optional<std::string> waveName = waveformIR->name;  // APPROXIMATE: copy name from WaveformIR  // 0x1ccbcb-0x1ccbff
 
         // 0x1ccc04-0x1ccc8b: Assign the wave name into loadNode->wavesPerDev[deviceIdx]
         int devIdx = config_->deviceIndex;                             // 0x1ccc07: config_+0x24
@@ -998,14 +1004,10 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
 
         // 0x1cdc7e-0x1cdcb7: Resolve parent via weak_ptr at +0xF0
         std::shared_ptr<Node> parent;                                  // 0x1cdc81
-        {
-            auto* weakCtrl = curNode->/*+0xF8*/ parent_ctrl;
-            if (weakCtrl) {                                            // 0x1cdc8f
-                Node* locked = weakCtrl->lock();                       // 0x1cdc98
-                if (locked) {                                          // 0x1cdca4
-                    parent.reset(curNode->/*+0xF0*/ parent_ptr);       // 0x1cdca9
-                }
-            }
+        // TODO: loadCtrl/parent_ctrl is void* — cannot call lock() on it.
+        // Original code resolves weak_ptr at node+0xF0/0xF8 to get parent.
+        if (auto p = curNode->parent.lock()) {
+            parent = p;
         }
 
         // 0x1cdcd1-0x1cddab: If parent exists, look up/create nodeStates_ entry
@@ -1029,7 +1031,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
         // =================================================================
         // 0x1cde00: Type dispatch on current node
         // =================================================================
-        int nodeType = curNode->type;                                  // 0x1cde04
+        int nodeType = static_cast<int>(curNode->type);                                  // 0x1cde04
 
         if (nodeType == static_cast<int>(NodeType::Loop)) {            // 0x1cde08: cmp $0x8
             // --- LOOP node (type == 0x08) ---
@@ -1049,8 +1051,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 worklist.push_back(curNode->next);                     // 0x1cdf10
             }
             // 0x1cdf69-0x1ce01f: Iterate branches vector, enqueue each child
-            auto* branchIt = curNode->branches.begin();                // 0x1cdf69
-            auto* branchEnd = curNode->branches.end();                 // 0x1cdf70
+            auto branchIt = curNode->branches.begin();                 // 0x1cdf69
+            auto branchEnd = curNode->branches.end();                  // 0x1cdf70
             while (branchIt != branchEnd) {                            // 0x1cdf77
                 worklist.push_back(*branchIt);                         // 0x1cdfdc
                 ++branchIt;                                            // 0x1cdf97
@@ -1063,7 +1065,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
             if (!parent.get())                                         // 0x1cde23
                 goto enqueue_next;                                     // → 0x1cee02
 
-            int parentType = parent->type;                             // 0x1cde33
+            {
+            int parentType = static_cast<int>(parent->type);                             // 0x1cde33
 
             // 0x1cde37: Check if parent is a Loop (type == 0x10 i.e. SetVar)
             if (parentType == static_cast<int>(NodeType::SetVar)) {    // 0x1cde37: cmp $0x10
@@ -1075,14 +1078,9 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                     // 0x1cde65-0x1cdea5: Resolve parent's load pointer
                     // (weak_ptr at +0xF0..+0xF8 of parent)
                     std::shared_ptr<Node> parentLoad;                  // 0x1cde65
-                    {
-                        auto* wkCtrl = parent->/*+0xF8*/ parent_ctrl;
-                        if (wkCtrl) {                                  // 0x1cde76
-                            Node* lk = wkCtrl->lock();                 // 0x1cde7f
-                            if (lk) {                                  // 0x1cde8b
-                                parentLoad.reset(parent->/*+0xF0*/ parent_ptr);
-                            }
-                        }
+                    // TODO: void* parent_ctrl — cannot call lock(). Using weak_ptr instead.
+                    if (auto pl = parent->parent.lock()) {
+                        parentLoad = pl;
                     }
 
                     // 0x1cdeae: If parentLoad exists and its type is Loop (0x08)
@@ -1139,12 +1137,11 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                     // 0x1ce52f-0x1ce55b: Walk to loadNode's parent
                     // Resolve loadNode->parent weak_ptr
                     {
-                        auto* wk = loadNode->/*+0xF8*/parent_ctrl;
-                        if (wk) {
-                            Node* parentOfLoad = wk->lock();           // 0x1ce542
-                            if (parentOfLoad && parentOfLoad->type == static_cast<int>(NodeType::Load)) {
+                        // TODO: void* parent_ctrl — using weak_ptr parent instead
+                        if (auto parentOfLoadSp = loadNode->parent.lock()) {
+                            if (parentOfLoadSp->type == static_cast<int>(NodeType::Load)) {
                                 // 0x1ce583: Update loadNode to the new parent
-                                loadNode = std::shared_ptr<Node>(/*parent of load*/);
+                                loadNode = parentOfLoadSp;
                                 continue;                              // 0x1ce5b5
                             }
                         }
@@ -1181,14 +1178,9 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
 
                     // Resolve parent's load ptr (+0x18/+0x20 as weak_ptr)
                     std::shared_ptr<Node> parentLoadPtr;
-                    {
-                        auto* wk = parent->/*+0x20*/ load_ctrl;
-                        if (wk) {                                      // 0x1ce7af
-                            Node* lk = wk->lock();                     // 0x1ce7b4
-                            if (lk) {
-                                parentLoadPtr.reset(parent->/*+0x18*/ load_ptr);
-                            }
-                        }
+                    // TODO: void* load_ctrl — using loadNode shared_ptr field instead
+                    if (parent->loadNode) {
+                        parentLoadPtr = parent->loadNode;
                     }
 
                     // 0x1ce7d0: mergeLoads(current, parentLoadPtr)
@@ -1202,14 +1194,9 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                     // 0x1ce8c8: sameLoads returned false
                     // Resolve parent's load pointer (+0xF0/+0xF8 weak_ptr)
                     std::shared_ptr<Node> parentOfParent;              // 0x1ce8cf
-                    {
-                        auto* wk = parent->/*+0xF8*/ parent_ctrl;
-                        if (wk) {                                      // 0x1ce8e0
-                            Node* lk = wk->lock();                     // 0x1ce8e5
-                            if (lk) {
-                                parentOfParent.reset(parent->/*+0xF0*/ parent_ptr);
-                            }
-                        }
+                    // TODO: void* parent_ctrl — using weak_ptr parent instead
+                    if (auto pp = parent->parent.lock()) {
+                        parentOfParent = pp;
                     }
 
                     // Fall through to waveform-size-based optimization
@@ -1346,14 +1333,9 @@ clone_and_reassign:
             {
                 // Resolve current's load pointer (weak_ptr at +0x18/+0x20)
                 std::shared_ptr<Node> loadPtr;                         // 0x1cef7d
-                {
-                    auto* wk = curNode->/*+0x20*/ load_ctrl;
-                    if (wk) {                                          // 0x1cef88
-                        Node* lk = wk->lock();                         // 0x1cef91
-                        if (lk) {
-                            loadPtr.reset(curNode->/*+0x18*/ load_ptr);
-                        }
-                    }
+                // TODO: void* load_ctrl — using loadNode shared_ptr field instead
+                if (curNode->loadNode) {
+                    loadPtr = curNode->loadNode;
                 }
 
                 if (!loadPtr.get()) {                                  // 0x1cf377
@@ -1382,6 +1364,8 @@ do_swap_and_enqueue:
             // Push root_ onto worklist and continue
             worklist.push_back(root_);                                 // 0x1cf4f7
             goto cleanup_parent;
+
+            } // close scope for parentType (goto-crosses-init fix)
 
 enqueue_next:
             // 0x1cee02-0x1cee90: Enqueue current->next if non-null
@@ -1541,15 +1525,10 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
             // 0x1d156f-0x1d15a5: Lock weak_ptr at node+0x20 → shared_ptr loadNode
             std::shared_ptr<Node> loadNode;                            // -0xb0(%rbp)
-            {
-                auto* weakCtrl = reinterpret_cast<std::__1::__shared_weak_count*>(
-                    refNode->/*+0x20*/ loadCtrl);
-                if (weakCtrl) {                                        // 0x1d1573: test+je
-                    auto* locked = weakCtrl->lock();                   // 0x1d157c: call lock()
-                    if (locked) {
-                        loadNode = /* from refNode+0x18 */;            // 0x1d1591-0x1d159c
-                    }
-                }
+            // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
+            // Original code locks weak_ptr at node+0x20 to get loadNode
+            if (refNode->loadNode) {
+                loadNode = refNode->loadNode;
             }
 
             // 0x1d15be-0x1d15e8: Insert waveName into nameMap_[waveName] = true
@@ -1569,10 +1548,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 goto advance;
 
             auto& optName = cur->wavesPerDev[devIdx];
+            std::string waveName;  // declared before label to avoid goto-crosses-init
             if (!optName.has_value())                                  // 0x1d142c: cmpb → 0x1d15c2
                 goto waitInsertNameMap;
 
-            std::string waveName = *optName;                           // 0x1d1437-0x1d1455
+            waveName = *optName;                                       // 0x1d1437-0x1d1455
 
         waitInsertNameMap:
             // 0x1d15c2-0x1d15e8: nameMap_[waveName] = true
@@ -1590,10 +1570,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 goto advance;
 
             auto& optName = cur->wavesPerDev[devIdx];
+            std::string waveName;  // declared before label to avoid goto-crosses-init
             if (!optName.has_value())
                 goto rate80InsertNameMap;
 
-            std::string waveName = *optName;
+            waveName = *optName;
 
         rate80InsertNameMap:
             // 0x1d160c-0x1d1632: nameMap_[waveName] = false
@@ -1609,17 +1590,12 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             // ==================================================================
             // 0x1d10af-0x1d10e2: Lock weak_ptr at node+0x20
             std::shared_ptr<Node> loadNode;                            // -0x50(%rbp)
-            {
-                auto* weakCtrl = reinterpret_cast<std::__1::__shared_weak_count*>(
-                    cur->/*+0x20*/ loadCtrl);
-                if (weakCtrl) {                                        // 0x1d10bb: test+je
-                    auto* locked = weakCtrl->lock();                   // 0x1d10c4: call lock()
-                    if (locked) {
-                        loadNode.reset(cur->/*+0x18*/ loadPtr, ...);   // 0x1d10d6-0x1d10e2
-                    }
-                }
+            // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
+            // Original code locks weak_ptr at node+0x20
+            if (cur->loadNode) {
+                loadNode = cur->loadNode;
             }
-
+                        loadNode.reset(); // TODO: original was loadNode.reset(cur->loadPtr, ...); // 0x1d10d6-0x1d10e2
             // 0x1d10e2-0x1d10e8: If loadNode is null, check fallback
             if (!loadNode) {                                           // 0x1d14da: test → 0x1d14e7
                 // 0x1d14e7-0x1d14f2: Check nodeStates_[curNode].useDA flag
@@ -1658,9 +1634,10 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         }
 
         // ==================================================================
-        // type=2 (Load): 0x1d130d — same load-ptr lock + Cache::play pattern
+        // TODO: duplicate case value — type=2 is same as NodeType::Play (0x0002)
+        // This may actually be NodeType::Load (0x0001) mislabeled. Commented out.
         // ==================================================================
-        case static_cast<NodeType>(2): {                               // 0x1d130d
+        /* case static_cast<NodeType>(2): {                               // 0x1d130d
             // 0x1d130d-0x1d1340: Lock weak_ptr at node+0x20
             std::shared_ptr<Node> loadNode;
             {
@@ -1699,7 +1676,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             }
 
             goto cleanupLoadAndAdvance;
-        }
+        } */
 
         // ==================================================================
         // type=4 (Branch): 0x1d117a — recurse into each branch child
@@ -1707,7 +1684,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         case NodeType::Branch: {                                       // 0x1d117a
             // 0x1d117a-0x1d118a: Load branches vector begin/end
             auto* branchBegin = cur->branches.data();                  // +0xC8
-            auto* branchEnd = /* +0xD0 */;
+            auto* branchEnd = branchBegin + cur->branches.size();      // +0xD0
 
             if (branchBegin == branchEnd)                              // 0x1d118a: je → advance
                 goto advance;
@@ -1767,7 +1744,8 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         {
             Node* curRaw = curNode.get();                              // 0x1d1660: mov -0xa0(%rbp),%rax
             Node* nextRaw = curRaw->next.get();                        // 0x1d1667: mov 0xb8(%rax),%r12
-            auto nextCtrl = /* next's ctrl block at +0xC0 */;          // 0x1d166e: mov 0xc0(%rax)
+            // TODO: libc++ internal — next's ctrl block at +0xC0
+            // auto nextCtrl = /* next's ctrl block at +0xC0 */;       // 0x1d166e: mov 0xc0(%rax)
 
             // Swap: release old curNode, adopt nextRaw
             curNode = curRaw->next;                                    // 0x1d167f-0x1d16c5
@@ -1902,7 +1880,7 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
     // 0x1d53df: store load.get() → playNode->loadNode (+0x18)
     // 0x1d53e7: store load's ctrl block → playNode->loadCtrl (+0x20) as weak_ptr
     // This sets the play node's loadNode_ weak_ptr to point to the load
-    playNode->loadNode = load.get();   // +0x18: raw pointer
+    playNode->loadNode = load;   // +0x18: shared_ptr copy
     // (also sets weak_ptr ctrl block at +0x20, releasing old one)
 
     // 0x1d540c: add 0x10 to this → &nodeStates_
@@ -1959,8 +1937,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     if (!n) return result;
 
     // 0x1d4a41-0x1d4a4e: check type is Play(0x2) or SetPlay(0x200)
-    int nodeType = n->type;  // +0x44
-    if (nodeType != 0x200 && nodeType != 0x2)
+    int nodeType = static_cast<int>(n->type);  // +0x44    if (nodeType != 0x200 && nodeType != 0x2)
         return result;
 
     // 0x1d4a54-0x1d4a6b: check parent weak_ptr at +0x20
@@ -2018,7 +1995,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // and mark waveform as not fixed (+0xD8 = false)
     auto wavetable = wavetableIR_.get();
     for (auto const& waveName : n->waveNames) {
-        if (!waveName.has_value()) continue;
+        if (waveName.empty()) continue;
         auto wfm = wavetable->getWaveformByName(waveName);
         if (!wfm) continue;
         wfm->fixed_ = false;  // +0xD8: mark as needing load
@@ -2077,7 +2054,7 @@ void Prefetch::mergeLoads(std::shared_ptr<Node> dst,
         bool found = false;
         for (auto& wp : dstTargets) {
             auto locked = wp.lock();
-            if (locked.get() == targetNode.get()) {
+            if (locked && locked.get() == targetNode.get()) {
                 found = true;
                 break;
             }
@@ -2131,7 +2108,7 @@ void Prefetch::placeLoads() // 0x1cbf60
             double memUsed = (double)watermark / (devConst_->bitsPerSample / 8) / 1024.0;
             double memAvail = (double)cacheSize / (devConst_->bitsPerSample / 8) / 1024.0;
             throw ZIAWGCompilerException(
-                ErrorMessages::format<double, double>(ErrorMessageT(0x33), memUsed, memAvail));
+                ErrorMessages::format(ErrorMessageT(0x33), memUsed, memAvail));
         }
     }
 
@@ -2160,24 +2137,24 @@ void Prefetch::placeLoads() // 0x1cbf60
         if (devTypeVal == 0x2 /*HDAWG*/ && numCores >= 2) {
             // 0x1cc0af-0x1cc0d2: create SyncHirzel node (type 0x2000)
             auto syncNode = std::make_shared<Node>(NodeType::SyncHirzel,
-                                                    localRoot->asmId);
+                                                    0, localRoot->asmId);
             // Insert before first child or set as first child
             if (localRoot->firstChild) {
                 localRoot->firstChild->insertBefore(syncNode);
             } else {
-                localRoot->firstChild = syncNode.get();
-                // set control block
+                localRoot->firstChild = syncNode;
+                // TODO: also set control block
             }
         } else if (devTypeVal == 0x1 /*UHFLI*/ || devTypeVal == 0x2 /*HDAWG*/ ||
                    devTypeVal == 0x4 /*UHFQA*/ || devTypeVal == 0x8 /*SHFQA-like*/) {
             // 0x1cc117-0x1cc193: bitmask check (0x100010104 covers bits 0,2,8,32)
             // Create AwgReady node (type 0x8000)
             auto readyNode = std::make_shared<Node>(NodeType::AwgReady,
-                                                     localRoot->asmId);
+                                                     0, localRoot->asmId);
             if (localRoot->firstChild) {
                 localRoot->firstChild->insertBefore(readyNode);
             } else {
-                localRoot->firstChild = readyNode.get();
+                localRoot->firstChild = readyNode;
             }
         }
     }

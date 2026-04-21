@@ -16,8 +16,10 @@
 #include "wave_index_tracker.hpp"
 #include "device_constants.hpp"
 #include "address_impl.hpp"
+#include "cached_parser.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 #include <set>
@@ -33,7 +35,6 @@ namespace zhinst {
 
 class WavetableFront;
 class CancelCallback;
-class CachedParser;
 
 namespace detail {
     template<typename T> class WavetableManager;

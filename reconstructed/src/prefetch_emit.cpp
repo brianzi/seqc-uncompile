@@ -20,6 +20,8 @@
 // ============================================================================
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/asm_commands.hpp"
+#include "zhinst/resources.hpp"
 #include "zhinst/value.hpp"
 #include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/device_constants.hpp"
@@ -30,6 +32,7 @@
 #include "zhinst/cache.hpp"
 #include "zhinst/error_messages.hpp"
 #include "zhinst/play_config.hpp"
+#include "zhinst/callbacks.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -52,9 +55,10 @@ extern ErrorMessages errMsg;
 // devConst_+0x18 + cacheType*4: array of cache page counts
 //   (devConst_+0x18 = cachePageCount, devConst_+0x1c = maxBlocks)
 // ============================================================================
-uint32_t Prefetch::clampToCache(uint32_t addr) const {  // 0x1d6c40
+detail::AddressImpl<uint32_t> Prefetch::clampToCache(detail::AddressImpl<uint32_t> addr) const {  // 0x1d6c40
+    uint32_t addrVal = addr.value;
     if (!config_->isHirzel) {
-        return std::min(addr, 0xFFFFFu);
+        return detail::AddressImpl<uint32_t>{std::min(addrVal, 0xFFFFFu)};
     }
 
     uint8_t cacheType = *reinterpret_cast<const uint8_t*>(
@@ -67,13 +71,13 @@ uint32_t Prefetch::clampToCache(uint32_t addr) const {  // 0x1d6c40
     uint32_t cachePages = cachePagesArr[cacheType];
 
     uint32_t limit = cachePages * pageSize;
-    if (limit > addr) limit = addr;
+    if (limit > addrVal) limit = addrVal;
     if (limit > 0xFFFFF) limit = 0xFFFFF;
 
     if (cacheType == 1 /* Aligned */) {
         limit = (limit + pageSize - 1) & ~(pageSize - 1);
     }
-    return limit;
+    return detail::AddressImpl<uint32_t>{limit};
 }
 
 // ============================================================================
@@ -122,18 +126,20 @@ bool Prefetch::getUsedFourChannelMode() const {  // 0x1df400
 // Compares entry.asmId (at +0x00) with node->asmId (Node+0x14).
 // Throws ZIAWGCompilerException(errMsg[0xA3]) if not found.
 // ============================================================================
-AsmList::Asm& Prefetch::findPlaceholder(                // 0x1d6b50
-    AsmList& asmList, std::shared_ptr<Node> node) {
+std::shared_ptr<Node> Prefetch::findPlaceholder(                // 0x1d6b50
+    AsmList* asmList, std::shared_ptr<Node> node) {
     int targetId = node->asmId;  // Node+0x14
 
-    for (auto& entry : asmList) {
-        if (entry.asmId == targetId) {
-            return entry;
+    // TODO: return type is shared_ptr<Node> but we're searching AsmList entries.
+    // The exact semantics are unclear — returning node as placeholder.
+    for (auto& entry : *asmList) {
+        if (entry.sequenceId == targetId) {
+            return node;  // TODO: approximate — original returns something from entry
         }
     }
 
     // Not found — throw error
-    std::string msg = errMsg[static_cast<ErrorMessageT>(0xA3)];
+    std::string msg = ErrorMessages::format(ErrorMessageT(0xA3));
     throw ZIAWGCompilerException(msg);
 }
 
@@ -181,7 +187,7 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
         // Find insert position: skip past leading entries with field at +0x08 == 4  // 0x1d66eb
         // (These are placeholder Asm entries, e.g. NodeType 4.)
         auto insertPos = out->begin();
-        while (insertPos != out->end() && insertPos->nodeType == 4) {  // offset +0x08 in Asm
+        while (insertPos != out->end() && insertPos->node && static_cast<int>(insertPos->node->type) == 4) {  // TODO: was insertPos->nodeType — Asm has no nodeType field
             ++insertPos;
         }
 
@@ -195,7 +201,7 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
             out->insert(insertPos, addiAsm.begin(), addiAsm.end());
 
             AsmList cwvfrAsm = asmCommands_->cwvfr(reg);                // 0x1d68a8
-            out->insert(insertPos, cwvfrAsm);
+            out->insert(insertPos, cwvfrAsm.begin(), cwvfrAsm.end());
         } else {
             AsmList::Asm cwvfAsm = asmCommands_->cwvf(cwvfValue);       // 0x1d6830
             out->insert(insertPos, cwvfAsm);
@@ -365,7 +371,7 @@ int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
 // Within each device: max(memBytes - startOffset) across waveforms.
 // Returns max across devices.
 // ============================================================================
-uint32_t Prefetch::getMemoryHighWatermark() const {  // 0x1cc650
+size_t Prefetch::getMemoryHighWatermark() const {  // 0x1cc650
     int numChannelGroups = config_->numChannelGroups;  // +0x1C
     uint32_t maxUsage = 0;
 
@@ -384,7 +390,7 @@ uint32_t Prefetch::getMemoryHighWatermark() const {  // 0x1cc650
         uint32_t deviceMax = 0;
         for (auto const& wfm : waves) {
             int memBytes = computeWaveformMemoryBytes(wfm.get());
-            int startOffset = wfm->startOffset;  // WaveformIR+0x4c
+            int startOffset = wfm->waveformOffset;  // WaveformIR+0x4c
             int net = memBytes - startOffset;
             if (static_cast<uint32_t>(net) > deviceMax)
                 deviceMax = static_cast<uint32_t>(net);
@@ -405,7 +411,7 @@ uint32_t Prefetch::getMemoryHighWatermark() const {  // 0x1cc650
 // Within each device: sums all waveform memory sizes (no startOffset subtraction).
 // Returns max sum across devices.
 // ============================================================================
-uint32_t Prefetch::getRequiredMemory() const {  // 0x1cc930
+size_t Prefetch::getRequiredMemory() const {  // 0x1cc930
     int numChannelGroups = config_->numChannelGroups;
     uint32_t maxUsage = 0;
 
@@ -580,6 +586,7 @@ bool Prefetch::needsNewCwvf(std::shared_ptr<Node> node) const {  // 0x1dc620
 
         } else if (prevType == NodeType::Play) {                               // 0x1dc715: cmp $0x2
             // --- Play node: check precomp conditions ---                     // 0x1dc71e
+            {
             bool hasPrecomp = devConst_->hasPrecomp;
             if (prev->config.dummy || prev->config.hold) {                     // 0x1dc729/0x1dc72f
                 int rate = prev->config.rate;                                  // 0x1dc739
@@ -591,11 +598,13 @@ bool Prefetch::needsNewCwvf(std::shared_ptr<Node> node) const {  // 0x1dc620
                     goto advanceLoad;
                 }
             }
+            } // scope for hasPrecomp
             // Fall through to checkSeenDifference.                            // 0x1dc75e -> 0x1dc955
         checkSeenDifference:
             if (seenDifference) {                                              // 0x1dc955: test r12b
                 // Full inline PlayConfig comparison of prev->currentCwvf      // 0x1dc962
                 // vs node->currentCwvf (all fields including conditional hold).
+                {
                 Node* cur = node.get();
                 if (prev->currentCwvf.channelMask != cur->currentCwvf.channelMask) return true;  // 0x1dc968
                 int r = prev->currentCwvf.rate;
@@ -607,6 +616,7 @@ bool Prefetch::needsNewCwvf(std::shared_ptr<Node> node) const {  // 0x1dc620
                 if (prev->currentCwvf.precompFlags != cur->currentCwvf.precompFlags) return true;
                 if (prev->currentCwvf.dummy != cur->currentCwvf.dummy) return true;
                 if (r > 0 && prev->currentCwvf.hold != cur->currentCwvf.hold) return true;  // 0x1dc9d5–0x1dc9e6
+                } // end braces for goto-crosses-init
             }
             // Fall through to tree-walk section.                              // -> 0x1dc9ec
             goto treeWalk;
@@ -870,11 +880,11 @@ AsmList Prefetch::wvfRegImpl(AsmRegister reg, AsmRegister offset,
     result.insert(result.end(), addiResult.begin(), addiResult.end());
 
     // Set sample length from the address register
-    AsmEntry sslEntry = asmCommands_->ssl(addrReg);  // 0x1d71a2
+    AsmList::Asm sslEntry = asmCommands_->ssl(addrReg);  // 0x1d71a2
     result.push_back(sslEntry);
 
     // Emit wvf or wvfi depending on indexed flag
-    AsmEntry wvfEntry = indexed
+    AsmList::Asm wvfEntry = indexed
         ? asmCommands_->wvfi(reg, addrReg, 0)   // 0x1d7269
         : asmCommands_->wvf(reg, addrReg, 0);   // 0x1d7272
     result.push_back(wvfEntry);  // 0x1d728d
@@ -982,12 +992,12 @@ AsmList Prefetch::wvfs(Assembler::PlayDummyType playDummyType,
 
             // Check: last instruction is ADDI and upper bits are set
             auto& lastAsm = result.back();                       // 0x1d7661
-            if (lastAsm.command() == Assembler::Command::ADDI &&
+            if (lastAsm.assembler.cmd == Assembler::Command::ADDI &&
                 (totalBytes & 0xFFF00000) != 0) {
 
                 // Emit addiu(tempReg, tempReg, Immediate(0))    // 0x1d76a9
                 // to extend the address into upper 20+ bit range
-                AsmRegister lastDst = lastAsm.dstRegister();     // 0x1d7681
+                AsmRegister lastDst = lastAsm.assembler.reg2;    // 0x1d7681
                 auto addiuEntry = asmCommands_->addiu(
                     lastDst, lastDst, Immediate(0));
                 result.push_back(addiuEntry);                    // 0x1d76b8

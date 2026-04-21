@@ -56,6 +56,13 @@
 
 #include "types.hpp"
 #include "address_impl.hpp"
+#include "signal.hpp"
+#include "value.hpp"
+
+namespace boost { namespace json { class value; } }
+#include "waveform.hpp"
+
+#include <boost/filesystem/path.hpp>
 
 namespace zhinst {
 
@@ -78,6 +85,7 @@ public:
     std::vector<std::shared_ptr<WaveformT>> waveforms_;
 
     // --- Methods ---
+    WavetableManager() = default;
     ~WavetableManager();                                    // 0x29fa40
 
     std::shared_ptr<WaveformT> newEmptyWaveform(
@@ -118,6 +126,19 @@ public:
 
     void insertWaveform(std::shared_ptr<WaveformT> wf);    // 0x2a1200
 
+    // IR-specialization methods (declared here, defined in wavetable_manager_ir.cpp)
+    WavetableManager(int numDefs, int numDefs2, const std::vector<Waveform>& waveforms);
+
+    std::shared_ptr<WaveformT> newWaveform(
+        const std::string& name,
+        const Signal& signal,
+        const std::string& fillName,
+        const DeviceConstants& dc);
+
+    boost::json::value toJson() const;
+    static WavetableManager fromJson(const boost::json::value& json, const DeviceConstants& dc);
+    bool operator==(const WavetableManager& other) const;
+
     void setLineNr(int nr);                                 // (inlined via WavetableFront)
 };
 
@@ -153,7 +174,7 @@ public:
         const DeviceConstants& dc,
         detail::AddressImpl<uint32_t> addr,
         size_t lineNr,
-        const boost_filesystem_path& path);                 // 0x29ab10
+        const boost::filesystem::path& path);                 // 0x29ab10
 
     ~WavetableFront();                                      // 0x29a940
 

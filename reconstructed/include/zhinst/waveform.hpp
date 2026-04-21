@@ -28,6 +28,8 @@
 
 namespace zhinst {
 
+struct DeviceConstants;  // forward declaration
+
 // ============================================================================
 // Waveform::File — source file reference (0x40 bytes)
 //
@@ -66,6 +68,7 @@ struct WaveformFile {
 
     // Constructor from filename (called by fromJson when fileName non-empty)
     explicit WaveformFile(const char* filename);     // 0x2a7ff0
+    explicit WaveformFile(const std::string& filename) : WaveformFile(filename.c_str()) {}
 };
 
 // ============================================================================
@@ -103,13 +106,16 @@ struct Waveform {
     uint32_t addressValue;                          // +0x4C
     std::string thirdString;                        // +0x50
     uint32_t playWord;                              // +0x68
-    int32_t playIndex;                              // +0x6C
+    int32_t waveIndex;                              // +0x6C — "waveIndex" in JSON
     int seqRegWidth;                                // +0x70
-    int field74;                                    // +0x74
-    DeviceConstants* deviceConstants;               // +0x78
+    int allocationByteSize;                         // +0x74 — "allocationSize" in JSON
+    const DeviceConstants* deviceConstants;               // +0x78
     Signal signal;                                  // +0x80
 
     // --- Constructors / Destructor ---
+
+    // Default constructor — needed by various factory paths
+    Waveform() = default;
 
     // Full 13-parameter constructor — 0x2a71e0
     Waveform(std::string name, File::Type type, std::string secondaryName,
@@ -134,6 +140,9 @@ struct Waveform {
                              DeviceConstants const& dc);  // 0x2a54b0
     uint32_t getSizePerDevice() const;              // 0x1d5c30
     bool operator==(Waveform const& other) const;   // 0x2a9510
+
+    // Convenience accessor
+    std::string const& getName() const { return name; }
 };
 
 } // namespace zhinst

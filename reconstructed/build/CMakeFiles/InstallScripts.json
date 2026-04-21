@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/brian/zhinst/seqc_compiler/reconstructed/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

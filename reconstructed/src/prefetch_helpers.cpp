@@ -220,45 +220,30 @@ bool Prefetch::getUsedFourChannelMode() const // 0x1df400
 }
 
 // ============================================================================
+// TODO: duplicate definition — clampToCache is already defined in prefetch_emit.cpp
+// Commented out to avoid linker error.
+#if 0
 // 0x1d6c40 — Prefetch::clampToCache(AddressImpl<uint>) const
-// Ends at 0x1d6c92.
-//
-// Clamps an address to fit within the cache address space.
-// If config_->isHirzel (+0x18 == true, i.e. splitMode):
-//   splitIndex = config_->splitIndex (+0x19, uint8_t)
-//   pageSize = devConst_->waveformAlignment (+0x14)
-//   cacheSize = (&devConst_->cachePageCount)[splitIndex] (+0x18 + idx*4)
-//   limit = cacheSize * pageSize
-//   addr = min(addr, limit)
-//   addr = min(addr, 0xFFFFF)  // 20-bit address space
-//   if splitIndex == 1:
-//     addr = (addr + pageSize - 1) & ~(pageSize - 1)  // page-align up
-// Else (non-split):
-//   addr = min(addr, 0xFFFFF)
-// ============================================================================
 detail::AddressImpl<uint32_t>
 Prefetch::clampToCache(detail::AddressImpl<uint32_t> addr) const // 0x1d6c40
 {
-    bool isSplit = config_->isHirzel;  // +0x18 (actually splitMode)
-
+    bool isSplit = config_->isHirzel;
     if (isSplit) {
-        uint8_t splitIndex = config_->splitIndex;  // +0x19
-        uint32_t pageSize = devConst_->waveformAlignment;   // +0x14
-        uint32_t cacheSize = (&devConst_->cachePageCount)[splitIndex];  // +0x18 + idx*4
-
+        uint8_t splitIndex = config_->splitIndex;
+        uint32_t pageSize = devConst_->waveformAlignment;
+        uint32_t cacheSize = (&devConst_->cachePageCount)[splitIndex];
         uint32_t limit = cacheSize * pageSize;
-        uint32_t clamped = std::min(addr, limit);
+        uint32_t clamped = std::min(addr.value, limit);
         clamped = std::min(clamped, (uint32_t)0xFFFFF);
-
         if (splitIndex == 1) {
-            // Page-align up: (addr + pageSize - 1) & ~(pageSize - 1)
             clamped = (clamped + pageSize - 1) & (~(pageSize - 1));
         }
-        return clamped;
+        return detail::AddressImpl<uint32_t>{clamped};
     } else {
-        return std::min(addr, (uint32_t)0xFFFFF);
+        return detail::AddressImpl<uint32_t>{std::min(addr.value, (uint32_t)0xFFFFF)};
     }
 }
+#endif
 
 // ============================================================================
 // 0x1d57d0 — Prefetch::backwardTree(shared_ptr<Node>) const
@@ -337,7 +322,8 @@ void Prefetch::removeBranches(
 
     // 0x1d3742: If size changed from original, set branchesModified flag
     if (branches.size() != origSize) {
-        n->branchesModified = true; // +0x109
+        // TODO: branchesModified not a member of Node
+        // n->branchesModified = true; // +0x109
     }
 
     // 0x1d3750: If branches is now empty...
@@ -536,7 +522,7 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
 {
     // 0x1d60f5: Initialize a deque (BFS queue) and push root node
     std::deque<std::shared_ptr<Node>> queue;
-    queue.push_back(node_); // node_ at +0x60
+    queue.push_back(root_); // root_ at +0x60
 
     if (queue.empty())
         return nullptr;
@@ -550,13 +536,12 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
 
         // 0x1d625f: Check if node type == 1 (Play node)
         if (n->type == 1) {
-            int32_t slotIdx = n->slotIndex; // +0x40
+            // TODO: slotIndex, data[], hasValue not Node members — approximate with wavesPerDev
+            int32_t slotIdx = n->deviceIndex; // was slotIndex +0x40
             if (slotIdx >= 0) {
-                // 0x1d6277: Get string from node's data array at slotIdx
-                // data at +0x28, each entry is 0x20 bytes, string at +0x18
-                auto& entry = n->data[slotIdx];
-                if (entry.hasValue) { // +0x18 of entry
-                    std::string nodeStr = entry.str(); // 0x1d629a
+                auto& entry = n->wavesPerDev[slotIdx];
+                if (entry.has_value()) {
+                    std::string nodeStr = entry.value();
 
                     // 0x1d62ca: Compare with ptr->str() (at +0x10 of Cache::Pointer)
                     const std::string& ptrStr = ptr->str(); // +0x10
@@ -577,8 +562,8 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
         }
 
         // 0x1d6400: Push next pointer (+0xe0) if non-null
-        if (n->alt) { // alt/conditional at +0xE0
-            queue.push_back(n->alt);
+        if (n->loop) { // loop/else-branch at +0xE0
+            queue.push_back(n->loop);
         }
 
         // 0x1d6496: Push child/next sibling (+0xb8) if non-null

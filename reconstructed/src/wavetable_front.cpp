@@ -11,6 +11,11 @@
 
 namespace zhinst {
 
+namespace {
+// 0x2a0fd0 — getUniqueName (also used by WavetableManager)
+std::string getUniqueName(const std::string& base, int index, int counter);
+} // anon
+
 // 0x29a940 — WavetableFront::~WavetableFront()
 WavetableFront::~WavetableFront() {
     // Destroy waveIndexTracker_ set (at this+0x1E0)
@@ -36,7 +41,7 @@ WavetableFront::WavetableFront(
     const DeviceConstants& dc,
     detail::AddressImpl<uint32_t> addr,
     size_t lineNr,
-    const boost_filesystem_path& path)
+    const boost::filesystem::path& path)
 {
     deviceConstants_ = &dc;
     address_ = addr.value;
@@ -104,11 +109,11 @@ size_t WavetableFront::getMemorySize() const {
 
     for (auto* it = begin; it != end; ++it) {
         WaveformFront* wf = it->get();
-        if (wf->isAllocated() != true) continue;  // wf+0x48 != 1
+        if (wf->isAllocated != true) continue;  // wf+0x48 != 1
 
-        uint16_t channels = wf->channels();   // wf+0xC8 (uint16_t)
-        uint32_t length = wf->sampleLength(); // wf+0xD0
-        Signal* sig = wf->signal();           // wf+0x78
+        uint16_t channels = wf->channels;   // wf+0xC8 (uint16_t)
+        uint32_t length = wf->sampleLength; // wf+0xD0
+        Signal* sig = &wf->signal;           // wf+0x78
 
         uint32_t alignedLen;
         if (length == 0) {
@@ -216,7 +221,7 @@ void WavetableFront::loadWaveform(std::shared_ptr<WaveformFront> wf) {
     WaveformFront* ptr = wf.get();
 
     // If file type != CSV (i.e., type at wf+0x18 != 0), return
-    if (ptr->fileType() != 0) return;
+    if (ptr->fileType != 0) return;
 
     // Check signal allocation: ptr+0x80 is Signal
     // Signal::checkAllocation()
@@ -302,7 +307,7 @@ uint32_t WavetableFront::getWaveformSampleLength(const std::string& name) {
     // checkWaveformInit(wf2.get(), name) — validates waveform
 
     // Return wf->sampleLength() at wf+0xD0
-    return wf.get()->sampleLength();
+    return wf.get()->sampleLength;
 }
 
 // 0x29ca10 — WavetableFront::updateDioTableUsage(size_t key, size_t value)
@@ -317,7 +322,7 @@ bool WavetableFront::updateDioTableUsage(size_t key, size_t value) {
     }
 
     // Compare total < deviceConstants_->maxDioTableEntries (dc+0x0C)
-    return total < (size_t)deviceConstants_->maxDioTableEntries();
+    return total < (size_t)deviceConstants_->maxDioTableEntries;
 }
 
 // 0x29cb40 — WavetableFront::assignWaveIndex(shared_ptr<WaveformFront>, int)
@@ -325,7 +330,7 @@ void WavetableFront::assignWaveIndex(
     std::shared_ptr<WaveformFront> wf, int index)
 {
     WaveformFront* ptr = wf.get();
-    int currentIndex = ptr->waveIndex();  // ptr+0x6C
+    int currentIndex = ptr->waveIndex;  // ptr+0x6C
 
     if (currentIndex == index) return;
 

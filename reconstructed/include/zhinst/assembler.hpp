@@ -130,7 +130,7 @@ struct AssemblerInstr {
     Assembler::Command cmd = Assembler::INVALID;  // +0x00
     // 4 bytes padding
     std::vector<Immediate> immediates;    // +0x08 — input operands
-    AsmRegister reg2;                     // +0x20 — destination register
+    AsmRegister reg2;                     // +0x20 — destination register (aka "dest")
     AsmRegister reg0;                     // +0x28 — source register 1
     AsmRegister reg1;                     // +0x30 — source register 2
     std::vector<Immediate> outputs;       // +0x38 — output operands

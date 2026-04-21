@@ -52,12 +52,28 @@ enum class NodeType : int {
     Unlock             = 0x0080,   // "unlock"
     SyncCervino        = 0x0100,   // "sync_cervino"
     Table              = 0x0200,   // "table"
+    Prefetch           = 0x0400,   // "prefetch" (placeholder during prefetch pass)
+    LockPlaceholder    = 0x0800,   // "lock_placeholder"
     SetPrecomp         = 0x1000,   // "setprecomp"
     SyncHirzel         = 0x2000,   // "sync_hirzel"
     PlainLoad          = 0x4000,   // "plainload"
     AwgReady           = 0x8000,   // "awg_ready"
+    SetVarPlaceholder  = 0x10000,  // "setvar_placeholder"
+    PrecompFlags       = 0x20000,  // "precomp_flags"
+    SyncPlaceholderCervino = 0x40000, // "sync_placeholder_cervino"
+    UnlockPlaceholder  = 0x80000,  // "unlock_placeholder"
+    Placeholder        = 0x100000, // "placeholder" (generic prefetch placeholder)
+    Wait               = 0x200000, // "wait" — wait node type
     // All other values → "unknnown" (sic — typo in binary)
 };
+
+// Allow bitwise operations and comparison with int (used in reconstructed code)
+inline bool operator==(NodeType a, int b) { return static_cast<int>(a) == b; }
+inline bool operator==(int a, NodeType b) { return a == static_cast<int>(b); }
+inline bool operator!=(NodeType a, int b) { return static_cast<int>(a) != b; }
+inline bool operator!=(int a, NodeType b) { return a != static_cast<int>(b); }
+inline NodeType operator|(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) | static_cast<int>(b)); }
+inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) & static_cast<int>(b)); }
 
 // ============================================================================
 // Node struct — complete field layout (0x110 bytes)
@@ -99,6 +115,9 @@ enum class NodeType : int {
 
 class Node : public std::enable_shared_from_this<Node> {
 public:
+    // --- Default constructor (needed for make_shared<Node>()) ---
+    Node();
+
     // --- Simple constructor: Node(NodeType type, int numWaveSlots, int asmId)
     //     Address: 0x12ace0
     //     Allocates `numWaveSlots` optional<string> entries in wavesPerDev vector,
@@ -223,8 +242,56 @@ public:
     // +0x18: raw Node* pointer to load node (set by Prefetch::assignLoad)
     // +0x20: weak_ptr control block for load (assignLoad increments weak+strong refcount,
     //        then decrements strong; createLoad checks via weak_ptr::lock())
-    Node* load = nullptr;                  // +0x18
-    std::__shared_weak_count* loadCtrl = nullptr;  // +0x20  (weak ref to load node)
+    uint64_t _reserved0 = 0;           // +0x18 — zeroed in ctor (load raw ptr stored here)
+    uint64_t _reserved1 = 0;           // +0x20 — zeroed in ctor (load control block ptr)
+    Node* load = nullptr;                  // alias for _reserved0 — TODO: reconcile
+    void* loadCtrl = nullptr;  // alias for _reserved1 — TODO: reconcile
+
+    // TODO: The following fields are referenced in reconstructed .cpp files
+    // (prefetch_placesingle, asm_commands, asm_list) but their exact offsets
+    // within the Node struct are not yet confirmed from disassembly.
+    // They may overlap with or replace some of the above fields, or the
+    // total struct size may be larger than 0x110.
+    AsmRegister asmRegister;       // offset TBD — register assigned by prefetch
+    int sequenceId = 0;            // offset TBD — sequence ordering ID
+    int rate = 0;                  // offset TBD — sample rate for Rate nodes
+    AsmRegister reg;               // offset TBD — general-purpose register field
+    unsigned int precompFlags = 0; // offset TBD — precompensation flags
+
+    // TODO: These are used in .cpp files but exact offsets unknown.
+    // They may be aliases for existing fields or additional fields
+    // that push the struct beyond 0x110.
+    // - elseBranch: used in prefetch for branch-else paths
+    // - firstChild: used in prefetch tree traversal
+    // - playConfig: might alias 'config' field at +0x48
+    // - length2: might alias 'length' or be a separate field
+    // - is4Channel: might be derived from config
+    std::shared_ptr<Node> elseBranch;  // offset TBD
+    std::shared_ptr<Node> firstChild;  // offset TBD
+    PlayConfig playConfig;             // offset TBD — might alias 'config'
+    int length2 = 0;                   // offset TBD — might alias 'length'
+    bool is4Channel = false;           // offset TBD
+    int precompLength = 0;             // offset TBD — precompensation length
+    int indexField = 0;                // offset TBD — index field used in prefetch
+
+    // TODO: Additional fields referenced in prefetch/asm .cpp files.
+    // Exact offsets and semantics not fully confirmed.
+    // Some may be aliases for existing fields (noted where suspected).
+    Node* parent_ptr = nullptr;                 // offset TBD — raw parent pointer (may alias parent.get())
+    void* parent_ctrl = nullptr;                // offset TBD — parent weak_ptr control block
+    std::vector<std::string> waveNames;         // offset TBD — wave names for this node
+    AsmRegister playConfigReg;                  // offset TBD — register for play config (may alias config field)
+    std::vector<std::weak_ptr<Node>> loadTargets;  // offset TBD — load target nodes (weak to avoid cycles)
+    int smapField = 0;                          // offset TBD — smap-related field
+    bool isDummy = false;                       // offset TBD — dummy node flag
+    bool isPlaceholder = false;                 // offset TBD — placeholder node flag
+    int refCount = 0;                           // offset TBD — reference count for prefetch
+    NodeType nodeType2 = NodeType::Load;        // offset TBD — secondary node type
+    bool indexed = false;                       // offset TBD — whether node uses indexed addressing
+    int playLength = 0;                         // offset TBD — play length (may alias 'length')
+    std::shared_ptr<Node> loadNode;             // offset TBD — associated load node
+    Node* loadPtr = nullptr;                    // offset TBD — raw pointer to load node
+    Node* load_ctrl = nullptr;                  // offset TBD — load control block ptr
 
     std::vector<std::optional<std::string>> wavesPerDev;  // +0x28 (24 bytes)
 

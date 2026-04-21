@@ -5,8 +5,10 @@
 
 #include "zhinst/waveform_ir.hpp"
 #include "zhinst/waveform_front.hpp"
+#include "zhinst/device_constants.hpp"
 
 #include <sstream>
+#include <boost/property_tree/ptree.hpp>
 
 namespace zhinst {
 
@@ -29,7 +31,7 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
 {
     irField1 = 0;
     irBool1 = false;
-    irField2 = source->deviceConstants->/*offset 0x24*/0;  // source->deviceConstants[0x24]
+    irField2 = source->deviceConstants->field_24;  // source->deviceConstants[0x24]
 
     if (file) {
         // Clear the file's data vector
@@ -50,7 +52,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 {
     irField1 = 0;
     irBool1 = false;
-    irField2 = source->deviceConstants->/*offset 0x24*/0;
+    irField2 = source->deviceConstants->field_24;
 
     if (file) {
         file->data.clear();
@@ -101,7 +103,7 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
     result.put("function", secondaryName);
 
     // "channels" <- signal.channels (uint16_t)
-    uint16_t channels = signal.channels;  // at Waveform+0xC8
+    uint16_t channels = signal.channels();  // at Waveform+0xC8
     result.put("channels", channels);
 
     // Build marker_bits string
@@ -112,8 +114,10 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
         }
         // Compute marker bits for channel i from signal sample data
         // signal.sampleData is vector at Waveform+0xB0 (Signal+0x30)
-        const uint8_t* data = signal.sampleData.data();
-        size_t size = signal.sampleData.size();
+        // TODO: samples_ is vector<double>, but marker bits need uint8_t access
+        // This likely accesses a different field (markers or playMarkers)
+        const uint8_t* data = reinterpret_cast<const uint8_t*>(signal.samples_.data());
+        size_t size = signal.samples_.size();
 
         // OR together all low 2 bits (mask 0x03) of each byte
         uint8_t orResult = 0;
@@ -138,7 +142,7 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
     result.put("marker_bits", oss.str());
 
     // "length" <- signal.length (int at Waveform+0xD0)
-    result.put("length", signal.length);
+    result.put("length", signal.length());
 
     return result;
 }

@@ -7,6 +7,8 @@
 // ============================================================================
 
 #include "zhinst/compiler.hpp"
+#include "zhinst/seqc_ast_node.hpp"
+#include "zhinst/expression.hpp"
 
 #include <deque>
 #include <sstream>
@@ -399,9 +401,9 @@ std::vector<int> Compiler::getLineMap(int offset) const {
 
     // Iterate asmList_ entries (stride 0xA8)
     // for (auto& entry : asmList_) {
-    //     if (entry.instr.cmd == -1)
+    //     if (entry.assembler.cmd == -1)
     //         continue;
-    //     if (entry.instr.cmd == Assembler::LABEL) {
+    //     if (entry.assembler.cmd == Assembler::LABEL) {
     //         seq++;
     //         continue;
     //     }

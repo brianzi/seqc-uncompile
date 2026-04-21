@@ -68,7 +68,7 @@ void writeWavesToElfMapped(
     {
         // 0x10e049: ecx = config->unknown_04  (AWGCompilerConfig+0x04 = SampleFormat)
         //   The field at config+0x04 is the sample format (int).
-        SampleFormat format = static_cast<SampleFormat>(config.unknown_04);
+        SampleFormat format = static_cast<SampleFormat>(config.sampleFormat);
 
         // 0x10e05d: call addWaveform(sret, elfWriter, waveform, format, true, 0)
         //   r8d = 1 (mapped = true)
@@ -137,7 +137,7 @@ void writeWavesToElfAbsolute(
         // 0x10e1aa: cmpq $0x0, 0xd0(%rax) — check signal data pointer
         // Waveform+0x80 = Signal, Signal+0x50 = some data ptr at absolute 0xd0
         // If null, skip this waveform (no actual waveform data loaded)
-        if (wf->signal.dataPtr() == 0)  // offset 0xd0 in Waveform
+        if (wf->signal.data().empty())  // offset 0xd0 in Waveform
             return;
 
         // 0x10e1bb-0x10e1ce: compute padding
@@ -150,7 +150,7 @@ void writeWavesToElfAbsolute(
         uint32_t padding = gap & alignMask;
 
         // 0x10e1f2: ecx = config->unknown_04 (SampleFormat via config+0x04)
-        SampleFormat format = static_cast<SampleFormat>(config.unknown_04);
+        SampleFormat format = static_cast<SampleFormat>(config.sampleFormat);
 
         // 0x10e200: call addWaveform(sret, elfWriter, waveform, format, false, padding)
         //   Returns unique_ptr<RawWave> via sret — used for size tracking

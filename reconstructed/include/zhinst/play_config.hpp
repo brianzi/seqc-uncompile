@@ -78,6 +78,11 @@ struct PlayConfig {
     //   - All fields shifted and masked into a 32-bit word
     uint32_t encodeCwvf(int defaultRate) const;
 
+    // Static overload — called as PlayConfig::encodeCwvf(config, rate)
+    static uint32_t encodeCwvf(const PlayConfig& config, int defaultRate) {
+        return config.encodeCwvf(defaultRate);
+    }
+
     // Field-wise inequality. Special: hold field only compared when rate > 0.
     // Reconstructed from operator!= at 0x1d5770.
     bool operator!=(const PlayConfig& other) const;
@@ -88,15 +93,11 @@ struct PlayConfig {
     boost::json::value toJson() const;
 
     // Static: deserialize from JSON object. 0x26b440
-    static PlayConfig fromJson(const boost::json::value& jv);
-
-    // Deserialize from a boost::json::value (object).
     // Reads the same 10 keys as toJson.
     // Numeric fields (channelMask, suppress, markerBits, trigger, precompFlags)
     // are read via to_number<uint64_t>() which handles int/uint/double JSON types.
     // rate is read via as_int64(). Booleans via as_bool().
-    // Reconstructed from fromJson() at 0x26b440.
-    static PlayConfig fromJson(const boost::json::value& json);
+    static PlayConfig fromJson(const boost::json::value& jv);
 };
 
 } // namespace zhinst

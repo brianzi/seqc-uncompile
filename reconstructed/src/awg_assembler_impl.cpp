@@ -5,9 +5,9 @@ namespace zhinst {
 // 0x285180
 AWGAssemblerImpl::AWGAssemblerImpl(DeviceConstants const& dc)
     : deviceConstants_(&dc),       // mov %rsi, (%rdi)
-      str0_(),                     // 0x08-0x1f zeroed (16 bytes xmm0)
-      str1_(),                     // 0x18-0x27 zeroed
-      str2_(),                     // 0x28-0x3f zeroed (spans into 0x38)
+      filename_(),                  // 0x08-0x1f zeroed (16 bytes xmm0)
+      asmSource_(),                // 0x20-0x37 zeroed
+      str2_(),                     // 0x38-0x4f zeroed
       // 0x38-0x47 zeroed
       // 0x48-0x57 zeroed
       // 0x58-0x67 zeroed

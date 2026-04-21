@@ -6,11 +6,18 @@
 // ============================================================================
 
 #include "zhinst/asm_list.hpp"
+#include "zhinst/asm_expression.hpp"
+#include "zhinst/awg_assembler.hpp"
+#include "zhinst/device_constants.hpp"
 
 #include <iomanip>
 #include <sstream>
 
 #include <boost/json.hpp>
+
+#ifndef LOG_WARNING
+#define LOG_WARNING(msg) (void)0
+#endif
 
 namespace zhinst {
 

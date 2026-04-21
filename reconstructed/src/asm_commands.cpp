@@ -5,6 +5,7 @@
 
 #include "zhinst/asm_commands.hpp"
 #include "zhinst/error_messages.hpp"
+#include "zhinst/resources.hpp"  // for ResourcesException
 #include "zhinst/node.hpp"
 
 #include <cstring>
@@ -12,19 +13,15 @@
 
 namespace zhinst {
 
-// Thread-local sequence counter (TLS offset 0x40 in original binary)
-static thread_local int s_sequenceCounter = 0;
-
-int nextSequenceId() {
-    return s_sequenceCounter++;
-}
+// nextSequenceId() is defined in asm_list.hpp as an inline wrapper
+// around AsmList::Asm::createUniqueID(false).
 
 // =========================================================================
 // Helpers
 // =========================================================================
 
-AsmEntry AsmCommands::emitEntry(const AssemblerInstr& instr) const {
-    AsmEntry result;
+AsmList::Asm AsmCommands::emitEntry(const AssemblerInstr& instr) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
@@ -33,9 +30,9 @@ AsmEntry AsmCommands::emitEntry(const AssemblerInstr& instr) const {
     return result;
 }
 
-AsmEntry AsmCommands::emitEntry(const AssemblerInstr& instr,
+AsmList::Asm AsmCommands::emitEntry(const AssemblerInstr& instr,
                                  int overrideWavetableFront) const {
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler = instr;
     result.wavetableFront = overrideWavetableFront;
@@ -44,8 +41,8 @@ AsmEntry AsmCommands::emitEntry(const AssemblerInstr& instr,
     return result;
 }
 
-AsmEntry AsmCommands::emitNodeEntry(NodeType type) const {
-    AsmEntry result;
+AsmList::Asm AsmCommands::emitNodeEntry(NodeType type) const {
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::INVALID;
     result.wavetableFront = wavetableFrontIndex_;
@@ -59,7 +56,7 @@ AsmEntry AsmCommands::emitNodeEntry(NodeType type) const {
 // Waveform playback
 // =========================================================================
 
-AsmEntry AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) const {
+AsmList::Asm AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) const {
     if (!isValid(reg1) || !isValid(reg2))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "prf"));
@@ -72,35 +69,35 @@ AsmEntry AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) const 
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::wprf() const {
+AsmList::Asm AsmCommands::wprf() const {
     return impl_->wprf(wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::wwvfq() const {
+AsmList::Asm AsmCommands::wwvfq() const {
     return impl_->wwvfq(wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::wwvf() const {
+AsmList::Asm AsmCommands::wwvf() const {
     AssemblerInstr instr;
     instr.cmd = Assembler::WPRF;  // same opcode family as wprf
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::wvf(AsmRegister reg, AsmRegister dstReg, int length) const {
+AsmList::Asm AsmCommands::wvf(AsmRegister reg, AsmRegister dstReg, int length) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvf"));
     return impl_->wvf(reg, dstReg, length, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::wvfi(AsmRegister reg, AsmRegister dstReg, int length) const {
+AsmList::Asm AsmCommands::wvfi(AsmRegister reg, AsmRegister dstReg, int length) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
     return impl_->wvfi(reg, dstReg, length, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::wvfs(Assembler::PlayDummyType type, AsmRegister reg,
+AsmList::Asm AsmCommands::wvfs(Assembler::PlayDummyType type, AsmRegister reg,
                             int length) const {
     if (static_cast<int>(type) >= 2)
         throw ResourcesException(
@@ -111,18 +108,18 @@ AsmEntry AsmCommands::wvfs(Assembler::PlayDummyType type, AsmRegister reg,
     return impl_->wvfs(type, chosen, length, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::wvft(AsmRegister reg, int length) const {
+AsmList::Asm AsmCommands::wvft(AsmRegister reg, int length) const {
     return impl_->wvft(reg, length, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::cwvf(int value) const {
+AsmList::Asm AsmCommands::cwvf(int value) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::CWVF;
     instr.immediates.emplace_back(value);
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::cwvfr(AsmRegister reg) const {
+AsmList::Asm AsmCommands::cwvfr(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::CWVFR;
     instr.reg2 = reg;
@@ -133,18 +130,18 @@ AsmEntry AsmCommands::cwvfr(AsmRegister reg) const {
 // Branch
 // =========================================================================
 
-AsmEntry AsmCommands::br(const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::br(const std::string& label, bool flag) const {
     return brz(AsmRegister::Reg(0), label, flag);
 }
 
-AsmEntry AsmCommands::brz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brz(AsmRegister reg, const std::string& label, bool flag) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brz"));
     return impl_->brz(reg, label, flag, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::brnz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool flag) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brnz"));
@@ -154,7 +151,7 @@ AsmEntry AsmCommands::brnz(AsmRegister reg, const std::string& label, bool flag)
     instr.reg0 = reg;
     instr.label = label;
 
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
@@ -163,7 +160,7 @@ AsmEntry AsmCommands::brnz(AsmRegister reg, const std::string& label, bool flag)
     return result;
 }
 
-AsmEntry AsmCommands::brgz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool flag) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brgz"));
@@ -173,7 +170,7 @@ AsmEntry AsmCommands::brgz(AsmRegister reg, const std::string& label, bool flag)
     instr.reg0 = reg;
     instr.label = label;
 
-    AsmEntry result;
+    AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
@@ -186,7 +183,7 @@ AsmEntry AsmCommands::brgz(AsmRegister reg, const std::string& label, bool flag)
 // ALU register-register
 // =========================================================================
 
-AsmEntry AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
+AsmList::Asm AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
                             AsmRegister src) const {
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
@@ -200,23 +197,23 @@ AsmEntry AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::addr(AsmRegister dst, AsmRegister src) const {
+AsmList::Asm AsmCommands::addr(AsmRegister dst, AsmRegister src) const {
     return alur(Assembler::ADDR, dst, src);
 }
 
-AsmEntry AsmCommands::subr(AsmRegister dst, AsmRegister src) const {
+AsmList::Asm AsmCommands::subr(AsmRegister dst, AsmRegister src) const {
     return alur(Assembler::SUBR, dst, src);
 }
 
-AsmEntry AsmCommands::andr(AsmRegister dst, AsmRegister src) const {
+AsmList::Asm AsmCommands::andr(AsmRegister dst, AsmRegister src) const {
     return alur(Assembler::ANDR, dst, src);
 }
 
-AsmEntry AsmCommands::orr(AsmRegister dst, AsmRegister src) const {
+AsmList::Asm AsmCommands::orr(AsmRegister dst, AsmRegister src) const {
     return alur(Assembler::ORR, dst, src);
 }
 
-AsmEntry AsmCommands::xnorr(AsmRegister dst, AsmRegister src) const {
+AsmList::Asm AsmCommands::xnorr(AsmRegister dst, AsmRegister src) const {
     return alur(Assembler::XNORR, dst, src);
 }
 
@@ -224,14 +221,14 @@ AsmEntry AsmCommands::xnorr(AsmRegister dst, AsmRegister src) const {
 // Shift
 // =========================================================================
 
-AsmEntry AsmCommands::ssl(AsmRegister reg) const {
+AsmList::Asm AsmCommands::ssl(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ssl"));
     return impl_->ssl(reg, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::ssr(AsmRegister reg) const {
+AsmList::Asm AsmCommands::ssr(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ssr"));
@@ -242,7 +239,7 @@ AsmEntry AsmCommands::ssr(AsmRegister reg) const {
 // ALU immediate-unsigned
 // =========================================================================
 
-AsmEntry AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
+AsmList::Asm AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
                              AsmRegister src, Immediate imm) const {
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
@@ -257,19 +254,19 @@ AsmEntry AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::addiu(AsmRegister dst, AsmRegister src, Immediate imm) const {
+AsmList::Asm AsmCommands::addiu(AsmRegister dst, AsmRegister src, Immediate imm) const {
     return aluiu(Assembler::ADDIU, dst, src, imm);
 }
 
-AsmEntry AsmCommands::andiu(AsmRegister dst, AsmRegister src, Immediate imm) const {
+AsmList::Asm AsmCommands::andiu(AsmRegister dst, AsmRegister src, Immediate imm) const {
     return aluiu(Assembler::ANDIU, dst, src, imm);
 }
 
-AsmEntry AsmCommands::oriu(AsmRegister dst, AsmRegister src, Immediate imm) const {
+AsmList::Asm AsmCommands::oriu(AsmRegister dst, AsmRegister src, Immediate imm) const {
     return aluiu(Assembler::ORIU, dst, src, imm);
 }
 
-AsmEntry AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const {
+AsmList::Asm AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const {
     return aluiu(Assembler::XNORIU, dst, src, imm);
 }
 
@@ -277,16 +274,18 @@ AsmEntry AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) co
 // ALU immediate-signed (multi-instruction for large values)
 // =========================================================================
 
-std::vector<AsmEntry> AsmCommands::alui(Assembler::Command cmd, AsmRegister dst,
+std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister dst,
                                          AsmRegister src, Immediate imm) const {
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister,
                                   Assembler::commandToString(cmd).c_str()));
 
-    std::vector<AsmEntry> result;
+    std::vector<AsmList::Asm> result;
 
-    int32_t sval = imm.value;
+    // TODO: imm.value doesn't exist — Immediate is a variant (data_ union + index_)
+    // Original code likely used operator int() or direct union access
+    int32_t sval = static_cast<int>(imm);  // uses operator int()
     uint32_t uval = static_cast<uint32_t>(sval);
 
     // Case 1: fits in ~18-bit signed range
@@ -356,12 +355,12 @@ std::vector<AsmEntry> AsmCommands::alui(Assembler::Command cmd, AsmRegister dst,
     return result;
 }
 
-std::vector<AsmEntry> AsmCommands::addi(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::addi(AsmRegister dst, AsmRegister src,
                                          Immediate imm) const {
     return alui(Assembler::ADDI, dst, src, imm);
 }
 
-std::vector<AsmEntry> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
                                            Immediate imm) const {
     // @0x273e30: Always splits into 2 instructions (no small-immediate fast path).
     // Emits: ADDI dst, src, (imm & 0xFFF) + ADDIU dst, dst, (imm >> 12)
@@ -369,8 +368,8 @@ std::vector<AsmEntry> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "addi32"));
 
-    std::vector<AsmEntry> result;
-    uint32_t uval = static_cast<uint32_t>(imm.value);
+    std::vector<AsmList::Asm> result;
+    uint32_t uval = static_cast<uint32_t>(static_cast<int>(imm));  // was: imm.value
 
     // Low 12 bits via ADDI
     AssemblerInstr instr;
@@ -379,12 +378,12 @@ std::vector<AsmEntry> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     instr.reg0 = src;
     instr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
 
-    AsmEntry entry1 = emitEntry(instr);
+    AsmList::Asm entry1 = emitEntry(instr);
     entry1.isWaveformCmd = true;  // forced at 0x274023
 
     // Upper 20 bits via ADDIU
     uint32_t upper = uval >> 12;
-    AsmEntry entry2 = aluiu(Assembler::ADDIU, dst, dst,
+    AsmList::Asm entry2 = aluiu(Assembler::ADDIU, dst, dst,
                             Immediate(static_cast<int32_t>(upper)));
     entry2.isWaveformCmd = true;  // forced at 0x27402a
 
@@ -393,17 +392,17 @@ std::vector<AsmEntry> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     return result;
 }
 
-std::vector<AsmEntry> AsmCommands::andi(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::andi(AsmRegister dst, AsmRegister src,
                                          Immediate imm) const {
     return alui(Assembler::ANDI, dst, src, imm);
 }
 
-std::vector<AsmEntry> AsmCommands::ori(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::ori(AsmRegister dst, AsmRegister src,
                                         Immediate imm) const {
     return alui(Assembler::ORI, dst, src, imm);
 }
 
-std::vector<AsmEntry> AsmCommands::xnori(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::xnori(AsmRegister dst, AsmRegister src,
                                           Immediate imm) const {
     return alui(Assembler::XNORI, dst, src, imm);
 }
@@ -431,46 +430,46 @@ int AsmCommands::toInt32(Value val) const {
     }
 }
 
-std::vector<AsmEntry> AsmCommands::addi(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::addi(AsmRegister dst, AsmRegister src,
                                          Value val) const {
     int imm = toInt32(val);
     return addi(dst, src, Immediate(imm));
 }
 
-AsmEntry AsmCommands::addiu(AsmRegister dst, AsmRegister src, Value val) const {
+AsmList::Asm AsmCommands::addiu(AsmRegister dst, AsmRegister src, Value val) const {
     int imm = toInt32(val);
     return addiu(dst, src, Immediate(imm));
 }
 
-std::vector<AsmEntry> AsmCommands::andi(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::andi(AsmRegister dst, AsmRegister src,
                                          Value val) const {
     int imm = toInt32(val);
     return andi(dst, src, Immediate(imm));
 }
 
-AsmEntry AsmCommands::andiu(AsmRegister dst, AsmRegister src, Value val) const {
+AsmList::Asm AsmCommands::andiu(AsmRegister dst, AsmRegister src, Value val) const {
     int imm = toInt32(val);
     return andiu(dst, src, Immediate(imm));
 }
 
-std::vector<AsmEntry> AsmCommands::ori(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::ori(AsmRegister dst, AsmRegister src,
                                         Value val) const {
     int imm = toInt32(val);
     return ori(dst, src, Immediate(imm));
 }
 
-AsmEntry AsmCommands::oriu(AsmRegister dst, AsmRegister src, Value val) const {
+AsmList::Asm AsmCommands::oriu(AsmRegister dst, AsmRegister src, Value val) const {
     int imm = toInt32(val);
     return oriu(dst, src, Immediate(imm));
 }
 
-std::vector<AsmEntry> AsmCommands::xnori(AsmRegister dst, AsmRegister src,
+std::vector<AsmList::Asm> AsmCommands::xnori(AsmRegister dst, AsmRegister src,
                                           Value val) const {
     int imm = toInt32(val);
     return xnori(dst, src, Immediate(imm));
 }
 
-AsmEntry AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Value val) const {
+AsmList::Asm AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Value val) const {
     int imm = toInt32(val);
     return xnoriu(dst, src, Immediate(imm));
 }
@@ -479,7 +478,7 @@ AsmEntry AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Value val) const 
 // Load / Store
 // =========================================================================
 
-AsmEntry AsmCommands::ld(AsmRegister reg,
+AsmList::Asm AsmCommands::ld(AsmRegister reg,
                           detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
@@ -492,7 +491,7 @@ AsmEntry AsmCommands::ld(AsmRegister reg,
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::st(AsmRegister reg,
+AsmList::Asm AsmCommands::st(AsmRegister reg,
                           detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
@@ -505,7 +504,7 @@ AsmEntry AsmCommands::st(AsmRegister reg,
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::ldio(AsmRegister reg, bool highBank) const {
+AsmList::Asm AsmCommands::ldio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ldio"));
@@ -513,7 +512,7 @@ AsmEntry AsmCommands::ldio(AsmRegister reg, bool highBank) const {
     return ld(reg, detail::AddressImpl<unsigned int>{addr});
 }
 
-AsmEntry AsmCommands::sdio(AsmRegister reg, bool highBank) const {
+AsmList::Asm AsmCommands::sdio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sdio"));
@@ -521,7 +520,7 @@ AsmEntry AsmCommands::sdio(AsmRegister reg, bool highBank) const {
     return st(reg, detail::AddressImpl<unsigned int>{addr});
 }
 
-AsmEntry AsmCommands::luser(AsmRegister reg,
+AsmList::Asm AsmCommands::luser(AsmRegister reg,
                              detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
@@ -529,7 +528,7 @@ AsmEntry AsmCommands::luser(AsmRegister reg,
     return ld(reg, addr);  // confirmed: same opcode as ld (delegates directly @0x274b24)
 }
 
-AsmEntry AsmCommands::suser(AsmRegister reg,
+AsmList::Asm AsmCommands::suser(AsmRegister reg,
                              detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
@@ -541,28 +540,28 @@ AsmEntry AsmCommands::suser(AsmRegister reg,
 // Trigger
 // =========================================================================
 
-AsmEntry AsmCommands::ltrig(AsmRegister reg) const {
+AsmList::Asm AsmCommands::ltrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ltrig"));
     return ld(reg, detail::AddressImpl<unsigned int>{0x22u});
 }
 
-AsmEntry AsmCommands::strig(AsmRegister reg) const {
+AsmList::Asm AsmCommands::strig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "strig"));
     return st(reg, detail::AddressImpl<unsigned int>{0x22u});
 }
 
-AsmEntry AsmCommands::sinttrig(AsmRegister reg) const {
+AsmList::Asm AsmCommands::sinttrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sinttrig"));
     return st(reg, detail::AddressImpl<unsigned int>{0x23u});
 }
 
-AsmEntry AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
+AsmList::Asm AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
     if (!isValid(r1) || !isValid(r2))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "wtrig"));
@@ -574,7 +573,7 @@ AsmEntry AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::wtrigi(int value) const {
+AsmList::Asm AsmCommands::wtrigi(int value) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::WTRIGI;
     instr.immediates.emplace_back(value);
@@ -585,7 +584,7 @@ AsmEntry AsmCommands::wtrigi(int value) const {
 // Misc I/O
 // =========================================================================
 
-AsmEntry AsmCommands::sid(AsmRegister reg, bool highBank) const {
+AsmList::Asm AsmCommands::sid(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sid"));
@@ -594,18 +593,18 @@ AsmEntry AsmCommands::sid(AsmRegister reg, bool highBank) const {
 }
 
 // @0x275320 — 0x275620 (~0x300 bytes)
-// Returns std::vector<AsmEntry>, NOT a single AsmEntry.
-std::vector<AsmEntry> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int arg) const {
+// Returns std::vector<AsmList::Asm>, NOT a single AsmList::Asm.
+std::vector<AsmList::Asm> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int arg) const {
     if (!isValid(r1) || !isValid(r2))                    // 0x275349, 0x27535a
         throw ResourcesException(                        // 0x275506
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "smap"));
 
     // Build ADDI r1, reg0, Immediate(arg) sequence       // 0x275371–0x2753e2
-    std::vector<AsmEntry> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(arg));
+    std::vector<AsmList::Asm> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(arg));
 
     // Append st(r1, 0x62) and st(r2, 0x63)              // 0x275431–0x27545c
-    AsmEntry st1 = st(r1, detail::AddressImpl<unsigned int>(0x62));   // 0x275444
-    AsmEntry st2 = st(r2, detail::AddressImpl<unsigned int>(0x63));   // 0x27545c
+    AsmList::Asm st1 = st(r1, detail::AddressImpl<unsigned int>(0x62));   // 0x275444
+    AsmList::Asm st2 = st(r2, detail::AddressImpl<unsigned int>(0x63));   // 0x27545c
 
     // Insert both st entries at end of result            // 0x275476
     result.push_back(std::move(st1));
@@ -614,11 +613,11 @@ std::vector<AsmEntry> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int arg)
     return result;                                        // 0x2754f1
 }
 
-AsmEntry AsmCommands::ldiotrig(AsmRegister reg) const {
+AsmList::Asm AsmCommands::ldiotrig(AsmRegister reg) const {
     return impl_->ldiotrig(reg, wavetableFrontIndex_);
 }
 
-AsmEntry AsmCommands::lcnt(AsmRegister reg,
+AsmList::Asm AsmCommands::lcnt(AsmRegister reg,
                             detail::AddressImpl<unsigned int> addr) const {
     // Similar to ld — exact opcode TBD
     return ld(reg, addr);
@@ -628,25 +627,25 @@ AsmEntry AsmCommands::lcnt(AsmRegister reg,
 // Control flow / special
 // =========================================================================
 
-AsmEntry AsmCommands::trap() const {
+AsmList::Asm AsmCommands::trap() const {
     AssemblerInstr instr;
     instr.cmd = Assembler::TRAP;
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::irpt() const {
+AsmList::Asm AsmCommands::irpt() const {
     AssemblerInstr instr;
     instr.cmd = Assembler::IRPT;
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::end() const {
+AsmList::Asm AsmCommands::end() const {
     AssemblerInstr instr;
     instr.cmd = Assembler::END;
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::nop() const {
+AsmList::Asm AsmCommands::nop() const {
     AssemblerInstr instr;
     instr.cmd = Assembler::NOP;
     return emitEntry(instr);
@@ -657,7 +656,7 @@ AsmEntry AsmCommands::nop() const {
 // =========================================================================
 
 // 0x275c50 — syncCervino: builds a multi-instruction sync sequence.
-// Returns AsmList (not AsmEntry). ~4288 bytes of code.
+// Returns AsmList (not AsmList::Asm). ~4288 bytes of code.
 //
 // The sequence sets up synchronization by writing to user registers 0x44/0x45
 // with specific bit patterns and trigger sequences.
@@ -695,8 +694,8 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
         // 0x275dec: alui(ADDI, reg1, Reg(0), Immediate(1))
         auto tmp = alui(Assembler::ADDI, reg1, AsmRegister::Reg(0),
                         Immediate(1));  // 0x275dec
-        result.entries.insert(result.entries.end(), tmp.entries.begin(),
-                              tmp.entries.end());  // 0x275e3d
+        result.entries.insert(result.entries.end(), tmp.begin(),
+                              tmp.end());  // 0x275e3d
 
         // 0x276062: suser(reg1, 0x44)
         result.append(suser(reg1, 0x44));  // 0x276062
@@ -704,8 +703,8 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
         // 0x276132: alui(ADDI, reg1, Reg(0), Immediate(0x800000))
         auto tmp2 = alui(Assembler::ADDI, reg1, AsmRegister::Reg(0),
                          Immediate(0x800000));  // 0x2761a0
-        result.entries.insert(result.entries.end(), tmp2.entries.begin(),
-                              tmp2.entries.end());  // 0x2761ee
+        result.entries.insert(result.entries.end(), tmp2.begin(),
+                              tmp2.end());  // 0x2761ee
 
         // 0x27652c: wtrig(reg1, reg1)
         result.append(wtrig(reg1, reg1));  // 0x27653d
@@ -724,8 +723,8 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
         // 0x275f36: alui(ADDI, reg1, Reg(0), Immediate(0x800000))
         auto tmp = alui(Assembler::ADDI, reg1, AsmRegister::Reg(0),
                         Immediate(0x800000));  // 0x275f36
-        result.entries.insert(result.entries.end(), tmp.entries.begin(),
-                              tmp.entries.end());  // 0x275f84
+        result.entries.insert(result.entries.end(), tmp.begin(),
+                              tmp.end());  // 0x275f84
 
         // 0x2762c3: wtrig(reg1, reg1)
         result.append(wtrig(reg1, reg1));  // 0x2762d0
@@ -733,8 +732,8 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
         // 0x276394: alui(ADDI, reg1, Reg(0), Immediate(1))
         auto tmp2 = alui(Assembler::ADDI, reg1, AsmRegister::Reg(0),
                          Immediate(1));  // 0x27640e
-        result.entries.insert(result.entries.end(), tmp2.entries.begin(),
-                              tmp2.entries.end());  // 0x27645f
+        result.entries.insert(result.entries.end(), tmp2.begin(),
+                              tmp2.end());  // 0x27645f
 
         // 0x276857: suser(reg1, 0x45)
         result.append(suser(reg1, 0x45));  // 0x27686a
@@ -751,7 +750,7 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
 
 // 0x276d10 — unsyncCervino: emits two ST instructions to clear sync registers.
 // Returns AsmList (vector<AsmList::Asm>) with two entries.
-// Actual return type is AsmList, not AsmEntry (header needs correction).
+// Actual return type is AsmList, not AsmList::Asm (header needs correction).
 AsmList AsmCommands::unsyncCervino() const {
     // 0x276d2a: Build first AssemblerInstr — ST command
     AssemblerInstr instr1;
@@ -802,11 +801,11 @@ AsmList AsmCommands::unsyncCervino() const {
     return result;                                    // 0x277123
 }
 
-AsmEntry AsmCommands::asmSyncPlaceholderCervino() const {
+AsmList::Asm AsmCommands::asmSyncPlaceholderCervino() const {
     return emitNodeEntry(NodeType::SyncPlaceholderCervino);
 }
 
-AsmEntry AsmCommands::asmSyncHirzel() const {
+AsmList::Asm AsmCommands::asmSyncHirzel() const {
     return suser(AsmRegister::Reg(0), detail::AddressImpl<unsigned int>{0x6Eu});
 }
 
@@ -814,7 +813,7 @@ AsmEntry AsmCommands::asmSyncHirzel() const {
 // Pseudo-instructions / directives
 // =========================================================================
 
-AsmEntry AsmCommands::asmZero(AsmRegister reg) const {
+AsmList::Asm AsmCommands::asmZero(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
     instr.reg2 = reg;
@@ -823,7 +822,7 @@ AsmEntry AsmCommands::asmZero(AsmRegister reg) const {
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::asmOne(AsmRegister reg) const {
+AsmList::Asm AsmCommands::asmOne(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
     instr.reg2 = reg;
@@ -832,14 +831,14 @@ AsmEntry AsmCommands::asmOne(AsmRegister reg) const {
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::asmLabel(const std::string& label) const {
+AsmList::Asm AsmCommands::asmLabel(const std::string& label) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::LABEL;
     instr.label = label;
     return emitEntry(instr, 0);  // wavetableFront forced to 0
 }
 
-AsmEntry AsmCommands::asmMessage(const std::string& msg, bool isError) const {
+AsmList::Asm AsmCommands::asmMessage(const std::string& msg, bool isError) const {
     // @0x277630: Command is 5 (error) or 3 (message). String stored as Immediate.
     AssemblerInstr instr;
     instr.cmd = isError ? Assembler::Command(5) : Assembler::Command(3);
@@ -851,22 +850,22 @@ AsmEntry AsmCommands::asmMessage(const std::string& msg, bool isError) const {
 // Node-creating commands
 // =========================================================================
 
-AsmEntry AsmCommands::asmBranchNode() const {
+AsmList::Asm AsmCommands::asmBranchNode() const {
     return emitNodeEntry(NodeType::Branch);
 }
 
-AsmEntry AsmCommands::asmLoopNode() const {
+AsmList::Asm AsmCommands::asmLoopNode() const {
     return emitNodeEntry(NodeType::Loop);
 }
 
-AsmEntry AsmCommands::asmRate(int rate) const {
-    AsmEntry result = emitNodeEntry(NodeType::Rate);
+AsmList::Asm AsmCommands::asmRate(int rate) const {
+    AsmList::Asm result = emitNodeEntry(NodeType::Rate);
     result.node->rate = rate;
     return result;
 }
 
-AsmEntry AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
-    AsmEntry result = emitNodeEntry(NodeType::PrecompFlags);
+AsmList::Asm AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
+    AsmList::Asm result = emitNodeEntry(NodeType::PrecompFlags);
     result.node->precompFlags = flags;
     return result;
 }
@@ -875,36 +874,36 @@ AsmEntry AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
 // Placeholder / waveform management
 // =========================================================================
 
-AsmEntry AsmCommands::asmSetVarPlaceholder(AsmRegister reg) {
-    AsmEntry result = emitNodeEntry(NodeType::SetVarPlaceholder);
+AsmList::Asm AsmCommands::asmSetVarPlaceholder(AsmRegister reg) {
+    AsmList::Asm result = emitNodeEntry(NodeType::SetVarPlaceholder);
     result.node->reg = reg;
     return result;
 }
 
-AsmEntry AsmCommands::asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf,
+AsmList::Asm AsmCommands::asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf,
                                           int index) {
-    AsmEntry result = emitNodeEntry(NodeType::LockPlaceholder);
+    AsmList::Asm result = emitNodeEntry(NodeType::LockPlaceholder);
     // Waveform name is at offset 0x00 of WaveformFront (direct field access, confirmed)
     result.node->wavesPerDev[index] = wvf->name;
     result.node->deviceIndex = index;
     return result;
 }
 
-AsmEntry AsmCommands::asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf,
+AsmList::Asm AsmCommands::asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf,
                                              int index) {
-    AsmEntry result = emitNodeEntry(NodeType::UnlockPlaceholder);
+    AsmList::Asm result = emitNodeEntry(NodeType::UnlockPlaceholder);
     // Copy waveform name into node->wavesPerDev[index]
     result.node->deviceIndex = index;
     return result;
 }
 
-AsmEntry AsmCommands::asmLoadPlaceholder() {
+AsmList::Asm AsmCommands::asmLoadPlaceholder() {
     return emitNodeEntry(NodeType::Load);
 }
 
-AsmEntry AsmCommands::asmPrefetch(std::shared_ptr<WaveformFront> wvf,
+AsmList::Asm AsmCommands::asmPrefetch(std::shared_ptr<WaveformFront> wvf,
                                    int nameIndex, int regVal, int extraVal) {
-    AsmEntry result = emitNodeEntry(NodeType::Prefetch);
+    AsmList::Asm result = emitNodeEntry(NodeType::Prefetch);
     result.node->lengthReg = static_cast<AsmRegister>(regVal);
     result.node->length = extraVal;
 
@@ -928,24 +927,27 @@ PlayConfig AsmCommands::genPlayConfig(
     bool isHoldMode, unsigned int trigger) const
 {
     PlayConfig config;
-    config.holdCount = holdCount;
+    // TODO: these field names were wrong in reconstruction — original semantics unknown
+    // config.holdCount = holdCount;        // no such field on PlayConfig
+    // config.isBool = isBool;              // no such field on PlayConfig
     config.suppress = suppress;
-    config.fourChannel = isFourChannelBool;
+    config.is4Channel = isFourChannelBool;  // was: config.fourChannel
     config.trigger = trigger;
-    config.precompFlag = 0;
-    config.isBool = isBool;
-    config.isHold = isHoldMode;
+    config.precompFlags = 0;                // was: config.precompFlag
+    config.hold = isHoldMode;               // was: config.isHold
 
     WaveformFront* wf = wvf.get();
     if (!wf) {
         config.channelMask = 0;
         config.markerBits = 0;
-        config.isDummy = true;
+        config.dummy = true;  // was: config.isDummy
         return config;
     }
 
-    config.isDummy = false;
-    uint16_t sampleWidth = wf->sampleWidth;
+    config.dummy = false;  // was: config.isDummy
+    // TODO: wf->sampleWidth does not exist on WaveformFront — original field unknown
+    // uint16_t sampleWidth = wf->sampleWidth;
+    uint16_t sampleWidth = 0; // PLACEHOLDER — see TODO above
     uint32_t fullMask = (1u << sampleWidth) - 1;
     uint32_t channelMask = (sampleWidth == 1) ? 2u : fullMask;
     if (!isHold) channelMask = fullMask;
@@ -953,8 +955,10 @@ PlayConfig AsmCommands::genPlayConfig(
 
     // Marker processing: iterate marker data pairwise from end
     // Computing (byte | (byte >> 1)) & 0x3 for each sample
-    uint8_t* data = wf->markerData;
-    size_t len = wf->markerDataEnd - data;
+    // TODO: wf->markerData and wf->markerDataEnd do not exist on WaveformFront
+    // Original marker data source unknown — possibly via Signal::markers_ vector
+    uint8_t* data = nullptr; // was: wf->markerData;
+    size_t len = 0; // was: wf->markerDataEnd - data;
     uint16_t count = static_cast<uint16_t>(len);
 
     uint32_t markerBits = 0;
@@ -985,14 +989,14 @@ PlayConfig AsmCommands::genPlayConfig(
     return config;
 }
 
-AsmEntry AsmCommands::asmPlay(
+AsmList::Asm AsmCommands::asmPlay(
     std::vector<std::shared_ptr<WaveformFront>> waveforms,
     int nameIndex, bool isHold, bool fourChannel, bool isBool,
     int holdCount, unsigned int suppress, bool isHoldMode,
     AsmRegister reg, int regVal, AsmRegister reg2,
     unsigned int trigger)
 {
-    AsmEntry result = emitNodeEntry(NodeType::Play);
+    AsmList::Asm result = emitNodeEntry(NodeType::Play);
     Node* node = result.node.get();
 
     node->deviceIndex = nameIndex;
@@ -1026,19 +1030,21 @@ AsmEntry AsmCommands::asmPlay(
     // Mark waveform as used and compute packed play word if needed
     if (currentWvf) {
         currentWvf->used = true;
-        if (currentWvf->playIndex < 0) {
-            currentWvf->playWord = node->config.pack();
+        if (currentWvf->waveIndex < 0) {
+            // TODO: pack() doesn't exist — actual method is encodeCwvf(int defaultRate)
+            // Original defaultRate argument unknown
+            currentWvf->playWord = node->config.encodeCwvf(0 /* TODO: defaultRate */);
         }
     }
 
     return result;
 }
 
-AsmEntry AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
+AsmList::Asm AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
                                 int nameIndex, bool isHold, bool fourChannel,
                                 int holdCount, unsigned int suppress,
                                 bool isHoldMode, AsmRegister reg, int regVal) {
-    AsmEntry result = emitNodeEntry(NodeType::Table);
+    AsmList::Asm result = emitNodeEntry(NodeType::Table);
     Node* node = result.node.get();
 
     node->config = genPlayConfig(wvf, isHold, fourChannel, fourChannel,
@@ -1063,7 +1069,7 @@ AsmEntry AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront> wv
 // Misc
 // =========================================================================
 
-AsmEntry AsmCommands::asmWtrigLSPlaceholder(int value) {
+AsmList::Asm AsmCommands::asmWtrigLSPlaceholder(int value) {
     AssemblerInstr instr;
     instr.cmd = Assembler::ST;
     instr.reg0 = AsmRegister::Reg(0);
@@ -1071,7 +1077,7 @@ AsmEntry AsmCommands::asmWtrigLSPlaceholder(int value) {
     return emitEntry(instr);
 }
 
-AsmEntry AsmCommands::fb(int value) const {
+AsmList::Asm AsmCommands::fb(int value) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::FB;
     instr.immediates.emplace_back(value);

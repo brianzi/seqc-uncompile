@@ -14,20 +14,18 @@
 #pragma once
 
 #include "waveform.hpp"
-
+#include "signal.hpp"    // for SampleFormat
 #include <memory>
 #include <string>
+#include <functional>    // for std::less
 
-namespace boost { namespace property_tree { template<typename K, typename D, typename C> class basic_ptree; } }
+namespace boost { namespace property_tree {
+    template<typename Key, typename Data, typename KeyCompare> class basic_ptree;
+} }
 
 namespace zhinst {
 
 struct WaveformFront;
-
-enum class SampleFormat : int {
-    Cervino = 0,
-    Hirzel16 = 1,
-};
 
 // ============================================================================
 // WaveformIR layout — 0xE0 bytes
@@ -47,6 +45,21 @@ struct WaveformIR : Waveform {
     bool irBool1;           // +0xDA  init=0
     // +0xDB: 1 byte padding
     int32_t irField2;       // +0xDC  from source->deviceConstants->someField
+
+    // TODO: these fields are referenced in prefetch .cpp files but exact offsets
+    // within WaveformIR are not yet confirmed. They may be aliases for existing fields.
+    int numPages = 0;       // offset TBD — number of cache pages
+    bool fixed_ = false;    // offset TBD — whether waveform is fixed/locked
+    int playCount = 0;      // offset TBD — number of plays referencing this waveform
+    bool irBool0 = false;   // offset TBD — IR boolean flag (distinct from irBool1)
+    int channelCount = 0;   // offset TBD — number of channels
+    uint32_t address = 0;   // offset TBD — waveform memory address
+    int waveformOffset = 0; // offset TBD — offset within waveform table
+    int sizeInBytes = 0;    // offset TBD — total size in bytes
+    bool used = false;      // offset TBD — whether waveform is used (isUsed accessor)
+
+    bool isUsed() const { return used; }
+    int getSampleCount() const { return sizeInBytes; } // TODO: real calculation TBD
 
     // Construct from WaveformFront — 0x114da0
     explicit WaveformIR(std::shared_ptr<WaveformFront> source);
