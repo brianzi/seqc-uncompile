@@ -119,7 +119,7 @@ populates it. Nested `DeviceConstants::Register` sub-struct with anonymous enums
 
 - [x] Update OVERVIEW.md
 - [x] Update notes/unknowns.md
-- [ ] Propose TODO.md adjustments
+- [x] Propose TODO.md adjustments
 
 ### 3b. ErrorMessages / ResourcesException
 
@@ -140,7 +140,7 @@ BSS message table at 0xb84c38, ~53 symbols (mostly template instantiations of
 
 - [x] Update OVERVIEW.md
 - [x] Update notes/unknowns.md (close #13 re: format strings)
-- [ ] Propose TODO.md adjustments
+- [x] Propose TODO.md adjustments
 
 ### 3c. Signal
 
@@ -219,210 +219,401 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 
 ---
 
-## Phase 4: AWGAssembler
+## Phase 4: AWGAssembler (COMPLETE)
 
 ### 4a. AWGAssembler base (interface)
 
-- [ ] Reconstruct `AWGAssembler(DeviceConstants const&)` ctor (0x285040)
-- [ ] Reconstruct `~AWGAssembler()` dtor (0x285090)
-- [ ] Reconstruct `setMemoryOffset(unsigned int)` (0x285120)
-- [ ] Reconstruct `getOpcode() const` (0x285140)
-- [ ] Reconstruct `getReport() const` (0x285150)
-- [ ] Reconstruct `printOpcode(int) const` (0x285170)
-- [ ] Create `include/zhinst/awg_assembler.hpp`
+- [x] Reconstruct `AWGAssembler(DeviceConstants const&)` ctor (0x285040)
+- [x] Reconstruct `~AWGAssembler()` dtor (0x285090)
+- [x] Reconstruct `setMemoryOffset(unsigned int)` (0x285120)
+- [x] Reconstruct `getOpcode() const` (0x285140)
+- [x] Reconstruct `getReport() const` (0x285150)
+- [x] Reconstruct `printOpcode(int) const` (0x285170)
+- [x] Create `include/zhinst/awg_assembler.hpp`
 
 ### 4b. AWGAssemblerImpl — encoding methods
 
-- [ ] Reconstruct `opcode0(uint, shared_ptr<AsmExpression>)` (0x2895c0)
-- [ ] Reconstruct `opcode1(uint, shared_ptr<AsmExpression>)` (0x289860)
-- [ ] Reconstruct `opcode2(uint, shared_ptr<AsmExpression>)` (0x289a10)
-- [ ] Reconstruct `opcode3(uint, shared_ptr<AsmExpression>)` (0x289c90)
-- [ ] Reconstruct `opcode4(uint, shared_ptr<AsmExpression>)` (0x28a010)
-- [ ] Reconstruct `opcode5(uint, shared_ptr<AsmExpression>)` (0x28a610)
-- [ ] Determine AsmExpression type layout (used by getReg, getVal, all opcodeN)
+- [x] Reconstruct `opcode0(uint, shared_ptr<AsmExpression>)` (0x2895c0)
+- [x] Reconstruct `opcode1(uint, shared_ptr<AsmExpression>)` (0x289860)
+- [x] Reconstruct `opcode2(uint, shared_ptr<AsmExpression>)` (0x289a10)
+- [x] Reconstruct `opcode3(uint, shared_ptr<AsmExpression>)` (0x289c90)
+- [x] Reconstruct `opcode4(uint, shared_ptr<AsmExpression>)` (0x28a010)
+- [x] Reconstruct `opcode5(uint, shared_ptr<AsmExpression>)` (0x28a610)
+- [x] Determine AsmExpression type layout (used by getReg, getVal, all opcodeN)
 
 ### 4c. AWGAssemblerImpl — assembly pipeline
 
-- [ ] Reconstruct `assembleAsmList(vector<Assembler> const&)` (0x2876a0)
-- [ ] Reconstruct `assembleStringToExpressionsVec(string const&)` (0x286e40)
-- [ ] Reconstruct `assembleString(string const&)` (0x286490)
-- [ ] Reconstruct `assembleFile(string const&)` (0x285ec0)
-- [ ] Reconstruct `assembleExpressions(vector<shared_ptr<AsmExpression>>&, vector<ulong>&)` (0x285620)
-- [ ] Reconstruct `evaluate(shared_ptr<AsmExpression> const&)` (0x285b20)
+- [x] Reconstruct `assembleAsmList(vector<Assembler> const&)` (0x2876a0)
+- [x] Reconstruct `assembleStringToExpressionsVec(string const&)` (0x286e40)
+- [x] Reconstruct `assembleString(string const&)` (0x286490)
+- [x] Reconstruct `assembleFile(string const&)` (0x285ec0)
+- [x] Reconstruct `assembleExpressions(vector<shared_ptr<AsmExpression>>&, vector<ulong>&)` (0x285620)
+- [x] Reconstruct `evaluate(shared_ptr<AsmExpression> const&)` (0x285b20)
 
 ### 4d. AWGAssemblerImpl — helpers
 
-- [ ] Reconstruct `getReg(shared_ptr<AsmExpression> const&)` (0x2892b0)
-- [ ] Reconstruct `getVal(shared_ptr<AsmExpression> const&, int)` (0x289370)
-- [ ] Reconstruct `errorMessage(string const&)` (0x289070)
-- [ ] Reconstruct `parserMessage(int, string const&)` (0x289190)
-- [ ] Reconstruct `getReport() const` (0x285bc0)
-- [ ] Reconstruct `writeToFile(string const&)` (0x288570)
-- [ ] Reconstruct `getAST(string const&)` (0x286ca0)
-- [ ] Create `src/awg_assembler_impl.cpp`
+- [x] Reconstruct `getReg(shared_ptr<AsmExpression> const&)` (0x2892b0)
+- [x] Reconstruct `getVal(shared_ptr<AsmExpression> const&, int)` (0x289370)
+- [x] Reconstruct `errorMessage(string const&)` (0x289070)
+- [x] Reconstruct `parserMessage(int, string const&)` (0x289190)
+- [x] Reconstruct `getReport() const` (0x285bc0)
+- [x] Reconstruct `writeToFile(string const&)` (0x288570)
+- [x] Reconstruct `getAST(string const&)` (0x286ca0)
+- [x] Create `src/awg_assembler_impl.cpp`
 
 ### Phase 4 wrap-up
 
-- [ ] Update OVERVIEW.md
-- [ ] Update notes/unknowns.md
-- [ ] Write `notes/instruction_encoding.md` documenting the binary encoding format
-- [ ] Reconsider deferred items: AWGCompilerConfig (3 methods — may be needed for assembler context)
-- [ ] Propose TODO.md adjustments
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md (added #39–#45)
+- [x] Write `notes/opcode_encoding.md` documenting the binary encoding format
+- [x] Update notes/struct_layouts.md (AWGAssembler, AWGAssemblerImpl, AsmExpression, Message)
+- [x] Propose TODO.md adjustments
 
 ---
 
-## Phase 5: Waveform Complex
+## Phase 5: Waveform Complex (COMPLETE)
 
 ### 5a. Waveform base class + File
 
-- [ ] Reconstruct full Waveform ctor (0x2a71e0 — 13 parameters)
-- [ ] Reconstruct `Waveform(Waveform const&)` copy ctor (0x2a8ff0)
-- [ ] Reconstruct `~Waveform()` dtor (0x1152e0)
-- [ ] Reconstruct `toJson() const` (0x2a33c0)
-- [ ] Reconstruct `fromJson(json::value const&, DeviceConstants const&)` static (0x2a54b0)
-- [ ] Reconstruct `getSizePerDevice() const` (0x1d5c30)
-- [ ] Reconstruct `operator==(Waveform const&) const` (0x2a9510)
-- [ ] Reconstruct `File::typeToStr(Type)` (0x2a3a90)
-- [ ] Reconstruct `File::typeFromStr(string)` (0x2a63c0)
-- [ ] Reconstruct `File::operator==(File const&) const` (0x2a9680)
-- [ ] Create `include/zhinst/waveform.hpp` (separate from waveform_front.hpp)
-- [ ] Create `src/waveform.cpp`
-- [ ] Refactor `waveform_front.hpp` to inherit from `waveform.hpp`
-
-### 5a wrap-up
-
-- [ ] Update OVERVIEW.md
-- [ ] Update notes/struct_layouts.md
-- [ ] Propose TODO.md adjustments
+- [x] Reconstruct full Waveform ctor (0x2a71e0 — 13 parameters)
+- [x] Reconstruct `Waveform(Waveform const&)` copy ctor (0x2a8ff0)
+- [x] Reconstruct `~Waveform()` dtor (0x1152e0)
+- [x] Reconstruct `toJson() const` (0x2a33c0)
+- [x] Reconstruct `fromJson(json::value const&, DeviceConstants const&)` static (0x2a54b0)
+- [x] Reconstruct `getSizePerDevice() const` (0x1d5c30)
+- [x] Reconstruct `operator==(Waveform const&) const` (0x2a9510)
+- [x] Reconstruct `File::typeToStr(Type)` (0x2a3a90)
+- [x] Reconstruct `File::typeFromStr(string)` (0x2a63c0)
+- [x] Reconstruct `File::operator==(File const&) const` (0x2a9680)
+- [x] Reconstruct copy-rename ctor (0x114f10)
+- [x] Create `include/zhinst/waveform.hpp` (separate from waveform_front.hpp)
+- [x] Create `src/waveform.cpp`
+- [x] Refactor `waveform_front.hpp` to inherit from `waveform.hpp`
 
 ### 5b. WavetableManager\<T\>
 
-- [ ] Determine WavetableManager struct layout (likely vector + map + DeviceConstants*)
-- [ ] Reconstruct `newWaveform(...)` (0x29ba00, Front instantiation)
-- [ ] Reconstruct `newWaveformFromFile(...)` — both overloads (0x29b560, 0x29b110)
-- [ ] Reconstruct `newEmptyWaveform(string const&, DeviceConstants const&)` (0x29aec0)
-- [ ] Reconstruct `updateWave(shared_ptr<T>, string const&)` (0x29ccf0)
-- [ ] Reconstruct `copyWaveform(shared_ptr<T>)` (0x29c440)
-- [ ] Reconstruct `insertWaveform(shared_ptr<T>)` (0x2a1200)
-- [ ] Reconstruct `getWaveformForFront(...) const` (0x29c210)
-- [ ] Reconstruct `toJson() const` (0x29d780, IR instantiation)
-- [ ] Reconstruct `fromJson(...)` (0x29dd10, IR instantiation)
-- [ ] Reconstruct `operator==(...)` (0x29e0e0, IR instantiation)
-- [ ] Create `include/zhinst/wavetable_manager.hpp`
-- [ ] Create `src/wavetable_manager.cpp` (or template in header)
+- [x] Determine WavetableManager struct layout (0x48 bytes: lineNr, counter, unordered_map, vector)
+- [x] Reconstruct `newWaveform(...)` (0x29ba00, Front instantiation)
+- [x] Reconstruct `newWaveformFromFile(...)` — both overloads (0x29b560, 0x29b110)
+- [x] Reconstruct `newEmptyWaveform(string const&, DeviceConstants const&)` (0x29aec0)
+- [x] Reconstruct `updateWave(shared_ptr<T>, string const&)` (0x29ccf0)
+- [x] Reconstruct `copyWaveform(shared_ptr<T>)` (0x29c440)
+- [x] Reconstruct `insertWaveform(shared_ptr<T>)` (0x2a1200 / 0x29d140)
+- [x] Reconstruct `getWaveformForFront(...) const` (0x29c210)
+- [x] Reconstruct `toJson() const` (0x29d780, IR instantiation)
+- [x] Reconstruct `fromJson(...)` (0x29dd10, IR instantiation)
+- [x] Reconstruct `operator==(...)` (0x29e0e0, IR instantiation)
+- [x] Create `src/wavetable_manager_front.cpp` and `src/wavetable_manager_ir.cpp`
 
 ### 5c. WavetableFront + WaveIndexTracker
 
-- [ ] Reconstruct `WavetableFront(DeviceConstants const&, AddressImpl<uint>, ulong, path const&)` ctor (0x29ab10)
-- [ ] Reconstruct `~WavetableFront()` dtor (0x29a940)
-- [ ] Reconstruct `begin() const` / `end() const` (0x29ad00, 0x29ad20)
-- [ ] Reconstruct `getMemorySize() const` (0x29adc0)
-- [ ] Reconstruct `toString() const` (0x29bd90)
-- [ ] Reconstruct `updateDioTableUsage(ulong, ulong)` (0x29ca10)
-- [ ] Reconstruct `setLineNr(int)` (0x29ce10)
-- [ ] Reconstruct WavetableFront waveform methods: newWaveform, newWaveformFromFile, copyWaveform, updateWave, loadWaveform, assignWaveIndex (8 methods, 0x29b0e0–0x29cc70)
-- [ ] Reconstruct `WaveIndexTracker(int)` ctor (0x29a5e0)
-- [ ] Reconstruct `assign(int)` / `assignAuto(int)` (0x29a600, 0x29a620)
-- [ ] Reconstruct `getNextAutoIndex()` / `hasGaps()` / `usedWaveIndices()` (0x29a880, 0x29a8e0, 0x29a7d0)
-- [ ] Reconstruct template ctors for WaveIndexTracker (0x29d000, 0x29d410)
-- [ ] Reconstruct `WavetableException` ctor/dtor/what (0x29a840, 0x29f980, 0x29f9d0)
-- [ ] Update `include/zhinst/wavetable_front.hpp`
-- [ ] Create `src/wavetable_front.cpp`
+- [x] Reconstruct `WavetableFront(DeviceConstants const&, AddressImpl<uint>, ulong, path const&)` ctor (0x29ab10)
+- [x] Reconstruct `~WavetableFront()` dtor (0x29a940)
+- [x] Reconstruct `begin() const` / `end() const` (0x29ad00, 0x29ad20)
+- [x] Reconstruct `getMemorySize() const` (0x29adc0)
+- [x] Reconstruct `toString() const` (0x29bd90)
+- [x] Reconstruct `updateDioTableUsage(ulong, ulong)` (0x29ca10)
+- [x] Reconstruct `setLineNr(int)` (0x29ce10)
+- [x] Reconstruct WavetableFront waveform methods: newWaveform, newWaveformFromFile, copyWaveform, updateWave, loadWaveform, assignWaveIndex (8+ methods)
+- [x] Reconstruct `WaveIndexTracker(int)` ctor (0x29a5e0)
+- [x] Reconstruct `assign(int)` / `assignAuto(int)` (0x29a600, 0x29a620)
+- [x] Reconstruct `getNextAutoIndex()` / `hasGaps()` / `usedWaveIndices()` (0x29a880, 0x29a8e0, 0x29a7d0)
+- [x] Reconstruct template ctors for WaveIndexTracker (0x29d000, 0x29d410)
+- [x] Reconstruct `WavetableException` ctor/dtor/what (0x29a840, 0x29f980, 0x29f9d0)
+- [x] Update `include/zhinst/wavetable_front.hpp`
+- [x] Create `src/wavetable_front.cpp` and `src/wave_index_tracker.cpp`
 
 ### 5d. WaveformIR + WavetableIR
 
-- [ ] Reconstruct `WaveformIR(shared_ptr<WaveformFront>)` ctor (0x114da0)
-- [ ] Reconstruct `WaveformIR::toJsonElement(SampleFormat)` (0x2c5440)
-- [ ] Determine WavetableIR struct layout
-- [ ] Reconstruct `allocateWaveforms(bool)` (0x29e340)
-- [ ] Reconstruct `updateWaveforms(bool, bool)` (0x29ed10)
-- [ ] Reconstruct `alignWaveformSizes()` (0x29f150)
-- [ ] Reconstruct `assignWaveIndexImplicit()` (0x29e8a0)
-- [ ] Reconstruct `allocateWaveformsForFifo()` (0x29ed30)
-- [ ] Reconstruct `assignWaveformAllocationSizes()` (0x29f1d0)
-- [ ] Reconstruct `getJsonIndex(SampleFormat) const` (0x29f480)
-- [ ] Reconstruct `getFirstWaveformOffset() const` / `getNextSegmentAddress() const` (0x29e330, 0x29e320)
-- [ ] Reconstruct `begin()` / `end()` / `size()` (0x29e270, 0x29e280, 0x29e290)
-- [ ] Reconstruct `toJson() const` (0x29d670)
-- [ ] Reconstruct `operator==(WavetableIR const&) const` (0x29e090)
-- [ ] Create `include/zhinst/waveform_ir.hpp` and `include/zhinst/wavetable_ir.hpp`
-- [ ] Create `src/waveform_ir.cpp` and `src/wavetable_ir.cpp`
+- [x] Reconstruct `WaveformIR(shared_ptr<WaveformFront>)` ctor (0x114da0)
+- [x] Reconstruct `WaveformIR(shared_ptr<Waveform>)` ctor (0x2a9240)
+- [x] Reconstruct `WaveformIR::toJsonElement(SampleFormat)` (0x2c5440)
+- [x] Determine WavetableIR struct layout (0xC8 bytes)
+- [x] Reconstruct `allocateWaveforms(bool)` (0x29e340)
+- [x] Reconstruct `updateWaveforms(bool, bool)` (0x29ed10)
+- [x] Reconstruct `alignWaveformSizes()` (0x29f150)
+- [x] Reconstruct `assignWaveIndexImplicit()` (0x29e8a0)
+- [x] Reconstruct `allocateWaveformsForFifo()` (0x29ed30)
+- [x] Reconstruct `assignWaveformAllocationSizes()` (0x29f1d0)
+- [x] Reconstruct `getJsonIndex(SampleFormat) const` (0x29f480)
+- [x] Reconstruct `getFirstWaveformOffset() const` / `getNextSegmentAddress() const` (0x29e330, 0x29e320)
+- [x] Reconstruct `begin()` / `end()` / `size()` (0x29e270, 0x29e280, 0x29e290)
+- [x] Reconstruct `toJson() const` (0x29d670)
+- [x] Reconstruct `operator==(WavetableIR const&) const` (0x29e090)
+- [x] Reconstruct `forEachUsedWaveform()` (0x29e5e0)
+- [x] Reconstruct `setUsedWaveforms()` (0x29ece0)
+- [x] Reconstruct `loadWaveform()` (0x29f310)
+- [x] Reconstruct `fromJson()` (0x29db10)
+- [x] Create `include/zhinst/waveform_ir.hpp` and `include/zhinst/wavetable_ir.hpp`
+- [x] Create `src/waveform_ir.cpp` and `src/wavetable_ir.cpp`
 
 ### Phase 5 wrap-up
 
-- [ ] Update OVERVIEW.md
-- [ ] Update notes/struct_layouts.md
-- [ ] Update notes/unknowns.md
-- [ ] Reconsider deferred items: WaveformGenerator (5 methods + exception types — closely related)
-- [ ] Propose TODO.md adjustments
+- [x] Update OVERVIEW.md
+- [x] Update notes/struct_layouts.md
+- [x] Update notes/unknowns.md
+- [x] Reconsider deferred items: WaveformGenerator (54 methods) stays deferred; CachedParser/MemoryAllocator added
+- [x] Propose TODO.md adjustments
 
 ---
 
-## Phase 6: AsmOptimize
+## Phase 6: AsmOptimize (COMPLETE)
 
 ### 6a. Query helpers
 
-- [ ] Reconstruct `isRead(Assembler const&, AsmRegister) const` (0x27d900)
-- [ ] Reconstruct `isWritten(Assembler const&, AsmRegister) const` (0x27d960)
-- [ ] Reconstruct `isLabelCalled(string const&, iter)` (0x27d9c0)
-- [ ] Reconstruct `getNextActionForReg(iter, AsmRegister)` (0x281a10)
-- [ ] Reconstruct `registerIsNeverWritten(AsmList&, AsmRegister, iter, iter) const` (0x280f50)
+- [x] Reconstruct `isRead(Assembler const&, AsmRegister) const` (0x27d900)
+- [x] Reconstruct `isWritten(Assembler const&, AsmRegister) const` (0x27d960)
+- [x] Reconstruct `isLabelCalled(string const&, iter)` (0x27d9c0)
+- [x] Reconstruct `getNextActionForReg(iter, AsmRegister)` (0x281a10)
+- [x] Reconstruct `registerIsNeverWritten(AsmList&, AsmRegister, iter, iter) const` (0x280f50)
 
 ### 6b. Optimization passes
 
-- [ ] Reconstruct `prepareResources(AsmList const&) const` (0x27dab0)
-- [ ] Reconstruct `optimizePreWaveform(AsmList const&)` (0x27db40)
-- [ ] Reconstruct `optimizePostWaveform(AsmList const&)` (0x27ddf0)
-- [ ] Reconstruct `deadCodeElimination()` (0x27dbd0)
-- [ ] Reconstruct `oneStepJumpElimination()` (0x27e040)
-- [ ] Reconstruct `removeUnusedLabels()` (0x27e1c0)
-- [ ] Reconstruct `mergeLabels()` (0x27e330)
-- [ ] Reconstruct `mergeRegisterZeroing()` (0x27e640)
-- [ ] Reconstruct `removeUnusedRegs()` (0x27e760)
-- [ ] Reconstruct `reportUserMessages()` (0x280b60)
-- [ ] Reconstruct `simplifyAssign(iter)` (0x280e10)
+- [x] Reconstruct `prepareResources(AsmList const&) const` (0x27dab0)
+- [x] Reconstruct `optimizePreWaveform(AsmList const&)` (0x27db40)
+- [x] Reconstruct `optimizePostWaveform(AsmList const&)` (0x27ddf0)
+- [x] Reconstruct `deadCodeElimination()` (0x27dbd0)
+- [x] Reconstruct `oneStepJumpElimination()` (0x27e040)
+- [x] Reconstruct `removeUnusedLabels()` (0x27e1c0)
+- [x] Reconstruct `mergeLabels()` (0x27e330)
+- [x] Reconstruct `mergeRegisterZeroing()` (0x27e640)
+- [x] Reconstruct `removeUnusedRegs()` (0x27e760) — approximate
+- [x] Reconstruct `reportUserMessages()` (0x280b60)
+- [x] Reconstruct `simplifyAssign(iter)` (0x280e10)
 
 ### 6c. Register allocator
 
-- [ ] Determine `LiveRange` and `PhysicalRegister` internal type layouts
-- [ ] Reconstruct `registerAllocation(unsigned long)` (0x27ebb0)
-- [ ] Reconstruct `splitConstRegisters(unsigned long)` (0x280440)
-- [ ] Reconstruct `splitReg(AsmList&, AsmRegister, iter, iter)` (0x281000)
-- [ ] Reconstruct `registerUpdate(vector<int> const&, AsmRegister, AsmRegister)` (0x281680)
+- [x] Determine `LiveRange` and `PhysicalRegister` internal type layouts
+- [x] Reconstruct `registerAllocation(unsigned long)` (0x27ebb0) — approximate
+- [x] Reconstruct `splitConstRegisters(unsigned long)` (0x280440) — approximate
+- [x] Reconstruct `splitReg(AsmList&, AsmRegister, iter, iter)` (0x281000)
+- [x] Reconstruct `registerUpdate(vector<int> const&, AsmRegister, AsmRegister)` (0x281680)
 
 ### 6d. Exceptions + housekeeping
 
-- [ ] Reconstruct `~AsmOptimize()` dtor (0x123200)
-- [ ] Reconstruct `OptimizeException` dtor/what (0x281e00, 0x281e90)
-- [ ] Create `include/zhinst/asm_optimize.hpp`
-- [ ] Create `src/asm_optimize.cpp`
+- [x] Reconstruct `~AsmOptimize()` dtor (0x123200)
+- [x] Reconstruct `OptimizeException` dtor/what (0x281e00, 0x281e90)
+- [x] Create `include/zhinst/asm_optimize.hpp`
+- [x] Create `src/asm_optimize.cpp`
 
 ### Phase 6 wrap-up
 
-- [ ] Update OVERVIEW.md
-- [ ] Update notes/unknowns.md (close #5 re: isWaveformCmd, #18 re: outputs vector)
-- [ ] Write `notes/optimization_passes.md`
-- [ ] Propose TODO.md adjustments
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md (added #46–#53)
+- [x] Write `notes/optimization_passes.md`
+- [x] Update notes/struct_layouts.md (AsmOptimize, OptimizeException)
+- [x] Propose TODO.md adjustments
 
 ---
 
 ## Phase 7: Integration — Compilation Pipeline
 
-- [ ] Disassemble `Compiler::runPrefetcher`
-- [ ] Disassemble `FrontEndLoweringFacade::lower`
-- [ ] Disassemble `Prefetch::Prefetch` constructor
-- [ ] Disassemble `Prefetch::optimize(shared_ptr<Node>)` (0x1cdae0)
-- [ ] Disassemble `Prefetch::optimizeSync(shared_ptr<Node>)` (0x1cf7b0)
-- [ ] Disassemble `Prefetch::optimizeCwvf(shared_ptr<Node>)` (0x1cfc70)
-- [ ] Disassemble `CustomFunctions::CustomFunctions` constructor
-- [ ] Map the overall compilation pipeline flow
-- [ ] Document in `notes/pipeline.md`
+### 7a. Compiler shell + pipeline glue
 
-### Phase 7 wrap-up
+- [x] Determine Compiler struct layout (~0x138 bytes) from ctor/dtor
+- [x] Reconstruct `Compiler::Compiler(AWGCompilerConfig const&, DeviceConstants const&, shared_ptr<WavetableFront>)` (0x11d080)
+- [x] Reconstruct `Compiler::~Compiler()` (0x103660)
+- [x] Reconstruct `Compiler::reset()` (0x11dfe0)
+- [x] Reconstruct `Compiler::compile(string const&)` (0x11f150) — master pipeline (~13KB)
+- [x] Reconstruct `Compiler::runPrefetcher(...)` (0x11dff0) — prefetch orchestrator (~2.8KB)
+- [x] Reconstruct `Compiler::parse(string const&)` (0x11d9b0)
+- [x] Reconstruct `Compiler::unifyLineEndings(string const&) const` (0x11d720)
+- [x] Reconstruct `Compiler::printAST(shared_ptr<Expression>, string const&)` (0x122640) — debug, approximate
+- [x] Reconstruct getter/setter methods (setCancelCallback, setProgressCallback, getNodeAccessList, getNodeToModeMap, getChannelInfo, usedDeviceSampleRate, getCompileMessages, setLineNr, getLineMap)
+- [x] Reconstruct `FrontEndLoweringFacade::lower(...)` (0x1c1da0) — thin facade (~1KB)
+- [x] Reconstruct `CompilerMessage::str(bool) const` (0x104340)
+- [x] Reconstruct `CompilerException` ctor/dtor/what (0x11dec0, 0x11df20, 0x123bd0)
+- [x] Reconstruct `CompilerMessageCollection::compilerMessage(...)` (0x12b750) + errorMessage/warningMessage/infoMessage/parserMessage/reset
+- [x] Create `include/zhinst/compiler_message.hpp`, `src/compiler_message.cpp`
+- [x] Create `include/zhinst/compiler.hpp`, `src/compiler.cpp`
+- [x] Write `notes/pipeline.md` documenting the full compilation flow
 
-- [ ] Final review of OVERVIEW.md
-- [ ] Final review of all notes/ files
-- [ ] Identify further components worth reconstructing (or declare scope complete)
+#### 7a wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md (added #54–#60)
+- [x] Update notes/struct_layouts.md (Compiler, CompilerMessage, CompilerMessageCollection, CompilerException)
+- [x] Propose TODO.md adjustments
+
+### 7b. Cache
+
+- [x] Determine Cache struct layout (~0x28 bytes) from ctor
+- [x] Reconstruct `Cache::Cache(AddressImpl<uint>, int, bool)` (0x282920)
+- [x] Reconstruct `Cache::allocate(...)` — both overloads (0x282a30, 0x282be0)
+- [x] Reconstruct `Cache::free(shared_ptr<Cache::Pointer>)` (0x283690)
+- [x] Reconstruct `Cache::getBestPosition(...)` (0x282cf0)
+- [x] Reconstruct `Cache::play(...)` / `memoryWrite(...)` / `reuse(...)` / `stillInMemory(...)` (0x2834c0, 0x283020, 0x2833d0, 0x2832e0)
+- [x] Reconstruct `Cache::Pointer::str() const` (0x283c30)
+- [x] Reconstruct `Cache::print() const` / `resetPlay()` / getters (0x283b50, 0x283640, 0x282940–0x2829a0)
+- [x] Create `include/zhinst/cache.hpp`, `src/cache.cpp`
+
+#### 7b wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md (added #61–#65)
+- [x] Update notes/struct_layouts.md (Cache, Cache::Pointer, CacheException)
+- [x] Propose TODO.md adjustments
+
+### 7c. Prefetch — tree preparation + optimization
+
+- [x] Determine Prefetch struct layout (~0x160 bytes) from ctor/dtor
+- [x] Reconstruct `Prefetch::Prefetch(...)` ctor (0x1c5850) and `~Prefetch()` dtor (0x11eed0)
+- [x] Reconstruct tree prep: `preparePlays()` (0x1c8740), `prepareTree()` (0x1c8870), `countBranches()` (0x1c9b30), `definePlaySize()` (0x1ca370)
+- [x] Reconstruct optimization: `optimize()` (0x1cdae0, 7.4KB), `optimizeSync()` (0x1cf7b0), `optimizeCwvf()` (0x1cfc70), `globalCwvf()` (0x1d5620)
+- [x] Reconstruct wave management: `determineFixedWaves()` (0x1cb200), `collectUsedWaves()` (0x1d31c0), `getUsedWavesForDevice()` (0x1d2d60)
+- [x] Reconstruct load placement: `placeLoads()` (0x1cbf60), `moveLoadsToFront()` (0x1ccad0), `createLoad()` (0x1d4a10), `mergeLoads()` (0x1d5040), `assignLoad()` (0x1d53a0), `linkLoad()` (0x1d33f0)
+- [x] Reconstruct helpers: `backwardTree()` (0x1d57d0), `removeBranches()` (0x1d3530), `expandSetVar()` (0x1d3af0), `findLockedPlay()` (0x1d3dd0), `sameLoads()` (0x1d5e20), `nodeByCachePointer()` (0x1d60d0)
+- [x] Reconstruct `allocate()` (0x1d0fb0, 7.6KB)
+- [x] Create `include/zhinst/prefetch.hpp`, `src/prefetch.cpp`
+
+#### 7c wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md
+- [x] Update notes/struct_layouts.md
+- [x] Propose TODO.md adjustments
+
+### 7d. Prefetch — command emission (COMPLETE)
+
+- [x] Reconstruct `placeSingleCommand()` (0x1d7940, 20KB)
+- [x] Reconstruct `placeCommands()` (0x1d6680), `fillInPlaceholders()` (0x1d65c0), `findPlaceholder()` (0x1d6b50)
+- [x] Reconstruct `wvfImpl()` (0x1d6ca0), `wvfRegImpl()` (0x1d7020), `wvfs()` (0x1d73e0), `insertPlay()` (0x1def50)
+- [x] Reconstruct `splitPlay()` (0x1dd1a0, 7.6KB), `needsNewCwvf()` (0x1dc620)
+- [x] Reconstruct `getUsedChannels()` (0x1df2f0), `getUsedFourChannelMode()` (0x1df400)
+- [x] Reconstruct `print()` (0x1c5dd0, 8.4KB), `getUsedCache()` (0x1c7eb0)
+- [x] Reconstruct `getMemoryHighWatermark()` (0x1cc650), `getRequiredMemory()` (0x1cc930), `clampToCache()` (0x1d6c40)
+
+#### 7d wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/unknowns.md
+- [x] Update notes/struct_layouts.md
+- [x] Propose TODO.md adjustments
+
+### Phase 7e. DeviceConstants layout revision (COMPLETE)
+
+- [x] Catalog all DeviceConstants field accesses across all reconstructed code
+- [x] Verify ambiguous accesses against binary disassembly
+- [x] Propose new layout with semantic field names (reviewed with user)
+- [x] Update device_constants.hpp — remove RegisterBank, flat scalar fields
+- [x] Update device_constants.cpp factory values
+- [x] Update all consumer .cpp files (prefetch_emit, prefetch_helpers, prefetch, prefetch_splitplay, prefetch_placesingle, wavetable_ir, prefetch.hpp)
+- [x] Update struct_layouts.md, unknowns.md (closed #31, #72)
+- [x] Update OVERVIEW.md
+
+### Phase 7 final wrap-up
+
+- [x] Final review of OVERVIEW.md
+- [x] Final review of all notes/ files
+- [x] Identify further components worth reconstructing → Phases 8–12 planned
+
+---
+
+## Phase 8: Cleanup & Quick Wins
+
+### 8a. AWGCompilerConfig field updates — COMPLETE
+
+- [x] Add `isHirzel` (bool) at +0x18, `cacheType` (uint8_t) at +0x19
+- [x] Add `debugFlags` (uint32_t) at +0x90, split unknown_88[4]
+- [x] Update awg_compiler_config.hpp struct fields
+- [x] Update struct_layouts.md
+- [x] Fix source references (prefetch.cpp, prefetch_prepare.cpp)
+
+### 8b. MemoryAllocator — COMPLETE
+
+15 symbols total (5 zhinst::, 10 std:: deque internals). CL-aware allocator used by WavetableIR.
+
+- [x] Enumerate symbols, determine layout (MemoryBlock 12B, MemoryAllocator 0x70)
+- [x] Reconstruct dtor @0x29f2d0, allocateCLAligned (inlined), allocateReloadingCL (inlined)
+- [x] Reconstruct allocateFirstSuitableFreeBlock<T> (3 instantiations @0x2aa960/0x2aac80/0x2ad190)
+- [x] Create header + implementation files
+- [x] Update struct_layouts.md, OVERVIEW.md, notes/memory_allocator_analysis.md
+- [ ] Update wavetable_ir.cpp to use proper MemoryAllocator calls (deferred — minor integration)
+
+### 8c. CancelCallback + ProgressCallback — COMPLETE
+
+CancelCallback: pure virtual, no vtable/typeinfo in binary (Python binding layer).
+ProgressCallback: 8-byte virtual base, vtable @0xb03858, empty defaults.
+
+- [x] Determine vtable layout (ProgressCallback: dtor + setProgress; CancelCallback: no binary vtable)
+- [x] Reconstruct both interfaces in callbacks.hpp + callbacks.cpp
+- [x] CancelCallback already forward-declared in all consumer headers (no update needed)
+
+### 8d. RawWaveData hierarchy (COMPLETE)
+
+24 symbols. PlaceHolder/Cervino/Hirzel16 from Signal::getRawData.
+
+- [x] Enumerate all RawWave* symbols
+- [x] Determine base class layout + vtable
+- [x] Reconstruct PlaceHolder, Cervino, Hirzel16 subclasses
+- [x] Create header + implementation files
+
+### 8e. Close/triage open unknowns — COMPLETE
+
+Targeted binary checks to close or narrow open questions.
+
+- [x] Close #36 (RawWaveData — done in 8d), #51 (CancelCallback — done in 8c),
+      #60 (debugFlags — done in 8a), #71 (cacheType — done in 8a)
+- [x] Close #5 (isWaveformCmd flags Command values 3,4,5 — confirmed)
+- [x] Close #19 (Node+0x18/+0x20 = two weak_ptrs, dtor calls __release_weak)
+- [x] Close #20 (AsmRegister: valid=non-negative, value=max(input,0), ctor @0x28eb40)
+- [x] Close #29 (parseStringToAsmList: hardcoded HDAWG, convenience function)
+- [x] Close #46 (AsmOptimize ctor: always inlined, takes messages+numRegs+devicePtr)
+- [x] Close #66-67 (Full NodeType enum: 14 values, 0x80=unlock, 0x8000=awg_ready)
+- [x] Close #73 (Node+0x44 IS NodeType type — "refCount" was wrong)
+- [x] Close #74 (Node+0x64 = PlayConfig.now at config+0x1C)
+- [x] Narrow #18 (outputs vector: population inlined, copy/move visible at 0x122e61/0x125eac)
+- [x] Update unknowns.md
+
+#### Phase 8 wrap-up — COMPLETE
+
+- [x] Update OVERVIEW.md (8a-8d class descriptions added)
+- [x] Update notes/ (struct_layouts.md, unknowns.md, memory_allocator_analysis.md)
+- [x] 13 unknowns closed, 1 narrowed in Phase 8e
+
+---
+
+## Phase 9: AWGAssembler Completion
+
+To be refined into fine-grained todos before starting.
+
+- [ ] 9a: ElfWriter (35 symbols — ELF output: ctor, setMemoryOffset, addCode, addData, writeFile)
+- [ ] 9b: AsmParserContext (28 symbols — flex/bison parser context)
+- [ ] 9c: parseStringToAsmList (~7000 bytes — deferred from Phase 2b)
+- [ ] Phase 9 wrap-up
+
+---
+
+## Phase 10: Scope & Symbol Management
+
+To be refined into fine-grained todos before starting.
+
+- [ ] 10a: StaticResources + GlobalResources (37 symbols — TLS globals, register counters)
+- [ ] 10b: Resources (~197 symbols — scope/symbol table: variables, constants, functions, registers)
+- [ ] Phase 10 wrap-up
+
+---
+
+## Phase 11: Frontend / Lowering Layer
+
+To be refined into fine-grained todos before starting.
+
+- [ ] 11a: Expression type (50 symbols — old AST from parser)
+- [ ] 11b: SeqCAstNode hierarchy (56 symbols — new AST with virtual lower())
+- [ ] 11c: FrontendLowering types (73 symbols — Context, State, lowering dispatch)
+- [ ] 11d: CustomFunctions (160 symbols — SeqC built-in function implementations)
+- [ ] Phase 11 wrap-up
+
+---
+
+## Phase 12: Waveform DSL & Utilities
+
+To be refined into fine-grained todos before starting.
+
+- [ ] 12a: WaveformGenerator (96 symbols — sin/cos/drag/rrc/gaussian/etc.)
+- [ ] 12b: CachedParser (216 symbols — tree-based cache, embedded in WavetableFront + WavetableIR)
+- [ ] 12c: CsvParser (6 symbols — CSV waveform import)
+- [ ] Phase 12 wrap-up
 
 ---
 
@@ -431,8 +622,9 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [ ] Full reconstruction of `syncCervino()` (~1000 asm lines)
 - [ ] Full reconstruction of `unsyncCervino()` (~1000 asm lines)
 - [ ] Full reconstruction of `addi32()` (32-bit immediate edge cases)
-- [ ] Full reconstruction of `parseStringToAsmList` (~7000 bytes)
-- [ ] WaveformGenerator (54 methods + exception types) — full waveform DSL; reconsider at Phase 5 wrap-up
-- [ ] AWGCompilerConfig (3 methods: dtor + 2 string getters) — reconsider at Phase 3/4 wrap-up
+- [x] ~~AWGCompilerConfig~~ — fully reconstructed in Phase 3d
+- [ ] MathCompiler (67 symbols) — separate math expression compiler
+- [ ] DeviceType/DeviceFamily/DeviceTypeCode/DeviceOption (150 symbols) — device enumeration
+- [ ] logging + tracing infrastructure (73 symbols)
 - [ ] Add `CMakeLists.txt` to compile reconstructed code as a validation step
 - [ ] Write comparison tests against the real `.so`

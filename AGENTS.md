@@ -6,7 +6,7 @@
    and update source files under `reconstructed/`.
 
 2. **Document**: Update OVERVIEW.md to reflect what changed. Add or revise
-   files under `notes/` with new findings (struct offsets, opcode details,
+   files under `reconstructed/notes/` with new findings (struct offsets, opcode details,
    open questions resolved or discovered).
 
 3. **Propose**: Present a summary of what was learned to the user. Suggest:
@@ -40,8 +40,8 @@ re-derived.
 
 - TODO.md is the shared task list. Changes require user review.
 - OVERVIEW.md is the living reference for what exists and its status.
-- notes/ holds detailed technical data (offsets, opcodes, comparisons,
-  unknowns) that doesn't belong in source comments.
+- `reconstructed/notes/` holds detailed technical data (offsets, opcodes,
+  comparisons, unknowns) that doesn't belong in source comments.
 - Each TODO.md phase ends with an explicit wrap-up step that triggers
   steps 2-4 above.
 - **Sub-phase wrap-ups:** Steps 2-4 also happen at the end of each

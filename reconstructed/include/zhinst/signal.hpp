@@ -15,10 +15,11 @@ namespace boost { namespace json { class value; } }
 namespace zhinst {
 
 // Forward declarations for getRawData() return type hierarchy
-class RawWaveData;
-class RawWavePlaceHolder;   // vtable @ 0xb077c8, size 0x28
-class RawWaveCervino;       // vtable @ 0xb07868, size 0x20
-class RawWaveHirzel16;      // size 0x20
+// See rawwave.hpp for full definitions
+class RawWave;              // abstract base, typeinfo @0xb07800
+class RawWavePlaceHolder;   // vtable @0xb077c8, size 0x28
+class RawWaveCervino;       // vtable @0xb07868, size 0x20
+class RawWaveHirzel16;      // vtable @0xb07820, size 0x20
 
 // Typedef used throughout the signal API
 using MarkerBitsPerChannel = std::vector<uint8_t>;
@@ -74,7 +75,7 @@ public:
     static Signal fromJson(boost::json::value const& json);                     // 0x2a65d0
 
     // --- Data access ---
-    std::unique_ptr<RawWaveData> getRawData(SampleFormat format) const;          // 0x293ec0
+    std::unique_ptr<RawWave> getRawData(SampleFormat format) const;              // 0x293ec0
 
     // --- Comparison ---
     bool operator==(Signal const& other) const;                                 // 0x2a9750

@@ -220,10 +220,11 @@ public:
     int nodeId;             // +0x10  — assigned from TLS counter (node_id++)
     int asmId;              // +0x14  — asm/device index
 
-    // +0x18: 16 bytes zeroed in simple ctor (purpose unknown, possibly
-    //        reserved or part of enable_shared_from_this padding)
-    uint64_t _reserved0 = 0;  // +0x18
-    uint64_t _reserved1 = 0;  // +0x20
+    // +0x18: raw Node* pointer to load node (set by Prefetch::assignLoad)
+    // +0x20: weak_ptr control block for load (assignLoad increments weak+strong refcount,
+    //        then decrements strong; createLoad checks via weak_ptr::lock())
+    Node* load = nullptr;                  // +0x18
+    std::__shared_weak_count* loadCtrl = nullptr;  // +0x20  (weak ref to load node)
 
     std::vector<std::optional<std::string>> wavesPerDev;  // +0x28 (24 bytes)
 

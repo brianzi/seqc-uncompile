@@ -1,0 +1,38 @@
+#pragma once
+
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace zhinst {
+
+class AWGAssemblerImpl;
+class Assembler;
+struct DeviceConstants;
+
+// sizeof(AWGAssembler) = 0x8
+class AWGAssembler {
+public:
+    AWGAssembler(DeviceConstants const& dc);
+    ~AWGAssembler();
+
+    void assembleFile(std::string const& path);
+    void assembleString(std::string const& src);
+    void assembleAsmList(std::vector<Assembler> const& asmList);
+    // Returns by value (sret); exact return type TBD (likely vector of expressions)
+    // vector<...> assembleStringToExpressionsVec(std::string const& src);
+    void setMemoryOffset(unsigned int offset);
+    void writeToFile(std::string const& path);
+    // Returns pointer to internal vector<uint64_t> at impl+0x50
+    std::vector<uint64_t> const& getOpcode() const;
+    // Returns by value (sret); likely std::string
+    // std::string getReport() const;
+    void printOpcode(int format) const;
+
+private:
+    // unique_ptr semantics (ctor news 0x170, dtor deletes with size 0x170)
+    // Implemented as raw owning pointer (no unique_ptr control block observed)
+    AWGAssemblerImpl* pImpl_;  // offset 0x00
+};
+
+} // namespace zhinst

@@ -400,7 +400,7 @@ Signal Signal::fromJson(boost::json::value const& json) { // 0x2a65d0
 //     If Hirzel16: constructs RawWaveHirzel16 from samples_, markers_, markerBits_.
 //     Otherwise (Cervino): converts each sample via double2awg() into uint16 vector.
 // ==========================================================================
-std::unique_ptr<RawWaveData> Signal::getRawData(SampleFormat format) const { // 0x293ec0
+std::unique_ptr<RawWave> Signal::getRawData(SampleFormat format) const { // 0x293ec0
     if (reserveOnly_) {
         // Allocate RawWavePlaceHolder (size 0x28, vtable @ 0xb077c8)
         // byteSize_ at offset +0x08 = channels_ * length_ * 2
