@@ -47,6 +47,13 @@ struct WaveformFront : Waveform {
     std::vector<Value> values;           // +0xE0  (24 bytes, each Value is 0x28)
     // +0xF8: END
 
+    // WaveformFront(name, fileType, devConst) — INLINED, no binary symbol
+    // Basic constructor used by WavetableManager factories.
+    // Sets: name, fileType, waveIndex=-1, bitsPerSample=dc[0x40],
+    //       deviceConstants ptr, playIndex=1, all other fields zeroed.
+    WaveformFront(const std::string& name, Waveform::File::Type type,
+                  const DeviceConstants& dc);
+
     // WaveformFront(shared_ptr<WaveformFront> source, string const& newName) — 0x2a2510
     WaveformFront(std::shared_ptr<WaveformFront> source, std::string const& newName);
 

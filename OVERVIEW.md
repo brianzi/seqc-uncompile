@@ -30,6 +30,9 @@ Cache (0x28)                       # Waveform cache memory manager
 AWGAssembler                       # Pimpl wrapper (0x08 bytes)
   └─ AWGAssemblerImpl              # Backend assembler (0x170 bytes) — opcodes, ELF output
 
+AsmParserContext                   # flex/bison parser context for assembly
+  └─ Label                         # inner type: (pc, name) pair
+
 AsmOptimize (0xA0)                 # Instruction optimizer — peephole + register allocator
   └─ OptimizeException (0x20)      # std::exception subclass
 
@@ -43,6 +46,10 @@ WavetableIR (0xC8)                 # IR: allocation, alignment, FIFO layout, ser
 
 MemoryAllocator (0x70)             # Free-block allocator for waveform cache/FIFO memory
   └─ MemoryBlock (0x0C)            # 12-byte block descriptor (offset, size, field_08)
+
+Resources (0xD8)                   # Base class — scope/variable/function tracking
+  ├─ StaticResources (0x110)       # Device-specific built-in constants + logger callback
+  └─ GlobalResources (0xD8)        # TLS register counter, label counter, MT19937-64 PRNG
 
 CompilerMessage (0x20)             # type + lineNr + message
 CompilerMessageCollection (0x20)   # vector<CompilerMessage> + state
@@ -91,6 +98,10 @@ reconstructed/
 │   ├── cache.hpp                # Cache (0x28), Cache::Pointer (0x24), CacheException (0x20)
 │   ├── memory_allocator.hpp    # MemoryAllocator (0x70), MemoryBlock (0x0C) — CL-aware allocator
 │   ├── callbacks.hpp           # CancelCallback (pure virtual), ProgressCallback (0x08, vtable only)
+│   ├── asm_expression.hpp      # AsmExpression (0xa8 bytes) — parse tree node, full layout + factory functions
+│   ├── asm_parser_context.hpp  # AsmParserContext (~0x80+ bytes) — flex/bison parser state, Label inner type
+│   ├── resources.hpp            # Resources (0xD8), StaticResources (0x110), GlobalResources (0xD8)
+│   ├── elf_writer.hpp          # ElfWriter (0x78 bytes) — ELFIO::elfio wrapper for AWG ELF output
 │   └── prefetch.hpp             # Prefetch (0x160 bytes), PrefetcherNodeState, 30+ methods
 ├── src/
 │   ├── asm_commands.cpp              # AsmCommands implementations (~550 lines)
@@ -159,16 +170,31 @@ reconstructed/
 │   ├── memory_allocator.cpp         # MemoryAllocator: dtor, allocateCLAligned (inlined),
 │   │                                #   allocateReloadingCL (inlined),
 │   │                                #   allocateFirstSuitableFreeBlock<T> (3 instantiations)
-│   └── callbacks.cpp                # ProgressCallback: dtor, setProgress (both empty defaults)
+│   ├── callbacks.cpp                # ProgressCallback: dtor, setProgress (both empty defaults)
+│   ├── asm_expression.cpp          # AsmExpression: dtor, createValue, createRegister,
+│   │                              #   createName, createArgList, appendArgList (6 functions)
+│   ├── asm_parser_context.cpp      # AsmParserContext: 22 accessors, Label ctor/op==,
+│   │                              #   addNode, addCommand, asmerror (free functions)
+│   ├── elf_writer.cpp              # ElfWriter: ctor, prepareHeader, addCode, addData,
+│   │                              #   addWaveform, writeFile (2 overloads), setMemoryOffset
+│   ├── static_resources.cpp       # StaticResources: ctor, dtor, getVariable, init (~15KB of addConst calls)
+│   ├── global_resources.cpp       # GlobalResources: ctor, dtor, TLS init (MT19937-64 PRNG seed)
+│   ├── resources.cpp              # Resources base: 20+ methods (setState, hasMain, return*,
+│   │                              #   getVariable, print/toString/printScopes), Variable dtor,
+│   │                              #   Function ctor/dtor/methods, ResourcesException
+│   └── write_waves_to_elf.cpp     # writeWavesToElfMapped + writeWavesToElfAbsolute
+│                                  #   (inlined into AWGCompilerImpl::writeToStream @0x108cc0)
 └── notes/
     ├── opcode_map.md            # Full opcode table: value, name, args, device, notes
     ├── cervino_vs_hirzel.md     # Device selection logic + per-method difference matrix
     ├── struct_layouts.md        # Raw byte-offset tables for all structs (updated Phase 5)
     ├── node_tree_structure.md   # Node tree model: sibling chain, elseBranch, children
-    ├── unknowns.md              # Open questions (15 resolved, ~22 open)
+    ├── unknowns.md              # Open questions (34 closed, ~43 open)
     ├── opcode_encoding.md       # AWGAssembler instruction encoding formats (6 types)
     ├── optimization_passes.md   # AsmOptimize pass details, flags, register allocator
-    └── pipeline.md              # Full compilation pipeline flow (Compiler::compile)
+    ├── pipeline.md              # Full compilation pipeline flow (Compiler::compile)
+    ├── memory_allocator_analysis.md  # MemoryAllocator detailed analysis (Phase 8b)
+    └── write_waves_to_elf.md    # Analysis of writeWavesToElf inlined helpers
 ```
 
 ## What is Reconstructed vs Stubbed
@@ -205,7 +231,7 @@ reconstructed/
 - 6 opcode encoding methods (opcode0–5) with getReg/getVal helpers. All instruction word formats documented
 - Full assembly pipeline: assembleFile→assembleString→getAST (flex/bison)→assembleExpressions→evaluate→opcodeN
 - ELF output via writeToFile (.comment "ZI AWG Sequencer Compiler 1.4", .filename, .asm sections)
-- `AsmExpression` — parse tree node: type (1=reg/2=label/3=int), name, command, value, children, lineNumber, labelName, noOpt, comment
+- `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed: type (1=reg/2=label/3=int), name (+0x08), str2 (+0x20), command (+0x38), value (+0x3C), children vector (+0x40), optional Label (labelPc +0x5C, labelName +0x60, hasLabel +0x78), optional comment (+0x80, hasComment/noOpt +0x98), field_A0 (+0xA0). Factory functions: createValue, createRegister, createName, createArgList, appendArgList. Dtor destroys in reverse: comment→label→children→str2→name
 
 *Phase 5 — Waveform Complex:*
 - `Waveform` base — 0xD8-byte value type (no vtable). 11 methods. JSON key mapping reveals all field semantics
@@ -253,7 +279,7 @@ reconstructed/
 - `AsmCommands::asmPlay()` — most complex method; waveform name vector, PlayConfig, packed play word
 - `AsmCommands::genPlayConfig()` — marker processing loop reconstructed
 - `AsmCommands::syncCervino()` / `unsyncCervino()` — stubbed; ~1000 asm lines each, deferred
-- `AsmList::parseStringToAsmList()` — stubbed; ~7000 bytes, complex parser with AWGAssembler dependency
+- `AsmList::parseStringToAsmList()` — **fully reconstructed**; 0x266160–0x268130 (7632 bytes). Deserializes assembly text via AWGAssembler pipeline, rebuilds AsmList with register assignment via getRegisterOrder() switch, JSON-based Node reconstruction for placeholder entries, and Node::installPointers post-pass.
 - `AsmOptimize::registerAllocation()` — algorithm structure captured (live ranges, conflict graph, greedy allocation); full ~1900 asm lines are approximate
 - `AsmOptimize::removeUnusedRegs()` — core logic present, cancel callback and inner scan loop approximate
 - `AsmOptimize::splitConstRegisters()` — splitting strategy captured, inner loop details approximate
@@ -270,11 +296,28 @@ reconstructed/
 - Queries: getMemoryHighWatermark, getRequiredMemory, getUsedChannels, getUsedFourChannelMode, clampToCache
 - `PrefetcherNodeState` — per-node state: 2 AsmRegisters, counter, refTrack, pageSize, usedCache, cachePtr, useDA
 
+*Phase 9a — ElfWriter:*
+- `ElfWriter` — 0x78-byte ELF output writer (inherits ELFIO::elfio). All 8 methods: ctor @0x2934a0, prepareHeader @0x2936b0, addCode @0x293710, addData @0x293990, addWaveform @0x2939f0 (returns unique_ptr\<RawWave\>), writeFile(ostream) @0x294030, writeFile(string) @0x2942a0, setMemoryOffset @0x294410. Phase 10.5b: replaced vtable-offset pseudocode with proper ELFIO API calls; fixed addWaveform return type (unique_ptr\<RawWave\>, not ElfWriter*) and NOBITS path (set_size, not set_link).
+- `writeWavesToElfMapped` / `writeWavesToElfAbsolute` — inlined into AWGCompilerImpl::writeToStream @0x108cc0
+
+*Phase 9b — AsmParserContext:*
+- `AsmParserContext` — ~0x80-byte parser context (5 bools, lineNumber, programCounter, errorCallback, stringCopies vector, labels set). 22 accessor methods @0x28e7a0–0x28ead0
+- `AsmParserContext::Label` — 0x20-byte inner type (pc + name string). Ctor @0x28eaa0, operator== @0x28ead0
+- `addNode` @0x28bfd0 — allocates AsmExpression (0xa8), splits on '#' for comments
+- `addCommand` @0x28c600 — resolves command name via commandFromString, handles labels, builds expression
+- `asmerror` @0x292a60 — wraps error callback + sets syntax error flag
+- `asmparse` @0x292b50 — ~217KB bison-generated, deferred
+
 **Not yet reconstructed:**
-- `CachedParser` — 0x60-byte tree-based cache embedded in WavetableFront + WavetableIR
-- `WaveformGenerator` — 54 methods, full waveform DSL (sin/cos/drag/rrc/gaussian/etc.)
-- `RawWaveData` hierarchy — PlaceHolder/Cervino/Hirzel16, discovered in Signal::getRawData(). **Fully reconstructed (Phase 8d)**: abstract RawWave base + 3 subclasses with vtable analysis, constructor logic, conversion paths
-- `ElfWriter`, `AsmParserContext` — AWGAssembler internals
+- `CachedParser` — 0x60-byte tree-based cache, used by WavetableFront + WavetableIR
+- `WaveformGenerator` — 16 symbols, waveform DSP (createDummyWaveform, genericTriangle, reverse + 2 exception classes)
+- `AsmParserContext` — not listed here (already reconstructed Phase 9b, see above)
+
+*Phase 10 — Scope & Symbol Management:*
+- `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed (Phase 10c). Factory functions: createValue, createRegister, createName, createArgList, appendArgList
+- `StaticResources` (0x110) — ctor, dtor, getVariable override (special name detection), init (~15KB of addConst calls for device constants)
+- `GlobalResources` (0xD8) — ctor (MT19937-64 PRNG seeding), dtor. TLS statics: regNumber, labelIndex, random[313]
+- `Resources` base (0xD8) — 20+ methods reconstructed: setState, hasMain, setReturnType/getReturnType (recursive parent walk), setReturnValue×2/getReturnValue, setReturnReg/getReturnReg (recursive), getRegisterNumber (TLS), getVariable (virtual, parent-walking search), print/toString/printAll/printScopes. Inner types: Variable (0x58 bytes: varType, boost::variant data, AsmRegister, name, flags; dtor @0x1e4be0), Function (0x78 bytes: name, signature, returnType, arguments vector, scope shared_ptr, body unique_ptr; ctor/dtor/resetScope/addArguments/addBody/getBody), State enum (Unset=0, Active=1, Paused=2, Locked=3), ResourcesException (ctor/dtor/what)
 
 *Phase 7d — Prefetch Command Emission (COMPLETE):*
 - `placeSingleCommand` (0x1d7940, 20KB) — main node-type→assembly dispatch. Switch on node->type:

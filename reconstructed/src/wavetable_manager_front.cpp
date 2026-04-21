@@ -60,7 +60,9 @@ WavetableManager<WaveformFront>::newEmptyWaveform(
     //   +0xF4 = 0 (flags)
     //   +0xF8..+0x108 = 0
 
-    auto wf = std::make_shared<WaveformFront>(/* ... */);
+    auto wf = std::make_shared<WaveformFront>(uniqueName, Waveform::File::Type::GEN, dc);
+    // Inlined ctor: sets name, fileType=GEN(2), waveIndex=-1, bitsPerSample=dc[0x40],
+    //   deviceConstants ptr, playIndex=1, all signal/file/args zeroed
 
     // Insert into vector and name map
     insertWaveform(wf);
@@ -103,8 +105,12 @@ WavetableManager<WaveformFront>::newWaveformFromFile(
         existing.get()->setHasDuplicate(true); // +0xDD
     }
 
-    // Create copy of new waveform shared_ptr, insert into manager
-    auto wf = std::make_shared<WaveformFront>(/* ... */);
+    // Create waveform with inlined ctor, then attach File object post-construction
+    auto wf = std::make_shared<WaveformFront>(name, type, dc);
+    wf->setFile(std::make_shared<Waveform::File>(filename));  // File at +0x38
+    if (existing)
+        wf->setHasDuplicate(true);  // +0xDD
+
     insertWaveform(wf);
 
     return wf;
@@ -135,13 +141,19 @@ WavetableManager<WaveformFront>::newWaveformFromFile(
     // Look up and handle duplicates same as above
     // Insert waveform
 
-    auto wf = std::make_shared<WaveformFront>(/* ... */);
+    auto wf = std::make_shared<WaveformFront>(name, type, dc);
+    wf->signal = signal;                                          // copy Signal data
+    wf->setFile(std::make_shared<Waveform::File>(filename));      // File at +0x38
+    // address stored at +0x34 (AddressImpl value)
 
-    // If signal data is not the same as wf's internal buffer, copy it
-    // signal at rbx: signal.samples = [rbx+0x00, rbx+0x08]
-    //               signal.markers  = [rbx+0x18, rbx+0x20]
-    //               signal.markers2 = [rbx+0x30, rbx+0x38]
-    //               signal.playConfig = rbx+0x48 (16 bytes)
+    // Duplicate detection same as 4-arg overload
+    std::string nameCopy = name;
+    auto it = nameToIndex_.find(nameCopy);
+    if (it != nameToIndex_.end()) {
+        auto& existing = waveforms_.at(it->second);
+        existing->setHasDuplicate(true);
+        wf->setHasDuplicate(true);
+    }
 
     insertWaveform(wf);
     return wf;
@@ -162,7 +174,10 @@ WavetableManager<WaveformFront>::newWaveform(
     // Copy funName into wf+0x68 (the function description string)
     // Copy args vector into wf+0xF8 (the Values vector at WaveformFront extension)
 
-    auto wf = std::make_shared<WaveformFront>(/* ... */);
+    auto wf = std::make_shared<WaveformFront>(name, Waveform::File::Type::GEN, dc);
+    wf->signal = signal;                   // copy Signal data into +0x80
+    wf->funDescrName_ = funName;           // string at +0x50
+    wf->args_ = args;                      // vector<Value> at +0xE0
 
     // Insert
     insertWaveform(wf);

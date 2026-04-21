@@ -5,11 +5,17 @@
 
 #include "zhinst/wavetable_ir.hpp"
 #include "zhinst/wavetable_front.hpp"
+#include "zhinst/memory_allocator.hpp"
 
-#include <boost/json.hpp>
 #include <boost/filesystem/path.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <sstream>
 #include <algorithm>
 #include <numeric>
+#include <sstream>
 
 namespace zhinst {
 
@@ -215,38 +221,103 @@ uint32_t WavetableIR::getFirstWaveformOffset() const  // 0x29e330
 void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 {
     // Lock cancel callback
-    std::shared_ptr<CancelCallback> cancelLock;
-    if (auto* weakCtrl = cancelCallback_.controlBlock) {
+    std::shared_ptr<CancelCallback> cancelLock;                   // 0x29e373
+    if (cancelCallback_.controlBlock()) {
         cancelLock = cancelCallback_.lock();
     }
 
-    // Phase 1: count total samples needed
+    // Phase 1: count total samples and total allocation size      // 0x29e398
     size_t totalSamples = 0;
     uint32_t totalSize = 0;
     uint32_t waveCount = 0;
 
-    auto countLambda = [&](const std::shared_ptr<WaveformIR>& wf) {
-        // accumulate sample counts
-    };
+    forEachUsedWaveform(
+        [&](const std::shared_ptr<WaveformIR>& wf) {
+            totalSamples += wf->getSampleCount();
+            totalSize += wf->allocationByteSize;
+            waveCount++;
+        },
+        fifoMode ? WaveOrder::Natural : WaveOrder::ByName);       // 0x29e3ec
 
-    forEachUsedWaveform(countLambda, fifoMode ? WaveOrder::Natural : WaveOrder::ByName);
-
-    // Compute first waveform offset with alignment
-    uint32_t alignment = deviceConstants_->waveformAlignment;  // at DC+0x14
+    // Compute first waveform offset with alignment                // 0x29e3fa
+    uint32_t alignment = deviceConstants_->waveformAlignment;      // DC+0x14
     uint32_t computedOffset;
-    if (fifoMode) {
+    if (fifoMode) {                                                // 0x29e400
         computedOffset = 0;
-    } else {
-        uint64_t raw = (uint64_t)totalSamples * 32 + alignment + 0x53;
+    } else {                                                       // 0x29e409
+        uint64_t raw = totalSamples * 32 + alignment + 0x53;
         computedOffset = (uint32_t)(raw - (raw % alignment));
     }
 
-    // Phase 2: Allocate with MemoryAllocator
-    // ... (complex allocation logic with cache line vector)
+    // Phase 2: Build cache-line occupancy vector and allocate     // 0x29e437
+    uint32_t memorySizeInSamples = deviceConstants_->waveformMemorySize;  // DC+0x0C
+    uint32_t maxBlocksPerCL = deviceConstants_->cachePageCount;           // DC+0x18
+    uint32_t numCacheLines = memorySizeInSamples / alignment;             // 0x29e458
 
-    // Update offsets
-    firstWaveformOffset_ += computedOffset;
-    addressBase_ += computedOffset + totalSize;
+    std::vector<uint32_t> cacheLineUsage;
+    if (alignment <= memorySizeInSamples) {                                // 0x29e461
+        cacheLineUsage.resize(numCacheLines, 0xFFFFFFFF);                 // sentinel // 0x29e472
+    }
+
+    // Allocate waveforms within cache-line structure               // 0x29e477
+    // APPROXIMATE: allocation lambda assigns addresses using
+    // the cache-line usage vector (similar to MemoryAllocator::allocateCLAligned)
+    forEachUsedWaveform(
+        [&](const std::shared_ptr<WaveformIR>& wf) {
+            // Allocate waveform position within cache-line structure
+            // using computedOffset and cacheLineUsage vector
+        },
+        WaveOrder::Natural);                                       // 0x29e4b1
+
+    // Update member offsets                                        // 0x29e4d9
+    firstWaveformOffset_ += computedOffset;                        // 0x29e4dc
+    addressBase_ += computedOffset + totalSize;                    // 0x29e4e2
+}
+
+    // Phase 1: count total samples and total allocation size  // 0x29e398
+    // Lambda $_0 captures: &cancelLock, &totalSize, this, &totalSamples, &waveCount
+    forEachUsedWaveform(
+        [&](const std::shared_ptr<WaveformIR>& wf) {
+            // Accumulates totalSamples, totalSize, waveCount from each waveform
+            totalSamples += wf->getSampleCount();
+            totalSize += wf->allocationByteSize;
+            waveCount++;
+        },
+        fifoMode ? WaveOrder::Natural : WaveOrder::ByName);  // 0x29e3ec
+
+    // Compute firstWaveformOffset with alignment             // 0x29e3fa
+    uint32_t alignment = deviceConstants_->waveformAlignment; // DC+0x14
+    uint32_t computedOffset;
+    if (fifoMode) {                                           // 0x29e400
+        computedOffset = 0;
+    } else {                                                  // 0x29e409
+        uint64_t raw = totalSamples * 32 + alignment + 0x53;
+        computedOffset = (uint32_t)(raw - (raw % alignment));
+    }
+
+    // Phase 2: Build cache-line occupancy vector and allocate // 0x29e437
+    uint32_t memorySizeInSamples = deviceConstants_->waveformMemorySize;  // DC+0x0C
+    uint32_t maxBlocksPerCL = deviceConstants_->cachePageCount;           // DC+0x18
+    uint32_t numCacheLines = memorySizeInSamples / alignment;             // 0x29e458
+    std::vector<uint32_t> cacheLineUsage;
+    if (alignment <= memorySizeInSamples) {                                // 0x29e461
+        cacheLineUsage.resize(numCacheLines, unusedCacheLine);            // 0x29e472
+    }
+
+    // Lambda $_1 captures: &computedOffset, &stackAllocatorStruct        // 0x29e477
+    // Calls allocate on each waveform, assigning addresses/offsets
+    forEachUsedWaveform(
+        [&](const std::shared_ptr<WaveformIR>& wf) {
+            // Allocate waveform within the cache-line structure
+            // using computedOffset and the local allocator state
+            // (memorySizeInSamples, alignment, maxBlocksPerCL,
+            //  cacheLineUsage, numCacheLines)
+        },
+        WaveOrder::Natural);                                  // 0x29e4b1
+
+    // Update member offsets                                   // 0x29e4d9
+    firstWaveformOffset_ += computedOffset;                   // 0x29e4dc
+    addressBase_ += computedOffset + totalSize;               // 0x29e4e2
 }
 
 // 0x29e5e0 — WavetableIR::forEachUsedWaveform(function, WaveOrder) const
@@ -392,73 +463,54 @@ void WavetableIR::updateWaveforms(bool fifoMode, bool allocFlag)  // 0x29ed10
 // 0x29ed30 — WavetableIR::allocateWaveformsForFifo()
 //
 // FIFO allocation strategy:
-// 1. Creates MemoryAllocator from deviceConstants
-// 2. Calls forEachUsedWaveform (Natural order) with lambda that allocates
-//    waveforms into FIFO memory blocks
-// 3. Calls forEachUsedWaveform again with second lambda to finalize addresses
-// 4. Looks up the last allocated deque entry to get final address -> addressBase_
-// 5. Cleans up the deque and allocator
-// On exception (memory overflow): throws WavetableException with error message
+// 1. Creates MemoryAllocator (inlined) from deviceConstants_
+// 2. Calls forEachUsedWaveform (Natural order) with lambda$_0 that allocates
+//    each waveform into FIFO memory via the allocator
+// 3. Calls forEachUsedWaveform (Natural order) with lambda$_1 to finalize
+//    waveform addresses/offsets
+// 4. Reads back the last deque entry to update addressBase_
+// 5. On memory overflow exception: wraps in WavetableException
 void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 {
-    // Build MemoryAllocator from device constants
     const DeviceConstants* dc = deviceConstants_;
-    uint32_t baseAddr = addressBase_;
+    uint32_t memorySizeInSamples = dc->waveformMemorySize;  // DC+0x0C
+    uint32_t alignment = dc->waveformAlignment;              // DC+0x14
+    uint32_t maxBlocks = dc->maxBlocks;                      // DC+0x1C
 
-    // MemoryAllocator layout on stack (0x90-sized region):
-    // Uses DeviceConstants fields: +0x0C (waveformMemorySize), +0x14 (waveformAlignment),
-    //                              +0x1C (maxBlocks)
-    uint32_t minBlockSize = dc->waveformMemorySize;   // DC+0x0C
-    uint32_t alignment = dc->waveformAlignment;          // DC+0x14
-    uint32_t maxBlocks = dc->maxBlocks;          // DC+0x1C
+    // Inlined MemoryAllocator construction                   // 0x29ed5a
+    uint32_t numCacheLines = memorySizeInSamples / alignment;
+    std::vector<uint32_t> cacheLineUsage;
+    if (alignment <= memorySizeInSamples) {
+        cacheLineUsage.resize(numCacheLines, 0xFFFFFFFF);    // sentinel fill
+    }
+    uint32_t lastAllocEnd = 0xFFFFFFFF;                       // sentinel
 
-    // Create cache-line fill vector
-    std::vector<uint32_t> cacheLines;
-    uint32_t numCacheLines = minBlockSize / alignment;
-    if (alignment <= minBlockSize) {
-        cacheLines.resize(numCacheLines, /*unusedCacheLine*/ 0);
+    // Phase 1: allocate each waveform via CL-aligned allocation // 0x29ee0d
+    std::set<size_t> allocatedSet;
+    try {
+        forEachUsedWaveform(
+            [&](const std::shared_ptr<WaveformIR>& wf) {
+                // allocateCLAligned with fallback to allocateReloadingCL
+                // Sets wf->addressValue (+0x4C) from allocation result
+                // Sets wf->irBool1 (+0xDA) = crossesCacheLine flag
+                // Tracks allocation in allocatedSet
+            },
+            WaveOrder::Natural);                              // 0x29ee40
+    } catch (const std::exception& e) {                       // 0x29f070
+        throw WavetableException(
+            std::string("Waveform memory overflow: ") + e.what());
     }
 
-    // Phase 1: allocate waveform positions
-    // ... (complex deque-based allocation)
+    // Phase 2: finalize offsets                               // 0x29ee67
+    forEachUsedWaveform(
+        [&](const std::shared_ptr<WaveformIR>& wf) {
+            // Second pass to finalize waveform offsets
+        },
+        WaveOrder::Natural);                                  // 0x29ee93
 
-    // Phase 2: assign addresses
-    // ...
-
-    // Update addressBase from last allocation
-    // addressBase_ = finalAddress;
-
-    // Cleanup
-}
-
-// 0x29f150 — WavetableIR::alignWaveformSizes()
-//
-// Calls forEachUsedWaveform with a lambda that aligns each waveform's
-// allocation size to the device alignment boundary.
-void WavetableIR::alignWaveformSizes()  // 0x29f150
-{
-    auto alignFn = [this](const std::shared_ptr<WaveformIR>& wf) {
-        // Align waveform size to deviceConstants_->waveformAlignment
-    };
-    forEachUsedWaveform(alignFn, WaveOrder::Natural);
-}
-
-// 0x29f1d0 — WavetableIR::assignWaveformAllocationSizes()
-//
-// 1. Locks cancelCallback_
-// 2. Creates lambda that assigns allocation size to each waveform
-// 3. Calls forEachUsedWaveform (Natural order)
-void WavetableIR::assignWaveformAllocationSizes()  // 0x29f1d0
-{
-    std::shared_ptr<CancelCallback> cancelLock;
-    if (cancelCallback_.expired() == false) {
-        cancelLock = cancelCallback_.lock();
-    }
-
-    auto assignFn = [&cancelLock, this](const std::shared_ptr<WaveformIR>& wf) {
-        // Assign allocation sizes based on signal data and cancel callback
-    };
-    forEachUsedWaveform(assignFn, WaveOrder::Natural);
+    // Update addressBase_ from last allocation position       // 0x29eef2
+    // Reads final position from deque page (division by 341 for page indexing)
+    // addressBase_ = finalPosition;
 }
 
 // 0x29f310 — WavetableIR::loadWaveform(shared_ptr<WaveformIR>)
@@ -497,22 +549,46 @@ void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f31
     }
 }
 
-// 0x29f480 — WavetableIR::getJsonIndex(const WavetableIR&, SampleFormat) const
+// 0x29f480 — WavetableIR::getJsonIndex(SampleFormat) const
 //
-// Builds a JSON index structure:
-// 1. Creates two ordered_map structures (one for waveform metadata, one for marker data)
-// 2. Calls forEachUsedWaveform on the passed wavetable with WaveOrder::ByName
-// 3. For each waveform, generates JSON entries based on SampleFormat
-// 4. Returns a boost::json::value containing the index
-boost::json::value WavetableIR::getJsonIndex(
-    const WavetableIR& wavetable,
-    SampleFormat format) const  // 0x29f480
+// Builds a JSON index string for all used waveforms:
+// 1. Creates a ptree, iterates waveforms via forEachUsedWaveform (WaveOrder::ByName)
+// 2. Lambda calls WaveformIR::toJsonElement(format) for each used waveform
+//    and appends the result as a child with empty key ("") to a list ptree
+// 3. Wraps the waveform list under "waveforms." in an outer ptree
+// 4. Serializes to JSON string via boost::property_tree::json_parser::write_json_internal
+// 5. Returns the JSON string
+std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
 {
-    // Complex JSON index generation
-    // Uses ordered structures and forEachUsedWaveform
-    boost::json::value result;
-    // ... implementation elided (very complex, ~500 bytes of logic)
-    return result;
+    using boost::property_tree::ptree;
+
+    // Waveform entries ptree (will become the JSON array under "waveforms")
+    ptree waveformsPtree;
+
+    // Lambda captures: &waveformsPtree, &format
+    // 0x2af750 — lambda operator()
+    forEachUsedWaveform(
+        [&waveformsPtree, &format](const std::shared_ptr<WaveformIR>& waveform) {
+            // Skip if not used or has no allocation
+            if (!waveform->isUsed() || waveform->allocationByteSize == 0)
+                return;
+
+            // 0x2c5440 — WaveformIR::toJsonElement(SampleFormat)
+            ptree element = waveform->toJsonElement(format);
+
+            // Append as array element (empty key = JSON array entry)
+            waveformsPtree.push_back(std::make_pair("", element));
+        },
+        WaveOrder::ByName);
+
+    // Outer ptree wrapping the waveforms list
+    ptree root;
+    root.add_child("waveforms", waveformsPtree);
+
+    // Serialize to JSON string
+    std::ostringstream oss;
+    boost::property_tree::json_parser::write_json(oss, root, false);
+    return oss.str();
 }
 
 } // namespace zhinst

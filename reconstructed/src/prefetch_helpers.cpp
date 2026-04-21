@@ -314,36 +314,50 @@ void Prefetch::removeBranches(
     std::stack<std::shared_ptr<Node>>& stack) const // 0x1d3530
 {
     Node* n = node.get();
-    auto& branches = n->branches;
+    if (!n || n->type != 4) // 0x1d3544, 0x1d354d: must be branch type
+        return;
+
+    auto& branches = n->branches; // branches at +0xc8 (begin), +0xd0 (end)
     size_t origSize = branches.size();
 
-    // Iterate branches, removing dead ones
+    // 0x1d3590: Compact out null shared_ptrs (the "keep" check)
+    // A branch is kept if its shared_ptr is non-null.
     size_t writePos = 0;
-    for (size_t i = 0; i < origSize; ++i) {
-        auto& branch = branches[i];
-
-        // Check if branch is still alive (has entries in nodeStates_)
-        bool keep = true;  // TODO: actual check via nodeStates_ lookup
-
-        if (keep) {
+    for (size_t i = 0; i < branches.size(); ++i) {
+        if (branches[i].get() != nullptr) { // 0x1d3590: cmpq $0x0, (%r12)
             if (writePos != i) {
                 branches[writePos] = std::move(branches[i]);
             }
             ++writePos;
-        } else {
-            // Push removed branch onto stack
-            stack.push(branch);
         }
     }
 
-    // Erase from writePos to end
+    // 0x1d3648..0x1d371f: Erase trailing entries after compaction
     branches.erase(branches.begin() + writePos, branches.end());
 
-    // If single branch remaining, may need to update parent pointers
-    if (branches.size() == 1) {
-        auto& onlyChild = branches[0];
-        // Update parent weak_ptr
-        // (complex pointer management elided)
+    // 0x1d3742: If size changed from original, set branchesModified flag
+    if (branches.size() != origSize) {
+        n->branchesModified = true; // +0x109
+    }
+
+    // 0x1d3750: If branches is now empty...
+    if (branches.empty()) {
+        // 0x1d38c0: Lock parent weak_ptr (+0xF0/+0xF8) and reparent
+        auto parent = n->parent.lock(); // weak_ptr at +0xF0/+0xF8
+        if (!parent)
+            return;
+
+        // 0x1d394f: Node::updateParent(parent, node, node->next)
+        auto next = n->next; // shared_ptr at +0xB8
+        Node::updateParent(parent, node, next);
+
+        // 0x1d39d8: Push node->next onto the stack
+        stack.push(n->next);
+    } else {
+        // 0x1d37f2..0x1d38be: Push each remaining branch onto the stack
+        for (auto& branch : branches) {
+            stack.push(branch);
+        }
     }
 }
 
@@ -510,28 +524,70 @@ bool Prefetch::sameLoads(std::shared_ptr<Node> a,
 
 // ============================================================================
 // 0x1d60d0 — Prefetch::nodeByCachePointer(shared_ptr<Cache::Pointer>) const
-// Ends at 0x1d6c40.
+// Ends at 0x1d65ba.
 //
-// Searches nodeStates_ map for a node whose PrefetcherNodeState has a
-// Cache::Pointer matching the given pointer. Returns the node shared_ptr.
-//
-// Large method (~769 asm lines) — iterates the unordered_map, comparing
-// Cache::Pointer shared_ptrs.
-//
-// TODO: Full reconstruction — complex hash table iteration with pointer
-//       comparison. Approximate structure provided.
+// BFS traversal starting from root node (this->node_ at +0x60). For each node,
+// checks if it is a type-1 (Play) node with a valid slot index, then compares
+// the string in that slot's data entry against ptr->str(). Returns the first
+// matching node. Pushes children (branches, next, child) onto a deque for BFS.
 // ============================================================================
 std::shared_ptr<Node> Prefetch::nodeByCachePointer(
     std::shared_ptr<Cache::Pointer> ptr) const // 0x1d60d0
 {
-    // Iterate nodeStates_ map
-    for (auto& [nodePtr, state] : nodeStates_) {
-        // Compare state.cachePtr with ptr
-        // if (state.cachePtr == ptr)
-        //     return nodePtr;
+    // 0x1d60f5: Initialize a deque (BFS queue) and push root node
+    std::deque<std::shared_ptr<Node>> queue;
+    queue.push_back(node_); // node_ at +0x60
+
+    if (queue.empty())
+        return nullptr;
+
+    // 0x1d6189: BFS loop — pop from back (DFS-style actually)
+    while (!queue.empty()) {
+        std::shared_ptr<Node> current = std::move(queue.back()); // 0x1d61a9
+        queue.pop_back(); // 0x1d620e..0x1d6257
+
+        Node* n = current.get();
+
+        // 0x1d625f: Check if node type == 1 (Play node)
+        if (n->type == 1) {
+            int32_t slotIdx = n->slotIndex; // +0x40
+            if (slotIdx >= 0) {
+                // 0x1d6277: Get string from node's data array at slotIdx
+                // data at +0x28, each entry is 0x20 bytes, string at +0x18
+                auto& entry = n->data[slotIdx];
+                if (entry.hasValue) { // +0x18 of entry
+                    std::string nodeStr = entry.str(); // 0x1d629a
+
+                    // 0x1d62ca: Compare with ptr->str() (at +0x10 of Cache::Pointer)
+                    const std::string& ptrStr = ptr->str(); // +0x10
+
+                    // 0x1d6325: bcmp comparison
+                    if (nodeStr == ptrStr) {
+                        return current; // 0x1d614d: cleanup deque and return
+                    }
+                }
+            }
+        }
+
+        // 0x1d6350: Push branches (children at +0xc8..+0xd0)
+        auto* branchBegin = n->branches.data();
+        auto* branchEnd = branchBegin + n->branches.size();
+        for (auto* it = branchBegin; it != branchEnd; ++it) { // 0x1d6384
+            queue.push_back(*it);
+        }
+
+        // 0x1d6400: Push next pointer (+0xe0) if non-null
+        if (n->alt) { // alt/conditional at +0xE0
+            queue.push_back(n->alt);
+        }
+
+        // 0x1d6496: Push child/next sibling (+0xb8) if non-null
+        if (n->next) {
+            queue.push_back(n->next);
+        }
     }
 
-    return nullptr;  // not found
+    return nullptr; // 0x1d6147: not found
 }
 
 // ============================================================================

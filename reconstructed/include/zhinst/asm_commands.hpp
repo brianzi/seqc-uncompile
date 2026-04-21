@@ -142,7 +142,7 @@ public:
     // =====================================================================
 
     AsmEntry sid(AsmRegister reg, bool highBank) const;
-    AsmEntry smap(AsmRegister r1, AsmRegister r2, int arg) const;
+    std::vector<AsmEntry> smap(AsmRegister r1, AsmRegister r2, int arg) const;
     AsmEntry ldiotrig(AsmRegister reg) const;
     AsmEntry lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
@@ -159,8 +159,8 @@ public:
     // Sync
     // =====================================================================
 
-    AsmEntry syncCervino(AsmRegister reg1, AsmRegister reg2, bool flag) const;
-    AsmEntry unsyncCervino() const;
+    AsmList syncCervino(AsmRegister reg1, AsmRegister reg2, bool flag) const;
+    AsmList unsyncCervino() const;  // returns 2 ST entries (not single AsmEntry)
     AsmEntry asmSyncPlaceholderCervino() const;
     AsmEntry asmSyncHirzel() const;
 

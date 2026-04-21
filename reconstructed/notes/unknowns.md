@@ -215,18 +215,20 @@
     Likely a parser symbol table or macro definition map. Nodes are 0x28 bytes
     with a string at +0x10.
 
-42. **AsmExpression full layout gaps**
-    Fields at +0x04..+0x07, +0x79..+0x8F, +0xA8..+0xBF are not yet mapped.
-    The object is ~0xA8 bytes (allocated as 0xC0 with shared_ptr control block).
+42. ~~**AsmExpression full layout gaps**~~
+    **CLOSED (Phase 10c):** Full 0xa8-byte layout determined from dtor @0x28b1f0.
+    +0x04 = padding, +0x58 = zeroed spacer, +0x78 = hasLabel bool guard,
+    +0x98 = hasComment bool guard. No unmapped fields remain.
 
-43. **AsmParserContext interface**
-    Referenced methods: clearSyntaxError, setErrorCallback, doOpt, endLineComment,
-    cleanStringCopies, hadSyntaxError, setSyntaxError, isLineComment,
-    incrementProgramCounter, Label. No layout or class definition yet.
+43. ~~**AsmParserContext interface**~~
+    **CLOSED (Phase 9b):** Full ~0x80-byte layout reconstructed. 22 accessor
+    methods + Label inner type + addNode/addCommand/asmerror free functions.
+    See asm_parser_context.hpp.
 
-44. **ElfWriter interface**
-    Used in writeToFile: ctor(int machineType), setMemoryOffset, addCode,
-    addData, writeFile. Machine type 2 = ET_EXEC. No layout yet.
+44. ~~**ElfWriter interface**~~
+    **CLOSED (Phase 9a):** 0x78-byte layout (ELFIO::elfio base + memoryOffset_).
+    8 methods reconstructed. Machine type passed from DeviceConstants, not
+    always ET_EXEC. See elf_writer.hpp.
 
 45. **assembleAsmList register ordering**
     The code adds reg0, reg1, reg2 as children but the ordering may not match

@@ -100,44 +100,35 @@ namespace detail {
 class Prefetch {
 public:
     // PrefetcherNodeState is used as value type in the nodeStates_ map.
-    // Inserted via emplace with default ctor, then field at +0x40 (relative
-    // to hash node value) is set to cache_.getSize().
-    // TODO: determine full PrefetcherNodeState layout from usage.
+    // Total size: 0x40 (64 bytes)
+    //
     // PrefetcherNodeState layout (offsets relative to struct start):
     //   The hash_node value starts at +0x20 from hash_node*.
     //   The shared_ptr<Node> key is 16 bytes (+0x20..+0x2F).
     //   PNS starts at hash_node+0x30.
-    //   So hash_node+0x34 = PNS+0x04 = branchCount
-    //        hash_node+0x3c = PNS+0x0C = playSize
-    //        hash_node+0x40 = PNS+0x10 = cacheSize (from ctor)
-    //        hash_node+0x50 = PNS+0x20 = lengthReg
     //
-    // Confirmed from:
-    //   - countBranches: reads/writes +0x34 (branchCount)
-    //   - definePlaySize: reads/writes +0x3c (playSize), +0x20 (lengthReg via AsmRegister)
-    //   - constructor: writes +0x40 (cacheSize)
+    //   +0x00  8  AsmRegister   registerHirzel   (set for Hirzel devices)
+    //   +0x08  8  AsmRegister   registerCervino  (set for Cervino devices)
+    //   +0x10  4  int32_t       state            (init=3, enum: 3=unloaded)
+    //   +0x14  4  int32_t       branchCount      (init=1, set in countBranches)
+    //   +0x18  4  int32_t       refTrack         (init=0, inc'd/dec'd in optimize)
+    //   +0x1C  4  int32_t       pageSize         (init=1, waveform page size divisor)
+    //   +0x20  4  int32_t       requiredSlots    (init=0, waveform slots needed)
+    //   +0x24  4  (padding)
+    //   +0x28 16  shared_ptr<Cache::Pointer> cachePtr  (init=null)
+    //   +0x38  1  bool          useDA            (init=false, precomp/DA flag)
+    //   +0x39  7  (padding)
     struct PrefetcherNodeState {
-        // Layout within unordered_map hash node value area:
-        // (Offsets are relative to the value start, which is +0x20 from
-        //  the hash_node start after the key shared_ptr<Node> at +0x10)
-        //
-        //   +0x00 (0x20 from node) — AsmRegister registerHirzel  (set when isHirzel)
-        //   +0x08 (0x28 from node) — AsmRegister registerCervino (set when !isHirzel)
-        //   +0x10 (0x30 from node) — int counter (set to 0 for Play with refcount < 2)
-        //   +0x18 (0x38 from node) — int refTrack (decremented/incremented in optimize)
-        //   +0x1C (0x3C from node) — int pageSize (used for waveform size division)
-        //   +0x20 (0x40 from node) — int usedCache (set from Cache::getUsedCache())
-        //   +0x28 (0x48 from node) — shared_ptr<Cache::Pointer> cachePtr
-        //   +0x30 (0x50 from node) — (ctrl block for cachePtr)
-        //   +0x38 (0x58 from node) — bool useDA (from devConst_->hasPrecomp)
-        AsmRegister registerHirzel;       // +0x00
-        AsmRegister registerCervino;      // +0x08
-        int counter = 0;                  // +0x10
-        int refTrack = 0;                 // +0x18
-        int pageSize = 0;                 // +0x1C
-        int usedCache = 0;               // +0x20
-        std::shared_ptr<void> cachePtr;  // +0x28 (actually shared_ptr<Cache::Pointer>)
-        bool useDA = false;              // +0x38
+        AsmRegister registerHirzel;                           // +0x00
+        AsmRegister registerCervino;                          // +0x08
+        int32_t state = 3;                                    // +0x10 (3=unloaded)
+        int32_t branchCount = 1;                              // +0x14
+        int32_t refTrack = 0;                                 // +0x18
+        int32_t pageSize = 1;                                 // +0x1C
+        int32_t requiredSlots = 0;                            // +0x20
+        int32_t _pad24 = 0;                                   // +0x24
+        std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
+        bool useDA = false;                                   // +0x38
     };
 
     // Constructor                                                     // 0x1c5850

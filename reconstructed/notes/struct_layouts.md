@@ -423,24 +423,34 @@ Error/warning message accumulated during assembly.
 | +0x00  | 8    | uint64_t    | lineNumber | Source line number        |
 | +0x08  | 24   | std::string | text       | Message text (SSO)       |
 
-## AsmExpression (parse tree node) — NEW Phase 4
+## AsmExpression (0xa8-byte parse tree node) — Revised Phase 10c
 
-Reconstructed from usage in opcode encoding and pipeline methods.
-Allocated via `make_shared` (0xC0 bytes total including control block).
+Reconstructed from dtor @0x28b1f0 + consumer analysis. No vtable.
+Allocated via `make_shared` (0xC0 bytes total including 0x18-byte control block).
 
 | Offset | Size | Type                                      | Name       | Notes                              |
 |--------|------|-------------------------------------------|------------|------------------------------------|
-| +0x00  | 4    | int                                       | type       | 1=register, 2=label, 3=integer    |
-| +0x08  | 24   | std::string                               | name       | Label/symbol name (type==2)        |
-| +0x20  | 24   | std::string                               | comment    | Comment text (from // extraction)  |
-| +0x38  | 4    | int (Assembler::Command)                  | command    | Instruction command enum           |
-| +0x3C  | 4    | int                                       | value      | Reg# (type==1) or imm (type==3)   |
+| +0x00  | 4    | int                                       | type       | 1=register, 2=label/name, 3=integer |
+| +0x04  | 4    | (padding)                                 |            |                                    |
+| +0x08  | 24   | std::string                               | name       | Command/register/label name        |
+| +0x20  | 24   | std::string                               | str2       | Secondary string (NOP comment)     |
+| +0x38  | 4    | uint32_t (Assembler::Command)             | command    | Instruction command enum           |
+| +0x3C  | 4    | int32_t                                   | value      | Reg# (type==1) or imm (type==3)   |
 | +0x40  | 24   | vector\<shared_ptr\<AsmExpression\>\>     | children   | Operand sub-expressions            |
-| +0x58  | 4    | int                                       | lineNumber | Source line number                 |
+| +0x58  | 1    | uint8_t                                   | pad_58     | Zeroed spacer                      |
+| +0x5C  | 4    | int32_t                                   | labelPc    | Label program counter              |
 | +0x60  | 24   | std::string                               | labelName  | Label identifier                   |
-| +0x78  | 1    | bool                                      | labelType  | 0=definition, 1=reference          |
-| +0x90  | 1    | bool                                      | noOpt      | Disable optimization flag          |
-| +0xA0  | 1    | bool                                      | field_A0   | Unknown                            |
+| +0x78  | 1    | bool                                      | hasLabel   | Guards labelName (optional-like)   |
+| +0x80  | 24   | std::string                               | comment    | JSON blob / comment text           |
+| +0x98  | 1    | bool                                      | hasComment | Guards comment ("noOpt" flag)      |
+| +0xA0  | 1    | bool                                      | field_A0   | isWaveformCmd override             |
+
+Corrections from Phase 4 version:
+- +0x20 is `str2` (secondary string), not `comment` — comment is at +0x80
+- +0x58 is NOT lineNumber — it's a zeroed spacer byte
+- +0x78 is `hasLabel` (bool guard), not `labelType`
+- +0x98 is `hasComment` (bool guard for +0x80 string), was called `noOpt`
+- Optional fields use manual bool guards after the string (matching std::optional layout)
 
 ## WaveformIR (0xE0 bytes) — NEW Phase 5
 
@@ -756,3 +766,126 @@ Ctor @0x297140: scans MarkerBitsPerChannel (OR all & 0x03 via SSE2):
 |--------|------|---------------------|-------|-------------------------------------|
 | +0x00  | 8    | vptr                |       | vtable @0xb07868                    |
 | +0x08  | 24   | vector\<uint16_t\>  | data_ | Encoded via double2awg (inline ctor)|
+
+## ElfWriter (0x78 = 120 bytes) — NEW Phase 9a
+
+Inherits from ELFIO::elfio (0x70 bytes). No vtable of its own.
+
+| Offset | Size | Type                | Name            | Notes                              |
+|--------|------|---------------------|-----------------|------------------------------------|
+| +0x00  | 8    | void*               | sections_self_  | ELFIO: stores 'this' (Sections proxy) |
+| +0x08  | 8    | void*               | segments_self_  | ELFIO: stores 'this' (Segments proxy) |
+| +0x10  | 8    | elf_header*         | header_         | ELFIO: elf_header_impl\<Elf32_Ehdr\> |
+| +0x18  | 24   | vector\<section*\>  | sections_       | ELFIO: section pointer vector      |
+| +0x30  | 24   | vector\<segment*\>  | segments_       | ELFIO: segment pointer vector      |
+| +0x48  | 1    | bool                | converter_      | ELFIO: endian converter flag       |
+| +0x49  | 7    | (padding)           |                 |                                    |
+| +0x50  | 24   | vector\<char\>      | (internal)      | ELFIO: internal string buffer      |
+| +0x68  | 8    | uint64_t            | (layout_off)    | ELFIO: layout offset tracker       |
+| +0x70  | 8    | uint64_t            | memoryOffset_   | Entry point / segment base addr    |
+
+Ctor @0x2934a0: creates ELFIO 32-bit LE header (ELF magic, ELFCLASS32, ELFDATA2LSB,
+e_ehsize=0x34, e_shentsize=0x28, os_abi=1), then prepareHeader(machineType).
+setMemoryOffset @0x294410: trivial store to +0x70.
+
+ELF sections created:
+- ".text": SHT_PROGBITS, SHF_ALLOC|SHF_EXECINSTR, align=64
+- ".dd\_\<name\>": SHT_PROGBITS, SHF_ALLOC, descriptor/padding data
+- ".wf\_\<name\>": SHT_PROGBITS (or SHT_NOBITS for reserveOnly), SHF_ALLOC, waveform data
+- ".shstrtab": SHT_STRTAB (mandatory, created by ELFIO)
+
+Segments: PT_LOAD for code (PF_R|PF_X, align=64) and waveforms (PF_W, alignment from DeviceConstants).
+
+## AsmParserContext (~0x80+ bytes) — NEW Phase 9b
+
+| Offset | Size | Type | Field | Notes |
+|--------|------|------|-------|-------|
+| +0x00  | 1    | bool | isComment_       | Zeroed as DWORD with next 3 bools |
+| +0x01  | 1    | bool | isLineComment_   | Mutually exclusive with block |
+| +0x02  | 1    | bool | isBlockComment_  | Mutually exclusive with line |
+| +0x03  | 1    | bool | hadSyntaxError_  | Set by asmerror() |
+| +0x04  | 1    | bool | doOpt_           | Enable/disable optimization |
+| +0x05  | 3    | pad  |                  | |
+| +0x08  | 4    | int  | lineNumber_      | Reset to 1 by clearSyntaxError |
+| +0x0C  | 4    | int  | programCounter_  | Incremented per instruction |
+| +0x10  | 0x30 | std::function | errorCallback_ | void(int, string const&) |
+| +0x40  | 0x18 | vector\<char*\> | stringCopies_ | strdup'd strings for parser |
+| +0x58  | ~0x28| unordered_set\<string\> | labels_ | Label dedup for addCommand |
+
+### AsmParserContext::Label (0x20 bytes)
+
+| Offset | Size | Type | Field |
+|--------|------|------|-------|
+| +0x00  | 4    | int  | pc    |
+| +0x08  | 0x18 | string | name |
+
+22 accessor methods @0x28e7a0–0x28ead0. Free functions: addNode @0x28bfd0,
+addCommand @0x28c600, asmerror @0x292a60. asmparse @0x292b50 is ~217KB
+bison-generated — deferred.
+
+## Resources (0xD8 = 216 bytes) — Phase 10a/10b
+
+Base class for scope/symbol management. Inherits enable_shared_from_this.
+vtable @0xb04e38. Single virtual: getVariable().
+
+| Offset | Size | Type | Field | Notes |
+|--------|------|------|-------|-------|
+| +0x00  | 8    | vptr | vtable |  |
+| +0x08  | 16   | weak_ptr | (enable_shared_from_this) | Hidden base member |
+| +0x18  | 16   | shared_ptr\<Resources\> | parent_ |  |
+| +0x28  | 24   | std::string | name_ | "static", "global", etc. |
+| +0x40  | 16   | weak_ptr\<Resources\> | parentWeak_ |  |
+| +0x50  | 4    | int32_t | state_ | State enum: 0=Unset,1=Active,2=Paused,3=Locked |
+| +0x54  | 4    | VarType | returnType_ |  |
+| +0x58  | 0x28 | Value | returnValue_ |  |
+| +0x80  | 8    | AsmRegister | returnReg_ |  |
+| +0x88  | 2    | int16_t | flags_88_ |  |
+| +0x90  | 24   | vector\<Variable\> | variables_ |  |
+| +0xA8  | 24   | vector\<shared_ptr\<Function\>\> | functions_ |  |
+| +0xC0  | 24   | vector\<shared_ptr\<Resources\>\> | children_ |  |
+
+### Resources::Variable (0x58 = 88 bytes)
+
+| Offset | Size | Type | Field | Notes |
+|--------|------|------|-------|-------|
+| +0x00  | 8    | int64_t | varType | VarType as int64 (2=var,3=const,...) |
+| +0x08  | 4    | int32_t | which_ | boost::variant discriminator |
+| +0x0C  | 4    | (pad) |  |  |
+| +0x10  | 24   | union | variant data | boost::variant\<int,bool,double,string\> |
+| +0x28  | 8    | (pad) |  |  |
+| +0x30  | 8    | AsmRegister | reg | {value, valid} |
+| +0x38  | 24   | std::string | name |  |
+| +0x50  | 2    | int16_t | flags | 1 = written/set |
+| +0x52  | 6    | (pad) |  |  |
+
+### Resources::Function (0x78 = 120 bytes)
+
+| Offset | Size | Type | Field | Notes |
+|--------|------|------|-------|-------|
+| +0x00  | 8    | void* | reserved_ | zeroed in ctor |
+| +0x08  | 8    | __shared_weak_count* | weakRef_ | released in dtor |
+| +0x10  | 24   | std::string | name |  |
+| +0x28  | 24   | std::string | signature |  |
+| +0x40  | 4    | VarType | returnType |  |
+| +0x44  | 4    | (pad) |  |  |
+| +0x48  | 24   | vector\<Variable\> | arguments |  |
+| +0x60  | 16   | shared_ptr\<Resources\> | scope |  |
+| +0x70  | 8    | unique_ptr\<SeqCAstNode\> | body | freed via vtable+0x30 |
+
+## StaticResources (0x110 = 272 bytes) — Phase 10a
+
+Extends Resources. Overrides getVariable() @0x129e60.
+init() @0x1ec8f0 populates built-in constants (AWG_RATE_*, integration, etc.)
+
+| Offset | Size | Type | Field | Notes |
+|--------|------|------|-------|-------|
+| +0x00  | 0xD8 | Resources | (base) |  |
+| +0xD8  | 1    | bool | usedSampleRate_ |  |
+| +0xE0  | 0x30 | std::function | (init callback) |  |
+
+## GlobalResources (0xD8 = 216 bytes) — Phase 10a
+
+Same size as Resources — no instance fields. Uses TLS statics:
+- regNumber (TLS+0x48, int32_t, init=1)
+- labelIndex (TLS+0x4c, int32_t, init=0)
+- random (TLS+0x50, MT19937-64 with seed 0x1571)

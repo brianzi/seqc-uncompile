@@ -23,7 +23,10 @@
 #include <functional>
 
 namespace boost { namespace filesystem { class path; } }
-namespace boost { namespace json { class value; } }
+namespace boost { namespace property_tree {
+    template<typename Key, typename Data, typename KeyCompare> class basic_ptree;
+    typedef basic_ptree<std::string, std::string, std::less<std::string>> ptree;
+} }
 
 namespace zhinst {
 
@@ -170,9 +173,7 @@ public:
     void loadWaveform(std::shared_ptr<WaveformIR> waveform);
 
     // getJsonIndex — 0x29f480
-    boost::json::value getJsonIndex(
-        const WavetableIR& wavetable,
-        SampleFormat format) const;
+    std::string getJsonIndex(SampleFormat format) const;
 };
 
 } // namespace zhinst

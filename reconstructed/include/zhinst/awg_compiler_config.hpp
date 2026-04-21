@@ -12,6 +12,7 @@
 #include <boost/filesystem/path.hpp>
 
 #include "types.hpp"
+#include "waveform_ir.hpp"   // for SampleFormat
 
 namespace zhinst {
 
@@ -22,7 +23,7 @@ namespace zhinst {
 // Offset  Size  Type                        Field Name          Notes
 // ------  ----  --------------------------  ------------------  ----------------------------
 // 0x00    4     AwgDeviceType (int)         deviceType          Checked by getChannelGroupingModeString, AsmCommands
-// 0x04    4     int                         unknown_04          Padding or small field
+// 0x04    4     SampleFormat (int)          sampleFormat        Used by writeWavesToElf* lambdas (0x10e049, 0x10e1f2)
 // 0x08    4     int                         unknown_08
 // 0x0C    4     int                         unknown_0c
 // 0x10    4     uint32_t                    addressImpl         Passed as AddressImpl<uint> to WavetableFront
@@ -57,7 +58,7 @@ namespace zhinst {
 
 struct AWGCompilerConfig {
     AwgDeviceType deviceType;           // 0x00
-    int unknown_04;                     // 0x04
+    SampleFormat sampleFormat;              // 0x04 — used by writeWavesToElf* (verified at 0x10e049, 0x10e1f2)
     int unknown_08;                     // 0x08
     int unknown_0c;                     // 0x0C
     uint32_t addressImpl;               // 0x10 — AddressImpl<unsigned int> value

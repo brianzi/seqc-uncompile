@@ -575,53 +575,339 @@ Targeted binary checks to close or narrow open questions.
 
 ## Phase 9: AWGAssembler Completion
 
-To be refined into fine-grained todos before starting.
+### 9a. ElfWriter
 
-- [ ] 9a: ElfWriter (35 symbols — ELF output: ctor, setMemoryOffset, addCode, addData, writeFile)
-- [ ] 9b: AsmParserContext (28 symbols — flex/bison parser context)
-- [ ] 9c: parseStringToAsmList (~7000 bytes — deferred from Phase 2b)
-- [ ] Phase 9 wrap-up
+ELF binary output writer. 7 own methods + 2 anonymous namespace helpers.
+No vtable (non-virtual). Layout needs determination from ctor.
+
+- [x] Determine ElfWriter layout from ctor @0x2934a0 (takes uint16_t machineType)
+- [x] Reconstruct prepareHeader @0x2936b0
+- [x] Reconstruct addCode @0x293710 (adds vector<uint32_t> as .text section)
+- [x] Reconstruct addData @0x293990 (adds raw data as named section)
+- [x] Reconstruct addWaveform @0x2939f0 (adds WaveformIR data with SampleFormat)
+- [x] Reconstruct writeFile @0x294030 (ostream overload) and @0x2942a0 (string overload)
+- [x] Reconstruct setMemoryOffset @0x294410
+- [x] Reconstruct writeWavesToElfMapped (inlined into writeToStream @0x108cc0, in write_waves_to_elf.cpp)
+- [x] Reconstruct writeWavesToElfAbsolute (inlined into writeToStream @0x108cc0, in write_waves_to_elf.cpp)
+- [x] Create elf_writer.hpp + elf_writer.cpp
+- [x] Sub-phase wrap-up
+
+### 9b. AsmParserContext
+
+Parser context for flex/bison assembly parser. ~20 accessor methods (most trivial)
++ 4 free functions (addNode, addCommand, asmerror, asmparse).
+
+- [x] Determine AsmParserContext layout from methods (all at 0x28e7a0-0x28ead0)
+- [x] Reconstruct all accessor methods (isComment, isLineComment, start/endLineComment,
+      disableOpt/enableOpt/doOpt, start/endBlockComment, hadSyntaxError/set/clear,
+      currentLineNumber/incrementLineNumber, programCounter/incrementProgramCounter,
+      trackedStringCopy, cleanStringCopies, Label ctor, Label::operator==)
+- [x] Reconstruct setErrorCallback @0x28e610 and raiseError @0x28e690
+- [x] Reconstruct addLabel @0x28ea60 and hasLabel @0x28ea80
+- [x] Reconstruct addNode @0x28bfd0 (free function)
+- [x] Reconstruct addCommand @0x28c600 (free function)
+- [x] Reconstruct asmerror @0x292a60 (bison error handler)
+- [x] Determine asmparse @0x292b50 scope — ~217KB bison-generated, DEFERRED
+- [x] Create asm_parser_context.hpp + asm_parser_context.cpp
+- [x] Sub-phase wrap-up
+
+### 9c. parseStringToAsmList
+
+Deserializer: string → AsmList. ~7632 bytes at 0x266160–0x268130.
+Uses hardcoded HDAWG device constants.
+
+- [x] Reconstruct parseStringToAsmList @0x266160
+- [x] Add to asm_list.cpp (it's a static method on AsmList)
+- [x] Sub-phase wrap-up
+
+#### Phase 9 wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/
+- [x] Propose TODO.md adjustments
 
 ---
 
-## Phase 10: Scope & Symbol Management
+## Phase 10: Scope & Symbol Management + AsmExpression
 
-To be refined into fine-grained todos before starting.
+### 10c. AsmExpression (quick win — 4 symbols)
 
-- [ ] 10a: StaticResources + GlobalResources (37 symbols — TLS globals, register counters)
-- [ ] 10b: Resources (~197 symbols — scope/symbol table: variables, constants, functions, registers)
-- [ ] Phase 10 wrap-up
+0xa8-byte parse tree node used by AWGAssembler's flex/bison parser.
+Already partially documented in awg_assembler_impl.hpp.
+
+- [x] Determine full 0xa8-byte layout from dtor @0x28b1f0 + consumers
+- [x] Reconstruct dtor @0x28b1f0
+- [x] Reconstruct createArgList @0x28bdc0 (free function)
+- [x] Reconstruct appendArgList @0x28bec0 (free function)
+- [x] Create asm_expression.hpp + asm_expression.cpp
+- [x] Sub-phase wrap-up
+
+### 10a. StaticResources + GlobalResources (~10 symbols)
+
+GlobalResources: 3 TLS statics (regNumber, labelIndex, random) + dtor.
+StaticResources: init() @0x1ec8f0, dtor @0x129db0. Has vtable — inherits Resources.
+
+- [x] Determine GlobalResources layout (TLS statics, dtor @0x12ab40)
+- [x] Determine StaticResources layout from init @0x1ec8f0 + dtor @0x129db0
+- [x] Reconstruct all methods
+- [x] Create header + implementation files
+- [x] Sub-phase wrap-up
+
+### 10b. Resources base class (~20 symbols)
+
+Resources: setState, hasMain, return value/type/reg, print, toString, etc.
+Inner types: Variable (dtor), Function (addBody, getBody, addArguments, resetScope, dtor).
+
+- [x] Determine Resources layout from dtor @0x12a8f0 + method accesses
+- [x] Reconstruct all Resources methods (setState, hasMain, return*, getRegisterNumber, print*, toString)
+- [x] Reconstruct Resources::Variable (dtor @0x1e4be0)
+- [x] Reconstruct Resources::Function (addBody, getBody, addArguments, resetScope, dtor)
+- [x] Determine Resources::State enum values
+- [x] Create/update header + implementation files
+- [x] Sub-phase wrap-up
+
+#### Phase 10 wrap-up
+
+- [x] Update OVERVIEW.md
+- [x] Update notes/
+- [x] Propose TODO.md adjustments
+
+---
+
+## Phase 10.5: Consolidation & Loose Ends
+
+### 10.5a. Housekeeping (quick cleanup)
+
+- [x] Fix OVERVIEW.md: remove RawWaveData + ElfWriter from "Not yet reconstructed"
+- [x] Fix OVERVIEW.md: add missing file tree entries (memory_allocator_analysis.md,
+      static_resources.cpp, global_resources.cpp, resources.cpp)
+- [x] Fix OVERVIEW.md: CachedParser "embedded in" → "used by"
+- [x] Close unknowns #42 (AsmExpression layout — done 10c), #43 (AsmParserContext — done 9b),
+      #44 (ElfWriter — done 9a)
+- [x] Integrate MemoryAllocator into wavetable_ir.cpp (include added; full allocation
+      logic re-disassembly deferred to 10.5e with the other wavetable_ir elisions)
+- [x] Sub-phase wrap-up
+
+### 10.5b. ElfWriter revisit with ELFIO source
+
+Fetch ELFIO API from https://github.com/serge1/ELFIO to replace vtable-offset
+pseudocode with proper API calls. Current elf_writer.cpp has ~400 lines of ABI
+analysis comments and all ELFIO calls stubbed as `/* elfio... */ nullptr`.
+
+- [x] Fetch ELFIO headers (elfio.hpp, elfio_section.hpp, elfio_segment.hpp)
+- [x] Map the 30+ vtable offsets in elf_writer.cpp header comment to actual ELFIO method names
+- [x] Replace all `/* elfio... */ nullptr` stubs with proper ELFIO API calls
+- [x] Clean up addWaveform's ~400-line ABI analysis comment block → distill to clean code + brief note
+- [x] Fix elf_writer.hpp TODO (addWaveform return type: unique_ptr<RawWave>, not ElfWriter*)
+- [x] Fix addWaveform NOBITS path (set_size, not set_link)
+- [x] Apply same cleanup to write_waves_to_elf.cpp (fixed return value usage in absolute lambda)
+- [x] Sub-phase wrap-up
+
+### 10.5c. asm_commands.cpp revisit (11 TODOs, excluding sync/unsync)
+
+Phase 1 tech debt. Each item requires re-disassembly of the target function.
+
+- [x] `alui()` line 280 — re-disassemble multi-instruction immediate splitting (confirmed: 20-bit signed range check, ADDI split low12+upper, non-ADDI: load+reg-reg with ANDI→ANDR/ORI→ORR/XNORI→XNORR mapping)
+- [x] `addi32()` line 361 — always 2-instr: ADDI(low12) + ADDIU(upper), both isWaveformCmd=true
+- [x] `luser`/`suser` lines 529/537 — confirmed delegates directly to ld/st (same opcode)
+- [~] `smap` line 601 — partially clarified: calls alui(ADDI, r1, reg0, arg), but ~0x1E6 bytes of conditional logic after alui not yet reconstructed; marked APPROXIMATE. Full reconstruction deferred to 10.5e.
+- [x] `asmMessage` line 705 — confirmed: Immediate(string), cmd=5 (error) or 3 (message)
+- [x] Waveform name access lines 751/867 — confirmed: direct field access at WaveformFront+0x00
+- [x] Line 172 — confirmed BRGZ opcode (0xF5000000, not BRNZ)
+- [x] `toInt32` line 387 — val.toInt() with catch overflow→INT_MAX, underflow→INT_MIN + errorHandler_
+- [x] Sub-phase wrap-up
+
+### 10.5d. syncCervino / unsyncCervino
+
+Two large AsmCommands methods currently stubbed. May need splitting into
+multiple sub-agent passes for syncCervino.
+
+- [x] `unsyncCervino()` @0x276d10 (1.2KB / 1232 bytes) — 2 ST instructions: R0→0x44, R0→0x45
+- [x] `syncCervino()` @0x275c50 (4.3KB / 4288 bytes) — master/slave sync sequence (flag=true→0x44, false→0x45)
+- [x] Sub-phase wrap-up
+
+### 10.5e. Other file revisits (smaller loose ends)
+
+Mixed TODO/elision/APPROXIMATE markers across various files. Each needs targeted re-disassembly.
+
+- [x] `asm_commands.hpp` — Fixed `smap` return type: `AsmEntry` → `vector<AsmEntry>`
+- [x] `wavetable_ir.cpp` (5 elisions) — alignWaveformSizes, assignWaveformAllocationSizes, allocateWaveforms (Phase 1), allocateWaveformsForFifo, getJsonIndex (corrected to return std::string via property_tree)
+- [x] `wavetable_manager_front.cpp` (4 elisions) — WaveformFront inlined ctor `(name, fileType, devConst)` + post-construction field assignment
+- [x] `asm_optimize.cpp` — already clean, no markers found
+- [x] `prefetch_helpers.cpp` — already resolved in prior session
+- [x] `prefetch.hpp` — PrefetcherNodeState layout: state=3, branchCount=1, pageSize=1, typed shared_ptr<Cache::Pointer>
+- [x] `static_resources.cpp` — getVariable() fully reconstructed (SSE checks for DEVICE_SAMPLE_RATE, AWG_MONITOR_TRIGGER, AWG_INTEGRATION_*, ZSYNC_*); init() improved with 14+14+3 actual constant name/value pairs
+- [x] `compiler.cpp` — placeholders at getNodeAccessList/getNodeToModeMap depend on CustomFunctions layout (deferred to 11d)
+- [x] `waveform.cpp` — no real TODOs, just destruction-order comments
+- [x] Sub-phase wrap-up
+
+### 10.5f. Prefetch APPROXIMATE revisits (67 markers across 5 files)
+
+Reconstructed code with uncertain field offsets/register mappings.
+Needs re-disassembly to verify and fix each APPROXIMATE annotation.
+
+- [ ] `prefetch_splitplay.cpp` (22 APPROXIMATE) — field offsets + register mappings
+- [ ] `prefetch.cpp` (18 APPROXIMATE) — optimize() and allocate() logic
+- [ ] `prefetch_print.cpp` (17 APPROXIMATE) — output formatting details
+- [ ] `prefetch_emit.cpp` (8 APPROXIMATE) — wvf/placeCommands details
+- [ ] `prefetch_placesingle.cpp` (2 APPROXIMATE) — cervino paths
+- [ ] Sub-phase wrap-up
+
+### 10.5g. wavetable_ir.cpp allocation lambda bodies
+
+The Phase 2 allocation lambdas in `allocateWaveforms` and `allocateWaveformsForFifo`
+remain approximate stubs. The logic involves inlined MemoryAllocator cache-line
+allocation (allocateCLAligned / allocateReloadingCL) inside lambda closures.
+
+- [ ] `allocateWaveforms` Phase 2 lambda — cache-line allocation using cacheLineUsage vector
+- [ ] `allocateWaveformsForFifo` lambda$_0 — CL-aligned allocation with set tracking
+- [ ] `allocateWaveformsForFifo` lambda$_1 — finalize offsets pass
+- [ ] Sub-phase wrap-up
+
+### 10.5h. static_resources.cpp full constant extraction
+
+The `init()` function is ~15KB of addConst() calls. Currently only 14+14+3 constants
+are extracted (rate + trigger families). ~100+ more remain (DIO, MARKER, QA, ZSYNC,
+integration, device-specific constants).
+
+- [ ] Extract remaining HDAWG/Hirzel constants (DIO, MARKER, etc.)
+- [ ] Extract remaining UHF/Cervino constants (QA, integration, etc.)
+- [ ] Extract common constants (ZSYNC, misc.)
+- [ ] Sub-phase wrap-up
+
+#### Phase 10.5 wrap-up
+
+- [ ] Update OVERVIEW.md
+- [ ] Update unknowns.md (close any resolved during revisits)
+- [ ] Propose TODO.md adjustments
 
 ---
 
 ## Phase 11: Frontend / Lowering Layer
 
-To be refined into fine-grained todos before starting.
+### 11a. Expression struct + parser action functions (24 symbols)
 
-- [ ] 11a: Expression type (50 symbols — old AST from parser)
-- [ ] 11b: SeqCAstNode hierarchy (56 symbols — new AST with virtual lower())
-- [ ] 11c: FrontendLowering types (73 symbols — Context, State, lowering dispatch)
-- [ ] 11d: CustomFunctions (160 symbols — SeqC built-in function implementations)
-- [ ] Phase 11 wrap-up
+Expression is a plain struct (no vtable), managed via shared_ptr.
+Used as the old AST produced by the SeqC flex/bison parser.
+~20 free "create*" functions build Expression trees from parser actions.
+
+- [ ] Determine Expression struct layout from copy ctor @0x1bfa30 (288 bytes — non-trivial)
+- [ ] Reconstruct Expression copy ctor @0x1bfa30
+- [ ] Reconstruct parser action functions:
+      createOperator @0x1bf830, createAssignOperator @0x1bf9c0,
+      createArray @0x1bfb50, createListType @0x1bfb70,
+      createOrAppend* (5 variants: ArgList/ListType/DeclList/ParamList/StmtList),
+      createFunctionCall @0x1bfe60, createFunction @0x1c0000,
+      createIf @0x1c0530, createIfElse @0x1c06c0, createSwitch @0x1c08d0,
+      createCase @0x1c0a60, createCondExpression @0x1c0bf0,
+      createFor @0x1c0e00, createWhile @0x1c1080, createRepeat @0x1c1210,
+      createDoWhile @0x1c13a0, addVariableType @0x1bf560
+- [ ] Determine EOperator, EOperationType, ECommandType enum values
+- [ ] Reconstruct seqc_error @0x2ca1b0 (bison error handler)
+- [ ] Note: seqc_parse @0x2ca2a0 is bison-generated — defer (like asmparse)
+- [ ] Create expression.hpp + expression.cpp
+- [ ] Sub-phase wrap-up
+
+### 11b. SeqCAstNode + subclasses (12 symbols)
+
+SeqCAstNode is the new AST with virtual lower(). Single vtable in binary —
+subclasses (SeqCIfElse, SeqCRepeat, SeqCForLoop, SeqCNoCmd, etc.) are in
+anonymous namespaces. Trivial 16-byte dtor suggests thin virtual base.
+
+- [ ] Determine SeqCAstNode base layout from ctor @0x1fda00 + dtor @0x209000
+- [ ] Reconstruct children() @0x1fda20, getListElements() @0x209dd0
+- [ ] Reconstruct swap() @0x1fda40
+- [ ] Reconstruct printSeqCAst() @0x1fa3c0 (thin wrapper + anon namespace helper)
+- [ ] Enumerate anonymous-namespace subclass vtables from the SeqCAstNode vtable region
+- [ ] Determine EValueCategory, EDirection enum values
+- [ ] Create seqc_ast_node.hpp + seqc_ast_node.cpp
+- [ ] Sub-phase wrap-up
+
+### 11c. FrontendLowering types (3 symbols)
+
+Very small — just FrontendLoweringContext dtor @0x1233b0,
+FrontendLoweringState dtor @0x1c2190, and constWaveform (anon ns) @0x22c9f0.
+FrontEndLoweringFacade::lower() already reconstructed in Phase 7a.
+
+- [ ] Determine FrontendLoweringContext layout from dtor @0x1233b0
+- [ ] Determine FrontendLoweringState layout from dtor @0x1c2190
+- [ ] Reconstruct constWaveform @0x22c9f0
+- [ ] Create/update frontend_lowering.hpp + frontend_lowering.cpp
+- [ ] Sub-phase wrap-up
+
+### 11d. CustomFunctions (25 symbols)
+
+Built-in SeqC function implementations. ~15 methods + 2 exception classes.
+Note: compiler.cpp getNodeAccessList/getNodeToModeMap placeholders depend on
+CustomFunctions layout — fix those when this phase is done.
+
+- [ ] Determine CustomFunctions layout from dtor @0x127c90
+- [ ] Reconstruct check methods: checkPlayMinLength @0x15b100, checkPlayAlignment @0x15b190
+- [ ] Reconstruct oscMask methods: oscMaskCheckGrimsel @0x15ba90, oscMaskCheckHirzel @0x15bab0,
+      oscMaskSetAllHirzel @0x15bf50, oscMaskSetAllGrimsel @0x15c0b0
+- [ ] Reconstruct addNodeAccess @0x15c6c0, getWaitTime @0x163930
+- [ ] Reconstruct initNodeMap @0x16b740, getNodeAddress @0x16ba10,
+      getSampleClock @0x16ba80, getAccessModes @0x16be50
+- [ ] Reconstruct CustomFunctionsException (dtor @0x15a520/0x16e6c0, what @0x16e710)
+- [ ] Reconstruct CustomFunctionsValueException (dtor @0x163d70/0x172f70, what @0x172fd0)
+- [ ] Create custom_functions.hpp + custom_functions.cpp
+- [ ] Sub-phase wrap-up
+
+#### Phase 11 wrap-up
+
+- [ ] Update OVERVIEW.md
+- [ ] Update notes/
+- [ ] Propose TODO.md adjustments
 
 ---
 
 ## Phase 12: Waveform DSL & Utilities
 
-To be refined into fine-grained todos before starting.
+### 12a. WaveformGenerator (16 symbols)
 
-- [ ] 12a: WaveformGenerator (96 symbols — sin/cos/drag/rrc/gaussian/etc.)
-- [ ] 12b: CachedParser (216 symbols — tree-based cache, embedded in WavetableFront + WavetableIR)
-- [ ] 12c: CsvParser (6 symbols — CSV waveform import)
-- [ ] Phase 12 wrap-up
+Waveform DSP functions. 3 own methods + 2 exception classes.
+
+- [ ] Determine WaveformGenerator layout from dtor @0x127840
+- [ ] Reconstruct createDummyWaveform @0x25be70
+- [ ] Reconstruct genericTriangle @0x25e0c0
+- [ ] Reconstruct reverse @0x260f20
+- [ ] Reconstruct WaveformGeneratorException (dtor @0x25ca60, what @0x261820)
+- [ ] Reconstruct WaveformGeneratorValueException (dtor @0x25c500, what @0x2617a0)
+- [ ] Create waveform_generator.hpp + waveform_generator.cpp
+- [ ] Sub-phase wrap-up
+
+### 12b. CachedParser (~12 own methods + ~60 Boost serialization)
+
+Tree-based cache for parsed waveform files. ~12 own methods,
+rest is Boost.Serialization template instantiations (document, don't reconstruct).
+
+- [ ] Determine CachedParser layout from ctor @0x2afa70 + dtor @0x29aac0
+- [ ] Reconstruct loadCacheIndex @0x2afec0, saveCacheIndex @0x2b03c0
+- [ ] Reconstruct cleanCache @0x2b0140, removeOldFiles @0x2b01a0
+- [ ] Reconstruct CacheEntry (copy ctor, op=, dtor, serialize template)
+- [ ] Reconstruct CachedFile (dtor @0x2b1f70)
+- [ ] Document Boost serialization instantiation pattern (don't reconstruct all)
+- [ ] Create cached_parser.hpp + cached_parser.cpp
+- [ ] Sub-phase wrap-up
+
+### 12c. CsvParser — CANCELLED
+
+No zhinst::CsvParser symbols found in binary. Either inlined or
+in a different module.
+
+#### Phase 12 wrap-up
+
+- [ ] Update OVERVIEW.md
+- [ ] Update notes/
+- [ ] Propose TODO.md adjustments
 
 ---
 
 ## Deferred / Low Priority
 
-- [ ] Full reconstruction of `syncCervino()` (~1000 asm lines)
-- [ ] Full reconstruction of `unsyncCervino()` (~1000 asm lines)
-- [ ] Full reconstruction of `addi32()` (32-bit immediate edge cases)
+- [x] ~~Full reconstruction of `syncCervino()`~~ — moved to Phase 10.5d
+- [x] ~~Full reconstruction of `unsyncCervino()`~~ — moved to Phase 10.5d
+- [x] ~~Full reconstruction of `addi32()`~~ — moved to Phase 10.5c
 - [x] ~~AWGCompilerConfig~~ — fully reconstructed in Phase 3d
 - [ ] MathCompiler (67 symbols) — separate math expression compiler
 - [ ] DeviceType/DeviceFamily/DeviceTypeCode/DeviceOption (150 symbols) — device enumeration

@@ -233,17 +233,374 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 // Returns tuple<AsmList, string> where string is error/warning messages.
 //
 // Full reconstruction deferred — this is a large, complex parser with
-// AWGAssembler and JSON parsing dependencies.
+// AWGAssembler, DeviceConstants, getDeviceConstants(),
+// Node::fromJson, Node::installPointers, boost::json.
+//
+// Function: 0x266160 – 0x267e78 (7448 bytes of main body + exception handlers to 0x268130)
+//
+// Algorithm overview:
+//   1. getDeviceConstants(AwgDeviceType(2)) — hardcoded HDAWG device type.
+//   2. Construct AWGAssembler from those constants.
+//   3. AWGAssembler::assembleStringToExpressionsVec(str) — parse assembly text
+//      into vector<shared_ptr<AsmExpression>>.
+//   4. Reset createUniqueID (nextID = 0).
+//   5. Iterate expressions. For each AsmExpression:
+//      a. If labelType == true (0x78): expression is a direct instruction reference.
+//         Build AssemblerInstr with cmd from expr->command, copy label string
+//         from expr (+0x60). Assign sequenceId = nextID++.
+//      b. If expr->command == 3 (MESSAGE) or 5 (ERROR_MSG): Build instr with
+//         that command. Parse first child's string as Immediate, push to
+//         outputs vector. Use vtable dispatch for Immediate type assignment.
+//      c. If expr->command == 4 (unused/NOP marker): Similar to (b) but
+//         copies string from expr (+0x20) instead of (+0x60).
+//      d. Otherwise (general instructions): Iterate sub-expressions by type:
+//         - type==3 (integer): collect shared_ptr into input-expressions vector
+//         - type==1 (register): collect shared_ptr into register-expressions vector
+//         - type==3 again in second pass: collect into output-expressions vector
+//         Then check for type==2 (label): copy label string if present.
+//      e. After categorizing, construct AssemblerInstr:
+//         - cmd = expr->command
+//         - Build immediates vector from input-expressions (Immediate(value))
+//         - Assign registers based on Assembler::getRegisterOrder(cmd):
+//           * 0: no register operands
+//           * 1: reg2(dest) = regExprs[0].value
+//           * 2: reg0(src1) = regExprs[0].value
+//           * 3: reg1(src2) = regExprs[0].value, reg2(dest) = regExprs[1].value
+//           * 4: reg0(src1) = regExprs[0].value, reg2(dest) = regExprs[1].value
+//           * else: log warning "Unknown Assembler::RegOrder with code N."
+//         - Build outputs vector from output-expressions
+//         - Copy label string
+//      f. Check if expr has a "noOpt" JSON blob (byte at +0x98):
+//         If true, parse JSON from expr comment (+0x80), store into
+//         idMap<int, json::value>, then Node::fromJson → nodeMap<int, shared_ptr<Node>>.
+//         Assign node to the Asm entry, and override isWaveformCmd = true.
+//      g. Append Asm entry to result list.
+//   6. After all expressions: iterate result entries and call
+//      Node::installPointers(nodeMap, jsonValue) for each entry that has a node.
+//   7. Get report string from AWGAssembler.
+//   8. Return tuple<AsmList, string>(entries, report).
+//
+// The wavetableFront counter increments sequentially for each Asm entry.
 // ============================================================================
 std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
     const std::string& str)
 {
-    // TODO: Full reconstruction deferred (~7000 bytes of code).
-    // Depends on: AWGAssembler, DeviceConstants, getDeviceConstants(),
-    //             Node::fromJson, Node::installPointers.
-    // Key steps documented in header comment above.
-    (void)str;
-    return {AsmList{}, ""};
+    // Step 1: Get HDAWG device constants (hardcoded device type 2)
+    // 0x26618d: call getDeviceConstants(AwgDeviceType(2))
+    DeviceConstants constants = getDeviceConstants(AwgDeviceType(2));
+
+    // Step 2: Construct AWGAssembler
+    // 0x26619f: call AWGAssembler(constants)
+    AWGAssembler assembler(constants);
+
+    // Step 3: Parse assembly text into expression trees
+    // 0x2661b1: call assembleStringToExpressionsVec(str)
+    std::vector<std::shared_ptr<AsmExpression>> expressions =
+        assembler.assembleStringToExpressionsVec(str);
+
+    // Step 4: Initialize result list and counters
+    AsmList result;
+    Immediate imm1;  // initialized with float 1.0f (0x3f800000)
+    Immediate imm2;  // initialized with float 1.0f (0x3f800000)
+
+    // 0x266224: __tls_get_addr to get nextID pointer
+    // 0x266241: wavetableFront counter = 0
+    int wavetableFront = 0;
+
+    // Maps used for JSON-based node reconstruction (used in noOpt path)
+    // idMap at [rbp-0x230]: maps sequenceId → boost::json::value
+    // nodeMap at [rbp-0x400]: maps sequenceId → shared_ptr<Node>
+    std::unordered_map<int, boost::json::value> idMap;
+    std::unordered_map<int, std::shared_ptr<Node>> nodeMap;
+
+    // Step 5: Iterate over parsed expressions
+    // 0x26620a: loop begin, r12 = expressions.begin, compare to expressions.end
+    for (auto it = expressions.begin(); it != expressions.end(); ++it) {
+        // Each expression is a shared_ptr<AsmExpression> (16 bytes: ptr + ctrl)
+        // The expression vector elements are at stride 0x10
+
+        // 0x2662d8: Collect sub-expressions into category vectors
+        //   vec_input:  [rbp-0x110] — shared_ptr<AsmExpression> for type==3 (integers/immediates)
+        //   vec_reg:    [rbp-0xf0]  — shared_ptr<AsmExpression> for type==1 (registers)
+        //   vec_output: [rbp-0xd0]  — shared_ptr<AsmExpression> for type==3 (output immediates)
+        std::vector<std::shared_ptr<AsmExpression>> vec_input;
+        std::vector<std::shared_ptr<AsmExpression>> vec_reg;
+        std::vector<std::shared_ptr<AsmExpression>> vec_output;
+
+        AsmExpression* expr = it->get();
+
+        // 0x2662dc: check expr->labelType (byte at +0x78)
+        if (expr->labelType) {
+            // --- Case A: Direct instruction reference (labelType == true) ---
+            // 0x2662e6: Build AssemblerInstr with cmd = LABEL (2)
+            AssemblerInstr instr;
+            instr.cmd = Assembler::LABEL;  // cmd = 2
+
+            // 0x26635a: Copy label string from expr (+0x60) into instr.label
+            instr.label = expr->labelName;
+
+            // 0x266393: sequenceId = createUniqueID(false)
+            int seqId = Asm::createUniqueID(false);
+
+            // Build the Asm entry
+            Asm entry;
+            entry.sequenceId = seqId;
+            entry.assembler = instr;
+            entry.wavetableFront = wavetableFront;
+            entry.node = nullptr;
+            entry.isWaveformCmd = isWaveformCmd(instr);  // (cmd-3) < 3u
+
+            result.append(entry);
+
+            // 0x266457: Check next expression's type for follow-up processing
+            // If expr->command (+0x38) == 2, jump to no-opt handling at 0x266d87
+            int exprCmd = expr->command;
+            if (exprCmd == 2) {
+                // Jump to cleanup of vec_output, vec_reg, vec_input then next iteration
+                goto cleanup_and_next;
+            }
+        }
+
+        // 0x2664c0: Check expr->command
+        {
+            int exprCmd = expr->command;
+
+            if (exprCmd == 3 || exprCmd == 5) {
+                // --- Case B: MESSAGE or ERROR_MSG ---
+                // 0x266590: Build instr with cmd = exprCmd (3 or 5)
+                AssemblerInstr instr;
+                instr.cmd = static_cast<Assembler::Command>(exprCmd);
+
+                // 0x266603: Get first child expression (+0x40 vector, first element)
+                // child = expr->children[0]
+                // 0x266615: Immediate(child->name) — construct from string at child+0x08
+                auto& children = expr->children;
+                Immediate imm(children[0]->name);
+
+                // Push immediate into outputs vector of instr
+                // 0x26661a: Check capacity, push to outputs vector
+                // Uses vtable dispatch for Immediate type assignment
+                instr.outputs.push_back(imm);
+
+                // 0x266b53: sequenceId = -1 (INVALID)
+                // Actually sequenceId is not set to -1; looking again:
+                // After the MESSAGE/ERROR path, it builds an Asm entry with cmd = -1 (INVALID)
+                Asm entry;
+                entry.sequenceId = -1;  // placeholder
+                entry.assembler = instr;
+                entry.wavetableFront = wavetableFront;
+                entry.node = nullptr;
+                entry.isWaveformCmd = isWaveformCmd(instr);
+
+                result.append(entry);
+
+            } else if (exprCmd == 4) {
+                // --- Case C: NOP marker ---
+                // 0x2664de: Build instr with cmd = 4
+                AssemblerInstr instr;
+                instr.cmd = static_cast<Assembler::Command>(4);
+
+                // 0x266555: Copy string from expr (+0x20, comment field) into instr
+                instr.comment = expr->comment;
+
+                // Similar Asm entry construction
+                Asm entry;
+                entry.sequenceId = -1;
+                entry.assembler = instr;
+                entry.wavetableFront = wavetableFront;
+                entry.node = nullptr;
+                entry.isWaveformCmd = isWaveformCmd(instr);
+
+                result.append(entry);
+
+            } else {
+                // --- Case D: General instruction ---
+                // 0x266672: Iterate sub-expressions (children at +0x40)
+
+                // First pass: collect type==3 into vec_input
+                // 0x2666a8: loop over children, check child->type == 3
+                auto& children = expr->children;
+                auto childIt = children.begin();
+                auto childEnd = children.end();
+
+                for (; childIt != childEnd; ++childIt) {
+                    AsmExpression* child = childIt->get();
+                    if (child->type != 3) break;  // stop at first non-integer
+                    vec_input.push_back(*childIt);
+                }
+
+                // Second pass: collect type==1 into vec_reg
+                // 0x266818: loop continues, check child->type == 1
+                for (; childIt != childEnd; ++childIt) {
+                    AsmExpression* child = childIt->get();
+                    if (child->type != 1) break;
+                    vec_reg.push_back(*childIt);
+                }
+
+                // Third pass: collect type==3 into vec_output
+                // 0x266988: loop continues, check child->type == 3
+                for (; childIt != childEnd; ++childIt) {
+                    AsmExpression* child = childIt->get();
+                    if (child->type != 3) break;
+                    vec_output.push_back(*childIt);
+                }
+
+                // Check for label (type==2) at current position
+                // 0x266ac2: zero-init label string
+                std::string labelStr;
+                // 0x266ad5: check if more children remain and next is type==2
+                if (childIt != childEnd) {
+                    AsmExpression* child = childIt->get();
+                    if (child->type == 2) {
+                        // 0x266aec: copy child->name (at +0x08) into labelStr
+                        labelStr = child->name;
+                    }
+                }
+
+                // 0x266f0c: exprCmd = expr->command (+0x38)
+                int cmdVal = expr->command;
+
+                // Build a copy of vec_reg for register assignment
+                // 0x266f29: Copy vec_reg into local regExprs vector
+                std::vector<std::shared_ptr<AsmExpression>> regExprs(
+                    vec_reg.begin(), vec_reg.end());
+
+                // 0x266fbb: Build AssemblerInstr
+                AssemblerInstr instr;
+                instr.cmd = static_cast<Assembler::Command>(cmdVal);
+
+                // Build immediates from vec_input
+                // 0x267032: iterate vec_input, for each: construct Immediate(child->value)
+                for (auto& inputExpr : vec_input) {
+                    AsmExpression* e = inputExpr.get();
+                    Immediate imm(e->value);
+                    instr.immediates.push_back(imm);
+                }
+
+                // 0x267045: Assign registers based on getRegisterOrder(cmd)
+                int regOrder = Assembler::getRegisterOrder(
+                    static_cast<Assembler::Command>(cmdVal));
+
+                switch (regOrder) {
+                    case 0:
+                        // No register operands
+                        break;
+                    case 1:
+                        // 0x26706d: reg2(dest) = regExprs[0]->value
+                        instr.reg2 = AsmRegister(regExprs[0]->value);
+                        break;
+                    case 2:
+                        // 0x2671eb: reg0(src1) = regExprs[0]->value
+                        instr.reg0 = AsmRegister(regExprs[0]->value);
+                        break;
+                    case 3:
+                        // 0x267213: reg1(src2) = regExprs[0]->value,
+                        //           reg2(dest) = regExprs[1]->value
+                        instr.reg1 = AsmRegister(regExprs[0]->value);
+                        instr.reg2 = AsmRegister(regExprs[1]->value);
+                        break;
+                    case 4:
+                        // 0x2671b0: reg0(src1) = regExprs[0]->value,
+                        //           reg2(dest) = regExprs[1]->value
+                        instr.reg0 = AsmRegister(regExprs[0]->value);
+                        instr.reg2 = AsmRegister(regExprs[1]->value);
+                        break;
+                    default:
+                        // 0x26725c: Log warning
+                        // "Unknown Assembler::RegOrder with code N."
+                        LOG_WARNING("Unknown Assembler::RegOrder with code "
+                                    << regOrder << ".");
+                        break;
+                }
+
+                // Build outputs from vec_output
+                // 0x2672e0: iterate vec_output
+                for (auto& outExpr : vec_output) {
+                    AsmExpression* e = outExpr.get();
+                    Immediate imm(e->value);
+                    instr.outputs.push_back(imm);
+                }
+
+                // 0x267400: Copy label string into instr.label
+                instr.label = labelStr;
+
+                // 0x267466: sequenceId = createUniqueID(false)
+                int seqId = Asm::createUniqueID(false);
+
+                // 0x267488: Copy instr into entry
+                Asm entry;
+                entry.sequenceId = seqId;
+                entry.assembler = instr;
+                entry.wavetableFront = wavetableFront;
+
+                // 0x2675b9: Check expr->noOpt (byte at +0x98)
+                if (expr->noOpt) {
+                    // 0x2675ca: Parse JSON from expr->comment (+0x80)
+                    // boost::json::parse(comment_str)
+                    std::string_view commentSv = expr->comment;
+                    boost::json::value jsonVal = boost::json::parse(commentSv);
+
+                    // 0x267642: Insert into idMap<int, json::value>
+                    idMap[seqId] = std::move(jsonVal);
+
+                    // 0x267688: Look up seqId in idMap to get the JSON
+                    const auto& jv = idMap.at(seqId);
+
+                    // 0x26778d: Node::fromJson(jv) → shared_ptr<Node>
+                    std::shared_ptr<Node> node = Node::fromJson(jv);
+
+                    // Store node into entry
+                    entry.node = node;
+
+                    // 0x267808: Get node->sequenceId and store into nodeMap
+                    int nodeSeqId = node->sequenceId;
+                    nodeMap[nodeSeqId] = node;
+
+                    // 0x26788f: isWaveformCmd override
+                    entry.isWaveformCmd = true;
+                } else {
+                    // 0x26789d: Check expr->field_A0 (byte at +0xA0)
+                    if (expr->field_A0) {
+                        entry.isWaveformCmd = true;
+                    } else {
+                        entry.isWaveformCmd = isWaveformCmd(instr);
+                    }
+                }
+
+                // 0x2678a9: Append entry to result
+                result.append(entry);
+
+                // 0x2679ab: Free label string if heap-allocated
+                // (handled by destructor)
+            }
+        }
+
+    cleanup_and_next:
+        // Cleanup of vec_output, vec_reg, vec_input (destructors)
+        // 0x266d87 ff: release shared_ptrs in vec_output, vec_reg, vec_input
+        wavetableFront++;
+    }
+
+    // Step 6: Post-processing — install node pointers
+    // 0x267a2f: Iterate result entries
+    for (auto& entry : result.entries) {
+        if (!entry.node) continue;
+
+        // Look up entry.sequenceId in idMap to get JSON value
+        const auto& jv = idMap.at(entry.sequenceId);
+
+        // 0x267a5a: Node::installPointers(nodeMap, jv)
+        entry.node->installPointers(nodeMap, jv);
+    }
+
+    // Step 7: Get report from AWGAssembler
+    // 0x267c11: call AWGAssembler::getReport()
+    std::string report = assembler.getReport();
+
+    // Step 8: Move results into return tuple
+    // 0x267c20: Initialize tuple<AsmList, string>
+    // AsmList data is moved via __init_with_size
+    return {std::move(result), std::move(report)};
 }
 
 } // namespace zhinst
