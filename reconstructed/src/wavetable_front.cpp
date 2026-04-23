@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/wavetable_front.hpp"
+#include "zhinst/wavetable_helpers.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/signal.hpp"
 #include "zhinst/value.hpp"
@@ -11,10 +12,10 @@
 
 namespace zhinst {
 
-namespace {
-// 0x2a0fd0 — getUniqueName (also used by WavetableManager)
-std::string getUniqueName(const std::string& base, int index, int counter);
-} // anon
+// 0x2a0fd0 — getUniqueName (also used by WavetableManager and WavetableIR).
+// Definition lives in wavetable_helpers.hpp as an inline detail-namespace
+// helper (single ODR-clean definition shared by all wavetable TUs).
+using detail::getUniqueName;
 
 // 0x29a940 — WavetableFront::~WavetableFront()
 WavetableFront::~WavetableFront() {
@@ -109,25 +110,31 @@ size_t WavetableFront::getMemorySize() const {
 
     for (auto* it = begin; it != end; ++it) {
         WaveformFront* wf = it->get();
-        if (wf->isAllocated != true) continue;  // wf+0x48 != 1
+        if (wf->used != true) continue;  // Waveform::used at +0x48
 
-        uint16_t channels = wf->channels;   // wf+0xC8 (uint16_t)
-        uint32_t length = wf->sampleLength; // wf+0xD0
-        Signal* sig = &wf->signal;           // wf+0x78
+        uint16_t channels = wf->signal.channels_;   // wf+0xC8 = signal+0x48
+        uint32_t length = (uint32_t)wf->signal.length_; // wf+0xD0 = signal+0x50
+        // Verified disasm 0x29ae31..0x29ae53:
+        //   r10 = [wf+0x78] = waveform->deviceConstants  (NOT &signal!)
+        //   r9d = [r10+0x40] = waveformGranularity ("max" cap)
+        //   ebx = [r10+0x44] = waveformPageSize    (alignment grain)
+        //   eax = ceil_div(length, ebx) * ebx
+        //   if (r9d > eax) eax = r9d   ; cmova → max
+        //   r9 = sxd[r10+0x50] = bitsPerSample
+        const DeviceConstants* dc = wf->deviceConstants;
 
         uint32_t alignedLen;
         if (length == 0) {
             alignedLen = 0;
         } else {
-            uint32_t minLen = sig->minLength();    // sig+0x40
-            uint32_t granularity = sig->granularity(); // sig+0x44
-            // Round up length to granularity, ensure >= minLen
-            uint32_t rounded = ((length + granularity - 1) / granularity) * granularity;
-            alignedLen = (minLen > rounded) ? minLen : rounded;
+            uint32_t wfMaxCap = dc->waveformGranularity; // +0x40
+            uint32_t wfGrain  = dc->waveformPageSize;    // +0x44
+            uint32_t rounded = ((length + wfGrain - 1) / wfGrain) * wfGrain;
+            alignedLen = (wfMaxCap > rounded) ? wfMaxCap : rounded;
         }
 
         // Calculate memory: channels * bitsPerSample * alignedLen, rounded up to bytes
-        int32_t bitsPerSample = sig->bitsPerSample(); // sig+0x50
+        int32_t bitsPerSample = (int32_t)dc->bitsPerSample; // +0x50
         size_t totalBits = (size_t)channels * bitsPerSample * alignedLen;
         size_t bytes = (totalBits + 7) / 8;
 
@@ -135,10 +142,10 @@ size_t WavetableFront::getMemorySize() const {
 
         // If length != 0, recalculate with the signal's actual parameters
         if (length != 0) {
-            uint32_t minLen2 = sig->minLength();
-            uint32_t gran2 = sig->granularity();
-            uint32_t rounded2 = ((length + gran2 - 1) / gran2) * gran2;
-            uint32_t aligned2 = (minLen2 > rounded2) ? minLen2 : rounded2;
+            uint32_t wfMaxCap2 = dc->waveformGranularity;
+            uint32_t wfGrain2  = dc->waveformPageSize;
+            uint32_t rounded2 = ((length + wfGrain2 - 1) / wfGrain2) * wfGrain2;
+            uint32_t aligned2 = (wfMaxCap2 > rounded2) ? wfMaxCap2 : rounded2;
             size_t bits2 = (size_t)channels * aligned2;
             size_t b2 = (bits2 + 7) / 8;
             total += b2;
@@ -221,7 +228,7 @@ void WavetableFront::loadWaveform(std::shared_ptr<WaveformFront> wf) {
     WaveformFront* ptr = wf.get();
 
     // If file type != CSV (i.e., type at wf+0x18 != 0), return
-    if (ptr->fileType != 0) return;
+    if (ptr->waveformType != Waveform::File::Type::CSV) return;  // wf+0x18
 
     // Check signal allocation: ptr+0x80 is Signal
     // Signal::checkAllocation()
@@ -306,8 +313,8 @@ uint32_t WavetableFront::getWaveformSampleLength(const std::string& name) {
     auto wf2 = wf;
     // checkWaveformInit(wf2.get(), name) — validates waveform
 
-    // Return wf->sampleLength() at wf+0xD0
-    return wf.get()->sampleLength;
+    // Return wf->signal.length_ at wf+0xD0 (= signal+0x50)
+    return (uint32_t)wf.get()->signal.length_;
 }
 
 // 0x29ca10 — WavetableFront::updateDioTableUsage(size_t key, size_t value)
@@ -321,8 +328,8 @@ bool WavetableFront::updateDioTableUsage(size_t key, size_t value) {
         total += v;
     }
 
-    // Compare total < deviceConstants_->maxDioTableEntries (dc+0x0C)
-    return total < (size_t)deviceConstants_->maxDioTableEntries;
+    // Compare total < deviceConstants_->maxDioTableEntries() (dc+0x0C)
+    return total < (size_t)deviceConstants_->maxDioTableEntries();
 }
 
 // 0x29cb40 — WavetableFront::assignWaveIndex(shared_ptr<WaveformFront>, int)

@@ -123,18 +123,18 @@ bool Prefetch::getUsedFourChannelMode() const {  // 0x1df400
 // 0x1d6b50
 //
 // Linear scan of AsmList (vector<Asm>, element size 0xA8).
-// Compares entry.asmId (at +0x00) with node->asmId (Node+0x14).
+// Compares entry.sequenceId (at +0x00) with node->asmId (Node+0x14).
+// Returns the matching `Asm*` (an iterator into the underlying vector) so
+// callers can reach into the assembler-command metadata directly.
 // Throws ZIAWGCompilerException(errMsg[0xA3]) if not found.
 // ============================================================================
-std::shared_ptr<Node> Prefetch::findPlaceholder(                // 0x1d6b50
+AsmList::Asm* Prefetch::findPlaceholder(                        // 0x1d6b50
     AsmList* asmList, std::shared_ptr<Node> node) {
     int targetId = node->asmId;  // Node+0x14
 
-    // TODO: return type is shared_ptr<Node> but we're searching AsmList entries.
-    // The exact semantics are unclear — returning node as placeholder.
     for (auto& entry : *asmList) {
         if (entry.sequenceId == targetId) {
-            return node;  // TODO: approximate — original returns something from entry
+            return &entry;
         }
     }
 
@@ -184,10 +184,15 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
         uint32_t suppressValue = (0x3FFFu << PlayConfig::suppressShift) & PlayConfig::suppressMask;
         uint32_t cwvfValue = rateValue | suppressValue;
 
-        // Find insert position: skip past leading entries with field at +0x08 == 4  // 0x1d66eb
-        // (These are placeholder Asm entries, e.g. NodeType 4.)
+        // Find insert position: skip past leading entries whose attached
+        // Node has type == 4 (NodeType::Loop placeholder). Verified at
+        // 0x1d66eb: walks `asmList[i].node->type` (a int loaded from
+        // Node+0x10) until non-4. The previous reconstruction had a
+        // misnamed `insertPos->nodeType` field; the real field is
+        // `node->type` (Asm has no nodeType — see asm_list.hpp:54).
         auto insertPos = out->begin();
-        while (insertPos != out->end() && insertPos->node && static_cast<int>(insertPos->node->type) == 4) {  // TODO: was insertPos->nodeType — Asm has no nodeType field
+        while (insertPos != out->end() && insertPos->node &&
+               static_cast<int>(insertPos->node->type) == 4) {
             ++insertPos;
         }
 
@@ -285,7 +290,7 @@ static int computeWaveformMemoryBytes(const WaveformIR* wfm) {
 //   - If node->length (Node+0x90) != 0: pages = (length * channels) / pageSize
 //   - Else: pages = computeWaveformMemoryBytes(wfm) / pageSize
 // - For Play nodes (type==2): same as Load, but only if
-//   nodeStates_[node].counter != 0
+//   nodeStates_[node].counter() != 0
 // - Otherwise: recurse into next, loop, and branches
 // ============================================================================
 int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
@@ -305,7 +310,7 @@ int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
     // Load node (type == 1)
     {
         auto name = getName();
-        if (name.has_value() && n->refCount == 1) {  // Node+0x44
+        if (name.has_value() && n->type == NodeType::Load) {  // Node+0x44
             if (n->length != 0) {  // Node+0x90
                 auto wfm = wavetableIR_->getWaveformByName(name);
                 uint16_t channels = wfm->signal.channels_;
@@ -327,10 +332,10 @@ int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
     // Play node (type == 2)
     {
         auto name = getName();
-        if (name.has_value() && n->refCount == 2) {  // Node+0x44
+        if (name.has_value() && n->type == NodeType::Play) {  // Node+0x44
             // Check nodeStates_ counter
             auto it = nodeStates_.find(node);
-            if (it != nodeStates_.end() && it->second.counter != 0) {
+            if (it != nodeStates_.end() && it->second.counter() != 0) {
                 if (n->length != 0) {
                     auto wfm = wavetableIR_->getWaveformByName(name);
                     uint16_t channels = wfm->signal.channels_;
@@ -390,7 +395,7 @@ size_t Prefetch::getMemoryHighWatermark() const {  // 0x1cc650
         uint32_t deviceMax = 0;
         for (auto const& wfm : waves) {
             int memBytes = computeWaveformMemoryBytes(wfm.get());
-            int startOffset = wfm->waveformOffset;  // WaveformIR+0x4c
+            int startOffset = (int)wfm->addressValue;  // Waveform::addressValue at +0x4C (formerly named waveformOffset)
             int net = memBytes - startOffset;
             if (static_cast<uint32_t>(net) > deviceMax)
                 deviceMax = static_cast<uint32_t>(net);

@@ -76,11 +76,11 @@ private:
     // ---- Query helpers ----
 
     // Check if instruction reads the given register
-    // reg0 (+0x20) is always a read source; reg1 (+0x30) is read if cmdType==7 or cmdType==1
+    // reg2 (+0x20) is read if cmdType bit 0 set; reg1 (+0x30) is read if cmdType==7 or cmdType==1
     bool isRead(const AssemblerInstr& instr, AsmRegister reg) const;    // 0x27d900
 
     // Check if instruction writes the given register
-    // dest (+0x28) is written if cmdType has bit 1 set; reg1 (+0x30) is written if cmdType==7
+    // reg0 (+0x28) is written if cmdType has bit 1 set; reg1 (+0x30) is written if cmdType==7
     bool isWritten(const AssemblerInstr& instr, AsmRegister reg) const; // 0x27d960
 
     // Check if any branch/jump instruction after 'it' references the given label

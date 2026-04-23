@@ -3,17 +3,43 @@
 // WaveformFront — waveform metadata for the compiler frontend
 //
 // WaveformFront extends Waveform (base class, 0xD8 bytes).
-// Total size: 0xF8 (248 bytes). Confirmed from allocate_shared: alloc 0x110
-// minus 0x18 shared_ptr control block header = 0xF8.
+// Total size: 0xF8 (248 bytes). Confirmed:
+//   - __on_zero_shared_weak at 0x2a13a0 deletes 0x110 bytes
+//     (= 0x18 control block + 0xF8 object) → object is 0xF8.
+//   - __on_zero_shared at 0x2a1300 destroys vector<Value> at +0xE0..+0xF8
+//     (element stride 0x28), then jumps to ~Waveform — proving NO additional
+//     non-trivially-destructible field exists between +0xDD and +0xE0.
 //
 // Confirmed from:
 //   - WaveformFront::WaveformFront(shared_ptr<WaveformFront>, string) at 0x2a2510
 //   - WaveformFront::toString() const at 0x2c5120
 //   - __shared_ptr_emplace<WaveformFront>::__on_zero_shared() at 0x2a1300
 //   - WaveformIR::WaveformIR(shared_ptr<WaveformFront>) at 0x114da0
-//   - AsmCommands::genPlayConfig() at 0x2789a0
-//   - AsmCommands::asmPrefetch() at 0x278720
-//   - AsmCommands::asmPlay() at 0x278b40
+//
+// Ctor field initialization (0x2a25b9..0x2a2671):
+//   mov DWORD PTR [rbx+0xd8], 0x1     ; frontField1 = 1
+//   mov BYTE  PTR [rbx+0xdc], 0x0     ; frontBool1  = false
+//   mov BYTE  PTR [rbx+0xdd], cl      ; frontBool2  = source->frontBool2
+//   <padding +0xDE..+0xDF>
+//   <copy-construct vector<Value> at +0xE0 from source +0xE0>
+//
+// Layout:
+//   +0x00..+0xD7  Waveform base (0xD8 bytes)
+//   +0xD8         int        frontField1   (init=1)
+//   +0xDC         bool       frontBool1    (init=0; source comments call it "isModified")
+//   +0xDD         bool       frontBool2    (copied from source; "hasDuplicate")
+//   +0xDE..+0xDF  padding
+//   +0xE0         vector<Value> values     (24 bytes; element size 0x28)
+//   +0xF8         END
+//
+// Speculative fields removed (verified absent by ctor + dtor):
+//   - isAllocated   → was Waveform::used at +0x48 (already present)
+//   - channels      → was Waveform::signal.channels_ at +0xC8 (signal+0x48)
+//   - sampleLength  → was Waveform::signal.length_ at +0xD0 (signal+0x50)
+//   - fileType      → was Waveform::waveformType at +0x18 (already present)
+//   - isModified    → was frontBool1 at +0xDC (this very struct's field)
+//   - funDescrName_ → was Waveform::thirdString at +0x50 (already present)
+//   - args_         → no usage anywhere; pure hallucination
 // ============================================================================
 #pragma once
 
@@ -26,25 +52,12 @@
 
 namespace zhinst {
 
-// ============================================================================
-// WaveformFront — extends Waveform, total 0xF8 bytes
-//
-// Offset  Size  Type              Name          Notes
-// ------  ----  ----              ----          -----
-// 0x00-0xD7     Waveform          (base)
-// 0xD8     4    int               frontField1   init=1 in copy ctor
-// 0xDC     1    bool              frontBool1    init=0 in copy ctor
-// 0xDD     1    bool              frontBool2    copied from source
-// 0xDE     2    (padding)
-// 0xE0    24    vector<Value>     values        per-parameter values (each 0x28 bytes)
-// 0xF8          END
-// ============================================================================
 struct WaveformFront : Waveform {
-    int frontField1;                     // +0xD8  (init=1)
-    bool frontBool1;                     // +0xDC  (init=0)
-    bool frontBool2;                     // +0xDD  (copied from source)
-    // +0xDE: 2 bytes padding
-    std::vector<Value> values;           // +0xE0  (24 bytes, each Value is 0x28)
+    int  frontField1;                    // +0xD8  (init=1)
+    bool frontBool1;                     // +0xDC  (init=0; "isModified" in source comments)
+    bool frontBool2;                     // +0xDD  (copied; "hasDuplicate")
+    // +0xDE..+0xDF: 2 bytes padding
+    std::vector<Value> values;           // +0xE0  (each Value is 0x28 bytes)
     // +0xF8: END
 
     // WaveformFront(name, fileType, devConst) — INLINED, no binary symbol
@@ -63,28 +76,25 @@ struct WaveformFront : Waveform {
     // toString() const — 0x2c5120
     std::string toString() const;
 
-    // TODO: offset not confirmed — used in wavetable code
-    void setHasDuplicate(bool v) { frontBool2 = v; }  // might map to frontBool2
-    bool hasDuplicate() const { return frontBool2; }
+    // --- Convenience accessors that forward to existing fields ---
+    // (these forward to Waveform-base or our own bools; they exist so legacy
+    //  call sites continue to compile while we audit each call's intent).
 
-    // TODO: These members are referenced in wavetable_front.cpp / wavetable_manager_front.cpp
-    // but exact offsets not yet confirmed. They may be derived from Waveform base fields
-    // or additional WaveformFront-specific fields.
-    bool isAllocated = false;           // offset TBD
-    int channels = 0;                   // offset TBD — number of channels
-    int sampleLength = 0;               // offset TBD — length in samples
-    int fileType = 0;                   // offset TBD — file type enum
-    bool isModified = false;            // offset TBD
-    std::string funDescrName_;          // offset TBD — function descriptor name
-    std::vector<std::string> args_;     // offset TBD — arguments list
+    // hasDuplicate ↔ frontBool2 (+0xDD)
+    void setHasDuplicate(bool v) { frontBool2 = v; }
+    bool hasDuplicate() const    { return frontBool2; }
 
-    // Accessors
-    std::string funDescrName() const { return funDescrName_; }
-    size_t argsSize() const { return args_.size(); }
-    std::string arg(size_t i) const { return args_.at(i); }
+    // isModified ↔ frontBool1 (+0xDC)
+    bool isModified() const      { return frontBool1; }
+    void setModified(bool v)     { frontBool1 = v; }
+
+    // funDescrName ↔ Waveform::thirdString (+0x50, JSON key "genFunc")
+    std::string const& funDescrName() const { return thirdString; }
+    void setFunDescrName(std::string s)     { thirdString = std::move(s); }
+
     void setFile(std::shared_ptr<Waveform::File> f) { file = std::move(f); }
-    void setName(const std::string& n) { name = n; }
-    void setWaveIndex(int idx) { waveIndex = idx; }
+    void setName(const std::string& n)              { name = n; }
+    void setWaveIndex(int idx)                      { waveIndex = idx; }
 };
 
 } // namespace zhinst

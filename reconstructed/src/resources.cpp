@@ -463,4 +463,19 @@ void Resources::printScopes()  // @0x1ec570
     }
 }
 
+// ============================================================================
+// str(VarType) @0x247dd0 — convert VarType enum to string
+// ============================================================================
+std::string str(VarType vt) {
+    switch (vt) {
+        case VarType_Unset:  return "unset";
+        case VarType_Var:    return "var";
+        case VarType_Const:  return "const";
+        case VarType_Cvar:   return "cvar";
+        case VarType_String: return "string";
+        case VarType_Wave:   return "wave";
+        default:             return "?";
+    }
+}
+
 } // namespace zhinst

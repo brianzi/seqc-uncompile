@@ -26,6 +26,10 @@ struct AsmRegister {
     static AsmRegister Invalid() { return {-1, false}; }
     static AsmRegister Reg(int n) { return {n, true}; }
 
+    // 0x28ebb0 — returns AsmRegister(INT_MAX, true): sentinel used by
+    // splitConstRegisters to mark barrier entries that should be stripped.
+    static AsmRegister magicSkipRegister() { return {0x7fffffff, true}; }
+
     bool isValid() const { return valid; }
     int toInt() const { return value; }
     explicit operator int() const { return value; }

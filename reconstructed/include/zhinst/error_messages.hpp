@@ -25,6 +25,8 @@
 // ============================================================================
 #pragma once
 
+#include "zhinst/exception.hpp"   // ZIAWGCompilerException (Phase 10.7d)
+
 #include <exception>
 #include <map>
 #include <string>
@@ -38,299 +40,309 @@ namespace zhinst {
 // ErrorMessageT — compiler error/warning ID enum
 //
 // Plain enum (not enum class) with int underlying type.
-// Values 1–255 are SeqC compiler messages.
+// Values 0–254 are SeqC compiler messages (verified from BSS map
+// initializer at 0xd5de0 — keys 0x00..0xFE in binary).
 // Values 16384+ are API/device error codes (used by getApiErrorMessage).
-// Gaps: 47, 53 are unassigned.
+// Gaps: 46, 52 are unassigned.
+//
+// Phase 10.7e renumbering: all SeqC compiler entries were previously
+// numbered 1..255 (off by +1 from the binary's actual 0..254 keys).
+// Corrected to match the binary map. The aliases InvalidRegister(=0),
+// ValueOverflow(=5), UnsupportedOp(=11) that previously coexisted
+// as duplicates are now the canonical names — the old CmdWithoutRegister
+// (=0), TooFewArguments(=4), etc. are renamed to match the binary's
+// actual semantics where they differed.
 // ============================================================================
 enum ErrorMessageT : int {
-    // --- Assembler errors (1–12) ---
-    CmdWithoutRegister          = 1,   // "%1% command without valid register"
-    OpcodeRegNotGiven           = 2,   // "opcode %1% register %1% not given"
-    OpcodeValNotGiven           = 3,   // "opcode %1% value %1% not given"
-    RegisterNotExist            = 4,   // "register does not exist"
-    TooFewArguments             = 5,   // "instruction %1% (opcode %2%) expects at least %3% argument(s), %4% argument(s) given"
-    ValueOutOfRange             = 6,   // "value %1% is out of range for %2% bits"
-    Exactly2Args                = 7,   // "addr, subr, andr, orr and xnorr expect exactly 2 arguments"
-    WrongArgCount               = 8,   // "instruction %1% (opcode %2%) expects %3% arguments"
-    ExpectedRegister            = 9,   // "wrong argument type, expected register"
-    ExpectedValue               = 10,  // "wrong argument type, expected value"
-    UserRegNotExist              = 11,  // "user register does not exist, just %1% registers available"
-    InvalidOpcode               = 12,  // "%1% is not a valid opcode"
+    // --- Assembler errors (0–11) ---
+    CmdWithoutRegister          = 0,   // "%1% command without valid register"
+    OpcodeRegNotGiven           = 1,   // "opcode %1% register %1% not given"
+    OpcodeValNotGiven           = 2,   // "opcode %1% value %1% not given"
+    RegisterNotExist            = 3,   // "register does not exist"
+    TooFewArguments             = 4,   // "instruction %1% (opcode %2%) expects at least %3% argument(s), %4% argument(s) given"
+    ValueOutOfRange             = 5,   // "value %1% is out of range for %2% bits"
+    Exactly2Args                = 6,   // "addr, subr, andr, orr and xnorr expect exactly 2 arguments"
+    WrongArgCount               = 7,   // "instruction %1% (opcode %2%) expects %3% arguments"
+    ExpectedRegister            = 8,   // "wrong argument type, expected register"
+    ExpectedValue               = 9,   // "wrong argument type, expected value"
+    UserRegNotExist             = 10,  // "user register does not exist, just %1% registers available"
+    InvalidOpcode               = 11,  // "%1% is not a valid opcode"
 
-    // --- Array errors (13–16) ---
-    ArrayIndexOutOfRange        = 13,
-    ProgramTooLarge             = 14,
-    ArrayIndexNeedConst         = 15,
-    ArraysOnlyWave              = 16,
+    // --- Array errors (12–15) ---
+    ArrayIndexOutOfRange        = 12,
+    ProgramTooLarge             = 13,
+    ArrayIndexNeedConst         = 14,
+    ArraysOnlyWave              = 15,
 
-    // --- Type/memory errors (17–23) ---
-    CantInvertType              = 17,
-    CantInterpretAsBool         = 18,
-    BrokenList                  = 19,
-    FreeNullPtr                 = 20,
-    FreeModifiedPtr             = 21,
-    CacheMemoryFull             = 22,
-    PlayNullPtr                 = 23,
+    // --- Type/memory errors (16–22) ---
+    CantInvertType              = 16,
+    CantInterpretAsBool         = 17,
+    BrokenList                  = 18,
+    FreeNullPtr                 = 19,
+    FreeModifiedPtr             = 20,
+    CacheMemoryFull             = 21,
+    PlayNullPtr                 = 22,
 
-    // --- Case/switch (24–30) ---
-    CaseNeedsConst              = 24,
-    RedefinedCase               = 25,
-    RedefinedDefaultCase        = 26,
-    NeedCaseBeforeStmt          = 27,
-    CasePositiveNatural         = 28,
-    CaseRounded                 = 29,
-    CaseOutsideSwitch           = 30,
+    // --- Case/switch (23–29) ---
+    CaseNeedsConst              = 23,
+    RedefinedCase               = 24,
+    RedefinedDefaultCase        = 25,
+    NeedCaseBeforeStmt          = 26,
+    CasePositiveNatural         = 27,
+    CaseRounded                 = 28,
+    CaseOutsideSwitch           = 29,
 
-    // --- General compiler (31–46) ---
-    ModifyConst                 = 31,
-    CompressError               = 32,
-    ConditionalNeedVarConst     = 33,
-    ExpectedCommand             = 34,
-    UnreachableCode             = 35,
-    CsvInconsistentChannels     = 36,
-    CsvWrongValue               = 37,
-    CsvValueOutOfRange          = 38,
-    CsvEmpty                    = 39,
-    CantDivConstByWave          = 40,
-    ExpectsVarOrConst           = 41,
-    DivisionByZero              = 42,
-    InvalidDeviceNr             = 43,
-    EmptyInput                  = 44,
-    EmptyOperation              = 45,
-    ExecTableExpectsArg         = 46,
-    // 47 — UNASSIGNED
-    ExecTableInvalidConst       = 48,
-    ExecTableInvalidIndex       = 49,
-    WaveNotFittingCache         = 50,
-    WaveNotFittingCacheGapless  = 51,
-    WaveNotFittingMemory        = 52,
-    // 53 — UNASSIGNED
+    // --- General compiler (30–45) ---
+    ModifyConst                 = 30,
+    CompressError               = 31,
+    ConditionalNeedVarConst     = 32,
+    ExpectedCommand             = 33,
+    UnreachableCode             = 34,
+    CsvInconsistentChannels     = 35,
+    CsvWrongValue               = 36,
+    CsvValueOutOfRange          = 37,
+    CsvEmpty                    = 38,
+    CantDivConstByWave          = 39,
+    ExpectsVarOrConst           = 40,
+    DivisionByZero              = 41,
+    InvalidDeviceNr             = 42,
+    EmptyInput                  = 43,
+    EmptyOperation              = 44,
+    ExecTableExpectsArg         = 45,
+    ExecTableInvalidConst       = 46,
+    // 47 — UNASSIGNED (binary has no key 0x2F)
+    ExecTableInvalidIndex       = 48,
+    WaveNotFittingCache         = 49,
+    WaveNotFittingCacheGapless  = 50,
+    WaveNotFittingMemory        = 51,
+    // 52 — previously listed under DeprecatedConst (53→52 in renumbering)
+    // 53 — UNASSIGNED (binary has no key 0x35)
 
-    // --- Deprecation/function validation (54–104) ---
-    DeprecatedConst             = 54,
-    FuncCalledWithLogical       = 55,
-    DeprecatedFunc              = 56,
-    DeprecatedFunc2             = 57,
-    DeprecatedFunc3             = 58,
-    DeprecatedFuncFifo          = 59,
-    FuncNotMultiCore            = 60,
-    FuncEmpty                   = 61,
-    FuncMinArgs                 = 62,
-    FuncExpectsConst            = 63,
-    FuncExpectsConstConst       = 64,
-    FuncExpectsConstVar         = 65,
-    FuncExpects3Const           = 66,
-    FuncExpectsNoArgs           = 67,
-    FuncExpectsSingleArg        = 68,
-    FuncExpectsNArgs            = 69,
-    FuncExpectsMaxArgs          = 70,
-    FuncInvalidArgType          = 71,
-    FuncNoName                  = 72,
-    FuncNoReturn                = 73,
-    FuncNotSupported            = 74,
-    FuncOnlyConst               = 75,
-    FuncPredefined              = 76,
-    FuncNotFound                = 77,
-    FuncExactArgs               = 78,
-    FuncArgLessThan             = 79,
-    DioZsyncMixed               = 80,
-    FuncExpectsStringOrWave     = 81,
-    FuncExpectsConstSecond      = 82,
-    FuncExpectsWaveforms        = 83,
-    AddExpectsMultiWave         = 84,
-    AmplitudeClipped            = 85,
-    ArgMustBeConst              = 86,
-    ArgMustBeString             = 87,
-    ArgOutOfAmplRange           = 88,
-    ArgGreaterThanLength        = 89,
-    JoinMin2                    = 90,
-    UnknownWaveform             = 91,
-    FuncExactArgs2              = 92,
-    FuncArgs2or3                = 93,
-    FuncArgsRange               = 94,
-    ArgMustBePositive           = 95,
-    ArgLargerThanLength         = 96,
-    ArgOverflow                 = 97,
-    FuncNoArgsGiven             = 98,
-    ArgNotZero                  = 99,
-    ValueCapped                 = 100,
-    ValueMustBe1or2             = 101,
-    LfsrInitZero                = 102,
-    GenerateExpectsString       = 103,
-    CantCallWithVar             = 104,
+    // --- Deprecation/function validation (52–103) ---
+    DeprecatedConst             = 52,  // "constant '%1%' is deprecated, please use %2%"
+    FuncCalledWithLogical       = 54,
+    DeprecatedFunc              = 55,
+    DeprecatedFunc2             = 56,
+    DeprecatedFunc3             = 57,
+    DeprecatedFuncFifo          = 58,
+    FuncNotMultiCore            = 59,
+    FuncEmpty                   = 60,
+    FuncMinArgs                 = 61,
+    FuncExpectsConst            = 62,
+    FuncExpectsConstConst       = 63,
+    FuncExpectsConstVar         = 64,
+    FuncExpects3Const           = 65,
+    FuncExpectsNoArgs           = 66,
+    FuncExpectsSingleArg        = 67,
+    FuncExpectsNArgs            = 68,
+    FuncExpectsMaxArgs          = 69,
+    FuncInvalidArgType          = 70,
+    FuncNoName                  = 71,
+    FuncNoReturn                = 72,
+    FuncNotSupported            = 73,
+    FuncOnlyConst               = 74,
+    FuncPredefined              = 75,
+    FuncNotFound                = 76,
+    FuncExactArgs               = 77,
+    FuncArgLessThan             = 78,
+    DioZsyncMixed               = 79,
+    FuncExpectsStringOrWave     = 80,
+    FuncExpectsConstSecond      = 81,
+    FuncExpectsWaveforms        = 82,
+    AddExpectsMultiWave         = 83,
+    AmplitudeClipped            = 84,
+    ArgMustBeConst              = 85,
+    ArgMustBeString             = 86,
+    ArgOutOfAmplRange           = 87,
+    ArgGreaterThanLength        = 88,
+    JoinMin2                    = 89,
+    UnknownWaveform             = 90,
+    FuncExactArgs2              = 91,
+    FuncArgs2or3                = 92,
+    FuncArgsRange               = 93,
+    ArgMustBePositive           = 94,
+    ArgLargerThanLength         = 95,
+    ArgOverflow                 = 96,
+    FuncNoArgsGiven             = 97,
+    ArgNotZero                  = 98,
+    ValueCapped                 = 99,
+    ValueMustBe1or2             = 100,
+    LfsrInitZero                = 101,
+    GenerateExpectsString       = 102,
+    CantCallWithVar             = 103,
 
-    // --- Specific built-in functions (105–111) ---
-    GetUserRegArgs              = 105,
-    GetUserRegRange             = 106,
-    GetCntArgs                  = 107,
-    GetCntRange                 = 108,
-    GetSweeperLenArgs           = 109,
-    GetSweeperLenArg            = 110,
-    InvalidArgValue             = 111,
+    // --- Specific built-in functions (104–110) ---
+    GetUserRegArgs              = 104,
+    GetUserRegRange             = 105,
+    GetCntArgs                  = 106,
+    GetCntRange                 = 107,
+    GetSweeperLenArgs           = 108,
+    GetSweeperLenArg            = 109,
+    InvalidArgValue             = 110,
 
-    // --- Increment/decrement/file (112–125) ---
-    CantIncrement               = 112,
-    CantDecrement               = 113,
-    FileNotExist                = 114,
-    NoSuchFile                  = 115,
-    CantAddTypes                = 116,
-    CantSubtractTypes           = 117,
-    InvalidZSyncData            = 118,
-    InvalidFeedbackData         = 119,
-    OnlyConstVarInverted        = 120,
-    LabelNotFound               = 121,
-    LockArgs                    = 122,
-    LockOnlyWave                = 123,
-    TooManyIterations           = 124,
-    OnlyConstVarNegated         = 125,
+    // --- Increment/decrement/file (111–124) ---
+    CantIncrement               = 111,
+    CantDecrement               = 112,
+    FileNotExist                = 113,
+    NoSuchFile                  = 114,
+    CantAddTypes                = 115,
+    CantSubtractTypes           = 116,
+    InvalidZSyncData            = 117,
+    InvalidFeedbackData         = 118,
+    OnlyConstVarInverted        = 119,
+    LabelNotFound               = 120,
+    LockArgs                    = 121,
+    LockOnlyWave                = 122,
+    TooManyIterations           = 123,
+    OnlyConstVarNegated         = 124,
 
-    // --- Node/oscillator (126–134) ---
-    OperationWithoutOperator    = 126,
-    NoValidBranchArg            = 127,
-    NodeOnlySetDouble           = 128,
-    NodePrecisionLoss           = 129,
-    FreqNodeConstOnly           = 130,
-    PhaseNodeConstOnly          = 131,
-    NodeNotExist                = 132,
-    NodeNeedsMFOption           = 133,
-    SequencerCantDrive          = 134,
+    // --- Node/oscillator (125–133) ---
+    OperationWithoutOperator    = 125,
+    NoValidBranchArg            = 126,
+    NodeOnlySetDouble           = 127,
+    NodePrecisionLoss           = 128,
+    FreqNodeConstOnly           = 129,
+    PhaseNodeConstOnly          = 130,
+    NodeNotExist                = 131,
+    NodeNeedsMFOption           = 132,
+    SequencerCantDrive          = 133,
 
-    // --- Variable arithmetic (135–148) ---
-    ConstVarLogicalInvert       = 135,
-    InvalidArgument             = 136,
-    FuncSingleArg               = 137,
-    FuncExactly2Args            = 138,
-    VarMultNatural              = 139,
-    CantAssignType              = 140,
-    CantMultiplyTypes           = 141,
-    CantDivideTypes             = 142,
-    CantModuloTypes             = 143,
-    CantBitAndTypes             = 144,
-    CantBitOrTypes              = 145,
-    CantCombineTypes            = 146,
-    CantCompareTypes            = 147,
-    NoValidOpType               = 148,
+    // --- Variable arithmetic (134–147) ---
+    ConstVarLogicalInvert       = 134,
+    InvalidArgument             = 135,
+    FuncSingleArg               = 136,
+    FuncExactly2Args            = 137,
+    VarMultNatural              = 138,
+    CantAssignType              = 139,
+    CantMultiplyTypes           = 140,
+    CantDivideTypes             = 141,
+    CantModuloTypes             = 142,
+    CantBitAndTypes             = 143,
+    CantBitOrTypes              = 144,
+    CantCombineTypes            = 145,
+    CantCompareTypes            = 146,
+    NoValidOpType               = 147,
 
-    // --- File/playWave (149–162) ---
-    CantWriteFile               = 149,
-    OnlyConstWaveIndex          = 150,
-    UnexpectedArgs              = 151,
-    OffsetTooHigh               = 152,
-    ExpectsOffsetAndLength      = 153,
-    LengthTooLong               = 154,
-    ExpectsSamplesConst         = 155,
-    ExpectsAddrConstOrVar       = 156,
-    LengthIsZero                = 157,
-    ExpectsWaveName             = 158,
-    TooManyChannels             = 159,
-    SampleRateConstOnly         = 160,
-    SampleRateTooHigh           = 161,
-    DioSampleRateTooHigh        = 162,
+    // --- File/playWave (148–161) ---
+    CantWriteFile               = 148,
+    OnlyConstWaveIndex          = 149,
+    UnexpectedArgs              = 150,
+    OffsetTooHigh               = 151,
+    ExpectsOffsetAndLength      = 152,
+    LengthTooLong               = 153,
+    ExpectsSamplesConst         = 154,
+    ExpectsAddrConstOrVar       = 155,
+    LengthIsZero                = 156,
+    ExpectsWaveName             = 157,
+    TooManyChannels             = 158,
+    SampleRateConstOnly         = 159,
+    SampleRateTooHigh           = 160,
+    DioSampleRateTooHigh        = 161,
 
-    // --- Prefetch/format/definition (163–172) ---
-    PrefetchError               = 163,
-    InvalidPrefetchId           = 164,
-    SwapNotConnected            = 165,
-    PrefetchNotSupported        = 166,
-    FormatMoreArgs              = 167,
-    FormatLessArgs              = 168,
-    FormatCantInterpret         = 169,
-    FormatFuncArgs              = 170,
-    FormatVarReturn             = 171,
-    AlreadyDefined              = 172,
+    // --- Prefetch/format/definition (162–171) ---
+    PrefetchError               = 162,
+    InvalidPrefetchId           = 163,
+    SwapNotConnected            = 164,
+    PrefetchNotSupported        = 165,
+    FormatMoreArgs              = 166,
+    FormatLessArgs              = 167,
+    FormatCantInterpret         = 168,
+    FormatFuncArgs              = 169,
+    FormatVarReturn             = 170,
+    AlreadyDefined              = 171,
 
-    // --- Register/return/variable (173–184) ---
-    OutOfRegisters              = 173,
-    ReturnNotInFunc             = 174,
-    TypeMismatchRead            = 175,
-    TypeMismatchWrite           = 176,
-    UninitializedVar            = 177,
-    UnknownVar                  = 178,
-    ExpectedReturnValue         = 179,
-    ReturnStackEmpty            = 180,
-    UnexpectedReturnValue       = 181,
-    ReturnTypeMismatch          = 182,
-    InvalidReturnArg            = 183,
-    RepeatNonNegative           = 184,
+    // --- Register/return/variable (172–183) ---
+    OutOfRegisters              = 172,
+    ReturnNotInFunc             = 173,
+    TypeMismatchRead            = 174,
+    TypeMismatchWrite           = 175,
+    UninitializedVar            = 176,
+    UnknownVar                  = 177,
+    ExpectedReturnValue         = 178,
+    ReturnStackEmpty            = 179,
+    UnexpectedReturnValue       = 180,
+    ReturnTypeMismatch          = 181,
+    InvalidReturnArg            = 182,
+    RepeatNonNegative           = 183,
 
-    // --- setDouble/setInt/setRate (185–197) ---
-    SetDoubleArgs               = 185,
-    SetDoubleStringFirst        = 186,
-    SetDoubleVarConstSecond     = 187,
-    SetDoubleConstThird         = 188,
-    SetIntArgs                  = 189,
-    SetIntStringFirst           = 190,
-    SetIntVarConstSecond        = 191,
-    SetRateConst                = 192,
-    SetRateOneConst             = 193,
-    SetPrecompConst             = 194,
-    SetPrecompOneConst          = 195,
-    PrecompFlagsBranch          = 196,
-    PrecompFlagsLoop            = 197,
+    // --- setDouble/setInt/setRate (184–196) ---
+    SetDoubleArgs               = 184,
+    SetDoubleStringFirst        = 185,
+    SetDoubleVarConstSecond     = 186,
+    SetDoubleConstThird         = 187,
+    SetIntArgs                  = 188,
+    SetIntStringFirst           = 189,
+    SetIntVarConstSecond        = 190,
+    SetRateConst                = 191,
+    SetRateOneConst             = 192,
+    SetPrecompConst             = 193,
+    SetPrecompOneConst          = 194,
+    PrecompFlagsBranch          = 195,
+    PrecompFlagsLoop            = 196,
 
-    // --- setUserReg/PRNG/trigger (198–212) ---
-    SetUserRegConstFirst        = 198,
-    SetUserRegRange             = 199,
-    SetUserRegArgs              = 200,
-    SetUserRegVarConst          = 201,
-    InvalidResetOscPhase        = 202,
-    ResetOscPhaseArgs           = 203,
-    PrngSeedPositive            = 204,
-    PrngSeedZero                = 205,
-    PrngSeedMax                 = 206,
-    PrngRangeArgs               = 207,
-    SetTriggerArgs              = 208,
-    SetInternalTriggerArgs      = 209,
-    ExpectsTwoConst             = 210,
-    ExpectsOneConst             = 211,
-    SineGenIndex                = 212,
+    // --- setUserReg/PRNG/trigger (197–211) ---
+    SetUserRegConstFirst        = 197,
+    SetUserRegRange             = 198,
+    SetUserRegArgs              = 199,
+    SetUserRegVarConst          = 200,
+    InvalidResetOscPhase        = 201,
+    ResetOscPhaseArgs           = 202,
+    PrngSeedPositive            = 203,
+    PrngSeedZero                = 204,
+    PrngSeedMax                 = 205,
+    PrngRangeArgs               = 206,
+    SetTriggerArgs              = 207,
+    SetInternalTriggerArgs      = 208,
+    ExpectsTwoConst             = 209,
+    ExpectsOneConst             = 210,
+    SineGenIndex                = 211,
 
-    // --- Misc (213–227) ---
-    CantShiftTypes              = 213,
-    StatementNotSupported       = 214,
-    SwitchNoCases               = 215,
-    IndexMustBe                 = 216,
-    UnknownFunction             = 217,
-    UnknownDevice               = 218,
-    FifoNotSupported            = 219,
-    FifoRequired                = 220,
-    UnlockArgs                  = 221,
-    UnlockOnlyWave              = 222,
-    NotSupportedGrouping        = 223,
-    DivNotSupportedVar          = 224,
-    CantAssignTypeless          = 225,
-    VectTooManyArgs             = 226,
-    WaitPositive                = 227,
+    // --- Misc (212–226) ---
+    CantShiftTypes              = 212,
+    StatementNotSupported       = 213,
+    SwitchNoCases               = 214,
+    IndexMustBe                 = 215,
+    UnknownFunction             = 216,
+    UnknownDevice               = 217,
+    FifoNotSupported            = 218,
+    FifoRequired                = 219,
+    UnlockArgs                  = 220,
+    UnlockOnlyWave              = 221,
+    NotSupportedGrouping        = 222,
+    DivNotSupportedVar          = 223,
+    CantAssignTypeless          = 224,
+    VectTooManyArgs             = 225,
+    WaitPositive                = 226,
 
-    // --- Waveform errors (228–255) ---
-    WaveformNotExist            = 228,
-    CantModifyVarInRepeat       = 229,
-    InconsistentChannels        = 230,
-    WaveNotAligned              = 231,
-    PlayLenNotAligned           = 232,
-    WaveformLengthMismatch      = 233,
-    WaveformNotFound            = 234,
-    UninitializedWaveform       = 235,
-    WaveNotUnique               = 236,
-    InvalidChannel              = 237,
-    WaveWrongChannels           = 238,
-    MixedChannelNumbering       = 239,
-    NoWaveformInFunc            = 240,
-    DuplicateChannel            = 241,
-    TooManyWavetableWaves       = 242,
-    XorNotSupported             = 243,
-    MinWaveformLength           = 244,
-    WaveformBelowMin            = 245,
-    PlayLenBelowMin             = 246,
-    WaveUsedNotLoaded           = 247,
-    WaveNotFittingPreload       = 248,
-    WaveAlreadyAssigned         = 249,
-    WaveIndexUsed               = 250,
-    WaveNameInUse               = 251,
-    WaveIndexExceedsTable       = 252,
-    InvalidWaveformName         = 253,
-    BitwiseNegativeOp2          = 254,
-    BitwiseNegativeOp1          = 255,
+    // --- Waveform errors (227–254) ---
+    WaveformNotExist            = 227,
+    CantModifyVarInRepeat       = 228,
+    InconsistentChannels        = 229,
+    WaveNotAligned              = 230,
+    PlayLenNotAligned           = 231,
+    WaveformLengthMismatch      = 232,
+    WaveformNotFound            = 233,
+    UninitializedWaveform       = 234,
+    WaveNotUnique               = 235,
+    InvalidChannel              = 236,
+    WaveWrongChannels           = 237,
+    MixedChannelNumbering       = 238,
+    NoWaveformInFunc            = 239,
+    DuplicateChannel            = 240,
+    TooManyWavetableWaves       = 241,
+    XorNotSupported             = 242,
+    MinWaveformLength           = 243,
+    WaveformBelowMin            = 244,
+    PlayLenBelowMin             = 245,
+    WaveUsedNotLoaded           = 246,
+    WaveNotFittingPreload       = 247,
+    WaveAlreadyAssigned         = 248,
+    WaveIndexUsed               = 249,
+    WaveNameInUse               = 250,
+    WaveIndexExceedsTable       = 251,
+    InvalidWaveformName         = 252,
+    BitwiseNegativeOp2          = 253,
+    BitwiseNegativeOp1          = 254,
 
     // --- General status codes (16384+) ---
     ApiSuccess                  = 16384,
@@ -391,13 +403,20 @@ enum ErrorMessageT : int {
     FwOutOfSequence             = 36876,
     FwVectorOutOfRange          = 36877,
 
-    // TODO: These names are used in asm_commands.cpp / asm_commands_impl_*.cpp
-    // but their numeric values are unknown. They may be aliases for existing
-    // enum values above (e.g., InvalidRegister might be RegisterNotExist=4).
-    // Added here as placeholders to allow compilation.
-    InvalidRegister             = -1,   // PLACEHOLDER — real value unknown
-    UnsupportedOp               = -2,   // PLACEHOLDER — real value unknown
-    ValueOverflow               = -3,   // PLACEHOLDER — real value unknown
+    // Aliases for asm_commands.cpp (verified from binary throw sites):
+    //   prf: esi=0  → CmdWithoutRegister (= 0)
+    //   wvfs: esi=5 → ValueOutOfRange    (= 5)
+    //   wvfs/wvft/wwvfq cervino: esi=0xb → InvalidOpcode (= 11)
+    //
+    // After the Phase 10.7e renumbering these aliases are now redundant —
+    // they resolve to the same values as the canonical names above:
+    //   InvalidRegister ≡ CmdWithoutRegister  = 0
+    //   ValueOverflow   ≡ ValueOutOfRange     = 5
+    //   UnsupportedOp   ≡ InvalidOpcode       = 11
+    // Kept as aliases for source compatibility (src/ uses these names).
+    InvalidRegister             = 0,    // alias for CmdWithoutRegister
+    ValueOverflow               = 5,    // alias for ValueOutOfRange
+    UnsupportedOp               = 11,   // alias for InvalidOpcode
 };
 
 // ============================================================================
@@ -449,20 +468,15 @@ std::string const& getApiErrorMessage(int ziResultCode);
 // ============================================================================
 // ZIAWGCompilerException — thrown on compiler/assembler errors
 //
-// TODO: exact layout and vtable address not yet confirmed.
-// Used in awg_assembler_impl_pipeline.cpp and other compilation paths.
+// As of Phase 10.7d this class is fully reconstructed in
+// include/zhinst/exception.hpp (re-included at the top of this file).
+// It inherits from zhinst::Exception (verified MI layout: std::bad_exception
+// + boost::exception, total size 0x60). The two binary ctors (default at
+// 0x2e72f0 and string at 0x2e7360) are reproduced there.
+//
+// This file no longer declares the class — only includes the canonical
+// definition for source-level compatibility with existing #include
+// "zhinst/error_messages.hpp" sites that throw ZIAWGCompilerException.
 // ============================================================================
-class ZIAWGCompilerException : public std::exception {
-public:
-    explicit ZIAWGCompilerException(std::string const& msg) : message_(msg) {}
-    explicit ZIAWGCompilerException(int code, std::string const& msg)
-        : code_(code), message_(msg) {}
-    ~ZIAWGCompilerException() override = default;
-    const char* what() const noexcept override { return message_.c_str(); }
-    int code() const { return code_; }
-private:
-    int code_ = 0;
-    std::string message_;
-};
 
 } // namespace zhinst

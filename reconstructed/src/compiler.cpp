@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "zhinst/compiler.hpp"
+#include "zhinst/frontend_lowering.hpp"
 #include "zhinst/seqc_ast_node.hpp"
 #include "zhinst/expression.hpp"
 
@@ -355,17 +356,15 @@ void Compiler::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {
 }
 
 // 0x123550
-const void* Compiler::getNodeAccessList() const {
-    // Returns pointer into customFunctions_ sub-object
-    // return reinterpret_cast<const char*>(customFunctions_.get()) + 0x150;
-    return nullptr;  // placeholder
+const std::vector<NodeMapItem>* Compiler::getNodeAccessList() const {
+    if (!customFunctions_) return nullptr;
+    return &customFunctions_->nodeList();
 }
 
 // 0x123570
-const void* Compiler::getNodeToModeMap() const {
-    // Returns pointer into customFunctions_ sub-object
-    // return reinterpret_cast<const char*>(customFunctions_.get()) + 0x128;
-    return nullptr;  // placeholder
+const std::unordered_map<NodeMapItem, std::set<AccessMode>>* Compiler::getNodeToModeMap() const {
+    if (!customFunctions_) return nullptr;
+    return &customFunctions_->accessModeMap();
 }
 
 // 0x123590
@@ -424,8 +423,17 @@ std::vector<int> Compiler::getLineMap(int offset) const {
 
 // 0x1c1da0 (~1KB)
 // Thin facade: packs arguments into FrontendLoweringContext, creates empty
-// FrontendLoweringState, dispatches to SeqCAstNode virtual method (vtable[0]).
-void FrontEndLoweringFacade::lower(
+// FrontendLoweringState, dispatches to SeqCAstNode vtable[0] virtual
+// (the 3-arg evaluate: Resources, Context&, State&).
+// Returns {state.result (shared_ptr<Node>), evaluate_output (shared_ptr<EvalResults>)}.
+//
+// CORRECTION 2026-04-23 (Phase 15a-i): return type changed from void to
+// LowerResult (32B sret = 2 shared_ptrs). Evidence:
+//   - sret save at 0x1c1dba: mov [rbp-0xa0], rdi
+//   - 0x1c1fb6: movups [r15], [rbp-0x90]     → sret[0] = state.result (shared_ptr<Node>)
+//   - 0x1c1fcc: movups [r15+0x10], [rbp-0x50] → sret[1] = evaluate output (shared_ptr<EvalResults>)
+//   - Caller @0x11f92f: movups [r15+0x28], sret[0]  → Compiler.ast_ = lowered AST root
+FrontEndLoweringFacade::LowerResult FrontEndLoweringFacade::lower(
     std::shared_ptr<Resources> resources,
     SeqCAstNode& ast,
     CompilerMessageCollection& messages,
@@ -436,17 +444,28 @@ void FrontEndLoweringFacade::lower(
     int channelGrouping)
 {
     // 1. Build FrontendLoweringContext on stack (holds shared_ptrs + int)
-    //    Contains: asmCommands, customFunctions, waveformGen, wavetable, channelGrouping
+    FrontendLoweringContext context;
+    context.messages = &messages;
+    context.asmCommands = std::move(asmCommands);
+    context.customFunctions = std::move(customFunctions);
+    context.waveformGen = std::move(waveformGen);
+    context.wavetable = std::move(wavetable);
+    context.channelGrouping = channelGrouping;
 
-    // 2. Create empty FrontendLoweringState on stack (vector<string>)
+    // 2. Create empty FrontendLoweringState on stack
+    FrontendLoweringState state;
 
-    // 3. Virtual dispatch: ast.lower(output, resources, context, state)
+    // 3. Virtual dispatch: ast.vtable[0](sret, ast, resources, context, state)
     //    This is the core compilation — the AST node polymorphically
     //    generates assembly instructions via the context.
+    //    Returns shared_ptr<EvalResults> via sret.
+    // TODO: call ast.evaluate(resources, context, state) once the virtual is declared
 
-    // 4. Copy results from output buffer to return value
-
-    // 5. Cleanup locals
+    // 4. Return {state.result, evaluate_output}
+    LowerResult result;
+    result.astResult = std::move(state.result);
+    // result.evalResult = std::move(evaluateOutput);  // TODO: wire up after virtual declared
+    return result;
 }
 
 }  // namespace zhinst

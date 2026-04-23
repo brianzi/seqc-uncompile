@@ -460,7 +460,7 @@ Extends Waveform base (0xD8 bytes) with 8 bytes of IR-specific fields.
 |--------|------|----------|-----------|------------------------------------|
 | +0x00  | 0xD8 | Waveform | (base)    | Inherited Waveform layout          |
 | +0xD8  | 2    | uint16_t | irField1  | IR-specific field                  |
-| +0xDA  | 1    | bool     | irBool1   | IR-specific flag                   |
+| +0xDA  | 1    | bool     | crossesCacheLine_ | true for fillers / when block crosses a CL |
 | +0xDC  | 4    | int32_t  | irField2  | IR-specific field                  |
 
 ## WaveIndexTracker (0x28 bytes) — NEW Phase 5

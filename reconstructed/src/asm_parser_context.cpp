@@ -337,9 +337,16 @@ AsmExpression* addCommand(AsmParserContext* ctx,
     cmd->value = pc;   // +0x3C
 
     if (args) {
-        // Extract command name from args' string field at +0x08
-        // Find first space to isolate the command token
-        std::string nameStr = args->name; /* TODO: up to first space */
+        // Extract command name from args->name up to the first space.
+        // Verified at 0x28c712-0x28c75a: code unpacks the SSO/heap pointer
+        // pair from the std::string at args+0x08 (size at +0x08 LSB clear,
+        // ptr at +0x18 / size at +0x10 if heap), then memchr(buf, 0x20, len)
+        // to locate the first space; the command token is everything before.
+        const std::string& fullName = args->name;
+        auto spacePos = fullName.find(' ');
+        std::string nameStr = (spacePos == std::string::npos)
+            ? fullName
+            : fullName.substr(0, spacePos);
 
         // Destroy the args expression (consumed)
         args->~AsmExpression();
@@ -371,7 +378,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
 
         // Store Label data into the AsmExpression
         AsmParserContext::Label lbl(pc, labelStr);
-        cmd->labelPc = lbl.pc;        // +0x58
+        cmd->labelPc() = lbl.pc;      // +0x58 (labelPc is alias for labelIndex)
         // Move/copy lbl.name into cmd's label string at +0x60
         // Set hasLabel flag at +0x78 = true
     }

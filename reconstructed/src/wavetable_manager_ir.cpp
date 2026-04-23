@@ -102,6 +102,17 @@ WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 // 4. Copies fillName into waveform->secondaryName (+0x50)
 // 5. Inserts the waveform into the target manager (rsi parameter, called on r14)
 // 6. Returns shared_ptr<WaveformIR> (sret via rdi)
+// Disasm 0x2a9fe0..0x2aa0d3 details:
+//   1. allocate_shared<WaveformIR>(allocator<WaveformIR>{}, name, type=2, dc)
+//      → 0x2aa004 calls 0x2aa170 (dispatcher); the dispatcher inlines a
+//      WaveformIR(name, File::Type, DC&) ctor (no separate ctor symbol).
+//   2. Identity-guard: if &raw->signal != &signal, copy the three vector
+//      members (samples_/markers_/markerBits_) via __assign_with_size.
+//   3. Block-copy the 16 bytes at Signal+0x48..+0x57 (channels_/reserveOnly_/
+//      padding/length_low) using a single movups xmm0 — i.e. one 16-byte
+//      memcpy of the trailing Signal scalar block.
+//   4. If &raw->secondaryName != &fillName, basic_string copy-assign.
+//   5. insertWaveform(this, wf).
 template<>
 std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
     const std::string& name,
@@ -109,34 +120,34 @@ std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
     const std::string& fillName,
     const DeviceConstants& dc)  // 0x2a9fe0
 {
-    // Create the WaveformIR with file type = 2 (generated)
-    // TODO: WaveformIR has no (name, Type, DC) ctor. The binary likely
-    // constructs a Waveform first then wraps. Using Waveform→WaveformIR path:
-    auto baseWf = std::make_shared<Waveform>();  // TODO: needs proper Waveform ctor
-    baseWf->name = name;
-    auto wf = std::make_shared<WaveformIR>(std::move(baseWf));
+    // Type 2 = synthetic/generated waveform (the dispatcher hard-codes this)
+    constexpr auto kType = static_cast<Waveform::File::Type>(2);
+    auto wf = std::allocate_shared<WaveformIR>(
+        std::allocator<WaveformIR>{}, name, kType, dc);
 
     WaveformIR* raw = wf.get();
 
-    // Copy signal data if source != dest
+    // Copy signal data if source != dest (binary's identity guard at 0x2aa01e)
     if (&raw->signal != &signal) {
         raw->signal.samples_.assign(signal.samples_.begin(), signal.samples_.end());
         raw->signal.markers_.assign(signal.markers_.begin(), signal.markers_.end());
         raw->signal.markerBits_.assign(signal.markerBits_.begin(), signal.markerBits_.end());
     }
 
-    // TODO: Copy signal metadata — Signal has channels_ and reserveOnly_ at +0x48,
-    // but no 'metadata' aggregate field. Exact field mapping TBD.
-    raw->signal.channels_ = signal.channels_;
+    // 0x2aa073-0x2aa079: single 16-byte block copy of Signal+0x48..+0x57.
+    // This covers (in order): channels_ (uint16, +0x48), reserveOnly_ (bool,
+    // +0x4A), 5 bytes of padding, and the low 8 bytes of length_ (+0x50).
+    // Reproduce as field-by-field assignment for readability.
+    raw->signal.channels_    = signal.channels_;
     raw->signal.reserveOnly_ = signal.reserveOnly_;
-    raw->signal.length_ = signal.length_;
+    raw->signal.length_      = signal.length_;
 
-    // Copy secondary name (fill pattern name)
-    raw->secondaryName = fillName;
+    // Copy the secondary "fill" name (binary at 0x2aa088 also has identity guard)
+    if (&raw->secondaryName != &fillName) {
+        raw->secondaryName = fillName;
+    }
 
-    // Insert into this manager
     insertWaveform(wf);
-
     return wf;
 }
 

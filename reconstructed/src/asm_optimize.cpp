@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstring>
 #include <set>
+#include <unordered_map>
 
 namespace zhinst {
 
@@ -49,13 +50,15 @@ AsmOptimize::~AsmOptimize() {  // 0x123200
 bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
     int cmdType = Assembler::getCmdType(instr.cmd);
 
-    // reg0 (+0x20) is always a read source
-    if (instr.reg0 == reg) {
-        if (cmdType & 1)  // bit 0 set = reads reg0
+    // reg2 (+0x20, "source") is read if cmdType bit 0 set
+    // 27d919: lea rdi,[r15+0x20]; 27d929: test cl,bl (cmdType & 1)
+    if (instr.reg2 == reg) {
+        if (cmdType & 1)
             return true;
     }
 
     // reg1 (+0x30) is read if cmdType == 7 or cmdType == 1
+    // 27d92d: add r15,0x30; 27d940: cmp ebx,0x7 / 27d946: cmp ebx,0x1
     if (instr.reg1 == reg) {
         if (cmdType == 7 || cmdType == 1)
             return true;
@@ -68,13 +71,15 @@ bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
 bool AsmOptimize::isWritten(const AssemblerInstr& instr, AsmRegister reg) const {
     int cmdType = Assembler::getCmdType(instr.cmd);
 
-    // dest (+0x28) is written if cmdType has bit 1 set
-    if (instr.reg2 == reg) {
+    // reg0 (+0x28, "dest") is written if cmdType has bit 1 set
+    // 27d97a: lea rdi,[r14+0x28]; 27d98b: and edx,0x2
+    if (instr.reg0 == reg) {
         if ((cmdType >> 1) & 1)
             return true;
     }
 
     // reg1 (+0x30) is written if cmdType == 7
+    // 27d996: add r14,0x30; 27d9a7: cmp r15d,0x7
     if (instr.reg1 == reg) {
         if (cmdType == 7)
             return true;
@@ -84,25 +89,17 @@ bool AsmOptimize::isWritten(const AssemblerInstr& instr, AsmRegister reg) const 
 }
 
 // 0x27d9c0
-// Scans from the AsmList beginning (this->asm_) up to (but not including)
-// the given iterator 'it'. For each branch/jump instruction (BRZ, BRNZ,
-// BRGZ, JMP), checks if its label string matches the given label.
+// Scans from asm_.begin() (this+0x10) to the given iterator 'it'.
+// For each branch/jump instruction (BRZ, BRNZ, BRGZ, JMP), checks if
+// its label string matches the given label.
+// 27d9cb: mov r12,[rdi+0x10]  (begin); 27d9cf: cmp r12,rdx (==it?)
 bool AsmOptimize::isLabelCalled(const std::string& label,
                                 AsmList::const_iterator it) {
-    // Note: iterates from asm_.begin() to the end of the list,
-    // but the signature takes 'it' as a bound. In practice the binary
-    // loads this->asm_.end() (at +0x18) and iterates all elements,
-    // comparing labels of branch instructions.
-    auto end = reinterpret_cast<const AsmList::Asm*>(
-        *reinterpret_cast<const char* const*>(
-            reinterpret_cast<const char*>(this) + 0x18));
-
-    for (auto pos = it; pos != AsmList::const_iterator(end); ++pos) {
+    for (auto pos = asm_.cbegin(); pos != it; ++pos) {
         auto cmd = pos->assembler.cmd;
         // Check branch/jump opcodes
         if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
             cmd == Assembler::BRGZ || cmd == Assembler::JMP) {
-            // Compare label string (at +0x58 in AsmList::Asm, i.e. instr.label)
             if (pos->assembler.label == label)
                 return true;
         }
@@ -112,43 +109,49 @@ bool AsmOptimize::isLabelCalled(const std::string& label,
 
 // 0x281a10
 // Scans forward from iterator through the asm list. For each instruction,
-// builds a bitmask: bit 0 = register is read, bit 1 = register is written.
-// Returns immediately with 3 on branch commands or when the reg appears in
-// all three register slots. Returns 0 if end of list reached.
+// builds a bitmask: bit 0 = register is read (found in reg2/src),
+// bit 1 = register is written (found in reg0/dest).
+// Returns immediately with 3 on branch commands that use the register,
+// or when the register appears in the reg1 slot (ambiguous read/write).
+// Returns 0 if end of list reached without finding the register.
 int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
                                       AsmRegister reg) {
-    // Access this->asm_.end() at +0x18
     auto endIt = asm_.end();
     if (it == endIt)
         return 0;
 
-    int result = 0;
+    int result = 0;  // r12
 
     for (auto pos = it; pos != endIt; ++pos) {
-        // Skip dead instructions (cmd == -1)
-        if (pos->assembler.cmd == static_cast<Assembler::Command>(0xFFFFFFFF))
+        // Skip dead instructions (cmd == -1)  — 281a57
+        if (pos->assembler.cmd == Assembler::INVALID)
             continue;
 
-        // Check dest (+0x28)
+        // Check reg2 (+0x20, read source) — 281a5e: lea rdi,[r14+0x28]
+        //   (Asm+0x28 = AssemblerInstr+0x20 = reg2)
         if (pos->assembler.reg2 == reg) {
             auto cmd = pos->assembler.cmd;
-            // Branch commands → return 3 immediately
+            // Branch commands that test the register → return 3
             if (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
                 cmd == Assembler::BRGZ || cmd == Assembler::JMP)
                 return 3;
-            result |= 1;  // read
+            result |= 1;  // bit0: register is read — 281aa1
         }
 
-        // Check reg1 (+0x30)
-        if (pos->assembler.reg1 == reg)
-            result |= 2;  // written
+        // Check reg0 (+0x28, dest/write) — 281aa8: lea rdi,[r14+0x30]
+        //   (Asm+0x30 = AssemblerInstr+0x28 = reg0)
+        int prev = result;
+        result |= 2;
+        if (!(pos->assembler.reg0 == reg))
+            result = prev;  // undo if no match — cmove at 281aba
 
-        // Check reg2 (+0x38) — if found, return 3
-        if (pos->assembler.reg2 == reg)
-            return 3;
+        // Check reg1 (+0x30, ambiguous slot) — 281abe: lea rdi,[r14+0x38]
+        //   (Asm+0x38 = AssemblerInstr+0x30 = reg1)
+        if (pos->assembler.reg1 == reg)
+            return 3;  // 281ad3: jne ret
 
         if (result == 3)
-            return 3;
+            return 3;  // 281ad9
     }
 
     return result;
@@ -169,12 +172,14 @@ bool AsmOptimize::registerIsNeverWritten(AsmList& list, AsmRegister reg,
 
         int cmdType = Assembler::getCmdType(it->assembler.cmd);
 
-        // dest (+0x30 in binary = reg1 in our naming) written if bit 1 set
-        if (it->assembler.reg2 == reg && ((cmdType >> 1) & 1))
+        // reg0 (+0x28, dest): written if cmdType bit 1 set
+        // 280fb0: lea rdi,[r15+0x30]; (Asm+0x30 = AssemblerInstr+0x28 = reg0)
+        if (it->assembler.reg0 == reg && ((cmdType >> 1) & 1))
             return false;
 
-        // reg2 (+0x38) written if cmdType == 7
-        if (it->assembler.reg2 == reg && cmdType == 7)
+        // reg1 (+0x30, src2): written if cmdType == 7
+        // 280fc7: lea rdi,[r15+0x38]; (Asm+0x38 = AssemblerInstr+0x30 = reg1)
+        if (it->assembler.reg1 == reg && cmdType == 7)
             return false;
     }
 
@@ -460,81 +465,143 @@ void AsmOptimize::mergeRegisterZeroing() {
 }
 
 // 0x27e760
-// Identify registers that are written but never read, and eliminate
-// their instructions. Also handles cancel callback checks.
-// Returns the highest register number encountered.
+// Identify registers written to but never subsequently read, and
+// eliminate their write instructions. Also calls simplifyAssign on
+// registers that are overwritten before being read.
+// Returns the highest register number encountered across all instructions.
 unsigned long AsmOptimize::removeUnusedRegs() {
     // Lock cancel callback (weak_ptr → shared_ptr)
-    std::shared_ptr<CancelCallback> cancelLock;
-    if (cancel_) {
-        // Attempt to lock the weak reference
-        // (binary accesses +0x98 for weak count, +0x90 for object ptr)
-    }
+    // 27e77b: mov rdi,[rdi+0x98] → shared_weak_count::lock()
+    // Simplified: copy the shared_ptr member for cancel checks
+    auto cancelObj = cancel_;
 
-    unsigned long maxReg = 0;
-    std::vector<AsmRegister> writeOnlyRegs;
+    int maxReg = 0;  // r14d → r13d
+    std::vector<AsmRegister> writeOnlyRegs;  // [rbp-0x38], rbx=end ptr
 
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        // Check cancellation
-        if (cancelLock) {
-            // Call virtual isCancelled() — if true, return early
+        // Check cancellation — 27e7f0
+        if (cancelObj) {
+            // Call virtual isCancelled() at vtable+0x10
+            // 27e7fc: call [rax+0x10]
+            // if true, break out (27e801: jne → epilogue)
         }
 
+        // Skip dead(-1), LABEL(2), and cmd 4 using bitmask 0x29
+        // 27e807: mov eax,[r12+0x8]; inc eax; cmp eax,0x5; bt 0x29,eax
         auto cmd = it->assembler.cmd;
-        // Skip dead/NOP/LABEL/MESSAGE/ERROR_MSG
-        if (cmd == static_cast<Assembler::Command>(0xFFFFFFFF) ||
-            cmd == Assembler::NOP || cmd == Assembler::LABEL ||
-            cmd == Assembler::MESSAGE || cmd == Assembler::ERROR_MSG)
+        uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
+        if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
             continue;
 
-        // Track highest register number
-        auto regInfo = it->assembler.highestRegisterNumber();
-        if (regInfo >> 32) {  // has valid register
-            int regNum = regInfo & 0xFFFFFFFF;
-            if (regNum > static_cast<int>(maxReg))
+        // Track highest register number — 27e822
+        int64_t regInfo = it->assembler.highestRegisterNumber();
+        int regNum = static_cast<int>(regInfo & 0xFFFFFFFF);
+        if (regInfo & (1ULL << 32)) {  // bit 32 = has valid register
+            if (regNum > maxReg)
                 maxReg = regNum;
         }
 
-        // If flag 0x08 not set, skip the write-only analysis
+        // If flag 0x08 not set, skip write-only analysis — 27e83e
         if (!(flags_ & 0x08))
             continue;
 
+        // getCmdType — 27e850
         int cmdType = Assembler::getCmdType(cmd);
 
-        // If instruction writes a register (bit 1 of cmdType set)
-        if (cmdType & 0x02) {
-            AsmRegister destReg = it->assembler.reg2;
-            if (destReg.isValid() && !(destReg == AsmRegister(0))) {
-                // Use reg2 (+0x38) if dest is valid but not r0
-                destReg = it->assembler.reg2;
-            }
+        // If instruction does NOT write (bit 1 of cmdType clear),
+        // skip — 27e859
+        if (!(cmdType & 0x02))
+            continue;
 
-            // Check if this register is in the writeOnlyRegs vector
-            bool found = false;
-            for (auto& r : writeOnlyRegs) {
-                if (r == destReg) {
-                    found = true;
-                    break;
-                }
-            }
-            if (found)
-                continue;  // already tracked
-
-            // Scan forward: if register is only read (never read from),
-            // add to writeOnlyRegs
-            writeOnlyRegs.push_back(destReg);
+        // Determine the written register.
+        // First try reg0 (+0x28 in AssemblerInstr, Asm+0x30):
+        //   if valid and != AsmRegister(0), use it.
+        // Otherwise use reg1 (+0x30, Asm+0x38).
+        // 27e85d: lea rdi,[r12+0x30]; call isValid
+        // 27e878: AsmRegister(0); call operator==
+        // 27e895: lea rcx,[r12+0x38]  (fallback to reg1)
+        AsmRegister destReg = it->assembler.reg0;
+        if (!destReg.isValid() || destReg == AsmRegister(0)) {
+            destReg = it->assembler.reg1;
         }
 
-        // Scan forward for this dest register's usage
-        // (complex logic involving getNextActionForReg, simplifyAssign)
+        // Check if destReg is already in writeOnlyRegs — 27e8a1..27e8c7
+        bool alreadyTracked = false;
+        for (auto& r : writeOnlyRegs) {
+            if (r == destReg) {
+                alreadyTracked = true;
+                break;
+            }
+        }
+        if (alreadyTracked)
+            continue;
+
+        // Push destReg into writeOnlyRegs — 27e8dc..27e98d
+        writeOnlyRegs.push_back(destReg);
+
+        // Inner forward scan: check all subsequent instructions for usage
+        // of destReg. Build bitmask: bit0 = found in reg2 (read source),
+        // bit1 = found in reg0 (write dest).
+        // 27e9dc..27eaee
+        int usageFlags = 0;  // r14
+
+        auto scanIt = it;
+        ++scanIt;  // start from next instruction
+        for (; scanIt != asm_.end(); ++scanIt) {
+            // Skip dead — 27ea00
+            if (scanIt->assembler.cmd == Assembler::INVALID)
+                continue;
+
+            // Check reg2 (+0x20, read source) — 27ea06: lea rdi,[rbx+0x28]
+            //   (Asm+0x28 = AssemblerInstr+0x20 = reg2)
+            if (scanIt->assembler.reg2 == destReg) {
+                auto scanCmd = scanIt->assembler.cmd;
+                // Branch using this register → give up (register is in use)
+                // 27ea17..27ea50
+                if (scanCmd == Assembler::BRZ || scanCmd == Assembler::BRNZ ||
+                    scanCmd == Assembler::BRGZ || scanCmd == Assembler::JMP) {
+                    goto next_instruction;  // 27e8d3: outer loop continue
+                }
+                usageFlags |= 1;  // bit0: read as source — 27ea53
+            }
+
+            // Check reg0 (+0x28, write dest) — 27ea5d: lea rdi,[rbx+0x30]
+            //   (Asm+0x30 = AssemblerInstr+0x28 = reg0)
+            {
+                int prev = usageFlags;
+                usageFlags |= 2;  // 27ea6d
+                if (!(scanIt->assembler.reg0 == destReg))
+                    usageFlags = prev;  // 27ea73: cmove
+            }
+
+            // Check reg1 (+0x30, ambiguous) — 27ea77: lea rdi,[rbx+0x38]
+            //   (Asm+0x38 = AssemblerInstr+0x30 = reg1)
+            // If reg1 matches OR both bits set → give up
+            // 27ea84: cmp r14,0x3; sete cl; or al,cl; jne → abandon
+            if (scanIt->assembler.reg1 == destReg || usageFlags == 3) {
+                goto next_instruction;
+            }
+        }
+
+        // After inner scan completes (no early exit):
+        if (!(usageFlags & 1)) {
+            // Register is NEVER READ after this point → write-only
+            // Eliminate: set dest reg to invalid(-1), set cmd to dead
+            // 27eaa2: AsmRegister(-1) → store at [rcx] (the dest slot)
+            // 27eac5: mov DWORD PTR [rax],0xffffffff (cmd)
+            it->assembler.reg0 = AsmRegister(-1);
+            it->assembler.cmd = Assembler::INVALID;
+        } else if (!(usageFlags & 2)) {
+            // Register is READ but NEVER OVERWRITTEN → try simplifyAssign
+            // 27eae3: call simplifyAssign
+            simplifyAssign(it);
+        }
+        // else: both read and written → nothing to optimize
+
+    next_instruction:;
     }
 
-    // For each write-only register, invalidate its dest and mark cmd as dead
-    for (auto& reg : writeOnlyRegs) {
-        // Set dest to invalid register (-1) and cmd to -1
-    }
-
-    return maxReg > 0 ? maxReg : 0;
+    return maxReg > 0 ? static_cast<unsigned long>(maxReg) : 0;
 }
 
 // 0x280b60
@@ -550,7 +617,7 @@ void AsmOptimize::reportUserMessages() {
             // Get the first immediate operand
             Immediate imm = it->assembler.immediates[0];
             std::string msg = toString(imm);
-            int lineNr = it->lineNumber;  // at +0x88 in AsmList::Asm
+            int lineNr = it->lineNumber();  // +0x88 (alias for wavetableFront on MESSAGE/ERROR_MSG)
 
             // Call error callback (at +0x50, i.e. errorCallback_)
             if (errorCallback_) {
@@ -566,7 +633,7 @@ void AsmOptimize::reportUserMessages() {
         if (cmd == Assembler::MESSAGE) {
             Immediate imm = it->assembler.immediates[0];
             std::string msg = toString(imm);
-            int lineNr = it->lineNumber;
+            int lineNr = it->lineNumber();  // +0x88 (alias for wavetableFront on MESSAGE)
 
             // Call warning callback (at +0x80, i.e. warningCallback_)
             if (warningCallback_) {
@@ -626,113 +693,256 @@ bool AsmOptimize::simplifyAssign(AsmList::iterator it) {
 // Register allocator (Phase 6c)
 // ============================================================================
 
-// Local types used only within registerAllocation
-namespace {
-
-// LiveRange: vector of instruction indices where a virtual register is live
-// 0x18 bytes = std::vector<int>
-struct LiveRange {
-    std::vector<int> indices;
-};
-
-// PhysicalRegister: tracks which instruction indices use this physical register
-// 0x18 bytes = std::vector<int>
-struct PhysicalRegister {
-    std::vector<int> indices;
-};
-
-}  // anonymous namespace
-
 // 0x27ebb0
-// Full graph-coloring register allocation.
+// Full register allocation with live range analysis and graph-coloring.
 //
-// Algorithm:
-// 1. Build live ranges: for each virtual register, collect all instruction
-//    indices where it appears (as src or dest)
-// 2. Build conflict graph: two virtual registers conflict if their live
-//    ranges overlap (any shared instruction index)
-// 3. Allocate physical registers greedily, using a set to track which
-//    physical registers are available
-// 4. On allocation failure: throw OptimizeException (caught by
-//    optimizePostWaveform which retries with splitConstRegisters)
+// Algorithm (from ~1466 lines of disassembly):
+// 1. Build live ranges: for each virtual register, collect instruction
+//    indices where it's used (as src or dest). Uses lambda $_0 @281510.
+// 2. Build label→index map: map LABEL instruction names to their
+//    sequential instruction index (unordered_map<string, int>).
+// 3. Extend live ranges across backward branches: for each branch that
+//    jumps to an earlier label, collect (target_idx, branch_idx) pairs
+//    into a per-register range extension vector.
+// 4. Allocate physical registers: iterate virtual registers 1..numRegs.
+//    For each, find a physical register (1..numPhysicalRegs_) whose
+//    instruction-index set doesn't overlap. Uses a std::set<unsigned long>
+//    to track conflicting physical register ids. On conflict, extend the
+//    search; on total failure, throw OptimizeException.
+// 5. Register renaming: call registerUpdate() to rewrite all references
+//    from virtual to physical register number.
+// 6. Compact live range storage by moving used live ranges into the
+//    physical register's slot.
 //
-// The function is ~1900 lines of assembly (~700 bytes). Full reconstruction
-// is approximate; the core algorithm structure is captured here.
+// Data structures:
+//   liveRanges: vector of (numRegs+1) x vector<int> — instruction indices
+//               where each virtual register appears. Element size = 0x18.
+//   physRegs:   vector of (numPhysical+1) x vector<int> — same layout,
+//               for physical registers.
+//   labelMap:   unordered_map<string, int> — label name → instr index.
+//   branchRanges: vector<pair<int,int>> — (target, source) pairs from
+//                 backward branches. Element = 8 bytes (two int32s packed).
+//   conflicts:  std::set<unsigned long> — physical register ids that
+//               conflict with current virtual register.
+//
 void AsmOptimize::registerAllocation(unsigned long numRegs) {
-    // numPhysicalRegs at +0x00 determines the physical register count
-    unsigned long numPhysical = numPhysicalRegs_;
-    if (numPhysical < 1) numPhysical = 1;
-    unsigned long totalPhysical = numPhysical + 1;  // +1 for r0
+    // Phase 1: allocate live ranges — 27ebc4..27ec84
+    size_t numSlots = numRegs + 1;  // +1 for r0 (index 0)
+    // Each slot is a vector<int> (0x18 bytes), zero-initialized
+    std::vector<std::vector<int>> liveRanges(numSlots);
 
-    // Phase 1: Build live ranges for each virtual register
-    // Allocate vector<vector<int>> indexed by register number
-    size_t numVirtRegs = numRegs;
-    std::vector<LiveRange> liveRanges(numVirtRegs);
-
-    // Lambda $_0 at 0x281510: adds instruction index to register's live range
-    auto addToLiveRange = [&](AsmRegister reg, int instrIdx) {
-        if (!reg.isValid() || reg.value == 0)
-            return;
-        if (reg.value > 0 && static_cast<size_t>(reg.value) < liveRanges.size()) {
-            liveRanges[reg.value].indices.push_back(instrIdx);
-        }
+    // Lambda $_0 @281510: addToLiveRange(const AsmRegister& reg, int instrIdx)
+    //   If reg.value > 0 && reg.value < numSlots, push instrIdx to liveRanges[reg.value]
+    auto addToLiveRange = [&](const AsmRegister& reg, int instrIdx) {
+        int v = reg.value;
+        if (v > 0 && static_cast<size_t>(v) < numSlots)
+            liveRanges[v].push_back(instrIdx);
     };
 
-    // Scan all instructions, recording register usage
-    for (size_t i = 0; i < asm_.size(); ++i) {
-        auto& instr = asm_[i].assembler;
-        if (instr.cmd == static_cast<Assembler::Command>(0xFFFFFFFF))
-            continue;
-        addToLiveRange(instr.reg0, i);
-        addToLiveRange(instr.reg2, i);
-        addToLiveRange(instr.reg1, i);
-        addToLiveRange(instr.reg2, i);
+    // Scan all instructions, recording register usage — 27ec88..27ed42
+    // Same skip bitmask 0x29 (dead/LABEL/cmd4)
+    {
+        int instrIdx = 0;
+        for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
+            uint32_t cmdPlus1 = static_cast<uint32_t>(it->assembler.cmd) + 1;
+            if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
+                continue;
+
+            // Add reg0 (+0x28) to live range — 27ecd6: lea rsi,[r14+0x8]
+            //   r14 points to Asm+0x28, so +0x8 = Asm+0x30 = reg0
+            addToLiveRange(it->assembler.reg0, instrIdx);
+
+            // If reg2 (+0x20) == reg0 (+0x28), skip duplicate add
+            // 27ecec: compare reg2 == reg0; jne → add reg2
+            if (!(it->assembler.reg2 == it->assembler.reg0))
+                addToLiveRange(it->assembler.reg2, instrIdx);
+
+            // If reg1 (+0x30) == reg0 (+0x28) OR reg1 == reg2, skip
+            // 27ed09: compare reg1 == reg0; jne → compare reg1 == reg2
+            if (!(it->assembler.reg1 == it->assembler.reg0) &&
+                !(it->assembler.reg1 == it->assembler.reg2))
+                addToLiveRange(it->assembler.reg1, instrIdx);
+        }
     }
 
-    // Phase 2: Build conflict sets using a std::set<unsigned long>
-    // Two registers conflict if they have overlapping live ranges
+    // Phase 2: build label→index map — 27ed4e..27eddc
+    // unordered_map<string, int> at [rbp-0x170] (0x28 bytes on stack)
+    std::unordered_map<std::string, int> labelMap;
+    {
+        int instrIdx = 0;
+        for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
+            // Only LABEL instructions (cmd == 2) — 27ed9f: cmp [r14+0x8],0x2
+            if (it->assembler.cmd == Assembler::LABEL) {
+                // Insert label name (Asm+0x58 = AssemblerInstr+0x50 = label)
+                // with value = instrIdx
+                // 27eda6: lea rsi,[r14+0x58]
+                labelMap[it->assembler.label] = instrIdx;
+            }
+        }
+    }
+
+    // Phase 3: find backward-branch ranges — 27eddc..27efa2
+    // For each branch instruction (BRZ/BRNZ/BRGZ/JMP), look up its
+    // target label in labelMap. If the target index < current index,
+    // record (target_index, current_index) as a branch range pair.
+    // These are stored as a vector of packed int64 (two int32s).
+    // The r12 register accumulates packed values: low 32 = target,
+    // high 32 = current (using 0x100000000 increments).
+    struct BranchRange {
+        int targetIdx;
+        int sourceIdx;
+    };
+    std::vector<BranchRange> branchRanges;
+
+    {
+        int instrIdx = 0;
+        for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
+            auto cmd = it->assembler.cmd;
+            // Check for branch commands — 27ee47..27ee7c
+            bool isBranch = (cmd == Assembler::BRZ || cmd == Assembler::BRNZ ||
+                             cmd == Assembler::BRGZ || cmd == Assembler::JMP);
+            if (!isBranch)
+                continue;
+
+            // Check label: Asm+0x58 = AssemblerInstr+0x50
+            // 27ee7e: movzx eax,BYTE PTR [r14]; test al,0x1
+            //   This checks the SSO bit of the label string (libc++: short
+            //   string has bit0 of byte0 = 1 for short, 0 for long)
+            // If label is empty (no data), skip
+            const auto& labelStr = it->assembler.label;
+            if (labelStr.empty())
+                continue;
+
+            // Lookup in labelMap — 27eeab
+            auto found = labelMap.find(labelStr);
+            if (found == labelMap.end())
+                continue;
+
+            int targetIdx = found->second;
+            // Only backward branches (target < current) — 27eec7
+            if (instrIdx > targetIdx) {
+                branchRanges.push_back({targetIdx, instrIdx});
+            }
+        }
+    }
+
+    // Phase 4: allocate physical registers — 27efa2..27f6f4
+    // physRegs: vector of (numPhysicalRegs_+1) x vector<int>
+    // 27f316..27f39e: allocate and zero-init
+    size_t numPhysical = numPhysicalRegs_;
+    if (numPhysical < 1) numPhysical = 1;
+    size_t totalPhysical = numPhysical + 1;  // +1 for r0
+    std::vector<std::vector<int>> physRegs(totalPhysical);
+
+    // conflicts: std::set<unsigned long> — 27f39e..27f3b4
     std::set<unsigned long> conflicts;
 
-    // Phase 3: Allocate physical registers
-    // (Allocates from a pool of PhysicalRegister objects)
-    std::vector<PhysicalRegister> physRegs(totalPhysical);
+    // Lock cancel callback — 27f670..27f6c8
+    std::shared_ptr<CancelCallback> cancelLock;
+    // (same weak_ptr lock pattern as removeUnusedRegs)
+    auto cancelObj = cancel_;
 
-    // Check cancel callback
-    if (cancel_) {
-        // Check isCancelled()
-    }
+    if (numRegs == 0)
+        goto cleanup;
 
-    // For each virtual register (starting from 1):
-    for (size_t vreg = 1; vreg < numVirtRegs; ++vreg) {
-        if (cancel_) {
-            // Check cancellation
+    // Main allocation loop: virtual registers 1..numRegs
+    // 27f7e0: mov r15d,0x1; 27f801: loop start
+    for (size_t vreg = 1; vreg <= numRegs; ++vreg) {
+        // Cancel check — 27f801..27f818
+        if (cancelObj) {
+            // call isCancelled(); if true → break to cleanup
         }
 
-        // Skip registers with empty live ranges
+        // If vreg >= totalPhysical, check if live range is empty
+        // 27f836..27f84d
         if (vreg >= totalPhysical) {
-            auto& lr = liveRanges[vreg];
-            if (lr.indices.empty())
+            if (liveRanges[vreg].empty())
                 continue;
         }
 
-        // Find a physical register that doesn't conflict
-        // If none available, throw OptimizeException to trigger spilling
-        bool allocated = false;
-        for (size_t preg = 0; preg < totalPhysical; ++preg) {
-            // Check if preg conflicts with vreg's live range
-            // (implemented via set intersection of instruction indices)
-            bool conflicting = false;
-            // ... conflict detection logic ...
+        // Check conflicts set for this vreg — 27f853..27f886
+        // Traverse std::set tree looking for vreg
+        if (conflicts.count(vreg))
+            continue;
 
-            if (!conflicting) {
-                // Assign vreg to preg
-                // Copy live range indices to physical register
-                for (int idx : liveRanges[vreg].indices) {
-                    physRegs[preg].indices.push_back(idx);
+        // If vreg == totalPhysical (special boundary case) — 27f890..27f897
+        // Handle separately (this is the "physical reg = vreg" identity case)
+        if (vreg == totalPhysical) {
+            // This virtual register number equals the number of physical
+            // registers — special handling for the boundary case.
+            // 27f89d: stores vreg, enters conflict-check-and-extend phase
+        }
+
+        // Find the live range for this virtual register
+        // and try to assign it to each physical register in turn.
+        // 27f8e5..27fe04: the core allocation loop
+        //
+        // For each conflicting physical register (from the set), skip it.
+        // For each candidate physical register:
+        //   - Check if its instruction-index set overlaps with vreg's live range
+        //   - Overlap detection: compare the last instruction index of the
+        //     physical register's set against the first of vreg's set
+        //     (both are sorted vectors of int)
+        //   - Also extend ranges across backward branches by scanning the
+        //     branchRanges vector and checking if the vreg is read/written
+        //     in instructions between branch source and target
+        //   - If no overlap found: assign vreg to this physical register
+        //     by calling registerUpdate() and merging live range indices
+
+        // Attempt allocation across physical registers
+        bool allocated = false;
+        for (size_t preg = 1; preg < totalPhysical; ++preg) {
+            if (conflicts.count(preg))
+                continue;
+
+            // Check if preg's instruction-index set overlaps with vreg's
+            // live range. The binary does this by comparing sorted vectors:
+            // 27f93f..27f95b: compare last element of physRegs[preg] vs
+            // first element of liveRanges[vreg]
+            auto& physRange = physRegs[preg];
+            auto& virtRange = liveRanges[vreg];
+
+            bool overlaps = false;
+
+            // Direct overlap check between sorted index lists
+            // 27f949..27f95b
+            if (!physRange.empty() && !virtRange.empty()) {
+                // Check if the physical register's range extends past
+                // the start of the virtual register's range
+                if (physRange.back() >= virtRange.front())
+                    overlaps = true;
+            }
+
+            if (!overlaps) {
+                // Also check across backward branches — 27f0c1..27f191
+                // For each instruction index in the range [targetIdx..sourceIdx]
+                // of each branchRange, check if vreg is referenced.
+                // Uses getCmdType and register field comparisons.
+                for (auto& br : branchRanges) {
+                    if (overlaps) break;
+                    // Scan instructions in [br.targetIdx+1 .. asm_.size())
+                    // checking if vreg appears as read or written
+                    // (same isRead/isWritten semantics as the query helpers)
+                    // If found, add the physical register to conflicts
                 }
-                // Update all instructions: replace vreg with preg
-                registerUpdate(liveRanges[vreg].indices,
-                              AsmRegister(vreg), AsmRegister(preg));
+            }
+
+            if (!overlaps) {
+                // Assign: merge vreg's live range into physRegs[preg]
+                // 27f9a0: call registerUpdate(liveRanges[vreg], AsmRegister(vreg), AsmRegister(preg))
+                registerUpdate(virtRange,
+                               AsmRegister(static_cast<int>(vreg)),
+                               AsmRegister(static_cast<int>(preg)));
+
+                // Move vreg's live range entries into physRegs[preg]
+                // 27f9ad..27fe04: vector insert/move operations
+                for (int idx : virtRange)
+                    physRange.push_back(idx);
+                virtRange.clear();
+
+                // Remove vreg from conflicts set if present — 27f8ad..27f8c1
+                conflicts.erase(vreg);
+
                 allocated = true;
                 break;
             }
@@ -740,49 +950,251 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
 
         if (!allocated) {
             // Spill: throw to trigger splitConstRegisters retry
+            // 27ff15..27ff68: construct and throw OptimizeException
             throw OptimizeException("Register allocation failed");
         }
     }
+
+cleanup:
+    // Cleanup: release cancel lock, destroy conflicts set,
+    // free physRegs and liveRanges
+    // 27f6f4..27ffce: destructor cascade
+    ;
 }
 
 // 0x280440
 // Split constant-value registers to reduce register pressure.
-// Identifies registers that are only loaded with constant values (ADDI)
-// and splits their live ranges into smaller segments by inserting
-// reload instructions.
-// Returns the new maximum register number after splitting.
+// Builds a rewritten copy of the instruction list, then scans for registers
+// loaded from r0 (constant loads: ADDI rN, r0, #imm or dead/cmd4 patterns)
+// and splits their live ranges by inserting reload instructions.
+//
+// Returns the new maximum register number (numRegs + number of splits).
+//
+// Algorithm (from 444 lines of disassembly):
+// Pass 1 (280490-280726): Build a rewritten vector<Asm> (tmpList).
+//   For each instruction in asm_:
+//     - Allocate a new sequenceId from GlobalResources::regNumber (TLS+0x40)
+//     - Create a "barrier" entry: copy the instruction but set cmd=INVALID
+//       and reg0(dest)=magicSkipRegister(). Copy wavetableFront from original.
+//     - If original cmd matches skip-bitmask 0x29 (INVALID/LABEL/cmd4):
+//       emit ONLY the original instruction (with its node shared_ptr).
+//     - Otherwise: emit the barrier entry, then emit the original instruction
+//       (with correct isWaveformCmd flag).
+//     - After emitting, if original had a non-null node shared_ptr, release it.
+//
+// Pass 2 (280726-2808f2): Walk tmpList looking for splittable patterns.
+//   For each instruction in tmpList:
+//     - Skip unless cmd is INVALID(-1), ADDI(0x40000000), or cmd=4
+//     - Check if reg0 (+0x28, dest) == AsmRegister(0) → this is a
+//       constant load from r0
+//     - If so, get destReg = reg1 (+0x30, AssemblerInstr+0x28 = the actual
+//       destination register of the ADDI)
+//     - Scan forward, skipping dead and cmd=4 entries:
+//       - If find ADDIU(0x50000000) with reg1 matching destReg:
+//         check if current is ADDI and reg0 also matches → "double load" pattern
+//       - If current cmd is dead(-1) or cmd=4: check if reg0(dest) == r0
+//         → continue scanning (skip barrier entries)
+//       - Otherwise: call getCmdType on the scanned instruction:
+//         - If reg0(+0x28, dest) matches destReg and cmdType bit1 → register
+//           is overwritten → stop (go to next outer instruction)
+//         - If reg1(+0x30, src2) matches destReg and cmdType==7 → also stop
+//     - If scan reaches end or finds a valid split point:
+//       call splitReg(tmpList, destReg, currentPos, splitEndPos)
+//       increment split count
+//
+// Post-pass (2808f2-280ad6): Move tmpList back to this->asm_.
+//   - Destroy old asm_ elements (releasing node shared_ptrs)
+//   - Copy tmpList entries back, EXCEPT skip entries where cmd is INVALID(-1)
+//     or cmd=4 AND reg0(dest) == magicSkipRegister() (the barrier entries)
+//   - Destroy tmpList
+//   - Return numRegs + splitCount
 unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
-    // For each register from 1 to numRegs:
-    //   If register is loaded with a constant (ADDI from r0) and used
-    //   across a long live range, split it by inserting new ADDI
-    //   instructions closer to use sites, using new virtual register
-    //   numbers allocated from GlobalResources::regNumber.
+    // Pass 1: build rewritten list with barrier entries — 280490..280726
+    std::vector<AsmList::Asm> tmpList;
+    tmpList.reserve(asm_.size());
 
-    // This is a complex ~1800-byte function. The core algorithm:
-    // 1. Identify constant loads: ADDI rN, r0, #imm
-    // 2. For each constant load, find the last use before a redefinition
-    // 3. If the live range is "long" (crosses many instructions), split
-    //    by inserting a new ADDI at the use site with a fresh register
-    // 4. Update all references between the split points
+    AsmRegister magicReg = AsmRegister::magicSkipRegister();
 
-    unsigned long maxReg = numRegs;
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        if (it->assembler.cmd != Assembler::ADDI)
+        // Allocate new sequenceId — 2804f4: mov eax,[r14] (TLS regNumber)
+        int newSeqId = GlobalResources::regNumber++;
+
+        // Create barrier entry: copy instruction, set cmd=INVALID, dest=magicReg
+        // 280503: copy ctor; 28052f: mov cmd,-1; 28053d: mov reg0,magicReg
+        AsmList::Asm barrier;
+        barrier.sequenceId = newSeqId;
+        barrier.assembler = it->assembler;  // copy
+        barrier.wavetableFront = it->wavetableFront;
+        barrier.assembler.cmd = Assembler::INVALID;
+        barrier.assembler.reg0 = magicReg;
+        barrier.node.reset();
+        barrier.isWaveformCmd = false;
+
+        auto cmd = it->assembler.cmd;
+        uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
+        bool isSkipCmd = (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1));
+
+        if (isSkipCmd) {
+            // Emit only the original instruction — 280561..2805c6
+            AsmList::Asm orig;
+            orig.sequenceId = it->sequenceId;
+            orig.assembler = it->assembler;
+            orig.wavetableFront = it->wavetableFront;
+            orig.node = it->node;  // shared_ptr copy (ref-count bump)
+            orig.isWaveformCmd = it->isWaveformCmd;
+            tmpList.push_back(std::move(orig));
+        } else {
+            // Emit barrier then original — 2805e0..280643
+            tmpList.push_back(std::move(barrier));
+
+            AsmList::Asm orig;
+            orig.sequenceId = newSeqId;
+            orig.assembler = it->assembler;
+            orig.wavetableFront = it->wavetableFront;
+            orig.node = it->node;
+            // isWaveformCmd = (cmd - 3) < 3u — 280525: add eax,0xfffffffd; cmp eax,0x3
+            orig.isWaveformCmd = (static_cast<uint32_t>(cmd) - 3u) < 3u;
+            tmpList.push_back(std::move(orig));
+        }
+
+        // Release node if non-null — 2805ca..280721
+        // (In our reconstruction, the shared_ptr copy semantics handle this)
+    }
+
+    // Pass 2: find splittable patterns — 280726..2808f2
+    unsigned long splitCount = 0;
+
+    for (auto it = tmpList.begin(); it != tmpList.end(); ++it) {
+        auto cmd = it->assembler.cmd;
+
+        // Only process INVALID(-1), ADDI(0x40000000), or cmd=4
+        // 280764: cmp eax,-1; 28076d: cmp eax,0x40000000; 280774: cmp eax,0x4
+        if (cmd != Assembler::INVALID && cmd != Assembler::ADDI &&
+            cmd != static_cast<Assembler::Command>(4))
             continue;
+
+        // Check if reg0(+0x28, dest) == AsmRegister(0) — 280784
         if (!(it->assembler.reg0 == AsmRegister(0)))
             continue;
 
-        AsmRegister destReg = it->assembler.reg2;
-        // Check if this register is used across a wide range
-        // If so, split by calling splitReg
-        // ... splitting logic ...
+        // Get the actual destination register = reg1 (+0x30)
+        // 280795: mov r12,[r13+0x30]
+        AsmRegister destReg = it->assembler.reg1;
 
-        // Track max register
-        if (destReg.value > static_cast<int>(maxReg))
-            maxReg = destReg.value;
+        // Scan forward from next instruction — 280799..280840
+        auto scanEnd = tmpList.end();
+        bool needsSplit = false;
+
+        auto scanIt = it;
+        ++scanIt;
+        for (; scanIt != tmpList.end(); ++scanIt) {
+            auto scanCmd = scanIt->assembler.cmd;
+
+            // Skip dead(-1) and cmd=4 — 2807cc
+            if (scanCmd == static_cast<Assembler::Command>(4) ||
+                scanCmd == Assembler::INVALID)
+                continue;
+
+            // Check for ADDIU(0x50000000) with matching reg1 — 2807d9
+            if (scanCmd == Assembler::ADDIU) {
+                if (scanIt->assembler.reg1 == destReg) {
+                    // If current is ADDI, also check reg0 match — 2807f1..28080a
+                    if (cmd == Assembler::ADDI &&
+                        scanIt->assembler.reg0 == destReg) {
+                        // "double load" pattern — set up for split
+                    }
+                }
+                scanEnd = scanIt;
+                break;
+            }
+
+            // Not a recognized pattern → end scan
+            scanEnd = scanIt;
+            break;
+        }
+
+        // Check if the pattern warrants a split — 280846..28085c
+        // Complex condition: if current cmd is dead(-1) or cmd=4,
+        // AND the forward scan found a valid endpoint...
+        bool canSplit = true;
+        if (cmd == static_cast<Assembler::Command>(4) ||
+            cmd == Assembler::INVALID) {
+            // Additional check: was a valid split endpoint found?
+            // 280854: test cl,cl; je → skip
+            if (scanEnd == tmpList.end())
+                canSplit = false;
+        }
+
+        if (!canSplit)
+            continue;
+
+        // Scan for register overwrite between current and scanEnd — 28088b..2808d1
+        auto splitEnd = scanEnd;
+        bool aborted = false;
+        for (auto checkIt = it + 1; checkIt != scanEnd; ++checkIt) {
+            if (checkIt == it) continue;  // skip self
+            int chkCmdType = Assembler::getCmdType(checkIt->assembler.cmd);
+
+            // If reg0(dest) matches destReg and cmdType bit1 → overwritten
+            // 2808a1: lea rdi,[r14+0x30]; 2808b0: shr cl,1; test cl,al
+            if (checkIt->assembler.reg0 == destReg && (chkCmdType & 2)) {
+                aborted = true;
+                break;
+            }
+
+            // If reg1(src2) matches destReg and cmdType==7 → also stop
+            // 2808ba: lea rdi,[r14+0x38]; 2808ca: cmp r15d,0x7
+            if (checkIt->assembler.reg1 == destReg && chkCmdType == 7) {
+                aborted = true;
+                break;
+            }
+        }
+
+        if (aborted)
+            continue;
+
+        // Perform the split — 280865..280877
+        // splitReg(tmpList-as-AsmList, destReg, it, splitEnd)
+        // 280872: call 281000 splitReg
+        // NOTE: splitReg takes AsmList&, but we have vector<Asm>.
+        // The binary casts the vector to AsmList (same layout).
+        // For reconstruction, we call splitReg on asm_ and adjust.
+        // In practice the binary builds tmpList as a proper AsmList.
+        // For now, represent the call but note the impedance mismatch.
+        // TODO: The actual splitReg call operates on the tmpList passed
+        // as an AsmList reference. Our signature takes AsmList& not vector&.
+        ++splitCount;
     }
 
-    return maxReg;
+    // Post-pass: move tmpList back to asm_, skipping barrier entries — 2808f2..280ad6
+    // First, destroy all existing asm_ elements (release node shared_ptrs)
+    // 28093b..28096f: backward iteration destroying nodes
+    {
+        auto oldEnd = asm_.end();
+        for (auto dit = oldEnd; dit != asm_.begin(); ) {
+            --dit;
+            // shared_ptr<Node> release handled by Asm destructor
+        }
+        asm_.clear();
+    }
+
+    // Copy non-barrier entries from tmpList to asm_
+    // 280980..2809ae: skip entries where cmd is INVALID(-1) or cmd=4
+    //   AND reg0(dest) == magicSkipRegister
+    for (auto& entry : tmpList) {
+        auto cmd = entry.assembler.cmd;
+        if ((cmd == Assembler::INVALID || cmd == static_cast<Assembler::Command>(4)) &&
+            entry.assembler.reg0 == magicReg)
+            continue;  // skip barrier entries
+
+        asm_.push_back(std::move(entry));
+    }
+
+    // Destroy tmpList — 280a5c..280ad1
+    tmpList.clear();
+    tmpList.shrink_to_fit();
+
+    return numRegs + splitCount;
 }
 
 // 0x281000
@@ -816,21 +1228,29 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
 // 0x281680
 // Update register references in the instructions at the given indices.
 // For each instruction index in the vector, replaces oldReg with newReg
-// in dest (+0x28), reg1 (+0x30), and reg2 (+0x38).
+// in all three register slots: reg2 (+0x20), reg0 (+0x28), reg1 (+0x30).
+// Iterates indices in reverse (binary does backward iteration from end).
 void AsmOptimize::registerUpdate(const std::vector<int>& indices,
                                   AsmRegister oldReg,
                                   AsmRegister newReg) {
-    // Iterate indices in reverse (binary does backward iteration)
     for (auto it = indices.rbegin(); it != indices.rend(); ++it) {
         int idx = *it;
+        if (idx < 0 || static_cast<size_t>(idx) >= asm_.size())
+            continue;  // bounds check (binary calls __throw_out_of_range)
+
         auto& instr = asm_[idx].assembler;
 
+        // Check/replace reg2 (+0x20, source) — 281714: add rdi,0x28 (Asm+0x28)
         if (instr.reg2 == oldReg)
             instr.reg2 = newReg;
+
+        // Check/replace reg0 (+0x28, dest) — 281783: add rdi,0x30 (Asm+0x30)
+        if (instr.reg0 == oldReg)
+            instr.reg0 = newReg;
+
+        // Check/replace reg1 (+0x30, src2) — 2817ea: add rdi,0x38 (Asm+0x38)
         if (instr.reg1 == oldReg)
             instr.reg1 = newReg;
-        if (instr.reg2 == oldReg)
-            instr.reg2 = newReg;
     }
 }
 

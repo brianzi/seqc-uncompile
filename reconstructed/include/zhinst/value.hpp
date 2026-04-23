@@ -114,11 +114,22 @@ enum class ValueType : int32_t {
 // ============================================================================
 // Value — ValueType tag + tagged union
 //
-// Layout (0x20 = 32 bytes):
+// Layout (0x28 = 40 bytes):
 //   +0x00  [4 bytes]   ValueType type_   — outer tag (0..4)
-//   +0x04  [4 bytes]   int32_t which_    — variant discriminator
-//   +0x08  [24 bytes]  union storage {int, bool, double, string}
-//   +0x20              END
+//   +0x04  [4 bytes]   (padding)
+//   +0x08  [4 bytes]   int32_t which_    — variant discriminator
+//   +0x0C  [4 bytes]   (padding)
+//   +0x10  [24 bytes]  union storage {int, bool, double, string}
+//   +0x28              END
+//
+// CORRECTION 2026-04-23 (Phase 15a-i): Layout was previously listed as
+// 0x20 with which_ at +0x04 and storage at +0x08. Disasm evidence:
+//   Value::~Value @0x15a9c0 reads which_ from [rdi+0x08], not [rdi+0x04].
+//   Storage SSO check at [rdi+0x10], heap-free ptr at [rdi+0x20].
+// The 4B padding after type_ and after which_ was missed in the
+// original layout — probably natural alignment padding from the
+// compiler putting which_ (int32) on an 8B boundary because the
+// storage union requires 8B alignment (contains double/pointer).
 //
 // Note: Original binary uses libc++ (24-byte std::string). On libstdc++
 // (32-byte std::string), the actual size will be larger. We use char[]
@@ -127,7 +138,9 @@ enum class ValueType : int32_t {
 class Value {
 public:
     ValueType type_;       // +0x00
-    int32_t which_;        // +0x04
+    int32_t   pad_04_{};   // +0x04 — alignment padding (was incorrectly which_)
+    int32_t   which_;      // +0x08 — variant discriminator
+    int32_t   pad_0C_{};   // +0x0C — alignment padding
     union Storage {
         int32_t     i;              // which==0, type_==Int
         bool        b;              // which==1, type_==Bool
@@ -137,7 +150,7 @@ public:
         Storage() : i(0) {}
         ~Storage() {}
     };
-    Storage storage_;      // +0x08
+    Storage storage_;      // +0x10
 
     // --- Constructors ---
     // Int, Bool, Double constructors are fully inlined (no symbols).
@@ -158,6 +171,6 @@ public:
     ~Value();  // 0x15a9c0
 };
 
-static_assert(sizeof(Value) == 32, "Value should be 32 bytes (0x20)");
+static_assert(sizeof(Value) == 40, "Value should be 40 bytes (0x28)");
 
 } // namespace zhinst

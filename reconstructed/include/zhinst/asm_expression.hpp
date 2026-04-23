@@ -30,12 +30,16 @@
 //                   Child expression nodes (operands). Populated by
 //                   createArgList/appendArgList. Iterated by
 //                   parseStringToAsmList to categorize operands by type.
-//   0x58    0x01  (zeroed byte)                             lineNumber or pad
-//                   Zeroed during init. Part of label area padding.
-//   0x59    0x03  (padding)
-//   0x5C    0x04  int32_t                                   labelPc
-//                   Program counter of the label. Set by addCommand
-//                   when a label is present. Part of embedded Label struct.
+//   0x58    0x04  int32_t                                   labelIndex
+//                   Label index / program counter / label-counter value.
+//                   Set by addCommand (cmd->labelPc = lbl.pc) at +0x58, and
+//                   by AWGAssemblerImpl::assembleAsmList (mov [r14+0x70], ecx
+//                   where r14 = ctrl block start, so r14+0x70 = expr+0x58).
+//                   Read by AWGAssemblerImpl::assembleExpressions
+//                   (mov r15d, [rax+0x58]) during the first label-collection
+//                   pass. ALSO referred to as "labelPc" or "lineNumber" in
+//                   different reconstructed call sites — they are aliases.
+//   0x5C    0x04  (padding to 8-byte align +0x60 string)
 //   0x60    0x18  std::string                               labelName
 //                   Label name string. Set by addCommand. Destroyed by
 //                   dtor when hasLabel (+0x78) is true.
@@ -97,9 +101,8 @@ struct AsmExpression {
     uint32_t command;       // +0x38  Assembler::Command enum value
     int32_t value;          // +0x3C  integer value / register number / PC
     std::vector<std::shared_ptr<AsmExpression>> children;  // +0x40
-    uint8_t pad_58;         // +0x58  zeroed during init
-    // 3 bytes padding       // +0x59
-    int32_t labelPc;        // +0x5C  label program counter
+    int32_t labelIndex;     // +0x58  label index/pc/counter (see header comment)
+    // 4 bytes padding       // +0x5C
     std::string labelName;  // +0x60  label name string
     bool hasLabel;          // +0x78  true if label data present
     // 7 bytes padding       // +0x79
@@ -109,10 +112,20 @@ struct AsmExpression {
     bool field_A0;          // +0xA0  isWaveformCmd override flag
     // 7 bytes padding       // +0xA1 to 0xA8
 
-    // Aliases used in pipeline code (map to existing fields):
-    bool& noOpt = hasComment;         // "noOpt" is hasComment in parseStringToAsmList
-    bool& labelType = hasLabel;       // "labelType" is hasLabel
-    int lineNumber = 0;               // TODO: offset TBD — may alias pad_58 or separate field
+    // Accessor aliases (forwarding methods, NOT separate storage —
+    // these don't change struct layout). Different reconstructed call
+    // sites use different names for the same fields:
+    //   labelPc / lineNumber → labelIndex (+0x58)
+    //   noOpt                → hasComment (+0x98)
+    //   labelType            → hasLabel   (+0x78)
+    int32_t&       labelPc()           { return labelIndex; }
+    int32_t        labelPc()    const  { return labelIndex; }
+    int32_t&       lineNumber()        { return labelIndex; }
+    int32_t        lineNumber() const  { return labelIndex; }
+    bool&          noOpt()             { return hasComment; }
+    bool           noOpt()      const  { return hasComment; }
+    bool&          labelType()         { return hasLabel; }
+    bool           labelType()  const  { return hasLabel; }
 
     ~AsmExpression();       // 0x28b1f0
 };

@@ -31,6 +31,7 @@
 
 #include "asm_list.hpp"
 #include "compiler_message.hpp"
+#include "custom_functions.hpp"
 
 namespace zhinst {
 
@@ -40,6 +41,7 @@ class AsmCommands;
 class CancelCallback;
 class CustomFunctions;
 class DeviceConstants;
+class EvalResults;
 class Expression;
 class Node;
 class ProgressCallback;
@@ -55,18 +57,38 @@ class WaveformGenerator;
 
 namespace FrontEndLoweringFacade {
 
+// ============================================================================
+// LowerResult — sret return type of lower() (32 bytes = 2 shared_ptrs)
+//
+// CORRECTION 2026-04-23 (Phase 15a-i): lower() was declared void but
+// actually returns a 32B struct via sret (hidden first param).
+// Evidence: lower() @0x1c1fb6 writes [rbp-0x90] (FrontendLoweringState
+// .result, shared_ptr<Node>) into sret[0], and [rbp-0x50] (the evaluate
+// virtual's sret output, shared_ptr<EvalResults>) into sret[1].
+// Caller Compiler::compile @0x11f92f stores sret[0] into Compiler+0x28
+// (shared_ptr<Node> ast_) and sret[1] into a local.
+//
+// Previously claimed 64B / 4 shared_ptrs — WRONG. Only 32B / 2 sps.
+// The extra cleanup in the caller was for other stack locals, not sret.
+// ============================================================================
+struct LowerResult {
+    std::shared_ptr<Node>        astResult;    // +0x00 (from FrontendLoweringState.result)
+    std::shared_ptr<EvalResults> evalResult;   // +0x10 (from evaluate virtual sret)
+};
+
 // 0x1c1da0 — ~1KB
 // Packs arguments into a FrontendLoweringContext, creates an empty
-// FrontendLoweringState, dispatches to SeqCAstNode::lower() virtual,
-// returns result.
-void lower(std::shared_ptr<Resources> resources,
-           SeqCAstNode& ast,
-           CompilerMessageCollection& messages,
-           std::shared_ptr<AsmCommands> asmCommands,
-           std::shared_ptr<CustomFunctions> customFunctions,
-           std::shared_ptr<WaveformGenerator> waveformGen,
-           std::shared_ptr<WavetableFront> wavetable,
-           int channelGrouping);
+// FrontendLoweringState, dispatches to SeqCAstNode vtable[0] virtual
+// (the 3-arg evaluate: Resources, Context&, State&), and returns
+// {state.result, evaluate_output} as a LowerResult.
+LowerResult lower(std::shared_ptr<Resources> resources,
+                   SeqCAstNode& ast,
+                   CompilerMessageCollection& messages,
+                   std::shared_ptr<AsmCommands> asmCommands,
+                   std::shared_ptr<CustomFunctions> customFunctions,
+                   std::shared_ptr<WaveformGenerator> waveformGen,
+                   std::shared_ptr<WavetableFront> wavetable,
+                   int channelGrouping);
 
 }  // namespace FrontEndLoweringFacade
 
@@ -123,11 +145,11 @@ public:
     void setCancelCallback(std::weak_ptr<CancelCallback> cb);      // 0x123480
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // 0x123510
 
-    // Returns pointer into Resources sub-object at *(this+0xD0)+0x150
-    const void* getNodeAccessList() const;                         // 0x123550
+    // Returns pointer to customFunctions_->nodeList_ (vector<NodeMapItem> at +0x150)
+    const std::vector<NodeMapItem>* getNodeAccessList() const;             // 0x123550
 
-    // Returns pointer into Resources sub-object at *(this+0xD0)+0x128
-    const void* getNodeToModeMap() const;                          // 0x123570
+    // Returns pointer to customFunctions_->accessModeMap_ (unordered_map at +0x128)
+    const std::unordered_map<NodeMapItem, std::set<AccessMode>>* getNodeToModeMap() const;  // 0x123570
 
     // Returns {channelCount (int at +0x20), mode (byte at +0x24)}
     std::vector<int> getChannelInfo() const;                       // 0x123590

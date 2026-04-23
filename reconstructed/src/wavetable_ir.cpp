@@ -5,6 +5,7 @@
 
 #include "zhinst/wavetable_ir.hpp"
 #include "zhinst/wavetable_front.hpp"
+#include "zhinst/wavetable_helpers.hpp"
 #include "zhinst/memory_allocator.hpp"
 
 #include <boost/filesystem/path.hpp>
@@ -16,6 +17,23 @@
 #include <numeric>
 
 namespace zhinst {
+
+// 0x2a0fd0 — anonymous-namespace free function shared with wavetable_front.cpp
+// and wavetable_manager_front.cpp; produces "__<base>_<index>_<counter>"-style
+// unique names for waveforms. Definition lives in wavetable_helpers.hpp as an
+// inline detail-namespace helper (single ODR-clean definition shared by all
+// wavetable TUs).
+using detail::getUniqueName;
+
+// CsvParser is reconstructed under Phase 12 (loaders); for now declare just the
+// static template entry point used by loadWaveform. Symbol:
+//   void CsvParser::csvFileToWaveform<WaveformIR>(shared_ptr<WaveformIR>, AwgDeviceType)
+//   at 0x2be830.
+class CsvParser {
+public:
+    template <typename WfT>
+    static void csvFileToWaveform(std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
+};
 
 // 0x29ce20 — WavetableIR::WavetableIR(const WavetableFront&, ...)
 //
@@ -40,14 +58,18 @@ WavetableIR::WavetableIR(const WavetableFront& front,
       firstWaveformOffset_(address.value),
       cachedParser_(wavetableSize, path),
       manager_(nullptr),
-      waveIndexTracker_(constants.maxWaveIndex, *front.manager_),
+      waveIndexTracker_(constants.maxWaveIndex(), *front.manager_),
       usedWaveforms_(),
       cancelCallback_(std::move(cancelCb))
 {
     // Allocate the manager from the front's internal manager
     auto* frontMgr = front.manager_;  // at front+0x1D0
-    // TODO: samplesPerWave not a member — need to determine correct field
+    // 0x29ce5d-0x29ce81: copy lineNr_ + waveformCounter_ (combined 8 bytes
+    // at WavetableManager+0..+8) from front's manager into the new manager.
+    // The binary uses movsd/movlps to do this as a single 8-byte move.
     manager_.reset(new detail::WavetableManager<WaveformIR>());
+    manager_->lineNr_         = frontMgr->lineNr_;
+    manager_->waveformCounter_ = frontMgr->waveformCounter_;
 
     // Copy waveforms from front, converting WaveformFront -> WaveformIR
     auto* begin = frontMgr->waveforms_.data();
@@ -77,7 +99,7 @@ WavetableIR::WavetableIR(const detail::WavetableManager<WaveformIR>& mgr,
       firstWaveformOffset_(address.value),
       cachedParser_(wavetableSize, path),
       manager_(std::make_unique<detail::WavetableManager<WaveformIR>>(mgr)),
-      waveIndexTracker_(constants.maxWaveIndex, mgr),
+      waveIndexTracker_(constants.maxWaveIndex(), mgr),
       usedWaveforms_(),
       cancelCallback_(std::move(cancelCb))
 {
@@ -219,12 +241,13 @@ uint32_t WavetableIR::getFirstWaveformOffset() const  // 0x29e330
 // 8. Updates firstWaveformOffset_ and addressBase_
 void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 {
-    // Lock cancel callback
-    std::shared_ptr<CancelCallback> cancelLock;                   // 0x29e373
-    // TODO: controlBlock() not a standard member of weak_ptr — use use_count() or expired()
-    if (!cancelCallback_.expired()) {
-        cancelLock = cancelCallback_.lock();
-    }
+    // Lock cancel callback (0x29e373-0x29e394).
+    // Binary inlines the libc++ weak_ptr::lock() ABI:
+    //   1. Read ctrl block at this+0xC0 (cancelCallback_'s __cntrl_).
+    //   2. If null, skip; else call __shared_weak_count::lock() (0x85b9f0).
+    //   3. If lock() returned non-null, copy raw ptr from this+0xB8.
+    // Reconstructed equivalent uses the public weak_ptr API.
+    std::shared_ptr<CancelCallback> cancelLock = cancelCallback_.lock();
 
     // Phase 1: count total samples and total allocation size      // 0x29e398
     size_t totalSamples = 0;
@@ -332,7 +355,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 
             // 9. Mark waveform as successfully allocated                // 0x2a9e47
             if (maxPerCL != 0)
-                wf->irBool1 = true;                             // +0xDA
+                wf->crossesCacheLine_ = true;                    // +0xDA
         },
         WaveOrder::Natural);                                       // 0x29e4b1
 
@@ -391,7 +414,7 @@ void WavetableIR::forEachUsedWaveform(
 //    b. If autoIndex >= that index, skip past it
 //    c. Otherwise: create a new "filler" waveform via manager_->newWaveform(...)
 //    d. Push the new waveform into usedWaveforms_
-//    e. Set the new waveform's irBool1 = true
+//    e. Set the new waveform's crossesCacheLine_ = true (filler bit)
 //    f. Call waveIndexTracker_.assignAuto(autoIndex)
 //    g. Set the waveform's waveIndex (at +0x6C offset from waveform)
 //    h. Re-scan for next gap
@@ -430,15 +453,20 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
         // Create filler waveform
         Signal emptySignal;
         std::string fillerName = "filler";
-        // TODO: getUniqueName not a member of WavetableIR — need to determine correct call
+        // 0x29ea60-0x29ea79: edx = manager_->lineNr_, ecx = manager_->waveformCounter_,
+        // then waveformCounter_ is post-incremented in place. Result string lives at
+        // [rbp-0x58] and is passed to newWaveform as the unique name.
+        int lineIdx = manager_->lineNr_;
+        int counter = manager_->waveformCounter_++;
+        std::string uniqueName = getUniqueName(fillerName, lineIdx, counter);
         auto newWf = manager_->newWaveform(
-            fillerName, emptySignal, fillerName, *deviceConstants_);
+            uniqueName, emptySignal, fillerName, *deviceConstants_);
 
         usedWaveforms_.push_back(std::move(newWf));
 
         // Mark as filler and assign index
         auto& lastWf = usedWaveforms_.back();
-        lastWf->irBool1 = true;  // +0x48 relative to WaveformIR extension
+        lastWf->crossesCacheLine_ = true;  // +0xDA — fillers always span a CL boundary
         waveIndexTracker_.assignAuto(autoIdx);
         lastWf->waveIndex = autoIdx;  // at offset 0x6C in Waveform
 
@@ -510,7 +538,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
                 if (wf->allocationByteSize == 0)              // +0x74
                     return;
                 // 0x2aa723: Only process waveforms flagged irBool0 == 1
-                if (!wf->irBool0)                             // +0xD9
+                if (!wf->fixed_)                             // +0xD9
                     return;
 
                 // 0x2aa740: Allocate via cache-line-aligned strategy
@@ -537,7 +565,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 
                 // 0x2aa874: Set waveform address and crossing flag
                 wf->addressValue = block.start;               // +0x4C
-                wf->irBool1 = (block.flags >> 8) & 1;        // +0xDA (crossesCacheLine)
+                wf->crossesCacheLine_ = (block.flags >> 8) & 1;  // +0xDA
             },
             WaveOrder::Natural);                              // 0x29ee40
     } catch (const std::exception& e) {                       // 0x29f070
@@ -552,7 +580,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
             if (wf->allocationByteSize == 0)                  // +0x74
                 return;
             // 0x2acfcd: Only process waveforms with irBool0 == 0
-            if (wf->irBool0)                                  // +0xD9
+            if (wf->fixed_)                                  // +0xD9
                 return;
 
             // 0x2acfe7: Try cache-line-aligned allocation first
@@ -561,7 +589,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
             if (block.flags & 1) {                            // 0x2ad012
                 // Direct assignment — fits without reloading
                 wf->addressValue = block.start;               // +0x4C
-                wf->irBool1 = (block.flags >> 8) & 1;        // +0xDA
+                wf->crossesCacheLine_ = (block.flags >> 8) & 1;  // +0xDA
                 return;
             }
 
@@ -575,7 +603,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
             }
 
             wf->addressValue = block2.start;                  // +0x4C
-            wf->irBool1 = 0;                                 // +0xDA — reloaded, no CL crossing
+            wf->crossesCacheLine_ = 0;                       // +0xDA — reloaded, no CL crossing
         },
         WaveOrder::Natural);                                  // 0x29ee93
 
@@ -588,40 +616,43 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 
 // 0x29f310 — WavetableIR::loadWaveform(shared_ptr<WaveformIR>)
 //
-// 1. If waveform->fileType != 0 (has file data already), return early
-// 2. Calls signal.checkAllocation() on waveform's signal (+0x80)
-// 3. If signal data is empty (begin == end), loads from CSV:
-//    - Copies the shared_ptr (incrementing refcount)
-//    - Calls CsvParser::csvFileToWaveform<WaveformIR>(shared_ptr, deviceType)
-//      where deviceType comes from deviceConstants_->deviceType (at DC+0x00)
-// 4. On exception: wraps and rethrows as WavetableException
+// Binary layout (verified 0x29f310-0x29f3a8):
+// 1. r15 = waveform.get()
+// 2. cmp [r15+0x18], 0; jne return  ← skip if waveformType already set
+// 3. Signal::checkAllocation() on signal_ at r15+0x80
+// 4. cmp [r15+0x80], [r15+0x88]; je load  ← if samples_ vector is empty,
+//    enter the load path; otherwise return.
+// 5. Load path (0x29f354): increment refcount on the shared_ptr, then call
+//    CsvParser::csvFileToWaveform<WaveformIR>(wfCopy, deviceConstants_->deviceType).
+//
+// Notes:
+//  * The binary contains NO try/catch. The previous reconstruction's exception
+//    wrapping was speculative and has been removed.
+//  * The empty-vs-nonempty branch was inverted in the previous reconstruction
+//    (returned on empty); the binary loads on empty.
 void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f310
 {
     WaveformIR* wf = waveform.get();
 
-    // Check if already loaded
-    // TODO: WaveformIR has no fileType field — need to determine correct check
-    // if (wf->fileType != 0)
-    //     return;
-
-    // Check signal allocation
-    wf->signal.checkAllocation();
-
-    // If signal has no data, load from CSV
-    if (wf->signal.data().begin() == wf->signal.data().end())
+    // Skip if already loaded (Waveform::waveformType != 0)
+    if (wf->waveformType != Waveform::File::Type{})
         return;
 
-    try {
-        auto wfCopy = waveform;  // increment refcount
-        int deviceType = deviceConstants_->deviceType;  // DC+0x00
-        // TODO: CsvParser not declared — need to add header or stub
-        // CsvParser::csvFileToWaveform<WaveformIR>(std::move(wfCopy),
-        //                                          static_cast<AwgDeviceType>(deviceType));
-    } catch (const std::exception& e) {
-        const char* msg = e.what();
-        if (!msg || !*msg) msg = "(unknown error)";
-        throw WavetableException(std::string(msg));
-    }
+    // Allocate any pending signal storage
+    wf->signal.checkAllocation();
+
+    // Only load from CSV when the samples vector is empty.
+    // Comparison reads vector<double>::__begin_/__end_ at +0x80/+0x88
+    // (signal_ at WaveformIR+0x80, samples_ at Signal+0).
+    if (!wf->signal.samples_.empty())
+        return;
+
+    // 0x29f354: copy the shared_ptr (lock inc on ctrl-block, +0x8) and
+    // forward to the CSV loader. The device type is the first int field
+    // of DeviceConstants (DC+0x00).
+    auto wfCopy = waveform;  // refcount inc
+    auto deviceType = static_cast<AwgDeviceType>(deviceConstants_->deviceType);
+    CsvParser::csvFileToWaveform<WaveformIR>(std::move(wfCopy), deviceType);
 }
 
 // 0x29f480 — WavetableIR::getJsonIndex(SampleFormat) const

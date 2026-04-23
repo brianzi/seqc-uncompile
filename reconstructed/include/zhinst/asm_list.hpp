@@ -55,12 +55,21 @@ public:
         int sequenceId = 0;               // +0x00
         // +0x04: 4 bytes padding
         AssemblerInstr assembler;         // +0x08  (0x80 bytes)
-        int wavetableFront = 0;           // +0x88
+        int wavetableFront = 0;           // +0x88  (dual-purpose; see lineNumber())
         // +0x8C: 4 bytes padding
         std::shared_ptr<Node> node;       // +0x90  (16 bytes: ptr + ctrl)
         bool isWaveformCmd = false;       // +0xA0
         // +0xA1..+0xA7: padding to 0xA8
-        int lineNumber = 0;               // offset TBD — source line number
+
+        // The +0x88 int is dual-purpose depending on command type:
+        //   - For most assembler commands it stores AsmCommands::wavetableFrontIndex_
+        //     (set by emitEntry et al.) — accessed via `wavetableFront`.
+        //   - For MESSAGE / ERROR_MSG instructions it holds a source line number
+        //     (read by AsmOptimize::reportUserMessages at 0x280c02:
+        //     `mov eax, [r13+0x88]`) — accessed via `lineNumber()`.
+        // Same 4 bytes; accessor methods (not a separate field) so layout is stable.
+        int& lineNumber()       { return wavetableFront; }
+        int  lineNumber() const { return wavetableFront; }
 
         ~Asm();  // 0x122dd0
 

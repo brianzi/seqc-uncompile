@@ -19,7 +19,7 @@ namespace zhinst {
 // 2. Calls Waveform(shared_ptr<Waveform>, string) base ctor (copy-rename ctor at 0x114f10)
 // 3. Initializes IR-specific fields:
 //    - irField1 = 0 (uint16_t at +0xD8)
-//    - irBool1 = false (bool at +0xDA)
+//    - crossesCacheLine_ = false (bool at +0xDA)
 //    - irField2 = source->deviceConstants->someField (int at +0xDC)
 //      Specifically: source[0]->field_at_0x78->field_at_0x24
 // 4. If this->file is non-null:
@@ -29,8 +29,11 @@ namespace zhinst {
 WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
     : Waveform(std::shared_ptr<Waveform>(source), std::string(source->name))
 {
-    irField1 = 0;
-    irBool1 = false;
+    // Ctor zeroes WORD at +0xD8, BYTE at +0xDA, then writes DWORD at +0xDC.
+    // Two bools at +0xD8 (markedForLoad) and +0xD9 (fixed_) zeroed via WORD store.
+    markedForLoad = false;
+    fixed_ = false;
+    crossesCacheLine_ = false;
     irField2 = source->deviceConstants->field_24;  // source->deviceConstants[0x24]
 
     if (file) {
@@ -50,8 +53,9 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
 WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     : Waveform(source, std::string(source->name))
 {
-    irField1 = 0;
-    irBool1 = false;
+    markedForLoad = false;
+    fixed_ = false;
+    crossesCacheLine_ = false;
     irField2 = source->deviceConstants->field_24;
 
     if (file) {
@@ -112,12 +116,11 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
         if (i != 0) {
             oss << ",";
         }
-        // Compute marker bits for channel i from signal sample data
-        // signal.sampleData is vector at Waveform+0xB0 (Signal+0x30)
-        // TODO: samples_ is vector<double>, but marker bits need uint8_t access
-        // This likely accesses a different field (markers or playMarkers)
-        const uint8_t* data = reinterpret_cast<const uint8_t*>(signal.samples_.data());
-        size_t size = signal.samples_.size();
+        // Compute marker bits for channel i from Signal::markerBits_
+        // (vector<uint8_t> at WaveformIR+0xB0..+0xB8 = Signal+0x30..+0x38).
+        // Verified at 0x2c571b: `mov rax,[r14+0xb0]; mov rsi,[r14+0xb8]`.
+        const uint8_t* data = signal.markerBits_.data();
+        size_t size = signal.markerBits_.size();
 
         // OR together all low 2 bits (mask 0x03) of each byte
         uint8_t orResult = 0;

@@ -283,9 +283,8 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
 
     std::vector<AsmList::Asm> result;
 
-    // TODO: imm.value doesn't exist — Immediate is a variant (data_ union + index_)
-    // Original code likely used operator int() or direct union access
-    int32_t sval = static_cast<int>(imm);  // uses operator int()
+    // Resolved: Immediate is a variant; expose value via operator int().
+    int32_t sval = static_cast<int>(imm);
     uint32_t uval = static_cast<uint32_t>(sval);
 
     // Case 1: fits in ~18-bit signed range
@@ -619,8 +618,15 @@ AsmList::Asm AsmCommands::ldiotrig(AsmRegister reg) const {
 
 AsmList::Asm AsmCommands::lcnt(AsmRegister reg,
                             detail::AddressImpl<unsigned int> addr) const {
-    // Similar to ld — exact opcode TBD
-    return ld(reg, addr);
+    // 0x2756f0: validate register, add 0x64 (100) to address, then call ld().
+    // The +0x64 offset places the address into the loop-counter register
+    // bank that occupies the upper portion of the regular register address space.
+    if (!reg.isValid()) {
+        throw ResourcesException(
+            ErrorMessages::format(ErrorMessageT::InvalidRegister, "lcnt"));
+    }
+    addr.value += 0x64;    // 0x27571b: add r14d, 0x64
+    return ld(reg, addr);  // 0x275728
 }
 
 // =========================================================================
@@ -860,13 +866,13 @@ AsmList::Asm AsmCommands::asmLoopNode() const {
 
 AsmList::Asm AsmCommands::asmRate(int rate) const {
     AsmList::Asm result = emitNodeEntry(NodeType::Rate);
-    result.node->rate = rate;
+    result.node->globalRate = rate;  // +0x100
     return result;
 }
 
 AsmList::Asm AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
     AsmList::Asm result = emitNodeEntry(NodeType::PrecompFlags);
-    result.node->precompFlags = flags;
+    result.node->defaultPrecompFlags = flags;  // +0x104
     return result;
 }
 
@@ -876,7 +882,7 @@ AsmList::Asm AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
 
 AsmList::Asm AsmCommands::asmSetVarPlaceholder(AsmRegister reg) {
     AsmList::Asm result = emitNodeEntry(NodeType::SetVarPlaceholder);
-    result.node->reg = reg;
+    result.node->lengthReg = reg;  // +0x88
     return result;
 }
 
@@ -926,40 +932,42 @@ PlayConfig AsmCommands::genPlayConfig(
     bool isBool, int holdCount, unsigned int suppress,
     bool isHoldMode, unsigned int trigger) const
 {
+    // Disassembly: 0x2789a0
+    // Field references verified from binary:
+    //   [wf+0xc8]      = signal.channels_     (uint16_t, NOT "sampleWidth")
+    //   [wf+0xb0/+0xb8] = signal.markerBits_  vector begin/end
+    // Parameters `holdCount` and `isBool` are accepted but never consumed by
+    // the binary in the visible code path; included here for ABI fidelity.
     PlayConfig config;
-    // TODO: these field names were wrong in reconstruction — original semantics unknown
-    // config.holdCount = holdCount;        // no such field on PlayConfig
-    // config.isBool = isBool;              // no such field on PlayConfig
+    (void)holdCount;
+    (void)isBool;
     config.suppress = suppress;
-    config.is4Channel = isFourChannelBool;  // was: config.fourChannel
+    config.is4Channel = isFourChannelBool;
     config.trigger = trigger;
-    config.precompFlags = 0;                // was: config.precompFlag
-    config.hold = isHoldMode;               // was: config.isHold
+    config.precompFlags = 0;
+    config.hold = isHoldMode;
 
     WaveformFront* wf = wvf.get();
     if (!wf) {
         config.channelMask = 0;
         config.markerBits = 0;
-        config.dummy = true;  // was: config.isDummy
+        config.dummy = true;
         return config;
     }
 
-    config.dummy = false;  // was: config.isDummy
-    // TODO: wf->sampleWidth does not exist on WaveformFront — original field unknown
-    // uint16_t sampleWidth = wf->sampleWidth;
-    uint16_t sampleWidth = 0; // PLACEHOLDER — see TODO above
-    uint32_t fullMask = (1u << sampleWidth) - 1;
-    uint32_t channelMask = (sampleWidth == 1) ? 2u : fullMask;
-    if (!isHold) channelMask = fullMask;
+    config.dummy = false;
+    // 0x2789d7: movzx ecx,WORD PTR [rax+0xc8] = signal.channels_
+    uint16_t channels = wf->signal.channels_;
+    uint32_t fullMask = (1u << channels) - 1;       // 0x2789de..0x2789e7
+    uint32_t channelMask = (channels == 1) ? 2u : fullMask; // 0x2789eb..0x2789f1
+    if (!isHold) channelMask = fullMask;             // 0x2789f5..0x2789f8 (cmove on r15b)
     config.channelMask = channelMask;
 
-    // Marker processing: iterate marker data pairwise from end
-    // Computing (byte | (byte >> 1)) & 0x3 for each sample
-    // TODO: wf->markerData and wf->markerDataEnd do not exist on WaveformFront
-    // Original marker data source unknown — possibly via Signal::markers_ vector
-    uint8_t* data = nullptr; // was: wf->markerData;
-    size_t len = 0; // was: wf->markerDataEnd - data;
-    uint16_t count = static_cast<uint16_t>(len);
+    // Marker processing: iterate signal.markerBits_ pairwise from end.
+    // 0x278a0c..0x278a1e: load begin/end pointers, compute count
+    auto& mbits = wf->signal.markerBits_;
+    const uint8_t* data = mbits.data();
+    uint16_t count = static_cast<uint16_t>(mbits.size());
 
     uint32_t markerBits = 0;
     if (count >= 2) {
@@ -1027,14 +1035,16 @@ AsmList::Asm AsmCommands::asmPlay(
     node->indexOffsetReg = reg2;
     node->length = regVal;
 
-    // Mark waveform as used and compute packed play word if needed
+    // Mark waveform as used.
+    //
+    // NOTE: A previous reconstruction conditionally called
+    //   currentWvf->playWord = node->config.encodeCwvf(defaultRate);
+    // here. That was a hallucination. Verified against the disassembly of
+    // asmPlay at 0x278b40: PlayConfig::encodeCwvf (0x1dc500) is called from
+    // exactly one site in the binary — 0x1d8075, inside
+    // Prefetch::placeSingleCommand (0x1d7940) — and never from asmPlay.
     if (currentWvf) {
         currentWvf->used = true;
-        if (currentWvf->waveIndex < 0) {
-            // TODO: pack() doesn't exist — actual method is encodeCwvf(int defaultRate)
-            // Original defaultRate argument unknown
-            currentWvf->playWord = node->config.encodeCwvf(0 /* TODO: defaultRate */);
-        }
     }
 
     return result;

@@ -57,8 +57,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
 
     switch (static_cast<NodeType>(typeCode)) {
 
-    // ---- Play (0x02) ----                                     // 0x1c5f1a
-    case NodeType::Play: {
+    // ---- Load (NodeType=0x01) ----                            // jump table[0] → 0x1c5f1a (verified at 0x95ad98)
+    case NodeType::Load: {
         // Gets waveAtCurrentDeviceIndex inline
         auto waveName = n->waveAtCurrentDeviceIndex();
         if (!waveName.has_value()) {
@@ -96,13 +96,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
                     *reinterpret_cast<uint32_t*>(state.cachePtr.get()));
             }
 
-            // 0x1c6ff3: Check load weak_ptr (node +0x18/+0x20)
-            std::shared_ptr<Node> loadNode;
-            if (n->loadCtrl) {                                  // 0x1c7004
-                // weak_ptr::lock()
-                loadNode = std::shared_ptr<Node>(n->load,       // confirmed
-                    [](Node*){});  // simplified; binary does __shared_weak_count::lock()
-            }
+            // 0x1c6ff3-0x1c702f: Lock load weak_ptr (node +0x18..+0x20)
+            std::shared_ptr<Node> loadNode = n->loadRef.lock();
 
             if (loadNode) {
                 auto& loadState = nodeStates_.at(loadNode);     // confirmed
@@ -164,8 +159,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         break;  // falls through to recursive next below
     }
 
-    // ---- Load (0x01) ----                                     // 0x1c636f
-    case NodeType::Load: {
+    // ---- Play (NodeType=0x02) ----                            // jump table[1] → 0x1c636f (verified at 0x95ad98)
+    case NodeType::Play: {
         auto waveName = n->waveAtCurrentDeviceIndex();          // 0x1c636f inline
         if (!waveName.has_value()) {
             // 0x1c68aa: "play\n" then recurse on next
@@ -194,11 +189,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
                 *reinterpret_cast<uint32_t*>(state.cachePtr.get()));
         }
 
-        // Check load weak_ptr
-        std::shared_ptr<Node> loadNode;                         // confirmed
-        if (n->loadCtrl) {
-            // lock weak ptr
-        }
+        // Lock load weak_ptr (node +0x18..+0x20)
+        std::shared_ptr<Node> loadNode = n->loadRef.lock();
         if (loadNode) {
             auto& loadState = nodeStates_.at(loadNode);
             if (loadState.cachePtr) {
@@ -240,7 +232,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             }
         }
 
-        // "(" << getUsedCache(node) << "," << nodeStates_[node].usedCache << ")"
+        // "(" << getUsedCache(node) << "," << nodeStates_[node].usedCache() << ")"
         std::cout << "(";                                       // 0x1c748b
         {
             auto nodeCopy = node;
@@ -252,7 +244,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
         auto itState = nodeStates_.find(node);
         if (itState != nodeStates_.end()) {
             std::cout << detail::AddressImpl<uint32_t>(
-                itState->second.usedCache);                     // 0x1c7518: +0x40 from hash_node value = +0x20 PNS
+                itState->second.usedCache());                     // 0x1c7518: +0x40 from hash_node value = +0x20 PNS
         }
         std::cout << ")";                                       // 0x1c7523
         std::cout << "\n";                                      // 0x1c7570
@@ -399,11 +391,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
                     nodeStates_.at(node).cachePtr.get()));
         }
 
-        // Check load weak_ptr
-        std::shared_ptr<Node> loadNode;
-        if (n->loadCtrl) {
-            // lock weak ptr                                    // confirmed
-        }
+        // Lock load weak_ptr (node +0x18..+0x20)
+        std::shared_ptr<Node> loadNode = n->loadRef.lock();
         if (loadNode) {
             auto& loadState = nodeStates_.at(loadNode);
             if (loadState.cachePtr) {

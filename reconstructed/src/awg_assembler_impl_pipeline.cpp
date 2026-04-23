@@ -64,7 +64,7 @@ namespace zhinst {
 //   +0x58  uint32_t* opcodes_end          — current write position
 //   +0x60  uint32_t* opcodes_capacity
 //   +0x68  int memoryOffset_              — memory offset for output
-//   +0x70  uint64_t lineNumber_           — current line being processed
+//   +0x70  uint64_t currentLine_           — current line being processed
 //   +0x78  vector<string> sourceLines_    — per-line source strings
 //   +0x90  vector<Message> messages_      — error/warning messages
 //   +0xA8  (more fields)
@@ -134,24 +134,24 @@ void AWGAssemblerImpl::assembleString(const std::string& src) {  // 0x286490
         parserMessage(code, msg);
     });
 
-    lineNumber_ = 0;
+    currentLine_ = 0;
 
     // Process each line
     while (std::getline(iss, line)) {
         // Parse one line → returns shared_ptr<AsmExpression>
         std::shared_ptr<AsmExpression> ast = getAST(line);
-        lineNumber_++;
+        currentLine_++;
 
         if (ast) {
             // Set the noOpt flag from parser context
-            ast->noOpt = !parserCtx_.doOpt();
+            ast->noOpt() = !parserCtx_.doOpt();
 
             // Add to expressions vector
             expressions.push_back(ast);
 
             // If command == 2 (LABEL), record the line number
             if (ast->command == 2) {
-                lineNumbers.push_back(lineNumber_);
+                lineNumbers.push_back(currentLine_);
             }
         }
 
@@ -224,11 +224,11 @@ AWGAssemblerImpl::assembleStringToExpressionsVec(const std::string& src) {  // 0
         parserMessage(code, msg);
     });
 
-    lineNumber_ = 0;
+    currentLine_ = 0;
 
     while (std::getline(iss, line)) {
         std::shared_ptr<AsmExpression> ast = getAST(line);
-        lineNumber_++;
+        currentLine_++;
 
         if (ast) {
             // Has a parsed expression — push source line
@@ -241,7 +241,7 @@ AWGAssemblerImpl::assembleStringToExpressionsVec(const std::string& src) {  // 0
             ast->comment = comment;
 
             // Set noOpt flag
-            ast->noOpt = !parserCtx_.doOpt();
+            ast->noOpt() = !parserCtx_.doOpt();
 
             // Add to result
             result.push_back(ast);
@@ -294,11 +294,11 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
         parserMessage(code, msg);
     });
 
-    lineNumber_ = 0;
+    currentLine_ = 0;
     int labelCounter = 0;
 
     for (const auto& instr : asmList) {
-        lineNumber_++;
+        currentLine_++;
 
         // Initialize a shared_ptr<AsmExpression> for this instruction
         std::shared_ptr<AsmExpression> expr;
@@ -306,7 +306,7 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
         // Check the command type
         if (instr.cmd == Assembler::ERROR_MSG || instr.cmd == Assembler::MESSAGE) {
             // Skip with a message to cout
-            std::cout << "Skipping line: " << lineNumber_
+            std::cout << "Skipping line: " << currentLine_
                       << " — instruction not supported in assembleAsmList\n";
             continue;
         }
@@ -320,21 +320,25 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             // Copy the label string from the instruction
             std::string labelStr = instr.label;
 
-            // TODO: original binary calls something like Label ctor or addLabel here
-            // parserCtx_.Label(labelCounter, labelStr);
-            parserCtx_.addLabel(labelStr);
+            // Note on binary structure: at 0x287e33 the original constructs a
+            // local AsmParserContext::Label{labelCounter, labelStr}. That Label
+            // exists ONLY to hold a copy of the string until it is moved into
+            // exprObj->labelName below; its construction has no other observable
+            // side effect (and there is no addLabel/hasLabel registration here).
+            // We therefore omit the temporary and assign labelName directly,
+            // which is semantically equivalent.
 
             // Set label-related fields on the expression
-            exprObj->lineNumber = labelCounter;  // stored at +0x70 (word at label index offset)
+            exprObj->lineNumber() = labelCounter;  // +0x58 = labelIndex (verified mov [r14+0x70],ecx where r14=ctrl block, so expr+0x58)
 
             // Depending on labelType (at +0x90 == 1 means "use/ref")
-            if (exprObj->labelType == 1) {
+            if (exprObj->labelType() == 1) {
                 // Copy label name to +0x78
                 exprObj->labelName = labelStr;
             } else {
                 // Move label name; mark as definition
                 exprObj->labelName = std::move(labelStr);
-                exprObj->labelType = 1;  // mark as has-label
+                exprObj->labelType() = 1;  // mark as has-label
             }
         } else {
             // General instruction: create expression with matching command
@@ -397,7 +401,7 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
         labelCounter++;
 
         // Record line numbers (for label resolution)
-        lineNumbers.push_back(lineNumber_);
+        lineNumbers.push_back(currentLine_);
 
         // Push expression
         expressions.push_back(expr);
@@ -417,22 +421,13 @@ void AWGAssemblerImpl::assembleExpressions(
     const std::vector<std::shared_ptr<AsmExpression>>& expressions,
     const std::vector<uint64_t>& lineNumbers) {  // 0x285620
 
-    // Reset opcodes vector: save old begin, set write ptr = begin
-    uint64_t* oldBegin = opcodes_.data();
-    uint64_t* oldEnd = opcodes_.data() + opcodes_.capacity();
-    opcodes_end_ = opcodes_.data();  // reset write position
-
-    // Ensure capacity for expressions.size() opcodes
+    // Reset opcodes vector and reserve capacity for expressions.size() entries.
+    // The original disassembly manipulated raw begin/end/cap pointers in
+    // opcodes_; here we use the equivalent std::vector interface.
     size_t numExprs = expressions.size();
-    size_t capacity = (oldEnd - oldBegin);
-    if (numExprs > capacity) {
-        // Reallocate
-        uint64_t* newBuf = new uint64_t[numExprs];
-        opcodes_begin_ = newBuf;
-        opcodes_end_ = newBuf;
-        // TODO: opcodes_capacity_ not a member — using vector resize instead
-        // opcodes_capacity_ = newBuf + numExprs;
-        delete[] oldBegin;
+    opcodes_.clear();
+    if (opcodes_.capacity() < numExprs) {
+        opcodes_.reserve(numExprs);
     }
 
     // Clear the label bimap
@@ -443,8 +438,8 @@ void AWGAssemblerImpl::assembleExpressions(
     // First pass: register all labels
     for (const auto& expr : expressions) {
         AsmExpression* e = expr.get();
-        if (e->labelType == 1) {  // label definition
-            int labelIndex = e->lineNumber;  // at +0x58
+        if (e->labelType() == 1) {  // label definition
+            int labelIndex = e->lineNumber();  // +0x58 (labelIndex; verified disasm 0x285732 mov r15d,[rax+0x58])
             std::string labelName = e->labelName;  // at +0x60
             // Insert into bimap: (name -> index)
             labelBimap.insert({labelName, labelIndex});
@@ -455,7 +450,7 @@ void AWGAssemblerImpl::assembleExpressions(
     size_t i = 0;
     for (const auto& expr : expressions) {
         // Set line number from lineNumbers vector
-        lineNumber_ = lineNumbers[i];
+        currentLine_ = static_cast<int32_t>(lineNumbers[i]);
 
         AsmExpression* e = expr.get();
         if (e->command == 2) {
@@ -468,7 +463,7 @@ void AWGAssemblerImpl::assembleExpressions(
         int opcode = evaluate(expr);
 
         // Store opcode
-        *opcodes_end_++ = opcode;
+        opcodes_.push_back(opcode);
         i++;
     }
 
@@ -480,9 +475,8 @@ void AWGAssemblerImpl::assembleExpressions(
     }
 
     // Append trailing 0 (END/NOP) if last opcode is non-zero
-    if (opcodes_end_ != opcodes_begin_ && *(opcodes_end_ - 1) != 0) {
-        // Push a 0
-        *opcodes_end_++ = 0;
+    if (!opcodes_.empty() && opcodes_.back() != 0) {
+        opcodes_.push_back(0);
     }
 }
 
@@ -527,9 +521,9 @@ std::string AWGAssemblerImpl::getReport() const {  // 0x285bc0
     std::ostringstream oss;
 
     // Iterate over messages_ vector (at +0x90)
-    // Each message is 0x20 bytes: uint64_t lineNo at +0x00, string at +0x08
+    // Each message is 0x20 bytes: int code at +0x00 (line# or level), string at +0x08
     for (const auto& msg : messages_) {
-        oss << "Assembler message at " << msg.lineNumber
+        oss << "Assembler message at " << msg.code
             << " : " << msg.text << "\n";
     }
 
@@ -538,12 +532,12 @@ std::string AWGAssemblerImpl::getReport() const {  // 0x285bc0
 
 // =============================================================================
 // errorMessage — 0x289070
-// Appends a message using the current lineNumber_, then sets syntax error flag.
+// Appends a message using the current currentLine_, then sets syntax error flag.
 // =============================================================================
 void AWGAssemblerImpl::errorMessage(const std::string& text) {  // 0x289070
-    // Create a Message: {lineNumber_, text}
+    // Create a Message: {currentLine_, text}
     Message msg;
-    msg.lineNumber = lineNumber_;
+    msg.code = currentLine_;
     msg.text = text;
 
     // Push to messages_ vector (at +0x90..+0xA8)
@@ -555,11 +549,12 @@ void AWGAssemblerImpl::errorMessage(const std::string& text) {  // 0x289070
 
 // =============================================================================
 // parserMessage — 0x289190
-// Same as errorMessage but takes an explicit line number (from parser callback).
+// Same emit pattern as errorMessage, but the leading int of the Message is
+// the `level` argument (severity), not the current line number.
 // =============================================================================
-void AWGAssemblerImpl::parserMessage(int line, const std::string& text) {  // 0x289190
+void AWGAssemblerImpl::parserMessage(int level, const std::string& text) {  // 0x289190
     Message msg;
-    msg.lineNumber = static_cast<uint64_t>(line);
+    msg.code = level;
     msg.text = text;
 
     messages_.push_back(msg);
@@ -574,18 +569,15 @@ void AWGAssemblerImpl::parserMessage(int line, const std::string& text) {  // 0x
 void AWGAssemblerImpl::writeToFile(const std::string& outputPath) {  // 0x288570
     // Check preconditions
     if (parserCtx_.hadSyntaxError()) return;
-    if (opcodes_begin_ == opcodes_end_) return;  // no code generated
+    if (opcodes_.empty()) return;  // no code generated
 
     // Create ELF writer (machine type 2)
     ElfWriter elf(2);
     elf.setMemoryOffset(memoryOffset_ + 0x80);
 
-    // Add the code section from opcodes vector
-    // TODO: opcodes_ is vector<uint64_t> but addCode expects vector<uint32_t>
-    // Cast through reinterpret for now
-    std::vector<uint32_t> opcodes32(opcodes_.size() * 2);
-    std::memcpy(opcodes32.data(), opcodes_.data(), opcodes_.size() * sizeof(uint64_t));
-    elf.addCode(opcodes32);
+    // Add the code section directly — opcodes_ is already vector<uint32_t>.
+    // 0x2885cf: lea rsi,[r14+0x50]; 0x2885da: call ElfWriter::addCode.
+    elf.addCode(opcodes_);
 
     // Build comment string
     std::ostringstream commentOss;
@@ -606,8 +598,8 @@ void AWGAssemblerImpl::writeToFile(const std::string& outputPath) {  // 0x288570
     std::string asmSec = ".asm";
     elf.addData(asmSource_.c_str(), asmSource_.size(), asmSec);
 
-    // Reset opcodes_end_ to begin (consumed)
-    opcodes_end_ = opcodes_begin_;
+    // Reset opcodes (consumed)
+    opcodes_.clear();
 
     // Write the ELF file
     if (!elf.writeFile(outputPath)) {
@@ -625,7 +617,7 @@ void AWGAssemblerImpl::writeToFile(const std::string& outputPath) {  // 0x288570
 // =============================================================================
 void AWGAssemblerImpl::printOpcode(int startIndex) const {  // 0x288b50
     uint64_t idx = 0;
-    size_t numOpcodes = opcodes_end_ - opcodes_begin_;
+    size_t numOpcodes = opcodes_.size();
 
     if (numOpcodes == 0) return;
 
@@ -647,23 +639,23 @@ void AWGAssemblerImpl::printOpcode(int startIndex) const {  // 0x288b50
         }
 
         // Check if this index has a corresponding source line
-        size_t numLines = (sourceLines_end_ - sourceLines_begin_) / 3;  // string is 0x18
+        size_t numLines = sourceLines_.size();
         if (idx < numLines) {
             // Format: index (hex, padded), ": ", opcode (hex, padded), " ", source_line, "\n"
             std::cout << std::setw(8) << std::setfill('0') << std::hex
                       << (idx + startIndex)
                       << ": "
                       << std::setw(8) << std::setfill('0')
-                      << opcodes_begin_[idx]
+                      << opcodes_[idx]
                       << " " << sourceLines_[idx] << "\n";
         } else {
             // No source line — check if opcode is 0 (padding/NOP)
-            if (opcodes_begin_[idx] == 0) {
+            if (opcodes_[idx] == 0) {
                 std::cout << std::setw(8) << std::setfill('0') << std::hex
                           << (idx + startIndex)
                           << ": "
                           << std::setw(8) << std::setfill('0')
-                          << opcodes_begin_[idx]
+                          << opcodes_[idx]
                           << " " << "nop" << "\n";
             }
         }

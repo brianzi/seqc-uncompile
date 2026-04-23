@@ -336,8 +336,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
 
         AsmExpression* expr = it->get();
 
-        // 0x2662dc: check expr->labelType (byte at +0x78)
-        if (expr->labelType) {
+        // 0x2662dc: check expr->labelType (byte at +0x78, alias for hasLabel)
+        if (expr->labelType()) {
             // --- Case A: Direct instruction reference (labelType == true) ---
             // 0x2662e6: Build AssemblerInstr with cmd = LABEL (2)
             AssemblerInstr instr;
@@ -540,8 +540,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                 entry.assembler = instr;
                 entry.wavetableFront = wavetableFront;
 
-                // 0x2675b9: Check expr->noOpt (byte at +0x98)
-                if (expr->noOpt) {
+                // 0x2675b9: Check expr->noOpt (byte at +0x98, alias for hasComment)
+                if (expr->noOpt()) {
                     // 0x2675ca: Parse JSON from expr->comment (+0x80)
                     // boost::json::parse(comment_str)
                     std::string_view commentSv = expr->comment;
@@ -559,8 +559,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                     // Store node into entry
                     entry.node = node;
 
-                    // 0x267808: Get node->sequenceId and store into nodeMap
-                    int nodeSeqId = node->sequenceId;
+                    // 0x267808: Get node->nodeId and store into nodeMap
+                    int nodeSeqId = node->nodeId;  // +0x10
                     nodeMap[nodeSeqId] = node;
 
                     // 0x26788f: isWaveformCmd override

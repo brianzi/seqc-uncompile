@@ -247,6 +247,13 @@ public:
     AsmList::Asm asmWtrigLSPlaceholder(int value);
     AsmList::Asm fb(int value) const;
 
+    // Setter for the dual-purpose wavetable-front / source-line index at
+    // +0x50. Used by Prefetch::placeSingleCommand (0x1d79bf) to propagate
+    // the placeholder's `wavetableFront` value into the active assembler
+    // context before emitting commands.
+    void setWavetableFrontIndex(int value) { wavetableFrontIndex_ = value; }
+    int  wavetableFrontIndex() const { return wavetableFrontIndex_; }
+
 private:
     std::unique_ptr<AsmCommandsImpl> impl_;                      // +0x10
     std::shared_ptr<WavetableFront> wavetable_;                  // ~+0x20

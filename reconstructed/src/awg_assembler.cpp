@@ -57,7 +57,7 @@ void AWGAssembler::writeToFile(std::string const& path)
 }
 
 // 0x285140
-std::vector<uint64_t> const& AWGAssembler::getOpcode() const
+std::vector<uint32_t> const& AWGAssembler::getOpcode() const
 {
     return pImpl_->getOpcode();
 }

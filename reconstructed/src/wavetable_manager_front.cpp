@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/wavetable_front.hpp"
+#include "zhinst/wavetable_helpers.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/signal.hpp"
 #include "zhinst/value.hpp"
@@ -12,10 +13,11 @@
 namespace zhinst {
 namespace detail {
 
-namespace {
-// 0x2a0fd0 — getUniqueName(const string& base, int index, int counter)
-std::string getUniqueName(const std::string& base, int index, int counter);
-} // anon
+// 0x2a0fd0 — getUniqueName(const string& base, int index, int counter).
+// Definition lives in wavetable_helpers.hpp as an inline detail-namespace
+// helper (single ODR-clean definition shared by all wavetable TUs); since
+// this TU is already inside `namespace zhinst::detail`, the helper is
+// directly in scope without any using-declaration.
 
 // 0x29fa40 — WavetableManager<WaveformFront>::~WavetableManager()
 template<>
@@ -192,7 +194,7 @@ WavetableManager<WaveformFront>::newWaveform(
 
     auto wf = std::make_shared<WaveformFront>(name, Waveform::File::Type::GEN, dc);
     wf->signal = signal;                   // copy Signal data into +0x80
-    wf->funDescrName_ = funName;           // string at +0x50
+    wf->setFunDescrName(funName);          // Waveform::thirdString at +0x50
     wf->values = args;                     // vector<Value> at +0xE0
 
     // Insert
@@ -212,7 +214,7 @@ WavetableManager<WaveformFront>::getWaveformForFront(
         WaveformFront* wf = wf_ptr.get();
 
         // Skip if file type != GEN (2)
-        if (wf->fileType != 2) continue;  // wf+0x18
+        if (wf->waveformType != Waveform::File::Type::GEN) continue;  // wf+0x18
 
         // Compare function name (wf+0x50 is a string field "funDescr")
         // Check string length matches, then memcmp content
@@ -223,12 +225,11 @@ WavetableManager<WaveformFront>::getWaveformForFront(
         if (wf->values.size() != args.size()) continue;
 
         // Check wf+0xDC == 0 (not modified flag)
-        if (wf->isModified) continue;
+        if (wf->isModified()) continue;
 
-        // Compare each Value element
+        // Compare each Value element using Value::operator== (0x21a780).
         bool match = true;
         for (size_t i = 0; i < args.size(); i++) {
-            // TODO: wf->values[i] == args[i] comparison needs Value::operator==
             if (!(wf->values[i] == args[i])) {
                 match = false;
                 break;

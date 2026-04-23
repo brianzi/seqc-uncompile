@@ -192,3 +192,104 @@ writes the register (same write semantics as isWritten).
 - `GlobalResources::regNumber` — thread-local counter for allocating fresh
   virtual register numbers. Incremented by `prepareResources` (to exceed
   the existing maxRegister) and by `splitReg` / `splitConstRegisters`.
+
+---
+
+# Register field semantics — critical correction (Phase 15c, 2026-04-23)
+
+`AssemblerInstr` register field semantics were **inverted** in early
+reconstruction and propagated through all AsmOptimize methods. Phase 15c
+discovered and corrected this.
+
+## Correct semantics (from disassembly of `isRead` @0x27d900 and `isWritten` @0x27d960)
+
+| Field | AssemblerInstr offset | Asm offset | Semantic |
+|-------|----------------------|------------|----------|
+| reg2  | +0x20                | +0x28      | **READ source** (isRead checks with cmdType & 1) |
+| reg0  | +0x28                | +0x30      | **WRITE destination** (isWritten checks cmdType bit 1) |
+| reg1  | +0x30                | +0x38      | **Dual**: read if cmdType==1 or 7; written if cmdType==7 |
+
+Prior code had reg2 as "dest" and reg0 as "src1" — exactly backwards.
+The field **names** in `assembler.hpp` were NOT changed (to avoid
+cascading rename across 20+ files), but all **semantic usage** in
+asm_optimize.cpp was corrected with offset citations in comments.
+
+## Functions corrected by Phase 15c
+
+| Function | Address | Fix |
+|----------|---------|-----|
+| `isRead` | 0x27d900 | Checks reg2(+0x20), not reg0 |
+| `isWritten` | 0x27d960 | Checks reg0(+0x28), not reg2 |
+| `getNextActionForReg` | 0x281a10 | Rewritten: correct 3-field scan (reg2→bit0, reg0→bit1, reg1→3); branch commands return 3 early |
+| `registerIsNeverWritten` | 0x280f50 | Field references corrected |
+| `registerUpdate` | 0x281680 | Updates all 3 register fields correctly |
+| `isLabelCalled` | 0x27d9c0 | Iteration direction fixed: begin..it (not it..end) |
+
+## Functions still using pre-correction field references (carry-forward)
+
+- `simplifyAssign` @0x280e10 — not in scope of Phase 15c. Should be
+  revisited if this function is ever exercised by tests.
+- `splitReg` @0x281000 — current stub is ~20 lines; real binary is ~500.
+
+---
+
+# Algorithm reconstructions (Phase 15c)
+
+## `removeUnusedRegs` @0x27e760 (291 lines, fully reconstructed)
+
+Algorithm:
+1. Cancel-callback lock pattern at entry.
+2. Skip bitmask 0x29 = 0b101001: skips INVALID(-1), LABEL(2), and cmd=4
+   (NOT NOP/MESSAGE/ERROR_MSG as previously claimed).
+3. For each writing instruction: determine dest reg (try reg0, fallback
+   reg1 for cmdType==7).
+4. Track seen dest regs in vector to avoid re-processing.
+5. Inner forward scan builds bitmask: bit0=reg in reg2 (read),
+   bit1=reg in reg0 (overwritten); reg1 match or both bits → abandon.
+6. After scan:
+   - never-read → eliminate (cmd=INVALID, dest=AsmRegister(-1))
+   - read-but-not-overwritten → call `simplifyAssign`
+
+## `registerAllocation` @0x27ebb0 (1466 lines, structurally reconstructed)
+
+6-phase graph-coloring:
+
+1. Build live ranges: `vector<vector<int>>` (0x18 per slot), one per
+   unique register.
+2. Build label→index map: `unordered_map<string,int>`.
+3. Find backward branches: pairs of (branch-index, label-index) where
+   label precedes branch.
+4. Extend live ranges across backward branches.
+5. Allocate physical registers: `set<unsigned long>` for conflicts,
+   greedy assignment.
+6. Rename via `registerUpdate`.
+
+Internal type `PhysicalRegister` is confirmed by the vector destructor
+mangled name at 0x281840.
+
+## `splitConstRegisters` @0x280440 (444 lines, structurally reconstructed)
+
+Two-pass algorithm:
+
+- **Pass 1**: Build rewritten instruction list with "barrier" entries
+  (cmd=INVALID, dest=`magicSkipRegister()`).
+- **Pass 2**: Scan for constant loads (reg0==r0) and call `splitReg` to
+  split live ranges.
+- **Post-pass**: Move entries back to asm_, stripping barrier entries.
+
+## Skip bitmask 0x29 pattern
+
+Multiple AsmOptimize functions use:
+
+```
+(cmd+1) <= 5 && ((0x29 >> (cmd+1)) & 1)
+```
+
+Bitmask 0x29 = bits 0,3,5 → skips cmd values: INVALID(-1), LABEL(2),
+and cmd=4 (undocumented value between MESSAGE=3 and ERROR_MSG=5). This
+pattern was previously incorrectly claimed to skip NOP/MESSAGE/ERROR_MSG.
+
+## `AsmRegister::magicSkipRegister()` @0x28ebb0
+
+Returns `{INT_MAX, true}` (packed as `0x17fffffff`). Used by
+`splitConstRegisters` to mark barrier entries for later stripping.

@@ -165,11 +165,9 @@ std::string const& getApiErrorMessage(int ziResultCode)  // 0x2e4820
 // Binary address: __cxx_global_var_init at 0xd5de0
 //
 // The full 305-entry initialization is in the binary as repeated
-// map::insert(pair<int, string>) calls. The complete format string table
-// is documented in notes/error_messages.md.
-//
-// Representative entries shown here; see error_messages.hpp for the full
-// ErrorMessageT enum mapping all 305 values.
+// map::insert(pair<int, string>) calls. The full format string table
+// lives inline below; see error_messages.hpp for the ErrorMessageT enum
+// mapping all 305 values.
 // ============================================================================
 
 namespace {

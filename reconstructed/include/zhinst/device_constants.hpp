@@ -148,20 +148,27 @@ struct DeviceConstants {
     bool           hasPrecomp;            // +0x88  precompensation / DA support
     char           _pad89[7];             // +0x89
 
-    // Convenience aliases — these map to existing fields above but are used
-    // under different names in various .cpp files. Stored as fields for
-    // compatibility with code that accesses them as `.grainSize` etc.
-    // TODO: confirm which underlying field each alias corresponds to,
-    // and whether these should just be accessor methods or separate fields.
-    uint32_t grainSize = 0;             // TODO: alias for waveformAlignment?
-    uint32_t maxWaveformLength = 0;     // TODO: alias for waveformMemSize?
-    uint32_t maxWaveIndex = 0;          // TODO: alias TBD
-    uint32_t maxDioTableEntries = 0;    // TODO: derived from numDIOBits?
+    // Convenience aliases for legacy .cpp call-sites. These are NOT separate
+    // fields — every TBD alias was reconciled to an existing field via
+    // disassembly inspection (offsets all within the verified 0x90 layout).
+    //
+    //   grainSize          = waveformPageSize     (+0x44, verified
+    //                        mov r8d,[rcx+0x44] at 0x1d919b in placeSingleCommand)
+    //   maxWaveformLength  = waveformGranularity  (+0x40, verified
+    //                        mov edi,[rcx+0x40] at 0x1d9198 in placeSingleCommand)
+    //   maxDioTableEntries = waveformMemorySize   (+0x0C, verified
+    //                        mov ecx,[rcx+0xc] at 0x29cade in
+    //                        WavetableFront::updateDioTableUsage)
+    //   maxWaveIndex       = (uint32_t)maxSequenceLen (+0x60, verified
+    //                        mov esi,[rbx+0x60] at 0x29ceaa in
+    //                        WavetableIR ctor — passed as int to WaveIndexTracker)
+    uint32_t grainSize() const          { return waveformPageSize; }
+    uint32_t maxWaveformLength() const  { return waveformGranularity; }
+    uint32_t maxDioTableEntries() const { return waveformMemorySize; }
+    uint32_t maxWaveIndex() const       { return static_cast<uint32_t>(maxSequenceLen); }
 };
 
-// NOTE: static_assert removed because TBD alias fields extend the struct
-// beyond the binary's 0x90 layout. These extra fields are placeholders.
-// static_assert(sizeof(DeviceConstants) == 0x90, "DeviceConstants must be 0x90 bytes");
+static_assert(sizeof(DeviceConstants) == 0x90, "DeviceConstants must be 0x90 bytes");
 
 // Factory function — populates DeviceConstants for a given device type.
 // Throws ZIAWGCompilerException for unsupported device types.

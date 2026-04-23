@@ -48,13 +48,26 @@ enum VarType : int32_t {
     VarType_Wave   = 6,
 };
 
-// VarSubType — secondary classification (values TBD, often 0)
+// VarSubType — secondary classification tag stored in Variable record.
+// Values observed in static_resources.cpp:
+//   0 = default (general constants, AWG_RATE_*, etc.)
+//   1 = boolean (used only for "true"/"false" — see addConst @ 0x1f05b0..ed)
+// Stored as int32 in addConst etc. (3rd argument, edx → [rbp-0x2c] @ 1e7024).
 enum VarSubType : int32_t {
     VarSubType_Default = 0,
+    VarSubType_Bool    = 1,
 };
 
-// EDirection — direction flag for read operations (values TBD)
-enum EDirection : int32_t {};
+// EDirection — direction flag for read* operations on Resources.
+// Used only as a binary check (test r14d,r14d at 0x1e5d9d in readString):
+//   0 = read-only path (skips an additional check at +0x50 of variable)
+//   1 = write/strict path (validates the +0x50 byte before proceeding)
+// No EDirection symbolic constants exist in the binary's symbol table; the
+// numeric values are inferred from caller patterns and the test/jne sequence.
+enum EDirection : int32_t {
+    EDirection_Read  = 0,
+    EDirection_Write = 1,
+};
 
 // ============================================================================
 // Resources — base class for scope/variable tracking
@@ -328,6 +341,14 @@ public:
     void init(AWGCompilerConfig const& config,
               DeviceConstants const& deviceConstants);    // @0x1ec8f0
 
+protected:
+    // Returns a callable that forwards to the std::function stored inline at
+    // (functionStorage_, functionPtr_). The binary at 0x12a256-0x12a26d
+    // dispatches via `[functionPtr_->vtable + 0x30]` which is the standard
+    // libc++ __function::__base::__invoke entry. The wrapper hides that ABI
+    // detail from call sites in static_resources.cpp.
+    std::function<void(std::string const&)> errorReportTarget() const;
+
 private:
     bool    usedSampleRate_;        // +0xD8
     char    pad_d9_[7];            // +0xD9
@@ -359,5 +380,8 @@ public:
     static thread_local int32_t  labelIndex;   // TLS+0x4c, init=0
     static thread_local uint64_t random[313];  // TLS+0x50, MT19937-64 state
 };
+
+// Free function — VarType enum to string.  @0x247dd0
+std::string str(VarType vt);
 
 } // namespace zhinst

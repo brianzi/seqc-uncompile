@@ -11,6 +11,18 @@
 namespace zhinst {
 
 // ============================================================================
+// Deprecated/relocated variable-name BSS strings used by the deprecation
+// post-check in StaticResources::getVariable. The binary stores these as
+// std::string globals at the listed BSS addresses; here we declare them
+// extern so the call site in this file can use ::size() and ::data().
+// (Actual definitions live in a TU we have not yet reconstructed; once
+// that TU is rebuilt, these declarations will resolve at link time.)
+// ============================================================================
+extern const std::string constAwgIntegrationTrigger;  // BSS @0xb84690
+extern const std::string zsyncDataPqscRegister;       // BSS @0xb846a8
+extern const std::string zsyncDataPqscDecoder;        // BSS @0xb846c0
+
+// ============================================================================
 // StaticResources::StaticResources — @0x129cb0
 //
 // Calls Resources("static", weak_ptr<Resources>{}) then sets up the
@@ -41,6 +53,28 @@ StaticResources::StaticResources(
 //   3. Tail-calls Resources::~Resources (D1 at 0x12a8f0)
 //
 // D0 (deleting): same cleanup then operator delete(this, 0x110)
+// ============================================================================
+// StaticResources::errorReportTarget — adapter that exposes the std::function
+// stored inline in StaticResources (storage at +0xE0, callable ptr at +0x100)
+// as a std::function<void(string const&)>. The binary calls the underlying
+// callable directly via vtable+0x30; we wrap that into a copy that the
+// reconstructed call sites can invoke through the standard public API.
+// ============================================================================
+std::function<void(std::string const&)>
+StaticResources::errorReportTarget() const
+{
+    // The stored object is itself a std::function-like callable populated by
+    // the constructor at 0x129cb0. We simply re-expose it; libc++ does the
+    // right thing because std::function copy preserves the callable identity.
+    using FnT = std::function<void(std::string const&)>;
+    // The inline storage holds the libc++ std::function representation (the
+    // first 0x18 bytes of `functionStorage_` is its functor+vptr). We
+    // reinterpret-cast the address; this matches the binary's
+    // `mov rdi, [this+0x100]` immediate use.
+    auto* storedFn = reinterpret_cast<const FnT*>(&functionStorage_);
+    return *storedFn;
+}
+
 // ============================================================================
 StaticResources::~StaticResources()  // D1 @0x129db0
 {
@@ -76,55 +110,55 @@ Resources::Variable* StaticResources::getVariable(std::string const& name)  // @
         }
     }
 
-    // Delegate to base
-    // TODO: In the binary, the deprecated-constant warnings below happen
-    // BEFORE this return, but our reconstruction placed them after.
-    // The errorHandler_ field is stored in the function-storage area
-    // at +0xE0 and needs to be reconstructed properly.
-    // For now, the warning code is commented out.
-    /*
-    // Post-check: warn about deprecated integration/trigger constants
-    size_t len = name.size();
+    // Delegate to base — the result is then checked against the deprecated-
+    // constant blacklist. Verified order at 0x129ee1 (call), 0x129ee6 (cmp
+    // [rbx], 0), 0x129eea (je → return) and the 12a2xx error-emission paths.
+    // Each blacklist hit calls the std::function stored at this+0x100 with a
+    // formatted message (ErrorMessageT(0x34)) and returns nullptr.
+    auto* result = Resources::getVariable(name);                          // 0x129ee1
+    if (!result) return nullptr;                                          // 0x129ee6 / 0x129eea
 
-    if (len == 19) {
-        if (std::memcmp(name.data(), "AWG_MONITOR_TRIGGER", 19) == 0) {
-            errorHandler_->report(
-                ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-            return nullptr;
+    // Helper: report a deprecation diagnostic via the stored std::function
+    // (functionPtr_ at +0x100; vtable+0x30 = __invoke entry). Returns
+    // nullptr to signal "treat the lookup as failed".
+    auto reportDeprecated = [this](const std::string& varName,
+                                   const char* hint) -> Resources::Variable* {
+        auto fn = errorReportTarget();
+        if (fn) {
+            fn(ErrorMessages::format(ErrorMessageT(0x34), varName, hint));
         }
+        return nullptr;
+    };
+
+    const size_t len = name.size();
+
+    // 0x12a... — "AWG_MONITOR_TRIGGER" → "'startQA' function"
+    if (len == 19 && std::memcmp(name.data(), "AWG_MONITOR_TRIGGER", 19) == 0) {
+        return reportDeprecated(name, "'startQA' function");
     }
 
-    // Check constAwgIntegrationTrigger (BSS @0xb84690)
+    // constAwgIntegrationTrigger (BSS @0xb84690) → "'startQA' function"
     if (len == constAwgIntegrationTrigger.size() &&
         std::memcmp(name.data(), constAwgIntegrationTrigger.data(), len) == 0) {
-        errorHandler_->report(
-            ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-        return nullptr;
+        return reportDeprecated(name, "'startQA' function");
     }
 
-    if (len == 19) {
-        if (std::memcmp(name.data(), "AWG_INTEGRATION_ARM", 19) == 0) {
-            errorHandler_->report(
-                ErrorMessages::format(ErrorMessageT(0x34), name, "'startQA' function"));
-            return nullptr;
-        }
+    // "AWG_INTEGRATION_ARM" → "'startQA' function"
+    if (len == 19 && std::memcmp(name.data(), "AWG_INTEGRATION_ARM", 19) == 0) {
+        return reportDeprecated(name, "'startQA' function");
     }
 
-    // Check zsyncDataPqscRegister/Decoder (BSS @0xb846a8/0xb846c0)
+    // ZSYNC PQSC register/decoder → preferred replacement names
     if (len == zsyncDataPqscRegister.size() &&
         std::memcmp(name.data(), zsyncDataPqscRegister.data(), len) == 0) {
-        errorHandler_->report(
-            ErrorMessages::format(ErrorMessageT(0x34), name, "'ZSYNC_DATA_PROCESSED_A'"));
-        return nullptr;
+        return reportDeprecated(name, "'ZSYNC_DATA_PROCESSED_A'");
     }
     if (len == zsyncDataPqscDecoder.size() &&
         std::memcmp(name.data(), zsyncDataPqscDecoder.data(), len) == 0) {
-        errorHandler_->report(
-            ErrorMessages::format(ErrorMessageT(0x34), name, "'ZSYNC_DATA_PROCESSED_B'"));
-        return nullptr;
+        return reportDeprecated(name, "'ZSYNC_DATA_PROCESSED_B'");
     }
-    */
-    return Resources::getVariable(name);                                  // 0x129ea0
+
+    return result;                                                        // 0x12a28d
 }
 
 // ============================================================================
@@ -197,8 +231,17 @@ void StaticResources::init(AWGCompilerConfig const& config,
     }
 
     // --- 2.0 GHz rate variants (certain HDAWG revisions) ---     0x1ed14a–0x1ed4e9
-    // Condition: device subtype bits 0, 8, 16, or 32 set (bt with 0x100010100)
-    if (true /* TODO: device subtype bitmask check */) {
+    // Condition: deviceType is one of {0, 8, 16, 32}. Verified at
+    // 0x1ed136-0x1ed144: `movabs rdx, 0x100010100; bt rdx, rcx` where
+    // rcx = config.deviceType. Bits 0, 8, 16, 32 of the 64-bit constant
+    // correspond to the four supported device-type indices.
+    {
+        const uint32_t deviceType = static_cast<uint32_t>(config.deviceType);
+        constexpr uint64_t kRate2GHzDeviceMask = 0x100010100ULL;
+        const bool supports2GHz =
+            (deviceType <= 32) &&
+            ((kRate2GHzDeviceMask >> deviceType) & 1ULL);
+        if (supports2GHz) {
         addConst("AWG_RATE_2000MHZ",   0.0,  VarSubType(0));      // 0x1ed164
         addConst("AWG_RATE_1000MHZ",   1.0,  VarSubType(0));
         addConst("AWG_RATE_500MHZ",    2.0,  VarSubType(0));
@@ -213,6 +256,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
         addConst("AWG_RATE_976KHZ",    11.0, VarSubType(0));
         addConst("AWG_RATE_488KHZ",    12.0, VarSubType(0));
         addConst("AWG_RATE_244KHZ",    13.0, VarSubType(0));      // 0x1ed4e9
+        }
     }
 
     // --- SHF rates (SHFQA=0x100, SHFSG=0x40: 2.0 GHz, 4 steps) --- 0x1ee1f9–0x1ee2fb
@@ -316,15 +360,31 @@ void StaticResources::init(AWGCompilerConfig const& config,
     // ================================================================
 
     // --- Device sample rate ---                                 0x1ee69b
+    // Verified at 0x1ee6a1-0x1ee6b7 + 0x1f0618-0x1f062b:
+    //   xmm0 = config.deviceSampleRate
+    //   if (isnan(xmm0)) {
+    //       if (config.deviceType == 2) {
+    //           // skip addConst entirely
+    //           goto next_const;
+    //       }
+    //       xmm0 = deviceConstants->samplingRate;  // [DC+0x70]
+    //   }
+    //   addConst("DEVICE_SAMPLE_RATE", xmm0, 0);
+    // The previous reconstruction's "sampleRate = 2.4e9" branch was wrong:
+    // the binary skips the addConst when type==2 + NaN, it does not
+    // substitute a literal value.
     double sampleRate = config.deviceSampleRate;  // r14[0x8]
+    bool emitSampleRate = true;
     if (std::isnan(sampleRate)) {
         if (config.deviceType == 2) {
-            sampleRate = 2.4e9; // TODO: hardcoded from rodata             // 0x1f0618→0x1ee6bc
+            emitSampleRate = false;                                 // 0x1f061c → 0x1ee6bc
         } else {
-            sampleRate = deviceConstants.samplingRate;              // 0x1f0622→0x1ee6ab
+            sampleRate = deviceConstants.samplingRate;              // 0x1f0622 → DC+0x70
         }
     }
-    addConst("DEVICE_SAMPLE_RATE", sampleRate, VarSubType(0));   // 0x1ee6b7
+    if (emitSampleRate) {
+        addConst("DEVICE_SAMPLE_RATE", sampleRate, VarSubType(0));   // 0x1ee6b7
+    }
 
     // --- Trigger index constants (sequential indices 0–31) ---  0x1ee6ec–0x1ef1f8
     addConst("AWG_ANA_TRIGGER1_INDEX",         0.0,  VarSubType(0));  // 0x1ee6ec

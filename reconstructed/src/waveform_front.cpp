@@ -32,8 +32,8 @@ std::string WaveformFront::toString() const  // 0x2c5120
     }
     oss << typeStr;
 
-    oss << ") " << sampleLength << " samples & "
-        << channels << " channels";
+    oss << ") " << signal.length_ << " samples & "
+        << signal.channels_ << " channels";
 
     return oss.str();
 }

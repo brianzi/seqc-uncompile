@@ -88,17 +88,20 @@ void Prefetch::preparePlays() // 0x1c8740
 // ============================================================================
 void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
 {
-    // Local deque used as traversal stack
-    std::deque<std::shared_ptr<Node>> stack;  // -0x60(%rbp)
-    stack.push_back(node);                    // 0x1c889e
+    // Local std::stack used as traversal stack — must match removeBranches'
+    // parameter type (verified at 0x1c8cd7: callee symbol is
+    // removeBranches(shared_ptr<Node>, std::stack<shared_ptr<Node>,
+    // std::deque<shared_ptr<Node>>>&) const).
+    std::stack<std::shared_ptr<Node>, std::deque<std::shared_ptr<Node>>> stack;  // -0x60(%rbp)
+    stack.push(node);                         // 0x1c889e
 
     // Cache wavetableIR_ shared_ptr into a local  // 0x1c88e4
     auto wavetableIR = wavetableIR_;              // -0x108(%rbp) / -0x68(%rbp)
 
     while (!stack.empty()) {                      // 0x1c890b / 0x1c8920
-        // Pop from back (LIFO traversal)
-        auto current = stack.back();              // -0xa0(%rbp)
-        stack.pop_back();                         // 0x1c89b7..0x1c8a05
+        // Pop from top (LIFO traversal)
+        auto current = stack.top();               // -0xa0(%rbp)
+        stack.pop();                              // 0x1c89b7..0x1c8a05
 
         if (!current)                             // 0x1c8a0c
             continue;  // skip to next iteration
@@ -112,8 +115,8 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
         NodeType type = current->type;            // 0x1c8a4c: mov 0x44(%rbx),%eax
 
         switch (type) {
-        // ---- Play (0x01) ---- // jump table case 0 → 0x1c8a6f
-        case NodeType::Play: {
+        // ---- Load (NodeType=0x01) ---- // jump table[0] → 0x1c8a6f (verified at 0x95ae98)
+        case NodeType::Load: {
             // Get wave name at deviceIndex from wavesPerDev
             int devIdx = current->deviceIndex;    // 0x1c8a6f: movslq 0x40(%rbx)
             if (devIdx >= 0) {
@@ -133,7 +136,8 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             // Plays exist: for each valid wave, mark waveform as used (+0xD8)
             // 0x1c97b9..0x1c98c5 loop
             for (auto it = playBegin; it != playEnd; ++it) {
-                // TODO: *it is weak_ptr<Node>, need to lock and get wave name
+                // *it is weak_ptr<Node>; lock to access the node
+                // (verified at 0x1c97b9..0x1c98c5)
                 auto lockedNode = it->lock();
                 if (!lockedNode) continue;
                 auto waveName = lockedNode->waveAtCurrentDeviceIndex();
@@ -147,23 +151,21 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             goto push_next_and_loop;
         }
 
-        // ---- Load (0x02) ---- // jump table case 1 → 0x1c8d13
-        case NodeType::Load: {
+        // ---- Play (NodeType=0x02) ---- // jump table[1] → 0x1c8d13 (verified at 0x95ae98)
+        case NodeType::Play: {
             linkLoad(current);                    // 0x1c8d3e
             // Push next (+0xB8) to stack
             if (current->next)                    // 0x1c8d66: mov 0xb8(%rbx)
-                stack.push_back(current->next);
+                stack.push(current->next);
             goto cleanup_validwaves;
         }
 
         // ---- Branch (0x04) ---- // jump table case 3 → 0x1c8cac
         case NodeType::Branch: {
-            // TODO: stack is deque but removeBranches expects std::stack&
-            // removeBranches(current, stack);        // 0x1c8cd7
-            // Approximate: push each branch child onto stack
-            for (auto& branch : current->branches) {
-                stack.push_back(branch);
-            }
+            // 0x1c8cd7: removeBranches(current, stack) — passes the std::stack
+            // by reference; callee inspects branches and pushes any orphaned
+            // children back onto the traversal stack itself.
+            removeBranches(current, stack);
             goto cleanup_validwaves;
         }
 
@@ -171,10 +173,10 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
         case NodeType::Loop: {
             // Push next to stack if present
             if (current->next)                    // 0x1c8b85: mov 0xb8(%rbx)
-                stack.push_back(current->next);
+                stack.push(current->next);
             // Push loop child to stack if present
             if (current->loop)                    // 0x1c8c1c: mov 0xe0(%rbx)
-                stack.push_back(current->loop);
+                stack.push(current->loop);
             goto cleanup_validwaves;
         }
 
@@ -183,7 +185,7 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             expandSetVar(current);                // 0x1c8de3
             // Push next to stack
             if (current->next)
-                stack.push_back(current->next);
+                stack.push(current->next);
             goto cleanup_validwaves;
         }
 
@@ -262,7 +264,7 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             linkLoad(current);                    // 0x1c93e1
             // Push next to stack
             if (current->next)
-                stack.push_back(current->next);
+                stack.push(current->next);
             goto cleanup_validwaves;
         }
 
@@ -271,7 +273,7 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             collectUsedWaves(current);            // 0x1c8b0a
             // Push next to stack
             if (current->next)
-                stack.push_back(current->next);
+                stack.push(current->next);
             goto cleanup_validwaves;
         }
 
@@ -280,7 +282,7 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
 push_next_and_loop:
             // Push next to stack if present
             if (current->next)
-                stack.push_back(current->next);
+                stack.push(current->next);
             goto cleanup_validwaves;
         }
         } // end switch
@@ -620,13 +622,13 @@ check_loop:
 //         ... additional page computation ...
 //
 //      g. Final: if pagesNeeded >= 2:
-//         Store pagesNeeded in nodeStates_[node].playSize (+0x3c)
+//         Store pagesNeeded in nodeStates_[node].playSize() (+0x3c)
 //         Allocate a register: Resources::getRegisterNumber()
-//         Store register in nodeStates_[node].lengthReg (+0x20)
+//         Store register in nodeStates_[node].lengthReg() (+0x20)
 //         
 //         Also propagate to parent node if parent exists:
-//           nodeStates_[parent].lengthReg = nodeStates_[node].lengthReg
-//           nodeStates_[parent].playSize = pagesNeeded
+//           nodeStates_[parent].lengthReg() = nodeStates_[node].lengthReg
+//           nodeStates_[parent].playSize() = pagesNeeded
 // ============================================================================
 void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 {
@@ -656,10 +658,11 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         if (current->type != NodeType::Play)       // 0x1ca795: cmpl $0x2, 0x44(%r14)
             continue;
 
-        // Check if config.field_0x1E is false (skip dynamic plays)
-        // TODO: PlayConfig::unknown_1e — field not yet defined
-        // if (current->config./*field_0x1E*/unknown_1e) // 0x1ca7a0: cmpb $0, 0x66(%r14)
-        //     continue;                              // 0x66 = 0x48 (config offset) + 0x1E
+        // Check if config.dummy is set (skip dummy plays).
+        // 0x1ca7a0: cmpb $0, 0x66(%r14)
+        //   0x66 = 0x48 (Node::config offset) + 0x1E (PlayConfig::dummy)
+        if (current->config.dummy)
+            continue;
 
         // ---- Compute play size ----
 
@@ -672,7 +675,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 
         // First lookup: get waveLength
         auto waveform1 = wavetableIR_->getWaveformByName(waveName); // 0x1ca82d
-        int waveLength = waveform1->playCount;     // 0x1ca83a: mov 0xd0(%rax) — actually signal length
+        int waveLength = (int)waveform1->signal.length_;     // 0x1ca83a: mov 0xd0(%rax) = Signal::length_
         // (waveform1 released)
 
         // Second lookup: compute aligned size
@@ -681,15 +684,16 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 
         int playSize;
         if (waveLength != 0) {
-            // Compute aligned play size
-            // 0x1ca918..0x1ca945
-            // sampleRate = devConst_->field at some offset
-            int granularity = waveform2->signal.granularity(); // from signal chain
-            int maxLength = waveform2->signal.maxLength();
-            playSize = ((waveLength + granularity - 1) / granularity) * granularity;
-            if ((unsigned)maxLength > (unsigned)playSize)
-                playSize = maxLength;
-            // Actually: playSize = min(ceil_aligned, maxLength) where max is "cmova"
+            // Compute aligned play size (verified disasm 0x1ca918..0x1ca945)
+            //   mov eax,[devConst_+0x44]   ; waveformPageSize (= "grainSize")
+            //   mov ecx,[waveform2+0x70]   ; Waveform::seqRegWidth ("minLengthSamples")
+            //   r15 = ceil_div(waveLength, grainSize) * grainSize
+            //   if (seqRegWidth > r15) r15 = seqRegWidth   ; cmova → max
+            int grainSize = (int)devConst_->waveformPageSize;
+            int minLenSamples = waveform2->seqRegWidth;
+            playSize = ((waveLength + grainSize - 1) / grainSize) * grainSize;
+            if ((unsigned)minLenSamples > (unsigned)playSize)
+                playSize = minLenSamples;
         } else {
             playSize = 0;
         }
@@ -705,25 +709,30 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         // Look up waveform again
         auto waveform4 = wavetableIR_->getWaveformByName(waveName); // 0x1cab13
         uint16_t channelCount = waveform4->signal.channels(); // +0xC8 as uint16
-        int playCount = waveform4->playCount;      // +0xD0
-        // TODO: signal.data() returns vector<double>&, not a pointer.
-        // The following pointer-based access pattern is approximate.
-        const Signal& sig = waveform4->signal;     // +0x78
-        
+        int playCount = (int)waveform4->signal.length_;      // +0xD0 = Signal::length_
+        // Verified disasm 0x1cab18..0x1cab4c:
+        //   rsi = [waveform4+0x78]              ; waveform's DeviceConstants*
+        //   edi = [rsi+0x40] = waveformGranularity  ; "max" cap
+        //   r8d = [rsi+0x44] = waveformPageSize     ; alignment grain
+        //   eax = ceil_div(playCount, r8d) * r8d
+        //   if (edi > eax) eax = edi             ; cmova → max(aligned, waveformGranularity)
+        const DeviceConstants* wfDc = waveform4->deviceConstants;
+
         int memSize;
         if (playCount != 0) {
-            int maxPlay = sig.maxLength();         // +0x40
-            int sampleRate = sig.granularity();    // +0x44
-            int aligned = ((playCount + sampleRate - 1) / sampleRate) * sampleRate;
-            aligned = std::min((unsigned)aligned, (unsigned)maxPlay);
+            int wfMaxCap   = (int)wfDc->waveformGranularity; // +0x40
+            int wfGrain    = (int)wfDc->waveformPageSize;    // +0x44
+            int aligned = ((playCount + wfGrain - 1) / wfGrain) * wfGrain;
+            if ((unsigned)wfMaxCap > (unsigned)aligned)
+                aligned = wfMaxCap;
             memSize = aligned;
         } else {
             memSize = 0;
         }
 
         // memoryBits = channelCount * memSize * sampleBits
-        // TODO: sig-> but sig is Signal& not pointer; fix later
-        int sampleBits = devConst_->bitsPerSample;  // +0x50
+        // Verified: [rsi+0x50] = bitsPerSample (always 16)
+        int sampleBits = (int)wfDc->bitsPerSample;  // +0x50
         int64_t memBits = (int64_t)channelCount * memSize * sampleBits;
         // Convert bits to bytes, rounding up
         int memBytes = (int)memBits;
@@ -743,7 +752,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
             if (nodeLength == 0) {
                 // Compute from waveform: pages = ceil(memTotal * maxBranches_ / (memPerHalf))
                 auto waveform5 = wavetableIR_->getWaveformByName(waveName);
-                uint16_t cc5 = waveform5->channelCount;
+                uint16_t cc5 = waveform5->signal.channels_;
                 int memTotal = nodeLength * cc5 * (int)this->maxBranches_;
                 int halfMem = wfMemSize >> 1;
                 pagesNeeded = (unsigned)memTotal / (unsigned)halfMem;
@@ -756,7 +765,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                     std::piecewise_construct,
                     std::forward_as_tuple(current),
                     std::forward_as_tuple());      // 0x1cb006
-                nsIt->second.playSize = pagesNeeded; // +0x3c: 0x1cb00b
+                nsIt->second.playSize() = pagesNeeded; // +0x3c: 0x1cb00b
 
                 // Allocate a register for length tracking
                 int regNum = Resources::getRegisterNumber(); // 0x1cb00f (static call)
@@ -767,7 +776,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                     std::piecewise_construct,
                     std::forward_as_tuple(current),
                     std::forward_as_tuple());      // 0x1cb034
-                nsIt2->second.lengthReg = lengthReg; // +0x20: 0x1cb039..0x1cb041
+                nsIt2->second.lengthReg() = lengthReg; // +0x20: 0x1cb039..0x1cb041
 
                 // Propagate to parent if exists
                 auto parentPtr = current->parent.lock(); // 0x1cb05a
@@ -781,14 +790,14 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                         std::piecewise_construct,
                         std::forward_as_tuple(current),
                         std::forward_as_tuple());
-                    pIt2->second.lengthReg = pIt->second.lengthReg; // 0x1cb0c8..0x1cb0cc
+                    pIt2->second.lengthReg() = pIt->second.lengthReg(); // 0x1cb0c8..0x1cb0cc
 
                     // Also copy to parent's entry using parent shared_ptr
                     auto [ppIt, _pp] = nodeStates_.emplace(
                         std::piecewise_construct,
                         std::forward_as_tuple(parentPtr),
                         std::forward_as_tuple());
-                    ppIt->second.playSize = pagesNeeded; // 0x1cb0ea
+                    ppIt->second.playSize() = pagesNeeded; // 0x1cb0ea
                 }
             }
         }

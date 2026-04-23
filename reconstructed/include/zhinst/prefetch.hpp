@@ -28,6 +28,7 @@
 #include "cache.hpp"
 #include "waveform_ir.hpp"
 #include "assembler.hpp"
+#include "asm_list.hpp"   // findPlaceholder returns AsmList::Asm*
 
 #include <boost/bimap.hpp>
 #include <boost/bimap/unordered_set_of.hpp>
@@ -107,17 +108,30 @@ public:
     //   The shared_ptr<Node> key is 16 bytes (+0x20..+0x2F).
     //   PNS starts at hash_node+0x30.
     //
-    //   +0x00  8  AsmRegister   registerHirzel   (set for Hirzel devices)
+    //   +0x00  8  AsmRegister   registerHirzel   (set for Hirzel devices; ALSO reused as
+    //                                            "lengthReg" for length tracking — same 8-byte slot,
+    //                                            verified mov [rax+0x20],rcx at 0x1cb03d in
+    //                                            definePlaySize where rax = hash_node value pointer)
     //   +0x08  8  AsmRegister   registerCervino  (set for Cervino devices)
-    //   +0x10  4  int32_t       state            (init=3, enum: 3=unloaded)
+    //   +0x10  4  int32_t       state            (init=3; ALSO consumed as "counter" — same field,
+    //                                            verified mov [rax+0x30],0 at 0x1ce77a and
+    //                                            mov edx,[rax+0x30] at 0x1d1153)
     //   +0x14  4  int32_t       branchCount      (init=1, set in countBranches)
     //   +0x18  4  int32_t       refTrack         (init=0, inc'd/dec'd in optimize)
-    //   +0x1C  4  int32_t       pageSize         (init=1, waveform page size divisor)
-    //   +0x20  4  int32_t       requiredSlots    (init=0, waveform slots needed)
+    //   +0x1C  4  int32_t       pageSize         (init=1; ALSO written as "playSize" —
+    //                                            verified mov [rax+0x3c],r13d at 0x1cb00b/0x1cb0ea
+    //                                            in definePlaySize)
+    //   +0x20  4  int32_t       requiredSlots    (init=0; ALSO read as "usedCache" —
+    //                                            verified mov r15d,[rax+0x40] at 0x1cdcfd/0x1ce61e)
     //   +0x24  4  (padding)
     //   +0x28 16  shared_ptr<Cache::Pointer> cachePtr  (init=null)
     //   +0x38  1  bool          useDA            (init=false, precomp/DA flag)
     //   +0x39  7  (padding)
+    //
+    // Hallucinated PNS fields removed entirely:
+    //   - lengthReg, counter, playSize, usedCache → all aliases above
+    //   - totalSize → was actually a stack local in placeSingleCommand (-0x140(%rbp))
+    //   - firstTime → no binary access anywhere
     struct PrefetcherNodeState {
         AsmRegister registerHirzel;                           // +0x00
         AsmRegister registerCervino;                          // +0x08
@@ -129,12 +143,20 @@ public:
         int32_t _pad24 = 0;                                   // +0x24
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
         bool useDA = false;                                   // +0x38
-        bool firstTime = true;                                 // +0x39 — TODO: offset approximate
-        AsmRegister lengthReg;                                  // offset TBD — register for length
-        int counter = 0;                                        // offset TBD — reference counter
-        int totalSize = 0;                                      // offset TBD — total waveform size
-        int usedCache = 0;                                      // offset TBD — used cache amount
-        int playSize = 0;                                       // offset TBD — play size
+        char _pad39[7] = {};                                  // +0x39 padding (no field here)
+
+        // ====================================================================
+        // Forwarding accessors for legacy alias names. These are not separate
+        // fields; they reference existing slots above. See offset map.
+        // ====================================================================
+        AsmRegister& lengthReg()        { return registerHirzel; }
+        AsmRegister const& lengthReg() const { return registerHirzel; }
+        int32_t& counter()              { return state; }
+        int32_t  counter() const        { return state; }
+        int32_t& playSize()             { return pageSize; }
+        int32_t  playSize() const       { return pageSize; }
+        int32_t& usedCache()            { return requiredSlots; }
+        int32_t  usedCache() const      { return requiredSlots; }
     };
 
     // Constructor                                                     // 0x1c5850
@@ -189,7 +211,13 @@ public:
     AsmList fillInPlaceholders(AsmList const& asmList);                // 0x1d65c0
     void placeCommands(AsmList* out, std::shared_ptr<Node> node);      // 0x1d6680
     void placeSingleCommand(AsmList* out, std::shared_ptr<Node> node); // 0x1d7940
-    std::shared_ptr<Node> findPlaceholder(AsmList* out,
+    // findPlaceholder — locates the AsmList::Asm whose sequenceId equals
+    // node->asmId. Returns the iterator (raw pointer into the underlying
+    // vector). Throws ZIAWGCompilerException(errMsg[0xA3]) when not found.
+    // Verified at 0x1d6b50: linear scan with 0xA8 element stride; returned
+    // value (rax) is the matching `Asm*` or end()-equivalent before the
+    // throw branch.
+    AsmList::Asm* findPlaceholder(AsmList* out,
         std::shared_ptr<Node> node);                                   // 0x1d6b50
 
     // Waveform instruction helpers
@@ -255,8 +283,9 @@ private:
     //   +0xD8  precompFlags (init 0)
     //   +0xDD  hold
     //   +0xDE  dummy
-    // UsageEntry — 0x20 byte struct used in usageEntries_ vector
-    // TODO: internal layout not fully confirmed
+    // UsageEntry — 0x20 byte struct used in usageEntries_ vector.
+    // Confirmed: first 0x20 bytes is a PlayConfig (matches stride from
+    // vector grow operations and PlayConfig=0x20 size). No additional fields.
     struct UsageEntry {
         PlayConfig config;  // first 0x20 bytes is a PlayConfig
         // Implicit conversion from PlayConfig
@@ -275,11 +304,18 @@ private:
     std::weak_ptr<CancelCallback>                          cancelCb_;      // +0x150
     // Total: 0x160 bytes
 
-    // TODO: These members are referenced in prefetch .cpp files but not yet
-    // placed in the layout above. May overlap with unknown_ fields.
-    int pageSize_ = 0;       // offset TBD — page size for cache
-    bool isHirzel_ = false;  // offset TBD — derived from config_->isHirzel
-    int npCerv = 0;          // offset TBD — Cervino-specific parameter
+    // ========================================================================
+    // Forwarding accessor for legacy `isHirzel_` references in placeSingleCommand.
+    // Verified at 0x1d9f65 and 0x1dabb9: cmp BYTE [r15+0xbc],<imm> reads the
+    // same byte as `split_` (also at +0xBC, init 0 at 0x1c5953, set true at
+    // 0x1cbfda when `split_=true`). The .cpp uses with name `isHirzel_` were
+    // misidentified — they really test split mode.
+    //
+    // Hallucinated Prefetch members removed:
+    //   - pageSize_  Was only in ctor init list (pageSize_(1)); never read anywhere.
+    //   - npCerv     Was a local Node* variable in placeSingleCommand:210, not a member.
+    bool isHirzel_() const { return split_; }
+    void set_isHirzel_(bool v) { split_ = v; }
 };
 
 } // namespace zhinst

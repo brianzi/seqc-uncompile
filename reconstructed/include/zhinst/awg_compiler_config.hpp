@@ -24,8 +24,8 @@ namespace zhinst {
 // ------  ----  --------------------------  ------------------  ----------------------------
 // 0x00    4     AwgDeviceType (int)         deviceType          Checked by getChannelGroupingModeString, AsmCommands
 // 0x04    4     SampleFormat (int)          sampleFormat        Used by writeWavesToElf* lambdas (0x10e049, 0x10e1f2)
-// 0x08    4     int                         unknown_08
-// 0x0C    4     int                         unknown_0c
+// 0x08    8     double                      deviceSampleRate    NaN→default; verified movsd xmm0,[r14+0x8] at 0x1ee69b
+//                                                               in StaticResources::init
 // 0x10    4     uint32_t                    addressImpl         Passed as AddressImpl<uint> to WavetableFront
 // 0x14    4     int                         unknown_14
 // 0x18    1     bool                        isHirzel            1 = Hirzel device (verified: cmpb $0x1,0x18(%rax) at 0x1d6c47)
@@ -59,8 +59,7 @@ namespace zhinst {
 struct AWGCompilerConfig {
     AwgDeviceType deviceType;           // 0x00
     SampleFormat sampleFormat;              // 0x04 — used by writeWavesToElf* (verified at 0x10e049, 0x10e1f2)
-    int unknown_08;                     // 0x08
-    int unknown_0c;                     // 0x0C
+    double deviceSampleRate;            // 0x08 — NaN means "use default"; read in StaticResources::init at 0x1ee69b
     uint32_t addressImpl;               // 0x10 — AddressImpl<unsigned int> value
     int unknown_14;                     // 0x14
     bool isHirzel;                      // 0x18 — 1 = Hirzel device (cmpb $0x1,0x18(%rax) at 0x1d6c47)
@@ -85,18 +84,39 @@ struct AWGCompilerConfig {
     int32_t pad_a4;                     // 0xA4
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)
 
-    // TODO: These members are referenced in prefetch/static_resources .cpp files
-    // but their exact offsets within AWGCompilerConfig are not confirmed.
-    // They may be aliases for existing unknown_XX fields above.
-    int cacheSize = 0;          // offset TBD — cache size setting
-    int channelIndex = 0;       // offset TBD — channel index
-    bool appendMode = false;    // offset TBD — append mode flag
-    int splitIndex = 0;         // offset TBD — split index for multi-core
-    int baseGrainSize = 0;      // offset TBD — base grain size
-    int channelGrains = 0;      // offset TBD — channel grains
-    int syncVersion = 0;        // offset TBD — sync version
-    int seqCount = 0;           // offset TBD — sequence count
-    double deviceSampleRate = 0.0; // offset TBD — device sample rate
+    // ========================================================================
+    // Aliases / forwarding accessors (no separate storage)
+    //
+    // Several reconstructed .cpp call sites used misleading names that turned
+    // out to be reads of existing fields. Provide accessors so legacy call
+    // sites continue to compile while the names are migrated:
+    //
+    //   appendMode    : was actually `isHirzel` test at +0x18 (verified
+    //                   0x1cbfc6 in Prefetch::placeLoads:
+    //                   cmp BYTE PTR [rax+0x18], 0x0)
+    //   splitIndex    : same field as `cacheType` at +0x19 (verified
+    //                   0x1d6c4d in Prefetch::clampToCache:
+    //                   movzx edx, BYTE PTR [rax+0x19])
+    //   syncVersion   : same field as `numChannelGroups` at +0x1C (verified
+    //                   0x1d7bb5 in Prefetch::placeSingleCommand and
+    //                   0x270b1c in getChannelGroupingModeString:
+    //                   cmp DWORD PTR [rax+0x1c], <imm>)
+    //
+    // Hallucinated TBD fields removed entirely:
+    //   - cacheSize        Was actually devConst_->waveformMemorySize at +0xC
+    //                       (verified 0x1d9d4e: mov rax,[r15+0x8]; cmp ecx,[rax+0xc])
+    //   - channelIndex     Was actually config_->cacheType at +0x19
+    //                       (verified 0x1da355: movzx ecx,BYTE PTR [r15+0x19])
+    //   - baseGrainSize    Was actually devConst_->waveformAlignment at +0x14
+    //                       (verified 0x1da35d: mov eax,[devConst+0x14])
+    //   - channelGrains    Was actually devConst_ uint32_t[2] at +0x18 indexed
+    //                       by cacheType (cachePageCount/maxBlocks union view)
+    //                       (verified 0x1da360: mov edx,[devConst+rcx*4+0x18])
+    //   - seqCount         Was actually config_->deviceIndex at +0x24
+    //                       (verified 0x1d7beb: cmp [config+0x24],0)
+    bool appendMode() const     { return isHirzel; }
+    uint8_t splitIndex() const  { return cacheType; }
+    int syncVersion() const     { return numChannelGroups; }
 
     ~AWGCompilerConfig();
 

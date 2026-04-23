@@ -51,3 +51,45 @@ re-derived.
 - Reconstructed implementations go in `reconstructed/src/`.
 - Every `.cpp` file should note the binary addresses of the functions
   it reconstructs, in comments next to each function definition.
+
+## Notes organization
+
+- Notes files in `reconstructed/notes/` are organized by **topic, not by
+  phase**. Filenames should describe the long-lived subject (e.g.
+  `optimization_passes.md`, `device_type.md`), never `phase_NNx.md`.
+- When a sub-phase produces findings, integrate them into the relevant
+  existing topic file. Create a new topic file only when the subject
+  genuinely doesn't fit any existing one.
+- Phase-named transient files are acceptable mid-session as scratchpads,
+  but must be folded into topic files at sub-phase wrap-up (step 2 of
+  the iteration cycle).
+- Exception: `unknowns.md` is a special tracking file with stable
+  cross-reference identifiers (numbered items 1-116+) and is not
+  reorganized by topic.
+- `archive/` holds historical or superseded content; phase-completion
+  audits and snapshots that contain no long-lived technical content can
+  be retired there.
+
+## Build verification
+
+- The build system is `reconstructed/CMakeLists.txt` (cmake + a build
+  directory at `reconstructed/build/`). Sources are picked up via
+  `file(GLOB CONFIGURE_DEPENDS src/*.cpp)`, so new .cpp files added
+  under `src/` are auto-registered — no CMakeLists edit required for
+  pure source additions.
+- **Per-file `g++ -fsyntax-only` is NOT a substitute for a real build.**
+  It misses: linker errors (undefined symbols, multiple-definition
+  conflicts), "declared but not defined" warnings, ODR violations
+  across TUs, and any cross-TU consistency issues.
+- **At the end of every sub-phase wrap-up (step 2 of the iteration
+  cycle), run `cmake --build .` from `reconstructed/build/` and
+  triage all warnings.** "Used but never defined" warnings in
+  particular are real bugs that the static-archive link silently
+  tolerates but would break any future executable link.
+- If any new file requires a CMakeLists change (e.g., new dependency,
+  new target, non-`src/*.cpp` source location), update CMakeLists.txt
+  in the same commit as the source change.
+- The `compile_commands.json` produced under `reconstructed/build/`
+  is the source of truth for compiler flags when invoking
+  `-fsyntax-only` directly. Keep that file regenerated after any
+  CMakeLists or dependency change.

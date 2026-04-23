@@ -80,12 +80,15 @@ public:
 
     // Convenience accessors — used in wavetable/waveform code
     std::vector<double> const& data() const { return samples_; }
-    size_t granularity() const { return 16; }  // TODO: real value depends on device; 16 is common default
-    size_t maxLength() const { return length_; }  // TODO: might be derived differently
-    size_t minLength() const { return length_; }  // TODO: might be derived differently
     uint16_t channels() const { return channels_; }
-    uint32_t bitsPerSample() const { return 16; }  // TODO: real value TBD
     size_t length() const { return length_; }
+    // NOTE: granularity / maxLength / minLength / bitsPerSample are NOT methods
+    // on Signal in the binary (verified — no such symbols exist). Earlier
+    // call sites that appeared to call sig.granularity() etc. were actually
+    // reading DeviceConstants fields (waveformPageSize @+0x44 = grainSize,
+    // waveformGranularity @+0x40 = maxWaveformLength, bitsPerSample @+0x50)
+    // or Waveform::seqRegWidth @+0x70 ("minLengthSamples" in JSON). Those
+    // call sites have been rewritten to use the real fields directly.
 
     // --- Comparison ---
     bool operator==(Signal const& other) const;                                 // 0x2a9750

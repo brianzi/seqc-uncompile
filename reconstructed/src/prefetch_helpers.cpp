@@ -220,30 +220,10 @@ bool Prefetch::getUsedFourChannelMode() const // 0x1df400
 }
 
 // ============================================================================
-// TODO: duplicate definition — clampToCache is already defined in prefetch_emit.cpp
-// Commented out to avoid linker error.
-#if 0
-// 0x1d6c40 — Prefetch::clampToCache(AddressImpl<uint>) const
-detail::AddressImpl<uint32_t>
-Prefetch::clampToCache(detail::AddressImpl<uint32_t> addr) const // 0x1d6c40
-{
-    bool isSplit = config_->isHirzel;
-    if (isSplit) {
-        uint8_t splitIndex = config_->splitIndex;
-        uint32_t pageSize = devConst_->waveformAlignment;
-        uint32_t cacheSize = (&devConst_->cachePageCount)[splitIndex];
-        uint32_t limit = cacheSize * pageSize;
-        uint32_t clamped = std::min(addr.value, limit);
-        clamped = std::min(clamped, (uint32_t)0xFFFFF);
-        if (splitIndex == 1) {
-            clamped = (clamped + pageSize - 1) & (~(pageSize - 1));
-        }
-        return detail::AddressImpl<uint32_t>{clamped};
-    } else {
-        return detail::AddressImpl<uint32_t>{std::min(addr.value, (uint32_t)0xFFFFF)};
-    }
-}
-#endif
+// NOTE: Prefetch::clampToCache() is defined in prefetch_emit.cpp (the
+// translation unit that owns the canonical 0x1d6c40 implementation). It is
+// intentionally NOT redefined here to avoid a multiple-definition link error.
+// ============================================================================
 
 // ============================================================================
 // 0x1d57d0 — Prefetch::backwardTree(shared_ptr<Node>) const
@@ -277,10 +257,10 @@ void Prefetch::backwardTree(std::shared_ptr<Node> node) const // 0x1d57d0
             worklist.push_back(child);
         }
 
-        // For elseBranch / loop
-        if (cur->elseBranch) {
-            cur->elseBranch->parent = current;
-            worklist.push_back(cur->elseBranch);
+        // For next / loop
+        if (cur->next) {  // +0xB8 (was elseBranch — confirmed same as next)
+            cur->next->parent = current;
+            worklist.push_back(cur->next);
         }
     }
 }
@@ -320,10 +300,10 @@ void Prefetch::removeBranches(
     // 0x1d3648..0x1d371f: Erase trailing entries after compaction
     branches.erase(branches.begin() + writePos, branches.end());
 
-    // 0x1d3742: If size changed from original, set branchesModified flag
+    // 0x1d3742: If size changed from original, set branchMaySkipAllBodies
+    // (verified at 0x1d3748: mov BYTE PTR [r14+0x109], 0x1).
     if (branches.size() != origSize) {
-        // TODO: branchesModified not a member of Node
-        // n->branchesModified = true; // +0x109
+        n->branchMaySkipAllBodies = true; // +0x109
     }
 
     // 0x1d3750: If branches is now empty...
@@ -422,8 +402,8 @@ std::shared_ptr<Node> Prefetch::findLockedPlay(
             worklist.push_back(cur->next);
         for (auto& child : cur->branches)
             worklist.push_back(child);
-        if (cur->elseBranch)
-            worklist.push_back(cur->elseBranch);
+        if (cur->next)  // +0xB8 (was elseBranch)
+            worklist.push_back(cur->next);
     }
 
     return nullptr;
@@ -442,7 +422,7 @@ std::shared_ptr<Node> Prefetch::findLockedPlay(
 //      - If neither has value: they match
 //      - If one has and other doesn't: they don't match
 //   4. If names match: look up both nodes in nodeStates_ map,
-//      compare their PNS.playSize (+0x3C offset from hash node, PNS+0x0C)
+//      compare their PNS.playSize() (+0x3C offset from hash node, PNS+0x0C)
 //   5. Also compare their lengthReg (AsmRegister at +0x88)
 //   6. Return true only if all comparisons pass.
 // ============================================================================
@@ -536,8 +516,10 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
 
         // 0x1d625f: Check if node type == 1 (Play node)
         if (n->type == 1) {
-            // TODO: slotIndex, data[], hasValue not Node members — approximate with wavesPerDev
-            int32_t slotIdx = n->deviceIndex; // was slotIndex +0x40
+            // Per disasm at 0x1d6277: read wavesPerDev[deviceIndex] (stride 0x20
+            // = sizeof(optional<string>)), check has_value at +0x18, then
+            // compare the SSO/long string contents with ptr->str().
+            int32_t slotIdx = n->deviceIndex; // +0x40
             if (slotIdx >= 0) {
                 auto& entry = n->wavesPerDev[slotIdx];
                 if (entry.has_value()) {
@@ -610,8 +592,8 @@ void Prefetch::determineFixedWaves() // 0x1cb200
             worklist.push_back(cur->next);
         for (auto& child : cur->branches)
             worklist.push_back(child);
-        if (cur->elseBranch)
-            worklist.push_back(cur->elseBranch);
+        if (cur->next)  // +0xB8 (was elseBranch)
+            worklist.push_back(cur->next);
 
         // Only process Play nodes
         if (cur->type != NodeType::Play)
@@ -635,7 +617,7 @@ void Prefetch::determineFixedWaves() // 0x1cb200
         // Check size constraints
         uint32_t maxSize = devConst_->maxBlocks;  // +0x1C
         // Actually: numWaveforms * something
-        uint32_t wfmSize = wfm->sizeInBytes;  // +0x74
+        uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74 (formerly sizeInBytes)
 
         // Check if it fits
         if (wfmSize > maxSize) {

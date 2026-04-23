@@ -49,8 +49,7 @@ Node::Node(NodeType type, int numWaveSlots, int asmId)
     , branchMaySkipAllBodies(false)     // +0x109
     , trig(0)                           // +0x10C
 {
-    _reserved0 = 0;  // +0x18
-    _reserved1 = 0;  // +0x20
+    // loadRef default-initializes to empty weak_ptr (+0x18..+0x20 zero)
 }
 
 // ============================================================================
@@ -100,8 +99,7 @@ Node::Node(int nodeId, int asmId,
     , branchMaySkipAllBodies(branchMaySkipAllBodies)
     , trig(trig)
 {
-    _reserved0 = 0;
-    _reserved1 = 0;
+    // loadRef default-initializes to empty weak_ptr
 }
 
 // ============================================================================

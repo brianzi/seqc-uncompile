@@ -40,7 +40,8 @@ Prefetch::Prefetch(
     , resources_()
     , cache_()
     , waveformMaps_()
-    , pageSize_(1)
+    // pageSize_ removed: was hallucinated; only ever appeared in this init list,
+    // never read. The +0xBC slot is the bool `split_` initialized below.
     , split_(false)
     , cwvfConfig_()
     , usageEntries_()
@@ -62,7 +63,7 @@ Prefetch::Prefetch(
 
     auto cacheSize = cache_->getSize();
     nodeStates_[root_] = PrefetcherNodeState{};
-    // nodeStates_[root_].usedCache = cacheSize;  // at +0x40 in hash node value
+    // nodeStates_[root_].usedCache() = cacheSize;  // at +0x40 in hash node value
 }
 
 // 0x11eed0 — Prefetch::~Prefetch()
@@ -339,11 +340,13 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                         branchNode->globalRate = globalRate;  // 0x1cff43
                         if (branchNode->type != NodeType::SetPrecomp) { // 0x1cff49: cmp $0x1000
                             branchNode->defaultPrecompFlags = defaultPrecompFlags; // 0x1cff54
-                            if (branchNode->type == NodeType::Play) {   // 0x1cff5a: cmp $0x2
-                                // Re-check CWVF optimization (for nested Play)
-                                // TODO: goto recheckCwvf — label not defined in reconstructed code
-                                // goto recheckCwvf;           // 0x1cff5d → 0x1cfe5b
-                            }
+                            // 0x1cff5a-0x1cff5d: `cmp ecx,0x2; je 0x1cfe5b` in the binary
+                            // jumps back into the Play CWVF-eligibility check at 0x1cfe5b.
+                            // This branch is structurally unreachable in source: we are
+                            // inside the `else` arm where `branchNode->type != NodeType::Play`,
+                            // yet the binary tests for Play again. This is a compiler
+                            // artifact (likely from an inlined-then-partially-DCE'd
+                            // template/switch). Leaving as documentation; no code emitted.
                         }
                     }
                     // Copy config → currentCwvf
@@ -470,10 +473,12 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                     if (scanType == NodeType::SetPrecomp) {
                         foundSetPrecomp = true;            // 0x1d07b0
                     }
-                    // Check bitmask: types Play(2), Branch(4), Loop(8) → 0x114
+                    // 0x1d0797-0x1d07a4: `cmp ecx,0x8; ja default; mov edx,0x114; bt edx,ecx`
+                    // bitmask 0x114 = 0b100010100 = bits 2|4|8 = Play|Branch|Loop.
+                    // Bit-test pattern: terminator iff scanType ∈ {Play, Branch, Loop}.
                     if (static_cast<int>(scanType) <= 8) {
-                        int mask = 0x114;  // bits for Play(2), Branch(4), Loop(8) -- APPROXIMATE
-                        if ((mask >> static_cast<int>(scanType)) & 1) {
+                        constexpr int kTerminatorMask = 0x114;  // Play(2)|Branch(4)|Loop(8)
+                        if ((kTerminatorMask >> static_cast<int>(scanType)) & 1) {
                             break;  // found terminator
                         }
                     }
@@ -492,12 +497,15 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
             break;
         }
 
-        // ==== Table / SetVar (type 0x200) ==== target 0x1d02a8
-        // NOTE: Despite the enum name, the jump table maps type 0x2
-        // (which is Play in the enum) to this case. The actual NodeType::Play
-        // value per the jump table entry at idx 0 (type-2=0, i.e. type=2).
-        // APPROXIMATE: The enum names may be swapped vs what the jump table shows.
-        case NodeType::Play: {                             // 0x1d02a8 (jump table idx 0, type=2)
+        // ==== Play (type 0x2, jump table idx 0) AND Table (type 0x200, fall-through) ====
+        // Both types share the case body at 0x1d02a8. Reached via:
+        //   - jump table[type-2] at idx 0 for type==Play (0x2)
+        //   - fall-through after `cmp ecx,0x200; jne 0x1d03e9` for type==Table (0x200)
+        // Inside the body, an explicit `cmp ecx,0x2` (preserved from the type field)
+        // distinguishes Play (which gets CWVF eligibility check) from Table (which
+        // skips the check and copies config straight into cwvf).
+        case NodeType::Play:
+        case NodeType::Table: {                            // 0x1d02a8
             curNode->globalRate = globalRate;               // 0x1d02b1
             int nodeRate = curNode->config.rate;            // 0x1d02b7: +0x4C
             if (nodeRate == -1) {
@@ -506,9 +514,9 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
             curNode->defaultPrecompFlags = defaultPrecompFlags; // 0x1d02cc
             curNode->config.precompFlags = defaultPrecompFlags; // 0x1d02d2 — +0x60
 
-            // Check CWVF optimization eligibility (same logic as branch children).
+            // Play-only CWVF eligibility check (Table skips this and falls through).
             bool isDummy = curNode->config.dummy;           // 0x1d02d5: +0x66
-            if (curNode->type == NodeType::Play) {          // 0x1d02d9: cmp $0x2 — APPROXIMATE
+            if (curNode->type == NodeType::Play) {          // 0x1d02d9: cmp $0x2 (preserved type)
                 bool useDA = devConst_->hasPrecomp & 0x1;
                 bool hasDummyOrHold = isDummy || curNode->config.hold;
                 if (hasDummyOrHold) {
@@ -526,12 +534,9 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
             cwvf = curNode->config;                         // 0x1d0330-0x1d0368
 
             // Call globalCwvf(node) to track global CWVF consistency.
-            {
-                // TODO: get_deleter not standard for shared_ptr — approximate
-                // std::shared_ptr<Node> nodeShared(curNode, curShared.get_deleter());
-                std::shared_ptr<Node> nodeShared = curShared; // APPROXIMATE
-                globalCwvf(nodeShared);                    // 0x1d0395
-            }
+            // 0x1d0368-0x1d0395: Standard shared_ptr<Node> copy of curShared
+            // (load ptr+ctrl from rbp slots, lock-inc the ctrl block).
+            globalCwvf(curShared);                              // 0x1d0395
             // Falls through to advanceToNext via 0x1d03e4 → 0x1d0869
             break;
         }
@@ -576,11 +581,11 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                         loopChild->globalRate = globalRate;
                         if (loopNextType != NodeType::SetPrecomp) {
                             loopChild->defaultPrecompFlags = defaultPrecompFlags;
-                            if (loopNextType == NodeType::Play) {
-                                // Re-check CWVF opt (similar to branch)
-                                // TODO: goto recheckLoopCwvf — label not defined in reconstructed code
-                                // goto recheckLoopCwvf;       // → 0x1d0523
-                            }
+                            // Symmetric to the branch-path artifact at 0x1cff5a:
+                            // binary contains `cmp ecx,0x2; je 0x1d0523` jumping back
+                            // into the loop's Play CWVF-eligibility check. Structurally
+                            // unreachable in source (we are in the `else` arm where
+                            // `loopNextType != NodeType::Play`). Compiler artifact only.
                         }
                     }
                     loopChild->currentCwvf = loopChild->config;
@@ -689,7 +694,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
 // Ends at 0x1cd77b (ret); exception cleanup 0x1cd77c–0x1cd853.
 //
 // Algorithm: For each WaveformIR used on the current device that needs loading
-// (irBool1 == true at +0xDA), creates a new Load node and inserts it before
+// (markedForLoad == true at +0xD8), creates a new Load node and inserts it before
 // the input node. Then does a BFS over the tree: for each Play node whose
 // waveform name matches the current WaveformIR and the device string matches,
 // it sets the Play's load pointer (+0x18/+0x20) to the new Load node, copies
@@ -732,9 +737,11 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
     // Iterate over each used waveform
     for (auto& waveformIR : usedWaves) {                               // 0x1ccb7b, 0x1ccb6e
 
-        // 0x1ccb7f-0x1ccb86: Skip waveforms that don't need loading
-        // Checks WaveformIR+0xD8 (irBool1 / needsLoad flag)
-        if (!waveformIR->irBool1) {                                    // 0x1ccb7f  cmpb $0x1,0xd8(%rax)
+        // 0x1ccb7f-0x1ccb86: Skip waveforms that don't need loading.
+        // Reads WaveformIR+0xD8 = markedForLoad. (Earlier reconstruction
+        // mislabelled this as +0xDA / irBool1 — verified at 0x1ccb7f the
+        // disasm is `cmp BYTE PTR [rax+0xd8], 0x1`.)
+        if (!waveformIR->markedForLoad) {                              // 0x1ccb7f  cmpb $0x1,0xd8(%rax)
             continue;                                                  // 0x1ccb86 → 0x1ccb6e
         }
 
@@ -746,13 +753,12 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
             NodeType::Load, asmId, config_->numChannelGroups);         // 0x1ccbbe
 
         // 0x1ccbc3-0x1ccc53: Copy waveform name from WaveformIR into
-        // loadNode->wavesPerDev[config_->deviceIndex]
-        // The WaveformIR is accessed via (*r12) — its name field (an optional<string>)
-        // is at the base of the object. The name is copied into the slot at
-        // wavesPerDev[deviceIdx], which is at +0x28 of the new node, indexed
-        // by deviceIdx * 0x20 (sizeof(optional<string>) = 32 bytes).
+        // loadNode->wavesPerDev[config_->deviceIndex].
+        // WaveformIR inherits from Waveform; Waveform::name is std::string at +0.
+        // The optional<string> slot in wavesPerDev gets implicit-converted +
+        // has_value=true (binary writes the byte at slot+0x18 explicitly at 0x1ccc13).
         Node* ln = loadNode.get();                                     // 0x1ccbc3: r14 = -0x70(%rbp)
-        std::optional<std::string> waveName = waveformIR->name;  // APPROXIMATE: copy name from WaveformIR  // 0x1ccbcb-0x1ccbff
+        std::string waveName = waveformIR->name;                       // 0x1ccbcb-0x1ccbff: 24-byte basic_string copy from WaveformIR+0
 
         // 0x1ccc04-0x1ccc8b: Assign the wave name into loadNode->wavesPerDev[deviceIdx]
         int devIdx = config_->deviceIndex;                             // 0x1ccc07: config_+0x24
@@ -846,9 +852,10 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
                                 // 0x1cd3be-0x1cd3f8: Set playTarget->load = loadNode
                                 // (raw ptr at +0x18, weak_ptr ctrl block at +0x20)
                                 Node* target = playTarget.get();
-                                // Increment refcounts, store into target+0x18/+0x20
-                                target->load = loadNode.get();         // 0x1cd3e7
-                                // (also updates weak_ptr control block)
+                                // 0x1cd3e7: assign weak_ptr (binary stores raw Node*
+                                // at target+0x18 and increments weak refcount on the
+                                // ctrl block at target+0x20)
+                                target->loadRef = loadNode;
 
                                 // 0x1cd414-0x1cd511: Emplace into nodeStates_ for both
                                 // loadNode and playTarget; copy register assignment
@@ -1004,8 +1011,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
 
         // 0x1cdc7e-0x1cdcb7: Resolve parent via weak_ptr at +0xF0
         std::shared_ptr<Node> parent;                                  // 0x1cdc81
-        // TODO: loadCtrl/parent_ctrl is void* — cannot call lock() on it.
-        // Original code resolves weak_ptr at node+0xF0/0xF8 to get parent.
+        // Binary inlines weak_ptr::lock(): reads ctrl block at curNode+0xF8,
+        // calls __shared_weak_count::lock(), reads ptr at curNode+0xF0.
         if (auto p = curNode->parent.lock()) {
             parent = p;
         }
@@ -1015,7 +1022,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
         if (parent.get()) {                                            // 0x1cdcc1
             // 0x1cdcd1: emplace current into nodeStates_ (get-or-create)
             auto& state = nodeStates_[current];                        // 0x1cdcf8
-            int usedCache = state.usedCache;                           // 0x1cdcfd: +0x40
+            int usedCache = state.usedCache();                           // 0x1cdcfd: +0x40
 
             // 0x1cdd01-0x1cdd29: Copy current, call getUsedCache(current)
             int actualUsed = getUsedCache(current);                    // 0x1cdd24
@@ -1024,7 +1031,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
             if (usedCache >= actualUsed) {                             // 0x1cdd4b
                 // 0x1cdd54-0x1cddab: Subtract actualUsed from nodeStates_[current].usedCache
                 int used2 = getUsedCache(current);                     // 0x1cdd77
-                nodeStates_[current].usedCache -= used2;               // 0x1cddab
+                nodeStates_[current].usedCache() -= used2;               // 0x1cddab
             }
         }
 
@@ -1075,13 +1082,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 bool regsMatch = (parent->lengthReg == curNode->lengthReg); // 0x1cde51
 
                 if (regsMatch) {                                       // 0x1cde5d
-                    // 0x1cde65-0x1cdea5: Resolve parent's load pointer
-                    // (weak_ptr at +0xF0..+0xF8 of parent)
-                    std::shared_ptr<Node> parentLoad;                  // 0x1cde65
-                    // TODO: void* parent_ctrl — cannot call lock(). Using weak_ptr instead.
-                    if (auto pl = parent->parent.lock()) {
-                        parentLoad = pl;
-                    }
+                    // 0x1cde65-0x1cdea5: Resolve parent's parent (weak_ptr at +0xF0..+0xF8)
+                    std::shared_ptr<Node> parentLoad = parent->parent.lock();
 
                     // 0x1cdeae: If parentLoad exists and its type is Loop (0x08)
                     if (parentLoad.get() && parentLoad->type == static_cast<int>(NodeType::Loop)) {
@@ -1134,10 +1136,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                         break;
                     }
 
-                    // 0x1ce52f-0x1ce55b: Walk to loadNode's parent
-                    // Resolve loadNode->parent weak_ptr
+                    // 0x1ce52f-0x1ce55b: Walk to loadNode's parent (weak_ptr at +0xF0)
                     {
-                        // TODO: void* parent_ctrl — using weak_ptr parent instead
                         if (auto parentOfLoadSp = loadNode->parent.lock()) {
                             if (parentOfLoadSp->type == static_cast<int>(NodeType::Load)) {
                                 // 0x1ce583: Update loadNode to the new parent
@@ -1174,14 +1174,10 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
 
                     // 0x1ce74b-0x1ce7e1: pageSize < 2 → set counter to 0,
                     // resolve parent's load pointer, call mergeLoads
-                    nodeStates_[parent].counter = 0;                   // 0x1ce77a
+                    nodeStates_[parent].counter() = 0;                   // 0x1ce77a
 
-                    // Resolve parent's load ptr (+0x18/+0x20 as weak_ptr)
-                    std::shared_ptr<Node> parentLoadPtr;
-                    // TODO: void* load_ctrl — using loadNode shared_ptr field instead
-                    if (parent->loadNode) {
-                        parentLoadPtr = parent->loadNode;
-                    }
+                    // Resolve parent's load ptr (weak_ptr at +0x18..+0x20)
+                    std::shared_ptr<Node> parentLoadPtr = parent->loadRef.lock();
 
                     // 0x1ce7d0: mergeLoads(current, parentLoadPtr)
                     mergeLoads(current, parentLoadPtr);                 // 0x1ce7e1
@@ -1192,12 +1188,8 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 }
                 else {
                     // 0x1ce8c8: sameLoads returned false
-                    // Resolve parent's load pointer (+0xF0/+0xF8 weak_ptr)
-                    std::shared_ptr<Node> parentOfParent;              // 0x1ce8cf
-                    // TODO: void* parent_ctrl — using weak_ptr parent instead
-                    if (auto pp = parent->parent.lock()) {
-                        parentOfParent = pp;
-                    }
+                    // Resolve parent's parent (weak_ptr at +0xF0..+0xF8)
+                    std::shared_ptr<Node> parentOfParent = parent->parent.lock();
 
                     // Fall through to waveform-size-based optimization
                     // (same path as "other parent type")
@@ -1210,7 +1202,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 if (it == nodeStates_.end())                           // 0x1ce615
                     throw std::out_of_range("");
 
-                int parentUsedCache = it->second.usedCache;            // 0x1ce61e
+                int parentUsedCache = it->second.usedCache();            // 0x1ce61e
             }
 
             // =============================================================
@@ -1331,12 +1323,8 @@ check_next_slot:
 clone_and_reassign:
             // 0x1cef76-0x1cf4ae: refTrack <= 0 and parent has a load pointer
             {
-                // Resolve current's load pointer (weak_ptr at +0x18/+0x20)
-                std::shared_ptr<Node> loadPtr;                         // 0x1cef7d
-                // TODO: void* load_ctrl — using loadNode shared_ptr field instead
-                if (curNode->loadNode) {
-                    loadPtr = curNode->loadNode;
-                }
+                // Resolve current's load pointer (weak_ptr at +0x18..+0x20)
+                std::shared_ptr<Node> loadPtr = curNode->loadRef.lock();   // 0x1cef7d
 
                 if (!loadPtr.get()) {                                  // 0x1cf377
                     // No load pointer — need to create one
@@ -1414,7 +1402,7 @@ cleanup_parent:
 //   3. If node has load ptr (weak_ptr at +0x18/+0x20): lock it, look up
 //      nodeStates_ for the load node, get its cachePtr, then
 //      look up nodeStates_ for current node and call
-//      Cache::play(cachePtr, nodeState.counter) — replay the cached pointer
+//      Cache::play(cachePtr, nodeState.counter()) — replay the cached pointer
 //      with the current counter/state.
 //   4. If no load ptr: check node play vector (+0xA0). If empty and
 //      nodeStates_[node].useDA flag (+0x66 in hash node) is not set,
@@ -1497,13 +1485,18 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         }
 
         // Low type values: jump table for (type-1) in [0..7]
-        // type=1 → Play, type=2 → Load, type=4 → Branch, type=8 → Loop
+        // Verified jump table at 0x95af54:
+        //   idx 0 (type=1, Load)   → 0x1d1045
+        //   idx 1 (type=2, Play)   → 0x1d130d
+        //   idx 3 (type=4, Branch) → 0x1d117a
+        //   idx 7 (type=8, Loop)   → 0x1d1273
+        //   all other low indices  → default advance at 0x1d1660
         switch (type) {
 
         // ==================================================================
-        // type=1 (Play): 0x1d1045 — waveform name → nameMap, set true
+        // type=1 (Load): 0x1d1045 — register waveform name in nameMap
         // ==================================================================
-        case NodeType::Play: {                                         // 0x1d1045
+        case NodeType::Load: {                                         // 0x1d1045
             // 0x1d1045-0x1d108a: Read wavesPerDev[deviceIndex]
             int devIdx = cur->deviceIndex;                             // 0x1d1045: movslq 0x40(%r12)
             if (devIdx < 0)                                            // 0x1d104a: js → advance
@@ -1523,13 +1516,8 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             auto& curNodeRef = curNode;                                // -0xa0(%rbp)
             Node* refNode = curNodeRef.get();
 
-            // 0x1d156f-0x1d15a5: Lock weak_ptr at node+0x20 → shared_ptr loadNode
-            std::shared_ptr<Node> loadNode;                            // -0xb0(%rbp)
-            // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
-            // Original code locks weak_ptr at node+0x20 to get loadNode
-            if (refNode->loadNode) {
-                loadNode = refNode->loadNode;
-            }
+            // 0x1d156f-0x1d15a5: Lock weak_ptr at node+0x18..+0x20 → shared_ptr loadNode
+            std::shared_ptr<Node> loadNode = refNode->loadRef.lock();   // -0xb0(%rbp)
 
             // 0x1d15be-0x1d15e8: Insert waveName into nameMap_[waveName] = true
             nameMap_.emplace(std::move(waveName), true);               // 0x1d15ca-0x1d15e3: call emplace_unique
@@ -1588,14 +1576,8 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             // type=0x200 (Table/SetVar with load): 0x1d10af
             // Lock load ptr → Cache::play(loadNode's cachePtr, curNode's counter)
             // ==================================================================
-            // 0x1d10af-0x1d10e2: Lock weak_ptr at node+0x20
-            std::shared_ptr<Node> loadNode;                            // -0x50(%rbp)
-            // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
-            // Original code locks weak_ptr at node+0x20
-            if (cur->loadNode) {
-                loadNode = cur->loadNode;
-            }
-                        loadNode.reset(); // TODO: original was loadNode.reset(cur->loadPtr, ...); // 0x1d10d6-0x1d10e2
+            // 0x1d10af-0x1d10e2: Lock weak_ptr at node+0x18..+0x20
+            std::shared_ptr<Node> loadNode = cur->loadRef.lock();      // -0x50(%rbp)
             // 0x1d10e2-0x1d10e8: If loadNode is null, check fallback
             if (!loadNode) {                                           // 0x1d14da: test → 0x1d14e7
                 // 0x1d14e7-0x1d14f2: Check nodeStates_[curNode].useDA flag
@@ -1621,9 +1603,9 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
                 // Emplace curNode into nodeStates_
                 auto& curState = nodeStates_[curNode];                 // 0x1d112a-0x1d114e: call emplace
-                // Read curState.counter as PointerState
+                // Read curState.counter() as PointerState
                 auto pointerState = static_cast<Cache::PointerState>(
-                    curState.counter);                                 // 0x1d1153: mov 0x30(%rax),%edx
+                    curState.counter());                                 // 0x1d1153: mov 0x30(%rax),%edx
 
                 // Call Cache::play(loadCachePtr, pointerState)
                 cachePtr->play(loadCachePtr, pointerState);            // 0x1d1160: call Cache::play
@@ -1634,26 +1616,17 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         }
 
         // ==================================================================
-        // TODO: duplicate case value — type=2 is same as NodeType::Play (0x0002)
-        // This may actually be NodeType::Load (0x0001) mislabeled. Commented out.
+        // type=2 (Play): 0x1d130d — verified via jump table at 0x95af54 idx 1.
+        // (Earlier reconstruction misread this as a "duplicate case" of Play; the
+        //  table actually maps idx 0 to type=1=Load and idx 1 to type=2=Play.)
         // ==================================================================
-        /* case static_cast<NodeType>(2): {                               // 0x1d130d
-            // 0x1d130d-0x1d1340: Lock weak_ptr at node+0x20
-            std::shared_ptr<Node> loadNode;
-            {
-                auto* weakCtrl = reinterpret_cast<std::__1::__shared_weak_count*>(
-                    cur->loadCtrl);
-                if (weakCtrl) {
-                    auto* locked = weakCtrl->lock();
-                    if (locked) {
-                        loadNode.reset(cur->loadPtr, ...);
-                    }
-                }
-            }
+        case NodeType::Play: {                                         // 0x1d130d
+            // 0x1d130d-0x1d1340: Lock weak_ptr at node+0x18..+0x20
+            std::shared_ptr<Node> loadNode = cur->loadRef.lock();
 
             if (!loadNode) {                                           // 0x1d14bb-0x1d14c8
                 auto& state = nodeStates_[curNode];
-                if (!curNode->config.dummy) {                           // 0x1d14cf: cmpb $0x0,0x66(%rax) — confirmed: Node+0x66
+                if (!cur->config.dummy) {                               // 0x1d14cf: cmpb $0x0,0x66(%rax)
                     // 0x1d20b1: throw ZIAWGCompilerException(format(0xA2, "..."))
                     throw ZIAWGCompilerException(
                         ErrorMessages::format(ErrorMessageT(0xA2),
@@ -1662,7 +1635,8 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 goto advance;
             }
 
-            // 0x1d1346-0x1d13be: Same pattern — emplace load & cur, Cache::play
+            // 0x1d1346-0x1d13be: Same pattern as Table — emplace load & cur,
+            // then call Cache::play(loadCachePtr, pointerState)
             {
                 Cache* cachePtr = cache.get();                         // 0x1d1346: mov (%rbx),%r13
                 auto& loadState = nodeStates_[loadNode];               // 0x1d1349-0x1d136a
@@ -1670,13 +1644,13 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
                 auto& curState = nodeStates_[curNode];                 // 0x1d1388-0x1d13ac
                 auto pointerState = static_cast<Cache::PointerState>(
-                    curState.counter);                                 // 0x1d13b1: mov 0x30(%rax),%edx
+                    curState.counter());                                 // 0x1d13b1: mov 0x30(%rax),%edx
 
                 cachePtr->play(loadCachePtr, pointerState);            // 0x1d13be: call Cache::play
             }
 
             goto cleanupLoadAndAdvance;
-        } */
+        }
 
         // ==================================================================
         // type=4 (Branch): 0x1d117a — recurse into each branch child
@@ -1741,15 +1715,10 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         // 0x1d1660-0x1d16c5: Advance to next node in the chain
         // ==================================================================
         // curNode = curNode->next
-        {
-            Node* curRaw = curNode.get();                              // 0x1d1660: mov -0xa0(%rbp),%rax
-            Node* nextRaw = curRaw->next.get();                        // 0x1d1667: mov 0xb8(%rax),%r12
-            // TODO: libc++ internal — next's ctrl block at +0xC0
-            // auto nextCtrl = /* next's ctrl block at +0xC0 */;       // 0x1d166e: mov 0xc0(%rax)
-
-            // Swap: release old curNode, adopt nextRaw
-            curNode = curRaw->next;                                    // 0x1d167f-0x1d16c5
-        }
+        // Binary inlines shared_ptr copy: reads raw ptr at +0xB8 and ctrl block
+        // at +0xC0, increments strong+weak refcounts on the new ctrl block,
+        // then decrements/destroys the old curNode's ctrl block.
+        curNode = curNode->next;                                       // 0x1d1660-0x1d16c5
         continue;                                                      // → 0x1d1017 (while test)
     } // end while
 
@@ -1769,7 +1738,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
     // 0x1d16ca-0x1d17b3: If loadNode has a cachePtr in nodeStates_:
     //   Look up nodeStates_[loadNode].cachePtr
     //   If cachePtr exists (non-null at hash_node+0x48):
-    //     Check nodeStates_[loadNode].counter >= 2
+    //     Check nodeStates_[loadNode].counter() >= 2
     //     If so: transfer cachePtr to nodeStates_[curNode]
     //            (move shared_ptr from load's state → current's state)
 
@@ -1876,11 +1845,9 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
 
     Node* playNode = node.get();  // 0x1d53c9: mov (%rsi), %rcx
 
-    // 0x1d53cc-0x1d53da: copy load's ctrl block ptr, incq strong + weak
-    // 0x1d53df: store load.get() → playNode->loadNode (+0x18)
-    // 0x1d53e7: store load's ctrl block → playNode->loadCtrl (+0x20) as weak_ptr
-    // This sets the play node's loadNode_ weak_ptr to point to the load
-    playNode->loadNode = load;   // +0x18: shared_ptr copy
+    // 0x1d53cc-0x1d53e7: assign weak_ptr from load (binary writes raw ptr at
+    // playNode+0x18 and increments weak refcount on load's ctrl block at +0x20)
+    playNode->loadRef = load;
     // (also sets weak_ptr ctrl block at +0x20, releasing old one)
 
     // 0x1d540c: add 0x10 to this → &nodeStates_
@@ -1947,7 +1914,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // If no parent (lock returns null): fall through
 
     // 0x1d4aac: check isPlaceholder (+0x66)
-    if (n->isPlaceholder)  // +0x66
+    if (n->config.dummy)  // +0x66 = config+0x1E (was isPlaceholder)
         return result;
 
     // 0x1d4ab6: get fresh register number
@@ -1961,14 +1928,14 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     Node* loadNode = result.get();
 
     // 0x1d4b5b-0x1d4b9c: copy waveNames from source to load node
-    // source->waveNames_ is at +0x28, vector<optional<string>>
-    loadNode->waveNames = n->waveNames;  // copy vector
+    // source->wavesPerDev is at +0x28, vector<optional<string>>
+    loadNode->wavesPerDev = n->wavesPerDev;  // copy vector
 
     // 0x1d4b96-0x1d4b9c: set deviceIndex from config
     loadNode->deviceIndex = config_->numChannelGroups;  // +0x24 of config → +0x40 of node
 
     // 0x1d4c45-0x1d4c53: copy playLength
-    loadNode->playLength = n->playLength;  // +0x88
+    loadNode->lengthReg = n->lengthReg;  // +0x88 (AsmRegister — note: source writes int, may need comment)
 
     // 0x1d4c53-0x1d4cc4: branch on isHirzel
     bool isHirzel = config_->isHirzel;  // +0x18
@@ -1986,7 +1953,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // 0x1d4cc4-0x1d4cf4: call assignLoad(this, node, result, isHirzel)
     assignLoad(node, result, isHirzel);
 
-    // 0x1d4d28-0x1d4d52: push source node as weak_ptr into loadNode->loadTargets_ (+0xA0)
+    // 0x1d4d28-0x1d4d52: push source node as weak_ptr into loadNode->play (+0xA0)
     // (loadNode+0xA0 is vector<weak_ptr<Node>>)
 
     // 0x1d4d64-0x1d4d93: allValidWaves() — copy_if on source waveNames (+0x28)
@@ -1994,11 +1961,12 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // 0x1d4d9b-0x1d4e6b: for each valid wave name, look up in wavetableIR_
     // and mark waveform as not fixed (+0xD8 = false)
     auto wavetable = wavetableIR_.get();
-    for (auto const& waveName : n->waveNames) {
-        if (waveName.empty()) continue;
+    for (auto const& waveName : n->wavesPerDev) {
+        if (!waveName.has_value() || waveName->empty()) continue;
         auto wfm = wavetable->getWaveformByName(waveName);
         if (!wfm) continue;
-        wfm->fixed_ = false;  // +0xD8: mark as needing load
+        wfm->markedForLoad = true;  // +0xD8 byte = 1: 0x1d4e13 sets BYTE PTR [rax+0xd8],0x1
+                                    // (NOT the fixed_ flag — that's at +0xD9)
     }
 
     // 0x1d4eb3-0x1d4ebe: call collectUsedWaves(node)
@@ -2026,12 +1994,12 @@ void Prefetch::mergeLoads(std::shared_ptr<Node> dst,
     if (dst->type != NodeType::Load || src->type != NodeType::Load)
         return;
 
-    // 0x1d5087-0x1d509f: iterate src->loadTargets_ (+0xA0)
-    auto& srcTargets = src->loadTargets;  // vector<weak_ptr<Node>> at +0xA0
+    // 0x1d5087-0x1d509f: iterate src->play (+0xA0)
+    auto& srcTargets = src->play;  // vector<weak_ptr<Node>> at +0xA0
     auto it = srcTargets.begin();
 
     while (it != srcTargets.end()) {
-        // 0x1d50cc-0x1d5120: for each weak_ptr in dst->loadTargets_,
+        // 0x1d50cc-0x1d5120: for each weak_ptr in dst->play,
         // check if the target still has a valid parent chain
         // (lock weak_ptr at +0x20, follow loadNode +0x18)
         // If the parent chain leads back to src → this target should be merged
@@ -2047,10 +2015,10 @@ void Prefetch::mergeLoads(std::shared_ptr<Node> dst,
         // 0x1d5167-0x1d5179: call assignLoad(this, targetNode, dst, isHirzel)
         assignLoad(targetNode, dst, config_->isHirzel);
 
-        // 0x1d51ab-0x1d5267: iterate dst->loadTargets_ to check if the
+        // 0x1d51ab-0x1d5267: iterate dst->play to check if the
         // weak_ptr target already matches (avoiding duplicates)
-        // If not found among existing, emplace the weak_ptr into dst->loadTargets_
-        auto& dstTargets = dst->loadTargets;
+        // If not found among existing, emplace the weak_ptr into dst->play
+        auto& dstTargets = dst->play;
         bool found = false;
         for (auto& wp : dstTargets) {
             auto locked = wp.lock();
@@ -2118,8 +2086,8 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cbfa5-0x1cbfb5: save root_ to local
     auto localRoot = root_;
 
-    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize AND !config_->appendMode
-    if (required <= (size_t)cacheSize || config_->appendMode) {
+    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize AND !config_->appendMode()
+    if (required <= (size_t)cacheSize || config_->appendMode()) {
         // 0x1cbfda: split_ = true
         split_ = true;
 
@@ -2139,11 +2107,11 @@ void Prefetch::placeLoads() // 0x1cbf60
             auto syncNode = std::make_shared<Node>(NodeType::SyncHirzel,
                                                     0, localRoot->asmId);
             // Insert before first child or set as first child
-            if (localRoot->firstChild) {
-                localRoot->firstChild->insertBefore(syncNode);
+            // Binary: reads/writes +0xB8 (next) — "firstChild" IS the next pointer
+            if (localRoot->next) {
+                localRoot->next->insertBefore(syncNode);
             } else {
-                localRoot->firstChild = syncNode;
-                // TODO: also set control block
+                localRoot->next = syncNode;
             }
         } else if (devTypeVal == 0x1 /*UHFLI*/ || devTypeVal == 0x2 /*HDAWG*/ ||
                    devTypeVal == 0x4 /*UHFQA*/ || devTypeVal == 0x8 /*SHFQA-like*/) {
@@ -2151,10 +2119,11 @@ void Prefetch::placeLoads() // 0x1cbf60
             // Create AwgReady node (type 0x8000)
             auto readyNode = std::make_shared<Node>(NodeType::AwgReady,
                                                      0, localRoot->asmId);
-            if (localRoot->firstChild) {
-                localRoot->firstChild->insertBefore(readyNode);
+            // Binary: reads/writes +0xB8 (next) — "firstChild" IS the next pointer
+            if (localRoot->next) {
+                localRoot->next->insertBefore(readyNode);
             } else {
-                localRoot->firstChild = readyNode;
+                localRoot->next = readyNode;
             }
         }
     }
@@ -2185,7 +2154,7 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cc3a1-0x1cc3b5: copy root's playConfig to cwvfConfig
     // movups from +0x48, +0x57 → movups to +0x68, +0x77
     Node* rootNode = root_.get();
-    // memcpy(&rootNode->cwvfConfig, &rootNode->playConfig, sizeof(PlayConfig));
+    // memcpy(&rootNode->cwvfConfig, &rootNode->config, sizeof(PlayConfig));
     // (copies 32 bytes from +0x48 to +0x68)
 
     // 0x1cc3d8: call optimizeCwvf(root_)
@@ -2267,7 +2236,7 @@ int Prefetch::getUsedCache(std::shared_ptr<Node> node) const  // 0x1c7eb0
     {
         // Check counter in nodeStates_; if 0, skip to recursive case
         auto stateIt = nodeStates_.find(node);
-        if (stateIt != nodeStates_.end() && stateIt->second.counter == 0) {
+        if (stateIt != nodeStates_.end() && stateIt->second.counter() == 0) {
             goto recursive;  // counter == 0 means this Play doesn't own cache
         }
 

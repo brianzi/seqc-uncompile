@@ -25,7 +25,7 @@ public:
     void setMemoryOffset(unsigned int offset);
     void writeToFile(std::string const& path);
     // Returns pointer to internal vector<uint64_t> at impl+0x50
-    std::vector<uint64_t> const& getOpcode() const;
+    std::vector<uint32_t> const& getOpcode() const;
     // Returns by value (sret); likely std::string
     std::string getReport() const;
     void printOpcode(int format) const;

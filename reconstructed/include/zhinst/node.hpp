@@ -239,59 +239,20 @@ public:
     int nodeId;             // +0x10  — assigned from TLS counter (node_id++)
     int asmId;              // +0x14  — asm/device index
 
-    // +0x18: raw Node* pointer to load node (set by Prefetch::assignLoad)
-    // +0x20: weak_ptr control block for load (assignLoad increments weak+strong refcount,
-    //        then decrements strong; createLoad checks via weak_ptr::lock())
-    uint64_t _reserved0 = 0;           // +0x18 — zeroed in ctor (load raw ptr stored here)
-    uint64_t _reserved1 = 0;           // +0x20 — zeroed in ctor (load control block ptr)
-    Node* load = nullptr;                  // alias for _reserved0 — TODO: reconcile
-    void* loadCtrl = nullptr;  // alias for _reserved1 — TODO: reconcile
-
-    // TODO: The following fields are referenced in reconstructed .cpp files
-    // (prefetch_placesingle, asm_commands, asm_list) but their exact offsets
-    // within the Node struct are not yet confirmed from disassembly.
-    // They may overlap with or replace some of the above fields, or the
-    // total struct size may be larger than 0x110.
-    AsmRegister asmRegister;       // offset TBD — register assigned by prefetch
-    int sequenceId = 0;            // offset TBD — sequence ordering ID
-    int rate = 0;                  // offset TBD — sample rate for Rate nodes
-    AsmRegister reg;               // offset TBD — general-purpose register field
-    unsigned int precompFlags = 0; // offset TBD — precompensation flags
-
-    // TODO: These are used in .cpp files but exact offsets unknown.
-    // They may be aliases for existing fields or additional fields
-    // that push the struct beyond 0x110.
-    // - elseBranch: used in prefetch for branch-else paths
-    // - firstChild: used in prefetch tree traversal
-    // - playConfig: might alias 'config' field at +0x48
-    // - length2: might alias 'length' or be a separate field
-    // - is4Channel: might be derived from config
-    std::shared_ptr<Node> elseBranch;  // offset TBD
-    std::shared_ptr<Node> firstChild;  // offset TBD
-    PlayConfig playConfig;             // offset TBD — might alias 'config'
-    int length2 = 0;                   // offset TBD — might alias 'length'
-    bool is4Channel = false;           // offset TBD
-    int precompLength = 0;             // offset TBD — precompensation length
-    int indexField = 0;                // offset TBD — index field used in prefetch
-
-    // TODO: Additional fields referenced in prefetch/asm .cpp files.
-    // Exact offsets and semantics not fully confirmed.
-    // Some may be aliases for existing fields (noted where suspected).
-    Node* parent_ptr = nullptr;                 // offset TBD — raw parent pointer (may alias parent.get())
-    void* parent_ctrl = nullptr;                // offset TBD — parent weak_ptr control block
-    std::vector<std::string> waveNames;         // offset TBD — wave names for this node
-    AsmRegister playConfigReg;                  // offset TBD — register for play config (may alias config field)
-    std::vector<std::weak_ptr<Node>> loadTargets;  // offset TBD — load target nodes (weak to avoid cycles)
-    int smapField = 0;                          // offset TBD — smap-related field
-    bool isDummy = false;                       // offset TBD — dummy node flag
-    bool isPlaceholder = false;                 // offset TBD — placeholder node flag
-    int refCount = 0;                           // offset TBD — reference count for prefetch
-    NodeType nodeType2 = NodeType::Load;        // offset TBD — secondary node type
-    bool indexed = false;                       // offset TBD — whether node uses indexed addressing
-    int playLength = 0;                         // offset TBD — play length (may alias 'length')
-    std::shared_ptr<Node> loadNode;             // offset TBD — associated load node
-    Node* loadPtr = nullptr;                    // offset TBD — raw pointer to load node
-    Node* load_ctrl = nullptr;                  // offset TBD — load control block ptr
+    // +0x18, +0x20: Load reference — weak_ptr<Node>.
+    //   Prefetch::assignLoad sets this to a load node (incrementing weak refcount
+    //   on the load's control block). Prefetch::createLoad and other consumers
+    //   resolve via loadRef.lock(). Dtor calls __release_weak on +0x20.
+    //
+    //   Binary layout (libc++): +0x18 = raw Node*, +0x20 = __shared_weak_count*.
+    //   Build host (libstdc++) weak_ptr<T> is also 16 bytes with the same layout
+    //   semantics (object_ptr + control_block_ptr), so source-level weak_ptr
+    //   matches the binary's footprint at this offset range. See
+    //   notes/libcpp_abi.md for ABI details.
+    //
+    //   Source aliases (all map here):
+    //     loadNode, loadPtr, load, loadRef → +0x18..+0x20
+    std::weak_ptr<Node> loadRef;       // +0x18 (16 bytes: Node* + ctrl block*)
 
     std::vector<std::optional<std::string>> wavesPerDev;  // +0x28 (24 bytes)
 

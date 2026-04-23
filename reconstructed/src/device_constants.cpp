@@ -9,13 +9,19 @@
 // Throws ZIAWGCompilerException for unsupported types.
 //
 // Field names revised in Phase 7e based on verified consumer usage.
+// Default-branch throw reconstructed in Phase 14b-iii.5: uses
+// BOOST_THROW_EXCEPTION(ZIAWGCompilerException(...)) to match the
+// boost::throw_exception call at 0x2cc44d with source_location
+// (file=constants.cpp, function=getDeviceConstants, line=312, column=65).
 // ============================================================================
 
 #include "zhinst/device_constants.hpp"
-#include "zhinst/types.hpp"   // AwgDeviceType enum
+#include "zhinst/types.hpp"      // AwgDeviceType enum
+#include "zhinst/exception.hpp"  // ZIAWGCompilerException
+
+#include <boost/throw_exception.hpp>
 
 #include <cstring>
-#include <stdexcept>
 
 namespace zhinst {
 
@@ -309,10 +315,15 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         break;
 
     default:
-        // "Instantiated compiler for unsupported device type"
-        // Throws ZIAWGCompilerException via boost::throw_exception
-        throw std::runtime_error(
-            "Instantiated compiler for unsupported device type");
+        // .rodata 0x90b170 = "Instantiated compiler for unsupported device type"
+        // Throw site at 0x2cc3f7..0x2cc44d:
+        //   - constructs ZIAWGCompilerException(string) at [rbp-0x98]
+        //   - calls boost::throw_exception<ZIAWGCompilerException>(ex, src_loc)
+        //     @ 0x270ab0 with source_location{file=constants.cpp,
+        //     function="DeviceConstants zhinst::getDeviceConstants(AwgDeviceType)",
+        //     line=312, column=65}.
+        BOOST_THROW_EXCEPTION(ZIAWGCompilerException(
+            "Instantiated compiler for unsupported device type"));
     }
 
     return dc;

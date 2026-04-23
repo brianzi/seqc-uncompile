@@ -13,8 +13,9 @@ AWGAssemblerImpl::AWGAssemblerImpl(DeviceConstants const& dc)
       // 0x58-0x67 zeroed
       opcodes_(),                  // 0x50-0x67 zeroed (vector: begin/end/cap)
       memoryOffset_(0),            // 0x68 = 0
-      pad0_(0)
-      // Remaining fields initialized below
+      pad_memOffset_(0)            // 0x6c = pad
+      // currentLine_ = 0 by in-class initializer (0x70)
+      // pad_currentLine_ = 0 by in-class initializer (0x74)
 {
     // 0x70-0x9f zeroed (movaps xmm0 x3 = 48 bytes)
     // 0xa0 = 0 (movq)
@@ -66,7 +67,7 @@ void AWGAssemblerImpl::setMemoryOffset(unsigned int offset)
 }
 
 // 0x289060
-std::vector<uint64_t> const& AWGAssemblerImpl::getOpcode() const
+std::vector<uint32_t> const& AWGAssemblerImpl::getOpcode() const
 {
     // lea 0x50(%rdi), %rax — returns pointer to opcodes_ vector
     return opcodes_;

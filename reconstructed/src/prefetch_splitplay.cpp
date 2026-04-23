@@ -36,10 +36,10 @@ namespace zhinst {
 //   +0x28  wavesPerDev (vector<optional<string>>, each 0x20 bytes)
 //   +0x40  deviceIndex (int)
 //   +0x4C  length (int)     — used via WaveformIR
-//   +0x64  indexed (bool)   — confirmed
+//   +0x64  config.now (bool) — confirmed (was "indexed")
 //   +0x68  PlayConfig
-//   +0x88  playConfigReg (AsmRegister)
-//   +0x90  length2 (int)    — if nonzero, triggers simple path
+//   +0x88  lengthReg (AsmRegister)
+//   +0x90  length (int)     — if nonzero, triggers simple path
 // ============================================================================
 AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 {
@@ -50,7 +50,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // 0x1dd1d3..0x1dd458
     uint32_t totalLength;
 
-    if (raw->length2 != 0) {  // 0x1dd1da: test r12d,r12d
+    if (raw->length != 0) {  // 0x1dd1da: test r12d,r12d, +0x90
         // length2 != 0 path (Hirzel-like simple path)
         // 0x1dd1e3..0x1dd36b
         auto wfIR = wavetableIR_;  // this+0x110
@@ -74,7 +74,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         uint16_t channels = wfm->signal.channels_;  // WaveformIR+0xC8
 
         // totalLength = length2 * channels * 2
-        totalLength = raw->length2 * channels;  // 0x1dd31b: imul %ebx,%r12d
+        totalLength = raw->length * channels;  // 0x1dd31b: imul %ebx,%r12d, +0x90
         totalLength *= 2;                        // 0x1dd368: add %r12d,%r12d
     } else {
         // length2 == 0 path — compute from signal data
@@ -122,15 +122,8 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // 0x1dd458..0x1dd46c
     // Copy the node's parent/ref shared_ptr from raw+0x20 into local
     // for nodeStates_ lookups
-    std::shared_ptr<Node> lookupNode;  // APPROXIMATE — may be raw->parent or raw->ref
-    {
-        // TODO: libc++ internal — reinterpret_cast of weak_ptr control block
-        // 0x1dd462..0x1dd49c: lock from weak_ptr at raw+0x20
-        // Original code resolves weak_ptr to get lookupNode
-        if (raw->loadNode) {
-            lookupNode = raw->loadNode;
-        }
-    }
+    // 0x1dd462..0x1dd49c: lock weak_ptr at raw+0x18..+0x20
+    std::shared_ptr<Node> lookupNode = raw->loadRef.lock();
 
     // ---- Step 3: Compute remainder if waveform exceeds cache page ----
     // 0x1dd4be..0x1dd555
@@ -140,7 +133,9 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         auto it = nodeStates_.find(lookupNode);
         if (it != nodeStates_.end()) {
             auto& pns = it->second;
-            int pageSize = pns.cachePtr->size_;  // TODO: was pageSize_ — Cache::Pointer has size_, not pageSize_
+            // 0x1dd4da: mov rax, [rax+0x48]   ; rax = pns.cachePtr.get()
+            // 0x1dd4de: mov ebx, [rax+0xc]    ; ebx = cachePtr->numRepeats_
+            uint32_t numRepeats = pns.cachePtr->numRepeats_;
 
             auto it2 = nodeStates_.find(lookupNode);
             if (it2 != nodeStates_.end()) {
@@ -150,14 +145,15 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
                     pns2.cachePtr.get());  // PNS+0x28 → hash_node+0x48
                 uint32_t halfSize = cachePtr->size_ / 2;  // 0x1dd501: shr $1,%ebx
 
-                if (totalLength < static_cast<uint32_t>(pageSize * halfSize)) {
+                if (totalLength < static_cast<uint32_t>(numRepeats * halfSize)) {
                     // totalLength fits — no split needed beyond one full page
                     // falls through to no-remainder case
                 } else {
                     // 0x1dd508..0x1dd54e: compute how many full pages
                     auto it3 = nodeStates_.find(lookupNode);
                     auto& pns3 = it3->second;
-                    int pageSize2 = pns3.pageSize;
+                    // 0x1dd520/0x1dd524: same numRepeats_ load as above
+                    uint32_t numRepeats2 = pns3.cachePtr->numRepeats_;
 
                     auto it4 = nodeStates_.find(lookupNode);
                     auto& pns4 = it4->second;
@@ -165,11 +161,13 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
                         pns4.cachePtr.get());
                     uint32_t halfSize2 = cachePtr2->size_ / 2;
 
-                    // remainder = totalLength - (pageSize - 1) * halfSize
-                    uint32_t fullPages = pageSize2 - 1;  // 0x1dd53f: dec %ebx
+                    // remainder = totalLength - (numRepeats - 1) * halfSize
+                    uint32_t fullPages = numRepeats2 - 1;  // 0x1dd53f: dec %ebx
                     uint32_t coveredByFull = fullPages * halfSize2;
                     remainder = totalLength - coveredByFull;  // 0x1dd54b
-                    totalLength = coveredByFull;  // 0x1dd552: mov %ebx,%r12d  APPROXIMATE
+                    // 0x1dd552: mov %ebx,%r12d — totalLength now becomes coveredByFull
+                    // (the full-page-aligned portion); the leftover is in `remainder`
+                    totalLength = coveredByFull;
                 }
             }
         }
@@ -197,7 +195,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 
         // 0x1dd629: add 0x4c(%rax),%r12d — add wfm->waveformOffset to totalLength
         // WaveformIR+0x4C = some offset value
-        uint32_t wfmOffset = wfm->waveformOffset;  // +0x4C  confirmed
+        uint32_t wfmOffset = wfm->addressValue;  // Waveform::addressValue +0x4C (formerly waveformOffset)
         uint32_t initialAddr = totalLength + wfmOffset;
 
         // 0x1dd637..0x1dd656: addi(asmCommands_, AsmRegister(0), addrReg, Immediate(initialAddr))
@@ -210,15 +208,15 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // ---- Step 6: Handle node's PlayConfig register (0x88) ----
     // 0x1dd7c8..0x1dd967
     AsmRegister copyReg;  // declared here — used in later steps
-    if (raw->playConfigReg.isValid() /* +0x88 */ ) {  // 0x1dd7d7: call isValid
+    if (raw->lengthReg.isValid() /* +0x88 */ ) {  // 0x1dd7d7: call isValid
         AsmRegister invalidReg(0);
-        if (!(raw->playConfigReg == invalidReg)) {  // 0x1dd80d: call operator==
-            // Get a new register, emit addi(newReg, playConfigReg, Immediate(0))
+        if (!(raw->lengthReg == invalidReg)) {  // 0x1dd80d: call operator==
+            // Get a new register, emit addi(newReg, lengthReg, Immediate(0))
             copyReg = AsmRegister(resources_->getRegisterNumber());  // -0x150(%rbp)
 
             AsmList addiCopy = asmCommands_->addi(
                 copyReg,
-                raw->playConfigReg,  // +0x88
+                raw->lengthReg,  // +0x88
                 Immediate(0));
             result.insert(result.end(), addiCopy.begin(), addiCopy.end());
         }
@@ -307,7 +305,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
 
     // ---- Step 12: Determine which register to use for insertPlay ----
     // 0x1de066..0x1de090
-    bool indexed = raw->indexed;  // +0x64  confirmed (movzbl 0x64(%rax))
+    bool indexed = raw->config.now;  // +0x64 = config+0x1C  confirmed (movzbl 0x64(%rax))
 
     // Choose register: if isHirzel, use hirzelReg (-0x130), else cervinoReg (-0x158)
     AsmRegister playReg = isHirzel ? hirzelReg : cervinoReg;
@@ -320,13 +318,14 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         auto* cachePtr = reinterpret_cast<Cache::Pointer*>(it->second.cachePtr.get());
         uint32_t halfSize = cachePtr->size_ / 2;  // 0x1de0ac: mov 0x4(%rax),%r15d; shr $1
 
-        // Look up cachePtr->position from second find  APPROXIMATE
+        // Look up cachePtr->hash_ from second find (used as the start-address
+        // hash key for insertPlay). 0x1de0cf reads +0x8 = hash_, not position_.
         auto it2 = nodeStates_.find(node);
         auto* cachePtr2 = reinterpret_cast<Cache::Pointer*>(it2->second.cachePtr.get());
-        uint32_t position = cachePtr2->position_;  // 0x1de0cf: mov 0x8(%rax) — confirmed Cache::Pointer+0x08
+        uint32_t cacheHash = cachePtr2->hash_;  // 0x1de0cf: mov 0x8(%rax),%eax
 
-        // 0x1de0ec: call insertPlay(result, indexed, playLabel, playReg, halfSize, position)
-        insertPlay(result, indexed, playLabel, playReg, halfSize, position);
+        // 0x1de0ec: call insertPlay(result, indexed, playLabel, playReg, halfSize, cacheHash)
+        insertPlay(result, indexed, playLabel, playReg, halfSize, cacheHash);
     }
 
     // ---- Step 14: Emit addi to advance the register by halfSize ----
@@ -340,9 +339,8 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         result.insert(result.end(), addiAdv.begin(), addiAdv.end());
     }
 
-    // ---- Step 15: Get a loop counter register, emit addi(counterReg, counterReg, Immediate(1)) ----
-    // APPROXIMATE: this decrements by 1, for the loop counter
-    // 0x1de241..0x1de35f
+    // ---- Step 15: Get a loop counter register, emit addi(counterReg, hirzelReg, Immediate(1)) ----
+    // 0x1de241..0x1de35f. Verified Immediate(1) at 0x1de274 (mov esi,0x1).
     AsmRegister counterReg(resources_->getRegisterNumber());
 
     {
@@ -400,7 +398,7 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
     // 0x1de8fa..0x1de96d
     if (remainder != 0) {
         // 0x1de900..0x1de96d
-        bool indexed2 = raw->indexed;  // +0x64  confirmed
+        bool indexed2 = raw->config.now;  // +0x64 = config+0x1C  confirmed
         bool isHirzel2 = config_->isHirzel;
 
         AsmRegister playReg2 = isHirzel2 ? hirzelReg : cervinoReg;
