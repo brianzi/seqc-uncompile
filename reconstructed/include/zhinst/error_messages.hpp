@@ -31,8 +31,7 @@
 #include <map>
 #include <string>
 
-// Forward declare boost::basic_format to avoid full boost dependency
-namespace boost { template<class Ch> class basic_format; }
+#include <boost/format.hpp>   // boost::basic_format used by format<Args...>
 
 namespace zhinst {
 
@@ -445,17 +444,42 @@ public:
     static std::string format(ErrorMessageT id);
 
     // Format a message with arguments (variadic template).
-    // ~40 instantiations in binary. Pattern:
-    //   1. map::at(id) → format string
+    // ~64 instantiations in binary. Pattern (verified — see WP-A in
+    // notes/undefined_symbols_audit.md):
+    //   1. messages.at(id) → format string
     //   2. boost::basic_format(str)
-    //   3. feed args via boost::io::detail::feed_impl
+    //   3. feed args via boost::io::detail::feed_impl (operator% chain)
     //   4. return basic_format::str()
+    //
+    // Body inlined here in Phase 20a to satisfy all 64 implicit
+    // instantiations across 14 caller TUs without per-arg-pack
+    // explicit instantiations.
     template <typename... Args>
-    static std::string format(ErrorMessageT id, Args&&... args);
+    static std::string format(ErrorMessageT id, Args&&... args) {
+        boost::format fmt(messages.at(static_cast<int>(id)));
+        // C++17 fold expression — equivalent to fmt % a1 % a2 % ... % aN.
+        // Matches the binary's `boost::io::detail::feed_impl` chain.
+        (void)std::initializer_list<int>{
+            ((void)(fmt % std::forward<Args>(args)), 0)...
+        };
+        return fmt.str();
+    }
 
     // Static message map (BSS at 0xb84c38)
     static std::map<int, std::string> messages;
 };
+
+// Process-wide singleton instance, BSS at 0x95de60.
+// Declared `extern` in 4 TUs (cache, custom_functions, node, prefetch_emit);
+// definition lives in error_messages.cpp.
+extern ErrorMessages errMsg;
+
+// Three `extern const std::string` namespace globals referenced from
+// static_resources.cpp:21-23 (BSS @ 0xb84690 / 0xb846a8 / 0xb846c0).
+// Definitions live in error_messages.cpp.
+extern const std::string zsyncDataPqscDecoder;
+extern const std::string zsyncDataPqscRegister;
+extern const std::string constAwgIntegrationTrigger;
 
 // NOTE: ResourcesException is defined in resources.hpp (not duplicated here).
 

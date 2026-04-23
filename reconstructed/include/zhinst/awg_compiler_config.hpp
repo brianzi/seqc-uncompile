@@ -27,7 +27,7 @@ namespace zhinst {
 // 0x08    8     double                      deviceSampleRate    NaN→default; verified movsd xmm0,[r14+0x8] at 0x1ee69b
 //                                                               in StaticResources::init
 // 0x10    4     uint32_t                    addressImpl         Passed as AddressImpl<uint> to WavetableFront
-// 0x14    4     int                         unknown_14
+// 0x14    4     uint16_t[2]                 channelsPerGroup    [0]=normal, [1]=indexed; read by PlayArgs ctor
 // 0x18    1     bool                        isHirzel            1 = Hirzel device (verified: cmpb $0x1,0x18(%rax) at 0x1d6c47)
 // 0x19    1     uint8_t                     cacheType           0=Normal, 1=Aligned (verified: movzbl 0x19(%rax) at 0x1d6c4d)
 // 0x1A    2     (padding)
@@ -61,7 +61,7 @@ struct AWGCompilerConfig {
     SampleFormat sampleFormat;              // 0x04 — used by writeWavesToElf* (verified at 0x10e049, 0x10e1f2)
     double deviceSampleRate;            // 0x08 — NaN means "use default"; read in StaticResources::init at 0x1ee69b
     uint32_t addressImpl;               // 0x10 — AddressImpl<unsigned int> value
-    int unknown_14;                     // 0x14
+    uint16_t channelsPerGroup[2];       // 0x14 — [0]=normal, [1]=indexed; read by PlayArgs ctor
     bool isHirzel;                      // 0x18 — 1 = Hirzel device (cmpb $0x1,0x18(%rax) at 0x1d6c47)
     uint8_t cacheType;                  // 0x19 — 0=Normal, 1=Aligned (movzbl 0x19(%rax) at 0x1d6c4d)
     char pad_1a[2];                     // 0x1A — padding

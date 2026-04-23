@@ -115,6 +115,7 @@ public:
 
         std::string str() const;                // 0x283c30
     };
+    // Note: sizeof(Pointer) == 0x24 in libc++ ABI, 0x28 in libstdc++ (extra tail padding).
 
     // Constructor
     Cache(detail::AddressImpl<uint32_t> size, int pageSize, bool appendMode);  // 0x282920

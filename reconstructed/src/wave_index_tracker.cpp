@@ -155,11 +155,31 @@ WaveIndexTracker::WaveIndexTracker(int maxIdx,  // 0x29d000 / 0x29d410
     // Each shared_ptr is 16 bytes; element+0x00 = raw pointer to T
     const auto& waveforms = mgr.waveforms_;
     for (const auto& wp : waveforms) {
-        int idx = wp->playIndex;  // Waveform+0x6C
+        int idx = wp->waveIndex;  // Waveform+0x6C
         if (idx != -1) {
             indices_.insert(idx);  // insert (ignores duplicates)
         }
     }
 }
 
+} // namespace zhinst
+
+// ============================================================================
+// Explicit template instantiations.
+// The binary defines two specializations of the templated ctor at:
+//   0x29d000  — WaveIndexTracker(int, WavetableManager<WaveformFront> const&)
+//   0x29d410  — WaveIndexTracker(int, WavetableManager<WaveformIR> const&)
+// Forcing instantiation here emits the matching symbols so the rest of the
+// reconstructed code (which calls these ctors via make_shared / direct
+// construction) can link against this archive without depending on header-
+// inclusion ordering.
+// ============================================================================
+#include "zhinst/wavetable_front.hpp"  // WavetableManager<T> full definition
+#include "zhinst/waveform_front.hpp"
+#include "zhinst/waveform_ir.hpp"
+namespace zhinst {
+template WaveIndexTracker::WaveIndexTracker(
+    int, const detail::WavetableManager<WaveformFront>&);
+template WaveIndexTracker::WaveIndexTracker(
+    int, const detail::WavetableManager<WaveformIR>&);
 } // namespace zhinst

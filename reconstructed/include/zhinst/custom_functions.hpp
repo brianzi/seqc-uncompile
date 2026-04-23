@@ -11,6 +11,14 @@
 // bound as std::function entries in an unordered_map at +0x60.
 //
 // Source path (inferred): CustomFunctions.cpp
+//
+// Phase 16b file split (audit §C1): extracted classes moved to dedicated
+// headers:
+//   - EvalResultValue                       → eval_result_value.hpp
+//   - NodeMapData / VirtAddr / DirectAddr   → node_map_data.hpp
+//   - NodeMapItem (+ std::hash spec)         → node_map_data.hpp
+//   - MathCompiler / MathCompilerException  → math_compiler.hpp
+// CustomFunctions[Value]Exception remain here.
 // ============================================================================
 #pragma once
 
@@ -27,6 +35,9 @@
 #include <boost/json.hpp>
 
 #include <zhinst/asm_register.hpp>
+#include <zhinst/eval_result_value.hpp>
+#include <zhinst/math_compiler.hpp>
+#include <zhinst/node_map_data.hpp>
 #include <zhinst/value.hpp>
 
 namespace zhinst {
@@ -43,40 +54,6 @@ class WaveformFront;
 class WaveformGenerator;
 class WavetableFront;
 enum AwgDeviceType : int;
-enum VarType : int32_t;
-enum VarSubType : int32_t;
-
-// ============================================================================
-// EvalResultValue — 0x38 (56) bytes
-//
-// Typed value passed to all SeqC built-in functions and through the
-// frontend lowering pipeline (vector<EvalResultValue> args).
-//
-// Layout:
-//   +0x00  4  VarType       varType_    — outer type tag (Int=2, Double=3, String=4, ...)
-//   +0x04  4  VarSubType    varSubType_ — sub-type qualifier (usually 0)
-//   +0x08  40 Value         value_      — embedded variant (0x28 bytes)
-//   +0x30  8  AsmRegister   reg_        — register binding (default: value=-1, valid=false)
-//
-// CORRECTION 2026-04-23 (Phase 15a-i): Fields renamed from opaque
-// field_00/field_08/which_/data_/field_30 to meaningful names.
-// Evidence from:
-//   - EvalResults::setValue(VarType, string) @0x20af20 stores VarType in [erv+0x00]
-//     and VarSubType=0 in [erv+0x04]
-//   - Dtor @0x15c820 reads Value.which_ at [this+0x10] = ERV+0x08+0x08
-//   - setWaitCyclesReg @0x15ca90 reads AsmRegister at [base+0x68] = ERV[1]+0x30
-//   - AsmRegister::AsmRegister(int) called with esi=-1 at @0x15caea
-// ============================================================================
-struct EvalResultValue {
-    VarType     varType_;      // +0x00 — outer type tag
-    VarSubType  varSubType_;   // +0x04 — sub-type qualifier
-    Value       value_;        // +0x08 — embedded Value (0x28 bytes)
-    AsmRegister reg_;          // +0x30 — register binding
-
-    ~EvalResultValue();  // @0x15c820
-};
-static_assert(sizeof(EvalResultValue) == 0x38,
-              "EvalResultValue must be 0x38 bytes");
 
 // ============================================================================
 // AccessMode — comparable enum-like type used in set<AccessMode>
@@ -99,154 +76,6 @@ std::string toString(AccessMode mode);
 inline bool operator<(AccessMode a, AccessMode b) {
     return static_cast<int32_t>(a) < static_cast<int32_t>(b);
 }
-
-// ============================================================================
-// NodeMapData — polymorphic base for node map entries
-//
-// vtable @0xb02c98.  Two subclasses:
-//   VirtAddrNodeMapData  — vtable @0xb04cd8
-//   DirectAddrNodeMapData — vtable @0xb04d30
-// ============================================================================
-class NodeMapData {
-public:
-    virtual ~NodeMapData();                                  // @0x1c5720
-    virtual bool compareEq(NodeMapData const& other) const = 0;
-    virtual size_t hash() const = 0;
-    virtual NodeMapData* clone() const = 0;
-    virtual void getJson(boost::json::object& obj) const = 0;
-};
-
-class VirtAddrNodeMapData : public NodeMapData {
-public:
-    VirtAddrNodeMapData(VirtAddrNodeMapData const&);         // @0x1c4dc0
-    ~VirtAddrNodeMapData() override;                         // @0x1c4ec0, D0 @0x1c56c0
-    bool compareEq(NodeMapData const& other) const override; // @0x1c4cc0
-    size_t hash() const override;                            // @0x1c4f10
-    NodeMapData* clone() const override;                     // @0x1c51e0
-    void getJson(boost::json::object& obj) const override;   // @0x1c5240
-
-    // Layout (0x38 total) confirmed from D0 @0x1c56c0 (delete[size]=0x38),
-    // copy ctor @0x1c4dc0 (memcpy + __throw_length_error from vector<int>),
-    // and getJson @0x1c5240 (writes "name" key from string field, then iterates
-    // vector reading int32_t per element):
-    //   +0x00   8  vptr (from base)
-    //   +0x08  24  std::string             name_       — node name (JSON "name")
-    //   +0x20  24  std::vector<int32_t>    addresses_  — virtual address list
-    std::string             name_;       // +0x08
-    std::vector<int32_t>    addresses_;  // +0x20
-};
-
-class DirectAddrNodeMapData : public NodeMapData {
-public:
-    ~DirectAddrNodeMapData() override;                       // @0x1c5730
-    bool compareEq(NodeMapData const& other) const override; // @0x1c5460
-    size_t hash() const override;                            // @0x1c5370
-    NodeMapData* clone() const override;                     // @0x1c53c0
-    void getJson(boost::json::object& obj) const override;   // @0x1c5400
-
-    // Contains a direct address — used by getNodeAddress for fast path
-    // (dynamic_cast<DirectAddrNodeMapData*> in getNodeAddress @0x16ba10).
-    // Layout confirmed from getNodeAddress (16ba3f: `add rax, 8; mov eax, [rax]`):
-    //   +0x00  8  vptr (from base)
-    //   +0x08  4  uint32_t   addr_     direct hardware address
-    uint32_t addr_;  // +0x08 (after 8-byte vptr from NodeMapData)
-};
-
-// ============================================================================
-// NodeMapItem — 0x18 (24) bytes
-//
-// Hashable, comparable. Used as key in unordered_map and element in vectors.
-//
-// Layout (from operator== @0x1c5490 and fastAddress @0x1c5470):
-//   +0x00  8  NodeMapData*   data     (polymorphic, dynamic_cast in getNodeAddress)
-//   +0x08  4  int32_t        typeIdx  (node type/index)
-//   +0x0C  4  uint32_t       fastAddr (fast address)
-//   +0x10  1  bool           hasFast  (has fast address)
-//   +0x11  7  (padding)
-// ============================================================================
-struct NodeMapItem {
-    NodeMapData*  data;       // +0x00
-    int32_t       typeIdx;    // +0x08
-    uint32_t      fastAddr;   // +0x0C
-    bool          hasFast;    // +0x10
-    char          pad_11[7];  // +0x11
-
-    bool operator==(NodeMapItem const& other) const;  // @0x1c5490
-    uint32_t fastAddress() const;                      // @0x1c5470
-
-    boost::json::value toJson() const;                 // @0x1c54f0
-    size_t size() const;                               // @0x1c55a0
-};
-static_assert(sizeof(NodeMapItem) == 0x18,
-              "NodeMapItem must be 0x18 bytes");
-
-// ============================================================================
-// MathCompiler — inline sub-object within CustomFunctions at +0xC8
-//
-// Ctor @0x1c2250.  Contains function dispatch maps for math builtins.
-// Size: 0x30 bytes (inferred from CustomFunctions layout gap +0xC8..+0xF8).
-// ============================================================================
-class MathCompiler {
-public:
-    MathCompiler();  // @0x1c2250
-
-    // Single-argument math functions
-    double abs(double);        // @0x1c3520
-    double acos(double);       // @0x1c3530
-    double acosh(double);      // @0x1c35f0
-    double asin(double);       // @0x1c36b0
-    double asinh(double);      // @0x1c3770
-    double atan(double);       // @0x1c3780
-    double atanh(double);      // @0x1c3790
-    double cos(double);        // @0x1c3850
-    double cosh(double);       // @0x1c3860
-    double exp(double);        // @0x1c3870
-    double ln(double);         // @0x1c3880
-    double log(double);        // @0x1c3940
-    double log2(double);       // @0x1c3a00
-    double log10(double);      // @0x1c3ac0
-    double sign(double);       // @0x1c3b80
-    double sin(double);        // @0x1c3ba0
-    double sinh(double);       // @0x1c3bb0
-    double sqrt(double);       // @0x1c3bc0
-    double tan(double);        // @0x1c3be0
-    double tanh(double);       // @0x1c3bf0
-    double ceil(double);       // @0x1c3c00
-    double round(double);      // @0x1c3c10
-    double floor(double);      // @0x1c3c20
-
-    // Multi-argument math functions
-    double avg(std::vector<double> const&);  // @0x1c3c30
-    double max(std::vector<double> const&);  // @0x1c3c90
-    double min(std::vector<double> const&);  // @0x1c3cf0
-    double pow(std::vector<double> const&);  // @0x1c3d50
-    double sum(std::vector<double> const&);  // @0x1c3e10
-
-    bool functionExists(std::string const& name, size_t argCount, bool strict) const;  // @0x1c3e50
-    double call(std::string const& name, std::vector<double> const& args);             // @0x1c3eb0
-
-    // Layout (0x30 bytes total) — confirmed from CustomFunctions::~CustomFunctions @0x127c90:
-    //   +0x00  24B  std::map<std::string, std::function<double(double)>>                singleArgFns_
-    //                  (dtor at 127e7e calls __tree<__value_type<string, function<double(double)>>>::destroy)
-    //   +0x18  24B  std::map<std::string, std::function<double(std::vector<double> const&)>>  multiArgFns_
-    //                  (dtor at 127e64 calls __tree<__value_type<string, function<double(vector<double> const&)>>>::destroy)
-    //
-    // NOTE: The dtor visits +0x18 (multi-arg) first then +0x00 (single-arg) — that's
-    //       reverse-construction order, so single-arg is at +0x00 in the canonical layout.
-    std::map<std::string, std::function<double(double)>>                       singleArgFns_;  // +0x00
-    std::map<std::string, std::function<double(std::vector<double> const&)>>   multiArgFns_;   // +0x18
-};
-
-// ============================================================================
-// MathCompilerException
-// ============================================================================
-class MathCompilerException : public std::exception {
-    std::string msg_;
-public:
-    explicit MathCompilerException(std::string const& msg);  // @0x1c40c0
-    ~MathCompilerException() override;                        // @0x1c4120, D0 @0x1c4160
-    const char* what() const noexcept override;               // @0x1c41b0
-};
 
 // ============================================================================
 // CustomFunctionsException — 0x20 bytes
@@ -277,34 +106,114 @@ public:
     void setVarName(std::string const& name);                                 // @0x210750
 };
 
-} // namespace std
-// Specializations needed for unordered_map<NodeMapItem, ...>
-namespace std {
-template<> struct hash<zhinst::NodeMapItem> {
-    size_t operator()(zhinst::NodeMapItem const& item) const {
-        // Delegates to NodeMapData::hash() — simplified here
-        return item.data ? item.data->hash() : 0;
-    }
-};
-} // namespace std
-
-namespace zhinst {
-
 // ============================================================================
 // PlayArgs — helper for parsing play-function arguments
 //
 // parse @0x15d7b0, addChannelWave @0x170ec0
 // ============================================================================
+// PlayArgs — helper struct for parsing play-function arguments
+//
+// Ctor @0x15d600   Dtor @0x15efe0   Size: 0x80 (128 bytes)
+//
+// Field layout (fully reconstructed from ctor + dtor):
+//
+// Offset  Size  Type                                     Name            Init
+// ------  ----  ----                                     ----            ----
+// 0x00    16    shared_ptr<WavetableFront>               wavetable_      copied from arg
+// 0x10    32    std::function<void(string const&)>       reportWarning_  copied from arg
+//               (inline buf at +0x10, invoker ptr at +0x30)
+// 0x30    8     (part of std::function — invoker/manager ptr)
+// 0x38    8     (padding / std::function tail)
+// 0x40    24    std::string                              cmdName_        copied from arg
+// 0x58    2     uint16_t                                 channelsPerGroup_  config[0x14 + indexed*2]
+// 0x5A    2     uint16_t                                 totalChannels_  channelsPerGroup_ * numChannelGroups
+// 0x5C    4     (padding)
+// 0x60    24    vector<vector<WaveAssignment>>            waveAssignments_  numChannelGroups empty inner vecs
+// 0x78    1     bool                                     hasMarker_      false
+//               (read/written by parse() at 0x15d7d5/0x15d819)
+// 0x79    7     (padding to 0x80)
+//
+// IMPORTANT: Previous "partial field layout" listing offsets +0x1A8, +0x1C0,
+// +0x2B0, +0x2B8, +0x2A0 was WRONG.  Those were stack-local variables in
+// play() (at rbp-0x78, rbp-0x60, etc.) adjacent to — but not inside — the
+// PlayArgs object at rbp-0x220.  Corrected offsets for the play() locals:
+//   rbp-0x78 = SubFunc param (int, stored at 15f0c7)
+//   Other locals are separate from PlayArgs entirely.
+//
+// Ctor logic (0x15d600):
+//   1. Copy shared_ptr<WavetableFront> → +0x00, atomic inc refcount
+//   2. Copy std::function (callback) → +0x10..+0x37
+//   3. Copy string cmdName → +0x40..+0x57 (SSO or heap)
+//   4. channelsPerGroup_ = config.channelsPerGroup[indexed]
+//   5. totalChannels_    = channelsPerGroup_ * config.numChannelGroups
+//   6. Allocate waveAssignments_ with numChannelGroups empty inner vectors
+//      (element size 0x18 = sizeof(vector<WaveAssignment>)), memset to 0
+//   7. hasMarker_ = false
+//
+// Dtor (0x15efe0) destroys in reverse:
+//   1. waveAssignments_ (+0x60): destroy inner vecs, free backing array
+//   2. cmdName_ (+0x40): free if heap-allocated
+//   3. reportWarning_ (+0x10/+0x30): invoke function manager destructor
+//   4. wavetable_ (+0x00/+0x08): decrement shared_ptr refcount
+// ============================================================================
 struct PlayArgs {
-    static PlayArgs parse(std::vector<EvalResultValue> const& args);  // @0x15d7b0
+    // Constructor @0x15d600
+    PlayArgs(AWGCompilerConfig const& config,
+             std::shared_ptr<WavetableFront> wavetable,
+             std::function<void(std::string const&)> reportWarning,
+             std::string const& cmdName,
+             bool indexed);
+    ~PlayArgs();  // @0x15efe0
+
+    // Returns iterator past last consumed arg
+    std::vector<EvalResultValue>::const_iterator
+    parse(std::vector<EvalResultValue> const& args);                  // @0x15d7b0
+
+    int64_t getMaxSampleLength() const;                               // @0x15d9f0
     void addChannelWave(int channel, EvalResultValue const& val);     // @0x170ec0
 
-    // TODO: field layout unknown
+    struct WaveAssignment {
+        // Stride 0x50 (80 bytes) per entry; used in inner loop @0x15f7ac
+        int type;                    // +0x00 (compared to 4 at @0x15f7b4)
+        int subType;                 // +0x04 (2 = marker; checked in getMaxSampleLength)
+        EvalResultValue value;       // +0x08 (0x38 bytes)
+        std::vector<int> bits;       // +0x38, channel bit assignments
+    };
+    // static_assert(sizeof(WaveAssignment) == 0x50);
+
+    // --- Fields (0x80 bytes total) ---
+    std::shared_ptr<WavetableFront>              wavetable_;          // +0x00
+    std::function<void(std::string const&)>      reportWarning_;      // +0x10 (48B in libc++, but only 32B+8B used here; +0x30 = invoker)
+    std::string                                  cmdName_;            // +0x40
+    uint16_t                                     channelsPerGroup_;   // +0x58
+    uint16_t                                     totalChannels_;      // +0x5A
+    // 4 bytes padding                                                // +0x5C
+    std::vector<std::vector<WaveAssignment>>     waveAssignments_;    // +0x60
+    bool                                         hasMarker_;          // +0x78
+
+private:
+    // parse() helpers
+    int parseImplicitChannels(
+        std::vector<EvalResultValue>::const_iterator begin,
+        std::vector<EvalResultValue>::const_iterator end);            // @0x16fb30
+    int parseExplicitChannels(
+        std::vector<EvalResultValue>::const_iterator begin,
+        std::vector<EvalResultValue>::const_iterator end);            // @0x170000
+    std::shared_ptr<WaveformFront> secureLoadWaveform(
+        std::string const& name, size_t argIndex) const;             // @0x1711a0
 };
 
 // Free functions related to CustomFunctions argument parsing
 std::vector<EvalResultValue> parseOptionalString(std::vector<EvalResultValue>& args);  // @0x15d3e0
 int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict);     // @0x163730
+
+// parseOptionalRate — parse optional rate argument from arg list     @0x163980
+int parseOptionalRate(
+    std::vector<EvalResultValue>::const_iterator begin,
+    std::vector<EvalResultValue>::const_iterator end,
+    std::vector<EvalResultValue>::const_iterator parseEnd,
+    std::string const& cmdName,
+    bool strict);
 
 // ============================================================================
 // CustomFunctions — 0x1E0 (480) bytes
@@ -375,13 +284,11 @@ public:
     // Confirmed from binary: playWave passes 1, playWaveNow passes 3.
     enum class SubFunc : int {
         Default    = 1,   // playWave, playWaveIndexed
+        Aux        = 2,   // playAuxWaveIndexed (via playIndexed)
         Now        = 3,   // playWaveNow, playWaveIndexedNow
-        // Remaining values observed but exact mapping TBD:
-        // Aux        = ?,
-        // AuxIndexed = ?,
-        // DIO        = ?,
-        // ZSync      = ?,
-        // DigTrigger = ?,
+        DigTrigger = 4,   // playWaveDigTrigger (via play)
+        // Note: playAuxWave, playDIOWave, playWaveDIO, playWaveZSync
+        // are complex wrappers that do NOT delegate to play()/playIndexed().
     };
 
     // --- Ctor / Dtor ---
@@ -420,10 +327,11 @@ public:
                           std::shared_ptr<EvalResults> results,
                           std::shared_ptr<Resources> res);  // @0x15ca90
 
-    void mergeWaveforms(std::vector<EvalResultValue> const& args,
+    std::shared_ptr<WaveformFront> mergeWaveforms(
+                        std::vector<EvalResultValue> const& args,
                         short param2, bool param3,
                         std::string const& name,
-                        int param5, bool param6);  // @0x15e060
+                        int param5, int64_t maxSampleLen);  // @0x15e060
 
     std::shared_ptr<EvalResults> play(
         std::vector<EvalResultValue> const& args,
@@ -615,8 +523,10 @@ private:
 
     std::function<void(std::string const&)>            warningCallback_;        // +0x190 (48B)
 
-    // TODO: gap between warningCallback_ end (+0x1C0) and usedFeatures_ (+0x1C8)
-    char                                               pad_1C0_[8];             // +0x1C0..+0x1C7
+    // Wait-type state: 0=unset, 1=DIO, 2=ZSync. Guards against mixed wait types.
+    // Throw ErrorMessageT(0x4f) if waitState_ != 0 and != expected.
+    int32_t                                            waitState_{0};           // +0x1C0
+    char                                               pad_1C4_[4];             // +0x1C4..+0x1C7
 
     std::set<std::string>                              usedFeatures_;           // +0x1C8
 };

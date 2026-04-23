@@ -18,6 +18,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace zhinst {
@@ -29,6 +30,10 @@ namespace util { namespace wave {
     uint16_t double2awg(double sample, unsigned int marker);     // 0x299630
     uint16_t double2awg1m(double sample, unsigned int marker);   // 0x299680
     uint16_t double2awg16(double sample);                        // 0x299700
+    // SHA-256 of file contents at filePath. Returns 8 uint32 words
+    // (256 bits). Used by CachedParser::getHash for waveform-cache
+    // keys. Empty vector on file-open failure.                       // 0x299760
+    std::vector<unsigned int> hash(const std::string& filePath);
 }}
 
 // ==========================================================================

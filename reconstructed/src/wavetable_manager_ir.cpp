@@ -31,6 +31,14 @@
 namespace zhinst {
 namespace detail {
 
+// Forward-declare the explicit specialization so all implicit uses below
+// (in the ctor and newWaveform) bind to it instead of triggering implicit
+// instantiation of the primary template — which would conflict with the
+// specialization definition further down. Required by C++14 [temp.expl.spec]/6.
+template<>
+void WavetableManager<WaveformIR>::insertWaveform(
+    std::shared_ptr<WaveformIR> wf);
+
 // 0x2a5260 — WavetableManager<WaveformIR>::WavetableManager(int, int, const vector<Waveform>&)
 //
 // Constructor that builds from a vector of plain Waveform objects:
@@ -151,8 +159,25 @@ std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
     return wf;
 }
 
-// NOTE: insertWaveform<WaveformIR> specialization removed — uses the general
-// template definition from wavetable_front.hpp (the body is identical).
+// 0x29d140 — WavetableManager<WaveformIR>::insertWaveform(shared_ptr<WaveformIR>)
+//
+// Mirror of the WaveformFront specialization at 0x2a1200. Body is identical:
+// the index becomes waveforms_.size() before the push_back, then we record
+// name->idx in nameToIndex_.
+template<>
+void WavetableManager<WaveformIR>::insertWaveform(
+    std::shared_ptr<WaveformIR> wf)
+{
+    size_t idx = waveforms_.size();
+    waveforms_.emplace_back(wf);
+    const std::string& name = wf.get()->name;
+    nameToIndex_.emplace(name, idx);
+}
+
+// NOTE: previous comment claimed the IR insertWaveform "uses the general
+// template definition" — but no such generic body exists; only the Front
+// specialization is defined in wavetable_manager_front.cpp. Phase 20c added
+// the IR specialization above to satisfy the link-time U reference.
 // Original address: 0x29d140
 
 // 0x29dd10 — WavetableManager<WaveformIR>::fromJson(const value&, const DeviceConstants&)

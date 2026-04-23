@@ -15,10 +15,26 @@ namespace zhinst {
 
 // ============================================================================
 // TLS counter for unique node IDs
-// The counter is at offset +0x44 from the TLS block base (accessed via
-// __tls_get_addr). The simple constructor reads and post-increments it.
+// Mangled: _ZN6zhinst4Node10idCounter_E
+// BSS-template offset +0x44 in the shared library's TLS module block.
+// The simple constructor reads and post-increments it.
 // ============================================================================
-static thread_local int node_id_counter = 0;  // TLS offset 0x44
+thread_local int Node::idCounter_ = 0;  // TLS offset 0x44
+
+// ============================================================================
+// Default constructor — Phase 20b addition.
+//
+// Not defined in the binary (no symbol `_ZN6zhinst4NodeC1Ev` present).
+// Caller: asm_commands. Likely used for default-init in a Node-valued
+// container or POD-style aggregate. Delegates to the 3-arg ctor with
+// neutral defaults (NodeType=Invalid/0, no wave slots, asmId=-1).
+//
+// All scalar fields get the same defaults as the 3-arg ctor; the 3-arg
+// ctor in turn handles vector/weak_ptr/shared_ptr default-init.
+// ============================================================================
+Node::Node()
+    : Node(NodeType{0}, 0, -1)
+{}
 
 // ============================================================================
 // Simple constructor — 0x12ace0
@@ -27,7 +43,7 @@ static thread_local int node_id_counter = 0;  // TLS offset 0x44
 // zeros all pointer/vector fields, sets scalar defaults.
 // ============================================================================
 Node::Node(NodeType type, int numWaveSlots, int asmId)
-    : nodeId(node_id_counter++)         // +0x10 — TLS counter, post-increment
+    : nodeId(idCounter_++)              // +0x10 — TLS counter, post-increment
     , asmId(asmId)                      // +0x14
     , wavesPerDev(numWaveSlots)         // +0x28 — vector of nullopt optional<string>
     , deviceIndex(-1)                   // +0x40

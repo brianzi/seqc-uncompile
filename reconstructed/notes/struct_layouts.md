@@ -350,7 +350,7 @@ getChannelGroupingModeString (const).
 | +0x08  | 4    | int                   | unknown_08        |                                    |
 | +0x0C  | 4    | int                   | unknown_0c        |                                    |
 | +0x10  | 4    | uint32_t              | addressImpl       | AddressImpl\<uint\> for WavetableFront |
-| +0x14  | 4    | int                   | unknown_14        |                                    |
+| +0x14  | 4    | uint16_t[2]           | channelsPerGroup  | [0]=normal, [1]=indexed; read by PlayArgs ctor |
 | +0x18  | 1    | bool                  | isHirzel          | 1 = Hirzel device (confirmed Phase 7c) |
 | +0x19  | 1    | uint8_t               | cacheType         | 0=Normal, 1=Aligned (discovered Phase 7d, clampToCache) |
 | +0x1A  | 2    | (padding)             |                   |                                    |
@@ -889,3 +889,148 @@ Same size as Resources — no instance fields. Uses TLS statics:
 - regNumber (TLS+0x48, int32_t, init=1)
 - labelIndex (TLS+0x4c, int32_t, init=0)
 - random (TLS+0x50, MT19937-64 with seed 0x1571)
+
+## readConst/readString/readWave/readCvar return type — Phase 18b-iii
+
+Previously declared as `void`. Actually return `EvalResultValue` by value (sret convention).
+The hidden sret pointer in `rdi` pushes `this` to `rsi`. The demangler doesn't show
+the return type, which is why they appeared void.
+
+Call pattern at call sites:
+```
+lea  rdi, [rbp-0x108]     ; sret buffer
+mov  rsi, [r15]            ; Resources* (from shared_ptr)
+lea  rdx, [rbp-0x48]       ; string const& name
+mov  ecx, 0x1              ; EDirection = Write
+call readConst             ; @0x1e7d70
+; caller reads [rbp-0x108] directly as EvalResultValue
+```
+
+Inside readConst, a virtual call `[vtable+0x10]` on the Resources object performs
+the actual constant lookup (vtable slot 2 = getVariable override on StaticResources).
+
+## User register address map (CustomFunctions builtins)
+
+| Address | Purpose | Used by |
+|---------|---------|---------|
+| 0x1b | Timestamp | waitTimestamp |
+| 0x1c | Now value | now() |
+| 0x1d | AT trigger | at() |
+| 0x61 | QA result | getQAResult |
+| 0x62/0x6d | RT logger (device-dep) | resetRTLoggerTimestamp |
+| 0x69 | Wait-cycles user reg | wait() |
+| 0x74 | PRNG seed | setPRNGSeed |
+| 0x75 | PRNG range offset | setPRNGRange |
+| 0x76 | PRNG range span | setPRNGRange |
+| 0x77 | PRNG value read | getPRNGValue |
+| 0x78 | QA gen+int config | startQA |
+| 0x79 | QA gen+int config (2) | startQA |
+| 0x7a | QA result length (UHFQA) | startQA |
+| 0x8c | Sweep osc index | setSweepStep, setOscFreq |
+| 0x8d | Sweep step/freq mode | setSweepStep, setOscFreq |
+| 0x8e-0x8f | LS64bit freq data | setOscFreq |
+| 0x92 | Sync trigger | waitOnSync |
+
+## EvalResults setValue family — common pattern
+
+All `EvalResults::setValue(...)` overloads share the same implementation
+shape, differing only in which fields of the synthesized
+`EvalResultValue` they populate:
+
+1. Build `EvalResultValue` on stack (varType, varSubType=0 unless
+   explicit, value default or copied from arg, reg = AsmRegister(-1)
+   unless an `int` is passed in which case `AsmRegister(int).valid=true`).
+2. `operator new(0x38)` for the new vector buffer.
+3. Copy fields into the freshly-allocated element (with the Value's
+   variant `which_` jump table, identical across all overloads — this
+   is the inlined `Value` copy ctor).
+4. Walk old `values_` buffer back-to-front, freeing any heap strings
+   in the embedded `Value` (SSO check at `[elem+0x10]` byte 0 == 1),
+   then `operator delete` the buffer.
+5. Overwrite values_'s {begin,end,cap} pointers with the new buffer.
+
+Confirmed across @0x211b70, @0x16bfb0, @0x15c850, @0x20ad20, @0x2107b0,
+@0x247600. The 5 overloads that don't take a Value also skip the Value
+copy block but still emit the same buffer-replacement tail.
+
+The VarType-taking ctor @0x176bc0 uses the same pattern but goes
+through `vector<>::vector(size_t, T const&)` rather than direct
+allocation, since it's constructing rather than reassigning.
+
+`setValue(double) @0x2136a0` hard-codes the EvalResultValue varType_ to
+the literal `4`. Under the **corrected VarType mapping** established in
+Phase 19c-followup (Finding 1), 4 = `VarType_Const` — so this remains the
+"setValue with a built-in VarType" (the other overloads take it as a
+param). The disasm also writes 3 into subType (= VarSubType_Numeric).
+
+---
+
+## VarType enum — corrected mapping (Phase 19c-followup, Finding 1)
+
+The `str(VarType) @0x247dd0` jump table at .rodata 0x95c2a0 gives the
+canonical mapping:
+
+| numeric | label              | string returned |
+|---------|--------------------|-----------------|
+|   0     | `VarType_Unset`    | "notype" (default branch) |
+|   1     | `VarType_Void`     | "void" |
+|   2     | `VarType_Var`      | "var" |
+|   3     | `VarType_String`   | "string" |
+|   4     | `VarType_Const`    | "const" |
+|   5     | `VarType_Wave`     | "wave" |
+|   6     | `VarType_Cvar`     | "cvar" |
+
+Cross-checked against record-tag writes in addX overloads:
+
+| family  | full add tag | stub add tag | matches enum |
+|---------|--------------|--------------|--------------|
+| Var     | 2 (only stub)| 2            | ✓ Var=2 |
+| String  | 3            | 3            | ✓ String=3 |
+| Const   | 4            | 4            | ✓ Const=4 |
+| Wave    | 5            | 5            | ✓ Wave=5 |
+| Cvar    | 6            | 6            | ✓ Cvar=6 |
+
+The earlier reconstruction had Const=3 / Cvar=4 / String=5 / Wave=6,
+which produced the spurious "tag 4 vs Const=3 discrepancy" noted in
+Phase 19b. There is **no** separate "record tag" enum; `Variable+0x00`
+IS the VarType directly.
+
+---
+
+## Variable layout — corrected (Phase 19c-followup, Finding 2)
+
+Size 0x58 (88 bytes), confirmed by `add r14, 0x58` at 1e8441 and stride
+of vector iterations.
+
+| offset | size | field           | notes |
+|--------|------|-----------------|-------|
+| +0x00  | 4    | `type` (VarType)| pad +0x04 |
+| +0x08  | 4    | `subType` (VarSubType) | pad +0x0C |
+| +0x10  | 4    | `which_` (signed int variant discriminator) | pad +0x14 |
+| +0x18  | 16   | variantStorage  | int/bool/double inline OR libc++ string SSO bytes |
+| +0x28  | 8    | (pad / long-form-string ptr slot when string) | |
+| +0x30  | 8    | `reg` (AsmRegister) | |
+| +0x38  | 24   | `name` (std::string SSO) | |
+| +0x50  | 2    | `flags` (int16_t; bit 0 = "set"/written) | |
+| +0x52  | 6    | (padding) | |
+
+`Variable::~Variable @0x1e4be0`: lets the compiler-generated dtor handle
+the `name` string at +0x38. If `abs(which_) >= 3`, the variant slot at
++0x18 holds a libc++ std::string and must be destroyed manually.
+
+The earlier reconstruction placed `which_` at +0x08 and the variant at
++0x10. Disassembly of `readConst @0x1e7d70` (with r12 = Variable*) shows
+it actually reads `which_` from `[r12+0x10]` and the variant payload from
+`[r12+0x18]`. There is also a separate `subType` field at +0x08, distinct
+from the `type` field at +0x00.
+
+### VarSubType — partial mapping
+| numeric | label                | source path |
+|---------|----------------------|-------------|
+|   0     | `VarSubType_Default` | StaticResources general-constant init |
+|   1     | `VarSubType_Stub`    | addVar; bare-stub addX(name, st) overloads |
+|   3     | `VarSubType_Numeric` | full addConst, full addCvar |
+|   4     | `VarSubType_String`  | full addString, full addWave |
+
+(Values 2 and ≥5 not yet observed; may surface in update*() / parameter
+const paths.)

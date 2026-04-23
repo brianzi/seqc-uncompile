@@ -157,6 +157,10 @@ public:
     // String constructor is the only non-inline one:
     Value(std::string const& s);  // 0x22c2b0 — sets type_=4, which_=3, copies string
     Value();  // default ctor — needed by Resources::Variable initialization
+    // Inlined constructors for numeric types (no symbols in binary):
+    explicit Value(double d) : type_(ValueType(3)), pad_04_{}, which_(2), pad_0C_{} { storage_.d = d; }
+    explicit Value(int32_t i) : type_(ValueType(1)), pad_04_{}, which_(0), pad_0C_{} { storage_.i = i; }
+    explicit Value(bool b) : type_(ValueType(2)), pad_04_{}, which_(1), pad_0C_{} { storage_.b = b; }
 
     // --- Conversion methods ---
     double toDouble() const;       // 0x15a560

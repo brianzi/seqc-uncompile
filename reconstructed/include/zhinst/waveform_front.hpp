@@ -60,10 +60,23 @@ struct WaveformFront : Waveform {
     std::vector<Value> values;           // +0xE0  (each Value is 0x28 bytes)
     // +0xF8: END
 
-    // WaveformFront(name, fileType, devConst) — INLINED, no binary symbol
-    // Basic constructor used by WavetableManager factories.
-    // Sets: name, fileType, waveIndex=-1, bitsPerSample=dc[0x40],
-    //       deviceConstants ptr, playIndex=1, all other fields zeroed.
+    // WaveformFront(name, fileType, devConst) — INLINED into the
+    // WavetableManager<WaveformFront>::newWaveformFromFile dispatcher at
+    // 0x29b110-0x29b24f. No standalone symbol in the binary.
+    //
+    // Sets, on the freshly-allocated 0xF8-byte object:
+    //   Waveform::name              = name
+    //   Waveform::waveformType      = type
+    //   Waveform::waveIndex         = -1
+    //   Waveform::seqRegWidth       = dc.waveformGranularity (dc+0x40)
+    //   Waveform::deviceConstants   = &dc
+    //   frontField1                 = 1                          ← differs from IR
+    //   frontBool1, frontBool2      = 0
+    //   values                      = empty vector<Value>
+    //   (all other Waveform/Signal fields zero / empty)
+    //
+    // We provide a body so reconstructed TUs that say
+    // make_shared<WaveformFront>(name, type, dc) can link.
     WaveformFront(const std::string& name, Waveform::File::Type type,
                   const DeviceConstants& dc);
 

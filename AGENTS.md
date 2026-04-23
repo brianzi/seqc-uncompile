@@ -39,6 +39,10 @@ re-derived.
 ## Conventions
 
 - TODO.md is the shared task list. Changes require user review.
+- **All actionable work items go into TODO.md — nowhere else.** Do not
+  create "outstanding work", "audit findings", "action items", or any
+  other file that is a synonym for a TODO list. If an audit or analysis
+  produces actionable items, add them directly to TODO.md.
 - OVERVIEW.md is the living reference for what exists and its status.
 - `reconstructed/notes/` holds detailed technical data (offsets, opcodes,
   comparisons, unknowns) that doesn't belong in source comments.

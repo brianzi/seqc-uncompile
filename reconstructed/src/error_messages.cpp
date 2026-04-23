@@ -21,6 +21,32 @@ namespace zhinst {
 std::map<int, std::string> ErrorMessages::messages;  // populated below
 
 // ============================================================================
+// Process-wide singleton — BSS @ 0x95de60.
+// Phase 20a: extern declared in 4 caller TUs (cache, custom_functions,
+// node, prefetch_emit) but never defined. Definition added here.
+// ============================================================================
+ErrorMessages errMsg;
+
+// ============================================================================
+// Three namespace-scope `const std::string` globals referenced from
+// static_resources.cpp:21-23. BSS addresses verified against binary.
+// Phase 20a: extern declared, never defined. String contents recovered
+// from binary rodata via `strings _seqc_compiler.so`:
+//   _ZN6zhinstL26constAwgIntegrationTriggerE → "AWG_INTEGRATION_TRIGGER"
+//   _ZN6zhinstL21zsyncDataPqscRegisterE      → "ZSYNC_DATA_PQSC_REGISTER"
+//   _ZN6zhinstL20zsyncDataPqscDecoderE       → "ZSYNC_DATA_PQSC_DECODER"
+//
+// NOTE: the binary mangles these with the `L` prefix indicating internal
+// linkage (declared `static` inside `namespace zhinst`). Our header
+// declares them `extern` so callers can reference them across TUs;
+// the actual binary may have them duplicated per-TU. This is a slight
+// ABI deviation but shouldn't affect behaviour.
+// ============================================================================
+const std::string zsyncDataPqscDecoder       = "ZSYNC_DATA_PQSC_DECODER";
+const std::string zsyncDataPqscRegister      = "ZSYNC_DATA_PQSC_REGISTER";
+const std::string constAwgIntegrationTrigger = "AWG_INTEGRATION_TRIGGER";
+
+// ============================================================================
 // ErrorMessages::operator[](ErrorMessageT) const
 // Binary address: 0x108380
 //

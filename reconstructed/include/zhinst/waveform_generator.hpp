@@ -167,8 +167,8 @@ public:
                    std::string const& funcName);                                          // 0x25cca0
     int    readPositiveInt(Value val, std::string const& paramName, int minVal,
                            std::string const& funcName);                                  // 0x25d490
-    Signal readWave(Value val, std::string const& paramName, int expectedLength,
-                    std::string const& funcName);                                         // 0x25d6f0
+    std::shared_ptr<WaveformFront> readWave(Value val, std::string const& paramName,
+                    int expectedLength, std::string const& funcName);                     // 0x25d6f0
 
     // --- Helper methods ---
     Signal genericTriangle(int length, double amplitude, double riseRatio,

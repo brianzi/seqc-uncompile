@@ -12,15 +12,15 @@ namespace zhinst {
 
 // ============================================================================
 // Deprecated/relocated variable-name BSS strings used by the deprecation
-// post-check in StaticResources::getVariable. The binary stores these as
-// std::string globals at the listed BSS addresses; here we declare them
-// extern so the call site in this file can use ::size() and ::data().
-// (Actual definitions live in a TU we have not yet reconstructed; once
-// that TU is rebuilt, these declarations will resolve at link time.)
+// post-check in StaticResources::getVariable. Definitions provided by
+// `src/error_messages.cpp` (Phase 20a). The header
+// `zhinst/error_messages.hpp` already exposes these `extern`; the local
+// declarations below are kept for documentation of the binary BSS
+// addresses and are redundant-but-compatible with the header.
 // ============================================================================
-extern const std::string constAwgIntegrationTrigger;  // BSS @0xb84690
-extern const std::string zsyncDataPqscRegister;       // BSS @0xb846a8
-extern const std::string zsyncDataPqscDecoder;        // BSS @0xb846c0
+extern const std::string constAwgIntegrationTrigger;  // BSS @0xb84690 — "AWG_INTEGRATION_TRIGGER"
+extern const std::string zsyncDataPqscRegister;       // BSS @0xb846a8 — "ZSYNC_DATA_PQSC_REGISTER"
+extern const std::string zsyncDataPqscDecoder;        // BSS @0xb846c0 — "ZSYNC_DATA_PQSC_DECODER"
 
 // ============================================================================
 // StaticResources::StaticResources — @0x129cb0

@@ -32,6 +32,7 @@ The full pre-2026-04-22 history is preserved in
 | 77  | Immediate variant dtor vtable | Documented dispatch table for Immediate dtor by discriminant. |
 | 94  | EDirection/EParamDirection naming | Renamed to EParamDirection in Phase 11b. No further action. |
 | 97  | lower() return type | Resolved Phase 15a-i: returns `LowerResult` (32B sret = 2 shared_ptrs: `shared_ptr<Node>` from FrontendLoweringState.result + `shared_ptr<EvalResults>` from the evaluate virtual). NOT 16B and NOT 64B (both prior claims were wrong). See `frontend_lowering.md`. |
+| 98  | FrontendLoweringState::result type | Resolved Phase 15a-i / confirmed Phase 16e: `shared_ptr<Node>`. Evidence: lower() copies state.result into sret[0]; caller stores into Compiler+0x28 = `shared_ptr<Node> ast_`. Typed in `frontend_lowering.hpp`. |
 | 99  | EvalResults struct (0x80 bytes) | Resolved Phase 15a-i: full layout decoded (7 fields, 14 methods). See `frontend_lowering.md`. |
 | 100 | EvalResultValue layout (0x38 bytes) | Resolved Phase 15a-i: VarType + VarSubType + Value(embedded 0x28) + AsmRegister. See `frontend_lowering.md`. |
 | 101 | CustomFunctions field_168 purpose | Resolved Phase 14a: `std::unordered_set<std::string>` (40B container, 40B node). 1.0f max_load_factor at +0x188 in ctor at 12bec9 confirms unordered_set; node-walk loop at 127d40-127d70 in dtor confirms string elements. Empty in this binary. (Phase 13e initially mis-classified as `vector<T>` — corrected.) |
@@ -46,18 +47,14 @@ The full pre-2026-04-22 history is preserved in
 | 111 | WaveformGenerator aliasMap_ contents | Resolved Phase 13c: empty in this binary. Single ctor write @0x248255 is the member-init `aliasMap_()`; no `insert` calls in WaveformGenerator method range. |
 | 113 | CachedFile field ordering | Resolved Phase 13d (correction): layout is `uint16_t channel_; vector<uint8_t> markerBits_; vector<double> samples_; vector<uint8_t> markers_`. NO bool found_ field. Sections read in cacheFile/getCachedFile: .channels (channel_), .marker_bits, .data, .marker. |
 | 116 | getCachedFile full body | Resolved Phase 13d: lower_bound search, cacheFileOutdated check + erase if stale, ElfReader → 4 sections, LRU touch (timestamp_ + valid_=true). |
+| 117 | Resources::addConst stub `st==2` codepath | Resolved Phase 20e-ii Batch 5 prep: value 2 = `VarSubType_FunctionArg`. `Function::addArgument` @0x1e9f60 calls each add* method (addVar/addCvar/addConst/addWave/addString) on the inner scope with `edx=0x2` to bind a parameter. Pre-marks the variable as written (flags+0x50 = 1) and sets the +0x51 frozen byte that makes update* short-circuit value reassignment. Enum extended in resources.hpp. |
+| 118 | Resources::addVar `st==2` codepath | Resolved Phase 20e-ii Batch 5 prep: same as #117 — `VarSubType_FunctionArg`. The "pre-mark as written" path is the parameter-binding path used by `Function::addArgument`. |
 
 ---
 
 ## Actionable — folded into TODO.md phases
 
 ### Pipeline / lowering
-
-98\. **FrontendLoweringState::result type** — likely `shared_ptr<Node>`
-     based on Phase 15a-i evidence (lower() copies state.result into
-     sret[0]; caller stores into Compiler+0x28 = `shared_ptr<Node> ast_`).
-     Already typed accordingly in `frontend_lowering.hpp`. Should this
-     be promoted to "Closed" once a second confirmation site is found?
 
 10\. **smap remaining logic** — ~0x1E6 bytes after alui call.
 
@@ -112,6 +109,12 @@ not in scope of unknowns #47-49:
 
 ## Update history
 
+- **2026-04-24 (Phase 20e-ii Batch 5 prep)**: #117, #118 added and closed
+  in same turn. `VarSubType_FunctionArg = 2` enum value identified from
+  Function::addArgument disasm at 0x1e9fae (and four sibling sites). The
+  add*(name, st) stub overloads' previously-unknown st==2 codepath is the
+  parameter-binding path — pre-marks `flags[+0x50]=1` and sets the
+  `flags[+0x51]` frozen byte.
 - **2026-04-23 (Phase 15c)**: #47, #48, #49 closed. Carry-forward items
   added (simplifyAssign, splitReg, register field rename).
 - **2026-04-23 (Phase 15a-i)**: #97, #99, #100 closed. #110 closed as

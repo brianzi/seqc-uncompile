@@ -81,6 +81,7 @@ public:
 
     // --- Constructors / Destructor ---
 
+    EvalResults() = default;                              // zero-initialized in make_shared emplace
     EvalResults(VarType type);                            // @0x176bc0
     EvalResults(EvalResults const& other);                // @0x231c60
     ~EvalResults();                                       // @0x16f3d0

@@ -1,6 +1,12 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// Function: zhinst::detail::logExceptionToClog @0x314a30 (953 bytes)
+// Function: zhinst::logging::detail::logExceptionToClog @0x314a30 (953 bytes)
+//
+// Phase 20b: namespace corrected from `zhinst::detail` to
+// `zhinst::logging::detail` to match the binary's mangled symbol
+// `_ZN6zhinst7logging6detail19logExceptionToClogE…` (was previously
+// `_ZN6zhinst6detail…`, which the linker rejected because logging.cpp
+// declares the function inside `namespace logging::detail`).
 // ============================================================================
 
 #include <cstdlib>
@@ -12,6 +18,7 @@
 #include <boost/exception/exception.hpp>
 
 namespace zhinst {
+namespace logging {
 namespace detail {
 
 // The function rethrows an exception_ptr inside a try/catch to inspect it,
@@ -98,4 +105,5 @@ void logExceptionToClog(std::exception_ptr eptr, const char* prefix, bool /*flag
 }
 
 } // namespace detail
+} // namespace logging
 } // namespace zhinst

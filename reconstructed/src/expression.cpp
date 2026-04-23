@@ -174,7 +174,10 @@ Expression* createString(SeqcParserContext* ctx, const char* s) {  // 0x1bf2d0
     // +0x48: loads from 0x8fc540 = {21, 16, 3, 2}
     e->operator_    = EOperator::eNONE;             // 21
     e->commandType  = ECommandType::eNOCMD;         // 16
-    e->varType      = VarType_Const;                // 3 — distinguishes string from numeric value
+    e->varType      = VarType_String;               // 3 — distinguishes string from numeric value
+                                                     //     (correct under fixed VarType mapping;
+                                                     //      previously mislabelled as VarType_Const
+                                                     //      under the broken enum.)
     e->valueType    = 2;
     // Construct name from the C string
     e->name = s;                                    // +0x18

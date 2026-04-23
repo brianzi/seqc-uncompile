@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "zhinst/asm_register.hpp"
+#include "zhinst/eval_result_value.hpp"
 #include "zhinst/value.hpp"
 
 namespace zhinst {
@@ -27,36 +28,76 @@ namespace zhinst {
 class AWGCompilerConfig;
 struct DeviceConstants;
 class SeqCAstNode;
+struct Expression;     // zhinst/expression.hpp — referenced by
+                       // Function::addArguments(shared_ptr<Expression>) overload
+                       // (binary @0x1ea740). The frontend AST builder passes
+                       // a parsed Expression node here; the SeqCAstNode
+                       // overload @0x1eab70 wraps that path with a
+                       // dynamic_cast<SeqCParamList const*>.
 
 // ============================================================================
 // VarType — variable type tag used in Resources::Variable
 //
-// From toString @0x1ebcf0 printing logic (jump table on type):
-//   2 → "v: name (Reg: N)\n"    (var)
-//   3 → "c: name -> value\n"    (const)
-//   4 → "cv: name -> value\n"   (cvar)
-//   5 → "s: name -> value\n"    (string)
-//   6 → "w: name -> value\n"    (wave)
-//   default → "?: name\n"
+// CORRECTED MAPPING (Phase 19c-followup, Finding 1):
+//   The previous header had Const=3 / Cvar=4 / String=5 / Wave=6, which was
+//   inconsistent with the binary's actual `str(VarType)` jump table at
+//   0x95c2a0 (function @0x247dd0). The verified mapping is:
+//
+//     0 → "notype"  (Unset; default branch returns this string)
+//     1 → "void"    (VarType_Void — newly identified)
+//     2 → "var"
+//     3 → "string"
+//     4 → "const"
+//     5 → "wave"
+//     6 → "cvar"
+//
+//   Cross-checked against record-tag writes in addVar/addConst/addString/
+//   addWave/addCvar (Var=2, Const=4, String=3, Wave=5, Cvar=6) — every
+//   addX overload writes its tag matching this enum. The earlier "Variable
+//   tag 4 vs Const enum 3 discrepancy" noted in Phase 19b was a red
+//   herring caused by the wrong enum; there is NO separate "record tag".
+//
+// toString @0x1ebcf0 prints distinct prefixes per type ("v:", "c:", "s:",
+// "w:", "cv:") via the same dispatch — those prefixes were what gave the
+// (incorrect) earlier mapping.
 // ============================================================================
 enum VarType : int32_t {
     VarType_Unset  = 0,
+    VarType_Void   = 1,
     VarType_Var    = 2,
-    VarType_Const  = 3,
-    VarType_Cvar   = 4,
-    VarType_String = 5,
-    VarType_Wave   = 6,
+    VarType_String = 3,
+    VarType_Const  = 4,
+    VarType_Wave   = 5,
+    VarType_Cvar   = 6,
 };
 
-// VarSubType — secondary classification tag stored in Variable record.
-// Values observed in static_resources.cpp:
-//   0 = default (general constants, AWG_RATE_*, etc.)
-//   1 = boolean (used only for "true"/"false" — see addConst @ 0x1f05b0..ed)
-// Stored as int32 in addConst etc. (3rd argument, edx → [rbp-0x2c] @ 1e7024).
+// VarSubType — secondary classification tag stored in Variable record at +0x08.
+// Values observed across add/update overloads:
+//   0 = default                       (general constants, AWG_RATE_*, etc.)
+//   1 = stub / uninitialised          (addX(name, st) stub overloads write 1;
+//                                      addVar also writes 1)
+//   3 = numeric-with-value            (full addConst, full addCvar)
+//   4 = string-bound                  (full addString, full addWave)
+//
+// Note: the previous VarSubType_Bool=1 label was misleading — value 1 is
+// the generic "stub" subtype written by addVar and the bare-stub overloads,
+// not specifically a boolean tag.
+//
+// Value 2 is used by Function::addArgument (@0x1e9f60) when binding a
+// parameter into the inner scope: it calls addVar/addCvar/addConst/addWave/
+// addString with edx=0x2. This causes the add* methods to take their
+// "pre-mark as written" path (flags+0x50 = 1) and to set the +0x51 frozen
+// byte that makes update* methods short-circuit value reassignment. The
+// semantic name is therefore "function parameter binding".
 enum VarSubType : int32_t {
-    VarSubType_Default = 0,
-    VarSubType_Bool    = 1,
+    VarSubType_Default     = 0,
+    VarSubType_Stub        = 1,
+    VarSubType_FunctionArg = 2,    // function parameter binding (Phase 20e-ii)
+    VarSubType_Numeric     = 3,
+    VarSubType_String      = 4,
 };
+// Legacy alias retained for source compatibility during the cascading fix.
+constexpr VarSubType VarSubType_Bool = VarSubType_Stub;
 
 // EDirection — direction flag for read* operations on Resources.
 // Used only as a binary check (test r14d,r14d at 0x1e5d9d in readString):
@@ -121,35 +162,84 @@ public:
     // ========================================================================
     // Variable — element of the variables_ vector
     //
-    // Size: 0x58 (88 bytes) — stride confirmed from vector iteration
+    // Size: 0x58 (88 bytes) — confirmed by `add r14, 0x58` at 1e8441 and
+    // by stride of vector iterations.
     //
-    // Layout (from addVar @0x1e46b0, variableExists, Variable::~Variable @0x1e4be0):
-    //   +0x00  8   int64_t        varType     (VarType, e.g. 2=var, 3=const, ...)
-    //   +0x08  4   int32_t        which_      (boost::variant discriminator field)
+    // CORRECTED LAYOUT (Phase 19c-followup, Finding 2):
+    //   The earlier reconstruction placed `which_` at +0x08 and the variant
+    //   storage at +0x10. Disassembly of readConst @0x1e7d70 (with r12 =
+    //   Variable*) shows it actually reads `which_` from [r12+0x10] and the
+    //   variant payload from [r12+0x18]. The struct also carries a separate
+    //   VarSubType field at +0x08, distinct from VarType at +0x00.
+    //
+    // Verified layout:
+    //   +0x00  4   VarType        type        (low 32 of 64-bit slot; pad +0x04)
+    //   +0x04  4   VarSubType     subTypeRaw  (the *original* VarSubType arg
+    //                                          passed to addX — e.g. addCvar
+    //                                          and addConst stash the caller's
+    //                                          `st` here verbatim. Read by
+    //                                          getVariableSubType @0x1e4580.)
+    //   +0x08  4   int32_t        flagWord    (a *hardcoded* secondary tag
+    //                                          written by each addX path:
+    //                                            addConst(double):  3
+    //                                            addConst(stub):    1
+    //                                            addCvar(double):   3
+    //                                            addString:         4
+    //                                            addWave:           4
+    //                                            addVar:            1
+    //                                          The previous header named this
+    //                                          field `subType` and the field at
+    //                                          +0x04 `pad_04`; that mapping was
+    //                                          INVERTED — corrected Phase
+    //                                          20e-ii after Batch 2 disasm
+    //                                          showed addCvar/addConst writing
+    //                                          `st` to +0x04 and a literal to
+    //                                          +0x08, and getVariableSubType
+    //                                          reading +0x04.)
     //   +0x0C  4   (padding)
-    //   +0x10  24  union          variant data (boost::variant<int,bool,double,string>)
-    //   +0x28  8   (padding / unused)
-    //   +0x30  8   AsmRegister    reg         (register assignment: int value + bool valid)
-    //   +0x38  24  std::string    name        (variable name, SSO)
-    //   +0x50  2   int16_t        flags       (e.g. 1 = "set"/written)
+    //   +0x10  4   int32_t        which_      (variant discriminator, signed;
+    //                                          abs(which_) ≥ 3 ⇒ string)
+    //   +0x14  4   (padding)
+    //   +0x18  16  union          variant data (boost::variant storage:
+    //                                          int / bool / double inline,
+    //                                          OR libc++ std::string SSO)
+    //   +0x28  8   (padding / unused — long-form string cap+ptr lives here
+    //              when the variant holds a heap-allocated string)
+    //   +0x30  8   AsmRegister    reg         (register assignment)
+    //   +0x38  24  std::string    name        (variable name, libc++ SSO)
+    //   +0x50  2   int16_t        flags       (bit 0: "set"/written)
     //   +0x52  6   (padding)
     //
     // Dtor @0x1e4be0:
-    //   1. Frees string at +0x38 if heap-allocated (long string)
-    //   2. If abs(which_) >= 3: frees string inside variant at +0x10
+    //   1. The std::string `name` at +0x38 is destroyed automatically by the
+    //      compiler-generated destructor.
+    //   2. If abs(which_) >= 3, the variant slot at +0x18 holds a libc++
+    //      std::string and must be destroyed manually.
     // ========================================================================
     struct Variable {
-        int64_t     varType;     // +0x00 — VarType enum as int64
-        int32_t     which_;      // +0x08 — boost::variant discriminator
+        VarType     type;        // +0x00 — variable category
+        VarSubType  subTypeRaw;  // +0x04 — caller-supplied VarSubType arg
+                                 //         (e.g. addCvar/addConst stash the
+                                 //         `st` parameter here verbatim).
+                                 //         Read by getVariableSubType.
+        int32_t     flagWord;    // +0x08 — hardcoded per-add* secondary tag
+                                 //         (3=numeric, 1=stub, 4=string,
+                                 //         per addX path; not exposed to the
+                                 //         outside world). DO NOT confuse
+                                 //         with subTypeRaw at +0x04.
         int32_t     pad_0C;      // +0x0C
-        Value       value;       // +0x10..+0x28 — actually just the storage part (24 bytes inline)
-                                 //   Note: This is NOT a full Value object; it's the raw
-                                 //   boost::variant storage. The which_ at +0x08 is the
-                                 //   variant discriminator.
-        int64_t     pad_28;      // +0x28 — padding/unused
+        int32_t     which_;      // +0x10 — boost::variant discriminator
+        int32_t     pad_14;      // +0x14
+        // +0x18..+0x27: 16 bytes of inline variant storage. For numeric
+        // payloads (which_ ∈ {0,1,2}) this holds int/bool/double directly.
+        // For string payloads (abs(which_) ≥ 3) this is the start of a
+        // libc++ std::string (SSO byte + 15 chars; long-form layout uses
+        // bytes through +0x2F).
+        char        variantStorage[16];   // +0x18
+        int64_t     pad_28;      // +0x28 — overlaps long-form-string ptr/cap
         AsmRegister reg;         // +0x30 — register assignment
         std::string name;        // +0x38 — variable name (24 bytes SSO)
-        int16_t     flags;       // +0x50 — status flags (1 = written)
+        int16_t     flags;       // +0x50 — status flags (bit 0 = written)
         char        pad_52[6];   // +0x52 — padding
 
         ~Variable();  // @0x1e4be0
@@ -185,16 +275,56 @@ public:
         std::unique_ptr<SeqCAstNode>   body;        // +0x70
 
         // Constructs Function with name, signature, returnType.
-        // Zeroes reserved_, weakRef_, scope, body.
+        // Allocates a fresh child Resources scope (via std::allocate_shared)
+        // parented by `parentScope`, stores it in `scope`, and propagates
+        // `returnType` into the new scope's returnType_ slot. Zeroes
+        // reserved_, weakRef_, body. The 4-arg signature is the binary's
+        // actual entry point at @0x1eaa00 — the previous 3-arg declaration
+        // was incorrect (it omitted the parent-scope weak_ptr and incorrectly
+        // implied scope was passed in rather than constructed).
         Function(std::string const& name,
                  std::string const& sig,
-                 VarType rt);                          // @0x1eaa00
+                 VarType rt,
+                 std::weak_ptr<Resources> parentScope);    // @0x1eaa00
 
-        ~Function();                                   // @0x1ea820
-        void resetScope();                             // @0x1eac80
-        void addArguments(SeqCAstNode const& node);    // @0x1eab70
-        void addBody(SeqCAstNode const& node);         // @0x1ea7b0
-        SeqCAstNode const* getBody() const;            // @0x1eab50
+        ~Function();                                       // @0x1ea820
+        void resetScope();                                 // @0x1eac80
+
+        // Append a single named argument to the arguments vector and to the
+        // child scope (calls scope->addVar(name, VarSubType_Stub) and
+        // mirrors the (name, type) pair into arguments_).
+        void addArgument(std::string const& name, VarType type);   // @0x1e9f60
+
+        // Iterate the children of an Expression node — if expr->operationType
+        // matches the param-list category (8 in the binary, eFUNCTIONDECL/
+        // SeqCParamList shape), iterate `expr->children` and call addArgument
+        // for each; otherwise treat `expr` itself as a single param.
+        void addArguments(std::shared_ptr<Expression> expr);       // @0x1ea740
+
+        // SeqCAstNode entry: dynamic_cast<SeqCParamList const*>(&node);
+        // on success iterate the SeqCParamList's `params()`. On bad_cast,
+        // catch and treat the node as a single param.
+        void addArguments(SeqCAstNode const& node);                // @0x1eab70
+
+        // Stores `node.clone()` (vtable+0x20) in body, freeing the previous
+        // body if any (vtable+0x30 is the deleting dtor).
+        void addBody(SeqCAstNode const& node);                     // @0x1ea7b0
+        // Returns a CLONE of body (calls `body->clone()`, virtual slot +0x20).
+        // The disasm has no null check — invoking on a Function with no body
+        // installed will dereference nullptr and crash. NOTE: previous header
+        // declared this as `SeqCAstNode const* getBody() const` (raw borrow)
+        // — corrected in Phase 20e-ii Batch 5a after disasm of @0x1eab50
+        // showed it returns the result of node.clone() (unique_ptr sret).
+        std::unique_ptr<SeqCAstNode> getBody() const;              // @0x1eab50
+
+        // Returns true iff `name` matches `this->name` AND
+        // `sameArgString(sig)` returns true.
+        bool isSame(std::string const& name,
+                    std::string const& sig) const;                 // @0x1eb2a0
+
+        // Compares `sig` against a normalised form of `signature` derived
+        // from this->arguments. Used by Resources::getFunction.
+        bool sameArgString(std::string const& sig) const;          // @0x1eb330
     };
 
     // --- Constructors / Destructors ---
@@ -215,7 +345,7 @@ public:
     bool hasMain() const;                             // @0x1e3610
 
     // --- Scope management ---
-    void createSubScope(std::string const& name);     // @0x1e36a0
+    std::shared_ptr<Resources> createSubScope(std::string const& name);  // @0x1e36a0
     void updateParent(std::shared_ptr<Resources> p);  // @0x1e38f0
 
     // --- Return type/value ---
@@ -242,26 +372,26 @@ public:
     void addString(std::string const& name, std::string const& val);  // @0x1e5020
     void addString(std::string const& name, VarSubType st);           // @0x1e54f0
     void updateString(std::string const& name, std::string const& val, VarSubType st); // @0x1e59d0
-    void readString(std::string const& name, EDirection dir);         // @0x1e5d70
+    EvalResultValue readString(std::string const& name, EDirection dir);  // @0x1e5d70
 
     // --- Wave variable operations ---
     void addWave(std::string const& name, std::string const& val);    // @0x1e6020
     void addWave(std::string const& name, VarSubType st);             // @0x1e64f0
     void updateWave(std::string const& name, std::string const& val, VarSubType st); // @0x1e69c0
-    void readWave(std::string const& name, EDirection dir);           // @0x1e6d60
+    EvalResultValue readWave(std::string const& name, EDirection dir);    // @0x1e6d60
 
     // --- Const variable operations ---
     void addConst(std::string const& name, double val, VarSubType st);                  // @0x1e7010
     void addConst(std::string const& name, VarSubType st);                              // @0x1e74e0
     void updateConst(std::string const& name, double val, VarSubType st, bool force);   // @0x1e79b0
-    void readConst(std::string const& name, EDirection dir);                            // @0x1e7d70
+    EvalResultValue readConst(std::string const& name, EDirection dir);   // @0x1e7d70
     bool constIsSet(std::string const& name);                                           // @0x1e8050
 
     // --- Cvar (compile-time variable) operations ---
     void addCvar(std::string const& name, double val, VarSubType st);    // @0x1e8180
     void addCvar(std::string const& name, VarSubType st);                // @0x1e8650
     void updateCvar(std::string const& name, double val, VarSubType st); // @0x1e8b20
-    void readCvar(std::string const& name, EDirection dir);              // @0x1e8e80
+    EvalResultValue readCvar(std::string const& name, EDirection dir);    // @0x1e8e80
 
     // --- Function operations ---
     bool functionExists(std::string const& name, std::string const& sig);              // @0x1e9110
@@ -360,15 +490,49 @@ private:
 
 // ============================================================================
 // GlobalResources — per-thread resources with register counter, label
-// counter, and Mersenne Twister-like PRNG
+// counter, and Mersenne Twister-64 PRNG
 //
-// Size: 0xD8 (216 bytes) — same as Resources base
-//
+// Instance size: 0xD8 (216 bytes) — same as Resources base.
 // GlobalResources does NOT add any instance fields beyond Resources.
-// Instead, it uses thread-local static variables:
-//   TLS+0x48  int32_t  regNumber   — register counter, initialized to 1
-//   TLS+0x4c  int32_t  labelIndex  — label counter, initialized to 0
-//   TLS+0x50  uint64_t random[313] — Mersenne Twister state (MT19937-64)
+// Instead it owns three `static thread_local` members.
+//
+// TLS access pattern (verified from disassembly):
+//   - All three members live in the shared library's TLS module block.
+//     Callers access them either via per-variable C++11 wrapper functions
+//     (_ZTW...regNumber @0x1f6140, ...labelIndex @0x1f6160,
+//      ...random @0x1f6180) or by calling __tls_get_addr with the module
+//     tls_index at .got+0xb7acf8 and adding the BSS-template offset
+//     directly.
+//   - Same TLS module block is shared with other thread_local statics in
+//     the .so (notably opentelemetry, __cxxabiv1, and zhinst::Node /
+//     zhinst::AsmList::Asm — see TLS layout note below).
+//
+// BSS-template offsets in the original _seqc_compiler.so (`nm`):
+//   +0x40  zhinst::AsmList::Asm::createUniqueID(bool)::nextID  [int32]
+//   +0x44  zhinst::Node::idCounter_                            [int32]
+//   +0x48  zhinst::GlobalResources::regNumber                  [int32]
+//   +0x4c  zhinst::GlobalResources::labelIndex                 [int32]
+//   +0x50  zhinst::GlobalResources::random[313]                [uint64*313]
+//   +0xa18 __tls_guard (guard byte for random[] one-time seeding)
+// (Offsets +0x40 / +0x44 belong to OTHER classes' thread_local statics,
+//  not to GlobalResources; they are documented here only because they
+//  share the TLS block.)
+//
+// Total zhinst-owned bytes contributed to the TLS block: 0x9d8
+//   = 4 (regNumber) + 4 (labelIndex) + 313*8 (random)
+// (The Node and AsmList::Asm static thread_locals contribute 4 + 4 more
+// at offsets 0x44 and 0x40, but are declared in their own headers.)
+//
+// random[] layout (MT19937-64):
+//   random[0..311]  — 312-element state vector (mt[])
+//   random[312]     — index/refill counter (mti) at byte offset +0x9c0
+//                     from start of array (=0xa10 from TLS-block base);
+//                     written to 0 by the constructor.
+// The one-time per-thread seeding (also seed=0x1571) is performed by the
+// TLS init function `_ZTHN6zhinst15GlobalResources6randomE` @0x1f6090,
+// guarded by the `__tls_guard` byte at TLS+0xa18.  The GlobalResources
+// constructor then re-seeds the array deterministically on every
+// instance construction.
 // ============================================================================
 
 class GlobalResources : public Resources {
@@ -376,9 +540,13 @@ public:
     GlobalResources(std::shared_ptr<Resources> const& parent);  // @0x12a710
     ~GlobalResources() override;                                // D0 @0x12ab40
 
-    static thread_local int32_t  regNumber;    // TLS+0x48, init=1
-    static thread_local int32_t  labelIndex;   // TLS+0x4c, init=0
-    static thread_local uint64_t random[313];  // TLS+0x50, MT19937-64 state
+    // BSS-template offset 0x48; runtime access via wrapper @0x1f6140.
+    static thread_local int32_t  regNumber;    // ctor init=1
+    // BSS-template offset 0x4c; runtime access via wrapper @0x1f6160.
+    static thread_local int32_t  labelIndex;   // ctor init=0
+    // BSS-template offset 0x50; runtime access via wrapper @0x1f6180.
+    // 313 * uint64_t = 2504 bytes; mt state in [0..311], mti at [312].
+    static thread_local uint64_t random[313];  // MT19937-64 state
 };
 
 // Free function — VarType enum to string.  @0x247dd0

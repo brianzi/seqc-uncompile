@@ -231,6 +231,12 @@ public:
     void installPointers(const std::unordered_map<int, std::shared_ptr<Node>>& nodeMap,
                          const boost::json::value& json);
 
+    // ---- Static thread_local counter for unique node IDs ----
+    // Mangled: _ZN6zhinst4Node10idCounter_E
+    // BSS-template offset 0x44 in the shared library's TLS module block.
+    // Read+post-incremented by Node(NodeType,int,int) to assign nodeId.
+    static thread_local int idCounter_;
+
     // ---- Fields (confirmed offsets, names from JSON keys) ----
 
     // +0x00, +0x08: inherited from enable_shared_from_this<Node>

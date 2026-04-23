@@ -2288,4 +2288,10 @@ recursive:
     return result;
 }
 
+// Static member definition.
+// Init value 0x1000 (4096) recovered from __cxx_global_var_init at 0xd4361:
+//   mov DWORD PTR [rip+0xab036d],0x1000   # 0xb846d8 <zhinst::Prefetch::minIndexedSize>
+// Storage at BSS 0xb846d8 (with cxxabi guard variable at 0xb846e0).
+int Prefetch::minIndexedSize = 0x1000;
+
 } // namespace zhinst

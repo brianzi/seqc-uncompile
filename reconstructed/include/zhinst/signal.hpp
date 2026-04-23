@@ -102,4 +102,6 @@ public:
     uint64_t             length_;        // +0x50
 };
 
+static_assert(sizeof(Signal) == 0x58, "Signal must be 0x58 bytes (no strings, ABI-safe)");
+
 } // namespace zhinst

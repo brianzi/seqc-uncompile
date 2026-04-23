@@ -67,6 +67,65 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     }
 }
 
+// Inlined into 0x2aa170-0x2aa20f (allocate_shared<WaveformIR> dispatcher,
+// called by WavetableManager<WaveformIR>::newWaveform at 0x2aa004).
+//
+// The dispatcher emits, on the freshly-allocated 0xE0-byte WaveformIR:
+//   +0x00..+0x17  Waveform::name           = copy of arg `name`
+//   +0x18         Waveform::waveformType   = arg `type` (4 bytes; +0x1C padding)
+//   +0x20..+0x37  Waveform::secondaryName  = empty string (libc++ SSO zeroed)
+//   +0x38..+0x47  Waveform::file           = empty shared_ptr (both ptrs null)
+//   +0x48         Waveform::used           = 0
+//   +0x49..+0x4B  padding zeroed
+//   +0x4C         Waveform::addressValue   = 0
+//   +0x50..+0x67  Waveform::thirdString    = empty string
+//   +0x68         Waveform::playWord       = 0
+//   +0x6C         Waveform::waveIndex      = -1                  ← explicit
+//   +0x70         Waveform::seqRegWidth    = dc.waveformGranularity (dc+0x40)
+//   +0x74         Waveform::allocationByteSize = 0
+//   +0x78         Waveform::deviceConstants = &dc
+//   +0x80..+0xCF  Waveform::signal         = all-zero (empty vectors etc.)
+//   +0xD0         Signal::length_          = 0
+//   +0xD8         markedForLoad            = 0  (word-stored with fixed_)
+//   +0xD9         fixed_                   = 0
+//   +0xDA         crossesCacheLine_        = 0
+//   +0xDC         irField2                 = dc.field_24 (dc+0x24)
+//
+// IMPORTANT: this constructor has no standalone symbol in the binary —
+// the dispatcher inlines it. We provide a body so that other TUs that
+// reference make_shared<WaveformIR>(name, type, dc) (e.g. the
+// reconstructed wavetable_manager_ir.cpp) can link. The body below is
+// the field-equivalent of the dispatcher's writes; it does NOT need to
+// produce byte-identical instructions, only byte-identical observable
+// state at end of construction.
+WaveformIR::WaveformIR(const std::string& name,
+                       Waveform::File::Type type,
+                       const DeviceConstants& dc)  // inlined at 0x2aa170
+{
+    // Waveform base — reproduce dispatcher's writes verbatim.
+    this->name             = name;
+    this->waveformType     = type;
+    this->secondaryName.clear();
+    this->file.reset();
+    this->used             = false;
+    this->addressValue     = 0;
+    this->thirdString.clear();
+    this->playWord         = 0;
+    this->waveIndex        = -1;
+    this->seqRegWidth      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->allocationByteSize = 0;
+    this->deviceConstants  = &dc;
+    // Signal default-constructs (vectors empty, scalars zero); explicit zero of
+    // length_ matches the dispatcher's `mov QWORD PTR [rbx+0xe8],0x0`.
+    this->signal.length_   = 0;
+
+    // IR-specific extension fields.
+    this->markedForLoad     = false;   // +0xD8 (word-stored together with fixed_)
+    this->fixed_            = false;   // +0xD9
+    this->crossesCacheLine_ = false;   // +0xDA
+    this->irField2          = static_cast<int32_t>(dc.field_24);  // +0xDC ← dc+0x24
+}
+
 // 0x2c5440 — WaveformIR::toJsonElement(SampleFormat)
 //
 // Builds a boost::property_tree with keys:

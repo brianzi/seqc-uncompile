@@ -664,4 +664,25 @@ void AWGAssemblerImpl::printOpcode(int startIndex) const {  // 0x288b50
     }
 }
 
+// AWGAssemblerImpl::extractComment(string const&)
+//
+// Inlined in the binary into both call sites in
+// assembleStringToExpressionsVec @0x286e40 (`$_1` lambda mentioned in the
+// call-site comments above). No standalone symbol exists in the binary;
+// we provide an out-of-line definition here so the reconstructed
+// pipeline TU can link.
+//
+// Behaviour: locate the first occurrence of `//` and return the
+// substring after it. If absent (or `//` is at end of line), return
+// empty. The binary's lambda variants behave identically — they don't
+// strip whitespace and don't handle `;` (asm comments use `//`).
+std::string AWGAssemblerImpl::extractComment(std::string const& line)
+{
+    auto pos = line.find("//");
+    if (pos == std::string::npos) {
+        return std::string();
+    }
+    return line.substr(pos + 2);
+}
+
 } // namespace zhinst

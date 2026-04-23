@@ -1042,4 +1042,25 @@ Waveform::~Waveform()  // 0x1152e0
     // 0x1153a3-0x1153b2: dealloc heap string, tail-call to operator delete
 }
 
+// ============================================================================
+// WaveformFile(const char*) — Phase 20b addition.
+//
+// Address 0x2a7ff0 in the binary corresponds to a `std::construct_at<>`
+// helper that inlines the body — no dedicated `WaveformFile::WaveformFile
+// (char const*)` symbol exists in the .so. Our header still requires the
+// `(const char*)` constructor because `WaveformFile(const std::string&)`
+// is declared as a delegating ctor in waveform.hpp:71.
+//
+// Behaviour: copy-construct `name` from the C-string, leave numeric fields
+// at 0 (matching the inlined construct_at pattern observed at the
+// fromJson call site) and let `data` default-construct empty.
+// ============================================================================
+WaveformFile::WaveformFile(const char* filename)
+    : name(filename)
+    , field18(0)
+    , field1C(0)
+    , field20(0)
+    , data()
+{}
+
 } // namespace zhinst

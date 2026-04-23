@@ -26,6 +26,55 @@ namespace zhinst {
 //   2. vector<uint32_t> at +0x20 (frees backing buffer)
 // Scalars at +0x00..+0x1F and +0x38 need no destruction.
 // ---------------------------------------------------------------------------
+// MemoryAllocator(const DeviceConstants*, uint32_t)   — INLINED at all
+// call sites (allocateWaveforms / allocateWaveformsForFifo). The binary has
+// no standalone ctor symbol, so the build host gets an unresolved reference
+// from any TU that takes the ctor's address (e.g. `make_unique<MemoryAllocator>`
+// or any local construction in code we don't see). We provide a real
+// definition matching the documented layout.
+//
+// Initialization (derived from the dtor's field offsets and the inlined-ctor
+// patterns visible in WavetableIR::allocateWaveforms*):
+//   +0x00  deviceConstants_     = dc
+//   +0x08  startOffset_         = startOffset
+//   +0x0C  lastAllocEnd_        = 0xFFFFFFFF (sentinel)
+//   +0x10  memorySizeInSamples_ = dc->waveformMemorySize        (DC+0x0C)
+//   +0x14  cacheLineSize_       = dc->waveformAlignment         (DC+0x14)
+//   +0x18  maxBlocksPerCL_      = dc->cachePageCount            (DC+0x18)
+//   +0x20  cacheLineUsage_      = vector<uint32_t> of numCLs slots, all 0xFFFFFFFF
+//   +0x38  numCacheLines_       = memorySizeInSamples_ / cacheLineSize_
+//   +0x40  freeBlocks_          = empty deque<MemoryBlock>
+// ---------------------------------------------------------------------------
+MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset)
+    : deviceConstants_(dc),
+      startOffset_(startOffset),
+      lastAllocEnd_(0xFFFFFFFFu),
+      memorySizeInSamples_(dc->waveformMemorySize),
+      cacheLineSize_(dc->waveformAlignment),
+      maxBlocksPerCL_(dc->cachePageCount),
+      pad_1C_(0),
+      cacheLineUsage_(),
+      numCacheLines_(0),
+      pad_3C_(0),
+      freeBlocks_()
+{
+    // Initialize per-CL ownership table. cacheLineSize_ may legitimately be
+    // 1 (no caching) for some device families; in that case there is one
+    // "CL slot" per sample, which the binary tolerates.
+    if (cacheLineSize_ != 0) {
+        numCacheLines_ = memorySizeInSamples_ / cacheLineSize_;
+        cacheLineUsage_.assign(numCacheLines_, 0xFFFFFFFFu);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ~MemoryAllocator — 0x29f2d0 (0x38 bytes)
+//
+// Destroys:
+//   1. deque<MemoryBlock> at +0x40 (calls deque::~deque @0x2a0cf0)
+//   2. vector<uint32_t> at +0x20 (frees backing buffer)
+// Scalars at +0x00..+0x1F and +0x38 need no destruction.
+// ---------------------------------------------------------------------------
 MemoryAllocator::~MemoryAllocator() {  // 0x29f2d0
     // Compiler-generated: ~deque() then ~vector()
 }

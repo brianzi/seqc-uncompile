@@ -100,4 +100,6 @@ struct PlayConfig {
     static PlayConfig fromJson(const boost::json::value& jv);
 };
 
+static_assert(sizeof(PlayConfig) == 0x20, "PlayConfig must be 0x20 bytes (pure POD, ABI-safe)");
+
 } // namespace zhinst

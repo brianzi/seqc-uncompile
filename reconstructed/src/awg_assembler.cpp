@@ -38,11 +38,13 @@ void AWGAssembler::assembleAsmList(std::vector<AssemblerInstr> const& asmList)
 }
 
 // 0x285100 — sret: rdi=retval, rsi=this, rdx=string
-// The wrapper loads impl from (%rsi) into rsi, forwards rdi(sret) and rdx(string arg)
-// Actual signature returns something by value (vector or similar)
-// void AWGAssembler::assembleStringToExpressionsVec(std::string const& src) {
-//     return pImpl_->assembleStringToExpressionsVec(src);
-// }
+// Wrapper forwards to pImpl_->assembleStringToExpressionsVec(src).
+// Returns vector<shared_ptr<AsmExpression>> by value (sret via rdi).
+std::vector<std::shared_ptr<AsmExpression>>
+AWGAssembler::assembleStringToExpressionsVec(std::string const& src)
+{
+    return pImpl_->assembleStringToExpressionsVec(src);
+}
 
 // 0x285120
 void AWGAssembler::setMemoryOffset(unsigned int offset)

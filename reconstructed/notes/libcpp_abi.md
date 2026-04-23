@@ -195,6 +195,67 @@ Watch for this pattern in remaining files: any `_ptr`/`_ctrl` field
 pair with 16-byte total footprint inside a class with weak/shared
 semantics is almost certainly a `weak_ptr<T>`.
 
+## ABI deviations in reconstructed source
+
+Cases where our reconstruction does not match the binary's exact ABI
+but where the behavioural difference is nil or negligible.
+
+### Internal-linkage globals declared `extern` (Phase 20a)
+
+The binary mangles these three namespace-scope globals with the `L`
+prefix, indicating they were declared `static` inside `namespace zhinst`
+(internal linkage, one copy per TU):
+
+```
+_ZN6zhinstL20zsyncDataPqscDecoderB5cxx11E      → "ZSYNC_DATA_PQSC_DECODER"
+_ZN6zhinstL21zsyncDataPqscRegisterB5cxx11E     → "ZSYNC_DATA_PQSC_REGISTER"
+_ZN6zhinstL26constAwgIntegrationTriggerB5cxx11E → "AWG_INTEGRATION_TRIGGER"
+```
+
+In our reconstruction these are declared `extern const std::string` in
+`error_messages.hpp:480-482` and defined once in `error_messages.cpp:45-47`.
+This gives them external linkage (one copy across the whole archive),
+which is the opposite of the binary's per-TU layout.
+
+**Why deviate**: the original arrangement would require duplicating the
+definitions in every TU that references them (currently only
+`static_resources.cpp`). The single-definition `extern` form is simpler
+to maintain and produces identical observable behaviour for read-only
+constant strings.
+
+**Risk**: zero for read-only strings. If the binary later proved to use
+these as mutable globals via per-TU views, the single-definition form
+would become incorrect — but no such mutation has been observed.
+
+### Inlined-ctor bodies emitted as standalone symbols (Phase 20c)
+
+The binary inlines two ctors directly into their `allocate_shared`
+dispatchers — there is no standalone `WaveformIRC1E.../WaveformFrontC1E...`
+symbol with a `(string, Type, DC&)` signature in `_seqc_compiler.so`:
+
+| Ctor                                                   | Inlined into                          | Address        |
+|--------------------------------------------------------|---------------------------------------|----------------|
+| `WaveformIR(string, Type, DC&)`                        | `allocate_shared<WaveformIR>` dispatcher  | 0x2aa170-0x2aa20f |
+| `WaveformFront(string, Type, DC&)`                     | `WavetableManager<WaveformFront>::newWaveformFromFile` | 0x29b110-0x29b24f |
+
+Our reconstruction provides both as standalone out-of-line definitions
+in `waveform_ir.cpp` and `waveform_front.cpp` respectively. Bodies are
+*field-equivalent* to the dispatcher's inline writes (same observable
+end-state) but compile to a different instruction sequence — typically
+member-init list and individual stores instead of the dispatcher's
+contiguous `xorps xmm0`/`movups` zero-pattern followed by per-field
+overrides.
+
+**Why deviate**: any consumer TU that says
+`make_shared<WaveformFront>(name, type, dc)` needs a real symbol to
+link against. Without out-of-line bodies, link-time `U` references go
+unresolved.
+
+**Risk**: zero for behaviour. The fields each ctor must initialise are
+fully recovered from the dispatcher disassembly (see WP-C audit notes).
+Frame-pointer omission and zero-then-overwrite patterns differ, but no
+field is left uninitialised in either form.
+
 ## See also
 
 - `notes/struct_layouts.md` — verified offset tables for major structs

@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/waveform_front.hpp"
+#include "zhinst/device_constants.hpp"
 
 #include <sstream>
 #include <string>
@@ -67,6 +68,42 @@ WaveformFront::WaveformFront(std::shared_ptr<WaveformFront> source,
     // The binary zero-inits the vector then allocates and uses
     // __uninitialized_allocator_copy_impl to deep-copy elements.
     values = std::vector<Value>(source->values.begin(), source->values.end());
+}
+
+// ============================================================================
+// WaveformFront::WaveformFront(string const&, Waveform::File::Type, DC const&)
+// Inlined into WavetableManager<WaveformFront>::newWaveformFromFile dispatcher
+// at 0x29b110..0x29b24f. No standalone symbol in the binary.
+//
+// Mirror of WaveformIR(name,type,dc) but with the IR-extension area replaced by
+// the Front-extension area, and frontField1 initialised to 1 (whereas IR
+// initialises markedForLoad/fixed_/crossesCacheLine_ to 0).
+// ============================================================================
+WaveformFront::WaveformFront(const std::string& name,
+                             Waveform::File::Type type,
+                             const DeviceConstants& dc)  // inlined at 0x29b110
+{
+    // Waveform base — same writes as the IR variant.
+    this->name             = name;
+    this->waveformType     = type;
+    this->secondaryName.clear();
+    this->file.reset();
+    this->used             = false;
+    this->addressValue     = 0;
+    this->thirdString.clear();
+    this->playWord         = 0;
+    this->waveIndex        = -1;
+    this->seqRegWidth      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->allocationByteSize = 0;
+    this->deviceConstants  = &dc;
+    this->signal.length_   = 0;
+
+    // Front-extension fields (matches dispatcher writes at 0x29b224..0x29b250).
+    this->frontField1 = 1;        // +0xD8  — note: 1, NOT 0 (IR writes 0 here)
+    this->frontBool1  = false;    // +0xDC
+    this->frontBool2  = false;    // +0xDD
+    // values vector at +0xE0 is default-constructed empty (the dispatcher
+    // zero-stores the 24 bytes at +0xF8/+0x108 explicitly).
 }
 
 // ============================================================================

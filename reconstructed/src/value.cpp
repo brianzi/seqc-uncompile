@@ -56,6 +56,61 @@ Immediate::Immediate(std::string const& s)  // 0x290ae0
 }
 
 // ============================================================================
+// Immediate copy/move/copy-assign — Phase 20b additions.
+//
+// These three operations are referenced by callers but **never defined in
+// the binary** (no symbol present). They were either synthesized implicitly
+// (via libc++ variant-style helpers) or inlined at the very few call sites.
+// We provide explicit out-of-line definitions following the same per-index
+// dispatch pattern as ~Immediate, holdsUnsigned, operator int, etc.
+// ============================================================================
+
+Immediate::Immediate(Immediate const& other)
+    : index_(other.index_)
+{
+    switch (other.index_) {
+        case 0:  data_.address = other.data_.address;       break;
+        case 1:  data_.integer = other.data_.integer;       break;
+        case 2:  new (&data_.str) std::string(other.data_.str); break;
+        default: /* valueless */                              break;
+    }
+}
+
+Immediate::Immediate(Immediate&& other) noexcept
+    : index_(other.index_)
+{
+    switch (other.index_) {
+        case 0:  data_.address = other.data_.address;                            break;
+        case 1:  data_.integer = other.data_.integer;                            break;
+        case 2:  new (&data_.str) std::string(std::move(other.data_.str));       break;
+        default: /* valueless */                                                  break;
+    }
+    // Per the binary's ~Immediate, leave `other` in valueless state so its
+    // dtor is a no-op. (Strictly only needed for the string case, but doing
+    // it unconditionally costs nothing and matches the variant-move idiom.)
+    if (other.index_ == 2) {
+        other.data_.str.~basic_string();
+    }
+    other.index_ = 0xFFFFFFFF;
+}
+
+Immediate& Immediate::operator=(Immediate const& other) {
+    if (this == &other) return *this;
+    // Destroy current state, then copy-construct the new one in place.
+    if (index_ == 2) {
+        data_.str.~basic_string();
+    }
+    index_ = other.index_;
+    switch (other.index_) {
+        case 0:  data_.address = other.data_.address;                  break;
+        case 1:  data_.integer = other.data_.integer;                  break;
+        case 2:  new (&data_.str) std::string(other.data_.str);        break;
+        default: /* valueless */                                        break;
+    }
+    return *this;
+}
+
+// ============================================================================
 // Immediate::~Immediate() — 0x15c4f0
 //
 // Dispatches through vtable if index_ != 0xFFFFFFFF.
@@ -182,6 +237,26 @@ Value::Value(std::string const& s) {  // 0x22c2b0
     new (&storage_) std::string(s);     // +0x10: copy-construct string
     which_ = 3;                         // +0x08: movl $0x3, 0x8(%rbx)
 }
+
+// ============================================================================
+// Value() default ctor — Phase 20b addition.
+//
+// Not defined in the binary (no symbol `_ZN6zhinst5ValueC1Ev` present).
+// Required by Resources::Variable initialization (Variable holds a Value
+// member at +0x18..+0x40 that must be default-constructible).
+//
+// Behaviour: zero out the tag/discriminator and leave storage in the
+// trivially-zero state (`storage_.i = 0`, set by `Storage::Storage()`).
+// type_=Unspecified causes any toX() conversion to throw, matching the
+// "uninitialized variable" error path.
+// ============================================================================
+Value::Value()
+    : type_(ValueType::Unspecified)
+    , pad_04_{}
+    , which_(0)        // matches Int variant slot — but type_=Unspecified disables conversions
+    , pad_0C_{}
+    , storage_{}       // Storage() default-init: i=0 (trivial zero)
+{}
 
 // ============================================================================
 // Value::toDouble() — 0x15a560
