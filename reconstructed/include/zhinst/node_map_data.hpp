@@ -22,6 +22,17 @@
 
 namespace zhinst {
 
+// NodeTypeIdx — node value encoding type for NodeMapItem::typeIdx (A9)
+// Determines how the value is encoded when writing to a parameter-tree node.
+enum class NodeTypeIdx : int32_t {
+    IntegerPassthrough = 0,  // direct register/int value
+    SinePair           = 1,  // dual 32-bit I+Q (suser 0x17 + 0x19)
+    FloatBits          = 2,  // IEEE-754 single-precision bit pattern
+    RawDoubleLow32     = 3,  // double low 32 bits + high32 via second write
+    Frequency          = 4,  // Hz → 48-bit fixed-point via toFrequency()
+    Phase              = 5,  // degrees → 23-bit fixed-point via toPhase()
+};
+
 // ============================================================================
 // NodeMapData — abstract base, vtable @0xb02c98
 // ============================================================================
@@ -47,6 +58,7 @@ public:
 // ============================================================================
 class VirtAddrNodeMapData : public NodeMapData {
 public:
+    VirtAddrNodeMapData() = default;
     VirtAddrNodeMapData(VirtAddrNodeMapData const&);         // @0x1c4dc0
     ~VirtAddrNodeMapData() override;                         // @0x1c4ec0, D0 @0x1c56c0
     bool compareEq(NodeMapData const& other) const override; // @0x1c4cc0
@@ -69,6 +81,7 @@ public:
 // ============================================================================
 class DirectAddrNodeMapData : public NodeMapData {
 public:
+    DirectAddrNodeMapData() = default;
     ~DirectAddrNodeMapData() override;                       // @0x1c5730
     bool compareEq(NodeMapData const& other) const override; // @0x1c5460
     size_t hash() const override;                            // @0x1c5370

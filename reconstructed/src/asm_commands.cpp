@@ -63,8 +63,8 @@ AsmList::Asm AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) co
 
     AssemblerInstr instr;
     instr.cmd = Assembler::PRF;
-    instr.reg2 = reg1;
-    instr.reg0 = reg2;
+    instr.regSrc = reg1;
+    instr.regDst = reg2;
     instr.immediates.emplace_back(intArg);
     return emitEntry(instr);
 }
@@ -122,7 +122,7 @@ AsmList::Asm AsmCommands::cwvf(int value) const {
 AsmList::Asm AsmCommands::cwvfr(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::CWVFR;
-    instr.reg2 = reg;
+    instr.regSrc = reg;
     return emitEntry(instr);
 }
 
@@ -148,7 +148,7 @@ AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool f
 
     AssemblerInstr instr;
     instr.cmd = Assembler::BRNZ;
-    instr.reg0 = reg;
+    instr.regDst = reg;
     instr.label = label;
 
     AsmList::Asm result;
@@ -167,7 +167,7 @@ AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool f
 
     AssemblerInstr instr;
     instr.cmd = Assembler::BRGZ;  // 0xF5000000, confirmed from disassembly @0x272175
-    instr.reg0 = reg;
+    instr.regDst = reg;
     instr.label = label;
 
     AsmList::Asm result;
@@ -192,8 +192,8 @@ AsmList::Asm AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
 
     AssemblerInstr instr;
     instr.cmd = cmd;
-    instr.reg0 = src;
-    instr.reg1 = dst;
+    instr.regDst = src;
+    instr.regAux = dst;
     return emitEntry(instr);
 }
 
@@ -248,8 +248,8 @@ AsmList::Asm AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
 
     AssemblerInstr instr;
     instr.cmd = cmd;
-    instr.reg1 = dst;
-    instr.reg0 = src;
+    instr.regAux = dst;
+    instr.regDst = src;
     instr.immediates.emplace_back(imm);
     return emitEntry(instr);
 }
@@ -291,8 +291,8 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
     if (static_cast<uint32_t>(sval + 0x7FFFF) <= 0xFFFFDu) {
         AssemblerInstr instr;
         instr.cmd = cmd;
-        instr.reg1 = dst;
-        instr.reg0 = src;
+        instr.regAux = dst;
+        instr.regDst = src;
         instr.immediates.emplace_back(sval);
         result.push_back(emitEntry(instr));
         return result;
@@ -304,8 +304,8 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
         // Low 12 bits via ADDI
         AssemblerInstr instr;
         instr.cmd = Assembler::ADDI;
-        instr.reg1 = dst;
-        instr.reg0 = src;
+        instr.regAux = dst;
+        instr.regDst = src;
         instr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
         result.push_back(emitEntry(instr));
 
@@ -317,13 +317,13 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
     }
 
     // Case 3: other ALU ops (ANDI, ORI, XNORI) with large immediate
-    // Load constant into dst via ADDI(reg0) + optional ADDIU for upper bits,
+    // Load constant into dst via ADDI(regDst) + optional ADDIU for upper bits,
     // then do register-register ALU operation.
     {
         AssemblerInstr loadInstr;
         loadInstr.cmd = Assembler::ADDI;
-        loadInstr.reg1 = dst;
-        loadInstr.reg0 = AsmRegister::Reg(0);
+        loadInstr.regAux = dst;
+        loadInstr.regDst = AsmRegister::Reg(0);
         loadInstr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
         result.push_back(emitEntry(loadInstr));
     }
@@ -373,8 +373,8 @@ std::vector<AsmList::Asm> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     // Low 12 bits via ADDI
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.reg1 = dst;
-    instr.reg0 = src;
+    instr.regAux = dst;
+    instr.regDst = src;
     instr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
 
     AsmList::Asm entry1 = emitEntry(instr);
@@ -485,7 +485,7 @@ AsmList::Asm AsmCommands::ld(AsmRegister reg,
 
     AssemblerInstr instr;
     instr.cmd = Assembler::LD;
-    instr.reg2 = reg;
+    instr.regSrc = reg;
     instr.immediates.emplace_back(static_cast<int32_t>(addr.value));
     return emitEntry(instr);
 }
@@ -498,7 +498,7 @@ AsmList::Asm AsmCommands::st(AsmRegister reg,
 
     AssemblerInstr instr;
     instr.cmd = Assembler::ST;
-    instr.reg0 = reg;
+    instr.regDst = reg;
     instr.immediates.emplace_back(static_cast<int32_t>(addr.value));
     return emitEntry(instr);
 }
@@ -567,8 +567,8 @@ AsmList::Asm AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
 
     AssemblerInstr instr;
     instr.cmd = Assembler::WTRIG;
-    instr.reg2 = r1;
-    instr.reg0 = r2;
+    instr.regSrc = r1;
+    instr.regDst = r2;
     return emitEntry(instr);
 }
 
@@ -598,7 +598,7 @@ std::vector<AsmList::Asm> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int 
         throw ResourcesException(                        // 0x275506
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "smap"));
 
-    // Build ADDI r1, reg0, Immediate(arg) sequence       // 0x275371–0x2753e2
+    // Build ADDI r1, regDst, Immediate(arg) sequence       // 0x275371–0x2753e2
     std::vector<AsmList::Asm> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(arg));
 
     // Append st(r1, 0x62) and st(r2, 0x63)              // 0x275431–0x27545c
@@ -761,13 +761,13 @@ AsmList AsmCommands::unsyncCervino() const {
     // 0x276d2a: Build first AssemblerInstr — ST command
     AssemblerInstr instr1;
     instr1.cmd = Assembler::ST;                       // 0xf6000000
-    instr1.reg2 = AsmRegister::Reg(0);               // 0x276dbb: dest = R0
+    instr1.regSrc = AsmRegister::Reg(0);               // 0x276dbb: dest = R0
     instr1.immediates.push_back(Immediate(0x44));    // 0x276dd3: DeviceConstants::Register::{unnamed#7} = 0x44
 
     // 0x276e13: Build second AssemblerInstr — ST command
     AssemblerInstr instr2;
     instr2.cmd = Assembler::ST;                       // 0xf6000000
-    instr2.reg2 = AsmRegister::Reg(0);               // 0x276ea4: dest = R0
+    instr2.regSrc = AsmRegister::Reg(0);               // 0x276ea4: dest = R0
     instr2.immediates.push_back(Immediate(0x45));    // 0x276ebc: DeviceConstants::Register::{unnamed#8} = 0x45
 
     // 0x276efc: Initialize output AsmList (empty vector)
@@ -822,8 +822,8 @@ AsmList::Asm AsmCommands::asmSyncHirzel() const {
 AsmList::Asm AsmCommands::asmZero(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.reg2 = reg;
-    instr.reg0 = AsmRegister::Reg(0);
+    instr.regSrc = reg;
+    instr.regDst = AsmRegister::Reg(0);
     instr.immediates.emplace_back(0);
     return emitEntry(instr);
 }
@@ -831,8 +831,8 @@ AsmList::Asm AsmCommands::asmZero(AsmRegister reg) const {
 AsmList::Asm AsmCommands::asmOne(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.reg2 = reg;
-    instr.reg0 = AsmRegister::Reg(0);
+    instr.regSrc = reg;
+    instr.regDst = AsmRegister::Reg(0);
     instr.immediates.emplace_back(1);
     return emitEntry(instr);
 }
@@ -1082,7 +1082,7 @@ AsmList::Asm AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront
 AsmList::Asm AsmCommands::asmWtrigLSPlaceholder(int value) {
     AssemblerInstr instr;
     instr.cmd = Assembler::ST;
-    instr.reg0 = AsmRegister::Reg(0);
+    instr.regDst = AsmRegister::Reg(0);
     instr.immediates.emplace_back(value + 0x40);
     return emitEntry(instr);
 }

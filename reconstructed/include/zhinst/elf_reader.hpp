@@ -21,7 +21,7 @@
 //   +0x78..+0x90  std::vector<ELFIO::section*> ddSections_
 //                 (libc++ vector — begin/end/cap; 24B)
 //
-//   +0x90  uint32_t  pad_ / unused dword (zeroed by ctor; purpose TBD)
+//   +0x90  uint32_t  pad_ / unused dword (zeroed by ctor; purpose unknown)
 //
 //   ----- end at +0x98 -----
 //
@@ -115,6 +115,29 @@ public:
     // magic 0x464c457f (\x7fELF). Used by the ctor as a precondition.
     static bool isElfFile(const std::string& path);              // 0x2c3320
 
+    // ELF section data extraction.
+
+    // Return type for getCode() and getWaveform() — a format tag plus raw bytes.
+    struct SectionData {
+        std::uint32_t format = 0;        // section type from ELFIO header
+        std::vector<std::uint8_t> data;  // raw bytes (size-aligned per method)
+    };
+
+    // Line map entry — 16-byte record from ".linenr" section.
+    struct Line {
+        std::uint64_t addr;
+        std::uint32_t line;
+    };
+
+    // getCode() @0x2c3bc0 — reads formatSection_ data, size aligned to 4.
+    SectionData getCode() const;
+
+    // getWaveform() @0x2c3d40 — reads ddSections_[pad_], size aligned to 2.
+    SectionData getWaveform() const;
+
+    // getLineMap() @0x2c3ef0 — reads ".linenr" section, parses 16-byte records.
+    std::vector<Line> getLineMap() const;
+
 private:
     // Walks the section table and partitions sections by name:
     //   - ".format"  -> formatSection_   (single)
@@ -131,7 +154,7 @@ private:
     std::vector<ELFIO::section*> ddSections_;        // +0x78..+0x90 — sections
                                                      //   whose names start ".dd"
 
-    // Trailing dword zeroed by the ctor (purpose TBD — possibly a flags
+    // Trailing dword zeroed by the ctor (purpose unknown — possibly a flags
     // field for a not-yet-reconstructed feature). Kept for layout fidelity.
     std::uint32_t pad_ = 0;                          // +0x90
 };

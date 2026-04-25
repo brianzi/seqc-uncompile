@@ -92,7 +92,7 @@ void AWGAssemblerImpl::assembleFile(const std::string& path) {  // 0x285ec0
         // File doesn't exist — throw with ErrorMessageT 0x71
         std::string pathCopy = path;
         std::string msg = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0x71), std::move(pathCopy));
+            FileNotExist, std::move(pathCopy));
         throw ZIAWGCompilerException(msg);
     }
 
@@ -355,25 +355,25 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             }
         }
 
-        // Add destination register (reg2 at +0x28 in AssemblerInstr)
-        if (instr.reg0.isValid()) {
-            int regIdx = static_cast<int>(instr.reg0);
+        // Add destination register (regDst at +0x28 in AssemblerInstr)
+        if (instr.regDst.isValid()) {
+            int regIdx = static_cast<int>(instr.regDst);
             AsmExpression* regExpr = createRegister(regIdx);
             std::shared_ptr<AsmExpression> child(regExpr);
             expr->children.push_back(std::move(child));
         }
 
-        // Add source register 1 (reg1 at +0x30)
-        if (instr.reg1.isValid()) {
-            int regIdx = static_cast<int>(instr.reg1);
+        // Add auxiliary register (regAux at +0x30)
+        if (instr.regAux.isValid()) {
+            int regIdx = static_cast<int>(instr.regAux);
             AsmExpression* regExpr = createRegister(regIdx);
             std::shared_ptr<AsmExpression> child(regExpr);
             expr->children.push_back(std::move(child));
         }
 
-        // Add source register 0 (reg2 at +0x20 — destination)
-        if (instr.reg2.isValid()) {
-            int regIdx = static_cast<int>(instr.reg2);
+        // Add source register (regSrc at +0x20)
+        if (instr.regSrc.isValid()) {
+            int regIdx = static_cast<int>(instr.regSrc);
             AsmExpression* regExpr = createRegister(regIdx);
             std::shared_ptr<AsmExpression> child(regExpr);
             expr->children.push_back(std::move(child));
@@ -491,7 +491,7 @@ int AWGAssemblerImpl::evaluate(const std::shared_ptr<AsmExpression>& expr) {  //
     }
 
     int cmd = e->command;
-    if (cmd == -1) {
+    if (cmd == static_cast<int>(Assembler::INVALID)) {
         return 0;  // INVALID command
     }
 
@@ -606,7 +606,7 @@ void AWGAssemblerImpl::writeToFile(const std::string& outputPath) {  // 0x288570
         // Failed to write
         throw ZIAWGCompilerException(
             ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x94), std::string(outputPath)));
+                CantWriteFile, std::string(outputPath)));
     }
 }
 

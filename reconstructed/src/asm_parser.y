@@ -1,0 +1,217 @@
+/* ============================================================================
+ * Reconstructed from disassembly of _seqc_compiler.so
+ * ASM parser — bison grammar for the AWGAssembler's assembly language
+ *
+ * Original parser: asmparse @0x292b50 (1,522 bytes)
+ * Grammar: 19 rules, 8 terminals, 7 nonterminals
+ * Tables: yypact(22), yytable(18), yycheck(18), yydefact(22), etc.
+ *
+ * Jump table for semantic actions at 0x95daa0 (18 entries, rules 2-19).
+ *
+ * The parser is reentrant (bison 3.x %define api.pure full).
+ * Parameters:
+ *   ctx     — AsmParserContext* (parser context, extra data)
+ *   result  — AsmExpression** (output: root of parse tree)
+ *   scanner — void* (opaque flex scanner handle)
+ * ============================================================================ */
+
+%{
+#include "zhinst/asm_parser_context.hpp"
+#include "zhinst/asm_expression.hpp"
+
+#include <cstdio>
+#include <cstdlib>
+%}
+
+/* Bison configuration — matches binary signatures */
+%define api.pure full
+%define api.prefix {asm}
+
+/* Ensure the generated .tab.h includes the necessary forward declarations
+ * so that files including it (like the flex lexer) can see the types. */
+%code requires {
+    namespace zhinst {
+        class AsmParserContext;
+        struct AsmExpression;
+    }
+}
+
+/* Parser parameters — matches asmparse(ctx, result, scanner) @0x292b50 */
+%parse-param {zhinst::AsmParserContext* ctx}
+%parse-param {zhinst::AsmExpression** result}
+%parse-param {void* scanner}
+
+/* Lexer parameter — matches asmlex(lvalp, scanner) */
+%lex-param {void* scanner}
+
+/* Forward-declare asmlex after ASMSTYPE is defined */
+%code {
+    int asmlex(ASMSTYPE* lvalp, void* scanner);
+}
+
+/* Semantic value union — derived from token/nonterminal types in the binary.
+ * Registers and numbers carry int; strings carry char*; expression
+ * nonterminals carry AsmExpression*. */
+%union {
+    int                         ival;   /* REGISTER (reg number), NUMBER */
+    char*                       sval;   /* STRING, STRING_LITERAL, lbl */
+    zhinst::AsmExpression*      expr;   /* cmd, argList, arg, inst, placeholder */
+}
+
+/* Token declarations with types */
+%token <ival> REGISTER          /* 258 — R<n>, register number */
+%token <sval> STRING            /* 259 — identifier / opcode name */
+%token <sval> STRING_LITERAL    /* 260 — quoted string literal */
+%token <ival> NUMBER            /* 261 — integer (decimal or hex) */
+%token        PLACEHOLDER_LINE  /* 262 — placeholder marker */
+%token        DISABLE_OPT       /* 263 — optimization disable flag */
+
+/* Nonterminal types */
+%type <expr> inst cmd argList arg
+%type <sval> lbl placeholder
+
+%%
+
+/* Rule  1: $accept → line $end  (implicit)
+ * Rule  2: line → ε
+ * Rule  3: line → inst DISABLE_OPT
+ * Rule  4: line → inst
+ */
+line
+    : /* empty */                           /* Rule 2 — @0x292e7e */
+        {
+            *result = NULL;
+        }
+    | inst DISABLE_OPT                      /* Rule 3 — @0x292e8b */
+        {
+            *result = $1;
+            ctx->disableOpt();
+            ctx->incrementLineNumber();
+        }
+    | inst                                  /* Rule 4 — @0x292e2d */
+        {
+            *result = $1;
+            ctx->enableOpt();
+            ctx->incrementLineNumber();
+        }
+    ;
+
+/* Rule  5: inst → placeholder
+ * Rule  6: inst → cmd                     (bare command, no arguments)
+ * Rule  7: inst → cmd argList             (command with arguments)
+ * Rule  8: inst → lbl cmd                 (label + bare command)
+ * Rule  9: inst → lbl cmd argList         (label + command + arguments)
+ * Rule 10: inst → lbl                     (bare label definition)
+ */
+inst
+    : placeholder                           /* Rule 5 — @0x292e42 */
+        {
+            $$ = zhinst::addNode(ctx, $1);
+        }
+    | cmd                                   /* Rule 6 — @0x292df7 */
+        {
+            int pc = ctx->programCounter();
+            $$ = zhinst::addCommand(ctx, NULL, $1, pc, NULL);
+        }
+    | cmd argList                           /* Rule 7 — @0x292ead */
+        {
+            int pc = ctx->programCounter();
+            $$ = zhinst::addCommand(ctx, $2, $1, pc, NULL);
+        }
+    | lbl cmd                               /* Rule 8 — @0x292ef5 */
+        {
+            int pc = ctx->programCounter();
+            $$ = zhinst::addCommand(ctx, NULL, $2, pc, $1);
+        }
+    | lbl cmd argList                       /* Rule 9 — @0x292e53 */
+        {
+            int pc = ctx->programCounter();
+            $$ = zhinst::addCommand(ctx, $3, $2, pc, $1);
+        }
+    | lbl                                   /* Rule 10 — @0x292f26 */
+        {
+            (void)ctx->programCounter();
+            ctx->incrementProgramCounter();
+            $$ = NULL;
+        }
+    ;
+
+/* Rule 11: placeholder → PLACEHOLDER_LINE */
+placeholder
+    : PLACEHOLDER_LINE                      /* Rule 11 — @0x292e25 */
+        {
+            (void)ctx->programCounter();
+            $$ = NULL;  /* placeholder has no string value */
+        }
+    ;
+
+/* Rule 12: lbl → STRING ':' */
+lbl
+    : STRING ':'                            /* Rule 12 — @0x292f17 */
+        {
+            (void)ctx->programCounter();
+            $$ = $1;
+        }
+    ;
+
+/* Rule 13: cmd → STRING */
+cmd
+    : STRING                                /* Rule 13 — @0x292dd1 */
+        {
+            $$ = zhinst::createName($1);
+        }
+    ;
+
+/* Rule 14: argList → arg
+ * Rule 15: argList → argList ',' arg
+ * Rule 16: argList → STRING_LITERAL       (special: string literal as sole arg)
+ */
+argList
+    : arg                                   /* Rule 14 — @0x292dea */
+        {
+            $$ = zhinst::createArgList($1);
+        }
+    | argList ',' arg                       /* Rule 15 — @0x292e14 */
+        {
+            $$ = zhinst::appendArgList($1, $3);
+        }
+    | STRING_LITERAL                        /* Rule 16 — @0x292dd1 */
+        {
+            $$ = zhinst::createName($1);
+        }
+    ;
+
+/* Rule 17: arg → REGISTER
+ * Rule 18: arg → NUMBER
+ * Rule 19: arg → STRING
+ */
+arg
+    : REGISTER                              /* Rule 17 — @0x292eda */
+        {
+            $$ = zhinst::createRegister($1);
+        }
+    | NUMBER                                /* Rule 18 — @0x292dde */
+        {
+            $$ = zhinst::createValue($1);
+        }
+    | STRING                                /* Rule 19 — @0x292dd1 */
+        {
+            $$ = zhinst::createName($1);
+        }
+    ;
+
+%%
+
+/* Error handler — asmerror @0x292a60
+ * Wraps the error message, calls ctx->raiseError(), sets syntax error flag.
+ * Returns 1. */
+int asmerror(zhinst::AsmParserContext* ctx,
+             zhinst::AsmExpression** result,
+             void* scanner,
+             const char* msg) {
+    (void)result;
+    (void)scanner;
+    ctx->raiseError(std::string(msg));
+    ctx->setSyntaxError();
+    return 1;
+}

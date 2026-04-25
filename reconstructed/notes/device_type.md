@@ -959,9 +959,17 @@ Future-proofs the reconstruction.
   MF-specific) but means the sfc namespace's wider use as a "generate
   SFC for any device family" abstraction isn't yet visible.
 
-## `AwgDeviceProps` field-name verification debt (carried forward)
+## `AwgDeviceProps` field-name verification — RESOLVED (Phase 21f)
 
-`AwgDeviceProps` field names `maxWaveformSamples`, `maxWaveformBytes`,
-`supportsExtraFeature` were inferred during Phase 14b-iii but no
-14b-iv consumer exercises them. Will need verification when an
-`AwgDeviceProps` consumer surfaces (Phase 15+).
+The three inferred field names from Phase 14b-iii have been verified
+by analyzing binary consumers:
+
+| Old name | New name | Evidence |
+|----------|----------|----------|
+| `maxWaveformSamples` (+0x50) | `maxElfSize` | `compileSeqc` @0xf6a41 stores to JSON key `"maxelfsize"` |
+| `maxWaveformBytes` (+0x58, uint64) | `addressImpl` (+0x58, uint32) + `sampleFormat` (+0x5c, uint32) | `AWGCompilerImpl` ctor @0x103b99 reads low32 → config.addressImpl; `writeWavesToElf*` @0x10e049 reads high32 → config.sampleFormat |
+| `supportsExtraFeature` (+0x60) | `isHirzel` | `compileSeqc` @0xf67cd → config.isHirzel; true for HDAWG/SHFSG/SHFQC_SG/SHFLI/GHFLI/VHFLI |
+
+The +0x58 split into two uint32_t explains the previously-puzzling
+values like HDAWG's 0x180000000 (= addressImpl 0x80000000, sampleFormat 1)
+and SHFQA's 0x200000000 (= addressImpl 0x00000000, sampleFormat 2).

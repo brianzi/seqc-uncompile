@@ -4,11 +4,8 @@
 //
 // HDAWG-family device subclasses: Hdawg, Hdawg4, Hdawg8.
 //
-// TODO: 14b-ii-b1 survey recorded that Hdawg4 and Hdawg8 each have a
-// 6-entry knownOptions array (.rodata 0x9626f8 and 0x962728). The
-// per-entry (mask,code) selection below was inferred from
-// sfc::HdawgOption's documented bits but has not been disasm-verified
-// entry-by-entry. Re-verify before relying on these for option output.
+// knownOptions arrays verified entry-by-entry against .rodata
+// (Hdawg4 @ 0x9626f8, Hdawg8 @ 0x962728) on 2026-04-25.
 // ============================================================================
 
 #include "zhinst/device_subclasses.hpp"

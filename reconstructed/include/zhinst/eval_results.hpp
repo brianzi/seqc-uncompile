@@ -39,7 +39,7 @@
 //     (check at 0x243f13).
 //   - addAssembler @0x15c1b0 pushes to vector at +0x18 with element
 //     stride 0xa8.
-//   - getValue @0x211ab0 returns the LAST EvalResultValue from values_.
+//   - getValue @0x211ab0 returns the Value from the LAST element of values_.
 //   - setValue(double) @0x2136a0 replaces values_ with a single-element
 //     vector containing VarType=3.
 //   - bool at +0x30 confirmed by ctor byte-write at emplace+0x48
@@ -87,11 +87,12 @@ public:
     ~EvalResults();                                       // @0x16f3d0
 
     // --- getValue ---
-    // Returns the LAST EvalResultValue from values_ by sret.
-    // Evidence: getValue @0x211ab0 reads [this+0x08] as vector.end,
-    //   then returns *(end - 1).
-    // Returns: struct with {VarType, which, value_union} per EvalResultValue.
-    EvalResultValue getValue() const;                     // @0x211ab0
+    // Returns the Value from the LAST element of values_ by sret.
+    // Evidence: getValue @0x211ab0 reads vector.end at [this+0x08],
+    //   extracts the Value field (at element+0x08) from the last
+    //   EvalResultValue, and writes it to the sret buffer at offset +0x00.
+    //   If values_ is empty, returns a default Value (all zeros).
+    Value getValue() const;                               // @0x211ab0
 
     // --- setValue overloads ---
     // All replace values_ with a single-element vector containing the

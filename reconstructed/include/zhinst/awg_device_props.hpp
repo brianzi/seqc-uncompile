@@ -44,6 +44,9 @@ enum class AwgSequencerType : int {
     SG   = 2,   // toString -> "SG"
 };
 
+// toString(AwgSequencerType) @0x2cbce0
+std::string toString(AwgSequencerType seq);
+
 // ----------------------------------------------------------------------------
 // AwgPathPatterns — 0x48 bytes (3 std::strings)
 //
@@ -87,9 +90,9 @@ struct AwgPathPatterns {
     AwgPathPatterns& operator=(AwgPathPatterns const&) = default;
     AwgPathPatterns& operator=(AwgPathPatterns&&) = default;
 };
-static_assert(sizeof(AwgPathPatterns) == 0x60,
-              "AwgPathPatterns must be 0x60 bytes (3 std::strings @ 32B each, libstdc++ ABI). "
-              "Note: in the original libc++ binary it is 0x48 bytes (3*24).");
+// 3 strings, no other fields → 0x48 (libc++) or 0x60 (libstdc++).
+static_assert(sizeof(AwgPathPatterns) == 3 * sizeof(std::string),
+              "AwgPathPatterns: expected 3 * sizeof(std::string)");
 
 // ----------------------------------------------------------------------------
 // AwgDeviceProps — 0x80 bytes (128B)
@@ -103,47 +106,53 @@ static_assert(sizeof(AwgPathPatterns) == 0x60,
 //   +0x08  24   std::string elfDataPattern       (path pattern 1)
 //   +0x20  24   std::string elfProgressPattern   (path pattern 2)
 //   +0x38  24   std::string enablePattern        (path pattern 3)
-//   +0x50  8    uint64_t maxWaveformSamples      (binary stores as qword)
-//   +0x58  8    uint64_t maxWaveformBytes        (binary stores as qword)
-//   +0x60  1    bool supportsExtraFeature        (semantics not yet
-//                                                  pinned down; see notes)
+//   +0x50  8    uint64_t maxElfSize              (max ELF binary size; JSON key "maxelfsize")
+//   +0x58  4    uint32_t addressImpl             (waveform memory base address; AddressImpl<uint>)
+//   +0x5c  4    uint32_t sampleFormat            (SampleFormat enum: 0/1/2)
+//   +0x60  1    bool isHirzel                    (true for Hirzel-generation devices)
 //   +0x61  7    (padding)
 //   +0x68  24   std::string fpgaRevisionPattern  (path pattern 4)
 //   Total: 0x80 bytes.
 //
-// The +0x50/+0x58 limits are very probably waveform sample/byte limits
-// but the exact semantics are inferred from values, not confirmed by
-// callers (TODO: verify in next sub-phase). Per-template values:
+// Field verification (Phase 21f):
+//   +0x50 maxElfSize   — consumer: compileSeqc @0xf6a41 stores to JSON "maxelfsize"
+//   +0x58 addressImpl  — consumer: AWGCompilerImpl ctor @0x103b99 → config.addressImpl (+0x10)
+//   +0x5c sampleFormat — consumer: writeWavesToElf* @0x10e049/0x10e1f2 → config.sampleFormat (+0x04)
+//   +0x60 isHirzel     — consumer: compileSeqc @0xf67cd → config.isHirzel (+0x18)
+//                        true for: HDAWG, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI
+//                        false for: UHFLI, UHFQA, SHFQA
 //
-//   UHFLI/UHFQA       : +0x50 = 0x10000000 (256M),  +0x58 = 0xd0000000  (~3.5G)
-//   HDAWG             : +0x50 = (ME ? 0x80000000 : 0x10000000), +0x58 = 0x180000000 (6G)
-//   SHFQA             : +0x50 = 0x80000000 (2G),    +0x58 = 0x200000000 (8G)
-//   SHFSG/SHFQC_SG    : +0x50 = 0x80000000 (2G),    +0x58 = 0x100000000 (4G)
-//   SHFLI/GHFLI/VHFLI : +0x50 = 0x80000000 (2G),    +0x58 = 0x100000000 (4G)
+// The +0x58 field was originally stored as a single qword in the binary
+// (e.g. HDAWG writes 0x180000000 = low32 0x80000000, high32 0x00000001),
+// but consumers read it as two independent uint32_t fields. Per-template:
+//
+//   UHFLI/UHFQA       : maxElfSize=0x10000000  addressImpl=0xd0000000  sampleFormat=0
+//   HDAWG             : maxElfSize=cond(ME)     addressImpl=0x80000000  sampleFormat=1
+//   SHFQA             : maxElfSize=0x80000000  addressImpl=0x00000000  sampleFormat=2
+//   SHFSG/SHFQC_SG    : maxElfSize=0x80000000  addressImpl=0x00000000  sampleFormat=1
+//   SHFLI/GHFLI/VHFLI : maxElfSize=0x80000000  addressImpl=0x00000000  sampleFormat=1
 //
 // HDAWG is the ONLY template that consults `dt`: it calls
 // `dt.hasOption(DeviceOption(0x13)=ME)` and picks the higher limit when
 // the ME (Memory Extension) option is set.
 // ----------------------------------------------------------------------------
 struct AwgDeviceProps {
-    // NOTE: field NAMES below are INFERRED from values, not confirmed by
-    // callers. Field offsets and types are confirmed from disassembly.
-    // TODO(14b-iv): Verify field names by inspecting consumers.
     AwgDeviceType deviceType;          // +0x00
     std::string   elfDataPattern;      // +0x08
     std::string   elfProgressPattern;  // +0x20
     std::string   enablePattern;       // +0x38
-    uint64_t      maxWaveformSamples;  // +0x50  (inferred name)
-    uint64_t      maxWaveformBytes;    // +0x58  (inferred name)
-    bool          supportsExtraFeature;// +0x60  (inferred name; semantics TBD)
+    uint64_t      maxElfSize;          // +0x50  (max ELF binary size; JSON "maxelfsize")
+    uint32_t      addressImpl;         // +0x58  (waveform memory base address)
+    uint32_t      sampleFormat;        // +0x5c  (SampleFormat enum: 0/1/2)
+    bool          isHirzel;            // +0x60  (true for Hirzel-gen devices)
     std::string   fpgaRevisionPattern; // +0x68  (also slaverevision for HDAWG)
     // Total: 0x80 bytes.
 
     ~AwgDeviceProps();   // 0xf81e0 — explicit out-of-line dtor
 };
-static_assert(sizeof(AwgDeviceProps) == 0xa0,
-              "AwgDeviceProps must be 0xa0 bytes on libstdc++ (4*32B strings + 4+4 type/pad + 8 + 8 + 1 + 7 pad). "
-              "Note: in the original libc++ binary it is exactly 0x80 (128) bytes.");
+// 4 strings + 32 bytes fixed fields → 0x80 (libc++) or 0xa0 (libstdc++).
+static_assert(sizeof(AwgDeviceProps) == 32 + 4 * sizeof(std::string),
+              "AwgDeviceProps: expected 32 + 4 * sizeof(std::string)");
 
 // ----------------------------------------------------------------------------
 // getAwgDeviceProps<AwgDeviceType>(DeviceType const&)
@@ -153,8 +162,8 @@ static_assert(sizeof(AwgDeviceProps) == 0xa0,
 //   - the AwgDeviceType bit (.deviceType field)
 //   - the per-family AwgPathPatterns (3 path strings)
 //   - the FPGA-revision path string (varies only for HDAWG)
-//   - the maxWaveformSamples/Bytes limits
-//   - the supportsExtraFeature bool
+//   - the maxElfSize, addressImpl, sampleFormat values
+//   - the isHirzel bool
 //
 // Only the HDAWG instantiation actually consults `dt` (calls
 // `dt.hasOption(DeviceOption::ME)` to choose between two sample limits).

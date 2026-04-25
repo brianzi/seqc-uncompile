@@ -22,6 +22,7 @@
 #include "zhinst/device_type.hpp"
 #include "zhinst/exception.hpp"
 #include "zhinst/generic_device_type.hpp"
+#include "zhinst/device_factories.hpp"
 
 #include <algorithm>
 #include <exception>
@@ -181,6 +182,59 @@ bool DeviceType::hasOption(DeviceOption opt) const {
 bool DeviceType::belongsTo(DeviceFamily f) const {
     return (static_cast<uint32_t>(impl_->family()) &
             static_cast<uint32_t>(f)) != 0;
+}
+
+// @ 0x2d2930 — ctor from DeviceFamily, uses factory to create default impl.
+DeviceType::DeviceType(DeviceFamily family) {
+    auto factory = detail::makeDeviceFamilyFactory(family);
+    impl_ = factory->makeDefault().release();
+}
+
+// @ 0x2d2990 — ctor from DeviceFamily + options bitmask.
+DeviceType::DeviceType(DeviceFamily family, unsigned long options) {
+    auto factory = detail::makeDeviceFamilyFactory(family);
+    impl_ = factory->makeDeviceType(options).release();
+}
+
+// @ 0x2d2c20 — returns raw impl_ pointer.
+detail::DeviceTypeImpl* DeviceType::deviceType() const {
+    return impl_;
+}
+
+// @ 0x2d2cb0 — member toString: delegates to free function via code().
+std::string DeviceType::toString() const {
+    return zhinst::toString(impl_->code());
+}
+
+// @ 0x2d2ce0 — print: writes code to ostream.
+void DeviceType::print(std::ostream& os) const {
+    os << impl_->code();
+}
+
+// @ 0x2d2d10 — swap impl_ pointers.
+void DeviceType::swap(DeviceType& other) {
+    std::swap(impl_, other.impl_);
+}
+
+// @ 0x2d2d30 — equality by code.
+bool operator==(DeviceType const& lhs, DeviceType const& rhs) {
+    return lhs.impl_->code() == rhs.impl_->code();
+}
+
+// @ 0x2d2d60 — less-than by code.
+bool operator<(DeviceType const& lhs, DeviceType const& rhs) {
+    return lhs.impl_->code() < rhs.impl_->code();
+}
+
+// @ 0x2d2da0 — stream insertion: writes code.
+std::ostream& operator<<(std::ostream& os, DeviceType const& dt) {
+    os << dt.impl_->code();
+    return os;
+}
+
+// @ 0x2d2d90 — free function hasOption.
+bool hasOption(DeviceType const& dt, DeviceOption const& opt) {
+    return dt.hasOption(opt);
 }
 
 // ============================================================================

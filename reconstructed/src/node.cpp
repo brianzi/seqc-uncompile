@@ -433,9 +433,9 @@ void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
 throw_error:
     {
         extern ErrorMessages errMsg;
-        std::string errStr = errMsg[static_cast<ErrorMessageT>(0xa4)];
+        std::string errStr = errMsg[SwapNotConnected];
         std::string formatted = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0xa2), errStr);
+            PrefetchError, errStr);
         throw ZIAWGCompilerException(std::move(formatted));
     }
 }

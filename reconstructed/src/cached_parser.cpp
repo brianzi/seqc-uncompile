@@ -5,16 +5,19 @@
 
 #include "zhinst/cached_parser.hpp"
 #include "zhinst/elf_reader.hpp"
+#include "zhinst/elf_writer.hpp"
 
 #include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <fstream>
+#include <sstream>
 #include <boost/filesystem.hpp>
 
-// Forward-declare util::wave::hash used by getHash — defined elsewhere.
+// Forward-declare util::wave::hash and hash2str used by getHash/cacheFile.
 namespace zhinst { namespace util { namespace wave {
     std::vector<unsigned int> hash(const std::string& filePath);
+    std::string hash2str(const std::vector<unsigned int>& hash);
 }}}
 
 namespace zhinst {
@@ -203,7 +206,7 @@ void CachedParser::cleanCache()
 }
 
 // 0x2b01a0
-void CachedParser::removeOldFiles()
+bool CachedParser::removeOldFiles()
 {
     // Eviction algorithm:
     //   1. Walk index_ in-order, copy every CacheEntry into a local vector.
@@ -217,13 +220,14 @@ void CachedParser::removeOldFiles()
     //      If an entry has valid_ == true, set the "kept-pinned" flag (r15b=1)
     //      and stop the eviction loop.
     //   4. Call saveCacheIndex() unconditionally afterwards.
-    //   5. Destroy the local vector. Returns r15b in the binary, but the C++
-    //      signature is `void` so the caller ignores it. We mirror that.
+    //   5. Return the "kept-pinned" flag (r15b).
     //
     // currentSize_/cacheSize_ are tracked in BYTES (sub of fileSize_ confirms).
     //
     // valid_ == true means "do not evict" (pinned). The flag was named
     // `valid_` in the header; semantically it acts as a pin/lock bit.
+
+    bool keptPinned = false;
 
     std::vector<CacheEntry> entries;
     entries.reserve(index_.size());
@@ -239,7 +243,8 @@ void CachedParser::removeOldFiles()
     for (const auto& entry : entries) {
         if (currentSize_ <= cacheSize_) break;
         if (entry.valid_) {
-            // Pinned entry — stop evicting (binary sets a "stopped early" flag here).
+            // Pinned entry — stop evicting (binary sets r15b=1 here).
+            keptPinned = true;
             break;
         }
         boost::filesystem::remove(entry.filePath_);
@@ -248,42 +253,37 @@ void CachedParser::removeOldFiles()
     }
 
     saveCacheIndex();
+    return keptPinned;
 }
 
 // 0x2b05b0
 //
-// Builds a cached ELF artifact at <cachePath_>/<hash-as-hex>.<ext>, populates
-// it with the supplied waveform data as named ELF sections, and inserts the
-// corresponding CacheEntry into index_.
+// Builds a cached .wave artifact at <cachePath_>/csv<hash2str>.wave, populates
+// it with the supplied waveform data as named ELF sections (using ElfWriter
+// with machineType=3), and inserts the corresponding CacheEntry into index_.
 //
-// Sections written (4-byte little-endian section names observed in disasm):
-//   .format        — single byte '3'  (kCacheFormat, see #64)
-//   .file_name     — original source path (from `name` argument)
-//   .channel       — channel/oscillator index info
-//   .data          — sample bytes (from `samples`)
-//   .marker        — marker bytes  (from `markers`)
-//   .marker_bits   — marker-bit configuration (from `markerBitsVec`)
-//   .config        — sampleFormat + markerBits packed
+// Sections written:
+//   ".format"      — single byte '3'  (kCacheFormat, see #64)             // 0x2b0923
+//   ".file_name"   — original source path (from `name` argument)          // 0x2b0999
+//   ".channels"    — sampleFormat as 4-byte int                           // 0x2b0a08
+//   ".marker_bits" — markers bytes (NOTE: `markers` param, not markerBitsVec) // 0x2b0a7f
+//   ".data"        — raw sample bytes (samples.data(), samples.size()*8)  // 0x2b0ade
+//   ".marker"      — marker bits bytes (from `markerBitsVec` param)       // 0x2b0b3e
+//   ".config"      — std::to_string(markerBits) (decimal text)            // 0x2b0bc0
 //
 // Algorithm:
-//   1. If !enabled_ → return.
-//   2. currentSize_ += rough byte budget for this entry (binary uses
-//      `(samples.byteSize() / 4)` as a 32-bit-word count for budgeting).
-//   3. If currentSize_ > cacheSize_ → call removeOldFiles(); if it returns
-//      false (couldn't free enough) → bail out (binary jumps to 0x2b0e8b).
-//   4. Build the cache filename:
-//        oss << "<cachePath_>/" << util::wave::hash2str(hash) << ".elf"
-//        (or similar suffix — exact suffix string lives at 0x8ff1b6).
-//   5. Construct ElfWriter elfw(channel); call elfw.addSection(name, data)
-//      for each of the 7 sections above.
-//   6. Save the ELF to disk via elfw.save(filename).
-//   7. Construct CacheEntry{name, filename, fileSize, hash, valid=true},
-//      insert into index_ (or update via operator= if key exists).
-//   8. Call saveCacheIndex().
-//
-// Heavy boost / ELFIO interaction (~880 instructions) — exact ELFIO calls
-// not reconstructed; the operational outline above is sufficient for a
-// behavioural model.
+//   1. If !enabled_ → return.                                             // 0x2b05c4
+//   2. budget = samples.byte_size() >> 2 (= samples.size() * 2)          // 0x2b05e4
+//      currentSize_ += budget                                             // 0x2b05fa
+//   3. If currentSize_ > cacheSize_ → call removeOldFiles();             // 0x2b05fe
+//      if it returns true (pinned entry blocked eviction):
+//        currentSize_ -= budget; return                                   // 0x2b0e8b
+//   4. filename = cachePath_ / ("csv" + hash2str(hash) + ".wave")        // 0x2b0628–0x2b0858
+//   5. ElfWriter elfw(3); add 7 sections                                  // 0x2b08e2–0x2b0bfd
+//   6. elfw.writeFile(filename)                                           // 0x2b0c10
+//   7. CacheEntry entry(name, filename, budget, hash, /*valid=*/true)     // 0x2b0c97
+//   8. index_.try_emplace(hash, entry); it->second = entry                // 0x2b0ce0–0x2b0cf3
+//   9. saveCacheIndex()                                                   // 0x2b0cfb
 void CachedParser::cacheFile(
     const std::string& name,
     std::vector<unsigned int> hash,
@@ -293,39 +293,68 @@ void CachedParser::cacheFile(
     const std::vector<double>& samples,
     const std::vector<std::uint8_t>& markerBitsVec)
 {
-    if (!enabled_) return;
+    if (!enabled_) return;                                                     // 0x2b05c4
 
-    // Budget update — binary computes (samples.bytesize / 4); we approximate.
-    currentSize_ += samples.size() * sizeof(double) / 4;
-    if (currentSize_ > cacheSize_) {
-        removeOldFiles();
-        // The binary checks removeOldFiles' bool return (r15b "kept-pinned"
-        // flag) and bails if true. The C++ signature is void so we can't
-        // mirror that exactly; in practice removeOldFiles makes a best-effort
-        // sweep and we proceed regardless.
+    // Budget = samples.byte_size() >> 2 = samples.size() * 2
+    std::size_t budget = samples.size() * sizeof(double) / 4;                  // 0x2b05e4
+    currentSize_ += budget;                                                    // 0x2b05fa
+
+    if (currentSize_ > cacheSize_) {                                           // 0x2b05fe
+        bool keptPinned = removeOldFiles();                                    // 0x2b060a
+        if (keptPinned) {                                                      // 0x2b0614
+            currentSize_ -= budget;                                            // 0x2b0e8b
+            return;
+        }
     }
 
-    // TODO: reconstruct full ELF-building body from disassembly at 0x2b05b0.
-    // The skeleton:
-    //
-    //   std::string filename = (cachePath_ / (util::wave::hash2str(hash) + ".elf")).string();
-    //   ElfWriter elfw(/*channel=*/markerBits >> 8);
-    //   elfw.addSection(".format",      std::string(1, '3'));
-    //   elfw.addSection(".file_name",   name);
-    //   elfw.addSection(".channel",     ...);
-    //   elfw.addSection(".data",        samples);
-    //   elfw.addSection(".marker",      markers);
-    //   elfw.addSection(".marker_bits", markerBitsVec);
-    //   elfw.addSection(".config",      pack(sampleFormat, markerBits));
-    //   elfw.save(filename);
-    //
-    //   std::size_t fileSize = boost::filesystem::file_size(filename);
-    //   CacheEntry entry(name, filename, fileSize, std::move(hash), true);
-    //   auto [it, inserted] = index_.try_emplace(entry.hash_, entry);
-    //   if (!inserted) it->second = entry;   // operator= at 0x2b1210
-    //   saveCacheIndex();
-    (void)sampleFormat; (void)markers; (void)markerBitsVec;
-    (void)hash; (void)name;
+    // Build filename: cachePath_ / ("csv" + hash2str(hash) + ".wave")         // 0x2b0628
+    std::ostringstream oss;
+    oss << "csv";                                                              // 0x2b0637
+    oss << util::wave::hash2str(hash);                                         // 0x2b0666–0x2b0695
+    oss << ".wave";                                                            // 0x2b069a
+    boost::filesystem::path filePath = cachePath_ / oss.str();                 // 0x2b06ce–0x2b0858
+    std::string filePathStr = filePath.string();
+
+    // Construct ElfWriter with machineType=3 and add sections                 // 0x2b08e2
+    ElfWriter elfw(3);
+
+    // ".format" — single byte '3' (kCacheFormat)                              // 0x2b0923
+    elfw.addData("3", 1, std::string(".format"));
+
+    // ".file_name" — original source name                                     // 0x2b0999
+    elfw.addData(name.data(), name.size(), std::string(".file_name"));
+
+    // ".channels" — sampleFormat as a 4-byte int                              // 0x2b0a08
+    elfw.addData(reinterpret_cast<const char*>(&sampleFormat),
+                 sizeof(sampleFormat), std::string(".channels"));
+
+    // ".marker_bits" — from `markers` parameter (not markerBitsVec!)          // 0x2b0a7f
+    elfw.addData(reinterpret_cast<const char*>(markers.data()),
+                 markers.size(), std::string(".marker_bits"));
+
+    // ".data" — raw sample bytes                                              // 0x2b0ade
+    elfw.addData(reinterpret_cast<const char*>(samples.data()),
+                 samples.size() * sizeof(double), std::string(".data"));
+
+    // ".marker" — from `markerBitsVec` parameter (not markers!)               // 0x2b0b3e
+    elfw.addData(reinterpret_cast<const char*>(markerBitsVec.data()),
+                 markerBitsVec.size(), std::string(".marker"));
+
+    // ".config" — markerBits as decimal string                                // 0x2b0b6a–0x2b0bc0
+    std::string configStr = std::to_string(markerBits);
+    elfw.addData(configStr.data(), configStr.size(), std::string(".config"));
+
+    // Write the ELF to disk                                                   // 0x2b0c10
+    elfw.writeFile(filePathStr);
+
+    // Construct CacheEntry and insert into index_                             // 0x2b0c15–0x2b0cf8
+    // Budget is used as fileSize (not boost::filesystem::file_size)
+    CacheEntry entry(name, filePathStr, budget, hash, /*valid=*/true);         // 0x2b0c97
+    auto [it, inserted] = index_.try_emplace(hash, entry);                     // 0x2b0ce0
+    if (!inserted) {
+        it->second = entry;                                                    // 0x2b0cf3 — operator= at 0x2b1210
+    }
+    saveCacheIndex();                                                          // 0x2b0cfb
 }
 
 // 0x2b14d0

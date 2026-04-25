@@ -154,4 +154,66 @@ ELFIO::section* ElfReader::getSection(const std::string& name) const {
     throw ElfException("section not found: " + name);
 }
 
+// ElfReader::getCode() @0x2c3bc0
+// Reads formatSection_ data; size aligned down to multiple of 4.
+ElfReader::SectionData ElfReader::getCode() const {
+    SectionData result;
+    if (!formatSection_) return result;
+    result.format = static_cast<std::uint32_t>(formatSection_->get_type());
+    auto rawSize = formatSection_->get_size();
+    auto alignedSize = rawSize & ~static_cast<decltype(rawSize)>(3);  // align to 4
+    if (alignedSize > 0) {
+        const auto* p = reinterpret_cast<const std::uint8_t*>(
+            formatSection_->get_data());
+        result.data.assign(p, p + alignedSize);
+    }
+    return result;
+}
+
+// ElfReader::getWaveform() @0x2c3d40
+// Reads ddSections_[pad_]; size aligned down to multiple of 2.
+ElfReader::SectionData ElfReader::getWaveform() const {
+    SectionData result;
+    if (pad_ >= ddSections_.size()) return result;
+    auto* sec = ddSections_[pad_];
+    if (!sec) return result;
+    result.format = static_cast<std::uint32_t>(sec->get_type());
+    auto rawSize = sec->get_size();
+    auto alignedSize = rawSize & ~static_cast<decltype(rawSize)>(1);  // align to 2
+    if (alignedSize > 0) {
+        const auto* p = reinterpret_cast<const std::uint8_t*>(sec->get_data());
+        result.data.assign(p, p + alignedSize);
+    }
+    return result;
+}
+
+// ElfReader::getLineMap() @0x2c3ef0
+// Parses ".linenr" section: 16-byte records → vector<Line>.
+std::vector<ElfReader::Line> ElfReader::getLineMap() const {
+    std::vector<Line> lines;
+    ELFIO::section* sec = nullptr;
+    // Linear search for ".linenr" (same as getSection but doesn't throw)
+    for (const auto& sec_uptr : sections) {
+        if (sec_uptr->get_name() == ".linenr") {
+            sec = sec_uptr.get();
+            break;
+        }
+    }
+    if (!sec) return lines;
+
+    const auto* data = reinterpret_cast<const std::uint8_t*>(sec->get_data());
+    auto size = sec->get_size();
+    auto count = size / 16;
+    lines.reserve(count);
+
+    for (decltype(count) i = 0; i < count; ++i) {
+        const auto* rec = data + i * 16;
+        Line ln;
+        std::memcpy(&ln.addr, rec + 4, sizeof(std::uint64_t));  // offset +4 within record
+        std::memcpy(&ln.line, rec + 12, sizeof(std::uint32_t)); // offset +12 within record
+        lines.push_back(ln);
+    }
+    return lines;
+}
+
 }  // namespace zhinst

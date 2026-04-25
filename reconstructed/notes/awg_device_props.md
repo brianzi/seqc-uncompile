@@ -142,10 +142,26 @@ marks SSO/short form), which is why a 4-char string writes `0x08`.
 
 ## Asymmetries / quirks
 
-1. **Inferred field names**: `maxWaveformSamples`, `maxWaveformBytes`,
-   and `supportsExtraFeature` are best-guess names from the values
-   present, not from caller usage. **TODO: verify in next sub-phase
-   when consumers of `AwgDeviceProps` are reconstructed.**
+## Field names — VERIFIED (Phase 21f)
+
+Field names verified from binary consumer analysis:
+
+| Offset | Old name (inferred 14b-iii) | Correct name | Consumer evidence |
+|--------|----------------------------|--------------|-------------------|
+| +0x50 | `maxWaveformSamples` (uint64) | `maxElfSize` (uint64) | JSON key `"maxelfsize"` in `compileSeqc` @0xf6a41 |
+| +0x58 | `maxWaveformBytes` (uint64) | `addressImpl` (uint32) | AWGCompilerImpl ctor @0x103b99 → config.addressImpl (+0x10) |
+| +0x5c | (part of above) | `sampleFormat` (uint32) | writeWavesToElf* @0x10e049 → config.sampleFormat (+0x04) |
+| +0x60 | `supportsExtraFeature` (bool) | `isHirzel` (bool) | compileSeqc @0xf67cd → config.isHirzel (+0x18) |
+
+The +0x58 was a single qword store in the binary but consumers read
+it as two independent uint32_t fields. This explains the previously
+puzzling values:
+- UHFLI/UHFQA: 0xd0000000 = addressImpl=0xd0000000, sampleFormat=0
+- HDAWG: 0x180000000 = addressImpl=0x80000000, sampleFormat=1
+- SHFQA: 0x200000000 = addressImpl=0x00000000, sampleFormat=2
+
+`isHirzel` = true for: HDAWG, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI.
+`isHirzel` = false for: UHFLI, UHFQA, SHFQA.
 
 2. **AwgSequencerType has no enumerator for "unknown"**: the
    error-message formatter has a default branch that names any

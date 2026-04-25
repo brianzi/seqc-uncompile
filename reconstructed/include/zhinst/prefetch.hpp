@@ -76,13 +76,13 @@ struct WavetableIR;
 //   0xB8      4    int32_t                                           maxBranches_  (init=1, max branch depth)
 //   0xBC      1    bool                                              split_
 //   0xBD      3    (padding)
-//   0xC0      4    int32_t                                           unknown_c0_  (init -1)
-//   0xC4      4    int32_t                                           unknown_c4_  (init 0)
-//   0xC8      4    int32_t                                           unknown_c8_  (init 0)
-//   0xCC      1    bool                                              unknown_cc_  (init false)
-//   0xCD      3    (padding)
-//   0xD0      8    int64_t/size_t                                    unknown_d0_  (init 0)
-//   0xD8      8    (zeroed, padding or field)                        unknown_d8_  (init 0)
+//   0xC0     0x20  PlayConfig                                        cwvfConfig_  (resolved: channelMask=-1, rate=0, etc.)
+//                   +0xC0 = channelMask (int32, init -1)
+//                   +0xC4 = rate (int32, init 0)
+//                   +0xC8 = suppress (int32, init 0)
+//                   +0xCC = is4Channel (bool, init false)
+//                   +0xD0 = markerBits (int64/size_t, init 0)
+//                   +0xD8 = remaining PlayConfig fields (trigger, precompFlags, hold, dummy)
 //   0xE0     0x18  vector<UsageEntry>                                usageEntries_
 //             │    Elements are 0x20 bytes, with int at +0x08, bool at +0x0C
 //   0xF8     0x10  shared_ptr<Node>                                  currentNode_ (initially null)

@@ -185,7 +185,8 @@ private:
     void loadCacheIndex();   // 0x2afec0 — deserialize index_ from indexFilePath_
     void saveCacheIndex();   // 0x2b03c0 — serialize index_ to indexFilePath_
     void cleanCache();       // 0x2b0140 — clear map, remove+recreate cachePath_
-    void removeOldFiles();   // 0x2b01a0 — evict oldest entries past cacheSize_
+    bool removeOldFiles();   // 0x2b01a0 — evict oldest entries past cacheSize_
+                             // Returns true if a pinned entry stopped eviction early.
 
     // ----- Layout (must match binary; see header comment) -----
 

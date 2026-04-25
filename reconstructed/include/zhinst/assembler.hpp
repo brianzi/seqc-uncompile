@@ -96,53 +96,105 @@ Command commandFromString(const std::string& name);
 int getOpcodeType(Command cmd);
 
 // getCycles() — return cycle count for this instruction
+// Return value constants (A13):
+constexpr int kCycle_Unknown       = 0;
+constexpr int kCycle_Single        = 1;
+constexpr int kCycle_BranchPenalty = 3;
 int getCycles(Command cmd);
 
-// getCmdType() — return command type category
+// CmdType — command type category from getCmdType() (A10)
+// Bits: 0=reads registers, 1=writes dest register
+enum CmdType : int {
+    CmdType_None      = 0,   // no register access (NOP, JMP, control-flow)
+    CmdType_Read      = 1,   // reads registers (PRF, WVF, BRZ, ST, etc.)
+    CmdType_Write     = 2,   // writes dest register (LD)
+    CmdType_ReadWrite = 3,   // reads and writes (ALU-immediate)
+    CmdType_RegReg    = 7,   // reg-reg: reg1 is both src+dst (ADDR..XORR)
+};
 int getCmdType(Command cmd);
 
-// getRegisterOrder() — return register read/write ordering info
+// RegOrder — register ordering from getRegisterOrder() (A11)
+enum class RegOrder : int {
+    None       = 0,   // no registers
+    SourceOnly = 1,   // one reg → reg2
+    DestOnly   = 2,   // one reg → reg0
+    ThreeReg   = 3,   // two regs → reg1, reg2
+    DestImmSrc = 4,   // two regs → reg0, reg2
+};
 int getRegisterOrder(Command cmd);
 
+// OpcodeFormat — encoding format categories for opcode dispatch (A8)
+// NOTE: The binary uses a lookup table at 0x95d094 for this dispatch,
+// separate from getOpcodeType() which returns scheduling classification
+// {0,1,3,4}. This enum is for the encoding format only.
+enum class OpcodeFormat : int {
+    NoArg        = 0,   // base unchanged (END, NOP)
+    RegImm20     = 1,   // reg<<24 | imm20 (ADDI, ADDIU, ANDI, etc.)
+    RegTripleImm8= 2,   // reg<<24 | 3×imm8 (PRF, WVF, WVFI, WTRIG)
+    DualRegImm20 = 3,   // reg1<<24 | reg2<<20 | imm20 (ADDR..XORR, WVFS_H)
+    Complex      = 4,   // variable children (branch/load/store/control)
+    DualImm14    = 5,   // base | imm14<<14 | imm14 (waveform table addressing)
+};
+
 } // namespace Assembler
+
+// AsmOperationType — classifies operand slots in instruction output.
+// str() @0x28d280 maps: 0→"cmd", 1→"name", 2→"value", 3→"reg", else→"?".
+enum class AsmOperationType : int {
+    Cmd   = 0,
+    Name  = 1,
+    Value = 2,
+    Reg   = 3,
+};
+std::string str(AsmOperationType t);  // @0x28d280
 
 // The instruction representation constructed by AsmCommands methods.
 // Size: 0x80 bytes (128 bytes).
 //
-// CORRECTED layout (Phase 2 — confirmed from copy ctor, move assignment,
-// destructor, str(), and multiple AsmCommands method sites):
+// CORRECTED layout (Phase 2 + Phase 15c semantic correction):
 //
 //   +0x00  Command cmd           — opcode (Assembler::Command)
 //   +0x04  (4 bytes padding)
 //   +0x08  vector<Immediate>     — input operands (immediates)
-//   +0x20  AsmRegister reg2      — DESTINATION register (8 bytes: int + bool + pad)
-//   +0x28  AsmRegister reg0      — source register 1
-//   +0x30  AsmRegister reg1      — source register 2
-//   +0x38  vector<Immediate>     — OUTPUT operands (was previously unknown +0x38..+0x4F!)
+//   +0x20  AsmRegister reg2      — READ source register (8 bytes: int + bool + pad)
+//   +0x28  AsmRegister reg0      — WRITE destination register
+//   +0x30  AsmRegister reg1      — dual-role register (read if cmdType∈{1,7}, written if cmdType==7)
+//   +0x38  vector<Immediate>     — OUTPUT operands (also used for ADDI zero-check by simplifyAssign)
 //   +0x50  std::string label     — branch target label (SSO: 32 bytes)
 //   +0x68  std::string comment   — annotation / disassembly comment (SSO: 32 bytes)
 //   +0x80  END
 //
-// Key correction from Phase 1: registers are reg2(dest)/reg0(src1)/reg1(src2),
-// NOT reg0/reg1/reg2. The field at +0x38 is a second vector<Immediate> for
-// output operands, NOT part of the label string.
+// Register semantic key (from getCmdType bitmask, Phase 15c; renamed Phase 27a):
+//   regSrc (+0x20) is READ  when cmdType & 1
+//   regDst (+0x28) is WRITTEN when cmdType & 2
+//   regAux (+0x30) is READ when cmdType ∈ {1, 7}; WRITTEN when cmdType == 7
+// Field rename completed in Phase 27a (was reg2/reg0/reg1 → regSrc/regDst/regAux).
 struct AssemblerInstr {
     Assembler::Command cmd = Assembler::INVALID;  // +0x00
     // 4 bytes padding
     std::vector<Immediate> immediates;    // +0x08 — input operands
-    AsmRegister reg2;                     // +0x20 — destination register (aka "dest")
-    AsmRegister reg0;                     // +0x28 — source register 1
-    AsmRegister reg1;                     // +0x30 — source register 2
+    AsmRegister regSrc;                   // +0x20 — READ source
+    AsmRegister regDst;                   // +0x28 — WRITE destination
+    AsmRegister regAux;                   // +0x30 — dual-role (read if cmdType∈{1,7}; written if cmdType==7)
     std::vector<Immediate> outputs;       // +0x38 — output operands
     std::string label;                    // +0x50 — branch target label
     std::string comment;                  // +0x68 — annotation string
+
+    // Compiler-generated special members match binary layout.
+    // Binary addresses: dtor @0x103980, copy-assign @0x125e80,
+    //                   move-assign @0x125ab0.
+    AssemblerInstr() = default;
+    ~AssemblerInstr();
+    AssemblerInstr(const AssemblerInstr&) = default;
+    AssemblerInstr& operator=(const AssemblerInstr& other);
+    AssemblerInstr& operator=(AssemblerInstr&& other) noexcept;
 
     // 0x28ffe0 — returns packed int64_t: (1<<32)|regIndex if valid regs, else 0
     int64_t highestRegisterNumber() const;
 
     // 0x28ebd0 — produces disassembly string.
     // If cmd == LABEL, returns "label:" directly.
-    // Otherwise: "\t" + cmdName + inputs + reg0 + reg1 + reg2 + outputs + label
+    // Otherwise: "\t" + cmdName + inputs + regDst + regAux + regSrc + outputs + label
     // If verbose && comment non-empty, appends "// comment"
     std::string str(bool verbose) const;
 };

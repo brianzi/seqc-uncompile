@@ -109,7 +109,7 @@ enum ErrorMessageT : int {
     EmptyOperation              = 44,
     ExecTableExpectsArg         = 45,
     ExecTableInvalidConst       = 46,
-    // 47 — UNASSIGNED (binary has no key 0x2F)
+    UnknownError47              = 47,  // used at custom_functions_io.cpp — message string unknown
     ExecTableInvalidIndex       = 48,
     WaveNotFittingCache         = 49,
     WaveNotFittingCacheGapless  = 50,
@@ -445,7 +445,7 @@ public:
 
     // Format a message with arguments (variadic template).
     // ~64 instantiations in binary. Pattern (verified — see WP-A in
-    // notes/undefined_symbols_audit.md):
+    // notes/linker_resolution.md):
     //   1. messages.at(id) → format string
     //   2. boost::basic_format(str)
     //   3. feed args via boost::io::detail::feed_impl (operator% chain)

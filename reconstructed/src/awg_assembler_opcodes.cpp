@@ -143,14 +143,14 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
         if (it == labelMap.left.end()) {
             // Label not found — throw out_of_range  
             // Actually: format error message 0x78 with label name
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(0x78), e->name);
+            std::string msg = ErrorMessages::format(LabelNotFound, e->name);
             errorMessage(msg);
             return 0;
         }
         int val = it->second;  // the integer value from bimap (at node+0x18)
         if (val < 0) {
             // Negative label value — report "undefined label" error
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(0x78), e->name);
+            std::string msg = ErrorMessages::format(LabelNotFound, e->name);
             errorMessage(msg);
             return 0;
         }

@@ -136,11 +136,16 @@ constexpr const char kSlaveRevisionPattern[] = "/$device$/system/slaverevision";
 // Each getAwgDeviceProps<T> in the binary inlines this same pattern;
 // hoisting it here keeps our source readable while preserving the
 // observed field-store semantics.
+//
+// The binary stores addressImpl and sampleFormat as a single 8-byte
+// qword at +0x58 (e.g. HDAWG: 0x180000000 = low32 0x80000000, high32 1).
+// We split them into two uint32_t fields matching how consumers read them.
 AwgDeviceProps buildAwgDeviceProps(AwgDeviceType        type,
                                    const AwgPathPatterns& patterns,
-                                   uint64_t             maxSamples,
-                                   uint64_t             maxBytes,
-                                   bool                 supportsExtra,
+                                   uint64_t             maxElfSize,
+                                   uint32_t             addressImpl,
+                                   uint32_t             sampleFormat,
+                                   bool                 isHirzel,
                                    const char*          fpgaPattern)
 {
     AwgDeviceProps p{};
@@ -148,9 +153,10 @@ AwgDeviceProps buildAwgDeviceProps(AwgDeviceType        type,
     p.elfDataPattern        = patterns.elfDataPattern;
     p.elfProgressPattern    = patterns.elfProgressPattern;
     p.enablePattern         = patterns.enablePattern;
-    p.maxWaveformSamples    = maxSamples;
-    p.maxWaveformBytes      = maxBytes;
-    p.supportsExtraFeature  = supportsExtra;
+    p.maxElfSize            = maxElfSize;
+    p.addressImpl           = addressImpl;
+    p.sampleFormat          = sampleFormat;
+    p.isHirzel              = isHirzel;
     p.fpgaRevisionPattern   = fpgaPattern;
     return p;
 }
@@ -160,18 +166,18 @@ AwgDeviceProps buildAwgDeviceProps(AwgDeviceType        type,
 // ----------------------------------------------------------------------------
 // 9 explicit specializations of getAwgDeviceProps<T>.
 //
-// Per-template constants table (verified from disassembly):
+// Per-template constants table (verified from disassembly + consumer analysis):
 //
-//   T            addr      bool  +0x50         +0x58          patterns      4th-string
-//   UHFLI(1)     0x2cc900   0    0x10000000    0xd0000000     Default       fpgarevision
-//   HDAWG(2)     0x2ccb80   1    cond(ME)      0x180000000    Default       slaverevision
-//   UHFQA(4)     0x2cc5f0   0    0x10000000    0xd0000000     Default       fpgarevision
-//   SHFQA(8)     0x2cce30   0    0x80000000    0x200000000    GrimselQa     fpgarevision
-//   SHFSG(16)    0x2cd0c0   1    0x80000000    0x100000000    GrimselSg     fpgarevision
-//   SHFQC_SG(32) 0x2cd350   1    0x80000000    0x100000000    GrimselSg     fpgarevision
-//   SHFLI(64)    0x2cd5e0   1    0x80000000    0x100000000    GrimselLi     fpgarevision
-//   GHFLI(128)   0x2cdb00   1    0x80000000    0x100000000    Gurnigel      fpgarevision
-//   VHFLI(256)   0x2cd870   1    0x80000000    0x100000000    Maloja        fpgarevision
+//   T            addr      hirzel maxElfSize    addrImpl     smpFmt  patterns      4th-string
+//   UHFLI(1)     0x2cc900   0     0x10000000    0xd0000000   0       Default       fpgarevision
+//   HDAWG(2)     0x2ccb80   1     cond(ME)      0x80000000   1       Default       slaverevision
+//   UHFQA(4)     0x2cc5f0   0     0x10000000    0xd0000000   0       Default       fpgarevision
+//   SHFQA(8)     0x2cce30   0     0x80000000    0x00000000   2       GrimselQa     fpgarevision
+//   SHFSG(16)    0x2cd0c0   1     0x80000000    0x00000000   1       GrimselSg     fpgarevision
+//   SHFQC_SG(32) 0x2cd350   1     0x80000000    0x00000000   1       GrimselSg     fpgarevision
+//   SHFLI(64)    0x2cd5e0   1     0x80000000    0x00000000   1       GrimselLi     fpgarevision
+//   GHFLI(128)   0x2cdb00   1     0x80000000    0x00000000   1       Gurnigel      fpgarevision
+//   VHFLI(256)   0x2cd870   1     0x80000000    0x00000000   1       Maloja        fpgarevision
 //
 // HDAWG is the ONLY template that consults `dt`:
 //   r14d = dt.hasOption(DeviceOption(0x13))   // 0x13 = ME
@@ -183,7 +189,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::UHFLI, awgPathPatternsDefault(),
-        0x10000000ull, 0xd0000000ull, false, kFpgaRevisionPattern);
+        0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
 // 0x2ccb80
@@ -192,10 +198,10 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const& dt) {
     // ME = DeviceOption value 0x13 — confirmed by `mov esi, 0x13` followed
     // by call to DeviceType::hasOption at 0x2ccb95.
     const bool hasME = dt.hasOption(static_cast<DeviceOption>(0x13));
-    const uint64_t maxSamples = hasME ? 0x80000000ull : 0x10000000ull;
+    const uint64_t maxElfSize = hasME ? 0x80000000ull : 0x10000000ull;
     return buildAwgDeviceProps(
         AwgDeviceType::HDAWG, awgPathPatternsDefault(),
-        maxSamples, 0x180000000ull, true, kSlaveRevisionPattern);
+        maxElfSize, 0x80000000u, 1u, true, kSlaveRevisionPattern);
 }
 
 // 0x2cc5f0
@@ -203,7 +209,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::UHFQA, awgPathPatternsDefault(),
-        0x10000000ull, 0xd0000000ull, false, kFpgaRevisionPattern);
+        0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
 // 0x2cce30
@@ -211,7 +217,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::SHFQA, awgPathPatternsGrimselQa(),
-        0x80000000ull, 0x200000000ull, false, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 2u, false, kFpgaRevisionPattern);
 }
 
 // 0x2cd0c0
@@ -219,7 +225,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::SHFSG, awgPathPatternsGrimselSg(),
-        0x80000000ull, 0x100000000ull, true, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
 // 0x2cd350
@@ -227,7 +233,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::SHFQC_SG, awgPathPatternsGrimselSg(),
-        0x80000000ull, 0x100000000ull, true, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
 // 0x2cd5e0
@@ -235,7 +241,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::SHFLI, awgPathPatternsGrimselLi(),
-        0x80000000ull, 0x100000000ull, true, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
 // 0x2cdb00
@@ -243,7 +249,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::GHFLI, awgPathPatternsGurnigel(),
-        0x80000000ull, 0x100000000ull, true, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
 // 0x2cd870
@@ -251,7 +257,7 @@ template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/) {
     return buildAwgDeviceProps(
         AwgDeviceType::VHFLI, awgPathPatternsMaloja(),
-        0x80000000ull, 0x100000000ull, true, kFpgaRevisionPattern);
+        0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
 // ----------------------------------------------------------------------------
@@ -357,6 +363,16 @@ std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
     out += seqName;
     out += ").";
     return out;
+}
+
+// toString(AwgSequencerType) @0x2cbce0
+std::string toString(AwgSequencerType seq) {
+    switch (seq) {
+        case AwgSequencerType::Auto: return "auto";
+        case AwgSequencerType::QA:   return "QA";
+        case AwgSequencerType::SG:   return "SG";
+        default:                     return "unknown";
+    }
 }
 
 } // namespace zhinst

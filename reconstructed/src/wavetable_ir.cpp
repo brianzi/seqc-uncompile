@@ -7,6 +7,7 @@
 #include "zhinst/wavetable_front.hpp"
 #include "zhinst/wavetable_helpers.hpp"
 #include "zhinst/memory_allocator.hpp"
+#include "zhinst/callbacks.hpp"
 
 #include <boost/filesystem/path.hpp>
 #include <boost/json.hpp>
@@ -695,6 +696,74 @@ std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
     std::ostringstream oss;
     boost::property_tree::json_parser::write_json(oss, root, false);
     return oss.str();
+}
+
+// ============================================================================
+// WavetableIR::alignWaveformSizes() @0x29f150
+//
+// Iterates used waveforms and rounds each sample count up to the nearest
+// multiple of deviceConstants_->waveformPageSize, clamping to seqRegWidth.
+// ============================================================================
+void WavetableIR::alignWaveformSizes() {                            // @0x29f150
+    forEachUsedWaveform(
+        [this](const std::shared_ptr<WaveformIR>& wf) {
+            size_t sampleCount = wf->signal.length();
+            if (sampleCount == 0) return;
+
+            uint32_t granularity = deviceConstants_->waveformPageSize;  // DC+0x44
+            // ceil(sampleCount / granularity) * granularity
+            size_t aligned = ((sampleCount + granularity - 1) / granularity)
+                             * granularity;
+            // Clamp to seqRegWidth (max waveform length for this device)
+            size_t maxSamples = static_cast<size_t>(wf->seqRegWidth);  // +0x70
+            if (aligned > maxSamples) aligned = maxSamples;
+
+            if (aligned != sampleCount) {
+                wf->signal.resizeSamples(aligned);
+            }
+        },
+        WaveOrder::Natural);
+}
+
+// ============================================================================
+// WavetableIR::assignWaveformAllocationSizes() @0x29f1d0
+//
+// Iterates used waveforms, loads any unloaded placeholders, then computes
+// and assigns the per-waveform allocation byte size (aligned to 64 bytes).
+// ============================================================================
+void WavetableIR::assignWaveformAllocationSizes() {                 // @0x29f1d0
+    auto cancelLock = cancelCallback_.lock();
+
+    forEachUsedWaveform(
+        [this, cancelLock](const std::shared_ptr<WaveformIR>& wf) {
+            // Check cancellation
+            if (cancelLock && cancelLock->isCancelled()) return;
+
+            // Ensure waveform data is loaded
+            if (wf->signal.data().empty()) {
+                loadWaveform(wf);
+            }
+
+            uint16_t channelCount = wf->signal.channels();             // +0xC8
+            size_t sampleCount = wf->signal.length();                  // +0xD0
+
+            // Align sample count same way as alignWaveformSizes
+            uint32_t granularity = deviceConstants_->waveformPageSize;  // DC+0x44
+            size_t aligned = ((sampleCount + granularity - 1) / granularity)
+                             * granularity;
+            size_t maxSamples = deviceConstants_->waveformGranularity;  // DC+0x40
+            if (aligned > maxSamples) aligned = maxSamples;
+
+            // Compute allocation: aligned_samples * channels * bitsPerSample
+            uint32_t bps = deviceConstants_->bitsPerSample;            // DC+0x50
+            size_t bits = aligned * channelCount * bps;
+            size_t bytes = (bits + 7) / 8;
+
+            // Align to 64-byte boundary
+            int alloc = static_cast<int>((bytes + 63) & ~static_cast<size_t>(63));
+            wf->allocationByteSize = alloc;                            // +0x74
+        },
+        WaveOrder::Natural);
 }
 
 } // namespace zhinst

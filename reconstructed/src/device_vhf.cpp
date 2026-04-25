@@ -6,8 +6,8 @@
 //   - Vhf:   inline FF only.
 //   - Vhfli: template path with sfc::VhfOption knownOptions @ 0x962aa0 (6).
 //
-// TODO: per-entry mapping for the Vhfli knownOptions array was inferred
-// from sfc::VhfOption documented bits but not disasm-verified.
+// knownOptions array verified entry-by-entry against .rodata
+// (Vhfli @ 0x962aa0) on 2026-04-25.
 // ============================================================================
 
 #include "zhinst/device_subclasses.hpp"

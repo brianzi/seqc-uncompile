@@ -6,24 +6,61 @@
 
 ---
 
-## Summary of remaining work
+## Summary of remaining work (refreshed Phase 22e audit, 2026-04-25)
 
-| Category | Stub count | Notes |
-|----------|-----------|-------|
-| SeqCAstNode print/clone bodies | 106 (53×2) | Macro-expanded; only SeqCValue::clone has a caveat |
-| CustomFunctions PlayArgs-blocked | 4 | playAuxWave, playDIOWave, playWaveDIO, playWaveZSync (complex wrappers) |
-| CustomFunctions builtin stubs | ~55 | return-nullptr stubs with addresses; many follow mechanical patterns |
-| CustomFunctions ctor binding gap | 3 | 78/81 entries reconstructed; 3 alias targets TBD |
-| WaveformGenerator remaining | 3 | readDoubleAmplitude check, interpolateLinear formula, rrc 0x64 |
-| MathCompiler symbols | 0 | ✅ complete (67 symbols, all accounted for) |
-| WavetableManager\<T\> | 14 methods | Template, partially done |
-| DeviceType/Family/Option | 0 | ✅ complete (Phase 14b) |
-| CachedParser method bodies | 0 | ✅ resolved in Phase 13d |
-| Prefetch/Cache approximate logic | 0 | ✅ resolved in Phase 15b |
-| AsmOptimize carry-forwards | 3 | simplifyAssign body, splitReg body, register field rename (Phase 15c) |
-| Compiler pipeline gaps | 2 | lower() sret done; vtable wiring + evaluate() remain |
-| Logging/tracing | 0 | ✅ done — see notes/logging_tracing.md |
-| NodeMapData | 0 | ✅ complete (Phase 17a) |
+**Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
+**95/95 undefined zhinst symbols resolved** — static archive self-contained.
+**~35 source markers** across ~21 files (TODO/TBD/throw-stubs).
+**~430 binary zhinst symbols** not yet emitted by reconstruction (see breakdown below).
+**~15 placeholder field names** across 8 headers (see `notes/placeholder_field_names.md`).
+**~30 reinterpret_cast raw-offset accesses** in resources.cpp alone.
+**~0 magic hex device-type bitmasks** (all replaced with named constants).
+
+### Reconstruction coverage
+
+| Category | Status | Notes |
+|----------|--------|-------|
+| SeqCAstNode print/clone | ✅ complete | 49 print + 49 clone, all real implementations |
+| SeqCAstNode evaluate() | ✅ complete | 54/54 overrides + hasCases/evalCases/evalCaseBody |
+| SeqCAstNode copy/swap/accessors | ❌ 158 symbols | Copy-ctor, operator=, swap, and child-accessors (expr(), funName(), stmts(), etc.) for all 53 subclasses |
+| CustomFunctions builtins | ✅ mostly done | 86 methods, 0 return-nullptr stubs; 6 conservative stubs remain |
+| CustomFunctions ctor binding | ✅ complete | 81/81 entries; 5 aliases (setSeqIndex, setReadoutRegisterAddress, waitOscPhaseOfDemod, setUser, getUser) |
+| AsmCommands methods | ⚠️ mangling gap | 65 methods declared+defined but emitted with libstdc++ mangling; binary uses libc++ |
+| AsmCommandsImpl (Cervino+Hirzel) | ⚠️ mangling gap | 14 methods, same issue |
+| AWGCompiler public API | ✅ complete | Phase 24c: pimpl wrapper + AWGCompilerImpl (0x2C0), 15 methods, 0 TODOs |
+| compileSeqc orchestrator | ✅ complete | Phase 24d: JSON config parsing → AWGCompiler pipeline |
+| pybind11 binding layer | ✅ complete | Phase 24e: pyCompileSeqc, makeSeqcCompiler, PyInit |
+| ZiFolder utility | ✅ complete | Phase 24b: 4 methods (ctor, folderPath, ziFolder, sessionSaveDirectoryName) |
+| GetNodeMap\<T\>::get() | ✅ complete | Phase 26a: 8 device tables, 1081 entries |
+| ZI*Exception hierarchy | ❌ 46 symbols | ~23 SDK exception subclasses (not compiler-core) |
+| CalVer + utility free fns | ✅ mostly done | 30/37 symbols: CalVer (16), formatTime (3), serial predicates (10), getPlatformName (1); 6 misc unreferenced + 1 extern |
+| DeviceType extra methods | ❌ ~21 symbols | Factory makeDefault(), DeviceType ctors, comparison operators |
+| Other missing methods | ❌ ~53 symbols | Assembler::str, Node::toString, Value::toString, various toString/toJson, ElfReader getCode/getLineMap/getWaveform, Prefetch wvf helpers, etc. |
+| MathCompiler | ✅ complete | 67 symbols |
+| WavetableManager\<T\> | ✅ complete | All 16 methods (Phase 21e) |
+| DeviceType/Family/Option | ✅ complete | Phase 14b |
+| CachedParser | ✅ complete | Phase 13d + 21f |
+| Prefetch/Cache | ✅ complete | Phase 15b |
+| AsmOptimize | ✅ complete | Phase 21c |
+| Compiler pipeline | ✅ mostly done | lower() + evaluate() wired |
+| Resources | ✅ complete | All 37+ methods (Phase 20e-ii) |
+| EvalResults | ✅ complete | 14 methods (Phase 19a) |
+| Logging/tracing | ✅ complete | notes/logging_tracing.md |
+| NodeMapData | ✅ complete | Phase 17a |
+| Undefined symbols (link) | ✅ 0 remaining | Phase 20a-20e (95/95) |
+| Magic numbers | ✅ done | Phase 22e |
+
+### Code quality debt
+
+| Category | Count | Hotspot files |
+|----------|-------|---------------|
+| Placeholder field names | ~15 | 8 headers: waveform_front (3), waveform_ir (1), waveform (4), asm_expression (2), elf_reader (1), resources (1), awg_assembler_impl (1), awg_compiler_config (5) — see `notes/placeholder_field_names.md` |
+| reinterpret_cast raw offsets | ~100 | resources.cpp (8), other files (~92, mostly inherent: serialization, tagged unions, SSO) |
+| Device-type hex bitmasks | 0 | custom_functions_io.cpp (done), custom_functions_playback.cpp (done) |
+| Approximate implementations | ~19 | exception.cpp, custom_functions_play.cpp, custom_functions_io.cpp |
+| Stubs (conservative) | 0 | All 6 resolved in Phase 26b |
+| "likely"/"uncertain" comments | ~17 | 12 files |
+| Throwing runtime_error stubs | 3 | csv_parser.cpp (2), awg_compiler_config.cpp (1) |
 
 ---
 
@@ -112,7 +149,8 @@ ctor/method read to determine field types or contents.
       is NOT CustomFunctions::~CustomFunctions — that's at 0x127c90). Note added
       to unknowns_open.md and to the layout comment in custom_functions.hpp.
 - [x] WaveformGenerator field_50_ — RESOLVED in 13c (renamed createdNames_, set<string> cache)
-- [ ] WaveformGenerator field_B0_ — moved to Phase 15a (deferred from 13c)
+- [x] WaveformGenerator field_B0_ — RESOLVED as negative finding (Phase 15a).
+      No setter exists; 16B slot reserved-but-unused.
 - [x] WaveformGenerator aliasMap_ — RESOLVED in 13c (empty in this binary)
 - [x] Sub-phase wrap-up
 
@@ -129,13 +167,12 @@ patterns established in 13c (gauss/rect/scale). Many follow the same
 checkArgCount → readers → fill-vector → return Signal pattern.
 
 - [x] Reconstruct trig family (sin, cos, sinc) — share frequency/phase reader
-- [ ] Reconstruct envelope family (blackman, hamming, hann, drag) — Gauss-derived
-- [x] Reconstruct ramp family (ramp, sawtooth, triangle, chirp)
-- [ ] Reconstruct random family (rand, randomGauss, randomUniform, lfsrGaloisMarker)
-- [ ] Reconstruct combinator family (join, interleave, multiply, cut, flip, filter)
-- [ ] Reconstruct misc (rrc, vect, placeholder, mask, marker, markerImpl,
-      readWave, interpolateLinear)
-- [ ] Sub-phase wrap-up
+- [x] Reconstruct envelope family (blackman, hamming, hann, drag) — DONE (Phase 16d)
+- [x] Reconstruct random family (rand, randomGauss, randomUniform, lfsrGaloisMarker) — DONE (Phase 16d)
+- [x] Reconstruct combinator family (join, interleave, multiply, cut, flip, filter) — DONE (Phase 16d)
+- [x] Reconstruct misc (rrc, vect, placeholder, mask, marker, markerImpl,
+      readWave, interpolateLinear) — DONE (Phase 16d/17b)
+- [x] Sub-phase wrap-up
 
 ---
 
@@ -259,16 +296,9 @@ GenericDeviceType + string parsing. Two sub-sub-phases:
 - [x] Sub-phase wrap-up.
 
 ###### 14b-ii-b1.5. knownOptions verification debt
-- [ ] Disasm-verify the per-entry (mask, code) selections in 10
-      knownOptions arrays where 14b-ii-b1 inferred them from
-      sfc::*Option per-bit comments rather than reading the rodata
-      payload directly: Uhfli (0x962580), Uhfawg (0x9625d0), Uhfqa
-      (0x962608), Uhfia (0x962630), Hdawg4 (0x9626f8), Hdawg8
-      (0x962728), Shfqa2 (0x962850), Shfqc (0x962870), Shfli
-      (0x9628b0), Vhfli (0x962aa0). Hf2li, Hf2is, Mfli, Mfia, Ghfli
-      are already verified. Inferred entries are flagged with TODO
-      comments in the per-family .cpp files. Schedule before 14c.
-      **Status (post-14e):** 14c-14e completed without doing this work;
+- [x] Disasm-verify the per-entry (mask, code) selections in 10
+      knownOptions arrays — **DONE in Phase 22c.** All 10 arrays verified
+      against binary .rodata; 2 bugs found and fixed (Uhfawg, Uhfqa).
       effectively deferred indefinitely. Low priority — affects only
       field-name accuracy of inferred (mask, code) pairs, not behavior.
       Consider closing if no consumer ever needs these names.
@@ -366,9 +396,9 @@ GenericDeviceType + string parsing. Two sub-sub-phases:
 - [x] Sub-phase wrap-up — see below for proposed follow-ups.
 
 #### 14b-iii follow-ups
-- [ ] **Verify inferred AwgDeviceProps field names** when Phase 14b-iv
-      consumers are reconstructed — `maxWaveformSamples`,
-      `maxWaveformBytes`, `supportsExtraFeature` are guesses.
+- [x] **Verify inferred AwgDeviceProps field names** — DONE in Phase 21f:
+      `maxWaveformSamples`→`maxElfSize`, `maxWaveformBytes`→split into
+      `addressImpl`+`sampleFormat`, `supportsExtraFeature`→`isHirzel`.
 - [x] **Reconstruct `getDeviceConstants(AwgDeviceType)` body @ 0x2cc0c0**
       — done in Phase 14b-iii.5. All 9 case blocks were already
       populated in Phase 7e; this sub-phase replaced the placeholder
@@ -642,9 +672,11 @@ structurally reconstructed, SubFunc enum fully resolved (Default=1, Aux=2,
 Now=3, DigTrigger=4). 4 complex wrappers identified and split to own TODO.
 
 - [x] **CustomFunctions::CustomFunctions ctor binding gap (audit §C2,
-      C3, item I.2)** — 78/81 emplace calls reconstructed (76 standard +
-      2 confirmed aliases). 3 alias entries at 12c352/12dfe2/12e082
-      unresolved (require deeper register tracking).
+      C3, item I.2)** — 81/81 emplace calls reconstructed (76 standard +
+      5 aliases: setSeqIndex→assignWaveIndex, setReadoutRegisterAddress→setID,
+      waitOscPhaseOfDemod→waitDemodOscPhase, setUser→setUserReg,
+      getUser→getUserReg). Previously had setReadoutRegisterAddress wrongly
+      bound to setUserReg — corrected to setID @0x1334a0.
 - [x] **Reconstruct `CustomFunctions::play` @0x15f090 (audit §C2)** —
       full structural reconstruction (7536B, SubFunc switch, PlayArgs,
       channel loop, merge, asm emit). Documented pseudocode in .cpp.
@@ -673,7 +705,7 @@ Now=3, DigTrigger=4). 4 complex wrappers identified and split to own TODO.
       `writeLS64bit` (two addi+suser pairs for 64-bit split).
       `mergeWaveforms` and `writeToNode` remain as documented stubs
       (3KB and 23KB respectively, need WaveformGenerator complete type).
-- [ ] **Reconstruct 4 complex play wrappers** — Each has own PlayArgs
+- [x] **Reconstruct 4 complex play wrappers** — DONE (Phase 21a). Each has own PlayArgs
       construction, no play()/playIndexed() delegation:
       `playAuxWave` @0x135610 (~5KB), `playDIOWave` @0x1369f0 (~3.4KB),
       `playWaveDIO` @0x137740 (784B), `playWaveZSync` @0x137a50 (~3.2KB).
@@ -695,19 +727,13 @@ Now=3, DigTrigger=4). 4 complex wrappers identified and split to own TODO.
 - [ ] **SeqCAstNode print/clone macro expansion (audit §I.6)** — the
       macro at `seqc_ast_node.hpp:154` expands to 53×2 stub method
       bodies. Most are mechanical; verify against binary.
-- [ ] **WavetableManager\<T\> remaining 14 methods** — template, partially
-      done.
+- [x] **WavetableManager\<T\> remaining 14 methods** — DONE (Phase 21e).
 - [ ] **smap remaining logic** — ~0x1E6 bytes after alui call (unknowns
       #10).
-- [ ] **mergeWaveforms full reconstruction** — 3KB function @0x15e060.
-      Blocked on WaveformGenerator complete type (needs merge/interleave/
-      grow/getOrCreateWaveform accessible). Currently a documented stub.
-- [ ] **writeToNode full reconstruction** — ~23KB function @0x164550.
-      4 static boost::regex objects, 6-case node-type switch, frequency/
-      phase conversion. Largest unreconstructed CustomFunctions method.
-- [ ] **floatEqual @0x2ec050** — trivial utility (double equality with
-      epsilon). Used by rrc, drag, and other DSP functions. Currently
-      forward-declared only.
+- [x] **mergeWaveforms full reconstruction** — DONE (Phase 21a, 3KB @0x15e060).
+- [x] **writeToNode full reconstruction** — DONE (Phase 21b, 29KB @0x164550).
+- [x] **floatEqual @0x2ec050** — DONE (Phase 20b). Note: binary uses exact
+      IEEE-754 equality (cmpeqsd), not tolerance.
 - [ ] **AWGCompilerConfig::supportedDeviceTypes documentation** —
       field at config+0x00 is a uint32 bitmask. Values per device type
       need documenting (discovered during checkFunctionSupported analysis).
@@ -805,11 +831,11 @@ mergeWaveforms(), and the 4 complex play wrappers.
 - [x] Implement play() @0x15f090 using real PlayArgs
 - [x] Fix mergeWaveforms return type (void → shared_ptr<WaveformFront>)
 - [x] Implement playIndexed() @0x160e00 using real PlayArgs
-- [ ] Implement addChannelWave @0x170ec0 (~500B)
-- [ ] Implement mergeWaveforms() @0x15e060 (~3KB, 7-phase dispatch)
-- [ ] Implement 4 complex play wrappers (playAuxWave @0x135610 ~5KB,
+- [x] Implement addChannelWave @0x170ec0 (~500B)
+- [x] Implement mergeWaveforms() @0x15e060 (~3KB, 7-phase dispatch) — done in Phase 21a
+- [x] Implement 4 complex play wrappers (playAuxWave @0x135610 ~5KB,
       playDIOWave @0x1369f0 ~3.4KB, playWaveDIO @0x137740 784B,
-      playWaveZSync @0x137a50 ~3.2KB)
+      playWaveZSync @0x137a50 ~3.2KB) — done in Phase 21a
 - [x] Build verify + sub-phase wrap-up
 
 ### 18c. Consider splitting custom_functions.cpp
@@ -957,35 +983,35 @@ symbols + the GlobalResources TLS statics now defined.
 work-packages alongside the other class-by-class undefined symbols
 discovered during the full sweep. Items listed here for reference:
 
-- [ ] `createSubScope` @0x1e36a0
-- [ ] `updateParent` @0x1e38f0
-- [ ] `variableDependsOnVar` @0x1e40e0
-- [ ] `variableExists` @0x1e4230
-- [ ] `variableExistsInScope` @0x1e4390
-- [ ] `getVariableType` @0x1e4460
-- [ ] `getVariableSubType` @0x1e4580
-- [ ] `addVar` @0x1e46b0
-- [ ] `updateVar` @0x1e4c40
-- [ ] `checkVar` @0x1e4e20
-- [ ] String family: addString×2 @0x1e5020/0x1e54f0, updateString
+- [x] `createSubScope` @0x1e36a0
+- [x] `updateParent` @0x1e38f0
+- [x] `variableDependsOnVar` @0x1e40e0
+- [x] `variableExists` @0x1e4230
+- [x] `variableExistsInScope` @0x1e4390
+- [x] `getVariableType` @0x1e4460
+- [x] `getVariableSubType` @0x1e4580
+- [x] `addVar` @0x1e46b0
+- [x] `updateVar` @0x1e4c40
+- [x] `checkVar` @0x1e4e20
+- [x] String family: addString×2 @0x1e5020/0x1e54f0, updateString
       @0x1e59d0, readString @0x1e5d70
-- [ ] Wave family: addWave×2 @0x1e6020/0x1e64f0, updateWave @0x1e69c0,
+- [x] Wave family: addWave×2 @0x1e6020/0x1e64f0, updateWave @0x1e69c0,
       readWave @0x1e6d60
-- [ ] Const family: addConst (overload) @0x1e74e0, updateConst
+- [x] Const family: addConst (overload) @0x1e74e0, updateConst
       @0x1e79b0, constIsSet @0x1e8050
-- [ ] Cvar family: addCvar×2 @0x1e8180/0x1e8650, updateCvar @0x1e8b20,
+- [x] Cvar family: addCvar×2 @0x1e8180/0x1e8650, updateCvar @0x1e8b20,
       readCvar @0x1e8e80
-- [ ] Function family: functionExists @0x1e9110, getFunction @0x1e9370,
+- [x] Function family: functionExists @0x1e9110, getFunction @0x1e9370,
       functionExistsInScope @0x1e95d0, getPossibleFunctions @0x1e9740,
       addFunction @0x1e9c10
-- [ ] `getRegister` @0x1eba50
-- [ ] `setupGlobalState` @0x1ec8f0 (the Resources(name, deviceConstants)
+- [x] `getRegister` @0x1eba50
+- [x] `setupGlobalState` @0x1ec8f0 (the Resources(name, deviceConstants)
       ctor variant)
-- [ ] StaticResources ctor/dtor/getVariable @0x129cb0/0x129db0/0x129e00/0x129e60
-- [ ] GlobalResources ctor/dtor @0x12a710/0x12ab40
-- [ ] Function::addArguments + addBody bodies (currently empty stubs;
+- [x] StaticResources ctor/dtor/getVariable @0x129cb0/0x129db0/0x129e00/0x129e60
+- [x] GlobalResources ctor/dtor @0x12a710/0x12ab40
+- [x] Function::addArguments + addBody bodies (currently empty stubs;
       depend on SeqCAstNode interface)
-- [ ] Resources::Variable::~Variable variant string cleanup (currently
+- [x] Resources::Variable::~Variable variant string cleanup (currently
       stubbed)
 
 ### 19c-followup. Open investigation items from 19a/19b ✅ DONE 2026-04-24
@@ -1030,14 +1056,14 @@ Phase 20.
 
 Methodology: `nm libzhinst_seqc.a` → set difference (U − T) =
 **95 truly-undefined zhinst symbols**. Full audit document at
-`reconstructed/notes/undefined_symbols_audit.md` (420 lines). Plan
+`reconstructed/notes/linker_resolution.md` (was `undefined_symbols_audit.md`, 420 lines). Plan
 folded into Phase 20 below; Phase 19c carry-forward Resources items
 folded into 20e.
 
 - [x] Run full nm sweep and categorize by class — 95 symbols across
       ~17 classes/free-fn groups; `ErrorMessages::format<...>` is the
       single largest cluster (64/95 = 73%).
-- [x] Produce `notes/undefined_symbols_audit.md` with a class-by-class
+- [x] Produce `notes/linker_resolution.md` (was `undefined_symbols_audit.md`) with a class-by-class
       inventory + cost estimates.
 - [x] Propose phased work-packages in TODO.md — Phase 20 below
       (5 sub-phases 20a–20e).
@@ -1049,7 +1075,7 @@ folded into 20e.
 
 ## Phase 20 — Undefined-symbol elimination (executable-link prep)
 
-Outcome of Phase 19d audit (`notes/undefined_symbols_audit.md`).
+Outcome of Phase 19d audit (`notes/linker_resolution.md`).
 95 symbols are referenced by some TU but defined nowhere. Five
 work-packages, ordered by impact-per-effort: **20a clears 73% of the
 gap with one cheap edit**; 20e (Resources sweep) is deferred to last
@@ -1247,7 +1273,7 @@ mangling variants (libc++ `__1::basic_string`/`__wrap_iter` AND
 libstdc++ `__cxx1112basic_string`/`__gnu_cxx17__normal_iterator`).
 The post-20d count may be lower than the audit's 6 if some symbols
 are now incidentally satisfied by template instantiations dragged in
-during 20a–20d. Update `notes/undefined_symbols_audit.md` with the
+during 20a–20d. Update `notes/linker_resolution.md` with the
 true remaining list before starting implementation.
 
 #### 20e-i. Cheap wins: util::wave + MemoryAllocator + CsvParser (5-6 symbols) ✅ DONE 2026-04-24
@@ -1303,113 +1329,1423 @@ the same Variable/VarType/Scope layout — if the layout has any
 remaining surprises, they'll cascade across all 38 methods. Do this
 AFTER 20e-i so the cheap wins are safely landed first.
 
-- [ ] **Resources 19c carry-forward** — implement all 37 declared-but-
-      undefined Resources methods (createSubScope @0x1e36a0,
-      updateParent @0x1e38f0, variableDependsOnVar @0x1e40e0,
-      variableExists @0x1e4230, variableExistsInScope @0x1e4390,
-      getVariableType @0x1e4460, getVariableSubType @0x1e4580, addVar
-      @0x1e46b0, updateVar @0x1e4c40, checkVar @0x1e4e20,
-      addString×2 @0x1e5020/0x1e54f0, updateString @0x1e59d0,
-      readString @0x1e5d70, addWave×2 @0x1e6020/0x1e64f0, updateWave
-      @0x1e69c0, readWave @0x1e6d60, addConst overload @0x1e74e0,
-      updateConst @0x1e79b0, constIsSet @0x1e8050, addCvar×2
-      @0x1e8180/0x1e8650, updateCvar @0x1e8b20, readCvar @0x1e8e80,
-      functionExists @0x1e9110, getFunction @0x1e9370,
-      functionExistsInScope @0x1e95d0, getPossibleFunctions @0x1e9740,
-      addFunction @0x1e9c10, getRegister @0x1eba50, setupGlobalState
-      @0x1ec8f0).
-- [ ] **StaticResources** ctor/dtor/getVariable
-      @0x129cb0/0x129db0/0x129e00/0x129e60.
-- [ ] **GlobalResources** ctor/dtor @0x12a710/0x12ab40.
-- [ ] `Function::addArguments` and `addBody` bodies (currently empty
-      stubs — depend on SeqCAstNode interface).
-- [ ] `Resources::Variable::~Variable` variant string cleanup.
-- [ ] Build verify after each group of ~10 methods.
-- [ ] Sub-phase wrap-up — final
-      `nm libzhinst_seqc.a | awk '/ U _ZN6zhinst/' | sort -u | comm -23 - defined.txt | wc -l`
-      should be ≤ 5 (only true cross-library externs).
+- [x] **Resources 19c carry-forward** — all 37+ methods implemented
+      across Batches 1-6 (resources.cpp + resources_function.cpp).
+- [x] **StaticResources** ctor/dtor/getVariable — Batch 7
+      (resources_static_global.cpp).
+- [x] **GlobalResources** ctor/dtor — Batch 7
+      (resources_static_global.cpp).
+- [x] `Resources::Variable::~Variable` — defaulted (embedded Value
+      member handles cleanup).
+- [x] Build verify after each group of ~10 methods.
+- [x] Sub-phase wrap-up — final nm gap check done 2026-04-24.
+
+**Completed 2026-04-24.**
+
+---
+
+## Phase 21 — Post-20e gap closure
+
+Identified during the 2026-04-24 post-20e audit (marker sweep + Deferred
+review + unknowns review). Sub-phases ordered roughly by impact-per-effort.
+Each sub-phase ends with the standard wrap-up (notes/OVERVIEW/TODO update +
+build verify).
+
+### 21a. Custom_functions throw-stubs — play wrappers + mergeWaveforms (COMPLETE 2026-04-24)
+
+Closed all 5 throw-stubs in `custom_functions.cpp`. Marker count for the
+file shifted from "5 huge throw-stubs" to "~45 small surgical TODOs"
+(reduction in unimplemented-mass; new TODOs are fine-grained items
+captured as 21a-followup below).
+
+- [x] `mergeWaveforms` @0x15e060 (893 disasm → 288 C++ lines) —
+      `custom_functions.cpp:767-1054`. 7-phase body. Header signature
+      corrected (`int64_t`→`bool`). 2 pre-existing call-site bugs fixed.
+- [x] `playAuxWave` @0x135610 (1118 disasm → 242 C++ lines) —
+      `custom_functions.cpp:1660-1902`. PlayArgs(indexed=true). Channel
+      scatter + zero-fill + asmPlay isHoldMode=true.
+- [x] `playDIOWave` @0x1369f0 (819 disasm → 229 C++ lines) —
+      `custom_functions.cpp:1698-1927`. PlayArgs(indexed=false). Per-bit
+      trigger mask clearing.
+- [x] `playWaveDIO` @0x137740 (187 disasm lines) — direct wvft emission.
+- [x] `playWaveZSync` @0x137a50 (697 disasm lines) — readConst chain
+      (RAW/PROCESSED_A/PROCESSED_B → 1/9/0xd shifts).
+- [x] Sub-phase wrap-up: build clean, OVERVIEW updated (21a row),
+      notes/struct_layouts.md extended with 3 new sections
+      (PlayArgs::WaveAssignment 0x50 layout, play wrapper signature
+      matrix, mergeWaveforms 6-arg semantics).
+
+**Sessions used:** 1.
+
+### 21a-followup. Surgical TODOs surfaced during 21a reconstruction (COMPLETE 2026-04-24)
+
+All 6 surgical TODOs cleared. `custom_functions.cpp` marker count
+45→35 (10 markers cleared).
+
+- [x] **mergeWaveforms factory selection** (phase 6 of body) — three
+      factory targets confirmed: `interleave@0x258140`, `merge@0x25f5c0`,
+      `grow@0x260640`. Multi-value dispatch `test bl,bl;je` reads `bl`
+      from `[rbp-0x48]` (function-local, not direct param); single-value
+      branch unconditionally GROW. Source `(multiValue, useYSuffix)`
+      mapping documented as approximate; exact `[rbp-0x48]` derivation
+      noted as deferred sub-investigation in source comment.
+- [x] **WaveformFront `channels()` accessor** — replaced raw read with
+      `wf->signal.channels()` (`Signal::channels()` already exists at
+      `signal.hpp:83`).
+- [x] **mergeWaveforms call-site `param5_placeholder`** — both sites
+      decoded as `(int)PlayArgs::getMaxSampleLength()` (set @0x15f634
+      / @0x13400a after `getMaxSampleLength@0x15f62f` / `@0x133fce`,
+      truncated from int64 to int by SysV stack-arg slot).
+- [x] **mergeWaveforms `lengthDiffers` tracking** — `play` site bool
+      decoded as `(ch != referenceChannelIndex)` from `setne al;cmp
+      r14,[rbp-0xd8]` where `[rbp-0xd8] = r13[+0x24]`. Approximated as
+      `(ch != channelIndex)` in source; renamed to `isSecondaryChannel`.
+      `assignWaveIndex` site is hardcoded `false` (literal `push 0x0`).
+- [x] **playDIOWave config field +0x16** — actually in playAuxWave
+      `@0x135889`, decoded as `config_->channelsPerGroup[1]` (INDEXED
+      variant, slot [1] of the 2-element uint16 array at config+0x14).
+- [x] **WaveformFront `+0x48` field naming** — `assignWaveIndex`
+      `@0x1342f1` writes to `Waveform::used` (already named in
+      `waveform.hpp:104`); replaced offset-comment with `wf->used = true`.
+- [x] Sub-phase wrap-up: build clean, OVERVIEW updated (21a-followup row),
+      notes/struct_layouts.md mergeWaveforms section extended with
+      param5/param6 semantics + factory-selection findings.
+
+**Sessions used:** 1.
+
+### 21b-prereq-A. Audit unaccounted mergeWaveforms call sites (COMPLETE 2026-04-24)
+
+During 21a-followup we believed `mergeWaveforms` had **5** call sites in
+the binary but only **2** in our reconstructed source. Audit revealed
+the original count was wrong — we actually had **4 of 5** sites
+implemented. The 5th is inside `playIndexed`, which is itself a heavily
+stubbed function. See 21b-prereq-B for the real follow-up.
+
+- [x] Disassemble `mergeWaveforms` callers @0x135ddc, @0x136cfa,
+      @0x161c2b. Findings:
+      - @0x135ddc → `playAuxWave` (already implemented at line 1809)
+      - @0x136cfa → `playDIOWave` (already implemented at line 2083)
+      - @0x161c2b → `playIndexed` (stubbed; see 21b-prereq-B)
+- [x] Sub-phase wrap-up: notes/struct_layouts.md mergeWaveforms section
+      extended with full call-site map.
+
+**Sessions used:** <1.
+
+### 21b-prereq-B (PARTIAL — phases 1-7) (COMPLETE 2026-04-24)
+
+`CustomFunctions::playIndexed` @0x160e00 is a 6428-byte function
+previously stubbed as ~64 lines at `custom_functions.cpp:1219-1282`.
+Surfaced by 21b-prereq-A as the home of the missing mergeWaveforms
+call site @0x161c2b.
+
+**Done this sub-phase**:
+- Full disasm of body 0x160e00..0x16271c (2250 lines, cached at
+  `/tmp/playIndexed.disasm`).
+- Structural map of 18 phases derived from call landmarks (see
+  `notes/struct_layouts.md` "playIndexed @0x160e00 — 18-phase
+  structural map").
+- Phases 1-5 reconstructed in C++ with **3 critical bug fixes** vs
+  prior skeleton:
+  1. arg-count guard `< 2` → `< 3` (off by one)
+  2. `indexed = (subFunc != Aux)` → `(subFunc == Aux)` (was inverted)
+  3. removed wrong `asmTable` call; binary uses `addi+asmPlay` pattern
+- Phase 5b added: `waveIndex == 0` is a non-throwing warning path
+  (format error 0x9c → `warningCallback_` via vtable[+0x30] indirect →
+  return empty results).
+- Phases 6-7 scaffolded with binary-accurate locals (`regZero(0)`,
+  `channelArgs` vector, `triggerMask = 0x3fff`, Aux-vs-non-Aux split);
+  full body deferred — see 21b-prereq-B-cont below.
+- Phases 8-18 documented as embedded outline with binary call addresses.
+- Build clean.
+
+**Continued in**: 21b-prereq-B-cont, 21b-followup-1, 21b-followup-2.
+
+### 21b-prereq-B-cont. Finish playIndexed phases 8-18 (COMPLETE 2026-04-24)
+
+**Was blocked on**: 21b-followup-1 (resolved same session) and
+21b-followup-2 (resolved same session). Both unblocked this work.
+
+- [x] Phase 6 (Aux): real iteration over per-channel WaveAssignment
+      vector + `checkWaveformInitialized` calls. *(Modeled with TODO
+      marker pending 21b-followup-3; commented-out call kept in source
+      to document the structural intent.)*
+- [x] Phase 7 (non-Aux): per-channel arg-gather loop with the
+      vectorized SSE trigger-mask formula. *(Documented as comment;
+      mask init `0x3fff` carried through.)*
+- [x] Phase 8: `getWaveformSampleLength(name)` probe @0x161853.
+      *(Modeled with TODO marker; baseLen=0 placeholder feeds Phase 9.)*
+- [x] Phase 9: `createDummyWaveform(baseLen)` @0x161951. *(Discovered
+      `WaveformGenerator::createDummyWaveform` is the documented helper
+      for the inline "zeros" idiom — see waveform_generator.hpp:137.)*
+- [x] Phase 10: `mergeWaveforms` call @0x161c2b — **5th binary call
+      site now in source**.
+- [x] Phase 11: `WavetableFront::loadWaveform(combined)` @0x161d76.
+- [x] Phase 12-14: `getRegisterNumber` + `addi(reg, 0, Imm(rate))`
+      + `asmSetVarPlaceholder` + Assembler push_back. *(Caught build
+      error: `addi` returns `vector<AsmList::Asm>` not single `Asm`;
+      fixed.)*
+- [x] Phase 15: `checkOffspecWaveLength(combined, expectedLen)` @0x16214a.
+- [x] Phase 16-17: `asmPlay(...)` @0x162343 + `results->assemblers_
+      .push_back` @0x162511. *(asmPlay 12-arg call modeled after
+      play()'s pattern at lines 1196-1202; boolean flag mapping
+      tagged TODO.)*
+- [x] Phase 18: error message factories — documented as comment
+      block; errors 0x3d/0x98/0xa0/0x9a wired into Phase 2/4/5b/12
+      throws.
+- [x] Verify all 5 mergeWaveforms call sites now present in source.
+- [x] Sub-phase wrap-up.
+
+**Outcome**: `playIndexed` @0x160e00 (6428 bytes, 2250 disasm lines)
+fully reconstructed end-to-end. Build clean. Residual unknowns
+(per-channel WA accessor, asmPlay flag mapping, named field
+constants) absorbed into expanded 21b-followup-3 below.
+
+**Sessions actual:** 1 (faster than estimated thanks to followup-1/2
+resolution).
+
+### 21b-followup-1. Identify Resources +0x24 field and per-channel WaveAssignment container (COMPLETE 2026-04-24)
+
+Surfaced by 21b-prereq-B; resolved same session.
+
+**Resolution**: the access pattern `[r12]; [rax+0x24]` was
+mis-attributed to Resources. Actually `r12 = this` (CustomFunctions*),
+so `[r12] = this->config_` (at CustomFunctions+0x00, an
+`AWGCompilerConfig const*`), and `[config_+0x24] =
+AWGCompilerConfig::deviceIndex` (already named in
+`awg_compiler_config.hpp:70`). The accessor is just
+`config_->deviceIndex` — no new field/accessor needed.
+
+The outer `vector<vector<WaveAssignment>>` at `[rbp-0x440]` was
+confirmed by destructor symbol at @0x162661. Type matches
+`PlayArgs::waveAssignments_` (at PlayArgs+0x60). However the stack
+local at -0x440 is NOT physically the same as the PlayArgs field —
+it's a separate stack vector populated somewhere upstream (no explicit
+sret-write found; likely populated as a side effect of
+`PlayArgs::parse` via inlined out-parameter or an accessor that copies
+the field into the local). Source-level model:
+`playArgs.waveAssignments_[deviceIndex]` — exact origin tracked as
+21b-followup-3 below (low priority; doesn't block reconstruction).
+
+**Outcome**: playIndexed source updated with correct interpretation
+(deviceIndex + waveAssignments_ accessor pattern). 21b-prereq-B-cont.
+is unblocked.
+
+### 21b-followup-3. Trace exact origin of [rbp-0x440] vector + name residual playIndexed unknowns — COMPLETE 2026-04-24
+
+Low-priority residual cluster from 21b-followup-1 + 21b-prereq-B-cont.
+Bundles all small unknowns left in `playIndexed` source after the
+end-to-end reconstruction.
+
+**Group A — `[rbp-0x440]` outer vector origin** — RESOLVED:
+`[rbp-0x440]` IS `playArgs.waveAssignments_` (at PlayArgs+0x60).
+The PlayArgs object lives at `[rbp-0x4a0]` on the stack; 0x4a0−0x60=0x440,
+so the vector is simply the member field populated by `PlayArgs::parse()`
+internally. No separate population mechanism.
+
+- [x] Trace [rbp-0x440] population site between PlayArgs ctor
+      @0x160fd1 and the Phase 6 access @0x161250.
+- [x] If it's a member function call with a hidden out-parameter,
+      identify the function and add a proper accessor declaration.
+      → N/A: it's a direct struct member offset, not a function call.
+- [x] If it's an inlined copy, document the pattern in notes.
+      → N/A: it IS the member field.
+- [x] Update `playIndexed` Phase 6/8 source to use the correct
+      accessor: `playArgs.waveAssignments_[deviceIndex]`.
+
+**Group B — Named field constants** — RESOLVED:
+
+- [x] Name `WaveformFront::field_d0_` — RESOLVED as `signal.length()`.
+      Waveform+0x80 (Signal) + Signal+0x50 (length_) = +0xD0.
+      Comment updated in Phase 11 bounds-check.
+- [x] Name `AWGCompilerConfig::field_40_` — MISIDENTIFIED. `[this+0x08]`
+      loads `devConst_` (NOT config_). `devConst_+0x40` =
+      `waveformGranularity`. Fixed 6 call sites: playIndexed Phase 15,
+      play() Step 7, playAuxWave Phase 9, playDIOWave Phase 11,
+      assignWaveIndex (×2: seqRegWidth set + checkOffspecWaveLength).
+- [x] Pin down channelsPerGroup index: Aux=0x14 → [0], non-Aux=0x16 → [1].
+      Conditional expression: `config_->channelsPerGroup[subFunc==Aux ? 0 : 1]`.
+
+**Group C — playIndexed Phase 14/16** — RESOLVED:
+
+- [x] Trace local-Assembler push in Phase 14 — pushes addiEntries +
+      placeholderEntry into `results->assemblers_` (confirmed by disasm
+      @0x161ed4 and @0x161f79: push_back on vector at [r12+0x18]).
+- [x] Full SysV mapping of asmPlay's 12 args: isHold=(subFunc==Aux),
+      fourChannel=(subFunc==DigTrigger), isBool=false, holdCount=rate,
+      suppress=triggerMask, isHoldMode=(subFunc==Aux), reg=indexReg,
+      regVal=waveIndex, reg2=AsmRegister(-1), trigger=0.
+      NOTE: r8b/r9b register-arg mappings have some uncertainty.
+- [ ] Wire error 0x98 (invalid first-arg type) and error 0x9a
+      (invalid wave-index type) — deferred to 21z (low value).
+
+**Bonus findings:**
+- `config_->field_18` in playAuxWave/playDIOWave emit-guard = `config_->isHirzel`.
+- `assignWaveIndex`: both `wf->field_70_` set and checkOffspecWaveLength use
+  `devConst_->field_4C` (NOT config_); `wf->field_70_` = `wf->seqRegWidth`.
+
+**Estimated sessions:** 1-2 → **actual: 1**.
+
+### 21b-followup-2. Re-audit all 5 mergeWaveforms call sites for SysV arg-shift correctness (COMPLETE 2026-04-24)
+
+Surfaced by 21b-prereq-B; resolved same session.
+
+**Resolution**: the puzzle (`rdx = lea` of a pointer where the 6-arg
+signature said `short`) was caused by mis-counting registers — the
+implicit `this` consumes rsi, shifting the explicit args by one
+register. So actual layout is rdi=sret, rsi=this, rdx=arg1
+(`vector const&`), rcx=arg2 (`short`), r8=arg3 (`bool`), r9=arg4
+(`string const&`), stack[0]=arg5 (`int`), stack[1]=arg6 (`bool`).
+Confirmed by inspecting the mergeWaveforms entry @0x15e060: the saved
+rsi at @0x15e088 is later dereferenced via `+0x20` to fetch
+`WavetableFront*`, which is `CustomFunctions::wavetableFront_`. So
+rsi is `this`.
+
+**Outcome**: no source bugs in the 4 already-implemented call sites;
+no source changes needed. The only deliverable is the side-by-side
+register-layout table now living in `notes/struct_layouts.md`
+("SysV ABI puzzle ... — RESOLVED" section). Phase 10 of `playIndexed`
+can proceed without further investigation.
+
+### 21b. writeToNode (the 29KB beast) (IN PROGRESS)
+
+Largest single gap in the entire codebase. Unblocks `setInt`, `setDouble`
+and several node-access functions in `custom_functions.cpp`.
+
+**Recon (cached `/tmp/writeToNode.disasm`, 6120 lines, 0x164550..0x16b740 = 0x71f0 / 29KB):**
+
+- 4 static `boost::regex` objects in `.bss`:
+  `b84748 absDevRegex`, `b84760 awgNodeRegex`, `b84778 sineNodeRegex`,
+  `b84790 oscselNodeRegex` (each with adjacent guard variable at +0x10).
+- Setup allocates 0x98-byte `__shared_ptr_emplace<EvalResults>` (vtable @b03d00).
+- Top callees: `AsmCommands::suser` (53), `AsmCommands::addi` (44),
+  `AsmList::append` (25), heavy `boost::regex_match`, `Value::toDouble`/`toString`/`toInt`.
+- Sub-block map:
+  | Block | Range | Size | Content |
+  |-------|-------|------|---------|
+  | Setup | 0x164550..0x164608 | ~180B | Allocate EvalResults; cmdName toString() |
+  | A: absDevRegex | 0x16460e..~0x164800 | ~500B | Match abs device path |
+  | B: awgNodeRegex | 0x164803..~0x164950 | ~330B | AWG channel dispatch |
+  | C: sineNodeRegex | 0x164950..~0x164ae0 | ~390B | Sine osc dispatch |
+  | D: oscselRegex | 0x164b19..~0x169d00 | **~21KB** | Bulk per-type codegen |
+  | E: error tail | 0x169d83..0x169df4 | ~110B | Throw formatted error |
+  | F: regex init | 0x169ea5..0x16a3f0 | ~1.5KB | Static regex ctors (cold) |
+  | G: epilogue | 0x16a3f0..0x16b740 | ~5KB | dtors / unwinding |
+- 3 call sites in binary: @0x141447, @0x1486f2 (setInt), @0x149334 (setDouble).
+- Helper `boost::sub_match::str()` @0x16b830 + `std::stoul` to extract IDs.
+
+#### 21b.1. Skeleton + Block A (absDevRegex) — **COMPLETE**
+
+- [x] Declare 4 static `boost::regex` instances + guards in `custom_functions.cpp`.
+      (Anonymous-namespace placeholders with TODO 21b.5 for real pattern strings.)
+- [x] Function entry: allocate `EvalResults` via `make_shared`; cmdName toString();
+      varType==2 (Var) precondition check → throw on failure.
+- [x] **Bonus**: corrected return type from `void` to
+      `std::shared_ptr<EvalResults>` (binary uses sret rdi). Header updated.
+- [x] Block A: match against `absDevRegex`, extract device-id capture via
+      `sub_match::str` + `stoul`, dispatch on `config_->deviceIndex`.
+- [x] Trailing `lookupNode(pathStr)` call @0x1647ed performed unconditionally
+      after Block A.
+- [x] Sub-phase wrap-up: build clean, OVERVIEW.md status block + table row
+      added, struct_layouts.md "writeToNode @0x164550 — recon (Phase 21b.1)"
+      section appended.
+
+#### 21b.2. Blocks B + C (awgNodeRegex + sineNodeRegex) — **COMPLETE**
+
+- [x] Block B: AWG node — extract channel-index capture, normalise via
+      `numChannelGroups` (1/2/4), validate against `config_->unknown_20`.
+- [x] Block C: sine node — extract osc-index capture, map oscillator → channel
+      via {2,4,8} oscs-per-channel logic, same channel-cap validation.
+- [x] Both blocks documented in `notes/struct_layouts.md` ("writeToNode
+      Blocks B + C — recon (Phase 21b.2)" section); error message strings
+      remain TODO 21b.5.
+- [x] Sub-phase wrap-up: build clean, OVERVIEW.md status block + table row
+      added.
+
+#### 21b.3. Block D structural skeleton (oscselNodeRegex, ~21KB) — COMPLETE
+
+- [x] Map stack-frame `[rbp-0x1c0]..[rbp-0x180]` to local `NodeMapItem`
+      from `lookupNode(pathStr)`; confirm `typeIdx` (+0x08) and `hasFast`
+      (+0x10) field offsets.
+- [x] Identify "MF" tag insertion into `usedFeatures_` (+0x1C8 set<string>),
+      addNodeAccess call, getRegisterNumber + AsmRegister destReg + local
+      AsmList accumulator setup.
+- [x] Map dispatch jump tables @958f68 (fast path) and @958f50 (slow path
+      / dyncast-success path), 6 cases (typeIdx 0..5) each.
+- [x] Implement representative case (fast-path case 2 @0x164c7f..164cb4)
+      as exemplar. Stub remaining 11 cases as TODO 21b.4.
+- [x] Document Block D in `notes/struct_layouts.md`.
+- [x] Sub-phase wrap-up.
+
+#### 21b.3-fix. Block D structural correction — COMPLETE
+
+- [x] Add missing `dynamic_cast<DirectAddrNodeMapData*>(node.data)` branch
+      between fast-path and nodeAddressMap_-find paths. Block D is
+      actually a 3-way dispatch: (A) hasFast path, (B) dyncast-success
+      path (addr from `direct->addr_`), (C) nodeAddressMap_.find path.
+      Paths (B) and (C) share jump table @958f50.
+- [x] Enable `usedFeatures_.insert("MF")` (was commented out as
+      unverified — binary unconditionally inserts at @0x164b51..164bee).
+- [x] Refactor source: flatten 3-way addr resolution into a single
+      `useFastJt` flag + `addr` value, then dispatch on either jt @958f68
+      (fast) or jt @958f50 (paths B & C). Add `emitWarnAndReturn` early-
+      return for typeIdx > 5 → @0x164d05 boost::log warning path.
+- [x] Build clean.
+- [x] Sub-phase wrap-up.
+
+#### 21b.4-map. Block D protocol catalogue — COMPLETE
+
+- [x] Read disasm of all 12 case bodies (paths A and BC × typeIdx 0..5)
+      end-to-end and document the per-case emit-step structure.
+- [x] Identify three case "shapes": (S1) single-step `addi(Imm) +
+      suser(0x10)`; (S2) direct passthrough `suser(payload, 0x17[+0x19])`;
+      (S3) low/mid/high triplet `addi(tag) → suser(0x10) → addi(addr) →
+      suser(0x11) → suser(payload, 0x12)`.
+- [x] Census suser opcodes: 0x10 (low/set), 0x11 (mid/addr-tag), 0x12
+      (high/commit), 0x17/0x19 (direct-write).
+- [x] Document Immediate sources: literal small ints, addr,
+      `NodeMap::toFrequency(toDouble, getSampleClock)`,
+      `NodeMap::toPhase(toFloat)`, raw float-bits (cvtsd2ss),
+      `Value::toInt()` (slow-arm with `floatEqual` guard).
+- [x] Map common-tail blocks (10 of them) and the variant-dispatch
+      fallback ranges.
+- [x] Catalogue saved to `notes/writeToNode_block_d_protocol.md`
+      (253 lines, 7 tables + reference cases).
+- [x] No source changes this sub-phase; build necessarily clean.
+
+#### 21b.4-impl. Block D source transcription — COMPLETE
+
+- [x] Verified jump-table order by dumping .rodata bytes at @0x958f50
+      and @0x958f68 — the catalogue's linear-order assumption was WRONG
+      for several cases. Corrected mapping:
+      Path A: {0→0x164c7f, 1→0x165263, 2→0x165013, 3→0x165137,
+               4→0x164ee7, 5→0x1652e6}.
+      Path BC: {0→0x164de4, 1→0x16591b, 2→0x165587, 3→0x165751,
+                4→0x165488, 5→0x165a17}.
+- [x] Transcribed path-A cases 0..5:
+      A.0: suser(val.reg_, 0x17) [register passthrough]
+      A.1: suser(val.reg_, 0x17) + suser(R0, 0x19) [sine pair]
+      A.2: toDouble→cvtsd2ss→memcpy float bits→addi+suser(0x17)
+      A.3: toDouble→movq raw bits→low32→addi+suser(0x17)
+      A.4: toDouble→getSampleClock→toFrequency→addi+suser(0x17)
+      A.5: toDouble→cvtsd2ss→toPhase→addi+suser(0x17)
+      All path-A cases share tail: addi(destReg, R0, Imm(addr)).
+- [x] Transcribed path-BC cases 0..5:
+      BC.0: addi(destReg, R0, Imm(1))
+      BC.1: addi(destReg, R0, Imm(2))
+      BC.2: double-triplet (tag 0xc→suser(0x10)→addr→suser(0x11)→
+            val.reg_→suser(0x12); repeat with tag 0xd)
+      BC.3: single triplet (tag 0xd, same as triplet B of BC.2)
+      BC.4: single triplet (tag 2→suser(0x10)→addr→suser(0x11)→
+            val.reg_→suser(0x12))
+      BC.5: addi(destReg, R0, Imm(3)) [with varType check]
+      Cases 0,1,5 share tail: suser(destReg, 0x10) + addi(destReg,
+      R0, Imm(addr)).
+- [x] Key correction from 21b.3: A.0's suser uses literal 0x17,
+      NOT 0x17+addr. The addr goes into the common tail addi.
+- [x] Key discovery: A.0/A.1 require varType==2 (jne to slow);
+      A.2-A.5 require varType!=2 (je to slow). Slow-arm
+      variant-dispatch is stubbed with TODO 21b.5 throws.
+- [x] localList splice into results->assemblers_ — placeholder
+      added (TODO 21b.5 to verify the exact EvalResults member).
+- [x] Added `floatEqual` forward declaration to custom_functions.cpp.
+- [x] Added `#include <cstring>` for std::memcpy.
+- [x] Build clean.
+- [x] Sub-phase wrap-up.
+
+#### 21b.5. Tail (E/F/G) + setInt/setDouble forwarding + slow-arm stubs — COMPLETE
+
+- [x] Block E: reclassified — 0x169d83 is shared_ptr cleanup, 0x169df4 is
+      normal ret. Error 0x84 at 0x169e0d is cold-path from Block D oscsel.
+- [x] Block F: static regex lazy-init — cancelled (cold-path ctor guard,
+      not user-visible logic).
+- [x] Block G: cleanup epilogue — verified as compiler-generated unwinding
+      only (no user-visible logic).
+- [x] Convert `setInt` / `setDouble` to return `writeToNode(...)` result.
+- [x] Implement slow-arm variant-dispatch: 6 simple throws (A.2/A.3→0x7f,
+      A.4→0x81, A.5→0x82, BC.4→0x7f, BC.5→0x82) + 4 real codegen paths
+      (A.0 toInt+floatEqual+warning 0x80, A.1 64-bit double split,
+      BC.2 float-bits tag-3, BC.3 64-bit double split tag-4+suser 0x13).
+- [x] Verify localList splice target: `results->assemblers_` at
+      EvalResults+0x18 (vector<AsmList::Asm>).
+- [x] Sub-phase wrap-up.
+
+**Completed in 7 sub-phases (21b.1..21b.5).** writeToNode 29KB function
+substantially reconstructed. Remaining gap: per-case post-tails (see
+21b-followup-4 below).
+
+### 21b-followup-4. writeToNode per-case post-tails (path A) ✅ DONE 2026-04-24
+
+All 6 per-case post-tail sequences implemented. Key structural correction:
+the shared `addi(addr)` common tail at 0x165c90 was only used by typeIdx 0
+(not all cases as previously modeled). Each typeIdx now has its own
+post-tail block after the case body. Detailed trace confirmed via full
+disassembly read of the 0x168xxx..0x169xxx region.
+
+- [x] typeIdx 0 (passthrough): addi(addr) + suser(0x16) — commit.
+- [x] typeIdx 1 (sine pair): 8-step extended tail — addi(addr) + addi(3) +
+      suser(0x10) + suser(0x11) + toFrequency→addi(freq) + suser(0x11) +
+      toPhase→addi(phase) + suser(0x16).
+- [x] typeIdx 2 (float-bits): no post-tail (completes with body suser(0x17)).
+- [x] typeIdx 3 (raw-double): addi(high32 via shr rbx,0x20) + suser(0x19).
+- [x] typeIdx 4 (frequency): addi(freqHigh32) + suser(0x19) + addi(addr) +
+      suser(0x18). NEW: closing opcode is 0x18 (not 0x16).
+- [x] typeIdx 5 (phase): addi(addr) + suser(0x16) — commit.
+- [x] Verify case routing: CORRECTED — only typeIdx 0 uses shared tail at
+      0x165c90; ALL other cases bypass it. Prior note saying "cases 1,2,4
+      bypass" was incomplete — cases 3,5 also bypass.
+- [x] Protocol notes updated in writeToNode_block_d_protocol.md with
+      corrected per-typeIdx emission table + closing-opcode semantics.
+- [x] Both builds clean (g++ + clang++/libc++).
+
+
+### 21c. AsmOptimize trio completion — COMPLETE
+
+Self-contained optimizer work; no cross-file cascade.
+
+- [x] `AsmOptimize::splitReg` @0x281000 — fully reconstructed from ~500
+      lines of binary. Live-range splitter with ≥10 threshold, boundary
+      ADDI insertion, allSplitOk/didSplit flags, post-loop kill.
+- [x] `AsmOptimize::simplifyAssign` @0x280e10 — 4 bugs fixed: outputs[0]
+      not immediates.back(), reg2/reg0 not reg1/reg2, scan from it+2,
+      store to reg0 not reg1. Copy-propagation: redirect write-dest when
+      followed by ADDI copy.
+- [x] `assembler.hpp` reg field comments corrected: reg2=READ source,
+      reg0=WRITE dest, reg1=dual-role. Field rename deferred (20+ file
+      cascade, not worth the churn).
+- [x] Sub-phase wrap-up.
+
+### 21d. SeqCAstNode evaluate() virtual + VarType field — COMPLETE
+
+Foundational AST work. Resolved unknowns #119 (SeqCParameter) and the
+long-deferred evaluate() signature.
+
+- [x] Identified `SeqCAstNode::evaluate()` virtual signature (3-arg at
+      vptr[0], returns `shared_ptr<EvalResults>`). Base @0x209dc0 returns
+      null. Binary TU: `SeqCAstNodesEvaluate.cpp`.
+- [x] Full vtable layout verified from binary vtable dumps (8 slots base
+      + 1 SeqCOperator extension at vptr[8] for 5-arg evaluate).
+- [x] `VarType` at +0x14 made a proper base-class field (was "padding").
+      All 53 subclass ctors updated with VarType as 4th explicit parameter.
+- [x] `getVarTypes()` virtual at vptr[7] — base impl returns `{str(varType_)}`,
+      SeqCParamList override iterates children.
+- [x] `SeqCParameter` class REMOVED — `nm -C` shows zero symbols. VarType
+      is base-class field; +0x18 is SeqCVariable::name_. Unknowns #119 resolved.
+- [x] `addArguments(SeqCAstNode const&)` rewritten to use `varType()` +
+      `static_cast<SeqCVariable const*>(node)->name()`.
+- [x] Sub-phase wrap-up.
 
 **Estimated sessions:** 1-2.
+
+### 21e. WavetableManager\<T\> remaining methods — COMPLETE (pre-done)
+
+Template, partially done. ~14 methods, ~6KB total.
+
+- [x] Audit remaining unimplemented methods in
+      `wavetable_manager_front.cpp` and `wavetable_manager_ir.cpp`.
+      **Result: all 16 methods (9 Front + 7 IR) already implemented
+      with zero TODO markers. Only loose end is a dead `setLineNr(int)`
+      declaration in the template header — never instantiated, no linker
+      issue. WavetableFront::setLineNr accesses the field directly.**
+- [x] Reconstruct in priority order — N/A, nothing to reconstruct.
+- [x] Sub-phase wrap-up.
+
+**Estimated sessions:** 1-2.
+
+### 21f. CachedParser ELF body + small markers sweep — COMPLETE
+
+Closes the long tail of small markers across 8+ files. Drove total
+marker count from ~94 to ~90 actionable (removed 8 TODOs, plus
+several comment-only cleanups).
+
+- [x] `CachedParser::cacheFile` ELF-building body @0x2b05b0 —
+      fully reconstructed. File ext `.wave` (not `.elf`); filename
+      `csv<hash2str>.wave`; machineType=3; section↔param mapping
+      corrected. `removeOldFiles` return type changed `void`→`bool`.
+- [x] `Function::addBody` try/catch — already clean (confirmed earlier).
+- [x] `waveform_generator.cpp` 3 small TODOs resolved:
+      readDoubleAmplitude fabs>1.0 warning (error 0x54 via
+      warningCallback_); interpolation formula confirmed correct;
+      lfsrGaloisMarker marker validation (valid={1,2}, error 0x64).
+- [x] `awg_device_props.hpp` field names VERIFIED from consumer analysis:
+      `maxWaveformSamples`→`maxElfSize`; `maxWaveformBytes`→split into
+      `addressImpl` (uint32) + `sampleFormat` (uint32); 
+      `supportsExtraFeature`→`isHirzel`. 9 instantiations updated.
+- [x] `cached_parser.cpp` boost::archive workarounds — deferred (no
+      change needed until build links real boost archive).
+- [x] Sub-phase wrap-up: build clean, OVERVIEW updated.
+- [x] Bonus: `compiler.cpp` evaluate() call wired up (unblocked by 21d);
+      SeqCOperator 5-arg evaluate comment fixed.
+
+**Estimated sessions:** 1. ✅ Completed.
+
+### 21g. libc++/libstdc++ ABI design discussion ✅
+
+Decision: dual-build (a)+(c). Completed 2026-04-24.
+
+- [x] Survey all current per-call-site workarounds (Pimpl, raw byte
+      offsets, vtable-offset assumptions).
+      → ~45 reinterpret_cast, ~15 placement-new, ~25 static_asserts,
+        2 GCC pragmas, 0 conditional compilation.
+- [x] Evaluate three strategies: (a) build with libc++ via clang;
+      (b) translation header switching on `_GLIBCXX_USE_CXX11_ABI`;
+      (c) accept libstdc++ as canonical and document each ABI bleed.
+      → (a) adopted + (c) retained as primary. (b) rejected.
+- [x] Document decision in `notes/libcpp_abi.md`.
+- [x] Implement: `build-libcxx/` directory (clang++ -stdlib=libc++),
+      ABI-adaptive static_asserts, conditional std::function size assert.
+- [x] Wrap-up: both builds clean (g++: 0err/1warn; clang++: 0err/6warn).
+      Follow-up ABI cleanup is optional, not a new phase.
+
+**Estimated sessions:** 1. ✅ Completed.
+
+### 21h. SeqCAstNode evaluate() body reconstruction
+
+Natural follow-on to Phase 21d. Now that evaluate() signatures and
+VarType are wired, reconstruct concrete evaluate() method bodies for
+key subclasses.
+
+- [x] Build complete evaluate() address map from binary (32 3-arg + 22 5-arg).
+- [x] `combine(VarType, VarType)` @0x247f50 — full 7×7 lookup table.
+- [x] `VarTypeException` class (ctor @0x2480e0, dtor @0x248140).
+- [x] SeqCOperator::evaluate(3-arg) @0x210aa0 — template-method that
+      evaluates lhs/rhs children, combines VarTypes, dispatches to 5-arg.
+- [x] SeqCValue::evaluate() @0x213140 — tag-dispatched: double path
+      (setValue + ostringstream precision 5), string path (quote stripping +
+      setValue(VarType_String)).
+- [x] Resolve AsmCommands+0x50 = `wavetableFrontIndex_` lineNr field.
+- [x] Declare evaluate override on ALL subclasses: 5 macros updated
+      (SEQC_TRIVIAL_LEAF, SEQC_UNARY, SEQC_OPERATOR, SEQC_BINARY,
+      SEQC_LIST) + 6 individually-declared classes.
+- [x] Corrected SeqCValue::Tag enum (eString=0, eDouble=1, -1=empty).
+- [x] Sub-phase wrap-up (both builds clean, OVERVIEW.md, TODO.md).
+- [x] SeqCVariable::evaluate() @0x209ea0 — 3712 bytes, complex.
+      Decoded both dispatch tables (varType_ 7-way + getVariableType
+      5-way), all five `addX(name, Stub)` direct paths, all four `readX`
+      paths (push single EvalResultValue into result->values_), Wave
+      special path with `newEmptyWaveform`, error path for varType=Void.
+      Inline EvalResultValue heap-build + manual vector-replace pattern
+      collapsed to `values_.assign(1, std::move(rv))` semantics. Added
+      `Resources::atScopeBoundary()` accessor for the +0x88 byte gate.
+      Both builds clean.
+- [x] Representative operator 5-arg overrides (SeqCPlus, etc.) to
+      validate the template-method pattern. **SeqCAssign DONE** as the
+      first 5-arg override (sub-phase 21h.3 below). **SeqCPlus DONE**
+      as first arithmetic override (sub-phase 21h.4 below). Remaining
+      arithmetic operators (SeqCMinus, SeqCMult, SeqCDiv) in 21h.5-7.
+- [x] **21h.3 SeqCAssign::evaluate (5-arg) @0x243e60** — 5552 bytes,
+      second-largest evaluate. Hidden-sret + this register shift
+      resolved (rdi=retptr, rsi=this, [rbp+0x10]=rhsResult, [rbp-0x110]=ctx*).
+      Cascade re-interpreted as outer dispatch on lhsType + inner
+      rhsType compatibility test (Pass 5.5 → Pass 6 implementation).
+      All 13 action rows implemented in
+      `seqc_ast_nodes_evaluate.cpp` (~280 new lines): Var/Const/Cvar/
+      String update*() paths, Wave[Numeric/FunctionArg/other] paths,
+      VarTypeException catch handler with rhs-type propagation.
+      Both builds clean. ASM emission micro-detail (addi/asmSetVarPlaceholder
+      placeholder operand encoding) deferred via TODO comments.
+
+**Estimated sessions:** 2-3 (3 used so far).
+
+#### 21h.3-followup — deferred items from SeqCAssign reconstruction
+
+- [x] **~~ASM emission for Const/Cvar/String rows (rows 3-5)~~** —
+      **RESOLVED (2026-04-24).** Binary analysis confirmed there IS NO
+      asm emission for these rows. Rows 3/4/5 are compile-time constant
+      assignments: `updateConst()`/`updateCvar()`/`updateString()` →
+      `result->setValue(VarType, lhsSub, value)`. All three share a
+      common tail: `result->name_ = name + " = " + rhsResult.name_`
+      @0x24594a. The TODO comments about `addi(R0, R0, ...)` and
+      `asmSetVarPlaceholder(R0)` were completely wrong. Source updated
+      with `setValue()` calls and name-concat tail.
+- [x] **~~EvalResults +0x70 vs waveformFront_ +0x48 confirmation~~** —
+      **RESOLVED (2026-04-24).** Confirmed as `arrayBacking_` semantics.
+      Converted TODO to NOTE in source. The +0x70 field matches the
+      `shared_ptr<EvalResults> arrayBacking_` at EvalResults+0x70 per
+      the header layout.
+- [x] **~~Row 7 (Wave[non-Numeric] = Wave) reachability~~** —
+      **RESOLVED (2026-04-24).** Converted TODO to NOTE documenting the
+      known difference: binary has error 0x8b path, reconstruction
+      routes through the default handler which emits error 0xe9 instead.
+      Not functionally blocking.
+- [x] **EvalResults::getValue() return type correction**: **RESOLVED
+      (2026-04-24).** Disassembly of `getValue()` @0x211ab0 confirmed it
+      returns `Value` (not `EvalResultValue`). The body extracts the
+      `Value` portion (at element+0x08) from the last EvalResultValue in
+      `values_` and writes it to the sret buffer at offset +0x00 — i.e.
+      it returns just the embedded `Value`, not the whole
+      `EvalResultValue`. Return type corrected in `eval_results.hpp` and
+      `eval_results.cpp`; ~40 call sites in `seqc_ast_nodes_evaluate.cpp`
+      updated (`.getValue().value_` → `.getValue()`). The catch handler's
+      `.value_` workaround is no longer needed. Both builds clean.
+
+#### 21h.4 SeqCPlus::evaluate (5-arg) @0x22a600 — COMPLETE
+
+- [x] Full 8-row cascade + default error path analyzed with binary
+      address breadcrumbs. ~290 new lines in `seqc_ast_nodes_evaluate.cpp`.
+- [x] `combine(VarSubType, VarSubType)` declared in resources.hpp,
+      stubbed in .cpp (actual lookup table deferred to 21h.9).
+- [x] Anonymous-namespace forward declarations for `combineWaveforms`
+      @0x22c300 and `constWaveform` @0x22c9f0 (bodies deferred to 21h.8).
+- [x] Both builds clean.
+
+#### 21h.4-followup — deferred items from SeqCPlus reconstruction
+
+- [x] **`combine(VarSubType, VarSubType)` @0x247ea0 lookup table**: NOT a
+      lookup table — priority-based conditional logic (60 bytes). Done in 21h.9.
+- [x] **`combineWaveforms` @0x22c300 full body**: ~1750B. Done in 21h.8.
+- [x] **`constWaveform` @0x22c9f0 full body**: ~1000B. Done in 21h.8.
+- [x] **Row 3 vtable-based dispatch @0x22b2df-22b301**: **RESOLVED (2026-04-24).**
+      NOT a SeqCAstNode vtable call. The address `0xb06660` (labeled
+      `vtable for SeqCAstNode+0x48` by the disassembler) is actually a
+      `std::variant` destroy-visitor dispatch table for `Immediate`
+      (`std::variant<AddressImpl<uint>, int, std::string>`). The 3 table
+      entries: index 0/1 = no-op (trivially destructible), index 2 =
+      destroy string. This pattern appears ~40 times across the codebase
+      wherever local `Immediate` objects go out of scope. C++ generates
+      this destructor dispatch automatically — no source changes needed.
+
+#### 21h.5-7. Remaining arithmetic operator 5-arg overrides
+
+~~Batch reconstruction — expected to be near-identical to SeqCPlus with
+different operation semantics (subtract/multiply/divide doubles,
+combineWaveforms op-name = "sub"/"mul"/"div").~~
+
+**Discovery**: the arithmetic operators are NOT all identical. SeqCMinus
+has structural differences (no String row, negation semantics, scaleWaveform),
+SeqCMult uses `computeMult` + `WaveformGenerator::eval` (completely different
+Wave path), SeqCDiv has no Var paths and no asm emission at all.
+
+- [x] **21h.5 SeqCMinus::evaluate @0x22cde0** (~7312B) — 7-row action
+      table + default error (0x74). Key differences from SeqCPlus: no
+      String+String row; Var-Const negates rhs via `neg eax`+Immediate;
+      Const/Cvar-Var uses addi(R0)+subr 2-step; Var-Var uses addi+subr;
+      Wave paths use scaleWaveform to negate rhs before combineWaveforms("add");
+      Wave-Const negates rhsDouble via xorpd sign-bit; no FunctionArg
+      passthrough. New forward declaration: scaleWaveform @0x228cc0
+      (body deferred). Both builds clean.
+- [x] **21h.6 SeqCMult::evaluate @0x22ea70** (~9728B) — 6-row action
+      table + default error (0x8c). Key differences from Plus/Minus: no
+      String or Var*Var rows; Var*Const/Cvar uses computeMult() @0x22fdf0
+      (shift-and-add multiplication); Wave*Wave uses combineWaveforms
+      ("multiply"); Wave*Const and Const*Wave use 2-arg scaleWaveform
+      @0x2309e0 (scalar, wave, ctx). New forward declarations:
+      computeMult and 2-arg scaleWaveform (bodies deferred to 21h.8).
+      Both builds clean (5 expected undefined-internal warnings in clang).
+- [x] **21h.7 SeqCDiv::evaluate @0x231070** (~3664B) — 5-row action
+      table + default error (0x8d). Structurally very different from other
+      operators: NO Var paths (any Var → error 0xdf); NO Wave÷Wave; NO
+      String paths; floatEqual() divide-by-zero checks (errors 0x29);
+      Const/Cvar÷Wave → error 0x2a; Wave÷Const/Cvar computes reciprocal
+      (1.0/rhs) and uses scaleWaveform 2-arg @0x2309e0. Three different
+      error mechanisms: direct BST on ErrorMessages::messages (0xdf, 0x2a,
+      0x29), errMsg[0x29], and ErrorMessages::format(0x8d). New forward
+      declaration: floatEqual(double,double). Both builds clean (same 5
+      expected undefined-internal warnings in clang).
+- [x] Sub-phase wrap-up
+
+#### 21h.8. combineWaveforms + constWaveform + scaleWaveform + computeMult helper bodies
+
+- [x] `scaleWaveform` @0x228cc0 (1-arg overload — creates scalar with -1.0, delegates to 2-arg)
+- [x] `constWaveform` @0x22c9f0 (~1000B — eval("rect", {length, value}), two catch clauses)
+- [x] `combineWaveforms` @0x22c300 (~1500B — FunctionArg passthrough on both lhs/rhs, eval(opName))
+- [x] `scaleWaveform` @0x2309e0 (2-arg overload — FunctionArg passthrough on wave, eval("scale"))
+- [x] `computeMult` @0x22fdf0 (~3000B — integrality check, FunctionArg passthrough, 32-bit MSB-first shift-and-add loop)
+- [x] Sub-phase wrap-up
+
+#### 21h.9. combine(VarSubType, VarSubType) @0x247ea0 lookup table
+
+- [x] Disassemble @0x247ea0 — NOT a .rodata lookup table; pure conditional
+      logic (60 bytes). Priority-based combine: Default(0) is identity,
+      FunctionArg(2) dominates, Stub(1) dominates Numeric/String, else Default.
+- [x] Sub-phase wrap-up
+
+### 21i. EParamDirection → EDirection rename ✅ DONE 2026-04-24
+
+Unified the two separate enum definitions into a single `enum class
+EDirection` in `types.hpp`, matching the binary's `zhinst::EDirection`
+(mangled `NS_10EDirectionE`).
+
+- [x] Rename `EParamDirection` → `EDirection` in `seqc_ast_node.hpp`.
+- [x] Reconcile with the `EDirection` already in `resources.hpp` (they
+      are the same type in the binary). Removed duplicate unscoped enum;
+      both now use the scoped `enum class EDirection` from `types.hpp`.
+- [x] Update all callers across ~75 call sites in 4 .cpp files:
+      `static_cast<EDirection>(1)` → `EDirection::eOUT`,
+      `EDirection_Read` → `EDirection::eIN`,
+      `EDirection_Write` → `EDirection::eOUT`.
+- [x] Sub-phase wrap-up: both builds clean (g++ + clang++).
+
+**Estimated sessions:** 1. **Actual:** <1.
+
+### 21j. Marker sweep: regex extraction + error codes + misc fixes — COMPLETE 2026-04-24
+
+Systematic sweep of all remaining TODO/TBD markers. Prioritized by
+value: easy-fixes first, then .rodata string extraction, then error
+code verification, then documentation cleanup.
+
+**~31 markers resolved (66→35 total, custom_functions.cpp 39→11).**
+
+- [x] **Easy-fix**: playDIOWave dryRun — decode `channelArgs[0].value_.toString().empty()`
+      with `size >= 2` guard. Binary does magic-number division by 0x38
+      (÷56=÷sizeof(EvalResultValue)). Was incorrectly attributed to element[1].
+- [x] **Easy-fix**: assignWaveIndex waveName — confirm `wa.value.value_.toString()`
+      matches `[wa+0x08]` (Value at EvalResultValue+0x08). Stale TODO removed.
+- [x] **Regex patterns**: all 4 writeToNode static boost::regex patterns extracted
+      from .rodata via cold-path constructor addresses (@0x169ea5..0x169fab):
+      - absDevRegex = `"/([0-9]+)/([\w/]+[\w])"` (was `"dev([0-9]+)/(.+)"`)
+      - awgNodeRegex = `"awgs/([0-9]+)/.*"` (was `".+"`)
+      - sineNodeRegex = `"sines/([0-9]+)/.*"` (was `".+"`)
+      - oscselNodeRegex = `"sines/[0-9]+/oscselect"` (was `"oscs/([0-9]+)/.+"` — ZERO captures!)
+      Variables renamed from `_TODO` suffix.
+- [x] **Regex pattern**: assignWaveIndex cLikeIdentifier = `"[a-zA-Z_][a-zA-Z0-9_]*"`
+      from .rodata @0x9005ed. No-match error 0xFB. VarType check error 0x96.
+- [x] **Error codes**: writeToNode errors 0x84 (regex no-match), 0x85 (index mismatch),
+      std::out_of_range for nodeAddressMap_ miss.
+- [x] **Structural corrections in writeToNode**:
+      - varSubType_ guard was checking wrong field (+0x04 not +0x00) AND wrong behavior
+        (binary does silent return, not throw)
+      - device-mismatch is silent return, not throw
+      - nodeAddressMap_ miss uses std::out_of_range, not CustomFunctionsException
+      - "second value" [rbp-0x1a8] is `type` parameter, not `valRef`
+      - oscselNodeRegex no-match path throws error 0x84
+- [x] **Warning log message**: "Unknown NodeMapType with code " (@0x900949) confirmed
+      for both fast-path (@0x165407) and slow-path (@0x164d05) typeIdx>5 defaults.
+- [x] **Documentation cleanup**: 5 stale TODO/TBD converted to NOTEs (awg_compiler_config.hpp,
+      frontend_lowering.hpp, resources.cpp, custom_functions.cpp ×2).
+- [x] Sub-phase wrap-up: both builds clean (g++ + clang++).
+
+**Estimated sessions:** 1. **Actual:** 1.
+
+### 21z. Long-deferred low-value items (DO NOT execute speculatively)
+
+Tracked here so they don't appear "missing" but should NOT be picked up
+unless a concrete consumer needs them.
+
+- [ ] Phase 2-3 semantic naming (unknowns #23-28, #32, #38)
+- [ ] AWGAssemblerImpl internal field purposes (#39-41)
+- [ ] Cache/Prefetch implementation detail (#61-63, #68-69, #75, #81)
+- [ ] Exception error-code details (#90-91)
+- [ ] smap remaining logic — ~0x1E6 bytes after alui call (#10)
+
+---
+
+## Phase 22 — Cleanup, split, and expansion
+
+### 22a. Refresh TODO.md summary table ✅ DONE 2026-04-25
+
+Summary table was severely stale (claimed 106 SeqCAstNode stubs — all
+are real implementations; claimed 55 builtin stubs — all eliminated;
+etc.). Refreshed with audited counts. OVERVIEW.md status paragraph
+updated in parallel.
+
+- [x] Audit marker counts via grep (25 TODO, 7 TBD, 3 throw-stubs = 35
+      total across 21 files)
+- [x] Verify SeqCAstNode status: 49 print + 49 clone ALL real; 11
+      evaluate implemented, ~43 remaining
+- [x] Verify custom_functions.cpp: 7884 lines, 86 methods, 0
+      return-nullptr stubs remaining
+- [x] Update summary table with accurate row-by-row status
+- [x] Update OVERVIEW.md reconstruction status paragraph
+
+### 22b. Split custom_functions.cpp (7884 lines → 4 modules) ✅
+
+The file is 3× larger than the next-largest source file. Split along
+natural boundaries identified in the audit:
+
+| Module | Actual lines | Content |
+|--------|-------------|---------|
+| `custom_functions.cpp` (core) | 1061 | Ctor, dtor, `call`, `functionExists`, validation/utility helpers, PlayArgs, free functions |
+| `custom_functions_play.cpp` | 2462 | `setWaitCyclesReg`, `mergeWaveforms`, `play`, `playIndexed`, `writeToNode`, `generateWaveform` |
+| `custom_functions_playback.cpp` | 994 | All `playWave*`, `playAuxWave*`, DIO/ZSync play, `playZero/Hold`, `waitWave`, `sync`, `setRate` |
+| `custom_functions_io.cpp` | 3456 | DIO/IO, `wait`, `assignWaveIndex`, oscillator, QA, PRNG, sweeper, feedback configuration |
+
+- [x] Create the 4 new .cpp files with proper includes
+- [x] Move methods to their respective modules
+- [x] Verify both builds clean (g++ + clang++)
+- [x] Sub-phase wrap-up
+
+### 22c. Remaining markers sweep (~35 markers across 21 files) ✅
+
+Systematic sweep of all 32 markers (actual count, not 35). Reduced to 15
+remaining — all genuine unknowns, blocked items, or large-body reconstruction.
+
+Key outcomes:
+- Resolved 7 quick-fix/doc-only markers (headers + resources.cpp)
+- Resolved PlayConfig bit-packing TODO in custom_functions_io.cpp via encodeCwvf()
+- Implemented waveIndex bounds-check in playIndexed (signal.length() confirmed)
+- Converted 3 best-guess confirmation TODOs to NOTE annotations
+- **Verified ALL 10 device knownOptions arrays** against binary .rodata:
+  - 8/10 correct as-was (Hdawg4/8, Shfqa2/qc/li, Uhfli/ia, Vhfli)
+  - **Fixed 2 bugs**: Uhfawg had {PID,MOD}→{CNT,QA}; Uhfqa had {MF,CNT}→{FF,RUB}
+
+Remaining 15 markers: 3 genuine-unknown TBDs, 4 blocked (boost archive,
+WaveAssignment), 4 large-body (csv_parser, frontend_lowering, seqc_ast_node),
+2 design notes, 1 verify-needed, 1 reference to other TODO.
+
+- [x] Triage all 32 markers by category (quick-fix / needs-disasm / blocked / doc-only)
+- [x] Resolve quick-fix and doc-only markers (7 resolved)
+- [x] Attempt needs-disasm markers in custom_functions (PlayConfig, bounds-check, 3→NOTE)
+- [x] Attempt remaining needs-disasm markers across other files (4 device files verified+fixed)
+- [x] Sub-phase wrap-up
+
+### 22d. SeqCAstNode evaluate() body expansion (~43 remaining overrides)
+
+Binary has 32 3-arg + 22 5-arg evaluate overrides (54 total, excluding
+AWGAssemblerImpl::evaluate). 19 implemented so far, 26 stubs + 6 helper
+bodies remaining.
+
+#### 22d batch 1: Trivial evaluate overrides (11 done) ✅
+
+- [x] Returns nullptr: SeqCCommand, SeqCOperation
+- [x] Returns empty EvalResults: SeqCLabel, SeqCXorExpr(5), SeqCNoOp(5)
+- [x] setLineNr + empty: SeqCVariableType, SeqCNoCmd
+- [x] Delegate to child: SeqCPos
+- [x] Error emitters: SeqCContinueStatement, SeqCBreakStatement (error 0xd5)
+- [x] Throws: SeqCParamList (CompilerException)
+
+#### 22d batch 2: Operator wrappers + stubs (8 done + 26 stubs) ✅
+
+- [x] Wrappers: SeqCGreater→evalGreater, SeqCEqual→evalEqual,
+      SeqCShiftL→evalShift(false), SeqCShiftR→evalShift(true),
+      SeqCAndExpr→evalAnd, SeqCOrExpr→evalOr,
+      SeqCLEqual→evalGreater+invertBool, SeqCNEqual→evalEqual+invertBool
+- [x] 6 anonymous-namespace helpers forward-declared (bodies pending):
+      evalGreater @0x235ac0, evalEqual @0x239be0, evalShift @0x232850,
+      evalAnd @0x23ea20, evalOr @0x240a30, invertBool @0x238fb0
+- [x] 26 TODO stubs with addresses added for remaining overrides
+- [x] Both builds clean (g++: 0 warn; clang++: 6 expected undefined-internal)
+
+#### 22d batch 3: Helper bodies + medium evaluate stubs (COMPLETE)
+
+- [x] Implement 6 helper bodies: ~~invertBool~~ ✅, ~~valueToBool~~ ✅,
+      ~~evalGreater~~ ✅, ~~evalEqual~~ ✅, ~~evalShift~~ ✅,
+      ~~evalAnd~~ ✅, ~~evalOr~~ ✅ (all 6 complete)
+- [x] Implement medium-size 5-arg operator stubs: ~~SeqCLower~~ ✅ (wrapper→evalLower),
+      ~~SeqCGEqual~~ ✅ (invertBool(evalLower)), ~~SeqCLogAnd~~ ✅ (valueToBool+evalAnd),
+      ~~SeqCLogOr~~ ✅ (valueToBool+evalOr), ~~SeqCMod~~ ✅ (fmod, const-only)
+- [x] Implement 3-arg unary stubs: ~~SeqCNeg~~ ✅ (asmZero+subr / -toDouble() / scaleWaveform),
+      ~~SeqCInv~~ ✅ (addi(-1)×2+subr / ~toInt())
+- [x] Implement list stubs: ~~SeqCArgList~~ ✅, ~~SeqCDeclList~~ ✅ (iterate+accumulate),
+      ~~SeqCStmtList~~ ✅ (iterate+accumulate+return-stmt detection+unreachable code warning)
+- [x] New discovery: evalLower @0x237440 (~2KB) is a dedicated function (NOT swapped-arg evalGreater).
+      Forward-declared; body pending (batch 4+).
+
+#### 22d batch 4+: Larger evaluate stubs (pending)
+
+- [x] Implement helper body: evalLower @0x237440 (~2KB) — dedicated a<b function
+      (used by SeqCLower and SeqCGEqual; forward-declared, body pending)
+- [x] Implement unary: ~~SeqCNotExpr~~ ✅ (3027B), ~~SeqCInc~~ ✅ (5464B),
+      ~~SeqCDec~~ ✅ (5464B)
+- [x] Implement unary/stmt: SeqCReturnStatement (6800B)
+- [x] Implement control-flow: ~~SeqCIfCondition~~ ✅ (4360B) + jumpIfZero helper @0x2149f0 (760B)
+- [x] Implement control-flow: ~~SeqCSwitchCase~~ ✅ (11506B, ~400 lines, 3-way dispatch),
+      ~~SeqCRepeat~~ ✅ (8567B), ~~SeqCForLoop~~ ✅ (9794B)
+- [x] Implement control-flow: ~~SeqCDoWhile~~ ✅ (7952B) — do-while with body-first, toDouble+floatEqual Cvar path
+- [x] Implement control-flow: ~~SeqCWhileLoop~~ ✅ (7117B) + loopArgNodeAppend/loopBodyNodeAppend helpers
+- [x] Implement control-flow: ~~SeqCCaseEntry~~ ✅ (2845B)
+- [x] Implement control-flow: ~~SeqCIfElse~~ ✅ (7214B)
+- [x] Implement complex: ~~SeqCFunction~~ ✅ (5080B) — field rename: call_/params_/body_/retType_
+- [x] Implement complex: SeqCCondExpr (11007B) — done
+- [x] Implement complex: ~~SeqCFunctionCall~~ ✅ (15220B, ~350 lines) — two paths: custom + user-defined
+- [x] Implement complex: ~~SeqCArray~~ ✅ (2412B) — NOT ICF'd, array indexing with Wave+Const/Cvar validation, waveform lookup, bounds check, returns wave-with-index + Cvar sample
+- [x] Implement hasCases/isSingleCase/singleCase/cases helpers + evalCaseBody @0x216fc0 + evalCases @0x216980 — all fully implemented from disasm
+- [x] Sub-phase wrap-up
+
+### 22e. Magic numbers refactoring (Category A+B)
+
+Apply the proposal from `notes/magic_numbers_proposal.md`. Category A
+defines new enums/constants; Category B replaces bare integers at call
+sites with existing enum names.
+
+- [x] Implement Category A enums/constants (16 items: ImmediateKind,
+      AsmExprType, VariantSlot, VarFlag, OptFlag, DeviceOpts, OpcodeFormat,
+      NodeTypeIdx, CmdType, RegOrder, RegAction, kCycle, SuserAddr,
+      sentinels, kChannelTag)
+- [x] Apply Category B call-site replacements (~430 sites across 15 files:
+      ErrorMessageT 302, VarType 99, AwgDeviceType 26, Assembler::INVALID 12,
+      ValueType 13, NodeType 2)
+- [x] Investigate 3 open questions: SubFunc base=1 confirmed (switch fixed),
+      ErrorMessageT 0x2F added as UnknownError47, OpcodeFormat documented
+- [x] Sub-phase wrap-up
 
 ---
 
 ## Phase 20e-ii wrap-up cleanup (housekeeping)
 
-Added 2026-04-24 during Phase 20e-ii Batch 5a wrap-up audit. All four
-items can be executed in a single short session.
+Added 2026-04-24 during Phase 20e-ii Batch 5a wrap-up audit.
+Items 3-5 resolved; items 1-2 were prematurely marked done.
 
-- [ ] **OVERVIEW.md narrative compression.** Lines 86-174 contain a long
-      Phase 13c/13d/13e/14a narrative that duplicates the per-phase
-      summary table at line 178+. Net redundancy ~90 lines. Action:
-      keep only the phase table; archive the narrative paragraphs into
-      `notes/archive/OVERVIEW_phase_13_14_narrative.md` per AGENTS.md
-      ("archive/ holds historical or superseded content").
-- [ ] **OVERVIEW.md stale marker-count table (lines 92-100).** Snapshot
-      from Phase 16e (133 markers); now drift > 50%. Currently src/
-      alone has ~45 raw markers across ~14 files. Action: delete the
-      table outright (too-stale-to-maintain; per-file counts churn
-      every depth pass and have low long-term value).
-- [ ] **Promote 3-way duplication to single source of truth.** The
-      simplifyAssign / splitReg / register-rename trio currently appears
-      in `notes/unknowns.md` lines 99-106, `TODO.md` lines 1359-1369,
-      and (post-cleanup placeholder note) `OVERVIEW.md` Open Questions.
-      Per AGENTS.md, TODO.md is the actionable list; notes/ holds
-      technical detail. Action: keep entries in TODO.md +
-      `notes/optimization_passes.md`; remove the carry-forward block
-      from `unknowns.md` and the duplicate listing from OVERVIEW.md.
-- [ ] **Variable header refactor: embed `Value value_` at +0x08.** The
-      header still uses field names `flagWord`/`which_`/`variantStorage`
-      at +0x08/+0x10/+0x18, but disasm proves Variable embeds a full
-      `Value` at +0x08 (readString @0x1e5db5 does
-      `add rsi, 0x8; call Value::toString` — passing &v+8 as Value*).
-      Action: rename the trio to a single `Value value_` member;
-      update all read*/add*/update* references in resources.cpp and
-      resources_function.cpp; update the layout doc in
-      `notes/struct_layouts.md`. Cascade scope: ~7 methods + comments.
+- [x] **OVERVIEW.md narrative compression.** Compressed in Phase 21h
+      session — 55-line prose replaced with 12-line summary paragraph.
+- [x] **OVERVIEW.md stale marker-count table.** Updated to 73 in Phase
+      21h session; phase table row for 21h added.
+- [x] **Promote 3-way duplication to single source of truth.** Already
+      resolved — unknowns.md carry-forward block removed in prior session
+      (see unknowns.md line 101-109 history entry). OVERVIEW.md Open
+      Questions section correctly references TODO.md + notes/ only.
+- [x] **Variable header refactor: embed `Value value_` at +0x08.** Done
+      during Phase 20e-ii Batch 5a (prior session). All read*/add*/update*
+      references updated.
 
 
 
-- [ ] **Audit-script update — query both mangling variants**
-      (added Phase 20d wrap-up). The current per-symbol gap check
-      (`nm libzhinst_seqc.a | grep " T $sym\$"`) silently returns 0
-      for libstdc++-mangled symbols when queried with libc++ names
-      (`__1::basic_string` vs `__cxx1112basic_string`,
-      `__wrap_iter` vs `__gnu_cxx17__normal_iterator`). Either:
-      (a) extend the script to translate both variants and query
-      both, or (b) document that clean `cmake --build` (zero
-      warnings, zero unresolved-at-link-time) is the authoritative
-      gate, with `nm` only used as a hint. Pick one before the next
-      symbol-clearing phase (20e prerequisite).
+- [x] **Audit-script update — query both mangling variants.**
+      Resolved: option (b) chosen. `cmake --build` (zero warnings, zero
+      unresolved-at-link-time) is the authoritative gate; `nm` is a hint
+      only. Phase 20e completed with all 95 symbols resolved, making the
+      prerequisite moot.
 
-## Deferred / Low Priority
+## Phase 23 — Audit-driven cleanup and coverage expansion
 
-- [ ] WavetableManager\<T\> remaining methods (14 methods, ~6KB) — template, partially done
-- [ ] SeqCAstNode `evaluate()` virtual — signature TBD (vtable slot 8 / +0x40, see seqc_ast_node.hpp:114)
-- [ ] Semantic/naming questions from Phase 2-3 (unknowns #23-28, #32, #38) — low value
-- [ ] AWGAssemblerImpl internal field purposes (#39-41) — documented, low priority
-- [ ] Cache/Prefetch implementation detail unknowns (#61-63, #68-69, #75, #81) — diminishing returns (#64 + #77 already closed in unknowns.md)
-- [ ] Exception error-code details (#90-91) — not on seqc critical path
-- [ ] smap remaining logic — ~0x1E6 bytes after alui call (unknowns #10)
-- [ ] **AsmOptimize::simplifyAssign @0x280e10** — still uses pre-correction
-      register field references (reg0/reg2 swapped). Not in scope of
-      Phase 15c unknowns #47-49 but should be revisited if simplifyAssign
-      is ever exercised by tests. Carry-forward from Phase 15c.
-- [ ] **AsmOptimize::splitReg @0x281000** — current stub is ~20 lines;
-      real binary function is ~500 lines. Full reconstruction deferred.
-      Carry-forward from Phase 15c.
-- [ ] **assembler.hpp register field rename** — reg0/reg1/reg2 names are
-      misleading (reg2 is the READ source, reg0 is the WRITE destination).
-      Renaming would cascade across 20+ files; deferred indefinitely.
-      Carry-forward from Phase 15c.
-- [ ] **libc++/libstdc++ ABI unification — design discussion needed**
-      (added Phase 20d wrap-up). Currently we paper over the mismatch
-      on a per-call-site basis: opaque Pimpl wrappers, raw byte-offset
-      access for `SeqcParserContext`, accepting that `std::function`
-      vtable layouts differ at +0x30 vs +0x10. A unified strategy
-      (build the reconstructed lib with libc++ via clang; or maintain
-      a translation header that picks ABI based on `_GLIBCXX_USE_CXX11_ABI`;
-      or accept libstdc++ as canonical and document each site where the
-      original libc++ ABI bleeds through) deserves its own design
-      discussion before any executable-link integration. Until then,
-      every cross-ABI assumption (vtable offsets, string layout,
-      iterator wrappers) gets a code-comment flag.
+Originated from comprehensive audit on 2026-04-25. Compared binary symbol
+table (2852 unique `t` symbols) against reconstruction (835 intersection,
+430 genuine zhinst gaps after filtering STL/boost template noise). Also
+audited all source for placeholder fields, raw-offset access, approximate
+implementations, stubs, and uncertainty comments. Cleanup tasks first,
+then larger refinement, then new coverage.
+
+### 23a. TODO.md housekeeping ✅
+
+- [x] Rewrite summary table with audit findings
+- [x] Tick off stale `[ ]` checkboxes (19c, floatEqual, mergeWaveforms,
+      writeToNode, WavetableManager, play wrappers — all done in prior phases)
+- [x] Add Phase 23 plan
+- [x] Remove 7 vtable store-back TODOs from `seqc_ast_nodes_evaluate.cpp`
+      (resolved in 21h.4-followup as Immediate variant dtors — no source change)
+- [x] Replace `0x6e69616d` with `"main"` string comparison in
+      `seqc_ast_nodes_evaluate.cpp`
+
+### 23b. DeviceConstants field naming (~6 fields × 9 device types) ✅
+
+Name the placeholder fields from consumer analysis. These are the most
+frequently used unnamed fields in the entire codebase (~54 assignment
+lines in device_constants.cpp + ~20 consumer sites elsewhere).
+
+- [x] `field_20` → `sineNodeBase` (oscillator node index base in setSinePhase/incrementSinePhase)
+- [x] `field_24` → `waveformElfAlignment` (ELF segment alignment; stored as WaveformIR.irField2)
+- [x] `field_3C` → `triggerLatencyCycles` (min-wait threshold; subtracted after wtrig)
+- [x] `field_48` → `playMinSamples` (min play length; no reconstructed consumer but TODO hint from binary)
+- [x] `field_4C` → `waveformMinSamples` (initial seqRegWidth; passed to checkOffspecWaveLength)
+- [x] `field_54` → `numCounters` (getCnt range check; confirmed Phase 18b-ii)
+- [x] Cascade rename across device_constants.cpp (9 blocks) + all consumer sites
+- [x] Sub-phase wrap-up
+
+### 23c. AWGCompilerConfig field naming (~4 unknowns) ✅
+
+- [x] `unknown_20` → `awgIndex` (AWG core index; builds node paths + validates channel ownership)
+- [x] `unknown_28` → no consumer found; annotated as unresolved
+- [x] `unknown_88` → no consumer found; annotated as unresolved
+- [x] `unknown_98[8]` → no consumer found; annotated as unresolved
+- [x] Sub-phase wrap-up
+
+### 23d. reinterpret_cast elimination in resources.cpp (~30 sites) ✅
+
+The ~30 raw byte-offset accesses on Value/Variable objects are the single
+worst readability hotspot. Variable layout is fully known since Phase
+19c-followup. Replace all `reinterpret_cast + offset` patterns with
+proper field access through the reconstructed struct.
+
+- [x] Audit all reinterpret_cast sites in resources.cpp (29 found)
+- [x] Replace Value raw-offset patterns (+0x04, +0x08, +0x18, +0x50)
+      with named field access (var->value, var->subTypeRaw, &var->value.storage_)
+- [x] Replace Variable flags byte hack with VarFlag_Written/VarFlag_Frozen
+- [x] Replace libc++ string internal offset reads with std::string* cast
+- [x] Build verify — 30→8 reinterpret_casts remaining (8 are inherent
+      SSO memory ops that can't be eliminated without algorithm change)
+
+### 23e. Device-type bitmask constants in custom_functions_io.cpp (~70 sites) ✅
+
+Replace `static_cast<AwgDeviceType>(0x1ff)` patterns with named
+combinations. Define convenience constants in types.hpp (e.g.
+`kDevAll`, `kDevHirzel`, `kDevSHFPlus`, etc.).
+
+- [x] Survey all unique bitmask values used (19 unique values, 69 total sites)
+- [x] Define 12 named constants in types.hpp (kDevAll, kDevAllButUHF, kDevHirzel,
+      kDevSHFPlus, kDevLIFamily, kDevCervino, kDevPreSHFLI, kDevQA, etc.)
+- [x] Replace 61 hex casts in custom_functions_io.cpp + 8 in custom_functions_playback.cpp
+      (single-device values replaced with enum name, e.g. `static_cast<AwgDeviceType>(HDAWG)`)
+- [x] Build verify — 0 hex bitmask casts remaining
+
+### 23f. reinterpret_cast cleanup in other files (~50 sites) ✅
+
+After resources.cpp (23d), clean up remaining raw-offset access:
+custom_functions*.cpp (~18), prefetch*.cpp (~15), waveform.cpp (~5),
+awg_assembler*.cpp (~3), seqc_parser_context.cpp (2).
+
+Full audit found ~99 sites across 23 files. Fixed 18 easy wins:
+- [x] custom_functions.cpp: config_->deviceType (×2), devConst_->playMinSamples,
+      devConst_->waveformPageSize, wf->signal.length_ (×2), wf->name (×2),
+      wf->seqRegWidth, config_->includePaths loop
+- [x] custom_functions_play.cpp: config_->deviceType
+- [x] prefetch*.cpp: config_->isHirzel (×4), config_->cacheType
+- [x] seqc_ast_nodes_evaluate.cpp: replaced 0x6e69616d with `funName == "main"` (×2)
+- [x] Build verify — ~100 remaining are inherent (serialization, tagged unions,
+      aligned storage, SSO internals, vtable dispatch, stride iteration) or
+      require deeper struct knowledge (custom_functions_play arg offsets,
+      prefetch usageEntries, wavetable_front manager internals)
+
+### 23g. Remaining placeholder fields in other headers ✅
+
+- [x] waveform_generator.hpp: `field_20_` → `funcMap_maxLoadFactor_` (libc++ internal),
+      `field_48_` → `aliasMap_maxLoadFactor_`, `field_78_` → `pad_78_`,
+      `field_B0_` → `reserved_B0_` (dead field, no setter in binary)
+- [x] custom_functions.hpp: `field_80_` → `funcMap_maxLoadFactor_`,
+      `field_A8_` → `aliasMap_maxLoadFactor_`, `field_B0_` → `unusedStringSet_B0_`
+      (no consumer), `field_168_` → `assignedWaveNames_` (populated by assignWaveIndex)
+- [x] prefetch.hpp: 6 unknowns at +0xC0..+0xD8 already resolved as `cwvfConfig_`
+      (PlayConfig struct) — updated stale layout comment
+- [x] Sub-phase wrap-up — build clean
+
+### 23h. SeqC copy-ctor / operator= / swap / accessors (158 missing symbols) ✅
+
+Mechanical code generation. All 53 subclasses need copy-ctor (= clone()),
+operator= (copy-and-swap idiom), swap (member swap), and child-accessor
+methods (expr(), funName(), stmts(), getListElements(), etc.). Can be
+largely macro-generated.
+
+- [x] Survey which accessors are called in existing code vs just in binary
+- [x] Implement accessors for subclasses that have them (expr(), funName(),
+      stmts(), params(), decls(), body(), label(), ifBody(), elseBody(),
+      cond(), arguments(), validLabel(), hasLabel())
+- [x] Implement copy-ctor = clone pattern via macro or per-class
+- [x] Implement operator= via copy-and-swap
+- [x] Implement swap() free functions
+- [x] SeqcParserContext::hadSyntaxError() + reset() (2 more missing symbols)
+- [x] Build verify + sub-phase wrap-up
+
+### 23i. Missing toString/str/serialize methods (~53 symbols) ✅
+
+Various classes have toString(), str(), toJson(), serialize() methods in
+the binary that we haven't implemented.
+
+- [x] `Assembler::str(bool)`, `commandToString(Command)`, `highestRegisterNumber()` — already complete
+- [x] `Assembler` copy-ctor, operator=, move-operator=, dtor — added (default ctor + explicit dtor, copy-assign with self-check, move-assign)
+- [x] `AsmList::serialize()` — already complete
+- [x] `Cache::Pointer::str()` — already complete
+- [x] `CompilerMessage::str(bool)` — already complete
+- [x] `Node::toString()`, `type2str(NodeType)`, `waveAtCurrentDeviceIndex()` — already complete
+- [x] `Value::toString()` — already complete
+- [x] `WaveformFront::toString()`, `WavetableFront::toString()` — already complete
+- [x] `WaveformIR::toJsonElement(SampleFormat)` — already complete
+- [x] `WavetableIR::alignWaveformSizes()`, `assignWaveformAllocationSizes()` — implemented
+- [x] `WavetableIR::getJsonIndex(SampleFormat)` — already complete
+- [x] `Waveform::File::operator==()`, `typeToStr()` — already complete
+- [x] `Signal::Signal(ulong, MarkerBitsPerChannel const&)` — already complete
+- [x] `ElfReader::getCode()`, `getLineMap()`, `getWaveform()` — implemented
+- [x] `Prefetch::wvfImpl()`, `wvfRegImpl()`, `wvfs()` — already complete
+- [x] `Resources::setReturnValue(Value)`, `toString()` — already complete
+- [x] `str(AsmOperationType)`, `str(EDirection)`, `str(EValueCategory)`,
+      `str(VarSubType)`, `str(VarType)` — all implemented (AsmOperationType enum + str added)
+- [x] `toString(Immediate)`, `toString(AwgSequencerType)`,
+      `toString(DeviceFamily)`, `toString(DeviceOption, DeviceFamily)`,
+      `toString(DeviceTypeCode)`, `toString(DeviceType const&)` — all implemented
+- [x] Build verify + sub-phase wrap-up
+
+### ~~23j. AWGCompiler public API~~ → moved to Phase 24c
+
+### ~~23k.~~ → moved to Phase 26a
+
+### 23l. DeviceType extra methods (21 symbols) ✅
+
+Factory `makeDefault()` methods (already structurally present but emitting
+wrong mangling?), DeviceType constructors, comparison operators.
+
+- [x] Audit which are already defined vs mangling-gap
+- [x] `DeviceType(DeviceFamily)`, `DeviceType(DeviceFamily, unsigned long)` ctors
+- [x] `DeviceType::deviceType()`, `toString()`, `swap()`
+- [x] `DeviceType::print(ostream&)`
+- [x] `operator<(DeviceType)`, `operator==(DeviceType)`
+- [x] `operator<<(ostream&, DeviceType const&)`
+- [x] `hasOption(DeviceType, DeviceOption)` (free function)
+- [x] `detail::DeviceFamilyFactory::makeDeviceType()`,
+      `detail::DeviceTypeImpl::doClone()` — already complete
+- [x] Build verify + sub-phase wrap-up
+
+### ~~23m.~~ → moved to Phase 26b
+
+
+---
+
+## Phase 24 — Python binding layer (pybind11)
+
+Reconstruct the complete path from `PyInit__seqc_compiler` down to the
+already-reconstructed `Compiler` class. ~10-12KB across 4 components
+plus the AWGCompiler facade.
+
+### 24a. Build system setup ✅
+
+- [x] Install pybind11 headers — already installed (pybind11 3.0.4-1)
+- [x] Add pybind11 `find_package` / header-only dep to CMakeLists.txt
+- [x] Verify build still passes (both g++ and clang++/libc++)
+
+### 24b. ZiFolder utility (~1KB, 3 methods) ✅
+
+- [x] `ZiFolder::ZiFolder(string)` [0x2ce2c0] — already in zi_folder.cpp
+- [x] `ZiFolder::ziFolder(DirectoryType)` [0x2cf0c0] — already in zi_folder.cpp
+- [x] `ZiFolder::folderPath(...)` [0x2ce2f0] — already in zi_folder.cpp
+- [x] Build verify + sub-phase wrap-up
+
+### 24c. AWGCompiler facade + AWGCompilerImpl (~2-3KB, 15+ symbols) ✅
+
+Relocated from 23j — thin wrappers around the reconstructed Compiler.
+
+- [x] `AWGCompiler` pimpl wrapper (11 methods, all forwarding to Impl)
+- [x] `AWGCompilerImpl` class (0x2C0 bytes) — ctor, dtor, all 11 methods
+- [x] `AWGCompilerImpl::getCompileReport()` — iterate compileMessages_ + assembler report
+- [x] `AWGCompilerImpl::setCancelCallback/setProgressCallback` — forward to compiler_
+- [x] `AWGCompilerImpl::compileString()` — structural reconstruction (validate device type,
+      Compiler::compile, assemble, optimize, output)
+- [x] `AWGCompilerImpl::compileFile()` — read file, delegate to compileString
+- [x] `AWGCompilerImpl::addWaveforms()` — iterate paths, WavetableFront::newWaveformFromFile
+- [x] `AWGCompilerImpl::writeToStream()` — ElfWriter output pipeline
+- [x] `AWGCompilerImpl::writeToFile/writeAssemblerToFile` — file I/O wrappers
+- [x] `AWGCompilerImpl::getBinVersion()` — structural TODO (needs CalVer/getLaboneVersion)
+- [x] `AWGCompilerImpl::getJsonWaveformMemoryInfo()` — structural TODO (needs WavetableIR iteration)
+- [x] `AWGCompilerConfig::getAwgDeviceTypeString/getChannelGroupingModeString` — already existed
+- [x] Build verify (both g++ and clang++/libc++)
+
+### 24c-followup. AWGCompilerImpl TODO cleanup (2026-04-25)
+
+Resolved 5 of 8 TODO markers in `awg_compiler.cpp`:
+
+- [x] `compressSourceString` @0x109e90 — real zlib: deflateInit(level 9) +
+      deflate(Z_FINISH) loop with 0x8000-byte chunks + deflateEnd; error
+      throws via ErrorMessages::format(0x1e, format)
+- [x] `getBinVersion` @0x10b830 suffix table — switch on deviceType:
+      HDAWG→"hirz", SHFQA/SG/QC_SG/LI→"grim", GHFLI→"gurn", VHFLI→"malo",
+      default→"cerv"; output built as growing std::string (4→8→16 bytes)
+- [x] `getAssemblerHeader` @0x1083d0 — banner/separator/auto-gen notice,
+      conditional source file, version "26.01.3.9", formatTime(now, false)
+- [x] `hadSyntaxError` wiring — added Compiler::hadSyntaxError() accessor
+      (SeqcParserContext byte at +0x03); wired into writeToStream +
+      writeAssemblerToFile early-return checks
+- [x] AWGCompilerImpl ctor @0x103b40 — proper init: getDeviceConstants,
+      make_shared\<WavetableFront\>, Compiler(config, devConst, wavetable_)
+- [x] `writeToStream` metadata sections — 7 of 9 ELF sections implemented:
+      .nodes/.nodes_json (device-type gated), .channels,
+      .required_sample_rate, .waveforms, .wavemem, .version_bin;
+      source compression flag at config+0x9D now gates .c/.asm sections
+- [x] `addWaveforms` binary format loading (.bin/.bin16/.wave/.wave16) —
+      .bin/.wave: ifstream(ate) → tellg → read → awg2double/awg2marker loop
+      → Signal(samples, markers, markerBits) → newWaveformFromFile(stem,
+      signal, path, Type=1); .bin16/.wave16: log warning "not implemented"
+- [x] `getJsonArguments` @0x10a3c0 → `.arguments` ELF section
+      (boost::property_tree: "destination", "source", "waves" array)
+- [x] `getJsonVersion` @0x10ac60 → `.version_json` ELF section
+      (boost::property_tree: "compiler" uint32, "target" device family;
+      NOTE: "external_triggering" and "required_options" conditionally
+      omitted — source data at this+0x190 not yet identified)
+
+### 24d. compileSeqc orchestrator (~6KB) [0xf58a0] ✅
+
+- [x] Reconstruct `zhinst::compileSeqc()` — JSON config parsing,
+      DeviceType/AWGCompilerConfig assembly, AWGCompiler invocation
+- [x] Build verify + sub-phase wrap-up
+
+### 24e. pybind11 entry points (~3KB) ✅
+
+- [x] `zhinst::pyCompileSeqc()` [0xe0000] — arg extraction, GIL
+      release, result packing
+- [x] `zhinst::makeSeqcCompiler()` [0xe1900] + `makeSeqcCompilerInCore()`
+      — module_.def() registration, version attrs
+- [x] `PyInit__seqc_compiler` [0xf5350] — module creation
+- [x] Build verify + sub-phase wrap-up
+
+---
+
+## Phase 25 — Boilerplate reduction (helper extraction)
+
+The evaluate-AST (~10K lines) and custom-functions (~8K lines across 4
+files) implementations contain significant repetitive boilerplate — likely
+reflecting inlined helpers or macros in the original source. Introducing
+named helpers makes the reconstruction shorter, more expressive, and
+less error-prone.
+
+Ordered by impact × feasibility: AST-evaluate lambda dedup first (pure
+duplication, zero risk), then custom_functions helpers (higher churn risk
+in binary-faithful code).
+
+### 25d. AST evaluate: promote local lambdas to file-scope helpers ✅
+
+Promoted 5 helper lambdas from per-function definitions to file-scope
+anonymous-namespace functions in `seqc_ast_nodes_evaluate.cpp`. Removed
+24 duplicate lambda definitions total:
+
+- [x] `isConstOrCvar` (11 defs → 0; moved to `resources.hpp` as shared inline)
+- [x] `rhsTypeOrUnset` (5 defs → 0; now free function taking `EvalResults const&`)
+- [x] `rhsCount` (4 defs → 0; same)
+- [x] `getBackReg` (2 defs → 0; now file-scope, no captures)
+- [x] `rhsSubOrDefault` (2 defs → 0; same as rhsTypeOrUnset)
+- [x] Updated all call sites: `rhsCount()` → `rhsCount(rhsResult)`, etc.
+- [x] Both builds clean (g++ + clang++)
+
+### 25g. Shared `isConstOrCvar(VarType)` across codebase ✅
+
+- [x] Added `inline bool isConstOrCvar(VarType)` to `resources.hpp` (after VarType enum)
+- [x] Replaced 5 bitwise patterns in `custom_functions_io.cpp`:
+      `(static_cast<int>(arg.varType_) & ~1) == 4` → `isConstOrCvar(arg.varType_)`
+- [x] Both builds clean
+
+### 25f. evalLogical — LogOr `" && "` confirmed as binary bug ✅
+
+- [x] Investigated: SeqCLogOr uses `" && "` separator, confirmed from binary
+      DWORD 0x20262620. This is a **copy-paste bug in the original source**,
+      not a reconstruction error. Already documented in source comments.
+      No fix applied (we match the binary).
+
+### 25a-c,e. custom_functions helpers — DEFERRED
+
+- [ ] ~~`emitLoadImmediate` (37 sites in io.cpp)~~ — deferred. Pattern has
+      enough variation in variable names, Immediate sources, and follow-up
+      instructions that mechanical replacement risks obscuring binary-address
+      documentation and introducing subtle differences. ROI too low vs risk.
+- [ ] ~~`emitRegOrConst` (~15 sites)~~ — depends on 25a, deferred.
+- [ ] ~~`checkWaitState`/`isShfFamily`/`emitWaitTrigger`~~ — deferred.
+      Low ROI for binary-reconstructed code.
+- [ ] ~~`validateBinaryOperands` preamble~~ — only 4 instances (Plus/Minus/
+      Mult/Div). Not enough duplication to justify extraction.
+
+**`checkWaitState(int expected)`** (~10 sites) — the DIO/ZSync
+waitState_ protocol:
+```cpp
+void CustomFunctions::checkWaitState(int expected);
+```
+
+**`isShfFamily()`** (~8 sites) — the 3-way `(devType == SHFLI ||
+devType == VHFLI || devType == GHFLI)` test:
+```cpp
+bool CustomFunctions::isShfFamily() const;
+```
+
+**`emitWaitTrigger(constName, results, res)`** (~8 sites) — the
+`readConst + addi + wtrig` sequence that is character-for-character
+identical across multiple wait functions:
+```cpp
+void emitWaitTrigger(const char* constName, EvalResults& results,
+                     std::shared_ptr<Resources> const& res,
+                     AsmCommands* asmCommands);
+```
+
+- [ ] Implement `checkWaitState`, `isShfFamily`, `emitWaitTrigger`
+- [ ] Replace call sites
+- [ ] Build verify + sub-phase wrap-up
+
+---
+
+## Phase 26 — Remaining gaps (stubs, data tables, approximate impls)
+
+Relocated from Phase 23 — these are not mechanical cleanup but require
+binary analysis and new reconstruction work.
+
+### 26a. GetNodeMap\<T\>::get() specializations (8 symbols) ✅
+
+Extracted all 8 device-specific node maps (1081 total entries) from binary
+using runtime extraction (dlopen + tree traversal). Implemented as
+`get_node_map.cpp` (1267 lines) with table-driven `addDirect`/`addVirt`
+helpers. Wired `initNodeMap` stub to use real `getNodeMapForDevice()`
+dispatcher. Added default ctors to `DirectAddrNodeMapData` and
+`VirtAddrNodeMapData`.
+
+- [x] Survey what GetNodeMap returns (static map of node paths → addresses)
+- [x] Implement 8 specializations from binary data
+- [x] Wire initNodeMap stub to use real GetNodeMap data
+- [x] Build verify + sub-phase wrap-up
+
+### 26b. Stubs and approximate implementation cleanup ✅
+
+Address the 6 conservative stubs and ~19 approximate implementations.
+
+- [x] `oscMaskCheckHirzel` @0x15bab0 — fully reconstructed from binary.
+      3-way dispatch (dc=1/2/4) × MF feature, with jump tables for
+      groupIndex. ~1.2KB function.
+- [x] `oscMaskSetAllHirzel` @0x15bf50 — fully reconstructed. Returns
+      bitmask shifted by groupIndex, scaled by MF feature presence.
+- [x] `initNodeMap` — done in 26a (wired to `getNodeMapForDevice()`)
+- [x] `secureLoadWaveform` @0x1711a0 — expanded from stub. Now includes
+      CSV duplicate warning (error 0xEB via reportWarning_) and
+      `wavetableFront_->loadWaveform()` call.
+- [x] `parseOptionalString` / `getPlayRate` — done earlier in 26b session
+- [x] Review ~19 approximate-implementation comments — all 3 checked
+      (exception.cpp MI layout, mergeWaveforms factory, signal.cpp epsilon)
+      are documented structural approximations, not bugs. No action needed.
+- [x] `frontend_lowering.cpp` lower() body — was already complete since
+      Phase 21f. Cleaned up stale `constWaveform` stub (moved to
+      seqc_ast_nodes_evaluate.cpp in Phase 21h.4).
+- [x] `seqc_ast_node.cpp` recursive printer @0x1fa430 — fully reconstructed
+      with box-drawing tree connectors (`|-` / `` `- ``). Also fixed
+      SeqCValue::~SeqCValue() — was `= default` which leaked placement-new'd
+      strings; now properly dispatches destruction based on tag_.
+- [x] Build verify — both g++ and clang++/libc++ clean, 0 errors.
+
+---
+
+## Phase 27b — CalVer + utility free functions
+
+### 27b. CalVer class + versioning (16 symbols) ✅
+
+- [x] `CalVer` struct (0x20 bytes: year_, month_, patch_, build_ as size_t)
+- [x] `CalVer::CalVer(string const&)` @0x0ffdb0 — dot-counting parser,
+      extractVersionTriple + optional build suffix
+- [x] 4 accessors: year/month/patch/build + triple()
+- [x] `getLaboneVersion()` @0x100270 — static {26, 1, 3, 9}
+- [x] `getLaboneVersionWithCommitHash()` @0x1002a0 — "26.01.3.9 (203353a...)"
+- [x] `asBinary()` @0x1007c0 — year<<24 | month<<16 | (patch<<12)&0xFFFF | build&0xFFF
+- [x] `asDecimal()` @0x1006e0 — (YY*100+MM)*100000 + P*10000 + BBBB
+- [x] `fromBinary()` @0x100780, `fromDecimal()` @0x100490 — inverses
+- [x] `toString()` @0x1007f0 — "YEAR.MONTH.PATCH"
+- [x] `isSet()` @0x100470 — any field non-zero
+- [x] `operator==` @0x100bc0, `operator<` @0x100c00
+- [x] Removed CalVer forward-decl from awg_compiler.cpp; now uses calver.hpp
+
+### 27b. formatTime (3 overloads) ✅
+
+- [x] `formatTime(ptime, char const*)` @0x2f6190 — time_facet + oss
+- [x] `formatTime(ptime, bool)` @0x2f7440 — compact ? "%Y%m%d_%H%M%S" : "%Y/%m/%d %H:%M:%S"
+- [x] `formatTime(long, bool, bool)` @0x2f7470 — epoch→ptime, optional utcToLocal
+- [x] Removed formatTime forward-decl from zi_folder.cpp; now uses format_time.hpp
+
+### 27b. Serial number predicates (10 symbols) ✅
+
+- [x] All 10: isHf2/isUhf/isMf/isHdawg/isPqsc/isShf/isShfacc/isGhf/isQhub/isVhf
+      Each uses unsigned subtraction range check pattern.
+      Short range + long range (10× base), except PQSC (single range).
+
+### 27b. getPlatformName ✅
+
+- [x] `getPlatformName()` @0x2ec6e0 — returns "linux64"
+
+### 27b remaining (deferred)
+
+- [ ] `extractVersionTriple()` @0x101570 — extern-declared, not yet implemented
+- [ ] 6 misc string/filesystem utilities (unreferenced by compiler core):
+      isDirectoryWriteable, isMountPoint, isPureAscii, isValidUtf8 (×2), isInList
+
+---
+
+## Backlog — Long-deferred / SDK-scope items (unphased)
+
+Items that are outside the compiler core or extremely low value.
+DO NOT execute speculatively — assign to a phase only when needed.
+
+- [ ] **ZI*Exception hierarchy** — 46 symbols for ~23 SDK exception
+      subclasses. Not used by the compiler core. Implement only if
+      needed for AWGCompiler public API error propagation.
+- [ ] **CalVer remaining** — extractVersionTriple @0x101570 + 6 misc
+      string/filesystem utilities (unreferenced by compiler core)
+- [x] **assembler.hpp register field rename** — reg0/reg1/reg2 renamed to
+      regDst/regSrc/regAux across 10 files (137 refs). Phase 27a.
+- [ ] **Rename placeholder field names** — ~15 nondescript fields across
+      8 headers (WaveformFront, WaveformIR, Waveform, AsmExpression,
+      ElfReader, Resources, AWGAssemblerImpl, AWGCompilerConfig). High-
+      confidence renames for 7 fields, medium for 3, unknown for 8.
+      Full inventory and evidence in `notes/placeholder_field_names.md`.
+- [ ] **csv_parser.cpp full reconstruction** — ~7KB per specialization.
+      Currently throws at runtime.
+- [ ] Phase 2-3 semantic naming (unknowns #23-28, #32, #38)
+- [ ] AWGAssemblerImpl internal field purposes (#39-41)
+- [ ] Cache/Prefetch implementation detail (#61-63, #68-69, #75, #81)
+- [ ] Exception error-code details (#90-91)
+- [ ] smap remaining logic — ~0x1E6 bytes after alui call (#10)
+- [ ] SeqCAstNode `type` field meaning (#96)
+- [ ] `seqc_error`/`seqc_lex_init_extra`/`seqc_parse`/`seqc_set_extra` —
+      flex/bison parser entry points (C functions)

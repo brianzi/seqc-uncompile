@@ -51,21 +51,16 @@ const char* ResourcesException::what() const noexcept  // @0x1f1340
 // ============================================================================
 Resources::Variable::~Variable()  // @0x1e4be0
 {
-    // The `name` std::string member at +0x38 is destroyed automatically.
-
-    // Variant string cleanup: only when abs(which_) >= 3, the variant slot at
-    // +0x18 holds a libc++ std::string. We have to invoke its destructor
-    // manually because the `value` field is typed as raw storage in our
-    // reconstruction.
-    int32_t w    = which_;
-    int32_t absW = w ^ (w >> 31);
-    if (absW >= 3) {
-        // Reinterpret the 24 bytes at variant storage start as a std::string
-        // and run its destructor (handles SSO vs long-form internally).
-        auto* s = reinterpret_cast<std::string*>(
-            reinterpret_cast<uint8_t*>(this) + 0x18);
-        s->~basic_string();
-    }
+    // The `name` std::string member at +0x38 and the embedded `value`
+    // Value at +0x08 are both destroyed automatically by the
+    // compiler-generated subobject teardown. Value's destructor handles
+    // the variant-payload string cleanup (when abs(which_) >= 3).
+    //
+    // Previously this dtor reached into the variant storage manually
+    // because Variable was modeled with raw `flagWord/which_/variantStorage`
+    // fields. After the Phase 20e-ii Batch 5a wrap-up cleanup that
+    // promoted the +0x08..+0x2F block to a real `Value value` member,
+    // no manual cleanup is needed.
 }
 
 // ============================================================================
@@ -469,6 +464,17 @@ std::string str(VarType vt) {
     }
 }
 
+// str(VarSubType) @0x247ee0 — convert VarSubType enum to string
+std::string str(VarSubType vst) {
+    switch (vst) {
+        case VarSubType_Default:     return "none";
+        case VarSubType_Stub:        return "bool";
+        case VarSubType_FunctionArg: return "arg";
+        case VarSubType_Numeric:     return "vect";
+        default:                     return {};
+    }
+}
+
 // ============================================================================
 // Resources::addConst — @0x1e7010
 //
@@ -517,15 +523,13 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
     //
     // CORRECTED Phase 20e-ii: the binary writes `st` (3rd arg) to +0x04
     // (subTypeRaw) at 1e71c7, and a *hardcoded* literal 3 to +0x08
-    // (flagWord) at 1e717b. The previous reconstruction had these
+    // (value.type_) at 1e717b. The previous reconstruction had these
     // backwards. See header comment on Variable layout for details.
     Variable v{};
     v.type        = VarType_Const;
     v.subTypeRaw  = st;                      // 1e71c7: caller's `st` → +0x04
-    v.flagWord    = 3;                       // 1e717b: hardcoded → +0x08 (numeric tag)
-    v.which_      = 2;                       // variant slot for double (per 1e717b... wait, 1e7100 = which_=0 init; later set by variant_assign)
-    v.pad_0C      = 0;
-    v.pad_14      = 0;
+    v.value.type_    = ValueType::Double;                       // 1e717b: hardcoded → +0x08 (numeric tag)
+    v.value.which_      = 2;                       // variant slot for double (per 1e717b... wait, 1e7100 = which_=0 init; later set by variant_assign)
     v.reg         = AsmRegister::Invalid();  // AsmRegister(-1)
     v.name        = name;
     v.flags       = 0;
@@ -534,7 +538,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
     // Layout matches a libc++ raw 16-byte buffer; the first 8 bytes are the
     // double value, the remaining 8 are the long-form-string ptr slot which
     // is unused for numeric payloads.
-    std::memcpy(v.variantStorage, &val, sizeof(double));
+    std::memcpy(&v.value.storage_, &val, sizeof(double));
 
     variables_.push_back(v);
 }
@@ -561,8 +565,8 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
 //        +0x00 varType_    = 4 (VarType_Const)
 //        +0x04..+0x0B [8 bytes copied from var+0x04 — covers subType +
 //                     first 4 bytes of out's value_ field]
-//        +0x10 which_      = |var->which_|
-//        +0x18 variant data via 4-way jump table on |var->which_|
+//        +0x10 which_      = |var->value.which_|
+//        +0x18 variant data via 4-way jump table on |var->value.which_|
 //        +0x30 reg_        = AsmRegister(-1)
 // ============================================================================
 EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  // @0x1e7d70
@@ -575,10 +579,9 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
 
-    // Write-path requires the var->flags byte at +0x50 to be set.
-    // (Read raw via byte offset to mirror the disasm's `cmp BYTE PTR [rax+0x50],0`.)
-    if (dir != EDirection_Read &&
-        reinterpret_cast<uint8_t const*>(var)[0x50] == 0) {
+    // Write-path requires the var to have been assigned (flags low byte != 0).
+    if (dir != EDirection::eIN &&
+        (var->flags & 0xFF) == 0) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -594,40 +597,38 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
     EvalResultValue out{};
     out.varType_ = VarType_Const;
 
-    // Copy 8 bytes from var+0x04 into out+0x04 (qword overlap of subType
-    // and first 4 bytes of value_, matching 1e7dc1..1e7dc6).
-    {
-        uint64_t lo;
-        std::memcpy(&lo, reinterpret_cast<uint8_t const*>(var) + 0x04, sizeof(lo));
-        std::memcpy(reinterpret_cast<uint8_t*>(&out) + 0x04, &lo, sizeof(lo));
-    }
+    // Copy subType and value type from variable into EvalResultValue.
+    // The binary does a single 8-byte qword copy across var+0x04..+0x0C → out+0x04..+0x0C,
+    // overlapping subTypeRaw (4 bytes) + value.type_ (4 bytes).
+    out.varSubType_ = var->subTypeRaw;
+    out.value_.type_ = var->value.type_;
 
     // Variant payload copy via |which_| dispatch
-    int32_t w    = var->which_;
+    int32_t w    = var->value.which_;
     int32_t absW = (w ^ (w >> 31));
     switch (absW) {
-        case 0: {  // int — 4 bytes at variantStorage[0]
+        case 0: {  // int — 4 bytes at value.storage_[0]
             int32_t i;
-            std::memcpy(&i, var->variantStorage, sizeof(i));
+            std::memcpy(&i, &var->value.storage_, sizeof(i));
             out.value_.storage_.i = i;
             out.value_.which_     = 0;
             break;
         }
-        case 1: {  // bool — 1 byte at variantStorage[0]
-            out.value_.storage_.b = (var->variantStorage[0] != 0);
+        case 1: {  // bool — 1 byte at value.storage_[0]
+            out.value_.storage_.b = (var->value.storage_.str_storage[0] != 0);
             out.value_.which_     = 1;
             break;
         }
-        case 2: {  // double — 8 bytes at variantStorage[0]
+        case 2: {  // double — 8 bytes at value.storage_[0]
             double d;
-            std::memcpy(&d, var->variantStorage, sizeof(d));
+            std::memcpy(&d, &var->value.storage_, sizeof(d));
             out.value_.storage_.d = d;
             out.value_.which_     = 2;
             break;
         }
         default: { // string (absW >= 3) — copy libc++ std::string from variant
             // Variant storage holds a libc++ std::string at var+0x18 (24 bytes,
-            // overlapping variantStorage[0..15] + pad_28). The destination is
+            // overlapping value.storage_[0..15] + pad_28). The destination is
             // the std::string embedded in out.value_.storage_ at out+0x18.
             // libc++ string layout (24B):
             //   short form: [0]=size<<1 (low bit clear), [1..22]=chars, [23]=0
@@ -644,19 +645,18 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
             //   mov  rdx,[r12+0x20]            ; size
             //   mov  rsi,[r12+0x28]            ; data ptr
             //   call __init_copy_ctor_external ; constructs new string at out+0x18
-            //   eax = abs(var->which_)         ; recomputed from [r12+0x10]
-            uint8_t const* src = reinterpret_cast<uint8_t const*>(var) + 0x18;
-            uint8_t*       dst = reinterpret_cast<uint8_t*>(&out) + 0x18;
+            //   eax = abs(var->value.which_)         ; recomputed from [r12+0x10]
+            uint8_t const* src = reinterpret_cast<uint8_t const*>(&var->value.storage_);
+            uint8_t*       dst = reinterpret_cast<uint8_t*>(&out.value_.storage_);
             if ((src[0] & 1) == 0) {
                 // Short / SSO form: bulk copy the 24-byte inline buffer.
                 std::memcpy(dst,        src,        16);
                 std::memcpy(dst + 0x10, src + 0x10, 8);
             } else {
                 // Long form: source holds (cap|1, size, char*). Reconstruct as
-                // a fresh libc++ string via __init_copy_ctor_external(dst, ptr, size).
-                size_t const     sz  = *reinterpret_cast<size_t const*>(src + 0x08);
-                char const*      ptr = *reinterpret_cast<char const* const*>(src + 0x10);
-                ::new (dst) std::string(ptr, sz);
+                // a fresh libc++ string via placement new(dst, ptr, size).
+                auto const& srcStr = *reinterpret_cast<std::string const*>(src);
+                ::new (dst) std::string(srcStr.data(), srcStr.size());
             }
             out.value_.which_ = absW;  // 1e7e3b..1e7e4b: store recomputed |which_|
             break;
@@ -830,7 +830,7 @@ VarType Resources::getVariableType(std::string const& name)  // @0x1e4460
 // disassembly shows the binary reads from +0x04 here, and the addX
 // disasms (Batch 2) show callers writing the `st` arg to +0x04 with a
 // HARDCODED secondary-tag literal at +0x08. The header has been
-// corrected (subTypeRaw at +0x04, flagWord at +0x08). This method
+// corrected (subTypeRaw at +0x04, value.type_ at +0x08). This method
 // returns the caller-supplied subtype, not the hardcoded tag.
 // ============================================================================
 VarSubType Resources::getVariableSubType(std::string const& name)  // @0x1e4580
@@ -870,7 +870,7 @@ bool Resources::constIsSet(std::string const& name)  // @0x1e8050
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
-    return reinterpret_cast<uint8_t const*>(var)[0x50] != 0;
+    return (var->flags & 0xFF) != 0;
 }
 
 // ============================================================================
@@ -924,7 +924,7 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
 // ============================================================================
 
 // The addString/addWave bodies use placement-new to build a std::string
-// inside Variable::variantStorage[16] + Variable::pad_28 (8 bytes more,
+// inside Variable::value.storage_[16] + Variable::pad_28 (8 bytes more,
 // overlapping the long-form ptr slot at +0x28 — see the documented
 // layout in resources.hpp). The actual binary uses libc++ where
 // sizeof(std::string)=24 bytes, fitting in 16+8. When we build with
@@ -954,8 +954,8 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
 //                            no `st` arg, so subTypeRaw stays 0
 //                            (=VarSubType_Default). Note the val-string
 //                            copy branch at 1e51ba writes 4 to +0x08
-//                            (the flagWord), NOT to +0x04.
-//        +0x08 flagWord = 4   (=VarSubType_String literal, hardcoded at
+//                            (the value.type_), NOT to +0x04.
+//        +0x08 value.type_ = 4   (=VarSubType_String literal, hardcoded at
 //                              1e51ba).
 //        +0x10 which_   = 3   (string-tag in variant slot — the variant
 //                              fast-path stores abs(which_) at 1e52b5).
@@ -963,7 +963,7 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
 //        +0x38 name     = `name` (libc++ SSO copy)
 //        +0x50 flags    = 1   (set/written, written at 1e5153).
 //   3. Variant payload: libc++ std::string copy of `val` placed at
-//      variantStorage via __init_copy_ctor_external.
+//      value.storage_ via __init_copy_ctor_external.
 //   4. push_back into variables_ (fast path or __emplace_back_slow_path).
 // ============================================================================
 void Resources::addString(std::string const& name, std::string const& val)  // @0x1e5020
@@ -982,16 +982,14 @@ void Resources::addString(std::string const& name, std::string const& val)  // @
     Variable v{};
     v.type       = VarType_String;
     v.subTypeRaw = VarSubType_Default;       // no `st` arg, +0x04 stays 0
-    v.flagWord   = 4;                        // 1e51ba: hardcoded string-flag
-    v.which_     = 3;                        // string-tag in variant slot
-    v.pad_0C     = 0;
-    v.pad_14     = 0;
+    v.value.type_   = ValueType::String;                        // 1e51ba: hardcoded string-flag
+    v.value.which_     = 3;                        // string-tag in variant slot
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     v.flags      = 1;                        // 1e5153: bit 0 set ("written")
 
-    // Variant payload: libc++ string at variantStorage via placement-new.
-    ::new (v.variantStorage) std::string(val);
+    // Variant payload: libc++ string at value.storage_ via placement-new.
+    ::new (&v.value.storage_) std::string(val);
 
     variables_.push_back(v);
 }
@@ -1004,7 +1002,7 @@ void Resources::addString(std::string const& name, std::string const& val)  // @
 //
 // Disassembly observations (1e6020..1e64a1) — byte-for-byte mirror of
 // addString except the type immediate at 1e60f3 is 0x5 (vs 0x3). All
-// other layout writes match: flagWord=4 at 1e61ba, which_=3, flags=1 at
+// other layout writes match: value.type_=4 at 1e61ba, which_=3, flags=1 at
 // 1e6153, throw site uses esi=0xab=AlreadyDefined at 1e63a2.
 // ============================================================================
 void Resources::addWave(std::string const& name, std::string const& val)  // @0x1e6020
@@ -1023,15 +1021,13 @@ void Resources::addWave(std::string const& name, std::string const& val)  // @0x
     Variable v{};
     v.type       = VarType_Wave;
     v.subTypeRaw = VarSubType_Default;
-    v.flagWord   = 4;                        // 1e61ba: hardcoded
-    v.which_     = 3;                        // string-tag
-    v.pad_0C     = 0;
-    v.pad_14     = 0;
+    v.value.type_   = ValueType::String;                        // 1e61ba: hardcoded
+    v.value.which_     = 3;                        // string-tag
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     v.flags      = 1;
 
-    ::new (v.variantStorage) std::string(val);
+    ::new (&v.value.storage_) std::string(val);
 
     variables_.push_back(v);
 }
@@ -1049,7 +1045,7 @@ void Resources::addWave(std::string const& name, std::string const& val)  // @0x
 //   2. Builds a temporary Variable at [rbp-0x88]:
 //        +0x00 type       = 6   (VarType_Cvar).
 //        +0x04 subTypeRaw = `st` arg (eax/edx, written at 1e8334).
-//        +0x08 flagWord   = 3   (hardcoded at 1e82eb — Numeric tag).
+//        +0x08 value.type_   = 3   (hardcoded at 1e82eb — Numeric tag).
 //        +0x10 which_     = 0 init; variant_assign writes 2 (double).
 //        +0x30 reg        = AsmRegister(-1).
 //        +0x38 name       = `name` (libc++ SSO copy).
@@ -1072,15 +1068,13 @@ void Resources::addCvar(std::string const& name, double val, VarSubType st)  // 
     Variable v{};
     v.type       = VarType_Cvar;
     v.subTypeRaw = st;                       // 1e8334: caller's `st`
-    v.flagWord   = 3;                        // 1e82eb: hardcoded Numeric
-    v.which_     = 2;                        // variant slot for double
-    v.pad_0C     = 0;
-    v.pad_14     = 0;
+    v.value.type_   = ValueType::Double;                        // 1e82eb: hardcoded Numeric
+    v.value.which_     = 2;                        // variant slot for double
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     v.flags      = 1;                        // set/written
 
-    std::memcpy(v.variantStorage, &val, sizeof(double));
+    std::memcpy(&v.value.storage_, &val, sizeof(double));
 
     variables_.push_back(v);
 }
@@ -1089,7 +1083,7 @@ void Resources::addCvar(std::string const& name, double val, VarSubType st)  // 
 // Resources::addConst (stub overload) — @0x1e74e0
 //
 // "Declare without value" form of addConst. Builds a Variable with
-// type=4 (VarType_Const), subTypeRaw=`st`, flagWord=1 (Stub-tag), and a
+// type=4 (VarType_Const), subTypeRaw=`st`, value.type_=1 (Stub-tag), and a
 // zero-valued int payload (which_=0). The flags byte (+0x50) is set to
 // 1 only when `st == 2` (`VarSubType_FunctionArg` — parameter binding
 // path used by Function::addArgument @0x1e9f60); for the common Stub
@@ -1102,7 +1096,7 @@ void Resources::addCvar(std::string const& name, double val, VarSubType st)  // 
 //   2. Builds a temporary Variable at [rbp-0x88]:
 //        +0x00 type       = 4   (VarType_Const).
 //        +0x04 subTypeRaw = `st` arg (1e768d).
-//        +0x08 flagWord   = 1   (hardcoded at 1e7645 — Stub tag).
+//        +0x08 value.type_   = 1   (hardcoded at 1e7645 — Stub tag).
 //        +0x10 which_     = 0   (int slot; payload also 0).
 //        +0x30 reg        = AsmRegister(-1).
 //        +0x38 name       = `name` (libc++ SSO copy).
@@ -1132,10 +1126,8 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
     Variable v{};
     v.type       = VarType_Const;
     v.subTypeRaw = st;                       // 1e768d
-    v.flagWord   = 1;                        // 1e7645: hardcoded Stub tag
-    v.which_     = 0;                        // int slot
-    v.pad_0C     = 0;
-    v.pad_14     = 0;
+    v.value.type_   = ValueType::Int;                        // 1e7645: hardcoded Stub tag
+    v.value.which_     = 0;                        // int slot
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     // No variant payload — already zero from value-init.
@@ -1145,6 +1137,126 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
 }
 
 #pragma GCC diagnostic pop
+
+// ============================================================================
+// addString / addWave / addCvar (stub overloads) — Phase 20e-ii Sub-phase 5b
+//
+// These three "declare without value" overloads are referenced by
+// Function::addArgument @0x1e9f60 (with st=VarSubType_FunctionArg=2). They
+// were declared in resources.hpp in earlier batches but never defined,
+// leaving 3 undefined zhinst symbols in the static archive that surfaced
+// when addArgument was reconstructed. Reconstructing them closes the gap.
+//
+// All three follow the addConst-stub template (@0x1e74e0, lines 1106-1130
+// above), with two structural differences:
+//
+//   1. The Variable's `type` field differs:
+//        addString → VarType_String (3)
+//        addWave   → VarType_Wave   (5)
+//        addCvar   → VarType_Cvar   (6)
+//
+//   2. The embedded Value's payload differs:
+//        addString / addWave  →  empty std::string
+//                                (value.type_=String=4, which_=3,
+//                                 storage_=empty SSO string).
+//                                Built in the disasm via
+//                                boost::variant_assign at e.g. 0x1e5667 —
+//                                we use `Value(std::string{})` which calls
+//                                Value(string const&) @0x22c2b0 and
+//                                produces the same in-memory shape.
+//        addCvar              →  default-init Int=0
+//                                (value.type_=Stub=1, which_=0,
+//                                 storage_.i=0). Same as addConst stub.
+//
+// Disasm addresses:
+//   addString stub @0x1e54f0 (~300 lines)
+//   addWave   stub @0x1e64f0 (~300 lines)
+//   addCvar   stub @0x1e8650 (~300 lines)
+//
+// All three start with the same duplicate-name guard (current scope +
+// parent walk) that throws AlreadyDefined (esi=0xab=171) on collision,
+// then build the Variable on the stack at [rbp-0x88..-0x30], then
+// vector::push_back into variables_. The flags-byte computation is
+// `(st == 2) ? 1 : 0` (cmp eax,2; sete BYTE PTR [rbp-0x38]).
+//
+// The disasm uses libc++'s vector fast-path/slow-path dispatch and a jump
+// table on Value::which_ for the storage payload move. At the C++ level
+// these are all `variables_.push_back(v)`.
+// ============================================================================
+
+void Resources::addString(std::string const& name, VarSubType st)  // @0x1e54f0
+{
+    for (auto& var : variables_) {
+        if (var.name == name) {
+            throw ResourcesException(
+                ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+        }
+    }
+    if (parent_ && parent_->variableExists(name)) {
+        throw ResourcesException(
+            ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+    }
+
+    Variable v{};
+    v.type       = VarType_String;
+    v.subTypeRaw = st;
+    v.value      = Value(std::string{});  // empty-string variant
+    v.reg        = AsmRegister::Invalid();
+    v.name       = name;
+    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+
+    variables_.push_back(v);
+}
+
+void Resources::addWave(std::string const& name, VarSubType st)  // @0x1e64f0
+{
+    for (auto& var : variables_) {
+        if (var.name == name) {
+            throw ResourcesException(
+                ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+        }
+    }
+    if (parent_ && parent_->variableExists(name)) {
+        throw ResourcesException(
+            ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+    }
+
+    Variable v{};
+    v.type       = VarType_Wave;
+    v.subTypeRaw = st;
+    v.value      = Value(std::string{});  // empty-string variant
+    v.reg        = AsmRegister::Invalid();
+    v.name       = name;
+    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+
+    variables_.push_back(v);
+}
+
+void Resources::addCvar(std::string const& name, VarSubType st)  // @0x1e8650
+{
+    for (auto& var : variables_) {
+        if (var.name == name) {
+            throw ResourcesException(
+                ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+        }
+    }
+    if (parent_ && parent_->variableExists(name)) {
+        throw ResourcesException(
+            ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
+    }
+
+    Variable v{};
+    v.type            = VarType_Cvar;
+    v.subTypeRaw      = st;
+    v.value.type_     = ValueType::Int;  // Stub tag
+    v.value.which_    = 0;                          // int slot
+    v.reg             = AsmRegister::Invalid();
+    v.name            = name;
+    // No variant payload — value-initialised storage stays zero.
+    v.flags           = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+
+    variables_.push_back(v);
+}
 
 // ============================================================================
 // =========================  PHASE 20e-ii BATCH 3  ===========================
@@ -1178,7 +1290,7 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
 //     32 is the "can't modify const" message. Either the slot name in the
 //     reconstructed enum is wrong, or the message file just happens to
 //     reuse this slot. To stay faithful to the binary we cast to slot 32
-//     directly with a TODO marker. See unknowns.md.
+//     directly with a cast. See unknowns.md item #92.
 //
 //   * The dependency guard `variableDependsOnVar(name)` throws
 //     `CantModifyVarInRepeat` (=228=0xe4). This makes sense: in a repeat
@@ -1213,7 +1325,7 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
 //        +0x00 type       = 2   (1e4783 QWORD = 2 — clears subTypeRaw
 //                                in same write).
 //        +0x04 subTypeRaw = 0   (from QWORD write).
-//        +0x08 flagWord   = 1   (1e4815 — Stub tag, hardcoded).
+//        +0x08 value.type_   = 1   (1e4815 — Stub tag, hardcoded).
 //        +0x10 which_     = 0 init; variant_assign writes 0 (int slot).
 //        +0x30 reg        = AsmRegister(-1) (1e47a7).
 //        +0x38 name       = `name` (libc++ SSO copy).
@@ -1241,14 +1353,12 @@ void Resources::addVar(std::string const& name, VarSubType st)  // @0x1e46b0
     Variable v{};
     v.type       = VarType_Var;
     v.subTypeRaw = VarSubType_Default;       // QWORD write at 1e4783 zeros +0x04
-    v.flagWord   = 1;                        // 1e4815: hardcoded Stub tag
-    v.which_     = 0;                        // int slot
-    v.pad_0C     = 0;
-    v.pad_14     = 0;
+    v.value.type_   = ValueType::Int;                        // 1e4815: hardcoded Stub tag
+    v.value.which_     = 0;                        // int slot
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     // Variant payload is value-initialized to int 0 (which_=0, payload=0).
-    // No explicit write needed — Variable v{} above zeros variantStorage.
+    // No explicit write needed — Variable v{} above zeros value.storage_.
     v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
 
     variables_.push_back(v);
@@ -1289,7 +1399,7 @@ void Resources::updateVar(std::string const& name)  // @0x1e4c40
             str(v->type)));
     }
     // Set low byte of flags only (preserves +0x51 "frozen" bit).
-    *reinterpret_cast<uint8_t*>(&v->flags) = 1;
+    v->flags = (v->flags & 0xFF00) | VarFlag_Written;
 }
 
 // ============================================================================
@@ -1321,7 +1431,7 @@ void Resources::checkVar(std::string const& name)  // @0x1e4e20
 {
     Variable* v = getVariable(name);
     if (!v ||
-        *reinterpret_cast<uint8_t const*>(&v->flags) == 0) {
+        (v->flags & 0xFF) == 0) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -1349,7 +1459,7 @@ void Resources::checkVar(std::string const& name)  // @0x1e4e20
 //      a single argument string here.
 //   4. if ([v+0x51] != 0) skip the value write (frozen-arg path,
 //      1e5a2a..1e5ab6) and jump straight to the "mark written" step.
-//   5. v->flagWord = 4 (hardcoded String tag at 1e5a34/1e5a7d).
+//   5. v->value.type_ = ValueType::String (hardcoded String tag at 1e5a34/1e5a7d).
 //   6. variant_assign(&v->variant, &Value{which=3, string=val}) at
 //      1e5a84 — copies a libc++ std::string into the variant slot.
 //   7. v->subTypeRaw = st (1e5ab3).
@@ -1388,14 +1498,14 @@ void Resources::updateString(std::string const& name,
     // written below. This is the path used after Function::addArgument
     // binds parameters.
     bool const frozen =
-        *(reinterpret_cast<uint8_t const*>(&v->flags) + 1) != 0;
+        (v->flags & VarFlag_Frozen) != 0;
     if (!frozen) {
-        v->flagWord = 4;                      // String tag
-        ::new (v->variantStorage) std::string(val);  // variant slot copy
-        v->which_     = 3;
+        v->value.type_ = ValueType::String;                      // String tag
+        ::new (&v->value.storage_) std::string(val);  // variant slot copy
+        v->value.which_     = 3;
         v->subTypeRaw = st;
     }
-    *reinterpret_cast<uint8_t*>(&v->flags) = 1;
+    v->flags = (v->flags & 0xFF00) | VarFlag_Written;
 }
 
 // ============================================================================
@@ -1430,14 +1540,14 @@ void Resources::updateWave(std::string const& name,
     }
 
     bool const frozen =
-        *(reinterpret_cast<uint8_t const*>(&v->flags) + 1) != 0;
+        (v->flags & VarFlag_Frozen) != 0;
     if (!frozen) {
-        v->flagWord = 4;                      // String-bound payload tag
-        ::new (v->variantStorage) std::string(val);
-        v->which_     = 3;
+        v->value.type_ = ValueType::String;                      // String-bound payload tag
+        ::new (&v->value.storage_) std::string(val);
+        v->value.which_     = 3;
         v->subTypeRaw = st;
     }
-    *reinterpret_cast<uint8_t*>(&v->flags) = 1;
+    v->flags = (v->flags & 0xFF00) | VarFlag_Written;
 }
 
 // ============================================================================
@@ -1458,10 +1568,10 @@ void Resources::updateWave(std::string const& name,
 //      in the binary is the "can't modify const" message; the
 //      reconstructed enum currently labels slot 32 as
 //      `ConditionalNeedVarConst` which appears to be a mislabel — see
-//      TODO in unknowns.md.
+//      see unknowns.md item for details.
 //   5. if ([v+0x51] != 0) skip the value write (frozen, jump to mark-
 //      written at 1e7a7d).
-//   6. v->flagWord = 3 (Numeric tag at 1e7a40).
+//   6. v->value.type_ = ValueType::Double (Numeric tag at 1e7a40).
 //   7. variant_assign(&v->variant, &Value{which=2, double=val}) at
 //      1e7a4b — writes the double slot.
 //   8. v->subTypeRaw = st (1e7a7a).
@@ -1489,23 +1599,23 @@ void Resources::updateConst(std::string const& name,
             str(VarType_Const)));
     }
     if (!force &&
-        *reinterpret_cast<uint8_t const*>(&v->flags) != 0) {
-        // No-args message at slot 32. TODO (unknowns.md): the enum name
-        // for slot 32 (`ConditionalNeedVarConst`) doesn't match the
-        // binary's behaviour here; verify message strings file.
+        (v->flags & 0xFF) != 0) {
+        // No-args message at slot 32. The enum name for slot 32
+        // (`ConditionalNeedVarConst`) may not match the binary's actual
+        // string here; see unknowns.md item #92.
         throw ResourcesException(
             errMsg[static_cast<ErrorMessageT>(32)]);
     }
 
     bool const frozen =
-        *(reinterpret_cast<uint8_t const*>(&v->flags) + 1) != 0;
+        (v->flags & VarFlag_Frozen) != 0;
     if (!frozen) {
-        v->flagWord = 3;                      // Numeric tag
-        std::memcpy(v->variantStorage, &val, sizeof(double));
-        v->which_     = 2;                    // double slot
+        v->value.type_ = ValueType::Double;                      // Numeric tag
+        std::memcpy(&v->value.storage_, &val, sizeof(double));
+        v->value.which_     = 2;                    // double slot
         v->subTypeRaw = st;
     }
-    *reinterpret_cast<uint8_t*>(&v->flags) = 1;
+    v->flags = (v->flags & 0xFF00) | VarFlag_Written;
 }
 
 // ============================================================================
@@ -1519,7 +1629,7 @@ void Resources::updateConst(std::string const& name,
 // Disassembly observations (1e8b20..1e8e72):
 //   * Same 4-step prologue (getVariable, null/UninitializedVar,
 //     type/TypeMismatchWrite, variableDependsOnVar/CantModifyVarInRepeat).
-//   * Same +0x51 frozen short-circuit then assignment of flagWord=3 +
+//   * Same +0x51 frozen short-circuit then assignment of value.type_=3 +
 //     double payload + subTypeRaw=st.
 //   * Same final BYTE store at +0x50.
 // ============================================================================
@@ -1545,14 +1655,14 @@ void Resources::updateCvar(std::string const& name,
     }
 
     bool const frozen =
-        *(reinterpret_cast<uint8_t const*>(&v->flags) + 1) != 0;
+        (v->flags & VarFlag_Frozen) != 0;
     if (!frozen) {
-        v->flagWord = 3;                      // Numeric tag
-        std::memcpy(v->variantStorage, &val, sizeof(double));
-        v->which_     = 2;                    // double slot
+        v->value.type_ = ValueType::Double;                      // Numeric tag
+        std::memcpy(&v->value.storage_, &val, sizeof(double));
+        v->value.which_     = 2;                    // double slot
         v->subTypeRaw = st;
     }
-    *reinterpret_cast<uint8_t*>(&v->flags) = 1;
+    v->flags = (v->flags & 0xFF00) | VarFlag_Written;
 }
 
 // ============================================================================
@@ -1577,7 +1687,7 @@ void Resources::updateCvar(std::string const& name,
 //        rsi = var + 8                          ; embedded Value*
 //        Value::toString(out_str=[rbp-0x30])    ; libc++ string ABI
 //        out.varType_      = 3   (VarType_String)
-//        out.value_.type_  = 4   (Value::String tag — same value as flagWord
+//        out.value_.type_  = 4   (Value::String tag — same value as value.type_
 //                                  for "string" Variables)
 //        out+0x18 = the toString result (24-byte SSO bulk copy or
 //                   __init_copy_ctor_external on the long form)
@@ -1594,8 +1704,8 @@ EvalResultValue Resources::readString(std::string const& name, EDirection dir)  
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
-    if (dir != EDirection_Read &&
-        reinterpret_cast<uint8_t const*>(var)[0x50] == 0) {
+    if (dir != EDirection::eIN &&
+        (var->flags & 0xFF) == 0) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -1609,8 +1719,7 @@ EvalResultValue Resources::readString(std::string const& name, EDirection dir)  
     // Call Value::toString() on embedded Value at var+8 to materialize a
     // libc++ std::string. The disasm passes `add rsi,0x8` then call
     // Value::toString(sret).
-    Value* embedded = reinterpret_cast<Value*>(
-        reinterpret_cast<uint8_t*>(var) + 0x08);
+    Value* embedded = &var->value;
     std::string tmp = embedded->toString();
 
     EvalResultValue out{};
@@ -1622,7 +1731,7 @@ EvalResultValue Resources::readString(std::string const& name, EDirection dir)  
     // __init_copy_ctor_external. For the C++ source we just placement-new
     // a copy into the 24-byte storage slot at out+0x18.
     {
-        uint8_t* dst = reinterpret_cast<uint8_t*>(&out) + 0x18;
+        uint8_t* dst = reinterpret_cast<uint8_t*>(&out.value_.storage_);
         ::new (dst) std::string(tmp);
     }
 
@@ -1649,8 +1758,8 @@ EvalResultValue Resources::readWave(std::string const& name, EDirection dir)  //
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
-    if (dir != EDirection_Read &&
-        reinterpret_cast<uint8_t const*>(var)[0x50] == 0) {
+    if (dir != EDirection::eIN &&
+        (var->flags & 0xFF) == 0) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -1661,8 +1770,7 @@ EvalResultValue Resources::readWave(std::string const& name, EDirection dir)  //
                                   str(var->type)));
     }
 
-    Value* embedded = reinterpret_cast<Value*>(
-        reinterpret_cast<uint8_t*>(var) + 0x08);
+    Value* embedded = &var->value;
     std::string tmp = embedded->toString();
 
     EvalResultValue out{};
@@ -1670,7 +1778,7 @@ EvalResultValue Resources::readWave(std::string const& name, EDirection dir)  //
     out.value_.type_ = ValueType::String;        // =4
 
     {
-        uint8_t* dst = reinterpret_cast<uint8_t*>(&out) + 0x18;
+        uint8_t* dst = reinterpret_cast<uint8_t*>(&out.value_.storage_);
         ::new (dst) std::string(tmp);
     }
 
@@ -1686,7 +1794,7 @@ EvalResultValue Resources::readWave(std::string const& name, EDirection dir)  //
 // Read a VarType_Cvar (=6) variable. Unlike readString/readWave (which
 // flatten via Value::toString to a string), readCvar preserves the
 // underlying variant kind: it copies var.value_.type_ (dword at var+0x8)
-// straight into out.value_.type_ (at out+0x8) and dispatches on |var->which_|
+// straight into out.value_.type_ (at out+0x8) and dispatches on |var->value.which_|
 // to copy the inline payload — the same 4-way jump as readConst.
 //
 // Disassembly walk (1e8e80..1e8f85 for happy path):
@@ -1699,8 +1807,8 @@ EvalResultValue Resources::readWave(std::string const& name, EDirection dir)  //
 //      TypeMismatchWrite where readString/readWave use TypeMismatchRead.
 //   5. Happy path:
 //        out.varType_     = 6                      (out+0x00)
-//        out.value_.type_ = var->flagWord          (out+0x08 ← var+0x08)
-//        switch (|var->which_|):                   (jump table @0x95b138)
+//        out.value_.type_ = var->value.type_          (out+0x08 ← var+0x08)
+//        switch (|var->value.which_|):                   (jump table @0x95b138)
 //          0 (int):    out+0x18 = *(int*)(var+0x18)
 //          1 (bool):   out+0x18 = *(uint8_t*)(var+0x18)
 //          2 (double): out+0x18 = *(double*)(var+0x18)
@@ -1717,8 +1825,8 @@ EvalResultValue Resources::readCvar(std::string const& name, EDirection dir)  //
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
-    if (dir != EDirection_Read &&
-        reinterpret_cast<uint8_t const*>(var)[0x50] == 0) {
+    if (dir != EDirection::eIN &&
+        (var->flags & 0xFF) == 0) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -1733,40 +1841,39 @@ EvalResultValue Resources::readCvar(std::string const& name, EDirection dir)  //
 
     EvalResultValue out{};
     out.varType_     = VarType_Cvar;                 // out+0x00 = 6
-    out.value_.type_ = static_cast<ValueType>(var->flagWord);  // out+0x08 ← var+0x08
+    out.value_.type_ = static_cast<ValueType>(var->value.type_);  // out+0x08 ← var+0x08
 
-    int32_t w    = var->which_;
+    int32_t w    = var->value.which_;
     int32_t absW = (w ^ (w >> 31));
     switch (absW) {
         case 0: {  // int
             int32_t i;
-            std::memcpy(&i, var->variantStorage, sizeof(i));
+            std::memcpy(&i, &var->value.storage_, sizeof(i));
             out.value_.storage_.i = i;
             out.value_.which_     = 0;
             break;
         }
         case 1: {  // bool
-            out.value_.storage_.b = (var->variantStorage[0] != 0);
+            out.value_.storage_.b = (var->value.storage_.str_storage[0] != 0);
             out.value_.which_     = 1;
             break;
         }
         case 2: {  // double
             double d;
-            std::memcpy(&d, var->variantStorage, sizeof(d));
+            std::memcpy(&d, &var->value.storage_, sizeof(d));
             out.value_.storage_.d = d;
             out.value_.which_     = 2;
             break;
         }
         default: {  // libc++ string (absW >= 3) — same SSO/long handling as readConst
-            uint8_t const* src = reinterpret_cast<uint8_t const*>(var) + 0x18;
-            uint8_t*       dst = reinterpret_cast<uint8_t*>(&out) + 0x18;
+            uint8_t const* src = reinterpret_cast<uint8_t const*>(&var->value.storage_);
+            uint8_t*       dst = reinterpret_cast<uint8_t*>(&out.value_.storage_);
             if ((src[0] & 1) == 0) {
                 std::memcpy(dst,        src,        16);
                 std::memcpy(dst + 0x10, src + 0x10, 8);
             } else {
-                size_t const sz       = *reinterpret_cast<size_t const*>(src + 0x08);
-                char const*  ptr      = *reinterpret_cast<char const* const*>(src + 0x10);
-                ::new (dst) std::string(ptr, sz);
+                auto const& srcStr = *reinterpret_cast<std::string const*>(src);
+                ::new (dst) std::string(srcStr.data(), srcStr.size());
             }
             out.value_.which_ = absW;
             break;

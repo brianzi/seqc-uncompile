@@ -62,7 +62,7 @@ chains of consecutive labels (iterates the `next` pointer).
 ### mergeRegisterZeroing (0x27e640)
 
 Pattern: `ADDI rN, r0, 0` followed by `ADDR rN, rN, rM` where the ADDR
-dest == reg1 and matches the ADDI's reg0. The ADDI is redundant (the ADDR
+dest == regAux and matches the ADDI's regDst. The ADDI is redundant (the ADDR
 already zeroes). Marks ADDI as dead and sets ADDR's dest to r0.
 
 Note: The binary checks cmd == 0x50000000 (ADDR), not XORR. The register
@@ -95,9 +95,16 @@ receive the message text and source line number.
 
 ### simplifyAssign (0x280e10)
 
-Helper for removeUnusedRegs. If the next instruction after `it` is
-`ADDI dest, src, 0` (copy via add-zero) and the dest register is not
-used later, the copy can be elided by redirecting the source directly.
+Copy-propagation helper for removeUnusedRegs. Checks if the instruction
+at `it` writes to register `rX` (via regDst/+0x28, write-dest), and the
+NEXT instruction is `ADDI rY, rX, 0` (regSrc=rX, regDst=rY, outputs[0]=0).
+If no subsequent instruction reads `rX` via regSrc or regAux, eliminates the
+copy by setting `it->regDst = next->regDst` (redirect write to `rY` directly)
+and marking the ADDI as INVALID.
+
+**Key detail**: checks `outputs[0]` (vector at +0x38), NOT `immediates`
+(vector at +0x08) for the zero-immediate. Also checks regSrc (read-src)
+matches it->regDst (write-dest), and scans from `it+2` (not `it+1`).
 
 ## Register Allocator
 
@@ -106,8 +113,8 @@ used later, the copy can be elided by redirecting the source directly.
 ~1900 lines of assembly. Graph-coloring register allocator:
 
 1. **Build live ranges**: For each virtual register (>0), collect all
-   instruction indices where it appears in any register slot (dest, reg0,
-   reg1, reg2). Stored as `vector<vector<int>>` indexed by register number.
+   instruction indices where it appears in any register slot (dest, regDst,
+   regAux, regSrc). Stored as `vector<vector<int>>` indexed by register number.
 
 2. **Build conflict graph**: Two virtual registers conflict if their live
    ranges share any instruction index. Tracked via `std::set<unsigned long>`.
@@ -136,15 +143,37 @@ Checks cancellation periodically via CancelCallback.
 
 ### splitReg (0x281000)
 
-Splits a register's live range at given boundaries:
-1. Allocates a fresh virtual register from `GlobalResources::regNumber`
-2. Inserts a copy instruction (`ADDI newReg, oldReg, 0`) at the split point
-3. Replaces all occurrences of oldReg with newReg in [start, end)
+Live-range splitter (~500 lines binary, fully reconstructed in Phase 21c).
+
+Algorithm:
+1. Iterates instructions in `(start, end]` (start+1 through list.end()),
+   skipping INVALID/LABEL/cmd4 via the `0x29` bitmask on `(cmd+1)`.
+2. For each instruction, checks if `reg` is READ (regDst with cmdType&1,
+   or regAux with cmdType∈{1,7}). If the instruction both reads AND writes
+   `reg` (regAux with cmdType==7), it's skipped (not safe to split).
+3. Counts matching instructions. Only triggers a split when count ≥ 10
+   (threshold for worthwhile splitting).
+4. On first qualifying match: allocates a fresh virtual register from
+   `GlobalResources::regNumber` (thread-local int at TLS+0x48).
+5. Overwrites the Asm entry at `start` with a copy instruction
+   (ADDI newReg, reg, 0) cloned from a nearby instruction's assembler.
+6. If `end != list.end()`, overwrites the Asm entry at `end` similarly.
+7. Replaces regDst/regAux references to `reg` with `newReg` in the current
+   instruction.
+8. After loop: if all splits succeeded (allSplitOk=true) AND at least
+   one split occurred, kills the original boundary instructions by
+   setting cmd = INVALID (0xFFFFFFFF).
+
+Key corrections from the 20-line stub (Phase 21c):
+- Was missing the ≥10 threshold, boundary Asm overwrites, allSplitOk/
+  didSplit flags, and the post-loop kill logic.
+- Was doing a simple 4-field replace loop; binary only replaces regDst/regAux
+  (not regSrc) and only for instructions that read the register.
 
 ### registerUpdate (0x281680)
 
 Simple replacement pass: iterates the given instruction indices (in reverse)
-and replaces all occurrences of oldReg with newReg in dest, reg1, and reg2
+and replaces all occurrences of oldReg with newReg in dest, regAux, and regSrc
 slots.
 
 ## Query Helpers
@@ -152,24 +181,24 @@ slots.
 ### isRead (0x27d900)
 
 Checks if an instruction reads a given register:
-- reg0 (+0x20): read if `getCmdType(cmd) & 1` (bit 0 set)
-- reg1 (+0x30): read if cmdType == 7 or cmdType == 1
+- regDst (+0x20): read if `getCmdType(cmd) & 1` (bit 0 set)
+- regAux (+0x30): read if cmdType == 7 or cmdType == 1
 
 ### isWritten (0x27d960)
 
 Checks if an instruction writes a given register:
 - dest (+0x28): written if `(getCmdType(cmd) >> 1) & 1` (bit 1 set)
-- reg1 (+0x30): written if cmdType == 7
+- regAux (+0x30): written if cmdType == 7
 
 ### getCmdType bitmask semantics
 
-| cmdType | Meaning          | Reads reg0 | Writes dest | reg1 role |
+| cmdType | Meaning          | Reads regDst | Writes dest | regAux role |
 |---------|------------------|------------|-------------|-----------|
 | 0       | no-reg           | no         | no          | —         |
 | 1       | read-only        | yes        | no          | read      |
 | 2       | write-only       | no         | yes         | —         |
 | 3       | read+write       | yes        | yes         | —         |
-| 7       | read+write+reg1  | yes        | yes         | read+write|
+| 7       | read+write+regAux  | yes        | yes         | read+write|
 
 ### isLabelCalled (0x27d9c0)
 
@@ -205,11 +234,11 @@ discovered and corrected this.
 
 | Field | AssemblerInstr offset | Asm offset | Semantic |
 |-------|----------------------|------------|----------|
-| reg2  | +0x20                | +0x28      | **READ source** (isRead checks with cmdType & 1) |
-| reg0  | +0x28                | +0x30      | **WRITE destination** (isWritten checks cmdType bit 1) |
-| reg1  | +0x30                | +0x38      | **Dual**: read if cmdType==1 or 7; written if cmdType==7 |
+| regSrc  | +0x20                | +0x28      | **READ source** (isRead checks with cmdType & 1) |
+| regDst  | +0x28                | +0x30      | **WRITE destination** (isWritten checks cmdType bit 1) |
+| regAux  | +0x30                | +0x38      | **Dual**: read if cmdType==1 or 7; written if cmdType==7 |
 
-Prior code had reg2 as "dest" and reg0 as "src1" — exactly backwards.
+Prior code had regSrc as "dest" and regDst as "src1" — exactly backwards.
 The field **names** in `assembler.hpp` were NOT changed (to avoid
 cascading rename across 20+ files), but all **semantic usage** in
 asm_optimize.cpp was corrected with offset citations in comments.
@@ -218,9 +247,9 @@ asm_optimize.cpp was corrected with offset citations in comments.
 
 | Function | Address | Fix |
 |----------|---------|-----|
-| `isRead` | 0x27d900 | Checks reg2(+0x20), not reg0 |
-| `isWritten` | 0x27d960 | Checks reg0(+0x28), not reg2 |
-| `getNextActionForReg` | 0x281a10 | Rewritten: correct 3-field scan (reg2→bit0, reg0→bit1, reg1→3); branch commands return 3 early |
+| `isRead` | 0x27d900 | Checks regSrc(+0x20), not regDst |
+| `isWritten` | 0x27d960 | Checks regDst(+0x28), not regSrc |
+| `getNextActionForReg` | 0x281a10 | Rewritten: correct 3-field scan (regSrc→bit0, regDst→bit1, regAux→3); branch commands return 3 early |
 | `registerIsNeverWritten` | 0x280f50 | Field references corrected |
 | `registerUpdate` | 0x281680 | Updates all 3 register fields correctly |
 | `isLabelCalled` | 0x27d9c0 | Iteration direction fixed: begin..it (not it..end) |
@@ -241,11 +270,11 @@ Algorithm:
 1. Cancel-callback lock pattern at entry.
 2. Skip bitmask 0x29 = 0b101001: skips INVALID(-1), LABEL(2), and cmd=4
    (NOT NOP/MESSAGE/ERROR_MSG as previously claimed).
-3. For each writing instruction: determine dest reg (try reg0, fallback
-   reg1 for cmdType==7).
+3. For each writing instruction: determine dest reg (try regDst, fallback
+   regAux for cmdType==7).
 4. Track seen dest regs in vector to avoid re-processing.
-5. Inner forward scan builds bitmask: bit0=reg in reg2 (read),
-   bit1=reg in reg0 (overwritten); reg1 match or both bits → abandon.
+5. Inner forward scan builds bitmask: bit0=reg in regSrc (read),
+   bit1=reg in regDst (overwritten); regAux match or both bits → abandon.
 6. After scan:
    - never-read → eliminate (cmd=INVALID, dest=AsmRegister(-1))
    - read-but-not-overwritten → call `simplifyAssign`
@@ -273,7 +302,7 @@ Two-pass algorithm:
 
 - **Pass 1**: Build rewritten instruction list with "barrier" entries
   (cmd=INVALID, dest=`magicSkipRegister()`).
-- **Pass 2**: Scan for constant loads (reg0==r0) and call `splitReg` to
+- **Pass 2**: Scan for constant loads (regDst==r0) and call `splitReg` to
   split live ranges.
 - **Post-pass**: Move entries back to asm_, stripping barrier entries.
 

@@ -92,9 +92,17 @@ namespace Assembler {
     enum Command : uint32_t;
 }
 
+// AsmExprType — expression node type discriminator (A2)
+enum class AsmExprType : int32_t {
+    Container = 0,   // arglist / container node
+    Register  = 1,   // register reference
+    Label     = 2,   // label / name
+    Integer   = 3,   // integer value
+};
+
 // sizeof = 0xa8 (168 bytes)
 struct AsmExpression {
-    int32_t type;           // +0x00  1=reg, 2=label/name, 3=int/value
+    int32_t type;           // +0x00  AsmExprType: 0=container, 1=reg, 2=label, 3=int
     // 4 bytes padding       // +0x04
     std::string name;       // +0x08  command/register/label name
     std::string str2;       // +0x20  secondary string (NOP comment text)

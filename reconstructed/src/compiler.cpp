@@ -9,6 +9,7 @@
 #include "zhinst/compiler.hpp"
 #include "zhinst/frontend_lowering.hpp"
 #include "zhinst/seqc_ast_node.hpp"
+#include "zhinst/seqc_parser_context.hpp"
 #include "zhinst/expression.hpp"
 
 #include <deque>
@@ -380,6 +381,13 @@ bool Compiler::usedDeviceSampleRate() const {
     return usedSampleRate_ != 0;
 }
 
+bool Compiler::hadSyntaxError() const {
+    // Binary reads byte at Compiler+0x100+0x03 = parserContext_[3]
+    // which is SeqcParserContext::hadSyntaxError flag
+    auto* ctx = reinterpret_cast<SeqcParserContext const*>(parserContext_);
+    return ctx->hadSyntaxError();
+}
+
 // 0x1235f0
 std::vector<CompilerMessage> Compiler::getCompileMessages() const {
     return messages_.messages();
@@ -459,12 +467,12 @@ FrontEndLoweringFacade::LowerResult FrontEndLoweringFacade::lower(
     //    This is the core compilation — the AST node polymorphically
     //    generates assembly instructions via the context.
     //    Returns shared_ptr<EvalResults> via sret.
-    // TODO: call ast.evaluate(resources, context, state) once the virtual is declared
+    auto evaluateOutput = ast.evaluate(resources, context, state);              // @0x1c1f60
 
     // 4. Return {state.result, evaluate_output}
     LowerResult result;
     result.astResult = std::move(state.result);
-    // result.evalResult = std::move(evaluateOutput);  // TODO: wire up after virtual declared
+    result.evalResult = std::move(evaluateOutput);
     return result;
 }
 

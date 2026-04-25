@@ -1,5 +1,9 @@
 # ElfReader / ElfWriter
 
+For a complete description of the ELF output format — all three variants,
+every section, segments, and reader-side consumption — see
+[elf_format.md](elf_format.md).
+
 ElfWriter (`src/elf_writer.cpp`, 248 lines, ctor 0x2934a0, prepareHeader,
 addCode, addData, addWaveform, writeFile ×2, setMemoryOffset) was
 reconstructed in earlier phases without ambiguity. ElfReader required
@@ -122,6 +126,62 @@ fails to compile against this ELFIO build (the iterator dereferences to
 
 `cd reconstructed/build && cmake --build .` succeeds with zero warnings
 after the corrections. All TUs link into `libzhinst_seqc.a` cleanly.
+
+## `.linenr` section format
+
+The `.linenr` ELF section is a flat array of 16-byte records, one per
+emitted instruction (labels and cmd==-1 entries are skipped). It serves
+as a source map from instruction addresses back to SeqC source lines.
+
+### Record layout (writer side — `Compiler::getLineMap` @0x123660)
+
+Each record is 4 × int32, pushed sequentially:
+
+| Offset | Value              | Description                                    |
+|--------|--------------------|------------------------------------------------|
+| +0     | `counter + offset` | Absolute instruction index                     |
+| +4     | `counter`          | Relative instruction index (dense, 0-based)    |
+| +8     | `seq`              | Sequence position (1-based, sparse)            |
+| +12    | `lineNumber`       | SeqC source line (from AsmList::Asm +0x88)     |
+
+- `counter` increments only for real instructions (not labels, not
+  skipped entries).
+- `seq` starts at 1 and increments for every asm list entry including
+  labels, so it has gaps where labels appeared. This is confusing
+  because in the textual assembly output a label and its following
+  instruction share the same source line — so `seq` looks like a
+  "line number" that disagrees with the actual line number column.
+- The only call site is `getLineMap(0)` (in `AWGCompilerImpl::writeToStream`
+  @0x109166), so `offset` is always 0 and columns 0 and 1 are always
+  identical. Column 0 is effectively dead.
+
+### Origin of `lineNumber`
+
+The source line number is propagated during AST evaluation:
+`SeqCAstNode::type_` carries the source line → `Compiler::setLineNr()`
+(@0x123640) pushes it to `AsmCommands` and `WavetableFront` → stored at
++0x88 in each `AsmList::Asm` entry when instructions are emitted.
+
+### Reader side (`ElfReader::getLineMap` @0x2c3ef0)
+
+The reader reinterprets the same 16-byte records differently:
+
+```asm
+2c3f80: mov  0xc(%r14,%r13,4),%eax   # 32-bit load: offset +12 → line
+2c3f85: mov  0x4(%r14,%r13,4),%rcx   # 64-bit load: offset +4  → addr
+```
+
+It reads offset +4 as a `uint64_t` (8 bytes), packing columns 1 and 2
+into a single value: `addr = (uint64_t)seq << 32 | (uint32_t)counter`.
+Column 0 (offset +0) is skipped entirely.
+
+The returned `Line` struct is `{ uint64_t addr; uint32_t line; }`, so
+consumers receive the instruction index and sequence number as a packed
+64-bit "address" — effectively a tuple of two int32 values — plus the
+source line number.
+
+This is a public API consumed by Python/LabOne; no further use exists
+within this binary.
 
 ## Open items
 

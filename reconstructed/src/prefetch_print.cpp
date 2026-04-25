@@ -15,6 +15,7 @@
 #include <string>
 
 #include "zhinst/prefetch.hpp"
+#include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/node.hpp"
 
 namespace zhinst {
@@ -206,8 +207,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
 
         // " with R" + register
         std::cout << " with R";
-        bool isHirzel = *reinterpret_cast<const bool*>(
-            reinterpret_cast<const char*>(config_) + 0x18);
+bool isHirzel = config_->isHirzel;
         {
             auto& state = nodeStates_.at(node);
             if (isHirzel) {

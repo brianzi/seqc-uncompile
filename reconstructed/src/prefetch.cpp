@@ -315,7 +315,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
 
                     // Check if this Play node qualifies for CWVF optimization.
                     // Condition: (dummy || hold) && (rate==0 || (rate==-1 && globalRate<=0)) && useDA
-                    bool useDA = devConst_->hasPrecomp & 0x1;   // 0x1cfe5b-0x1cfe66: this→devConst_→+0x88
+                    bool useDA = devConst_->hasPrecomp;   // 0x1cfe5b-0x1cfe66: this→devConst_→+0x88
                     bool hasDummyOrHold = branchNode->config.dummy || branchNode->config.hold;
                     if (hasDummyOrHold) {                   // 0x1cfe6d-0x1cfe77
                         int rate = branchNode->config.rate; // +0x4C
@@ -517,7 +517,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
             // Play-only CWVF eligibility check (Table skips this and falls through).
             bool isDummy = curNode->config.dummy;           // 0x1d02d5: +0x66
             if (curNode->type == NodeType::Play) {          // 0x1d02d9: cmp $0x2 (preserved type)
-                bool useDA = devConst_->hasPrecomp & 0x1;
+                bool useDA = devConst_->hasPrecomp;
                 bool hasDummyOrHold = isDummy || curNode->config.hold;
                 if (hasDummyOrHold) {
                     if (nodeRate == 0 || (nodeRate == -1 && globalRate <= 0)) {
@@ -557,7 +557,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node)  // 0x1cfc70
                     loopChild->globalRate = globalRate;      // 0x1d0514
                     loopChild->defaultPrecompFlags = defaultPrecompFlags; // 0x1d051d
 
-                    bool useDA = devConst_->hasPrecomp & 0x1;
+                    bool useDA = devConst_->hasPrecomp;
                     bool hasDummyOrHold = loopChild->config.dummy || loopChild->config.hold;
                     if (hasDummyOrHold) {
                         int rate = loopChild->config.rate;
@@ -1339,8 +1339,7 @@ clone_and_reassign:
                     cloned->asmId = loadPtr ? loadPtr->asmId : curNode->asmId; // 0x1cf454
 
                     // 0x1cf476-0x1cf48e: assignLoad(cloned, current, config_->isHirzel)
-                    bool isHirzel = *reinterpret_cast<const uint8_t*>(
-                        reinterpret_cast<const char*>(config_) + 0x18);
+    bool isHirzel = config_->isHirzel;
                     assignLoad(cloned, current, isHirzel);             // 0x1cf48e
                 }
             }

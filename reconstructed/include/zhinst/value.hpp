@@ -52,7 +52,7 @@ public:
     };
 
     Storage data_;     // +0x00
-    uint32_t index_;   // after union
+    uint32_t index_;   // after union — see ImmediateKind enum below
 
     // --- Constructors (all confirmed from disassembly) ---
     Immediate() : index_(0xFFFFFFFF) {}       // default: valueless state
@@ -75,6 +75,14 @@ public:
 
     // --- Comparison ---
     bool operator==(Immediate const& other) const;  // 0x290d40 — vtable dispatch at b070e0
+};
+
+// ImmediateKind — variant discriminator for Immediate::index_ (A1)
+enum class ImmediateKind : uint32_t {
+    Address   = 0,            // unsigned address value
+    Integer   = 1,            // signed int32
+    String    = 2,            // std::string
+    Valueless = 0xFFFFFFFF,   // empty / default-constructed
 };
 
 // toString(Immediate) — 0x290b40 (free function, sret)
@@ -109,6 +117,15 @@ enum class ValueType : int32_t {
     Bool       = 2,    // holds bool
     Double     = 3,    // holds double
     String     = 4,    // holds std::string
+};
+
+// VariantSlot — variant discriminator for Value::which_ (A3)
+// Maps to the union storage slot index, NOT to ValueType.
+enum class VariantSlot : int32_t {
+    Int    = 0,
+    Bool   = 1,
+    Double = 2,
+    String = 3,
 };
 
 // ============================================================================

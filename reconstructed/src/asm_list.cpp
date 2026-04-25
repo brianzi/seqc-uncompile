@@ -270,10 +270,10 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 //         - Build immediates vector from input-expressions (Immediate(value))
 //         - Assign registers based on Assembler::getRegisterOrder(cmd):
 //           * 0: no register operands
-//           * 1: reg2(dest) = regExprs[0].value
-//           * 2: reg0(src1) = regExprs[0].value
-//           * 3: reg1(src2) = regExprs[0].value, reg2(dest) = regExprs[1].value
-//           * 4: reg0(src1) = regExprs[0].value, reg2(dest) = regExprs[1].value
+//           * 1: regSrc = regExprs[0].value
+//           * 2: regDst = regExprs[0].value
+//           * 3: regAux = regExprs[0].value, regSrc = regExprs[1].value
+//           * 4: regDst = regExprs[0].value, regSrc = regExprs[1].value
 //           * else: log warning "Unknown Assembler::RegOrder with code N."
 //         - Build outputs vector from output-expressions
 //         - Copy label string
@@ -493,24 +493,24 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                         // No register operands
                         break;
                     case 1:
-                        // 0x26706d: reg2(dest) = regExprs[0]->value
-                        instr.reg2 = AsmRegister(regExprs[0]->value);
+                        // 0x26706d: regSrc = regExprs[0]->value
+                        instr.regSrc = AsmRegister(regExprs[0]->value);
                         break;
                     case 2:
-                        // 0x2671eb: reg0(src1) = regExprs[0]->value
-                        instr.reg0 = AsmRegister(regExprs[0]->value);
+                        // 0x2671eb: regDst = regExprs[0]->value
+                        instr.regDst = AsmRegister(regExprs[0]->value);
                         break;
                     case 3:
-                        // 0x267213: reg1(src2) = regExprs[0]->value,
-                        //           reg2(dest) = regExprs[1]->value
-                        instr.reg1 = AsmRegister(regExprs[0]->value);
-                        instr.reg2 = AsmRegister(regExprs[1]->value);
+                        // 0x267213: regAux = regExprs[0]->value,
+                        //           regSrc = regExprs[1]->value
+                        instr.regAux = AsmRegister(regExprs[0]->value);
+                        instr.regSrc = AsmRegister(regExprs[1]->value);
                         break;
                     case 4:
-                        // 0x2671b0: reg0(src1) = regExprs[0]->value,
-                        //           reg2(dest) = regExprs[1]->value
-                        instr.reg0 = AsmRegister(regExprs[0]->value);
-                        instr.reg2 = AsmRegister(regExprs[1]->value);
+                        // 0x2671b0: regDst = regExprs[0]->value,
+                        //           regSrc = regExprs[1]->value
+                        instr.regDst = AsmRegister(regExprs[0]->value);
+                        instr.regSrc = AsmRegister(regExprs[1]->value);
                         break;
                     default:
                         // 0x26725c: Log warning

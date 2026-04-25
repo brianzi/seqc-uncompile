@@ -49,6 +49,71 @@ int32_t SeqcParserContext::currentLineNumber() const  // 0x247c80
 }
 
 // ----------------------------------------------------------------------------
+// 0x247c90 — incrementLineNumber()
+//
+// Body:  inc DWORD PTR [rdi+0x4] ; ret
+// ----------------------------------------------------------------------------
+void SeqcParserContext::incrementLineNumber()  // 0x247c90
+{
+    at_offset<int32_t>(this, 0x04)++;
+}
+
+// ----------------------------------------------------------------------------
+// 0x247bf0 — isComment() const
+//
+// Body:  movzx eax, BYTE PTR [rdi] ; ret
+// Returns true if the comment byte (offset +0x00) is non-zero.
+// ----------------------------------------------------------------------------
+bool SeqcParserContext::isComment() const  // 0x247bf0
+{
+    return at_offset<std::uint8_t>(this, 0x00) != 0;
+}
+
+// ----------------------------------------------------------------------------
+// 0x247c40 — startBlockComment()
+//
+// Body:  mov BYTE PTR [rdi+0x1], 0x1 ; mov BYTE PTR [rdi], 0x1 ; ret
+// ----------------------------------------------------------------------------
+void SeqcParserContext::startBlockComment()  // 0x247c40
+{
+    at_offset<std::uint8_t>(this, 0x01) = 1;
+    at_offset<std::uint8_t>(this, 0x00) = 1;
+}
+
+// ----------------------------------------------------------------------------
+// 0x247c60 — endBlockComment()
+//
+// Body:  mov BYTE PTR [rdi+0x1], 0x0 ; mov BYTE PTR [rdi], 0x0 ; ret
+// ----------------------------------------------------------------------------
+void SeqcParserContext::endBlockComment()  // 0x247c60
+{
+    at_offset<std::uint8_t>(this, 0x01) = 0;
+    at_offset<std::uint8_t>(this, 0x00) = 0;
+}
+
+// ----------------------------------------------------------------------------
+// 0x247c00 — startLineComment()
+//
+// Body:  mov BYTE PTR [rdi+0x2], 0x1 ; mov BYTE PTR [rdi], 0x1 ; ret
+// ----------------------------------------------------------------------------
+void SeqcParserContext::startLineComment()  // 0x247c00
+{
+    at_offset<std::uint8_t>(this, 0x02) = 1;
+    at_offset<std::uint8_t>(this, 0x00) = 1;
+}
+
+// ----------------------------------------------------------------------------
+// 0x247c20 — endLineComment()
+//
+// Body:  mov BYTE PTR [rdi+0x2], 0x0 ; mov BYTE PTR [rdi], 0x0 ; ret
+// ----------------------------------------------------------------------------
+void SeqcParserContext::endLineComment()  // 0x247c20
+{
+    at_offset<std::uint8_t>(this, 0x02) = 0;
+    at_offset<std::uint8_t>(this, 0x00) = 0;
+}
+
+// ----------------------------------------------------------------------------
 // 0x247cb0 — setSyntaxError()
 //
 // Body (3 instructions):  mov BYTE PTR [rdi+0x3], 0x1 ; ret

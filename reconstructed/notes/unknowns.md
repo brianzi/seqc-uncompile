@@ -68,6 +68,7 @@ The full pre-2026-04-22 history is preserved in
 | 54 | Compiler+0x18 reserved field | Needs deeper pipeline analysis. |
 | 55 | SeqcParserContext layout | Needs parser context disassembly. |
 | 59 | compile() inner pipeline steps 10-11, 19 | Needs full pipeline trace. |
+| 119 | ~~SeqCParameter subclass identity~~ **RESOLVED Phase 21d** | Phase 21d discovered that "SeqCParameter" does not exist in the binary (`nm -C` shows zero symbols). The +0x14 offset is the `VarType varType_` field of the base class `SeqCAstNode`, now properly declared. The +0x18 offset is `SeqCVariable::name_`. `addArguments(SeqCAstNode const&)` updated to use `node.varType()` and `static_cast<SeqCVariable const*>(node)->name()`. SeqCParameter class removed from `seqc_ast_node.hpp`. |
 
 ---
 
@@ -91,23 +92,24 @@ The full pre-2026-04-22 history is preserved in
 
 ---
 
-## Carry-forward items from Phase 15c
-
-These surfaced during Phase 15c register-semantics correction but were
-not in scope of unknowns #47-49:
-
-- **simplifyAssign @0x280e10** — still uses pre-correction register field
-  references (reg0/reg2 swapped). Should be revisited if simplifyAssign is
-  ever exercised by tests.
-- **splitReg @0x281000** — current stub is ~20 lines; real binary function
-  is ~500 lines. Full reconstruction deferred.
-- **assembler.hpp register field rename** — reg0/reg1/reg2 names are
-  misleading (reg2 is the READ source, reg0 is the WRITE destination).
-  Renaming would cascade across 20+ files; deferred indefinitely.
-
----
-
 ## Update history
+
+- **2026-04-24 (Phase 21d wrap-up)**: #119 resolved. "SeqCParameter"
+  does not exist in the binary. VarType is base-class field at +0x14;
+  +0x18 is SeqCVariable::name_. Placeholder class removed.
+- **2026-04-24 (Phase 20e-ii Sub-phase 5b wrap-up)**: #119 added (Blocked).
+  SeqCParameter subclass identity — discovered during
+  `Function::addArguments(SeqCAstNode)` reconstruction. Placeholder class
+  added to seqc_ast_node.hpp with a `varType()` accessor reading +0x14.
+- **2026-04-24 (Phase 20e-ii Batch 5a wrap-up cleanup)**: removed
+  duplicate "Carry-forward items from Phase 15c" section. The trio
+  (simplifyAssign, splitReg, register-field rename) is the actionable
+  list in `TODO.md` (Deferred / Low Priority) and the technical
+  reference is `notes/optimization_passes.md` (sections "simplifyAssign
+  (0x280e10)" line 96, "splitReg (0x281000)" line 137, and the
+  register-semantics correction discussion at line 200). Maintained as
+  two-sources-of-truth per AGENTS.md (TODO.md = actionable; notes/ =
+  technical detail).
 
 - **2026-04-24 (Phase 20e-ii Batch 5 prep)**: #117, #118 added and closed
   in same turn. `VarSubType_FunctionArg = 2` enum value identified from

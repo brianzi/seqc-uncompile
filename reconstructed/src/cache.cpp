@@ -244,7 +244,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 
         if (bestPosition == size_) {
             // No room — throw CacheException (errMsg[0x15])
-            auto const& msg = errMsg[static_cast<ErrorMessageT>(0x15)];
+            auto const& msg = errMsg[CacheMemoryFull];
             throw CacheException(msg);
             // Note: in binary this uses boost::throw_exception with source_location
         }
@@ -262,7 +262,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
         uint32_t freeSpace = size_ - endPos;
         if (freeSpace < numSamples) {
             // Not enough space — throw CacheException (errMsg[0x15])
-            auto const& msg = errMsg[static_cast<ErrorMessageT>(0x15)];
+            auto const& msg = errMsg[CacheMemoryFull];
             throw CacheException(msg);
         }
 
@@ -365,7 +365,7 @@ void Cache::reuse(std::shared_ptr<Pointer> ptr) {
 void Cache::play(std::shared_ptr<Pointer> ptr, PointerState state) {
     if (!ptr) {
         // Throw CacheException with errMsg[0x16]
-        throw CacheException(errMsg[static_cast<ErrorMessageT>(0x16)]);
+        throw CacheException(errMsg[PlayNullPtr]);
     }
 
     // First: update previous playing/lastPlayed pointer states
@@ -411,7 +411,7 @@ void Cache::resetPlay() {
 void Cache::free(std::shared_ptr<Pointer> ptr) {
     if (!ptr) {
         // Throw CacheException with errMsg[0x13]
-        throw CacheException(errMsg[static_cast<ErrorMessageT>(0x13)]);
+        throw CacheException(errMsg[FreeNullPtr]);
     }
 
     // Find matching pointer by position and size
@@ -427,7 +427,7 @@ void Cache::free(std::shared_ptr<Pointer> ptr) {
 
     if (!found) {
         // Throw CacheException with errMsg[0x14]
-        throw CacheException(errMsg[static_cast<ErrorMessageT>(0x14)]);
+        throw CacheException(errMsg[FreeModifiedPtr]);
     }
 }
 

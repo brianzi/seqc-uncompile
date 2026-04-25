@@ -56,8 +56,8 @@ enum AwgDeviceType : int;
 // 0x1C    4     uint32_t    maxBlocks             clampToCache[cacheType=1], also maxBlocks in
 //                                                  WavetableIR::allocateWaveformsForFifo (0x29ed68).
 //                                                  Always 2 across all devices
-// 0x20    4     uint32_t    field_20              Always 16 — no known consumer
-// 0x24    4     uint32_t    field_24              Always 64 — no known consumer
+// 0x20    4     uint32_t    sineNodeBase          Always 16 — base offset for oscillator/sine node index
+// 0x24    4     uint32_t    waveformElfAlignment  Always 64 — ELF segment alignment (bitsPerSample × channels)
 //
 // 0x28    8     uint64_t    registerDepth         Register index upper bound (getReg at 0x2892c8).
 //                                                  Always 16
@@ -66,18 +66,18 @@ enum AwgDeviceType : int;
 //
 // --- Sequencer register region ---
 // 0x38    4     uint32_t    sequencerRegBase      HW register address (0x115c Cervino, 0x0d05 Hirzel)
-// 0x3C    4     uint32_t    field_3C              Always 6 — no known consumer
+// 0x3C    4     uint32_t    triggerLatencyCycles  Always 6 — sequencer trigger/wait instruction latency
 // 0x40    4     uint32_t    waveformGranularity   Round-up cap in waveform memory calc. Also
 //                                                  WaveformFront.seqRegWidth. Values: 16, 32, 96
 // 0x44    4     uint32_t    waveformPageSize      Round-up divisor in waveform memory calc.
 //                                                  Values: 8, 16, 48
 //
 // --- Auxiliary parameters ---
-// 0x48    4     uint32_t    field_48              Values: 0, 128, 384 — no known consumer by name
-// 0x4C    4     uint32_t    field_4C              Values: 16, 32, 96 — no known consumer by name
+// 0x48    4     uint32_t    playMinSamples        Values: 0, 128, 384 — min play length (checkPlayMinLength)
+// 0x4C    4     uint32_t    waveformMinSamples    Values: 16, 32, 96 — initial seqRegWidth (checkOffspecWaveLength)
 // 0x50    4     uint32_t    bitsPerSample         Memory bits = pages * channels * bitsPerSample.
 //                                                  Always 16
-// 0x54    4     uint32_t    field_54              Values: 0, 2 — no known consumer by name
+// 0x54    4     uint32_t    numCounters           Values: 0, 2 — hardware loop counter count (getCnt range check)
 //
 // 0x58    8     uint64_t    waveformMemSize       Max waveform memory (0x400/0x4000/0x8000)
 // 0x60    8     uint64_t    maxSequenceLen        Max sequence length (always 16000)
@@ -102,6 +102,43 @@ struct DeviceConstants {
         enum : uint32_t { SyncRegB = 0x45 };  // {unnamed type#8}
     };
 
+    // Suser (user register) address constants (A14)
+    // Used in suser() instruction calls throughout CustomFunctions.
+    struct SuserAddr {
+        static constexpr uint32_t GenericUser0    = 0x00;  // HDAWG sync
+        static constexpr uint32_t WriteLow        = 0x10;  // multi-word write: 1st word
+        static constexpr uint32_t WriteMid        = 0x11;  // multi-word write: 2nd word
+        static constexpr uint32_t WriteHigh       = 0x12;  // multi-word write: 3rd word (commit)
+        static constexpr uint32_t WriteHigh2      = 0x13;  // double-precision high 32 bits
+        static constexpr uint32_t WriteCommit     = 0x16;  // commit/finalize node write
+        static constexpr uint32_t DirectWrite     = 0x17;  // single-value direct write
+        static constexpr uint32_t DirectWriteB    = 0x19;  // companion for sine/stereo Q channel
+        static constexpr uint32_t TriggerValue    = 0x1A;  // trigger value load
+        static constexpr uint32_t NowTimestamp    = 0x1C;  // current sequencer timestamp
+        static constexpr uint32_t RTLoggerData    = 0x1D;  // RT logger output
+        static constexpr uint32_t SyncRegA        = 0x44;  // sync register A
+        static constexpr uint32_t SyncRegB        = 0x45;  // sync register B
+        static constexpr uint32_t WaitCycles      = 0x69;  // wait-cycles / AWG-core-count
+        static constexpr uint32_t SyncHirzel      = 0x6E;  // sync register (Hirzel variant)
+        static constexpr uint32_t WaitLegacy      = 0x6F;  // wait register (legacy/commented)
+        static constexpr uint32_t SinePhase0      = 0x70;  // sine phase, oscillator 0
+        static constexpr uint32_t SinePhase1      = 0x71;  // sine phase, oscillator 1
+        static constexpr uint32_t SinePhaseInc0   = 0x72;  // sine phase increment, osc 0
+        static constexpr uint32_t SinePhaseInc1   = 0x73;  // sine phase increment, osc 1
+        static constexpr uint32_t PRNGSeed        = 0x74;  // PRNG seed register
+        static constexpr uint32_t PRNGRangeLo     = 0x75;  // PRNG range register (lo)
+        static constexpr uint32_t PRNGRangeHi     = 0x76;  // PRNG range register (hi)
+        static constexpr uint32_t QAWeightsAddr   = 0x78;  // QA integration weights + result addr
+        static constexpr uint32_t QATriggerMonitor= 0x79;  // QA trigger/monitor composite
+        static constexpr uint32_t QAResultLength  = 0x7A;  // QA result length (UHFQA)
+        static constexpr uint32_t SweepOscIndex   = 0x8C;  // freq sweep oscillator index
+        static constexpr uint32_t SweepControl    = 0x8D;  // freq sweep control register
+        static constexpr uint32_t SweepStartLo    = 0x8E;  // freq sweep start freq low 32
+        static constexpr uint32_t SweepStartHi    = 0x8F;  // freq sweep start freq high 32
+        static constexpr uint32_t SweepStepLo     = 0x90;  // freq sweep step freq low 32
+        static constexpr uint32_t SweepStepHi     = 0x91;  // freq sweep step freq high 32
+    };
+
     uint32_t       deviceType;            // +0x00  AwgDeviceType value
     bool           hasExtendedReg;        // +0x04  true for HDAWG only
     char           _pad05[3];             // +0x05
@@ -115,23 +152,23 @@ struct DeviceConstants {
     // Cache / command table parameters
     uint32_t       cachePageCount;        // +0x18  cache pages (cacheType=0)
     uint32_t       maxBlocks;             // +0x1C  cache pages (cacheType=1) / maxBlocks
-    uint32_t       field_20;              // +0x20  always 16
-    uint32_t       field_24;              // +0x24  always 64
+    uint32_t       sineNodeBase;          // +0x20  always 16 — oscillator node index base
+    uint32_t       waveformElfAlignment;  // +0x24  always 64 — ELF segment alignment
 
     uint64_t       registerDepth;         // +0x28  register index upper bound
     uint64_t       memoryDepth;           // +0x30  memory address upper bound
 
     // Sequencer register region
     uint32_t       sequencerRegBase;      // +0x38  HW register address
-    uint32_t       field_3C;              // +0x3C  always 6
+    uint32_t       triggerLatencyCycles;  // +0x3C  always 6 — trigger/wait latency
     uint32_t       waveformGranularity;   // +0x40  waveform page cap
     uint32_t       waveformPageSize;      // +0x44  waveform page divisor
 
     // Auxiliary parameters
-    uint32_t       field_48;              // +0x48  values: 0, 128, 384
-    uint32_t       field_4C;              // +0x4C  values: 16, 32, 96
+    uint32_t       playMinSamples;        // +0x48  values: 0, 128, 384 — min play length
+    uint32_t       waveformMinSamples;    // +0x4C  values: 16, 32, 96 — initial seqRegWidth
     uint32_t       bitsPerSample;         // +0x50  always 16
-    uint32_t       field_54;              // +0x54  values: 0, 2
+    uint32_t       numCounters;           // +0x54  values: 0, 2 — hardware counters
 
     uint64_t       waveformMemSize;       // +0x58  max waveform memory in samples
     uint64_t       maxSequenceLen;        // +0x60  max sequence length (16000)
@@ -149,8 +186,8 @@ struct DeviceConstants {
     char           _pad89[7];             // +0x89
 
     // Convenience aliases for legacy .cpp call-sites. These are NOT separate
-    // fields — every TBD alias was reconciled to an existing field via
-    // disassembly inspection (offsets all within the verified 0x90 layout).
+    // fields — every alias was reconciled to an existing field via disassembly
+    // inspection (offsets all within the verified 0x90 layout).
     //
     //   grainSize          = waveformPageSize     (+0x44, verified
     //                        mov r8d,[rcx+0x44] at 0x1d919b in placeSingleCommand)

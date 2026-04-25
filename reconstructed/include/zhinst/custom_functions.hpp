@@ -26,6 +26,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -47,13 +48,30 @@ class AsmCommands;
 struct AWGCompilerConfig;
 struct DeviceConstants;
 class EvalResults;
-class NodeMap;          // wraps std::map<std::string, NodeMapItem>; size 24B
-                        // (used as unique_ptr<NodeMap> in CustomFunctions +0xF8)
+// NodeMap — wraps std::map<std::string, NodeMapItem>; size 24B
+// (used as unique_ptr<NodeMap> in CustomFunctions +0xF8)
+// Originally local to custom_functions.cpp; promoted to header during Phase 22b
+// file split so that multiple TUs can use it.
+class NodeMap {
+public:
+    NodeMap() = default;
+    ~NodeMap() = default;
+    NodeMapItem retrieve(std::string const& path) const;  // @0x1c55d0
+    static int toPhase(float value);  // @0x1c5680
+    static uint64_t toFrequency(double freq, double sampleClock);  // @0x1c5630
+    std::map<std::string, NodeMapItem> entries_;
+};
+
 class Resources;
 class WaveformFront;
 class WaveformGenerator;
 class WavetableFront;
 enum AwgDeviceType : int;
+
+// getNodeMapForDevice — full dispatcher for initNodeMap @0x16b740
+// Combines the initNodeMap jump table (0-4) with the
+// GetNodeMapDispatcher for higher device types (8,16,32,64,128,256).
+std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType devType);
 
 // ============================================================================
 // AccessMode — comparable enum-like type used in set<AccessMode>
@@ -104,6 +122,7 @@ public:
     ~CustomFunctionsValueException() override;                                // @0x163d70, D0 @0x172f70
     const char* what() const noexcept override;                               // @0x172fd0
     void setVarName(std::string const& name);                                 // @0x210750
+    std::string const& varName() const { return varName_; }                    // inline accessor
 };
 
 // ============================================================================
@@ -173,13 +192,26 @@ struct PlayArgs {
     void addChannelWave(int channel, EvalResultValue const& val);     // @0x170ec0
 
     struct WaveAssignment {
-        // Stride 0x50 (80 bytes) per entry; used in inner loop @0x15f7ac
-        int type;                    // +0x00 (compared to 4 at @0x15f7b4)
-        int subType;                 // +0x04 (2 = marker; checked in getMaxSampleLength)
-        EvalResultValue value;       // +0x08 (0x38 bytes)
+        // Stride 0x50 (80 bytes) per entry — confirmed by playAuxWave's
+        // inner copy loop @0x135990..0x1359d6 which copies exactly 0x38
+        // bytes from WA+0..WA+0x38 into a vector<EvalResultValue> slot.
+        //
+        // CORRECTION 2026-04-24 (Phase 21a, playAuxWave reconstruction):
+        // The earlier `int type; int subType; EvalResultValue value;`
+        // layout summed to 0x58, contradicting the 0x50 stride.  In fact
+        // the WaveAssignment STARTS with the EvalResultValue directly —
+        // the previously-named `type`/`subType` fields are just
+        // EvalResultValue::varType_ and varSubType_ (the first 8 bytes of
+        // an EvalResultValue).  Confirmed by:
+        //   * @0x135854: `lea rsi, [rbx+0x8]` then call Value::toString
+        //     ⇒ wa.value.value_ lives at WA+0x08 ⇒ wa.value lives at WA+0
+        //   * @0x135990 inner copy: 0x38 bytes from WA+0 → vec<EvalResultValue>
+        EvalResultValue value;       // +0x00 (0x38 bytes)
         std::vector<int> bits;       // +0x38, channel bit assignments
+        // total = 0x50 ✓
     };
-    // static_assert(sizeof(WaveAssignment) == 0x50);
+    static_assert(sizeof(WaveAssignment) == 0x50,
+                  "PlayArgs::WaveAssignment must be 0x50 bytes");
 
     // --- Fields (0x80 bytes total) ---
     std::shared_ptr<WavetableFront>              wavetable_;          // +0x00
@@ -204,7 +236,7 @@ private:
 };
 
 // Free functions related to CustomFunctions argument parsing
-std::vector<EvalResultValue> parseOptionalString(std::vector<EvalResultValue>& args);  // @0x15d3e0
+std::optional<std::string> parseOptionalString(std::vector<EvalResultValue>& args);  // @0x15d3e0
 int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict);     // @0x163730
 
 // parseOptionalRate — parse optional rate argument from arg list     @0x163980
@@ -331,7 +363,8 @@ public:
                         std::vector<EvalResultValue> const& args,
                         short param2, bool param3,
                         std::string const& name,
-                        int param5, int64_t maxSampleLen);  // @0x15e060
+                        int param5, bool param6);  // @0x15e060
+                        // Mangled: ...sbRK<string>ib (last param is bool, not int64_t)
 
     std::shared_ptr<EvalResults> play(
         std::vector<EvalResultValue> const& args,
@@ -345,8 +378,11 @@ public:
 
     int getWaitTime(int samples, int rate);  // @0x163930
 
-    void writeToNode(EvalResultValue path, EvalResultValue val,
-                     EvalResultValue type, std::shared_ptr<Resources> res);  // @0x164550
+    // Returns shared_ptr<EvalResults> via sret in the binary (rdi at @0x164550
+    // line 1 stores into rbx, then [rbx]=control-block-payload, [rbx+8]=ptr).
+    std::shared_ptr<EvalResults> writeToNode(EvalResultValue path, EvalResultValue val,
+                                              EvalResultValue type,
+                                              std::shared_ptr<Resources> res);  // @0x164550
 
     void initNodeMap();  // @0x16b740
     uint32_t getNodeAddress(NodeMapItem const& item) const;  // @0x16ba10
@@ -474,15 +510,19 @@ private:
         std::vector<EvalResultValue> const&, std::shared_ptr<Resources>)>;
     std::unordered_map<std::string, FuncType>          funcMap_;                // +0x60
 
-    float                                              field_80_{1.0f};        // +0x80
+    // NOTE: On libc++, unordered_map is 0x28 bytes (0x20 hash table + 4B max_load_factor + 4B pad).
+    // The floats below are the trailing max_load_factor of the preceding map.
+    float                                              funcMap_maxLoadFactor_{1.0f}; // +0x80  (libc++ internal)
     char                                               pad_84_[4];             // +0x84
 
     std::unordered_map<std::string, std::vector<std::string>> aliasMap_;         // +0x88
 
-    float                                              field_A8_{1.0f};        // +0xA8
+    float                                              aliasMap_maxLoadFactor_{1.0f}; // +0xA8  (libc++ internal)
     char                                               pad_AC_[4];             // +0xAC
 
-    std::set<std::string>                              field_B0_;              // +0xB0
+    // +0xB0: set<string> — no reconstructed consumer found; may be populated by
+    // a not-yet-reconstructed method. Kept for layout fidelity.
+    std::set<std::string>                              unusedStringSet_B0_;    // +0xB0
 
     MathCompiler                                       mathCompiler_;           // +0xC8
 
@@ -512,14 +552,13 @@ private:
     //     each node = 0x28 (40) bytes = 16B header (next + hash) + 24B std::string
     //     destroys std::string at node+0x10/+0x20 then `operator delete` of node
     //
-    // → field_168 IS `std::unordered_set<std::string>` (libc++ 40B container).
+    // → assignedWaveNames_ IS `std::unordered_set<std::string>` (libc++ 40B container).
     //   Spans +0x168..+0x190 (next field warningCallback_ starts at +0x190).
     //   The 1.0f at +0x188 (set in ctor at 12bec9) is the max_load_factor.
     //
-    // Likely semantics: tracks names of features/functions encountered (similar
-    // to WaveformGenerator::createdNames_). Empty in this binary; populated by
-    // some method we haven't analyzed yet.
-    std::unordered_set<std::string>                    field_168_;              // +0x168 (40B, ends just before +0x190)
+    // Tracks waveform names registered via assignWaveIndex().
+    // Tracks waveform names registered via assignWaveIndex().
+    std::unordered_set<std::string>                    assignedWaveNames_;      // +0x168 (40B, ends just before +0x190)
 
     std::function<void(std::string const&)>            warningCallback_;        // +0x190 (48B)
 

@@ -94,14 +94,14 @@ WaveformGenerator::WaveformGenerator(
     std::shared_ptr<WavetableFront> wavetableFront,
     std::function<void(std::string const&)> const& warningCallback)
     : funcMap_()
-    , field_20_(1.0f)
+    , funcMap_maxLoadFactor_(1.0f)
     , aliasMap_()
-    , field_48_(1.0f)
+    , aliasMap_maxLoadFactor_(1.0f)
     , createdNames_()
     , wavetableFront_(std::move(wavetableFront))
-    , field_78_(0)
+    , pad_78_(0)
     , warningCallback_(warningCallback)
-    , field_B0_()
+    , reserved_B0_()
 {
     using namespace std::placeholders;
 
@@ -344,7 +344,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
         // Emit deprecation warning through warningCallback_.
         // Format slot 0x37 takes (oldName, newName).
         std::string warning = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0x37), name, aliasIt->second);
+            DeprecatedFunc, name, aliasIt->second);
         if (warningCallback_) {
             warningCallback_(warning);
         } else {
@@ -358,7 +358,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
     auto funcIt = funcMap_.find(lookupName);
     if (funcIt == funcMap_.end()) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0xd8), name), 0);
+            ErrorMessages::format(UnknownFunction, name), 0);
     }
 
     // Clone the bound function and dispatch.  The disassembly explicitly
@@ -403,7 +403,7 @@ std::shared_ptr<EvalResults> WaveformGenerator::eval(
     // string content = waveform name from WaveformFront
     Value v(wf->name);  // Value(string) sets type_=4, which_=3             // 0x25c5bf
 
-    // 0x25c5fa-0x25c5ff: setValue(VarType(5), value) — VarType 5 = Waveform
+    // 0x25c5fa-0x25c5ff: setValue(VarType_Wave, value) — VarType 5 = Waveform
     results->setValue(static_cast<VarType>(5), v);                           // 0x25c5ff → 0x211b70
 
     // 0x25c63c-0x25c640: store wf into results->waveformFront_ (+0x48)
@@ -436,7 +436,7 @@ double WaveformGenerator::readDouble(  // 0x25c6f0
 {
     if (val.type_ == ValueType::String) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x55),
+            ErrorMessages::format(ArgMustBeConst,
                                   paramName, funcName),
             0);
     }
@@ -447,13 +447,19 @@ double WaveformGenerator::readDoubleAmplitude(  // 0x25caa0
     Value val, std::string const& paramName,
     std::string const& funcName)
 {
-    // Like readDouble but additionally clamps/validates that |result| <= 1.0.
-    // The disassembly uses a jump-table on val.which_ to extract the variant
-    // payload directly into a stack slot, then likely checks fabs(result)>1.0
-    // and throws.  Without full reconstruction of the bounds checks we just
-    // delegate; TODO: add the |x|>1.0 check matching ErrorMessage at format
-    // slot used after the conversion.
-    return readDouble(val, paramName, funcName);
+    // Calls readDouble, then checks |result| <= 1.0.  If exceeded, issues a
+    // warning (not a throw) via warningCallback_ with error 0x54.
+    // Binary: jump-table on val.which_ → readDouble @0x25cb50 → andpd fabs
+    // @0x25cb8b → ucomisd vs 1.0 @0x25cb97 → jbe skip → format(0x54, funcName)
+    // → warningCallback_() @0x25cbfd.  Returns result regardless.
+    double result = readDouble(val, paramName, funcName);                       // 0x25cb50
+    if (std::fabs(result) > 1.0) {                                             // 0x25cb8b–0x25cb9f
+        if (warningCallback_) {
+            warningCallback_(ErrorMessages::format(
+                AmplitudeClipped, funcName));                   // 0x25cbe5
+        }
+    }
+    return result;
 }
 
 int WaveformGenerator::readInt(  // 0x25cca0
@@ -462,7 +468,7 @@ int WaveformGenerator::readInt(  // 0x25cca0
 {
     if (val.type_ == ValueType::String) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x55),
+            ErrorMessages::format(ArgMustBeConst,
                                   paramName, funcName),
             0);
     }
@@ -472,7 +478,7 @@ int WaveformGenerator::readInt(  // 0x25cca0
         // and the ValueException's argIndex_ field carries minVal.
         const char* sign = (minVal >= 0) ? "positive" : "negative";
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x60),
+            ErrorMessages::format(ArgOverflow,
                                   paramName, funcName, std::string(sign)),
             static_cast<size_t>(minVal));
     }
@@ -487,7 +493,7 @@ int WaveformGenerator::readPositiveInt(  // 0x25d490
     int result = readInt(val, paramName, minVal, funcName);
     if (result < 0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x60),
+            ErrorMessages::format(ArgOverflow,
                                   paramName, funcName,
                                   std::string("positive")),
             static_cast<size_t>(minVal));
@@ -523,7 +529,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::readWave(                    /
         // 0x25d930: WaveformGeneratorValueException ctor
         // 0x25d949: __cxa_throw
         std::string msg = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0x56), paramName, funcName);
+            ArgMustBeString, paramName, funcName);
         throw WaveformGeneratorValueException(msg, expectedLength);
     }
 
@@ -538,7 +544,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::readWave(                    /
         // 0x25d93f: throw WaveformGeneratorException
         std::string waveName = val.toString();
         std::string msg = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0x5a), funcName, waveName);
+            UnknownWaveform, funcName, waveName);
         throw WaveformGeneratorException(msg);
     }
 
@@ -577,7 +583,7 @@ Signal WaveformGenerator::markerImpl(                                          /
     // 0x25e264: args.size() must be 2
     if (args.size() != 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   funcName, 2, args.size()));                  // 0x25e70a
     }
 
@@ -595,7 +601,7 @@ Signal WaveformGenerator::markerImpl(                                          /
         // Issue warning via warningCallback_ (+0xa0) with error 0x63
         if (warningCallback_) {
             std::string msg = ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x63),
+                ValueCapped,
                 markerValue, markerValue & 3);
             warningCallback_(msg);
         }
@@ -608,21 +614,32 @@ Signal WaveformGenerator::markerImpl(                                          /
 
 // interpolateLinear(length, xPoints, yPoints, markers, markerBits) @0x25f410
 //
-// Creates a Signal by linearly interpolating between the given (x,y) points.
-// The markers and markerBits are copied from the input vectors.
+// Generates an interleaved multi-channel signal by linearly ramping each
+// channel from xPoints[ch] to yPoints[ch] over `length` time steps.
 //
-// Disassembly notes (432 bytes — small enough to reconstruct):
-//   - Constructs MarkerBitsPerChannel from the markerBits parameter
-//   - Signal::Signal(size_t, MarkerBitsPerChannel const&) at 0x25f48f
-//   - If length == 0: returns empty signal (0x25f4b0)
-//   - Precomputes: lengthDouble = (double)length at 0x25f4b9
-//   - Iterates xPoints: for each segment between consecutive x-points,
-//     linearly interpolates y values
-//   - Loop at 0x25f510: iterates markers/markerBits per channel
-//   - Samples written via Signal::append(double, uint8_t)
+// Register assignment (with hidden struct-return ptr in rdi):
+//   rdi → rbx       = hidden return pointer (Signal)
+//   rsi             = this (WaveformGenerator*) — unused
+//   edx → [rbp-0x50]= length
+//   rcx → r12       = &xPoints
+//   r8  → r15       = &yPoints
+//   r9  → r14       = &markers
+//   [rbp+0x10]      = &markerBits
 //
-// The interpolation finds which segment each output sample falls in
-// by scanning xPoints, then linearly interpolates the corresponding yPoints.
+// Algorithm:
+//   1. Allocate a zero-filled MarkerBitsPerChannel of markers.size() bytes.
+//      (NOT from the markerBits parameter — the temp is zeroed.)           0x25f430–0x25f479
+//   2. Construct Signal(length, mbpc).                                     0x25f48f
+//   3. If length == 0, return immediately.                                 0x25f4b0
+//   4. lengthDouble = (double)length.                                      0x25f4b9
+//   5. Outer loop: seg = 1 .. length                                       0x25f4cc–0x25f4ef
+//   6. Inner loop (n = 0 .. xPoints.size()-1):                             0x25f510–0x25f568
+//        marker  = markerBits[n] | markers[n]
+//        sample  = xPoints[n] + (yPoints[n] - xPoints[n]) * seg / length
+//        sig.append(sample, marker)
+//
+// Total appended samples = length * xPoints.size() (interleaved channels).
+//
 Signal WaveformGenerator::interpolateLinear(                                   // 0x25f410
     int length,
     std::vector<double> const& xPoints,
@@ -630,8 +647,11 @@ Signal WaveformGenerator::interpolateLinear(                                   /
     std::vector<uint8_t> const& markers,
     std::vector<uint8_t> const& markerBits)
 {
-    // Build MarkerBitsPerChannel from input markerBits
-    MarkerBitsPerChannel mbpc(markerBits.begin(), markerBits.end());            // 0x25f434
+    // Build a zero-filled MarkerBitsPerChannel of markers.size() bytes.     // 0x25f430
+    // The binary does: size = markers.end() - markers.begin(),
+    // then operator new(size) + memset(0).  This is NOT built from the
+    // markerBits parameter — that is used only in the inner loop OR.
+    MarkerBitsPerChannel mbpc(markers.size(), 0);                              // 0x25f434–0x25f479
 
     Signal sig(static_cast<size_t>(length), mbpc);                             // 0x25f48f
 
@@ -639,38 +659,38 @@ Signal WaveformGenerator::interpolateLinear(                                   /
 
     double lengthDouble = static_cast<double>(length);                         // 0x25f4b9
 
-    // Find segments and interpolate
-    // The binary iterates through xPoints to find segment boundaries,
-    // then linearly interpolates yPoints for each output sample index.
-    size_t numPoints = xPoints.size();  // already element count (vector<double>)
-    // Actually xPoints.size() is the count directly.
+    // r12 = &xPoints; load begin/end pointers                                // 0x25f4c3
+    size_t numChannels = xPoints.size();
 
-    size_t seg = 1;  // current segment index (starts at 1)                    // 0x25f4d1
-    for (int n = 0; n < length; ++n) {                                         // 0x25f4f1
-        double t = static_cast<double>(n + 1);                                // 0x25f4fd
+    size_t seg = 1;                                                            // 0x25f4cc  edx=1
+    while (true) {                                                             // outer loop 0x25f4f1
+        // If xPoints is empty, skip inner loop entirely                       // 0x25f4f1: cmp end,begin
+        if (numChannels > 0) {
+            double segDouble = static_cast<double>(seg);                       // 0x25f4fd: cvtsi2sd rdx
 
-        // Advance segment while t >= xPoints[seg] (if more segments exist)
-        while (seg < xPoints.size() && xPoints[seg] <= t) {                   // 0x25f4e0
-            ++seg;
+            for (size_t n = 0; n < numChannels; ++n) {                         // 0x25f510 inner loop
+                // Combine marker bytes from both input vectors                // 0x25f510–0x25f51f
+                uint8_t marker = markerBits[n] | markers[n];
+
+                // Linear interpolation: ramp from xPoints[n] to yPoints[n]   // 0x25f523–0x25f540
+                //   xmm1 = xPoints[n]
+                //   xmm0 = yPoints[n]
+                //   xmm0 = (yPoints[n] - xPoints[n]) * seg / length + xPoints[n]
+                double startVal = xPoints[n];                                  // 0x25f523: movsd xmm1,[rax+r13*8]
+                double endVal   = yPoints[n];                                  // 0x25f52c: movsd xmm0,[rax+r13*8]
+                double sample = startVal
+                    + (endVal - startVal) * segDouble / lengthDouble;          // 0x25f532–0x25f540
+
+                sig.append(sample, marker);                                    // 0x25f54a
+            }
         }
 
-        // TODO: The exact interpolation formula needs verification.
-        // The binary accesses markers and markerBits arrays per-channel
-        // in the inner loop at 0x25f510.
-        // For now, use simple linear interpolation between segment endpoints.
-        double x0 = (seg > 0 && seg - 1 < xPoints.size()) ? xPoints[seg - 1] : 0.0;
-        double x1 = (seg < xPoints.size()) ? xPoints[seg] : lengthDouble;
-        double y0 = (seg > 0 && seg - 1 < yPoints.size()) ? yPoints[seg - 1] : 0.0;
-        double y1 = (seg < yPoints.size()) ? yPoints[seg] : y0;
-
-        double frac = (x1 != x0) ? (t - x0) / (x1 - x0) : 0.0;
-        double sample = y0 + frac * (y1 - y0);
-
-        uint8_t marker = (static_cast<size_t>(n) < markers.size()) ? markers[n] : 0;
-        sig.append(sample, marker);
+        // Advance outer loop                                                  // 0x25f4e3–0x25f4ef
+        if (seg == static_cast<size_t>(length)) break;                         // 0x25f4eb: cmp seg,length
+        ++seg;
     }
 
-    return sig;
+    return sig;                                                                // 0x25f56f–0x25f580
 }
 
 // ============================================================================
@@ -696,7 +716,7 @@ namespace {
         if (args.size() != expected) {
             // ErrorMessage 0x5b takes (funcName, expectedCount, actualCount).
             throw WaveformGeneratorException(
-                ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+                ErrorMessages::format(FuncExactArgs2,
                                       funcName.c_str(),
                                       static_cast<int>(expected),
                                       args.size()));
@@ -774,7 +794,7 @@ Signal WaveformGenerator::scale(std::vector<Value> const& args) {           // 0
 Signal WaveformGenerator::add(std::vector<Value> const& args) {             // 0x256ff0
     if (args.size() < 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "add", 2, args.size()));
     }
 
@@ -842,7 +862,7 @@ Signal WaveformGenerator::gauss(std::vector<Value> const& args) {           // 0
 Signal WaveformGenerator::sin(std::vector<Value> const& args) {                  // 0x24a0f0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "sin", 3, args.size()));
     }
 
@@ -864,7 +884,7 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
     // Validate nPeriods >= 0                                                    // 0x24a963
     if (nPeriods < 0.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "nPeriods", "sin"), 3);
     }
 
@@ -886,7 +906,7 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
 Signal WaveformGenerator::cos(std::vector<Value> const& args) {                  // 0x24abd0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "cosine", 3, args.size()));
     }
 
@@ -907,7 +927,7 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
 
     if (nPeriods < 0.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "nPeriods", "cosine"), 3);
     }
 
@@ -942,7 +962,7 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
 Signal WaveformGenerator::sinc(std::vector<Value> const& args) {                 // 0x24b6e0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "sinc", 3, args.size()));
     }
 
@@ -970,14 +990,14 @@ Signal WaveformGenerator::sinc(std::vector<Value> const& args) {                
     if (static_cast<unsigned int>(position) > static_cast<unsigned int>(length)) {
         if (warningCallback_) {
             warningCallback_(ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x5f), "position", "sinc"));
+                ArgLargerThanLength, "position", "sinc"));
         }
     }
 
     // beta == 0 → throw                                                         // 0x24bff3
     if (floatEqual(beta, 0.0)) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x62),
+            ErrorMessages::format(ArgNotZero,
                                   "beta", "sinc"));
     }
 
@@ -1010,7 +1030,7 @@ Signal WaveformGenerator::ramp(std::vector<Value> const& args) {                
     // Exact arg count check via vector byte size (0x78 = 3 * sizeof(Value))
     if (args.size() != 3) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "ramp", 3, args.size()));
     }
 
@@ -1021,12 +1041,12 @@ Signal WaveformGenerator::ramp(std::vector<Value> const& args) {                
     // Validate |startLevel| <= 1.0 and |endLevel| <= 1.0                       // 0x24c617-0x24c64a
     if (std::fabs(startLevel) > 1.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "startLevel", "ramp"), 1);
     }
     if (std::fabs(endLevel) > 1.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "endLevel", "ramp"), 2);
     }
 
@@ -1048,7 +1068,7 @@ Signal WaveformGenerator::ramp(std::vector<Value> const& args) {                
 Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {             // 0x24c8b0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "sawtooth", 3, args.size()));
     }
 
@@ -1070,7 +1090,7 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
     // Validate nPeriods >= 0                                                    // 0x24d063
     if (nPeriods < 0.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "nPeriods", "sawtooth"), 3);
     }
 
@@ -1081,7 +1101,7 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
 Signal WaveformGenerator::triangle(std::vector<Value> const& args) {             // 0x24d330
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "triangle", 3, args.size()));
     }
 
@@ -1103,7 +1123,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
     // Validate nPeriods >= 0                                                    // 0x24dae3
     if (nPeriods < 0.0) {
         throw WaveformGeneratorValueException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5e),
+            ErrorMessages::format(ArgMustBePositive,
                                   "nPeriods", "triangle"), 3);
     }
 
@@ -1131,7 +1151,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
 Signal WaveformGenerator::drag(std::vector<Value> const& args) {               // 0x24e950
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "drag", 3, args.size()));
     }
 
@@ -1149,14 +1169,14 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
             // logger warning via error 0x5f — "position" / "drag"
             if (warningCallback_) {
                 warningCallback_(ErrorMessages::format(
-                    static_cast<ErrorMessageT>(0x5f), "position", "drag"));
+                    ArgLargerThanLength, "position", "drag"));
             }
         }
 
         // sigma == 0 → throw                                          // 0x24f257
         if (floatEqual(sigma, 0.0)) {
             throw WaveformGeneratorException(
-                ErrorMessages::format(static_cast<ErrorMessageT>(0x62),
+                ErrorMessages::format(ArgNotZero,
                                       "sigma", "drag"));
         }
 
@@ -1189,13 +1209,13 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
     if (position > static_cast<double>(length)) {
         if (warningCallback_) {
             warningCallback_(ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x5f), "position", "drag"));
+                ArgLargerThanLength, "position", "drag"));
         }
     }
 
     if (floatEqual(sigma, 0.0)) {                                      // 0x24f257
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x62),
+            ErrorMessages::format(ArgNotZero,
                                   "sigma", "drag"));
     }
 
@@ -1233,7 +1253,7 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::blackman(std::vector<Value> const& args) {           // 0x24f530
     if (args.size() != 2 && args.size() != 3) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "blackman", 2, args.size()));
     }
 
@@ -1295,7 +1315,7 @@ Signal WaveformGenerator::blackman(std::vector<Value> const& args) {           /
 Signal WaveformGenerator::hamming(std::vector<Value> const& args) {            // 0x24fd20
     if (args.size() != 1 && args.size() != 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "hamming", 1, args.size()));
     }
 
@@ -1348,7 +1368,7 @@ Signal WaveformGenerator::hamming(std::vector<Value> const& args) {            /
 Signal WaveformGenerator::hann(std::vector<Value> const& args) {               // 0x250250
     if (args.size() != 1 && args.size() != 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "hann", 1, args.size()));
     }
 
@@ -1398,7 +1418,7 @@ Signal WaveformGenerator::hann(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::chirp(std::vector<Value> const& args) {                // 0x250bb0
     if (args.size() < 3 || args.size() > 5) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5c),
+            ErrorMessages::format(FuncArgs2or3,
                                   "chirp", 3, 4, args.size()));
     }
 
@@ -1479,7 +1499,7 @@ Signal WaveformGenerator::marker(std::vector<Value> const& args) {             /
 Signal WaveformGenerator::rand(std::vector<Value> const& args) {               // 0x251cf0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "rand", 4, args.size()));
     }
 
@@ -1537,7 +1557,7 @@ Signal WaveformGenerator::rand(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        // 0x252930
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "randomGauss", 4, args.size()));
     }
 
@@ -1589,7 +1609,7 @@ Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        /
 Signal WaveformGenerator::randomUniform(std::vector<Value> const& args) {      // 0x253440
     if (args.size() != 1 && args.size() != 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "randomUniform", 2, args.size()));
     }
 
@@ -1648,13 +1668,18 @@ Signal WaveformGenerator::lfsrGaloisMarker(std::vector<Value> const& args) {   /
 
     if (initial == 0) {                                                        // 0x254018 → 0x254160
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x65),
+            ErrorMessages::format(LfsrInitZero,
                                   "lfsrGaloisMarker"));
     }
 
-    // TODO: Error 0x64 validation of marker bit value at 0x254111
-    // The exact check is: if marker exceeds some limit, throw error 0x64
-    // with (marker, "lfsrGaloisMarker"). Exact condition unclear from disasm.
+    // Marker must be exactly 1 or 2 (bit position).
+    // Binary encodes this as: (unsigned)(marker - 3) <= 0xfffffffd → throw.
+    // Valid: marker ∈ {1, 2}.  @0x253e0b–0x253e14.
+    if (marker < 1 || marker > 2) {                                            // 0x253e14 → 0x254111
+        throw WaveformGeneratorException(
+            ErrorMessages::format(ValueMustBe1or2,
+                                  marker, "lfsrGaloisMarker"));                // 0x254129
+    }
     uint8_t markerByte = static_cast<uint8_t>(marker);
 
     Signal sig(static_cast<size_t>(length));                                   // 0x254027
@@ -1696,7 +1721,7 @@ Signal WaveformGenerator::lfsrGaloisMarker(std::vector<Value> const& args) {   /
 Signal WaveformGenerator::rrc(std::vector<Value> const& args) {                // 0x254290
     if (args.size() < 3 || args.size() > 5) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "rrc", 3, args.size()));
     }
 
@@ -1725,7 +1750,7 @@ Signal WaveformGenerator::rrc(std::vector<Value> const& args) {                /
     if (position > static_cast<double>(length)) {
         if (warningCallback_) {
             warningCallback_(ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x5f), "position", "rrc"));
+                ArgLargerThanLength, "position", "rrc"));
         }
     }
 
@@ -1793,7 +1818,7 @@ Signal WaveformGenerator::rrc(std::vector<Value> const& args) {                /
 Signal WaveformGenerator::vect(std::vector<Value> const& args) {               // 0x255570
     if (args.size() >= 101) {                                                  // 0x2555a4
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0xe1), 100));
+            ErrorMessages::format(VectTooManyArgs, 100));
     }
 
     Signal sig(args.size());                                                   // 0x25560b
@@ -1825,7 +1850,7 @@ Signal WaveformGenerator::vect(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::placeholder(std::vector<Value> const& args) {        // 0x255850
     if (args.empty() || args.size() >= 4) {                                    // 0x255898
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "placeholder", 1, args.size()));
     }
 
@@ -1868,7 +1893,7 @@ Signal WaveformGenerator::placeholder(std::vector<Value> const& args) {        /
 Signal WaveformGenerator::join(std::vector<Value> const& args) {               // 0x255da0
     if (args.size() < 1) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "join", 1, args.size()));
     }
 
@@ -1969,7 +1994,7 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
 Signal WaveformGenerator::multiply(std::vector<Value> const& args) {           // 0x258750
     if (args.size() < 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "multiply", 2, args.size()));
     }
 
@@ -2107,7 +2132,7 @@ Signal WaveformGenerator::flip(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::filter(std::vector<Value> const& args) {             // 0x25a540
     if (args.size() != 2 && args.size() != 3) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "filter", 2, args.size()));
     }
 
@@ -2243,7 +2268,7 @@ Signal WaveformGenerator::circshift(std::vector<Value> const& args) {          /
 Signal WaveformGenerator::merge(std::vector<Value> const& args) {              // 0x25f5c0
     if (args.size() < 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x5b),
+            ErrorMessages::format(FuncExactArgs2,
                                   "merge", 2, args.size()));
     }
 
@@ -2338,7 +2363,7 @@ Signal WaveformGenerator::grow(std::vector<Value> const& args) {               /
     if (static_cast<size_t>(targetLen) < currentFrames) {
         // Error 0x3d: can't shrink — grow only extends
         throw WaveformGeneratorException(
-            ErrorMessages::format(static_cast<ErrorMessageT>(0x3d),
+            ErrorMessages::format(FuncMinArgs,
                                   "grow",
                                   static_cast<int>(currentFrames),
                                   static_cast<size_t>(targetLen)));

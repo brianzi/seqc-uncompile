@@ -169,16 +169,18 @@ EvalResults::EvalResults(EvalResults const& other)  // @0x231c60
 {}
 
 // ============================================================================
-// getValue() const — @0x211ab0  [nice-to-have]
+// getValue() const — @0x211ab0
 //
-// Returns the LAST element of values_ by sret. Disasm reads
-// vector::end at [this+0x08] then loads element from [end - 0x38].
-// Caller is responsible for ensuring values_ is non-empty (the binary
-// does not bounds-check).
+// Returns the Value from the LAST element of values_ by sret. Disasm reads
+// vector::end at [this+0x08], loads EvalResultValue fields starting at
+// [end - 0x30] (= last_element + 0x08, i.e. the Value member), and writes
+// them to the sret buffer as a Value (type_ at +0x00, which_ at +0x08,
+// storage_ at +0x10). If values_ is empty, writes zeros (default Value).
 // ============================================================================
-EvalResultValue EvalResults::getValue() const  // @0x211ab0
+Value EvalResults::getValue() const  // @0x211ab0
 {
-    return values_.back();
+    if (values_.empty()) return Value{};
+    return values_.back().value_;
 }
 
 // ============================================================================

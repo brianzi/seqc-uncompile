@@ -32,7 +32,8 @@ namespace zhinst {
 // 0x19    1     uint8_t                     cacheType           0=Normal, 1=Aligned (verified: movzbl 0x19(%rax) at 0x1d6c4d)
 // 0x1A    2     (padding)
 // 0x1C    4     int                         numChannelGroups    Used by getChannelGroupingModeString (values 1,2,4)
-// 0x20    4     (unknown)                   unknown_20
+// 0x20    4     int32_t                     awgIndex            AWG core index within device; used to build node paths
+//                                                               (qachannels/<idx>, generators/<idx>) and validate channel ownership
 // 0x24    4     int                         deviceIndex         Device index for waveform lookup (Prefetch::moveLoadsToFront)
 // 0x28    8     (unknown)                   unknown_28
 // 0x30    24    std::string                 string_30           Dtor frees if heap-allocated; dtor checks +0x48 flag
@@ -66,9 +67,9 @@ struct AWGCompilerConfig {
     uint8_t cacheType;                  // 0x19 — 0=Normal, 1=Aligned (movzbl 0x19(%rax) at 0x1d6c4d)
     char pad_1a[2];                     // 0x1A — padding
     int numChannelGroups;               // 0x1C — 1, 2, or 4
-    int32_t unknown_20;                 // 0x20
+    int32_t awgIndex;                   // 0x20 — AWG core index (node paths + channel validation)
     int32_t deviceIndex;                // 0x24 — Device index for waveform lookup
-    uint64_t unknown_28;                // 0x28
+    uint64_t unknown_28;                // 0x28 — no reconstructed consumer; may be set by AWGCompilerImpl
     std::string string_30;              // 0x30 — 24 bytes, conditionally owned
     bool string_30_owned;               // 0x48
     char pad_49[7];                     // 0x49
@@ -76,10 +77,10 @@ struct AWGCompilerConfig {
     bool string_50_owned;               // 0x68
     char pad_69[7];                     // 0x69
     std::vector<std::string> includePaths; // 0x70 — begin/end/cap at 0x70/0x78/0x80
-    uint64_t unknown_88;                // 0x88 — 8 bytes unknown
+    uint64_t unknown_88;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
     int32_t numCores = 1;               // 0x94 — number of AWG cores
-    char unknown_98[8];                 // 0x98 — 8 bytes unknown
+    char unknown_98[8];                 // 0x98 — no reconstructed consumer; between numCores and wavetableSize
     int32_t wavetableSize;              // 0xA0 — sign-extended to size_t
     int32_t pad_a4;                     // 0xA4
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)
@@ -102,7 +103,7 @@ struct AWGCompilerConfig {
     //                   0x270b1c in getChannelGroupingModeString:
     //                   cmp DWORD PTR [rax+0x1c], <imm>)
     //
-    // Hallucinated TBD fields removed entirely:
+    // Hallucinated placeholder fields removed entirely:
     //   - cacheSize        Was actually devConst_->waveformMemorySize at +0xC
     //                       (verified 0x1d9d4e: mov rax,[r15+0x8]; cmp ecx,[rax+0xc])
     //   - channelIndex     Was actually config_->cacheType at +0x19

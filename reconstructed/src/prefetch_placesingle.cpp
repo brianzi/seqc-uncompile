@@ -316,7 +316,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                 AsmRegister cacheReg = nodeStates_[node].registerCervino; // +0x28, 0x1d9d30
 
                                 // Check config->deviceType                // 0x1d9d3d
-                                if (config_->deviceType == 2) {    // deviceType 2 = Hirzel
+                                if (config_->deviceType == HDAWG) {    // deviceType 2 = Hirzel
                                     // Hirzel-specific wvfImpl path // 0x1d9d49 → 0x1d9ee2 area
                                     // ... see below
                                 } else if (nodeStates_[node].cachePtr->size_ == devConst_->waveformMemorySize) {

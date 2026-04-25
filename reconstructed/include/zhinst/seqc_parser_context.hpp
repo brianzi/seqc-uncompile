@@ -27,8 +27,16 @@ namespace zhinst {
 class SeqcParserContext {
 public:
     int32_t currentLineNumber() const;        // 0x247c80
+    void incrementLineNumber();               // 0x247c90
     void raiseError(const std::string& msg);  // 0x247ae0
     void setSyntaxError();                    // 0x247cb0
+    bool hadSyntaxError() const;              // 0x247ca0
+
+    bool isComment() const;                   // 0x247bf0
+    void startBlockComment();                 // 0x247c40
+    void endBlockComment();                   // 0x247c60
+    void startLineComment();                  // 0x247c00
+    void endLineComment();                    // 0x247c20
 };
 
 } // namespace zhinst

@@ -60,9 +60,9 @@ namespace zhinst::logging {
 // ("Trace", "Debug", "Info", "Status", "Warning", "Error", "Critical",
 // "Fatal") and from LabOne's documented logger conventions.
 //
-// TODO Phase 14c followup: confirm ordering and underlying type by
-// looking at any (currently inlined) LOG_* macro callers as more code
-// is reconstructed.
+// Note: ordering and underlying type inferred from string table order
+// ("Trace".."Fatal") and LabOne conventions. Will self-confirm as more
+// callers are reconstructed.
 enum class Severity : unsigned int {
     Trace    = 0,
     Debug    = 1,

@@ -306,21 +306,21 @@ int getRegisterOrder(Command cmd) {
 // ============================================================================
 
 // 0x28ffe0 — Returns packed int64_t: (1LL << 32) | regIndex if any valid
-// registers, else 0. Checks reg2, reg0, reg1 and returns the highest.
+// registers, else 0. Checks regSrc, regDst, regAux and returns the highest.
 int64_t AssemblerInstr::highestRegisterNumber() const {
     int maxReg = -1;
     bool found = false;
 
-    if (reg2.valid) {
-        maxReg = reg2.value;
+    if (regSrc.valid) {
+        maxReg = regSrc.value;
         found = true;
     }
-    if (reg0.valid && reg0.value > maxReg) {
-        maxReg = reg0.value;
+    if (regDst.valid && regDst.value > maxReg) {
+        maxReg = regDst.value;
         found = true;
     }
-    if (reg1.valid && reg1.value > maxReg) {
-        maxReg = reg1.value;
+    if (regAux.valid && regAux.value > maxReg) {
+        maxReg = regAux.value;
         found = true;
     }
 
@@ -351,16 +351,16 @@ std::string AssemblerInstr::str(bool verbose) const {
         if (needComma) ss << ",";
     }
 
-    // Registers: reg0, reg1, reg2 (printed in this order)
+    // Registers: regDst, regAux, regSrc (printed in this order)
     auto emitReg = [&](const AsmRegister& r) {
         if (r.valid) {
             ss << " R" << r.value << ",";
             needComma = true;
         }
     };
-    emitReg(reg0);
-    emitReg(reg1);
-    emitReg(reg2);
+    emitReg(regDst);
+    emitReg(regAux);
+    emitReg(regSrc);
 
     // Output immediates
     for (const auto& imm : outputs) {
@@ -407,7 +407,7 @@ std::string AssemblerInstr::str(bool verbose) const {
 // ============================================================================
 // Assembler copy constructor — 0x122e20
 //
-// Copies cmd as dword. Bulk-copies reg2+reg0+reg1 as 24-byte memcpy
+// Copies cmd as dword. Bulk-copies regSrc+regDst+regAux as 24-byte memcpy
 // (movups + mov pattern). Vectors call __init_with_size to allocate
 // then copy-construct each Immediate element. Strings use SSO-aware copy.
 // ============================================================================
@@ -434,5 +434,52 @@ std::string AssemblerInstr::str(bool verbose) const {
 // when capacity suffices, else destroy+realloc.
 // ============================================================================
 // (Copy assignment is implicitly generated; shown here for documentation.)
+
+// AssemblerInstr::~AssemblerInstr() @0x103980
+// Destroys vectors of Immediate (with per-element variant dtors) + strings.
+AssemblerInstr::~AssemblerInstr() = default;
+
+// AssemblerInstr::operator=(const AssemblerInstr&) @0x125e80
+// Copy assignment with explicit self-check; otherwise field-by-field copy.
+AssemblerInstr& AssemblerInstr::operator=(const AssemblerInstr& other) {
+    if (this != &other) {
+        cmd = other.cmd;
+        immediates = other.immediates;
+        regSrc = other.regSrc;
+        regDst = other.regDst;
+        regAux = other.regAux;
+        outputs = other.outputs;
+        label = other.label;
+        comment = other.comment;
+    }
+    return *this;
+}
+
+// AssemblerInstr::operator=(AssemblerInstr&&) @0x125ab0
+// Move assignment: destroys own resources, takes ownership from source.
+AssemblerInstr& AssemblerInstr::operator=(AssemblerInstr&& other) noexcept {
+    if (this != &other) {
+        cmd = other.cmd;
+        immediates = std::move(other.immediates);
+        regSrc = other.regSrc;
+        regDst = other.regDst;
+        regAux = other.regAux;
+        outputs = std::move(other.outputs);
+        label = std::move(other.label);
+        comment = std::move(other.comment);
+    }
+    return *this;
+}
+
+// str(AsmOperationType) @0x28d280 — operand type to string
+std::string str(AsmOperationType t) {
+    switch (t) {
+        case AsmOperationType::Cmd:   return "cmd";
+        case AsmOperationType::Name:  return "name";
+        case AsmOperationType::Value: return "value";
+        case AsmOperationType::Reg:   return "reg";
+        default:                      return "?";
+    }
+}
 
 } // namespace zhinst

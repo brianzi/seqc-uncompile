@@ -468,6 +468,8 @@ sfc::FeaturesCode generateMfSfc(std::string const& deviceTypeName,
 class DeviceType {
 public:
     DeviceType();                                                   // @ 0x2d2900
+    DeviceType(DeviceFamily family);                                // @ 0x2d2930
+    DeviceType(DeviceFamily family, unsigned long options);          // @ 0x2d2990
     DeviceType(DeviceTypeCode code, DeviceFamily family);           // @ 0x2d2960
     DeviceType(std::string const& deviceType,
                std::vector<std::string> const& options);            // @ 0x2d2ae0
@@ -487,6 +489,14 @@ public:
     DeviceOptionSet const& options() const;                         // @ 0x2d2c60
     bool            hasOption(DeviceOption opt) const;              // @ 0x2d2c50
     bool            belongsTo(DeviceFamily f) const;                // @ 0x2d2c70
+    detail::DeviceTypeImpl* deviceType() const;                     // @ 0x2d2c20
+    std::string     toString() const;                               // @ 0x2d2cb0
+    void            print(std::ostream& os) const;                  // @ 0x2d2ce0
+    void            swap(DeviceType& other);                        // @ 0x2d2d10
+
+    friend bool operator==(DeviceType const& lhs, DeviceType const& rhs); // @ 0x2d2d30
+    friend bool operator<(DeviceType const& lhs, DeviceType const& rhs);  // @ 0x2d2d60
+    friend std::ostream& operator<<(std::ostream& os, DeviceType const& dt); // @ 0x2d2da0
 
 private:
     detail::DeviceTypeImpl* impl_;  // +0x00
@@ -537,6 +547,9 @@ std::string toString(DeviceOptionSet const& set,
 //   toString(dt.options(), dt.family(), separator)
 std::string getOptionsAsString(DeviceType const& dt,
                                std::string const& separator);
+
+// @ 0x2d2d90 — free function: delegates to dt.hasOption(opt).
+bool hasOption(DeviceType const& dt, DeviceOption const& opt);
 
 // @ 0x2d4350 — operator<< writes toString(code) to ostream.
 std::ostream& operator<<(std::ostream& os, DeviceTypeCode code);

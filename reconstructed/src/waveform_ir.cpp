@@ -34,7 +34,7 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
     markedForLoad = false;
     fixed_ = false;
     crossesCacheLine_ = false;
-    irField2 = source->deviceConstants->field_24;  // source->deviceConstants[0x24]
+    irField2 = source->deviceConstants->waveformElfAlignment;  // source->deviceConstants[0x24]
 
     if (file) {
         // Clear the file's data vector
@@ -56,7 +56,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     markedForLoad = false;
     fixed_ = false;
     crossesCacheLine_ = false;
-    irField2 = source->deviceConstants->field_24;
+    irField2 = source->deviceConstants->waveformElfAlignment;
 
     if (file) {
         file->data.clear();
@@ -89,7 +89,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 //   +0xD8         markedForLoad            = 0  (word-stored with fixed_)
 //   +0xD9         fixed_                   = 0
 //   +0xDA         crossesCacheLine_        = 0
-//   +0xDC         irField2                 = dc.field_24 (dc+0x24)
+//   +0xDC         irField2                 = dc.waveformElfAlignment (dc+0x24)
 //
 // IMPORTANT: this constructor has no standalone symbol in the binary —
 // the dispatcher inlines it. We provide a body so that other TUs that
@@ -123,7 +123,7 @@ WaveformIR::WaveformIR(const std::string& name,
     this->markedForLoad     = false;   // +0xD8 (word-stored together with fixed_)
     this->fixed_            = false;   // +0xD9
     this->crossesCacheLine_ = false;   // +0xDA
-    this->irField2          = static_cast<int32_t>(dc.field_24);  // +0xDC ← dc+0x24
+    this->irField2          = static_cast<int32_t>(dc.waveformElfAlignment);  // +0xDC ← dc+0x24
 }
 
 // 0x2c5440 — WaveformIR::toJsonElement(SampleFormat)

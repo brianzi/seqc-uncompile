@@ -61,8 +61,7 @@ detail::AddressImpl<uint32_t> Prefetch::clampToCache(detail::AddressImpl<uint32_
         return detail::AddressImpl<uint32_t>{std::min(addrVal, 0xFFFFFu)};
     }
 
-    uint8_t cacheType = *reinterpret_cast<const uint8_t*>(
-        reinterpret_cast<const char*>(config_) + 0x19);
+    uint8_t cacheType = config_->cacheType;
     uint32_t pageSize = devConst_->waveformAlignment;  // +0x14
 
     // Array at devConst_+0x18, indexed by cacheType
@@ -1002,7 +1001,7 @@ AsmList Prefetch::wvfs(Assembler::PlayDummyType playDummyType,
 
                 // Emit addiu(tempReg, tempReg, Immediate(0))    // 0x1d76a9
                 // to extend the address into upper 20+ bit range
-                AsmRegister lastDst = lastAsm.assembler.reg2;    // 0x1d7681
+                AsmRegister lastDst = lastAsm.assembler.regSrc;    // 0x1d7681
                 auto addiuEntry = asmCommands_->addiu(
                     lastDst, lastDst, Immediate(0));
                 result.push_back(addiuEntry);                    // 0x1d76b8

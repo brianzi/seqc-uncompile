@@ -20,6 +20,7 @@
 
 #include "zhinst/asm_register.hpp"
 #include "zhinst/eval_result_value.hpp"
+#include "zhinst/types.hpp"           // EDirection (unified enum, Phase 21i)
 #include "zhinst/value.hpp"
 
 namespace zhinst {
@@ -71,6 +72,14 @@ enum VarType : int32_t {
     VarType_Cvar   = 6,
 };
 
+// isConstOrCvar — tests whether VarType is Const(4) or Cvar(6).
+// Binary uses the bitwise trick: (type | 0x2) == 6.
+// Equivalent to: (type & ~1) == 4.
+// Promoted from per-function lambdas (Phase 25d/25g).
+inline bool isConstOrCvar(VarType t) {
+    return (static_cast<int>(t) | 0x2) == 6;
+}
+
 // VarSubType — secondary classification tag stored in Variable record at +0x08.
 // Values observed across add/update overloads:
 //   0 = default                       (general constants, AWG_RATE_*, etc.)
@@ -99,16 +108,43 @@ enum VarSubType : int32_t {
 // Legacy alias retained for source compatibility during the cascading fix.
 constexpr VarSubType VarSubType_Bool = VarSubType_Stub;
 
-// EDirection — direction flag for read* operations on Resources.
-// Used only as a binary check (test r14d,r14d at 0x1e5d9d in readString):
-//   0 = read-only path (skips an additional check at +0x50 of variable)
-//   1 = write/strict path (validates the +0x50 byte before proceeding)
-// No EDirection symbolic constants exist in the binary's symbol table; the
-// numeric values are inferred from caller patterns and the test/jne sequence.
-enum EDirection : int32_t {
-    EDirection_Read  = 0,
-    EDirection_Write = 1,
+// ============================================================================
+// VarTypeException — thrown by combine(VarType, VarType) on incompatible types.
+// Ctor @0x2480e0, dtor @0x248140, typeinfo @0xb06600.
+// ============================================================================
+class VarTypeException : public std::exception {
+public:
+    explicit VarTypeException(std::string const& msg);  // @0x2480e0
+    ~VarTypeException() override;                       // @0x248140
+    const char* what() const noexcept override;
+private:
+    std::string msg_;
 };
+
+// ============================================================================
+// combine(VarType, VarType) — @0x247f50
+//
+// VarType combination matrix for binary operators. The result type when
+// the lhs and rhs of an operator have the given types. Used by
+// SeqCOperator::evaluate(3-arg) to set the output VarType.
+//
+// The matrix is a pair of nested lookup tables (7×7, indexed 0-6).
+// Throws VarTypeException(error 0x91) if either argument is > 6.
+// ============================================================================
+VarType combine(VarType lhs, VarType rhs);  // @0x247f50
+
+// combine(VarSubType, VarSubType) — @0x247ea0
+//
+// Similar lookup-table function for VarSubType combinations.
+// Called by SeqCPlus::evaluate (and likely other arithmetic operators)
+// for the Const+Const and String+String rows.
+VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
+
+// EDirection — unified direction enum, defined in types.hpp (Phase 21i).
+// In the Resources context:
+//   EDirection::eIN  (=0) = read-only path (skips +0x50 check)
+//   EDirection::eOUT (=1) = write/strict path (validates +0x50 byte)
+// Binary: test r14d,r14d at 0x1e5d9d in readString.
 
 // ============================================================================
 // Resources — base class for scope/variable tracking
@@ -165,12 +201,19 @@ public:
     // Size: 0x58 (88 bytes) — confirmed by `add r14, 0x58` at 1e8441 and
     // by stride of vector iterations.
     //
-    // CORRECTED LAYOUT (Phase 19c-followup, Finding 2):
-    //   The earlier reconstruction placed `which_` at +0x08 and the variant
-    //   storage at +0x10. Disassembly of readConst @0x1e7d70 (with r12 =
-    //   Variable*) shows it actually reads `which_` from [r12+0x10] and the
-    //   variant payload from [r12+0x18]. The struct also carries a separate
-    //   VarSubType field at +0x08, distinct from VarType at +0x00.
+    // FINAL LAYOUT (Phase 20e-ii Batch 5a wrap-up cleanup):
+    //   The 40-byte block at +0x08..+0x2F is a complete embedded `Value`
+    //   object. Evidence: `readString @0x1e5db5` does `add rsi, 0x8;
+    //   call Value::toString()` — passing `&v+8` as `this` to a Value
+    //   method. All previously-named fields (`flagWord`, `which_`,
+    //   `variantStorage`, `pad_28`) map onto Value's
+    //   (`type_`, `which_`, `storage_`) at the corresponding sub-offsets.
+    //
+    //   This was hidden by the per-add* hardcoded "secondary tag" pattern
+    //   where addVar/addCvar/addConst write 1/3/4 to +0x08. Those literals
+    //   are Value::type_ enumerator values (Stub=Int=1, Numeric=Double=3,
+    //   String=4) — internally consistent with Value::which_ (0/2/3
+    //   respectively for the same payload) and with storage layout.
     //
     // Verified layout:
     //   +0x00  4   VarType        type        (low 32 of 64-bit slot; pad +0x04)
@@ -179,42 +222,24 @@ public:
     //                                          and addConst stash the caller's
     //                                          `st` here verbatim. Read by
     //                                          getVariableSubType @0x1e4580.)
-    //   +0x08  4   int32_t        flagWord    (a *hardcoded* secondary tag
-    //                                          written by each addX path:
-    //                                            addConst(double):  3
-    //                                            addConst(stub):    1
-    //                                            addCvar(double):   3
-    //                                            addString:         4
-    //                                            addWave:           4
-    //                                            addVar:            1
-    //                                          The previous header named this
-    //                                          field `subType` and the field at
-    //                                          +0x04 `pad_04`; that mapping was
-    //                                          INVERTED — corrected Phase
-    //                                          20e-ii after Batch 2 disasm
-    //                                          showed addCvar/addConst writing
-    //                                          `st` to +0x04 and a literal to
-    //                                          +0x08, and getVariableSubType
-    //                                          reading +0x04.)
-    //   +0x0C  4   (padding)
-    //   +0x10  4   int32_t        which_      (variant discriminator, signed;
-    //                                          abs(which_) ≥ 3 ⇒ string)
-    //   +0x14  4   (padding)
-    //   +0x18  16  union          variant data (boost::variant storage:
-    //                                          int / bool / double inline,
-    //                                          OR libc++ std::string SSO)
-    //   +0x28  8   (padding / unused — long-form string cap+ptr lives here
-    //              when the variant holds a heap-allocated string)
+    //   +0x08 40   Value          value       (embedded Value object —
+    //                                          type_+pad+which_+pad+storage[24])
+    //                                          See `value.hpp` for the
+    //                                          internal layout.
     //   +0x30  8   AsmRegister    reg         (register assignment)
-    //   +0x38  24  std::string    name        (variable name, libc++ SSO)
-    //   +0x50  2   int16_t        flags       (bit 0: "set"/written)
+    //   +0x38 24   std::string    name        (variable name, libc++ SSO)
+    //   +0x50  2   int16_t        flags       (low byte: "set"/written;
+    //                                          high byte +0x51: "frozen"
+    //                                          parameter — Function::addArgument
+    //                                          sets this so update*-with-value
+    //                                          short-circuits the assignment.)
     //   +0x52  6   (padding)
     //
     // Dtor @0x1e4be0:
-    //   1. The std::string `name` at +0x38 is destroyed automatically by the
-    //      compiler-generated destructor.
-    //   2. If abs(which_) >= 3, the variant slot at +0x18 holds a libc++
-    //      std::string and must be destroyed manually.
+    //   The embedded Value's destructor handles the variant payload
+    //   cleanup (long-form string at +0x18 if abs(which_) >= 3). The
+    //   std::string `name` at +0x38 is destroyed automatically by the
+    //   compiler-generated destructor.
     // ========================================================================
     struct Variable {
         VarType     type;        // +0x00 — variable category
@@ -222,30 +247,26 @@ public:
                                  //         (e.g. addCvar/addConst stash the
                                  //         `st` parameter here verbatim).
                                  //         Read by getVariableSubType.
-        int32_t     flagWord;    // +0x08 — hardcoded per-add* secondary tag
-                                 //         (3=numeric, 1=stub, 4=string,
-                                 //         per addX path; not exposed to the
-                                 //         outside world). DO NOT confuse
-                                 //         with subTypeRaw at +0x04.
-        int32_t     pad_0C;      // +0x0C
-        int32_t     which_;      // +0x10 — boost::variant discriminator
-        int32_t     pad_14;      // +0x14
-        // +0x18..+0x27: 16 bytes of inline variant storage. For numeric
-        // payloads (which_ ∈ {0,1,2}) this holds int/bool/double directly.
-        // For string payloads (abs(which_) ≥ 3) this is the start of a
-        // libc++ std::string (SSO byte + 15 chars; long-form layout uses
-        // bytes through +0x2F).
-        char        variantStorage[16];   // +0x18
-        int64_t     pad_28;      // +0x28 — overlaps long-form-string ptr/cap
+        Value       value;       // +0x08 — embedded Value (40 bytes).
+                                 //         Holds the variable's payload
+                                 //         tag+discriminator+storage. For
+                                 //         stub variables (addVar /
+                                 //         add*-without-val) this is the
+                                 //         default-constructed Value
+                                 //         {type_=Int, which_=0, storage_.i=0}.
         AsmRegister reg;         // +0x30 — register assignment
         std::string name;        // +0x38 — variable name (24 bytes SSO)
-        int16_t     flags;       // +0x50 — status flags (bit 0 = written)
+        int16_t     flags;       // +0x50 — status flags (see VarFlag below)
         char        pad_52[6];   // +0x52 — padding
 
-        ~Variable();  // @0x1e4be0
+        ~Variable();  // @0x1e4be0 — defaulted; Value's dtor handles payload.
     };
     static_assert(sizeof(Variable) == 0x58 || true,
                   "Variable should be 0x58 bytes (check with actual layout)");
+
+    // Variable::flags bit constants (A4)
+    static constexpr int16_t VarFlag_Written = 0x01;  // bit 0: variable has been assigned
+    static constexpr int16_t VarFlag_Frozen  = 0x100; // bit 8: frozen parameter (Function::addArgument)
 
     // ========================================================================
     // Function — stored as shared_ptr in functions_ vector
@@ -358,6 +379,15 @@ public:
     AsmRegister getReturnReg();                       // @0x1e3fe0
     static int getRegisterNumber();                          // @0x1e4bb0
 
+    // Accessor for the flags byte at +0x88 (low byte of flags_88_).
+    // Used by SeqCVariable::evaluate to gate the checkVar() call:
+    //   if direction!=Read && flagsByte()==0 → checkVar(name).
+    // Binary reads this as `cmp BYTE PTR [rdi+0x88], 0` @0x209fda.
+    bool atScopeBoundary() const { return (flags_88_ & 0xFF) != 0; }
+    // Setter: binary writes `BYTE PTR [res+0x88], val` in SeqCIfElse
+    // and SeqCCondExpr Const/Cvar paths to flag dead-branch evaluation.
+    void setAtScopeBoundary(bool v) { flags_88_ = v ? 1 : 0; }
+
     // --- Variable operations ---
     bool variableDependsOnVar(std::string const& name) const;    // @0x1e40e0
     bool variableExists(std::string const& name) const;          // @0x1e4230
@@ -397,11 +427,11 @@ public:
     bool functionExists(std::string const& name, std::string const& sig);              // @0x1e9110
     std::shared_ptr<Function> getFunction(std::string const& name, std::string const& sig); // @0x1e9370
     bool functionExistsInScope(std::string const& name, std::string const& sig);       // @0x1e95d0
-    void getPossibleFunctions(std::string const& name);                                // @0x1e9740
-    void addFunction(std::string const& name, std::string const& sig, VarType rt);     // @0x1e9c10
+    std::vector<std::string> getPossibleFunctions(std::string const& name);             // @0x1e9740
+    std::shared_ptr<Function> addFunction(std::string const& name, std::string const& sig, VarType rt); // @0x1e9c10
 
     // --- Register operations ---
-    void getRegister(std::string const& name);  // @0x1eba50
+    int getRegister(std::string const& name);  // @0x1eba50
 
     // --- Label ---
     static std::string newLabel(std::string const& name);     // @0x1ec6b0
@@ -551,5 +581,8 @@ public:
 
 // Free function — VarType enum to string.  @0x247dd0
 std::string str(VarType vt);
+
+// Free function — VarSubType enum to string.  @0x247ee0
+std::string str(VarSubType vst);
 
 } // namespace zhinst

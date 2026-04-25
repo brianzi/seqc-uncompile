@@ -20,7 +20,7 @@ public:
     void assembleFile(std::string const& path);
     void assembleString(std::string const& src);
     void assembleAsmList(std::vector<AssemblerInstr> const& asmList);
-    // Returns by value (sret); exact return type TBD (likely vector of expressions)
+    // Returns by value (sret); vector of parsed expression objects.
     std::vector<std::shared_ptr<struct AsmExpression>> assembleStringToExpressionsVec(std::string const& src);
     void setMemoryOffset(unsigned int offset);
     void writeToFile(std::string const& path);

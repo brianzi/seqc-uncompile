@@ -7,6 +7,7 @@
 
 #include "zhinst/asm_parser_context.hpp"
 #include "zhinst/asm_expression.hpp"
+#include "zhinst/assembler.hpp"
 
 #include <cstdlib>   // strdup, free
 #include <cstring>   // strlen
@@ -354,7 +355,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
 
         // Look up the command
         Assembler::Command resolved = Assembler::commandFromString(nameStr);
-        if (resolved == static_cast<Assembler::Command>(0xFFFFFFFF)) {
+        if (resolved == Assembler::INVALID) {
             ctx->raiseError("Unknown command: " + nameStr);
         }
         cmd->command = resolved;  // +0x38

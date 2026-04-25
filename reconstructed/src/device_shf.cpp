@@ -17,9 +17,8 @@
 //                   opts & 0x2000 -> RTR (27)
 //                   opts & 0x4000 -> PLUS (28)
 //
-// TODO: per-entry knownOptions arrays for Shfqa2 (4@0x962850),
-// Shfqc (8@0x962870), Shfli (5@0x9628b0) were inferred from the
-// sfc::ShfOption documented bits but not disasm-verified.
+// knownOptions arrays verified entry-by-entry against .rodata
+// (Shfqa2 @ 0x962850, Shfqc @ 0x962870, Shfli @ 0x9628b0) on 2026-04-25.
 // ============================================================================
 
 #include "zhinst/device_subclasses.hpp"

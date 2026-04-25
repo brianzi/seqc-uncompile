@@ -34,6 +34,23 @@
 
 namespace zhinst {
 
+// Optimization pass flag bits for AsmOptimize::flags_ (A5)
+enum OptFlag : uint32_t {
+    Opt_JumpElim     = 0x01,   // oneStepJumpElimination
+    Opt_LabelCleanup = 0x02,   // removeUnusedLabels + mergeLabels
+    Opt_DeadCode     = 0x04,   // deadCodeElimination
+    Opt_MergeZero    = 0x08,   // mergeRegisterZeroing
+    Opt_RegAlloc     = 0x10,   // removeUnusedRegs + registerAllocation
+};
+
+// RegAction — return values from getNextActionForReg (A12)
+enum RegAction : int {
+    RegAction_NotFound    = 0,
+    RegAction_Read        = 1,   // bit 0
+    RegAction_Written     = 2,   // bit 1
+    RegAction_ReadWritten = 3,   // both bits / branch
+};
+
 // Forward declaration
 class CancelCallback;
 

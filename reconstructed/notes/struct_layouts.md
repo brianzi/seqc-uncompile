@@ -997,40 +997,929 @@ IS the VarType directly.
 
 ---
 
-## Variable layout — corrected (Phase 19c-followup, Finding 2)
+## Variable layout — final (Phase 20e-ii Batch 5a wrap-up cleanup)
 
 Size 0x58 (88 bytes), confirmed by `add r14, 0x58` at 1e8441 and stride
 of vector iterations.
 
 | offset | size | field           | notes |
 |--------|------|-----------------|-------|
-| +0x00  | 4    | `type` (VarType)| pad +0x04 |
-| +0x08  | 4    | `subType` (VarSubType) | pad +0x0C |
-| +0x10  | 4    | `which_` (signed int variant discriminator) | pad +0x14 |
-| +0x18  | 16   | variantStorage  | int/bool/double inline OR libc++ string SSO bytes |
-| +0x28  | 8    | (pad / long-form-string ptr slot when string) | |
+| +0x00  | 4    | `type` (VarType) | low 32 of an 8B-aligned slot; pad +0x04 is `subTypeRaw` (next row) |
+| +0x04  | 4    | `subTypeRaw` (VarSubType) | caller-supplied `st` arg (read by getVariableSubType @0x1e4580) |
+| +0x08  | 40   | **`value` (embedded Value)** | full `Value` object: `type_` (+0x00), `which_` (+0x08), `storage_` (+0x10..+0x27) |
 | +0x30  | 8    | `reg` (AsmRegister) | |
 | +0x38  | 24   | `name` (std::string SSO) | |
-| +0x50  | 2    | `flags` (int16_t; bit 0 = "set"/written) | |
+| +0x50  | 2    | `flags` (int16_t) | low byte: "set"/written; high byte (+0x51): "frozen" parameter (Function::addArgument sets this) |
 | +0x52  | 6    | (padding) | |
 
-`Variable::~Variable @0x1e4be0`: lets the compiler-generated dtor handle
-the `name` string at +0x38. If `abs(which_) >= 3`, the variant slot at
-+0x18 holds a libc++ std::string and must be destroyed manually.
+The 40-byte block at +0x08 is **a complete embedded `Value` object**.
+Evidence: `readString @0x1e5db5` does `add rsi, 0x8; call Value::toString()`,
+passing `&v+0x8` as `this` to a Value method. Earlier reconstructions
+modeled the block as raw scalar fields (`flagWord`, `which_`,
+`variantStorage`, `pad_28`); these are now consolidated into a single
+`Value value` member that aligns with the 40-byte (0x28) Value layout
+in `value.hpp`.
 
-The earlier reconstruction placed `which_` at +0x08 and the variant at
-+0x10. Disassembly of `readConst @0x1e7d70` (with r12 = Variable*) shows
-it actually reads `which_` from `[r12+0x10]` and the variant payload from
-`[r12+0x18]`. There is also a separate `subType` field at +0x08, distinct
-from the `type` field at +0x00.
+### Hardcoded `value.type_` literals per add* path
+
+The per-add* literals previously called "flagWord secondary tag" are
+just `Value::type_` (`ValueType` enum) values written to set up a
+type-consistent default Value:
+
+| add* path                           | value.type_ | value.which_ | value.storage_         |
+|-------------------------------------|-------------|--------------|------------------------|
+| addVar (stub)                       | Int=1       | 0            | i = 0                  |
+| addConst (stub, @0x1e74e0)          | Int=1       | 0            | i = 0                  |
+| addCvar (stub, @0x1e8650)           | Int=1       | 0            | i = 0                  |
+| addString (stub, @0x1e54f0)         | String=4    | 3            | empty std::string      |
+| addWave (stub, @0x1e64f0)           | String=4    | 3            | empty std::string      |
+| addConst(double, @0x1e7010)         | Double=3    | 2            | d = val                |
+| addCvar(double, @0x1e8180)          | Double=3    | 2            | d = val                |
+| addString(name, val, @0x1e5020)     | String=4    | 3            | string-SSO from val    |
+| addWave(name, val, @0x1e6020)       | String=4    | 3            | string-SSO from val    |
+
+Note: the addString/addWave **stub** overloads construct an empty
+std::string in the Value variant (via boost::variant_assign), unlike the
+addConst/addCvar/addVar stubs which leave the default-Int payload.
+Confirmed by disasm at @0x1e5667 (addString stub) and @0x1e6667 (addWave
+stub) which call `boost::variant::variant_assign` to install a string
+variant.
+
+`Variable::~Variable @0x1e4be0`: defaulted in source. The `Value`
+subobject's destructor handles its own variant-payload cleanup
+(long-form string at +0x18 of Value when `abs(which_) >= 3`); the
+`name` string at +0x38 of Variable is destroyed automatically.
 
 ### VarSubType — partial mapping
 | numeric | label                | source path |
 |---------|----------------------|-------------|
 |   0     | `VarSubType_Default` | StaticResources general-constant init |
 |   1     | `VarSubType_Stub`    | addVar; bare-stub addX(name, st) overloads |
+|   2     | `VarSubType_FunctionArg` | Function::addArgument (parameter binding); also pre-marks +0x50 = 1 and sets +0x51 frozen-byte |
 |   3     | `VarSubType_Numeric` | full addConst, full addCvar |
 |   4     | `VarSubType_String`  | full addString, full addWave |
 
-(Values 2 and ≥5 not yet observed; may surface in update*() / parameter
-const paths.)
+(Value 2 confirmed in Phase 20e-ii Sub-phase 5b: `VarSubType_FunctionArg`
+is passed by `Function::addArgument @0x1e9f60` to all 5 `scope->add*`
+calls. Values ≥5 not yet observed.)
+
+## Resources function-operation methods — Batch 6 (Phase 20e-ii)
+
+Return type corrections discovered during disassembly:
+
+| Method | Old decl | Corrected | Evidence |
+|--------|---------|-----------|----------|
+| `getPossibleFunctions` | `void` | `vector<string>` | sret via rdi @0x1e9740; vector built with name+sig concatenations |
+| `addFunction` | `void` | `shared_ptr<Function>` | sret via rdi @0x1e9c10; returns `functions_.back()` after push_back |
+| `getRegister` | `void` | `int` | scalar return in eax @0x1eba50; AsmRegister::operator int() |
+
+### getRegister auto-allocation (@0x1eba50)
+
+When a variable's AsmRegister is invalid or equals `AsmRegister(0)`,
+`getRegister` auto-allocates from `GlobalResources::regNumber` (TLS +0x48).
+Pattern: read TLS regNumber, post-increment, construct `AsmRegister(old)`,
+write to `var->reg`. This is the only observed call site that writes to
+`GlobalResources::regNumber`.
+
+### functionExists two-phase lookup (@0x1e9110)
+
+- If `sig` is non-empty: delegates to `getFunction(name, sig)` and returns
+  non-null check (full name+sig match via `sameArgString`).
+- If `sig` is empty: name-only local scan (no `sameArgString`), then
+  recurses to parent via `parentWeak_.lock()`.
+
+### addFunction shared_from_this pattern (@0x1e9c10)
+
+Calls `shared_from_this()` on `this` (reads ESFT weak_ptr at +0x08/+0x10)
+to create a `weak_ptr<Resources>` passed to `Function(name, sig, rt, weak)`.
+Throws `AlreadyDefined` (0xab=171) if `functionExistsInScope` returns true.
+
+## StaticResources / GlobalResources — Batch 7 (Phase 20e-ii)
+
+### StaticResources ctor (@0x129cb0)
+
+- Constructs Resources base with name `"static"` and empty `weak_ptr` parent.
+- `usedSampleRate_` (+0xD8) initialized to `false`.
+- Copies `std::function<void(string const&)> logger` parameter via libc++
+  internal clone mechanism (modeled as placement-new in source).
+
+### StaticResources::getVariable (@0x129e60)
+
+- **Pre-check**: `name == "DEVICE_SAMPLE_RATE"` (18-byte SSE compare) →
+  sets `usedSampleRate_ = true`.
+- **Delegates** to `Resources::getVariable(name)`.
+- **Deprecation warnings** (5 constant names, non-blocking — still returns
+  the Variable*):
+  - `"AWG_MONITOR_TRIGGER"` (19B SSE), `constAwgIntegrationTrigger` (bcmp),
+    `"AWG_INTEGRATION_ARM"` (19B SSE) → hint: `"'startQA' function"`
+  - `zsyncDataPqscRegister` (bcmp) → hint: `"'ZSYNC_DATA_PROCESSED_A'"`
+  - `zsyncDataPqscDecoder` (bcmp) → hint: `"'ZSYNC_DATA_PROCESSED_B'"`
+- Error code: `DeprecatedConst = 52` (0x34).
+- SSE "overlap trick" for 19-byte strings: `pcmpeqb` bytes[0..15] and
+  bytes[3..18], `pand`, `pmovmskb == 0xffff`.
+
+### GlobalResources ctor (@0x12a710)
+
+- Constructs Resources base with name `"global"` and empty `weak_ptr` parent.
+- Copies `parent` shared_ptr into `parent_` (+0x18).
+- Initializes TLS: `regNumber = 1`, `labelIndex = 0`.
+- Seeds MT19937-64: `random[0] = 0x1571`, multiplier `0x5851f42d4c957f2d`,
+  loop 311 iterations, `random[312] = 0` (mti index).
+
+### GlobalResources dtor (@0x12ab40)
+
+- Trivial: calls `Resources::~Resources()` then `operator delete(this, 0xd8)`.
+  Defaulted in reconstructed source.
+
+## PlayArgs::WaveAssignment (0x50 = 80 bytes) — CORRECTED Phase 21a
+
+Earlier reconstruction described this as
+`{ int type; int subType; EvalResultValue value; vector<int> bits; }`
+which sums to 0x58 and contradicts the 0x50 stride observed in the
+binary's `vector<WaveAssignment>` operations. The correct layout starts
+with the EvalResultValue directly:
+
+| Offset | Size | Type / Field             | Notes                                                       |
+|--------|------|--------------------------|-------------------------------------------------------------|
+| +0x00  | 0x38 | EvalResultValue value    | First 8B = `varType_` + `varSubType_` (the historical "type"/"subType") |
+| +0x38  | 0x18 | vector\<int\> bits       | Channel bit assignments (port indices 1..N)                |
+| total  | 0x50 |                          | static_assert in `custom_functions.hpp:194`                |
+
+Evidence:
+- `@0x135854` (playAuxWave): `lea rsi, [rbx+0x8]` then `call Value::toString`
+  ⇒ `wa.value.value_` lives at `WA+0x08` ⇒ `wa.value` lives at `WA+0`.
+- `@0x135990` (playAuxWave inner copy): copies exactly 0x38 bytes from
+  `WA+0` into a `vector<EvalResultValue>` slot.
+
+**Cascading fix** (Phase 21a Sub-batch 5): 8 references in
+`custom_functions.cpp` updated from `wa.type`/`wa.subType` to
+`wa.value.varType_`/`wa.value.varSubType_`.
+
+## Play wrappers — signature & dispatch matrix (Phase 21a)
+
+All 5 wrappers have signature
+`shared_ptr<EvalResults> name(vector<EvalResultValue> const& args, shared_ptr<Resources> res)`
+and follow a common skeleton (waitState_ check → arg-count guard →
+PlayArgs construction → asm emission). Distinguishing parameters:
+
+| Wrapper        | Addr     | waitState_ | arg-count guard | PlayArgs ctor    | parseOptionalRate | Rate-guard error | Empty-args error |
+|----------------|----------|------------|-----------------|------------------|-------------------|------------------|------------------|
+| playWaveDIO    | 0x137740 | check `==1` | `args.empty()` | n/a (direct wvft) | n/a               | n/a              | 0x42             |
+| playWaveZSync  | 0x137a50 | check `==2` | `args.size()==1`| n/a (readConst)  | n/a               | n/a              | 0x5c             |
+| playDIOWave    | 0x1369f0 | none       | `args.empty()` | `indexed=false`  | `strict=false`    | 0xa1 (≤1)        | 0x3d             |
+| playAuxWave    | 0x135610 | none       | (tolerant)     | `indexed=true`   | `strict=true`     | 0xa0 (≤4)        | (handled by parse)|
+| playAuxWaveIdx | 0x136930 | (existing — Phase 18b) | | | | | |
+
+Key per-wrapper details:
+- **playWaveZSync**: Single Const arg matched against 3 readConst names
+  → bit-shift `(1, 9, 0xd)`. Mask formula is `shift << numOutputPorts`
+  (multi-bit pattern preserved into high mask).
+- **playDIOWave**: Per-bit trigger mask clearing
+  `mask &= ~(0x40 << (7*b))` for each `b in WaveAssignment::bits`.
+- **playAuxWave**: Channel scatter (`wa.value → channelArgs[bits[i]-1]`),
+  zero-fill empty slots via `waveformGen_->call("zeros", {Value(len)})`,
+  constant trigger mask (0x3FFF or 0x3FC3), `asmPlay isHoldMode=true`.
+
+## mergeWaveforms (0x15e060) — 6-arg semantics (Phase 21a Sub-batch 3)
+
+Signature confirmed via mangled tail `...sbRK<string>ib` (last param
+is `bool`, not `int64_t`):
+
+```
+shared_ptr<WaveformFront> mergeWaveforms(
+    vector<EvalResultValue> const& args,
+    int                  channelCount,
+    bool                 useYSuffix,
+    string const&        callerName,
+    int                  requestedLength,    // -1 = derive from args
+    bool                 useFunDescrPath);
+```
+
+7-phase body (893 disasm → 288 C++ lines @ `custom_functions.cpp:767-1054`):
+1. Empty-args fast path (single-channel passthrough).
+2. Per-arg waveform extraction + length determination.
+3. Length validation (error 0x9E format = `(string, short, ushort)` —
+   confirms `Js t` mangling tail meaning `s=short, t=ushort`).
+4. Channel-count consistency check (uses `Signal::channels()` —
+   `wf->signal.channels()`, accessor at `signal.hpp:83`).
+5. Name synthesis (with optional `_y` suffix).
+6. Factory selection (merge / interleave / grow). Three factory targets
+   confirmed by direct `lea rax,[rip+...]` loads:
+   - `@0x15e78a` → `WaveformGenerator::interleave` `@0x258140`
+   - `@0x15e7d9` → `WaveformGenerator::merge`      `@0x25f5c0`
+   - `@0x15e85e` → `WaveformGenerator::grow`       `@0x260640`
+
+   Multi-value branch dispatch (`@0x15e774`):
+   `test bl, bl; je 15e7c7` — `bl` from `[rbp-0x48]` is a function-local
+   value computed earlier in the multi-value path (NOT a direct incoming
+   parameter). The exact derivation is still under investigation.
+   Single-value branch is unconditionally GROW (`@0x15e84b`).
+   Source approximates with `(multiValue, useYSuffix)` mapping.
+7. WaveformFront construction + signal copy.
+
+**Pre-existing call-site bugs fixed in same sub-batch**: both
+`play` (line ~874) and `assignWaveIndex` (line ~2044) were passing
+wrong arguments — these were latent reconstruction errors that the
+build tolerated only because mergeWaveforms was a stub.
+
+**Phase 21a-followup updates**:
+- `param5` is `(int)PlayArgs::getMaxSampleLength()` at both call sites
+  (set @0x15f634 in play, @0x13400a in assignWaveIndex). Pushed as
+  8-byte stack slot but truncated to 32 bits by callee per SysV ABI.
+- `param6` (bool) in play() is `(ch != referenceChannelIndex)` where
+  `referenceChannelIndex` is a per-iteration int at PlayArgs/state +0x24.
+  Source approximates as `(ch != channelIndex)`.
+- `param6` (bool) in assignWaveIndex is hardcoded `false` (`push 0x0`
+  literal @0x13424a).
+
+**Phase 21b-prereq-A: full call-site map**:
+
+| Binary site | Enclosing fn  | Source line | Status      |
+|-------------|---------------|-------------|-------------|
+| @0x134252   | assignWaveIndex | 2892      | implemented |
+| @0x135ddc   | playAuxWave   | 1809        | implemented |
+| @0x136cfa   | playDIOWave   | 2083        | implemented |
+| @0x15fa7b   | play()        | 1164        | implemented |
+| @0x161c2b   | playIndexed   | (stubbed)   | **MISSING** |
+
+`playIndexed` (0x160e00, 6428 bytes) is currently a ~64-line skeleton
+in `custom_functions.cpp:1219-1282`. The missing mergeWaveforms call
+site is one symptom of a broader gap — the function needs full
+reconstruction. This re-classifies the work as a new TODO item
+(promote to its own sub-phase) rather than a quick audit fix.
+
+## playIndexed @0x160e00 — 18-phase structural map (Phase 21b-prereq-B)
+
+| # | Address range            | Description                                                  |
+|---|--------------------------|--------------------------------------------------------------|
+| 1 | 0x160e00..0x160f15       | cmdName switch (Wave/AuxWave/WaveNow + default→LogRecord)    |
+| 2 | 0x160f16                 | arg-count guard: `(end-begin)/56 > 2` ≡ `args.size() >= 3`   |
+| 3 | 0x160f99..0x160fd1       | `PlayArgs(*config_, wf, cb, cmdName, indexed=(sub==Aux))`    |
+| 4 | 0x16104c..0x1611af       | `parse(args)` then `parseOptionalRate(strict=(sub==Aux))`    |
+| 5 | 0x1611b4..0x161228       | rate guard, varType ∈ {4,6} check, `EvalResults(Void)`, waveIndex |
+| 5b | 0x16131b..0x1613c9      | waveIndex==0 → format error 0x9c, warningCallback_, return   |
+| 6 | 0x1612b4..0x161319 (Aux) | name validation: `checkWaveformInitialized(wa.value.toString())` per WA |
+| 7 | 0x161410..0x1615f0       | per-channel arg gather + 14-bit triggerMask (init 0x3fff)    |
+| 8 | 0x161853..0x161867       | `getWaveformSampleLength(name)` probe                        |
+| 9 | 0x161951                 | `WaveformGenerator::call("zeros", {len})`                    |
+| 10 | 0x161c2b                | mergeWaveforms — 5th binary call site                        |
+| 11 | 0x161d76                | `WavetableFront::loadWaveform(combined)`                     |
+| 12 | 0x161df1+0x161e56        | `getRegisterNumber()` + `addi(reg, 0, Imm(waveIndex))`       |
+| 13 | 0x161ee2                | `asmSetVarPlaceholder(reg)`                                  |
+| 14 | 0x161f79                | Assembler push_back (addi+placeholder emission)              |
+| 15 | 0x16214a                | `checkOffspecWaveLength(combined, ?)`                        |
+| 16 | 0x162343                | `asmPlay(...)` — NOT asmTable as prior skeleton wrongly had  |
+| 17 | 0x162487+/0x162511       | post-asmPlay Assembler push_back                             |
+| 18 | 0x16283a..end            | error message factories (0x9c, 0xa0, 0x3d, 0x3e, 0xC8, ...)  |
+
+**Three CRITICAL bug fixes vs prior skeleton applied in 21b-prereq-B**:
+1. arg-count `< 2` → `< 3` (off by one)
+2. `indexed = (subFunc != Aux)` → `(subFunc == Aux)` (was inverted)
+3. removed wrong `asmTable` call; binary uses `addi+asmPlay` pattern
+
+**Phase 5b discovery**: waveIndex==0 is a non-throwing warning path.
+Binary @0x161236 `test eax,eax; je 16131b` jumps to a code path that
+formats error 0x9c, calls `warningCallback_(...)` via vtable[+0x30]
+indirect through `[res+0x1b0]`, then jumps to the success-tail cleanup
+@0x1625ea and returns the (empty) results. NOT a CustomFunctionsException.
+
+**Open structural unknowns blocking phases 8-18 reconstruction**:
+- ~~`Resources` field at +0x24~~ — **RESOLVED 2026-04-24** (21b-followup-1):
+  the access pattern is `[r12]; [rax+0x24]` where `r12 = this`
+  (CustomFunctions*), not `*res`. So `[r12] = this->config_` (at
+  CustomFunctions+0x00) and `[config_+0x24] = AWGCompilerConfig::deviceIndex`
+  (per `awg_compiler_config.hpp:70`). The accessor is simply
+  `config_->deviceIndex` — already named.
+- The per-channel `WaveAssignment` outer container at `[rbp-0x440]` —
+  outer base added to the scaled-by-deviceIndex offset.
+  **PARTIALLY RESOLVED 2026-04-24**: confirmed by destructor symbol
+  `vector<vector<PlayArgs::WaveAssignment>>::__base_destruct_at_end`
+  at @0x162661. Type matches `playArgs.waveAssignments_` (at PlayArgs
+  +0x60). However the [rbp-0x440] stack local is NOT physically the
+  same as the PlayArgs field — it's a separate stack vector that gets
+  populated somewhere upstream (no explicit sret-write to -0x440 found
+  in disasm; possibly populated as a side effect of `PlayArgs::parse`
+  via inlined out-parameter). Source-level model: treat as
+  `playArgs.waveAssignments_[deviceIndex]`. See 21b-followup-3 for
+  the residual trace.
+
+**SysV ABI puzzle at the playIndexed mergeWaveforms call site**
+(0x161c2b) — **RESOLVED 2026-04-24** (21b-followup-2):
+
+Initial confusion: with sret-rdi and a 6-arg signature, args should
+land in rsi/rdx/rcx/r8/r9/stack[0]. But all 5 call sites consistently
+load `rdx = lea` of a stack slot (a pointer) where the signature says
+arg2 is `short`. Side-by-side audit table:
+
+| Site                | rdi        | rsi    | rdx          | rcx               | r8     | r9          | st[0]      | st[1]            |
+|---------------------|------------|--------|--------------|-------------------|--------|-------------|------------|------------------|
+| 0x134252 assignWI   | lea sret   | r14    | lea[rbp-0xb0]| movsx[rax+0x14]   | xor=0  | lea[rbp-0x40]| 0          | [rbp-0x238]      |
+| 0x135ddc playAux    | lea sret   | rbx    | lea[rbp-0x78]| movsx[rax+0x16]   | mov 1  | lea[rbp-0x90]| 0          | 0                |
+| 0x136cfa playDIO    | lea sret   | r14    | lea[rbp-0x40]| movsx[rax+0x14]   | xor=0  | lea[rbp-0x58]| 0          | [rbp-0xa8]       |
+| 0x15fa7b play       | lea sret   | rbx    | lea[rbp-0x70]| movsx[r13+0x14]   | xor=0  | lea[rbp-0x50]| rax (bool) | [rbp-0xa8]       |
+| 0x161c2b playIndexed| lea sret   | r12    | lea[rbp-0x90]| movsx[rax+rcx]    | sete b | lea[rbp-0x40]| 0          | 0                |
+
+Resolution comes from inspecting the mergeWaveforms entry @0x15e060:
+```
+15e074:  mov [rbp-0xe0], r9     ; arg5 = string& callerName
+15e07b:  mov [rbp-0xec], r8d    ; arg4 = bool useYSuffix
+15e082:  mov r15d, ecx          ; arg3 = short channelCount
+15e085:  mov rbx, rdx           ; arg2 = vector<EvalResultValue>&
+15e088:  mov [rbp-0xe8], rsi    ; arg1 = ??? (used at 0x15e13b)
+15e08f:  mov r14, rdi           ; sret slot
+```
+Then @0x15e13b: `rax = [rbp-0xe8]; rdi = [rax+0x20]; call
+WavetableFront::getWaveformSampleLength`. Field +0x20 of the saved
+rsi is a `WavetableFront*` — that's the `wavetableFront_` field of
+`CustomFunctions`. So **rsi is the implicit `this` pointer** and
+mergeWaveforms is a non-static member function (which we already
+knew from the demangled name `zhinst::CustomFunctions::mergeWaveforms`).
+
+The "6 args" of the demangled signature are the **explicit** args;
+the implicit `this` consumes rsi, shifting the explicit args by one
+register. Final mapping:
+
+| Reg / slot   | Meaning                                                  |
+|--------------|----------------------------------------------------------|
+| rdi          | sret slot for `shared_ptr<WaveformFront>` return         |
+| rsi          | implicit `this` (CustomFunctions*)                       |
+| rdx          | arg1: `vector<EvalResultValue> const&`                   |
+| rcx          | arg2: `short channelCount`                               |
+| r8           | arg3: `bool useYSuffix`                                  |
+| r9           | arg4: `string const& callerName`                         |
+| stack[0]     | arg5: `int requestedLength`                              |
+| stack[1]     | arg6: `bool useFunDescrPath`                             |
+
+**Outcome**: no bug; the 4 already-implemented call sites are
+correct; no source changes needed. The C++ compiler handles `this`
+and sret automatically. The only deliverable from this audit is the
+register-layout table above (now part of this notes file) so future
+reconstruction work doesn't re-stumble on the same puzzle.
+
+## playIndexed phases 8-18 reconstruction (21b-prereq-B-cont, 2026-04-24)
+
+Following the phases 1-7 source reconstruction in the prior sub-phase,
+phases 8-18 were reconstructed in `custom_functions.cpp`. All 18
+phases now have executable C++ (with TODO markers documenting the
+residual unknowns absorbed into 21b-followup-3).
+
+Key findings from phases 8-18 disasm:
+
+**Phase 9 source-level helper**: The inline construction of the
+literal `"zeros"` string + a `vector<Value>{Value(int=baseLen)}` +
+call to `WaveformGenerator::call("zeros", args)` is exactly what
+`WaveformGenerator::createDummyWaveform(int length)` does (see
+`waveform_generator.hpp:137`, "@0x25be70"). The binary inlines this
+helper instead of calling it (likely cross-TU inlining at LTO time).
+Source-level we restore the call.
+
+**Phase 10 channelCount source**: The `[rbp-0xc8]` offset variable
+holds either 0x14 or 0x16 depending on the prior path (set at
+@0x16182a writes 0x16, set at @0x161825 in a different branch writes
+0x16 too). Both 0x14 and 0x16 are 16-bit shorts in `AWGCompilerConfig`
+adjacent to `channelsPerGroup[0]`. Modeled as `channelsPerGroup[1]`
+pending precise per-branch trace.
+
+**Phase 11 bounds check**: Before `loadWaveform` the binary checks
+`waveIndex > combined->[+0xd0]` and throws via the long-form length
+error at @0x1629cb. The `+0xd0` field of `WaveformFront` is a sample-
+length cap; not yet named. Left as TODO.
+
+**Phase 12 addi return type discovery**: `AsmCommands::addi(reg, reg,
+Imm)` returns `vector<AsmList::Asm>` (not single `Asm`) — caught at
+build time during this sub-phase and corrected. The binary inlines the
+vector's `__insert_with_size` into a destination Assembler, which is
+why it doesn't look like a normal vector return.
+
+**Phase 14 Assembler push tracking**: The disasm shows two near-
+identical inline `vector::push_back` blocks (@0x161ed4 and @0x161f53)
+into a per-call Assembler instance whose pointer comes from
+`[rbp-0xc0]` (a saved arg slot). At source level this looks like
+"build local Asm entries, push them into the active assembler". The
+exact owner is not yet traced — left as TODO.
+
+**Phase 16 asmPlay 12-arg call**: 12 SysV slots is unusual; the
+binary loads them via 4 stack pushes + 8 register slots. Modeled
+structurally after `play()`'s asmPlay call (lines 1196..1202 in
+`custom_functions.cpp`) since the field meanings are identical
+(waveforms vector, indexReg from getRegisterNumber, regInv=AsmReg(-1),
+holdCount=rate, trigger=triggerMask). The boolean flag mapping
+(isHold/fourChannel/isBool/isHoldMode) is approximate and tagged TODO.
+
+**Phase 17 push to results->assemblers_**: Confirmed via `lea rdi,
+[r15+0x18]` where `r15 = [r13]` and `r13` was the saved first-arg
+slot. `+0x18` matches `EvalResults::assemblers_` at `eval_results.hpp:75`.
+
+**Phase 18 cleanup**: 0x1cf bytes of dtor calls + return path. The
+exception tail factories @0x162848+ generate four error formats:
+- 0x3d "wrong number of arguments" → Phase 2 throw
+- 0x98 "invalid first-arg type" → not yet wired
+- 0xa0 "rate too low" → Phase 4 throw
+- 0x9a "invalid wave-index type" → not yet wired
+
+Plus `std::__throw_bad_function_call` @0x162971 (called when
+`warningCallback_` is empty in Phase 5b — already guarded by `if
+(warningCallback_)` in source).
+
+**Build status**: clean after the reconstruction (one inline build
+fix for `addi` return type; no warnings, no link errors).
+
+
+## writeToNode @0x164550 — recon (Phase 21b.1)
+
+**Function size**: 0x164550 → 0x16b740 = 0x71f0 bytes (29KB,
+6120 disasm lines), bigger than the historical 23KB estimate.
+Cached slice: `/tmp/writeToNode.disasm`
+(`sed -n '155684,161803p' /tmp/disasm_full.txt`).
+
+### Signature correction
+
+The header had declared:
+
+```cpp
+void writeToNode(EvalResultValue, EvalResultValue, EvalResultValue,
+                 std::shared_ptr<Resources>);
+```
+
+Disassembly shows otherwise. At entry:
+
+```
+164550:  push rbp ; mov rbp,rsp ; push r15..rbx
+16455d:  sub rsp, 0xad8
+164564:  mov [rbp-0x358], r9       ; r9 = res shared_ptr
+16456b:  mov [rbp-0x1a8], r8       ; r8 = &type
+164572:  mov [rbp-0x50], rcx       ; rcx = &val
+164576:  mov r15, rdx              ; rdx = &path
+164579:  mov r14, rsi              ; rsi = this
+16457c:  mov rbx, rdi              ; rdi = SRET slot   <— return value
+16457f:  mov edi, 0x98
+164584:  call operator new
+...
+1645cc:  mov [rbx], rcx            ; sret[0] = control-block payload
+1645d6:  mov [rbx+8], rax          ; sret[8] = ptr
+```
+
+Two 8-byte stores into `[rbx]` / `[rbx+8]` is the libc++
+`shared_ptr<EvalResults>` layout. Therefore the return type must be
+`std::shared_ptr<EvalResults>`. Header updated accordingly. The
+existing `setInt` call site `writeToNode(...); return nullptr;` is
+left in place with a TODO marker for 21b.5 to convert it into a
+forwarder.
+
+### EvalResultValue passing convention
+
+`EvalResultValue` is non-trivially-copyable (contains `Value` which
+contains `std::string`), so it is passed by hidden reference per the
+Itanium C++ ABI even when declared by value. Hence `rdx = &path`,
+`rcx = &val`, `r8 = &type`. The shared_ptr (16B trivially copyable)
+goes in `r9` (8B) plus a stack slot for the control-block pointer.
+
+### Static regex objects
+
+4 `boost::regex` instances live in `.bss`:
+
+| Regex | Address | Guard | Purpose |
+|-------|---------|-------|---------|
+| `absDevRegex` | b84748 | b84758 | absolute device path `dev<N>/<rest>` |
+| `awgNodeRegex` | b84760 | b84770 | AWG channel-relative node |
+| `sineNodeRegex` | b84778 | b84788 | sine/oscillator node |
+| `oscselNodeRegex` | b84790 | b847a0 | osc-select node (largest dispatch) |
+
+Pattern strings are constructed lazily in cold paths
+(@0x169ea5, @0x169efd, @0x169f54, @0x169fab — Block F). These
+strings are TODO 21b.5; the source uses placeholder patterns in an
+anonymous namespace.
+
+### Sub-block map (size + addresses)
+
+| Block | Range | Size | Content |
+|-------|-------|------|---------|
+| Setup | 0x164550..0x164608 | ~180B | Allocate EvalResults; cmdName toString() |
+| A: absDevRegex | 0x16460e..~0x164800 | ~500B | Match abs device path |
+| B: awgNodeRegex | 0x164803..~0x164950 | ~330B | AWG channel dispatch |
+| C: sineNodeRegex | 0x164950..~0x164ae0 | ~390B | Sine osc dispatch |
+| D: oscselRegex | 0x164b19..~0x169d00 | **~21KB** | Bulk per-type codegen |
+| E: error tail | 0x169d83..0x169df4 | ~110B | Throw formatted error |
+| F: regex init | 0x169ea5..0x16a3f0 | ~1.5KB | Static regex ctors (cold) |
+| G: epilogue | 0x16a3f0..0x16b740 | ~5KB | dtors / unwinding |
+
+3 binary call sites of writeToNode all in `CustomFunctions`:
+@0x141447 (likely setUserReg), @0x1486f2 (`setInt`),
+@0x149334 (`setDouble`).
+
+### Block A (absDevRegex) decoded
+
+After `Value::toString()` produces the working path string at
+`[rbp-0x1a0]`, the libc++ short-string deref pattern unpacks
+begin/size:
+
+```
+164642:  movzx eax, BYTE PTR [rbp-0x1a0]   ; first byte = (size<<1)|long_flag
+164649:  mov esi, eax ; shr esi, 1          ; short-mode size = byte>>1
+16464d:  test al, 0x1                       ; bit 0 = long-mode flag
+16464f:  lea rbx, [rbp-0x19f]               ; short-mode begin = inline buf
+164656:  mov rdi, [rbp-0x190]               ; long-mode begin
+16465d:  cmove rdi, rbx                     ; pick depending on flag
+164661:  cmovne rsi, [rbp-0x198]            ; long-mode size
+164669:  add rsi, rdi                       ; rsi = end = begin + size
+```
+
+Then `boost::regex_match(begin, end, &matches@[rbp-0x220], absDevRegex, 0)`.
+
+On match: extract two consecutive sub_match captures via
+`boost::sub_match::str()` @0x16b830:
+
+```
+1646da:  shr rax, 3 ; imul eax, 0xaaaaaaab   ; (end-begin)/24 = num_submatches
+1646e0:  add rsi, 0x48                       ; sub_match base + 0x48
+1646e4:  cmp eax, 0x4 ; cmovl rsi, &empty    ; bounds: need >= 4 submatches
+1646f9:  call sub_match::str()               ; → device-id string
+```
+
+Then `std::stoul(devIdStr, nullptr, 10)` → `requestedDev` and
+validate against `[r14] [+0x24]` = `this->config_->deviceIndex`
+(the Phase 21b-followup-1 finding: `r14=this`, not `res`; first 8
+bytes of `*this` is `config_`).
+
+```
+164734:  mov rax, [r14]              ; r14 = this; rax = config_
+164737:  cmp [rax+0x24], r12d        ; deviceIndex vs requestedDev
+16473b:  jne 169d83                   ; → error tail (device mismatch)
+```
+
+On success: read sub_match[+0x60] (next consecutive capture, +0x18
+= one sub_match struct further) → "rest of path" string. Copy it
+into the working buffer via 16-byte xmm move (libc++ string
+SSO move):
+
+```
+1647df:  movups xmm0, [rbp-0x178]    ; new string from sub_match
+1647e6:  movaps [rbp-0x1a0], xmm0    ; store into working buffer
+```
+
+Whether absDevRegex matched or not, control reaches @0x1647ed which
+unconditionally calls `lookupNode(pathStr)`. The result is consumed
+by Blocks B/C/D for the subsequent dispatch.
+
+### Block A error path (@0x169d83 → "device mismatch")
+
+Allocates 0x40-byte exception via `__cxa_allocate_exception`,
+constructs message string, and (presumably — full reconstruction in
+21b.5) throws `CustomFunctionsException`. Source approximation:
+
+```cpp
+throw CustomFunctionsException(
+    "writeToNode: device id in path does not match configured device");
+```
+
+The exact format string and error code are TODO 21b.5.
+
+### Capture-index uncertainty
+
+The `+0x48` and `+0x60` offsets into `match_results.array_` differ
+by one sub_match struct (0x18). They map to capture indices that
+depend on libc++'s `match_results` layout (prefix at index 0, then
+groups). The source uses Boost API `matches[1]` and `matches[2]`
+which are the natural capture-group indices; this should be
+confirmed once the real pattern strings are recovered in 21b.5.
+
+
+## writeToNode Blocks B + C — recon (Phase 21b.2)
+
+After Block A's `lookupNode(pathStr)` call at @0x1647ed, control
+falls into a chain of two more `boost::regex_match` tests against
+the working `pathStr`. Both tests share the same match_results
+buffer (`[rbp-0x220]`) reused across all four regex tests.
+
+### Block B: awgNodeRegex @0x164803..0x16491e (~290B)
+
+Path shape (TODO 21b.5: confirm against recovered pattern string):
+something like `awgs/<channelIdx>/<rest>`.
+
+Decoded flow:
+
+```
+164803:  movzx eax, BYTE PTR [b84770]      ; awgNodeRegex guard byte
+16480c:  je   169efd                        ; → cold ctor path (Block F)
+164812:  ... libc++ short-string deref of pathStr ...
+164835:  lea rcx, [b84760]                  ; awgNodeRegex
+164846:  call boost::regex_match            ; → al = matched
+16484d:  je  16491e                         ; not matched → fall through to C
+1648b5:  lea rdi, [rbp-0x178]
+1648bc:  call sub_match::str()              ; capture[+0x48] → string
+1648d3:  call std::stoul(s, nullptr, 10)    ; parse decimal
+1648d8:  mov r13, rax                       ; r13 = channelIdx
+1648e8:  mov rax, [r14]                     ; r14 = this; rax = config_
+1648eb:  mov r12d, [rax+0x1c]               ; r12 = numChannelGroups
+1648ef:  cmp r12d, 0x2 ; jne 1649d7
+   1648f9: ... r13 = (r13 + (r13>>31)) >> 1 ; signed /2
+1649d7:  cmp r12d, 0x4 ; jne 164911 (skip both)
+   1649e1: lea ecx, [r13+0x3] ; cmovns ecx,r13d ; sar ecx,0x2 ; r13 = ecx ; signed /4
+164911:  mov r14d, [rax+0x20]               ; cap (config_->unknown_20)
+164915:  cmp r13d, r14d
+164918:  jne 1649ff                          ; → error path
+```
+
+Source-level translation:
+
+```cpp
+if (boost::regex_match(begin, end, matches, awgNodeRegex)) {
+    int channelIdx = std::stoul(matches[1].str(), nullptr, 10);
+    int numGroups = config_->numChannelGroups;        // [config+0x1c]
+    if (numGroups == 2) channelIdx /= 2;
+    else if (numGroups == 4) channelIdx /= 4;
+    if (channelIdx != config_->unknown_20)            // [config+0x20]
+        throw CustomFunctionsException(/* msg with deviceIndex */);
+}
+```
+
+Note that the error tail @0x1649ff reads `r15d = [rax+0x24]` =
+`config_->deviceIndex` — used only to format the diagnostic.
+
+### Block C: sineNodeRegex @0x16491e..0x164ae4 (~460B)
+
+Path shape (TODO 21b.5): `sines/<oscIdx>/<rest>`.
+
+Decoded flow:
+
+```
+16491e:  movzx eax, [b84788]                ; sineNodeRegex guard
+164927:  je  169f54                         ; → cold ctor (Block F)
+164950:  lea rcx, [b84778]                  ; sineNodeRegex
+164961:  call boost::regex_match
+16496a:  je  164aea                         ; not matched → Block D
+164a72:  call sub_match::str()              ; capture[+0x48]
+164a85:  call stoul ; r13 = oscIdx
+164aad:  mov rcx, [r14] ; r12d = [rcx+0x1c] ; numChannelGroups
+164ab4:  xor eax,eax ; cmp r12d,0x2 ; sete al
+164abd:  lea esi, [rax*2+0x2]               ; esi = (numGroups==2) ? 4 : 2
+164ac4:  mov eax, r13d ; cdq ; idiv esi     ; eax = oscIdx / esi
+164aca:  cmp r12d, 0x4 ; jne 164add
+   164ad0: lea edx,[rax+0x3] ; cmovns edx,eax ; sar edx,0x2 ; signed /4 again
+164add:  mov r13d, [rcx+0x20]               ; cap
+164ae1:  cmp eax, r13d
+164ae4:  jne 16a006                         ; → error path
+```
+
+Mapping table (oscIdx → derived channelIdx):
+
+| numChannelGroups | First divide | Then if ==4 | Total |
+|------------------|--------------|-------------|-------|
+| 1 (default)      | / 2          | (skip)      | / 2   |
+| 2                | / 4          | (skip)      | / 4   |
+| 4                | / 2          | / 4         | / 8   |
+
+Interpretation: 2 oscillators per channel by default, 4 when grouping
+into pairs, 8 when grouping into quads.
+
+Source-level translation:
+
+```cpp
+if (boost::regex_match(begin, end, matches, sineNodeRegex)) {
+    int oscIdx = std::stoul(matches[1].str(), nullptr, 10);
+    int numGroups = config_->numChannelGroups;
+    int divisor = (numGroups == 2) ? 4 : 2;
+    oscIdx /= divisor;
+    if (numGroups == 4) oscIdx /= 4;
+    if (oscIdx != config_->unknown_20)
+        throw CustomFunctionsException(/* msg */);
+}
+```
+
+### Shared properties
+
+- Both blocks read `config_->numChannelGroups` and
+  `config_->unknown_20`. `unknown_20` is therefore a "current
+  channel index" or similar per-instance constant — TODO: rename
+  to a meaningful field name once we identify another reader.
+- Error tail at @0x1649ff and @0x16a006 share the same exception
+  type (`CustomFunctionsException`, allocated 0x40 bytes).
+- Both regexes consume only capture group [1] (numeric index);
+  they don't substitute the working path string the way Block A
+  does. The path retains its original (post-Block-A) value going
+  into Block D.
+
+
+## writeToNode Block D — structural skeleton (Phase 21b.3)
+
+Block D (oscselNodeRegex, @0x164b19..~0x169d00) is the bulk of
+writeToNode at ~21KB / ~5000 disasm lines. This sub-phase lays
+down the structural decomposition; the per-case asm-emission
+bodies are TODO 21b.4.
+
+### Stack-frame discovery: NodeMapItem layout confirmed
+
+Earlier audits had the `NodeMapItem` layout in
+`node_map_data.hpp:93+` (data*, typeIdx, fastAddr, hasFast at
++0x00/+0x08/+0x0c/+0x10) but had not been cross-checked against
+writeToNode's stack usage. This sub-phase confirms it:
+
+- `[rbp-0x1c0]` is the first 8 bytes of a 64-byte local
+  `NodeMapItem` returned by `lookupNode(pathStr)` (call @0x1647ed).
+- `[rbp-0x1b8]` (read as DWORD at @0x164c5f, @0x164ceb,
+  @0x164d45, @0x164db2) is `node.typeIdx` at +0x08.
+- `[rbp-0x1b0]` (read as BYTE at @0x164c0e, @0x164c43) is
+  `node.hasFast` at +0x10.
+- The cleanup at @0x16b6db..16b6f5 calls `[rax+8]` on
+  `*[rbp-0x1c0]` — a virtual-destructor call on a raw
+  `NodeMapData*`, NOT a libc++ shared_ptr `_M_release()`.
+  Confirms `data` is a raw owning pointer.
+
+### "MF" tag insertion into usedFeatures_
+
+@0x164b3a..164b4a constructs an SSO short-string at `[rbp-0x178]`:
+
+```
+164b3a:  mov BYTE PTR [rbp-0x178], 0x4    ; SSO header: size=4>>1=2
+164b41:  mov WORD PTR [rbp-0x177], 0x464d  ; bytes 'M','F' (LE)
+164b4a:  mov BYTE PTR [rbp-0x175], 0x0    ; null terminator
+```
+
+@0x164b51..164bee then walks `[r14+0x1c8]` as a `__tree<string>`
+and either finds an equal entry or calls
+`__tree::__emplace_unique_key_args` to insert. Source-level:
+
+```cpp
+this->usedFeatures_.insert("MF");
+```
+
+`usedFeatures_` is the `std::set<std::string>` at
+`CustomFunctions+0x1C8` (already named in
+`custom_functions.hpp:548`). The semantics of "MF" specifically
+is unclear; candidates include "Multi-Frequency" / "Marker Flag" /
+"MutableField" — TODO 21b.5 to identify by surveying readers
+of `usedFeatures_`.
+
+### addNodeAccess + getRegisterNumber + AsmList scaffolding
+
+```
+164c0e:  movzx edx, BYTE PTR [rbp-0x1b0]   ; AccessMode = node.hasFast
+164c15:  lea rsi, [rbp-0x1c0]               ; &node
+164c1c:  mov rdi, r14                       ; this
+164c1f:  call addNodeAccess
+164c24:  call Resources::getRegisterNumber  ; returns int in eax
+164c2d:  call AsmRegister::AsmRegister(int) ; constructs destReg
+164c34:  xorps + movaps + qword zero        ; AsmList localList = {}
+```
+
+Note: `AccessMode` here is byte-cast from `node.hasFast`. Either
+NodeMapItem's `hasFast` field aliases an AccessMode-style enum, or
+this is a separate flag stored in the same byte slot. TODO 21b.5
+to verify via `addNodeAccess @0x15c6c0` disasm (its second arg
+type may clarify).
+
+### asmCommands_ access pattern
+
+All `suser`/`addi` calls go via `[r14+0x50]` — the raw pointer
+slot of `this->asmCommands_` (a `shared_ptr<AsmCommands>` at
+`CustomFunctions+0x50`, already named in `custom_functions.hpp:487`).
+The `.get()` is implicit — disasm uses `mov rsi, [r14+0x50]` where
+the first 8 bytes of a libc++ shared_ptr ARE the raw pointer.
+
+### Dual jump-table dispatch on node.typeIdx
+
+After address resolution, both branches dispatch on
+`node.typeIdx` (range 0..5; `cmp rcx, 0x5; ja default`). Two
+DISTINCT jump tables are used:
+
+| Branch | Address-source | Jump table |
+|--------|---------------|------------|
+| Fast path (`node.hasFast == true`) | `node.fastAddress()` @0x1c5470 | @958f68 |
+| Slow path (`!hasFast`) | `nodeAddressMap_.find(node)->second` (+0x100 unordered_map) | @958f50 |
+
+The slow path at @0x164d92 first calls `__hash_table::find` on
+`this->nodeAddressMap_`; if not found it logs a warning via
+`zhinst::logging::detail::LogRecord` (cold path @0x164d05) and
+exits via the warning-callback path.
+
+### Per-case asm-emission summary (TODO 21b.4)
+
+Empirical pattern by typeIdx (deduced from disasm sweep at lines
+388-700):
+
+| typeIdx | Fast path entry | Slow path entry | Emission pattern |
+|---------|----------------|-----------------|------------------|
+| 0 | (logging fall-through) | @0x164de4 | `addi(reg, regZero, Immediate(1))` + bulk insert |
+| 1 | (TODO) | @0x164ee7 | `toDouble()` → `getSampleClock()` → `NodeMap::toFrequency()` → `Immediate(int)` |
+| 2 | @0x164c7f (val.varType==2 → suser+addr=0x17+append) | @0x165013 | `toDouble()` → `cvtsd2ss` → `Immediate(float bits)` |
+| 3 | (TODO) | @0x165137 | `toDouble()` → raw `movq` int bits → `Immediate(int)` |
+| 4 | (TODO) | @0x165263 | Two `suser` calls (addr=0x17 + addr=0x19) for paired emit |
+| 5 | (TODO) | (TODO) | (TODO) |
+
+The fast-path case 2 is implemented in source as an exemplar:
+
+```cpp
+if (static_cast<int>(valRef.varType_) != 2)
+    throw CustomFunctionsException("...");
+AsmList::Asm asm1 = asmCommands_->suser(valRef.reg_,
+                        detail::AddressImpl<uint32_t>(0x17u + addr));
+localList.append(asm1);
+```
+
+Whether `addr` is OR'd into the encoding or whether the literal
+`0x17` IS the full address (with `addr` participating in some
+other way) is TODO 21b.4 — the binary uses literal `mov ecx, 0x17`
+without explicit OR, so `addr` may not factor in for case 2.
+
+### Cumulative call counts in Block D
+
+From the regex sweep in earlier session:
+
+- 53× `AsmCommands::suser`
+- 44× `AsmCommands::addi`
+- 48× `Assembler::~Assembler` (cleanup of intermediate AsmList::Asm)
+- 25× `AsmList::append`
+- 48× `AsmRegister::AsmRegister(int)` (per-emit reg construction)
+- 44× `Immediate::Immediate(int)` (per-emit immediate construction)
+
+Average per case: ~9 suser + ~7 addi + ~4 append + ~12 cleanup
+calls. The repetitiveness across 12 cases (6 fast + 6 slow) is
+why Block D is so large despite the simple high-level structure.
+
+----------------------------------------------------------------
+writeToNode Block D — structural correction (Phase 21b.3-fix)
+----------------------------------------------------------------
+
+The 21b.3 first pass modeled Block D as a 2-way (fast/slow) dispatch
+on `node.hasFast`. That's wrong. The actual structure is a **3-way
+dispatch on the address resolution method**:
+
+    (A) hasFast == true                              @0x164c50..164c5c
+        addr = node.fastAddress()
+        switch (node.typeIdx) jump table @958f68
+
+    (B) hasFast == false AND
+        dynamic_cast<DirectAddrNodeMapData*>(node.data) != nullptr
+                                                      @0x164cb9..164cdf
+        addr = direct->addr_   (read from base+0x8)
+        switch (node.typeIdx) jump table @958f50
+
+    (C) hasFast == false AND dyncast fails (or data == nullptr)
+                                                      @0x164d92..164da8
+        auto it = nodeAddressMap_.find(node);
+        if (it == end()) throw  @0x16a045
+        addr = it->second
+        switch (node.typeIdx) jump table @958f50
+
+Paths (B) and (C) **share** the slow-path jump table @958f50; path
+(A) uses jt @958f68. The dynamic_cast was missed in the 21b.3 pass
+because both (B) and (C) converge to the same code at @0x164dcc
+(`mov edx, [rax]` reading the resolved addr, then computing the jt
+index).
+
+The dispatch sequence at @0x164dcc..164de2:
+
+    164dcc:  mov    edx, [rax]              # addr (B: direct->addr_, C: it->second)
+    164dce:  lea    rax, [rip+0x7f417b]     # 958f50 (jt base)
+    164dd5:  movsxd rcx, [rax+rcx*4]        # rcx = node.typeIdx (saved earlier)
+    164dd9:  add    rcx, rax
+    164ddc:  mov    [rbp-0x17c], edx        # stash addr
+    164de2:  jmp    rcx
+
+For path (A) the equivalent at @0x164c5f..164c7d:
+
+    164c5f:  mov    eax, [rbp-0x1b8]        # node.typeIdx
+    164c65:  cmp    rax, 0x5
+    164c69:  ja     165407                  # default: TODO 21b.4 (likely warning)
+    164c6f:  lea    rcx, [rip+0x7f42f2]     # 958f68 (jt base)
+    164c76:  movsxd rax, [rcx+rax*4]
+    164c7a:  add    rax, rcx
+    164c7d:  jmp    rax
+
+Both paths (B) and (C) gate `typeIdx <= 5` via:
+
+    164cfb:  cmp    rcx, 0x5
+    164cff:  jbe    164dcc                  # in-range → dispatch
+                                            # out-of-range → fall through to:
+    164d05:  ...boost::log severity-1 record with the typeIdx number...
+    164d75:  ...end record...
+    164d81:  mov    rax, [r14]              # this->config_
+    164d84:  cmp    [rax], 0x2              # config_->something == 2 ?
+    164d87:  je     169940                  # tail returning results
+    164d8d:  jmp    169ae6                  # alternate tail (returns results)
+
+Both tails return the (mostly-empty) `results` shared_ptr without
+emitting any asm. Modeled in source as `emitWarnAndReturn = true →
+return results` (TODO 21b.5: reconstruct the exact log message and
+the config_->something==2 branch).
+
+----------------------------------------------------------------
+AsmCommands::addi return type (Phase 21b.3-fix observation)
+----------------------------------------------------------------
+
+The slow-path case 0 disasm @0x164de4..164e58 reveals that
+`AsmCommands::addi(AsmRegister, AsmRegister, Immediate) const`
+returns a **vector<Asm>** (not a single Asm), constructed in a
+hidden sret slot at `[rbp-0x178]`/`[rbp-0x170]` (begin/end pointers).
+The caller computes `(end - begin) / sizeof(Asm)` (where sizeof(Asm)
+= 168 bytes via the magic constant `0xcf3cf3cf3cf3cf3d` divisor) and
+splices the entire vector into `localList` via
+`vector::__insert_with_size`. Then it walks the source vector
+backwards calling `Assembler::~Assembler()` on each element to
+release the temporaries.
+
+This contradicts the existing `asm_commands.hpp` declaration that
+shows `addi` returning a single Asm. **TODO for 21b.4**: revise the
+`addi` declaration to `std::vector<AsmList::Asm> addi(...)` to match
+the binary, then propagate the change through the rest of writeToNode
+where `addi` is called.

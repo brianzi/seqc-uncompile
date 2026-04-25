@@ -279,7 +279,7 @@ void Prefetch::removeBranches(
     std::stack<std::shared_ptr<Node>>& stack) const // 0x1d3530
 {
     Node* n = node.get();
-    if (!n || n->type != 4) // 0x1d3544, 0x1d354d: must be branch type
+    if (!n || n->type != NodeType::Branch) // 0x1d3544, 0x1d354d: must be branch type
         return;
 
     auto& branches = n->branches; // branches at +0xc8 (begin), +0xd0 (end)
@@ -514,8 +514,8 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
 
         Node* n = current.get();
 
-        // 0x1d625f: Check if node type == 1 (Play node)
-        if (n->type == 1) {
+        // 0x1d625f: Check if node type == Load (1)
+        if (n->type == NodeType::Load) {
             // Per disasm at 0x1d6277: read wavesPerDev[deviceIndex] (stride 0x20
             // = sizeof(optional<string>)), check has_value at +0x18, then
             // compare the SSO/long string contents with ptr->str().

@@ -157,6 +157,10 @@ public:
     // Returns byte at this+0x25
     bool usedDeviceSampleRate() const;                             // 0x1235e0
 
+    // Access parserContext_.hadSyntaxError() — used by AWGCompilerImpl
+    // Binary reads byte at Compiler+0x100+0x03 directly.
+    bool hadSyntaxError() const;                                   // inline, delegates to parserContext_
+
     // Copies messages from CompilerMessageCollection
     std::vector<CompilerMessage> getCompileMessages() const;       // 0x1235f0
 
