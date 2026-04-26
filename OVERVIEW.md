@@ -99,7 +99,19 @@ Phase 24 achievements:
 - pybind11 entry points: pyCompileSeqc, makeSeqcCompiler, PyInit__seqc_compiler
 - ZiFolder utility: DirectoryType enum, folderPath, ziFolder, sessionSaveDirectoryName
 
-Next: Backlog items (SDK-scope: ZI*Exception, CalVer, csv_parser full reconstruction).
+Next: Backlog items (remaining: ~430 binary symbols, helper functions).
+- Phase 29: ZI*Exception hierarchy (2026-04-26). All 26 SDK exception
+  subclasses declared and defined via ZHINST_DECLARE/DEFINE_EXCEPTION macros
+  in exception.hpp/cpp. Each has default ctor (class-name string), string
+  ctor (forwarded to Exception base), defaulted dtor. Helper functions
+  getKind/toApiCode deferred (boost error_category plumbing, not compiler-core).
+  Builds clean (g++ + clang++/libc++).
+- Phase 28: csv_parser.cpp full reconstruction (2026-04-26). Both
+  `csvFileToWaveform<WaveformFront>` (@0x2ba8b0) and `<WaveformIR>` (@0x2be830)
+  fully reconstructed. Supporting: CsvException (ctor @0x2b8b80, dtor @0x2b8be0),
+  setSampleFromString (WaveformFront @0x2b85c0, WaveformIR @0x2b8420),
+  getLineVector (@0x2b8c20/@0x2bc200), isCsvSeparator (@0x2ba7d0). Replaces
+  throwing stub. Builds clean (g++ + clang++/libc++).
 - Phase 27a: AssemblerInstr register field rename — reg0/reg1/reg2 →
   regDst/regAux/regSrc across 10 files (137 references). Comments updated
   to use semantic names. Both builds clean.
@@ -350,7 +362,7 @@ reconstructed/
 │   ├── prefetch_splitplay.cpp        # splitPlay (429 lines)
 │   ├── prefetch_placesingle.cpp      # placeSingleCommand (981 lines)
 │   ├── compiler_message.cpp          # CompilerMessage/Collection/Exception
-│   ├── compiler.cpp                  # Compiler pipeline, parse, compile
+│   ├── compiler.cpp                  # Compiler pipeline: steps 1-19 all wired (Phase 30a-e)
 │   ├── cache.cpp                     # Cache: allocate, getBestPosition, etc.
 │   ├── memory_allocator.cpp          # CL-aware allocator, 3 template instantiations
 │   ├── callbacks.cpp                 # ProgressCallback defaults

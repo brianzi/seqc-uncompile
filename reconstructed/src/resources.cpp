@@ -14,19 +14,8 @@
 namespace zhinst {
 
 // ============================================================================
-// ResourcesException
+// ResourcesException — defined in error_messages.cpp to avoid ODR violations.
 // ============================================================================
-
-ResourcesException::ResourcesException(std::string const& msg)  // @0x1e3a20
-    : msg_(msg)
-{}
-
-ResourcesException::~ResourcesException() {}  // @0x1f12f0
-
-const char* ResourcesException::what() const noexcept  // @0x1f1340
-{
-    return msg_.c_str();
-}
 
 // ============================================================================
 // Resources::Variable::~Variable — @0x1e4be0

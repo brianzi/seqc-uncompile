@@ -601,10 +601,7 @@ void CustomFunctions::checkOffspecWaveLength(std::shared_ptr<WaveformFront> wf, 
             std::to_string(expected));  // @0x15b44c
 
         // @0x15b451: warningCallback_ call via vtable+0x30
-        // warningCallback_ is at this+0x190, callable ptr at this+0x1B0
-        auto* cbPtr = *reinterpret_cast<void**>(
-            reinterpret_cast<char*>(this) + 0x1B0);
-        if (!cbPtr) std::__throw_bad_function_call();  // @0x15b550
+        if (!warningCallback_) std::__throw_bad_function_call();  // @0x15b550
         warningCallback_(msg);
         return;
     }
@@ -638,9 +635,7 @@ void CustomFunctions::checkOffspecWaveLength(std::shared_ptr<WaveformFront> wf, 
         WaveNotAligned, wfName, wfLen, alignment, roundedLen);  // @0x15b4fa
 
     // @0x15b4ff: warningCallback_ call
-    auto* cbPtr2 = *reinterpret_cast<void**>(
-        reinterpret_cast<char*>(this) + 0x1B0);
-    if (!cbPtr2) std::__throw_bad_function_call();  // @0x15b555
+    if (!warningCallback_) std::__throw_bad_function_call();  // @0x15b555
     warningCallback_(msg);
 }
 

@@ -114,6 +114,16 @@ void SeqcParserContext::endLineComment()  // 0x247c20
 }
 
 // ----------------------------------------------------------------------------
+// 0x247ca0 — hadSyntaxError()
+//
+// Body (3 instructions):  movzx eax, BYTE PTR [rdi+0x3] ; ret
+// ----------------------------------------------------------------------------
+bool SeqcParserContext::hadSyntaxError() const  // 0x247ca0
+{
+    return at_offset<std::uint8_t>(this, 0x03) != 0;
+}
+
+// ----------------------------------------------------------------------------
 // 0x247cb0 — setSyntaxError()
 //
 // Body (3 instructions):  mov BYTE PTR [rdi+0x3], 0x1 ; ret

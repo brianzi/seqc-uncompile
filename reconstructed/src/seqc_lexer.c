@@ -15,225 +15,225 @@
 #endif
 
 #ifdef yy_create_buffer
-#define seqc_create_buffer_ALREADY_DEFINED
+#define seqc__create_buffer_ALREADY_DEFINED
 #else
-#define yy_create_buffer seqc_create_buffer
+#define yy_create_buffer seqc__create_buffer
 #endif
 
 #ifdef yy_delete_buffer
-#define seqc_delete_buffer_ALREADY_DEFINED
+#define seqc__delete_buffer_ALREADY_DEFINED
 #else
-#define yy_delete_buffer seqc_delete_buffer
+#define yy_delete_buffer seqc__delete_buffer
 #endif
 
 #ifdef yy_scan_buffer
-#define seqc_scan_buffer_ALREADY_DEFINED
+#define seqc__scan_buffer_ALREADY_DEFINED
 #else
-#define yy_scan_buffer seqc_scan_buffer
+#define yy_scan_buffer seqc__scan_buffer
 #endif
 
 #ifdef yy_scan_string
-#define seqc_scan_string_ALREADY_DEFINED
+#define seqc__scan_string_ALREADY_DEFINED
 #else
-#define yy_scan_string seqc_scan_string
+#define yy_scan_string seqc__scan_string
 #endif
 
 #ifdef yy_scan_bytes
-#define seqc_scan_bytes_ALREADY_DEFINED
+#define seqc__scan_bytes_ALREADY_DEFINED
 #else
-#define yy_scan_bytes seqc_scan_bytes
+#define yy_scan_bytes seqc__scan_bytes
 #endif
 
 #ifdef yy_init_buffer
-#define seqc_init_buffer_ALREADY_DEFINED
+#define seqc__init_buffer_ALREADY_DEFINED
 #else
-#define yy_init_buffer seqc_init_buffer
+#define yy_init_buffer seqc__init_buffer
 #endif
 
 #ifdef yy_flush_buffer
-#define seqc_flush_buffer_ALREADY_DEFINED
+#define seqc__flush_buffer_ALREADY_DEFINED
 #else
-#define yy_flush_buffer seqc_flush_buffer
+#define yy_flush_buffer seqc__flush_buffer
 #endif
 
 #ifdef yy_load_buffer_state
-#define seqc_load_buffer_state_ALREADY_DEFINED
+#define seqc__load_buffer_state_ALREADY_DEFINED
 #else
-#define yy_load_buffer_state seqc_load_buffer_state
+#define yy_load_buffer_state seqc__load_buffer_state
 #endif
 
 #ifdef yy_switch_to_buffer
-#define seqc_switch_to_buffer_ALREADY_DEFINED
+#define seqc__switch_to_buffer_ALREADY_DEFINED
 #else
-#define yy_switch_to_buffer seqc_switch_to_buffer
+#define yy_switch_to_buffer seqc__switch_to_buffer
 #endif
 
 #ifdef yypush_buffer_state
-#define seqcpush_buffer_state_ALREADY_DEFINED
+#define seqc_push_buffer_state_ALREADY_DEFINED
 #else
-#define yypush_buffer_state seqcpush_buffer_state
+#define yypush_buffer_state seqc_push_buffer_state
 #endif
 
 #ifdef yypop_buffer_state
-#define seqcpop_buffer_state_ALREADY_DEFINED
+#define seqc_pop_buffer_state_ALREADY_DEFINED
 #else
-#define yypop_buffer_state seqcpop_buffer_state
+#define yypop_buffer_state seqc_pop_buffer_state
 #endif
 
 #ifdef yyensure_buffer_stack
-#define seqcensure_buffer_stack_ALREADY_DEFINED
+#define seqc_ensure_buffer_stack_ALREADY_DEFINED
 #else
-#define yyensure_buffer_stack seqcensure_buffer_stack
+#define yyensure_buffer_stack seqc_ensure_buffer_stack
 #endif
 
 #ifdef yylex
-#define seqclex_ALREADY_DEFINED
+#define seqc_lex_ALREADY_DEFINED
 #else
-#define yylex seqclex
+#define yylex seqc_lex
 #endif
 
 #ifdef yyrestart
-#define seqcrestart_ALREADY_DEFINED
+#define seqc_restart_ALREADY_DEFINED
 #else
-#define yyrestart seqcrestart
+#define yyrestart seqc_restart
 #endif
 
 #ifdef yylex_init
-#define seqclex_init_ALREADY_DEFINED
+#define seqc_lex_init_ALREADY_DEFINED
 #else
-#define yylex_init seqclex_init
+#define yylex_init seqc_lex_init
 #endif
 
 #ifdef yylex_init_extra
-#define seqclex_init_extra_ALREADY_DEFINED
+#define seqc_lex_init_extra_ALREADY_DEFINED
 #else
-#define yylex_init_extra seqclex_init_extra
+#define yylex_init_extra seqc_lex_init_extra
 #endif
 
 #ifdef yylex_destroy
-#define seqclex_destroy_ALREADY_DEFINED
+#define seqc_lex_destroy_ALREADY_DEFINED
 #else
-#define yylex_destroy seqclex_destroy
+#define yylex_destroy seqc_lex_destroy
 #endif
 
 #ifdef yyget_debug
-#define seqcget_debug_ALREADY_DEFINED
+#define seqc_get_debug_ALREADY_DEFINED
 #else
-#define yyget_debug seqcget_debug
+#define yyget_debug seqc_get_debug
 #endif
 
 #ifdef yyset_debug
-#define seqcset_debug_ALREADY_DEFINED
+#define seqc_set_debug_ALREADY_DEFINED
 #else
-#define yyset_debug seqcset_debug
+#define yyset_debug seqc_set_debug
 #endif
 
 #ifdef yyget_extra
-#define seqcget_extra_ALREADY_DEFINED
+#define seqc_get_extra_ALREADY_DEFINED
 #else
-#define yyget_extra seqcget_extra
+#define yyget_extra seqc_get_extra
 #endif
 
 #ifdef yyset_extra
-#define seqcset_extra_ALREADY_DEFINED
+#define seqc_set_extra_ALREADY_DEFINED
 #else
-#define yyset_extra seqcset_extra
+#define yyset_extra seqc_set_extra
 #endif
 
 #ifdef yyget_in
-#define seqcget_in_ALREADY_DEFINED
+#define seqc_get_in_ALREADY_DEFINED
 #else
-#define yyget_in seqcget_in
+#define yyget_in seqc_get_in
 #endif
 
 #ifdef yyset_in
-#define seqcset_in_ALREADY_DEFINED
+#define seqc_set_in_ALREADY_DEFINED
 #else
-#define yyset_in seqcset_in
+#define yyset_in seqc_set_in
 #endif
 
 #ifdef yyget_out
-#define seqcget_out_ALREADY_DEFINED
+#define seqc_get_out_ALREADY_DEFINED
 #else
-#define yyget_out seqcget_out
+#define yyget_out seqc_get_out
 #endif
 
 #ifdef yyset_out
-#define seqcset_out_ALREADY_DEFINED
+#define seqc_set_out_ALREADY_DEFINED
 #else
-#define yyset_out seqcset_out
+#define yyset_out seqc_set_out
 #endif
 
 #ifdef yyget_leng
-#define seqcget_leng_ALREADY_DEFINED
+#define seqc_get_leng_ALREADY_DEFINED
 #else
-#define yyget_leng seqcget_leng
+#define yyget_leng seqc_get_leng
 #endif
 
 #ifdef yyget_text
-#define seqcget_text_ALREADY_DEFINED
+#define seqc_get_text_ALREADY_DEFINED
 #else
-#define yyget_text seqcget_text
+#define yyget_text seqc_get_text
 #endif
 
 #ifdef yyget_lineno
-#define seqcget_lineno_ALREADY_DEFINED
+#define seqc_get_lineno_ALREADY_DEFINED
 #else
-#define yyget_lineno seqcget_lineno
+#define yyget_lineno seqc_get_lineno
 #endif
 
 #ifdef yyset_lineno
-#define seqcset_lineno_ALREADY_DEFINED
+#define seqc_set_lineno_ALREADY_DEFINED
 #else
-#define yyset_lineno seqcset_lineno
+#define yyset_lineno seqc_set_lineno
 #endif
 
 #ifdef yyget_column
-#define seqcget_column_ALREADY_DEFINED
+#define seqc_get_column_ALREADY_DEFINED
 #else
-#define yyget_column seqcget_column
+#define yyget_column seqc_get_column
 #endif
 
 #ifdef yyset_column
-#define seqcset_column_ALREADY_DEFINED
+#define seqc_set_column_ALREADY_DEFINED
 #else
-#define yyset_column seqcset_column
+#define yyset_column seqc_set_column
 #endif
 
 #ifdef yywrap
-#define seqcwrap_ALREADY_DEFINED
+#define seqc_wrap_ALREADY_DEFINED
 #else
-#define yywrap seqcwrap
+#define yywrap seqc_wrap
 #endif
 
 #ifdef yyget_lval
-#define seqcget_lval_ALREADY_DEFINED
+#define seqc_get_lval_ALREADY_DEFINED
 #else
-#define yyget_lval seqcget_lval
+#define yyget_lval seqc_get_lval
 #endif
 
 #ifdef yyset_lval
-#define seqcset_lval_ALREADY_DEFINED
+#define seqc_set_lval_ALREADY_DEFINED
 #else
-#define yyset_lval seqcset_lval
+#define yyset_lval seqc_set_lval
 #endif
 
 #ifdef yyalloc
-#define seqcalloc_ALREADY_DEFINED
+#define seqc_alloc_ALREADY_DEFINED
 #else
-#define yyalloc seqcalloc
+#define yyalloc seqc_alloc
 #endif
 
 #ifdef yyrealloc
-#define seqcrealloc_ALREADY_DEFINED
+#define seqc_realloc_ALREADY_DEFINED
 #else
-#define yyrealloc seqcrealloc
+#define yyrealloc seqc_realloc
 #endif
 
 #ifdef yyfree
-#define seqcfree_ALREADY_DEFINED
+#define seqc_free_ALREADY_DEFINED
 #else
-#define yyfree seqcfree
+#define yyfree seqc_free
 #endif
 
 /* First, we deal with  platform-specific or compiler-specific issues. */
@@ -539,7 +539,7 @@ void yyfree ( void * , yyscan_t yyscanner );
 
 /* Begin user sect3 */
 
-#define seqcwrap(yyscanner) (/*CONSTCOND*/1)
+#define seqc_wrap(yyscanner) (/*CONSTCOND*/1)
 #define YY_SKIP_YYWRAP
 typedef flex_uint8_t YY_CHAR;
 

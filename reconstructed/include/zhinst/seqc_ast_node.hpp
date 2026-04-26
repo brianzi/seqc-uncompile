@@ -137,7 +137,8 @@ public:
 
     // Accessors
     EValueCategory  valueCategory() const { return valueCategory_; }
-    int             type()          const { return type_; }
+    int             type()          const { return lineNr_; }  // legacy accessor name
+    int             lineNr()        const { return lineNr_; }
     EDirection direction()     const { return direction_; }
     VarType         varType()       const { return varType_; }
     void            setVarType(VarType vt) { varType_ = vt; }
@@ -145,7 +146,9 @@ public:
 protected:
     // Layout (must match binary — all 16 bytes after vptr):
     EValueCategory  valueCategory_;  // +0x08
-    int             type_;           // +0x0C  (int — purpose unclear, set from ctor arg #2)
+    int             lineNr_;         // +0x0C  Source line number. (Resolves unknown #96.)
+                                     //        NOTE: SeqCVariable::print() casts this to VarType
+                                     //        for display — overloaded meaning in that one subclass.
     EDirection direction_;      // +0x10
     VarType         varType_{};      // +0x14  (Phase 21d: was "padding"; set by derived ctors)
 
@@ -156,7 +159,7 @@ protected:
 static_assert(sizeof(SeqCAstNode) == 0x18,
               "SeqCAstNode must be exactly 0x18 (24) bytes");
 
-// Free function — swaps the (valueCategory, type) qword and direction.
+// Free function — swaps the (valueCategory, lineNr) qword and direction.
 // Note: does NOT swap vptrs.
 void swap(SeqCAstNode& a, SeqCAstNode& b);                       // 0x1fda40
 
@@ -174,7 +177,7 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
         Name(EValueCategory vc, int type, EDirection dir,              \
              VarType vt)                                                    \
             : SeqCAstNode(vc, type, dir) { varType_ = vt; }                \
-        Name(Name const& o) : SeqCAstNode(o.valueCategory_, o.type_,       \
+        Name(Name const& o) : SeqCAstNode(o.valueCategory_, o.lineNr_,       \
             o.direction_) { varType_ = o.varType_; }                        \
         Name& operator=(Name o) { swap(*this, o); return *this; }           \
         ~Name() override;                                                   \
@@ -733,6 +736,10 @@ public:
     };
 
     SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt);
+    SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
+              std::string const& s);   // 0x1fd860 (make_unique callsite)
+    SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
+              double d);               // 0x1fd950 (make_unique callsite)
     SeqCValue(SeqCValue const& o);
     SeqCValue& operator=(SeqCValue o) { swap(*this, o); return *this; }
     ~SeqCValue() override;

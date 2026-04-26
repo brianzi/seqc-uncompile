@@ -31,10 +31,11 @@ namespace zhinst {
 //   +0x54  int numChannelGroups_     (from AWGCompilerConfig+0x1c; 1/2/4; pre-alloc size for Node vectors)
 class AsmCommands {
 public:
-    // Constructor (from construct_at signature in binary):
-    // AsmCommands(const AWGCompilerConfig& config,
-    //             shared_ptr<WavetableFront> wavetable,
-    //             function<void(const string&)> errorHandler);
+    // Constructor — creates impl via AsmCommandsImpl::getInstance()
+    // Binary: 0x11d080 (inline in Compiler ctor)
+    AsmCommands(const AWGCompilerConfig& config,
+                std::shared_ptr<WavetableFront> wavetable,
+                std::function<void(const std::string&)> errorHandler);
 
     // =====================================================================
     // Waveform playback

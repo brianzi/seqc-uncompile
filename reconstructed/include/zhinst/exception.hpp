@@ -244,34 +244,56 @@ private:
 };
 
 // ----------------------------------------------------------------------------
-// Derived exception classes that the seqc compiler actually constructs.
-// Only message-string ctors are exposed here — the binary defines a
-// no-arg ctor too (with a hardcoded class-name message), but no src/
-// reconstruction calls it.
+// Derived exception classes.
 //
-// NOTE: ZIAWGCompilerException and ZIAWGOptimizerException are the only
-// derived classes touched by seqc compiler reconstructed sources. The
-// other ~25 derived types (ZIIOException, ZITimeoutException, etc.) are
-// declared in the binary but never thrown from the seqc compilation
-// path; we omit them here and add on demand.
+// All 26 subclasses add NO data fields — verified from the binary: each
+// ctor only sets vptrs and forwards a string to Exception(string).
+// They differ only in vtable identity (RTTI / exception matching).
+//
+// Macro-declared to avoid 26× repetition of the identical pattern.
+// Each class has:
+//   - default ctor (passes class name as string to base)
+//   - explicit string ctor (forwards to Exception(string))
+//   - defaulted dtor
 // ----------------------------------------------------------------------------
 
-// 0x2e7360 (string ctor), 0x2e72f0 (default ctor)
-// vtable: 0xb0a618
-class ZIAWGCompilerException : public Exception {
-public:
-    ZIAWGCompilerException();                              // 0x2e72f0
-    explicit ZIAWGCompilerException(std::string msg);      // 0x2e7360
-    ~ZIAWGCompilerException() override;
-};
+#define ZHINST_DECLARE_EXCEPTION(ClassName)                            \
+    class ClassName : public Exception {                               \
+    public:                                                            \
+        ClassName();                                                   \
+        explicit ClassName(std::string msg);                           \
+        ~ClassName() override;                                         \
+    }
 
-// 0x2e7460 (string ctor), 0x2e73d0 (default ctor)
-// vtable: 0xb0a660
-class ZIAWGOptimizerException : public Exception {
-public:
-    ZIAWGOptimizerException();                             // 0x2e73d0
-    explicit ZIAWGOptimizerException(std::string msg);     // 0x2e7460
-    ~ZIAWGOptimizerException() override;
-};
+// Binary addresses: default ctor / string ctor
+ZHINST_DECLARE_EXCEPTION(ZIAPIException);                   // 0x2e58c0 / 0x2e5930
+ZHINST_DECLARE_EXCEPTION(ZIIOException);                    // 0x2e5a30 / 0x2e5aa0
+ZHINST_DECLARE_EXCEPTION(ZIDeviceException);                // 0x2e5c90 / 0x2e5cf0
+ZHINST_DECLARE_EXCEPTION(ZISocketException);                // 0x2e5d60 / 0x2e5dc0
+ZHINST_DECLARE_EXCEPTION(ZIOverflowException);              // 0x2e5e30 / 0x2e5ea0
+ZHINST_DECLARE_EXCEPTION(ZIUnderrunException);              // 0x2e5f10 / 0x2e5f80
+ZHINST_DECLARE_EXCEPTION(ZITimeoutException);               // 0x2e5ff0 / 0x2e6060
+ZHINST_DECLARE_EXCEPTION(ZIReadOnlyException);              // (none)  / 0x2e60d0
+ZHINST_DECLARE_EXCEPTION(ZIWriteOnlyException);             // (none)  / 0x2e6190
+ZHINST_DECLARE_EXCEPTION(ZINotFoundException);              // 0x2e6250 / 0x2e62c0
+ZHINST_DECLARE_EXCEPTION(ZIInvalidKeywordException);        // (none)  / 0x2e6330
+ZHINST_DECLARE_EXCEPTION(ZITypeMismatchException);          // 0x2e63f0 / 0x2e6480
+ZHINST_DECLARE_EXCEPTION(ZIOutOfRangeException);            // 0x2e64f0 / 0x2e6560
+ZHINST_DECLARE_EXCEPTION(ZIInterruptException);             // 0x2e65d0 / 0x2e6640
+ZHINST_DECLARE_EXCEPTION(ZIInternalException);              // 0x2e66b0 / 0x2e6760
+ZHINST_DECLARE_EXCEPTION(ZIDeviceNotVisibleException);      // 0x2e6820 / 0x2e68f0
+ZHINST_DECLARE_EXCEPTION(ZIDeviceNotFoundException);        // 0x2e69b0 / 0x2e6a80
+ZHINST_DECLARE_EXCEPTION(ZIDeviceInUseException);           // 0x2e6b40 / 0x2e6c00
+ZHINST_DECLARE_EXCEPTION(ZIDeviceInterfaceException);       // 0x2e6cc0 / 0x2e6d90
+ZHINST_DECLARE_EXCEPTION(ZIDeviceConnectionTimeoutException); // 0x2e6e50 / 0x2e6f20
+ZHINST_DECLARE_EXCEPTION(ZIDeviceDifferentInterfaceException); // 0x2e6fe0 / 0x2e70c0
+ZHINST_DECLARE_EXCEPTION(ZIDeviceFWException);              // 0x2e7180 / 0x2e7230
+ZHINST_DECLARE_EXCEPTION(ZIAWGCompilerException);           // 0x2e72f0 / 0x2e7360
+ZHINST_DECLARE_EXCEPTION(ZIAWGOptimizerException);          // 0x2e73d0 / 0x2e7460
+ZHINST_DECLARE_EXCEPTION(ZIVersionException);               // 0x2e74d0 / 0x2e7540
+ZHINST_DECLARE_EXCEPTION(ZIIllegalPathException);           // 0x2e75b0 / 0x2e7620
+
+#undef ZHINST_DECLARE_EXCEPTION
+
 
 } // namespace zhinst

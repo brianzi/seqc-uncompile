@@ -86,15 +86,19 @@ The full pre-2026-04-22 history is preserved in
   nonsplit), #81 (placeSingleCommand case label split).
 - **Exception**: #90 (error_code prefix string), #91 (default ctor
   sentinel 0x8000).
-- **Expression**: #93 (pushChild ownership model), #96 (SeqCAstNode type
-  field meaning).
+- **Expression**: #93 (pushChild ownership model), ~~#96 (SeqCAstNode type
+  field meaning)~~ RESOLVED.
 - **CachedParser**: #114 (CacheEntry serialize template body).
 
 ---
 
 ## Update history
 
-- **2026-04-24 (Phase 21d wrap-up)**: #119 resolved. "SeqCParameter"
+- **2026-04-26**: #96 resolved. SeqCAstNode `type_` at +0x0C is a **source
+  line number** (`lineNr_`). Used as `int lineNr = type_` in 37+ evaluate
+  overrides and printed as `"(line: ...)"` by `printSeqCAst`. Renamed
+  `type_` → `lineNr_`. Note: `SeqCVariable::print()` casts it to VarType
+  for display — overloaded meaning in that one subclass only.
   does not exist in the binary. VarType is base-class field at +0x14;
   +0x18 is SeqCVariable::name_. Placeholder class removed.
 - **2026-04-24 (Phase 20e-ii Sub-phase 5b wrap-up)**: #119 added (Blocked).

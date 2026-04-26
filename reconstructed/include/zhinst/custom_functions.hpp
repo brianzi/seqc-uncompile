@@ -311,6 +311,7 @@ int parseOptionalRate(
 // ============================================================================
 
 class CustomFunctions {
+    friend class Compiler;  // Compiler::compile() directly writes resources_ (+0x10)
 public:
     // SubFunc — enum for play() / playIndexed() dispatch
     // Confirmed from binary: playWave passes 1, playWaveNow passes 3.

@@ -32,7 +32,7 @@
 | pybind11 binding layer | ✅ complete | Phase 24e: pyCompileSeqc, makeSeqcCompiler, PyInit |
 | ZiFolder utility | ✅ complete | Phase 24b: 4 methods (ctor, folderPath, ziFolder, sessionSaveDirectoryName) |
 | GetNodeMap\<T\>::get() | ✅ complete | Phase 26a: 8 device tables, 1081 entries |
-| ZI*Exception hierarchy | ❌ 46 symbols | ~23 SDK exception subclasses (not compiler-core) |
+| ZI*Exception hierarchy | ✅ mostly done | 26/26 subclasses declared+defined (Phase 29); getKind/toApiCode deferred (SDK plumbing) |
 | CalVer + utility free fns | ✅ mostly done | 30/37 symbols: CalVer (16), formatTime (3), serial predicates (10), getPlatformName (1); 6 misc unreferenced + 1 extern |
 | DeviceType extra methods | ❌ ~21 symbols | Factory makeDefault(), DeviceType ctors, comparison operators |
 | Other missing methods | ❌ ~53 symbols | Assembler::str, Node::toString, Value::toString, various toString/toJson, ElfReader getCode/getLineMap/getWaveform, Prefetch wvf helpers, etc. |
@@ -42,7 +42,7 @@
 | CachedParser | ✅ complete | Phase 13d + 21f |
 | Prefetch/Cache | ✅ complete | Phase 15b |
 | AsmOptimize | ✅ complete | Phase 21c |
-| Compiler pipeline | ✅ mostly done | lower() + evaluate() wired |
+| Compiler pipeline | ✅ all steps wired | Phase 30a-e complete; steps 5-19 all wired |
 | Resources | ✅ complete | All 37+ methods (Phase 20e-ii) |
 | EvalResults | ✅ complete | 14 methods (Phase 19a) |
 | Logging/tracing | ✅ complete | notes/logging_tracing.md |
@@ -60,7 +60,150 @@
 | Approximate implementations | ~19 | exception.cpp, custom_functions_play.cpp, custom_functions_io.cpp |
 | Stubs (conservative) | 0 | All 6 resolved in Phase 26b |
 | "likely"/"uncertain" comments | ~17 | 12 files |
-| Throwing runtime_error stubs | 3 | csv_parser.cpp (2), awg_compiler_config.cpp (1) |
+| Throwing runtime_error stubs | 1 | awg_compiler_config.cpp (1) |
+
+---
+
+## Differential Testing (ELF comparison)
+
+Test harness in `tests/` compares ELF output from the original binary vs the
+reconstructed pybind11 module. The module builds and loads (RTLD_LAZY), but
+crashes at runtime due to remaining undefined symbols.
+
+### Infrastructure (done)
+
+- [x] Test harness: `tests/diff_test.py`, `tests/compile_worker.py`
+- [x] Test cases: `tests/cases/manifest.json` with 12 cases (3 device types)
+- [x] Original-only smoke test: all 12 cases pass
+- [x] pybind11 module target in CMakeLists.txt (builds _seqc_compiler.so)
+- [x] ODR violations fixed (StaticResources, GlobalResources, ResourcesException, Prefetch, asmerror)
+- [x] TLS model fixed (-ftls-model=global-dynamic + PIC)
+- [x] flex/bison linkage fixed (extern "C" → C++ linkage for .c files compiled as C++)
+- [x] seqc_lexer.c prefix fixed (seqc → seqc_ to match compiler.cpp references)
+- [x] seqc_parser.tab.c and seqc_lexer.c added to CMake sources
+- [x] Boost::log + zlib dependencies added
+- [x] Python version pinned (3.14)
+
+### Remaining blockers for first successful differential test
+
+- [x] ~16 undefined zhinst symbols cause runtime crashes (via RTLD_LAZY):
+  - ~~AsmCommands: syncCervino, asmSyncHirzel, st, prf, ssl, addi, addr, cwvf,
+    smap, wprf, wwvf, cwvfr~~ — not triggered at runtime (RTLD_LAZY)
+  - ~~AWGAssembler::getReport~~ — FIXED: uncommented forwarding method
+  - ~~SeqcParserContext::hadSyntaxError~~ — FIXED: added missing definition
+  - ~~Prefetch::wvfImpl, wvfRegImpl~~ — not triggered at runtime (RTLD_LAZY)
+- [x] Hardcoded libc++ offsets cause segfault with libstdc++ — FIXED:
+  - assembleExpressions: this+0xB0 → labelBimap_ field access
+  - awg_assembler_opcodes: this+0xD8 → labelBimap_ field access
+  - custom_functions: this+0x1B0 → warningCallback_ null check
+- [ ] pybind_seqc.cpp returns (bytes, json_string) but original returns
+  (bytes, dict) — need to add json.loads() call in the C++ layer or handle
+  in the worker
+- [x] **`Compiler::compile()` pipeline is a stub** — ~~steps 5-19 are
+  commented-out pseudocode~~ All steps 5-19 now wired. See **Phase 30** below.
+
+---
+
+## Phase 30: Wire up Compiler::compile() pipeline
+
+**Goal:** Make `Compiler::compile()` (`src/compiler.cpp:188-273`) produce
+real assembly output so the differential test harness can compare ELF
+output against the original binary.
+
+The function currently runs steps 1-4 (parse) and returns an empty vector.
+Steps 5-19 are now all wired. Remaining work is differential testing.
+
+### Dependency audit
+
+| Step | Function | Has body? | Blocker? |
+|------|----------|-----------|----------|
+| 5 | `StaticResources::init()` | ✅ complete (static_resources.cpp:51) | No — **WIRED** |
+| 6 | `toSeqCAst(expr)` | ✅ complete (seqc_ast.cpp) | No — **WIRED** |
+| 8 | `FrontEndLoweringFacade::lower()` | ✅ complete (compiler.cpp:446) | No — **WIRED** |
+| 10-11 | Node tree walk + AsmList build | ✅ wired | No — **WIRED** |
+| 12 | `AsmOptimize::optimizePreWaveform()` | ✅ complete (asm_optimize.cpp:205) | No — **WIRED** |
+| 14 | `Compiler::runPrefetcher()` | ✅ wired | No — **WIRED** |
+| 15 | `AsmOptimize::optimizePostWaveform()` | ✅ complete (asm_optimize.cpp:221) | No — **WIRED** |
+| 16 | `AsmCommands::unsyncCervino()` | ✅ complete (asm_commands.cpp:760) | No — **WIRED** |
+| 19 | Copy AsmList → vector\<AssemblerInstr\> | ✅ wired | No — **WIRED** |
+
+### 30a. `toSeqCAst()` — Expression → SeqCAstNode conversion — COMPLETE 2026-04-26
+
+Free function at @0x1f6240. Converts the flex/bison `Expression` tree
+into the typed `SeqCAstNode` hierarchy via recursive dispatch on
+operationType/commandType/operator.
+
+- [x] Disassemble `toSeqCAst` @0x1f6240 — determine size and call graph
+- [x] Reconstruct body (~310 lines, 50 dispatch cases across 3 jump tables)
+- [x] Build verify
+- [x] Sub-phase wrap-up
+
+### 30b. Wire up steps 5-9 in `Compiler::compile()` — COMPLETE 2026-04-26
+
+Uncommented and wired the calls for steps 5-9:
+
+- [x] Step 5: Construct StaticResources with warning callback + init
+- [x] Step 5b: Wrap in GlobalResources (`make_shared<GlobalResources>(staticResources)`)
+- [x] Step 5c: Store resources into `customFunctions_->resources_` (added `friend class Compiler`)
+- [x] Step 6: `auto seqcAst = toSeqCAst(expr)` (depends on 30a)
+- [x] Step 7: Debug print if `config_->debugFlags & 0x04`
+- [x] Step 8: `FrontEndLoweringFacade::lower(resources, *seqcAst, messages_, asmCommands_, customFunctions_, waveformGen_, wavetable_, config_->channelGrouping)`
+- [x] Step 8b: `ast_ = lowerResult.astResult`
+- [x] Step 9: error check
+- [x] Build verify — clean, 0 warnings
+- [x] BONUS: Identified AWGCompilerConfig+0x98 as `channelGrouping` (was `unknown_98`)
+- [x] Sub-phase wrap-up
+
+### 30c. Node linearization + assembly emission (steps 10-11) — COMPLETE 2026-04-26
+
+Steps 10-11 are NOT "linearizing nodes into assembly" as originally claimed.
+Assembly instructions are generated during `evaluate()` inside `lower()`.
+Steps 10-11 build the root node wrapper, walk the tree setting parent
+pointers (BFS via deque), and splice EvalResults assemblers into asmList_.
+
+- [x] Preamble: asmLabel("start") + asmLoadPlaceholder
+- [x] Root Node(NodeType::Load, placeholderAsm.sequenceId, numChannelGroups)
+- [x] Graft lowered AST: hasMain && ast_ → rootNode->next = ast_; else → evalResult->node_
+- [x] BFS parent-pointer walk via deque
+- [x] Append placeholder Asm, bulk-insert evalResult->assemblers_, end/wwvf/nop trailer
+- [x] Build verify — clean, 0 warnings
+
+### 30d. Wire up runPrefetcher (step 14) — COMPLETE 2026-04-26
+
+All 13 steps inside `runPrefetcher()` converted from pseudocode comments
+to real method calls. Prefetch construction with warning callback, all
+WavetableIR allocation methods, conditional determineFixedWaves,
+fillInPlaceholders, channel info extraction.
+
+- [x] Construct Prefetch with warning callback + ast_ as root
+- [x] preparePlays → getUsedWavesForDevice → setUsedWaveforms
+- [x] assignWaveIndexImplicit → alignWaveformSizes → assignWaveformAllocationSizes
+- [x] Conditional determineFixedWaves (cacheType == 1)
+- [x] updateWaveforms → placeLoads → fillInPlaceholders
+- [x] Store channelCount_ and channelMode_ from Prefetch queries
+- [x] Build verify — clean, 0 warnings
+
+### 30e. Wire up remaining steps + output (12, 15, 16, 19) — COMPLETE 2026-04-26
+
+- [x] Step 12: Construct AsmOptimize with error/info callbacks + device constants
+      + cancel callback; `optimizePreWaveform(asmList_)`
+- [x] Step 13: Conditional serialize (string_30_owned) + conditional
+      serialize/deserialize round-trip (unknown_28 == 1)
+- [x] Step 13c: Construct WavetableIR from WavetableFront via allocate_shared
+- [x] Step 15: `optimizePostWaveform(asmList_)`
+- [x] Step 16: `asmCommands_->unsyncCervino()` — append entries to asmList_
+- [x] Step 17: Conditional debug print (debugFlags & 0x08)
+- [x] Step 19: Copy `asmList_` entries → `vector<AssemblerInstr>` return
+- [x] Build verify — clean, 0 warnings
+- [x] BONUS: Added AsmOptimize constructor (was missing from header + impl)
+- [x] BONUS: Fixed GlobalResources namespace/class conflict in asm_optimize.hpp
+
+### 30f. First differential test run
+
+- [ ] Run `tests/diff_test.py` with both original and reconstructed
+- [ ] Handle pybind return type mismatch (json string vs dict)
+- [ ] Triage ELF differences section-by-section
+- [ ] Document findings + update TODO.md
 
 ---
 
@@ -79,7 +222,7 @@ straightforward (print writes to stream, clone deep-copies children).
 - [x] Analyze clone() pattern (likely recursive deep-copy)
 - [x] Implement clone() macro template
 - [x] Fill in non-trivial subclass bodies (SeqCVariable, SeqCValue, SeqCFunction)
-- [ ] Resolve unknown #96 (SeqCAstNode `type` field meaning)
+- [x] Resolve unknown #96 (SeqCAstNode `type` field meaning) — RESOLVED: renamed `type_` → `lineNr_` (source line number)
 - [x] Sub-phase wrap-up
 
 ### 13b. CustomFunctions method bodies
@@ -2716,7 +2859,7 @@ Address the 6 conservative stubs and ~19 approximate implementations.
 
 ### 27b remaining (deferred)
 
-- [ ] `extractVersionTriple()` @0x101570 — extern-declared, not yet implemented
+- [x] `extractVersionTriple()` @0x101570 — implemented: boost::split on '.', lexical_cast up to 3 components
 - [ ] 6 misc string/filesystem utilities (unreferenced by compiler core):
       isDirectoryWriteable, isMountPoint, isPureAscii, isValidUtf8 (×2), isInList
 
@@ -2727,10 +2870,11 @@ Address the 6 conservative stubs and ~19 approximate implementations.
 Items that are outside the compiler core or extremely low value.
 DO NOT execute speculatively — assign to a phase only when needed.
 
-- [ ] **ZI*Exception hierarchy** — 46 symbols for ~23 SDK exception
-      subclasses. Not used by the compiler core. Implement only if
-      needed for AWGCompiler public API error propagation.
-- [ ] **CalVer remaining** — extractVersionTriple @0x101570 + 6 misc
+- [ ] **ZI*Exception helper functions** — getKind @0x2e5180, toApiCode
+      @0x2e5280, toZiErrorKind @0x2e5240, fromZiErrorKind @0x2e5260.
+      Deep into boost::system::error_category plumbing (custom
+      ErrorKindCategory singleton). Not called by compiler core.
+- [ ] **CalVer remaining** — 6 misc
       string/filesystem utilities (unreferenced by compiler core)
 - [x] **assembler.hpp register field rename** — reg0/reg1/reg2 renamed to
       regDst/regSrc/regAux across 10 files (137 refs). Phase 27a.
@@ -2739,13 +2883,15 @@ DO NOT execute speculatively — assign to a phase only when needed.
       ElfReader, Resources, AWGAssemblerImpl, AWGCompilerConfig). High-
       confidence renames for 7 fields, medium for 3, unknown for 8.
       Full inventory and evidence in `notes/placeholder_field_names.md`.
-- [ ] **csv_parser.cpp full reconstruction** — ~7KB per specialization.
-      Currently throws at runtime.
+- [x] **csv_parser.cpp full reconstruction** — ~7KB per specialization.
+      DONE 2026-04-26. Both `csvFileToWaveform<WaveformFront>` and
+      `<WaveformIR>` fully reconstructed with CsvException, setSampleFromString,
+      getLineVector, isCsvSeparator. Builds clean (g++ + clang++/libc++).
 - [ ] Phase 2-3 semantic naming (unknowns #23-28, #32, #38)
 - [ ] AWGAssemblerImpl internal field purposes (#39-41)
 - [ ] Cache/Prefetch implementation detail (#61-63, #68-69, #75, #81)
 - [ ] Exception error-code details (#90-91)
 - [ ] smap remaining logic — ~0x1E6 bytes after alui call (#10)
-- [ ] SeqCAstNode `type` field meaning (#96)
+- [ ] SeqCAstNode ~~`type` field meaning (#96)~~ RESOLVED — see Phase 13a
 - [ ] `seqc_error`/`seqc_lex_init_extra`/`seqc_parse`/`seqc_set_extra` —
       flex/bison parser entry points (C functions)

@@ -11,19 +11,33 @@
 #include "zhinst/seqc_ast_node.hpp"
 #include "zhinst/seqc_parser_context.hpp"
 #include "zhinst/expression.hpp"
+#include "zhinst/node.hpp"
+#include "zhinst/eval_results.hpp"
+#include "zhinst/asm_commands.hpp"
+#include "zhinst/waveform_generator.hpp"
 
 #include <deque>
+#include <iostream>
 #include <sstream>
 #include <boost/algorithm/string/replace.hpp>
+#include "zhinst/asm_optimize.hpp"
+#include "zhinst/wavetable_ir.hpp"
+#include "zhinst/prefetch.hpp"
+#include "zhinst/address_impl.hpp"
+#include "zhinst/awg_compiler_config.hpp"
+#include "zhinst/device_constants.hpp"
+#include "zhinst/resources.hpp"
 
-// Forward declarations for flex/bison parser
-extern "C" {
-    int seqc_lex_init_extra(void* extra, void** scanner);  // 0x2ca0c0
-    void* seqc__scan_string(const char* str, void* scanner);  // 0x2c9dd0
-    int seqc_parse(void* ctx, void** result, void* scanner);  // 0x2ca2a0
-    void seqc__delete_buffer(void* buf, void* scanner);  // 0x2c9a90
-    int seqc_lex_destroy(void* scanner);  // 0x2ca120
-}
+// Forward declarations for flex/bison parser.
+// These are compiled as C++ (LANGUAGE CXX in CMake), so signatures must
+// match the actual definitions in seqc_lexer.c / seqc_parser.tab.c exactly.
+namespace zhinst { class SeqcParserContext; class Expression; }
+struct yy_buffer_state;
+int seqc_lex_init_extra(zhinst::SeqcParserContext* extra, void** scanner);
+yy_buffer_state* seqc__scan_string(const char* str, void* scanner);
+int seqc_parse(zhinst::SeqcParserContext* ctx, zhinst::Expression** result, void* scanner);
+void seqc__delete_buffer(yy_buffer_state* buf, void* scanner);
+int seqc_lex_destroy(void* scanner);
 
 namespace zhinst {
 
@@ -56,15 +70,28 @@ Compiler::Compiler(const AWGCompilerConfig& config,
     , messages_()
     , wavetable_(std::move(wavetable))
 {
-    // Create AsmCommands (allocated as 0x80 bytes)
-    // asmCommands_ = std::make_shared<AsmCommands>(...);
+    // Create error callback for AsmCommands
+    auto errorCb = [this](std::string const& msg) {
+        messages_.errorMessage(msg, -1);
+    };
 
-    // Create WaveformGenerator (allocated as 0xE0 bytes)
-    // waveformGen_ = std::make_shared<WaveformGenerator>(...);
+    // Create AsmCommands
+    asmCommands_ = std::make_shared<AsmCommands>(
+        config, wavetable_,
+        std::function<void(const std::string&)>(errorCb));
 
-    // Create CustomFunctions (allocated as 0x200 bytes)
-    // customFunctions_ = std::make_shared<CustomFunctions>(
-    //     config, deviceConstants, wavetable_, waveformGen_, asmCommands_, ...);
+    // Create WaveformGenerator
+    auto warningCb = [this](std::string const& msg) {
+        messages_.warningMessage(msg, -1);
+    };
+    waveformGen_ = std::make_shared<WaveformGenerator>(
+        wavetable_,
+        std::function<void(const std::string&)>(warningCb));
+
+    // Create CustomFunctions
+    customFunctions_ = std::make_shared<CustomFunctions>(
+        config, deviceConstants, wavetable_, waveformGen_, asmCommands_,
+        std::function<void(const std::string&)>(warningCb));
 
     // Initialize SeqcParserContext at +0x100
     // Sets error callback as std::function wrapping a lambda $_0
@@ -137,12 +164,12 @@ std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
         throw CompilerException("Failed to initialize lexer");
     }
 
-    void* buf = seqc__scan_string(source.c_str(), scanner);
+    auto* buf = seqc__scan_string(source.c_str(), scanner);
 
     Expression* rawResult = nullptr;
-    seqc_parse(ctx, reinterpret_cast<void**>(&rawResult), scanner);
+    seqc_parse(ctx, &rawResult, scanner);
 
-    seqc__delete_buffer(buf, scanner);
+    seqc__delete_buffer(static_cast<yy_buffer_state*>(buf), scanner);
     seqc_lex_destroy(scanner);
 
     // Check for syntax errors
@@ -205,67 +232,231 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
     // if (config_->debugFlags & 0x02)                          // 0x11f376
     //     printAST(expr, "...");
 
-    // Step 5: Init static resources
-    // StaticResources::init(*config_, *deviceConstants_);      // 0x11f6c5
+    // Step 5: Construct StaticResources with warning callback,            // 0x11f66f
+    // then init with device-specific constants.
+    // Binary: allocate_shared<StaticResources>(alloc,
+    //   bind(&CompilerMessageCollection::warningMessage, &messages_, _1, -1))
+    auto warningCb = [this](std::string const& msg) {
+        messages_.warningMessage(msg, -1);
+    };
+    auto staticResources = std::make_shared<StaticResources>(
+        std::function<void(std::string const&)>(warningCb));
+    staticResources->init(*config_, *deviceConstants_);                  // 0x11f6c5
 
-    // Step 6: Convert to SeqC AST
-    // auto seqcAst = toSeqCAst(expr);                          // 0x11f7b0
+    // Step 5b: Wrap in GlobalResources (adds TLS register/label counters)  // 0x11f6df
+    auto resources = std::make_shared<GlobalResources>(
+        std::static_pointer_cast<Resources>(staticResources));
 
-    // Step 7: (Optional debug) Print SeqC AST
-    // if (config_->debugFlags & 0x04)                          // 0x11f81a
-    //     printSeqCAst(*seqcAst);
+    // Step 5c: Store resources into customFunctions_->resources_            // 0x11f6f2
+    customFunctions_->resources_ = std::static_pointer_cast<Resources>(resources);
 
-    // Step 8: Frontend lowering
-    // FrontEndLoweringFacade::lower(resources, *seqcAst,       // 0x11f911
-    //     messages_, asmCommands_, customFunctions_,
-    //     waveformGen_, wavetable_, config_->numChannelGroups);
+    // Step 5d: Clear reserved field (binary writes 0 to [r15+0x18])        // 0x11f76e
+    reserved18_ = 0;
 
-    // Step 9: Check for errors
-    if (messages_.hadCompilerError()) {                         // 0x11fb0d
-        // Bail out
+    // Step 6: Convert to SeqC AST                                          // 0x11f7b0
+    auto seqcAst = toSeqCAst(expr);
+
+    // Step 7: (Optional debug) Print SeqC AST                              // 0x11f7da
+    if (config_->debugFlags & 0x04) {
+        printSeqCAst(*seqcAst);
+    }
+
+    // Step 8: Frontend lowering                                            // 0x11f911
+    // Binary reads config_->unknown_98 (offset 0x98) as channelGrouping int
+    auto lowerResult = FrontEndLoweringFacade::lower(
+        std::static_pointer_cast<Resources>(resources),
+        *seqcAst,
+        messages_,
+        asmCommands_,
+        customFunctions_,
+        waveformGen_,
+        wavetable_,
+        config_->channelGrouping);                                       // [config+0x98]
+
+    // Step 8b: Store lowered AST into Compiler.ast_                        // 0x11f92f
+    ast_ = std::move(lowerResult.astResult);
+
+    // seqcAst destroyed here (shared_ptr dtor)                             // 0x11faec
+
+    // Step 9: Check for errors                                             // 0x11fb0d
+    if (messages_.hadCompilerError()) {
         return {};
     }
 
-    // Step 10: Build assembly preamble
-    // resources->newLabel() → asmCommands_->asmLabel()         // 0x11fb50
-    // asmCommands_->asmLoadPlaceholder()                       // 0x11fd78
+    // Step 10: Build assembly preamble                                     // 0x11fb1a
+    // 10a: Reset wavetableFrontIndex on asmCommands
+    asmCommands_->setWavetableFrontIndex(0);                                // [rbx+0x50] = 0
 
-    // Step 11: Linearize nodes into assembly list
-    // Build deque<shared_ptr<Node>> from the lowered tree       // 0x11ffa4
-    // For each node: emit assembler instructions                // 0x120498
-    // Append end/wwvf/nop
+    // 10b: Generate "start" label and asmLoadPlaceholder
+    std::string startLabel = Resources::newLabel("\nstart");                 // 0x11fb50
+    auto labelAsm = asmCommands_->asmLabel(startLabel);                     // 0x11fb66
 
-    // Step 12: Pre-waveform optimization
-    // AsmOptimize optimizer(...);
-    // asmList_ = optimizer.optimizePreWaveform(asmList_);       // 0x120879
+    // 10c: Initialize asmList_ with the label entry                         // 0x11fc20
+    {
+        std::vector<AsmList::Asm> initEntries;
+        initEntries.push_back(std::move(labelAsm));
+        asmList_ = AsmList(std::move(initEntries));
+    }
 
-    // Step 13: Serialize/deserialize round-trip (validation)
-    // auto serialized = asmList_.serialize();                   // 0x120966
-    // asmList_ = AsmList::deserialize(serialized);
+    // 10d: Generate load placeholder
+    auto placeholderAsm = asmCommands_->asmLoadPlaceholder();               // 0x11fd78
 
-    // Step 14: Run prefetcher
-    // runPrefetcher(wavetableIR, asmList_, asmCommands_,        // 0x120d60
-    //     placeholder, *deviceConstants_, *config_);
+    // Step 10e: Build root node from lowered AST                            // 0x11fd7d
+    std::shared_ptr<Node> rootNode;
+    bool hasMainAndAst = resources->hasMain() && (ast_ != nullptr);          // 0x11fd84
 
-    // Step 15: Post-waveform optimization
-    // asmList_ = optimizer.optimizePostWaveform(asmList_);      // 0x120e2d
+    // Create a wrapper Node(NodeType::Entry, placeholderAsm.sequenceId,
+    //                       config_->numChannelGroups)
+    // Both branches create the same kind of node — the difference is in
+    // how the lowered AST is grafted.
+    rootNode = std::make_shared<Node>(
+        NodeType::Load,
+        config_->numChannelGroups,
+        placeholderAsm.sequenceId);                                          // 0x11fdc8 / 0x11fe8e
 
-    // Step 16: Insert unsyncCervino (platform-specific)
-    // asmCommands_->unsyncCervino(...)                          // 0x120f2b
+    if (hasMainAndAst) {
+        // Graft the lowered AST as rootNode's next chain                   // 0x11fe43
+        rootNode->next = ast_;
+        ast_ = rootNode;
+    } else {
+        // Use evalResult's node tree                                       // 0x11ff09
+        if (lowerResult.evalResult) {
+            rootNode->next = lowerResult.evalResult->node_;
+        }
+        ast_ = rootNode;
+    }
 
-    // Step 17: (Optional debug) Print final assembly
-    // if (config_->debugFlags & 0x08)                           // 0x1212db
-    //     asmList_.print();
+    // Step 11: Walk node tree setting parent pointers                       // 0x11ff85
+    // Use a deque for BFS traversal
+    {
+        std::deque<std::shared_ptr<Node>> worklist;
+        worklist.push_back(rootNode);
+
+        while (!worklist.empty()) {
+            auto current = worklist.back();                                  // 0x120020
+            worklist.pop_back();
+
+            if (!current) continue;
+
+            // Process current->next: set parent, push to worklist
+            if (current->next) {                                             // 0x120129
+                current->next->parent = current;                             // 0x12014b
+                worklist.push_back(current->next);
+            }
+
+            // Process current->branches: push each child
+            for (auto& child : current->branches) {                          // 0x120208
+                if (!child) continue;
+                child->parent = current;                                     // 0x120250
+                worklist.push_back(child);
+            }
+
+            // Process current->loop: set parent, push
+            if (current->loop) {                                             // 0x120310
+                current->loop->parent = current;                             // 0x120332
+                worklist.push_back(current->loop);
+            }
+        }
+    }
+
+    // Step 11b: Append placeholder Asm to asmList_                          // 0x120471
+    asmList_.append(placeholderAsm);
+
+    // Step 11c: Insert EvalResults assemblers into asmList_                  // 0x120549
+    if (lowerResult.evalResult) {
+        auto& assemblers = lowerResult.evalResult->assemblers_;
+        asmList_.entries.insert(
+            asmList_.entries.end(),
+            assemblers.begin(),
+            assemblers.end());
+    }
+
+    // Step 11d: Append end + wwvf + nop trailer                             // 0x120589
+    {
+        auto endAsm = asmCommands_->end();                                   // 0x120589
+        auto wwvfAsm = asmCommands_->wwvf();                                // 0x12059f
+        auto nopAsm = asmCommands_->nop();                                   // 0x1205b8
+
+        // Build a combined entry with end's fields and insert 3 entries
+        asmList_.append(endAsm);
+        asmList_.append(wwvfAsm);
+        asmList_.append(nopAsm);
+    }
+
+    // Step 12: Pre-waveform optimization                                // 0x120707
+    // Construct AsmOptimize with error/info callbacks bound to messages_
+    auto errorCb = [this](std::string const& msg, int line) {
+        messages_.errorMessage(msg, line);
+    };
+    auto infoCb = [this](std::string const& msg, int line) {
+        messages_.infoMessage(msg, line);
+    };
+    auto cancelLocked = cancelCallback_.lock();
+    AsmOptimize optimizer(
+        std::function<void(const std::string&, int)>(errorCb),
+        std::function<void(const std::string&, int)>(infoCb),
+        static_cast<uint32_t>(deviceConstants_->registerDepth),             // +0x28
+        static_cast<uint32_t>(config_->unknown_88),                       // +0x88
+        cancelLocked);
+
+    optimizer.prepareResources(asmList_);                                 // 0x120857
+    asmList_ = optimizer.optimizePreWaveform(asmList_);                   // 0x120879
+
+    // Step 13: Conditional serialize to file (if string_30_owned)         // 0x120953
+    if (config_->string_30_owned) {
+        auto serialized = asmList_.serialize();
+        // Write serialized to config_->string_30 path (debug dump)
+        // TODO: implement file write if needed for diff testing
+    }
+
+    // Step 13b: Conditional serialize/deserialize round-trip              // 0x1209a1
+    if (config_->unknown_28 == 1) {
+        auto serialized = asmList_.serialize();
+        asmList_.deserialize(serialized);
+    }
+
+    // Step 13c: Construct WavetableIR from WavetableFront                // 0x120c92
+    auto wavetableIR = std::allocate_shared<WavetableIR>(
+        std::allocator<WavetableIR>(),
+        *wavetable_,
+        *deviceConstants_,
+        detail::AddressImpl<uint32_t>(config_->addressImpl),
+        static_cast<size_t>(config_->wavetableSize),
+        config_->searchPath,
+        cancelCallback_);
+
+    // Step 14: Run prefetcher                                            // 0x120d60
+    runPrefetcher(wavetableIR, asmList_, asmCommands_,
+                  placeholderAsm, *deviceConstants_, *config_);
+
+    // Step 15: Post-waveform optimization                                // 0x120e2d
+    asmList_ = optimizer.optimizePostWaveform(asmList_);
+
+    // Step 16: Insert unsyncCervino (platform-specific)                  // 0x120f2b
+    {
+        AsmList unsyncEntries = asmCommands_->unsyncCervino();
+        // Insert unsync entries into asmList_ before end
+        for (auto& entry : unsyncEntries) {
+            asmList_.push_back(std::move(entry));
+        }
+    }
+
+    // Step 17: (Optional debug) Print final assembly                     // 0x1212db
+    if (config_->debugFlags & 0x08) {
+        asmList_.print(true, std::cout, true);
+    }
 
     // Step 18: Final error check
     if (messages_.hadCompilerError()) {                          // 0x1212e4
         return {};
     }
 
-    // Step 19: Build output vector<Assembler>
-    std::vector<AssemblerInstr> result;                          // 0x121345
-    // Reserve and copy from asmList_ entries
-    // Each AsmList::Asm entry's AssemblerInstr is copied to the output
+    // Step 19: Build output vector<AssemblerInstr>                       // 0x121345
+    std::vector<AssemblerInstr> result;
+    result.reserve(asmList_.size());
+    for (auto& entry : asmList_) {
+        result.push_back(entry.assembler);
+    }
 
     return result;
 }
@@ -281,63 +472,71 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
                              AsmList::Asm placeholder,
                              const DeviceConstants& deviceConstants,
                              const AWGCompilerConfig& config) {
-    // Step 1: (Optional) Serialize WavetableIR to JSON file
-    // if (config[0x68] == 1):                                   // 0x11e022
+    // Step 1: (Optional) Serialize WavetableIR to JSON file              // 0x11e022
+    // if (config.string_50_owned) {
     //     auto json = wavetableIR->toJson();
-    //     writeFile(config.string_50, boost::json::serialize(json));
+    //     // writeFile(config.string_50, boost::json::serialize(json));
+    // }
 
-    // Step 2: (Optional) Reload WavetableIR from JSON (round-trip)
-    // if (config[0x28] == 1):                                   // 0x11e09a
+    // Step 2: (Optional) Reload WavetableIR from JSON (round-trip)       // 0x11e09a
+    // if (config.unknown_28 == 1) {
     //     auto json = wavetableIR->toJson();
-    //     wavetableIR = WavetableIR::fromJson(json, deviceConstants, ...);
+    //     wavetableIR = WavetableIR::fromJson(json, deviceConstants,
+    //         detail::AddressImpl<uint32_t>(config.addressImpl),
+    //         static_cast<size_t>(config.wavetableSize),
+    //         config.searchPath, cancelCallback_);
+    // }
 
-    // Step 3: Construct Prefetch object
-    // Creates warning callback wrapping CompilerMessageCollection::warningMessage
-    // Prefetch prefetch(config, deviceConstants, asmCommands,    // 0x11e1a9
-    //     rootNode, wavetableIR, warningFunc, cancelCallback_);
+    // Step 3: Construct Prefetch object                                  // 0x11e1a9
+    auto warningCb = [this](std::string const& msg) {
+        messages_.warningMessage(msg, -1);
+    };
 
-    // Step 4: preparePlays()                                     // 0x11e367
+    Prefetch prefetch(config, deviceConstants, asmCommands,
+                      ast_, wavetableIR,
+                      std::function<void(std::string const&)>(warningCb),
+                      cancelCallback_);
 
-    // Step 5: getUsedWavesForDevice → setUsedWaveforms          // 0x11e36c
-    // int deviceIndex = config[0x24];
-    // auto waves = prefetch.getUsedWavesForDevice(deviceIndex);
-    // wavetableIR->setUsedWaveforms();
+    // Step 4: preparePlays()                                             // 0x11e367
+    prefetch.preparePlays();
 
-    // Step 6: assignWaveIndexImplicit                            // 0x11e3fc
-    // wavetableIR->assignWaveIndexImplicit();
+    // Step 5: getUsedWavesForDevice → setUsedWaveforms                   // 0x11e36c
+    auto waves = prefetch.getUsedWavesForDevice(
+        static_cast<size_t>(config.deviceIndex));
+    wavetableIR->setUsedWaveforms(waves);
 
-    // Step 7: alignWaveformSizes                                 // 0x11e40b
-    // wavetableIR->alignWaveformSizes();
+    // Step 6: assignWaveIndexImplicit                                    // 0x11e3fc
+    wavetableIR->assignWaveIndexImplicit();
 
-    // Step 8: assignWaveformAllocationSizes                      // 0x11e413
-    // wavetableIR->assignWaveformAllocationSizes();
+    // Step 7: alignWaveformSizes                                         // 0x11e40b
+    wavetableIR->alignWaveformSizes();
 
-    // Step 9: (Conditional) determineFixedWaves                  // 0x11e418
-    // if (config[0x19] == 1)
-    //     prefetch.determineFixedWaves();
+    // Step 8: assignWaveformAllocationSizes                              // 0x11e413
+    wavetableIR->assignWaveformAllocationSizes();
 
-    // Step 10: updateWaveforms                                   // 0x11e432
-    // wavetableIR->updateWaveforms(config[0x19] & config[0x18], flag);
+    // Step 9: (Conditional) determineFixedWaves                          // 0x11e418
+    if (config.cacheType == 1) {
+        prefetch.determineFixedWaves();
+    }
 
-    // Step 11: placeLoads                                        // 0x11e44f
-    // prefetch.placeLoads();
+    // Step 10: updateWaveforms                                           // 0x11e432
+    wavetableIR->updateWaveforms(config.cacheType != 0 && config.isHirzel,
+                                  false);
 
-    // Step 12: (Optional debug) Print tree                       // 0x11e454
-    // if (config.debugFlags & 0x08)
-    //     prefetch.print(nullptr, 0);
+    // Step 11: placeLoads                                                // 0x11e44f
+    prefetch.placeLoads();
 
-    // Step 13: fillInPlaceholders                                // 0x11e4fc
-    // prefetch.fillInPlaceholders(asmList);
+    // Step 12: (Optional debug) Print tree                               // 0x11e454
+    if (config.debugFlags & 0x08) {
+        prefetch.print(nullptr, 0);
+    }
 
-    // Step 14: Copy result AsmList                               // 0x11e501
+    // Step 13: fillInPlaceholders                                        // 0x11e4fc
+    asmList_ = prefetch.fillInPlaceholders(asmList);
 
-    // Step 15-16: Store channel info from prefetch               // 0x11e5bd
-    // this->channelCount_ = prefetch.getUsedChannels();
-    // this->channelMode_ = prefetch.getUsedFourChannelMode();
-
-    // Exception handling: catches zhinst::Exception → rethrows as
-    // CompilerException. Catches std::exception → reports via
-    // CompilerMessageCollection::errorMessage.
+    // Step 15-16: Store channel info from prefetch                       // 0x11e5bd
+    channelCount_ = prefetch.getUsedChannels();
+    channelMode_ = prefetch.getUsedFourChannelMode() ? 1 : 0;
 }
 
 // ============================================================================

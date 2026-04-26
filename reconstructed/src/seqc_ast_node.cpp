@@ -46,7 +46,7 @@ std::string str(EDirection dir) {
 // 0x1fda00
 SeqCAstNode::SeqCAstNode(EValueCategory vc, int type, EDirection dir)
     : valueCategory_(vc)
-    , type_(type)
+    , lineNr_(type)
     , direction_(dir)
 {}
 
@@ -82,14 +82,14 @@ void swap(SeqCAstNode& a, SeqCAstNode& b) {
     using std::swap;
     swap(a.direction_, b.direction_);
     swap(a.valueCategory_, b.valueCategory_);
-    swap(a.type_, b.type_);
+    swap(a.lineNr_, b.lineNr_);
 }
 
 // 0x1fa3c0  (public wrapper that calls anon-namespace recursive helper @0x1fa430)
 namespace {
 // @0x1fa430 — recursive AST tree printer using box-drawing connectors
 void printSeqCAstImpl(SeqCAstNode const& node, std::string const& prefix) {
-    // Print node type name via virtual print(), then " (line: <type_>)\n"
+    // Print node type name via virtual print(), then " (line: <lineNr_>)\n"
     node.print();                                                  // @0x1fa44a: call *0x18(%rax)
     std::cout << " (line: " << node.type() << ")" << "\n";         // @0x1fa454..0x1fa497
 
@@ -128,7 +128,7 @@ void printSeqCAst(const SeqCAstNode& node) {                      // @0x1fa3c0
         std::cout.write(Label, LabelLen);                                    \
     }                                                                        \
     std::unique_ptr<SeqCAstNode> Name::clone() const {                       \
-        return std::make_unique<Name>(valueCategory_, type_, direction_,     \
+        return std::make_unique<Name>(valueCategory_, lineNr_, direction_,     \
                                      varType_);                              \
     }
 
@@ -153,7 +153,7 @@ SEQC_TRIVIAL_LEAF_IMPL(SeqCNoCmd,             "NoCmd",             5, 0x18)  // 
         : SeqCAstNode(vc, type, dir), child_(std::move(child))               \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
-        : SeqCAstNode(o.valueCategory_, o.type_, o.direction_),              \
+        : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),              \
           child_(o.child_ ? o.child_->clone() : nullptr)                     \
     { varType_ = o.varType_; }                                               \
     Name::~Name() = default;                                                 \
@@ -162,7 +162,7 @@ SEQC_TRIVIAL_LEAF_IMPL(SeqCNoCmd,             "NoCmd",             5, 0x18)  // 
     }                                                                        \
     std::unique_ptr<SeqCAstNode> Name::clone() const {                       \
         return std::make_unique<Name>(                                       \
-            valueCategory_, type_, direction_, varType_,                     \
+            valueCategory_, lineNr_, direction_, varType_,                     \
             child_ ? child_->clone() : nullptr);                             \
     }                                                                        \
     std::vector<const SeqCAstNode*> Name::children() const {                 \
@@ -195,7 +195,7 @@ SeqCOperator::SeqCOperator(EValueCategory vc, int type, EDirection dir,
 SeqCOperator::~SeqCOperator() = default;
 
 SeqCOperator::SeqCOperator(SeqCOperator const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , lhs_(o.lhs_ ? o.lhs_->clone() : nullptr)
     , rhs_(o.rhs_ ? o.rhs_->clone() : nullptr)
 { varType_ = o.varType_; }
@@ -206,7 +206,7 @@ void SeqCOperator::print() const {  // 0x1fef70
 
 std::unique_ptr<SeqCAstNode> SeqCOperator::clone() const {  // 0x1ff050
     return std::make_unique<SeqCOperator>(
-        valueCategory_, type_, direction_, varType_,
+        valueCategory_, lineNr_, direction_, varType_,
         lhs_ ? lhs_->clone() : nullptr,
         rhs_ ? rhs_->clone() : nullptr);
 }
@@ -226,7 +226,7 @@ std::vector<const SeqCAstNode*> SeqCOperator::children() const {
     }                                                                        \
     std::unique_ptr<SeqCAstNode> Name::clone() const {                       \
         return std::make_unique<Name>(                                       \
-            valueCategory_, type_, direction_, varType_,                     \
+            valueCategory_, lineNr_, direction_, varType_,                     \
             lhs_ ? lhs_->clone() : nullptr,                                 \
             rhs_ ? rhs_->clone() : nullptr);                                \
     }
@@ -269,7 +269,7 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, clone @0x2084
           first_(std::move(first)), second_(std::move(second))               \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
-        : SeqCAstNode(o.valueCategory_, o.type_, o.direction_),              \
+        : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),              \
           first_(o.first_ ? o.first_->clone() : nullptr),                    \
           second_(o.second_ ? o.second_->clone() : nullptr)                  \
     { varType_ = o.varType_; }                                               \
@@ -279,7 +279,7 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, clone @0x2084
     }                                                                        \
     std::unique_ptr<SeqCAstNode> Name::clone() const {                       \
         return std::make_unique<Name>(                                       \
-            valueCategory_, type_, direction_, varType_,                     \
+            valueCategory_, lineNr_, direction_, varType_,                     \
             first_ ? first_->clone() : nullptr,                              \
             second_ ? second_->clone() : nullptr);                           \
     }                                                                        \
@@ -319,7 +319,7 @@ SeqCIfElse::SeqCIfElse(EValueCategory vc, int type, EDirection dir,
 SeqCIfElse::~SeqCIfElse() = default;
 
 SeqCIfElse::SeqCIfElse(SeqCIfElse const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , cond_(o.cond_ ? o.cond_->clone() : nullptr)
     , ifBody_(o.ifBody_ ? o.ifBody_->clone() : nullptr)
     , elseBody_(o.elseBody_ ? o.elseBody_->clone() : nullptr)
@@ -331,7 +331,7 @@ void SeqCIfElse::print() const {  // 0x201df0
 
 std::unique_ptr<SeqCAstNode> SeqCIfElse::clone() const {  // 0x2021a0
     return std::make_unique<SeqCIfElse>(
-        valueCategory_, type_, direction_, varType_,
+        valueCategory_, lineNr_, direction_, varType_,
         cond_ ? cond_->clone() : nullptr,
         ifBody_ ? ifBody_->clone() : nullptr,
         elseBody_ ? elseBody_->clone() : nullptr);
@@ -358,7 +358,7 @@ SeqCCondExpr::SeqCCondExpr(EValueCategory vc, int type, EDirection dir,
 SeqCCondExpr::~SeqCCondExpr() = default;
 
 SeqCCondExpr::SeqCCondExpr(SeqCCondExpr const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , cond_(o.cond_ ? o.cond_->clone() : nullptr)
     , ifBody_(o.ifBody_ ? o.ifBody_->clone() : nullptr)
     , elseBody_(o.elseBody_ ? o.elseBody_->clone() : nullptr)
@@ -370,7 +370,7 @@ void SeqCCondExpr::print() const {  // 0x203ba0
 
 std::unique_ptr<SeqCAstNode> SeqCCondExpr::clone() const {  // 0x203c80
     return std::make_unique<SeqCCondExpr>(
-        valueCategory_, type_, direction_, varType_,
+        valueCategory_, lineNr_, direction_, varType_,
         cond_ ? cond_->clone() : nullptr,
         ifBody_ ? ifBody_->clone() : nullptr,
         elseBody_ ? elseBody_->clone() : nullptr);
@@ -403,7 +403,7 @@ SeqCFunction::SeqCFunction(EValueCategory vc, int type, EDirection dir,
 SeqCFunction::~SeqCFunction() = default;
 
 SeqCFunction::SeqCFunction(SeqCFunction const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , call_(o.call_ ? std::unique_ptr<SeqCFunctionCall>(
           static_cast<SeqCFunctionCall*>(o.call_->clone().release())) : nullptr)
     , params_(o.params_ ? o.params_->clone() : nullptr)
@@ -417,7 +417,7 @@ void SeqCFunction::print() const {  // 0x1fe730
 
 std::unique_ptr<SeqCAstNode> SeqCFunction::clone() const {  // 0x1fe7c0
     return std::make_unique<SeqCFunction>(
-        valueCategory_, type_, direction_, varType_,
+        valueCategory_, lineNr_, direction_, varType_,
         call_ ? std::unique_ptr<SeqCFunctionCall>(
             static_cast<SeqCFunctionCall*>(call_->clone().release())) : nullptr,
         params_ ? params_->clone() : nullptr,
@@ -448,7 +448,7 @@ SeqCForLoop::SeqCForLoop(EValueCategory vc, int type, EDirection dir,
 SeqCForLoop::~SeqCForLoop() = default;
 
 SeqCForLoop::SeqCForLoop(SeqCForLoop const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , init_(o.init_ ? o.init_->clone() : nullptr)
     , cond_(o.cond_ ? o.cond_->clone() : nullptr)
     , incr_(o.incr_ ? o.incr_->clone() : nullptr)
@@ -461,7 +461,7 @@ void SeqCForLoop::print() const {  // 0x202bc0
 
 std::unique_ptr<SeqCAstNode> SeqCForLoop::clone() const {  // 0x202f70
     return std::make_unique<SeqCForLoop>(
-        valueCategory_, type_, direction_, varType_,
+        valueCategory_, lineNr_, direction_, varType_,
         init_ ? init_->clone() : nullptr,
         cond_ ? cond_->clone() : nullptr,
         incr_ ? incr_->clone() : nullptr,
@@ -485,7 +485,7 @@ std::vector<const SeqCAstNode*> SeqCForLoop::children() const {  // 0x202fd0
         : SeqCAstNode(vc, type, dir), elements_(std::move(elements))         \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
-        : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)               \
+        : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)               \
     {                                                                        \
         varType_ = o.varType_;                                               \
         elements_.reserve(o.elements_.size());                               \
@@ -503,7 +503,7 @@ std::vector<const SeqCAstNode*> SeqCForLoop::children() const {  // 0x202fd0
             cloned.push_back(e ? e->clone() : nullptr);                      \
         }                                                                    \
         return std::make_unique<Name>(                                       \
-            valueCategory_, type_, direction_, varType_,                     \
+            valueCategory_, lineNr_, direction_, varType_,                     \
             std::move(cloned));                                              \
     }                                                                        \
     std::vector<const SeqCAstNode*> Name::children() const {                 \
@@ -588,26 +588,26 @@ SeqCVariable::SeqCVariable(EValueCategory vc, int type, EDirection dir,
 SeqCVariable::~SeqCVariable() = default;
 
 SeqCVariable::SeqCVariable(SeqCVariable const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
     , name_(o.name_)
 { varType_ = o.varType_; }
 
 // 0x1fdbd0 — complex print: "Variable: name(VarType), direction"
 // Binary flow:
 //   1. Write "Variable: " (10 chars) to cout
-//   2. If type_ == 0: just write name_
-//   3. Else: write name_ + " (" + str(VarType(type_)) + ")"
+//   2. If lineNr_ == 0: just write name_
+//   3. Else: write name_ + " (" + str(VarType(lineNr_)) + ")"
 //   4. Write ", "
 //   5. Write str(direction_)
 //   6. Write "\n" (1 char, but uncertain — might be absent)
 void SeqCVariable::print() const {  // 0x1fdbd0
     std::cout.write("Variable: ", 10);
-    if (type_ == 0) {
+    if (lineNr_ == 0) {
         std::cout << name_;
     } else {
         std::string s = name_;
         s += " (";
-        s += str(static_cast<VarType>(type_));
+        s += str(static_cast<VarType>(lineNr_));
         s += ")";
         std::cout << s;
     }
@@ -617,7 +617,7 @@ void SeqCVariable::print() const {  // 0x1fdbd0
 
 std::unique_ptr<SeqCAstNode> SeqCVariable::clone() const {  // 0x1fdf30
     return std::make_unique<SeqCVariable>(
-        valueCategory_, type_, direction_, varType_, name_);
+        valueCategory_, lineNr_, direction_, varType_, name_);
 }
 
 // 0x209e60
@@ -635,9 +635,32 @@ SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
     varType_ = vt;
 }
 
+// String-value ctor — binary callsite at 0x1f656e (make_unique<SeqCValue>(..., string&))
+SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
+                     VarType vt, std::string const& s)
+    : SeqCAstNode(vc, type, dir)
+{
+    varType_ = vt;
+    tag_ = 0;  // eString
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wplacement-new"
+    new (payload_) std::string(s);
+#pragma GCC diagnostic pop
+}
+
+// Double-value ctor — binary callsite at 0x1f6f22 (make_unique<SeqCValue>(..., double&))
+SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
+                     VarType vt, double d)
+    : SeqCAstNode(vc, type, dir)
+{
+    varType_ = vt;
+    tag_ = 1;  // eDouble
+    std::memcpy(payload_, &d, sizeof(double));
+}
+
 // Copy-ctor: tag-dispatched payload copy. @0x208600 area.
 SeqCValue::SeqCValue(SeqCValue const& o)
-    : SeqCAstNode(o.valueCategory_, o.type_, o.direction_)
+    : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)
 {
     varType_ = o.varType_;
     tag_ = o.tag_;

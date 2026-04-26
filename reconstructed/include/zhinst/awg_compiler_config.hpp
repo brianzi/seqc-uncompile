@@ -46,7 +46,9 @@ namespace zhinst {
 // 0x88    8     (unknown)                   unknown_88
 // 0x90    4     uint32_t                    debugFlags          Bitmask: 0x02=print old AST, 0x04=print SeqC AST,
 //                                                               0x08=print tree/assembly (verified: testb at 0x11f379)
-// 0x94    12    (unknown)                   unknown_94          Padding or additional fields
+// 0x94    4     int32_t                     numCores            Number of AWG cores
+// 0x98    4     int32_t                     channelGrouping     Passed to FrontEndLoweringFacade::lower() (verified 0x11f8d4)
+// 0x9C    4     (pad)
 // 0xA0    4     int32_t                     wavetableSize       sign-extended to size_t, passed to WavetableFront
 // 0xA4    4     (pad)
 // 0xA8    24    boost::filesystem::path     searchPath          Path passed to WavetableFront; dtor frees at +0xA8/+0xB8
@@ -80,7 +82,9 @@ struct AWGCompilerConfig {
     uint64_t unknown_88;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
     int32_t numCores = 1;               // 0x94 — number of AWG cores
-    char unknown_98[8];                 // 0x98 — no reconstructed consumer; between numCores and wavetableSize
+    int32_t channelGrouping;            // 0x98 — passed to FrontEndLoweringFacade::lower() as last arg
+                                        //        (verified: mov eax,[rax+0x98] at 0x11f8d4 in compile())
+    int32_t pad_9c;                     // 0x9C — padding
     int32_t wavetableSize;              // 0xA0 — sign-extended to size_t
     int32_t pad_a4;                     // 0xA4
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)

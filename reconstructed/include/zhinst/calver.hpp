@@ -88,4 +88,8 @@ CalVer fromBinary(uint32_t b);
 // @0x1002a0
 std::string getLaboneVersionWithCommitHash();
 
+// Splits a version string on '.' and parses up to 3 numeric components.
+// @0x101570, 0x590 bytes
+std::array<size_t, 3> extractVersionTriple(std::string const& s);
+
 } // namespace zhinst

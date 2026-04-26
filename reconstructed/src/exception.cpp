@@ -188,60 +188,53 @@ ErrorCode const* Exception::description() const noexcept
 }
 
 // ===========================================================================
-// ZIAWGCompilerException
+// All 26 derived exception classes — macro-generated.
+//
+// Every subclass follows the same binary pattern:
+//   default ctor: constructs std::string("<ClassName>"), forwards to
+//                 Exception(string), then resets vptrs to class-specific values.
+//   string ctor:  moves msg into Exception(string), resets vptrs.
+//   dtor:         structurally identical to Exception::~Exception.
+//
+// Binary constructor addresses are documented per-class in exception.hpp.
 // ===========================================================================
 
-// ---------------------------------------------------------------------------
-// ZIAWGCompilerException::ZIAWGCompilerException() — 0x2e72f0
-//
-// Binary code constructs a stack std::string "ZIAWGCompilerException"
-// (22 bytes, fits SSO) and forwards to Exception(string), then resets
-// vptrs to b0a618 / b0a640.
-// ---------------------------------------------------------------------------
-ZIAWGCompilerException::ZIAWGCompilerException()
-    : Exception(std::string("ZIAWGCompilerException"))
-{
-}
+#define ZHINST_DEFINE_EXCEPTION(ClassName)                                   \
+    ClassName::ClassName()                                                    \
+        : Exception(std::string(#ClassName))                                 \
+    {}                                                                       \
+    ClassName::ClassName(std::string msg)                                     \
+        : Exception(std::move(msg))                                          \
+    {}                                                                       \
+    ClassName::~ClassName() = default
 
-// ---------------------------------------------------------------------------
-// ZIAWGCompilerException::ZIAWGCompilerException(std::string msg) — 0x2e7360
-//
-// Binary code moves `msg` into a stack std::string and forwards to
-// Exception(string), then resets vptrs to b0a618 / b0a640.
-// ---------------------------------------------------------------------------
-ZIAWGCompilerException::ZIAWGCompilerException(std::string msg)
-    : Exception(std::move(msg))
-{
-}
+ZHINST_DEFINE_EXCEPTION(ZIAPIException);                   // 0x2e58c0 / 0x2e5930
+ZHINST_DEFINE_EXCEPTION(ZIIOException);                    // 0x2e5a30 / 0x2e5aa0
+ZHINST_DEFINE_EXCEPTION(ZIDeviceException);                // 0x2e5c90 / 0x2e5cf0
+ZHINST_DEFINE_EXCEPTION(ZISocketException);                // 0x2e5d60 / 0x2e5dc0
+ZHINST_DEFINE_EXCEPTION(ZIOverflowException);              // 0x2e5e30 / 0x2e5ea0
+ZHINST_DEFINE_EXCEPTION(ZIUnderrunException);              // 0x2e5f10 / 0x2e5f80
+ZHINST_DEFINE_EXCEPTION(ZITimeoutException);               // 0x2e5ff0 / 0x2e6060
+ZHINST_DEFINE_EXCEPTION(ZIReadOnlyException);              // (none)  / 0x2e60d0
+ZHINST_DEFINE_EXCEPTION(ZIWriteOnlyException);             // (none)  / 0x2e6190
+ZHINST_DEFINE_EXCEPTION(ZINotFoundException);              // 0x2e6250 / 0x2e62c0
+ZHINST_DEFINE_EXCEPTION(ZIInvalidKeywordException);        // (none)  / 0x2e6330
+ZHINST_DEFINE_EXCEPTION(ZITypeMismatchException);          // 0x2e63f0 / 0x2e6480
+ZHINST_DEFINE_EXCEPTION(ZIOutOfRangeException);            // 0x2e64f0 / 0x2e6560
+ZHINST_DEFINE_EXCEPTION(ZIInterruptException);             // 0x2e65d0 / 0x2e6640
+ZHINST_DEFINE_EXCEPTION(ZIInternalException);              // 0x2e66b0 / 0x2e6760
+ZHINST_DEFINE_EXCEPTION(ZIDeviceNotVisibleException);      // 0x2e6820 / 0x2e68f0
+ZHINST_DEFINE_EXCEPTION(ZIDeviceNotFoundException);        // 0x2e69b0 / 0x2e6a80
+ZHINST_DEFINE_EXCEPTION(ZIDeviceInUseException);           // 0x2e6b40 / 0x2e6c00
+ZHINST_DEFINE_EXCEPTION(ZIDeviceInterfaceException);       // 0x2e6cc0 / 0x2e6d90
+ZHINST_DEFINE_EXCEPTION(ZIDeviceConnectionTimeoutException); // 0x2e6e50 / 0x2e6f20
+ZHINST_DEFINE_EXCEPTION(ZIDeviceDifferentInterfaceException); // 0x2e6fe0 / 0x2e70c0
+ZHINST_DEFINE_EXCEPTION(ZIDeviceFWException);              // 0x2e7180 / 0x2e7230
+ZHINST_DEFINE_EXCEPTION(ZIAWGCompilerException);           // 0x2e72f0 / 0x2e7360
+ZHINST_DEFINE_EXCEPTION(ZIAWGOptimizerException);          // 0x2e73d0 / 0x2e7460
+ZHINST_DEFINE_EXCEPTION(ZIVersionException);               // 0x2e74d0 / 0x2e7540
+ZHINST_DEFINE_EXCEPTION(ZIIllegalPathException);           // 0x2e75b0 / 0x2e7620
 
-// 0x2e7720-region (per-class thunk, structurally identical to Exception::~)
-ZIAWGCompilerException::~ZIAWGCompilerException() = default;
-
-// ===========================================================================
-// ZIAWGOptimizerException
-// ===========================================================================
-
-// ---------------------------------------------------------------------------
-// ZIAWGOptimizerException::ZIAWGOptimizerException() — 0x2e73d0
-//
-// Binary heap-allocates a 0x1a-byte buffer for "ZIAWGOptimizerException"
-// (23 bytes + NUL — pushed past SSO threshold), forwards to
-// Exception(string), then resets vptrs to b0a660 / b0a688.
-// ---------------------------------------------------------------------------
-ZIAWGOptimizerException::ZIAWGOptimizerException()
-    : Exception(std::string("ZIAWGOptimizerException"))
-{
-}
-
-// ---------------------------------------------------------------------------
-// ZIAWGOptimizerException::ZIAWGOptimizerException(std::string) — 0x2e7460
-// Same shape as the ZIAWGCompilerException string ctor.
-// ---------------------------------------------------------------------------
-ZIAWGOptimizerException::ZIAWGOptimizerException(std::string msg)
-    : Exception(std::move(msg))
-{
-}
-
-ZIAWGOptimizerException::~ZIAWGOptimizerException() = default;
+#undef ZHINST_DEFINE_EXCEPTION
 
 } // namespace zhinst

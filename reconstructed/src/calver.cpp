@@ -4,17 +4,52 @@
 #include "zhinst/calver.hpp"
 #include "zhinst/exception.hpp"
 
+#include <boost/algorithm/string/classification.hpp>
+#include <boost/algorithm/string/split.hpp>
 #include <boost/lexical_cast.hpp>
 #include <boost/throw_exception.hpp>
 #include <array>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 namespace zhinst {
 
-// Forward-declared helper that parses "YY.MM.PATCH" → array<size_t,3>
-// @0x101570 (not reconstructed here)
-extern std::array<size_t, 3> extractVersionTriple(std::string const& s);
+// ---------------------------------------------------------------------------
+// extractVersionTriple(string const&) — @0x101570, 0x590 bytes
+//
+// Splits the input on '.' via boost::algorithm::split (token_compress_on),
+// then parses up to 3 components via boost::lexical_cast<size_t>.
+//
+// Returns:
+//   0 parts → {0, 0, 0}
+//   1 part  → {parts[0], 0, 0}
+//   2 parts → {parts[0], parts[1], 0}
+//   3+ parts → {parts[0], parts[1], parts[2]}
+//
+// Throws boost::bad_lexical_cast if any component is not a valid integer.
+// ---------------------------------------------------------------------------
+std::array<size_t, 3> extractVersionTriple(std::string const& s) {
+    std::vector<std::string> parts;
+    boost::algorithm::split(parts, s, boost::is_any_of("."),
+                            boost::token_compress_on);
+
+    std::array<size_t, 3> result = {{0, 0, 0}};
+
+    size_t n = parts.size();
+    if (n == 0)
+        return result;
+
+    // Parse each available component
+    if (n >= 1)
+        result[0] = boost::lexical_cast<size_t>(parts[0]);
+    if (n >= 2)
+        result[1] = boost::lexical_cast<size_t>(parts[1]);
+    if (n >= 3)
+        result[2] = boost::lexical_cast<size_t>(parts[2]);
+
+    return result;
+}
 
 // ---------------------------------------------------------------------------
 // CalVer::CalVer(string const&) — @0x0ffdb0, 0x470 bytes

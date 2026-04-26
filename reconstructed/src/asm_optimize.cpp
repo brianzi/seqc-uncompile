@@ -6,6 +6,7 @@
 // ============================================================================
 
 #include "zhinst/asm_optimize.hpp"
+#include "zhinst/resources.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -28,6 +29,26 @@ const char* OptimizeException::what() const noexcept {  // 0x281e90
         return message_.c_str();
     return "Optimize Exception";
 }
+
+// ============================================================================
+// AsmOptimize constructor
+// ============================================================================
+
+// Constructed inline in Compiler::compile() at 0x120707
+AsmOptimize::AsmOptimize(std::function<void(const std::string&, int)> errorCallback,
+                         std::function<void(const std::string&, int)> warningCallback,
+                         uint32_t numPhysicalRegs,
+                         uint32_t flags,
+                         std::shared_ptr<CancelCallback> cancel)
+    : numPhysicalRegs_(numPhysicalRegs)
+    , pad04_(0)
+    , flags_(flags)
+    , pad0C_(0)
+    , asm_()
+    , errorCallback_(std::move(errorCallback))
+    , warningCallback_(std::move(warningCallback))
+    , cancel_(std::move(cancel))
+{}
 
 // ============================================================================
 // AsmOptimize destructor

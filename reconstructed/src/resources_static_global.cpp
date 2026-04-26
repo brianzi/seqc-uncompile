@@ -193,62 +193,7 @@ Resources::Variable* StaticResources::getVariable(std::string const& name)  // @
 }
 
 // ============================================================================
-// GlobalResources::GlobalResources — @0x12a710
-//
-// Disassembly walk (0x12a710..0x12a8ab):
-//   1. Construct SSO string "global" on stack: byte[0]=0x0c (len 6<<1),
-//      dword "glob", word "al", null terminator.
-//   2. Zero a weak_ptr for the parent param.
-//   3. Call Resources::Resources("global", empty_weak_ptr) @0x1e3420.
-//   4. Clean up temp weak_ptr and temp string.
-//   5. Set vptr to GlobalResources vtable @0xb039d0.
-//   6. Copy `parent` shared_ptr into this->parent_ (+0x18):
-//      bump refcount on ctrl block, store ptr+ctrl, release old.
-//   7. Initialize TLS statics:
-//      - regNumber  (TLS +0x48) = 1    (mov DWORD PTR [rax], 1 @0x12a7da)
-//      - labelIndex (TLS +0x4c) = 0    (mov DWORD PTR [rax], 0 @0x12a7ff)
-//   8. Seed random[] (TLS +0x50, MT19937-64):
-//      - random[0] = 0x1571 (seed)     (mov QWORD [rax], 0x1571 @0x12a82e)
-//      - Multiplier rbx = 0x5851f42d4c957f2d (standard MT19937-64 constant)
-//      - Loop i=1..311: random[i] = (random[i-1] ^ (random[i-1]>>62))
-//                                    * multiplier + i
-//        (The binary unrolls by 2, processing pairs at each iteration.
-//         Loop runs rdx from 2 to 0x138=312, step 2.)
-//      - Set mti = random[312] = 0     (mov QWORD [rax+0x9c0], 0 @0x12a898)
+// GlobalResources ctor/dtor are defined in global_resources.cpp.
 // ============================================================================
-GlobalResources::GlobalResources(
-    std::shared_ptr<Resources> const& parent)  // @0x12a710
-    : Resources(std::string("global"), std::weak_ptr<Resources>{})
-{
-    // (5-6) Copy parent shared_ptr into parent_ slot.
-    parent_ = parent;
-
-    // (7) Initialize TLS counters.
-    regNumber  = 1;
-    labelIndex = 0;
-
-    // (8) Seed MT19937-64 state.
-    constexpr uint64_t seed = 0x1571;
-    constexpr uint64_t mult = 0x5851f42d4c957f2dULL;
-    random[0] = seed;
-    for (int i = 1; i < 312; ++i) {
-        uint64_t prev = random[i - 1];
-        random[i] = (prev ^ (prev >> 62)) * mult + static_cast<uint64_t>(i);
-    }
-    random[312] = 0;  // mti = 0
-}
-
-// ============================================================================
-// GlobalResources::~GlobalResources — D0 @0x12ab40
-//
-// Disassembly (0x12ab40..0x12ab5c):
-//   1. Call Resources::~Resources() @0x12a8f0.
-//   2. Tail-call operator delete(this, 0xd8).
-//
-// In C++: defaulted destructor — Resources base handles all teardown.
-// The `operator delete(this, 0xd8)` is emitted by the deleting dtor (D0)
-// automatically.
-// ============================================================================
-GlobalResources::~GlobalResources() = default;  // @0x12ab40
 
 } // namespace zhinst

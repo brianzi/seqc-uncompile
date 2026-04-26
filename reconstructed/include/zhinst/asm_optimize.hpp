@@ -66,13 +66,22 @@ private:
     std::string message_;   // +0x08
 };
 
-// Global register number counter (TLS)
-namespace GlobalResources {
-    extern thread_local int regNumber;
-}
+// GlobalResources::regNumber is a thread-local static member of the
+// GlobalResources class (declared in resources.hpp, defined in
+// global_resources.cpp). Forward-declare the class here to avoid
+// pulling in the full resources.hpp header.
+class GlobalResources;
 
 class AsmOptimize {
 public:
+    // Constructor — builds optimizer with callbacks and device info
+    // Constructed inline in Compiler::compile() at 0x120707
+    AsmOptimize(std::function<void(const std::string&, int)> errorCallback,
+                std::function<void(const std::string&, int)> warningCallback,
+                uint32_t numPhysicalRegs,
+                uint32_t flags,
+                std::shared_ptr<CancelCallback> cancel);
+
     // Destructor — destroys callbacks, asm vector, cancel ptr
     ~AsmOptimize();                                                     // 0x123200
 

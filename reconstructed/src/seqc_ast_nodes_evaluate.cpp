@@ -2662,8 +2662,8 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
     FrontendLoweringState& state) const
 {                                                           // @0x210aa0
     // 1. Set line number on subsystems.
-    // Binary reads [this+0x0c] = type_ field, used as line number.
-    int lineNr = type_;                                     // @0x210ac4
+    // Binary reads [this+0x0c] = lineNr_ field, used as line number.
+    int lineNr = lineNr_;                                     // @0x210ac4
     ctx.messages->setLineNr(lineNr);                        // @0x210ace
 
     // Binary: [r15+0x8] = ctx.asmCommands.get() → write lineNr to +0x50
@@ -2700,7 +2700,7 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
         } catch (std::exception const& e) {                 // @0x210f72
             ctx.messages->errorMessage(
                 std::string(e.what() ? e.what() : ""),
-                type_);                                      // @0x210fc0
+                lineNr_);                                      // @0x210fc0
         }
     }
     if (!lhsResult) {
@@ -2715,7 +2715,7 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
         } catch (std::exception const& e) {
             ctx.messages->errorMessage(
                 std::string(e.what() ? e.what() : ""),
-                type_);
+                lineNr_);
         }
     }
     if (!rhsResult) {
@@ -2783,7 +2783,7 @@ std::shared_ptr<EvalResults> SeqCValue::evaluate(
     FrontendLoweringState& /*state*/) const
 {                                                           // @0x213140
     // 1. Set line number on subsystems.
-    int lineNr = type_;                                     // @0x21315d
+    int lineNr = lineNr_;                                     // @0x21315d
     ctx.messages->setLineNr(lineNr);                        // @0x213167
     ctx.asmCommands->setWavetableFrontIndex(lineNr);        // @0x21316c-213170
     ctx.wavetable->setLineNr(lineNr);                       // @0x21317b
@@ -2905,7 +2905,7 @@ std::shared_ptr<EvalResults> SeqCVariable::evaluate(
     FrontendLoweringState& /*state*/) const
 {                                                           // @0x209ea0
     // 1. Set line number on subsystems.                    @0x209ec4-209ee7
-    int lineNr = type_;
+    int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -2991,10 +2991,10 @@ std::shared_ptr<EvalResults> SeqCVariable::evaluate(
         // 6b. Error path: format ErrorMessageT(0xE0) with `name` and emit
         //     via CompilerMessageCollection::errorMessage.
         //     Binary: ErrorMessages::format<string>(0xE0, name) @0x20a17b,
-        //             errorMessage(msg, type_) @0x20a18b.
+        //             errorMessage(msg, lineNr_) @0x20a18b.
         std::string msg = ErrorMessages::format(
             ErrorMessageT(0xE0), name);                     // @0x20a17b
-        ctx.messages->errorMessage(msg, type_);             // @0x20a18b
+        ctx.messages->errorMessage(msg, lineNr_);             // @0x20a18b
         break;
     }
 
@@ -3149,7 +3149,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
             ctx.messages->errorMessage(
                 ErrorMessages::format(ErrorMessageT(0x8b),
                                       str(lhsType), str(rhsType)),
-                type_);
+                lineNr_);
             return result;
         }
         const std::string& name = lhsVar->name();
@@ -3254,7 +3254,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         ErrorMessages::format(ErrorMessageT(0x8b),
                                               str(VarType_String),
                                               str(VarType_Const)),
-                        type_);
+                        lineNr_);
                     break;
                 }
                 // Row 9: Wave[Numeric] = Var or Cvar → in-place numeric
@@ -3307,7 +3307,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         ctx.messages->errorMessage(
                             ErrorMessages::format(ErrorMessageT(0xe9),
                                                   rhsName),
-                            type_);
+                            lineNr_);
                     } else {
                         res->updateWave(name, rhsName, rhsSub);
                         result->setValue(VarType_Wave, rhsSub,
@@ -3337,7 +3337,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                     ErrorMessages::format(ErrorMessageT(0x8b),
                                           str(lhsType),
                                           str(rhsTypeOrUnset(rhsResult))),
-                    type_);
+                    lineNr_);
             }
             break;
         }  // switch (lhsType)
@@ -3386,7 +3386,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
 //
 // Key differences from SeqCAssign::evaluate:
 //   - Error code is 0x73 (not 0x8b)
-//   - errorMessage uses line = -1 (not this->type_)
+//   - errorMessage uses line = -1 (not this->lineNr_)
 //   - Uses combineWaveforms("add",...) for Wave+Wave
 //   - Uses Resources::getRegisterNumber() for Var result register allocation
 //   - Uses combine(VarType) and combine(VarSubType) for Const+Const row
@@ -4571,7 +4571,7 @@ std::shared_ptr<EvalResults> SeqCVariableType::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& /*state*/) const
 {                                                           // @0x209d10
-    int lineNr = type_;                                     // [rsi+0xc]
+    int lineNr = lineNr_;                                     // [rsi+0xc]
     ctx.messages->setLineNr(lineNr);                        // @0x209d2a
     ctx.asmCommands->setWavetableFrontIndex(lineNr);        // @0x209d33
     ctx.wavetable->setLineNr(lineNr);                       // @0x209d3e
@@ -4585,7 +4585,7 @@ std::shared_ptr<EvalResults> SeqCNoCmd::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& /*state*/) const
 {                                                           // @0x22a560
-    int lineNr = type_;                                     // [rsi+0xc]
+    int lineNr = lineNr_;                                     // [rsi+0xc]
     ctx.messages->setLineNr(lineNr);                        // @0x22a57a
     ctx.asmCommands->setWavetableFrontIndex(lineNr);        // @0x22a583
     ctx.wavetable->setLineNr(lineNr);                       // @0x22a58e
@@ -4602,7 +4602,7 @@ std::shared_ptr<EvalResults> SeqCPos::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& state) const
 {                                                           // @0x228e80
-    int lineNr = type_;                                     // [rsi+0xc]
+    int lineNr = lineNr_;                                     // [rsi+0xc]
     ctx.messages->setLineNr(lineNr);                        // @0x228eab
     ctx.asmCommands->setWavetableFrontIndex(lineNr);        // @0x228eb4
     ctx.wavetable->setLineNr(lineNr);                       // @0x228ebf
@@ -4624,7 +4624,7 @@ std::shared_ptr<EvalResults> SeqCContinueStatement::evaluate(
     ctx.messages->errorMessage(                             // @0x2268ca
         ErrorMessages::format(ErrorMessageT(0xd5),          // @0x2268bb
                               "continue"),                   // rodata @0x905b6a
-        type_);                                             // lineNr = this->type_
+        lineNr_);                                             // lineNr = this->lineNr_
     return std::make_shared<EvalResults>();                  // @0x2268eb
 }
 
@@ -4638,7 +4638,7 @@ std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     ctx.messages->errorMessage(                             // @0x2269aa
         ErrorMessages::format(ErrorMessageT(0xd5),          // @0x22699b
                               "break"),                      // rodata @0x905b73
-        type_);                                             // lineNr = this->type_
+        lineNr_);                                             // lineNr = this->lineNr_
     return std::make_shared<EvalResults>();                  // @0x2269cb
 }
 
@@ -5390,7 +5390,7 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                     // @0x228504
-    int lineNr = this->type_;                                  // [rsi+0x0c] = SeqCAstNode::type_
+    int lineNr = this->lineNr_;                                  // [rsi+0x0c] = SeqCAstNode::lineNr_
     ctx.messages->setLineNr(lineNr);                           // @0x22850c
     ctx.asmCommands->setWavetableFrontIndex(lineNr);             // @0x228515: [r14+0x8]->+0x50
     ctx.wavetable->setLineNr(lineNr);                          // @0x22851e
@@ -5505,7 +5505,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                     // @0x228f74
-    int lineNr = this->type_;                                  // [rsi+0x0c] = SeqCAstNode::type_
+    int lineNr = this->lineNr_;                                  // [rsi+0x0c] = SeqCAstNode::lineNr_
     ctx.messages->setLineNr(lineNr);                           // @0x228f7c
     ctx.asmCommands->setWavetableFrontIndex(lineNr);             // @0x228f85: [r14+0x8]->+0x50
     ctx.wavetable->setLineNr(lineNr);                          // @0x228f8e
@@ -5603,7 +5603,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
         int inverted = ~intVal;
 
         // Construct Value with int payload and store.         // @0x229733
-        Value result(inverted);                                // which_=0, type_=1 (int)
+        Value result(inverted);                                // which_=0, lineNr_=1 (int)
         childResult->setValue(result);                          // @0x229759
         return childResult;                                    // @0x229779
 
@@ -5639,7 +5639,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                     // @0x2299a7
-    int lineNr = this->type_;                                  // [rsi+0x0c] = SeqCAstNode::type_
+    int lineNr = this->lineNr_;                                  // [rsi+0x0c] = SeqCAstNode::lineNr_
     ctx.messages->setLineNr(lineNr);                           // @0x2299b1
     ctx.asmCommands->setWavetableFrontIndex(lineNr);           // @0x2299b6: [r14+0x8]->+0x50
     ctx.wavetable->setLineNr(lineNr);                          // @0x2299c5
@@ -5785,7 +5785,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                 // @0x226a64
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                // @0x226a7f
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                // @0x226a88
     ctx.wavetable->setLineNr(lineNr);                               // @0x226a95
@@ -6324,7 +6324,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
     FrontendLoweringState& state) const
 {
     // 0x20c6a0–0x20c6ee  Prologue: setLineNr on messages, asmCommands, wavetable
-    const int lineNr = type_;                                    // @0x20c6cb
+    const int lineNr = lineNr_;                                    // @0x20c6cb
     ctx.messages->setLineNr(lineNr);                             // @0x20c6d3
     ctx.asmCommands->setWavetableFrontIndex(lineNr);             // @0x20c6dc
     ctx.wavetable->setLineNr(lineNr);                            // @0x20c6e9
@@ -6762,7 +6762,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& state) const
 {
-    const int lineNr = type_;                                        // @0x211167
+    const int lineNr = lineNr_;                                        // @0x211167
     ctx.messages->setLineNr(lineNr);                                 // @0x21116f
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x211174
     ctx.wavetable->setLineNr(lineNr);                                // @0x211188
@@ -6909,7 +6909,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x213907
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x21390f
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x213918
     ctx.wavetable->setLineNr(lineNr);                                // @0x213925
@@ -7099,7 +7099,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
     }
 
     // ---- Prologue: set lineNr on subsystems ----                  // @0x21aa6f
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x21aa7a
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x21aa84
     ctx.wavetable->setLineNr(lineNr);                                // @0x21aa95
@@ -7409,7 +7409,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x217a94
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x217aaf
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x217ab9
     ctx.wavetable->setLineNr(lineNr);                                // @0x217aca
@@ -7938,7 +7938,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x21e158
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x21e162
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x21e16b
     ctx.wavetable->setLineNr(lineNr);                                // @0x21e176
@@ -8199,7 +8199,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x21fd2b
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x21fd33
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x21fd38
     ctx.wavetable->setLineNr(lineNr);                                // @0x21fd45
@@ -8514,7 +8514,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x221c37
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x221c41
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x221c46
     ctx.wavetable->setLineNr(lineNr);                                // @0x221c52
@@ -8849,7 +8849,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x214d77
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x214d7f
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x214d88
     ctx.wavetable->setLineNr(lineNr);                                // @0x214d91
@@ -9134,7 +9134,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x223db4
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x223dbc
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x223dc0
     ctx.wavetable->setLineNr(lineNr);                                // @0x223dc8
@@ -9495,7 +9495,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     FrontendLoweringState& state) const
 {
     // 0x20b200–0x20b254  Prologue
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -9556,7 +9556,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     VarType returnVarType;
     if (retType()) {
         // retType() is a SeqCVariableType; its varType is stored at +0x14
-        // which is the asmId_ / type_ field repurposed as VarType for leaves.
+        // which is the asmId_ / lineNr_ field repurposed as VarType for leaves.
         returnVarType = static_cast<VarType>(retType()->type());
     } else {
         returnVarType = VarType_Void;
@@ -9635,7 +9635,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
                 ctx.messages->errorMessage(
                     ErrorMessages::format(ErrorMessageT::FuncNoReturn,
                                           funName, vtStr),
-                    type_);
+                    lineNr_);
             }
         } else {
             // bodyResult is null
@@ -9677,7 +9677,7 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
     FrontendLoweringState& state) const
 {
     // ---- Prologue: set lineNr on subsystems ----                  // @0x21b6a5
-    const int lineNr = type_;
+    const int lineNr = lineNr_;
     ctx.messages->setLineNr(lineNr);                                 // @0x21b6ad
     ctx.asmCommands->setWavetableFrontIndex(lineNr);                 // @0x21b6b6
     ctx.wavetable->setLineNr(lineNr);                                // @0x21b6c3

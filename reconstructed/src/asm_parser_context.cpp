@@ -390,28 +390,9 @@ AsmExpression* addCommand(AsmParserContext* ctx,
 }  // namespace zhinst
 
 // ============================================================================
-// Bison/flex interface (C-linkage in binary, but mangled as C++ here)
-// ============================================================================
-
-// 0x292a60
-// Called by the bison parser on syntax errors.
-// Wraps msg in a std::string, calls ctx->raiseError(msg),
-// then calls ctx->setSyntaxError(). Always returns 1.
-int asmerror(zhinst::AsmParserContext* ctx,
-             zhinst::AsmExpression** /*result*/,
-             void* /*scanner*/,
-             const char* msg) {
-    std::string errorMsg(msg);
-    ctx->raiseError(errorMsg);
-    ctx->setSyntaxError();
-    return 1;
-}
-
-// 0x292b50
-// Bison-generated parser — ~217KB (0x35000 bytes). Not reconstructed.
-// Signature: int asmparse(AsmParserContext*, AsmExpression**, void*)
-// This is the entry point for the bison LALR parser that processes
-// the assembly token stream from the flex scanner and builds the
-// AsmExpression tree.
+// asmerror is defined in asm_parser.y (bison epilogue) to avoid ODR
+// violations with the generated asm_parser.tab.c which #defines
+// yyerror → asmerror.
 //
-// NOT RECONSTRUCTED — bison-generated, ~217KB of parser tables and actions.
+// asmparse (0x292b50) — bison-generated parser (~217KB). Not reconstructed.
+// ============================================================================

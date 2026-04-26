@@ -36,7 +36,7 @@
 
 %option reentrant
 %option bison-bridge
-%option prefix="seqc"
+%option prefix="seqc_"
 %option noyywrap
 %option nounput
 %option noinput

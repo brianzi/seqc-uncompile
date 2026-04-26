@@ -138,7 +138,7 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
     case 2: {
         // Symbol/label reference — look up in label map (bimap at this+0xD8)
         // The bimap maps string->int (label name -> address)
-        auto& labelMap = *(LabelBimap*)(((char*)this) + 0xD8);
+        auto& labelMap = labelBimap_;
         auto it = labelMap.left.find(e->name);  // e->name at offset 0x08
         if (it == labelMap.left.end()) {
             // Label not found — throw out_of_range  

@@ -26,14 +26,15 @@
 #define LOG_ERROR(msg) (void)0
 #endif
 
-// Forward declarations for flex/bison generated functions
-extern "C" {
-    int asmlex_init_extra(void* extra, void** scanner);
-    void* asm_scan_string(const char* str, void* scanner);
-    void asm_delete_buffer(void* buf, void* scanner);
-    int asmlex_destroy(void* scanner);
-    int asmparse(void* ctx, void** result, void* scanner);
-}
+// Forward declarations for flex/bison generated functions.
+// Compiled as C++ (LANGUAGE CXX in CMake), signatures must match exactly.
+namespace zhinst { class AsmParserContext; class AsmExpression; }
+struct yy_buffer_state;
+int asmlex_init_extra(zhinst::AsmParserContext* extra, void** scanner);
+yy_buffer_state* asm_scan_string(const char* str, void* scanner);
+void asm_delete_buffer(yy_buffer_state* buf, void* scanner);
+int asmlex_destroy(void* scanner);
+int asmparse(zhinst::AsmParserContext* ctx, zhinst::AsmExpression** result, void* scanner);
 
 namespace zhinst {
 
@@ -431,9 +432,7 @@ void AWGAssemblerImpl::assembleExpressions(
     }
 
     // Clear the label bimap
-    auto& labelBimap = *reinterpret_cast<LabelBimap*>(
-        reinterpret_cast<char*>(this) + 0xB0);
-    labelBimap.clear();
+    labelBimap_.clear();
 
     // First pass: register all labels
     for (const auto& expr : expressions) {
@@ -442,7 +441,7 @@ void AWGAssemblerImpl::assembleExpressions(
             int labelIndex = e->lineNumber();  // +0x58 (labelIndex; verified disasm 0x285732 mov r15d,[rax+0x58])
             std::string labelName = e->labelName;  // at +0x60
             // Insert into bimap: (name -> index)
-            labelBimap.insert({labelName, labelIndex});
+            labelBimap_.insert({labelName, labelIndex});
         }
     }
 

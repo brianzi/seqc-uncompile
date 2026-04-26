@@ -1,0 +1,86 @@
+[
+  {
+    "name": "hdawg_nop",
+    "code": "while(1);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_playZero",
+    "code": "playZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_repeat_playZero",
+    "code": "repeat(10) { playZero(32); }",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_variable",
+    "code": "var x = 5;\nwhile(1);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_setTrigger",
+    "code": "setTrigger(1);\nsetTrigger(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_waitWave",
+    "code": "playZero(64);\nwaitWave();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_for_loop",
+    "file": "hdawg_for_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_if_else",
+    "file": "hdawg_if_else.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_nested_repeat",
+    "file": "hdawg_nested_repeat.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "shfqa_nop",
+    "code": "while(1);",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfsg_nop",
+    "code": "while(1);",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "hdawg_awg1",
+    "code": "playZero(64);",
+    "devtype": "HDAWG8",
+    "index": 1,
+    "samplerate": 2.4e9
+  }
+]

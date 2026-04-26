@@ -4,6 +4,7 @@
 // ============================================================================
 
 #include "zhinst/asm_commands.hpp"
+#include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/error_messages.hpp"
 #include "zhinst/resources.hpp"  // for ResourcesException
 #include "zhinst/node.hpp"
@@ -12,6 +13,22 @@
 #include <limits>
 
 namespace zhinst {
+
+// =========================================================================
+// Constructor
+// =========================================================================
+
+// Binary: constructed inline in Compiler::Compiler at 0x11d080
+// Creates the device-specific impl via AsmCommandsImpl::getInstance().
+AsmCommands::AsmCommands(const AWGCompilerConfig& config,
+                         std::shared_ptr<WavetableFront> wavetable,
+                         std::function<void(const std::string&)> errorHandler)
+    : impl_(AsmCommandsImpl::getInstance(config.deviceType))
+    , wavetable_(std::move(wavetable))
+    , errorHandler_(std::move(errorHandler))
+    , wavetableFrontIndex_(0)
+    , numChannelGroups_(config.numChannelGroups)
+{}
 
 // nextSequenceId() is defined in asm_list.hpp as an inline wrapper
 // around AsmList::Asm::createUniqueID(false).

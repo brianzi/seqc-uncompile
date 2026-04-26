@@ -66,9 +66,9 @@ std::vector<uint32_t> const& AWGAssembler::getOpcode() const
 
 // 0x285150 — sret: rdi=retval, rsi=this
 // Returns string by value
-// std::string AWGAssembler::getReport() const {
-//     return pImpl_->getReport();
-// }
+std::string AWGAssembler::getReport() const {
+    return pImpl_->getReport();
+}
 
 // 0x285170
 void AWGAssembler::printOpcode(int format) const
