@@ -66,11 +66,11 @@ Signal::Signal(size_t numSamples, double value, uint8_t marker, uint16_t channel
     // Compute length
     length_ = numSamples / static_cast<size_t>(channels);
 
-    // Distribute marker bits: iterate over (channels + (channels > 1 ? 1 : 0)) indices,
-    // OR the marker into markerBits_[i % markerBits_.size()]
-    size_t numEntries = static_cast<size_t>(channels);
-    if (channels > 1)
-        numEntries++;
+    // Distribute marker bits: iterate over max(1, channels) indices,
+    // OR the marker into markerBits_[i % markerBits_.size()].
+    // Binary at 0x25ec5c: cmp $1,%r13; adc $0,%r13 — adds 1 only when
+    // channels==0 (CF set by unsigned cmp), giving max(1, channels).
+    size_t numEntries = (channels > 0) ? static_cast<size_t>(channels) : 1;
 
     size_t mbSize = markerBits_.size();
     for (size_t i = 0; i < numEntries; ++i) {
@@ -438,7 +438,7 @@ std::unique_ptr<RawWave> Signal::getRawData(SampleFormat format) const { // 0x29
 //     Exact comparison on channels_, reserveOnly_, length_.
 //
 //     Tolerance formula: |a[i] - b[i]| <= |b[i]| * epsilon + epsilon
-//     where epsilon is a constant (loaded from 0x956350, likely ~1e-7).
+//     where epsilon is 1e-12 (loaded from 0x956350).
 // ==========================================================================
 bool Signal::operator==(Signal const& other) const { // 0x2a9750
     // Fuzzy comparison on samples

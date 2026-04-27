@@ -80,10 +80,10 @@ class ElfInfo:
 def _parse_elf32(data: bytes, info: ElfInfo) -> ElfInfo:
     hdr = struct.unpack_from("<HHIIIIIHHHHHH", data, 16)
     info.e_type, info.e_machine, _, info.e_entry = hdr[0], hdr[1], hdr[2], hdr[3]
-    e_shoff = hdr[4]
-    e_shentsize = hdr[9]
-    e_shnum = hdr[10]
-    e_shstrndx = hdr[11]
+    e_shoff = hdr[5]
+    e_shentsize = hdr[10]
+    e_shnum = hdr[11]
+    e_shstrndx = hdr[12]
 
     if e_shoff == 0 or e_shnum == 0:
         return info

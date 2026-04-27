@@ -18,6 +18,17 @@
 namespace zhinst {
 namespace detail {
 
+// Subtype selector constants — extracted from binary .rodata selector masks.
+// The `opts` bitfield encodes the device sub-variant in bits [8:6] (mask 0x1C0).
+// Values select specific device subclasses within a family.
+namespace {
+constexpr unsigned long kSubtypeMask = 0x1C0ul;  // bits [8:6]
+constexpr unsigned long kSubtype1    = 0x040ul;  // slot 1 (LI variants)
+constexpr unsigned long kSubtype2    = 0x080ul;  // slot 2 (IS/AWG/8 variants)
+constexpr unsigned long kSubtype3    = 0x0C0ul;  // slot 3 (QA variants)
+constexpr unsigned long kSubtype4    = 0x100ul;  // slot 4 (IA variants)
+} // anonymous namespace
+
 // ===========================================================================
 // DeviceFamilyFactory — abstract base
 // ===========================================================================
@@ -34,12 +45,21 @@ std::unique_ptr<DeviceTypeImpl> DeviceFamilyFactory::makeDeviceType(unsigned lon
     return doMakeDeviceType(opts);
 }
 
+// Zero-arg overload — same as makeDefault().
+std::unique_ptr<DeviceTypeImpl> DeviceFamilyFactory::makeDeviceType() {
+    return doMakeDefault();
+}
+
 // ===========================================================================
 // NoDeviceTypeFactory — produces base DeviceTypeImpl (default-constructed).
 // Vtable @ 0xb092d8.
 // ===========================================================================
 
 NoDeviceTypeFactory::~NoDeviceTypeFactory() = default;  // @ 0x2e0800
+
+std::unique_ptr<DeviceTypeImpl> NoDeviceTypeFactory::makeDefault() {
+    return doMakeDefault();
+}
 
 // @ 0x2e0700
 std::unique_ptr<DeviceTypeImpl> NoDeviceTypeFactory::doMakeDefault() {
@@ -58,6 +78,10 @@ std::unique_ptr<DeviceTypeImpl> NoDeviceTypeFactory::doMakeDeviceType(unsigned l
 
 UnknownDeviceTypeFactory::~UnknownDeviceTypeFactory() = default;  // @ 0x2e0820
 
+std::unique_ptr<DeviceTypeImpl> UnknownDeviceTypeFactory::makeDefault() {
+    return doMakeDefault();
+}
+
 // @ 0x2e0760
 std::unique_ptr<DeviceTypeImpl> UnknownDeviceTypeFactory::doMakeDefault() {
     return std::unique_ptr<DeviceTypeImpl>(new UnknownDevice());
@@ -74,6 +98,7 @@ std::unique_ptr<DeviceTypeImpl> UnknownDeviceTypeFactory::doMakeDeviceType(unsig
 
 // ---- HF2 ----
 Hf2Factory::~Hf2Factory() = default;                    // @ 0x2e0ae0
+std::unique_ptr<DeviceTypeImpl> Hf2Factory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e09e0 — inlines `new Hf2()` (no opts).
 std::unique_ptr<DeviceTypeImpl> Hf2Factory::doMakeDefault() {
@@ -82,14 +107,15 @@ std::unique_ptr<DeviceTypeImpl> Hf2Factory::doMakeDefault() {
 
 // @ 0x2e0a40 — selector mask 0x1c0; 0x80→Hf2is, 0x40→Hf2li, else→Hf2.
 std::unique_ptr<DeviceTypeImpl> Hf2Factory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x80ul) return std::unique_ptr<DeviceTypeImpl>(new Hf2is(opts));
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Hf2li(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype2) return std::unique_ptr<DeviceTypeImpl>(new Hf2is(opts));
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Hf2li(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Hf2());
 }
 
 // ---- MF ----
 MfFactory::~MfFactory() = default;                      // @ 0x2e10c0
+std::unique_ptr<DeviceTypeImpl> MfFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e0fc0
 std::unique_ptr<DeviceTypeImpl> MfFactory::doMakeDefault() {
@@ -98,14 +124,15 @@ std::unique_ptr<DeviceTypeImpl> MfFactory::doMakeDefault() {
 
 // @ 0x2e1020 — selector mask 0x1c0; 0x80→Mfia, 0x40→Mfli, else→Mf.
 std::unique_ptr<DeviceTypeImpl> MfFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x80ul) return std::unique_ptr<DeviceTypeImpl>(new Mfia(opts));
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Mfli(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype2) return std::unique_ptr<DeviceTypeImpl>(new Mfia(opts));
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Mfli(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Mf());
 }
 
 // ---- UHF ----
 UhfFactory::~UhfFactory() = default;                    // @ 0x2e18b0
+std::unique_ptr<DeviceTypeImpl> UhfFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e1780
 std::unique_ptr<DeviceTypeImpl> UhfFactory::doMakeDefault() {
@@ -120,18 +147,19 @@ std::unique_ptr<DeviceTypeImpl> UhfFactory::doMakeDefault() {
 //   else (incl. 0) → Uhf base
 // (Selector slot order decoded from .rodata jump table @ 0x9624e0.)
 std::unique_ptr<DeviceTypeImpl> UhfFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
+    auto sub = opts & kSubtypeMask;
     switch (sub) {
-        case 0x40ul:  return std::unique_ptr<DeviceTypeImpl>(new Uhfli(opts));
-        case 0x80ul:  return std::unique_ptr<DeviceTypeImpl>(new Uhfawg(opts));
-        case 0xc0ul:  return std::unique_ptr<DeviceTypeImpl>(new Uhfqa(opts));
-        case 0x100ul: return std::unique_ptr<DeviceTypeImpl>(new Uhfia(opts));
+        case kSubtype1:  return std::unique_ptr<DeviceTypeImpl>(new Uhfli(opts));
+        case kSubtype2:  return std::unique_ptr<DeviceTypeImpl>(new Uhfawg(opts));
+        case kSubtype3:  return std::unique_ptr<DeviceTypeImpl>(new Uhfqa(opts));
+        case kSubtype4:  return std::unique_ptr<DeviceTypeImpl>(new Uhfia(opts));
         default:      return std::unique_ptr<DeviceTypeImpl>(new Uhf());
     }
 }
 
 // ---- HDAWG ----
 HdawgFactory::~HdawgFactory() = default;                // @ 0x2e2190
+std::unique_ptr<DeviceTypeImpl> HdawgFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e2090
 std::unique_ptr<DeviceTypeImpl> HdawgFactory::doMakeDefault() {
@@ -140,14 +168,15 @@ std::unique_ptr<DeviceTypeImpl> HdawgFactory::doMakeDefault() {
 
 // @ 0x2e20f0 — selector mask 0x1c0; 0x80→Hdawg8, 0x40→Hdawg4, else→Hdawg.
 std::unique_ptr<DeviceTypeImpl> HdawgFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x80ul) return std::unique_ptr<DeviceTypeImpl>(new Hdawg8(opts));
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Hdawg4(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype2) return std::unique_ptr<DeviceTypeImpl>(new Hdawg8(opts));
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Hdawg4(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Hdawg());
 }
 
 // ---- SHF ----
 ShfFactory::~ShfFactory() = default;                    // @ 0x2e2be0
+std::unique_ptr<DeviceTypeImpl> ShfFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e2ab0 — inlines `new Shf(0)` semantics; binary calls Shf(opts) but
 // makeDefault has no opts available — passes 0. Confirmed by the
@@ -175,6 +204,7 @@ std::unique_ptr<DeviceTypeImpl> ShfFactory::doMakeDeviceType(unsigned long opts)
 
 // ---- SHFACC ----
 ShfaccFactory::~ShfaccFactory() = default;              // @ 0x2e3530
+std::unique_ptr<DeviceTypeImpl> ShfaccFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e3450 — calls Shfacc(0).
 std::unique_ptr<DeviceTypeImpl> ShfaccFactory::doMakeDefault() {
@@ -185,14 +215,15 @@ std::unique_ptr<DeviceTypeImpl> ShfaccFactory::doMakeDefault() {
 // else→Shfacc. Note "default" subclass is Shfacc itself (not a
 // distinct base).
 std::unique_ptr<DeviceTypeImpl> ShfaccFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x80ul) return std::unique_ptr<DeviceTypeImpl>(new Shfppc4(opts));
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Shfppc2(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype2) return std::unique_ptr<DeviceTypeImpl>(new Shfppc4(opts));
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Shfppc2(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Shfacc(opts));
 }
 
 // ---- GHF ----
 GhfFactory::~GhfFactory() = default;                    // @ 0x2e3920
+std::unique_ptr<DeviceTypeImpl> GhfFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e3860
 std::unique_ptr<DeviceTypeImpl> GhfFactory::doMakeDefault() {
@@ -201,13 +232,14 @@ std::unique_ptr<DeviceTypeImpl> GhfFactory::doMakeDefault() {
 
 // @ 0x2e38b0 — selector mask 0x1c0; 0x40→Ghfli, else→Ghf.
 std::unique_ptr<DeviceTypeImpl> GhfFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Ghfli(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Ghfli(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Ghf(opts));
 }
 
 // ---- PQSC ----
 PqscFactory::~PqscFactory() = default;                  // @ 0x2e3b40
+std::unique_ptr<DeviceTypeImpl> PqscFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e3a80 — ignores opts; always Pqsc.
 std::unique_ptr<DeviceTypeImpl> PqscFactory::doMakeDefault() {
@@ -221,6 +253,7 @@ std::unique_ptr<DeviceTypeImpl> PqscFactory::doMakeDeviceType(unsigned long /*op
 
 // ---- QHUB ----
 QhubFactory::~QhubFactory() = default;                  // @ 0x2e3ce0
+std::unique_ptr<DeviceTypeImpl> QhubFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e3c20
 std::unique_ptr<DeviceTypeImpl> QhubFactory::doMakeDefault() {
@@ -234,6 +267,7 @@ std::unique_ptr<DeviceTypeImpl> QhubFactory::doMakeDeviceType(unsigned long /*op
 
 // ---- HWMOCK ----
 HwmockFactory::~HwmockFactory() = default;              // @ 0x2e3f00
+std::unique_ptr<DeviceTypeImpl> HwmockFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e3e60
 std::unique_ptr<DeviceTypeImpl> HwmockFactory::doMakeDefault() {
@@ -247,6 +281,7 @@ std::unique_ptr<DeviceTypeImpl> HwmockFactory::doMakeDeviceType(unsigned long /*
 
 // ---- VHF ----
 VhfFactory::~VhfFactory() = default;                    // @ 0x2e41f0
+std::unique_ptr<DeviceTypeImpl> VhfFactory::makeDefault() { return doMakeDefault(); }
 
 // @ 0x2e4130
 std::unique_ptr<DeviceTypeImpl> VhfFactory::doMakeDefault() {
@@ -255,8 +290,8 @@ std::unique_ptr<DeviceTypeImpl> VhfFactory::doMakeDefault() {
 
 // @ 0x2e4180 — selector mask 0x1c0; 0x40→Vhfli, else→Vhf(opts).
 std::unique_ptr<DeviceTypeImpl> VhfFactory::doMakeDeviceType(unsigned long opts) {
-    auto sub = opts & 0x1c0ul;
-    if (sub == 0x40ul) return std::unique_ptr<DeviceTypeImpl>(new Vhfli(opts));
+    auto sub = opts & kSubtypeMask;
+    if (sub == kSubtype1) return std::unique_ptr<DeviceTypeImpl>(new Vhfli(opts));
     return std::unique_ptr<DeviceTypeImpl>(new Vhf(opts));
 }
 

@@ -177,9 +177,8 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
         Name(EValueCategory vc, int type, EDirection dir,              \
              VarType vt)                                                    \
             : SeqCAstNode(vc, type, dir) { varType_ = vt; }                \
-        Name(Name const& o) : SeqCAstNode(o.valueCategory_, o.lineNr_,       \
-            o.direction_) { varType_ = o.varType_; }                        \
-        Name& operator=(Name o) { swap(*this, o); return *this; }           \
+        Name(Name const& o);                                                \
+        Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
         std::unique_ptr<SeqCAstNode> clone() const override;                \
@@ -187,14 +186,30 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
-        friend void swap(Name& a, Name& b) {                               \
-            swap(static_cast<SeqCAstNode&>(a),                              \
-                 static_cast<SeqCAstNode&>(b));                             \
-        }                                                                   \
+        friend void swap(Name& a, Name& b);                                \
     };                                                                      \
     static_assert(sizeof(Name) == 0x18, #Name " must be 0x18 bytes")
 
-SEQC_TRIVIAL_LEAF(SeqCOperation,         0xb04f60);
+// SeqCOperation — broken out of SEQC_TRIVIAL_LEAF for extra getVarTypes override.
+// vtable @0xb04f60.
+class SeqCOperation : public SeqCAstNode {
+public:
+    SeqCOperation(EValueCategory vc, int type, EDirection dir,
+                  VarType vt);  // out-of-line for symbol emission
+    SeqCOperation(SeqCOperation const& o);
+    SeqCOperation& operator=(SeqCOperation o);
+    ~SeqCOperation() override;
+    void print() const override;
+    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::shared_ptr<EvalResults> evaluate(
+        std::shared_ptr<Resources> res,
+        FrontendLoweringContext& ctx,
+        FrontendLoweringState& state) const override;
+    std::vector<std::string> getVarTypes() const override;  // @0x1fdb40
+    friend void swap(SeqCOperation& a, SeqCOperation& b);
+};
+static_assert(sizeof(SeqCOperation) == 0x18, "SeqCOperation must be 0x18 bytes");
+
 SEQC_TRIVIAL_LEAF(SeqCCommand,           0xb05050);
 SEQC_TRIVIAL_LEAF(SeqCVariableType,      0xb050a0);
 SEQC_TRIVIAL_LEAF(SeqCLabel,             0xb05390);
@@ -217,7 +232,7 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
              VarType vt,                                                    \
              std::unique_ptr<SeqCAstNode> child);                           \
         Name(Name const& o);                                                \
-        Name& operator=(Name o) { swap(*this, o); return *this; }           \
+        Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
         std::unique_ptr<SeqCAstNode> clone() const override;                \
@@ -227,11 +242,7 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
         const SeqCAstNode* expr() const { return child_.get(); }            \
-        friend void swap(Name& a, Name& b) {                               \
-            swap(static_cast<SeqCAstNode&>(a),                              \
-                 static_cast<SeqCAstNode&>(b));                             \
-            std::swap(a.child_, b.child_);                                  \
-        }                                                                   \
+        friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::unique_ptr<SeqCAstNode> child_;  /* +0x18 */                   \
     };                                                                      \
@@ -260,7 +271,7 @@ public:
                  std::unique_ptr<SeqCAstNode> lhs,
                  std::unique_ptr<SeqCAstNode> rhs);
     SeqCOperator(SeqCOperator const& o);
-    SeqCOperator& operator=(SeqCOperator o) { swap(*this, o); return *this; }
+    SeqCOperator& operator=(SeqCOperator o);
     ~SeqCOperator() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -281,11 +292,7 @@ public:
     const SeqCAstNode* lhs() const { return lhs_.get(); }
     const SeqCAstNode* rhs() const { return rhs_.get(); }
 
-    friend void swap(SeqCOperator& a, SeqCOperator& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.lhs_, b.lhs_);
-        std::swap(a.rhs_, b.rhs_);
-    }
+    friend void swap(SeqCOperator& a, SeqCOperator& b);
 
 protected:
     std::unique_ptr<SeqCAstNode> lhs_;   // +0x18
@@ -299,11 +306,8 @@ static_assert(sizeof(SeqCOperator) == 0x28,
     class Name : public SeqCOperator {                                      \
     public:                                                                 \
         using SeqCOperator::SeqCOperator;                                   \
-        Name(Name const& o) : SeqCOperator(o) {}                            \
-        Name& operator=(Name o) {                                            \
-            swap(static_cast<SeqCOperator&>(*this),                          \
-                 static_cast<SeqCOperator&>(o));                             \
-            return *this; }                                                  \
+        Name(Name const& o);                                                \
+        Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
         std::unique_ptr<SeqCAstNode> clone() const override;                \
@@ -355,7 +359,7 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
              std::unique_ptr<SeqCAstNode> first,                            \
              std::unique_ptr<SeqCAstNode> second);                          \
         Name(Name const& o);                                                \
-        Name& operator=(Name o) { swap(*this, o); return *this; }           \
+        Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
         std::unique_ptr<SeqCAstNode> clone() const override;                \
@@ -366,22 +370,100 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
             FrontendLoweringState& state) const override;                   \
         const SeqCAstNode* FirstAccessor()  const { return first_.get(); }  \
         const SeqCAstNode* SecondAccessor() const { return second_.get(); } \
-        friend void swap(Name& a, Name& b) {                               \
-            swap(static_cast<SeqCAstNode&>(a),                              \
-                 static_cast<SeqCAstNode&>(b));                             \
-            std::swap(a.first_, b.first_);                                  \
-            std::swap(a.second_, b.second_);                                \
-        }                                                                   \
+        friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */                  \
         std::unique_ptr<SeqCAstNode> second_;  /* +0x20 */                  \
     };                                                                      \
     static_assert(sizeof(Name) == 0x28, #Name " must be 0x28 bytes")
 
-SEQC_BINARY(SeqCFunctionCall, funName,  arguments,  0xb05140);
-SEQC_BINARY(SeqCArray,        index,    array, 0xb051e8);
+// Forward declarations for typed children
+class SeqCVariable;
+
+// SeqCFunctionCall — broken out of SEQC_BINARY because first_ is unique_ptr<SeqCVariable>.
+// vtable @0xb05140.  Layout: SeqCAstNode(24B) + 2 unique_ptrs at +0x18, +0x20 = 0x28 bytes.
+class SeqCFunctionCall : public SeqCAstNode {
+public:
+    SeqCFunctionCall(EValueCategory vc, int type, EDirection dir,
+                     VarType vt,
+                     std::unique_ptr<SeqCVariable> first,
+                     std::unique_ptr<SeqCAstNode> second);
+    SeqCFunctionCall(SeqCFunctionCall const& o);
+    SeqCFunctionCall& operator=(SeqCFunctionCall o);
+    ~SeqCFunctionCall() override;
+    void print() const override;
+    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::vector<const SeqCAstNode*> children() const override;
+    std::shared_ptr<EvalResults> evaluate(
+        std::shared_ptr<Resources> res,
+        FrontendLoweringContext& ctx,
+        FrontendLoweringState& state) const override;
+    const SeqCVariable* funName()    const { return first_.get(); }
+    const SeqCAstNode*  arguments()  const { return second_.get(); }
+    friend void swap(SeqCFunctionCall& a, SeqCFunctionCall& b);
+private:
+    std::unique_ptr<SeqCVariable>  first_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode>   second_;  /* +0x20 */
+};
+static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 bytes");
+
+// SeqCArray — broken out of SEQC_BINARY because first_ is unique_ptr<SeqCVariable>.
+// vtable @0xb051e8.  Layout identical (0x28 bytes).
+class SeqCArray : public SeqCAstNode {
+public:
+    SeqCArray(EValueCategory vc, int type, EDirection dir,
+              VarType vt,
+              std::unique_ptr<SeqCVariable> first,
+              std::unique_ptr<SeqCAstNode> second);
+    SeqCArray(SeqCArray const& o);
+    SeqCArray& operator=(SeqCArray o);
+    ~SeqCArray() override;
+    void print() const override;
+    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::vector<const SeqCAstNode*> children() const override;
+    std::shared_ptr<EvalResults> evaluate(
+        std::shared_ptr<Resources> res,
+        FrontendLoweringContext& ctx,
+        FrontendLoweringState& state) const override;
+    const SeqCVariable* index() const { return first_.get(); }
+    const SeqCAstNode*  array() const { return second_.get(); }
+    friend void swap(SeqCArray& a, SeqCArray& b);
+private:
+    std::unique_ptr<SeqCVariable>  first_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode>   second_;  /* +0x20 */
+};
+static_assert(sizeof(SeqCArray) == 0x28, "SeqCArray must be 0x28 bytes");
+
 SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  0xb053e0);
-SEQC_BINARY(SeqCCaseEntry,    label,    body,  0xb05518);
+
+// SeqCCaseEntry — broken out of SEQC_BINARY for extra methods (validLabel, hasLabel).
+// vtable @0xb05518.  Layout identical (0x28 bytes).
+class SeqCCaseEntry : public SeqCAstNode {
+public:
+    SeqCCaseEntry(EValueCategory vc, int type, EDirection dir,
+                  VarType vt,
+                  std::unique_ptr<SeqCAstNode> first,
+                  std::unique_ptr<SeqCAstNode> second);
+    SeqCCaseEntry(SeqCCaseEntry const& o);
+    SeqCCaseEntry& operator=(SeqCCaseEntry o);
+    ~SeqCCaseEntry() override;
+    void print() const override;
+    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::vector<const SeqCAstNode*> children() const override;
+    std::shared_ptr<EvalResults> evaluate(
+        std::shared_ptr<Resources> res,
+        FrontendLoweringContext& ctx,
+        FrontendLoweringState& state) const override;
+    const SeqCAstNode* label()      const { return first_.get(); }
+    const SeqCAstNode* body()       const;  // out-of-line for symbol emission
+    bool               validLabel() const;  // first_ != nullptr
+    bool               hasLabel()   const;  // first_ != nullptr
+    friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
+private:
+    std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode> second_;  /* +0x20 */
+};
+static_assert(sizeof(SeqCCaseEntry) == 0x28, "SeqCCaseEntry must be 0x28 bytes");
 // Forward declaration for SeqCSwitchCase::cases() return type
 class SeqCStmtList;
 // SeqCSwitchCase — broken out of SEQC_BINARY for extra methods (hasCases, evalCases).
@@ -393,7 +475,7 @@ public:
                    std::unique_ptr<SeqCAstNode> first,
                    std::unique_ptr<SeqCAstNode> second);
     SeqCSwitchCase(SeqCSwitchCase const& o);
-    SeqCSwitchCase& operator=(SeqCSwitchCase o) { swap(*this, o); return *this; }
+    SeqCSwitchCase& operator=(SeqCSwitchCase o);
     ~SeqCSwitchCase() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -417,11 +499,7 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const;                         // @0x216980
 
-    friend void swap(SeqCSwitchCase& a, SeqCSwitchCase& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.first_, b.first_);
-        std::swap(a.second_, b.second_);
-    }
+    friend void swap(SeqCSwitchCase& a, SeqCSwitchCase& b);
 
 private:
     std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */
@@ -446,7 +524,7 @@ public:
                std::unique_ptr<SeqCAstNode> ifBody,
                std::unique_ptr<SeqCAstNode> elseBody);   // 0x202150
     SeqCIfElse(SeqCIfElse const& o);
-    SeqCIfElse& operator=(SeqCIfElse o) { swap(*this, o); return *this; }
+    SeqCIfElse& operator=(SeqCIfElse o);
     ~SeqCIfElse() override;
     void print() const override;                          // 0x201df0
     std::unique_ptr<SeqCAstNode> clone() const override;  // 0x2021a0
@@ -460,12 +538,7 @@ public:
     const SeqCAstNode* ifBody()   const { return ifBody_.get(); }    // 0x202330
     const SeqCAstNode* elseBody() const { return elseBody_.get(); }  // 0x202340
 
-    friend void swap(SeqCIfElse& a, SeqCIfElse& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.cond_, b.cond_);
-        std::swap(a.ifBody_, b.ifBody_);
-        std::swap(a.elseBody_, b.elseBody_);
-    }
+    friend void swap(SeqCIfElse& a, SeqCIfElse& b);
 
 private:
     std::unique_ptr<SeqCAstNode> cond_;       // +0x18
@@ -482,7 +555,7 @@ public:
                  std::unique_ptr<SeqCAstNode> ifBody,
                  std::unique_ptr<SeqCAstNode> elseBody);
     SeqCCondExpr(SeqCCondExpr const& o);
-    SeqCCondExpr& operator=(SeqCCondExpr o) { swap(*this, o); return *this; }
+    SeqCCondExpr& operator=(SeqCCondExpr o);
     ~SeqCCondExpr() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -496,12 +569,7 @@ public:
     const SeqCAstNode* ifBody()   const { return ifBody_.get(); }    // @0x2040e0
     const SeqCAstNode* elseBody() const { return elseBody_.get(); }  // @0x2040f0
 
-    friend void swap(SeqCCondExpr& a, SeqCCondExpr& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.cond_, b.cond_);
-        std::swap(a.ifBody_, b.ifBody_);
-        std::swap(a.elseBody_, b.elseBody_);
-    }
+    friend void swap(SeqCCondExpr& a, SeqCCondExpr& b);
 
 private:
     std::unique_ptr<SeqCAstNode> cond_;          // +0x18
@@ -521,9 +589,9 @@ public:
                  std::unique_ptr<SeqCFunctionCall> call,
                  std::unique_ptr<SeqCAstNode> params,
                  std::unique_ptr<SeqCAstNode> body,
-                 std::unique_ptr<SeqCAstNode> retType);
+                 std::unique_ptr<SeqCVariableType> retType);
     SeqCFunction(SeqCFunction const& o);
-    SeqCFunction& operator=(SeqCFunction o) { swap(*this, o); return *this; }
+    SeqCFunction& operator=(SeqCFunction o);
     ~SeqCFunction() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -533,24 +601,18 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x20b200
 
-    const SeqCFunctionCall* call()  const { return call_.get(); }    // @0x1fec10, +0x18
-    const SeqCAstNode* params()     const { return params_.get(); }  // @0x1fec20, +0x20
-    const SeqCAstNode* body()       const { return body_.get(); }    // @0x1fec30, +0x28
-    const SeqCAstNode* retType()    const { return retType_.get(); } // @0x1fec40, +0x30
+    const SeqCFunctionCall* call()  const { return call_.get(); }         // @0x1fec10, +0x18
+    const SeqCAstNode* params()     const { return params_.get(); }       // @0x1fec20, +0x20
+    const SeqCAstNode* body()       const { return body_.get(); }         // @0x1fec30, +0x28
+    const SeqCVariableType* retType() const { return retType_.get(); }    // @0x1fec40, +0x30
 
-    friend void swap(SeqCFunction& a, SeqCFunction& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.call_, b.call_);
-        std::swap(a.params_, b.params_);
-        std::swap(a.body_, b.body_);
-        std::swap(a.retType_, b.retType_);
-    }
+    friend void swap(SeqCFunction& a, SeqCFunction& b);
 
 private:
     std::unique_ptr<SeqCFunctionCall> call_;   // +0x18
     std::unique_ptr<SeqCAstNode> params_;      // +0x20
     std::unique_ptr<SeqCAstNode> body_;        // +0x28
-    std::unique_ptr<SeqCAstNode> retType_;     // +0x30
+    std::unique_ptr<SeqCVariableType> retType_; // +0x30
 };
 static_assert(sizeof(SeqCFunction) == 0x38, "SeqCFunction must be 0x38 bytes");
 
@@ -563,7 +625,7 @@ public:
                 std::unique_ptr<SeqCAstNode> incr,
                 std::unique_ptr<SeqCAstNode> body);     // 0x202f00
     SeqCForLoop(SeqCForLoop const& o);
-    SeqCForLoop& operator=(SeqCForLoop o) { swap(*this, o); return *this; }
+    SeqCForLoop& operator=(SeqCForLoop o);
     ~SeqCForLoop() override;
     void print() const override;                         // 0x202bc0
     std::unique_ptr<SeqCAstNode> clone() const override; // 0x202f70
@@ -578,13 +640,7 @@ public:
     const SeqCAstNode* incr() const { return incr_.get(); }   // 0x203040
     const SeqCAstNode* body() const { return body_.get(); }   // 0x203050
 
-    friend void swap(SeqCForLoop& a, SeqCForLoop& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.init_, b.init_);
-        std::swap(a.cond_, b.cond_);
-        std::swap(a.incr_, b.incr_);
-        std::swap(a.body_, b.body_);
-    }
+    friend void swap(SeqCForLoop& a, SeqCForLoop& b);
 
 private:
     std::unique_ptr<SeqCAstNode> init_;   // +0x18
@@ -608,7 +664,7 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
         Name(EValueCategory vc, int type, EDirection dir, VarType vt,  \
              std::vector<std::unique_ptr<SeqCAstNode>> elements);           \
         Name(Name const& o);                                                \
-        Name& operator=(Name o) { swap(*this, o); return *this; }           \
+        Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
         std::unique_ptr<SeqCAstNode> clone() const override;                \
@@ -618,18 +674,14 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
-                                                                            \
+                                                                             \
         void append(std::unique_ptr<SeqCAstNode> elem);                     \
         const std::vector<std::unique_ptr<SeqCAstNode>>& elements() const { \
             return elements_;                                               \
         }                                                                   \
         std::vector<const SeqCAstNode*> NamedAccessor() const;              \
-                                                                            \
-        friend void swap(Name& a, Name& b) {                               \
-            swap(static_cast<SeqCAstNode&>(a),                              \
-                 static_cast<SeqCAstNode&>(b));                             \
-            std::swap(a.elements_, b.elements_);                            \
-        }                                                                   \
+                                                                             \
+        friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::vector<std::unique_ptr<SeqCAstNode>> elements_;  /* +0x18 */   \
     };                                                                      \
@@ -655,7 +707,7 @@ public:
     SeqCParamList(EValueCategory vc, int type, EDirection dir, VarType vt,
                   std::vector<std::unique_ptr<SeqCAstNode>> elements);
     SeqCParamList(SeqCParamList const& o);
-    SeqCParamList& operator=(SeqCParamList o) { swap(*this, o); return *this; }
+    SeqCParamList& operator=(SeqCParamList o);
     ~SeqCParamList() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -675,10 +727,7 @@ public:
 
     std::vector<const SeqCAstNode*> params() const;  // @0x201050
 
-    friend void swap(SeqCParamList& a, SeqCParamList& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.elements_, b.elements_);
-    }
+    friend void swap(SeqCParamList& a, SeqCParamList& b);
 
 private:
     std::vector<std::unique_ptr<SeqCAstNode>> elements_;  // +0x18
@@ -700,7 +749,7 @@ public:
     SeqCVariable(EValueCategory vc, int type, EDirection dir,
                  VarType vt, std::string name);
     SeqCVariable(SeqCVariable const& o);
-    SeqCVariable& operator=(SeqCVariable o) { swap(*this, o); return *this; }
+    SeqCVariable& operator=(SeqCVariable o);
     ~SeqCVariable() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -712,10 +761,7 @@ public:
 
     const std::string& name() const { return name_; }
 
-    friend void swap(SeqCVariable& a, SeqCVariable& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        std::swap(a.name_, b.name_);
-    }
+    friend void swap(SeqCVariable& a, SeqCVariable& b);
 
 private:
     std::string name_;   // +0x18 (24B libc++ SSO; 32B with libstdc++)
@@ -725,8 +771,9 @@ static_assert(sizeof(SeqCVariable) == 0x30 || sizeof(SeqCVariable) == 0x38,
               "SeqCVariable size mismatch — expected 0x30 (libc++) or 0x38 (libstdc++)");
 
 // SeqCValue (56 bytes, 0x38) — tagged value variant.
-// Layout TBD; binary uses jump table @0xb065a0 to dispatch destruction
-// based on tag at +0x30 (value 0xFFFFFFFF means "no destructor").
+// Layout: SeqCAstNode base (0x18) + payload_[24] (+0x18..+0x30) + tag_ (+0x30) + pad (+0x34).
+// Binary dtor uses jump table @0xb065a0 to dispatch destruction
+// based on tag at +0x30 (tag -1/0xFFFFFFFF = empty, skips destruction).
 class SeqCValue : public SeqCAstNode {
 public:
     enum class Tag : int32_t {
@@ -737,11 +784,11 @@ public:
 
     SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt);
     SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
-              std::string const& s);   // 0x1fd860 (make_unique callsite)
+              std::string s);   // 0x1fd860 (make_unique callsite) — by value per binary
     SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
               double d);               // 0x1fd950 (make_unique callsite)
     SeqCValue(SeqCValue const& o);
-    SeqCValue& operator=(SeqCValue o) { swap(*this, o); return *this; }
+    SeqCValue& operator=(SeqCValue o);
     ~SeqCValue() override;
     void print() const override;
     std::unique_ptr<SeqCAstNode> clone() const override;
@@ -763,16 +810,7 @@ public:
         return *reinterpret_cast<const std::string*>(payload_);
     }
 
-    friend void swap(SeqCValue& a, SeqCValue& b) {
-        swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-        // Swap raw payload bytes + tag
-        char tmp[24];
-        std::memcpy(tmp, a.payload_, 24);
-        std::memcpy(a.payload_, b.payload_, 24);
-        std::memcpy(b.payload_, tmp, 24);
-        std::swap(a.tag_, b.tag_);
-        std::swap(a.pad34_, b.pad34_);
-    }
+    friend void swap(SeqCValue& a, SeqCValue& b);
 
 private:
     char     payload_[24]{};   // +0x18..+0x30

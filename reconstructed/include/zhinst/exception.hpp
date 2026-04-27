@@ -162,7 +162,24 @@ struct ErrorCode {
     void const*                 source_    = nullptr; // +0x10
 
     int value() const noexcept { return value_; }
+
+    // Approximation of boost::system::error_code::to_string().
+    // Binary calls this at 0x2e55db to produce the code portion of the
+    // Exception message.
+    std::string to_string() const {
+        return "error:" + std::to_string(value_);
+    }
 };
+
+// Sentinel value for the Exception default ctor (unknowns #91).
+// Binary calls make_error_code(ZIResult_enum) @0x2e4550 with value 0x8000.
+// The real implementation uses a custom ZiApiErrorCategory singleton at
+// 0xb7c570; we approximate with a plain value-only ErrorCode.
+inline ErrorCode makeDefaultErrorCode() {
+    ErrorCode ec;
+    ec.value_ = 0x8000;
+    return ec;
+}
 
 // Carries an error_code together with an explanatory message. Used as
 // a constructor input for Exception. Verified layout at the call site
@@ -173,8 +190,8 @@ struct GenericErrorDescription {
     std::string  message;      // +0x18 (24 bytes libc++)
 
     GenericErrorDescription() = default;
-    GenericErrorDescription(T c, std::string m)
-        : code(std::move(c)), message(std::move(m)) {}
+    GenericErrorDescription(T codeVal, std::string msg)
+        : code(std::move(codeVal)), message(std::move(msg)) {}
 };
 
 // ----------------------------------------------------------------------------

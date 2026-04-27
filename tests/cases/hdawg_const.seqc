@@ -1,0 +1,4 @@
+const CNT = 4;
+var i;
+i = CNT;
+playZero(32 * CNT);

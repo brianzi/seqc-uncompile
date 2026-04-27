@@ -1,0 +1,7 @@
+var i;
+for (i = 0; i < 3; i++) {
+  playZero(32);
+}
+repeat(5) {
+  playZero(64);
+}

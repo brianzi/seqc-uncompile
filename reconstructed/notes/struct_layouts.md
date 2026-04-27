@@ -145,7 +145,7 @@ from toJson/fromJson JSON keys. Signal is 0x58 bytes (corrected Phase 3c).
 | +0x48  | 1    | bool                | used            | "load"             | set by asmPlay/asmPrefetch      |
 | +0x49  | 3    | (padding)           |                 |                    |                                 |
 | +0x4C  | 4    | uint32_t            | addressValue    | "globalAddress"    | AddressImpl\<uint\>             |
-| +0x50  | 24   | std::string         | thirdString     | "genFunc"          | generator function name         |
+| +0x50  | 24   | std::string         | funDescrName     | "genFunc"          | generator function name         |
 | +0x68  | 4    | uint32_t            | playWord        | "playConfig"       | packed PlayConfig               |
 | +0x6C  | 4    | int32_t             | playIndex       | "waveIndex"        | -1 = compute playWord           |
 | +0x70  | 4    | int                 | seqRegWidth     | "minLengthSamples" | from DeviceConstants+0x40       |
@@ -177,9 +177,9 @@ toString (0x2c5120), __on_zero_shared dtor (0x2a1300).
 | Offset | Size | Type           | Name        | Notes                           |
 |--------|------|----------------|-------------|---------------------------------|
 | +0x00  | 0xD8 | Waveform       | (base)      | see Waveform layout above       |
-| +0xD8  | 4    | int            | frontField1 | init=1 in copy ctor             |
-| +0xDC  | 1    | bool           | frontBool1  | init=0 in copy ctor             |
-| +0xDD  | 1    | bool           | frontBool2  | copied from source              |
+| +0xD8  | 4    | int            | useCount_ | init=1 in copy ctor             |
+| +0xDC  | 1    | bool           | dirty_  | init=0 in copy ctor             |
+| +0xDD  | 1    | bool           | hasDuplicate_  | copied from source              |
 | +0xDE  | 2    | (padding)      |             |                                 |
 | +0xE0  | 24   | vector<Value>  | values      | per-parameter values (0x28 each)|
 | +0xF8  |      | END            |             |                                 |
@@ -443,7 +443,7 @@ Allocated via `make_shared` (0xC0 bytes total including 0x18-byte control block)
 | +0x78  | 1    | bool                                      | hasLabel   | Guards labelName (optional-like)   |
 | +0x80  | 24   | std::string                               | comment    | JSON blob / comment text           |
 | +0x98  | 1    | bool                                      | hasComment | Guards comment ("noOpt" flag)      |
-| +0xA0  | 1    | bool                                      | field_A0   | isWaveformCmd override             |
+| +0xA0  | 1    | bool                                      | isWaveformCmdOverride_   | isWaveformCmd override             |
 
 Corrections from Phase 4 version:
 - +0x20 is `str2` (secondary string), not `comment` — comment is at +0x80
@@ -461,7 +461,7 @@ Extends Waveform base (0xD8 bytes) with 8 bytes of IR-specific fields.
 | +0x00  | 0xD8 | Waveform | (base)    | Inherited Waveform layout          |
 | +0xD8  | 2    | uint16_t | irField1  | IR-specific field                  |
 | +0xDA  | 1    | bool     | crossesCacheLine_ | true for fillers / when block crosses a CL |
-| +0xDC  | 4    | int32_t  | irField2  | IR-specific field                  |
+| +0xDC  | 4    | int32_t  | elfAlignment_  | IR-specific field                  |
 
 ## WaveIndexTracker (0x28 bytes) — NEW Phase 5
 
@@ -1159,10 +1159,10 @@ Evidence:
 
 All 5 wrappers have signature
 `shared_ptr<EvalResults> name(vector<EvalResultValue> const& args, shared_ptr<Resources> res)`
-and follow a common skeleton (waitState_ check → arg-count guard →
+and follow a common skeleton (externalTriggeringMode_ check → arg-count guard →
 PlayArgs construction → asm emission). Distinguishing parameters:
 
-| Wrapper        | Addr     | waitState_ | arg-count guard | PlayArgs ctor    | parseOptionalRate | Rate-guard error | Empty-args error |
+| Wrapper        | Addr     | extTrigMode | arg-count guard | PlayArgs ctor    | parseOptionalRate | Rate-guard error | Empty-args error |
 |----------------|----------|------------|-----------------|------------------|-------------------|------------------|------------------|
 | playWaveDIO    | 0x137740 | check `==1` | `args.empty()` | n/a (direct wvft) | n/a               | n/a              | 0x42             |
 | playWaveZSync  | 0x137a50 | check `==2` | `args.size()==1`| n/a (readConst)  | n/a               | n/a              | 0x5c             |

@@ -23,22 +23,22 @@ static Expression* allocExpression() {
     return new Expression();   // default ctor sets the .rodata pattern
 }
 
-// Helper: wrap a raw Expression* into a shared_ptr and push_back
+// Helper: wrap a raw Expression* into a shared_ptr and push_back.
+//
+// Resolved #93: Binary allocates a 0x20-byte __shared_ptr_pointer control
+// block (vptr → vtable for __shared_ptr_pointer<Expression*,
+// shared_ptr<Expression>::__shared_ptr_default_delete, allocator<Expression>>
+// at 0xb03730), stores the raw pointer at cb+0x18, then calls
+// vector::push_back(shared_ptr&&).  The __on_zero_shared handler at
+// 0x1296e0 invokes default_delete<Expression> at 0x129720, which
+// recursively destroys children and frees the object.
+//
+// Ownership model: create* functions allocate with `new Expression()` and
+// return a raw pointer.  pushChild transfers ownership into a shared_ptr
+// with the standard default deleter.  No no-op deleter is involved.
 static void pushChild(std::vector<std::shared_ptr<Expression>>& vec,
                       Expression* raw) {
-    // Binary allocates a 0x20-byte control block wrapping the raw pointer,
-    // then calls vector::push_back(shared_ptr&&).
-    // shared_ptr<Expression>(raw, no_delete) would be wrong — binary uses
-    // a custom control block that stores the raw pointer (non-owning?).
-    // For reconstruction we use a non-deleting shared_ptr since the create*
-    // functions return raw pointers and ownership is managed externally.
-    //
-    // TODO #93: The binary's control block at +0x18 stores the raw pointer
-    // and the vptr at 0x943e90.  It appears to be a shared_ptr that takes
-    // ownership (shared_ptr_emplace pattern with raw pointer storage).
-    // For now we use a shared_ptr with a trivial deleter to avoid double-free,
-    // but the real binary likely transfers ownership here.
-    vec.push_back(std::shared_ptr<Expression>(raw, [](Expression*){}));
+    vec.push_back(std::shared_ptr<Expression>(raw));
 }
 
 // ============================================================================

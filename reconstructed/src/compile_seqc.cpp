@@ -197,14 +197,17 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     config.channelsPerGroup[0] = 0x0002;                        // +0x14
     config.channelsPerGroup[1] = 0x0004;                        // +0x16
     config.isHirzel = props.isHirzel;                           // +0x18
-    config.cacheType = 0;                                       // +0x19 — set via sete
+    config.cacheType = props.isHirzel ? 1 : 0;                  // +0x19 — sete from ZF; GDB-verified: 1 for HDAWG8
     config.numChannelGroups = 1;                                // +0x1C
     config.awgIndex = static_cast<int32_t>(awgIndex);           // +0x20
     config.deviceIndex = 0;                                     // +0x24
+    config.optimizationFlags = 0xFF;                                   // +0x88 — binary hardcodes 0xFF
+    config.numCores = 0;                                        // +0x94 — binary sets 0 (not 1)
+    config.channelGrouping = 0x20000;                           // +0x98 — 131072; compile-time loop unroll limit
 
     // String fields
     if (!filename.empty()) {
-        config.string_30 = filename;                             // +0x30
+        config.debugDumpPath = filename;                             // +0x30
     }
     if (!configWavePath.empty()) {
         config.searchPath = boost::filesystem::path(configWavePath);  // +0xA8
@@ -232,7 +235,7 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
 
         // Write ELF to ostringstream
         std::ostringstream oss;
-        compiler.writeToStream(oss, "outputut");                 // @0xf65a0 — note: "outputut" is the actual format string in the binary
+        compiler.writeToStream(oss, "output");                    // @0xf65a0
         elfData = oss.str();
 
         // --- 13. Build result JSON ---
@@ -261,9 +264,12 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
         // Get compile report even on failure
         std::string report = compiler.getCompileReport();
         std::string msg = "Compilation failed: ";
-        msg += ex.what();
-        msg += "\n";
-        msg += report;
+        if (!report.empty()) {                                   // @0xf7974
+            msg += report;
+        } else {
+            msg += ex.what();
+            msg += "\n";
+        }
         throw Exception(msg);
     }
 

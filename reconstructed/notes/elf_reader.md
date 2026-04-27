@@ -19,7 +19,7 @@ buffer". Disassembly of the ctor and dtor shows otherwise:
 | +0x00..+0x6F | (base)            | private `ELFIO::elfio` (112 bytes)   |
 | +0x70       | `formatSection_`  | `ELFIO::section*`                    |
 | +0x78..+0x90 | `ddSections_`     | `std::vector<ELFIO::section*>`       |
-| +0x90       | `pad_`            | `uint32_t` (zeroed by ctor; purpose TBD) |
+| +0x90       | `ddSectionIndex_`            | `uint32_t` (zeroed by ctor; purpose TBD) |
 
 Total size: 0x98 bytes (was 0x90).
 
@@ -185,10 +185,10 @@ within this binary.
 
 ## Open items
 
-- Field at +0x90 (`pad_`, uint32) is zeroed by the ctor but never read
+- Field at +0x90 (`ddSectionIndex_`, uint32) is zeroed by the ctor but never read
   by any of the five reconstructed methods. Could be a flags slot for
   a method we haven't yet identified, or compiler-inserted padding. Left
-  as a `uint32_t pad_ = 0` for layout fidelity, with a comment.
+  as a `uint32_t ddSectionIndex_ = 0` for layout fidelity, with a comment.
 - The `~ElfReader` at 0x2b18c0 is curiously placed far from the other
   ElfReader methods (which cluster around 0x2c3000-0x2c4000). This is
   likely the ICF/identical-code-folding artefact of a virtual dtor that

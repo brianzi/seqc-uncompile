@@ -14,7 +14,7 @@ AWGAssembler::~AWGAssembler()
 {
     if (pImpl_) {
         pImpl_->~AWGAssemblerImpl();
-        operator delete(pImpl_, std::size_t(0x170));
+        operator delete(pImpl_, sizeof(AWGAssemblerImpl));
         pImpl_ = nullptr;
     }
 }

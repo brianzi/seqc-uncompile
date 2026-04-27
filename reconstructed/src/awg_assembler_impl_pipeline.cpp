@@ -21,20 +21,9 @@
 #include "zhinst/error_messages.hpp"
 #include "zhinst/device_constants.hpp"
 
-// LOG_ERROR — stub macro (original uses logging infrastructure)
-#ifndef LOG_ERROR
-#define LOG_ERROR(msg) (void)0
-#endif
+#include "zhinst/log_macros.hpp"
 
-// Forward declarations for flex/bison generated functions.
-// Compiled as C++ (LANGUAGE CXX in CMake), signatures must match exactly.
-namespace zhinst { class AsmParserContext; class AsmExpression; }
-struct yy_buffer_state;
-int asmlex_init_extra(zhinst::AsmParserContext* extra, void** scanner);
-yy_buffer_state* asm_scan_string(const char* str, void* scanner);
-void asm_delete_buffer(yy_buffer_state* buf, void* scanner);
-int asmlex_destroy(void* scanner);
-int asmparse(zhinst::AsmParserContext* ctx, zhinst::AsmExpression** result, void* scanner);
+#include "zhinst/yy_fwd.hpp"
 
 namespace zhinst {
 
@@ -51,7 +40,7 @@ namespace zhinst {
 //   +0x80..+0x8F  (more fields)
 //   +0x90  bool noOpt             — set from !doOpt()
 //   +0x98  bool field_98
-//   +0xA0  bool field_A0          — "noOpt" flag as set by assembleString
+//   +0xA0  bool isWaveformCmdOverride_          — "noOpt" flag as set by assembleString
 //   +0xB0  bool field_B0
 //   +0xB8  bool field_B8
 // Total object size: ~0xA8 bytes (within the 0xC0 alloc)
@@ -306,9 +295,10 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
 
         // Check the command type
         if (instr.cmd == Assembler::ERROR_MSG || instr.cmd == Assembler::MESSAGE) {
-            // Skip with a message to cout
-            std::cout << "Skipping line: " << currentLine_
-                      << " — instruction not supported in assembleAsmList\n";
+            // Print warning to cout and skip  (binary strings at .rodata 0x906a54, 0x8fe737, 0x906a64)
+            std::cout << "Warning (line: " << currentLine_
+                      << "): "
+                      << "contains asm print statement (msg or err)! \n";
             continue;
         }
 
@@ -346,17 +336,37 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             auto exprObj = std::make_shared<AsmExpression>();
             exprObj->command = instr.cmd;
             expr = exprObj;
-
-            // Add immediate operands as child value expressions
-            for (const auto& imm : instr.immediates) {
-                int val = static_cast<int>(imm);
-                AsmExpression* valExpr = createValue(val);
-                std::shared_ptr<AsmExpression> child(valExpr);
-                exprObj->children.push_back(std::move(child));
-            }
         }
 
-        // Add destination register (regDst at +0x28 in AssemblerInstr)
+        // Child ordering: immediates → regDst → regAux → regSrc → outputs → label
+        //
+        // Binary verification (2025-04-26): the binary's assembleAsmList at
+        // 0x287946 adds children in this exact order:
+        //   1. immediates vector (+0x08)     — createValue per element
+        //   2. regDst register  (+0x28)      — createRegister if isValid
+        //   3. regAux register  (+0x30)      — createRegister if isValid
+        //   4. regSrc register  (+0x20)      — createRegister if isValid
+        //   5. outputs vector   (+0x38)      — createValue per element
+        //   6. label string                  — createName if non-empty
+        //
+        // The asm_commands functions place values in either immediates or
+        // outputs depending on context:
+        //   - aluiu/alui: values go in outputs(+0x38), regs in regDst/regSrc
+        //     → children = [regDst(=dst), regSrc(=src), output(=imm)]
+        //   - alur: no values, regs in regAux/regSrc
+        //     → children = [regAux(=dst), regSrc(=src)]
+        //   - st: reg in regSrc(+0x20), addr in outputs(+0x38)
+        //     → children = [regSrc(=reg), output(=addr)]
+
+        // Add immediate operands as child value expressions (+0x08)
+        for (const auto& imm : instr.immediates) {
+            int val = static_cast<int>(imm);
+            AsmExpression* valExpr = createValue(val);
+            std::shared_ptr<AsmExpression> child(valExpr);
+            expr->children.push_back(std::move(child));
+        }
+
+        // Add destination register (binary offset +0x28 in AssemblerInstr)
         if (instr.regDst.isValid()) {
             int regIdx = static_cast<int>(instr.regDst);
             AsmExpression* regExpr = createRegister(regIdx);
@@ -364,7 +374,7 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             expr->children.push_back(std::move(child));
         }
 
-        // Add auxiliary register (regAux at +0x30)
+        // Add auxiliary register (+0x30)
         if (instr.regAux.isValid()) {
             int regIdx = static_cast<int>(instr.regAux);
             AsmExpression* regExpr = createRegister(regIdx);
@@ -372,7 +382,7 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             expr->children.push_back(std::move(child));
         }
 
-        // Add source register (regSrc at +0x20)
+        // Add source register (binary offset +0x20)
         if (instr.regSrc.isValid()) {
             int regIdx = static_cast<int>(instr.regSrc);
             AsmExpression* regExpr = createRegister(regIdx);
@@ -485,8 +495,8 @@ void AWGAssemblerImpl::assembleExpressions(
 // =============================================================================
 int AWGAssemblerImpl::evaluate(const std::shared_ptr<AsmExpression>& expr) {  // 0x285b20
     AsmExpression* e = expr.get();
-    if (!e || e->type == 0) {
-        return 0;  // null or empty expression
+    if (!e || e->type != 0) {
+        return 0;  // non-container expressions (reg/label/int) don't generate opcodes
     }
 
     int cmd = e->command;

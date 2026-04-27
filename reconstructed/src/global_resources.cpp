@@ -35,6 +35,7 @@ GlobalResources::GlobalResources(
 {
     // 0x12a76f: set vptr to GlobalResources vtable+0x10
     // 0x12a779–0x12a78b: copy shared_ptr<Resources> from parent arg into this->parent_
+    parent_ = parent;
 
     // 0x12a7bb–0x12a7da: TLS init + set regNumber = 1
     regNumber = 1;

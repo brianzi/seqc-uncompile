@@ -118,13 +118,13 @@ public:
     // --- Default constructor (needed for make_shared<Node>()) ---
     Node();
 
-    // --- Simple constructor: Node(NodeType type, int numWaveSlots, int asmId)
+    // --- Simple constructor: Node(NodeType type, int asmId, int numWaveSlots)
     //     Address: 0x12ace0
     //     Allocates `numWaveSlots` optional<string> entries in wavesPerDev vector,
     //     sets nodeId from TLS counter, asmId from param, type at +0x44,
     //     deviceIndex = -1, lengthReg/indexOffsetReg = AsmRegister(-1), tableIndex = -1,
     //     globalRate = -1 (as 8-byte store 0x00000000FFFFFFFF).
-    Node(NodeType type, int numWaveSlots, int asmId);
+    Node(NodeType type, int asmId, int numWaveSlots);
 
     // --- Full constructor (20 params): 0x26c4a0
     Node(int nodeId, int asmId,

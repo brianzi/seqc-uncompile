@@ -14,6 +14,7 @@
 #include "zhinst/device_constants.hpp"
 #include "zhinst/error_messages.hpp"
 #include "zhinst/eval_results.hpp"
+#include "zhinst/math_compiler.hpp"
 #include "zhinst/eval_result_value.hpp"
 #include "zhinst/node_map_data.hpp"
 #include "zhinst/resources.hpp"
@@ -29,11 +30,12 @@
 #include <sstream>
 #include <stdexcept>
 
-// Binary uses boost::log at Warning severity for diagnostic messages.
-// Reconstructed as no-op; wire to real boost::log if needed.
-#ifndef LOG_WARNING
-#define LOG_WARNING(msg) (void)0
-#endif
+namespace zhinst {
+// Forward declaration — defined in get_node_map.cpp
+std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType devType);
+} // namespace zhinst
+
+#include "zhinst/log_macros.hpp"
 #include <unordered_map>
 
 namespace zhinst {
@@ -271,9 +273,14 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
     //  3. If found and vector has 2 entries → format error with ErrorMessageT(0x38)
     //     (3-arg format: function name + both alias strings)
     //  4. On error, invoke error callback at +0x1B0
-    //  5. Look up name in funcMap_ (+0x60)
-    //  6. If found → dispatch: return it->second(args, res)
-    //  7. If not found → throw CustomFunctionsException("Unknown function: " + name)
+    //  5. Check config_->isRecompile flag (+0x19); if set → check field_B0 set
+    //  6. Look up name in funcMap_ (+0x60)
+    //  7. If found → dispatch: return it->second(args, res)
+    //  8. If not in funcMap_ → try MathCompiler::functionExists (at +0xC8)
+    //  9. If MathCompiler has it → extract doubles from args, call mathCompiler_.call()
+    //     → wrap result in EvalResults with setValue(Double, Value(double))
+    // 10. If not in MathCompiler either → call generateWaveform(name, args, res)
+    //     (which prepends name as first arg and delegates to generate())
 
     // Step 1-4: alias resolution / argument count validation
     auto aliasIt = aliasMap_.find(name);
@@ -282,12 +289,34 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
         // If populated, the vector size selects error format 0x37 (1 entry) or 0x38 (2 entries).
     }
 
-    // Step 5-7: dispatch
+    // Step 6-7: dispatch via funcMap_
     auto it = funcMap_.find(name);
-    if (it == funcMap_.end()) {
-        throw CustomFunctionsException("Unknown function: " + name);
+    if (it != funcMap_.end()) {
+        return it->second(args, std::move(res));
     }
-    return it->second(args, std::move(res));
+
+    // Step 8-9: try MathCompiler                                  @0x159814
+    // Binary: compute arg count from vector, call functionExists(name, argCount, false)
+    size_t argCount = args.size();
+    if (mathCompiler_.functionExists(name, argCount, false)) {     // @0x159841
+        // Extract args as doubles                                 @0x15986e
+        std::vector<double> doubleArgs;
+        doubleArgs.reserve(argCount);
+        for (auto const& a : args) {
+            // Binary: checks (varType | 2) == 6, i.e. varType is 4 (Const) or 6 (Cvar)
+            // Then calls Value::toDouble on the embedded value at +0x08
+            doubleArgs.push_back(a.value_.toDouble());             // @0x1598e5
+        }
+        // Call MathCompiler::call                                 @0x159a3f
+        double result = mathCompiler_.call(name, doubleArgs);      // @0x159a3f
+        // Wrap in EvalResults with setValue(Double)               @0x159a50
+        auto er = std::make_shared<EvalResults>();
+        er->setValue(VarType_Cvar, Value(result));
+        return er;
+    }
+
+    // Step 10: fall through to waveform generation                @0x1599c8
+    return generateWaveform(name, args, std::move(res));
 }
 
 // ============================================================================
@@ -452,17 +481,20 @@ unsigned int CustomFunctions::oscMaskSetAllGrimsel() {  // @0x15c0b0
 }
 
 // addNodeAccess @0x15c6c0
-// Inserts into accessModeMap_ (+0x128), nodeAddressMap_ (+0x100), nodeList_ (+0x150).
+// Inserts mode into accessModeMap_ (+0x128), then does
+// nodeAddressMap_.emplace(item, nodeList_.size()) — stores the INDEX into nodeList_,
+// NOT a hardware address. If the emplace inserted a new entry, pushes item onto nodeList_.
 void CustomFunctions::addNodeAccess(NodeMapItem const& item, AccessMode mode) {  // @0x15c6c0
+    // @0x15c6f5: accessModeMap_[item].insert(mode)
     accessModeMap_[item].insert(mode);
-    uint32_t addr = item.hasFast ? item.fastAddr : getNodeAddress(item);
-    nodeAddressMap_[item] = addr;
-    // Add to nodeList_ if not already present
-    bool found = false;
-    for (auto const& existing : nodeList_) {
-        if (existing == item) { found = true; break; }
-    }
-    if (!found) {
+
+    // @0x15c771-0x15c7a1: nodeAddressMap_.emplace(item, nodeList_.size())
+    uint32_t idx = static_cast<uint32_t>(nodeList_.size());
+    auto [it, inserted] = nodeAddressMap_.emplace(item, idx);
+
+    // @0x15c7a6: test $0x1, %dl — check if newly inserted
+    if (inserted) {
+        // @0x15c7bb-0x15c7f6: nodeList_.push_back(item) (with clone of data)
         nodeList_.push_back(item);
     }
 }
@@ -506,9 +538,11 @@ double CustomFunctions::getSampleClock() const {  // @0x16ba80
     // Binary first checks resources_ non-null, then variableExists("$DEVICE_SAMPLE_RATE").
     // If exists: reads the constant and extracts the double value.
     // Fallback: returns devConst_->samplingRate (+0x70).
-    // NOTE: readConst returns void in our reconstruction (writes to internal state);
-    // the actual mechanism for extracting the value is not yet fully understood.
-    // For now, use the fallback path directly.
+    if (resources_ && resources_->variableExists("$DEVICE_SAMPLE_RATE")) {
+        EvalResultValue erv = resources_->readConst("$DEVICE_SAMPLE_RATE",
+                                                      EDirection::eOUT);  // @0x16bac0
+        return erv.value_.toDouble();                                      // @0x16bad0
+    }
     return devConst_->samplingRate;
 }
 
@@ -530,20 +564,22 @@ std::set<AccessMode> const& CustomFunctions::getAccessModes(NodeMapItem const& i
 // ============================================================================
 
 // checkFunctionSupported @0x15aeb0 — 0x150 bytes (ends at 0x15b000)
-// Checks config_->supportedDeviceTypes (bitmask at config+0x00) against ~devType.
-// If (supportedDeviceTypes & ~devType) != 0, throws CustomFunctionsException with
-// the function name and device type string.
+// Verifies that the current device (config_->deviceType, a single power-of-2
+// AwgDeviceType value) is among the devices allowed by `devType` (a bitmask
+// of AwgDeviceType values OR'd together).
+// Test: if (config_->deviceType & ~devType) != 0, the device's bit is outside
+// the allowed mask → throws CustomFunctionsException with error FuncNotSupported.
 void CustomFunctions::checkFunctionSupported(std::string const& name, AwgDeviceType devType) {  // @0x15aeb0
     // @0x15aebd: rax = [this+0x00] (config_), edx = ~devType
     // @0x15aec2: test [rax+0x00], edx  → test config_->deviceType & ~devType
-    uint32_t supported = static_cast<uint32_t>(config_->deviceType);  // bitmask of supported devices
-    if ((supported & ~static_cast<uint32_t>(devType)) == 0)
-        return;  // @0x15aec6: early return
+    uint32_t current = static_cast<uint32_t>(config_->deviceType);  // single power-of-2 device bit
+    if ((current & ~static_cast<uint32_t>(devType)) == 0)
+        return;  // @0x15aec6: early return — device is in the allowed mask
 
-    // @0x15af14: esi = config_->supportedDeviceTypes (the actual bitmask value, used as AwgDeviceType enum)
+    // @0x15af14: esi = config_->deviceType (the actual device enum value)
     // @0x15af18: call AWGCompilerConfig::getAwgDeviceTypeString(AwgDeviceType)
     std::string devTypeStr = AWGCompilerConfig::getAwgDeviceTypeString(
-        static_cast<AwgDeviceType>(supported));  // @0x15af18
+        static_cast<AwgDeviceType>(current));  // @0x15af18
 
     // @0x15af29: esi = 0x49, call ErrorMessages::format<string,string>(0x49, name, devTypeStr)
     std::string msg = ErrorMessages::format(
@@ -731,6 +767,42 @@ PlayArgs::PlayArgs(AWGCompilerConfig const& config,
 // reportWarning_ (+0x10), wavetable_ (+0x00).
 PlayArgs::~PlayArgs() = default;
 
+// PlayArgs::WaveAssignment copy ctor — @0x171c00
+// Variant-aware copy of the EvalResultValue `value` field: dispatches on
+// value.value_.which_ via jump table at 0x959034:
+//   index 0 → int copy, 1 → double copy, 2 → string copy (placement new).
+// Then copies the `bits` vector.
+PlayArgs::WaveAssignment::WaveAssignment(WaveAssignment const& o)  // @0x171c00
+    : bits(o.bits)                                                 // @0x171cb0: vector copy
+{
+    // Copy the VarType/VarSubType fields
+    value.varType_    = o.value.varType_;
+    value.varSubType_ = o.value.varSubType_;
+    // Copy the AsmRegister
+    value.reg_        = o.value.reg_;
+
+    // Variant-aware copy of the embedded Value
+    // @0x171c40: dispatch on o.value.value_.which_
+    value.value_.type_  = o.value.value_.type_;
+    value.value_.which_ = o.value.value_.which_;
+    switch (o.value.value_.which_) {
+    case 0:  // int
+        value.value_.storage_.i = o.value.value_.storage_.i;     // @0x171c58
+        break;
+    case 1:  // bool (or double — index depends on variant order)
+        value.value_.storage_.d = o.value.value_.storage_.d;     // @0x171c68
+        break;
+    case 2:  // string — placement new
+        ::new (&value.value_.storage_.str)
+            std::string(o.value.value_.storage_.str);  // @0x171c80
+        break;
+    default:
+        // Defensive: zero-init storage for unknown variant index
+        std::memset(&value.value_.storage_, 0, sizeof(value.value_.storage_));
+        break;
+    }
+}
+
 // PlayArgs::parse @0x15d7b0 (560 bytes, ends at 0x15d9e0)
 //
 // Pre-scans args to find the boundary between String/Const-typed args
@@ -748,22 +820,22 @@ PlayArgs::parse(std::vector<EvalResultValue> const& args) {   // @0x15d7b0
     }
 
     // @0x15d7e0..0x15d817: Pre-scan loop.
-    // Split args into two regions: String/Const args at front, others after.
+    // Scan args to find boundary: boundary tracks "one past last Wave/String".
+    // Binary: rbx starts at end, updated to (current+1) for each Wave/String.
     // Also accumulate hasMarker_ from VarSubType==2 entries.
     auto it = args.begin();
     auto end = args.end();
     VarType firstType = args.front().varType_;                 // @0x15d7ec
 
-    auto boundary = it;
+    auto boundary = end;                                       // rbx = end initially (@0x15d7dd)
     for (auto scan = it; scan != end; ++scan) {
         if (scan->varSubType_ == static_cast<VarSubType>(2)) {
             hasMarker_ = true;                                 // @0x15d819
         }
         if (scan->varType_ == VarType_Wave || scan->varType_ == VarType_String) {
-            // String or Const — part of the implicit-channel region
-            ++boundary;
+            // Update boundary to one past this element
+            boundary = scan + 1;                               // @0x15d7f0: lea 0x38(%rdi),%rbx
         }
-        // For non-String/Const, don't advance boundary
     }
 
     // @0x15d81d..0x15d854: Dispatch on first arg's type
@@ -974,8 +1046,8 @@ std::shared_ptr<WaveformFront> PlayArgs::secureLoadWaveform(
             ErrorMessages::format(WaveformNotFound, name), 0);
     }
 
-    // @0x171228: check wf->frontBool2 (+0xDD, "hasDuplicate")
-    if (wf->frontBool2) {
+    // @0x171228: check wf->hasDuplicate_ (+0xDD, "hasDuplicate")
+    if (wf->hasDuplicate_) {
         // @0x171235: read CSV source name from wf->file (+0x38)
         // Build strings for warning: csvName (from file->name_) and original name
         std::string csvName;
@@ -1027,7 +1099,7 @@ int64_t PlayArgs::getMaxSampleLength() const {                 // @0x15d9f0
                     ErrorMessages::format(WaveformNotFound, name), 0);
             }
 
-            if (!waveform->file && waveform->thirdString.empty()) {
+            if (!waveform->file && waveform->funDescrName().empty()) {
                 // @0x15db49: throw error 0xea — waveform has no data
                 throw CustomFunctionsValueException(
                     ErrorMessages::format(UninitializedWaveform), 0);
@@ -1124,6 +1196,19 @@ inline uint32_t wrap23(uint32_t v) {
 }
 } // namespace
 
+// NodeMap::retrieve — @0x1c55d0
+// Looks up path in entries_ map. Returns the NodeMapItem if found,
+// or an empty NodeMapItem (data=nullptr) if not found.
+NodeMapItem NodeMap::retrieve(std::string const& path) const {  // @0x1c55d0
+    auto it = entries_.find(path);
+    if (it != entries_.end()) {
+        return it->second;
+    }
+    NodeMapItem empty{};
+    empty.data = nullptr;
+    return empty;
+}
+
 uint64_t NodeMap::toFrequency(double freq, double sampleClock) {  // @0x1c5630
     // 2^48 = 281474976710656.0
     constexpr double kTwoPow48 = 281474976710656.0;
@@ -1183,6 +1268,23 @@ int parseOptionalRate(
             itemIndex);
     }
     return rate;
+}
+
+// Not in binary — extracted from ~10 duplicate sites in custom_functions_io.cpp
+// and custom_functions_playback.cpp for readability.
+void CustomFunctions::checkExternalTriggeringMode(ExternalTriggeringMode expected) {
+    if (externalTriggeringMode_ == ExternalTriggeringMode::None)
+        externalTriggeringMode_ = expected;
+    else if (externalTriggeringMode_ != expected)
+        throw CustomFunctionsException(ErrorMessages::format(DioZsyncMixed));
+}
+
+// Not in binary — extracted from 3 sites in custom_functions_io.cpp.
+bool CustomFunctions::isShfFamily() const {
+    auto dt = config_->deviceType;
+    return dt == static_cast<AwgDeviceType>(SHFLI) ||
+           dt == static_cast<AwgDeviceType>(VHFLI) ||
+           dt == static_cast<AwgDeviceType>(GHFLI);
 }
 
 } // namespace zhinst

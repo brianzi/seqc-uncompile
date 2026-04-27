@@ -94,51 +94,85 @@ MemoryAllocator::~MemoryAllocator() {  // 0x29f2d0
 // Called from WavetableIR::allocateWaveformsForFifo inlined at ~0x2aa740.
 // ---------------------------------------------------------------------------
 MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
-    // Phase 1: fast single-CL path
+    // Phase 1: fast single-CL path (lambda#1 @0x2aa960)
+    //
+    // GDB-verified: Phase 1 uses waveformElfAlignment (DC+0x24, always 64)
+    // for alignment, NOT waveformAlignment (DC+0x14, 4096 for HDAWG).
+    // Phase 1 is strictly a "re-use within already-claimed CL" fast path.
+    // Free CL slots (0xFFFFFFFF) cause rejection — only slots already owned
+    // by the correct clBase are accepted.  First-time allocations always
+    // fall through to Phase 2 which claims the CL slots.
+    //
+    // Binary tail path at 0x2aab9f-0x2aac1a:
+    //   aligned = align_up(blockStart, waveformElfAlignment)
+    //   available = blockEnd - aligned
+    //   if (available < size) → fail
+    //   slot = (aligned % memorySizeInSamples_) / cacheLineSize_
+    //   clBase = aligned - (aligned % cacheLineSize_)
+    //   if (cacheLineUsage_[slot] != clBase) → fail
+    //   Then check: nextBoundary = (aligned / waveformAlignment + 1) * waveformAlignment
+    //   if (nextBoundary >= blockEnd || nextBoundary - aligned >= size) → success
+    //   Return {aligned, aligned + size, 1}
     if (size < deviceConstants_->waveformAlignment) {  // DC+0x14
         MemoryBlock result = allocateFirstSuitableFreeBlock(
-            [&](unsigned int blockStart, unsigned int blockSize) -> MemoryBlock {
-                uint32_t align = deviceConstants_->waveformAlignment;
-                uint32_t aligned = (blockStart + align - 1) & ~(align - 1);
-                if (blockSize - aligned < size)
-                    return {0, 0, 0};  // doesn't fit
+            [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
+                uint32_t elfAlign = deviceConstants_->waveformElfAlignment;  // DC+0x24, =64
+                uint32_t aligned = (blockStart + elfAlign - 1) & ~(elfAlign - 1);
 
-                // Verify CL ownership matches
-                uint32_t slot = aligned / cacheLineSize_;
-                if (slot < cacheLineUsage_.size() &&
-                    cacheLineUsage_[slot] != 0xFFFFFFFF &&
-                    cacheLineUsage_[slot] != (aligned - (aligned % cacheLineSize_)))
+                // Space check
+                if (blockEnd - aligned < size)
                     return {0, 0, 0};
 
-                // Verify doesn't cross CL boundary
-                uint32_t nextBoundary = ((aligned / cacheLineSize_) + 1) * cacheLineSize_;
-                if (nextBoundary < blockStart + blockSize &&
-                    nextBoundary - aligned < size)
+                // CL ownership check: slot must already be claimed with matching clBase.
+                // Free slots (0xFFFFFFFF) are NOT accepted — Phase 1 only re-uses.
+                uint32_t slot = (aligned % memorySizeInSamples_) / cacheLineSize_;
+                uint32_t clBase = aligned - (aligned % cacheLineSize_);
+                if (slot >= cacheLineUsage_.size() ||
+                    cacheLineUsage_[slot] != clBase)
                     return {0, 0, 0};
 
-                return {aligned, aligned + size, 1};  // valid
+                // Check allocation fits before next waveformAlignment boundary
+                // Binary at +498-529: success if nextBoundary >= blockEnd OR
+                // nextBoundary - aligned >= size. Fail if NEITHER holds.
+                uint32_t wfAlign = deviceConstants_->waveformAlignment;  // DC+0x14, =4096
+                uint32_t nextBoundary = (aligned / wfAlign + 1) * wfAlign;
+                bool fits = (nextBoundary >= blockEnd) ||
+                            (nextBoundary - aligned >= size);
+                if (!fits)
+                    return {0, 0, 0};
+
+                return {aligned, aligned + size, 1};  // valid, no crossesCacheLine
             });
         if (result.flags & 1)
             return result;
     }
 
     // Phase 2: general multi-CL path (lambda#2 operator() @0x2accd0)
+    // GDB-verified: second arg is blockEnd (absolute), not blockSize.
     return allocateFirstSuitableFreeBlock(
-        [&](unsigned int blockStart, unsigned int blockSize) -> MemoryBlock {
+        [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
             uint32_t clSize = deviceConstants_->waveformAlignment;
             uint32_t alignQ = clSize;
             if (size > clSize)
                 alignQ = deviceConstants_->maxBlocks * clSize;
 
             uint32_t aligned = (blockStart + alignQ - 1) & ~(alignQ - 1);
-            if (aligned < blockStart || aligned >= blockStart + blockSize)
+            if (aligned < blockStart || aligned >= blockEnd)
                 return {0, 0, 0};
-            if (blockStart + blockSize - aligned < size)
+            if (blockEnd - aligned < size)
                 return {0, 0, 0};
 
             // Check and fill CL ownership slots (SSE2 vectorized in binary)
-            uint32_t startSlot = aligned / cacheLineSize_;
-            uint32_t endSlot = (aligned + size + cacheLineSize_ - 1) / cacheLineSize_;
+            // GDB-verified: slot index uses (aligned % memorySizeInSamples_) / cacheLineSize_
+            // not aligned / cacheLineSize_, because addresses like 0x80000000 wrap via
+            // modular arithmetic to stay within the cacheLineUsage_ vector bounds.
+            uint32_t modAddr = aligned % memorySizeInSamples_;
+            uint32_t numSlots = maxBlocksPerCL_ * cacheLineSize_;
+            if (numSlots > size) numSlots = size;
+            uint32_t startSlot = modAddr / cacheLineSize_;
+            uint32_t endSlot = (modAddr + numSlots + cacheLineSize_ - 1) / cacheLineSize_;
+            if (endSlot > memorySizeInSamples_ / cacheLineSize_)
+                endSlot = memorySizeInSamples_ / cacheLineSize_;
             for (uint32_t s = startSlot; s < endSlot && s < cacheLineUsage_.size(); ++s) {
                 if (cacheLineUsage_[s] != 0xFFFFFFFF)
                     return {0, 0, 0};  // slot occupied
@@ -151,9 +185,11 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
             }
             numCacheLines_ -= (endSlot - startSlot);
 
-            uint32_t flags = 1;  // valid
-            if (endSlot > startSlot + 1)
-                flags |= (1 << 8);  // crossesCacheLine
+            // Binary at 0x2acec7-0x2acf18: crossesCacheLine is always set in
+            // Phase 2 (multi-CL path). The condition is r14d != 0, where
+            // r14d = min(maxBlocksPerCL * cacheLineSize, numSlots), which is
+            // always positive for a valid allocator.
+            uint32_t flags = 1 | (1 << 8);  // valid + crossesCacheLine
             return {aligned, aligned + size, flags};
         });
 }
@@ -176,12 +212,12 @@ MemoryBlock MemoryAllocator::allocateReloadingCL(
     std::set<unsigned long> const& usedAddrs)  // CL indices of existing waveforms
 {
     return allocateFirstSuitableFreeBlock(
-        [&](unsigned int blockStart, unsigned int blockSize) -> MemoryBlock {
+        [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
             uint32_t align = deviceConstants_->waveformAlignment;
             uint32_t aligned = (blockStart + align - 1) & ~(align - 1);
 
-            while (aligned < blockStart + blockSize) {
-                if (blockStart + blockSize - aligned < size) {
+            while (aligned < blockEnd) {
+                if (blockEnd - aligned < size) {
                     return {0, 0, 0};  // doesn't fit
                 }
 
@@ -191,7 +227,7 @@ MemoryBlock MemoryAllocator::allocateReloadingCL(
                 uint32_t numCLsNeeded = maxBlocksPerCL_;
                 uint32_t addr = aligned;
                 for (uint32_t i = 0;
-                     i < numCLsNeeded && addr < blockStart + blockSize;
+                     i < numCLsNeeded && addr < blockEnd;
                      ++i, addr += align) {
                     uint32_t key = (addr % memorySizeInSamples_) / cacheLineSize_;
                     auto it = usedAddrs.lower_bound(key);
@@ -258,8 +294,11 @@ MemoryBlock MemoryAllocator::allocateFirstSuitableFreeBlock(Pred pred) {
         }
     }
 
-    // Try tail region: [startOffset_, startOffset_ + memorySizeInSamples_)
-    uint32_t tailEnd = startOffset_ + memorySizeInSamples_;
+    // Try tail region: binary uses lastAllocEnd_ (initially 0xFFFFFFFF) as
+    // the end bound, not startOffset_ + memorySizeInSamples_.
+    // GDB-verified at +579: eax = startOffset_, r11d = lastAllocEnd_.
+    // At +409: eax = freeBlocks_.back().end, r10d = lastAllocEnd_.
+    uint32_t tailEnd = lastAllocEnd_;
     uint32_t tailStart = freeBlocks_.empty()
         ? startOffset_
         : freeBlocks_.back().end;

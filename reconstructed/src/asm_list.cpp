@@ -15,9 +15,7 @@
 
 #include <boost/json.hpp>
 
-#ifndef LOG_WARNING
-#define LOG_WARNING(msg) (void)0
-#endif
+#include "zhinst/log_macros.hpp"
 
 namespace zhinst {
 
@@ -167,7 +165,7 @@ void AsmList::print(bool showNode, std::ostream& os, bool showHeader) const {  /
 // Pass 2: For each entry:
 //   If opcode != -1:
 //     Emit assembler.str(true).
-//     If isWaveformCmd (+0xA0) and opcode == 5: append " #disableOpt".
+//     If isWaveformCmd (+0xA0) and opcode ∉ {3,4,5}: append " #disableOpt".
 //     Append "\n".
 //   If opcode == -1 AND node != null:
 //     Emit "placeholder # " + boost::json::serialize(node->toJson(idMap)) + "\n".
@@ -197,8 +195,9 @@ std::string AsmList::serialize() const {  // 0x2646d0
             // Real instruction
             ss << entry.assembler.str(true);
 
-            // Append " #disableOpt" for certain waveform commands
-            if (entry.isWaveformCmd && opcode == 5) {
+            // Append " #disableOpt" for waveform commands with opcode ∉ {3,4,5}
+            // Binary 0x26480e: checks isWaveformCmd, excludes (opcode-3)<2 and opcode==5
+            if (entry.isWaveformCmd && opcode != 3 && opcode != 4 && opcode != 5) {
                 ss << " #disableOpt";
             }
 
@@ -566,8 +565,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                     // 0x26788f: isWaveformCmd override
                     entry.isWaveformCmd = true;
                 } else {
-                    // 0x26789d: Check expr->field_A0 (byte at +0xA0)
-                    if (expr->field_A0) {
+                    // 0x26789d: Check expr->isWaveformCmdOverride_ (byte at +0xA0)
+                    if (expr->isWaveformCmdOverride_) {
                         entry.isWaveformCmd = true;
                     } else {
                         entry.isWaveformCmd = isWaveformCmd(instr);

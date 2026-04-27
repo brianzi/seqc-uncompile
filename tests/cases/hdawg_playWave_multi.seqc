@@ -1,0 +1,4 @@
+wave w1 = zeros(64);
+wave w2 = ones(64);
+playWave(w1);
+playWave(w2);

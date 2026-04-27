@@ -56,7 +56,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerR
         result.assembler.regAux = markerReg;
     }
 
-    result.assembler.immediates.emplace_back(waveIndex);
+    result.assembler.outputs.emplace_back(waveIndex);
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;
@@ -80,9 +80,9 @@ AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
     result.assembler.cmd = Assembler::WVFS_H;
 
     int dummyFlag = (static_cast<int>(dummyType) != 0) ? 1 : 0;
-    result.assembler.immediates.emplace_back(dummyFlag);
-    result.assembler.regDst = reg;
-    result.assembler.immediates.emplace_back(arg);
+    result.assembler.immediates.emplace_back(dummyFlag);  // child[0]: val (1-bit)
+    result.assembler.regDst = reg;                         // child[1]: reg (after immediates)
+    result.assembler.outputs.emplace_back(arg);            // child[2]: val (20-bit, after registers)
 
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
@@ -96,8 +96,8 @@ AsmList::Asm AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFET;
-    result.assembler.regDst = reg;
-    result.assembler.immediates.emplace_back(arg);
+    result.assembler.regSrc = reg;  // binary 0x27d1e0: reg → +0x20 (regSrc)
+    result.assembler.outputs.emplace_back(arg);  // binary 0x27d1eb: arg → +0x38 (outputs)
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;

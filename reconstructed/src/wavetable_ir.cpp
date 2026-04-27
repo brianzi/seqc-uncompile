@@ -33,7 +33,7 @@ using detail::getUniqueName;
 class CsvParser {
 public:
     template <typename WfT>
-    static void csvFileToWaveform(std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
+    static void csvFileToWaveform(CachedParser& cache, std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
 };
 
 // 0x29ce20 — WavetableIR::WavetableIR(const WavetableFront&, ...)
@@ -270,7 +270,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
         computedOffset = 0;
     } else {                                                       // 0x29e409
         uint64_t raw = totalSamples * 32 + alignment + 0x53;
-        computedOffset = (uint32_t)(raw - (raw % alignment));
+        computedOffset = static_cast<uint32_t>(raw - (raw % alignment));
     }
 
     // Phase 2: Build cache-line occupancy vector and allocate     // 0x29e437
@@ -292,7 +292,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 
             // 2. Compute allocation size in bytes from signal properties // 0x2a9c95
             uint16_t channels = wf->signal.channels_;           // +0xC8
-            uint32_t length = (uint32_t)wf->signal.length_;     // +0xD0
+            uint32_t length = static_cast<uint32_t>(wf->signal.length_);     // +0xD0
             const DeviceConstants* dc = wf->deviceConstants;          // +0x78
 
             uint32_t sizeInBlocks;
@@ -307,8 +307,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             }
 
             // totalBits = sizeInBlocks * channels * bitsPerSample       // 0x2a9cdb
-            uint64_t totalBits = (uint64_t)sizeInBlocks * channels * dc->bitsPerSample;
-            uint32_t allocationBytes = (uint32_t)((totalBits + 7) / 8); // 0x2a9ce9
+            uint64_t totalBits = static_cast<uint64_t>(sizeInBlocks) * channels * dc->bitsPerSample;
+            uint32_t allocationBytes = static_cast<uint32_t>((totalBits + 7) / 8); // 0x2a9ce9
 
             if (allocationBytes == 0)                           // 0x2a9cf6
                 return;
@@ -528,7 +528,9 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
     uint32_t maxBlocks = dc->maxBlocks;                      // DC+0x1C
 
     // Inlined MemoryAllocator construction                   // 0x29ed5a
-    MemoryAllocator allocator(dc, /*startOffset=*/0);
+    // Binary passes addressBase_ as startOffset (GDB-verified: tail region
+    // starts at 0x80000000 for HDAWG8)
+    MemoryAllocator allocator(dc, /*startOffset=*/addressBase_);
 
     // Phase 1: allocate waveforms with irBool0 == 1          // 0x29ee0d
     std::set<size_t> allocatedSet;
@@ -609,9 +611,11 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
         WaveOrder::Natural);                                  // 0x29ee93
 
     // Update addressBase_ from last allocation position       // 0x29eef2
-    // Reads final position from deque end
+    // Binary reads first uint32 of last free block (= .start), which is the
+    // first free address after all allocations. GDB-verified: value=0x80000080
+    // for a 128-byte waveform starting at addressBase_=0x80000000.
     if (allocator.hasFreeBlocks()) {
-        addressBase_ = allocator.lastFreeBlock().end;
+        addressBase_ = allocator.lastFreeBlock().start;
     }
 }
 
@@ -653,7 +657,7 @@ void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f31
     // of DeviceConstants (DC+0x00).
     auto wfCopy = waveform;  // refcount inc
     auto deviceType = static_cast<AwgDeviceType>(deviceConstants_->deviceType);
-    CsvParser::csvFileToWaveform<WaveformIR>(std::move(wfCopy), deviceType);
+    CsvParser::csvFileToWaveform<WaveformIR>(cachedParser_, std::move(wfCopy), deviceType);
 }
 
 // 0x29f480 — WavetableIR::getJsonIndex(SampleFormat) const
@@ -714,9 +718,9 @@ void WavetableIR::alignWaveformSizes() {                            // @0x29f150
             // ceil(sampleCount / granularity) * granularity
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
-            // Clamp to seqRegWidth (max waveform length for this device)
+            // Clamp: binary uses cmova → max(aligned, seqRegWidth)  @0x2aa373-0x2aa375
             size_t maxSamples = static_cast<size_t>(wf->seqRegWidth);  // +0x70
-            if (aligned > maxSamples) aligned = maxSamples;
+            if (maxSamples > aligned) aligned = maxSamples;
 
             if (aligned != sampleCount) {
                 wf->signal.resizeSamples(aligned);
@@ -752,7 +756,9 @@ void WavetableIR::assignWaveformAllocationSizes() {                 // @0x29f1d0
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
             size_t maxSamples = deviceConstants_->waveformGranularity;  // DC+0x40
-            if (aligned > maxSamples) aligned = maxSamples;
+            // Binary uses cmova (max), NOT min — verified GDB @0x2aa4b3:
+            // cmp %eax,%r8d; cmova %r8d,%eax → eax = max(aligned, granularity)
+            if (maxSamples > aligned) aligned = maxSamples;
 
             // Compute allocation: aligned_samples * channels * bitsPerSample
             uint32_t bps = deviceConstants_->bitsPerSample;            // DC+0x50

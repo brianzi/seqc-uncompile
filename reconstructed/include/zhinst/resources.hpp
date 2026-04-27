@@ -172,7 +172,7 @@ VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
 // 0x54    4     VarType                                 returnType_
 // 0x58    40    Value                                   returnValue_ (0x28 bytes)
 // 0x80    8     AsmRegister                             returnReg_
-// 0x88    2     int16_t                                 flags_88_
+// 0x88    2     int16_t                                 scopeBoundaryFlags_
 // 0x8A    6     (padding)
 // 0x90    24    vector<Variable>                        variables_
 // 0xA8    24    vector<shared_ptr<Function>>            functions_
@@ -379,14 +379,14 @@ public:
     AsmRegister getReturnReg();                       // @0x1e3fe0
     static int getRegisterNumber();                          // @0x1e4bb0
 
-    // Accessor for the flags byte at +0x88 (low byte of flags_88_).
+    // Accessor for the flags byte at +0x88 (low byte of scopeBoundaryFlags_).
     // Used by SeqCVariable::evaluate to gate the checkVar() call:
     //   if direction!=Read && flagsByte()==0 → checkVar(name).
     // Binary reads this as `cmp BYTE PTR [rdi+0x88], 0` @0x209fda.
-    bool atScopeBoundary() const { return (flags_88_ & 0xFF) != 0; }
+    bool atScopeBoundary() const { return (scopeBoundaryFlags_ & 0xFF) != 0; }
     // Setter: binary writes `BYTE PTR [res+0x88], val` in SeqCIfElse
     // and SeqCCondExpr Const/Cvar paths to flag dead-branch evaluation.
-    void setAtScopeBoundary(bool v) { flags_88_ = v ? 1 : 0; }
+    void setAtScopeBoundary(bool v) { scopeBoundaryFlags_ = v ? 1 : 0; }
 
     // --- Variable operations ---
     bool variableDependsOnVar(std::string const& name) const;    // @0x1e40e0
@@ -458,7 +458,7 @@ protected:
     VarType                    returnType_;         // +0x54
     Value                      returnValue_;        // +0x58 (0x28 = 40 bytes)
     AsmRegister                returnReg_;          // +0x80 (8 bytes)
-    int16_t                    flags_88_;           // +0x88
+    int16_t                    scopeBoundaryFlags_;           // +0x88
     char                       pad_8A_[6];          // +0x8A
     std::vector<Variable>      variables_;          // +0x90
     std::vector<std::shared_ptr<Function>> functions_;  // +0xA8

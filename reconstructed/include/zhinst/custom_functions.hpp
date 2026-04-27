@@ -45,9 +45,15 @@ namespace zhinst {
 
 // Forward declarations
 class AsmCommands;
+class AWGCompilerImpl;
 struct AWGCompilerConfig;
 struct DeviceConstants;
 class EvalResults;
+class Resources;
+class WavetableFront;
+class WaveformFront;
+class WaveformGenerator;
+enum AwgDeviceType : int;
 // NodeMap — wraps std::map<std::string, NodeMapItem>; size 24B
 // (used as unique_ptr<NodeMap> in CustomFunctions +0xF8)
 // Originally local to custom_functions.cpp; promoted to header during Phase 22b
@@ -62,16 +68,20 @@ public:
     std::map<std::string, NodeMapItem> entries_;
 };
 
-class Resources;
-class WaveformFront;
-class WaveformGenerator;
-class WavetableFront;
-enum AwgDeviceType : int;
-
-// getNodeMapForDevice — full dispatcher for initNodeMap @0x16b740
-// Combines the initNodeMap jump table (0-4) with the
-// GetNodeMapDispatcher for higher device types (8,16,32,64,128,256).
-std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType devType);
+// ============================================================================
+// ExternalTriggeringMode — mutual-exclusion latch for DIO vs ZSync I/O.
+//
+// Binary evidence: error message for mixing (code 79) reads
+//   "DIO and ZSync external triggering can't be mixed in the same program"
+// and the JSON output key is "external_triggering" (values "dio"/"zsync").
+//
+// Underlying storage is int32_t at CustomFunctions+0x1C0.
+// ============================================================================
+enum class ExternalTriggeringMode : int32_t {
+    None  = 0,   // unset — no I/O function compiled yet
+    Dio   = 1,   // DIO family (setDIO, getDIO, getDIOTriggered, waitDIOTrigger, playDIOWave, playWaveDIO)
+    ZSync = 2,   // ZSync family (getZSyncData, getFeedback, waitZSyncTrigger, playWaveZSync)
+};
 
 // ============================================================================
 // AccessMode — comparable enum-like type used in set<AccessMode>
@@ -209,9 +219,16 @@ struct PlayArgs {
         EvalResultValue value;       // +0x00 (0x38 bytes)
         std::vector<int> bits;       // +0x38, channel bit assignments
         // total = 0x50 ✓
+
+        WaveAssignment() = default;
+        WaveAssignment(WaveAssignment const& o);  // @0x171c00 — variant-aware copy
+        WaveAssignment& operator=(WaveAssignment const&) = default;
+        WaveAssignment(WaveAssignment&&) = default;
+        WaveAssignment& operator=(WaveAssignment&&) = default;
     };
-    static_assert(sizeof(WaveAssignment) == 0x50,
-                  "PlayArgs::WaveAssignment must be 0x50 bytes");
+    // 0x50 on libc++ (binary), larger on libstdc++ due to Value's string union.
+    static_assert(sizeof(WaveAssignment) >= 0x50,
+                  "PlayArgs::WaveAssignment must be at least 0x50 bytes");
 
     // --- Fields (0x80 bytes total) ---
     std::shared_ptr<WavetableFront>              wavetable_;          // +0x00
@@ -290,28 +307,22 @@ int parseOptionalRate(
 // 0x150   24    vector<NodeMapItem>                               nodeList_
 //                  (CONFIRMED from addNodeAccess emplace_back_slow_path call
 //                   at 15c7e4 with 24-byte stride.)
-// 0x168   16    vector<T>  (T size 8 bytes, trivially destructible)  field_168 (TBD)
-//                  (Dtor at 127cf2: `delete[size*8]` only — no per-element loop,
-//                   no string/vptr destruction. Element type T unknown; could be
-//                   uint64_t, void*, NodeMapItem*, double, etc. Need ctor and
-//                   write-site analysis to identify T. NOT touched by lookupNode,
-//                   addNodeAccess, getNodeAddress, or initial CustomFunctions ctor;
-//                   likely populated by a different method (initNodeMap? or one
-//                   of the playWave family).)
-// 0x178   8     (size_t size_ for vector at +0x168)
-// 0x180   8     (size_t cap_  for vector at +0x168) — NOTE: dtor reads [+0x170]
-//                  for size, so layout may be { ptr,size,cap } at 168/170/178
-//                  (libc++ vector). +0x180/0x188 might be a separate float field.
+// 0x168   40    unordered_set<string>                             assignedWaveNames_
+//                  (Resolved Phase 14a: dtor at 127cf2 walks bucket array with
+//                   string-node destruction; 1.0f max_load_factor at +0x188 in
+//                   ctor at 12bec9 confirms unordered_set. Spans +0x168..+0x190.)
 // 0x190   48    std::function<void(string const&)>                warningCallback_
 //                  (CONFIRMED from dtor pattern at 127cb0: small-buffer check
 //                   `cmp [rbx+0x1b0], (rbx+0x190)` and virtual destroy via vtable.)
-// 0x1C0   8     (likely padding or count field; dtor sets +0x1C0 to 0xFFFFFFFF
-//                  in addNodeAccess +0x179 region — TODO verify)
+// 0x1C0   4     ExternalTriggeringMode (int32_t)                    externalTriggeringMode_
+//                  (None=0, Dio=1, ZSync=2; mutual-exclusion latch for I/O bus family)
+// 0x1C4   4     padding
 // 0x1C8   24    set<string>                                       usedFeatures_
 // ============================================================================
 
 class CustomFunctions {
     friend class Compiler;  // Compiler::compile() directly writes resources_ (+0x10)
+    friend class AWGCompilerImpl;  // getJsonVersion reads externalTriggeringMode_ and usedFeatures_ directly
 public:
     // SubFunc — enum for play() / playIndexed() dispatch
     // Confirmed from binary: playWave passes 1, playWaveNow passes 3.
@@ -563,12 +574,18 @@ private:
 
     std::function<void(std::string const&)>            warningCallback_;        // +0x190 (48B)
 
-    // Wait-type state: 0=unset, 1=DIO, 2=ZSync. Guards against mixed wait types.
-    // Throw ErrorMessageT(0x4f) if waitState_ != 0 and != expected.
-    int32_t                                            waitState_{0};           // +0x1C0
+    // External triggering mode: None=unset, Dio=1, ZSync=2.
+    // Guards against mixing DIO and ZSync operations in one program.
+    // Throw ErrorMessageT(0x4f) if externalTriggeringMode_ != None and != expected.
+    ExternalTriggeringMode                             externalTriggeringMode_{ExternalTriggeringMode::None}; // +0x1C0
     char                                               pad_1C4_[4];             // +0x1C4..+0x1C7
 
     std::set<std::string>                              usedFeatures_;           // +0x1C8
+
+    // --- Extracted helpers (not in binary — refactoring for readability) ---
+    void checkExternalTriggeringMode(ExternalTriggeringMode expected);
+    bool isShfFamily() const;
 };
+
 
 } // namespace zhinst

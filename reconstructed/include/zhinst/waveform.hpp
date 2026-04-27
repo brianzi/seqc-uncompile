@@ -36,22 +36,22 @@ struct DeviceConstants;  // forward declaration
 // Offset  Size  Type              Name
 // ------  ----  ----              ----
 // 0x00    24    std::string       name
-// 0x18     4    int32_t           field18
-// 0x1C     4    int32_t           field1C
-// 0x20     4    int32_t           field20
+// 0x18     4    int32_t           formatType
+// 0x1C     4    int32_t           columnMode
+// 0x20     4    int32_t           isIntegerFormat
 // 0x24     4    (padding)
-// 0x28     8    uint8_t*          data begin  }
-// 0x30     8    uint8_t*          data end    } vector<uint8_t>
-// 0x38     8    uint8_t*          data cap    }
+// 0x28     8    uint*             data begin  }
+// 0x30     8    uint*             data end    } vector<unsigned int> (hash)
+// 0x38     8    uint*             data cap    }
 // 0x40          END
 // ============================================================================
 struct WaveformFile {
     std::string name;                   // +0x00
-    int32_t field18;                    // +0x18
-    int32_t field1C;                    // +0x1C
-    int32_t field20;                    // +0x20
+    int32_t formatType;                    // +0x18
+    int32_t columnMode;                    // +0x1C
+    int32_t isIntegerFormat;                    // +0x20
     // +0x24: 4 bytes padding
-    std::vector<uint8_t> data;          // +0x28
+    std::vector<unsigned int> data;     // +0x28 — file hash (from CachedParser::getHash)
 
     // File::Type enum
     enum class Type : int {
@@ -84,7 +84,7 @@ struct WaveformFile {
 // 0x48     1    bool                        used              "load" in JSON
 // 0x49     3    (padding)
 // 0x4C     4    uint32_t                    addressValue      "globalAddress" in JSON
-// 0x50    24    std::string                 thirdString       "genFunc" in JSON
+// 0x50    24    std::string                 funDescrName       "genFunc" in JSON
 // 0x68     4    uint32_t                    playWord          "playConfig" in JSON
 // 0x6C     4    int32_t                     playIndex         "waveIndex" in JSON
 // 0x70     4    int                         seqRegWidth       "minLengthSamples" in JSON
@@ -104,7 +104,7 @@ struct Waveform {
     bool used;                                      // +0x48
     // +0x49: padding
     uint32_t addressValue;                          // +0x4C
-    std::string thirdString;                        // +0x50
+    std::string funDescrName;                        // +0x50
     uint32_t playWord;                              // +0x68
     int32_t waveIndex;                              // +0x6C — "waveIndex" in JSON
     int seqRegWidth;                                // +0x70

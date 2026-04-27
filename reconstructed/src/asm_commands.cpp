@@ -8,11 +8,24 @@
 #include "zhinst/error_messages.hpp"
 #include "zhinst/resources.hpp"  // for ResourcesException
 #include "zhinst/node.hpp"
+#include "zhinst/types.hpp"
 
 #include <cstring>
 #include <limits>
 
 namespace zhinst {
+
+// Hardware register address constants for DIO and ID instructions
+namespace {
+constexpr unsigned kDioAddrLow  = 0x20u;   // DIO register (low bank)
+constexpr unsigned kDioAddrHigh = 0x1FEu;  // DIO register (high bank)
+constexpr unsigned kIdAddrLow   = 0x21u;   // ID register (low bank)
+constexpr unsigned kIdAddrHigh  = 0x1FFu;  // ID register (high bank)
+
+// Immediate encoding range: ~19-bit signed field
+constexpr int32_t  kImm19HalfRange = 0x7FFFF;     // offset to test range
+constexpr uint32_t kImm19MaxUnsigned = 0xFFFFDu;   // upper bound after offset
+} // anonymous namespace
 
 // =========================================================================
 // Constructor
@@ -63,8 +76,7 @@ AsmList::Asm AsmCommands::emitNodeEntry(NodeType type) const {
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::INVALID;
     result.wavetableFront = wavetableFrontIndex_;
-    result.node = std::make_shared<Node>();
-    result.node->type = type;
+    result.node = std::make_shared<Node>(type, result.sequenceId, numChannelGroups_);
     result.isWaveformCmd = false;
     return result;
 }
@@ -80,9 +92,9 @@ AsmList::Asm AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) co
 
     AssemblerInstr instr;
     instr.cmd = Assembler::PRF;
-    instr.regSrc = reg1;
-    instr.regDst = reg2;
-    instr.immediates.emplace_back(intArg);
+    instr.regAux = reg1;       // child[0]: first register (bits [31:24])
+    instr.regSrc = reg2;       // child[1]: second register (bits [23:20])
+    instr.outputs.emplace_back(intArg);  // child[2]: 20-bit immediate
     return emitEntry(instr);
 }
 
@@ -96,7 +108,7 @@ AsmList::Asm AsmCommands::wwvfq() const {
 
 AsmList::Asm AsmCommands::wwvf() const {
     AssemblerInstr instr;
-    instr.cmd = Assembler::WPRF;  // same opcode family as wprf
+    instr.cmd = Assembler::WWVF;  // 0xF1000000 — write waveform trigger
     return emitEntry(instr);
 }
 
@@ -209,8 +221,8 @@ AsmList::Asm AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
 
     AssemblerInstr instr;
     instr.cmd = cmd;
-    instr.regDst = src;
-    instr.regAux = dst;
+    instr.regAux = dst;    // binary: dst → +0x30 (verified 0x272380: -0x90 = -0xc0+0x30)
+    instr.regSrc = src;    // binary: src → +0x20 (verified 0x272380: -0xa0 = -0xc0+0x20)
     return emitEntry(instr);
 }
 
@@ -265,9 +277,9 @@ AsmList::Asm AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
 
     AssemblerInstr instr;
     instr.cmd = cmd;
-    instr.regAux = dst;
-    instr.regDst = src;
-    instr.immediates.emplace_back(imm);
+    instr.regDst = dst;    // binary: dst → +0x28 (verified 0x272820: -0xa0 = -0xc8+0x28)
+    instr.regSrc = src;    // binary: src → +0x20 (verified 0x272820: -0xa8 = -0xc8+0x20)
+    instr.outputs.emplace_back(imm);  // binary: imm → outputs(+0x38), NOT immediates
     return emitEntry(instr);
 }
 
@@ -305,12 +317,12 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
     uint32_t uval = static_cast<uint32_t>(sval);
 
     // Case 1: fits in ~18-bit signed range
-    if (static_cast<uint32_t>(sval + 0x7FFFF) <= 0xFFFFDu) {
+    if (static_cast<uint32_t>(sval + kImm19HalfRange) <= kImm19MaxUnsigned) {
         AssemblerInstr instr;
         instr.cmd = cmd;
-        instr.regAux = dst;
-        instr.regDst = src;
-        instr.immediates.emplace_back(sval);
+        instr.regDst = dst;    // binary: dst → +0x28 (same as aluiu)
+        instr.regSrc = src;    // binary: src → +0x20
+        instr.outputs.emplace_back(sval);  // binary: imm → outputs(+0x38)
         result.push_back(emitEntry(instr));
         return result;
     }
@@ -321,9 +333,9 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
         // Low 12 bits via ADDI
         AssemblerInstr instr;
         instr.cmd = Assembler::ADDI;
-        instr.regAux = dst;
-        instr.regDst = src;
-        instr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
+        instr.regDst = dst;    // binary: dst → +0x28
+        instr.regSrc = src;    // binary: src → +0x20
+        instr.outputs.emplace_back(static_cast<int32_t>(uval & 0xFFF));
         result.push_back(emitEntry(instr));
 
         // Upper bits via single ADDIU
@@ -339,9 +351,9 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
     {
         AssemblerInstr loadInstr;
         loadInstr.cmd = Assembler::ADDI;
-        loadInstr.regAux = dst;
-        loadInstr.regDst = AsmRegister::Reg(0);
-        loadInstr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
+        loadInstr.regDst = dst;    // binary: dst → +0x28
+        loadInstr.regSrc = AsmRegister::Reg(0);    // binary: src → +0x20
+        loadInstr.outputs.emplace_back(static_cast<int32_t>(uval & 0xFFF));
         result.push_back(emitEntry(loadInstr));
     }
 
@@ -390,9 +402,9 @@ std::vector<AsmList::Asm> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     // Low 12 bits via ADDI
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.regAux = dst;
-    instr.regDst = src;
-    instr.immediates.emplace_back(static_cast<int32_t>(uval & 0xFFF));
+    instr.regDst = dst;    // binary: dst → +0x28
+    instr.regSrc = src;    // binary: src → +0x20
+    instr.outputs.emplace_back(static_cast<int32_t>(uval & 0xFFF));  // binary: → outputs(+0x38)
 
     AsmList::Asm entry1 = emitEntry(instr);
     entry1.isWaveformCmd = true;  // forced at 0x274023
@@ -502,8 +514,8 @@ AsmList::Asm AsmCommands::ld(AsmRegister reg,
 
     AssemblerInstr instr;
     instr.cmd = Assembler::LD;
-    instr.regSrc = reg;
-    instr.immediates.emplace_back(static_cast<int32_t>(addr.value));
+    instr.regDst = reg;    // binary 0x274550: reg → +0x28 (regDst)
+    instr.outputs.emplace_back(static_cast<int32_t>(addr.value));  // binary: addr → outputs(+0x38)
     return emitEntry(instr);
 }
 
@@ -515,8 +527,8 @@ AsmList::Asm AsmCommands::st(AsmRegister reg,
 
     AssemblerInstr instr;
     instr.cmd = Assembler::ST;
-    instr.regDst = reg;
-    instr.immediates.emplace_back(static_cast<int32_t>(addr.value));
+    instr.regSrc = reg;    // binary 0x274740: reg → +0x20 (regSrc)
+    instr.outputs.emplace_back(static_cast<int32_t>(addr.value));  // binary: value → outputs(+0x38)
     return emitEntry(instr);
 }
 
@@ -524,7 +536,7 @@ AsmList::Asm AsmCommands::ldio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ldio"));
-    unsigned addr = highBank ? 0x1FEu : 0x20u;
+    unsigned addr = highBank ? kDioAddrHigh : kDioAddrLow;
     return ld(reg, detail::AddressImpl<unsigned int>{addr});
 }
 
@@ -532,7 +544,7 @@ AsmList::Asm AsmCommands::sdio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sdio"));
-    unsigned addr = highBank ? 0x1FEu : 0x20u;
+    unsigned addr = highBank ? kDioAddrHigh : kDioAddrLow;
     return st(reg, detail::AddressImpl<unsigned int>{addr});
 }
 
@@ -560,21 +572,21 @@ AsmList::Asm AsmCommands::ltrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "ltrig"));
-    return ld(reg, detail::AddressImpl<unsigned int>{0x22u});
+    return ld(reg, detail::AddressImpl<unsigned int>{kAddrTrigger});
 }
 
 AsmList::Asm AsmCommands::strig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "strig"));
-    return st(reg, detail::AddressImpl<unsigned int>{0x22u});
+    return st(reg, detail::AddressImpl<unsigned int>{kAddrTrigger});
 }
 
 AsmList::Asm AsmCommands::sinttrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sinttrig"));
-    return st(reg, detail::AddressImpl<unsigned int>{0x23u});
+    return st(reg, detail::AddressImpl<unsigned int>{kAddrInternalTrig});
 }
 
 AsmList::Asm AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
@@ -604,7 +616,7 @@ AsmList::Asm AsmCommands::sid(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "sid"));
-    unsigned addr = highBank ? 0x1FFu : 0x21u;
+    unsigned addr = highBank ? kIdAddrHigh : kIdAddrLow;
     return st(reg, detail::AddressImpl<unsigned int>{addr});
 }
 
@@ -721,7 +733,7 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
                               tmp.end());  // 0x275e3d
 
         // 0x276062: suser(reg1, 0x44)
-        result.append(suser(reg1, 0x44));  // 0x276062
+        result.append(suser(reg1, kSuserSyncA));  // 0x276062
 
         // 0x276132: alui(ADDI, reg1, Reg(0), Immediate(0x800000))
         auto tmp2 = alui(Assembler::ADDI, reg1, AsmRegister::Reg(0),
@@ -733,13 +745,13 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
         result.append(wtrig(reg1, reg1));  // 0x27653d
 
         // 0x2765f8: suser(Reg(0), 0x44)
-        result.append(suser(AsmRegister::Reg(0), 0x44));  // 0x27661d
+        result.append(suser(AsmRegister::Reg(0), kSuserSyncA));  // 0x27661d
 
         // 0x2766d8: wtrig(reg2, reg2)
         result.append(wtrig(reg2, reg2));  // 0x2766ed
 
         // 0x2767a8: suser(Reg(0), 0x44)
-        result.append(suser(AsmRegister::Reg(0), 0x44));  // 0x2767cd
+        result.append(suser(AsmRegister::Reg(0), kSuserSyncA));  // 0x2767cd
 
     } else {
         // 0x275eb3: flag==false path
@@ -759,13 +771,13 @@ AsmList AsmCommands::syncCervino(AsmRegister reg1, AsmRegister reg2,
                               tmp2.end());  // 0x27645f
 
         // 0x276857: suser(reg1, 0x45)
-        result.append(suser(reg1, 0x45));  // 0x27686a
+        result.append(suser(reg1, kSuserSyncB));  // 0x27686a
 
         // 0x276925: wtrig(reg2, reg2)
         result.append(wtrig(reg2, reg2));  // 0x27693a
 
         // 0x2769f5: suser(Reg(0), 0x45)
-        result.append(suser(AsmRegister::Reg(0), 0x45));  // 0x276a1a
+        result.append(suser(AsmRegister::Reg(0), kSuserSyncB));  // 0x276a1a
     }
 
     return result;  // 0x276ad5
@@ -779,13 +791,13 @@ AsmList AsmCommands::unsyncCervino() const {
     AssemblerInstr instr1;
     instr1.cmd = Assembler::ST;                       // 0xf6000000
     instr1.regSrc = AsmRegister::Reg(0);               // 0x276dbb: dest = R0
-    instr1.immediates.push_back(Immediate(0x44));    // 0x276dd3: DeviceConstants::Register::{unnamed#7} = 0x44
+    instr1.outputs.push_back(Immediate(0x44));        // binary: value → outputs(+0x38)
 
     // 0x276e13: Build second AssemblerInstr — ST command
     AssemblerInstr instr2;
     instr2.cmd = Assembler::ST;                       // 0xf6000000
     instr2.regSrc = AsmRegister::Reg(0);               // 0x276ea4: dest = R0
-    instr2.immediates.push_back(Immediate(0x45));    // 0x276ebc: DeviceConstants::Register::{unnamed#8} = 0x45
+    instr2.outputs.push_back(Immediate(0x45));        // binary: value → outputs(+0x38)
 
     // 0x276efc: Initialize output AsmList (empty vector)
     AsmList result;
@@ -829,7 +841,7 @@ AsmList::Asm AsmCommands::asmSyncPlaceholderCervino() const {
 }
 
 AsmList::Asm AsmCommands::asmSyncHirzel() const {
-    return suser(AsmRegister::Reg(0), detail::AddressImpl<unsigned int>{0x6Eu});
+    return suser(AsmRegister::Reg(0), detail::AddressImpl<unsigned int>{kSuserSyncHirzel});
 }
 
 // =========================================================================
@@ -839,18 +851,18 @@ AsmList::Asm AsmCommands::asmSyncHirzel() const {
 AsmList::Asm AsmCommands::asmZero(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.regSrc = reg;
-    instr.regDst = AsmRegister::Reg(0);
-    instr.immediates.emplace_back(0);
+    instr.regDst = reg;              // binary: dst (reg to zero) → +0x28
+    instr.regSrc = AsmRegister::Reg(0);  // binary: src (R0) → +0x20
+    instr.outputs.emplace_back(0);   // binary: imm → outputs(+0x38)
     return emitEntry(instr);
 }
 
 AsmList::Asm AsmCommands::asmOne(AsmRegister reg) const {
     AssemblerInstr instr;
     instr.cmd = Assembler::ADDI;
-    instr.regSrc = reg;
-    instr.regDst = AsmRegister::Reg(0);
-    instr.immediates.emplace_back(1);
+    instr.regDst = reg;              // binary: dst → +0x28
+    instr.regSrc = AsmRegister::Reg(0);  // binary: src (R0) → +0x20
+    instr.outputs.emplace_back(1);   // binary: imm → outputs(+0x38)
     return emitEntry(instr);
 }
 
@@ -950,24 +962,33 @@ PlayConfig AsmCommands::genPlayConfig(
     bool isHoldMode, unsigned int trigger) const
 {
     // Disassembly: 0x2789a0
-    // Field references verified from binary:
-    //   [wf+0xc8]      = signal.channels_     (uint16_t, NOT "sampleWidth")
-    //   [wf+0xb0/+0xb8] = signal.markerBits_  vector begin/end
-    // Parameters `holdCount` and `isBool` are accepted but never consumed by
-    // the binary in the visible code path; included here for ABI fidelity.
+    // Field mapping verified from struct writes at 0x278b00-0x278b27:
+    //   +0x00 channelMask = computed from channels (r13d)
+    //   +0x04 rate        = holdCount param (r11d from rbp+0x18)
+    //   +0x08 suppress    = suppress param (r10d from rbp+0x20)
+    //   +0x0C is4Channel  = isHoldMode param (r9b from rbp+0x28)
+    //   +0x10 markerBits  = computed from marker data (ecx)
+    //   +0x14 trigger     = trigger param (edx from rbp+0x30)
+    //   +0x18 precompFlags = 0 (literal)
+    //   +0x1C now         = isFourChannelBool param (bl from r9 at entry)
+    //   +0x1D hold        = isBool param (dil from rbp+0x10)
+    //   +0x1E dummy       = computed from wf==null or marker logic (r8b)
     PlayConfig config;
-    (void)holdCount;
-    (void)isBool;
-    config.suppress = suppress;
-    config.is4Channel = isFourChannelBool;
-    config.trigger = trigger;
-    config.precompFlags = 0;
-    config.hold = isHoldMode;
+    config.rate = holdCount;                // rbp+0x18 → +0x04
+    config.suppress = suppress;             // rbp+0x20 → +0x08
+    config.is4Channel = isHoldMode;         // rbp+0x28 → +0x0C
+    config.trigger = trigger;               // rbp+0x30 → +0x14
+    config.precompFlags = 0;                // literal   → +0x18
+    config.now = isFourChannelBool;         // r9→ebx→bl → +0x1C
+    config.hold = isBool;                   // rbp+0x10 → +0x1D
 
     WaveformFront* wf = wvf.get();
     if (!wf) {
         config.channelMask = 0;
         config.markerBits = 0;
+        // Binary: at 0x27921c: sete 0x66(%r8) — sets dummy = (waveform == nullptr).
+        // For null waveform path, getWaveformByName returns null, so dummy = true.
+        // (Previously incorrectly analyzed as dummy = fourChannel from 0x278a39.)
         config.dummy = true;
         return config;
     }
@@ -1024,16 +1045,23 @@ AsmList::Asm AsmCommands::asmPlay(
     AsmList::Asm result = emitNodeEntry(NodeType::Play);
     Node* node = result.node.get();
 
-    node->deviceIndex = nameIndex;
-
-    // Build waveform name vector
-    for (auto& wvf : waveforms) {
-        WaveformFront* wf = wvf.get();
-        if (wf) {
-            // Waveform name at offset 0x00 of WaveformFront (direct field access)
-            node->wavesPerDev.push_back(wf->name);
-        } else {
-            node->wavesPerDev.push_back(std::nullopt);
+    // Build waveform name vector — replaces the ctor-initialized wavesPerDev
+    // (binary builds a fresh vector at 0x278cc3..0x278f93 then assigns to +0x28)
+    // Only rebuild if waveforms is non-empty; for dummy plays (playZero/playHold)
+    // wavesPerDev stays as initialized by the constructor (numWaveSlots nullopts).
+    // Binary only sets deviceIndex in the non-empty path (0x278fab); for empty
+    // waveforms it stays at -1 (from Node ctor). This causes the downstream
+    // getWaveformByName lookup to return null → dummy=true.
+    if (!waveforms.empty()) {
+        node->deviceIndex = nameIndex;
+        node->wavesPerDev.clear();
+        for (auto& wvf : waveforms) {
+            WaveformFront* wf = wvf.get();
+            if (wf) {
+                node->wavesPerDev.push_back(wf->name);
+            } else {
+                node->wavesPerDev.push_back(std::nullopt);
+            }
         }
     }
 
@@ -1099,8 +1127,8 @@ AsmList::Asm AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront
 AsmList::Asm AsmCommands::asmWtrigLSPlaceholder(int value) {
     AssemblerInstr instr;
     instr.cmd = Assembler::ST;
-    instr.regDst = AsmRegister::Reg(0);
-    instr.immediates.emplace_back(value + 0x40);
+    instr.regSrc = AsmRegister::Reg(0);    // binary: reg → +0x20 (regSrc) for ST
+    instr.outputs.emplace_back(value + 0x40);  // binary: value → outputs(+0x38)
     return emitEntry(instr);
 }
 

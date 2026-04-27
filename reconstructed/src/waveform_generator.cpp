@@ -143,9 +143,9 @@ WaveformGenerator::WaveformGenerator(
     funcMap_["merge"]            = std::bind(&WaveformGenerator::merge,            this, _1);
     funcMap_["grow"]             = std::bind(&WaveformGenerator::grow,             this, _1);
 
-    // NOTE: The ctor does NOT register aliases in aliasMap_ (confirmed empty in Phase 13c).
-    // The exact alias mappings are not yet extracted from the disassembly
-    // (the ctor is ~5KB, mostly repetitive registration code).
+    // aliasMap_ is intentionally empty — the binary ctor does not populate it.
+    // The aliasMap_ machinery (deprecation warning + redirect in call()) exists
+    // but no aliases are registered in this binary version.
 }
 
 WaveformGenerator::~WaveformGenerator() {}  // 0x127840
@@ -290,32 +290,32 @@ std::shared_ptr<WaveformFront> WaveformGenerator::getOrCreateWaveform(
     std::vector<Value> const& args,
     std::function<Signal(std::vector<Value> const&)> factory)
 {
-    auto it = createdNames_.find(name);
-    if (it == createdNames_.end()) {
-        // First time — must invoke the factory.
-        if (!factory) {
-            // Matches __throw_bad_function_call at 25be2d.
-            throw std::bad_function_call();
+    // Binary flow at 0x25bca0:
+    //   1. Check createdNames_.find(name) vs end
+    //   2. If NOT in set → try getWaveformByFunDescr(name, args)
+    //      - If found → increment useCount (+0xd8), return
+    //   3. If in set OR getWaveformByFunDescr returned null →
+    //      call factory(args), then newWaveform(signal, name, args)
+    auto it = createdNames_.find(name);                                        // 0x25bcce
+    if (it == createdNames_.end()) {                                           // 0x25bcda: je 0x25bdd9
+        // Not in set — try existing lookup first
+        auto wf = wavetableFront_->getWaveformByFunDescr(name, args);          // 0x25bdea
+        if (wf) {
+            // 0x25be11: incl 0xd8(%rax) — bump use-count
+            // wf->useCount++;  // TODO: expose use-count field
+            return wf;
         }
-
-        Signal signal = factory(args);
-
-        // Register the newly-created Signal under `name` with the wavetable
-        // front-end, which both creates a WaveformFront and inserts `name`
-        // into createdNames_ for subsequent cache hits.
-        return wavetableFront_->newWaveform(signal, name, args);
+        // Fall through to factory path
     }
 
-    // Cache hit: look up the existing WaveformFront and bump its use-count.
-    auto wf = wavetableFront_->getWaveformByFunDescr(name, args);
-    if (wf) {
-        // Field at +0xd8 in WaveformFront is a uint32_t use-count incremented
-        // on every cache hit (line 25be11 in the binary).
-        // NOTE(WaveformFront): expose this counter properly once WaveformFront
-        // is reconstructed; for now we leave it untouched and rely on the
-        // shared_ptr refcount.
+    // In set OR lookup failed: invoke factory and create new waveform
+    if (!factory) {                                                            // 0x25be2d
+        throw std::bad_function_call();
     }
-    return wf;
+
+    Signal signal = factory(args);                                             // 0x25bcfd
+
+    return wavetableFront_->newWaveform(signal, name, args);                   // 0x25bd15
 }
 
 // call @0x25c120
@@ -1977,53 +1977,178 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
 }
 // multiply(sig1, sig2, ...) @0x258750
 //
-// Pointwise multiplication of two or more signals.
-// Structurally similar to add() but with multiplication instead of addition.
+// Pointwise multiplication of two or more waveform signals.
+// Does NOT use readWave(); manually loads waveforms via wavetableFront_.
 //
-// Disassembly notes (4480 bytes, complex):
-//   - Must have >= 2 args (same pattern as add())
-//   - Signal::Signal(size_t, MarkerBitsPerChannel const&) at 0x258d28
-//   - Loop appends samples via Signal::append(double, uint8_t) at 0x259384
-//   - Error 0x?? at 0x2593ba if channel count mismatch
-//   - Handles multi-channel signals by multiplying corresponding channels
-//   - Markers are OR'd together (same as add)
-//   - reserveOnly_ short-circuit like add()
+// Phase 1 (0x258826..0x258d0b): Load all waveforms by name:
+//   - Each arg must be type 4 (wave ref), else error AddExpectsMultiWave (83)
+//   - waveformExists check, else WaveformGeneratorValueException UnknownWaveform (90)
+//   - getWaveformByName + loadWaveform
+//   - Track maxNSamples across all waveforms
+//   - Validate channels_ match (first sets expected; others must match or
+//     InconsistentChannels (229) error)
+//   - markerBits_ OR'd across all waveforms
+//   - allReserveOnly = AND of all reserveOnly_ flags
 //
-// Due to the 4480-byte complexity (multi-channel, marker handling, error paths),
-// this is a documented structural stub.
+// Phase 2 (0x258d0b..0x258d3c): Construct output:
+//   - If allReserveOnly → Signal(ReserveOnly, maxNSamples, markerBits)
+//   - Else → Signal(maxNSamples, markerBits)
+//
+// Phase 3 (0x258d3c..0x2593a1): Per-sample multiply loop:
+//   - totalSamples = maxNSamples * channels (flat interleaved)
+//   - For each sample index, iterate all waveforms:
+//     - reserveOnly waveforms get samples/markers padded to channels*nSamples (zeros)
+//     - If waveform too short for index → product=0, marker=0, break
+//     - product *= wf.samples_[idx]; marker *= wf.markers_[idx] (byte mul)
+//   - Signal::append(product, marker) at 0x259384
+//   - Track |product|>1.0 → AmplitudeClipped (84) warning at 0x2593ba
 Signal WaveformGenerator::multiply(std::vector<Value> const& args) {           // 0x258750
+    // --- Arg count check ---                                                     // 0x258795
     if (args.size() < 2) {
         throw WaveformGeneratorException(
-            ErrorMessages::format(FuncExactArgs2,
-                                  "multiply", 2, args.size()));
+            ErrorMessages::format(FuncMinArgs,
+                                  "multiply", 2, args.size()));                    // 0x25965e
     }
 
-    Signal first = readWave(args[0], "wave_1", -1, "multiply")->signal;
-    if (first.reserveOnly_) {
-        return first;
-    }
-    first.checkAllocation();
+    // --- Phase 1: Load all waveforms, validate channels, collect metadata ---
+    std::vector<std::shared_ptr<WaveformFront>> waveforms;                         // [rbp-0xf0]
+    MarkerBitsPerChannel markerBits;                                               // [rbp-0xb0]
 
-    // For single-channel case: pointwise multiply
-    std::vector<double> product = first.samples_;
-    std::vector<uint8_t> markers = first.markers_;
+    bool allReserveOnly = true;                                                    // 0x2587d5: sil=1
+    int16_t channels = 0;                                                          // [rbp-0x68]
+    int maxNSamples = 0;                                                           // r8d
 
-    for (size_t i = 1; i < args.size(); ++i) {
-        std::string paramName = "wave_" + std::to_string(i + 1);
-        Signal s = readWave(args[i], paramName,
-                            static_cast<int>(product.size()), "multiply")->signal;
-        s.checkAllocation();
-        for (size_t j = 0; j < product.size(); ++j) {
-            product[j] *= s.samples_[j];
+    for (size_t i = 0; i < args.size(); ++i) {                                    // 0x258826
+        // Each arg must be type 4 (wave reference)                                // 0x258838
+        if (static_cast<int>(args[i].type_) != 4) {
+            throw WaveformGeneratorException(                                      // 0x259545
+                errMsg[AddExpectsMultiWave]);
         }
-        if (s.markers_.size() == markers.size()) {
-            for (size_t j = 0; j < markers.size(); ++j) {
-                markers[j] |= s.markers_[j];
+
+        // Check waveform exists                                                   // 0x258862
+        std::string name = args[i].toString();
+        if (!wavetableFront_->waveformExists(name)) {
+            throw WaveformGeneratorValueException(                                 // 0x2594ce
+                ErrorMessages::format(UnknownWaveform,
+                                      "multiply", args[i].toString()),
+                i + 1);                                                            // 0x259515: rdx = i+1
+        }
+
+        // Load waveform                                                           // 0x2588f3
+        std::optional<std::string> optName(name);
+        auto wf = wavetableFront_->getWaveformByName(optName);
+        wavetableFront_->loadWaveform(wf);                                         // 0x258968
+
+        // Track max nSamples                                                      // 0x2589a3
+        Signal const& sig = wf->signal;
+        int nSamples = static_cast<int>(sig.length_);
+        if (nSamples > maxNSamples) {
+            maxNSamples = nSamples;
+        }
+
+        uint16_t sigChannels = sig.channels_;                                      // 0x2589b1
+
+        if (i != 0) {                                                              // 0x2589bd
+            // Check channel count matches first waveform                          // 0x2589c7
+            if (static_cast<int16_t>(channels) != static_cast<int>(sigChannels)) {
+                throw WaveformGeneratorValueException(                             // 0x259593
+                    ErrorMessages::format(InconsistentChannels,
+                                          "multiply", args[i].toString(),
+                                          sigChannels,
+                                          static_cast<int16_t>(channels)),
+                    i + 1);                                                        // 0x2595e8
+            }
+        } else {
+            // First waveform: initialize markerBits to channel count              // 0x2589e0
+            markerBits.resize(static_cast<size_t>(sigChannels));
+            channels = static_cast<int16_t>(sigChannels);
+        }
+
+        // OR markerBits from this waveform into accumulated markerBits            // 0x258b10
+        for (size_t j = 0; j < markerBits.size(); ++j) {
+            markerBits[j] |= sig.markerBits_[j];                                  // 0x258b3b
+        }
+
+        // Track allReserveOnly                                                    // 0x2587f7
+        allReserveOnly = allReserveOnly && sig.reserveOnly_;
+
+        waveforms.push_back(wf);                                                   // 0x258b7a
+    }
+
+    // --- Phase 2: Construct output ---
+
+    if (allReserveOnly) {                                                          // 0x258d0b
+        // All waveforms are reserve-only → return reserve-only Signal
+        ReserveOnly tag;
+        return Signal(tag, static_cast<size_t>(maxNSamples), markerBits);          // 0x259411
+    }
+
+    // Construct output Signal with maxNSamples and accumulated markerBits         // 0x258d28
+    Signal result(static_cast<size_t>(maxNSamples), markerBits);
+
+    int totalSamples = maxNSamples * static_cast<int>(channels);                   // 0x258d31
+    if (totalSamples <= 0) {                                                       // 0x258d34
+        return result;
+    }
+
+    // --- Phase 3: Per-sample multiply across all waveforms ---
+    bool amplitudeExceeded = false;                                                // [rbp-0x98] = 0
+
+    for (size_t sampleIdx = 0;                                                     // 0x258d90
+         sampleIdx < static_cast<size_t>(totalSamples);
+         ++sampleIdx) {                                                            // 0x25938d
+
+        double product = 1.0;                                                      // 0x258d9c: loaded from rodata 1.0
+        uint8_t marker = 1;                                                        // 0x258d9a: cl=1
+
+        for (size_t wi = 0; wi < waveforms.size(); ++wi) {                         // 0x258de7
+            Signal& sig = waveforms[wi]->signal;
+
+            // Inlined checkAllocation() — pads reserveOnly signals                // 0x258df1
+            sig.checkAllocation();                                                 // 0x258dfe..0x259060
+
+            // Check if this waveform has enough samples                           // 0x259060
+            if (sig.samples_.size() <= sampleIdx) {                                // 0x259076
+                // Insufficient samples → zero out accumulator, continue           // 0x258dc0
+                product = 0.0;
+                marker = 0;
+                continue;
+            }
+
+            // Inlined checkAllocation() before sample access                      // 0x25907c
+            sig.checkAllocation();                                                 // 0x259090..0x2591c0
+
+            // Multiply the sample                                                 // 0x2591c0
+            product *= sig.samples_[sampleIdx];                                    // 0x2591d3
+
+            // Inlined checkAllocation() before marker access                      // 0x2591e0
+            sig.checkAllocation();                                                 // 0x2591ed..0x259320
+
+            // Multiply marker (unsigned byte multiply → AND for 0/1 values)       // 0x25932f
+            marker = static_cast<uint8_t>(
+                static_cast<unsigned>(marker) *
+                static_cast<unsigned>(sig.markers_[sampleIdx]));                   // 0x259320
+
+            // Check if |product| > 1.0                                            // 0x25933a
+            if (std::fabs(product) > 1.0) {                                        // 0x259342
+                amplitudeExceeded = true;                                           // 0x259354
             }
         }
+
+        // Append (product, marker) to output signal                               // 0x259384
+        result.append(product, marker);
     }
 
-    return Signal(product, markers, first.markerBits_);
+    // --- Warning if amplitude exceeded ---                                       // 0x2593a1
+    if (amplitudeExceeded) {
+        std::string msg = ErrorMessages::format(AmplitudeClipped,                  // 0x2593ba
+                                                "multiply");
+        if (warningCallback_) {
+            warningCallback_(msg);                                                 // 0x2593dd
+        }
+    }
+
+    return result;                                                                 // 0x259416
 }
 
 // cut(signal, start, length) @0x2598d0
@@ -2111,73 +2236,134 @@ Signal WaveformGenerator::flip(std::vector<Value> const& args) {               /
     Signal sig = readWave(args[0], "1 (waveform)", -1, "flip")->signal;                // 0x25a403
     return reverse(sig);                                                       // 0x25a439
 }
-// filter(signal, b_coeffs, [a_coeffs]) @0x25a540
+// filter(b, a, x) @0x25a540
 //
-// Applies an FIR or IIR digital filter to the signal.
-// - 2 args: FIR filter (b_coeffs only, a_coeffs = [1.0])
-// - 3 args: IIR filter (b_coeffs numerator, a_coeffs denominator)
+// Applies an IIR digital filter to the signal x using the transfer function
+// defined by numerator coefficients b and denominator coefficients a.
 //
-// Disassembly notes (2976 bytes, complex):
-//   - Args: 2 or 3 (validated at entry)
-//   - readWave "1 (waveform)" at 0x25a63a → signal (any length)
-//   - readWave "2 (b_coefficients)" at 0x25a74f → b-coefficients signal
-//   - If 3 args: readWave "3 (a_coefficients)" at 0x25a861 → a-coefficients
-//   - checkAllocation on all signals at 0x25a8a6, 0x25a8b9, 0x25a8cc
-//   - Core filtering loop implements the difference equation:
-//       y[n] = (1/a[0]) * (sum(b[k]*x[n-k]) - sum(a[k]*y[n-k]))
-//   - Output Signal constructed via Signal::Signal(Signal const&) at 0x25abd8
+// Always takes exactly 3 arguments:
+//   args[0] = b (numerator / FIR coefficients)
+//   args[1] = a (denominator / feedback coefficients)
+//   args[2] = x (input signal, must be single-channel)
 //
-// Due to the 2976-byte complexity (IIR/FIR branching, coefficient normalization,
-// multi-channel handling), this is a documented structural stub.
+// Implements the standard difference equation:
+//   y[n] = (1/a[0]) * (sum_{k=0}^{nb-1} b[k]*x[n-k] - sum_{k=1}^{na-1} a[k]*y[n-k])
+//
+// Error conditions:
+//   - a.samples_ empty → "wave a needs at least one sample"
+//   - a[0] == 0.0      → "first element of wave a can't be zero"
+//   - b.samples_ empty → "wave b needs at least one sample"
+//   - x.channels_ != 1 → "the filter function just supports one channel waveforms"
+//
+// If x.nSamples_ == 0, returns a copy of x unchanged.
+// Output is Signal(y_vector, channels=1).
 Signal WaveformGenerator::filter(std::vector<Value> const& args) {             // 0x25a540
-    if (args.size() != 2 && args.size() != 3) {
-        throw WaveformGeneratorException(
-            ErrorMessages::format(FuncExactArgs2,
-                                  "filter", 2, args.size()));
+    // No explicit checkArgCount — binary reads all 3 args unconditionally.
+    // The dispatch table or caller is responsible for ensuring exactly 3 args.
+
+    // Read b coefficients (arg 0)                                             // 0x25a572..0x25a63a
+    Signal bSig = readWave(args[0], "1 (b)", 1, "filter")->signal;
+
+    // Read a coefficients (arg 1)                                             // 0x25a671..0x25a74f
+    Signal aSig = readWave(args[1], "2 (a)", 2, "filter")->signal;
+
+    // Read x input signal (arg 2)                                             // 0x25a786..0x25a861
+    Signal xSig = readWave(args[2], "3 (x)", 3, "filter")->signal;
+
+    // checkAllocation on all three signals                                    // 0x25a898..0x25a8cc
+    aSig.checkAllocation();                                                    // 0x25a8a6 (rbx+0x80)
+    bSig.checkAllocation();                                                    // 0x25a8b9 (r13+0x80)
+    xSig.checkAllocation();                                                    // 0x25a8cc (r14+0x80)
+
+    // Validate: a must have at least one sample                               // 0x25a8d1
+    if (aSig.samples_.empty()) {                                               // 0x25a8df → 0x25aebf
+        throw WaveformGeneratorValueException(
+            "wave a needs at least one sample", 0);
     }
 
-    Signal sig = readWave(args[0], "1 (waveform)", -1, "filter")->signal;              // 0x25a63a
-    Signal bCoeffs = readWave(args[1], "2 (b_coefficients)", -1, "filter")->signal;    // 0x25a74f
-
-    Signal aCoeffs;
-    if (args.size() == 3) {
-        aCoeffs = readWave(args[2], "3 (a_coefficients)", -1, "filter")->signal;       // 0x25a861
-        aCoeffs.checkAllocation();                                             // 0x25a8cc
+    // Validate: a[0] must not be zero                                         // 0x25a8e5
+    if (floatEqual(aSig.samples_[0], 0.0)) {                                  // 0x25a8f4 → 0x25af0b
+        throw WaveformGeneratorValueException(
+            "first element of wave a can't be zero", 0);
     }
 
-    sig.checkAllocation();                                                     // 0x25a8a6
-    bCoeffs.checkAllocation();                                                 // 0x25a8b9
+    // Validate: b must have at least one sample                               // 0x25a8fa
+    if (bSig.samples_.empty()) {                                               // 0x25a908 → 0x25af57
+        throw WaveformGeneratorValueException(
+            "wave b needs at least one sample", 0);
+    }
 
-    size_t N = sig.samples_.size();
-    size_t nb = bCoeffs.samples_.size();
-    size_t na = aCoeffs.samples_.size();
+    // Validate: x must be single-channel                                      // 0x25a912
+    if (xSig.channels_ != 1) {                                                // 0x25a91a → 0x25afa0
+        throw WaveformGeneratorValueException(
+            "the filter function just supports one channel waveforms", 0);
+    }
 
-    std::vector<double> y(N, 0.0);
+    // If x has no samples, return a copy of x                                 // 0x25a920
+    if (xSig.length_ == 0) {                                                  // 0x25a928 → 0x25abd1
+        return Signal(xSig);                                                   // 0x25abd8
+    }
 
-    // Normalize by a[0] if IIR
-    double a0 = (na > 0) ? aCoeffs.samples_[0] : 1.0;
+    // --- Core filter implementation ---                                      // 0x25a92e
+    // Allocate output buffer y, same size as x.samples_, zeroed
+    double const* xData = xSig.samples_.data();                                // 0x25a935
+    size_t nX = xSig.samples_.size();                                          // r12 = end - begin
 
-    for (size_t n = 0; n < N; ++n) {
-        double sum = 0.0;
-        // FIR part: sum(b[k] * x[n-k])
-        for (size_t k = 0; k < nb; ++k) {
-            if (n >= k) {
-                sum += bCoeffs.samples_[k] * sig.samples_[n - k];
+    std::vector<double> y(nX, 0.0);                                            // 0x25a96e (new + memset)
+    double* yData = y.data();
+
+    double const* aData = aSig.samples_.data();                                // 0x25a9b9
+    size_t na = aSig.samples_.size();                                          // 0x25a9c0..0x25a9d1
+    double const* bData = bSig.samples_.data();                                // 0x25a9d5
+    size_t nb = bSig.samples_.size();                                          // 0x25a9e3..0x25a9e9
+
+    // Two paths depending on whether there are IIR feedback terms             // 0x25a9ed
+    if (na >= 2) {
+        // --- IIR path (na >= 2): feedback + FIR + normalize ---              // 0x25a9fb
+        for (size_t n = 0; n < nX; ++n) {                                     // 0x25aa30..0x25aa61
+            // Step 1: IIR feedback — subtract a[k]*y[n-k] for k=1..na-1      // 0x25ab00
+            for (size_t k = 1; k < na; ++k) {                                 // 0x25ab27
+                if (k <= n) {                                                  // 0x25ab2a
+                    yData[n] -= aData[k] * yData[n - k];                       // 0x25ab3b..0x25ab3f
+                }
+            }
+
+            // Step 2: FIR — add b[k]*x[n-k] for k=0..nb-1                    // 0x25ab70
+            for (size_t k = 0; k < nb; ++k) {                                 // 0x25ab91
+                if (k <= n) {                                                  // 0x25ab94
+                    yData[n] += bData[k] * xData[n - k];                       // 0x25aba3..0x25aba9
+                }
+            }
+
+            // Step 3: Normalize by a[0]                                       // 0x25aa40
+            yData[n] /= aData[0];                                             // 0x25aa46
+        }
+    } else {
+        // --- FIR-only path (na < 2): no feedback ---                         // 0x25abe2
+        if (bSig.samples_.empty()) {                                           // 0x25abe2..0x25acdd
+            // b is empty (shouldn't reach here due to earlier check, but
+            // binary has this path): just divide all y by a[0]                // 0x25acdd
+            for (size_t n = 0; n < nX; ++n) {                                 // 0x25ad30..0x25ada0
+                yData[n] /= aData[0];
+            }
+        } else {
+            // FIR accumulation + normalize                                    // 0x25ac02..0x25ac33
+            for (size_t n = 0; n < nX; ++n) {                                 // 0x25ac05..0x25ac2d
+                // FIR — add b[k]*x[n-k] for k=0..nb-1                        // 0x25ac70
+                for (size_t k = 0; k < nb; ++k) {                             // 0x25ac8d
+                    if (k <= n) {                                              // 0x25ac90
+                        yData[n] += bData[k] * xData[n - k];                   // 0x25aca8..0x25acb4
+                    }
+                }
+
+                // Normalize by a[0]                                           // 0x25ac10
+                yData[n] /= aData[0];                                         // 0x25ac16
             }
         }
-        // IIR feedback: - sum(a[k] * y[n-k]) for k >= 1
-        for (size_t k = 1; k < na; ++k) {
-            if (n >= k) {
-                sum -= aCoeffs.samples_[k] * y[n - k];
-            }
-        }
-        y[n] = sum / a0;
     }
 
-    // Construct output signal preserving markers and markerBits
-    Signal result(sig);                                                        // 0x25abd8
-    result.samples_ = std::move(y);
-    return result;
+    // Construct output Signal from y vector with channels=1                   // 0x25adef
+    return Signal(y, static_cast<uint16_t>(1));                                // 0x25ae02
 }
 
 // circshift(signal, n) @0x25b0e0
@@ -2266,16 +2452,30 @@ Signal WaveformGenerator::circshift(std::vector<Value> const& args) {          /
 //   - Output channels_ = number of input signals
 //   - Markers are OR'd across channels per frame
 Signal WaveformGenerator::merge(std::vector<Value> const& args) {              // 0x25f5c0
-    if (args.size() < 2) {
-        throw WaveformGeneratorException(
-            ErrorMessages::format(FuncExactArgs2,
-                                  "merge", 2, args.size()));
+    // Binary @0x25f5ea-0x25f624: compute element count, then check if the
+    // last element is an Int (type_==1).  If so, read its value via toInt()
+    // and decrement the count (the trailing Int is a requested-length hint
+    // appended by mergeWaveforms, not a waveform reference).
+    size_t count = args.size();
+    int requestedLength = 0;  // eax at 0x25f609
+    if (count >= 2) {
+        auto const& last = args[count - 1];
+        if (static_cast<int>(last.type_) == 1) {  // 0x25f60b: cmpl $1, type_
+            requestedLength = last.toInt();         // 0x25f615: call toInt
+            --count;                                // 0x25f624: dec r12
+        }
     }
 
-    // Read all signals
+    if (count < 2) {
+        throw WaveformGeneratorException(
+            ErrorMessages::format(FuncMinArgs,
+                                  "merge", 3, args.size()));
+    }
+
+    // Read all signals (only up to 'count', skipping trailing length value)
     std::vector<Signal> signals;
-    signals.reserve(args.size());
-    for (size_t i = 0; i < args.size(); ++i) {
+    signals.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
         std::string paramName = "wave_" + std::to_string(i + 1);
         signals.push_back(readWave(args[i], paramName, -1, "merge")->signal);
     }
@@ -2345,12 +2545,31 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
 //   - Error format(0x??, "grow", currentLen, targetLen) at 0x260c94 if
 //     targetLength < currentLength
 Signal WaveformGenerator::grow(std::vector<Value> const& args) {               // 0x260640
-    checkArgCount(args, "grow", 2);
+    // Binary at 0x26065e-0x26067a: checks args.size() > 1
+    // Then 0x260684: args[0].type_ == 4 (waveform)
+    // Then 0x26068d: args[1].type_ == 1 (Int)
+    // Direct inline checks — does NOT use checkArgCount/readPositiveInt.
+    if (args.size() < 2) {
+        throw WaveformGeneratorException(
+            ErrorMessages::format(FuncMinArgs,
+                                  "grow", 2, args.size()));
+    }
 
-    Signal sig      = readWave(args[0], "1 (waveform)", -1, "grow")->signal;
-    int targetLen   = readPositiveInt(args[1], "2 (length)", 1, "grow");
+    // 0x260697-0x2606cb: toString(args[0]) → waveformExists → readWave
+    auto wf = readWave(args[0], "1 (waveform)", -1, "grow");
+    Signal sig = wf->signal;
 
-    if (sig.reserveOnly_) {                                                    // 0x26085f
+    // 0x26082b-0x260834: targetLen = args[1].toInt()
+    int targetLen = args[1].toInt();                                           // 0x26082f
+
+    // 0x26087c: test %ebx,%ebx; je 0x260c19 — if targetLen==0, return
+    // immediately (creates Signal(0, markerBits) but that's effectively
+    // a no-grow return of the loaded signal).
+    if (targetLen == 0) {
+        return sig;
+    }
+
+    if (sig.reserveOnly_) {                                                    // 0x260840
         ReserveOnly tag;
         return Signal(tag, static_cast<size_t>(targetLen), sig.markerBits_);
     }

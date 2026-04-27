@@ -40,6 +40,7 @@ Prefetch::Prefetch(
     , resources_()
     , cache_()
     , waveformMaps_()
+    , maxBranches_(1)
     // pageSize_ removed: was hallucinated; only ever appeared in this init list,
     // never read. The +0xBC slot is the bool `split_` initialized below.
     , split_(false)
@@ -777,9 +778,14 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
             // 0x1cccd6-0x1cccfb: emplace loadNode into nodeStates_, set registerHirzel
             auto [it, _] = nodeStates_.emplace(loadNode, PrefetcherNodeState{});
             it->second.registerHirzel = reg;                           // 0x1ccd02: mov %rcx,0x20(%rax)
-            // 0x1ccd06-0x1ccd3b: Also emplace and copy devConst_->hasPrecomp (+0x88) flag
-            // into the nodeStates_ entry
-            bool useDA = devConst_->hasPrecomp;                        // 0x1ccd0a: movzbl 0xda(%rax)
+            // 0x1ccd06-0x1ccd3b: Also emplace and read waveformIR->crossesCacheLine_ (+0xDA)
+            // into the nodeStates_ entry's useDA flag.
+            // Binary at 0x1ccd06: mov (%r12),%rax reloads the WaveformIR pointer
+            // from the usedWaves iterator, then movzbl 0xda(%rax) reads crossesCacheLine_.
+            bool useDA = waveformIR->crossesCacheLine_;                 // 0x1ccd0a: movzbl 0xda(%rax)
+            fprintf(stderr, "[DBG] moveLoadsToFront: wf=%s crossesCacheLine=%d addr=0x%x\n",
+                    waveformIR->name.c_str(), (int)waveformIR->crossesCacheLine_,
+                    waveformIR->addressValue);
             auto [it2, _2] = nodeStates_.emplace(loadNode, PrefetcherNodeState{});
             it2->second.useDA = useDA;                                 // 0x1ccd37: mov %r14b,0x58(%rax)
         } else {                                                       // 0x1ccd40
@@ -1522,7 +1528,147 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             nameMap_.emplace(std::move(waveName), true);               // 0x1d15ca-0x1d15e3: call emplace_unique
             // 0x1d15e8: result+0x28 = true (movb $0x1,0x28(%rax))
 
-            goto advance;                                              // 0x1d15f2 → 0x1d1660
+            // ---- Cache allocation logic (0x1d15f2 - 0x1d1d5a) ----
+            // After nameMap insert, check if loadNode exists and has existing allocation
+
+            // 0x1d16ca-0x1d16d4: Check if loadNode is non-null
+            if (loadNode) {                                             // 0x1d16d1: test rax,rax; je 0x1d17b3
+                // 0x1d1700-0x1d1705: Look up loadNode in nodeStates_, check cachePtr
+                auto& loadState = nodeStates_[loadNode];               // 0x1d16fb: emplace_unique(loadNode)
+                if (loadState.cachePtr) {                              // 0x1d1700: cmpq $0,0x48(%rax)
+                    // 0x1d1731-0x1d1739: Check counter >= 2
+                    auto& loadState2 = nodeStates_[loadNode];          // 0x1d172c
+                    if (loadState2.counter() >= 2) {                   // 0x1d1735: cmpl $2,0xc(%rax); jl
+                        // 0x1d1761-0x1d17a1: Copy cachePtr from loadState to curNodeState
+                        auto& srcState = nodeStates_[loadNode];        // 0x1d175c
+                        auto& dstState = nodeStates_[curNode];         // 0x1d1785
+                        auto oldPtr = dstState.cachePtr;               // save old for release
+                        dstState.cachePtr = srcState.cachePtr;         // 0x1d178e-0x1d17a1: copy shared_ptr
+                        goto advance;                                  // 0x1d17ae → 0x1d2034 (cleanup+advance)
+                    }
+                }
+                // 0x1d17b3-0x1d17bb: loadNode is null OR cachePtr null OR counter < 2
+                // Falls through to check if loadNode itself is non-null for reuse path
+                // 0x1d17bb: cmpq $0, -0xb0(%rbp) — re-check loadNode
+                if (loadNode) {                                        // je 0x1d1a19 (no-loadRef path)
+                    // 0x1d17c1-0x1d17ea: Get loadState's cachePtr, call stillInMemory
+                    auto& ls = nodeStates_[loadNode];
+                    auto cachePtr = ls.cachePtr;                       // 0x1d17ea: load +0x48
+                    auto* cacheRaw = cache_.get();                     // 0x1d17c1: mov (%rbx)
+                    bool inMem = cacheRaw->stillInMemory(cachePtr);    // 0x1d180d: call stillInMemory
+                    if (inMem) {                                       // 0x1d1834: test al,al; je 0x1d1a19
+                        // 0x1d183c-0x1d1888: Reuse existing allocation
+                        auto* cache2 = cache_.get();                   // 0x1d183c
+                        auto& ls2 = nodeStates_[loadNode];
+                        auto reusePtr = ls2.cachePtr;
+                        cache2->reuse(reusePtr);                       // 0x1d1888: call Cache::reuse
+
+                        // 0x1d18bd-0x1d190d: Get curNode's cachePtr, call nodeByCachePointer
+                        auto& curState = nodeStates_[loadNode];
+                        auto curCachePtr = curState.cachePtr;
+                        auto foundNode = nodeByCachePointer(curCachePtr); // 0x1d190d: call nodeByCachePointer
+
+                        // 0x1d193b-0x1d1984: mergeLoads(loadNode, foundNode)
+                        mergeLoads(loadNode, foundNode);               // 0x1d1984: call mergeLoads
+
+                        goto advance;                                  // 0x1d19f0 → cleanup+advance
+                    }
+                    // !inMem: fall through to no-loadRef allocation path
+                }
+            }
+
+            {
+                // ---- "no loadRef" allocation path (0x1d1a19) ----
+                // Zero-init a shared_ptr for the play node reference
+                // 0x1d1a19-0x1d1a1c: xorps xmm0; movaps → zero local shared_ptr
+                std::shared_ptr<Node> playNode;                        // -0x100(%rbp), init null
+
+                // 0x1d1a23-0x1d1a38: Check cur->play vector non-empty
+                Node* curRaw = curNode.get();                          // -0xa0(%rbp)
+                auto& playVec = curRaw->play;                          // +0xA0
+                if (playVec.begin() != playVec.end()) {                // 0x1d1a38: je 0x1d1b0d
+                    // 0x1d1a3e-0x1d1a62: Lock first play weak_ptr
+                    auto& firstPlay = playVec[0];
+                    playNode = firstPlay.lock();                       // 0x1d1a47: call __shared_weak_count::lock
+
+                    // 0x1d1a62/0x1d1a84: Check split_ flag
+                    if (split_) {                                      // 0x1d1a6a/0x1d1a8c: cmpb $0, 0xbc(%r14)
+                        goto splitPath;                                // jmp 0x1d1b1b
+                    }
+                    // !split_: check if playNode is valid
+                    if (!playNode) {                                   // 0x1d1a92-0x1d1a95: test r12; je 0x1d2016
+                        goto advance;                                  // skip allocation if no play ref and not split
+                    }
+                } else {
+                    // play vector empty
+                    if (!split_) {                                     // 0x1d1b0d: cmpb $1, 0xbc(%r14); jne 0x1d2016
+                        goto advance;                                  // no plays and not split → skip
+                    }
+                }
+
+            splitPath:
+                // 0x1d1a9b-0x1d1abc: Setup for getWaveformByName calls
+                // Read playNode->length (+0x90) for comparison
+                // 0x1d1a9b: cmpl $0, 0x90(%r12) — check playNode->length (only if playNode != null)
+
+                // 0x1d1aae: Load Cache* from cache_ member (rbx)
+                auto* cachePtr = cache_.get();                         // 0x1d1aa4: mov (%rbx)
+                // 0x1d1aae: Load wavetableIR_ (+0x110)
+                auto* wtIR = wavetableIR_.get();                       // 0x1d1aae: mov 0x110(%r14)
+
+                // First getWaveformByName call: from curNode's wavesPerDev[deviceIndex]
+                // 0x1d1ab5-0x1d1b08: Build optional<string> from curNode's wavesPerDev
+                auto curOpt = curRaw->waveAtCurrentDeviceIndex();      // reads +0x40, +0x28
+                auto waveIR1 = wtIR->getWaveformByName(curOpt);       // 0x1d1ba7: call getWaveformByName
+
+                // Second getWaveformByName call: same lookup (for the second channel in split mode)
+                // 0x1d1bac-0x1d1c31: Build another optional<string> from wavesPerDev
+                auto curOpt2 = curRaw->waveAtCurrentDeviceIndex();     // re-read for second channel
+                auto waveIR2 = wtIR->getWaveformByName(curOpt2);      // 0x1d1c31: call getWaveformByName
+
+                // 0x1d1c36-0x1d1c8a: Compute byte size from waveIR2
+                // waveIR2->signal.channels_ (+0xC8), waveIR2->signal.length_ (+0xD0),
+                // waveIR2->deviceConstants (+0x78) → granularity (+0x40), pageSize (+0x44),
+                // bitsPerSample (+0x50)
+                uint32_t numSamplesForCache = 0;
+                {
+                    auto* wfRaw = waveIR2.get();
+                    uint16_t channels = wfRaw->signal.channels();      // +0xC8: movzwl
+                    uint32_t length = static_cast<uint32_t>(wfRaw->signal.length()); // +0xD0
+                    auto* dc = wfRaw->deviceConstants;                 // +0x78
+                    if (length != 0) {                                 // 0x1d1c4e: test eax; je
+                        uint32_t gran = dc->waveformGranularity;       // +0x40
+                        uint32_t pgSz = dc->waveformPageSize;          // +0x44
+                        // Round up length to multiple of pageSize
+                        uint32_t rem = length % pgSz;
+                        uint32_t rounded = (length / pgSz + (rem >= 1 ? 1 : 0)) * pgSz;
+                        // Clamp to at least granularity
+                        if (gran > rounded) rounded = gran;            // 0x1d1c68: cmova
+                        uint64_t totalBits = (uint64_t)rounded * channels;
+                        int32_t bps = dc->bitsPerSample;               // +0x50
+                        totalBits *= bps;
+                        // Ceil-divide by 8 to get bytes
+                        numSamplesForCache = static_cast<uint32_t>(
+                            totalBits / 8 + (totalBits % 8 >= 1 ? 1 : 0));
+                    }
+                }
+
+                // 0x1d1c8d-0x1d1cb7: Call Cache::allocate(5-arg)
+                // Args: waveIR1 (shared_ptr), numSamplesForCache, nameMap_, maxBranches_, split_
+                auto allocResult = cachePtr->allocate(                 // 0x1d1cb7: call Cache::allocate
+                    waveIR1,
+                    detail::AddressImpl<uint32_t>(numSamplesForCache),
+                    nameMap_,
+                    maxBranches_,                                      // 0x1d1c8d: r9d = +0xB8
+                    split_);                                           // 0x1d1c94: +0xBC → stack[0]
+
+                // 0x1d1cbc-0x1d1ce8: Store allocResult into nodeStates_[curNode].cachePtr
+                auto& dstState = nodeStates_[curNode];                 // 0x1d1ce3: emplace_unique(curNode)
+                auto oldCachePtr = dstState.cachePtr;                  // save for release
+                dstState.cachePtr = std::move(allocResult);            // 0x1d1ce8-0x1d1cfd: move shared_ptr
+            }
+
+            goto advance;                                             // cleanup then 0x1d1660
         }
 
     handleWait: {
@@ -1903,7 +2049,8 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     if (!n) return result;
 
     // 0x1d4a41-0x1d4a4e: check type is Play(0x2) or SetPlay(0x200)
-    int nodeType = static_cast<int>(n->type);  // +0x44    if (nodeType != 0x200 && nodeType != 0x2)
+    int nodeType = static_cast<int>(n->type);  // +0x44
+    if (nodeType != 0x200 && nodeType != 0x2)
         return result;
 
     // 0x1d4a54-0x1d4a6b: check parent weak_ptr at +0x20
@@ -1919,10 +2066,10 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // 0x1d4ab6: get fresh register number
     int regNum = Resources::getRegisterNumber();
 
-    // 0x1d4abe-0x1d4ae9: create Node(NodeType::Load, asmId, seqRef)
+    // 0x1d4abe-0x1d4ae9: create Node(NodeType::Load, asmId, numChannelGroups)
     NodeType loadType = NodeType::Load;  // 0x1 → -0x68(%rbp)
     int asmId = n->asmId;               // +0x14
-    result = std::make_shared<Node>(loadType, asmId, /*seqRef*/ asmId);
+    result = std::make_shared<Node>(loadType, asmId, config_->numChannelGroups);
 
     Node* loadNode = result.get();
 
@@ -1931,7 +2078,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     loadNode->wavesPerDev = n->wavesPerDev;  // copy vector
 
     // 0x1d4b96-0x1d4b9c: set deviceIndex from config
-    loadNode->deviceIndex = config_->numChannelGroups;  // +0x24 of config → +0x40 of node
+    loadNode->deviceIndex = config_->deviceIndex;  // +0x24 of config → +0x40 of node
 
     // 0x1d4c45-0x1d4c53: copy playLength
     loadNode->lengthReg = n->lengthReg;  // +0x88 (AsmRegister — note: source writes int, may need comment)
@@ -1954,6 +2101,7 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
 
     // 0x1d4d28-0x1d4d52: push source node as weak_ptr into loadNode->play (+0xA0)
     // (loadNode+0xA0 is vector<weak_ptr<Node>>)
+    loadNode->play.push_back(node);                                    // 0x1d4d28-0x1d4d52
 
     // 0x1d4d64-0x1d4d93: allValidWaves() — copy_if on source waveNames (+0x28)
     // that have values, into a temp vector
@@ -2064,16 +2212,16 @@ void Prefetch::placeLoads() // 0x1cbf60
     size_t watermark = getMemoryHighWatermark();
 
     // 0x1cbf78-0x1cbf8c: check device type — *(config_) == 0x20 (SHFSG) or 0x10 (SHFQA)
-    int devType = *(int*)config_;         // config_->deviceType at +0x00
+    int devType = static_cast<int>(config_->deviceType);          // config_->deviceType at +0x00
     int cacheSize = devConst_->waveformMemorySize; // devConst_ +0x0C
 
     if (devType == 0x20 /*SHFSG*/ || devType == 0x10 /*SHFQA*/) {
-        if (watermark > (size_t)cacheSize) {
+        if (watermark > static_cast<size_t>(cacheSize)) {
             // 0x1cc4db-0x1cc578: throw ZIAWGCompilerException
             // Compute memory in samples: watermark * 8 / bitsPerSample / 1024.0
             // Format error message 0x33 with two doubles
-            double memUsed = (double)watermark / (devConst_->bitsPerSample / 8) / 1024.0;
-            double memAvail = (double)cacheSize / (devConst_->bitsPerSample / 8) / 1024.0;
+            double memUsed = static_cast<double>(watermark) / (devConst_->bitsPerSample / 8) / 1024.0;
+            double memAvail = static_cast<double>(cacheSize) / (devConst_->bitsPerSample / 8) / 1024.0;
             throw ZIAWGCompilerException(
                 ErrorMessages::format(ErrorMessageT(0x33), memUsed, memAvail));
         }
@@ -2086,7 +2234,7 @@ void Prefetch::placeLoads() // 0x1cbf60
     auto localRoot = root_;
 
     // 0x1cbfbf-0x1cbfda: check if required <= cacheSize AND !config_->appendMode()
-    if (required <= (size_t)cacheSize || config_->appendMode()) {
+    if (required <= static_cast<size_t>(cacheSize) || config_->appendMode()) {
         // 0x1cbfda: split_ = true
         split_ = true;
 
@@ -2098,13 +2246,13 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cc085-0x1cc250: if localRoot is non-null, check device type for
     // SyncHirzel/AwgReady insertion
     if (localRoot) {
-        int devTypeVal = *(int*)config_;
-        int numCores = config_->numCores;  // +0x1C
+        int devTypeVal = static_cast<int>(config_->deviceType);
+        int numCores = config_->numCores;  // +0x1C — TODO: verify if numChannelGroups
 
         if (devTypeVal == 0x2 /*HDAWG*/ && numCores >= 2) {
             // 0x1cc0af-0x1cc0d2: create SyncHirzel node (type 0x2000)
             auto syncNode = std::make_shared<Node>(NodeType::SyncHirzel,
-                                                    0, localRoot->asmId);
+                                                    localRoot->asmId, 0);
             // Insert before first child or set as first child
             // Binary: reads/writes +0xB8 (next) — "firstChild" IS the next pointer
             if (localRoot->next) {
@@ -2117,7 +2265,7 @@ void Prefetch::placeLoads() // 0x1cbf60
             // 0x1cc117-0x1cc193: bitmask check (0x100010104 covers bits 0,2,8,32)
             // Create AwgReady node (type 0x8000)
             auto readyNode = std::make_shared<Node>(NodeType::AwgReady,
-                                                     0, localRoot->asmId);
+                                                     localRoot->asmId, 0);
             // Binary: reads/writes +0xB8 (next) — "firstChild" IS the next pointer
             if (localRoot->next) {
                 localRoot->next->insertBefore(readyNode);
@@ -2130,7 +2278,7 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cc250-0x1cc2ea: if !split_, look up error message and call logFunc_
     if (!split_) {
         // Check device type for which error message to use
-        int devTypeVal = *(int*)config_;
+        int devTypeVal = static_cast<int>(config_->deviceType);
         int numCores = config_->numCores;
         ErrorMessageT msgId;
         if (numCores >= 2 && devTypeVal == 0x2) {
@@ -2169,6 +2317,11 @@ void Prefetch::placeLoads() // 0x1cbf60
 // Init value 0x1000 (4096) recovered from __cxx_global_var_init at 0xd4361:
 //   mov DWORD PTR [rip+0xab036d],0x1000   # 0xb846d8 <zhinst::Prefetch::minIndexedSize>
 // Storage at BSS 0xb846d8 (with cxxabi guard variable at 0xb846e0).
+//
+// Semantics (see unknowns.md #69 — resolved): minimum cache allocation size
+// (in samples) for indexed waveform playback.  When cachePtr->size_ >= 4096,
+// placeSingleCommand emits wvfi (indexed, with register-based offset) for
+// double-buffering / streaming.  Below 4096, it emits plain wvf.
 int Prefetch::minIndexedSize = 0x1000;
 
 } // namespace zhinst

@@ -35,15 +35,15 @@ namespace zhinst {
 // 0x20    4     int32_t                     awgIndex            AWG core index within device; used to build node paths
 //                                                               (qachannels/<idx>, generators/<idx>) and validate channel ownership
 // 0x24    4     int                         deviceIndex         Device index for waveform lookup (Prefetch::moveLoadsToFront)
-// 0x28    8     (unknown)                   unknown_28
-// 0x30    24    std::string                 string_30           Dtor frees if heap-allocated; dtor checks +0x48 flag
-// 0x48    1     bool                        string_30_owned     If true, string_30 was allocated
+// 0x28    8     (unknown)                   serializeRoundTrip
+// 0x30    24    std::string                 debugDumpPath           Dtor frees if heap-allocated; dtor checks +0x48 flag
+// 0x48    1     bool                        debugDumpEnabled     If true, debugDumpPath was allocated
 //         7     (pad)
-// 0x50    24    std::string                 string_50           Dtor frees if heap-allocated; dtor checks +0x68 flag
-// 0x68    1     bool                        string_50_owned     If true, string_50 was allocated
+// 0x50    24    std::string                 debugJsonPath           Dtor frees if heap-allocated; dtor checks +0x68 flag
+// 0x68    1     bool                        debugJsonEnabled     If true, debugJsonPath was allocated
 //         7     (pad)
 // 0x70    24    std::vector<std::string>    includePaths        vector: begin @+0x70, end @+0x78, cap @+0x80
-// 0x88    8     (unknown)                   unknown_88
+// 0x88    8     (unknown)                   optimizationFlags
 // 0x90    4     uint32_t                    debugFlags          Bitmask: 0x02=print old AST, 0x04=print SeqC AST,
 //                                                               0x08=print tree/assembly (verified: testb at 0x11f379)
 // 0x94    4     int32_t                     numCores            Number of AWG cores
@@ -71,20 +71,22 @@ struct AWGCompilerConfig {
     int numChannelGroups;               // 0x1C — 1, 2, or 4
     int32_t awgIndex;                   // 0x20 — AWG core index (node paths + channel validation)
     int32_t deviceIndex;                // 0x24 — Device index for waveform lookup
-    uint64_t unknown_28;                // 0x28 — no reconstructed consumer; may be set by AWGCompilerImpl
-    std::string string_30;              // 0x30 — 24 bytes, conditionally owned
-    bool string_30_owned;               // 0x48
+    uint64_t serializeRoundTrip;                // 0x28 — no reconstructed consumer; may be set by AWGCompilerImpl
+    std::string debugDumpPath;              // 0x30 — 24 bytes, conditionally owned
+    bool debugDumpEnabled;               // 0x48
     char pad_49[7];                     // 0x49
-    std::string string_50;              // 0x50 — 24 bytes, conditionally owned
-    bool string_50_owned;               // 0x68
+    std::string debugJsonPath;              // 0x50 — 24 bytes, conditionally owned
+    bool debugJsonEnabled;               // 0x68
     char pad_69[7];                     // 0x69
     std::vector<std::string> includePaths; // 0x70 — begin/end/cap at 0x70/0x78/0x80
-    uint64_t unknown_88;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
+    uint64_t optimizationFlags;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
-    int32_t numCores = 1;               // 0x94 — number of AWG cores
+    int32_t numCores = 0;               // 0x94 — number of AWG cores (binary default is 0)
     int32_t channelGrouping;            // 0x98 — passed to FrontEndLoweringFacade::lower() as last arg
                                         //        (verified: mov eax,[rax+0x98] at 0x11f8d4 in compile())
-    int32_t pad_9c;                     // 0x9C — padding
+    uint8_t pad_9c;                     // 0x9C — padding
+    bool compressSource;                // 0x9D — if true, compress source sections in ELF (verified at 0x108f48)
+    uint8_t pad_9e[2];                  // 0x9E — padding
     int32_t wavetableSize;              // 0xA0 — sign-extended to size_t
     int32_t pad_a4;                     // 0xA4
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)

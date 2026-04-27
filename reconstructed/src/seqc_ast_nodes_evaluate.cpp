@@ -39,6 +39,7 @@
 #include "zhinst/waveform_generator.hpp"
 #include "zhinst/custom_functions.hpp"
 #include "zhinst/device_constants.hpp"
+#include "zhinst/types.hpp"
 
 namespace zhinst {
 
@@ -2999,7 +3000,7 @@ std::shared_ptr<EvalResults> SeqCVariable::evaluate(
     }
 
     case VarType_Var: {                                     // @0x20a089
-        res->addVar(name, VarSubType_Stub);                 // @0x20a095
+        res->addVar(name, VarSubType_Default);              // @0x20a095 (binary: xor edx,edx = 0)
         int reg = res->getRegister(name);                   // @0x20a0a4
         result->setValue(VarType_Var, reg);                 // @0x20a0b3
         break;
@@ -3243,8 +3244,8 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         if (arrVar) arrName = arrVar->name();
                     }
                     res->updateWave(name, arrName, rhsSub);
-                    // Mark dirty: WaveformFront::frontBool1 = 1 (+0xdc)
-                    if (wf) wf->frontBool1 = true;
+                    // Mark dirty: WaveformFront::dirty_ = 1 (+0xdc)
+                    if (wf) wf->dirty_ = true;
                     break;
                 }
                 // Row 8: Wave[Numeric] = String → error 0x8b (mismatch).
@@ -3268,7 +3269,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         const double val =
                             rhsResult.getValue().toDouble();
                         // Binary writes raw to signal.samples_[idx] and
-                        // signal.markers_[idx], then sets frontBool1=true.
+                        // signal.markers_[idx], then sets dirty_=true.
                         // Binary address: @0x244957-244983.
                         // signal.samples_ is at Waveform+0x80 (Signal+0x00),
                         // signal.markers_ is at Waveform+0x98 (Signal+0x18).
@@ -3276,7 +3277,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         auto* mp = wf->signal.markers_.data();
                         if (sp) sp[idx] = val;
                         if (mp) mp[idx] = 0;
-                        wf->frontBool1 = true;
+                        wf->dirty_ = true;
                     }
                     break;
                 }
@@ -4794,14 +4795,7 @@ std::shared_ptr<EvalResults> SeqCNEqual::evaluate(
 }
 
 // ============================================================================
-// Phase 22d — TODO stubs: remaining evaluate() overrides
-//
-// Per AGENTS.md: "If the method list is too large for one session,
-// implement the methods that were actually analyzed and leave the rest
-// as TODO stubs with addresses noted in comments."
-//
-// Organized by size (smallest first). Each stub notes the binary address
-// and function size for future disassembly.
+// Remaining evaluate() overrides (originally Phase 22d stubs, now implemented)
 // ============================================================================
 
 // ---- Operator 5-arg (inline logic, not delegated to helpers) ---------------
@@ -5074,7 +5068,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + Immediate.index*8 if index != 0xFFFFFFFF @0x23c1c6
+            // Binary: Immediate dtor writes back to vtable at b06660+index*8 (no-op in reconstruction) @0x23c1c6
         }
 
         // Re-read srcReg from lhsResult (binary re-reads).   @0x23c1fa
@@ -5087,7 +5081,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + index*8 if != 0xFFFFFFFF @0x23c346
+            // Binary: Immediate dtor vtable store-back (no-op in reconstruction) @0x23c346
         }
     }
     // ---- Path 2: rhsResult Var (pre-increment) ----------  @0x23be9a
@@ -5118,7 +5112,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + index*8 if != 0xFFFFFFFF @0x23c5a6
+            // Binary: Immediate dtor vtable store-back (no-op in reconstruction) @0x23c5a6
         }
     }
     // ---- Path 3: lhsResult Cvar (post-increment) --------  @0x23bf0f
@@ -5250,7 +5244,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + Immediate.index*8 if index != 0xFFFFFFFF
+            // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
         }
 
         AsmRegister srcReg2 = lhsVals.empty()
@@ -5262,7 +5256,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + index*8 if != 0xFFFFFFFF
+            // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
         }
     }
     // ---- Path 2: rhsResult Var (pre-decrement) ----------
@@ -5290,7 +5284,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 addiAsms.begin(), addiAsms.end());
-            // TODO: vtable store-back at b06660 + index*8 if != 0xFFFFFFFF
+            // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
         }
     }
     // ---- Path 3: lhsResult Cvar (post-decrement) --------
@@ -5865,8 +5859,8 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
                     result->assemblers_.insert(
                         result->assemblers_.end(),
                         addiResult.begin(), addiResult.end());
-                    // TODO: vtable store-back at b06660 + Immediate.index*8
-                    //       if index != 0xFFFFFFFF                 // @0x227c50
+                    // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
+                    //       @0x227c50
                 } else {
                     // Value-based load for Const/Cvar child.       // @0x2274c6
                     Value childVal = childResult->getValue();       // @0x2274ed (manual extraction)
@@ -6242,6 +6236,18 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                 result->values_.end(),
                 childResult->values_.begin(),
                 childResult->values_.end());
+
+            // Chain node_ from child into result.               @0x212c59-212cb2
+            if (childResult->node_) {
+                if (!result->node_) {
+                    result->node_ = childResult->node_;
+                } else {
+                    // Walk to end of result->node_ chain.
+                    auto tail = result->node_;
+                    while (tail->next) tail = tail->next;
+                    tail->next = childResult->node_;
+                }
+            }
 
             // Sticky-OR hasError.
             result->hasError_ = result->hasError_ || childResult->hasError_;
@@ -6678,6 +6684,11 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
         // ================================================================
         // PATH B: Unknown function — delegate to CustomFunctions
         // ================================================================
+        // Binary wraps this path in a try block catching
+        // CustomFunctionsException (selector 1), CustomFunctionsValueException
+        // (selector 2), and CompilerException (selector 3).
+        // @0x20fec6: catch(CustomFunctionsException&) → errorMessage(e.what(), lineNr_)
+        try {
 
         // 0x20ca3f  Create sub-scope for evaluation
         auto subScope = res->createSubScope(funName);              // @0x20ca52
@@ -6744,6 +6755,16 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
             if (truncPos != std::string::npos) {
                 result->name_ = result->name_.substr(0, truncPos) + ", ...";
             }
+        }
+
+        } catch (CustomFunctionsException const& e) {              // @0x20fec6 selector 1
+            // Report error via errorMessage with this node's line number
+            std::string msg = e.what() ? e.what() : "";
+            ctx.messages->errorMessage(msg, lineNr_);              // @0x20ff1a
+        } catch (CompilerException const& e) {                     // @0x20fdf0 selector 3
+            ctx.messages->errorMessage(
+                std::string(e.what() ? e.what() : ""),
+                lineNr_);                                          // @0x20fe81
         }
     }
 
@@ -7395,7 +7416,7 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
 //       merge all into result, AND hasError
 //
 //   Const/Cvar path (@0x218092–0x219b0f):
-//     flags_88_=1, hasCases → evalCases, flags_88_=0,
+//     scopeBoundaryFlags_=1, hasCases → evalCases, scopeBoundaryFlags_=0,
 //     check state.pad10_, loop cases:
 //       if size==1 && (varType|2)==6: Value::operator== match →
 //         matchedResult = case, AND hasError
@@ -7513,7 +7534,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         // ---- suser(switchReg, AddressImpl(0x1a)) → switchAsms --- // @0x21890c
         {
             AsmList::Asm suserAsm = ctx.asmCommands->suser(
-                switchReg, detail::AddressImpl<unsigned int>(0x1a));  // @0x274bc0
+                switchReg, detail::AddressImpl<unsigned int>(kSuserTriggerLoad));  // @0x274bc0
             switchAsms.push_back(suserAsm);                          // @0x21892e
         }
 
@@ -7782,7 +7803,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     // Const/Cvar path ((varType | 2) == 6)                          // @0x218083
     // ================================================================
     if ((condVal.varType_ | 0x2) == 0x6) {
-        // ---- Set flags_88_ = 1 ----                               // @0x218099
+        // ---- Set scopeBoundaryFlags_ = 1 ----                               // @0x218099
         subRes->setAtScopeBoundary(true);
 
         // ---- Evaluate cases ----                                  // @0x2180a7
@@ -7798,7 +7819,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             return result;
         }
 
-        // ---- Reset flags_88_ = 0 ----                             // @0x218177
+        // ---- Reset scopeBoundaryFlags_ = 0 ----                             // @0x218177
         subRes->setAtScopeBoundary(false);
 
         // ---- Init matchedResult and matchedHasError ----          // @0x21817e
@@ -8133,9 +8154,10 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
             }
         }
 
-        // Unconditional branch back to loop label                   // @0x21f2f5
+        // Unconditional branch back to whileLabel (not loopLabel)   // @0x21f2f5
+        // GDB-verified: br() uses [rbp-0x160] = whileLabel, not loopLabel
         AsmList::Asm brAsm =
-            ctx.asmCommands->br(loopLabel, false);                   // @0x271df0
+            ctx.asmCommands->br(whileLabel, false);                  // @0x271df0
         result->assemblers_.push_back(brAsm);                        // @0x21f30a
 
         // End label                                                 // @0x21f3d7
@@ -8652,7 +8674,27 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
 
             bodyResult = firstBodyResult;                             // @0x223196
 
-            // Iterate remaining count-1 times                       // @0x22341d
+            bodyResult = firstBodyResult;                             // @0x223196
+
+            if (!firstBodyEmpty) {
+                // ---- Runtime loop path ----                        // @0x2231d2
+                // Body produces assemblers → generate hardware loop.
+                // Initialize counter with countInt, then jump to shared
+                // var_path which re-evaluates body inside loop structure.
+                auto initAsms = ctx.asmCommands->addi(
+                    counterReg, AsmRegister::Reg(0),
+                    Immediate(countInt));                             // @0x2231e8
+                result->assemblers_.insert(
+                    result->assemblers_.end(),
+                    initAsms.begin(),
+                    initAsms.end());
+
+                hasEndLabel = false;  // count known >= 2, no brz needed
+                goto var_path;                                       // @0x223214 → 0x22212f
+            }
+
+            // ---- Unroll path (firstBodyEmpty == true) ----         // @0x222f7b
+            // Iterate remaining count-1 times
             for (int i = countInt - 1; i > 0; --i) {                 // @0x223730
 
                 std::shared_ptr<EvalResults> bodyEval;
@@ -8831,8 +8873,8 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
 //                         jumpIfZero→elseLabel, both bodies in sub-scopes,
 //                         if-label+ifBody, br→endLabel, else-label+elseBody,
 //                         end-label, hasError AND
-//     0x2152c9–0x2164fb  Const/Cvar path: flags_88_=1, dead branch eval,
-//                         flags_88_=0, live branch eval, setValue, node_,
+//     0x2152c9–0x2164fb  Const/Cvar path: scopeBoundaryFlags_=1, dead branch eval,
+//                         scopeBoundaryFlags_=0, live branch eval, setValue, node_,
 //                         hasError, conditional AND (state.pad10_)
 //     0x2150d8–0x21511c  Cleanup and return
 //

@@ -909,14 +909,14 @@ Order: Node first (consumed by everything), then dependent types.
 
 - [x] **10.7b-2: WaveformIR** (11 TBD → 0)
       Re-disassembled ctors @0x114da0/@0x2a9240 + dtor. Layout 0xE0
-      = Waveform(0xD8) + 8 bytes (markedForLoad/fixed_/irBool1/irField2).
+      = Waveform(0xD8) + 8 bytes (markedForLoad/fixed_/irBool1/elfAlignment_).
       Numerous "TBD fields" were aliases for existing Waveform/Signal members.
       Critical bug fixed in prefetch.cpp:1996 (wrong field set).
 
 - [x] **10.7b-3: WaveformFront** (9 TBD → 0)
       Re-disassembled dtor @0x2a1300. Layout 0xF8. All 7 alleged TBD fields
       were aliases (isAllocated→used, channels/sampleLength→signal.*,
-      fileType→waveformType, isModified→frontBool1, funDescrName_→thirdString)
+      fileType→waveformType, isModified→dirty_, funDescrName_→funDescrName)
       or hallucinated (args_). Replaced with forwarding accessors.
 
 - [x] **10.7b-4: AWGCompilerConfig** (10 TBD → 0)

@@ -32,6 +32,7 @@
 #include "asm_list.hpp"
 #include "compiler_message.hpp"
 #include "custom_functions.hpp"
+#include "seqc_parser_context.hpp"
 
 namespace zhinst {
 
@@ -47,7 +48,7 @@ class Node;
 class ProgressCallback;
 class Resources;
 class SeqCAstNode;
-class SeqcParserContext;
+// SeqcParserContext — included directly above
 class WavetableFront;
 class WavetableIR;
 class WaveformGenerator;
@@ -92,6 +93,14 @@ LowerResult lower(std::shared_ptr<Resources> resources,
 
 }  // namespace FrontEndLoweringFacade
 
+// ---- CompileResult ----
+// sret return type of Compiler::compile() — 40 bytes (24 + 16)
+// Binary at 0x121421: writes shared_ptr<WavetableIR> into sret+0x18
+struct CompileResult {
+    std::vector<AssemblerInstr> asmList;          // +0x00 (24 bytes)
+    std::shared_ptr<WavetableIR> wavetableIR;    // +0x18 (16 bytes)
+};
+
 // ---- Compiler ----
 
 class Compiler {
@@ -115,7 +124,7 @@ public:
     // 6. runPrefetcher
     // 7. Post-waveform optimize, unsyncCervino
     // 8. Build output vector<Assembler>
-    std::vector<AssemblerInstr> compile(const std::string& source);  // 0x11f150
+    CompileResult compile(const std::string& source);  // 0x11f150
 
     // ---- Helpers called by compile() ----
 
@@ -171,6 +180,7 @@ public:
     std::vector<int> getLineMap(int offset) const;                 // 0x123660
 
 private:
+    friend class AWGCompilerImpl;  // getJsonVersion reads customFunctions_ directly
     const AWGCompilerConfig* config_;              // +0x00
     const DeviceConstants* deviceConstants_;        // +0x08
     int32_t lineNr_;                               // +0x10
@@ -192,8 +202,7 @@ private:
     std::shared_ptr<CustomFunctions> customFunctions_;   // +0xD0
     std::weak_ptr<CancelCallback> cancelCallback_;       // +0xE0
     std::weak_ptr<ProgressCallback> progressCallback_;   // +0xF0
-    // SeqcParserContext at +0x100 (~0x38 bytes, contains std::function)
-    char parserContext_[0x38];                     // +0x100 (opaque)
+    SeqcParserContext parserContext_;                // +0x100 (0x38 bytes)
     // +0x138 END
 };
 

@@ -1,0 +1,8 @@
+var a = 0xff;
+var b = 0x0f;
+var c = a & b;
+var d = a | b;
+var e = a ^ b;
+var f = a << 2;
+var g = a >> 1;
+playZero(32);

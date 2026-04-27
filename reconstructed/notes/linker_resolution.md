@@ -411,11 +411,11 @@ instead (verified by per-symbol grep).
   the `allocate_shared<WaveformIR>` dispatcher inlining at
   `0x2aa170-0x2aa20f`. Sets `name`, `waveformType`, `waveIndex=-1`,
   `seqRegWidth = dc.waveformGranularity (dc+0x40)`, `deviceConstants=&dc`,
-  zeroes IR-extension bools, `irField2 = dc.field_24 (dc+0x24)`.
+  zeroes IR-extension bools, `elfAlignment_ = dc.field_24 (dc+0x24)`.
 - `WaveformFront(string, Type, DeviceConstants&)` (1) — body recovered
   from the `newWaveformFromFile` dispatcher inlining at `0x29b110-0x29b24f`.
   Identical to IR variant in the Waveform-base region; sets
-  `frontField1 = 1` (NOT 0 like IR), other Front-extension fields zero.
+  `useCount_ = 1` (NOT 0 like IR), other Front-extension fields zero.
 - `WavetableManager<WaveformIR>::insertWaveform` (1) — added specialization
   to `wavetable_manager_ir.cpp` mirroring the WaveformFront body. Required
   a forward-declared specialization at top-of-file (C++14 [temp.expl.spec]/6)

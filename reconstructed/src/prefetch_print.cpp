@@ -45,8 +45,9 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
     // 0x1c5df7: Print "[" address "]"
     std::cout << "[";                                           // 0x1c5dfe
     // Set cout width to indent, fill=' '
-    auto* rdbuf_vt = *reinterpret_cast<intptr_t**>(&std::cout);
-    // The binary sets cout's width to indent and fill to ' '
+    // Binary reads cout's vtable pointer at 0x1c5df7 (likely for stream
+    // state check); result unused in reconstruction.
+    // Set cout width to indent, fill=' '
     std::cout.width(indent);                                    // 0x1c5e19..0x1c5e60
     std::cout.fill(' ');                                        // 0x1c5e85..0x1c5ed0
     std::cout << "";                                            // prints indent spaces // 0x1c5eeb
@@ -118,8 +119,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             std::cout << " with R";                             // 0x1c70ce
 
             // Check config_->isHirzel (+0x18)
-            bool isHirzel = *reinterpret_cast<const bool*>(
-                reinterpret_cast<const char*>(config_) + 0x18); // 0x1c70e6
+            bool isHirzel = config_->isHirzel;                  // 0x1c70e6
             if (isHirzel) {
                 auto& state = nodeStates_.at(node);
                 // Use registerHirzel (+0x00)                    // 0x1c70f2
@@ -134,20 +134,17 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             std::cout << " asmID ";                             // 0x1c7121
             std::cout << n->asmId;                              // 0x1c7135
 
-            // " rate " << length (at +0x4c, which is config.channelMask actually)
+            // " rate " << config.rate (at +0x4c = config(+0x48) + 0x04)
             std::cout << " rate ";                              // 0x1c7147
-            std::cout << *reinterpret_cast<int*>(               // confirmed
-                reinterpret_cast<char*>(n) + 0x4C);             // 0x1c715b — node+0x4C
+            std::cout << n->config.rate;                        // 0x1c715b — node+0x4C
 
             // " globalRate " << globalRate (+0x100)
             std::cout << " globalRate ";                        // 0x1c716d
             std::cout << n->globalRate;                         // 0x1c7181
 
-            // " precompFlags " << precompFlags (+0x60 from config, node+0x60)
+            // " precompFlags " << config.precompFlags (at +0x60 = config(+0x48) + 0x18)
             std::cout << " precompFlags ";                      // 0x1c7196
-            std::cout << detail::AddressImpl<uint32_t>(         // confirmed
-                *reinterpret_cast<uint32_t*>(
-                    reinterpret_cast<char*>(n) + 0x60));        // 0x1c71aa
+            std::cout << n->config.precompFlags;                // 0x1c71aa
 
             std::cout << "\n";                                  // 0x1c71bc
         }
@@ -415,19 +412,16 @@ bool isHirzel = config_->isHirzel;
         // " asmID " << asmId
         std::cout << " asmID " << n->asmId;                    // 0x1c79e2..0x1c79f6
 
-        // " rate " << node+0x4c
+        // " rate " << config.rate
         std::cout << " rate ";
-        std::cout << *reinterpret_cast<int*>(
-            reinterpret_cast<char*>(n) + 0x4C);                 // confirmed
+        std::cout << n->config.rate;                            // confirmed
 
         // " globalRate " << globalRate
         std::cout << " globalRate " << n->globalRate;
 
-        // " precompFlags " << precompFlags
+        // " precompFlags " << config.precompFlags
         std::cout << " precompFlags ";
-        std::cout << detail::AddressImpl<uint32_t>(
-            *reinterpret_cast<uint32_t*>(
-                reinterpret_cast<char*>(n) + 0x60));            // confirmed
+        std::cout << n->config.precompFlags;                    // confirmed
 
         std::cout << "\n";                                      // 0x1c7a7d
 
@@ -442,10 +436,8 @@ bool isHirzel = config_->isHirzel;
     // ---- SetPrecomp (0x1000) ----                             // 0x1c6674
     case NodeType::SetPrecomp: {
         std::cout << "setPrecomp ";                             // 0x1c667b
-        // Print node+0x60 as AddressImpl<uint32_t>
-        std::cout << detail::AddressImpl<uint32_t>(
-            *reinterpret_cast<uint32_t*>(
-                reinterpret_cast<char*>(n) + 0x60));            // 0x1c668f  // confirmed
+        // Print config.precompFlags
+        std::cout << n->config.precompFlags;                    // 0x1c668f  // confirmed
         std::cout << "\n";                                      // 0x1c669a
         // recurse on next
         if (auto nxt = n->next) {
@@ -503,8 +495,7 @@ bool isHirzel = config_->isHirzel;
         // " with R" + register
         std::cout << " with R";                                 // 0x1c76a4
         {
-            bool isHirzel2 = *reinterpret_cast<const bool*>(
-                reinterpret_cast<const char*>(config_) + 0x18);
+            bool isHirzel2 = config_->isHirzel;
             auto& state = nodeStates_.at(node);
             if (isHirzel2) {
                 std::cout << static_cast<int>(state.registerHirzel);

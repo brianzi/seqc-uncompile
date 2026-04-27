@@ -54,8 +54,13 @@ ElfWriter::ElfWriter(uint16_t machineType)                       // 0x2934a0
 // ============================================================================
 void ElfWriter::prepareHeader(uint16_t machineType)              // 0x2936b0
 {
-    set_type(ET_NONE);
-    set_machine(machineType);
+    // Binary vtable calls at 0x2936cb/0x2936de/0x2936fd:
+    // First call (vtable+0x68) with arg=0 → set_machine(0)
+    // Second call (vtable+0x88) with arg=machineType → set_type(machineType)
+    // Third call (vtable+0x98) with arg=0 → set_flags(0)
+    // Verified: original ELF has e_type=machineType, e_machine=0.
+    set_machine(ET_NONE);
+    set_type(machineType);
     set_flags(0);
 }
 
@@ -155,7 +160,7 @@ std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
     seg->set_flags(PF_W);
 
     // Alignment from WaveformIR+0xDC (bitsPerSample * channels product)
-    uint32_t alignment = wfPtr->irField2;
+    uint32_t alignment = wfPtr->elfAlignment_;
     seg->set_align(alignment);
 
     if (padSize > 0) {

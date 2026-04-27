@@ -224,21 +224,14 @@ public:
     detail::AddressImpl<uint32_t> clampToCache(
         detail::AddressImpl<uint32_t> addr) const;                     // 0x1d6c40
     AsmList wvfImpl(AsmRegister reg, int offset, bool indexed) const;  // 0x1d6ca0
-    // Output-param overload: appends result to out
-    void wvfImpl(AsmList& out, AsmRegister reg, int offset, bool indexed) const;
     AsmList wvfRegImpl(AsmRegister reg, AsmRegister offset,
         bool indexed) const;                                           // 0x1d7020
-    // Output-param overload
-    void wvfRegImpl(AsmList& out, AsmRegister reg, AsmRegister offset,
-        bool indexed) const;
     AsmList wvfs(Assembler::PlayDummyType type,
         AsmRegister reg, int offset) const;                            // 0x1d73e0
 
     // Analysis
     bool needsNewCwvf(std::shared_ptr<Node> node) const;               // 0x1dc620
     AsmList splitPlay(std::shared_ptr<Node> node) const;               // 0x1dd1a0
-    // Output-param overload
-    void splitPlay(AsmList& out, std::shared_ptr<Node> node) const;
     void insertPlay(AsmList& list, bool flag, std::string const& name,
         AsmRegister reg, detail::AddressImpl<uint32_t> addrA,
         detail::AddressImpl<uint32_t> addrB) const;                    // 0x1def50

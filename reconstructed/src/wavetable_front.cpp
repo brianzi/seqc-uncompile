@@ -5,12 +5,21 @@
 
 #include "zhinst/wavetable_front.hpp"
 #include "zhinst/wavetable_helpers.hpp"
+#include "zhinst/cached_parser.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/signal.hpp"
 #include "zhinst/value.hpp"
+#include "zhinst/wave_index_tracker.hpp"
 #include "zhinst/waveform_front.hpp"
 
 namespace zhinst {
+
+// Forward declaration of CsvParser (defined in csv_parser.cpp)
+class CsvParser {
+public:
+    template <typename WfT>
+    static void csvFileToWaveform(CachedParser& cache, std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
+};
 
 // 0x2a0fd0 — getUniqueName (also used by WavetableManager and WavetableIR).
 // Definition lives in wavetable_helpers.hpp as an inline detail-namespace
@@ -25,7 +34,7 @@ WavetableFront::~WavetableFront() {
     // Delete manager_
     if (manager_) {
         manager_->~WavetableManager();
-        operator delete(manager_, 0x48);
+        operator delete(manager_, sizeof(detail::WavetableManager<WaveformFront>));
     }
 
     // Release warningCallback_ weak_count (this+0x1C8)
@@ -87,9 +96,8 @@ const std::shared_ptr<WaveformFront>* WavetableFront::begin() const {
 
 // 0x29ad20 — WavetableFront::end() const
 const std::shared_ptr<WaveformFront>* WavetableFront::end() const {
-    // returns manager_+0x38 (vector end pointer)
-    return reinterpret_cast<const std::shared_ptr<WaveformFront>*>(
-        *reinterpret_cast<void**>(reinterpret_cast<char*>(manager_) + 0x38));
+    // returns pointer past last element of manager_->waveforms_
+    return manager_->waveforms_.data() + manager_->waveforms_.size();
 }
 
 // 0x29ad40 — WavetableFront::setWarningCallback(function<void(const string&, int)>)
@@ -103,17 +111,15 @@ void WavetableFront::setWarningCallback(
 // 0x29adc0 — WavetableFront::getMemorySize() const
 size_t WavetableFront::getMemorySize() const {
     size_t total = 0;
-    auto* begin = reinterpret_cast<std::shared_ptr<WaveformFront>*>(
-        *reinterpret_cast<void**>(reinterpret_cast<char*>(manager_) + 0x30));
-    auto* end = reinterpret_cast<std::shared_ptr<WaveformFront>*>(
-        *reinterpret_cast<void**>(reinterpret_cast<char*>(manager_) + 0x38));
+    auto* begin = manager_->waveforms_.data();
+    auto* end = begin + manager_->waveforms_.size();
 
     for (auto* it = begin; it != end; ++it) {
         WaveformFront* wf = it->get();
         if (wf->used != true) continue;  // Waveform::used at +0x48
 
         uint16_t channels = wf->signal.channels_;   // wf+0xC8 = signal+0x48
-        uint32_t length = (uint32_t)wf->signal.length_; // wf+0xD0 = signal+0x50
+        uint32_t length = static_cast<uint32_t>(wf->signal.length_); // wf+0xD0 = signal+0x50
         // Verified disasm 0x29ae31..0x29ae53:
         //   r10 = [wf+0x78] = waveform->deviceConstants  (NOT &signal!)
         //   r9d = [r10+0x40] = waveformGranularity ("max" cap)
@@ -134,8 +140,8 @@ size_t WavetableFront::getMemorySize() const {
         }
 
         // Calculate memory: channels * bitsPerSample * alignedLen, rounded up to bytes
-        int32_t bitsPerSample = (int32_t)dc->bitsPerSample; // +0x50
-        size_t totalBits = (size_t)channels * bitsPerSample * alignedLen;
+        int32_t bitsPerSample = static_cast<int32_t>(dc->bitsPerSample); // +0x50
+        size_t totalBits = static_cast<size_t>(channels) * bitsPerSample * alignedLen;
         size_t bytes = (totalBits + 7) / 8;
 
         if (bytes == 0) continue;
@@ -146,7 +152,7 @@ size_t WavetableFront::getMemorySize() const {
             uint32_t wfGrain2  = dc->waveformPageSize;
             uint32_t rounded2 = ((length + wfGrain2 - 1) / wfGrain2) * wfGrain2;
             uint32_t aligned2 = (wfMaxCap2 > rounded2) ? wfMaxCap2 : rounded2;
-            size_t bits2 = (size_t)channels * aligned2;
+            size_t bits2 = static_cast<size_t>(channels) * aligned2;
             size_t b2 = (bits2 + 7) / 8;
             total += b2;
         }
@@ -230,15 +236,20 @@ void WavetableFront::loadWaveform(std::shared_ptr<WaveformFront> wf) {
     // If file type != CSV (i.e., type at wf+0x18 != 0), return
     if (ptr->waveformType != Waveform::File::Type::CSV) return;  // wf+0x18
 
-    // Check signal allocation: ptr+0x80 is Signal
-    // Signal::checkAllocation()
-    // If signal's data begin == data end, parse the CSV
-    // CsvParser::csvFileToWaveform<WaveformFront>(wf, deviceType)
-    // deviceType comes from *deviceConstants_ (first field)
+    // Check signal allocation
+    ptr->signal.checkAllocation();
 
-    // On exception (catch type 1 = std::exception):
-    //   extract what() message
-    //   throw WavetableException(msg)
+    // If signal's samples are already populated, skip parsing
+    if (!ptr->signal.samples_.empty()) return;
+
+    // Parse CSV via CsvParser, using the embedded CachedParser
+    auto deviceType = static_cast<AwgDeviceType>(deviceConstants_->deviceType);
+    auto& cache = *reinterpret_cast<CachedParser*>(cachedParser_);             // +0x118
+    try {
+        CsvParser::csvFileToWaveform<WaveformFront>(cache, wf, deviceType);    // @0x29c080
+    } catch (std::exception const& e) {
+        throw WavetableException(e.what());
+    }
 }
 
 // 0x29c160 — WavetableFront::waveformExists(const string&) const
@@ -314,7 +325,7 @@ uint32_t WavetableFront::getWaveformSampleLength(const std::string& name) {
     // checkWaveformInit(wf2.get(), name) — validates waveform
 
     // Return wf->signal.length_ at wf+0xD0 (= signal+0x50)
-    return (uint32_t)wf.get()->signal.length_;
+    return static_cast<uint32_t>(wf.get()->signal.length_);
 }
 
 // 0x29ca10 — WavetableFront::updateDioTableUsage(size_t key, size_t value)
@@ -329,7 +340,7 @@ bool WavetableFront::updateDioTableUsage(size_t key, size_t value) {
     }
 
     // Compare total < deviceConstants_->maxDioTableEntries() (dc+0x0C)
-    return total < (size_t)deviceConstants_->maxDioTableEntries();
+    return total < static_cast<size_t>(deviceConstants_->maxDioTableEntries());
 }
 
 // 0x29cb40 — WavetableFront::assignWaveIndex(shared_ptr<WaveformFront>, int)

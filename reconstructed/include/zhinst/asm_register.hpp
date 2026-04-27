@@ -1,12 +1,14 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // AsmRegister — register identifier for the AWG processor
+//
+// NOTE: AsmRegister lives at **global scope** (not inside namespace zhinst)
+// to match the binary's mangling.  A `using ::AsmRegister;` inside the
+// zhinst namespace ensures all existing unqualified uses compile unchanged.
 // ============================================================================
 #pragma once
 
 #include <cstdint>
-
-namespace zhinst {
 
 // AsmRegister — 8-byte struct: {int value; bool valid; 3 bytes padding}
 //
@@ -40,6 +42,11 @@ struct AsmRegister {
     bool operator!=(const AsmRegister& o) const { return !(*this == o); }
 };
 static_assert(sizeof(AsmRegister) == 8, "AsmRegister must be 8 bytes");
+
+namespace zhinst {
+
+// Bring AsmRegister into zhinst:: so all existing unqualified uses work.
+using ::AsmRegister;
 
 // Free-function wrappers — many .cpp files call isValid(reg) and toInt(reg)
 // as free functions rather than member calls.

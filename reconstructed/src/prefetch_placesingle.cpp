@@ -144,16 +144,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                             if (cwvfEncoded >= 0x1000000) {        // 0x1d8e7c
                                 AsmRegister cwvfReg(resources_->getRegisterNumber());
-                                AsmList addiList;
-                                asmCommands_->addi(addiList, cwvfReg, AsmRegister(0),
+                                auto addiVec = asmCommands_->addi(cwvfReg, AsmRegister(0),
                                                    Immediate(cwvfEncoded));
-                                tempList.insert(tempList.end(), addiList.begin(), addiList.end());
-                                AsmList::Asm cwvfrAsm;
-                                asmCommands_->cwvfr(cwvfrAsm, cwvfReg); // 0x1d8f30
+                                for (auto& a : addiVec) tempList.append(a);
+                                AsmList::Asm cwvfrAsm = asmCommands_->cwvfr(cwvfReg); // 0x1d8f30
                                 tempList.append(cwvfrAsm);
                             } else {
-                                AsmList::Asm cwvfAsm;
-                                asmCommands_->cwvf(cwvfAsm, cwvfEncoded); // 0x1d8f55
+                                AsmList::Asm cwvfAsm = asmCommands_->cwvf(cwvfEncoded); // 0x1d8f55
                                 tempList.append(cwvfAsm);
                             }
                         }
@@ -175,8 +172,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                 auto& loadSt2 = nodeStates_[loadNode];
                                 if (loadSt2.pageSize >= 2) {       // 0x1d901f
                                     // splitPlay path
-                                    AsmList splitResult;
-                                    splitPlay(splitResult, node);  // 0x1d9056
+                                    AsmList splitResult = splitPlay(node);  // 0x1d9056
                                     tempList.insert(tempList.end(),
                                         splitResult.begin(), splitResult.end());
                                     goto play_finalize;
@@ -203,8 +199,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                 AsmRegister nodeReg = npW->indexOffsetReg;  // +0x94
                                 int length = npW->length;          // +0x90
                                 bool is4Ch = npW->config.now;      // +0x64 = config+0x1C
-                                AsmList wvfResult;
-                                wvfRegImpl(wvfResult, AsmRegister(0), nodeReg, is4Ch);
+                                AsmList wvfResult = wvfRegImpl(AsmRegister(0), nodeReg, is4Ch);
                                 tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                                 goto play_finalize;
                             }
@@ -239,8 +234,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                             bool is4Ch = npWvf->config.now;        // +0x64 = config+0x1C
 
-                            AsmList wvfResult;
-                            wvfImpl(wvfResult, AsmRegister(0), byteCount, is4Ch); // 0x1d95ba
+                            AsmList wvfResult = wvfImpl(AsmRegister(0), byteCount, is4Ch); // 0x1d95ba
                             tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                         }
                     }
@@ -278,11 +272,10 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Emit smap: smap(reg150, reg168, 0x400 + node->tableIndex)
                             int smapOffset = 0x400 + node.get()->tableIndex; // +0x9C // 0x1d9340..0x1d934d
                             {
-                                AsmList smapList;
-                                asmCommands_->smap(smapList, regH,
+                                auto smapVec = asmCommands_->smap(regH,
                                     nodeStates_[node].registerCervino,
                                     smapOffset);                   // 0x1d9354
-                                tempList.insert(tempList.end(), smapList.begin(), smapList.end());
+                                for (auto& a : smapVec) tempList.append(a);
                             }
 
                             // Second nodeStates_ lookup: get cachePtr               // 0x1d941c
@@ -327,32 +320,28 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                                     // First wvfImpl call
                                     {
-                                        AsmList wvfResult;
-                                        wvfImpl(wvfResult, cacheReg, halfPageCount, is4Ch); // 0x1d9d8a
+                                        AsmList wvfResult = wvfImpl(cacheReg, halfPageCount, is4Ch); // 0x1d9d8a
                                         tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                                     }
 
                                     // addi tempReg2, cacheReg, Immediate(halfPageCount)
                                     AsmRegister tempReg2(resources_->getRegisterNumber()); // 0x1d9dd5
                                     {
-                                        AsmList addiList;
-                                        asmCommands_->addi(addiList, tempReg2, cacheReg,
+                                        auto addiVec = asmCommands_->addi(tempReg2, cacheReg,
                                                            Immediate(halfPageCount)); // 0x1d9e24
-                                        tempList.insert(tempList.end(), addiList.begin(), addiList.end());
+                                        for (auto& a : addiVec) tempList.append(a);
                                     }
 
                                     // Second wvfImpl call
                                     {
                                         is4Ch = node.get()->config.now;  // +0x64 = config+0x1C
-                                        AsmList wvfResult2;
-                                        wvfImpl(wvfResult2, tempReg2, halfPageCount, is4Ch); // 0x1d9ea2
+                                        AsmList wvfResult2 = wvfImpl(tempReg2, halfPageCount, is4Ch); // 0x1d9ea2
                                         tempList.insert(tempList.end(), wvfResult2.begin(), wvfResult2.end());
                                     }
                                 } else {
                                     // Default: single wvfImpl       // 0x1d9ee2
                                     bool is4Ch = npCerv->config.now;  // +0x64 = config+0x1C
-                                    AsmList wvfResult;
-                                    wvfImpl(wvfResult, cacheReg, pageCount2, is4Ch); // 0x1d9ef7
+                                    AsmList wvfResult = wvfImpl(cacheReg, pageCount2, is4Ch); // 0x1d9ef7
                                     tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                                 }
 
@@ -368,33 +357,29 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                                             // addi idxReg, stRegH, Immediate(pageCount)
                                             {
-                                                AsmList addiIdx;
-                                                asmCommands_->addi(addiIdx, idxReg, stRegH,
+                                                auto addiVec = asmCommands_->addi(idxReg, stRegH,
                                                                    Immediate(pageCount)); // 0x1da01b
-                                                tempList.insert(tempList.end(), addiIdx.begin(), addiIdx.end());
+                                                for (auto& a : addiVec) tempList.append(a);
                                             }
 
                                             // If !isHirzel: addi reg3, stRegCervino, Immediate(pageCount)
                                             AsmRegister reg3(resources_->getRegisterNumber()); // 0x1da06b
                                             if (!config_->isHirzel) {  // 0x1da096
                                                 AsmRegister stRegC = nodeStates_[node].registerCervino; // 0x1da0d4
-                                                AsmList addiIdx2;
-                                                asmCommands_->addi(addiIdx2, reg3, stRegC,
+                                                auto addiVec2 = asmCommands_->addi(reg3, stRegC,
                                                                    Immediate(pageCount)); // 0x1da101
-                                                tempList.insert(tempList.end(), addiIdx2.begin(), addiIdx2.end());
+                                                for (auto& a : addiVec2) tempList.append(a);
                                             }
 
                                             // prf(idxReg, reg3, pageCount)  // 0x1da178
                                             {
-                                                AsmList::Asm prfAsm;
-                                                asmCommands_->prf(prfAsm, idxReg, reg3, pageCount);
+                                                AsmList::Asm prfAsm = asmCommands_->prf(idxReg, reg3, pageCount);
                                                 tempList.append(prfAsm);
                                             }
 
                                             // wprf()                        // 0x1da1a4
                                             {
-                                                AsmList::Asm wprfAsm;
-                                                asmCommands_->wprf(wprfAsm);
+                                                AsmList::Asm wprfAsm = asmCommands_->wprf();
                                                 tempList.append(wprfAsm);
                                             }
 
@@ -403,8 +388,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                             // 0x1da1cc..0x1da1d7: cmovne selects between idxReg/reg3
                                             {
                                                 bool is4Ch = node.get()->config.now;  // +0x64 = config+0x1C
-                                                AsmList wvfResult;
-                                                wvfImpl(wvfResult, wvfReg, pageCount, is4Ch); // 0x1da1f3
+                                                AsmList wvfResult = wvfImpl(wvfReg, pageCount, is4Ch); // 0x1da1f3
                                                 tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                                             }
                                         }
@@ -423,10 +407,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // smap with node->tableIndex               // 0x1da567..0x1da591
                             int smapOffsetC = node.get()->tableIndex;   // +0x9C
                             {
-                                AsmList smapList;
-                                asmCommands_->smap(smapList, nodeStates_[node].registerHirzel,
+                                auto smapVec = asmCommands_->smap(nodeStates_[node].registerHirzel,
                                     regC, smapOffsetC);            // 0x1da591
-                                tempList.insert(tempList.end(), smapList.begin(), smapList.end());
+                                for (auto& a : smapVec) tempList.append(a);
                             }
 
                             // addi tempReg, regC, Immediate(pageCount) for ssl base

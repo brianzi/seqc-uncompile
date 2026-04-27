@@ -42,25 +42,15 @@ public:
     // =====================================================================
 
     AsmList::Asm prf(AsmRegister reg1, AsmRegister reg2, int intArg) const;
-    // Output-param overload: stores result in out
-    void prf(AsmList::Asm& out, AsmRegister reg1, AsmRegister reg2, int intArg) const;
     AsmList::Asm wprf() const;
-    // Output-param overload
-    void wprf(AsmList::Asm& out) const;
     AsmList::Asm wwvfq() const;
     AsmList::Asm wwvf() const;
-    // Output-param overload
-    void wwvf(AsmList::Asm& out) const;
     AsmList::Asm wvf(AsmRegister reg, AsmRegister dstReg, int length) const;
     AsmList::Asm wvfi(AsmRegister reg, AsmRegister dstReg, int length) const;
     AsmList::Asm wvfs(Assembler::PlayDummyType type, AsmRegister reg, int length) const;
     AsmList::Asm wvft(AsmRegister reg, int length) const;
     AsmList::Asm cwvf(int value) const;
-    // Output-param overload
-    void cwvf(AsmList::Asm& out, int value) const;
     AsmList::Asm cwvfr(AsmRegister reg) const;
-    // Output-param overload
-    void cwvfr(AsmList::Asm& out, AsmRegister reg) const;
 
     // =====================================================================
     // Branch
@@ -77,8 +67,6 @@ public:
 
     AsmList::Asm alur(Assembler::Command cmd, AsmRegister dst, AsmRegister src) const;
     AsmList::Asm addr(AsmRegister dst, AsmRegister src) const;
-    // Output-param overload
-    void addr(AsmList::Asm& out, AsmRegister dst, AsmRegister src) const;
     AsmList::Asm subr(AsmRegister dst, AsmRegister src) const;
     AsmList::Asm andr(AsmRegister dst, AsmRegister src) const;
     AsmList::Asm orr(AsmRegister dst, AsmRegister src) const;
@@ -89,8 +77,6 @@ public:
     // =====================================================================
 
     AsmList::Asm ssl(AsmRegister reg) const;
-    // Output-param overload
-    void ssl(AsmList::Asm& out, AsmRegister reg) const;
     AsmList::Asm ssr(AsmRegister reg) const;
 
     // =====================================================================
@@ -111,9 +97,6 @@ public:
     std::vector<AsmList::Asm> alui(Assembler::Command cmd, AsmRegister dst,
                                AsmRegister src, Immediate imm) const;
     std::vector<AsmList::Asm> addi(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    // Output-param overload: appends result to an existing AsmList.
-    // Used by Prefetch::placeSingleCommand.
-    void addi(AsmList& out, AsmRegister dst, AsmRegister src, Immediate imm) const;
     std::vector<AsmList::Asm> addi32(AsmRegister dst, AsmRegister src, Immediate imm) const;
     std::vector<AsmList::Asm> andi(AsmRegister dst, AsmRegister src, Immediate imm) const;
     std::vector<AsmList::Asm> ori(AsmRegister dst, AsmRegister src, Immediate imm) const;
@@ -139,11 +122,7 @@ public:
     // =====================================================================
 
     AsmList::Asm ld(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    // Output-param overload
-    void ld(AsmList::Asm& out, AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     AsmList::Asm st(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    // Output-param overload
-    void st(AsmList::Asm& out, AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     AsmList::Asm ldio(AsmRegister reg, bool highBank) const;
     AsmList::Asm sdio(AsmRegister reg, bool highBank) const;
     AsmList::Asm luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
@@ -165,8 +144,6 @@ public:
 
     AsmList::Asm sid(AsmRegister reg, bool highBank) const;
     std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int arg) const;
-    // Output-param overload: appends smap results to AsmList
-    void smap(AsmList& out, AsmRegister r1, AsmRegister r2, int arg) const;
     AsmList::Asm ldiotrig(AsmRegister reg) const;
     AsmList::Asm lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
@@ -184,13 +161,9 @@ public:
     // =====================================================================
 
     AsmList syncCervino(AsmRegister reg1, AsmRegister reg2, bool flag) const;
-    // Output-param overload
-    void syncCervino(AsmList& out, AsmRegister reg1, AsmRegister reg2, bool flag) const;
     AsmList unsyncCervino() const;  // returns 2 ST entries (not single AsmList::Asm)
     AsmList::Asm asmSyncPlaceholderCervino() const;
     AsmList::Asm asmSyncHirzel() const;
-    // Output-param overload
-    void asmSyncHirzel(AsmList::Asm& out) const;
 
     // =====================================================================
     // Pseudo-instructions / directives

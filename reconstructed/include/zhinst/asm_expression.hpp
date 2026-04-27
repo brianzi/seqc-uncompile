@@ -17,7 +17,7 @@
 //                   Command/register/label name string.
 //                   Set by createName (type=2). Read by addCommand
 //                   to resolve command via commandFromString().
-//   0x20    0x18  std::string                               str2
+//   0x20    0x18  std::string                               nopComment
 //                   Second string field. Used for NOP marker
 //                   comment text (parseStringToAsmList case exprCmd==4).
 //   0x38    0x04  uint32_t (Assembler::Command)             command
@@ -57,7 +57,7 @@
 //                   in parseStringToAsmList. Guards dtor destruction of
 //                   comment string.
 //   0x99    0x07  (padding)
-//   0xA0    0x01  bool                                      field_A0
+//   0xA0    0x01  bool                                      isWaveformCmdOverride_
 //                   isWaveformCmd override flag. When true,
 //                   parseStringToAsmList forces isWaveformCmd = true
 //                   on the resulting AsmList::Asm entry.
@@ -105,7 +105,7 @@ struct AsmExpression {
     int32_t type;           // +0x00  AsmExprType: 0=container, 1=reg, 2=label, 3=int
     // 4 bytes padding       // +0x04
     std::string name;       // +0x08  command/register/label name
-    std::string str2;       // +0x20  secondary string (NOP comment text)
+    std::string nopComment;       // +0x20  secondary string (NOP comment text)
     uint32_t command;       // +0x38  Assembler::Command enum value
     int32_t value;          // +0x3C  integer value / register number / PC
     std::vector<std::shared_ptr<AsmExpression>> children;  // +0x40
@@ -117,7 +117,7 @@ struct AsmExpression {
     std::string comment;    // +0x80  comment / JSON blob string
     bool hasComment;        // +0x98  true if comment present ("noOpt" flag)
     // 7 bytes padding       // +0x99
-    bool field_A0;          // +0xA0  isWaveformCmd override flag
+    bool isWaveformCmdOverride_;          // +0xA0  isWaveformCmd override flag
     // 7 bytes padding       // +0xA1 to 0xA8
 
     // Accessor aliases (forwarding methods, NOT separate storage —

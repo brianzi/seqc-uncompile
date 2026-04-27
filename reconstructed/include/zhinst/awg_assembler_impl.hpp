@@ -34,7 +34,7 @@ using LabelBimap = boost::bimaps::bimap<
 //   0x000   0x08  DeviceConstants const*                  deviceConstants_
 //   0x008   0x18  std::string                             filename_
 //   0x020   0x18  std::string                             asmSource_
-//   0x038   0x18  std::string                             str2_       (purpose TBD)
+//   0x038   0x18  std::string                             unusedStr038_ (no observed reader/writer in reconstructed methods)
 //   0x050   0x18  std::vector<uint32_t>                   opcodes_
 //                                                         (verified by getOpcode()
 //                                                          at 0x289060: lea rax,[rdi+0x50];
@@ -159,7 +159,7 @@ public:
     DeviceConstants const* deviceConstants_;     // 0x000
     std::string filename_;                       // 0x008
     std::string asmSource_;                      // 0x020
-    std::string str2_;                           // 0x038
+    std::string unusedStr038_;                    // 0x038 — no observed reader/writer
     std::vector<uint32_t> opcodes_;              // 0x050  // verified at 0x2885da: addCode(&[r14+0x50]) takes vector<unsigned int> directly
     uint32_t memoryOffset_ = 0;                  // 0x068
     uint32_t pad_memOffset_ = 0;                 // 0x06c (alignment)

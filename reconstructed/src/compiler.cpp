@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "zhinst/compiler.hpp"
+#include "zhinst/compiler_message.hpp"
 #include "zhinst/frontend_lowering.hpp"
 #include "zhinst/seqc_ast_node.hpp"
 #include "zhinst/seqc_parser_context.hpp"
@@ -17,6 +18,7 @@
 #include "zhinst/waveform_generator.hpp"
 
 #include <deque>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <boost/algorithm/string/replace.hpp>
@@ -28,27 +30,13 @@
 #include "zhinst/device_constants.hpp"
 #include "zhinst/resources.hpp"
 
-// Forward declarations for flex/bison parser.
-// These are compiled as C++ (LANGUAGE CXX in CMake), so signatures must
-// match the actual definitions in seqc_lexer.c / seqc_parser.tab.c exactly.
-namespace zhinst { class SeqcParserContext; class Expression; }
-struct yy_buffer_state;
-int seqc_lex_init_extra(zhinst::SeqcParserContext* extra, void** scanner);
-yy_buffer_state* seqc__scan_string(const char* str, void* scanner);
-int seqc_parse(zhinst::SeqcParserContext* ctx, zhinst::Expression** result, void* scanner);
-void seqc__delete_buffer(yy_buffer_state* buf, void* scanner);
-int seqc_lex_destroy(void* scanner);
+#include "zhinst/yy_fwd.hpp"
 
 namespace zhinst {
 
-// Forward declarations for types used in pipeline
-class StaticResources;
-class Prefetch;
-class AsmOptimize;
-
 // Free functions used in pipeline
 extern std::shared_ptr<SeqCAstNode> toSeqCAst(std::shared_ptr<Expression> expr);
-extern void printSeqCAst(SeqCAstNode& ast);
+extern void printSeqCAst(const SeqCAstNode& ast);
 
 // ============================================================================
 // Constructor
@@ -93,10 +81,8 @@ Compiler::Compiler(const AWGCompilerConfig& config,
         config, deviceConstants, wavetable_, waveformGen_, asmCommands_,
         std::function<void(const std::string&)>(warningCb));
 
-    // Initialize SeqcParserContext at +0x100
-    // Sets error callback as std::function wrapping a lambda $_0
-    // that calls CompilerMessageCollection::parserMessage
-    std::memset(parserContext_, 0, sizeof(parserContext_));
+    // SeqcParserContext at +0x100 is default-constructed by the
+    // member initializer list (zero-initialized POD + empty std::function).
 
     // Cancel/progress callbacks start as empty weak_ptrs
 }
@@ -155,7 +141,7 @@ std::string Compiler::unifyLineEndings(const std::string& input) const {
 // 0x11d9b0
 std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
     // Reset parser context at this+0x100
-    auto* ctx = reinterpret_cast<SeqcParserContext*>(parserContext_);
+    auto* ctx = &parserContext_;
     // ctx->reset();  // 0x247cc0
 
     void* scanner = nullptr;
@@ -198,11 +184,34 @@ std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
 // recursively prints children. Debug-only, approximate reconstruction.
 void Compiler::printAST(std::shared_ptr<Expression> expr,
                         const std::string& label) {
-    // Sets cout formatting flags
-    // If expr is null, returns
-    // Prints expression type via str(EOperationType), then recursively
-    // prints children. Uses indentation based on nesting depth.
-    // ~3.5KB of debug printing code — not reconstructed in detail.
+    // @0x122640: sets cout formatting, prints label, then recursive tree dump.
+    // ~3.5KB of debug printing code. Reconstructed from call targets:
+    //   str(EOperationType) @0x122689, str(EOperator) @0x122706,
+    //   str(ECommandType) @0x122a10, str(VarType) @0x122b13,
+    //   ostream << int @0x122796, recursive call @0x12290b.
+    if (!expr) return;                                                         // @0x122670
+
+    std::cout << label << " " << str(expr->operationType);                     // @0x122689..1226b0
+    if (expr->operator_ != EOperator::eNONE) {
+        std::cout << " op=" << str(expr->operator_);                           // @0x122706
+    }
+    std::cout << " line=" << expr->lineNumber;                                 // @0x122788..122796
+    if (expr->commandType != ECommandType::eNOCMD) {
+        std::cout << " cmd=" << str(expr->commandType);                        // @0x122a10
+    }
+    if (expr->varType != VarType_Unset) {
+        std::cout << " vt=" << str(expr->varType);                             // @0x122b13
+    }
+    if (!expr->name.empty()) {
+        std::cout << " name=\"" << expr->name << "\"";                         // @0x122aa7..122ad5
+    }
+    std::cout << "\n";
+
+    // Recurse into children                                                   // @0x12290b
+    for (size_t i = 0; i < expr->children.size(); ++i) {
+        std::string childLabel = label + "  ";
+        printAST(expr->children[i], childLabel);                               // @0x12290b
+    }
 }
 
 // ============================================================================
@@ -210,7 +219,7 @@ void Compiler::printAST(std::shared_ptr<Expression> expr,
 // ============================================================================
 
 // 0x11f150 (~13KB)
-std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
+CompileResult Compiler::compile(const std::string& source) {
     // Step 1: Reset messages, set up callbacks
     messages_.reset();                                          // 0x11f179
 
@@ -280,7 +289,7 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
 
     // Step 9: Check for errors                                             // 0x11fb0d
     if (messages_.hadCompilerError()) {
-        return {};
+        throw CompilerException("Compiler error while evaluating sequence");
     }
 
     // Step 10: Build assembly preamble                                     // 0x11fb1a
@@ -311,8 +320,8 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
     // how the lowered AST is grafted.
     rootNode = std::make_shared<Node>(
         NodeType::Load,
-        config_->numChannelGroups,
-        placeholderAsm.sequenceId);                                          // 0x11fdc8 / 0x11fe8e
+        placeholderAsm.sequenceId,
+        config_->numChannelGroups);                                          // 0x11fdc8 / 0x11fe8e
 
     if (hasMainAndAst) {
         // Graft the lowered AST as rootNode's next chain                   // 0x11fe43
@@ -322,6 +331,7 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
         // Use evalResult's node tree                                       // 0x11ff09
         if (lowerResult.evalResult) {
             rootNode->next = lowerResult.evalResult->node_;
+        } else {
         }
         ast_ = rootNode;
     }
@@ -371,16 +381,17 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
             assemblers.end());
     }
 
-    // Step 11d: Append end + wwvf + nop trailer                             // 0x120589
+    // Step 11d: Append wwvf + nop + end trailer                             // 0x120589
+    // Binary inserts 3 contiguous AsmList::Asm entries in order: wwvf, nop, end
+    // (verified from stack layout: wwvf@-0x390, nop@-0x2e8, end@-0x240)
     {
         auto endAsm = asmCommands_->end();                                   // 0x120589
         auto wwvfAsm = asmCommands_->wwvf();                                // 0x12059f
         auto nopAsm = asmCommands_->nop();                                   // 0x1205b8
 
-        // Build a combined entry with end's fields and insert 3 entries
-        asmList_.append(endAsm);
         asmList_.append(wwvfAsm);
         asmList_.append(nopAsm);
+        asmList_.append(endAsm);
     }
 
     // Step 12: Pre-waveform optimization                                // 0x120707
@@ -396,21 +407,23 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
         std::function<void(const std::string&, int)>(errorCb),
         std::function<void(const std::string&, int)>(infoCb),
         static_cast<uint32_t>(deviceConstants_->registerDepth),             // +0x28
-        static_cast<uint32_t>(config_->unknown_88),                       // +0x88
+        static_cast<uint32_t>(config_->optimizationFlags),                       // +0x88
         cancelLocked);
 
     optimizer.prepareResources(asmList_);                                 // 0x120857
     asmList_ = optimizer.optimizePreWaveform(asmList_);                   // 0x120879
 
-    // Step 13: Conditional serialize to file (if string_30_owned)         // 0x120953
-    if (config_->string_30_owned) {
+    // Step 13: Conditional serialize to file (if debugDumpEnabled)         // 0x120953
+    if (config_->debugDumpEnabled) {
         auto serialized = asmList_.serialize();
-        // Write serialized to config_->string_30 path (debug dump)
-        // TODO: implement file write if needed for diff testing
+        // Binary writes serialized data to config_->debugDumpPath.        // @0x120953
+        std::ofstream ofs(config_->debugDumpPath, std::ios::binary);
+        if (ofs)
+            ofs.write(serialized.data(), serialized.size());
     }
 
     // Step 13b: Conditional serialize/deserialize round-trip              // 0x1209a1
-    if (config_->unknown_28 == 1) {
+    if (config_->serializeRoundTrip == 1) {
         auto serialized = asmList_.serialize();
         asmList_.deserialize(serialized);
     }
@@ -433,7 +446,9 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
     asmList_ = optimizer.optimizePostWaveform(asmList_);
 
     // Step 16: Insert unsyncCervino (platform-specific)                  // 0x120f2b
-    {
+    // Binary at 0x120f08: only called when deviceType == UHFLI(1) or UHFQA(4)
+    if (deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFLI) ||
+        deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFQA)) {
         AsmList unsyncEntries = asmCommands_->unsyncCervino();
         // Insert unsync entries into asmList_ before end
         for (auto& entry : unsyncEntries) {
@@ -448,17 +463,19 @@ std::vector<AssemblerInstr> Compiler::compile(const std::string& source) {
 
     // Step 18: Final error check
     if (messages_.hadCompilerError()) {                          // 0x1212e4
-        return {};
+        throw CompilerException("Compiler error while assembling output file");
     }
 
     // Step 19: Build output vector<AssemblerInstr>                       // 0x121345
     std::vector<AssemblerInstr> result;
     result.reserve(asmList_.size());
     for (auto& entry : asmList_) {
+        if (entry.assembler.cmd == Assembler::INVALID)  // @0x1213a2: skip dead instrs
+            continue;
         result.push_back(entry.assembler);
     }
 
-    return result;
+    return CompileResult{std::move(result), std::move(wavetableIR)};  // 0x121421: sret+0x18 = wavetableIR
 }
 
 // ============================================================================
@@ -473,13 +490,13 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
                              const DeviceConstants& deviceConstants,
                              const AWGCompilerConfig& config) {
     // Step 1: (Optional) Serialize WavetableIR to JSON file              // 0x11e022
-    // if (config.string_50_owned) {
+    // if (config.debugJsonEnabled) {
     //     auto json = wavetableIR->toJson();
-    //     // writeFile(config.string_50, boost::json::serialize(json));
+    //     // writeFile(config.debugJsonPath, boost::json::serialize(json));
     // }
 
     // Step 2: (Optional) Reload WavetableIR from JSON (round-trip)       // 0x11e09a
-    // if (config.unknown_28 == 1) {
+    // if (config.serializeRoundTrip == 1) {
     //     auto json = wavetableIR->toJson();
     //     wavetableIR = WavetableIR::fromJson(json, deviceConstants,
     //         detail::AddressImpl<uint32_t>(config.addressImpl),
@@ -521,7 +538,7 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
 
     // Step 10: updateWaveforms                                           // 0x11e432
     wavetableIR->updateWaveforms(config.cacheType != 0 && config.isHirzel,
-                                  false);
+                                  deviceConstants.hasDIO);
 
     // Step 11: placeLoads                                                // 0x11e44f
     prefetch.placeLoads();
@@ -583,8 +600,7 @@ bool Compiler::usedDeviceSampleRate() const {
 bool Compiler::hadSyntaxError() const {
     // Binary reads byte at Compiler+0x100+0x03 = parserContext_[3]
     // which is SeqcParserContext::hadSyntaxError flag
-    auto* ctx = reinterpret_cast<SeqcParserContext const*>(parserContext_);
-    return ctx->hadSyntaxError();
+    return parserContext_.hadSyntaxError();
 }
 
 // 0x1235f0
@@ -605,21 +621,21 @@ std::vector<int> Compiler::getLineMap(int offset) const {
     int counter = 0;
     int seq = 1;
 
-    // Iterate asmList_ entries (stride 0xA8)
-    // for (auto& entry : asmList_) {
-    //     if (entry.assembler.cmd == -1)
-    //         continue;
-    //     if (entry.assembler.cmd == Assembler::LABEL) {
-    //         seq++;
-    //         continue;
-    //     }
-    //     result.push_back(counter + offset);
-    //     result.push_back(counter);
-    //     result.push_back(seq);
-    //     result.push_back(entry.lineNumber);  // +0x88 in AsmList::Asm
-    //     counter++;
-    //     seq++;
-    // }
+    // Iterate asmList_ entries (stride 0xA8)                       // @0x123660
+    for (auto& entry : asmList_) {
+        if (entry.assembler.cmd == -1)
+            continue;
+        if (entry.assembler.cmd == Assembler::LABEL) {
+            seq++;
+            continue;
+        }
+        result.push_back(counter + offset);
+        result.push_back(counter);
+        result.push_back(seq);
+        result.push_back(entry.lineNumber());  // +0x88 in AsmList::Asm
+        counter++;
+        seq++;
+    }
 
     return result;
 }

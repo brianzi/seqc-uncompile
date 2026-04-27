@@ -82,5 +82,408 @@
     "devtype": "HDAWG8",
     "index": 1,
     "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_arithmetic",
+    "file": "hdawg_arithmetic.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_const",
+    "file": "hdawg_const.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_do_while",
+    "file": "hdawg_do_while.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_while_loop",
+    "file": "hdawg_while_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_comparisons",
+    "file": "hdawg_comparisons.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_logical",
+    "file": "hdawg_logical.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_ternary",
+    "file": "hdawg_ternary.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_mixed_loops",
+    "file": "hdawg_mixed_loops.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_playHold",
+    "file": "hdawg_playHold.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_wait",
+    "file": "hdawg_wait.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_assign_ops",
+    "file": "hdawg_assign_ops.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_unary",
+    "file": "hdawg_unary.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_inc_dec",
+    "file": "hdawg_inc_dec.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_bitwise",
+    "file": "hdawg_bitwise.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "shfqa_basic",
+    "file": "shfqa_basic.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfsg_loops",
+    "file": "shfsg_loops.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+
+  {
+    "name": "hdawg_setUserReg",
+    "code": "setUserReg(0, 42);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_getUserReg",
+    "code": "var x = getUserReg(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_setDIO",
+    "code": "setDIO(0xFF);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_getDIO",
+    "code": "var x = getDIO();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_sync",
+    "code": "sync();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_getCnt",
+    "code": "var c = getCnt(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_setTrigger_get",
+    "code": "setTrigger(1);\nvar t = getTrigger(1);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_waitPlayQueue",
+    "code": "playZero(32);\nwaitPlayQueueEmpty();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_info_msg",
+    "code": "info(\"hello\");",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_error_msg",
+    "code": "error(\"fail\");",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_executeTable",
+    "code": "executeTableEntry(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_setPRNG",
+    "code": "setPRNGSeed(12345);\nvar r = getPRNGValue();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+
+  {
+    "name": "hdawg_playWave_zeros",
+    "file": "hdawg_playWave_zeros.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_playWave_ones",
+    "file": "hdawg_playWave_ones.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_playWave_multi",
+    "file": "hdawg_playWave_multi.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_assignWaveIdx",
+    "file": "hdawg_assignWaveIdx.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_play_combo",
+    "file": "hdawg_play_combo.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_wave_in_loop",
+    "file": "hdawg_wave_in_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+
+  {
+    "name": "shfqa_startQA",
+    "code": "startQA(0x1, 1, 0, 0);",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_executeTable",
+    "code": "executeTableEntry(0);",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_setPRNG",
+    "code": "setPRNGSeed(12345);\nvar r = getPRNGValue();",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_setOscFreq",
+    "code": "setOscFreq(0, 100.0e6);",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_resetOscPhase",
+    "code": "resetOscPhase();",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfsg_playZero_wait",
+    "code": "playZero(32);\nwaitWave();",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_setTrigger",
+    "code": "setTrigger(1);\nwait(100);\nsetTrigger(0);",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_executeTable",
+    "code": "executeTableEntry(0);",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+
+  {
+    "name": "hdawg4_nop",
+    "code": "while(1);",
+    "devtype": "HDAWG4",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg4_playZero",
+    "code": "playZero(32);",
+    "devtype": "HDAWG4",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "shfqc_qa_nop",
+    "code": "while(1);",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqc_sg_nop",
+    "code": "while(1);",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "uhfqa_nop",
+    "code": "while(1);",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfli_nop",
+    "code": "while(1);",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+
+  {
+    "name": "hdawg_nested_if_loop",
+    "file": "hdawg_nested_if_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_many_vars",
+    "file": "hdawg_many_vars.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_switch_like",
+    "file": "hdawg_switch_like.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_full_program",
+    "file": "hdawg_full_program.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_deep_nesting",
+    "file": "hdawg_deep_nesting.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2.4e9
+  },
+
+  {
+    "name": "hdawg_awg2",
+    "code": "playZero(64);",
+    "devtype": "HDAWG8",
+    "index": 2,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "hdawg_awg3",
+    "code": "playZero(64);",
+    "devtype": "HDAWG8",
+    "index": 3,
+    "samplerate": 2.4e9
+  },
+  {
+    "name": "shfsg_awg1",
+    "code": "playZero(32);",
+    "devtype": "SHFSG8",
+    "index": 1,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfqa_awg1",
+    "code": "playZero(32);",
+    "devtype": "SHFQA4",
+    "index": 1,
+    "sequencer": "qa"
   }
 ]

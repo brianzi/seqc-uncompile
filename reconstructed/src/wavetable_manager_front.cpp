@@ -194,7 +194,7 @@ WavetableManager<WaveformFront>::newWaveform(
 
     auto wf = std::make_shared<WaveformFront>(name, Waveform::File::Type::GEN, dc);
     wf->signal = signal;                   // copy Signal data into +0x80
-    wf->setFunDescrName(funName);          // Waveform::thirdString at +0x50
+    wf->setFunDescrName(funName);          // Waveform::funDescrName at +0x50
     wf->values = args;                     // vector<Value> at +0xE0
 
     // Insert

@@ -33,7 +33,7 @@ The inlining sites within writeToStream:
 
 ```
 gap = waveform->addressValue - currentOffset
-alignMask = -waveform->irField2    // e.g., irField2=64 → mask=0xFFFFFFC0
+alignMask = -waveform->elfAlignment_    // e.g., elfAlignment_=64 → mask=0xFFFFFFC0
 padding = gap & alignMask          // rounds gap down to alignment boundary
 ```
 

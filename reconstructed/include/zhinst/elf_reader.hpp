@@ -21,7 +21,7 @@
 //   +0x78..+0x90  std::vector<ELFIO::section*> ddSections_
 //                 (libc++ vector — begin/end/cap; 24B)
 //
-//   +0x90  uint32_t  pad_ / unused dword (zeroed by ctor; purpose unknown)
+//   +0x90  uint32_t  ddSectionIndex_ / unused dword (zeroed by ctor; purpose unknown)
 //
 //   ----- end at +0x98 -----
 //
@@ -89,7 +89,7 @@ private:
 // ---------------------------------------------------------------------------
 // ElfReader — privately inherits from ELFIO::elfio (matches binary). The
 // base class is 0x70 bytes; ElfReader adds formatSection_ + ddSections_
-// + pad_ for a total of 0x98 bytes.
+// + ddSectionIndex_ for a total of 0x98 bytes.
 // ---------------------------------------------------------------------------
 class ElfReader : private ELFIO::elfio {
 public:
@@ -132,7 +132,7 @@ public:
     // getCode() @0x2c3bc0 — reads formatSection_ data, size aligned to 4.
     SectionData getCode() const;
 
-    // getWaveform() @0x2c3d40 — reads ddSections_[pad_], size aligned to 2.
+    // getWaveform() @0x2c3d40 — reads ddSections_[ddSectionIndex_], size aligned to 2.
     SectionData getWaveform() const;
 
     // getLineMap() @0x2c3ef0 — reads ".linenr" section, parses 16-byte records.
@@ -156,7 +156,7 @@ private:
 
     // Trailing dword zeroed by the ctor (purpose unknown — possibly a flags
     // field for a not-yet-reconstructed feature). Kept for layout fidelity.
-    std::uint32_t pad_ = 0;                          // +0x90
+    std::uint32_t ddSectionIndex_ = 0;                          // +0x90
 };
 
 // ---------------------------------------------------------------------------

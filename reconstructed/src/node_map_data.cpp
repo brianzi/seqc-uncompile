@@ -50,10 +50,10 @@ size_t VirtAddrNodeMapData::hash() const {
     // Combine with addresses: iterative hash_combine using golden-ratio seed
     // (matches the 0x9e3779b9 constant and splitmix finalizer in the disasm)
     size_t seed = 0;
-    constexpr size_t kGolden = 0x9e3779b9ULL;
+    constexpr size_t kGoldenRatioHash = 0x9e3779b9ULL;
     constexpr size_t kMul    = 0x0e9846af9b1a615dULL;
     for (int32_t addr : addresses_) {
-        seed += kGolden;
+        seed += kGoldenRatioHash;
         size_t v = static_cast<size_t>(addr) + seed;
         v = (v ^ (v >> 32)) * kMul;
         v = (v ^ (v >> 32)) * kMul;
@@ -102,10 +102,11 @@ bool DirectAddrNodeMapData::compareEq(NodeMapData const& other) const {
     return addr_ == o.addr_;
 }
 
-// @0x1c5370 — splitmix-style hash of addr_ with seed 0x9e3779b9
+// @0x1c5370 — splitmix-style hash of addr_ with seed kGoldenRatioHash
 size_t DirectAddrNodeMapData::hash() const {
+    constexpr size_t kGoldenRatioHash = 0x9e3779b9ULL;
     constexpr size_t kMul = 0x0e9846af9b1a615dULL;
-    size_t v = static_cast<size_t>(addr_) + 0x9e3779b9ULL;
+    size_t v = static_cast<size_t>(addr_) + kGoldenRatioHash;
     v = (v ^ (v >> 32)) * kMul;
     v = (v ^ (v >> 32)) * kMul;
     v = v ^ (v >> 28);

@@ -241,7 +241,7 @@ reconstructed/
 - 6 opcode encoding methods (opcode0–5) with getReg/getVal helpers. All instruction word formats documented
 - Full assembly pipeline: assembleFile→assembleString→getAST (flex/bison)→assembleExpressions→evaluate→opcodeN
 - ELF output via writeToFile (.comment "ZI AWG Sequencer Compiler 1.4", .filename, .asm sections)
-- `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed: type (1=reg/2=label/3=int), name (+0x08), str2 (+0x20), command (+0x38), value (+0x3C), children vector (+0x40), optional Label (labelPc +0x5C, labelName +0x60, hasLabel +0x78), optional comment (+0x80, hasComment/noOpt +0x98), field_A0 (+0xA0). Factory functions: createValue, createRegister, createName, createArgList, appendArgList. Dtor destroys in reverse: comment→label→children→str2→name
+- `AsmExpression` — 0xa8-byte parse tree node. Full layout reconstructed: type (1=reg/2=label/3=int), name (+0x08), str2 (+0x20), command (+0x38), value (+0x3C), children vector (+0x40), optional Label (labelPc +0x5C, labelName +0x60, hasLabel +0x78), optional comment (+0x80, hasComment/noOpt +0x98), isWaveformCmdOverride_ (+0xA0). Factory functions: createValue, createRegister, createName, createArgList, appendArgList. Dtor destroys in reverse: comment→label→children→str2→name
 
 *Phase 5 — Waveform Complex:*
 - `Waveform` base — 0xD8-byte value type (no vtable). 11 methods. JSON key mapping reveals all field semantics
@@ -403,7 +403,7 @@ reconstructed/
   waveNames→wavesPerDev. _reserved0/_reserved1 at +0x18/+0x20 = decomposed
   weak_ptr<Node> (raw ptr + ctrl block).
 - Sub-phase 10.7b-2 (WaveformIR, 11 TBD → 0): proven 0xE0 size via
-  __on_zero_shared_weak. Real IR fields: markedForLoad/fixed_/irBool1/irField2
+  __on_zero_shared_weak. Real IR fields: markedForLoad/fixed_/irBool1/elfAlignment_
   in 8 bytes at +0xD8..+0xDF. Caught critical bug: prefetch.cpp:1996 was
   setting wfm->fixed_=false but binary writes +0xD8=1 (different field!).
 - Sub-phase 10.7b-3 (WaveformFront, 9 TBD → 0): all 7 alleged TBD fields were

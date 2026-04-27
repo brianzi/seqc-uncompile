@@ -17,17 +17,17 @@
 //   - WaveformIR::WaveformIR(shared_ptr<WaveformFront>) at 0x114da0
 //
 // Ctor field initialization (0x2a25b9..0x2a2671):
-//   mov DWORD PTR [rbx+0xd8], 0x1     ; frontField1 = 1
-//   mov BYTE  PTR [rbx+0xdc], 0x0     ; frontBool1  = false
-//   mov BYTE  PTR [rbx+0xdd], cl      ; frontBool2  = source->frontBool2
+//   mov DWORD PTR [rbx+0xd8], 0x1     ; useCount_ = 1
+//   mov BYTE  PTR [rbx+0xdc], 0x0     ; dirty_  = false
+//   mov BYTE  PTR [rbx+0xdd], cl      ; hasDuplicate_  = source->hasDuplicate_
 //   <padding +0xDE..+0xDF>
 //   <copy-construct vector<Value> at +0xE0 from source +0xE0>
 //
 // Layout:
 //   +0x00..+0xD7  Waveform base (0xD8 bytes)
-//   +0xD8         int        frontField1   (init=1)
-//   +0xDC         bool       frontBool1    (init=0; source comments call it "isModified")
-//   +0xDD         bool       frontBool2    (copied from source; "hasDuplicate")
+//   +0xD8         int        useCount_   (init=1)
+//   +0xDC         bool       dirty_    (init=0; source comments call it "isModified")
+//   +0xDD         bool       hasDuplicate_    (copied from source; "hasDuplicate")
 //   +0xDE..+0xDF  padding
 //   +0xE0         vector<Value> values     (24 bytes; element size 0x28)
 //   +0xF8         END
@@ -37,8 +37,8 @@
 //   - channels      → was Waveform::signal.channels_ at +0xC8 (signal+0x48)
 //   - sampleLength  → was Waveform::signal.length_ at +0xD0 (signal+0x50)
 //   - fileType      → was Waveform::waveformType at +0x18 (already present)
-//   - isModified    → was frontBool1 at +0xDC (this very struct's field)
-//   - funDescrName_ → was Waveform::thirdString at +0x50 (already present)
+//   - isModified    → was dirty_ at +0xDC (this very struct's field)
+//   - funDescrName_ → was Waveform::funDescrName at +0x50 (already present)
 //   - args_         → no usage anywhere; pure hallucination
 // ============================================================================
 #pragma once
@@ -53,9 +53,9 @@
 namespace zhinst {
 
 struct WaveformFront : Waveform {
-    int  frontField1;                    // +0xD8  (init=1)
-    bool frontBool1;                     // +0xDC  (init=0; "isModified" in source comments)
-    bool frontBool2;                     // +0xDD  (copied; "hasDuplicate")
+    int  useCount_;                    // +0xD8  (init=1)
+    bool dirty_;                     // +0xDC  (init=0; "isModified" in source comments)
+    bool hasDuplicate_;                     // +0xDD  (copied; "hasDuplicate")
     // +0xDE..+0xDF: 2 bytes padding
     std::vector<Value> values;           // +0xE0  (each Value is 0x28 bytes)
     // +0xF8: END
@@ -70,8 +70,8 @@ struct WaveformFront : Waveform {
     //   Waveform::waveIndex         = -1
     //   Waveform::seqRegWidth       = dc.waveformGranularity (dc+0x40)
     //   Waveform::deviceConstants   = &dc
-    //   frontField1                 = 1                          ← differs from IR
-    //   frontBool1, frontBool2      = 0
+    //   useCount_                 = 1                          ← differs from IR
+    //   dirty_, hasDuplicate_      = 0
     //   values                      = empty vector<Value>
     //   (all other Waveform/Signal fields zero / empty)
     //
@@ -93,17 +93,17 @@ struct WaveformFront : Waveform {
     // (these forward to Waveform-base or our own bools; they exist so legacy
     //  call sites continue to compile while we audit each call's intent).
 
-    // hasDuplicate ↔ frontBool2 (+0xDD)
-    void setHasDuplicate(bool v) { frontBool2 = v; }
-    bool hasDuplicate() const    { return frontBool2; }
+    // hasDuplicate ↔ hasDuplicate_ (+0xDD)
+    void setHasDuplicate(bool v) { hasDuplicate_ = v; }
+    bool hasDuplicate() const    { return hasDuplicate_; }
 
-    // isModified ↔ frontBool1 (+0xDC)
-    bool isModified() const      { return frontBool1; }
-    void setModified(bool v)     { frontBool1 = v; }
+    // isModified ↔ dirty_ (+0xDC)
+    bool isModified() const      { return dirty_; }
+    void setModified(bool v)     { dirty_ = v; }
 
-    // funDescrName ↔ Waveform::thirdString (+0x50, JSON key "genFunc")
-    std::string const& funDescrName() const { return thirdString; }
-    void setFunDescrName(std::string s)     { thirdString = std::move(s); }
+    // funDescrName ↔ Waveform::funDescrName (+0x50, JSON key "genFunc")
+    std::string const& funDescrName() const { return Waveform::funDescrName; }
+    void setFunDescrName(std::string s)     { Waveform::funDescrName = std::move(s); }
 
     void setFile(std::shared_ptr<Waveform::File> f) { file = std::move(f); }
     void setName(const std::string& n)              { name = n; }

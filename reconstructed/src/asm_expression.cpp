@@ -16,7 +16,7 @@ namespace zhinst {
 //   1. If hasComment (+0x98): destroy comment string at +0x80
 //   2. If hasLabel (+0x78): destroy labelName string at +0x60
 //   3. Destroy children vector at +0x40 (release shared_ptrs, free buffer)
-//   4. Destroy str2 string at +0x20
+//   4. Destroy nopComment string at +0x20
 //   5. Destroy name string at +0x08
 //
 // The binary checks the optional bool guards before touching the
@@ -29,7 +29,7 @@ AsmExpression::~AsmExpression() {  // 0x28b1f0
     // hasComment (+0x98) check: destroy comment string at +0x80
     // hasLabel (+0x78) check: destroy labelName string at +0x60
     // children vector (+0x40): iterate backward, release shared_ptrs, free buf
-    // str2 (+0x20): destroy string
+    // nopComment (+0x20): destroy string
     // name (+0x08): destroy string
     //
     // All handled by compiler-generated member destructors in the correct

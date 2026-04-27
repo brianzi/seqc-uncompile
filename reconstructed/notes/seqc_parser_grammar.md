@@ -373,3 +373,32 @@ From disassembly of seqc_parse's yyreduce switch (jump table at 0x960c5c):
 | `src/seqc_lexer.c` | Generated scanner | flex output |
 | `include/zhinst/seqc_parser_context.hpp` | Parser context | Updated with comment methods |
 | `src/seqc_parser_context.cpp` | Context impl | Comment/line tracking methods |
+
+## Assignment rules: `$1` vs `$$` field modification
+
+**Discovery (Phase 30f, 2026-04-26):**
+
+Parser rules 52-62 (assignment_expression variants) modify `valueType` and
+`valueCategory` on the **LHS expression (`$1`)**, not on the operator result
+(`$$`). This was confirmed by disassembling the binary at 0x2ca99c:
+
+```asm
+; After: rax = createOperator(ctx, $1, $3, eASSIGN)
+; rbx was saved from r9 (parser value stack pointer)
+mov -0x10(%rbx), %rcx      ; rcx = $1 (LHS expression), NOT $$ (rax)
+movl $0x0, 0x54(%rcx)       ; $1->valueType = 0 (= eIN direction)
+mov -0x10(%rbx), %rcx       ; reload $1
+movl $0x1, 0x4(%rcx)        ; $1->valueCategory = 1 (= eLVALUE)
+```
+
+The effect: The LHS variable in an assignment gets `direction_ = eIN = 0`
+and `valueCategory_ = eLVALUE = 1`. Since `createOperator` wraps `$1` by
+pointer (via shared_ptr), the modification propagates to the child stored
+inside the operator Expression.
+
+**Why this matters:** In `SeqCVariable::evaluate`, the resolved VarType_Var
+case (0x209fd0) checks `if (direction_ != 0 && !atScopeBoundary())
+checkVar(name)`. With `direction_ = 0` (set by the parser), `checkVar` is
+skipped for assignment LHS variables. Without this fix, `checkVar` throws
+UninitializedVar on the first assignment to a newly declared variable
+(e.g., `var i; i = 0;` would erroneously fail).

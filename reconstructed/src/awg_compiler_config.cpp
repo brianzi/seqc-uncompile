@@ -15,8 +15,8 @@ namespace zhinst {
 // Destruction order (reverse of construction):
 //   1. searchPath (+0xA8) — if long-string (bit0 set), free buffer at +0xB8
 //   2. includePaths (+0x70) — destroy each element string, then free vector buffer
-//   3. string_50 (+0x50) — only if string_50_owned (+0x68) is true AND string is heap
-//   4. string_30 (+0x30) — only if string_30_owned (+0x48) is true AND string is heap
+//   3. debugJsonPath (+0x50) — only if debugJsonEnabled (+0x68) is true AND string is heap
+//   4. debugDumpPath (+0x30) — only if debugDumpEnabled (+0x48) is true AND string is heap
 AWGCompilerConfig::~AWGCompilerConfig() {  // 0xf8080
     // searchPath at +0xA8: check if heap-allocated (bit0 of first byte)
     // Done implicitly by std::string/path dtor in real code.
@@ -25,8 +25,8 @@ AWGCompilerConfig::~AWGCompilerConfig() {  // 0xf8080
     // includePaths at +0x70: iterate backwards destroying each string,
     // then free the vector's buffer.
 
-    // string_50 at +0x50: only freed if string_50_owned (+0x68) is true
-    // string_30 at +0x30: only freed if string_30_owned (+0x48) is true
+    // debugJsonPath at +0x50: only freed if debugJsonEnabled (+0x68) is true
+    // debugDumpPath at +0x30: only freed if debugDumpEnabled (+0x48) is true
 }
 
 // 0x270080 — static AWGCompilerConfig::getAwgDeviceTypeString(AwgDeviceType)

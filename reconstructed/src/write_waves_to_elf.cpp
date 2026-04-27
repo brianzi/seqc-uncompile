@@ -101,7 +101,7 @@ void writeWavesToElfMapped(
 //   Before the loop, calls getFirstWaveformOffset() to initialize currentOffset.
 //   For each waveform:
 //     1. Skip if !waveform->used (offset 0x48) or signal data is null (offset 0xd0)
-//     2. Compute padding = (waveform->addressValue - *currentOffset) & (-waveform->irField2)
+//     2. Compute padding = (waveform->addressValue - *currentOffset) & (-waveform->elfAlignment_)
 //        This aligns the gap between current position and target address
 //     3. Call addWaveform(waveform, config->sampleFormat, false, padding)
 //     4. Update *currentOffset = waveform->addressValue + rawData->size()
@@ -143,10 +143,10 @@ void writeWavesToElfAbsolute(
         // 0x10e1bb-0x10e1ce: compute padding
         //   ecx = wf->addressValue (0x4c)
         //   ecx -= *currentOffset
-        //   r9d = 0 - wf->irField2 (0xdc)   → negation gives alignment mask
+        //   r9d = 0 - wf->elfAlignment_ (0xdc)   → negation gives alignment mask
         //   r9d &= ecx                       → aligned padding
         uint32_t gap = wf->addressValue - currentOffset;
-        uint32_t alignMask = static_cast<uint32_t>(-wf->irField2);
+        uint32_t alignMask = static_cast<uint32_t>(-wf->elfAlignment_);
         uint32_t padding = gap & alignMask;
 
         // 0x10e1f2: ecx = config->unknown_04 (SampleFormat via config+0x04)

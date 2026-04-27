@@ -113,6 +113,9 @@ public:
     // @ 0x2e05b0 — calls [vtable+0x18] = doMakeDeviceType(opts).
     std::unique_ptr<DeviceTypeImpl> makeDeviceType(unsigned long opts);
 
+    // Zero-arg overload — same as makeDefault() in the binary.
+    std::unique_ptr<DeviceTypeImpl> makeDeviceType();
+
 protected:
     virtual std::unique_ptr<DeviceTypeImpl> doMakeDefault() = 0;
     virtual std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long opts) = 0;
@@ -127,6 +130,7 @@ protected:
 class NoDeviceTypeFactory : public DeviceFamilyFactory {
 public:
     ~NoDeviceTypeFactory() override;
+    std::unique_ptr<DeviceTypeImpl> makeDefault();          // per-subclass override
 protected:
     std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          // @ 0x2e0700
     std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long) override;  // @ 0x2e0730
@@ -140,6 +144,7 @@ protected:
 class UnknownDeviceTypeFactory : public DeviceFamilyFactory {
 public:
     ~UnknownDeviceTypeFactory() override;
+    std::unique_ptr<DeviceTypeImpl> makeDefault();          // per-subclass override
 protected:
     std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          // @ 0x2e0760
     std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long) override;  // @ 0x2e07b0
@@ -153,6 +158,7 @@ protected:
     class NAME : public DeviceFamilyFactory {                              \
     public:                                                                \
         ~NAME() override;                                                  \
+        std::unique_ptr<DeviceTypeImpl> makeDefault();                     \
     protected:                                                             \
         std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          \
         std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long opts) override; \

@@ -101,12 +101,22 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
 
     std::shared_ptr<Pointer> result;
 
-    if (!split || numSamples < freePages) {
-        // Case: don't split, or whole waveform fits — allocate two parts
-        // First: compute number of sub-allocations
+    if (split || numSamples < freePages) {
+        // Case: split requested, or whole waveform fits in free memory
+        // — allocate the full numSamples as Normal (no splitting needed)
+        result = allocate(waveform, numSamples, nameMap, CacheType::Normal);
+    } else {
+        // Case: NOT split AND waveform exceeds free pages
+        // — use double-buffering: compute chunk count, allocate partial as Aligned
+        // Splitting heuristic (see unknowns.md #63):
+        //   numAllocs = max(numSamples/freePages + 1, numSamples/(size/2))
+        //   chunkSize = numSamples / numAllocs
+        // The intent is double-buffering: the waveform is larger than cache,
+        // so we allocate a chunk that fits, set up hash_ for address wrapping,
+        // and numRepeats_ for the sequencer to know how many chunks to stream.
         uint32_t numAllocs = numSamples / freePages;
         numAllocs++;
-        uint32_t halfSize = size_ / 2;  // actually size_ >> 1 = r10d >> 1
+        uint32_t halfSize = size_ >> 1;
         uint32_t altAllocs = numSamples / halfSize;
         if (numAllocs <= altAllocs) {
             numAllocs = altAllocs;
@@ -121,9 +131,6 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
         uint32_t halfSz = ptr->size_ / 2;
         ptr->hash_ = ~(ptr->position_ ^ (ptr->position_ + halfSz));
         ptr->numRepeats_ = numSamples / halfSz + 1;
-    } else {
-        // Case: split mode — allocate the full numSamples as Normal
-        result = allocate(waveform, numSamples, nameMap, CacheType::Normal);
     }
 
     return result;
@@ -191,7 +198,12 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
     auto end = pointers_.end();
 
     if (!appendMode) {
-        // Scan all pointers, find the smallest gap that fits numSamples
+        // Scan all pointers, find the smallest gap that fits numSamples.
+        // nameMap maps waveform names → bool; entries with value==true are
+        // "about to be freed" and are skipped during gap calculation, allowing
+        // their space to be reused.  Prefetch builds this map from the set of
+        // waveforms it plans to evict in the current allocation round.
+        // (See unknowns.md #62 — resolved.)
         uint32_t totalSize = size_;
         uint32_t currentEnd = 0;
         uint32_t bestGap = totalSize;
@@ -279,51 +291,54 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 void Cache::memoryWrite(std::shared_ptr<Pointer> ptr) {
     // Remove any existing pointers that overlap with ptr's range, then insert
     // ptr at the correct sorted position.
-    auto begin = pointers_.begin();
-    auto end = pointers_.end();
+    //
+    // Binary does manual memmove-style shared_ptr shifting with inline
+    // refcount manipulation. This semantic version uses erase() which is
+    // functionally equivalent.
 
     uint32_t ptrPos = ptr->position_;
     uint32_t ptrEnd = ptrPos + ptr->size_;
 
-    for (auto it = begin; it != end; ++it) {
+    // Phase 1: Remove all overlapping entries.
+    // Two cases in binary (left-overlap at 0x283086, right-overlap at 0x28310b),
+    // but both ultimately erase every entry whose range intersects [ptrPos, ptrEnd).
+    for (auto it = pointers_.begin(); it != pointers_.end(); ) {
         uint32_t existPos = (*it)->position_;
         uint32_t existEnd = existPos + (*it)->size_;
 
         if (existPos < ptrPos) {
-            // Existing starts before new — check if it overlaps
-            if (existEnd <= ptrPos) continue;
-            // Overlap: erase from it+1 onward that also overlaps, then insert
-            auto eraseStart = it + 1;
-            while (eraseStart != end) {
-                // Shift elements down (remove overlapping entries)
-                // Binary does manual memmove-style shifting
-                ++eraseStart;
+            // Existing starts before new
+            if (existEnd <= ptrPos) {
+                ++it;           // no overlap — skip
+                continue;
             }
-            // Update end pointer
-            break;
+            // Left overlap: existEnd > ptrPos — erase this and all subsequent overlapping
+            it = pointers_.erase(it);
         } else {
             // Existing starts at or after new
-            if (existPos >= ptrEnd) continue;
-            // Overlap from the right side — remove overlapping entries
-            break;
+            if (existPos >= ptrEnd) {
+                ++it;           // past new range — skip
+                continue;
+            }
+            // Right overlap: existPos < ptrEnd — erase
+            it = pointers_.erase(it);
         }
     }
 
-    // Find insertion point (sorted by position)
-    begin = pointers_.begin();
-    end = pointers_.end();
-    auto insertPos = end;
-    for (auto it = begin; it != end; ++it) {
-        if ((*it)->position_ > ptrPos) {
+    // Phase 2: Find sorted insertion point (by position_) and insert.
+    // Binary at 0x28327b: linear scan comparing position_ values.
+    auto insertPos = pointers_.end();
+    for (auto it = pointers_.begin(); it != pointers_.end(); ++it) {
+        if ((*it)->position_ > ptrPos) {        // 0x283293: cmp [rcx], eax; ja
             insertPos = it;
             break;
         }
     }
 
-    if (insertPos == end) {
-        pointers_.emplace_back(ptr);
+    if (insertPos == pointers_.end()) {
+        pointers_.emplace_back(ptr);             // 0x2832b4: jmp emplace_back
     } else {
-        pointers_.insert(insertPos, ptr);
+        pointers_.insert(insertPos, ptr);        // 0x2832cd: jmp vector::insert
     }
 }
 

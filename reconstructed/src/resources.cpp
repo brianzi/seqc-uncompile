@@ -75,25 +75,32 @@ Resources::Variable::~Variable()  // @0x1e4be0
 //   - Stores parent shared_ptr at +0x18 (from weak_ptr.lock() or empty)
 //   - Copies name string to +0x28
 //   - Stores weak_ptr arg at +0x40
-//   - state_ = 0, returnType_ = 0, flags_88_ = 0
+//   - state_ = 0, returnType_ = 0, scopeBoundaryFlags_ = 0
 //   - returnValue_ zeroed, returnReg_ = {-1, false}
 //   - All vectors empty
 // ============================================================================
 Resources::Resources(std::string const& name,  // @0x1e3420
                      std::weak_ptr<Resources> parent)
-    : parent_(parent.lock())
+    : parent_()  // set below after parentWeak_ init
     , name_(name)
     , parentWeak_(parent)
     , state_(0)
     , returnType_(VarType_Unset)
     , returnValue_()
     , returnReg_(AsmRegister::Invalid())
-    , flags_88_(0)
+    , scopeBoundaryFlags_(0)
     , pad_8A_{}
     , variables_()
     , functions_()
     , children_()
-{}
+{
+    // Binary @0x1e34f1: locks parentWeak_, then copies parent->parent_ into
+    // this->parent_ (grandparent strong ref).  parentWeak_ is the direct
+    // parent link (weak).
+    if (auto p = parentWeak_.lock()) {
+        parent_ = p->parent_;
+    }
+}
 
 // ============================================================================
 // Resources::~Resources — D1 @0x12a8f0, D0 @0x1f1150
@@ -202,13 +209,13 @@ void Resources::setReturnValue(double val)  // @0x1e3ac0
 // ============================================================================
 // Resources::setReturnValue(Value) — @0x1e3b30
 //
-// If flags_88_ == 0 and returnType_ == 0, recurse to parent via parentWeak_
+// If scopeBoundaryFlags_ == 0 and returnType_ == 0, recurse to parent via parentWeak_
 // (same lock pattern as getReturnType).
 // Otherwise, store the value at +0x58 (returnValue_).
 // ============================================================================
 void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 {
-    if (flags_88_ == 0 && returnType_ == VarType_Unset) {
+    if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
         // Walk up to parent
         if (auto p = parentWeak_.lock()) {
             p->setReturnValue(val);
@@ -225,12 +232,12 @@ void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 // ============================================================================
 // Resources::getReturnValue — @0x1e3d40
 //
-// Similar recursive pattern: if flags_88_==0 and returnType_==0, walk parent.
+// Similar recursive pattern: if scopeBoundaryFlags_==0 and returnType_==0, walk parent.
 // Copies returnValue_ from the scope that has returnType_ set.
 // ============================================================================
 Value Resources::getReturnValue()  // @0x1e3d40
 {
-    if (flags_88_ == 0 && returnType_ == VarType_Unset) {
+    if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
         if (auto p = parentWeak_.lock()) {
             return p->getReturnValue();
         }
@@ -298,7 +305,7 @@ int Resources::getRegisterNumber()  // @0x1e4bb0
 //
 // Searches variables_ vector for matching name (compares string at
 // Variable+0x38). If found, returns pointer to the Variable and OR's
-// flags_88_ into result->flags (at +0x50) with bit 0x51.
+// scopeBoundaryFlags_ into result->flags (at +0x50) with bit 0x51.
 //
 // If not found, walks parent via parentWeak_ (lock → call getVariable
 // virtually). If parentWeak_ expired, tries parent_ at +0x18.
@@ -309,9 +316,9 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
     // Search local variables
     for (auto& var : variables_) {
         if (var.name == name) {
-            // OR flags_88_ into var.flags (specifically byte at +0x51
+            // OR scopeBoundaryFlags_ into var.flags (specifically byte at +0x51
             // within the result struct — sets scope-inherited flags)
-            var.flags |= static_cast<int16_t>(flags_88_);
+            var.flags |= static_cast<int16_t>(scopeBoundaryFlags_);
             return &var;
         }
     }
@@ -321,7 +328,7 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
     if (auto p = parentWeak_.lock()) {
         result = p->getVariable(name);
         if (result) {
-            result->flags |= static_cast<int16_t>(flags_88_);
+            result->flags |= static_cast<int16_t>(scopeBoundaryFlags_);
         }
         return result;
     }
@@ -329,7 +336,7 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
     if (parent_) {
         result = parent_->getVariable(name);
         if (result) {
-            result->flags |= static_cast<int16_t>(flags_88_);
+            result->flags |= static_cast<int16_t>(scopeBoundaryFlags_);
         }
         return result;
     }
@@ -521,7 +528,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
     v.value.which_      = 2;                       // variant slot for double (per 1e717b... wait, 1e7100 = which_=0 init; later set by variant_assign)
     v.reg         = AsmRegister::Invalid();  // AsmRegister(-1)
     v.name        = name;
-    v.flags       = 0;
+    v.flags       = VarFlag_Written;  // 0x1e71c0: movb $0x1 — mark as initialized
 
     // Variant payload: store the double directly into the inline storage.
     // Layout matches a libc++ raw 16-byte buffer; the first 8 bytes are the
@@ -575,6 +582,14 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
 
+    // Write-path requires the var to have been assigned (flags low byte != 0).
+    if (dir != EDirection::eIN &&
+        (var->flags & 0xFF) == 0) {
+        fprintf(stderr, "DEBUG readConst: '%s' found but flags=0x%x\n", name.c_str(), var->flags);
+        throw ResourcesException(
+            ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
+    }
+
     // Type check: var->type must be VarType_Const (=4) for readConst.
     if (var->type != VarType_Const) {
         throw ResourcesException(
@@ -604,7 +619,9 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
             break;
         }
         case 1: {  // bool — 1 byte at value.storage_[0]
-            out.value_.storage_.b = (var->value.storage_.str_storage[0] != 0);
+            // Binary reads byte at var+0x18 (= value.storage_ base), tests != 0.
+            // On libstdc++ the bool member is at the same offset within the union.
+            out.value_.storage_.b = var->value.storage_.b;
             out.value_.which_     = 1;
             break;
         }
@@ -919,7 +936,7 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
 // sizeof(std::string)=24 bytes, fitting in 16+8. When we build with
 // libstdc++ on the host the string is 32 bytes which overflows by 8;
 // this is one manifestation of the libc++/libstdc++ ABI mismatch
-// already tracked in TODO.md "Deferred" and notes/libcpp_abi.md. The
+// already tracked in notes/libcpp_abi.md. The
 // reconstructed type layout is preserved for documentation; runtime
 // instantiation requires the ABI unification work to be done first.
 #pragma GCC diagnostic push
@@ -1556,7 +1573,7 @@ void Resources::updateWave(std::string const& name,
 //      directly via the global errMsg singleton's operator[]). Slot 32
 //      in the binary is the "can't modify const" message; the
 //      reconstructed enum currently labels slot 32 as
-//      `ConditionalNeedVarConst` which appears to be a mislabel — see
+//      `ConditionalNeedVarConst` which is a mislabel — see
 //      see unknowns.md item for details.
 //   5. if ([v+0x51] != 0) skip the value write (frozen, jump to mark-
 //      written at 1e7a7d).
@@ -1843,7 +1860,7 @@ EvalResultValue Resources::readCvar(std::string const& name, EDirection dir)  //
             break;
         }
         case 1: {  // bool
-            out.value_.storage_.b = (var->value.storage_.str_storage[0] != 0);
+            out.value_.storage_.b = var->value.storage_.b;
             out.value_.which_     = 1;
             break;
         }

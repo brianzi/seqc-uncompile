@@ -41,7 +41,7 @@
 //                                        block flags bit 8 for normal waves,
 //                                        cleared on reload-without-crossing)
 //   +0xDB  1 byte    (padding to align +0xDC int32)
-//   +0xDC  int32_t   irField2       (per-waveform allocation size, from DeviceConstants;
+//   +0xDC  int32_t   elfAlignment_       (per-waveform allocation size, from DeviceConstants;
 //                                    used by ElfWriter::addWaveform)
 //   +0xE0  END
 //
@@ -84,7 +84,7 @@ struct WaveformIR : Waveform {
                             //         when a waveform is reloaded into a slot
                             //         that does not straddle a cache line.
     // +0xDB: 1 byte padding
-    int32_t irField2;       // +0xDC  per-waveform allocation size (from DC)
+    int32_t elfAlignment_;       // +0xDC  per-waveform allocation size (from DC)
 
     // --- Convenience accessors (these forward to the appropriate base/Signal field;
     //     they are NOT separate storage — they exist so legacy call sites continue

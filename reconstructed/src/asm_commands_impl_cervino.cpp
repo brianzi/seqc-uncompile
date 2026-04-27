@@ -52,7 +52,10 @@ AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister marker
         result.assembler.regAux = markerReg;
     }
 
-    result.assembler.immediates.emplace_back(waveIndex);
+    // waveIndex goes in outputs (not immediates) so it appears AFTER registers
+    // in the child ordering: immediates → regDst → regAux → regSrc → outputs
+    // opcode3 expects children: [reg(child[0]), reg(child[1]), val(child[2])]
+    result.assembler.outputs.emplace_back(waveIndex);
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;
@@ -72,7 +75,7 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister marke
     result.assembler.cmd = Assembler::WVFI;
     result.assembler.regSrc = waveReg;
     result.assembler.regAux = AsmRegister::Reg(0);
-    result.assembler.immediates.emplace_back(waveIndex);
+    result.assembler.outputs.emplace_back(waveIndex);  // outputs, not immediates (child order)
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;

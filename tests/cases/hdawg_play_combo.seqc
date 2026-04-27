@@ -1,0 +1,5 @@
+repeat(3) {
+  playZero(32);
+  playHold(32);
+  waitWave();
+}

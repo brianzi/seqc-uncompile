@@ -437,32 +437,37 @@ public:
     // Static lookup by integer key (used as ErrorMessages::get(n) in opcodes code)
     static std::string const& get(int id) { return messages.at(id); }
 
-    // Format a message with no arguments.
-    // Binary address: 0x15d0d0
-    // NOTE: made static for compilation — underlying map is static (BSS).
-    // In the binary these are const member functions on a global instance.
-    static std::string format(ErrorMessageT id);
-
     // Format a message with arguments (variadic template).
-    // ~64 instantiations in binary. Pattern (verified — see WP-A in
+    // ~54 instantiations in binary. Pattern (verified — see WP-A in
     // notes/linker_resolution.md):
     //   1. messages.at(id) → format string
     //   2. boost::basic_format(str)
     //   3. feed args via boost::io::detail::feed_impl (operator% chain)
     //   4. return basic_format::str()
     //
-    // Body inlined here in Phase 20a to satisfy all 64 implicit
-    // instantiations across 14 caller TUs without per-arg-pack
-    // explicit instantiations.
-    template <typename... Args>
-    static std::string format(ErrorMessageT id, Args&&... args) {
-        boost::format fmt(messages.at(static_cast<int>(id)));
-        // C++17 fold expression — equivalent to fmt % a1 % a2 % ... % aN.
-        // Matches the binary's `boost::io::detail::feed_impl` chain.
-        (void)std::initializer_list<int>{
-            ((void)(fmt % std::forward<Args>(args)), 0)...
-        };
+    // The binary splits this into two functions: the outer creates the
+    // format object and calls the inner to feed args.  Explicit
+    // instantiations live in error_messages.cpp.
+
+    // Inner helper — feeds args into an existing boost::format object.
+    // Binary splits the first arg out of the pack (affects mangling):
+    //   format<T, Args...>(BF&, T, Args...) not format<Args...>(BF&, Args...)
+    template <typename T, typename... Args>
+    static std::string format(boost::format& fmt, T arg, Args... args) {
+        fmt % arg;
+        return format(fmt, args...);
+    }
+
+    // Base case: no more args to feed.
+    static std::string format(boost::format& fmt) {
         return fmt.str();
+    }
+
+    // Outer entry — creates the format object, delegates to inner.
+    template <typename... Args>
+    static std::string format(ErrorMessageT id, Args... args) {
+        boost::format fmt(messages.at(static_cast<int>(id)));
+        return format(fmt, args...);
     }
 
     // Static message map (BSS at 0xb84c38)

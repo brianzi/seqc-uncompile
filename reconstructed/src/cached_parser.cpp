@@ -13,6 +13,11 @@
 #include <fstream>
 #include <sstream>
 #include <boost/filesystem.hpp>
+#include <boost/archive/text_iarchive.hpp>
+#include <boost/archive/text_oarchive.hpp>
+#include <boost/serialization/map.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/vector.hpp>
 
 // Forward-declare util::wave::hash and hash2str used by getHash/cacheFile.
 namespace zhinst { namespace util { namespace wave {
@@ -112,14 +117,10 @@ void CachedParser::loadCacheIndex()
         }
 
         try {
-            // Real implementation:
-            //   boost::archive::text_iarchive ia(ifs);
-            //   ia >> index_;
-            // The boost serializer singleton for
-            //   std::map<vector<uint>, CacheEntry>
-            // is lazy-initialized via __cxa_guard_acquire on first call.
-            // TODO: when build links real boost archive lib, restore the
-            //       2-line iarchive construct + operator>> pattern above.
+            // @0x2aff9a: boost::archive::text_iarchive ia(ifs);
+            // @0x2b0027: ia >> index_;
+            boost::archive::text_iarchive ia(ifs);
+            ia >> index_;
 
             // Recompute currentSize_ from loaded entries (sum of fileSize_).
             std::size_t total = 0;
@@ -170,16 +171,10 @@ void CachedParser::saveCacheIndex()
             return;
         }
 
-        // boost::archive::text_oarchive uses RAII; archive dtor flushes.
-        // We don't include boost/archive headers here because the
-        // reconstructed sources avoid pulling in heavy dependencies;
-        // the actual serialize() template is not reconstructed.
-        // TODO: when the build links real boost archive lib, replace
-        //       the placeholder below with the genuine 2-line oarchive
-        //       construct + operator<< pattern:
-        //
-        //   boost::archive::text_oarchive oa(ofs);
-        //   oa << index_;
+        // @0x2b0472: boost::archive::text_oarchive oa(ofs);
+        // @0x2b04ff: oa << index_;
+        boost::archive::text_oarchive oa(ofs);
+        oa << index_;
     } catch (...) {
         // Sticky-disable the cache after any serialization failure.
         enabled_ = false;

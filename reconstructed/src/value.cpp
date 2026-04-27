@@ -234,7 +234,7 @@ const char* ValueException::what() const noexcept {  // 0x16f110
 // ============================================================================
 Value::Value(std::string const& s) {  // 0x22c2b0
     type_ = ValueType::String;          // +0x00: movl $0x4, (%rdi)
-    new (&storage_) std::string(s);     // +0x10: copy-construct string
+    new (&storage_.str) std::string(s);     // +0x10: copy-construct string
     which_ = 3;                         // +0x08: movl $0x3, 0x8(%rbx)
 }
 
@@ -259,6 +259,73 @@ Value::Value()
 {}
 
 // ============================================================================
+// Value copy/move constructors and assignment operators.
+//
+// Not present as symbols in the binary — the original libc++ build used
+// char[24] for string storage, making the union trivially copyable and
+// the compiler generated implicit copies. On libstdc++ (32-byte string),
+// the union has a real std::string member, so we must provide explicit
+// copy/move semantics that mirror the binary's variant-aware behaviour.
+//
+// Logic mirrors Value::~Value: which_ decoded via (w >> 31) ^ w;
+// if decoded >= 3, the storage holds a std::string.
+// ============================================================================
+
+Value::Value(Value const& other)
+    : type_(other.type_), pad_04_{}, which_(other.which_), pad_0C_{}
+{
+    int decoded = (other.which_ >> 31) ^ other.which_;
+    if (decoded >= 3)
+        new (&storage_.str) std::string(other.storage_.str);
+    else
+        std::memcpy(&storage_, &other.storage_, sizeof(storage_));
+}
+
+Value::Value(Value&& other) noexcept
+    : type_(other.type_), pad_04_{}, which_(other.which_), pad_0C_{}
+{
+    int decoded = (other.which_ >> 31) ^ other.which_;
+    if (decoded >= 3)
+        new (&storage_.str) std::string(std::move(other.storage_.str));
+    else
+        std::memcpy(&storage_, &other.storage_, sizeof(storage_));
+}
+
+Value& Value::operator=(Value const& other) {
+    if (this != &other) {
+        // Destroy current string if held
+        int curDecoded = (which_ >> 31) ^ which_;
+        if (curDecoded >= 3)
+            storage_.str.~basic_string();
+        // Copy
+        type_ = other.type_;
+        which_ = other.which_;
+        int decoded = (other.which_ >> 31) ^ other.which_;
+        if (decoded >= 3)
+            new (&storage_.str) std::string(other.storage_.str);
+        else
+            std::memcpy(&storage_, &other.storage_, sizeof(storage_));
+    }
+    return *this;
+}
+
+Value& Value::operator=(Value&& other) noexcept {
+    if (this != &other) {
+        int curDecoded = (which_ >> 31) ^ which_;
+        if (curDecoded >= 3)
+            storage_.str.~basic_string();
+        type_ = other.type_;
+        which_ = other.which_;
+        int decoded = (other.which_ >> 31) ^ other.which_;
+        if (decoded >= 3)
+            new (&storage_.str) std::string(std::move(other.storage_.str));
+        else
+            std::memcpy(&storage_, &other.storage_, sizeof(storage_));
+    }
+    return *this;
+}
+
+// ============================================================================
 // Value::toDouble() — 0x15a560
 //
 // Switch on type_:
@@ -281,7 +348,7 @@ double Value::toDouble() const {  // 0x15a560
         case ValueType::Double:
             return storage_.d;
         case ValueType::String:
-            return std::stod(*reinterpret_cast<const std::string*>(&storage_));
+            return std::stod(storage_.str);
         default:
             BOOST_THROW_EXCEPTION(ValueException(
                 "unknown value type detected in toDouble conversion"));
@@ -311,8 +378,7 @@ int32_t Value::toInt() const {  // 0x15c250
             return static_cast<int32_t>(storage_.b);
         case ValueType::String:
             return static_cast<int32_t>(
-                std::stol(*reinterpret_cast<const std::string*>(&storage_),
-                          nullptr, 10));
+                std::stol(storage_.str, nullptr, 10));
         case ValueType::Double: {
             double d = storage_.d;
             if (d < 0.0)
@@ -347,7 +413,7 @@ bool Value::toBool() const {  // 0x164200
         case ValueType::Bool:
             return storage_.b;
         case ValueType::String: {
-            auto const& s = *reinterpret_cast<const std::string*>(&storage_);
+            auto const& s = storage_.str;
             return s.size() == 4 && std::memcmp(s.data(), "true", 4) == 0;
         }
         case ValueType::Double:
@@ -379,7 +445,7 @@ std::string Value::toString() const {  // 0x15de50
         case ValueType::Bool:
             return std::to_string(static_cast<int>(storage_.b));
         case ValueType::String:
-            return *reinterpret_cast<const std::string*>(&storage_);
+            return storage_.str;
         case ValueType::Double:
             return std::to_string(storage_.d);
         default:
@@ -429,7 +495,7 @@ bool Value::operator==(Value const& other) const {  // 0x21a780
 Value::~Value() {  // 0x15a9c0
     int decoded = (which_ >> 31) ^ which_;
     if (decoded >= 3) {
-        reinterpret_cast<std::string*>(&storage_)->~basic_string();
+        storage_.str.~basic_string();
     }
 }
 

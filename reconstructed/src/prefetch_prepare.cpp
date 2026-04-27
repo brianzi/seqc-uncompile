@@ -398,7 +398,7 @@ void Prefetch::countBranches(std::shared_ptr<Node> node) // 0x1c9b30
 
             // Count branches: branches.size()
             auto& branches = current->branches;   // +0xC8..+0xD0
-            int numBranches = (int)(branches.size());
+            int numBranches = static_cast<int>(branches.size());
             int newCount = branchCount + numBranches - 1; // 0x1c9d9b
 
             // Update max in Prefetch  // 0x1c9da6..0x1c9db3
@@ -675,7 +675,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 
         // First lookup: get waveLength
         auto waveform1 = wavetableIR_->getWaveformByName(waveName); // 0x1ca82d
-        int waveLength = (int)waveform1->signal.length_;     // 0x1ca83a: mov 0xd0(%rax) = Signal::length_
+        int waveLength = static_cast<int>(waveform1->signal.length_);     // 0x1ca83a: mov 0xd0(%rax) = Signal::length_
         // (waveform1 released)
 
         // Second lookup: compute aligned size
@@ -689,10 +689,10 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
             //   mov ecx,[waveform2+0x70]   ; Waveform::seqRegWidth ("minLengthSamples")
             //   r15 = ceil_div(waveLength, grainSize) * grainSize
             //   if (seqRegWidth > r15) r15 = seqRegWidth   ; cmova → max
-            int grainSize = (int)devConst_->waveformPageSize;
+            int grainSize = static_cast<int>(devConst_->waveformPageSize);
             int minLenSamples = waveform2->seqRegWidth;
             playSize = ((waveLength + grainSize - 1) / grainSize) * grainSize;
-            if ((unsigned)minLenSamples > (unsigned)playSize)
+            if (static_cast<unsigned>(minLenSamples) > static_cast<unsigned>(playSize))
                 playSize = minLenSamples;
         } else {
             playSize = 0;
@@ -709,7 +709,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         // Look up waveform again
         auto waveform4 = wavetableIR_->getWaveformByName(waveName); // 0x1cab13
         uint16_t channelCount = waveform4->signal.channels(); // +0xC8 as uint16
-        int playCount = (int)waveform4->signal.length_;      // +0xD0 = Signal::length_
+        int playCount = static_cast<int>(waveform4->signal.length_);      // +0xD0 = Signal::length_
         // Verified disasm 0x1cab18..0x1cab4c:
         //   rsi = [waveform4+0x78]              ; waveform's DeviceConstants*
         //   edi = [rsi+0x40] = waveformGranularity  ; "max" cap
@@ -720,10 +720,10 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 
         int memSize;
         if (playCount != 0) {
-            int wfMaxCap   = (int)wfDc->waveformGranularity; // +0x40
-            int wfGrain    = (int)wfDc->waveformPageSize;    // +0x44
+            int wfMaxCap   = static_cast<int>(wfDc->waveformGranularity); // +0x40
+            int wfGrain    = static_cast<int>(wfDc->waveformPageSize);    // +0x44
             int aligned = ((playCount + wfGrain - 1) / wfGrain) * wfGrain;
-            if ((unsigned)wfMaxCap > (unsigned)aligned)
+            if (static_cast<unsigned>(wfMaxCap) > static_cast<unsigned>(aligned))
                 aligned = wfMaxCap;
             memSize = aligned;
         } else {
@@ -732,18 +732,18 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 
         // memoryBits = channelCount * memSize * sampleBits
         // Verified: [rsi+0x50] = bitsPerSample (always 16)
-        int sampleBits = (int)wfDc->bitsPerSample;  // +0x50
-        int64_t memBits = (int64_t)channelCount * memSize * sampleBits;
+        int sampleBits = static_cast<int>(wfDc->bitsPerSample);  // +0x50
+        int64_t memBits = static_cast<int64_t>(channelCount) * memSize * sampleBits;
         // Convert bits to bytes, rounding up
-        int memBytes = (int)memBits;
+        int memBytes = static_cast<int>(memBits);
         int remainder = memBytes & 0x7;
         int memWords = (memBytes >> 3) + (remainder >= 1 ? 1 : 0);
 
         // memPerPage = devConst_->waveformMemorySize / this->maxBranches_
         int wfMemSize = devConst_->waveformMemorySize;
-        int memPerPage = (unsigned)wfMemSize / (unsigned)this->maxBranches_;
+        int memPerPage = static_cast<unsigned>(wfMemSize) / static_cast<unsigned>(this->maxBranches_);
 
-        if ((unsigned)memPerPage < (unsigned)memWords) {
+        if (static_cast<unsigned>(memPerPage) < static_cast<unsigned>(memWords)) {
             // Waveform doesn't fit in one page — need splitting
             int nodeLength = current->length;      // +0x90
 
@@ -753,9 +753,9 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                 // Compute from waveform: pages = ceil(memTotal * maxBranches_ / (memPerHalf))
                 auto waveform5 = wavetableIR_->getWaveformByName(waveName);
                 uint16_t cc5 = waveform5->signal.channels_;
-                int memTotal = nodeLength * cc5 * (int)this->maxBranches_;
+                int memTotal = nodeLength * cc5 * static_cast<int>(this->maxBranches_);
                 int halfMem = wfMemSize >> 1;
-                pagesNeeded = (unsigned)memTotal / (unsigned)halfMem;
+                pagesNeeded = static_cast<unsigned>(memTotal) / static_cast<unsigned>(halfMem);
                 pagesNeeded++;
             }
 

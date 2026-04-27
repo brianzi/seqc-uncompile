@@ -303,69 +303,74 @@ assignment_expression
         { $$ = $1; }
     | unary_expression '=' assignment_expression  /* Rule 52 */
         {
+            /* Binary writes valueType/valueCategory to $1 (the LHS),
+               NOT to $$ (the operator).  Confirmed at 0x2ca99c:
+               mov -0x10(%rbx),%rcx reads $1, then writes 0x54 and 0x04.
+               This sets the LHS variable to dir=eIN(0), vc=eLVALUE(1),
+               which prevents checkVar from firing on uninitialized vars. */
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createOperator(ctx, $1, $3, EOperator::eASSIGN);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression ADD_ASSIGN assignment_expression  /* Rule 53 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eADD);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression SUB_ASSIGN assignment_expression  /* Rule 54 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSUB);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression MUL_ASSIGN assignment_expression  /* Rule 55 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eMUL);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression DIV_ASSIGN assignment_expression  /* Rule 56 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eDIV);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression MOD_ASSIGN assignment_expression  /* Rule 57 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eMOD);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression AND_ASSIGN assignment_expression  /* Rule 58 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eAND);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression XOR_ASSIGN assignment_expression  /* Rule 59 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eXOR);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression OR_ASSIGN assignment_expression  /* Rule 60 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eOR);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression LSH_ASSIGN assignment_expression  /* Rule 61 */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     | unary_expression RSH_ASSIGN assignment_expression  /* Rule 62 — NOTE: swapped? */
         {
+            $1->valueType = 0;
+            $1->valueCategory = 1;
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
-            $$->valueType = 0;
-            $$->valueCategory = 1;
         }
     ;
 
@@ -392,7 +397,7 @@ constant_expression
  * ======================================================================== */
 declaration
     : type_specifier init_declarator_list ';'   /* Rule 65 — addVariableType */
-        { $$ = addVariableType(ctx, $1, $2, false); }
+        { $$ = addVariableType(ctx, $2, $1, false); }
     ;
 
 /* ========================================================================

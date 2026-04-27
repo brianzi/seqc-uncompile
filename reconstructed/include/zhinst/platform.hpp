@@ -44,4 +44,28 @@ bool isValidUtf8(std::string const& s);
 // @0x2f2870
 bool isInList(std::string const& item, std::string const& list);
 
+// Escapes embedded double-quotes (\" → \\\") and wraps the string in "...".
+// @0x2fa6a0
+void quote(std::string& s);
+
+// Converts a long to its subscript digit representation using HTML entities
+// (&#8320;..&#8329; for digits 0-9). Non-digit chars in the intermediate
+// string representation are skipped.
+// @0x2fdb80
+std::string toSubscript(long n);
+
+// Converts each digit character in the string to its subscript HTML entity.
+// Non-digit characters are skipped.
+// @0x2fd960
+std::string toSubscript(std::string const& s);
+
+// Converts each digit, '+', '-', '.' in the string to its superscript
+// HTML entity. Other characters are skipped.
+// @0x2fd730
+std::string toSuperscript(std::string const& s);
+
+// Escapes single-quotes in a string for MATLAB by replacing ' with ''.
+// @0x2f9110
+std::string escapeStringForMatlab(std::string s);
+
 } // namespace zhinst

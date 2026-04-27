@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "zhinst/waveform_front.hpp"
+#include "zhinst/device_constants.hpp"
 
 #include <boost/json.hpp>
 #include <cstring>
@@ -31,7 +32,7 @@ namespace zhinst {
 //   [this+0x38] file            — shared_ptr<File>, file->name or "", key "fileName" (len 8, at 0x90a367)
 //   [this+0x48] used            — bool, key "load" (len 4, at 0x9060f4)
 //   [this+0x4C] addressValue    — AddressImpl<uint>, key "globalAddress" (len 13, at 0x90a370)
-//   [this+0x50] thirdString     — string, key "genFunc" (len 7, at 0x90a37e)
+//   [this+0x50] funDescrName     — string, key "genFunc" (len 7, at 0x90a37e)
 //   [this+0x68] playWord        — uint32_t→int, key "playConfig" (len 10, at 0x90a3ad)
 //   [this+0x6C] waveIndex       — int32_t, key "waveIndex" (len 9, at 0x90a350)
 //   [this+0x70] seqRegWidth     — int, key "minLengthSamples" (len 16, at 0x90a386)
@@ -45,7 +46,7 @@ namespace zhinst {
 //   {"fileName", file ? file->name : ""}
 //   {"load", used}
 //   {"globalAddress", addressValue}
-//   {"genFunc", thirdString}
+//   {"genFunc", funDescrName}
 //   {"waveIndex", waveIndex}
 //   {"minLengthSamples", seqRegWidth}
 //   {"allocationSize", allocationByteSize}
@@ -84,7 +85,7 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
         {"fileName",         fileName},          // +0x38, key at 0x90a367
         {"load",             used},              // +0x48, key at 0x9060f4
         {"globalAddress",    addressValue},      // +0x4C, key at 0x90a370
-        {"genFunc",          thirdString},       // +0x50, key at 0x90a37e
+        {"genFunc",          funDescrName},       // +0x50, key at 0x90a37e
         {"waveIndex",        waveIndex},         // +0x6C, key at 0x90a350
         {"minLengthSamples", seqRegWidth},       // +0x70, key at 0x90a386
         {"allocationSize",   allocationByteSize},           // +0x74, key at 0x90a397
@@ -114,7 +115,7 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
 //   4. "fileName"         → as_string → if non-empty, make_shared<File>(c_str)
 //   5. "load"             → as_bool (used)
 //   6. "globalAddress"    → to_number<uint64_t> (addressValue)
-//   7. "genFunc"          → as_string → construct std::string (thirdString)
+//   7. "genFunc"          → as_string → construct std::string (funDescrName)
 //   8. "playConfig"       → as_int64 (playWord)
 //   9. "waveIndex"        → as_int64 (waveIndex)
 //  10. "minLengthSamples" → as_int64 (seqRegWidth)
@@ -141,16 +142,9 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     auto const& obj = json.as_object();
     auto const& nameJsonStr = obj.at("name").as_string();
 
-    // Extract raw C string pointer from boost::json::string
-    // 0x2a5686: cmp BYTE [rax+0x8], 0x85 — check if inline string
-    // if inline: ptr = rax + 9; else: ptr = [rax+0x10] + 8
-    const char* nameCStr;
-    if (nameJsonStr.size() <= 14) {  // inline storage
-        nameCStr = reinterpret_cast<const char*>(&nameJsonStr) + 9;
-    } else {
-        nameCStr = nameJsonStr.subview().data();
-    }
-    std::string nameStr(nameCStr, strlen(nameCStr));  // 0x2a5691: strlen, then string ctor
+    // Binary reads raw SSO internals at 0x2a5686, but semantically just
+    // extracts the C string from the JSON string value.
+    std::string nameStr(nameJsonStr.data(), nameJsonStr.size());  // 0x2a5691
 
     // --- 2. Read "type" ---
     // 0x2a5754: call 34b170 (as_object with source_location)
@@ -225,16 +219,9 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     // Determine length: if inline, len = 14 - tag_byte; else len = [rax+0x10]->size field
     // 0x2a58c7-0x2a58d3: extract length, store at [rbp-0xd0]
     // 0x2a58d3: je 2a59cb (if length == 0, skip file creation)
-    size_t fileNameLen;
-    if (fileNameJsonStr.size() <= 14) {
-        // inline: length from tag
-        fileNameLen = 14 - static_cast<uint8_t>(reinterpret_cast<const char*>(&fileNameJsonStr)[0x17]);
-    } else {
-        fileNameLen = *reinterpret_cast<const uint32_t*>(
-            reinterpret_cast<const char*>(fileNameJsonStr.data()) - 8);
-    }
-    // Simplified:
-    fileNameLen = fileNameJsonStr.size();
+    // Binary reads SSO internals at 0x2a588f to compute length, but
+    // semantically just checks if the filename string is non-empty.
+    size_t fileNameLen = fileNameJsonStr.size();
 
     std::shared_ptr<File> filePtr;
     if (fileNameLen != 0) {
@@ -367,7 +354,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
         std::move(filePtr),                         // r8  → file (+0x38)
         usedVal,                                    // r9  → used (+0x48)
         static_cast<uint32_t>(addrVal),             // stack → addressValue (+0x4C)
-        std::move(genFuncStr),                      // stack → thirdString (+0x50)
+        std::move(genFuncStr),                      // stack → funDescrName (+0x50)
         static_cast<int>(playConfigVal),            // stack → playWord (+0x68)
         static_cast<int>(waveIndexVal),             // stack → waveIndex (+0x6C)
         static_cast<int>(minLengthVal),             // stack → seqRegWidth (+0x70)
@@ -410,7 +397,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
 uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
 {
     uint16_t channels = signal.channels_;           // 0x1d5c34: [rdi+0xC8]
-    uint32_t length = (uint32_t)signal.length_;     // 0x1d5c3b: [rdi+0xD0]
+    uint32_t length = static_cast<uint32_t>(signal.length_);     // 0x1d5c3b: [rdi+0xD0]
     const DeviceConstants* dc = deviceConstants;      // 0x1d5c41: [rdi+0x78]
 
     // 0x1d5c45: test eax, eax
@@ -418,8 +405,8 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
     if (length == 0)
         return 0;                                   // 0x1d5c66: xor eax,eax; jmp epilog
 
-    uint32_t minLen = *(uint32_t*)((char*)dc + 0x40);      // 0x1d5c49: [rsi+0x40]
-    uint32_t granularity = *(uint32_t*)((char*)dc + 0x44); // 0x1d5c4c: [rsi+0x44]
+    uint32_t minLen = dc->waveformGranularity;       // 0x1d5c49: [rsi+0x40]
+    uint32_t granularity = dc->waveformPageSize;     // 0x1d5c4c: [rsi+0x44]
 
     // 0x1d5c50: xor edx, edx
     // 0x1d5c52: div r8d          — length / granularity
@@ -436,21 +423,21 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
         rounded = minLen;
 
     // 0x1d5c68: imul rax, rcx    — rounded * channels (zero-extended)
-    uint64_t sizeTimesChannels = (uint64_t)rounded * (uint64_t)channels;
+    uint64_t sizeTimesChannels = static_cast<uint64_t>(rounded) * static_cast<uint64_t>(channels);
 
     // 0x1d5c6c: movsxd rcx, DWORD [rsi+0x50] — bitsPerSample (sign-extended to 64-bit)
-    int32_t bitsPerSample = *(int32_t*)((char*)dc + 0x50);
+    int32_t bitsPerSample = dc->bitsPerSample;
 
     // 0x1d5c70: imul rcx, rax    — totalBits = sizeTimesChannels * bitsPerSample
-    uint64_t totalBits = sizeTimesChannels * (int64_t)bitsPerSample;
+    uint64_t totalBits = sizeTimesChannels * static_cast<int64_t>(bitsPerSample);
 
     // 0x1d5c74: mov eax, ecx     — low 32 bits of totalBits
     // 0x1d5c76: and eax, 0x7     — remainder mod 8
     // 0x1d5c79: shr rcx, 3       — totalBits / 8
     // 0x1d5c7d: cmp rax, 1       — if remainder >= 1
     // 0x1d5c81: sbb ecx, -1      — bytes + 1 (ceiling)
-    uint32_t bitRemainder = (uint32_t)totalBits & 0x7;
-    uint32_t bytes = (uint32_t)(totalBits >> 3);
+    uint32_t bitRemainder = static_cast<uint32_t>(totalBits) & 0x7;
+    uint32_t bytes = static_cast<uint32_t>(totalBits >> 3);
     if (bitRemainder >= 1)
         bytes += 1;
 
@@ -472,7 +459,7 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
 //   0x2a95fd: [rdi+0x38] file vs [rsi+0x38]                      (ptr null/non-null then File::==)
 //   0x2a961f: [rdi+0x48] used == [rsi+0x48]                      (BYTE ==)
 //   0x2a9629: [rdi+0x4C] addressValue == [rsi+0x4C]              (DWORD ==)
-//   0x2a9632: [rdi+0x50] thirdString == [rsi+0x50]               (string ==)
+//   0x2a9632: [rdi+0x50] funDescrName == [rsi+0x50]               (string ==)
 //   0x2a9643: [rdi+0x68] playWord == [rsi+0x68]                  (DWORD ==)
 //   0x2a964c: [rdi+0x6C] waveIndex == [rsi+0x6C]                 (DWORD ==)
 //   0x2a9655: [rdi+0x70] seqRegWidth == [rsi+0x70]               (DWORD ==)
@@ -529,10 +516,10 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (addressValue != other.addressValue)         // 0x2a9630: jne → 2a95f6
         return false;
 
-    // --- Compare thirdString (string at +0x50) ---
+    // --- Compare funDescrName (string at +0x50) ---
     // 0x2a9632: lea rdi, [r14+0x50]; lea rsi, [rbx+0x50]
     // 0x2a963a: call 2a0680 (string operator==)
-    if (thirdString != other.thirdString)           // 0x2a9641: je → 2a95f6
+    if (funDescrName != other.funDescrName)           // 0x2a9641: je → 2a95f6
         return false;
 
     // --- Compare playWord (uint32_t at +0x68) ---
@@ -588,7 +575,7 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
 //   0x114f95: mov [rbx+0x48], cl         — this->used
 //   0x114f98: mov ecx, [rax+0x4C]        — src->addressValue
 //   0x114f9b: mov [rbx+0x4C], ecx        — this->addressValue
-//   0x114f9e-0x114fcd: copy src->thirdString to this->thirdString (+0x50)
+//   0x114f9e-0x114fcd: copy src->funDescrName to this->funDescrName (+0x50)
 //   0x114fcf: mov rsi, [r15]       — re-dereference source.get()
 //   0x114fd2: mov rax, [rsi+0x68]  — src->playWord+waveIndex as qword
 //   0x114fd6: mov [rbx+0x68], rax  — this->playWord+waveIndex
@@ -629,7 +616,7 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
     addressValue = src->addressValue;               // +0x4C ← [src+0x4C]
 
     // 0x114f9e-0x114fcd: deep copy string
-    thirdString = src->thirdString;                 // +0x50 ← [src+0x50]
+    funDescrName = src->funDescrName;                 // +0x50 ← [src+0x50]
 
     // Re-dereference
     src = source.get();                             // 0x114fcf: mov rsi, [r15]
@@ -746,9 +733,9 @@ Waveform::File::Type Waveform::File::typeFromStr(std::string str)  // 0x2a63c0
 //
 // File struct layout (inferred):
 //   +0x00  std::string name      (24 bytes, SSO)
-//   +0x18  int32_t     field18   (4 bytes)
-//   +0x1C  int32_t     field1C   (4 bytes)
-//   +0x20  int32_t     field20   (4 bytes)
+//   +0x18  int32_t     formatType   (4 bytes)
+//   +0x1C  int32_t     columnMode   (4 bytes)
+//   +0x20  int32_t     isIntegerFormat   (4 bytes)
 //   +0x24  (4 padding)
 //   +0x28  void*       data_begin (vector<uint8_t>::begin)
 //   +0x30  void*       data_end   (vector<uint8_t>::end)
@@ -757,9 +744,9 @@ Waveform::File::Type Waveform::File::typeFromStr(std::string str)  // 0x2a63c0
 //
 // Comparison sequence:
 //   0x2a9680-0x2a96b4: compare name strings (length then content via bcmp)
-//   0x2a96f7: cmp [r14+0x18], [rbx+0x18]  — field18
-//   0x2a9700: cmp [r14+0x1C], [rbx+0x1C]  — field1C
-//   0x2a9709: cmp [r14+0x20], [rbx+0x20]  — field20
+//   0x2a96f7: cmp [r14+0x18], [rbx+0x18]  — formatType
+//   0x2a9700: cmp [r14+0x1C], [rbx+0x1C]  — columnMode
+//   0x2a9709: cmp [r14+0x20], [rbx+0x20]  — isIntegerFormat
 //   0x2a9712-0x2a972d: compare vector data
 //     mov rdi, [r14+0x28]; rdx = [r14+0x30] - rdi   — this data range
 //     mov rsi, [rbx+0x28]; rax = [rbx+0x30] - rsi   — other data range
@@ -780,22 +767,22 @@ bool Waveform::File::operator==(Waveform::File const& other) const  // 0x2a9680
     if (name != other.name)
         return false;
 
-    // --- Compare field18 (int at +0x18) ---
+    // --- Compare formatType (int at +0x18) ---
     // 0x2a96f7: mov eax, [r14+0x18]; cmp eax, [rbx+0x18]
     // 0x2a96fe: jne → 0x2a973c
-    if (field18 != other.field18)
+    if (formatType != other.formatType)
         return false;
 
-    // --- Compare field1C (int at +0x1C) ---
+    // --- Compare columnMode (int at +0x1C) ---
     // 0x2a9700: mov eax, [r14+0x1C]; cmp eax, [rbx+0x1C]
     // 0x2a9707: jne → 0x2a973c
-    if (field1C != other.field1C)
+    if (columnMode != other.columnMode)
         return false;
 
-    // --- Compare field20 (int at +0x20) ---
+    // --- Compare isIntegerFormat (int at +0x20) ---
     // 0x2a9709: mov eax, [r14+0x20]; cmp eax, [rbx+0x20]
     // 0x2a9710: jne → 0x2a973c
-    if (field20 != other.field20)
+    if (isIntegerFormat != other.isIntegerFormat)
         return false;
 
     // --- Compare data vector (at +0x28) ---
@@ -807,8 +794,8 @@ bool Waveform::File::operator==(Waveform::File const& other) const  // 0x2a9680
     // 0x2a9725: sub rax, rsi                  — other data size
     // 0x2a9728: cmp rdx, rax                  — sizes must match
     // 0x2a972b: jne → 0x2a973c
-    size_t mySize = (size_t)((char*)(data.data() + data.size()) - (char*)data.data());
-    size_t otherSize = (size_t)((char*)(other.data.data() + other.data.size()) - (char*)other.data.data());
+    size_t mySize = data.size() * sizeof(unsigned int);
+    size_t otherSize = other.data.size() * sizeof(unsigned int);
     if (mySize != otherSize)
         return false;
 
@@ -875,7 +862,7 @@ Waveform::Waveform(std::string name_, File::Type type_,
 
     // 0x2a7261: mov rax, [rbp+0x18]  — &genFunc parameter from stack
     // 0x2a728b-0x2a72b3: copy genFunc (SSO or heap)
-    thirdString = std::move(genFunc_);              // +0x50
+    funDescrName = std::move(genFunc_);              // +0x50
 
     // 0x2a72c4: mov r8d, [rbp+0x20]   — playWord from stack
     // 0x2a72c8: mov [rbx+0x68], r8d
@@ -936,8 +923,8 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
     used = other.used;                              // +0x48
     addressValue = other.addressValue;              // +0x4C
 
-    // 0x2a907d-0x2a90af: copy thirdString (SSO/heap)
-    thirdString = other.thirdString;                // +0x50
+    // 0x2a907d-0x2a90af: copy funDescrName (SSO/heap)
+    funDescrName = other.funDescrName;                // +0x50
 
     // 0x2a90af: mov rax, [r15+0x78]; mov [rbx+0x78], rax
     deviceConstants = other.deviceConstants;         // +0x78
@@ -964,82 +951,25 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
 //
 // Destroys fields in reverse order:
 //   Signal (3 vectors: markerBits_, markers_, samples_)
-//   thirdString
+//   funDescrName
 //   shared_ptr<File>
 //   secondaryName
 //   name
 // ============================================================================
 Waveform::~Waveform()  // 0x1152e0
 {
-    // rbx = this
-
-    // --- Destroy Signal.markerBits_ (vector at +0xB0, data ptr at [this+0xB0]) ---
-    // 0x1152ea: mov rdi, [rdi+0xB0]  — markerBits_.begin()
-    // 0x1152f1: test rdi, rdi; je skip
-    // 0x1152f6: mov [rbx+0xB8], rdi  — reset end ptr (for exception safety)
-    // 0x1152fd: mov rsi, [rbx+0xC0]  — capacity end ptr
-    // 0x115304: sub rsi, rdi          — allocation size
-    // 0x115307: call operator delete(ptr, size)
-    if (signal.markerBits_.data()) {
-        ::operator delete(signal.markerBits_.data(),
-                         signal.markerBits_.capacity() * sizeof(uint8_t));
-    }
-
-    // --- Destroy Signal.markers_ (vector at +0x98, data ptr at [this+0x98]) ---
-    // 0x11530c: mov rdi, [rbx+0x98]
-    // 0x115313: test rdi, rdi; je skip
-    // 0x115318: mov [rbx+0xA0], rdi
-    // 0x11531f: mov rsi, [rbx+0xA8]
-    // 0x115326: sub rsi, rdi
-    // 0x115329: call operator delete
-    if (signal.markers_.data()) {
-        ::operator delete(signal.markers_.data(),
-                         signal.markers_.capacity() * sizeof(uint8_t));
-    }
-
-    // --- Destroy Signal.samples_ (vector at +0x80, data ptr at [this+0x80]) ---
-    // 0x11532e: mov rdi, [rbx+0x80]
-    // 0x115335: test rdi, rdi; je skip
-    // 0x11533a: mov [rbx+0x88], rdi
-    // 0x115341: mov rsi, [rbx+0x90]
-    // 0x115348: sub rsi, rdi
-    // 0x11534b: call operator delete
-    if (signal.samples_.data()) {
-        ::operator delete(signal.samples_.data(),
-                         signal.samples_.capacity() * sizeof(double));
-    }
-
-    // --- Destroy thirdString (string at +0x50) ---
-    // 0x115350: test BYTE [rbx+0x50], 0x1  — SSO check
-    // 0x115354: je skip
-    // 0x115356: mov rsi, [rbx+0x50]  — get alloc size (tag with low bit set)
-    // 0x11535a: mov rdi, [rbx+0x60]  — get heap ptr
-    // 0x11535e: and rsi, 0xFE        — clear low bit to get true size
-    // 0x115362: call operator delete(ptr, size)
-    // (automatic in destructor)
-
-    // --- Destroy shared_ptr<File> (at +0x38, ctrl block at +0x40) ---
-    // 0x115367: mov r14, [rbx+0x40]  — load control block ptr
-    // 0x11536b: test r14, r14; je skip
-    // 0x115370: mov rax, -1
-    // 0x115377: lock xadd [r14+0x08], rax  — atomic decrement strong count
-    // 0x11537d: test rax, rax               — was it the last reference?
-    // 0x115380: je → destroy
-    //   0x1153b7: mov rax, [r14]  — vtable
-    //   0x1153ba: call [rax+0x10] — virtual __on_zero_shared()
-    //   0x1153c0: call __release_weak (release weak count)
-    // (automatic in destructor)
-
-    // --- Destroy secondaryName (string at +0x20) ---
-    // 0x115382: test BYTE [rbx+0x20], 0x1
-    // 0x115386: je skip
-    // 0x115388-0x115394: dealloc heap string
-
-    // --- Destroy name (string at +0x00) ---
-    // 0x115399: test BYTE [rbx], 0x1
-    // 0x11539c: jne → dealloc
-    // 0x11539e: ret (if SSO, nothing to free)
-    // 0x1153a3-0x1153b2: dealloc heap string, tail-call to operator delete
+    // Binary 0x1152e0-0x1153ce inlines destruction of all members in
+    // reverse declaration order:
+    //   Signal vectors (markerBits_, markers_, samples_) at +0xB0/+0x98/+0x80
+    //   funDescrName (string at +0x50)
+    //   shared_ptr<File> (at +0x38)
+    //   secondaryName (string at +0x20)
+    //   name (string at +0x00)
+    //
+    // In our C++ reconstruction, all of these are proper members with
+    // compiler-generated destructors, so the body is intentionally empty.
+    // The binary's manual free/dealloc sequences are the inlined equivalent
+    // of what the compiler does automatically here.
 }
 
 // ============================================================================
@@ -1057,9 +987,9 @@ Waveform::~Waveform()  // 0x1152e0
 // ============================================================================
 WaveformFile::WaveformFile(const char* filename)
     : name(filename)
-    , field18(0)
-    , field1C(0)
-    , field20(0)
+    , formatType(0)
+    , columnMode(0)
+    , isIntegerFormat(0)
     , data()
 {}
 

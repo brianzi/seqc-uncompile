@@ -1,0 +1,14 @@
+var i;
+var j = 0;
+repeat(2) {
+  for (i = 0; i < 3; i++) {
+    if (i > 0) {
+      while (j < 2) {
+        playZero(32);
+        j = j + 1;
+      }
+      j = 0;
+    }
+  }
+}
+waitWave();

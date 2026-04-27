@@ -20,12 +20,12 @@ namespace zhinst {
 // 3. Initializes IR-specific fields:
 //    - irField1 = 0 (uint16_t at +0xD8)
 //    - crossesCacheLine_ = false (bool at +0xDA)
-//    - irField2 = source->deviceConstants->someField (int at +0xDC)
+//    - elfAlignment_ = source->deviceConstants->someField (int at +0xDC)
 //      Specifically: source[0]->field_at_0x78->field_at_0x24
 // 4. If this->file is non-null:
 //    - Clears file->data vector (the vector at file+0x28)
-//    - Sets file->field18 = 0, file->field1C = 1
-//    - Sets file->field20 = 1
+//    - Sets file->formatType = 0, file->columnMode = 1
+//    - Sets file->isIntegerFormat = 1
 WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
     : Waveform(std::shared_ptr<Waveform>(source), std::string(source->name))
 {
@@ -34,16 +34,16 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
     markedForLoad = false;
     fixed_ = false;
     crossesCacheLine_ = false;
-    irField2 = source->deviceConstants->waveformElfAlignment;  // source->deviceConstants[0x24]
+    elfAlignment_ = source->deviceConstants->waveformElfAlignment;  // source->deviceConstants[0x24]
 
     if (file) {
         // Clear the file's data vector
         file->data.clear();
         file->data.shrink_to_fit();
-        // Set file metadata: field18=0, field1C=1, field20=1
-        file->field18 = 0;
-        file->field1C = 1;
-        file->field20 = 1;
+        // Set file metadata: formatType=0, columnMode=1, isIntegerFormat=1
+        file->formatType = 0;
+        file->columnMode = 1;
+        file->isIntegerFormat = 1;
     }
 }
 
@@ -56,14 +56,14 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     markedForLoad = false;
     fixed_ = false;
     crossesCacheLine_ = false;
-    irField2 = source->deviceConstants->waveformElfAlignment;
+    elfAlignment_ = source->deviceConstants->waveformElfAlignment;
 
     if (file) {
         file->data.clear();
         file->data.shrink_to_fit();
-        file->field18 = 0;
-        file->field1C = 1;
-        file->field20 = 1;
+        file->formatType = 0;
+        file->columnMode = 1;
+        file->isIntegerFormat = 1;
     }
 }
 
@@ -78,7 +78,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 //   +0x48         Waveform::used           = 0
 //   +0x49..+0x4B  padding zeroed
 //   +0x4C         Waveform::addressValue   = 0
-//   +0x50..+0x67  Waveform::thirdString    = empty string
+//   +0x50..+0x67  Waveform::funDescrName    = empty string
 //   +0x68         Waveform::playWord       = 0
 //   +0x6C         Waveform::waveIndex      = -1                  ← explicit
 //   +0x70         Waveform::seqRegWidth    = dc.waveformGranularity (dc+0x40)
@@ -89,7 +89,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 //   +0xD8         markedForLoad            = 0  (word-stored with fixed_)
 //   +0xD9         fixed_                   = 0
 //   +0xDA         crossesCacheLine_        = 0
-//   +0xDC         irField2                 = dc.waveformElfAlignment (dc+0x24)
+//   +0xDC         elfAlignment_                 = dc.waveformElfAlignment (dc+0x24)
 //
 // IMPORTANT: this constructor has no standalone symbol in the binary —
 // the dispatcher inlines it. We provide a body so that other TUs that
@@ -109,7 +109,7 @@ WaveformIR::WaveformIR(const std::string& name,
     this->file.reset();
     this->used             = false;
     this->addressValue     = 0;
-    this->thirdString.clear();
+    this->funDescrName.clear();
     this->playWord         = 0;
     this->waveIndex        = -1;
     this->seqRegWidth      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
@@ -123,7 +123,7 @@ WaveformIR::WaveformIR(const std::string& name,
     this->markedForLoad     = false;   // +0xD8 (word-stored together with fixed_)
     this->fixed_            = false;   // +0xD9
     this->crossesCacheLine_ = false;   // +0xDA
-    this->irField2          = static_cast<int32_t>(dc.waveformElfAlignment);  // +0xDC ← dc+0x24
+    this->elfAlignment_          = static_cast<int32_t>(dc.waveformElfAlignment);  // +0xDC ← dc+0x24
 }
 
 // 0x2c5440 — WaveformIR::toJsonElement(SampleFormat)

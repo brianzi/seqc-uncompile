@@ -1,31 +1,32 @@
 // ============================================================================
-// SeqcParserContext — minimal stub for Expression parser actions
+// SeqcParserContext — parser context for SeqC flex/bison parser
 //
-// Full reconstruction deferred (Phase 11+ or later). Only the methods called
-// by expression.cpp / compiler.cpp / awg_assembler are declared here.
+// Full layout recovered Phase 31d from binary ctor/dtor/method disassembly:
+//   +0x00  uint8_t  isComment_           (composite: nonzero if in any comment)
+//   +0x01  uint8_t  blockComment_        (in block comment)
+//   +0x02  uint8_t  lineComment_         (in line comment)
+//   +0x03  uint8_t  hadSyntaxError_      (set by setSyntaxError)
+//   +0x04  int32_t  currentLineNumber_   (1-based source line)
+//   +0x08  [8 bytes padding]
+//   +0x10  std::function<void(int, const std::string&)> errorCallback_  (0x28 bytes, libc++)
+//   Total size: 0x38 bytes
 //
-// Partial layout recovered from method disasm (see seqc_parser_context.cpp):
-//   +0x00  byte    isComment            (0x247bf0 reads it)
-//   +0x01  byte    blockComment flag    (0x247c40/0x247c60)
-//   +0x02  byte    lineComment flag     (0x247c00/0x247c20)
-//   +0x03  byte    hadSyntaxError flag  (0x247ca0 reads, 0x247cb0 sets)
-//   +0x04  int32   currentLineNumber    (0x247c80 reads, 0x247c90 inc)
-//   +0x30  ptr     errorCallback opaque (read by 0x247ae0 raiseError)
+// reset() at 0x247cc0: clears flags to 0, sets lineNumber to 1, does NOT
+// reset the error callback.
 //
-// We only DECLARE methods that other reconstructed TUs call. The class is
-// never instantiated inside reconstructed code (used by-pointer only),
-// so we deliberately omit data members from the header to avoid
-// committing to an incorrect size.
+// setErrorCallback() at 0x247a60: swaps a new callback into errorCallback_.
 // ============================================================================
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <string>
 
 namespace zhinst {
 
 class SeqcParserContext {
 public:
+    // --- Accessors ---
     int32_t currentLineNumber() const;        // 0x247c80
     void incrementLineNumber();               // 0x247c90
     void raiseError(const std::string& msg);  // 0x247ae0
@@ -37,6 +38,24 @@ public:
     void endBlockComment();                   // 0x247c60
     void startLineComment();                  // 0x247c00
     void endLineComment();                    // 0x247c20
+
+    // --- Lifecycle ---
+    void reset();                             // 0x247cc0
+    void setErrorCallback(                    // 0x247a60
+        std::function<void(int, const std::string&)> cb);
+
+private:
+    // +0x00
+    uint8_t isComment_{0};
+    uint8_t blockComment_{0};
+    uint8_t lineComment_{0};
+    uint8_t hadSyntaxError_{0};
+    // +0x04
+    int32_t currentLineNumber_{1};
+    // +0x08 — padding to align std::function at +0x10
+    char pad_[8]{};
+    // +0x10
+    std::function<void(int, const std::string&)> errorCallback_;
 };
 
 } // namespace zhinst

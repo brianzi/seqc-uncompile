@@ -162,8 +162,8 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
         // Integer literal
         int val = e->value;  // offset 0x3C
         unsigned int mask = (1u << bits) - 1;
-        if (val <= (int)mask) {
-            return (unsigned int)val & mask;
+        if (val <= static_cast<int>(mask)) {
+            return static_cast<unsigned int>(val) & mask;
         }
         // Value overflow — report error #5 with (val, bits)
         std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(5), val, bits);
@@ -211,7 +211,7 @@ uint64_t AWGAssemblerImpl::opcode1(unsigned int opcode, std::shared_ptr<AsmExpre
 
     auto* children_begin = e->children.data();
     auto* children_end = children_begin + e->children.size();
-    size_t byte_size = (char*)children_end - (char*)children_begin;  // in bytes of shared_ptr (16 each)
+    size_t byte_size = reinterpret_cast<const char*>(children_end) - reinterpret_cast<const char*>(children_begin);  // in bytes of shared_ptr (16 each)
 
     // Expects children byte size > 0x10 (i.e., >= 2 children)
     if (byte_size <= 0x10) {
@@ -256,7 +256,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
     AsmExpression* e = expr.get();
 
     auto* children_begin = e->children.data();
-    size_t byte_size = (char*)(children_begin + e->children.size()) - (char*)children_begin;
+    size_t byte_size = reinterpret_cast<const char*>(children_begin + e->children.size()) - reinterpret_cast<const char*>(children_begin);
 
     // Expects exactly 0x40 bytes = 4 children
     if (byte_size != 0x40) {
@@ -322,15 +322,15 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
     AsmExpression* e = expr.get();
     auto* children_begin = e->children.data();
     auto* children_end = children_begin + e->children.size();
-    size_t byte_size = (char*)children_end - (char*)children_begin;
+    size_t byte_size = reinterpret_cast<const char*>(children_end) - reinterpret_cast<const char*>(children_begin);
 
     // Need > 0x10 bytes (> 1 child)
     if (byte_size <= 0x10) {
         // Wrong number of arguments
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
         size_t nChildren = e->children.size();
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(4), cmdName, 3, 2, nChildren);
-        errorMessage(msg);
+        // TODO: binary uses format(4, cmdName, 3, 2, nChildren) but msg 4 has no placeholders
+        errorMessage(ErrorMessages::get(4));
         return 0;
     }
 
@@ -349,7 +349,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
         }
     }
 
-    size_t remaining = (char*)children_end - (char*)children_begin;
+    size_t remaining = reinterpret_cast<const char*>(children_end) - reinterpret_cast<const char*>(children_begin);
 
     if (remaining == 0x30) {
         // 3 children: special handling for WVFS_H (0x30000001)
@@ -416,15 +416,22 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
         errorMessage(msg);
     }
 
-    // For 2-child reg-reg: child[2] = immediate(20) 
+    // child[2] = immediate(20) — only present for 3+ child cases
+    // NOTE: The binary at 0x289f49 reads children[2] unconditionally even
+    // when there are only 2 children. This relies on UB (reading past the
+    // vector end) that happens to find null in the binary's allocator.
+    // We add an explicit bounds check to avoid the UB crash.
     e = expr.get();
     children_begin = e->children.data();
-    if (children_begin[2].get() != nullptr) {
+    if (e->children.size() > 2 && children_begin[2].get() != nullptr) {
         unsigned int val = getVal(children_begin[2], 20);
         return opcode | val;
-    } else {
+    } else if (e->children.size() > 2) {
         std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 3, 1);
         errorMessage(msg);
+        return opcode;
+    } else {
+        // 2-child reg-reg: no immediate, just return the opcode with registers
         return opcode;
     }
 }
@@ -444,7 +451,9 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
     if (nChildren == 2) {
         // --- 2 children: reg + immediate ---
         // Categorize by high byte of opcode
-        unsigned int opcodeGroup = (opcode + 0x0D000000u);  // shifts 0xD0..0xD2 → 0..2
+        // kOpcodeGroup2Child maps opcode range 0xF3..0xF6 (high byte) to indices 0..3
+        constexpr unsigned int kOpcodeGroup2Child = 0x0D000000u;
+        unsigned int opcodeGroup = (opcode + kOpcodeGroup2Child);
         unsigned int groupRotated = (opcodeGroup << 8) | (opcodeGroup >> 24);  // rol 8
 
         if (groupRotated >= 3) {
@@ -520,7 +529,9 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
     } else if (nChildren == 1) {
         // --- 1 child: immediate-only instructions ---
         // Dispatch by opcode high byte via jump table
-        unsigned int idx = (opcode + 0x0E000000u);
+        // kOpcodeGroup1Child maps opcode range 0xF2..0xFF (high byte) to indices 0..0xD
+        constexpr unsigned int kOpcodeGroup1Child = 0x0E000000u;
+        unsigned int idx = (opcode + kOpcodeGroup1Child);
         unsigned int idxRotated = (idx << 8) | (idx >> 24);  // rol 8
 
         if (idxRotated > 0xD) {
@@ -610,7 +621,7 @@ uint64_t AWGAssemblerImpl::opcode5(unsigned int opcode, std::shared_ptr<AsmExpre
 {
     AsmExpression* e = expr.get();
     auto* children_begin = e->children.data();
-    size_t byte_size = (char*)(children_begin + e->children.size()) - (char*)children_begin;
+    size_t byte_size = reinterpret_cast<const char*>(children_begin + e->children.size()) - reinterpret_cast<const char*>(children_begin);
 
     // Expects exactly 0x20 bytes = 2 children
     if (byte_size != 0x20) {

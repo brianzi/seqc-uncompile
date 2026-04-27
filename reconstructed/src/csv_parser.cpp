@@ -93,7 +93,7 @@ bool isCsvSeparator(char c) {                          // @0x2ba7d0
 class CsvParser {
 public:
     template <typename WfT>
-    static void csvFileToWaveform(std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
+    static void csvFileToWaveform(CachedParser& cache, std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
 
 private:
     // getLineVector: opens CSV file, reads lines, trims, skips comments/empty,
@@ -120,10 +120,10 @@ private:
 // ============================================================================
 // setSampleFromString<WaveformFront>  @0x2b85c0
 //
-// If wf->file->field20 != 0 (AWG integer format):
+// If wf->file->isIntegerFormat != 0 (AWG integer format):
 //   stol(cellStr) → range check → dispatch on deviceType:
 //     types 1,4: awg2double(uint16), else: awg2double16(uint32) + awg2marker(uint16)
-// If wf->file->field20 == 0 (float format):
+// If wf->file->isIntegerFormat == 0 (float format):
 //   stod(cellStr) → sample
 //
 // Stores sample in wf->signal.samples_[row*channels + col],
@@ -142,7 +142,7 @@ void CsvParser::setSampleFromString<WaveformFront>(    // @0x2b85c0
     uint8_t marker = 0;
     double sample;
 
-    if (filePtr->field20 != 0) {
+    if (filePtr->isIntegerFormat != 0) {
         // AWG integer format path
         long val = std::stol(cellStr, nullptr, 0);
 
@@ -204,7 +204,7 @@ void CsvParser::setSampleFromString<WaveformIR>(       // @0x2b8420
     uint8_t marker = 0;
     double sample;
 
-    if (filePtr->field20 != 0) {
+    if (filePtr->isIntegerFormat != 0) {
         long val = std::stol(cellStr, nullptr, 0);
 
         uint32_t maxVal;
@@ -251,21 +251,21 @@ void CsvParser::setSampleFromString<WaveformIR>(       // @0x2b8420
 // Trims each line with boost::algorithm::trim.
 // Skips empty lines.
 // Lines starting with '%' are comment lines:
-//   - If wf->file->field18 == 1 (AWG format), skip all comment lines.
+//   - If wf->file->formatType == 1 (AWG format), skip all comment lines.
 //   - Otherwise, check for "% Time (s)" pattern; if found and it's the
 //     ONLY occurrence (exact 10-char match), skip that line.
 //   - In comment lines (non-"% Time (s)"), scan for separator chars using
 //     bitmask 0x800100000000200 (matches tab=9, comma=44, semicolon=59).
 //     If found, use boost::tokenizer with ",;\t" separators to extract
-//     columns. If >2 columns: set field18=2 (multi-column float).
-//     If <=2 columns: set field18=1 (single-column AWG integer).
+//     columns. If >2 columns: set formatType=2 (multi-column float).
+//     If <=2 columns: set formatType=1 (single-column AWG integer).
 //
-// For non-comment data lines when field18 == 0 (first data line, auto-detect):
+// For non-comment data lines when formatType == 0 (first data line, auto-detect):
 //   - Count separators using isCsvSeparator(), set field count in local var.
 //   - Check if value starts with "0x" and has no '.' or 'e': if so, leave
-//     field20 as-is (AWG integer); otherwise set field20=0 (float format).
+//     isIntegerFormat as-is (AWG integer); otherwise set isIntegerFormat=0 (float format).
 //
-// For field18 == 1 (AWG integer format): scan for separator in data line
+// For formatType == 1 (AWG integer format): scan for separator in data line
 //   using bitmask 0x800100000000200; if no separator found, treat as
 //   single-column (field count = -1).
 //
@@ -308,8 +308,8 @@ std::vector<std::string> CsvParser::getLineVector(
 
         // Comment line handling (lines starting with '%')
         if (line[0] == '%') {
-            // If AWG integer format (field18 == 1), skip all comment lines
-            if (wf->file->field18 == 1) {
+            // If AWG integer format (formatType == 1), skip all comment lines
+            if (wf->file->formatType == 1) {
                 ++lineNum;
                 continue;
             }
@@ -353,9 +353,9 @@ std::vector<std::string> CsvParser::getLineVector(
                     ++colCount;
                 }
                 if (colCount > 2) {
-                    wf->file->field18 = 2;  // multi-column float
+                    wf->file->formatType = 2;  // multi-column float
                 } else {
-                    wf->file->field18 = 1;  // AWG integer
+                    wf->file->formatType = 1;  // AWG integer
                 }
             }
 
@@ -380,8 +380,8 @@ std::vector<std::string> CsvParser::getLineVector(
         // Append to result vector
         result.push_back(line);
 
-        // Format auto-detection on first data line when field18 == 0
-        if (wf->file->field18 == 0) {
+        // Format auto-detection on first data line when formatType == 0
+        if (wf->file->formatType == 0) {
             if (firstDataLine) {
                 firstDataLine = false;
 
@@ -404,23 +404,23 @@ std::vector<std::string> CsvParser::getLineVector(
                     bool hasDot = (std::memchr(line.data(), '.', line.size()) != nullptr);
                     bool hasE   = (std::memchr(line.data(), 'e', line.size()) != nullptr);
                     if (!hasDot && !hasE) {
-                        // AWG integer format — field20 stays as-is (non-zero)
+                        // AWG integer format — isIntegerFormat stays as-is (non-zero)
                         // (already set by caller or default)
                     } else {
-                        wf->file->field20 = 0;  // float format
+                        wf->file->isIntegerFormat = 0;  // float format
                     }
                 } else {
-                    wf->file->field20 = 0;  // float format
+                    wf->file->isIntegerFormat = 0;  // float format
                 }
-            } else if (wf->file->field20 != 0) {
+            } else if (wf->file->isIntegerFormat != 0) {
                 // Subsequent lines in AWG format: scan for separator
                 // If no separator found, single-column
             }
         }
 
-        // For field18 == 1 (AWG integer format): scan data line for separator
+        // For formatType == 1 (AWG integer format): scan data line for separator
         // using bitmask to detect column count per line
-        if (wf->file->field18 == 1) {
+        if (wf->file->formatType == 1) {
             bool hasSep = false;
             for (size_t i = 0; i < line.size(); ++i) {
                 unsigned char ch = static_cast<unsigned char>(line[i]);
@@ -458,7 +458,7 @@ template std::vector<std::string> CsvParser::getLineVector<WaveformIR>(
 //   4. If cache hit (samples_ non-empty): copy samples/markers/markerBits
 //      directly into wf->signal, set channels_ and length_, done.
 //   5. If cache miss: call getLineVector<WfT>() to parse the CSV.
-//   6. Dispatch on wf->file->field18 (waveformType):
+//   6. Dispatch on wf->file->formatType (waveformType):
 //      - 1 (AWG integer): allocate samples/markers/markerBits arrays sized
 //        by lineCount * channels, iterate lines calling setSampleFromString
 //      - 2 (multi-column float): same but tokenize with ",; \t" first,
@@ -472,6 +472,7 @@ template std::vector<std::string> CsvParser::getLineVector<WaveformIR>(
 // ============================================================================
 template <>
 void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
+        CachedParser& cache,
         std::shared_ptr<WaveformFront> wf,
         AwgDeviceType deviceType)
 {
@@ -483,30 +484,30 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
     auto& fileRef = *wf->file;
 
-    // Step 2: compute hash if not already present
+    // Step 2: compute hash if not already present                              // @0x2ba910
     if (fileRef.data.begin() == fileRef.data.end()) {
-        // CachedParser is at a known offset from the CsvParser "this" pointer.
-        // In the binary, CsvParser is a stateless class and cachedParser is
-        // passed via the first argument (rdi = r14). However since CsvParser
-        // methods are static in our reconstruction, we cannot access a
-        // cachedParser instance here directly. The binary's r14 points to the
-        // CachedParser member of the owning WavetableManager.
-        //
-        // STUB: We skip caching since we don't have the CachedParser* here.
-        // The binary passes it as the implicit 'this' of the CsvParser object
-        // which is actually a CachedParser& alias. For a full reconstruction
-        // we would need to thread the CachedParser through.
-        //
-        // For now, always take the cache-miss path.
+        fileRef.data = cache.getHash(fileRef.name);                            // @0x2ba938
     }
 
-    // Step 3-4: Skip cache lookup (we don't have CachedParser instance)
-    // Always take cache-miss path.
+    // Step 3: check cache                                                     // @0x2ba960
+    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.data);       // @0x2ba990
 
-    // Step 5: Parse CSV via getLineVector
-    // Note: getLineVector needs CachedParser& but we don't have it; pass a dummy
-    // Actually, getLineVector doesn't use cachedParser — it just parses the file.
-    // We'll need to restructure. For now, parse directly.
+    // Step 4: cache hit — copy directly into wf->signal                       // @0x2ba9a0
+    if (!cached.samples_.empty()) {
+        wf->signal.samples_ = std::move(cached.samples_);
+        wf->signal.markers_ = std::move(cached.markers_);
+        wf->signal.channels_ = cached.channel_;
+        if (!wf->signal.samples_.empty() && wf->signal.channels_ > 0) {
+            wf->signal.length_ = wf->signal.samples_.size() / wf->signal.channels_;
+        }
+        // Copy markerBits                                                     // @0x2baa20
+        for (size_t i = 0; i < cached.markerBits_.size() && i < wf->signal.markerBits_.size(); ++i) {
+            wf->signal.markerBits_[i] = cached.markerBits_[i];
+        }
+        return;
+    }
+
+    // Step 5: cache miss — parse CSV
 
     // Open CSV file
     boost::filesystem::ifstream ifs(fileRef.name, std::ios::in);
@@ -531,7 +532,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
         if (rawLine[0] == '%') {
             // Comment line
-            if (fileRef.field18 == 1) {
+            if (fileRef.formatType == 1) {
                 // AWG format: skip all comment lines
                 ++lineNum;
                 continue;
@@ -570,9 +571,9 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                             for (auto it = tok.begin(); it != tok.end(); ++it)
                                 ++colCount;
                             if (colCount > 2)
-                                fileRef.field18 = 2;
+                                fileRef.formatType = 2;
                             else
-                                fileRef.field18 = 1;
+                                fileRef.formatType = 1;
                             break;
                         }
                     }
@@ -594,8 +595,8 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         // Append trimmed data line
         dataLines.push_back(rawLine);
 
-        // Auto-detect format on first data line (field18 == 0)
-        if (fileRef.field18 == 0 && dataLines.size() == 1) {
+        // Auto-detect format on first data line (formatType == 0)
+        if (fileRef.formatType == 0 && dataLines.size() == 1) {
             // Count separators
             size_t numFields = 1;
             bool prevWasSep = false;
@@ -611,11 +612,11 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                 bool hasDot = (std::memchr(rawLine.data(), '.', rawLine.size()) != nullptr);
                 bool hasE   = (std::memchr(rawLine.data(), 'e', rawLine.size()) != nullptr);
                 if (hasDot || hasE) {
-                    fileRef.field20 = 0;
+                    fileRef.isIntegerFormat = 0;
                 }
-                // else: leave field20 as-is (AWG integer)
+                // else: leave isIntegerFormat as-is (AWG integer)
             } else {
-                fileRef.field20 = 0;
+                fileRef.isIntegerFormat = 0;
             }
         }
 
@@ -624,10 +625,10 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
     ifs.close();
 
-    // Step 6: Dispatch on wf->file->field18 to parse data
+    // Step 6: Dispatch on wf->file->formatType to parse data
     size_t numLines = dataLines.size();
 
-    if (fileRef.field18 == 2) {
+    if (fileRef.formatType == 2) {
         // Multi-column float format
         // First pass: determine column count from first line
         uint16_t channels = wf->signal.channels_;
@@ -676,7 +677,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         if (channels > 0)
             wf->signal.length_ = wf->signal.samples_.size() / channels;
 
-    } else if (fileRef.field18 == 1) {
+    } else if (fileRef.formatType == 1) {
         // AWG integer format (or single-column)
         size_t numTokens = numLines;  // one token per line for AWG format
 
@@ -712,7 +713,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
     } else {
         // Format 0: simple float, auto-detected
-        // field1C determines if single or multi value per line
+        // columnMode determines if single or multi value per line
         if (dataLines.empty()) {
             // Nothing to do (empty CSV allowed for format 0?)
             return;
@@ -792,6 +793,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 // ============================================================================
 template <>
 void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
+        CachedParser& cache,
         std::shared_ptr<WaveformIR> wf,
         AwgDeviceType deviceType)
 {
@@ -801,6 +803,25 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
 
     auto& fileRef = *wf->file;
 
+    // Cache lookup (same pattern as WaveformFront version)                    // @0x2be880
+    if (fileRef.data.begin() == fileRef.data.end()) {
+        fileRef.data = cache.getHash(fileRef.name);
+    }
+    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.data);
+    if (!cached.samples_.empty()) {
+        wf->signal.samples_ = std::move(cached.samples_);
+        wf->signal.markers_ = std::move(cached.markers_);
+        wf->signal.channels_ = cached.channel_;
+        if (!wf->signal.samples_.empty() && wf->signal.channels_ > 0) {
+            wf->signal.length_ = wf->signal.samples_.size() / wf->signal.channels_;
+        }
+        for (size_t i = 0; i < cached.markerBits_.size() && i < wf->signal.markerBits_.size(); ++i) {
+            wf->signal.markerBits_[i] = cached.markerBits_[i];
+        }
+        return;
+    }
+
+    // Cache miss — parse CSV
     // Open CSV file
     boost::filesystem::ifstream ifs(fileRef.name, std::ios::in);
     if (!ifs.is_open()) {
@@ -823,7 +844,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         }
 
         if (rawLine[0] == '%') {
-            if (fileRef.field18 == 1) {
+            if (fileRef.formatType == 1) {
                 ++lineNum;
                 continue;
             }
@@ -857,9 +878,9 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                             for (auto it = tok.begin(); it != tok.end(); ++it)
                                 ++colCount;
                             if (colCount > 2)
-                                fileRef.field18 = 2;
+                                fileRef.formatType = 2;
                             else
-                                fileRef.field18 = 1;
+                                fileRef.formatType = 1;
                             break;
                         }
                     }
@@ -879,7 +900,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
 
         dataLines.push_back(rawLine);
 
-        if (fileRef.field18 == 0 && dataLines.size() == 1) {
+        if (fileRef.formatType == 0 && dataLines.size() == 1) {
             size_t numFields = 1;
             bool prevWasSep = false;
             for (size_t i = 0; i < rawLine.size(); ++i) {
@@ -893,10 +914,10 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                 bool hasDot = (std::memchr(rawLine.data(), '.', rawLine.size()) != nullptr);
                 bool hasE   = (std::memchr(rawLine.data(), 'e', rawLine.size()) != nullptr);
                 if (hasDot || hasE) {
-                    fileRef.field20 = 0;
+                    fileRef.isIntegerFormat = 0;
                 }
             } else {
-                fileRef.field20 = 0;
+                fileRef.isIntegerFormat = 0;
             }
         }
 
@@ -907,7 +928,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
 
     size_t numLines = dataLines.size();
 
-    if (fileRef.field18 == 2) {
+    if (fileRef.formatType == 2) {
         uint16_t channels = wf->signal.channels_;
         size_t totalSamples = numLines * channels;
 
@@ -945,7 +966,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         if (channels > 0)
             wf->signal.length_ = wf->signal.samples_.size() / channels;
 
-    } else if (fileRef.field18 == 1) {
+    } else if (fileRef.formatType == 1) {
         size_t numTokens = numLines;
         if (numTokens == 0) {
             throw CsvException(

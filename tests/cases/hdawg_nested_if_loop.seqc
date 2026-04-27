@@ -1,0 +1,14 @@
+var i;
+var j;
+repeat(2) {
+  for (i = 0; i < 3; i++) {
+    if (i == 0) {
+      playZero(32);
+    } else if (i == 1) {
+      playZero(64);
+    } else {
+      playHold(32);
+    }
+  }
+}
+waitWave();

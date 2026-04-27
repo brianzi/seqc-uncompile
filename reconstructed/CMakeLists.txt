@@ -52,8 +52,8 @@ target_include_directories(zhinst_seqc PUBLIC include)
 target_include_directories(zhinst_seqc PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 # --- Boost ---
-find_package(Boost REQUIRED COMPONENTS filesystem json log)
-target_link_libraries(zhinst_seqc PUBLIC Boost::filesystem Boost::json Boost::log)
+find_package(Boost REQUIRED COMPONENTS filesystem json log serialization)
+target_link_libraries(zhinst_seqc PUBLIC Boost::filesystem Boost::json Boost::log Boost::serialization)
 # Match the system Boost.Log ABI tag (v2_mt_posix vs v2s_mt_posix)
 target_compile_definitions(zhinst_seqc PUBLIC BOOST_LOG_WITHOUT_SYSLOG)
 

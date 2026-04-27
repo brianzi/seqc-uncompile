@@ -11,6 +11,7 @@
 
 #include "zhinst/custom_functions.hpp"
 #include "zhinst/asm_commands.hpp"
+#include "zhinst/asm_list.hpp"
 #include "zhinst/awg_compiler_config.hpp"
 #include "zhinst/device_constants.hpp"
 #include "zhinst/error_messages.hpp"
@@ -24,10 +25,18 @@
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 
 namespace zhinst {
+
+namespace {
+inline void appendSuser(std::vector<AsmList::Asm>& vec, std::shared_ptr<AsmCommands> const& cmds,
+                        AsmRegister reg, detail::AddressImpl<unsigned int> addr) {
+    vec.push_back(cmds->suser(reg, addr));
+}
+} // anonymous namespace
 
 extern ErrorMessages errMsg;
 
@@ -78,7 +87,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDigTrigger(  // @0x1386a0 
 // CustomFunctions::playAuxWave — @0x135610 (~5KB, 1118 disasm lines)
 // ----------------------------------------------------------------------------
 // Direct emit of an `asmPlay` instruction for an "auxiliary" waveform set.
-// Unlike playDIOWave, there is NO waitState_ protocol; it goes straight to
+// Unlike playDIOWave, there is NO external triggering mode check; it goes straight to
 // the device-support check.  The structure is otherwise close to playDIOWave
 // (PlayArgs ctor → parse → rate → per-channel inspect → mergeWaveforms →
 // asmPlay → push), but with three distinguishing aux-specific phases:
@@ -110,7 +119,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     std::shared_ptr<Resources> /*res*/)
 {
     // ---- Phase 1: device-type support — @0x13562d..0x135669 ---------------
-    // No waitState_ protocol (unlike playDIOWave/playWaveDIO/playWaveZSync).
+    // No external triggering mode check (unlike playDIOWave/playWaveDIO/playWaveZSync).
     // 0x5 = same support bitmask as playDIOWave.
     checkFunctionSupported("playAuxWave", static_cast<AwgDeviceType>(5));
 
@@ -360,7 +369,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 // mask passed as the `trigger` argument.
 //
 // Algorithm:
-//   1. waitState_ protocol: 0→1, 1→OK, otherwise throw error 0x4f.
+//   1. External triggering mode check: None→Dio, Dio→OK, otherwise throw error 0x4f.
 //      (Same state value as playWaveDIO — both occupy the "DIO" mode slot;
 //      mutually exclusive with playWaveZSync's state value of 2.)
 //   2. checkFunctionSupported("playDIOWave", AwgDeviceType(5)).
@@ -411,15 +420,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> /*res*/)
 {
-    // ---- Phase 1: waitState_ protocol — @0x136a0d..0x136a25 ----------------
+    // ---- Phase 1: external triggering mode check — @0x136a0d..0x136a25 ----------------
     // state value 1 (DIO mode); same as playWaveDIO.
-    if (waitState_ == 0) {
-        waitState_ = 1;
-    } else if (waitState_ != 1) {
-        // @0x13746e: throw format(0x4f) — wrong wait state
-        throw CustomFunctionsException(
-            ErrorMessages::format(DioZsyncMixed));
-    }
+    checkExternalTriggeringMode(ExternalTriggeringMode::Dio);
 
     // ---- Phase 2: device-type support check — @0x136a2b..0x136a54 ---------
     // 0x5 = bitmask of devices supporting playDIOWave (unusual; most other
@@ -645,7 +648,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 // from the device-constants `numOutputPorts` field).
 //
 // Algorithm:
-//   1. waitState_ protocol: 0→1, 1→OK, otherwise throw error 0x4f.
+//   1. External triggering mode check: None→Dio, Dio→OK, otherwise throw error 0x4f.
 //   2. checkFunctionSupported("playWaveDIO", 0x1f2 — bitmask of supported
 //      AwgDeviceTypes).
 //   3. If args is empty → throw CustomFunctionsException(format(0x42,
@@ -660,13 +663,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> /*res*/)
 {
-    // Phase 1: waitState_ protocol — @0x13775b..0x137777
-    if (waitState_ == 0) {
-        waitState_ = 1;
-    } else if (waitState_ != 1) {
-        throw CustomFunctionsException(
-            ErrorMessages::format(DioZsyncMixed));
-    }
+    // Phase 1: external triggering mode check — @0x13775b..0x137777
+    checkExternalTriggeringMode(ExternalTriggeringMode::Dio);
 
     // Phase 2: device-type support check — @0x137779..0x1377b1
     checkFunctionSupported("playWaveDIO", kDevHirzel);
@@ -701,7 +699,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
 // this wrapper is restricted to a single Const arg.
 //
 // Algorithm:
-//   1. waitState_ protocol: 0→2, 2→OK, otherwise throw error 0x4f.
+//   1. External triggering mode check: None→ZSync, ZSync→OK, otherwise throw error 0x4f.
 //      (Note: distinct from playWaveDIO's state value of 1; ZSync mode
 //      and DIO mode are mutually exclusive at this layer.)
 //   2. checkFunctionSupported("playWaveZSync", 0x1f2).
@@ -737,13 +735,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> res)
 {
-    // Phase 1: waitState_ protocol — @0x137aa6..0x137abf (state value = 2)
-    if (waitState_ == 0) {
-        waitState_ = 2;
-    } else if (waitState_ != 2) {
-        throw CustomFunctionsException(
-            ErrorMessages::format(DioZsyncMixed));
-    }
+    // Phase 1: external triggering mode check — @0x137aa6..0x137abf (ZSync)
+    checkExternalTriggeringMode(ExternalTriggeringMode::ZSync);
 
     // Phase 2: device-type support check — @0x137a95..0x137aa6
     checkFunctionSupported("playWaveZSync", kDevHirzel);
@@ -870,8 +863,14 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
         throw CustomFunctionsException(
             ErrorMessages::format(FormatFuncArgs, "randomSeed"));
     // Host-side only: seeds the TLS random object. No assembly emitted.
-    // Binary calls GlobalResources::random.seedRandom() — the TLS mt19937_64.
-    // seedRandom() is not yet exposed in our headers.
+    // Binary @0x14981a..149832: TLS init → get addr → Random::seedRandom()
+    // seedRandom @0x16be80 opens std::random_device("/dev/urandom") and
+    // uses it to seed the mt19937-64 state array.
+    {
+        auto* rng = reinterpret_cast<std::mt19937_64*>(GlobalResources::random);
+        std::random_device rd("/dev/urandom");                                 // @0x16bec1
+        rng->seed(rd());                                                       // @0x16bf08
+    }
     return std::make_shared<EvalResults>();
 }
 
@@ -883,8 +882,7 @@ std::shared_ptr<EvalResults> CustomFunctions::now(  // @0x14cbc0 (611B)
             ErrorMessages::format(FuncExpectsNoArgs, "now"));
     auto result = std::make_shared<EvalResults>();  // zero-init (no VarType ctor)
     AsmRegister reg(0);
-    auto asm_entry = asmCommands_->suser(reg, detail::AddressImpl<unsigned int>(0x1c));
-    result->assemblers_.push_back(std::move(asm_entry));
+    appendSuser(result->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserNow));
     return result;
 }
 
@@ -954,6 +952,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
         false /*isHold*/, false /*fourChannel*/, false /*isBool*/,
         rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
         reg0, length, regInv, 0 /*trigger*/);
+    // Link the node into results->node_ chain (binary 0x138a4b-0x138a86)
+    auto playNode = asmEntry.node;  // copy shared_ptr before move
+    if (!results->node_) {
+        results->node_ = playNode;
+    } else {
+        Node::last(results->node_)->next = playNode;
+    }
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
 }
@@ -987,6 +992,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playHold(                         
         true /*isHold*/, false /*fourChannel*/, false /*isBool*/,
         rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
         reg0, length, regInv, 0 /*trigger*/);
+    // Link the node into results->node_ chain
+    auto playNode = asmEntry.node;
+    if (!results->node_) {
+        results->node_ = playNode;
+    } else {
+        Node::last(results->node_)->next = playNode;
+    }
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
 }

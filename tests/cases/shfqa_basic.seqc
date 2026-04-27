@@ -1,0 +1,6 @@
+playZero(32);
+repeat(10) { playZero(32); }
+setTrigger(1);
+wait(100);
+setTrigger(0);
+playZero(64);

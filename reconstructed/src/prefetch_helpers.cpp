@@ -183,16 +183,13 @@ size_t Prefetch::getRequiredMemory() const // 0x1cc930
 // ============================================================================
 uint32_t Prefetch::getUsedChannels() const // 0x1df2f0
 {
-    auto* begin = reinterpret_cast<const char*>(/*usageEntries_.data()*/0);  // +0xE0
-    auto* end = reinterpret_cast<const char*>(/*usageEntries_.end()*/0);     // +0xE8
-
-    // Simplified scalar version of the SIMD loop:
+    // Binary iterates usageEntries_ (vector at +0xE0), each 0x20 bytes,
+    // ORing channelMask (PlayConfig+0x00) of each entry.
+    // SIMD-accelerated in binary; scalar equivalent here.
     uint32_t result = 0;
-    // Each UsageEntry is 0x20 bytes, channelMask at +0x08
-    // for (auto it = usageEntries_.begin(); it != usageEntries_.end(); ++it) {
-    //     result |= ~(it->channelMask);
-    // }
-    // The SIMD version processes 8 entries per iteration using SSE gather+XOR+OR
+    for (auto const& entry : usageEntries_) {
+        result |= static_cast<uint32_t>(entry.config.channelMask);
+    }
     return result;
 }
 
@@ -205,18 +202,13 @@ uint32_t Prefetch::getUsedChannels() const // 0x1df2f0
 // ============================================================================
 bool Prefetch::getUsedFourChannelMode() const // 0x1df400
 {
-    // usageEntries_ at +0xE0, each entry 0x20 bytes
-    // is4Channel at entry+0x0C (bool)
-    // for (auto& entry : usageEntries_) {
-    //     if (entry.is4Channel) return true;
-    // }
-    // return false;
-
-    // Disasm: simple loop checking +0x0C of each 0x20-byte element
-    // 0x1df420: cmpb $0x0, 0xc(%rcx) — check is4Channel
+    // Simple linear scan: return true if any entry has is4Channel set.
+    // 0x1df420: cmpb $0x0, 0xc(%rcx) — check is4Channel at PlayConfig+0x0C
     // 0x1df426: add $0x20, %rcx — advance to next entry
-    // 0x1df433: cmp %rax, %rcx; setne %al — return (found != end)
-    return false;  // placeholder — actual implementation is the loop above
+    for (auto const& entry : usageEntries_) {
+        if (entry.config.is4Channel) return true;
+    }
+    return false;
 }
 
 // ============================================================================
@@ -344,12 +336,12 @@ void Prefetch::expandSetVar(std::shared_ptr<Node> node) const // 0x1d3af0
         if (n->type == NodeType::SetVar) {
             // Get slot count from node->asmId (+0x14)
             int numSlots = n->asmId;
-            int numGroups = config_->numCores;  // +0x1C
+            int numGroups = config_->numChannelGroups;  // +0x1C
 
             // For each group beyond the first, clone the node
             for (int i = 1; i < numGroups; ++i) {
                 auto newNode = std::make_shared<Node>(
-                    NodeType::SetVar, numSlots, n->asmId);
+                    NodeType::SetVar, n->asmId, numSlots);
                 // Copy wave names and adjust for device index
                 // Insert after current node
             }
@@ -601,7 +593,9 @@ void Prefetch::determineFixedWaves() // 0x1cb200
 
         int devIdx = cur->deviceIndex;  // +0x40
 
-        // Get wave name at deviceIndex
+        // Get wave name at deviceIndex (binary checks devIdx >= 0 before access)
+        if (devIdx < 0)
+            continue;
         auto& waveName = cur->wavesPerDev[devIdx];  // +0x28
         if (!waveName.has_value())
             continue;
@@ -615,42 +609,17 @@ void Prefetch::determineFixedWaves() // 0x1cb200
             continue;
 
         // Check size constraints
-        uint32_t maxSize = devConst_->maxBlocks;  // +0x1C
-        // Actually: numWaveforms * something
-        uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74 (formerly sizeInBytes)
+        uint32_t maxAlloc = devConst_->maxBlocks * devConst_->waveformAlignment;  // @0x1cb5e3: imul edx, [rcx+0x14]
+        uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74
 
-        // Check if it fits
-        if (wfmSize > maxSize) {
-            continue;  // too large to be fixed
+        // @0x1cb5ea: if allocationByteSize >= maxAlloc → skip (don't fix)
+        if (wfmSize >= maxAlloc) {
+            firstIteration = false;
+            continue;
         }
 
-        // Walk parent chain checking Play ancestors
-        // (complex parent walk with size checking — approximate)
-        bool canFix = true;
-        auto parentWeak = cur->parent;
-        while (auto parentNode = parentWeak.lock()) {
-            if (parentNode->type == NodeType::Play) {
-                // Check parent's waveform size
-                auto pWfm = wavetableIR_->getWaveformByName(
-                    parentNode->wavesPerDev[devIdx]);
-                if (pWfm && pWfm->fixed_) {
-                    // Parent already fixed — check memory constraints
-                    int pLen = parentNode->length;  // +0x90
-                    int bitsPerSample = devConst_->bitsPerSample;
-                    int memLimit = devConst_->waveformMemSize;
-                    int sizeInSamples = (pLen * bitsPerSample + 7) / 8;
-                    if (sizeInSamples > memLimit) {
-                        canFix = false;
-                        break;
-                    }
-                }
-            }
-            parentWeak = parentNode->parent;
-        }
-
-        if (canFix) {
-            wfm->fixed_ = true;  // +0xD9
-        }
+        // @0x1cb63d..onwards: allocationByteSize < maxAlloc → mark as fixed
+        wfm->fixed_ = true;  // +0xD9
 
         firstIteration = false;
     }
@@ -671,7 +640,7 @@ void Prefetch::collectUsedWaves(std::shared_ptr<Node> node) // 0x1d31c0
     Node* n = node.get();
     if (!n) return;
 
-    uint32_t numGroups = config_->numCores;  // +0x1C
+    uint32_t numGroups = config_->numChannelGroups;  // +0x1C
 
     for (size_t i = 0; i < numGroups; ++i) {
         // Get wave name for this device index
@@ -720,6 +689,20 @@ Prefetch::getUsedWavesForDevice(size_t deviceIdx) const // 0x1d2d60
     }
 
     return result;
+}
+
+// ============================================================================
+// getUsedCache — 0x1c7eb0
+// Recursive: sums cache usage for the node and all its children.
+// TODO: Full reconstruction from binary needed; stub returns 0 for now.
+// ============================================================================
+int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
+    // STUB — needs full reconstruction from disassembly
+    // The real implementation recursively walks node->left_ (+0xB8),
+    // node->right_ (+0xE0), and node->children_ (+0xC8..+0xD0),
+    // summing cache memory via computeWaveformMemoryBytes for leaf waveforms.
+    (void)node;
+    return 0;
 }
 
 } // namespace zhinst

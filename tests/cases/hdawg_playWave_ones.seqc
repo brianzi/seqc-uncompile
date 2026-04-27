@@ -1,0 +1,2 @@
+wave w = ones(64);
+playWave(w);

@@ -131,13 +131,21 @@ enum class VariantSlot : int32_t {
 // ============================================================================
 // Value — ValueType tag + tagged union
 //
-// Layout (0x28 = 40 bytes):
+// Layout (libc++ binary):
 //   +0x00  [4 bytes]   ValueType type_   — outer tag (0..4)
 //   +0x04  [4 bytes]   (padding)
 //   +0x08  [4 bytes]   int32_t which_    — variant discriminator
 //   +0x0C  [4 bytes]   (padding)
 //   +0x10  [24 bytes]  union storage {int, bool, double, string}
-//   +0x28              END
+//   +0x28              END  (= 0x28 / 40 bytes on libc++)
+//
+// On libstdc++: std::string is 32 bytes (vs libc++ 24 bytes), so the
+// union storage grows to 32 bytes and sizeof(Value) = 48. Verified
+// against binary: Value::Value(string) @0x22c2b0 copies 24 bytes into
+// this+0x10 (libc++ SSO); Value::~Value @0x15a9c0 checks SSO flag at
+// this+0x10 bit 0, frees heap ptr at this+0x20. Both are libc++ ABI
+// patterns. Our libstdc++ build must use a real std::string member to
+// get correct construction/destruction semantics for 32-byte strings.
 //
 // CORRECTION 2026-04-23 (Phase 15a-i): Layout was previously listed as
 // 0x20 with which_ at +0x04 and storage at +0x08. Disasm evidence:
@@ -148,9 +156,12 @@ enum class VariantSlot : int32_t {
 // compiler putting which_ (int32) on an 8B boundary because the
 // storage union requires 8B alignment (contains double/pointer).
 //
-// Note: Original binary uses libc++ (24-byte std::string). On libstdc++
-// (32-byte std::string), the actual size will be larger. We use char[]
-// for the string storage to keep the layout stable.
+// CORRECTION 2026-04-26 (Phase 37b): Storage was char str_storage[24]
+// which caused heap corruption on libstdc++ (32-byte string placement-
+// new overflowed the 24-byte buffer). Changed to real std::string
+// member. sizeof(Value) is now ABI-dependent: 40 on libc++, 48 on
+// libstdc++. All field accesses use named members, no hardcoded
+// offsets, so the size difference is transparent.
 // ============================================================================
 class Value {
 public:
@@ -162,7 +173,8 @@ public:
         int32_t     i;              // which==0, type_==Int
         bool        b;              // which==1, type_==Bool
         double      d;              // which==2, type_==Double
-        char        str_storage[24]; // which>=3, type_==String (libc++ SSO)
+        std::string str;            // which>=3, type_==String
+                                    // (24 bytes on libc++, 32 on libstdc++)
 
         Storage() : i(0) {}
         ~Storage() {}
@@ -179,6 +191,13 @@ public:
     explicit Value(int32_t i) : type_(ValueType(1)), pad_04_{}, which_(0), pad_0C_{} { storage_.i = i; }
     explicit Value(bool b) : type_(ValueType(2)), pad_04_{}, which_(1), pad_0C_{} { storage_.b = b; }
 
+    // Copy/move — implicit in binary (char[24] union was trivially copyable).
+    // Explicit here because libstdc++ union has real std::string member.
+    Value(Value const& other);
+    Value(Value&& other) noexcept;
+    Value& operator=(Value const& other);
+    Value& operator=(Value&& other) noexcept;
+
     // --- Conversion methods ---
     double toDouble() const;       // 0x15a560
     int32_t toInt() const;         // 0x15c250
@@ -192,6 +211,9 @@ public:
     ~Value();  // 0x15a9c0
 };
 
-static_assert(sizeof(Value) == 40, "Value should be 40 bytes (0x28)");
+// sizeof(Value): 40 on libc++ (binary), 48 on libstdc++ (reconstruction).
+// Both are correct for their respective ABI — the difference is solely
+// from std::string size (24 vs 32 bytes).
+static_assert(sizeof(Value) >= 40, "Value must be at least 40 bytes");
 
 } // namespace zhinst

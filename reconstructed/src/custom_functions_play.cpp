@@ -9,7 +9,6 @@
 
 #include <boost/format.hpp>
 #include <boost/regex.hpp>
-
 #include "zhinst/custom_functions.hpp"
 #include "zhinst/asm_commands.hpp"
 #include "zhinst/awg_compiler_config.hpp"
@@ -35,6 +34,19 @@
 namespace zhinst {
 
 extern ErrorMessages errMsg;
+
+// Helpers: emit a suser instruction and append to a list.
+// Reduces the repeated 2-line pattern (suser + append) to a single call.
+namespace {
+inline void appendSuser(AsmList& list, std::shared_ptr<AsmCommands> const& cmds,
+                        AsmRegister reg, detail::AddressImpl<unsigned int> addr) {
+    list.append(cmds->suser(reg, addr));
+}
+inline void appendSuser(std::vector<AsmList::Asm>& vec, std::shared_ptr<AsmCommands> const& cmds,
+                        AsmRegister reg, detail::AddressImpl<unsigned int> addr) {
+    vec.push_back(cmds->suser(reg, addr));
+}
+} // anonymous namespace
 
 // floatEqual @0x2ec050 — exact bitwise double equality (defined in waveform_generator.cpp).
 bool floatEqual(double a, double b);
@@ -62,67 +74,51 @@ void CustomFunctions::setWaitCyclesReg(std::vector<EvalResultValue> const& args,
     bool supported = false;
     uint32_t shifted = devType - 2;
     if (shifted <= 0x3E) {
-        uint64_t mask = 0x4000000040004041ULL;
-        supported = (mask >> shifted) & 1;
+        // Bitmask encoding supported device types: HDAWG(2), UHFQA(4),
+        // SHFQA(8), SHFSG(16), SHFQC_SG(32), SHFLI(64) after subtracting 2
+        constexpr uint64_t kCheckPlaySupportedMask = 0x4000000040004041ULL;
+        supported = (kCheckPlaySupportedMask >> shifted) & 1;
     }
     if (!supported) {
-        if (devType == 0x100 || devType == 0x80)
+        if (devType == AwgDeviceType::VHFLI || devType == AwgDeviceType::GHFLI)
             supported = true;
     }
 
     if (supported) {
         // @0x15cad3: check args.size() == 2 (vector byte size == 0x70)
         // sizeof(EvalResultValue) == 0x38, so 0x70 / 0x38 == 2
-        if ((reinterpret_cast<char const*>(args.data() + args.size()) -
-             reinterpret_cast<char const*>(args.data())) != 0x70) {
+        if (args.size() != 2) {
             // size mismatch → skip to move-and-return @0x15cd58
         } else {
             // @0x15cae5: construct AsmRegister(-1) as default waitReg
             AsmRegister waitReg(-1);  // @0x15cae5
 
-            // @0x15caef: rdi = args[0] (first element)
-            // @0x15caf3: check args[0].asmRegType (at arg+0x38) == 2
-            auto const& firstArg = args[0];
-            int argType = *reinterpret_cast<int const*>(
-                reinterpret_cast<char const*>(&firstArg) + 0x38);
+            // Binary reads from args.data()+0x38 = args[1] (second element).
+            // +0x38 = args[1].varType_, +0x68 = args[1].reg_, +0x40 = args[1].value_
+            auto const& arg1 = args[1];
 
-            if (argType == 2) {
-                // @0x15caf9: rdx = [arg+0x68] → use existing register directly
-                // The AsmRegister value is stored at arg+0x68 within the EvalResultValue
-                waitReg = *reinterpret_cast<AsmRegister const*>(
-                    reinterpret_cast<char const*>(&firstArg) + 0x68);  // @0x15cafd
+            if (arg1.varType_ == VarType_Var) {                     // @0x15caf3: cmp [base+0x38], 2
+                // @0x15caf9: use existing register directly
+                waitReg = arg1.reg_;                                 // @0x15cafd: [base+0x68]
             } else {
-                // @0x15cb19: arg+0x40 → call Value::toInt()
-                int immVal = *reinterpret_cast<int const*>(
-                    reinterpret_cast<char const*>(&firstArg) + 0x40);  // simplified; real calls Value::toInt @0x15c250
+                // @0x15cb19: convert value to int
+                int immVal = arg1.value_.toInt();                    // @0x15c250
 
-                // @0x15cb25: call Resources::getRegisterNumber()
-                // (This allocates a fresh register from the resource pool)
-                // int regNum = res->getRegisterNumber();  // @0x1e4bb0
-                AsmRegister newReg(0);  // placeholder for getRegisterNumber() result
+                // @0x15cb25: allocate a fresh register
+                int regNum = Resources::getRegisterNumber();         // @0x1e4bb0
+                AsmRegister newReg(regNum);
                 waitReg = newReg;
 
-                // @0x15cb46: r12 = res.get() (from shared_ptr [rbx])
-                // @0x15cb4a: r14 = asmCommands_.get() (from [this+0x50])
-                // @0x15cb50: construct AsmRegister(0) as source reg
-                // @0x15cb5c: construct Immediate(immVal)
-                // @0x15cb76: call AsmCommands::addi(asmCommands_, waitReg, AsmRegister(0), Immediate(immVal))
-                // asmCommands_->addi(waitReg, AsmRegister(0), Immediate(immVal));  // @0x273d60
-
-                // @0x15cbad: insert resulting asm instructions into res->asmList
-                // (calls vector::insert_with_size @0x1266d0)
-
-                // @0x15cc51..15cc70: release register if not -1
-                // (calls vtable dispatch on function pointer table at 0xb03dc0)
+                // @0x15cb76: emit addi(waitReg, AsmRegister(0), Immediate(immVal))
+                auto addiAsms = asmCommands_->addi(waitReg, AsmRegister(0), Immediate(immVal));
+                results->assemblers_.insert(
+                    results->assemblers_.end(),
+                    addiAsms.begin(), addiAsms.end());               // @0x15cbad
             }
 
-            // @0x15cc7b: r14 = res.get()
-            // @0x15cc82: rsi = asmCommands_.get()
-            // @0x15cc89: ecx = 0x6F (address constant for SUSER instruction)
-            // @0x15cc8e: call AsmCommands::suser(asmCommands_, waitReg, Address(0x6F))
-            // asmCommands_->suser(waitReg, Address(0x6F));  // @0x274bc0
-
-            // @0x15cc93..15cd48: append resulting asm to res->asmList, release temporaries
+            // @0x15cc89: emit suser(waitReg, Address(kSuserWaitLegacy))
+            appendSuser(results->assemblers_, asmCommands_, waitReg,
+                        detail::AddressImpl<unsigned int>(kSuserWaitLegacy));  // 0x6F @0x15cc8e
         }
     }
 
@@ -239,6 +235,14 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
             0);
     }
 
+    // Capture waveform count BEFORE Phase 3 appends the trailing length
+    // Value.  The binary's Phase 4 uses a stale r12 (values.begin() from
+    // Phase 1) that was never refreshed after Phase 3's push_back, so
+    // the size computation effectively returns the pre-append count.
+    // GDB-verified at 0x15e311-0x15e326: rbx-r12 uses old r12, giving
+    // count = number of waveform Values only, excluding the trailing Int.
+    const size_t waveformCount = values.size();          // pre-Phase-3 count
+
     // ----------------------------------------------------------------
     // Phase 3 — Append length Value.                      @0x15e245..0x15e2df
     //
@@ -267,7 +271,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     //                           waveform's own name. (@0x15e39b..0x15e3b6)
     // ----------------------------------------------------------------
     std::string funDescr;
-    bool multiValue = (values.size() >= 2);             // @0x15e326 cmp ..,0x2
+    bool multiValue = (waveformCount >= 2);              // @0x15e326 cmp ..,0x2 (uses pre-append count)
 
     if (multiValue) {
         // @0x15e32c..0x15e372: in-place build "playWave\0" then
@@ -289,14 +293,16 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     // pre-set to 1 at @0x15e3e0) and calls
     //   wavetableFront_->getWaveformByName(optName)
     //
-    // This is ONLY emitted on the multi-value/funDescr-built path; the
-    // single-value path (count<2) jumps straight to Phase 6.
+    // GDB-verified: Phase 5 is UNCONDITIONAL — runs for both single and
+    // multi-value paths. The binary does NOT gate this on multiValue.
+    // When the waveform already exists (e.g. from `wave w = zeros(64)`),
+    // the name lookup succeeds and Phase 6 is skipped entirely.
     //
     // If the name lookup returns a non-null shared_ptr, the function
     // skips Phase 6 entirely and proceeds to Phase 7 (channel check)
     // with that result. (@0x15e4aa: cmp [r15],0; je 15e956)
     // ----------------------------------------------------------------
-    if (multiValue) {                                   // @0x15e3e0 first multi-only block
+    {
         std::optional<std::string> optName(funDescr);   // tag set to engaged @0x15e3e0
         result = wavetableFront_->getWaveformByName(optName);  // @0x15e3f8
         // result == null → fall through to Phase 6.
@@ -355,51 +361,50 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     //      Re-investigation of [rbp-0x48] origin is tracked as 21a-followup.
     // ----------------------------------------------------------------
     if (!result) {                                       // @0x15e4aa cmp [r15],0
-        if (useFunDescrPath) {
-            // Sub-path A: explicit fun-descr lookup, then explicit
-            // newWaveform if not present.
-            std::string funDescr2 = useYSuffix ? "playWaveY" : "playWave";  // @0x15e4bd
+        // @0x15e4d3: if !multiValue → jump directly to grow path @0x15e84b,
+        // REGARDLESS of useFunDescrPath.  The binary's control flow is:
+        //   0x15e4aa  test result
+        //   0x15e4d3  cmp multiValue → je 0x15e84b (grow, single-value)
+        //   0x15e4xx  test useFunDescrPath → dispatch Sub-path A vs B
+        // So the multiValue check is BEFORE the useFunDescrPath check.
+        if (!multiValue) {
+            // Single-value: unconditionally GROW via getOrCreateWaveform.     // @0x15e84b
+            std::function<Signal(std::vector<Value> const&)> factory =
+                [this](std::vector<Value> const& a) {
+                    return waveformGen_->grow(a);
+                };
+            result = waveformGen_->getOrCreateWaveform(funDescr, values,
+                                                       std::move(factory));
+        } else if (useFunDescrPath) {
+            // Sub-path A (multi-value only): explicit fun-descr lookup,
+            // then explicit newWaveform if not present.
+            std::string funDescr2 = "playWave";                                  // @0x15e4bd (SSO inline)
 
             result = wavetableFront_->getWaveformByFunDescr(funDescr2, values);  // @0x15e4f1
 
             if (!result) {
-                if (multiValue) {
-                    // @0x15e570..0x15e5a2
-                    Signal sig = waveformGen_->grow(values);
-                    result = wavetableFront_->newWaveform(sig, funDescr2, values);
-                } else {
-                    // @0x15e66e..0x15e69e
-                    Signal sig = waveformGen_->merge(values);
-                    result = wavetableFront_->newWaveform(sig, funDescr2, values);
-                }
+                // @0x15e570..0x15e5a2
+                Signal sig = waveformGen_->grow(values);
+                result = wavetableFront_->newWaveform(sig, funDescr2, values);
             }
         } else {
-            // Sub-path B: getOrCreateWaveform with bound member-fn factory.
+            // Sub-path B (multi-value only): dispatch on useYSuffix.  @0x15e774
             //
-            // The std::function is a bind of a WaveformGenerator member
-            // function. We approximate with a lambda. The exact target
-            // depends on (multiValue, useYSuffix) — see mergeWaveforms
-            // factory selection note in notes/struct_layouts.md.
+            // @0x15e774: test bl,bl (bl = useYSuffix from -0xec(%rbp))
+            //   bl != 0 → interleave factory @0x15e778
+            //   bl == 0 → merge factory      @0x15e7c7
             std::function<Signal(std::vector<Value> const&)> factory;
-            if (multiValue) {
-                if (useYSuffix) {
-                    // @0x15e778..0x15e7c5: interleave
-                    factory = [this](std::vector<Value> const& a) {
-                        return waveformGen_->interleave(a);
-                    };
-                } else {
-                    // @0x15e7c7..0x15e80f: merge
-                    factory = [this](std::vector<Value> const& a) {
-                        return waveformGen_->merge(a);
-                    };
-                }
-            } else {
-                // @0x15e84b..0x15e894: grow
+            if (useYSuffix) {
+                // @0x15e778..0x15e7c5: interleave
                 factory = [this](std::vector<Value> const& a) {
-                    return waveformGen_->grow(a);
+                    return waveformGen_->interleave(a);
+                };
+            } else {
+                // @0x15e7c7..0x15e80f: merge
+                factory = [this](std::vector<Value> const& a) {
+                    return waveformGen_->merge(a);
                 };
             }
-
             result = waveformGen_->getOrCreateWaveform(funDescr, values,
                                                        std::move(factory));
         }
@@ -526,16 +531,20 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
 
         std::vector<EvalResultValue> channelArgs;
         for (auto& wa : assignments) {                               // stride 0x50  @0x15f7ac
-            if (wa.value.varType_ == 4 && ch == channelIndex) {
-                // Marker processing: extract name, clear mask bits    @0x15f8ac
+            if (wa.value.varType_ != 4) {                              // @0x15f7b4
+                channelArgs.push_back(wa.value);
+            }
+            if (ch == channelIndex) {                                  // @0x15f889
+                // Mask-clearing: extract name, clear bits             // @0x15f8ac
                 std::string name = wa.value.value_.toString();
                 if (!name.empty()) {
-                    // NOTE: SIMD mask-clearing loop @0x15f949.
-                    // Binary uses vectorized bit-clearing based on marker
-                    // name.  Approximated by skipping the mask clear.
+                    // SIMD-accelerated in binary @0x15f949; semantically
+                    // identical to scalar bit-clearing per wa.bits entry.
+                    int shift = ch * 7;                                // @0x15fa10
+                    for (int b : wa.bits) {
+                        mask &= ~(1 << ((b - 1) + shift));            // @0x15fa2c
+                    }
                 }
-            } else {
-                channelArgs.push_back(wa.value);
             }
         }
 
@@ -584,12 +593,29 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     }
 
     // === Step 8: Assembly generation ===                           @0x15fd0f
-    if (subFunc != SubFunc::Default) {  // not prefetch-only
-        if (combinedWf) {
-            // @0x15fd35
+    // Binary: test %ebx,%ebx; je — skips asmPlay only when SubFunc==0
+    // (no current caller passes 0; all named SubFunc values 1-4 take asmPlay path)
+    if (static_cast<int>(subFunc) != 0) {  // not prefetch-only
+        // Binary at 0x15fd21: cmpb $0x0, [config_+0x18] — isHirzel check.
+        // Hirzel: always proceeds (even if combinedWf is null).
+        // Non-Hirzel (Cervino): proceeds only if combinedWf is non-null.
+        if (config_->isHirzel || combinedWf) {
+            // @0x15fd35: copy channelWaveforms vector
             auto wfCopy = channelWaveforms;                          // @0x15fd57
-            asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,
-                                      static_cast<int>(maxSampleLen));  // @0x15fe58
+
+            // For Hirzel, channelIndex comes from config_->deviceIndex when
+            // the channelWaveforms vector is empty.                 @0x160194
+            int playDeviceIndex = channelIndex;
+            if (config_->isHirzel && channelWaveforms.empty()) {
+                playDeviceIndex = config_->deviceIndex;
+            }
+
+            // Non-Hirzel only: emit asmPrefetch before asmPlay     @0x15fe58
+            // (Hirzel skips this — the Prefetch pass generates prf from Play node)
+            if (!config_->isHirzel && combinedWf) {
+                asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,
+                                          static_cast<int>(maxSampleLen));
+            }
 
             // Build waveform name optionals for asmPlay
             // @0x15fe8c..0x16019f
@@ -597,18 +623,27 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
             AsmRegister regInv(-1);                                  // @0x1601ad
 
             auto asmEntry = asmCommands_->asmPlay(
-                std::move(wfCopy), channelIndex,
-                (mask & 1) != 0,
+                std::move(wfCopy), playDeviceIndex,
+                false,                                               // isHold: false for normal play
                 subFunc == SubFunc::Now,
-                false, rate, 0, false,
+                false, rate, static_cast<unsigned int>(mask),
+                false,
                 reg0, playLength, regInv,
-                static_cast<unsigned int>(maxSampleLen));            // @0x160209
+                0u);                                                 // @0x160209
 
-            // @0x160284: store into results
-            results->assemblers_.push_back(std::move(asmEntry));
+            // @0x160335: push into results->assemblers_
+            results->assemblers_.push_back(asmEntry);
+
+            // @0x160438: store play node into results->node_, chaining
+            // to any existing node via ->next                       @0x160468
+            if (results->node_) {
+                results->node_->next = asmEntry.node;
+            } else {
+                results->node_ = asmEntry.node;
+            }
         }
     } else {
-        // Prefetch-only path
+        // Prefetch-only path (SubFunc==0, no current caller uses this)
         if (combinedWf) {
             asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,
                                       static_cast<int>(maxSampleLen));
@@ -709,20 +744,34 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             ErrorMessages::format(SampleRateTooHigh, cmdName));  // @0x162797
     }
 
+    // === Phase 4b: Validate arg types ===                           @0x1610fb..0x161190
+    // Binary @0x1610fb: args[0].varType_ must pass bt $0x54 (bits 2,4,6 set).
+    // Accepts VarType values {2=Var, 4=Const, 6=Cvar}. Error 0x98 on mismatch.
+    {
+        int vt0 = static_cast<int>(parseEnd[0].varType_);
+        if (vt0 > 6 || !((0x54 >> vt0) & 1)) {
+            throw CustomFunctionsException(
+                ErrorMessages::format(ExpectsOffsetAndLength, cmdName));  // 0x98 @0x162976
+        }
+    }
+    // Binary @0x161145: args[1].varType_ must pass the same bt $0x54 test.
+    {
+        int vt1 = static_cast<int>(parseEnd[1].varType_);
+        if (vt1 > 6 || !((0x54 >> vt1) & 1)) {
+            throw CustomFunctionsException(
+                ErrorMessages::format(ExpectsOffsetAndLength, cmdName));  // 0x98 @0x16299d
+        }
+    }
+
     // === Phase 5: EvalResults + extract waveIndex ===               @0x1611d6..0x161228
-    // Binary type-check on the rate slot: `[rbp-0x320] & 0xfffffffd
-    // == 0x4` → varType ∈ {4 (Const), 6 (Cvar)}. Else error 0x?? @0x1627c5.
-    // (This is on parseOptionalRate's *rate* slot, not the wave-index
-    // slot — used to reject `var rate = ...` paths that the binary
-    // path can't synthesize at compile time.)
-    // NOTE(21b-followup-3): [rbp-0x320] maps to the rate slot in the
-    //       parseOptionalRate output; folded into rate validation below.
+    // Binary type-check on the rate slot: varType ∈ {4 (Const), 6 (Cvar)}.
+    // Else error 0x9a @0x1627c5.
     {
         VarType rateType = parseEnd->varType_;
         // (varType & ~2) == 4   matches {4,6}
         if ((static_cast<int>(rateType) & 0xfffffffd) != 0x4) {
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst, cmdName));  // @0x1627c5
+                ErrorMessages::format(ExpectsSamplesConst, cmdName));  // 0x9a @0x1627c5
         }
     }
 
@@ -764,8 +813,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // a `vector<vector<PlayArgs::WaveAssignment>>` (confirmed by the
     // destructor symbol at @0x162661). The outer vector lives in a
     // stack local at `[rbp-0x440]` and is populated as a side effect
-    // somewhere upstream (origin not yet fully traced — see
-    // 21b-followup-3 in TODO.md). It mirrors `playArgs.waveAssignments_`.
+    // somewhere upstream. Resolved: `[rbp-0x440]` IS `playArgs.waveAssignments_`
+    // at PlayArgs+0x60 (0x4a0 - 0x60 = 0x440, direct member offset).
     //
     // Then @0x161272-0x16127b: `AsmRegister regZero(0)` — constructs
     // the constant-0 register that will be the addend in the addi
@@ -811,36 +860,46 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     } else {
         // === Phase 7 (non-Aux): per-channel arg-gather loop ===    @0x161410..0x1615f0
         //
-        // Outer loop iterates positional wave-arg vector at [rbx],
-        // stride 0x50 (16-byte WaveAssignment? — actually 0x50 stride
-        // observed @0x161439 `lea rbx,[r14+r14*4]; shl rbx,0x4` = *80
-        // and `cmp [rsi+rbx],0x4` checking varType ∈ Const family).
+        // Outer loop iterates waveAssignments_[deviceIndex] with
+        // stride 0x50 (sizeof(WaveAssignment) = 80).
+        // @0x161439: `lea rbx,[r14+r14*4]; shl rbx,0x4` = index*80
+        //            `cmp [rsi+rbx],0x4` checks varType.
         //
         // For each entry whose varType != 4:
-        //     channelArgs.push_back(*entry);
+        //     channelArgs.push_back(wa.value);
         //
-        // After push, computes a Value::toString() name for each entry
+        // After push, computes Value::toString() name for each entry
         // (used downstream to dedupe/coalesce; result used at @0x16146b
         //  to populate something at [rbp-0x1f0..0x200]).
         //
-        // The SSE block @0x161523..0x16159d implements a vectorized
-        //   for (i in chunks of 8) {
-        //       triggerMask &= ~((1 << ((bits[i]-1) << 0x17 + ...)) << shift)
-        //   }
-        // i.e. clears one bit per consumed channel-arg in the 14-bit
-        // mask. The scalar tail @0x1615d0..0x1615f0 implements:
-        //   for (b in WaveAssignment::bits) {
-        //       triggerMask &= ~( (1 << (b-1)) << channelShift );
-        //   }
-        // where channelShift is `eax` (carried from the rate-slot
-        // value, holding the per-channel offset in the trigger word).
-        //
-        // TODO: full reconstruction of the arg-gather loop requires
-        //       the per-channel WaveAssignment accessor (see Phase 6
-        //       TODO) plus the WaveAssignment::bits vector iterator.
-        //       Stubbed with the initial mask value to keep types
-        //       sane downstream.
-        triggerMask = 0x3fff;                                        // @0x161405
+        // Inner loop over wa.bits clears corresponding trigger mask bits.
+        // SSE-vectorized path @0x161523..0x16159d processes 8 bits at a
+        // time; scalar tail @0x1615d0..0x1615f0 handles remainder.
+        // Formula: triggerMask &= ~((1 << (b-1)) << shift)
+        // where shift = assignmentIndex * 7 (7-bit slot per assignment).
+
+        auto const& assignments = playArgs.waveAssignments_[deviceIndex];
+        for (size_t i = 0; i < assignments.size(); ++i) {           // @0x161410
+            auto const& wa = assignments[i];
+
+            if (wa.value.varType_ != 4) {                           // @0x161439: cmp [rsi+rbx],0x4
+                channelArgs.push_back(wa.value);                    // @0x161450
+            }
+
+            // Value::toString() for downstream waveform name lookup // @0x16146b
+            std::string waveName = wa.value.value_.toString();
+            if (waveName.empty()) continue;
+
+            // Inner loop: clear mask bits per wa.bits                // @0x1615d0..0x1615f0
+            auto const& bits = wa.bits;
+            if (bits.empty()) continue;
+
+            int shift = static_cast<int>(i) * 7;                   // lea eax,[r14*8]; sub eax,r14d → i*7
+            for (auto it = bits.begin(); it != bits.end(); ++it) {  // @0x161523 (SIMD) / @0x1615d0 (scalar)
+                int bit = *it;
+                triggerMask &= ~(1 << ((bit - 1) + shift));
+            }
+        }
     }
 
     // ================================================================
@@ -1098,9 +1157,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //
     // The exception path tail @0x162735..0x162cf5 contains:
     //   * 0x3d: "wrong number of arguments" formatter @0x16283a       (cmdName, expected, got)
-    //   * 0x98: invalid first-arg type formatter @0x162890            (cmdName)
+    //   * 0x98: invalid arg type (first/second) @0x162976,0x16299d    (cmdName) — Phase 4b
     //   * 0xa0: rate-too-low formatter @0x1628e6                      (cmdName) — Phase 4
-    //   * 0x9a: invalid wave-index type formatter @0x16293c           (cmdName)
+    //   * 0x9a: rate type must be const @0x16293c                     (cmdName) — Phase 5
     //   * std::__throw_bad_function_call @0x162971
     //   * std::vector::__throw_length_error path @0x162aa3
     //   * Two more CustomFunctionsException ctor sites (longest-form
@@ -1118,7 +1177,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
 // oscillator against the runtime configuration, and emits AsmCommands::suser
 // / AsmCommands::addi instructions into the result's assemblers_ list.
 //
-// Reconstruction sub-phases (see TODO.md "Phase 21b"):
+// Reconstruction sub-phases (Phase 21b):
 //   21b.1 (this commit) — function skeleton, regex statics, setup, Block A
 //                         (absDevRegex), trailing lookupNode() call.
 //   21b.2 — Blocks B (awgNodeRegex) + C (sineNodeRegex).
@@ -1375,7 +1434,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     //      results->assemblers_.
     //
     // 21b.3-fix implements the corrected 3-way structure. Per-case
-    // asm-emission bodies remain TODO 21b.4 (see markers).
+    // asm-emission bodies remain incomplete in Block D part 2 (see markers).
     //
     // Cumulative asm-emit call counts in Block D: 53 suser, 44 addi,
     // 25 AsmList::append, 48 AsmRegister ctor, 44 Immediate ctor,
@@ -1399,8 +1458,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // @0x164c0e..164c1f: addNodeAccess(node, accessMode).
         // accessMode is the byte at NodeMapItem+0x10, which we currently
         // model as `hasFast`. See 21b.5 notes in the block comment above.
-        AccessMode accessMode = static_cast<AccessMode>(
-            *reinterpret_cast<bool const*>(&node.hasFast));
+        AccessMode accessMode = static_cast<AccessMode>(node.hasFast);
         addNodeAccess(node, accessMode);
 
         // @0x164c24: getRegisterNumber() → AsmRegister(reg)
@@ -1514,18 +1572,11 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 vec.begin(), vec.end());
                         }
-                        {   // suser(destReg, 0x17)                   // @0x165c7b
-                            AsmList::Asm a = asmCommands_->suser(
-                                destReg,
-                                detail::AddressImpl<uint32_t>(0x17u));
-                            localList.append(a);
-                        }
+                        // suser(destReg, 0x17)                   // @0x165c7b
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     } else {
                         // fast-arm: varType==2 (register).
-                        AsmList::Asm a = asmCommands_->suser(          // @0x164c8a
-                            valRef.reg_,
-                            detail::AddressImpl<uint32_t>(0x17u));
-                        localList.append(a);
+                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeDirect));  // @0x164c8a
                     }
                     break;
                 }
@@ -1557,12 +1608,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                                 vec.begin(), vec.end());
                         }
                         // suser(destReg, 0x17)                       // @0x165f1a
-                        {
-                            AsmList::Asm a = asmCommands_->suser(
-                                destReg,
-                                detail::AddressImpl<uint32_t>(0x17u));
-                            localList.append(a);
-                        }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                         // addi(destReg, R0, Immediate(high32))       // @0x165f7d
                         {
                             auto vec = asmCommands_->addi(
@@ -1571,26 +1617,13 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                                 vec.begin(), vec.end());
                         }
                         // suser(destReg, 0x19)                       // @0x165fe5
-                        {
-                            AsmList::Asm a = asmCommands_->suser(
-                                destReg,
-                                detail::AddressImpl<uint32_t>(0x19u));
-                            localList.append(a);
-                        }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirectB));
                     } else {
                         // fast-arm: varType==2 (register).
-                        {   // suser(val.reg_, 0x17)                   // @0x16526e
-                            AsmList::Asm a = asmCommands_->suser(
-                                valRef.reg_,
-                                detail::AddressImpl<uint32_t>(0x17u));
-                            localList.append(a);
-                        }
-                        {   // suser(R0, 0x19)                         // @0x1652a4
-                            AsmList::Asm a = asmCommands_->suser(
-                                AsmRegister(0),
-                                detail::AddressImpl<uint32_t>(0x19u));
-                            localList.append(a);
-                        }
+                        // suser(val.reg_, 0x17)                   // @0x16526e
+                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
+                        // suser(R0, 0x19)                         // @0x1652a4
+                        appendSuser(localList, asmCommands_, AsmRegister(0), detail::AddressImpl<uint32_t>(kSuserNodeDirectB));
                     }
                     break;
                 }
@@ -1613,12 +1646,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.insert(localList.entries.end(),
                             vec.begin(), vec.end());
                     }
-                    {   // suser(destReg, 0x17)                    // @0x1672f5
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x17u));
-                        localList.append(a);
-                    }
+                    // suser(destReg, 0x17)                    // @0x1672f5
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
                 case 3: {
@@ -1640,12 +1669,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.insert(localList.entries.end(),
                             vec.begin(), vec.end());
                     }
-                    {   // suser(destReg, 0x17)                    // @0x167509
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x17u));
-                        localList.append(a);
-                    }
+                    // suser(destReg, 0x17)                    // @0x167509
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
                 case 4: {
@@ -1667,12 +1692,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.insert(localList.entries.end(),
                             vec.begin(), vec.end());
                     }
-                    {   // suser(destReg, 0x17)                    // @0x16793e
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x17u));
-                        localList.append(a);
-                    }
+                    // suser(destReg, 0x17)                    // @0x16793e
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
                 case 5: {
@@ -1693,12 +1714,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.insert(localList.entries.end(),
                             vec.begin(), vec.end());
                     }
-                    {   // suser(destReg, 0x17)                    // @0x16772a
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x17u));
-                        localList.append(a);
-                    }
+                    // suser(destReg, 0x17)                    // @0x16772a
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
             }
@@ -1719,12 +1736,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x1685d5: suser(destReg, 0x16) — commit
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x16u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
                     break;
                 }
                 case 1: {
@@ -1744,19 +1756,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x1661ac: suser(destReg, 0x10) — user-store low
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x10u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                     // @0x16867e: suser(destReg, 0x11) — metadata component 1
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x11u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                     // @0x168740..1687a0: toDouble→getSampleClock→toFrequency→addi(freq)
                     {
                         double freqD = valRef.value_.toDouble();          // @0x168747
@@ -1769,12 +1771,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x1688b6: suser(destReg, 0x11) — metadata component 2
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x11u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                     // @0x168978..1689c8: toDouble→cvtsd2ss→toPhase→addi(phase)
                     {
                         double phaseD = valRef.value_.toDouble();         // @0x168978
@@ -1786,12 +1783,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x168aea: suser(destReg, 0x16) — commit
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x16u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
                     break;
                 }
                 case 2:
@@ -1811,12 +1803,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x168b8e: suser(destReg, 0x19) — direct-write secondary
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x19u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirectB));
                     break;
                 }
                 case 4: {
@@ -1833,12 +1820,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x168e4e: suser(destReg, 0x19) — direct-write secondary
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x19u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirectB));
                     // @0x168f47: addi(destReg, R0, Imm(addr))
                     {
                         auto vec = asmCommands_->addi(
@@ -1847,12 +1829,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x169251: suser(destReg, 0x18) — frequency commit
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x18u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeFreqCommit));
                     break;
                 }
                 case 5: {
@@ -1864,12 +1841,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             vec.begin(), vec.end());
                     }
                     // @0x168daa: suser(destReg, 0x16) — commit
-                    {
-                        AsmList::Asm a = asmCommands_->suser(
-                            destReg,
-                            detail::AddressImpl<uint32_t>(0x16u));
-                        localList.append(a);
-                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
                     break;
                 }
             }
@@ -1907,16 +1879,14 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {   // addi(destReg, R0, Immediate(addr))     // @0x16620f
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(static_cast<int>(addr)));
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                         // Convert value to float bits                // @0x16629f
                         {
                             double d = valRef.value_.toDouble();
@@ -1928,8 +1898,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                         // Second value: the `type` argument (3rd param)     // @0x16636b
                         // [rbp-0x1a8] = &type; +0x08 = type.value_
                         {
@@ -1963,18 +1932,15 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(static_cast<int>(addr)));
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
-                        { AsmList::Asm a = asmCommands_->suser(valRef.reg_,
-                            detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
+                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                         // Triplet B
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
@@ -1982,18 +1948,15 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(static_cast<int>(addr)));
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
-                        { AsmList::Asm a = asmCommands_->suser(valRef.reg_,
-                            detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
+                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                     }
                     break;
                 }
@@ -2009,16 +1972,14 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {   // addi(destReg, R0, Immediate(addr))     // @0x16663f
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(static_cast<int>(addr)));
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                         // Convert value to raw double bits            // @0x1666cf
                         double d = valRef.value_.toDouble();
                         int64_t rawBits;
@@ -2032,8 +1993,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                         // high32 → addi + suser(0x13)                // @0x1667d0
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
@@ -2041,8 +2001,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x13u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValueHi));
                         // Second value: floatEqual check + float conv // @0x16687f
                         {
                             double d2 = valRef.value_.toDouble();
@@ -2070,18 +2029,15 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(static_cast<int>(addr)));
                             localList.entries.insert(localList.entries.end(),
                                 v.begin(), v.end());
                         }
-                        { AsmList::Asm a = asmCommands_->suser(destReg,
-                            detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
-                        { AsmList::Asm a = asmCommands_->suser(valRef.reg_,
-                            detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
+                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                     }
                     break;
                 }
@@ -2102,18 +2058,15 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.insert(localList.entries.end(),
                             v.begin(), v.end());
                     }
-                    { AsmList::Asm a = asmCommands_->suser(destReg,
-                        detail::AddressImpl<uint32_t>(0x10u)); localList.append(a); }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                     {
                         auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                     Immediate(static_cast<int>(addr)));
                         localList.entries.insert(localList.entries.end(),
                             v.begin(), v.end());
                     }
-                    { AsmList::Asm a = asmCommands_->suser(destReg,
-                        detail::AddressImpl<uint32_t>(0x11u)); localList.append(a); }
-                    { AsmList::Asm a = asmCommands_->suser(valRef.reg_,
-                        detail::AddressImpl<uint32_t>(0x12u)); localList.append(a); }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
+                    appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                     break;
                 }
                 case 5: {
@@ -2138,12 +2091,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             if (node.typeIdx == 0 || node.typeIdx == 1 || node.typeIdx == 5) {
                 // suser(destReg, 0x10) → append to localList.
                 // @0x166a86 (case 0), @0x166ca6 (case 1), etc.
-                {
-                    AsmList::Asm a = asmCommands_->suser(
-                        destReg,
-                        detail::AddressImpl<uint32_t>(0x10u));
-                    localList.append(a);
-                }
+                appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                 // addi(destReg, R0, Immediate(addr)) → insert.
                 // @0x166b54 (case 0), @0x166d74 (case 1), etc.
                 {
@@ -2195,8 +2143,10 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
 // In both cases, appends the asm entry to results->assemblers_.
 void CustomFunctions::addSyncCommand(std::shared_ptr<EvalResults> results,
                                       std::shared_ptr<Resources> res) {  // @0x16bb30
-    // @0x16bb5e: eax = results->values_[0].value_.toInt() — device type
-    int deviceType = results->values_[0].value_.toInt();
+    // @0x16bb4d-16bb52: eax = *(int32_t*)results->values_.data() = values_[0].varType_
+    // Binary dereferences values_ vector start pointer, reads first dword = varType_ field.
+    // Compares with 2 (HDAWG) and 1 (UHFLI) to select Hirzel vs Cervino asm path.
+    int deviceType = static_cast<int>(results->values_[0].varType_);
 
     if (deviceType == HDAWG) {
         // Hirzel path @0x16bb74
@@ -2319,10 +2269,8 @@ void CustomFunctions::addWaitCycles(int cycles,
 
     // @0x16da30: call AsmCommands::suser(reg, Address(0x69)) @0x277350
     // Address 0x69 is the wait-cycles user register address
-    auto suserEntry = asmCommands_->suser(reg, detail::AddressImpl<unsigned int>(0x69));
-
     // @0x16daa0: push_back into results->assemblers_
-    results->assemblers_.push_back(std::move(suserEntry));  // @0x16dae0
+    appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserWaitCycles));  // @0x16dae0
     // @0x16db00..0x16db36: cleanup, move res shared_ptr
 }
 
@@ -2353,9 +2301,8 @@ void CustomFunctions::writeLS64bit(unsigned long value, int reg1, int reg2,
     }
 
     // @0x16dd20: suser(reg, Address(reg1))
-    auto suserLow = asmCommands_->suser(reg, detail::AddressImpl<unsigned int>(
-        static_cast<unsigned int>(reg1)));
-    results->assemblers_.push_back(std::move(suserLow));  // @0x16dd90
+    appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(
+        static_cast<unsigned int>(reg1)));  // @0x16dd90
 
     // --- High 32 bits ---
     // @0x16dde0: addi(reg, AsmRegister(0), Immediate(value >> 32))
@@ -2368,9 +2315,8 @@ void CustomFunctions::writeLS64bit(unsigned long value, int reg1, int reg2,
     }
 
     // @0x16ded0: suser(reg, Address(reg2))
-    auto suserHigh = asmCommands_->suser(reg, detail::AddressImpl<unsigned int>(
-        static_cast<unsigned int>(reg2)));
-    results->assemblers_.push_back(std::move(suserHigh));  // @0x16df40
+    appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(
+        static_cast<unsigned int>(reg2)));  // @0x16df40
     // @0x16df80..0x16e04f: cleanup, move res shared_ptr
 }
 
@@ -2413,10 +2359,17 @@ std::shared_ptr<EvalResults> CustomFunctions::generateWaveform(
     // @0x15ab70: AsmRegister(-1) placeholder
     // @0x15ab7d: call vector::insert at position 0 (prepend the name value)
 
-    // Simplified: prepend a string-typed EvalResultValue with `name`
-    // EvalResultValue nameVal;
-    // nameVal.setString(name);
-    // newArgs.insert(newArgs.begin(), std::move(nameVal));
+    // Prepend a string-typed EvalResultValue with `name`                @0x15aaa3-0x15ab7d
+    // Binary sets: varType_=4 (Const), varSubType_=3 (Numeric, from DWORD at rbp-0xa0),
+    // value_ = Value(name), reg_ = AsmRegister(-1)
+    {
+        EvalResultValue nameVal;
+        nameVal.varType_ = VarType_String;                              // @0x15aaa7: first arg must be string type for generate()
+        nameVal.varSubType_ = VarSubType_Numeric;                       // @0x15ab04: movl $3
+        nameVal.value_ = Value(name);                                   // @0x15aab4: copy string
+        nameVal.reg_ = AsmRegister(-1);                                 // @0x15ab70
+        newArgs.insert(newArgs.begin(), std::move(nameVal));             // @0x15ab7d
+    }
 
     // @0x15abdd: copy res shared_ptr (increment refcount)
     // @0x15ac03: call CustomFunctions::generate(newArgs, resCopy) @0x149940

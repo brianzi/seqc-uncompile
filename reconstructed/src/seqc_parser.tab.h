@@ -53,7 +53,7 @@
 extern int seqc_debug;
 #endif
 /* "%code requires" blocks.  */
-#line 45 "seqc_parser.y"
+#line 56 "seqc_parser.y"
 
     namespace zhinst {
         class SeqcParserContext;
@@ -120,7 +120,7 @@ extern int seqc_debug;
 #if ! defined SEQC_STYPE && ! defined SEQC_STYPE_IS_DECLARED
 union SEQC_STYPE
 {
-#line 58 "seqc_parser.y"
+#line 69 "seqc_parser.y"
 
     double                      dval;   /* CONSTANT */
     const char*                 sval;   /* IDENTIFIER, STRING_LITERAL */

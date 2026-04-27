@@ -5,18 +5,100 @@
 
 #include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/predicate.hpp>
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/algorithm/string/trim.hpp>
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <boost/tokenizer.hpp>
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
 #include <cstring>
 #include <fstream>
 #include <locale>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 
 namespace zhinst {
+
+// =========================================================================
+// Anonymous-namespace helpers for manifest / device-identity queries
+// =========================================================================
+namespace {
+
+// ---------------------------------------------------------------------------
+// readManifest(const string&) — @0x2ec210, ~0x3D0 bytes
+// Reads a JSON manifest file. If the file does not exist (filesystem status
+// <= 1 = file_not_found | status_error), returns an empty ptree.
+// Otherwise parses via boost::property_tree::json_parser::read_json.
+// ---------------------------------------------------------------------------
+boost::property_tree::ptree readManifest(std::string const& path) {  // @0x2ec210
+    boost::property_tree::ptree pt;
+    // @0x2ec2b0: boost::filesystem::detail::status() — returns file_type enum
+    // @0x2ec360: cmp $0x1, %r15d; jbe → file_not_found or status_error → return empty
+    auto st = boost::filesystem::status(boost::filesystem::path(path));
+    if (st.type() <= boost::filesystem::regular_file) {
+        // file_not_found(1) or status_error(0) — return empty ptree
+        return pt;
+    }
+    boost::property_tree::json_parser::read_json(path, pt);  // @0x2ec3e0
+    return pt;
+}
+
+// ---------------------------------------------------------------------------
+// readManifest() — @0x2ec5e0, ~0x120 bytes
+// Lazy-init function-local static. Calls readManifest("/opt/zi/LabOne/manifest.json")
+// once, caches in static, registers ~ptree with __cxa_atexit.
+// Guard variable at 0xb852d0 in binary.
+// ---------------------------------------------------------------------------
+boost::property_tree::ptree const& readManifest() {  // @0x2ec5e0
+    static boost::property_tree::ptree manifest =
+        readManifest("/opt/zi/LabOne/manifest.json");  // @0x90ce08 in rodata
+    return manifest;
+}
+
+// ---------------------------------------------------------------------------
+// doIsMf(const ptree&) — @0x2ec700, ~0x1E0 bytes
+// Gets ptree.get<string>("device", ""), checks length==2 and content=="mf"
+// (0x666d as 16-bit compare). Uses SSO string operations.
+// ---------------------------------------------------------------------------
+bool doIsMf(boost::property_tree::ptree const& pt) {  // @0x2ec700
+    std::string device = pt.get<std::string>("device", "");  // @0x2ec790
+    return device.size() == 2 && device == "mf";             // @0x2ec7da: cmp $0x2 + cmpw $0x666d
+}
+
+// ---------------------------------------------------------------------------
+// isMf(const ptree&) — @0x2ec1e0, ~0x30 bytes
+// Wraps doIsMf in try/catch; returns false on any exception.
+// ---------------------------------------------------------------------------
+bool isMf(boost::property_tree::ptree const& pt) {  // @0x2ec1e0
+    try {
+        return doIsMf(pt);
+    } catch (...) {
+        return false;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// isMf64(const ptree&) — @0x2ec430, ~0x1B0 bytes
+// First checks doIsMf(). If not MF, returns false. Then checks
+// ptree.get<string>("platform", "") has length 10 (the string "mf_dev5640").
+// Same try/catch pattern as isMf.
+// ---------------------------------------------------------------------------
+bool isMf64(boost::property_tree::ptree const& pt) {  // @0x2ec430
+    try {
+        if (!doIsMf(pt))
+            return false;
+        std::string platform = pt.get<std::string>("platform", "");  // @0x2ec520
+        return platform.size() == 10;  // @0x2ec560: cmp $0xa — "mf_dev5640" is 10 chars
+    } catch (...) {
+        return false;
+    }
+}
+
+} // anonymous namespace
 
 // @0x2ec6e0 — returns SSO string "linux64" (7 chars, length tag 0x0e)
 std::string getPlatformName() {
@@ -175,6 +257,124 @@ bool isInList(std::string const& item, std::string const& list) { // @0x2f2870
             return true;
     }
     return false;
+}
+
+// ---------------------------------------------------------------------------
+// quote — @0x2fa6a0, ~320 bytes
+// Escapes embedded double-quotes, then wraps string in "...".
+// Binary uses boost::algorithm::replace_all for the escape pass.
+// ---------------------------------------------------------------------------
+void quote(std::string& s) {  // @0x2fa6a0
+    boost::algorithm::replace_all(s, "\"", "\\\"");
+    s.insert(s.begin(), '"');
+    s.push_back('"');
+}
+
+// ---------------------------------------------------------------------------
+// toSubscript(string) — @0x2fd960, ~544 bytes
+// Converts each digit character to its HTML subscript entity (&#8320;..&#8329;).
+// Non-digit characters are skipped.
+// Binary uses a jump table at 0x9646d0 mapping digit index to entity strings.
+// ---------------------------------------------------------------------------
+std::string toSubscript(std::string const& s) {  // @0x2fd960
+    static const char* const table[] = {
+        "&#8320;", "&#8321;", "&#8322;", "&#8323;", "&#8324;",
+        "&#8325;", "&#8326;", "&#8327;", "&#8328;", "&#8329;"
+    };
+    std::ostringstream oss;
+    for (char c : s) {
+        unsigned d = static_cast<unsigned char>(c) - '0';
+        if (d < 10) {
+            oss << table[d];
+        }
+    }
+    return oss.str();
+}
+
+// ---------------------------------------------------------------------------
+// toSubscript(long) — @0x2fdb80, ~112 bytes
+// Converts long to string, then delegates to toSubscript(string).
+// ---------------------------------------------------------------------------
+std::string toSubscript(long n) {  // @0x2fdb80
+    return toSubscript(std::to_string(n));
+}
+
+// ---------------------------------------------------------------------------
+// toSuperscript — @0x2fd730, ~560 bytes
+// Converts digits, '+', '-', '.' to their HTML superscript entities.
+// Binary uses index = (unsigned char)(c + 0xD5) with bitmask 0x7FED
+// to select valid entries from a 15-element table.
+// ---------------------------------------------------------------------------
+std::string toSuperscript(std::string const& s) {  // @0x2fd730
+    static const char* const digitTable[] = {
+        "&#8304;", "&#185;",  "&#178;",  "&#179;",  "&#8308;",
+        "&#8309;", "&#8310;", "&#8311;", "&#8312;", "&#8313;"
+    };
+    std::ostringstream oss;
+    for (char c : s) {
+        if (c >= '0' && c <= '9')
+            oss << digitTable[c - '0'];
+        else if (c == '+')
+            oss << "&#8314;";
+        else if (c == '-')
+            oss << "&#8315;";
+        else if (c == '.')
+            oss << "&#183;";
+    }
+    return oss.str();
+}
+
+// ---------------------------------------------------------------------------
+// escapeStringForMatlab — @0x2f9110, ~1648 bytes
+// Escapes special characters for MATLAB string representation.
+// Binary performs 10 sequential boost::algorithm::replace_all passes:
+//   1. \ → \\    (backslash doubling, must be first)
+//   2. ' → ''    (MATLAB single-quote doubling)
+//   3. % → %%    (MATLAB percent doubling)
+//   4-10. Control chars: \a, \b, \f, \n, \r, \t, \v → their C escape strings
+// ---------------------------------------------------------------------------
+std::string escapeStringForMatlab(std::string s) {  // @0x2f9110
+    boost::algorithm::replace_all(s, "\\", "\\\\");
+    boost::algorithm::replace_all(s, "'", "''");
+    boost::algorithm::replace_all(s, "%", "%%");
+    boost::algorithm::replace_all(s, std::string(1, '\a'), "\\a");
+    boost::algorithm::replace_all(s, std::string(1, '\b'), "\\b");
+    boost::algorithm::replace_all(s, std::string(1, '\f'), "\\f");
+    boost::algorithm::replace_all(s, std::string(1, '\n'), "\\n");
+    boost::algorithm::replace_all(s, std::string(1, '\r'), "\\r");
+    boost::algorithm::replace_all(s, std::string(1, '\t'), "\\t");
+    boost::algorithm::replace_all(s, std::string(1, '\v'), "\\v");
+    return s;
+}
+
+// ---------------------------------------------------------------------------
+// xmlEscapeSeqToInt — @0x2fc280, ~280 bytes
+// Parses an XML numeric character reference from [begin, end).
+// If the range contains 'x' or 'X', parses the remainder as hexadecimal;
+// otherwise parses as decimal. Uses std::istringstream.
+// ---------------------------------------------------------------------------
+int xmlEscapeSeqToInt(std::string::const_iterator begin,
+                      std::string::const_iterator end) {  // @0x2fc280
+    // @0x2fc2c0: search for 'x' or 'X' in range
+    auto it = begin;
+    bool isHex = false;
+    for (auto p = begin; p != end; ++p) {
+        if (*p == 'x' || *p == 'X') {
+            isHex = true;
+            it = p + 1;  // skip past the 'x'/'X'
+            break;
+        }
+    }
+
+    int result = 0;
+    std::string digits(isHex ? it : begin, end);
+    std::istringstream iss(digits);
+    if (isHex) {
+        iss >> std::hex >> result;   // @0x2fc2f0: hex stringstream parse
+    } else {
+        iss >> std::dec >> result;   // @0x2fc320: decimal stringstream parse
+    }
+    return result;
 }
 
 } // namespace zhinst

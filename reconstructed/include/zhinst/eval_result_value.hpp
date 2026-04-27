@@ -47,7 +47,9 @@ struct EvalResultValue {
 
     ~EvalResultValue();  // @0x15c820
 };
-static_assert(sizeof(EvalResultValue) == 0x38,
-              "EvalResultValue must be 0x38 bytes");
+// sizeof(EvalResultValue): 0x38 on libc++ (binary), 0x40 on libstdc++.
+// Difference is solely from embedded Value's std::string union member.
+static_assert(sizeof(EvalResultValue) >= 0x38,
+              "EvalResultValue must be at least 0x38 bytes");
 
 } // namespace zhinst

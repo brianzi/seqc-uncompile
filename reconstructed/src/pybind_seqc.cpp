@@ -89,19 +89,20 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
                          py::kwargs const& kwargs)
 {
     std::string options;
-    std::string jsonConfig = "{}";
+    boost::json::object jobj;
 
     // Step 1-2: Try to extract options string from 3rd arg
+    // Binary @0xe0000: tries py::cast<string> on 3rd arg first.
+    // If it's a string, that becomes the options parameter.
+    // If not, extract config entries from it (dict or scalar samplerate).
+    // In BOTH cases, kwargs are merged into the JSON config afterward.
     try {
         options = samplerate_or_extra.cast<std::string>();
     } catch (py::cast_error const&) {
-        // 3rd arg is not a string — build JSON config from it + kwargs
-        boost::json::object jobj;
-
-        // If it's a dict, iterate its items
+        // 3rd arg is not a string — build JSON config from it
         if (py::isinstance<py::dict>(samplerate_or_extra)) {
-            py::dict d = samplerate_or_extra.cast<py::dict>();
-            for (auto& item : d) {
+            py::dict dict = samplerate_or_extra.cast<py::dict>();
+            for (auto& item : dict) {
                 std::string key = py::str(item.first);
                 try {
                     double val = item.second.cast<double>();
@@ -124,25 +125,27 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
                 // ignore
             }
         }
+    }
 
-        // Step 3: Merge kwargs
-        for (auto& item : kwargs) {
-            std::string key = py::str(item.first);
+    // Step 3: Merge kwargs into JSON config (always, regardless of 3rd arg type)
+    // Binary @0xe0000: kwargs iteration happens unconditionally after the
+    // try/catch block for the 3rd arg cast.
+    for (auto& item : kwargs) {
+        std::string key = py::str(item.first);
+        try {
+            double val = item.second.cast<double>();
+            jobj[key] = val;
+        } catch (...) {
             try {
-                double val = item.second.cast<double>();
+                std::string val = item.second.cast<std::string>();
                 jobj[key] = val;
             } catch (...) {
-                try {
-                    std::string val = item.second.cast<std::string>();
-                    jobj[key] = val;
-                } catch (...) {
-                    // Skip unsupported types
-                }
+                // Skip unsupported types
             }
         }
-
-        jsonConfig = boost::json::serialize(jobj);
     }
+
+    std::string jsonConfig = boost::json::serialize(jobj);
 
     // Step 4-5: Release GIL and call compileSeqc
     std::string packed;
@@ -162,10 +165,10 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
         jsonResult = packed;
     }
 
-    // Step 9: Return Python tuple (bytes(elf), json_result_string)
+    // Step 9: Return Python tuple (bytes(elf), json.loads(json_result))
     py::bytes elfBytes(elfData);
-    // Return the JSON as a string — the Python side can json.loads() it
-    return py::make_tuple(elfBytes, jsonResult);
+    py::object jsonDict = py::module_::import("json").attr("loads")(jsonResult);
+    return py::make_tuple(elfBytes, jsonDict);
 }
 
 // ============================================================================

@@ -45,8 +45,14 @@
 namespace zhinst {
 
 // Forward declarations for helpers not yet reconstructed
+namespace util { namespace wave {
 double awg2double(uint16_t raw);                 // @0x2996d0 — extract 18-bit sample as double
 uint8_t awg2marker(uint16_t raw);                // @0x2996f0 — extract marker bits from raw word
+double awg2double16(uint32_t raw);               // @0x299740 — 32-bit HDAWG sample to double
+}} // namespace util::wave
+using util::wave::awg2double;
+using util::wave::awg2marker;
+using util::wave::awg2double16;
 
 // Compress source string helper used by writeToStream (anonymous namespace in binary)
 // @0x109e90 — zlib deflate level 9, 0x8000-byte output chunks, Z_FINISH flush
@@ -131,8 +137,8 @@ private:
     std::vector<CompilerMessage> compileMessages_;       // +0x260
     AWGAssembler assembler_;                              // +0x278 — AWGAssembler (8B pimpl)
     std::vector<std::string> wavePaths_;                  // +0x280 — wave file paths (vector<string>::insert in addWaveforms)
-    char pad_298_[16];                                   // +0x298 — weak_ptr<CancelCallback>
-    char pad_2A8_[16];                                   // +0x2A8 — weak_ptr<ProgressCallback>
+    std::weak_ptr<CancelCallback> cancelCallback_;       // +0x298
+    std::weak_ptr<ProgressCallback> progressCallback_;   // +0x2A8
     char pad_2B8_[8];                                    // +0x2B8
 };
 
@@ -168,8 +174,8 @@ AWGCompilerImpl::AWGCompilerImpl(AWGCompilerConfig const& config)  // @0x103b40
       compileMessages_(),
       assembler_(deviceConstants_),                                       // @0x103cc0
       wavePaths_(),
-      pad_298_{},
-      pad_2A8_{},
+      cancelCallback_(),
+      progressCallback_(),
       pad_2B8_{}
 {
     // Binary ctor @0x103b40 sequence:
@@ -231,13 +237,14 @@ std::string AWGCompilerImpl::getBinVersion() const {  // @0x10b830
         break;
     }
 
-    // 3. Build binary blob: [laboneVer:4][suffix:4][addressImpl:4][zero:4]
+    // 3. Build binary blob: [laboneVer:4][suffix:4][waveformRegBase:4][zero:4]
     // @0x10b8f0..0x10b920: string append sequence growing 4→8→16 bytes
-    uint32_t addrImpl = config_->addressImpl;  // config+0x10
+    // GDB-verified: [rbp-0x30]+0x10 = this+0x10 = deviceConstants_.waveformRegBase
+    uint32_t regBase = deviceConstants_.waveformRegBase;  // this+0x10 @0x10b934
     std::string result;
     result.append(reinterpret_cast<char const*>(&laboneVer), 4);
     result.append(suffix, 4);
-    result.append(reinterpret_cast<char const*>(&addrImpl), 4);
+    result.append(reinterpret_cast<char const*>(&regBase), 4);
     result.append(4, '\0');  // zero-pad to 16 bytes
 
     return result;
@@ -266,28 +273,29 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
         return boost::json::serialize(obj);
     }
 
-    // Accumulate waveform usage info
-    std::set<size_t> usedSlots;
-    bool hasPlayback = false;
-    double totalSamples = 0.0;
+    // Accumulate waveform usage info via lambda @0x10a225
+    bool exceedsFpga = false;
+    uint64_t totalBytes = 0;
 
     wavetableIR_->forEachUsedWaveform(
         [&](std::shared_ptr<WaveformIR> const& wf) {
-            // Track used waveform slots and accumulate sample counts
-            // The exact lambda logic involves checking wf fields
-            // For structural correctness we just count
-            (void)wf;
+            totalBytes += wf->allocationByteSize;           // @0x10a225 lambda
         },
         WaveOrder::ByIndex);
 
-    uint32_t wfAlignment = deviceConstants_.waveformAlignment;  // devConst+0x14
+    uint32_t memSize = deviceConstants_.waveformMemorySize;  // this+0x14 = DC+0x0C @0x10a287
+    if (memSize > 0 && totalBytes > memSize) {
+        exceedsFpga = true;
+    }
 
-    // Build JSON result
-    boost::json::object result;
-    result["has_playback"] = hasPlayback;
-    result["usage_fraction"] = (wfAlignment > 0)
-        ? totalSamples / static_cast<double>(wfAlignment)
+    double usage = (memSize > 0)
+        ? static_cast<double>(totalBytes) / static_cast<double>(memSize)
         : 0.0;
+
+    // Build JSON result                                             // @0x10a2a6
+    boost::json::object result;
+    result["exceedsFpgaMemory"] = exceedsFpga;                      // @0x10a2a6
+    result["fpgaMemoryUsed"] = usage;                               // @0x10a2df
 
     return boost::json::serialize(result);
 }
@@ -361,7 +369,9 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 5. Compile
     std::vector<AssemblerInstr> asmList;
     try {
-        asmList = compiler_.compile(source);   // @0x11f150
+        auto compileResult = compiler_.compile(source);   // @0x11f150
+        asmList = std::move(compileResult.asmList);
+        wavetableIR_ = std::move(compileResult.wavetableIR);  // @0x106ebc: store sret+0x18 into this+0xA8
     } catch (...) {
         // @0x10791b: exception handler
         // Get compile messages from compiler and append
@@ -380,20 +390,25 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
 
     // 6. Build assembly text from asmList into ostringstream
     std::ostringstream oss;
+    bool afterLabel = false;
     for (auto const& instr : asmList) {
         if (instr.cmd == Assembler::INVALID) continue;  // skip invalid entries
 
         // Write assembly text representation
         std::string s = instr.str(/*verbose=*/true);
         if (instr.cmd == Assembler::LABEL) {
-            // Error entries: compute indent based on string length
+            // Label: right-pad to 8 chars, no newline — next instr continues on same line
             int indent = 8 - static_cast<int>(s.size());
             if (indent < 0) indent = 0;
-            oss << std::string(indent, ' ');
+            oss << s << std::string(indent, ' ');
+            afterLabel = true;
         } else {
-            oss << "        ";  // 8 spaces
+            if (!afterLabel) {
+                oss << "        ";                         // 8 spaces indent
+            }
+            oss << s << "\n";
+            afterLabel = false;
         }
-        oss << s << "\n";
     }
 
     // 7. Store assembler text
@@ -447,8 +462,10 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     }
 
     // 12. Signal completion via progress callback
-    // @0x10744e: lock weak_ptr at +0x2B0, call progress(1.0)
-    // (Not reconstructed — callback forwarding is secondary)
+    // @0x10744e: lock weak_ptr at +0x2A8, call setProgress(1.0)
+    if (auto progress = progressCallback_.lock()) {                            // @0x10744e
+        progress->setProgress(1.0);                                            // @0x107468
+    }
 }
 
 // ============================================================================
@@ -524,8 +541,12 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 
     // 2. Process each waveform file
     for (auto const& pathStr : paths) {
-        // 2a. Check cancel callback
-        // (cancel check omitted for structural reconstruction)
+        // 2a. Check cancel callback                                            // @0x1046e0
+        if (auto cancel = cancelCallback_.lock()) {
+            if (cancel->isCancelled()) {
+                break;  // @0x104700: exits loop if cancelled
+            }
+        }
 
         boost::filesystem::path fpath(pathStr);
         std::string stem = fpath.stem().string();       // @0x1047b4: stem_v3
@@ -583,9 +604,45 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
                     stem, signal, pathStr,
                     Waveform::File::Type(1));                        // @0x29b520 via 0x1050b3
             } else if (ext == ".bin16" || ext == ".wave16") {
-                // @0x104991: HDAWG sample format not implemented — log warning and skip
-                // LOG_WARN("Attempting to load waveform file in HDAWG sample format. "
-                //          "Not yet implemented!");
+                // @0x104991: HDAWG 32-bit sample format
+                // Each sample is a uint32_t: bits[31:2] = 16-bit signed sample
+                // (after >>2 and int16_t truncation), bits[1:0] = marker bits.
+                std::ifstream ifs;
+                ifs.open(fpath.string(), std::ios::in | std::ios::binary | std::ios::ate);
+                if (!ifs) {
+                    throw ZIAWGCompilerException(
+                        ErrorMessages::format(ErrorMessageT(0xe3), pathStr));
+                }
+
+                auto fileSize = static_cast<int32_t>(ifs.tellg());
+                std::vector<char> rawBuf;
+                if (fileSize >= 4) {
+                    rawBuf.resize(static_cast<size_t>(fileSize), 0);
+                }
+                ifs.seekg(0);
+                ifs.read(rawBuf.data(), fileSize);
+                ifs.close();
+
+                std::vector<double> samples;
+                std::vector<uint8_t> markers;
+                uint8_t allMarkerBits = 0;
+
+                uint32_t const* p = reinterpret_cast<uint32_t const*>(rawBuf.data());
+                uint32_t const* end = reinterpret_cast<uint32_t const*>(
+                    rawBuf.data() + rawBuf.size());
+                for (; p < end; ++p) {
+                    samples.push_back(awg2double16(*p));
+                    uint8_t m = static_cast<uint8_t>(*p & 0x3);
+                    markers.push_back(m);
+                    allMarkerBits |= m;
+                }
+
+                MarkerBitsPerChannel markerBits({allMarkerBits});
+                Signal signal(samples, markers, markerBits);
+
+                wavetable_->newWaveformFromFile(
+                    stem, signal, pathStr,
+                    Waveform::File::Type(1));
             } else {
                 // Unrecognized extension — log warning and skip
                 // @0x1049c0: LogRecord dtor (log message about skipping)
@@ -595,7 +652,11 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
     }
 
     // 3. Post-processing: check cancel, clean up
-    // (Cancel check and shared_ptr cleanup omitted for structural reconstruction)
+    if (auto cancel = cancelCallback_.lock()) {                                // @0x105470
+        if (cancel->isCancelled()) {
+            return;                                                            // @0x105490
+        }
+    }
 }
 
 // ============================================================================
@@ -608,7 +669,7 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 //   2. Get opcodes from assembler_ — if empty, return             @0x108d05
 //   3. Construct ElfWriter(machineType=2)                         @0x108d1f
 //   4. Set memory offset from config_->addressImpl                @0x108d30
-//   5. Check config_->unknown_88 (bool at config+0x88):
+//   5. Check config_->optimizationFlags (bool at config+0x88):
 //      - If true (mapped mode):
 //        Call writeWavesToElfMapped via lambda + forEachUsedWaveform @0x108db1
 //      - If false (absolute mode):
@@ -651,20 +712,43 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
 
     // 5. Write waveform data to ELF
     if (wavetableIR_) {
-        // The binary checks config+0x88 (a bool) to choose mapped vs absolute mode
-        // @0x108d4e: cmpb $0x1, 0x88(%rax) where rax = *config_
-        // For structural reconstruction, we use the "absolute" path as default
-        wavetableIR_->forEachUsedWaveform(
-            [&](std::shared_ptr<WaveformIR> const& wf) {
-                // @0x108dee/0x108e1f: writeWavesToElf{Mapped,Absolute} lambda
-                // Each lambda calls elfWriter.addWaveform(wf, sampleFormat, useAbsolute, padSize)
-                elfWriter.addWaveform(wf, SampleFormat(config_->sampleFormat),
-                    true, detail::AddressImpl<uint32_t>(config_->addressImpl));
-            },
-            WaveOrder::ByIndex);
+        // The binary checks AWGCompilerImpl+0x88 which is deviceConstants_.hasPrecomp
+        // @0x108d4e: cmpb $0x1, 0x88(%rax) where rax = this (NOT config)
+        // hasPrecomp == 1 → mapped mode; else → absolute mode
+        bool mappedMode = deviceConstants_.hasPrecomp;
+        if (mappedMode) {
+            // Mapped mode: padSize=0, ByName order                      @0x108db1
+            wavetableIR_->forEachUsedWaveform(
+                [&](std::shared_ptr<WaveformIR> const& wf) {
+                    elfWriter.addWaveform(wf, SampleFormat(config_->sampleFormat),
+                        /*mapped=*/true, /*padSize=*/0);
+                },
+                WaveOrder::ByName);
+        } else {
+            // Absolute mode: compute padding, ByIndex order             @0x108e50
+            uint32_t currentOffset = wavetableIR_->getFirstWaveformOffset();
+            wavetableIR_->forEachUsedWaveform(
+                [&](std::shared_ptr<WaveformIR> const& wf) {
+                    WaveformIR* wfPtr = wf.get();
+                    if (!wfPtr->used) return;
+                    if (wfPtr->signal.data().empty()) return;
+                    uint32_t gap = wfPtr->addressValue - currentOffset;
+                    uint32_t alignMask = static_cast<uint32_t>(-wfPtr->elfAlignment_);
+                    uint32_t padding = gap & alignMask;
+                    auto rawData = elfWriter.addWaveform(wf, SampleFormat(config_->sampleFormat),
+                        /*mapped=*/false, padding);
+                    currentOffset = wfPtr->addressValue + static_cast<uint32_t>(rawData->size());
+                },
+                WaveOrder::ByIndex);
+        }
     }
 
-    // 6-7. Add code section
+    // 6. Update memory offset to account for waveform data          @0x108eae
+    if (wavetableIR_) {
+        elfWriter.setMemoryOffset(wavetableIR_->getNextSegmentAddress());
+    }
+
+    // 7. Add code section
     elfWriter.addCode(opcodes);                                    // @0x108ec6
 
     // 8. Add filename section
@@ -676,9 +760,8 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
     }
 
     // 9. Add source code sections
-    // @0x108f48: check config+0x9D for source embedding compression flag
-    bool compressSource = *reinterpret_cast<uint8_t const*>(
-        reinterpret_cast<char const*>(config_) + 0x9D) != 0;
+    // @0x108f48: check config->compressSource for source embedding compression flag
+    bool compressSource = config_->compressSource;
     if (compressSource) {
         // @0x108f7d: compress string_230_ → ".c"
         std::string compC = compressSourceString(string_230_, format);
@@ -1028,10 +1111,34 @@ std::string AWGCompilerImpl::getJsonVersion() const {  // @0x10ac60
     }
     root.put("target", targetName);                                 // @0x10aef0
 
-    // NOTE: "external_triggering" and "required_options" fields are
-    // conditionally present in the binary but depend on data accessed
-    // via this+0x190 (likely compiler_.customFunctions_ or similar).
-    // These fields are omitted until the source offsets are confirmed.
+    // "bitstream" — deviceConstants_.waveformRegBase as unsigned int  // @0x10af08
+    root.put<unsigned int>("bitstream", deviceConstants_.waveformRegBase);  // @0x10af63
+
+    // "external_triggering" — conditional on customFunctions_->externalTriggeringMode_  // @0x10af9a
+    // externalTriggeringMode_ at CustomFunctions+0x1C0: Dio=1, ZSync=2, None=0
+    {
+        auto* cf = compiler_.customFunctions_.get();                            // @0x10af9a: mov 0x190(%r14)
+        auto trigMode = cf->externalTriggeringMode_;                            // @0x10afa1: mov 0x1c0(%rax)
+        if (trigMode == ExternalTriggeringMode::ZSync) {
+            root.put("external_triggering", "zsync");                           // @0x10b004: "zsync" at 0x8ff36b
+        } else if (trigMode == ExternalTriggeringMode::Dio) {
+            root.put("external_triggering", "dio");                             // @0x10b072: "dio" at 0x8ff367
+        }
+    }
+
+    // "required_options" — array from customFunctions_->usedFeatures_ set     // @0x10b0c1
+    {
+        auto* cf = compiler_.customFunctions_.get();                            // @0x10b0c1: mov 0x190(%r14)
+        if (!cf->usedFeatures_.empty()) {                                       // @0x10b0c8: cmpq $0, 0x1d8(%r13)
+            boost::property_tree::ptree optionsArray;
+            for (auto const& feature : cf->usedFeatures_) {                     // @0x10b12f..10b391
+                boost::property_tree::ptree elem;
+                elem.put_value(feature);                                        // @0x10b1f7
+                optionsArray.push_back(std::make_pair("", elem));               // @0x10b223
+            }
+            root.add_child("required_options", optionsArray);                   // @0x10b371 (rodata "required_options" at 0x8ff371)
+        }
+    }
 
     std::ostringstream oss;
     boost::property_tree::json_parser::write_json(oss, root, false);
@@ -1058,26 +1165,18 @@ std::string AWGCompilerImpl::getCompileReport() const {  // @0x104030
 
 
 void AWGCompilerImpl::setCancelCallback(std::weak_ptr<CancelCallback> cb) {  // @0x103eb0
-    // 1. Store cb into own weak_ptr at +0x298
-    // (The pad_298_ field is really weak_ptr<CancelCallback> cancelCallback_)
-    // We can't directly assign to pad_298_ as a weak_ptr, so we use placement semantics.
-    // For now, just forward to compiler_ and wavetable_ as the binary does.
-    //
-    // Binary sequence:
-    //   1. Copy cb's weak_ptr into this+0x298 (release old control block if any)
-    //   2. Forward cb to compiler_.setCancelCallback(cb)    @0x103f0b → 0x123480
-    //   3. Forward cb to wavetable_->+0x1C0 (weak_ptr<CancelCallback> in WavetableFront)
-    //      with TWO extra weak refcount increments (for wavetable's own copy)
+    // @0x103ec0: store cb into this+0x298                                     // @0x103ec0
+    cancelCallback_ = cb;
+    // @0x103f0b: forward to compiler_                                         // @0x103f0b
     compiler_.setCancelCallback(cb);
     // NOTE: wavetable_->cancelCallback_ at +0x1C0 is also set in the binary,
-    // but WavetableFront doesn't expose a setter yet. The compiler_ forwarding
-    // is the functionally important part.
+    // but WavetableFront doesn't expose a setter yet.
 }
 
 void AWGCompilerImpl::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {  // @0x103f90
-    // Binary sequence:
-    //   1. Copy cb into this+0x2A8 (release old control block)
-    //   2. Forward cb to compiler_.setProgressCallback(cb)  @0x103ff0 → 0x123510
+    // @0x103fa0: store cb into this+0x2A8                                     // @0x103fa0
+    progressCallback_ = cb;
+    // @0x103ff0: forward to compiler_                                         // @0x103ff0
     compiler_.setProgressCallback(cb);
 }
 
@@ -1093,7 +1192,7 @@ AWGCompiler::AWGCompiler(AWGCompilerConfig const& config)  // @0x103210
 AWGCompiler::~AWGCompiler() {  // @0x103260
     if (impl_) {
         impl_->~AWGCompilerImpl();
-        ::operator delete(impl_, std::size_t(0x2C0));
+        ::operator delete(impl_, sizeof(AWGCompilerImpl));
         impl_ = nullptr;
     }
 }

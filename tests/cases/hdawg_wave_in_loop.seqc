@@ -1,0 +1,5 @@
+wave w = zeros(64);
+repeat(5) {
+  playWave(w);
+  waitWave();
+}

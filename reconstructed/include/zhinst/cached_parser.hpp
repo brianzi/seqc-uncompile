@@ -93,6 +93,7 @@ public:
 
     // CacheEntry — 0x60 bytes on libc++. One per cached waveform file in index_.
     struct CacheEntry {
+        CacheEntry() : fileSize_(0), timestamp_(0), valid_(false) {} // default ctor for boost deserialization
         CacheEntry(const std::string& name, const std::string& filePath,
                    std::size_t fileSize, std::vector<unsigned int> hash,
                    bool valid);                                    // 0x2b10b0
@@ -100,11 +101,14 @@ public:
         CacheEntry& operator=(const CacheEntry& other);            // 0x2b1210
 
         // Boost.Serialization support (instantiated for text_iarchive/text_oarchive).
-        // The boost machinery accesses each field as `ar & member` in
-        // declaration order — declared inline here so that any host build that
-        // links boost::serialization can use it directly.
-        // The exact field order in the on-disk format mirrors the struct order:
-        //   name_, filePath_, fileSize_, timestamp_, hash_, valid_.
+        //
+        // Resolved #114: Binary serializes exactly 5 fields (NOT 6).
+        // text_iarchive @0x2b7700: load(name_), load(filePath_),
+        //   istream>>fileSize_, istream>>timestamp_, load_object(hash_).
+        // text_oarchive @0x2b8440: save(name_), save(filePath_),
+        //   ostream<<fileSize_, ostream<<timestamp_, save_object(hash_).
+        // valid_ is NOT serialized — it is reconstructed at load time
+        // (set to false by default, set to true on cache hit in getCachedFile).
         template <class Archive>
         void serialize(Archive& ar, unsigned int /*version*/)
         {
@@ -113,7 +117,6 @@ public:
             ar & fileSize_;
             ar & timestamp_;
             ar & hash_;
-            ar & valid_;
         }
 
         std::string               name_;       // +0x00

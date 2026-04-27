@@ -171,11 +171,11 @@ ElfReader::SectionData ElfReader::getCode() const {
 }
 
 // ElfReader::getWaveform() @0x2c3d40
-// Reads ddSections_[pad_]; size aligned down to multiple of 2.
+// Reads ddSections_[ddSectionIndex_]; size aligned down to multiple of 2.
 ElfReader::SectionData ElfReader::getWaveform() const {
     SectionData result;
-    if (pad_ >= ddSections_.size()) return result;
-    auto* sec = ddSections_[pad_];
+    if (ddSectionIndex_ >= ddSections_.size()) return result;
+    auto* sec = ddSections_[ddSectionIndex_];
     if (!sec) return result;
     result.format = static_cast<std::uint32_t>(sec->get_type());
     auto rawSize = sec->get_size();

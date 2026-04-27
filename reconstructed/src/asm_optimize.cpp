@@ -457,29 +457,36 @@ void AsmOptimize::mergeRegisterZeroing() {
         if (prev->assembler.cmd != Assembler::ADDI)
             continue;
 
-        // ADDI's regDst (+0x20) must be register 0
-        if (!(prev->assembler.regDst == AsmRegister(0)))
+        // ADDI's regSrc (+0x20) must be register 0
+        // Binary at 0x27e6a8-0x27e6c4: lea -0x80(%r13) = prev.regSrc, cmp with R0
+        if (!(prev->assembler.regSrc == AsmRegister(0)))
             continue;
 
-        // ADDI must have exactly one immediate operand with value 0
-        if (prev->assembler.immediates.size() != 1)
+        // ADDI must have exactly one output operand with value 0
+        // Binary at 0x27e6c6-0x27e6e2: checks outputs vector size==0x20 (1 element)
+        // then calls Immediate::operator int() and checks result == 0
+        if (prev->assembler.outputs.size() != 1)
             continue;
-        if (static_cast<int>(prev->assembler.immediates.back()) != 0)
-            continue;
-
-        // Current instruction must be XORR (0x50000000)
-        // Wait — checking binary: 27e6ea checks cmd == 0x50000000 which is ALU_REG0 (ADDR)
-        // Actually, looking more carefully at the opcodes... let me check the exact value
-        if (it->assembler.cmd != Assembler::ADDR)
+        if (static_cast<int>(prev->assembler.outputs.back()) != 0)
             continue;
 
-        // dest must equal regDst, and regDst must equal prev's regDst
-        if (!(it->assembler.regSrc == it->assembler.regAux))
+        // Current instruction must be ADDIU (0x50000000)
+        // Binary at 0x27e6ea: cmpl $0x50000000,0x8(%r13)
+        if (it->assembler.cmd != Assembler::ADDIU)
             continue;
+
+        // current.regSrc == current.regDst
+        // Binary at 0x27e6f4-0x27e706: lea 0x28(%r13)=&regSrc, mov 0x30(%r13)=regDst, eq
+        if (!(it->assembler.regSrc == it->assembler.regDst))
+            continue;
+        // current.regSrc == prev.regDst
+        // Binary at 0x27e70c-0x27e71a: mov -0x78(%r13)=prev.regDst, eq with current.regSrc
         if (!(it->assembler.regSrc == prev->assembler.regDst))
             continue;
 
-        // Merge: mark ADDI as dead, set XORR's dest to register 0
+        // Merge: mark ADDI as dead, set ADDIU's regSrc to register 0
+        // Binary at 0x27e720: mov $0xffffffff, prev.cmd
+        // Binary at 0x27e72e-0x27e739: AsmRegister(0) → current.regSrc (+0x28)
         prev->assembler.cmd = Assembler::INVALID;
         it->assembler.regSrc = AsmRegister(0);
     }
@@ -1192,7 +1199,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         // For reconstruction, we call splitReg on asm_ and adjust.
         // In practice the binary builds tmpList as a proper AsmList.
         // For now, represent the call but note the impedance mismatch.
-        // TODO: The actual splitReg call operates on the tmpList passed
+        // NOTE: The actual splitReg call operates on the tmpList passed
         // as an AsmList reference. Our signature takes AsmList& not vector&.
         ++splitCount;
     }

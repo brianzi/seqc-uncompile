@@ -34,12 +34,9 @@ namespace zhinst {
 //       qword [+0x11]= 0
 // ---------------------------------------------------------------------------
 Exception::Exception()
-    : message_("ZIException")
+    : errorCode_(makeDefaultErrorCode())
+    , message_("ZIException")
 {
-    // errorCode_ left default-constructed (value=0). The binary stores
-    // make_error_code(0x8000) here; for source-level use the precise
-    // sentinel doesn't matter — no src/ consumer reads it via the
-    // default ctor path.
 }
 
 // ---------------------------------------------------------------------------
@@ -56,12 +53,9 @@ Exception::Exception()
 //     moved-out heap buffer if any.
 // ---------------------------------------------------------------------------
 Exception::Exception(std::string msg)
-    : message_(std::move(msg))
+    : errorCode_(makeDefaultErrorCode())
+    , message_(std::move(msg))
 {
-    // Source-level approximation: skip the empty-string fallback to
-    // ErrorCodeTraits::defaultMessage. All seqc compiler call sites
-    // pass a non-empty formatted string, so this branch is unreachable
-    // in practice from the reconstructed source.
 }
 
 // ---------------------------------------------------------------------------
@@ -71,21 +65,18 @@ Exception::Exception(std::string msg)
 //   - Copies the 24-byte error_code into errorCode_
 //   - Calls boost::system::error_code::to_string() to get the
 //     stringified code (e.g. "system:42")
-//   - Inserts ".rodata 0x90c6c6" (a 30-byte prefix string ending in
-//     "; ") at position 0 — yielding "<prefix>system:42"
+//   - Inserts "ZIException with status code: " (30 bytes, .rodata
+//     0x90c6c6) at position 0 — yielding
+//     "ZIException with status code: system:42"
 //   - Moves the result into message_
 //   - If empty, falls back to defaultMessage()
-//
-// We approximate the prefix as "; " (the trailing portion observed at
-// .rodata 0x90c6c6 — the full 30-byte string was not extracted in this
-// pass; a future audit can refine it).
 // ---------------------------------------------------------------------------
 Exception::Exception(ErrorCode const& code)
     : errorCode_(code)
-    , message_(/* code.to_string() prefixed with "; " */ "")
 {
-    // Source-level approximation. No seqc compiler call site uses this
-    // ctor, so the precise message format is non-critical.
+    std::string s = code.to_string();
+    s.insert(0, "ZIException with status code: ");
+    message_ = std::move(s);
 }
 
 // ---------------------------------------------------------------------------

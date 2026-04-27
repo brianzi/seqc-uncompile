@@ -42,7 +42,7 @@ Node::Node()
 // Allocates numWaveSlots optional<string> entries, sets nodeId from TLS counter,
 // zeros all pointer/vector fields, sets scalar defaults.
 // ============================================================================
-Node::Node(NodeType type, int numWaveSlots, int asmId)
+Node::Node(NodeType type, int asmId, int numWaveSlots)
     : nodeId(idCounter_++)              // +0x10 — TLS counter, post-increment
     , asmId(asmId)                      // +0x14
     , wavesPerDev(numWaveSlots)         // +0x28 — vector of nullopt optional<string>
@@ -220,8 +220,8 @@ std::optional<std::string> Node::waveAtCurrentDeviceIndex() const {  // 0x1c7de0
 // ============================================================================
 std::shared_ptr<Node> Node::clone() const {  // 0x1d5d40
     auto n = std::make_shared<Node>(type,
-                                    static_cast<int>(wavesPerDev.size()),
-                                    asmId);
+                                    asmId,
+                                    static_cast<int>(wavesPerDev.size()));
     n->deviceIndex = deviceIndex;
     n->wavesPerDev = wavesPerDev;
     n->play = play;
