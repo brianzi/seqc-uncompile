@@ -1,6 +1,7 @@
-import sys; sys.path.insert(0, '.')
+import sys
+sys.path.insert(0, '.')
 import _seqc_compiler as sc
 
-code = open('tests/cases/hdawg_prefetch.seqc').read()
-result = sc.compile_seqc(code, 'HDAWG8', '', 0, samplerate=2.4e9)
-print(f"ELF size: {len(result[0])}")
+code = open('tests/cases/hdawg_doc_placeholder_dual.seqc').read()
+result = sc.compile_seqc(code, 'HDAWG8', {}, 0, samplerate=2.4e9)
+print(f"ELF size: {len(result[0])} bytes")
