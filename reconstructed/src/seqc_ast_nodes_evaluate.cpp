@@ -1153,15 +1153,11 @@ std::shared_ptr<EvalResults> evalGreater(                   // @0x235ac0
 //        Result: tempReg = rhs - lhs; if > 0 ⇒ lhs < rhs → 1
 //
 //      Case C — lhs=Var, rhs=Var:                                 @0x237760
-//        tempReg = addi(getRegNum(), lhsReg, Immediate(0)) [copy lhs]
-//        subr(tempReg, rhsReg) [tempReg = lhs - rhs]
+//        tempReg = addi(getRegNum(), rhsReg, Immediate(0)) [copy rhs]
+//        subr(tempReg, lhsReg) [tempReg = rhs - lhs]
 //        label = newLabel("true"), boolReg = getRegNum()
 //        asmOne(boolReg) → brgz(tempReg, "true", false) → asmZero(boolReg) → asmLabel("true")
-//        NOTE: This is IDENTICAL to evalGreater Case C.
-//        BUG: For a < b, brgz tests if lhs - rhs > 0 ⟹ sets 1 when lhs > rhs.
-//             This computes "greater than", not "less than".
-//             (Or the "true" label and asmOne/asmZero order achieve the inversion
-//              in a way that's not obvious from the branch alone — see discussion.)
+//        Result: tempReg = rhs - lhs; if > 0 ⇒ lhs < rhs → 1
 //
 //      Case D — lhs=Const/Cvar, rhs=Const/Cvar:                  @0x23778e
 //        lhsDouble = lhs.toDouble(), rhsDouble = rhs.toDouble()
@@ -1321,15 +1317,15 @@ std::shared_ptr<EvalResults> evalLower(                     // @0x237440
         AsmRegister lhsReg = lhsVals.empty() ? AsmRegister(0)
                                               : lhsVals.back().reg_;  // @0x23777c
 
-        // addi(tempReg, lhsReg, Immediate(0)) — copy lhsReg      @0x237a44-237a69
-        auto addiAsms = ctx.asmCommands->addi(
-            tempReg, lhsReg, Immediate(0));
-
         AsmRegister rhsReg = rhsVals.empty() ? AsmRegister(0)
                                               : rhsVals.back().reg_;  // @0x237ab4-237ace
 
-        // subr(tempReg, rhsReg) — tempReg = lhs - rhs             @0x237ace-237ae3
-        auto subrAsm = ctx.asmCommands->subr(tempReg, rhsReg);
+        // addi(tempReg, rhsReg, Immediate(0)) — copy rhsReg       @0x237a44-237a69
+        auto addiAsms = ctx.asmCommands->addi(
+            tempReg, rhsReg, Immediate(0));
+
+        // subr(tempReg, lhsReg) — tempReg = rhs - lhs             @0x237ace-237ae3
+        auto subrAsm = ctx.asmCommands->subr(tempReg, lhsReg);
 
         // Label "true", same as evalGreater Case C                 @0x237bac-237bcf
         std::string label = Resources::newLabel("true");

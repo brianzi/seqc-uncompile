@@ -560,8 +560,43 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
     auto varType = static_cast<int>(arg.varType_);
 
     if (varType == 2) {
-        // @0x13991a: arg is a register — emit suser(reg, addr) with code 0x69
-        appendSuser(results->assemblers_, asmCommands_, arg.reg_, detail::AddressImpl<unsigned int>(kSuserWaitCycles)); // @0x139935: suser(reg, 0x69)                         // @0x139948..0x1399ab
+        // @0x1398e8: arg is a register — dispatch on device type
+        auto devType = static_cast<int>(devConst_->deviceType);              // @0x1398f1
+        bool isSimpleDevice = false;
+        {
+            int idx = devType - 2;
+            if (idx >= 0 && idx <= 62) {
+                uint64_t mask = 0x4000000040004041ULL;
+                isSimpleDevice = (mask >> idx) & 1;
+            }
+        }
+        if (devType == AwgDeviceType::VHFLI || devType == AwgDeviceType::GHFLI)  // @0x139b62-139b72
+            isSimpleDevice = true;
+
+        if (isSimpleDevice) {
+            // @0x13991a: Hirzel path — emit suser(reg, 0x69)
+            appendSuser(results->assemblers_, asmCommands_, arg.reg_, detail::AddressImpl<unsigned int>(kSuserWaitCycles)); // @0x139935
+        } else {
+            // @0x139b78: Cervino path — readConst("AWG_WAIT_TRIGGER"), suser(arg.reg_, 0x1a), wtrig(reg, reg)
+            int regNum = Resources::getRegisterNumber();                          // @0x139b78
+            AsmRegister reg(regNum);                                              // @0x139b83
+            AsmRegister zero(0);                                                  // @0x139b9d
+
+            auto erv = res->readConst("AWG_WAIT_TRIGGER",
+                EDirection::eOUT);                                                // @0x139bcb
+            int constVal = erv.value_.toInt();                                    // @0x139bd7
+
+            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(constVal)); // @0x139c01
+            for (auto& e : addiEntries)
+                results->assemblers_.push_back(std::move(e));                     // @0x139c06-139c31
+
+            // suser(arg.reg_, kSuserTriggerLoad) — store wait count to addr 0x1a
+            appendSuser(results->assemblers_, asmCommands_, arg.reg_, detail::AddressImpl<unsigned int>(kSuserTriggerLoad)); // @0x13a0ae
+
+            // wtrig(reg, reg)                                                     @0x13a182
+            auto wtrigEntry = asmCommands_->wtrig(reg, reg);
+            results->assemblers_.push_back(std::move(wtrigEntry));
+        }
     } else if ((varType & ~1) == 4) {
         // @0x1399bc: numeric value — convert to double, check >= 0
         double val = arg.value_.toDouble();                                          // @0x1399c8

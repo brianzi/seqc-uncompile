@@ -1765,6 +1765,17 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     // @0x1685d5: suser(destReg, 0x16) — commit
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
+                    // Hirzel-only: addi(destReg, R0, 5) + suser(destReg, 0x69) — wait 5 cycles after commit
+                    // GDB-verified on HDAWG; not present on Cervino (UHF) devices.
+                    if (devConst_->seqClockDivider != 0) {
+                        {
+                            auto vec = asmCommands_->addi(
+                                destReg, AsmRegister(0), Immediate(5));
+                            localList.entries.insert(localList.entries.end(),
+                                vec.begin(), vec.end());
+                        }
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserWaitCycles));
+                    }
                     break;
                 }
                 case 1: {
