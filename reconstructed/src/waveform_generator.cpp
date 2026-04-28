@@ -97,7 +97,7 @@ WaveformGenerator::WaveformGenerator(
     , funcMap_maxLoadFactor_(1.0f)
     , aliasMap_()
     , aliasMap_maxLoadFactor_(1.0f)
-    , createdNames_()
+    , createdNames_({"rand", "randomGauss", "randomUniform", "placeholder"})
     , wavetableFront_(std::move(wavetableFront))
     , pad_78_(0)
     , warningCallback_(warningCallback)
