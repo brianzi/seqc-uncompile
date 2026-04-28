@@ -2026,14 +2026,14 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
     result.channels_ = 1;                                                      // 0x258159: WORD PTR [rbx+0x48] = 1
     result.length_ = result.samples_.size();                                   // recompute length for channels_=1
 
-    // The binary then adjusts the markers_ vector length.
-    // At 0x25815f: r14 = result.markers_.begin(), rdi = result.markers_.end()
-    // It ensures markers_.size() == 1 (either truncating or extending with 0).
-    // This is because after setting channels_=1, only one marker byte is needed.
-    if (result.markers_.size() > 1) {
-        result.markers_.resize(1);
-    } else if (result.markers_.empty()) {
-        result.markers_.push_back(0);
+    // The binary then adjusts the markerBits_ vector length.
+    // At 0x25815f: r14 = result.markerBits_.begin() (+0x30), rdi = result.markerBits_.end() (+0x38)
+    // It ensures markerBits_.size() == 1 (either truncating or extending with 0).
+    // This is because after setting channels_=1, only one marker-bits entry is needed.
+    if (result.markerBits_.size() > 1) {
+        result.markerBits_.resize(1);
+    } else if (result.markerBits_.empty()) {
+        result.markerBits_.push_back(0);
     }
     return result;
 }

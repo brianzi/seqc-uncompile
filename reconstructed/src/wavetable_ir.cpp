@@ -525,8 +525,10 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
         }
 
         // autoIdx < *it — there's a gap, create a filler
+        // Binary at 0x29ea3a sets reserveOnly_=true for filler signals,
+        // so they become SHT_NOBITS in the ELF (no actual sample data).
         size_t minSamples = static_cast<size_t>(deviceConstants_->waveformGranularity);
-        Signal fillerSignal(minSamples, 0.0, 0, 1);  // min-length signal with zeros
+        Signal fillerSignal(ReserveOnly{}, minSamples, MarkerBitsPerChannel{});
         std::string fillerName = "filler";
         // 0x29ea60-0x29ea79: edx = manager_->lineNr_, ecx = manager_->waveformCounter_,
         // then waveformCounter_ is post-incremented in place. Result string lives at

@@ -2698,7 +2698,12 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
     if (lhs()) {                                            // @0x210b90
         try {
             lhsResult = lhs()->evaluate(res, ctx, state);   // @0x210bd4
-        } catch (std::exception const& e) {                 // @0x210f72
+        } catch (ResourcesException const& e) {             // @0x210f72
+            // Binary catches ResourcesException specifically (accesses msg_
+            // at +0x08 directly, not via what() vtable call).
+            // NOTE: In practice this catch is rarely hit because
+            // SeqCVariable::evaluate has its own internal catch for
+            // ResourcesException. This outer catch serves as a safety net.
             ctx.messages->errorMessage(
                 std::string(e.what() ? e.what() : ""),
                 lineNr_);                                      // @0x210fc0
@@ -2713,7 +2718,8 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
     if (rhs()) {                                            // @0x210c65
         try {
             rhsResult = rhs()->evaluate(res, ctx, state);   // @0x210ca9
-        } catch (std::exception const& e) {
+        } catch (ResourcesException const& e) {
+            // Same pattern as LHS catch.
             ctx.messages->errorMessage(
                 std::string(e.what() ? e.what() : ""),
                 lineNr_);

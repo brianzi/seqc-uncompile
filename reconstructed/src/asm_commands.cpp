@@ -1003,13 +1003,18 @@ PlayConfig AsmCommands::genPlayConfig(
     if (!isHold) channelMask = fullMask;             // 0x2789f5..0x2789f8 (cmove on r15b)
     config.channelMask = channelMask;
 
+    // Marker processing: gated on impl_->isCWVFRSupported().
+    // Binary (inlined in asmPlay at 0x2790f9-0x279106): calls vtable[2]
+    // (isCWVFRSupported) and skips marker computation if false.
+    // Cervino devices (UHF) return false → markerBits stays 0.
+    uint32_t markerBits = 0;
+    if (impl_->isCWVFRSupported()) {
     // Marker processing: iterate signal.markerBits_ pairwise from end.
     // 0x278a0c..0x278a1e: load begin/end pointers, compute count
     auto& mbits = wf->signal.markerBits_;
     const uint8_t* data = mbits.data();
     uint16_t count = static_cast<uint16_t>(mbits.size());
 
-    uint32_t markerBits = 0;
     if (count >= 2) {
         unsigned pairs = count & 0xFFFE;                              // 0x278a72: and $0xfffe,%edi (edi=edx=count)
         for (unsigned i = 0; i < pairs; i += 2) {
@@ -1033,6 +1038,7 @@ PlayConfig AsmCommands::genPlayConfig(
     if (markerBits >= 4) adjusted = markerBits;
     if (!isHold) adjusted = markerBits;
     config.markerBits = adjusted;
+    } // isCWVFRSupported
 
     return config;
 }

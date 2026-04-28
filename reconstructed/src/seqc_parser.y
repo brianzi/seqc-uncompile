@@ -314,63 +314,67 @@ assignment_expression
         }
     | unary_expression ADD_ASSIGN assignment_expression  /* Rule 53 */
         {
+            /* Compound assignments: createAssignOperator first (copies $1 for
+               assignment LHS with its default valueType=2), then modify $1
+               (which is shared into the + operator) to valueType=0,
+               valueCategory=1.  Binary: 0x2ca880 call, then 0x2ca892/0x2ca89d. */
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eADD);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eADD);
         }
     | unary_expression SUB_ASSIGN assignment_expression  /* Rule 54 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSUB);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSUB);
         }
     | unary_expression MUL_ASSIGN assignment_expression  /* Rule 55 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eMUL);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eMUL);
         }
     | unary_expression DIV_ASSIGN assignment_expression  /* Rule 56 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eDIV);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eDIV);
         }
     | unary_expression MOD_ASSIGN assignment_expression  /* Rule 57 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eMOD);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eMOD);
         }
     | unary_expression AND_ASSIGN assignment_expression  /* Rule 58 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eAND);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eAND);
         }
     | unary_expression XOR_ASSIGN assignment_expression  /* Rule 59 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eXOR);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eXOR);
         }
     | unary_expression OR_ASSIGN assignment_expression  /* Rule 60 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eOR);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eOR);
         }
     | unary_expression LSH_ASSIGN assignment_expression  /* Rule 61 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
         }
     | unary_expression RSH_ASSIGN assignment_expression  /* Rule 62 */
         {
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
         }
     ;
 

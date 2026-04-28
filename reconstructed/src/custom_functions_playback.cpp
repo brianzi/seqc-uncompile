@@ -219,40 +219,33 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             }
 
             // ---- Phase 8d: pad empties with a "zeros" placeholder — @0x135a00..0x135cc6 -
-            // If the count of bit-tagged channels (rcx) does NOT equal the
-            // total channelArgs size (vector_size), some slots remain default
-            // — the binary fills them with a Value wrapping a freshly
-            // generated zeros waveform of length matching the FIRST
-            // assignment's existing waveform.
-            //
-            // The check at @0x135a1d compares: (cumulative bits processed)
-            //   versus channelArgs.size().  If equal we go to the merge
-            //   phase; if not, we generate the zero-fill waveform.
-            //
-            // (This branch is taken whenever any channel slot was left
-            // unassigned by the WaveAssignment.bits scattering.)
-            // NOTE @0x135a00: the exact "not all slots filled"
-            // semantics; the rcx counter is updated by the loop above and
-            // compared against channelArgs.size().
-            //
-            // The zero-fill path:
-            //   1. baseLen = wavetableFront_->getWaveformSampleLength(
-            //                  assignments.front().value.toString())   // @0x135a45
-            //   2. Build args = {Value(int=baseLen)}                    // @0x135a82
-            //   3. zeroWave = waveformGen_->call("zeros", args)         // @0x135b26
-            //   4. For each channelArgs[i] still default (type==0):
-            //        channelArgs[i] = Value(string=zeroWave->name)
-            //      (the binary uses boost::variant_assign with type=4 string)
-            // Stored as a Value whose boost::variant holds the WaveformFront
-            // name string at @0x135bec..0x135d4d.
-            //
-            // For now we model this with a single helper call; the precise
-            // packing of the resulting Value into each empty slot is faithful
-            // to the binary's behavior.
-            // NOTE @0x135ac7: full zero-fill semantics — currently we
-            // generate the placeholder waveform but the per-slot assignment
-            // loop @0x135cd3..0x135d4d is summarized as "fill empties".
-            (void)channelArgs;  // silence warning — channelArgs feeds mergeWaveforms below
+            // Count how many channel slots were filled by the bits scatter.
+            size_t filledCount = 0;
+            for (auto const& wa : assignments) {
+                filledCount += wa.bits.size();
+            }
+
+            if (filledCount != channelArgs.size()) {
+                // Some slots are unfilled — generate a zeros waveform and fill them.
+                // 1. Get length of first assignment's waveform
+                std::string firstName = assignments.front().value.value_.toString();  // @0x135a45
+                int64_t baseLen = wavetableFront_->getWaveformSampleLength(firstName); // @0x135a5b
+
+                // 2. Build args = {Value(int=baseLen)} and call zeros
+                std::vector<Value> zeroArgs;
+                zeroArgs.emplace_back(static_cast<int>(baseLen));                     // @0x135a82
+                auto zeroWf = waveformGen_->call("zeros", zeroArgs);                  // @0x135b26
+
+                // 3. Fill empty slots with the zero waveform name
+                std::string zeroName = zeroWf->name;                                  // @0x135bec
+                for (size_t i = 0; i < channelArgs.size(); ++i) {
+                    if (channelArgs[i].varType_ == VarType(0)) {
+                        // Default/empty slot — fill with zero waveform name
+                        channelArgs[i].varType_ = VarType_String;
+                        channelArgs[i].value_ = Value(zeroName);                      // @0x135d4d
+                    }
+                }
+            }
 
             // ---- Phase 8e: mergeWaveforms — @0x135db6..0x135de1 ----------
             // Same 6-arg signature as in playDIOWave.  channelsPerGroup is
@@ -260,14 +253,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             // signed short.  The 7th arg (last bool, `param6`) is hard-coded
             // 0 here as well.  Two zero pushes precede the regular mergeArgs.
             short channelsPerGroupS = static_cast<short>(
-                /* config_->[+0x16] */ 0);                              // @0x135db9
+                config_->channelsPerGroup[1]);                          // @0x135db9
             combinedWf = mergeWaveforms(
                 channelArgs,
                 channelsPerGroupS,
-                /*param3=*/false,
+                /*useYSuffix=*/true,
                 std::string("playAuxWave"),
                 rate,
-                /*param6=*/false);                                       // @0x135ddc
+                /*useFunDescrPath=*/false);                              // @0x135ddc
 
             // After merge, mask becomes 0x3FC3 @0x135edc — the aux-wave
             // play instruction differs from playDIOWave in that the trigger
