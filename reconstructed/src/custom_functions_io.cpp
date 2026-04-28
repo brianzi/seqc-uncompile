@@ -1408,6 +1408,10 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         if (args.empty()) {
             auto results = std::make_shared<EvalResults>();                           // @0x1405ce
 
+            // Look up OSCPHASERST node and register access
+            auto oscNode = lookupNode("oscs/phasereset");
+            addNodeAccess(oscNode, AccessMode::Direct);
+
             int regNum = Resources::getRegisterNumber();                             // @0x140628
             AsmRegister reg(regNum);                                                 // @0x140633
             AsmRegister zero(0);                                                     // @0x140649
@@ -1439,6 +1443,10 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         } else {
             // 1 arg — with validated oscMask
             auto results = std::make_shared<EvalResults>();
+
+            // Look up OSCPHASERST node and register access
+            auto oscNode = lookupNode("oscs/phasereset");
+            addNodeAccess(oscNode, AccessMode::Direct);
 
             int regNum = Resources::getRegisterNumber();
             AsmRegister reg(regNum);
@@ -1539,7 +1547,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         // @0x1426fa..0x142750: build path "sines/" + to_string(awgIndex) + "/phaseshift"
         // Binary @0x1426bf: loads config_->awgIndex, then:
         //   @0x142709: insert "sines/" prefix, @0x142740: append "/phaseshift"
-        auto path = "sines/" + std::to_string(static_cast<unsigned long>(config_->awgIndex)) + "/phaseshift";
+        auto path = "sines/" + std::to_string(static_cast<unsigned long>(oscIndex)) + "/phaseshift";
         auto node = lookupNode(path);                                                // @0x1427bd
         addNodeAccess(node, AccessMode::Custom);                                      // @0x1427ce
     }
@@ -2009,9 +2017,9 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
             ErrorMessages::format(SetDoubleArgs, std::string("setDouble")));
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
-    // Default 3rd arg: VarType_String, double 1.0, VarSubType(2)                                     // @0x148d88..148dd0
+    // Default 3rd arg: VarType_Const, double 1.0, VarSubType(2)                                      // @0x148d88..148dd0
     EvalResultValue arg2{};
-    arg2.varType_ = VarType_String;
+    arg2.varType_ = VarType_Const;
     arg2.value_ = Value(1.0);
     arg2.varSubType_ = VarSubType(2);
     // If 3 args provided, copy the 3rd arg over                                                   // @0x148df6: cmp rax,0xa8
@@ -2026,11 +2034,11 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
     int arg1Type = static_cast<int>(arg1.varType_);
     if (arg1Type > 6 || !((0x54 >> arg1Type) & 1))
         throw CustomFunctionsException(
-            ErrorMessages::format(SetDoubleConstThird, std::string("setDouble")));
+            ErrorMessages::format(SetDoubleVarConstSecond, std::string("setDouble")));
     // Validate: arg2.varType_ must be int type ((varType & ~1) == 4)                              // @0x148e5a..148e63: and eax,0xfffffffd; cmp eax,0x4
     if ((static_cast<int>(arg2.varType_) & ~1) != 4)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetDoubleVarConstSecond, std::string("setDouble")));
+            ErrorMessages::format(SetDoubleConstThird, std::string("setDouble")));
     // Call writeToNode(arg0, arg1, arg2, res)                                                     // @0x149186: call writeToNode
     return writeToNode(arg0, arg1, arg2, std::move(res));       // @0x149186
 }

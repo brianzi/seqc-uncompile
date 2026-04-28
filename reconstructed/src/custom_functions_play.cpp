@@ -745,32 +745,16 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       cmdName, indexed);                             // @0x160fd1
 
-    // === Phase 4: parse() + parseOptionalRate ===                   @0x16104c..0x1611af
-    // parse() returns iterator past last consumed arg.
+    // === Phase 4: parse() + validate index/length + parseOptionalRate ===
+    // @0x16104c..0x1611af
+    // parse() returns iterator past last consumed wave arg.
     auto parseEnd = playArgs.parse(args);                            // @0x16104c
 
-    // NOTE: binary asserts (args.end() - parseEnd) > 0x6f (111) before
-    // proceeding; error at @0x162769 is an internal overflow guard.
-    // Modeled implicitly by the parseOptionalRate contract.
-
-    // parseOptionalRate strict flag: r8b = (subFunc == Aux) ? 1 : 0
-    // — same predicate as `indexed`. Aux-style requires explicit rate;
-    // others tolerate missing rate.
-    int rate = parseOptionalRate(args.cbegin(), args.cend(), parseEnd,
-                                 cmdName,
-                                 /*strict=*/(subFunc == SubFunc::Aux));  // @0x1611af
-
-    // Post-rate guard @0x1611b4..0x1611d0:
-    //     if (subFunc == Aux && rate < 5)  →  error 0xa0 @0x162797
-    // (Same rate-floor rule as standalone playAuxWave; other variants
-    // skip this check.)
-    if (subFunc == SubFunc::Aux && rate < 5) {
-        throw CustomFunctionsException(
-            ErrorMessages::format(SampleRateTooHigh, cmdName));  // @0x162797
-    }
-
-    // === Phase 4b: Validate arg types ===                           @0x1610fb..0x161190
-    // Binary @0x1610fb: args[0].varType_ must pass bt $0x54 (bits 2,4,6 set).
+    // === Phase 4b: Validate index/length arg types ===              @0x1610fb..0x161190
+    // Binary validates parseEnd[0] and parseEnd[1] (the index and length
+    // args) BEFORE calling parseOptionalRate.  These two args are consumed
+    // here; parseOptionalRate receives parseEnd+2 as its cursor.
+    // Binary @0x1610fb: parseEnd[0].varType_ must pass bt $0x54 (bits 2,4,6 set).
     // Accepts VarType values {2=Var, 4=Const, 6=Cvar}. Error 0x98 on mismatch.
     {
         int vt0 = static_cast<int>(parseEnd[0].varType_);
@@ -779,7 +763,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
                 ErrorMessages::format(ExpectsOffsetAndLength, cmdName));  // 0x98 @0x162976
         }
     }
-    // Binary @0x161145: args[1].varType_ must pass the same bt $0x54 test.
+    // Binary @0x161145: parseEnd[1].varType_ must pass the same bt $0x54 test.
     {
         int vt1 = static_cast<int>(parseEnd[1].varType_);
         if (vt1 > 6 || !((0x54 >> vt1) & 1)) {
@@ -788,11 +772,25 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         }
     }
 
+    // parseOptionalRate receives parseEnd+2 (past the index/length args).
+    // strict flag: r8b = (subFunc == Aux) ? 1 : 0
+    auto rateBegin = parseEnd + 2;
+    int rate = parseOptionalRate(args.cbegin(), args.cend(), rateBegin,
+                                 cmdName,
+                                 /*strict=*/(subFunc == SubFunc::Aux));  // @0x1611af
+
+    // Post-rate guard @0x1611b4..0x1611d0:
+    //     if (subFunc == Aux && rate < 5)  →  error 0xa0 @0x162797
+    if (subFunc == SubFunc::Aux && rate < 5) {
+        throw CustomFunctionsException(
+            ErrorMessages::format(SampleRateTooHigh, cmdName));  // @0x162797
+    }
+
     // === Phase 5: EvalResults + extract waveIndex ===               @0x1611d6..0x161228
-    // Binary type-check on the rate slot: varType ∈ {4 (Const), 6 (Cvar)}.
+    // Binary type-check on parseEnd[1] (the length arg): varType ∈ {4 (Const), 6 (Cvar)}.
     // Else error 0x9a @0x1627c5.
     {
-        VarType rateType = parseEnd->varType_;
+        VarType rateType = parseEnd[1].varType_;
         // (varType & ~2) == 4   matches {4,6}
         if ((static_cast<int>(rateType) & 0xfffffffd) != 0x4) {
             throw CustomFunctionsException(
@@ -810,7 +808,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // first parsed positional argument's int value.
     // NOTE: the index is read from the first parsed positional arg.
     //       Binary reads from `rbx = [rbp-0x318]` at @0x161228.
-    int waveIndex = args.front().value_.toInt();                     // @0x161228
+    int waveIndex = parseEnd[1].value_.toInt();                     // @0x161228 — length arg
 
     // === Phase 5b: waveIndex==0 early-exit warning ===              @0x16131b..0x1613c9
     // Binary @0x161236: `test eax, eax; je 16131b` — when waveIndex
@@ -1479,8 +1477,12 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // matches.
         // NOTE: what subsystem reads usedFeatures_["MF"] is unknown.
         usedFeatures_.insert(tagMF);
-
-        // @0x164c0e..164c1f: addNodeAccess(node, accessMode).
+    }
+    // CORRECTED: the addNodeAccess, register allocation, address resolution,
+    // and per-typeIdx dispatch are UNCONDITIONAL — they execute for ALL nodes
+    // (not just oscselNodeRegex matches). The binary at @0x164b34 jumps over
+    // only the "MF" insert (je 0x164c0e), landing directly at addNodeAccess.
+    {
         // accessMode is the byte at NodeMapItem+0x10, which we currently
         // model as `hasFast`. See 21b.5 notes in the block comment above.
         AccessMode accessMode = static_cast<AccessMode>(node.hasFast);
@@ -2138,13 +2140,6 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                 localList.entries.begin(),
                 localList.entries.end());                     // @0x169352
         }
-    } else {
-        // @0x169e0d: oscselNodeRegex no-match — throw error 0x84.
-        // ErrorMessages::format<string>(0x84, pathStr) →
-        // CustomFunctionsValueException(msg, lineNumber=0).
-        throw CustomFunctionsValueException(
-            ErrorMessages::format(NodeNeedsMFOption, pathStr),
-            /*lineNumber=*/0);
     }
 
     // ----------------------------------------------------------------

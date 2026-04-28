@@ -295,8 +295,8 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
     std::set<uint64_t> alignedAddresses;                          // tree at rbp-0x50
 
     uint32_t alignment = deviceConstants_.waveformAlignment;      // DC+0x14 @0x1190e4
-    bool isHirzel = config_->isHirzel;                            // config+0x19 @0x119198
-    uint32_t multiplier = isHirzel
+    uint8_t cacheType = config_->cacheType;                        // config+0x19 @0x119198
+    uint32_t multiplier = cacheType
         ? deviceConstants_.maxBlocks                              // DC+0x1C
         : deviceConstants_.cachePageCount;                        // DC+0x18
     uint32_t maxContribution = alignment * multiplier;            // @0x11919f
