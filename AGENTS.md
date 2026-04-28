@@ -239,3 +239,128 @@ The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
 - **Default to GDB verification** whenever a control-flow assumption
   drives a code change. The cost is ~30 seconds; the cost of a wrong
   assumption is hours.
+
+## Differential testing
+
+### Running tests
+
+```bash
+# Full suite
+python tests/diff_test.py
+
+# Single test (verbose)
+python tests/diff_test.py --filter hdawg_play_dual_ch -v
+
+# Smoke-test original only (no recon)
+python tests/diff_test.py --original-only
+
+# Regex-style filter (matches substring in test name)
+python tests/diff_test.py --filter 'hdawg_doc'
+```
+
+### Test manifest
+
+Test cases are defined in `tests/cases/manifest.json`. Each entry has:
+
+```json
+{
+  "name": "hdawg_play_dual_ch",
+  "file": "hdawg_play_dual_ch.seqc",
+  "devtype": "HDAWG8",
+  "index": 0,
+  "samplerate": 2400000000.0
+}
+```
+
+- `file` — path to .seqc source relative to `tests/cases/`.
+  Alternatively `code` can inline the source as a string.
+- `devtype` — device string: HDAWG8, HDAWG4, SHFQA4, SHFQA2, SHFSG4,
+  SHFSG2, SHFQC, SHFLI, UHFLI, UHFQA, UHFAWG, GHFLI, VHFLI.
+- `index` — AWG sequencer index (usually 0).
+- `samplerate` — **HDAWG only**. Non-HDAWG devices must NOT include this
+  field or the original binary will error with "'samplerate' is relevant
+  for HDAWG only."
+- `sequencer` — for SHFQA/SHFQC: `"qa"` or `"sg"`. Omit for other
+  devices.
+
+### compile_seqc() return value
+
+The Python binding returns a **tuple** `(elf_bytes, info_dict)`, not a
+dict.  Access the ELF as `result[0]`.
+
+### SeqC output ELF format
+
+The compiler produces a **32-bit little-endian ELF** (EI_CLASS=1,
+EI_DATA=1). This is NOT a standard executable — it is a custom container
+for sequencer firmware. **Do not assume 64-bit** — all headers and
+section entries use the ELF32 format.
+
+`e_entry` encodes the sequencer instruction memory entry point
+(typically `0x80000000 + instruction_offset`). Differences in `e_entry`
+usually mean the recon generates a different number of instructions.
+
+#### Section reference
+
+| Section | Format | Description |
+|---------|--------|-------------|
+| `.text` | **Binary**: 4-byte LE instruction words | Sequencer machine code. Each 32-bit word is one instruction. Size / 4 = instruction count. Dump with: `struct.unpack_from('<I', data, i*4)` |
+| `.asm` | **Plain text** (ASCII) | Human-readable disassembly of `.text`. One line per instruction with mnemonic and operands (e.g. `addi R1, R0, 5`). Comparing `.asm` text is the fastest way to find codegen diffs. |
+| `.linenr` | **Binary**: pairs of 2×uint32 LE | Maps instruction index → source line number. Each 8-byte entry is `(instruction_index, line_number)`. Size / 8 = entry count. |
+| `.c` | **Plain text** | Copy of the SeqC source code. |
+| `.filename` | **Plain text** | Output filename (usually `"output"`). |
+| `.waveforms` | **Plain text** (JSON) | Waveform metadata: `{"waveforms":[{"name":"...","channels":"2","marker_bits":"0;0","play_config":"..."},…]}`. Key fields: `marker_bits` uses `;` separator (not `,`). `play_config` is a hex string encoding channel assignment and suppress mask. |
+| `.wavemem` | **Plain text** (JSON) | Wave memory usage: `{"exceedsFpgaMemory":false,"fpgaMemoryUsed":3.66e-4}`. |
+| `.wf_<name>` | **Binary**: 16-bit signed LE samples | Raw waveform sample data. Each sample is a signed 16-bit int. For dual-channel waveforms, samples alternate I/Q. Full-scale is ±8191 (not ±8190). |
+| `.channels` | **Binary**: 8 bytes | Channel configuration. First byte is typically a channel bitmask or index. |
+| `.nodes_json` | **Plain text** (JSON) | Node configuration: `{"nodes":[]}` or with entries for setInt/setDouble targets. |
+| `.arguments` | **Plain text** (JSON) | Build arguments: `{"destination":"output","waves":""}`. |
+| `.version_json` | **Plain text** (JSON) | Compiler version info: `{"compiler":"...","target":"...","bitstream":"..."}`. |
+| `.version_bin` | **Binary**: 16 bytes | Binary-encoded version info. |
+| `.shstrtab` | **Binary** | Standard ELF section name string table. |
+
+#### Debugging byte diffs
+
+When `diff_test.py` reports a byte diff, use `tests/dump_elf.py` to get
+a detailed side-by-side comparison:
+
+```bash
+# Compare original vs recon, showing all differing sections
+python tests/dump_elf.py tests/cases/hdawg_play_dual_ch.seqc HDAWG8 \
+    --samplerate 2.4e9 --both
+
+# Dump original only
+python tests/dump_elf.py tests/cases/shfqa_feedback.seqc SHFQA4 \
+    --sequencer qa
+
+# Dump recon only
+python tests/dump_elf.py tests/cases/shfqa_feedback.seqc SHFQA4 \
+    --sequencer qa --recon
+```
+
+The `--both` flag is the primary debugging workflow: it compiles with
+both original and recon, parses both ELFs, and for each differing
+section prints the full decoded contents side-by-side. Identical
+sections are shown as one-liners.
+
+**Interpretation guide for common diff patterns:**
+
+- `.asm` text diff: Compare the disassembly lines directly. Look for
+  wrong mnemonics, wrong register numbers (e.g. `R1` vs `R2`), wrong
+  immediates, missing/extra instructions.
+- `.text` content diff at a specific offset: Divide offset by 4 to get
+  the instruction index, then compare that instruction in `.asm`.
+- `.text` size diff: Recon generates more or fewer instructions.
+  Compare `.asm` line counts.
+- `.wf_*` content diff: Waveform sample data differs. Usually a
+  waveform generator bug (wrong formula, wrong scaling constant).
+- `.waveforms` JSON diff: Metadata differs (wrong `play_config`,
+  `marker_bits`, channel count, etc.).
+- `.wavemem` size/content diff: Wave memory accounting differs.
+- `.channels` diff: Channel bitmask or assignment wrong.
+- `.linenr` diff: Line number mapping differs (usually follows from
+  instruction count differences).
+- `e_entry` diff: Entry point offset differs (usually follows from
+  instruction count differences).
+- Missing `.wf_*` section: Waveform not compiled into output — check
+  waveform registration, `assignWaveIndex` node chaining, prefetch
+  `collectUsedWaves`.

@@ -1,0 +1,20 @@
+// Test multiple user functions
+// Device: HDAWG8
+
+var myAdd(var a, var b) {
+  return a + b;
+}
+
+var myMax(var a, var b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+var x = getUserReg(0);
+var y = getUserReg(1);
+var sum = myAdd(x, y);
+var m = myMax(x, y);
+setUserReg(0, sum);
+setUserReg(1, m);

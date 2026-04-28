@@ -1,0 +1,8 @@
+wave w1 = ramp(64, 0.0, 1.0);
+wave w2 = sawtooth(64, 1.0, 0.0);
+wave w3 = triangle(64, 1.0, 0.0);
+wave w4 = rect(64, 0.8);
+playWave(w1);
+playWave(w2);
+playWave(w3);
+playWave(w4);

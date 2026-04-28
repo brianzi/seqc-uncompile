@@ -1,0 +1,18 @@
+// HDAWG wait variants (DIO-based)
+waitDigTrigger(1);
+playZero(32);
+
+waitDIOTrigger();
+playZero(32);
+
+waitCntTrigger(1);
+playZero(32);
+
+waitSineOscPhase(1);
+playZero(32);
+
+waitTimestamp();
+playZero(32);
+
+waitTimestamp(1);
+playZero(32);

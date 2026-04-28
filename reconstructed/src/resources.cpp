@@ -76,7 +76,7 @@ Resources::Variable::~Variable()  // @0x1e4be0
 //   - Copies name string to +0x28
 //   - Stores weak_ptr arg at +0x40
 //   - state_ = 0, returnType_ = 0, scopeBoundaryFlags_ = 0
-//   - returnValue_ zeroed, returnReg_ = {-1, false}
+//   - returnValue_ zeroed, returnReg_ = AsmRegister(0) = {0, true}
 //   - All vectors empty
 // ============================================================================
 Resources::Resources(std::string const& name,  // @0x1e3420
@@ -87,7 +87,7 @@ Resources::Resources(std::string const& name,  // @0x1e3420
     , state_(0)
     , returnType_(VarType_Unset)
     , returnValue_()
-    , returnReg_(AsmRegister::Invalid())
+    , returnReg_(AsmRegister(0))  // Binary @0x1e34ae: AsmRegister(0) → {0, true}
     , scopeBoundaryFlags_(0)
     , pad_8A_{}
     , variables_()
@@ -169,8 +169,7 @@ void Resources::setReturnType(VarType type)  // @0x1e3920
 //
 // If returnType_ != 0, return it.
 // Otherwise, walk up via parentWeak_ (lock → call getReturnType virtually).
-// If parentWeak_ expired, try parent_.
-// If no parent at all, throw ResourcesException.
+// If parentWeak_ expired or no parent, throw ResourcesException.
 // ============================================================================
 VarType Resources::getReturnType() const  // @0x1e3930
 {
@@ -178,14 +177,9 @@ VarType Resources::getReturnType() const  // @0x1e3930
         return returnType_;
     }
 
-    // Try parentWeak_ first
+    // Walk up via parentWeak_ only (binary has no parent_ fallback)
     if (auto p = parentWeak_.lock()) {
         return p->getReturnType();
-    }
-
-    // Fall back to parent_
-    if (parent_) {
-        return parent_->getReturnType();
     }
 
     throw ResourcesException("getReturnType: no parent scope");
@@ -209,20 +203,16 @@ void Resources::setReturnValue(double val)  // @0x1e3ac0
 // ============================================================================
 // Resources::setReturnValue(Value) — @0x1e3b30
 //
-// If scopeBoundaryFlags_ == 0 and returnType_ == 0, recurse to parent via parentWeak_
-// (same lock pattern as getReturnType).
+// If scopeBoundaryFlags_ == 0 and returnType_ == 0, recurse to parent via parentWeak_.
+// If parentWeak_ expired, falls through to store locally.
 // Otherwise, store the value at +0x58 (returnValue_).
 // ============================================================================
 void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 {
     if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
-        // Walk up to parent
+        // Walk up via parentWeak_ only (binary has no parent_ fallback)
         if (auto p = parentWeak_.lock()) {
             p->setReturnValue(val);
-            return;
-        }
-        if (parent_) {
-            parent_->setReturnValue(val);
             return;
         }
     }
@@ -238,11 +228,9 @@ void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 Value Resources::getReturnValue()  // @0x1e3d40
 {
     if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
+        // Walk up via parentWeak_ only (binary has no parent_ fallback)
         if (auto p = parentWeak_.lock()) {
             return p->getReturnValue();
-        }
-        if (parent_) {
-            return parent_->getReturnValue();
         }
     }
     return returnValue_;
@@ -257,12 +245,9 @@ Value Resources::getReturnValue()  // @0x1e3d40
 void Resources::setReturnReg(int reg)  // @0x1e3ed0
 {
     if (returnType_ == VarType_Unset) {
+        // Walk up via parentWeak_ only (binary has no parent_ fallback)
         if (auto p = parentWeak_.lock()) {
             p->setReturnReg(reg);
-            return;
-        }
-        if (parent_) {
-            parent_->setReturnReg(reg);
             return;
         }
     }
@@ -277,11 +262,9 @@ void Resources::setReturnReg(int reg)  // @0x1e3ed0
 AsmRegister Resources::getReturnReg()  // @0x1e3fe0
 {
     if (returnType_ == VarType_Unset) {
+        // Walk up via parentWeak_ only (binary has no parent_ fallback)
         if (auto p = parentWeak_.lock()) {
             return p->getReturnReg();
-        }
-        if (parent_) {
-            return parent_->getReturnReg();
         }
     }
     return returnReg_;
@@ -351,8 +334,9 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
 // ============================================================================
 void Resources::print()  // @0x1ebbe0
 {
-    if (parent_) {
-        parent_->print();
+    // Binary uses parentWeak_ (locks +0x48, reads +0x40), not parent_
+    if (auto p = parentWeak_.lock()) {
+        p->print();
     }
     std::cout << toString();
 }
@@ -526,7 +510,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
     v.subTypeRaw  = st;                      // 1e71c7: caller's `st` → +0x04
     v.value.type_    = ValueType::Double;                       // 1e717b: hardcoded → +0x08 (numeric tag)
     v.value.which_      = 2;                       // variant slot for double (per 1e717b... wait, 1e7100 = which_=0 init; later set by variant_assign)
-    v.reg         = AsmRegister::Invalid();  // AsmRegister(-1)
+        v.reg        = AsmRegister::Invalid();  // AsmRegister(-1)
     v.name        = name;
     v.flags       = VarFlag_Written;  // 0x1e71c0: movb $0x1 — mark as initialized
 
@@ -585,7 +569,7 @@ EvalResultValue Resources::readConst(std::string const& name, EDirection dir)  /
     // Write-path requires the var to have been assigned (flags low byte != 0).
     if (dir != EDirection::eIN &&
         (var->flags & 0xFF) == 0) {
-        fprintf(stderr, "DEBUG readConst: '%s' found but flags=0x%x\n", name.c_str(), var->flags);
+
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::UninitializedVar, name));
     }
@@ -1361,7 +1345,7 @@ void Resources::addVar(std::string const& name, VarSubType st)  // @0x1e46b0
     v.subTypeRaw = VarSubType_Default;       // QWORD write at 1e4783 zeros +0x04
     v.value.type_   = ValueType::Int;                        // 1e4815: hardcoded Stub tag
     v.value.which_     = 0;                        // int slot
-    v.reg        = AsmRegister::Invalid();
+    v.reg        = AsmRegister(GlobalResources::regNumber++);  // @0x1e485a-0x1e4888
     v.name       = name;
     // Variant payload is value-initialized to int 0 (which_=0, payload=0).
     // No explicit write needed — Variable v{} above zeros value.storage_.

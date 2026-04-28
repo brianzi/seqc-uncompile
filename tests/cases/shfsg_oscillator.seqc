@@ -1,0 +1,3 @@
+resetOscPhase();
+setSinePhase(90.0);
+incrementSinePhase(45.0);

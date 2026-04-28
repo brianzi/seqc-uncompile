@@ -171,8 +171,8 @@ public:
                     int expectedLength, std::string const& funcName);                     // 0x25d6f0
 
     // --- Helper methods ---
-    Signal genericTriangle(int length, double amplitude, double riseRatio,
-                           double phase, double period);                                  // 0x25e0c0
+    Signal genericTriangle(int length, double amplitude, double nPeriods,
+                           double riseRatio, double phase);                                  // 0x25e0c0
     Signal markerImpl(std::vector<Value> const& args, bool isMask);                       // 0x25e230
     Signal interpolateLinear(int length,
                              std::vector<double> const& xPoints,

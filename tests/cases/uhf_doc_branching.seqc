@@ -1,0 +1,13 @@
+// UHF tutorial: Branching on analog trigger
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+wave w_gauss_low  = 0.5 * gauss(8000, 4000, 1000);
+wave w_gauss_high = 1.0 * gauss(8000, 4000, 1000);
+var trigger_state;
+while (true) {
+  trigger_state = getAnaTrigger(1);
+  if (trigger_state == 0) {
+    playWave(1, w_gauss_low);
+  } else {
+    playWave(1, w_gauss_high);
+  }
+}

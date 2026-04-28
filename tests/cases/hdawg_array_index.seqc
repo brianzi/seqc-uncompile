@@ -1,0 +1,19 @@
+// Array write with const index
+wave w1 = zeros(64);
+w1[0] = 1.0;
+w1[63] = -1.0;
+w1[32] = 0.5;
+playWave(w1);
+
+// Array read with const index
+wave w2 = ones(64);
+var x = w2[0];
+setUserReg(0, x);
+
+// cvar index in loop
+wave w3 = zeros(64);
+cvar i;
+for(i = 0; i < 64; i++) {
+  w3[i] = 0.5;
+}
+playWave(w3);

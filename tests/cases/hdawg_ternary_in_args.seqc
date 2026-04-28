@@ -1,0 +1,11 @@
+// Test ternary expression used as function arguments
+// Device: HDAWG8
+
+var x = getUserReg(0);
+const ct = (1 > 0) ? 100 : 200;
+
+// Ternary in playZero arg
+playZero(x ? 32 : 64);
+
+// Ternary in setUserReg
+setUserReg(0, x ? 1 : 0);

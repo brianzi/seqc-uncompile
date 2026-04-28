@@ -1,0 +1,5 @@
+// Coverage: playWave with explicit rate constant
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w = gauss(64, 32, 8);
+playWave(w, AWG_RATE_600MHZ);
+playWave(1, w, AWG_RATE_1200MHZ);

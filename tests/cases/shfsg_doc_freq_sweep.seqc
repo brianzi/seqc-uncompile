@@ -1,0 +1,24 @@
+// From SHFSG Tutorial: Digital Modulation — frequency sweep
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_modulation.html
+const START_FREQ = -100e6;
+const FREQ_INC = 200;
+const N_STEPS = 100;  // reduced from 1e6 for test
+const OSC = 0;
+const MEAS = 2048;
+const LENGTH = 160;
+
+wave w = gauss(LENGTH, 1, LENGTH/2, LENGTH/8);
+wave m_high = marker(LENGTH/2, 1);
+wave m_low = marker(LENGTH/2, 0);
+wave m = join(m_high, m_low);
+wave wm = w + m;
+
+configFreqSweep(OSC,START_FREQ,FREQ_INC);
+var i;
+for (i = 0; i < N_STEPS; i++) {
+  setSweepStep(OSC,i);
+  resetOscPhase();
+  playWave(1,2, wm);
+  playZero(MEAS);
+  waitWave();
+}

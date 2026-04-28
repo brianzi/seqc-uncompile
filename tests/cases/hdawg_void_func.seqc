@@ -1,0 +1,9 @@
+// Test void function with body (not empty — empty body crashes original binary, see IF-97)
+// Device: HDAWG8
+
+void doStuff() {
+  playZero(32);
+}
+
+doStuff();
+doStuff();

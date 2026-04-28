@@ -1,0 +1,4 @@
+// Test SHFQA feedback path: startQA with integrators
+// Device: SHFQA4
+
+startQA(QA_INT_0, true);

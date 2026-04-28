@@ -250,16 +250,82 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     // Reconstructed equivalent uses the public weak_ptr API.
     std::shared_ptr<CancelCallback> cancelLock = cancelCallback_.lock();
 
-    // Phase 1: count total samples and total allocation size      // 0x29e398
-    size_t totalSamples = 0;
+    // Phase 1: load waveforms, compute sizes, assign addresses     // 0x29e398
+    // Binary lambda $_0 at 0x2a9900:
+    //   1. Checks cancel callback (if non-null, calls virtual method)
+    //   2. Checks wf->used (+0x48); if false, throws WavetableException
+    //   3. If wf->waveformType == 0: calls loadWaveform(wf)
+    //   4. Computes sizeInBlocks from signal (same as $_1 below)
+    //   5. Sets wf->elfAlignment_ = dc->waveformAlignment
+    //   6. Sets wf->addressValue = totalSize + addressBase_
+    //   7. totalSize += allocationByteSize; waveCount++; totalSamples updated
+    size_t totalSamples = 0;  // unused but kept for symmetry with binary stack layout
     uint32_t totalSize = 0;
     uint32_t waveCount = 0;
 
     forEachUsedWaveform(
         [&](const std::shared_ptr<WaveformIR>& wf) {
-            totalSamples += wf->getSampleCount();
-            totalSize += wf->allocationByteSize;
+            // Cancel callback check (0x2a9917-0x2a992f)
+            {
+                auto cancelLock2 = cancelCallback_.lock();
+                if (cancelLock2) {
+                    cancelLock2->isCancelled();
+                }
+            }
+
+            // Check wf->used (0x2a9939)
+            if (!wf->used) {                                          // +0x48
+                throw WavetableException("Waveform '" + wf->name + "' is not used");
+            }
+
+            // Load waveform if needed (0x2a9984-0x2a99a2)
+            if (wf->waveformType == Waveform::File::Type{}) {
+                loadWaveform(wf);
+            }
+
+            // Compute sizeInBlocks (0x2a99d1-0x2a9a08)
+            uint16_t channels = wf->signal.channels_;                 // +0xC8
+            uint32_t length = static_cast<uint32_t>(wf->signal.length_); // +0xD0
+            const DeviceConstants* dc = wf->deviceConstants;          // +0x78
+
+            uint32_t sizeInBlocks;
+            if (length == 0) {
+                sizeInBlocks = 0;
+            } else {
+                uint32_t granularity = dc->waveformGranularity;       // DC+0x40
+                uint32_t pageSize = dc->waveformPageSize;             // DC+0x44
+                uint32_t rounded = ((length + pageSize - 1) / pageSize) * pageSize;
+                sizeInBlocks = std::max(rounded, granularity);
+            }
+            uint64_t totalBits = static_cast<uint64_t>(sizeInBlocks) * channels * dc->bitsPerSample;
+            uint32_t allocationBytes = static_cast<uint32_t>((totalBits + 7) / 8);
+            // Binary @0x2a9928: allocationBytes aligned to 64 bytes
+            allocationBytes = (allocationBytes + 63) & ~63u;
+
+            // Binary @0x2a9a6a-0x2a9a96: Align totalSize to dc->waveformAlignment
+            // before setting addressValue.
+            // Condition for alignment (0x2a993a-0x2a995b):
+            //   if waveCount == 0 (first waveform), always align;
+            //   if previous allocationByteSize > waveformAlignment, align;
+            //   if totalSize + allocationBytes > previous aligned limit, align.
+            // For simplicity, always align totalSize (the non-aligned fast path
+            // only fires when the waveform fits within the current alignment
+            // region, which is an optimization; always aligning is safe).
+            uint32_t wfAlign = dc->waveformAlignment;                 // DC+0x14
+            totalSize = ((totalSize + wfAlign - 1) / wfAlign) * wfAlign;
+
+            // Set elfAlignment_ (0x2a9a9d)
+            wf->elfAlignment_ = dc->waveformAlignment;               // DC+0x14
+
+            // Set addressValue = totalSize + addressBase_ (0x2a9aa3-0x2a9aa9)
+            wf->addressValue = totalSize + addressBase_;
+
+            // Accumulate (0x2a9aac-0x2a9ab5)
+            totalSize += allocationBytes;
             waveCount++;
+            wf->allocationByteSize = allocationBytes;                 // store computed size
+
+            totalSamples += wf->getSampleCount();
         },
         fifoMode ? WaveOrder::Natural : WaveOrder::ByName);       // 0x29e3ec
 
@@ -269,7 +335,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     if (fifoMode) {                                                // 0x29e400
         computedOffset = 0;
     } else {                                                       // 0x29e409
-        uint64_t raw = totalSamples * 32 + alignment + 0x53;
+        uint64_t raw = waveCount * 32 + alignment + 0x53;
         computedOffset = static_cast<uint32_t>(raw - (raw % alignment));
     }
 
@@ -303,7 +369,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
                 uint32_t pageSize = dc->waveformPageSize;       // DC+0x44
                 // Round up to multiple of pageSize, cap at granularity
                 uint32_t rounded = ((length + pageSize - 1) / pageSize) * pageSize;
-                sizeInBlocks = std::min(rounded, granularity);  // 0x2a9cc6
+                sizeInBlocks = std::max(rounded, granularity);  // 0x2a9cc6
             }
 
             // totalBits = sizeInBlocks * channels * bitsPerSample       // 0x2a9cdb
@@ -385,14 +451,16 @@ void WavetableIR::forEachUsedWaveform(
 
     // Sort based on order
     if (order == WaveOrder::ByIndex) {
-        // stable_sort by wave index (comparator uses WavetableIR* context)
+        // Binary $_1 at 0x2ae780: reads +0x4c (addressValue), unsigned cmp (jae)
         std::stable_sort(indices, indices + count, [this](size_t a, size_t b) {
-            return usedWaveforms_[a]->waveIndex < usedWaveforms_[b]->waveIndex;
+            return static_cast<unsigned>(usedWaveforms_[a]->addressValue)
+                 < static_cast<unsigned>(usedWaveforms_[b]->addressValue);
         });
     } else if (order == WaveOrder::ByName) {
-        // stable_sort by name
+        // Binary $_0 at 0x2ad830: reads +0x6c (waveIndex), signed cmp (jge)
+        // Despite the enum name, ByName sorts by waveIndex ascending.
         std::stable_sort(indices, indices + count, [this](size_t a, size_t b) {
-            return usedWaveforms_[a]->name < usedWaveforms_[b]->name;
+            return usedWaveforms_[a]->waveIndex < usedWaveforms_[b]->waveIndex;
         });
     }
 
@@ -445,14 +513,20 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
 
     // Fill gaps with filler waveforms
     while (true) {
-        // Find next entry after current position
-        auto it = tree.end();
-        // ... walk tree to find successor
-        // If no successor or autoIdx >= successor, done
-        if (autoIdx >= *it) return;
+        // Find the next explicitly-assigned index at or above autoIdx
+        auto it = tree.lower_bound(autoIdx);
+        if (it == tree.end()) return;
 
-        // Create filler waveform
-        Signal emptySignal;
+        // If autoIdx already matches an explicit index, skip past it
+        if (*it == autoIdx) {
+            autoIdx++;
+            waveIndexTracker_.autoIndex_ = autoIdx;
+            continue;
+        }
+
+        // autoIdx < *it — there's a gap, create a filler
+        size_t minSamples = static_cast<size_t>(deviceConstants_->waveformGranularity);
+        Signal fillerSignal(minSamples, 0.0, 0, 1);  // min-length signal with zeros
         std::string fillerName = "filler";
         // 0x29ea60-0x29ea79: edx = manager_->lineNr_, ecx = manager_->waveformCounter_,
         // then waveformCounter_ is post-incremented in place. Result string lives at
@@ -461,12 +535,13 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
         int counter = manager_->waveformCounter_++;
         std::string uniqueName = getUniqueName(fillerName, lineIdx, counter);
         auto newWf = manager_->newWaveform(
-            uniqueName, emptySignal, fillerName, *deviceConstants_);
+            uniqueName, fillerSignal, std::string(), *deviceConstants_);
 
         usedWaveforms_.push_back(std::move(newWf));
 
         // Mark as filler and assign index
         auto& lastWf = usedWaveforms_.back();
+        lastWf->used = true;                      // fillers must be marked used
         lastWf->crossesCacheLine_ = true;  // +0xDA — fillers always span a CL boundary
         waveIndexTracker_.assignAuto(autoIdx);
         lastWf->waveIndex = autoIdx;  // at offset 0x6C in Waveform

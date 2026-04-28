@@ -1,0 +1,7 @@
+// Test SHFQC SG-side program
+// Device: SHFQC_SG
+
+wave w = rect(128, 1.0);
+playWave(w);
+waitWave();
+playZero(256);

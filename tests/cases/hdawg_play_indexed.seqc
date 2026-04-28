@@ -1,0 +1,14 @@
+// Test assignWaveIndex with dual-channel + multiple entries
+// Device: HDAWG8
+
+wave w1 = ones(32);
+wave w2 = zeros(32);
+wave w3 = ones(64);
+
+assignWaveIndex(1, w1, 0);
+assignWaveIndex(1, w2, 1);
+assignWaveIndex(1, w3, 2);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);

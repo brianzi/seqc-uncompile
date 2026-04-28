@@ -1,0 +1,36 @@
+// UHF tutorial: Fast Frequency and Phase Changes
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = gauss(1024, 512, 100);
+const degree_to_phaseshift(const degree) {
+  return degree*pow(2, 23)/360.0;
+}
+const freq_1 = 15e6;
+const freq_2 = 35e6;
+const phase_1 = degree_to_phaseshift(45);
+const phase_2 = degree_to_phaseshift(90);
+const set_time = 50;
+setDouble('awgs/0/outputs/0/amplitude', 0.7);
+setInt('scopes/0/trigchannel', 192);
+setInt('scopes/0/trigenable', 1);
+setInt('scopes/0/enable', 1);
+wait(100000);
+while (true) {
+  setTrigger(1);
+  setTrigger(0);
+  playWave(w_gauss);
+    waitWave();
+    setDouble('oscs/0/freq', freq_1);
+    wait(set_time);
+  playWave(w_gauss);
+    waitWave();
+    setDouble('oscs/0/freq', freq_2);
+    wait(set_time);
+  playWave(w_gauss);
+    waitWave();
+    setDouble('demods/2/phaseshift', phase_1);
+    wait(set_time);
+  playWave(w_gauss);
+    waitWave();
+    setDouble('demods/2/phaseshift', phase_2);
+    wait(set_time);
+}

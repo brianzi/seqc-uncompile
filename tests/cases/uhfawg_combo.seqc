@@ -1,0 +1,18 @@
+// UHFAWG combination test
+waitTrigger(1, 1);
+wave w1 = zeros(32);
+wave w2 = ones(32);
+playWave(w1, w2);
+waitWave();
+
+setTrigger(1);
+wait(10);
+setTrigger(0);
+
+playZero(64);
+
+setDIO(0xff);
+var d = getDIO();
+waitDIOTrigger();
+
+playZero(32);

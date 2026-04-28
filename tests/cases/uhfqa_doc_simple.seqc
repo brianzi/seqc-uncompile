@@ -1,0 +1,10 @@
+// UHFQA tutorial: A Simple Example
+// Source: docs.zhinst.com/uhfqa_user_manual/functional_description/awg.html
+const N = 4096;
+wave gauss_pos = 1.0*gauss(N, N/2, N/8);
+wave gauss_neg = -1.0*gauss(N, N/2, N/8);
+repeat (100) {
+  playWave(gauss_pos);
+  playWave(gauss_pos, gauss_neg);
+  playZero(8000);
+}

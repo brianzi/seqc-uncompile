@@ -1,0 +1,12 @@
+// From SHFSG Tutorial: waitDigTrigger in loop with marker pulse
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_synchronization.html
+const MARKER_POS = 3000;
+wave w_gauss  = gauss(8000, 4000, 1000);
+wave w_left   = marker(MARKER_POS, 0);
+wave w_right  = marker(8000-MARKER_POS, 1);
+wave w_marker = join(w_left, w_right);
+wave w_gauss_marker = w_gauss + w_marker;
+while (1) {
+    waitDigTrigger(1);
+    playWave(1,2, w_gauss_marker);
+}

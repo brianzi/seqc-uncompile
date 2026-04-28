@@ -1,0 +1,10 @@
+// Coverage: getDigTrigger runtime function (HDAWG)
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+var trig1 = getDigTrigger(1);
+var trig2 = getDigTrigger(2);
+if (trig1) {
+  playZero(32);
+}
+if (trig2) {
+  playZero(64);
+}

@@ -1,0 +1,25 @@
+// UHF tutorial: AWG Parameter Sweep
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+const RATE = AWG_RATE_28MHZ;
+const FS = 1.8e9/pow(2, RATE);
+void wait_us(const us) {
+  wait(1e-6*us*225e6);
+}
+void user_func() {
+  const N = 1e-3*FS;
+  const M = 100e-6*FS;
+  wave edges = blackman(2*M, 1.0, 0.2);
+  wave w_pulse = join(cut(edges, 0, M-1),
+                      rect(N-2*M, 1.0),
+                      cut(edges, M, 2*M-1));
+  waitDemodSample(1);
+  playWave(1, w_pulse, RATE);
+}
+void sweeper_record(const from_us, const to_us) {
+  wait_us(from_us);
+  setTrigger(1);
+  wait_us(to_us-from_us);
+  setTrigger(0);
+}
+user_func();
+sweeper_record(100, 900);

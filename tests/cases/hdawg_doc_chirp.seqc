@@ -1,0 +1,6 @@
+// Coverage: chirp waveform function
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = chirp(1024, 0.1, 0.2);
+wave w2 = chirp(1024, 1.0, 0.05, 0.3, 0);
+playWave(w1);
+playWave(w2);

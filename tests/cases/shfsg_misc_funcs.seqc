@@ -1,0 +1,23 @@
+// SHFSG8 misc functions
+setSinePhase(90);
+playZero(32);
+incrementSinePhase(45);
+playZero(32);
+
+setID(0);
+var id = 5;
+setID(id);
+
+setPRNGRange(0, 100);
+setPRNGSeed(42);
+var v = getPRNGValue();
+setUserReg(0, v);
+
+randomSeed();
+
+configureFeedbackProcessing(ZSYNC_DATA_PROCESSED_A, 0, 1, 0);
+var fb = getFeedback(ZSYNC_DATA_RAW);
+setUserReg(1, fb);
+
+waitSineOscPhase();
+playZero(32);

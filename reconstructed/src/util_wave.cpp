@@ -30,16 +30,16 @@ namespace wave {
 // Constants from rodata:
 //   0x956030 = 1.0          (overflow threshold)
 //   0x956068 = -1.0         (clamp floor)
-//   0x956330 = 8190.0       (full-scale, 2^13 - 2)
+//   0x956330 = 8191.0       (full-scale, 2^13 - 1)
 //
 // Algorithm:
-//   1. If sample > 1.0: result_value = 8190.0 (saturate to max).
-//      Else:           result_value = max(-1.0, sample) * 8190.0.
+//   1. If sample > 1.0: result_value = 8191.0 (saturate to max).
+//      Else:           result_value = max(-1.0, sample) * 8191.0.
 //   2. result = lround(result_value)
 //   3. Pack: (result << 2) | (marker & 0x3)
 // ---------------------------------------------------------------------------
 uint16_t double2awg(double sample, unsigned int marker) {  // 0x299630
-    constexpr double kFullScale = 8190.0;
+    constexpr double kFullScale = 8191.0;
     double scaled;
     if (sample > 1.0) {
         scaled = kFullScale;
@@ -88,7 +88,13 @@ uint16_t double2awg16(double sample) {  // 0x299700
     if (sample > 1.0) {
         scaled = kFullScale;
     } else {
-        scaled = std::max(-1.0, sample) * kFullScale;
+        // Binary uses maxsd which returns NaN if either operand is NaN.
+        // std::max(-1.0, NaN) would return -1.0 (wrong), so replicate maxsd:
+        double clamped = (sample >= -1.0) ? sample : -1.0;  // NaN >= -1.0 is false → -1.0... 
+        // Actually maxsd returns second source when NaN. Let's just use:
+        double lo = -1.0;
+        asm volatile("maxsd %1, %0" : "+x"(lo) : "x"(sample));
+        scaled = lo * kFullScale;
     }
     long rounded = std::lround(scaled);
     return static_cast<uint16_t>(rounded);

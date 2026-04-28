@@ -1,0 +1,8 @@
+// From SHFQA User Manual: For loop with startQA (compile-time and run-time)
+// https://docs.zhinst.com/shfqa_user_manual/functional_description/generator_tab.html
+var k;
+var j;
+for (j = 9; j >= 0; j = j - 1) {
+    startQA(QA_GEN_0, QA_INT_0, true,  0x0, 0x0);
+    k += j;
+}

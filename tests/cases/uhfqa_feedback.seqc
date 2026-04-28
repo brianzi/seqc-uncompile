@@ -1,0 +1,7 @@
+// Test UHFQA startQA variants
+// Device: UHFQA
+
+wave w = ones(128);
+playWave(w);
+waitWave();
+startQA(QA_INT_0, true);

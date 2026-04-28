@@ -1,0 +1,5 @@
+// From HDAWG Tutorial: Wave loaded from CSV file reference
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/awg.html
+// NOTE: requires "wave_file.csv" in waves directory
+wave w = "wave_file";
+playWave(w);

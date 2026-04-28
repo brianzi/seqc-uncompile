@@ -1,0 +1,4 @@
+// Coverage: HDAWG-specific setInt, setDouble runtime functions
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+setInt("awgs/0/single", 1);
+setDouble("sigouts/0/offset", 0, 0.001);

@@ -670,7 +670,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
     checkFunctionSupported("playWaveDIO", kDevHirzel);
 
     // Phase 3: arg-count check — @0x1377b6..0x1377bd (begin == end → empty)
-    if (args.empty()) {
+    if (!args.empty()) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs,
                                   std::string("playWaveDIO")));
@@ -911,13 +911,24 @@ std::shared_ptr<EvalResults> CustomFunctions::info(  // @0x14da50 (531B)
 std::shared_ptr<EvalResults> CustomFunctions::setRate(  // @0x14c370 (933B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
     checkFunctionSupported("setRate", static_cast<AwgDeviceType>(5));
-    if (args.size() != 1)
-        throw CustomFunctionsException("setRate requires exactly 1 argument");  // error 0xc0
-    // Binary: extract int arg, validate type, call asmRate
-    //   int rate = extractArg(args[0]).toInt();
-    //   auto asm = asmCommands_->asmRate(rate);
-    //   result->appendAsm(asm);
-    return nullptr;
+    if (args.size() != 1)                                                                          // @0x14c3cb: cmp $0x38
+        throw CustomFunctionsException(
+            ErrorMessages::format(SetRateOneConst, std::string("setRate")));           // error 0xc0
+    // @0x14c3d5: copy arg[0]
+    EvalResultValue arg0 = args[0];
+    // @0x14c463: check varType is const/cvar ((varType & ~1) == 4)
+    if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                               // @0x14c469: jne error
+        throw CustomFunctionsException(
+            ErrorMessages::format(SetRateConst, std::string("setRate")));              // error 0xbf
+    // @0x14c46f: make_shared<EvalResults>() — default ctor
+    auto results = std::make_shared<EvalResults>();
+    // @0x14c4d6: value_.toInt(), then asmRate
+    int rate = arg0.value_.toInt();                                                                // @0x14c4d6
+    auto asmEntry = asmCommands_->asmRate(rate);                                                   // @0x14c4e7
+    results->assemblers_.push_back(std::move(asmEntry));                                           // @0x14c4ec..0x14c54e
+    // Binary @0x14c57c: stores asmEntry.node into results->node_ (+0x38)
+    results->node_ = results->assemblers_.back().node;                                             // @0x14c57c
+    return results;
 }
 
 
@@ -934,8 +945,20 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
                                   std::string("playZero"), 2, static_cast<int>(args.size())));
 
     auto results = std::make_shared<EvalResults>(VarType_Void);
-    int length = args[0].value_.toInt();
-    length = checkPlayAlignment(length);                                         // @0x15b190
+
+    // Binary @0x138894: dispatch on varType_ — Var uses register, Const/Cvar uses toInt()
+    int length = 0;
+    int regNum = 0;  // register number for the second AsmRegister param
+    auto const& arg0 = args[0];
+    if (arg0.varType_ == VarType_Var) {                                          // @0x13889e: cmp $0x2, (%rdi)
+        // Var path: length stays 0, register comes from arg0.reg_               // @0x1388c8..0x1388d3
+        regNum = static_cast<int>(arg0.reg_);
+    } else {
+        // Const/Cvar path: extract integer length, validate                     // @0x1388e2..0x138902
+        length = arg0.value_.toInt();
+        checkPlayMinLength(length);
+        length = checkPlayAlignment(length);                                     // @0x15b190
+    }
 
     // Optional second arg: play rate
     int rate = -1;
@@ -946,12 +969,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
     std::vector<std::shared_ptr<WaveformFront>> emptyWfs;
     int channelIndex = config_->deviceIndex;
     AsmRegister reg0(0);
-    AsmRegister regInv(-1);
+    AsmRegister regArg(regNum);                                                  // @0x138988: AsmRegister(ebx)
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
         false /*isHold*/, false /*fourChannel*/, false /*isBool*/,
         rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
-        reg0, length, regInv, 0 /*trigger*/);
+        reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain (binary 0x138a4b-0x138a86)
     auto playNode = asmEntry.node;  // copy shared_ptr before move
     if (!results->node_) {
@@ -975,8 +998,18 @@ std::shared_ptr<EvalResults> CustomFunctions::playHold(                         
                                   std::string("playHold"), 2, static_cast<int>(args.size())));
 
     auto results = std::make_shared<EvalResults>(VarType_Void);
-    int length = args[0].value_.toInt();
-    length = checkPlayAlignment(length);
+
+    // Binary @0x139100: dispatch on varType_ — same pattern as playZero
+    int length = 0;
+    int regNum = 0;
+    auto const& arg0 = args[0];
+    if (arg0.varType_ == VarType_Var) {
+        regNum = static_cast<int>(arg0.reg_);
+    } else {
+        length = arg0.value_.toInt();
+        checkPlayMinLength(length);
+        length = checkPlayAlignment(length);
+    }
 
     int rate = -1;
     if (args.size() >= 2)
@@ -986,12 +1019,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playHold(                         
     std::vector<std::shared_ptr<WaveformFront>> emptyWfs;
     int channelIndex = config_->deviceIndex;
     AsmRegister reg0(0);
-    AsmRegister regInv(-1);
+    AsmRegister regArg(regNum);
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
-        true /*isHold*/, false /*fourChannel*/, false /*isBool*/,
+        false /*isHold — binary 0x1391b8: xor r8d*/, false /*fourChannel*/, true /*isBool — binary 0x1391d7: push $0x1*/,
         rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
-        reg0, length, regInv, 0 /*trigger*/);
+        reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain
     auto playNode = asmEntry.node;
     if (!results->node_) {

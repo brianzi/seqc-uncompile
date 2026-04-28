@@ -1,0 +1,6 @@
+// Coverage: SHFSG waitZSyncTrigger + executeTableEntry with ZSync constant
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+repeat(10) {
+  waitZSyncTrigger();
+  executeTableEntry(ZSYNC_DATA_RAW);
+}

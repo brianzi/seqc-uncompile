@@ -173,7 +173,7 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
     std::ostringstream oss;
     for (uint16_t i = 0; i < channels; ++i) {
         if (i != 0) {
-            oss << ",";
+            oss << ";";
         }
         // Compute marker bits for channel i from Signal::markerBits_
         // (vector<uint8_t> at WaveformIR+0xB0..+0xB8 = Signal+0x30..+0x38).
@@ -205,6 +205,14 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
 
     // "length" <- signal.length (int at Waveform+0xD0)
     result.put("length", signal.length());
+
+    // "timestamp" <- constant "0000000000000000"
+    // Binary 0x2c5a8b: lea 0x644dfb(%rip),%rdx → literal "0000000000000000"
+    result.put("timestamp", "0000000000000000");
+
+    // "play_config" <- this->playWord (int at Waveform+0x68)
+    // Binary 0x2c5aef: add $0x68,%r14 (this+0x68), then put<int>
+    result.put("play_config", static_cast<int>(playWord));
 
     return result;
 }

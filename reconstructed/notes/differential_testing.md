@@ -41,15 +41,15 @@ Each entry specifies:
 - `samplerate` (optional) — sample rate in Hz
 - `sequencer` (optional) — sequencer type (`"qa"`, `"sg"`)
 
-## Current coverage (28 test cases, 2026-04-26)
+## Current coverage (69 test cases, 2026-04-27 — ALL PASS)
 
 ### By device type
 
 | Device | Cases | Notes |
 |--------|-------|-------|
-| HDAWG8 | 24 | index 0 (23) + index 1 (1) |
-| SHFQA4 | 2 | sequencer=qa |
-| SHFSG8 | 2 | sequencer=sg |
+| HDAWG8 | 59 | index 0 (58) + index 1 (1) |
+| SHFQA4 | 6 | sequencer=qa |
+| SHFSG8 | 4 | sequencer=sg |
 
 ### By language feature
 
@@ -105,21 +105,13 @@ the ELF bytes. The JSON metadata comparison is not yet implemented.
 
 **Language features not yet tested:**
 - `switch/case` statements
-- User-defined functions (`void foo() { … }` + `foo();`)
-- `cvar` (compile-time variables with runtime fallback)
 - String variables and operations
-- Waveform operations (`wave w = zeros(1024); playWave(w);`)
-- Waveform arithmetic (`wave w = w1 + w2;`, `scale(w, 0.5)`)
-- `assignWaveIndex` (command table entries)
 - DIO/ZSync playback (`playWaveDIO`, `playWaveZSync`)
-- `setInt`/`setDouble` (node I/O via writeToNode)
-- Oscillator functions (`setSinePhase`, `resetOscPhase`, `setOscFreq`)
 - QA functions (`startQA`, `startQAResult`, `executeTableEntry`)
 - PRNG functions (`setPRNGSeed`, `setPRNGRange`, `getPRNGValue`)
 - Feedback processing (`configureFeedbackProcessing`, `getFeedback`)
 - `generate` (user-defined waveform generation)
 - Nested function calls / recursive patterns
-- `return` statements within functions
 - Error cases (compile-time errors should match between original and reconstruction)
 
 **Additional device types:**

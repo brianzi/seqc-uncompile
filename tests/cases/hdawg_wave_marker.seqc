@@ -1,0 +1,4 @@
+wave w = zeros(64);
+wave m = marker(64, 1);
+wave combined = w + m;
+playWave(combined);

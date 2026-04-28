@@ -1,0 +1,6 @@
+// Coverage: join with interpolation length parameter
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = rect(32, 1.0);
+wave w2 = rect(32, -1.0);
+wave w3 = join(w1, w2, 8);
+playWave(w3);

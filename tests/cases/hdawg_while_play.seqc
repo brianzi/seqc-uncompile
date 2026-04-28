@@ -1,0 +1,8 @@
+// Test while loop with playback
+// Device: HDAWG8
+
+var i = 0;
+while (i < 3) {
+  playZero(32);
+  i += 1;
+}

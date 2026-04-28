@@ -1,0 +1,6 @@
+// From HDAWG Tutorial: Placeholder waveform with marker and assignWaveIndex
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/awg.html
+const LENGTH = 1024;
+wave w = placeholder(LENGTH, true, false);
+assignWaveIndex(1, w, 10);
+playWave(1, w);

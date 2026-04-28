@@ -1,0 +1,6 @@
+// Coverage: sync() instruction (HDAWG multi-device synchronization)
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+sync();
+playZero(32);
+waitWave();
+sync();

@@ -1,0 +1,5 @@
+// Coverage: getDIOTriggered, waitDIOTrigger (HDAWG)
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+waitDIOTrigger();
+var val = getDIOTriggered();
+setUserReg(0, val);

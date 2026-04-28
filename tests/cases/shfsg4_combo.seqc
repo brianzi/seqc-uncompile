@@ -1,0 +1,25 @@
+// SHFSG4 combination test
+resetOscPhase();
+setSinePhase(45);
+wave w = gauss(64, 32, 12);
+playWave(w);
+waitWave();
+incrementSinePhase(90);
+playZero(32);
+setTrigger(1);
+wait(100);
+setTrigger(0);
+
+configFreqSweep(0, 100e6, 3);
+setOscFreq(0, 50e6);
+
+var i;
+for(i = 0; i < 3; i++) {
+  executeTableEntry(i);
+  waitWave();
+}
+
+setPRNGSeed(42);
+setPRNGRange(0, 100);
+var v = getPRNGValue();
+setUserReg(0, v);

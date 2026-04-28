@@ -1,0 +1,5 @@
+// HDAWG ZSync wait variant (separate from DIO triggers)
+waitZSyncTrigger();
+playZero(32);
+wait(100);
+playZero(64);

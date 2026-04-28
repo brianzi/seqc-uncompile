@@ -133,6 +133,7 @@ public:
     const char* what() const noexcept override;                               // @0x172fd0
     void setVarName(std::string const& name);                                 // @0x210750
     std::string const& varName() const { return varName_; }                    // inline accessor
+    size_t argIndex() const { return argIndex_; }                              // inline accessor
 };
 
 // ============================================================================
@@ -327,6 +328,7 @@ public:
     // SubFunc — enum for play() / playIndexed() dispatch
     // Confirmed from binary: playWave passes 1, playWaveNow passes 3.
     enum class SubFunc : int {
+        Prefetch   = 0,   // prefetch (prefetch-only path, no asmPlay)
         Default    = 1,   // playWave, playWaveIndexed
         Aux        = 2,   // playAuxWaveIndexed (via playIndexed)
         Now        = 3,   // playWaveNow, playWaveIndexedNow

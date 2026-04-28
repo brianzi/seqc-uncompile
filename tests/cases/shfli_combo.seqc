@@ -1,0 +1,21 @@
+// SHFLI combination test
+resetOscPhase();
+setSinePhase(60);
+incrementSinePhase(30);
+
+wave w = rect(64, 0.5);
+playWave(w);
+waitWave();
+
+playZero(32);
+wait(100);
+
+configFreqSweep(0, 50e6, 2);
+setOscFreq(0, 200e6);
+
+setDIO(0xaa);
+var d = getDIO();
+waitDIOTrigger();
+
+setPRNGSeed(7);
+playZero(32);

@@ -1,0 +1,20 @@
+// SHFQA4 frequency sweep + various functions
+configFreqSweep(0, 1e6, 2);
+setOscFreq(0, 100e6);
+
+var step = 0;
+
+setSweepStep(0, step);
+startQA(QA_INT_ALL, true);
+wait(100);
+
+step = step + 1;
+setSweepStep(0, step);
+startQA(QA_INT_ALL, true);
+wait(100);
+
+resetOscPhase();
+waitDigTrigger(1);
+playZero(32);
+waitZSyncTrigger();
+playZero(32);

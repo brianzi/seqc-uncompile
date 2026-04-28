@@ -19,6 +19,7 @@
 
 #include <boost/algorithm/string/replace.hpp>
 #include <cstring>
+#include <iostream>
 #include <memory>
 #include <string>
 #include <typeinfo>
@@ -630,8 +631,7 @@ bool Resources::functionExists(std::string const& name,  // @0x1e9110
 
     // Recurse to parent via parentWeak_
     if (auto parent = parentWeak_.lock()) {
-        if (parent_)
-            return parent_->functionExists(name, sig);
+        return parent->functionExists(name, sig);
     }
     return false;
 }
@@ -673,8 +673,7 @@ Resources::getFunction(std::string const& name,  // @0x1e9370
 
     // Recurse to parent via parentWeak_
     if (auto parent = parentWeak_.lock()) {
-        if (parent_)
-            return parent_->getFunction(name, sig);
+        return parent->getFunction(name, sig);
     }
     return nullptr;
 }
@@ -723,10 +722,8 @@ Resources::getPossibleFunctions(std::string const& name) {  // @0x1e9740
 
     // Recurse to parent via parentWeak_
     if (auto parent = parentWeak_.lock()) {
-        if (parent_) {
-            auto parentResults = parent_->getPossibleFunctions(name);
-            result.insert(result.end(), parentResults.begin(), parentResults.end());
-        }
+        auto parentResults = parent->getPossibleFunctions(name);
+        result.insert(result.end(), parentResults.begin(), parentResults.end());
     }
 
     return result;

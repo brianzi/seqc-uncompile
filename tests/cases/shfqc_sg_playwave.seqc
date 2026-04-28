@@ -1,0 +1,5 @@
+wave w = zeros(32);
+playWave(w);
+waitWave();
+executeTableEntry(0);
+playZero(64);

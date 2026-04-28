@@ -197,7 +197,7 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     config.channelsPerGroup[0] = 0x0002;                        // +0x14
     config.channelsPerGroup[1] = 0x0004;                        // +0x16
     config.isHirzel = props.isHirzel;                           // +0x18
-    config.cacheType = props.isHirzel ? 1 : 0;                  // +0x19 — sete from ZF; GDB-verified: 1 for HDAWG8
+    config.cacheType = (props.deviceType == AwgDeviceType::HDAWG) ? 1 : 0;  // +0x19 — cmp $0x2 at 0xf6798, sete at 0xf67da
     config.numChannelGroups = 1;                                // +0x1C
     config.awgIndex = static_cast<int32_t>(awgIndex);           // +0x20
     config.deviceIndex = 0;                                     // +0x24

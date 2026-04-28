@@ -1,0 +1,11 @@
+// Test command table with const index executeTableEntry
+// Device: HDAWG8
+
+wave w1 = ones(32);
+wave w2 = zeros(32);
+
+assignWaveIndex(1, w1, 0);
+assignWaveIndex(1, w2, 1);
+
+var idx = getUserReg(0);
+executeTableEntry(idx);

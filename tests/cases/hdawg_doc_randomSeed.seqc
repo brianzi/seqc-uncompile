@@ -1,0 +1,8 @@
+// Coverage: randomSeed() compile-time function
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+randomSeed();
+wave w = rand(64, 1.0, 0, 0.5);
+randomSeed();
+wave w2 = rand(64, 1.0, 0, 0.5);
+playWave(w);
+playWave(w2);

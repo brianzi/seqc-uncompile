@@ -738,6 +738,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
     // Iterate over each used waveform
     for (auto& waveformIR : usedWaves) {                               // 0x1ccb7b, 0x1ccb6e
 
+
         // 0x1ccb7f-0x1ccb86: Skip waveforms that don't need loading.
         // Reads WaveformIR+0xD8 = markedForLoad. (Earlier reconstruction
         // mislabelled this as +0xDA / irBool1 — verified at 0x1ccb7f the
@@ -783,9 +784,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
             // Binary at 0x1ccd06: mov (%r12),%rax reloads the WaveformIR pointer
             // from the usedWaves iterator, then movzbl 0xda(%rax) reads crossesCacheLine_.
             bool useDA = waveformIR->crossesCacheLine_;                 // 0x1ccd0a: movzbl 0xda(%rax)
-            fprintf(stderr, "[DBG] moveLoadsToFront: wf=%s crossesCacheLine=%d addr=0x%x\n",
-                    waveformIR->name.c_str(), (int)waveformIR->crossesCacheLine_,
-                    waveformIR->addressValue);
+
             auto [it2, _2] = nodeStates_.emplace(loadNode, PrefetcherNodeState{});
             it2->second.useDA = useDA;                                 // 0x1ccd37: mov %r14b,0x58(%rax)
         } else {                                                       // 0x1ccd40
@@ -824,6 +823,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
             // 0x1ccfc5-0x1cd0db: Check if current is a Play node with
             // matching waveform name on the correct device
             if (cur->type == NodeType::Load) {                         // 0x1ccfc5: cmpl $0x1,0x44(%r15) — confirmed: compares to 1 (Load)
+
                 int curDevIdx = cur->deviceIndex;                      // 0x1ccfd0: movslq 0x40(%r15)
                 if (curDevIdx >= 0) {                                  // 0x1ccfd7
                     // 0x1ccfdd-0x1cd02b: Get wavesPerDev[curDevIdx] from current node
@@ -879,6 +879,7 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
                                         playTarget, PrefetcherNodeState{});  // 0x1cd4fd
                                     itP->second.registerCervino =
                                         itL->second.registerCervino;   // 0x1cd509-0x1cd50d
+
                                 }
                             }
 
@@ -895,7 +896,6 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
 
                             // After updateParent, fall through to enqueue children
                             // (goto 0x1cd0f0)
-                            continue;  // confirmed: continues to next deque item after updateParent
                         }
                     }
                 }
@@ -2013,6 +2013,7 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
         auto [it2, _2] = nodeStates_.emplace(node, PrefetcherNodeState{});
         // 0x1d54b6-0x1d54ba: copy registerCervino (+0x28) from load's state to node's state
         it2->second.registerCervino = it1->second.registerCervino;  // +0x28 offset
+
     }
 }
 
@@ -2230,6 +2231,7 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cbf96-0x1cbfa5: call getRequiredMemory()
     size_t required = getRequiredMemory();
 
+
     // 0x1cbfa5-0x1cbfb5: save root_ to local
     auto localRoot = root_;
 
@@ -2260,9 +2262,9 @@ void Prefetch::placeLoads() // 0x1cbf60
             } else {
                 localRoot->next = syncNode;
             }
-        } else if (devTypeVal == 0x1 /*UHFLI*/ || devTypeVal == 0x2 /*HDAWG*/ ||
-                   devTypeVal == 0x4 /*UHFQA*/ || devTypeVal == 0x8 /*SHFQA-like*/) {
-            // 0x1cc117-0x1cc193: bitmask check (0x100010104 covers bits 0,2,8,32)
+        } else if ((1ULL << devTypeVal) & 0x100010104ULL) {
+            // 0x1cc117-0x1cc193: bitmask check: bits 2,8,16,32 →
+            // HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32)
             // Create AwgReady node (type 0x8000)
             auto readyNode = std::make_shared<Node>(NodeType::AwgReady,
                                                      localRoot->asmId, 0);

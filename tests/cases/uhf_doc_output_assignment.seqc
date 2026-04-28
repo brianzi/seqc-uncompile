@@ -1,0 +1,17 @@
+// UHF tutorial: Signal Output Assignment
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = 0.5*gauss(8000, 4000, 1000);
+wave w_drag  = 0.5*drag(8000, 4000, 1000);
+while (true) {
+  setTrigger(1);
+  playWave(w_gauss);
+  playWave(1, w_gauss);
+  playWave(2, w_gauss);
+  playWave(1, 2,  w_gauss);
+  playWave(w_gauss, w_drag);
+  playWave(1, w_gauss, 2, w_drag);
+  playWave(1, w_gauss, 1, w_drag);
+  waitWave();
+  setTrigger(0);
+  wait(10000);
+}

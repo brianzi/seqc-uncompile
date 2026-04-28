@@ -1,0 +1,15 @@
+// UHFLI wait/trigger variants
+waitTrigger(1, 1);
+playZero(64);
+
+waitDigTrigger(1, 1);
+playZero(64);
+
+waitAnaTrigger(1, 1);
+playZero(64);
+
+waitDemodOscPhase(1);
+playZero(64);
+
+waitDemodSample(1);
+playZero(64);

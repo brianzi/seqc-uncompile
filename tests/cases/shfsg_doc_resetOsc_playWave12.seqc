@@ -1,0 +1,10 @@
+// From SHFSG Tutorial: LF path with resetOscPhase and playWave(1,2,w)
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_awg.html
+const length = 128;
+const amp = 1;
+wave w = gauss(length, amp, length/2, length/8);
+while (1) {
+  waitDigTrigger(1);
+  resetOscPhase();
+  playWave(1, 2, w);
+}

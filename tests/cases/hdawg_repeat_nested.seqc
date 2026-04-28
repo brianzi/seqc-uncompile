@@ -1,0 +1,12 @@
+// Test nested repeat + playWave + waitWave
+// Device: HDAWG8
+
+wave w = ones(32);
+
+repeat(3) {
+  repeat(2) {
+    playWave(w);
+    waitWave();
+  }
+  playZero(64);
+}

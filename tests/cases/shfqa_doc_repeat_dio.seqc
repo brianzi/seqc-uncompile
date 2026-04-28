@@ -1,0 +1,8 @@
+// From SHFQA User Manual: Repeat loop with DIO toggle
+// https://docs.zhinst.com/shfqa_user_manual/functional_description/generator_tab.html
+repeat (100) {
+    setDIO(0x1);
+    wait(10);
+    setDIO(0x0);
+    wait(10);
+}

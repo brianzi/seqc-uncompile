@@ -61,8 +61,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
     auto const& arg = args[0];
 
     if (static_cast<int>(arg.varType_) == 2) {
-        // Immediate value
-        AsmRegister reg(arg.value_.toInt());
+        // Var: use reg_, not value_.toInt() (same pattern as setID)
+        AsmRegister reg = arg.reg_;
         auto asmEntry = asmCommands_->sdio(reg, supported);
         results->assemblers_.push_back(std::move(asmEntry));
     } else if (isConstOrCvar(arg.varType_)) {
@@ -70,7 +70,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
         int regNum = Resources::getRegisterNumber();
         AsmRegister newReg(regNum);
         AsmRegister r0(0);
-        auto addiEntries = asmCommands_->addi(newReg, r0, Immediate(arg.value_.toInt()));
+        auto addiEntries = asmCommands_->addi32(newReg, r0, Immediate(arg.value_.toInt()));
         for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
         auto asmEntry = asmCommands_->sdio(newReg, supported);
         results->assemblers_.push_back(std::move(asmEntry));
@@ -78,6 +78,21 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsSingleArg, std::string("setDIO")));
     }
+
+    // @0x130b95: Add node access for DIO output
+    // Binary wraps lookupNode+addNodeAccess in try-catch; if node doesn't exist
+    // (e.g. SHFQA which has no DIOOUTPUT in its node map), silently skip.
+    // Catch at @0x130f5e-0x130f6c: begin_catch, end_catch, jmp epilogue.
+    if (!supported) {
+        try {
+            auto node = lookupNode(std::string("_/dios/0/output"));           // @0x130cd7
+            addNodeAccess(node, static_cast<AccessMode>(2));                   // @0x130d34
+        } catch (...) {
+            // Silently ignore — node may not exist for this device type
+        }
+    }
+    // SHF path (isShfFamily): no lookupNode call — binary jumps to 0x130d56 epilogue
+
     return results;
 }
 std::shared_ptr<EvalResults> CustomFunctions::getDIO(                                                                                                                       // @0x131040 (~1KB)
@@ -330,7 +345,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setID(                            
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
     if (static_cast<int>(arg.varType_) == 2) {
-        AsmRegister reg(arg.value_.toInt());
+        AsmRegister reg = arg.reg_;                                              // Var: use reg_, not value_.toInt()
         auto asmEntry = asmCommands_->sid(reg, supported);
         results->assemblers_.push_back(std::move(asmEntry));
     } else if (isConstOrCvar(arg.varType_)) {
@@ -381,9 +396,9 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
     // The element returned by parse must be a var-type (or 2 → int);          // @0x133f52
     // extract the wave index from it
     if ((static_cast<int>(parseEnd->varType_) | 0x2) != 0x6) {                 // (varType | 2) must == 6, i.e., 4 or 6
-        // @0x134c7a: error 0x96 — ErrorMessages::format<string>(0x96, cmdName)
+        // @0x134c7a → 0x134d7d: error 0x95 (149) — OnlyConstWaveIndex
         throw CustomFunctionsException(
-            ErrorMessages::format(UnexpectedArgs,
+            ErrorMessages::format(OnlyConstWaveIndex,
                                   std::string("assignWaveIndex")));
     }
     int waveIndex = parseEnd->value_.toInt();                                  // @0x133f64
@@ -398,7 +413,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
     int64_t maxSampleLen = playArgs.getMaxSampleLength();
 
     // Build channel args by iterating wave assignments                        // @0x133fd6
-    int channelIndex = config.channelsPerGroup[0];  // [config+0x24]
+    int channelIndex = config.deviceIndex;  // [config+0x24]
     auto const& assignments = playArgs.waveAssignments_[channelIndex];
 
     std::vector<EvalResultValue> channelArgs;
@@ -452,14 +467,14 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
         wf->used = true;  // [WaveformFront+0x48] = Waveform::used  // @0x1342f1
 
         // Check if channelArgs has >= 2 elements, get second arg name         // @0x1342f5
-        bool singleChannel = true;
+        bool singleChannel = false;                                            // @0x13435e: xor ebx,ebx
         if (channelArgs.size() >= 2) {
             std::string secondName = channelArgs[1].value_.toString();
             singleChannel = secondName.empty();
         }
 
         auto playConfig = asmCommands_->genPlayConfig(
-            wf, singleChannel, true, true, false, -1, 0, false, mask);         // @0x1343bb
+            wf, singleChannel, true, false, false, -1, mask, false, 0);        // @0x1343bb
 
         // Build the config word from PlayConfig fields and store at wf->playWord  // @0x1343c9
         // The binary reads each PlayConfig field, shifts by the corresponding
@@ -490,9 +505,21 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
     // asmLoadPlaceholder                                                      // @0x134625
     auto asmEntry = asmCommands_->asmLoadPlaceholder();
 
-    // Copy waveform name into assembler node                                  // @0x134635
-    // (copies wf->name string into the AsmList::Asm entry's assembler node)
-    // Then sets up the assembler node linkage and pushes to results            // @0x13472e
+    // Copy waveform name into node->wavesPerDev[deviceIndex]                  // @0x134635
+    if (wf) {
+        int devIdx = config.deviceIndex;                                       // [config+0x24]
+        asmEntry.node->wavesPerDev[devIdx] = wf->name;
+    }
+
+    // Set deviceIndex on the node                                             // @0x13472b
+    asmEntry.node->deviceIndex = config.deviceIndex;
+
+    // Chain node into results->node_ tree                                     // @0x13472e
+    if (results->node_) {
+        results->node_->next = asmEntry.node;                                  // @0x134751
+    } else {
+        results->node_ = asmEntry.node;                                        // @0x134776
+    }
 
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
@@ -500,7 +527,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
 std::shared_ptr<EvalResults> CustomFunctions::prefetch(                                                                                                                    // @0x1351d0 (300B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
     checkFunctionSupported("prefetch", static_cast<AwgDeviceType>(HDAWG));
-    return play(args, std::move(res), SubFunc::Default);                      // forwards to play() with SubFunc 0
+    return play(args, std::move(res), SubFunc::Prefetch);                      // forwards to play() with SubFunc 0
 }
 std::shared_ptr<EvalResults> CustomFunctions::prefetchIndexed(                                                                                                              // @0x135290 (100B)
     std::vector<EvalResultValue> const& /*args*/, std::shared_ptr<Resources> /*res*/) {
@@ -588,23 +615,16 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
                 // @0x139cef: readConst("AWG_WAIT_TRIGGER") for scaling
                 int regNum = Resources::getRegisterNumber();                         // @0x139cef
                 AsmRegister reg(regNum);                                             // @0x139cfa
-                AsmRegister zero(0);                                                 // @0x139d14
+                AsmRegister zero2(0);                                                // @0x139d14
 
                 auto erv = res->readConst("AWG_WAIT_TRIGGER",
                     EDirection::eOUT);                                     // @0x139d42: readConst
                 int constVal = erv.value_.toInt();                                   // @0x139d51
 
                 auto addiEntries = asmCommands_->addi(
-                    reg, zero, Immediate(constVal));                                 // @0x139d7b
+                    reg, zero2, Immediate(constVal));                                 // @0x139d7b
                 for (auto& e : addiEntries)
                     results->assemblers_.push_back(std::move(e));                    // @0x139d80..0x139dab
-
-                // @0x13a09b: emit suser(reg, 0x1a) — load trigger value
-                appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserTriggerLoad)); // @0x13a0ae              // @0x13a0b3..0x13a125
-
-                // @0x13a174: emit wtrig(reg, reg) — wait on trigger
-                auto wtrigEntry = asmCommands_->wtrig(reg, reg);                     // @0x13a182
-                results->assemblers_.push_back(std::move(wtrigEntry));               // @0x13a187..0x13a1bd
 
                 // @0x13a259: second register for remaining wait count
                 int regNum2 = Resources::getRegisterNumber();                        // @0x13a259
@@ -612,18 +632,18 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
 
                 // @0x13a28d: remaining = arg - triggerLatencyCycles
                 int remaining = arg.value_.toInt() - static_cast<int>(devConst_->triggerLatencyCycles); // @0x13a29a
-                AsmRegister zero2(0);                                                // @0x13a281
+                AsmRegister zero3(0);                                                // @0x13a281
                 auto addiEntries2 = asmCommands_->addi(
-                    reg2, zero2, Immediate(remaining));                              // @0x13a2c5
+                    reg2, zero3, Immediate(remaining));                              // @0x13a2c5
                 for (auto& e : addiEntries2)
                     results->assemblers_.push_back(std::move(e));                    // @0x13a2ca..0x13a2fb
 
-                // @0x13a3dc: emit suser(reg2, 0x1a)
-                appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(kSuserTriggerLoad)); // @0x13a3ec              // @0x13a3f1..0x13a468
+                // @0x13a3dc: emit suser(reg2, 0x1a) — load remaining into trigger register
+                appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(kSuserTriggerLoad)); // @0x13a3ec
 
-                // @0x13a4b6: emit wtrig(reg2, reg2)
-                auto wtrigEntry2 = asmCommands_->wtrig(reg2, reg2);                  // @0x13a4c0
-                results->assemblers_.push_back(std::move(wtrigEntry2));              // @0x13a4c5..0x13a54a
+                // @0x13a4b6: emit wtrig(reg, reg) — wait on main trigger value
+                auto wtrigEntry = asmCommands_->wtrig(reg, reg);                     // @0x13a4c0
+                results->assemblers_.push_back(std::move(wtrigEntry));               // @0x13a4c5..0x13a54a
             }
         }
     } else {
@@ -743,9 +763,6 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
 
     // @0x13b86d..0x13b8e2: copy readConst AsmRegister into local; check args[1].toBool()
 
-    // @0x13b8e2..0x13b929: if args[1].value_.toBool(), copy erv into second local EvalResultValue
-    //   (for the second wtrig operand)
-
     // @0x13b929..0x13b934: getRegisterNumber → first register (for trigger value)
     int regNum1 = Resources::getRegisterNumber();                                                // @0x13b929
     AsmRegister reg1(regNum1);                                                                   // @0x13b934
@@ -762,10 +779,9 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
     int regNum2 = Resources::getRegisterNumber();                                                // @0x13ba7e
     AsmRegister reg2(regNum2);                                                                   // @0x13ba89
 
-    // @0x13ba8e..0x13bae3: addi(reg2, AsmRegister(0), Immediate(args[1] erv value))
-    //   The second register loads the second trigger const value (from args[1] path)
+    // @0x13ba8e..0x13bae3: addi(reg2, AsmRegister(0), Immediate(erv value))
     AsmRegister zero2(0);                                                                        // @0x13baaa
-    int trigVal2 = erv.value_.toInt();                                                           // @0x13bab6 — reuses same erv for same-trigger case
+    int trigVal2 = erv.value_.toInt();                                                           // @0x13bab6
     auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal2));                    // @0x13bae3
 
     // @0x13bae8..0x13bb0f: insert addi results into results->assemblers_
@@ -773,9 +789,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
 
     // @0x13bbde..0x13bbfc: wtrig(reg1, reg2)
     auto wtrigEntry = asmCommands_->wtrig(reg1, reg2);                                           // @0x13bbfc
-
-    // @0x13bc01..0x13bcb0: push_back wtrig result
-    results->assemblers_.push_back(std::move(wtrigEntry));                                       // @0x13bc78
+    results->assemblers_.push_back(std::move(wtrigEntry));
 
     // @0x13bd84: return results
     return results;                                                                              // @0x13bd84
@@ -854,23 +868,33 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
         }
 
         // @0x13c7cc..0x13c7da: copy readConst register into local
-        // Emit addi + wtrig (same pattern as waitAnaTrigger)
-        int regNum1 = Resources::getRegisterNumber();
+        // Emit addi for trigger value, then check if args[1].toBool() → same reg path
+        int regNum1 = Resources::getRegisterNumber();                                    // @0x13c7cc
         AsmRegister reg1(regNum1);
         AsmRegister zero1(0);
         int trigVal1 = erv.value_.toInt();
         auto addiEntries1 = asmCommands_->addi(reg1, zero1, Immediate(trigVal1));
         for (auto& e : addiEntries1) results->assemblers_.push_back(std::move(e));
 
-        int regNum2 = Resources::getRegisterNumber();
-        AsmRegister reg2(regNum2);
-        AsmRegister zero2(0);
-        int trigVal2 = erv.value_.toInt();
-        auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal2));
-        for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));
+        // @0x13c985: check args[1].value_.toBool() — if true, reuse same register
+        bool arg1Bool = arg1.value_.toBool();                                            // @0x13c985
 
-        auto wtrigEntry = asmCommands_->wtrig(reg1, reg2);
-        results->assemblers_.push_back(std::move(wtrigEntry));
+        if (arg1Bool) {
+            // Same-value path: wtrig(reg1, reg1)
+            auto wtrigEntry = asmCommands_->wtrig(reg1, reg1);                           // @0x13caac (same-reg path)
+            results->assemblers_.push_back(std::move(wtrigEntry));
+        } else {
+            // Different-value path: allocate reg2, addi, wtrig(reg1, reg2)
+            int regNum2 = Resources::getRegisterNumber();                                // @0x13c9be
+            AsmRegister reg2(regNum2);
+            AsmRegister zero2(0);
+            int trigVal2 = erv.value_.toInt();
+            auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal2));
+            for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));
+
+            auto wtrigEntry = asmCommands_->wtrig(reg1, reg2);
+            results->assemblers_.push_back(std::move(wtrigEntry));
+        }
 
         return results;
     }
@@ -1007,50 +1031,39 @@ std::shared_ptr<EvalResults> CustomFunctions::waitZSyncTrigger(  // @0x13dcf0 (1
     // Unsupported devices fall through to the addi+wtrig path.
 
     bool supported = false;
-    bool useZSyncConst = false;
+    bool useZSyncConst = false;  // true → "AWG_ZSYNC_TRIGGER_INDEX", false → "AWG_MAP_TRIGGER_INDEX"
 
     if (deviceType <= 0x3f) {
         unsigned idx = static_cast<unsigned>(deviceType) - 2;
         if (idx <= 0x1e) {
             // Jump table at 0x958924 dispatches per device type.
-            // From the binary, cases for HDAWG-family (2,3) use heap string;
-            // SHF-family (8,16,18,32,64) use SSO string.
-            // The specific jump table maps device codes to one of 3 targets:
-            //   1) heap path (AWG_ZSYNC_TRIGGER_INDEX) — @0x13ddcc
-            //   2) SSO path (AWG_MAP_TRIGGER_INDEX) — falls through to 0x13de47
-            //   3) unsupported — @0x13e022
-            // For simplicity, check the bitmask for supported + which constant:
-            // Devices going to heap: devType in {2, 3} (HDAWG4, HDAWG8)
-            // Devices going to SSO: same as waitDIOTrigger set minus HDAWG
+            // Supported devices: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32)
+            // HDAWG uses "AWG_MAP_TRIGGER_INDEX".
+            // SHFQA, SHFSG, SHFQC_SG use "AWG_ZSYNC_TRIGGER_INDEX".
             constexpr uint64_t supportedMask = 0x4000000040004041ULL;
             if ((supportedMask >> idx) & 1) {
                 supported = true;
-                // HDAWG devices (2,3) use "AWG_ZSYNC_TRIGGER_INDEX"
-                if (deviceType == HDAWG || deviceType == 3)
+                // SHFQA(8), SHFSG(16), SHFQC_SG(32) → ZSYNC; HDAWG(2) → MAP
+                if (deviceType != HDAWG) {
                     useZSyncConst = true;
+                }
             }
         }
     } else {
         if (deviceType == SHFLI || deviceType == GHFLI || deviceType == VHFLI) {       // @0x13de30..0x13de41
             supported = true;
-            // These use SSO path "AWG_MAP_TRIGGER_INDEX"
+            // SHFLI, GHFLI, VHFLI use "AWG_MAP_TRIGGER_INDEX"
         }
     }
 
     if (supported) {
         // === Supported device path: readConst + asmWtrigLSPlaceholder ===
-        int trigValue;
-        if (useZSyncConst) {
-            // @0x13ddcc: heap string "AWG_ZSYNC_TRIGGER_INDEX" (23 chars)
-            EvalResultValue trigConst = res->readConst("AWG_ZSYNC_TRIGGER_INDEX",
-                                                        EDirection::eOUT); // @0x13de1d
-            trigValue = trigConst.value_.toInt();                                     // @0x13de29
-        } else {
-            // @0x13de47: SSO string "AWG_MAP_TRIGGER_INDEX" (21 chars)
-            EvalResultValue trigConst = res->readConst("AWG_MAP_TRIGGER_INDEX",
-                                                        EDirection::eOUT); // @0x13de7c
-            trigValue = trigConst.value_.toInt();                                     // @0x13de88
-        }
+        const char* constName = useZSyncConst
+            ? "AWG_ZSYNC_TRIGGER_INDEX"
+            : "AWG_MAP_TRIGGER_INDEX";
+        EvalResultValue trigConst = res->readConst(constName,
+                                                    EDirection::eOUT); // @0x13de7c
+        int trigValue = trigConst.value_.toInt();                                     // @0x13de88
 
         // @0x13dee7: call asmWtrigLSPlaceholder(trigValue)
         auto asmEntry = asmCommands_->asmWtrigLSPlaceholder(trigValue);              // @0x13dee7
@@ -1266,9 +1279,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitSineOscPhase(                 
 std::shared_ptr<EvalResults> CustomFunctions::waitTimestamp(                                                                                                                // @0x1401c0 (500B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
     checkFunctionSupported("waitTimestamp", static_cast<AwgDeviceType>(HDAWG));
-    if (!args.empty())
-        throw CustomFunctionsException(
-            ErrorMessages::format(FuncExpectsNoArgs, std::string("waitTimestamp")));
+    // Binary @0x1401c0: no args check — accepts 0 or more args, ignores them all
     auto results = std::make_shared<EvalResults>();
     AsmRegister reg(0);
     auto asmEntry = asmCommands_->st(reg, detail::AddressImpl<unsigned int>(kSuserTimestamp));  // @0x14028a
@@ -1285,8 +1296,8 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
     auto devType = static_cast<int>(devConst_->deviceType);                          // @0x140418
 
     // Device-dependent handling
-    if (devType == AwgDeviceType::SHFLI || devType == AwgDeviceType::GHFLI || devType == AwgDeviceType::VHFLI) {
-        // @0x14052f: SHFQA/SHFSG/SHFQC path
+    if (devType & kDevSHFPlus) {
+        // @0x14052f: SHF+ path (SHFQA, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI)
         // Check args count
         if (args.size() >= 2) {
             // @0x141811: too many args
@@ -1525,8 +1536,10 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         // @0x1426bf: node lookup and access
         int nodeOffset = devConst_->sineNodeBase;                                        // @0x1426c2
 
-        // @0x1426fa..0x142750: build path "/oscs/" + to_string(oscIndex) + "/phaseshift"
-        auto path = "/oscs/" + std::to_string(static_cast<unsigned long>(oscIndex)) + "/phaseshift";
+        // @0x1426fa..0x142750: build path "sines/" + to_string(awgIndex) + "/phaseshift"
+        // Binary @0x1426bf: loads config_->awgIndex, then:
+        //   @0x142709: insert "sines/" prefix, @0x142740: append "/phaseshift"
+        auto path = "sines/" + std::to_string(static_cast<unsigned long>(config_->awgIndex)) + "/phaseshift";
         auto node = lookupNode(path);                                                // @0x1427bd
         addNodeAccess(node, AccessMode::Custom);                                      // @0x1427ce
     }
@@ -1563,9 +1576,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         // @0x1425da: suser(reg, 0x70)
         appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserSinePhase0)); // @0x1425ed                         // @0x1425f2..0x14266d
 
-        // @0x14281d..0x142873: build path "/sines/" + to_string(sineNodeBase) + "/phaseshift/value"
-        int sineNodeBase = devConst_->sineNodeBase;                                          // @0x1426c2
-        auto path = "/sines/" + std::to_string(static_cast<unsigned long>(sineNodeBase)) + "/phaseshift/value";
+        // @0x14281d..0x142873: build path "sgchannels/" + to_string(awgIndex) + "/sines/0/phaseshift"
+        auto path = "sgchannels/" + std::to_string(config_->awgIndex) + "/sines/0/phaseshift";
         auto node = lookupNode(path);                                                // @0x1428e0
         addNodeAccess(node, AccessMode::Custom);                                      // @0x1428f1
     }
@@ -1665,14 +1677,14 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
 
     // Phase 3: for deviceType == 2 — node path construction and lookup
     if (devType == 2) {
-        auto path = "/oscs/" + std::to_string(static_cast<unsigned long>(0)) + "/phaseshift";
+        auto path = "sines/" + std::to_string(static_cast<unsigned long>(config_->awgIndex)) + "/phaseshift";
         auto node = lookupNode(path);
         addNodeAccess(node, AccessMode::Custom);
     }
 
     // Phase 4: for deviceType == 0x20 or 0x10
     if (devType == AwgDeviceType::SHFQC_SG || devType == AwgDeviceType::SHFSG) {
-        auto path = "/sines/" + std::to_string(static_cast<unsigned long>(0)) + "/phaseshift/value";
+        auto path = "sgchannels/" + std::to_string(config_->awgIndex) + "/sines/0/phaseshift";
         auto node = lookupNode(path);
         addNodeAccess(node, AccessMode::Custom);
     }
@@ -1703,14 +1715,11 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     // Setup: two local EvalResultValues with default values
     // varType_ = 1, value_ = 0, address_ = 4, etc.
 
-    // @0x143ecd: allocate register
-    int regNum = Resources::getRegisterNumber();                                     // @0x143ecd (inlined from path)
-
     // @0x143f1d: switch on arg value (demod trigger index 1-8)
     int trigIdx = arg.value_.toInt();
 
-    // @0x143f20: validate range — must be 0..7
-    if (trigIdx < 0 || trigIdx > 7)                                                  // @0x143f20: ja 0x144715
+    // @0x143f20: validate range — must be 1..8 (lea eax,[rbx-1]; cmp eax,7; ja error)
+    if (trigIdx < 1 || trigIdx > 8)                                                  // @0x143f20: ja 0x144715
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsSingleArg, "waitDemodSample"));
 
@@ -1724,8 +1733,8 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     };
 
     // Each case at @0x143f3d, @0x14402d, @0x14411d, @0x14420d, @0x1442fd, @0x1443ed, @0x1444dd, @0x1445cd
-    // calls: res->readConst(trigNames[trigIdx], EDirection(1))
-    erv = res->readConst(trigNames[trigIdx], EDirection::eOUT);             // @0x143f72..0x144602
+    // calls: res->readConst(trigNames[trigIdx-1], EDirection(1))
+    erv = res->readConst(trigNames[trigIdx - 1], EDirection::eOUT);             // @0x143f72..0x144602
 
     // @0x1446d0..0x144715: extract readConst result value
 
@@ -1746,9 +1755,8 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     AsmRegister reg2(regNum2);                                                       // @0x1449a9
     AsmRegister zero2(0);                                                            // @0x1449c2 (approx)
 
-    // @0x1449de: addi for second register (trigger address from arg)
-    int argVal = arg.value_.toInt();
-    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(argVal));          // @0x1449de
+    // @0x1449de: addi for second register (same trigger constant)
+    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigConst));       // @0x1449de
     for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));
 
     // @0x144aef: third register for combined value
@@ -1756,16 +1764,16 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     AsmRegister reg3(regNum3);                                                       // @0x144b19
     AsmRegister zero3(0);                                                            // @0x144b36 (approx)
 
-    // @0x144b52: addi for third register
-    auto addiEntries3 = asmCommands_->addi(reg3, zero3, Immediate(trigConst));       // @0x144b52
+    // @0x144b52: addi for third register (zero value)
+    auto addiEntries3 = asmCommands_->addi(reg3, zero3, Immediate(0));               // @0x144b52
     for (auto& e : addiEntries3) results->assemblers_.push_back(std::move(e));
 
     // @0x144c7b: wtrig(reg1, reg2) — wait for demod trigger
     auto wtrigEntry = asmCommands_->wtrig(reg1, reg2);                               // @0x144c7b
     results->assemblers_.push_back(std::move(wtrigEntry));
 
-    // @0x144d77: wtrig(reg3, reg3) — second wait
-    auto wtrigEntry2 = asmCommands_->wtrig(reg3, reg3);                              // @0x144d77
+    // @0x144d77: wtrig(reg1, reg3) — second wait
+    auto wtrigEntry2 = asmCommands_->wtrig(reg1, reg3);                              // @0x144d77
     results->assemblers_.push_back(std::move(wtrigEntry2));
 
     // @0x144e00..0x145200: compiler-generated exception cleanup / landing pads only
@@ -1814,8 +1822,8 @@ std::shared_ptr<EvalResults> CustomFunctions::getTrigger(                       
     int regNum2 = Resources::getRegisterNumber();
     AsmRegister reg1(regNum1);
     AsmRegister reg2(regNum2);
-    // addi(reg1, R0, Immediate(arg.toInt())) → ltrig(reg1) → andr(reg1, reg2)
-    auto addiEntries = asmCommands_->addi(reg1, AsmRegister(0), Immediate(arg.value_.toInt()));
+    // addi(reg2, R0, Immediate(arg.toInt())) → ltrig(reg1) → andr(reg1, reg2)
+    auto addiEntries = asmCommands_->addi(reg2, AsmRegister(0), Immediate(arg.value_.toInt()));
     for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
     auto ltrigEntry = asmCommands_->ltrig(reg1);
     results->assemblers_.push_back(std::move(ltrigEntry));
@@ -1885,8 +1893,8 @@ std::shared_ptr<EvalResults> CustomFunctions::getAnaTrigger(                    
     AsmRegister reg1(regNum1);
     AsmRegister reg2(regNum2);
     auto results = std::make_shared<EvalResults>();                                                // @0x146a1a: new 0x98
-    // addi(reg1, R0, constVal)                                                                    // @0x146ace: call addi
-    auto addiEntries = asmCommands_->addi(reg1, AsmRegister(0), Immediate(localArg.value_.toInt()));
+    // addi(reg2, R0, constVal) — binary passes reg2 (mask reg) as dst    // @0x146ace: call addi
+    auto addiEntries = asmCommands_->addi(reg2, AsmRegister(0), Immediate(localArg.value_.toInt()));
     for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
     // ltrig(reg1)                                                                                 // @0x146be4: call ltrig
     auto ltrigEntry = asmCommands_->ltrig(reg1);
@@ -1916,15 +1924,20 @@ std::shared_ptr<EvalResults> CustomFunctions::getDigTrigger(                    
     if ((static_cast<int>(arg.varType_) & ~1) != 4)                                                // @0x14750e: and eax,0xfffffffd; cmp eax,0x4
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getDigTrigger")));
-    // Read the trigger constant based on arg value (1 or 2)
+    // Read the trigger constant based on arg value (1 or 2).
+    // The binary uses TWO EvalResultValues: `localArg` (copy of arg, used only
+    // for the argVal dispatch) and `resolvedArg` (populated only by readConst
+    // for arg=1/2; stays default-initialized otherwise). The addi emission
+    // reads from resolvedArg, NOT localArg. For arg >= 3 on HDAWG, resolvedArg
+    // retains its default (Value(0)), so the mask is always 0.
     EvalResultValue localArg = arg;
+    EvalResultValue resolvedArg{};                                                                 // default: value_.toInt() == 0
+    resolvedArg.value_ = Value(static_cast<int32_t>(0));                                           // ensure toInt() returns 0
     int argVal = localArg.value_.toInt();                                                          // @0x147570: call toInt
     if (argVal == 1) {                                                                             // @0x147581: cmp eax,0x1
-        auto erv = res->readConst("AWG_DIG_TRIGGER1", EDirection::eOUT);                           // @0x1475b1: call readConst
-        localArg = erv;
+        resolvedArg = res->readConst("AWG_DIG_TRIGGER1", EDirection::eOUT);                        // @0x1475b1: call readConst
     } else if (argVal == 2) {                                                                      // @0x14757f: cmp eax,0x2
-        auto erv = res->readConst("AWG_DIG_TRIGGER2", EDirection::eOUT);                           // @0x14760e: call readConst
-        localArg = erv;
+        resolvedArg = res->readConst("AWG_DIG_TRIGGER2", EDirection::eOUT);                        // @0x14760e: call readConst
     } else {
         // deviceType==2 check                                                                     // @0x14768c..14769e
         if (config_->deviceType != 2)
@@ -1942,8 +1955,10 @@ std::shared_ptr<EvalResults> CustomFunctions::getDigTrigger(                    
     AsmRegister reg1(regNum1);
     AsmRegister reg2(regNum2);
     auto results = std::make_shared<EvalResults>();
-    // addi(reg1, R0, constVal) → ltrig(reg1) → andr(reg1, reg2)
-    auto addiEntries = asmCommands_->addi(reg1, AsmRegister(0), Immediate(localArg.value_.toInt()));
+    // addi(reg2, R0, constVal) → ltrig(reg1) → andr(reg1, reg2)
+    // reg2 holds the trigger mask, reg1 receives the trigger register value.
+    // The result (masked trigger) ends up in reg1.                            // @0x147930..147ac9
+    auto addiEntries = asmCommands_->addi(reg2, AsmRegister(0), Immediate(resolvedArg.value_.toInt()));
     for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
     auto ltrigEntry = asmCommands_->ltrig(reg1);
     results->assemblers_.push_back(std::move(ltrigEntry));
@@ -2091,8 +2106,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     AsmRegister reg(regNum);
     // Branch on arg1 type                                                                         // @0x14a67e: cmp eax,0x2
     if (static_cast<int>(arg1.varType_) == 2) {
-        // arg1 is a register: suser(reg, arg0.toInt())                                            // @0x14a6b3: call suser
-        appendSuser(results->assemblers_, asmCommands_, AsmRegister(arg1.value_.toInt()), detail::AddressImpl<unsigned int>(arg0.value_.toInt()));
+        // arg1 is a register: suser(arg1.reg_, arg0.toInt())                                            // @0x14a6b3: call suser
+        appendSuser(results->assemblers_, asmCommands_, arg1.reg_, detail::AddressImpl<unsigned int>(arg0.value_.toInt()));
     } else if (isConstOrCvar(arg1.varType_)) {                                     // @0x14a71e: and eax,0xfffffffd; cmp eax,0x4
         // arg1 is int: addi(reg, R0, arg1.toInt()) then suser(reg, arg0.toInt())                  // @0x14a774: call addi; @0x14a8d4: call suser
         auto addiEntries = asmCommands_->addi(reg, AsmRegister(0), Immediate(arg1.value_.toInt()));
@@ -2673,7 +2688,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
         if (tableIndex == zsyncRaw.value_.toInt()) {
             // shift = 1                                                                                     // @0x150ad0
             auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                1 << (devConst_->numOutputPorts + 1));                                                      // @0x150ae0: 1 << (field_78 + 1)
+                1 << devConst_->numOutputPorts);                                                             // @0x150ae0: 1 << numOutputPorts
             results->assemblers_.push_back(std::move(asmEntry));
             constMatched = true;
         } else {
@@ -2681,7 +2696,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
             if (tableIndex == zsyncProcA.value_.toInt()) {
                 // shift = 9                                                                                 // @0x150b70
                 auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                    1 << (devConst_->numOutputPorts + 9));                                                  // @0x150b80
+                    9 << devConst_->numOutputPorts);                                                      // @0x150b80
                 results->assemblers_.push_back(std::move(asmEntry));
                 constMatched = true;
             } else {
@@ -2689,7 +2704,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                 if (tableIndex == zsyncProcB.value_.toInt()) {
                     // shift = 0xd                                                                           // @0x150c10
                     auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                        1 << (devConst_->numOutputPorts + 0xd));                                            // @0x150c20
+                        0xd << devConst_->numOutputPorts);                                                 // @0x150c20
                     results->assemblers_.push_back(std::move(asmEntry));
                     constMatched = true;
                 } else if (config_->deviceType == static_cast<AwgDeviceType>(SHFQC_SG)) {
@@ -2697,14 +2712,14 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                     auto qaRaw = res->readConst("QA_DATA_RAW", EDirection::eOUT);                 // @0x150cd0
                     if (tableIndex == qaRaw.value_.toInt()) {
                         auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                            1 << (devConst_->numOutputPorts + 0xe));                                        // @0x150cf0
+                            0xe << devConst_->numOutputPorts);                                             // @0x150cf0
                         results->assemblers_.push_back(std::move(asmEntry));
                         constMatched = true;
                     } else {
                         auto qaProcD = res->readConst("QA_DATA_PROCESSED_D", EDirection::eOUT);   // @0x150d60
                         if (tableIndex == qaProcD.value_.toInt()) {
                             auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                                1 << (devConst_->numOutputPorts + 0x10));                                   // @0x150d80
+                                0x10 << devConst_->numOutputPorts);                                          // @0x150d80
                             results->assemblers_.push_back(std::move(asmEntry));
                             constMatched = true;
                         }
@@ -2720,8 +2735,8 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
         // Re-dispatch: register or numeric path                                                             // @0x150feb
         if (argType == 2) {
             // Register path                                                                                 // @0x150e80
-            auto asmEntry = asmCommands_->wvft(AsmRegister(arg0.value_.toInt()),
-                1 << (devConst_->numOutputPorts + 1));                                                      // @0x150ea0
+            auto asmEntry = asmCommands_->wvft(arg0.reg_,
+                1 << devConst_->numOutputPorts);                                                            // @0x150ea0
             results->assemblers_.push_back(std::move(asmEntry));
         } else if ((argType & ~2) == 4) {
             // Numeric (int/uint) path — direct table entry index                                            // @0x150f00
@@ -2901,7 +2916,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
                 throw CustomFunctionsException(
                     ErrorMessages::format(FuncExpectsConst));
         }
-        qaGenAllEnabled = true;                                                                             // bit 30 flag
+        // qaGenAllEnabled is set later, after qaIntAll is finalized                                          // bit 30 flag
     }
 
     // @0x152900: read QA_INT_ALL
@@ -2916,6 +2931,11 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst));
         qaIntAll = intTrigMask;                                                                             // override with user value
+    }
+
+    // qaGenAllEnabled: set based on whether qaIntAll is nonzero (for SHFQA only)
+    if (config_->deviceType == static_cast<AwgDeviceType>(8)) {
+        qaGenAllEnabled = (qaIntAll != 0);                                                                  // @0x1529b0 (approx)
     }
 
     // @0x1529c0: optional monitor enable arg
@@ -2943,38 +2963,59 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
 
     AsmRegister zero(0);
 
-    // @0x152aa0: first register — integration weights / result address composite
-    {
-        int regNum = Resources::getRegisterNumber();                                                        // @0x152aa4
-        AsmRegister reg(regNum);
-        int imm = (resultAddr << 24) | integrationWeightsMask;                                             // @0x152ac0
-        auto addiEntries = asmCommands_->addi(reg, zero, Immediate(imm));                                  // @0x152ae0
-        for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
+    if (config_->deviceType == static_cast<AwgDeviceType>(8)) {                                            // @0x152f2c: SHFQA path
+        // @0x152aa0: first register — integration weights / result address composite
+        {
+            int regNum = Resources::getRegisterNumber();                                                    // @0x152aa4
+            AsmRegister reg(regNum);
+            int imm = (resultAddr << 24) | integrationWeightsMask;                                         // @0x152ac0
+            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(imm));                              // @0x152ae0
+            for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
 
-        appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQAWeights)); // @0x152bc0
-    }
+            appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQAWeights)); // @0x152bc0
+        }
 
-    // @0x152c80: second register — integration trigger / monitor / gen composite
-    {
-        int regNum = Resources::getRegisterNumber();                                                        // @0x152c84
-        AsmRegister reg(regNum);
-        int imm = (resultLengthShift << 22) | qaIntAll
-                  | (monitorEnable << 31)
-                  | (qaGenAllEnabled ? (1 << 30) : 0);                                                     // @0x152cc0
-        auto addiEntries = asmCommands_->addi(reg, zero, Immediate(imm));                                  // @0x152ce0
-        for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
+        // @0x152c80: second register — integration trigger / monitor / gen composite
+        {
+            int regNum = Resources::getRegisterNumber();                                                    // @0x152c84
+            AsmRegister reg(regNum);
+            int imm = (resultLengthShift << 22) | qaIntAll
+                      | (monitorEnable << 31)
+                      | (qaGenAllEnabled ? (1 << 30) : 0);                                                 // @0x152cc0
+            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(imm));                              // @0x152ce0
+            for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
 
-        appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQATrigger)); // @0x152dc0
-    }
+            appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQATrigger)); // @0x152dc0
+        }
+    } else if (config_->deviceType == static_cast<AwgDeviceType>(4)) {                                     // @0x1533df: UHFQA path
+        // @0x153600: sid(reg, false) — st(reg, 0x21)
+        {
+            int regNum = Resources::getRegisterNumber();                                                    // @0x153608
+            AsmRegister reg(regNum);
+            // UHFQA composite: (qaIntAll << 16) | ((qaIntAll != 0) << 4) | (monitorEnable << 5) | resultAddr
+            int composite = (qaIntAll << 16) | ((qaIntAll != 0 ? 1 : 0) << 4)                              // @0x153638
+                          | (monitorEnable << 5) | resultAddr;                                              // @0x153659
+            // @0x153670: zero the register before sid — binary emits addi Rn, R0, 0
+            auto zeroEntries = asmCommands_->addi(reg, zero, Immediate(0));                                // @0x153670
+            for (auto& e : zeroEntries) results->assemblers_.push_back(std::move(e));
+            results->assemblers_.push_back(asmCommands_->sid(reg, false));                                  // @0x153690
 
-    // @0x1533df: if deviceType == 4 (UHFQA), emit third register for result length
-    if (config_->deviceType == static_cast<AwgDeviceType>(4)) {                                            // @0x1533df
-        int regNum = Resources::getRegisterNumber();                                                        // @0x1533e8
-        AsmRegister reg(regNum);
-        auto addiEntries = asmCommands_->addi(reg, zero, Immediate(resultLengthShift));                    // @0x153400
-        for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
+            auto addi32Entries = asmCommands_->addi32(reg, zero, Immediate(composite));                    // @0x1536e0
+            for (auto& e : addi32Entries) results->assemblers_.push_back(std::move(e));
 
-        appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQAResultLen)); // @0x1534e0
+            results->assemblers_.push_back(asmCommands_->strig(reg));                                      // @0x1537a5
+        }
+
+        // @0x153880: result address via addi + strig
+        // Binary @0x153889: loads [rbp-0x11c] (= resultAddr, NOT resultLengthShift)
+        {
+            int regNum = Resources::getRegisterNumber();                                                    // @0x153888
+            AsmRegister reg(regNum);
+            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(resultAddr));                       // @0x1538e0
+            for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
+
+            results->assemblers_.push_back(asmCommands_->strig(reg));                                      // @0x1539c5
+        }
     }
 
     return results;                                                                                         // @0x153580
@@ -3137,6 +3178,10 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
         auto addiEntries = asmCommands_->addi(reg1, r0, Immediate(stepInt));
         results->assemblers_.insert(results->assemblers_.end(),
                                     addiEntries.begin(), addiEntries.end());          // @0x1559c6
+
+        // Emit suser(reg1, 0x8d) for the sweep step value                          // @0x155a??
+        auto suserEntry1 = asmCommands_->suser(reg1, kSuserSweepControl);
+        results->assemblers_.push_back(std::move(suserEntry1));
     }
 
     // Common path: addi(reg2, R0, arg0.toInt()) into assemblers_                    // @0x155ac8
@@ -3161,10 +3206,14 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
     // Device-type-dependent node path construction                                  // @0x155e06
     auto dt = static_cast<int>(config_->deviceType);
     std::string nodePath;
-    if (dt == 0x8 || dt == 0x10 || dt == 0x20) {
-        // SHFQA/SHFSG/SHFQC: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"          // @0x155e2b
+    if (dt == 0x8) {
+        // SHFQA: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x1560fb
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "qachannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
+    } else if (dt == 0x10 || dt == 0x20) {
+        // SHFSG/SHFQC_SG: "sgchannels/<awgIndex>/oscs/<oscIndex>/freq"             // @0x155e2b
+        std::string awgIdx = std::to_string(config_->awgIndex);
+        nodePath = "sgchannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
     } else if (dt == 0x2) {
         // HDAWG: "generators/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x1560fb
         std::string awgIdx = std::to_string(config_->awgIndex);
@@ -3257,10 +3306,14 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
     int oscIntVal = arg0.value_.toInt();
     auto dt = static_cast<int>(config_->deviceType);
     std::string nodePath;
-    if (dt == 0x8 || dt == 0x10 || dt == 0x20) {
-        // SHFQA/SHFSG/SHFQC: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"          // @0x157391
+    if (dt == 0x8) {
+        // SHFQA: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x157391
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "qachannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
+    } else if (dt == 0x10 || dt == 0x20) {
+        // SHFSG/SHFQC_SG: "sgchannels/<awgIndex>/oscs/<oscIndex>/freq"             // @0x155e2b (same string)
+        std::string awgIdx = std::to_string(config_->awgIndex);
+        nodePath = "sgchannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
     } else if (dt == 0x2) {
         // HDAWG: "generators/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x15765e
         std::string awgIdx = std::to_string(config_->awgIndex);

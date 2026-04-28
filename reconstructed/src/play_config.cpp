@@ -45,8 +45,9 @@ uint32_t PlayConfig::encodeCwvf(int defaultRate) const {
     // FourChannel: encode channelMask into fourChannel field when is4Channel
     uint32_t fourChannelVal = is4Channel ? channelMask.value : 0u;
 
-    // DefaultRate bit: 1 if this->rate is negative (sign bit extraction)
-    uint32_t defaultRateBit = (static_cast<uint32_t>(rate) >> 31) & 1u;
+    // DefaultRate bit: sign bit of effectiveRate (NOT this->rate).
+    // Binary 0x1dc54f: shr r8d,0x1f — r8d is effectiveRate after cmovs at 0x1dc50e.
+    uint32_t defaultRateBit = (static_cast<uint32_t>(effectiveRate) >> 31) & 1u;
 
     // Dummy bit: same as dummyFlag
     uint32_t dummyBit = dummyFlag ? 1u : 0u;

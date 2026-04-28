@@ -1,0 +1,3 @@
+setTrigger(1);
+waitDigTrigger(1);
+setTrigger(0);

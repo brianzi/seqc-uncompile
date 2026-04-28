@@ -1,0 +1,11 @@
+// SHFQC tutorial: Using the LF Path
+// Source: docs.zhinst.com/shfqc_user_manual/tutorials/tutorial_awg.html
+// NOTE: Original doc uses 'gaussian' which is likely a typo for 'gauss'
+const length = 128;
+const amp = 1;
+wave w = gauss(length, amp, length/2, length/8);
+while (1) {
+  waitDigTrigger(1);
+  resetOscPhase();
+  playWave(1, 2, w);
+}

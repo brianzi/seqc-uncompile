@@ -1,0 +1,20 @@
+// VHFLI combination test
+resetOscPhase();
+setSinePhase(120);
+incrementSinePhase(60);
+
+wave w = gauss(64, 32, 12);
+playWave(w);
+waitWave();
+
+playZero(32);
+wait(50);
+
+setOscFreq(0, 75e6);
+configFreqSweep(0, 25e6, 3);
+
+setDIO(0xaa);
+var d = getDIO();
+
+setPRNGSeed(99);
+playZero(32);

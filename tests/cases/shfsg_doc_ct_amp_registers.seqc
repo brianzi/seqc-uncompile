@@ -1,0 +1,15 @@
+// From SHFSG Tutorial: Command Table — amplitude registers
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_command_table.html
+const readout = 512;
+wave wI1 = gauss(128, 1, 64, 16);
+wave wI2 = gauss(256, 1, 128, 32);
+assignWaveIndex(1,2,wI1,0);
+assignWaveIndex(1,2,wI2,1);
+var i = 10;
+executeTableEntry(0);
+do {
+  executeTableEntry(2);
+  executeTableEntry(1);
+  playZero(readout);
+  i-=1;
+} while(i);

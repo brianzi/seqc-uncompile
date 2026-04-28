@@ -1,0 +1,6 @@
+// From HDAWG Tutorial: Repeat 5 Gaussian pulses
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/awg.html
+wave w_gauss = 1.0 * gauss(640, 320, 50);
+repeat (5) {
+  playWave(1, w_gauss);
+}

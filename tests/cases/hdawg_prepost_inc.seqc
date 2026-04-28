@@ -1,0 +1,9 @@
+// Test pre-increment and post-increment
+// Device: HDAWG8
+
+var x = getUserReg(0);
+var y = x++;
+var z = ++x;
+setUserReg(0, y);
+setUserReg(1, z);
+setUserReg(2, x);

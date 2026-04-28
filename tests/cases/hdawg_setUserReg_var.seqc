@@ -1,0 +1,5 @@
+var val = 42;
+setUserReg(0, val);
+var x = getUserReg(0);
+setUserReg(1, x);
+setUserReg(2, x + val);

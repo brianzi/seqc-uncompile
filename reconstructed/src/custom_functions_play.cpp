@@ -530,6 +530,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
             continue;
 
         std::vector<EvalResultValue> channelArgs;
+        int waIndex = 0;                                               // rbx reset per group @0x15f773
         for (auto& wa : assignments) {                               // stride 0x50  @0x15f7ac
             if (wa.value.varType_ != 4) {                              // @0x15f7b4
                 channelArgs.push_back(wa.value);
@@ -540,12 +541,15 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
                 if (!name.empty()) {
                     // SIMD-accelerated in binary @0x15f949; semantically
                     // identical to scalar bit-clearing per wa.bits entry.
-                    int shift = ch * 7;                                // @0x15fa10
+                    // Binary: lea 0(,%rbx,8),%eax; sub %ebx,%eax → eax = rbx*7
+                    // where rbx is the WA index within the channel group.
+                    int shift = waIndex * 7;                           // @0x15f928
                     for (int b : wa.bits) {
                         mask &= ~(1 << ((b - 1) + shift));            // @0x15fa2c
                     }
                 }
             }
+            ++waIndex;                                                 // @0x15f780: inc rbx
         }
 
         // @0x15fa5f: merge waveforms for this channel
@@ -593,62 +597,83 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     }
 
     // === Step 8: Assembly generation ===                           @0x15fd0f
-    // Binary: test %ebx,%ebx; je — skips asmPlay only when SubFunc==0
-    // (no current caller passes 0; all named SubFunc values 1-4 take asmPlay path)
-    if (static_cast<int>(subFunc) != 0) {  // not prefetch-only
-        // Binary at 0x15fd21: cmpb $0x0, [config_+0x18] — isHirzel check.
-        // Hirzel: always proceeds (even if combinedWf is null).
-        // Non-Hirzel (Cervino): proceeds only if combinedWf is non-null.
-        if (config_->isHirzel || combinedWf) {
-            // @0x15fd35: copy channelWaveforms vector
-            auto wfCopy = channelWaveforms;                          // @0x15fd57
-
-            // For Hirzel, channelIndex comes from config_->deviceIndex when
-            // the channelWaveforms vector is empty.                 @0x160194
-            int playDeviceIndex = channelIndex;
-            if (config_->isHirzel && channelWaveforms.empty()) {
-                playDeviceIndex = config_->deviceIndex;
-            }
-
-            // Non-Hirzel only: emit asmPrefetch before asmPlay     @0x15fe58
-            // (Hirzel skips this — the Prefetch pass generates prf from Play node)
-            if (!config_->isHirzel && combinedWf) {
-                asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,
-                                          static_cast<int>(maxSampleLen));
-            }
-
-            // Build waveform name optionals for asmPlay
-            // @0x15fe8c..0x16019f
-            AsmRegister reg0(0);                                     // @0x16019f
-            AsmRegister regInv(-1);                                  // @0x1601ad
-
-            auto asmEntry = asmCommands_->asmPlay(
-                std::move(wfCopy), playDeviceIndex,
-                false,                                               // isHold: false for normal play
-                subFunc == SubFunc::Now,
-                false, rate, static_cast<unsigned int>(mask),
-                false,
-                reg0, playLength, regInv,
-                0u);                                                 // @0x160209
-
-            // @0x160335: push into results->assemblers_
+    // Binary control flow (verified via disassembly):
+    //   SubFunc!=0: check isHirzel||combinedWf → asmPrefetch (if !isHirzel && combinedWf) → asmPlay → push
+    //   SubFunc==0, isHirzel, combinedWf: asmPrefetch → fall through to asmPlay → push
+    //   SubFunc==0, !isHirzel: throw error 0xa5
+    if (static_cast<int>(subFunc) == 0) {
+        // Prefetch path (SubFunc==0)                                @0x15fdf6
+        if (!combinedWf) goto step9_return;                          // @0x15fdfd: test+je to 0x1605be
+        if (!config_->isHirzel) {                                    // @0x15fe0d: cmpb $0x0,0x18(%rax)
+            // Non-Hirzel + SubFunc==0 → throw error 0xa5            @0x16098c
+            throw CustomFunctionsException(
+                ErrorMessages::format(ErrorMessageT(0xa5)));
+        }
+        // Hirzel + SubFunc==0: emit asmPrefetch only (no asmPlay)
+        {
+            auto asmEntry = asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,  // @0x15fe58
+                                      static_cast<int>(maxSampleLen));
             results->assemblers_.push_back(asmEntry);
-
-            // @0x160438: store play node into results->node_, chaining
-            // to any existing node via ->next                       @0x160468
             if (results->node_) {
                 results->node_->next = asmEntry.node;
             } else {
                 results->node_ = asmEntry.node;
             }
         }
+        goto step9_return;
     } else {
-        // Prefetch-only path (SubFunc==0, no current caller uses this)
-        if (combinedWf) {
+        // SubFunc!=0 path                                           @0x15fd14
+        // Binary at 0x15fd21: cmpb $0x0, [config_+0x18] — isHirzel check.
+        // Hirzel: always proceeds (even if combinedWf is null).
+        // Non-Hirzel (Cervino): proceeds only if combinedWf is non-null.
+        if (!config_->isHirzel && !combinedWf) goto step9_return;    // @0x15fd2f: je to 0x1605be
+
+        // Non-Hirzel only: emit asmPrefetch before asmPlay          @0x15fe58
+        // (Hirzel skips this — the Prefetch pass generates prf from Play node)
+        if (!config_->isHirzel && combinedWf) {
             asmCommands_->asmPrefetch(combinedWf, channelIndex, 0,
                                       static_cast<int>(maxSampleLen));
         }
     }
+
+    {
+        // Common asmPlay path (reached from both SubFunc==0 Hirzel and SubFunc!=0)
+        // @0x15fe8c..0x16019f: copy channelWaveforms, build optionals
+        auto wfCopy = channelWaveforms;                              // @0x15fd57
+
+        // For Hirzel, channelIndex comes from config_->deviceIndex when
+        // the channelWaveforms vector is empty.                     @0x160194
+        int playDeviceIndex = channelIndex;
+        if (config_->isHirzel && channelWaveforms.empty()) {
+            playDeviceIndex = config_->deviceIndex;
+        }
+
+        // Build waveform name optionals for asmPlay
+        // @0x15fe8c..0x16019f
+        AsmRegister reg0(0);                                         // @0x16019f
+        AsmRegister regInv(-1);                                      // @0x1601ad
+
+        auto asmEntry = asmCommands_->asmPlay(
+            std::move(wfCopy), playDeviceIndex,
+            false,                                                   // isHold: false for normal play
+            subFunc == SubFunc::Now,
+            false, rate, static_cast<unsigned int>(mask),
+            false,
+            reg0, playLength, regInv,
+            0u);                                                     // @0x160209
+
+        // @0x160335: push into results->assemblers_
+        results->assemblers_.push_back(asmEntry);
+
+        // @0x160438: store play node into results->node_, chaining
+        // to any existing node via ->next                           @0x160468
+        if (results->node_) {
+            results->node_->next = asmEntry.node;
+        } else {
+            results->node_ = asmEntry.node;
+        }
+    }
+    step9_return:
 
     // === Step 9: Return ===                                        @0x1607a4
     return results;
@@ -2143,10 +2168,11 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
 // In both cases, appends the asm entry to results->assemblers_.
 void CustomFunctions::addSyncCommand(std::shared_ptr<EvalResults> results,
                                       std::shared_ptr<Resources> res) {  // @0x16bb30
-    // @0x16bb4d-16bb52: eax = *(int32_t*)results->values_.data() = values_[0].varType_
-    // Binary dereferences values_ vector start pointer, reads first dword = varType_ field.
-    // Compares with 2 (HDAWG) and 1 (UHFLI) to select Hirzel vs Cervino asm path.
-    int deviceType = static_cast<int>(results->values_[0].varType_);
+    // @0x16bb4d-16bb52: Binary reads *(int32_t*)(*(this+0x00)) = config_->deviceType.
+    // Previously misidentified as results->values_[0].varType_ — corrected via GDB
+    // trace showing rsi=this, not rsi=results.__ptr_. The comparison values 2 and 1
+    // match AwgDeviceType::HDAWG and AwgDeviceType::UHFLI respectively.
+    int deviceType = static_cast<int>(config_->deviceType);
 
     if (deviceType == HDAWG) {
         // Hirzel path @0x16bb74

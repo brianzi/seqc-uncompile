@@ -218,7 +218,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
 
         if (config.deviceType == SHFQC_SG) {                            // 0x1ee5fe
             addConst("QA_DATA_RAW",       (double)(base + 3), VarSubType(0));    // 0x1ee639
-            addConst("QA_DATA_PROCESSED", (double)(base + 4), VarSubType(0));    // 0x1ee67f
+            addConst("QA_DATA_PROCESSED_D", (double)(base + 4), VarSubType(0));    // 0x1ee67f
         }
     }
 

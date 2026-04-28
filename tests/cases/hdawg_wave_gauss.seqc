@@ -1,0 +1,4 @@
+wave w1 = gauss(64, 1.0, 32, 8);
+wave w2 = drag(64, 1.0, 32, 8);
+playWave(w1);
+playWave(w2);

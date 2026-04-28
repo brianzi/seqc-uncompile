@@ -375,6 +375,7 @@ CompileResult Compiler::compile(const std::string& source) {
     // Step 11c: Insert EvalResults assemblers into asmList_                  // 0x120549
     if (lowerResult.evalResult) {
         auto& assemblers = lowerResult.evalResult->assemblers_;
+
         asmList_.entries.insert(
             asmList_.entries.end(),
             assemblers.begin(),
@@ -439,20 +440,23 @@ CompileResult Compiler::compile(const std::string& source) {
         cancelCallback_);
 
     // Step 14: Run prefetcher                                            // 0x120d60
+
     runPrefetcher(wavetableIR, asmList_, asmCommands_,
                   placeholderAsm, *deviceConstants_, *config_);
 
     // Step 15: Post-waveform optimization                                // 0x120e2d
     asmList_ = optimizer.optimizePostWaveform(asmList_);
-
     // Step 16: Insert unsyncCervino (platform-specific)                  // 0x120f2b
     // Binary at 0x120f08: only called when deviceType == UHFLI(1) or UHFQA(4)
     if (deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFLI) ||
         deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFQA)) {
         AsmList unsyncEntries = asmCommands_->unsyncCervino();
-        // Insert unsync entries into asmList_ before end
+        // Insert unsync entries at the FRONT of asmList_ (binary 0x120f5c
+        // calls vector::insert at begin(), not push_back)
+        auto insertPos = asmList_.begin();
         for (auto& entry : unsyncEntries) {
-            asmList_.push_back(std::move(entry));
+            insertPos = asmList_.insert(insertPos, std::move(entry));
+            ++insertPos;  // advance past just-inserted element
         }
     }
 
@@ -469,7 +473,8 @@ CompileResult Compiler::compile(const std::string& source) {
     // Step 19: Build output vector<AssemblerInstr>                       // 0x121345
     std::vector<AssemblerInstr> result;
     result.reserve(asmList_.size());
-    for (auto& entry : asmList_) {
+    for (size_t _i = 0; _i < asmList_.entries.size(); _i++) {
+        auto& entry = asmList_.entries[_i];
         if (entry.assembler.cmd == Assembler::INVALID)  // @0x1213a2: skip dead instrs
             continue;
         result.push_back(entry.assembler);
@@ -549,11 +554,12 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
     }
 
     // Step 13: fillInPlaceholders                                        // 0x11e4fc
+
     asmList_ = prefetch.fillInPlaceholders(asmList);
 
     // Step 15-16: Store channel info from prefetch                       // 0x11e5bd
     channelCount_ = prefetch.getUsedChannels();
-    channelMode_ = prefetch.getUsedFourChannelMode() ? 1 : 0;
+    channelMode_ = prefetch.getUsedFourChannelMode();  // binary 0x11e5e0: direct store
 }
 
 // ============================================================================

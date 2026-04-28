@@ -1,0 +1,4 @@
+void wait(var x) {
+  playZero(32);
+}
+wait(1);

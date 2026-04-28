@@ -23,6 +23,7 @@
 #include <zhinst/exception.hpp>
 #include <zhinst/format_time.hpp>
 #include <zhinst/logging.hpp>
+#include <zhinst/node_map_data.hpp>
 #include <zhinst/seqc_parser_context.hpp>
 #include <zhinst/signal.hpp>
 #include <zhinst/wavetable_front.hpp>
@@ -40,6 +41,7 @@
 #include <ctime>
 #include <fstream>
 #include <ostream>
+#include <set>
 #include <sstream>
 
 namespace zhinst {
@@ -274,12 +276,58 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
     }
 
     // Accumulate waveform usage info via lambda @0x10a225
+    //
+    // The binary's lambda is much more complex than a simple sum of
+    // allocationByteSize.  It maintains a std::set of aligned base addresses
+    // and caps each waveform's contribution at
+    //   waveformAlignment * (isHirzel ? maxBlocks : cachePageCount).
+    //
+    // Pseudocode from disassembly at 0x1190c0..0x1191e9:
+    //   1. Skip waveforms with allocationByteSize == 0.
+    //   2. Compute alignedAddr = addressValue - (addressValue % alignment).
+    //   3. If crossesCacheLine_: insert alignedAddr into set, then accumulate.
+    //      Else: search set for alignedAddr; if found accumulate, else set exceedsFpga.
+    //   4. Accumulate: totalBytes += min(allocationByteSize,
+    //                                    alignment * multiplier)
+    //      where multiplier = isHirzel ? maxBlocks : cachePageCount.
     bool exceedsFpga = false;
     uint64_t totalBytes = 0;
+    std::set<uint64_t> alignedAddresses;                          // tree at rbp-0x50
+
+    uint32_t alignment = deviceConstants_.waveformAlignment;      // DC+0x14 @0x1190e4
+    bool isHirzel = config_->isHirzel;                            // config+0x19 @0x119198
+    uint32_t multiplier = isHirzel
+        ? deviceConstants_.maxBlocks                              // DC+0x1C
+        : deviceConstants_.cachePageCount;                        // DC+0x18
+    uint32_t maxContribution = alignment * multiplier;            // @0x11919f
 
     wavetableIR_->forEachUsedWaveform(
-        [&](std::shared_ptr<WaveformIR> const& wf) {
-            totalBytes += wf->allocationByteSize;           // @0x10a225 lambda
+        [&](std::shared_ptr<WaveformIR> const& wf) {             // @0x10a225 lambda
+            if (wf->allocationByteSize == 0)                      // 0x1190d8: test ecx
+                return;
+
+            uint32_t addr = static_cast<uint32_t>(wf->addressValue);  // +0x4C
+            uint32_t alignedAddr = addr - (addr % alignment);         // 0x1190f0: div+sub
+
+            if (wf->crossesCacheLine_) {                              // 0x119101: cmpb 0xDA
+                // Insert into set, then always accumulate
+                alignedAddresses.insert(alignedAddr);                 // 0x119144..0x119182
+                uint32_t contrib = std::min(
+                    static_cast<uint32_t>(wf->allocationByteSize),
+                    maxContribution);                                  // 0x1191a5: cmovae
+                totalBytes += contrib;                                 // 0x1191b0: add
+            } else {
+                // Search set; if found accumulate, else set exceedsFpga
+                auto it = alignedAddresses.find(alignedAddr);         // 0x1191b5..0x1191d7
+                if (it != alignedAddresses.end()) {                   // 0x1191e0: jbe
+                    uint32_t contrib = std::min(
+                        static_cast<uint32_t>(wf->allocationByteSize),
+                        maxContribution);
+                    totalBytes += contrib;
+                } else {
+                    exceedsFpga = true;                               // 0x1191e2
+                }
+            }
         },
         WaveOrder::ByIndex);
 
@@ -793,21 +841,23 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
         if (devType == AwgDeviceType::UHFQA || devType == AwgDeviceType::UHFLI) {
             // OLD PATH: pack node addresses as int32 pairs → ".nodes"
             auto const* nodeList = compiler_.getNodeAccessList();
+            std::vector<int32_t> packed;
             if (nodeList) {
-                std::vector<int32_t> packed;
                 for (auto const& item : *nodeList) {
                     // Each NodeMapItem: extract address + size via toJson/size
                     // For DirectAddrNodeMapData items, pack (address, size) pairs
-                    packed.push_back(0);  // placeholder address
+                    auto* direct = dynamic_cast<DirectAddrNodeMapData*>(item.data);
+                    int32_t addr = direct ? static_cast<int32_t>(direct->addr_) : 0;
+                    packed.push_back(addr);
                     packed.push_back(static_cast<int32_t>(item.size()));
                 }
-                if (!packed.empty()) {
-                    elfWriter.addData(
-                        reinterpret_cast<char const*>(packed.data()),
-                        packed.size() * sizeof(int32_t),
-                        std::string(".nodes"));
-                }
             }
+            // Always add .nodes section, even if empty (binary 0x1091d1
+            // unconditionally calls addData for the old path)
+            elfWriter.addData(
+                reinterpret_cast<char const*>(packed.data()),
+                packed.size() * sizeof(int32_t),
+                std::string(".nodes"));
         } else {
             // NEW PATH: nodeListToJson → serialize → ".nodes_json"
             auto const* nodeList = compiler_.getNodeAccessList();

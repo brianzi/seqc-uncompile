@@ -1,0 +1,14 @@
+// Test playWave variants: playWaveNow, playWaveDigTrigger
+// Device: HDAWG8
+
+wave w1 = ones(64);
+wave w2 = zeros(64);
+
+playWave(w1);
+waitWave();
+
+playWave(1, w1);
+waitWave();
+
+playWave(1, w1, 2, w2);
+waitWave();

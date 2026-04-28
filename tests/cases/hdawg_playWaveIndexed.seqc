@@ -1,0 +1,12 @@
+wave w1 = zeros(64);
+wave w2 = ones(64);
+assignWaveIndex(w1, 0);
+assignWaveIndex(w2, 1);
+playWave(w1);
+var idx = getUserReg(0);
+if (idx == 1) {
+  playWave(w1);
+} else {
+  playWave(w2);
+}
+waitWave();

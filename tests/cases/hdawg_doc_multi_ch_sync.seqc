@@ -1,0 +1,11 @@
+// From HDAWG Tutorial: Multi-Channel Playback — 4-channel sync (core 1)
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/multi_channel.html
+wave w = gauss(8000, 4000, 1000);
+wave w1 = 1.0*w;
+wave w2 = 0.5*w;
+
+while (true) {
+  playWave(1,w1, 2,w2);
+  setTrigger(1); setTrigger(0);
+  playZero(80000);
+}

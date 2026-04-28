@@ -1,0 +1,3 @@
+const rate = 3;
+playZero(64);
+wait(rate);

@@ -1,0 +1,5 @@
+var a = 0xFF;
+var b = a << 4;
+var c = a >> 2;
+var d = b | c;
+playZero(32);

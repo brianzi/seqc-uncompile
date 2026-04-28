@@ -1,0 +1,46 @@
+// UHF tutorial: TV Mode Averaging with Data Acquisition Tool
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+const rows = 100;
+const f_s = 1.8e9;
+const f_seq = 225e6;
+const pulse_width_sec = 100e-9;
+const gate_window_sec = 1.5e-6;
+const period_sec = 30e-6;
+void gate_start() {
+  setTrigger(0b01);
+  wait(20);
+  setTrigger(0b11);
+}
+void gate_stop() {
+  setTrigger(0b00);
+}
+const gate_window = gate_window_sec*f_seq;
+const pulse_width = pulse_width_sec*f_s;
+const waveform_length = 7*pulse_width_sec*f_s;
+cvar i;
+cvar amplitude;
+const decay_time = 100;
+const rabi_period = 40;
+wave w_array;
+for (i=0; i<rows; i=i+1) {
+  amplitude = 0.5 + exp(-i/decay_time)*0.5*cos(2*M_PI*i/rabi_period);
+  wave w_segment = amplitude*gauss(waveform_length, waveform_length/2, pulse_width);
+  w_array = join(w_array, w_segment);
+}
+var t;
+var id = 0;
+const loop_end = rows*waveform_length;
+while (true) {
+  id = 0;
+  for (t = 0; t < loop_end; t = t+waveform_length) {
+    setID(id);
+    wait(period_sec*f_seq);
+    waitDemodSample(1);
+    playWaveIndexed(w_array, t, waveform_length);
+    wait(200);
+    gate_start();
+    wait(gate_window);
+    gate_stop();
+    id = id+1;
+  }
+}

@@ -1,0 +1,4 @@
+// Coverage: string constant declaration and concatenation
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+string AWG_PATH = "awgs/0/";
+string AWG_GAIN_PATH = AWG_PATH + "gains/0";

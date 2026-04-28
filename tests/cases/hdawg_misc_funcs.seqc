@@ -1,0 +1,19 @@
+// Miscellaneous built-in functions
+var d1 = getDigTrigger(1);
+var d8 = getDigTrigger(8);
+setUserReg(0, d1);
+setUserReg(1, d8);
+
+randomSeed();
+
+setPrecompClear(0);
+playZero(32);
+setPrecompClear(1);
+playZero(32);
+
+var fb = getFeedback(ZSYNC_DATA_RAW);
+setUserReg(2, fb);
+var fb2 = getFeedback(ZSYNC_DATA_PQSC_REGISTER, 15);
+setUserReg(3, fb2);
+
+info("test message");

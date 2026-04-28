@@ -99,27 +99,47 @@ Phase 24 achievements:
 - pybind11 entry points: pyCompileSeqc, makeSeqcCompiler, PyInit__seqc_compiler
 - ZiFolder utility: DirectoryType enum, folderPath, ziFolder, sessionSaveDirectoryName
 
-**Differential testing: 62/69 test cases pass** (Phase 37b, 2026-04-26).
-Section-level ELF comparison against the original binary across 7 device
-types (HDAWG8, HDAWG4, SHFQA4, SHFSG8, SHFQC, UHFQA, UHFLI) covering:
-arithmetic, comparison, logical, bitwise, and unary operators; all loop
-types (for, while, do-while, repeat); if/else and ternary; const/var
-declarations; increment/decrement; playZero/playHold/wait/setTrigger/
-waitWave/executeTableEntry/startQA/setPRNG/sync builtins; multi-AWG-index;
-error and info messages; SHFQC qa/sg sequencer selection; and nested
-control flow.
+**Differential testing: 139/139 test cases pass** (Phase 38, 2026-04-28).
+Section-level ELF comparison against the original binary across 10 device
+types (HDAWG8, HDAWG4, SHFQA4, SHFQA2, SHFSG8, SHFSG4, SHFSG2, SHFQC,
+SHFLI, UHFQA, UHFLI, UHFAWG, GHFLI, VHFLI) covering: arithmetic,
+comparison, logical, bitwise, and unary operators; all loop types (for,
+while, do-while, repeat); if/else, ternary, switch/case; const/var
+declarations; increment/decrement; user-defined functions with return
+values; arrays; playZero/playHold/wait/setTrigger/waitWave/
+executeTableEntry/startQA/setPRNG/sync builtins; multi-AWG-index; error
+and info messages; SHFQC qa/sg sequencer selection; nested control flow;
+many-variable register allocation; deep nesting with compound assignments;
+full programs with setUserReg; DIO operations; waveform playback and
+assignment; dual-channel play; command tables; wait variants across
+devices; misc builtins (getDIO, setID, getCnt, etc.); frequency sweep;
+ZSync triggers; ternary with runtime variables; extended device coverage
+(SHFQA2, SHFSG2/4, SHFLI, UHFAWG, GHFLI, VHFLI).
 
-Remaining 7 failures:
-- RC-1 (4 tests): playWave with inline waveforms (zeros/ones/multi) +
-  wave_in_loop — heap corruption in waveform pipeline
-- RC-7 (2 tests): UHF nop — all-zero opcodes / wrong e_entry
-- RC-8 (1 test): setOscFreq — missing NodeMap/awg2double16/getUsedCache impls
+Phase 38 expanded test coverage from 114→139 cases and fixed 30+ bugs
+across 8 categories: parser (VarType_Void), AST evaluation (retType,
+switch/case, ternary, array), resources (returnReg_ init, parent→
+parentWeak_), custom functions (playZero/playHold dispatch, setRate,
+waitTimestamp, getDigTrigger, assignWaveIndex, waitDemod, waitZSync,
+setID, suppress mask), waveform/ELF (WaveAssignment copy, double2awg
+scale, marker separator, ELF flags, node map entries), prefetch
+(prepare/placesingle fixes), ASM commands (wtrig register assignment),
+waveform generator (gauss 3-arg), and WavetableFront (waveIndex init).
 
 See `notes/differential_testing.md` for approach, coverage matrix, and
 future development ideas.
-
-Next: backlog is clear. Remaining low-value items documented as follow-ups
-in TODO.md Phase 33 section.
+- Phase 33: Bug-fix session (2026-04-28). 3 fixes, 226/259 tests passing (was ~200).
+  **Cache getBestPosition**: appendMode parameter semantics were inverted.
+  Binary: `!appendMode` = try-append-at-end fast path (fall back to gap scan via
+  recursive call with appendMode=true); `appendMode` = gap-scan. Also added
+  empty-pointers early-return (position=0, emplace_back).
+  **WavetableIR allocateWaveforms alignment**: Binary aligns `totalSize` (address)
+  to `dc->waveformAlignment` before each waveform, but keeps `allocationBytes`
+  at 64-byte alignment. Recon had inverted this (aligning allocationBytes to
+  waveformAlignment). Fixed: allocationBytes uses `(x+63)&~63`, totalSize uses
+  `((x+align-1)/align)*align` with waveformAlignment.
+  **prefetch_helpers getMemoryHighWatermark** (prior session): netMemory formula
+  corrected to `(addressValue - addressImpl) + memoryBytes`.
 - Phase 31a: Quick-win closures (2026-04-26). All 10 items complete.
   Exception prefix string extracted ("ZIException with status code: ");
   sentinel 0x8000 wired into default/string ctors; Compiler+0x18

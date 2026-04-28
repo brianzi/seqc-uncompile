@@ -867,10 +867,7 @@ SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
 {
     varType_ = vt;
     tag_ = 0;  // eString
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wplacement-new"
-    new (payload_) std::string(std::move(s));
-#pragma GCC diagnostic pop
+    new (&payload_.str) std::string(std::move(s));
 }
 
 // Double-value ctor — binary callsite at 0x1f6f22 (make_unique<SeqCValue>(..., double&))
@@ -880,7 +877,7 @@ SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
 {
     varType_ = vt;
     tag_ = 1;  // eDouble
-    std::memcpy(payload_, &d, sizeof(double));
+    payload_.d = d;
 }
 
 // Copy-ctor: tag-dispatched payload copy. @0x208600 area.
@@ -891,58 +888,30 @@ SeqCValue::SeqCValue(SeqCValue const& o)
     tag_ = o.tag_;
     pad34_ = o.pad34_;
     if (o.tag_ == 0) {
-        // String payload — placement-new a std::string copy
-        // NOTE: libc++ string is 24B, libstdc++ is 32B. The payload_ array
-        // is sized for libc++. Under libstdc++ this overflows into tag_/pad34_
-        // which is acceptable (same documented ABI mismatch as value.cpp:237).
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wplacement-new"
-        new (payload_) std::string(o.asString());
-#pragma GCC diagnostic pop
+        new (&payload_.str) std::string(o.payload_.str);
     } else {
-        // Double or empty — raw byte copy is safe
-        std::memcpy(payload_, o.payload_, sizeof(payload_));
+        payload_.d = o.payload_.d;
     }
 }
 
 SeqCValue::~SeqCValue() {  // D2 @0x1fe510
-    // Binary uses jump table @0xb065a0 dispatched on tag_ at +0x30:
-    //   tag==0: destroy placement-new'd string at payload_
-    //   tag==1 or -1: no-op (double or empty)
     if (tag_ == 0) {
-        reinterpret_cast<std::string*>(payload_)->~basic_string();
+        payload_.str.~basic_string();
     }
     tag_ = -1;  // @0x1fe542: movl $0xffffffff, 0x30(%rbx)
 }
 
 // 0x1fe230 — variant-dispatching print: "Value = " + payload
-// Binary flow:
-//   1. Write "Value = " (8 chars) to cout
-//   2. Read tag_ at +0x30
-//   3. tag==0 → payload is SSO string, print it
-//   4. tag==1 → payload is double, print via to_string
-//   5. else → __throw_bad_variant_access
 void SeqCValue::print() const {  // 0x1fe230
     std::cout.write("Value = ", 8);
     switch (tag_) {
-        case 0: {
-            // String payload: libc++ SSO at payload_[0..23]
-            // Short strings: payload_[0] has (len<<1), data at payload_[1..].
-            // Long strings: pointer at payload_[16], size at payload_[8].
-            // We treat payload_ as a std::string for convenience here:
-            const std::string* sp = reinterpret_cast<const std::string*>(payload_);
-            std::cout << *sp;
+        case 0:
+            std::cout << payload_.str;
             break;
-        }
-        case 1: {
-            // Double payload at payload_[0..7]
-            double d;
-            std::memcpy(&d, payload_, sizeof(d));
-            std::cout << std::to_string(d);
+        case 1:
+            std::cout << std::to_string(payload_.d);
             break;
-        }
         default:
-            // Binary calls __throw_bad_variant_access here
             break;
     }
 }
@@ -955,11 +924,34 @@ SeqCValue& SeqCValue::operator=(SeqCValue o) { swap(*this, o); return *this; }
 
 void swap(SeqCValue& a, SeqCValue& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-    // Swap raw payload bytes + tag
-    char tmp[24];
-    std::memcpy(tmp, a.payload_, 24);
-    std::memcpy(a.payload_, b.payload_, 24);
-    std::memcpy(b.payload_, tmp, 24);
+    // Swap payloads with tag awareness (string needs proper move)
+    int atag = a.tag_, btag = b.tag_;
+
+    // Move a's payload to tmp
+    SeqCValue::Payload tmp;
+    if (atag == 0) {
+        new (&tmp.str) std::string(std::move(a.payload_.str));
+        a.payload_.str.~basic_string();
+    } else {
+        tmp.d = a.payload_.d;
+    }
+
+    // Move b's payload to a
+    if (btag == 0) {
+        new (&a.payload_.str) std::string(std::move(b.payload_.str));
+        b.payload_.str.~basic_string();
+    } else {
+        a.payload_.d = b.payload_.d;
+    }
+
+    // Move tmp to b
+    if (atag == 0) {
+        new (&b.payload_.str) std::string(std::move(tmp.str));
+        tmp.str.~basic_string();
+    } else {
+        b.payload_.d = tmp.d;
+    }
+
     std::swap(a.tag_, b.tag_);
     std::swap(a.pad34_, b.pad34_);
 }

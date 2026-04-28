@@ -1,0 +1,6 @@
+// Coverage: interleave function
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = gauss(64, 32, 8);
+wave w2 = ones(64);
+wave w3 = interleave(w1, w2);
+playWave(w3);

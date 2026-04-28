@@ -1,0 +1,5 @@
+// UHFQA tutorial: CSV wave file playback
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+// NOTE: Requires external wave_file.csv
+wave w = "wave_file";
+playWave(w);

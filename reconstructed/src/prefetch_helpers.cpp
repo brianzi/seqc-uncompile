@@ -91,10 +91,13 @@ size_t Prefetch::getMemoryHighWatermark() const // 0x1cc650
             // Convert bits → bytes, rounding up
             uint32_t memoryBytes = static_cast<uint32_t>((memoryBits + 7) / 8);
 
-            // Waveform+0x4C = addressValue (startOffset)
-            uint32_t startOffset = wfm->addressValue;       // +0x4C
-            // Net memory = bytes - startOffset
-            uint32_t netMemory = memoryBytes - startOffset;
+            // Waveform+0x4C = addressValue (waveform address)
+            uint32_t addrValue = wfm->addressValue;         // +0x4C
+            // Binary @0x1cc73a: sub %esi,%r8d; add %eax,%r8d
+            // esi = config_->addressImpl (loaded once before loop at +0x153)
+            // Net memory = (addressValue - addressImpl) + memoryBytes
+            uint32_t addressImpl = config_->addressImpl;     // config+0x10
+            uint32_t netMemory = (addrValue - addressImpl) + memoryBytes;
 
             deviceMax = std::max(deviceMax, netMemory);
         }
@@ -183,12 +186,11 @@ size_t Prefetch::getRequiredMemory() const // 0x1cc930
 // ============================================================================
 uint32_t Prefetch::getUsedChannels() const // 0x1df2f0
 {
-    // Binary iterates usageEntries_ (vector at +0xE0), each 0x20 bytes,
-    // ORing channelMask (PlayConfig+0x00) of each entry.
-    // SIMD-accelerated in binary; scalar equivalent here.
+    // Binary at 0x1df3e0: mov 0x8(%rdx),%esi — reads PlayConfig+0x08 = suppress,
+    // then NOT + OR into accumulator. SIMD loop confirms same offset.
     uint32_t result = 0;
     for (auto const& entry : usageEntries_) {
-        result |= static_cast<uint32_t>(entry.config.channelMask);
+        result |= ~static_cast<uint32_t>(entry.config.suppress);
     }
     return result;
 }

@@ -1,0 +1,3 @@
+waitZSyncTrigger();
+var data = getZSyncData(ZSYNC_DATA_PQSC_REGISTER);
+var fb = getFeedback(ZSYNC_DATA_PQSC_REGISTER);

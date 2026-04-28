@@ -1,0 +1,7 @@
+// From HDAWG Tutorial: Trigger output via sequencer instructions
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/awg.html
+wave w_gauss = gauss(8000, 4000, 1000);
+setTrigger(1);
+playWave(1, w_gauss);
+waitWave();
+setTrigger(0);

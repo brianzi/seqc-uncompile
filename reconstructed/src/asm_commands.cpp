@@ -177,7 +177,7 @@ AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool f
 
     AssemblerInstr instr;
     instr.cmd = Assembler::BRNZ;
-    instr.regDst = reg;
+    instr.regSrc = reg;
     instr.label = label;
 
     AsmList::Asm result;
@@ -196,7 +196,7 @@ AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool f
 
     AssemblerInstr instr;
     instr.cmd = Assembler::BRGZ;  // 0xF5000000, confirmed from disassembly @0x272175
-    instr.regDst = reg;
+    instr.regSrc = reg;
     instr.label = label;
 
     AsmList::Asm result;
@@ -305,10 +305,12 @@ AsmList::Asm AsmCommands::xnoriu(AsmRegister dst, AsmRegister src, Immediate imm
 
 std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister dst,
                                          AsmRegister src, Immediate imm) const {
-    if (!isValid(dst) || !isValid(src))
+    if (!isValid(dst) || !isValid(src)) {
+
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister,
                                   Assembler::commandToString(cmd).c_str()));
+    }
 
     std::vector<AsmList::Asm> result;
 
@@ -596,8 +598,8 @@ AsmList::Asm AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
 
     AssemblerInstr instr;
     instr.cmd = Assembler::WTRIG;
-    instr.regSrc = r1;
-    instr.regDst = r2;
+    instr.regSrc = r2;
+    instr.regAux = r1;
     return emitEntry(instr);
 }
 
@@ -910,7 +912,7 @@ AsmList::Asm AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
 // =========================================================================
 
 AsmList::Asm AsmCommands::asmSetVarPlaceholder(AsmRegister reg) {
-    AsmList::Asm result = emitNodeEntry(NodeType::SetVarPlaceholder);
+    AsmList::Asm result = emitNodeEntry(NodeType::SetVar);
     result.node->lengthReg = reg;  // +0x88
     return result;
 }
@@ -938,13 +940,13 @@ AsmList::Asm AsmCommands::asmLoadPlaceholder() {
 
 AsmList::Asm AsmCommands::asmPrefetch(std::shared_ptr<WaveformFront> wvf,
                                    int nameIndex, int regVal, int extraVal) {
-    AsmList::Asm result = emitNodeEntry(NodeType::Prefetch);
+    AsmList::Asm result = emitNodeEntry(NodeType::PlainLoad);  // Binary: 0x4000 at 0x2787de
     result.node->lengthReg = static_cast<AsmRegister>(regVal);
     result.node->length = extraVal;
 
     if (wvf) {
         wvf->used = true;
-        // Copy waveform name into node->wavesPerDev[nameIndex]
+        result.node->wavesPerDev[nameIndex] = wvf->name;
     }
 
     result.node->deviceIndex = nameIndex;
@@ -1009,7 +1011,7 @@ PlayConfig AsmCommands::genPlayConfig(
 
     uint32_t markerBits = 0;
     if (count >= 2) {
-        unsigned pairs = trigger & 0xFFFE;
+        unsigned pairs = count & 0xFFFE;                              // 0x278a72: and $0xfffe,%edi (edi=edx=count)
         for (unsigned i = 0; i < pairs; i += 2) {
             uint8_t b1 = data[count - 1];
             uint8_t v1 = (b1 | (b1 >> 1)) & 0x3;
@@ -1021,7 +1023,7 @@ PlayConfig AsmCommands::genPlayConfig(
         }
     }
 
-    if (trigger & 1) {
+    if (count & 1) {                                                  // 0x278ac7: test $0x1,%dl (dl=count)
         uint8_t b = data[count - 1];
         uint8_t v = (b | (b >> 1)) & 0x3;
         markerBits = (markerBits << 2) | v;
@@ -1080,16 +1082,16 @@ AsmList::Asm AsmCommands::asmPlay(
     node->indexOffsetReg = reg2;
     node->length = regVal;
 
-    // Mark waveform as used.
+    // Mark waveform as used and compute playWord.
     //
-    // NOTE: A previous reconstruction conditionally called
-    //   currentWvf->playWord = node->config.encodeCwvf(defaultRate);
-    // here. That was a hallucination. Verified against the disassembly of
-    // asmPlay at 0x278b40: PlayConfig::encodeCwvf (0x1dc500) is called from
-    // exactly one site in the binary — 0x1d8075, inside
-    // Prefetch::placeSingleCommand (0x1d7940) — and never from asmPlay.
+    // Binary 0x279637-0x279663: calls getWaveformByName, then computes playWord
+    // by ORing shifted config fields — equivalent to encodeCwvf(-1).
+    // The playWord gets copied into WaveformIR when it's constructed from
+    // WaveformFront, and ultimately serialized as "play_config" in the ELF
+    // .waveforms JSON section.
     if (currentWvf) {
         currentWvf->used = true;
+        currentWvf->playWord = node->config.encodeCwvf(/*defaultRate=*/-1);  // 0x279663
     }
 
     return result;

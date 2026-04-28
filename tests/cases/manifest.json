@@ -4,63 +4,63 @@
     "code": "while(1);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_playZero",
     "code": "playZero(32);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_repeat_playZero",
     "code": "repeat(10) { playZero(32); }",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_variable",
     "code": "var x = 5;\nwhile(1);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_setTrigger",
     "code": "setTrigger(1);\nsetTrigger(0);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_waitWave",
     "code": "playZero(64);\nwaitWave();",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_for_loop",
     "file": "hdawg_for_loop.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_if_else",
     "file": "hdawg_if_else.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_nested_repeat",
     "file": "hdawg_nested_repeat.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "shfqa_nop",
@@ -81,105 +81,105 @@
     "code": "playZero(64);",
     "devtype": "HDAWG8",
     "index": 1,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_arithmetic",
     "file": "hdawg_arithmetic.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_const",
     "file": "hdawg_const.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_do_while",
     "file": "hdawg_do_while.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_while_loop",
     "file": "hdawg_while_loop.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_comparisons",
     "file": "hdawg_comparisons.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_logical",
     "file": "hdawg_logical.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_ternary",
     "file": "hdawg_ternary.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_mixed_loops",
     "file": "hdawg_mixed_loops.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_playHold",
     "file": "hdawg_playHold.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_wait",
     "file": "hdawg_wait.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_assign_ops",
     "file": "hdawg_assign_ops.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_unary",
     "file": "hdawg_unary.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_inc_dec",
     "file": "hdawg_inc_dec.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_bitwise",
     "file": "hdawg_bitwise.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "shfqa_basic",
@@ -195,135 +195,132 @@
     "index": 0,
     "sequencer": "sg"
   },
-
   {
     "name": "hdawg_setUserReg",
     "code": "setUserReg(0, 42);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_getUserReg",
     "code": "var x = getUserReg(0);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_setDIO",
     "code": "setDIO(0xFF);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_getDIO",
     "code": "var x = getDIO();",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_sync",
     "code": "sync();",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_getCnt",
     "code": "var c = getCnt(0);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_setTrigger_get",
     "code": "setTrigger(1);\nvar t = getTrigger(1);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_waitPlayQueue",
     "code": "playZero(32);\nwaitPlayQueueEmpty();",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_info_msg",
     "code": "info(\"hello\");",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_error_msg",
     "code": "error(\"fail\");",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_executeTable",
     "code": "executeTableEntry(0);",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_setPRNG",
     "code": "setPRNGSeed(12345);\nvar r = getPRNGValue();",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
-
   {
     "name": "hdawg_playWave_zeros",
     "file": "hdawg_playWave_zeros.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_playWave_ones",
     "file": "hdawg_playWave_ones.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_playWave_multi",
     "file": "hdawg_playWave_multi.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_assignWaveIdx",
     "file": "hdawg_assignWaveIdx.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_play_combo",
     "file": "hdawg_play_combo.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_wave_in_loop",
     "file": "hdawg_wave_in_loop.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
-
   {
     "name": "shfqa_startQA",
     "code": "startQA(0x1, 1, 0, 0);",
@@ -380,20 +377,19 @@
     "index": 0,
     "sequencer": "sg"
   },
-
   {
     "name": "hdawg4_nop",
     "code": "while(1);",
     "devtype": "HDAWG4",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg4_playZero",
     "code": "playZero(32);",
     "devtype": "HDAWG4",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "shfqc_qa_nop",
@@ -421,56 +417,54 @@
     "devtype": "UHFLI",
     "index": 0
   },
-
   {
     "name": "hdawg_nested_if_loop",
     "file": "hdawg_nested_if_loop.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_many_vars",
     "file": "hdawg_many_vars.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_switch_like",
     "file": "hdawg_switch_like.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_full_program",
     "file": "hdawg_full_program.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_deep_nesting",
     "file": "hdawg_deep_nesting.seqc",
     "devtype": "HDAWG8",
     "index": 0,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
-
   {
     "name": "hdawg_awg2",
     "code": "playZero(64);",
     "devtype": "HDAWG8",
     "index": 2,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "hdawg_awg3",
     "code": "playZero(64);",
     "devtype": "HDAWG8",
     "index": 3,
-    "samplerate": 2.4e9
+    "samplerate": 2400000000.0
   },
   {
     "name": "shfsg_awg1",
@@ -485,5 +479,1297 @@
     "devtype": "SHFQA4",
     "index": 1,
     "sequencer": "qa"
+  },
+  {
+    "name": "uhfqa_startQA",
+    "file": "uhfqa_startQA.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfli_playback",
+    "file": "uhfli_playback.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_wait_funcs",
+    "file": "uhfli_wait_funcs.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_branches",
+    "file": "uhfli_branches.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg4_features",
+    "file": "hdawg4_features.seqc",
+    "devtype": "HDAWG4",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_zsync",
+    "file": "hdawg_zsync.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_dio",
+    "file": "hdawg_dio.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_triggers",
+    "file": "hdawg_triggers.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_user_regs",
+    "file": "hdawg_user_regs.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_rate_constants",
+    "file": "hdawg_rate_constants.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa_startQA_full",
+    "file": "shfqa_startQA_full.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_freq_sweep",
+    "file": "shfqa_freq_sweep.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfsg_oscillator",
+    "file": "shfsg_oscillator.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_prng",
+    "file": "shfsg_prng.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_execute_var",
+    "file": "shfsg_execute_var.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_setID",
+    "file": "shfsg_setID.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfqc_qa_startQA",
+    "file": "shfqc_qa_startQA.seqc",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqc_sg_playwave",
+    "file": "shfqc_sg_playwave.seqc",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "hdawg_wave_sine",
+    "file": "hdawg_wave_sine.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_gauss",
+    "file": "hdawg_wave_gauss.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_windows",
+    "file": "hdawg_wave_windows.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_ops",
+    "file": "hdawg_wave_ops.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_misc",
+    "file": "hdawg_wave_misc.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_marker",
+    "file": "hdawg_wave_marker.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_placeholder",
+    "file": "hdawg_wave_placeholder.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_vect",
+    "file": "hdawg_wave_vect.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_all_alu",
+    "file": "hdawg_all_alu.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_branches",
+    "file": "hdawg_branches.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_prefetch",
+    "file": "hdawg_prefetch.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_sync_lock",
+    "file": "hdawg_sync_lock.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_msg_error",
+    "file": "hdawg_msg_error.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_now_rt",
+    "file": "hdawg_now_rt.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_user_function",
+    "file": "hdawg_user_function.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cvar",
+    "file": "hdawg_cvar.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_in_if",
+    "file": "hdawg_wave_in_if.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_playWaveIndexed",
+    "file": "hdawg_playWaveIndexed.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "err_undefined_var",
+    "file": "err_undefined_var.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "err_wave_length",
+    "file": "err_wave_length.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "err_unsupported_func",
+    "file": "err_unsupported_func.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "err_redefine_builtin",
+    "file": "err_redefine_builtin.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "err_wave_amplitude",
+    "file": "err_wave_amplitude.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_setUserReg_var",
+    "file": "hdawg_setUserReg_var.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_playHold_bool",
+    "file": "hdawg_playHold_bool.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_many_vars_spill",
+    "file": "hdawg_many_vars_spill.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfsg_hirzel_shifts",
+    "file": "shfsg_hirzel_shifts.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "hdawg_switch_case",
+    "file": "hdawg_switch_case.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_return_func",
+    "file": "hdawg_return_func.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_const_div_mod",
+    "file": "hdawg_const_div_mod.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_array_index",
+    "file": "hdawg_array_index.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_math_funcs",
+    "file": "hdawg_math_funcs.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cvar_unroll",
+    "file": "hdawg_cvar_unroll.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_nested_func",
+    "file": "hdawg_nested_func.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cmd_table",
+    "file": "hdawg_cmd_table.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wait_variants",
+    "file": "hdawg_wait_variants.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_misc_funcs",
+    "file": "hdawg_misc_funcs.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_wait_variants",
+    "file": "uhfli_wait_variants.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_misc_funcs",
+    "file": "uhfli_misc_funcs.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_misc_funcs",
+    "file": "uhfqa_misc_funcs.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "shfsg_misc_funcs",
+    "file": "shfsg_misc_funcs.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfqa_sweep",
+    "file": "shfqa_sweep.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "shfsg4_combo",
+    "file": "shfsg4_combo.seqc",
+    "devtype": "SHFSG4",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg2_nop",
+    "code": "while(1);",
+    "devtype": "SHFSG2",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfqa2_combo",
+    "file": "shfqa2_combo.seqc",
+    "devtype": "SHFQA2",
+    "index": 0
+  },
+  {
+    "name": "shfli_combo",
+    "file": "shfli_combo.seqc",
+    "devtype": "SHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfawg_combo",
+    "file": "uhfawg_combo.seqc",
+    "devtype": "UHFAWG",
+    "index": 0
+  },
+  {
+    "name": "ghfli_combo",
+    "file": "ghfli_combo.seqc",
+    "devtype": "GHFLI",
+    "index": 0
+  },
+  {
+    "name": "vhfli_combo",
+    "file": "vhfli_combo.seqc",
+    "devtype": "VHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_wait_zsync",
+    "file": "hdawg_wait_zsync.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ternary_ext",
+    "file": "hdawg_ternary_ext.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_play_dual_ch",
+    "file": "hdawg_play_dual_ch.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_simple",
+    "file": "hdawg_doc_simple.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_rise_flat_fall",
+    "file": "hdawg_doc_rise_flat_fall.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_cvar_sample_loop",
+    "file": "hdawg_doc_cvar_sample_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_marker_gauss",
+    "file": "hdawg_doc_marker_gauss.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_setTrigger_waitWave",
+    "file": "hdawg_doc_setTrigger_waitWave.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_waitDigTrigger",
+    "file": "hdawg_doc_waitDigTrigger.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_placeholder",
+    "file": "hdawg_doc_placeholder.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_placeholder_dual",
+    "file": "hdawg_doc_placeholder_dual.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_repeat_gauss",
+    "file": "hdawg_doc_repeat_gauss.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_wave_file",
+    "file": "hdawg_doc_wave_file.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_IQ_modulation",
+    "file": "hdawg_doc_IQ_modulation.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_crossed_modulation",
+    "file": "hdawg_doc_crossed_modulation.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_phase_changes",
+    "file": "hdawg_doc_phase_changes.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_multifreq",
+    "file": "hdawg_doc_multifreq.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_multi_ch_sync",
+    "file": "hdawg_doc_multi_ch_sync.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_multi_ch_sections",
+    "file": "hdawg_doc_multi_ch_sections.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_chirp",
+    "file": "hdawg_doc_chirp.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_rrc",
+    "file": "hdawg_doc_rrc.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_sinc",
+    "file": "hdawg_doc_sinc.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_filter",
+    "file": "hdawg_doc_filter.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_circshift",
+    "file": "hdawg_doc_circshift.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_interleave",
+    "file": "hdawg_doc_interleave.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_sawtooth_triangle",
+    "file": "hdawg_doc_sawtooth_triangle.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_lfsrGalois",
+    "file": "hdawg_doc_lfsrGalois.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_random_waves",
+    "file": "hdawg_doc_random_waves.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_cosine_ramp",
+    "file": "hdawg_doc_cosine_ramp.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_setInt_setDouble",
+    "file": "hdawg_doc_setInt_setDouble.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_setID",
+    "file": "hdawg_doc_setID.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_string_concat",
+    "file": "hdawg_doc_string_concat.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_playWave_rate",
+    "file": "hdawg_doc_playWave_rate.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_sync",
+    "file": "hdawg_doc_sync.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_dio_triggered",
+    "file": "hdawg_doc_dio_triggered.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_getDigTrigger",
+    "file": "hdawg_doc_getDigTrigger.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_info_msg",
+    "file": "hdawg_doc_info_msg.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_randomSeed",
+    "file": "hdawg_doc_randomSeed.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_join_interp",
+    "file": "hdawg_doc_join_interp.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_prefetch",
+    "file": "hdawg_doc_prefetch.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_doc_playWaveDIO",
+    "file": "hdawg_doc_playWaveDIO.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfsg_doc_simple",
+    "file": "shfsg_doc_simple.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_gauss",
+    "file": "shfsg_doc_gauss.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_repeat_gauss",
+    "file": "shfsg_doc_repeat_gauss.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_rise_flat_fall",
+    "file": "shfsg_doc_rise_flat_fall.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_cvar_sample_loop",
+    "file": "shfsg_doc_cvar_sample_loop.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_resetOsc_playWave12",
+    "file": "shfsg_doc_resetOsc_playWave12.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_wave_file",
+    "file": "shfsg_doc_wave_file.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_marker_gauss",
+    "file": "shfsg_doc_marker_gauss.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_setTrigger_waitWave",
+    "file": "shfsg_doc_setTrigger_waitWave.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_marker_periodic",
+    "file": "shfsg_doc_marker_periodic.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_waitDigTrigger",
+    "file": "shfsg_doc_waitDigTrigger.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_ct_basic",
+    "file": "shfsg_doc_ct_basic.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_ct_increment",
+    "file": "shfsg_doc_ct_increment.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_ct_amp_registers",
+    "file": "shfsg_doc_ct_amp_registers.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_ct_placeholder",
+    "file": "shfsg_doc_ct_placeholder.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_ct_no_waveform",
+    "file": "shfsg_doc_ct_no_waveform.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_drag_modulation",
+    "file": "shfsg_doc_drag_modulation.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_phase_changes",
+    "file": "shfsg_doc_phase_changes.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_freq_sweep",
+    "file": "shfsg_doc_freq_sweep.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_zsync_execute",
+    "file": "shfsg_doc_zsync_execute.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_execute_wait_cycles",
+    "file": "shfsg_doc_execute_wait_cycles.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_configFreqSweep",
+    "file": "shfsg_doc_configFreqSweep.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_prng_funcs",
+    "file": "shfsg_doc_prng_funcs.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_waitSineOscPhase",
+    "file": "shfsg_doc_waitSineOscPhase.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfsg_doc_playZero_playHold_rate",
+    "file": "shfsg_doc_playZero_playHold_rate.seqc",
+    "devtype": "SHFSG8",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "shfqa_doc_readout_basic",
+    "file": "shfqa_doc_readout_basic.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_doc_switch_startQA",
+    "file": "shfqa_doc_switch_startQA.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_doc_for_startQA",
+    "file": "shfqa_doc_for_startQA.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_doc_while_dio",
+    "file": "shfqa_doc_while_dio.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_doc_if_dio",
+    "file": "shfqa_doc_if_dio.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_doc_repeat_dio",
+    "file": "shfqa_doc_repeat_dio.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "hdawg_play_variants",
+    "file": "hdawg_play_variants.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_play_indexed",
+    "file": "hdawg_play_indexed.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_play_dual_indexed",
+    "file": "hdawg_play_dual_indexed.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_switch_fallthrough",
+    "file": "hdawg_switch_fallthrough.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_grow_merge",
+    "file": "hdawg_wave_grow_merge.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa_feedback",
+    "file": "shfqa_feedback.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqa_feedback_ext",
+    "file": "shfqa_feedback_ext.seqc",
+    "devtype": "SHFQA4",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "hdawg_ternary_in_args",
+    "file": "hdawg_ternary_in_args.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cmd_table_var",
+    "file": "hdawg_cmd_table_var.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cvar_wave_loop",
+    "file": "hdawg_cvar_wave_loop.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_repeat_edge",
+    "file": "hdawg_repeat_edge.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_switch_play",
+    "file": "hdawg_switch_play.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_nested_ternary",
+    "file": "hdawg_nested_ternary.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_compound_assign",
+    "file": "hdawg_compound_assign.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_prepost_inc",
+    "file": "hdawg_prepost_inc.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_for_complex",
+    "file": "hdawg_for_complex.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cvar_math",
+    "file": "hdawg_cvar_math.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_multireturn",
+    "file": "hdawg_func_multireturn.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_void_func",
+    "file": "hdawg_void_func.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_repeat_nested",
+    "file": "hdawg_repeat_nested.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_while_play",
+    "file": "hdawg_while_play.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqc_combo",
+    "file": "shfqc_combo.seqc",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "sg"
+  },
+  {
+    "name": "uhfqa_feedback",
+    "file": "uhfqa_feedback.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfli_setrate_play",
+    "file": "uhfli_setrate_play.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_wave_arith",
+    "file": "hdawg_wave_arith.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_dio_switch",
+    "file": "hdawg_dio_switch.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfsg_osc_freq",
+    "file": "shfsg_osc_freq.seqc",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "hdawg_multi_func",
+    "file": "hdawg_multi_func.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfqa_doc_simple",
+    "file": "uhfqa_doc_simple.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_gauss",
+    "file": "uhfqa_doc_gauss.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_repeat_gauss",
+    "file": "uhfqa_doc_repeat_gauss.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_rise_flat_fall",
+    "file": "uhfqa_doc_rise_flat_fall.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_cvar_sample_loop",
+    "file": "uhfqa_doc_cvar_sample_loop.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_wave_file",
+    "file": "uhfqa_doc_wave_file.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_marker_gauss",
+    "file": "uhfqa_doc_marker_gauss.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_setTrigger_waitWave",
+    "file": "uhfqa_doc_setTrigger_waitWave.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_waitDigTrigger",
+    "file": "uhfqa_doc_waitDigTrigger.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_waitDemodOscPhase",
+    "file": "uhfqa_doc_waitDemodOscPhase.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_playAuxWave",
+    "file": "uhfqa_doc_playAuxWave.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_doc_analog_digital_csv",
+    "file": "uhfqa_doc_analog_digital_csv.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_IQ_modulation",
+    "file": "uhf_doc_IQ_modulation.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_carrier_envelope",
+    "file": "uhf_doc_carrier_envelope.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_multifreq",
+    "file": "uhf_doc_multifreq.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_output_assignment",
+    "file": "uhf_doc_output_assignment.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_fast_freq_phase",
+    "file": "uhf_doc_fast_freq_phase.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_branching",
+    "file": "uhf_doc_branching.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_feedforward",
+    "file": "uhf_doc_feedforward.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_index_sweep",
+    "file": "uhf_doc_index_sweep.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_param_sweep",
+    "file": "uhf_doc_param_sweep.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhf_doc_tv_mode",
+    "file": "uhf_doc_tv_mode.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "shfqc_doc_lf_path",
+    "file": "shfqc_doc_lf_path.seqc",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "sg"
   }
 ]

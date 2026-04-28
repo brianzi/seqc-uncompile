@@ -3089,14 +3089,14 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
     //    happen without mutating the caller's lhsResult.   // @0x243edf-243f00
     auto aux = std::make_shared<EvalResults>(lhsResult);
 
-    // 3. If `rhsResult.arrayBacking_` (field at +0x70) is non-null, move
-    //    it onto aux (refcount-inc on rhs, refcount-dec on aux's prior
-    //    arrayBacking_).                                    // @0x243f13-243f5c
-    //    NOTE: +0x70 confirmed as shared_ptr<EvalResults> arrayBacking_
-    //    per eval_results.hpp:80.  The 16-byte movups copy in the binary
-    //    matches shared_ptr's (control-block ptr + object ptr) layout.
-    if (rhsResult.arrayBacking_) {
-        aux->arrayBacking_ = rhsResult.arrayBacking_;
+    // 3. If `lhsResult.arrayBacking_` (field at +0x70) is non-null,
+    //    REPLACE aux with lhsResult.arrayBacking_.          // @0x243f13-243f5c
+    //    This is how array-indexed assignments work: SeqCArray::evaluate
+    //    stores the indexed result (VarType_Wave) in arrayBacking_ of
+    //    the outer result (VarType_Cvar). Here we swap aux to point at
+    //    the indexed result so the dispatch sees Wave, not Cvar.
+    if (lhsResult.arrayBacking_) {
+        aux = lhsResult.arrayBacking_;
     }
 
     // 4. dynamic_cast<SeqCVariable*>(this->lhs()).          // @0x243f64-243f89
@@ -3140,20 +3140,13 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
         const bool rhsIsConstOrCvar =
             (rhsType == VarType_Const) || (rhsType == VarType_Cvar);
 
-        // Name source for all update*() calls: lhsVar->name_.
-        // (Guarded; if the dynamic_cast failed, we cannot proceed with
-        // the named-update rows and fall to the default error path.)
-        if (!lhsVar) {
-            // Binary uses a null-check via `r12 == 0` test before `add r12, 0x18`.
-            // Without a name source no update*() can be called; emit the
-            // default 0x8b error.
-            ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x8b),
-                                      str(lhsType), str(rhsType)),
-                lineNr_);
-            return result;
-        }
-        const std::string& name = lhsVar->name();
+        // Name source for update*() calls: lhsVar->name_.
+        // The binary does NOT bail out early when lhsVar is null — the
+        // null-check happens lazily inside each row that needs a name
+        // (the `test r12,r12` / `add r12,0x18` pattern). For rows that
+        // don't need a name (e.g. Wave[Numeric] in-place write), lhsVar
+        // being null is perfectly fine.
+        const std::string name = lhsVar ? lhsVar->name() : std::string();
 
         switch (lhsType) {
 
@@ -3161,18 +3154,49 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
         // Row 1 & 2: lhsType == Var
         // ================================================================
         case VarType_Var: {
-            res->updateVar(name);                           // @0x24400a
-            // Row 2 (rhs == Var): merge rhsResult.assemblers_ into
-            // result->assemblers_ via vector __insert_with_size.
-            //                                              // @0x24403e-244085
-            if (rhsType == VarType_Var) {
+            if (rhsIsConstOrCvar) {
+                // Row 1 (rhs ∈ {Const, Cvar}): emit addi to initialize
+                // the variable register from the constant value, then
+                // emit a SetVarPlaceholder.                 // @0x24400a-244039
+                res->updateVar(name);                       // @0x24400a
+                AsmRegister lhsReg = aux->values_.back().reg_;
+                AsmRegister zeroReg(0);
+                Value rhsVal = rhsResult.getValue();
+                // addi lhsReg, R0, constValue               // @0x245364 (addi with Value)
+                auto addiAsms = ctx.asmCommands->addi(lhsReg, zeroReg, rhsVal);
                 result->assemblers_.insert(
+                    result->assemblers_.end(),
+                    addiAsms.begin(), addiAsms.end());
+                // asmSetVarPlaceholder(lhsReg)              // @0x24549d
+                auto placeholder = ctx.asmCommands->asmSetVarPlaceholder(lhsReg);
+                result->assemblers_.push_back(std::move(placeholder));
+                result->node_ = result->assemblers_.back().node;  // @0x245535
+            } else if (rhsType == VarType_Var) {
+                // Row 2 (rhs == Var): merge rhsResult.assemblers_ into
+                // result->assemblers_, then emit addi(lhsReg, rhsReg, 0)
+                // to copy the rhs value to the lhs register.
+                //                                          // @0x24403e-244085
+                result->assemblers_.insert(                 // @0x24403e
                     result->assemblers_.end(),
                     rhsResult.assemblers_.begin(),
                     rhsResult.assemblers_.end());
+                res->updateVar(name);                       // @0x244085
+                // Emit addi(lhsReg, rhsReg, Immediate(0)) — register copy
+                //                                          // @0x24481f
+                AsmRegister lhsReg = aux->values_.back().reg_;
+                AsmRegister rhsReg = rhsResult.values_.back().reg_;
+                auto addiAsms = ctx.asmCommands->addi(lhsReg, rhsReg, Immediate(0));
+                result->assemblers_.insert(
+                    result->assemblers_.end(),
+                    addiAsms.begin(), addiAsms.end());
+                // asmSetVarPlaceholder(lhsReg)              // @0x24495a
+                auto placeholder = ctx.asmCommands->asmSetVarPlaceholder(lhsReg);
+                result->assemblers_.push_back(std::move(placeholder));
+                result->node_ = result->assemblers_.back().node;  // @0x245535
+            } else {
+                // Other rhs types: just updateVar, no asm.
+                res->updateVar(name);
             }
-            // Row 1 (rhs ∈ {Const, Cvar}): no asm copy. (Both rows fall
-            // through to common cleanup.)
             break;
         }
 
@@ -3260,12 +3284,13 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 }
                 // Row 9: Wave[Numeric] = Var or Cvar → in-place numeric
                 // write into result->waveformFront_.       // @0x244468-244c0d
-                if (rhsType == VarType_Var || rhsType == VarType_Cvar) {
-                    auto wf = result->waveformFront_;
+                // Binary uses (rhsType | 2) == 6, matching Var(2), Const(4), Cvar(6).
+                if (rhsType == VarType_Var || rhsType == VarType_Const || rhsType == VarType_Cvar) {
+                    auto wf = aux->waveformFront_;
                     if (wf) {
                         // idx = lhs.value.toInt(); val = rhs.value.toDouble();
                         const int64_t idx =
-                            lhsResult.getValue().toInt();
+                            aux->getValue().toInt();
                         const double val =
                             rhsResult.getValue().toDouble();
                         // Binary writes raw to signal.samples_[idx] and
@@ -6237,47 +6262,47 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                 childResult->values_.begin(),
                 childResult->values_.end());
 
-            // Chain node_ from child into result.               @0x212c59-212cb2
-            if (childResult->node_) {
-                if (!result->node_) {
-                    result->node_ = childResult->node_;
+            childHadError = childResult->hasError_;               // @0x2129c5-2129cc
+
+            if (!childHadError) {
+                // --- childHadError == 0 path ---                @0x2129cf→0x212a80
+                // Build comma-separated name.                    @0x2129b8/0x212a80
+                if (i != 0) {
+                    result->name_ += ", " + childResult->name_;
                 } else {
-                    // Walk to end of result->node_ chain.
-                    auto tail = result->node_;
-                    while (tail->next) tail = tail->next;
-                    tail->next = childResult->node_;
+                    result->name_ = childResult->name_;
                 }
-            }
 
-            // Sticky-OR hasError.
-            result->hasError_ = result->hasError_ || childResult->hasError_;
-            childHadError = childResult->hasError_;
-
-            // Build comma-separated name.                        @0x2129b8
-            if (i != 0) {
-                result->name_ += ", " + childResult->name_;
-            } else {
-                result->name_ = childResult->name_;
-            }
-
-            // Unreachable code after return statement check.     @0x2129cf
-            if (childHadError && i + 1 < elems.size()) {
-                if (dynamic_cast<const SeqCReturnStatement*>(elems[i].get())) {
-                    // Current child is a return statement and there's code after it.
-                    int nextLineNr = elems[i + 1]->type();       // @0x212b7e
-                    std::string const& warnMsg =
-                        ErrorMessages::get(0x22);                // @0x212a29-212a76
-                    ctx.messages->warningMessage(warnMsg, nextLineNr); // @0x212b86
+                // Chain node_ from child into result.            @0x212c59-212dd1
+                if (childResult->node_) {
+                    if (!result->node_) {
+                        result->node_ = childResult->node_;
+                    } else {
+                        auto tail = result->node_;
+                        while (tail->next) tail = tail->next;
+                        tail->next = childResult->node_;
+                    }
                 }
-            }
-
-            // Extract return value from child result.            @0x212b90-212e4d
-            if (!childResult->values_.empty()) {
-                res->setReturnValue(childResult->values_.back().value_); // @0x212e4d
             } else {
-                res->setReturnValue(Value(static_cast<int32_t>(0)));     // @0x212bd9
+                // --- childHadError == 1 path ---                @0x2129cf fall-through
+                // Unreachable code after return statement check. @0x2129d5
+                if (i + 1 < elems.size()) {
+                    if (dynamic_cast<const SeqCReturnStatement*>(elems[i].get())) {
+                        int nextLineNr = elems[i + 1]->type();   // @0x212b7e
+                        std::string const& warnMsg =
+                            ErrorMessages::get(0x22);             // @0x212a29-212a76
+                        ctx.messages->warningMessage(warnMsg, nextLineNr); // @0x212b86
+                    }
+                }
+
+                // Extract return value from child result.        @0x212b90-212e4d
+                if (!childResult->values_.empty()) {
+                    res->setReturnValue(childResult->values_.back().value_); // @0x212e4d
+                } else {
+                    res->setReturnValue(Value(static_cast<int32_t>(0)));     // @0x212bd9
+                }
+                result->hasError_ = true;                         // @0x212e84
             }
-            result->hasError_ = true;                            // @0x212e84
 
         } else {
             // Null result — error 0x12.                          @0x212905
@@ -6651,7 +6676,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                 }
             }
             if (truncPos != std::string::npos) {
-                result->name_ = result->name_.substr(0, truncPos) + ", ...";
+                result->name_ = result->name_.substr(0, truncPos) + " ...)";
             }
         }
 
@@ -6753,8 +6778,15 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                 }
             }
             if (truncPos != std::string::npos) {
-                result->name_ = result->name_.substr(0, truncPos) + ", ...";
+                result->name_ = result->name_.substr(0, truncPos) + " ...)";
             }
+        }
+
+        // 0x20d3e0: Copy result->name_ into waveformFront_->secondaryName
+        // Binary: mov 0x48(%rbx),%rdi; add $0x20,%rdi; lea 0x58(%rbx),%rax
+        // This sets wf->secondaryName = result->name_ (e.g. "zeros(64)")
+        if (result->waveformFront_) {
+            result->waveformFront_->secondaryName = result->name_;  // @0x20d3e0
         }
 
         } catch (CustomFunctionsException const& e) {              // @0x20fec6 selector 1
@@ -6885,20 +6917,25 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
     // ---- Create new result, set wave value with index ----        // @0x211748
     auto indexedResult = std::make_shared<EvalResults>();
 
-    // Replace result's EvalResults with the new one                 // @0x211791
-    result = indexedResult;
+    // Store indexedResult in result->arrayBacking_ (NOT result = indexedResult). // @0x211791
+    // The binary stores the indexed EvalResults in arrayBacking_ of the
+    // original result. SeqCAssign::evaluate later swaps aux with
+    // arrayBacking_ to dispatch on the indexed type (Wave) instead of
+    // the outer type (Cvar).
+    result->arrayBacking_ = indexedResult;
 
     // setValue(VarType_Wave, VarSubType_Numeric, Value(int=index))   // @0x2117f7
-    result->setValue(VarType_Wave, VarSubType_Numeric, Value(idx));   // @0x16bfb0
+    // Called on indexedResult (via result->arrayBacking_).
+    indexedResult->setValue(VarType_Wave, VarSubType_Numeric, Value(idx));   // @0x16bfb0
 
-    // ---- Set waveformFront_ on result ----                        // @0x211822
-    result->waveformFront_ = wf;                                     // @0x21183c
+    // ---- Set waveformFront_ on indexedResult ----                 // @0x211822
+    indexedResult->waveformFront_ = wf;                              // @0x21183c
 
     // ---- Read sample value from signal ----                       // @0x21187a
     wf->signal.checkAllocation();                                    // @0x246950
     double sampleVal = wf->signal.samples_[idx];                     // @0x211885 (double at samples_[idx])
 
-    // setValue(VarType_Cvar, Value(double=sampleVal))                // @0x2118a9
+    // setValue(VarType_Cvar, Value(double=sampleVal)) on the ORIGINAL result // @0x2118a9
     result->setValue(VarType_Cvar, Value(sampleVal));                 // @0x211b70
 
     return result;
@@ -7220,10 +7257,19 @@ const SeqCStmtList* SeqCSwitchCase::cases() const                    // @0x20270
     return dynamic_cast<const SeqCStmtList*>(body());
 }
 
-// Anonymous namespace helper: evalCaseBody — @0x216fc0, 680 lines disasm
-//   Evaluates a single SeqCCaseEntry, checks if it matches the condition
-//   value, and if so pushes its result to the results vector.
-//   Also handles non-matching cases and default (varType==Unset) cases.
+// Anonymous namespace helper: evalCaseBody — @0x216fc0, ~2200B
+//   Evaluates a single SeqCCaseEntry (label), performs value matching
+//   between caseResult and condResult, and ALWAYS pushes caseResult
+//   to the results vector.
+//
+//   The matching logic (comparing case value vs condition value) extracts
+//   Value info but does NOT gate the push — every case entry produces a
+//   result.  The caller (SeqCSwitchCase::evaluate) uses the varType and
+//   value in each result to decide how to generate branch logic.
+//
+//   Special path: if condResult->values_ is empty, looks up error 0x19
+//   and calls caseEntry.body()->evaluate() to recover body assemblers.
+//   This path is not normally taken for Var-discriminant switches.
 namespace {
 void evalCaseBody(
     SeqCCaseEntry const& caseEntry,
@@ -7233,46 +7279,85 @@ void evalCaseBody(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& state)                                    // @0x216fc0
 {
-    // Evaluate the case entry                                       // @0x217020
+    // ---- Step 1: Evaluate the case entry (label) ----             // @0x217020
     auto caseResult = caseEntry.evaluate(subRes, ctx, state);
 
-    // Iterate condResult->values_ looking for a match               // @0x21706d
-    // Each condResult value is compared against caseResult values
-    // using Value::operator==. If caseResult has exactly 1 Const/Cvar
-    // value that matches any condResult value, or if the case is a
-    // default (varType_==Unset), the result is pushed.
     if (!caseResult) return;
 
-    bool isDefault = false;
-    bool isMatch = false;
+    // ---- Step 2 + 3: Value matching and body evaluation ----       // @0x21706d
+    // For Const/Cvar condResult: compare values and evaluate body if matched.
+    // For Var/other condResult: always evaluate body.
+    // Binary: step 2 (0x21706d-0x21781a) interleaves matching with body eval.
 
-    // Check if case has values                                      // @0x2170bd
-    if (!caseResult->values_.empty()) {
-        auto& caseVals = caseResult->values_;
-        // Check: single Const/Cvar value in case
-        if (caseVals.size() == 1 &&
-            (caseVals.back().varType_ | 0x2) == 0x6) {              // @0x2170e5
-            // Compare against condResult values
-            if (condResult && !condResult->values_.empty()) {
-                for (auto& condVal : condResult->values_) {
-                    if (condVal.value_ == caseVals.back().value_) {  // Value::operator== @0x21a780
-                        isMatch = true;
-                        break;
-                    }
+    bool evalBody = true;
+
+    if (condResult && !condResult->values_.empty()) {
+        if (condResult->values_.size() == 1 &&
+            (condResult->values_.back().varType_ | 0x2) == 0x6) {
+            // Const/Cvar single value — evaluate body only if values match
+            evalBody = false;  // default: don't eval
+
+            if (caseResult->values_.size() == 1 &&
+                (caseResult->values_.back().varType_ | 0x2) == 0x6) {
+                // Both Const/Cvar — compare toInt values              // @0x217809
+                Value condValue;
+                auto& condVals = condResult->values_;
+                if (!condVals.empty())
+                    condValue = condVals.back().value_;
+                Value caseValue;
+                auto& caseVals = caseResult->values_;
+                if (!caseVals.empty())
+                    caseValue = caseVals.back().value_;
+
+                if (condValue.toInt() == caseValue.toInt()) {
+                    // Match! Set scopeBoundary flag and evaluate body  // @0x21780e
+                    subRes->setAtScopeBoundary(true);                   // 0x89 flag
+                    evalBody = true;
                 }
             }
+            else if (caseResult->values_.empty()) {
+                // Default case — evaluate body if no prior match       // @0x217682
+                if (!subRes->atScopeBoundary()) {
+                    subRes->setAtScopeBoundary(true);
+                    evalBody = true;
+                }
+            }
+            // Otherwise (multi-valued, etc): skip body
         }
-        // Check if default case (varType_==Unset)                   // @0x2170a0
-        if (caseVals.back().varType_ == VarType_Unset) {
-            isDefault = true;
+    } else {
+        // condResult is null or empty — error 0x19 if case has no values
+        if (caseResult->values_.empty()) {                           // @0x217360
+            auto const& msg = ErrorMessages::messages.at(
+                ErrorMessageT(0x19));                                // @0x2173aa
+            ctx.messages->errorMessage(msg, caseEntry.lineNr());    // @0x2173b8
         }
     }
 
-    if (isMatch || isDefault) {
-        // Push case result to results vector                        // @0x2173bd
-        results.push_back(caseResult);
+    if (evalBody) {
+        // Evaluate case body                                        // @0x217472
+        bool savedHasError = caseResult->hasError_;
+        caseResult->hasError_ = false;
+
+        if (caseEntry.body()) {
+            auto bodyResult = caseEntry.body()->evaluate(
+                subRes, ctx, state);
+
+            if (bodyResult) {
+                caseResult->assemblers_.insert(
+                    caseResult->assemblers_.end(),
+                    bodyResult->assemblers_.begin(),
+                    bodyResult->assemblers_.end());
+                caseResult->hasError_ = bodyResult->hasError_;
+                caseResult->waveformFront_ = bodyResult->waveformFront_;
+                caseResult->node_ = bodyResult->node_;
+            }
+        }
+
+        caseResult->hasError_ = caseResult->hasError_ && savedHasError;
     }
-    // Non-matching cases are simply skipped                         // @0x2170b0
+
+    // ---- ALWAYS push result ----                                  // @0x2175b0
+    results.push_back(caseResult);
 }
 } // anonymous namespace
 
@@ -7401,7 +7486,7 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
 //     endLabel=newLabel("end"), loop cases:
 //       Const/Cvar case: getRegisterNumber→caseReg, newLabel("case"),
 //         extract values, Immediate(-caseVal.toInt()), addi → switchAsms,
-//         readConst("__switch_jump_table", EDirection(1)) → addi → bodyAsms,
+//         readConst("AWG_WAIT_TRIGGER", EDirection(1)) → addi → bodyAsms,
 //         merge case assemblers → bodyAsms, wtrig → bodyAsms,
 //         brz(zeroReg, endLabel, true) → bodyAsms, emplace branchChildren,
 //         AND hasError
@@ -7477,7 +7562,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     // Var path (varType == 2)                                       // @0x217ea1
     // ================================================================
     if (condVal.varType_ == VarType_Var) {
-        res->setState(Resources::State::Active);                     // @0x217eb7
+        subRes->setState(Resources::State::Active);                   // @0x217eb7
 
         // ---- Evaluate cases ----                                  // @0x217ec3
         std::vector<std::shared_ptr<EvalResults>> casesResult;
@@ -7516,6 +7601,11 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         AsmRegister switchReg(switchRegNum);                         // @0x218776
         AsmRegister zeroReg(0);                                      // @0x2187a9
 
+        // ---- Extract condition register from condResult ----
+        // The binary uses the condition variable's register (e.g. R1 from addVar)
+        // for the comparison addi instructions, NOT switchReg.
+        AsmRegister condReg = condResult->values_.back().reg_;       // @0x218cf8 vicinity
+
         // ---- Compute total cycles ----                            // @0x21877b
         int cyclesF3 = Assembler::getCycles(
             Assembler::Command(0xf3000000));                         // @0x28fac0
@@ -7548,6 +7638,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         bool hasDefault = false;
         for (auto it = casesResult.begin(); it != casesResult.end(); ++it) {
             auto& caseEntry = *it;
+            if (!caseEntry) continue;
 
             // Check: size==1 && (varType|2)==6 (Const/Cvar)         // @0x218ae7
             if (caseEntry &&
@@ -7562,6 +7653,10 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 
                 // Create case label.                                // @0x218ca2
                 std::string caseLabel = Resources::newLabel("case"); // @0x218cc8
+                //fprintf(stderr, "DBG case label: '%s' for varType=%d val=%d\n",
+                //    caseLabel.c_str(),
+                //    (int)caseEntry->values_.back().varType_,
+                //    caseEntry->values_.back().value_.toInt());
 
                 // Extract condResult last value → condValue.        // @0x218cf8
                 auto& condValues = condResult->values_;
@@ -7577,11 +7672,11 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                     caseValue = caseValues.back().value_;
                 }
 
-                // addi(caseReg, condReg/zeroReg, Immediate(-caseValue.toInt())) → switchAsms // @0x219192
+                // addi(caseReg, condReg, Immediate(-caseValue.toInt())) → switchAsms // @0x219192
                 {
                     int negCaseVal = -caseValue.toInt();              // @0x219199
                     AsmList tmp = ctx.asmCommands->addi(
-                        caseReg, switchReg, Immediate(negCaseVal));   // @0x2191c0
+                        caseReg, condReg, Immediate(negCaseVal));     // @0x2191c0
                     switchAsms.insert(switchAsms.end(), tmp.begin(), tmp.end());
                 }
 
@@ -7592,11 +7687,11 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                     switchAsms.push_back(brzAsm);                    // @0x219302
                 }
 
-                // asmLabel(caseLabel) → caseAsms                    // @0x2193d9
+                // asmLabel(caseLabel) → bodyAsms                    // @0x2193d9
                 {
                     AsmList::Asm labelAsm = ctx.asmCommands->asmLabel(
                         caseLabel);                                  // @0x2774e0
-                    caseAsms.push_back(labelAsm);                    // @0x2193eb
+                    bodyAsms.push_back(labelAsm);                    // @0x2193eb
                 }
 
                 // Get another register for this case's body.        // @0x2194af
@@ -7604,8 +7699,8 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 AsmRegister bodyReg(bodyRegNum);                     // @0x2194bd
                 AsmRegister bodyZeroReg(0);                          // @0x2194d6
 
-                // readConst("__switch_jump_table", EDirection(1)) → toInt // @0x219511
-                EvalResultValue readRV = res->readConst("__switch_jump_table",
+                // readConst("AWG_WAIT_TRIGGER", EDirection(1)) → toInt // @0x219511
+                EvalResultValue readRV = res->readConst("AWG_WAIT_TRIGGER",
                     EDirection(1));                                   // @0x1e7d70
                 int readConstVal = readRV.value_.toInt();            // @0x21951d
 
@@ -7616,17 +7711,17 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                     bodyAsms.insert(bodyAsms.end(), tmp.begin(), tmp.end());
                 }
 
-                // Merge caseEntry assemblers → bodyAsms              // @0x21957a
-                bodyAsms.insert(bodyAsms.end(),
-                    caseEntry->assemblers_.begin(),
-                    caseEntry->assemblers_.end());
-
                 // wtrig(bodyReg, bodyReg) → bodyAsms                // @0x2196a6
                 {
                     AsmList::Asm wtrigAsm = ctx.asmCommands->wtrig(
                         bodyReg, bodyReg);                           // @0x274f00
                     bodyAsms.push_back(wtrigAsm);                    // @0x2196b8
                 }
+
+                // Merge caseEntry assemblers → bodyAsms              // @0x21957a
+                bodyAsms.insert(bodyAsms.end(),
+                    caseEntry->assemblers_.begin(),
+                    caseEntry->assemblers_.end());
 
                 // brz(zeroReg, endLabel, true) → bodyAsms           // @0x219812
                 {
@@ -7657,35 +7752,35 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 AsmRegister defReg(defRegNum);                       // @0x218b38
                 AsmRegister defZeroReg(0);                           // @0x218b51
 
-                // readConst("__switch_jump_table", EDirection(1))   // @0x218b80
-                EvalResultValue defReadRV = res->readConst("__switch_jump_table",
+                // readConst("AWG_WAIT_TRIGGER", EDirection(1))   // @0x218b80
+                EvalResultValue defReadRV = res->readConst("AWG_WAIT_TRIGGER",
                     EDirection(1));
                 int defReadConstVal = defReadRV.value_.toInt();      // @0x218b91
 
-                // addi → bodyAsms                                   // @0x218bb9
+                // addi → caseAsms                                   // @0x218bb9
                 {
                     AsmList tmp = ctx.asmCommands->addi(
                         defReg, defZeroReg, Immediate(defReadConstVal));
-                    bodyAsms.insert(bodyAsms.end(), tmp.begin(), tmp.end());
+                    caseAsms.insert(caseAsms.end(), tmp.begin(), tmp.end());
                 }
 
-                // Merge default case assemblers → bodyAsms          // @0x218eac
-                bodyAsms.insert(bodyAsms.end(),
-                    caseEntry->assemblers_.begin(),
-                    caseEntry->assemblers_.end());
-
-                // wtrig(defReg, defReg) → bodyAsms                  // @0x218dd7
+                // wtrig(defReg, defReg) → caseAsms                  // @0x218dd7
                 {
                     AsmList::Asm wtrigAsm = ctx.asmCommands->wtrig(
                         defReg, defReg);
-                    bodyAsms.push_back(wtrigAsm);
+                    caseAsms.push_back(wtrigAsm);
                 }
 
-                // brz(zeroReg, endLabel, true) → bodyAsms           // @0x218f18
+                // Merge default case assemblers → caseAsms          // @0x218eac
+                caseAsms.insert(caseAsms.end(),
+                    caseEntry->assemblers_.begin(),
+                    caseEntry->assemblers_.end());
+
+                // brz(zeroReg, endLabel, true) → caseAsms           // @0x218f18
                 {
                     AsmList::Asm brzEnd = ctx.asmCommands->brz(
                         AsmRegister(0), endLabel, true);
-                    bodyAsms.push_back(brzEnd);
+                    caseAsms.push_back(brzEnd);
                 }
 
                 // emplace_back to branches                          // @0x21900b
@@ -7706,27 +7801,27 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 int defRegNum = res->getRegisterNumber();
                 AsmRegister defReg(defRegNum);
                 AsmRegister defZeroReg(0);
-                Value defReadVal = res->readConst("__switch_jump_table",
+                Value defReadVal = res->readConst("AWG_WAIT_TRIGGER",
                     EDirection(1)).value_;
                 int defReadConstVal = defReadVal.toInt();
                 {
                     AsmList tmp = ctx.asmCommands->addi(
                         defReg, defZeroReg, Immediate(defReadConstVal));
-                    bodyAsms.insert(bodyAsms.end(), tmp.begin(), tmp.end());
+                    caseAsms.insert(caseAsms.end(), tmp.begin(), tmp.end());
+                }
+                {
+                    AsmList::Asm wtrigAsm = ctx.asmCommands->wtrig(defReg, defReg);
+                    caseAsms.push_back(wtrigAsm);
                 }
                 if (caseEntry) {
-                    bodyAsms.insert(bodyAsms.end(),
+                    caseAsms.insert(caseAsms.end(),
                         caseEntry->assemblers_.begin(),
                         caseEntry->assemblers_.end());
                 }
                 {
-                    AsmList::Asm wtrigAsm = ctx.asmCommands->wtrig(defReg, defReg);
-                    bodyAsms.push_back(wtrigAsm);
-                }
-                {
                     AsmList::Asm brzEnd = ctx.asmCommands->brz(
                         AsmRegister(0), endLabel, true);
-                    bodyAsms.push_back(brzEnd);
+                    caseAsms.push_back(brzEnd);
                 }
                 if (caseEntry) {
                     result->node_->branches.emplace_back(caseEntry->node_);
@@ -7822,8 +7917,12 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         // ---- Reset scopeBoundaryFlags_ = 0 ----                             // @0x218177
         subRes->setAtScopeBoundary(false);
 
-        // ---- Init matchedResult and matchedHasError ----          // @0x21817e
-        std::shared_ptr<EvalResults> matchedResult;
+        // ---- Init matchedResult variables ----                     // @0x21817e
+        // Binary uses two separate shared_ptrs:
+        //   -0x50(%rbp) = matchedConstResult (set at 0x218498 on Value::operator== match)
+        //   -0x90(%rbp) = matchedDefaultResult (set at 0x218270 for default/non-Const cases)
+        std::shared_ptr<EvalResults> matchedConstResult;   // -0x50(%rbp)
+        std::shared_ptr<EvalResults> matchedDefaultResult;  // -0x90(%rbp)
         bool matchedHasError = false;
 
         // ---- Check state.pad10_ for conditional AND ----          // @0x21818c
@@ -7856,21 +7955,26 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 
                 // Compare: Value::operator==                        // @0x218429
                 if (condValue == caseValue) {                        // @0x218494
-                    // Match found — assign matchedResult.           // @0x218498
-                    matchedResult = caseEntry;
+                    // Match found — assign to -0x50(%rbp).          // @0x218498
+                    matchedConstResult = caseEntry;
                 }
 
                 // AND hasError for all cases regardless.            // @0x2184da
                 result->hasError_ &= caseEntry->hasError_;
             }
             else {
-                // Default/unmatched case — just assign as matchedResult. // @0x218270
-                matchedResult = caseEntry;
+                // Default/unmatched case — assign to -0x90(%rbp).   // @0x218270
+                matchedDefaultResult = caseEntry;
                 matchedHasError = caseEntry->hasError_;
             }
         } // end for
 
-        // ---- After loop: if matchedResult found ----              // @0x2184fc
+        // ---- After loop: prefer matchedConstResult, fallback to matchedDefaultResult ---- // @0x2184fc
+        // Binary: mov -0x50(%rbp),%r14; test %r14,%r14; je ...
+        // If numbered match found, use it; otherwise use default.
+        std::shared_ptr<EvalResults> matchedResult =
+            matchedConstResult ? matchedConstResult : matchedDefaultResult;
+
         if (matchedResult) {
             // Merge matchedResult assemblers into result.           // @0x218509
             result->assemblers_.insert(
@@ -8285,8 +8389,16 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
             bodyResult->assemblers_.end());                           // @0x2201e6
     }
 
-    // ---- Re-evaluate condition ----                               // @0x2201eb
-    condResult = cond()->evaluate(subRes, ctx, state);                // @0x22023b
+    // ---- Re-evaluate condition (result discarded) ----              // @0x2201eb
+    // GDB-verified: the binary stores the second eval's result in a
+    // temporary at [rbp-0x300] but NEVER moves it to the condResult
+    // slot at [rbp-0xf0]. The first eval's condResult is the one
+    // used at the Cvar/Var dispatch below. The second eval exists
+    // only for its side effects (e.g., register allocation).
+    {
+        auto condResult2 = cond()->evaluate(subRes, ctx, state);      // @0x22023b
+        (void)condResult2;  // intentionally discarded
+    }
 
     // ---- asmLabel(whileLabel) → push to result ----               // @0x22029c
     AsmList::Asm whileLabelAsm =
@@ -9395,9 +9507,10 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             // Use ifResult value.                                   // @0x22482d
             if (ifResult) {
                 auto const& ifVal = ifResult->values_.back();
-                if (ifResult->values_.size() >= 2) {
-                    // Var: merge assemblers, getRegisterNumber, addi // @0x224aa7
+                if (ifResult->values_.size() < 2) {
+                    // Single value: dispatch on varType              // @0x224aa7
                     if (ifVal.varType_ == VarType_Var) {
+                        // Var: merge assemblers, getRegisterNumber, addi
                         result->assemblers_.insert(
                             result->assemblers_.end(),
                             ifResult->assemblers_.begin(),
@@ -9421,14 +9534,14 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                             result->assemblers_.end(),
                             addi1.begin(), addi1.end());
                     } else {
-                        // Use varType/subType from last value       // @0x224b9b
+                        // Non-Var (Const/Cvar/etc): use actual varType // @0x224b9b
                         result->setValue(
                             ifVal.varType_,
                             static_cast<VarSubType>(0),
                             ifResult->getValue());
                     }
                 } else {
-                    // Single value: setValue with getValue           // @0x224872
+                    // Multiple values: setValue with VarType(0)      // @0x224872
                     result->setValue(
                         static_cast<VarType>(0),
                         static_cast<VarSubType>(0),
@@ -9451,7 +9564,8 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             // Use elseResult value.                                 // @0x224a0e
             if (elseResult) {
                 auto const& elseVal = elseResult->values_.back();
-                if (elseResult->values_.size() >= 2) {
+                if (elseResult->values_.size() < 2) {
+                    // Single value: dispatch on varType
                     if (elseVal.varType_ == VarType_Var) {
                         result->assemblers_.insert(
                             result->assemblers_.end(),
@@ -9475,12 +9589,14 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                             result->assemblers_.end(),
                             addi1.begin(), addi1.end());
                     } else {
+                        // Non-Var: use actual varType/subType
                         result->setValue(
                             elseVal.varType_,
                             static_cast<VarSubType>(0),
                             elseResult->getValue());
                     }
                 } else {
+                    // Multiple values: setValue with VarType(0)
                     result->setValue(
                         static_cast<VarType>(0),
                         static_cast<VarSubType>(0),
@@ -9577,9 +9693,8 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     // 0x20b398–0x20b5fb  Build param signature
     std::string signature;
     if (params()) {
-        // 0x20b3b5–0x20b4b0  dynamic_cast params to SeqCOperation, call getVarTypes
-        auto* op = dynamic_cast<const SeqCOperation*>(params());
-        auto varTypes = op->getVarTypes();
+        // 0x20b3b5–0x20b4b0  call getVarTypes on params (virtual dispatch)
+        auto varTypes = params()->getVarTypes();
 
         // 0x20b3e4–0x20b488  Build "(" + join(varTypes, ", ") + ")"
         std::ostringstream oss;
@@ -9597,9 +9712,10 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     // 0x20b703–0x20b724  Get return type
     VarType returnVarType;
     if (retType()) {
-        // retType() is a SeqCVariableType; its varType is stored at +0x14
-        // which is the asmId_ / lineNr_ field repurposed as VarType for leaves.
-        returnVarType = static_cast<VarType>(retType()->type());
+        // retType() is a SeqCVariableType; its varType is stored at +0x14.
+        // Binary reads 0x14(%rax) at @0x20b718 — this is the varType_ field,
+        // NOT lineNr_ at +0x0C (which type() returns).
+        returnVarType = retType()->varType();
     } else {
         returnVarType = VarType_Void;
     }
@@ -9657,7 +9773,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
             state.pad10_ = 1;   // 0x20b8ae: [r13+0x10] = 1 — "inside function def"
 
             try {
-                bodyResult = body()->evaluate(res, ctx, state);
+                bodyResult = body()->evaluate(func->scope, ctx, state);
             } catch (const CompilerException& ex) {
                 // 0x20c2e0–0x20c37b  Catch: report error, return result
                 const char* msg = ex.what();

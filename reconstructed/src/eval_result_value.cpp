@@ -11,9 +11,11 @@
 namespace zhinst {
 
 EvalResultValue::~EvalResultValue() {  // @0x15c820
-    // Delegates to Value::~Value() logic — if the embedded value's variant
-    // holds a string (abs(which) >= 3), free the heap string if long.
-    value_.~Value();
+    // The binary (libc++) explicitly destroys the embedded Value here.
+    // Under libstdc++, the compiler-generated member destructor handles
+    // Value's destruction, so we must NOT call ~Value() manually to
+    // avoid a double-free.  The custom dtor is kept only for ABI parity
+    // with the binary symbol at 0x15c820.
 }
 
 } // namespace zhinst

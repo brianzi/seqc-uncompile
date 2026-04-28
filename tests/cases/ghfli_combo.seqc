@@ -1,0 +1,20 @@
+// GHFLI combination test
+resetOscPhase();
+setSinePhase(90);
+incrementSinePhase(45);
+
+wave w = rect(64, 0.7);
+playWave(w);
+waitWave();
+
+playZero(32);
+wait(100);
+
+setOscFreq(0, 100e6);
+configFreqSweep(0, 50e6, 2);
+
+setDIO(0x55);
+var d = getDIO();
+
+setPRNGSeed(13);
+playZero(32);

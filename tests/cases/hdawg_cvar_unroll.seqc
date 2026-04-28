@@ -1,0 +1,35 @@
+// cvar loop unrolling: basic
+cvar i;
+for(i = 0; i < 4; i++) {
+  playZero(32);
+}
+
+// cvar with const expression bound
+const n = 3;
+cvar j;
+for(j = 0; j < n * 2; j++) {
+  playZero(32);
+  wait(10);
+}
+
+// cvar used in body expression
+cvar k;
+for(k = 1; k <= 4; k++) {
+  playZero(16 * k);
+}
+
+// Nested cvar loops
+cvar a;
+cvar b;
+for(a = 0; a < 3; a++) {
+  for(b = 0; b < 2; b++) {
+    playZero(16);
+  }
+}
+
+// cvar while
+cvar w = 0;
+while(w < 4) {
+  playZero(16);
+  w = w + 1;
+}

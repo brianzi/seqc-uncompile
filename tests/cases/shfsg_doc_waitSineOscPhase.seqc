@@ -1,0 +1,9 @@
+// Coverage: SHFSG waitSineOscPhase
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+resetOscPhase();
+setSinePhase(90);
+wave w = gauss(64, 32, 8);
+playWave(1, 2, w);
+waitSineOscPhase();
+incrementSinePhase(45);
+playWave(1, 2, w);

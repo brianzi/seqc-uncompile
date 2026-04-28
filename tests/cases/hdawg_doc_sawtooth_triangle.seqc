@@ -1,0 +1,6 @@
+// Coverage: sawtooth and triangle waveform functions
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = sawtooth(1024, 1.0, 0, 2);
+wave w2 = triangle(1024, 1.0, 0, 2);
+playWave(w1);
+playWave(w2);

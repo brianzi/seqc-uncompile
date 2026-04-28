@@ -1,0 +1,6 @@
+wave w1 = blackman(64, 1.0);
+wave w2 = hamming(64, 1.0);
+wave w3 = hann(64, 1.0);
+playWave(w1);
+playWave(w2);
+playWave(w3);

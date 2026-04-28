@@ -1,0 +1,7 @@
+// UHFQA tutorial: Combine analog + digital CSV waves
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+// NOTE: Requires external wave_file_analog.csv and wave_file_digital.csv
+wave w_analog  = "wave_file_analog";
+wave w_digital = "wave_file_digital";
+wave w = w_analog + w_digital;
+playWave(w);

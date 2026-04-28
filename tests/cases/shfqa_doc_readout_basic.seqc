@@ -1,0 +1,10 @@
+// From SHFQA User Manual: Readout Pulse Generator — basic readout sequence
+// https://docs.zhinst.com/shfqa_user_manual/functional_description/generator_tab.html
+repeat (100) {
+    waitZSyncTrigger();
+    playZero(4096);
+    playZero(4096);
+    startQA(QA_GEN_0, QA_INT_0, true,  0x0, 0x0);
+    playZero(32);
+    startQA(QA_GEN_0|QA_GEN_1|QA_GEN_2, QA_INT_ALL, true,  0x0, 0x0);
+}

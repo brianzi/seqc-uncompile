@@ -1,0 +1,18 @@
+// UHFLI misc functions
+setRate(0);
+playZero(16);
+
+var d = getDigTrigger(1);
+var a = getAnaTrigger(2);
+
+wave w = zeros(16);
+lock(w);
+playWave(w);
+unlock(w);
+
+randomSeed();
+now();
+at(100);
+var t = 50;
+at(t);
+playZero(16);

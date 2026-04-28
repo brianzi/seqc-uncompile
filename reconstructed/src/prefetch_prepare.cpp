@@ -110,7 +110,10 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
         // into a local vector<optional<string>>
         std::vector<std::optional<std::string>> validWaves; // -0xe0(%rbp)
         // calls Node::allValidWaves() pattern: copy_if on wavesPerDev  // 0x1c8a2a
-        // validWaves = current->allValidWaves();
+        for (auto& w : current->wavesPerDev) {
+            if (w.has_value())
+                validWaves.push_back(w);
+        }
 
         NodeType type = current->type;            // 0x1c8a4c: mov 0x44(%rbx),%eax
 
@@ -129,10 +132,6 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             // Then iterate current->play range (+0xA0..+0xA8)
             auto playBegin = /* current->play.begin() */ current->play.data();  // 0x1c9636
             auto playEnd = /* current->play.end() */   current->play.data() + current->play.size(); // 0x1c963d
-            if (playBegin == playEnd) {
-                // No plays — fall through to push next
-                goto push_next_and_loop;          // 0x1c9664 → 0x1c966a
-            }
             // Plays exist: for each valid wave, mark waveform as used (+0xD8)
             // 0x1c97b9..0x1c98c5 loop
             for (auto it = playBegin; it != playEnd; ++it) {
@@ -143,7 +142,14 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
                 auto waveName = lockedNode->waveAtCurrentDeviceIndex();
                 auto waveform = wavetableIR->getWaveformByName(waveName); // 0x1c97fe
                 if (waveform) {
-                    waveform->used = true;  // 0x1c9850: movb $0x1, 0xd8(%rax)
+                    waveform->markedForLoad = true;  // 0x1c9850: movb $0x1, 0xd8(%rax)
+                }
+            }
+            // 0x1c97b9-0x1c98c5: Iterate validWaves, mark each waveform's markedForLoad
+            for (auto& vw : validWaves) {
+                auto waveform = wavetableIR->getWaveformByName(vw); // 0x1c97fe
+                if (waveform) {
+                    waveform->markedForLoad = true;  // 0x1c9850: movb $0x1, 0xd8(%rax)
                 }
             }
             // Then call collectUsedWaves on this node

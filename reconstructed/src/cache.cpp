@@ -193,12 +193,42 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
         return pointer;
     }
 
-    // Otherwise find the best gap in existing allocations
+    // Otherwise find position in existing allocations.
+    // Binary logic (0x282cf0+0xa6):
+    //   appendMode==false: try to place at end of last allocation (fast path);
+    //                      if not enough room, recursively call with appendMode=true.
+    //   appendMode==true:  gap-scan all pointers for best-fit gap.
     auto begin = pointers_.begin();
     auto end = pointers_.end();
 
+    // 0x282cf0+0x97: Empty pointers — place at position 0 and emplace_back.
+    if (begin == end) {
+        pointer->position_ = 0;
+        pointer->size_ = numSamples;
+        pointers_.emplace_back(pointer);
+        return pointer;
+    }
+
     if (!appendMode) {
-        // Scan all pointers, find the smallest gap that fits numSamples.
+        // 0x282cf0+0x15b: Fast path — try appending after the last allocation.
+        auto lastIt = end;
+        --lastIt;
+        auto const& lastPtr = *lastIt;
+        uint32_t endPos = lastPtr->position_ + lastPtr->size_;
+
+        uint32_t freeSpace = size_ - endPos;
+        if (freeSpace >= numSamples) {
+            // Fits at end — assign position and return.
+            pointer->position_ = endPos;
+            pointer->size_ = numSamples;
+            return pointer;
+        }
+
+        // 0x282cf0+0x180: Not enough room at end — fall back to gap scan.
+        // Recursive call with appendMode=true.
+        return getBestPosition(numSamples, nameMap, /*appendMode=*/true);
+    } else {
+        // 0x282cf0+0xaf: Gap-scan path — find smallest gap that fits numSamples.
         // nameMap maps waveform names → bool; entries with value==true are
         // "about to be freed" and are skipped during gap calculation, allowing
         // their space to be reused.  Prefetch builds this map from the set of
@@ -234,14 +264,12 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
             currentEnd = p->position_ + p->size_;
         }
 
-        // If bestPosition == size_, the only gap was found at iteration end
+        // If bestPosition == size_, check trailing gap after all allocations
         if (bestPosition == size_) {
-            // Check trailing gap after all allocations
             uint32_t trailingEnd = 0;
             for (auto it = begin; it != end; ++it) {
                 auto const& p = *it;
                 if (p->state_ == PointerState::Free) continue;
-                // Same nameMap check
                 auto mapIt = nameMap.find(p->waveform_->getName());
                 if (mapIt != nameMap.end() && mapIt->second) {
                     continue;
@@ -263,26 +291,6 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 
         pointer->position_ = bestPosition;
         pointer->size_ = numSamples;
-        return pointer;
-    } else {
-        // appendMode == true from recursive call: place at end of last allocation
-        auto lastIt = end;
-        --lastIt;
-        auto const& lastPtr = *lastIt;
-        uint32_t endPos = lastPtr->position_ + lastPtr->size_;
-
-        uint32_t freeSpace = size_ - endPos;
-        if (freeSpace < numSamples) {
-            // Not enough space — throw CacheException (errMsg[0x15])
-            auto const& msg = errMsg[CacheMemoryFull];
-            throw CacheException(msg);
-        }
-
-        pointer->position_ = endPos;
-        pointer->size_ = numSamples;
-
-        // Add to vector
-        pointers_.emplace_back(pointer);
         return pointer;
     }
 }

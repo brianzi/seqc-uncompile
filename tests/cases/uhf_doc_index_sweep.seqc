@@ -1,0 +1,24 @@
+// UHF tutorial: AWG Index Sweep
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+var sweepPoints = 1000;
+void wait_us(const us) {
+  wait(us / 4.444e-3);
+}
+wave w_gauss = gauss(8000, 4000, 1000);
+void user_func(var index) {
+  setID(index);
+  waitDemodSample(1);
+  setTrigger(1);
+  wait(index);
+  playWave(1, w_gauss);
+  waitWave();
+  wait_us(3);
+  setTrigger(0);
+}
+var n;
+for (n = 0; n < sweepPoints; n = n + 1) {
+  user_func(n);
+  setID(0);
+  wait_us(100);
+}
+setID(0);

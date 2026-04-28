@@ -1,3 +1,19 @@
-var x = 5;
-var y = x > 3 ? 1 : 0;
-playZero(32);
+// Ternary operator tests (avoid function-call branches)
+var c = getUserReg(0);
+
+// Basic ternary
+var x = (c > 0) ? 10 : 20;
+setUserReg(0, x);
+
+// Nested ternary
+var a = getUserReg(1);
+var b = getUserReg(2);
+var y = (a > 0) ? ((b > 1) ? 10 : 20) : 30;
+setUserReg(1, y);
+
+// Ternary in function arg
+playZero((c > 0) ? 32 : 64);
+
+// Const ternary (compile-time)
+const ct = (1 > 0) ? 100 : 200;
+setUserReg(2, ct);

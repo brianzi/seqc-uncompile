@@ -1,0 +1,6 @@
+// Test SHFQA extended feedback: startQA variants
+// Device: SHFQA4
+
+startQA(QA_INT_ALL, true);
+startQA(QA_INT_0 | QA_INT_1, true);
+startQA(QA_INT_0, false);

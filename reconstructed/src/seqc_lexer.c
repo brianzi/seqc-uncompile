@@ -1670,6 +1670,7 @@ YY_RULE_SETUP
 #line 243 "seqc_lexer.l"
 {
                 /* Rule 77: Newline — action @0x2c8f43 */
+                CTX->endLineComment();
                 CTX->incrementLineNumber();
             }
 	YY_BREAK

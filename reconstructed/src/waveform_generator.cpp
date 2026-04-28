@@ -180,15 +180,15 @@ std::shared_ptr<WaveformFront> WaveformGenerator::createDummyWaveform(int length
 //   phase:     phase offset in radians
 //   period:    period expressed in the same units as length (number of samples per period)
 Signal WaveformGenerator::genericTriangle(int length, double amplitude,
-                                           double riseRatio, double phase,
-                                           double period) {
+                                           double nPeriods, double riseRatio,
+                                           double phase) {
     Signal sig(static_cast<size_t>(length));
 
     if (length == 0) {
         return sig;
     }
 
-    double samplesPerPeriod = static_cast<double>(length) / period;
+    double samplesPerPeriod = static_cast<double>(length) / nPeriods;
     double fallSamples = (1.0 - riseRatio) * samplesPerPeriod;
     double riseHalfSamples = riseRatio * samplesPerPeriod * 0.5;
     double phaseOffset = (phase / (2.0 * M_PI)) * samplesPerPeriod;
@@ -209,7 +209,7 @@ Signal WaveformGenerator::genericTriangle(int length, double amplitude,
             sample = (1.0 - (t - riseHalfSamples) / fallSamples) * twoAmplitude + negAmplitude;
         } else {
             // Second rising segment: -amplitude → 0
-            sample = ((t - fallSamples) / riseHalfSamples) * amplitude + negAmplitude;
+            sample = ((t - riseHalfSamples - fallSamples) / riseHalfSamples) * amplitude + negAmplitude;
         }
 
         sig.append(sample, 0);
@@ -463,7 +463,7 @@ double WaveformGenerator::readDoubleAmplitude(  // 0x25caa0
 }
 
 int WaveformGenerator::readInt(  // 0x25cca0
-    Value val, std::string const& paramName, int minVal,
+    Value val, std::string const& paramName, int argIndex,
     std::string const& funcName)
 {
     if (val.type_ == ValueType::String) {
@@ -472,31 +472,21 @@ int WaveformGenerator::readInt(  // 0x25cca0
                                   paramName, funcName),
             0);
     }
-    int result = val.toInt();
-    if (result < minVal) {
-        // ErrorMessage 0x60 takes (paramName, funcName, "positive"|"negative")
-        // and the ValueException's argIndex_ field carries minVal.
-        const char* sign = (minVal >= 0) ? "positive" : "negative";
-        throw WaveformGeneratorValueException(
-            ErrorMessages::format(ArgOverflow,
-                                  paramName, funcName, std::string(sign)),
-            static_cast<size_t>(minVal));
-    }
-    return result;
+    return val.toInt();
 }
 
 int WaveformGenerator::readPositiveInt(  // 0x25d490
-    Value val, std::string const& paramName, int minVal,
+    Value val, std::string const& paramName, int argIndex,
     std::string const& funcName)
 {
-    // Convenience wrapper: forces minVal>=0 semantics regardless of caller.
-    int result = readInt(val, paramName, minVal, funcName);
+    // Convenience wrapper: enforces result >= 0.
+    int result = readInt(val, paramName, argIndex, funcName);
     if (result < 0) {
         throw WaveformGeneratorValueException(
             ErrorMessages::format(ArgOverflow,
                                   paramName, funcName,
                                   std::string("positive")),
-            static_cast<size_t>(minVal));
+            static_cast<size_t>(argIndex));
     }
     return result;
 }
@@ -820,6 +810,10 @@ Signal WaveformGenerator::add(std::vector<Value> const& args) {             // 0
                 markers[j] |= s.markers_[j];
             }
         }
+        // OR markerBits_ from each signal into the accumulator          // 0x2573c0
+        for (size_t j = 0; j < s.markerBits_.size() && j < first.markerBits_.size(); ++j) {
+            first.markerBits_[j] |= s.markerBits_[j];
+        }
     }
 
     return Signal(sum, markers, first.markerBits_);
@@ -832,11 +826,27 @@ Signal WaveformGenerator::add(std::vector<Value> const& args) {             // 0
 //   width:     double — sigma in samples
 // Returns a Gaussian envelope: amplitude * exp(-((i-position)^2) / (2*width^2)).
 Signal WaveformGenerator::gauss(std::vector<Value> const& args) {           // 0x24ddb0
-    checkArgCount(args, "gauss", 4);
-    int length      = readInt(args[0], "length", 1, "gauss");
-    double amp      = readDoubleAmplitude(args[1], "amplitude", "gauss");
-    double position = readDouble(args[2], "position", "gauss");
-    double width    = readDouble(args[3], "width", "gauss");
+    if (args.size() != 3 && args.size() != 4) {
+        throw WaveformGeneratorException(
+            ErrorMessages::format(FuncExactArgs2,
+                                  "gauss", 4, args.size()));
+    }
+
+    int length;
+    double amp, position, width;
+
+    if (args.size() == 4) {
+        length   = readInt(args[0], "length", 1, "gauss");
+        amp      = readDoubleAmplitude(args[1], "amplitude", "gauss");
+        position = readDouble(args[2], "position", "gauss");
+        width    = readDouble(args[3], "width", "gauss");
+    } else {
+        // 3-arg form: gauss(length, position, width) — amplitude defaults to 1.0
+        length   = readInt(args[0], "length", 1, "gauss");              // 0x24ddf9
+        position = readDouble(args[1], "position", "gauss");
+        width    = readDouble(args[2], "width", "gauss");
+        amp      = 1.0;
+    }
 
     std::vector<double> samples(static_cast<size_t>(length));
     double twoSigmaSq = 2.0 * width * width;
@@ -866,7 +876,6 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
                                   "sin", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // default from rodata @0x956030
     int length;
     double amplitude, phase;
 
@@ -874,32 +883,44 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
         length    = readPositiveInt(args[0], "1 (length)", 1, "sin");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sin");
         phase     = readDouble(args[2], "3 (phase)", "sin");
-        nPeriods  = readDouble(args[3], "4 (nPeriods)", "sin");
+        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "sin");
+
+        // Validate nPeriods >= 0                                                // 0x24a963
+        if (nPeriods < 0.0) {
+            throw WaveformGeneratorValueException(
+                ErrorMessages::format(ArgMustBePositive,
+                                      "nPeriods", "sin"), 3);
+        }
+
+        Signal sig(static_cast<size_t>(length));                                 // 0x24a974
+        if (length == 0) return sig;
+
+        // Precompute: twoNPeriodsPi = 2 * nPeriods * PI                        // 0x24a983-0x24a98f
+        double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
+        double dLength = static_cast<double>(length);
+
+        for (int i = 0; i < length; ++i) {                                      // 0x24a9b0
+            double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
+            sig.append(amplitude * std::sin(theta), 0);                          // 0x24a9d9
+        }
+        return sig;                                                              // 0x24a9e6
     } else {
+        // 3-arg case: sine(length, amplitude, phase)
+        // Produces a constant waveform: every sample = sin(amplitude + phase)
+        // (GDB-verified: binary computes sin(amp+phase) for all samples)
         length    = readPositiveInt(args[0], "1 (length)", 1, "sin");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sin");
         phase     = readDouble(args[2], "3 (phase)", "sin");
+
+        Signal sig(static_cast<size_t>(length));
+        if (length == 0) return sig;
+
+        double value = std::sin(amplitude + phase);
+        for (int i = 0; i < length; ++i) {
+            sig.append(value, 0);
+        }
+        return sig;
     }
-
-    // Validate nPeriods >= 0                                                    // 0x24a963
-    if (nPeriods < 0.0) {
-        throw WaveformGeneratorValueException(
-            ErrorMessages::format(ArgMustBePositive,
-                                  "nPeriods", "sin"), 3);
-    }
-
-    Signal sig(static_cast<size_t>(length));                                     // 0x24a974
-    if (length == 0) return sig;
-
-    // Precompute: twoNPeriodsPi = 2 * nPeriods * PI                            // 0x24a983-0x24a98f
-    double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
-    double dLength = static_cast<double>(length);
-
-    for (int i = 0; i < length; ++i) {                                          // 0x24a9b0
-        double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
-        sig.append(amplitude * std::sin(theta), 0);                              // 0x24a9d9
-    }
-    return sig;                                                                  // 0x24a9e6
 }
 // cos(length, amplitude, phase[, nPeriods]) @0x24abd0
 //   Identical to sin() but calls std::cos instead of std::sin.
@@ -910,7 +931,6 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
                                   "cosine", 3, args.size()));
     }
 
-    double nPeriods = 1.0;
     int length;
     double amplitude, phase;
 
@@ -918,30 +938,42 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
         length    = readPositiveInt(args[0], "1 (length)", 1, "cosine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "cosine");
         phase     = readDouble(args[2], "3 (phase)", "cosine");
-        nPeriods  = readDouble(args[3], "4 (nPeriods)", "cosine");
+        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "cosine");
+
+        if (nPeriods < 0.0) {
+            throw WaveformGeneratorValueException(
+                ErrorMessages::format(ArgMustBePositive,
+                                      "nPeriods", "cosine"), 3);
+        }
+
+        Signal sig(static_cast<size_t>(length));
+        if (length == 0) return sig;
+
+        double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
+        double dLength = static_cast<double>(length);
+
+        for (int i = 0; i < length; ++i) {                                      // 0x24b560
+            double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
+            sig.append(amplitude * std::cos(theta), 0);                          // 0x24b589
+        }
+        return sig;
     } else {
+        // 3-arg case: cosine(length, amplitude, phase)
+        // Produces a constant waveform: every sample = cos(amplitude + phase)
+        // (GDB-verified: same pattern as sine 3-arg)
         length    = readPositiveInt(args[0], "1 (length)", 1, "cosine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "cosine");
         phase     = readDouble(args[2], "3 (phase)", "cosine");
+
+        Signal sig(static_cast<size_t>(length));
+        if (length == 0) return sig;
+
+        double value = std::cos(amplitude + phase);
+        for (int i = 0; i < length; ++i) {
+            sig.append(value, 0);
+        }
+        return sig;
     }
-
-    if (nPeriods < 0.0) {
-        throw WaveformGeneratorValueException(
-            ErrorMessages::format(ArgMustBePositive,
-                                  "nPeriods", "cosine"), 3);
-    }
-
-    Signal sig(static_cast<size_t>(length));
-    if (length == 0) return sig;
-
-    double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
-    double dLength = static_cast<double>(length);
-
-    for (int i = 0; i < length; ++i) {                                          // 0x24b560
-        double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
-        sig.append(amplitude * std::cos(theta), 0);                              // 0x24b589
-    }
-    return sig;
 }
 // sinc(length, amplitude, position, beta) @0x24b6e0
 //   length:    int >= 1 (readPositiveInt)
@@ -975,15 +1007,11 @@ Signal WaveformGenerator::sinc(std::vector<Value> const& args) {                
         position  = readPositiveInt(args[2], "2 (position)", 2, "sinc");         // 0x24bc0b
         beta      = readDouble(args[3], "4 (beta)", "sinc");                     // 0x24bf66
     } else {
-        // 3-arg path: reads args[0..2] then reads args[3] out of bounds.
-        // This is effectively dead code in production. We replicate the
-        // 4-arg behavior but shift: (length, amplitude, position) with no beta.
-        // Since beta would be UB, we mirror the 3-arg reads and treat args[2]
-        // as both position AND beta (which the binary would do from garbage).
+        // 3-arg path: sinc(length, position, beta) — amplitude defaults to 1.0
         length    = readPositiveInt(args[0], "1 (length)", 1, "sinc");           // 0x24b9b6
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sinc");
-        position  = readPositiveInt(args[2], "3 (position)", 3, "sinc");         // 0x24bd35
-        beta      = static_cast<double>(position);  // best-effort for 3-arg
+        amplitude = 1.0;
+        position  = readPositiveInt(args[1], "2 (position)", 2, "sinc");
+        beta      = readDouble(args[2], "3 (beta)", "sinc");
     }
 
     // Warn if position > length                                                 // 0x24bf9c
@@ -1072,7 +1100,7 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
                                   "sawtooth", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // default @0x956030
+    double nPeriods = 1.0;                                                       // 3-arg default: 1.0 (GDB-verified)
     int length;
     double amplitude, phase;
 
@@ -1094,7 +1122,12 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
                                   "nPeriods", "sawtooth"), 3);
     }
 
-    return genericTriangle(length, amplitude, 1.0, phase, nPeriods);             // 0x24d14e — riseRatio=1.0 @0x956030
+    if (args.size() == 4) {
+        return genericTriangle(length, amplitude, nPeriods, 1.0, phase);         // 0x24d14e — 4-arg path
+    } else {
+        // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
+        return genericTriangle(length, nPeriods, phase, 1.0, amplitude);         // 0x24d14e — 3-arg path (GDB-verified)
+    }
 }
 // triangle(length, amplitude, phase[, nPeriods]) @0x24d330
 //   Delegates to genericTriangle with riseRatio = 0.5.
@@ -1105,7 +1138,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
                                   "triangle", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // default @0x956030
+    double nPeriods = 1.0;                                                       // 3-arg default: 1.0 (GDB-verified)
     int length;
     double amplitude, phase;
 
@@ -1127,7 +1160,12 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
                                   "nPeriods", "triangle"), 3);
     }
 
-    return genericTriangle(length, amplitude, 0.5, phase, nPeriods);             // 0x24dbce — riseRatio=0.5 @0x9562c8
+    if (args.size() == 4) {
+        return genericTriangle(length, amplitude, nPeriods, 0.5, phase);         // 0x24dbce — 4-arg path
+    } else {
+        // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
+        return genericTriangle(length, nPeriods, phase, 0.5, amplitude);         // 0x24dbce — 3-arg path (GDB-verified)
+    }
 }
 // drag(length, amplitude, position, sigma) @0x24e950
 // drag(length, position, sigma)            — amplitude defaults to 1.0
@@ -1184,10 +1222,13 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
         if (length == 0) return sig;
 
         // Precompute                                                   // 0x24f281
-        double invSigma    = -1.0 / sigma;       // @0x9562d0 = -1.0
-        double ampCoeff    = amplitude / invSigma; // = -amplitude * sigma
-        double sigmaSq     = sigma * sigma;
-        double twoSigmaSq  = sigmaSq + sigmaSq;   // 2 * sigma^2
+        // Binary loads exp(-0.5) from rodata @0x9562d0 (NOT -1.0 as originally assumed).
+        // This normalizes the DRAG pulse so its peak = amplitude.
+        double normFactor = std::exp(-0.5);          // @0x9562d0
+        double scaledInv  = normFactor / sigma;      // exp(-0.5) / sigma
+        double ampCoeff   = amplitude / scaledInv;   // amplitude * sigma / exp(-0.5)
+        double sigmaSq    = sigma * sigma;
+        double twoSigmaSq = sigmaSq + sigmaSq;      // 2 * sigma^2
 
         for (int i = 0; i < length; ++i) {                             // 0x24f2c0
             double dx  = position - static_cast<double>(i);
@@ -1222,8 +1263,9 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
     Signal sig(static_cast<size_t>(length));                           // 0x24f273
     if (length == 0) return sig;
 
-    double invSigma    = -1.0 / sigma;
-    double ampCoeff    = amplitude / invSigma;
+    double normFactor2 = std::exp(-0.5);
+    double scaledInv2  = normFactor2 / sigma;
+    double ampCoeff2   = amplitude / scaledInv2;
     double sigmaSq     = sigma * sigma;
     double twoSigmaSq  = sigmaSq + sigmaSq;
 
@@ -1231,7 +1273,7 @@ Signal WaveformGenerator::drag(std::vector<Value> const& args) {               /
         double dx  = position - static_cast<double>(i);
         double neg = -dx;
         double expArg = neg * dx / twoSigmaSq;
-        double deriv  = dx / sigmaSq * ampCoeff;
+        double deriv  = dx / sigmaSq * ampCoeff2;
         sig.append(std::exp(expArg) * deriv, 0);
     }
     return sig;
@@ -1438,11 +1480,11 @@ Signal WaveformGenerator::chirp(std::vector<Value> const& args) {               
         stopFreq  = readDouble(args[3], "4 (stopFrequency)", "chirp");
         phase     = 0.0;
     } else {
-        // 3 args: stopFreq = startFreq, phase = 0
+        // 3 args: chirp(length, startFreq, stopFreq) — amplitude defaults to 1.0
         length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "chirp");
-        startFreq = readDouble(args[2], "3 (startFrequency)", "chirp");
-        stopFreq  = startFreq;
+        amplitude = 1.0;
+        startFreq = readDouble(args[1], "2 (startFrequency)", "chirp");
+        stopFreq  = readDouble(args[2], "3 (stopFrequency)", "chirp");
         phase     = 0.0;
     }
 
@@ -1867,10 +1909,14 @@ Signal WaveformGenerator::placeholder(std::vector<Value> const& args) {        /
         hasMarker1 = (m1 != 0);
     }
 
-    // Build markerBits vector based on which markers are enabled
+    // Build markerBits vector — always single-channel for placeholder.
+    // Marker0 = bit 0, Marker1 = bit 1, combined into one byte.
+    // Binary @0x255bf0: or r13b,r15b then stores single byte.
     MarkerBitsPerChannel markerBits;
-    if (hasMarker0) markerBits.push_back(1);
-    if (hasMarker1) markerBits.push_back(1);
+    uint8_t bits = 0;
+    if (hasMarker0) bits |= 1;
+    if (hasMarker1) bits |= 2;
+    if (bits != 0) markerBits.push_back(bits);
 
     // Construct with reserveOnly=true
     ReserveOnly tag;
@@ -1897,16 +1943,36 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
                                   "join", 1, args.size()));
     }
 
-    // Read first signal to determine channel count and markerBits template
-    Signal first = readWave(args[0], "wave_1", -1, "join")->signal;
+    // Binary @0x255e82: iterates all args; type==4 (String) → wave,
+    // type!=4 → numeric value (interpolation/target length).
+    // Collect wave signals and optional numeric parameter.
+    std::vector<std::pair<size_t, Signal>> waves;   // (arg index, signal)
+    int requestedLength = 0;
 
-    if (first.reserveOnly_) {                                                  // reserveOnly short-circuit
-        // For placeholders, compute total length and return a combined placeholder
-        size_t totalLength = first.length_;
-        for (size_t i = 1; i < args.size(); ++i) {
+    for (size_t i = 0; i < args.size(); ++i) {
+        if (static_cast<int>(args[i].type_) == 4) {
+            // String → wave reference
             std::string paramName = "wave_" + std::to_string(i + 1);
             Signal s = readWave(args[i], paramName, -1, "join")->signal;
-            totalLength += s.length_;
+            waves.emplace_back(i, std::move(s));
+        } else {
+            // Non-String → numeric parameter (target length for interpolation)
+            requestedLength = args[i].toInt();
+        }
+    }
+
+    if (waves.empty()) {
+        throw WaveformGeneratorException(
+            ErrorMessages::format(FuncExactArgs2,
+                                  "join", 1, args.size()));
+    }
+
+    auto& first = waves[0].second;
+
+    if (first.reserveOnly_) {                                                  // reserveOnly short-circuit
+        size_t totalLength = first.length_;
+        for (size_t i = 1; i < waves.size(); ++i) {
+            totalLength += waves[i].second.length_;
         }
         ReserveOnly tag;
         return Signal(tag, totalLength, first.markerBits_);
@@ -1914,30 +1980,25 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
 
     first.checkAllocation();                                                   // 0x256416
 
-    // Compute total length for all signals
+    // Compute total length for all wave signals
     size_t totalLength = first.samples_.size() / std::max<uint16_t>(first.channels_, 1);
-    for (size_t i = 1; i < args.size(); ++i) {
-        std::string paramName = "wave_" + std::to_string(i + 1);
-        Signal s = readWave(args[i], paramName, -1, "join")->signal;
-        s.checkAllocation();
-        totalLength += s.samples_.size() / std::max<uint16_t>(s.channels_, 1);
+    for (size_t i = 1; i < waves.size(); ++i) {
+        waves[i].second.checkAllocation();
+        totalLength += waves[i].second.samples_.size() / std::max<uint16_t>(waves[i].second.channels_, 1);
+    }
+
+    // If requestedLength > 0, use it as the output length (for interpolation)
+    if (requestedLength > 0) {
+        totalLength = static_cast<size_t>(requestedLength);
     }
 
     // Create output signal with appropriate markerBits
     Signal result(totalLength, first.markerBits_);                             // 0x25636b
 
-    // Re-read and append all signals
-    // NOTE: The binary likely caches the signals from the first pass rather
-    // than re-reading. For correctness we re-read here.
-    {
-        Signal s = readWave(args[0], "wave_1", -1, "join")->signal;
+    // Append all wave signals
+    for (size_t i = 0; i < waves.size(); ++i) {
+        auto& s = waves[i].second;
         s.checkAllocation();
-        result.append(s);                                                      // 0x256408
-    }
-    for (size_t i = 1; i < args.size(); ++i) {
-        std::string paramName = "wave_" + std::to_string(i + 1);
-        Signal s = readWave(args[i], paramName, -1, "join")->signal;
-        s.checkAllocation();                                                   // 0x256429+
         result.append(s);
     }
 
@@ -1963,6 +2024,7 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         // 0x258140
     Signal result = merge(args);                                               // 0x258154
     result.channels_ = 1;                                                      // 0x258159: WORD PTR [rbx+0x48] = 1
+    result.length_ = result.samples_.size();                                   // recompute length for channels_=1
 
     // The binary then adjusts the markers_ vector length.
     // At 0x25815f: r14 = result.markers_.begin(), rdi = result.markers_.end()
@@ -2169,9 +2231,12 @@ Signal WaveformGenerator::multiply(std::vector<Value> const& args) {           /
 Signal WaveformGenerator::cut(std::vector<Value> const& args) {                // 0x2598d0
     checkArgCount(args, "cut", 3);
 
-    Signal sig  = readWave(args[0], "1 (waveform)", -1, "cut")->signal;                // 0x2599e6
-    int start   = readPositiveInt(args[1], "2 (offset)", 1, "cut");            // 0x259af8
-    int cutLen  = readPositiveInt(args[2], "3 (length)", 1, "cut");            // 0x259c0f
+    Signal sig    = readWave(args[0], "1 (waveform)", -1, "cut")->signal;        // 0x2599e6
+    int startIdx  = readPositiveInt(args[1], "2 (offset)", 1, "cut");          // 0x259af8
+    int endIdx    = readPositiveInt(args[2], "3 (length)", 1, "cut");          // 0x259c0f
+    // args[1] = start index (0-based), args[2] = end index (0-based, inclusive)
+    // length = endIdx - startIdx + 1
+    int cutLen = endIdx - startIdx + 1;
 
     if (sig.reserveOnly_) {                                                    // 0x259ccc
         ReserveOnly tag;
@@ -2180,13 +2245,10 @@ Signal WaveformGenerator::cut(std::vector<Value> const& args) {                /
 
     sig.checkAllocation();                                                     // 0x259d00
 
-    // The binary uses the offset value directly (1-based from user, no subtract-1).
-    // readPositiveInt enforces offset >= 1.
-    size_t startIdx = static_cast<size_t>(start);
     size_t samplesPerFrame = static_cast<size_t>(
         std::max<uint16_t>(sig.channels_, 1));
     size_t totalSamples = sig.samples_.size();
-    size_t startSample = startIdx * samplesPerFrame;
+    size_t startSample = static_cast<size_t>(startIdx) * samplesPerFrame;
     size_t endSample = std::min(startSample + static_cast<size_t>(cutLen) * samplesPerFrame,
                                 totalSamples);
 
@@ -2194,7 +2256,7 @@ Signal WaveformGenerator::cut(std::vector<Value> const& args) {                /
                                    sig.samples_.begin() + static_cast<ptrdiff_t>(endSample));
 
     // Extract corresponding markers
-    size_t markerStart = startIdx;
+    size_t markerStart = static_cast<size_t>(startIdx);
     size_t markerEnd = std::min(markerStart + static_cast<size_t>(cutLen),
                                 sig.markers_.size());
     std::vector<uint8_t> outMarkers(sig.markers_.begin() + static_cast<ptrdiff_t>(markerStart),
@@ -2409,17 +2471,16 @@ Signal WaveformGenerator::circshift(std::vector<Value> const& args) {          /
     size_t s = static_cast<size_t>(shift) % framesPerChannel;
     if (s == 0) return result;
 
-    // Circular right shift by s: move last s frames to front
+    // Circular left shift by s: move first s frames to end
     // For multi-channel, rotate in chunks of `channels` samples
     if (channels == 1) {
         std::rotate(result.samples_.begin(),
-                    result.samples_.end() - static_cast<ptrdiff_t>(s),
+                    result.samples_.begin() + static_cast<ptrdiff_t>(s),
                     result.samples_.end());
     } else {
         // Multi-channel rotation: rotate frames (each frame = channels samples)
-        size_t pivotFrame = framesPerChannel - s;
         std::rotate(result.samples_.begin(),
-                    result.samples_.begin() + static_cast<ptrdiff_t>(pivotFrame * channels),
+                    result.samples_.begin() + static_cast<ptrdiff_t>(s * channels),
                     result.samples_.end());
     }
 
@@ -2429,7 +2490,7 @@ Signal WaveformGenerator::circshift(std::vector<Value> const& args) {          /
         size_t ms = s % markerN;
         if (ms > 0) {
             std::rotate(result.markers_.begin(),
-                        result.markers_.end() - static_cast<ptrdiff_t>(ms),
+                        result.markers_.begin() + static_cast<ptrdiff_t>(ms),
                         result.markers_.end());
         }
     }

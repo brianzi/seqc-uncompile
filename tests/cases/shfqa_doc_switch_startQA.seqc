@@ -1,0 +1,12 @@
+// From SHFQA User Manual: Switch-case with DIO-driven startQA
+// https://docs.zhinst.com/shfqa_user_manual/functional_description/generator_tab.html
+switch (getDIO()) {
+    case 0:
+        startQA(QA_GEN_0, QA_INT_0, true,  0x0, 0x0);
+    case 1:
+        startQA(QA_GEN_1, QA_INT_1, true,  0x0, 0x0);
+    case 2:
+        startQA(QA_GEN_2, QA_INT_2, true,  0x0, 0x0);
+    default:
+        startQA(QA_GEN_3, QA_INT_3, true,  0x0, 0x0);
+}

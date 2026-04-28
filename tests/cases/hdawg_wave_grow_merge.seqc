@@ -1,0 +1,9 @@
+// Test grow and merge waveform operations
+// Device: HDAWG8
+
+wave w1 = ones(32);
+wave w2 = zeros(32);
+wave w3 = join(w1, w2);
+
+playWave(w3);
+waitWave();

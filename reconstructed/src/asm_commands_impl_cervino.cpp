@@ -43,13 +43,13 @@ AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister marker
     result.assembler.cmd = Assembler::WVF;
 
     if (markerReg == AsmRegister::Reg(0)) {
-        // Single-register form: waveReg in dst slot, R0 in second slot
-        result.assembler.regSrc = waveReg;
-        result.assembler.regAux = AsmRegister::Reg(0);
+        // Single-register form: waveReg in aux slot (bits 27:24), R0 in src slot (bits 23:20)
+        result.assembler.regAux = waveReg;
+        result.assembler.regSrc = AsmRegister::Reg(0);
     } else {
         // Two-register form
-        result.assembler.regSrc = waveReg;
-        result.assembler.regAux = markerReg;
+        result.assembler.regAux = waveReg;
+        result.assembler.regSrc = markerReg;
     }
 
     // waveIndex goes in outputs (not immediates) so it appears AFTER registers
@@ -73,8 +73,8 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister marke
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFI;
-    result.assembler.regSrc = waveReg;
-    result.assembler.regAux = AsmRegister::Reg(0);
+    result.assembler.regAux = waveReg;
+    result.assembler.regSrc = AsmRegister::Reg(0);
     result.assembler.outputs.emplace_back(waveIndex);  // outputs, not immediates (child order)
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
@@ -103,7 +103,7 @@ AsmList::Asm AsmCommandsImplCervino::brz(AsmRegister reg, const std::string& lab
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::BRZ;
-    result.assembler.regDst = reg;
+    result.assembler.regSrc = reg;
     result.assembler.label = label;
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = flag;  // directly stored, not computed from opcode
@@ -143,7 +143,7 @@ AsmList::Asm AsmCommandsImplCervino::ldiotrig(AsmRegister reg, int lineNumber) c
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::LD;
     result.assembler.regDst = reg;
-    result.assembler.immediates.emplace_back(0x60);
+    result.assembler.outputs.emplace_back(0x60);
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;

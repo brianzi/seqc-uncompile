@@ -1,0 +1,15 @@
+// UHFQA misc functions
+setRate(0);
+randomSeed();
+now();
+at(100);
+
+startQA();
+wait(100);
+startQA(QA_INT_0, 1);
+wait(100);
+startQA(QA_INT_ALL, 1, 0, 1);
+wait(100);
+
+var r = getQAResult();
+playZero(64);

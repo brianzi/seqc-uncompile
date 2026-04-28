@@ -157,7 +157,7 @@ std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
     seg->set_type(PT_LOAD);
     seg->set_virtual_address(wfPtr->addressValue - padSize);     // 0x293a60
     seg->set_physical_address(wfPtr->addressValue - padSize);    // 0x293a73
-    seg->set_flags(PF_W);
+    seg->set_flags(PF_R);
 
     // Alignment from WaveformIR+0xDC (bitsPerSample * channels product)
     uint32_t alignment = wfPtr->elfAlignment_;

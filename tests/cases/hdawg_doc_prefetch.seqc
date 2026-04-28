@@ -1,0 +1,8 @@
+// Coverage: HDAWG-specific prefetch instruction
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = gauss(1024, 512, 100);
+wave w2 = gauss(1024, 512, 200);
+prefetch(1, w1);
+prefetch(1, w2);
+playWave(1, w1);
+playWave(1, w2);

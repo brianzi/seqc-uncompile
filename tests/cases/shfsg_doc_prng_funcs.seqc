@@ -1,0 +1,8 @@
+// Coverage: SHFSG PRNG functions
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+setPRNGSeed(42);
+setPRNGRange(0, 255);
+var v1 = getPRNGValue();
+var v2 = getPRNGValue();
+setUserReg(0, v1);
+setUserReg(1, v2);

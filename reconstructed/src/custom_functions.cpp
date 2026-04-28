@@ -244,7 +244,7 @@ CustomFunctions::CustomFunctions(  // @0x12bcf0 — 19KB, registers 81 built-in 
     reg("configureFeedbackProcessing", bind(&CustomFunctions::configureFeedbackProcessing));
 
     // 5 aliases (different string key → same method as an existing primary entry):
-    reg("setSeqIndex",                  bind(&CustomFunctions::assignWaveIndex));   // alias (confirmed)
+    reg("setSeqIndex",                  bind(&CustomFunctions::setID));             // alias (confirmed)
     reg("setReadoutRegisterAddress",    bind(&CustomFunctions::setID));             // alias @0x12c352
     reg("waitOscPhaseOfDemod",          bind(&CustomFunctions::waitDemodOscPhase)); // alias @0x12d3df
     reg("setUser",                      bind(&CustomFunctions::setUserReg));        // alias @0x12dea1
@@ -785,21 +785,26 @@ PlayArgs::WaveAssignment::WaveAssignment(WaveAssignment const& o)  // @0x171c00
     // @0x171c40: dispatch on o.value.value_.which_
     value.value_.type_  = o.value.value_.type_;
     value.value_.which_ = o.value.value_.which_;
-    switch (o.value.value_.which_) {
-    case 0:  // int
-        value.value_.storage_.i = o.value.value_.storage_.i;     // @0x171c58
-        break;
-    case 1:  // bool (or double — index depends on variant order)
-        value.value_.storage_.d = o.value.value_.storage_.d;     // @0x171c68
-        break;
-    case 2:  // string — placement new
+    // Variant-aware copy keyed on which_:
+    //   0 = int, 1 = bool, 2 = double, 3 = string
+    // The original binary (libc++) uses a 3-way jump table at @0x171c40:
+    //   index 0 → copy 4 bytes (int/bool),  index 1 → copy 8 bytes (double),
+    //   index 2 → placement-new string.
+    // But the binary's variant indices are 0,1,2 (libc++ boost::variant
+    // with int,bool,double,string where int+bool share slot 0's copy).
+    // Our libstdc++ Value uses which_ values 0..3.  Map accordingly:
+    int decoded = (o.value.value_.which_ >> 31) ^ o.value.value_.which_;
+    if (decoded >= 3) {
+        // string — placement new                              // @0x171c80
         ::new (&value.value_.storage_.str)
-            std::string(o.value.value_.storage_.str);  // @0x171c80
-        break;
-    default:
-        // Defensive: zero-init storage for unknown variant index
-        std::memset(&value.value_.storage_, 0, sizeof(value.value_.storage_));
-        break;
+            std::string(o.value.value_.storage_.str);
+    } else if (decoded == 2) {
+        // double                                              // @0x171c68
+        value.value_.storage_.d = o.value.value_.storage_.d;
+    } else {
+        // int (0) or bool (1) — both fit in first 8 bytes    // @0x171c58
+        std::memcpy(&value.value_.storage_, &o.value.value_.storage_,
+                     sizeof(double));
     }
 }
 

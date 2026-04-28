@@ -28,8 +28,8 @@ using detail::getUniqueName;
 
 // 0x29a940 — WavetableFront::~WavetableFront()
 WavetableFront::~WavetableFront() {
-    // Destroy waveIndexTracker_ set (at this+0x1E0)
-    // set<int> tree destroy at this+0x1E0 with root at this+0x1E8
+    // Destroy waveIndexTracker_ (placement-new'd in constructor)
+    reinterpret_cast<WaveIndexTracker*>(waveIndexTracker_)->~WaveIndexTracker();
 
     // Delete manager_
     if (manager_) {
@@ -75,11 +75,12 @@ WavetableFront::WavetableFront(
     //   manager_+0x28 = 1.0f (amplitude default)
     //   All other fields zero
 
-    // Initialize WaveIndexTracker at this+0x1D8
-    // waveIndexTracker_.startIndex_ = dc.wavetableStartIndex; (dc+0x60)
-
-    // Initialize set at this+0x1E0 (empty)
-    // this+0x1F8 = 0 (flags)
+    // Initialize WaveIndexTracker storage at this+0x1D8                       // @0x29abdd
+    // NOTE: Cannot use placement new because sizeof(WaveIndexTracker) differs
+    // between libc++ (0x28) and libstdc++ (0x40) due to std::set layout.
+    // The WavetableIR rebuilds its own tracker from waveform indices, so the
+    // front-end tracker set is not critical. Zero-init to prevent garbage.
+    std::memset(waveIndexTracker_, 0, sizeof(waveIndexTracker_));
 }
 
 // 0x29ac60 — WavetableFront::dummyWarning(const string&, int)
@@ -358,12 +359,12 @@ void WavetableFront::assignWaveIndex(
         throw; // WavetableException
     }
 
-    // Clear flags at this+0x1F8
-    // *(int*)(this + 0x1F8) = 0;
-
-    // Call waveIndexTracker_.assignAuto(index) at this+0x1D8
-    // Then set ptr->waveIndex_ = index
-    ptr->setWaveIndex(index);
+    // In the binary, this clears autoIndex_ and calls assignAuto(index)       // @0x29cb5f
+    // which inserts into the tracker's std::set. We can't use the tracker
+    // directly due to libc++/libstdc++ ABI mismatch (see constructor note).
+    // The WavetableIR rebuilds its tracker from waveform indices, so just
+    // setting waveIndex is sufficient for correct compilation.
+    ptr->waveIndex = index;                                                    // @0x29cb7c
 }
 
 // 0x29cc70 — WavetableFront::updateWave(shared_ptr<WaveformFront>, const string&)

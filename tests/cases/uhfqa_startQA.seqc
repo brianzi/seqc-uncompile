@@ -1,0 +1,4 @@
+startQA(QA_INT_ALL, 1);
+wait(100);
+startQA(QA_INT_0, 0);
+var r = getQAResult();

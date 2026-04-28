@@ -1,0 +1,9 @@
+// Test cvar loop unrolling with wave declarations inside
+// Device: HDAWG8
+
+cvar i;
+for (i = 0; i < 4; i++) {
+  wave w = rect(32, 1.0);
+  playWave(w);
+  waitWave();
+}

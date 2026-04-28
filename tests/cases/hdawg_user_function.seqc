@@ -1,0 +1,9 @@
+void myFunc(var count) {
+  repeat(count) {
+    playZero(32);
+  }
+  waitWave();
+}
+
+myFunc(3);
+myFunc(5);

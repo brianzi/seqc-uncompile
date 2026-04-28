@@ -1,0 +1,39 @@
+// User functions with return values
+var myFunc(var x) {
+  var r = x + 1;
+  return r;
+}
+
+// Void function with explicit return
+void mySetup() {
+  setTrigger(1);
+  playZero(32);
+  return;
+}
+
+// Early return (return inside if)
+var myClamp(var x) {
+  if (x > 100) return 100;
+  return x;
+}
+
+// Function calling function with return values (2 levels)
+var myDouble(var x) {
+  var r = x + x;
+  return r;
+}
+
+var myQuad(var a) {
+  var d = myDouble(a);
+  var r = myDouble(d);
+  return r;
+}
+
+// Use them all
+mySetup();
+var r1 = myFunc(5);
+setUserReg(0, r1);
+var r2 = myClamp(200);
+setUserReg(1, r2);
+var r3 = myQuad(3);
+setUserReg(2, r3);

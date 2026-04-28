@@ -22,7 +22,7 @@ struct AsmRegister {
 
     AsmRegister() = default;
     AsmRegister(int v, bool val) : value(v), valid(val) {}
-    AsmRegister(int n) : value(n), valid(true) {}  // convenience ctor used throughout codebase
+    AsmRegister(int n) : value(n > 0 ? n : 0), valid(n >= 0) {}  // @0x28eb40: cmovg + setns
 
     // Named constants for convenience
     static AsmRegister Invalid() { return {-1, false}; }
@@ -37,7 +37,12 @@ struct AsmRegister {
     explicit operator int() const { return value; }
 
     bool operator==(const AsmRegister& o) const {
-        return value == o.value && valid == o.valid;
+        // Binary semantics (0x28eb80): if both invalid, always equal
+        // regardless of value. If both valid, compare values.
+        // If one valid and one invalid, not equal.
+        if (valid != o.valid) return false;
+        if (!valid) return true;  // both invalid → equal
+        return value == o.value;  // both valid → compare values
     }
     bool operator!=(const AsmRegister& o) const { return !(*this == o); }
 };

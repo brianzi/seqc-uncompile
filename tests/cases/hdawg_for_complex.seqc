@@ -1,0 +1,11 @@
+// Test complex for loop with if/else inside
+// Device: HDAWG8
+
+var i;
+for (i = 0; i < 4; i++) {
+  if (i & 1) {
+    playZero(64);
+  } else {
+    playZero(32);
+  }
+}

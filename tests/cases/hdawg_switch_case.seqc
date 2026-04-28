@@ -1,0 +1,32 @@
+// switch/case with var discriminant, multiple cases, default, fall-through
+var x = getUserReg(0);
+switch(x) {
+  case 0: setTrigger(1);
+  case 1: setTrigger(2);
+  case 2: setTrigger(3);
+  case 3: setTrigger(4);
+  default: setTrigger(0);
+}
+playZero(32);
+
+// switch with const discriminant (compile-time resolution)
+const c = 2;
+switch(c) {
+  case 1: playZero(16);
+  case 2: playZero(32);
+  case 3: playZero(48);
+  default: playZero(64);
+}
+
+// nested switch
+var y = getUserReg(1);
+switch(x) {
+  case 0:
+    switch(y) {
+      case 0: setUserReg(0, 10);
+      case 1: setUserReg(0, 20);
+      default: setUserReg(0, 30);
+    }
+  case 1: setUserReg(0, 40);
+  default: setUserReg(0, 50);
+}

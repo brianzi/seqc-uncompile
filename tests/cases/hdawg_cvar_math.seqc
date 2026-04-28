@@ -1,0 +1,12 @@
+// Test cvar expressions with math functions
+// Device: HDAWG8
+
+const pi = 3.14159265358979;
+cvar x = sin(pi / 4);
+cvar y = cos(pi / 4);
+cvar z = sqrt(2.0);
+cvar len = round(32 * z);
+
+wave w = rect(64, x);
+playWave(w);
+waitWave();

@@ -1,0 +1,10 @@
+// From HDAWG Tutorial: Dual-channel placeholder with markers
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/awg.html
+const LENGTH = 1024;
+wave w_a = placeholder(LENGTH, true, true);
+wave w_b = placeholder(LENGTH, true, true);
+wave w_c = placeholder(LENGTH, true, true);
+assignWaveIndex(1, w_a,   10);
+assignWaveIndex(w_b, w_c, 11);
+playWave(1, w_a);
+playWave(w_b, w_c);

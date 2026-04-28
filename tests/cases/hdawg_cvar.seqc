@@ -1,0 +1,5 @@
+cvar i;
+cvar len = 64;
+for (i = 0; i < 3; i++) {
+  playZero(len);
+}

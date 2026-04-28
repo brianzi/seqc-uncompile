@@ -1,0 +1,23 @@
+// Command table: assignWaveIndex + executeTableEntry + prefetch
+wave w1 = rect(64, 0.8);
+wave w2 = gauss(64, 32, 12);
+
+// Assign wave indices
+assignWaveIndex(w1, 0);
+assignWaveIndex(w2, 1);
+
+// Dual wave assignment
+wave w3 = ones(64);
+wave w4 = zeros(64);
+assignWaveIndex(w3, w4, 2);
+
+// Execute table entries
+executeTableEntry(0);
+waitWave();
+executeTableEntry(1);
+waitWave();
+executeTableEntry(2);
+waitWave();
+
+// Prefetch
+prefetch(w1, 0);

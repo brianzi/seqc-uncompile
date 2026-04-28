@@ -1,0 +1,6 @@
+// Test SHFSG oscillator frequency operations
+// Device: SHFSG4
+
+configFreqSweep(0, 100e6, 1e6);
+setSweepStep(0, 0);
+setOscFreq(0, 100e6);

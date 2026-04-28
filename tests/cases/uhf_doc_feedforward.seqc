@@ -1,0 +1,25 @@
+// UHF tutorial: Feed-forward protocol (qubit reset)
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+wave w_gauss_low  = 0.5*gauss(8000, 4000, 1000);
+wave w_gauss_high = 1.0*gauss(8000, 4000, 1000);
+var trigger_state;
+while (true) {
+  waitDemodOscPhase(8);
+  playWave(1, w_gauss_low);
+  waitWave();
+  trigger_state = getAnaTrigger(1);
+  if (trigger_state == 0) {
+    playWave(1, w_gauss_low);
+  } else {
+    playWave(1, w_gauss_high);
+  }
+  wait(3000);
+  playWave(1, w_gauss_high);
+  waitWave();
+  trigger_state = getAnaTrigger(1);
+  if (trigger_state == 0) {
+    playWave(1, w_gauss_low);
+  } else {
+    playWave(1, w_gauss_high);
+  }
+}

@@ -1,0 +1,12 @@
+// From HDAWG Tutorial: Digital Modulation — I/Q baseband signal
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/modulation.html
+wave w_gauss = gauss(8000, 4000, 1000);
+wave w_drag  = drag(8000, 4000, 1000);
+
+while (true) {
+  setTrigger(1);
+  playWave(w_gauss, w_drag);
+  waitWave();
+  setTrigger(0);
+  wait(100);
+}

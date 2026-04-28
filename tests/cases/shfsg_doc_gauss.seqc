@@ -1,0 +1,4 @@
+// From SHFSG Tutorial: Basic Waveform Playback — Gaussian
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = 1.0*gauss(8000, 4000, 1000);
+playWave(1, w_gauss);

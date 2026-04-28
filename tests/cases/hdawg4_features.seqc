@@ -1,0 +1,6 @@
+wave w = zeros(64);
+playWave(w);
+waitWave();
+setPrecompClear(1);
+var c = getCnt(0);
+setUserReg(0, c);

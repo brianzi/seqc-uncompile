@@ -186,15 +186,15 @@ Value EvalResults::getValue() const  // @0x211ab0
 // ============================================================================
 // setValue(Value const&) — @0x15a750  [nice-to-have]
 //
-// Replaces values_ with one EvalResultValue containing only the Value;
-// VarType and VarSubType derived from the Value's type tag are NOT
-// applied here (varType_ stays 0). Reg defaults to (-1, false).
+// Replaces values_ with one EvalResultValue {VarType_Const(=4), sub=0,
+// value=val, reg=(-1,false)}.  Binary writes `movq $4, -0x68(%rbp)` at
+// 0x15a760 which stores varType_=4 (Const), subType_=0 in one qword.
 // ============================================================================
 void EvalResults::setValue(Value const& val)  // @0x15a750
 {
-    EvalResultValue ev{};
-    ev.value_ = val;
-    values_ = std::vector<EvalResultValue>{ std::move(ev) };
+    values_ = std::vector<EvalResultValue>{
+        makeERV(VarType_Const, VarSubType_Default, val)
+    };
 }
 
 // ============================================================================

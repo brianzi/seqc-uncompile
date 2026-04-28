@@ -364,13 +364,13 @@ assignment_expression
         {
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
         }
-    | unary_expression RSH_ASSIGN assignment_expression  /* Rule 62 — NOTE: swapped? */
+    | unary_expression RSH_ASSIGN assignment_expression  /* Rule 62 */
         {
             $1->valueType = 0;
             $1->valueCategory = 1;
-            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
+            $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
         }
     ;
 
@@ -435,7 +435,7 @@ type_specifier
     | KW_CVAR                                   /* Rule 72 — VarType Cvar (4) */
         { $$ = createVariableType(ctx, VarType_Cvar); }
     | KW_VOID                                   /* Rule 73 */
-        { $$ = createVariableType(ctx, VarType_Unset); }
+        { $$ = createVariableType(ctx, VarType_Void); }
     | KW_WAVE                                   /* Rule 74 — VarType Wave (6) */
         { $$ = createVariableType(ctx, VarType_Wave); }
     | KW_STRING                                 /* Rule 75 — VarType String (5) */

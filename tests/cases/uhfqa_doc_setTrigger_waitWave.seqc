@@ -1,0 +1,7 @@
+// UHFQA tutorial: setTrigger with waitWave
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = gauss(8000, 4000, 1000);
+setTrigger(1);
+playWave(1, w_gauss);
+waitWave();
+setTrigger(0);

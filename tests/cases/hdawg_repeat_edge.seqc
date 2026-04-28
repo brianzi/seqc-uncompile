@@ -1,0 +1,10 @@
+// Test repeat with edge case counts
+// Device: HDAWG8
+
+repeat(1) {
+  playZero(32);
+}
+
+repeat(2) {
+  playZero(64);
+}

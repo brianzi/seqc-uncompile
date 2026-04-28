@@ -1,0 +1,45 @@
+// MathCompiler: basic math functions
+const a = abs(-5);
+const b = ceil(3.7);
+const c = floor(3.7);
+const d = round(3.5);
+const e = sqrt(16.0);
+const f = sign(-3.0);
+
+// Trigonometric
+const pi = 3.14159265358979;
+const g = round(sin(pi/6) * 1000);
+const h = round(cos(pi/3) * 1000);
+const i = round(tan(pi/4) * 1000);
+
+// Exponential / logarithmic
+const j = round(exp(1.0) * 100);
+const k = round(ln(2.718281828) * 1000);
+const l = round(log2(8.0));
+const m = round(log10(100.0));
+
+// Inverse trig
+const n = round(asin(0.5) * 1000);
+const o = round(acos(0.5) * 1000);
+const p = round(atan(1.0) * 1000);
+
+// Hyperbolic
+const q = round(sinh(1.0) * 1000);
+const r = round(cosh(1.0) * 1000);
+const s = round(tanh(0.5) * 1000);
+
+// Two-arg functions
+const t = pow(2.0, 10.0);
+const u = min(3.0, 5.0);
+const v = max(3.0, 5.0);
+
+// Variadic
+const w = avg(1.0, 2.0, 3.0, 4.0);
+const x = sum(1.0, 2.0, 3.0, 4.0);
+
+playZero(32);
+setUserReg(0, a);
+setUserReg(1, b);
+setUserReg(2, d);
+setUserReg(3, g);
+setUserReg(4, j);

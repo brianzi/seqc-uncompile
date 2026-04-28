@@ -1,0 +1,21 @@
+// SHFQA2 combination test
+resetOscPhase();
+configFreqSweep(0, 1e6, 4);
+setOscFreq(0, 100e6);
+
+var step = 0;
+repeat(4) {
+  setSweepStep(0, step);
+  startQA(QA_INT_0, true);
+  wait(100);
+  step = step + 1;
+}
+
+setTrigger(1);
+wait(10);
+setTrigger(0);
+
+setDIO(0xff);
+var d = getDIO();
+waitDIOTrigger();
+playZero(32);

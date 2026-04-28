@@ -1,0 +1,16 @@
+// Test DIO read + switch dispatch pattern
+// Device: HDAWG8
+
+var d = getDIO();
+var masked = d & 0x3;
+
+switch(masked) {
+  case 0:
+    playZero(32);
+  case 1:
+    playZero(64);
+  case 2:
+    playZero(128);
+  default:
+    playZero(256);
+}

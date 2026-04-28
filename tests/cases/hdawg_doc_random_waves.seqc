@@ -1,0 +1,8 @@
+// Coverage: random waveform functions
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = rand(1024, 1.0, 0, 0.1);
+wave w2 = randomGauss(1024, 1.0, 0, 0.1);
+wave w3 = randomUniform(1024, 1.0);
+playWave(w1);
+playWave(w2);
+playWave(w3);

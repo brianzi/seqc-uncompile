@@ -1,0 +1,3 @@
+configFreqSweep(0, 100.0e6, 1.0e6);
+setSweepStep(0, 0);
+setSweepStep(0, 1);

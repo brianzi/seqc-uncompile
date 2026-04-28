@@ -1,0 +1,5 @@
+wave w = zeros(64);
+assignWaveIndex(w, 0);
+prefetch(w);
+playWave(w);
+waitWave();

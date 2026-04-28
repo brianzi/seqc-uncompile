@@ -1,0 +1,6 @@
+// UHFQA tutorial: Repeated Gaussian burst
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = 1.0 * gauss(640, 320, 50);
+repeat (5) {
+  playWave(1, w_gauss);
+}

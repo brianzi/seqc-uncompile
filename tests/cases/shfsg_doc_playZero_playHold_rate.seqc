@@ -1,0 +1,4 @@
+// Coverage: playZero and playHold with explicit rate constants (SHFSG)
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+playZero(64, AWG_RATE_1000MHZ);
+playHold(64, AWG_RATE_500MHZ);

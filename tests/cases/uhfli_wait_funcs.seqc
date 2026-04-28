@@ -1,0 +1,4 @@
+wait(100);
+waitTrigger(1, 1);
+playZero(64);
+waitWave();

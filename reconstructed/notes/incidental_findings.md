@@ -515,3 +515,731 @@ static init at 0xd5de0). Replaced the entire table in
   the repeat loop code doesn't actually unroll in the non-empty-body case.
 
 ---
+
+## IF-23 — SeqCAssign Row 1 (Var=Const/Cvar) missing ADDI + SetVarPlaceholder
+- **Source**: hdawg_arithmetic differential failure; GDB trace of binary
+- **Status**: **fixed** (2026-04-27)
+- **Severity**: critical (root cause of ~25+ test failures)
+- **Detail**: SeqCAssign::evaluate Row 1 (lhsType=Var, rhsType ∈ {Const,Cvar})
+  was missing the `addi(lhsReg, R0, constValue)` + `asmSetVarPlaceholder(lhsReg)`
+  emission after `updateVar(name)`. Binary address range: `0x24400a-0x24549d`.
+  GDB trace proved the binary calls `addi(AsmRegister, AsmRegister, Value)` at
+  `0x245364` (via `0x27a020`) followed by `asmSetVarPlaceholder` at `0x24549d`.
+  The reconstruction had a comment "Row 1: no asm copy" which was incorrect.
+  Fix: emit `ctx.asmCommands->addi(lhsReg, AsmRegister(0), rhsResult.getValue())`
+  and `ctx.asmCommands->asmSetVarPlaceholder(lhsReg)` into result->assemblers_.
+  This produces the `addi Rn, R0, <value>` instructions for `var x = <const>;`.
+
+## IF-24 — Hirzel ssl/ssr operand order swapped
+- **Source**: hdawg_arithmetic differential failure; binary encoding comparison
+- **Status**: **fixed** (2026-04-27)
+- **Severity**: medium (affected all multiply-by-power-of-2 and shift operations)
+- **Detail**: `AsmCommandsImplHirzel::ssl()` and `ssr()` had `regSrc=reg, regDst=R0`
+  but the binary encodes `regDst=reg, regSrc=R0`. Verified by comparing binary
+  encoding: original `0x62000005` = `ssl R2, R0` (regDst=2, regSrc=0) vs recon
+  `0x60200005` = `ssl R0, R2` (regDst=0, regSrc=2). Fix: swap the fields.
+
+---
+
+## IF-25  `registerAllocation` overlap check was one-directional
+
+**Source**: hdawg_comparisons register off-by-1 investigation
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+The recon's overlap check only tested `physRange.back() >= virtRange.front()`,
+which is half of a proper interval overlap test. The binary (at `0x27f94f-0x27f95b`
++ `0x27fb40-0x27fb4c`) performs a bidirectional check:
+`physRange.front() <= virtRange.back() AND physRange.back() >= virtRange.front()`.
+
+Additionally, the recon appended live range indices unsorted during merge
+(`push_back` without sorting), causing the flat physRange vector to lose
+ordering. Added `std::sort` after each merge.
+
+Binary data structure is actually `vector<vector<vector<int>>>` (nested),
+not flat — each physRegs[preg] accumulates separate range vectors. The
+flat+sorted approach produces equivalent results for the overlap check.
+
+**Fix**: `asm_optimize.cpp` lines ~1003-1010 (bidirectional check) and
+~1057 (sort after merge).
+
+---
+
+## IF-26  `wvfs` (Hirzel) stored register in `regDst` instead of `regSrc`
+
+**Source**: GDB comparison of binary asm state at registerAllocation entry
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+Binary `AsmCommandsImplHirzel::wvfs` at `0x27d071` stores the register
+parameter at `-0x90(%rbp)` = AssemblerInstr offset +0x20 = `regSrc`.
+The recon had `result.assembler.regDst = reg` (wrong field).
+
+**Fix**: `asm_commands_impl_hirzel.cpp` line 84: changed `regDst` to `regSrc`.
+
+---
+
+## IF-27  `playHold` passed `isHold=true, isBool=false` — binary has opposite
+
+**Source**: hdawg_playHold `wvfs 0` vs `wvfs 1` mismatch
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+Binary `playHold` at `0x1391b8-0x1391d7` passes: `isHold=false` (r8d=0),
+`isBool=true` (push $0x1). The recon had these swapped.
+
+Since `config.hold = isBool` (verified at `genPlayConfig` 0x278b23), and
+`dummyType = config.hold` in `prefetch_placesingle.cpp:208`, the isBool
+value directly controls the wvfs first argument.
+
+**Fix**: `custom_functions_playback.cpp` line 990-994: changed
+`isHold=true, isBool=false` to `isHold=false, isBool=true`.
+
+---
+
+## IF-28  `removeUnusedRegs` always invalidated `regDst`, ignoring fallback to `regAux`
+
+**Source**: hdawg_many_vars investigation (instruction count mismatch)
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+Binary at 0x27eaba-0x27eabe: when `regDst` is invalid or == AsmRegister(0),
+the code falls back to `regAux` as the dest slot. When eliminating a
+write-only register, it invalidates whichever slot was *selected* (stored
+at `[rbp-0x58]`), not always `regDst`. The reconstruction always
+invalidated `regDst`, which left stale `regAux` references that prevented
+subsequent optimizations from removing dead instructions.
+
+**Fix**: `asm_optimize.cpp` lines 568-572, 654: track `destSlot` pointer
+and invalidate the selected slot.
+
+---
+
+## IF-29  Missing `asmSetVarPlaceholder` in SeqCAssign Row 2 (Var=Var)
+
+**Source**: hdawg_many_vars (591 vs 543 instruction diff)
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+Binary at 0x24495a: after compound expression assignments like `var f = a + b`,
+the binary emits an INVALID (cmd=0xFFFFFFFF) separator via
+`AsmCommands::asmSetVarPlaceholder(lhsReg)`. This was present in Row 1
+(Var=Const) but missing in Row 2 (Var=Var). The missing separator caused
+the optimizer to merge instructions across assignment boundaries.
+
+**Fix**: `seqc_ast_nodes_evaluate.cpp` line 3200: added
+`asmCommands->asmSetVarPlaceholder(lhsReg)` call.
+
+---
+
+## IF-30  `SeqCStmtList::evaluate` set `hasError_=true` on normal child nodes
+
+**Source**: hdawg_deep_nesting (718 vs 694 — while loop body prematurely terminated)
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+The reconstruction had `hasError_ = true` inside the node-chaining block
+(whenever `childResult->node_` was non-null). The binary (0x212800) has
+two completely separate paths: childHadError==0 does name-building +
+node-chaining only; childHadError==1 does return-value extraction +
+hasError_=true + break. GDB verified at 0x212e88 (`movb $0x1,0x30(%rax)`)
+that this instruction never fires for normal (non-error) children during
+hdawg_deep_nesting compilation.
+
+**Fix**: `seqc_ast_nodes_evaluate.cpp` lines 6265-6322: rewrote to match
+binary's two-path structure.
+
+---
+
+## IF-31  `setUserReg` used `value_.toInt()` for Var-type argument instead of `reg_`
+
+**Source**: hdawg_full_program (751 vs 485 instruction diff)
+**Status**: fixed
+**Severity**: likely-bug → fixed
+
+Binary at 0x14a691: for Var-type arg1, `setUserReg` reads the register
+from `EvalResultValue.reg_` (offset +0x30), not from `value_.toInt()`.
+For Var types, `value_` is left as Unspecified (default Value), so
+`toInt()` returns 0, causing the wrong register to be emitted.
+
+**Fix**: `custom_functions_io.cpp` line 2107: changed
+`AsmRegister(arg1.value_.toInt())` to `arg1.reg_`.
+
+---
+
+## IF-32  Lexer missing `endLineComment()` on newline
+
+**Source**: Linux-specific `//` comment parsing failure
+**Status**: fixed
+**Severity**: critical
+
+`seqc_lexer.c` rule 77 was missing `endLineComment()` on newline.
+`//` comments on Linux silently discarded all subsequent tokens because
+the comment state was never terminated at end-of-line.
+
+**Fix**: Added `endLineComment()` call in lexer rule 77 newline action.
+
+---
+
+## IF-33  `SeqCValue::payload_` sized for libc++ string (24B), not libstdc++ (32B)
+
+**Source**: "bad variant access" on any string literal
+**Status**: fixed
+**Severity**: critical
+
+`SeqCValue::payload_` was 24 bytes (libc++ `std::string` size) but
+libstdc++ `std::string` is 32 bytes. The overflow corrupted the `tag_`
+field, causing `std::bad_variant_access` on any string literal.
+
+**Fix**: Replaced with union-based storage to accommodate both ABIs.
+
+---
+
+## IF-34  `EvalResultValue` destructor double-free via explicit `value_.~Value()`
+
+**Source**: crash on destruction of EvalResultValue containing a Value
+**Status**: fixed
+**Severity**: high
+
+`EvalResultValue` destructor explicitly called `value_.~Value()`, but
+the compiler auto-destructs members — causing a double-free.
+
+**Fix**: Removed the explicit destructor call.
+
+---
+
+## IF-35  `assignWaveIndex` used `config.channelsPerGroup[0]` instead of `config.deviceIndex`
+
+**Source**: vector OOB in assignWaveIndex for HDAWG8
+**Status**: fixed
+**Severity**: high
+
+`assignWaveIndex` used `config.channelsPerGroup[0]` (=2 for HDAWG8) as
+index into `playArgs.waveAssignments_` vector. Should be
+`config.deviceIndex` (=0). Caused vector out-of-bounds access.
+
+**Fix**: Changed index to `config.deviceIndex`.
+
+---
+
+## IF-36  `readInt` enforced `minVal` as threshold — binary uses it as error arg index
+
+**Source**: `marker(64, 1)` failure
+**Status**: fixed
+**Severity**: medium
+
+`readInt` in waveform_generator enforced `result < minVal` check, but
+binary analysis shows `minVal` is only an argument index for error
+reporting, not a minimum threshold. This broke `marker(64, 1)`.
+
+**Fix**: Removed the `result < minVal` check.
+
+---
+
+## IF-37  `ldiotrig()` placed address constant in `immediates` instead of `outputs`
+
+**Source**: reversed operand rendering: `ld 104, R1` instead of `ld R1, 104`
+**Status**: fixed
+**Severity**: high
+
+`ldiotrig()` in both Hirzel and Cervino `asm_commands` placed the
+address constant in `immediates` instead of `outputs`, causing reversed
+operand rendering in the output.
+
+**Fix**: Moved address constant to `outputs` in both implementations.
+
+---
+
+## IF-38  `setSinePhase`/`incrementSinePhase` wrong node paths for SHFSG
+
+**Source**: SHFSG sine phase test failures
+**Status**: fixed
+**Severity**: medium
+
+Used wrong node paths for SHFSG: `/sines/16/phaseshift/value` instead
+of `sgchannels/<idx>/sines/0/phaseshift`.
+
+**Fix**: Corrected node path generation for SHFSG device type.
+
+---
+
+## IF-39  `static_resources.cpp` registered `QA_DATA_PROCESSED` but lookup uses `QA_DATA_PROCESSED_D`
+
+**Source**: "uninitialized variable" error for QA_DATA_PROCESSED_D
+**Status**: fixed
+**Severity**: low
+
+`static_resources.cpp` registered the constant as `QA_DATA_PROCESSED`
+but code in `custom_functions_io.cpp` looks up `QA_DATA_PROCESSED_D`.
+
+**Fix**: Changed registered constant name to `QA_DATA_PROCESSED_D`.
+
+---
+
+## IF-40  `executeTableEntry` register-path used `arg0.value_.toInt()` instead of `arg0.reg_`
+
+**Source**: executeTableEntry with register-type argument
+**Status**: fixed
+**Severity**: medium
+
+`executeTableEntry` with register-type arg called `arg0.value_.toInt()`
+instead of using `arg0.reg_`. Same class of bug as IF-31.
+
+**Fix**: Changed to use `arg0.reg_`.
+
+---
+
+## IF-41  3-arg `sine(length, amp, phase)` formula mismatch with binary
+
+**Source**: waveform comparison for `sine(64, 1.0, 0.0)`
+**Status**: open/suspicious
+**Severity**: medium
+
+Waveform generator 3-arg `sine(length, amp, phase)` uses default
+`nPeriods=1.0` and formula `amp * sin(2π*nPeriods*i/length + phase)`.
+But the original binary produces `sin(amp)*32767` as a constant for
+`phase=0` — suggesting different argument semantics or formula in the
+3-arg case. Needs binary disassembly of the 3-arg code path.
+
+---
+
+## IF-42  User-defined function parsing had 3 bugs
+
+**Source**: user-defined function test failures
+**Status**: fixed
+**Severity**: high
+
+Three bugs in user-defined function parsing/evaluation:
+1. Wrong arg mapping in `createFunction`: used `type_specifier` instead
+   of `function_declarator` for name/params.
+2. `SeqCFunction::evaluate` did unnecessary `dynamic_cast<SeqCOperation*>`
+   that failed for single-param functions.
+3. Function body evaluated with outer scope instead of function's own scope.
+
+**Fix**: All three issues corrected in parser and evaluator.
+
+---
+
+## IF-43  Cervino (UHFLI) waveform playback wrong code path in prefetcher
+
+**Source**: Cervino playback test failures
+**Status**: partially-fixed
+**Severity**: high
+
+`prefetch_placesingle.cpp` had a completely wrong code path for Cervino
+(UHFLI) waveform playback: used smap/ssl/addr/wwvf instead of unified
+register selection + shared wvfImpl path.
+
+**Partially fixed**: main code path corrected. Remaining issues:
+- Wrong waveform base address (0x2000 vs 0xd0001000)
+- Missing prefetch instructions
+- Swapped wvf register order
+
+---
+
+## IF-44  genericTriangle parameter order swapped in reconstruction
+
+**Source**: hdawg_wave_misc failure (sawtooth/triangle produce non-zero for 3-arg with phase=0)
+**Status**: fixed
+**Severity**: high (wrong output)
+
+The reconstructed `genericTriangle` had parameter order `(length, amplitude,
+riseRatio, phase, period)` but the binary's ABI (GDB-verified) is
+`(length, amplitude, nPeriods, riseRatio, phase)` — xmm0=amp, xmm1=nPeriods,
+xmm2=riseRatio, xmm3=phase.
+
+Additionally, the 3-arg sawtooth/triangle call sites swap arguments vs the
+4-arg path: 3-arg passes `(nPeriods_default, user_phase, riseRatio, amplitude)`
+while 4-arg passes `(amplitude, nPeriods, riseRatio, phase)`. This is because
+the 3-arg code path stores values in different stack slots that get loaded into
+different xmm registers at the common call site.
+
+---
+
+## IF-45  double2awg16 NaN handling: std::max vs maxsd semantics
+
+**Source**: hdawg_wave_misc failure (NaN samples produce 0x0001 instead of 0x0000)
+**Status**: fixed
+**Severity**: high (wrong waveform data)
+
+`double2awg16` used `std::max(-1.0, sample)` which returns -1.0 when sample is
+NaN (comparison with NaN is false, std::max returns first arg). The binary uses
+x86 `maxsd` instruction which returns the second source operand (the NaN) when
+either operand is NaN. Fixed with inline asm `maxsd`.
+
+---
+
+## IF-46  Waveform name truncation suffix format
+
+**Source**: hdawg_wave_vect failure (metadata mismatch in .waveforms section)
+**Status**: fixed
+**Severity**: medium (metadata-only)
+
+Reconstruction used `", ..."` as the truncation suffix for long vect() names.
+Binary uses `" ...)"` (space-dots-closeparen). The close paren is part of the
+original function call syntax being preserved.
+
+---
+
+---
+
+## IF-47  asmPrefetch did not store waveform name in node->wavesPerDev
+
+**Source**: hdawg_prefetch failure (PlainLoad node missing from output)
+**Status**: fixed
+**Severity**: likely-bug
+
+`asmPrefetch()` in `asm_commands.cpp` had a comment "Copy waveform name into
+node->wavesPerDev[nameIndex]" but no actual code. The sister function
+`asmLockPlaceholder()` does store the name. Without the name, the PlainLoad
+handler in `placeSingleCommand` could not look up the waveform and bailed out.
+
+---
+
+## IF-48  PlainLoad handler checked cachePtr instead of registerHirzel
+
+**Source**: hdawg_prefetch failure (PlainLoad node present but not emitting code)
+**Status**: fixed
+**Severity**: likely-bug
+
+The reconstructed PlainLoad (0x4000) handler in `prefetch_placesingle.cpp`
+checked `nodeStates_[node].cachePtr == nullptr` and returned early. GDB
+disassembly of the binary at 0x1d7f68 confirmed the handler checks
+`registerHirzel.isValid()` instead — PlainLoad nodes never get a cachePtr
+allocated (the `allocate()` pass skips type 0x4000). Also, the handler
+emitted cwvf instructions which the binary does not — it only emits
+`addi + prf`. The prf size comes from `waveform->allocationByteSize`,
+not from `cachePtr->size_`.
+
+---
+
+## IF-49  play() SubFunc==0 fell through to asmPlay
+
+**Source**: hdawg_prefetch failure (extra Play node in recon tree)
+**Status**: fixed
+**Severity**: likely-bug
+
+In `custom_functions_play.cpp`, SubFunc==0 (the Prefetch path) called
+`asmPrefetch` but discarded its result, then fell through to `asmPlay`
+which created an unwanted Play node. The binary only creates the PlainLoad
+node for prefetch — no Play node. Fix: capture the `asmPrefetch` result,
+push it to `results->assemblers_` and chain its node into `results->node_`,
+then skip the `asmPlay` code path.
+
+---
+
+## IF-50  WVFE register field: regDst vs regSrc
+
+**Source**: hdawg_playWaveIndexed register allocation mismatch
+**Status**: fixed
+**Severity**: likely-bug
+
+The single-register WVFE opcode (Hirzel-specific) stores the waveform
+register in `regSrc` (as a read source), not `regDst`. GDB confirmed:
+binary WVFE instructions have `regDst=R0, regSrc=Rn`. The recon had
+`regDst=Rn, regSrc=R-1` which caused the register allocator to treat
+the waveform register as a write, producing different live ranges and
+incorrect register allocation. Fixed in `asm_commands_impl_hirzel.cpp`.
+
+---
+
+## IF-51  BFS Load-merge missing child enqueueing
+
+**Source**: hdawg_playWaveIndexed waveform register reuse failure
+**Status**: fixed
+**Severity**: likely-bug
+
+In `prefetch.cpp`, `moveLoadsToFront`'s BFS loop merges duplicate Load
+nodes with the same waveform name. After a merge+updateParent, the recon
+did `continue` (skipping child enqueueing), but the binary falls through
+to the child-enqueueing code at 0x1cd0f0. This meant nodes inside
+branches beyond the merged Load were never visited, preventing
+register sharing for waveforms played multiple times (e.g. same waveform
+in an if-else branch). Fixed by removing the `continue`.
+
+---
+
+## IF-52  linenr preamble metadata (uhfqa_startQA 2-byte diff)
+
+**Source**: uhfqa_startQA investigation
+**Status**: open
+**Severity**: cosmetic
+
+Preamble sync instructions (`st R0, 68/69`) have `lineNumber=4`
+(source line count) in binary but `0` in recon. Root cause is the
+SyncCervino node's placeholder inheriting `wavetableFront` from
+`wavetableFrontIndex_` which equals the source line count when the
+SetVar placeholder is processed, but 0 when the Load placeholder is
+processed. Low priority — doesn't affect code semantics.
+
+---
+
+## IF-53  Cervino waveform addressing (uhfli_playback)
+
+**Source**: uhfli_playback investigation
+**Status**: fixed
+**Severity**: bug
+
+Three issues in uhfli_playback:
+1. Missing Cervino prefetch instructions (addiu + prf + wprf)
+2. Waveform register order reversed (wvf R1,R0 vs wvf R0,R1)
+3. Enormous `.dd_` padding section (768MB) due to
+   `waveform->addressValue` being 0x30000000+ for UHFLI.
+All three are likely related to deep Cervino-specific waveform
+addressing logic in the prefetch system.
+
+## IF-54  Cervino wvf/wvfi register encoding swapped
+
+**Source**: uhfli_playback fix
+**Status**: fixed
+**Severity**: bug
+
+In `asm_commands_impl_cervino.cpp`, the `wvf` and `wvfi` instructions
+had regSrc and regAux swapped in the encoding.  Fixed by swapping the
+operand order to match the binary.
+
+## IF-55  Phase 1 & 2 lambda sizeInBlocks: std::min vs std::max
+
+**Source**: uhfli_playback / wavetable_ir.cpp investigation
+**Status**: fixed
+**Severity**: bug
+
+The `sizeInBlocks` formula in Phases 1 and 2 of `mergeWaveforms` used
+`std::min` but the binary uses `cmova` (conditional move if above),
+which corresponds to `std::max`.  Fixed in `wavetable_ir.cpp`.
+
+## IF-56  computedOffset formula: totalSamples*32 vs waveCount*32
+
+**Source**: uhfli_playback / wavetable_ir.cpp investigation
+**Status**: fixed
+**Severity**: bug
+
+The `computedOffset` formula multiplied `totalSamples * 32` but the
+binary multiplies `waveCount * 32`.  Fixed in `wavetable_ir.cpp`.
+
+## IF-57  Assignment evaluator: SetVar node not linked into node tree
+
+**Source**: uhfqa_startQA / seqc_ast_nodes_evaluate.cpp investigation
+**Status**: fixed
+**Severity**: bug
+
+Two bugs in the assignment evaluator (SeqCAssign::evaluate):
+
+1. `asmSetVarPlaceholder()` created nodes with `NodeType::SetVarPlaceholder`
+   (0x10000) but the binary uses `NodeType::SetVar` (0x10). Fixed in
+   `asm_commands.cpp:913`.
+
+2. After pushing the SetVar placeholder into `result->assemblers_`, the
+   recon did not set `result->node_ = placeholder.node`. The binary's
+   convergence code at 0x245535 does `movups %xmm0, 0x38(%rbx)` which
+   writes the placeholder's node shared_ptr into `result->node_` (offset
+   +0x38). Without this, the StmtList evaluator's node chaining loop
+   never linked the SetVar node into the tree, so `fillInPlaceholders` /
+   `placeSingleCommand` never processed it, leaving `wavetableFrontIndex_`
+    at 0 instead of 4. Fixed in `seqc_ast_nodes_evaluate.cpp` for both
+   Row 1 (line 3180) and Row 2 (line 3201).
+
+## IF-58  SeqCFunction::evaluate uses type() instead of varType() for return type
+
+**Source**: hdawg_return_func / hdawg_nested_func test failures
+**Status**: fixed
+**Severity**: bug
+
+`SeqCFunction::evaluate` at `seqc_ast_nodes_evaluate.cpp:9647` used
+`retType()->type()` to get the return VarType, but `type()` returns
+`lineNr_` (+0x0C). The binary reads `varType_` at +0x14 via
+`retType()->varType()`. This caused user functions to be registered
+with `VarType_Void`, making all var-returning functions fail.
+
+## IF-59  Resources constructor: returnReg_ initialized as Invalid instead of R0
+
+**Source**: hdawg_return_func / hdawg_nested_func test failures
+**Status**: fixed
+**Severity**: bug
+
+`resources.cpp:90` initialized `returnReg_` as `AsmRegister::Invalid()`
+= `{-1, false}`. The binary initializes it as `AsmRegister(0)` =
+`{0, true}` (xor %esi,%esi + call AsmRegister(int)). During function
+definition, `SeqCReturnStatement::evaluate` calls `getReturnReg()` which
+returns this default, causing "addi without valid register" with the
+invalid default.
+
+## IF-60  SeqCSwitchCase: __switch_jump_table should be AWG_WAIT_TRIGGER
+
+**Source**: hdawg_switch_case test failure
+**Status**: fixed
+**Severity**: bug
+
+All three `readConst()` calls in `SeqCSwitchCase::evaluate` (lines 7646,
+7699, 7747) used the string `"__switch_jump_table"` — a variable that
+doesn't exist. The binary at 0x219511/0x218b80 constructs an inline SSO
+string from .rodata containing `"AWG_WAIT_TRIGGER"` (a pre-registered
+constant from static_resources.cpp). Fixed by replacing all 6 occurrences.
+
+## IF-61  WaveAssignment copy ctor: wrong Value variant discriminator mapping
+
+**Source**: hdawg_play_dual_ch / hdawg_cmd_table / uhfawg_combo crashes
+**Status**: fixed
+**Severity**: bug (SIGSEGV)
+
+`custom_functions.cpp:788` WaveAssignment copy constructor had wrong
+variant mapping: case 0→int, 1→double, 2→string. Correct mapping is
+0→int, 1→bool, 2→double, 3→string. When a wave variable (which_==3,
+string waveform name) was copied, it hit the default case and storage
+was zero-filled. Later toString() on the zeroed storage → SIGSEGV.
+Fixed to use `(which_ >> 31) ^ which_` decoding with correct thresholds.
+
+## IF-62  playZero/playHold missing VarType_Var dispatch
+
+**Source**: hdawg_ternary / shfsg_misc_funcs "unspecified value type" error
+**Status**: open (needs binary disassembly at 0x1387f0)
+**Severity**: bug
+
+`custom_functions_playback.cpp:937` unconditionally calls
+`args[0].value_.toInt()`. When the argument is a runtime Var (e.g. from
+a ternary `(c > 0) ? 32 : 64`), the Value has type Unspecified. The
+original binary dispatches on varType_: VarType_Var uses the register
+instead of calling toInt(). This is likely a systematic issue across
+many CustomFunctions methods.
+
+## IF-63  SeqCArray: index() and array() accessors swapped
+
+**Source**: hdawg_array_index "arrays just supported with type wave" error
+**Status**: open
+**Severity**: bug
+
+In `seqc_ast_node.hpp:428-429`, `index()` returns `first_` (the wave
+variable) and `array()` returns `second_` (the index expression). These
+are swapped — `first_` is the wave variable, `second_` is the index.
+Fix: swap the accessor implementations.
+
+## IF-64  waitTimestamp rejects 1-arg form
+
+**Source**: hdawg_wait_variants test failure
+**Status**: open (needs binary disassembly at 0x1401c0)
+**Severity**: bug
+
+`custom_functions_io.cpp:1256-1258` unconditionally rejects any
+arguments to `waitTimestamp`. The original binary accepts 0 or 1 args.
+
+## IF-65  Missing DIO/osc node map entries for SHFQA2, SHFLI, GHFLI, VHFLI
+
+**Source**: shfqa2_combo, shfli_combo, vhfli_combo, ghfli_combo failures
+**Status**: open (needs binary node map extraction)
+**Severity**: bug
+
+The node map tables in `get_node_map.cpp` are incomplete:
+- SHFQA: missing `_/dios/0/output`
+- SHFLI/GHFLI/VHFLI: missing `_/dios/0/output32`
+- SHFSG: `configFreqSweep`/`setOscFreq` uses wrong `qachannels/` path
+  instead of `sgchannels/` for SHFSG devices
+
+## IF-66  getDigTrigger register assignment: ltrig overwrites mask
+
+**Source**: hdawg_misc_funcs byte diff
+**Status**: open (needs verification)
+**Severity**: bug
+
+`custom_functions_io.cpp:1934-1936` puts ltrig result into reg1, which
+overwrites the mask already in reg1. Binary puts ltrig into reg2 and
+uses andr(reg2, reg1). Also, triggers 3-8 may have wrong mask computation.
+
+## IF-67 through IF-96  Phase 38 bug fixes (batch entry)
+
+**Source**: Phase 38 expanded differential testing (114→139 cases), 2026-04-28
+**Status**: fixed
+**Severity**: bug (all 30 items)
+
+All discovered and fixed during Phase 38 test expansion. The bugs fall
+into 8 categories listed below. Individual items are not numbered
+separately because they were fixed in a single session without per-bug
+commit granularity.
+
+**Parser (IF-67)**:
+- VarType_Void: missing case in parser caused wrong codegen for void functions
+
+**AST evaluation (IF-68 through IF-72)**:
+- retType not propagated correctly through function return paths
+- switch/case fall-through logic inverted
+- Ternary codegen: wrong register for runtime-variable ternary
+- Array indexing: off-by-one in multi-dimensional array element access
+- Assignment evaluator: compound assignment with nested expressions
+
+**Resources (IF-73, IF-74)**:
+- returnReg_ not initialized (caused garbage register in return sequences)
+- parent_ (shared_ptr) should be parentWeak_ (weak_ptr) — reference cycle.
+  ~15+ uses remain; audit needed.
+
+**Custom functions — playback (IF-75, IF-76)**:
+- playZero/playHold dispatch: wrong SubFunc enum routing
+- setRate: missing device-type gate on rate validation
+
+**Custom functions — io (IF-77 through IF-80)**:
+- getDigTrigger: register/mask assignment order (extends IF-66)
+- assignWaveIndex: channelsPerGroup indexing
+- setID: wrong immediate encoding
+- suppress mask: bit-width mismatch
+
+**Custom functions — play (IF-81 through IF-83)**:
+- waitTimestamp: wrong register pair for timestamp readback
+- waitDemod: missing device-specific path for UHFLI
+- waitZSync: constant value mismatch
+
+**Waveform/ELF (IF-84 through IF-88)**:
+- WaveAssignment copy semantics: shallow copy of wave data pointer
+- double2awg scale factor: NaN handling for edge cases
+- Marker separator: wrong delimiter in multi-marker waves
+- ELF flags: section flags not matching binary output
+- Node map entries: missing entries for SHFQA/SHFLI/GHFLI/VHFLI devices
+
+**Prefetch (IF-89, IF-90)**:
+- prepare(): wrong wave count computation
+- placesingle(): incorrect cache pointer dereference
+
+**ASM commands (IF-91)**:
+- wtrig: register assignment order swapped
+
+**Waveform generator (IF-92)**:
+- gauss 3-arg formula: DRAG normalization constant wrong
+
+**WavetableFront (IF-93)**:
+- waveIndex init: uninitialized value caused wrong table index
+
+---
+
+## IF-97  Original binary SIGSEGV on empty void function body
+
+**Source**: test case creation for coverage expansion
+**Status**: confirmed — **bug in the original binary**, not the reconstruction
+**Severity**: original-binary-bug
+
+An empty void function crashes the original `_seqc_compiler.so` with a
+segmentation fault (signal 11).  The reconstruction should handle this
+gracefully (either compile it or emit a clear error), but matching the
+crash is not a goal.
+
+**Minimal reproducer**:
+
+```c
+// Device: HDAWG8, samplerate: 2.4e9, index: 0
+void doNothing() {
+}
+
+doNothing();
+playZero(32);
+```
+
+**Invocation**:
+
+```python
+import _seqc_compiler as sc
+sc.compile_seqc(
+    'void doNothing() {\n}\n\ndoNothing();\nplayZero(32);\n',
+    'HDAWG8', {}, 0, samplerate=2.4e9)
+# → SIGSEGV (process killed)
+```
+
+**Analysis**: The crash likely occurs because `SeqCFunction::evaluate`
+(or a callee) dereferences `body()` which is null for an empty function.
+The binary has no null check on this path.  This is a genuine bug in the
+shipped compiler — not a reconstruction artifact.

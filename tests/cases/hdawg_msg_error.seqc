@@ -1,0 +1,4 @@
+info("starting");
+playZero(32);
+waitWave();
+info("done");

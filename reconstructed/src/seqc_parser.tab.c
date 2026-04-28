@@ -1825,7 +1825,7 @@ yyreduce:
         {
             (yyvsp[-2].expr)->valueType = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
-            (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR);
+            (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL);
         }
 #line 1831 "seqc_parser.tab.c"
     break;
@@ -1835,7 +1835,7 @@ yyreduce:
         {
             (yyvsp[-2].expr)->valueType = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
-            (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL);
+            (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR);
         }
 #line 1841 "seqc_parser.tab.c"
     break;
@@ -1906,7 +1906,7 @@ yyreduce:
 
   case 73: /* type_specifier: KW_VOID  */
 #line 438 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Unset); }
+        { (yyval.expr) = createVariableType(ctx, VarType_Void); }
 #line 1911 "seqc_parser.tab.c"
     break;
 

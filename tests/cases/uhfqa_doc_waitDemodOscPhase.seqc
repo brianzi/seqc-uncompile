@@ -1,0 +1,7 @@
+// UHFQA tutorial: Signal output with waitDemodOscPhase
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+wave w_gauss = gauss(640, 320, 50);
+while (true) {
+  waitDemodOscPhase(8);
+  playWave(1, w_gauss);
+}

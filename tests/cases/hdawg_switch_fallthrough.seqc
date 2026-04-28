@@ -1,0 +1,15 @@
+// Test switch/case with multiple cases mapping to same body (fallthrough-like)
+// Device: HDAWG8
+
+var x = getUserReg(0);
+
+switch (x) {
+  case 0:
+    playZero(32);
+  case 1:
+    playZero(64);
+  case 2:
+    playZero(128);
+  default:
+    playZero(256);
+}

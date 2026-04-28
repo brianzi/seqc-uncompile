@@ -1086,6 +1086,9 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFQA>::get() {  // @0x1ba3d0
     addVirt(m, "qachannels/3/oscs/4/freq", "QAOSCFREQ", {3, 4}, 4);
     addVirt(m, "qachannels/3/oscs/5/freq", "QAOSCFREQ", {3, 5}, 4);
 
+    // Note: binary's SHFQA node map does NOT include DIOOUTPUT.
+    // setDIO's lookupNode("_/dios/0/output") throws; caught upstream.
+
     return nm;
 }
 

@@ -1,0 +1,5 @@
+// Coverage: error() and info() runtime messaging functions
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+info("Sequence started");
+playZero(32);
+waitWave();

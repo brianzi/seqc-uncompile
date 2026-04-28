@@ -1,0 +1,4 @@
+// Coverage: root raised cosine waveform function
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w = rrc(1024, 1.0, 512, 0.5, 100);
+playWave(w);

@@ -1,0 +1,32 @@
+// Nested user function calls (3 levels with return values)
+var level3(var x) {
+  return x + 1;
+}
+
+var level2(var x) {
+  var r = level3(x);
+  return r + r;
+}
+
+var level1(var x) {
+  var a = level2(x);
+  var b = level2(a);
+  return b;
+}
+
+// void functions calling each other
+void emitPulse(var length) {
+  playZero(length);
+  wait(10);
+}
+
+void emitSequence() {
+  emitPulse(32);
+  emitPulse(64);
+  emitPulse(32);
+}
+
+// Use them
+var r = level1(1);
+setUserReg(0, r);
+emitSequence();

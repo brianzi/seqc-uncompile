@@ -1,0 +1,6 @@
+setUserReg(0, 100);
+setUserReg(1, 200);
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = a + b;
+setUserReg(2, c);

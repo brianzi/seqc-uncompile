@@ -1,0 +1,6 @@
+// Coverage: SHFSG executeTableEntry with wait_cycles parameter
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+waitZSyncTrigger();
+var wait_time = 100;
+executeTableEntry(0, wait_time);
+executeTableEntry(ZSYNC_DATA_PROCESSED_A, wait_time);

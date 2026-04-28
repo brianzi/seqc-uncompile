@@ -425,8 +425,8 @@ public:
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
-    const SeqCVariable* index() const { return first_.get(); }
-    const SeqCAstNode*  array() const { return second_.get(); }
+    const SeqCAstNode*  index() const { return second_.get(); }
+    const SeqCVariable* array() const { return first_.get(); }
     friend void swap(SeqCArray& a, SeqCArray& b);
 private:
     std::unique_ptr<SeqCVariable>  first_;   /* +0x18 */
@@ -801,24 +801,33 @@ public:
     Tag tag() const { return static_cast<Tag>(tag_); }
 
     double asDouble() const {
-        double d;
-        std::memcpy(&d, payload_, sizeof(double));
-        return d;
+        return payload_.d;
     }
 
     const std::string& asString() const {
-        return *reinterpret_cast<const std::string*>(payload_);
+        return payload_.str;
     }
 
     friend void swap(SeqCValue& a, SeqCValue& b);
 
+    // Payload union — must accommodate std::string which is 24 bytes on
+    // libc++ (binary) but 32 bytes on libstdc++ (reconstruction).
+    // Using a real std::string member avoids the buffer-overflow that
+    // occurred with char[24] on libstdc++.
+    union Payload {
+        double      d;
+        std::string str;
+
+        Payload() : d(0.0) {}
+        ~Payload() {}
+    };
+
 private:
-    char     payload_[24]{};   // +0x18..+0x30
-    int32_t  tag_{-1};         // +0x30
-    int32_t  pad34_{};         // +0x34
+    Payload  payload_;         // +0x18  (24 bytes libc++, 32 bytes libstdc++)
+    int32_t  tag_{-1};         // +0x30 (libc++) / +0x38 (libstdc++)
+    int32_t  pad34_{};         // +0x34 / +0x3C
 };
-// Size differs by libstdc++ vs libc++ if payload_ uses std::string internally;
-// with raw char[24] it's exact at 0x38.
-static_assert(sizeof(SeqCValue) == 0x38, "SeqCValue must be 0x38 bytes");
+// On libc++ (binary): sizeof == 0x38.  On libstdc++: sizeof >= 0x38 (typically 0x40).
+static_assert(sizeof(SeqCValue) >= 0x38, "SeqCValue must be at least 0x38 bytes");
 
 } // namespace zhinst

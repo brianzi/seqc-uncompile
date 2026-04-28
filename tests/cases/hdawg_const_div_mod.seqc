@@ -1,0 +1,24 @@
+// const integer division and modulo
+const a = 100;
+const b = a / 7;
+const c = a % 7;
+const d = b * 7 + c;  // should equal a
+
+// float division
+const e = 1.0 / 3.0;
+const f = round(e * 300);
+
+// negative division
+const g = -100 / 7;
+const h = -100 % 7;
+
+// chained operations
+const i = (1000 / 3) % 17;
+
+playZero(32);
+setUserReg(0, b);
+setUserReg(1, c);
+setUserReg(2, d);
+setUserReg(3, f);
+setUserReg(4, g);
+setUserReg(5, i);

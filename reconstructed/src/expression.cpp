@@ -373,22 +373,25 @@ Expression* createFunction(SeqcParserContext* ctx, Expression* nameExpr,
     auto* e = new Expression();
     e->operationType = EOperationType::eFUNCTION;   // 1
 
-    // Push nameExpr as first child
-    pushChild(e->children, nameExpr);
+    // Push params (the function_declarator, an eFUNCTIONCALL node containing
+    // the function name and parameter declarations) as first child.
+    // Note: despite the parameter name, 'params' is the function declarator ($2)
+    // and 'nameExpr' is the type_specifier/return type ($1).
+    pushChild(e->children, params);
 
-    // Copy parameters from nameExpr->children[1..] into e->children
-    // (Binary iterates nameExpr->children starting from index 1)
-    if (nameExpr && nameExpr->children.size() > 1) {
-        for (size_t i = 1; i < nameExpr->children.size(); ++i) {
-            e->children.push_back(nameExpr->children[i]);
+    // Copy parameter declarations from params->children[1..] into e->children
+    // (Binary iterates the declarator's children starting from index 1)
+    if (params && params->children.size() > 1) {
+        for (size_t i = 1; i < params->children.size(); ++i) {
+            e->children.push_back(params->children[i]);
         }
-        // Trim nameExpr's children to just element 0
-        nameExpr->children.resize(1);
+        // Trim params's children to just element 0 (the function name)
+        params->children.resize(1);
     }
 
-    // Push body and params (in that order based on disasm)
+    // Push body and return type (in that order based on disasm)
     pushChild(e->children, body);
-    pushChild(e->children, params);
+    pushChild(e->children, nameExpr);
 
     e->lineNumber = ctx->currentLineNumber();
     return e;

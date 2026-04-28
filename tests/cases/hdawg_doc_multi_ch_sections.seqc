@@ -1,0 +1,17 @@
+// From HDAWG Tutorial: Multi-Channel Playback — multiple pulse sections
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/multi_channel.html
+const L1 = 384;
+const L2 = 128;
+const L3 = 512;
+const L4 = 128;
+const L5 = 16000;
+
+wave wI_1 = 1.0*gauss(L1, L1/2, L1/8);
+wave wI_2 = 0.8*gauss(L1, L1/2, L1/8);
+
+playWave(1,wI_1, 2,wI_2);
+setTrigger(1); setTrigger(0);
+playZero(L2);
+playZero(L3);
+playZero(L4);
+playZero(L5);

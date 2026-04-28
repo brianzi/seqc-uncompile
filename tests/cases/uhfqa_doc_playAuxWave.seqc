@@ -1,0 +1,13 @@
+// UHFQA tutorial: Four-channel Aux Output
+// Source: docs.zhinst.com/uhfqa_user_manual/tutorials/tutorial_awg.html
+const FS = 1800e6;
+const F_SINC = 42e6;
+wave aux_ch1 =  1.0*gauss(8000, 4000, 1000);
+wave aux_ch2 =  0.5*gauss(8000, 4000, 1000);
+wave aux_ch3 = -0.5*gauss(8000, 4000, 1000);
+wave aux_ch4 = -1.0*gauss(8000, 4000, 1000);
+wave w_sinc = sinc(8000, 4000, FS/F_SINC);
+while (true) {
+  playAuxWave(aux_ch1, aux_ch2, aux_ch3, aux_ch4, AWG_RATE_14MHZ);
+  playWave(w_sinc, AWG_RATE_1800MHZ);
+}

@@ -1,0 +1,4 @@
+setDIO(0xFF);
+var d = getDIO();
+waitDIOTrigger();
+var dt = getDIOTriggered();

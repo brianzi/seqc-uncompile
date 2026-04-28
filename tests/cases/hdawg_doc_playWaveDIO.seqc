@@ -1,0 +1,10 @@
+// Coverage: HDAWG playWaveDIO
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w0 = gauss(64, 32, 8);
+wave w1 = ones(64);
+assignWaveIndex(1, w0, 0);
+assignWaveIndex(1, w1, 1);
+while(true) {
+  waitDIOTrigger();
+  playWaveDIO();
+}

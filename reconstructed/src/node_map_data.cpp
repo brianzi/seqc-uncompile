@@ -85,8 +85,8 @@ void VirtAddrNodeMapData::getJson(boost::json::object& obj) const {
     for (int32_t a : addresses_) {
         arr.push_back(static_cast<std::int64_t>(a));
     }
-    // obj["addrs"] = std::move(arr);  (string literal "addrs" at 8fe799, len 5)
-    obj["addrs"] = std::move(arr);
+    // obj["index"] = std::move(arr);  (string literal "index" at 8fe799, len 5)
+    obj["index"] = std::move(arr);
 }
 
 // ============================================================================
@@ -181,8 +181,8 @@ boost::json::value NodeMapItem::toJson() const {
         static const std::int64_t typeTable[4] = {2, 1, 2, 2};
         typeVal = typeTable[idx];
     }
-    // 1c5540-1c5578: obj["type"] = typeVal
-    obj["type"] = typeVal;
+    // 1c5540-1c5578: obj["size"] = typeVal  (string literal "size" at 904da7, len 4)
+    obj["size"] = typeVal;
     return boost::json::value(std::move(obj));
 }
 

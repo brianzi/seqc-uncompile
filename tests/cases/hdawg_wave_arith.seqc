@@ -1,0 +1,15 @@
+// Test wave arithmetic operations
+// Device: HDAWG8
+
+wave w1 = ones(64);
+wave w2 = zeros(64);
+wave w3 = w1 + w2;
+wave w4 = w1 - w2;
+wave w5 = w1 * 0.5;
+
+playWave(w3);
+waitWave();
+playWave(w4);
+waitWave();
+playWave(w5);
+waitWave();

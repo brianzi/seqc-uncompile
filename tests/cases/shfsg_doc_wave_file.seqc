@@ -1,0 +1,5 @@
+// From SHFSG Tutorial: CSV wave file reference
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_awg.html
+// NOTE: requires "wave_file.csv" in waves directory
+wave w = "wave_file";
+playWave(w);

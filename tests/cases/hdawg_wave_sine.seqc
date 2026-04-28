@@ -1,0 +1,8 @@
+wave w1 = sine(64, 1.0, 0.0);
+wave w2 = cosine(64, 0.5, 0.0);
+wave w3 = sine(128, 1.0, 0.0, 2);
+wave w4 = cosine(128, 0.8, 0.25, 3);
+playWave(w1);
+playWave(w2);
+playWave(w3);
+playWave(w4);

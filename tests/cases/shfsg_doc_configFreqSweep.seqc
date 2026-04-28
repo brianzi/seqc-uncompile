@@ -1,0 +1,4 @@
+// Coverage: SHFSG configFreqSweep + setOscFreq
+// https://docs.zhinst.com/shfsg_user_manual/functional_description/awg.html
+configFreqSweep(0, 100e6, 3);
+setOscFreq(0, 50e6);

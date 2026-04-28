@@ -1,0 +1,23 @@
+// From HDAWG Tutorial: Rapid phase changes with sine generators
+// https://docs.zhinst.com/hdawg_user_manual/tutorials/modulation.html
+wave w_pulse = ones(800);
+
+while (true) {
+  setTrigger(1);
+  setTrigger(0);
+
+  wait(100);
+  resetOscPhase();
+  setSinePhase(0, 0);
+  setSinePhase(1, 0);
+  wait(100);
+
+  playWave(w_pulse, w_pulse);
+  incrementSinePhase(1, 60);
+  playWave(w_pulse, w_pulse);
+  incrementSinePhase(1, 60);
+  playWave(w_pulse, w_pulse);
+  incrementSinePhase(1, 60);
+  playWave(w_pulse, w_pulse);
+  wait(10000);
+}

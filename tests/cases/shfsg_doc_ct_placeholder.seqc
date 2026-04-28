@@ -1,0 +1,10 @@
+// From SHFSG Tutorial: Command Table — placeholder waveforms
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_command_table.html
+assignWaveIndex(1,2, placeholder(32), 0);
+assignWaveIndex(1,2, placeholder(64), 1);
+resetOscPhase();
+setTrigger(1);
+setTrigger(0);
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);

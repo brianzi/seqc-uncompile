@@ -1,0 +1,6 @@
+// Coverage: cosine and ramp waveform functions
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w1 = cosine(1024, 1.0, 0, 3);
+wave w2 = ramp(1024, -1.0, 1.0);
+playWave(w1);
+playWave(w2);

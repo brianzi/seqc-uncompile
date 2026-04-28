@@ -1,0 +1,14 @@
+wave a = zeros(64);
+wave b = ones(64);
+wave c = join(a, b);
+wave d = cut(c, 1, 64);
+wave e = scale(b, 0.5);
+wave f = add(a, b);
+wave g = multiply(b, e);
+wave h = flip(b);
+playWave(c);
+playWave(d);
+playWave(e);
+playWave(f);
+playWave(g);
+playWave(h);

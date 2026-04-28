@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cstring>
 #include <set>
+#include <iostream>
+#include <cstdlib>
 #include <unordered_map>
 
 namespace zhinst {
@@ -300,7 +302,7 @@ void AsmOptimize::deadCodeElimination() {
                 // Check if this label is called from anywhere before this point
                 afterBranch = true;
                 // Search backwards from asm_.begin() to see if label is referenced
-                if (!isLabelCalled(it->assembler.label, asm_.cbegin()))
+                if (!isLabelCalled(it->assembler.label, it))
                     continue;  // label not called, stays dead
                 afterBranch = false;
                 continue;
@@ -548,9 +550,12 @@ unsigned long AsmOptimize::removeUnusedRegs() {
         // 27e85d: lea rdi,[r12+0x30]; call isValid
         // 27e878: AsmRegister(0); call operator==
         // 27e895: lea rcx,[r12+0x38]  (fallback to regAux)
-        AsmRegister destReg = it->assembler.regDst;
+        // 27e85d: first try regDst; 27e895: fallback to regAux
+        AsmRegister* destSlot = &it->assembler.regDst;
+        AsmRegister destReg = *destSlot;
         if (!destReg.isValid() || destReg == AsmRegister(0)) {
-            destReg = it->assembler.regAux;
+            destSlot = &it->assembler.regAux;
+            destReg = *destSlot;
         }
 
         // Check if destReg is already in writeOnlyRegs — 27e8a1..27e8c7
@@ -617,7 +622,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             // Eliminate: set dest reg to invalid(-1), set cmd to dead
             // 27eaa2: AsmRegister(-1) → store at [rcx] (the dest slot)
             // 27eac5: mov DWORD PTR [rax],0xffffffff (cmd)
-            it->assembler.regDst = AsmRegister(-1);
+            *destSlot = AsmRegister(-1);
             it->assembler.cmd = Assembler::INVALID;
         } else if (!(usageFlags & 2)) {
             // Register is READ but NEVER OVERWRITTEN → try simplifyAssign
@@ -864,139 +869,262 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
     }
 
-    // Phase 4: allocate physical registers — 27efa2..27f6f4
-    // physRegs: vector of (numPhysicalRegs_+1) x vector<int>
-    // 27f316..27f39e: allocate and zero-init
+    // Phase 3b: Expand live ranges across backward branches — 27efbd..27f2ab
+    // For each backward branch (target→source) and each virtual register:
+    //   If the vreg's last reference is before sourceIdx, scan instructions
+    //   [targetIdx, sourceIdx) to determine if the vreg is READ within the
+    //   loop body. If read before being overwritten, extend liveRanges[vreg]
+    //   by appending sourceIdx (the register is live across the back-edge).
+    //   If the vreg is overwritten (regDst write or regAux type-7 write)
+    //   before any read, no extension is needed (the loop body redefines it).
+    if (!branchRanges.empty() && numRegs > 0) {
+        for (auto& br : branchRanges) {
+            for (size_t vr = 1; vr <= numRegs; ++vr) {
+                auto& lr = liveRanges[vr];
+                if (lr.empty()) continue;
+
+                // 27f029: if last ref >= sourceIdx, already covers → skip
+                if (lr.back() >= br.sourceIdx) continue;
+
+                // 27f041: sanity: target must be <= source
+                if (br.targetIdx > br.sourceIdx) continue;
+
+                // Construct AsmRegister for this vreg
+                AsmRegister vregReg(static_cast<int>(vr));  // 27f03c
+
+                // Scan [targetIdx, sourceIdx) — 27f07b..27f185
+                bool conflict = false;
+                for (int scanIdx = br.targetIdx; scanIdx < br.sourceIdx; ++scanIdx) {
+                    if (static_cast<size_t>(scanIdx) >= asm_.size()) break;
+
+                    auto& instr = std::next(asm_.begin(), scanIdx)->assembler;
+                    int cmd = instr.cmd;
+
+                    // Skip bitmask 0x29 — 27f0d7..27f0e7
+                    uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
+                    if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
+                        continue;
+
+                    int cmdType = Assembler::getCmdType(static_cast<Assembler::Command>(cmd));
+
+                    // Check 1: regSrc READ — 27f0ff..27f10e
+                    if ((instr.regSrc == vregReg) && (cmdType & 1)) {
+                        conflict = true;
+                        break;
+                    }
+
+                    // Check 2: regAux READ — 27f114..27f131
+                    if (instr.regAux == vregReg) {
+                        if (cmdType == 1 || cmdType == 7) {
+                            conflict = true;
+                            break;
+                        }
+                    }
+
+                    // Check 3: regDst WRITE (kills register) — 27f145..27f15b
+                    int cmdType2 = Assembler::getCmdType(static_cast<Assembler::Command>(cmd));
+                    if ((instr.regDst == vregReg) && ((cmdType2 >> 1) & 1)) {
+                        break;  // overwritten → no extension needed
+                    }
+
+                    // Check 4: regAux WRITE (type-7 kills) — 27f161..27f17f
+                    if ((instr.regAux == vregReg) && (cmdType2 == 7)) {
+                        break;  // overwritten via regAux → no extension
+                    }
+                }
+
+                if (conflict) {
+                    // 27f196: extend live range to cover the back-edge
+                    lr.push_back(br.sourceIdx);
+                }
+            }
+        }
+    }
+
+    // Phase 4: allocate physical registers — 27f316..27ff10
+    //
+    // Data structures (from binary symbol names):
+    //   using LiveRange = std::vector<int>;       // sorted instruction indices
+    //   using PhysicalRegister = std::vector<LiveRange>;  // list of sub-ranges
+    //   physRegs: vector<PhysicalRegister> with numSlots entries (= numRegs+1)
+    //   conflicts: std::set<unsigned long> of unmerged register IDs
+    //
+    // Algorithm:
+    //   1. Initialize: move each non-empty liveRanges[i] into physRegs[i][0],
+    //      add i to conflicts set.
+    //   2. For each vreg 1..numRegs:
+    //      a. Skip if vreg not in conflicts (already absorbed)
+    //      b. Iterate conflicts set for candidate pregs to merge into vreg
+    //      c. For each preg: check overlap between physRegs[preg] and physRegs[vreg]
+    //      d. If no overlap: rename preg→vreg in asm, insert physPreg[0] into
+    //         physVreg at computed insertion position, remove preg from conflicts
+    //      e. Continue inner loop (vreg can absorb multiple pregs)
+    //
+    // 27f7c4: numPhysical = this->numPhysicalRegs_ (offset +0x00)
     size_t numPhysical = numPhysicalRegs_;
+    // 27f7ca-27f7d9: totalPhysical = numPhysical < 1 ? 2 : numPhysical + 1
     if (numPhysical < 1) numPhysical = 1;
     size_t totalPhysical = numPhysical + 1;  // +1 for r0
-    std::vector<std::vector<int>> physRegs(totalPhysical);
 
-    // conflicts: std::set<unsigned long> — 27f39e..27f3b4
+    // 27f316-27f39e: allocate physRegs — same size as liveRanges (numSlots entries)
+    std::vector<std::vector<std::vector<int>>> physRegs(numSlots);
+
+    // 27f39e-27f3b4: conflicts set init
     std::set<unsigned long> conflicts;
 
-    // Lock cancel callback — 27f670..27f6c8
+    // 27f670-27f6c8: lock cancel callback
     std::shared_ptr<CancelCallback> cancelLock;
-    // (same weak_ptr lock pattern as removeUnusedRegs)
     auto cancelObj = cancel_;
 
     if (numRegs == 0)
         goto cleanup;
 
-    // Main allocation loop: virtual registers 1..numRegs
-    // 27f7e0: mov r15d,0x1; 27f801: loop start
+    // 27f3dc-27f664: Initialize physRegs from liveRanges and populate conflicts
+    // For each register 1..numRegs with non-empty live range:
+    //   - Move liveRanges[i] into physRegs[i] as a single sub-vector
+    //   - Add i to the conflicts set
+    for (size_t i = 1; i <= numRegs; ++i) {
+        if (liveRanges[i].empty())
+            continue;
+        // Move the vector<int> into physRegs[i] as a sub-vector — 27f446-27f472
+        physRegs[i].push_back(std::move(liveRanges[i]));
+        // Insert i into conflicts set — 27f5e9-27f3fc
+        conflicts.insert(i);
+    }
+
+    // 27f7e0-27f7f0: Main allocation loop — vreg = 1..numRegs
     for (size_t vreg = 1; vreg <= numRegs; ++vreg) {
-        // Cancel check — 27f801..27f818
+        // 27f801-27f818: Cancel check
         if (cancelObj) {
             // call isCancelled(); if true → break to cleanup
         }
 
-        // If vreg >= totalPhysical, check if live range is empty
-        // 27f836..27f84d
-        if (vreg >= totalPhysical) {
-            if (liveRanges[vreg].empty())
-                continue;
+        // 27f820-27f82f: Compute &physRegs[vreg]
+        auto& physVreg = physRegs[vreg];
+
+        // 27f836-27f84d: If vreg >= numPhysical, check if physRegs[vreg] is empty
+        // If non-empty high vreg → allocation failure (can't fit in physical regs)
+        if (vreg >= numPhysical) {
+            if (physVreg.empty())
+                continue;  // already absorbed or never had a range
         }
 
-        // Check conflicts set for this vreg — 27f853..27f886
-        // Traverse std::set tree looking for vreg
-        if (conflicts.count(vreg))
-            continue;
+        // 27f853-27f88a: Find lower_bound of vreg in conflicts set.
+        // If no entries >= vreg exist → all remaining vregs have been absorbed → exit.
+        // NOTE: vreg does NOT need to be in the conflicts set itself.
+        // The conflicts set provides the pool of unmerged registers.
+        auto it = conflicts.lower_bound(vreg);
+        if (it == conflicts.end()) {
+            // No more unmerged registers → we're done
+            break;
+        }
 
-        // If vreg == totalPhysical (special boundary case) — 27f890..27f897
-        // Handle separately (this is the "physical reg = vreg" identity case)
+        // 27f890-27f897: Special case: vreg == totalPhysical
+        // (boundary case, handled at 0x2800f6 — skip for now, rarely hit)
         if (vreg == totalPhysical) {
-            // This virtual register number equals the number of physical
-            // registers — special handling for the boundary case.
-            // 27f89d: stores vreg, enters conflict-check-and-extend phase
+            // TODO: special handling at 0x2800f6
         }
 
-        // Find the live range for this virtual register
-        // and try to assign it to each physical register in turn.
-        // 27f8e5..27fe04: the core allocation loop
-        //
-        // For each conflicting physical register (from the set), skip it.
-        // For each candidate physical register:
-        //   - Check if its instruction-index set overlaps with vreg's live range
-        //   - Overlap detection: compare the last instruction index of the
-        //     physical register's set against the first of vreg's set
-        //     (both are sorted vectors of int)
-        //   - Also extend ranges across backward branches by scanning the
-        //     branchRanges vector and checking if the vreg is read/written
-        //     in instructions between branch source and target
-        //   - If no overlap found: assign vreg to this physical register
-        //     by calling registerUpdate() and merging live range indices
+        // 27f89d-27f8ab: Save vreg, iterate conflicts set for candidate pregs
+        // The inner loop starts from lower_bound(vreg) in the conflicts set
+        // and walks forward (ascending order). Binary at 27f8e5-27f91d
+        // finds the in-order successor starting from the lower_bound node.
+        // If vreg itself is in the set, skip it (the first successor check
+        // at 27f8e5 advances past it). 
+        // Actually: the binary advances to the NEXT node after the found
+        // lower_bound entry. If lower_bound == vreg, it starts from successor.
+        // If lower_bound > vreg, it starts from that node directly.
+        if (*it == vreg)
+            ++it;  // skip vreg itself, start from next
+        while (it != conflicts.end()) {
+            size_t preg = *it;
 
-        // Attempt allocation across physical registers
-        bool allocated = false;
-        for (size_t preg = 1; preg < totalPhysical; ++preg) {
-            if (conflicts.count(preg))
+            auto& physPreg = physRegs[preg];
+            if (physPreg.empty()) {
+                ++it;
                 continue;
-
-            // Check if preg's instruction-index set overlaps with vreg's
-            // live range. The binary does this by comparing sorted vectors:
-            // 27f93f..27f95b: compare last element of physRegs[preg] vs
-            // first element of liveRanges[vreg]
-            auto& physRange = physRegs[preg];
-            auto& virtRange = liveRanges[vreg];
-
-            bool overlaps = false;
-
-            // Direct overlap check between sorted index lists
-            // 27f949..27f95b
-            if (!physRange.empty() && !virtRange.empty()) {
-                // Check if the physical register's range extends past
-                // the start of the virtual register's range
-                if (physRange.back() >= virtRange.front())
-                    overlaps = true;
             }
 
-            if (!overlaps) {
-                // Also check across backward branches — 27f0c1..27f191
-                // For each instruction index in the range [targetIdx..sourceIdx]
-                // of each branchRange, check if vreg is referenced.
-                // Uses getCmdType and register field comparisons.
-                for (auto& br : branchRanges) {
-                    if (overlaps) break;
-                    // Scan instructions in [br.targetIdx+1 .. asm_.size())
-                    // checking if vreg appears as read or written
-                    // (same isRead/isWritten semantics as the query helpers)
-                    // If found, add the physical register to conflicts
+            // 27f94f-27f95b: Quick overlap check (bounding box)
+            // Compare: physPreg[0].front() (min preg index) vs
+            //          physVreg.back().back() (max vreg index)
+            bool canMerge = false;
+            size_t insertPos = 0;
+
+            if (physVreg.empty()) {
+                // vreg has no ranges — trivially compatible
+                canMerge = true;
+                insertPos = 0;
+            } else {
+                int minPreg = physPreg[0].front();
+                int maxVreg = physVreg.back().back();
+
+                if (minPreg > maxVreg) {
+                    // 27f961: preg starts after vreg ends → no overlap → append
+                    canMerge = true;
+                    insertPos = physVreg.size();
+                } else {
+                    // 27fb40-27fb4c: Detailed check — compare preg's first sub-vec
+                    // with vreg's first sub-vec
+                    int maxPregFirst = physPreg[0].back();
+                    int minVreg = physVreg[0].front();
+
+                    if (maxPregFirst < minVreg) {
+                        // 27fb52: preg's first sub-vec ends before vreg starts → prepend
+                        canMerge = true;
+                        insertPos = 0;
+                    } else if (physVreg.size() >= 2) {
+                        // 27ff15-27ff5e: Multi-sub-vec gap search
+                        // Find a gap between consecutive vreg sub-vecs where
+                        // preg's first sub-vec fits without overlap
+                        for (size_t i = 1; i < physVreg.size(); ++i) {
+                            int prevLast = physVreg[i - 1].back();
+                            if (prevLast >= minPreg)
+                                continue;  // prev sub-vec overlaps preg start
+                            int currFirst = physVreg[i].front();
+                            if (currFirst <= maxPregFirst)
+                                continue;  // current sub-vec overlaps preg end
+                            // Found valid gap
+                            canMerge = true;
+                            insertPos = i;
+                            break;
+                        }
+                    }
+                    // else: single sub-vec that overlaps → skip this preg
                 }
             }
 
-            if (!overlaps) {
-                // Assign: merge vreg's live range into physRegs[preg]
-                // 27f9a0: call registerUpdate(liveRanges[vreg], AsmRegister(vreg), AsmRegister(preg))
-                registerUpdate(virtRange,
-                               AsmRegister(static_cast<int>(vreg)),
-                               AsmRegister(static_cast<int>(preg)));
+            if (canMerge) {
+                // 27f96f-27f9a8: Call registerUpdate to rename preg → vreg
+                registerUpdate(physPreg[0],
+                               AsmRegister(static_cast<int>(preg)),
+                               AsmRegister(static_cast<int>(vreg)));
 
-                // Move vreg's live range entries into physRegs[preg]
-                // 27f9ad..27fe04: vector insert/move operations
-                for (int idx : virtRange)
-                    physRange.push_back(idx);
-                virtRange.clear();
+                // 27f9ad-27fe04: Insert physPreg[0] into physVreg at insertPos
+                // This is vector<vector<int>>::insert with move semantics
+                physVreg.insert(physVreg.begin() + insertPos,
+                                std::move(physPreg[0]));
 
-                // Remove vreg from conflicts set if present — 27f8ad..27f8c1
-                conflicts.erase(vreg);
+                // Clear physPreg (preg's slot is now empty) — 27fe04-27fe23
+                physPreg.clear();
 
-                allocated = true;
-                break;
+                // 27f8ad-27f8c1: Remove preg from conflicts set
+                it = conflicts.erase(it);
+                // Inner loop continues to find more candidates for vreg
+            } else {
+                ++it;
             }
         }
 
-        if (!allocated) {
-            // Spill: throw to trigger splitConstRegisters retry
-            // 27ff15..27ff68: construct and throw OptimizeException
+        // 280164: If vreg >= numPhysical and physVreg still has ranges,
+        // allocation failed
+        if (vreg >= numPhysical && !physVreg.empty()) {
             throw OptimizeException("Register allocation failed");
         }
     }
 
 cleanup:
-    // Cleanup: release cancel lock, destroy conflicts set,
-    // free physRegs and liveRanges
-    // 27f6f4..27ffce: destructor cascade
+    // 27f6f4-27ffce: Cleanup — release cancel lock, destroy data structures
     ;
 }
 

@@ -1,0 +1,4 @@
+executeTableEntry(0);
+executeTableEntry(1);
+var idx = 2;
+executeTableEntry(idx);

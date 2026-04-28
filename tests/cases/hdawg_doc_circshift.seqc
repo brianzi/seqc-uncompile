@@ -1,0 +1,6 @@
+// Coverage: circshift function
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave w = gauss(64, 32, 8);
+wave w_shifted = circshift(w, 16);
+playWave(w);
+playWave(w_shifted);

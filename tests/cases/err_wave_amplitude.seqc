@@ -1,0 +1,2 @@
+wave w = rect(64, 1.5);
+playWave(w);

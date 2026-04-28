@@ -1,0 +1,12 @@
+// Ternary operator extended tests - with function calls in branches
+var c = getUserReg(0);
+
+// Ternary with function calls in branches
+var f1() { return 10; }
+var f2() { return 20; }
+var z = (c > 0) ? f1() : f2();
+setUserReg(0, z);
+
+// Const ternary (compile-time)
+const ct = (1 > 0) ? 100 : 200;
+setUserReg(1, ct);

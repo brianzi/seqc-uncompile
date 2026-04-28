@@ -409,7 +409,15 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
         std::string instrStr = instr.str(true);
         sourceLines_.push_back(std::move(instrStr));
 
-        labelCounter++;
+        // Only increment labelCounter for non-LABEL instructions.
+        // Labels don't generate opcodes, so the label index must track
+        // the opcode position (i.e., skip labels in the count).
+        // Binary evidence: at 0x287e33 the label gets the current
+        // labelCounter value, but the increment at 0x2879xx only
+        // executes for the non-LABEL path.
+        if (instr.cmd != Assembler::LABEL) {
+            labelCounter++;
+        }
 
         // Record line numbers (for label resolution)
         lineNumbers.push_back(currentLine_);

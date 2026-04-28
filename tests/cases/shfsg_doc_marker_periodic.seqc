@@ -1,0 +1,8 @@
+// From SHFSG Tutorial: Periodic marker generation with join
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_synchronization.html
+wave m_high = marker(8000,1);
+wave m_low = marker(8000,0);
+wave m = join(m_high, m_low);
+while (1) {
+    playWave(m);
+}

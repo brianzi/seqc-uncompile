@@ -1,0 +1,7 @@
+// Coverage: filter function (IIR/FIR)
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+wave b = vect(0.1, 0.2, 0.3, 0.2, 0.1);
+wave a = vect(1.0, -0.5);
+wave x = gauss(1024, 512, 100);
+wave y = filter(b, a, x);
+playWave(y);

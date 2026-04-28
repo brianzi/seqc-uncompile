@@ -1,0 +1,20 @@
+// UHF tutorial: Multi-frequency Modulation
+// Source: docs.zhinst.com/uhf_user_manual/tutorials/tutorial_awg.html
+const n_samples = 512;
+wave w_gauss = 0.25*gauss(n_samples, n_samples/2, n_samples/10);
+wave w_zeros = zeros(n_samples);
+wave w_channel_1 = interleave(w_gauss, w_zeros, w_zeros, w_zeros);
+wave w_channel_2 = interleave(w_zeros, w_gauss, w_zeros, w_zeros);
+wave w_channel_3 = interleave(w_zeros, w_zeros, w_gauss, w_zeros);
+wave w_channel_4 = interleave(w_zeros, w_zeros, w_zeros, w_gauss);
+wave w_all_channels = interleave(w_gauss, w_gauss, w_gauss, w_gauss);
+while (true) {
+  playWave(w_channel_1);
+  playWave(w_channel_2);
+  playWave(w_channel_3);
+  playWave(w_channel_4);
+  setTrigger(1);
+  setTrigger(0);
+  playWave(w_all_channels);
+  playZero(n_samples);
+}

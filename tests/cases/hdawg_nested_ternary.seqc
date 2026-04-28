@@ -1,0 +1,9 @@
+// Test deeply nested ternary expressions
+// Device: HDAWG8
+
+var x = getUserReg(0);
+var y = getUserReg(1);
+
+// Nested ternary
+var result = x ? (y ? 1 : 2) : (y ? 3 : 4);
+setUserReg(0, result);

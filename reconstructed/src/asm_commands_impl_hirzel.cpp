@@ -48,7 +48,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerR
     if (markerReg == AsmRegister::Reg(0)) {
         // Hirzel-specific single-register opcode
         result.assembler.cmd = Assembler::WVFE;
-        result.assembler.regDst = waveReg;
+        result.assembler.regSrc = waveReg;
     } else {
         // Two-register form, same as Cervino
         result.assembler.cmd = Assembler::WVF;
@@ -81,7 +81,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
 
     int dummyFlag = (static_cast<int>(dummyType) != 0) ? 1 : 0;
     result.assembler.immediates.emplace_back(dummyFlag);  // child[0]: val (1-bit)
-    result.assembler.regDst = reg;                         // child[1]: reg (after immediates)
+    result.assembler.regSrc = reg;                         // binary 0x27d071: reg → -0x90(%rbp) = +0x20 (regSrc)
     result.assembler.outputs.emplace_back(arg);            // child[2]: val (20-bit, after registers)
 
     result.wavetableFront = lineNumber;
@@ -115,7 +115,7 @@ AsmList::Asm AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& labe
         // No register set — all stay Invalid
     } else {
         result.assembler.cmd = Assembler::BRZ;
-        result.assembler.regDst = reg;
+        result.assembler.regSrc = reg;
     }
 
     result.assembler.label = label;
@@ -130,8 +130,8 @@ AsmList::Asm AsmCommandsImplHirzel::ssl(AsmRegister reg, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSL;
-    result.assembler.regSrc = reg;
-    result.assembler.regDst = AsmRegister::Reg(0);  // differs from Cervino
+    result.assembler.regDst = reg;
+    result.assembler.regSrc = AsmRegister::Reg(0);  // differs from Cervino
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;
@@ -143,8 +143,8 @@ AsmList::Asm AsmCommandsImplHirzel::ssr(AsmRegister reg, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::SSR;
-    result.assembler.regSrc = reg;
-    result.assembler.regDst = AsmRegister::Reg(0);  // differs from Cervino
+    result.assembler.regDst = reg;
+    result.assembler.regSrc = AsmRegister::Reg(0);  // differs from Cervino
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;
@@ -157,7 +157,7 @@ AsmList::Asm AsmCommandsImplHirzel::ldiotrig(AsmRegister reg, int lineNumber) co
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::LD;
     result.assembler.regDst = reg;
-    result.assembler.immediates.emplace_back(0x68);
+    result.assembler.outputs.emplace_back(0x68);
     result.wavetableFront = lineNumber;
     result.isWaveformCmd = isWaveformCmd(result.assembler);
     return result;

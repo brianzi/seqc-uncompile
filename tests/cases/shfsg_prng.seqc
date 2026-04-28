@@ -1,0 +1,3 @@
+setPRNGSeed(42);
+setPRNGRange(0, 100);
+var r = getPRNGValue();

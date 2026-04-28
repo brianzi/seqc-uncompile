@@ -1,0 +1,14 @@
+// Multi-channel playWave: implicit and explicit channel assignment
+wave w1 = ones(64);
+wave w2 = zeros(64);
+
+// 2-arg form: implicit channels 1,2
+playWave(w1, w2);
+
+// Explicit channel form
+playWave(1, w1, 2, w2);
+
+// playHold after playWave
+playWave(w1);
+playHold(128);
+waitWave();

@@ -115,8 +115,10 @@ AsmList::Asm* Prefetch::findPlaceholder(                        // 0x1d6b50
 // then calls placeCommands(out, root_).
 // ============================================================================
 AsmList Prefetch::fillInPlaceholders(AsmList const& asmList) {  // 0x1d65c0
-    AsmList out;
-    out.reserve(asmList.size());
+    // Binary at 0x1d6600: calls __init_with_size which COPIES all elements
+    // from asmList into out (not just reserve). placeSingleCommand then
+    // uses findPlaceholder to look up entries by sequenceId in this copy.
+    AsmList out(asmList);
 
     std::shared_ptr<Node> root = root_;
     placeCommands(&out, root);

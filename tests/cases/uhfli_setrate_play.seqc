@@ -1,0 +1,12 @@
+// Test setRate with playWave on UHFLI
+// Device: UHFLI
+
+wave w = ones(64);
+
+setRate(1);
+playWave(w);
+waitWave();
+
+setRate(0);
+playWave(w);
+waitWave();

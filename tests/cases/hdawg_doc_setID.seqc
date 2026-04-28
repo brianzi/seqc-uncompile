@@ -1,0 +1,9 @@
+// Coverage: HDAWG-specific setID/setSeqIndex in a loop
+// https://docs.zhinst.com/hdawg_user_manual/functional_description/specific/awg.html
+var i;
+for (i = 0; i < 5; i++) {
+  setID(i);
+  playZero(32);
+  waitWave();
+}
+setSeqIndex(99);

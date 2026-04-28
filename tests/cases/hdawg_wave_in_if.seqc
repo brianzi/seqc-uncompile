@@ -1,0 +1,9 @@
+wave w1 = zeros(64);
+wave w2 = ones(64);
+var x = getUserReg(0);
+if (x > 0) {
+  playWave(w1);
+} else {
+  playWave(w2);
+}
+waitWave();

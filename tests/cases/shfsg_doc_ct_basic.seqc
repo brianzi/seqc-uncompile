@@ -1,0 +1,9 @@
+// From SHFSG Tutorial: Command Table — basic use
+// https://docs.zhinst.com/shfsg_user_manual/tutorials/tutorial_command_table.html
+wave w_a = gauss(2048, 1, 1024, 256);
+assignWaveIndex(1,2, w_a, 0);
+resetOscPhase();
+setTrigger(1);
+setTrigger(0);
+executeTableEntry(0);
+executeTableEntry(1);

@@ -1,0 +1,14 @@
+// Test user function with multiple return paths
+// Device: HDAWG8
+
+var myFunc(var a, var b) {
+  if (a > b) {
+    return a;
+  }
+  return b;
+}
+
+var x = getUserReg(0);
+var y = getUserReg(1);
+var m = myFunc(x, y);
+setUserReg(0, m);

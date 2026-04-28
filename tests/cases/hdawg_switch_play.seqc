@@ -1,0 +1,18 @@
+// Test switch/case with different waveforms per case
+// Device: HDAWG8
+
+wave w32 = ones(32);
+wave w64 = zeros(64);
+wave w128 = ones(128);
+
+var x = getUserReg(0);
+
+switch(x) {
+  case 0:
+    playWave(w32);
+  case 1:
+    playWave(w64);
+  default:
+    playWave(w128);
+}
+waitWave();

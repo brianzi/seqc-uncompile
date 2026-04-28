@@ -1,0 +1,13 @@
+// Test compound assignment operators
+// Device: HDAWG8
+
+var x = getUserReg(0);
+x += 10;
+x -= 3;
+x *= 2;
+x &= 0xFF;
+x |= 0x100;
+x ^= 0x55;
+x <<= 2;
+x >>= 1;
+setUserReg(0, x);

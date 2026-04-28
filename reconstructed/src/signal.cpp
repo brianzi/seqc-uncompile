@@ -136,7 +136,11 @@ Signal::Signal(ReserveOnly const& /*tag*/, size_t length,
         markerBits_.assign(markerBitsPerChannel.begin(), markerBitsPerChannel.end());
     }
 
-    channels_ = static_cast<uint16_t>(markerBitsPerChannel.size());
+    // A placeholder with no markers still has 1 channel (verified via GDB:
+    // original binary produces channels_=1 for placeholder(64) with no marker args).
+    channels_ = markerBitsPerChannel.empty()
+                    ? 1
+                    : static_cast<uint16_t>(markerBitsPerChannel.size());
 }
 
 // ==========================================================================

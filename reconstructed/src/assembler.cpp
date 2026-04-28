@@ -275,9 +275,10 @@ int getRegisterOrder(Command cmd) {
     case WVFI:
     case WTRIG:
         return 3;
-    case WVFS_H:
+     case WVFS_H:
     case BRZ:
     case BRNZ:
+    case BRGZ:
     case ST:
     case CWVFR:
     case WVFE:
