@@ -1,7 +1,12 @@
+#!/usr/bin/env python3
+"""GDB trace helper — compiles a SeqC snippet through the original binary."""
 import sys
 sys.path.insert(0, '.')
 import _seqc_compiler as sc
 
-code = open('tests/cases/hdawg_doc_placeholder_dual.seqc').read()
+code = """
+resetOscPhase();
+"""
+
 result = sc.compile_seqc(code, 'HDAWG8', {}, 0, samplerate=2.4e9)
-print(f"ELF size: {len(result[0])} bytes")
+print("OK, ELF size:", len(result[0]))
