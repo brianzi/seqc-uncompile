@@ -1974,6 +1974,9 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
         for (size_t i = 1; i < waves.size(); ++i) {
             totalLength += waves[i].second.length_;
         }
+        if (requestedLength > 0 && waves.size() > 1) {
+            totalLength += 2 * (waves.size() - 1) * static_cast<size_t>(requestedLength);
+        }
         ReserveOnly tag;
         return Signal(tag, totalLength, first.markerBits_);
     }
@@ -1987,9 +1990,10 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
         totalLength += waves[i].second.samples_.size() / std::max<uint16_t>(waves[i].second.channels_, 1);
     }
 
-    // If requestedLength > 0, use it as the output length (for interpolation)
-    if (requestedLength > 0) {
-        totalLength = static_cast<size_t>(requestedLength);
+    // If requestedLength > 0, it is the interpolation length per boundary.
+    // For N waves, there are (N-1) join boundaries, each adding 2*interpLen samples.
+    if (requestedLength > 0 && waves.size() > 1) {
+        totalLength += 2 * (waves.size() - 1) * static_cast<size_t>(requestedLength);
     }
 
     // Create output signal with appropriate markerBits
