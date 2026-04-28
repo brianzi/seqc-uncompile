@@ -6789,6 +6789,30 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
             result->waveformFront_->secondaryName = result->name_;  // @0x20d3e0
         }
 
+        } catch (CustomFunctionsValueException& e) {               // @0x20fe1e selector 2
+            // If in a loop context, remap the variable name and rethrow
+            if (state.inLoop_) {                                    // @0x20fe26: cmpb $0x1,0x30(%r12)
+                // Get argument children, find the parameter index matching e.varName(),
+                // replace with the argument expression name, and rethrow
+                auto* argNode = arguments();
+                if (argNode) {
+                    auto argChildren = argNode->children();
+                    std::string varName = e.varName();
+                    // The binary indexes by e's internal index (offset +0x20)
+                    size_t idx = e.argIndex();                       // @0x21001c: mov 0x20(%rbx),%rax
+                    if (idx < argChildren.size()) {
+                        auto* argExprNode = argChildren[idx];
+                        std::string argExprName =
+                            static_cast<const SeqCVariable*>(argExprNode)->name();
+                        e.setVarName(argExprName);                  // @0x21002f
+                    }
+                }
+                throw;                                              // @0x210034: __cxa_rethrow
+            }
+            // Not in loop — report error and continue                // @0x20fe32
+            std::string msg = e.what() ? e.what() : "";
+            int funLineNr = funNameNode ? funNameNode->lineNr() : lineNr_;  // @0x20fe72..20fe77
+            ctx.messages->errorMessage(msg, funLineNr);             // @0x20fe81
         } catch (CustomFunctionsException const& e) {              // @0x20fec6 selector 1
             // Report error via errorMessage with this node's line number
             std::string msg = e.what() ? e.what() : "";
