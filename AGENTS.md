@@ -56,6 +56,20 @@ re-derived.
 - Every `.cpp` file should note the binary addresses of the functions
   it reconstructs, in comments next to each function definition.
 
+## Git commit discipline
+
+- **Commit after every sub-phase wrap-up** (step 2 of the iteration
+  cycle) and whenever TODO.md is updated with significant changes.
+- Commit messages should be concise and describe what was fixed/changed,
+  e.g. "fix 13 tests: wavemem formatting, cut() end-index, chirp/sinc
+  3-arg overloads".
+- Include the test score in the commit message body (e.g.
+  "229/259 passing").
+- Do NOT commit mid-debug with known regressions — always verify the
+  full test suite before committing.
+- Typical commit points: after fixing a batch of test failures, after
+  adding new tests, after audits, after documentation updates.
+
 ## Notes organization
 
 - Notes files in `reconstructed/notes/` are organized by **topic, not by

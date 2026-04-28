@@ -2736,7 +2736,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
         if (argType == 2) {
             // Register path                                                                                 // @0x150e80
             auto asmEntry = asmCommands_->wvft(arg0.reg_,
-                1 << devConst_->numOutputPorts);                                                            // @0x150ea0
+                1 << (devConst_->numOutputPorts + 1));                                                      // @0x150dfc: 1 << (numOutputPorts + 1)
             results->assemblers_.push_back(std::move(asmEntry));
         } else if ((argType & ~2) == 4) {
             // Numeric (int/uint) path — direct table entry index                                            // @0x150f00
