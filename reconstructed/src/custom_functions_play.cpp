@@ -264,7 +264,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     // * 0xCCCCCCCCCCCCCCCD trick (divide by 5, since stride is 0x28 =
     // 8*5 → byte/8/5 = byte/40). Compare count >= 2.
     //
-    // If count >= 2: build "playWave" or "playWaveY" string, depending
+    // If count >= 2: build "playWave" or "playWaveI" string, depending
     //                on useYSuffix. (@0x15e32c..0x15e377)
     // Else (single-value path): the funDescr name is taken from
     //                           values[0].toString() — i.e. the only
@@ -276,9 +276,10 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     if (multiValue) {
         // @0x15e32c..0x15e372: in-place build "playWave\0" then
         // append("Y", useYSuffix ? 1 : 0).
-        // The "playWaveY" literal is a separate rodata entry at
-        //   .rodata+0x900634; the "playWave" base sits at +0x8fddf3.
-        funDescr = useYSuffix ? "playWaveY" : "playWave";
+        // The "playWaveI" literal is a separate rodata entry at
+        //   .rodata+0x900634 (byte 'I'); the "playWave" base sits at +0x8fddf3.
+        // Binary appends 0 or 1 bytes from the rodata pointer depending on useYSuffix.
+        funDescr = useYSuffix ? "playWaveI" : "playWave";
     } else {
         // @0x15e3a2..0x15e3b6: Value::toString() on values[0].
         funDescr = values.front().toString();

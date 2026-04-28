@@ -440,7 +440,6 @@ CompileResult Compiler::compile(const std::string& source) {
         cancelCallback_);
 
     // Step 14: Run prefetcher                                            // 0x120d60
-
     runPrefetcher(wavetableIR, asmList_, asmCommands_,
                   placeholderAsm, *deviceConstants_, *config_);
 

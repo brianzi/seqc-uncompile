@@ -327,15 +327,19 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 /*trigger=*/0);                                          // @0x1360de
 
             // ---- Phase 13: append to results->assemblers_ — @0x136164..0x1362b9 -
-            // The binary inlines the push_back: tail-pointer compare against
-            // capacity (@0x13620c..0x1362a3), with fallback to
-            // emplace_back_slow_path when full.  We use the high-level API.
-            //
-            // The intermediate copy @0x136168..0x1361ea also re-attaches
-            // combinedWf into the Asm entry's wf-back-reference field
-            // (Asm+0x38/+0x40) — this is what AsmCommands::asmPlay normally
-            // does internally; here the binary appears to do it inline. Our
-            // call models it through the high-level asmPlay.
+            // Phase 13: chain asmEntry.node into results->node_ — @0x136168..0x1361ea
+            // Same pattern as play(): if results->node_ is null, set it;
+            // else walk to tail of next chain and append.
+            // GDB-verified: 0x1361b6 writes [rax+0x38] = rcx (node_ = asmEntry.node).
+            if (asmEntry.node) {
+                if (results->node_) {
+                    auto tail = results->node_;
+                    while (tail->next) tail = tail->next;
+                    tail->next = asmEntry.node;
+                } else {
+                    results->node_ = asmEntry.node;
+                }
+            }
             results->assemblers_.push_back(std::move(asmEntry));         // @0x1362b4
         }
     }
