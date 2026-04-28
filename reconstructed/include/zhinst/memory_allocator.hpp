@@ -85,6 +85,11 @@ public:
 
     bool hasFreeBlocks() const { return !freeBlocks_.empty(); }
     MemoryBlock lastFreeBlock() const { return freeBlocks_.back(); }
+    uint32_t maxFreeBlockStart() const {
+        uint32_t m = 0;
+        for (auto& b : freeBlocks_) if (b.start > m) m = b.start;
+        return m;
+    }
 
 private:
     const DeviceConstants*  deviceConstants_;      // +0x00

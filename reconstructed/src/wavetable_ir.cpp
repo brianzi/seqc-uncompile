@@ -688,11 +688,12 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
         WaveOrder::Natural);                                  // 0x29ee93
 
     // Update addressBase_ from last allocation position       // 0x29eef2
-    // Binary reads first uint32 of last free block (= .start), which is the
-    // first free address after all allocations. GDB-verified: value=0x80000080
-    // for a 128-byte waveform starting at addressBase_=0x80000000.
+    // Binary's allocator stores ALLOCATED blocks in the deque (not free blocks).
+    // At 0x29eecf it reads deque.back().end = end of last allocated block.
+    // Our reconstruction stores FREE blocks instead, so we find the free block
+    // with the highest start address, which equals the end of last allocation.
     if (allocator.hasFreeBlocks()) {
-        addressBase_ = allocator.lastFreeBlock().start;
+        addressBase_ = allocator.maxFreeBlockStart();
     }
 }
 
