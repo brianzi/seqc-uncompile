@@ -1927,26 +1927,12 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                                 v.begin(), v.end());
                         }
                         appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
-                        // Second value: the `type` argument (3rd param)     // @0x16636b
-                        // [rbp-0x1a8] = &type; +0x08 = type.value_
-                        {
-                            double d2 = type.value_.toDouble();           // @0x166385
-                            int intVal = type.value_.toInt();             // @0x166392
-                            if (!floatEqual(d2, static_cast<double>(intVal))) {
-                                std::string valStr = valRef.value_.toString();
-                                std::string msg = ErrorMessages::format(
-                                    NodePrecisionLoss, valStr);
-                                warningCallback_(msg);
-                            }
-                            double d3 = valRef.value_.toDouble();     // @0x166438
-                            float f2 = static_cast<float>(d3);
-                            int fbits2;
-                            std::memcpy(&fbits2, &f2, sizeof(fbits2));
-                            auto v = asmCommands_->addi(destReg, AsmRegister(0),
-                                                        Immediate(fbits2));
-                            localList.entries.insert(localList.entries.end(),
-                                v.begin(), v.end());
-                        }
+                        // Commit + trap                                     // @0x16636b
+                        localList.entries.push_back(
+                            asmCommands_->addiu(destReg, AsmRegister(0),
+                                                Immediate(static_cast<int>(0x3F800))));
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeSlowCommit));
+                        localList.entries.push_back(asmCommands_->trap());
                     } else {
                         // fast-arm: varType==2 (register).
                         // Triplet A (I channel): tag 0xc → suser(0x10),
@@ -2117,11 +2103,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             // Cases 2,3,4 embed their own suser sequences inline and
             // do NOT hit this common tail.
             if (node.typeIdx == 0 || node.typeIdx == 1 || node.typeIdx == 5) {
-                // suser(destReg, 0x10) → append to localList.
-                // @0x166a86 (case 0), @0x166ca6 (case 1), etc.
+                // suser(destReg, 0x10) → tag
                 appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
-                // addi(destReg, R0, Immediate(addr)) → insert.
-                // @0x166b54 (case 0), @0x166d74 (case 1), etc.
+                // addi(destReg, R0, Immediate(addr))
                 {
                     auto vec = asmCommands_->addi(
                         destReg, AsmRegister(0),
@@ -2129,6 +2113,29 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     localList.entries.insert(localList.entries.end(),
                         vec.begin(), vec.end());
                 }
+                // suser(destReg, 0x11) → addr
+                appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
+                // value → suser(0x12)
+                if (static_cast<int>(valRef.varType_) == 2) {
+                    // register path: suser(valRef.reg_, 0x12)
+                    appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
+                } else {
+                    // const path: addi(destReg, R0, value) + suser(destReg, 0x12)
+                    {
+                        auto vec = asmCommands_->addi(
+                            destReg, AsmRegister(0),
+                            Immediate(valRef.value_.toInt()));
+                        localList.entries.insert(localList.entries.end(),
+                            vec.begin(), vec.end());
+                    }
+                    appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
+                }
+                // commit + trap
+                localList.entries.push_back(
+                    asmCommands_->addiu(destReg, AsmRegister(0),
+                                        Immediate(static_cast<int>(0x3F800))));
+                appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeSlowCommit));
+                localList.entries.push_back(asmCommands_->trap());
             }
         }
 

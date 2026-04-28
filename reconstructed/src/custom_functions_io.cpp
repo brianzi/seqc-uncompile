@@ -1288,7 +1288,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitTimestamp(                    
 }
 // @0x1403b0 (~6.5KB, ends ~0x141a00)
 std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
-    std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
+    std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
     // @0x1403d0..0x14040f: checkFunctionSupported("resetOscPhase", 0x1fe)
     checkFunctionSupported("resetOscPhase", kDevAllButUHF);      // @0x14040f
 
@@ -1403,76 +1403,32 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
                     ErrorMessages::format(FuncExpectsSingleArg, "resetOscPhase"));
         }
 
-        // @0x14060b..0x140628: allocate register, create EvalResults
-        // @0x1405c9: 0 args → special path with st only
-        if (args.empty()) {
-            auto results = std::make_shared<EvalResults>();                           // @0x1405ce
+        // @0x14109f..0x141138: build EvalResultValues and call writeToNode.
+        // GDB-verified (2026-04-29): the Hirzel path does NOT emit st(reg,0x5f)
+        // directly. Instead it constructs EvalResultValues for path="oscs/phasereset",
+        // val=oscMask, type=default, and delegates to writeToNode which handles
+        // the node address resolution and commit protocol.
+        {
+            // Build path EvalResultValue: varType_=VarType_String, value_="oscs/phasereset"
+            // GDB-verified: path.varType_=3 (String), path.varSubType_=0
+            EvalResultValue pathErv{};                                                   // @0x14109f
+            pathErv.varType_ = VarType_String;                                           // @0x1410b1
+            pathErv.value_ = Value(std::string("oscs/phasereset"));                      // @0x1410bb..0x1410dd
+            pathErv.varSubType_ = VarSubType(0);                                         // @0x1410e8
 
-            // Look up OSCPHASERST node and register access
-            auto oscNode = lookupNode("oscs/phasereset");
-            addNodeAccess(oscNode, AccessMode::Direct);
+            // Build val EvalResultValue: varType_=VarType_Const, value_=oscMask
+            EvalResultValue valErv{};
+            valErv.varType_ = VarType_Const;
+            valErv.value_ = Value(oscMask);
+            valErv.varSubType_ = VarSubType(0);
 
-            int regNum = Resources::getRegisterNumber();                             // @0x140628
-            AsmRegister reg(regNum);                                                 // @0x140633
-            AsmRegister zero(0);                                                     // @0x140649
-            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(1));          // @0x140679
-            for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));// @0x14067e..0x1406b3
+            // Build type EvalResultValue: varType_=VarType_Const, default
+            EvalResultValue typeErv{};
+            typeErv.varType_ = VarType_Const;
+            typeErv.value_ = Value(0);
+            typeErv.varSubType_ = VarSubType(0);
 
-            // @0x140849..0x14085d: st(reg, 0x5f) — store to osc reset register
-            auto stEntry = asmCommands_->st(reg, detail::AddressImpl<unsigned int>(kSuserUserRegBase)); // @0x14085d
-            results->assemblers_.push_back(std::move(stEntry));                      // @0x140862..0x14091b
-
-            // @0x14093f..0x14095c: st(R0, 0x5f) — clear
-            AsmRegister r0(0);                                                       // @0x140941
-            auto stEntry2 = asmCommands_->st(r0, detail::AddressImpl<unsigned int>(kSuserUserRegBase)); // @0x14095c
-            results->assemblers_.push_back(std::move(stEntry2));                     // @0x140961..0x1409e5
-
-            // @0x140d4e: if numAWGCores > 0, emit additional suser
-            if (devConst_->numAWGCores > 0) {
-                int regNum2 = Resources::getRegisterNumber();
-                AsmRegister reg2(regNum2);
-                AsmRegister zero2(0);
-                auto addiEntries2 = asmCommands_->addi(
-                    reg2, zero2, Immediate(static_cast<int>(devConst_->numAWGCores)));
-                for (auto& e : addiEntries2)
-                    results->assemblers_.push_back(std::move(e));
-                appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(kSuserWaitCycles));
-            }
-
-            return results;
-        } else {
-            // 1 arg — with validated oscMask
-            auto results = std::make_shared<EvalResults>();
-
-            // Look up OSCPHASERST node and register access
-            auto oscNode = lookupNode("oscs/phasereset");
-            addNodeAccess(oscNode, AccessMode::Direct);
-
-            int regNum = Resources::getRegisterNumber();
-            AsmRegister reg(regNum);
-            AsmRegister zero(0);
-            auto addiEntries = asmCommands_->addi(reg, zero, Immediate(oscMask));
-            for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
-
-            auto stEntry = asmCommands_->st(reg, detail::AddressImpl<unsigned int>(kSuserUserRegBase));
-            results->assemblers_.push_back(std::move(stEntry));
-
-            AsmRegister r0(0);
-            auto stEntry2 = asmCommands_->st(r0, detail::AddressImpl<unsigned int>(kSuserUserRegBase));
-            results->assemblers_.push_back(std::move(stEntry2));
-
-            if (devConst_->numAWGCores > 0) {
-                int regNum2 = Resources::getRegisterNumber();
-                AsmRegister reg2(regNum2);
-                AsmRegister zero2(0);
-                auto addiEntries2 = asmCommands_->addi(
-                    reg2, zero2, Immediate(static_cast<int>(devConst_->numAWGCores)));
-                for (auto& e : addiEntries2)
-                    results->assemblers_.push_back(std::move(e));
-                appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(kSuserWaitCycles));
-            }
-
-            return results;
+            return writeToNode(pathErv, valErv, typeErv, std::move(res));
         }
     } else {
         // @0x141964: unsupported device type

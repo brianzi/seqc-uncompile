@@ -34,12 +34,15 @@ namespace {
 
 using Map = std::map<std::string, NodeMapItem>;
 
-void addDirect(Map& m, const char* key, uint32_t addr, int32_t typeIdx) {
+void addDirect(Map& m, const char* key, uint32_t addr, int32_t typeIdx,
+               bool hasFast = false, uint32_t fastAddr = 0) {
     auto* data = new DirectAddrNodeMapData;
     data->addr_ = addr;
     NodeMapItem item{};
     item.data = data;
     item.typeIdx = typeIdx;
+    item.hasFast = hasFast;
+    item.fastAddr = fastAddr;
     m[key] = item;
 }
 
@@ -217,8 +220,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/0/enable", 0x1528, 0);
     addDirect(m, "demods/0/harmonic", 0x1514, 0);
     addDirect(m, "demods/0/order", 0x1504, 0);
-    addDirect(m, "demods/0/oscselect", 0x1510, 0);
-    addDirect(m, "demods/0/phaseshift", 0x1518, 0);
+    addDirect(m, "demods/0/oscselect", 0x1510, 0, true, 0x30000040);
+    addDirect(m, "demods/0/phaseshift", 0x1518, 0, true, 0x3000008c);
     addDirect(m, "demods/0/rate", 0x150c, 2);
     addDirect(m, "demods/0/sinc", 0x151c, 0);
     addDirect(m, "demods/0/timeconstant", 0x1524, 2);
@@ -227,8 +230,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/1/enable", 0x15a8, 0);
     addDirect(m, "demods/1/harmonic", 0x1594, 0);
     addDirect(m, "demods/1/order", 0x1584, 0);
-    addDirect(m, "demods/1/oscselect", 0x1590, 0);
-    addDirect(m, "demods/1/phaseshift", 0x1598, 0);
+    addDirect(m, "demods/1/oscselect", 0x1590, 0, true, 0x30000044);
+    addDirect(m, "demods/1/phaseshift", 0x1598, 0, true, 0x300000cc);
     addDirect(m, "demods/1/rate", 0x158c, 2);
     addDirect(m, "demods/1/sinc", 0x159c, 0);
     addDirect(m, "demods/1/timeconstant", 0x15a4, 2);
@@ -237,8 +240,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/2/enable", 0x1628, 0);
     addDirect(m, "demods/2/harmonic", 0x1614, 0);
     addDirect(m, "demods/2/order", 0x1604, 0);
-    addDirect(m, "demods/2/oscselect", 0x1610, 0);
-    addDirect(m, "demods/2/phaseshift", 0x1618, 0);
+    addDirect(m, "demods/2/oscselect", 0x1610, 0, true, 0x30000048);
+    addDirect(m, "demods/2/phaseshift", 0x1618, 0, true, 0x3000010c);
     addDirect(m, "demods/2/rate", 0x160c, 2);
     addDirect(m, "demods/2/sinc", 0x161c, 0);
     addDirect(m, "demods/2/timeconstant", 0x1624, 2);
@@ -247,8 +250,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/3/enable", 0x16a8, 0);
     addDirect(m, "demods/3/harmonic", 0x1694, 0);
     addDirect(m, "demods/3/order", 0x1684, 0);
-    addDirect(m, "demods/3/oscselect", 0x1690, 0);
-    addDirect(m, "demods/3/phaseshift", 0x1698, 0);
+    addDirect(m, "demods/3/oscselect", 0x1690, 0, true, 0x3000004c);
+    addDirect(m, "demods/3/phaseshift", 0x1698, 0, true, 0x3000014c);
     addDirect(m, "demods/3/rate", 0x168c, 2);
     addDirect(m, "demods/3/sinc", 0x169c, 0);
     addDirect(m, "demods/3/timeconstant", 0x16a4, 2);
@@ -257,8 +260,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/4/enable", 0x1728, 0);
     addDirect(m, "demods/4/harmonic", 0x1714, 0);
     addDirect(m, "demods/4/order", 0x1704, 0);
-    addDirect(m, "demods/4/oscselect", 0x1710, 0);
-    addDirect(m, "demods/4/phaseshift", 0x1718, 0);
+    addDirect(m, "demods/4/oscselect", 0x1710, 0, true, 0x30000050);
+    addDirect(m, "demods/4/phaseshift", 0x1718, 0, true, 0x3000018c);
     addDirect(m, "demods/4/rate", 0x170c, 2);
     addDirect(m, "demods/4/sinc", 0x171c, 0);
     addDirect(m, "demods/4/timeconstant", 0x1724, 2);
@@ -267,8 +270,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/5/enable", 0x17a8, 0);
     addDirect(m, "demods/5/harmonic", 0x1794, 0);
     addDirect(m, "demods/5/order", 0x1784, 0);
-    addDirect(m, "demods/5/oscselect", 0x1790, 0);
-    addDirect(m, "demods/5/phaseshift", 0x1798, 0);
+    addDirect(m, "demods/5/oscselect", 0x1790, 0, true, 0x30000054);
+    addDirect(m, "demods/5/phaseshift", 0x1798, 0, true, 0x300001cc);
     addDirect(m, "demods/5/rate", 0x178c, 2);
     addDirect(m, "demods/5/sinc", 0x179c, 0);
     addDirect(m, "demods/5/timeconstant", 0x17a4, 2);
@@ -277,8 +280,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/6/enable", 0x1828, 0);
     addDirect(m, "demods/6/harmonic", 0x1814, 0);
     addDirect(m, "demods/6/order", 0x1804, 0);
-    addDirect(m, "demods/6/oscselect", 0x1810, 0);
-    addDirect(m, "demods/6/phaseshift", 0x1818, 0);
+    addDirect(m, "demods/6/oscselect", 0x1810, 0, true, 0x30000058);
+    addDirect(m, "demods/6/phaseshift", 0x1818, 0, true, 0x3000020c);
     addDirect(m, "demods/6/rate", 0x180c, 2);
     addDirect(m, "demods/6/sinc", 0x181c, 0);
     addDirect(m, "demods/6/timeconstant", 0x1824, 2);
@@ -287,8 +290,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "demods/7/enable", 0x18a8, 0);
     addDirect(m, "demods/7/harmonic", 0x1894, 0);
     addDirect(m, "demods/7/order", 0x1884, 0);
-    addDirect(m, "demods/7/oscselect", 0x1890, 0);
-    addDirect(m, "demods/7/phaseshift", 0x1898, 0);
+    addDirect(m, "demods/7/oscselect", 0x1890, 0, true, 0x3000005c);
+    addDirect(m, "demods/7/phaseshift", 0x1898, 0, true, 0x3000024c);
     addDirect(m, "demods/7/rate", 0x188c, 2);
     addDirect(m, "demods/7/sinc", 0x189c, 0);
     addDirect(m, "demods/7/timeconstant", 0x18a4, 2);
@@ -384,14 +387,14 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     addDirect(m, "mods/1/sidebands/1/phaseshift", 0x2374, 2);
     addDirect(m, "mods/1/sidebands/1/timeconstant", 0x2350, 2);
     addDirect(m, "mods/1/trigger", 0x232c, 0);
-    addDirect(m, "oscs/0/freq", 0x1400, 4);
-    addDirect(m, "oscs/1/freq", 0x1408, 4);
-    addDirect(m, "oscs/2/freq", 0x1410, 4);
-    addDirect(m, "oscs/3/freq", 0x1418, 4);
-    addDirect(m, "oscs/4/freq", 0x1420, 4);
-    addDirect(m, "oscs/5/freq", 0x1428, 4);
-    addDirect(m, "oscs/6/freq", 0x1430, 4);
-    addDirect(m, "oscs/7/freq", 0x1438, 4);
+    addDirect(m, "oscs/0/freq", 0x1400, 4, true, 0x00);
+    addDirect(m, "oscs/1/freq", 0x1408, 4, true, 0x08);
+    addDirect(m, "oscs/2/freq", 0x1410, 4, true, 0x10);
+    addDirect(m, "oscs/3/freq", 0x1418, 4, true, 0x18);
+    addDirect(m, "oscs/4/freq", 0x1420, 4, true, 0x20);
+    addDirect(m, "oscs/5/freq", 0x1428, 4, true, 0x28);
+    addDirect(m, "oscs/6/freq", 0x1430, 4, true, 0x30);
+    addDirect(m, "oscs/7/freq", 0x1438, 4, true, 0x38);
     addDirect(m, "outputpwas/0/enable", 0x4300, 0);
     addDirect(m, "outputpwas/0/harmonic", 0x4314, 0);
     addDirect(m, "outputpwas/0/holdoff", 0x4328, 2);
@@ -921,8 +924,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFQA>::get() {  // @0x1b1470
     addDirect(m, "awgs/0/userregs/7", 0x507c, 0);
     addDirect(m, "awgs/0/userregs/8", 0x5080, 0);
     addDirect(m, "awgs/0/userregs/9", 0x5084, 0);
-    addDirect(m, "oscs/0/freq", 0x1400, 4);
-    addDirect(m, "qas/0/integration/length", 0x673c, 0);
+    addDirect(m, "oscs/0/freq", 0x1400, 4, true, 0x00);
+    addDirect(m, "qas/0/integration/length", 0x673c, 0, true, 0x34);
     addDirect(m, "scopes/0/channel", 0x1a3c, 0);
     addDirect(m, "scopes/0/channels/0/bwlimit", 0x1a2c, 0);
     addDirect(m, "scopes/0/channels/0/inputselect", 0x1a28, 0);

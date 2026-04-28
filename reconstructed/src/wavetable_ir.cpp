@@ -262,6 +262,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     size_t totalSamples = 0;  // unused but kept for symmetry with binary stack layout
     uint32_t totalSize = 0;
     uint32_t waveCount = 0;
+    uint32_t lastAllocBytes = 0;
 
     forEachUsedWaveform(
         [&](const std::shared_ptr<WaveformIR>& wf) {
@@ -304,15 +305,21 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 
             // Binary @0x2a9a6a-0x2a9a96: Align totalSize to dc->waveformAlignment
             // before setting addressValue.
-            // Condition for alignment (0x2a993a-0x2a995b):
-            //   if waveCount == 0 (first waveform), always align;
-            //   if previous allocationByteSize > waveformAlignment, align;
-            //   if totalSize + allocationBytes > previous aligned limit, align.
-            // For simplicity, always align totalSize (the non-aligned fast path
-            // only fires when the waveform fits within the current alignment
-            // region, which is an optimization; always aligning is safe).
+            // Condition for alignment (GDB-verified @0x2a9a35-0x2a9a5d):
+            //   - waveCount == 0: always align (first waveform).
+            //   - lastAllocBytes > waveformAlignment: align.
+            //   - totalSize + allocationBytes > alignedLimit: align.
+            //     where alignedLimit = ((totalSize + wfAlign - 1) / wfAlign) * wfAlign.
+            //   - Otherwise SKIP alignment (waveform fits in current CL region).
+            // Correct alignment is critical because addressValue determines Phase 2
+            // CL occupancy, which in turn sets crossesCacheLine_ (controls prf emit).
             uint32_t wfAlign = dc->waveformAlignment;                 // DC+0x14
-            totalSize = ((totalSize + wfAlign - 1) / wfAlign) * wfAlign;
+            uint32_t alignedLimit = ((totalSize + wfAlign - 1) / wfAlign) * wfAlign;
+            bool needsAlign = (waveCount == 0)
+                           || (lastAllocBytes > wfAlign)
+                           || (totalSize + allocationBytes > alignedLimit);
+            if (needsAlign)
+                totalSize = alignedLimit;
 
             // Set elfAlignment_ (0x2a9a9d)
             wf->elfAlignment_ = dc->waveformAlignment;               // DC+0x14
@@ -324,6 +331,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             totalSize += allocationBytes;
             waveCount++;
             wf->allocationByteSize = allocationBytes;                 // store computed size
+            lastAllocBytes = allocationBytes;
 
             totalSamples += wf->getSampleCount();
         },

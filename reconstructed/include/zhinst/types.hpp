@@ -93,6 +93,7 @@ constexpr uint32_t kSuserNodeTag       = 0x10;  // Multi-word write: low word (t
 constexpr uint32_t kSuserNodeAddr      = 0x11;  // Multi-word write: mid word (register index)
 constexpr uint32_t kSuserNodeValue     = 0x12;  // Multi-word write: high word (value/commit)
 constexpr uint32_t kSuserNodeValueHi   = 0x13;  // Double-precision high 32 bits
+constexpr uint32_t kSuserNodeSlowCommit = 0x14; // Slow-path commit (st Rx, 20)
 constexpr uint32_t kSuserNodeCommit    = 0x16;  // Write commit/finalize
 constexpr uint32_t kSuserNodeDirect    = 0x17;  // Direct single-value write (fast path)
 constexpr uint32_t kSuserNodeFreqCommit = 0x18; // Frequency commit (writeToNode typeIdx=4)
