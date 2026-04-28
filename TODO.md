@@ -10,10 +10,12 @@
 
 **Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
 **95/95 undefined zhinst symbols resolved** — static archive self-contained.
-**226/259 differential tests pass** (byte-identical, as of 2026-04-28).
+**242/259 differential tests pass** (byte-identical, as of 2026-04-28).
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
+**248/259 differential tests pass** (byte-identical, as of 2026-04-29).
+**Fixes this session**: createdNames_ pre-population, addressBase_ fifo allocator fix (+2 tests: 247→248).
 **~0 source markers** across ~21 files (all resolved).
 **~15 placeholder field names** across 8 headers (all resolved Phase 31f).
 **~71 reinterpret_cast raw-offset accesses** across multiple files (all inherent).
