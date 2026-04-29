@@ -61,7 +61,7 @@ private:
 // Layout:
 //   +0x00: uint32_t           size_        (AddressImpl<uint>, total cache size)
 //   +0x04: int32_t            pageSize_    (page/alignment size)
-//   +0x08: bool               appendMode_  (if true, always append at end)
+//   +0x08: bool               isHirzel_    (if true, always append at end)
 //   +0x09: 7 bytes padding
 //   +0x10: vector<shared_ptr<Pointer>>  pointers_  (24 bytes: begin, end, cap)
 //   +0x28: END
@@ -118,7 +118,7 @@ public:
     // Note: sizeof(Pointer) == 0x24 in libc++ ABI, 0x28 in libstdc++ (extra tail padding).
 
     // Constructor
-    Cache(detail::AddressImpl<uint32_t> size, int pageSize, bool appendMode);  // 0x282920
+    Cache(detail::AddressImpl<uint32_t> size, int pageSize, bool isHirzel);  // 0x282920
 
     // Accessors
     detail::AddressImpl<uint32_t> getSize() const;       // 0x282940
@@ -144,7 +144,7 @@ public:
     std::shared_ptr<Pointer> getBestPosition(
         detail::AddressImpl<uint32_t> numSamples,
         std::unordered_map<std::string, bool> const& nameMap,
-        bool appendMode);                                // 0x282cf0
+        bool gapScan);                                // 0x282cf0
 
     void memoryWrite(std::shared_ptr<Pointer> ptr);      // 0x283020
     bool stillInMemory(std::shared_ptr<Pointer> ptr) const;  // 0x2832e0
@@ -157,7 +157,7 @@ public:
 private:
     uint32_t size_;                                      // +0x00
     int32_t pageSize_;                                   // +0x04
-    bool appendMode_;                                    // +0x08
+    bool isHirzel_;                                    // +0x08
     std::vector<std::shared_ptr<Pointer>> pointers_;     // +0x10
 };
 

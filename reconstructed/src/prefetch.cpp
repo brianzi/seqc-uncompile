@@ -2003,13 +2003,13 @@ void Prefetch::linkLoad(std::shared_ptr<Node> node) // 0x1d33f0
 //
 // node = the play node (from parameter rsi)
 // load = the load node (from parameter rdx)
-// flag = whether to use isHirzel path (from parameter ecx)
+// isHirzel = whether to use isHirzel path (from parameter ecx)
 //
 // If load is null (rdx->ptr == nullptr), returns immediately.
 // ============================================================================
 void Prefetch::assignLoad(std::shared_ptr<Node> node,
                           std::shared_ptr<Node> const& load,
-                          bool flag) // 0x1d53a0
+                          bool isHirzel) // 0x1d53a0
 {
     // 0x1d53a0-0x1d53a6: if (*load == null) return
     if (!load) return;
@@ -2022,8 +2022,8 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
     // (also sets weak_ptr ctrl block at +0x20, releasing old one)
 
     // 0x1d540c: add 0x10 to this → &nodeStates_
-    // 0x1d5410: test flag
-    if (flag) {
+    // 0x1d5410: test isHirzel
+    if (isHirzel) {
         // isHirzel path
         // 0x1d5431: emplace load into nodeStates_
         auto [it1, _1] = nodeStates_.emplace(load, PrefetcherNodeState{});
@@ -2260,11 +2260,11 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cbfa5-0x1cbfb5: save root_ to local
     auto localRoot = root_;
 
-    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize OR config_->appendMode().
-    // Binary uses Intel-syntax `cmp eax,ecx; jbe split` — eax=required, ecx=cacheSize,
-    // so jbe is taken when required <= cacheSize. Plus appendMode (config+0x18 / isHirzel)
+    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize OR config_->isHirzel.
+    // so jbe is taken when required <= cacheSize. Plus isHirzel (config+0x18)
+
     // forces split.
-    if (required <= static_cast<size_t>(cacheSize) || config_->appendMode()) {
+    if (required <= static_cast<size_t>(cacheSize) || config_->isHirzel) {
         // 0x1cbfda: split_ = true
         split_ = true;
 

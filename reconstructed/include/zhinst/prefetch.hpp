@@ -199,7 +199,7 @@ public:
     void mergeLoads(std::shared_ptr<Node> node,
         std::shared_ptr<Node> other);                                  // 0x1d5040
     void assignLoad(std::shared_ptr<Node> node,
-        std::shared_ptr<Node> const& load, bool flag);                 // 0x1d53a0
+        std::shared_ptr<Node> const& load, bool isHirzel);                 // 0x1d53a0
     void globalCwvf(std::shared_ptr<Node> node);                       // 0x1d5620
     void backwardTree(std::shared_ptr<Node> node) const;                // 0x1d57d0
     bool sameLoads(std::shared_ptr<Node> a,
@@ -298,8 +298,8 @@ private:
     // Total: 0x160 bytes
 
     // ========================================================================
-    // Forwarding accessor for legacy `isHirzel_` references in placeSingleCommand.
-    // Verified at 0x1d9f65 and 0x1dabb9: cmp BYTE [r15+0xbc],<imm> reads the
+    // Legacy `isHirzel_` references in placeSingleCommand verified at
+    // 0x1d9f65 and 0x1dabb9: cmp BYTE [r15+0xbc],<imm> reads the
     // same byte as `split_` (also at +0xBC, init 0 at 0x1c5953, set true at
     // 0x1cbfda when `split_=true`). The .cpp uses with name `isHirzel_` were
     // misidentified — they really test split mode.
@@ -307,8 +307,6 @@ private:
     // Hallucinated Prefetch members removed:
     //   - pageSize_  Was only in ctor init list (pageSize_(1)); never read anywhere.
     //   - npCerv     Was a local Node* variable in placeSingleCommand:210, not a member.
-    bool isHirzel_() const { return split_; }
-    void set_isHirzel_(bool v) { split_ = v; }
 };
 
 } // namespace zhinst

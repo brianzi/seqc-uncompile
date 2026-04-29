@@ -98,9 +98,8 @@ struct AWGCompilerConfig {
     // out to be reads of existing fields. Provide accessors so legacy call
     // sites continue to compile while the names are migrated:
     //
-    //   appendMode    : was actually `isHirzel` test at +0x18 (verified
-    //                   0x1cbfc6 in Prefetch::placeLoads:
-    //                   cmp BYTE PTR [rax+0x18], 0x0)
+    //   appendMode    : was actually `isHirzel` test at +0x18 — DROPPED (callers
+    //                   now read config_->isHirzel directly)
     //   splitIndex    : same field as `cacheType` at +0x19 (verified
     //                   0x1d6c4d in Prefetch::clampToCache:
     //                   movzx edx, BYTE PTR [rax+0x19])
@@ -121,7 +120,10 @@ struct AWGCompilerConfig {
     //                       (verified 0x1da360: mov edx,[devConst+rcx*4+0x18])
     //   - seqCount         Was actually config_->deviceIndex at +0x24
     //                       (verified 0x1d7beb: cmp [config+0x24],0)
-    bool appendMode() const     { return isHirzel; }
+    // Remaining forwarding accessors (no separate storage):
+    //
+    //   splitIndex    : same field as `cacheType` at +0x19
+    //   syncVersion   : same field as `numChannelGroups` at +0x1C
     uint8_t splitIndex() const  { return cacheType; }
     int syncVersion() const     { return numChannelGroups; }
 

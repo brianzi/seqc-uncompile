@@ -40,10 +40,10 @@ const char* CacheException::what() const noexcept {
 // ============================================================================
 
 // 0x282920
-Cache::Cache(detail::AddressImpl<uint32_t> size, int pageSize, bool appendMode)
+Cache::Cache(detail::AddressImpl<uint32_t> size, int pageSize, bool isHirzel)
     : size_(size)
     , pageSize_(pageSize)
-    , appendMode_(appendMode)
+    , isHirzel_(isHirzel)
     , pointers_()
 {
 }
@@ -75,9 +75,9 @@ uint32_t Cache::getFreeMemory() const {
 
 // 0x2829a0
 std::shared_ptr<Cache> Cache::getScope() const {
-    auto scope = std::make_shared<Cache>(size_, pageSize_, appendMode_);
+    auto scope = std::make_shared<Cache>(size_, pageSize_, isHirzel_);
     // Note: in the binary this is done via __shared_ptr_emplace<Cache> + manual copy
-    // The new cache copies only size_+pageSize_ (as 8 bytes), appendMode_, and the pointers vector
+    // The new cache copies only size_+pageSize_ (as 8 bytes), isHirzel_, and the pointers vector
     scope->pointers_ = pointers_;
     return scope;
 }
@@ -174,7 +174,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
 std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
     detail::AddressImpl<uint32_t> numSamples,
     std::unordered_map<std::string, bool> const& nameMap,
-    bool appendMode)
+    bool gapScan)
 {
     // Create a new Pointer with default values
     // Initial state: position_=0, size_=0, hash_=0, numRepeats_=1, waveform_=null, state_=Free
@@ -186,8 +186,8 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
     pointer->waveform_ = nullptr;
     pointer->state_ = PointerState::Free;
 
-    // If append mode (this->appendMode_ == true), just place at offset 0 with requested size
-    if (appendMode_) {
+    // If append mode (this->isHirzel_ == true), just place at offset 0 with requested size
+    if (isHirzel_) {
         pointer->position_ = 0;
         pointer->size_ = numSamples;
         return pointer;
@@ -195,9 +195,9 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 
     // Otherwise find position in existing allocations.
     // Binary logic (0x282cf0+0xa6):
-    //   appendMode==false: try to place at end of last allocation (fast path);
-    //                      if not enough room, recursively call with appendMode=true.
-    //   appendMode==true:  gap-scan all pointers for best-fit gap.
+    //   gapScan==false: try to place at end of last allocation (fast path);
+    //                      if not enough room, recursively call with gapScan=true.
+    //   gapScan==true:  gap-scan all pointers for best-fit gap.
     auto begin = pointers_.begin();
     auto end = pointers_.end();
 
@@ -209,7 +209,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
         return pointer;
     }
 
-    if (!appendMode) {
+    if (!gapScan) {
         // 0x282cf0+0x15b: Fast path — try appending after the last allocation.
         auto lastIt = end;
         --lastIt;
@@ -226,7 +226,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 
         // 0x282cf0+0x180: Not enough room at end — fall back to gap scan.
         // Recursive call with appendMode=true.
-        return getBestPosition(numSamples, nameMap, /*appendMode=*/true);
+        return getBestPosition(numSamples, nameMap, /*gapScan=*/true);
     } else {
         // 0x282cf0+0xaf: Gap-scan path — find smallest gap that fits numSamples.
         // nameMap maps waveform names → bool; entries with value==true are
