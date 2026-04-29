@@ -2380,9 +2380,9 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 48
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **kept** (Phase R) — instantiation set verified, de-templating not worth churn
 - **Description**: `AddressImpl<T>` is templated but only instantiated with one type in the binary. The template adds complexity (SFINAE, specialization surface) without benefit and may mask the actual address-width semantics.
-- **Action**: Consider de-templating to a concrete class matching the single binary instantiation.
+- **Resolution**: Source-only audit of all instantiations (~300 sites) shows `AddressImpl` is parameterized as `<unsigned int>` and `<uint32_t>` — these are the **same type** on the target ABI but appear textually distinct across files. Concrete instantiations: `appendSuser` (custom_functions_io.cpp, custom_functions_play.cpp, ~80 sites), `Cache` constructors and `getSize()` (cache.cpp/hpp), `WavetableFront::WavetableFront` (wavetable_front.cpp:52, wavetable_ir.cpp), `PlayConfig` member fields `channelMask/suppress/markerBits/trigger/precompFlags` (play_config.hpp:30-37), `Immediate` variant slot (struct_layouts.md:215-225). De-templating to a concrete `AddressImpl` would require touching every call site and would not change behavior since only one width (32-bit unsigned) is ever instantiated. Kept as-is; the template form does not currently hide misnamed semantics.
 
 ---
 
