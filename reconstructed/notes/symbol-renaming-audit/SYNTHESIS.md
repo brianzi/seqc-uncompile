@@ -1151,16 +1151,16 @@ choices unless explicitly revisited.
 | # | Symbol | Decision |
 |---|---|---|
 | 1 | WavetableManager numDefs/lineNr_ | **Pending investigation** |
-| 2 | DeviceConstants::numDIOBits | **Pending investigation** (GDB-trace `configFreqSweep` on UHFLI) |
+| 2 | DeviceConstants::numDIOBits | **needs-GDB** (Phase R: trace `configFreqSweep` on UHFLI to confirm osc-bound use) |
 | 3 | waveformGranularity/PageSize swap | Approved (two-step coordinated swap) |
-| 4 | usedSampleRate_ mirror | **Pending investigation** |
-| 5 | NodeMapItem::hasFast | **Pending investigation** |
+| 4 | usedSampleRate_ mirror | **needs-GDB** (Phase R: locate the missing writer of `Compiler::usedSampleRate_`) |
+| 5 | NodeMapItem::hasFast | **deferred** (Phase R: type-fix risky; field IS dual-role bool/AccessMode — see IF-112) |
 | 6 | createOrAppend*::lhs/rhs | Keep `lhs`/`rhs` for consistency |
-| 7 | mergeWaveforms::useYSuffix | **Pending investigation** |
+| 7 | mergeWaveforms::useYSuffix | **kept** (Phase R: name fits both Y-suffix funDescr and interleave-vs-merge factory; Y-suffix == dual-channel I/Q == interleave) |
 | 8 | addCommand::cmd/args | Rename `args→cmdToken`, `cmd→argList` |
-| 9 | Asm::wavetableFront | **Pending investigation** |
+| 9 | Asm::wavetableFront | **kept** (Phase R: dual-purpose handled by `lineNumber()` accessor in asm_list.hpp:71-72; no rename needed) |
 | 10 | Cache::play/Cache::allocate | Resolve after Cluster C committed |
-| 11 | loopArgNodeAppend::arg | **Pending investigation** |
+| 11 | loopArgNodeAppend::arg | **kept** (Phase R: `arg` is the node argument appended to target's loop->next chain; matches all four call-site roles — initResult, condResult, incrResult, countResult — none of which is more specifically a "loopVar"; `arg` is the right generic name) |
 
 ### Bulk decisions
 - §3: all 10 in-batch coordinated groups — approved
