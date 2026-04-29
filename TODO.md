@@ -13,10 +13,13 @@
 **259/259 differential tests pass** (byte-identical, as of 2026-04-29).
 **Phase D symbol-renaming audit + execution complete** (20 commits
 `d15ad32`..`9b2e690`, all 16 high/medium-confidence clusters landed,
-259/259 throughout). Remaining: Phase Q (226 low-conf/unsure cosmetic
-items, deferred per audit policy) and 5 genuinely-ambiguous
-arbitrations (commit `2477f4e`). See OVERVIEW.md "Symbol Renames
-(Phase D)" table and `notes/symbol-renaming-audit/SYNTHESIS.md`.
+259/259 throughout). **Phase R audit-followup complete** (14 commits
+`dfc278e`..`2b23826`): all 6 deferred arbitrations and all 10 open
+IFs resolved; 1 latent bug fixed (IF-119), 1 missing writer
+reconstructed (Arb 4). Only Phase Q (226 low-conf/unsure cosmetic
+items, deferred per audit policy) remains. See OVERVIEW.md "Symbol
+Renames (Phase D / R)" tables and
+`notes/symbol-renaming-audit/SYNTHESIS.md`.
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
@@ -80,35 +83,60 @@ items) — those remain deferred per audit policy.
 Each entry already has a clear question; resolve to **fixed**,
 **confirmed (no change)**, or **dismissed**.
 
-- [ ] **IF-110** `Value::pad_04_` is not padding; `subType_` shape
-      unclear — disassemble Value ctor + accessors, decode the slot.
-- [ ] **IF-112** `NodeMapItem::hasFast` int conflated with `AccessMode`
-      — overlaps Arb 5; resolve together.
-- [ ] **IF-113** `Cache::Pointer::hash_` is not a hash; prefetch
-      wrap-address semantics — read Cache::Pointer ctor + the prefetch
-      consumer; rename `hash_` to its real role.
-- [ ] **IF-114** `PlayConfig::now` named 'now' but read as 4-channel
-      flag — disassemble the read sites; if it really is a 4-channel
-      flag, rename.
-- [ ] **IF-115** Strict / useAbsolute / showLine polarity-inverted
-      booleans (partially fixed by IF-117) — audit the remaining two
-      slots and either flip or document why polarity is correct.
-- [ ] **IF-116** `Expression::valueType` int slot is actually
-      `EDirection` enum — confirm via writers; type-fix to enum if so.
-- [ ] **IF-118** `AddressImpl<T>` wrapper overgeneral — audit
-      template instantiations; if only one type-arg ever appears,
-      collapse to non-template.
-- [ ] **IF-119** `setPRNGSeed` integer-literal path constructs
-      `AsmRegister` from value — verify against binary; fix if recon
-      diverges.
-- [ ] **IF-120** `configFreqSweep` magic literals — constants exist
-      but are unused — wire constants into the function body.
-- [ ] **IF-121** `DeviceOpts` namespace full duplicate of
-      anonymous-namespace `k*` set — collapse to one set.
+- [x] **IF-110** `Value::pad_04_` — **dismissed** (`69fafbf`):
+      GDB-confirmed genuine alignment padding; toDouble/toInt/operator==
+      never read [+0x4]. Slot shows uninitialized-memory pattern.
+- [x] **IF-112** + **Arb 5** `NodeMapItem::hasFast` — **dismissed**
+      (`352ec74`): GDB across full manifest saw only values 0/1; bool
+      typing is correct. `AccessMode::Custom(2)` enters via the
+      separate `accessModeMap_`, not via `hasFast`. Comment-only
+      cleanups in `node_map_data.hpp` and `custom_functions_play.cpp`.
+- [x] **IF-113** `Cache::Pointer::hash_` — **kept** (`085eaca`):
+      name remains; documented as a hash-key role.
+- [x] **IF-114** `PlayConfig::now` — **kept** (`49f1463`): name
+      preserved (JSON contract); behaviour documented.
+- [x] **IF-115** polarity-inverted booleans — **status updated**
+      (`43b12c9`): `useAbsolute` already fixed by IF-117 in
+      `e22c1b5` (renamed `useMapped`); `direction` rename done.
+- [x] **IF-116** `Expression::valueType` int → `EDirection` — **status
+      updated** (`43b12c9`): type-fix deferred (~30 sites + autogen
+      `parser.tab.c` impact); kept as int with audit note.
+- [x] **IF-118** `AddressImpl<T>` template — **kept** (`7a87e7e`):
+      single instantiation, ~300 sites; collapse-to-non-template
+      not worth the churn.
+- [x] **IF-119** `setPRNGSeed` `Var` path — **fixed** (`bf04292`):
+      replaced `AsmRegister(args[0].value_.toInt())` with `args[0].reg_`.
+      Latent bug: only triggered by `setPRNGSeed(myVar)`, no test
+      covers it. Disasm at `0x151507..0x151528` showed `rdx` = `args[0].reg_`
+      passed through to `AsmCommands::suser`.
+- [x] **IF-120** `configFreqSweep` magic literals — **fixed**
+      (`dbabd4e`): wired `kSuserSweep*` constants into the function.
+- [x] **IF-121** `DeviceOpts` namespace duplicate — **fixed**
+      (`0288bde`): removed the dead namespace.
 
-**Sequence.** R.0 (trivial) → R.1 Arb 5 + R.2 IF-112 (joint) → R.2
-non-arb IFs → R.1 remaining arbs. Wrap-up commit at end with
-TODO.md + OVERVIEW.md update.
+#### R.3 — six deferred arbitrations from `2477f4e` (results)
+
+- [x] **Arb 2** `numDIOBits` bound in `configFreqSweep` — **kept**
+      (`2b23826`): GDB on SHFSG (the actual gate is `kDevSHFPlus`,
+      not UHFLI as the audit framed) confirmed the cmp loads
+      `devConst_[+0x84]` = `numDIOBits`. Recon is binary-faithful.
+- [x] **Arb 4** `Compiler::usedSampleRate_` writer — **fixed**
+      (`08c8135`): writer found at `0x1213d6` inside `Compiler::compile`,
+      copies from `staticResources->usedSampleRate_` near end of
+      compile(). Added Step 19b in `compiler.cpp` and inline accessor
+      `StaticResources::usedSampleRate()`.
+- [x] **Arb 5** — see IF-112 above (joint resolution).
+- [x] **Arb 7** `mergeWaveforms::useYSuffix` — **kept** (`6cee522`).
+- [x] **Arb 9** `AsmList::Asm::wavetableFront` — **kept** (`6cee522`):
+      symbol-not-in-source confirmed; closed.
+- [x] **Arb 11** `loopArgNodeAppend::arg` — **kept** (`6cee522`).
+
+**Phase R outcome.** 14 commits (`dfc278e`..`2b23826`), 259/259
+throughout. 1 real bug (IF-119 latent), 2 structural changes (Arb 4
+mirror-write reconstructed, IF-120 magic-literal cleanup, IF-121 dead
+namespace removed). All remaining audit follow-ups closed; only
+Phase Q (226 low-conf cosmetic items, deferred per audit policy)
+remains as outstanding audit work.
 
 ### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 

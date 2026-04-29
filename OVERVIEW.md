@@ -91,12 +91,17 @@ execution (20 commits, all 16 high/medium-confidence clusters landed —
 see `notes/symbol-renaming-audit/SYNTHESIS.md` and the
 `Symbol Renames (Phase D)` table at the bottom of this document). 226
 low-confidence/unsure cosmetic items remain explicitly deferred per audit
-policy. **95/95 undefined zhinst symbols resolved** — static archive
-fully self-contained.
+policy. **Phase R audit-followup complete** (14 commits
+`dfc278e`..`2b23826`): all 6 deferred arbitrations and all 10 open
+incidental findings (IF-110..IF-122) closed; 1 latent bug fixed
+(IF-119, `setPRNGSeed` Var path), 1 missing writer reconstructed
+(Arb 4, `Compiler::usedSampleRate_` mirror in `Compiler::compile`).
+**95/95 undefined zhinst symbols resolved** — static archive fully
+self-contained.
 
 **Differential tests: 259/259 byte-identical** (current as of
-2026-04-29, after Cluster I commit `9b2e690`). Score has held at
-259/259 across every Phase D commit.
+2026-04-29, after Phase R wrap-up commit). Score held at 259/259
+across every Phase D and Phase R commit.
 
 Phase 24 achievements:
 - AWGCompiler pimpl facade (8 bytes → AWGCompilerImpl 0x2C0 bytes)
@@ -634,5 +639,31 @@ Deferred per audit policy:
 - **Phase Q** — 226 low-confidence / unsure cosmetic items
   (stylistic underscore consistency, abbreviation preferences,
   acceptable-but-improvable names). See SYNTHESIS §6.
-- **5 skipped arbitrations** in commit `2477f4e` — genuinely ambiguous
-  without new disassembly evidence.
+
+## Symbol Renames (Phase R) — Audit follow-up
+
+14 commits (`dfc278e`..`2b23826`). All 259 tests green throughout.
+Resolved every deferred arbitration from `2477f4e` and every open
+incidental finding promoted in `717cf8e` (IF-110..IF-122).
+
+| Commit | Item | Outcome |
+|--------|------|---------|
+| `dfc278e` R.0 | IF-111, IF-122 | closed (already fixed in Phase D) |
+| `0288bde` IF-121 | dead `DeviceOpts` namespace | removed |
+| `dbabd4e` IF-120 | `configFreqSweep` magic literals | wired `kSuserSweep*` constants |
+| `49f1463` IF-114 | `PlayConfig::now` | kept (JSON contract) |
+| `7a87e7e` IF-118 | `AddressImpl<T>` | kept (single instantiation, ~300 sites) |
+| `085eaca` IF-113 | `Cache::Pointer::hash_` | kept |
+| `6cee522` Arb 7/9/11 | mergeWaveforms / asm_list / loopArgNodeAppend | kept |
+| `43b12c9` IF-115/IF-116 | polarity-inverted bools / `valueType` enum | status updates; `EDirection` type-fix deferred |
+| `da32249` IF-110/IF-112/IF-119 | trace plans recorded | needs-GDB |
+| `69fafbf` IF-110 | `Value::pad_04_` | dismissed (genuine padding, GDB-confirmed) |
+| `352ec74` IF-112 + Arb 5 | `NodeMapItem::hasFast` | dismissed (bool correct; GDB on full manifest saw only 0/1) |
+| `bf04292` IF-119 | `setPRNGSeed` Var path | **fixed** — latent bug; replaced `AsmRegister(value_.toInt())` with `args[0].reg_` |
+| `08c8135` Arb 4 | `Compiler::usedSampleRate_` | **writer reconstructed** at end of `Compiler::compile` (offset `0x1213d6`) |
+| `2b23826` Arb 2 | `configFreqSweep` numDIOBits bound | kept (binary-faithful; gate is `kDevSHFPlus`, not UHFLI) |
+
+Outstanding deferrals after Phase R:
+- **Phase Q** (226 cosmetic items) — only remaining audit work.
+- **IF-116** `EDirection` enum type-fix — deferred (~30 sites + autogen
+  `parser.tab.c` impact).
