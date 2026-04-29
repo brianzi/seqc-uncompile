@@ -2330,9 +2330,15 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 36
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **kept** (Phase R) — formula is hash-like; consumer role documented
 - **Description**: The field named `hash_` in `Cache::Pointer` does not store a hash value — binary analysis shows it holds a wrap-around address or index used by the prefetch subsystem. Misnaming obscures the actual cache-line logic.
-- **Action**: Rename to reflect actual semantics (e.g. `wrapAddress_`) after confirming usage in prefetch logic.
+- **Resolution**: Source review of all writers/readers:
+  - Written only in `cache.cpp:132` for the Aligned cache type:
+    `ptr->hash_ = ~(ptr->position_ ^ (ptr->position_ + halfSz));` — this is in fact a hash-like derivation of `position_` (XOR with a folded sum, then bitwise NOT).
+  - Cleared in `cache.cpp:184` (`pointer->hash_ = 0`) on the Normal path.
+  - Read at `prefetch_splitplay.cpp:325` and passed to `insertPlay` as the "start-address hash key" (per the comment at :321). The receiver uses it as an index/key, not as an address that can be dereferenced.
+  - Read at `cached_parser.cpp:60,247` in a different `hash_` field (`CachedParser::hash_`, a `std::vector<uint>`) — unrelated.
+  The value is genuinely a hash of the position; the prefetch consumer uses it as a hash key to resolve the wrap. Name kept; consumer comment at `prefetch_splitplay.cpp:321` documents the wrap role.
 
 ---
 
