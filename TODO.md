@@ -138,6 +138,52 @@ namespace removed). All remaining audit follow-ups closed; only
 Phase Q (226 low-conf cosmetic items, deferred per audit policy)
 remains as outstanding audit work.
 
+### Phase S: Phase Q refinement — reconcile then mechanical sweeps
+
+**Goal.** Convert the deferred 226-item Phase Q backlog from a vague
+"someday" list into either landed renames or formally closed wontfix
+entries. Plan derived from
+`reconstructed/notes/phase_r_leftovers_and_q_scoping.md` (commit
+`3b96992`).
+
+**Sequence (strict order — do not parallelize):**
+
+#### S.1 — Reconcile SYNTHESIS.md §6 against Phase D/R commits
+
+Audit the 226 Phase Q items against the actual Phase D + Phase R
+commit log. Expected outcome:
+- Bucket 3 (~30 items): already-resolved during Phase D/R but never
+  reconciled — close as `done in <commit>` references.
+- Bucket 4 (~56 items): formally close as `wontfix` with one-line
+  rationale per item.
+- Remaining ~140 items get crisp Bucket 1 / Bucket 2 tags so S.2
+  can proceed mechanically.
+
+Notes-only; no source touched. One commit. ~2 hours.
+
+#### S.2 — Bucket 1 mechanical sweeps
+
+For each micro-cluster identified in S.1 Bucket 1 (~80 items
+post-reconciliation), do a single source sweep:
+- disasm-leakage local renames (e.g. residual `r12_local` style)
+- snake_case → camelCase consistency
+- `regInv` → `regInvalid` style consistency
+- other purely mechanical underscore / abbreviation passes
+
+One commit per micro-cluster, build + 259/259 gated. Estimated
+~1 day across ~5-8 micro-clusters.
+
+**Out of scope for Phase S:**
+- Bucket 2 (~60 borderline preferences) — defer or handle case-by-case
+  when surfaced by a real change.
+- IF-116 `EDirection` enum type-fix — separate decision (see Phase R
+  leftover; not part of Phase Q).
+- Pre-Phase-R old IFs (IF-1..IF-109 long tail) — no test pressure;
+  leave documented.
+
+**Wrap-up.** TODO.md + OVERVIEW.md update at end of Phase S with
+final Phase Q status (X resolved / Y wontfix / Z deferred).
+
 ### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 
 The 2 final failing tests (`hdawg_doc_random_waves`,
