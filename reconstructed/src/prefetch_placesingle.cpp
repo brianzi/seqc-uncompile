@@ -187,13 +187,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         }
                     }
 
-                    // Step 4: Check indexOffsetReg                 // 0x1d85b4-0x1d85f3
+                    // Step 4: Check lengthReg (+0x88, NOT indexOffsetReg per IF-102)
                     {
                         Node* npIdx = node.get();
-                        if (npIdx->indexOffsetReg.isValid()) {     // 0x1d85bb
+                        if (npIdx->lengthReg.isValid()) {              // 0x1d85bb
                             AsmRegister zrCheck(0);
-                            if (!(npIdx->indexOffsetReg == zrCheck)) {
-                                // Indexed play path — TODO: implement 0x1da77f
+                            if (!(npIdx->lengthReg == zrCheck)) {
+                                // Indexed-Load path → 0x1da77f
                                 goto load_indexed_play;
                             }
                         }
@@ -233,8 +233,87 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                 load_indexed_play:
                     {
-                        // TODO: implement indexed play path for Load node (0x1da77f)
-                        // For now, fall through to finalize
+                        // Indexed-Load path (binary 0x1da77f)
+                        //
+                        // Reached when the Load node has lengthReg != 0.  The Load
+                        // emits an extended sequence in place of the simple
+                        // load_cervino_prf: it includes an SSL loop over the
+                        // waveform's channel-page count, an addr() to fold the
+                        // shifted index into the Hirzel base register, an
+                        // optional wwvf, and a half-size prf.  GDB-traced via
+                        // the uhf_doc_tv_mode case (see IF-105 in
+                        // reconstructed/notes/incidental_findings.md).
+
+                        auto cachePtrI = nodeStates_[node].cachePtr;
+                        uint32_t numRepeatsI = cachePtrI->numRepeats_;     // +0x0C
+
+                        // 0x1da7a8: if numRepeats >= 2, emit a leading wwvf
+                        if (numRepeatsI >= 2) {                            // 0x1da7ac
+                            AsmList::Asm wwvfAsm = asmCommands_->wwvf();   // 0x1da7b9
+                            tempList.append(wwvfAsm);
+                        }
+
+                        // 0x1da7da: allocate a temp register for the indexed
+                        // offset computation
+                        AsmRegister tempIdxReg(resources_->getRegisterNumber());
+
+                        // 0x1da823: addi(tempIdxReg, lengthReg, Imm(0))
+                        // — copy lengthReg value into the temp register
+                        Node* npI = node.get();
+                        {
+                            auto addiVec = asmCommands_->addi(tempIdxReg, npI->lengthReg,
+                                               Immediate(0));
+                            for (auto& a : addiVec) tempList.append(a);
+                        }
+
+                        // 0x1da876..0x1daa42: SSL loop over wave's channel pages.
+                        // Each iteration emits one ssl(tempIdxReg).
+                        // The loop count is the waveform's signal.channels_
+                        // (16-bit field at WaveformIR +0xc8).
+                        for (int16_t i = 0; ; i++) {
+                            auto waveOptI = npI->waveAtCurrentDeviceIndex();
+                            auto wfI = wavetableIR_->getWaveformByName(waveOptI);
+                            uint16_t numCh = wfI->signal.channels_;
+                            if ((int16_t)i >= (int)numCh)
+                                break;
+                            AsmList::Asm sslAsm = asmCommands_->ssl(tempIdxReg);  // 0x1da990
+                            tempList.append(sslAsm);
+                        }
+
+                        // 0x1daa86: addr(stRegHirzel, tempIdxReg)
+                        // — fold the shifted index into the Hirzel base reg
+                        AsmRegister stRegHI = nodeStates_[node].registerHirzel;  // +0x20
+                        {
+                            AsmList::Asm addrAsm = asmCommands_->addr(stRegHI, tempIdxReg);
+                            tempList.append(addrAsm);
+                        }
+
+                        // 0x1daad2: cacheSize >= minIndexedSize?
+                        uint32_t cacheSizeI = cachePtrI->size_;             // +0x04
+                        if (cacheSizeI >= minIndexedSize) {                 // 0x1daad8
+                            // Alternative path 0x1db562: more elaborate emission
+                            // (multiple addi, wprf, prf) — not yet implemented.
+                            // Fall through to the simpler path for now.  See
+                            // IF-105 for the full sequence.
+                        }
+
+                        // 0x1daae9: wwvf()
+                        {
+                            AsmList::Asm wwvfAsm = asmCommands_->wwvf();
+                            tempList.append(wwvfAsm);
+                        }
+
+                        // 0x1dab9f: prf(stRegH, stRegC, clampToCache(cacheSize/2))
+                        AsmRegister stRegCI = nodeStates_[node].registerCervino;  // +0x28
+                        {
+                            uint32_t halfClamped = clampToCache(cacheSizeI / 2);
+                            AsmList::Asm prfAsm = asmCommands_->prf(stRegHI, stRegCI,
+                                                                    (int)halfClamped);
+                            tempList.append(prfAsm);
+                        }
+
+                        // Falls through to load_finalize, which emits wprf (when
+                        // !isHirzel) and inserts tempList at the placeholder.
                         goto load_finalize;
                     }
 

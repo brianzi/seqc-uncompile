@@ -1483,11 +1483,18 @@ itself which is incomplete (see IF-103).
 ## IF-103  `play_cervino_indexed` body is not fully reconstructed
 
 **Source**: `uhf_doc_tv_mode` post-IF-102 investigation
-**Status**: open
+**Status**: open (investigation deepened — see IF-105)
 **Severity**: bug (substantial reconstruction work)
 
 After IF-102, `uhf_doc_tv_mode` enters `play_cervino_indexed` but the
 emitted instruction sequence is incomplete relative to the original.
+
+**UPDATE (post-GDB trace)**: The bulk of the missing instructions are
+NOT emitted by `play_cervino_indexed` (0x1dabb9) at all — they are
+emitted by the **case 1 Load** node going through the indexed-Load
+path at **0x1da77f**, which the recon currently stubs out as
+`load_indexed_play` → `load_finalize`.  See IF-105 for the full
+breakdown of which node emits which instructions.
 
 Original (UHFLI tv-mode loop, indexed playback):
 
@@ -1571,3 +1578,152 @@ ELF loaders use).  No code change in `reconstructed/`.
 
 **Test impact**: `shfsg_doc_ct_placeholder` now passes, suite score
 255 → 256/259.
+
+## IF-105  `case 1` Load with `lengthReg!=0` (path 0x1da77f) is the actual emitter for indexed-play setup
+
+**Source**: `uhf_doc_tv_mode` deeper investigation (extends IF-103)
+**Status**: open (proposed fix below)
+**Severity**: bug (substantial work; ~50–100 lines of new emission code)
+
+### GDB-verified execution flow for `uhf_doc_tv_mode`
+
+```
+1st placeSingleCommand call (Load, no wave):
+  case 1 → load_fallback → static_prf_path_load (0x1d8013)
+  emits: cwvf 5242753
+
+2nd placeSingleCommand call (Load, has wave + lengthReg != 0):
+  case 1 (0x1d79f8)
+  → step 1: alloc registerHirzel
+  → step 2: addi(regH, R0, addrValue)        ; emits "addiu R3, R0, 851969"
+  → step 3 (cervino, next!=null):
+    addi(regC, R0, cachePos)                  ; emits "addi R6, R0, 0"
+  → step 4: lengthReg.isValid() && != 0
+    → JMP 0x1da77f (NOT 0x1d85f6 / load_cervino_prf)
+
+  At 0x1da77f (the "load_indexed_play" body, NOT yet implemented):
+  - check nodeStates_[node].cachePtr->numRepeats_ >= 2  (0x1da7a8)
+    if yes: wwvf()                             (0x1da7b9, NOT taken on this test)
+  - alloc tempReg                              (0x1da7da)
+  - addi(tempReg, lengthReg, Imm(0))           ; emits "addi R4, R1, 0"
+  - SSL loop over wave's numPages (channels @ +0xc8):
+      ssl(tempReg)                             ; emits "ssl R4, R4"
+      (loops `numPages` times — for tv_mode wave, channels=1 so 1 iter
+       wait actually channels for waveAtCurrentDeviceIndex returns
+       sample-pages count, need to double-check; output shows 1 ssl)
+  - addr(stRegHirzel, tempReg)                 ; emits "addr R3, R4"   (0x1daa86)
+  - check cacheSize >= minIndexedSize          (0x1daad2)
+    if yes: jmp 0x1db562 (alternative path)
+  - wwvf()                                     ; emits "wwvf"          (0x1daae9)
+  - prf(stRegH, stRegC, clampToCache(cacheSize/2))
+                                              ; emits "prf R3, R6, 2528" (0x1dab9f)
+  - jmp 0x1db911 → 0x1db92e finalize:
+    if !isHirzel: wprf()                      ; emits "wprf"          (0x1db937)
+  - insert tempList into output at placeholder  (0x1db963)
+
+3rd placeSingleCommand call (Play indexed):
+  case 2 (play_entry, 0x1d7d49)
+  → eventually reaches play_cerv_indexed_split (0x1dabb9)
+  Per .asm output, this emits ONLY:
+    wvf R6, R0, 2520
+  (despite the 0x1dabb9 disassembly containing addi+ssl+... — those
+   results may go into a different list/placeholder, or the addi+ssl
+   are computed but not appended in this register-set; needs further
+   GDB tracing of the play call to verify what is actually appended.)
+```
+
+### Recon's incorrect output
+
+The recon currently emits, BEFORE the for-loop:
+```
+addiu R2, R0, 851969    ← from case 1 step 2 (regH addi)
+addi  R1, R0, 0         ← from case 1 step 3 (regC addi)
+prf   R2, R1, 252000    ← from load_cervino_prf path B2 (full waveformMemorySize)
+wprf                    ← from load_finalize
+```
+But the original places ALL of these (with adjusted prf size, and with
+extra ssl/addr/wwvf in between) INSIDE the for-loop, via the 0x1da77f
+path, which is not yet reconstructed.
+
+### What needs implementing
+
+1. **`load_indexed_play` body** (case 1 step 4 → 0x1da77f path) — this
+   currently `goto load_finalize` and produces nothing useful.  Needs:
+   - `numRepeats >= 2` check; emit wwvf() if so
+   - alloc tempReg
+   - addi(tempReg, lengthReg, Imm(0))
+   - ssl loop over `numPages` (waveform's signal.channels_ +0xc8)
+   - addr(stRegHirzel, tempReg)
+   - `cacheSize >= minIndexedSize` branch (if yes → emit per the
+     0x1db562 alternative path: addi + addi + wprf + prf with
+     numRepeats etc.; if no → emit wwvf+prf+wprf as above)
+   - For the no branch (this test's path):
+     wwvf() + prf(stRegH, stRegC, clampToCache(cacheSize/2)) + wprf()
+   - Insert tempList at placeholder
+
+2. **`play_cervino_indexed` actual emission** — needs further GDB
+   tracing to determine exactly which instructions reach the OUTPUT
+   stream (only `wvf` is observed in the .asm).  May involve:
+   - Dispatch to a separate placeholder for the per-iter wvf
+   - The addi+ssl+addr+wwvf computed at 0x1dabb9 may be DEAD CODE for
+     this configuration, or emitted to a side stream
+
+3. **Fixes to existing `load_cervino_prf` path** — currently always
+   takes Path B2 (cacheSize != waveformMemorySize → full size prf),
+   producing the `prf R2, R1, 252000`.  This pre-loop emission must
+   not happen when lengthReg!=0; the indexed_play branch (item 1)
+   should run instead.  Step 4's `goto load_indexed_play` is correct;
+   the bug is just that load_indexed_play is a stub.
+
+### Estimated scope
+
+- ~30 lines for the `load_indexed_play` body (item 1, no-Repeats branch)
+- ~20 lines for the `>=minIndexedSize` alternative (the 0x1db562 path)
+- Need a 2nd GDB session to nail down what `play_cervino_indexed`
+  actually appends to output (item 2)
+- Risk of regressing other tests that take case 1 step 4 (any indexed
+  load on Cervino/Hirzel devices)
+
+Recommendation: implement in two patches —
+(a) load_indexed_play (no-Repeats, no-Hirzel, < minIndexedSize) —
+    targets exactly tv_mode and verifies the diff reduces to just the
+    `wvf` instruction;
+(b) play_cervino_indexed wvf emission — only after (a) is verified.
+
+### IF-105 update (after partial implementation attempt)
+
+The `load_indexed_play` body has been reconstructed in
+`reconstructed/src/prefetch_placesingle.cpp` (matching binary 0x1da77f
+for the no-Repeats / non-Hirzel / `< minIndexedSize` branch).  However,
+**the recon never reaches it** for `uhf_doc_tv_mode`.
+
+A debug fprintf at step 4 confirmed:
+```
+STEP4: lengthReg.valid=0 val=-1 indexOff.valid=0 val=-1
+```
+
+The Load node's `lengthReg` and `indexOffsetReg` are BOTH invalid in
+the recon, whereas the original binary takes step 4's "lengthReg
+valid && != 0" branch (verified via GDB).  So the missing wiring is
+**upstream**: the Load node needs its `lengthReg` (the same lengthReg
+field that lives on the Play node from the indexed-play call) to be
+copied or referenced.
+
+Likely culprits — places where Load and Play nodes are paired up:
+- `prepareTree` / Load-creation pass (where Load nodes are extracted
+  from playWaveIndexed)
+- The shared-back-reference (`loadRef`) wiring — perhaps the play's
+  lengthReg should also be propagated to the load
+- The "case 1 falls through to case 2" merger artifact (Phase 10.8b
+  comment in the file header)
+
+**This is now a separate root cause** distinct from the missing
+`load_indexed_play` body.  The body is correct and ready for use once
+the upstream wiring is fixed; until then the body is dead code.
+
+**Action items** (to be promoted to TODO.md):
+- Investigate where `Node::lengthReg` is set during prepareTree / load
+  extraction in the Cervino path.
+- GDB-trace the original at the play→load wiring point to see where
+  the load's lengthReg is populated (likely during a copy from a
+  paired play node).
