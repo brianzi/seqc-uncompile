@@ -8074,7 +8074,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 //     Iteratively evaluates the body in "unroll" sub-scopes, extracting the
 //     condition value via toInt() each iteration. Builds a linked node chain
 //     via Node::next. Exits on: condition==0, body hasError, null condResult
-//     re-evaluation, or iteration count exceeding ctx.channelGrouping (error
+//     re-evaluation, or iteration count exceeding ctx.loopUnrollLimit (error
 //     0x7b from ErrorMessages::messages BST).
 //
 //   Var path (0x21ee6c–0x21f70f):
@@ -8199,7 +8199,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
             }
 
             // Iteration limit check                                 // @0x21eb1a
-            if (iterCount > ctx.channelGrouping) {                   // @0x21eb1e
+            if (iterCount > ctx.loopUnrollLimit) {                   // @0x21eb1e
                 // Error 0x7b: too many iterations (BST lookup)      // @0x21eb24
                 auto const& msgs = ErrorMessages::messages;
                 auto it = msgs.find(0x7b);
@@ -8337,7 +8337,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
 //     Iteratively evaluates body in "unroll" sub-scopes, chaining nodes.
 //     Condition checked at bottom via toDouble() + floatEqual(0.0).
 //     Exits on: condition==0, body hasError, null condResult re-evaluation,
-//     or iteration count exceeding ctx.channelGrouping (error 0x7b).
+//     or iteration count exceeding ctx.loopUnrollLimit (error 0x7b).
 //
 //   Var path (0x220cb9–0x2213bb):
 //     Merges condResult assemblers, emits asmLoopNode with
@@ -8498,7 +8498,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
             }
 
             // Iteration limit check                                 // @0x220928
-            if (iterCount > ctx.channelGrouping) {                    // @0x220932
+            if (iterCount > ctx.loopUnrollLimit) {                    // @0x220932
                 auto const& msgs = ErrorMessages::messages;
                 auto it = msgs.find(0x7b);
                 if (it != msgs.end()) {
@@ -8664,7 +8664,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
 //
 //   Cvar path (0x222f2a–0x2238dd):
 //     Extracts count via toInt(). If <0 → error 0xb7. If >= 2, checks vs
-//     ctx.channelGrouping (error 0x7b). First body eval in "maybe_unroll"
+//     ctx.loopUnrollLimit (error 0x7b). First body eval in "maybe_unroll"
 //     scope with atScopeBoundary toggling + lineNr save/restore. Then loops
 //     remaining iterations in "unroll" scopes, chaining nodes. Copies
 //     accumulatedNode or bodyResult->node_ into result.
@@ -8775,8 +8775,8 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
             }
         }
         else {
-            // countInt >= 2: check vs channelGrouping               // @0x222fcf
-            if (countInt > ctx.channelGrouping) {                    // @0x222fd5
+            // countInt >= 2: check vs loopUnrollLimit               // @0x222fcf
+            if (countInt > ctx.loopUnrollLimit) {                    // @0x222fd5
                 // Error 0x7b: too many iterations (BST lookup)      // @0x2231d6
                 auto const& msgs = ErrorMessages::messages;
                 auto it = msgs.find(0x7b);
@@ -10007,7 +10007,7 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
 
             // Iteration limit check                                 // @0x21c528
             iterCount++;
-            if ((iterCount - 1) > ctx.channelGrouping) {             // @0x21c533
+            if ((iterCount - 1) > ctx.loopUnrollLimit) {             // @0x21c533
                 // Error 0x7b: too many iterations (BST lookup)      // @0x21c53d
                 auto const& msgs = ErrorMessages::messages;
                 auto it = msgs.find(0x7b);

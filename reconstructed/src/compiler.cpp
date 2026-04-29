@@ -271,7 +271,7 @@ CompileResult Compiler::compile(const std::string& source) {
     }
 
     // Step 8: Frontend lowering                                            // 0x11f911
-    // Binary reads config_->unknown_98 (offset 0x98) as channelGrouping int
+    // Binary reads config_->unknown_98 (offset 0x98) as loopUnrollLimit int
     auto lowerResult = FrontEndLoweringFacade::lower(
         std::static_pointer_cast<Resources>(resources),
         *seqcAst,
@@ -280,7 +280,7 @@ CompileResult Compiler::compile(const std::string& source) {
         customFunctions_,
         waveformGen_,
         wavetable_,
-        config_->channelGrouping);                                       // [config+0x98]
+        config_->loopUnrollLimit);                                       // [config+0x98]
 
     // Step 8b: Store lowered AST into Compiler.ast_                        // 0x11f92f
     ast_ = std::move(lowerResult.astResult);
@@ -669,7 +669,7 @@ FrontEndLoweringFacade::LowerResult FrontEndLoweringFacade::lower(
     std::shared_ptr<CustomFunctions> customFunctions,
     std::shared_ptr<WaveformGenerator> waveformGen,
     std::shared_ptr<WavetableFront> wavetable,
-    int channelGrouping)
+    int loopUnrollLimit)
 {
     // 1. Build FrontendLoweringContext on stack (holds shared_ptrs + int)
     FrontendLoweringContext context;
@@ -678,7 +678,7 @@ FrontEndLoweringFacade::LowerResult FrontEndLoweringFacade::lower(
     context.customFunctions = std::move(customFunctions);
     context.waveformGen = std::move(waveformGen);
     context.wavetable = std::move(wavetable);
-    context.channelGrouping = channelGrouping;
+    context.loopUnrollLimit = loopUnrollLimit;
 
     // 2. Create empty FrontendLoweringState on stack
     FrontendLoweringState state;

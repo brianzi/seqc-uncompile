@@ -24,7 +24,7 @@ its items merged into TODO.md) and removed from the audit folder.
 - [x] **Commit 7** — Cluster A (`flag` → cluster-B-canonical; AsmCommands br/brz/brnz/brgz + impl/Cervino/Hirzel overrides).
 - [x] **Commit 8** — Cluster K (PlayConfig producer/field swap; genPlayConfig + asmPlay + asmTable).
 - [x] **Commit 9** — Cluster L (AsmCommandsImpl::wvf/wvfi param drift; vtable-coordinated).
-- [ ] **Commit 10** — Cluster D (`channelGrouping` → `loopUnrollLimit`; 3-leg coordinated).
+- [x] **Commit 10** — Cluster D (`channelGrouping` → `loopUnrollLimit`; 3-leg coordinated).
 - [ ] **Commit 11** — Cluster C (Hirzel family + Cache aliasing; drop both alias families; `Cache::appendMode_` → `isHirzel_`; `Cache::getBestPosition::appendMode` → `gapScan`). After this, Arbitration 10 can be resolved.
 - [ ] **Commit 12** — Cluster E (drop forwarding-accessor aliases; rename PNS `requiredSlots` → `usedCache_`).
 - [ ] **Commit 13** — Cluster N (`Resources::parent_` → `grandparent_`; two-step rename to avoid name collision; GlobalResources ctor param).

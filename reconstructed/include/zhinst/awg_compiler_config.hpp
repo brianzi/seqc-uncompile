@@ -47,7 +47,7 @@ namespace zhinst {
 // 0x90    4     uint32_t                    debugFlags          Bitmask: 0x02=print old AST, 0x04=print SeqC AST,
 //                                                               0x08=print tree/assembly (verified: testb at 0x11f379)
 // 0x94    4     int32_t                     numCores            Number of AWG cores
-// 0x98    4     int32_t                     channelGrouping     Passed to FrontEndLoweringFacade::lower() (verified 0x11f8d4)
+// 0x98    4     int32_t                     loopUnrollLimit     Passed to FrontEndLoweringFacade::lower() (verified 0x11f8d4)
 // 0x9C    4     (pad)
 // 0xA0    4     int32_t                     wavetableSize       sign-extended to size_t, passed to WavetableFront
 // 0xA4    4     (pad)
@@ -82,7 +82,7 @@ struct AWGCompilerConfig {
     uint64_t optimizationFlags;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
     int32_t numCores = 0;               // 0x94 — number of AWG cores (binary default is 0)
-    int32_t channelGrouping;            // 0x98 — passed to FrontEndLoweringFacade::lower() as last arg
+    int32_t loopUnrollLimit;            // 0x98 — passed to FrontEndLoweringFacade::lower() as last arg
                                         //        (verified: mov eax,[rax+0x98] at 0x11f8d4 in compile())
     uint8_t pad_9c;                     // 0x9C — padding
     bool compressSource;                // 0x9D — if true, compress source sections in ELF (verified at 0x108f48)

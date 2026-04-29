@@ -89,7 +89,7 @@ LowerResult lower(std::shared_ptr<Resources> resources,
                    std::shared_ptr<CustomFunctions> customFunctions,
                    std::shared_ptr<WaveformGenerator> waveformGen,
                    std::shared_ptr<WavetableFront> wavetable,
-                   int channelGrouping);
+                   int loopUnrollLimit);
 
 }  // namespace FrontEndLoweringFacade
 

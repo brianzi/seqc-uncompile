@@ -40,7 +40,7 @@ class WavetableFront;
 //   +0x18  16  shared_ptr<CustomFunctions>           customFunctions
 //   +0x28  16  shared_ptr<WaveformGenerator>         waveformGen
 //   +0x38  16  shared_ptr<WavetableFront>            wavetable
-//   +0x48  4   int32_t                               channelGrouping
+//   +0x48  4   int32_t                               loopUnrollLimit
 //   +0x4C  4   (padding)
 // ============================================================================
 struct FrontendLoweringContext {
@@ -49,7 +49,7 @@ struct FrontendLoweringContext {
     std::shared_ptr<CustomFunctions>           customFunctions;   // +0x18
     std::shared_ptr<WaveformGenerator>         waveformGen;       // +0x28
     std::shared_ptr<WavetableFront>            wavetable;         // +0x38
-    int32_t                                    channelGrouping;   // +0x48
+    int32_t                                    loopUnrollLimit;   // +0x48
     // 4 bytes padding to 0x50
 
     ~FrontendLoweringContext();  // 0x1233b0

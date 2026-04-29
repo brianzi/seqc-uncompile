@@ -203,7 +203,7 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     config.deviceIndex = 0;                                     // +0x24
     config.optimizationFlags = 0xFF;                                   // +0x88 — binary hardcodes 0xFF
     config.numCores = 0;                                        // +0x94 — binary sets 0 (not 1)
-    config.channelGrouping = 0x20000;                           // +0x98 — 131072; compile-time loop unroll limit
+    config.loopUnrollLimit = 0x20000;                           // +0x98 — 131072; compile-time loop unroll limit
 
     // String fields
     if (!filename.empty()) {
