@@ -767,35 +767,78 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // addr + wwvf + prf + clampToCache     // done inline
                             // ...falls through to common finalize
                         } else {
-                            // Cervino non-Hirzel indexed path       // 0x1daed4
-                            // Same structure but uses different register source
-                            int length2 = node.get()->length; // +0x90   // 0x1daee5
-                            auto waveOptIdx = npCervIdx->waveAtCurrentDeviceIndex();
-                            auto wfIdx = wavetableIR_->getWaveformByName(waveOptIdx);
-                            uint16_t numPages = wfIdx->signal.channels_;
+                            // Cervino non-split indexed path        // 0x1db60f
+                            // GDB-verified for uhf_doc_tv_mode: this path emits
+                            // ONLY a single wvfImpl(regCervino, totalSize, is4Ch).
+                            // Binary flow:
+                            //   0x1db60f: get nodeStates_[node].registerCervino → stateReg
+                            //   0x1db66d: length = node->length saved in [rbp-0x58]
+                            //   0x1db676: cmp cachePtr->size_ vs minIndexedSize
+                            //     jae 0x1dbb04: large-cache → totalSize = length * channels
+                            //     fall:        small-cache → totalSize = length * channels * 2
+                            //   jmp 0x1dbb6d → 0x1d9d3a → 0x1d9ee2 (single wvfImpl)
+                            //   then post-wvf: cachePtr->size_ < minIndexedSize → jb finalize
+                            int length = node.get()->length;                // +0x90, 0x1db66d
+                            AsmRegister stateRegC = nodeStates_[node].registerCervino; // +0x28
+                            uint32_t cachePtrSize = nodeStates_[node].cachePtr
+                                                       ? nodeStates_[node].cachePtr->size_
+                                                       : 0;                  // +0x48 +0x4
 
-                            AsmRegister idxReg(resources_->getRegisterNumber()); // 0x1daf5c
+                            auto waveOptI = node.get()->waveAtCurrentDeviceIndex();
+                            auto wfI = wavetableIR_->getWaveformByName(waveOptI);
+                            uint16_t channels = wfI->signal.channels_;       // +0xc8
 
-                            // addi idxReg, node->lengthReg, Immediate(0)  (IF-102)
+                            // Path A (small cache) doubles; Path B (large cache) does not.
+                            int totalSizeIdx;
+                            if (cachePtrSize >= (uint32_t)minIndexedSize) {  // 0x1db676 jae
+                                totalSizeIdx = length * (int)channels;       // 0x1dbb6a imul
+                            } else {
+                                totalSizeIdx = length * (int)channels * 2;   // 0x1db6f1 add eax,eax
+                            }
+                            totalSize = totalSizeIdx;  // share with downstream prf logic
+
+                            // wvfImpl(stateRegC, totalSize, is4Ch)         // 0x1d9ef7
+                            bool is4Ch = node.get()->config.now;             // +0x64
                             {
-                                auto addiVec = asmCommands_->addi(idxReg, node.get()->lengthReg,
-                                                   Immediate(0));
-                                for (auto& a : addiVec) tempList.append(a);
+                                AsmList wvfResult = wvfImpl(stateRegC, totalSizeIdx, is4Ch);
+                                tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                             }
 
-                            totalSize = length2 * (int)numPages * 2;  // assigns outer-scope var
+                            // Post-wvf: lengthReg already valid && != 0 (we got here),
+                            // and split_ is false. So check cacheSize >= minIndexedSize:
+                            //   if true: emit addi+addi+prf+wprf (the 0x1d9fab block)
+                            //   else:    fall through to play_finalize  (tv_mode path)
+                            if (cachePtrSize >= (uint32_t)minIndexedSize) {  // 0x1d9fa5 jb
+                                AsmRegister idxReg2(resources_->getRegisterNumber()); // 0x1d9fab
+                                AsmRegister stRegHidx = nodeStates_[node].registerHirzel; // 0x1d9ff2
 
-                            // SSL loop
-                            for (int16_t i = 0; ; i++) {
-                                auto waveOptI = node.get()->waveAtCurrentDeviceIndex();
-                                auto wfI = wavetableIR_->getWaveformByName(waveOptI);
-                                uint16_t np2 = wfI->signal.channels_;
+                                // addi idxReg2, stRegHidx, Immediate(totalSize)
+                                {
+                                    auto addiVec = asmCommands_->addi(idxReg2, stRegHidx,
+                                                       Immediate(totalSizeIdx)); // 0x1da01b
+                                    for (auto& a : addiVec) tempList.append(a);
+                                }
 
-                                if ((int16_t)i >= (int)np2)
-                                    break;
+                                AsmRegister reg3idx(resources_->getRegisterNumber()); // 0x1da06b
+                                if (!config_->isHirzel) {
+                                    AsmRegister stRegC2 = nodeStates_[node].registerCervino;
+                                    auto addiVec2 = asmCommands_->addi(reg3idx, stRegC2,
+                                                       Immediate(totalSizeIdx));
+                                    for (auto& a : addiVec2) tempList.append(a);
+                                }
 
-                                AsmList::Asm sslAsm = asmCommands_->ssl(idxReg);
-                                tempList.append(sslAsm);
+                                // prf(idxReg2, reg3idx, totalSizeIdx)
+                                {
+                                    AsmList::Asm prfAsm = asmCommands_->prf(idxReg2, reg3idx,
+                                                            totalSizeIdx);
+                                    tempList.append(prfAsm);
+                                }
+
+                                // wprf()
+                                {
+                                    AsmList::Asm wprfAsm = asmCommands_->wprf();
+                                    tempList.append(wprfAsm);
+                                }
                             }
                         }
 

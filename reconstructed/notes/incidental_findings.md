@@ -1908,14 +1908,95 @@ pipeline.  Deferred.
 - IF-103 part 1 (`load_indexed_play` body missing): **fixed** in
   prior commit (a247dfb).
 - IF-103 part 2 (`play_cervino_indexed` extra addi+ssl, missing
-  wvf): **still open** — see IF-105 update 4 item B.
+  wvf): **fixed** in this commit (see IF-105 update 5 below).
 - IF-105 wiring (`lengthReg` propagation in moveLoadsToFront):
   **fixed** in 6aa0602.  However for tv_mode the wiring is moot
   because moveLoadsToFront should not run at all (see update 3).
 - IF-105 update 3 (`getRequiredMemory` formula): **fixed** in
   prior commit.
 - IF-105 update 4 (indexed cache-size + clampToCache(/2)):
+  **fixed** in prior commit.
+- IF-105 update 5 (`play_cervino_indexed` non-split body):
   **fixed** in this commit.
-- Remaining tv_mode diff: 40 bytes, 3 structural issues
-  (placement, missing wvf, reg alloc) enumerated above.  Test
-  still fails (256/259).
+- Remaining tv_mode diff: 0 bytes ELF size mismatch, 1211/1211 .asm
+  byte match, but `.asm` content still differs due to:
+  (A) placement of load setup block (still emitted AFTER user
+      statements; original places it BEFORE) and
+  (C) register allocation differences (orig R6 vs recon R3 for
+      registerCervino).  Test still fails (256/259) but the
+      structural codegen for the play-side is now correct.
+
+### IF-105 update 5 (play_cervino_indexed non-split body reconstructed)
+
+**Status**: fixed — the recon now emits the correct single
+`wvf R*, R0, 2520` instruction for tv_mode's play_cervino_indexed
+non-split path.
+
+**GDB trace** of the original on `uhf_doc_tv_mode` revealed the
+actual control flow taken at `play_cervino_indexed` (0x1dabb9):
+
+```
+0x1dabb9 (entry)
+  → cmp [r15+0xbc], 1      ; check split_
+  → jne 0x1db60f             ; NOT split → take non-split branch
+0x1db60f (non-split)
+  → emplace nodeStates_[node] → registerCervino  saved in [rbp-0x148]
+  → length = node->length  saved in [rbp-0x58]
+  → emplace → cachePtr->size_ loaded
+  → cmp size, minIndexedSize
+    jae 0x1dbb04           ; large-cache: totalSize = length * channels
+    fall:                  ; small-cache: totalSize = length * channels * 2
+  → jmp 0x1dbb6d → 0x1d9d3a
+0x1d9d3a (shared wvfImpl emission)
+  → cmp deviceType, 2; jne 0x1d9d4e
+  → cmp pageCount, [devConst+0xc]; jne 0x1d9ee2
+0x1d9ee2 (single wvfImpl)
+  → wvfImpl(registerCervino, totalSize, is4Ch)  ; emits "wvf R6, R0, 2520"
+  → append result to tempList
+  → check lengthReg.isValid() && != 0 && !split_ && cachePtr->size_ >= minIdx
+    → cachePtr->size_ (2528) < minIndexedSize (4096) → jb finalize
+0x1dba0d (play_finalize)
+  → insert tempList into output
+```
+
+The previous recon had the non-split branch (the `else` block in
+`play_cervino_indexed`) emitting addi+ssl based on the binary at
+0x1daed4, but 0x1daed4 is a different scenario altogether
+(another split-check entry-point), not the actual non-split path
+of 0x1dabb9.  The actual non-split path is the 0x1db60f →
+0x1dbb6d → 0x1d9d3a chain that converges into the same wvfImpl
+emission used by play_cervino_nonsplit (without the indexed
+gate).
+
+**Fix** (this commit): replace the `else` branch of
+`play_cervino_indexed` with code that:
+1. Reads `node->length`, `nodeStates_[node].registerCervino`,
+   `nodeStates_[node].cachePtr->size_`, and the wave's
+   `signal.channels_`.
+2. Computes totalSize via the cachePtr->size_ vs minIndexedSize
+   branch (large-cache: length*channels; small-cache:
+   length*channels*2).
+3. Calls `wvfImpl(registerCervino, totalSize, is4Ch)` and appends
+   the result to tempList.
+4. If `cachePtr->size_ >= minIndexedSize`, additionally emits the
+   addi/addi/prf/wprf block (the 0x1d9fab path).
+
+For tv_mode, only step 3 produces output (size < minIdx → step 4
+skipped) — matching the `wvf R*, R0, 2520` in the original.
+
+**Test impact**:
+- `uhf_doc_tv_mode`: ELF size 260728 → 260688 (matches original).
+- `.asm` size 1229 → 1211 (matches original).
+- Test still fails because:
+  - Issue A (placement): the load_indexed_play tempList is
+    inserted at the END of the for-loop body (after user
+    `setID/wait/setTrigger/wtrigs`); the original places it at
+    the START (right after `false5: brz R4, end7`).
+  - Issue C (registers): orig allocates R6 for registerCervino
+    and R3 for registerHirzel; recon allocates R3 and R4
+    respectively.  Likely downstream of the alloc-order
+    changes from prior fixes.
+- Suite score 256/259, no regressions.
+
+These two issues are placement-pipeline / resource-allocation
+problems, not codegen-body problems.  Deferred.
