@@ -119,15 +119,6 @@ enum class ValueType : int32_t {
     String     = 4,    // holds std::string
 };
 
-// VariantSlot — variant discriminator for Value::which_ (A3)
-// Maps to the union storage slot index, NOT to ValueType.
-enum class VariantSlot : int32_t {
-    Int    = 0,
-    Bool   = 1,
-    Double = 2,
-    String = 3,
-};
-
 // ============================================================================
 // Value — ValueType tag + tagged union
 //

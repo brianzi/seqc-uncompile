@@ -7447,7 +7447,6 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
                 if (stmtResult) {
                     // Merge assemblers into last result in vector    // @0x216c23
                     auto& lastResult = results.back();
-                    auto lastEval = *lastResult;  // get the EvalResults pointed to
                     // Access through last element of results vector
                     // results.back() is shared_ptr; [rbx+0x8]-0x10 is
                     // the second-to-last entry's raw EvalResults*

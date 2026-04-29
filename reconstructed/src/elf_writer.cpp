@@ -182,8 +182,7 @@ std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
     }
 
     // Add waveform data section ".wf_<name>"
-    std::string wfName2 = wfPtr->name;
-    std::string wfSectionName = ".wf_" + wfName2;
+    std::string wfSectionName = ".wf_" + wfPtr->name;
 
     ELFIO::section* wfSec = sections.add(wfSectionName);
     wfSec->set_flags(SHF_ALLOC);
