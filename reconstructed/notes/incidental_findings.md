@@ -2283,3 +2283,143 @@ table for a single failing function, look at what stdlib calls the
 binary actually makes. If there are no `call` instructions to
 distribution operators in the function, it's not a stdlib problem —
 it's a hand-rolled inline implementation. Disassemble before assuming.
+
+---
+
+## IF-109  Bytes-vs-samples confusion across wave-memory subsystem
+
+- **Source**: audit batches 02, 14, 16, 36, 46, 48
+- **Severity**: likely-bug
+- **Status**: open
+- **Description**: Multiple subsystems conflate byte counts with sample counts when computing wave memory sizes, offsets, and allocation. Parameters named `size` or `length` are sometimes in bytes (×2 for 16-bit samples) and sometimes in samples, with no consistent convention.
+- **Action**: Audit all wave-memory size parameters; establish a naming convention (e.g. `_bytes` / `_samples` suffixes) and fix any arithmetic that silently converts between the two.
+
+---
+
+## IF-110  `Value::pad_04_` is not padding; `subType_` shape unclear
+
+- **Source**: audit batch 11
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: The field named `pad_04_` in `Value` is accessed by binary code and is therefore not mere padding. Additionally, `subType_` has a shape (enum? bitfield?) that doesn't match the current `int` declaration.
+- **Action**: Trace binary accesses to `Value+0x04` to determine semantics; rename field and fix type of `subType_`.
+
+---
+
+## IF-111  `namespace Assembler` + `AssemblerInstr` should be one class
+
+- **Source**: audit batches 26, 33 (type-suspicion + logic-bug: recon split of one binary class)
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: The binary implements a single `Assembler` class with instruction-building methods. The reconstruction artificially split this into a free-function namespace `Assembler` and a separate `AssemblerInstr` struct, causing awkward coupling and potential semantic drift.
+- **Action**: Merge `namespace Assembler` functions into the `AssemblerInstr` class (or a unified `Assembler` class) to match binary layout.
+
+---
+
+## IF-112  `NodeMapItem::hasFast` int conflated with `AccessMode` enum
+
+- **Source**: audit batches 27 (type-suspicion + logic-bug)
+- **Severity**: likely-bug
+- **Status**: open
+- **Description**: `NodeMapItem::hasFast` is typed as `int` and compared against literal values that correspond to an `AccessMode` enum (`0`=none, `1`=fast, `2`=...?). The conflation means callers may pass wrong enum values or compare incorrectly.
+- **Action**: Introduce `AccessMode` enum and retype `hasFast` (or rename to `accessMode_`).
+
+---
+
+## IF-113  `Cache::Pointer::hash_` is not a hash; prefetch wrap-address semantics
+
+- **Source**: audit batch 36
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: The field named `hash_` in `Cache::Pointer` does not store a hash value — binary analysis shows it holds a wrap-around address or index used by the prefetch subsystem. Misnaming obscures the actual cache-line logic.
+- **Action**: Rename to reflect actual semantics (e.g. `wrapAddress_`) after confirming usage in prefetch logic.
+
+---
+
+## IF-114  `PlayConfig::now` named 'now' but read as 4-channel flag
+
+- **Source**: audit batch 38
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: `PlayConfig::now` is named as if it means "play immediately" but the binary reads it as a flag indicating 4-channel playback mode. Callers testing `now` may misinterpret the semantics.
+- **Action**: Verify binary semantics via GDB; rename to `fourChannel_` or similar if confirmed.
+
+---
+
+## IF-115  Strict/useAbsolute/showLine polarity-inverted booleans
+
+- **Source**: audit batches 39, 47, 52
+- **Severity**: likely-bug
+- **Status**: open (partially fixed — see IF-117)
+- **Description**: Several boolean parameters have inverted polarity relative to their names: `strict` means "lenient" in some paths, `showLine` gates line-number suppression, etc. The inversions cause logic errors when callers assume positive-polarity semantics.
+- **Action**: Audit each boolean's binary polarity; rename or invert as needed. `useAbsolute` already fixed (see IF-117).
+
+---
+
+## IF-116  `Expression::valueType` int slot is actually `EDirection` enum
+
+- **Source**: audit batch 42
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: `Expression::valueType` is declared as `int` but the binary only stores values 0/1/2 corresponding to `EDirection` (input/output/inout or similar). Using raw int allows invalid values and obscures intent.
+- **Action**: Introduce or reuse `EDirection` enum; retype the field.
+
+---
+
+## IF-117  `addWaveform::useAbsolute` polarity confirmed; flipped with rename
+
+- **Source**: audit batch 47
+- **Severity**: likely-bug
+- **Status**: fixed (commit e22c1b5, renamed to `useMapped`)
+- **Description**: The `useAbsolute` parameter had inverted polarity — `true` meant "use mapped addressing". Confirmed via binary trace and fixed by renaming to `useMapped` with correct polarity in phase-D commit 14.
+- **Action**: None — resolved.
+
+---
+
+## IF-118  `AddressImpl<T>` wrapper overgeneral
+
+- **Source**: audit batch 48
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: `AddressImpl<T>` is templated but only instantiated with one type in the binary. The template adds complexity (SFINAE, specialization surface) without benefit and may mask the actual address-width semantics.
+- **Action**: Consider de-templating to a concrete class matching the single binary instantiation.
+
+---
+
+## IF-119  `setPRNGSeed` integer-literal path constructs `AsmRegister` from value
+
+- **Source**: audit batch 05c2
+- **Severity**: likely-bug
+- **Status**: open
+- **Description**: When `setPRNGSeed` receives an integer literal, the reconstruction passes the raw integer value to `AsmRegister` constructor, treating the seed value as a register number. The binary instead emits an immediate-load instruction.
+- **Action**: Fix to emit `setImmediate` + register-indirect seed store, matching binary codegen path.
+
+---
+
+## IF-120  `configFreqSweep` magic literals — constants exist but are unused
+
+- **Source**: audit batch 05c
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: Named constants for `configFreqSweep` magic values exist in the reconstruction (from rodata) but the implementation uses inline numeric literals instead. This makes maintenance harder and risks drift.
+- **Action**: Replace inline literals with the named constants.
+
+---
+
+## IF-121  `DeviceOpts` namespace full duplicate of anonymous-namespace `k*` set
+
+- **Source**: audit batch 22
+- **Severity**: suspicious
+- **Status**: open
+- **Description**: `DeviceOpts` namespace defines the same constant set as the anonymous-namespace `k*` constants (e.g. `kMaxWaveLen`, `kMinGranularity`). One is redundant and may diverge silently.
+- **Action**: Remove the duplicate set; keep whichever has broader usage.
+
+---
+
+## IF-122  `Resources::parent_` strong/weak pointer inversion
+
+- **Source**: audit batch 19a
+- **Severity**: likely-bug
+- **Status**: open
+- **Description**: `Resources::parent_` is stored as a `shared_ptr` (strong reference) but the binary uses a `weak_ptr` to avoid reference cycles in the resource tree. The strong reference prevents parent deallocation and causes memory leaks in deep scope chains.
+- **Action**: Change `parent_` to `weak_ptr` and fix all access sites to lock before use.
