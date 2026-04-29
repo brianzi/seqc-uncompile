@@ -1345,7 +1345,9 @@ results->assemblers_.push_back(std::move(playEntry));
 ## IF-100  `playIndexed` indexed-play codegen still incorrect
 
 **Source**: `uhf_doc_tv_mode` post-IF-99 investigation
-**Status**: open
+**Status**: Phase 12 Var-branch fixed; remaining diff traced to
+IF-102 (placesingle wrong field) and IF-103 (incomplete
+play_cervino_indexed body).
 **Severity**: likely-bug
 
 After IF-99 fix, `uhf_doc_tv_mode` still differs in `.asm`/`.text`/`.linenr`.
@@ -1440,3 +1442,91 @@ had `linkLoad` called on them, leaving `loadRef` empty, and triggering
 **Score**: 254 → 255 of 259 passing.
 **Fix**: prefetch_helpers.cpp `removeBranches` else branch — push
 `n->next` before iterating branches.
+
+## IF-102  Prefetch::placeSingleCommand uses wrong field (indexOffsetReg vs lengthReg)
+
+**Source**: `uhf_doc_tv_mode` post-IF-100 investigation
+**Status**: partially fixed
+**Severity**: bug (fixed for indexed-play dispatch; other call sites
+unaudited)
+
+`Prefetch::placeSingleCommand` in `prefetch_placesingle.cpp` had
+multiple sites that referenced `node->indexOffsetReg` (+0x94) where
+the binary actually reads `node->lengthReg` (+0x88).  The two fields
+are adjacent and easy to confuse, but binary verification at the
+following addresses confirms the correct offset is +0x88:
+
+- 0x1d91d4: `add $0x88, %rdi` before `isValid` — the cervino_nonsplit
+  → cervino_indexed dispatch check (recon line 520 in original file).
+- 0x1d9f3b/0x1d9f50: post-wvf indexed-play dispatch (recon line 588).
+- 0x1dac6f: `mov 0x88(%rax), %r13` then passed as 3rd arg to
+  `addi(idxReg, ?, Immediate(0))` in cervino_indexed_split branch
+  (recon line 658).
+- 0x1d9953: same pattern in cervino_indexed2_hirzel (recon line 743).
+
+Without these fixes, `play_cervino_indexed` was never entered, even
+when the playWaveIndexed had a runtime offset register set in
+`lengthReg` by `asmPlay`.  The recon was unconditionally taking the
+`play_cervino_nonsplit` static-prefetch path.
+
+**Fix** (this commit): updated lines 520, 588, 658, 693, 743 to read
+`node->lengthReg`.  Other `indexOffsetReg` references in the file
+(lines 190, 457, 466) were NOT audited and may also be wrong; left
+in place pending verification per their own binary addresses.
+
+**Test impact**: `uhf_doc_tv_mode` now reaches `play_cervino_indexed`
+and emits the `addi R3, R1, 0; ssl R3, R3` indexed-prep instructions,
+moving the recon ELF from 260532 → 260568 (orig 260688).  Test still
+fails — the remaining diff is the body of `play_cervino_indexed`
+itself which is incomplete (see IF-103).
+
+## IF-103  `play_cervino_indexed` body is not fully reconstructed
+
+**Source**: `uhf_doc_tv_mode` post-IF-102 investigation
+**Status**: open
+**Severity**: bug (substantial reconstruction work)
+
+After IF-102, `uhf_doc_tv_mode` enters `play_cervino_indexed` but the
+emitted instruction sequence is incomplete relative to the original.
+
+Original (UHFLI tv-mode loop, indexed playback):
+
+```
+addiu R3, R0, 851969     ; addi for cwvf encoding (>=0x1000000)
+addi  R6, R0, 0          ; stateRegC
+addi  R4, R1, 0          ; copy lengthReg (R1) into R4
+ssl   R4, R4             ; shift left for 2-channel
+addr  R3, R4             ; R3 += R4 (offset address)
+wwvf
+prf   R3, R6, 2528       ; per-iter prefetch with idx=R3, base=R6
+wprf
+... (trigger writes) ...
+wvf   R6, R0, 2520       ; per-iter play
+```
+
+Recon emits only `addi R3, R1, 0; ssl R3, R3` and is missing the
+addr / wwvf / prf / wprf / wvf sequence.  Additionally, recon emits a
+spurious static `prf R2, R1, 252000` BEFORE the loop (likely a leftover
+from the prepareTree pipeline still treating the wave as a static
+play; the Load placement may need to follow the indexed dispatch).
+
+**Source ranges to reconstruct** (binary addresses already noted in
+`prefetch_placesingle.cpp` comments):
+- 0x1dabb9..0x1db1ff (split branch): SSL loop body, addr emission,
+  optional wwvf, prf with clampToCache, optional wprf.
+- 0x1daed4..0x1db4xx (non-split branch): same logic.
+- 0x1db6f8..0x1db942 (common indexed finalize): assembly emission of
+  the per-iteration play instructions, including the wvf with
+  `node->length * channels * 2` byte count (matching the
+  `totalSize` computation already present).
+- Common cwvf-encoded addiu emission upstream (the `addiu R3, R0,
+  851969` instruction precedes the indexed addi+ssl block — its
+  source needs to be located).
+
+Estimated work: comparable in scope to a fresh recon of a 200+ byte
+function region, including SSL loop, addr/wwvf/prf clamping, and
+cwvf encoding.  Deferred from the IF-102 fix to keep that change
+focused.
+
+**Test impact**: 1 test still failing (`uhf_doc_tv_mode`).  Suite
+score unchanged at 255/259.

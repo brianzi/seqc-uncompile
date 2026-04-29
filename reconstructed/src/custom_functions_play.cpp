@@ -1052,54 +1052,64 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // then push_back into the local Assembler instance at [rbp-0x1f8]
     // (Phase 14).
     //
-    // For varType == Var(2): @0x161f5c..0x161f6a takes a different
-    // branch — pulls a pre-computed AsmRegister from a stack-saved slot
-    // at [rbp-0x328] and skips the addi/SetVarPlaceholder pair. That
-    // path has not been independently traced; modeled as the same
-    // logical operation here.
-    //
-    // For other varTypes: throws @0x162b27 (long-form CustomFunctions
-    // exception).
-    int regNum = Resources::getRegisterNumber();                     // @0x161df1
-    AsmRegister indexReg(regNum);
-    AsmRegister regZeroForAddi(0);
-    Immediate rateImm(rate);
-    std::vector<AsmList::Asm> addiEntries = asmCommands_->addi(
-        indexReg, regZeroForAddi, rateImm);                          // @0x161e56
+    // Dispatch on parseEnd[0].varType_ (the OFFSET arg, not length):
+    //   Const(4)/Cvar(6) → addi/SetVarPlaceholder path (below).
+    //   Var(2)           → reuse parseEnd[0].reg_ as indexReg; skip
+    //                      Phases 13/14 entirely (no addi, no
+    //                      asmSetVarPlaceholder, no push of those
+    //                      entries into results->assemblers_). The
+    //                      pre-existing register holding `t` is fed
+    //                      directly to asmPlay so the resulting Play
+    //                      node carries the per-iteration offset and
+    //                      length, allowing the optimization pipeline
+    //                      to keep the prefetch INSIDE the for-loop.
+    //                      Binary: @0x161f5c-0x161f6a copies
+    //                      parseEnd[0].reg_ (saved at [rbp-0x328]) into
+    //                      the indexReg slot ([rbp-0xe8]) and jumps to
+    //                      the shared post-Phase-14 tail @0x162096.
+    //   other            → throws @0x162b27 (long-form CustomFunctions
+    //                      exception). Modeled by the parseEnd[0] Phase
+    //                      4b validator above which restricts varType
+    //                      to {Var, Const, Cvar}.
+    AsmRegister indexReg(0);  // placeholder; assigned by branch below.
+    int offsetVarType = static_cast<int>(parseEnd[0].varType_);
+    if (offsetVarType == 2) {
+        // === Phase 12 Var-branch ===                                @0x161f5c..0x161f6a
+        // Reuse the AsmRegister already bound to the runtime variable
+        // `t` (parseEnd[0].reg_). No addi or placeholder is emitted;
+        // no entries are pushed for this phase.
+        indexReg = parseEnd[0].reg_;
+    } else {
+        // === Phase 12 Const/Cvar-branch ===                          @0x161dc2..0x161e56
+        int regNum = Resources::getRegisterNumber();                 // @0x161df1
+        indexReg = AsmRegister(regNum);
+        AsmRegister regZeroForAddi(0);
+        Immediate rateImm(rate);
+        std::vector<AsmList::Asm> addiEntries = asmCommands_->addi(
+            indexReg, regZeroForAddi, rateImm);                      // @0x161e56
 
-    // ================================================================
-    // === Phase 13: asmSetVarPlaceholder(indexReg) ===                @0x161ee2
-    //
-    // Emits the placeholder marker that downstream optimization passes
-    // resolve once the wave-index is known. Inserted into the local
-    // Assembler instance at [rbp-0x1f8] (an in-progress AsmList::Asm).
-    AsmList::Asm placeholderEntry =
-        asmCommands_->asmSetVarPlaceholder(indexReg);                // @0x161ee2
+        // ============================================================
+        // === Phase 13: asmSetVarPlaceholder(indexReg) ===            @0x161ee2
+        //
+        // Emits the placeholder marker that downstream optimization
+        // passes resolve once the wave-index is known. Inserted into
+        // the local Assembler instance at [rbp-0x1f8] (an in-progress
+        // AsmList::Asm).
+        AsmList::Asm placeholderEntry =
+            asmCommands_->asmSetVarPlaceholder(indexReg);            // @0x161ee2
 
-    // ================================================================
-    // === Phase 14: push addi + placeholder into local Assembler ===  @0x161e8d..0x161f81
-    //
-    // The binary inlines std::vector<Asm>::push_back twice (fast path
-    // @0x161ed4 for the addi entry, then again for the placeholder
-    // entry), with the slow-path emplace_back_slow_path fallback @0x161f79.
-    // r12 here is the active Assembler whose `entries` vector lives at
-    // +0x18 (rbx = [r12+0x20] = end_; cmp [r12+0x28] = capacity).
-    //
-    // Source-level we model this as direct push_back on a local
-    // Assembler. The `localAsm` here corresponds to the in-progress
-    // AsmList::Asm being built at [rbp-0x1f8] (which gets pushed into
-    // results->assemblers_ in Phase 17).
-    //
-    // CORRECTED (21b-followup-3): The binary pushes both the addi entries
-    // and the placeholder entry into results->assemblers_. The disasm at
-    // @0x161ed4 and @0x161f79 shows two consecutive push_back calls on the
-    // vector at [r12+0x18] (r12 = results->assemblers_ base). The addi
-    // call returns a vector<Asm>; each element is pushed. Then the
-    // placeholder entry is pushed as a single Asm.
-    for (auto& entry : addiEntries) {
-        results->assemblers_.push_back(std::move(entry));            // @0x161ed4
+        // ============================================================
+        // === Phase 14: push addi + placeholder into local Assembler  @0x161e8d..0x161f81
+        //
+        // The binary inlines std::vector<Asm>::push_back twice (fast
+        // path @0x161ed4 for the addi entry, then again for the
+        // placeholder entry), with the slow-path emplace_back_slow_path
+        // fallback @0x161f79.
+        for (auto& entry : addiEntries) {
+            results->assemblers_.push_back(std::move(entry));        // @0x161ed4
+        }
+        results->assemblers_.push_back(std::move(placeholderEntry)); // @0x161f79
     }
-    results->assemblers_.push_back(std::move(placeholderEntry));     // @0x161f79
 
     // ================================================================
     // === Phase 15: checkOffspecWaveLength ===                        @0x16210d..0x16214a

@@ -515,11 +515,14 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                 play_cervino_nonsplit:                              // 0x1d91b8
                     {
-                        // Check node->indexOffsetReg: if valid and non-zero, goto indexed path
+                        // Check node->lengthReg: if valid and non-zero, goto indexed path
+                        // Binary 0x1d91d4: `add $0x88, %rdi` → field offset +0x88
+                        // = lengthReg (NOT indexOffsetReg @ +0x94 as previously
+                        // documented). See IF-102.
                         Node* npCerv = node.get();
-                        if (npCerv->indexOffsetReg.isValid()) {    // 0x1d91dc, +0x94
+                        if (npCerv->lengthReg.isValid()) {         // 0x1d91dc, +0x88
                             AsmRegister zeroReg(0);
-                            if (!(npCerv->indexOffsetReg == zeroReg)) {
+                            if (!(npCerv->lengthReg == zeroReg)) {
                                 goto play_cervino_indexed;          // 0x1d920e → 0x1dabb9
                             }
                         }
@@ -584,9 +587,11 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             }
                         }
 
-                        // Post-wvf: check asmRegister again          // 0x1d9f3b
-                        if (node.get()->indexOffsetReg.isValid()) {      // 0x1d9f43, +0x94
-                            int regVal = (int)node.get()->indexOffsetReg; // 0x1d9f58
+                        // Post-wvf: check lengthReg again            // 0x1d9f3b
+                        // Binary 0x1d9f3b/0x1d9f50: `mov $0x88, %edi` →
+                        // checks lengthReg (+0x88), not indexOffsetReg. IF-102.
+                        if (node.get()->lengthReg.isValid()) {        // 0x1d9f43, +0x88
+                            int regVal = (int)node.get()->lengthReg;  // 0x1d9f58
                             if (regVal != 0 && !split_) {          // 0x1d9f5f, 0x1d9f65
                                 // Indexed play: emit addi + prf + wprf + wvfImpl
                                 uint32_t cacheSize = nodeStates_[node].cachePtr->size_;
@@ -653,9 +658,11 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Allocate register                    // 0x1dac43
                             AsmRegister idxReg(resources_->getRegisterNumber());
 
-                            // addi idxReg, node->indexOffsetReg, Immediate(0) // 0x1dac9a
+                            // addi idxReg, node->lengthReg, Immediate(0) // 0x1dac9a
+                            // Binary 0x1dac6f loads `0x88(%rax)` into %r13 →
+                            // 3rd arg to addi: that's lengthReg. IF-102.
                             {
-                                auto addiVec = asmCommands_->addi(idxReg, node.get()->indexOffsetReg,
+                                auto addiVec = asmCommands_->addi(idxReg, node.get()->lengthReg,
                                                    Immediate(0));
                                 for (auto& a : addiVec) tempList.append(a);
                             }
@@ -688,9 +695,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                             AsmRegister idxReg(resources_->getRegisterNumber()); // 0x1daf5c
 
-                            // addi idxReg, node->indexOffsetReg, Immediate(0)
+                            // addi idxReg, node->lengthReg, Immediate(0)  (IF-102)
                             {
-                                auto addiVec = asmCommands_->addi(idxReg, node.get()->indexOffsetReg,
+                                auto addiVec = asmCommands_->addi(idxReg, node.get()->lengthReg,
                                                    Immediate(0));
                                 for (auto& a : addiVec) tempList.append(a);
                             }
@@ -738,9 +745,10 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                         AsmRegister reg4(resources_->getRegisterNumber()); // 0x1d9939
 
-                        // addi reg4, node->indexOffsetReg, Immediate(0)   // 0x1d997e
+                        // addi reg4, node->lengthReg, Immediate(0)   // 0x1d997e
+                        // Binary 0x1d9953 reads `0x88(%rax)` = lengthReg. IF-102.
                         {
-                            auto addiVec = asmCommands_->addi(reg4, node.get()->indexOffsetReg,
+                            auto addiVec = asmCommands_->addi(reg4, node.get()->lengthReg,
                                                Immediate(0));
                             for (auto& a : addiVec) tempList.append(a);
                         }
