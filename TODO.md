@@ -10,19 +10,18 @@
 
 **Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
 **95/95 undefined zhinst symbols resolved** — static archive self-contained.
-**256/259 differential tests pass** (byte-identical, as of 2026-04-29).
+**257/259 differential tests pass** (byte-identical, as of 2026-04-29).
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
-**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104). 238 → 256.
+**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105). 238 → 257.
 
-### Remaining 3 known-hard failures (not actionable without major work)
+### Remaining 2 known-hard failures (libc++ PRNG ABI)
 
 | Test | Root cause | Notes |
 |------|------------|-------|
 | `hdawg_doc_random_waves` | libc++ vs libstdc++ `mt19937_64` + `normal_distribution` ABI mismatch | Would require manual MT19937 + normal_dist reimplementation matching libc++ byte-for-byte |
 | `hdawg_doc_randomSeed` | Same PRNG ABI issue + waveform deduplication interaction | Same as above |
-| `uhf_doc_tv_mode` | `play_cervino_indexed` body incomplete (IF-103) | Needs ~200B function reconstruction: addr/wwvf/prf/wprf/wvf per-iteration sequence + spurious-prf removal. Closest byte diff (260568 vs 260688) |
 **~0 source markers** across ~21 files (all resolved).
 **~15 placeholder field names** across 8 headers (all resolved Phase 31f).
 **~71 reinterpret_cast raw-offset accesses** across multiple files (all inherent).
