@@ -2089,3 +2089,59 @@ skipped) — matching the `wvf R*, R0, 2520` in the original.
 
 These two issues are placement-pipeline / resource-allocation
 problems, not codegen-body problems.  Deferred.
+
+## IF-106  Inline `asm volatile("maxsd …")` in `util_wave.cpp` replaced with `_mm_max_sd` intrinsic
+
+**Source**: Phase 39a code-smell sweep
+**Status**: fixed (2026-04-29, Phase 39a)
+**Severity**: cosmetic + portability cleanup (no behavioural change on
+non-NaN input, identical machine code on NaN input)
+
+### What was there
+
+`util_wave.cpp:96` (single inline-asm site in the entire codebase):
+
+```cpp
+double lo = -1.0;
+asm volatile("maxsd %1, %0" : "+x"(lo) : "x"(sample));
+scaled = lo * kFullScale;
+```
+
+The accompanying comments included a half-finished alternative
+(`double clamped = (sample >= -1.0) ? sample : -1.0;`) that was
+computed and then dead-stored, plus a "Let's just use:" preamble
+that left the rationale unclear.
+
+### Why the inline asm existed
+
+The binary uses x86 SSE2 `maxsd` whose NaN-propagation rule is
+"if either operand is NaN, return the second source". No portable
+C++ construct replicates this exactly:
+
+| Construct | NaN behaviour | Matches `maxsd src, dst`? |
+|---|---|---|
+| `std::max(-1.0, NaN)` | unspecified (typically returns first arg) | ✗ |
+| `std::fmax(-1.0, NaN)` | returns the non-NaN argument | ✗ |
+| `(sample >= -1.0) ? sample : -1.0` | NaN compares false → returns `-1.0` | ✗ |
+| `_mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample))` | returns second source on NaN | ✓ |
+
+### Fix
+
+Replaced with the SSE2 intrinsic from `<emmintrin.h>`. GCC, Clang
+and MSVC all lower `_mm_max_sd` to a single `maxsd`, so the emitted
+instruction is identical to the original binary's. The `clamped`
+dead variable and stale comment were removed; rationale was
+collapsed into a single coherent block.
+
+Verified: `cmake --build .` clean, `python tests/diff_test.py`
+remains 257/259 (same baseline; the two failures are the unrelated
+libc++ PRNG ABI cases).
+
+### Scan-coverage note
+
+The earlier Phase-39 read-only scan used regex
+`\basm\s*[\(\{]|__asm__|__asm\b` which missed `asm volatile "…"`
+(the `volatile` qualifier sits between `asm` and the string literal,
+which is followed by a string token rather than `(`). The correct
+pattern is `\basm\s+volatile|\basm\s*[\(\{]|__asm__`. After this
+fix, the codebase has zero inline-asm sites under either pattern.

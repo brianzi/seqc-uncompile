@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <emmintrin.h>   // SSE2: _mm_max_sd for binary-faithful NaN propagation
 #include <fstream>
 #include <vector>
 
@@ -88,13 +89,18 @@ uint16_t double2awg16(double sample) {  // 0x299700
     if (sample > 1.0) {
         scaled = kFullScale;
     } else {
-        // Binary uses maxsd which returns NaN if either operand is NaN.
-        // std::max(-1.0, NaN) would return -1.0 (wrong), so replicate maxsd:
-        double clamped = (sample >= -1.0) ? sample : -1.0;  // NaN >= -1.0 is false → -1.0... 
-        // Actually maxsd returns second source when NaN. Let's just use:
-        double lo = -1.0;
-        asm volatile("maxsd %1, %0" : "+x"(lo) : "x"(sample));
-        scaled = lo * kFullScale;
+        // Replicate x86 SSE2 maxsd(dst=-1.0, src=sample) NaN-propagation
+        // exactly. The binary uses a single `maxsd` instruction whose
+        // semantics are: if either operand is NaN, return the second
+        // source (i.e. NaN propagates). No portable C++ construct does
+        // this:
+        //   - std::max(-1.0, NaN)        -> -1.0  (wrong; first arg)
+        //   - std::fmax(-1.0, NaN)       -> -1.0  (wrong; treats NaN as missing)
+        //   - (sample >= -1.0) ? ... : -1.0  -> -1.0  (NaN compares false)
+        // _mm_max_sd lowers to a single `maxsd` on x86 with GCC/Clang/MSVC,
+        // matching the binary's emitted instruction and its NaN behaviour.
+        __m128d r = _mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample));
+        scaled = _mm_cvtsd_f64(r) * kFullScale;
     }
     long rounded = std::lround(scaled);
     return static_cast<uint16_t>(rounded);

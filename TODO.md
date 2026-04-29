@@ -3758,3 +3758,181 @@ Binary `playHold` at `0x1391b8-0x1391d7` passes `isHold=false, isBool=true`
 to `asmPlay`. Recon had them swapped.
 
 - [x] Fix playHold parameter ordering
+
+---
+
+## Phase 39 — Code-smell sweep follow-ups (asm / goto / magic numbers)
+
+Added 2026-04-29 after a read-only smell scan covering:
+- inline assembly (`asm` / `__asm__`)
+- `goto` statements
+- magic numbers / unnamed constants
+
+Magic-number remediation already happened in Phase 22e (16 enums + ~430
+call-site replacements). This phase covers what the original scan missed
+and what the new scan turned up.
+
+### 39a. Replace inline `asm` in `util_wave.cpp` with SSE2 intrinsic
+
+Site: `reconstructed/src/util_wave.cpp:96` — single inline-asm
+statement in the codebase. Reproduces x86 SSE2 `maxsd` NaN-propagation
+semantics ("when either operand is NaN, return the second source"),
+which no portable C++ construct replicates exactly:
+
+| Construct | NaN behavior | Matches `maxsd src, dst`? |
+|---|---|---|
+| `std::max(a, b)` | unspecified (typically returns first arg) | ✗ |
+| `std::fmax(a, b)` | returns the non-NaN argument | ✗ |
+| `(a >= b) ? a : b` | NaN comparisons false → returns `b` | ✗ |
+| `_mm_max_sd` intrinsic | returns second source on NaN | ✓ |
+
+Replace the inline asm with `_mm_max_sd` from `<emmintrin.h>`.
+GCC/Clang/MSVC all lower it to a single `maxsd`, so the emitted
+instruction is identical and binary-fidelity for NaN inputs is
+preserved. Net effect: codebase regains "zero inline asm" property.
+
+- [x] Add `#include <emmintrin.h>` to `util_wave.cpp`
+- [x] Rewrite the `else` branch of `double2awg16` (lines ~85–98) to
+      use `_mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample))`
+- [x] Delete the unused `clamped` ternary line and stale "Actually
+      maxsd returns…" intermediate comment; collapse the rationale
+      into one coherent block
+- [x] Build (`cmake --build .` in `reconstructed/build/`) — zero
+      warnings expected
+- [x] Run `python tests/diff_test.py` — must remain at 257/259
+- [x] Add IF-N entry to `notes/incidental_findings.md` (IF-106)
+- [x] Sub-phase wrap-up
+
+### 39b. Goto policy — research item (deferred restructuring)
+
+The codebase has 135 `goto` sites. Of these:
+
+| Bucket | Count | Treatment |
+|---|---|---|
+| Generated (`seqc_parser.tab.c`, `seqc_lexer.c`) | 24 | Off-limits (Bison/Flex output) |
+| Faithful binary CFG reconstructions (`prefetch*`, `seqc_ast_nodes_evaluate`, parts of `asm_optimize`) carrying `// 0x…` breadcrumbs | ~105 | Leave; restructuring would damage diff-debugging workflow and risk codegen drift away from binary |
+| Small isolated cleanup candidates (`zi_folder`, `node`, `csv_parser`, `asm_list`, possibly `custom_functions_play`) | ~6 | Eligible for case-by-case cleanup, each pending a binary CFG check |
+
+This sub-phase is research-only — no code restructuring is in scope.
+
+- [x] Write `notes/goto_policy.md` capturing the 3-bucket taxonomy
+      so future contributors do not "clean up" binary-faithful state
+      machines
+- [x] For each of the ~6 small candidates (`zi_folder.cpp:153`,
+      `node.cpp:372/376/433`, `csv_parser.cpp:549/859`,
+      `asm_list.cpp:366/584`, `custom_functions_play.cpp` step9_return),
+      record the binary address(es) backing the goto and a one-line
+      verdict ("safe to refactor" / "binary-faithful, leave")
+- [x] No source edits in this sub-phase
+- [x] Sub-phase wrap-up
+
+### 39c. Scan-coverage note
+
+The earlier asm scan used regex `\basm\s*[\(\{]|__asm__|__asm\b` which
+missed `asm volatile "…"` (the `volatile` qualifier sits between `asm`
+and the string literal, which has no `(` immediately following). The
+correct pattern is `\basm\b\s*(volatile\s*)?[\(\{]` or simpler
+`\basm\s+volatile|\basm\s*[\(\{]|__asm__`. One real site was missed
+in the earlier scan.
+
+- [x] Document the corrected regex in `notes/incidental_findings.md`
+      under the same IF-N entry as 39a, so any future "no inline asm"
+      verification uses the right pattern
+
+### 39d. Goto eliminations (Bucket 3 candidates)
+
+Derived from the Phase 39b audit in `notes/goto_policy.md`. Only the
+candidates judged "safe to refactor" or "marginal but worth trying"
+are listed here; all binary-faithful gotos (`prefetch*`,
+`seqc_ast_nodes_evaluate`, `custom_functions_play.cpp step9_return`,
+`asm_optimize.cpp:980 cleanup`) are explicitly out of scope.
+
+Each item must, in this order:
+1. Re-check the binary address(es) referenced by surrounding `// 0x…`
+   comments to confirm restructuring won't drop information.
+2. Apply the smallest possible edit that removes the `goto` while
+   preserving function shape.
+3. Build (`cmake --build .`) — zero new warnings.
+4. Run `python tests/diff_test.py` — must remain at 257/259 (no new
+   regressions).
+
+#### 39d-i. `node.cpp` — extract `throw_error:` into helper
+
+Two `goto throw_error;` (lines 372, 376) jump to a 7-line throw block
+at line 433. Both throws happen *after* the function's main `return;`
+at line 430, so no shared scope with the goto sites. Refactor:
+
+- [ ] Extract `throw_error:` body into
+      `[[noreturn]] static void throwSwapNotConnected();` at TU scope
+- [ ] Replace both `goto throw_error;` with `throwSwapNotConnected();`
+- [ ] Delete the `throw_error:` label and the trailing `{...}` block
+- [ ] Build + test (must remain 257/259)
+- [ ] Sub-phase wrap-up
+
+#### 39d-ii. `zi_folder.cpp` — eliminate `resolve_home`
+
+The `goto resolve_home;` at line 153 mirrors `jmp 0x2cf4eb` in the
+binary, but the function is only ~50 lines and the tail is
+self-contained. Two viable shapes:
+- (A) Extract `static ZiFolder resolveHomeFolder();` and replace both
+  the goto and the eventual fall-through with explicit `return
+  resolveHomeFolder();`.
+- (B) Wrap the readlink path in `do { ... } while (false);` with
+  `break;` instead of `goto;` — preserves binary CFG more literally
+  but is uglier.
+
+Prefer (A); it removes the label cleanly and matches modern C++ style.
+
+- [ ] Extract `resolveHomeFolder()` helper (the body currently after
+      `resolve_home:`)
+- [ ] Replace `goto resolve_home;` with `return resolveHomeFolder();`
+- [ ] Replace the natural fall-through into `resolve_home:` (Data /
+      Settings non-MF path) with `return resolveHomeFolder();`
+- [ ] Delete the `resolve_home:` label
+- [ ] Build + test
+- [ ] Sub-phase wrap-up
+
+#### 39d-iii. `csv_parser.cpp` — eliminate `skip_comment` / `skip_comment_ir`
+
+Two near-identical sites (lines 549/583 and 859/890). Each `goto`
+skips a separator-detection block to the loop tail
+(`++lineNum; continue;`). Cleanest fix: replace `goto skip_comment;`
+with `++lineNum; continue;` directly at the goto site, removing the
+label and the explicit `++lineNum; continue;` at line 584/891. The
+inner separator-scan block becomes its own scoped section that
+always falls through to the loop's natural end.
+
+- [ ] At line 549: replace `goto skip_comment;` with
+      `{ ++lineNum; continue; }` (or restructure with `bool sawTimeCol`
+      flag if the surrounding `if (rawLine.size() >= 10) { ... }` makes
+      the `continue` unreachable from there)
+- [ ] At line 859: same pattern for `skip_comment_ir`
+- [ ] Delete both labels and their trailing `++lineNum; continue;`
+      lines (now redundant)
+- [ ] Build + test (CSV parsing is exercised by SHFQA QA-weights tests)
+- [ ] Sub-phase wrap-up
+
+#### 39d-iv. `asm_list.cpp` — assess `cleanup_and_next` (research first)
+
+`goto cleanup_and_next;` at line 366 jumps to label at line 584. Tail
+is just `wavetableFront++;` then loop continues. RAII handles the
+"cleanup of vec_output, vec_reg, vec_input" comment.
+
+- [ ] Read full surrounding loop body to confirm the only difference
+      between fall-through and `goto` is whether the alternate
+      processing block runs
+- [ ] If safe: replace `goto cleanup_and_next;` with
+      `{ wavetableFront++; continue; }` and delete the label
+- [ ] If the binary CFG breadcrumb `// 0x266d87 ff: release shared_ptrs`
+      indicates the label landing is meaningful (e.g. a separate basic
+      block in optimizer hot path), leave alone and document why in
+      `goto_policy.md`
+- [ ] Build + test
+- [ ] Sub-phase wrap-up
+
+#### 39d-v. Wrap-up: regenerate scan + update goto_policy.md
+
+- [ ] Re-run `grep -rE "^\s*goto\s+\w+" reconstructed/src` and update
+      the bucket counts in `notes/goto_policy.md`
+- [ ] Update OVERVIEW.md if the goto count is referenced there
+- [ ] Phase 39d sub-phase wrap-up
