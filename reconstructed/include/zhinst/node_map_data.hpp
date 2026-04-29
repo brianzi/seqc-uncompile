@@ -100,13 +100,20 @@ public:
 //   +0x00  8  NodeMapData*   data     (polymorphic, dynamic_cast in getNodeAddress)
 //   +0x08  4  int32_t        typeIdx  (node type/index)
 //   +0x0C  4  uint32_t       fastAddr (fast address)
-//   +0x10  1  bool           hasFast  (has fast address)
+//   +0x10  1  bool           hasFast  (has fast address; doubles as
+//                                       AccessMode 0/1 selector in playback —
+//                                       see IF-112, GDB-confirmed)
 //   +0x11  7  (padding)
 // ============================================================================
 struct NodeMapItem {
     NodeMapData*  data;       // +0x00
     int32_t       typeIdx;    // +0x08
     uint32_t      fastAddr;   // +0x0C
+    // hasFast: only 0/1 ever observed (51 lookupNode hits across full test
+    // suite via GDB; see notes/incidental_findings.md IF-112). The byte is
+    // also read by custom_functions_play.cpp:1511 as
+    // `AccessMode(hasFast)` → Soft(0)/Direct(1); Custom(2) only enters
+    // accessModeMap_ via explicit literal in other call sites.
     bool          hasFast;    // +0x10
     char          pad_11[7];  // +0x11
 

@@ -634,6 +634,16 @@ Anchor: `27_node_map_data.md:65`.
 **[Decision: investigate first. Possibly a type fix (split slot)
 rather than a pure rename.]**
 
+**Phase R resolution (closed — see IF-112).** GDB-traced 51
+`lookupNode` returns across the full test manifest; the byte at
+`NodeMapItem+0x10` only ever held `0` (41 hits) or `1` (10 hits).
+Static cross-check confirms `Custom(2)` enters `accessModeMap_`
+exclusively via the explicit `mode` argument of `addNodeAccess`, never
+via `hasFast`. Field stays `bool`; the
+`AccessMode(node.hasFast)` cast at `custom_functions_play.cpp:1511`
+is a deliberate dual use (false→Soft, true→Direct). Comments updated;
+no structural change. **Status: rejected (bool is correct).**
+
 ### Arbitration 6 — `expression.cpp::createOrAppend{Arg,Decl,Param,Stmt}List::lhs/rhs`
 
 Thin wrapper functions with `lhs`/`rhs` params; semantically the
@@ -1154,7 +1164,7 @@ choices unless explicitly revisited.
 | 2 | DeviceConstants::numDIOBits | **needs-GDB** (Phase R: trace `configFreqSweep` on UHFLI to confirm osc-bound use) |
 | 3 | waveformGranularity/PageSize swap | Approved (two-step coordinated swap) |
 | 4 | usedSampleRate_ mirror | **needs-GDB** (Phase R: locate the missing writer of `Compiler::usedSampleRate_`) |
-| 5 | NodeMapItem::hasFast | **deferred** (Phase R: type-fix risky; field IS dual-role bool/AccessMode — see IF-112) |
+| 5 | NodeMapItem::hasFast | **rejected** (Phase R: GDB confirms only 0/1 ever stored across 51 lookupNode hits — bool is correct; field is intentional dual-role bool/AccessMode-Soft-or-Direct selector. See IF-112.) |
 | 6 | createOrAppend*::lhs/rhs | Keep `lhs`/`rhs` for consistency |
 | 7 | mergeWaveforms::useYSuffix | **kept** (Phase R: name fits both Y-suffix funDescr and interleave-vs-merge factory; Y-suffix == dual-channel I/Q == interleave) |
 | 8 | addCommand::cmd/args | Rename `args→cmdToken`, `cmd→argList` |

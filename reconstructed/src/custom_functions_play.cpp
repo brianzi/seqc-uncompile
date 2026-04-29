@@ -1450,11 +1450,16 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     //      whatever consumes usedFeatures_.
     //   3. addNodeAccess(node, accessMode), where accessMode is read as
     //      a byte from NodeMapItem+0x10 — the SAME slot we model as the
-    //      `hasFast` bool. This means either (a) the field is overloaded
-    //      and AccessMode is encoded as a 0/1 byte that doubles as a
-    //      hasFast indicator, or (b) hasFast IS the AccessMode and our
-    //      typing is wrong. We model it as `node.hasFast` cast to
-    //      AccessMode for now.
+    //      `hasFast` bool.  GDB tracing across the full test suite (51
+    //      lookupNode hits, see notes/incidental_findings.md IF-112)
+    //      confirms the byte only ever holds 0 or 1, so `bool` typing
+    //      is correct.  The cast `AccessMode(hasFast)` therefore yields
+    //      Soft(0) when no fast address exists and Direct(1) when one
+    //      does — i.e. hasFast doubles as the implicit access-mode
+    //      selector for the playback dispatch path.  Custom(2) is
+    //      passed only by explicit `static_cast<AccessMode>(2)` from
+    //      other call sites (setDIO/setTrigger paths) and never
+    //      derives from hasFast.
     //   4. reg = res->getRegisterNumber(); destReg = AsmRegister(reg);
     //      Allocate a local AsmList for instruction accumulation.
     //   5. THREE-WAY DISPATCH on the address resolution:
@@ -1506,8 +1511,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     // (not just oscselNodeRegex matches). The binary at @0x164b34 jumps over
     // only the "MF" insert (je 0x164c0e), landing directly at addNodeAccess.
     {
-        // accessMode is the byte at NodeMapItem+0x10, which we currently
-        // model as `hasFast`. See 21b.5 notes in the block comment above.
+        // accessMode is the byte at NodeMapItem+0x10 (NodeMapItem::hasFast).
+        // GDB-confirmed Soft(0) / Direct(1) only — see IF-112.
         AccessMode accessMode = static_cast<AccessMode>(node.hasFast);
         addNodeAccess(node, accessMode);
 

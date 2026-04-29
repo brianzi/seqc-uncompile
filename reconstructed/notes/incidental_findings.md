@@ -2329,16 +2329,16 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 ## IF-112  `NodeMapItem::hasFast` int conflated with `AccessMode` enum
 
 - **Source**: audit batches 27 (type-suspicion + logic-bug)
-- **Severity**: likely-bug
-- **Status**: **needs-GDB** (Phase R) — type-split too risky without runtime confirmation
-- **Description**: `NodeMapItem::hasFast` is typed as `int` and compared against literal values that correspond to an `AccessMode` enum (`0`=none, `1`=fast, `2`=...?). The conflation means callers may pass wrong enum values or compare incorrectly.
-- **Phase R source audit**:
-  - Field declared `bool hasFast` at `node_map_data.hpp:110` (NodeMapItem+0x10).
-  - Used as bool: `node_map_data.cpp:142-143` (operator==), `:159-160` (fastAddress), `custom_functions_play.cpp:1536` (`if (node.hasFast)`), `get_node_map.cpp:44,58` (struct init).
-  - Used as enum: `custom_functions_play.cpp:1511` `AccessMode accessMode = static_cast<AccessMode>(node.hasFast);` — the same byte cast as `AccessMode` 3-way switch (struct_layouts.md:1756: `movzx edx, BYTE PTR [rbp-0x1b0] ; AccessMode = node.hasFast`).
-  - The 3-way switch at custom_functions_play.cpp:1461 distinguishes (A) `hasFast == true`, (B) `hasFast == false AND dyncast`, (C) `hasFast == false AND no data`. So the byte at +0x10 is at minimum a 3-state value (or a bool used together with `data`-pointer null-check).
-- **GDB plan**: at `lookupNode` return site (binary @0x15c530+) inspect the byte at NodeMapItem+0x10 across multiple runs that exercise the three branches. Specifically, run `tests/cases/hdawg_doc_*.seqc` with playback nodes and trace `[rax+0x10]`. If only values 0/1 appear, `bool` typing is correct and the static_cast at :1511 is benign (false→Fast=0, true→Fast2=1 of AccessMode). If 0/1/2 appear, the field must be widened to `AccessMode`.
-- **Risk**: a type-fix from `bool` → `AccessMode` (or splitting into `accessMode_` int + true `hasFast` bool) requires updating ~10 call sites and potentially the `NodeMapItem` `operator==` and `std::hash` specialization. Defer until GDB confirms enum range.
+- **Severity**: cosmetic (downgraded from likely-bug)
+- **Status**: **dismissed** (Phase R) — GDB-confirmed bool typing is correct
+- **Description**: `NodeMapItem::hasFast` was suspected of carrying an `AccessMode` enum value (Soft=0/Direct=1/Custom=2) because the playback dispatch reads it as `static_cast<AccessMode>(node.hasFast)` (custom_functions_play.cpp:1511) while other call sites pass literal `static_cast<AccessMode>(2)` (Custom) to `addNodeAccess`.
+- **Phase R GDB resolution** (commit per Phase R wrap-up):
+  - Trace plan: break at `lookupNode` @ `0x15c582` (after typeIdx/fastAddr/hasFast stored into the sret buffer at `[rbx+0x08..0x10]`); print `*(unsigned char*)($rbx+0x10)` per hit.
+  - Driver: `/tmp/if112_trace.py` compiles every entry from `tests/cases/manifest.json` (all device families, ~50 cases) through the original `_seqc_compiler.so`.
+  - Result (`/tmp/if112_trace.txt`): **51 hits, distribution `0`:41, `1`:10, `2`:0**. Only `0` and `1` ever appear.
+  - Static cross-check: every writer of `hasFast` lives in `get_node_map.cpp` (`addDirect`/`addVirt` helpers) and only ever passes literal `false` (default) or `true`. `Custom(2)` enters the system exclusively via the **other** argument of `addNodeAccess` (the `mode` parameter at custom_functions_io.cpp:89, :1543, :1580, :1680, :1687, :3120, :3225, :3325) — never via `hasFast`.
+  - Decision: keep `bool hasFast` typing. The `AccessMode(hasFast)` cast at custom_functions_play.cpp:1511 is intentional — `false` → `Soft(0)` (no fast address ⇒ slow/soft access), `true` → `Direct(1)` (fast address ⇒ direct dispatch). It coincidentally produces the correct `AccessMode` value because the field is overloaded but never sees Custom(2).
+- **Action taken**: no structural change. Field comment in `node_map_data.hpp:106-118` and inline comment at `custom_functions_play.cpp:1511` updated to document the dual-role / GDB result. Joint resolution with **Arb 5** (was: deferred type-fix int→AccessMode); Arb 5 is now closed as "rejected, bool is correct".
 
 ---
 
