@@ -59,7 +59,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 0;
         dc.samplingRate        = 1.8e9;
-        dc.numOutputPorts      = 0;
+        dc.execTableIndexBits      = 0;
         dc.numAWGCores         = 0;
         dc.hasDIO              = false;
         dc.numDIOBits          = 0;
@@ -90,7 +90,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.4e9;
-        dc.numOutputPorts      = 10;
+        dc.execTableIndexBits      = 10;
         dc.numAWGCores         = 5;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;
@@ -121,7 +121,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 0;
         dc.samplingRate        = 1.8e9;
-        dc.numOutputPorts      = 0;
+        dc.execTableIndexBits      = 0;
         dc.numAWGCores         = 0;
         dc.hasDIO              = false;
         dc.numDIOBits          = 0;
@@ -152,7 +152,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
-        dc.numOutputPorts      = 10;
+        dc.execTableIndexBits      = 10;
         dc.numAWGCores         = 0;
         dc.hasDIO              = true;
         dc.numDIOBits          = 6;
@@ -183,7 +183,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
-        dc.numOutputPorts      = 12;
+        dc.execTableIndexBits      = 12;
         dc.numAWGCores         = 3;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;
@@ -214,7 +214,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
-        dc.numOutputPorts      = 12;
+        dc.execTableIndexBits      = 12;
         dc.numAWGCores         = 3;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;
@@ -245,7 +245,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
-        dc.numOutputPorts      = 12;
+        dc.execTableIndexBits      = 12;
         dc.numAWGCores         = 3;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;
@@ -276,7 +276,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 12.0e9;
-        dc.numOutputPorts      = 12;
+        dc.execTableIndexBits      = 12;
         dc.numAWGCores         = 3;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;
@@ -307,7 +307,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
-        dc.numOutputPorts      = 12;
+        dc.execTableIndexBits      = 12;
         dc.numAWGCores         = 3;
         dc.hasDIO              = true;
         dc.numDIOBits          = 8;

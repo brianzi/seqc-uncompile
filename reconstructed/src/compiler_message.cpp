@@ -15,7 +15,7 @@ namespace zhinst {
 // ============================================================================
 
 // 0x104340
-std::string CompilerMessage::str(bool showLine) const {
+std::string CompilerMessage::str(bool hideLine) const {
     std::ostringstream oss;
 
     static const char* typeNames[] = { "Compiler Error", "Warning", "Info" };
@@ -27,7 +27,7 @@ std::string CompilerMessage::str(bool showLine) const {
 
     oss.write(typeNames[type], typeLens[type]);
 
-    if (!showLine && lineNr > 0) {
+    if (!hideLine && lineNr > 0) {
         oss << " (line: " << lineNr << ")";
     }
 

@@ -116,7 +116,7 @@ void ElfWriter::addData(const char* data, size_t size,           // 0x293990
 
 // ============================================================================
 // ElfWriter::addWaveform(shared_ptr<WaveformIR> waveform,       // 0x2939f0
-//                        SampleFormat format, bool useAbsolute,
+//                        SampleFormat format, bool useMapped,
 //                        AddressImpl<uint> padSize)
 //
 // Binary size: 0x4ce bytes (0x2939f0 - 0x293ebe)
@@ -126,14 +126,14 @@ void ElfWriter::addData(const char* data, size_t size,           // 0x293990
 // Calling convention (sret):
 //   rdi = sret ptr (unique_ptr<RawWave> return), rsi = this,
 //   rdx = &shared_ptr<WaveformIR> (by-value, passed indirectly),
-//   ecx = SampleFormat, r8d = useAbsolute, r9d = padSize.
+//   ecx = SampleFormat, r8d = useMapped, r9d = padSize.
 //
 // Algorithm:
 //   1. Get raw waveform bytes via Signal::getRawData(format)
 //   2. Create PT_LOAD segment at (addressValue - padSize)
 //   3. If padSize > 0: create ".dd_<name>" zero-padding section
 //   4. Create ".wf_<name>" section with waveform data
-//   5. If useAbsolute && reserveOnly: NOBITS section + set_size(rawDataSize)
+//   5. If useMapped && reserveOnly: NOBITS section + set_size(rawDataSize)
 //      Else: PROGBITS section with actual data
 //   6. Link sections to segment
 //   7. Return the unique_ptr<RawWave> from getRawData
@@ -141,7 +141,7 @@ void ElfWriter::addData(const char* data, size_t size,           // 0x293990
 std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
     std::shared_ptr<WaveformIR> waveform,
     SampleFormat format,
-    bool useAbsolute,
+    bool useMapped,
     detail::AddressImpl<uint32_t> padSize)
 {
     // Get the raw waveform bytes — the unique_ptr is returned to the caller
@@ -189,7 +189,7 @@ std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
     wfSec->set_flags(SHF_ALLOC);
     wfSec->set_addr_align(alignment);
 
-    if (useAbsolute && wfPtr->signal.reserveOnly_) {             // 0x293dbc
+    if (useMapped && wfPtr->signal.reserveOnly_) {             // 0x293dbc
         // Reserve-only waveform in absolute mode: NOBITS section
         // The section declares address and size metadata but contains no data.
         wfSec->set_type(SHT_NOBITS);                            // 0x293dd9

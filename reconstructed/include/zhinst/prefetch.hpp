@@ -223,7 +223,7 @@ public:
     // Analysis
     bool needsNewCwvf(std::shared_ptr<Node> node) const;               // 0x1dc620
     AsmList splitPlay(std::shared_ptr<Node> node) const;               // 0x1dd1a0
-    void insertPlay(AsmList& list, bool flag, std::string const& name,
+    void insertPlay(AsmList& list, bool indexed, std::string const& name,
         AsmRegister reg, detail::AddressImpl<uint32_t> addrA,
         detail::AddressImpl<uint32_t> addrB) const;                    // 0x1def50
 

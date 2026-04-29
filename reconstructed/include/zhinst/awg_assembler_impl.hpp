@@ -120,7 +120,7 @@ public:
     void writeToFile(std::string const& path);              // 0x288570
     std::vector<uint32_t> const& getOpcode() const;         // 0x289060
     std::string getReport() const;                          // 0x285bc0
-    void printOpcode(int format) const;                     // 0x288b50
+    void printOpcode(int startIndex) const;                     // 0x288b50
 
     // ---- Opcode encoding (awg_assembler_opcodes.cpp) ----
     unsigned int getReg(std::shared_ptr<AsmExpression> const& expr);     // 0x2892b0

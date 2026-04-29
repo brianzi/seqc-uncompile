@@ -208,7 +208,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     if (config.deviceType == HDAWG || config.deviceType == SHFSG ||
         config.deviceType == SHFQC_SG) {                                // 0x1ee411 bitmap
         // ZSYNC_DATA constants — values computed from deviceConstants  0x1ee430–0x1ee5fd
-        int n = deviceConstants.numOutputPorts;  // byte at offset 0x78
+        int n = deviceConstants.execTableIndexBits;  // byte at offset 0x78
         int base = 1 << n;
         addConst("ZSYNC_DATA_RAW",          (double)(base),     VarSubType(0));  // 0x1ee46c
         addConst("ZSYNC_DATA_PQSC_REGISTER",(double)(base + 1), VarSubType(0));  // 0x1ee4dc

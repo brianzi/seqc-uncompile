@@ -42,7 +42,7 @@ namespace detail {
 
 enum class WaveOrder : int {
     Natural = 0,       // No sorting
-    ByName = 1,        // Sort by name
+    ByWaveIndex = 1,   // Sort by wave index
     ByIndex = 2,       // Sort by wave index
 };
 
@@ -159,7 +159,7 @@ public:
     void setUsedWaveforms(const std::vector<std::shared_ptr<WaveformIR>>& waveforms);
 
     // updateWaveforms — 0x29ed10
-    void updateWaveforms(bool fifoMode, bool allocFlag);
+    void updateWaveforms(bool fifoMode, bool allocFifoMode);
 
     // allocateWaveformsForFifo — 0x29ed30
     void allocateWaveformsForFifo();

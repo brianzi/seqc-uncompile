@@ -983,9 +983,9 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDIOTrigger(  // @0x13d630 (172
     // Supported: {2,3,8,16,18,32,64} via bitmask 0x4000000040004041 on (devType-2)
     // Also 0x80 and 0x100 via explicit compares
     bool supported = false;
-    unsigned ecx = static_cast<unsigned>(deviceType) - 2;
-    if (ecx <= 0x3e) {                                                           // @0x13d6b6: cmp ecx, 0x3e; ja
-        supported = ((0x4000000040004041ULL >> ecx) & 1) != 0;                   // @0x13d6c9: bt rdx, rcx
+    unsigned idx = static_cast<unsigned>(deviceType) - 2;
+    if (idx <= 0x3e) {                                                           // @0x13d6b6: cmp ecx, 0x3e; ja
+        supported = ((0x4000000040004041ULL >> idx) & 1) != 0;                   // @0x13d6c9: bt rdx, rcx
     }
     if (!supported) {
         if (deviceType == GHFLI || deviceType == VHFLI)                           // @0x13d82f..0x13d83f
@@ -1565,8 +1565,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         unsigned int phase = static_cast<unsigned int>(
             NodeMap::toPhase(static_cast<float>(phaseVal)));                          // @0x142470
 
-        auto resultPtr = results.get();
-        auto rbx = asmCommands_;
+        auto asmCommands = asmCommands_;
         AsmRegister zero(0);                                                         // @0x142493
         auto addiEntries = asmCommands_->addi(reg, zero, Immediate(phase));          // @0x1424c1
         for (auto& e : addiEntries)
@@ -2687,7 +2686,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
         if (tableIndex == zsyncRaw.value_.toInt()) {
             // shift = 1                                                                                     // @0x150ad0
             auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                1 << devConst_->numOutputPorts);                                                             // @0x150ae0: 1 << numOutputPorts
+                1 << devConst_->execTableIndexBits);                                                             // @0x150ae0: 1 << execTableIndexBits
             results->assemblers_.push_back(std::move(asmEntry));
             constMatched = true;
         } else {
@@ -2695,7 +2694,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
             if (tableIndex == zsyncProcA.value_.toInt()) {
                 // shift = 9                                                                                 // @0x150b70
                 auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                    9 << devConst_->numOutputPorts);                                                      // @0x150b80
+                    9 << devConst_->execTableIndexBits);                                                      // @0x150b80
                 results->assemblers_.push_back(std::move(asmEntry));
                 constMatched = true;
             } else {
@@ -2703,7 +2702,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                 if (tableIndex == zsyncProcB.value_.toInt()) {
                     // shift = 0xd                                                                           // @0x150c10
                     auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                        0xd << devConst_->numOutputPorts);                                                 // @0x150c20
+                        0xd << devConst_->execTableIndexBits);                                                 // @0x150c20
                     results->assemblers_.push_back(std::move(asmEntry));
                     constMatched = true;
                 } else if (config_->deviceType == static_cast<AwgDeviceType>(SHFQC_SG)) {
@@ -2711,14 +2710,14 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                     auto qaRaw = res->readConst("QA_DATA_RAW", EDirection::eOUT);                 // @0x150cd0
                     if (tableIndex == qaRaw.value_.toInt()) {
                         auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                            0xe << devConst_->numOutputPorts);                                             // @0x150cf0
+                            0xe << devConst_->execTableIndexBits);                                             // @0x150cf0
                         results->assemblers_.push_back(std::move(asmEntry));
                         constMatched = true;
                     } else {
                         auto qaProcD = res->readConst("QA_DATA_PROCESSED_D", EDirection::eOUT);   // @0x150d60
                         if (tableIndex == qaProcD.value_.toInt()) {
                             auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                                0x10 << devConst_->numOutputPorts);                                          // @0x150d80
+                                0x10 << devConst_->execTableIndexBits);                                          // @0x150d80
                             results->assemblers_.push_back(std::move(asmEntry));
                             constMatched = true;
                         }
@@ -2735,7 +2734,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
         if (argType == 2) {
             // Register path                                                                                 // @0x150e80
             auto asmEntry = asmCommands_->wvft(arg0.reg_,
-                1 << (devConst_->numOutputPorts + 1));                                                      // @0x150dfc: 1 << (numOutputPorts + 1)
+                1 << (devConst_->execTableIndexBits + 1));                                                      // @0x150dfc: 1 << (execTableIndexBits + 1)
             results->assemblers_.push_back(std::move(asmEntry));
         } else if ((argType & ~2) == 4) {
             // Numeric (int/uint) path — direct table entry index                                            // @0x150f00
@@ -2743,7 +2742,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
             if (entryIndex < 0)
                 throw CustomFunctionsValueException(
                     ErrorMessages::get(ExecTableInvalidIndex), 0);                                   // @0x150f40
-            if ((entryIndex >> devConst_->numOutputPorts) != 0)                                             // @0x150f50: validate index fits
+            if ((entryIndex >> devConst_->execTableIndexBits) != 0)                                             // @0x150f50: validate index fits
                 throw CustomFunctionsValueException(
                     ErrorMessages::get(ExecTableInvalidIndex), 0);                                   // @0x150f80
             auto asmEntry = asmCommands_->wvft(AsmRegister(0), entryIndex);                                // @0x150fa0
@@ -3355,8 +3354,8 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
                                   std::string("configureFeedbackProcessing")));      // @0x158e29
     }
 
-    // Build set of valid source IDs based on devConst_->numOutputPorts                   // @0x1584da
-    int shift = 1 << static_cast<int>(devConst_->numOutputPorts);                         // @0x1584e9
+    // Build set of valid source IDs based on devConst_->execTableIndexBits                   // @0x1584da
+    int shift = 1 << static_cast<int>(devConst_->execTableIndexBits);                         // @0x1584e9
     int src1 = shift + 1;
     int src2 = shift + 2;
 

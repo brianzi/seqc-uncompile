@@ -28,7 +28,7 @@ public:
     std::vector<uint32_t> const& getOpcode() const;
     // Returns by value (sret); likely std::string
     std::string getReport() const;
-    void printOpcode(int format) const;
+    void printOpcode(int startIndex) const;
 
 private:
     // unique_ptr semantics (ctor news 0x170, dtor deletes with size 0x170)

@@ -109,7 +109,7 @@ enum class ECommandType : int32_t {
 // +0x48     4   EOperator                         operator_
 // +0x4C     4   ECommandType                      commandType
 // +0x50     4   VarType                           varType
-// +0x54     4   int32_t                           valueType  (always 2 in binary)
+// +0x54     4   int32_t                           direction  (EDirection enum; always 2 in binary)
 //
 struct Expression {
     EOperationType                               operationType;  // +0x00
@@ -122,7 +122,7 @@ struct Expression {
     EOperator                                    operator_;      // +0x48
     ECommandType                                 commandType;    // +0x4C
     VarType                                      varType;        // +0x50
-    int32_t                                      valueType;      // +0x54
+    int32_t                                      direction;      // +0x54
 
     // Default-initialise to the binary's .rodata pattern {21, 16, 0, 2}
     Expression()
@@ -133,7 +133,7 @@ struct Expression {
         , operator_(EOperator::eNONE)         // 21
         , commandType(ECommandType::eNOCMD)   // 16
         , varType(VarType_Unset)
-        , valueType(2)
+        , direction(2)
     {}
 
     // Copy ctor — 0x1bfa30
@@ -182,7 +182,7 @@ Expression* createOrAppendStmtList(SeqcParserContext* ctx,
                                    Expression* lhs, Expression* rhs);            // 0x1bfe40
 Expression* createFunctionCall(SeqcParserContext* ctx,
                                Expression* func, Expression* args);              // 0x1bfe60
-Expression* createFunction(SeqcParserContext* ctx, Expression* name,
+Expression* createFunction(SeqcParserContext* ctx, Expression* returnTypeExpr,
                            Expression* params, Expression* body);                // 0x1c0000
 Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
                            int count, ...);                                      // 0x1c0330

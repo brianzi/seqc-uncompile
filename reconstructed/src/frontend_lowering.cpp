@@ -26,10 +26,10 @@ zhinst::FrontendLoweringContext::~FrontendLoweringContext() = default;
 // FrontendLoweringState::~FrontendLoweringState()  — 0x1c2190
 //
 // Destroys vector<string> at +0x18, then shared_ptr at +0x00.
-// The pad10_ at +0x10 is trivially destructible.
+// The inFunctionDef_ at +0x10 is trivially destructible.
 // ============================================================================
 zhinst::FrontendLoweringState::~FrontendLoweringState() = default;
 // The compiler-generated default dtor destroys members in reverse order:
-//   strings (vector<string>), then pad10_ (trivial), then result (shared_ptr).
+//   strings (vector<string>), then inFunctionDef_ (trivial), then result (shared_ptr).
 // This matches the binary dtor at 0x1c2190 which destroys the vector first,
 // then releases the shared_ptr.

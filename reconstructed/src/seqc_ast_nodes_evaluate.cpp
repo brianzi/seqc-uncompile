@@ -7528,7 +7528,7 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
 //
 //   Const/Cvar path (@0x218092–0x219b0f):
 //     scopeBoundaryFlags_=1, hasCases → evalCases, scopeBoundaryFlags_=0,
-//     check state.pad10_, loop cases:
+//     check state.inFunctionDef_, loop cases:
 //       if size==1 && (varType|2)==6: Value::operator== match →
 //         matchedResult = case, AND hasError
 //     After loop: if matchedResult, merge assemblers, copy hasError,
@@ -7951,9 +7951,9 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         std::shared_ptr<EvalResults> matchedDefaultResult;  // -0x90(%rbp)
         bool matchedHasError = false;
 
-        // ---- Check state.pad10_ for conditional AND ----          // @0x21818c
-        bool usePad10 = (state.pad10_ == 1);
-        if (usePad10) {
+        // ---- Check state.inFunctionDef_ for conditional AND ----          // @0x21818c
+        bool useInFunctionDef = (state.inFunctionDef_ == 1);
+        if (useInFunctionDef) {
             result->hasError_ = true;                                // @0x21819a
         }
 
@@ -8012,7 +8012,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             if (matchedResult->hasError_) {                          // @0x21854b
                 Value retVal = res->getReturnValue();                // @0x218560
                 result->setValue(retVal);                             // @0x21856f
-                if (!state.pad10_) {                                 // @0x218580
+                if (!state.inFunctionDef_) {                                 // @0x218580
                     result->hasError_ = true;                        // @0x21a17a
                     // Set hasError and skip node_ copy:
                     // r14=0 → r15=false → skip to cleanup
@@ -8024,13 +8024,13 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             // Copy node_ from matchedResult.                        // @0x21858b
             result->node_ = matchedResult->node_;                    // @0x2185a5
 
-            // Check state.pad10_ for final hasError AND.            // @0x21a12e
-            if (usePad10) {
+            // Check state.inFunctionDef_ for final hasError AND.            // @0x21a12e
+            if (useInFunctionDef) {
                 result->hasError_ &= matchedHasError;               // @0x21a13b
             }
         } else {
-            // No match found — no assemblers, but check state.pad10_
-            if (usePad10) {                                          // @0x21a12e
+            // No match found — no assemblers, but check state.inFunctionDef_
+            if (useInFunctionDef) {                                          // @0x21a12e
                 result->hasError_ &= matchedHasError;
             }
         }
@@ -9013,7 +9013,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
 //                         end-label, hasError AND
 //     0x2152c9–0x2164fb  Const/Cvar path: scopeBoundaryFlags_=1, dead branch eval,
 //                         scopeBoundaryFlags_=0, live branch eval, setValue, node_,
-//                         hasError, conditional AND (state.pad10_)
+//                         hasError, conditional AND (state.inFunctionDef_)
 //     0x2150d8–0x21511c  Cleanup and return
 //
 //   Key differences from SeqCIfCondition:
@@ -9259,10 +9259,10 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
         }
 
         // ---- Conditional hasError AND logic ----                  // @0x2163d6
-        // When state.pad10_ is set, override hasError_ with AND of
+        // When state.inFunctionDef_ is set, override hasError_ with AND of
         // both branches (result has error only if both error).
         // Binary: cmp BYTE PTR [state+0x10], 0x1
-        if (static_cast<uint8_t>(state.pad10_) == 1) {
+        if (static_cast<uint8_t>(state.inFunctionDef_) == 1) {
             if (liveResult && deadResult &&
                 liveResult->hasError_)
             {
@@ -9796,7 +9796,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
         } else {
             // 0x20b894–0x20b958  Non-main function: addBody + set state flag
             func->addBody(*body());
-            state.pad10_ = 1;   // 0x20b8ae: [r13+0x10] = 1 — "inside function def"
+            state.inFunctionDef_ = 1;   // 0x20b8ae: [r13+0x10] = 1 — "inside function def"
 
             try {
                 bodyResult = body()->evaluate(func->scope, ctx, state);
@@ -9808,7 +9808,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
                 return result;
             }
 
-            state.pad10_ = 0;   // 0x20b954: [rax+0x10] = 0
+            state.inFunctionDef_ = 0;   // 0x20b954: [rax+0x10] = 0
         }
 
         if (bodyResult) {

@@ -65,7 +65,7 @@ constexpr std::array<OptionCodePair<sfc::UhfOption>, 12> kUhfiaKnownOptions = {{
     { sfc::UhfOption::Bit0x00020, DeviceOption::FF   },
     { sfc::UhfOption::Bit0x00200, DeviceOption::AWG  },
     { sfc::UhfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::UhfOption::Bit0x00800, DeviceOption::TenG },
+    { sfc::UhfOption::Bit0x00800, DeviceOption::Option10G },
     { sfc::UhfOption::Bit0x01000, DeviceOption::QE   },
     { sfc::UhfOption::Bit0x02000, DeviceOption::RUB  },
     { sfc::UhfOption::Bit0x04000, DeviceOption::BOX  },

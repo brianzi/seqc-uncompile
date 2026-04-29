@@ -188,7 +188,7 @@ private:
     uint8_t pad16_[2];                             // +0x16
     uint64_t reserved18_;                          // +0x18
     uint32_t channelCount_;                        // +0x20
-    uint8_t channelMode_;                          // +0x24
+    uint8_t usedFourChannelMode_;                   // +0x24
     uint8_t usedSampleRate_;                       // +0x25
     uint8_t pad26_[2];                             // +0x26
     std::shared_ptr<Node> ast_;                    // +0x28

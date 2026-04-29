@@ -52,7 +52,7 @@ Compiler::Compiler(const AWGCompilerConfig& config,
     , flags_(0)
     , reserved18_(0)
     , channelCount_(0)
-    , channelMode_(0)
+    , usedFourChannelMode_(0)
     , usedSampleRate_(0)
     , ast_(nullptr)
     , messages_()
@@ -558,7 +558,7 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
 
     // Step 15-16: Store channel info from prefetch                       // 0x11e5bd
     channelCount_ = prefetch.getUsedChannels();
-    channelMode_ = prefetch.getUsedFourChannelMode();  // binary 0x11e5e0: direct store
+    usedFourChannelMode_ = prefetch.getUsedFourChannelMode();  // binary 0x11e5e0: direct store
 }
 
 // ============================================================================
@@ -593,7 +593,7 @@ const std::unordered_map<NodeMapItem, std::set<AccessMode>>* Compiler::getNodeTo
 std::vector<int> Compiler::getChannelInfo() const {
     std::vector<int> result;
     result.push_back(static_cast<int>(channelCount_));
-    result.push_back(static_cast<int>(channelMode_));
+    result.push_back(static_cast<int>(usedFourChannelMode_));
     return result;
 }
 

@@ -791,7 +791,7 @@ DeviceOption toDeviceOption(std::string const& s) {
         {"UHS",   DeviceOption::UHS},       // DeviceOptionName::uhs
         {"AWG",   DeviceOption::AWG},       // DeviceOptionName::awg
         {"DIG",   DeviceOption::DIG},       // DeviceOptionName::dig
-        {"10G",   DeviceOption::TenG},      // DeviceOptionName::e10g
+        {"10G",   DeviceOption::Option10G},      // DeviceOptionName::e10g
         {"QE",    DeviceOption::QE},        // DeviceOptionName::qe
         {"F5M",   DeviceOption::F5M},       // DeviceOptionName::f5m
         {"RUB",   DeviceOption::RUB},       // DeviceOptionName::rub
@@ -804,7 +804,7 @@ DeviceOption toDeviceOption(std::string const& s) {
         {"PC",    DeviceOption::PC},        // DeviceOptionName::pc
         {"QC",    DeviceOption::QA},        // DeviceOptionName::qc — see asymmetry note above
         {"SKW",   DeviceOption::SKW},       // DeviceOptionName::skw
-        {"16W",   DeviceOption::Sixteen_W}, // DeviceOptionName::w16
+        {"16W",   DeviceOption::Option16W}, // DeviceOptionName::w16
         {"QC2CH", DeviceOption::QC2CH},     // DeviceOptionName::qc2ch
         {"QC4CH", DeviceOption::QC4CH},     // DeviceOptionName::qc4ch
         {"QC6CH", DeviceOption::QC6CH},     // DeviceOptionName::qc6ch

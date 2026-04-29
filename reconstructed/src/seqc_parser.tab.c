@@ -1728,12 +1728,12 @@ yyreduce:
   case 52: /* assignment_expression: unary_expression '=' assignment_expression  */
 #line 305 "seqc_parser.y"
         {
-            /* Binary writes valueType/valueCategory to $1 (the LHS),
+            /* Binary writes direction/valueCategory to $1 (the LHS),
                NOT to $$ (the operator).  Confirmed at 0x2ca99c:
                mov -0x10(%rbx),%rcx reads $1, then writes 0x54 and 0x04.
                This sets the LHS variable to dir=eIN(0), vc=eLVALUE(1),
                which prevents checkVar from firing on uninitialized vars. */
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
             (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eASSIGN);
         }
@@ -1744,11 +1744,11 @@ yyreduce:
 #line 316 "seqc_parser.y"
         {
             /* Compound assignments: createAssignOperator first (copies $1 for
-               assignment LHS with its default valueType=2), then modify $1
-               (which is shared into the + operator) to valueType=0,
+               assignment LHS with its default direction=2), then modify $1
+               (which is shared into the + operator) to direction=0,
                valueCategory=1.  Binary: 0x2ca880 call, then 0x2ca892/0x2ca89d. */
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eADD);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1755 "seqc_parser.tab.c"
@@ -1758,7 +1758,7 @@ yyreduce:
 #line 326 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSUB);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1765 "seqc_parser.tab.c"
@@ -1768,7 +1768,7 @@ yyreduce:
 #line 332 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMUL);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1775 "seqc_parser.tab.c"
@@ -1778,7 +1778,7 @@ yyreduce:
 #line 338 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eDIV);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1785 "seqc_parser.tab.c"
@@ -1788,7 +1788,7 @@ yyreduce:
 #line 344 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMOD);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1795 "seqc_parser.tab.c"
@@ -1798,7 +1798,7 @@ yyreduce:
 #line 350 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eAND);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1805 "seqc_parser.tab.c"
@@ -1808,7 +1808,7 @@ yyreduce:
 #line 356 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eXOR);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1815 "seqc_parser.tab.c"
@@ -1818,7 +1818,7 @@ yyreduce:
 #line 362 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eOR);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1825 "seqc_parser.tab.c"
@@ -1828,7 +1828,7 @@ yyreduce:
 #line 368 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1835 "seqc_parser.tab.c"
@@ -1838,7 +1838,7 @@ yyreduce:
 #line 374 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR);
-            (yyvsp[-2].expr)->valueType = 0;
+            (yyvsp[-2].expr)->direction = 0;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
 #line 1845 "seqc_parser.tab.c"
@@ -1884,7 +1884,7 @@ yyreduce:
 #line 424 "seqc_parser.y"
         {
             (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eASSIGN);
-            (yyval.expr)->valueType = 0;
+            (yyval.expr)->direction = 0;
             (yyval.expr)->valueCategory = 1;
         }
 #line 1891 "seqc_parser.tab.c"

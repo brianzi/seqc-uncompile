@@ -90,7 +90,7 @@ public:
     // Parameters:
     //   waveform    - shared_ptr to the WaveformIR
     //   format      - SampleFormat (Cervino=0 or Hirzel16=1)
-    //   useAbsolute - if true AND waveform is reserveOnly, sets segment
+    //   useMapped - if true AND waveform is reserveOnly, sets segment
     //                 as NOBITS with address metadata
     //   padSize     - AddressImpl<uint> padding/alignment size
     //
@@ -101,7 +101,7 @@ public:
     std::unique_ptr<RawWave> addWaveform(
                            std::shared_ptr<WaveformIR> waveform,
                            SampleFormat format,
-                           bool useAbsolute,
+                           bool useMapped,
                            detail::AddressImpl<uint32_t> padSize); // 0x2939f0
 
     // --- Output ---

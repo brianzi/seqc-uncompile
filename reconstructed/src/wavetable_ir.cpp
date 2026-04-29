@@ -235,7 +235,7 @@ uint32_t WavetableIR::getFirstWaveformOffset() const  // 0x29e330
 // 2. Creates a lambda that counts total samples and tracks waveform count
 // 3. Calls forEachUsedWaveform with that lambda (WaveOrder::Natural after !fifoMode xor)
 // 4. Destroys the lambda
-// 5. Computes firstWaveformOffset from (totalSamples * 32 + alignment) / alignment
+// 5. Computes firstWaveformOffset from (totalBytes * 32 + alignment) / alignment
 //    where alignment = deviceConstants_->waveformAlignment (at DC+0x14)
 // 6. Creates MemoryAllocator-like structure with cache line placeholders
 // 7. Calls forEachUsedWaveform again with allocation lambda
@@ -258,8 +258,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     //   4. Computes sizeInBlocks from signal (same as $_1 below)
     //   5. Sets wf->elfAlignment_ = dc->waveformAlignment
     //   6. Sets wf->addressValue = totalSize + addressBase_
-    //   7. totalSize += allocationByteSize; waveCount++; totalSamples updated
-    size_t totalSamples = 0;  // unused but kept for symmetry with binary stack layout
+    //   7. totalSize += allocationByteSize; waveCount++; totalBytes updated
+    size_t totalBytes = 0;  // unused but kept for symmetry with binary stack layout
     uint32_t totalSize = 0;
     uint32_t waveCount = 0;
     uint32_t lastAllocBytes = 0;
@@ -333,9 +333,9 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             wf->allocationByteSize = allocationBytes;                 // store computed size
             lastAllocBytes = allocationBytes;
 
-            totalSamples += wf->getSampleCount();
+            totalBytes += wf->getAllocationByteSize();
         },
-        fifoMode ? WaveOrder::Natural : WaveOrder::ByName);       // 0x29e3ec
+        fifoMode ? WaveOrder::Natural : WaveOrder::ByWaveIndex);       // 0x29e3ec
 
     // Compute first waveform offset with alignment                // 0x29e3fa
     uint32_t alignment = deviceConstants_->waveformAlignment;      // DC+0x14
@@ -348,12 +348,12 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     }
 
     // Phase 2: Build cache-line occupancy vector and allocate     // 0x29e437
-    uint32_t memorySizeInSamples = deviceConstants_->waveformMemorySize;  // DC+0x0C
+    uint32_t memorySizeBytes = deviceConstants_->waveformMemorySize;  // DC+0x0C
     uint32_t maxBlocksPerCL = deviceConstants_->cachePageCount;           // DC+0x18
-    uint32_t numCacheLines = memorySizeInSamples / alignment;             // 0x29e458
+    uint32_t numCacheLines = memorySizeBytes / alignment;             // 0x29e458
 
     std::vector<uint32_t> cacheLineUsage;
-    if (alignment <= memorySizeInSamples) {                                // 0x29e461
+    if (alignment <= memorySizeBytes) {                                // 0x29e461
         cacheLineUsage.resize(numCacheLines, 0xFFFFFFFF);                 // sentinel // 0x29e472
     }
 
@@ -393,8 +393,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
                 allocationBytes = maxPerCL;
 
             // 4. Check waveform fits within current cache line          // 0x2a9d12
-            uint32_t offsetInCL = wf->addressValue % memorySizeInSamples;
-            if (offsetInCL + allocationBytes > memorySizeInSamples) // 0x2a9d1a
+            uint32_t offsetInCL = wf->addressValue % memorySizeBytes;
+            if (offsetInCL + allocationBytes > memorySizeBytes) // 0x2a9d1a
                 return;  // crosses cache-line boundary
 
             // 5. Determine block range [startBlock, endBlock)           // 0x2a9d22
@@ -464,7 +464,7 @@ void WavetableIR::forEachUsedWaveform(
             return static_cast<unsigned>(usedWaveforms_[a]->addressValue)
                  < static_cast<unsigned>(usedWaveforms_[b]->addressValue);
         });
-    } else if (order == WaveOrder::ByName) {
+    } else if (order == WaveOrder::ByWaveIndex) {
         // Binary $_0 at 0x2ad830: reads +0x6c (waveIndex), signed cmp (jge)
         // Despite the enum name, ByName sorts by waveIndex ascending.
         std::stable_sort(indices, indices + count, [this](size_t a, size_t b) {
@@ -586,12 +586,12 @@ void WavetableIR::setUsedWaveforms(
 //
 // If fifoMode: calls allocateWaveformsForFifo()
 // Else: calls allocateWaveforms(allocFlag)
-void WavetableIR::updateWaveforms(bool fifoMode, bool allocFlag)  // 0x29ed10
+void WavetableIR::updateWaveforms(bool fifoMode, bool allocFifoMode)  // 0x29ed10
 {
     if (fifoMode) {
         allocateWaveformsForFifo();
     } else {
-        allocateWaveforms(allocFlag);
+        allocateWaveforms(allocFifoMode);
     }
 }
 
@@ -608,7 +608,7 @@ void WavetableIR::updateWaveforms(bool fifoMode, bool allocFlag)  // 0x29ed10
 void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 {
     const DeviceConstants* dc = deviceConstants_;
-    uint32_t memorySizeInSamples = dc->waveformMemorySize;  // DC+0x0C
+    uint32_t memorySizeBytes = dc->waveformMemorySize;  // DC+0x0C
     uint32_t alignment = dc->waveformAlignment;              // DC+0x14
     uint32_t maxBlocks = dc->maxBlocks;                      // DC+0x1C
 
@@ -644,7 +644,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
                     if (startAddr < endAddr) {                // 0x2aa7c0
                         uint32_t pos = startAddr;
                         for (size_t i = 0; i < maxBlocks && pos < endAddr; ++i) {
-                            uint32_t clIdx = (pos % memorySizeInSamples) / alignment;
+                            uint32_t clIdx = (pos % memorySizeBytes) / alignment;
                             allocatedSet.insert(static_cast<size_t>(clIdx));  // 0x2aa817
                             pos += alignment;
                         }
@@ -749,7 +749,7 @@ void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f31
 // 0x29f480 — WavetableIR::getJsonIndex(SampleFormat) const
 //
 // Builds a JSON index string for all used waveforms:
-// 1. Creates a ptree, iterates waveforms via forEachUsedWaveform (WaveOrder::ByName)
+// 1. Creates a ptree, iterates waveforms via forEachUsedWaveform (WaveOrder::ByWaveIndex)
 // 2. Lambda calls WaveformIR::toJsonElement(format) for each used waveform
 //    and appends the result as a child with empty key ("") to a list ptree
 // 3. Wraps the waveform list under "waveforms." in an outer ptree
@@ -776,7 +776,7 @@ std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
             // Append as array element (empty key = JSON array entry)
             waveformsPtree.push_back(std::make_pair("", element));
         },
-        WaveOrder::ByName);
+        WaveOrder::ByWaveIndex);
 
     // Outer ptree wrapping the waveforms list
     ptree root;

@@ -132,10 +132,10 @@ private:
     Compiler compiler_;                                  // +0x0C0 (0x138 bytes)
     // Compiler ends at +0x1F8; next is +0x200
     char pad_1F8_[8];                                    // +0x1F8
-    std::string string_200_;                             // +0x200
+    std::string sourceFilename_;                             // +0x200
     std::string string_218_;                             // +0x218
-    std::string string_230_;                             // +0x230
-    std::string string_248_;                             // +0x248
+    std::string sourceText_;                             // +0x230
+    std::string assemblerText_;                             // +0x248
     std::vector<CompilerMessage> compileMessages_;       // +0x260
     AWGAssembler assembler_;                              // +0x278 — AWGAssembler (8B pimpl)
     std::vector<std::string> wavePaths_;                  // +0x280 — wave file paths (vector<string>::insert in addWaveforms)
@@ -169,10 +169,10 @@ AWGCompilerImpl::AWGCompilerImpl(AWGCompilerConfig const& config)  // @0x103b40
       pad_0B8_{},
       compiler_(config, deviceConstants_, wavetable_),                   // @0x103c5f: Compiler ctor with shared_ptr copy
       pad_1F8_{},
-      string_200_(),
+      sourceFilename_(),
       string_218_(),
-      string_230_(),
-      string_248_(),
+      sourceText_(),
+      assemblerText_(),
       compileMessages_(),
       assembler_(deviceConstants_),                                       // @0x103cc0
       wavePaths_(),
@@ -358,7 +358,7 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //        → throw ZIAWGCompilerException with ErrorMessages::format(0xDA, deviceTypeString)
 //      - If config->isHirzel is false AND that byte is 0:
 //        → throw ZIAWGCompilerException with ErrorMessages::format(0xDB, deviceTypeString)
-//   2. Copy source into string_230_ (at this+0x230)
+//   2. Copy source into sourceText_ (at this+0x230)
 //   3. Clear compileMessages_ vector (destroy old entries, reset end pointer)
 //   4. Reset wavetableIR_ shared_ptr (release old)
 //   5. Call compiler_.compile(source) @0x11f150
@@ -368,7 +368,7 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //      - For each Assembler entry with type != -1:
 //        - If type == 2 (error): compute indent, write indented assembly text
 //        - Otherwise: write 8-space indent + assembly text + "\n"
-//   8. Extract ostringstream content → store into string_248_ (at +0x248)
+//   8. Extract ostringstream content → store into assemblerText_ (at +0x248)
 //   9. Get compile messages from compiler, append to compileMessages_
 //  10. Call assembler_.assembleAsmList(asmList) @0x2850f0
 //  11. Get opcodes, check size vs deviceConstants_.maxSequenceLen (+0x60)
@@ -405,8 +405,8 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
             ErrorMessages::format(ErrorMessageT(0xDB), devStr));
     }
 
-    // 2. Store source into string_230_
-    string_230_ = source;
+    // 2. Store source into sourceText_
+    sourceText_ = source;
 
     // 3. Clear compileMessages_
     compileMessages_.clear();
@@ -460,7 +460,7 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     }
 
     // 7. Store assembler text
-    string_248_ = oss.str();
+    assemblerText_ = oss.str();
 
     // 8. Get compile messages from compiler, append to ours
     {
@@ -473,15 +473,15 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
 
     // 10. Check opcode size vs limits
     auto const& opcodes = assembler_.getOpcode();
-    size_t opcodeCount = (opcodes.size());  // in uint32_t words
+    size_t opcodeWordCount = (opcodes.size());  // in uint32_t words
     size_t maxSeqLen = deviceConstants_.maxSequenceLen;  // devConst+0x60
 
-    if (opcodeCount / 4 > maxSeqLen) {  // @0x10739e: sar $2, %r15; cmp %rcx, %r15
+    if (opcodeWordCount / 4 > maxSeqLen) {  // @0x10739e: sar $2, %r15; cmp %rcx, %r15
         // Add error message and throw
         CompilerMessage msg;
         msg.type = CompilerMessage::Error;
         msg.message = ErrorMessages::format(ErrorMessageT(0x0C),
-            static_cast<uint64_t>(opcodeCount / 4), maxSeqLen);
+            static_cast<uint64_t>(opcodeWordCount / 4), maxSeqLen);
         compileMessages_.push_back(std::move(msg));
         throw ZIAWGCompilerException("Sequence too long");
     }
@@ -526,7 +526,7 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
 //   3. Open boost::filesystem::basic_ifstream with path
 //   4. Create ostringstream, stream file contents: oss << filebuf.rdbuf()
 //   5. Close file
-//   6. Store path into string_200_ (at this+0x200) — the source filename
+//   6. Store path into sourceFilename_ (at this+0x200) — the source filename
 //   7. Extract ostringstream string → call compileString(str)  @0x106cb0
 //   8. Clean up streams
 // ============================================================================
@@ -547,7 +547,7 @@ void AWGCompilerImpl::compileFile(std::string const& path) {  // @0x106690
     ifs.close();
 
     // 5. Store filename
-    string_200_ = path;
+    sourceFilename_ = path;
 
     // 6. Compile the string content
     std::string contents = oss.str();
@@ -726,11 +726,11 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 //   7. Call elfWriter.addCode(opcodes)                            @0x108ec6
 //   8. Extract filename from format path, add as ".filename" data @0x108f11
 //   9. If config has source embedding flag (config+0x9D is 1):
-//      - Compress string_230_ → add as ".c" section               @0x108f7d
-//      - Compress string_248_ → add as ".asm" section             @0x108ff7
+//      - Compress sourceText_ → add as ".c" section               @0x108f7d
+//      - Compress assemblerText_ → add as ".asm" section             @0x108ff7
 //      Else:
-//      - Add raw string_230_ as ".c" section                      @0x1090a0
-//      - Add raw string_248_ as ".asm" section                    @0x1090fa
+//      - Add raw sourceText_ as ".c" section                      @0x1090a0
+//      - Add raw assemblerText_ as ".asm" section                    @0x1090fa
 //  10. Get lineMap from compiler, add as ".linenr" section        @0x109166
 //  11. Check deviceType == 4 or 1:
 //      - Add node access list as ".nodelist" section
@@ -771,7 +771,7 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
                     elfWriter.addWaveform(wf, SampleFormat(config_->sampleFormat),
                         /*mapped=*/true, /*padSize=*/0);
                 },
-                WaveOrder::ByName);
+                WaveOrder::ByWaveIndex);
         } else {
             // Absolute mode: compute padding, ByIndex order             @0x108e50
             uint32_t currentOffset = wavetableIR_->getFirstWaveformOffset();
@@ -811,18 +811,18 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
     // @0x108f48: check config->compressSource for source embedding compression flag
     bool compressSource = config_->compressSource;
     if (compressSource) {
-        // @0x108f7d: compress string_230_ → ".c"
-        std::string compC = compressSourceString(string_230_, format);
+        // @0x108f7d: compress sourceText_ → ".c"
+        std::string compC = compressSourceString(sourceText_, format);
         elfWriter.addData(compC.data(), compC.size(), std::string(".c"));
-        // @0x108ff7: compress string_248_ → ".asm"
-        std::string compAsm = compressSourceString(string_248_, format);
+        // @0x108ff7: compress assemblerText_ → ".asm"
+        std::string compAsm = compressSourceString(assemblerText_, format);
         elfWriter.addData(compAsm.data(), compAsm.size(), std::string(".asm"));
     } else {
         // @0x1090a0: raw ".c"
-        elfWriter.addData(string_230_.data(), string_230_.size(),
+        elfWriter.addData(sourceText_.data(), sourceText_.size(),
             std::string(".c"));
         // @0x1090fa: raw ".asm"
-        elfWriter.addData(string_248_.data(), string_248_.size(),
+        elfWriter.addData(assemblerText_.data(), assemblerText_.size(),
             std::string(".asm"));
     }
 
@@ -979,12 +979,12 @@ void AWGCompilerImpl::writeToFile(std::string const& path) {  // @0x10b9b0
 // Binary flow (~0x6C0 bytes):
 //   1. Check hadSyntaxError via SeqcParserContext at this+0x1C0
 //      If true, return immediately (no output)                    @0x107d31
-//   2. Check string_248_ (at +0x248) is non-empty
+//   2. Check assemblerText_ (at +0x248) is non-empty
 //      If empty, return                                           @0x107d54
 //   3. Create ostringstream
 //   4. Call getAssemblerHeader(path) → string                     @0x107d76
 //   5. Write header to ostringstream
-//   6. Write string_248_ to ostringstream
+//   6. Write assemblerText_ to ostringstream
 //   7. Write "\n"
 //   8. Open boost::filesystem::basic_ofstream with path, mode=trunc (0x10)
 //   9. Extract ostringstream content → write to ofstream
@@ -997,7 +997,7 @@ void AWGCompilerImpl::writeAssemblerToFile(std::string const& path) {  // @0x107
     }
 
     // 2. Check assembler text is non-empty
-    if (string_248_.empty()) {
+    if (assemblerText_.empty()) {
         return;  // @0x107d54: empty string → return
     }
 
@@ -1009,7 +1009,7 @@ void AWGCompilerImpl::writeAssemblerToFile(std::string const& path) {  // @0x107
     oss << getAssemblerHeader(path);
 
     // 6. Write assembler text
-    oss << string_248_ << "\n";                                    // @0x107dcb + @0x107dfb
+    oss << assemblerText_ << "\n";                                    // @0x107dcb + @0x107dfb
 
     // 7-9. Write to file
     std::ofstream ofs(
@@ -1033,7 +1033,7 @@ void AWGCompilerImpl::writeAssemblerToFile(std::string const& path) {  // @0x107
 //   4. Write "//\n"
 //   5. Write "// This file was generated automatically, do not edit!\n"
 //   6. Write "//\n"
-//   7. If string_200_ non-empty: write "// Source file : " + string_200_ + "\n"
+//   7. If sourceFilename_ non-empty: write "// Source file : " + sourceFilename_ + "\n"
 //   8. Write "// Compiler    : ziAWG Compiler Version " + "26.01.3.9" + "\n"
 //   9. Write "// Created     : " + formatTime(now, false) + "\n"
 //  10. Write "//\n" + "//****..." banner + "\n\n"
@@ -1057,8 +1057,8 @@ std::string AWGCompilerImpl::getAssemblerHeader(std::string const& path) const {
     oss << "//\n";                                                 // @0x108540
 
     // Conditionally write source file line
-    if (!string_200_.empty()) {                                    // @0x10856e
-        oss << "// Source file : " << string_200_ << "\n";
+    if (!sourceFilename_.empty()) {                                    // @0x10856e
+        oss << "// Source file : " << sourceFilename_ << "\n";
     }
 
     // Compiler version — hardcoded "26.01.3.9" at rodata 0x8fecf3
@@ -1080,7 +1080,7 @@ std::string AWGCompilerImpl::getAssemblerHeader(std::string const& path) const {
 //
 // Builds a JSON object via boost::property_tree with keys:
 //   "destination" — the output filename (parameter)
-//   "source"      — string_200_ (source filename, if non-empty)
+//   "source"      — sourceFilename_ (source filename, if non-empty)
 //   "waves"       — array from outputData_ (wave file paths)
 // Serialized via write_json to ostringstream.
 //
@@ -1093,9 +1093,9 @@ std::string AWGCompilerImpl::getJsonArguments(std::string const& destination) co
     // "destination" — the output filename
     root.put("destination", destination);                           // @0x10a4b0
 
-    // "source" — string_200_ (source filename), only if non-empty
-    if (!string_200_.empty()) {                                     // @0x10a530
-        root.put("source", string_200_);
+    // "source" — sourceFilename_ (source filename), only if non-empty
+    if (!sourceFilename_.empty()) {                                     // @0x10a530
+        root.put("source", sourceFilename_);
     }
 
     // "waves" — array of wave file paths from wavePaths_ (+0x280)
@@ -1203,7 +1203,7 @@ std::string AWGCompilerImpl::getCompileReport() const {  // @0x104030
 
     // Iterate compileMessages_ vector (+0x260)
     for (auto const& msg : compileMessages_) {
-        oss << msg.str(/*showLine=*/false) << "\n";  // @0x1040a1: str(false), @0x1040d4: "\n"
+        oss << msg.str(/*hideLine=*/false) << "\n";  // @0x1040a1: str(false), @0x1040d4: "\n"
     }
 
     // Append assembler report

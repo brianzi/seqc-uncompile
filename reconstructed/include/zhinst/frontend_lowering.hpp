@@ -88,7 +88,7 @@ static_assert(sizeof(FrontendLoweringContext) == 0x50,
 // ============================================================================
 struct FrontendLoweringState {
     std::shared_ptr<Node>                      result;      // +0x00 (lowered AST root)
-    uint64_t                                   pad10_{};    // +0x10 (zeroed in lower())
+    uint64_t                                   inFunctionDef_{};    // +0x10 (zeroed in lower())
     std::vector<std::string>                   strings;     // +0x18
     uint8_t                                    inLoop_{};   // +0x30 (checked by break/continue)
     uint8_t                                    inSwitch_{}; // +0x31 (checked by SeqCCaseEntry)

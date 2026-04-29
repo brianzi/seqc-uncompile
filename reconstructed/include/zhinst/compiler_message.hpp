@@ -28,7 +28,7 @@ struct CompilerMessage {
     std::string message;        // +0x08 (24 bytes SSO)
     // +0x20 END
 
-    std::string str(bool showLine) const;   // 0x104340
+    std::string str(bool hideLine) const;   // 0x104340
 };
 
 // ---- CompilerMessageCollection (0x20 bytes, embedded in Compiler at +0x38) ----

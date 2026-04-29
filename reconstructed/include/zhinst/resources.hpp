@@ -105,8 +105,6 @@ enum VarSubType : int32_t {
     VarSubType_Numeric     = 3,
     VarSubType_String      = 4,
 };
-// Legacy alias retained for source compatibility during the cascading fix.
-constexpr VarSubType VarSubType_Bool = VarSubType_Stub;
 
 // ============================================================================
 // VarTypeException — thrown by combine(VarType, VarType) on incompatible types.

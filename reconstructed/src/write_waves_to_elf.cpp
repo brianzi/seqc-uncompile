@@ -45,7 +45,7 @@ namespace {
 //   +0x10: AWGCompilerConfig*     config
 //
 // Behavior:
-//   Iterates waveforms in ByName order (WaveOrder::ByName = 1).
+//   Iterates waveforms in ByWaveIndex order (WaveOrder::ByWaveIndex = 1).
 //   For each waveform, calls:
 //     elfWriter->addWaveform(waveform, config->sampleFormat, /*mapped=*/true, /*padSize=*/0);
 //   The returned segment is discarded (unique_ptr destroyed immediately).
@@ -54,7 +54,7 @@ namespace {
 //   - Uses mapped addressing (bool param = true)
 //   - No padding calculation — padSize is always 0
 //   - Does not track cumulative offset
-//   - Iterates in ByName order (vs ByIndex for absolute)
+//   - Iterates in ByWaveIndex order (vs ByIndex for absolute)
 // ============================================================================
 void writeWavesToElfMapped(
     AWGCompilerConfig const& config,        // r13 (from writeToStream)
@@ -81,9 +81,9 @@ void writeWavesToElfMapped(
         // rawData (unique_ptr<RawWave>) destroyed immediately at 0x10e062-0x10e076
     };
 
-    // 0x108db1: edx = 1 → WaveOrder::ByName
+    // 0x108db1: edx = 1 → WaveOrder::ByWaveIndex
     // 0x108db6: call forEachUsedWaveform
-    wavetable->forEachUsedWaveform(callback, WaveOrder::ByName);
+    wavetable->forEachUsedWaveform(callback, WaveOrder::ByWaveIndex);
 }
 
 // ============================================================================

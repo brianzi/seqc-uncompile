@@ -163,9 +163,9 @@ public:
                       std::string const& funcName);                                       // 0x25c6f0
     double readDoubleAmplitude(Value val, std::string const& paramName,
                                std::string const& funcName);                              // 0x25caa0
-    int    readInt(Value val, std::string const& paramName, int minVal,
+    int    readInt(Value val, std::string const& paramName, int argIndex,
                    std::string const& funcName);                                          // 0x25cca0
-    int    readPositiveInt(Value val, std::string const& paramName, int minVal,
+    int    readPositiveInt(Value val, std::string const& paramName, int argIndex,
                            std::string const& funcName);                                  // 0x25d490
     std::shared_ptr<WaveformFront> readWave(Value val, std::string const& paramName,
                     int expectedLength, std::string const& funcName);                     // 0x25d6f0

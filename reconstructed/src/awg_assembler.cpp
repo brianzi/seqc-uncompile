@@ -71,9 +71,9 @@ std::string AWGAssembler::getReport() const {
 }
 
 // 0x285170
-void AWGAssembler::printOpcode(int format) const
+void AWGAssembler::printOpcode(int startIndex) const
 {
-    pImpl_->printOpcode(format);
+    pImpl_->printOpcode(startIndex);
 }
 
 } // namespace zhinst

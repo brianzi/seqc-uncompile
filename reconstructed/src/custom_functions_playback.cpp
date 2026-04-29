@@ -643,10 +643,10 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 // ----------------------------------------------------------------------------
 // CustomFunctions::playWaveDIO — @0x137740 (~187 disasm lines)
 // ----------------------------------------------------------------------------
-// Emits a single `wvft` instruction with mask `1 << numOutputPorts`,
+// Emits a single `wvft` instruction with mask `1 << execTableIndexBits`,
 // triggered by a DIO event. Args are validated for non-emptiness only;
 // their values are not consumed (the trigger mask is derived entirely
-// from the device-constants `numOutputPorts` field).
+// from the device-constants `execTableIndexBits` field).
 //
 // Algorithm:
 //   1. External triggering mode check: None→Dio, Dio→OK, otherwise throw error 0x4f.
@@ -655,7 +655,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 //   3. If args is empty → throw CustomFunctionsException(format(0x42,
 //      "playWaveDIO")) — error code 0x42 = arg-count mismatch.
 //   4. Allocate EvalResults(VarType_Void).
-//   5. Emit wvft(AsmRegister(0), 1 << devConst_->numOutputPorts).
+//   5. Emit wvft(AsmRegister(0), 1 << devConst_->execTableIndexBits).
 //   6. Push asm entry; return results.
 //
 // Note: the Resources `res` parameter is taken but never used in the body
@@ -680,8 +680,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
     // Phase 4: allocate EvalResults(Void) — @0x1377c3..0x1377f5
     auto results = std::make_shared<EvalResults>(VarType_Void);  // Void
 
-    // Phase 5: build wvft mask = 1 << numOutputPorts — @0x1377f9..0x137818
-    int mask = 1 << devConst_->numOutputPorts;
+    // Phase 5: build wvft mask = 1 << execTableIndexBits — @0x1377f9..0x137818
+    int mask = 1 << devConst_->execTableIndexBits;
 
     // Phase 6: emit wvft(reg=0, mask) — @0x137805..0x13782a
     auto asmEntry = asmCommands_->wvft(AsmRegister(0), mask);
@@ -716,7 +716,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
 //        - "ZSYNC_DATA_PROCESSED_A"  → shift=9
 //        - "ZSYNC_DATA_PROCESSED_B"  → shift=0xd
 //      Tracking "matched?" in a bool. If no match → throw error 0x75.
-//   7. mask = shift << numOutputPorts (NOT 1 << (numOutputPorts + shift) —
+//   7. mask = shift << execTableIndexBits (NOT 1 << (execTableIndexBits + shift) —
 //      the binary literally shifts the shift-value: `shl eax, cl` where
 //      eax ∈ {1, 9, 0xd}). For shift=1 these are equivalent, but for
 //      shift=9 (1001b) and shift=0xd (1101b) the multi-bit pattern is
@@ -809,9 +809,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     // for fidelity with binary) — @0x137e45
     setWaitCyclesReg(args, results, res);
 
-    // Phase 9: compute mask = shift << numOutputPorts — @0x1380f4..0x1380fe
+    // Phase 9: compute mask = shift << execTableIndexBits — @0x1380f4..0x1380fe
     // devConst_ is at this+0x8 (per `mov rcx, [r14+0x8]`).
-    int mask = shift << devConst_->numOutputPorts;
+    int mask = shift << devConst_->execTableIndexBits;
 
     // Phase 10: emit wvft(reg=0, mask) — @0x138115..0x138196
     auto asmEntry = asmCommands_->wvft(AsmRegister(0), mask);

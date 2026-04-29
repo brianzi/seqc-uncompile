@@ -90,7 +90,7 @@ struct WaveformIR : Waveform {
     //     they are NOT separate storage — they exist so legacy call sites continue
     //     to compile while we audit each call's intended target) ---
     bool isUsed() const { return used; }                // Waveform::used at +0x48
-    int  getSampleCount() const { return allocationByteSize; } // Waveform::allocationByteSize +0x74
+    int  getAllocationByteSize() const { return allocationByteSize; } // Waveform::allocationByteSize +0x74
 
     // Construct from WaveformFront — 0x114da0
     explicit WaveformIR(std::shared_ptr<WaveformFront> source);

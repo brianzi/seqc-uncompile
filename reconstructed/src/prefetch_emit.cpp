@@ -711,7 +711,7 @@ AsmList Prefetch::wvfRegImpl(AsmRegister reg, AsmRegister offset,
 //   2. Waveform implementation instructions (wvfImpl) using reg, addrA, flag
 //   3. If NOT a Hirzel device: an xnori instruction setting reg = reg XNOR addrB
 // ============================================================================
-void Prefetch::insertPlay(AsmList& list, bool flag,
+void Prefetch::insertPlay(AsmList& list, bool indexed,
                           std::string const& name, AsmRegister reg,
                           detail::AddressImpl<uint32_t> addrA,
                           detail::AddressImpl<uint32_t> addrB) const  // 0x1def50
@@ -722,7 +722,7 @@ void Prefetch::insertPlay(AsmList& list, bool flag,
 
     // 2. Generate waveform instructions and append to list
     {
-        AsmList wvfInstructions = wvfImpl(reg, addrA, flag);  // 0x1df056
+        AsmList wvfInstructions = wvfImpl(reg, addrA, indexed);  // 0x1df056
         list.insert(list.end(),                                // 0x1df088
                     wvfInstructions.begin(),
                     wvfInstructions.end());

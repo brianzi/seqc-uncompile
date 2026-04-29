@@ -56,7 +56,7 @@ Expression::Expression(const Expression& other)  // 0x1bfa30
     , operator_(other.operator_)
     , commandType(other.commandType)
     , varType(other.varType)
-    , valueType(other.valueType)
+    , direction(other.direction)
 {
     // Binary copies the first 24 bytes (3 qwords: operationType..value)
     // via movups, then copy-constructs name, then copies children by
@@ -178,7 +178,7 @@ Expression* createString(SeqcParserContext* ctx, const char* s) {  // 0x1bf2d0
                                                      //     (correct under fixed VarType mapping;
                                                      //      previously mislabelled as VarType_Const
                                                      //      under the broken enum.)
-    e->valueType    = 2;
+    e->direction    = 2;
     // Construct name from the C string
     e->name = s;                                    // +0x18
     e->lineNumber = ctx->currentLineNumber();
@@ -246,7 +246,7 @@ Expression* createVariableType(SeqcParserContext* ctx, VarType vt) {  // 0x1bf7c
     e->operator_    = EOperator::eNONE;               // 21
     e->commandType  = static_cast<ECommandType>(1);   // 1
     e->varType      = vt;                             // +0x50
-    e->valueType    = 2;                              // +0x54
+    e->direction    = 2;                              // +0x54
     e->lineNumber   = ctx->currentLineNumber();
     return e;
 }
@@ -368,7 +368,7 @@ Expression* createFunctionCall(SeqcParserContext* ctx,
 // createFunction — 0x1c0000
 // ============================================================================
 
-Expression* createFunction(SeqcParserContext* ctx, Expression* nameExpr,
+Expression* createFunction(SeqcParserContext* ctx, Expression* returnTypeExpr,
                            Expression* params, Expression* body) {  // 0x1c0000
     auto* e = new Expression();
     e->operationType = EOperationType::eFUNCTION;   // 1
@@ -391,7 +391,7 @@ Expression* createFunction(SeqcParserContext* ctx, Expression* nameExpr,
 
     // Push body and return type (in that order based on disasm)
     pushChild(e->children, body);
-    pushChild(e->children, nameExpr);
+    pushChild(e->children, returnTypeExpr);
 
     e->lineNumber = ctx->currentLineNumber();
     return e;
@@ -409,7 +409,7 @@ Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
     e->operator_    = EOperator::eNONE;
     e->commandType  = cmd;
     e->varType      = VarType_Unset;       // 0
-    e->valueType    = 2;
+    e->direction    = 2;
 
     va_list ap;
     va_start(ap, count);
@@ -436,7 +436,7 @@ static Expression* makeCommandNode(SeqcParserContext* ctx,
     e->operator_    = EOperator::eNONE;    // 21
     e->commandType  = cmd;
     e->varType      = VarType_Unset;       // 0
-    e->valueType    = 2;
+    e->direction    = 2;
     return e;
 }
 
@@ -571,7 +571,7 @@ std::shared_ptr<Expression> copyExpression(
     copy->operator_    = expr->operator_;
     copy->commandType  = expr->commandType;
     copy->varType      = expr->varType;
-    copy->valueType    = expr->valueType;
+    copy->direction    = expr->direction;
 
     // Copy +0x04 last (binary does this at the very end)
     copy->valueCategory = expr->valueCategory;

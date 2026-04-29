@@ -34,7 +34,7 @@ namespace {
 // Shfqa2 knownOptions @ .rodata 0x962850 (4 entries).
 constexpr std::array<OptionCodePair<sfc::ShfOption>, 4> kShfqa2KnownOptions = {{
     { sfc::ShfOption::Bit0x00020, DeviceOption::FF    },
-    { sfc::ShfOption::Bit0x01000, DeviceOption::Sixteen_W },
+    { sfc::ShfOption::Bit0x01000, DeviceOption::Option16W },
     { sfc::ShfOption::Bit0x04000, DeviceOption::PLUS  },
     { sfc::ShfOption::Bit0x08000, DeviceOption::LRT   },
 }};
@@ -45,7 +45,7 @@ constexpr std::array<OptionCodePair<sfc::ShfOption>, 8> kShfqcKnownOptions = {{
     { sfc::ShfOption::Bit0x00010, DeviceOption::QC4CH },
     { sfc::ShfOption::Bit0x00020, DeviceOption::FF    },
     { sfc::ShfOption::Bit0x00800, DeviceOption::QC6CH },
-    { sfc::ShfOption::Bit0x01000, DeviceOption::Sixteen_W },
+    { sfc::ShfOption::Bit0x01000, DeviceOption::Option16W },
     { sfc::ShfOption::Bit0x02000, DeviceOption::RTR   },
     { sfc::ShfOption::Bit0x04000, DeviceOption::PLUS  },
     { sfc::ShfOption::Bit0x08000, DeviceOption::LRT   },

@@ -30,7 +30,7 @@ namespace {
 //   +0x04 → EValueCategory (valueCategory)
 //   +0x08 → int            (lineNumber → SeqCAstNode::lineNr_)
 //   +0x50 → VarType        (varType)
-//   +0x54 → EDirection     (valueType field — actually stores direction)
+//   +0x54 → EDirection     (direction field)
 struct ExprArgs {
     EValueCategory vc;
     int            lineNr;
@@ -40,7 +40,7 @@ struct ExprArgs {
     explicit ExprArgs(Expression const& e)
         : vc(static_cast<EValueCategory>(e.valueCategory))
         , lineNr(e.lineNumber)
-        , dir(static_cast<EDirection>(e.valueType))  // +0x54
+        , dir(static_cast<EDirection>(e.direction))  // +0x54
         , vt(e.varType)                               // +0x50
     {}
 };

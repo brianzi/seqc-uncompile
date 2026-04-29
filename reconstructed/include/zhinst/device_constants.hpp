@@ -84,7 +84,7 @@ enum AwgDeviceType : int;
 // 0x68    4     uint32_t    seqClockDivider       0 (Cervino) or 1165/0x48D (Hirzel)
 // 0x6C    4     (padding)
 // 0x70    8     double      samplingRate          Hz (1.8e9, 2.0e9, 2.4e9, 12.0e9)
-// 0x78    4     uint32_t    numOutputPorts        0, 10, or 12
+// 0x78    4     uint32_t    execTableIndexBits        0, 10, or 12
 // 0x7C    4     uint32_t    numAWGCores           0, 3, or 5
 // 0x80    1     bool        hasDIO                DIO support flag
 // 0x81    3     (padding)
@@ -177,7 +177,7 @@ struct DeviceConstants {
 
     double         samplingRate;          // +0x70  Hz
 
-    uint32_t       numOutputPorts;        // +0x78  0, 10, or 12
+    uint32_t       execTableIndexBits;        // +0x78  0, 10, or 12
     uint32_t       numAWGCores;           // +0x7C  0, 3, or 5
     bool           hasDIO;                // +0x80  DIO support
     char           _pad81[3];             // +0x81

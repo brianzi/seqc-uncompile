@@ -289,12 +289,12 @@ int parseOptionalRate(
 // 0x60    32    unordered_map<string, function<shared_ptr<EvalResults>(
 //                  vector<EvalResultValue> const&,
 //                  shared_ptr<Resources>)>>                        funcMap_
-// 0x80    4     float                                             field_80 (1.0f max_load_factor)
+// 0x80    4     float                                             funcMap_maxLoadFactor_ (1.0f max_load_factor)
 // 0x84    4     (padding)
-// 0x88    32    unordered_map<string, vector<string>>             field_88
-// 0xA8    4     float                                             field_A8 (1.0f max_load_factor)
+// 0x88    32    unordered_map<string, vector<string>>             aliasMap_
+// 0xA8    4     float                                             aliasMap_maxLoadFactor_ (1.0f max_load_factor)
 // 0xAC    4     (padding)
-// 0xB0    24    set<string>                                       field_B0
+// 0xB0    24    set<string>                                       unusedStringSet_B0_
 // 0xC8    48    MathCompiler                                      mathCompiler_
 // 0xF8    8     unique_ptr<NodeMap>                               nodeMap_
 //                  (CONFIRMED from lookupNode @0x15c530: reads [this+0xf8] as
@@ -375,9 +375,9 @@ public:
 
     std::shared_ptr<WaveformFront> mergeWaveforms(
                         std::vector<EvalResultValue> const& args,
-                        short param2, bool param3,
-                        std::string const& name,
-                        int param5, bool param6);  // @0x15e060
+                        short channelCount, bool useYSuffix,
+                        std::string const& callerName,
+                        int requestedLength, bool useFunDescrPath);  // @0x15e060
                         // Mangled: ...sbRK<string>ib (last param is bool, not int64_t)
 
     std::shared_ptr<EvalResults> play(

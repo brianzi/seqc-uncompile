@@ -121,7 +121,7 @@ enum class DeviceOption : uint32_t {
     UHS   = 7,
     AWG   = 8,
     DIG   = 9,
-    TenG  = 10,   // toString -> "10G"  (renamed; identifier can't start w/ digit)
+    Option10G  = 10,   // toString -> "10G"
     QE    = 11,
     F5M   = 12,
     RUB   = 13,
@@ -134,7 +134,7 @@ enum class DeviceOption : uint32_t {
     PC    = 20,
     QA    = 21,
     SKW   = 22,
-    Sixteen_W = 23, // toString -> "16W"
+    Option16W = 23, // toString -> "16W"
     QC2CH = 24,
     QC4CH = 25,
     QC6CH = 26,
