@@ -265,8 +265,16 @@ void Prefetch::backwardTree(std::shared_ptr<Node> node) const // 0x1d57d0
 //
 // Removes dead branches from the node. Iterates through branches vector,
 // keeping only branches that contain used waveforms (checked via
-// nodeStates_ lookup). Pushes removed branches onto the stack for later
-// processing.
+// nodeStates_ lookup).
+//
+// In the multi-branch path: pushes node->next (the join node after the
+// branch) onto the stack first, then pushes each remaining branch.
+// Pushing node->next is essential — without it, prepareTree's BFS would
+// terminate after the branch arms and never visit the code following the
+// if/else (regression-tested by uhf_doc_feedforward).
+//
+// In the empty-branches path: calls Node::updateParent to splice the
+// branch out and pushes node->next.
 // ============================================================================
 void Prefetch::removeBranches(
     std::shared_ptr<Node> node,
@@ -314,6 +322,13 @@ void Prefetch::removeBranches(
         // 0x1d39d8: Push node->next onto the stack
         stack.push(n->next);
     } else {
+        // 0x1d3759-0x1d37b6: Push node->next first (the join node after the
+        // branch). Without this push, prepareTree's BFS would terminate after
+        // processing the branch arms, never visiting the code after the
+        // if/else. Confirmed by GDB tracing of uhf_doc_feedforward.
+        if (n->next) {
+            stack.push(n->next);
+        }
         // 0x1d37f2..0x1d38be: Push each remaining branch onto the stack
         for (auto& branch : branches) {
             stack.push(branch);

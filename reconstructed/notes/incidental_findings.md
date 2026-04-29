@@ -1417,3 +1417,26 @@ loop.
 
 This is a substantial subsystem investigation in its own right —
 deferred from the IF-99 fix to keep that change focused.
+
+## IF-101  removeBranches missing push of node->next in multi-branch path
+
+**Severity**: bug (fixed)
+**Status**: fixed
+
+In `Prefetch::removeBranches` (0x1d3530), when the branch retains one or
+more children (multi-branch path, originally @0x1d3759-0x1d37b6), the
+binary pushes `node->next` (the join node after the branch) onto the
+traversal stack BEFORE pushing each branch shared_ptr. The
+reconstruction was only pushing the branches.
+
+Without the `node->next` push, `prepareTree`'s BFS terminated as soon
+as the branch arms (typically leaf Plays with `next = nullptr`) were
+processed. Any code following the if/else (e.g. `wait(3000); playWave;
+if/else`) was never visited by `prepareTree`, so its Play nodes never
+had `linkLoad` called on them, leaving `loadRef` empty, and triggering
+`prefetch Error: missing load for node` in `Prefetch::allocate`.
+
+**Test**: uhf_doc_feedforward (now byte-identical, was failing).
+**Score**: 254 → 255 of 259 passing.
+**Fix**: prefetch_helpers.cpp `removeBranches` else branch — push
+`n->next` before iterating branches.
