@@ -476,12 +476,12 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
         auto playConfig = asmCommands_->genPlayConfig(
             wf, singleChannel, true, false, false, -1, mask, false, 0);        // @0x1343bb
 
-        // Build the config word from PlayConfig fields and store at wf->playWord  // @0x1343c9
+        // Build the config word from PlayConfig fields and store at wf->playConfig  // @0x1343c9
         // The binary reads each PlayConfig field, shifts by the corresponding
         // static Shift value, ANDs with the Mask, then ORs all 9 fields into
         // a single uint32_t.  This is exactly what encodeCwvf() does.
         // The defaultRate arg is -1 (matching genPlayConfig's rate arg above).
-        wf->playWord = playConfig.encodeCwvf(/*defaultRate=*/-1);               // @0x1344d5
+        wf->playConfig = playConfig.encodeCwvf(/*defaultRate=*/-1);               // @0x1344d5
 
         // wavetableFront_->assignWaveIndex(wf, waveIndex)                     // @0x134504
         wavetableFront_->assignWaveIndex(wf, waveIndex);
@@ -491,9 +491,9 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
             wavetableFront_->updateWave(wf, *optName);
         }
 
-        // Set wf->seqRegWidth from devConst_->waveformMinSamples (+0x4C)           // @0x1345b4
+        // Set wf->minLengthSamples from devConst_->waveformMinSamples (+0x4C)           // @0x1345b4
         if (wf) {
-            wf->seqRegWidth = static_cast<int>(devConst_->waveformMinSamples);  // @0x1345c4
+            wf->minLengthSamples = static_cast<int>(devConst_->waveformMinSamples);  // @0x1345c4
         }
     }
 

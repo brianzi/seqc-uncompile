@@ -28,30 +28,30 @@ namespace zhinst {
 // Field accesses on this (rsi):
 //   [this+0x00] name            — string, key "name" (len 4, at 0x904d94)
 //   [this+0x18] waveformType    — int, converted via File::typeToStr, key "type" (len 4, at 0x906186)
-//   [this+0x20] secondaryName   — string, key "functionArgs" (len 12, at 0x90a35a)
+//   [this+0x20] functionArgs   — string, key "functionArgs" (len 12, at 0x90a35a)
 //   [this+0x38] file            — shared_ptr<File>, file->name or "", key "fileName" (len 8, at 0x90a367)
 //   [this+0x48] used            — bool, key "load" (len 4, at 0x9060f4)
 //   [this+0x4C] addressValue    — AddressImpl<uint>, key "globalAddress" (len 13, at 0x90a370)
 //   [this+0x50] funDescrName     — string, key "genFunc" (len 7, at 0x90a37e)
-//   [this+0x68] playWord        — uint32_t→int, key "playConfig" (len 10, at 0x90a3ad)
+//   [this+0x68] playConfig        — uint32_t→int, key "playConfig" (len 10, at 0x90a3ad)
 //   [this+0x6C] waveIndex       — int32_t, key "waveIndex" (len 9, at 0x90a350)
-//   [this+0x70] seqRegWidth     — int, key "minLengthSamples" (len 16, at 0x90a386)
+//   [this+0x70] minLengthSamples     — int, key "minLengthSamples" (len 16, at 0x90a386)
 //   [this+0x74] allocationByteSize         — int, key "allocationSize" (len 14, at 0x90a397)
 //   [this+0x80] signal          — Signal, key "signal" (len 6, at 0x90a3a6)
 //
 // Serialization order (from initializer_list construction, 12 pairs = edx=0xc):
 //   {"name", name}
 //   {"type", typeToStr(waveformType)}
-//   {"functionArgs", secondaryName}
+//   {"functionArgs", functionArgs}
 //   {"fileName", file ? file->name : ""}
 //   {"load", used}
 //   {"globalAddress", addressValue}
 //   {"genFunc", funDescrName}
 //   {"waveIndex", waveIndex}
-//   {"minLengthSamples", seqRegWidth}
+//   {"minLengthSamples", minLengthSamples}
 //   {"allocationSize", allocationByteSize}
 //   {"signal", signal.toJson()}
-//   {"playConfig", playWord}
+//   {"playConfig", playConfig}
 // ============================================================================
 boost::json::value Waveform::toJson() const  // 0x2a33c0
 {
@@ -81,16 +81,16 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
     return boost::json::value{
         {"name",             name},              // +0x00, key at 0x904d94
         {"type",             typeStr},           // +0x18 (converted), key at 0x906186
-        {"functionArgs",     secondaryName},     // +0x20, key at 0x90a35a
+        {"functionArgs",     functionArgs},     // +0x20, key at 0x90a35a
         {"fileName",         fileName},          // +0x38, key at 0x90a367
         {"load",             used},              // +0x48, key at 0x9060f4
         {"globalAddress",    addressValue},      // +0x4C, key at 0x90a370
         {"genFunc",          funDescrName},       // +0x50, key at 0x90a37e
         {"waveIndex",        waveIndex},         // +0x6C, key at 0x90a350
-        {"minLengthSamples", seqRegWidth},       // +0x70, key at 0x90a386
+        {"minLengthSamples", minLengthSamples},       // +0x70, key at 0x90a386
         {"allocationSize",   allocationByteSize},           // +0x74, key at 0x90a397
         {"signal",           std::move(signalJson)}, // +0x80, key at 0x90a3a6
-        {"playConfig",       static_cast<int>(playWord)}  // +0x68, key at 0x90a3ad
+        {"playConfig",       static_cast<int>(playConfig)}  // +0x68, key at 0x90a3ad
     };
 
     // Cleanup: destroys signalJson, fileName string, typeStr string
@@ -111,20 +111,20 @@ boost::json::value Waveform::toJson() const  // 0x2a33c0
 // Read order (each key is looked up via as_object().at(key)):
 //   1. "name"             → as_string → construct std::string (name)
 //   2. "type"             → as_string → construct std::string → typeFromStr (fileType)
-//   3. "functionArgs"     → as_string → construct std::string (secondaryName)
+//   3. "functionArgs"     → as_string → construct std::string (functionArgs)
 //   4. "fileName"         → as_string → if non-empty, make_shared<File>(c_str)
 //   5. "load"             → as_bool (used)
 //   6. "globalAddress"    → to_number<uint64_t> (addressValue)
 //   7. "genFunc"          → as_string → construct std::string (funDescrName)
-//   8. "playConfig"       → as_int64 (playWord)
+//   8. "playConfig"       → as_int64 (playConfig)
 //   9. "waveIndex"        → as_int64 (waveIndex)
-//  10. "minLengthSamples" → as_int64 (seqRegWidth)
+//  10. "minLengthSamples" → as_int64 (minLengthSamples)
 //  11. "allocationSize"   → as_int64 (allocationByteSize)
 //  12. "signal"           → Signal::fromJson (signal)
 //
 // Then calls the full Waveform constructor at 0x2a71e0 with all 13 parameters
-// (name, fileType, secondaryName, filePtr, used, addressValue, genFunc,
-//  playWord, waveIndex, seqRegWidth, allocationByteSize, dc, signal)
+// (name, fileType, functionArgs, filePtr, used, addressValue, genFunc,
+//  playConfig, waveIndex, minLengthSamples, allocationByteSize, dc, signal)
 // on the stack (8 pushes for params beyond register capacity).
 // ============================================================================
 Waveform Waveform::fromJson(boost::json::value const& json,
@@ -153,7 +153,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     // 0x2a5759: lea rsi, [rip+0x664bfa] → 0x90a35a = "functionArgs"
     // 0x2a5767: mov edx, 0xc (len=12)
     // ... then 0x2a579d: call 34b290 (as_string)
-    // This reads "functionArgs" → secondaryName
+    // This reads "functionArgs" → functionArgs
     //
     // Let me re-trace. After "name", the code reads:
     //   at 0x2a5712: call 2a63c0 (typeFromStr) on the string just built
@@ -207,7 +207,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     // 0x2a579d: as_string
     auto const& funcArgsJsonStr = obj.at("functionArgs").as_string();
     const char* funcArgsCStr = funcArgsJsonStr.data();
-    std::string secondaryNameStr(funcArgsCStr, strlen(funcArgsCStr));
+    std::string functionArgsStr(funcArgsCStr, strlen(funcArgsCStr));
     // stored at [rbp-0x70]
 
     // --- 4. Read "fileName" ---
@@ -334,14 +334,14 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     //   rdi = return ptr (sret, stored at [rbp-0x108])
     //   rsi = &nameStr (at [rbp-0xa0])     — name (string, moved)
     //   edx = fileType                      — [rbp-0xa4]
-    //   rcx = &secondaryNameStr (at [rbp-0x70])  — secondaryName (string, moved)
+    //   rcx = &functionArgsStr (at [rbp-0x70])  — functionArgs (string, moved)
     //   r8  = &filePtr (at [rbp-0x40])      — shared_ptr<File> (moved)
     //   r9d = usedVal                       — [rbp-0x29]
     //   [rsp+0x00] = addrVal               — [rbp-0xf8] (uint64 → uint32)
     //   [rsp+0x08] = &genFuncStr           — [rbp-0x58] (string, moved)
-    //   [rsp+0x10] = playConfigVal (r12)   — playWord (int)
+    //   [rsp+0x10] = playConfigVal (r12)   — playConfig (int)
     //   [rsp+0x18] = waveIndexVal (r13)    — waveIndex (int)
-    //   [rsp+0x20] = minLengthVal          — [rbp-0xf0] (seqRegWidth, int)
+    //   [rsp+0x20] = minLengthVal          — [rbp-0xf0] (minLengthSamples, int)
     //   [rsp+0x28] = allocSizeVal (r12_saved) — allocationByteSize (int)
     //   [rsp+0x30] = &dc                   — [rbp-0x100] (DeviceConstants const&)
     //   [rsp+0x38] = &sig                  — [rbp-0x378] (Signal, moved)
@@ -350,14 +350,14 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     Waveform result(
         std::move(nameStr),                         // rsi → name
         fileType,                                    // edx → waveformType (+0x18)
-        std::move(secondaryNameStr),                // rcx → secondaryName (+0x20)
+        std::move(functionArgsStr),                // rcx → functionArgs (+0x20)
         std::move(filePtr),                         // r8  → file (+0x38)
         usedVal,                                    // r9  → used (+0x48)
         static_cast<uint32_t>(addrVal),             // stack → addressValue (+0x4C)
         std::move(genFuncStr),                      // stack → funDescrName (+0x50)
-        static_cast<int>(playConfigVal),            // stack → playWord (+0x68)
+        static_cast<int>(playConfigVal),            // stack → playConfig (+0x68)
         static_cast<int>(waveIndexVal),             // stack → waveIndex (+0x6C)
-        static_cast<int>(minLengthVal),             // stack → seqRegWidth (+0x70)
+        static_cast<int>(minLengthVal),             // stack → minLengthSamples (+0x70)
         static_cast<int>(allocSizeVal),             // stack → allocationByteSize (+0x74)
         dc,                                          // stack → deviceConstants (+0x78)
         std::move(sig)                              // stack → signal (+0x80)
@@ -367,7 +367,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     //   - Signal::fromJson result vectors (samples, markers, markerBits)
     //   - genFuncStr (if heap-allocated)
     //   - shared_ptr<File> release
-    //   - secondaryNameStr (if heap-allocated)
+    //   - functionArgsStr (if heap-allocated)
     //   - nameStr (if heap-allocated)
 
     return result;  // 0x2a61bf-0x2a61d3: return and epilogue
@@ -455,14 +455,14 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
 // Comparison order (each mismatch returns false immediately):
 //   0x2a951d: [rdi+0x00] name == [rsi+0x00] other.name           (string ==)
 //   0x2a958d: [rdi+0x18] waveformType == [rsi+0x18]              (DWORD ==)
-//   0x2a9596: [rdi+0x20] secondaryName == [rsi+0x20]             (string ==)
+//   0x2a9596: [rdi+0x20] functionArgs == [rsi+0x20]             (string ==)
 //   0x2a95fd: [rdi+0x38] file vs [rsi+0x38]                      (ptr null/non-null then File::==)
 //   0x2a961f: [rdi+0x48] used == [rsi+0x48]                      (BYTE ==)
 //   0x2a9629: [rdi+0x4C] addressValue == [rsi+0x4C]              (DWORD ==)
 //   0x2a9632: [rdi+0x50] funDescrName == [rsi+0x50]               (string ==)
-//   0x2a9643: [rdi+0x68] playWord == [rsi+0x68]                  (DWORD ==)
+//   0x2a9643: [rdi+0x68] playConfig == [rsi+0x68]                  (DWORD ==)
 //   0x2a964c: [rdi+0x6C] waveIndex == [rsi+0x6C]                 (DWORD ==)
-//   0x2a9655: [rdi+0x70] seqRegWidth == [rsi+0x70]               (DWORD ==)
+//   0x2a9655: [rdi+0x70] minLengthSamples == [rsi+0x70]               (DWORD ==)
 //   0x2a965e: [rdi+0x74] allocationByteSize == [rsi+0x74]                   (DWORD ==)
 //   0x2a9667: [rdi+0x80] signal == [rsi+0x80]                    (tail-call Signal::operator==)
 // ============================================================================
@@ -482,9 +482,9 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (waveformType != other.waveformType)         // 0x2a9594: jne → 2a95f6
         return false;
 
-    // --- Compare secondaryName (string at +0x20) ---
+    // --- Compare functionArgs (string at +0x20) ---
     // 0x2a9596-0x2a95f4: same pattern as name comparison
-    if (secondaryName != other.secondaryName)
+    if (functionArgs != other.functionArgs)
         return false;
 
     // --- Compare file (shared_ptr<File> at +0x38) ---
@@ -522,9 +522,9 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (funDescrName != other.funDescrName)           // 0x2a9641: je → 2a95f6
         return false;
 
-    // --- Compare playWord (uint32_t at +0x68) ---
+    // --- Compare playConfig (uint32_t at +0x68) ---
     // 0x2a9643: mov eax, [r14+0x68]; cmp eax, [rbx+0x68]
-    if (playWord != other.playWord)                 // 0x2a964a: jne → 2a95f6
+    if (playConfig != other.playConfig)                 // 0x2a964a: jne → 2a95f6
         return false;
 
     // --- Compare waveIndex (int32_t at +0x6C) ---
@@ -532,9 +532,9 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
     if (waveIndex != other.waveIndex)               // 0x2a9653: jne → 2a95f6
         return false;
 
-    // --- Compare seqRegWidth (int at +0x70) ---
+    // --- Compare minLengthSamples (int at +0x70) ---
     // 0x2a9655: mov eax, [r14+0x70]; cmp eax, [rbx+0x70]
-    if (seqRegWidth != other.seqRegWidth)           // 0x2a965c: jne → 2a95f6
+    if (minLengthSamples != other.minLengthSamples)           // 0x2a965c: jne → 2a95f6
         return false;
 
     // --- Compare allocationByteSize (int at +0x74) ---
@@ -566,7 +566,7 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
 //   0x114f3d: mov rax, [rsi]       — source.get() (dereference shared_ptr)
 //   0x114f40: mov ecx, [rax+0x18]  — src->waveformType
 //   0x114f43: mov [rdi+0x18], ecx  — this->waveformType = src->waveformType
-//   0x114f46-0x114f73: copy src->secondaryName to this->secondaryName (+0x20)
+//   0x114f46-0x114f73: copy src->functionArgs to this->functionArgs (+0x20)
 //                      (SSO path vs heap path via __init_copy_ctor_external)
 //   0x114f75: mov rax, [r15]       — re-dereference source.get()
 //   0x114f78-0x114f89: copy src->file (shared_ptr at +0x38)
@@ -577,10 +577,10 @@ bool Waveform::operator==(Waveform const& other) const  // 0x2a9510
 //   0x114f9b: mov [rbx+0x4C], ecx        — this->addressValue
 //   0x114f9e-0x114fcd: copy src->funDescrName to this->funDescrName (+0x50)
 //   0x114fcf: mov rsi, [r15]       — re-dereference source.get()
-//   0x114fd2: mov rax, [rsi+0x68]  — src->playWord+waveIndex as qword
-//   0x114fd6: mov [rbx+0x68], rax  — this->playWord+waveIndex
-//   0x114fda: mov eax, [rsi+0x70]  — src->seqRegWidth
-//   0x114fdd: mov [rbx+0x70], eax  — this->seqRegWidth
+//   0x114fd2: mov rax, [rsi+0x68]  — src->playConfig+waveIndex as qword
+//   0x114fd6: mov [rbx+0x68], rax  — this->playConfig+waveIndex
+//   0x114fda: mov eax, [rsi+0x70]  — src->minLengthSamples
+//   0x114fdd: mov [rbx+0x70], eax  — this->minLengthSamples
 //   0x114fe0: mov eax, [rsi+0x74]  — src->allocationByteSize
 //   0x114fe3: mov [rbx+0x74], eax  — this->allocationByteSize
 //   0x114fe6: mov rax, [rsi+0x78]  — src->deviceConstants
@@ -603,7 +603,7 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
     waveformType = src->waveformType;               // +0x18 ← [src+0x18]
 
     // 0x114f46-0x114f73: deep copy string
-    secondaryName = src->secondaryName;             // +0x20 ← [src+0x20]
+    functionArgs = src->functionArgs;             // +0x20 ← [src+0x20]
 
     // 0x114f75-0x114f89: copy shared_ptr (16 bytes) + atomic refcount inc
     file = src->file;                               // +0x38 ← [src+0x38]
@@ -621,12 +621,12 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
     // Re-dereference
     src = source.get();                             // 0x114fcf: mov rsi, [r15]
 
-    // 0x114fd2-0x114fd6: copy 8 bytes (playWord + waveIndex together)
-    playWord = src->playWord;                       // +0x68 ← [src+0x68]
+    // 0x114fd2-0x114fd6: copy 8 bytes (playConfig + waveIndex together)
+    playConfig = src->playConfig;                       // +0x68 ← [src+0x68]
     waveIndex = src->waveIndex;                     // +0x6C ← [src+0x6C]
 
     // 0x114fda-0x114fea
-    seqRegWidth = src->seqRegWidth;                 // +0x70 ← [src+0x70]
+    minLengthSamples = src->minLengthSamples;                 // +0x70 ← [src+0x70]
     allocationByteSize = src->allocationByteSize;                         // +0x74 ← [src+0x74]
     deviceConstants = src->deviceConstants;          // +0x78 ← [src+0x78]
 
@@ -785,54 +785,54 @@ bool Waveform::File::operator==(Waveform::File const& other) const  // 0x2a9680
     if (isIntegerFormat != other.isIntegerFormat)
         return false;
 
-    // --- Compare data vector (at +0x28) ---
-    // 0x2a9712: mov rdi, [r14+0x28]           — this->data.begin()
-    // 0x2a9716: mov rdx, [r14+0x30]           — this->data.end()
-    // 0x2a971a: sub rdx, rdi                  — this data size
-    // 0x2a971d: mov rsi, [rbx+0x28]           — other.data.begin()
-    // 0x2a9721: mov rax, [rbx+0x30]           — other.data.end()
-    // 0x2a9725: sub rax, rsi                  — other data size
+    // --- Compare fileHash vector (at +0x28) ---
+    // 0x2a9712: mov rdi, [r14+0x28]           — this->fileHash.begin()
+    // 0x2a9716: mov rdx, [r14+0x30]           — this->fileHash.end()
+    // 0x2a971a: sub rdx, rdi                  — this fileHash size
+    // 0x2a971d: mov rsi, [rbx+0x28]           — other.fileHash.begin()
+    // 0x2a9721: mov rax, [rbx+0x30]           — other.fileHash.end()
+    // 0x2a9725: sub rax, rsi                  — other fileHash size
     // 0x2a9728: cmp rdx, rax                  — sizes must match
     // 0x2a972b: jne → 0x2a973c
-    size_t mySize = data.size() * sizeof(unsigned int);
-    size_t otherSize = other.data.size() * sizeof(unsigned int);
+    size_t mySize = fileHash.size() * sizeof(unsigned int);
+    size_t otherSize = other.fileHash.size() * sizeof(unsigned int);
     if (mySize != otherSize)
         return false;
 
-    // 0x2a972d: call bcmp(rdi=this->data.begin, rsi=other->data.begin, rdx=size)
+    // 0x2a972d: call bcmp(rdi=this->fileHash.begin, rsi=other->fileHash.begin, rdx=size)
     // 0x2a9732: test eax, eax
     // 0x2a9734: sete al                       — return (bcmp == 0)
-    return memcmp(data.data(), other.data.data(), mySize) == 0;
+    return memcmp(fileHash.data(), other.fileHash.data(), mySize) == 0;
 }
 
 // ============================================================================
-// 9. Waveform::Waveform(string name, File::Type type, string secondaryName,
+// 9. Waveform::Waveform(string name, File::Type type, string functionArgs,
 //                        shared_ptr<File> file, bool used,
 //                        AddressImpl<uint> addr, string genFunc,
-//                        int playWord, int waveIndex, int seqRegWidth,
+//                        int playConfig, int waveIndex, int minLengthSamples,
 //                        int allocationByteSize, DeviceConstants const& dc, Signal signal)
 // Binary address: 0x2a71e0 – 0x2a72f3
 // Mangled: _ZN6zhinst8WaveformC2E...
 // Calling convention:
-//   rdi=this, rsi=&name, edx=type, rcx=&secondaryName,
+//   rdi=this, rsi=&name, edx=type, rcx=&functionArgs,
 //   r8=&file(shared_ptr), r9d=used,
 //   [rbp+0x10]=addr, [rbp+0x18]=&genFunc,
-//   [rbp+0x20]=playWord, [rbp+0x28]=waveIndex,
-//   [rbp+0x30]=seqRegWidth, [rbp+0x38]=allocationByteSize,
+//   [rbp+0x20]=playConfig, [rbp+0x28]=waveIndex,
+//   [rbp+0x30]=minLengthSamples, [rbp+0x38]=allocationByteSize,
 //   [rbp+0x40]=&dc, [rbp+0x48]=&signal
 //
 // Full constructor — initializes all fields from parameters.
 // ============================================================================
 Waveform::Waveform(std::string name_, File::Type type_,
-                   std::string secondaryName_, std::shared_ptr<File> file_,
+                   std::string functionArgs_, std::shared_ptr<File> file_,
                    bool used_, detail::AddressImpl<uint32_t> addr_,
                    std::string genFunc_,
-                   int playWord_, int waveIndex_, int seqRegWidth_,
+                   int playConfig_, int waveIndex_, int minLengthSamples_,
                    int allocationByteSize_,
                    DeviceConstants const& dc_, Signal signal_)  // 0x2a71e0
 {
     // rbx = this
-    // r14d = edx (type), r13 = rcx (&secondaryName), r12 = r8 (&file), r15d = r9 (used)
+    // r14d = edx (type), r13 = rcx (&functionArgs), r12 = r8 (&file), r15d = r9 (used)
 
     // 0x2a71fd-0x2a7210: copy name (SSO: movups 16B + mov 8B; heap: __init_copy_ctor_external)
     //   test BYTE [rsi], 0x1 — SSO check
@@ -843,10 +843,10 @@ Waveform::Waveform(std::string name_, File::Type type_,
     // 0x2a7210/0x2a7241: mov [rbx+0x18], r14d
     waveformType = type_;                           // +0x18
 
-    // 0x2a7214-0x2a7261: copy secondaryName from r13
+    // 0x2a7214-0x2a7261: copy functionArgs from r13
     //   SSO path: movups + mov
     //   Heap path: __init_copy_ctor_external
-    secondaryName = std::move(secondaryName_);      // +0x20
+    functionArgs = std::move(functionArgs_);      // +0x20
 
     // 0x2a7261-0x2a727b: copy shared_ptr<File> from r12
     //   movups [r12] → [rbx+0x38]  (ptr + ctrl)
@@ -864,17 +864,17 @@ Waveform::Waveform(std::string name_, File::Type type_,
     // 0x2a728b-0x2a72b3: copy genFunc (SSO or heap)
     funDescrName = std::move(genFunc_);              // +0x50
 
-    // 0x2a72c4: mov r8d, [rbp+0x20]   — playWord from stack
+    // 0x2a72c4: mov r8d, [rbp+0x20]   — playConfig from stack
     // 0x2a72c8: mov [rbx+0x68], r8d
-    playWord = playWord_;                           // +0x68
+    playConfig = playConfig_;                           // +0x68
 
     // 0x2a72c1: mov edi, [rbp+0x28]   — waveIndex from stack
     // 0x2a72cc: mov [rbx+0x6C], edi
     waveIndex = waveIndex_;                         // +0x6C
 
-    // 0x2a72be: mov edx, [rbp+0x30]   — seqRegWidth from stack
+    // 0x2a72be: mov edx, [rbp+0x30]   — minLengthSamples from stack
     // 0x2a72cf: mov [rbx+0x70], edx
-    seqRegWidth = seqRegWidth_;                     // +0x70
+    minLengthSamples = minLengthSamples_;                     // +0x70
 
     // 0x2a72bb: mov ecx, [rbp+0x38]   — allocationByteSize from stack
     // 0x2a72d2: mov [rbx+0x74], ecx
@@ -910,8 +910,8 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
     // 0x2a9027: mov eax, [r15+0x18]; mov [rbx+0x18], eax
     waveformType = other.waveformType;              // +0x18
 
-    // 0x2a902e-0x2a905e: copy secondaryName (SSO/heap)
-    secondaryName = other.secondaryName;            // +0x20
+    // 0x2a902e-0x2a905e: copy functionArgs (SSO/heap)
+    functionArgs = other.functionArgs;            // +0x20
 
     // 0x2a905e-0x2a9070: copy shared_ptr<File>
     //   movups [r15+0x38] → [rbx+0x38]
@@ -930,10 +930,10 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
     deviceConstants = other.deviceConstants;         // +0x78
 
     // 0x2a90b7: movups [r15+0x68] → [rbx+0x68]
-    //   (copies playWord + waveIndex + seqRegWidth + allocationByteSize as 16 bytes)
-    playWord = other.playWord;                      // +0x68
+    //   (copies playConfig + waveIndex + minLengthSamples + allocationByteSize as 16 bytes)
+    playConfig = other.playConfig;                      // +0x68
     waveIndex = other.waveIndex;                    // +0x6C
-    seqRegWidth = other.seqRegWidth;                // +0x70
+    minLengthSamples = other.minLengthSamples;                // +0x70
     allocationByteSize = other.allocationByteSize;                        // +0x74
 
     // 0x2a90c0: lea rdi, [rbx+0x80]
@@ -953,7 +953,7 @@ Waveform::Waveform(Waveform const& other)  // 0x2a8ff0
 //   Signal (3 vectors: markerBits_, markers_, samples_)
 //   funDescrName
 //   shared_ptr<File>
-//   secondaryName
+//   functionArgs
 //   name
 // ============================================================================
 Waveform::~Waveform()  // 0x1152e0
@@ -963,7 +963,7 @@ Waveform::~Waveform()  // 0x1152e0
     //   Signal vectors (markerBits_, markers_, samples_) at +0xB0/+0x98/+0x80
     //   funDescrName (string at +0x50)
     //   shared_ptr<File> (at +0x38)
-    //   secondaryName (string at +0x20)
+    //   functionArgs (string at +0x20)
     //   name (string at +0x00)
     //
     // In our C++ reconstruction, all of these are proper members with
@@ -990,7 +990,7 @@ WaveformFile::WaveformFile(const char* filename)
     , formatType(0)
     , columnMode(0)
     , isIntegerFormat(0)
-    , data()
+    , fileHash()
 {}
 
 } // namespace zhinst

@@ -23,7 +23,7 @@ namespace zhinst {
 //    - elfAlignment_ = source->deviceConstants->someField (int at +0xDC)
 //      Specifically: source[0]->field_at_0x78->field_at_0x24
 // 4. If this->file is non-null:
-//    - Clears file->data vector (the vector at file+0x28)
+//    - Clears file->fileHash vector (the vector at file+0x28)
 //    - Sets file->formatType = 0, file->columnMode = 1
 //    - Sets file->isIntegerFormat = 1
 WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
@@ -38,8 +38,8 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
 
     if (file) {
         // Clear the file's data vector
-        file->data.clear();
-        file->data.shrink_to_fit();
+        file->fileHash.clear();
+        file->fileHash.shrink_to_fit();
         // Set file metadata: formatType=0, columnMode=1, isIntegerFormat=1
         file->formatType = 0;
         file->columnMode = 1;
@@ -59,8 +59,8 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     elfAlignment_ = source->deviceConstants->waveformElfAlignment;
 
     if (file) {
-        file->data.clear();
-        file->data.shrink_to_fit();
+        file->fileHash.clear();
+        file->fileHash.shrink_to_fit();
         file->formatType = 0;
         file->columnMode = 1;
         file->isIntegerFormat = 1;
@@ -73,15 +73,15 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 // The dispatcher emits, on the freshly-allocated 0xE0-byte WaveformIR:
 //   +0x00..+0x17  Waveform::name           = copy of arg `name`
 //   +0x18         Waveform::waveformType   = arg `type` (4 bytes; +0x1C padding)
-//   +0x20..+0x37  Waveform::secondaryName  = empty string (libc++ SSO zeroed)
+//   +0x20..+0x37  Waveform::functionArgs  = empty string (libc++ SSO zeroed)
 //   +0x38..+0x47  Waveform::file           = empty shared_ptr (both ptrs null)
 //   +0x48         Waveform::used           = 0
 //   +0x49..+0x4B  padding zeroed
 //   +0x4C         Waveform::addressValue   = 0
 //   +0x50..+0x67  Waveform::funDescrName    = empty string
-//   +0x68         Waveform::playWord       = 0
+//   +0x68         Waveform::playConfig       = 0
 //   +0x6C         Waveform::waveIndex      = -1                  ← explicit
-//   +0x70         Waveform::seqRegWidth    = dc.waveformGranularity (dc+0x40)
+//   +0x70         Waveform::minLengthSamples    = dc.waveformGranularity (dc+0x40)
 //   +0x74         Waveform::allocationByteSize = 0
 //   +0x78         Waveform::deviceConstants = &dc
 //   +0x80..+0xCF  Waveform::signal         = all-zero (empty vectors etc.)
@@ -105,14 +105,14 @@ WaveformIR::WaveformIR(const std::string& name,
     // Waveform base — reproduce dispatcher's writes verbatim.
     this->name             = name;
     this->waveformType     = type;
-    this->secondaryName.clear();
+    this->functionArgs.clear();
     this->file.reset();
     this->used             = false;
     this->addressValue     = 0;
     this->funDescrName.clear();
-    this->playWord         = 0;
+    this->playConfig         = 0;
     this->waveIndex        = -1;
-    this->seqRegWidth      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->minLengthSamples      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
     this->allocationByteSize = 0;
     this->deviceConstants  = &dc;
     // Signal default-constructs (vectors empty, scalars zero); explicit zero of
@@ -131,7 +131,7 @@ WaveformIR::WaveformIR(const std::string& name,
 // Builds a boost::property_tree with keys:
 //   "name"         <- this->name (string at +0x00)
 //   "filename"     <- this->file ? file->name : ""  (file at +0x38)
-//   "function"     <- this->secondaryName (string at +0x20)
+//   "function"     <- this->functionArgs (string at +0x20)
 //   "channels"     <- this->signal.channels (uint16_t at +0xC8, i.e. base+0x80+0x48)
 //                     (written via stream_translator<uint16_t>)
 //
@@ -162,8 +162,8 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
         result.put("filename", std::string());
     }
 
-    // "function" <- secondaryName
-    result.put("function", secondaryName);
+    // "function" <- functionArgs
+    result.put("function", functionArgs);
 
     // "channels" <- signal.channels (uint16_t)
     uint16_t channels = signal.channels();  // at Waveform+0xC8
@@ -210,9 +210,9 @@ WaveformIR::ptree WaveformIR::toJsonElement(SampleFormat format) const  // 0x2c5
     // Binary 0x2c5a8b: lea 0x644dfb(%rip),%rdx → literal "0000000000000000"
     result.put("timestamp", "0000000000000000");
 
-    // "play_config" <- this->playWord (int at Waveform+0x68)
+    // "play_config" <- this->playConfig (int at Waveform+0x68)
     // Binary 0x2c5aef: add $0x68,%r14 (this+0x68), then put<int>
-    result.put("play_config", static_cast<int>(playWord));
+    result.put("play_config", static_cast<int>(playConfig));
 
     return result;
 }

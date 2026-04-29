@@ -792,7 +792,7 @@ std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
 // WavetableIR::alignWaveformSizes() @0x29f150
 //
 // Iterates used waveforms and rounds each sample count up to the nearest
-// multiple of deviceConstants_->waveformPageSize, clamping to seqRegWidth.
+// multiple of deviceConstants_->waveformPageSize, clamping to minLengthSamples.
 // ============================================================================
 void WavetableIR::alignWaveformSizes() {                            // @0x29f150
     forEachUsedWaveform(
@@ -804,8 +804,8 @@ void WavetableIR::alignWaveformSizes() {                            // @0x29f150
             // ceil(sampleCount / granularity) * granularity
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
-            // Clamp: binary uses cmova → max(aligned, seqRegWidth)  @0x2aa373-0x2aa375
-            size_t maxSamples = static_cast<size_t>(wf->seqRegWidth);  // +0x70
+            // Clamp: binary uses cmova → max(aligned, minLengthSamples)  @0x2aa373-0x2aa375
+            size_t maxSamples = static_cast<size_t>(wf->minLengthSamples);  // +0x70
             if (maxSamples > aligned) aligned = maxSamples;
 
             if (aligned != sampleCount) {

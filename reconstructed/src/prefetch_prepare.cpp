@@ -692,11 +692,11 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         if (waveLength != 0) {
             // Compute aligned play size (verified disasm 0x1ca918..0x1ca945)
             //   mov eax,[devConst_+0x44]   ; waveformPageSize (= "grainSize")
-            //   mov ecx,[waveform2+0x70]   ; Waveform::seqRegWidth ("minLengthSamples")
+            //   mov ecx,[waveform2+0x70]   ; Waveform::minLengthSamples ("minLengthSamples")
             //   r15 = ceil_div(waveLength, grainSize) * grainSize
-            //   if (seqRegWidth > r15) r15 = seqRegWidth   ; cmova → max
+            //   if (minLengthSamples > r15) r15 = minLengthSamples   ; cmova → max
             int grainSize = static_cast<int>(devConst_->waveformPageSize);
-            int minLenSamples = waveform2->seqRegWidth;
+            int minLenSamples = waveform2->minLengthSamples;
             playSize = ((waveLength + grainSize - 1) / grainSize) * grainSize;
             if (static_cast<unsigned>(minLenSamples) > static_cast<unsigned>(playSize))
                 playSize = minLenSamples;

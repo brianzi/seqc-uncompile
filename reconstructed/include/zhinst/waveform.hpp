@@ -40,9 +40,9 @@ struct DeviceConstants;  // forward declaration
 // 0x1C     4    int32_t           columnMode
 // 0x20     4    int32_t           isIntegerFormat
 // 0x24     4    (padding)
-// 0x28     8    uint*             data begin  }
-// 0x30     8    uint*             data end    } vector<unsigned int> (hash)
-// 0x38     8    uint*             data cap    }
+// 0x28     8    uint*             fileHash begin  }
+// 0x30     8    uint*             fileHash end    } vector<unsigned int> (hash)
+// 0x38     8    uint*             fileHash cap    }
 // 0x40          END
 // ============================================================================
 struct WaveformFile {
@@ -51,7 +51,7 @@ struct WaveformFile {
     int32_t columnMode;                    // +0x1C
     int32_t isIntegerFormat;                    // +0x20
     // +0x24: 4 bytes padding
-    std::vector<unsigned int> data;     // +0x28 — file hash (from CachedParser::getHash)
+    std::vector<unsigned int> fileHash;     // +0x28 — file hash (from CachedParser::getHash)
 
     // File::Type enum
     enum class Type : int {
@@ -79,15 +79,15 @@ struct WaveformFile {
 // 0x00    24    std::string                 name
 // 0x18     4    WaveformFile::Type          waveformType      0=CSV, 1=RAW, 2=GEN
 // 0x1C     4    (padding)
-// 0x20    24    std::string                 secondaryName     "functionArgs" in JSON
+// 0x20    24    std::string                 functionArgs     "functionArgs" in JSON
 // 0x38    16    shared_ptr<WaveformFile>    file              source file
 // 0x48     1    bool                        used              "load" in JSON
 // 0x49     3    (padding)
 // 0x4C     4    uint32_t                    addressValue      "globalAddress" in JSON
 // 0x50    24    std::string                 funDescrName       "genFunc" in JSON
-// 0x68     4    uint32_t                    playWord          "playConfig" in JSON
+// 0x68     4    uint32_t                    playConfig          "playConfig" in JSON
 // 0x6C     4    int32_t                     playIndex         "waveIndex" in JSON
-// 0x70     4    int                         seqRegWidth       "minLengthSamples" in JSON
+// 0x70     4    int                         minLengthSamples       "minLengthSamples" in JSON
 // 0x74     4    int                         field74           "allocationSize" in JSON
 // 0x78     8    DeviceConstants*            deviceConstants
 // 0x80    0x58  Signal                      signal
@@ -99,15 +99,15 @@ struct Waveform {
     std::string name;                               // +0x00
     File::Type waveformType;                        // +0x18
     // +0x1C: padding
-    std::string secondaryName;                      // +0x20
+    std::string functionArgs;                      // +0x20
     std::shared_ptr<File> file;                     // +0x38
     bool used;                                      // +0x48
     // +0x49: padding
     uint32_t addressValue;                          // +0x4C
     std::string funDescrName;                        // +0x50
-    uint32_t playWord;                              // +0x68
+    uint32_t playConfig;                              // +0x68
     int32_t waveIndex;                              // +0x6C — "waveIndex" in JSON
-    int seqRegWidth;                                // +0x70
+    int minLengthSamples;                                // +0x70
     int allocationByteSize;                         // +0x74 — "allocationSize" in JSON
     const DeviceConstants* deviceConstants;               // +0x78
     Signal signal;                                  // +0x80
@@ -118,10 +118,10 @@ struct Waveform {
     Waveform() = default;
 
     // Full 13-parameter constructor — 0x2a71e0
-    Waveform(std::string name, File::Type type, std::string secondaryName,
+    Waveform(std::string name, File::Type type, std::string functionArgs,
              std::shared_ptr<File> file, bool used,
              detail::AddressImpl<uint32_t> addr, std::string genFunc,
-             int playWord, int playIndex, int seqRegWidth, int field74,
+             int playConfig, int playIndex, int minLengthSamples, int field74,
              DeviceConstants const& dc, Signal signal);
 
     // Copy-rename constructor — 0x114f10

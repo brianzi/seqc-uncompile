@@ -652,8 +652,8 @@ void CustomFunctions::checkOffspecWaveLength(std::shared_ptr<WaveformFront> wf, 
     // @0x15b3ca: if wfLen == 0 → roundedLen = 0
     unsigned int roundedLen = 0;
     if (wfLen != 0) {
-        // @0x15b3d3: esi = wf->seqRegWidth ([wf+0x70])
-        unsigned int minSamples = static_cast<unsigned int>(wf->seqRegWidth);
+        // @0x15b3d3: esi = wf->minLengthSamples ([wf+0x70])
+        unsigned int minSamples = static_cast<unsigned int>(wf->minLengthSamples);
         // @0x15b3d6: eax = (unsigned)wfLen / alignment, edx = remainder
         unsigned int quotient = static_cast<unsigned int>(wfLen) / static_cast<unsigned int>(alignment);
         unsigned int remainder = static_cast<unsigned int>(wfLen) % static_cast<unsigned int>(alignment);

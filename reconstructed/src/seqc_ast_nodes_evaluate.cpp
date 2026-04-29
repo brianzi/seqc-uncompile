@@ -6784,11 +6784,11 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
             }
         }
 
-        // 0x20d3e0: Copy result->name_ into waveformFront_->secondaryName
+        // 0x20d3e0: Copy result->name_ into waveformFront_->functionArgs
         // Binary: mov 0x48(%rbx),%rdi; add $0x20,%rdi; lea 0x58(%rbx),%rax
-        // This sets wf->secondaryName = result->name_ (e.g. "zeros(64)")
+        // This sets wf->functionArgs = result->name_ (e.g. "zeros(64)")
         if (result->waveformFront_) {
-            result->waveformFront_->secondaryName = result->name_;  // @0x20d3e0
+            result->waveformFront_->functionArgs = result->name_;  // @0x20d3e0
         }
 
         } catch (CustomFunctionsValueException& e) {               // @0x20fe1e selector 2

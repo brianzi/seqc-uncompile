@@ -68,13 +68,13 @@ enum AwgDeviceType : int;
 // 0x38    4     uint32_t    sequencerRegBase      HW register address (0x115c Cervino, 0x0d05 Hirzel)
 // 0x3C    4     uint32_t    triggerLatencyCycles  Always 6 — sequencer trigger/wait instruction latency
 // 0x40    4     uint32_t    waveformGranularity   Round-up cap in waveform memory calc. Also
-//                                                  WaveformFront.seqRegWidth. Values: 16, 32, 96
+//                                                  WaveformFront.minLengthSamples. Values: 16, 32, 96
 // 0x44    4     uint32_t    waveformPageSize      Round-up divisor in waveform memory calc.
 //                                                  Values: 8, 16, 48
 //
 // --- Auxiliary parameters ---
 // 0x48    4     uint32_t    playMinSamples        Values: 0, 128, 384 — min play length (checkPlayMinLength)
-// 0x4C    4     uint32_t    waveformMinSamples    Values: 16, 32, 96 — initial seqRegWidth (checkOffspecWaveLength)
+// 0x4C    4     uint32_t    waveformMinSamples    Values: 16, 32, 96 — initial minLengthSamples (checkOffspecWaveLength)
 // 0x50    4     uint32_t    bitsPerSample         Memory bits = pages * channels * bitsPerSample.
 //                                                  Always 16
 // 0x54    4     uint32_t    numCounters           Values: 0, 2 — hardware loop counter count (getCnt range check)
@@ -166,7 +166,7 @@ struct DeviceConstants {
 
     // Auxiliary parameters
     uint32_t       playMinSamples;        // +0x48  values: 0, 128, 384 — min play length
-    uint32_t       waveformMinSamples;    // +0x4C  values: 16, 32, 96 — initial seqRegWidth
+    uint32_t       waveformMinSamples;    // +0x4C  values: 16, 32, 96 — initial minLengthSamples
     uint32_t       bitsPerSample;         // +0x50  always 16
     uint32_t       numCounters;           // +0x54  values: 0, 2 — hardware counters
 

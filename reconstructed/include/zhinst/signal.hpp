@@ -87,7 +87,7 @@ public:
     // call sites that appeared to call sig.granularity() etc. were actually
     // reading DeviceConstants fields (waveformPageSize @+0x44 = grainSize,
     // waveformGranularity @+0x40 = maxWaveformLength, bitsPerSample @+0x50)
-    // or Waveform::seqRegWidth @+0x70 ("minLengthSamples" in JSON). Those
+    // or Waveform::minLengthSamples @+0x70 ("minLengthSamples" in JSON). Those
     // call sites have been rewritten to use the real fields directly.
 
     // --- Comparison ---

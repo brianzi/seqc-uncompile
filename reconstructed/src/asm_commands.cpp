@@ -1088,16 +1088,16 @@ AsmList::Asm AsmCommands::asmPlay(
     node->indexOffsetReg = reg2;
     node->length = regVal;
 
-    // Mark waveform as used and compute playWord.
+    // Mark waveform as used and compute playConfig.
     //
-    // Binary 0x279637-0x279663: calls getWaveformByName, then computes playWord
+    // Binary 0x279637-0x279663: calls getWaveformByName, then computes playConfig
     // by ORing shifted config fields — equivalent to encodeCwvf(-1).
-    // The playWord gets copied into WaveformIR when it's constructed from
+    // The playConfig gets copied into WaveformIR when it's constructed from
     // WaveformFront, and ultimately serialized as "play_config" in the ELF
     // .waveforms JSON section.
     if (currentWvf) {
         currentWvf->used = true;
-        currentWvf->playWord = node->config.encodeCwvf(/*defaultRate=*/-1);  // 0x279663
+        currentWvf->playConfig = node->config.encodeCwvf(/*defaultRate=*/-1);  // 0x279663
     }
 
     return result;

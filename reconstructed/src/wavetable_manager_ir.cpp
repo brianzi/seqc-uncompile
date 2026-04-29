@@ -107,7 +107,7 @@ WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 //    - signal.markers (vector<uint8_t> at Signal+0x18) -> waveform->signal.markers (+0x98)
 //    - signal.playMarkers (vector<uint8_t> at Signal+0x30) -> waveform->signal.playMarkers (+0xB0)
 // 3. Copies signal metadata (16 bytes at Signal+0x48 -> waveform+0xC8)
-// 4. Copies fillName into waveform->secondaryName (+0x50)
+// 4. Copies fillName into waveform->functionArgs (+0x50)
 // 5. Inserts the waveform into the target manager (rsi parameter, called on r14)
 // 6. Returns shared_ptr<WaveformIR> (sret via rdi)
 // Disasm 0x2a9fe0..0x2aa0d3 details:
@@ -119,7 +119,7 @@ WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 //   3. Block-copy the 16 bytes at Signal+0x48..+0x57 (channels_/reserveOnly_/
 //      padding/length_low) using a single movups xmm0 — i.e. one 16-byte
 //      memcpy of the trailing Signal scalar block.
-//   4. If &raw->secondaryName != &fillName, basic_string copy-assign.
+//   4. If &raw->functionArgs != &fillName, basic_string copy-assign.
 //   5. insertWaveform(this, wf).
 template<>
 std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
@@ -151,8 +151,8 @@ std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
     raw->signal.length_      = signal.length_;
 
     // Copy the secondary "fill" name (binary at 0x2aa088 also has identity guard)
-    if (&raw->secondaryName != &fillName) {
-        raw->secondaryName = fillName;
+    if (&raw->functionArgs != &fillName) {
+        raw->functionArgs = fillName;
     }
 
     insertWaveform(wf);

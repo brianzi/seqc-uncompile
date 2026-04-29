@@ -86,14 +86,14 @@ WaveformFront::WaveformFront(const std::string& name,
     // Waveform base — same writes as the IR variant.
     this->name             = name;
     this->waveformType     = type;
-    this->secondaryName.clear();
+    this->functionArgs.clear();
     this->file.reset();
     this->used             = false;
     this->addressValue     = 0;
     this->Waveform::funDescrName.clear();
-    this->playWord         = 0;
+    this->playConfig         = 0;
     this->waveIndex        = -1;
-    this->seqRegWidth      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->minLengthSamples      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
     this->allocationByteSize = 0;
     this->deviceConstants  = &dc;
     this->signal.length_   = 0;

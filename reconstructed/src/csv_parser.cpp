@@ -452,8 +452,8 @@ template std::vector<std::string> CsvParser::getLineVector<WaveformIR>(
 //
 // Flow:
 //   1. Check wf and wf->file are non-null, else throw CsvException(errMsg[0xe9])
-//   2. If wf->file->data (hash at +0x28) is empty, compute hash via
-//      CachedParser::getHash(file->name) and store into file->data.
+//   2. If wf->file->fileHash (hash at +0x28) is empty, compute hash via
+//      CachedParser::getHash(file->name) and store into file->fileHash.
 //   3. CachedParser::getCachedFile(hash) — returns CachedFile
 //   4. If cache hit (samples_ non-empty): copy samples/markers/markerBits
 //      directly into wf->signal, set channels_ and length_, done.
@@ -485,12 +485,12 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
     auto& fileRef = *wf->file;
 
     // Step 2: compute hash if not already present                              // @0x2ba910
-    if (fileRef.data.begin() == fileRef.data.end()) {
-        fileRef.data = cache.getHash(fileRef.name);                            // @0x2ba938
+    if (fileRef.fileHash.begin() == fileRef.fileHash.end()) {
+        fileRef.fileHash = cache.getHash(fileRef.name);                            // @0x2ba938
     }
 
     // Step 3: check cache                                                     // @0x2ba960
-    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.data);       // @0x2ba990
+    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.fileHash);       // @0x2ba990
 
     // Step 4: cache hit — copy directly into wf->signal                       // @0x2ba9a0
     if (!cached.samples_.empty()) {
@@ -806,10 +806,10 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
     auto& fileRef = *wf->file;
 
     // Cache lookup (same pattern as WaveformFront version)                    // @0x2be880
-    if (fileRef.data.begin() == fileRef.data.end()) {
-        fileRef.data = cache.getHash(fileRef.name);
+    if (fileRef.fileHash.begin() == fileRef.fileHash.end()) {
+        fileRef.fileHash = cache.getHash(fileRef.name);
     }
-    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.data);
+    CachedParser::CachedFile cached = cache.getCachedFile(fileRef.fileHash);
     if (!cached.samples_.empty()) {
         wf->signal.samples_ = std::move(cached.samples_);
         wf->signal.markers_ = std::move(cached.markers_);
