@@ -83,8 +83,8 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
             // nodeStates_.find(node) at 0x1c6f4e
             auto it = nodeStates_.find(node);
             if (it != nodeStates_.end()) {
-                // +0x3c from hash_node value = PNS.pageSize (+0x1C from PNS start)
-                std::cout << it->second.pageSize;               // 0x1c6f5c
+                // +0x3c from hash_node value = PNS.pagesNeeded (+0x1C from PNS start)
+                std::cout << it->second.pagesNeeded;               // 0x1c6f5c
             }
             std::cout << ")";                                   // 0x1c6f67
 
@@ -174,7 +174,7 @@ void Prefetch::print(std::shared_ptr<Node> node, int indent) const  // 0x1c5dd0
 
         auto it = nodeStates_.find(node);
         if (it != nodeStates_.end()) {
-            std::cout << it->second.pageSize;
+            std::cout << it->second.pagesNeeded;
         }
         std::cout << ")";
 
@@ -375,7 +375,7 @@ bool isHirzel = config_->isHirzel;
 
         auto it = nodeStates_.find(node);
         if (it != nodeStates_.end()) {
-            std::cout << it->second.pageSize;
+            std::cout << it->second.pagesNeeded;
         }
         std::cout << ")";
 
@@ -479,7 +479,7 @@ bool isHirzel = config_->isHirzel;
 
         auto it = nodeStates_.find(node);
         if (it != nodeStates_.end()) {
-            std::cout << it->second.pageSize;
+            std::cout << it->second.pagesNeeded;
         }
         std::cout << ")";
 

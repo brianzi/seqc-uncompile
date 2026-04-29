@@ -195,7 +195,7 @@ WavetableManager<WaveformFront>::newWaveform(
     auto wf = std::make_shared<WaveformFront>(name, Waveform::File::Type::GEN, dc);
     wf->signal = signal;                   // copy Signal data into +0x80
     wf->setFunDescrName(funName);          // Waveform::funDescrName at +0x50
-    wf->values = args;                     // vector<Value> at +0xE0
+    wf->genArgs_ = args;                     // vector<Value> at +0xE0
 
     // Insert
     insertWaveform(wf);
@@ -222,7 +222,7 @@ WavetableManager<WaveformFront>::getWaveformForFront(
 
         // Compare args vector size
         // wf+0xE8 - wf+0xE0 must equal args size
-        if (wf->values.size() != args.size()) continue;
+        if (wf->genArgs_.size() != args.size()) continue;
 
         // Check wf+0xDC == 0 (not modified flag)
         if (wf->isModified()) continue;
@@ -230,7 +230,7 @@ WavetableManager<WaveformFront>::getWaveformForFront(
         // Compare each Value element using Value::operator== (0x21a780).
         bool match = true;
         for (size_t i = 0; i < args.size(); i++) {
-            if (!(wf->values[i] == args[i])) {
+            if (!(wf->genArgs_[i] == args[i])) {
                 match = false;
                 break;
             }

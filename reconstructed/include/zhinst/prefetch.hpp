@@ -137,7 +137,7 @@ public:
         int32_t state = 3;                                    // +0x10 (3=unloaded)
         int32_t branchCount = 1;                              // +0x14
         int32_t refTrack = 0;                                 // +0x18
-        int32_t pageSize = 1;                                 // +0x1C
+        int32_t pagesNeeded = 1;                                 // +0x1C
         int32_t usedCache_ = 0;                            // +0x20
         int32_t _pad24 = 0;                                   // +0x24
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28

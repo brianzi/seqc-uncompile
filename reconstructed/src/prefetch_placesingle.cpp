@@ -481,7 +481,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         if (loadSt.cachePtr != nullptr && loadSt.cachePtr->size_ != 0) {
                             if (!config_->isHirzel) {              // 0x1d8fed
                                 auto& loadSt2 = nodeStates_[loadNode];
-                                if (loadSt2.pageSize >= 2) {       // 0x1d901f
+                                if (loadSt2.pagesNeeded >= 2) {       // 0x1d901f
                                     // splitPlay path
                                     AsmList splitResult = splitPlay(node);  // 0x1d9056
                                     tempList.insert(tempList.end(),
@@ -613,11 +613,11 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         auto wfIR = wavetableIR_->getWaveformByName(waveOpt); // 0x1d9238
                         int sizePerDev = wfIR->getSizePerDevice(); // 0x1d9241
 
-                        int pageSize = 1;
+                        int pagesNeeded = 1;
                         if (!config_->isHirzel) {                  // 0x1d9250
-                            pageSize = nodeStates_.at(node).pageSize; // 0x1d925c, +0x1c
+                            pagesNeeded = nodeStates_.at(node).pagesNeeded; // 0x1d925c, +0x1c
                         }
-                        int pageCount = sizePerDev / pageSize;     // 0x1d9267
+                        int pageCount = sizePerDev / pagesNeeded;  // 0x1d9267
 
                         // ----- Shared Hirzel/Cervino path -----
                         // Binary: isHirzel branch at 0x1d92a1 selects the register:
@@ -639,7 +639,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Non-HDAWG: check pageCount vs config field at +0xC // 0x1d9d4e
                             // If mismatch: single wvfImpl at 0x1d9ee2
                             // If match: double wvfImpl with addi between them  // 0x1d9d65
-                            int configPageField = nodeStates_[node].pageSize;  // 0x1d9d5c: 0xc(%rax)
+                            int configPageField = nodeStates_[node].pagesNeeded;  // 0x1d9d5c: 0xc(%rax)
                             if (pageCount != configPageField) {                // 0x1d9d5f: jne 0x1d9ee2
                                 bool is4Ch = npCerv->config.now;
                                 AsmList wvfResult = wvfImpl(stateReg, pageCount, is4Ch);

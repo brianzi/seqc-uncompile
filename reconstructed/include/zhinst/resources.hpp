@@ -102,7 +102,7 @@ enum VarSubType : int32_t {
     VarSubType_Default     = 0,
     VarSubType_Stub        = 1,
     VarSubType_FunctionArg = 2,    // function parameter binding (Phase 20e-ii)
-    VarSubType_Numeric     = 3,
+    VarSubType_Vect     = 3,
     VarSubType_String      = 4,
 };
 
@@ -283,7 +283,7 @@ public:
     //   +0x70  8   SeqCAstNode*                body (unique_ptr; freed via vtable+0x30 in dtor)
     // ========================================================================
     struct Function {
-        void*                          reserved_;   // +0x00
+        void*                          pad_00_;   // +0x00
         void*                          weakRef_;    // +0x08 — __shared_weak_count*
         std::string                    name;        // +0x10
         std::string                    signature;   // +0x28
@@ -297,7 +297,7 @@ public:
         // Allocates a fresh child Resources scope (via std::allocate_shared)
         // parented by `parentScope`, stores it in `scope`, and propagates
         // `returnType` into the new scope's returnType_ slot. Zeroes
-        // reserved_, weakRef_, body. The 4-arg signature is the binary's
+        // pad_00_, weakRef_, body. The 4-arg signature is the binary's
         // actual entry point at @0x1eaa00 — the previous 3-arg declaration
         // was incorrect (it omitted the parent-scope weak_ptr and incorrectly
         // implied scope was passed in rather than constructed).

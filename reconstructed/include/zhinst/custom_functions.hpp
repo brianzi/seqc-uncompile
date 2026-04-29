@@ -300,7 +300,7 @@ int parseOptionalRate(
 //                  (CONFIRMED from lookupNode @0x15c530: reads [this+0xf8] as
 //                   single ptr, passes to NodeMap::retrieve(string const&) const.
 //                   NodeMap dtor @128110 size-24, so NodeMap == { map<string,NodeMapItem> }.)
-// 0x100   40    unordered_map<NodeMapItem, uint32_t>              nodeAddressMap_
+// 0x100   40    unordered_map<NodeMapItem, uint32_t>              nodeIndexMap_
 //                  (CONFIRMED from addNodeAccess @0x15c6c0 + getNodeAddress @0x16ba10:
 //                   value is the index of the NodeMapItem within nodeList_.)
 // 0x128   40    unordered_map<NodeMapItem, set<AccessMode>>       accessModeMap_
@@ -354,7 +354,7 @@ public:
         std::shared_ptr<Resources> res);                  // @0x159470
 
     // --- Utility methods ---
-    void checkFunctionSupported(std::string const& name, AwgDeviceType devType);  // @0x15aeb0
+    void checkFunctionSupported(std::string const& name, AwgDeviceType allowedDevTypes);  // @0x15aeb0
     void checkWaveformMinLengthTrig(std::shared_ptr<WaveformFront> wf);           // @0x15b000
     int  checkPlayMinLength(int length);                                           // @0x15b100
     int  checkPlayAlignment(int length);                                           // @0x15b190
@@ -547,7 +547,7 @@ private:
     // std::map<std::string, NodeMapItem>.
     std::unique_ptr<NodeMap>                           nodeMap_;                // +0xF8 (8B)
 
-    std::unordered_map<NodeMapItem, uint32_t>           nodeAddressMap_;        // +0x100
+    std::unordered_map<NodeMapItem, uint32_t>           nodeIndexMap_;        // +0x100
     std::unordered_map<NodeMapItem, std::set<AccessMode>> accessModeMap_;      // +0x128
     std::vector<NodeMapItem>                           nodeList_;               // +0x150
 

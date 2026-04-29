@@ -492,7 +492,7 @@ bool Prefetch::sameLoads(std::shared_ptr<Node> a,
     if (itA == nodeStates_.end())
         throw std::out_of_range("sameLoads: node not found in nodeStates_");
 
-    if (itB->second.pageSize != itA->second.pageSize)  // PNS+0x1C (hash_node+0x3C)
+    if (itB->second.pagesNeeded != itA->second.pagesNeeded)  // PNS+0x1C (hash_node+0x3C)
         return false;
 
     // Compare lengthReg (AsmRegister at +0x88)

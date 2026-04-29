@@ -489,7 +489,7 @@ public:
     DeviceOptionSet const& options() const;                         // @ 0x2d2c60
     bool            hasOption(DeviceOption opt) const;              // @ 0x2d2c50
     bool            belongsTo(DeviceFamily f) const;                // @ 0x2d2c70
-    detail::DeviceTypeImpl* deviceType() const;                     // @ 0x2d2c20
+    detail::DeviceTypeImpl* impl() const;                     // @ 0x2d2c20
     std::string     toString() const;                               // @ 0x2d2cb0
     void            print(std::ostream& os) const;                  // @ 0x2d2ce0
     void            swap(DeviceType& other);                        // @ 0x2d2d10

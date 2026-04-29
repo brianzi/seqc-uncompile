@@ -21,7 +21,7 @@ struct AsmRegister {
     // +0x05: 3 bytes padding to 8-byte alignment
 
     AsmRegister() = default;
-    AsmRegister(int v, bool val) : value(v), valid(val) {}
+    AsmRegister(int v, bool valid) : value(v), valid(valid) {}
     AsmRegister(int n) : value(n > 0 ? n : 0), valid(n >= 0) {}  // @0x28eb40: cmovg + setns
 
     // Named constants for convenience

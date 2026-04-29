@@ -64,7 +64,7 @@ static_assert(sizeof(FrontendLoweringContext) == 0x50,
 // Layout (from dtor @0x1c2190, lower() @0x1c1da0, and evaluate accesses):
 //   +0x00  16  shared_ptr<Node>                    result (lowered AST root)
 //   +0x10  8   (zeroed — possibly bool or padding)
-//   +0x18  24  vector<string>                      strings (accumulator)
+//   +0x18  24  vector<string>                      labelStack (accumulator)
 //   +0x30  1   uint8_t                             inLoop_   (set by loop evaluates)
 //   +0x31  1   uint8_t                             inSwitch_ (set by SeqCSwitchCase)
 //   +0x32  6   (padding to 0x38)
@@ -89,7 +89,7 @@ static_assert(sizeof(FrontendLoweringContext) == 0x50,
 struct FrontendLoweringState {
     std::shared_ptr<Node>                      result;      // +0x00 (lowered AST root)
     uint64_t                                   inFunctionDef_{};    // +0x10 (zeroed in lower())
-    std::vector<std::string>                   strings;     // +0x18
+    std::vector<std::string>                   labelStack;     // +0x18
     uint8_t                                    inLoop_{};   // +0x30 (checked by break/continue)
     uint8_t                                    inSwitch_{}; // +0x31 (checked by SeqCCaseEntry)
     // +0x32..0x37 padding to 0x38

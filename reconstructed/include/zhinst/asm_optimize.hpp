@@ -5,7 +5,7 @@
 // Layout: 0xA0 bytes (approximate)
 //   +0x00: uint32_t numPhysicalRegs_    — physical register count (from device)
 //   +0x04: uint32_t pad
-//   +0x08: uint32_t flags_              — optimization pass bitmask
+//   +0x08: uint32_t optFlags_              — optimization pass bitmask
 //   +0x0C: uint32_t pad
 //   +0x10: vector<AsmList::Asm> asm_    — working copy of instructions (0x18)
 //   +0x28: (padding to 0x30)
@@ -34,8 +34,8 @@
 
 namespace zhinst {
 
-// Optimization pass flag bits for AsmOptimize::flags_ (A5)
-enum OptFlag : uint32_t {
+// Optimization pass flag bits for AsmOptimize::optFlags_ (A5)
+enum OptPassFlag : uint32_t {
     Opt_JumpElim     = 0x01,   // oneStepJumpElimination
     Opt_LabelCleanup = 0x02,   // removeUnusedLabels + mergeLabels
     Opt_DeadCode     = 0x04,   // deadCodeElimination
@@ -45,10 +45,10 @@ enum OptFlag : uint32_t {
 
 // RegAction — return values from getNextActionForReg (A12)
 enum RegAction : int {
-    RegAction_NotFound    = 0,
+    RegAction_None    = 0,
     RegAction_Read        = 1,   // bit 0
     RegAction_Written     = 2,   // bit 1
-    RegAction_ReadWritten = 3,   // both bits / branch
+    RegAction_Both = 3,   // both bits / branch
 };
 
 // Forward declaration
@@ -180,7 +180,7 @@ private:
 
     uint32_t numPhysicalRegs_;                              // +0x00
     uint32_t pad04_;                                        // +0x04
-    uint32_t flags_;                                        // +0x08
+    uint32_t optFlags_;                                        // +0x08
     uint32_t pad0C_;                                        // +0x0C
     std::vector<AsmList::Asm> asm_;                         // +0x10 (working copy)
     // padding to +0x30

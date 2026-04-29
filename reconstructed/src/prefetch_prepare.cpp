@@ -771,7 +771,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                     std::piecewise_construct,
                     std::forward_as_tuple(current),
                     std::forward_as_tuple());      // 0x1cb006
-                nsIt->second.pageSize = pagesNeeded; // +0x3c: 0x1cb00b
+                nsIt->second.pagesNeeded = pagesNeeded; // +0x3c: 0x1cb00b
 
                 // Allocate a register for length tracking
                 int regNum = Resources::getRegisterNumber(); // 0x1cb00f (static call)
@@ -803,7 +803,7 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
                         std::piecewise_construct,
                         std::forward_as_tuple(parentPtr),
                         std::forward_as_tuple());
-                    ppIt->second.pageSize = pagesNeeded; // 0x1cb0ea
+                    ppIt->second.pagesNeeded = pagesNeeded; // 0x1cb0ea
                 }
             }
         }

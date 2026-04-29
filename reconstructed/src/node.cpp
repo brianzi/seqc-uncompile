@@ -413,9 +413,9 @@ void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
 
     // --- Copy asmId to b if > 0 --- (0x1d286a..0x1d2878)
     Node* ancestor = current.get();
-    int devIdx = ancestor->asmId;                  // 0x1d286a: eax = r15->0x14
-    if (devIdx > 0) {
-        bNode->asmId = devIdx;
+    int asmIdToCopy = ancestor->asmId;                  // 0x1d286a: eax = r15->0x14
+    if (asmIdToCopy > 0) {
+        bNode->asmId = asmIdToCopy;
     }
 
     // --- Lock a's parent ---

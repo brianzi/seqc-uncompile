@@ -484,7 +484,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
 
     // === Step 3: Copy args; DigTrigger extracts play-length ===    @0x15f1ce
     std::vector<EvalResultValue> argsCopy(args);                     // @0x15f225
-    int playLength = 0;
+    int firstArgVal = 0;
     if (subFunc == SubFunc::DigTrigger) {                            // @0x15f264
         auto const& firstVal = argsCopy.front();
         // Type check: must be int-like
@@ -492,8 +492,8 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, cmdName));  // @0x1608e4
         }
-        playLength = firstVal.value_.toInt();                        // @0x15f32b
-        if (playLength < 3) {
+        firstArgVal = firstVal.value_.toInt();                        // @0x15f32b
+        if (firstArgVal < 3) {
             throw CustomFunctionsException(
                 ErrorMessages::format(IndexMustBe, cmdName));  // @0x160940
         }
@@ -660,7 +660,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
             subFunc == SubFunc::Now,
             false, rate, static_cast<unsigned int>(mask),
             false,
-            reg0, playLength, regInv,
+            reg0, firstArgVal, regInv,
             0u);                                                     // @0x160209
 
         // @0x160335: push into results->assemblers_
@@ -1468,7 +1468,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     //              dispatch jump table @958f50 (cases 0..5)
     //        (C) hasFast == false AND dynamic_cast fails (or node.data == nullptr)
     //            @0x164d92..0x164de2:
-    //              auto it = nodeAddressMap_.find(node);
+    //              auto it = nodeIndexMap_.find(node);
     //              if (it == end()) throw  @0x16a045;
     //              addr = it->second;
     //              dispatch jump table @958f50 (cases 0..5) — SAME jt as (B)
@@ -1556,9 +1556,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     emitWarnAndReturn = true;  // → @0x164d05
                 }
             } else {
-                // ---- Path (C): nodeAddressMap_.find ----
-                auto mapIt = nodeAddressMap_.find(node);
-                if (mapIt == nodeAddressMap_.end()) {
+                // ---- Path (C): nodeIndexMap_.find ----
+                auto mapIt = nodeIndexMap_.find(node);
+                if (mapIt == nodeIndexMap_.end()) {
                     // @0x16a045: unordered_map::at throws std::out_of_range
                     // ("unordered_map::at: key not found") — raw stdlib
                     // exception, not ErrorMessages::format.
@@ -1571,11 +1571,11 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                 }
             }
         } else {
-            // node.data == nullptr → straight to nodeAddressMap_ (skip dyncast).
-            auto mapIt = nodeAddressMap_.find(node);
-            if (mapIt == nodeAddressMap_.end()) {
+            // node.data == nullptr → straight to nodeIndexMap_ (skip dyncast).
+            auto mapIt = nodeIndexMap_.find(node);
+            if (mapIt == nodeIndexMap_.end()) {
                 throw CustomFunctionsException(
-                    "writeToNode: node not registered in nodeAddressMap_");
+                    "writeToNode: node not registered in nodeIndexMap_");
             }
             addr = mapIt->second;
             useFastJt = false;
@@ -2427,7 +2427,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generateWaveform(
     {
         EvalResultValue nameVal;
         nameVal.varType_ = VarType_String;                              // @0x15aaa7: first arg must be string type for generate()
-        nameVal.varSubType_ = VarSubType_Numeric;                       // @0x15ab04: movl $3
+        nameVal.varSubType_ = VarSubType_Vect;                       // @0x15ab04: movl $3
         nameVal.value_ = Value(name);                                   // @0x15aab4: copy string
         nameVal.reg_ = AsmRegister(-1);                                 // @0x15ab70
         newArgs.insert(newArgs.begin(), std::move(nameVal));             // @0x15ab7d

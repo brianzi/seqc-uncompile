@@ -197,7 +197,7 @@ DeviceType::DeviceType(DeviceFamily family, unsigned long options) {
 }
 
 // @ 0x2d2c20 — returns raw impl_ pointer.
-detail::DeviceTypeImpl* DeviceType::deviceType() const {
+detail::DeviceTypeImpl* DeviceType::impl() const {
     return impl_;
 }
 

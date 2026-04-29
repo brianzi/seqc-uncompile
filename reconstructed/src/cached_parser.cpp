@@ -33,15 +33,15 @@ namespace zhinst {
 CachedParser::CacheEntry::CacheEntry(
     const std::string& name,
     const std::string& filePath,
-    std::size_t fileSize,
+    std::size_t byteSize,
     std::vector<unsigned int> hash,
-    bool valid)
+    bool pinned)
     : name_(name)
     , filePath_(filePath)
-    , fileSize_(fileSize)
+    , byteSize_(byteSize)
     , timestamp_(std::time(nullptr))
     , hash_(std::move(hash))
-    , valid_(valid)
+    , pinned_(pinned)
 {
 }
 
@@ -55,10 +55,10 @@ CachedParser::CacheEntry::operator=(const CacheEntry& other)
     if (this != &other) {
         name_      = other.name_;
         filePath_  = other.filePath_;
-        fileSize_  = other.fileSize_;
+        byteSize_  = other.byteSize_;
         timestamp_ = other.timestamp_;
         hash_      = other.hash_;
-        valid_     = other.valid_;
+        pinned_     = other.pinned_;
     }
     return *this;
 }
@@ -93,8 +93,8 @@ CachedParser::~CachedParser() = default;
 //
 // Loads the persisted index_ map from indexFilePath_ via boost::archive::
 // text_iarchive. After a successful load, walks the freshly-loaded __tree
-// in-order to recompute currentSize_ as the sum of all entries' fileSize_
-// (binary inlines the tree walk and reads [node+0x68] = entry+0x30 = fileSize_).
+// in-order to recompute currentSize_ as the sum of all entries' byteSize_
+// (binary inlines the tree walk and reads [node+0x68] = entry+0x30 = byteSize_).
 // If the recomputed size exceeds cacheSize_, calls removeOldFiles() to
 // prune.
 //
@@ -122,10 +122,10 @@ void CachedParser::loadCacheIndex()
             boost::archive::text_iarchive ia(ifs);
             ia >> index_;
 
-            // Recompute currentSize_ from loaded entries (sum of fileSize_).
+            // Recompute currentSize_ from loaded entries (sum of byteSize_).
             std::size_t total = 0;
             for (const auto& kv : index_) {
-                total += kv.second.fileSize_;
+                total += kv.second.byteSize_;
             }
             currentSize_ = total;
         } catch (...) {
@@ -208,19 +208,19 @@ bool CachedParser::removeOldFiles()
     //   2. Sort the vector by some comparator (lambda $_0 in binary, almost
     //      certainly `a.timestamp_ < b.timestamp_` — oldest first).
     //   3. Iterate the sorted vector. For each entry while
-    //      currentSize_ > cacheSize_ AND entry.valid_ == false (i.e. evictable):
+    //      currentSize_ > cacheSize_ AND entry.pinned_ == false (i.e. evictable):
     //        - boost::filesystem::remove(entry.filePath_)
-    //        - currentSize_ -= entry.fileSize_
+    //        - currentSize_ -= entry.byteSize_
     //        - index_.erase(entry.hash_)
-    //      If an entry has valid_ == true, set the "kept-pinned" flag (r15b=1)
+    //      If an entry has pinned_ == true, set the "kept-pinned" flag (r15b=1)
     //      and stop the eviction loop.
     //   4. Call saveCacheIndex() unconditionally afterwards.
     //   5. Return the "kept-pinned" flag (r15b).
     //
-    // currentSize_/cacheSize_ are tracked in BYTES (sub of fileSize_ confirms).
+    // currentSize_/cacheSize_ are tracked in BYTES (sub of byteSize_ confirms).
     //
-    // valid_ == true means "do not evict" (pinned). The flag was named
-    // `valid_` in the header; semantically it acts as a pin/lock bit.
+    // pinned_ == true means "do not evict" (pinned). The flag was named
+    // `pinned_` in the header; semantically it acts as a pin/lock bit.
 
     bool keptPinned = false;
 
@@ -237,13 +237,13 @@ bool CachedParser::removeOldFiles()
 
     for (const auto& entry : entries) {
         if (currentSize_ <= cacheSize_) break;
-        if (entry.valid_) {
+        if (entry.pinned_) {
             // Pinned entry — stop evicting (binary sets r15b=1 here).
             keptPinned = true;
             break;
         }
         boost::filesystem::remove(entry.filePath_);
-        currentSize_ -= entry.fileSize_;
+        currentSize_ -= entry.byteSize_;
         index_.erase(entry.hash_);
     }
 
@@ -343,7 +343,7 @@ void CachedParser::cacheFile(
     elfw.writeFile(filePathStr);
 
     // Construct CacheEntry and insert into index_                             // 0x2b0c15–0x2b0cf8
-    // Budget is used as fileSize (not boost::filesystem::file_size)
+    // Budget is used as byteSize (not boost::filesystem::file_size)
     CacheEntry entry(name, filePathStr, budget, hash, /*valid=*/true);         // 0x2b0c97
     auto [it, inserted] = index_.try_emplace(hash, entry);                     // 0x2b0ce0
     if (!inserted) {
@@ -411,7 +411,7 @@ bool CachedParser::cacheFileOutdated(const std::string& cachedElfPath) const
 //        - return result (still default — cache miss after eviction).
 //   5. On valid hit:
 //        - entry.timestamp_ = time(nullptr)   (LRU touch, [r15+0x70])
-//        - entry.valid_ = true                (mark accessed, [r15+0x90])
+//        - entry.pinned_ = true                (mark accessed, [r15+0x90])
 //        - Construct ElfReader(filePath_).
 //        - Read .channels  → result.channel_ = first int32 cast to uint16
 //        - Read .marker_bits → result.markerBits_
@@ -444,7 +444,7 @@ CachedParser::getCachedFile(const std::vector<unsigned int>& hash)
 
     // LRU touch + access flag.
     entry.timestamp_ = std::time(nullptr);
-    entry.valid_     = true;
+    entry.pinned_     = true;
 
     try {
         ElfReader reader(entry.filePath_);

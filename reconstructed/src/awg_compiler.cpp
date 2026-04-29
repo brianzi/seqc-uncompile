@@ -59,7 +59,7 @@ using util::wave::awg2double16;
 // Compress source string helper used by writeToStream (anonymous namespace in binary)
 // @0x109e90 — zlib deflate level 9, 0x8000-byte output chunks, Z_FINISH flush
 namespace {
-std::string compressSourceString(std::string const& source, std::string const& format) {
+std::string compressSourceString(std::string const& source, std::string const& outputName) {
     z_stream strm{};
     strm.next_in = reinterpret_cast<Bytef*>(const_cast<char*>(source.data()));
     strm.avail_in = static_cast<uInt>(source.size());
@@ -67,7 +67,7 @@ std::string compressSourceString(std::string const& source, std::string const& f
     int ret = deflateInit(&strm, 9);  // @0x109f12: level 9
     if (ret != Z_OK) {
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0x1e), format));
+            ErrorMessages::format(ErrorMessageT(0x1e), outputName));
     }
 
     std::string result;
@@ -80,7 +80,7 @@ std::string compressSourceString(std::string const& source, std::string const& f
         if (ret == Z_STREAM_ERROR) {
             deflateEnd(&strm);
             throw ZIAWGCompilerException(
-                ErrorMessages::format(ErrorMessageT(0x1e), format));
+                ErrorMessages::format(ErrorMessageT(0x1e), outputName));
         }
         size_t have = sizeof(chunk) - strm.avail_out;
         result.append(reinterpret_cast<char*>(chunk), have);
@@ -90,7 +90,7 @@ std::string compressSourceString(std::string const& source, std::string const& f
 
     if (ret != Z_STREAM_END) {
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0x1e), format));
+            ErrorMessages::format(ErrorMessageT(0x1e), outputName));
     }
 
     return result;
@@ -388,16 +388,16 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 1. Validate device type
     bool isHirzel = config_->isHirzel;                 // config+0x18
-    bool deviceByte = (deviceConstants_.deviceType != 0); // simplified check
+    bool hasDeviceConstants = (deviceConstants_.deviceType != 0); // simplified check
 
-    if (isHirzel && !deviceByte) {
+    if (isHirzel && !hasDeviceConstants) {
         // @0x106cdb: throw for Hirzel device with unsupported type
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
         throw ZIAWGCompilerException(
             ErrorMessages::format(ErrorMessageT(0xDA), devStr));
     }
-    if (!isHirzel && !deviceByte) {
+    if (!isHirzel && !hasDeviceConstants) {
         // @0x107730: throw for non-Hirzel device with unsupported type
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
@@ -488,22 +488,22 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
 
     // 11. Check waveform memory usage (if wavetableIR_ exists)
     if (wavetableIR_) {
-        size_t totalWaveforms = 0;
+        size_t nonNullWaveformCount = 0;
         for (auto it = wavetableIR_->begin(); it != wavetableIR_->end(); ++it) {
             auto const& wf = *it;
             auto const* ptr = wf.get();
             if (ptr) {
                 // Check if waveform is a "playback" type and count it
-                totalWaveforms++;
+                nonNullWaveformCount++;
             }
         }
 
         size_t maxWaveforms = deviceConstants_.waveformMemSize;  // devConst+0x58
-        if (totalWaveforms > maxWaveforms) {
+        if (nonNullWaveformCount > maxWaveforms) {
             CompilerMessage msg;
             msg.type = CompilerMessage::Error;
             msg.message = ErrorMessages::format(ErrorMessageT(0xF1),
-                totalWaveforms, maxWaveforms);
+                nonNullWaveformCount, maxWaveforms);
             compileMessages_.push_back(std::move(msg));
             throw ZIAWGCompilerException("Waveform memory exceeded");
         }

@@ -1490,10 +1490,10 @@ std::shared_ptr<EvalResults> evalEqual(                     // @0x239be0
         //                                       0x9562c0 = 4294967295.0 (UINT32_MAX).
         // When rhs is in (INT32_MAX, UINT32_MAX), -toInt() wraps incorrectly,
         // so use register-load + subr instead of immediate subtraction.  @0x23a717-23a72d
-        static constexpr double kRangeLo = 2147483647.0;    // INT32_MAX
-        static constexpr double kRangeHi = 4294967295.0;    // UINT32_MAX
+        static constexpr double kInt32MaxAsDouble = 2147483647.0;    // INT32_MAX
+        static constexpr double kUint32MaxAsDouble = 4294967295.0;    // UINT32_MAX
 
-        if (rhsDouble > kRangeLo && kRangeHi > rhsDouble) { // @0x23a72f
+        if (rhsDouble > kInt32MaxAsDouble && kUint32MaxAsDouble > rhsDouble) { // @0x23a72f
             // Sub-path 1: register-based subtraction.
             // addi(tempReg, lhsReg, Immediate(0)) — copy lhs.        @0x23a7f0-23a818
             auto addiAsms = ctx.asmCommands->addi(
@@ -3085,20 +3085,20 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
     // 1. Allocate the result.                              // @0x243e87-243ed4
     auto result = std::make_shared<EvalResults>();
 
-    // 2. Allocate `aux = make_shared<EvalResults>(lhsResult)` — a copy of
+    // 2. Allocate `effectiveLhs = make_shared<EvalResults>(lhsResult)` — a copy of
     //    the LHS, used internally so the dispatch can read lhs varType
     //    info safely and so arrayBacking_/waveformFront_ propagation can
     //    happen without mutating the caller's lhsResult.   // @0x243edf-243f00
-    auto aux = std::make_shared<EvalResults>(lhsResult);
+    auto effectiveLhs = std::make_shared<EvalResults>(lhsResult);
 
     // 3. If `lhsResult.arrayBacking_` (field at +0x70) is non-null,
-    //    REPLACE aux with lhsResult.arrayBacking_.          // @0x243f13-243f5c
+    //    REPLACE effectiveLhs with lhsResult.arrayBacking_.          // @0x243f13-243f5c
     //    This is how array-indexed assignments work: SeqCArray::evaluate
     //    stores the indexed result (VarType_Wave) in arrayBacking_ of
-    //    the outer result (VarType_Cvar). Here we swap aux to point at
+    //    the outer result (VarType_Cvar). Here we swap effectiveLhs to point at
     //    the indexed result so the dispatch sees Wave, not Cvar.
     if (lhsResult.arrayBacking_) {
-        aux = lhsResult.arrayBacking_;
+        effectiveLhs = lhsResult.arrayBacking_;
     }
 
     // 4. dynamic_cast<SeqCVariable*>(this->lhs()).          // @0x243f64-243f89
@@ -3108,15 +3108,15 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
     SeqCVariable* lhsVar = dynamic_cast<SeqCVariable*>(
         const_cast<SeqCAstNode*>(lhs()));
 
-    // 5. Read aux.values_.back().varType_ (= lhsType).      // @0x243f91-243fc4
-    //    The binary checks `aux->values_.size() <= 1` via the ÷56
+    // 5. Read effectiveLhs.values_.back().varType_ (= lhsType).      // @0x243f91-243fc4
+    //    The binary checks `effectiveLhs->values_.size() <= 1` via the ÷56
     //    magic-multiply pattern; if size > 1 OR empty, it falls to the
     //    common cleanup tail (treating as "no match").
-    if (aux->values_.empty() || aux->values_.size() > 1) {
+    if (effectiveLhs->values_.empty() || effectiveLhs->values_.size() > 1) {
         return result;                                      // @0x245aa7
     }
-    const VarType    lhsType = aux->values_.back().varType_;
-    const VarSubType lhsSub  = aux->values_.back().varSubType_;
+    const VarType    lhsType = effectiveLhs->values_.back().varType_;
+    const VarSubType lhsSub  = effectiveLhs->values_.back().varSubType_;
 
     // Helper to read rhsType under the same size guard. The binary
     // re-loads [rbp+0x10] for every row, then walks rhsResult.values_
@@ -3161,7 +3161,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 // the variable register from the constant value, then
                 // emit a SetVarPlaceholder.                 // @0x24400a-244039
                 res->updateVar(name);                       // @0x24400a
-                AsmRegister lhsReg = aux->values_.back().reg_;
+                AsmRegister lhsReg = effectiveLhs->values_.back().reg_;
                 AsmRegister zeroReg(0);
                 Value rhsVal = rhsResult.getValue();
                 // addi lhsReg, R0, constValue               // @0x245364 (addi with Value)
@@ -3185,7 +3185,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 res->updateVar(name);                       // @0x244085
                 // Emit addi(lhsReg, rhsReg, Immediate(0)) — register copy
                 //                                          // @0x24481f
-                AsmRegister lhsReg = aux->values_.back().reg_;
+                AsmRegister lhsReg = effectiveLhs->values_.back().reg_;
                 AsmRegister rhsReg = rhsResult.values_.back().reg_;
                 auto addiAsms = ctx.asmCommands->addi(lhsReg, rhsReg, Immediate(0));
                 result->assemblers_.insert(
@@ -3254,7 +3254,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
         case VarType_Wave: {
             switch (lhsSub) {
 
-            case VarSubType_Numeric: {
+            case VarSubType_Vect: {
                 // Row 6: Wave[Numeric] = Wave.             // @0x24426f-244546
                 if (rhsType == VarType_Wave) {
                     auto wf = ctx.wavetable->copyWaveform(
@@ -3288,11 +3288,11 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 // write into result->waveformFront_.       // @0x244468-244c0d
                 // Binary uses (rhsType | 2) == 6, matching Var(2), Const(4), Cvar(6).
                 if (rhsType == VarType_Var || rhsType == VarType_Const || rhsType == VarType_Cvar) {
-                    auto wf = aux->waveformFront_;
+                    auto wf = effectiveLhs->waveformFront_;
                     if (wf) {
                         // idx = lhs.value.toInt(); val = rhs.value.toDouble();
                         const int64_t idx =
-                            aux->getValue().toInt();
+                            effectiveLhs->getValue().toInt();
                         const double val =
                             rhsResult.getValue().toDouble();
                         // Binary writes raw to signal.samples_[idx] and
@@ -3395,7 +3395,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
         (void)lhsSub;
     }
 
-    // Common cleanup tail @0x245aa7-245aeb: aux is released by RAII;
+    // Common cleanup tail @0x245aa7-245aeb: effectiveLhs is released by RAII;
     // result is returned by value.
     return result;
 }
@@ -5789,8 +5789,8 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
 //     2. Has child expression: evaluates child, dispatches on return type
 //        (Var, Const/Cvar, String, Wave) to copy/emit the return value.
 //
-//   Common tail: emits br(state.strings.back()) if inside a function scope,
-//     sets result->hasError_ = true to signal "return was encountered" to
+//   Common tail: emits br(state.labelStack.back()) if inside a function scope,
+//     sets result->returnEncountered_ = true to signal "return was encountered" to
 //     the caller (e.g. SeqCStmtList checks this to stop processing).
 //
 //   Error codes:
@@ -6062,14 +6062,14 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
 
 return_tail:                                                        // @0x227cc7
     // Emit branch instruction if inside a function scope.          // @0x227cf3
-    if (!state.strings.empty()) {                                   // @0x227d05
+    if (!state.labelStack.empty()) {                                   // @0x227d05
         auto brAsm = ctx.asmCommands->br(
-            state.strings.back(), false);                           // @0x227d20
+            state.labelStack.back(), false);                           // @0x227d20
         result->assemblers_.push_back(std::move(brAsm));            // @0x227d2f
     }
 
     // Signal "return was encountered" to callers (e.g. SeqCStmtList). @0x227dea
-    result->hasError_ = true;
+    result->returnEncountered_ = true;
     return result;                                                  // @0x227dfe
 }
 
@@ -6122,7 +6122,7 @@ std::shared_ptr<EvalResults> SeqCArgList::evaluate(
                 childResult->values_.end());
 
             // Sticky-OR hasError.                                @0x211f98-211fa7
-            result->hasError_ = result->hasError_ || childResult->hasError_;
+            result->returnEncountered_ = result->returnEncountered_ || childResult->returnEncountered_;
 
             // Build comma-separated name.                        @0x211faf
             if (i != 0) {
@@ -6185,7 +6185,7 @@ std::shared_ptr<EvalResults> SeqCDeclList::evaluate(
                 childResult->values_.end());
 
             // Sticky-OR hasError.                                @0x2124a8-2124b7
-            result->hasError_ = result->hasError_ || childResult->hasError_;
+            result->returnEncountered_ = result->returnEncountered_ || childResult->returnEncountered_;
 
             // Build comma-separated name.                        @0x2124bf
             if (i != 0) {
@@ -6213,11 +6213,11 @@ std::shared_ptr<EvalResults> SeqCDeclList::evaluate(
 // Same core loop as SeqCArgList/SeqCDeclList, but with extra logic:
 //   - Null child pointer check (ArgList/DeclList don't check).
 //   - Return statement detection via dynamic_cast: if a child returns
-//     with hasError_==true and the CURRENT child is a SeqCReturnStatement,
+//     with returnEncountered_==true and the CURRENT child is a SeqCReturnStatement,
 //     emit unreachable-code warning (msg 0x22) for the NEXT child's line.
 //   - Return value extraction: on each iteration, extracts the last value
 //     from childResult and stores it in Resources via setReturnValue().
-//   - Loop breaks immediately when any child returns hasError_==true.
+//   - Loop breaks immediately when any child returns returnEncountered_==true.
 //
 // Binary address annotations:
 //   0x212800–0x21285a  Prologue, set lineNr, allocate result
@@ -6251,7 +6251,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
 
         auto childResult = elems[i]->evaluate(res, ctx, state); // @0x21291b
 
-        bool childHadError = false;
+        bool childUnwound = false;
 
         if (childResult) {
             // Accumulate assemblers and values.                  @0x212962-2129ae
@@ -6264,10 +6264,10 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                 childResult->values_.begin(),
                 childResult->values_.end());
 
-            childHadError = childResult->hasError_;               // @0x2129c5-2129cc
+            childUnwound = childResult->returnEncountered_;               // @0x2129c5-2129cc
 
-            if (!childHadError) {
-                // --- childHadError == 0 path ---                @0x2129cf→0x212a80
+            if (!childUnwound) {
+                // --- childUnwound == 0 path ---                @0x2129cf→0x212a80
                 // Build comma-separated name.                    @0x2129b8/0x212a80
                 if (i != 0) {
                     result->name_ += ", " + childResult->name_;
@@ -6286,7 +6286,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                     }
                 }
             } else {
-                // --- childHadError == 1 path ---                @0x2129cf fall-through
+                // --- childUnwound == 1 path ---                @0x2129cf fall-through
                 // Unreachable code after return statement check. @0x2129d5
                 if (i + 1 < elems.size()) {
                     if (dynamic_cast<const SeqCReturnStatement*>(elems[i].get())) {
@@ -6303,7 +6303,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                 } else {
                     res->setReturnValue(Value(static_cast<int32_t>(0)));     // @0x212bd9
                 }
-                result->hasError_ = true;                         // @0x212e84
+                result->returnEncountered_ = true;                         // @0x212e84
             }
 
         } else {
@@ -6311,11 +6311,11 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
             std::string msg = ErrorMessages::format(
                 ErrorMessageT(0x12), std::string("stmtlist"));
             ctx.messages->errorMessage(msg, -1);
-            childHadError = true;
+            childUnwound = true;
         }
 
         // Break loop on child error.                             @0x212ec4-212f9e
-        if (childHadError) break;
+        if (childUnwound) break;
     }
 
     return result;                                               // @0x212fa0
@@ -6338,7 +6338,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
 //     0x20c6a0–0x20c74b  Prologue, setLineNr, make_shared<EvalResults>
 //     0x20c752–0x20c78e  Get funName string from function() child
 //     0x20c78e–0x20c7e6  functionExists(funName, outSig) → branch
-//     0x20c7ec–0x20c84f  [Path A] newLabel("ret"), push to state.strings
+//     0x20c7ec–0x20c84f  [Path A] newLabel("ret"), push to state.labelStack
 //     0x20c84f–0x20c929  [Path A] Evaluate arguments child (if non-null)
 //     0x20c929–0x20d18b  [Path A] Build overload signature from arg types
 //     0x20ca3f–0x20cd33  [Path B] createSubScope, evaluate args, CustomFunctions::call
@@ -6381,7 +6381,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
 
         // 0x20c7ec–0x20c84f  Generate return label and push to pending labels
         std::string retLabel = res->newLabel(std::string("ret")); // @0x20c802
-        state.strings.push_back(std::move(retLabel));             // @0x20c813
+        state.labelStack.push_back(std::move(retLabel));             // @0x20c813
 
         // 0x20c84f–0x20c929  Evaluate arguments child (if present)
         std::shared_ptr<EvalResults> argResults;
@@ -6683,21 +6683,21 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
         }
 
         // 0x20f2ec  Emit return label
-        if (!state.strings.empty()) {
-            std::string lastLabel = std::move(state.strings.back());
-            state.strings.pop_back();
+        if (!state.labelStack.empty()) {
+            std::string lastLabel = std::move(state.labelStack.back());
+            state.labelStack.pop_back();
 
             auto labelAsm = ctx.asmCommands->asmLabel(lastLabel); // @0x2774e0
             result->assemblers_.push_back(labelAsm);
         }
 
         // 0x20f3f0  Set return value
-        // Binary logic: extract if returnType==Void OR hasError_==true.
+        // Binary logic: extract if returnType==Void OR returnEncountered_==true.
         // For Void: setValue(VarType_Void,...) marks result type.
         // For hasError: records partial return state.
         // Non-void + no error: skip (result already populated by body eval).
         if (savedReturnType == VarType_Void ||
-            (bodyResult && bodyResult->hasError_)) {
+            (bodyResult && bodyResult->returnEncountered_)) {
             Value retVal = funcScope->getReturnValue();            // @0x1e3d40
             AsmRegister retReg = funcScope->getReturnReg();        // @0x1e3fe0
             result->setValue(savedReturnType, retVal,
@@ -6945,14 +6945,14 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 
     // Store indexedResult in result->arrayBacking_ (NOT result = indexedResult). // @0x211791
     // The binary stores the indexed EvalResults in arrayBacking_ of the
-    // original result. SeqCAssign::evaluate later swaps aux with
+    // original result. SeqCAssign::evaluate later swaps effectiveLhs with
     // arrayBacking_ to dispatch on the indexed type (Wave) instead of
     // the outer type (Cvar).
     result->arrayBacking_ = indexedResult;
 
-    // setValue(VarType_Wave, VarSubType_Numeric, Value(int=index))   // @0x2117f7
+    // setValue(VarType_Wave, VarSubType_Vect, Value(int=index))   // @0x2117f7
     // Called on indexedResult (via result->arrayBacking_).
-    indexedResult->setValue(VarType_Wave, VarSubType_Numeric, Value(idx));   // @0x16bfb0
+    indexedResult->setValue(VarType_Wave, VarSubType_Vect, Value(idx));   // @0x16bfb0
 
     // ---- Set waveformFront_ on indexedResult ----                 // @0x211822
     indexedResult->waveformFront_ = wf;                              // @0x21183c
@@ -6982,7 +6982,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 //     0x213d6a–0x2143c5  Var path: copy asms, branch node, jumpIfZero, label,
 //                         setState(Active), evaluate body, merge, end label
 //     0x213e1c–0x2146d3  Const/Cvar path: toInt(), if nonzero evaluate body,
-//                         setValue, copy node, copy hasError_
+//                         setValue, copy node, copy returnEncountered_
 //     0x2146d3–0x214744  Cleanup and return
 //
 //   NOTE: Binary calls SeqCIfCondition::ifBody() @0x201de0; our SEQC_BINARY
@@ -7129,7 +7129,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
                 result->node_ = bodyResult->node_;                   // @0x214662
 
                 // Copy hasError flag.                               // @0x21468f
-                result->hasError_ = bodyResult->hasError_;           // @0x2146a1
+                result->returnEncountered_ = bodyResult->returnEncountered_;           // @0x2146a1
             }
         }
 
@@ -7361,8 +7361,8 @@ void evalCaseBody(
 
     if (evalBody) {
         // Evaluate case body                                        // @0x217472
-        bool savedHasError = caseResult->hasError_;
-        caseResult->hasError_ = false;
+        bool savedHasError = caseResult->returnEncountered_;
+        caseResult->returnEncountered_ = false;
 
         if (caseEntry.body()) {
             auto bodyResult = caseEntry.body()->evaluate(
@@ -7373,13 +7373,13 @@ void evalCaseBody(
                     caseResult->assemblers_.end(),
                     bodyResult->assemblers_.begin(),
                     bodyResult->assemblers_.end());
-                caseResult->hasError_ = bodyResult->hasError_;
+                caseResult->returnEncountered_ = bodyResult->returnEncountered_;
                 caseResult->waveformFront_ = bodyResult->waveformFront_;
                 caseResult->node_ = bodyResult->node_;
             }
         }
 
-        caseResult->hasError_ = caseResult->hasError_ && savedHasError;
+        caseResult->returnEncountered_ = caseResult->returnEncountered_ && savedHasError;
     }
 
     // ---- ALWAYS push result ----                                  // @0x2175b0
@@ -7467,8 +7467,8 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
                         target->waveformFront_ = stmtResult->waveformFront_;
                     }
 
-                    // AND hasError_ with stmtResult                 // @0x216d94
-                    target->hasError_ &= stmtResult->hasError_;
+                    // AND returnEncountered_ with stmtResult                 // @0x216d94
+                    target->returnEncountered_ &= stmtResult->returnEncountered_;
                 }
             } catch (CompilerException& e) {
                 const char* msg = e.what();
@@ -7508,7 +7508,7 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
 //     init 3 AsmLists (switch/case/body), asmBranchNode → push + copy node,
 //     branchMaySkipAllBodies=true, getRegisterNumber → switchReg,
 //     compute totalCycles, addi(switchReg, zeroReg, Immediate(totalCycles)),
-//     suser(switchReg, AddressImpl(0x1a)), result->hasError_=true,
+//     suser(switchReg, AddressImpl(0x1a)), result->returnEncountered_=true,
 //     endLabel=newLabel("end"), loop cases:
 //       Const/Cvar case: getRegisterNumber→caseReg, newLabel("case"),
 //         extract values, Immediate(-caseVal.toInt()), addi → switchAsms,
@@ -7654,8 +7654,8 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             switchAsms.push_back(suserAsm);                          // @0x21892e
         }
 
-        // ---- result->hasError_ = true ----                        // @0x2189e0
-        result->hasError_ = true;
+        // ---- result->returnEncountered_ = true ----                        // @0x2189e0
+        result->returnEncountered_ = true;
 
         // ---- endLabel = newLabel("end") ----                      // @0x2189e4
         std::string endLabel = Resources::newLabel("end");           // @0x218a03
@@ -7760,7 +7760,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 result->node_->branches.emplace_back(caseEntry->node_);
 
                 // AND hasError                                       // @0x2197d8
-                result->hasError_ &= caseEntry->hasError_;
+                result->returnEncountered_ &= caseEntry->returnEncountered_;
 
                 hasDefault = false; // reset default tracking per iteration
             }
@@ -7851,7 +7851,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 }
                 if (caseEntry) {
                     result->node_->branches.emplace_back(caseEntry->node_);
-                    result->hasError_ &= caseEntry->hasError_;
+                    result->returnEncountered_ &= caseEntry->returnEncountered_;
                 }
                 hasDefault = true;
             }
@@ -7913,7 +7913,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             switchAsms.end());
 
         // ---- AND hasError with overall ----                       // @0x219db6
-        result->hasError_ &= result->hasError_;
+        result->returnEncountered_ &= result->returnEncountered_;
 
         // ---- Cleanup + jump to epilogue ----                      // @0x21a074
         state.inSwitch_ = savedInSwitch;
@@ -7954,7 +7954,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         // ---- Check state.inFunctionDef_ for conditional AND ----          // @0x21818c
         bool useInFunctionDef = (state.inFunctionDef_ == 1);
         if (useInFunctionDef) {
-            result->hasError_ = true;                                // @0x21819a
+            result->returnEncountered_ = true;                                // @0x21819a
         }
 
         // ---- Loop over casesResult entries ----                   // @0x21819e
@@ -7986,12 +7986,12 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 }
 
                 // AND hasError for all cases regardless.            // @0x2184da
-                result->hasError_ &= caseEntry->hasError_;
+                result->returnEncountered_ &= caseEntry->returnEncountered_;
             }
             else {
                 // Default/unmatched case — assign to -0x90(%rbp).   // @0x218270
                 matchedDefaultResult = caseEntry;
-                matchedHasError = caseEntry->hasError_;
+                matchedHasError = caseEntry->returnEncountered_;
             }
         } // end for
 
@@ -8009,11 +8009,11 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 matchedResult->assemblers_.end());
 
             // Check hasError for setValue.                          // @0x218544
-            if (matchedResult->hasError_) {                          // @0x21854b
+            if (matchedResult->returnEncountered_) {                          // @0x21854b
                 Value retVal = res->getReturnValue();                // @0x218560
                 result->setValue(retVal);                             // @0x21856f
                 if (!state.inFunctionDef_) {                                 // @0x218580
-                    result->hasError_ = true;                        // @0x21a17a
+                    result->returnEncountered_ = true;                        // @0x21a17a
                     // Set hasError and skip node_ copy:
                     // r14=0 → r15=false → skip to cleanup
                     state.inSwitch_ = savedInSwitch;
@@ -8026,12 +8026,12 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 
             // Check state.inFunctionDef_ for final hasError AND.            // @0x21a12e
             if (useInFunctionDef) {
-                result->hasError_ &= matchedHasError;               // @0x21a13b
+                result->returnEncountered_ &= matchedHasError;               // @0x21a13b
             }
         } else {
             // No match found — no assemblers, but check state.inFunctionDef_
             if (useInFunctionDef) {                                          // @0x21a12e
-                result->hasError_ &= matchedHasError;
+                result->returnEncountered_ &= matchedHasError;
             }
         }
 
@@ -8179,7 +8179,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
                     bodyResult->assemblers_.end());
 
                 // Check hasError on body result                     // @0x21e9e3
-                if (bodyResult->hasError_) {
+                if (bodyResult->returnEncountered_) {
                     // Extract value and set on result               // @0x21e9f8-21ede0
                     result->setValue(bodyResult->getValue());         // @0x21edec
                     normalExit = true;
@@ -8222,8 +8222,8 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
 
         // ---- hasError copy ----                                   // @0x21f70f
         if (normalExit) {
-            result->hasError_ = bodyResult
-                ? bodyResult->hasError_ : false;                     // @0x21f718-21f724
+            result->returnEncountered_ = bodyResult
+                ? bodyResult->returnEncountered_ : false;                     // @0x21f718-21f724
         }
     }
     else
@@ -8304,8 +8304,8 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
         }
 
         // Copy hasError from bodyResult                             // @0x21f70f
-        result->hasError_ = bodyResult
-            ? bodyResult->hasError_ : false;                         // @0x21f718-21f724
+        result->returnEncountered_ = bodyResult
+            ? bodyResult->returnEncountered_ : false;                         // @0x21f718-21f724
     }
 
     return result;                                                   // @0x21f7c1
@@ -8479,7 +8479,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
                     bodyResult->assemblers_.begin(),
                     bodyResult->assemblers_.end());                   // @0x2207e4
 
-                if (bodyResult->hasError_) {                          // @0x2207e9
+                if (bodyResult->returnEncountered_) {                          // @0x2207e9
                     result->setValue(bodyResult->getValue());          // @0x220b00
                     doEpilogue = true;
                     break;  // exit with hasError (r12d = 2)
@@ -8625,8 +8625,8 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
 
     // ---- Shared epilogue: hasError + name ----                    // @0x221108
     if (doEpilogue) {
-        result->hasError_ = bodyResult
-            ? bodyResult->hasError_ : false;                          // @0x221561
+        result->returnEncountered_ = bodyResult
+            ? bodyResult->returnEncountered_ : false;                          // @0x221561
 
         // Build name: "while (" + condResult->name_ + ")"          // @0x221568
         if (condResult) {
@@ -8768,7 +8768,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
                         bodyResult->assemblers_.end());
 
                     // Check hasError                                // @0x2236e9
-                    if (bodyResult->hasError_) {
+                    if (bodyResult->returnEncountered_) {
                         result->setValue(bodyResult->getValue());     // @0x223850
                     }
                 }
@@ -8865,7 +8865,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
                         bodyResult->assemblers_.end());
 
                     // Check hasError                                // @0x2236e9
-                    if (bodyResult->hasError_) {
+                    if (bodyResult->returnEncountered_) {
                         result->setValue(bodyResult->getValue());     // @0x223850
                         break;
                     }
@@ -8989,8 +8989,8 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
     }
 
     // ---- Shared epilogue: copy hasError ----                      // @0x222e4e
-    result->hasError_ = bodyResult
-        ? bodyResult->hasError_ : false;                             // @0x222e5a
+    result->returnEncountered_ = bodyResult
+        ? bodyResult->returnEncountered_ : false;                             // @0x222e5a
 
     return result;                                                   // @0x222ef6
 }
@@ -9172,11 +9172,11 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
         // ---- hasError: AND of both branches ----                  // @0x215b2f
         // Result has error only if both branches error.
         if (ifBodyResult && elseBodyResult &&
-            ifBodyResult->hasError_)
+            ifBodyResult->returnEncountered_)
         {
-            result->hasError_ = elseBodyResult->hasError_;           // @0x215b4d
+            result->returnEncountered_ = elseBodyResult->returnEncountered_;           // @0x215b4d
         } else {
-            result->hasError_ = false;                               // @0x215b53
+            result->returnEncountered_ = false;                               // @0x215b53
         }
 
         return result;
@@ -9252,23 +9252,23 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
             result->setValue(liveResult->getValue());
 
             // Copy hasError flag.                                   // @0x216384
-            result->hasError_ = liveResult->hasError_;
+            result->returnEncountered_ = liveResult->returnEncountered_;
 
             // Copy node.                                            // @0x216393
             result->node_ = liveResult->node_;
         }
 
         // ---- Conditional hasError AND logic ----                  // @0x2163d6
-        // When state.inFunctionDef_ is set, override hasError_ with AND of
+        // When state.inFunctionDef_ is set, override returnEncountered_ with AND of
         // both branches (result has error only if both error).
         // Binary: cmp BYTE PTR [state+0x10], 0x1
         if (static_cast<uint8_t>(state.inFunctionDef_) == 1) {
             if (liveResult && deadResult &&
-                liveResult->hasError_)
+                liveResult->returnEncountered_)
             {
-                result->hasError_ = deadResult->hasError_;
+                result->returnEncountered_ = deadResult->returnEncountered_;
             } else {
-                result->hasError_ = false;
+                result->returnEncountered_ = false;
             }
         }
 
@@ -9813,7 +9813,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
 
         if (bodyResult) {
             // 0x20b961–0x20b9a1  Check return type
-            if (returnVarType != VarType_Void && !bodyResult->hasError_) {
+            if (returnVarType != VarType_Void && !bodyResult->returnEncountered_) {
                 // 0x20bd1d–0x20bdb2  FuncNoReturn error (2-arg format)
                 std::string vtStr = str(returnVarType);
                 ctx.messages->errorMessage(
@@ -9953,8 +9953,8 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
                     }
                 }
                 // hasError copy                                     // @0x21d4d3
-                result->hasError_ = bodyResult
-                    ? bodyResult->hasError_ : false;
+                result->returnEncountered_ = bodyResult
+                    ? bodyResult->returnEncountered_ : false;
                 break;
             }
 
@@ -9986,7 +9986,7 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
                     bodyResult->assemblers_.begin(),
                     bodyResult->assemblers_.end());                   // @0x21c448
 
-                if (bodyResult->hasError_) {                         // @0x21c44d
+                if (bodyResult->returnEncountered_) {                         // @0x21c44d
                     // hasError: setValue + exit                      // @0x21c870
                     result->setValue(bodyResult->getValue());
                     // Copy node                                     // @0x21d6aa (same path)
@@ -9997,7 +9997,7 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
                             result->node_ = bodyResult->node_;
                         }
                     }
-                    result->hasError_ = bodyResult->hasError_;
+                    result->returnEncountered_ = bodyResult->returnEncountered_;
                     break;
                 }
             }
@@ -10127,8 +10127,8 @@ std::shared_ptr<EvalResults> SeqCForLoop::evaluate(
         }
 
         // Copy hasError from bodyResult                             // @0x21d4d3
-        result->hasError_ = bodyResult
-            ? bodyResult->hasError_ : false;
+        result->returnEncountered_ = bodyResult
+            ? bodyResult->returnEncountered_ : false;
     }
 
     return result;                                                   // @0x21d68f

@@ -32,7 +32,7 @@
 
 namespace zhinst {
 // Forward declaration — defined in get_node_map.cpp
-std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType devType);
+std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType allowedDevTypes);
 } // namespace zhinst
 
 #include "zhinst/log_macros.hpp"
@@ -482,15 +482,15 @@ unsigned int CustomFunctions::oscMaskSetAllGrimsel() {  // @0x15c0b0
 
 // addNodeAccess @0x15c6c0
 // Inserts mode into accessModeMap_ (+0x128), then does
-// nodeAddressMap_.emplace(item, nodeList_.size()) — stores the INDEX into nodeList_,
+// nodeIndexMap_.emplace(item, nodeList_.size()) — stores the INDEX into nodeList_,
 // NOT a hardware address. If the emplace inserted a new entry, pushes item onto nodeList_.
 void CustomFunctions::addNodeAccess(NodeMapItem const& item, AccessMode mode) {  // @0x15c6c0
     // @0x15c6f5: accessModeMap_[item].insert(mode)
     accessModeMap_[item].insert(mode);
 
-    // @0x15c771-0x15c7a1: nodeAddressMap_.emplace(item, nodeList_.size())
+    // @0x15c771-0x15c7a1: nodeIndexMap_.emplace(item, nodeList_.size())
     uint32_t idx = static_cast<uint32_t>(nodeList_.size());
-    auto [it, inserted] = nodeAddressMap_.emplace(item, idx);
+    auto [it, inserted] = nodeIndexMap_.emplace(item, idx);
 
     // @0x15c7a6: test $0x1, %dl — check if newly inserted
     if (inserted) {
@@ -523,13 +523,13 @@ void CustomFunctions::initNodeMap() {  // @0x16b740
 }
 
 // getNodeAddress @0x16ba10
-// Tries dynamic_cast<DirectAddrNodeMapData*>, else looks up nodeAddressMap_.
+// Tries dynamic_cast<DirectAddrNodeMapData*>, else looks up nodeIndexMap_.
 uint32_t CustomFunctions::getNodeAddress(NodeMapItem const& item) const {  // @0x16ba10
     if (auto* direct = dynamic_cast<DirectAddrNodeMapData*>(item.data)) {
         return direct->addr_;  // fast path: DirectAddrNodeMapData contains address at +0x08
     }
-    // slow path: lookup in nodeAddressMap_ (+0x100)
-    return nodeAddressMap_.at(item);  // throws std::out_of_range on miss
+    // slow path: lookup in nodeIndexMap_ (+0x100)
+    return nodeIndexMap_.at(item);  // throws std::out_of_range on miss
 }
 
 // getSampleClock @0x16ba80
@@ -565,15 +565,15 @@ std::set<AccessMode> const& CustomFunctions::getAccessModes(NodeMapItem const& i
 
 // checkFunctionSupported @0x15aeb0 — 0x150 bytes (ends at 0x15b000)
 // Verifies that the current device (config_->deviceType, a single power-of-2
-// AwgDeviceType value) is among the devices allowed by `devType` (a bitmask
+// AwgDeviceType value) is among the devices allowed by `allowedDevTypes` (a bitmask
 // of AwgDeviceType values OR'd together).
-// Test: if (config_->deviceType & ~devType) != 0, the device's bit is outside
+// Test: if (config_->deviceType & ~allowedDevTypes) != 0, the device's bit is outside
 // the allowed mask → throws CustomFunctionsException with error FuncNotSupported.
-void CustomFunctions::checkFunctionSupported(std::string const& name, AwgDeviceType devType) {  // @0x15aeb0
-    // @0x15aebd: rax = [this+0x00] (config_), edx = ~devType
-    // @0x15aec2: test [rax+0x00], edx  → test config_->deviceType & ~devType
+void CustomFunctions::checkFunctionSupported(std::string const& name, AwgDeviceType allowedDevTypes) {  // @0x15aeb0
+    // @0x15aebd: rax = [this+0x00] (config_), edx = ~allowedDevTypes
+    // @0x15aec2: test [rax+0x00], edx  → test config_->deviceType & ~allowedDevTypes
     uint32_t current = static_cast<uint32_t>(config_->deviceType);  // single power-of-2 device bit
-    if ((current & ~static_cast<uint32_t>(devType)) == 0)
+    if ((current & ~static_cast<uint32_t>(allowedDevTypes)) == 0)
         return;  // @0x15aec6: early return — device is in the allowed mask
 
     // @0x15af14: esi = config_->deviceType (the actual device enum value)

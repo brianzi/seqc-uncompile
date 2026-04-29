@@ -450,7 +450,7 @@ std::string str(VarSubType vst) {
         case VarSubType_Default:     return "none";
         case VarSubType_Stub:        return "bool";
         case VarSubType_FunctionArg: return "arg";
-        case VarSubType_Numeric:     return "vect";
+        case VarSubType_Vect:     return "vect";
         default:                     return {};
     }
 }
@@ -461,7 +461,7 @@ std::string str(VarSubType vst) {
 // Adds a const variable to variables_. The Variable record's `type` field at
 // +0x00 is written as 4, which under the corrected VarType mapping (Phase
 // 19c-followup, Finding 1) IS VarType_Const. The `subType` at +0x08 is
-// written as 3 (VarSubType_Numeric, indicating a const-with-value form).
+// written as 3 (VarSubType_Vect, indicating a const-with-value form).
 //
 // Disassembly observations (1e7010..1e7331):
 //   1. Loops variables_ checking for duplicate name; on hit jumps to throw
@@ -470,7 +470,7 @@ std::string str(VarSubType vst) {
 //      on hit.
 //   3. Builds a temporary Variable on the stack at [rbp-0x88]:
 //        [rbp-0x88]  = 0x4   (type        — VarType_Const)
-//        [rbp-0x80]  = 3     (subType     — VarSubType_Numeric, from edx)
+//        [rbp-0x80]  = 3     (subType     — VarSubType_Vect, from edx)
 //        [rbp-0x78]  = 2     (which_      — variant slot for double)
 //        AsmRegister at [rbp-0x58] from AsmRegister(-1)
 //        std::string copy of `name` at [rbp-0x50] (SSO-aware)

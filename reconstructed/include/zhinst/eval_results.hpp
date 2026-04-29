@@ -17,7 +17,7 @@
 // Layout (Phase 15a-i, 2026-04-23):
 //   +0x00  24  vector<EvalResultValue>     values_
 //   +0x18  24  vector<AsmList::Asm>        assemblers_
-//   +0x30   1  bool                        hasError_
+//   +0x30   1  bool                        returnEncountered_
 //   +0x31   7  (padding)
 //   +0x38  16  shared_ptr<Node>            node_
 //   +0x48  16  shared_ptr<WaveformFront>   waveformFront_
@@ -73,7 +73,7 @@ public:
 
     std::vector<EvalResultValue> values_;               // +0x00 (24B)
     std::vector<AsmList::Asm>    assemblers_;            // +0x18 (24B)
-    bool                         hasError_ = false;      // +0x30 (1B + 7B pad)
+    bool                         returnEncountered_ = false;      // +0x30 (1B + 7B pad)
     std::shared_ptr<Node>        node_;                  // +0x38 (16B)
     std::shared_ptr<WaveformFront> waveformFront_;       // +0x48 (16B)
     std::string                  name_;                  // +0x58 (24B libc++ / 32B libstdc++)

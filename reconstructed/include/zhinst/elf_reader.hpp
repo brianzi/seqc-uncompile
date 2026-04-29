@@ -119,7 +119,7 @@ public:
 
     // Return type for getCode() and getWaveform() — a format tag plus raw bytes.
     struct SectionData {
-        std::uint32_t format = 0;        // section type from ELFIO header
+        std::uint32_t sectionType = 0;   // section type from ELFIO header
         std::vector<std::uint8_t> data;  // raw bytes (size-aligned per method)
     };
 

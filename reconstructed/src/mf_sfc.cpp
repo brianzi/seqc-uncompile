@@ -24,8 +24,8 @@ namespace detail {
 namespace {
 
 // Helper: shift a bool to a specific bit position.
-constexpr uint64_t bitIf(bool b, unsigned shift) {
-    return b ? (uint64_t{1} << shift) : uint64_t{0};
+constexpr uint64_t bitIf(bool set, unsigned shift) {
+    return set ? (uint64_t{1} << shift) : uint64_t{0};
 }
 
 }  // namespace

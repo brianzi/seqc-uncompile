@@ -50,7 +50,7 @@ std::string WaveformFront::toString() const  // 0x2c5120
 //   - useCount_ = 1
 //   - dirty_  = false
 //   - hasDuplicate_  = source->hasDuplicate_   (copied)
-//   - values      = source->values       (element-wise copy via uninitialized_copy)
+//   - genArgs_      = source->genArgs_       (element-wise copy via uninitialized_copy)
 // ============================================================================
 WaveformFront::WaveformFront(std::shared_ptr<WaveformFront> source,
                              std::string const& newName)  // 0x2a2510
@@ -64,10 +64,10 @@ WaveformFront::WaveformFront(std::shared_ptr<WaveformFront> source,
     hasDuplicate_ = source->hasDuplicate_;  // movzx ecx, BYTE PTR [rax+0xdd]
                                        // mov BYTE PTR [rbx+0xdd], cl
 
-    // Copy the values vector from source (element-wise, each Value is 0x28 bytes)
+    // Copy the genArgs_ vector from source (element-wise, each Value is 0x28 bytes)
     // The binary zero-inits the vector then allocates and uses
     // __uninitialized_allocator_copy_impl to deep-copy elements.
-    values = std::vector<Value>(source->values.begin(), source->values.end());
+    genArgs_ = std::vector<Value>(source->genArgs_.begin(), source->genArgs_.end());
 }
 
 // ============================================================================
@@ -102,7 +102,7 @@ WaveformFront::WaveformFront(const std::string& name,
     this->useCount_ = 1;        // +0xD8  — note: 1, NOT 0 (IR writes 0 here)
     this->dirty_  = false;    // +0xDC
     this->hasDuplicate_  = false;    // +0xDD
-    // values vector at +0xE0 is default-constructed empty (the dispatcher
+    // genArgs_ vector at +0xE0 is default-constructed empty (the dispatcher
     // zero-stores the 24 bytes at +0xF8/+0x108 explicitly).
 }
 
@@ -115,7 +115,7 @@ WaveformFront::WaveformFront(const std::string& name,
 // ============================================================================
 WaveformFront::~WaveformFront()
 {
-    // vector<Value> destructor runs automatically for 'values' at +0xE0.
+    // vector<Value> destructor runs automatically for 'genArgs_' at +0xE0.
     // Then Waveform::~Waveform() destroys base class fields.
 }
 

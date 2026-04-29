@@ -173,16 +173,16 @@ boost::json::value NodeMapItem::toJson() const {
     // The table at 95ad18 contains 4 int64 values; exact values depend on
     // the enum encoding. From the disasm pattern (typeIdx 1-4 -> table[0-3]),
     // this maps node type indices to a JSON-serializable type code.
-    std::int64_t typeVal = 1;
+    std::int64_t sizeVal = 1;
     unsigned idx = static_cast<unsigned>(typeIdx) - 1;
     if (idx <= 3) {
         // Static lookup table at 0x95ad18 — 4 x int64, verified from binary:
         //   typeIdx 1 -> 2, 2 -> 1, 3 -> 2, 4 -> 2
-        static const std::int64_t typeTable[4] = {2, 1, 2, 2};
-        typeVal = typeTable[idx];
+        static const std::int64_t sizeTable[4] = {2, 1, 2, 2};
+        sizeVal = sizeTable[idx];
     }
-    // 1c5540-1c5578: obj["size"] = typeVal  (string literal "size" at 904da7, len 4)
-    obj["size"] = typeVal;
+    // 1c5540-1c5578: obj["size"] = sizeVal  (string literal "size" at 904da7, len 4)
+    obj["size"] = sizeVal;
     return boost::json::value(std::move(obj));
 }
 

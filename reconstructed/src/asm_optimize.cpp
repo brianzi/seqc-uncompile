@@ -44,7 +44,7 @@ AsmOptimize::AsmOptimize(std::function<void(const std::string&, int)> errorCallb
                          std::shared_ptr<CancelCallback> cancel)
     : numPhysicalRegs_(numPhysicalRegs)
     , pad04_(0)
-    , flags_(flags)
+    , optFlags_(flags)
     , pad0C_(0)
     , asm_()
     , errorCallback_(std::move(errorCallback))
@@ -230,7 +230,7 @@ AsmList AsmOptimize::optimizePreWaveform(const AsmList& input) {
     asm_ = input.entries;
 
     // If flag 0x04 set, run dead code elimination
-    if (flags_ & 0x04) {
+    if (optFlags_ & 0x04) {
         deadCodeElimination();
     }
 
@@ -246,23 +246,23 @@ AsmList AsmOptimize::optimizePostWaveform(const AsmList& input) {
     asm_ = input.entries;
 
     // Flag 0x01: one-step jump elimination
-    if (flags_ & 0x01) {
+    if (optFlags_ & 0x01) {
         oneStepJumpElimination();
     }
 
     // Flag 0x02: label cleanup
-    if (flags_ & 0x02) {
+    if (optFlags_ & 0x02) {
         removeUnusedLabels();
         mergeLabels();
     }
 
     // Flag 0x08: merge register zeroing
-    if (flags_ & 0x08) {
+    if (optFlags_ & 0x08) {
         mergeRegisterZeroing();
     }
 
     // Flag 0x10: register allocation
-    if (flags_ & 0x10) {
+    if (optFlags_ & 0x10) {
         unsigned long numRegs = removeUnusedRegs();
 
         // Create a backup copy of the asm list
@@ -532,7 +532,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
         }
 
         // If flag 0x08 not set, skip write-only analysis — 27e83e
-        if (!(flags_ & 0x08))
+        if (!(optFlags_ & 0x08))
             continue;
 
         // getCmdType — 27e850
@@ -658,7 +658,7 @@ void AsmOptimize::reportUserMessages() {
             }
 
             // If flags byte at +0x08 is non-zero, mark as dead
-            if (flags_) {
+            if (optFlags_) {
                 it->assembler.cmd = Assembler::INVALID;
             }
         }
@@ -673,7 +673,7 @@ void AsmOptimize::reportUserMessages() {
                 warningCallback_(msg, lineNr);
             }
 
-            if (flags_) {
+            if (optFlags_) {
                 it->assembler.cmd = Assembler::INVALID;
             }
         }

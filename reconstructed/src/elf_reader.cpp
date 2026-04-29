@@ -159,7 +159,7 @@ ELFIO::section* ElfReader::getSection(const std::string& name) const {
 ElfReader::SectionData ElfReader::getCode() const {
     SectionData result;
     if (!formatSection_) return result;
-    result.format = static_cast<std::uint32_t>(formatSection_->get_type());
+    result.sectionType = static_cast<std::uint32_t>(formatSection_->get_type());
     auto rawSize = formatSection_->get_size();
     auto alignedSize = rawSize & ~static_cast<decltype(rawSize)>(3);  // align to 4
     if (alignedSize > 0) {
@@ -177,7 +177,7 @@ ElfReader::SectionData ElfReader::getWaveform() const {
     if (ddSectionIndex_ >= ddSections_.size()) return result;
     auto* sec = ddSections_[ddSectionIndex_];
     if (!sec) return result;
-    result.format = static_cast<std::uint32_t>(sec->get_type());
+    result.sectionType = static_cast<std::uint32_t>(sec->get_type());
     auto rawSize = sec->get_size();
     auto alignedSize = rawSize & ~static_cast<decltype(rawSize)>(1);  // align to 2
     if (alignedSize > 0) {

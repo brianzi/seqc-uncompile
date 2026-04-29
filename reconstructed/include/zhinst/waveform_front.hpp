@@ -29,7 +29,7 @@
 //   +0xDC         bool       dirty_    (init=0; source comments call it "isModified")
 //   +0xDD         bool       hasDuplicate_    (copied from source; "hasDuplicate")
 //   +0xDE..+0xDF  padding
-//   +0xE0         vector<Value> values     (24 bytes; element size 0x28)
+//   +0xE0         vector<Value> genArgs_     (24 bytes; element size 0x28)
 //   +0xF8         END
 //
 // Speculative fields removed (verified absent by ctor + dtor):
@@ -57,7 +57,7 @@ struct WaveformFront : Waveform {
     bool dirty_;                     // +0xDC  (init=0; "isModified" in source comments)
     bool hasDuplicate_;                     // +0xDD  (copied; "hasDuplicate")
     // +0xDE..+0xDF: 2 bytes padding
-    std::vector<Value> values;           // +0xE0  (each Value is 0x28 bytes)
+    std::vector<Value> genArgs_;           // +0xE0  (each Value is 0x28 bytes)
     // +0xF8: END
 
     // WaveformFront(name, fileType, devConst) — INLINED into the
@@ -72,7 +72,7 @@ struct WaveformFront : Waveform {
     //   Waveform::deviceConstants   = &dc
     //   useCount_                 = 1                          ← differs from IR
     //   dirty_, hasDuplicate_      = 0
-    //   values                      = empty vector<Value>
+    //   genArgs_                      = empty vector<Value>
     //   (all other Waveform/Signal fields zero / empty)
     //
     // We provide a body so reconstructed TUs that say

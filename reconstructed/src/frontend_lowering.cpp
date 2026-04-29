@@ -30,6 +30,6 @@ zhinst::FrontendLoweringContext::~FrontendLoweringContext() = default;
 // ============================================================================
 zhinst::FrontendLoweringState::~FrontendLoweringState() = default;
 // The compiler-generated default dtor destroys members in reverse order:
-//   strings (vector<string>), then inFunctionDef_ (trivial), then result (shared_ptr).
+//   labelStack (vector<string>), then inFunctionDef_ (trivial), then result (shared_ptr).
 // This matches the binary dtor at 0x1c2190 which destroys the vector first,
 // then releases the shared_ptr.

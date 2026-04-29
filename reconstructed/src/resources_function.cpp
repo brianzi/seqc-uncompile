@@ -41,7 +41,7 @@ namespace zhinst {
 //   = 0x78
 //
 // The header (resources.hpp) declares the parentScope half as two raw void*
-// fields named `reserved_`/`weakRef_`; the disasm shows it is in fact a
+// fields named `pad_00_`/`weakRef_`; the disasm shows it is in fact a
 // single std::weak_ptr<Resources>. We keep the existing header field names
 // to avoid cascading source changes; the implementation here documents the
 // real shape inline.
@@ -80,7 +80,7 @@ Resources::Function::Function(std::string const& name,
                               std::string const& sig,
                               VarType rt,
                               std::weak_ptr<Resources> parentScope)  // @0x1eaa00
-    : reserved_(nullptr),
+    : pad_00_(nullptr),
       weakRef_(nullptr),
       name(name),
       signature(sig),
@@ -91,15 +91,15 @@ Resources::Function::Function(std::string const& name,
           std::allocator<Resources>{}, name, parentScope)),
       body(nullptr)
 {
-    // The ctor's mem-init list above zeroes parentScope (reserved_/weakRef_),
+    // The ctor's mem-init list above zeroes parentScope (pad_00_/weakRef_),
     // copies name + signature, default-constructs the arguments vector, and
     // allocates the scope shared_ptr. The body unique_ptr default-constructs
     // to nullptr. parentScope itself is NOT stored in the
-    // reserved_/weakRef_ slots — those are zeroed by the disasm and the
+    // pad_00_/weakRef_ slots — those are zeroed by the disasm and the
     // captured weak_ptr is consumed by allocate_shared then dropped. The
     // physical weak_ptr layout at this+0x00 is currently "zeroed but unused";
     // see notes/struct_layouts.md for the open question on whether
-    // reserved_/weakRef_ should be promoted to a real weak_ptr<Resources>.
+    // pad_00_/weakRef_ should be promoted to a real weak_ptr<Resources>.
 
     // Propagate returnType into the new scope's returnType_ slot
     // (scope+0x54). Disasm 1eaaae..1eaab5.

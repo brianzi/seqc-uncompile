@@ -25,10 +25,10 @@ namespace detail {
 // at 0x2a0ffa, __put_character_sequence at 0x2a100e/0x2a1033/0x2a1047/
 // 0x2a1066, basic_ostream::operator<<(int) at 0x2a1052/0x2a1071, then SSO/
 // long-string copy into the sret slot starting at 0x2a1076).
-inline std::string getUniqueName(const std::string& base, int index, int counter)
+inline std::string getUniqueName(const std::string& base, int lineNr, int counter)
 {
     std::ostringstream oss;
-    oss << "__" << base << "_" << index << "_" << counter;
+    oss << "__" << base << "_" << lineNr << "_" << counter;
     return oss.str();
 }
 

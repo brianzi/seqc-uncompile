@@ -55,7 +55,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
             ErrorMessages::format(FuncExpectsSingleArg, std::string("setDIO")));
 
     // Check device type for high-bank DIO support
-    bool supported = isShfFamily();
+    bool isShf = isShfFamily();
 
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
@@ -63,7 +63,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
     if (static_cast<int>(arg.varType_) == 2) {
         // Var: use reg_, not value_.toInt() (same pattern as setID)
         AsmRegister reg = arg.reg_;
-        auto asmEntry = asmCommands_->sdio(reg, supported);
+        auto asmEntry = asmCommands_->sdio(reg, isShf);
         results->assemblers_.push_back(std::move(asmEntry));
     } else if (isConstOrCvar(arg.varType_)) {
         // Variable — construct from immediate then sdio
@@ -72,7 +72,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
         AsmRegister r0(0);
         auto addiEntries = asmCommands_->addi32(newReg, r0, Immediate(arg.value_.toInt()));
         for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
-        auto asmEntry = asmCommands_->sdio(newReg, supported);
+        auto asmEntry = asmCommands_->sdio(newReg, isShf);
         results->assemblers_.push_back(std::move(asmEntry));
     } else {
         throw CustomFunctionsException(
@@ -83,7 +83,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
     // Binary wraps lookupNode+addNodeAccess in try-catch; if node doesn't exist
     // (e.g. SHFQA which has no DIOOUTPUT in its node map), silently skip.
     // Catch at @0x130f5e-0x130f6c: begin_catch, end_catch, jmp epilogue.
-    if (!supported) {
+    if (!isShf) {
         try {
             auto node = lookupNode(std::string("_/dios/0/output"));           // @0x130cd7
             addNodeAccess(node, static_cast<AccessMode>(2));                   // @0x130d34
@@ -101,11 +101,11 @@ std::shared_ptr<EvalResults> CustomFunctions::getDIO(                           
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, std::string("getDIO")));
-    bool supported = isShfFamily();
+    bool isShf = isShfFamily();
     auto results = std::make_shared<EvalResults>();
     int regNum = Resources::getRegisterNumber();
     AsmRegister reg(regNum);
-    auto asmEntry = asmCommands_->ldio(reg, supported);
+    auto asmEntry = asmCommands_->ldio(reg, isShf);
     results->assemblers_.push_back(std::move(asmEntry));
     results->setValue(VarType_Var, regNum);
     return results;
@@ -341,19 +341,19 @@ std::shared_ptr<EvalResults> CustomFunctions::setID(                            
     if (args.size() != 1)
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsSingleArg, std::string("setID")));
-    bool supported = isShfFamily();
+    bool isShf = isShfFamily();
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
     if (static_cast<int>(arg.varType_) == 2) {
         AsmRegister reg = arg.reg_;                                              // Var: use reg_, not value_.toInt()
-        auto asmEntry = asmCommands_->sid(reg, supported);
+        auto asmEntry = asmCommands_->sid(reg, isShf);
         results->assemblers_.push_back(std::move(asmEntry));
     } else if (isConstOrCvar(arg.varType_)) {
         int regNum = Resources::getRegisterNumber();
         AsmRegister newReg(regNum);
         auto addiEntries = asmCommands_->addi(newReg, AsmRegister(0), Immediate(arg.value_.toInt()));
         for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
-        auto asmEntry = asmCommands_->sid(newReg, supported);
+        auto asmEntry = asmCommands_->sid(newReg, isShf);
         results->assemblers_.push_back(std::move(asmEntry));
     } else {
         throw CustomFunctionsException(
@@ -413,8 +413,8 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
     int64_t maxSampleLen = playArgs.getMaxSampleLength();
 
     // Build channel args by iterating wave assignments                        // @0x133fd6
-    int channelIndex = config.deviceIndex;  // [config+0x24]
-    auto const& assignments = playArgs.waveAssignments_[channelIndex];
+    int deviceIdx = config.deviceIndex;  // [config+0x24]
+    auto const& assignments = playArgs.waveAssignments_[deviceIdx];
 
     std::vector<EvalResultValue> channelArgs;
     uint32_t mask = 0x3fff;                                                    // r12d = 0x3fff
@@ -912,9 +912,9 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
         for (auto& e : addiEntries1) results->assemblers_.push_back(std::move(e));
 
         // @0x13c985: check args[1].value_.toBool() — if true, reuse same register
-        bool arg1Bool = arg1.value_.toBool();                                            // @0x13c985
+        bool useSameReg = arg1.value_.toBool();                                            // @0x13c985
 
-        if (arg1Bool) {
+        if (useSameReg) {
             // Same-value path: wtrig(reg1, reg1)
             auto wtrigEntry = asmCommands_->wtrig(reg1, reg1);                           // @0x13caac (same-reg path)
             results->assemblers_.push_back(std::move(wtrigEntry));
@@ -1991,11 +1991,11 @@ std::shared_ptr<EvalResults> CustomFunctions::setInt(                           
         throw CustomFunctionsException(
             ErrorMessages::format(SetIntVarConstSecond, std::string("setInt")));
     // Call writeToNode(arg0, arg1, defaultEvalResultValue, res)                                   // @0x1486f2: call writeToNode
-    EvalResultValue emptyErv{};
-    emptyErv.varType_ = VarType_String;
-    emptyErv.value_ = Value(1.0);
-    emptyErv.varSubType_ = VarSubType(2);
-    return writeToNode(arg0, arg1, emptyErv, std::move(res));    // @0x1486f2
+    EvalResultValue defaultTypeArg{};
+    defaultTypeArg.varType_ = VarType_String;
+    defaultTypeArg.value_ = Value(1.0);
+    defaultTypeArg.varSubType_ = VarSubType(2);
+    return writeToNode(arg0, arg1, defaultTypeArg, std::move(res));    // @0x1486f2
 }
 std::shared_ptr<EvalResults> CustomFunctions::setDouble(                                                                                                             // @0x148ac0 (~3.3KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
@@ -3340,24 +3340,24 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
 
     auto results = std::make_shared<EvalResults>(VarType_Void);                        // @0x157efd
 
-    auto const& arg0 = args[0];  // source (feedback source index)
-    auto const& arg1 = args[1];  // shift
-    auto const& arg2 = args[2];  // number of bits
-    auto const& arg3 = args[3];  // threshold
+    auto const& sourceArg = args[0];  // source (feedback source index)
+    auto const& shiftArg = args[1];  // shift
+    auto const& numBitsArg = args[2];  // number of bits
+    auto const& thresholdArg = args[3];  // threshold
 
     // Args 1, 2 (from arg1.varType), and 3 must not be register-bound              // @0x1584ba
-    if (static_cast<int>(arg1.varType_) == 2 ||
-        static_cast<int>(arg2.varType_) == 2 ||
-        static_cast<int>(arg3.varType_) == 2) {
+    if (static_cast<int>(shiftArg.varType_) == 2 ||
+        static_cast<int>(numBitsArg.varType_) == 2 ||
+        static_cast<int>(thresholdArg.varType_) == 2) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstVar,
                                   std::string("configureFeedbackProcessing")));      // @0x158e29
     }
 
     // Build set of valid source IDs based on devConst_->execTableIndexBits                   // @0x1584da
-    int shift = 1 << static_cast<int>(devConst_->execTableIndexBits);                         // @0x1584e9
-    int src1 = shift + 1;
-    int src2 = shift + 2;
+    int srcBase = 1 << static_cast<int>(devConst_->execTableIndexBits);                         // @0x1584e9
+    int src1 = srcBase + 1;
+    int src2 = srcBase + 2;
 
     std::unordered_set<int> validSources;
     validSources.insert(src1);
@@ -3365,12 +3365,12 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
 
     // If deviceType == 0x20, also add shift+4                                       // @0x158558
     if (static_cast<int>(config_->deviceType) == 0x20) {
-        int src3 = shift + 4;
+        int src3 = srcBase + 4;
         validSources.insert(src3);
     }
 
     // Validate arg0 (source) is in the valid set                                    // @0x15857d
-    int sourceVal = arg0.value_.toInt();
+    int sourceVal = sourceArg.value_.toInt();
     if (validSources.find(sourceVal) == validSources.end()) {
         throw CustomFunctionsValueException(
             ErrorMessages::format(InvalidArgValue, 0,
@@ -3378,7 +3378,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
     }
 
     // Validate arg1 (shift): must be in [0, 32)                                     // @0x158697
-    int shiftVal = arg1.value_.toInt();
+    int shiftVal = shiftArg.value_.toInt();
     if (shiftVal < 0 || shiftVal >= 0x20) {
         throw CustomFunctionsValueException(
             ErrorMessages::format(InvalidArgValue, 1,
@@ -3386,7 +3386,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
     }
 
     // Validate arg2 (number of bits): must be in (0, 17)                            // @0x1586c0
-    int numBitsVal = arg2.value_.toInt();
+    int numBitsVal = numBitsArg.value_.toInt();
     if (numBitsVal <= 0 || numBitsVal >= 0x11) {
         throw CustomFunctionsValueException(
             ErrorMessages::format(InvalidArgValue, 2,
@@ -3394,7 +3394,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
     }
 
     // Validate arg3 (threshold): must be in [0, 0x1000)                             // @0x1586e1
-    int thresholdVal = arg3.value_.toInt();
+    int thresholdVal = thresholdArg.value_.toInt();
     if (thresholdVal < 0 || thresholdVal >= 0x1000) {
         throw CustomFunctionsValueException(
             ErrorMessages::format(InvalidArgValue, 3,
@@ -3407,7 +3407,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
     sourceToMode[src1]  = 0;
     sourceToMode[src2]  = 1;
     if (static_cast<int>(config_->deviceType) == 0x20) {
-        sourceToMode[shift + 4] = 2;
+        sourceToMode[srcBase + 4] = 2;
     }
 
     // Look up the mode for the given source                                         // @0x1587a4

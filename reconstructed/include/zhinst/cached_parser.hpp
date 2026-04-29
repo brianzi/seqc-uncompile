@@ -47,10 +47,10 @@
 //   Layout:
 //     +0x00  string (24B libc++)  name_         first ctor arg
 //     +0x18  string (24B libc++)  filePath_     second ctor arg
-//     +0x30  size_t               fileSize_     third ctor arg
+//     +0x30  size_t               byteSize_     third ctor arg
 //     +0x38  time_t               timestamp_    time(nullptr) in ctor
 //     +0x40  vector<uint> (24B)   hash_         fourth ctor arg (move)
-//     +0x58  bool                 valid_        fifth ctor arg
+//     +0x58  bool                 pinned_        fifth ctor arg
 //     = 0x60 total (padded)
 //
 // CachedFile (0x50 = 80 bytes), CORRECTED layout (Phase 13d):
@@ -93,7 +93,7 @@ public:
 
     // CacheEntry — 0x60 bytes on libc++. One per cached waveform file in index_.
     struct CacheEntry {
-        CacheEntry() : fileSize_(0), timestamp_(0), valid_(false) {} // default ctor for boost deserialization
+        CacheEntry() : byteSize_(0), timestamp_(0), pinned_(false) {} // default ctor for boost deserialization
         CacheEntry(const std::string& name, const std::string& filePath,
                    std::size_t fileSize, std::vector<unsigned int> hash,
                    bool valid);                                    // 0x2b10b0
@@ -104,27 +104,27 @@ public:
         //
         // Resolved #114: Binary serializes exactly 5 fields (NOT 6).
         // text_iarchive @0x2b7700: load(name_), load(filePath_),
-        //   istream>>fileSize_, istream>>timestamp_, load_object(hash_).
+        //   istream>>byteSize_, istream>>timestamp_, load_object(hash_).
         // text_oarchive @0x2b8440: save(name_), save(filePath_),
-        //   ostream<<fileSize_, ostream<<timestamp_, save_object(hash_).
-        // valid_ is NOT serialized — it is reconstructed at load time
+        //   ostream<<byteSize_, ostream<<timestamp_, save_object(hash_).
+        // pinned_ is NOT serialized — it is reconstructed at load time
         // (set to false by default, set to true on cache hit in getCachedFile).
         template <class Archive>
         void serialize(Archive& ar, unsigned int /*version*/)
         {
             ar & name_;
             ar & filePath_;
-            ar & fileSize_;
+            ar & byteSize_;
             ar & timestamp_;
             ar & hash_;
         }
 
         std::string               name_;       // +0x00
         std::string               filePath_;   // +0x18
-        std::size_t               fileSize_;   // +0x30
+        std::size_t               byteSize_;   // +0x30
         std::time_t               timestamp_;  // +0x38
         std::vector<unsigned int> hash_;       // +0x40
-        bool                      valid_;      // +0x58
+        bool                      pinned_;      // +0x58
         // padded to 0x60
     };
 

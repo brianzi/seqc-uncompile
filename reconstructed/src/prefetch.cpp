@@ -1191,7 +1191,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                         throw std::out_of_range("");
 
                     // 0x1ce326: Check pageSize >= 2
-                    if (it->second.pageSize >= 2) {                    // 0x1ce326
+                    if (it->second.pagesNeeded >= 2) {                    // 0x1ce326
                         // Waveform spans ≥2 pages — enqueue next and continue
                         goto enqueue_next;                             // 0x1ce330 → 0x1cee02
                     }
@@ -1254,7 +1254,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
             //    }
             // 7. Byte size = channels * alignedSamples * bitsPerSample
             //    Bit-round: byteSize = (byteSize + 7) / 8   (i.e. ceil to bytes)
-            // 8. Divide by nodeStates_[current].pageSize to get pagesNeeded
+            // 8. Divide by nodeStates_[current].pagesNeeded to get pagesNeeded
             //
             // (The above is done TWICE in slightly different contexts —
             //  once for the "other parent" path at 0x1ce622 and once for
@@ -1267,7 +1267,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 if (stateIt == nodeStates_.end())
                     throw std::out_of_range("");
 
-                // 0x1cea3c: pagesNeeded = byteSize / state.pageSize
+                // 0x1cea3c: pagesNeeded = byteSize / state.pagesNeeded
                 int pagesNeeded = /* computed above */0;               // 0x1cea37
                 int parentUsedCache = /* from parent nodeState */0;
 

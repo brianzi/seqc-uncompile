@@ -66,7 +66,7 @@ inline EvalResultValue makeERV(VarType type, VarSubType sub, Value const& val)
 EvalResults::EvalResults(VarType type)  // @0x176bc0
     : values_(1, makeERV(type))
     , assemblers_()
-    , hasError_(false)
+    , returnEncountered_(false)
     , node_()
     , waveformFront_()
     , name_()
@@ -161,7 +161,7 @@ void EvalResults::setValue(VarType type, int reg)  // @0x15c850
 EvalResults::EvalResults(EvalResults const& other)  // @0x231c60
     : values_(other.values_)
     , assemblers_(other.assemblers_)
-    , hasError_(other.hasError_)
+    , returnEncountered_(other.returnEncountered_)
     , node_(other.node_)
     , waveformFront_(other.waveformFront_)
     , name_(other.name_)
@@ -221,7 +221,7 @@ void EvalResults::setValue(VarType type)  // @0x20ad20
 void EvalResults::setValue(double val)  // @0x2136a0
 {
     values_ = std::vector<EvalResultValue>{
-        makeERV(VarType_Const, VarSubType_Numeric, Value(val))
+        makeERV(VarType_Const, VarSubType_Vect, Value(val))
     };
 }
 
