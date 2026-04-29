@@ -5480,13 +5480,13 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
         Value val = values.back().value_;                      // @0x22881b
 
         // toDouble() on the extracted value.                  // @0x228b17
-        double d = val.toDouble();
+        double negatedDouble = val.toDouble();
 
         // Negate: XOR sign bit (IEEE 754 sign flip).          // @0x228b20
-        d = -d;
+        negatedDouble = -negatedDouble;
 
         // Store back as double.                               // @0x228b2a
-        childResult->setValue(d);
+        childResult->setValue(negatedDouble);
         return childResult;                                    // @0x228b4a
 
     } else if (vt == VarType_Wave) {                           // @0x2289c3: cmp 5
