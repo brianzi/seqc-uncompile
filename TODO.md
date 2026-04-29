@@ -22,6 +22,96 @@ arbitrations (commit `2477f4e`). See OVERVIEW.md "Symbol Renames
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
 **Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105), determineFixedWaves O(2^N) BFS fix (IF-107: 155× → 3.7×), `rand` MINSTD+polar reimplementation (IF-108: matches binary not libc++ MT64). 238 → 259.
 
+### Phase R: Audit follow-ups — investigate-first arbitrations + open IFs
+
+**Goal.** Resolve the items the Phase D audit explicitly deferred to
+"investigate at execution time". Each item is one of:
+
+1. A skipped arbitration from Phase D commit `2477f4e` (genuine
+   ambiguity at audit time, but resolvable with disassembly +
+   GDB tracing now).
+2. An open incidental finding promoted in `717cf8e` (c19) from
+   `notes/symbol-renaming-audit/` to `notes/incidental_findings.md`
+   that asks for verification before any rename / type-fix.
+
+Per AGENTS.md "GDB tracing for binary analysis" and the
+`reconstructed/notes/symbol-renaming-audit/SYNTHESIS.md` arbitration
+template, each item gets the same treatment: read the disassembly,
+GDB-trace if helpful, then either land a rename / type-fix or close
+as "no change, evidence supports current name".
+
+This phase is explicitly **NOT** Phase Q (the 226 low-conf cosmetic
+items) — those remain deferred per audit policy.
+
+**Process for each item:**
+1. Read the audit anchor (linked file + line) and the binary
+   disassembly at the cited address(es).
+2. If still ambiguous, GDB-trace using `tests/gdb_trace.py`-style
+   harness (see AGENTS.md recipe).
+3. Choose ONE outcome:
+   - **rename**: edit code, build, test, commit (one commit per item).
+   - **type-fix**: structural change (e.g. split conflated field),
+     commit separately.
+   - **no-op**: document evidence in the IF entry and close as
+     "dismissed" or "confirmed (kept)".
+4. Update `incidental_findings.md` IF entry status.
+5. Tests must remain 259/259 throughout.
+
+#### R.0 — housekeeping (close already-fixed IFs)
+
+- [ ] **IF-111** (`namespace Assembler` + `AssemblerInstr` should be one
+      class) — fixed in Phase D `5a44521` (Cluster M). Update IF
+      status to **fixed**, cite commit.
+- [ ] **IF-122** (`Resources::parent_` strong/weak inversion) — fixed
+      in Phase D `612eb2a` (Cluster N). Update IF status to **fixed**,
+      cite commit.
+
+#### R.1 — six deferred arbitrations from `2477f4e`
+
+| Arb | Item | Audit anchor | Approach |
+|-----|------|--------------|----------|
+| 2 | `DeviceConstants::numDIOBits` — DIO bit count vs oscillator-count upper bound in `configFreqSweep` | `31_device_constants.md:39`, `05c_custom_functions_io_part2.md:107` | GDB-trace `configFreqSweep` on UHFLI: read R12/oscillator index; if upper bound ≠ DIO count, rename to oscillator-related name. |
+| 4 | `Compiler::usedSampleRate_` mirrors `StaticResources::usedSampleRate_` (one is dead?) | `07_compiler.md:72`, `19a_resources.md:188` | Locate the copy/sync method in binary; identify which side is read; either delete the dead mirror or rename to clarify role. |
+| 5 | `NodeMapItem::hasFast` int conflated with `AccessMode` enum | `27_node_map_data.md:65` (also IF-112) | Inspect `addNodeAccess` call sites in disassembly; if the int slot truly carries two distinct meanings, **type-fix** by splitting (this is structural, not a rename). |
+| 7 | `mergeWaveforms::useYSuffix` also gates merge step, not just suffix | `05b_custom_functions_play.md:55` | Disassemble `mergeWaveforms` body; if both behaviours are gated by the same bool, decide between `useYSuffix` (current, keep) and `interleaveSecondary`. |
+| 9 | `AsmList::Asm::wavetableFront` dual-purpose (WavetableFront* vs line-number cache slot) | `44_asm_list.md:34-37` | c16 noted "symbol not found in source" — reconfirm. If the field really is dual-purpose, decide split-vs-rename; otherwise close as already-resolved. |
+| 11 | `loopArgNodeAppend::arg` — generic name | `04b_ast_evaluate_helpers.md:105` | Inspect call-site argument types; if all callers pass the same role, rename to that role; else keep generic. |
+
+#### R.2 — open IFs from `717cf8e` (c19 promotions)
+
+Each entry already has a clear question; resolve to **fixed**,
+**confirmed (no change)**, or **dismissed**.
+
+- [ ] **IF-110** `Value::pad_04_` is not padding; `subType_` shape
+      unclear — disassemble Value ctor + accessors, decode the slot.
+- [ ] **IF-112** `NodeMapItem::hasFast` int conflated with `AccessMode`
+      — overlaps Arb 5; resolve together.
+- [ ] **IF-113** `Cache::Pointer::hash_` is not a hash; prefetch
+      wrap-address semantics — read Cache::Pointer ctor + the prefetch
+      consumer; rename `hash_` to its real role.
+- [ ] **IF-114** `PlayConfig::now` named 'now' but read as 4-channel
+      flag — disassemble the read sites; if it really is a 4-channel
+      flag, rename.
+- [ ] **IF-115** Strict / useAbsolute / showLine polarity-inverted
+      booleans (partially fixed by IF-117) — audit the remaining two
+      slots and either flip or document why polarity is correct.
+- [ ] **IF-116** `Expression::valueType` int slot is actually
+      `EDirection` enum — confirm via writers; type-fix to enum if so.
+- [ ] **IF-118** `AddressImpl<T>` wrapper overgeneral — audit
+      template instantiations; if only one type-arg ever appears,
+      collapse to non-template.
+- [ ] **IF-119** `setPRNGSeed` integer-literal path constructs
+      `AsmRegister` from value — verify against binary; fix if recon
+      diverges.
+- [ ] **IF-120** `configFreqSweep` magic literals — constants exist
+      but are unused — wire constants into the function body.
+- [ ] **IF-121** `DeviceOpts` namespace full duplicate of
+      anonymous-namespace `k*` set — collapse to one set.
+
+**Sequence.** R.0 (trivial) → R.1 Arb 5 + R.2 IF-112 (joint) → R.2
+non-arb IFs → R.1 remaining arbs. Wrap-up commit at end with
+TODO.md + OVERVIEW.md update.
+
 ### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 
 The 2 final failing tests (`hdawg_doc_random_waves`,
