@@ -601,49 +601,58 @@ void Prefetch::determineFixedWaves() // 0x1cb200
         Node* cur = current.get();
         if (!cur) continue;
 
-        // Enqueue children
+        // Process Play nodes (other types fall through to enqueue children)
+        do {
+            if (cur->type != NodeType::Play)
+                break;
+
+            int devIdx = cur->deviceIndex;  // +0x40
+
+            // Get wave name at deviceIndex (binary checks devIdx >= 0 before access)
+            if (devIdx < 0)
+                break;
+            auto& waveName = cur->wavesPerDev[devIdx];  // +0x28
+            if (!waveName.has_value())
+                break;
+
+            // Look up WaveformIR
+            auto wfm = wavetableIR_->getWaveformByName(waveName);
+            if (!wfm) break;
+
+            // Already fixed? Skip
+            if (wfm->fixed_)  // +0xD9
+                break;
+
+            // Check size constraints
+            uint32_t maxAlloc = devConst_->maxBlocks * devConst_->waveformAlignment;  // @0x1cb5e3: imul edx, [rcx+0x14]
+            uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74
+
+            // @0x1cb5ea: if allocationByteSize >= maxAlloc → skip (don't fix)
+            if (wfmSize >= maxAlloc) {
+                firstIteration = false;
+                break;
+            }
+
+            // @0x1cb63d..onwards: allocationByteSize < maxAlloc → mark as fixed
+            wfm->fixed_ = true;  // +0xD9
+
+            firstIteration = false;
+        } while (false);
+
+        // Enqueue children (binary: 0x1cbb80 onwards, executed for ALL nodes)
+        //   - always push next (+0xB8) if non-null
+        //   - if type == Loop (0x8): push loop (+0xE0)
+        //   - if type == Branch (0x4): push branches vector (+0xC8)
+        // Loop and Branch are mutually exclusive in binary control flow.
         if (cur->next)
             worklist.push_back(cur->next);
-        for (auto& child : cur->branches)
-            worklist.push_back(child);
-        if (cur->next)  // +0xB8 (was elseBranch)
-            worklist.push_back(cur->next);
-
-        // Only process Play nodes
-        if (cur->type != NodeType::Play)
-            continue;
-
-        int devIdx = cur->deviceIndex;  // +0x40
-
-        // Get wave name at deviceIndex (binary checks devIdx >= 0 before access)
-        if (devIdx < 0)
-            continue;
-        auto& waveName = cur->wavesPerDev[devIdx];  // +0x28
-        if (!waveName.has_value())
-            continue;
-
-        // Look up WaveformIR
-        auto wfm = wavetableIR_->getWaveformByName(waveName);
-        if (!wfm) continue;
-
-        // Already fixed? Skip
-        if (wfm->fixed_)  // +0xD9
-            continue;
-
-        // Check size constraints
-        uint32_t maxAlloc = devConst_->maxBlocks * devConst_->waveformAlignment;  // @0x1cb5e3: imul edx, [rcx+0x14]
-        uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74
-
-        // @0x1cb5ea: if allocationByteSize >= maxAlloc → skip (don't fix)
-        if (wfmSize >= maxAlloc) {
-            firstIteration = false;
-            continue;
+        if (cur->type == NodeType::Loop) {
+            if (cur->loop)
+                worklist.push_back(cur->loop);
+        } else if (cur->type == NodeType::Branch) {
+            for (auto& child : cur->branches)
+                worklist.push_back(child);
         }
-
-        // @0x1cb63d..onwards: allocationByteSize < maxAlloc → mark as fixed
-        wfm->fixed_ = true;  // +0xD9
-
-        firstIteration = false;
     }
 }
 

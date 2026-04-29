@@ -2145,3 +2145,47 @@ The earlier Phase-39 read-only scan used regex
 which is followed by a string token rather than `(`). The correct
 pattern is `\basm\s+volatile|\basm\s*[\(\{]|__asm__`. After this
 fix, the codebase has zero inline-asm sites under either pattern.
+
+## IF-107  `Prefetch::determineFixedWaves` enqueued `next` twice causing O(2^N) BFS
+
+**Severity**: critical (perf), confirmed-fixed
+**File**: `reconstructed/src/prefetch_helpers.cpp:589` (function
+`Prefetch::determineFixedWaves`, binary 0x1cb200)
+
+**Symptom**: `hdawg_cvar_unroll` test ran 155× slower than original
+(4500ms vs 29ms). Profile via GDB attach-sampling showed 100% of
+samples in this function's worklist pop / shared_ptr destruction.
+Per-loop timing showed exponential growth: 1 loop=3ms, 2=6ms, 3=13ms,
+4=390ms, 5=5500ms.
+
+**Root cause**: The recon enqueue block was
+
+```cpp
+if (cur->next) worklist.push_back(cur->next);
+for (auto& child : cur->branches) worklist.push_back(child);
+if (cur->next) worklist.push_back(cur->next);  // BUG (was elseBranch)
+```
+
+The duplicate `next` push doubles the worklist on every step in a
+sibling chain → O(2^N). The "(was elseBranch)" comment captured the
+origin: during recon, two distinct Node fields were collapsed onto
+`next`.
+
+**Truth from binary disassembly** (0x1cbb80..0x1cbe17):
+- Always push `next` (+0xB8) if non-null.
+- If `type == Loop` (0x8): push `loop` (+0xE0) if non-null.
+- If `type == Branch` (0x4): iterate `branches` (+0xC8..+0xD0) and
+  push each.
+- Loop and Branch are mutually exclusive; the binary uses a single
+  `cmp eax, 0x8 / je / cmp eax, 0x4 / jne` chain.
+
+The recon was wrong on two axes: it pushed `branches` unconditionally
+(should be Branch-only) and pushed `next` twice (should be `loop` for
+Loop nodes only).
+
+**Fix**: Replaced enqueue block with the type-gated logic matching the
+binary; moved enqueueing to the end of the loop body where the binary
+places it (executed for all node types, not only Play).
+
+**Result**: `hdawg_cvar_unroll` 4500ms → 11ms. Full suite 257/259
+preserved (only the 2 known libc++ PRNG ABI failures remain).

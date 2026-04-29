@@ -14,7 +14,7 @@
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
-**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105). 238 → 257.
+**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105), determineFixedWaves O(2^N) BFS fix (IF-107: 155× → 3.7×). 238 → 257.
 
 ### Remaining 2 known-hard failures (libc++ PRNG ABI)
 
@@ -22,6 +22,37 @@
 |------|------------|-------|
 | `hdawg_doc_random_waves` | libc++ vs libstdc++ `mt19937_64` + `normal_distribution` ABI mismatch | Would require manual MT19937 + normal_dist reimplementation matching libc++ byte-for-byte |
 | `hdawg_doc_randomSeed` | Same PRNG ABI issue + waveform deduplication interaction | Same as above |
+
+### Phase 40: Performance — Prefetch BFS exponential traversal (DONE)
+
+Profiling with `tests/diff_test_fast.py` revealed `hdawg_cvar_unroll`
+ran 155× slower than the original (4.5s vs 29ms) — extreme outlier vs
+typical 2-5× Debug-vs-O3 build overhead.
+
+**Root cause** (binary-disasm verified): `Prefetch::determineFixedWaves`
+in `prefetch_helpers.cpp` enqueued `cur->next` twice per node (the
+second push had a "(was elseBranch)" comment from collapsed recon).
+This caused O(2^N) traversal in chain length N. The 5 sequential cvar
+loops unrolled to ~17 top-level Play/Wait nodes → ~2^17 visits
+dominated by shared_ptr ref-count traffic.
+
+**Truth from binary** (0x1cbb80..0x1cbe17):
+- always push `next` (+0xB8)
+- if `type == Loop` (0x8): push `loop` (+0xE0)
+- if `type == Branch` (0x4): push `branches` (+0xC8) vector
+- Loop and Branch are mutually exclusive in binary control flow.
+
+The recon was wrong on two axes: it pushed `branches` unconditionally
+(should be Branch-only) and pushed `next` twice (should be `loop` for
+Loop nodes only). Recorded as IF-107.
+
+- [x] GDB-verify original binary's `determineFixedWaves` @ 0x1cb200 second push field — done via static disasm of 0x1cb200..0x1cbe30
+- [x] Apply fix to `prefetch_helpers.cpp` enqueue logic
+- [x] Build and verify `hdawg_cvar_unroll` is fast — 4500ms → 11ms (3.7×)
+- [x] Run full test suite to verify no regressions — 257/259 preserved
+- [x] Audit `findNodeByName` BFS at `prefetch_helpers.cpp:553-568` — pushes branches/loop/next exactly once each, correct
+- [x] Record IF-107 in `incidental_findings.md`
+- [x] Commit with descriptive message
 **~0 source markers** across ~21 files (all resolved).
 **~15 placeholder field names** across 8 headers (all resolved Phase 31f).
 **~71 reinterpret_cast raw-offset accesses** across multiple files (all inherent).

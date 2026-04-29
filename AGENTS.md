@@ -1,5 +1,27 @@
 # Working Process
 
+## Symbol renaming audits
+
+When a **symbol renaming audit** is in progress, the rest of this
+document — TODO-driven phases, OVERVIEW.md updates, source/header
+edits, build verification, per-sub-phase commits — **does not apply**.
+The audit is a strictly read-only sweep that produces notes only.
+
+The detailed and authoritative description of the process lives in
+`@RULES-symbol-renaming.md`. In short:
+
+- Scope: parameters of free functions and methods, struct/class
+  members, and only-when-obviously-misleading local variables.
+- Excluded: symbols that faithfully reconstruct named symbols from the
+  original binary.
+- All reports go into `reconstructed/notes/symbol-renaming-audit/`.
+- **No edits to any file outside that folder during the audit** —
+  including source, headers, `TODO.md`, `OVERVIEW.md`, other notes
+  files, and build files.
+- No commits during the scan phase.
+- Synthesis and any subsequent renames happen as separate, explicit
+  steps after the scan returns to the user.
+
 ## Iteration Cycle
 
 1. **Execute**: Pick the next task from TODO.md. Disassemble, reconstruct,
