@@ -1727,3 +1727,54 @@ the upstream wiring is fixed; until then the body is dead code.
 - GDB-trace the original at the play→load wiring point to see where
   the load's lengthReg is populated (likely during a copy from a
   paired play node).
+
+### IF-105 update 2 (root cause located, partial fix landed)
+
+**Status**: partially fixed — wiring activated, emission body now
+runs; remaining diff is placement/ordering, not wiring.
+
+The lengthReg is set correctly on the FIRST Load node by
+`Prefetch::createLoad` (prefetch.cpp:2085, copies from the source Play
+node's lengthReg which `asmPlay` populates from `indexReg`).  However,
+`Prefetch::moveLoadsToFront` (prefetch.cpp:0x1ccad0) creates a SECOND
+Load node and BFS-walks the tree to find matching Loads (cur->type ==
+Load with matching wave name).  When found, it inherits the matched
+Load's `play` weak_ptrs into the new Load and splices the old Load out.
+The recon (and likely the original) did not previously copy
+`cur->lengthReg` into the new Load — so the new Load that survives in
+the tree, and therefore the one that reaches `placeSingleCommand` step
+4, had `lengthReg.isValid() == false` and the indexed-play emission
+path was not taken.
+
+**Fix** (this commit): in moveLoadsToFront's namesMatch block (recon
+line ~841 / binary 0x1cd313), copy `cur->lengthReg` into
+`loadNode->lengthReg` before splicing cur out.  Guarded so the assignment
+only occurs when loadNode is currently invalid and cur is valid.
+
+**Test impact**: `uhf_doc_tv_mode` now emits the
+`addiu/addi/addi/ssl/addr/wwvf/prf/wprf` block from `load_indexed_play`,
+and the spurious pre-loop `prf R2, R1, 252000` is gone.  Recon ELF
+260568 → 260728 (orig 260688).  Test still fails on three remaining
+issues:
+1. The new block is emitted BEFORE the for-loop instead of INSIDE the
+   loop body (placeLoads ordering).  Original puts it after `false5:`
+   inside the for body.
+2. Spurious `addi R3, R1, 0; ssl R3, R3` still emitted inside the loop
+   from the play_cervino_indexed path (IF-103 part 2).
+3. `prf` immediate differs (orig 2528 from `clampToCache(cacheSize/2)`
+   on smaller cacheSize; recon 126000 = full size/2).  Likely linked to
+   issue 1 — the load is placed at the wrong scope so its cache size
+   accounting differs.
+4. Register allocation differs (orig R3,R6 vs recon R3,R2).
+
+These are no longer wiring issues — they are emission-body /
+placement issues.  The dead-code activation goal of IF-105 is met.
+Suite score remains 256/259 (no regression).
+
+**Action items** (remaining, to be promoted to TODO.md):
+- Investigate placeLoads ordering for indexed-play loads (why the
+  load isn't placed inside the for-loop body).
+- Suppress the spurious play_cervino_indexed emission of addi+ssl
+  when the indexed-load has already emitted them (IF-103 part 2).
+- Verify clampToCache argument matches binary semantics for the
+  in-loop case.

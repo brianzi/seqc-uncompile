@@ -839,6 +839,19 @@ std::shared_ptr<Node> Prefetch::moveLoadsToFront(std::shared_ptr<Node> node)  //
                         if (namesMatch) {                              // 0x1cd0db-0x1cd0de
                             // 0x1cd313: Match found — link this Play to the Load
 
+                            // Inherit lengthReg from the matched Load node.  The
+                            // matched Load was created earlier by createLoad which
+                            // copied lengthReg from its source Play node (asmPlay
+                            // sets it for indexed plays).  Without this transfer,
+                            // the indexed-play emission path in placeSingleCommand
+                            // (case 1 step 4 → 0x1da77f / load_indexed_play) is
+                            // never reached because the new loadNode's lengthReg
+                            // remains invalid.  IF-105.
+                            if (!loadNode->lengthReg.isValid() &&
+                                cur->lengthReg.isValid()) {
+                                loadNode->lengthReg = cur->lengthReg;
+                            }
+
                             // 0x1cd31e-0x1cd349: Append current node's play refs
                             // to loadNode's play vector
                             // loadNode->play.insert(loadNode->play.end(),
