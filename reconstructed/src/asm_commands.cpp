@@ -133,7 +133,7 @@ AsmList::Asm AsmCommands::wvfs(Assembler::PlayDummyType type, AsmRegister reg,
             ErrorMessages::format(ErrorMessageT::ValueOverflow, "wvfs"));
 
     AsmRegister r0 = AsmRegister::Reg(0);
-    AsmRegister chosen = (toInt(r0) < toInt(reg)) ? reg : r0;
+    AsmRegister chosen = (int(r0) < int(reg)) ? reg : r0;
     return impl_->wvfs(type, chosen, length, wavetableFrontIndex_);
 }
 

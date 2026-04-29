@@ -134,10 +134,12 @@ public:
     uint64_t opcode5(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x28a610
 
     // ---- Pipeline (awg_assembler_impl_pipeline.cpp) ----
-    void parseLine(std::string const& line);
-    void parseString(std::string const& src,
-                     std::vector<std::shared_ptr<AsmExpression>>& exprs);
-    void encodeExpressions(std::vector<std::shared_ptr<AsmExpression>> const& exprs);
+    // Phase S.2 M5: removed three header-only declarations
+    // (`parseLine`, `parseString`, `encodeExpressions`) that were
+    // never defined in the recon and never referenced by any caller.
+    // `nm` on `_seqc_compiler.so` confirms the binary has no
+    // matching `AWGAssemblerImpl::parseLine/parseString/encodeExpressions`
+    // symbols either, so the prior decls were spurious.
     std::shared_ptr<AsmExpression> getAST(std::string const& src);
     void assembleExpressions(std::vector<std::shared_ptr<AsmExpression>> const& exprs,
                              std::vector<uint64_t> const& offsets);          // 0x285620

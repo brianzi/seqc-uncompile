@@ -306,8 +306,10 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
 
     // Step 4: Initialize result list and counters
     AsmList result;
-    Immediate imm1;  // initialized with float 1.0f (0x3f800000)
-    Immediate imm2;  // initialized with float 1.0f (0x3f800000)
+    // (Removed in Phase S.2 M5: dead locals `imm1`/`imm2` —
+    //  binary initialized two Immediate(1.0f) on the stack but never
+    //  read from them. They were stack scratch for an inlined
+    //  constructor and contribute nothing to the output.)
 
     // 0x266224: __tls_get_addr to get nextID pointer
     // 0x266241: wavetableFront counter = 0

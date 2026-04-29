@@ -33,7 +33,6 @@ struct AsmRegister {
     static AsmRegister magicSkipRegister() { return {0x7fffffff, true}; }
 
     bool isValid() const { return valid; }
-    int toInt() const { return value; }
     explicit operator int() const { return value; }
 
     bool operator==(const AsmRegister& o) const {
@@ -53,9 +52,10 @@ namespace zhinst {
 // Bring AsmRegister into zhinst:: so all existing unqualified uses work.
 using ::AsmRegister;
 
-// Free-function wrappers — many .cpp files call isValid(reg) and toInt(reg)
-// as free functions rather than member calls.
+// Free-function wrapper — many .cpp files call isValid(reg) as a free
+// function rather than a member call. (Phase S.2 M5: removed the
+// matching `toInt(AsmRegister)` wrapper; the binary only defines
+// `operator int()`. Use `int(reg)` at call sites instead.)
 inline bool isValid(AsmRegister r) { return r.isValid(); }
-inline int toInt(AsmRegister r) { return r.toInt(); }
 
 } // namespace zhinst

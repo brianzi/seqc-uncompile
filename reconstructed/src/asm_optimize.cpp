@@ -1249,7 +1249,10 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
         // Scan forward from next instruction — 280799..280840
         auto scanEnd = tmpList.end();
-        bool needsSplit = false;
+        // (Phase S.2 M5: removed dead local `bool needsSplit = false`
+        //  — written but never read. The "should we split?" decision
+        //  is captured by `canSplit` below, derived purely from
+        //  `cmd` and `scanEnd`.)
 
         auto scanIt = it;
         ++scanIt;

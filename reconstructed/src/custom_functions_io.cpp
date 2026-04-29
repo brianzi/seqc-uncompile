@@ -816,8 +816,11 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
 
     // @0x13ba8e..0x13bae3: addi(reg2, AsmRegister(0), Immediate(erv value))
     AsmRegister zero2(0);                                                                        // @0x13baaa
-    int trigVal2 = erv.value_.toInt();                                                           // @0x13bab6
-    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal2));                    // @0x13bae3
+    // Phase S.2 M5: dropped redundant local `trigVal2` — the binary
+    // re-runs `Value::toInt()` on the same `erv`, yielding the same
+    // value already in `trigVal`. Keep both addi emissions (they
+    // load distinct registers) but reuse the single computed value.
+    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal));                     // @0x13bae3
 
     // @0x13bae8..0x13bb0f: insert addi results into results->assemblers_
     for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));                   // @0x13bb0f
@@ -1526,14 +1529,13 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
             appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserSinePhase1)); // @0x1421fa                     // @0x1421ff..0x142227
         }
 
-        // @0x14232d..0x142369: compute node index = sineNodeBase * maxBlocks + waveformElfAlignment
-        int nodeIdx = devConst_->sineNodeBase * devConst_->maxBlocks + devConst_->waveformElfAlignment; // @0x14232d
-
-        // @0x142369..0x1426ef: add oscIndex*2 to nodeIdx, then lookup/access nodes
-        nodeIdx = oscIndex + nodeIdx * 2;                                            // @0x142369: lea r12d,[r12+rbx*2]
-
-        // @0x1426bf: node lookup and access
-        int nodeOffset = devConst_->sineNodeBase;                                        // @0x1426c2
+        // @0x14232d..0x1426ef: the binary computes a node index
+        // (`sineNodeBase * maxBlocks + waveformElfAlignment`, then
+        // `oscIndex + idx * 2`) and a `nodeOffset = sineNodeBase`,
+        // but neither value escapes the function — both are scratch
+        // for an inlined helper that the recon expresses as the
+        // textual `lookupNode(path)` call below. Phase S.2 M5
+        // dropped the dead locals.
 
         // @0x1426fa..0x142750: build path "sines/" + to_string(awgIndex) + "/phaseshift"
         // Binary @0x1426bf: loads config_->awgIndex, then:
@@ -2184,9 +2186,11 @@ std::shared_ptr<EvalResults> CustomFunctions::getUserReg(  // @0x14b480 (2070B, 
     int regNum = Resources::getRegisterNumber();                                     // @0x14b623
     AsmRegister reg(regNum);                                                         // @0x14b62e
 
-    // @0x14b633..0x14b652: luser(reg, userRegIdx)
-    int userRegInt = arg0.value_.toInt();                                             // @0x14b63e
-    auto luserEntry = asmCommands_->luser(reg, detail::AddressImpl<unsigned int>(userRegInt)); // @0x14b652
+    // @0x14b633..0x14b652: luser(reg, userRegIdx). Phase S.2 M5
+    // dropped the redundant `int userRegInt = arg0.value_.toInt()` —
+    // the binary calls `Value::toInt()` again here, but the result
+    // is identical to `userRegIdx` computed at the range check above.
+    auto luserEntry = asmCommands_->luser(reg, detail::AddressImpl<unsigned int>(userRegIdx)); // @0x14b652
     results->assemblers_.push_back(std::move(luserEntry));
 
     // @0x14b72d..0x14b747: setValue(VarType_Var, regNum)
@@ -2828,31 +2832,31 @@ std::shared_ptr<EvalResults> CustomFunctions::setPRNGRange(                     
 
     // @0x151eeb: both args must NOT be type 2 (integer literal → accepted, float needs validation)
     // Actually: type check validates non-float integer types
-    // @0x151f0b-0x151f69: range and ordering validation
-    int val0 = args[0].value_.toInt();                                                                  // @0x151f0b
-    if (val0 < 0)                                                                                       // @0x151f12
+    // @0x151f0b-0x151f69: range and ordering validation.
+    // Phase S.2 M5: hoisted `rangeMin`/`rangeMax` here — the binary
+    // re-runs `Value::toInt()` four times, which the prior recon mirrored
+    // via temporary `val0`/`val1` locals followed by re-assignment to
+    // `rangeMin`/`rangeMax`. Both pairs hold the same values, so we
+    // collapse to a single pair.
+    int rangeMin = args[0].value_.toInt();                                                              // @0x151f0b
+    if (rangeMin < 0)                                                                                   // @0x151f12
         throw CustomFunctionsValueException(
             ErrorMessages::format(PrngRangeArgs), 0);                                // @0x152463
-    int val1 = args[1].value_.toInt();                                                                  // @0x151f22
-    if (val1 < 0)                                                                                       // @0x151f29
+    int rangeMax = args[1].value_.toInt();                                                              // @0x151f22
+    if (rangeMax < 0)                                                                                   // @0x151f29
         throw CustomFunctionsValueException(
             ErrorMessages::format(PrngRangeArgs), 0);
 
-    if (val0 > 0xFFFE)                                                                                 // @0x151f37: cmp eax, 0xfffe; jg
+    if (rangeMin > 0xFFFE)                                                                              // @0x151f37: cmp eax, 0xfffe; jg
         throw CustomFunctionsValueException(
             ErrorMessages::format(PrngRangeArgs), 0);
-    if (val1 >= 0xFFFF)                                                                                 // @0x151f4a: cmp eax, 0xffff; jge
+    if (rangeMax >= 0xFFFF)                                                                             // @0x151f4a: cmp eax, 0xffff; jge
         throw CustomFunctionsValueException(
             ErrorMessages::format(PrngRangeArgs), 0);
 
-    int rangeMin = args[0].value_.toInt();                                                              // @0x151f58
-    int rangeMax = args[1].value_.toInt();                                                              // @0x151f62
     if (rangeMin > rangeMax)                                                                            // @0x151f69
         throw CustomFunctionsException(
             ErrorMessages::format(PrngRangeArgs));                                   // @0x152522
-
-    rangeMin = args[0].value_.toInt();                                                                  // @0x151f72
-    rangeMax = args[1].value_.toInt();                                                                  // @0x151f7c
 
     int regNum = Resources::getRegisterNumber();                                                        // @0x151f8f
     AsmRegister reg(regNum);
