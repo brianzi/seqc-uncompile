@@ -1835,15 +1835,87 @@ emission body, not placement-pipeline):
 
 These remain open as IF-105 follow-ups.
 
+### IF-105 update 4 (indexed-allocation cache size + clampToCache args fixed)
+
+**Status**: partially fixed — load setup now byte-correct
+(`addiu/addi/addr/wwvf/prf 2528/wprf` matches original), but
+placement and `play_cervino_indexed` body still wrong.
+
+GDB-traced the cache allocation path for tv_mode and found two
+distinct bugs:
+
+1. **Cache::allocate path selection** in `Prefetch::allocate` (the
+   "splitPath" block at recon line 1622, binary 0x1d1a9b..0x1d1efc).
+   The original takes a *separate* indexed-allocation path at binary
+   0x1d1e01 when `playNode->length != 0` — it bypasses the full-wave
+   size calculation and instead uses
+   `numSamples = playNode->length * channels * 2`.  Recon was always
+   using the full-wave formula (rounding `signal.length` to pageSize
+   then multiplying by channels and bps/8), giving cache size 84032
+   for tv_mode where original gets 2528.
+
+2. **`load_indexed_play` prf immediate** in `prefetch_placesingle.cpp`
+   at the prf call (binary 0x1dab7d-0x1dab87).  The recon called
+   `clampToCache(cacheSize/2)` but the binary loads
+   `mov 0x4(%rax),%esi` (= `cachePtr->size_`, no division) and passes
+   that directly to `clampToCache`.  Removed the `/2`.
+
+**Fixes** (this commit):
+- `prefetch.cpp` splitPath: branch on `playNode && playNode->length != 0`
+  → use indexed numSamples formula.  Otherwise keep existing full-wave
+  formula.
+- `prefetch_placesingle.cpp` load_indexed_play: drop the `/2` in the
+  clampToCache call.
+
+**Test impact**:
+- `uhf_doc_tv_mode`: 260760 → 260728 (orig 260688, 40 bytes off).
+- The `addiu R3, R0, 851969 / addi R6, R0, 0 / addi R4, R1, 0 /
+  ssl R4, R4 / addr R3, R4 / wwvf / prf R3, R6, 2528 / wprf` block
+  now appears with correct immediate (2528).
+- Suite still 256/259, no regressions.
+
+**Remaining structural issues** (not fixed in this pass):
+
+A. **Placement of load_indexed_play tempList**: the load setup is
+   currently inserted at the END of the for-loop body (after user
+   `setID/wait/setTrigger/wtrigs`), but the original places it at
+   the START of the body (right after `false5: brz R4, end7`).  The
+   placeholder used by case-1 Load may be at the playWaveIndexed
+   site instead of the loop-entry site.  Likely needs investigation
+   of where `placeholder` (Asm with matching asmId) ends up after
+   `placeLoads` runs in the no-split path.
+
+B. **Missing wvf instruction**: original emits
+   `wvf R6, R0, 2520` (R6 = load's regC, length = `playNode->length *
+   channels * 2 = 2520`).  The recon's `play_cervino_indexed`
+   currently emits `addi R3, R1, 0; ssl R3, R3` (the addi/ssl
+   computed at binary 0x1dac9a..0x1dae1d) but does NOT call
+   `Prefetch::wvfs` (visible at binary 0x1db9c9 inside the common
+   indexed-finalize 0x1db6f8..0x1db942).  The addi/ssl appear to be
+   emitted to a tempList that should be discarded or routed
+   elsewhere; only the `wvf` should reach the output stream.
+   Significant rework of the play_cervino_indexed body needed.
+
+C. **Register allocation** differs (orig R3,R6 vs recon R4,R3) —
+   downstream of the alloc-order changes from A/B.
+
+These three are no longer "instruction-level" tweaks but require
+restructuring of the play-side indexed emission and the placement
+pipeline.  Deferred.
+
 ### IF-103 / IF-105 status summary
 
 - IF-103 part 1 (`load_indexed_play` body missing): **fixed** in
   prior commit (a247dfb).
+- IF-103 part 2 (`play_cervino_indexed` extra addi+ssl, missing
+  wvf): **still open** — see IF-105 update 4 item B.
 - IF-105 wiring (`lengthReg` propagation in moveLoadsToFront):
   **fixed** in 6aa0602.  However for tv_mode the wiring is moot
   because moveLoadsToFront should not run at all (see update 3).
-- IF-105 update 3 (`getRequiredMemory` formula): **fixed** in this
-  commit.
-- Remaining tv_mode diff: emission body / placement issues
-  enumerated above; all are within `load_indexed_play` and the
-  in-loop placeholder insertion.  Test still fails (256/259).
+- IF-105 update 3 (`getRequiredMemory` formula): **fixed** in
+  prior commit.
+- IF-105 update 4 (indexed cache-size + clampToCache(/2)):
+  **fixed** in this commit.
+- Remaining tv_mode diff: 40 bytes, 3 structural issues
+  (placement, missing wvf, reg alloc) enumerated above.  Test
+  still fails (256/259).

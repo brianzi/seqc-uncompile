@@ -303,12 +303,14 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             tempList.append(wwvfAsm);
                         }
 
-                        // 0x1dab9f: prf(stRegH, stRegC, clampToCache(cacheSize/2))
+                        // 0x1dab9f: prf(stRegH, stRegC, clampToCache(cacheSize))
+                        // Binary at 0x1dab7d-0x1dab87 reads cachePtr->size_ directly
+                        // (NOT cacheSize/2) and passes to clampToCache.
                         AsmRegister stRegCI = nodeStates_[node].registerCervino;  // +0x28
                         {
-                            uint32_t halfClamped = clampToCache(cacheSizeI / 2);
+                            uint32_t clamped = clampToCache(cacheSizeI);
                             AsmList::Asm prfAsm = asmCommands_->prf(stRegHI, stRegCI,
-                                                                    (int)halfClamped);
+                                                                    (int)clamped);
                             tempList.append(prfAsm);
                         }
 

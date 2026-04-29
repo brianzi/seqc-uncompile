@@ -108,11 +108,11 @@ def dump_section(name, data, indent="  "):
         #   .arguments, .version_json, .nodes_json
         text = data.decode('ascii', errors='replace')
         print(f"{indent}{name}: ({len(data)} bytes)")
-        for line in text.split('\n')[:30]:
+        for line in text.split('\n')[:200]:
             print(f"{indent}  {line}")
         lines = text.split('\n')
-        if len(lines) > 30:
-            print(f"{indent}  ... ({len(lines) - 30} more lines)")
+        if len(lines) > 200:
+            print(f"{indent}  ... ({len(lines) - 200} more lines)")
     else:
         # Unknown binary
         print(f"{indent}{name}: {len(data)} bytes (binary)")

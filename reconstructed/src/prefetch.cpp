@@ -1620,9 +1620,10 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 }
 
             splitPath:
-                // 0x1d1a9b-0x1d1abc: Setup for getWaveformByName calls
-                // Read playNode->length (+0x90) for comparison
-                // 0x1d1a9b: cmpl $0, 0x90(%r12) — check playNode->length (only if playNode != null)
+                // 0x1d1a9b: cmpl $0x0, 0x90(%r12) — check playNode->length
+                // If non-zero (indexed-play), branch to indexed-allocation path
+                // at 0x1d1e01 which uses playNode->length * channels * 2 directly
+                // instead of the full-wave size formula.
 
                 // 0x1d1aae: Load Cache* from cache_ member (rbx)
                 auto* cachePtr = cache_.get();                         // 0x1d1aa4: mov (%rbx)
@@ -1639,12 +1640,19 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 auto curOpt2 = curRaw->waveAtCurrentDeviceIndex();     // re-read for second channel
                 auto waveIR2 = wtIR->getWaveformByName(curOpt2);      // 0x1d1c31: call getWaveformByName
 
-                // 0x1d1c36-0x1d1c8a: Compute byte size from waveIR2
-                // waveIR2->signal.channels_ (+0xC8), waveIR2->signal.length_ (+0xD0),
-                // waveIR2->deviceConstants (+0x78) → granularity (+0x40), pageSize (+0x44),
-                // bitsPerSample (+0x50)
                 uint32_t numSamplesForCache = 0;
-                {
+                if (playNode && playNode->length != 0) {
+                    // 0x1d1e01..0x1d1efc: Indexed-play allocation path.
+                    // numSamples = playNode->length * channels * 2
+                    auto* wfRaw = waveIR2.get();
+                    uint16_t channels = wfRaw->signal.channels();      // +0xC8
+                    uint32_t playLen = static_cast<uint32_t>(playNode->length); // node+0x90
+                    numSamplesForCache = playLen * channels * 2;       // 0x1d1ec5-0x1d1ec9
+                } else {
+                    // 0x1d1c36-0x1d1c8a: Compute byte size from waveIR2
+                    // waveIR2->signal.channels_ (+0xC8), waveIR2->signal.length_ (+0xD0),
+                    // waveIR2->deviceConstants (+0x78) → granularity (+0x40), pageSize (+0x44),
+                    // bitsPerSample (+0x50)
                     auto* wfRaw = waveIR2.get();
                     uint16_t channels = wfRaw->signal.channels();      // +0xC8: movzwl
                     uint32_t length = static_cast<uint32_t>(wfRaw->signal.length()); // +0xD0
