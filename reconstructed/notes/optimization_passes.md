@@ -2,7 +2,7 @@
 
 Reconstructed from Phase 6 disassembly. AsmOptimize operates on a working
 copy of the AsmList (vector<AsmList::Asm>). Passes are selected by a
-bitmask at +0x08 (flags_).
+bitmask at +0x08 (optFlags_).
 
 ## Pass Pipeline
 
@@ -88,7 +88,7 @@ For each:
 - Reads the line number from AsmList::Asm.lineNumber (+0x88)
 - Calls `errorCallback_` (for ERROR_MSG) or `warningCallback_` (for MESSAGE)
   via the std::function objects at +0x30 and +0x60
-- If flags_ is non-zero, marks the instruction as dead
+- If optFlags_ is non-zero, marks the instruction as dead
 
 The callbacks are `std::function<void(const std::string&, int)>` — they
 receive the message text and source line number.
@@ -226,13 +226,13 @@ writes the register (same write semantics as isWritten).
 
 # Register field semantics — critical correction (Phase 15c, 2026-04-23)
 
-`AssemblerInstr` register field semantics were **inverted** in early
+`Assembler` register field semantics were **inverted** in early
 reconstruction and propagated through all AsmOptimize methods. Phase 15c
 discovered and corrected this.
 
 ## Correct semantics (from disassembly of `isRead` @0x27d900 and `isWritten` @0x27d960)
 
-| Field | AssemblerInstr offset | Asm offset | Semantic |
+| Field | Assembler offset | Asm offset | Semantic |
 |-------|----------------------|------------|----------|
 | regSrc  | +0x20                | +0x28      | **READ source** (isRead checks with cmdType & 1) |
 | regDst  | +0x28                | +0x30      | **WRITE destination** (isWritten checks cmdType bit 1) |

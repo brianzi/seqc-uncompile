@@ -313,7 +313,7 @@ future development ideas.
 | Phase | Scope | Key deliverables |
 |-------|-------|-----------------|
 | 1 | AsmCommands | 83 methods, Cervino/Hirzel impls, factory |
-| 2 | Embedded types | Value, Immediate, PlayConfig, AssemblerInstr, Node, AsmList, WaveformFront |
+| 2 | Embedded types | Value, Immediate, PlayConfig, Assembler, Node, AsmList, WaveformFront |
 | 3 | Foundational types | DeviceConstants, ErrorMessages (305 entries), Signal, AWGCompilerConfig |
 | 4 | AWGAssembler | Pimpl + impl (0x170), 6 opcode encoders, full pipeline, ELF output |
 | 5 | Waveform complex | Waveform/Front/IR, WavetableManager\<T\>, WavetableFront (0x200), WavetableIR (0xC8) |
@@ -414,7 +414,7 @@ reconstructed/
 │   ├── asm_register.hpp         # AsmRegister {int value; bool valid} (8B)
 │   ├── value.hpp                # Immediate (28B), Value (40B), AddressImpl<T>, ValueException
 │   ├── address_impl.hpp         # detail::AddressImpl<T>
-│   ├── assembler.hpp            # AssemblerInstr (0x80), Assembler::Command enum (43 opcodes)
+│   ├── assembler.hpp            # class Assembler (0x80), Assembler::Command enum (43 opcodes)
 │   ├── play_config.hpp          # PlayConfig (0x20) — shift/mask constants
 │   ├── node.hpp                 # Node (0x110), NodeType enum (14 types)
 │   ├── waveform.hpp             # Waveform base (0xD8) + WaveformFile (0x40)

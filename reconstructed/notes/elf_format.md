@@ -29,7 +29,7 @@ Up to 16 named sections plus per-waveform section pairs.
 
 | Section | ELF Type | Flags | Align | Content |
 |---------|----------|-------|-------|---------|
-| `.wf_<name>` | `SHT_PROGBITS` or `SHT_NOBITS` | `SHF_ALLOC` | waveform alignment | Raw sample data from `Signal::getRawData()`. `SHT_NOBITS` when `useAbsolute && reserveOnly`. |
+| `.wf_<name>` | `SHT_PROGBITS` or `SHT_NOBITS` | `SHF_ALLOC` | waveform alignment | Raw sample data from `Signal::getRawData()`. `SHT_NOBITS` when `useMapped && reserveOnly`. |
 | `.dd_<name>` | `SHT_PROGBITS` | `SHF_ALLOC` | waveform alignment | Zero-filled padding (descriptor data). Only emitted if `padSize > 0`. |
 
 ### Fixed sections

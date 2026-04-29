@@ -410,7 +410,7 @@ instead (verified by per-symbol grep).
 - `WaveformIR(string, Type, DeviceConstants&)` (1) — body recovered from
   the `allocate_shared<WaveformIR>` dispatcher inlining at
   `0x2aa170-0x2aa20f`. Sets `name`, `waveformType`, `waveIndex=-1`,
-  `seqRegWidth = dc.waveformGranularity (dc+0x40)`, `deviceConstants=&dc`,
+  `minLengthSamples = dc.waveformGranularity (dc+0x40)`, `deviceConstants=&dc`,
   zeroes IR-extension bools, `elfAlignment_ = dc.field_24 (dc+0x24)`.
 - `WaveformFront(string, Type, DeviceConstants&)` (1) — body recovered
   from the `newWaveformFromFile` dispatcher inlining at `0x29b110-0x29b24f`.
@@ -429,7 +429,7 @@ Side findings:
 - The header comment at `waveform_front.hpp:65` claimed
   `bitsPerSample=dc[0x40]` — wrong on two counts: `dc[0x40]` is
   `waveformGranularity` (not `bitsPerSample`, which is at `dc+0x50`),
-  and the destination field is `Waveform::seqRegWidth` (`+0x70`), not
+  and the destination field is `Waveform::minLengthSamples` (`+0x70`), not
   `bitsPerSample`. Comment replaced with verified offset documentation.
 - The `WaveIndexTracker` template body referenced `wp->playIndex`, but
   the field is named `waveIndex` at `Waveform+0x6C`. Fixed.

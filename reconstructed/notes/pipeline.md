@@ -104,7 +104,7 @@ runPrefetcher(wavetableIR, asmList, asmCommands, placeholder, deviceConstants, c
 | +0x14 | 2 | uint16_t | flags_ | |
 | +0x18 | 8 | (reserved) | | |
 | +0x20 | 4 | int32_t | channelCount_ | Set by Prefetch::getUsedChannels() |
-| +0x24 | 1 | uint8_t | channelMode_ | Set by Prefetch::getUsedFourChannelMode() |
+| +0x24 | 1 | uint8_t | usedFourChannelMode_ | Set by Prefetch::getUsedFourChannelMode() |
 | +0x25 | 1 | uint8_t | usedSampleRate_ | |
 | +0x28 | 16 | shared_ptr<Node> | ast_ | |
 | +0x38 | 32 | CompilerMessageCollection | messages_ | Inline (0x20 bytes) |

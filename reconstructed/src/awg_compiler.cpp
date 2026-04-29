@@ -765,7 +765,7 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
         // hasPrecomp == 1 → mapped mode; else → absolute mode
         bool mappedMode = deviceConstants_.hasPrecomp;
         if (mappedMode) {
-            // Mapped mode: padSize=0, ByName order                      @0x108db1
+            // Mapped mode: padSize=0, ByWaveIndex order                  @0x108db1
             wavetableIR_->forEachUsedWaveform(
                 [&](std::shared_ptr<WaveformIR> const& wf) {
                     elfWriter.addWaveform(wf, SampleFormat(config_->sampleFormat),

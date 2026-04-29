@@ -257,8 +257,8 @@ arm at `0x2cfff4` zeroes the output SSO buffer.
 In the reconstructed `enum class DeviceOption` we expose value 0 as both
 `MF` (canonical) and `None` (sentinel); they are aliases. C++ identifier
 constraints force a couple of renamings:
-  - `10G` -> `TenG`
-  - `16W` -> `Sixteen_W`
+  - `10G` -> `Option10G`
+  - `16W` -> `Option16W`
 
 ### `detail::OptionCodePair<T>` — 8 bytes
 
@@ -733,7 +733,7 @@ Complete name → DeviceOption table (decoded from disasm lines 533249..533490):
   | DeviceOptionName::uhs  | "UHS"   | UHS (7)           |
   | DeviceOptionName::awg  | "AWG"   | AWG (8)           |
   | DeviceOptionName::dig  | "DIG"   | DIG (9)           |
-  | DeviceOptionName::e10g | "10G"   | TenG (10)         |
+  | DeviceOptionName::e10g | "10G"   | Option10G (10)    |
   | DeviceOptionName::qe   | "QE"    | QE (11)           |
   | DeviceOptionName::f5m  | "F5M"   | F5M (12)          |
   | DeviceOptionName::rub  | "RUB"   | RUB (13)          |
@@ -746,7 +746,7 @@ Complete name → DeviceOption table (decoded from disasm lines 533249..533490):
   | DeviceOptionName::pc   | "PC"    | PC (20)           |
   | DeviceOptionName::qc   | "QC"    | QA (21) — see asymmetry note |
   | DeviceOptionName::skw  | "SKW"   | SKW (22)          |
-  | DeviceOptionName::w16  | "16W"   | Sixteen_W (23)    |
+  | DeviceOptionName::w16  | "16W"   | Option16W (23)    |
   | DeviceOptionName::qc2ch| "QC2CH" | QC2CH (24)        |
   | DeviceOptionName::qc4ch| "QC4CH" | QC4CH (25)        |
   | DeviceOptionName::qc6ch| "QC6CH" | QC6CH (26)        |

@@ -443,7 +443,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 //
 // 1. Gets usedWaveforms_ size, allocates index array [0..N-1]
 // 2. If WaveOrder == ByIndex (2): stable_sort by wave index comparison
-//    If WaveOrder == ByName (1): stable_sort by name comparison
+//    If WaveOrder == ByWaveIndex (1): stable_sort by name comparison
 // 3. Iterates sorted indices, for each calls callback(usedWaveforms_[index])
 // 4. Frees index array
 void WavetableIR::forEachUsedWaveform(
@@ -466,7 +466,7 @@ void WavetableIR::forEachUsedWaveform(
         });
     } else if (order == WaveOrder::ByWaveIndex) {
         // Binary $_0 at 0x2ad830: reads +0x6c (waveIndex), signed cmp (jge)
-        // Despite the enum name, ByName sorts by waveIndex ascending.
+        // Despite the enum name, ByWaveIndex sorts by waveIndex ascending.
         std::stable_sort(indices, indices + count, [this](size_t a, size_t b) {
             return usedWaveforms_[a]->waveIndex < usedWaveforms_[b]->waveIndex;
         });

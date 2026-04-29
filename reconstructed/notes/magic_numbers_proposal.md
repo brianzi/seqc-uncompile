@@ -73,9 +73,9 @@ These are places where no named enum or constant exists at all.
   constexpr uint16_t VarFlag_Frozen  = 0x02;
   ```
 
-### A5. `AsmOptimize::flags_` — optimization pass bitmask
+### A5. `AsmOptimize::optFlags_` — optimization pass bitmask
 
-- **Declaration:** `asm_optimize.hpp` — `uint32_t flags_`
+- **Declaration:** `asm_optimize.hpp` — `uint32_t optFlags_`
 - **Usage:** `asm_optimize.cpp:210,226,231,237,242,505,513`
 - **Values:**
 
@@ -89,7 +89,7 @@ These are places where no named enum or constant exists at all.
 
 - **Proposal:**
   ```cpp
-  enum OptFlag : uint32_t {
+  enum OptPassFlag : uint32_t {
       Opt_JumpElim     = 0x01,
       Opt_LabelCleanup = 0x02,
       Opt_DeadCode     = 0x04,

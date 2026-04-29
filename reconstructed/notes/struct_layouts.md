@@ -25,7 +25,7 @@ analysis showing separate value and valid fields stored as 8-byte units.
 | +0x50  | 4    | int                          | wavetableFrontIndex_| Passed as lineNumber to impl_ |
 | +0x54  | 4    | int                          | numChannelGroups_   | From AWGCompilerConfig+0x1c; 1/2/4; Node vector pre-alloc |
 
-## AssemblerInstr (0x80 = 128 bytes) — CORRECTED Phase 2
+## Assembler (0x80 = 128 bytes) — CORRECTED Phase 2
 
 | Offset | Size | Type               | Name        | Notes                              |
 |--------|------|--------------------|-------------|------------------------------------|
@@ -56,11 +56,11 @@ Confirmed from ~Asm (0x122dd0), append (0x15d180), print (0x264250), serialize (
 |--------|------|--------------------|-----------------|--------------------------|
 | +0x00  | 4    | int                | sequenceId      | From createUniqueID(false) (TLS+0x40) |
 | +0x04  | 4    | (padding)          |                 |                          |
-| +0x08  | 0x80 | AssemblerInstr     | assembler       |                          |
+| +0x08  | 0x80 | Assembler          | assembler       |                          |
 | +0x88  | 4    | int                | wavetableFront  |                          |
 | +0x8C  | 4    | (padding)          |                 |                          |
 | +0x90  | 16   | shared_ptr<Node>   | node            | May be null              |
-| +0xA0  | 1    | bool               | isWaveformCmd   | (cmd-3) < 3u             |
+| +0xA0  | 1    | bool               | noOpt           | (cmd-3) < 3u             |
 | +0xA1  | 7    | (padding)          |                 | Align to 0xA8            |
 
 ## AsmList (0x18 bytes) — CONFIRMED Phase 2b
@@ -140,15 +140,15 @@ from toJson/fromJson JSON keys. Signal is 0x58 bytes (corrected Phase 3c).
 | +0x00  | 24   | std::string         | name            | "name"             | waveform name (SSO)             |
 | +0x18  | 4    | File::Type (enum)   | waveformType    | "type"             | 0=CSV, 1=RAW, 2=GEN            |
 | +0x1C  | 4    | (padding)           |                 |                    |                                 |
-| +0x20  | 24   | std::string         | secondaryName   | "functionArgs"     | function arguments string       |
+| +0x20  | 24   | std::string         | functionArgs    | "functionArgs"     | function arguments string       |
 | +0x38  | 16   | shared_ptr\<File\>  | file            | "fileName"         | source file reference           |
 | +0x48  | 1    | bool                | used            | "load"             | set by asmPlay/asmPrefetch      |
 | +0x49  | 3    | (padding)           |                 |                    |                                 |
 | +0x4C  | 4    | uint32_t            | addressValue    | "globalAddress"    | AddressImpl\<uint\>             |
 | +0x50  | 24   | std::string         | funDescrName     | "genFunc"          | generator function name         |
-| +0x68  | 4    | uint32_t            | playWord        | "playConfig"       | packed PlayConfig               |
-| +0x6C  | 4    | int32_t             | playIndex       | "waveIndex"        | -1 = compute playWord           |
-| +0x70  | 4    | int                 | seqRegWidth     | "minLengthSamples" | from DeviceConstants+0x40       |
+| +0x68  | 4    | uint32_t            | playConfig      | "playConfig"       | packed PlayConfig               |
+| +0x6C  | 4    | int32_t             | playIndex       | "waveIndex"        | -1 = compute playConfig         |
+| +0x70  | 4    | int                 | minLengthSamples| "minLengthSamples" | from DeviceConstants+0x40       |
 | +0x74  | 4    | int                 | field74         | "allocationSize"   | init=0                          |
 | +0x78  | 8    | DeviceConstants*    | deviceConstants |                    | pointer to device config         |
 | +0x80  | 0x58 | Signal              | signal          | "signal"           | see Signal layout above          |
@@ -300,7 +300,7 @@ now reflect verified semantic usage from binary disassembly.
 | +0x30  | 8    | uint64_t      | memoryDepth         | Memory address upper bound (opcode4). Always 1024 |
 | +0x38  | 4    | uint32_t      | sequencerRegBase    | HW register address (0x115c/0x0d05)             |
 | +0x3C  | 4    | uint32_t      | field_3C            | Always 6 — no known consumer                    |
-| +0x40  | 4    | uint32_t      | waveformGranularity | Waveform page cap. Also WaveformFront.seqRegWidth |
+| +0x40  | 4    | uint32_t      | waveformGranularity | Waveform page cap. Also WaveformFront.minLengthSamples |
 | +0x44  | 4    | uint32_t      | waveformPageSize    | Waveform page divisor (8–48)                    |
 | +0x48  | 4    | uint32_t      | field_48            | Values: 0, 128, 384 — no known consumer         |
 | +0x4C  | 4    | uint32_t      | field_4C            | Values: 16, 32, 96 — no known consumer          |
@@ -443,7 +443,7 @@ Allocated via `make_shared` (0xC0 bytes total including 0x18-byte control block)
 | +0x78  | 1    | bool                                      | hasLabel   | Guards labelName (optional-like)   |
 | +0x80  | 24   | std::string                               | comment    | JSON blob / comment text           |
 | +0x98  | 1    | bool                                      | hasComment | Guards comment ("noOpt" flag)      |
-| +0xA0  | 1    | bool                                      | isWaveformCmdOverride_   | isWaveformCmd override             |
+| +0xA0  | 1    | bool                                      | noOptOverride_           | noOpt override                     |
 
 Corrections from Phase 4 version:
 - +0x20 is `str2` (secondary string), not `comment` — comment is at +0x80
@@ -535,7 +535,7 @@ register allocator. Operates on a working copy of the AsmList.
 |--------|------|-------------------------------------|-------------------|------------------------------------|
 | +0x00  | 4    | uint32_t                            | numPhysicalRegs_  | Physical register count (from device) |
 | +0x04  | 4    | (padding)                           |                   |                                    |
-| +0x08  | 4    | uint32_t                            | flags_            | Optimization pass bitmask          |
+| +0x08  | 4    | uint32_t                            | optFlags_         | Optimization pass bitmask          |
 | +0x0C  | 4    | (padding)                           |                   |                                    |
 | +0x10  | 24   | std::vector\<AsmList::Asm\>         | asm_              | Working copy of instructions       |
 | +0x28  | 8    | (padding)                           |                   | Align to 0x30                      |
@@ -601,7 +601,7 @@ assembly list, and shared pointers to major subsystems.
 | +0x16  | 2    | (padding)                     |                   |                                    |
 | +0x18  | 8    | (reserved)                    |                   | Zeroed in ctor                     |
 | +0x20  | 4    | int32_t                       | channelCount_     | Set by Prefetch::getUsedChannels() |
-| +0x24  | 1    | uint8_t                       | channelMode_      | Set by getUsedFourChannelMode()    |
+| +0x24  | 1    | uint8_t                       | usedFourChannelMode_ | Set by getUsedFourChannelMode()    |
 | +0x25  | 1    | uint8_t                       | usedSampleRate_   |                                    |
 | +0x26  | 2    | (padding)                     |                   |                                    |
 | +0x28  | 16   | shared_ptr\<Node\>            | ast_              | From parse() result                |
@@ -628,7 +628,7 @@ gap-finding allocation.
 |--------|------|-----------------------------------|-------------|------------------------------------|
 | +0x00  | 4    | uint32_t                          | size_       | Total cache size (AddressImpl)     |
 | +0x04  | 4    | int32_t                           | pageSize_   | Alignment/page size                |
-| +0x08  | 1    | bool                              | appendMode_ | If true, always append at end      |
+| +0x08  | 1    | bool                              | isHirzel_   | If true, always append at end      |
 | +0x09  | 7    | (padding)                         |             |                                    |
 | +0x10  | 24   | vector\<shared_ptr\<Pointer\>\>   | pointers_   | Sorted by position                 |
 | +0x28  |      | END                               |             |                                    |
@@ -832,9 +832,9 @@ vtable @0xb04e38. Single virtual: getVariable().
 |--------|------|------|-------|-------|
 | +0x00  | 8    | vptr | vtable |  |
 | +0x08  | 16   | weak_ptr | (enable_shared_from_this) | Hidden base member |
-| +0x18  | 16   | shared_ptr\<Resources\> | parent_ |  |
+| +0x18  | 16   | shared_ptr\<Resources\> | grandparent_ |  |
 | +0x28  | 24   | std::string | name_ | "static", "global", etc. |
-| +0x40  | 16   | weak_ptr\<Resources\> | parentWeak_ |  |
+| +0x40  | 16   | weak_ptr\<Resources\> | parent_ |  |
 | +0x50  | 4    | int32_t | state_ | State enum: 0=Unset,1=Active,2=Paused,3=Locked |
 | +0x54  | 4    | VarType | returnType_ |  |
 | +0x58  | 0x28 | Value | returnValue_ |  |
@@ -862,7 +862,7 @@ vtable @0xb04e38. Single virtual: getVariable().
 
 | Offset | Size | Type | Field | Notes |
 |--------|------|------|-------|-------|
-| +0x00  | 8    | void* | reserved_ | zeroed in ctor |
+| +0x00  | 8    | void* | pad_00_ | zeroed in ctor |
 | +0x08  | 8    | __shared_weak_count* | weakRef_ | released in dtor |
 | +0x10  | 24   | std::string | name |  |
 | +0x28  | 24   | std::string | signature |  |
@@ -961,7 +961,7 @@ allocation, since it's constructing rather than reassigning.
 the literal `4`. Under the **corrected VarType mapping** established in
 Phase 19c-followup (Finding 1), 4 = `VarType_Const` — so this remains the
 "setValue with a built-in VarType" (the other overloads take it as a
-param). The disasm also writes 3 into subType (= VarSubType_Numeric).
+param). The disasm also writes 3 into subType (= VarSubType_Vect).
 
 ---
 
@@ -1056,7 +1056,7 @@ subobject's destructor handles its own variant-payload cleanup
 |   0     | `VarSubType_Default` | StaticResources general-constant init |
 |   1     | `VarSubType_Stub`    | addVar; bare-stub addX(name, st) overloads |
 |   2     | `VarSubType_FunctionArg` | Function::addArgument (parameter binding); also pre-marks +0x50 = 1 and sets +0x51 frozen-byte |
-|   3     | `VarSubType_Numeric` | full addConst, full addCvar |
+|   3     | `VarSubType_Vect` | full addConst, full addCvar |
 |   4     | `VarSubType_String`  | full addString, full addWave |
 
 (Value 2 confirmed in Phase 20e-ii Sub-phase 5b: `VarSubType_FunctionArg`
@@ -1086,7 +1086,7 @@ write to `var->reg`. This is the only observed call site that writes to
 - If `sig` is non-empty: delegates to `getFunction(name, sig)` and returns
   non-null check (full name+sig match via `sameArgString`).
 - If `sig` is empty: name-only local scan (no `sameArgString`), then
-  recurses to parent via `parentWeak_.lock()`.
+  recurses to parent via `parent_.lock()`.
 
 ### addFunction shared_from_this pattern (@0x1e9c10)
 
@@ -1785,10 +1785,10 @@ DISTINCT jump tables are used:
 | Branch | Address-source | Jump table |
 |--------|---------------|------------|
 | Fast path (`node.hasFast == true`) | `node.fastAddress()` @0x1c5470 | @958f68 |
-| Slow path (`!hasFast`) | `nodeAddressMap_.find(node)->second` (+0x100 unordered_map) | @958f50 |
+| Slow path (`!hasFast`) | `nodeIndexMap_.find(node)->second` (+0x100 unordered_map) | @958f50 |
 
 The slow path at @0x164d92 first calls `__hash_table::find` on
-`this->nodeAddressMap_`; if not found it logs a warning via
+`this->nodeIndexMap_`; if not found it logs a warning via
 `zhinst::logging::detail::LogRecord` (cold path @0x164d05) and
 exits via the warning-callback path.
 
@@ -1856,7 +1856,7 @@ dispatch on the address resolution method**:
 
     (C) hasFast == false AND dyncast fails (or data == nullptr)
                                                       @0x164d92..164da8
-        auto it = nodeAddressMap_.find(node);
+        auto it = nodeIndexMap_.find(node);
         if (it == end()) throw  @0x16a045
         addr = it->second
         switch (node.typeIdx) jump table @958f50

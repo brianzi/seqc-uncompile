@@ -24,7 +24,7 @@ The inlining sites within writeToStream:
 |---|---|---|
 | `addWaveform` mapped param | `true` | `false` |
 | padSize param | Always 0 | Computed per-waveform |
-| WaveOrder | ByName (1) | ByIndex (2) |
+| WaveOrder | ByWaveIndex (1) | ByIndex (2) |
 | Tracks offset | No | Yes (cumulative) |
 | Skips unused | No (relies on forEachUsed) | Yes (explicit check) |
 | Uses return value | No (destroys rawData) | Yes (rawData->size() for offset tracking) |
