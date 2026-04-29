@@ -1,5 +1,14 @@
 # Batch 05a — custom_functions main
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 6 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 0; B2 (borderline, deferred): 5;
+> B3 (already resolved during Phase D/R): 0;
+> B4 (wontfix / kept-as-is): 1.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Header + main `.cpp` only. The three split files
 (`custom_functions_play.cpp`, `_io.cpp`, `_playback.cpp`) are out of
 scope here and are audited separately as 05b/05c/05d.

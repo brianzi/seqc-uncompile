@@ -1,5 +1,14 @@
 # Batch 19b — resources supplementary (.cpp definitions)
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 9 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 0; B2 (borderline, deferred): 5;
+> B3 (already resolved during Phase D/R): 4;
+> B4 (wontfix / kept-as-is): 0.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Sub-batch 19b: the four supplementary `.cpp` files split out of
 `resources.cpp`. The header (`resources.hpp`) and the main
 `resources.cpp` are owned by sub-batch 19a — fields declared in the

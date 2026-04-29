@@ -1,5 +1,14 @@
 # Batch 05c part 2 — custom_functions_io (lines 2650..3433)
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 7 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 1; B2 (borderline, deferred): 3;
+> B3 (already resolved during Phase D/R): 3;
+> B4 (wontfix / kept-as-is): 0.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Follow-up to `05c_custom_functions_io.md`, covering the 10 methods
 deferred from part 1. **Read-only scan**; only this file is edited.
 

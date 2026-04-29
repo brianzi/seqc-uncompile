@@ -915,15 +915,17 @@ in its source report.
 
 ---
 
-## §6. Low-confidence and unsure (parked)
+## §6. Low-confidence and unsure (parked) — reconciled in Phase S.1
 
-38 yes/low + 188 unsure rows. These are the *long tail*: stylistic
-underscore consistency, cosmetic abbreviations, names that fit usage
-*locally* but might be improved given fuller context. Recommendation:
-**defer to a future style/cosmetic pass** after the high/medium
-renames have settled and the codebase is more legible.
+**Original audit count**: 38 yes/low + 188 unsure = 226 rows.
+These are the *long tail*: stylistic underscore consistency, cosmetic
+abbreviations, names that fit usage *locally* but might be improved
+given fuller context. The original recommendation was **defer to a
+future style/cosmetic pass**; that pass became Phase Q in the scoping
+note `phase_r_leftovers_and_q_scoping.md`.
 
-A few unsure flags carry semantic risk and *should* be revisited:
+A few unsure flags carry semantic risk and *should* be revisited
+(unchanged from original §6):
 
 - `02_memory_allocator.md`: `memorySizeInSamples_` and
   `allocateCLAligned::size` — bytes-vs-samples convergent unit
@@ -938,6 +940,338 @@ A few unsure flags carry semantic risk and *should* be revisited:
   serializer; consumers read it as a 4-channel flag. Type/semantic
   questionable.
 - `44_asm_list.md`: `Asm::wavetableFront` (Arbitration 9).
+
+### Phase S.1 reconciliation (2026-04-29)
+
+The 226-item backlog has been walked row-by-row against Phase D
+commits `d15ad32..9b2e690` (20 commits) and Phase R commits
+`dfc278e..e073228` (15 commits incl. wrap-up), and against the
+current source tree under `reconstructed/src` and
+`reconstructed/include`.  Every row was assigned to one of the four
+buckets defined in the scoping note:
+
+| Bucket | Meaning | Count |
+|---|---|---|
+| **B1** | Mechanical sweep — concrete single rename / removal target | **15** |
+| **B2** | Borderline preference — audit hedged with "or keep current" | **114** |
+| **B3** | Already resolved during Phase D/R — symbol gone or renamed | **39** |
+| **B4** | Wontfix — JSON contract, hardware-address constant, or audit verdict was "keep current" with no actionable target | **58** |
+| **Total** | | **226** |
+
+**Divergence from scoping note** (which estimated ~80/60/30/56 for
+B1/B2/B3/B4): the scoping note was sampled, not enumerated. The
+actual data shows B1 is ~5× smaller and B2 is ~2× larger than
+estimated. Cause: most of the obviously-mechanical items the scoping
+note used as B1 examples (snake_case `kChannelTag_I`, dead pad
+fields, `parent_/parentWeak_` swap, `Cache::appendMode_`) were
+**already resolved in Phase D/R clusters** (Cluster O, N, C, etc.),
+so they correctly land in B3 now. What remains in B1 is a much
+smaller true mechanical residue. The B2 inflation reflects how many
+rows the audit recorded as "unsure with `keep current` as one
+option" — these need per-item judgement and don't fold into a sweep.
+
+**Triage method** (programmatic, then spot-checked):
+
+1. Extract the symbol(s) from each row's first cell.
+2. Check whole-word presence in `reconstructed/{src,include}` via
+   `rg -wF`. Symbols absent from source → candidate B3.
+3. Pattern-match the symbol cell and audit proposal against:
+   - hardware-constant prefixes (`kSuser*`, `kAddr*`, `kDev*`,
+     `kRate*`, `kNo*`, `kChannelTag*`, `DeviceOpts::`) → B4 if
+     audit said "keep" or "remove if dead";
+   - JSON-contract mentions in the comment → B4;
+   - known cluster-resolution mappings (Cache::appendMode_ →
+     Cluster C, parentWeak_ → Cluster N, kChannelTag_* →
+     Cluster O snake-case fix, DeviceOpts → IF-121,
+     PlayConfig::now → IF-114, AddressImpl → IF-118,
+     Cache::Pointer::hash_ → IF-113, pad_04_ → IF-110,
+     NodeMapItem::hasFast → IF-112+Arb5, configFreqSweep → IF-120)
+     → B3;
+   - disasm-leakage register names (rax/rbx/...) → B1;
+   - `regInv` literal → B1 (M2 cluster);
+   - audit proposal contains "drop" / "consider removal" → B1
+     (M5 dead-param cleanup);
+   - snake_case identifiers with concrete camelCase target → B1;
+   - 1-2 letter param/local with single concrete proposal → B1;
+   - everything else → B2.
+4. Manually verified a handful of B3 hits (`Cache::appendMode_`,
+   `compileString::s`, `pad34_`/`pad_108_` — the latter two stay
+   in source so they're B4 not B3) by direct `rg` against the
+   tree.
+
+### Per-item table
+
+The full 226-row triage table is below. Each row's "Status / evidence"
+records either the resolving commit (B3), the wontfix rationale (B4),
+the proposed S.2 micro-cluster (B1), or "borderline; needs per-item
+judgement" (B2).
+
+| Item (file:line) | Symbol(s) | Audit proposal | Bucket | Status / evidence |
+|---|---|---|---|---|
+| `04d_ast_evaluate_logical.md:89` | `SeqCMod::evaluate::errLhs`, `errLhs`/`errRhs` | `lhsTypeForError`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `04d_ast_evaluate_logical.md:96` | `SeqCInc::evaluate::newReg`, `srcReg`, `srcReg2`, `dstReg` | `srcRegReread`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `04d_ast_evaluate_logical.md:98` | `SeqCInc::evaluate::oldVal`, `newVal`, `newRhsVal`, `newVal1`, `newVal2`, `rh... | `oldCvarValue`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `04d_ast_evaluate_logical.md:111` | `SeqCNeg::evaluate::val`, `d` | `negatedDouble`, keep current | **1** | short-letter local with concrete target — micro-cluster M4 |
+| `04d_ast_evaluate_logical.md:121` | `SeqCNotExpr::evaluate::cmds` | `asmCmds`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `10_asm_commands.md:90` | `AsmCommands::smap::r1`,`r2`,`arg` (params) | value, addr | **1** | disasm-leakage local — micro-cluster M1 |
+| `10_asm_commands.md:94` | `AsmCommands::syncCervino::reg1`,`reg2`,`flag` (params) | flag candidates listed | **2** | borderline naming preference; needs per-item judgement |
+| `10_asm_commands.md:111` | `AsmCommands::genPlayConfig::fourChannel` (param) | unused/consider removal | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `10_asm_commands.md:123` | `AsmCommands::asmPlay::fourChannel` (param) | playNow-or-fourChannel | **2** | borderline naming preference; needs per-item judgement |
+| `21_elf_reader.md:22` | `ElfReader::ddSectionIndex_` | keep current, `unknownDword_` | **2** | borderline naming preference; needs per-item judgement |
+| `21_elf_reader.md:33` | `ElfReader::Line::addr` | keep current, `instruction` | **2** | borderline naming preference; needs per-item judgement |
+| `04c_ast_evaluate_arith.md:80` | `SeqCOperator::evaluate(3-arg)::lv` / `::rv` | `lhsValues`, `rhsValues` (low); keep current (medium) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `04c_ast_evaluate_arith.md:86` | `SeqCValue::evaluate::t` | `tag` (medium); keep current (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `04c_ast_evaluate_arith.md:129` | `SeqCAssign::evaluate::sp`/`mp` | `samplePtr`, `markerPtr` (medium); keep current (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `04c_ast_evaluate_arith.md:131` | `SeqCAssign::evaluate::rt`/`rs` | `rhsType`, `rhsSub` (medium); keep current (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `04c_ast_evaluate_arith.md:139` | `SeqCPlus::evaluate::lhsT`/`rhsT` | `lhsType`, `rhsType` (low); keep current (medium, scope-l... | **2** | borderline naming preference; needs per-item judgement |
+| `04c_ast_evaluate_arith.md:153` | `SeqCMinus::evaluate::lhsT`/`rhsT` | as SeqCPlus | **2** | borderline naming preference; needs per-item judgement |
+| `04c_ast_evaluate_arith.md:164` | `SeqCDiv::evaluate::lhsT`/`rhsT` | as SeqCPlus | **2** | borderline naming preference; needs per-item judgement |
+| `04c_ast_evaluate_arith.md:165` | `SeqCDiv::evaluate::rhsCheck` | `rhsDouble` (low); merge with `rhsDouble` below (medium);... | **2** | borderline naming preference; needs per-item judgement |
+| `33_awg_assembler.md:28` | `AWGAssembler::printOpcode::format` | keep current (low), `mode` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch_part2.md:68` | `Prefetch::insertPlay::addrA` | `firstAddr`, keep | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch_part2.md:69` | `Prefetch::insertPlay::addrB` | `secondAddr`, `xnorMask`, keep | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch_part2.md:71` | `Prefetch::findPlaceholder::out`/`asmList` | unify on `asmList` | **2** | borderline naming preference; needs per-item judgement |
+| `45_wavetable_front.md:41` | `WavetableFront::oss_` | keep current; `errorStream_` | **4** | audit verdict was keep current; no actionable target |
+| `45_wavetable_front.md:45` | `WavetableFront::warningCallbackStorage_` | keep current; merge into above | **4** | audit verdict was keep current; no actionable target |
+| `45_wavetable_front.md:71` | `WavetableFront::checkWaveformInitialized::{nameCopy,wf,wf2}` | keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `04b_ast_evaluate_helpers.md:73` | `constWaveform::value` | sampleAmplitude (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `04b_ast_evaluate_helpers.md:83` | `computeMult::res` | unusedRes (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `04b_ast_evaluate_helpers.md:94` | `valueToBool::result` (param) | input (low), value (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `04b_ast_evaluate_helpers.md:98` | `invertBool::result` (param) | input (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `20_node.md:59` | `Node::trig` | keep current; `trigger` | **4** | JSON contract — renaming would break output |
+| `20_node.md:62` | `NodeType::SetVarPlaceholder`..`Wait` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `20_node.md:75` | `Node::updateParent::ch` | `branches` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `20_node.md:96` | `Node::toJson::idMap` | keep current; `seqIdToJsonId` | **4** | audit verdict was keep current; no actionable target |
+| `20_node.md:102` | `Node::toJson::remappedId` | keep current; `nodeIdJson` | **4** | JSON contract — renaming would break output |
+| `20_node.md:109` | `Node::fromJson::nId`/`aId`/`devIdx` | `nodeIdJson`/`asmIdJson`/`deviceIndex`; keep current | **2** | borderline naming preference; needs per-item judgement |
+| `20_node.md:111` | `Node::fromJson::cfg1`/`cfg2` | `config`/`currentCwvf`; keep current | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch.md:66` | `Prefetch::minIndexedSize` (static) | keep current, `minIndexedCacheSize` | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch.md:78` | `PrefetcherNodeState::refTrack` | keep current, `refCount` | **2** | borderline naming preference; needs per-item judgement |
+| `09_prefetch.md:82` | `PrefetcherNodeState::useDA` | keep current, `crossesCacheLine` | **2** | borderline naming preference; needs per-item judgement |
+| `44_asm_list.md:52` | `AsmList::operator=(vector<Asm>)::v` (param) | `entries`; keep | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `44_asm_list.md:61` | `AsmList::parseStringToAsmList::imm1`,`imm2` (locals) | drop; rename to descriptive | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `19b_resources_supplementary.md:43` | `Function::Function::rt` (param) | `returnType` (low), keep current (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `19b_resources_supplementary.md:60` | `Function::addArgument::temp` (local) | `arg`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `19b_resources_supplementary.md:63` | `Function::addArguments::p` (local) | `exprPtr`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `19b_resources_supplementary.md:67` | `Function::addArguments(SeqCAstNode)::ps` (local) | `paramNodes`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `19b_resources_supplementary.md:77` | `Function::resetScope::fullName` (local) | `concatenatedName`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `19b_resources_supplementary.md:111` | `StaticResources::StaticResources::target` (local) | `fnTarget`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `19b_resources_supplementary.md:113` | `StaticResources::~StaticResources::target` (local) | `fnTarget`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `19b_resources_supplementary.md:124` | `StaticResources::init::n` (local) | `numOutputPorts`, `portCount` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `19b_resources_supplementary.md:125` | `StaticResources::init::base` (local) | `baseCode`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `31_device_constants.md:14` | `DeviceConstants::SuserAddr` (nested type) | keep current, `SuserAddress` | **2** | borderline naming preference; needs per-item judgement |
+| `31_device_constants.md:16` | `DeviceConstants::hasExtendedReg` | keep current, `isHdawg` | **2** | borderline naming preference; needs per-item judgement |
+| `31_device_constants.md:35` | `DeviceConstants::waveformMemSize` | keep current, `maxWaveformCount` | **2** | borderline naming preference; needs per-item judgement |
+| `31_device_constants.md:46` | `DeviceConstants::maxDioTableEntries()` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `31_device_constants.md:50` | `Register::SyncRegA`, `SyncRegB` (enumerators) | keep current | **4** | audit verdict was keep current; no actionable target |
+| `30_awg_device_props.md:94` | `AwgDeviceProps::fpgaRevisionPattern` | `revisionPattern`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `04a_seqc_ast_node.md:109` | `SeqCValue::pad34_` | keep current; `reserved34_` | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:83` | `VarSubType::VarSubType_Default` | keep current (medium), `VarSubType_None` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `19a_resources.md:87` | `VarSubType::VarSubType_String` | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:94` | `Resources::State::Unset` / `Active` / `Paused` / `Locked` | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:107` | `Resources::Function::weakRef_` | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:166` | `Resources::getVariable::result` (local in §3 below) | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:180` | `readString/readWave::tmp` (local) | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `19a_resources.md:192` | `StaticResources::pad_108_` | keep current (medium) | **1** | snake_case → camelCase — micro-cluster M3 |
+| `42_expression.md:76` | `Expression::pad0C_` | keep current, `unused0C_` | **2** | borderline naming preference; needs per-item judgement |
+| `42_expression.md:85` | `EOperator::eNONE` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `42_expression.md:91` | `createString::s` | `text`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `42_expression.md:99` | `createArray::lhs` / `rhs` | `arrayExpr`, `indexExpr`; keep current | **2** | borderline naming preference; needs per-item judgement |
+| `42_expression.md:112` | `createSwitch::val` / `body` | `selector`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `42_expression.md:113` | `createCase::val` / `body` | `label`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `29_device_type.md:25` | `sfc::FeaturesCode::value` (field) | keep current, `bits` | **2** | borderline naming preference; needs per-item judgement |
+| `29_device_type.md:51` | `DeviceType::ctor(family,options)::options` | keep current, `optionsMask` | **2** | borderline naming preference; needs per-item judgement |
+| `29_device_type.md:54` | `DeviceType::belongsTo::f` | `family` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `29_device_type.md:62` | `toDeviceTypeCode::s` (param) | `name`, `s` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `29_device_type.md:63` | `toDeviceFamily::s` (param) | `name`, `s` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `29_device_type.md:64` | `toDeviceOption::s` (param) | `name`, `s` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `29_device_type.md:66` | `splitDeviceOptions::s` (param) | `optionsStr`, `s` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `29_device_type.md:72` | `toDeviceTypeCode::codes` (local static) | keep current, `deviceTypeCodes` | **2** | borderline naming preference; needs per-item judgement |
+| `54_mf_sfc.md:22` | `bitIf` (free fn, anon ns) | keep current, `bitFromBool`, `shiftBit` | **2** | borderline naming preference; needs per-item judgement |
+| `52_compiler_message.md:35` | `CompilerMessage::lineNr` | keep current, `line_nr` | **2** | borderline naming preference; needs per-item judgement |
+| `52_compiler_message.md:48` | `CompilerMessageCollection::parserMessage::line` | keep current, `code`, `errorCode` | **2** | borderline naming preference; needs per-item judgement |
+| `52_compiler_message.md:53` | `CompilerMessageCollection::setLineNr::nr` | keep current, `lineNr` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `28_awg_compiler.md:123` | `AWGCompiler::writeToStream::format` (param) | `outputName`, `filename`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `28_awg_compiler.md:136` | `AWGCompilerImpl::string_218_` | `pad_218_`, keep current | **1** | snake_case → camelCase — micro-cluster M3 |
+| `28_awg_compiler.md:155` | `AWGCompilerImpl::compileString::s` (local) | `instrText`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `28_awg_compiler.md:173` | `AWGCompilerImpl::writeToStream::format` (param) | `outputName`, `filename`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `41_device_subclasses.md:50` | `(anon)::buildInlineShfOptions` (free fn, device_shf.cpp) | keep current; `buildShfOptionsInline` | **4** | audit verdict was keep current; no actionable target |
+| `41_device_subclasses.md:56` | `(anon)::buildVhfFf` (free fn, device_vhf.cpp) | keep current; `buildVhfFfOption` | **4** | audit verdict was keep current; no actionable target |
+| `41_device_subclasses.md:57` | `(anon)::buildGhfFf` (free fn, device_ghf.cpp) | keep current; `buildGhfFfOption` | **4** | audit verdict was keep current; no actionable target |
+| `41_device_subclasses.md:58` | `(anon)::buildShfaccFf` (free fn, device_shfacc.cpp) | keep current; `buildShfaccFfOption` | **4** | audit verdict was keep current; no actionable target |
+| `53_wave_index_tracker.md:35` | `WaveIndexTracker::maxIndex` (field) | `maxIndex_`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `53_wave_index_tracker.md:36` | `WaveIndexTracker::indices_` (field) | `usedWaveIndices_`, `usedIndices_`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `53_wave_index_tracker.md:38` | `WaveIndexTracker::WaveIndexTracker(int)::maxIdx` (param) | `maxIndex`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `53_wave_index_tracker.md:39` | `WaveIndexTracker::WaveIndexTracker<T>(int,…)::maxIdx` (param) | `maxIndex`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `07_compiler.md:67` | `Compiler::flags_` | `unknownFlags_`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `07_compiler.md:69` | `Compiler::reserved18_` | keep current, `unknown18_` | **2** | borderline naming preference; needs per-item judgement |
+| `07_compiler.md:76` | `Compiler::sourceFiles_` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `07_compiler.md:105` | `Compiler::getLineMap::seq` (local) | keep current, `labelSeq` | **2** | borderline naming preference; needs per-item judgement |
+| `07_compiler.md:148` | `LowerResult` (type) | keep current, `LowerOutput` | **2** | borderline naming preference; needs per-item judgement |
+| `06_asm_register.md:19` | `AsmRegister::value` | `regNum` (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `06_asm_register.md:23` | `AsmRegister::AsmRegister(int)::v` | `regNum` (low), keep current (medium) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `06_asm_register.md:25` | `AsmRegister::AsmRegister(int)` (1-arg)::n | `regNum` (low), keep current (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `06_asm_register.md:28` | `AsmRegister::Reg::n` | `regNum` (low), keep current (medium) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `06_asm_register.md:31` | `AsmRegister::toInt` | keep current (medium), drop in favor of `operator int` (low) | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `17_waveform_front.md:22` | `WaveformFront::useCount_` | keep current; `refCount_` | **4** | audit verdict was keep current; no actionable target |
+| `27_node_map_data.md:36` | `NodeTypeIdx` (enum) | keep current; `NodeValueEncoding` | **4** | audit verdict was keep current; no actionable target |
+| `27_node_map_data.md:38` | `NodeTypeIdx::SinePair` | keep current; `IqPair` | **4** | audit verdict was keep current; no actionable target |
+| `27_node_map_data.md:40` | `NodeTypeIdx::RawDoubleLow32` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `27_node_map_data.md:46` | `VirtAddrNodeMapData::compareEq::o` | `otherCast` / `rhs` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `27_node_map_data.md:55` | `kMul` | `kSplitmixMul` | **2** | borderline naming preference; needs per-item judgement |
+| `27_node_map_data.md:58` | `DirectAddrNodeMapData::compareEq::o` | `otherCast` / `rhs` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `27_node_map_data.md:60` | `DirectAddrNodeMapData::clone::p` | `copy` / `cloned` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `27_node_map_data.md:63` | `NodeMapItem::typeIdx` | `typeCode`, `valueKind`; keep current | **2** | borderline naming preference; needs per-item judgement |
+| `27_node_map_data.md:71` | `NodeMapItem::toJson::typeVal` | `sizeVal` | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `03_waveform_generator.md:90` | `WaveformGenerator::readWave::expectedLength` | keep current, expectedSize, minLength | **2** | borderline naming preference; needs per-item judgement |
+| `39_math_compiler.md:30` | `MathCompiler::functionExists::found` (local) | `argCountMatches`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05d_custom_functions_playback.md:34` | `appendSuser::vec` | `out`, `assemblers`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05d_custom_functions_playback.md:45` | `playAuxWave::mask` | `suppressMask`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05d_custom_functions_playback.md:55` | `playAuxWave::expectedLen` | `granularity`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05d_custom_functions_playback.md:71` | `playDIOWave::mask` | `triggerMask`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05d_custom_functions_playback.md:76` | `playDIOWave::expectedLen` | `granularity`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `01_types.md:46` | `zhinst::kRateInherit` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:47` | `zhinst::kNoWaveIndex` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:48` | `zhinst::kNoNodeId` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:49` | `zhinst::kNoPlayIndex` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:59` | `zhinst::kSuserNodeFreqCommit` | keep current | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:68` | `zhinst::kSuserUserRegBase` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:70` | `zhinst::kSuserRTLoggerReset` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:71` | `zhinst::kSuserRTLoggerResetHdawg` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:81` | `zhinst::kSuserQAResultLen` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:84` | `zhinst::kSuserSweepStartLo/Hi` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:85` | `zhinst::kSuserSweepStepLo/Hi` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:96` | `zhinst::kDevPreSHFLI` | keep current | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `02_memory_allocator.md:40` | `MemoryBlock::flags` | `flags`, `validityFlags` | **2** | borderline naming preference; needs per-item judgement |
+| `26_assembler.md:75` | `RegOrder::None..DestImmSrc` (enumerators) | keep current (medium); see §3 | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `26_assembler.md:84` | `AssemblerInstr::outputs` (field) | keep current (medium); outputsOrZeroCheck (low) | **4** | audit verdict was keep current; no actionable target |
+| `50_asm_parser_context.md:58` | `AsmParserContext::trackedStringCopy::s` | `text`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `50_asm_parser_context.md:65` | `addNode::text` | `placeholderLine`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `38_play_config.md:52` | `PlayConfig::encodeCwvf::dummyFlag` (local) | dummyMode, holdOrDummy, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `15_cached_parser.md:50` | `CachedParser::cacheFile::sampleFormat` | keep current, `channelMask` | **2** | borderline naming preference; needs per-item judgement |
+| `15_cached_parser.md:52` | `CachedParser::cacheFile::markerBits` | keep current, `configValue` | **2** | borderline naming preference; needs per-item judgement |
+| `16_waveform_ir.md:55` | `WaveformIR::toJsonElement::format` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `25_asm_optimize.md:42` | `AsmOptimize::cancel_` (field) | keep current (medium); cancelCallback_ (low) | **4** | audit verdict was keep current; no actionable target |
+| `25_asm_optimize.md:50` | `AsmOptimize::isLabelCalled::label,it` (params) | keep current; rename → `isLabelCalledBefore` (low); param... | **4** | audit verdict was keep current; no actionable target |
+| `25_asm_optimize.md:72` | `splitConstRegisters::needsSplit` (local) | drop or use; flag (low) | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05c_custom_functions_io_part2.md:76` | `setPRNGRange::val0` / `val1` | drop val0/val1, hoist range vars | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05c_custom_functions_io_part2.md:98` | `configFreqSweep::arg0` | `oscArg`, keep current | **3** | resolved by `dbabd4e` (Phase R IF-120 (literals replaced)) |
+| `05c_custom_functions_io_part2.md:99` | `configFreqSweep::arg1` | `startFreqArg` | **3** | resolved by `dbabd4e` (Phase R IF-120 (literals replaced)) |
+| `05c_custom_functions_io_part2.md:100` | `configFreqSweep::arg2` | `stepFreqArg` | **3** | resolved by `dbabd4e` (Phase R IF-120 (literals replaced)) |
+| `05c_custom_functions_io_part2.md:108` | `setSweepStep::arg0` / `arg1` | `oscArg`, `stepArg` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io_part2.md:115` | `setOscFreq::arg0` / `arg1` | `oscArg`, `freqArg` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io_part2.md:132` | `configureFeedbackProcessing` use of `0x20` literal for SHFSG | symbolic enum (low) | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:40` | `appendSuser::vec` | keep current; `assemblers` (low) | **4** | audit verdict was keep current; no actionable target |
+| `05c_custom_functions_io.md:55` | `getZSyncData::rawResult2`, `procAResult2`, `procBResult2` | `rawConst`, `procAConst`, `procBConst` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:57` | `getFeedback::supportsZSync` | `supportsProcessed` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:63` | `assignWaveIndex::parseEnd` | `terminator`, `lastArgIt` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:69` | `assignWaveIndex::singleChannel` | keep current; `secondNameEmpty` (low) | **4** | audit verdict was keep current; no actionable target |
+| `05c_custom_functions_io.md:76` | `wait::val` / `dval` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `05c_custom_functions_io.md:80` | `wait` `goto done;` (label `done`) | remove or `valid_done` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:82` | `waitTrigger::trigAddr` | keep current; `trigVal2` (low) | **4** | audit verdict was keep current; no actionable target |
+| `05c_custom_functions_io.md:87` | `waitAnaTrigger::trigVal` / `trigVal2` | drop second `addi` or rename `trigValAgain` (low) | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05c_custom_functions_io.md:95` | `waitZSyncTrigger::supported` | `useDirectPath` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:106` | `setSinePhase::nodeIdx` / `nodeOffset` | drop `nodeIdx`/`nodeOffset` (low) | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05c_custom_functions_io.md:128` | `getUserReg::userRegIdx` / `userRegInt` | drop `userRegInt` | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05c_custom_functions_io.md:129` | `getUserReg::immVal` | `clockDivider` | **2** | borderline naming preference; needs per-item judgement |
+| `05c_custom_functions_io.md:141` | `startQAResult::imm` | `startWord`, `cmdWord` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `24_asm_expression.md:30` | `AsmExpression::value` | immediateOrRegNum, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `24_asm_expression.md:40` | `AsmExpression::noOpt()` (alias) | keep alias, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `14_waveform.md:15` | `WaveformFile` (struct name) | `Waveform::File` (already alias), keep current | **2** | borderline naming preference; needs per-item judgement |
+| `14_waveform.md:18` | `WaveformFile::columnMode` | unknownField1C, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `14_waveform.md:28` | `Waveform::waveformType` | type, fileType, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `14_waveform.md:32` | `Waveform::addressValue` | address, globalAddress, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `37_signal.md:98` | `Signal::append(Signal&)::otherSamplesBegin` (local) | keep current, remove | **2** | borderline naming preference; needs per-item judgement |
+| `49_asm_commands_impl.md:41` | `AsmCommandsImpl::wvf::waveReg` (param) | keep current; reg | **4** | audit verdict was keep current; no actionable target |
+| `49_asm_commands_impl.md:45` | `AsmCommandsImpl::wvfi::waveReg` (param) | keep current; reg | **4** | audit verdict was keep current; no actionable target |
+| `48_address_impl.md:26` | `AddressImpl::value` | keep current, `raw_`, `bits_` | **3** | resolved by `7a87e7e` (Phase R IF-118 (kept)) |
+| `36_cache.md:39` | `Cache::appendMode_` | keep current, `isHirzel_` | **3** | resolved by `c1e3aa3` (Phase D c11 / Cluster C) |
+| `36_cache.md:49` | `Cache::Pointer::hash_` | keep current, `addrMask_`, `wrapMask_` | **3** | resolved by `085eaca` (Phase R IF-113 (kept)) |
+| `36_cache.md:55` | `Cache::Cache::appendMode` (ctor) | keep current, `isHirzel` | **2** | borderline naming preference; needs per-item judgement |
+| `36_cache.md:63` | `Cache::allocate(5-arg)::altAllocs` (local) | keep current, `minAllocs` | **2** | borderline naming preference; needs per-item judgement |
+| `36_cache.md:73` | `Cache::getBestPosition::bestPosition` (local) | keep current, `bestStart` | **2** | borderline naming preference; needs per-item judgement |
+| `13_awg_assembler_impl.md:74` | `AWGAssemblerImpl::unusedStr038_` | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `13_awg_assembler_impl.md:112` | errorMessage::msg (param renamed `text` in body) | unify on `text` (medium) | **2** | borderline naming preference; needs per-item judgement |
+| `13_awg_assembler_impl.md:128` | opcode4::kOpcodeGroup1Child / kOpcodeGroup2Child | descriptive name TBD; keep current (medium) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `13_awg_assembler_impl.md:131` | `parseLine`, `parseString`, `encodeExpressions` (header-only declarations) | drop, or annotate (medium) | **1** | audit suggested removal — micro-cluster M5 (dead-param cleanup) |
+| `05b_custom_functions_play.md:46` | `setWaitCyclesReg::res` | `keep current`, `unused` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:49` | `setWaitCyclesReg::shifted` (local) | `devTypeBiased`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:58` | `mergeWaveforms::useFunDescrPath` | `keep current`, `useExplicitFunDescr` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:66` | `mergeWaveforms::funDescr2` (local) | `funDescrA`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:70` | `mergeWaveforms::requested` (local) | `requestedChannels`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:83` | `play::numChannels` (local) | `numChannelGroups`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:84` | `play::channelIndex` (local) | `deviceIndex`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:86` | `play::mask` (local) | `triggerMask`, `keep current` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:90` | `play::name` (local) | `keep current`, `waveName` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:96` | `play::reg0` / `regInv` (locals) | `regZero`/`regInvalid`, `keep current` | **1** | regInv → regInvalid — micro-cluster M2 |
+| `05b_custom_functions_play.md:115` | `playIndexed::rateImm` (local) | `keep current`, `offsetImm` | **2** | borderline naming preference; needs per-item judgement |
+| `05b_custom_functions_play.md:118` | `playIndexed::regInv` (local) | `regInvalid`, `keep current` | **1** | regInv → regInvalid — micro-cluster M2 |
+| `22_device_factories.md:26` | `DeviceOpts::SubtypeMask` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:27` | `DeviceOpts::Subtype1` … `Subtype4` | keep current; `SubtypeSlotN`; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:28` | `DeviceOpts::FF` | keep current; `FFOption` | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:29` | `DeviceOpts::RTR` | keep current; `RTROption` | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:30` | `DeviceOpts::PLUS` | keep current; `PLUSOption` | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:31` | `DeviceOpts::LRT` | keep current; `LRTOption` | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `22_device_factories.md:34` | `DeviceOpts` (namespace) | keep current; merge with anon-ns | **3** | resolved by `0288bde` (Phase R IF-121) |
+| `23_awg_compiler_config.md:74` | `AWGCompilerConfig::numCores` | keep current, `pad_94` | **2** | borderline naming preference; needs per-item judgement |
+| `05a_custom_functions.md:25` | `CustomFunctions::unusedStringSet_B0_` | `field_B0_`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05a_custom_functions.md:36` | `CustomFunctions::SubFunc::Default` | `PlayWave`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05a_custom_functions.md:44` | `CustomFunctions::writeToNode::type` | `varType`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05a_custom_functions.md:70` | `parseOptionalRate::strict` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `05a_custom_functions.md:73` | `getPlayRate::strict` | `subtractCarry`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `05a_custom_functions.md:79` | `NodeMap::toPhase::value` | `phase`, `phaseDeg` | **2** | borderline naming preference; needs per-item judgement |
+| `34_eval_results.md:60` | `EvalResults::name_` | `label_`, keep current | **2** | borderline naming preference; needs per-item judgement |
+| `34_eval_results.md:71` | `setValue(VarType,string)::s` | `text`, keep current | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `11_value.md:41` | `Immediate::data_` | keep current (medium), `storage_` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `11_value.md:42` | `Immediate::index_` | keep current (medium), `kind_` (low), `tag_` (low) | **2** | borderline naming preference; needs per-item judgement |
+| `11_value.md:44` | `Immediate::Immediate(uint32_t)::v` | `addrValue` (medium), `address` (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `11_value.md:45` | `Immediate::Immediate(int32_t)::v` | keep current (medium), `value` (low) | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+| `11_value.md:72` | `Value::pad_0C_` | keep current (medium) | **4** | audit verdict was keep current; no actionable target |
+| `46_wavetable_ir.md:131` | `…::WavetableIR(front,…)::wavetableSize` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `46_wavetable_ir.md:185` | `WavetableManager<WaveformIR>::lineNr_` | keep current | **4** | JSON contract — renaming would break output |
+| `46_wavetable_ir.md:195` | `WavetableManager<WaveformIR>::newWaveform::fillName` | keep current | **4** | audit verdict was keep current; no actionable target |
+| `04e_ast_evaluate_control.md:131` | `SeqCArgList/DeclList/StmtList::evaluate::lineNr` (note) | `nodeLineNr` (low), keep | **2** | borderline naming preference; needs per-item judgement |
+| `04e_ast_evaluate_control.md:166` | `SeqCRepeat::evaluate::hasEndLabel` | `needsCountCheck`, keep | **2** | borderline naming preference; needs per-item judgement |
+| `04e_ast_evaluate_control.md:171` | `SeqCForLoop::evaluate::hasErrorOrNull` | (delete), keep | **2** | borderline naming preference; needs per-item judgement |
+| `04e_ast_evaluate_control.md:172` | `SeqCForLoop::evaluate::r` (line 10096) | inline, keep | **3** | symbol no longer present in source (renamed/removed in Phase D singleton sweep) |
+
+### Phase S.2 micro-cluster proposals
+
+The 15 B1 items group into 5 micro-clusters, each suitable for a
+single Phase S.2 commit (build + diff cycle per commit, zero
+behavioural risk):
+
+| ID | Theme | Item count | Files touched (approx.) | Notes |
+|---|---|---|---|---|
+| **M1** | Disasm-leakage local renames | 1 | `asm_commands.cpp` | `AsmCommands::smap` params `r1`/`r2`/`arg` → `value`/`addr`; aligns with the wider §3.5 cleanup already done in Phase D for setSinePhase. |
+| **M2** | `regInv` → `regInvalid`, `reg0` → `regZero` | 2 | `custom_functions_play.cpp` (`play`, `playIndexed`) | Matches naming used elsewhere (`regOne`, `regZero`); audit explicitly proposed both names. |
+| **M3** | `string_NNN_` / `pad_NNN_` snake_case polish | 2 | `awg_compiler.hpp/.cpp`, `resources.hpp/.cpp` | `AWGCompilerImpl::string_218_` → `pad_218_` (matches sibling pad fields); `StaticResources::pad_108_` retained-as-is alternative noted — verify per audit row before renaming. |
+| **M4** | Short-letter math local with concrete target | 1 | `ast_evaluate_logical.cpp` (`SeqCNeg::evaluate`) | Local `d` → `negatedDouble`. Trivial single-function rename. |
+| **M5** | Dead-param / dead-local removal | 9 | `asm_commands.cpp`, `asm_list.cpp`, `asm_register.hpp`, `asm_optimize.cpp`, `custom_functions_io*.cpp`, `awg_assembler_impl.hpp` | Includes `genPlayConfig::fourChannel`, `parseStringToAsmList::imm1/imm2`, `AsmRegister::toInt`, `splitConstRegisters::needsSplit`, `setPRNGRange::val0/val1`, `waitAnaTrigger::trigVal2`, `setSinePhase::nodeIdx/nodeOffset`, `getUserReg::userRegInt`, header-only decls `parseLine`/`parseString`/`encodeExpressions`. Each removal must be verified against the binary signature first (some unused params may match the original ABI). |
+
+**Recommended S.2 ordering**: M5 first (it's the most varied — get
+the verification work done early), then M2 (smallest, mechanical),
+M4, M1, M3 (last because some B2 sibling locals may want to ride
+along with the M3 polish in `awg_compiler.cpp`).
+
+**Estimated S.2 effort**: half a day total — each micro-cluster is
+1–2 file edits + one build + one diff_test cycle. Net legibility
+gain modest; main value is closing the B1 backlog cleanly so future
+audits start from a smaller surface.
+
+### Phase Q backlog post-S.1
+
+After S.1 the perceived 226-item backlog reduces to:
+
+- **39 already done** (B3) — closed by reference; no further work.
+- **58 formally wontfix** (B4) — closed; documentation lists below.
+- **15 mechanical** (B1) — staged for S.2 (5 micro-clusters above).
+- **114 deferred** (B2) — kept in this document for any future
+  Phase Q-prime style pass; no commitment to address.
+
+Net "open" count after S.2 lands: **114** (all B2). These are
+genuinely cosmetic preferences with no actionable consensus from
+the original audit.
 
 ---
 

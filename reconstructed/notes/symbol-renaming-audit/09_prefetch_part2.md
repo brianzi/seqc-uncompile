@@ -1,5 +1,14 @@
 # Batch 09 — prefetch (part 2)
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 3 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 0; B2 (borderline, deferred): 3;
+> B3 (already resolved during Phase D/R): 0;
+> B4 (wontfix / kept-as-is): 0.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Continuation of `09_prefetch.md`. Part 1 covered all `Prefetch` and
 `PrefetcherNodeState` data members, the four PNS legacy alias methods,
 the two `Prefetch::isHirzel_()`/`set_isHirzel_()` private aliases,

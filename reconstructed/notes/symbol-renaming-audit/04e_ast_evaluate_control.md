@@ -1,5 +1,14 @@
 # Batch 04e — ast_evaluate_control
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 4 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 0; B2 (borderline, deferred): 3;
+> B3 (already resolved during Phase D/R): 1;
+> B4 (wontfix / kept-as-is): 0.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Sub-batch of the AST `evaluate()` audit covering control-flow and
 function-related node `evaluate()` definitions in
 `reconstructed/src/seqc_ast_nodes_evaluate.cpp`, **lines 5801–10137**.

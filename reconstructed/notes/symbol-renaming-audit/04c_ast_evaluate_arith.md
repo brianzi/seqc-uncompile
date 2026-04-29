@@ -1,5 +1,14 @@
 # Batch 04c — ast_evaluate arithmetic & value evaluate() methods
 
+> **Phase S.1 reconciliation note (2026-04-29)**: This batch contains
+> 8 row(s) from the 226-item Phase Q backlog. Per-row triage:
+> B1 (mechanical, staged for S.2): 0; B2 (borderline, deferred): 4;
+> B3 (already resolved during Phase D/R): 4;
+> B4 (wontfix / kept-as-is): 0.
+> The authoritative per-row table lives in
+> [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
+> Individual rows below are NOT struck through; consult §6 for status.
+
 Scope: `reconstructed/src/seqc_ast_nodes_evaluate.cpp` lines **2611–4690**
 only. The file's anonymous-namespace helpers used by these methods
 (`getBackReg`, `rhsCount`, `rhsTypeOrUnset`, `rhsSubOrDefault`) are
