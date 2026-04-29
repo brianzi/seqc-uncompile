@@ -1530,3 +1530,44 @@ focused.
 
 **Test impact**: 1 test still failing (`uhf_doc_tv_mode`).  Suite
 score unchanged at 255/259.
+
+---
+
+## IF-104  ELFIO NOBITS section file-offset layout differs between vendored and system builds
+
+**Source**: `shfsg_doc_ct_placeholder` test failure investigation
+**Status**: confirmed
+**Severity**: cosmetic (diff-test artifact, not a semantic bug)
+
+The original binary statically links its own copy of ELFIO, while the
+reconstruction links against the system `elfio` package.  The two
+versions assign different `sh_offset` values to `SHT_NOBITS` sections.
+
+For `shfsg_doc_ct_placeholder.seqc` (two `placeholder()` waveforms via
+`assignWaveIndex`):
+
+| section                      | original off | recon off |
+|------------------------------|--------------|-----------|
+| `.wf___placeholder_3_0` NB   | 0x1000       | 0x1000    |
+| `.wf___placeholder_4_1` NB   | 0x1000       | 0x1040    |
+| `.text` PROGBITS             | 0x1000       | 0x1040    |
+
+Both sets of headers are semantically equivalent — NOBITS sections
+declare address+size only and occupy no file bytes.  But because
+`diff_test.py` was reading raw bytes at `[sh_offset, sh_offset+size)`
+for *every* section, the byte-overlap between NOBITS and the colocated
+PROGBITS produced spurious "content" diffs.  The original happened to
+overlap NOBITS over `.text` (so both ph3 and ph4 "data" looked like
+text bytes), while the recon padded the NOBITS gap with zeros before
+`.text`.
+
+**Determinism check**: original output is byte-identical across 5
+consecutive runs — the bytes are not uninitialized memory, just
+file-offset overlap.
+
+**Fix**: `tests/diff_test.py` now special-cases `SHT_NOBITS` sections
+to compare type/size/addr instead of file bytes (the same semantics
+ELF loaders use).  No code change in `reconstructed/`.
+
+**Test impact**: `shfsg_doc_ct_placeholder` now passes, suite score
+255 → 256/259.

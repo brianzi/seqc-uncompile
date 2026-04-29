@@ -348,6 +348,27 @@ def compare_results(name: str, orig: CompileResult,
             continue
 
         so, sr = orig_secs[sname], recon_secs[sname]
+
+        # SHT_NOBITS (8) sections occupy no file space — `data` bytes read
+        # at sh_offset are meaningless (they belong to whatever PROGBITS
+        # section is colocated). Compare type/size/addr instead. This is
+        # the same semantics ELFIO/loaders use for BSS-style sections.
+        SHT_NOBITS = 8
+        if so.type == SHT_NOBITS or sr.type == SHT_NOBITS:
+            if so.type != sr.type:
+                result.section_diffs.append(SectionDiff(
+                    sname, "type",
+                    f"orig={so.type} recon={sr.type}"))
+            elif so.size != sr.size:
+                result.section_diffs.append(SectionDiff(
+                    sname, "size",
+                    f"orig={so.size} recon={sr.size} (NOBITS)"))
+            elif so.addr != sr.addr:
+                result.section_diffs.append(SectionDiff(
+                    sname, "addr",
+                    f"orig=0x{so.addr:x} recon=0x{sr.addr:x} (NOBITS)"))
+            continue
+
         if so.data == sr.data:
             continue
 
