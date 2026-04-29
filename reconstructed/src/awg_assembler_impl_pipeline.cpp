@@ -40,7 +40,7 @@ namespace zhinst {
 //   +0x80..+0x8F  (more fields)
 //   +0x90  bool noOpt             — set from !doOpt()
 //   +0x98  bool field_98
-//   +0xA0  bool isWaveformCmdOverride_          — "noOpt" flag as set by assembleString
+//   +0xA0  bool noOptOverride_          — "noOpt" flag as set by assembleString
 //   +0xB0  bool field_B0
 //   +0xB8  bool field_B8
 // Total object size: ~0xA8 bytes (within the 0xC0 alloc)

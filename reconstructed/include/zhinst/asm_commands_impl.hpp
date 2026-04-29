@@ -49,7 +49,7 @@ public:
     virtual AsmList::Asm wvft(AsmRegister reg, int arg, int lineNumber) const = 0;
 
     virtual AsmList::Asm brz(AsmRegister reg, const std::string& label,
-                         bool flag, int lineNumber) const = 0;
+                         bool noOpt, int lineNumber) const = 0;
 
     virtual AsmList::Asm ssl(AsmRegister reg, int lineNumber) const = 0;
     virtual AsmList::Asm ssr(AsmRegister reg, int lineNumber) const = 0;
@@ -79,7 +79,7 @@ public:
     AsmList::Asm wvft(AsmRegister, int, int) const override;  // throws
 
     AsmList::Asm brz(AsmRegister reg, const std::string& label,
-                 bool flag, int lineNumber) const override;   // 0xF3000000
+                 bool noOpt, int lineNumber) const override;   // 0xF3000000
 
     AsmList::Asm ssl(AsmRegister reg, int lineNumber) const override;  // 0x60000005
     AsmList::Asm ssr(AsmRegister reg, int lineNumber) const override;  // 0x60000006
@@ -109,7 +109,7 @@ public:
         // 0xFC000000
 
     AsmList::Asm brz(AsmRegister reg, const std::string& label,
-                 bool flag, int lineNumber) const override;
+                 bool noOpt, int lineNumber) const override;
         // reg==R0: 0xFE000000; else: 0xF3000000
 
     AsmList::Asm ssl(AsmRegister reg, int lineNumber) const override;

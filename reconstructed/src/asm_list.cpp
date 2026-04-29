@@ -46,7 +46,7 @@ int AsmList::Asm::createUniqueID(bool reset) {
 // Teardown order:
 // 1. Release shared_ptr<Node> at +0x90 (control block at +0x98)
 // 2. Destroy AssemblerInstr at +0x08 (tail-call to Assembler::~Assembler)
-// Scalars (sequenceId, wavetableFront, isWaveformCmd) need no destruction.
+// Scalars (sequenceId, wavetableFront, noOpt) need no destruction.
 // ============================================================================
 AsmList::Asm::~Asm() = default;  // compiler-generated matches binary
 
@@ -84,7 +84,7 @@ AsmList::~AsmList() = default;  // compiler-generated vector dtor matches binary
 // Copy-appends an Asm record to the vector.
 // Fast path (capacity available): placement-new with field-by-field copy.
 //   sequenceId (int copy), Assembler (copy ctor), wavetableFront (int copy),
-//   node (shared_ptr copy + atomic inc), isWaveformCmd (bool copy).
+//   node (shared_ptr copy + atomic inc), noOpt (bool copy).
 // Slow path: calls vector::__emplace_back_slow_path for reallocation.
 // ============================================================================
 void AsmList::append(const Asm& entry) {  // 0x15d180
@@ -165,7 +165,7 @@ void AsmList::print(bool showNode, std::ostream& os, bool showHeader) const {  /
 // Pass 2: For each entry:
 //   If opcode != -1:
 //     Emit assembler.str(true).
-//     If isWaveformCmd (+0xA0) and opcode ∉ {3,4,5}: append " #disableOpt".
+//     If noOpt (+0xA0) and opcode ∉ {3,4,5}: append " #disableOpt".
 //     Append "\n".
 //   If opcode == -1 AND node != null:
 //     Emit "placeholder # " + boost::json::serialize(node->toJson(idMap)) + "\n".
@@ -196,8 +196,8 @@ std::string AsmList::serialize() const {  // 0x2646d0
             ss << entry.assembler.str(true);
 
             // Append " #disableOpt" for waveform commands with opcode ∉ {3,4,5}
-            // Binary 0x26480e: checks isWaveformCmd, excludes (opcode-3)<2 and opcode==5
-            if (entry.isWaveformCmd && opcode != 3 && opcode != 4 && opcode != 5) {
+            // Binary 0x26480e: checks noOpt, excludes (opcode-3)<2 and opcode==5
+            if (entry.noOpt && opcode != 3 && opcode != 4 && opcode != 5) {
                 ss << " #disableOpt";
             }
 
@@ -279,7 +279,7 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 //      f. Check if expr has a "noOpt" JSON blob (byte at +0x98):
 //         If true, parse JSON from expr comment (+0x80), store into
 //         idMap<int, json::value>, then Node::fromJson → nodeMap<int, shared_ptr<Node>>.
-//         Assign node to the Asm entry, and override isWaveformCmd = true.
+//         Assign node to the Asm entry, and override noOpt = true.
 //      g. Append Asm entry to result list.
 //   6. After all expressions: iterate result entries and call
 //      Node::installPointers(nodeMap, jsonValue) for each entry that has a node.
@@ -354,7 +354,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             entry.assembler = instr;
             entry.wavetableFront = wavetableFront;
             entry.node = nullptr;
-            entry.isWaveformCmd = isWaveformCmd(instr);  // (cmd-3) < 3u
+            entry.noOpt = noOpt(instr);  // (cmd-3) < 3u
 
             result.append(entry);
 
@@ -399,7 +399,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                 entry.assembler = instr;
                 entry.wavetableFront = wavetableFront;
                 entry.node = nullptr;
-                entry.isWaveformCmd = isWaveformCmd(instr);
+                entry.noOpt = noOpt(instr);
 
                 result.append(entry);
 
@@ -418,7 +418,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                 entry.assembler = instr;
                 entry.wavetableFront = wavetableFront;
                 entry.node = nullptr;
-                entry.isWaveformCmd = isWaveformCmd(instr);
+                entry.noOpt = noOpt(instr);
 
                 result.append(entry);
 
@@ -565,14 +565,14 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                     int nodeSeqId = node->nodeId;  // +0x10
                     nodeMap[nodeSeqId] = node;
 
-                    // 0x26788f: isWaveformCmd override
-                    entry.isWaveformCmd = true;
+                    // 0x26788f: noOpt override
+                    entry.noOpt = true;
                 } else {
-                    // 0x26789d: Check expr->isWaveformCmdOverride_ (byte at +0xA0)
-                    if (expr->isWaveformCmdOverride_) {
-                        entry.isWaveformCmd = true;
+                    // 0x26789d: Check expr->noOptOverride_ (byte at +0xA0)
+                    if (expr->noOptOverride_) {
+                        entry.noOpt = true;
                     } else {
-                        entry.isWaveformCmd = isWaveformCmd(instr);
+                        entry.noOpt = noOpt(instr);
                     }
                 }
 

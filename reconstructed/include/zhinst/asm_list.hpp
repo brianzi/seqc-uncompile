@@ -48,7 +48,7 @@ public:
     //   +0x88  int             wavetableFront  — waveform table context index
     //   +0x8C  (4 bytes padding)
     //   +0x90  shared_ptr<Node> node           — AST node (16 bytes; may be null)
-    //   +0xA0  bool            isWaveformCmd   — derived: (cmd-3) < 3u
+    //   +0xA0  bool            noOpt   — derived: (cmd-3) < 3u
     //   +0xA1  (7 bytes padding to 0xA8)
     // ========================================================================
     struct Asm {
@@ -58,7 +58,7 @@ public:
         int wavetableFront = 0;           // +0x88  (dual-purpose; see lineNumber())
         // +0x8C: 4 bytes padding
         std::shared_ptr<Node> node;       // +0x90  (16 bytes: ptr + ctrl)
-        bool isWaveformCmd = false;       // +0xA0
+        bool noOpt = false;       // +0xA0
         // +0xA1..+0xA7: padding to 0xA8
 
         // The +0x88 int is dual-purpose depending on command type:
@@ -88,7 +88,7 @@ public:
         bool operator==(const Asm& other) const {
             return sequenceId == other.sequenceId
                 && wavetableFront == other.wavetableFront
-                && isWaveformCmd == other.isWaveformCmd;
+                && noOpt == other.noOpt;
         }
     };
 
@@ -105,7 +105,7 @@ public:
     //   Copy-appends an Asm record. Fast path: placement new if capacity
     //   allows; slow path: vector reallocation.
     //   Copies: sequenceId (int), Assembler (copy ctor), wavetableFront (int),
-    //   node (shared_ptr copy + atomic inc), isWaveformCmd (bool).
+    //   node (shared_ptr copy + atomic inc), noOpt (bool).
     void append(const Asm& entry);
 
     // --- print(showNode, os, showHeader) const: 0x264250
@@ -124,7 +124,7 @@ public:
     //           to entries, skipping opcode==4 and (opcode==-1 && node==null).
     //   Pass 2: For each entry:
     //     If opcode != -1: emit Assembler::str(true), optionally " #disableOpt"
-    //                      suffix if isWaveformCmd && specific opcode check.
+    //                      suffix if noOpt && specific opcode check.
     //     If opcode == -1 && node: emit "placeholder # " + node.toJson(idMap) serialized.
     //   Returns the full string.
     std::string serialize() const;

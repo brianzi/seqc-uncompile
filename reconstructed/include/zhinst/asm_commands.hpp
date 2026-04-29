@@ -56,10 +56,10 @@ public:
     // Branch
     // =====================================================================
 
-    AsmList::Asm br(const std::string& label, bool flag) const;
-    AsmList::Asm brz(AsmRegister reg, const std::string& label, bool flag) const;
-    AsmList::Asm brnz(AsmRegister reg, const std::string& label, bool flag) const;
-    AsmList::Asm brgz(AsmRegister reg, const std::string& label, bool flag) const;
+    AsmList::Asm br(const std::string& label, bool noOpt) const;
+    AsmList::Asm brz(AsmRegister reg, const std::string& label, bool noOpt) const;
+    AsmList::Asm brnz(AsmRegister reg, const std::string& label, bool noOpt) const;
+    AsmList::Asm brgz(AsmRegister reg, const std::string& label, bool noOpt) const;
 
     // =====================================================================
     // ALU register-register

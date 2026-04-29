@@ -199,8 +199,8 @@ struct AssemblerInstr {
     std::string str(bool verbose) const;
 };
 
-// isWaveformCmd: (cmd - 3) < 3u, i.e. cmd in {MESSAGE=3, 4, ERROR_MSG=5}
-inline bool isWaveformCmd(const AssemblerInstr& instr) {
+// noOpt: (cmd - 3) < 3u, i.e. cmd in {MESSAGE=3, 4, ERROR_MSG=5}
+inline bool noOpt(const AssemblerInstr& instr) {
     return (static_cast<uint32_t>(instr.cmd) - 3u) < 3u;
 }
 

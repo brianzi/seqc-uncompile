@@ -23,7 +23,7 @@ AsmList::Asm AsmCommandsImplHirzel::wwvfq(int lineNumber) const {
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WPRF;
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = false;
+    result.noOpt = false;
     return result;
 }
 
@@ -34,7 +34,7 @@ AsmList::Asm AsmCommandsImplHirzel::wprf(int lineNumber) const {
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::INVALID;  // 0xFFFFFFFF
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = false;
+    result.noOpt = false;
     return result;
 }
 
@@ -58,7 +58,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerR
 
     result.assembler.outputs.emplace_back(waveIndex);
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -85,7 +85,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
     result.assembler.outputs.emplace_back(arg);            // child[2]: val (20-bit, after registers)
 
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -99,14 +99,14 @@ AsmList::Asm AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
     result.assembler.regSrc = reg;  // binary 0x27d1e0: reg → +0x20 (regSrc)
     result.assembler.outputs.emplace_back(arg);  // binary 0x27d1eb: arg → +0x38 (outputs)
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
 // --- brz: reg==R0 → 0xFE000000 (unconditional); else → 0xF3000000 ---
 
 AsmList::Asm AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& label,
-                                     bool flag, int lineNumber) const {
+                                     bool noOpt, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
 
@@ -120,7 +120,7 @@ AsmList::Asm AsmCommandsImplHirzel::brz(AsmRegister reg, const std::string& labe
 
     result.assembler.label = label;
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = flag;
+    result.noOpt = noOpt;
     return result;
 }
 
@@ -133,7 +133,7 @@ AsmList::Asm AsmCommandsImplHirzel::ssl(AsmRegister reg, int lineNumber) const {
     result.assembler.regDst = reg;
     result.assembler.regSrc = AsmRegister::Reg(0);  // differs from Cervino
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -146,7 +146,7 @@ AsmList::Asm AsmCommandsImplHirzel::ssr(AsmRegister reg, int lineNumber) const {
     result.assembler.regDst = reg;
     result.assembler.regSrc = AsmRegister::Reg(0);  // differs from Cervino
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -159,7 +159,7 @@ AsmList::Asm AsmCommandsImplHirzel::ldiotrig(AsmRegister reg, int lineNumber) co
     result.assembler.regDst = reg;
     result.assembler.outputs.emplace_back(0x68);
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 

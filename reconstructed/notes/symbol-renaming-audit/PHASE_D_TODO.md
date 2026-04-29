@@ -20,8 +20,8 @@ its items merged into TODO.md) and removed from the audit folder.
 - [x] **Commit 3** — Cluster F (`SeqCAstNode::type` → `lineNr` cascade, ×54).
 - [x] **Commit 4** — Cluster G (binary AST node `first_`/`second_` ×8 classes; update SEQC_BINARY_IMPL macro + ctor params).
 - [x] **Commit 5** — Cluster J (Waveform JSON-key drift; 9 renames; tier-2 anchored).
-- [ ] **Commit 6** — Cluster B (`isWaveformCmd` semantic inversion → **`noOpt` / `skipOptimization`**).
-- [ ] **Commit 7** — Cluster A (`flag` → cluster-B-canonical; AsmCommands br/brz/brnz/brgz + impl/Cervino/Hirzel overrides).
+- [x] **Commit 6** — Cluster B (`isWaveformCmd` semantic inversion → **`noOpt` / `skipOptimization`**).
+- [x] **Commit 7** — Cluster A (`flag` → cluster-B-canonical; AsmCommands br/brz/brnz/brgz + impl/Cervino/Hirzel overrides).
 - [ ] **Commit 8** — Cluster K (PlayConfig producer/field swap; genPlayConfig + asmPlay + asmTable).
 - [ ] **Commit 9** — Cluster L (AsmCommandsImpl::wvf/wvfi param drift; vtable-coordinated).
 - [ ] **Commit 10** — Cluster D (`channelGrouping` → `loopUnrollLimit`; 3-leg coordinated).

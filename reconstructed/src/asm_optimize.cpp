@@ -340,7 +340,7 @@ void AsmOptimize::deadCodeElimination() {
 void AsmOptimize::oneStepJumpElimination() {
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
         // Skip instructions with noOpt flag at +0xA0
-        if (it->isWaveformCmd)
+        if (it->noOpt)
             continue;
 
         auto cmd = it->assembler.cmd;
@@ -451,7 +451,7 @@ void AsmOptimize::mergeLabels() {
 void AsmOptimize::mergeRegisterZeroing() {
     for (auto it = asm_.begin() + 1; it != asm_.end(); ++it) {
         // Skip instructions with noOpt flag
-        if (it->isWaveformCmd)
+        if (it->noOpt)
             continue;
 
         // Previous instruction must be ADDI (0x40000000)
@@ -1145,7 +1145,7 @@ cleanup:
 //     - If original cmd matches skip-bitmask 0x29 (INVALID/LABEL/cmd4):
 //       emit ONLY the original instruction (with its node shared_ptr).
 //     - Otherwise: emit the barrier entry, then emit the original instruction
-//       (with correct isWaveformCmd flag).
+//       (with correct noOpt flag).
 //     - After emitting, if original had a non-null node shared_ptr, release it.
 //
 // Pass 2 (280726-2808f2): Walk tmpList looking for splittable patterns.
@@ -1194,7 +1194,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         barrier.assembler.cmd = Assembler::INVALID;
         barrier.assembler.regDst = magicReg;
         barrier.node.reset();
-        barrier.isWaveformCmd = false;
+        barrier.noOpt = false;
 
         auto cmd = it->assembler.cmd;
         uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
@@ -1207,7 +1207,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
             orig.assembler = it->assembler;
             orig.wavetableFront = it->wavetableFront;
             orig.node = it->node;  // shared_ptr copy (ref-count bump)
-            orig.isWaveformCmd = it->isWaveformCmd;
+            orig.noOpt = it->noOpt;
             tmpList.push_back(std::move(orig));
         } else {
             // Emit barrier then original — 2805e0..280643
@@ -1218,8 +1218,8 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
             orig.assembler = it->assembler;
             orig.wavetableFront = it->wavetableFront;
             orig.node = it->node;
-            // isWaveformCmd = (cmd - 3) < 3u — 280525: add eax,0xfffffffd; cmp eax,0x3
-            orig.isWaveformCmd = (static_cast<uint32_t>(cmd) - 3u) < 3u;
+            // noOpt = (cmd - 3) < 3u — 280525: add eax,0xfffffffd; cmp eax,0x3
+            orig.noOpt = (static_cast<uint32_t>(cmd) - 3u) < 3u;
             tmpList.push_back(std::move(orig));
         }
 

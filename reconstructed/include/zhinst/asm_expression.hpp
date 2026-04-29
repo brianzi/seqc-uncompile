@@ -57,9 +57,9 @@
 //                   in parseStringToAsmList. Guards dtor destruction of
 //                   comment string.
 //   0x99    0x07  (padding)
-//   0xA0    0x01  bool                                      isWaveformCmdOverride_
-//                   isWaveformCmd override flag. When true,
-//                   parseStringToAsmList forces isWaveformCmd = true
+//   0xA0    0x01  bool                                      noOptOverride_
+//                   noOpt override flag. When true,
+//                   parseStringToAsmList forces noOpt = true
 //                   on the resulting AsmList::Asm entry.
 //   0xA1    0x07  (padding to 0xA8)
 //
@@ -117,7 +117,7 @@ struct AsmExpression {
     std::string comment;    // +0x80  comment / JSON blob string
     bool hasComment;        // +0x98  true if comment present ("noOpt" flag)
     // 7 bytes padding       // +0x99
-    bool isWaveformCmdOverride_;          // +0xA0  isWaveformCmd override flag
+    bool noOptOverride_;          // +0xA0  noOpt override flag
     // 7 bytes padding       // +0xA1 to 0xA8
 
     // Accessor aliases (forwarding methods, NOT separate storage —

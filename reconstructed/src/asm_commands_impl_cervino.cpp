@@ -30,7 +30,7 @@ AsmList::Asm AsmCommandsImplCervino::wprf(int lineNumber) const {
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WPRF;
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = false;
+    result.noOpt = false;
     return result;
 }
 
@@ -57,7 +57,7 @@ AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister marker
     // opcode3 expects children: [reg(child[0]), reg(child[1]), val(child[2])]
     result.assembler.outputs.emplace_back(waveIndex);
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -77,7 +77,7 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister marke
     result.assembler.regSrc = AsmRegister::Reg(0);
     result.assembler.outputs.emplace_back(waveIndex);  // outputs, not immediates (child order)
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -99,14 +99,14 @@ AsmList::Asm AsmCommandsImplCervino::wvft(AsmRegister, int, int) const {
 // --- brz: opcode 0xF3000000 ---
 
 AsmList::Asm AsmCommandsImplCervino::brz(AsmRegister reg, const std::string& label,
-                                      bool flag, int lineNumber) const {
+                                      bool noOpt, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::BRZ;
     result.assembler.regSrc = reg;
     result.assembler.label = label;
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = flag;  // directly stored, not computed from opcode
+    result.noOpt = noOpt;  // directly stored, not computed from opcode
     return result;
 }
 
@@ -119,7 +119,7 @@ AsmList::Asm AsmCommandsImplCervino::ssl(AsmRegister reg, int lineNumber) const 
     result.assembler.regSrc = reg;  // dst
     result.assembler.regDst = reg;  // src = same register
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -132,7 +132,7 @@ AsmList::Asm AsmCommandsImplCervino::ssr(AsmRegister reg, int lineNumber) const 
     result.assembler.regSrc = reg;
     result.assembler.regDst = reg;
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 
@@ -145,7 +145,7 @@ AsmList::Asm AsmCommandsImplCervino::ldiotrig(AsmRegister reg, int lineNumber) c
     result.assembler.regDst = reg;
     result.assembler.outputs.emplace_back(0x60);
     result.wavetableFront = lineNumber;
-    result.isWaveformCmd = isWaveformCmd(result.assembler);
+    result.noOpt = noOpt(result.assembler);
     return result;
 }
 

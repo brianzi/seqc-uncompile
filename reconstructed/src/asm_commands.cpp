@@ -56,7 +56,7 @@ AsmList::Asm AsmCommands::emitEntry(const AssemblerInstr& instr) const {
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
     result.node = nullptr;
-    result.isWaveformCmd = isWaveformCmd(instr);
+    result.noOpt = noOpt(instr);
     return result;
 }
 
@@ -67,7 +67,7 @@ AsmList::Asm AsmCommands::emitEntry(const AssemblerInstr& instr,
     result.assembler = instr;
     result.wavetableFront = overrideWavetableFront;
     result.node = nullptr;
-    result.isWaveformCmd = isWaveformCmd(instr);
+    result.noOpt = noOpt(instr);
     return result;
 }
 
@@ -77,7 +77,7 @@ AsmList::Asm AsmCommands::emitNodeEntry(NodeType type) const {
     result.assembler.cmd = Assembler::INVALID;
     result.wavetableFront = wavetableFrontIndex_;
     result.node = std::make_shared<Node>(type, result.sequenceId, numChannelGroups_);
-    result.isWaveformCmd = false;
+    result.noOpt = false;
     return result;
 }
 
@@ -159,18 +159,18 @@ AsmList::Asm AsmCommands::cwvfr(AsmRegister reg) const {
 // Branch
 // =========================================================================
 
-AsmList::Asm AsmCommands::br(const std::string& label, bool flag) const {
-    return brz(AsmRegister::Reg(0), label, flag);
+AsmList::Asm AsmCommands::br(const std::string& label, bool noOpt) const {
+    return brz(AsmRegister::Reg(0), label, noOpt);
 }
 
-AsmList::Asm AsmCommands::brz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brz"));
-    return impl_->brz(reg, label, flag, wavetableFrontIndex_);
+    return impl_->brz(reg, label, noOpt, wavetableFrontIndex_);
 }
 
-AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brnz"));
@@ -185,11 +185,11 @@ AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool f
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
     result.node = nullptr;
-    result.isWaveformCmd = flag;  // directly stored
+    result.noOpt = noOpt;  // directly stored
     return result;
 }
 
-AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool flag) const {
+AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "brgz"));
@@ -204,7 +204,7 @@ AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool f
     result.assembler = instr;
     result.wavetableFront = wavetableFrontIndex_;
     result.node = nullptr;
-    result.isWaveformCmd = flag;
+    result.noOpt = noOpt;
     return result;
 }
 
@@ -409,13 +409,13 @@ std::vector<AsmList::Asm> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     instr.outputs.emplace_back(static_cast<int32_t>(uval & 0xFFF));  // binary: → outputs(+0x38)
 
     AsmList::Asm entry1 = emitEntry(instr);
-    entry1.isWaveformCmd = true;  // forced at 0x274023
+    entry1.noOpt = true;  // forced at 0x274023
 
     // Upper 20 bits via ADDIU
     uint32_t upper = uval >> 12;
     AsmList::Asm entry2 = aluiu(Assembler::ADDIU, dst, dst,
                             Immediate(static_cast<int32_t>(upper)));
-    entry2.isWaveformCmd = true;  // forced at 0x27402a
+    entry2.noOpt = true;  // forced at 0x27402a
 
     result.push_back(std::move(entry1));
     result.push_back(std::move(entry2));
@@ -816,7 +816,7 @@ AsmList AsmCommands::unsyncCervino() const {
     entry1.assembler = instr1;                        // 0x276f7d: copy ctor
     entry1.wavetableFront = wfIndex1;                 // 0x276f89
     entry1.node = nullptr;                            // 0x276f97
-    entry1.isWaveformCmd = false;                     // 0x276fad: (ST-3) >= 3
+    entry1.noOpt = false;                     // 0x276fad: (ST-3) >= 3
     result.push_back(std::move(entry1));
 
     // 0x277019: Read wavetableFrontIndex_ again
@@ -831,7 +831,7 @@ AsmList AsmCommands::unsyncCervino() const {
     entry2.assembler = instr2;                        // 0x277074: copy ctor
     entry2.wavetableFront = wfIndex2;                 // 0x27707c
     entry2.node = nullptr;                            // 0x27708a
-    entry2.isWaveformCmd = false;                     // 0x2770a0: (ST-3) >= 3
+    entry2.noOpt = false;                     // 0x2770a0: (ST-3) >= 3
     result.push_back(std::move(entry2));
 
     // 0x277103-0x27711e: Destroy local AssemblerInstrs
