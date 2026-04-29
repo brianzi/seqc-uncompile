@@ -22,7 +22,7 @@ its items merged into TODO.md) and removed from the audit folder.
 - [x] **Commit 5** — Cluster J (Waveform JSON-key drift; 9 renames; tier-2 anchored).
 - [x] **Commit 6** — Cluster B (`isWaveformCmd` semantic inversion → **`noOpt` / `skipOptimization`**).
 - [x] **Commit 7** — Cluster A (`flag` → cluster-B-canonical; AsmCommands br/brz/brnz/brgz + impl/Cervino/Hirzel overrides).
-- [ ] **Commit 8** — Cluster K (PlayConfig producer/field swap; genPlayConfig + asmPlay + asmTable).
+- [x] **Commit 8** — Cluster K (PlayConfig producer/field swap; genPlayConfig + asmPlay + asmTable).
 - [ ] **Commit 9** — Cluster L (AsmCommandsImpl::wvf/wvfi param drift; vtable-coordinated).
 - [ ] **Commit 10** — Cluster D (`channelGrouping` → `loopUnrollLimit`; 3-leg coordinated).
 - [ ] **Commit 11** — Cluster C (Hirzel family + Cache aliasing; drop both alias families; `Cache::appendMode_` → `isHirzel_`; `Cache::getBestPosition::appendMode` → `gapScan`). After this, Arbitration 10 can be resolved.

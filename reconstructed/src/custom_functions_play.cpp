@@ -1134,15 +1134,15 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   rdi = sret (AsmList::Asm return)
     //   rsi = asmCommands_ (this)
     //   rdx = &waveforms vector
-    //   ecx = 0                               → nameIndex = 0
+    //   ecx = 0                               → deviceIndex = 0
     //   r8b = (subFunc == Aux)                → isHold
     //   r9b = (subFunc == DigTrigger)         → fourChannel
-    //   stack[0] = false                      → isBool
-    //   stack[1] = rate                       → holdCount
+    //   stack[0] = false                      → hold
+    //   stack[1] = rate                       → rate
     //   stack[2] = triggerMask (r13=0x3fff)   → suppress
-    //   stack[3] = (subFunc == Aux)           → isHoldMode
-    //   stack[4] = indexReg                   → reg
-    //   stack[5] = waveIndex                  → regVal
+    //   stack[3] = (subFunc == Aux)           → is4Channel
+    //   stack[4] = indexReg                   → lengthReg
+    //   stack[5] = waveIndex                  → length
     //   stack[6] = AsmRegister(-1)            → reg2
     //   stack[7] = 0                          → trigger
     //
@@ -1150,7 +1150,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // and fourChannel register args were decoded from the sete/cmp
     // pattern but the exact subFunc comparison value at each site
     // has not been independently verified against the raw disasm bytes.
-    // The stack args (isBool through trigger) are confident.
+    // The stack args (hold through trigger) are confident.
     AsmRegister regInv(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
     if (combined) {
@@ -1158,15 +1158,15 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
     AsmList::Asm playEntry = asmCommands_->asmPlay(
         std::move(waveforms),
-        /*nameIndex=*/0,
+        /*deviceIndex=*/0,
         /*isHold=*/(subFunc == SubFunc::Aux),                        // r8b: isAux flag
         /*fourChannel=*/(subFunc == SubFunc::DigTrigger),             // r9b
-        /*isBool=*/false,                                            // stack[0]
-        /*holdCount=*/rate,                                          // stack[1]
+        /*hold=*/false,                                              // stack[0]
+        /*rate=*/rate,                                               // stack[1]
         /*suppress=*/static_cast<unsigned int>(triggerMask),         // stack[2]: r13
-        /*isHoldMode=*/(subFunc == SubFunc::Aux),                    // stack[3]
+        /*is4Channel=*/(subFunc == SubFunc::Aux),                    // stack[3]
         indexReg,                                                    // stack[4]
-        /*regVal=*/waveIndex,                                        // stack[5]
+        /*length=*/waveIndex,                                        // stack[5]
         regInv,                                                      // stack[6]
         /*trigger=*/0u);                                             // stack[7]: @0x162343
 

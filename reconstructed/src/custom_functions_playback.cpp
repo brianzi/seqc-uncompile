@@ -105,9 +105,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDigTrigger(  // @0x1386a0 
 //     are filled with a `WaveformGenerator::call("zeros", {Value(length)})`
 //     placeholder whose length is taken from the FIRST assigned waveform's
 //     `getWaveformSampleLength()`.
-//   * The asmPlay arguments are fixed: nameIndex=0, isHold/fourChannel/isBool
-//     all false, holdCount=rate, suppress=mask, isHoldMode=TRUE, regs are
-//     (AsmRegister(0), regVal=0, AsmRegister(-1), trigger=0).  Mask is a
+//   * The asmPlay arguments are fixed: deviceIndex=0, isHold/fourChannel/hold
+//     all false, rate=rate, suppress=mask, is4Channel=TRUE, regs are
+//     (AsmRegister(0), length=0, AsmRegister(-1), trigger=0).  Mask is a
 //     compile-time constant: 0x3FFF (empty-assignments path) or 0x3FC3
 //     (merge path).
 //
@@ -179,7 +179,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         // ---- Phase 8: pick this device's channel slot — @0x1357f7..0x135818 -
         int channelIndex = config_->deviceIndex;                       // @0x1357fa
         auto& assignments = playArgs.waveAssignments_[channelIndex];   // @0x135812
-        // Spill `rate` for later use as asmPlay's holdCount @0x1357ec.
+        // Spill `rate` for later use as asmPlay's rate @0x1357ec.
 
         std::shared_ptr<WaveformFront> combinedWf;                     // [rbp-0xe0]
         unsigned int mask = 0x3FFF;                                    // r15d default
@@ -306,27 +306,27 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             // 8 stack args after the 6 register args) is:
             //   trigger    = 0
             //   reg2       = regInv
-            //   regVal     = 0
-            //   reg        = reg
-            //   isHoldMode = true     (push 0x1)        ← AUX-SPECIFIC
+            //   length     = 0
+            //   lengthReg  = reg
+            //   is4Channel = true     (push 0x1)        ← AUX-SPECIFIC
             //   suppress   = mask     (r15)
-            //   holdCount  = rate     (from [rbp-0x1f8])
-            //   isBool     = false
+            //   rate       = rate     (from [rbp-0x1f8])
+            //   hold       = false
             // Register args:
-            //   nameIndex  = 0    (xor ecx,ecx)
+            //   deviceIndex= 0    (xor ecx,ecx)
             //   isHold     = false (xor r8d,r8d)
             //   fourChannel= false (xor r9d,r9d)
             auto asmEntry = asmCommands_->asmPlay(
                 std::move(waveforms),
-                /*nameIndex=*/0,
+                /*deviceIndex=*/0,
                 /*isHold=*/false,
                 /*fourChannel=*/false,
-                /*isBool=*/false,
-                /*holdCount=*/rate,
+                /*hold=*/false,
+                /*rate=*/rate,
                 /*suppress=*/mask,
-                /*isHoldMode=*/true,
+                /*is4Channel=*/true,
                 reg,
-                /*regVal=*/0,
+                /*length=*/0,
                 regInv,
                 /*trigger=*/0);                                          // @0x1360de
 
@@ -405,10 +405,10 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 //       if combinedWf is null.
 //   12. Build the AsmCommands::asmPlay call with a single-element
 //       waveforms vector wrapping combinedWf:
-//         asmPlay(waveforms, /*nameIndex*/0, /*isHold*/false,
-//                 /*fourChannel*/false, /*isBool*/false,
-//                 /*holdCount*/rate, /*suppress*/0, /*isHoldMode*/false,
-//                 AsmRegister(0), /*regVal*/mask, AsmRegister(-1),
+//         asmPlay(waveforms, /*deviceIndex*/0, /*isHold*/false,
+//                 /*fourChannel*/false, /*hold*/false,
+//                 /*rate*/rate, /*suppress*/0, /*is4Channel*/false,
+//                 AsmRegister(0), /*length*/mask, AsmRegister(-1),
 //                 /*trigger*/0).
 //   13. Append the asm entry into results->assemblers_.
 //
@@ -590,19 +590,19 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             // The argument list pushed at @0x13702b..0x13705e (right-to-left):
             //   trigger    = 0
             //   reg2       = regInv (AsmRegister(-1))
-            //   regVal     = rate (from [rbp-0xa8])
-            //   reg        = reg0  (AsmRegister(0))
-            //   isHoldMode = false (push 0)
-            //   holdCount  = mask  (r12 — the 14-bit trigger mask)
+            //   length     = rate (from [rbp-0xa8])
+            //   lengthReg  = reg0  (AsmRegister(0))
+            //   is4Channel = false (push 0)
+            //   rate       = mask  (r12 — the 14-bit trigger mask)
             //   suppress   = mask  (from [rbp-0x98] — same mask spilled earlier)
-            //   isBool     = false (push 0)
+            //   hold       = false (push 0)
             // Followed by register args:
-            //   nameIndex  = 0    (xor ecx,ecx)
+            //   deviceIndex= 0    (xor ecx,ecx)
             //   isHold     = dryRun (r8b from [rbp-0x60])
             //   fourChannel= false (xor r9d,r9d)
             //
             // NOTE: the exact packing of (mask, rate) onto the
-            // (holdCount, suppress, regVal, trigger) tuple is non-trivial
+            // (rate, suppress, length, trigger) tuple is non-trivial
             // — the binary spills three different ints onto the stack and
             // the order doesn't directly mirror the asmPlay declaration
             // we have in asm_commands.hpp.  The mapping here is a best
@@ -610,15 +610,15 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             // re-read of asmPlay's prologue is needed to confirm.
             auto asmEntry = asmCommands_->asmPlay(
                 std::move(waveforms),
-                /*nameIndex=*/0,
+                /*deviceIndex=*/0,
                 /*isHold=*/dryRun,
                 /*fourChannel=*/false,
-                /*isBool=*/false,
-                /*holdCount=*/mask,
+                /*hold=*/false,
+                /*rate=*/mask,
                 /*suppress=*/static_cast<unsigned int>(mask),
-                /*isHoldMode=*/false,
+                /*is4Channel=*/false,
                 reg0,
-                /*regVal=*/rate,
+                /*length=*/rate,
                 regInv,
                 /*trigger=*/0);                                            // @0x13705e
 
@@ -974,8 +974,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
     AsmRegister regArg(regNum);                                                  // @0x138988: AsmRegister(ebx)
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
-        false /*isHold*/, false /*fourChannel*/, false /*isBool*/,
-        rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
+        false /*isHold*/, false /*fourChannel*/, false /*hold*/,
+        rate, 0x3FFF /*suppress*/, false /*is4Channel*/,
         reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain (binary 0x138a4b-0x138a86)
     auto playNode = asmEntry.node;  // copy shared_ptr before move
@@ -1024,8 +1024,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playHold(                         
     AsmRegister regArg(regNum);
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
-        false /*isHold — binary 0x1391b8: xor r8d*/, false /*fourChannel*/, true /*isBool — binary 0x1391d7: push $0x1*/,
-        rate, 0x3FFF /*suppress*/, false /*isHoldMode*/,
+        false /*isHold — binary 0x1391b8: xor r8d*/, false /*fourChannel*/, true /*hold — binary 0x1391d7: push $0x1*/,
+        rate, 0x3FFF /*suppress*/, false /*is4Channel*/,
         reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain
     auto playNode = asmEntry.node;

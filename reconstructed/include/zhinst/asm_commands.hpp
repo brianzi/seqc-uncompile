@@ -199,20 +199,20 @@ public:
     // =====================================================================
 
     PlayConfig genPlayConfig(const std::shared_ptr<WaveformFront>& wvf,
-                             bool isHold, bool fourChannel, bool isFourChannelBool,
-                             bool isBool, int holdCount, unsigned int suppress,
-                             bool isHoldMode, unsigned int trigger) const;
+                             bool isHold, bool fourChannel, bool playNow,
+                             bool hold, int rate, unsigned int suppress,
+                             bool is4Channel, unsigned int trigger) const;
 
     AsmList::Asm asmPlay(std::vector<std::shared_ptr<WaveformFront>> waveforms,
-                     int nameIndex, bool isHold, bool fourChannel, bool isBool,
-                     int holdCount, unsigned int suppress, bool isHoldMode,
-                     AsmRegister reg, int regVal, AsmRegister reg2,
+                     int deviceIndex, bool isHold, bool fourChannel, bool hold,
+                     int rate, unsigned int suppress, bool is4Channel,
+                     AsmRegister lengthReg, int length, AsmRegister reg2,
                      unsigned int trigger);
 
     AsmList::Asm asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
-                      int nameIndex, bool isHold, bool fourChannel,
-                      int holdCount, unsigned int suppress, bool isHoldMode,
-                      AsmRegister reg, int regVal);
+                      int deviceIndex, bool isHold, bool fourChannel,
+                      int rate, unsigned int suppress, bool is4Channel,
+                      AsmRegister lengthReg, int length);
 
     // =====================================================================
     // Misc

@@ -959,30 +959,30 @@ AsmList::Asm AsmCommands::asmPrefetch(std::shared_ptr<WaveformFront> wvf,
 
 PlayConfig AsmCommands::genPlayConfig(
     const std::shared_ptr<WaveformFront>& wvf,
-    bool isHold, bool fourChannel, bool isFourChannelBool,
-    bool isBool, int holdCount, unsigned int suppress,
-    bool isHoldMode, unsigned int trigger) const
+    bool isHold, bool fourChannel, bool playNow,
+    bool hold, int rate, unsigned int suppress,
+    bool is4Channel, unsigned int trigger) const
 {
     // Disassembly: 0x2789a0
     // Field mapping verified from struct writes at 0x278b00-0x278b27:
     //   +0x00 channelMask = computed from channels (r13d)
-    //   +0x04 rate        = holdCount param (r11d from rbp+0x18)
+    //   +0x04 rate        = rate param (r11d from rbp+0x18)
     //   +0x08 suppress    = suppress param (r10d from rbp+0x20)
-    //   +0x0C is4Channel  = isHoldMode param (r9b from rbp+0x28)
+    //   +0x0C is4Channel  = is4Channel param (r9b from rbp+0x28)
     //   +0x10 markerBits  = computed from marker data (ecx)
     //   +0x14 trigger     = trigger param (edx from rbp+0x30)
     //   +0x18 precompFlags = 0 (literal)
-    //   +0x1C now         = isFourChannelBool param (bl from r9 at entry)
-    //   +0x1D hold        = isBool param (dil from rbp+0x10)
+    //   +0x1C now         = playNow param (bl from r9 at entry)
+    //   +0x1D hold        = hold param (dil from rbp+0x10)
     //   +0x1E dummy       = computed from wf==null or marker logic (r8b)
     PlayConfig config;
-    config.rate = holdCount;                // rbp+0x18 → +0x04
+    config.rate = rate;                     // rbp+0x18 → +0x04
     config.suppress = suppress;             // rbp+0x20 → +0x08
-    config.is4Channel = isHoldMode;         // rbp+0x28 → +0x0C
+    config.is4Channel = is4Channel;         // rbp+0x28 → +0x0C
     config.trigger = trigger;               // rbp+0x30 → +0x14
     config.precompFlags = 0;                // literal   → +0x18
-    config.now = isFourChannelBool;         // r9→ebx→bl → +0x1C
-    config.hold = isBool;                   // rbp+0x10 → +0x1D
+    config.now = playNow;                   // r9→ebx→bl → +0x1C
+    config.hold = hold;                     // rbp+0x10 → +0x1D
 
     WaveformFront* wf = wvf.get();
     if (!wf) {
@@ -1045,9 +1045,9 @@ PlayConfig AsmCommands::genPlayConfig(
 
 AsmList::Asm AsmCommands::asmPlay(
     std::vector<std::shared_ptr<WaveformFront>> waveforms,
-    int nameIndex, bool isHold, bool fourChannel, bool isBool,
-    int holdCount, unsigned int suppress, bool isHoldMode,
-    AsmRegister reg, int regVal, AsmRegister reg2,
+    int deviceIndex, bool isHold, bool fourChannel, bool hold,
+    int rate, unsigned int suppress, bool is4Channel,
+    AsmRegister lengthReg, int length, AsmRegister reg2,
     unsigned int trigger)
 {
     AsmList::Asm result = emitNodeEntry(NodeType::Play);
@@ -1061,7 +1061,7 @@ AsmList::Asm AsmCommands::asmPlay(
     // waveforms it stays at -1 (from Node ctor). This causes the downstream
     // getWaveformByName lookup to return null → dummy=true.
     if (!waveforms.empty()) {
-        node->deviceIndex = nameIndex;
+        node->deviceIndex = deviceIndex;
         node->wavesPerDev.clear();
         for (auto& wvf : waveforms) {
             WaveformFront* wf = wvf.get();
@@ -1075,18 +1075,18 @@ AsmList::Asm AsmCommands::asmPlay(
 
     // Compute play config
     std::shared_ptr<WaveformFront> currentWvf;
-    if (nameIndex >= 0 && nameIndex < static_cast<int>(waveforms.size())) {
-        currentWvf = waveforms[nameIndex];
+    if (deviceIndex >= 0 && deviceIndex < static_cast<int>(waveforms.size())) {
+        currentWvf = waveforms[deviceIndex];
     }
 
     node->config = genPlayConfig(currentWvf, isHold, fourChannel,
-                                       fourChannel, isBool, holdCount,
-                                       suppress, isHoldMode, trigger);
+                                       fourChannel, hold, rate,
+                                       suppress, is4Channel, trigger);
 
     // Set register info
-    node->lengthReg = reg;
+    node->lengthReg = lengthReg;
     node->indexOffsetReg = reg2;
-    node->length = regVal;
+    node->length = length;
 
     // Mark waveform as used and compute playConfig.
     //
@@ -1104,25 +1104,25 @@ AsmList::Asm AsmCommands::asmPlay(
 }
 
 AsmList::Asm AsmCommands::asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
-                                int nameIndex, bool isHold, bool fourChannel,
-                                int holdCount, unsigned int suppress,
-                                bool isHoldMode, AsmRegister reg, int regVal) {
+                                int deviceIndex, bool isHold, bool fourChannel,
+                                int rate, unsigned int suppress,
+                                bool is4Channel, AsmRegister lengthReg, int length) {
     AsmList::Asm result = emitNodeEntry(NodeType::Table);
     Node* node = result.node.get();
 
     node->config = genPlayConfig(wvf, isHold, fourChannel, fourChannel,
-                                       isHoldMode, holdCount, suppress,
+                                       is4Channel, rate, suppress,
                                        false, 0);
 
-    node->lengthReg = reg;
-    node->length = regVal;
+    node->lengthReg = lengthReg;
+    node->length = length;
 
     if (wvf) {
         wvf->used = true;
-        // Copy waveform name into node->wavesPerDev[nameIndex]
+        // Copy waveform name into node->wavesPerDev[deviceIndex]
     }
 
-    node->deviceIndex = nameIndex;
+    node->deviceIndex = deviceIndex;
     node->tableIndex = tableIndex;
 
     return result;
