@@ -37,7 +37,7 @@ its items merged into TODO.md) and removed from the audit folder.
 - [ ] **Commit 20+** — Phase Q cosmetic/style pass (§6 226 low/unsure items).
 
 Side cluster (can land between commits 1–13 in its own dedicated commit):
-- [ ] **Cluster I** — `sfc::*Option::Bit0xNNNN` (~39 enumerators; per-enum semantic naming decided at execution; coordinated with `device_mf.cpp` consumer tables and `mf_sfc.cpp` doc-comments).
+- [x] **Cluster I** — `sfc::*Option::Bit0xNNNN` → semantic DeviceOption names (52 enumerators across 7 enums, 8 files). Done.
 
 ## Per-commit discipline (per AGENTS.md)
 

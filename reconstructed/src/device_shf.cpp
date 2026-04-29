@@ -33,31 +33,31 @@ namespace {
 
 // Shfqa2 knownOptions @ .rodata 0x962850 (4 entries).
 constexpr std::array<OptionCodePair<sfc::ShfOption>, 4> kShfqa2KnownOptions = {{
-    { sfc::ShfOption::Bit0x00020, DeviceOption::FF    },
-    { sfc::ShfOption::Bit0x01000, DeviceOption::Option16W },
-    { sfc::ShfOption::Bit0x04000, DeviceOption::PLUS  },
-    { sfc::ShfOption::Bit0x08000, DeviceOption::LRT   },
+    { sfc::ShfOption::FF, DeviceOption::FF    },
+    { sfc::ShfOption::Option16W, DeviceOption::Option16W },
+    { sfc::ShfOption::PLUS, DeviceOption::PLUS  },
+    { sfc::ShfOption::LRT, DeviceOption::LRT   },
 }};
 
 // Shfqc knownOptions @ .rodata 0x962870 (8 entries).
 constexpr std::array<OptionCodePair<sfc::ShfOption>, 8> kShfqcKnownOptions = {{
-    { sfc::ShfOption::Bit0x00008, DeviceOption::QC2CH },
-    { sfc::ShfOption::Bit0x00010, DeviceOption::QC4CH },
-    { sfc::ShfOption::Bit0x00020, DeviceOption::FF    },
-    { sfc::ShfOption::Bit0x00800, DeviceOption::QC6CH },
-    { sfc::ShfOption::Bit0x01000, DeviceOption::Option16W },
-    { sfc::ShfOption::Bit0x02000, DeviceOption::RTR   },
-    { sfc::ShfOption::Bit0x04000, DeviceOption::PLUS  },
-    { sfc::ShfOption::Bit0x08000, DeviceOption::LRT   },
+    { sfc::ShfOption::QC2CH, DeviceOption::QC2CH },
+    { sfc::ShfOption::QC4CH, DeviceOption::QC4CH },
+    { sfc::ShfOption::FF, DeviceOption::FF    },
+    { sfc::ShfOption::QC6CH, DeviceOption::QC6CH },
+    { sfc::ShfOption::Option16W, DeviceOption::Option16W },
+    { sfc::ShfOption::RTR, DeviceOption::RTR   },
+    { sfc::ShfOption::PLUS, DeviceOption::PLUS  },
+    { sfc::ShfOption::LRT, DeviceOption::LRT   },
 }};
 
 // Shfli knownOptions @ .rodata 0x9628b0 (5 entries).
 constexpr std::array<OptionCodePair<sfc::ShfOption>, 5> kShfliKnownOptions = {{
-    { sfc::ShfOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::ShfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::ShfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::ShfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::ShfOption::Bit0x00200, DeviceOption::AWG  },
+    { sfc::ShfOption::MF, DeviceOption::MF   },
+    { sfc::ShfOption::PID, DeviceOption::PID  },
+    { sfc::ShfOption::MOD, DeviceOption::MOD  },
+    { sfc::ShfOption::FF, DeviceOption::FF   },
+    { sfc::ShfOption::AWG, DeviceOption::AWG  },
 }};
 
 // Inline option-bit helper for the SHF subclasses that don't use the

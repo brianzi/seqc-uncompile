@@ -22,54 +22,54 @@ namespace {
 
 // Uhfli knownOptions @ .rodata 0x962580 (10 entries).
 constexpr std::array<OptionCodePair<sfc::UhfOption>, 10> kUhfliKnownOptions = {{
-    { sfc::UhfOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::UhfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::UhfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::UhfOption::Bit0x00008, DeviceOption::QA   },
-    { sfc::UhfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::UhfOption::Bit0x00200, DeviceOption::AWG  },
-    { sfc::UhfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::UhfOption::Bit0x02000, DeviceOption::RUB  },
-    { sfc::UhfOption::Bit0x04000, DeviceOption::BOX  },
-    { sfc::UhfOption::Bit0x10000, DeviceOption::CNT  },
+    { sfc::UhfOption::MF, DeviceOption::MF   },
+    { sfc::UhfOption::PID, DeviceOption::PID  },
+    { sfc::UhfOption::MOD, DeviceOption::MOD  },
+    { sfc::UhfOption::QA, DeviceOption::QA   },
+    { sfc::UhfOption::FF, DeviceOption::FF   },
+    { sfc::UhfOption::AWG, DeviceOption::AWG  },
+    { sfc::UhfOption::DIG, DeviceOption::DIG  },
+    { sfc::UhfOption::RUB, DeviceOption::RUB  },
+    { sfc::UhfOption::BOX, DeviceOption::BOX  },
+    { sfc::UhfOption::CNT, DeviceOption::CNT  },
 }};
 
 // Uhfawg knownOptions @ .rodata 0x9625d0 (7 entries).
 // Verified against binary rodata 2026-04-25.
 constexpr std::array<OptionCodePair<sfc::UhfOption>, 7> kUhfawgKnownOptions = {{
-    { sfc::UhfOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::UhfOption::Bit0x00008, DeviceOption::QA   },
-    { sfc::UhfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::UhfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::UhfOption::Bit0x02000, DeviceOption::RUB  },
-    { sfc::UhfOption::Bit0x04000, DeviceOption::BOX  },
-    { sfc::UhfOption::Bit0x10000, DeviceOption::CNT  },
+    { sfc::UhfOption::MF, DeviceOption::MF   },
+    { sfc::UhfOption::QA, DeviceOption::QA   },
+    { sfc::UhfOption::FF, DeviceOption::FF   },
+    { sfc::UhfOption::DIG, DeviceOption::DIG  },
+    { sfc::UhfOption::RUB, DeviceOption::RUB  },
+    { sfc::UhfOption::BOX, DeviceOption::BOX  },
+    { sfc::UhfOption::CNT, DeviceOption::CNT  },
 }};
 
 // Uhfqa knownOptions @ .rodata 0x962608 (5 entries).
 // Verified against binary rodata 2026-04-25.
 constexpr std::array<OptionCodePair<sfc::UhfOption>, 5> kUhfqaKnownOptions = {{
-    { sfc::UhfOption::Bit0x00008, DeviceOption::QA   },
-    { sfc::UhfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::UhfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::UhfOption::Bit0x01000, DeviceOption::QE   },
-    { sfc::UhfOption::Bit0x02000, DeviceOption::RUB  },
+    { sfc::UhfOption::QA, DeviceOption::QA   },
+    { sfc::UhfOption::FF, DeviceOption::FF   },
+    { sfc::UhfOption::DIG, DeviceOption::DIG  },
+    { sfc::UhfOption::QE, DeviceOption::QE   },
+    { sfc::UhfOption::RUB, DeviceOption::RUB  },
 }};
 
 // Uhfia knownOptions @ .rodata 0x962630 (12 entries).
 constexpr std::array<OptionCodePair<sfc::UhfOption>, 12> kUhfiaKnownOptions = {{
-    { sfc::UhfOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::UhfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::UhfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::UhfOption::Bit0x00008, DeviceOption::QA   },
-    { sfc::UhfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::UhfOption::Bit0x00200, DeviceOption::AWG  },
-    { sfc::UhfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::UhfOption::Bit0x00800, DeviceOption::Option10G },
-    { sfc::UhfOption::Bit0x01000, DeviceOption::QE   },
-    { sfc::UhfOption::Bit0x02000, DeviceOption::RUB  },
-    { sfc::UhfOption::Bit0x04000, DeviceOption::BOX  },
-    { sfc::UhfOption::Bit0x10000, DeviceOption::CNT  },
+    { sfc::UhfOption::MF, DeviceOption::MF   },
+    { sfc::UhfOption::PID, DeviceOption::PID  },
+    { sfc::UhfOption::MOD, DeviceOption::MOD  },
+    { sfc::UhfOption::QA, DeviceOption::QA   },
+    { sfc::UhfOption::FF, DeviceOption::FF   },
+    { sfc::UhfOption::AWG, DeviceOption::AWG  },
+    { sfc::UhfOption::DIG, DeviceOption::DIG  },
+    { sfc::UhfOption::Option10G, DeviceOption::Option10G },
+    { sfc::UhfOption::QE, DeviceOption::QE   },
+    { sfc::UhfOption::RUB, DeviceOption::RUB  },
+    { sfc::UhfOption::BOX, DeviceOption::BOX  },
+    { sfc::UhfOption::CNT, DeviceOption::CNT  },
 }};
 
 }  // namespace

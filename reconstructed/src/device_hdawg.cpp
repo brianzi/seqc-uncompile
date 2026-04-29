@@ -20,22 +20,22 @@ namespace {
 
 // Hdawg4 knownOptions @ .rodata 0x9626f8 (6 entries).
 constexpr std::array<OptionCodePair<sfc::HdawgOption>, 6> kHdawg4KnownOptions = {{
-    { sfc::HdawgOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::HdawgOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::HdawgOption::Bit0x00200, DeviceOption::ME   },
-    { sfc::HdawgOption::Bit0x00800, DeviceOption::SKW  },
-    { sfc::HdawgOption::Bit0x08000, DeviceOption::PC   },
-    { sfc::HdawgOption::Bit0x10000, DeviceOption::CNT  },
+    { sfc::HdawgOption::MF, DeviceOption::MF   },
+    { sfc::HdawgOption::FF, DeviceOption::FF   },
+    { sfc::HdawgOption::ME, DeviceOption::ME   },
+    { sfc::HdawgOption::SKW, DeviceOption::SKW  },
+    { sfc::HdawgOption::PC, DeviceOption::PC   },
+    { sfc::HdawgOption::CNT, DeviceOption::CNT  },
 }};
 
 // Hdawg8 knownOptions @ .rodata 0x962728 (6 entries; same shape as Hdawg4).
 constexpr std::array<OptionCodePair<sfc::HdawgOption>, 6> kHdawg8KnownOptions = {{
-    { sfc::HdawgOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::HdawgOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::HdawgOption::Bit0x00200, DeviceOption::ME   },
-    { sfc::HdawgOption::Bit0x00800, DeviceOption::SKW  },
-    { sfc::HdawgOption::Bit0x08000, DeviceOption::PC   },
-    { sfc::HdawgOption::Bit0x10000, DeviceOption::CNT  },
+    { sfc::HdawgOption::MF, DeviceOption::MF   },
+    { sfc::HdawgOption::FF, DeviceOption::FF   },
+    { sfc::HdawgOption::ME, DeviceOption::ME   },
+    { sfc::HdawgOption::SKW, DeviceOption::SKW  },
+    { sfc::HdawgOption::PC, DeviceOption::PC   },
+    { sfc::HdawgOption::CNT, DeviceOption::CNT  },
 }};
 
 }  // namespace

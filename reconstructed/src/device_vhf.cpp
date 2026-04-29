@@ -22,12 +22,12 @@ namespace {
 
 // Vhfli knownOptions @ .rodata 0x962aa0 (6 entries).
 constexpr std::array<OptionCodePair<sfc::VhfOption>, 6> kVhfliKnownOptions = {{
-    { sfc::VhfOption::Bit0x0001, DeviceOption::MD    },
-    { sfc::VhfOption::Bit0x0002, DeviceOption::PID   },
-    { sfc::VhfOption::Bit0x0004, DeviceOption::MOD   },
-    { sfc::VhfOption::Bit0x0020, DeviceOption::FF    },
-    { sfc::VhfOption::Bit0x0200, DeviceOption::AWG   },
-    { sfc::VhfOption::Bit0x0800, DeviceOption::F200M },
+    { sfc::VhfOption::MD, DeviceOption::MD    },
+    { sfc::VhfOption::PID, DeviceOption::PID   },
+    { sfc::VhfOption::MOD, DeviceOption::MOD   },
+    { sfc::VhfOption::FF, DeviceOption::FF    },
+    { sfc::VhfOption::AWG, DeviceOption::AWG   },
+    { sfc::VhfOption::F200M, DeviceOption::F200M },
 }};
 
 DeviceOptionSet buildVhfFf(unsigned long opts) {

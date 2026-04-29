@@ -20,23 +20,23 @@ namespace {
 
 // Hf2li knownOptions array @ .rodata 0x962394 (7 entries).
 constexpr std::array<OptionCodePair<sfc::Hf2Option>, 7> kHf2liKnownOptions = {{
-    { sfc::Hf2Option::Bit0x0001, DeviceOption::MF   },  // -> "MFK" for HF2 family
-    { sfc::Hf2Option::Bit0x0002, DeviceOption::PLL  },
-    { sfc::Hf2Option::Bit0x0004, DeviceOption::MOD  },
-    { sfc::Hf2Option::Bit0x0008, DeviceOption::RT   },  // -> "RTK" for HF2
-    { sfc::Hf2Option::Bit0x0010, DeviceOption::UHS  },
-    { sfc::Hf2Option::Bit0x0020, DeviceOption::PID  },
-    { sfc::Hf2Option::Bit0x1000, DeviceOption::WEB  },
+    { sfc::Hf2Option::MF, DeviceOption::MF   },  // -> "MFK" for HF2 family
+    { sfc::Hf2Option::PLL, DeviceOption::PLL  },
+    { sfc::Hf2Option::MOD, DeviceOption::MOD  },
+    { sfc::Hf2Option::RT, DeviceOption::RT   },  // -> "RTK" for HF2
+    { sfc::Hf2Option::UHS, DeviceOption::UHS  },
+    { sfc::Hf2Option::PID, DeviceOption::PID  },
+    { sfc::Hf2Option::WEB, DeviceOption::WEB  },
 }};
 
 // Hf2is knownOptions array @ .rodata 0x9623cc (6 entries).
 constexpr std::array<OptionCodePair<sfc::Hf2Option>, 6> kHf2isKnownOptions = {{
-    { sfc::Hf2Option::Bit0x0001, DeviceOption::MF   },
-    { sfc::Hf2Option::Bit0x0002, DeviceOption::PLL  },
-    { sfc::Hf2Option::Bit0x0004, DeviceOption::MOD  },
-    { sfc::Hf2Option::Bit0x0008, DeviceOption::RT   },
-    { sfc::Hf2Option::Bit0x0010, DeviceOption::UHS  },
-    { sfc::Hf2Option::Bit0x0020, DeviceOption::PID  },
+    { sfc::Hf2Option::MF, DeviceOption::MF   },
+    { sfc::Hf2Option::PLL, DeviceOption::PLL  },
+    { sfc::Hf2Option::MOD, DeviceOption::MOD  },
+    { sfc::Hf2Option::RT, DeviceOption::RT   },
+    { sfc::Hf2Option::UHS, DeviceOption::UHS  },
+    { sfc::Hf2Option::PID, DeviceOption::PID  },
 }};
 
 }  // namespace

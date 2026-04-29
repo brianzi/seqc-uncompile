@@ -17,28 +17,28 @@ namespace {
 
 // Mfli knownOptions array @ .rodata 0x962458 (9 entries).
 constexpr std::array<OptionCodePair<sfc::MfOption>, 9> kMfliKnownOptions = {{
-    { sfc::MfOption::Bit0x00001, DeviceOption::MD   },
-    { sfc::MfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::MfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::MfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::MfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::MfOption::Bit0x00800, DeviceOption::F5M  },
-    { sfc::MfOption::Bit0x04000, DeviceOption::BOX  },
-    { sfc::MfOption::Bit0x08000, DeviceOption::IA   },  // Mfli-only
-    { sfc::MfOption::Bit0x20000, DeviceOption::NOUI },
+    { sfc::MfOption::MD, DeviceOption::MD   },
+    { sfc::MfOption::PID, DeviceOption::PID  },
+    { sfc::MfOption::MOD, DeviceOption::MOD  },
+    { sfc::MfOption::FF, DeviceOption::FF   },
+    { sfc::MfOption::DIG, DeviceOption::DIG  },
+    { sfc::MfOption::F5M, DeviceOption::F5M  },
+    { sfc::MfOption::BOX, DeviceOption::BOX  },
+    { sfc::MfOption::IA, DeviceOption::IA   },  // Mfli-only
+    { sfc::MfOption::NOUI, DeviceOption::NOUI },
 }};
 
 // Mfia knownOptions array @ .rodata 0x9624a0 (8 entries; no IA bit since
 // MFIA is intrinsically IA per isIa()).
 constexpr std::array<OptionCodePair<sfc::MfOption>, 8> kMfiaKnownOptions = {{
-    { sfc::MfOption::Bit0x00001, DeviceOption::MD   },
-    { sfc::MfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::MfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::MfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::MfOption::Bit0x00400, DeviceOption::DIG  },
-    { sfc::MfOption::Bit0x00800, DeviceOption::F5M  },
-    { sfc::MfOption::Bit0x04000, DeviceOption::BOX  },
-    { sfc::MfOption::Bit0x20000, DeviceOption::NOUI },
+    { sfc::MfOption::MD, DeviceOption::MD   },
+    { sfc::MfOption::PID, DeviceOption::PID  },
+    { sfc::MfOption::MOD, DeviceOption::MOD  },
+    { sfc::MfOption::FF, DeviceOption::FF   },
+    { sfc::MfOption::DIG, DeviceOption::DIG  },
+    { sfc::MfOption::F5M, DeviceOption::F5M  },
+    { sfc::MfOption::BOX, DeviceOption::BOX  },
+    { sfc::MfOption::NOUI, DeviceOption::NOUI },
 }};
 
 }  // namespace

@@ -23,11 +23,11 @@ namespace {
 
 // Ghfli knownOptions @ .rodata 0x96298c (5 entries, sfc::ShfOption typed).
 constexpr std::array<OptionCodePair<sfc::ShfOption>, 5> kGhfliKnownOptions = {{
-    { sfc::ShfOption::Bit0x00001, DeviceOption::MF   },
-    { sfc::ShfOption::Bit0x00002, DeviceOption::PID  },
-    { sfc::ShfOption::Bit0x00004, DeviceOption::MOD  },
-    { sfc::ShfOption::Bit0x00020, DeviceOption::FF   },
-    { sfc::ShfOption::Bit0x00200, DeviceOption::AWG  },
+    { sfc::ShfOption::MF, DeviceOption::MF   },
+    { sfc::ShfOption::PID, DeviceOption::PID  },
+    { sfc::ShfOption::MOD, DeviceOption::MOD  },
+    { sfc::ShfOption::FF, DeviceOption::FF   },
+    { sfc::ShfOption::AWG, DeviceOption::AWG  },
 }};
 
 // Inline FF helper for Ghf (same pattern as Shf/Shfacc).

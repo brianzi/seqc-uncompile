@@ -198,78 +198,78 @@ struct FeaturesCode {
 
 enum class Hf2Option : uint32_t {
     None = 0,
-    Bit0x0001 = 0x0001,  // -> code 0 (MF/MFK)
-    Bit0x0002 = 0x0002,  // -> code 3 (PLL)
-    Bit0x0004 = 0x0004,  // -> code 5 (MOD)
-    Bit0x0008 = 0x0008,  // -> code 6 (RT/RTK)
-    Bit0x0010 = 0x0010,  // -> code 7 (UHS)
-    Bit0x0020 = 0x0020,  // -> code 4 (PID)
-    Bit0x1000 = 0x1000,  // -> code 16 (WEB)
+    MF  = 0x0001,  // -> code 0 (MF/MFK)
+    PLL = 0x0002,  // -> code 3 (PLL)
+    MOD = 0x0004,  // -> code 5 (MOD)
+    RT  = 0x0008,  // -> code 6 (RT/RTK)
+    UHS = 0x0010,  // -> code 7 (UHS)
+    PID = 0x0020,  // -> code 4 (PID)
+    WEB = 0x1000,  // -> code 16 (WEB)
 };
 
 enum class MfOption : uint32_t {
-    None = 0,
-    Bit0x00001 = 0x00001,  // -> code 1  (MD)
-    Bit0x00002 = 0x00002,  // -> code 4  (PID)
-    Bit0x00004 = 0x00004,  // -> code 5  (MOD)
-    Bit0x00020 = 0x00020,  // -> code 2  (FF)
-    Bit0x00400 = 0x00400,  // -> code 9  (DIG)
-    Bit0x00800 = 0x00800,  // -> code 12 (F5M)
-    Bit0x04000 = 0x04000,  // -> code 14 (BOX)
-    Bit0x08000 = 0x08000,  // -> code 15 (IA)  [Mfli only]
-    Bit0x20000 = 0x20000,  // -> code 18 (NOUI)
+    None  = 0,
+    MD    = 0x00001,  // -> code 1  (MD)
+    PID   = 0x00002,  // -> code 4  (PID)
+    MOD   = 0x00004,  // -> code 5  (MOD)
+    FF    = 0x00020,  // -> code 2  (FF)
+    DIG   = 0x00400,  // -> code 9  (DIG)
+    F5M   = 0x00800,  // -> code 12 (F5M)
+    BOX   = 0x04000,  // -> code 14 (BOX)
+    IA    = 0x08000,  // -> code 15 (IA)  [Mfli only]
+    NOUI  = 0x20000,  // -> code 18 (NOUI)
 };
 
 enum class UhfOption : uint32_t {
-    None = 0,
-    Bit0x00001 = 0x00001,  // -> code 0  (MF)
-    Bit0x00002 = 0x00002,  // -> code 4  (PID)
-    Bit0x00004 = 0x00004,  // -> code 5  (MOD)
-    Bit0x00008 = 0x00008,  // -> code 21 (QA)
-    Bit0x00020 = 0x00020,  // -> code 2  (FF)
-    Bit0x00200 = 0x00200,  // -> code 8  (AWG)  [Uhfli/Uhfia]
-    Bit0x00400 = 0x00400,  // -> code 9  (DIG)
-    Bit0x00800 = 0x00800,  // -> code 10 (10G)  [Uhfia only]
-    Bit0x01000 = 0x01000,  // -> code 11 (QE)   [Uhfqa/Uhfia]
-    Bit0x02000 = 0x02000,  // -> code 13 (RUB)
-    Bit0x04000 = 0x04000,  // -> code 14 (BOX)
-    Bit0x10000 = 0x10000,  // -> code 17 (CNT)
+    None       = 0,
+    MF         = 0x00001,  // -> code 0  (MF)
+    PID        = 0x00002,  // -> code 4  (PID)
+    MOD        = 0x00004,  // -> code 5  (MOD)
+    QA         = 0x00008,  // -> code 21 (QA)
+    FF         = 0x00020,  // -> code 2  (FF)
+    AWG        = 0x00200,  // -> code 8  (AWG)  [Uhfli/Uhfia]
+    DIG        = 0x00400,  // -> code 9  (DIG)
+    Option10G  = 0x00800,  // -> code 10 (10G)  [Uhfia only]
+    QE         = 0x01000,  // -> code 11 (QE)   [Uhfqa/Uhfia]
+    RUB        = 0x02000,  // -> code 13 (RUB)
+    BOX        = 0x04000,  // -> code 14 (BOX)
+    CNT        = 0x10000,  // -> code 17 (CNT)
 };
 
 enum class HdawgOption : uint32_t {
     None = 0,
-    Bit0x00001 = 0x00001,  // -> code 0  (MF)
-    Bit0x00020 = 0x00020,  // -> code 2  (FF)
-    Bit0x00200 = 0x00200,  // -> code 19 (ME)
-    Bit0x00800 = 0x00800,  // -> code 22 (SKW)
-    Bit0x08000 = 0x08000,  // -> code 20 (PC)
-    Bit0x10000 = 0x10000,  // -> code 17 (CNT)
+    MF   = 0x00001,  // -> code 0  (MF)
+    FF   = 0x00020,  // -> code 2  (FF)
+    ME   = 0x00200,  // -> code 19 (ME)
+    SKW  = 0x00800,  // -> code 22 (SKW)
+    PC   = 0x08000,  // -> code 20 (PC)
+    CNT  = 0x10000,  // -> code 17 (CNT)
 };
 
 enum class ShfOption : uint32_t {
-    None = 0,
-    Bit0x00001 = 0x00001,  // -> code 0  (MF)   [Shfli only]
-    Bit0x00002 = 0x00002,  // -> code 4  (PID)  [Shfli only]
-    Bit0x00004 = 0x00004,  // -> code 5  (MOD)  [Shfli only]
-    Bit0x00008 = 0x00008,  // -> code 24 (QC2CH)
-    Bit0x00010 = 0x00010,  // -> code 25 (QC4CH)
-    Bit0x00020 = 0x00020,  // -> code 2  (FF)
-    Bit0x00200 = 0x00200,  // -> code 8  (AWG)  [Shfli only]
-    Bit0x00800 = 0x00800,  // -> code 26 (QC6CH)
-    Bit0x01000 = 0x01000,  // -> code 23 (16W)
-    Bit0x02000 = 0x02000,  // -> code 27 (RTR)
-    Bit0x04000 = 0x04000,  // -> code 28 (PLUS)
-    Bit0x08000 = 0x08000,  // -> code 29 (LRT)
+    None       = 0,
+    MF         = 0x00001,  // -> code 0  (MF)   [Shfli only]
+    PID        = 0x00002,  // -> code 4  (PID)  [Shfli only]
+    MOD        = 0x00004,  // -> code 5  (MOD)  [Shfli only]
+    QC2CH      = 0x00008,  // -> code 24 (QC2CH)
+    QC4CH      = 0x00010,  // -> code 25 (QC4CH)
+    FF         = 0x00020,  // -> code 2  (FF)
+    AWG        = 0x00200,  // -> code 8  (AWG)  [Shfli only]
+    QC6CH      = 0x00800,  // -> code 26 (QC6CH)
+    Option16W  = 0x01000,  // -> code 23 (16W)
+    RTR        = 0x02000,  // -> code 27 (RTR)
+    PLUS       = 0x04000,  // -> code 28 (PLUS)
+    LRT        = 0x08000,  // -> code 29 (LRT)
 };
 
 enum class VhfOption : uint32_t {
-    None = 0,
-    Bit0x0001 = 0x0001,  // -> code 1  (MD)
-    Bit0x0002 = 0x0002,  // -> code 4  (PID)
-    Bit0x0004 = 0x0004,  // -> code 5  (MOD)
-    Bit0x0020 = 0x0020,  // -> code 2  (FF)
-    Bit0x0200 = 0x0200,  // -> code 8  (AWG)
-    Bit0x0800 = 0x0800,  // -> code 30 (F200M)
+    None  = 0,
+    MD    = 0x0001,  // -> code 1  (MD)
+    PID   = 0x0002,  // -> code 4  (PID)
+    MOD   = 0x0004,  // -> code 5  (MOD)
+    FF    = 0x0020,  // -> code 2  (FF)
+    AWG   = 0x0200,  // -> code 8  (AWG)
+    F200M = 0x0800,  // -> code 30 (F200M)
 };
 
 // Note: there is NO `sfc::GhfOption` in the binary. `detail::Ghfli`'s
