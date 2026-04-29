@@ -2300,9 +2300,10 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 11
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **needs-GDB** (Phase R)
 - **Description**: The field named `pad_04_` in `Value` is accessed by binary code and is therefore not mere padding. Additionally, `subType_` has a shape (enum? bitfield?) that doesn't match the current `int` declaration.
-- **Action**: Trace binary accesses to `Value+0x04` to determine semantics; rename field and fix type of `subType_`.
+- **Phase R note**: source review confirmed that `EvalResultValue::varSubType_` (a `VarSubType` enum at outer-struct +0x4) is the slot copied at `resources.cpp:1686` (`out.subType_ = var->subTypeRaw`) — that is **not** `Value::pad_04_` (which is at inner Value+0x04, embedded at EvalResultValue+0x08+0x04 = +0xC). The current recon treats `Value::pad_04_` as padding (`value.hpp:160`) but cannot prove it without a binary trace of all reads at offset +0x4 of a Value object that is **not** embedded in an EvalResultValue.
+- **GDB plan**: set breakpoints at every `mov`/`movzx`/`movsx` instruction in functions known to take a `Value*` (e.g. `Value::toDouble`@0x15a560, `Value::toInt`@0x15c250, `Value::operator==`@0x21a780) that reads `[rdi+0x04]`. If any non-padding read exists, the slot has semantic content. If only `[rdi+0x08]` (which_) is read, padding is confirmed. Estimated effort: 30 minutes.
 
 ---
 
@@ -2320,9 +2321,15 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batches 27 (type-suspicion + logic-bug)
 - **Severity**: likely-bug
-- **Status**: open
+- **Status**: **needs-GDB** (Phase R) — type-split too risky without runtime confirmation
 - **Description**: `NodeMapItem::hasFast` is typed as `int` and compared against literal values that correspond to an `AccessMode` enum (`0`=none, `1`=fast, `2`=...?). The conflation means callers may pass wrong enum values or compare incorrectly.
-- **Action**: Introduce `AccessMode` enum and retype `hasFast` (or rename to `accessMode_`).
+- **Phase R source audit**:
+  - Field declared `bool hasFast` at `node_map_data.hpp:110` (NodeMapItem+0x10).
+  - Used as bool: `node_map_data.cpp:142-143` (operator==), `:159-160` (fastAddress), `custom_functions_play.cpp:1536` (`if (node.hasFast)`), `get_node_map.cpp:44,58` (struct init).
+  - Used as enum: `custom_functions_play.cpp:1511` `AccessMode accessMode = static_cast<AccessMode>(node.hasFast);` — the same byte cast as `AccessMode` 3-way switch (struct_layouts.md:1756: `movzx edx, BYTE PTR [rbp-0x1b0] ; AccessMode = node.hasFast`).
+  - The 3-way switch at custom_functions_play.cpp:1461 distinguishes (A) `hasFast == true`, (B) `hasFast == false AND dyncast`, (C) `hasFast == false AND no data`. So the byte at +0x10 is at minimum a 3-state value (or a bool used together with `data`-pointer null-check).
+- **GDB plan**: at `lookupNode` return site (binary @0x15c530+) inspect the byte at NodeMapItem+0x10 across multiple runs that exercise the three branches. Specifically, run `tests/cases/hdawg_doc_*.seqc` with playback nodes and trace `[rax+0x10]`. If only values 0/1 appear, `bool` typing is correct and the static_cast at :1511 is benign (false→Fast=0, true→Fast2=1 of AccessMode). If 0/1/2 appear, the field must be widened to `AccessMode`.
+- **Risk**: a type-fix from `bool` → `AccessMode` (or splitting into `accessMode_` int + true `hasFast` bool) requires updating ~10 call sites and potentially the `NodeMapItem` `operator==` and `std::hash` specialization. Defer until GDB confirms enum range.
 
 ---
 
@@ -2402,9 +2409,13 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 05c2
 - **Severity**: likely-bug
-- **Status**: open
+- **Status**: **needs-GDB** (Phase R)
 - **Description**: When `setPRNGSeed` receives an integer literal, the reconstruction passes the raw integer value to `AsmRegister` constructor, treating the seed value as a register number. The binary instead emits an immediate-load instruction.
-- **Action**: Fix to emit `setImmediate` + register-indirect seed store, matching binary codegen path.
+- **Phase R source audit**: at `custom_functions_io.cpp:2773` the integer-literal branch (`argType == 2`, comment "Integer literal path") constructs `AsmRegister(args[0].value_.toInt())` from the value rather than using `args[0].reg_`. In every sibling method (e.g. `setSweepStep:3161`), `argType == 2` is the **register** branch and code uses `args[0].reg_`. Either the comment is wrong (this is the register branch and the value-toInt path is a logic bug) OR `varType_==2` is overloaded only here.
+- **GDB plan**: prepare a test SeqC that calls `setPRNGSeed(123)` (literal). Set a breakpoint at binary @0x151528 (the call to `appendSuser` in this branch). Inspect:
+  - The first register operand passed (rdx or whatever ABI maps to it): is it a register-number `123` or a freshly allocated register?
+  - Compare to a `setPRNGSeed(varName)` (Var) test — does the binary take the same branch?
+  If GDB shows the binary always takes the register-path with `args[0].reg_`, fix the source to use `args[0].reg_` and rewrite the comment. Estimated effort: 30 minutes including writing the test seqc files.
 
 ---
 
