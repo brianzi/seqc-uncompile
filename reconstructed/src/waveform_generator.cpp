@@ -1956,7 +1956,7 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
             Signal s = readWave(args[i], paramName, -1, "join")->signal;
             waves.emplace_back(i, std::move(s));
         } else {
-            // Non-String → numeric parameter (target length for interpolation)
+            // Non-String → numeric parameter (interpolation length)
             requestedLength = args[i].toInt();
         }
     }
@@ -1968,44 +1968,111 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
     }
 
     auto& first = waves[0].second;
+    size_t interpLen = (requestedLength > 0 && waves.size() > 1)
+                           ? static_cast<size_t>(requestedLength)
+                           : 0;
 
     if (first.reserveOnly_) {                                                  // reserveOnly short-circuit
         size_t totalLength = first.length_;
         for (size_t i = 1; i < waves.size(); ++i) {
             totalLength += waves[i].second.length_;
         }
-        if (requestedLength > 0 && waves.size() > 1) {
-            totalLength += 2 * (waves.size() - 1) * static_cast<size_t>(requestedLength);
+        if (interpLen > 0) {
+            // Per join boundary: interpLen interp samples.
+            // Plus one trailing block of interpLen zeros after last wave.
+            totalLength += waves.size() * interpLen;
         }
         ReserveOnly tag;
         return Signal(tag, totalLength, first.markerBits_);
     }
 
-    first.checkAllocation();                                                   // 0x256416
+    first.checkAllocation();
 
-    // Compute total length for all wave signals
-    size_t totalLength = first.samples_.size() / std::max<uint16_t>(first.channels_, 1);
+    // Compute total length (frames) for all wave signals.
+    size_t totalLength = first.length_;
     for (size_t i = 1; i < waves.size(); ++i) {
         waves[i].second.checkAllocation();
-        totalLength += waves[i].second.samples_.size() / std::max<uint16_t>(waves[i].second.channels_, 1);
+        totalLength += waves[i].second.length_;
+    }
+    if (interpLen > 0) {
+        totalLength += waves.size() * interpLen;
     }
 
-    // If requestedLength > 0, it is the interpolation length per boundary.
-    // For N waves, there are (N-1) join boundaries, each adding 2*interpLen samples.
-    if (requestedLength > 0 && waves.size() > 1) {
-        totalLength += 2 * (waves.size() - 1) * static_cast<size_t>(requestedLength);
-    }
-
-    // Create output signal with appropriate markerBits
+    // Create output signal seeded from first wave's markerBits (channels
+    // derived from markerBits.size()). This matches the original
+    // Signal::Signal(size_t, MarkerBitsPerChannel) ctor at 0x25636b.
     Signal result(totalLength, first.markerBits_);                             // 0x25636b
 
-    // Append all wave signals
-    for (size_t i = 0; i < waves.size(); ++i) {
-        auto& s = waves[i].second;
-        s.checkAllocation();
-        result.append(s);
+    if (interpLen == 0) {
+        // No interpolation: pure append. Preserves original semantics
+        // (markerBits OR-merged across waves, length recomputed by append).
+        for (size_t i = 0; i < waves.size(); ++i) {
+            auto& s = waves[i].second;
+            s.checkAllocation();
+            result.append(s);
+        }
+        return result;
     }
 
+    // Interpolation path: emit per-wave samples followed by either an
+    // interpolation ramp (between waves) or a zero-pad block (after last).
+    // Re-init result.samples_/markers_ as empty (the ctor reserved them).
+    uint16_t channels = std::max<uint16_t>(first.channels_, 1);
+    result.channels_ = channels;
+    result.samples_.clear();
+    result.markers_.clear();
+
+    for (size_t wi = 0; wi < waves.size(); ++wi) {
+        auto& s = waves[wi].second;
+        s.checkAllocation();
+
+        // Append this wave's samples + markers.
+        size_t nSamples = s.length_ * channels;
+        result.samples_.insert(result.samples_.end(),
+                               s.samples_.begin(),
+                               s.samples_.begin() + nSamples);
+        if (!s.markers_.empty()) {
+            result.markers_.insert(result.markers_.end(),
+                                   s.markers_.begin(),
+                                   s.markers_.begin() + nSamples);
+        } else {
+            result.markers_.insert(result.markers_.end(), nSamples, uint8_t(0));
+        }
+
+        // OR this wave's markerBits into the result's markerBits.
+        size_t mbSize = result.markerBits_.size();
+        for (size_t i = 0; i < mbSize && i < s.markerBits_.size(); ++i) {
+            result.markerBits_[i] |= s.markerBits_[i];
+        }
+
+        if (wi + 1 < waves.size()) {
+            // Linear ramp from this wave's last frame to next wave's first frame.
+            auto& next = waves[wi + 1].second;
+            next.checkAllocation();
+            for (size_t k = 0; k < interpLen; ++k) {
+                double t = static_cast<double>(k + 1) /
+                           static_cast<double>(interpLen);
+                for (uint16_t c = 0; c < channels; ++c) {
+                    size_t lastIdx = (s.length_ - 1) * channels + c;
+                    size_t firstIdx = c;
+                    double a = s.samples_[lastIdx];
+                    double b = next.samples_[firstIdx];
+                    result.samples_.push_back(a + t * (b - a));
+                    result.markers_.push_back(0);
+                }
+            }
+        } else {
+            // Trailing zero-pad of interpLen frames after the last wave.
+            for (size_t k = 0; k < interpLen; ++k) {
+                for (uint16_t c = 0; c < channels; ++c) {
+                    result.samples_.push_back(0.0);
+                    result.markers_.push_back(0);
+                }
+            }
+        }
+    }
+
+    result.length_ = result.samples_.size() / channels;
     return result;
 }
 

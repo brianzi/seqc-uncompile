@@ -1243,3 +1243,47 @@ sc.compile_seqc(
 (or a callee) dereferences `body()` which is null for an empty function.
 The binary has no null check on this path.  This is a genuine bug in the
 shipped compiler — not a reconstruction artifact.
+
+---
+
+## IF-98  join() interpolation algorithm
+
+**Severity**: medium
+**Status**: fixed
+**Date**: 2026-04-29
+**File**: reconstructed/src/waveform_generator.cpp
+**Binary offset**: 0x255da0
+
+**Observation**: `wave w3 = join(w1, w2, 8);` — the third (numeric) arg
+is an interpolation length, not a target total length.  For N waves
+joined with interpolation length L, the output is:
+
+```
+[w1 samples] [L interp samples] [w2 samples] [L interp samples] ... [wN samples] [L zero pad]
+```
+
+i.e. each wave is followed by an L-sample block:
+- between waves: a linear ramp from `w[i].last` to `w[i+1].first`,
+  computed as `w[i].last + (k+1)/L * (w[i+1].first - w[i].last)` for
+  k = 0..L-1 (so the final ramp sample equals `w[i+1].first`).
+- after the last wave: L zero samples (zero-pad block).
+
+Total length = sum(w[i].length) + N*L (only when L > 0 and there is
+more than one wave; otherwise the interp/pad blocks are skipped).
+
+**Empirical evidence** (HDAWG8, `rect(32, 1.0)` joined to `rect(32, -1.0)`
+with interpLen=8): output is 80 samples = 32 ones, 8-sample ramp
+(0.75, 0.5, 0.25, 0, -0.25, -0.5, -0.75, -1), 32 negative ones, 8 zeros.
+
+**Previous reconstruction bug**: the recon computed total length as
+`sum + 2*(N-1)*L` (treating both sides of each boundary as interp
+samples), which is numerically equal to N*L only for N=2 — but the
+samples themselves were never written; `Signal::append` was called
+which just concatenates wave samples directly.  Both the length math
+(coincidentally right for N=2) and the sample emission needed to be
+fixed.
+
+**Note**: the non-interpolation code path (when L==0) is preserved
+exactly to avoid disturbing other join() callers (e.g. marker joins
+in `hdawg_doc_marker_gauss`).  Markers in the interpolation/pad
+regions are zero-filled.
