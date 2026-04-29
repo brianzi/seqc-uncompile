@@ -2340,9 +2340,9 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 38
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **kept** (Phase R) — name preserved for binary-contract fidelity
 - **Description**: `PlayConfig::now` is named as if it means "play immediately" but the binary reads it as a flag indicating 4-channel playback mode. Callers testing `now` may misinterpret the semantics.
-- **Action**: Verify binary semantics via GDB; rename to `fourChannel_` or similar if confirmed.
+- **Resolution**: The JSON serialization key in the binary is literally `"now"` (`play_config.cpp:127`: `pc.now = obj.at("now").as_bool();`). Renaming the field would diverge the JSON contract from the binary's serialization. Producer site `asm_commands.cpp:984` writes `config.now = playNow;` from a parameter named `playNow`, and consumer sites in `prefetch_*` use the value as `is4Ch` because in this hardware the "play-now" path coincides with 4-channel mode. The dual-meaning is documented at `prefetch_splitplay.cpp:39` and the `genPlayConfig::isFourChannelBool` audit (batch 10). Field name kept as `now`; semantic dual use is documented locally.
 
 ---
 
