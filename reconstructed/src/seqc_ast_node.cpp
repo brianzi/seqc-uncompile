@@ -44,9 +44,9 @@ std::string str(EDirection dir) {
 // ============================================================================
 
 // 0x1fda00
-SeqCAstNode::SeqCAstNode(EValueCategory vc, int type, EDirection dir)
+SeqCAstNode::SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir)
     : valueCategory_(vc)
-    , lineNr_(type)
+    , lineNr_(lineNr)
     , direction_(dir)
 {}
 
@@ -91,7 +91,7 @@ namespace {
 void printSeqCAstImpl(SeqCAstNode const& node, std::string const& prefix) {
     // Print node type name via virtual print(), then " (line: <lineNr_>)\n"
     node.print();                                                  // @0x1fa44a: call *0x18(%rax)
-    std::cout << " (line: " << node.type() << ")" << "\n";         // @0x1fa454..0x1fa497
+    std::cout << " (line: " << node.lineNr() << ")" << "\n";         // @0x1fa454..0x1fa497
 
     // Get children via virtual children()                         // @0x1fa4a6: call *0x10(%rax)
     auto kids = node.children();
@@ -139,9 +139,9 @@ void printSeqCAst(const SeqCAstNode& node) {                      // @0x1fa3c0
     }
 
 // SeqCOperation — broken out of SEQC_TRIVIAL_LEAF for getVarTypes override
-SeqCOperation::SeqCOperation(EValueCategory vc, int type, EDirection dir,
+SeqCOperation::SeqCOperation(EValueCategory vc, int lineNr, EDirection dir,
                              VarType vt)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
 {
     varType_ = vt;
 }
@@ -177,10 +177,10 @@ SEQC_TRIVIAL_LEAF_IMPL(SeqCNoCmd,             "NoCmd",             5, 0x18)  // 
 // ============================================================================
 
 #define SEQC_UNARY_IMPL(Name, Label, LabelLen)                               \
-    Name::Name(EValueCategory vc, int type, EDirection dir,             \
+    Name::Name(EValueCategory vc, int lineNr, EDirection dir,             \
                VarType vt,                                                   \
                std::unique_ptr<SeqCAstNode> child)                           \
-        : SeqCAstNode(vc, type, dir), child_(std::move(child))               \
+        : SeqCAstNode(vc, lineNr, dir), child_(std::move(child))               \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
         : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),              \
@@ -216,11 +216,11 @@ SEQC_UNARY_IMPL(SeqCReturnStatement,  "ReturnStatement",15)  // print @0x204220,
 // SeqCOperator base + 22 binary-op subclasses (40B)
 // ============================================================================
 
-SeqCOperator::SeqCOperator(EValueCategory vc, int type, EDirection dir,
+SeqCOperator::SeqCOperator(EValueCategory vc, int lineNr, EDirection dir,
                            VarType vt,
                            std::unique_ptr<SeqCAstNode> lhs,
                            std::unique_ptr<SeqCAstNode> rhs)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , lhs_(std::move(lhs))
     , rhs_(std::move(rhs))
 {
@@ -311,11 +311,11 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, doClone @0x20
 // ============================================================================
 
 #define SEQC_BINARY_IMPL(Name, Label, LabelLen)                              \
-    Name::Name(EValueCategory vc, int type, EDirection dir,             \
+    Name::Name(EValueCategory vc, int lineNr, EDirection dir,             \
                VarType vt,                                                   \
                std::unique_ptr<SeqCAstNode> first,                           \
                std::unique_ptr<SeqCAstNode> second)                          \
-        : SeqCAstNode(vc, type, dir),                                        \
+        : SeqCAstNode(vc, lineNr, dir),                                        \
           first_(std::move(first)), second_(std::move(second))               \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
@@ -344,11 +344,11 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, doClone @0x20
     }
 
 // SeqCFunctionCall — broken out of SEQC_BINARY_IMPL: first_ is unique_ptr<SeqCVariable>.
-SeqCFunctionCall::SeqCFunctionCall(EValueCategory vc, int type, EDirection dir,
+SeqCFunctionCall::SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
                                    VarType vt,
                                    std::unique_ptr<SeqCVariable> first,
                                    std::unique_ptr<SeqCAstNode> second)
-    : SeqCAstNode(vc, type, dir),
+    : SeqCAstNode(vc, lineNr, dir),
       first_(std::move(first)), second_(std::move(second))
 { varType_ = vt; }
 
@@ -383,11 +383,11 @@ void swap(SeqCFunctionCall& a, SeqCFunctionCall& b) {
 }
 
 // SeqCArray — broken out of SEQC_BINARY_IMPL: first_ is unique_ptr<SeqCVariable>.
-SeqCArray::SeqCArray(EValueCategory vc, int type, EDirection dir,
+SeqCArray::SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt,
                      std::unique_ptr<SeqCVariable> first,
                      std::unique_ptr<SeqCAstNode> second)
-    : SeqCAstNode(vc, type, dir),
+    : SeqCAstNode(vc, lineNr, dir),
       first_(std::move(first)), second_(std::move(second))
 { varType_ = vt; }
 
@@ -424,11 +424,11 @@ void swap(SeqCArray& a, SeqCArray& b) {
 SEQC_BINARY_IMPL(SeqCIfCondition,  "IfCondition",  11)  // print @0x201a30, doClone @0x201b10
 
 // SeqCCaseEntry — broken out of SEQC_BINARY_IMPL for extra methods.
-SeqCCaseEntry::SeqCCaseEntry(EValueCategory vc, int type, EDirection dir,
+SeqCCaseEntry::SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
                              VarType vt,
                              std::unique_ptr<SeqCAstNode> first,
                              std::unique_ptr<SeqCAstNode> second)
-    : SeqCAstNode(vc, type, dir),
+    : SeqCAstNode(vc, lineNr, dir),
       first_(std::move(first)), second_(std::move(second))
 { varType_ = vt; }
 
@@ -476,12 +476,12 @@ SEQC_BINARY_IMPL(SeqCRepeat,       "Repeat",        6)  // print @0x2037e0, doCl
 // ============================================================================
 
 // SeqCIfElse — vtable 0xb05430
-SeqCIfElse::SeqCIfElse(EValueCategory vc, int type, EDirection dir,
+SeqCIfElse::SeqCIfElse(EValueCategory vc, int lineNr, EDirection dir,
                        VarType vt,
                        std::unique_ptr<SeqCAstNode> cond,
                        std::unique_ptr<SeqCAstNode> ifBody,
                        std::unique_ptr<SeqCAstNode> elseBody)  // 0x202150
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , cond_(std::move(cond))
     , ifBody_(std::move(ifBody))
     , elseBody_(std::move(elseBody))
@@ -524,12 +524,12 @@ void swap(SeqCIfElse& a, SeqCIfElse& b) {
 }
 
 // SeqCCondExpr — vtable 0xb056c0
-SeqCCondExpr::SeqCCondExpr(EValueCategory vc, int type, EDirection dir,
+SeqCCondExpr::SeqCCondExpr(EValueCategory vc, int lineNr, EDirection dir,
                            VarType vt,
                            std::unique_ptr<SeqCAstNode> cond,
                            std::unique_ptr<SeqCAstNode> ifBody,
                            std::unique_ptr<SeqCAstNode> elseBody)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , cond_(std::move(cond))
     , ifBody_(std::move(ifBody))
     , elseBody_(std::move(elseBody))
@@ -576,13 +576,13 @@ void swap(SeqCCondExpr& a, SeqCCondExpr& b) {
 // ============================================================================
 
 // SeqCFunction — vtable 0xb050f0
-SeqCFunction::SeqCFunction(EValueCategory vc, int type, EDirection dir,
+SeqCFunction::SeqCFunction(EValueCategory vc, int lineNr, EDirection dir,
                            VarType vt,
                            std::unique_ptr<SeqCFunctionCall> call,
                            std::unique_ptr<SeqCAstNode> params,
                            std::unique_ptr<SeqCAstNode> body,
                            std::unique_ptr<SeqCVariableType> retType)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , call_(std::move(call))
     , params_(std::move(params))
     , body_(std::move(body))
@@ -633,13 +633,13 @@ void swap(SeqCFunction& a, SeqCFunction& b) {
 }
 
 // SeqCForLoop — vtable 0xb05580
-SeqCForLoop::SeqCForLoop(EValueCategory vc, int type, EDirection dir,
+SeqCForLoop::SeqCForLoop(EValueCategory vc, int lineNr, EDirection dir,
                          VarType vt,
                          std::unique_ptr<SeqCAstNode> init,
                          std::unique_ptr<SeqCAstNode> cond,
                          std::unique_ptr<SeqCAstNode> incr,
                          std::unique_ptr<SeqCAstNode> body)  // 0x202f00
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , init_(std::move(init))
     , cond_(std::move(cond))
     , incr_(std::move(incr))
@@ -690,12 +690,12 @@ void swap(SeqCForLoop& a, SeqCForLoop& b) {
 // ============================================================================
 
 #define SEQC_LIST_IMPL(Name, Label, LabelLen)                                \
-    Name::Name(EValueCategory vc, int type, EDirection dir, VarType vt) \
-        : SeqCAstNode(vc, type, dir), elements_()                            \
+    Name::Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt) \
+        : SeqCAstNode(vc, lineNr, dir), elements_()                            \
     { varType_ = vt; }                                                       \
-    Name::Name(EValueCategory vc, int type, EDirection dir, VarType vt, \
+    Name::Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt, \
                std::vector<std::unique_ptr<SeqCAstNode>> elements)           \
-        : SeqCAstNode(vc, type, dir), elements_(std::move(elements))         \
+        : SeqCAstNode(vc, lineNr, dir), elements_(std::move(elements))         \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
         : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_)               \
@@ -795,9 +795,9 @@ std::vector<std::string> SeqCParamList::getVarTypes() const
 // ============================================================================
 
 // SeqCVariable — vtable 0xb04fb0
-SeqCVariable::SeqCVariable(EValueCategory vc, int type, EDirection dir,
+SeqCVariable::SeqCVariable(EValueCategory vc, int lineNr, EDirection dir,
                            VarType vt, std::string name)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
     , name_(std::move(name))
 {
     varType_ = vt;
@@ -853,17 +853,17 @@ void swap(SeqCVariable& a, SeqCVariable& b) {
 }
 
 // SeqCValue — vtable 0xb05000
-SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
+SeqCValue::SeqCValue(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
 {
     varType_ = vt;
 }
 
 // String-value ctor — binary callsite at 0x1f656e (make_unique<SeqCValue>(..., string))
-SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
+SeqCValue::SeqCValue(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt, std::string s)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
 {
     varType_ = vt;
     tag_ = 0;  // eString
@@ -871,9 +871,9 @@ SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
 }
 
 // Double-value ctor — binary callsite at 0x1f6f22 (make_unique<SeqCValue>(..., double&))
-SeqCValue::SeqCValue(EValueCategory vc, int type, EDirection dir,
+SeqCValue::SeqCValue(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt, double d)
-    : SeqCAstNode(vc, type, dir)
+    : SeqCAstNode(vc, lineNr, dir)
 {
     varType_ = vt;
     tag_ = 1;  // eDouble

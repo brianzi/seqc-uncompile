@@ -103,7 +103,7 @@ std::string str(EDirection dir);      // @0x1c1730
 //
 class SeqCAstNode {
 public:
-    SeqCAstNode(EValueCategory vc, int type, EDirection dir);   // 0x1fda00
+    SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir);   // 0x1fda00
     // NOTE: base ctor takes 3 args; derived ctors all take VarType as 4th
     // and write it to varType_ directly (the binary inlines the base ctor).
 
@@ -137,7 +137,6 @@ public:
 
     // Accessors
     EValueCategory  valueCategory() const { return valueCategory_; }
-    int             type()          const { return lineNr_; }  // legacy accessor name
     int             lineNr()        const { return lineNr_; }
     EDirection direction()     const { return direction_; }
     VarType         varType()       const { return varType_; }
@@ -174,9 +173,9 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 #define SEQC_TRIVIAL_LEAF(Name, VtableAddr)                                 \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
-        Name(EValueCategory vc, int type, EDirection dir,              \
+        Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt)                                                    \
-            : SeqCAstNode(vc, type, dir) { varType_ = vt; }                \
+            : SeqCAstNode(vc, lineNr, dir) { varType_ = vt; }                \
         Name(Name const& o);                                                \
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
@@ -194,7 +193,7 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 // vtable @0xb04f60.
 class SeqCOperation : public SeqCAstNode {
 public:
-    SeqCOperation(EValueCategory vc, int type, EDirection dir,
+    SeqCOperation(EValueCategory vc, int lineNr, EDirection dir,
                   VarType vt);  // out-of-line for symbol emission
     SeqCOperation(SeqCOperation const& o);
     SeqCOperation& operator=(SeqCOperation o);
@@ -228,7 +227,7 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
 #define SEQC_UNARY(Name, VtableAddr)                                        \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
-        Name(EValueCategory vc, int type, EDirection dir,              \
+        Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt,                                                    \
              std::unique_ptr<SeqCAstNode> child);                           \
         Name(Name const& o);                                                \
@@ -266,7 +265,7 @@ SEQC_UNARY(SeqCReturnStatement, 0xb057b0);
 
 class SeqCOperator : public SeqCAstNode {
 public:
-    SeqCOperator(EValueCategory vc, int type, EDirection dir,
+    SeqCOperator(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCAstNode> lhs,
                  std::unique_ptr<SeqCAstNode> rhs);
@@ -354,7 +353,7 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
 #define SEQC_BINARY(Name, FirstAccessor, SecondAccessor, VtableAddr)        \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
-        Name(EValueCategory vc, int type, EDirection dir,              \
+        Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt,                                                    \
              std::unique_ptr<SeqCAstNode> first,                            \
              std::unique_ptr<SeqCAstNode> second);                          \
@@ -384,7 +383,7 @@ class SeqCVariable;
 // vtable @0xb05140.  Layout: SeqCAstNode(24B) + 2 unique_ptrs at +0x18, +0x20 = 0x28 bytes.
 class SeqCFunctionCall : public SeqCAstNode {
 public:
-    SeqCFunctionCall(EValueCategory vc, int type, EDirection dir,
+    SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt,
                      std::unique_ptr<SeqCVariable> first,
                      std::unique_ptr<SeqCAstNode> second);
@@ -411,7 +410,7 @@ static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 b
 // vtable @0xb051e8.  Layout identical (0x28 bytes).
 class SeqCArray : public SeqCAstNode {
 public:
-    SeqCArray(EValueCategory vc, int type, EDirection dir,
+    SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
               VarType vt,
               std::unique_ptr<SeqCVariable> first,
               std::unique_ptr<SeqCAstNode> second);
@@ -440,7 +439,7 @@ SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  0xb053e0);
 // vtable @0xb05518.  Layout identical (0x28 bytes).
 class SeqCCaseEntry : public SeqCAstNode {
 public:
-    SeqCCaseEntry(EValueCategory vc, int type, EDirection dir,
+    SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
                   VarType vt,
                   std::unique_ptr<SeqCAstNode> first,
                   std::unique_ptr<SeqCAstNode> second);
@@ -470,7 +469,7 @@ class SeqCStmtList;
 // vtable @0xb05480.  Layout identical to other SEQC_BINARY types (0x28 bytes).
 class SeqCSwitchCase : public SeqCAstNode {
 public:
-    SeqCSwitchCase(EValueCategory vc, int type, EDirection dir,
+    SeqCSwitchCase(EValueCategory vc, int lineNr, EDirection dir,
                    VarType vt,
                    std::unique_ptr<SeqCAstNode> first,
                    std::unique_ptr<SeqCAstNode> second);
@@ -518,7 +517,7 @@ SEQC_BINARY(SeqCRepeat,       cond,     body,  0xb05670);
 
 class SeqCIfElse : public SeqCAstNode {
 public:
-    SeqCIfElse(EValueCategory vc, int type, EDirection dir,
+    SeqCIfElse(EValueCategory vc, int lineNr, EDirection dir,
                VarType vt,
                std::unique_ptr<SeqCAstNode> cond,
                std::unique_ptr<SeqCAstNode> ifBody,
@@ -549,7 +548,7 @@ static_assert(sizeof(SeqCIfElse) == 0x30, "SeqCIfElse must be 0x30 bytes");
 
 class SeqCCondExpr : public SeqCAstNode {
 public:
-    SeqCCondExpr(EValueCategory vc, int type, EDirection dir,
+    SeqCCondExpr(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCAstNode> cond,
                  std::unique_ptr<SeqCAstNode> ifBody,
@@ -584,7 +583,7 @@ static_assert(sizeof(SeqCCondExpr) == 0x30, "SeqCCondExpr must be 0x30 bytes");
 
 class SeqCFunction : public SeqCAstNode {
 public:
-    SeqCFunction(EValueCategory vc, int type, EDirection dir,
+    SeqCFunction(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCFunctionCall> call,
                  std::unique_ptr<SeqCAstNode> params,
@@ -618,7 +617,7 @@ static_assert(sizeof(SeqCFunction) == 0x38, "SeqCFunction must be 0x38 bytes");
 
 class SeqCForLoop : public SeqCAstNode {
 public:
-    SeqCForLoop(EValueCategory vc, int type, EDirection dir,
+    SeqCForLoop(EValueCategory vc, int lineNr, EDirection dir,
                 VarType vt,
                 std::unique_ptr<SeqCAstNode> init,
                 std::unique_ptr<SeqCAstNode> cond,
@@ -660,8 +659,8 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
 #define SEQC_LIST(Name, NamedAccessor, VtableAddr)                           \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
-        Name(EValueCategory vc, int type, EDirection dir, VarType vt); \
-        Name(EValueCategory vc, int type, EDirection dir, VarType vt,  \
+        Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt); \
+        Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt,  \
              std::vector<std::unique_ptr<SeqCAstNode>> elements);           \
         Name(Name const& o);                                                \
         Name& operator=(Name o);                                            \
@@ -703,8 +702,8 @@ SEQC_LIST(SeqCStmtList,  stmts,  0xb05340);
 // ----------------------------------------------------------------------------
 class SeqCParamList : public SeqCAstNode {
 public:
-    SeqCParamList(EValueCategory vc, int type, EDirection dir, VarType vt);
-    SeqCParamList(EValueCategory vc, int type, EDirection dir, VarType vt,
+    SeqCParamList(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
+    SeqCParamList(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
                   std::vector<std::unique_ptr<SeqCAstNode>> elements);
     SeqCParamList(SeqCParamList const& o);
     SeqCParamList& operator=(SeqCParamList o);
@@ -746,7 +745,7 @@ static_assert(sizeof(SeqCParamList) == 0x30,
 // SeqCVariable (48 bytes, 0x30) — name string at +0x18 (libc++ SSO, 24B)
 class SeqCVariable : public SeqCAstNode {
 public:
-    SeqCVariable(EValueCategory vc, int type, EDirection dir,
+    SeqCVariable(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt, std::string name);
     SeqCVariable(SeqCVariable const& o);
     SeqCVariable& operator=(SeqCVariable o);
@@ -782,10 +781,10 @@ public:
         // -1 (0xFFFFFFFF) = empty/none (from dtor — skips destruction)
     };
 
-    SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt);
-    SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
+    SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
+    SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               std::string s);   // 0x1fd860 (make_unique callsite) — by value per binary
-    SeqCValue(EValueCategory vc, int type, EDirection dir, VarType vt,
+    SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               double d);               // 0x1fd950 (make_unique callsite)
     SeqCValue(SeqCValue const& o);
     SeqCValue& operator=(SeqCValue o);

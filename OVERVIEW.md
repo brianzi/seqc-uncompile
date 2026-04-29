@@ -599,3 +599,4 @@ splitReg, register-field rename) lives in `notes/optimization_passes.md`.
 | Commit | Cluster | Rename | Sites |
 |--------|---------|--------|-------|
 | c2 | H | `clone()` → `doClone()` | 19 decls + 17 defs + 59 call sites across 4 files |
+| c3 | F | `SeqCAstNode::type` param/accessor → `lineNr` | 54 sites across 3 files |

@@ -6094,7 +6094,7 @@ std::shared_ptr<EvalResults> SeqCArgList::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                        @0x211e0b
-    int lineNr = this->type();
+    int lineNr = this->lineNr();
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -6157,7 +6157,7 @@ std::shared_ptr<EvalResults> SeqCDeclList::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                        @0x21231b
-    int lineNr = this->type();
+    int lineNr = this->lineNr();
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -6233,7 +6233,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
     FrontendLoweringState& state) const
 {
     // 1. Set line number.                                        @0x21282b
-    int lineNr = this->type();
+    int lineNr = this->lineNr();
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -6290,7 +6290,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
                 // Unreachable code after return statement check. @0x2129d5
                 if (i + 1 < elems.size()) {
                     if (dynamic_cast<const SeqCReturnStatement*>(elems[i].get())) {
-                        int nextLineNr = elems[i + 1]->type();   // @0x212b7e
+                        int nextLineNr = elems[i + 1]->lineNr();   // @0x212b7e
                         std::string const& warnMsg =
                             ErrorMessages::get(0x22);             // @0x212a29-212a76
                         ctx.messages->warningMessage(warnMsg, nextLineNr); // @0x212b86
@@ -7029,7 +7029,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
         // Error: bad condition value count.                          // @0x213ce5
         std::string msg = ErrorMessages::format(
             ErrorMessageT(0x27), "if");                              // @0x213cff
-        ctx.messages->errorMessage(msg, cond()->type());              // @0x213d19
+        ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x213d19
         return result;                                               // → @0x2146d3 cleanup
     }
 
@@ -7142,7 +7142,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     {
         std::string msg = ErrorMessages::format(
             ErrorMessageT(0x27), "if");                              // @0x213cff
-        ctx.messages->errorMessage(msg, cond()->type());              // @0x213d19
+        ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x213d19
     }
 
     return result;                                                   // @0x2146d3
@@ -8194,7 +8194,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
             if (!condResult) {
                 std::string msg = ErrorMessages::format(
                     ErrorMessageT(0x27), "while");                   // @0x21ec62
-                ctx.messages->errorMessage(msg, cond()->type());     // @0x21ec79
+                ctx.messages->errorMessage(msg, cond()->lineNr());     // @0x21ec79
                 break;  // normalExit stays false → no node copy     // r14d = 1
             }
 
@@ -9022,7 +9022,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
 //     - br(endLabel, false) unconditional jump after if-body.
 //     - Both branches always evaluated (including dead in Const/Cvar path).
 //     - hasError = AND of both branches (both must error for result to error).
-//     - Mid-function setWavetableFrontIndex(cond()->type()).
+//     - Mid-function setWavetableFrontIndex(cond()->lineNr()).
 std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     std::shared_ptr<Resources> res,
     FrontendLoweringContext& ctx,
@@ -9059,7 +9059,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
         // Error: bad condition value count.                          // @0x21507b
         std::string msg = ErrorMessages::format(
             ErrorMessageT(0x27), "if");                              // @0x215098
-        ctx.messages->errorMessage(msg, cond()->type());              // @0x2150b3
+        ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x2150b3
         return result;
     }
 
@@ -9139,7 +9139,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
         }
 
         // ---- Mid-function setWavetableFrontIndex ----             // @0x215882
-        ctx.asmCommands->setWavetableFrontIndex(cond()->type());     // @0x215892
+        ctx.asmCommands->setWavetableFrontIndex(cond()->lineNr());     // @0x215892
 
         // ---- Unconditional branch to endLabel ----                // @0x215895
         AsmList::Asm brAsm =
@@ -9281,7 +9281,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     {
         std::string msg = ErrorMessages::format(
             ErrorMessageT(0x27), "if");                              // @0x215098
-        ctx.messages->errorMessage(msg, cond()->type());              // @0x2150b3
+        ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x2150b3
     }
 
     return result;                                                   // @0x2150d8
@@ -9740,7 +9740,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     if (retType()) {
         // retType() is a SeqCVariableType; its varType is stored at +0x14.
         // Binary reads 0x14(%rax) at @0x20b718 — this is the varType_ field,
-        // NOT lineNr_ at +0x0C (which type() returns).
+        // NOT lineNr_ at +0x0C (which lineNr() returns).
         returnVarType = retType()->varType();
     } else {
         returnVarType = VarType_Void;
