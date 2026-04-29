@@ -82,12 +82,21 @@ CompilerException (0x20)           # std::exception + message string
 
 ## Reconstruction Status
 
-**59 headers**, **96 source files**, **0 build errors**, **1 documented
+**63 headers**, **99 source files**, **0 build errors**, **1 documented
 placement-new warning** (libc++ vs libstdc++ string-size mismatch in
 `value.cpp:237`, see `notes/libcpp_abi.md`).
 
-Phases 1-33 complete. **95/95 undefined zhinst symbols resolved** — static
-archive fully self-contained.
+Phases 1-41 complete plus the Phase D symbol-renaming audit and rename
+execution (20 commits, all 16 high/medium-confidence clusters landed —
+see `notes/symbol-renaming-audit/SYNTHESIS.md` and the
+`Symbol Renames (Phase D)` table at the bottom of this document). 226
+low-confidence/unsure cosmetic items remain explicitly deferred per audit
+policy. **95/95 undefined zhinst symbols resolved** — static archive
+fully self-contained.
+
+**Differential tests: 259/259 byte-identical** (current as of
+2026-04-29, after Cluster I commit `9b2e690`). Score has held at
+259/259 across every Phase D commit.
 
 Phase 24 achievements:
 - AWGCompiler pimpl facade (8 bytes → AWGCompilerImpl 0x2C0 bytes)
@@ -596,8 +605,34 @@ splitReg, register-field rename) lives in `notes/optimization_passes.md`.
 
 ## Symbol Renames (Phase D)
 
-| Commit | Cluster | Rename | Sites |
-|--------|---------|--------|-------|
-| c2 | H | `clone()` → `doClone()` | 19 decls + 17 defs + 59 call sites across 4 files |
-| c3 | F | `SeqCAstNode::type` param/accessor → `lineNr` | 54 sites across 3 files |
-| c4 | G | `first_`/`second_` → role-named fields in 8 binary AST classes | ~70 sites across 3 files; SEQC_BINARY/SEQC_BINARY_IMPL macros parameterized with field names |
+20 commits (`d15ad32`..`9b2e690`). All 259 tests green throughout.
+Per-commit summary:
+
+| Commit | Cluster / Topic | Sites |
+|--------|-----------------|-------|
+| `d15ad32` c1  | nm-recheck closes audit scan phase | docs only |
+| `b857bc3` c2  H | `clone()` → `doClone()` | 19 decls + 17 defs + 59 calls / 4 files |
+| `0a993b8` c3  F | `SeqCAstNode::type` param/accessor → `lineNr` | 54 sites / 3 files |
+| `8014f3a` c4  G | `first_`/`second_` → role-named in 8 binary AST classes | ~70 sites / 3 files |
+| `3e7b911` c5  J | `Waveform`/`WaveformFile` JSON-key field renames | 9 items |
+| `a59b4b4` c6+c7 B+A | `isWaveformCmd` → `noOpt` and `flag` → `noOpt` (atomic) | 2 clusters |
+| `4346d5a` c8  K | `PlayConfig` producer param renames | producer-side |
+| `284b5d1` c9  L | `wvf`/`wvfi` impl param alignment | impl decls |
+| `a481fed` c10 D | `channelGrouping` → `loopUnrollLimit` (3-leg) | 3-source rename |
+| `c1e3aa3` c11 C | drop Hirzel aliases + `Cache::appendMode_` → `isHirzel_` | aliases + field |
+| `26e8b08` c12 E | drop accessor aliases + `PNS::requiredSlots` → `usedCache_` | accessors + field |
+| `612eb2a` c13 N | `Resources::parent_` → `grandparent_`, `parentWeak_` swap | 1 class |
+| `e22c1b5` c14 §4 | high-confidence singletons | 35 items |
+| `5a44521` c15 M | recompose `namespace Assembler` + `AssemblerInstr` → class `Assembler` | recomposition |
+| `2477f4e` c16 §2 | open arbitrations | resolved set |
+| `da68c0a` c17 | medium-confidence singletons | 31 items |
+| `82694d7` c18 | dead-code removals | 2 items |
+| `717cf8e` c19 §8/§9 | promote audit findings → `incidental_findings.md` | IF-110..IF-122 |
+| `9b2e690` ci  I | `sfc::*Option::Bit0xNNNN` → semantic names (DeviceOption codes) | 52 enumerators / 8 files |
+
+Deferred per audit policy:
+- **Phase Q** — 226 low-confidence / unsure cosmetic items
+  (stylistic underscore consistency, abbreviation preferences,
+  acceptable-but-improvable names). See SYNTHESIS §6.
+- **5 skipped arbitrations** in commit `2477f4e` — genuinely ambiguous
+  without new disassembly evidence.

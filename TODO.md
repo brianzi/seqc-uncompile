@@ -6,11 +6,17 @@
 
 ---
 
-## Summary of remaining work (refreshed 2026-04-26 unknowns grooming)
+## Summary of remaining work (refreshed 2026-04-29 post-Phase-D grooming)
 
 **Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
 **95/95 undefined zhinst symbols resolved** — static archive self-contained.
 **259/259 differential tests pass** (byte-identical, as of 2026-04-29).
+**Phase D symbol-renaming audit + execution complete** (20 commits
+`d15ad32`..`9b2e690`, all 16 high/medium-confidence clusters landed,
+259/259 throughout). Remaining: Phase Q (226 low-conf/unsure cosmetic
+items, deferred per audit policy) and 5 genuinely-ambiguous
+arbitrations (commit `2477f4e`). See OVERVIEW.md "Symbol Renames
+(Phase D)" table and `notes/symbol-renaming-audit/SYNTHESIS.md`.
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
@@ -251,11 +257,11 @@ test cases added (manifest now at 259 entries).
 - SHFQC LF path example uses resetOscPhase + playWave(1, 2, w) routing
 - Doc has typo: 'gaussian' function (should be 'gauss') in SHFQC LF path example
 
-#### Audit item: parent_→parentWeak_ migration
+#### Audit item: parent_→parentWeak_ migration (RESOLVED via Phase D c13)
 
-~15+ uses of `parent_` (raw shared_ptr) remain across multiple files.
-These should be audited and migrated to `parentWeak_` (weak_ptr) where
-the binary uses weak_ptr, to prevent shared_ptr reference cycles.
+Resolved in Phase D commit `612eb2a` (Cluster N): `Resources::parent_`
+renamed to `grandparent_` and the strong/weak pointer slots swapped to
+match the binary. See IF-122 in `notes/incidental_findings.md`.
 
 ### Infrastructure (done)
 
