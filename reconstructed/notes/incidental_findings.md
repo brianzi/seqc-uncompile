@@ -2310,9 +2310,9 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batches 26, 33 (type-suspicion + logic-bug: recon split of one binary class)
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **fixed** (Phase D commit `5a44521`, Cluster M)
 - **Description**: The binary implements a single `Assembler` class with instruction-building methods. The reconstruction artificially split this into a free-function namespace `Assembler` and a separate `AssemblerInstr` struct, causing awkward coupling and potential semantic drift.
-- **Action**: Merge `namespace Assembler` functions into the `AssemblerInstr` class (or a unified `Assembler` class) to match binary layout.
+- **Resolution**: Phase D commit `5a44521` merged `namespace Assembler` functions into a unified `class Assembler` (formerly `AssemblerInstr`). All call sites updated; tests 259/259 throughout.
 
 ---
 
@@ -2420,6 +2420,6 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 19a
 - **Severity**: likely-bug
-- **Status**: open
+- **Status**: **fixed** (Phase D commit `612eb2a`, Cluster N)
 - **Description**: `Resources::parent_` is stored as a `shared_ptr` (strong reference) but the binary uses a `weak_ptr` to avoid reference cycles in the resource tree. The strong reference prevents parent deallocation and causes memory leaks in deep scope chains.
-- **Action**: Change `parent_` to `weak_ptr` and fix all access sites to lock before use.
+- **Resolution**: Phase D commit `612eb2a` swapped the strong/weak slots and renamed the strong slot to `grandparent_` (the binary's actual semantic — the recon's `parent_` was at +0x18, the true direct-parent weak slot at +0x28; what `parent_` referred to was a transitively-owned grandparent). All access sites updated; tests 259/259 throughout.

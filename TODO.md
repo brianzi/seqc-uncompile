@@ -59,12 +59,10 @@ items) — those remain deferred per audit policy.
 
 #### R.0 — housekeeping (close already-fixed IFs)
 
-- [ ] **IF-111** (`namespace Assembler` + `AssemblerInstr` should be one
-      class) — fixed in Phase D `5a44521` (Cluster M). Update IF
-      status to **fixed**, cite commit.
-- [ ] **IF-122** (`Resources::parent_` strong/weak inversion) — fixed
-      in Phase D `612eb2a` (Cluster N). Update IF status to **fixed**,
-      cite commit.
+- [x] **IF-111** (`namespace Assembler` + `AssemblerInstr` should be one
+      class) — fixed in Phase D `5a44521` (Cluster M). Status updated.
+- [x] **IF-122** (`Resources::parent_` strong/weak inversion) — fixed
+      in Phase D `612eb2a` (Cluster N). Status updated.
 
 #### R.1 — six deferred arbitrations from `2477f4e`
 
