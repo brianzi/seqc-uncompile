@@ -16,9 +16,12 @@
 259/259 throughout). **Phase R audit-followup complete** (14 commits
 `dfc278e`..`2b23826`): all 6 deferred arbitrations and all 10 open
 IFs resolved; 1 latent bug fixed (IF-119), 1 missing writer
-reconstructed (Arb 4). Only Phase Q (226 low-conf/unsure cosmetic
-items, deferred per audit policy) remains. See OVERVIEW.md "Symbol
-Renames (Phase D / R)" tables and
+reconstructed (Arb 4). **Phase S Phase-Q refinement complete**
+(7 commits `3f0b24e`..`04e3ac5`): 226 backlog items partitioned —
+39 already-done (B3), 58 wontfix (B4), 14 mechanical-resolved (S.2),
+1 binary-fidelity skip; 114 borderline items deferred case-by-case
+(no longer a tracked phase). See OVERVIEW.md "Symbol Renames
+(Phase D / R / S)" tables and
 `notes/symbol-renaming-audit/SYNTHESIS.md`.
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
@@ -138,7 +141,7 @@ namespace removed). All remaining audit follow-ups closed; only
 Phase Q (226 low-conf cosmetic items, deferred per audit policy)
 remains as outstanding audit work.
 
-### Phase S: Phase Q refinement — reconcile then mechanical sweeps
+### Phase S: Phase Q refinement — reconcile then mechanical sweeps (DONE)
 
 **Goal.** Convert the deferred 226-item Phase Q backlog from a vague
 "someday" list into either landed renames or formally closed wontfix
@@ -146,43 +149,47 @@ entries. Plan derived from
 `reconstructed/notes/phase_r_leftovers_and_q_scoping.md` (commit
 `3b96992`).
 
-**Sequence (strict order — do not parallelize):**
+**Result.** 7 commits (`3f0b24e`..`04e3ac5`), 259/259 throughout.
 
-#### S.1 — Reconcile SYNTHESIS.md §6 against Phase D/R commits
+#### S.1 — SYNTHESIS §6 reconciliation (`54a1af9`)
 
-Audit the 226 Phase Q items against the actual Phase D + Phase R
-commit log. Expected outcome:
-- Bucket 3 (~30 items): already-resolved during Phase D/R but never
-  reconciled — close as `done in <commit>` references.
-- Bucket 4 (~56 items): formally close as `wontfix` with one-line
-  rationale per item.
-- Remaining ~140 items get crisp Bucket 1 / Bucket 2 tags so S.2
-  can proceed mechanically.
+Per-item triage of the 226 items against Phase D + Phase R commits.
+Final bucket totals (vs. scoping-note estimate in parens):
 
-Notes-only; no source touched. One commit. ~2 hours.
+- **Bucket 1** (mechanical, S.2 fodder): **15** (~80 estimated)
+- **Bucket 2** (borderline, deferred): **114** (~60 estimated)
+- **Bucket 3** (already resolved during Phase D/R): **39** (~30 estimated)
+- **Bucket 4** (wontfix / kept-as-is): **58** (~56 estimated)
 
-#### S.2 — Bucket 1 mechanical sweeps
+The scoping-note estimate was substantially off: B1 was ~5× smaller
+and B2 ~2× larger. Most "obviously mechanical" items the scoping
+author cited were actually already done in Phase D/R (now correctly
+B3). What remains as truly mechanical is much smaller than expected.
 
-For each micro-cluster identified in S.1 Bucket 1 (~80 items
-post-reconciliation), do a single source sweep:
-- disasm-leakage local renames (e.g. residual `r12_local` style)
-- snake_case → camelCase consistency
-- `regInv` → `regInvalid` style consistency
-- other purely mechanical underscore / abbreviation passes
+#### S.2 — Bucket 1 mechanical sweeps (5 commits)
 
-One commit per micro-cluster, build + 259/259 gated. Estimated
-~1 day across ~5-8 micro-clusters.
+| Commit | Cluster | Items | Outcome |
+|--------|---------|-------|---------|
+| `fb40bfb` | M1 disasm-leakage in `AsmCommands::smap` | 1 | `arg → value` |
+| `423ec7a` | M2 abbrev expansion in `play`/`playIndexed` | 2 | `regInv→regInvalid`, `reg0→regZero` (4+2 sites in `custom_functions_play.cpp`) |
+| `e522deb` | M3 `string_NNN_`/`pad_NNN_` polish | 2 | 1 rename (`string_218_→pad_218_`), 1 kept (audit verdict) |
+| `c11ff22` | M4 `SeqCNeg::evaluate` local | 1 | `d → negatedDouble` |
+| `04e3ac5` | M5 dead params/locals (asm, custom_functions, awg_assembler) | 9 | 8 applied, 1 skipped (binary-signature preservation: `genPlayConfig::fourChannel`) |
 
-**Out of scope for Phase S:**
-- Bucket 2 (~60 borderline preferences) — defer or handle case-by-case
-  when surfaced by a real change.
-- IF-116 `EDirection` enum type-fix — separate decision (see Phase R
-  leftover; not part of Phase Q).
-- Pre-Phase-R old IFs (IF-1..IF-109 long tail) — no test pressure;
-  leave documented.
+**Phase S outcome.** Phase Q is now meaningfully partitioned:
+- 39 items closed as "already done" (B3).
+- 58 items closed as wontfix (B4).
+- 14 items resolved via S.2 mechanical sweeps.
+- 1 item (M5#1) skipped for binary fidelity.
+- **114 items remain in B2** as borderline-deferred — to be handled
+  case-by-case if/when surfaced by other work, not as a dedicated
+  phase.
 
-**Wrap-up.** TODO.md + OVERVIEW.md update at end of Phase S with
-final Phase Q status (X resolved / Y wontfix / Z deferred).
+**Outstanding audit deferrals** (no longer a tracked phase):
+- IF-116 `EDirection` enum type-fix (Phase R leftover, ~30 sites +
+  autogen `parser.tab.c`).
+- B2 borderline naming preferences (handle in passing).
+- Pre-Phase-R old IFs (IF-1..IF-109 long tail) — no test pressure.
 
 ### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 

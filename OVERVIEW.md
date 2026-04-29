@@ -96,12 +96,16 @@ policy. **Phase R audit-followup complete** (14 commits
 incidental findings (IF-110..IF-122) closed; 1 latent bug fixed
 (IF-119, `setPRNGSeed` Var path), 1 missing writer reconstructed
 (Arb 4, `Compiler::usedSampleRate_` mirror in `Compiler::compile`).
-**95/95 undefined zhinst symbols resolved** — static archive fully
-self-contained.
+**Phase S Phase-Q refinement complete** (7 commits
+`3f0b24e`..`04e3ac5`): the 226-item Phase Q backlog was triaged into
+39 already-done, 58 formally wontfix, 14 mechanical-resolved (S.2
+sweeps), and 114 borderline-deferred case-by-case items; no further
+Phase Q phase planned. **95/95 undefined zhinst symbols resolved** —
+static archive fully self-contained.
 
 **Differential tests: 259/259 byte-identical** (current as of
-2026-04-29, after Phase R wrap-up commit). Score held at 259/259
-across every Phase D and Phase R commit.
+2026-04-29, after Phase S wrap-up commit). Score held at 259/259
+across every Phase D, R, and S commit.
 
 Phase 24 achievements:
 - AWGCompiler pimpl facade (8 bytes → AWGCompilerImpl 0x2C0 bytes)
@@ -664,6 +668,26 @@ incidental finding promoted in `717cf8e` (IF-110..IF-122).
 | `2b23826` Arb 2 | `configFreqSweep` numDIOBits bound | kept (binary-faithful; gate is `kDevSHFPlus`, not UHFLI) |
 
 Outstanding deferrals after Phase R:
-- **Phase Q** (226 cosmetic items) — only remaining audit work.
+- **Phase Q** (226 cosmetic items) — addressed in Phase S below.
 - **IF-116** `EDirection` enum type-fix — deferred (~30 sites + autogen
   `parser.tab.c` impact).
+
+## Symbol Renames (Phase S) — Phase Q refinement
+
+7 commits (`3f0b24e`..`04e3ac5`). All 259 tests green throughout.
+S.1 reconciled the 226-item backlog into 4 buckets; S.2 landed
+mechanical sweeps for Bucket 1.
+
+| Commit | Step | Outcome |
+|--------|------|---------|
+| `3f0b24e` | TODO | defined Phase S plan |
+| `54a1af9` | S.1 | SYNTHESIS §6 reconciliation: B1=15 mech, B2=114 borderline-deferred, B3=39 already-done, B4=58 wontfix |
+| `fb40bfb` | S.2 M1 | `AsmCommands::smap` `arg → value` (1 item) |
+| `423ec7a` | S.2 M2 | `regInv→regInvalid`, `reg0→regZero` in `play`/`playIndexed` (2 items, 6 sites) |
+| `e522deb` | S.2 M3 | `string_218_→pad_218_` in `AWGCompilerImpl` (2 items: 1 rename, 1 kept per audit) |
+| `c11ff22` | S.2 M4 | `SeqCNeg::evaluate` local `d → negatedDouble` (1 item) |
+| `04e3ac5` | S.2 M5 | dead-param/local removal across asm + custom_functions + awg_assembler (9 items: 8 applied, 1 binary-fidelity skip) |
+
+Phase Q final state: 39 already-done + 58 wontfix + 14 mechanical-resolved
++ 1 binary-fidelity skip = 112 closed; 114 borderline items deferred
+case-by-case. No further Phase Q phase planned.
