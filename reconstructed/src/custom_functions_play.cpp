@@ -651,8 +651,8 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
 
         // Build waveform name optionals for asmPlay
         // @0x15fe8c..0x16019f
-        AsmRegister reg0(0);                                         // @0x16019f
-        AsmRegister regInv(-1);                                      // @0x1601ad
+        AsmRegister regZero(0);                                         // @0x16019f
+        AsmRegister regInvalid(-1);                                      // @0x1601ad
 
         auto asmEntry = asmCommands_->asmPlay(
             std::move(wfCopy), playDeviceIndex,
@@ -660,7 +660,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
             subFunc == SubFunc::Now,
             false, rate, static_cast<unsigned int>(mask),
             false,
-            reg0, firstArgVal, regInv,
+            regZero, firstArgVal, regInvalid,
             0u);                                                     // @0x160209
 
         // @0x160335: push into results->assemblers_
@@ -1151,7 +1151,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // pattern but the exact subFunc comparison value at each site
     // has not been independently verified against the raw disasm bytes.
     // The stack args (hold through trigger) are confident.
-    AsmRegister regInv(-1);                                          // @0x1622f2
+    AsmRegister regInvalid(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
     if (combined) {
         waveforms.push_back(combined);                               // @0x1622bd loop
@@ -1167,7 +1167,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         /*is4Channel=*/(subFunc == SubFunc::Aux),                    // stack[3]
         indexReg,                                                    // stack[4]
         /*length=*/waveIndex,                                        // stack[5]
-        regInv,                                                      // stack[6]
+        regInvalid,                                                      // stack[6]
         /*trigger=*/0u);                                             // stack[7]: @0x162343
 
     // ================================================================
