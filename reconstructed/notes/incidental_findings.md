@@ -2300,10 +2300,19 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 11
 - **Severity**: suspicious
-- **Status**: **needs-GDB** (Phase R)
-- **Description**: The field named `pad_04_` in `Value` is accessed by binary code and is therefore not mere padding. Additionally, `subType_` has a shape (enum? bitfield?) that doesn't match the current `int` declaration.
-- **Phase R note**: source review confirmed that `EvalResultValue::varSubType_` (a `VarSubType` enum at outer-struct +0x4) is the slot copied at `resources.cpp:1686` (`out.subType_ = var->subTypeRaw`) — that is **not** `Value::pad_04_` (which is at inner Value+0x04, embedded at EvalResultValue+0x08+0x04 = +0xC). The current recon treats `Value::pad_04_` as padding (`value.hpp:160`) but cannot prove it without a binary trace of all reads at offset +0x4 of a Value object that is **not** embedded in an EvalResultValue.
-- **GDB plan**: set breakpoints at every `mov`/`movzx`/`movsx` instruction in functions known to take a `Value*` (e.g. `Value::toDouble`@0x15a560, `Value::toInt`@0x15c250, `Value::operator==`@0x21a780) that reads `[rdi+0x04]`. If any non-padding read exists, the slot has semantic content. If only `[rdi+0x08]` (which_) is read, padding is confirmed. Estimated effort: 30 minutes.
+- **Status**: **dismissed** (Phase R, GDB-confirmed 2026-04-29) — `pad_04_` is genuine alignment padding
+- **Description**: The field named `pad_04_` in `Value` was suspected of being accessed by binary code and therefore not mere padding. Additionally, `subType_` has a shape (enum? bitfield?) that doesn't match the current `int` declaration.
+- **Phase R source review**: confirmed that `EvalResultValue::varSubType_` (a `VarSubType` enum at outer-struct +0x4) is the slot copied at `resources.cpp:1686` (`out.subType_ = var->subTypeRaw`) — that is **not** `Value::pad_04_` (which is at inner Value+0x04, embedded at EvalResultValue+0x08+0x04 = +0xC). The current recon treats `Value::pad_04_` as padding (`value.hpp:160`).
+- **Phase R disasm sweep** (objdump on `_seqc_compiler.so`):
+  - `Value::toDouble`@0x15a560..0x15a780 — every read of the Value object uses offsets `(%rdi)`, `0x8(%rdi)`, `0x10(%rdi)`. **No `0x4(%rdi)` reads.**
+  - `Value::toInt`@0x15c250..0x15c4f0 — same: only `(%rdi)` (type_), `0x8(%rdi)` (which_), `0x10(%rdi)` (storage). **No `0x4` reads.**
+  - `Value::operator==`@0x21a780..0x21aa00 — only `(%rdi)`, `(%rsi)`, `0x8(%rdi)`, `0x10(%rdi)`, `0x18(%rdi)`. **No `0x4` reads.**
+  - `Value::toBool`@0x164200, `Value::toString`@0x15de50, `~Value`@0x15a9c0 — all checked, **no `0x4(%rdi)` reads.**
+- **Phase R GDB trace** (`/tmp/if110_trace.txt`, 17 hits across `toDouble`/`toInt` driven by `var c = a + b; const PI = 3.14159;` style snippets through HDAWG8 path):
+  - At every hit, `+0x0=3` (Double) and `+0x8=2` (which==Double) — consistent.
+  - `+0x4` slot values observed: `0`, `21845` (0x5555), `32512` (0x7F00), `32767` (0x7FFF). The same `this` pointer (e.g. `0x7fffffffc3a0`) shows different `+0x4` values across hits (0, 0, 21845). These are classic uninitialized-memory bit patterns, not deterministic state.
+  - If `+0x4` were a sub-type tag, values would be small and deterministic per `(type_, which_)` pair. They are not.
+- **Conclusion**: `Value::pad_04_` is genuinely uninitialized alignment padding (4 bytes between `type_:int32` and the 8-byte-aligned `which_`). The recon name is correct; no source change needed. GDB evidence preserved at `/tmp/if110_trace.txt`.
 
 ---
 
