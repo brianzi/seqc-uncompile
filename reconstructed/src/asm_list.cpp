@@ -335,8 +335,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
 
         AsmExpression* expr = it->get();
 
-        // 0x2662dc: check expr->labelType (byte at +0x78, alias for hasLabel)
-        if (expr->labelType()) {
+        // 0x2662dc: check expr->hasLabel (byte at +0x78)
+        if (expr->hasLabel) {
             // --- Case A: Direct instruction reference (labelType == true) ---
             // 0x2662e6: Build AssemblerInstr with cmd = LABEL (2)
             AssemblerInstr instr;

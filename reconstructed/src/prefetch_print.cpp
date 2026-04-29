@@ -229,7 +229,7 @@ bool isHirzel = config_->isHirzel;
             }
         }
 
-        // "(" << getUsedCache(node) << "," << nodeStates_[node].usedCache() << ")"
+        // "(" << getUsedCache(node) << "," << nodeStates_[node].usedCache_ << ")"
         std::cout << "(";                                       // 0x1c748b
         {
             auto nodeCopy = node;
@@ -241,7 +241,7 @@ bool isHirzel = config_->isHirzel;
         auto itState = nodeStates_.find(node);
         if (itState != nodeStates_.end()) {
             std::cout << detail::AddressImpl<uint32_t>(
-                itState->second.usedCache());                     // 0x1c7518: +0x40 from hash_node value = +0x20 PNS
+                itState->second.usedCache_);                     // 0x1c7518: +0x40 from hash_node value = +0x20 PNS
         }
         std::cout << ")";                                       // 0x1c7523
         std::cout << "\n";                                      // 0x1c7570

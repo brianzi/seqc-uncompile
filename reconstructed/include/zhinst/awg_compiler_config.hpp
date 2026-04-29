@@ -120,12 +120,8 @@ struct AWGCompilerConfig {
     //                       (verified 0x1da360: mov edx,[devConst+rcx*4+0x18])
     //   - seqCount         Was actually config_->deviceIndex at +0x24
     //                       (verified 0x1d7beb: cmp [config+0x24],0)
-    // Remaining forwarding accessors (no separate storage):
-    //
-    //   splitIndex    : same field as `cacheType` at +0x19
-    //   syncVersion   : same field as `numChannelGroups` at +0x1C
-    uint8_t splitIndex() const  { return cacheType; }
-    int syncVersion() const     { return numChannelGroups; }
+    // Remaining forwarding accessors: all dropped (Cluster E).
+    // Callers now use fields directly: cacheType, numChannelGroups.
 
     ~AWGCompilerConfig();
 

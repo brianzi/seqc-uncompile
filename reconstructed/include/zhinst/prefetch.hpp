@@ -121,15 +121,14 @@ public:
     //   +0x1C  4  int32_t       pageSize         (init=1; ALSO written as "playSize" —
     //                                            verified mov [rax+0x3c],r13d at 0x1cb00b/0x1cb0ea
     //                                            in definePlaySize)
-    //   +0x20  4  int32_t       requiredSlots    (init=0; ALSO read as "usedCache" —
-    //                                            verified mov r15d,[rax+0x40] at 0x1cdcfd/0x1ce61e)
+    //   +0x20  4  int32_t       usedCache_       (init=0; verified mov r15d,[rax+0x40] at 0x1cdcfd/0x1ce61e)
     //   +0x24  4  (padding)
     //   +0x28 16  shared_ptr<Cache::Pointer> cachePtr  (init=null)
     //   +0x38  1  bool          useDA            (init=false, precomp/DA flag)
     //   +0x39  7  (padding)
     //
     // Hallucinated PNS fields removed entirely:
-    //   - lengthReg, counter, playSize, usedCache → all aliases above
+    //   - lengthReg, counter, playSize, usedCache → aliases dropped (Cluster E)
     //   - totalSize → was actually a stack local in placeSingleCommand (-0x140(%rbp))
     //   - firstTime → no binary access anywhere
     struct PrefetcherNodeState {
@@ -139,24 +138,16 @@ public:
         int32_t branchCount = 1;                              // +0x14
         int32_t refTrack = 0;                                 // +0x18
         int32_t pageSize = 1;                                 // +0x1C
-        int32_t requiredSlots = 0;                            // +0x20
+        int32_t usedCache_ = 0;                            // +0x20
         int32_t _pad24 = 0;                                   // +0x24
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
         bool useDA = false;                                   // +0x38
         char _pad39[7] = {};                                  // +0x39 padding (no field here)
 
         // ====================================================================
-        // Forwarding accessors for legacy alias names. These are not separate
-        // fields; they reference existing slots above. See offset map.
+        // Legacy alias names removed (Cluster E). Callers now use fields
+        // directly: registerHirzel, state, pageSize, usedCache_.
         // ====================================================================
-        AsmRegister& lengthReg()        { return registerHirzel; }
-        AsmRegister const& lengthReg() const { return registerHirzel; }
-        int32_t& counter()              { return state; }
-        int32_t  counter() const        { return state; }
-        int32_t& playSize()             { return pageSize; }
-        int32_t  playSize() const       { return pageSize; }
-        int32_t& usedCache()            { return requiredSlots; }
-        int32_t  usedCache() const      { return requiredSlots; }
     };
 
     // Constructor                                                     // 0x1c5850

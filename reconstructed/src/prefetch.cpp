@@ -64,7 +64,7 @@ Prefetch::Prefetch(
 
     auto cacheSize = cache_->getSize();
     nodeStates_[root_] = PrefetcherNodeState{};
-    // nodeStates_[root_].usedCache() = cacheSize;  // at +0x40 in hash node value
+    // nodeStates_[root_].usedCache_ = cacheSize;  // at +0x40 in hash node value
 }
 
 // 0x11eed0 — Prefetch::~Prefetch()
@@ -1041,7 +1041,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
         if (parent.get()) {                                            // 0x1cdcc1
             // 0x1cdcd1: emplace current into nodeStates_ (get-or-create)
             auto& state = nodeStates_[current];                        // 0x1cdcf8
-            int usedCache = state.usedCache();                           // 0x1cdcfd: +0x40
+            int usedCache = state.usedCache_;                           // 0x1cdcfd: +0x40
 
             // 0x1cdd01-0x1cdd29: Copy current, call getUsedCache(current)
             int actualUsed = getUsedCache(current);                    // 0x1cdd24
@@ -1050,7 +1050,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
             if (usedCache >= actualUsed) {                             // 0x1cdd4b
                 // 0x1cdd54-0x1cddab: Subtract actualUsed from nodeStates_[current].usedCache
                 int used2 = getUsedCache(current);                     // 0x1cdd77
-                nodeStates_[current].usedCache() -= used2;               // 0x1cddab
+                nodeStates_[current].usedCache_ -= used2;               // 0x1cddab
             }
         }
 
@@ -1198,7 +1198,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
 
                     // 0x1ce74b-0x1ce7e1: pageSize < 2 → set counter to 0,
                     // resolve parent's load pointer, call mergeLoads
-                    nodeStates_[parent].counter() = 0;                   // 0x1ce77a
+                    nodeStates_[parent].state = 0;                   // 0x1ce77a
 
                     // Resolve parent's load ptr (weak_ptr at +0x18..+0x20)
                     std::shared_ptr<Node> parentLoadPtr = parent->loadRef.lock();
@@ -1226,7 +1226,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                 if (it == nodeStates_.end())                           // 0x1ce615
                     throw std::out_of_range("");
 
-                int parentUsedCache = it->second.usedCache();            // 0x1ce61e
+                int parentUsedCache = it->second.usedCache_;            // 0x1ce61e
             }
 
             // =============================================================
@@ -1556,7 +1556,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 if (loadState.cachePtr) {                              // 0x1d1700: cmpq $0,0x48(%rax)
                     // 0x1d1731-0x1d1739: Check counter >= 2
                     auto& loadState2 = nodeStates_[loadNode];          // 0x1d172c
-                    if (loadState2.counter() >= 2) {                   // 0x1d1735: cmpl $2,0xc(%rax); jl
+                    if (loadState2.state >= 2) {                   // 0x1d1735: cmpl $2,0xc(%rax); jl
                         // 0x1d1761-0x1d17a1: Copy cachePtr from loadState to curNodeState
                         auto& srcState = nodeStates_[loadNode];        // 0x1d175c
                         auto& dstState = nodeStates_[curNode];         // 0x1d1785
@@ -1774,9 +1774,9 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
                 // Emplace curNode into nodeStates_
                 auto& curState = nodeStates_[curNode];                 // 0x1d112a-0x1d114e: call emplace
-                // Read curState.counter() as PointerState
+                // Read curState.state as PointerState
                 auto pointerState = static_cast<Cache::PointerState>(
-                    curState.counter());                                 // 0x1d1153: mov 0x30(%rax),%edx
+                    curState.state);                                 // 0x1d1153: mov 0x30(%rax),%edx
 
                 // Call Cache::play(loadCachePtr, pointerState)
                 cachePtr->play(loadCachePtr, pointerState);            // 0x1d1160: call Cache::play
@@ -1815,7 +1815,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
 
                 auto& curState = nodeStates_[curNode];                 // 0x1d1388-0x1d13ac
                 auto pointerState = static_cast<Cache::PointerState>(
-                    curState.counter());                                 // 0x1d13b1: mov 0x30(%rax),%edx
+                    curState.state);                                 // 0x1d13b1: mov 0x30(%rax),%edx
 
                 cachePtr->play(loadCachePtr, pointerState);            // 0x1d13be: call Cache::play
             }

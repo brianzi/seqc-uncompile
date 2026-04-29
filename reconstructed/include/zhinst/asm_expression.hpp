@@ -123,17 +123,13 @@ struct AsmExpression {
     // Accessor aliases (forwarding methods, NOT separate storage —
     // these don't change struct layout). Different reconstructed call
     // sites use different names for the same fields:
-    //   labelPc / lineNumber → labelIndex (+0x58)
-    //   noOpt                → hasComment (+0x98)
-    //   labelType            → hasLabel   (+0x78)
+    //   labelPc      → labelIndex (+0x58) — positive evidence, kept
+    //   noOpt        → hasComment (+0x98)
+    //   lineNumber, labelType → dropped (Cluster E); callers use labelIndex, hasLabel directly
     int32_t&       labelPc()           { return labelIndex; }
     int32_t        labelPc()    const  { return labelIndex; }
-    int32_t&       lineNumber()        { return labelIndex; }
-    int32_t        lineNumber() const  { return labelIndex; }
     bool&          noOpt()             { return hasComment; }
     bool           noOpt()      const  { return hasComment; }
-    bool&          labelType()         { return hasLabel; }
-    bool           labelType()  const  { return hasLabel; }
 
     ~AsmExpression();       // 0x28b1f0
 };

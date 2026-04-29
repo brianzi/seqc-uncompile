@@ -320,16 +320,16 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             // which is semantically equivalent.
 
             // Set label-related fields on the expression
-            exprObj->lineNumber() = labelCounter;  // +0x58 = labelIndex (verified mov [r14+0x70],ecx where r14=ctrl block, so expr+0x58)
+            exprObj->labelIndex = labelCounter;  // +0x58 = labelIndex (verified mov [r14+0x70],ecx where r14=ctrl block, so expr+0x58)
 
-            // Depending on labelType (at +0x90 == 1 means "use/ref")
-            if (exprObj->labelType() == 1) {
+            // Depending on hasLabel (at +0x90 == 1 means "use/ref")
+            if (exprObj->hasLabel == 1) {
                 // Copy label name to +0x78
                 exprObj->labelName = labelStr;
             } else {
                 // Move label name; mark as definition
                 exprObj->labelName = std::move(labelStr);
-                exprObj->labelType() = 1;  // mark as has-label
+                exprObj->hasLabel = 1;  // mark as has-label
             }
         } else {
             // General instruction: create expression with matching command
@@ -455,8 +455,8 @@ void AWGAssemblerImpl::assembleExpressions(
     // First pass: register all labels
     for (const auto& expr : expressions) {
         AsmExpression* e = expr.get();
-        if (e->labelType() == 1) {  // label definition
-            int labelIndex = e->lineNumber();  // +0x58 (labelIndex; verified disasm 0x285732 mov r15d,[rax+0x58])
+        if (e->hasLabel == 1) {  // label definition
+            int labelIndex = e->labelIndex;  // +0x58 (labelIndex; verified disasm 0x285732 mov r15d,[rax+0x58])
             std::string labelName = e->labelName;  // at +0x60
             // Insert into bimap: (name -> index)
             labelBimap_.insert({labelName, labelIndex});

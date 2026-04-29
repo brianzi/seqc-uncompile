@@ -26,7 +26,7 @@ its items merged into TODO.md) and removed from the audit folder.
 - [x] **Commit 9** — Cluster L (AsmCommandsImpl::wvf/wvfi param drift; vtable-coordinated).
 - [x] **Commit 10** — Cluster D (`channelGrouping` → `loopUnrollLimit`; 3-leg coordinated).
 - [x] **Commit 11** — Cluster C (Hirzel family + Cache aliasing; drop both alias families; `Cache::appendMode_` → `isHirzel_`; `Cache::getBestPosition::appendMode` → `gapScan`). After this, Arbitration 10 can be resolved.
-- [ ] **Commit 12** — Cluster E (drop forwarding-accessor aliases; rename PNS `requiredSlots` → `usedCache_`).
+- [x] **Commit 12** — Cluster E (drop forwarding-accessor aliases; rename PNS `requiredSlots` → `usedCache_`).
 - [ ] **Commit 13** — Cluster N (`Resources::parent_` → `grandparent_`; two-step rename to avoid name collision; GlobalResources ctor param).
 - [ ] **Commit 14** — High-confidence singletons (§4; 35 items, grouped by batch).
 - [ ] **Commit 15** — Cluster M (Assembler type recomposition; GDB+RTTI confirm first; partly structural).

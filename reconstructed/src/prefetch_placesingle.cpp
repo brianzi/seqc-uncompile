@@ -996,7 +996,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
         // --- nodeType == 0x100: Sync (Cervino) ---
         else if (nodeType == 0x100) {                              // 0x1d7ba7
             auto* cfg = config_;
-            if (cfg->syncVersion() < 2)
+            if (cfg->numChannelGroups < 2)
                 return;
 
             AsmRegister reg1(resources_->getRegisterNumber());     // 0x1d7bbf
@@ -1062,7 +1062,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
         // --- nodeType == 0x2000: SyncHirzel ---
         else if (nodeType == 0x2000) {                             // 0x1d7a66
             auto* cfg = config_;
-            if (cfg->syncVersion() < 2 || cfg->deviceType != 2)
+            if (cfg->numChannelGroups < 2 || cfg->deviceType != 2)
                 return;
 
             AsmList::Asm syncAsm = asmCommands_->asmSyncHirzel();                 // 0x1d7a94
