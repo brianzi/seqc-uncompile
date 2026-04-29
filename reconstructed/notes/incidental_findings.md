@@ -1778,3 +1778,72 @@ Suite score remains 256/259 (no regression).
   when the indexed-load has already emitted them (IF-103 part 2).
 - Verify clampToCache argument matches binary semantics for the
   in-loop case.
+
+### IF-105 update 3 (placeLoads no-split path activated; getRequiredMemory fixed)
+
+**Status**: partially fixed — moveLoadsToFront no longer hoists the
+indexed Load; emission now lands inside the for-loop body.
+
+GDB-traced the original on `uhf_doc_tv_mode` and discovered that
+`placeLoads()` actually takes the **no-split** path (does not call
+`moveLoadsToFront`) for this case.  Recon was incorrectly taking the
+split path because `Prefetch::getRequiredMemory()` was reconstructed
+with the wrong page-count formula.
+
+**Root cause in getRequiredMemory** (prefetch_helpers.cpp:120):
+The inner loop computes `numPages` from the binary at `0x1cc9d0`:
+```
+r9  = DC+0x40 (waveformGranularity)   ; floor cap, NOT cap
+r10 = DC+0x44 (waveformPageSize)      ; round-up divisor
+eax = roundUp(numRepeats, r10)
+eax = max(eax, r9)                    ; cmova at 0x1cc9ea — was reconstructed as min
+```
+The recon had `numPages = min(rounded, granularity)`, which clamped
+massive waveforms (e.g. 126 000 samples) down to the granularity (16),
+so `getRequiredMemory()` returned 32 instead of 252 000 for tv_mode.
+That fooled `placeLoads` into the split path → moveLoadsToFront →
+indexed-Load hoisted out of the loop.
+
+**Fix** (this commit): change `min` to `max` and rename locals to
+`granularityFloor`/`pageSize` to match binary semantics.
+
+**Test impact for `uhf_doc_tv_mode`**:
+- Before: pre-loop emission of `addiu/addi/wwvf/prf/wprf` block
+  (260 728 bytes, blocks BEFORE `while1:`).
+- After: block correctly emitted inside the for-loop body
+  (260 760 bytes, after the wtrigs).  No-split path confirmed via
+  `cmp eax,ecx; jbe split` Intel-syntax disassembly.
+- Suite score still 256/259, no regressions.
+
+**Remaining diff for tv_mode** (3 issues, all in load_indexed_play
+emission body, not placement-pipeline):
+1. Ordering inside loop body: original places the indexed-Load setup
+   right after `false5: brz R4, end7` (start of body); recon places
+   it after the user statements (setID + wtrigs).  Likely the
+   placeholder used by load_indexed_play is being inserted at the
+   wrong scope position.
+2. Extra `wwvf` emitted (recon has two, original has one).  Need to
+   re-check the load_indexed_play body — possibly the
+   `cacheSize >= minIndexedSize` branch incorrectly emits both
+   wwvf paths.
+3. `prf` immediate differs (orig 2528 from
+   `clampToCache(cacheSize/2)` with the in-loop cache size; recon
+   42016 with a different cache size).  Linked to issue 1 or to
+   `clampToCache` argument semantics.
+4. Register allocation differs (orig R3,R6 vs recon R4,R3) —
+   downstream of the above.
+
+These remain open as IF-105 follow-ups.
+
+### IF-103 / IF-105 status summary
+
+- IF-103 part 1 (`load_indexed_play` body missing): **fixed** in
+  prior commit (a247dfb).
+- IF-105 wiring (`lengthReg` propagation in moveLoadsToFront):
+  **fixed** in 6aa0602.  However for tv_mode the wiring is moot
+  because moveLoadsToFront should not run at all (see update 3).
+- IF-105 update 3 (`getRequiredMemory` formula): **fixed** in this
+  commit.
+- Remaining tv_mode diff: emission body / placement issues
+  enumerated above; all are within `load_indexed_play` and the
+  in-loop placeholder insertion.  Test still fails (256/259).

@@ -147,11 +147,16 @@ size_t Prefetch::getRequiredMemory() const // 0x1cc930
 
             uint32_t numPages;
             if (numRepeats != 0) {
-                uint32_t stride = dc->waveformPageSize;    // DC+0x44
-                uint32_t base = dc->waveformGranularity;   // DC+0x40
-                numPages = static_cast<uint32_t>(
-                    ((numRepeats + stride - 1) / stride) * stride);
-                numPages = std::min(numPages, base);
+                // Binary at 0x1cc9d0:
+                //   r9  = waveformGranularity (DC+0x40)  -- floor/min cap
+                //   r10 = waveformPageSize    (DC+0x44)  -- round-up divisor
+                //   eax = roundUp(numRepeats, r10)
+                //   eax = max(eax, r9)                     -- cmova at 0x1cc9ea
+                uint32_t granularityFloor = dc->waveformGranularity; // DC+0x40
+                uint32_t pageSize         = dc->waveformPageSize;    // DC+0x44
+                uint32_t rounded = static_cast<uint32_t>(
+                    ((numRepeats + pageSize - 1) / pageSize) * pageSize);
+                numPages = std::max(rounded, granularityFloor);
             } else {
                 numPages = 0;
             }

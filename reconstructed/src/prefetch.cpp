@@ -2248,7 +2248,10 @@ void Prefetch::placeLoads() // 0x1cbf60
     // 0x1cbfa5-0x1cbfb5: save root_ to local
     auto localRoot = root_;
 
-    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize AND !config_->appendMode()
+    // 0x1cbfbf-0x1cbfda: check if required <= cacheSize OR config_->appendMode().
+    // Binary uses Intel-syntax `cmp eax,ecx; jbe split` — eax=required, ecx=cacheSize,
+    // so jbe is taken when required <= cacheSize. Plus appendMode (config+0x18 / isHirzel)
+    // forces split.
     if (required <= static_cast<size_t>(cacheSize) || config_->appendMode()) {
         // 0x1cbfda: split_ = true
         split_ = true;
