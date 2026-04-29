@@ -70,7 +70,7 @@ AsmOptimize::~AsmOptimize() {  // 0x123200
 // ============================================================================
 
 // 0x27d900
-bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
+bool AsmOptimize::isRead(const Assembler& instr, AsmRegister reg) const {
     int cmdType = Assembler::getCmdType(instr.cmd);
 
     // regSrc (+0x20, "source") is read if cmdType bit 0 set
@@ -91,7 +91,7 @@ bool AsmOptimize::isRead(const AssemblerInstr& instr, AsmRegister reg) const {
 }
 
 // 0x27d960
-bool AsmOptimize::isWritten(const AssemblerInstr& instr, AsmRegister reg) const {
+bool AsmOptimize::isWritten(const Assembler& instr, AsmRegister reg) const {
     int cmdType = Assembler::getCmdType(instr.cmd);
 
     // regDst (+0x28, "dest") is written if cmdType has bit 1 set
@@ -151,7 +151,7 @@ int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
             continue;
 
         // Check regSrc (+0x20, read source) — 281a5e: lea rdi,[r14+0x28]
-        //   (Asm+0x28 = AssemblerInstr+0x20 = regSrc)
+        //   (Asm+0x28 = Assembler+0x20 = regSrc)
         if (pos->assembler.regSrc == reg) {
             auto cmd = pos->assembler.cmd;
             // Branch commands that test the register → return 3
@@ -162,14 +162,14 @@ int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
         }
 
         // Check regDst (+0x28, dest/write) — 281aa8: lea rdi,[r14+0x30]
-        //   (Asm+0x30 = AssemblerInstr+0x28 = regDst)
+        //   (Asm+0x30 = Assembler+0x28 = regDst)
         int prev = result;
         result |= 2;
         if (!(pos->assembler.regDst == reg))
             result = prev;  // undo if no match — cmove at 281aba
 
         // Check regAux (+0x30, ambiguous slot) — 281abe: lea rdi,[r14+0x38]
-        //   (Asm+0x38 = AssemblerInstr+0x30 = regAux)
+        //   (Asm+0x38 = Assembler+0x30 = regAux)
         if (pos->assembler.regAux == reg)
             return 3;  // 281ad3: jne ret
 
@@ -196,12 +196,12 @@ bool AsmOptimize::registerIsNeverWritten(AsmList& list, AsmRegister reg,
         int cmdType = Assembler::getCmdType(it->assembler.cmd);
 
         // regDst (+0x28, dest): written if cmdType bit 1 set
-        // 280fb0: lea rdi,[r15+0x30]; (Asm+0x30 = AssemblerInstr+0x28 = regDst)
+        // 280fb0: lea rdi,[r15+0x30]; (Asm+0x30 = Assembler+0x28 = regDst)
         if (it->assembler.regDst == reg && ((cmdType >> 1) & 1))
             return false;
 
         // regAux (+0x30, src2): written if cmdType == 7
-        // 280fc7: lea rdi,[r15+0x38]; (Asm+0x38 = AssemblerInstr+0x30 = regAux)
+        // 280fc7: lea rdi,[r15+0x38]; (Asm+0x38 = Assembler+0x30 = regAux)
         if (it->assembler.regAux == reg && cmdType == 7)
             return false;
     }
@@ -544,7 +544,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             continue;
 
         // Determine the written register.
-        // First try regDst (+0x28 in AssemblerInstr, Asm+0x30):
+        // First try regDst (+0x28 in Assembler, Asm+0x30):
         //   if valid and != AsmRegister(0), use it.
         // Otherwise use regAux (+0x30, Asm+0x38).
         // 27e85d: lea rdi,[r12+0x30]; call isValid
@@ -586,7 +586,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
                 continue;
 
             // Check regSrc (+0x20, read source) — 27ea06: lea rdi,[rbx+0x28]
-            //   (Asm+0x28 = AssemblerInstr+0x20 = regSrc)
+            //   (Asm+0x28 = Assembler+0x20 = regSrc)
             if (scanIt->assembler.regSrc == destReg) {
                 auto scanCmd = scanIt->assembler.cmd;
                 // Branch using this register → give up (register is in use)
@@ -599,7 +599,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             }
 
             // Check regDst (+0x28, write dest) — 27ea5d: lea rdi,[rbx+0x30]
-            //   (Asm+0x30 = AssemblerInstr+0x28 = regDst)
+            //   (Asm+0x30 = Assembler+0x28 = regDst)
             {
                 int prev = usageFlags;
                 usageFlags |= 2;  // 27ea6d
@@ -608,7 +608,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             }
 
             // Check regAux (+0x30, ambiguous) — 27ea77: lea rdi,[rbx+0x38]
-            //   (Asm+0x38 = AssemblerInstr+0x30 = regAux)
+            //   (Asm+0x38 = Assembler+0x30 = regAux)
             // If regAux matches OR both bits set → give up
             // 27ea84: cmp r14,0x3; sete cl; or al,cl; jne → abandon
             if (scanIt->assembler.regAux == destReg || usageFlags == 3) {
@@ -696,7 +696,7 @@ bool AsmOptimize::simplifyAssign(AsmList::iterator it) {  // @0x280e10
 
     // Check if the ADDI's output immediate is 0            // @0x280e48
     // Binary loads next->assembler.outputs[0] (at +0x38 in
-    // AssemblerInstr) and compares via Immediate::operator==.
+    // Assembler) and compares via Immediate::operator==.
     bool canSimplify = false;
     if (!next->assembler.outputs.empty()) {
         Immediate zero(0);
@@ -816,7 +816,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
             // Only LABEL instructions (cmd == 2) — 27ed9f: cmp [r14+0x8],0x2
             if (it->assembler.cmd == Assembler::LABEL) {
-                // Insert label name (Asm+0x58 = AssemblerInstr+0x50 = label)
+                // Insert label name (Asm+0x58 = Assembler+0x50 = label)
                 // with value = instrIdx
                 // 27eda6: lea rsi,[r14+0x58]
                 labelMap[it->assembler.label] = instrIdx;
@@ -847,7 +847,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
             if (!isBranch)
                 continue;
 
-            // Check label: Asm+0x58 = AssemblerInstr+0x50
+            // Check label: Asm+0x58 = Assembler+0x50
             // 27ee7e: movzx eax,BYTE PTR [r14]; test al,0x1
             //   This checks the SSO bit of the label string (libc++: short
             //   string has bit0 of byte0 = 1 for short, 0 for long)
@@ -1153,7 +1153,7 @@ cleanup:
 //     - Skip unless cmd is INVALID(-1), ADDI(0x40000000), or cmd=4
 //     - Check if regDst (+0x28, dest) == AsmRegister(0) → this is a
 //       constant load from r0
-//     - If so, get destReg = regAux (+0x30, AssemblerInstr+0x28 = the actual
+//     - If so, get destReg = regAux (+0x30, Assembler+0x28 = the actual
 //       destination register of the ADDI)
 //     - Scan forward, skipping dead and cmd=4 entries:
 //       - If find ADDIU(0x50000000) with regAux matching destReg:
@@ -1480,7 +1480,7 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
         }
 
         // --- Replace register in current instruction ---               // @0x2813f7
-        auto& instr = const_cast<AssemblerInstr&>(it->assembler);
+        auto& instr = const_cast<Assembler&>(it->assembler);
         if (instr.regDst == reg) instr.regDst = newReg;                     // @0x281408
         if (instr.regAux == reg) instr.regAux = newReg;                     // @0x281423
 

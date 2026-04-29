@@ -272,10 +272,10 @@ AWGAssemblerImpl::assembleStringToExpressionsVec(const std::string& src) {  // 0
 
 // =============================================================================
 // assembleAsmList — 0x2876a0
-// Converts a vector of AssemblerInstr objects into AsmExpression trees and
+// Converts a vector of Assembler objects into AsmExpression trees and
 // calls assembleExpressions.
 // =============================================================================
-void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmList) {  // 0x2876a0
+void AWGAssemblerImpl::assembleAsmList(const std::vector<Assembler>& asmList) {  // 0x2876a0
     std::vector<std::shared_ptr<AsmExpression>> expressions;
     std::vector<uint64_t> lineNumbers;
 
@@ -366,7 +366,7 @@ void AWGAssemblerImpl::assembleAsmList(const std::vector<AssemblerInstr>& asmLis
             expr->children.push_back(std::move(child));
         }
 
-        // Add destination register (binary offset +0x28 in AssemblerInstr)
+        // Add destination register (binary offset +0x28 in Assembler)
         if (instr.regDst.isValid()) {
             int regIdx = static_cast<int>(instr.regDst);
             AsmExpression* regExpr = createRegister(regIdx);

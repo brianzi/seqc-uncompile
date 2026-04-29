@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// Assembler / AssemblerInstr method implementations
+// Assembler method implementations
 //
 // Binary addresses noted in comments next to each function.
 // ============================================================================
@@ -72,11 +72,8 @@ static const std::map<std::string, Assembler::Command>& getCmdMap() {
     return cmdMap;
 }
 
-namespace Assembler {
-
 // 0x28f7f0 — Linear scan of cmdMap (reverse lookup: Command → string).
-// O(n) traversal — iterates all map nodes checking the value field.
-std::string commandToString(Command cmd) {
+std::string Assembler::commandToString(Command cmd) {
     const auto& map = getCmdMap();
     for (const auto& [name, val] : map) {
         if (val == cmd)
@@ -86,9 +83,7 @@ std::string commandToString(Command cmd) {
 }
 
 // 0x2902f0 — Forward lookup: string → Command.
-// Input is lowercased via boost::to_lower_copy before map lookup.
-// Returns INVALID if not found.
-Command commandFromString(const std::string& name) {
+Assembler::Command Assembler::commandFromString(const std::string& name) {
     std::string lower = boost::to_lower_copy(name);
     const auto& map = getCmdMap();
     auto it = map.find(lower);
@@ -98,12 +93,7 @@ Command commandFromString(const std::string& name) {
 }
 
 // 0x28f8a0 — Classify opcode into scheduling categories.
-// Returns:
-//   3 = most ALU/waveform/IO ops (single-issue)
-//   1 = LD only
-//   4 = branch/control-flow group
-//   0 = unrecognized
-int getOpcodeType(Command cmd) {
+int Assembler::getOpcodeType(Command cmd) {
     switch (cmd) {
     case NOP:
     case PRF:
@@ -153,11 +143,7 @@ int getOpcodeType(Command cmd) {
 }
 
 // 0x28fac0 — Return cycle count for instruction.
-// Returns:
-//   1 = most instructions (single-cycle)
-//   3 = BRZ, BRNZ, BRGZ (branch penalty)
-//   0 = unrecognized
-int getCycles(Command cmd) {
+int Assembler::getCycles(Command cmd) {
     switch (cmd) {
     case NOP:
     case PRF:
@@ -206,14 +192,7 @@ int getCycles(Command cmd) {
 }
 
 // 0x28fce0 — Return command type category.
-// Returns:
-//   1 = waveform/branch/IO (PRF, WVF, WVFI, WVFS_H, BRZ, BRNZ, ST, WTRIG,
-//       CWVFR, WVFE, WVFEI, WVFET)
-//   2 = LD only
-//   3 = ALU immediate (ADDI, ADDIU, ANDI, ANDIU, ORI, ORIU, XNORI, XNORIU)
-//   7 = ALU register-register (ADDR..XORR)
-//   0 = unrecognized
-int getCmdType(Command cmd) {
+int Assembler::getCmdType(Command cmd) {
     switch (cmd) {
     case PRF:
     case WVF:
@@ -254,13 +233,7 @@ int getCmdType(Command cmd) {
 }
 
 // 0x28fe70 — Return register ordering info.
-// Returns:
-//   3 = three-register ops (ALU reg-reg, PRF, WVF, WVFI, WTRIG)
-//   1 = source-only (WVFS_H, BRZ, BRNZ, ST, CWVFR, WVFE, WVFET)
-//   2 = dest-only (LD)
-//   4 = dest + immediate-src (all ALU immediate ops)
-//   0 = unrecognized
-int getRegisterOrder(Command cmd) {
+int Assembler::getRegisterOrder(Command cmd) {
     switch (cmd) {
     case ADDR:
     case SUBR:
@@ -300,15 +273,13 @@ int getRegisterOrder(Command cmd) {
     }
 }
 
-} // namespace Assembler
-
 // ============================================================================
-// AssemblerInstr methods
+// Assembler instance methods
 // ============================================================================
 
 // 0x28ffe0 — Returns packed int64_t: (1LL << 32) | regIndex if any valid
 // registers, else 0. Checks regSrc, regDst, regAux and returns the highest.
-int64_t AssemblerInstr::highestRegisterNumber() const {
+int64_t Assembler::highestRegisterNumber() const {
     int maxReg = -1;
     bool found = false;
 
@@ -331,17 +302,14 @@ int64_t AssemblerInstr::highestRegisterNumber() const {
 }
 
 // 0x28ebd0 — Produce disassembly string.
-// LABEL instructions: returns "label:" directly.
-// Others: "\t" + cmdName + immediates + registers + outputs + label
-// If verbose && comment non-empty: pad to width 25, append "// comment"
-std::string AssemblerInstr::str(bool verbose) const {
+std::string Assembler::str(bool verbose) const {
     // Special case: LABEL pseudo-instruction
-    if (cmd == Assembler::LABEL) {
+    if (cmd == LABEL) {
         return label + ":";
     }
 
     std::ostringstream ss;
-    ss << "\t" << Assembler::commandToString(cmd);
+    ss << "\t" << commandToString(cmd);
 
     bool needComma = false;
 
@@ -394,55 +362,11 @@ std::string AssemblerInstr::str(bool verbose) const {
 
 // ============================================================================
 // Assembler destructor — 0x103980
-//
-// Compiler-generated: destroys members in reverse declaration order.
-// Destroys: comment (string), label (string), outputs (vector<Immediate>),
-// then immediates (vector<Immediate>).
-// For vectors, iterates elements backwards, destroying contained strings
-// (variant index 2) via SSO-aware deallocation. Registers are POD — no dtor.
 // ============================================================================
-// (Destructor is implicitly generated; shown here for documentation.
-//  The compiler inlines Immediate variant destruction rather than
-//  calling ~Immediate() — it dispatches through a vtable at 0xb02308.)
+Assembler::~Assembler() = default;
 
-// ============================================================================
-// Assembler copy constructor — 0x122e20
-//
-// Copies cmd as dword. Bulk-copies regSrc+regDst+regAux as 24-byte memcpy
-// (movups + mov pattern). Vectors call __init_with_size to allocate
-// then copy-construct each Immediate element. Strings use SSO-aware copy.
-// ============================================================================
-// (Copy constructor is implicitly generated; shown here for documentation.)
-
-// ============================================================================
-// Assembler move assignment — 0x125ab0
-//
-// Uses "destroy-then-steal" pattern (NOT swap-based).
-// For vectors: destroys existing elements, frees buffer, steals source's
-// {data, size, capacity} via movups+mov, zeroes source.
-// For strings: frees existing long-mode buffer, memcpys 24-byte SSO repr,
-// writes 0x0000 to source (empty short string).
-// Registers are plain overwritten (POD). Marked noexcept.
-// ============================================================================
-// (Move assignment is implicitly generated; shown here for documentation.)
-
-// ============================================================================
-// Assembler copy assignment — 0x125e80
-//
-// Has explicit self-assignment check (this == &other). On self-assign,
-// only registers are redundantly copied; vectors and strings are skipped.
-// Vectors use __assign_with_size — handles in-place element-wise assign
-// when capacity suffices, else destroy+realloc.
-// ============================================================================
-// (Copy assignment is implicitly generated; shown here for documentation.)
-
-// AssemblerInstr::~AssemblerInstr() @0x103980
-// Destroys vectors of Immediate (with per-element variant dtors) + strings.
-AssemblerInstr::~AssemblerInstr() = default;
-
-// AssemblerInstr::operator=(const AssemblerInstr&) @0x125e80
-// Copy assignment with explicit self-check; otherwise field-by-field copy.
-AssemblerInstr& AssemblerInstr::operator=(const AssemblerInstr& other) {
+// Assembler::operator=(const Assembler&) @0x125e80
+Assembler& Assembler::operator=(const Assembler& other) {
     if (this != &other) {
         cmd = other.cmd;
         immediates = other.immediates;
@@ -456,9 +380,8 @@ AssemblerInstr& AssemblerInstr::operator=(const AssemblerInstr& other) {
     return *this;
 }
 
-// AssemblerInstr::operator=(AssemblerInstr&&) @0x125ab0
-// Move assignment: destroys own resources, takes ownership from source.
-AssemblerInstr& AssemblerInstr::operator=(AssemblerInstr&& other) noexcept {
+// Assembler::operator=(Assembler&&) @0x125ab0
+Assembler& Assembler::operator=(Assembler&& other) noexcept {
     if (this != &other) {
         cmd = other.cmd;
         immediates = std::move(other.immediates);

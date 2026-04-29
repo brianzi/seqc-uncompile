@@ -103,11 +103,11 @@ private:
 
     // Check if instruction reads the given register
     // reg2 (+0x20) is read if cmdType bit 0 set; reg1 (+0x30) is read if cmdType==7 or cmdType==1
-    bool isRead(const AssemblerInstr& instr, AsmRegister reg) const;    // 0x27d900
+    bool isRead(const Assembler& instr, AsmRegister reg) const;    // 0x27d900
 
     // Check if instruction writes the given register
     // reg0 (+0x28) is written if cmdType has bit 1 set; reg1 (+0x30) is written if cmdType==7
-    bool isWritten(const AssemblerInstr& instr, AsmRegister reg) const; // 0x27d960
+    bool isWritten(const Assembler& instr, AsmRegister reg) const; // 0x27d960
 
     // Check if any branch/jump instruction after 'it' references the given label
     // Checks commands: BRZ (0xf3), BRNZ (0xf4), BRGZ (0xf5), JMP (0xfe)

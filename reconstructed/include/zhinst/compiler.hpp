@@ -97,7 +97,7 @@ LowerResult lower(std::shared_ptr<Resources> resources,
 // sret return type of Compiler::compile() — 40 bytes (24 + 16)
 // Binary at 0x121421: writes shared_ptr<WavetableIR> into sret+0x18
 struct CompileResult {
-    std::vector<AssemblerInstr> asmList;          // +0x00 (24 bytes)
+    std::vector<Assembler> asmList;          // +0x00 (24 bytes)
     std::shared_ptr<WavetableIR> wavetableIR;    // +0x18 (16 bytes)
 };
 

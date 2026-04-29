@@ -45,7 +45,7 @@ int AsmList::Asm::createUniqueID(bool reset) {
 //
 // Teardown order:
 // 1. Release shared_ptr<Node> at +0x90 (control block at +0x98)
-// 2. Destroy AssemblerInstr at +0x08 (tail-call to Assembler::~Assembler)
+// 2. Destroy Assembler at +0x08 (tail-call to Assembler::~Assembler)
 // Scalars (sequenceId, wavetableFront, noOpt) need no destruction.
 // ============================================================================
 AsmList::Asm::~Asm() = default;  // compiler-generated matches binary
@@ -252,7 +252,7 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 //   4. Reset createUniqueID (nextID = 0).
 //   5. Iterate expressions. For each AsmExpression:
 //      a. If labelType == true (0x78): expression is a direct instruction reference.
-//         Build AssemblerInstr with cmd from expr->command, copy label string
+//         Build Assembler with cmd from expr->command, copy label string
 //         from expr (+0x60). Assign sequenceId = nextID++.
 //      b. If expr->command == 3 (MESSAGE) or 5 (ERROR_MSG): Build instr with
 //         that command. Parse first child's string as Immediate, push to
@@ -264,7 +264,7 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 //         - type==1 (register): collect shared_ptr into register-expressions vector
 //         - type==3 again in second pass: collect into output-expressions vector
 //         Then check for type==2 (label): copy label string if present.
-//      e. After categorizing, construct AssemblerInstr:
+//      e. After categorizing, construct Assembler:
 //         - cmd = expr->command
 //         - Build immediates vector from input-expressions (Immediate(value))
 //         - Assign registers based on Assembler::getRegisterOrder(cmd):
@@ -338,8 +338,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
         // 0x2662dc: check expr->hasLabel (byte at +0x78)
         if (expr->hasLabel) {
             // --- Case A: Direct instruction reference (labelType == true) ---
-            // 0x2662e6: Build AssemblerInstr with cmd = LABEL (2)
-            AssemblerInstr instr;
+            // 0x2662e6: Build Assembler with cmd = LABEL (2)
+            Assembler instr;
             instr.cmd = Assembler::LABEL;  // cmd = 2
 
             // 0x26635a: Copy label string from expr (+0x60) into instr.label
@@ -377,7 +377,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             if (exprCmd == 3 || exprCmd == 5) {
                 // --- Case B: MESSAGE or ERROR_MSG ---
                 // 0x266590: Build instr with cmd = exprCmd (3 or 5)
-                AssemblerInstr instr;
+                Assembler instr;
                 instr.cmd = static_cast<Assembler::Command>(exprCmd);
 
                 // 0x266603: Get first child expression (+0x40 vector, first element)
@@ -406,7 +406,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             } else if (exprCmd == 4) {
                 // --- Case C: NOP marker ---
                 // 0x2664de: Build instr with cmd = 4
-                AssemblerInstr instr;
+                Assembler instr;
                 instr.cmd = static_cast<Assembler::Command>(4);
 
                 // 0x266555: Copy string from expr (+0x20, comment field) into instr
@@ -474,8 +474,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                 std::vector<std::shared_ptr<AsmExpression>> regExprs(
                     vec_reg.begin(), vec_reg.end());
 
-                // 0x266fbb: Build AssemblerInstr
-                AssemblerInstr instr;
+                // 0x266fbb: Build Assembler
+                Assembler instr;
                 instr.cmd = static_cast<Assembler::Command>(cmdVal);
 
                 // Build immediates from vec_input

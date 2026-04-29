@@ -8,7 +8,7 @@
 namespace zhinst {
 
 class AWGAssemblerImpl;
-struct AssemblerInstr;
+class Assembler;
 struct DeviceConstants;
 
 // sizeof(AWGAssembler) = 0x8
@@ -19,7 +19,7 @@ public:
 
     void assembleFile(std::string const& path);
     void assembleString(std::string const& src);
-    void assembleAsmList(std::vector<AssemblerInstr> const& asmList);
+    void assembleAsmList(std::vector<Assembler> const& asmList);
     // Returns by value (sret); vector of parsed expression objects.
     std::vector<std::shared_ptr<struct AsmExpression>> assembleStringToExpressionsVec(std::string const& src);
     void setMemoryOffset(unsigned int offset);

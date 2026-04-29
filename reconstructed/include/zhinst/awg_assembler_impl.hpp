@@ -14,7 +14,7 @@
 namespace zhinst {
 
 struct DeviceConstants;
-struct AssemblerInstr;
+class Assembler;
 class AsmExpression;
 
 // LabelBimap type alias — bimap<string, multiset_of<int>>
@@ -113,7 +113,7 @@ public:
     // ---- Public API ----
     void assembleFile(std::string const& path);             // 0x285ec0
     void assembleString(std::string const& src);            // 0x286490
-    void assembleAsmList(std::vector<AssemblerInstr> const& asmList);
+    void assembleAsmList(std::vector<Assembler> const& asmList);
     std::vector<std::shared_ptr<AsmExpression>>
         assembleStringToExpressionsVec(std::string const& src);   // 0x286e40
     void setMemoryOffset(unsigned int offset);              // 0x288560

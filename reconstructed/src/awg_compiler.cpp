@@ -362,7 +362,7 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //   3. Clear compileMessages_ vector (destroy old entries, reset end pointer)
 //   4. Reset wavetableIR_ shared_ptr (release old)
 //   5. Call compiler_.compile(source) @0x11f150
-//      Returns vector<AssemblerInstr> (sret)
+//      Returns vector<Assembler> (sret)
 //   6. Move result into local asmList, move wavetableIR from compiler
 //   7. Create ostringstream, iterate asmList entries:
 //      - For each Assembler entry with type != -1:
@@ -415,7 +415,7 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     wavetableIR_.reset();
 
     // 5. Compile
-    std::vector<AssemblerInstr> asmList;
+    std::vector<Assembler> asmList;
     try {
         auto compileResult = compiler_.compile(source);   // @0x11f150
         asmList = std::move(compileResult.asmList);

@@ -235,9 +235,9 @@ private:
     int wavetableFrontIndex_ = 0;                                // +0x50
     int numChannelGroups_ = 0;                                   // +0x54
 
-    // Helper: build an AsmList::Asm from a local AssemblerInstr
-    AsmList::Asm emitEntry(const AssemblerInstr& instr) const;
-    AsmList::Asm emitEntry(const AssemblerInstr& instr, int overrideWavetableFront) const;
+    // Helper: build an AsmList::Asm from a local Assembler
+    AsmList::Asm emitEntry(const Assembler& instr) const;
+    AsmList::Asm emitEntry(const Assembler& instr, int overrideWavetableFront) const;
 
     // Helper: build an AsmList::Asm with a Node
     AsmList::Asm emitNodeEntry(NodeType type) const;

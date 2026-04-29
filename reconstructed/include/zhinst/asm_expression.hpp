@@ -88,9 +88,7 @@ namespace zhinst {
 
 class AsmParserContext;
 
-namespace Assembler {
-    enum Command : uint32_t;
-}
+class Assembler;
 
 // AsmExprType — expression node type discriminator (A2)
 enum class AsmExprType : int32_t {

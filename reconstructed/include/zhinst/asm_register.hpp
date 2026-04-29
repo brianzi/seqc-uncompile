@@ -12,7 +12,7 @@
 
 // AsmRegister — 8-byte struct: {int value; bool valid; 3 bytes padding}
 //
-// Confirmed from disassembly: stored as 8 bytes in AssemblerInstr and Node
+// Confirmed from disassembly: stored as 8 bytes in Assembler and Node
 // fields. The valid flag is separate from the value (not just value == -1).
 // Common pattern: valid=false, value=-1 for "no register".
 struct AsmRegister {

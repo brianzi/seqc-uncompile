@@ -18,11 +18,7 @@
 
 namespace zhinst {
 
-// Forward declarations for types used in addNode/addCommand
-namespace Assembler {
-    enum Command : uint32_t;
-    Command commandFromString(const std::string& name);
-}
+// Assembler is now a class; its header is included transitively.
 
 // ============================================================================
 // AsmParserContext::Label

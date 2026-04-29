@@ -44,7 +44,7 @@ public:
     // Layout:
     //   +0x00  int             sequenceId      — from createUniqueID(false)
     //   +0x04  (4 bytes padding)
-    //   +0x08  AssemblerInstr  assembler       — instruction data (0x80 bytes)
+    //   +0x08  Assembler  assembler       — instruction data (0x80 bytes)
     //   +0x88  int             wavetableFront  — waveform table context index
     //   +0x8C  (4 bytes padding)
     //   +0x90  shared_ptr<Node> node           — AST node (16 bytes; may be null)
@@ -54,7 +54,7 @@ public:
     struct Asm {
         int sequenceId = 0;               // +0x00
         // +0x04: 4 bytes padding
-        AssemblerInstr assembler;         // +0x08  (0x80 bytes)
+        Assembler assembler;         // +0x08  (0x80 bytes)
         int wavetableFront = 0;           // +0x88  (dual-purpose; see lineNumber())
         // +0x8C: 4 bytes padding
         std::shared_ptr<Node> node;       // +0x90  (16 bytes: ptr + ctrl)

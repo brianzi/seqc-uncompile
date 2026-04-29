@@ -469,8 +469,8 @@ CompileResult Compiler::compile(const std::string& source) {
         throw CompilerException("Compiler error while assembling output file");
     }
 
-    // Step 19: Build output vector<AssemblerInstr>                       // 0x121345
-    std::vector<AssemblerInstr> result;
+    // Step 19: Build output vector<Assembler>                       // 0x121345
+    std::vector<Assembler> result;
     result.reserve(asmList_.size());
     for (size_t _i = 0; _i < asmList_.entries.size(); _i++) {
         auto& entry = asmList_.entries[_i];

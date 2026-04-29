@@ -29,7 +29,7 @@ its items merged into TODO.md) and removed from the audit folder.
 - [x] **Commit 12** — Cluster E (drop forwarding-accessor aliases; rename PNS `requiredSlots` → `usedCache_`).
 - [x] **Commit 13** — Cluster N (`Resources::parent_` → `grandparent_`; two-step rename to avoid name collision; GlobalResources ctor param).
 - [x] **Commit 14** — High-confidence singletons (§4; 35 items, grouped by batch).
-- [ ] **Commit 15** — Cluster M (Assembler type recomposition; GDB+RTTI confirm first; partly structural).
+- [x] **Commit 15** — Cluster M (Assembler type recomposition; GDB+RTTI confirm first; partly structural).
 - [ ] **Commit 16** — Open arbitrations (§2; one PR per arbitration; investigate-first items: 1, 2, 4, 5, 7, 9, 11; resolve approved items: 3 swap, 6 keep lhs/rhs, 8 cmdToken/argList).
 - [x] **Commit 17** — Medium-confidence singletons (§5; 111 items; single commit).
 - [x] **Commit 18** — Dead-code removals (§7; 17 items; group by batch where applicable).
