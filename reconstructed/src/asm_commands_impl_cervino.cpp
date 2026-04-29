@@ -36,36 +36,36 @@ AsmList::Asm AsmCommandsImplCervino::wprf(int lineNumber) const {
 
 // --- wvf: opcode 0x20000000 ---
 
-AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister markerReg,
-                                      int waveIndex, int lineNumber) const {
+AsmList::Asm AsmCommandsImplCervino::wvf(AsmRegister waveReg, AsmRegister dstReg,
+                                      int length, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVF;
 
-    if (markerReg == AsmRegister::Reg(0)) {
+    if (dstReg == AsmRegister::Reg(0)) {
         // Single-register form: waveReg in aux slot (bits 27:24), R0 in src slot (bits 23:20)
         result.assembler.regAux = waveReg;
         result.assembler.regSrc = AsmRegister::Reg(0);
     } else {
         // Two-register form
         result.assembler.regAux = waveReg;
-        result.assembler.regSrc = markerReg;
+        result.assembler.regSrc = dstReg;
     }
 
-    // waveIndex goes in outputs (not immediates) so it appears AFTER registers
+    // length goes in outputs (not immediates) so it appears AFTER registers
     // in the child ordering: immediates → regDst → regAux → regSrc → outputs
     // opcode3 expects children: [reg(child[0]), reg(child[1]), val(child[2])]
-    result.assembler.outputs.emplace_back(waveIndex);
+    result.assembler.outputs.emplace_back(length);
     result.wavetableFront = lineNumber;
     result.noOpt = noOpt(result.assembler);
     return result;
 }
 
-// --- wvfi: opcode 0x30000000 (only if markerReg == R0) ---
+// --- wvfi: opcode 0x30000000 (only if dstReg == R0) ---
 
-AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister markerReg,
-                                       int waveIndex, int lineNumber) const {
-    if (markerReg != AsmRegister::Reg(0)) {
+AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister dstReg,
+                                       int length, int lineNumber) const {
+    if (dstReg != AsmRegister::Reg(0)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
     }
@@ -75,7 +75,7 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister marke
     result.assembler.cmd = Assembler::WVFI;
     result.assembler.regAux = waveReg;
     result.assembler.regSrc = AsmRegister::Reg(0);
-    result.assembler.outputs.emplace_back(waveIndex);  // outputs, not immediates (child order)
+    result.assembler.outputs.emplace_back(length);  // outputs, not immediates (child order)
     result.wavetableFront = lineNumber;
     result.noOpt = noOpt(result.assembler);
     return result;

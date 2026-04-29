@@ -40,12 +40,12 @@ AsmList::Asm AsmCommandsImplHirzel::wprf(int lineNumber) const {
 
 // --- wvf: 0xFA000000 (single-reg) or 0x20000000 (two-reg) ---
 
-AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerReg,
-                                     int waveIndex, int lineNumber) const {
+AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister dstReg,
+                                     int length, int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
 
-    if (markerReg == AsmRegister::Reg(0)) {
+    if (dstReg == AsmRegister::Reg(0)) {
         // Hirzel-specific single-register opcode
         result.assembler.cmd = Assembler::WVFE;
         result.assembler.regSrc = waveReg;
@@ -53,10 +53,10 @@ AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister markerR
         // Two-register form, same as Cervino
         result.assembler.cmd = Assembler::WVF;
         result.assembler.regSrc = waveReg;
-        result.assembler.regAux = markerReg;
+        result.assembler.regAux = dstReg;
     }
 
-    result.assembler.outputs.emplace_back(waveIndex);
+    result.assembler.outputs.emplace_back(length);
     result.wavetableFront = lineNumber;
     result.noOpt = noOpt(result.assembler);
     return result;
@@ -73,7 +73,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvfi(AsmRegister, AsmRegister,
 // --- wvfs: opcode 0x30000001, dummyType→bool as first immediate ---
 
 AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
-                                      AsmRegister reg, int arg,
+                                      AsmRegister reg, int length,
                                       int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
@@ -82,7 +82,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
     int dummyFlag = (static_cast<int>(dummyType) != 0) ? 1 : 0;
     result.assembler.immediates.emplace_back(dummyFlag);  // child[0]: val (1-bit)
     result.assembler.regSrc = reg;                         // binary 0x27d071: reg → -0x90(%rbp) = +0x20 (regSrc)
-    result.assembler.outputs.emplace_back(arg);            // child[2]: val (20-bit, after registers)
+    result.assembler.outputs.emplace_back(length);            // child[2]: val (20-bit, after registers)
 
     result.wavetableFront = lineNumber;
     result.noOpt = noOpt(result.assembler);
@@ -91,13 +91,13 @@ AsmList::Asm AsmCommandsImplHirzel::wvfs(Assembler::PlayDummyType dummyType,
 
 // --- wvft: opcode 0xFC000000 ---
 
-AsmList::Asm AsmCommandsImplHirzel::wvft(AsmRegister reg, int arg,
+AsmList::Asm AsmCommandsImplHirzel::wvft(AsmRegister reg, int length,
                                       int lineNumber) const {
     AsmList::Asm result;
     result.sequenceId = nextSequenceId();
     result.assembler.cmd = Assembler::WVFET;
     result.assembler.regSrc = reg;  // binary 0x27d1e0: reg → +0x20 (regSrc)
-    result.assembler.outputs.emplace_back(arg);  // binary 0x27d1eb: arg → +0x38 (outputs)
+    result.assembler.outputs.emplace_back(length);  // binary 0x27d1eb: length → +0x38 (outputs)
     result.wavetableFront = lineNumber;
     result.noOpt = noOpt(result.assembler);
     return result;

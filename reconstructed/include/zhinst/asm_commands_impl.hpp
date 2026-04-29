@@ -40,13 +40,13 @@ public:
     virtual AsmList::Asm wwvfq(int lineNumber) const = 0;
     virtual AsmList::Asm wprf(int lineNumber) const = 0;
 
-    virtual AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
-                         int waveIndex, int lineNumber) const = 0;
-    virtual AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister markerReg,
-                          int waveIndex, int lineNumber) const = 0;
+    virtual AsmList::Asm wvf(AsmRegister waveReg, AsmRegister dstReg,
+                         int length, int lineNumber) const = 0;
+    virtual AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister dstReg,
+                          int length, int lineNumber) const = 0;
     virtual AsmList::Asm wvfs(Assembler::PlayDummyType dummyType,
-                          AsmRegister reg, int arg, int lineNumber) const = 0;
-    virtual AsmList::Asm wvft(AsmRegister reg, int arg, int lineNumber) const = 0;
+                          AsmRegister reg, int length, int lineNumber) const = 0;
+    virtual AsmList::Asm wvft(AsmRegister reg, int length, int lineNumber) const = 0;
 
     virtual AsmList::Asm brz(AsmRegister reg, const std::string& label,
                          bool noOpt, int lineNumber) const = 0;
@@ -70,10 +70,10 @@ public:
     AsmList::Asm wwvfq(int lineNumber) const override;  // throws (unsupported)
     AsmList::Asm wprf(int lineNumber) const override;    // opcode 0xF0000000
 
-    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
-                 int waveIndex, int lineNumber) const override;   // 0x20000000
-    AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister markerReg,
-                  int waveIndex, int lineNumber) const override;  // 0x30000000 or throws
+    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister dstReg,
+                 int length, int lineNumber) const override;   // 0x20000000
+    AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister dstReg,
+                  int length, int lineNumber) const override;  // 0x30000000 or throws
     AsmList::Asm wvfs(Assembler::PlayDummyType, AsmRegister, int,
                   int) const override;   // throws
     AsmList::Asm wvft(AsmRegister, int, int) const override;  // throws
@@ -97,15 +97,15 @@ public:
     AsmList::Asm wwvfq(int lineNumber) const override;   // 0xF0000000
     AsmList::Asm wprf(int lineNumber) const override;     // INVALID (sentinel/no-op)
 
-    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister markerReg,
-                 int waveIndex, int lineNumber) const override;
-        // markerReg==R0: 0xFA000000; else: 0x20000000
+    AsmList::Asm wvf(AsmRegister waveReg, AsmRegister dstReg,
+                 int length, int lineNumber) const override;
+        // dstReg==R0: 0xFA000000; else: 0x20000000
     AsmList::Asm wvfi(AsmRegister, AsmRegister, int,
                   int) const override;  // always throws
     AsmList::Asm wvfs(Assembler::PlayDummyType dummyType,
-                  AsmRegister reg, int arg, int lineNumber) const override;
+                  AsmRegister reg, int length, int lineNumber) const override;
         // 0x30000001
-    AsmList::Asm wvft(AsmRegister reg, int arg, int lineNumber) const override;
+    AsmList::Asm wvft(AsmRegister reg, int length, int lineNumber) const override;
         // 0xFC000000
 
     AsmList::Asm brz(AsmRegister reg, const std::string& label,
