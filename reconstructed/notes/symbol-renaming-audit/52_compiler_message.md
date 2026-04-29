@@ -45,7 +45,7 @@ In-scope per §2: enum members, parameter names, data members, the
 | `CompilerMessageCollection::warningMessage::line` | no | medium | line number | keep current | — |
 | `CompilerMessageCollection::infoMessage::msg` | no | medium | message text | keep current | — |
 | `CompilerMessageCollection::infoMessage::line` | no | medium | line number | keep current | — |
-| `CompilerMessageCollection::parserMessage::line` | unsure | low | only call site is unverified | keep current, `code`, `errorCode` | verify-not-original |
+| `CompilerMessageCollection::parserMessage::line` | unsure | low | only call site is unverified | keep current, `code`, `errorCode` | in-scope (parameter name; nm only preserves int type) |
 | `CompilerMessageCollection::parserMessage::msg` | no | low | passed as message body | keep current | — |
 | `CompilerMessageCollection::messages_` | no | medium | matches `messages()` accessor | keep current | — |
 | `CompilerMessageCollection::lineNr_` | no | medium | matches `lineNr()`/`setLineNr` | keep current | — |

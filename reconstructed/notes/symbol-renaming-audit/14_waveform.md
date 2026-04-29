@@ -12,7 +12,7 @@ Symbol-table reference: `nm --demangle _seqc_compiler.so`.
 
 | Symbol | Misnomer? | Conf | Justification (≤5 words) | Proposal(s) | Status |
 |---|---|---|---|---|---|
-| `WaveformFile` (struct name) | unsure | low | binary uses nested `File` | `Waveform::File` (already alias), keep current | verify-not-original |
+| `WaveformFile` (struct name) | unsure | low | binary uses nested `File` | `Waveform::File` (already alias), keep current | in-scope (nm: binary defines zhinst::Waveform::File, not WaveformFile) |
 | `WaveformFile::name` | no | high | matches usage | keep current | not-misnomer |
 | `WaveformFile::formatType` | no | medium | matches csv_parser dispatch | keep current | not-misnomer |
 | `WaveformFile::columnMode` | yes | low | placeholder; never read | unknownField1C, keep current | — |

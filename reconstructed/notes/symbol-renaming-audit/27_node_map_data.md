@@ -37,7 +37,7 @@ In-scope symbol table:
 | `NodeTypeIdx::IntegerPassthrough` | no | medium | matches dispatch case 0 (no transform) | keep current | not-misnomer |
 | `NodeTypeIdx::SinePair` | unsure | low | inferred from sine I/Q usage | keep current; `IqPair` | — |
 | `NodeTypeIdx::FloatBits` | no | low | matches case-2 IEEE-754 emit | keep current | — |
-| `NodeTypeIdx::RawDoubleLow32` | unsure | low | inferred; case-3 not exhaustively traced | keep current | verify-not-original |
+| `NodeTypeIdx::RawDoubleLow32` | unsure | low | inferred; case-3 not exhaustively traced | keep current | in-scope (no NodeTypeIdx/RawDoubleLow32 in nm or strings) |
 | `NodeTypeIdx::Frequency` | no | medium | matches case-4 toFrequency() codegen | keep current | not-misnomer |
 | `NodeTypeIdx::Phase` | no | medium | matches case-5 toPhase() codegen | keep current | not-misnomer |
 | `VirtAddrNodeMapData::name_` | no | high | JSON key `"name"` written verbatim | keep current | not-misnomer |

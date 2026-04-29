@@ -56,7 +56,7 @@ helper-struct name `ErrorMessagesInitializer`.
 | Symbol | Misnomer? | Conf | Justification (≤ 5 words) | Proposal(s) | Status |
 |---|---|---|---|---|---|
 | `ErrorMessageT` (enum members 0–254, 16384+, 32768+, 36864+) | no | medium | format strings match names | keep current | not-misnomer |
-| `ErrorMessageT::UnknownError47` | unsure | medium | placeholder for missing key | keep current, drop entry | verify-not-original |
+| `ErrorMessageT::UnknownError47` | unsure | medium | placeholder for missing key | keep current, drop entry | in-scope (UnknownError47 not in nm or strings) |
 | `ErrorMessageT::InvalidRegister` (alias) | no | medium | recon-only alias, verified | keep current | — |
 | `ErrorMessageT::ValueOverflow` (alias) | no | medium | recon-only alias, verified | keep current | — |
 | `ErrorMessageT::UnsupportedOp` (alias) | no | medium | recon-only alias, verified | keep current | — |

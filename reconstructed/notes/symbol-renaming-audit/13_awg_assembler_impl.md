@@ -71,7 +71,7 @@ not declared in this batch's files).
 | `AWGAssemblerImpl::deviceConstants_` | no | high | DeviceConstants pointer | keep current (high) | — |
 | `AWGAssemblerImpl::filename_` | no | high | source filename string | keep current (high) | — |
 | `AWGAssemblerImpl::asmSource_` | no | high | full asm source text | keep current (high) | — |
-| `AWGAssemblerImpl::unusedStr038_` | unsure | low | no observed reader/writer | keep current (medium) | verify-not-original |
+| `AWGAssemblerImpl::unusedStr038_` | unsure | low | no observed reader/writer | keep current (medium) | in-scope (nm/strings: no hit → recon-introduced) |
 | `AWGAssemblerImpl::opcodes_` | no | high | vector of emitted opcodes | keep current (high) | — |
 | `AWGAssemblerImpl::memoryOffset_` | no | high | matches setMemoryOffset | keep current (high) | — |
 | `AWGAssemblerImpl::pad_memOffset_` | no | medium | alignment slot | keep current (high) | — |
@@ -128,7 +128,7 @@ not declared in this batch's files).
 | opcode4::kOpcodeGroup1Child / kOpcodeGroup2Child | unsure | low | fudge constants for jump table | descriptive name TBD; keep current (medium) | — |
 | opcode4::idx, idxRotated, opcodeGroup, groupRotated, nChildren | no | medium | mechanical locals | keep current (high) | — |
 | opcode3::isRegRegALU, remaining, reg2 | no | medium | obvious roles | keep current (high) | — |
-| `parseLine`, `parseString`, `encodeExpressions` (header-only declarations) | unsure | low | declared, never defined or called | drop, or annotate (medium) | verify-not-original |
+| `parseLine`, `parseString`, `encodeExpressions` (header-only declarations) | unsure | low | declared, never defined or called | drop, or annotate (medium) | in-scope (no AWGAssemblerImpl::parseLine/parseString/encodeExpressions in nm) |
 
 Group order: types → fields → constructors → public methods (each with
 params then locals) → opcode helpers.

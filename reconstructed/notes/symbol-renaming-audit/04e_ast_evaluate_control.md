@@ -128,7 +128,7 @@ form — in scope.
 | `SeqCReturnStatement::evaluate::brAsm` | no | high | branch instruction | keep current | — |
 | `SeqCArgList/DeclList/StmtList::evaluate::lineNr` | no | high | ≡ `lineNr_` | keep current | — |
 | `SeqCArgList/DeclList::evaluate::elems / hasError / i / childResult / msg` | no | medium | type-faithful | keep current | — |
-| `SeqCArgList/DeclList/StmtList::evaluate::lineNr` (note) | unsure | low | comes from `this->type()` not `lineNr_` | `nodeLineNr` (low), keep | verify-not-original |
+| `SeqCArgList/DeclList/StmtList::evaluate::lineNr` (note) | unsure | low | comes from `this->type()` not `lineNr_` | `nodeLineNr` (low), keep | in-scope (parameter name; nm preserves only int type) |
 | `SeqCStmtList::evaluate::childHadError` | yes | medium | also fires on return-stmt | `childUnwound`, keep | cross-batch-arbitration |
 | `SeqCStmtList::evaluate::nextLineNr` | no | high | line for unreachable warning | keep current | — |
 | `SeqCFunctionCall::evaluate::funName / outSig / exists` | no | medium | type-faithful | keep current | — |

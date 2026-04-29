@@ -25,7 +25,7 @@ Cross-read for usage:
 | `AsmExprType::Integer` | no | medium | type==3 integer/immediate | keep current (medium) | — |
 | `AsmExpression::type` | no | medium | discriminator, matches enum | keep current (medium) | — |
 | `AsmExpression::name` | no | medium | command/register/label name | keep current (medium) | — |
-| `AsmExpression::nopComment` | yes | medium | unread placeholder field | str2, secondaryName, keep current | verify-not-original |
+| `AsmExpression::nopComment` | yes | medium | unread placeholder field | str2, secondaryName, keep current | in-scope (nm/strings: no hit → recon-introduced) |
 | `AsmExpression::command` | no | medium | Assembler::Command enum value | keep current (medium) | — |
 | `AsmExpression::value` | unsure | low | int/regNum/PC overload | immediateOrRegNum, keep current | — |
 | `AsmExpression::children` | no | high | child operand vector | keep current (high) | — |

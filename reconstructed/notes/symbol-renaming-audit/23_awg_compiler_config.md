@@ -71,7 +71,7 @@ misnomers — no contradicting evidence.
 | `AWGCompilerConfig::includePaths` | no | high | vector of include dirs | keep current (high) | — |
 | `AWGCompilerConfig::optimizationFlags` | no | medium | bitmask passed to AsmOptimize | keep current (medium) | — |
 | `AWGCompilerConfig::debugFlags` | no | medium | bitmask of dump-AST flags | keep current (medium) | — |
-| `AWGCompilerConfig::numCores` | unsure | low | only-write site, no consumer | keep current, `pad_94` | verify-not-original |
+| `AWGCompilerConfig::numCores` | unsure | low | only-write site, no consumer | keep current, `pad_94` | in-scope (nm/strings: no hit → recon-introduced) |
 | `AWGCompilerConfig::channelGrouping` | yes | medium | actually loop-unroll limit | `loopUnrollLimit`, `unrollLimit`, keep current | — |
 | `AWGCompilerConfig::compressSource` | no | medium | gates source-section compress | keep current (high) | — |
 | `AWGCompilerConfig::wavetableSize` | no | medium | sign-extended to size_t | keep current (high) | — |

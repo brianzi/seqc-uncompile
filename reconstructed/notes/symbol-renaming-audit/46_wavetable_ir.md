@@ -128,7 +128,7 @@ In scope per RULES §3 (members and parameter names not encoded):
 | `WavetableIR::WavetableIR(front,…)::front` | no | medium | source manager owner | keep current | — |
 | `…::WavetableIR(front,…)::constants` | no | medium | DC reference | keep current | — |
 | `…::WavetableIR(front,…)::address` | no | medium | starting address | keep current | — |
-| `…::WavetableIR(front,…)::wavetableSize` | unsure | low | passed to CachedParser | keep current | verify-not-original |
+| `…::WavetableIR(front,…)::wavetableSize` | unsure | low | passed to CachedParser | keep current | in-scope (parameter name; nm only preserves unsigned long type) |
 | `…::WavetableIR(front,…)::path` | no | medium | filesystem path | keep current | — |
 | `…::WavetableIR(front,…)::cancelCb` | no | medium | weak_ptr<CancelCallback> | keep current | — |
 | `…::WavetableIR(mgr,…)::mgr` | no | medium | source manager copy | keep current | — |

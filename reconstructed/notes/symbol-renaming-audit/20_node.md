@@ -59,7 +59,7 @@ authoritative excluder for the type name and methods (see §5).
 | `Node::trig` | unsure | low | JSON `"trig"`; usage minimal | keep current; `trigger` | — |
 | `NodeType` (enum) | no | high | mangled as `Node::NodeType` | keep current | not-misnomer |
 | `NodeType::Load`..`AwgReady` | no | high | str2type/type2str strings verbatim | keep current | not-misnomer |
-| `NodeType::SetVarPlaceholder`..`Wait` | unsure | low | not in str2type/type2str | keep current | verify-not-original |
+| `NodeType::SetVarPlaceholder`..`Wait` | unsure | low | not in str2type/type2str | keep current | in-scope (no enumerator strings in nm or strings) |
 | `Node::Node(simple)::type` | no | high | stored into `type` | keep current | — |
 | `Node::Node(simple)::asmId` | no | high | stored into `asmId` | keep current | — |
 | `Node::Node(simple)::numWaveSlots` | no | medium | sized to `wavesPerDev` from `numChannelGroups` | keep current | not-misnomer |

@@ -26,7 +26,7 @@ Binary verification: `nm --demangle _seqc_compiler.so | grep MathCompiler`
 | `MathCompiler::functionExists` | no | high | name in binary symbol table | keep current | not-misnomer |
 | `MathCompiler::functionExists::name` | no | medium | matches usage as map key | keep current | — |
 | `MathCompiler::functionExists::argCount` | no | medium | passed in as arg count | keep current | — |
-| `MathCompiler::functionExists::strict` | yes | medium | inverted semantics | `nameOnly`, `ignoreArgCount`, keep current | verify-not-original |
+| `MathCompiler::functionExists::strict` | yes | medium | inverted semantics | `nameOnly`, `ignoreArgCount`, keep current | in-scope (parameter name; nm preserves only the bool type) |
 | `MathCompiler::functionExists::found` (local) | unsure | low | overloaded meaning | `argCountMatches`, keep current | — |
 | `MathCompiler::call::name` | no | high | matches usage as map key | keep current | — |
 | `MathCompiler::call::args` | no | high | matches usage | keep current | — |

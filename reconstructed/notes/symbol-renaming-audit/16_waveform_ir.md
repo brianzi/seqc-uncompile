@@ -52,7 +52,7 @@ Symbol-table check (excerpts; `nm --demangle`):
 | `WaveformIR(name,type,dc)::name` | no | high | written to `Waveform::name` | keep current | — |
 | `WaveformIR(name,type,dc)::type` | no | high | written to `Waveform::waveformType` | keep current | — |
 | `WaveformIR(name,type,dc)::dc` | no | medium | DeviceConstants&, used as such | keep current | — |
-| `WaveformIR::toJsonElement::format` | unsure | low | param unused in recon body | keep current | verify-not-original |
+| `WaveformIR::toJsonElement::format` | unsure | low | param unused in recon body | keep current | in-scope (parameter name; nm only preserves SampleFormat type) |
 | `WaveformIR::toJsonElement::result`/`oss`/`i`/`data`/`size`/`orResult`/`j`/`clz`/`markerBits`/`s`/`channels` | no | — | local vars match role | keep current | — |
 
 ## 3. Detailed findings

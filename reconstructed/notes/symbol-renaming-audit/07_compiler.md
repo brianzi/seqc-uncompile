@@ -64,16 +64,16 @@ tier-1 data-symbol exclusions apply to fields in this batch.
 | `Compiler::config_` | no | high | binds to AWGCompilerConfig& ctor arg | keep current (high) | — |
 | `Compiler::deviceConstants_` | no | high | binds to DeviceConstants& ctor arg | keep current (high) | — |
 | `Compiler::lineNr_` | no | medium | set by `setLineNr(int)` | keep current (medium) | — |
-| `Compiler::flags_` | unsure | low | never read; placeholder | `unknownFlags_`, keep current | verify-not-original |
+| `Compiler::flags_` | unsure | low | never read; placeholder | `unknownFlags_`, keep current | in-scope (non-static member; no positive nm/strings evidence of original name) |
 | `Compiler::pad16_` | no | medium | layout pad, conventional | keep current (high) | — |
-| `Compiler::reserved18_` | unsure | low | only written zero, role unknown | keep current, `unknown18_` | verify-not-original |
+| `Compiler::reserved18_` | unsure | low | only written zero, role unknown | keep current, `unknown18_` | in-scope (non-static member; no positive nm/strings evidence) |
 | `Compiler::channelCount_` | no | medium | from `Prefetch::getUsedChannels()` | keep current (medium) | — |
 | `Compiler::channelMode_` | yes | high | actually `usedFourChannelMode` bool | `usedFourChannelMode_`, `fourChannelMode_` | — |
 | `Compiler::usedSampleRate_` | unsure | low | never written here, mirrors Resources field | `usedDeviceSampleRate_`, keep current | cross-batch-arbitration |
 | `Compiler::pad26_` | no | medium | layout pad, conventional | keep current (high) | — |
 | `Compiler::ast_` | no | high | written from lowered AST root Node | keep current (high) | — |
 | `Compiler::messages_` | no | high | CompilerMessageCollection | keep current (high) | — |
-| `Compiler::sourceFiles_` | unsure | low | declared but unused locally | keep current | verify-not-original |
+| `Compiler::sourceFiles_` | unsure | low | declared but unused locally | keep current | in-scope (non-static member; no positive nm/strings evidence) |
 | `Compiler::sourceLines_` | no | medium | filled from `getline(source)` | keep current (medium) | — |
 | `Compiler::asmList_` | no | high | the AsmList being assembled | keep current (high) | — |
 | `Compiler::wavetable_` | no | high | shared WavetableFront | keep current (high) | — |
@@ -145,7 +145,7 @@ tier-1 data-symbol exclusions apply to fields in this batch.
 | `FrontEndLoweringFacade::lower::waveformGen` | no | high | shared_ptr<WaveformGenerator> | keep current | — |
 | `FrontEndLoweringFacade::lower::wavetable` | no | high | shared_ptr<WavetableFront> | keep current | — |
 | `FrontEndLoweringFacade::lower::channelGrouping` | yes | medium | propagated misnomer (loop limit) | `loopUnrollLimit`, keep current | coordinated-rename |
-| `LowerResult` (type) | unsure | low | recon-only aggregate, not in nm | keep current, `LowerOutput` | verify-not-original |
+| `LowerResult` (type) | unsure | low | recon-only aggregate, not in nm | keep current, `LowerOutput` | in-scope (no LowerResult/LowerOutput in nm or strings) |
 | `LowerResult::astResult` | no | medium | shared_ptr<Node> from state.result | keep current | — |
 | `LowerResult::evalResult` | no | medium | shared_ptr<EvalResults> from evaluate sret | keep current | — |
 | `Compiler::hadSyntaxError()` (method) | no | medium | mirrors SeqcParserContext::hadSyntaxError | keep current | — |

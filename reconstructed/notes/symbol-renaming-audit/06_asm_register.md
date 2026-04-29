@@ -19,22 +19,22 @@ Authoritative cross-check: `nm --demangle _seqc_compiler.so`
 | `AsmRegister::value` | unsure | low | Generic; role is reg-number | `regNum` (low), keep current (medium) | — |
 | `AsmRegister::valid` | no | medium | Used as `valid` flag everywhere | keep current | — |
 | `AsmRegister::AsmRegister()` (default) | no | medium | Standard default ctor | keep current | — |
-| `AsmRegister::AsmRegister(int v, bool val)` (2-arg) | no | low | Recon convenience; not in binary | keep current | verify-not-original |
+| `AsmRegister::AsmRegister(int v, bool val)` (2-arg) | no | low | Recon convenience; not in binary | keep current | in-scope |
 | `AsmRegister::AsmRegister(int)::v` | unsure | low | Generic param name | `regNum` (low), keep current (medium) | — |
 | `AsmRegister::AsmRegister(int v, bool val)::val` | yes | medium | Param shadows-ish, opaque | `valid` (medium) | — |
 | `AsmRegister::AsmRegister(int)` (1-arg)::n | unsure | low | Generic; sentinel-aware | `regNum` (low), keep current (medium) | — |
-| `AsmRegister::Invalid` | no | medium | Recon factory; intent matches | keep current | verify-not-original |
-| `AsmRegister::Reg` | yes | medium | Tautological factory name | `fromIndex` (low), `make` (low), keep current (low) | verify-not-original |
+| `AsmRegister::Invalid` | no | medium | Recon factory; intent matches | keep current | in-scope |
+| `AsmRegister::Reg` | yes | medium | Tautological factory name | `fromIndex` (low), `make` (low), keep current (low) | in-scope |
 | `AsmRegister::Reg::n` | unsure | low | Generic param | `regNum` (low), keep current (medium) | — |
 | `AsmRegister::magicSkipRegister` | no | high | Mangled in binary symbols | keep current | not-misnomer |
 | `AsmRegister::isValid` | no | high | Mangled in binary symbols | keep current | not-misnomer |
-| `AsmRegister::toInt` | unsure | low | Recon name; binary uses `operator int` | keep current (medium), drop in favor of `operator int` (low) | verify-not-original |
+| `AsmRegister::toInt` | unsure | low | Recon name; binary uses `operator int` | keep current (medium), drop in favor of `operator int` (low) | in-scope (nm: only operator int() defined) |
 | `AsmRegister::operator int` | no | high | Mangled in binary symbols | keep current | not-misnomer |
 | `AsmRegister::operator==` | no | high | Mangled in binary symbols | keep current | not-misnomer |
 | `AsmRegister::operator==::o` | no | low | Standard "other" param | keep current | — |
 | `AsmRegister::operator!=` | no | medium | Standard inverse operator | keep current | — |
-| `zhinst::isValid(AsmRegister)` (free) | yes | medium | Not in binary; ambiguous w/ many isValid | keep current (medium), `asmRegIsValid` (low) | verify-not-original |
-| `zhinst::toInt(AsmRegister)` (free) | yes | medium | Not in binary; recon-only wrapper | keep current (medium), `asmRegToInt` (low) | verify-not-original |
+| `zhinst::isValid(AsmRegister)` (free) | yes | medium | Not in binary; ambiguous w/ many isValid | keep current (medium), `asmRegIsValid` (low) | in-scope |
+| `zhinst::toInt(AsmRegister)` (free) | yes | medium | Not in binary; recon-only wrapper | keep current (medium), `asmRegToInt` (low) | in-scope |
 | `zhinst::isValid(AsmRegister)::r` | no | low | Single-letter, idiomatic for tiny inline | keep current | — |
 | `zhinst::toInt(AsmRegister)::r` | no | low | Single-letter, idiomatic for tiny inline | keep current | — |
 

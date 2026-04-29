@@ -92,7 +92,7 @@ Authoritative exclusions from `nm` (per RULES §3):
 | `createVariable::name` | no | high | stored into `e->name` | keep current | — |
 | `addVariableType::expr` | no | medium | the AST node being annotated | keep current | — |
 | `addVariableType::typeExpr` | no | high | source of `varType` | keep current | — |
-| `addVariableType::isConst` | yes | medium | semantics inverted vs name | `keepTypeExpr`, `cascade`, keep current | verify-not-original |
+| `addVariableType::isConst` | yes | medium | semantics inverted vs name | `keepTypeExpr`, `cascade`, keep current | in-scope (parameter name; nm preserves only the bool type) |
 | `createVariableType::vt` | no | high | stored into `e->varType` | keep current | — |
 | `createOperator::lhs` / `rhs` | no | high | binary-op operands | keep current | — |
 | `createAssignOperator::lhs` / `rhs` / `op` | no | high | compound-assign operands | keep current | — |

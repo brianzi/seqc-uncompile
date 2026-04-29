@@ -25,7 +25,7 @@ forward-declared type `AssemblerInstr`.
 | `AWGAssembler::assembleStringToExpressionsVec::src` | no | medium | string is asm source text | keep current (high) | — |
 | `AWGAssembler::setMemoryOffset::offset` | no | high | direct offset parameter | keep current (high) | — |
 | `AWGAssembler::writeToFile::path` | no | medium | output file path | keep current (high) | — |
-| `AWGAssembler::printOpcode::format` | unsure | low | meaning of `int` unverified | keep current (low), `mode` (low) | verify-not-original |
+| `AWGAssembler::printOpcode::format` | unsure | low | meaning of `int` unverified | keep current (low), `mode` (low) | in-scope (parameter name; nm only preserves int type) |
 
 ## 3. Detailed findings
 

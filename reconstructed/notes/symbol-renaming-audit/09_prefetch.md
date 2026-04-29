@@ -63,7 +63,7 @@ fields.
 | `Prefetch::wavetableIR_` | no | high | shared\_ptr to WavetableIR | keep current (high) | — |
 | `Prefetch::logFunc_` | no | high | log callback | keep current (high) | — |
 | `Prefetch::cancelCb_` | no | high | weak\_ptr to CancelCallback | keep current (high) | — |
-| `Prefetch::minIndexedSize` (static) | unsure | low | threshold; provenance opaque | keep current, `minIndexedCacheSize` | verify-not-original |
+| `Prefetch::minIndexedSize` (static) | unsure | low | threshold; provenance opaque | keep current, `minIndexedCacheSize` | out-of-scope (nm: zhinst::Prefetch::minIndexedSize defined) |
 | `Prefetch::Prefetch::config` | no | high | initializes `config_` | keep current (high) | — |
 | `Prefetch::Prefetch::devConst` | no | high | initializes `devConst_` | keep current (high) | — |
 | `Prefetch::Prefetch::asmCommands` | no | high | initializes `asmCommands_` | keep current (high) | — |

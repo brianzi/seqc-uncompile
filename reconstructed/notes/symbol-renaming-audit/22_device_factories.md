@@ -23,12 +23,12 @@ Authoritative symbol table:
 | `DeviceFamilyFactory::doMakeDeviceType::opts` (all overrides) | no | medium | matches subclass ctor param | keep current | not-misnomer |
 | `Hf2Factory::doMakeDeviceType::sub` (and twins) | no | low | local, narrow scope | keep current | — |
 | `makeDeviceFamilyFactory::family` | no | medium | matches caller param name | keep current | not-misnomer |
-| `DeviceOpts::SubtypeMask` | unsure | low | unused; header constant | keep current; remove if dead | verify-not-original |
-| `DeviceOpts::Subtype1` … `Subtype4` | unsure | low | slot index, per-family meaning | keep current; `SubtypeSlotN`; remove if dead | verify-not-original |
-| `DeviceOpts::FF` | unsure | low | unused; meaning unverified | keep current; `FFOption` | verify-not-original |
-| `DeviceOpts::RTR` | unsure | low | unused; meaning unverified | keep current; `RTROption` | verify-not-original |
-| `DeviceOpts::PLUS` | unsure | low | unused; meaning unverified | keep current; `PLUSOption` | verify-not-original |
-| `DeviceOpts::LRT` | unsure | low | unused; meaning unverified | keep current; `LRTOption` | verify-not-original |
+| `DeviceOpts::SubtypeMask` | unsure | low | unused; header constant | keep current; remove if dead | in-scope (no DeviceOpts symbols/strings in nm) |
+| `DeviceOpts::Subtype1` … `Subtype4` | unsure | low | slot index, per-family meaning | keep current; `SubtypeSlotN`; remove if dead | in-scope (no DeviceOpts symbols/strings in nm) |
+| `DeviceOpts::FF` | unsure | low | unused; meaning unverified | keep current; `FFOption` | in-scope (no DeviceOpts symbols/strings in nm) |
+| `DeviceOpts::RTR` | unsure | low | unused; meaning unverified | keep current; `RTROption` | in-scope (no DeviceOpts symbols/strings in nm) |
+| `DeviceOpts::PLUS` | unsure | low | unused; meaning unverified | keep current; `PLUSOption` | in-scope (no DeviceOpts symbols/strings in nm) |
+| `DeviceOpts::LRT` | unsure | low | unused; meaning unverified | keep current; `LRTOption` | in-scope (no DeviceOpts symbols/strings in nm) |
 | `(anon)::kSubtypeMask` | no | medium | matches usage exactly | keep current | not-misnomer |
 | `(anon)::kSubtype1` … `kSubtype4` | no | low | slot id; comments misleading | keep current; rename slot semantically | — |
 | `DeviceOpts` (namespace) | unsure | low | duplicate of anon-ns set | keep current; merge with anon-ns | — |

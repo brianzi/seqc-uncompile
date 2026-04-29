@@ -939,20 +939,61 @@ stable IF-IDs once Phase D begins (and we exit audit mode).
 
 ---
 
-## §10. `verify-not-original` items (need second-pass `nm` check)
+## §10. `verify-not-original` items (resolved by Phase D commit-1 nm-recheck)
 
-Some symbols' provenance was ambiguous — agents could not conclusively
-verify whether the symbol came from the binary (excluded from rename)
-or was recon-introduced (in scope). Synthesis re-checks these against
-the binary symbol table at execution time. ~20 items, all flagged
-in the per-batch reports with status `verify-not-original`. Notable:
+Some symbols' provenance was ambiguous during the per-batch sweeps —
+agents could not conclusively verify whether the symbol came from the
+binary (excluded from rename) or was recon-introduced (in scope). The
+Phase D commit-1 nm-recheck pass re-checked each one against
+`nm --demangle` of `_seqc_compiler.so` (defined-only and full), plus
+`strings _seqc_compiler.so` for non-static data members.
 
-- `Prefetch::minIndexedSize` (static) — already confirmed §3-excluded
-  in 09b, can drop the flag.
-- `Compiler::flags_`, `reserved18_`, `sourceFiles_`.
-- `MathCompiler::functionExists::strict` (polarity-inverted bool).
-- `AsmExpression::nopComment`.
-- `LowerResult` type.
+**33 items resolved (vs ~20 originally estimated):** out-of-scope: 1 | in-scope: 32 | needs-investigation: 0.
+The 4 former needs-investigation items (non-static member fields with
+no nm or strings hit) were reclassified to in-scope as recon-introduced.
+
+A general rule was applied to function-parameter rows: nm preserves
+only the parameter type in the mangled signature, not the name, so
+parameter-name `verify-not-original` rows are virtually always
+`in-scope`.
+
+| Symbol | Report | Decision | Evidence |
+|---|---|---|---|
+| `Prefetch::minIndexedSize` (static) | 09 | out-of-scope | nm: `zhinst::Prefetch::minIndexedSize` defined (already noted in 09b) |
+| `WaveformFile` (struct name) | 14 | in-scope | nm: binary defines `zhinst::Waveform::File`, not `WaveformFile` |
+| `AsmRegister(int v, bool val)` 2-arg ctor | 06 | in-scope | nm: only 1-arg ctor present |
+| `AsmRegister::Invalid` | 06 | in-scope | not in nm |
+| `AsmRegister::Reg` | 06 | in-scope | not in nm |
+| `AsmRegister::toInt` | 06 | in-scope | nm has only `operator int() const` |
+| `zhinst::isValid(AsmRegister)` (free) | 06 | in-scope | not in nm |
+| `zhinst::toInt(AsmRegister)` (free) | 06 | in-scope | not in nm |
+| `Compiler::flags_` | 07 | in-scope | non-static member; no positive nm/strings evidence |
+| `Compiler::reserved18_` | 07 | in-scope | non-static member; no positive nm/strings evidence |
+| `Compiler::sourceFiles_` | 07 | in-scope | non-static member; no positive nm/strings evidence |
+| `LowerResult` (type) | 07 | in-scope | no `LowerResult`/`LowerOutput` in nm or strings |
+| `MathCompiler::functionExists::strict` | 39 | in-scope | parameter name (nm preserves only `bool` type) |
+| `addVariableType::isConst` | 42 | in-scope | parameter name |
+| `WaveformIR::toJsonElement::format` | 16 | in-scope | parameter name |
+| `AWGAssembler::printOpcode::format` | 33 | in-scope | parameter name |
+| `WavetableIR(front,…)::wavetableSize` | 46 | in-scope | parameter name |
+| `SeqCArgList/DeclList/StmtList::evaluate::lineNr` | 04e | in-scope | parameter name (note row, not actual rename target) |
+| `CompilerMessageCollection::parserMessage::line` | 52 | in-scope | parameter name |
+| `AWGAssemblerImpl::parseLine`/`parseString`/`encodeExpressions` (decls) | 13 | in-scope | not in nm |
+| `NodeTypeIdx::RawDoubleLow32` | 27 | in-scope | not in nm or strings |
+| `NodeType::SetVarPlaceholder`..`Wait` | 20 | in-scope | not in nm or strings (no enumerator names emitted) |
+| `ErrorMessageT::UnknownError47` | 08 | in-scope | not in nm or strings |
+| `DeviceOpts::SubtypeMask` | 22 | in-scope | not in nm or strings |
+| `DeviceOpts::Subtype1`..`Subtype4` | 22 | in-scope | not in nm or strings |
+| `DeviceOpts::FF` | 22 | in-scope | not in nm or strings |
+| `DeviceOpts::RTR` | 22 | in-scope | not in nm or strings |
+| `DeviceOpts::PLUS` | 22 | in-scope | not in nm or strings |
+| `DeviceOpts::LRT` | 22 | in-scope | not in nm or strings |
+| `AsmExpression::nopComment` | 24 | in-scope | nm/strings: no hit → recon-introduced |
+| `AWGCompilerImpl::string_218_` | 28 | in-scope | nm/strings: no hit → recon-introduced |
+| `AWGAssemblerImpl::unusedStr038_` | 13 | in-scope | nm/strings: no hit → recon-introduced |
+| `AWGCompilerConfig::numCores` | 23 | in-scope | nm/strings: no hit → recon-introduced |
+
+**This nm-recheck commit formally closes the symbol-renaming audit. Subsequent Phase D commits resume normal AGENTS.md workflow (TODO.md tracking, OVERVIEW.md updates, build verify per sub-phase, per-sub-phase commits).**
 
 ---
 

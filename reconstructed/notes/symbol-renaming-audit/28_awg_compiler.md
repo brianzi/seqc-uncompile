@@ -133,7 +133,7 @@ Tier-2 string evidence (verified present in `.rodata` via
 | `AWGCompilerImpl::compiler_` | no | high | embedded `Compiler` instance | keep current (high) | — |
 | `AWGCompilerImpl::pad_1F8_` | no | high | inert padding | keep current (high) | — |
 | `AWGCompilerImpl::string_200_` | yes | high | source filename of last compile | `sourceFilename_`, `compiledFilePath_`, keep current | — |
-| `AWGCompilerImpl::string_218_` | unsure | low | no read/write located | `pad_218_`, keep current | verify-not-original |
+| `AWGCompilerImpl::string_218_` | unsure | low | no read/write located | `pad_218_`, keep current | in-scope (nm/strings: no hit → recon-introduced) |
 | `AWGCompilerImpl::string_230_` | yes | high | last compiled source text | `sourceText_`, `compiledSource_`, keep current | — |
 | `AWGCompilerImpl::string_248_` | yes | high | rendered assembler text | `assemblerText_`, `asmText_`, keep current | — |
 | `AWGCompilerImpl::compileMessages_` | no | high | matches compiler-messages role | keep current (high) | — |
