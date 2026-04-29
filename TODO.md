@@ -10,18 +10,52 @@
 
 **Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
 **95/95 undefined zhinst symbols resolved** — static archive self-contained.
-**257/259 differential tests pass** (byte-identical, as of 2026-04-29).
+**259/259 differential tests pass** (byte-identical, as of 2026-04-29).
 **Error message table corrected** — was globally off-by-one (GDB-verified).
 **Variable init ADDI + ssl operand swap fixed** — 24→26 passes (2026-04-27).
 **registerAllocation overlap fix + wvfs regSrc + playHold isBool** — 53→56 passes (2026-04-27).
-**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105), determineFixedWaves O(2^N) BFS fix (IF-107: 155× → 3.7×). 238 → 257.
+**Fixes this session (cumulative)**: writeToNode slow-path, UHF hasFast entries, join() interpolation, playIndexed Play tree-link (IF-99), removeBranches push next (IF-101), playIndexed Var-branch + lengthReg field (IF-100/IF-102), NOBITS comparison (IF-104), play_cervino_indexed body (IF-103), getRequiredMemory min→max, Prefetch::optimize inverted parentLoad type check (IF-105), determineFixedWaves O(2^N) BFS fix (IF-107: 155× → 3.7×), `rand` MINSTD+polar reimplementation (IF-108: matches binary not libc++ MT64). 238 → 259.
 
-### Remaining 2 known-hard failures (libc++ PRNG ABI)
+### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 
-| Test | Root cause | Notes |
-|------|------------|-------|
-| `hdawg_doc_random_waves` | libc++ vs libstdc++ `mt19937_64` + `normal_distribution` ABI mismatch | Would require manual MT19937 + normal_dist reimplementation matching libc++ byte-for-byte |
-| `hdawg_doc_randomSeed` | Same PRNG ABI issue + waveform deduplication interaction | Same as above |
+The 2 final failing tests (`hdawg_doc_random_waves`,
+`hdawg_doc_randomSeed`) were assumed to be libc++ MT19937_64 +
+normal_distribution ABI mismatches. Reverse-engineering the binary
+revealed `WaveformGenerator::rand` does NOT use the shared
+`GlobalResources::random[]` MT19937_64 at all — it uses a custom
+inline **Park-Miller MINSTD LCG (multiplier 48271, modulus 2^31-1,
+state reset to 1 each call) + Marsaglia polar Box-Muller**.
+
+`randomGauss` and `randomUniform` DO use libc++ MT19937_64 (and were
+already being handled correctly by the existing libc++ shim — they
+just appeared to fail because `rand` was incorrectly consuming MT
+state ahead of them).
+
+`randomSeed()` re-seeds MT19937_64 only; it has no effect on `rand`'s
+LCG (which is reset to 1 per call). Verified: `hdawg_doc_randomSeed`
+produces two byte-identical waveforms.
+
+**Truth from binary disassembly** (0x251cf0..0x252800):
+- LCG state init: `mov $0x1, %edx` at 0x25255c.
+- Multiplier: `imul $0xbc8f, %rdx, %rcx` at 0x2525f0 (= 48271).
+- Modulus reduction by 2^31-1: vectorized Granlund-Möller mod.
+- 4 LCG samples per Box-Muller trial → 2 uniforms in `[-1,1)`.
+- Acceptance/rejection: Marsaglia polar at 0x252711..0x252723.
+- Output emit order: lane 1 (`v*factor`) first, lane 0 cached.
+
+Recorded as IF-108. See `prng_libcxx.cpp:seqc_minstd_normal_amplitude`
+for the implementation; verified bit-exact for 12/12 first samples
+of `rand(1024, 1.0, 0, 0.1)`.
+
+- [x] Decode rodata Box-Muller / uniform-conversion constants at 0x8fc680..0x8fc6e0
+- [x] Disassemble `rand` LCG core (0x251cf0..0x252800) and verify state=1, mul=48271
+- [x] Disassemble `randomGauss` (0x252930) and `randomUniform` (0x253440) — confirm libc++ MT64
+- [x] Verify `randomSeed` does not affect `rand` — two waveforms byte-identical
+- [x] Add `seqc_minstd_normal_amplitude` to `prng_libcxx.cpp` (portable C++)
+- [x] Wire MINSTD into `WaveformGenerator::rand`; leave randomGauss/randomUniform on MT64 shim
+- [x] Validate full suite — **259/259 passing**
+- [x] Record IF-108 in `incidental_findings.md`
+- [x] Commit with descriptive message
 
 ### Phase 40: Performance — Prefetch BFS exponential traversal (DONE)
 

@@ -21,12 +21,20 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <functional>
 #include <numeric>
 #include <random>
 #include <stdexcept>
 
 #include "zhinst/resources.hpp"
+
+// libc++ PRNG shim — see prng_libcxx.cpp.
+extern "C" {
+    void seqc_libcxx_normal_amplitude(uint64_t*, double, double, double, double*, std::size_t);
+    void seqc_libcxx_uniform(uint64_t*, double, double, double*, std::size_t);
+    void seqc_minstd_normal_amplitude(double, double, double, double*, std::size_t);
+}
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -1536,8 +1544,11 @@ Signal WaveformGenerator::marker(std::vector<Value> const& args) {             /
 //   - readDouble for stddev (param name "3 (standard deviation)" or "4 (...)")
 //   - Default stddev = 1.0 loaded from rodata @0x956030
 //   - Signal::Signal(size_t) at 0x25254e constructs output
-//   - Generation loop at 0x252580+ uses inline mt19937_64 twist + normal_distribution
-//   - Samples are: amplitude * dist(rng) + mean  (verified: matches normal_distribution API)
+//   - Generation loop at 0x252580+ uses an inline Park-Miller MINSTD LCG
+//     (multiplier 48271, modulus 2^31-1, state reset to 1 each call) with
+//     a Marsaglia polar Box-Muller transform.  This is the ONLY rand*
+//     function that does NOT use the MT19937_64 in GlobalResources::random.
+//   - Samples are: amplitude * (mean + stddev * normal_polar())
 Signal WaveformGenerator::rand(std::vector<Value> const& args) {               // 0x251cf0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -1566,16 +1577,17 @@ Signal WaveformGenerator::rand(std::vector<Value> const& args) {               /
     Signal sig(static_cast<size_t>(length));                                   // 0x25254e
     if (length == 0) return sig;
 
-    // The binary uses the TLS mt19937_64 state (GlobalResources::random)
-    // with an inline normal_distribution implementation (Box-Muller or
-    // Ziggurat variant). For functional equivalence we use <random> directly.
-    // The exact PRNG state is thread-local GlobalResources::random[313].
-    auto* rng = reinterpret_cast<std::mt19937_64*>(GlobalResources::random);
-    std::normal_distribution<double> dist(mean, stddev);
-
+    // The binary's `rand` uses a Park-Miller MINSTD LCG (multiplier 48271,
+    // modulus 2^31 - 1) with state RESET TO 1 at the start of each call,
+    // then a Marsaglia polar Box-Muller transform.  It does NOT use the
+    // shared MT19937_64 in GlobalResources::random — that's reserved for
+    // randomGauss/randomUniform (and re-seeded by randomSeed()).
+    // See prng_libcxx.cpp for algorithm details and binary cross-refs.
+    std::vector<double> samples(length);
+    seqc_minstd_normal_amplitude(amplitude, mean, stddev,
+                                  samples.data(), static_cast<size_t>(length));
     for (int i = 0; i < length; ++i) {                                        // 0x252580
-        double sample = amplitude * dist(*rng);
-        sig.append(sample, 0);
+        sig.append(samples[i], 0);
     }
     return sig;
 }
@@ -1622,12 +1634,11 @@ Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        /
     Signal sig(static_cast<size_t>(length));                                   // 0x2531c5
     if (length == 0) return sig;
 
-    auto* rng = reinterpret_cast<std::mt19937_64*>(GlobalResources::random);
-    std::normal_distribution<double> dist(mean, stddev);
-
+    std::vector<double> samples(length);
+    seqc_libcxx_normal_amplitude(GlobalResources::random, amplitude, mean, stddev,
+                                  samples.data(), static_cast<size_t>(length));
     for (int i = 0; i < length; ++i) {
-        double sample = amplitude * dist(*rng);
-        sig.append(sample, 0);
+        sig.append(samples[i], 0);
     }
     return sig;
 }
@@ -1670,11 +1681,11 @@ Signal WaveformGenerator::randomUniform(std::vector<Value> const& args) {      /
 
     // The binary computes min = -amplitude, max = +amplitude
     // and uses uniform_real_distribution<double>(min, max).
-    auto* rng = reinterpret_cast<std::mt19937_64*>(GlobalResources::random);
-    std::uniform_real_distribution<double> dist(-amplitude, amplitude);
-
+    std::vector<double> samples(length);
+    seqc_libcxx_uniform(GlobalResources::random, -amplitude, amplitude,
+                         samples.data(), static_cast<size_t>(length));
     for (int i = 0; i < length; ++i) {                                        // 0x2538d0
-        sig.append(dist(*rng), 0);
+        sig.append(samples[i], 0);
     }
     return sig;
 }

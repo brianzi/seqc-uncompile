@@ -2189,3 +2189,97 @@ places it (executed for all node types, not only Play).
 
 **Result**: `hdawg_cvar_unroll` 4500ms → 11ms. Full suite 257/259
 preserved (only the 2 known libc++ PRNG ABI failures remain).
+
+## IF-108  `WaveformGenerator::rand` uses MINSTD LCG, not MT19937_64
+
+**Severity**: critical (correctness), confirmed-fixed
+**File**: `reconstructed/src/waveform_generator.cpp:1548`
+(`WaveformGenerator::rand`, binary 0x251cf0); algorithm in
+`reconstructed/src/prng_libcxx.cpp:seqc_minstd_normal_amplitude`.
+
+**Symptom**: `hdawg_doc_random_waves` and `hdawg_doc_randomSeed`
+differential tests failed (recon `.wf___rand_*` bytes differed from
+original). Initial assumption: libc++ vs libstdc++ `mt19937_64` +
+`normal_distribution` ABI mismatch. Recon was routing `rand` through
+the same libc++ MT19937_64 shim used by `randomGauss` and
+`randomUniform`. The shim was correct for the latter two, but
+produced output that matched the binary's `randomGauss` for `rand` —
+indicating `rand` and `randomGauss` use **different** PRNGs.
+
+**Root cause**: `WaveformGenerator::rand` does NOT use the shared
+`GlobalResources::random[]` MT19937_64. It uses a custom inline
+**Park-Miller MINSTD LCG** with state reset to 1 at the start of
+every call, followed by a Marsaglia polar Box-Muller transform.
+
+**Truth from binary disassembly** (0x251cf0..0x252800):
+
+- Initial LCG state: `mov $0x1, %edx` at 0x25255c (constant seed=1
+  per call — verified by `hdawg_doc_randomSeed` producing two
+  byte-identical waveforms despite an intervening `randomSeed()`).
+- Multiplier: `imul $0xbc8f, %rdx, %rcx` at 0x2525f0 (= 48271, the
+  Park-Miller minstd multiplier).
+- Modulus reduction by `2^31 - 1`: vectorized Granlund-Möller mod
+  using `mul r12` (r12 = 0x200000005) plus `shr/shl/sub/add` chain.
+- 4 LCG samples per Box-Muller trial (vectorized into xmm regs).
+- Two uniforms in `[-1, 1)` per trial via the libc++/libstdc++
+  uniform_real_distribution-style combine pattern using rodata
+  constants at 0x8fc680..0x8fc6e0:
+    * 0x8fc680: low-32 bitmask `[0xFFFFFFFF, 0]×2`
+    * 0x8fc690: `2^52` (low-half bias)
+    * 0x8fc6a0: `2^53` (high-half bias)
+    * 0x8fc6b0: `2^53 + 2^32` (combined bias for unbiasing)
+    * 0x8fc6c0: `2^31 - 2 = 2147483646` (range divisor)
+    * 0x8fc6d0: `(2^31 - 2)^2 ≈ 4.6116e18` (range²)
+    * 0x8fc6e0: `-1.0` (offset to map [0,2) → [-1,1))
+  Combine: `u = 2 * (low + high * (2^31-2)) / (2^31-2)^2 - 1`.
+- Marsaglia polar rejection at 0x252711..0x252723:
+  `s = u² + v²`; if `s ≥ 1` (`ucomisd s, xmm10=1.0; ja`) or `s == 0`
+  (`ucomisd s, 0; jne done; jnp regen`), regenerate.
+- Acceptance: `factor = sqrt(-2 ln(s) / s)`. Two normals per pair.
+- **Output emit order**: lane 1 (`v*factor`) first via `unpckhpd`,
+  then lane 0 (`u*factor`) cached and emitted on the next outer
+  iteration. Verified by sample comparison.
+- Final sample: `(z * stddev + mean) * amplitude` then
+  `Signal::append(value, 0)`.
+
+**Cross-check with sibling functions**:
+- `randomGauss` (0x252930) calls `std::__1::normal_distribution<double>::
+  operator()<mersenne_twister_engine<...>>` at 0x253207, with TLS
+  state from `GlobalResources::random` — pure libc++ MT19937_64.
+- `randomUniform` (0x253440) inlines the MT19937_64 tempering
+  (`shl 0x25, xor; shr 0x2b, xor; ...`) and uniform_real_distribution
+  conversion at 0x2539a0..0x2539e0. Also pure libc++ MT64.
+- `randomSeed` (custom_functions_playback.cpp:875) calls
+  `Random::seedRandom` (0x16be80) which seeds the MT19937_64 state.
+  It does NOT touch the LCG (which is reset to 1 every `rand()`
+  call regardless), so `randomSeed()` is effectively a no-op for
+  `rand` but reseeds `randomGauss`/`randomUniform`.
+
+**Why the libc++ shim approach worked for randomGauss/randomUniform
+but not rand**: the libc++ vs libstdc++ Box-Muller pair-order
+hypothesis was correct for those two functions (which DO use libc++
+`normal_distribution` / `uniform_real_distribution`). But `rand` was
+never using the stdlib distribution at all — it was using the
+hand-rolled inline MINSTD + polar implementation in the binary, so
+no stdlib shim could fix it. Reverse-engineering the assembly
+revealed the actual algorithm.
+
+**Fix**: Added `seqc_minstd_normal_amplitude()` to
+`reconstructed/src/prng_libcxx.cpp` (portable C++; no stdlib PRNG).
+Wired into `WaveformGenerator::rand` (`waveform_generator.cpp:1548`),
+replacing the prior libc++ MT64 shim call. `randomGauss` and
+`randomUniform` continue to use the libc++ shim unchanged.
+
+**Verification**:
+- Standalone C++ verifier (`/tmp/verify_minstd.cpp`) reproduces
+  first 12 samples of `rand(1024, 1.0, 0, 0.1)` byte-identical to
+  original ELF.
+- `hdawg_doc_randomSeed` produces two byte-identical waveforms
+  (proves `randomSeed()` does not affect `rand`'s LCG seed).
+- Full diff suite: **259/259 passing** (was 257/259).
+
+**Lesson**: Whenever a "stdlib ABI mismatch" hypothesis is on the
+table for a single failing function, look at what stdlib calls the
+binary actually makes. If there are no `call` instructions to
+distribution operators in the function, it's not a stdlib problem —
+it's a hand-rolled inline implementation. Disassemble before assuming.

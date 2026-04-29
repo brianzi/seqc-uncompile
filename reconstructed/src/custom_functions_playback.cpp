@@ -25,9 +25,13 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <random>
 #include <sstream>
 #include <stdexcept>
+
+extern "C" void seqc_libcxx_mt19937_seed_urandom(uint64_t*);
+
 
 namespace zhinst {
 
@@ -863,11 +867,12 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
     // Binary @0x14981a..149832: TLS init → get addr → Random::seedRandom()
     // seedRandom @0x16be80 opens std::random_device("/dev/urandom") and
     // uses it to seed the mt19937-64 state array.
-    {
-        auto* rng = reinterpret_cast<std::mt19937_64*>(GlobalResources::random);
-        std::random_device rd("/dev/urandom");                                 // @0x16bec1
-        rng->seed(rd());                                                       // @0x16bf08
-    }
+    //
+    // Use libc++ shim so the seed/state layout matches the binary
+    // exactly (libstdc++ and libc++ disagree on Box-Muller pair order
+    // in normal_distribution; routing all PRNG ops through the libc++
+    // shim ensures byte-identical output).
+    seqc_libcxx_mt19937_seed_urandom(GlobalResources::random);
     return std::make_shared<EvalResults>();
 }
 

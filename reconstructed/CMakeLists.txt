@@ -39,12 +39,54 @@ set(SEQC_PARSER_SOURCES
 )
 set_source_files_properties(${SEQC_PARSER_SOURCES} PROPERTIES LANGUAGE CXX)
 
+# --- libc++ PRNG shim ---
+# prng_libcxx.cpp implements the binary's runtime PRNG behavior:
+#   - WaveformGenerator::rand uses a Park-Miller MINSTD LCG + custom
+#     Marsaglia polar Box-Muller (portable C++, no stdlib PRNG).
+#   - WaveformGenerator::randomGauss / ::randomUniform use libc++
+#     mt19937_64 + normal_distribution / uniform_real_distribution.
+# Because libc++ and libstdc++ disagree on Box-Muller pair order in
+# normal_distribution, the TU MUST be compiled with -stdlib=libc++ to
+# match the binary byte-for-byte. When clang++ is available we build
+# this single TU with libc++ (symbols inline as weak — no libc++.so
+# runtime dep). Otherwise it falls through to the default compiler
+# (in which case `randomGauss` and `randomUniform` differential tests
+# will fail; `rand` will still work because MINSTD is portable).
+find_program(CLANGXX_EXECUTABLE clang++)
+if(CLANGXX_EXECUTABLE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # Using g++ (or other) for the bulk; force clang++ with libc++
+    # for the shim TU only. Symbols inline as weak so no libc++.so dep.
+    set(PRNG_SHIM ${CMAKE_CURRENT_SOURCE_DIR}/src/prng_libcxx.cpp)
+    list(REMOVE_ITEM ZHINST_SEQC_SOURCES ${PRNG_SHIM})
+    set(PRNG_SHIM_OBJ ${CMAKE_CURRENT_BINARY_DIR}/prng_libcxx.o)
+    add_custom_command(
+        OUTPUT ${PRNG_SHIM_OBJ}
+        COMMAND ${CLANGXX_EXECUTABLE} -stdlib=libc++ -fPIC -O2
+                -std=c++17 -fvisibility=hidden
+                -c ${PRNG_SHIM} -o ${PRNG_SHIM_OBJ}
+        DEPENDS ${PRNG_SHIM}
+        COMMENT "Building PRNG shim with libc++ (clang++)"
+        VERBATIM
+    )
+    add_custom_target(prng_libcxx_obj DEPENDS ${PRNG_SHIM_OBJ})
+    set(PRNG_SHIM_OBJECTS ${PRNG_SHIM_OBJ})
+else()
+    set(PRNG_SHIM_OBJECTS "")
+endif()
+
 add_library(zhinst_seqc STATIC
     ${ZHINST_SEQC_SOURCES}
     ${SEQC_PARSER_SOURCES}
     ${BISON_asm_parser_OUTPUTS}
     ${FLEX_asm_lexer_OUTPUTS}
+    ${PRNG_SHIM_OBJECTS}
 )
+
+if(PRNG_SHIM_OBJECTS)
+    add_dependencies(zhinst_seqc prng_libcxx_obj)
+    set_source_files_properties(${PRNG_SHIM_OBJECTS}
+        PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
+endif()
 
 target_include_directories(zhinst_seqc PUBLIC include)
 
