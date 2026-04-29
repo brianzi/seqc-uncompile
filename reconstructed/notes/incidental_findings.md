@@ -1287,3 +1287,133 @@ fixed.
 exactly to avoid disturbing other join() callers (e.g. marker joins
 in `hdawg_doc_marker_gauss`).  Markers in the interpolation/pad
 regions are zero-filled.
+
+---
+
+## IF-99  `playIndexed` Phase 17 missing `results->node_` chaining
+
+**Source**: `uhf_doc_tv_mode` failure investigation
+**Status**: confirmed, fixed
+**Severity**: likely-bug → **fixed**
+
+`CustomFunctions::playIndexed` (`custom_functions_play.cpp` Phase 17,
+binary @0x162462..0x162511) only pushed `playEntry` into
+`results->assemblers_` and never assigned `results->node_ = playEntry.node`
+(or chained via `results->node_->next`).
+
+Without that assignment, the Play node produced by `asmPlay` is *not*
+linked into the node tree that `Prefetch::prepareTree` walks. As a
+consequence:
+- `prepareTree` never visits the Play node, so `linkLoad` →
+  `createLoad` is never invoked for it.
+- `collectUsedWaves` is never called for that Play, so its
+  `wavesPerDev[0]` (set by `asmPlay` to the merged `__join_*` wave name)
+  never reaches `waveformMaps_` / `wavetableIR_->usedWaveforms_`.
+- Result: the merged waveform is not registered, so the ELF's
+  `.waveforms` JSON is empty and the `.wf___join_*` section is missing.
+
+The simple-play path at @0x160438..0x160468 already does this chaining
+(`if (results->node_) results->node_->next = asmEntry.node; else
+results->node_ = asmEntry.node;`). `playIndexed` must do the same.
+
+**Fix** (custom_functions_play.cpp Phase 17): mirror the simple-play
+pattern before the assemblers_ push_back:
+
+```cpp
+if (results->node_) {
+    results->node_->next = playEntry.node;
+} else {
+    results->node_ = playEntry.node;
+}
+results->assemblers_.push_back(std::move(playEntry));
+```
+
+**Verification**: stderr instrumentation in `asmPlay`,
+`Prefetch::prepareTree`, `Prefetch::createLoad`, and
+`Prefetch::collectUsedWaves` showed:
+- Before fix: Play node (with correct `wavesPerDev[0]=__join_28_297`)
+  is created by `asmPlay` but never visited by `prepareTree`. Only the
+  Load wrapper from `compiler.cpp:322` is walked.
+- After fix: `prepareTree` reaches the Play node, `linkLoad` →
+  `createLoad` produces a Load with the wave name, and
+  `collectUsedWaves` inserts `__join_28_297` into `waveformMaps_[0]`.
+- ELF size: 4064 → 260532 (orig 260688). Recovered `.channels`,
+  `.wf___join_28_297`, `.waveforms`, `.wavemem`. Remaining diff
+  (≈156 bytes in `.asm`/`.linenr`/`.text`) is a separate bug — see
+  IF-100.
+
+## IF-100  `playIndexed` indexed-play codegen still incorrect
+
+**Source**: `uhf_doc_tv_mode` post-IF-99 investigation
+**Status**: open
+**Severity**: likely-bug
+
+After IF-99 fix, `uhf_doc_tv_mode` still differs in `.asm`/`.text`/`.linenr`.
+
+The failing test calls `playWaveIndexed(w_array, t, waveform_length)`
+where `t` is a runtime variable (Var=2) and `waveform_length=1260` is a
+const. Per Phase 12 comment in `custom_functions_play.cpp:1055-1059`:
+
+> For varType == Var(2): @0x161f5c..0x161f6a takes a different
+> branch — pulls a pre-computed AsmRegister from a stack-saved slot
+> at [rbp-0x328] and skips the addi/SetVarPlaceholder pair. That
+> path has not been independently traced; modeled as the same
+> logical operation here.
+
+The recon currently always emits the Const/Cvar `addi indexReg, R0,
+Immediate(rate)` path. For Var(2), the original instead reuses a
+pre-computed register (likely the register holding `t`) so the play's
+length/index can vary per loop iteration.
+
+Concrete asm diff:
+- **Original** (per-iteration prefetch hoisted *inside* the loop):
+
+  ```
+  for4:  addi R3, R1, -125999
+         ...
+         addiu R3, R0, 851969
+         addi R6, R0, 0
+         addi R4, R1, 0
+         ssl R4, R4         ; scale loop var t
+         addr R3, R4        ; add to base address
+         wwvf
+         prf R3, R6, 2528   ; per-row prefetch (2520+pad)
+         ...
+         wvf R6, R0, 2520   ; per-row play (1260*2 channels)
+  ```
+
+- **Recon** (single static prefetch outside loop, full-wave play):
+
+  ```
+  cwvf 5242753
+  addiu R1, R0, 851969
+  prf R1, R6, 252000     ; whole-wave prefetch
+  ...
+  for4: ...
+        wvf R6, R0, 252000  ; plays the entire 252000-sample wave
+  ```
+
+The recon's `playIndexed` is essentially treating the call as a static
+playWave of `combined`, ignoring the index/length args at codegen time.
+
+**Suspected root cause**: the Var-path of Phase 12 must (a) skip the
+`addi`/`asmSetVarPlaceholder` pair, (b) install the pre-computed
+register holding `t` as `indexReg`, and (c) ensure `regVal` /
+`indexOffsetReg` flow into `asmPlay` so the resulting Play node carries
+both the per-iteration length (1260*channels) and the offset register
+— driving optimization passes to keep the prefetch *inside* the for
+loop.
+
+**Next steps**:
+1. GDB-trace original at @0x161f5c..0x161f6a with the failing input to
+   confirm exactly which AsmRegister slot is read from `[rbp-0x328]`
+   and how it threads into `asmPlay`.
+2. Check `asmPlay`'s `regVal` / `reg` / `reg2` / `regInv` semantics
+   when called with a non-zero indexReg/lengthReg — likely the post-
+   waveform optimization pass is responsible for hoisting the prefetch
+   out, but only does so when `wvf` length is a constant.
+3. After Phase 12 Var-path fix, verify the prefetch hoisting matches
+   by inspecting the optimization pipeline (`optimizePostWaveform`).
+
+This is a substantial subsystem investigation in its own right —
+deferred from the IF-99 fix to keep that change focused.

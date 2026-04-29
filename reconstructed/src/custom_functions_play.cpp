@@ -1166,6 +1166,18 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // Disasm @0x162506: lea rdi, [r15+0x18] (vector<Asm> &) followed
     // by emplace_back_slow_path. r15 = [r13+0] where r13 is the saved
     // first-arg slot — i.e. results->assemblers_.
+    //
+    // Also: chain playEntry.node into results->node_. Without this,
+    // the Play node is never linked into the tree walked by
+    // Prefetch::prepareTree, causing wavesPerDev[0] (the wave name set
+    // by asmPlay) to never reach collectUsedWaves → empty .waveforms /
+    // missing .wf_* sections.  Mirrors the same chaining done by the
+    // simple-play path at @0x160438..0x160468.
+    if (results->node_) {
+        results->node_->next = playEntry.node;
+    } else {
+        results->node_ = playEntry.node;
+    }
     results->assemblers_.push_back(std::move(playEntry));            // @0x162511
 
     // ================================================================
