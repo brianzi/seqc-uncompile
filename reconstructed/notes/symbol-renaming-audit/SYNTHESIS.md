@@ -63,6 +63,8 @@ and hides that the parameter is the value being stored.
 
 The audit recommends **option 2** so Cluster A and B move atomically.
 
+**[Decision: Option 2 — adopt Cluster B canonical name (`noOpt` / `skipOptimization`); Cluster A and B move atomically.]**
+
 **Scope (rename in lockstep — these are vtable-shaped overrides):**
 
 | Batch | Symbol | Conf |
@@ -101,6 +103,8 @@ producer side.
    the "which opcodes" detail). **Preferred** by audit.
 2. `isControlOpcode` / `isMessageOpcode` (matches producer truth).
 3. Keep current (rejected — actively misleading).
+
+**[Decision: `noOpt` / `skipOptimization` (option 1).]**
 
 **Scope (every site that names this concept — must move atomically):**
 
@@ -153,6 +157,12 @@ Anchor: `09_prefetch.md:87-88`, `23_awg_compiler_config.md:79`,
 a *different* boolean (recursion flag false=fast / true=gap-scan)
 that happens to share the name; rename to `gapScan` independently.
 
+**[Decision C.1: drop both alias families (`Prefetch::isHirzel_()` /
+`set_isHirzel_()` AND `AWGCompilerConfig::appendMode()`).]**
+
+**[Decision C.2: `Cache::appendMode_` → `isHirzel_`. The independent
+`Cache::getBestPosition::appendMode` param → `gapScan`.]**
+
 ---
 
 ### Cluster D — `channelGrouping` is a loop-unroll iteration limit
@@ -168,6 +178,8 @@ as a guard on for-loop unroll iteration count. Unrelated to channels.
 1. `loopUnrollLimit` — most descriptive (audit-preferred).
 2. `unrollLimit`.
 3. Keep — rejected.
+
+**[Decision: `loopUnrollLimit` (3-leg coordinated rename).]**
 
 **Scope (3-leg coordinated rename):**
 
@@ -219,6 +231,11 @@ Audit recommends **(a)** uniformly — it shrinks the API surface and
 the binary already exports the field via mangled accessors where
 necessary.
 
+**[Decision: drop aliases uniformly (option a). Special case for
+`PrefetcherNodeState::usedCache()` / `requiredSlots`: the alias
+`usedCache()` is the correct name; rename the field
+`requiredSlots` → `usedCache_` and drop the alias method.]**
+
 Anchor: `09_prefetch.md:80-86`, `23_awg_compiler_config.md:79-81`,
 `24_asm_expression.md:32-37`.
 
@@ -251,6 +268,10 @@ batch 04a), so this is a free rename.
 Anchor: `04a_seqc_ast_node.md:85-94+`. This rename will produce a
 mass diff but every site is mechanical.
 
+**[Decision: approved. Rename `SeqCAstNode::type` (param + accessor)
+→ `lineNr` / `lineNr()` and cascade through all 53 derived ctors
+(×54 sites total).]**
+
 ---
 
 ### Cluster G — `first_` / `second_` / `first` / `second` in binary AST nodes
@@ -281,6 +302,10 @@ Anchor: `04a_seqc_ast_node.md:138-145`. Plus the `SEQC_BINARY_IMPL`
 macro definition and ctor param names; the macro expansion currently
 produces the `first`/`second` names — update macro itself.
 
+**[Decision: approved. All 8 binary AST node `first_`/`second_`
+field pairs renamed per the table; update `SEQC_BINARY_IMPL` macro
+and ctor param names accordingly.]**
+
 ---
 
 ### Cluster H — `clone()` overrides should be `doClone()`
@@ -299,6 +324,9 @@ authoritative per RULES §3 — this is the original name.
 
 Anchor: `29_device_type.md:35`, `41_device_subclasses.md:49`.
 Mechanical replace; vtable atomic.
+
+**[Decision: approved. `clone()` → `doClone()` for base + all
+×32 subclass overrides (×33 total).]**
 
 ---
 
@@ -323,6 +351,10 @@ this is a **focused micro-cluster pass** to do at execution time.
 
 Anchor: `29_device_type.md:27`, `54_mf_sfc.md`.
 
+**[Decision: defer per-enum semantic naming to execution time. The
+cluster as a whole is approved; individual enumerator names are
+chosen per-bit during the dedicated micro-cluster pass.]**
+
 ---
 
 ### Cluster J — `Waveform`/`WaveformFile` JSON-key drift
@@ -346,6 +378,9 @@ keys in the JSON serializer (`.waveforms` ELF section).
 **Decision needed.** Pure trivial — rename to match the JSON keys
 (tier-2 authoritative per RULES §4d/3). All decisions already made
 by the audit.
+
+**[Decision: approved. All 9 Waveform JSON-key renames per the
+table.]**
 
 Anchor: `14_waveform.md:20-63`.
 
@@ -380,6 +415,9 @@ mis-attribution).
 
 Anchor: `10_asm_commands.md:112-133`, `38_play_config.md`.
 
+**[Decision: approved. All 4 `genPlayConfig` producer-param renames
+plus the parallel `asmPlay`/`asmTable` family in lockstep.]**
+
 ---
 
 ### Cluster L — `AsmCommandsImpl::wvf/wvfi` param-name drift vs wrappers
@@ -399,6 +437,9 @@ the immediate, marker is a misnomer for "second register").
 | 49 | `AsmCommandsImplHirzel::wvft::arg` | `length` | → `length` |
 
 Anchor: `49_asm_commands_impl.md:42-47`. Vtable-coordinated.
+
+**[Decision: approved. `markerReg` → `dstReg`; `waveIndex` → `length`;
+vtable-coordinated across `wvf`/`wvfi`/`wvfs`/`wvft`.]**
 
 ---
 
@@ -420,6 +461,10 @@ in `assembleAsmList`).
 Affects: `26_assembler.md:67-68`, `33_awg_assembler.md:19`. This is
 **partly a structural fix, not just renaming**; confirm scope at
 execution time.
+
+**[Decision: defer to last in the Phase D sequence. GDB + RTTI
+verification of the binary class shape required before any source
+edit.]**
 
 ---
 
@@ -444,6 +489,10 @@ ctor param to `grandparent` to match.
 
 Anchor: `19a_resources.md:122-124`.
 
+**[Decision: approved. Two-step rename
+(`parent_` → `grandparent_`, then `parentWeak_` → `parent_`).
+`GlobalResources` ctor param `parent` → `grandparent` to match.]**
+
 ---
 
 ### Cluster O — Snake_case violations that should be camelCase
@@ -460,6 +509,8 @@ camelCase convention. Trivial unblocking.
 
 Anchor: `01_types.md:50-51`, `05d_custom_functions_playback.md:94-96`.
 
+**[Decision: approved. All 4 snake_case → camelCase fixes.]**
+
 ---
 
 ### Cluster P — `kDevCervino` is misleadingly named "all-Cervino"
@@ -475,6 +526,10 @@ similarly excludes only UHFLI, not UHFQA.
 | 01 | `kDevUHF` (positive evidence) | keep as the canonical name |
 
 Anchor: `01_types.md:90-95`.
+
+**[Decision: approved. All 3 device-mask renames (deprecate
+`kDevCervino` as alias of `kDevUHF`; `kDevAllButUHF` →
+`kDevAllButUHFLI`; keep `kDevUHF`).]**
 
 ---
 
@@ -505,6 +560,9 @@ this is a borderline call.
 
 Cross-refs: `45_wavetable_front.md:78-79`, `46_wavetable_ir.md:189-190`.
 
+**[Decision: investigate first. Resolve at execution time after
+inspecting JSON consumer behavior; no rename until resolved.]**
+
 ### Arbitration 2 — `DeviceConstants::numDIOBits` / `numOutputPorts` vs caller usage
 
 | Batch | Field | Caller usage |
@@ -526,6 +584,10 @@ misnamed (real semantic = "max oscillator index") or the caller
 Cross-refs: `31_device_constants.md:39`,
 `05c_custom_functions_io_part2.md:107`.
 
+**[Decision: investigate first. GDB-trace `configFreqSweep` on UHFLI
+before deciding `numDIOBits` rename. `numOutputPorts` →
+`execTableIndexBits` already covered in §4.]**
+
 ### Arbitration 3 — `DeviceConstants::waveformGranularity` / `waveformPageSize` are swapped
 
 | Batch | Field | Used as | Decision |
@@ -541,6 +603,11 @@ side is the misnomer). The cross-batch downstream chain at
 
 **Decision.** Audit-recommended. Two-step coordinated swap.
 
+**[Decision: approved. Two-step coordinated swap —
+`waveformGranularity` → `maxWaveformLength`;
+`waveformPageSize` → `grainSize`. Update local consumers in
+`46_wavetable_ir.md:148`.]**
+
 ### Arbitration 4 — `Compiler::usedSampleRate_` vs `StaticResources::usedSampleRate_`
 
 The two fields mirror each other; `Compiler`'s is never written. One
@@ -548,6 +615,9 @@ of them is dead, or one is read by a path the audit didn't locate.
 
 **Decision.** Investigate at execution time. Not safe to rename
 either without resolving.
+
+**[Decision: investigate first. No rename of either mirror until
+resolved.]**
 
 Cross-refs: `07_compiler.md:72`, `19a_resources.md:188`.
 
@@ -561,6 +631,9 @@ one of the two readings is wrong.
 **Decision.** Investigate; possibly type fix rather than rename.
 Anchor: `27_node_map_data.md:65`.
 
+**[Decision: investigate first. Possibly a type fix (split slot)
+rather than a pure rename.]**
+
 ### Arbitration 6 — `expression.cpp::createOrAppend{Arg,Decl,Param,Stmt}List::lhs/rhs`
 
 Thin wrapper functions with `lhs`/`rhs` params; semantically the
@@ -570,6 +643,9 @@ with surrounding eval functions).
 
 Anchor: `42_expression.md:103`.
 
+**[Decision: keep `lhs` / `rhs` for consistency with surrounding
+eval functions.]**
+
 ### Arbitration 7 — `mergeWaveforms::useYSuffix` (batch 05b)
 
 Param also gates the merge/interleave step, not just the suffix.
@@ -578,12 +654,16 @@ different readings.
 
 Anchor: `05b_custom_functions_play.md:55`.
 
+**[Decision: investigate first.]**
+
 ### Arbitration 8 — `addCommand::cmd` / `args` swap (50 ↔ 24)
 
 Names suggest one role; grammar/body shows the other. Either swap
 the names or rename `args` → `cmdToken` and `cmd` → `argList`.
 
 Anchor: `50_asm_parser_context.md:68`.
+
+**[Decision: rename `args` → `cmdToken`, `cmd` → `argList`.]**
 
 ### Arbitration 9 — `AsmList::Asm::wavetableFront` (44, dual-purpose)
 
@@ -594,6 +674,8 @@ Either split into two fields or accept dual-purpose with a new name
 
 Anchor: `44_asm_list.md:34-37`.
 
+**[Decision: investigate first.]**
+
 ### Arbitration 10 — `Cache::play::state` and `Cache::allocate(5-arg)::pageSize`
 
 Two cache-API params receive cross-batch-arbitration flags from 36
@@ -603,12 +685,16 @@ their own pending decisions (`PrefetcherNodeState::counter()` /
 
 Anchor: `36_cache.md:55,75`.
 
+**[Decision: resolve after Cluster C is committed.]**
+
 ### Arbitration 11 — `loopArgNodeAppend::arg` (04b)
 
 Generic param name; cross-batch-arbitration to where loop-arg nodes
 are created (likely 04a/04e SeqCFor handling).
 
 Anchor: `04b_ast_evaluate_helpers.md:105`.
+
+**[Decision: investigate first.]**
 
 ---
 
@@ -890,12 +976,12 @@ verification mandatory.
 **Commit 5 — Cluster J (Waveform JSON-key drift).** Tier-2 anchored,
 mechanical.
 
-**Commit 6 — Cluster B (`isWaveformCmd` semantic inversion).**
+**Commit 6 — Cluster B (`isWaveformCmd` semantic inversion → `noOpt` / `skipOptimization`).**
 Affects `AsmList::Asm` field, free predicate, every consumer in
-`asm_optimize.cpp` and `asm_commands.cpp`. **Decide canonical name
-first** — see Open Arbitration counterpart.
+`asm_optimize.cpp` and `asm_commands.cpp`. Canonical name fixed at
+`noOpt` / `skipOptimization` per §13.
 
-**Commit 7 — Cluster A (`flag` → cluster-B-canonical).** Strict
+**Commit 7 — Cluster A (`flag` → `noOpt` / `skipOptimization`).** Strict
 follow-on of commit 6.
 
 **Commit 8 — Cluster K (PlayConfig producer/field swap).**
@@ -990,3 +1076,62 @@ rg -n '^\| `' *.md > /tmp/audit_all_rows.txt
 rg '\| (cross-batch-arbitration|coordinated-rename|verify-not-original) \|' *.md > /tmp/audit_status.txt
 rg '^\S+:\d+:\| .* \| yes \|' /tmp/audit_all_rows.txt | rg -v 'cross-batch-arbitration|coordinated-rename|verify-not-original|not-misnomer' > /tmp/audit_yes_singleton.txt
 ```
+
+---
+
+## §13. Decisions captured
+
+This section locks the user-decisions for every cluster, arbitration,
+and bulk approval listed above. Phase D execution must follow these
+choices unless explicitly revisited.
+
+### Cluster decisions
+| Cluster | Decision |
+|---|---|
+| A — `flag` params | Adopt Cluster B canonical name (atomic with B) |
+| B — `isWaveformCmd` inversion | **`noOpt` / `skipOptimization`** |
+| C.1 — Hirzel aliases | Drop both alias families (`Prefetch::isHirzel_()` / `set_isHirzel_()` AND `AWGCompilerConfig::appendMode()`) |
+| C.2 — `Cache::appendMode_` | Rename to `isHirzel_`. `Cache::getBestPosition::appendMode` (independent) → `gapScan` |
+| D — `channelGrouping` | `loopUnrollLimit` (3-leg) |
+| E — accessor aliases | Drop aliases uniformly. Special case: PNS — rename field `requiredSlots` → `usedCache_` and drop alias |
+| F — `SeqCAstNode::type` | Approved (cascade rename to `lineNr`, ×54) |
+| G — AST `first_/second_` | Approved (8 classes; update macro + ctor params) |
+| H — `clone → doClone` | Approved (×33) |
+| I — `sfc::*Option::Bit0xNNNN` | Defer per-enum naming to execution time |
+| J — Waveform JSON keys | Approved (9 renames) |
+| K — PlayConfig swap | Approved (4 producer params + parallel asmPlay/asmTable) |
+| L — `AsmCommandsImpl::wvf/wvfi` | Approved (markerReg→dstReg, waveIndex→length; vtable-coordinated) |
+| M — Assembler type recomp | Defer to last; GDB+RTTI confirm first |
+| N — `Resources::parent_` | Approved (two-step swap + GlobalResources ctor param) |
+| O — snake_case | Approved (4 fixes) |
+| P — `kDevCervino` | Approved (3 renames) |
+
+### Arbitration decisions
+| # | Symbol | Decision |
+|---|---|---|
+| 1 | WavetableManager numDefs/lineNr_ | **Pending investigation** |
+| 2 | DeviceConstants::numDIOBits | **Pending investigation** (GDB-trace `configFreqSweep` on UHFLI) |
+| 3 | waveformGranularity/PageSize swap | Approved (two-step coordinated swap) |
+| 4 | usedSampleRate_ mirror | **Pending investigation** |
+| 5 | NodeMapItem::hasFast | **Pending investigation** |
+| 6 | createOrAppend*::lhs/rhs | Keep `lhs`/`rhs` for consistency |
+| 7 | mergeWaveforms::useYSuffix | **Pending investigation** |
+| 8 | addCommand::cmd/args | Rename `args→cmdToken`, `cmd→argList` |
+| 9 | Asm::wavetableFront | **Pending investigation** |
+| 10 | Cache::play/Cache::allocate | Resolve after Cluster C committed |
+| 11 | loopArgNodeAppend::arg | **Pending investigation** |
+
+### Bulk decisions
+- §3: all 10 in-batch coordinated groups — approved
+- §4: 35 high-conf singletons — approved (batch-grouped commit)
+- §5: 111 medium-conf singletons — approved (single commit)
+- §6: 226 low/unsure — defer to future style pass
+- §7: 17 dead-code candidates — approved (deletions)
+- §8: ~10 type-suspicion observations — promote to IF-IDs at audit close
+- §9: 7 incidental logic bugs — promote to `incidental_findings.md` with IF-IDs at audit close
+- §10: ~20 verify-not-original — commit-1 of Phase D (dedicated nm-recheck)
+- §11: 20-step sequencing — approved as-listed
+
+### Audit lifecycle
+- Audit remains formally open until Phase D commit-1 (the nm-recheck) actually touches source.
+- Per RULES §11, edits remain restricted to `reconstructed/notes/symbol-renaming-audit/` until then.
