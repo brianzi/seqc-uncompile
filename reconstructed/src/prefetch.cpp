@@ -1104,9 +1104,14 @@ void Prefetch::optimize(std::shared_ptr<Node> node)  // 0x1cdae0
                     // 0x1cde65-0x1cdea5: Resolve parent's parent (weak_ptr at +0xF0..+0xF8)
                     std::shared_ptr<Node> parentLoad = parent->parent.lock();
 
-                    // 0x1cdeae: If parentLoad exists and its type is Loop (0x08)
-                    if (parentLoad.get() && parentLoad->type == static_cast<int>(NodeType::Loop)) {
-                        // 0x1cdec6: Copy parent's asmId to current node
+                    // 0x1cdeae: Read parentLoad->type (+0x44).
+                    //   cmp [rax+0x44], 0x8
+                    //   je 1ce685   ; skip asmId rewrite when parentLoad is a Loop
+                    // i.e. the rewrite happens when parentLoad is NOT a Loop
+                    // (and is implicitly skipped if parentLoad is null — the
+                    //  binary jumps to 1ce681/1ce685 in that case).
+                    if (parentLoad.get() && parentLoad->type != static_cast<int>(NodeType::Loop)) {
+                        // 0x1cdebc-0x1cdec6: Copy parent's asmId (+0x14) to current
                         curNode->asmId = parent->asmId;                // 0x1cdec6
                     }
 
@@ -2251,7 +2256,6 @@ void Prefetch::placeLoads() // 0x1cbf60
 
     // 0x1cbf96-0x1cbfa5: call getRequiredMemory()
     size_t required = getRequiredMemory();
-
 
     // 0x1cbfa5-0x1cbfb5: save root_ to local
     auto localRoot = root_;

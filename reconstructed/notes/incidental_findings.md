@@ -1918,13 +1918,102 @@ pipeline.  Deferred.
   **fixed** in prior commit.
 - IF-105 update 5 (`play_cervino_indexed` non-split body):
   **fixed** in this commit.
-- Remaining tv_mode diff: 0 bytes ELF size mismatch, 1211/1211 .asm
-  byte match, but `.asm` content still differs due to:
-  (A) placement of load setup block (still emitted AFTER user
-      statements; original places it BEFORE) and
-  (C) register allocation differences (orig R6 vs recon R3 for
-      registerCervino).  Test still fails (256/259) but the
-      structural codegen for the play-side is now correct.
+- IF-105 update 6 (`Prefetch::optimize` Load+SetVar branch:
+  inverted parentLoad type check at 0x1cdeae): **fixed** in
+  this commit — see update 6 below.  This was the root cause
+  of both the placement (A) and register-allocation (C)
+  diffs in tv_mode.
+- tv_mode now byte-identical (suite 257/259, +1, no regressions).
+
+### IF-105 update 6 (optimize() inverted parentLoad type check)
+
+**Status**: fixed — `uhf_doc_tv_mode` now byte-identical.
+Suite went from 256/259 to 257/259 with no regressions.
+
+**Site**: `Prefetch::optimize`, the Load-with-SetVar-parent
+branch around binary 0x1cdeae (recon `prefetch.cpp:1110`).
+
+**Bug**: the recon implemented the parentLoad-type gate as
+"rewrite asmId only when parentLoad is a Loop", i.e.
+
+```cpp
+if (parentLoad && parentLoad->type == NodeType::Loop) {
+    curNode->asmId = parent->asmId;
+}
+```
+
+The actual binary control flow at 0x1cdeae is the opposite:
+
+```
+1cdeae: cmp DWORD PTR [rax+0x44], 0x8     ; parentLoad->type == Loop?
+1cdeb6: je   1ce685                       ; YES → SKIP rewrite
+1cdebc: mov  rax, [rbp-0xc0]              ; (parent shared_ptr)
+1cdec3: mov  eax, [rax+0x14]              ;   eax = parent->asmId
+1cdec6: mov  [r14+0x14], eax              ;   curNode->asmId = parent->asmId
+1cdeca: jmp  1ce685
+```
+
+The rewrite happens **only when parentLoad->type != Loop**.
+For tv_mode, parentLoad is itself a SetVar (type 0x10), so:
+- original: 0x10 != 0x8 → rewrite Load.asmId 44 → 32 (the
+  SetVarPlaceholder asmId)
+- buggy recon: 0x10 != 0x8 → check fails → asmId stays at 44
+
+The asmId difference cascaded into:
+1. **Issue A (placement)**: the surviving Load's asmId
+   determines the placeholder lookup target in
+   `placeSingleCommand` / placement helpers.  asmId=32 sits
+   before user statements in the AsmList, asmId=44 sits
+   after — so the load setup block was emitted at the END of
+   the for-body in recon vs the START in the original.
+2. **Issue C (registers)**: with the load setup emitted at
+   a different point in the assembly stream, the
+   register allocator processes the temp-register
+   requests in a different order, yielding R3/R4 vs R6/R3.
+
+Fixing the polarity of the parentLoad type check fixes
+both diffs in one shot.
+
+**GDB verification recipe** (the key trace that revealed
+the bug):
+
+```
+hooks at:
+  0x1cbfbf  cmp eax,ecx          (required vs cacheSize)
+  0x1cc250  cmp [rbx+0xbc],0     (split_ check)
+  0x1cc327  call optimize         (optimize entry)
+  0x1cdec6  mov [r14+0x14],eax    (asmId rewrite site)
+```
+
+For tv_mode the original prints:
+- required=252000 cacheSize=131072  → required > cacheSize
+- at 1cc250 split_=0
+- calling optimize
+- 1cdec6 SetVar+lengthReg match: cur=0x... oldAsmId=44 → newAsmId=32
+
+The recon (with debug fprintfs added at the same C++ sites)
+showed:
+- required=252000 cacheSize=131072 appendMode=0
+- split_=0 before optimize check
+- Prefetch::optimize called
+- visiting Load node asmId=44 parent=SetVar (type 16)
+- Load with SetVar parent: regsMatch=1
+- regsMatch but parentLoad type wrong: type=16
+
+— the third-line diagnostic ("type=16") immediately
+identified the inverted gate.  Re-examining the disasm at
+0x1cdeae confirmed `je SKIP` (skip when type==Loop) rather
+than `jne SKIP` (skip when type!=Loop).
+
+**Lesson**: when a binary has a `cmp X, K; je TARGET`
+pattern, the rewrite (or whatever is in the fallthrough
+path) executes when `X != K`.  This is easy to invert when
+hand-translating to C++ because the natural English reading
+of the comment ("if parentLoad type is Loop, then ...") often
+ends up describing the **skipped** branch rather than the
+executed one.  Always cross-check polarity with a runtime
+trace when the recon predicate looks right but the
+behavior is wrong.
 
 ### IF-105 update 5 (play_cervino_indexed non-split body reconstructed)
 
