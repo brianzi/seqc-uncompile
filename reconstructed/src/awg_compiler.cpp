@@ -133,7 +133,7 @@ private:
     // Compiler ends at +0x1F8; next is +0x200
     char pad_1F8_[8];                                    // +0x1F8
     std::string sourceFilename_;                             // +0x200
-    std::string string_218_;                             // +0x218
+    std::string pad_218_;                                // +0x218 (no read/write located; treated as unused slot — see notes/symbol-renaming-audit/28_awg_compiler.md §string_218_)
     std::string sourceText_;                             // +0x230
     std::string assemblerText_;                             // +0x248
     std::vector<CompilerMessage> compileMessages_;       // +0x260
@@ -170,7 +170,7 @@ AWGCompilerImpl::AWGCompilerImpl(AWGCompilerConfig const& config)  // @0x103b40
       compiler_(config, deviceConstants_, wavetable_),                   // @0x103c5f: Compiler ctor with shared_ptr copy
       pad_1F8_{},
       sourceFilename_(),
-      string_218_(),
+      pad_218_(),
       sourceText_(),
       assemblerText_(),
       compileMessages_(),
