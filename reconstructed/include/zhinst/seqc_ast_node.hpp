@@ -350,13 +350,13 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
 // Layout: SeqCAstNode (24B) + 2 unique_ptrs at +0x18, +0x20
 // ============================================================================
 
-#define SEQC_BINARY(Name, FirstAccessor, SecondAccessor, VtableAddr)        \
+#define SEQC_BINARY(Name, FirstAccessor, SecondAccessor, F1, F2, VtableAddr) \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
         Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt,                                                    \
-             std::unique_ptr<SeqCAstNode> first,                            \
-             std::unique_ptr<SeqCAstNode> second);                          \
+             std::unique_ptr<SeqCAstNode> F1,                               \
+             std::unique_ptr<SeqCAstNode> F2);                              \
         Name(Name const& o);                                                \
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
@@ -367,26 +367,26 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
-        const SeqCAstNode* FirstAccessor()  const { return first_.get(); }  \
-        const SeqCAstNode* SecondAccessor() const { return second_.get(); } \
+        const SeqCAstNode* FirstAccessor()  const { return F1##_.get(); }   \
+        const SeqCAstNode* SecondAccessor() const { return F2##_.get(); }   \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
-        std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */                  \
-        std::unique_ptr<SeqCAstNode> second_;  /* +0x20 */                  \
+        std::unique_ptr<SeqCAstNode> F1##_;   /* +0x18 */                   \
+        std::unique_ptr<SeqCAstNode> F2##_;   /* +0x20 */                   \
     };                                                                      \
     static_assert(sizeof(Name) == 0x28, #Name " must be 0x28 bytes")
 
 // Forward declarations for typed children
 class SeqCVariable;
 
-// SeqCFunctionCall — broken out of SEQC_BINARY because first_ is unique_ptr<SeqCVariable>.
+// SeqCFunctionCall — broken out of SEQC_BINARY because funName_ is unique_ptr<SeqCVariable>.
 // vtable @0xb05140.  Layout: SeqCAstNode(24B) + 2 unique_ptrs at +0x18, +0x20 = 0x28 bytes.
 class SeqCFunctionCall : public SeqCAstNode {
 public:
     SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt,
-                     std::unique_ptr<SeqCVariable> first,
-                     std::unique_ptr<SeqCAstNode> second);
+                     std::unique_ptr<SeqCVariable> funName,
+                     std::unique_ptr<SeqCAstNode> args);
     SeqCFunctionCall(SeqCFunctionCall const& o);
     SeqCFunctionCall& operator=(SeqCFunctionCall o);
     ~SeqCFunctionCall() override;
@@ -397,23 +397,23 @@ public:
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
-    const SeqCVariable* funName()    const { return first_.get(); }
-    const SeqCAstNode*  arguments()  const { return second_.get(); }
+    const SeqCVariable* funName()    const { return funName_.get(); }
+    const SeqCAstNode*  arguments()  const { return args_.get(); }
     friend void swap(SeqCFunctionCall& a, SeqCFunctionCall& b);
 private:
-    std::unique_ptr<SeqCVariable>  first_;   /* +0x18 */
-    std::unique_ptr<SeqCAstNode>   second_;  /* +0x20 */
+    std::unique_ptr<SeqCVariable>  funName_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode>   args_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 bytes");
 
-// SeqCArray — broken out of SEQC_BINARY because first_ is unique_ptr<SeqCVariable>.
+// SeqCArray — broken out of SEQC_BINARY because array_ is unique_ptr<SeqCVariable>.
 // vtable @0xb051e8.  Layout identical (0x28 bytes).
 class SeqCArray : public SeqCAstNode {
 public:
     SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
               VarType vt,
-              std::unique_ptr<SeqCVariable> first,
-              std::unique_ptr<SeqCAstNode> second);
+              std::unique_ptr<SeqCVariable> array,
+              std::unique_ptr<SeqCAstNode> index);
     SeqCArray(SeqCArray const& o);
     SeqCArray& operator=(SeqCArray o);
     ~SeqCArray() override;
@@ -424,16 +424,16 @@ public:
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
-    const SeqCAstNode*  index() const { return second_.get(); }
-    const SeqCVariable* array() const { return first_.get(); }
+    const SeqCAstNode*  index() const { return index_.get(); }
+    const SeqCVariable* array() const { return array_.get(); }
     friend void swap(SeqCArray& a, SeqCArray& b);
 private:
-    std::unique_ptr<SeqCVariable>  first_;   /* +0x18 */
-    std::unique_ptr<SeqCAstNode>   second_;  /* +0x20 */
+    std::unique_ptr<SeqCVariable>  array_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode>   index_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCArray) == 0x28, "SeqCArray must be 0x28 bytes");
 
-SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  0xb053e0);
+SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  cond, ifBody, 0xb053e0);
 
 // SeqCCaseEntry — broken out of SEQC_BINARY for extra methods (validLabel, hasLabel).
 // vtable @0xb05518.  Layout identical (0x28 bytes).
@@ -441,8 +441,8 @@ class SeqCCaseEntry : public SeqCAstNode {
 public:
     SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
                   VarType vt,
-                  std::unique_ptr<SeqCAstNode> first,
-                  std::unique_ptr<SeqCAstNode> second);
+                  std::unique_ptr<SeqCAstNode> label,
+                  std::unique_ptr<SeqCAstNode> body);
     SeqCCaseEntry(SeqCCaseEntry const& o);
     SeqCCaseEntry& operator=(SeqCCaseEntry o);
     ~SeqCCaseEntry() override;
@@ -453,14 +453,14 @@ public:
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
-    const SeqCAstNode* label()      const { return first_.get(); }
+    const SeqCAstNode* label()      const { return label_.get(); }
     const SeqCAstNode* body()       const;  // out-of-line for symbol emission
-    bool               validLabel() const;  // first_ != nullptr
-    bool               hasLabel()   const;  // first_ != nullptr
+    bool               validLabel() const;  // label_ != nullptr
+    bool               hasLabel()   const;  // label_ != nullptr
     friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
 private:
-    std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */
-    std::unique_ptr<SeqCAstNode> second_;  /* +0x20 */
+    std::unique_ptr<SeqCAstNode> label_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode> body_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCCaseEntry) == 0x28, "SeqCCaseEntry must be 0x28 bytes");
 // Forward declaration for SeqCSwitchCase::cases() return type
@@ -471,8 +471,8 @@ class SeqCSwitchCase : public SeqCAstNode {
 public:
     SeqCSwitchCase(EValueCategory vc, int lineNr, EDirection dir,
                    VarType vt,
-                   std::unique_ptr<SeqCAstNode> first,
-                   std::unique_ptr<SeqCAstNode> second);
+                   std::unique_ptr<SeqCAstNode> cond,
+                   std::unique_ptr<SeqCAstNode> body);
     SeqCSwitchCase(SeqCSwitchCase const& o);
     SeqCSwitchCase& operator=(SeqCSwitchCase o);
     ~SeqCSwitchCase() override;
@@ -484,8 +484,8 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
 
-    const SeqCAstNode* cond() const { return first_.get(); }
-    const SeqCAstNode* body() const { return second_.get(); }
+    const SeqCAstNode* cond() const { return cond_.get(); }
+    const SeqCAstNode* body() const { return body_.get(); }
 
     // Switch-specific helpers
     bool hasCases() const;                                           // @0x202760
@@ -501,13 +501,13 @@ public:
     friend void swap(SeqCSwitchCase& a, SeqCSwitchCase& b);
 
 private:
-    std::unique_ptr<SeqCAstNode> first_;   /* +0x18 */
-    std::unique_ptr<SeqCAstNode> second_;  /* +0x20 */
+    std::unique_ptr<SeqCAstNode> cond_;   /* +0x18 */
+    std::unique_ptr<SeqCAstNode> body_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCSwitchCase) == 0x28, "SeqCSwitchCase must be 0x28 bytes");
-SEQC_BINARY(SeqCWhileLoop,    cond,     body,  0xb055d0);
-SEQC_BINARY(SeqCDoWhile,      body,     cond,  0xb05620);
-SEQC_BINARY(SeqCRepeat,       cond,     body,  0xb05670);
+SEQC_BINARY(SeqCWhileLoop,    cond,     body,  cond, body, 0xb055d0);
+SEQC_BINARY(SeqCDoWhile,      body,     cond,  body, cond, 0xb05620);
+SEQC_BINARY(SeqCRepeat,       count,    body,  count, body, 0xb05670);
 
 #undef SEQC_BINARY
 

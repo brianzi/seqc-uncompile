@@ -310,18 +310,18 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, doClone @0x20
 // Two-child direct-AstNode subclasses (40B)
 // ============================================================================
 
-#define SEQC_BINARY_IMPL(Name, Label, LabelLen)                              \
+#define SEQC_BINARY_IMPL(Name, F1, F2, Label, LabelLen)                      \
     Name::Name(EValueCategory vc, int lineNr, EDirection dir,             \
                VarType vt,                                                   \
-               std::unique_ptr<SeqCAstNode> first,                           \
-               std::unique_ptr<SeqCAstNode> second)                          \
+               std::unique_ptr<SeqCAstNode> F1,                              \
+               std::unique_ptr<SeqCAstNode> F2)                              \
         : SeqCAstNode(vc, lineNr, dir),                                        \
-          first_(std::move(first)), second_(std::move(second))               \
+          F1##_(std::move(F1)), F2##_(std::move(F2))                         \
     { varType_ = vt; }                                                       \
     Name::Name(Name const& o)                                                \
         : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),              \
-          first_(o.first_ ? o.first_->doClone() : nullptr),                    \
-          second_(o.second_ ? o.second_->doClone() : nullptr)                  \
+          F1##_(o.F1##_ ? o.F1##_->doClone() : nullptr),                      \
+          F2##_(o.F2##_ ? o.F2##_->doClone() : nullptr)                       \
     { varType_ = o.varType_; }                                               \
     Name& Name::operator=(Name o) { swap(*this, o); return *this; }          \
     Name::~Name() = default;                                                 \
@@ -331,32 +331,32 @@ SEQC_OPERATOR_IMPL(SeqCNoOp,    "NoOp",    4)  // print @0x208390, doClone @0x20
     std::unique_ptr<SeqCAstNode> Name::doClone() const {                       \
         return std::make_unique<Name>(                                       \
             valueCategory_, lineNr_, direction_, varType_,                     \
-            first_ ? first_->doClone() : nullptr,                              \
-            second_ ? second_->doClone() : nullptr);                           \
+            F1##_ ? F1##_->doClone() : nullptr,                                \
+            F2##_ ? F2##_->doClone() : nullptr);                               \
     }                                                                        \
     std::vector<const SeqCAstNode*> Name::children() const {                 \
-        return { first_.get(), second_.get() };                              \
+        return { F1##_.get(), F2##_.get() };                                 \
     }                                                                        \
     void swap(Name& a, Name& b) {                                           \
         swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));    \
-        std::swap(a.first_, b.first_);                                       \
-        std::swap(a.second_, b.second_);                                     \
+        std::swap(a.F1##_, b.F1##_);                                         \
+        std::swap(a.F2##_, b.F2##_);                                         \
     }
 
-// SeqCFunctionCall — broken out of SEQC_BINARY_IMPL: first_ is unique_ptr<SeqCVariable>.
+// SeqCFunctionCall — broken out of SEQC_BINARY_IMPL: funName_ is unique_ptr<SeqCVariable>.
 SeqCFunctionCall::SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
                                    VarType vt,
-                                   std::unique_ptr<SeqCVariable> first,
-                                   std::unique_ptr<SeqCAstNode> second)
+                                   std::unique_ptr<SeqCVariable> funName,
+                                   std::unique_ptr<SeqCAstNode> args)
     : SeqCAstNode(vc, lineNr, dir),
-      first_(std::move(first)), second_(std::move(second))
+      funName_(std::move(funName)), args_(std::move(args))
 { varType_ = vt; }
 
 SeqCFunctionCall::SeqCFunctionCall(SeqCFunctionCall const& o)
     : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),
-      first_(o.first_ ? std::unique_ptr<SeqCVariable>(
-          static_cast<SeqCVariable*>(o.first_->doClone().release())) : nullptr),
-      second_(o.second_ ? o.second_->doClone() : nullptr)
+      funName_(o.funName_ ? std::unique_ptr<SeqCVariable>(
+          static_cast<SeqCVariable*>(o.funName_->doClone().release())) : nullptr),
+      args_(o.args_ ? o.args_->doClone() : nullptr)
 { varType_ = o.varType_; }
 
 SeqCFunctionCall& SeqCFunctionCall::operator=(SeqCFunctionCall o) { swap(*this, o); return *this; }
@@ -367,35 +367,35 @@ void SeqCFunctionCall::print() const { std::cout.write("FunctionCall", 12); }  /
 std::unique_ptr<SeqCAstNode> SeqCFunctionCall::doClone() const {  // @0x1fed30
     return std::make_unique<SeqCFunctionCall>(
         valueCategory_, lineNr_, direction_, varType_,
-        first_ ? std::unique_ptr<SeqCVariable>(
-            static_cast<SeqCVariable*>(first_->doClone().release())) : nullptr,
-        second_ ? second_->doClone() : nullptr);
+        funName_ ? std::unique_ptr<SeqCVariable>(
+            static_cast<SeqCVariable*>(funName_->doClone().release())) : nullptr,
+        args_ ? args_->doClone() : nullptr);
 }
 
 std::vector<const SeqCAstNode*> SeqCFunctionCall::children() const {
-    return { first_.get(), second_.get() };
+    return { funName_.get(), args_.get() };
 }
 
 void swap(SeqCFunctionCall& a, SeqCFunctionCall& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-    std::swap(a.first_, b.first_);
-    std::swap(a.second_, b.second_);
+    std::swap(a.funName_, b.funName_);
+    std::swap(a.args_, b.args_);
 }
 
-// SeqCArray — broken out of SEQC_BINARY_IMPL: first_ is unique_ptr<SeqCVariable>.
+// SeqCArray — broken out of SEQC_BINARY_IMPL: array_ is unique_ptr<SeqCVariable>.
 SeqCArray::SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt,
-                     std::unique_ptr<SeqCVariable> first,
-                     std::unique_ptr<SeqCAstNode> second)
+                     std::unique_ptr<SeqCVariable> array,
+                     std::unique_ptr<SeqCAstNode> index)
     : SeqCAstNode(vc, lineNr, dir),
-      first_(std::move(first)), second_(std::move(second))
+      array_(std::move(array)), index_(std::move(index))
 { varType_ = vt; }
 
 SeqCArray::SeqCArray(SeqCArray const& o)
     : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),
-      first_(o.first_ ? std::unique_ptr<SeqCVariable>(
-          static_cast<SeqCVariable*>(o.first_->doClone().release())) : nullptr),
-      second_(o.second_ ? o.second_->doClone() : nullptr)
+      array_(o.array_ ? std::unique_ptr<SeqCVariable>(
+          static_cast<SeqCVariable*>(o.array_->doClone().release())) : nullptr),
+      index_(o.index_ ? o.index_->doClone() : nullptr)
 { varType_ = o.varType_; }
 
 SeqCArray& SeqCArray::operator=(SeqCArray o) { swap(*this, o); return *this; }
@@ -406,36 +406,36 @@ void SeqCArray::print() const { std::cout.write("Array", 5); }  // @0x1ff2e0
 std::unique_ptr<SeqCAstNode> SeqCArray::doClone() const {  // @0x1ff3c0
     return std::make_unique<SeqCArray>(
         valueCategory_, lineNr_, direction_, varType_,
-        first_ ? std::unique_ptr<SeqCVariable>(
-            static_cast<SeqCVariable*>(first_->doClone().release())) : nullptr,
-        second_ ? second_->doClone() : nullptr);
+        array_ ? std::unique_ptr<SeqCVariable>(
+            static_cast<SeqCVariable*>(array_->doClone().release())) : nullptr,
+        index_ ? index_->doClone() : nullptr);
 }
 
 std::vector<const SeqCAstNode*> SeqCArray::children() const {
-    return { first_.get(), second_.get() };
+    return { array_.get(), index_.get() };
 }
 
 void swap(SeqCArray& a, SeqCArray& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-    std::swap(a.first_, b.first_);
-    std::swap(a.second_, b.second_);
+    std::swap(a.array_, b.array_);
+    std::swap(a.index_, b.index_);
 }
 
-SEQC_BINARY_IMPL(SeqCIfCondition,  "IfCondition",  11)  // print @0x201a30, doClone @0x201b10
+SEQC_BINARY_IMPL(SeqCIfCondition,  cond, ifBody, "IfCondition",  11)  // print @0x201a30, doClone @0x201b10
 
 // SeqCCaseEntry — broken out of SEQC_BINARY_IMPL for extra methods.
 SeqCCaseEntry::SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
                              VarType vt,
-                             std::unique_ptr<SeqCAstNode> first,
-                             std::unique_ptr<SeqCAstNode> second)
+                             std::unique_ptr<SeqCAstNode> label,
+                             std::unique_ptr<SeqCAstNode> body)
     : SeqCAstNode(vc, lineNr, dir),
-      first_(std::move(first)), second_(std::move(second))
+      label_(std::move(label)), body_(std::move(body))
 { varType_ = vt; }
 
 SeqCCaseEntry::SeqCCaseEntry(SeqCCaseEntry const& o)
     : SeqCAstNode(o.valueCategory_, o.lineNr_, o.direction_),
-      first_(o.first_ ? o.first_->doClone() : nullptr),
-      second_(o.second_ ? o.second_->doClone() : nullptr)
+      label_(o.label_ ? o.label_->doClone() : nullptr),
+      body_(o.body_ ? o.body_->doClone() : nullptr)
 { varType_ = o.varType_; }
 
 SeqCCaseEntry& SeqCCaseEntry::operator=(SeqCCaseEntry o) { swap(*this, o); return *this; }
@@ -446,28 +446,28 @@ void SeqCCaseEntry::print() const { std::cout.write("CaseEntry", 9); }  // @0x20
 std::unique_ptr<SeqCAstNode> SeqCCaseEntry::doClone() const {  // @0x202880
     return std::make_unique<SeqCCaseEntry>(
         valueCategory_, lineNr_, direction_, varType_,
-        first_ ? first_->doClone() : nullptr,
-        second_ ? second_->doClone() : nullptr);
+        label_ ? label_->doClone() : nullptr,
+        body_ ? body_->doClone() : nullptr);
 }
 
 std::vector<const SeqCAstNode*> SeqCCaseEntry::children() const {
-    return { first_.get(), second_.get() };
+    return { label_.get(), body_.get() };
 }
 
-const SeqCAstNode* SeqCCaseEntry::body() const { return second_.get(); }
-bool SeqCCaseEntry::validLabel() const { return first_ != nullptr; }
-bool SeqCCaseEntry::hasLabel()   const { return first_ != nullptr; }
+const SeqCAstNode* SeqCCaseEntry::body() const { return body_.get(); }
+bool SeqCCaseEntry::validLabel() const { return label_ != nullptr; }
+bool SeqCCaseEntry::hasLabel()   const { return label_ != nullptr; }
 
 void swap(SeqCCaseEntry& a, SeqCCaseEntry& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-    std::swap(a.first_, b.first_);
-    std::swap(a.second_, b.second_);
+    std::swap(a.label_, b.label_);
+    std::swap(a.body_, b.body_);
 }
 
-SEQC_BINARY_IMPL(SeqCSwitchCase,   "SwitchCase",   10)  // print @0x202350, doClone @0x202430
-SEQC_BINARY_IMPL(SeqCWhileLoop,    "WhileLoop",     9)  // print @0x203060, doClone @0x203140
-SEQC_BINARY_IMPL(SeqCDoWhile,      "DoWhile",       7)  // print @0x203420, doClone @0x203500
-SEQC_BINARY_IMPL(SeqCRepeat,       "Repeat",        6)  // print @0x2037e0, doClone @0x2038c0
+SEQC_BINARY_IMPL(SeqCSwitchCase,   cond, body, "SwitchCase",   10)  // print @0x202350, doClone @0x202430
+SEQC_BINARY_IMPL(SeqCWhileLoop,    cond, body, "WhileLoop",     9)  // print @0x203060, doClone @0x203140
+SEQC_BINARY_IMPL(SeqCDoWhile,      body, cond, "DoWhile",       7)  // print @0x203420, doClone @0x203500
+SEQC_BINARY_IMPL(SeqCRepeat,       count, body, "Repeat",        6)  // print @0x2037e0, doClone @0x2038c0
 
 #undef SEQC_BINARY_IMPL
 

@@ -6848,7 +6848,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 
     auto result = std::make_shared<EvalResults>();                   // @0x21118d
 
-    if (!array()) {                                                  // @0x2111e5 (check second_ != null)
+    if (!array()) {                                                  // @0x2111e5 (check index_ != null)
         return result;
     }
 
@@ -6986,7 +6986,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 //     0x2146d3–0x214744  Cleanup and return
 //
 //   NOTE: Binary calls SeqCIfCondition::ifBody() @0x201de0; our SEQC_BINARY
-//   macro generates body() — both access second_.get(), semantically identical.
+//   macro generates body() — both access body_.get(), semantically identical.
 std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     std::shared_ptr<Resources> res,
     FrontendLoweringContext& ctx,
@@ -7253,7 +7253,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
 }
 
 // SeqCSwitchCase::hasCases() — @0x202760
-//   Returns true if the cases child (second_/body()) is non-null.
+//   Returns true if the cases child (body_/body()) is non-null.
 bool SeqCSwitchCase::hasCases() const                                // @0x202760
 {
     return body() != nullptr;                                        // cmp [rdi+0x20], 0; setne al
@@ -8686,7 +8686,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
     auto subRes = res->createSubScope("repeat");                     // @0x1e36a0
 
     // ---- Evaluate count() ----                                    // @0x221d0e
-    auto countResult = cond()->evaluate(subRes, ctx, state);
+    auto countResult = count()->evaluate(subRes, ctx, state);
 
     // ---- Null countResult check ----                              // @0x221d78
     if (!countResult) {

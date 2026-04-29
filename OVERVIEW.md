@@ -600,3 +600,4 @@ splitReg, register-field rename) lives in `notes/optimization_passes.md`.
 |--------|---------|--------|-------|
 | c2 | H | `clone()` → `doClone()` | 19 decls + 17 defs + 59 call sites across 4 files |
 | c3 | F | `SeqCAstNode::type` param/accessor → `lineNr` | 54 sites across 3 files |
+| c4 | G | `first_`/`second_` → role-named fields in 8 binary AST classes | ~70 sites across 3 files; SEQC_BINARY/SEQC_BINARY_IMPL macros parameterized with field names |
