@@ -588,6 +588,38 @@ Cross-refs: `31_device_constants.md:39`,
 before deciding `numDIOBits` rename. `numOutputPorts` →
 `execTableIndexBits` already covered in §4.]**
 
+**Phase R resolution (closed — fixed/kept).** The recon faithfully
+matches the binary; no source change. Static disasm of
+`configFreqSweep` at the bound check (binary 0x1546d9..0x1546f4):
+
+```
+1546d9:  mov  -0x70(%rbp), %rax           ; rax = devConst_ container
+1546dd:  mov  0x8(%rax),   %rax           ; rax = devConst_ raw ptr
+1546e1:  mov  0x84(%rax),  %eax           ; eax = *(devConst_ + 0x84)
+1546e7:  dec  %eax                        ; eax = field - 1
+1546e9:  xorps %xmm1, %xmm1
+1546ec:  cvtsi2sd %eax, %xmm1             ; xmm1 = (double)(field - 1)
+1546f0:  ucomisd %xmm1, %xmm0             ; oscIndex vs bound
+1546f4:  ja   1550ed                       ; throw if >
+```
+
+Field at offset +0x84 is `DeviceConstants::numDIOBits` per
+`device_constants.hpp:184`. GDB confirmation on SHFSG4 driving
+`configFreqSweep(0, 100e6, 3)`: at 0x1546e9 `eax = 0x7`, i.e. the
+field value is 8 → `numDIOBits - 1 = 7`. SHFSG carries 8 oscillators
+**and** 8 DIO bits, so the binary genuinely loads the field named
+`numDIOBits`.
+
+Outcome: **fixed (kept)** — the recon's
+`devConst_->numDIOBits - 1` is what the binary computes. Whether
+the *original* author intended this field to also serve as the
+oscillator-index bound, or whether the binary itself has a latent
+logic bug there, is outside the scope of a binary-faithful
+reconstruction: we mirror what the binary does. The "is this the
+right field semantically?" question is reclassified as a behavioral
+note about the original tool, not a recon defect. Trace evidence:
+`/tmp/arb2_trace.txt`.
+
 ### Arbitration 3 — `DeviceConstants::waveformGranularity` / `waveformPageSize` are swapped
 
 | Batch | Field | Used as | Decision |
