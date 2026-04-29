@@ -1,11 +1,16 @@
 # `goto` Usage Policy
 
-Date: 2026-04-29 (Phase 39b)
+Date: 2026-04-29 (Phase 39b, updated Phase 39d)
 
-The reconstructed codebase contains 135 `goto` sites. Before "cleaning
-up" any of them, read this file. Most are not bugs and not bad style
-in this codebase's context — they are deliberate reconstructions of
-control flow from the original binary.
+The reconstructed codebase contains 153 `goto` sites (post-Phase 39d).
+Before "cleaning up" any of them, read this file. Almost all are not
+bugs and not bad style in this codebase's context — they are deliberate
+reconstructions of control flow from the original binary.
+
+> **Phase 39d update**: The earlier 135 figure undercounted Bucket 2
+> by ~18 sites in `prefetch*.cpp` (regex was line-anchored against
+> 4-space indent only). The corrected per-file counts below match
+> `grep -rE "^\s*goto\s+\w+" reconstructed/src`.
 
 ## The three buckets
 
@@ -22,7 +27,7 @@ grammar/lexer source files (`seqc_parser.y`, `seqc_lexer.l`,
 own idiom there too. **Do not edit the `.tab.c` / `seqc_lexer.c` files
 to remove gotos.**
 
-### Bucket 2 — Faithful binary CFG reconstructions (~105 sites): leave
+### Bucket 2 — Faithful binary CFG reconstructions (129 sites): leave
 
 | File | `goto` count | Subject |
 |---|---|---|
@@ -31,7 +36,7 @@ to remove gotos.**
 | `prefetch_placesingle.cpp` | 20 | placement state machine (load/play/finalize labels) |
 | `prefetch_prepare.cpp` | 11 | worklist with `cleanup_validwaves` / `push_next_and_loop` |
 | `prefetch_emit.cpp` | 7 | tree-walk with `treeWalk` / `advanceLoad` / `notFoundInTree` labels |
-| `asm_optimize.cpp` (2 of 3) | 2 | outer-loop `next_instruction:` continue |
+| `asm_optimize.cpp` | 3 | outer-loop `next_instruction:` continue + `cleanup` early-exit |
 | `custom_functions_play.cpp` | 1 | `step9_return:` shared early-exit |
 
 Identifying signs that a `goto` is in this bucket:
@@ -61,26 +66,22 @@ Rationale for keeping these:
 re-tracing the binary CFG and adding a note to
 `notes/incidental_findings.md` recording the verification.
 
-### Bucket 3 — Small isolated cleanup candidates (≈6 sites): case-by-case
+### Bucket 3 — Small isolated cleanup candidates: resolved (Phase 39d)
 
-These are gotos where the surrounding function is small, the binary
-CFG is uncomplicated, and a structured replacement would not muddy
-the differential-debugging story.
+All Bucket 3 candidates have been triaged. Three were refactored in
+Phase 39d; the rest were promoted to Bucket 2 after closer inspection.
 
-| File:line | Label | Verdict (per Phase 39b audit) |
+| File:line | Label | Phase 39d resolution |
 |---|---|---|
-| `zi_folder.cpp:153` → `:183` | `resolve_home` | Binary-faithful (mirrors `jmp 0x2cf4eb`); refactor into `resolveHome()` helper is possible but not required. **Leave for now.** |
-| `node.cpp:372,376` → `:433` | `throw_error` | **Safe to refactor** into `[[noreturn]] static void throwSwapError()` — both throws happen after the function's normal `return;`, so no shared scope. ~5-line edit. |
-| `csv_parser.cpp:549` → `:583` | `skip_comment` | Could replace `goto skip_comment;` with `++lineNum; continue;` directly, but doing so requires hoisting the `continue` past the surrounding inner block. Marginal improvement. **Leave.** |
-| `csv_parser.cpp:859` → `:890` | `skip_comment_ir` | Same shape and verdict as above. **Leave.** |
-| `asm_list.cpp:366` → `:584` | `cleanup_and_next` | Tail is `wavetableFront++;` then loop continues. Vectors are RAII-cleaned. Could be `wavetableFront++; continue;` at the goto site, but the binary's `0x266d87` is the explicit cleanup landing pad; keeping the label preserves the breadcrumb. **Leave.** |
-| `custom_functions_play.cpp:607,624,630` → `step9_return` | `step9_return` | Pinned to `// @0x15fdfd`, `// @0x15fdf6`, `// @0x16098c` breadcrumbs. **Bucket 2 (binary-faithful), leave.** |
-| `asm_optimize.cpp:980` → `:1126` | `cleanup` | Single `goto` to function-end cleanup. RAII would let this be `return`, but optimizer hot path — verify codegen first. **Leave for now.** |
+| `zi_folder.cpp:153` → `:183` | `resolve_home` | **Refactored** (39d-ii): body extracted into `resolveHomeFolder` lambda. Build + tests pass. |
+| `node.cpp:372,376` → `:433` | `throw_error` | **Refactored** (39d-i): both throws routed through `[[noreturn]] throwSwapNotConnected()` in anonymous namespace. Build + tests pass. |
+| `csv_parser.cpp:549,859` → `:583,890` | `skip_comment[_ir]` | **Refactored** (39d-iii): replaced with `bool hasTimeColumn` flag pattern, both labels removed. Build + tests pass. |
+| `asm_list.cpp:366` → `:584` | `cleanup_and_next` | **Refactored** (39d-iv): replaced with `wavetableFront++; continue;` at the goto site. The 3 vectors are loop-local — RAII cleans them at scope exit. The `0x266d87` breadcrumb is preserved as a comment on the loop tail. |
+| `custom_functions_play.cpp:607,624,630` → `step9_return` | `step9_return` | Pinned to `// @0x15fdfd`, `// @0x15fdf6`, `// @0x16098c` breadcrumbs — promoted to Bucket 2. |
+| `asm_optimize.cpp:980` → `:1126` | `cleanup` | Optimizer hot path; codegen-sensitive — promoted to Bucket 2. |
 
-Net result of audit: of ~6 candidates, only **`node.cpp` `throw_error`**
-is a clean win that doesn't require additional verification work. It
-is not currently scheduled (Phase 39b is research-only); a future
-sub-phase may take it on.
+Net result: 4 sites refactored, 2 promoted to Bucket 2. No cleanup
+candidates remain. Bucket 3 is now empty.
 
 ## Quick rule for future contributors
 

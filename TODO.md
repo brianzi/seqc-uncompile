@@ -3862,12 +3862,12 @@ Two `goto throw_error;` (lines 372, 376) jump to a 7-line throw block
 at line 433. Both throws happen *after* the function's main `return;`
 at line 430, so no shared scope with the goto sites. Refactor:
 
-- [ ] Extract `throw_error:` body into
+- [x] Extract `throw_error:` body into
       `[[noreturn]] static void throwSwapNotConnected();` at TU scope
-- [ ] Replace both `goto throw_error;` with `throwSwapNotConnected();`
-- [ ] Delete the `throw_error:` label and the trailing `{...}` block
-- [ ] Build + test (must remain 257/259)
-- [ ] Sub-phase wrap-up
+- [x] Replace both `goto throw_error;` with `throwSwapNotConnected();`
+- [x] Delete the `throw_error:` label and the trailing `{...}` block
+- [x] Build + test (must remain 257/259)
+- [x] Sub-phase wrap-up
 
 #### 39d-ii. `zi_folder.cpp` — eliminate `resolve_home`
 
@@ -3883,14 +3883,14 @@ self-contained. Two viable shapes:
 
 Prefer (A); it removes the label cleanly and matches modern C++ style.
 
-- [ ] Extract `resolveHomeFolder()` helper (the body currently after
-      `resolve_home:`)
-- [ ] Replace `goto resolve_home;` with `return resolveHomeFolder();`
-- [ ] Replace the natural fall-through into `resolve_home:` (Data /
+- [x] Extract `resolveHomeFolder()` helper (the body currently after
+      `resolve_home:`) — implemented as a local lambda
+- [x] Replace `goto resolve_home;` with `return resolveHomeFolder();`
+- [x] Replace the natural fall-through into `resolve_home:` (Data /
       Settings non-MF path) with `return resolveHomeFolder();`
-- [ ] Delete the `resolve_home:` label
-- [ ] Build + test
-- [ ] Sub-phase wrap-up
+- [x] Delete the `resolve_home:` label
+- [x] Build + test
+- [x] Sub-phase wrap-up
 
 #### 39d-iii. `csv_parser.cpp` — eliminate `skip_comment` / `skip_comment_ir`
 
@@ -3902,15 +3902,15 @@ label and the explicit `++lineNum; continue;` at line 584/891. The
 inner separator-scan block becomes its own scoped section that
 always falls through to the loop's natural end.
 
-- [ ] At line 549: replace `goto skip_comment;` with
-      `{ ++lineNum; continue; }` (or restructure with `bool sawTimeCol`
-      flag if the surrounding `if (rawLine.size() >= 10) { ... }` makes
-      the `continue` unreachable from there)
-- [ ] At line 859: same pattern for `skip_comment_ir`
-- [ ] Delete both labels and their trailing `++lineNum; continue;`
+- [x] At line 549: replace `goto skip_comment;` with the
+      `bool hasTimeColumn` flag pattern (the surrounding
+      `if (rawLine.size() >= 10) { ... }` made the direct `continue`
+      unreachable, as predicted)
+- [x] At line 859: same pattern for `skip_comment_ir`
+- [x] Delete both labels and their trailing `++lineNum; continue;`
       lines (now redundant)
-- [ ] Build + test (CSV parsing is exercised by SHFQA QA-weights tests)
-- [ ] Sub-phase wrap-up
+- [x] Build + test (CSV parsing is exercised by SHFQA QA-weights tests)
+- [x] Sub-phase wrap-up
 
 #### 39d-iv. `asm_list.cpp` — assess `cleanup_and_next` (research first)
 
@@ -3918,21 +3918,24 @@ always falls through to the loop's natural end.
 is just `wavetableFront++;` then loop continues. RAII handles the
 "cleanup of vec_output, vec_reg, vec_input" comment.
 
-- [ ] Read full surrounding loop body to confirm the only difference
+- [x] Read full surrounding loop body to confirm the only difference
       between fall-through and `goto` is whether the alternate
       processing block runs
-- [ ] If safe: replace `goto cleanup_and_next;` with
-      `{ wavetableFront++; continue; }` and delete the label
-- [ ] If the binary CFG breadcrumb `// 0x266d87 ff: release shared_ptrs`
-      indicates the label landing is meaningful (e.g. a separate basic
-      block in optimizer hot path), leave alone and document why in
-      `goto_policy.md`
-- [ ] Build + test
-- [ ] Sub-phase wrap-up
+- [x] Confirmed safe: the three vectors (`vec_input`, `vec_reg`,
+      `vec_output`) are declared inside the for-loop body so RAII
+      cleans them at scope exit. The goto site does not even use
+      those vectors. Replaced `goto cleanup_and_next;` with
+      `wavetableFront++; continue;` and removed the label. The
+      `// 0x266d87 ff` breadcrumb is preserved as a comment on the
+      loop tail.
+- [x] Build + test
+- [x] Sub-phase wrap-up
 
 #### 39d-v. Wrap-up: regenerate scan + update goto_policy.md
 
-- [ ] Re-run `grep -rE "^\s*goto\s+\w+" reconstructed/src` and update
-      the bucket counts in `notes/goto_policy.md`
-- [ ] Update OVERVIEW.md if the goto count is referenced there
-- [ ] Phase 39d sub-phase wrap-up
+- [x] Re-run `grep -rE "^\s*goto\s+\w+" reconstructed/src` and update
+      the bucket counts in `notes/goto_policy.md` (153 total: 24
+      Bucket 1, 129 Bucket 2, 0 Bucket 3)
+- [x] Update OVERVIEW.md if the goto count is referenced there
+      (no references — skipped)
+- [x] Phase 39d sub-phase wrap-up

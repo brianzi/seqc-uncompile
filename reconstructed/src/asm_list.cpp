@@ -362,8 +362,11 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             // If expr->command (+0x38) == 2, jump to no-opt handling at 0x266d87
             int exprCmd = expr->command;
             if (exprCmd == 2) {
-                // Jump to cleanup of vec_output, vec_reg, vec_input then next iteration
-                goto cleanup_and_next;
+                // Skip to cleanup of vec_output, vec_reg, vec_input
+                // (RAII at scope exit) then next iteration.
+                // 0x266d87 ff: release shared_ptrs in vec_output, vec_reg, vec_input
+                wavetableFront++;
+                continue;
             }
         }
 
@@ -581,9 +584,8 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             }
         }
 
-    cleanup_and_next:
-        // Cleanup of vec_output, vec_reg, vec_input (destructors)
-        // 0x266d87 ff: release shared_ptrs in vec_output, vec_reg, vec_input
+        // 0x266d87 ff: cleanup of vec_output, vec_reg, vec_input
+        // (RAII at end of for-loop scope), then next iteration.
         wavetableFront++;
     }
 

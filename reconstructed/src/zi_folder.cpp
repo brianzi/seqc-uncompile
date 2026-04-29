@@ -143,45 +143,11 @@ std::string ZiFolder::sessionSaveDirectoryName(const std::string& serial)
 //
 ZiFolder ZiFolder::ziFolder(DirectoryType type)
 {
-    if (type == DirectoryType::Executable) {
-        // readlink("/proc/self/exe") into 4096-byte buffer
-        char buf[4096];
-        ::memset(buf, 0, sizeof(buf));
-        ssize_t len = ::readlink("/proc/self/exe", buf, sizeof(buf));
-        if (len <= 0) {
-            // Fall through to HOME-based resolution (binary jumps to 0x2cf4eb)
-            goto resolve_home;
-        }
-
-        // Build a boost path from the readlink result, then take parent_path
-        // twice (grandparent of the executable).
-        boost::filesystem::path exePath(buf);
-        boost::filesystem::path installRoot = exePath.parent_path().parent_path();
-        return ZiFolder(installRoot.string());
-    }
-
-    if (static_cast<int>(type) >= 2) {
-        // Unknown directory type — the binary throws at 0x2cf738
-        BOOST_THROW_EXCEPTION(
-            Exception("Unknown directory type."));
-    }
-
-    {
-        // Data (0) or Settings (1)
-        if (runningOnMfDevice()) {
-            // On MF device: return "/data" (type==0) or "/settings" (type==1)
-            // Binary: lea 0x90b4db="/data", lea 0x90b4e1="/settings"
-            //         cmove selects "/data" when type==0
-            if (type == DirectoryType::Data) {
-                return ZiFolder(std::string("/data"));
-            } else {
-                return ZiFolder(std::string("/settings"));
-            }
-        }
-    }
-
-resolve_home:
-    {
+    // Helper: HOME-based fallback used by both the Executable readlink-failure
+    // path and the Data/Settings non-MF path. Originally a `goto resolve_home;`
+    // tail (binary jmp 0x2cf4eb); extracted into a lambda to keep the function
+    // goto-free without changing the binary's execution shape.
+    auto resolveHomeFolder = []() -> ZiFolder {
         // Try $HOME, fall back to getpwuid_r
         const char* homeDir = ::getenv("HOME");
         if (!homeDir) {
@@ -208,7 +174,45 @@ resolve_home:
         // checking at each level whether a non-empty parent exists.
         boost::filesystem::path root = homePath.parent_path();
         return ZiFolder(root.string());
+    };
+
+    if (type == DirectoryType::Executable) {
+        // readlink("/proc/self/exe") into 4096-byte buffer
+        char buf[4096];
+        ::memset(buf, 0, sizeof(buf));
+        ssize_t len = ::readlink("/proc/self/exe", buf, sizeof(buf));
+        if (len <= 0) {
+            // Fall through to HOME-based resolution (binary jumps to 0x2cf4eb)
+            return resolveHomeFolder();
+        }
+
+        // Build a boost path from the readlink result, then take parent_path
+        // twice (grandparent of the executable).
+        boost::filesystem::path exePath(buf);
+        boost::filesystem::path installRoot = exePath.parent_path().parent_path();
+        return ZiFolder(installRoot.string());
     }
+
+    if (static_cast<int>(type) >= 2) {
+        // Unknown directory type — the binary throws at 0x2cf738
+        BOOST_THROW_EXCEPTION(
+            Exception("Unknown directory type."));
+    }
+
+    // Data (0) or Settings (1)
+    if (runningOnMfDevice()) {
+        // On MF device: return "/data" (type==0) or "/settings" (type==1)
+        // Binary: lea 0x90b4db="/data", lea 0x90b4e1="/settings"
+        //         cmove selects "/data" when type==0
+        if (type == DirectoryType::Data) {
+            return ZiFolder(std::string("/data"));
+        } else {
+            return ZiFolder(std::string("/settings"));
+        }
+    }
+
+    // Non-MF Data/Settings → fall through to HOME resolution
+    return resolveHomeFolder();
 }
 
 } // namespace zhinst

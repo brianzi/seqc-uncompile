@@ -357,6 +357,20 @@ void Node::remove(std::shared_ptr<Node> node) {  // 0x1d4440
 // Net effect: a and b exchange their structural positions — b takes a's
 // place in the parent, and a becomes a child/sibling inside b.
 // ============================================================================
+namespace {
+// Shared throw used by the two precondition failures in Node::swap.
+// Originally a `goto throw_error;` in the binary CFG (jne 0x...) — extracted
+// into a helper so the function body has no gotos. Both call sites are
+// post-`return` paths and share no scope, so this transformation is purely
+// structural (no codegen impact on the success path).
+[[noreturn]] void throwSwapNotConnected() {
+    std::string errStr = errMsg[SwapNotConnected];
+    std::string formatted = ErrorMessages::format(
+        PrefetchError, errStr);
+    throw ZIAWGCompilerException(std::move(formatted));
+}
+}  // namespace
+
 void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
                 const std::shared_ptr<Node>& b) {
     // --- Verify b->parent.get() == a.get() --- (0x1d273a..0x1d2788)
@@ -369,75 +383,62 @@ void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
             Node* bParentRaw = bParentCtrl.get();
             Node* aRaw = a.get();
             if (bParentRaw != aRaw) {
-                goto throw_error;
+                throwSwapNotConnected();
             }
         } else {
             if (a.get() != nullptr) {
-                goto throw_error;
+                throwSwapNotConnected();
             }
         }
     }
 
+    // --- Walk up from a through Loop/Branch ancestors --- (0x1d27c9..0x1d2868)
+    std::shared_ptr<Node> current = a;
+
+    while (true) {
+        Node* cur = current.get();
+        int t = static_cast<int>(cur->type);
+
+        if (t == 8 || t == 4) {  // Loop or Branch
+            auto parentLocked = cur->parent.lock();
+            if (!parentLocked) {
+                current.reset();
+                break;
+            }
+            current = parentLocked;
+            continue;
+        }
+        break;
+    }
+
+    // --- Copy asmId to b if > 0 --- (0x1d286a..0x1d2878)
+    Node* ancestor = current.get();
+    int devIdx = ancestor->asmId;                  // 0x1d286a: eax = r15->0x14
+    if (devIdx > 0) {
+        bNode->asmId = devIdx;
+    }
+
+    // --- Lock a's parent ---
+    Node* aNode = a.get();
+    std::shared_ptr<Node> parentOfA;
     {
-        // --- Walk up from a through Loop/Branch ancestors --- (0x1d27c9..0x1d2868)
-        std::shared_ptr<Node> current = a;
-
-        while (true) {
-            Node* cur = current.get();
-            int t = static_cast<int>(cur->type);
-
-            if (t == 8 || t == 4) {  // Loop or Branch
-                auto parentLocked = cur->parent.lock();
-                if (!parentLocked) {
-                    current.reset();
-                    break;
-                }
-                current = parentLocked;
-                continue;
-            }
-            break;
+        auto locked = aNode->parent.lock();
+        if (locked) {
+            parentOfA = locked;
         }
-
-        // --- Copy asmId to b if > 0 --- (0x1d286a..0x1d2878)
-        Node* ancestor = current.get();
-        int devIdx = ancestor->asmId;                  // 0x1d286a: eax = r15->0x14
-        if (devIdx > 0) {
-            bNode->asmId = devIdx;
-        }
-
-        // --- Lock a's parent ---
-        Node* aNode = a.get();
-        std::shared_ptr<Node> parentOfA;
-        {
-            auto locked = aNode->parent.lock();
-            if (locked) {
-                parentOfA = locked;
-            }
-        }
-
-        // --- Save b's next ---
-        std::shared_ptr<Node> bNext = bNode->next;
-
-        // === updateParent call 1 === (0x1d2933)
-        updateParent(parentOfA, a, b);
-
-        // === updateParent call 2 === (0x1d2a2d)
-        updateParent(b, bNext, a);
-
-        // === updateParent call 3 === (0x1d2b27)
-        updateParent(a, b, bNext);
-
-        return;
     }
 
-throw_error:
-    {
-        extern ErrorMessages errMsg;
-        std::string errStr = errMsg[SwapNotConnected];
-        std::string formatted = ErrorMessages::format(
-            PrefetchError, errStr);
-        throw ZIAWGCompilerException(std::move(formatted));
-    }
+    // --- Save b's next ---
+    std::shared_ptr<Node> bNext = bNode->next;
+
+    // === updateParent call 1 === (0x1d2933)
+    updateParent(parentOfA, a, b);
+
+    // === updateParent call 2 === (0x1d2a2d)
+    updateParent(b, bNext, a);
+
+    // === updateParent call 3 === (0x1d2b27)
+    updateParent(a, b, bNext);
 }
 
 // ============================================================================

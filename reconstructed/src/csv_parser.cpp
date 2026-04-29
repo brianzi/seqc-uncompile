@@ -538,7 +538,9 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                 continue;
             }
 
-            // Check for "% Time (s)" pattern
+            // Check for "% Time (s)" pattern. If found, skip the
+            // separator-scan below (binary: jne to skip_comment label).
+            bool hasTimeColumn = false;
             if (rawLine.size() >= 10) {
                 size_t pos = 0;
                 while (pos + 10 <= rawLine.size()) {
@@ -546,14 +548,15 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                     if (found == std::string::npos) break;
                     if (found + 10 <= rawLine.size() &&
                         std::memcmp(&rawLine[found], "% Time (s)", 10) == 0) {
-                        goto skip_comment;
+                        hasTimeColumn = true;
+                        break;
                     }
                     pos = found + 1;
                 }
             }
 
-            // Scan for separator characters (bitmask 0x800100000000200)
-            {
+            if (!hasTimeColumn) {
+                // Scan for separator characters (bitmask 0x800100000000200)
                 const char* p = rawLine.data();
                 size_t len = rawLine.size();
                 for (size_t i = 0; i < len; ++i) {
@@ -580,7 +583,6 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                 }
             }
 
-            skip_comment:
             ++lineNum;
             continue;
         }
@@ -849,6 +851,9 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                 continue;
             }
 
+            // Check for "% Time (s)" pattern. If found, skip the
+            // separator-scan below (binary: jne to skip_comment_ir label).
+            bool hasTimeColumn = false;
             if (rawLine.size() >= 10) {
                 size_t pos = 0;
                 while (pos + 10 <= rawLine.size()) {
@@ -856,13 +861,14 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                     if (found == std::string::npos) break;
                     if (found + 10 <= rawLine.size() &&
                         std::memcmp(&rawLine[found], "% Time (s)", 10) == 0) {
-                        goto skip_comment_ir;
+                        hasTimeColumn = true;
+                        break;
                     }
                     pos = found + 1;
                 }
             }
 
-            {
+            if (!hasTimeColumn) {
                 const char* p = rawLine.data();
                 size_t len = rawLine.size();
                 for (size_t i = 0; i < len; ++i) {
@@ -887,7 +893,6 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                 }
             }
 
-            skip_comment_ir:
             ++lineNum;
             continue;
         }
