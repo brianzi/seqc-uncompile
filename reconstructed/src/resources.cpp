@@ -81,9 +81,9 @@ Resources::Variable::~Variable()  // @0x1e4be0
 // ============================================================================
 Resources::Resources(std::string const& name,  // @0x1e3420
                      std::weak_ptr<Resources> parent)
-    : parent_()  // set below after parentWeak_ init
+    : grandparent_()  // set below after parent_ init
     , name_(name)
-    , parentWeak_(parent)
+    , parent_(parent)
     , state_(0)
     , returnType_(VarType_Unset)
     , returnValue_()
@@ -94,11 +94,11 @@ Resources::Resources(std::string const& name,  // @0x1e3420
     , functions_()
     , children_()
 {
-    // Binary @0x1e34f1: locks parentWeak_, then copies parent->parent_ into
-    // this->parent_ (grandparent strong ref).  parentWeak_ is the direct
+    // Binary @0x1e34f1: locks parent_, then copies parent->grandparent_ into
+    // this->grandparent_ (grandparent strong ref).  parent_ is the direct
     // parent link (weak).
-    if (auto p = parentWeak_.lock()) {
-        parent_ = p->parent_;
+    if (auto p = parent_.lock()) {
+        grandparent_ = p->grandparent_;
     }
 }
 
@@ -111,9 +111,9 @@ Resources::Resources(std::string const& name,  // @0x1e3420
 //   3. Destroys functions_ vector (each shared_ptr<Function> released)
 //   4. Destroys variables_ vector (each Variable dtor runs — @0x1e4be0)
 //   5. Destroys returnValue_ (Value dtor — frees string if variant holds one)
-//   6. Destroys parentWeak_ (weak_ptr)
+//   6. Destroys parent_ (weak_ptr)
 //   7. Destroys name_ (string)
-//   8. Destroys parent_ (shared_ptr)
+//   8. Destroys grandparent_ (shared_ptr)
 //   9. Destroys enable_shared_from_this weak_ptr at +0x08
 //
 // D0 (deleting): calls D1 then operator delete(this, 0xd8)
@@ -168,8 +168,8 @@ void Resources::setReturnType(VarType type)  // @0x1e3920
 // Resources::getReturnType — @0x1e3930
 //
 // If returnType_ != 0, return it.
-// Otherwise, walk up via parentWeak_ (lock → call getReturnType virtually).
-// If parentWeak_ expired or no parent, throw ResourcesException.
+// Otherwise, walk up via parent_ (lock → call getReturnType virtually).
+// If parent_ expired or no parent, throw ResourcesException.
 // ============================================================================
 VarType Resources::getReturnType() const  // @0x1e3930
 {
@@ -177,8 +177,8 @@ VarType Resources::getReturnType() const  // @0x1e3930
         return returnType_;
     }
 
-    // Walk up via parentWeak_ only (binary has no parent_ fallback)
-    if (auto p = parentWeak_.lock()) {
+    // Walk up via parent_ only (binary has no grandparent_ fallback)
+    if (auto p = parent_.lock()) {
         return p->getReturnType();
     }
 
@@ -203,15 +203,15 @@ void Resources::setReturnValue(double val)  // @0x1e3ac0
 // ============================================================================
 // Resources::setReturnValue(Value) — @0x1e3b30
 //
-// If scopeBoundaryFlags_ == 0 and returnType_ == 0, recurse to parent via parentWeak_.
-// If parentWeak_ expired, falls through to store locally.
+// If scopeBoundaryFlags_ == 0 and returnType_ == 0, recurse to parent via parent_.
+// If parent_ expired, falls through to store locally.
 // Otherwise, store the value at +0x58 (returnValue_).
 // ============================================================================
 void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 {
     if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
-        // Walk up via parentWeak_ only (binary has no parent_ fallback)
-        if (auto p = parentWeak_.lock()) {
+        // Walk up via parent_ only (binary has no grandparent_ fallback)
+        if (auto p = parent_.lock()) {
             p->setReturnValue(val);
             return;
         }
@@ -228,8 +228,8 @@ void Resources::setReturnValue(Value const& val)  // @0x1e3b30
 Value Resources::getReturnValue()  // @0x1e3d40
 {
     if (scopeBoundaryFlags_ == 0 && returnType_ == VarType_Unset) {
-        // Walk up via parentWeak_ only (binary has no parent_ fallback)
-        if (auto p = parentWeak_.lock()) {
+        // Walk up via parent_ only (binary has no grandparent_ fallback)
+        if (auto p = parent_.lock()) {
             return p->getReturnValue();
         }
     }
@@ -245,8 +245,8 @@ Value Resources::getReturnValue()  // @0x1e3d40
 void Resources::setReturnReg(int reg)  // @0x1e3ed0
 {
     if (returnType_ == VarType_Unset) {
-        // Walk up via parentWeak_ only (binary has no parent_ fallback)
-        if (auto p = parentWeak_.lock()) {
+        // Walk up via parent_ only (binary has no grandparent_ fallback)
+        if (auto p = parent_.lock()) {
             p->setReturnReg(reg);
             return;
         }
@@ -262,8 +262,8 @@ void Resources::setReturnReg(int reg)  // @0x1e3ed0
 AsmRegister Resources::getReturnReg()  // @0x1e3fe0
 {
     if (returnType_ == VarType_Unset) {
-        // Walk up via parentWeak_ only (binary has no parent_ fallback)
-        if (auto p = parentWeak_.lock()) {
+        // Walk up via parent_ only (binary has no grandparent_ fallback)
+        if (auto p = parent_.lock()) {
             return p->getReturnReg();
         }
     }
@@ -290,8 +290,8 @@ int Resources::getRegisterNumber()  // @0x1e4bb0
 // Variable+0x38). If found, returns pointer to the Variable and OR's
 // scopeBoundaryFlags_ into result->flags (at +0x50) with bit 0x51.
 //
-// If not found, walks parent via parentWeak_ (lock → call getVariable
-// virtually). If parentWeak_ expired, tries parent_ at +0x18.
+// If not found, walks parent via parent_ (lock → call getVariable
+// virtually). If parent_ expired, tries grandparent_ at +0x18.
 // Returns nullptr if variable not found anywhere.
 // ============================================================================
 Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0a0
@@ -308,7 +308,7 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
 
     // Walk parent scope
     Variable* result = nullptr;
-    if (auto p = parentWeak_.lock()) {
+    if (auto p = parent_.lock()) {
         result = p->getVariable(name);
         if (result) {
             result->flags |= static_cast<int16_t>(scopeBoundaryFlags_);
@@ -316,8 +316,8 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
         return result;
     }
 
-    if (parent_) {
-        result = parent_->getVariable(name);
+    if (grandparent_) {
+        result = grandparent_->getVariable(name);
         if (result) {
             result->flags |= static_cast<int16_t>(scopeBoundaryFlags_);
         }
@@ -334,8 +334,8 @@ Resources::Variable* Resources::getVariable(std::string const& name)  // @0x1eb0
 // ============================================================================
 void Resources::print()  // @0x1ebbe0
 {
-    // Binary uses parentWeak_ (locks +0x48, reads +0x40), not parent_
-    if (auto p = parentWeak_.lock()) {
+    // Binary uses parent_ (locks +0x48, reads +0x40), not grandparent_
+    if (auto p = parent_.lock()) {
         p->print();
     }
     std::cout << toString();
@@ -466,7 +466,7 @@ std::string str(VarSubType vst) {
 // Disassembly observations (1e7010..1e7331):
 //   1. Loops variables_ checking for duplicate name; on hit jumps to throw
 //      site at 1e7332 → ResourcesException(format(0xab=AlreadyDefined, name)).
-//   2. If parent_ (rdi+0x18) non-null also calls variableExists(); same throw
+//   2. If grandparent_ (rdi+0x18) non-null also calls variableExists(); same throw
 //      on hit.
 //   3. Builds a temporary Variable on the stack at [rbp-0x88]:
 //        [rbp-0x88]  = 0x4   (type        — VarType_Const)
@@ -493,7 +493,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
     }
 
     // Duplicate check in parent scope
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -703,8 +703,8 @@ std::string Resources::newLabel(std::string const& base)  // @0x1ec6b0
 // Resources::variableExists — @0x1e4230
 //
 // Returns true iff `name` is present in this->variables_ or in any parent
-// scope. Walks parents via parentWeak_.lock() first, falling back to
-// parent_ (matches the getVariable parent-walk pattern).
+// scope. Walks parents via parent_.lock() first, falling back to
+// grandparent_ (matches the getVariable parent-walk pattern).
 //
 // Disassembly observations (1e4230..1e4376):
 //   - 1e4248..1e425b: load variables_ begin/end from this+0x90 / this+0x98.
@@ -714,11 +714,11 @@ std::string Resources::newLabel(std::string const& base)  // @0x1ec6b0
 //     var.name at +0x38 (size at +0x40 long-form / shifted SSO byte;
 //     data at +0x48 long-form / +0x39 SSO). Match → bcmp == 0 → return
 //     true.
-//   - 1e42d3..1e433c: on local miss, lock parentWeak_ (weak_count* at
+//   - 1e42d3..1e433c: on local miss, lock parent_ (weak_count* at
 //     this+0x48). If lock yields a non-null sp AND its raw ptr at
 //     this+0x40 is also non-null, recurse via variableExists (NOT the
 //     virtual getVariable) and return that result. Otherwise fall back
-//     to parent_ at this+0x18 and recurse there. If both routes are
+//     to grandparent_ at this+0x18 and recurse there. If both routes are
 //     null, return false.
 //
 // Note: this scans variables_ DIRECTLY (no vtable[+0x10] call). The
@@ -732,11 +732,11 @@ bool Resources::variableExists(std::string const& name) const  // @0x1e4230
             return true;
         }
     }
-    if (auto p = parentWeak_.lock()) {
+    if (auto p = parent_.lock()) {
         return p->variableExists(name);
     }
-    if (parent_) {
-        return parent_->variableExists(name);
+    if (grandparent_) {
+        return grandparent_->variableExists(name);
     }
     return false;
 }
@@ -745,19 +745,19 @@ bool Resources::variableExists(std::string const& name) const  // @0x1e4230
 // Resources::variableExistsInScope — @0x1e4390
 //
 // Returns true iff `name` is present in this scope's variables_, OR — if
-// this scope has a parent_ — present anywhere in the parent_ chain via
-// parent_->variableExists(name).
+// this scope has a grandparent_ — present anywhere in the grandparent_ chain via
+// grandparent_->variableExists(name).
 //
 // Disassembly observations (1e4390..1e4457):
 //   - 1e43a5..1e441b: identical local-scan loop to variableExists.
-//   - 1e4423..1e443e: on local miss, load parent_ from this+0x18; if
-//     non-null TAIL-CALL parent_->variableExists(name) (the disasm
+//   - 1e4423..1e443e: on local miss, load grandparent_ from this+0x18; if
+//     non-null TAIL-CALL grandparent_->variableExists(name) (the disasm
 //     literally `jmp` to 0x1e4230, not back to itself).
 //
 // Surprising: the "InScope" name is misleading — when a parent exists,
 // the fallback is a full multi-scope variableExists, not a strict
-// single-scope check. Also: only parent_ is consulted here; unlike
-// variableExists/variableDependsOnVar, parentWeak_ is NOT used.
+// single-scope check. Also: only grandparent_ is consulted here; unlike
+// variableExists/variableDependsOnVar, parent_ is NOT used.
 // ============================================================================
 bool Resources::variableExistsInScope(std::string const& name) const  // @0x1e4390
 {
@@ -766,8 +766,8 @@ bool Resources::variableExistsInScope(std::string const& name) const  // @0x1e43
             return true;
         }
     }
-    if (parent_) {
-        return parent_->variableExists(name);
+    if (grandparent_) {
+        return grandparent_->variableExists(name);
     }
     return false;
 }
@@ -878,12 +878,12 @@ bool Resources::constIsSet(std::string const& name)  // @0x1e8050
 //         setne r14b on (DWORD PTR [rbx+0x50] != 0)
 //     where rbx+0x50 is `state_` of the *calling* Resources. So a
 //     local match returns `(state_ != 0)`, NOT just `true`.
-//   - 1e4183..1e41cd: on local miss, lock parentWeak_ (weak_count* at
+//   - 1e4183..1e41cd: on local miss, lock parent_ (weak_count* at
 //     this+0x48). If lock returns a usable sp with a non-null raw ptr
 //     at this+0x40, recurse via variableDependsOnVar. After recursion:
 //     r14 = recursiveResult OR (state_ != 0). If lock failed/expired,
-//     the disasm DOES NOT fall back to parent_ — it returns 0 directly.
-//     The parentWeak_ branch is the ONLY ancestor path here.
+//     the disasm DOES NOT fall back to grandparent_ — it returns 0 directly.
+//     The parent_ branch is the ONLY ancestor path here.
 //
 // Net behaviour:
 //   * No name in chain → false.
@@ -899,7 +899,7 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
             return state_ != 0;
         }
     }
-    if (auto p = parentWeak_.lock()) {
+    if (auto p = parent_.lock()) {
         bool parentResult = p->variableDependsOnVar(name);
         return parentResult || (state_ != 0);
     }
@@ -933,8 +933,8 @@ bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e
 // (VarType_String).
 //
 // Disassembly observations (1e5020..1e54a1):
-//   1. Loops variables_ and (if parent_ non-null) calls
-//      parent_->variableExists() checking for duplicate name; throws
+//   1. Loops variables_ and (if grandparent_ non-null) calls
+//      grandparent_->variableExists() checking for duplicate name; throws
 //      ResourcesException(format(0xab=AlreadyDefined, name)) at 1e5353
 //      (esi=0xab loaded at 1e53a2).
 //   2. Builds a temporary Variable on the stack at [rbp-0x80]:
@@ -964,7 +964,7 @@ void Resources::addString(std::string const& name, std::string const& val)  // @
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1003,7 +1003,7 @@ void Resources::addWave(std::string const& name, std::string const& val)  // @0x
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1050,7 +1050,7 @@ void Resources::addCvar(std::string const& name, double val, VarSubType st)  // 
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1108,7 +1108,7 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1182,7 +1182,7 @@ void Resources::addString(std::string const& name, VarSubType st)  // @0x1e54f0
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1206,7 +1206,7 @@ void Resources::addWave(std::string const& name, VarSubType st)  // @0x1e64f0
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1230,7 +1230,7 @@ void Resources::addCvar(std::string const& name, VarSubType st)  // @0x1e8650
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1308,8 +1308,8 @@ void Resources::addCvar(std::string const& name, VarSubType st)  // @0x1e8650
 //   1. Duplicate-name check: linear scan of variables_ (same SSO-aware
 //      compare as variableExists). On hit → throw esi=0xab=AlreadyDefined
 //      via the shared exception-build trampoline at 1e4a00.
-//   2. Parent check: parent_ at +0x18; if non-null call
-//      parent_->variableExists(name) (NOT virtual — direct call to the
+//   2. Parent check: grandparent_ at +0x18; if non-null call
+//      grandparent_->variableExists(name) (NOT virtual — direct call to the
 //      base impl at 1e4230); on hit → throw 0xab.
 //   3. Builds Variable v at [rbp-0x88]:
 //        +0x00 type       = 2   (1e4783 QWORD = 2 — clears subTypeRaw
@@ -1335,7 +1335,7 @@ void Resources::addVar(std::string const& name, VarSubType st)  // @0x1e46b0
                 ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
         }
     }
-    if (parent_ && parent_->variableExists(name)) {
+    if (grandparent_ && grandparent_->variableExists(name)) {
         throw ResourcesException(
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
@@ -1942,21 +1942,21 @@ Resources::createSubScope(std::string const& name)  // @0x1e36a0
 // ============================================================================
 // Resources::updateParent — @0x1e38f0
 //
-// Replace this->parentWeak_ (the weak_ptr at +0x40/+0x48) with a weak_ptr
+// Replace this->parent_ (the weak_ptr at +0x40/+0x48) with a weak_ptr
 // derived from the by-value shared_ptr argument.
 //
 // Disassembly (1e38f0..1e391c, full body):
 //   * Read the passed shared_ptr's (ptr, ctrl) pair at [rsi]/[rsi+8].
 //   * If ctrl != null, lock-inc the WEAK count at ctrl+0x10.
-//   * Read the OLD ctrl from [rdi+0x48] (parentWeak_.ctrl_).
+//   * Read the OLD ctrl from [rdi+0x48] (parent_.ctrl_).
 //   * Overwrite [rdi+0x40..+0x50) with the new (ptr, ctrl) pair.
 //   * If old ctrl != null, tail-call __shared_weak_count::__release_weak()
 //     to decrement the previous weak count.
-// This is exactly `parentWeak_ = p;` (weak_ptr assignment from shared_ptr).
+// This is exactly `parent_ = p;` (weak_ptr assignment from shared_ptr).
 // ============================================================================
 void Resources::updateParent(std::shared_ptr<Resources> p)  // @0x1e38f0
 {
-    parentWeak_ = p;
+    parent_ = p;
 }
 
 #pragma GCC diagnostic pop

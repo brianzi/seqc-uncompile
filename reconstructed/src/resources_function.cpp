@@ -505,7 +505,7 @@ void Resources::Function::addArguments(
 // Disassembly flow (0x1eac80..0x1eb020):
 //   1. Save old scope's returnType_ (+0x54), returnValue_ (+0x58..+0x7f),
 //      and returnReg_ (+0x80, via operator int()).
-//   2. Lock old scope's parentWeak_ (+0x40/+0x48) into a shared_ptr.
+//   2. Lock old scope's parent_ (+0x40/+0x48) into a shared_ptr.
 //   3. Reset old scope (zero the shared_ptr at this+0x60, decref).
 //   4. Concatenate this->name + this->signature into a temp string.
 //   5. allocate_shared<Resources>(alloc, concatenatedName, parentShared).
@@ -526,7 +526,7 @@ void Resources::Function::resetScope()  // @0x1eac80
     int oldRegInt = static_cast<int>(oldScope->returnReg_);  // AsmRegister::operator int()
 
     // 2. Lock the old scope's parent weak_ptr.
-    std::shared_ptr<Resources> parent = oldScope->parentWeak_.lock();
+    std::shared_ptr<Resources> parent = oldScope->parent_.lock();
 
     // 3. Destroy the old scope.
     scope.reset();
@@ -594,7 +594,7 @@ bool Resources::functionExistsInScope(std::string const& name,  // @0x1e95d0
 //   (inlined SSO compare, same pattern as functionExistsInScope but WITHOUT
 //   calling sameArgString — just name equality). If a name-match is found
 //   locally, returns true.
-//   If no local match: locks parentWeak_ (+0x40/+0x48) → shared_ptr<Resources>,
+//   If no local match: locks parent_ (+0x40/+0x48) → shared_ptr<Resources>,
 //   and if that lock succeeds AND parent_ (+0x18) is non-null, recurses:
 //     return parent_->functionExists(name, sig);
 //   Otherwise returns false.
@@ -611,7 +611,7 @@ bool Resources::functionExistsInScope(std::string const& name,  // @0x1e95d0
 //      On match → set r14b=1. On mismatch → r14b=0.
 //      If r14b → break. Else advance r12+=0x10, continue.
 //   4. After loop: if r12 != end → found, r15b=1, return.
-//      Else: lock parentWeak_ (+0x48) → shared_ptr. If null → return false.
+//      Else: lock parent_ (+0x48) → shared_ptr. If null → return false.
 //      Load parent_ ptr (+0x40). If null → return false.
 //      Else recurse: parent_->functionExists(name, sig). Return result.
 // ============================================================================
@@ -629,8 +629,8 @@ bool Resources::functionExists(std::string const& name,  // @0x1e9110
             return true;
     }
 
-    // Recurse to parent via parentWeak_
-    if (auto parent = parentWeak_.lock()) {
+    // Recurse to parent via parent_
+    if (auto parent = parent_.lock()) {
         return parent->functionExists(name, sig);
     }
     return false;
@@ -643,8 +643,8 @@ bool Resources::functionExists(std::string const& name,  // @0x1e9110
 // compares Function::name (+0x10) against `name` (inlined SSO compare).
 // If name matches, calls Function::sameArgString(sig) @1eb330. On full match
 // (name + sameArgString), copies the shared_ptr into the sret output and
-// returns. If no local match, locks parentWeak_ and recurses to parent.
-// If no parent or parentWeak_.lock() fails, returns empty shared_ptr (nullptr).
+// returns. If no local match, locks parent_ and recurses to parent.
+// If no parent or parent_.lock() fails, returns empty shared_ptr (nullptr).
 //
 // Return: shared_ptr<Function> (sret via rdi).
 //
@@ -659,7 +659,7 @@ bool Resources::functionExists(std::string const& name,  // @0x1e9110
 //   4. Release ctrl block. If ebx (match) → break. Else r14 += 0x10.
 //   5. After loop: if r14 != end → copy shared_ptr [r14] into sret
 //      (movups + lock inc). Return sret.
-//   6. If r14 == end: lock parentWeak_ (+0x48). If null → store
+//   6. If r14 == end: lock parent_ (+0x48). If null → store
 //      nullptr into sret. If parent_ (+0x40) is null → same. Else
 //      recurse: parent_->getFunction(sret, name, sig). Release lock.
 // ============================================================================
@@ -671,8 +671,8 @@ Resources::getFunction(std::string const& name,  // @0x1e9370
             return fp;
     }
 
-    // Recurse to parent via parentWeak_
-    if (auto parent = parentWeak_.lock()) {
+    // Recurse to parent via parent_
+    if (auto parent = parent_.lock()) {
         return parent->getFunction(name, sig);
     }
     return nullptr;
@@ -686,7 +686,7 @@ Resources::getFunction(std::string const& name,  // @0x1e9370
 // constructs a string = name + signature (concatenation of Function::name
 // and Function::signature). Returns the vector via sret.
 //
-// Recurses to parent via parentWeak_.lock(); merges parent results by
+// Recurses to parent via parent_.lock(); merges parent results by
 // inserting them at the end of the local result vector.
 //
 // Return: vector<string> (sret via rdi).
@@ -703,12 +703,12 @@ Resources::getFunction(std::string const& name,  // @0x1e9370
 //         memcpy signature data. Null-terminate.
 //      c. push_back(move(temp)) into sret vector.
 //      d. Free temp if heap-allocated. Continue loop.
-//   4. After loop: lock parentWeak_ (+0x48). If lock succeeds AND
+//   4. After loop: lock parent_ (+0x48). If lock succeeds AND
 //      parent_ (+0x40) non-null:
 //      a. Recurse: parent_->getPossibleFunctions(name) → local temp vector.
 //      b. Insert temp vector contents at end of sret via __insert_with_size.
 //      c. Destroy temp vector elements + free buffer.
-//   5. Release parentWeak_ lock. Return sret.
+//   5. Release parent_ lock. Return sret.
 // ============================================================================
 std::vector<std::string>
 Resources::getPossibleFunctions(std::string const& name) {  // @0x1e9740
@@ -720,8 +720,8 @@ Resources::getPossibleFunctions(std::string const& name) {  // @0x1e9740
         }
     }
 
-    // Recurse to parent via parentWeak_
-    if (auto parent = parentWeak_.lock()) {
+    // Recurse to parent via parent_
+    if (auto parent = parent_.lock()) {
         auto parentResults = parent->getPossibleFunctions(name);
         result.insert(result.end(), parentResults.begin(), parentResults.end());
     }

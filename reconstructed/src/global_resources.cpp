@@ -17,8 +17,8 @@ thread_local uint64_t GlobalResources::random[313];  // TLS+0x50 (MT19937-64: 31
 //
 // 1. Calls Resources("global", weak_ptr<Resources>{})
 // 2. Sets vptr to GlobalResources vtable+0x10
-// 3. Overwrites parent_ (at +0x18) with the passed shared_ptr<Resources>,
-//    releasing the old parent (which was null from base ctor)
+// 3. Overwrites grandparent_ (at +0x18) with the passed shared_ptr<Resources>,
+//    releasing the old grandparent (which was null from base ctor)
 // 4. Initializes thread-local variables:
 //    - regNumber = 1
 //    - labelIndex = 0
@@ -30,12 +30,12 @@ thread_local uint64_t GlobalResources::random[313];  // TLS+0x50 (MT19937-64: 31
 //    - random[312] = 0  (index counter, at offset +0x9C0 from start of array)
 // ============================================================================
 GlobalResources::GlobalResources(
-    std::shared_ptr<Resources> const& parent)  // @0x12a710
+    std::shared_ptr<Resources> const& grandparent)  // @0x12a710
     : Resources(std::string("global"), std::weak_ptr<Resources>{})
 {
     // 0x12a76f: set vptr to GlobalResources vtable+0x10
-    // 0x12a779–0x12a78b: copy shared_ptr<Resources> from parent arg into this->parent_
-    parent_ = parent;
+    // 0x12a779–0x12a78b: copy shared_ptr<Resources> from grandparent arg into this->grandparent_
+    grandparent_ = grandparent;
 
     // 0x12a7bb–0x12a7da: TLS init + set regNumber = 1
     regNumber = 1;

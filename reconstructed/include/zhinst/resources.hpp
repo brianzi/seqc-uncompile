@@ -165,9 +165,9 @@ VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
 // ------  ----  ------                                  ----
 // 0x00    8     vptr                                    vtable pointer
 // 0x08    16    weak_ptr<Resources>                     (enable_shared_from_this hidden member)
-// 0x18    16    shared_ptr<Resources>                   parent_
+// 0x18    16    shared_ptr<Resources>                   grandparent_
 // 0x28    24    std::string                             name_
-// 0x40    16    weak_ptr<Resources>                     parentWeak_
+// 0x40    16    weak_ptr<Resources>                     parent_
 // 0x50    4     int32_t                                 state_ (State enum)
 // 0x54    4     VarType                                 returnType_
 // 0x58    40    Value                                   returnValue_ (0x28 bytes)
@@ -451,9 +451,9 @@ protected:
 
     // vptr at +0x00 (implicit)
     // enable_shared_from_this weak_ptr at +0x08 (16 bytes, zeroed in ctor)
-    std::shared_ptr<Resources> parent_;             // +0x18 (16 bytes)
+    std::shared_ptr<Resources> grandparent_;             // +0x18 (16 bytes)
     std::string                name_;               // +0x28 (24 bytes)
-    std::weak_ptr<Resources>   parentWeak_;         // +0x40 (16 bytes)
+    std::weak_ptr<Resources>   parent_;              // +0x40 (16 bytes)
     int32_t                    state_;              // +0x50
     VarType                    returnType_;         // +0x54
     Value                      returnValue_;        // +0x58 (0x28 = 40 bytes)
@@ -567,7 +567,7 @@ private:
 
 class GlobalResources : public Resources {
 public:
-    GlobalResources(std::shared_ptr<Resources> const& parent);  // @0x12a710
+    GlobalResources(std::shared_ptr<Resources> const& grandparent);  // @0x12a710
     ~GlobalResources() override;                                // D0 @0x12ab40
 
     // BSS-template offset 0x48; runtime access via wrapper @0x1f6140.
