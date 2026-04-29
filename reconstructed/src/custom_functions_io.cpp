@@ -2769,8 +2769,12 @@ std::shared_ptr<EvalResults> CustomFunctions::setPRNGSeed(                      
     int argType = static_cast<int>(args[0].varType_);                                                   // @0x151502: [rbp-0x78]
 
     if (argType == 2) {
-        // Integer literal path — emit suser directly with value as immediate                            // @0x151518
-        appendSuser(results->assemblers_, asmCommands_, AsmRegister(args[0].value_.toInt()), detail::AddressImpl<unsigned int>(kSuserPrngSeed)); // @0x151528                                                     // PRNG seed register                                             // @0x151535
+        // Variable path (VarType_Var) — emit suser using the bound register.    // @0x151518
+        // Binary @0x151507 loads args[0].reg_ from [rbx+0x30] into rdx; rdx is
+        // preserved across the cmp/jne and passed as the AsmRegister arg to
+        // suser at @0x151528. (See IF-119 — prior recon constructed an
+        // AsmRegister from value_.toInt(), which is wrong for VarType_Var.)
+        appendSuser(results->assemblers_, asmCommands_, args[0].reg_, detail::AddressImpl<unsigned int>(kSuserPrngSeed)); // @0x151528
     } else if ((argType & ~2) == 4) {
         // Float/double path — range-check then load via register                                        // @0x1515a9
         double dval = args[0].value_.toDouble();                                                        // @0x1515bd

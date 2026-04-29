@@ -2418,13 +2418,17 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 05c2
 - **Severity**: likely-bug
-- **Status**: **needs-GDB** (Phase R)
+- **Status**: **fixed** (Phase R)
 - **Description**: When `setPRNGSeed` receives an integer literal, the reconstruction passes the raw integer value to `AsmRegister` constructor, treating the seed value as a register number. The binary instead emits an immediate-load instruction.
 - **Phase R source audit**: at `custom_functions_io.cpp:2773` the integer-literal branch (`argType == 2`, comment "Integer literal path") constructs `AsmRegister(args[0].value_.toInt())` from the value rather than using `args[0].reg_`. In every sibling method (e.g. `setSweepStep:3161`), `argType == 2` is the **register** branch and code uses `args[0].reg_`. Either the comment is wrong (this is the register branch and the value-toInt path is a logic bug) OR `varType_==2` is overloaded only here.
-- **GDB plan**: prepare a test SeqC that calls `setPRNGSeed(123)` (literal). Set a breakpoint at binary @0x151528 (the call to `appendSuser` in this branch). Inspect:
-  - The first register operand passed (rdx or whatever ABI maps to it): is it a register-number `123` or a freshly allocated register?
-  - Compare to a `setPRNGSeed(varName)` (Var) test — does the binary take the same branch?
-  If GDB shows the binary always takes the register-path with `args[0].reg_`, fix the source to use `args[0].reg_` and rewrite the comment. Estimated effort: 30 minutes including writing the test seqc files.
+- **Resolution (disasm, no GDB needed)**: `objdump -d` on `_seqc_compiler.so` at @0x1513e0 shows the `argType == 2` branch (= `VarType_Var`, variable-bound) is in fact the **register** branch:
+  - @0x151507: `mov rdx, QWORD PTR [rbx+0x30]` loads `args[0].reg_` (the 8-byte `AsmRegister` field at +0x30) into `rdx`.
+  - @0x15150f–0x151512: `cmp eax, 0x2 / jne 1515a6` — `rdx` is preserved across the branch.
+  - @0x151518–0x151528: sets `rdi/rsi/ecx` (vec, asmCommands, addr=`kSuserPrngSeed`=0x74) and calls `AsmCommands::suser(AsmRegister, AddressImpl<uint>)` with `rdx` still holding `args[0].reg_`.
+  - The integer-literal handling actually lives in the `(argType & ~2) == 4` branch (matches `VarType_Const`/`VarType_Cvar`), which already allocates a register and emits `addi` to load the seed immediate — that branch was already correct.
+  - Sibling-method evidence (e.g. `setSweepStep`, `wvft@2734-2738`) confirms `argType==2` is the register/Var branch everywhere.
+- **Fix**: replaced `AsmRegister(args[0].value_.toInt())` with `args[0].reg_`, and rewrote the misleading "Integer literal path" comment to "Variable path (VarType_Var)". `custom_functions_io.cpp:2771-2778`. Tests 259/259 (no test currently exercises `setPRNGSeed(varName)` so the prior bug had no observable effect on the suite, but the source now matches the binary).
+- **Trace logs**: `/tmp/if119_var_trace.txt`, `/tmp/if119_literal_trace.txt`.
 
 ---
 
