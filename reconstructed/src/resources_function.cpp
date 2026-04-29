@@ -136,60 +136,60 @@ Resources::Function::~Function() = default;  // @0x1ea820
 // Disassembly (full):
 //   mov rsi, [rsi+0x70]          ; rsi = body.get() (raw SeqCAstNode*)
 //   mov rax, [rsi]               ; rax = vptr
-//   call [rax+0x20]              ; clone() — sret return into rdi
+//   call [rax+0x20]              ; doClone() — sret return into rdi
 //   mov rax, rbx                 ; return the sret slot
 //
 // Returns a CLONE of the body, not a borrow. The vtable+0x20 call is
-// SeqCAstNode::clone() which returns `unique_ptr<SeqCAstNode>` (16B sret).
+// SeqCAstNode::doClone() which returns `unique_ptr<SeqCAstNode>` (16B sret).
 // Header was previously declared `SeqCAstNode const* getBody() const`
 // (raw borrow); corrected to `unique_ptr<SeqCAstNode>` in Phase 20e-ii
 // Batch 5a alongside this body.
 //
 // NOTE: this implementation deliberately dereferences `body` (which is
-// itself a unique_ptr) and calls clone() on the pointee. If body is null
+// itself a unique_ptr) and calls doClone() on the pointee. If body is null
 // the disasm crashes (no null check). We faithfully reproduce that — any
 // caller that invokes getBody() on a Function with no body installed will
 // segfault, matching the binary.
 // ============================================================================
 std::unique_ptr<SeqCAstNode> Resources::Function::getBody() const  // @0x1eab50
 {
-    return body->clone();
+    return body->doClone();
 }
 
 // ============================================================================
 // Resources::Function::addBody — @0x1ea7b0
 //
-// Replace this->body with a clone of the given AST node. Frees the old
+// Replace this->body with a doClone of the given AST node. Frees the old
 // body via its virtual deleting dtor.
 //
 // Disassembly walk (1ea7b0..1ea7ff happy path):
-//   lea  rdi, [rbp-0x10]         ; sret slot for clone() result
+//   lea  rdi, [rbp-0x10]         ; sret slot for doClone() result
 //   mov  rax, [rsi]              ; rax = node.vptr
-//   call [rax+0x20]              ; node.clone() → unique_ptr return via sret
+//   call [rax+0x20]              ; node.doClone() → unique_ptr return via sret
 //   mov  rax, [rbp-0x10]         ; rax = cloned raw ptr
 //   mov  qword [rbp-0x10], 0     ; release ownership from temp (move)
 //   mov  rdi, [rbx+0x70]         ; old body raw ptr
-//   mov  [rbx+0x70], rax         ; install clone into body slot
+//   mov  [rbx+0x70], rax         ; install doClone into body slot
 //   if (rdi != null) call rdi.vtable[+0x30]   ; deleting dtor on old body
 //
 // The trailing dead block at 1ea7e2..1ea7f8 is the unwind landing pad's
 // "double-free guard" — it tests an already-zeroed temp and skips. It is
-// not exercised in normal flow; the C++ source `body = node.clone();`
+// not exercised in normal flow; the C++ source `body = node.doClone();`
 // expands to exactly the happy path above.
 //
 // catch handler at 1ea800..1ea818: `__cxa_begin_catch; __cxa_end_catch`.
 // This is the implicit catch-and-discard for a `try { ... } catch (...) {}`
-// surrounding the clone+install — but the disasm only does begin/end with
+// surrounding the doClone+install — but the disasm only does begin/end with
 // no body. In practice this is a noexcept-ish swallow. We don't model it
 // in source — the move-assignment of unique_ptr is itself noexcept and
-// the only throw point is node.clone(), which would propagate normally
+// the only throw point is node.doClone(), which would propagate normally
 // in real C++. The compiler appears to have generated this from a
 // `try { ... } catch (...) {}` in a private helper that wraps the call;
 // noted but not reproduced (low risk: differing exception semantics).
 // ============================================================================
 void Resources::Function::addBody(SeqCAstNode const& node)  // @0x1ea7b0
 {
-    body = node.clone();
+    body = node.doClone();
 }
 
 // ============================================================================

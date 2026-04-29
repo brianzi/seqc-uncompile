@@ -205,7 +205,7 @@ future development ideas.
   config.precompFlags in prefetch_print.cpp (5 reinterpret_casts eliminated).
   33d: 47 SUSER address constants defined in types.hpp; 81+ raw hex
   addresses replaced across 5 source files (custom_functions_play/io/playback,
-  asm_commands, seqc_ast_nodes_evaluate). 33e: Print/clone macro
+  asm_commands, seqc_ast_nodes_evaluate). 33e: Print/doClone macro
   verification confirmed done in Phase 31e. Build clean, 28/28 tests pass.
 - Phase 34/35: TODO marker cleanup + functional completeness audit (2026-04-26).
   34: Eliminated all actionable TODO markers (20 converted to NOTE/explanatory
@@ -532,7 +532,7 @@ reconstructed/
 │   ├── resources_static_global.cpp  # StaticResources/GlobalResources (Batch 7)
 │   ├── exception.cpp                 # Exception ctors, dtor, what(), description()
 │   ├── expression.cpp                # 20+ create* functions, str() for 3 enums
-│   ├── seqc_ast_node.cpp             # 53 print/clone bodies, str(EParamDirection), printSeqCAst
+│   ├── seqc_ast_node.cpp             # 53 print/doClone bodies, str(EParamDirection), printSeqCAst
 │   ├── frontend_lowering.cpp         # constWaveform stub
 │   ├── custom_functions.cpp          # Core: ctor/dtor, call(), validators, PlayArgs (~1061 lines)
 │   ├── custom_functions_play.cpp    # Play core: setWaitCyclesReg, play, playIndexed, writeToNode (~2462 lines)
@@ -593,3 +593,9 @@ Full pre-2026-04-22 history (items 1-116) archived in
 Long-deferred items are listed in the **Deferred / Low Priority** section
 of `TODO.md`; technical detail for the AsmOptimize trio (simplifyAssign,
 splitReg, register-field rename) lives in `notes/optimization_passes.md`.
+
+## Symbol Renames (Phase D)
+
+| Commit | Cluster | Rename | Sites |
+|--------|---------|--------|-------|
+| c2 | H | `clone()` → `doClone()` | 19 decls + 17 defs + 59 call sites across 4 files |

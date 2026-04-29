@@ -93,7 +93,7 @@ std::string str(EDirection dir);      // @0x1c1730
 //   vptr[1] (+0x08): getListElements()    — returns vector<string>
 //   vptr[2] (+0x10): children()           — returns vector<SeqCAstNode const*>
 //   vptr[3] (+0x18): print()              [pure virtual in base]
-//   vptr[4] (+0x20): clone()              [pure virtual in base]
+//   vptr[4] (+0x20): doClone()              [pure virtual in base]
 //   vptr[5] (+0x28): ~D2 dtor
 //   vptr[6] (+0x30): ~D0 dtor
 //   vptr[7] (+0x38): getVarTypes()        — returns vector<string>
@@ -123,9 +123,9 @@ public:
     // vptr[2]: default returns empty vector.
     virtual std::vector<const SeqCAstNode*> children() const;    // @0x1fda20
 
-    // vptr[3-4]: pure virtual — print/clone.
+    // vptr[3-4]: pure virtual — print/doClone.
     virtual void print() const = 0;
-    virtual std::unique_ptr<SeqCAstNode> clone() const = 0;
+    virtual std::unique_ptr<SeqCAstNode> doClone() const = 0;
 
     // vptr[5-6]: destructor (D2 + D0).
     virtual ~SeqCAstNode();                                      // D2 @0x209000 (trivial)
@@ -181,7 +181,7 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
-        std::unique_ptr<SeqCAstNode> clone() const override;                \
+        std::unique_ptr<SeqCAstNode> doClone() const override;                \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
@@ -200,7 +200,7 @@ public:
     SeqCOperation& operator=(SeqCOperation o);
     ~SeqCOperation() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
@@ -235,7 +235,7 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
-        std::unique_ptr<SeqCAstNode> clone() const override;                \
+        std::unique_ptr<SeqCAstNode> doClone() const override;                \
         std::vector<const SeqCAstNode*> children() const override;          \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
@@ -261,7 +261,7 @@ SEQC_UNARY(SeqCReturnStatement, 0xb057b0);
 //
 // All 21 derived operator classes share the SeqCOperator vtable for cleanup
 // (vptr reset to 0xb051a0 in their D0 dtors), have identical layout and
-// only differ in their own vtable's print/clone/evaluate overrides.
+// only differ in their own vtable's print/doClone/evaluate overrides.
 // ============================================================================
 
 class SeqCOperator : public SeqCAstNode {
@@ -274,7 +274,7 @@ public:
     SeqCOperator& operator=(SeqCOperator o);
     ~SeqCOperator() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
 
     std::shared_ptr<EvalResults> evaluate(
@@ -310,7 +310,7 @@ static_assert(sizeof(SeqCOperator) == 0x28,
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
-        std::unique_ptr<SeqCAstNode> clone() const override;                \
+        std::unique_ptr<SeqCAstNode> doClone() const override;                \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
@@ -362,7 +362,7 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
-        std::unique_ptr<SeqCAstNode> clone() const override;                \
+        std::unique_ptr<SeqCAstNode> doClone() const override;                \
         std::vector<const SeqCAstNode*> children() const override;          \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
@@ -392,7 +392,7 @@ public:
     SeqCFunctionCall& operator=(SeqCFunctionCall o);
     ~SeqCFunctionCall() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -419,7 +419,7 @@ public:
     SeqCArray& operator=(SeqCArray o);
     ~SeqCArray() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -448,7 +448,7 @@ public:
     SeqCCaseEntry& operator=(SeqCCaseEntry o);
     ~SeqCCaseEntry() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -478,7 +478,7 @@ public:
     SeqCSwitchCase& operator=(SeqCSwitchCase o);
     ~SeqCSwitchCase() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -527,7 +527,7 @@ public:
     SeqCIfElse& operator=(SeqCIfElse o);
     ~SeqCIfElse() override;
     void print() const override;                          // 0x201df0
-    std::unique_ptr<SeqCAstNode> clone() const override;  // 0x2021a0
+    std::unique_ptr<SeqCAstNode> doClone() const override;  // 0x2021a0
     std::vector<const SeqCAstNode*> children() const override;  // 0x2022c0
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -558,7 +558,7 @@ public:
     SeqCCondExpr& operator=(SeqCCondExpr o);
     ~SeqCCondExpr() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -594,7 +594,7 @@ public:
     SeqCFunction& operator=(SeqCFunction o);
     ~SeqCFunction() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -628,7 +628,7 @@ public:
     SeqCForLoop& operator=(SeqCForLoop o);
     ~SeqCForLoop() override;
     void print() const override;                         // 0x202bc0
-    std::unique_ptr<SeqCAstNode> clone() const override; // 0x202f70
+    std::unique_ptr<SeqCAstNode> doClone() const override; // 0x202f70
     std::vector<const SeqCAstNode*> children() const override;  // 0x202fd0
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -667,7 +667,7 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
         Name& operator=(Name o);                                            \
         ~Name() override;                                                   \
         void print() const override;                                        \
-        std::unique_ptr<SeqCAstNode> clone() const override;                \
+        std::unique_ptr<SeqCAstNode> doClone() const override;                \
         std::vector<const SeqCAstNode*> children() const override;          \
         std::vector<std::string> getListElements() const override;          \
         std::shared_ptr<EvalResults> evaluate(                              \
@@ -710,7 +710,7 @@ public:
     SeqCParamList& operator=(SeqCParamList o);
     ~SeqCParamList() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<const SeqCAstNode*> children() const override;
     std::vector<std::string> getListElements() const override;   // @0x2007e0
     std::shared_ptr<EvalResults> evaluate(
@@ -752,7 +752,7 @@ public:
     SeqCVariable& operator=(SeqCVariable o);
     ~SeqCVariable() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
     std::vector<std::string> getListElements() const override;   // 0x209e60
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
@@ -791,7 +791,7 @@ public:
     SeqCValue& operator=(SeqCValue o);
     ~SeqCValue() override;
     void print() const override;
-    std::unique_ptr<SeqCAstNode> clone() const override;
+    std::unique_ptr<SeqCAstNode> doClone() const override;
 
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,

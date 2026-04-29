@@ -327,15 +327,15 @@ public:
         // catch and treat the node as a single param.
         void addArguments(SeqCAstNode const& node);                // @0x1eab70
 
-        // Stores `node.clone()` (vtable+0x20) in body, freeing the previous
+        // Stores `node.doClone()` (vtable+0x20) in body, freeing the previous
         // body if any (vtable+0x30 is the deleting dtor).
         void addBody(SeqCAstNode const& node);                     // @0x1ea7b0
-        // Returns a CLONE of body (calls `body->clone()`, virtual slot +0x20).
+        // Returns a CLONE of body (calls `body->doClone()`, virtual slot +0x20).
         // The disasm has no null check — invoking on a Function with no body
         // installed will dereference nullptr and crash. NOTE: previous header
         // declared this as `SeqCAstNode const* getBody() const` (raw borrow)
         // — corrected in Phase 20e-ii Batch 5a after disasm of @0x1eab50
-        // showed it returns the result of node.clone() (unique_ptr sret).
+        // showed it returns the result of node.doClone() (unique_ptr sret).
         std::unique_ptr<SeqCAstNode> getBody() const;              // @0x1eab50
 
         // Returns true iff `name` matches `this->name` AND
