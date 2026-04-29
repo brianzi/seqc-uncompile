@@ -621,6 +621,33 @@ resolved.]**
 
 Cross-refs: `07_compiler.md:72`, `19a_resources.md:188`.
 
+**Phase R resolution (closed).** Writer **found** by static disasm
+scan: `Compiler::compile` @0x11f150 contains a single byte write to
+`[r15+0x25]` at offset +0x2286 (binary address 0x1213d6):
+
+```
+1213c8:  mov    -0x110(%rbp),%rax     ; rax = staticResources raw ptr
+1213cf:  movzbl 0xd8(%rax),%eax       ; eax = staticResources->usedSampleRate_
+1213d6:  mov    %al,0x25(%r15)        ; compiler_->usedSampleRate_ = al
+```
+
+The Compiler-side field is **not dead** — it is a cache of the
+StaticResources flag, copied across at the end of `compile()` just
+before constructing the `CompileResult`. `StaticResources` is the
+primary (set true inside `getValue("DEVICE_SAMPLE_RATE")`); the
+Compiler mirror is read by `Compiler::usedDeviceSampleRate()`, which
+`AWGCompilerImpl` consults when emitting the `.required_sample_rate`
+ELF section.
+
+Recon: copy added to `Compiler::compile` at the analogous point
+(reconstructed/src/compiler.cpp Step 19b), with a public accessor
+`StaticResources::usedSampleRate()` added in the header to expose the
+private field through standard C++ access. **Status: fixed (writer
+found, recon now mirrors binary).** Both names stay as-is — they
+faithfully reflect the binary, and both fields are live.
+
+Trace: `/tmp/arb4_trace.txt`.
+
 ### Arbitration 5 — `NodeMapItem::hasFast` is conflated with `AccessMode`
 
 Used at `addNodeAccess` call sites where the same int slot is
@@ -1163,7 +1190,7 @@ choices unless explicitly revisited.
 | 1 | WavetableManager numDefs/lineNr_ | **Pending investigation** |
 | 2 | DeviceConstants::numDIOBits | **needs-GDB** (Phase R: trace `configFreqSweep` on UHFLI to confirm osc-bound use) |
 | 3 | waveformGranularity/PageSize swap | Approved (two-step coordinated swap) |
-| 4 | usedSampleRate_ mirror | **needs-GDB** (Phase R: locate the missing writer of `Compiler::usedSampleRate_`) |
+| 4 | usedSampleRate_ mirror | **fixed** (Phase R: writer found at 0x1213d6 inside `Compiler::compile`; recon now copies `staticResources->usedSampleRate_` into `Compiler::usedSampleRate_` at end of compile. Both fields are live; both names kept.) |
 | 5 | NodeMapItem::hasFast | **rejected** (Phase R: GDB confirms only 0/1 ever stored across 51 lookupNode hits — bool is correct; field is intentional dual-role bool/AccessMode-Soft-or-Direct selector. See IF-112.) |
 | 6 | createOrAppend*::lhs/rhs | Keep `lhs`/`rhs` for consistency |
 | 7 | mergeWaveforms::useYSuffix | **kept** (Phase R: name fits both Y-suffix funDescr and interleave-vs-merge factory; Y-suffix == dual-channel I/Q == interleave) |

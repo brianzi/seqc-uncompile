@@ -499,6 +499,12 @@ public:
     void init(AWGCompilerConfig const& config,
               DeviceConstants const& deviceConstants);    // @0x1ec8f0
 
+    // Reconstruction-only accessor: the binary reads this byte inline
+    // (e.g. Compiler::compile @0x1213c8 reads [staticResources+0xd8]
+    // and copies it to Compiler::usedSampleRate_). No equivalent named
+    // method exists in the binary; this is a thin C++ access wrapper.
+    bool usedSampleRate() const { return usedSampleRate_; }
+
 protected:
     // Returns a callable that forwards to the std::function stored inline at
     // (functionStorage_, functionPtr_). The binary at 0x12a256-0x12a26d

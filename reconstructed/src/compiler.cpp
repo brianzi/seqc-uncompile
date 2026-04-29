@@ -479,6 +479,18 @@ CompileResult Compiler::compile(const std::string& source) {
         result.push_back(entry.assembler);
     }
 
+    // Step 19b: Cache device-sample-rate flag from StaticResources.        // 0x1213c8
+    // Binary @0x1213c8: mov -0x110(%rbp),%rax; movzbl 0xd8(%rax),%eax;
+    //                   mov %al,0x25(%r15)
+    // i.e. compiler_.usedSampleRate_ = staticResources->usedSampleRate_;
+    // This is the only writer of Compiler::usedSampleRate_ in the binary
+    // (Phase R, Arbitration 4). StaticResources::usedSampleRate_ is the
+    // primary — set true inside StaticResources::getValue("DEVICE_SAMPLE_RATE").
+    // The Compiler-side field is a cache read by usedDeviceSampleRate(),
+    // which is consulted by AWGCompilerImpl when emitting the
+    // ".required_sample_rate" ELF section.
+    usedSampleRate_ = staticResources->usedSampleRate();
+
     return CompileResult{std::move(result), std::move(wavetableIR)};  // 0x121421: sret+0x18 = wavetableIR
 }
 
