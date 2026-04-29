@@ -87,7 +87,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
     std::shared_ptr<WaveformIR> waveform,
     detail::AddressImpl<uint32_t> numSamples,
     std::unordered_map<std::string, bool> const& nameMap,
-    int pageSize,
+    int maxBranches,
     bool split)
 {
     // Compute free memory in pages
@@ -97,7 +97,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
         freeMemory -= p->size_;
         if (freeMemory > size_) { freeMemory = 0; break; }
     }
-    uint32_t freePages = freeMemory / pageSize;
+    uint32_t freePages = freeMemory / maxBranches;
 
     std::shared_ptr<Pointer> result;
 
@@ -385,7 +385,7 @@ void Cache::reuse(std::shared_ptr<Pointer> ptr) {
 }
 
 // 0x2834c0
-void Cache::play(std::shared_ptr<Pointer> ptr, PointerState state) {
+void Cache::play(std::shared_ptr<Pointer> ptr, PointerState playMode) {
     if (!ptr) {
         // Throw CacheException with errMsg[0x16]
         throw CacheException(errMsg[PlayNullPtr]);
@@ -408,7 +408,7 @@ void Cache::play(std::shared_ptr<Pointer> ptr, PointerState state) {
     for (auto it = pointers_.begin(); it != pointers_.end(); ++it) {
         if ((*it)->position_ != pos) continue;
         if ((*it)->size_ != ptr->size_) continue;
-        if (state == PointerState::Free) {
+        if (playMode == PointerState::Free) {
             (*it)->state_ = PointerState::LastPlayed;  // 0x283530: movl $0x1
         } else {
             (*it)->state_ = PointerState::Playing;     // 0x28353d: movl $0x2

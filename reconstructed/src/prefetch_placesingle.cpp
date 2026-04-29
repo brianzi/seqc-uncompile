@@ -518,9 +518,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                     static_cast<Assembler::PlayDummyType>(npD->config.hold); // +0x65
                                 int len = npD->length;              // +0x90
                                 if (len != 0) {
-                                    int grainSize = dc->grainSize();
+                                    int grainSize = dc->grainSize;
                                     int paddedLen = ((len + grainSize - 1) / grainSize) * grainSize;
-                                    int maxLen = dc->maxWaveformLength();
+                                    int maxLen = dc->maxWaveformLength;
                                     if ((unsigned)maxLen > (unsigned)paddedLen)
                                         len = maxLen;
                                     else
@@ -564,14 +564,14 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             auto* dc = devConst_;
                             int len2 = 0;
 
-                            // Compute effective length: check dc->maxWaveformLength(),
-                            // dc->grainSize(), pad to grain boundary
+                            // Compute effective length: check dc->maxWaveformLength,
+                            // dc->grainSize, pad to grain boundary
                             // See 0x1d9162..0x1d91b3 for the length computation
                             if (npWvf->length != 0) {  // +0x90
-                                int grainSize = dc->grainSize();     // +0x44
+                                int grainSize = dc->grainSize;     // +0x44
                                 len2 = npWvf->length;  // +0x90
                                 int paddedLen = ((len2 + grainSize - 1) / grainSize) * grainSize;
-                                int maxLen = dc->maxWaveformLength(); // +0x40
+                                int maxLen = dc->maxWaveformLength; // +0x40
                                 if ((unsigned)maxLen > (unsigned)paddedLen)
                                     len2 = maxLen;
                                 else

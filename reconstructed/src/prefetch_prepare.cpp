@@ -691,11 +691,11 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         int playSize;
         if (waveLength != 0) {
             // Compute aligned play size (verified disasm 0x1ca918..0x1ca945)
-            //   mov eax,[devConst_+0x44]   ; waveformPageSize (= "grainSize")
+            //   mov eax,[devConst_+0x44]   ; grainSize (= "grainSize")
             //   mov ecx,[waveform2+0x70]   ; Waveform::minLengthSamples ("minLengthSamples")
             //   r15 = ceil_div(waveLength, grainSize) * grainSize
             //   if (minLengthSamples > r15) r15 = minLengthSamples   ; cmova → max
-            int grainSize = static_cast<int>(devConst_->waveformPageSize);
+            int grainSize = static_cast<int>(devConst_->grainSize);
             int minLenSamples = waveform2->minLengthSamples;
             playSize = ((waveLength + grainSize - 1) / grainSize) * grainSize;
             if (static_cast<unsigned>(minLenSamples) > static_cast<unsigned>(playSize))
@@ -718,16 +718,16 @@ void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
         int playCount = static_cast<int>(waveform4->signal.length_);      // +0xD0 = Signal::length_
         // Verified disasm 0x1cab18..0x1cab4c:
         //   rsi = [waveform4+0x78]              ; waveform's DeviceConstants*
-        //   edi = [rsi+0x40] = waveformGranularity  ; "max" cap
-        //   r8d = [rsi+0x44] = waveformPageSize     ; alignment grain
+        //   edi = [rsi+0x40] = maxWaveformLength  ; "max" cap
+        //   r8d = [rsi+0x44] = grainSize     ; alignment grain
         //   eax = ceil_div(playCount, r8d) * r8d
-        //   if (edi > eax) eax = edi             ; cmova → max(aligned, waveformGranularity)
+        //   if (edi > eax) eax = edi             ; cmova → max(aligned, maxWaveformLength)
         const DeviceConstants* wfDc = waveform4->deviceConstants;
 
         int memSize;
         if (playCount != 0) {
-            int wfMaxCap   = static_cast<int>(wfDc->waveformGranularity); // +0x40
-            int wfGrain    = static_cast<int>(wfDc->waveformPageSize);    // +0x44
+            int wfMaxCap   = static_cast<int>(wfDc->maxWaveformLength); // +0x40
+            int wfGrain    = static_cast<int>(wfDc->grainSize);    // +0x44
             int aligned = ((playCount + wfGrain - 1) / wfGrain) * wfGrain;
             if (static_cast<unsigned>(wfMaxCap) > static_cast<unsigned>(aligned))
                 aligned = wfMaxCap;

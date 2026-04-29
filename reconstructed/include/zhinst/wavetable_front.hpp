@@ -14,14 +14,14 @@
 //   0x1C0: (padding/unused 16 bytes)
 //   0x1D0: WavetableManager<WaveformFront>* manager_
 //   0x1D8: WaveIndexTracker waveIndexTracker_ (0x28 bytes, to 0x200)
-//          0x1D8: int lineNr_ / startIndex (first field of manager, stored separately)
+//          0x1D8: int numDefs_ / startIndex (first field of manager, stored separately)
 //          0x1E0: std::set<int> root node ptr
 //          0x1E8: set internal data (16 bytes)
 //          0x1F8: int flags/state
 //
 // WavetableManager<WaveformFront> layout — 0x48 bytes:
-//   0x00: int lineNr_
-//   0x04: int waveformCounter_
+//   0x00: int numDefs_
+//   0x04: int numDefs2_
 //   0x08: unordered_map<string, size_t> nameToIndex_ (hash table, ~0x28 bytes)
 //   0x30: vector<shared_ptr<WaveformFront>> waveforms_ (begin)
 //   0x38: vector end
@@ -33,7 +33,7 @@
 //     +0x28 = 0x3f800000 (1.0f)
 //     +0x30, +0x38, +0x40 = 0 (vector)
 //   This matches:
-//     0x00: int lineNr_          (set from DeviceConstants+0x60)
+//     0x00: int numDefs_          (set from DeviceConstants+0x60)
 //     0x04: int counter_
 //     0x08: unordered_map<string, size_t> nameToIndex_ (hash table)
 //     0x28: float amplitudeDefault_ (1.0f)
@@ -76,9 +76,9 @@ template <typename WaveformT>
 class WavetableManager {
 public:
     // 0x00
-    int lineNr_;
+    int numDefs_;
     // 0x04
-    int waveformCounter_;
+    int numDefs2_;
     // 0x08 — unordered_map<string, size_t>: name -> index in waveforms_ vector
     std::unordered_map<std::string, size_t> nameToIndex_;
     // 0x30

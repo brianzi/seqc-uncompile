@@ -594,7 +594,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         checkWaveformMinLengthTrig(combinedWf);                      // @0x15fc8f
     }
     if (combinedWf) {
-        checkOffspecWaveLength(combinedWf, static_cast<int>(devConst_->waveformGranularity)); // @0x15fcef
+        checkOffspecWaveLength(combinedWf, static_cast<int>(devConst_->maxWaveformLength)); // @0x15fcef
     }
 
     // === Step 8: Assembly generation ===                           @0x15fd0f
@@ -1116,14 +1116,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //
     // Disasm:
     //   mov  rax, [r12+0x8]                 ; this->devConst_ (CustomFunctions+0x08)
-    //   mov  edx, [rax+0x40]                ; expected length = devConst_->waveformGranularity
+    //   mov  edx, [rax+0x40]                ; expected length = devConst_->maxWaveformLength
     //   call CustomFunctions::checkOffspecWaveLength(combined, expected)
     //
     // CORRECTED (21b-followup-3): [r12+0x08] loads devConst_ (not config_).
-    // DeviceConstants+0x40 = waveformGranularity (values: 16, 32, 96).
-    // Also accessible as devConst_->maxWaveformLength().
+    // DeviceConstants+0x40 = maxWaveformLength (values: 16, 32, 96).
+    // Also accessible as devConst_->maxWaveformLength.
     if (combined) {
-        int expectedLen = static_cast<int>(devConst_->waveformGranularity);  // @0x16210d
+        int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x16210d
         checkOffspecWaveLength(combined, expectedLen);               // @0x16214a
     }
 

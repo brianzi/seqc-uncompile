@@ -123,8 +123,8 @@ size_t WavetableFront::getMemorySize() const {
         uint32_t length = static_cast<uint32_t>(wf->signal.length_); // wf+0xD0 = signal+0x50
         // Verified disasm 0x29ae31..0x29ae53:
         //   r10 = [wf+0x78] = waveform->deviceConstants  (NOT &signal!)
-        //   r9d = [r10+0x40] = waveformGranularity ("max" cap)
-        //   ebx = [r10+0x44] = waveformPageSize    (alignment grain)
+        //   r9d = [r10+0x40] = maxWaveformLength ("max" cap)
+        //   ebx = [r10+0x44] = grainSize    (alignment grain)
         //   eax = ceil_div(length, ebx) * ebx
         //   if (r9d > eax) eax = r9d   ; cmova → max
         //   r9 = sxd[r10+0x50] = bitsPerSample
@@ -134,8 +134,8 @@ size_t WavetableFront::getMemorySize() const {
         if (length == 0) {
             alignedLen = 0;
         } else {
-            uint32_t wfMaxCap = dc->waveformGranularity; // +0x40
-            uint32_t wfGrain  = dc->waveformPageSize;    // +0x44
+            uint32_t wfMaxCap = dc->maxWaveformLength; // +0x40
+            uint32_t wfGrain  = dc->grainSize;    // +0x44
             uint32_t rounded = ((length + wfGrain - 1) / wfGrain) * wfGrain;
             alignedLen = (wfMaxCap > rounded) ? wfMaxCap : rounded;
         }
@@ -149,8 +149,8 @@ size_t WavetableFront::getMemorySize() const {
 
         // If length != 0, recalculate with the signal's actual parameters
         if (length != 0) {
-            uint32_t wfMaxCap2 = dc->waveformGranularity;
-            uint32_t wfGrain2  = dc->waveformPageSize;
+            uint32_t wfMaxCap2 = dc->maxWaveformLength;
+            uint32_t wfGrain2  = dc->grainSize;
             uint32_t rounded2 = ((length + wfGrain2 - 1) / wfGrain2) * wfGrain2;
             uint32_t aligned2 = (wfMaxCap2 > rounded2) ? wfMaxCap2 : rounded2;
             size_t bits2 = static_cast<size_t>(channels) * aligned2;
@@ -208,9 +208,9 @@ std::shared_ptr<WaveformFront> WavetableFront::newWaveform(
     const std::vector<Value>& args)
 {
     // Gets unique name from counter, then delegates
-    int baseIndex = manager_->lineNr_;
-    int counter = manager_->waveformCounter_;
-    manager_->waveformCounter_ = counter + 1;
+    int baseIndex = manager_->numDefs_;
+    int counter = manager_->numDefs2_;
+    manager_->numDefs2_ = counter + 1;
 
     std::string uniqueName = getUniqueName(funName, baseIndex, counter);
 
@@ -378,7 +378,7 @@ void WavetableFront::updateWave(
 
 // 0x29ce10 — WavetableFront::setLineNr(int)
 void WavetableFront::setLineNr(int nr) {
-    manager_->lineNr_ = nr;
+    manager_->numDefs_ = nr;
 }
 
 } // namespace zhinst

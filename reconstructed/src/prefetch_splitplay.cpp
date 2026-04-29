@@ -99,8 +99,8 @@ AsmList Prefetch::splitPlay(std::shared_ptr<Node> node) const  // 0x1dd1a0
         // 0x1dd3bf..0x1dd3e2: compute adjusted length
         uint32_t adjLen;
         if (numRepeats != 0) {
-            uint32_t base = dc->waveformGranularity;    // +0x40
-            uint32_t stride = dc->waveformPageSize;    // +0x44
+            uint32_t base = dc->maxWaveformLength;    // +0x40
+            uint32_t stride = dc->grainSize;    // +0x44
             // ceil division * stride, capped at base
             uint32_t rounded = ((numRepeats + stride - 1) / stride) * stride;
             adjLen = std::min(rounded, base);

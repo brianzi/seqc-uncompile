@@ -6919,8 +6919,8 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 
     int arrayBound = 0;
     if (length != 0) {                                               // @0x2116f9
-        uint32_t granularity = dc->waveformGranularity;              // +0x40
-        uint32_t pageSize = dc->waveformPageSize;                    // +0x44
+        uint32_t granularity = dc->maxWaveformLength;              // +0x40
+        uint32_t pageSize = dc->grainSize;                    // +0x44
         // Pad length to multiple of pageSize, at least granularity
         uint32_t padded = ((length + pageSize - 1) / pageSize) * pageSize;
         if (granularity > padded) padded = granularity;              // @0x211713

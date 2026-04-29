@@ -59,9 +59,9 @@ WavetableManager<WaveformFront>::newEmptyWaveform(
     const std::string& name,
     const DeviceConstants& dc)
 {
-    int baseIdx = lineNr_;  // this+0x00
-    int counter = waveformCounter_; // this+0x04
-    waveformCounter_ = counter + 1;
+    int baseIdx = numDefs_;  // this+0x00
+    int counter = numDefs2_; // this+0x04
+    numDefs2_ = counter + 1;
 
     std::string uniqueName = getUniqueName(name, baseIdx, counter);
 
@@ -251,9 +251,9 @@ WavetableManager<WaveformFront>::copyWaveform(
 {
     // Generate unique name from source waveform's name
     WaveformFront* srcPtr = src.get();
-    int baseIdx = lineNr_;
-    int counter = waveformCounter_;
-    waveformCounter_ = counter + 1;
+    int baseIdx = numDefs_;
+    int counter = numDefs2_;
+    numDefs2_ = counter + 1;
 
     std::string uniqueName = getUniqueName(srcPtr->name, baseIdx, counter);
 

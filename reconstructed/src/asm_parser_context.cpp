@@ -289,72 +289,72 @@ AsmExpression* addNode(AsmParserContext* ctx, const char* text) {
 // the AsmExpression with label data.
 //
 // Algorithm:
-//   1. If both args (rdx) and label (r8) are null, raises error
+//   1. If both cmdToken (rdx) and label (r8) are null, raises error
 //      "addCommand: both args and label are null" and returns null.
-//   2. If cmd (rsi) is null, allocates a fresh AsmExpression (0xa8 bytes)
+//   2. If argList (rsi) is null, allocates a fresh AsmExpression (0xa8 bytes)
 //      and zero-initializes it.
-//   3. Sets cmd->type (+0x00) = 0, cmd->value (+0x3C) = pc parameter.
-//   4. If args is non-null:
-//      a. Extracts the name string from args (+0x08).
+//   3. Sets argList->type (+0x00) = 0, argList->value (+0x3C) = pc parameter.
+//   4. If cmdToken is non-null:
+//      a. Extracts the name string from cmdToken (+0x08).
 //      b. Finds the first space in the name to get just the command token.
 //      c. Builds a string from that substring.
 //      d. Calls Assembler::commandFromString() to resolve the command.
 //      e. If INVALID, builds error string "Unknown command: <name>" and
 //         calls ctx->raiseError().
-//      f. Stores the resolved command into cmd (+0x38).
-//      g. Destroys the args AsmExpression (it was consumed).
+//      f. Stores the resolved command into argList (+0x38).
+//      g. Destroys the cmdToken AsmExpression (it was consumed).
 //   5. If label is non-null:
 //      a. Builds a string from the label C-string.
 //      b. Calls ctx->hasLabel(label) to check for duplicates.
 //      c. If duplicate, builds error "label <name> already defined" and
 //         calls ctx->raiseError().
 //      d. Calls ctx->addLabel(label).
-//      e. If args was null, sets cmd (+0x38) = LABEL (0x02).
+//      e. If cmdToken was null, sets argList (+0x38) = LABEL (0x02).
 //      f. Constructs a Label(pc, label) and stores it into the
 //         AsmExpression's label field at +0x58 (int pc) and +0x60 (string).
 //      g. Sets the hasLabel flag at +0x78 to true (if not already).
-//   6. Returns cmd.
+//   6. Returns argList.
 AsmExpression* addCommand(AsmParserContext* ctx,
-                          AsmExpression* cmd,
-                          AsmExpression* args,
+                          AsmExpression* argList,
+                          AsmExpression* cmdToken,
                           int pc,
                           const char* label) {
-    if (!args && !label) {
+    if (!cmdToken && !label) {
         ctx->raiseError(
             "addCommand: both args and label are null");
         return nullptr;
     }
 
-    // If no cmd expression provided, allocate a fresh one
-    if (!cmd) {
-        cmd = new AsmExpression();  // 0xa8 bytes, zeroed
+    // If no argList expression provided, allocate a fresh one
+    if (!argList) {
+        argList = new AsmExpression();  // 0xa8 bytes, zeroed
     }
 
-    cmd->type = 0;     // +0x00
-    cmd->value = pc;   // +0x3C
+    argList->type = 0;     // +0x00
+    argList->value = pc;   // +0x3C
 
-    if (args) {
-        // Extract command name from args->name up to the first space.
+    if (cmdToken) {
+        // Extract command name from cmdToken->name up to the first space.
         // Verified at 0x28c712-0x28c75a: code unpacks the SSO/heap pointer
-        // pair from the std::string at args+0x08 (size at +0x08 LSB clear,
+        // pair from the std::string at cmdToken+0x08 (size at +0x08 LSB clear,
         // ptr at +0x18 / size at +0x10 if heap), then memchr(buf, 0x20, len)
         // to locate the first space; the command token is everything before.
-        const std::string& fullName = args->name;
+        const std::string& fullName = cmdToken->name;
         auto spacePos = fullName.find(' ');
         std::string nameStr = (spacePos == std::string::npos)
             ? fullName
             : fullName.substr(0, spacePos);
 
-        // Destroy the args expression (consumed)
-        args->~AsmExpression();
-        ::operator delete(args);
+        // Destroy the cmdToken expression (consumed)
+        cmdToken->~AsmExpression();
+        ::operator delete(cmdToken);
 
         // Look up the command
         Assembler::Command resolved = Assembler::commandFromString(nameStr);
         if (resolved == Assembler::INVALID) {
             ctx->raiseError("Unknown command: " + nameStr);
         }
-        cmd->command = resolved;  // +0x38
+        argList->command = resolved;  // +0x38
     }
 
     if (label) {
@@ -368,19 +368,19 @@ AsmExpression* addCommand(AsmParserContext* ctx,
         // Register the label
         ctx->addLabel(labelStr);
 
-        // If no args were provided, this is a pure label instruction
-        if (!args) {
-            cmd->command = static_cast<Assembler::Command>(0x02);  // LABEL
+        // If no cmdToken was provided, this is a pure label instruction
+        if (!cmdToken) {
+            argList->command = static_cast<Assembler::Command>(0x02);  // LABEL
         }
 
         // Store Label data into the AsmExpression
         AsmParserContext::Label lbl(pc, labelStr);
-        cmd->labelPc() = lbl.pc;      // +0x58 (labelPc is alias for labelIndex)
-        // Move/copy lbl.name into cmd's label string at +0x60
+        argList->labelPc() = lbl.pc;      // +0x58 (labelPc is alias for labelIndex)
+        // Move/copy lbl.name into argList's label string at +0x60
         // Set hasLabel flag at +0x78 = true
     }
 
-    return cmd;
+    return argList;
 }
 
 }  // namespace zhinst

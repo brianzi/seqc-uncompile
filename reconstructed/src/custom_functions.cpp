@@ -324,10 +324,10 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
 // ============================================================================
 
 // checkPlayMinLength @0x15b100
-// Compares length vs devConst_->waveformGranularity (+0x40).
+// Compares length vs devConst_->maxWaveformLength (+0x40).
 // Warns via warningCallback_ with error 0xF5. Returns minPlayLength.
 int CustomFunctions::checkPlayMinLength(int length) {  // @0x15b100
-    int minLength = static_cast<int>(devConst_->waveformGranularity);
+    int minLength = static_cast<int>(devConst_->maxWaveformLength);
     if (length < minLength) {
         // @0x15b13a: format(0xF5, length, minLength)
         std::string msg = ErrorMessages::format(
@@ -340,10 +340,10 @@ int CustomFunctions::checkPlayMinLength(int length) {  // @0x15b100
 }
 
 // checkPlayAlignment @0x15b190
-// Checks length % devConst_->waveformPageSize (+0x44).
+// Checks length % devConst_->grainSize (+0x44).
 // Rounds up if misaligned, warns with error 0xE7. Returns aligned length.
 int CustomFunctions::checkPlayAlignment(int length) {  // @0x15b190
-    int alignment = static_cast<int>(devConst_->waveformPageSize);
+    int alignment = static_cast<int>(devConst_->grainSize);
     if (alignment > 0 && (length % alignment) != 0) {
         int aligned = ((length / alignment) + 1) * alignment;
         // @0x15b1f0: format(0xE7, length, alignment, aligned)
@@ -643,8 +643,8 @@ void CustomFunctions::checkOffspecWaveLength(std::shared_ptr<WaveformFront> wf, 
     }
 
     // Case 2: check alignment
-    // @0x15b3b4: r15d = devConst_->waveformPageSize
-    int alignment = static_cast<int>(devConst_->waveformPageSize);
+    // @0x15b3b4: r15d = devConst_->grainSize
+    int alignment = static_cast<int>(devConst_->grainSize);
 
     if (wfLen % alignment == 0)
         return;  // @0x15b3c1: je exit

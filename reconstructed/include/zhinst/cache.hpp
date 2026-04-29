@@ -131,7 +131,7 @@ public:
         std::shared_ptr<WaveformIR> waveform,
         detail::AddressImpl<uint32_t> numSamples,
         std::unordered_map<std::string, bool> const& nameMap,
-        int pageSize,
+        int maxBranches,
         bool split);                                     // 0x282a30
 
     std::shared_ptr<Pointer> allocate(
@@ -149,7 +149,7 @@ public:
     void memoryWrite(std::shared_ptr<Pointer> ptr);      // 0x283020
     bool stillInMemory(std::shared_ptr<Pointer> ptr) const;  // 0x2832e0
     void reuse(std::shared_ptr<Pointer> ptr);            // 0x2833d0
-    void play(std::shared_ptr<Pointer> ptr, PointerState state);  // 0x2834c0
+    void play(std::shared_ptr<Pointer> ptr, PointerState playMode);  // 0x2834c0
     void resetPlay();                                    // 0x283640
     void free(std::shared_ptr<Pointer> ptr);             // 0x283690
     void print() const;                                  // 0x283b50

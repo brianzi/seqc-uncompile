@@ -93,7 +93,7 @@ WaveformFront::WaveformFront(const std::string& name,
     this->Waveform::funDescrName.clear();
     this->playConfig         = 0;
     this->waveIndex        = -1;
-    this->minLengthSamples      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->minLengthSamples      = static_cast<int>(dc.maxWaveformLength);  // dc+0x40
     this->allocationByteSize = 0;
     this->deviceConstants  = &dc;
     this->signal.length_   = 0;

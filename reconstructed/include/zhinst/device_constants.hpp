@@ -67,9 +67,9 @@ enum AwgDeviceType : int;
 // --- Sequencer register region ---
 // 0x38    4     uint32_t    sequencerRegBase      HW register address (0x115c Cervino, 0x0d05 Hirzel)
 // 0x3C    4     uint32_t    triggerLatencyCycles  Always 6 — sequencer trigger/wait instruction latency
-// 0x40    4     uint32_t    waveformGranularity   Round-up cap in waveform memory calc. Also
+// 0x40    4     uint32_t    maxWaveformLength   Round-up cap in waveform memory calc. Also
 //                                                  WaveformFront.minLengthSamples. Values: 16, 32, 96
-// 0x44    4     uint32_t    waveformPageSize      Round-up divisor in waveform memory calc.
+// 0x44    4     uint32_t    grainSize      Round-up divisor in waveform memory calc.
 //                                                  Values: 8, 16, 48
 //
 // --- Auxiliary parameters ---
@@ -161,8 +161,8 @@ struct DeviceConstants {
     // Sequencer register region
     uint32_t       sequencerRegBase;      // +0x38  HW register address
     uint32_t       triggerLatencyCycles;  // +0x3C  always 6 — trigger/wait latency
-    uint32_t       waveformGranularity;   // +0x40  waveform page cap
-    uint32_t       waveformPageSize;      // +0x44  waveform page divisor
+    uint32_t       maxWaveformLength;   // +0x40  waveform max length cap (was waveformGranularity)
+    uint32_t       grainSize;           // +0x44  waveform alignment grain (was waveformPageSize)
 
     // Auxiliary parameters
     uint32_t       playMinSamples;        // +0x48  values: 0, 128, 384 — min play length
@@ -189,18 +189,19 @@ struct DeviceConstants {
     // fields — every alias was reconciled to an existing field via disassembly
     // inspection (offsets all within the verified 0x90 layout).
     //
-    //   grainSize          = waveformPageSize     (+0x44, verified
-    //                        mov r8d,[rcx+0x44] at 0x1d919b in placeSingleCommand)
-    //   maxWaveformLength  = waveformGranularity  (+0x40, verified
-    //                        mov edi,[rcx+0x40] at 0x1d9198 in placeSingleCommand)
+    //   grainSize (+0x44) and maxWaveformLength (+0x40) were formerly
+    //   accessor methods returning waveformPageSize / waveformGranularity.
+    //   After the field rename (phase-d c16), they are now the field names
+    //   themselves, so the accessors were removed.
+    //
     //   maxDioTableEntries = waveformMemorySize   (+0x0C, verified
     //                        mov ecx,[rcx+0xc] at 0x29cade in
     //                        WavetableFront::updateDioTableUsage)
     //   maxWaveIndex       = (uint32_t)maxSequenceLen (+0x60, verified
     //                        mov esi,[rbx+0x60] at 0x29ceaa in
     //                        WavetableIR ctor — passed as int to WaveIndexTracker)
-    uint32_t grainSize() const          { return waveformPageSize; }
-    uint32_t maxWaveformLength() const  { return waveformGranularity; }
+    // grainSize() and maxWaveformLength() accessors removed — fields
+    // renamed from waveformPageSize→grainSize, waveformGranularity→maxWaveformLength.
     uint32_t maxDioTableEntries() const { return waveformMemorySize; }
     uint32_t maxWaveIndex() const       { return static_cast<uint32_t>(maxSequenceLen); }
 };

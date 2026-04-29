@@ -58,8 +58,8 @@ WavetableManager<WaveformIR>::WavetableManager(
     int numDefs, int numDefs2,
     const std::vector<Waveform>& waveforms)  // 0x2a5260
 {
-    this->lineNr_ = numDefs;
-    this->waveformCounter_ = numDefs2;
+    this->numDefs_ = numDefs;
+    this->numDefs2_ = numDefs2;
     // nameIndex_ is default-constructed (empty)
     // waveforms_ vector is zeroed
 
@@ -241,8 +241,8 @@ boost::json::value WavetableManager<WaveformIR>::toJson() const  // 0x29d780
 
     // Build result object
     return boost::json::value{
-        {"numDefs", lineNr_},
-        {"numDefs2", waveformCounter_},
+        {"numDefs", numDefs_},
+        {"numDefs2", numDefs2_},
         {"waveforms", std::move(arr)}
     };
 }
@@ -286,9 +286,9 @@ bool WavetableManager<WaveformIR>::operator==(
     }
 
     // Compare scalar fields
-    if (lineNr_ != other.lineNr_)
+    if (numDefs_ != other.numDefs_)
         return false;
-    if (waveformCounter_ != other.waveformCounter_)
+    if (numDefs2_ != other.numDefs2_)
         return false;
 
     // Compare nameToIndex_ maps

@@ -1663,8 +1663,8 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                     uint32_t length = static_cast<uint32_t>(wfRaw->signal.length()); // +0xD0
                     auto* dc = wfRaw->deviceConstants;                 // +0x78
                     if (length != 0) {                                 // 0x1d1c4e: test eax; je
-                        uint32_t gran = dc->waveformGranularity;       // +0x40
-                        uint32_t pgSz = dc->waveformPageSize;          // +0x44
+                        uint32_t gran = dc->maxWaveformLength;       // +0x40
+                        uint32_t pgSz = dc->grainSize;          // +0x44
                         // Round up length to multiple of pageSize
                         uint32_t rem = length % pgSz;
                         uint32_t rounded = (length / pgSz + (rem >= 1 ? 1 : 0)) * pgSz;

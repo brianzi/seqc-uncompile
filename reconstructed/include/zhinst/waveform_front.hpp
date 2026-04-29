@@ -68,7 +68,7 @@ struct WaveformFront : Waveform {
     //   Waveform::name              = name
     //   Waveform::waveformType      = type
     //   Waveform::waveIndex         = -1
-    //   Waveform::minLengthSamples       = dc.waveformGranularity (dc+0x40)
+    //   Waveform::minLengthSamples       = dc.maxWaveformLength (dc+0x40)
     //   Waveform::deviceConstants   = &dc
     //   useCount_                 = 1                          ← differs from IR
     //   dirty_, hasDuplicate_      = 0

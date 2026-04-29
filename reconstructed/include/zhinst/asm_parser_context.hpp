@@ -141,15 +141,15 @@ AsmExpression* addNode(AsmParserContext* ctx, const char* text);      // 0x28bfd
 // Assembler::commandFromString(), assigns label data, and populates
 // the AsmExpression's Label field.
 // Parameters:
-//   ctx   — parser context
-//   cmd   — the command token expression (may be null; allocated if so)
-//   args  — argument expression (instruction operands)
-//   pc    — program counter value for this command
-//   label — optional label string (may be null)
-// Returns the (possibly newly allocated) cmd expression.
+//   ctx      — parser context
+//   argList  — the output expression node (may be null; allocated if so)
+//   cmdToken — command token expression carrying the instruction name
+//   pc       — program counter value for this command
+//   label    — optional label string (may be null)
+// Returns the (possibly newly allocated) argList expression.
 AsmExpression* addCommand(AsmParserContext* ctx,
-                          AsmExpression* cmd,
-                          AsmExpression* args,
+                          AsmExpression* argList,
+                          AsmExpression* cmdToken,
                           int pc,
                           const char* label);                         // 0x28c600
 

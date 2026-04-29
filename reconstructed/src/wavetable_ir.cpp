@@ -65,12 +65,12 @@ WavetableIR::WavetableIR(const WavetableFront& front,
 {
     // Allocate the manager from the front's internal manager
     auto* frontMgr = front.manager_;  // at front+0x1D0
-    // 0x29ce5d-0x29ce81: copy lineNr_ + waveformCounter_ (combined 8 bytes
+    // 0x29ce5d-0x29ce81: copy numDefs_ + numDefs2_ (combined 8 bytes
     // at WavetableManager+0..+8) from front's manager into the new manager.
     // The binary uses movsd/movlps to do this as a single 8-byte move.
     manager_.reset(new detail::WavetableManager<WaveformIR>());
-    manager_->lineNr_         = frontMgr->lineNr_;
-    manager_->waveformCounter_ = frontMgr->waveformCounter_;
+    manager_->numDefs_         = frontMgr->numDefs_;
+    manager_->numDefs2_ = frontMgr->numDefs2_;
 
     // Copy waveforms from front, converting WaveformFront -> WaveformIR
     auto* begin = frontMgr->waveforms_.data();
@@ -293,8 +293,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             if (length == 0) {
                 sizeInBlocks = 0;
             } else {
-                uint32_t granularity = dc->waveformGranularity;       // DC+0x40
-                uint32_t pageSize = dc->waveformPageSize;             // DC+0x44
+                uint32_t granularity = dc->maxWaveformLength;       // DC+0x40
+                uint32_t pageSize = dc->grainSize;             // DC+0x44
                 uint32_t rounded = ((length + pageSize - 1) / pageSize) * pageSize;
                 sizeInBlocks = std::max(rounded, granularity);
             }
@@ -373,8 +373,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             if (length == 0) {                                  // 0x2a9ca8
                 sizeInBlocks = 0;
             } else {
-                uint32_t granularity = dc->waveformGranularity; // DC+0x40
-                uint32_t pageSize = dc->waveformPageSize;       // DC+0x44
+                uint32_t granularity = dc->maxWaveformLength; // DC+0x40
+                uint32_t pageSize = dc->grainSize;       // DC+0x44
                 // Round up to multiple of pageSize, cap at granularity
                 uint32_t rounded = ((length + pageSize - 1) / pageSize) * pageSize;
                 sizeInBlocks = std::max(rounded, granularity);  // 0x2a9cc6
@@ -535,14 +535,14 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
         // autoIdx < *it — there's a gap, create a filler
         // Binary at 0x29ea3a sets reserveOnly_=true for filler signals,
         // so they become SHT_NOBITS in the ELF (no actual sample data).
-        size_t minSamples = static_cast<size_t>(deviceConstants_->waveformGranularity);
+        size_t minSamples = static_cast<size_t>(deviceConstants_->maxWaveformLength);
         Signal fillerSignal(ReserveOnly{}, minSamples, MarkerBitsPerChannel{});
         std::string fillerName = "filler";
-        // 0x29ea60-0x29ea79: edx = manager_->lineNr_, ecx = manager_->waveformCounter_,
-        // then waveformCounter_ is post-incremented in place. Result string lives at
+        // 0x29ea60-0x29ea79: edx = manager_->numDefs_, ecx = manager_->numDefs2_,
+        // then numDefs2_ is post-incremented in place. Result string lives at
         // [rbp-0x58] and is passed to newWaveform as the unique name.
-        int lineIdx = manager_->lineNr_;
-        int counter = manager_->waveformCounter_++;
+        int lineIdx = manager_->numDefs_;
+        int counter = manager_->numDefs2_++;
         std::string uniqueName = getUniqueName(fillerName, lineIdx, counter);
         auto newWf = manager_->newWaveform(
             uniqueName, fillerSignal, std::string(), *deviceConstants_);
@@ -792,7 +792,7 @@ std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
 // WavetableIR::alignWaveformSizes() @0x29f150
 //
 // Iterates used waveforms and rounds each sample count up to the nearest
-// multiple of deviceConstants_->waveformPageSize, clamping to minLengthSamples.
+// multiple of deviceConstants_->grainSize, clamping to minLengthSamples.
 // ============================================================================
 void WavetableIR::alignWaveformSizes() {                            // @0x29f150
     forEachUsedWaveform(
@@ -800,7 +800,7 @@ void WavetableIR::alignWaveformSizes() {                            // @0x29f150
             size_t sampleCount = wf->signal.length();
             if (sampleCount == 0) return;
 
-            uint32_t granularity = deviceConstants_->waveformPageSize;  // DC+0x44
+            uint32_t granularity = deviceConstants_->grainSize;  // DC+0x44
             // ceil(sampleCount / granularity) * granularity
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
@@ -838,10 +838,10 @@ void WavetableIR::assignWaveformAllocationSizes() {                 // @0x29f1d0
             size_t sampleCount = wf->signal.length();                  // +0xD0
 
             // Align sample count same way as alignWaveformSizes
-            uint32_t granularity = deviceConstants_->waveformPageSize;  // DC+0x44
+            uint32_t granularity = deviceConstants_->grainSize;  // DC+0x44
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
-            size_t maxSamples = deviceConstants_->waveformGranularity;  // DC+0x40
+            size_t maxSamples = deviceConstants_->maxWaveformLength;  // DC+0x40
             // Binary uses cmova (max), NOT min — verified GDB @0x2aa4b3:
             // cmp %eax,%r8d; cmova %r8d,%eax → eax = max(aligned, granularity)
             if (maxSamples > aligned) aligned = maxSamples;

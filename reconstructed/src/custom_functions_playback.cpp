@@ -274,10 +274,10 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         }
 
         // ---- Phase 9: validate sample length — @0x135ef6..0x135f0d --------
-        // checkOffspecWaveLength(combinedWf, devConst_->waveformGranularity).
+        // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
         // CORRECTED (21b-followup-3): [rdi+0x08] loads devConst_ (not config_),
-        // then [rax+0x40] = waveformGranularity. Was misidentified as config_+0x48.
-        int expectedLen = static_cast<int>(devConst_->waveformGranularity);  // @0x135efe
+        // then [rax+0x40] = maxWaveformLength. Was misidentified as config_+0x48.
+        int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x135efe
         checkOffspecWaveLength(combinedWf, expectedLen);                // @0x135f08
 
         // ---- Phase 10: emit-guard — @0x135f3a..0x135f57 -------------------
@@ -555,11 +555,11 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
         }
 
         // -- Phase 11: validate sample length — @0x136e8d..0x136e9e --------
-        // checkOffspecWaveLength(combinedWf, devConst_->waveformGranularity).
+        // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
         // CORRECTED (21b-followup-3): [r14+0x08] loads devConst_ (not config_),
-        // then [rax+0x40] = waveformGranularity. Was misidentified as config_+0x48.
+        // then [rax+0x40] = maxWaveformLength. Was misidentified as config_+0x48.
         if (combinedWf) {
-            int expectedLen = static_cast<int>(devConst_->waveformGranularity);  // @0x136e91
+            int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x136e91
             checkOffspecWaveLength(combinedWf, expectedLen);              // @0x136e9e
         }
 

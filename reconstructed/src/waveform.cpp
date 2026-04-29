@@ -384,7 +384,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
 //   0x1d5c3b: mov eax, DWORD [rdi+0xD0]    — signal.length_ (low 32 bits)
 //   0x1d5c41: mov rsi, QWORD [rdi+0x78]    — deviceConstants ptr
 //   0x1d5c49: mov edi, DWORD [rsi+0x40]    — dc->minWaveformLength
-//   0x1d5c4c: mov r8d, DWORD [rsi+0x44]    — dc->waveformGranularity
+//   0x1d5c4c: mov r8d, DWORD [rsi+0x44]    — dc->maxWaveformLength
 //   0x1d5c6c: movsxd rcx, DWORD [rsi+0x50] — dc->bitsPerSample (sign-extended)
 //
 // Algorithm:
@@ -405,8 +405,8 @@ uint32_t Waveform::getSizePerDevice() const  // 0x1d5c30
     if (length == 0)
         return 0;                                   // 0x1d5c66: xor eax,eax; jmp epilog
 
-    uint32_t minLen = dc->waveformGranularity;       // 0x1d5c49: [rsi+0x40]
-    uint32_t granularity = dc->waveformPageSize;     // 0x1d5c4c: [rsi+0x44]
+    uint32_t minLen = dc->maxWaveformLength;       // 0x1d5c49: [rsi+0x40]
+    uint32_t granularity = dc->grainSize;     // 0x1d5c4c: [rsi+0x44]
 
     // 0x1d5c50: xor edx, edx
     // 0x1d5c52: div r8d          — length / granularity

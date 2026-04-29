@@ -85,8 +85,8 @@ public:
     // NOTE: granularity / maxLength / minLength / bitsPerSample are NOT methods
     // on Signal in the binary (verified — no such symbols exist). Earlier
     // call sites that appeared to call sig.granularity() etc. were actually
-    // reading DeviceConstants fields (waveformPageSize @+0x44 = grainSize,
-    // waveformGranularity @+0x40 = maxWaveformLength, bitsPerSample @+0x50)
+    // reading DeviceConstants fields (grainSize @+0x44 = grainSize,
+    // maxWaveformLength @+0x40 = maxWaveformLength, bitsPerSample @+0x50)
     // or Waveform::minLengthSamples @+0x70 ("minLengthSamples" in JSON). Those
     // call sites have been rewritten to use the real fields directly.
 

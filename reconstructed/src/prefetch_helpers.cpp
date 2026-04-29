@@ -24,8 +24,8 @@ namespace zhinst {
 // Computes the maximum waveform memory high-water mark across all device indices.
 // For each device index, calls getUsedWavesForDevice(idx), then for each
 // WaveformIR computes:
-//   numPages = ceil(signal.length_ / dc->waveformPageSize) * dc->waveformPageSize
-//   numPages = min(numPages, dc->waveformGranularity)         // cap at max
+//   numPages = ceil(signal.length_ / dc->grainSize) * dc->grainSize
+//   numPages = min(numPages, dc->maxWaveformLength)         // cap at max
 //   memoryBits = numPages * signal.channels_ * dc->bitsPerSample
 //   memoryBytes = (memoryBits + 7) / 8                        // bits → bytes
 //   netMemory = memoryBytes - addressValue                    // subtract startOffset
@@ -71,10 +71,10 @@ size_t Prefetch::getMemoryHighWatermark() const // 0x1cc650
 
             uint32_t numPages;
             if (numRepeats != 0) {
-                // DC+0x44 = waveformPageSize (stride/granularity)
-                uint32_t stride = dc->waveformPageSize;     // +0x44
-                // DC+0x40 = waveformGranularity (base/max cap)
-                uint32_t base = dc->waveformGranularity;    // +0x40
+                // DC+0x44 = grainSize (stride/granularity)
+                uint32_t stride = dc->grainSize;     // +0x44
+                // DC+0x40 = maxWaveformLength (base/max cap)
+                uint32_t base = dc->maxWaveformLength;    // +0x40
                 // Round up to multiple of stride
                 numPages = static_cast<uint32_t>(
                     ((numRepeats + stride - 1) / stride) * stride);
@@ -148,12 +148,12 @@ size_t Prefetch::getRequiredMemory() const // 0x1cc930
             uint32_t numPages;
             if (numRepeats != 0) {
                 // Binary at 0x1cc9d0:
-                //   r9  = waveformGranularity (DC+0x40)  -- floor/min cap
-                //   r10 = waveformPageSize    (DC+0x44)  -- round-up divisor
+                //   r9  = maxWaveformLength (DC+0x40)  -- floor/min cap
+                //   r10 = grainSize    (DC+0x44)  -- round-up divisor
                 //   eax = roundUp(numRepeats, r10)
                 //   eax = max(eax, r9)                     -- cmova at 0x1cc9ea
-                uint32_t granularityFloor = dc->waveformGranularity; // DC+0x40
-                uint32_t pageSize         = dc->waveformPageSize;    // DC+0x44
+                uint32_t granularityFloor = dc->maxWaveformLength; // DC+0x40
+                uint32_t pageSize         = dc->grainSize;    // DC+0x44
                 uint32_t rounded = static_cast<uint32_t>(
                     ((numRepeats + pageSize - 1) / pageSize) * pageSize);
                 numPages = std::max(rounded, granularityFloor);

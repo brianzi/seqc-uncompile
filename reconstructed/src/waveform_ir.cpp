@@ -81,7 +81,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 //   +0x50..+0x67  Waveform::funDescrName    = empty string
 //   +0x68         Waveform::playConfig       = 0
 //   +0x6C         Waveform::waveIndex      = -1                  ← explicit
-//   +0x70         Waveform::minLengthSamples    = dc.waveformGranularity (dc+0x40)
+//   +0x70         Waveform::minLengthSamples    = dc.maxWaveformLength (dc+0x40)
 //   +0x74         Waveform::allocationByteSize = 0
 //   +0x78         Waveform::deviceConstants = &dc
 //   +0x80..+0xCF  Waveform::signal         = all-zero (empty vectors etc.)
@@ -112,7 +112,7 @@ WaveformIR::WaveformIR(const std::string& name,
     this->funDescrName.clear();
     this->playConfig         = 0;
     this->waveIndex        = -1;
-    this->minLengthSamples      = static_cast<int>(dc.waveformGranularity);  // dc+0x40
+    this->minLengthSamples      = static_cast<int>(dc.maxWaveformLength);  // dc+0x40
     this->allocationByteSize = 0;
     this->deviceConstants  = &dc;
     // Signal default-constructs (vectors empty, scalars zero); explicit zero of

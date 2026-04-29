@@ -211,8 +211,8 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
 //   channels = wfm->signal.channels_    (WaveformIR+0xC8, uint16_t)
 //   length   = wfm->signal.length_      (WaveformIR+0xD0, uint64_t — numRepeats)
 //   dc       = wfm->deviceConstants     (WaveformIR+0x78, DeviceConstants*)
-//   waveGranularity = dc->waveformGranularity   (DC+0x40)
-//   maxPages        = dc->waveformPageSize      (DC+0x44)
+//   waveGranularity = dc->maxWaveformLength   (DC+0x40)
+//   maxPages        = dc->grainSize      (DC+0x44)
 //   bitsPerSample   = dc->bitsPerSample         (DC+0x50)
 //
 // If length != 0:
@@ -227,8 +227,8 @@ static int computeWaveformMemoryBytes(const WaveformIR* wfm) {
     uint32_t length = wfm->signal.length_;            // +0xD0 (lower 32 bits)
     const DeviceConstants* dc = wfm->deviceConstants; // +0x78
 
-    uint32_t waveGranularity = dc->waveformGranularity;  // DC+0x40
-    uint32_t maxPages = dc->waveformPageSize;          // DC+0x44
+    uint32_t waveGranularity = dc->maxWaveformLength;  // DC+0x40
+    uint32_t maxPages = dc->grainSize;          // DC+0x44
 
     uint32_t numPages;
     if (length != 0) {
@@ -789,8 +789,8 @@ AsmList Prefetch::wvfs(Assembler::PlayDummyType playDummyType,
             config_->numChannelGroups >= 2) {                 // 0x1d7619
 
             // Compute total address size in bytes from device constants
-            uint32_t width  = devConst_->waveformGranularity;  // DC+0x40
-            uint32_t depth  = devConst_->waveformPageSize;  // DC+0x44
+            uint32_t width  = devConst_->maxWaveformLength;  // DC+0x40
+            uint32_t depth  = devConst_->grainSize;  // DC+0x44
             uint32_t auxW   = devConst_->bitsPerSample;        // DC+0x50
 
             // Round offset up to next multiple of depth         // 0x1d7632
