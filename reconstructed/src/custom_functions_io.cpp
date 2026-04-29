@@ -3080,15 +3080,15 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     double sampleClock = getSampleClock();
     uint64_t startFreqEncoded = NodeMap::toFrequency(startFreq, sampleClock);  // @0x154762
 
-    // writeLS64bit(startFreqEncoded, 0x8e, 0x8f, results, res)                // @0x1547ba
-    writeLS64bit(startFreqEncoded, 0x8e, 0x8f, results, res);
+    // writeLS64bit(startFreqEncoded, kSuserSweepStartLo, kSuserSweepStartHi, results, res)  // @0x1547ba
+    writeLS64bit(startFreqEncoded, kSuserSweepStartLo, kSuserSweepStartHi, results, res);
 
     // Convert step frequency: toFrequency(stepFreq, getSampleClock())         // @0x154852
     double sampleClock2 = getSampleClock();
     uint64_t stepFreqEncoded = NodeMap::toFrequency(stepFreq, sampleClock2);   // @0x154876
 
-    // writeLS64bit(stepFreqEncoded, 0x90, 0x91, results, res)                 // @0x1548c4
-    writeLS64bit(stepFreqEncoded, 0x90, 0x91, results, res);
+    // writeLS64bit(stepFreqEncoded, kSuserSweepStepLo, kSuserSweepStepHi, results, res)  // @0x1548c4
+    writeLS64bit(stepFreqEncoded, kSuserSweepStepLo, kSuserSweepStepHi, results, res);
 
     // Get register, addi(reg, R0, arg0.toInt()), then suser(reg, 0x8c)        // @0x154961
     int regNum = Resources::getRegisterNumber();
@@ -3098,7 +3098,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     auto addiEntries = asmCommands_->addi(reg, r0, Immediate(oscIntVal));
     for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
 
-    auto suserEntry = asmCommands_->suser(reg, 0x8c);                         // @0x154aec
+    auto suserEntry = asmCommands_->suser(reg, kSuserSweepOscIdx);            // @0x154aec
     results->assemblers_.push_back(std::move(suserEntry));
 
     // addWaitCycles(10, results, res)                                         // @0x154c0d
@@ -3271,7 +3271,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
                                     addiEntries.begin(), addiEntries.end());
     }
 
-    auto suserEntry1 = asmCommands_->suser(reg1, 0x8d);                             // @0x156e4c
+    auto suserEntry1 = asmCommands_->suser(reg1, kSuserSweepControl);               // @0x156e4c
     results->assemblers_.push_back(std::move(suserEntry1));
 
     // Convert frequency: toFrequency(arg1.toDouble(), getSampleClock())            // @0x156f28
@@ -3279,8 +3279,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
     double sampleClock = getSampleClock();
     uint64_t freqEncoded = NodeMap::toFrequency(freq, sampleClock);                  // @0x156f4c
 
-    // writeLS64bit(freqEncoded, 0x8e, 0x8f, results, res)                          // @0x156f8e
-    writeLS64bit(freqEncoded, 0x8e, 0x8f, results, res);
+    // writeLS64bit(freqEncoded, kSuserSweepStartLo, kSuserSweepStartHi, results, res)  // @0x156f8e
+    writeLS64bit(freqEncoded, kSuserSweepStartLo, kSuserSweepStartHi, results, res);
 
     // Second register: addi(reg2, R0, Immediate(arg0.toInt())), then suser(reg2, 0x8c)  // @0x15703f
     int regNum2 = Resources::getRegisterNumber();

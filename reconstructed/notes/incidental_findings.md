@@ -2400,9 +2400,9 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 05c
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **fixed** (Phase R)
 - **Description**: Named constants for `configFreqSweep` magic values exist in the reconstruction (from rodata) but the implementation uses inline numeric literals instead. This makes maintenance harder and risks drift.
-- **Action**: Replace inline literals with the named constants.
+- **Resolution**: Replaced all 4 remaining raw `0x8c`/`0x8d`/`0x8e`/`0x8f` SUSER addresses in `custom_functions_io.cpp::configFreqSweep` and the per-step variant with `kSuserSweepOscIdx` / `kSuserSweepControl` / `kSuserSweepStartLo` / `kSuserSweepStartHi` from `types.hpp`. (Two earlier sites in the function had already been migrated.) Tests 259/259.
 
 ---
 
