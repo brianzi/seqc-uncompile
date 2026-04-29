@@ -51,7 +51,7 @@ suggest naming problems leak in from them.
 | # | Assignment | Files | Report | Status |
 |---|---|---|---|---|
 | 01 | types | include/zhinst/types.hpp | `01_types.md` | complete (6 yes, ~12 not-misnomer) |
-| 02 | memory_allocator | include/zhinst/memory_allocator.hpp; src/memory_allocator.cpp | `02_memory_allocator.md` | in-progress |
+| 02 | memory_allocator | include/zhinst/memory_allocator.hpp; src/memory_allocator.cpp | `02_memory_allocator.md` | complete (4 yes; bytes-vs-samples cross→14/36/46; alloc/template params) |
 | 03 | waveform_generator | include/zhinst/waveform_generator.hpp; src/waveform_generator.cpp | `03_waveform_generator.md` | complete (2 yes/H, 3 yes/M; `createdNames_` is allow-list bypass; `readInt::minVal`→`argIndex` header/body mismatch; `interpolateLinear::xPoints/yPoints` are ramp values) |
 | 04a | seqc_ast_node base | include/zhinst/seqc_ast_node.hpp; src/seqc_ast_node.cpp; src/seqc_ast.cpp | `04a_seqc_ast_node.md` | complete (12 yes/H — `SeqCAstNode::type` param/accessor stores `lineNr_`; cascades to 53 derived ctors; `first_`/`second_` cluster; cross→42) |
 | 04b | ast_evaluate_helpers | src/seqc_ast_nodes_evaluate.cpp lines 1–2610 | `04b_ast_evaluate_helpers.md` | complete (3 yes/M — `scaleFactor` dead/inverted; `kRangeLo`/`kRangeHi` hide MAX values) |
@@ -80,17 +80,17 @@ suggest naming problems leak in from them.
 | 19a | resources main | include/zhinst/resources.hpp; src/resources.cpp | `19a_resources.md` | complete (2 yes/H — `Resources::parent_` is grandparent, `VarSubType_Bool` legacy alias; 7 yes/M; cross→07, 19b) |
 | 19b | resources supplementary | src/resources_function.cpp; src/resources_static_global.cpp; src/static_resources.cpp; src/global_resources.cpp | `19b_resources_supplementary.md` | complete (1 yes/L `init::n`; pass-through batch) |
 | 20 | node | include/zhinst/node.hpp; src/node.cpp | `20_node.md` | complete (1 yes/M `Node::swap::devIdx`→`ancestorAsmId`; 1 yes/L; 17 JSON-anchored fields not-misnomer) |
-| 21 | elf_reader | include/zhinst/elf_reader.hpp; src/elf_reader.cpp | `21_elf_reader.md` | in-progress |
+| 21 | elf_reader | include/zhinst/elf_reader.hpp; src/elf_reader.cpp | `21_elf_reader.md` | complete (3 yes; `Line::addr` 8-byte read suspect; `ddSectionIndex_` always-zero) |
 | 22 | device_factories | include/zhinst/device_factories.hpp; src/device_factories.cpp | `22_device_factories.md` | complete (0 yes; dead `DeviceOpts` namespace dup of anon-ns `k*` set; cross→29 on `opts`/`options`) |
-| 23 | awg_compiler_config | include/zhinst/awg_compiler_config.hpp; src/awg_compiler_config.cpp | `23_awg_compiler_config.md` | in-progress |
+| 23 | awg_compiler_config | include/zhinst/awg_compiler_config.hpp; src/awg_compiler_config.cpp | `23_awg_compiler_config.md` | complete (4 yes; alias-method cluster `appendMode/splitIndex/syncVersion` cross→09/36; `channelGrouping` 3rd leg) |
 | 24 | asm_expression | include/zhinst/asm_expression.hpp; src/asm_expression.cpp | `24_asm_expression.md` | complete (1 yes/H, 2-3 yes/M; alias-method cluster `lineNumber()`/`labelType()` etc.) |
 | 25 | asm_optimize | include/zhinst/asm_optimize.hpp; src/asm_optimize.cpp | `25_asm_optimize.md` | complete (1 yes/H reinforces 26 `isWaveformCmd` semantic inversion; 4 yes/M; cross→26, 10, 49, 44, 06) |
-| 26 | assembler | include/zhinst/assembler.hpp; src/assembler.cpp | `26_assembler.md` | in-progress |
-| 27 | node_map_data | include/zhinst/node_map_data.hpp; src/node_map_data.cpp; src/get_node_map.cpp | `27_node_map_data.md` | in-progress |
+| 26 | assembler | include/zhinst/assembler.hpp; src/assembler.cpp | `26_assembler.md` | complete (6 yes; `isWaveformCmd` semantic-inversion confirmed owner side; `AssemblerInstr`/namespace recompose cross→33) |
+| 27 | node_map_data | include/zhinst/node_map_data.hpp; src/node_map_data.cpp; src/get_node_map.cpp | `27_node_map_data.md` | complete (5 yes; `NodeMapItem::hasFast` int/AccessMode conflation; data-table file mostly literals) |
 | 28 | awg_compiler | include/zhinst/awg_compiler.hpp; src/awg_compiler.cpp | `28_awg_compiler.md` | complete (4 yes/H — `string_200_/230_/248_` are filename/source/asm; `compileString::opcodeCount` counts words not opcodes) |
 | 29 | device_type | include/zhinst/device_type.hpp; src/device_type.cpp | `29_device_type.md` | complete (4 yes/H — `clone()`→`doClone()`, `TenG`/`Sixteen_W` placeholders, 39 `sfc::*Option::Bit0xNNNN` placeholders; coordinated-rename) |
 | 30 | awg_device_props | include/zhinst/awg_device_props.hpp; src/awg_device_props.cpp | `30_awg_device_props.md` | complete (0 yes; producer-side vindication of batch-23 cluster; 1 unsure on `fpgaRevisionPattern`) |
-| 31 | device_constants | include/zhinst/device_constants.hpp; src/device_constants.cpp | `31_device_constants.md` | in-progress |
+| 31 | device_constants | include/zhinst/device_constants.hpp; src/device_constants.cpp | `31_device_constants.md` | complete (4 yes; `numOutputPorts`→`execTableIndexBits`; `waveformGranularity/PageSize` swap; cross→36) |
 | 32 | frontend_lowering | include/zhinst/frontend_lowering.hpp; src/frontend_lowering.cpp | `32_frontend_lowering.md` | complete (1 yes/H `pad10_` is in-function flag; 2 yes/M `channelGrouping` (3rd leg cluster), `strings` is return-label stack) |
 | 33 | awg_assembler | include/zhinst/awg_assembler.hpp; src/awg_assembler.cpp | `33_awg_assembler.md` | complete (1 yes/H — `AssemblerInstr` is `Assembler`; reinforces batch-26 type-decomposition bug) |
 | 34 | eval_results | include/zhinst/eval_results.hpp; src/eval_results.cpp | `34_eval_results.md` | complete (1 yes/M `hasError_` is return-encountered flag; cross-validated with batch 12) |
@@ -98,7 +98,7 @@ suggest naming problems leak in from them.
 | 36 | cache | include/zhinst/cache.hpp; src/cache.cpp | `36_cache.md` | complete (5 yes/M, 3 not-misnomer, 2 cross-batch→09) |
 | 37 | signal | include/zhinst/signal.hpp; src/signal.cpp | `37_signal.md` | complete (0 yes; 3 unsure on numSamples/newLength sample-vs-frame units; 7 not-misnomer w/ tier-2 JSON keys) |
 | 38 | play_config | include/zhinst/play_config.hpp; src/play_config.cpp | `38_play_config.md` | complete (1 yes/L, 5 not-misnomer, 3 cross-batch→49) |
-| 39 | math_compiler | include/zhinst/math_compiler.hpp; src/math_compiler.cpp | `39_math_compiler.md` | in-progress |
+| 39 | math_compiler | include/zhinst/math_compiler.hpp; src/math_compiler.cpp | `39_math_compiler.md` | complete (1 yes; `functionExists::strict` polarity-inverted bool) |
 | 40 | generic_device_type | include/zhinst/generic_device_type.hpp; src/generic_device_type.cpp | `40_generic_device_type.md` | complete (0 yes; trivial pImpl wrapper) |
 | 41 | device_subclasses | include/zhinst/device_subclasses.hpp; src/device_hdawg.cpp; src/device_shf.cpp; src/device_uhf.cpp; src/device_vhf.cpp; src/device_ghf.cpp; src/device_mf.cpp; src/device_hf2.cpp; src/device_pqsc.cpp; src/device_qhub.cpp; src/device_shfacc.cpp; src/device_hwmock.cpp; src/device_unknown.cpp | `41_device_subclasses.md` | complete (33 `clone()`→`doClone()` overrides coordinated with batch 29; 4 inline-bit helper naming nits) |
 | 42 | expression | include/zhinst/expression.hpp; src/expression.cpp | `42_expression.md` | complete (3 yes/H — `valueType` is `EDirection`, `createFunction::nameExpr`/`params` swapped roles; 2 yes/M) |
@@ -110,7 +110,7 @@ suggest naming problems leak in from them.
 | 48 | address_impl | include/zhinst/address_impl.hpp | `48_address_impl.md` | complete (0 yes; structural note re. type holding non-address values) |
 | 49 | asm_commands_impl | include/zhinst/asm_commands_impl.hpp; src/asm_commands_impl.cpp; src/asm_commands_impl_hirzel.cpp; src/asm_commands_impl_cervino.cpp | `49_asm_commands_impl.md` | complete (5 yes/M, 1 yes/H — `flag`→`isWaveformCmd` pattern; play_config arbitrations re-routed to batch 10) |
 | 50 | asm_parser_context | include/zhinst/asm_parser_context.hpp; src/asm_parser_context.cpp | `50_asm_parser_context.md` | complete (2 yes/M — `addCommand::cmd`/`args` swap; cross→24) |
-| 51 | callbacks | include/zhinst/callbacks.hpp; src/callbacks.cpp | `51_callbacks.md` | in-progress |
+| 51 | callbacks | include/zhinst/callbacks.hpp; src/callbacks.cpp | `51_callbacks.md` | complete (0 yes; only in-scope symbol is `setProgress::progress`; routine fine) |
 | 52 | compiler_message | include/zhinst/compiler_message.hpp; src/compiler_message.cpp | `52_compiler_message.md` | complete (1 yes/H — `showLine` polarity inverted) |
 | 53 | wave_index_tracker | include/zhinst/wave_index_tracker.hpp; src/wave_index_tracker.cpp | `53_wave_index_tracker.md` | complete (0 yes; 4 unsure stylistic on `maxIndex` underscore consistency) |
 | 54 | mf_sfc | src/mf_sfc.cpp | `54_mf_sfc.md` | complete (1 yes/M — `bitIf::b`→`set`/`present`; tied to batch 29 sfc placeholders) |
