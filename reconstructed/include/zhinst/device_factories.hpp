@@ -76,19 +76,10 @@
 
 namespace zhinst {
 
-// Device factory option bit constants (A7)
-// Used as `opts` parameter in DeviceFamilyFactory::makeDeviceType(opts).
-namespace DeviceOpts {
-    constexpr unsigned long SubtypeMask  = 0x1C0;  // bits 8:6 — subtype selector
-    constexpr unsigned long Subtype1     = 0x040;   // subtype slot 1
-    constexpr unsigned long Subtype2     = 0x080;   // subtype slot 2
-    constexpr unsigned long Subtype3     = 0x0C0;   // subtype slot 3
-    constexpr unsigned long Subtype4     = 0x100;   // subtype slot 4
-    constexpr unsigned long FF           = 0x020;   // FF option
-    constexpr unsigned long RTR          = 0x2000;  // RTR option
-    constexpr unsigned long PLUS         = 0x4000;  // PLUS option
-    constexpr unsigned long LRT          = 0x8000;  // LRT option
-}
+// Device factory option bit constants live in the anonymous namespace inside
+// device_factories.cpp (kSubtypeMask, kSubtype1..kSubtype4 etc.).  An older
+// duplicate `namespace DeviceOpts { ... }` lived here but was never referenced
+// from anywhere — removed in Phase R (IF-121).
 
 namespace detail {
 

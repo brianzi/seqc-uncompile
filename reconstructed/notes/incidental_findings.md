@@ -2410,9 +2410,9 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batch 22
 - **Severity**: suspicious
-- **Status**: open
+- **Status**: **fixed** (Phase R, removed dead namespace from `device_factories.hpp`)
 - **Description**: `DeviceOpts` namespace defines the same constant set as the anonymous-namespace `k*` constants (e.g. `kMaxWaveLen`, `kMinGranularity`). One is redundant and may diverge silently.
-- **Action**: Remove the duplicate set; keep whichever has broader usage.
+- **Resolution**: Verified `DeviceOpts::*` had zero references in source. The live set lives in `device_factories.cpp` (`kSubtypeMask`, `kSubtype1..4`). Dead `DeviceOpts` namespace removed; tests 259/259.
 
 ---
 
