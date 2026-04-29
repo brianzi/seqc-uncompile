@@ -143,7 +143,7 @@ public:
     // =====================================================================
 
     AsmList::Asm sid(AsmRegister reg, bool highBank) const;
-    std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int arg) const;
+    std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int value) const;
     AsmList::Asm ldiotrig(AsmRegister reg) const;
     AsmList::Asm lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 

@@ -624,13 +624,13 @@ AsmList::Asm AsmCommands::sid(AsmRegister reg, bool highBank) const {
 
 // @0x275320 — 0x275620 (~0x300 bytes)
 // Returns std::vector<AsmList::Asm>, NOT a single AsmList::Asm.
-std::vector<AsmList::Asm> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int arg) const {
+std::vector<AsmList::Asm> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int value) const {
     if (!isValid(r1) || !isValid(r2))                    // 0x275349, 0x27535a
         throw ResourcesException(                        // 0x275506
             ErrorMessages::format(ErrorMessageT::InvalidRegister, "smap"));
 
-    // Build ADDI r1, regDst, Immediate(arg) sequence       // 0x275371–0x2753e2
-    std::vector<AsmList::Asm> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(arg));
+    // Build ADDI r1, regDst, Immediate(value) sequence     // 0x275371–0x2753e2
+    std::vector<AsmList::Asm> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(value));
 
     // Append st(r1, 0x62) and st(r2, 0x63)              // 0x275431–0x27545c
     AsmList::Asm st1 = st(r1, detail::AddressImpl<unsigned int>(0x62));   // 0x275444
