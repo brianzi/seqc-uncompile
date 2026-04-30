@@ -178,7 +178,7 @@ Expression* createString(SeqcParserContext* ctx, const char* s) {  // 0x1bf2d0
                                                      //     (correct under fixed VarType mapping;
                                                      //      previously mislabelled as VarType_Const
                                                      //      under the broken enum.)
-    e->direction    = 2;
+    e->direction    = EDirection::eINOUT;
     // Construct name from the C string
     e->name = s;                                    // +0x18
     e->lineNumber = ctx->currentLineNumber();
@@ -246,7 +246,7 @@ Expression* createVariableType(SeqcParserContext* ctx, VarType vt) {  // 0x1bf7c
     e->operator_    = EOperator::eNONE;               // 21
     e->commandType  = static_cast<ECommandType>(1);   // 1
     e->varType      = vt;                             // +0x50
-    e->direction    = 2;                              // +0x54
+    e->direction    = EDirection::eINOUT;             // +0x54
     e->lineNumber   = ctx->currentLineNumber();
     return e;
 }
@@ -409,7 +409,7 @@ Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
     e->operator_    = EOperator::eNONE;
     e->commandType  = cmd;
     e->varType      = VarType_Unset;       // 0
-    e->direction    = 2;
+    e->direction    = EDirection::eINOUT;
 
     va_list ap;
     va_start(ap, count);
@@ -436,7 +436,7 @@ static Expression* makeCommandNode(SeqcParserContext* ctx,
     e->operator_    = EOperator::eNONE;    // 21
     e->commandType  = cmd;
     e->varType      = VarType_Unset;       // 0
-    e->direction    = 2;
+    e->direction    = EDirection::eINOUT;
     return e;
 }
 

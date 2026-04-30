@@ -7,11 +7,13 @@ section-by-section.
 ## Architecture
 
 ```
-diff_test.py          ← main test harness (run this)
-compile_worker.py     ← subprocess that loads one .so and compiles
+diff_test.py            ← original test harness (for single tests / debugging)
+diff_test_fast.py      ← fast batch runner (preferred for full suite)
+compile_worker.py      ← subprocess that loads one .so and compiles
+compile_worker_batch.py← batch worker for fast runner
 cases/
-  manifest.json       ← test case definitions
-  *.seqc              ← SeqC source files (referenced by manifest)
+  manifest.json        ← test case definitions
+  *.seqc               ← SeqC source files (referenced by manifest)
 ```
 
 Each test case runs in **two isolated subprocesses** — one loading the
@@ -26,19 +28,50 @@ This avoids symbol conflicts from having both in the same process.
 
 ## Usage
 
-### Smoke-test the original binary (works now)
+### Running the full test suite (recommended: use fast runner)
 
 ```bash
-python3 tests/diff_test.py --original-only
+python3 tests/diff_test_fast.py
+```
+
+The fast runner uses fork-per-test batch workers for dramatically reduced
+startup overhead. Each side (original + recon) loads the .so once, then forks
+a child per test case with Linux COW isolation.
+
+Options:
+- `-j N` — parallelism per side (default: CPU count)
+- `--filter PATTERN` — run only tests matching pattern
+- `-v` — verbose output
+- `--original-only` — smoke test original binary only
+
+### Smoke-test the original binary
+
+```bash
+python3 tests/diff_test_fast.py --original-only
 ```
 
 This confirms all test cases compile successfully with the original binary.
 
-### Full differential test (once reconstruction module builds)
+### When to use which runner
+
+| Use case | Recommended |
+|----------|-------------|
+| Running full test suite | `diff_test_fast.py` |
+| Debugging a single test | `diff_test.py` |
+| CI / automated runs | `diff_test_fast.py` |
+| Single-case comparison | `diff_test.py` with `--filter` |
+
+The fast runner skips ELF parsing for byte-identical results (verified by
+SHA-256), making it significantly faster for large test suites.
+
+### Legacy: original test harness
 
 ```bash
 python3 tests/diff_test.py
 ```
+
+Use this only for debugging individual tests or when you need the simpler
+output format.
 
 Default paths:
 - Original module: `../_seqc_compiler.so` (repo root)

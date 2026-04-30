@@ -659,7 +659,8 @@ incidental finding promoted in `717cf8e` (IF-110..IF-122).
 | `7a87e7e` IF-118 | `AddressImpl<T>` | kept (single instantiation, ~300 sites) |
 | `085eaca` IF-113 | `Cache::Pointer::hash_` | kept |
 | `6cee522` Arb 7/9/11 | mergeWaveforms / asm_list / loopArgNodeAppend | kept |
-| `43b12c9` IF-115/IF-116 | polarity-inverted bools / `valueType` enum | status updates; `EDirection` type-fix deferred |
+| `43b12c9` IF-115 | polarity-inverted bools | useAbsolute→useMapped fixed; `direction` rename done |
+| `43b12c9` IF-116 | `valueType` → `direction` field | type-fix deferred → **FIXED 2026-04-29** |
 | `da32249` IF-110/IF-112/IF-119 | trace plans recorded | needs-GDB |
 | `69fafbf` IF-110 | `Value::pad_04_` | dismissed (genuine padding, GDB-confirmed) |
 | `352ec74` IF-112 + Arb 5 | `NodeMapItem::hasFast` | dismissed (bool correct; GDB on full manifest saw only 0/1) |
@@ -669,8 +670,10 @@ incidental finding promoted in `717cf8e` (IF-110..IF-122).
 
 Outstanding deferrals after Phase R:
 - **Phase Q** (226 cosmetic items) — addressed in Phase S below.
-- **IF-116** `EDirection` enum type-fix — deferred (~30 sites + autogen
-  `parser.tab.c` impact).
+- ~~IF-116~~ `EDirection` enum type-fix — **FIXED (2026-04-29)**:
+  Converted `int32_t direction` → `EDirection direction` in expression.hpp;
+  updated 5 sites in expression.cpp, 13 sites in seqc_parser.tab.c.
+  259/259 tests pass.
 
 ## Symbol Renames (Phase S) — Phase Q refinement
 

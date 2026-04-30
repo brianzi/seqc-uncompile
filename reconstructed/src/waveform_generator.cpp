@@ -881,23 +881,23 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
             ErrorMessages::format(FuncExactArgs2,
-                                  "sin", 3, args.size()));
+                                  "sine", 3, args.size()));
     }
 
     int length;
     double amplitude, phase;
 
     if (args.size() == 4) {
-        length    = readPositiveInt(args[0], "1 (length)", 1, "sin");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sin");
-        phase     = readDouble(args[2], "3 (phase)", "sin");
-        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "sin");
+        length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
+        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
+        phase     = readDouble(args[2], "3 (phase)", "sine");
+        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "sine");
 
         // Validate nPeriods >= 0                                                // 0x24a963
         if (nPeriods < 0.0) {
             throw WaveformGeneratorValueException(
                 ErrorMessages::format(ArgMustBePositive,
-                                      "nPeriods", "sin"), 3);
+                                      "nPeriods", "sine"), 3);
         }
 
         Signal sig(static_cast<size_t>(length));                                 // 0x24a974
@@ -916,9 +916,9 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
         // 3-arg case: sine(length, amplitude, phase)
         // Produces a constant waveform: every sample = sin(amplitude + phase)
         // (GDB-verified: binary computes sin(amp+phase) for all samples)
-        length    = readPositiveInt(args[0], "1 (length)", 1, "sin");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sin");
-        phase     = readDouble(args[2], "3 (phase)", "sin");
+        length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
+        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
+        phase     = readDouble(args[2], "3 (phase)", "sine");
 
         Signal sig(static_cast<size_t>(length));
         if (length == 0) return sig;

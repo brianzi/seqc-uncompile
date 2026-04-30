@@ -61,6 +61,11 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveNow(  // @0x1353b0 (192B)
 
 std::shared_ptr<EvalResults> CustomFunctions::playWaveIndexed(  // @0x135480 (182B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
+    // HDAWG uses FIFO architecture — playWaveIndexed is deprecated on these devices
+    if (config_->deviceType == AwgDeviceType::HDAWG) {
+        throw CustomFunctionsException(
+            ErrorMessages::format(DeprecatedFuncFifo, "playWaveIndexed"));
+    }
     checkFunctionSupported("playWaveIndexed", static_cast<AwgDeviceType>(5));
     return playIndexed(args, std::move(res), SubFunc::Default);
 }
@@ -958,7 +963,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
     } else {
         // Const/Cvar path: extract integer length, validate                     // @0x1388e2..0x138902
         length = arg0.value_.toInt();
-        checkPlayMinLength(length);
+        length = checkPlayMinLength(length);
         length = checkPlayAlignment(length);                                     // @0x15b190
     }
 

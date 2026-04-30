@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "zhinst/resources.hpp"  // for VarType enum (Unset/Var/Const/Cvar/String/Wave)
+#include "zhinst/types.hpp"       // for EDirection enum
 
 namespace zhinst {
 
@@ -122,7 +123,7 @@ struct Expression {
     EOperator                                    operator_;      // +0x48
     ECommandType                                 commandType;    // +0x4C
     VarType                                      varType;        // +0x50
-    int32_t                                      direction;      // +0x54
+    EDirection                                   direction;      // +0x54
 
     // Default-initialise to the binary's .rodata pattern {21, 16, 0, 2}
     Expression()
@@ -133,7 +134,7 @@ struct Expression {
         , operator_(EOperator::eNONE)         // 21
         , commandType(ECommandType::eNOCMD)   // 16
         , varType(VarType_Unset)
-        , direction(2)
+        , direction(EDirection::eINOUT)
     {}
 
     // Copy ctor — 0x1bfa30

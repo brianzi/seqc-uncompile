@@ -11,6 +11,7 @@
 #include "zhinst/value.hpp"
 #include "zhinst/wave_index_tracker.hpp"
 #include "zhinst/waveform_front.hpp"
+#include "zhinst/error_messages.hpp"
 
 namespace zhinst {
 
@@ -291,7 +292,6 @@ std::shared_ptr<WaveformFront> WavetableFront::copyWaveform(
 
 // 0x29c540 — WavetableFront::checkWaveformInitialized(const string&)
 void WavetableFront::checkWaveformInitialized(const std::string& name) {
-    // Copy name string
     std::string nameCopy = name;
 
     // Look up in manager_->nameToIndex_
@@ -302,12 +302,19 @@ void WavetableFront::checkWaveformInitialized(const std::string& name) {
         wf = manager_->waveforms_.at(idx);
     }
 
-    // Make another copy of the shared_ptr and call checkWaveformInit
-    auto wf2 = wf;
-    // checkWaveformInit(wf2.get(), name):
-    //   if ptr == nullptr: throw WavetableException(ErrorMessages::format(0xe9, name))
-    //   if ptr->data() == nullptr && ptr->filename is empty:
-    //     throw WavetableException(ErrorMessages::format(0xea))
+    // Check: if waveform not found, throw error 0xe9
+    if (!wf) {
+        throw WavetableException(
+            ErrorMessages::format(WaveformNotFound, name));
+    }
+
+    // Check: if waveform has no data (no file and empty genFunc), throw 0xea
+    // This happens when a waveform generator fails (e.g., marker(32,1,1) throws
+    // but the variable still gets registered with an empty waveform)
+    if (!wf->file && wf->funDescrName().empty()) {
+        throw WavetableException(
+            ErrorMessages::format(UninitializedWaveform));
+    }
 }
 
 // 0x29c860 — WavetableFront::getWaveformSampleLength(const string&)

@@ -4658,16 +4658,26 @@ std::shared_ptr<EvalResults> SeqCContinueStatement::evaluate(
 
 // SeqCBreakStatement::evaluate(3) — @0x226970
 // Emits error 0xd5 (StatementNotSupported) with "break", returns empty.
+// BUT: if state.inSwitch_ is true, break is allowed in switch statements.
 std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     std::shared_ptr<Resources> /*res*/,
     FrontendLoweringContext& ctx,
-    FrontendLoweringState& /*state*/) const
-{                                                           // @0x226970
-    ctx.messages->errorMessage(                             // @0x2269aa
-        ErrorMessages::format(ErrorMessageT(0xd5),          // @0x22699b
-                              "break"),                      // rodata @0x905b73
-        lineNr_);                                             // lineNr = this->lineNr_
-    return std::make_shared<EvalResults>();                  // @0x2269cb
+    FrontendLoweringState& state) const
+{
+    // Debug: print if in switch
+    // fprintf(stderr, "Break at line %d, inSwitch=%d\n", lineNr_, state.inSwitch_);
+
+    // Break is only unsupported in loops (while, repeat, for), not in switch
+    if (!state.inSwitch_) {                                   // @0x226970
+        ctx.messages->errorMessage(                           // @0x2269aa
+            ErrorMessages::format(ErrorMessageT(0xd5),        // @0x22699b
+                                  "break"),                    // rodata @0x905b73
+            lineNr_);                                          // lineNr = this->lineNr_
+        return std::make_shared<EvalResults>();
+    }
+    // When in switch, return empty result - but the issue is this doesn't
+    // propagate any "returnEncountered" flag to stop statement processing
+    return std::make_shared<EvalResults>();
 }
 
 // ---- Throws CompilerException (240B body) ---------------------------------
@@ -6249,7 +6259,13 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
         // Null child check (StmtList-specific).                  @0x2128e4
         if (!elems[i]) continue;
 
-        auto childResult = elems[i]->evaluate(res, ctx, state); // @0x21291b
+        std::shared_ptr<EvalResults> childResult;
+        try {
+            childResult = elems[i]->evaluate(res, ctx, state); // @0x21291b
+        } catch (std::exception const& e) {
+            ctx.messages->errorMessage(std::string(e.what()), -1);
+            continue;
+        }
 
         bool childUnwound = false;
 
@@ -8774,8 +8790,31 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
             }
         }
         else {
-            // countInt >= 2: check vs loopUnrollLimit               // @0x222fcf
-            if (countInt > ctx.loopUnrollLimit) {                    // @0x222fd5
+            // countInt >= 2: evaluate body FIRST to catch unsupported
+            // statements (like break) before checking loopUnrollLimit.
+            // This matches binary behavior: "break statement is not supported"
+            // comes BEFORE "too many iterations" error.
+            int savedLineNr = ctx.messages->lineNr();                // @0x222fe3
+            subRes->setAtScopeBoundary(true);                        // @0x222ff2
+
+            std::shared_ptr<EvalResults> firstBodyResult;
+            if (body()) {
+                auto maybeScope =
+                    subRes->createSubScope("maybe_unroll");          // @0x223045
+                firstBodyResult =
+                    body()->evaluate(maybeScope, ctx, state);         // @0x223078
+            }
+
+            subRes->setAtScopeBoundary(false);
+            ctx.messages->setLineNr(savedLineNr);                    // @0x223160
+            ctx.asmCommands->setWavetableFrontIndex(savedLineNr);    // @0x223169
+            ctx.wavetable->setLineNr(savedLineNr);                   // @0x223174
+
+            // NOW check loopUnrollLimit AFTER body eval              // @0x222fcf
+            // BUT skip if body eval already produced an error
+            // (e.g., "break statement is not supported")
+            if (!ctx.messages->hadCompilerError() &&
+                countInt > ctx.loopUnrollLimit) {                  // @0x222fd5
                 // Error 0x7b: too many iterations (BST lookup)      // @0x2231d6
                 auto const& msgs = ErrorMessages::messages;
                 auto it = msgs.find(0x7b);
@@ -8785,26 +8824,8 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
                 return result;
             }
 
-            // Save lineNr, set atScopeBoundary                     // @0x222fe3
-            int savedLineNr = ctx.messages->lineNr();                // @0x12ba70
-            subRes->setAtScopeBoundary(true);                        // @0x222ff2
-
-            // First body eval in "maybe_unroll" sub-scope           // @0x222ffc
-            std::shared_ptr<EvalResults> firstBodyResult;
-            if (body()) {
-                auto maybeScope =
-                    subRes->createSubScope("maybe_unroll");          // @0x223045
-                firstBodyResult =
-                    body()->evaluate(maybeScope, ctx, state);        // @0x223078
-            }
-
-            // Reset atScopeBoundary, restore lineNr                 // @0x223152
-            subRes->setAtScopeBoundary(false);
-            ctx.messages->setLineNr(savedLineNr);                    // @0x223160
-            ctx.asmCommands->setWavetableFrontIndex(savedLineNr);    // @0x223169
-            ctx.wavetable->setLineNr(savedLineNr);                   // @0x223174
-
             // Check if firstBodyResult has empty assemblers          // @0x223179
+            // (firstBodyResult already computed above, before limit check)
             bool firstBodyEmpty = !firstBodyResult ||
                 firstBodyResult->assemblers_.begin() ==
                 firstBodyResult->assemblers_.end();

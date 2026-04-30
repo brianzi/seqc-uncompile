@@ -186,10 +186,75 @@ B3). What remains as truly mechanical is much smaller than expected.
   phase.
 
 **Outstanding audit deferrals** (no longer a tracked phase):
-- IF-116 `EDirection` enum type-fix (Phase R leftover, ~30 sites +
-  autogen `parser.tab.c`).
+- ~~IF-116 `EDirection` enum type-fix~~ — **FIXED (2026-04-29)**:
+  Converted `int32_t direction` → `EDirection` in expression.hpp;
+  updated 5 sites in expression.cpp, 13 sites in seqc_parser.tab.c.
+  259/259 tests pass.
 - B2 borderline naming preferences (handle in passing).
 - Pre-Phase-R old IFs (IF-1..IF-109 long tail) — no test pressure.
+
+### Phase 42: New test case failures (2026-04-29)
+
+Added 68 new test cases (259→327 total). ~58 new tests pass (redundant with
+existing coverage), ~3 are equiv, 6 fail.
+
+**Redundancy observation**: Most new tests are variants of existing patterns
+(e.g., different device types doing same playZero/wait/repeat). They don't
+expose new reconstruction bugs - they're useful primarily for regression
+prevention and device coverage expansion.
+
+**Action items**:
+- [ ] Fix 42a-42d: error message mismatches (investigate and align)
+- [ ] Remove or mark expected-fail: 42e, 42f (original binary bug IF-97)
+
+#### 42a. hdawg_max_int_loop — break in large repeat
+
+Both error, but different messages:
+- **Original**: `break statement is not supported`
+- **Recon**: `too many iterations to unroll this loop, use a const variable for infinite loop or a var variable for this many iterations`
+
+Need to investigate what error message the binary produces for this case.
+Status: **INVESTIGATE** — likely error message mismatch.
+
+#### 42b. hdawg_sine_2arg — 2-arg sine syntax
+
+Both error, different function name in message:
+- **Original**: `function 'sine' expects 3 argument(s)`
+- **Recon**: `function 'sin' expects 3 argument(s)`
+
+Also extra error line in original: `tried to access uninitialized waveform`.
+Status: **INVESTIGATE** — sine vs sin name mismatch.
+
+#### 42c. hdawg_marker_basic — 3-arg marker syntax
+
+Both error with same first message, but original has extra line:
+- **Original**: `function 'marker' expects 2 argument(s), 3 argument(s) given` + extra line
+- **Recon**: `function 'marker' expects 2 argument(s), 3 argument(s) given`
+
+Status: **INVESTIGATE** — extra error message line in original.
+
+#### 42d. hdawg_playWaveIndexed_var — HDAWG deprecation message
+
+Both error, different messages:
+- **Original**: `function 'playWaveIndexed' is deprecated as not compatible with AWG FIFO architecture`
+- **Recon**: `function 'playWaveIndexed' not supported on HDAWG devices`
+
+Status: **INVESTIGATE** — deprecation message difference.
+
+#### 42e. hdawg_func_nested_call — original binary SIGSEGV (IF-97)
+
+- **Original**: killed by signal 11 (known bug: IF-97)
+- **Recon**: syntax error (function definition not supported yet)
+
+Status: **KNOWN-BUG** — original binary crashes on user function definitions.
+Test should be removed or marked as expected-fail.
+
+#### 42f. hdawg_func_return_int — original binary SIGSEGV (IF-97)
+
+Same as 42e — known original binary bug.
+Status: **KNOWN-BUG** — original binary crashes on user function definitions.
+
+---
 
 ### Phase 41: PRNG — `rand` uses MINSTD LCG, not MT19937_64 (DONE)
 

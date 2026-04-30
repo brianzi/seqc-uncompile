@@ -1771,5 +1771,457 @@
     "devtype": "SHFQC",
     "index": 0,
     "sequencer": "sg"
+  },
+  {
+    "name": "ghfli_playZero",
+    "code": "playZero(32);",
+    "devtype": "GHFLI",
+    "index": 0
+  },
+  {
+    "name": "ghfli_wait",
+    "code": "wait(1000);",
+    "devtype": "GHFLI",
+    "index": 0
+  },
+  {
+    "name": "shfli_playZero",
+    "code": "playZero(32);",
+    "devtype": "SHFLI",
+    "index": 0
+  },
+  {
+    "name": "shfli_wait",
+    "code": "wait(1000);",
+    "devtype": "SHFLI",
+    "index": 0
+  },
+  {
+    "name": "vhfli_playZero",
+    "code": "playZero(32);",
+    "devtype": "VHFLI",
+    "index": 0
+  },
+  {
+    "name": "vhfli_wait",
+    "code": "wait(1000);",
+    "devtype": "VHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfawg_playZero",
+    "code": "playZero(32);",
+    "devtype": "UHFAWG",
+    "index": 0
+  },
+  {
+    "name": "uhfawg_wait",
+    "code": "wait(1000);",
+    "devtype": "UHFAWG",
+    "index": 0
+  },
+  {
+    "name": "shfqc_qa_playZero",
+    "code": "playZero(32);",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqc_qa_wait",
+    "code": "wait(1000);",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfqc_qa_repeat",
+    "code": "repeat(5) { playZero(32); }",
+    "devtype": "SHFQC",
+    "index": 0,
+    "sequencer": "qa"
+  },
+  {
+    "name": "shfsg2_playZero",
+    "code": "playZero(32);",
+    "devtype": "SHFSG2",
+    "index": 0
+  },
+  {
+    "name": "shfsg2_repeat",
+    "code": "repeat(3) { playZero(64); wait(100); }",
+    "devtype": "SHFSG2",
+    "index": 0
+  },
+  {
+    "name": "shfsg4_playZero",
+    "code": "playZero(32);",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "shfsg4_repeat",
+    "code": "repeat(5) { playZero(64); }",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "hdawg_max_int_loop",
+    "code": "var i = 0;\nrepeat(2147483647) { i = i + 1; if (i >= 10) break; }\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_zero_wait",
+    "code": "wait(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_min_wait",
+    "code": "wait(1);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_single_stmt",
+    "code": "playZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_nested_ternary",
+    "code": "var a = 1;\nvar b = (a > 0) ? ((a > 1) ? 3 : 2) : 1;\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_chained_assign",
+    "code": "var a = 0;\nvar b = 0;\nvar c = 0;\na = b = c = 5;\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_nested_loops",
+    "code": "repeat(3) { repeat(2) { playZero(16); } }",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_loop_break",
+    "code": "repeat(100) { break; playZero(32); }",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_loop_continue",
+    "code": "repeat(5) { continue; playZero(16); }\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_do_while_break",
+    "code": "var i = 0;\ndo { i = i + 1; if (i >= 3) break; } while(i < 10);\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_bitwise_ops",
+    "code": "var a = 15;\nvar b = 7;\nvar c = a & b;\nvar d = a | b;\nvar e = a ^ b;\nvar f = a << 2;\nvar g = f >> 1;\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_compound_assign",
+    "code": "var x = 10;\nx += 5;\nx -= 3;\nx *= 2;\nx /= 4;\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_unary_minus",
+    "code": "var a = 5;\nvar b = -a;\nvar c = -(-b);\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_comparison_chain",
+    "code": "var a = 5;\nvar b = 3;\nvar r1 = a > b;\nvar r2 = a >= b;\nvar r3 = a < b;\nvar r4 = a <= b;\nvar r5 = a == b;\nvar r6 = a != b;\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_multi_wave",
+    "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nplayWave(w1, w2);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_wave_assign",
+    "code": "wave w = rect(32, 1.0);\nwave w2 = w;\nplayWave(w2);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_no_args",
+    "code": "void f() { playZero(16); }\nf();",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_return_int",
+    "code": "int f() { return 42; }\nvar x = f();\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_return_wave",
+    "code": "wave f() { return rect(16, 1.0); }\nwave w = f();\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_nested_call",
+    "code": "int g() { return 1; }\nint f() { return g() + 1; }\nvar x = f();\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_setTrigger_pattern",
+    "code": "setTrigger(1);\nwait(10);\nsetTrigger(0);\nwait(10);\nsetTrigger(2);\nwait(10);\nsetTrigger(0);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_waitDigTrigger",
+    "code": "waitDigTrigger(1);\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_waitWave_multiple",
+    "code": "playZero(64);\nwaitWave();\nplayZero(64);\nwaitWave();\nplayZero(64);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_switch_basic",
+    "code": "var x = 2;\nswitch(x) {\n  case 1: playZero(16); break;\n  case 2: playZero(32); break;\n  case 3: playZero(48); break;\n  default: playZero(64); break;\n}",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_switch_fallthrough",
+    "code": "var x = 0;\nswitch(x) {\n  case 0:\n  case 1:\n    playZero(16);\n    break;\n  default:\n    playZero(32);\n}",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_array_basic",
+    "code": "wave w = rect(32, 1.0);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa_playZero_100",
+    "code": "playZero(100);",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "shfqa_repeat_wait",
+    "code": "repeat(5) { wait(100); playZero(32); }",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "shfqa_setTrigger_wait",
+    "code": "setTrigger(1);\nwait(50);\nsetTrigger(0);\nplayZero(32);",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "shfsg8_playWave_multi",
+    "code": "wave w1 = sine(64, 1.0, 0.0);\nwave w2 = sine(64, 0.5, 0.0);\nplayWave(w1, w2);",
+    "devtype": "SHFSG8",
+    "index": 0
+  },
+  {
+    "name": "shfsg8_setOscFreq",
+    "code": "setOscFreq(0, 100e6);\nplayZero(32);",
+    "devtype": "SHFSG8",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_playZero",
+    "code": "playZero(32);",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_repeat",
+    "code": "repeat(3) { playZero(32); }",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_wait",
+    "code": "wait(1000);\nplayZero(32);",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfli_setTrigger",
+    "code": "setTrigger(1);\nwait(100);\nsetTrigger(0);\nplayZero(32);",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_repeat_wait",
+    "code": "repeat(4) { wait(50); playZero(16); }",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg4_playZero",
+    "code": "playZero(32);",
+    "devtype": "HDAWG4",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg4_repeat",
+    "code": "repeat(5) { playZero(32); }",
+    "devtype": "HDAWG4",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa2_playZero",
+    "code": "playZero(32);",
+    "devtype": "SHFQA2",
+    "index": 0
+  },
+  {
+    "name": "shfqa2_wait_repeat",
+    "code": "wait(100);\nrepeat(3) { playZero(16); }",
+    "devtype": "SHFQA2",
+    "index": 0
+  },
+  {
+    "name": "hdawg_scope_nested",
+    "code": "var a = 1;\n{\n  var b = 2;\n  {\n    var c = 3;\n    a = a + b + c;\n  }\n}\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_sine_2arg",
+    "code": "wave w = sine(64, 1.0);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_cosine",
+    "code": "wave w = cosine(64, 1.0, 0.0);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_rect_custom",
+    "code": "wave w = rect(128, 0.75);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_gauss_wide",
+    "code": "wave w = gauss(128, 1.0, 0.0, 32.0);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ones",
+    "code": "wave w = ones(32);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_zeros_large",
+    "code": "wave w = zeros(256);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_scale_wave",
+    "code": "wave w = rect(32, 1.0);\nwave ws = scale(w, 0.5);\nplayWave(ws);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_add_waves",
+    "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nwave wa = add(w1, w2);\nplayWave(wa);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_multiply_waves",
+    "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nwave wm = multiply(w1, w2);\nplayWave(wm);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_marker_basic",
+    "code": "wave w = marker(32, 1, 1);\nplayWave(w);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_playWaveIndexed_var",
+    "code": "var idx = 0;\nplayWaveIndexed(0, idx);\nplayZero(32);",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_dual_ch_play",
+    "code": "playWave(0, 1, zeros(32), zeros(32));",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
   }
 ]
