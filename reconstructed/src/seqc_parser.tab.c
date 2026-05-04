@@ -555,7 +555,7 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  127
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   525
+#define YYLAST   497
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  67
@@ -626,10 +626,10 @@ static const yytype_int16 yyrline[] =
      362,   368,   374,   386,   394,   404,   412,   414,   422,   424,
      436,   438,   440,   442,   444,   446,   454,   456,   458,   466,
      468,   476,   478,   486,   488,   496,   504,   512,   514,   522,
-     524,   526,   528,   530,   538,   540,   542,   544,   552,   554,
-     562,   564,   566,   568,   586,   588,   596,   598,   600,   608,
-     610,   612,   614,   616,   618,   620,   628,   630,   632,   634,
-     643,   644,   652,   654,   662,   664,   666,   675
+     524,   526,   528,   530,   545,   547,   549,   551,   559,   561,
+     569,   571,   573,   575,   593,   595,   603,   605,   607,   615,
+     617,   619,   621,   623,   625,   627,   635,   637,   639,   641,
+     650,   651,   659,   661,   669,   671,   673,   682
 };
 #endif
 
@@ -679,7 +679,7 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#define YYPACT_NINF (-174)
+#define YYPACT_NINF (-72)
 
 #define yypact_value_is_default(Yyn) \
   ((Yyn) == YYPACT_NINF)
@@ -693,30 +693,30 @@ yysymbol_name (yysymbol_kind_t yysymbol)
    STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-     296,  -174,  -174,  -174,   458,   458,  -174,  -174,  -174,  -174,
-    -174,  -174,   458,   -48,   -19,   -14,    -9,   346,     7,   -20,
-      14,   100,    37,   458,   458,   458,   458,   458,  -174,   196,
-    -174,    -1,   462,   -21,   -27,    39,    18,    64,    28,    30,
-      27,    77,   -12,  -174,  -174,    31,  -174,    92,  -174,  -174,
-    -174,  -174,  -174,  -174,  -174,  -174,  -174,    97,   296,  -174,
-    -174,  -174,  -174,  -174,  -174,    40,   346,   458,   458,   458,
-      71,   396,  -174,  -174,  -174,    45,   458,    65,  -174,  -174,
-    -174,  -174,  -174,  -174,    92,  -174,   246,  -174,  -174,    49,
-     458,   458,   458,   458,   458,   458,   458,   458,   458,   458,
-     458,   458,   458,   458,   458,   458,   458,   458,   458,   458,
-     458,   458,   458,   458,   458,   458,   458,   458,   458,   458,
-     458,  -174,   -38,  -174,    48,    47,    -4,  -174,  -174,   346,
-    -174,    87,    88,    89,    96,   313,   313,  -174,    98,  -174,
-      95,  -174,  -174,  -174,  -174,   -37,  -174,    99,  -174,  -174,
-    -174,  -174,  -174,  -174,  -174,  -174,  -174,  -174,  -174,  -174,
-    -174,  -174,   -21,   -21,   -27,   -27,    39,    39,    39,    39,
-      18,    18,    64,    28,    30,    27,    77,    80,    92,  -174,
-     458,  -174,   186,   365,  -174,   346,   346,   346,   458,   425,
-     446,   346,  -174,   458,  -174,   458,  -174,  -174,  -174,  -174,
-      92,  -174,   -33,  -174,  -174,   106,   112,  -174,  -174,   109,
-     346,   110,   346,   111,  -174,  -174,  -174,  -174,  -174,   237,
-    -174,   346,    94,  -174,   346,  -174,   346,  -174,  -174,  -174,
-    -174,  -174
+     297,   -72,   -72,   -72,   445,   445,   -72,   -72,   -72,   -72,
+     -72,   -72,   445,   -43,   -17,    12,    28,   347,    49,    -5,
+      34,    11,    74,   445,   445,   445,   445,   445,   -72,   197,
+     -72,    80,   132,    42,    15,    75,    10,    78,    81,    73,
+      76,   124,    -4,   -72,   -72,    83,   -72,   136,   -72,   -72,
+     -72,   -72,   -72,   -72,   -72,   -72,   -72,   142,   297,   -72,
+     -72,   -72,   -72,   -72,   -72,    82,   366,   445,   445,   445,
+     108,   416,   -72,   -72,   -72,    94,   445,   118,   -72,   -72,
+     -72,   -72,   -72,   -72,   136,   -72,   247,   -72,   -72,   116,
+     445,   445,   445,   445,   445,   445,   445,   445,   445,   445,
+     445,   445,   445,   445,   445,   445,   445,   445,   445,   445,
+     445,   445,   445,   445,   445,   445,   445,   445,   445,   445,
+     445,   -72,   -36,   -72,   101,   107,   -37,   -72,   -72,   366,
+     -72,   128,   129,   134,   133,    30,    30,   -72,   135,   -72,
+     137,   -72,   -72,   -72,   -72,   -19,   -72,   138,   -72,   -72,
+     -72,   -72,   -72,   -72,   -72,   -72,   -72,   -72,   -72,   -72,
+     -72,   -72,    42,    42,    15,    15,    75,    75,    75,    75,
+      10,    10,    78,    81,    73,    76,   124,   122,   136,   -72,
+     445,   -72,   187,   432,   -72,   347,   347,   347,   445,   265,
+     315,   347,   -72,   445,   -72,   445,   -72,   -72,   -72,   -72,
+     136,   -72,    44,   -72,   -72,   139,   152,   -72,   -72,   144,
+     347,   145,   347,   147,   -72,   -72,   -72,   -72,   -72,   428,
+     -72,   347,   143,   -72,   347,   -72,   347,   -72,   -72,   -72,
+     -72,   -72
 };
 
 /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -753,11 +753,11 @@ static const yytype_int8 yydefact[] =
 /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int16 yypgoto[] =
 {
-    -174,  -174,  -174,  -174,    12,   -26,   -25,   -91,   -29,    50,
-      44,    46,    54,    43,  -174,   -10,   -32,    69,   -17,     2,
-    -174,   -11,     0,  -173,  -174,  -174,   -51,   -43,  -174,   -16,
-    -174,  -174,    52,  -174,   -64,  -174,  -174,  -174,  -174,  -174,
-     116,  -174
+     -72,   -72,   -72,   -72,    -2,    22,    23,   -71,    21,    91,
+      93,    95,   102,    92,   -72,    -7,   -47,     9,    38,     2,
+     -72,    64,     0,   -57,   -72,   -72,     3,   -41,   -72,   -16,
+     -58,   -72,   119,   -72,   -67,   -72,   -72,   -72,   -72,   -72,
+     185,   -72
 };
 
 /* YYDEFGOTO[NTERM-NUM].  */
@@ -775,116 +775,110 @@ static const yytype_uint8 yydefgoto[] =
    number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_uint8 yytable[] =
 {
-      47,    70,    64,   119,   126,    87,    88,   136,   192,   201,
-     178,   193,   218,    85,    66,   219,    61,    62,   166,   167,
-     168,   169,   105,   106,    63,    67,   179,   217,   109,   110,
-      68,    83,   102,   103,   104,    69,    78,    79,    80,    81,
-     182,   140,   183,    89,    72,    90,   201,   107,   108,   120,
-     130,    71,     1,     2,     3,     4,     5,   146,    47,   148,
-     149,   150,   151,   152,   153,   154,   155,   156,   157,   158,
-     143,   189,   190,   135,   111,   112,   113,   114,    73,   162,
-     163,    76,   164,   165,   170,   171,   115,   117,   142,   116,
-      75,   118,    77,    23,   144,   121,     2,   127,    24,    25,
-      26,    27,   129,     1,     2,     3,     4,     5,   134,   137,
-     139,   180,    29,   184,   159,   160,   161,    63,    63,    63,
-      63,    63,    63,    63,    63,    63,    63,    63,    63,    63,
-      63,    63,   185,   186,   187,   140,   131,   132,   133,   140,
-     188,   183,   195,   191,    23,   138,   194,   221,   197,    24,
-      25,    26,    27,   220,   222,   224,   226,   140,   229,   147,
-     173,   215,   176,   174,    74,   172,   205,   196,   227,   206,
-     207,   208,   175,    64,   128,   214,   140,   181,     0,     0,
-       0,     0,   200,     0,     0,   216,     0,     0,     0,   177,
-       2,     0,     0,     0,   223,    63,   225,     0,     0,     1,
-       2,     3,     4,     5,     0,   228,     0,    63,   230,     0,
-     231,     0,     6,     7,     8,     9,    10,    11,     0,   200,
-       0,     0,     6,     7,     8,     9,    10,    11,    12,    13,
-      14,   199,    15,    16,    17,    18,    19,    20,    21,    22,
-      23,     2,     0,     0,     0,    24,    25,    26,    27,     1,
-       2,     3,     4,     5,     0,     0,     0,   209,   211,   213,
-      28,    29,    82,     6,     7,     8,     9,    10,    11,     0,
-       0,     0,     6,     7,     8,     9,    10,    11,    12,    13,
+      47,    70,    61,    62,   136,    64,   126,   182,   130,   183,
+      63,   119,   178,    85,     1,     2,     3,     4,     5,    66,
+     109,   110,    78,    79,    80,    81,   192,    67,   179,   193,
+      75,    83,    77,     1,     2,     3,     4,     5,   166,   167,
+     168,   169,   146,   140,   148,   149,   150,   151,   152,   153,
+     154,   155,   156,   157,   158,    23,    68,   120,    47,    72,
+      24,    25,    26,    27,   105,   106,   111,   112,   189,   190,
+     143,   184,    69,   135,    23,    74,   131,   132,   133,    24,
+      25,    26,    27,   107,   108,   138,    87,    88,   142,   218,
+     113,   114,   219,    71,    28,   102,   103,   104,    73,   147,
+     159,   160,   161,    63,    63,    63,    63,    63,    63,    63,
+      63,    63,    63,    63,    63,    63,    63,    63,    76,     1,
+       2,     3,     4,     5,    89,   201,    90,   162,   163,   177,
+     164,   165,   116,   197,   170,   171,   117,   140,   118,   115,
+       2,   140,   127,   217,   129,   134,   215,   121,    91,    92,
+      93,    94,    95,    96,    97,    98,    99,   100,   137,   140,
+      23,   144,   201,   139,   180,    24,    25,    26,    27,   206,
+     207,   208,    29,   185,   186,   214,    64,   188,   140,   187,
+     191,    63,   200,   183,   195,   194,   220,   221,   216,   222,
+     224,     2,   226,    63,   223,   101,   225,   209,   211,   213,
+       1,     2,     3,     4,     5,   228,   172,   229,   230,   173,
+     231,   176,   174,     6,     7,     8,     9,    10,    11,   200,
+     175,   205,   227,     6,     7,     8,     9,    10,    11,    12,
+      13,    14,   199,    15,    16,    17,    18,    19,    20,    21,
+      22,    23,   196,   128,   181,     0,    24,    25,    26,    27,
+       1,     2,     3,     4,     5,     0,     0,     0,     0,     0,
+       0,    28,    29,    82,     0,     0,     0,     0,     1,     2,
+       3,     4,     5,     6,     7,     8,     9,    10,    11,    12,
+      13,    14,     0,    15,    16,    17,    18,    19,    20,    21,
+      22,    23,     0,     0,     0,     0,    24,    25,    26,    27,
+       1,     2,     3,     4,     5,     0,     0,     0,     0,    23,
+     210,    28,    29,   141,    24,    25,    26,    27,     1,     2,
+       3,     4,     5,     6,     7,     8,     9,    10,    11,    12,
+      13,    14,     0,    15,    16,    17,    18,    19,    20,    21,
+      22,    23,     0,     0,     0,     0,    24,    25,    26,    27,
+       1,     2,     3,     4,     5,     0,     0,     0,     0,    23,
+     212,    28,    29,     0,    24,    25,    26,    27,     0,     1,
+       2,     3,     4,     5,     0,     0,     0,     0,     0,    12,
+      13,    14,     0,    15,    16,    17,    18,    19,    20,    21,
+      22,    23,     0,     0,     0,     0,    24,    25,    26,    27,
       14,     0,    15,    16,    17,    18,    19,    20,    21,    22,
-      23,     0,     0,     0,     0,    24,    25,    26,    27,     1,
+      23,    28,    29,     0,     0,    24,    25,    26,    27,     1,
        2,     3,     4,     5,     0,     0,     0,     0,     0,     0,
-      28,    29,   141,     0,     0,     0,     1,     2,     3,     4,
-       5,     0,     6,     7,     8,     9,    10,    11,    12,    13,
-      14,     0,    15,    16,    17,    18,    19,    20,    21,    22,
-      23,     0,     0,     0,     0,    24,    25,    26,    27,     1,
-       2,     3,     4,     5,     0,     0,     0,    23,     0,     0,
-      28,    29,    24,    25,    26,    27,     0,     0,     1,     2,
-       3,     4,     5,     0,     0,     0,     0,    28,    12,    13,
-      14,     0,    15,    16,    17,    18,    19,    20,    21,    22,
-      23,     0,     0,     0,     0,    24,    25,    26,    27,     1,
-       2,     3,     4,     5,     0,     0,     0,     0,     0,    23,
-      28,    29,   204,     0,    24,    25,    26,    27,     0,     0,
+      28,    29,     2,     0,     0,     1,     2,     3,     4,     5,
        0,     0,     6,     7,     8,     9,    10,    11,     1,     2,
-       3,     4,     5,     0,     0,     0,     0,     0,     0,     0,
-      23,     0,     0,     0,     0,    24,    25,    26,    27,     1,
-       2,     3,     4,     5,     0,     0,     0,     0,     0,     0,
-      28,     1,     2,     3,     4,     5,     0,     0,     0,    23,
-     210,     0,     0,     0,    24,    25,    26,    27,    91,    92,
-      93,    94,    95,    96,    97,    98,    99,   100,     0,     0,
-      23,   212,     0,     0,     0,    24,    25,    26,    27,     0,
-       0,     0,    23,     0,     0,     0,     0,    24,    25,    26,
-      27,     0,     0,     0,     0,     0,     0,     0,     0,     0,
-       0,     0,     0,     0,     0,   101
+       3,     4,     5,     0,     6,     7,     8,     9,    10,    11,
+      23,     0,     0,     0,     0,    24,    25,    26,    27,     0,
+       0,     0,     0,     0,     0,     0,    23,     0,     0,   204,
+      28,    24,    25,    26,    27,     0,     0,     0,     0,    23,
+       0,     0,     0,     0,    24,    25,    26,    27
 };
 
 static const yytype_int16 yycheck[] =
 {
-       0,    17,    12,    15,    47,     6,     7,    71,    45,   182,
-      48,    48,    45,    29,    62,    48,     4,     5,   109,   110,
-     111,   112,    49,    50,    12,    44,    64,   200,    10,    11,
-      44,    29,    53,    54,    55,    44,    24,    25,    26,    27,
-      44,    84,    46,    44,    64,    46,   219,     8,     9,    61,
-      66,    44,     3,     4,     5,     6,     7,    89,    58,    91,
-      92,    93,    94,    95,    96,    97,    98,    99,   100,   101,
-      86,   135,   136,    71,    56,    57,    12,    13,    64,   105,
-     106,    44,   107,   108,   113,   114,    58,    60,    86,    59,
-      21,    14,    23,    44,    45,    64,     4,     0,    49,    50,
-      51,    52,    62,     3,     4,     5,     6,     7,    37,    64,
-      45,    63,    65,   129,   102,   103,   104,   105,   106,   107,
-     108,   109,   110,   111,   112,   113,   114,   115,   116,   117,
-     118,   119,    45,    45,    45,   178,    67,    68,    69,   182,
-      44,    46,    62,    45,    44,    76,    47,    35,   180,    49,
-      50,    51,    52,    47,    45,    45,    45,   200,    64,    90,
-     116,   193,   119,   117,    64,   115,   183,   178,   219,   185,
-     186,   187,   118,   183,    58,   191,   219,   125,    -1,    -1,
-      -1,    -1,   182,    -1,    -1,   195,    -1,    -1,    -1,   120,
-       4,    -1,    -1,    -1,   210,   183,   212,    -1,    -1,     3,
-       4,     5,     6,     7,    -1,   221,    -1,   195,   224,    -1,
-     226,    -1,    26,    27,    28,    29,    30,    31,    -1,   219,
-      -1,    -1,    26,    27,    28,    29,    30,    31,    32,    33,
-      34,    45,    36,    37,    38,    39,    40,    41,    42,    43,
-      44,     4,    -1,    -1,    -1,    49,    50,    51,    52,     3,
-       4,     5,     6,     7,    -1,    -1,    -1,   188,   189,   190,
-      64,    65,    66,    26,    27,    28,    29,    30,    31,    -1,
-      -1,    -1,    26,    27,    28,    29,    30,    31,    32,    33,
+       0,    17,     4,     5,    71,    12,    47,    44,    66,    46,
+      12,    15,    48,    29,     3,     4,     5,     6,     7,    62,
+      10,    11,    24,    25,    26,    27,    45,    44,    64,    48,
+      21,    29,    23,     3,     4,     5,     6,     7,   109,   110,
+     111,   112,    89,    84,    91,    92,    93,    94,    95,    96,
+      97,    98,    99,   100,   101,    44,    44,    61,    58,    64,
+      49,    50,    51,    52,    49,    50,    56,    57,   135,   136,
+      86,   129,    44,    71,    44,    64,    67,    68,    69,    49,
+      50,    51,    52,     8,     9,    76,     6,     7,    86,    45,
+      12,    13,    48,    44,    64,    53,    54,    55,    64,    90,
+     102,   103,   104,   105,   106,   107,   108,   109,   110,   111,
+     112,   113,   114,   115,   116,   117,   118,   119,    44,     3,
+       4,     5,     6,     7,    44,   182,    46,   105,   106,   120,
+     107,   108,    59,   180,   113,   114,    60,   178,    14,    58,
+       4,   182,     0,   200,    62,    37,   193,    64,    16,    17,
+      18,    19,    20,    21,    22,    23,    24,    25,    64,   200,
+      44,    45,   219,    45,    63,    49,    50,    51,    52,   185,
+     186,   187,    65,    45,    45,   191,   183,    44,   219,    45,
+      45,   183,   182,    46,    62,    47,    47,    35,   195,    45,
+      45,     4,    45,   195,   210,    63,   212,   188,   189,   190,
+       3,     4,     5,     6,     7,   221,   115,    64,   224,   116,
+     226,   119,   117,    26,    27,    28,    29,    30,    31,   219,
+     118,   183,   219,    26,    27,    28,    29,    30,    31,    32,
+      33,    34,    45,    36,    37,    38,    39,    40,    41,    42,
+      43,    44,   178,    58,   125,    -1,    49,    50,    51,    52,
+       3,     4,     5,     6,     7,    -1,    -1,    -1,    -1,    -1,
+      -1,    64,    65,    66,    -1,    -1,    -1,    -1,     3,     4,
+       5,     6,     7,    26,    27,    28,    29,    30,    31,    32,
+      33,    34,    -1,    36,    37,    38,    39,    40,    41,    42,
+      43,    44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,
+       3,     4,     5,     6,     7,    -1,    -1,    -1,    -1,    44,
+      45,    64,    65,    66,    49,    50,    51,    52,     3,     4,
+       5,     6,     7,    26,    27,    28,    29,    30,    31,    32,
+      33,    34,    -1,    36,    37,    38,    39,    40,    41,    42,
+      43,    44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,
+       3,     4,     5,     6,     7,    -1,    -1,    -1,    -1,    44,
+      45,    64,    65,    -1,    49,    50,    51,    52,    -1,     3,
+       4,     5,     6,     7,    -1,    -1,    -1,    -1,    -1,    32,
+      33,    34,    -1,    36,    37,    38,    39,    40,    41,    42,
+      43,    44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,
       34,    -1,    36,    37,    38,    39,    40,    41,    42,    43,
-      44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,     3,
+      44,    64,    65,    -1,    -1,    49,    50,    51,    52,     3,
        4,     5,     6,     7,    -1,    -1,    -1,    -1,    -1,    -1,
-      64,    65,    66,    -1,    -1,    -1,     3,     4,     5,     6,
-       7,    -1,    26,    27,    28,    29,    30,    31,    32,    33,
-      34,    -1,    36,    37,    38,    39,    40,    41,    42,    43,
-      44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,     3,
-       4,     5,     6,     7,    -1,    -1,    -1,    44,    -1,    -1,
-      64,    65,    49,    50,    51,    52,    -1,    -1,     3,     4,
-       5,     6,     7,    -1,    -1,    -1,    -1,    64,    32,    33,
-      34,    -1,    36,    37,    38,    39,    40,    41,    42,    43,
-      44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,     3,
-       4,     5,     6,     7,    -1,    -1,    -1,    -1,    -1,    44,
-      64,    65,    47,    -1,    49,    50,    51,    52,    -1,    -1,
+      64,    65,     4,    -1,    -1,     3,     4,     5,     6,     7,
       -1,    -1,    26,    27,    28,    29,    30,    31,     3,     4,
-       5,     6,     7,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
-      44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,     3,
-       4,     5,     6,     7,    -1,    -1,    -1,    -1,    -1,    -1,
-      64,     3,     4,     5,     6,     7,    -1,    -1,    -1,    44,
-      45,    -1,    -1,    -1,    49,    50,    51,    52,    16,    17,
-      18,    19,    20,    21,    22,    23,    24,    25,    -1,    -1,
-      44,    45,    -1,    -1,    -1,    49,    50,    51,    52,    -1,
-      -1,    -1,    44,    -1,    -1,    -1,    -1,    49,    50,    51,
-      52,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,
-      -1,    -1,    -1,    -1,    -1,    63
+       5,     6,     7,    -1,    26,    27,    28,    29,    30,    31,
+      44,    -1,    -1,    -1,    -1,    49,    50,    51,    52,    -1,
+      -1,    -1,    -1,    -1,    -1,    -1,    44,    -1,    -1,    47,
+      64,    49,    50,    51,    52,    -1,    -1,    -1,    -1,    44,
+      -1,    -1,    -1,    -1,    49,    50,    51,    52
 };
 
 /* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
@@ -904,12 +898,12 @@ static const yytype_int8 yystos[] =
       25,    63,    53,    54,    55,    49,    50,     8,     9,    10,
       11,    56,    57,    12,    13,    58,    59,    60,    14,    15,
       61,    64,    87,    88,    90,    91,    94,     0,   107,    62,
-      96,    84,    84,    84,    37,    86,   101,    64,    84,    45,
+      97,    84,    84,    84,    37,    86,   101,    64,    84,    45,
       94,    66,    86,    96,    45,    70,    83,    84,    83,    83,
       83,    83,    83,    83,    83,    83,    83,    83,    83,    71,
       71,    71,    72,    72,    73,    73,    74,    74,    74,    74,
       75,    75,    76,    77,    78,    79,    80,    84,    48,    64,
-      63,    99,    44,    46,    96,    45,    45,    45,    44,   101,
+      63,    99,    44,    46,    97,    45,    45,    45,    44,   101,
      101,    45,    45,    48,    47,    62,    88,    83,    95,    45,
       89,    90,    92,    93,    47,    85,    96,    96,    96,    84,
       45,    84,    45,    84,    96,    83,    82,    90,    45,    48,
@@ -1698,301 +1692,301 @@ yyreduce:
   case 2: /* primary_expression: identifier  */
 #line 116 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1702 "seqc_parser.tab.c"
+#line 1696 "seqc_parser.tab.c"
     break;
 
   case 3: /* primary_expression: CONSTANT  */
 #line 118 "seqc_parser.y"
         { (yyval.expr) = createValue(ctx, (yyvsp[0].dval)); }
-#line 1708 "seqc_parser.tab.c"
+#line 1702 "seqc_parser.tab.c"
     break;
 
   case 4: /* primary_expression: STRING_LITERAL  */
 #line 120 "seqc_parser.y"
         { (yyval.expr) = createString(ctx, (yyvsp[0].sval)); }
-#line 1714 "seqc_parser.tab.c"
+#line 1708 "seqc_parser.tab.c"
     break;
 
   case 5: /* primary_expression: '(' expression ')'  */
 #line 122 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[-1].expr); }
-#line 1720 "seqc_parser.tab.c"
+#line 1714 "seqc_parser.tab.c"
     break;
 
   case 6: /* postfix_expression: primary_expression  */
 #line 130 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1726 "seqc_parser.tab.c"
+#line 1720 "seqc_parser.tab.c"
     break;
 
   case 7: /* postfix_expression: postfix_expression '[' expression ']'  */
 #line 132 "seqc_parser.y"
         { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1732 "seqc_parser.tab.c"
+#line 1726 "seqc_parser.tab.c"
     break;
 
   case 8: /* postfix_expression: postfix_expression '(' ')'  */
 #line 134 "seqc_parser.y"
         { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
-#line 1738 "seqc_parser.tab.c"
+#line 1732 "seqc_parser.tab.c"
     break;
 
   case 9: /* postfix_expression: postfix_expression '(' argument_expression_list ')'  */
 #line 136 "seqc_parser.y"
         { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1744 "seqc_parser.tab.c"
+#line 1738 "seqc_parser.tab.c"
     break;
 
   case 10: /* postfix_expression: postfix_expression INC_OP  */
 #line 138 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eINC); }
-#line 1750 "seqc_parser.tab.c"
+#line 1744 "seqc_parser.tab.c"
     break;
 
   case 11: /* postfix_expression: postfix_expression DEC_OP  */
 #line 140 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eDEC); }
-#line 1756 "seqc_parser.tab.c"
+#line 1750 "seqc_parser.tab.c"
     break;
 
   case 12: /* argument_expression_list: assignment_expression  */
 #line 148 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1762 "seqc_parser.tab.c"
+#line 1756 "seqc_parser.tab.c"
     break;
 
   case 13: /* argument_expression_list: argument_expression_list ',' assignment_expression  */
 #line 150 "seqc_parser.y"
         { (yyval.expr) = createOrAppendArgList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 1768 "seqc_parser.tab.c"
+#line 1762 "seqc_parser.tab.c"
     break;
 
   case 14: /* unary_expression: postfix_expression  */
 #line 158 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1774 "seqc_parser.tab.c"
+#line 1768 "seqc_parser.tab.c"
     break;
 
   case 15: /* unary_expression: INC_OP unary_expression  */
 #line 160 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eINC); }
-#line 1780 "seqc_parser.tab.c"
+#line 1774 "seqc_parser.tab.c"
     break;
 
   case 16: /* unary_expression: DEC_OP unary_expression  */
 #line 162 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eDEC); }
-#line 1786 "seqc_parser.tab.c"
+#line 1780 "seqc_parser.tab.c"
     break;
 
   case 17: /* unary_expression: '-' unary_expression  */
 #line 164 "seqc_parser.y"
         { (yyval.expr) = createCommand(ctx, ECommandType::eNEG, 1, (yyvsp[0].expr)); }
-#line 1792 "seqc_parser.tab.c"
+#line 1786 "seqc_parser.tab.c"
     break;
 
   case 18: /* unary_expression: '+' unary_expression  */
 #line 166 "seqc_parser.y"
         { (yyval.expr) = createCommand(ctx, ECommandType::ePOS, 1, (yyvsp[0].expr)); }
-#line 1798 "seqc_parser.tab.c"
+#line 1792 "seqc_parser.tab.c"
     break;
 
   case 19: /* unary_expression: '~' unary_expression  */
 #line 168 "seqc_parser.y"
         { (yyval.expr) = createCommand(ctx, ECommandType::eINV, 1, (yyvsp[0].expr)); }
-#line 1804 "seqc_parser.tab.c"
+#line 1798 "seqc_parser.tab.c"
     break;
 
   case 20: /* unary_expression: '!' unary_expression  */
 #line 170 "seqc_parser.y"
         { (yyval.expr) = createCommand(ctx, ECommandType::eNOT, 1, (yyvsp[0].expr)); }
-#line 1810 "seqc_parser.tab.c"
+#line 1804 "seqc_parser.tab.c"
     break;
 
   case 21: /* multiplicative_expression: unary_expression  */
 #line 178 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1816 "seqc_parser.tab.c"
+#line 1810 "seqc_parser.tab.c"
     break;
 
   case 22: /* multiplicative_expression: multiplicative_expression '*' unary_expression  */
 #line 180 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMUL); }
-#line 1822 "seqc_parser.tab.c"
+#line 1816 "seqc_parser.tab.c"
     break;
 
   case 23: /* multiplicative_expression: multiplicative_expression '/' unary_expression  */
 #line 182 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eDIV); }
-#line 1828 "seqc_parser.tab.c"
+#line 1822 "seqc_parser.tab.c"
     break;
 
   case 24: /* multiplicative_expression: multiplicative_expression '%' unary_expression  */
 #line 184 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMOD); }
-#line 1834 "seqc_parser.tab.c"
+#line 1828 "seqc_parser.tab.c"
     break;
 
   case 25: /* additive_expression: multiplicative_expression  */
 #line 192 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1840 "seqc_parser.tab.c"
+#line 1834 "seqc_parser.tab.c"
     break;
 
   case 26: /* additive_expression: additive_expression '+' multiplicative_expression  */
 #line 194 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eADD); }
-#line 1846 "seqc_parser.tab.c"
+#line 1840 "seqc_parser.tab.c"
     break;
 
   case 27: /* additive_expression: additive_expression '-' multiplicative_expression  */
 #line 196 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSUB); }
-#line 1852 "seqc_parser.tab.c"
+#line 1846 "seqc_parser.tab.c"
     break;
 
   case 28: /* shift_expression: additive_expression  */
 #line 204 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1858 "seqc_parser.tab.c"
+#line 1852 "seqc_parser.tab.c"
     break;
 
   case 29: /* shift_expression: shift_expression LSH_OP additive_expression  */
 #line 206 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL); }
-#line 1864 "seqc_parser.tab.c"
+#line 1858 "seqc_parser.tab.c"
     break;
 
   case 30: /* shift_expression: shift_expression RSH_OP additive_expression  */
 #line 208 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR); }
-#line 1870 "seqc_parser.tab.c"
+#line 1864 "seqc_parser.tab.c"
     break;
 
   case 31: /* relational_expression: shift_expression  */
 #line 216 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1876 "seqc_parser.tab.c"
+#line 1870 "seqc_parser.tab.c"
     break;
 
   case 32: /* relational_expression: relational_expression '<' shift_expression  */
 #line 218 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLT); }
-#line 1882 "seqc_parser.tab.c"
+#line 1876 "seqc_parser.tab.c"
     break;
 
   case 33: /* relational_expression: relational_expression '>' shift_expression  */
 #line 220 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGT); }
-#line 1888 "seqc_parser.tab.c"
+#line 1882 "seqc_parser.tab.c"
     break;
 
   case 34: /* relational_expression: relational_expression LE_OP shift_expression  */
 #line 222 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLE); }
-#line 1894 "seqc_parser.tab.c"
+#line 1888 "seqc_parser.tab.c"
     break;
 
   case 35: /* relational_expression: relational_expression GE_OP shift_expression  */
 #line 224 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGE); }
-#line 1900 "seqc_parser.tab.c"
+#line 1894 "seqc_parser.tab.c"
     break;
 
   case 36: /* equality_expression: relational_expression  */
 #line 232 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1906 "seqc_parser.tab.c"
+#line 1900 "seqc_parser.tab.c"
     break;
 
   case 37: /* equality_expression: equality_expression EQ_OP relational_expression  */
 #line 234 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eEQ); }
-#line 1912 "seqc_parser.tab.c"
+#line 1906 "seqc_parser.tab.c"
     break;
 
   case 38: /* equality_expression: equality_expression NE_OP relational_expression  */
 #line 236 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eNE); }
-#line 1918 "seqc_parser.tab.c"
+#line 1912 "seqc_parser.tab.c"
     break;
 
   case 39: /* and_expression: equality_expression  */
 #line 244 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1924 "seqc_parser.tab.c"
+#line 1918 "seqc_parser.tab.c"
     break;
 
   case 40: /* and_expression: and_expression '&' equality_expression  */
 #line 246 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eAND); }
-#line 1930 "seqc_parser.tab.c"
+#line 1924 "seqc_parser.tab.c"
     break;
 
   case 41: /* exclusive_or_expression: and_expression  */
 #line 254 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1936 "seqc_parser.tab.c"
+#line 1930 "seqc_parser.tab.c"
     break;
 
   case 42: /* exclusive_or_expression: exclusive_or_expression '^' and_expression  */
 #line 256 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eXOR); }
-#line 1942 "seqc_parser.tab.c"
+#line 1936 "seqc_parser.tab.c"
     break;
 
   case 43: /* inclusive_or_expression: exclusive_or_expression  */
 #line 264 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1948 "seqc_parser.tab.c"
+#line 1942 "seqc_parser.tab.c"
     break;
 
   case 44: /* inclusive_or_expression: inclusive_or_expression '|' exclusive_or_expression  */
 #line 266 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eOR); }
-#line 1954 "seqc_parser.tab.c"
+#line 1948 "seqc_parser.tab.c"
     break;
 
   case 45: /* logical_and_expression: inclusive_or_expression  */
 #line 274 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1960 "seqc_parser.tab.c"
+#line 1954 "seqc_parser.tab.c"
     break;
 
   case 46: /* logical_and_expression: logical_and_expression AND_OP inclusive_or_expression  */
 #line 276 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLAND); }
-#line 1966 "seqc_parser.tab.c"
+#line 1960 "seqc_parser.tab.c"
     break;
 
   case 47: /* logical_or_expression: logical_and_expression  */
 #line 284 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1972 "seqc_parser.tab.c"
+#line 1966 "seqc_parser.tab.c"
     break;
 
   case 48: /* logical_or_expression: logical_or_expression OR_OP logical_and_expression  */
 #line 286 "seqc_parser.y"
         { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLOR); }
-#line 1978 "seqc_parser.tab.c"
+#line 1972 "seqc_parser.tab.c"
     break;
 
   case 49: /* conditional_expression: logical_or_expression  */
 #line 294 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1984 "seqc_parser.tab.c"
+#line 1978 "seqc_parser.tab.c"
     break;
 
   case 50: /* conditional_expression: logical_or_expression '?' expression ':' conditional_expression  */
 #line 296 "seqc_parser.y"
         { (yyval.expr) = createCondExpression(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 1990 "seqc_parser.tab.c"
+#line 1984 "seqc_parser.tab.c"
     break;
 
   case 51: /* assignment_expression: conditional_expression  */
 #line 304 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1996 "seqc_parser.tab.c"
+#line 1990 "seqc_parser.tab.c"
     break;
 
   case 52: /* assignment_expression: unary_expression '=' assignment_expression  */
@@ -2007,7 +2001,7 @@ yyreduce:
             (yyvsp[-2].expr)->valueCategory = 1;
             (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eASSIGN);
         }
-#line 2011 "seqc_parser.tab.c"
+#line 2005 "seqc_parser.tab.c"
     break;
 
   case 53: /* assignment_expression: unary_expression ADD_ASSIGN assignment_expression  */
@@ -2021,7 +2015,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2025 "seqc_parser.tab.c"
+#line 2019 "seqc_parser.tab.c"
     break;
 
   case 54: /* assignment_expression: unary_expression SUB_ASSIGN assignment_expression  */
@@ -2031,7 +2025,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2035 "seqc_parser.tab.c"
+#line 2029 "seqc_parser.tab.c"
     break;
 
   case 55: /* assignment_expression: unary_expression MUL_ASSIGN assignment_expression  */
@@ -2041,7 +2035,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2045 "seqc_parser.tab.c"
+#line 2039 "seqc_parser.tab.c"
     break;
 
   case 56: /* assignment_expression: unary_expression DIV_ASSIGN assignment_expression  */
@@ -2051,7 +2045,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2055 "seqc_parser.tab.c"
+#line 2049 "seqc_parser.tab.c"
     break;
 
   case 57: /* assignment_expression: unary_expression MOD_ASSIGN assignment_expression  */
@@ -2061,7 +2055,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2065 "seqc_parser.tab.c"
+#line 2059 "seqc_parser.tab.c"
     break;
 
   case 58: /* assignment_expression: unary_expression AND_ASSIGN assignment_expression  */
@@ -2071,7 +2065,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2075 "seqc_parser.tab.c"
+#line 2069 "seqc_parser.tab.c"
     break;
 
   case 59: /* assignment_expression: unary_expression XOR_ASSIGN assignment_expression  */
@@ -2081,7 +2075,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2085 "seqc_parser.tab.c"
+#line 2079 "seqc_parser.tab.c"
     break;
 
   case 60: /* assignment_expression: unary_expression OR_ASSIGN assignment_expression  */
@@ -2091,7 +2085,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2095 "seqc_parser.tab.c"
+#line 2089 "seqc_parser.tab.c"
     break;
 
   case 61: /* assignment_expression: unary_expression LSH_ASSIGN assignment_expression  */
@@ -2101,7 +2095,7 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2105 "seqc_parser.tab.c"
+#line 2099 "seqc_parser.tab.c"
     break;
 
   case 62: /* assignment_expression: unary_expression RSH_ASSIGN assignment_expression  */
@@ -2111,43 +2105,43 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 2115 "seqc_parser.tab.c"
+#line 2109 "seqc_parser.tab.c"
     break;
 
   case 63: /* expression: assignment_expression  */
 #line 387 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2121 "seqc_parser.tab.c"
+#line 2115 "seqc_parser.tab.c"
     break;
 
   case 64: /* constant_expression: conditional_expression  */
 #line 395 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2127 "seqc_parser.tab.c"
+#line 2121 "seqc_parser.tab.c"
     break;
 
   case 65: /* declaration: type_specifier init_declarator_list ';'  */
 #line 405 "seqc_parser.y"
         { (yyval.expr) = addVariableType(ctx, (yyvsp[-1].expr), (yyvsp[-2].expr), false); }
-#line 2133 "seqc_parser.tab.c"
+#line 2127 "seqc_parser.tab.c"
     break;
 
   case 66: /* init_declarator_list: init_declarator  */
 #line 413 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2139 "seqc_parser.tab.c"
+#line 2133 "seqc_parser.tab.c"
     break;
 
   case 67: /* init_declarator_list: init_declarator_list ',' init_declarator  */
 #line 415 "seqc_parser.y"
         { (yyval.expr) = createOrAppendDeclList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2145 "seqc_parser.tab.c"
+#line 2139 "seqc_parser.tab.c"
     break;
 
   case 68: /* init_declarator: declarator  */
 #line 423 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2151 "seqc_parser.tab.c"
+#line 2145 "seqc_parser.tab.c"
     break;
 
   case 69: /* init_declarator: declarator '=' initializer  */
@@ -2157,359 +2151,359 @@ yyreduce:
             (yyval.expr)->direction = EDirection::eIN;
             (yyval.expr)->valueCategory = 1;
         }
-#line 2161 "seqc_parser.tab.c"
+#line 2155 "seqc_parser.tab.c"
     break;
 
   case 70: /* type_specifier: KW_VAR  */
 #line 437 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_Var); }
-#line 2167 "seqc_parser.tab.c"
+#line 2161 "seqc_parser.tab.c"
     break;
 
   case 71: /* type_specifier: KW_CONST  */
 #line 439 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_Const); }
-#line 2173 "seqc_parser.tab.c"
+#line 2167 "seqc_parser.tab.c"
     break;
 
   case 72: /* type_specifier: KW_CVAR  */
 #line 441 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_Cvar); }
-#line 2179 "seqc_parser.tab.c"
+#line 2173 "seqc_parser.tab.c"
     break;
 
   case 73: /* type_specifier: KW_VOID  */
 #line 443 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_Void); }
-#line 2185 "seqc_parser.tab.c"
+#line 2179 "seqc_parser.tab.c"
     break;
 
   case 74: /* type_specifier: KW_WAVE  */
 #line 445 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_Wave); }
-#line 2191 "seqc_parser.tab.c"
+#line 2185 "seqc_parser.tab.c"
     break;
 
   case 75: /* type_specifier: KW_STRING  */
 #line 447 "seqc_parser.y"
         { (yyval.expr) = createVariableType(ctx, VarType_String); }
-#line 2197 "seqc_parser.tab.c"
+#line 2191 "seqc_parser.tab.c"
     break;
 
   case 76: /* declarator: identifier  */
 #line 455 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2203 "seqc_parser.tab.c"
+#line 2197 "seqc_parser.tab.c"
     break;
 
   case 77: /* declarator: identifier '[' constant_expression ']'  */
 #line 457 "seqc_parser.y"
         { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 2209 "seqc_parser.tab.c"
+#line 2203 "seqc_parser.tab.c"
     break;
 
   case 78: /* declarator: identifier '[' ']'  */
 #line 459 "seqc_parser.y"
         { (yyval.expr) = createArray(ctx, (yyvsp[-2].expr), NULL); }
-#line 2215 "seqc_parser.tab.c"
+#line 2209 "seqc_parser.tab.c"
     break;
 
   case 79: /* function_declarator: identifier '(' parameter_list ')'  */
 #line 467 "seqc_parser.y"
         { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 2221 "seqc_parser.tab.c"
+#line 2215 "seqc_parser.tab.c"
     break;
 
   case 80: /* function_declarator: identifier '(' ')'  */
 #line 469 "seqc_parser.y"
         { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
-#line 2227 "seqc_parser.tab.c"
+#line 2221 "seqc_parser.tab.c"
     break;
 
   case 81: /* parameter_list: parameter_declaration  */
 #line 477 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2233 "seqc_parser.tab.c"
+#line 2227 "seqc_parser.tab.c"
     break;
 
   case 82: /* parameter_list: parameter_list ',' parameter_declaration  */
 #line 479 "seqc_parser.y"
         { (yyval.expr) = createOrAppendParamList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2239 "seqc_parser.tab.c"
+#line 2233 "seqc_parser.tab.c"
     break;
 
   case 83: /* parameter_declaration: type_specifier declarator  */
 #line 487 "seqc_parser.y"
         { (yyval.expr) = addVariableType(ctx, (yyvsp[0].expr), (yyvsp[-1].expr), false); }
-#line 2245 "seqc_parser.tab.c"
+#line 2239 "seqc_parser.tab.c"
     break;
 
   case 84: /* parameter_declaration: declarator  */
 #line 489 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2251 "seqc_parser.tab.c"
+#line 2245 "seqc_parser.tab.c"
     break;
 
   case 85: /* identifier: IDENTIFIER  */
 #line 497 "seqc_parser.y"
         { (yyval.expr) = createVariable(ctx, (yyvsp[0].sval)); }
-#line 2257 "seqc_parser.tab.c"
+#line 2251 "seqc_parser.tab.c"
     break;
 
   case 86: /* initializer: assignment_expression  */
 #line 505 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2263 "seqc_parser.tab.c"
+#line 2257 "seqc_parser.tab.c"
     break;
 
   case 87: /* statement: unlabeled_statement  */
 #line 513 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2269 "seqc_parser.tab.c"
+#line 2263 "seqc_parser.tab.c"
     break;
 
   case 88: /* statement: labeled_statement  */
 #line 515 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2275 "seqc_parser.tab.c"
+#line 2269 "seqc_parser.tab.c"
     break;
 
   case 89: /* unlabeled_statement: compound_statement  */
 #line 523 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2281 "seqc_parser.tab.c"
+#line 2275 "seqc_parser.tab.c"
     break;
 
   case 90: /* unlabeled_statement: expression_statement  */
 #line 525 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2287 "seqc_parser.tab.c"
+#line 2281 "seqc_parser.tab.c"
     break;
 
   case 91: /* unlabeled_statement: selection_statement  */
 #line 527 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2293 "seqc_parser.tab.c"
+#line 2287 "seqc_parser.tab.c"
     break;
 
   case 92: /* unlabeled_statement: iteration_statement  */
 #line 529 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 2299 "seqc_parser.tab.c"
+#line 2293 "seqc_parser.tab.c"
     break;
 
   case 93: /* unlabeled_statement: jump_statement  */
 #line 531 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
+#line 2299 "seqc_parser.tab.c"
+    break;
+
+  case 94: /* labeled_statement: KW_CASE constant_expression ':' unlabeled_statement  */
+#line 546 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2305 "seqc_parser.tab.c"
     break;
 
-  case 94: /* labeled_statement: KW_CASE constant_expression ':' statement  */
-#line 539 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 95: /* labeled_statement: KW_DEFAULT ':' unlabeled_statement  */
+#line 548 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, NULL, (yyvsp[0].expr)); }
 #line 2311 "seqc_parser.tab.c"
     break;
 
-  case 95: /* labeled_statement: KW_DEFAULT ':' statement  */
-#line 541 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, NULL, (yyvsp[0].expr)); }
+  case 96: /* labeled_statement: KW_CASE constant_expression ':'  */
+#line 550 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, (yyvsp[-1].expr), NULL); }
 #line 2317 "seqc_parser.tab.c"
     break;
 
-  case 96: /* labeled_statement: KW_CASE constant_expression ':'  */
-#line 543 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, (yyvsp[-1].expr), NULL); }
+  case 97: /* labeled_statement: KW_DEFAULT ':'  */
+#line 552 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, NULL, NULL); }
 #line 2323 "seqc_parser.tab.c"
     break;
 
-  case 97: /* labeled_statement: KW_DEFAULT ':'  */
-#line 545 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, NULL, NULL); }
+  case 98: /* compound_statement: '{' '}'  */
+#line 560 "seqc_parser.y"
+        { (yyval.expr) = NULL; }
 #line 2329 "seqc_parser.tab.c"
     break;
 
-  case 98: /* compound_statement: '{' '}'  */
-#line 553 "seqc_parser.y"
-        { (yyval.expr) = NULL; }
+  case 99: /* compound_statement: '{' compound_body '}'  */
+#line 562 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[-1].expr); }
 #line 2335 "seqc_parser.tab.c"
     break;
 
-  case 99: /* compound_statement: '{' compound_body '}'  */
-#line 555 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[-1].expr); }
+  case 100: /* compound_body: declaration  */
+#line 570 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
 #line 2341 "seqc_parser.tab.c"
     break;
 
-  case 100: /* compound_body: declaration  */
-#line 563 "seqc_parser.y"
+  case 101: /* compound_body: statement  */
+#line 572 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 2347 "seqc_parser.tab.c"
     break;
 
-  case 101: /* compound_body: statement  */
-#line 565 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 102: /* compound_body: compound_body declaration  */
+#line 574 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
 #line 2353 "seqc_parser.tab.c"
     break;
 
-  case 102: /* compound_body: compound_body declaration  */
-#line 567 "seqc_parser.y"
+  case 103: /* compound_body: compound_body statement  */
+#line 576 "seqc_parser.y"
         { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
 #line 2359 "seqc_parser.tab.c"
     break;
 
-  case 103: /* compound_body: compound_body statement  */
-#line 569 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+  case 104: /* expression_statement: ';'  */
+#line 594 "seqc_parser.y"
+        { (yyval.expr) = NULL; }
 #line 2365 "seqc_parser.tab.c"
     break;
 
-  case 104: /* expression_statement: ';'  */
-#line 587 "seqc_parser.y"
-        { (yyval.expr) = NULL; }
+  case 105: /* expression_statement: expression ';'  */
+#line 596 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[-1].expr); }
 #line 2371 "seqc_parser.tab.c"
     break;
 
-  case 105: /* expression_statement: expression ';'  */
-#line 589 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[-1].expr); }
+  case 106: /* selection_statement: KW_IF '(' expression ')' statement  */
+#line 604 "seqc_parser.y"
+        { (yyval.expr) = createIf(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2377 "seqc_parser.tab.c"
     break;
 
-  case 106: /* selection_statement: KW_IF '(' expression ')' statement  */
-#line 597 "seqc_parser.y"
-        { (yyval.expr) = createIf(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 107: /* selection_statement: KW_IF '(' expression ')' statement KW_ELSE statement  */
+#line 606 "seqc_parser.y"
+        { (yyval.expr) = createIfElse(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2383 "seqc_parser.tab.c"
     break;
 
-  case 107: /* selection_statement: KW_IF '(' expression ')' statement KW_ELSE statement  */
-#line 599 "seqc_parser.y"
-        { (yyval.expr) = createIfElse(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 108: /* selection_statement: KW_SWITCH '(' expression ')' statement  */
+#line 608 "seqc_parser.y"
+        { (yyval.expr) = createSwitch(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2389 "seqc_parser.tab.c"
     break;
 
-  case 108: /* selection_statement: KW_SWITCH '(' expression ')' statement  */
-#line 601 "seqc_parser.y"
-        { (yyval.expr) = createSwitch(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 109: /* iteration_statement: KW_WHILE '(' expression ')' statement  */
+#line 616 "seqc_parser.y"
+        { (yyval.expr) = createWhile(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2395 "seqc_parser.tab.c"
     break;
 
-  case 109: /* iteration_statement: KW_WHILE '(' expression ')' statement  */
-#line 609 "seqc_parser.y"
-        { (yyval.expr) = createWhile(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 110: /* iteration_statement: KW_DO statement KW_WHILE '(' expression ')' ';'  */
+#line 618 "seqc_parser.y"
+        { (yyval.expr) = createDoWhile(ctx, (yyvsp[-5].expr), (yyvsp[-2].expr)); }
 #line 2401 "seqc_parser.tab.c"
     break;
 
-  case 110: /* iteration_statement: KW_DO statement KW_WHILE '(' expression ')' ';'  */
-#line 611 "seqc_parser.y"
-        { (yyval.expr) = createDoWhile(ctx, (yyvsp[-5].expr), (yyvsp[-2].expr)); }
+  case 111: /* iteration_statement: KW_FOR '(' expression_statement expression_statement ')' statement  */
+#line 620 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
 #line 2407 "seqc_parser.tab.c"
     break;
 
-  case 111: /* iteration_statement: KW_FOR '(' expression_statement expression_statement ')' statement  */
-#line 613 "seqc_parser.y"
+  case 112: /* iteration_statement: KW_FOR '(' declaration expression_statement ')' statement  */
+#line 622 "seqc_parser.y"
         { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
 #line 2413 "seqc_parser.tab.c"
     break;
 
-  case 112: /* iteration_statement: KW_FOR '(' declaration expression_statement ')' statement  */
-#line 615 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
+  case 113: /* iteration_statement: KW_FOR '(' expression_statement expression_statement expression ')' statement  */
+#line 624 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2419 "seqc_parser.tab.c"
     break;
 
-  case 113: /* iteration_statement: KW_FOR '(' expression_statement expression_statement expression ')' statement  */
-#line 617 "seqc_parser.y"
+  case 114: /* iteration_statement: KW_FOR '(' declaration expression_statement expression ')' statement  */
+#line 626 "seqc_parser.y"
         { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2425 "seqc_parser.tab.c"
     break;
 
-  case 114: /* iteration_statement: KW_FOR '(' declaration expression_statement expression ')' statement  */
-#line 619 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 115: /* iteration_statement: KW_REPEAT '(' expression ')' statement  */
+#line 628 "seqc_parser.y"
+        { (yyval.expr) = createRepeat(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2431 "seqc_parser.tab.c"
     break;
 
-  case 115: /* iteration_statement: KW_REPEAT '(' expression ')' statement  */
-#line 621 "seqc_parser.y"
-        { (yyval.expr) = createRepeat(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 116: /* jump_statement: KW_CONTINUE ';'  */
+#line 636 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eCONTINUE, 0); }
 #line 2437 "seqc_parser.tab.c"
     break;
 
-  case 116: /* jump_statement: KW_CONTINUE ';'  */
-#line 629 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eCONTINUE, 0); }
+  case 117: /* jump_statement: KW_BREAK ';'  */
+#line 638 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eBREAK, 0); }
 #line 2443 "seqc_parser.tab.c"
     break;
 
-  case 117: /* jump_statement: KW_BREAK ';'  */
-#line 631 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eBREAK, 0); }
+  case 118: /* jump_statement: KW_RETURN ';'  */
+#line 640 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 0); }
 #line 2449 "seqc_parser.tab.c"
     break;
 
-  case 118: /* jump_statement: KW_RETURN ';'  */
-#line 633 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 0); }
+  case 119: /* jump_statement: KW_RETURN expression ';'  */
+#line 642 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 1, (yyvsp[-1].expr)); }
 #line 2455 "seqc_parser.tab.c"
     break;
 
-  case 119: /* jump_statement: KW_RETURN expression ';'  */
-#line 635 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 1, (yyvsp[-1].expr)); }
+  case 120: /* translation_unit: %empty  */
+#line 650 "seqc_parser.y"
+        { *result = NULL; }
 #line 2461 "seqc_parser.tab.c"
     break;
 
-  case 120: /* translation_unit: %empty  */
-#line 643 "seqc_parser.y"
-        { *result = NULL; }
+  case 121: /* translation_unit: external_declaration_list  */
+#line 652 "seqc_parser.y"
+        { *result = (yyvsp[0].expr); }
 #line 2467 "seqc_parser.tab.c"
     break;
 
-  case 121: /* translation_unit: external_declaration_list  */
-#line 645 "seqc_parser.y"
-        { *result = (yyvsp[0].expr); }
+  case 122: /* external_declaration_list: external_declaration  */
+#line 660 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
 #line 2473 "seqc_parser.tab.c"
     break;
 
-  case 122: /* external_declaration_list: external_declaration  */
-#line 653 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 123: /* external_declaration_list: external_declaration_list external_declaration  */
+#line 662 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
 #line 2479 "seqc_parser.tab.c"
     break;
 
-  case 123: /* external_declaration_list: external_declaration_list external_declaration  */
-#line 655 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+  case 124: /* external_declaration: declaration  */
+#line 670 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
 #line 2485 "seqc_parser.tab.c"
     break;
 
-  case 124: /* external_declaration: declaration  */
-#line 663 "seqc_parser.y"
+  case 125: /* external_declaration: statement  */
+#line 672 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 2491 "seqc_parser.tab.c"
     break;
 
-  case 125: /* external_declaration: statement  */
-#line 665 "seqc_parser.y"
+  case 126: /* external_declaration: function_definition  */
+#line 674 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 2497 "seqc_parser.tab.c"
     break;
 
-  case 126: /* external_declaration: function_definition  */
-#line 667 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 127: /* function_definition: type_specifier function_declarator compound_statement  */
+#line 683 "seqc_parser.y"
+        { (yyval.expr) = createFunction(ctx, (yyvsp[-2].expr), (yyvsp[-1].expr), (yyvsp[0].expr)); }
 #line 2503 "seqc_parser.tab.c"
     break;
 
-  case 127: /* function_definition: type_specifier function_declarator compound_statement  */
-#line 676 "seqc_parser.y"
-        { (yyval.expr) = createFunction(ctx, (yyvsp[-2].expr), (yyvsp[-1].expr), (yyvsp[0].expr)); }
-#line 2509 "seqc_parser.tab.c"
-    break;
 
-
-#line 2513 "seqc_parser.tab.c"
+#line 2507 "seqc_parser.tab.c"
 
       default: break;
     }
@@ -2733,7 +2727,7 @@ yyreturnlab:
   return yyresult;
 }
 
-#line 679 "seqc_parser.y"
+#line 686 "seqc_parser.y"
 
 
 /* Error handler — seqc_error @0x2ca1b0 */

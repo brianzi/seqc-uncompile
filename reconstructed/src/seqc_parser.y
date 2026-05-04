@@ -533,11 +533,18 @@ unlabeled_statement
 
 /* ========================================================================
  * Rules 94-97: labeled_statement
+ *
+ * Rules 94 and 95 use unlabeled_statement (not statement) as the body.
+ * This prevents the parser from consuming a following case/default label
+ * as the body of the current case, which would produce a nested AST.
+ * The binary grammar resolves this shift/reduce conflict with a reduce
+ * (producing a flat sibling list); using unlabeled_statement here
+ * achieves the same effect without changing the LR tables.
  * ======================================================================== */
 labeled_statement
-    : KW_CASE constant_expression ':' statement /* Rule 94 — createCase(val, body) */
+    : KW_CASE constant_expression ':' unlabeled_statement /* Rule 94 — createCase(val, body) */
         { $$ = createCase(ctx, $2, $4); }
-    | KW_DEFAULT ':' statement                  /* Rule 95 — createCase(NULL, body) */
+    | KW_DEFAULT ':' unlabeled_statement                  /* Rule 95 — createCase(NULL, body) */
         { $$ = createCase(ctx, NULL, $3); }
     | KW_CASE constant_expression ':'           /* Rule 96 — createCase(val, NULL) */
         { $$ = createCase(ctx, $2, NULL); }

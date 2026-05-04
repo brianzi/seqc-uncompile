@@ -7437,37 +7437,12 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
         auto* caseEntry = dynamic_cast<const SeqCCaseEntry*>(stmt.get());
 
         if (caseEntry) {
-            // Valid case entry — evalCaseBody                           // @0x216b61
-            //
-            // AST normalization for fallthrough: the recon grammar resolves
-            // `case 0: case 1: stmt;` with a shift (Rule 94), making case 1
-            // the body of case 0. The binary grammar resolves with a reduce
-            // (Rule 96), producing a flat list: case 0 (null body), case 1
-            // (stmt body). We normalize here: if a case entry's body is itself
-            // a SeqCCaseEntry chain, unroll it into separate evalCaseBody calls
-            // with null bodies, then handle the innermost real body.
+            // Valid case entry — evalCaseBody                       // @0x216b61
             try {
-                // Collect the chain of nested case entries
-                std::vector<const SeqCCaseEntry*> chain;
-                const SeqCCaseEntry* cur = caseEntry;
-                while (cur) {
-                    chain.push_back(cur);
-                    cur = dynamic_cast<const SeqCCaseEntry*>(cur->body());
-                }
-                // All but the last: evaluate with null body (fallthrough labels)
-                for (size_t i = 0; i + 1 < chain.size(); ++i) {
-                    // Temporarily evaluate as if body() == nullptr
-                    // by calling evalCaseBody on a view with null body.
-                    // Since SeqCCaseEntry has no setBody(), we replicate
-                    // evalCaseBody inline for the null-body case:
-                    auto caseResult = chain[i]->evaluate(subRes, ctx, state);
-                    if (caseResult) results.push_back(caseResult);
-                }
-                // Last in chain: has the real body (or null)
-                evalCaseBody(*chain.back(), results,
+                evalCaseBody(*caseEntry, results,
                              subRes, condResult, ctx, state);
-            } catch (CompilerException& e) {                             // @0x216dfc
-                // Emit exception message and continue                   // @0x216e39
+            } catch (CompilerException& e) {                         // @0x216dfc
+                // Emit exception message and continue               // @0x216e39
                 const char* msg = e.what();
                 ctx.messages->errorMessage(
                     msg ? std::string(msg) : std::string(), -1);
