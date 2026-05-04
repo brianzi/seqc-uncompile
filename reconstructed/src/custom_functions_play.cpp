@@ -510,10 +510,15 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
 
     // === Step 5: Create EvalResults ===                            @0x15f5d2
     auto results = std::make_shared<EvalResults>(VarType_Void);        // @0x15f5ee
-    // NOTE: The binary checks playArgs+0x1a8 for dryRun_, but we now know
-    // PlayArgs is only 0x80 bytes. The +0x1a8 offset was a stack-local in
-    // the original play() frame (config_->someField), NOT a PlayArgs member.
-    // For now, skip the dryRun check — the normal path continues.
+    // @0x15f614: cmpb $0x0, [rbp-0x1a8] = PlayArgs+0x78 = hasMarker_.
+    // When hasMarker_ is set (any wave arg has varSubType_==2, i.e. FunctionArg),
+    // the function is being evaluated in a "first pass" / function body context
+    // where wave parameters are unresolved. Skip all rendering and return early.
+    // The binary jumps to 0x160664 which destroys waveAssignments and returns
+    // the empty EvalResults(VarType_Void) created above.
+    if (playArgs.hasMarker_) {
+        return results;
+    }
 
     // === Step 6: Per-channel loop ===                              @0x15f628
     int64_t maxSampleLen = playArgs.getMaxSampleLength();            // @0x15f62f

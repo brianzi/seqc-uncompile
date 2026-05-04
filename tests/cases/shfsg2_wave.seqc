@@ -1,0 +1,3 @@
+// SHFSG2 basic waveform playback
+wave w = gauss(64, 1.0, 32, 10);
+playWave(w);

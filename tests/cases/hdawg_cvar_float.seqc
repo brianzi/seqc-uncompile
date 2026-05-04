@@ -1,0 +1,5 @@
+// cvar holding a floating-point constant
+cvar pi = 3.14159;
+cvar tau = 2 * pi;
+cvar half = pi / 2;
+playZero(32);

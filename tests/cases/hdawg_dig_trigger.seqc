@@ -1,0 +1,6 @@
+// Digital trigger: get and wait
+var trig = getDigTrigger(1);
+waitDigTrigger(1);
+setTrigger(1);
+setTrigger(0);
+playZero(32);

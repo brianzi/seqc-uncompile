@@ -327,6 +327,10 @@ void Resources::Function::addArgument(std::string const& name,
     switch (type) {
     case VarType_Var: {
         // Var args require the function's return type to be Var or Void.
+        // The original binary checks this here (during addArgument) and reports
+        // the error at the function declaration's line number. The check was
+        // previously removed (incorrectly thinking it fired at the wrong line);
+        // the real issue was SeqCFunction::lineNr_ pointing to the wrong line.
         if (returnType != VarType_Var && returnType != VarType_Void) {
             throw ResourcesException(
                 ErrorMessages::format(FormatVarReturn,

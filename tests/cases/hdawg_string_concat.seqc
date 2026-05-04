@@ -1,0 +1,4 @@
+// String concatenation with +
+string greeting = "Hello" + ", " + "World!";
+info(greeting);
+playZero(32);

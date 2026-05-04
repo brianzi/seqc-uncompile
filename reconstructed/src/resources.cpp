@@ -165,6 +165,22 @@ void Resources::setReturnType(VarType type)  // @0x1e3920
 }
 
 // ============================================================================
+// Resources::hasVarFunctionArg — helper for SeqCReturnStatement::evaluate
+//
+// Returns true if this scope contains any variable with type=Var and
+// subTypeRaw=FunctionArg. Used to detect the "var arg in wave-return function"
+// error at the return-statement level (where the original binary reports it).
+// ============================================================================
+bool Resources::hasVarFunctionArg() const
+{
+    for (auto const& v : variables_) {
+        if (v.type == VarType_Var && v.subTypeRaw == VarSubType_FunctionArg)
+            return true;
+    }
+    return false;
+}
+
+// ============================================================================
 // Resources::getReturnType — @0x1e3930
 //
 // If returnType_ != 0, return it.

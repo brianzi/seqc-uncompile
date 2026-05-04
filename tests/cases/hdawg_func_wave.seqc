@@ -1,0 +1,9 @@
+// User-defined function returning a wave
+wave makeGauss(var len, var sigma) {
+  return gauss(len, 1.0, len / 2, sigma);
+}
+
+wave w1 = makeGauss(64, 10);
+wave w2 = makeGauss(128, 20);
+playWave(w1);
+playWave(w2);

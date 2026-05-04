@@ -1,0 +1,6 @@
+// cut() to extract a sub-waveform
+wave full = gauss(128, 1.0, 64, 20);
+wave head = cut(full, 0, 63);
+wave tail = cut(full, 64, 127);
+playWave(head);
+playWave(tail);

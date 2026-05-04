@@ -1,0 +1,3 @@
+// SHFQA2 startQA basic usage
+startQA(0x1, 0x1, true, 0, 0);
+playZero(32);

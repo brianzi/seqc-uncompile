@@ -1,0 +1,6 @@
+// interleave() with three waveforms
+wave a = zeros(32);
+wave b = ones(32);
+wave c = gauss(32, 1.0, 16, 5);
+wave abc = interleave(a, b, c);
+playWave(abc);

@@ -1,0 +1,6 @@
+// Scalar multiplication of waveforms
+wave base = gauss(64, 1.0, 32, 10);
+wave half = 0.5 * base;
+wave quarter = 0.25 * base;
+playWave(half);
+playWave(quarter);

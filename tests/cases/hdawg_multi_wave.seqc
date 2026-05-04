@@ -1,0 +1,7 @@
+// Multiple waveforms: zeros, ones, gauss, played sequentially
+wave a = zeros(64);
+wave b = ones(64);
+wave c = gauss(64, 1.0, 32, 10);
+playWave(a);
+playWave(b);
+playWave(c);

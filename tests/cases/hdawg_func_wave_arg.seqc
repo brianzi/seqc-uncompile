@@ -1,0 +1,8 @@
+// User-defined function taking wave as argument
+void scaleAndPlay(wave w) {
+  wave scaled = 0.5 * w;
+  playWave(scaled);
+}
+
+wave base = gauss(64, 1.0, 32, 10);
+scaleAndPlay(base);

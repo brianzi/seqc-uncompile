@@ -1,0 +1,6 @@
+// UHFLI wave join and cut
+wave a = zeros(64);
+wave b = ones(64);
+wave joined = join(a, b);
+wave trimmed = cut(joined, 16, 111);
+playWave(trimmed);

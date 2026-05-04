@@ -1,0 +1,4 @@
+// wait() with computed expression
+var t = getUserReg(0);
+wait(t * 8 + 16);
+playZero(32);

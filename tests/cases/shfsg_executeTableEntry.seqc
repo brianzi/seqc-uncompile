@@ -1,0 +1,3 @@
+// SHFSG command table entry execution
+executeTableEntry(0);
+executeTableEntry(1);

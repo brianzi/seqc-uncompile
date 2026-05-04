@@ -1,0 +1,6 @@
+// join() to concatenate waveforms
+wave a = zeros(64);
+wave b = ones(64);
+wave c = gauss(64, 1.0, 32, 10);
+wave abc = join(a, b, c);
+playWave(abc);

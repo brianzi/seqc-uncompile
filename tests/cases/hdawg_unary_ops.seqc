@@ -1,0 +1,9 @@
+// Test unary operators: minus, logical not, bitwise not
+var a = -5;
+var b = -a;
+var c = 1;
+var d = !c;
+var e = 0xFF;
+var f = ~e;
+setUserReg(0, b + d + f);
+playZero(32);

@@ -1,0 +1,2 @@
+wave w = zeros(64);
+var x = w + 1;

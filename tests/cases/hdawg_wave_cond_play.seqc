@@ -1,0 +1,9 @@
+// Conditional wave playback based on user register
+wave w0 = zeros(64);
+wave w1 = ones(64);
+var sel = getUserReg(0);
+if (sel == 0) {
+  playWave(w0);
+} else {
+  playWave(w1);
+}

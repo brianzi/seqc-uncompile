@@ -1,0 +1,6 @@
+// Test modulo operator and arithmetic variants
+var x = 10 % 3;
+var y = 100 % 7;
+var z = x + y;
+setUserReg(0, z);
+playZero(32);

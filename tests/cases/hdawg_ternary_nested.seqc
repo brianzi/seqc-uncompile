@@ -1,0 +1,5 @@
+// Nested ternary expressions
+var x = getUserReg(0);
+var y = (x > 10) ? ((x > 20) ? 3 : 2) : ((x > 5) ? 1 : 0);
+setUserReg(1, y);
+playZero(32);

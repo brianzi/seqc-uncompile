@@ -1,0 +1,3 @@
+// ZSync trigger operations
+waitZSyncTrigger();
+playZero(32);

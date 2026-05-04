@@ -2653,18 +2653,17 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
     uint16_t numChannels = static_cast<uint16_t>(signals.size());
     Signal result(frameCount, mergedBits);                                     // 0x25fb3c
 
-    // Interleave samples: for each frame, append one sample from each channel
+    // Interleave samples: for each frame, append one sample from each channel.
+    // Each channel carries its own marker byte — the binary does NOT OR all
+    // markers together onto ch=0. Instead, each sample slot gets the marker
+    // from the corresponding input signal's markers_ vector.
     for (size_t frame = 0; frame < frameCount; ++frame) {                      // 0x260140
-        uint8_t mergedMarker = 0;
-        for (size_t ch = 0; ch < signals.size(); ++ch) {
-            if (frame < signals[ch].markers_.size()) {
-                mergedMarker |= signals[ch].markers_[frame];
-            }
-        }
         for (size_t ch = 0; ch < signals.size(); ++ch) {
             double sample = (frame < signals[ch].samples_.size())
                             ? signals[ch].samples_[frame] : 0.0;
-            result.append(sample, (ch == 0) ? mergedMarker : 0);
+            uint8_t marker = (frame < signals[ch].markers_.size())
+                             ? signals[ch].markers_[frame] : 0;
+            result.append(sample, marker);
         }
     }
 

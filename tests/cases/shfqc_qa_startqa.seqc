@@ -1,0 +1,3 @@
+// SHFQC QA sequencer: startQA
+startQA(0x1, 0x1, true, 0, 0);
+playZero(32);

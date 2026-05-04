@@ -1,0 +1,5 @@
+// UHFLI digital trigger with two arguments
+waitDigTrigger(1, 1);
+playZero(32);
+waitDigTrigger(2, 0);
+playZero(32);

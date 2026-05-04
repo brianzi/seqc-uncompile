@@ -1,0 +1,7 @@
+// For loop counting down
+var prod = 1;
+for (var i = 4; i > 0; i -= 1) {
+  prod *= i;
+}
+setUserReg(0, prod);
+playZero(32);

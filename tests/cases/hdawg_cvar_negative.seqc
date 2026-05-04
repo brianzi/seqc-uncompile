@@ -1,0 +1,5 @@
+// cvar with negative values and arithmetic
+cvar neg = -10;
+cvar pos = -neg;
+cvar combo = neg + pos;
+playZero(32);

@@ -434,6 +434,12 @@ public:
     // --- Label ---
     static std::string newLabel(std::string const& name);     // @0x1ec6b0
 
+    // --- Scope introspection helpers (used by SeqCReturnStatement::evaluate) ---
+    // Returns true if this scope contains any Var-typed FunctionArg variable.
+    bool hasVarFunctionArg() const;
+    // Returns the scope's name (function name for function scopes).
+    const std::string& scopeName() const { return name_; }
+
     // --- Debug ---
     void print();                               // @0x1ebbe0
     std::string toString() const;               // @0x1ebcf0

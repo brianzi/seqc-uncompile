@@ -1,0 +1,5 @@
+// Sine phase operations on HDAWG
+resetOscPhase();
+setSinePhase(0, 45.0);
+incrementSinePhase(0, 90.0);
+playZero(32);

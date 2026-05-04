@@ -1,0 +1,4 @@
+// playZero with variable length
+var n = getUserReg(0);
+playZero(n);
+playZero(32);

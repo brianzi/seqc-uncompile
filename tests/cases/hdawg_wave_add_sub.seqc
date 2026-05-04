@@ -1,0 +1,7 @@
+// Wave arithmetic: addition and subtraction
+wave a = gauss(64, 0.5, 32, 10);
+wave b = gauss(64, 0.3, 32, 10);
+wave c = a + b;
+wave d = a - b;
+playWave(c);
+playWave(d);

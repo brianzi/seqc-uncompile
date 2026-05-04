@@ -1,0 +1,3 @@
+// SHFQA4 sequencer index 1 startQA
+startQA(0x1, 0x1, true, 0, 0);
+playZero(32);

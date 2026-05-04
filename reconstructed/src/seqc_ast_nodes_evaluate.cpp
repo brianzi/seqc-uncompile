@@ -3196,8 +3196,8 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 result->assemblers_.push_back(std::move(placeholder));
                 result->node_ = result->assemblers_.back().node;  // @0x245535
             } else {
-                // Other rhs types: just updateVar, no asm.
-                res->updateVar(name);
+                // Other rhs types (e.g. Wave): fall to error 0x8b.
+                goto default_error;
             }
             break;
         }
@@ -3328,7 +3328,21 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 // name = rhs.toString(); if !waveformExists(name) error 0xe9
                 // else updateWave(name, name, rhs.varSubType) +
                 // result->setValue(Wave, rhs.varSubType, rhs.value).
-                if (rhsType != VarType_Unset) {
+                //
+                // Special case: rhsSub == FunctionArg means the rhs is a wave
+                // function parameter (empty waveform name). The lhs gets an
+                // empty/unresolved result with FunctionArg subtype so downstream
+                // consumers (e.g. playWave) know this wave is deferred.
+                // We do NOT call updateWave here — the lhs variable keeps its
+                // initial empty string value so getMaxSampleLength() skips it.
+                if (rhsSub == VarSubType_FunctionArg) {
+                    // Propagate FunctionArg subtype to lhs so downstream
+                    // consumers (getMaxSampleLength, checkWaveformInitialized)
+                    // skip this wave (varSubType_==2 → break in getMaxSampleLength).
+                    res->updateWave(name, std::string{}, VarSubType_FunctionArg);
+                    result->setValue(VarType_Wave, VarSubType_FunctionArg,
+                                     Value(std::string{}));
+                } else if (rhsType != VarType_Unset) {
                     const std::string rhsName =
                         rhsResult.getValue().toString();
                     if (!ctx.wavetable->waveformExists(rhsName)) {
@@ -3363,8 +3377,8 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
             if (rhsTypeOrUnset(rhsResult) != VarType_Unset) {
                 ctx.messages->errorMessage(
                     ErrorMessages::format(ErrorMessageT(0x8b),
-                                          str(lhsType),
-                                          str(rhsTypeOrUnset(rhsResult))),
+                                          str(rhsTypeOrUnset(rhsResult)),
+                                          str(lhsType)),
                     lineNr_);
             }
             break;
@@ -9693,7 +9707,13 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     FrontendLoweringState& state) const
 {
     // 0x20b200–0x20b254  Prologue
-    const int lineNr = lineNr_;
+    // The binary reads lineNr from the call_ child (SeqCFunctionCall), NOT from
+    // this->lineNr_. SeqCFunction::lineNr_ is set to the line AFTER the closing
+    // brace (where createFunction is called from the grammar), while
+    // SeqCFunctionCall::lineNr_ is set at the opening of the declaration line
+    // (where createFunctionCall fires). Using call_->lineNr() produces the correct
+    // error line for e.g. FormatVarReturn(170) reported during addArguments().
+    const int lineNr = call_ ? call_->lineNr() : lineNr_;
     ctx.messages->setLineNr(lineNr);
     ctx.asmCommands->setWavetableFrontIndex(lineNr);
     ctx.wavetable->setLineNr(lineNr);
@@ -9726,7 +9746,7 @@ std::shared_ptr<EvalResults> SeqCFunction::evaluate(
     if (ctx.customFunctions->functionExists(funName)) {
         // 0x20b4c9–0x20b535  FuncPredefined error
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT::FuncPredefined, funName), -1);
+            ErrorMessages::format(ErrorMessageT::FuncPredefined, funName), lineNr_);
         return result;
     }
 

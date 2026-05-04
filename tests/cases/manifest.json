@@ -764,6 +764,13 @@
     "samplerate": 2400000000.0
   },
   {
+    "name": "err_wave_as_int",
+    "file": "err_wave_as_int.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
     "name": "hdawg_setUserReg_var",
     "file": "hdawg_setUserReg_var.seqc",
     "devtype": "HDAWG8",
@@ -2220,6 +2227,32 @@
   {
     "name": "hdawg_dual_ch_play",
     "code": "playWave(0, 1, zeros(32), zeros(32));",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfqa_startqa_0arg",
+    "file": "uhfqa_startqa_0arg.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_startqa_3arg",
+    "file": "uhfqa_startqa_3arg.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "hdawg_func_wave",
+    "file": "hdawg_func_wave.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_func_wave_arg",
+    "file": "hdawg_func_wave_arg.seqc",
     "devtype": "HDAWG8",
     "index": 0,
     "samplerate": 2400000000.0

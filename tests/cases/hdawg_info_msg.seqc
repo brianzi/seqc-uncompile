@@ -1,0 +1,4 @@
+// info() message function
+info("Starting sequence");
+playZero(32);
+info("Done");

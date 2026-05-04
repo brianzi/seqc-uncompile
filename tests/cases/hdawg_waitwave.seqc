@@ -1,0 +1,5 @@
+// waitWave synchronizes after playWave
+wave w = zeros(64);
+playWave(w);
+waitWave();
+playZero(32);

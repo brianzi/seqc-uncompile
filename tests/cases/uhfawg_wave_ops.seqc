@@ -1,0 +1,6 @@
+// UHFAWG wave operations
+wave a = zeros(64);
+wave b = ones(64);
+wave c = a + b;
+playWave(c);
+playZero(32);

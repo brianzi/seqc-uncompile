@@ -1,0 +1,5 @@
+// const used in wave length expression
+const N = 128;
+const HALF = N / 2;
+wave w = gauss(N, 1.0, HALF, 20);
+playWave(w);

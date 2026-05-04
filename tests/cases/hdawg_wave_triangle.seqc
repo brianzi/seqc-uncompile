@@ -1,0 +1,3 @@
+// triangle() waveform (3-arg form)
+wave w = triangle(64, 1.0, 0.5);
+playWave(w);

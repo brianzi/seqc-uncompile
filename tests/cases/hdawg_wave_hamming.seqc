@@ -1,0 +1,3 @@
+// hamming() window waveform
+wave w = hamming(64, 1.0);
+playWave(w);

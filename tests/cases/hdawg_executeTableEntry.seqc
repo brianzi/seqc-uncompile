@@ -1,0 +1,5 @@
+// executeTableEntry for command table playback
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+playZero(32);

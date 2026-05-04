@@ -1,0 +1,11 @@
+// Multiple user registers: read several, compute, write back
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+var d = getUserReg(3);
+var sum = a + b + c + d;
+setUserReg(4, sum);
+setUserReg(5, a * b);
+setUserReg(6, c - d);
+setUserReg(7, sum % 256);
+playZero(32);

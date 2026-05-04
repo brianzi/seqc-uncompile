@@ -1,0 +1,6 @@
+// SHFSG oscillator phase operations (single-argument forms)
+resetOscPhase();
+setSinePhase(45.0);
+incrementSinePhase(90.0);
+waitSineOscPhase();
+playZero(32);

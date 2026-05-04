@@ -2994,16 +2994,27 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
             appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQATrigger)); // @0x152dc0
         }
     } else if (config_->deviceType == static_cast<AwgDeviceType>(4)) {                                     // @0x1533df: UHFQA path
-        // @0x153600: sid(reg, false) — st(reg, 0x21)
+        // UHFQA arg layout:
+        //   args[0] → qaIntAll (integration trigger mask)
+        //   args[1] → monitorEnable
+        //   args[2] → resultLengthShift, used as the sid (reg33) value
+        //   args[3] → resultAddr, OR'd into composite bit0 and stored by strig2 (reg34)
+        //
+        // composite = (qaIntAll << 16) | ((qaIntAll != 0) << 4) | ((monitorEnable != 0) << 5) | resultAddr
+        // sid stores resultLengthShift (args[2], 0 if not provided)
+        // strig2 stores resultAddr (args[3], 0 if not provided)
+
+        // @0x153600: sid(reg, false) — st(reg, 0x21) — stores resultLengthShift (args[2])
         {
             int regNum = Resources::getRegisterNumber();                                                    // @0x153608
             AsmRegister reg(regNum);
-            // UHFQA composite: (qaIntAll << 16) | ((qaIntAll != 0) << 4) | (monitorEnable << 5) | resultAddr
-            int composite = (qaIntAll << 16) | ((qaIntAll != 0 ? 1 : 0) << 4)                              // @0x153638
-                          | (monitorEnable << 5) | resultAddr;                                              // @0x153659
-            // @0x153670: zero the register before sid — binary emits addi Rn, R0, 0
-            auto zeroEntries = asmCommands_->addi(reg, zero, Immediate(0));                                // @0x153670
-            for (auto& e : zeroEntries) results->assemblers_.push_back(std::move(e));
+            int composite = (qaIntAll << 16) | ((qaIntAll != 0 ? 1 : 0) << 4)
+                          | ((monitorEnable != 0 ? 1 : 0) << 5)
+                          | resultAddr;                                                                     // @0x153638
+
+            // @0x153670: load resultLengthShift into register for sid
+            auto sidEntries = asmCommands_->addi(reg, zero, Immediate(resultLengthShift));                 // @0x153670
+            for (auto& e : sidEntries) results->assemblers_.push_back(std::move(e));
             results->assemblers_.push_back(asmCommands_->sid(reg, false));                                  // @0x153690
 
             auto addi32Entries = asmCommands_->addi32(reg, zero, Immediate(composite));                    // @0x1536e0
@@ -3012,8 +3023,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
             results->assemblers_.push_back(asmCommands_->strig(reg));                                      // @0x1537a5
         }
 
-        // @0x153880: result address via addi + strig
-        // Binary @0x153889: loads [rbp-0x11c] (= resultAddr, NOT resultLengthShift)
+        // @0x153880: second strig — stores resultAddr (args[3], 0 if not provided)
         {
             int regNum = Resources::getRegisterNumber();                                                    // @0x153888
             AsmRegister reg(regNum);

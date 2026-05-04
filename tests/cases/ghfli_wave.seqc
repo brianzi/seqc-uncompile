@@ -1,0 +1,3 @@
+// GHFLI basic waveform playback
+wave w = zeros(64);
+playWave(w);

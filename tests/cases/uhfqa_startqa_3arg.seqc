@@ -1,0 +1,3 @@
+// UHFQA startQA with 3 arguments
+startQA(0x3, 0x3, 1);
+playZero(32);

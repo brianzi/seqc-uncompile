@@ -1,0 +1,22 @@
+// Nested switch statements
+var x = getUserReg(0);
+var y = getUserReg(1);
+var out = 0;
+switch (x) {
+  case 0:
+    switch (y) {
+      case 0:
+        out = 0;
+      case 1:
+        out = 1;
+    }
+  case 1:
+    switch (y) {
+      case 0:
+        out = 10;
+      case 1:
+        out = 11;
+    }
+}
+setUserReg(2, out);
+playZero(32);

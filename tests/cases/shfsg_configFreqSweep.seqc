@@ -1,0 +1,3 @@
+// SHFSG frequency sweep configuration
+configFreqSweep(0, -500e6, 500e6);
+playZero(32);
