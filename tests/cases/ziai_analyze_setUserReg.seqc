@@ -1,0 +1,3 @@
+// Analyze setUserReg(index, value)
+setUserReg(3, 123); // Set User Register 3 to value 123
+wait(8); // Add a small wait

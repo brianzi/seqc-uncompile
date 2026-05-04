@@ -1089,7 +1089,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         int regNum = Resources::getRegisterNumber();                 // @0x161df1
         indexReg = AsmRegister(regNum);
         AsmRegister regZeroForAddi(0);
-        Immediate rateImm(rate);
+        Immediate rateImm(parseEnd[0].value_.toInt());  // offset value, NOT rate
         std::vector<AsmList::Asm> addiEntries = asmCommands_->addi(
             indexReg, regZeroForAddi, rateImm);                      // @0x161e56
 
@@ -1970,19 +1970,23 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                                 v.begin(), v.end());
                         }
                         appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
-                        // Commit + trap                                     // @0x16636b
-                        localList.entries.push_back(
-                            asmCommands_->addiu(destReg, AsmRegister(0),
-                                                Immediate(static_cast<int>(0x3F800))));
+                        // Commit + trap  @0x16636b: uses type.value_.toDouble() → float32 → addi
+                        {
+                            double scaleD = type.value_.toDouble();
+                            float scaleF  = static_cast<float>(scaleD);
+                            int scaleBits;
+                            std::memcpy(&scaleBits, &scaleF, sizeof(scaleBits));
+                            auto sv = asmCommands_->addi(destReg, AsmRegister(0), Immediate(scaleBits));
+                            localList.entries.insert(localList.entries.end(), sv.begin(), sv.end());
+                        }
                         appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeSlowCommit));
                         localList.entries.push_back(asmCommands_->trap());
                     } else {
                         // fast-arm: varType==2 (register).
-                        // Triplet A (I channel): tag 0xc → suser(0x10),
-                        //   addr → suser(0x11), val.reg_ → suser(0x12).
-                        // Triplet B (Q channel): tag 0xd → suser(0x10),
-                        //   addr → suser(0x11), val.reg_ → suser(0x12).
-                        // Triplet A
+                        // @0x165592..165747: Binary generates ONE triplet (tag=0xc, I-channel only),
+                        // then jmp to slow-commit @0x16636b (same as slow-arm commit path).
+                        // CORRECTED: recon was incorrectly generating TWO triplets (tags 12+13)
+                        // with no commit. The binary only generates triplet A (tag=0xc) + slow-commit.
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(0xc));
@@ -1998,22 +2002,29 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         }
                         appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                         appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
-                        // Triplet B
+                        // Fall to slow-commit @0x16636b: floatEqual warning on type value + float32(type) + suser(0x14) + trap
+                        // @0x16636b: The slow-commit region reads type.value_, checks floatEqual,
+                        // emits warning with "integer" hint if not representable, then addi(float32(type)) + suser(0x14) + trap.
                         {
-                            auto v = asmCommands_->addi(destReg, AsmRegister(0),
-                                                        Immediate(0xd));
-                            localList.entries.insert(localList.entries.end(),
-                                v.begin(), v.end());
+                            double d2 = type.value_.toDouble();
+                            int intVal = type.value_.toInt();
+                            if (!floatEqual(d2, static_cast<double>(intVal))) {
+                                std::string valStr = type.value_.toString();
+                                std::string msg = ErrorMessages::format(
+                                    NodePrecisionLoss, valStr, "integer");  // @0x1663bc: "integer" hint
+                                warningCallback_(msg);
+                            }
                         }
-                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                         {
-                            auto v = asmCommands_->addi(destReg, AsmRegister(0),
-                                                        Immediate(static_cast<int>(addr)));
-                            localList.entries.insert(localList.entries.end(),
-                                v.begin(), v.end());
+                            double scaleD = type.value_.toDouble();
+                            float scaleF  = static_cast<float>(scaleD);
+                            int scaleBits;
+                            std::memcpy(&scaleBits, &scaleF, sizeof(scaleBits));
+                            auto sv = asmCommands_->addi(destReg, AsmRegister(0), Immediate(scaleBits));
+                            localList.entries.insert(localList.entries.end(), sv.begin(), sv.end());
                         }
-                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
-                        appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
+                        appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeSlowCommit));
+                        localList.entries.push_back(asmCommands_->trap());
                     }
                     break;
                 }
@@ -2174,9 +2185,20 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                 }
                 // commit + trap
-                localList.entries.push_back(
-                    asmCommands_->addiu(destReg, AsmRegister(0),
-                                        Immediate(static_cast<int>(0x3F800))));
+                // @0x166438-16646e: binary converts type.value_.toDouble() → float32 bits,
+                // then calls addi(destReg, R0, float32Bits). This encodes the scale argument
+                // (default 1.0 → float32 0x3F800000; with 3rd arg e.g. 0.532 → 0x3F083127).
+                // The addi generates hi/lo split automatically when lower 12 bits are nonzero.
+                {
+                    double scaleD = type.value_.toDouble();           // @0x166438
+                    float scaleF  = static_cast<float>(scaleD);       // @0x166460: cvtsd2ss
+                    int scaleBits;
+                    std::memcpy(&scaleBits, &scaleF, sizeof(scaleBits));
+                    auto scaleVec = asmCommands_->addi(               // @0x16648e
+                        destReg, AsmRegister(0), Immediate(scaleBits));
+                    localList.entries.insert(localList.entries.end(),
+                        scaleVec.begin(), scaleVec.end());
+                }
                 appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeSlowCommit));
                 localList.entries.push_back(asmCommands_->trap());
             }

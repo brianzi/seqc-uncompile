@@ -1,0 +1,8 @@
+// Analyze getFeedback
+
+const feedback_time = 10; // Arbitrary wait time
+
+waitZSyncTrigger(); // Assume this precedes getFeedback
+var feedback_val = getFeedback(ZSYNC_DATA_RAW, feedback_time);
+
+wait(1); // Ensure program doesn't end immediately

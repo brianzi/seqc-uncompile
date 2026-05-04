@@ -779,7 +779,10 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
                 [&](std::shared_ptr<WaveformIR> const& wf) {
                     WaveformIR* wfPtr = wf.get();
                     if (!wfPtr->used) return;
-                    if (wfPtr->signal.data().empty()) return;
+                    // 0x10e1aa: cmpq $0x0, 0xd0(%rax) — checks Signal+0x50 = length_
+                    // NOT signal.data() (samples_). Placeholder waveforms have empty
+                    // samples_ but non-zero length_ — must not be skipped.
+                    if (wfPtr->signal.length() == 0) return;
                     uint32_t gap = wfPtr->addressValue - currentOffset;
                     uint32_t alignMask = static_cast<uint32_t>(-wfPtr->elfAlignment_);
                     uint32_t padding = gap & alignMask;

@@ -1,0 +1,13 @@
+// Analyze arithmetic operations
+const CA = 10;
+const CB = 3;
+var a = CA; // Assign const to var
+var b = CB;
+
+var c = a + b; // 13 (var + var)
+var d = a - b; // 7  (var - var)
+var e = a * CB; // 30 (var * const)
+// var f = a / b; // Division with var not supported
+
+// Use the results to prevent optimization
+wait(c + d + e); // 13 + 7 + 30 = 50

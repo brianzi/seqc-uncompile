@@ -1,0 +1,7 @@
+// Analyze setInt(path, value)
+
+// Attempt to set User Register 0 via node path
+setInt("awgs/0/userregs/0", 1234);
+
+// Do something afterwards
+wait(1);

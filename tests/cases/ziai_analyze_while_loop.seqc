@@ -1,0 +1,10 @@
+// Analyze while loops
+var i = 0;
+var sum = 0;
+
+while (i < 3) {
+  sum = sum + i;
+  i = i + 1;
+}
+
+wait(sum); // Should wait for 0+1+2 = 3 cycles

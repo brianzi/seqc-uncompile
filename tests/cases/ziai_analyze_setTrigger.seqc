@@ -1,0 +1,3 @@
+// Analyze setTrigger(value)
+setTrigger(1); // Set Trigger Output 1 (bit 0) high
+wait(8); // Add a small wait

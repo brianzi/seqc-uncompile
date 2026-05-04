@@ -1,0 +1,12 @@
+var x = 0x8765dead;
+var y = 0x7654beef;
+var z = x;
+z |= y;
+z ^= x;
+z -= y;
+z &= x;
+z += y;
+z = ~z;
+z <<= 1;
+z >>= 1;
+wait(z & 255);

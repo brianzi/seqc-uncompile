@@ -1,0 +1,11 @@
+// Analyze bitwise operations
+var a = 0b1010; // 10
+var b = 0b0110; // 6
+
+var c = a | b; // 0b1110 = 14 (OR)
+var d = ~a;    // 0b...11110101 = -11 (NOT)
+var e = a & b; // 0b0010 = 2 (AND)
+// var f = a ^ b; // XOR (^) seems unsupported for var
+
+// Use the results
+wait(c + d + e); // Combine results

@@ -1,0 +1,3 @@
+// Minimal example for wait command
+
+wait(100); // Wait for 100 sequencer clock cycles (~333 ns + overhead)

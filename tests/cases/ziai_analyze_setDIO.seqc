@@ -1,0 +1,3 @@
+// Analyze setDIO(value)
+setDIO(0xAAAAAAAA); // Set DIO port to alternating 1010...
+wait(8); // Add a small wait

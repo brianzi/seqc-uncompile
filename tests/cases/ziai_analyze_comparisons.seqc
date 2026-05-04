@@ -1,0 +1,30 @@
+// Analyze comparison operations
+var a = 10;
+var b = 5;
+var result = 0; // Use a variable to trace execution path
+
+if (a > b) { // Greater Than (True)
+  result = 1;
+}
+
+if (a < b) { // Less Than (False)
+  result = 2;
+}
+
+if (a == b) { // Equal (False)
+  result = 3;
+}
+
+if (a != b) { // Not Equal (True)
+  result = 4;
+}
+
+if (a >= b) { // Greater or Equal (True)
+  result = 5;
+}
+
+if (a <= b) { // Less or Equal (False)
+  result = 6;
+}
+
+wait(result); // Wait based on the last true condition (should be 5)

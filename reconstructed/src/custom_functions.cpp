@@ -533,13 +533,19 @@ uint32_t CustomFunctions::getNodeAddress(NodeMapItem const& item) const {  // @0
 }
 
 // getSampleClock @0x16ba80
-// Reads "$DEVICE_SAMPLE_RATE" from resources_ (+0x10), fallback to devConst_->samplingRate (+0x70).
+// Reads "DEVICE_SAMPLE_RATE" from resources_ (+0x10), fallback to devConst_->samplingRate (+0x70).
+//
+// IMPORTANT: The binary uses a global string constant `constDeviceSampleRateE` that is a libc++
+// SSO string object where byte 0 = '$' (0x24) encodes length=18 and is-short. The actual string
+// data starting at byte 1 is "DEVICE_SAMPLE_RATE" (18 chars, NO '$' prefix). The C source literal
+// that produces this SSO layout is "DEVICE_SAMPLE_RATE" (not "$DEVICE_SAMPLE_RATE").
+// Confirmed via GDB: StaticResources::getVariable is called with len=18, data="DEVICE_SAMPLE_RATE".
 double CustomFunctions::getSampleClock() const {  // @0x16ba80
-    // Binary first checks resources_ non-null, then variableExists("$DEVICE_SAMPLE_RATE").
+    // Binary first checks resources_ non-null, then variableExists("DEVICE_SAMPLE_RATE").
     // If exists: reads the constant and extracts the double value.
     // Fallback: returns devConst_->samplingRate (+0x70).
-    if (resources_ && resources_->variableExists("$DEVICE_SAMPLE_RATE")) {
-        EvalResultValue erv = resources_->readConst("$DEVICE_SAMPLE_RATE",
+    if (resources_ && resources_->variableExists("DEVICE_SAMPLE_RATE")) {
+        EvalResultValue erv = resources_->readConst("DEVICE_SAMPLE_RATE",
                                                       EDirection::eOUT);  // @0x16bac0
         return erv.value_.toDouble();                                      // @0x16bad0
     }

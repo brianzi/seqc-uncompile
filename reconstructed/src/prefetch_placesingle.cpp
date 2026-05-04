@@ -188,7 +188,10 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                     }
 
                     // Step 4: Check lengthReg (+0x88, NOT indexOffsetReg per IF-102)
-                    {
+                    // Only take load_indexed_play when split_=false (large waveform, stream path).
+                    // When split_=true (small waveform fits in cache), the load uses standard prf.
+                    // IF-143: binary gates this on split_=false (0x1d1a84 checks 0xbc(%r14)).
+                    if (!split_) {
                         Node* npIdx = node.get();
                         if (npIdx->lengthReg.isValid()) {              // 0x1d85bb
                             AsmRegister zrCheck(0);
@@ -764,8 +767,19 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                 tempList.append(sslAsm);
                             }
 
-                            // addr + wwvf + prf + clampToCache     // done inline
-                            // ...falls through to common finalize
+                            // After ssl loop: addr(idxReg, stRegCervino) + wvf
+                            // Binary 0x1dae86: addr(idxReg, stateRegC) — fold cervino base
+                            // into the ssl'd offset register.
+                            // Binary 0x1daecb: wvf(idxReg, R0, totalSize) — play slice.
+                            // NOTE: no wwvf here — the compiler appends wwvf+nop+end globally.
+                            {
+                                AsmRegister stRegC = nodeStates_[node].registerCervino; // +0x28
+                                AsmList::Asm addrAsm = asmCommands_->addr(idxReg, stRegC);
+                                tempList.append(addrAsm);
+
+                                AsmList::Asm wvfAsm = asmCommands_->wvf(idxReg, AsmRegister(0), totalSize);
+                                tempList.append(wvfAsm);
+                            }
                         } else {
                             // Cervino non-split indexed path        // 0x1db60f
                             // GDB-verified for uhf_doc_tv_mode: this path emits

@@ -497,9 +497,30 @@ void WavetableIR::forEachUsedWaveform(
 //    h. Re-scan for next gap
 void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
 {
-    // Phase 1: iterate used waveforms to find max index
+    // Phase 1: assign implicit wave indices to waveforms with waveIndex == -1.
+    // Binary $_0 at 0x2A9F10: for each waveform with waveIndex == -1, finds the
+    // next available autoIndex (skipping explicitly assigned indices via lower_bound
+    // loop), calls waveIndexTracker_.assignAuto(autoIndex), and sets wf->waveIndex.
+    // Waveforms with waveIndex != -1 are skipped immediately (ret at +9).
     auto countFn = [this](const std::shared_ptr<WaveformIR>& wf) {
-        // no-op counting lambda
+        // Skip waveforms that already have an explicit index assigned.
+        if (wf->waveIndex != -1)
+            return;
+
+        // Find next available autoIndex past all used indices.
+        auto& tree = waveIndexTracker_.indices_;
+        int autoIdx = waveIndexTracker_.autoIndex_;
+        while (true) {
+            auto it = tree.lower_bound(autoIdx);
+            if (it == tree.end()) break;
+            if (*it > autoIdx) break;
+            autoIdx++;
+            waveIndexTracker_.autoIndex_ = autoIdx;
+        }
+
+        // Assign the next free index to this waveform.
+        waveIndexTracker_.assignAuto(autoIdx);
+        wf->waveIndex = autoIdx;
     };
     forEachUsedWaveform(countFn, WaveOrder::Natural);
 

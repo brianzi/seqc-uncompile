@@ -381,7 +381,9 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
                                   Assembler::commandToString(cmd).c_str()));
 
     // Final ALU register-register operation
-    result.push_back(alur(regCmd, src, dst));
+    // dst holds the loaded constant; src holds the original variable register.
+    // The reg-reg op is dst OP= src  (dst is both the constant and the output).
+    result.push_back(alur(regCmd, dst, src));
     return result;
 }
 

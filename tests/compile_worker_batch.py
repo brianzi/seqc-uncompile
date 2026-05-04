@@ -52,7 +52,7 @@ def compile_one(mod, case: dict, output_dir: str):
     meta_path = os.path.join(output_dir, f"{uid}.json")
 
     # Timeout: 60 seconds
-    signal.alarm(60)
+    signal.alarm(3)
 
     # Resolve code
     code = case["code"]
@@ -68,15 +68,15 @@ def compile_one(mod, case: dict, output_dir: str):
         kwargs["sequencer"] = case["sequencer"]
 
     try:
-        result = mod.compile_seqc(
-            code, case["devtype"], case.get("options", ""),
-            case.get("index", 0), **kwargs
-        )
+        result = mod.compile_seqc(code, case["devtype"], case.get("options", ""), case.get("index", 0), **kwargs)
     except Exception as exc:
-        _write_meta(meta_path, {
-            "error": str(exc),
-            "traceback": traceback.format_exc(),
-        })
+        _write_meta(
+            meta_path,
+            {
+                "error": str(exc),
+                "traceback": traceback.format_exc(),
+            },
+        )
         _write_bytes(elf_path, b"")
         os._exit(1)
 
@@ -125,14 +125,12 @@ def _emit(event: dict):
 
 def main():
     p = argparse.ArgumentParser(description="Batch SeqC compile worker (fork-per-test)")
-    p.add_argument("--module-dir", required=True,
-                   help="Directory containing the _seqc_compiler .so")
-    p.add_argument("--module-name", default="_seqc_compiler",
-                   help="Module name to import")
-    p.add_argument("--output-dir", required=True,
-                   help="Directory to write result files")
-    p.add_argument("-j", "--jobs", type=int, default=os.cpu_count(),
-                   help="Max concurrent forked children (default: cpu_count)")
+    p.add_argument("--module-dir", required=True, help="Directory containing the _seqc_compiler .so")
+    p.add_argument("--module-name", default="_seqc_compiler", help="Module name to import")
+    p.add_argument("--output-dir", required=True, help="Directory to write result files")
+    p.add_argument(
+        "-j", "--jobs", type=int, default=os.cpu_count(), help="Max concurrent forked children (default: cpu_count)"
+    )
     args = p.parse_args()
 
     # Read manifest from stdin
@@ -232,18 +230,20 @@ def _reap_one(active: dict, output_dir: str):
     except OSError:
         pass
 
-    _emit({
-        "event": "done",
-        "name": name,
-        "_uid": uid,
-        "exit_code": exit_code,
-        "signal": sig,
-        "elapsed_s": round(elapsed, 4),
-        "elf_sha256": elf_sha,
-        "meta_sha256": meta_sha,
-        "elf_size": elf_size,
-        "error": error,
-    })
+    _emit(
+        {
+            "event": "done",
+            "name": name,
+            "_uid": uid,
+            "exit_code": exit_code,
+            "signal": sig,
+            "elapsed_s": round(elapsed, 4),
+            "elf_sha256": elf_sha,
+            "meta_sha256": meta_sha,
+            "elf_size": elf_size,
+            "error": error,
+        }
+    )
 
 
 if __name__ == "__main__":

@@ -1,0 +1,13 @@
+// Analyze waitWave()
+
+// Define a minimal waveform (e.g., 16 samples)
+wave w1 = ones(16);
+
+// Play the waveform
+playWave(w1);
+
+// Wait for the waveform to finish playing
+waitWave();
+
+// Do something after waiting (e.g., wait 1 cycle)
+wait(1);

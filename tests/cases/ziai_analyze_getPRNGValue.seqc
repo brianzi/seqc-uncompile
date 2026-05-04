@@ -1,0 +1,7 @@
+// Analyze getPRNGValue()
+
+// Get a pseudo-random number generator value
+var rand_val = getPRNGValue();
+
+// Use the result (e.g., wait a variable number of cycles)
+wait(rand_val & 15); // Wait 0-15 cycles

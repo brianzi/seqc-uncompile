@@ -1,0 +1,13 @@
+// Minimal example for configureFeedbackProcessing
+
+// Placeholder constants based on documentation usage
+// const ZSYNC_DATA_PROCESSED_A = 1; // Assuming built-in
+const RESULT_INDEX = 8;
+const RESULT_SIZE = 4;
+const OFFSET = 0x10;
+
+// Function call under analysis
+configureFeedbackProcessing(ZSYNC_DATA_PROCESSED_A, RESULT_INDEX, RESULT_SIZE, OFFSET);
+
+// Add a NOP or simple instruction to ensure the function call isn't optimized away entirely
+wait(4); // Use a known instruction

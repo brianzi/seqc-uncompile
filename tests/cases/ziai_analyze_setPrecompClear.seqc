@@ -1,0 +1,7 @@
+// Analyze setPrecompClear(value)
+
+// Set precompensation clear (assuming 1 enables clear)
+setPrecompClear(1);
+
+// Do something afterwards
+wait(1);

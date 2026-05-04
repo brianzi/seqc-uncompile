@@ -134,10 +134,10 @@ void writeWavesToElfAbsolute(
         if (!wf->used)
             return;
 
-        // 0x10e1aa: cmpq $0x0, 0xd0(%rax) — check signal data pointer
-        // Waveform+0x80 = Signal, Signal+0x50 = some data ptr at absolute 0xd0
-        // If null, skip this waveform (no actual waveform data loaded)
-        if (wf->signal.data().empty())  // offset 0xd0 in Waveform
+        // 0x10e1aa: cmpq $0x0, 0xd0(%rax) — check signal length_ at Signal+0x50
+        // Binary checks length_ == 0, NOT samples_.empty(). Placeholder waveforms
+        // have empty samples_ but non-zero length_ — they must not be skipped.
+        if (wf->signal.length() == 0)  // offset 0xd0 in Waveform
             return;
 
         // 0x10e1bb-0x10e1ce: compute padding

@@ -1,0 +1,8 @@
+// Analyze setPRNGRange(range)
+
+// Set the pseudo-random number generator range (lower, upper)
+setPRNGRange(0, 1);
+
+// Get a value to see if range had an effect (not directly testable here)
+var rand_val = getPRNGValue();
+wait(1);

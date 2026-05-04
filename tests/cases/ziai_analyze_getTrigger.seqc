@@ -1,0 +1,7 @@
+// Analyze getTrigger(index)
+
+// Read the state of Digital Trigger Input 1
+var trigger_state = getTrigger(1);
+
+// Use the result (e.g., wait for that many cycles - 0 or 1)
+wait(trigger_state);

@@ -1,0 +1,18 @@
+--- reconstructed/src/prefetch.cpp
++++ reconstructed/src/prefetch.cpp
+@@ -2261,6 +2261,7 @@
+ 
+     // forces split.
+     if (required <= static_cast<size_t>(cacheSize) || config_->isHirzel) {
++        printf("ENTERED SPLIT TRUE required=%zu cacheSize=%d isHirzel=%d\n", required, cacheSize, config_->isHirzel);
+         // 0x1cbfda: split_ = true
+         split_ = true;
+ 
+@@ -2268,6 +2269,8 @@
+         auto newRoot = moveLoadsToFront(root_);
+         localRoot = newRoot;
++    } else {
++        printf("SKIPPED SPLIT required=%zu cacheSize=%d isHirzel=%d\n", required, cacheSize, config_->isHirzel);
+     }
+ 
+     // 0x1cc085-0x1cc250: if localRoot is non-null, check device type for

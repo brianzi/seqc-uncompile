@@ -1,0 +1,7 @@
+// Analyze incrementSinePhase(sine, phase) - Index 0
+
+// Increment phase of sine generator 0 (relative index 0) by 45.0 degrees
+incrementSinePhase(0, 45.0);
+
+// Do something afterwards
+wait(1);

@@ -1,0 +1,2 @@
+// Analyze playHold(samples)
+playHold(32); // Use 32 samples (multiple of 16 for HDAWG)

@@ -185,7 +185,6 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         int channelIndex = config_->deviceIndex;                       // @0x1357fa
         auto& assignments = playArgs.waveAssignments_[channelIndex];   // @0x135812
         // Spill `rate` for later use as asmPlay's rate @0x1357ec.
-
         std::shared_ptr<WaveformFront> combinedWf;                     // [rbp-0xe0]
         unsigned int mask = 0x3FFF;                                    // r15d default
 
@@ -486,7 +485,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     if (!playArgs.hasMarker_) {
         // -- Phase 8: maxSampleLen — @0x136bc1..0x136bd4 --------------------
         int64_t maxSampleLen = playArgs.getMaxSampleLength();             // @0x136bcf
-        (void)maxSampleLen; // forwarded into asmPlay's trigger argument below.
+        // maxSampleLen is forwarded into asmPlay's length argument below.
 
         // -- Phase 9: per-device-channel loop — @0x136bdb..0x136cb5 --------
         // channelIndex = config_->deviceIndex (config+0x24).
@@ -595,35 +594,30 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             // The argument list pushed at @0x13702b..0x13705e (right-to-left):
             //   trigger    = 0
             //   reg2       = regInv (AsmRegister(-1))
-            //   length     = rate (from [rbp-0xa8])
+            //   length     = maxSampleLen (1000 — the wave sample count)
             //   lengthReg  = reg0  (AsmRegister(0))
             //   is4Channel = false (push 0)
-            //   rate       = mask  (r12 — the 14-bit trigger mask)
-            //   suppress   = mask  (from [rbp-0x98] — same mask spilled earlier)
+            //   suppress   = mask  (r12 — the 14-bit trigger mask, e.g. 0x1FFF)
+            //   rate       = rate  (from [rbp-0xa8] = parseOptionalRate result, e.g. 4)
             //   hold       = false (push 0)
             // Followed by register args:
             //   deviceIndex= 0    (xor ecx,ecx)
             //   isHold     = dryRun (r8b from [rbp-0x60])
             //   fourChannel= false (xor r9d,r9d)
             //
-            // NOTE: the exact packing of (mask, rate) onto the
-            // (rate, suppress, length, trigger) tuple is non-trivial
-            // — the binary spills three different ints onto the stack and
-            // the order doesn't directly mirror the asmPlay declaration
-            // we have in asm_commands.hpp.  The mapping here is a best
-            // guess based on which spill slots are reused; a careful
-            // re-read of asmPlay's prologue is needed to confirm.
+            // Confirmed via GDB trace: suppress=0x1FFF (mask), rate=4 (parseOptionalRate),
+            // length=1000 (maxSampleLen), trigger=0.
             auto asmEntry = asmCommands_->asmPlay(
                 std::move(waveforms),
                 /*deviceIndex=*/0,
                 /*isHold=*/dryRun,
                 /*fourChannel=*/false,
                 /*hold=*/false,
-                /*rate=*/mask,
+                /*rate=*/rate,
                 /*suppress=*/static_cast<unsigned int>(mask),
                 /*is4Channel=*/false,
                 reg0,
-                /*length=*/rate,
+                /*length=*/static_cast<int>(maxSampleLen),
                 regInv,
                 /*trigger=*/0);                                            // @0x13705e
 
@@ -632,6 +626,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             // the capacity (@0x137169..0x137200) — falls back to
             // emplace_back_slow_path when full.  We use the high-level API.
             results->assemblers_.push_back(std::move(asmEntry));           // @0x137211
+            // Binary @0x1370cb..0x137120: stores asmEntry.node into results->node_ (+0x38)
+            results->node_ = results->assemblers_.back().node;             // @0x137120
         }
     }
     // hasMarker_ branch at @0x136bbb: jumps to 0x1372f2 — the per-channel

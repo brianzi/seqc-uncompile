@@ -1,0 +1,8 @@
+// Analyze playWave(w1, w2) - dual channel
+
+// Define two simple waveforms (32 samples)
+wave w1 = ramp(32, 0.0, 1.0);
+wave w2 = ramp(32, 1.0, 0.0); // Different ramp
+
+// Play the waveforms on channels 1 & 2
+playWave(w1, w2);

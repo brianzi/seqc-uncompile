@@ -1,0 +1,3 @@
+// Analyze waitDigTrigger(index, [level=1])
+waitDigTrigger(1); // Wait for Trigger Input 1 to go high (level defaults to 1)
+wait(8); // Add a small wait

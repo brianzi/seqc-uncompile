@@ -810,17 +810,16 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
     // @0x13b988..0x13b9bf: insert addi results into results->assemblers_
     for (auto& e : addiEntries1) results->assemblers_.push_back(std::move(e));                   // @0x13b9bf
 
-    // @0x13ba7e..0x13ba89: getRegisterNumber → second register (for trigger address)
+    // @0x13ba7e..0x13ba89: getRegisterNumber → second register (for wait condition)
     int regNum2 = Resources::getRegisterNumber();                                                // @0x13ba7e
     AsmRegister reg2(regNum2);                                                                   // @0x13ba89
 
-    // @0x13ba8e..0x13bae3: addi(reg2, AsmRegister(0), Immediate(erv value))
+    // @0x13ba8e..0x13bae3: addi(reg2, AsmRegister(0), Immediate(args[1] wait flag))
     AsmRegister zero2(0);                                                                        // @0x13baaa
-    // Phase S.2 M5: dropped redundant local `trigVal2` — the binary
-    // re-runs `Value::toInt()` on the same `erv`, yielding the same
-    // value already in `trigVal`. Keep both addi emissions (they
-    // load distinct registers) but reuse the single computed value.
-    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal));                     // @0x13bae3
+    // reg2 carries args[1] (the wait condition: 0=don't wait, 1=wait), NOT the trigger address.
+    // The trigger address (trigVal) was already loaded into reg1 above.
+    int waitFlag = args[1].value_.toInt();
+    auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(waitFlag));                    // @0x13bae3
 
     // @0x13bae8..0x13bb0f: insert addi results into results->assemblers_
     for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));                   // @0x13bb0f
@@ -922,15 +921,9 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
             auto wtrigEntry = asmCommands_->wtrig(reg1, reg1);                           // @0x13caac (same-reg path)
             results->assemblers_.push_back(std::move(wtrigEntry));
         } else {
-            // Different-value path: allocate reg2, addi, wtrig(reg1, reg2)
-            int regNum2 = Resources::getRegisterNumber();                                // @0x13c9be
-            AsmRegister reg2(regNum2);
-            AsmRegister zero2(0);
-            int trigVal2 = erv.value_.toInt();
-            auto addiEntries2 = asmCommands_->addi(reg2, zero2, Immediate(trigVal2));
-            for (auto& e : addiEntries2) results->assemblers_.push_back(std::move(e));
-
-            auto wtrigEntry = asmCommands_->wtrig(reg1, reg2);
+            // Different-value path (wait=0): wtrig(reg1, R0) — R0 is always 0, no addi needed
+            AsmRegister r0(0);
+            auto wtrigEntry = asmCommands_->wtrig(reg1, r0);
             results->assemblers_.push_back(std::move(wtrigEntry));
         }
 
@@ -1416,8 +1409,40 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
 
             return results;
         }
+    } else if (devType == static_cast<int>(AwgDeviceType::UHFQA)) {
+        // @0x1405ba: UHFQA-specific path — pulse-reset via st(reg,0x5f); st(R0,0x5f)
+        // GDB-verified (2026-05-04): UHFQA takes a separate jump-table branch distinct
+        // from the HDAWG/Hirzel path. It accepts no arguments, then emits:
+        //   addi R_n, R0, 1
+        //   st   R_n, 0x5f    (phasereset = 1)
+        //   st   R0,  0x5f    (phasereset = 0, i.e. pulse-reset)
+        // No node write — UHFQA node map does not contain "oscs/phasereset".
+        if (args.size() != 0) {                                                       // @0x1405c3: jne error
+            throw CustomFunctionsException(
+                ErrorMessages::format(FuncExpectsSingleArg, "resetOscPhase"));
+        }
+
+        auto results = std::make_shared<EvalResults>();                               // @0x1405ce: new EvalResults
+
+        int regNum = Resources::getRegisterNumber();                                  // @0x140628
+        AsmRegister reg(regNum);                                                      // @0x140633
+        AsmRegister zero(0);                                                          // @0x140647
+
+        // addi R_n, R0, 1  (load constant 1)                                        // @0x140658
+        auto addiEntries = asmCommands_->addi(reg, zero, Immediate(1));               // @0x140679
+        for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
+
+        // st R_n, 0x5f  (assert phasereset)                                         // @0x140858
+        auto stEntry1 = asmCommands_->st(reg, detail::AddressImpl<unsigned int>(0x5f));
+        results->assemblers_.push_back(std::move(stEntry1));
+
+        // st R0, 0x5f   (deassert phasereset — pulse)                               // @0x14095c
+        auto stEntry2 = asmCommands_->st(AsmRegister(0), detail::AddressImpl<unsigned int>(0x5f));
+        results->assemblers_.push_back(std::move(stEntry2));
+
+        return results;
     } else if (devType >= 2 && devType <= 0x20) {
-        // @0x14044e: Hirzel device types (HDAWG, UHFQA, UHFLI, etc.)
+        // @0x14044e: Hirzel device types (HDAWG only in practice; UHFQA handled above)
         if (args.size() >= 2) {
             // @0x1418e3: too many args
             throw CustomFunctionsException(
@@ -1677,7 +1702,8 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
 
     // Phase 3: for deviceType == 2 — node path construction and lookup
     if (devType == 2) {
-        auto path = "sines/" + std::to_string(static_cast<unsigned long>(config_->awgIndex)) + "/phaseshift";
+        int oscIndex = args[0].value_.toInt();
+        auto path = "sines/" + std::to_string(static_cast<unsigned long>(oscIndex)) + "/phaseshift";
         auto node = lookupNode(path);
         addNodeAccess(node, AccessMode::Custom);
     }
@@ -2394,6 +2420,7 @@ std::shared_ptr<EvalResults> CustomFunctions::lock(                             
             ErrorMessages::format(WaveformNotExist, name), 0);
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto asmEntry = asmCommands_->asmLockPlaceholder(wf, config_->deviceIndex);
+    results->node_ = asmEntry.node;  // @0x14de27-0x14de47: results->node_ = asmEntry.node
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
 }
@@ -2414,6 +2441,7 @@ std::shared_ptr<EvalResults> CustomFunctions::unlock(                           
             ErrorMessages::format(WaveformNotExist, name), 0);
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto asmEntry = asmCommands_->asmUnlockPlaceholder(wf, config_->deviceIndex);
+    results->node_ = asmEntry.node;  // @0x14e33d-0x14e35c: results->node_ = asmEntry.node
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
 }

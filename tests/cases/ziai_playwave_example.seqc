@@ -1,0 +1,13 @@
+// Simple playWave example (Waveform parts commented out for testing)
+
+// Define a waveform (assuming it's preloaded or defined elsewhere)
+// We'll just use placeholders here
+// const WFM_LEN = 1024;
+// wave w1 = "placeholder_wfm_1";
+
+// Play the waveform on channel 1
+// playWave(1, w1);
+
+// Wait for some cycles before ending
+// wait(WFM_LEN + 100);
+wait(100); // Simple wait instead

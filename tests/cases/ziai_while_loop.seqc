@@ -1,0 +1,8 @@
+// Minimal example for while loop
+
+var counter = 5;
+
+while (counter > 0) {
+  wait(10); // Do something inside the loop
+  counter = counter - 1;
+}

@@ -280,18 +280,24 @@ The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
 
 ### Running tests
 
-```bash
-# Full suite
-python tests/diff_test.py
+**Always use `diff_test_fast.py` for the full suite** — it is dramatically
+faster than `diff_test.py` thanks to fork-per-test batch workers.
+`diff_test.py` is still useful for single-test verbose runs (it has cleaner
+per-test output), but **never use it for regression checks** over the full
+suite.
 
-# Single test (verbose)
+```bash
+# Full suite (fast — use this for regression checks)
+python tests/diff_test_fast.py
+
+# Single test (verbose — diff_test.py is fine here)
 python tests/diff_test.py --filter hdawg_play_dual_ch -v
 
 # Smoke-test original only (no recon)
-python tests/diff_test.py --original-only
+python tests/diff_test_fast.py --original-only
 
 # Regex-style filter (matches substring in test name)
-python tests/diff_test.py --filter 'hdawg_doc'
+python tests/diff_test_fast.py --filter 'hdawg_doc'
 ```
 
 ### Test manifest
@@ -435,7 +441,7 @@ underlying reconstruction error, not just to make the test pass.
 7. **Run the specific test** — `python tests/diff_test.py --filter <name> -v`.
    Confirm it passes.
 
-8. **Run the full suite** — `python tests/diff_test.py`. Confirm no
+8. **Run the full suite** — `python tests/diff_test_fast.py`. Confirm no
    regressions.
 
 9. **Document** — add a finding to `reconstructed/notes/incidental_findings.md`

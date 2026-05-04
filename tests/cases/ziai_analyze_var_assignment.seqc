@@ -1,0 +1,3 @@
+// Analyze variable assignment
+var my_var = 1234;
+wait(my_var); // Use the variable

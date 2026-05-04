@@ -1,0 +1,87 @@
+set pagination off
+set confirm off
+set auto-load safe-path /
+
+set stop-on-solib-events 1
+run
+
+python
+import gdb
+while True:
+    info = gdb.execute("info sharedlibrary _seqc_compiler", to_string=True)
+    if '_seqc_compiler' in info and '0x' in info.split('_seqc_compiler')[0].split('\n')[-1]:
+        for line in info.split('\n'):
+            if '_seqc_compiler' in line and '0x' in line:
+                base = int(line.split()[0], 16)
+                break
+        break
+    gdb.execute("continue")
+
+gdb.execute("set stop-on-solib-events 0")
+
+# Break at Prefetch::moveLoadsToFront entry (0x1ccad0)
+python gdb.Breakpoint(f"*{base + 0x1ccad0}")
+commands
+silent
+printf ">>> moveLoadsToFront() entered\n"
+continue
+end
+
+# Break at the return of Prefetch::moveLoadsToFront (0x1cd6b3 - early ret? 0x1cd77b - normal ret)
+python gdb.Breakpoint(f"*{base + 0x1cd77b}")
+commands
+silent
+printf ">>> moveLoadsToFront() returning\n"
+# rdx points to the sret shared_ptr ? No, rdi is sret shared_ptr. But at ret, rax is the returned pointer.
+# Actually, sret means caller allocated space, rdi points to it. rax = rdi.
+# Let's read the shared_ptr's raw pointer. shared_ptr layout: [ptr_to_T, ptr_to_control_block]
+printf ">>> Returned shared_ptr at 0x%lx\n", $rax
+set $node_ptr = *(void**)$rax
+printf ">>> Node ptr: 0x%lx\n", $node_ptr
+if $node_ptr != 0
+    # read node type (+0)
+    set $type = *(int*)$node_ptr
+    printf ">>> Node type: 0x%x\n", $type
+    # If it's a Load node (type 0x41), check lengthReg (+0xC0)
+    if $type == 0x41
+        set $lengthRegValid = *(bool*)($node_ptr + 0xC4)
+        printf ">>> Load lengthReg valid: %d\n", $lengthRegValid
+    end
+end
+continue
+end
+
+# Break at Prefetch::optimize() entry (0x1d2110)
+python gdb.Breakpoint(f"*{base + 0x1d2110}")
+commands
+silent
+printf ">>> optimize() entered\n"
+continue
+end
+
+# Break at Prefetch::optimizeSync() entry (0x1ce110)
+python gdb.Breakpoint(f"*{base + 0x1ce110}")
+commands
+silent
+printf ">>> optimizeSync() entered\n"
+continue
+end
+
+# Break at Prefetch::optimizeCwvf() entry (0x1ceba0)
+python gdb.Breakpoint(f"*{base + 0x1ceba0}")
+commands
+silent
+printf ">>> optimizeCwvf() entered\n"
+continue
+end
+
+# Break at Prefetch::allocate() entry (0x1d3a50)
+python gdb.Breakpoint(f"*{base + 0x1d3a50}")
+commands
+silent
+printf ">>> allocate() entered\n"
+continue
+end
+
+continue
+quit

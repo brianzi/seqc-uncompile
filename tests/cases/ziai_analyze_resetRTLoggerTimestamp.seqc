@@ -1,0 +1,5 @@
+// Analyze resetRTLoggerTimestamp
+
+resetRTLoggerTimestamp();
+
+wait(1);

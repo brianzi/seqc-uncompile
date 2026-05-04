@@ -1,0 +1,12 @@
+// Minimal example for getFeedback(ZSYNC_DATA_RAW, feedback_time)
+
+// Assume ZSYNC_DATA_RAW is built-in
+const feedback_time = 100; // Example delay
+
+var feedback_result;
+
+// Function call under analysis
+feedback_result = getFeedback(ZSYNC_DATA_RAW, feedback_time);
+
+// Use the result
+wait(feedback_result & 0xF + 4);

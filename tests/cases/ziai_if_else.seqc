@@ -1,0 +1,10 @@
+// Minimal example for if-else statement
+
+var condition = 1; // Typically comes from getDIO or getTrigger
+var result = 0;
+
+if (condition) {
+  result = 10; // Execute if condition is true (non-zero)
+} else {
+  result = 20; // Execute if condition is false (zero)
+}

@@ -2530,3 +2530,250 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Status**: **fixed** (Phase D commit `612eb2a`, Cluster N)
 - **Description**: `Resources::parent_` is stored as a `shared_ptr` (strong reference) but the binary uses a `weak_ptr` to avoid reference cycles in the resource tree. The strong reference prevents parent deallocation and causes memory leaks in deep scope chains.
 - **Resolution**: Phase D commit `612eb2a` swapped the strong/weak slots and renamed the strong slot to `grandparent_` (the binary's actual semantic — the recon's `parent_` was at +0x18, the true direct-parent weak slot at +0x28; what `parent_` referred to was a transitively-owned grandparent). All access sites updated; tests 259/259 throughout.
+
+## IF-128  `Value::toInt()` missing uint32_t overflow retry for large hex literals
+
+- **Source**: `ziai_analyze_setDIO` difftest investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The `Value::toInt()` Double case used `static_cast<int32_t>(floor(d))` unconditionally. For hex literals like `0xAAAAAAAA` (2863311530.0 as double), this is undefined behavior — the value exceeds INT32_MAX. The binary's `toInt()` at 0x15c250 uses the x86 `cvttsd2si` instruction which returns the "indefinite" sentinel 0x80000000 on overflow, then detects the overflow and retries via `uint32_t` truncation. The recon omitted this retry, yielding wrong values (UB in practice produced 0x80000000 = -2147483648, which then split incorrectly by `addi32` into addi imm=0x0 and addiu imm=0x80000 instead of the correct 0xAAA/0xAAAAA). The symptom was `setDIO(0xAAAAAAAA)` emitting wrong machine code: `addi R1,R0,0` + `addiu R1,R1,524288` instead of `addi R1,R0,2730` + `addiu R1,R1,699050`.
+- **Root cause**: Missing overflow path in `Value::toInt()` for the Double case. The comment at the top of the function noted "On int overflow, catches and retries as uint32_t" but the implementation lacked this logic.
+- **Resolution**: Added range check in the Double case; values outside [INT32_MIN, INT32_MAX] are cast via `static_cast<int32_t>(static_cast<uint32_t>(truncated))`, which wraps correctly and matches the binary behavior. All 13 `ziai_analyze_setDIO_*` tests now pass byte-identical. No regressions (776 pass, 3 equiv, 12 failed — same as before).
+
+## IF-129  `resetOscPhase`: UHFQA uses direct pulse-reset, not `oscs/phasereset` node write
+
+- **Source**: `ziai_analyze_resetOscPhase_uhfqa` difftest failure
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The recon's `resetOscPhase()` had a single `else if (devType >= 2 && devType <= 0x20)` branch covering all "Hirzel" devices (HDAWG, UHFQA). For HDAWG, the correct behaviour is to call `writeToNode("oscs/phasereset", oscMask)`. But for UHFQA, the original binary uses a **completely different code path** — GDB-confirmed via jump table at `0x14043e` in the binary: UHFQA (devType=4, index=2) jumps to `0x1405ba`, not to the HDAWG path at `0x14044e`. The UHFQA path emits a pulse-reset sequence directly: `addi R_n, R0, 1; st R_n, 0x5f; st R0, 0x5f`. This writes 1 then 0 to hardware register address `0x5f` (phasereset). No node write is performed. The UHFQA node map does not contain `"oscs/phasereset"`, so the recon's `lookupNode("oscs/phasereset")` call threw a compilation error.
+- **Root cause**: The recon incorrectly grouped UHFQA with the HDAWG (Hirzel) path in a single `else if` branch, missing that the binary uses per-device jump-table dispatch and UHFQA has its own distinct path.
+- **Resolution**: Added a UHFQA-specific branch before the generic Hirzel branch in `custom_functions_io.cpp::resetOscPhase()` (`reconstructed/src/custom_functions_io.cpp:1419`). UHFQA now emits the direct `addi/st/st` pulse-reset sequence to register `0x5f`. GDB-verified: binary offsets `0x140858` and `0x14095c` both execute `st(..., 0x5f)` with reg=1 then reg=0. All 11 `resetOscPhase` tests now pass byte-identical (788 total passing, 0 failed).
+
+## IF-130  `incrementSinePhase` Phase 3 path uses `awgIndex` instead of `oscIndex`
+
+- **Source**: `ziai_analyze_incrementSinePhase_hdawg8/hdawg4` difftest failure
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `CustomFunctions::incrementSinePhase()` in `custom_functions_io.cpp` is structured as four separate `if (devType == ...)` phases. Phase 1 (devType==2, HDAWG) reads `oscIndex = args[0].value_.toInt()` and uses it for suser codegen. Phase 3 (also devType==2) builds the node path for `addNodeAccess`. However, Phase 3 incorrectly used `config_->awgIndex` (the AWG channel index, always 0 for index=0 tests) instead of `oscIndex` (the sine generator argument from the user). For `incrementSinePhase(1, 45.0)`, this produced `nodes_json: {"nodes":[{"name":"SINEPHASE","index":[0],...}]}` instead of the correct `index:[1]`. The `setSinePhase` counterpart correctly uses `oscIndex` in its single combined `if (devType==2)` block (both suser and node path in the same scope). The bug arose because `incrementSinePhase` split the two operations across separate `if` blocks, placing `oscIndex` out of scope for Phase 3.
+- **Root cause**: Scoping error — `oscIndex` is declared inside Phase 1's `if` block but needed again in Phase 3's separate `if` block. The fix re-reads `oscIndex` from `args[0].value_.toInt()` in Phase 3.
+- **Resolution**: Changed line 1680 in `custom_functions_io.cpp`: added `int oscIndex = args[0].value_.toInt();` and replaced `config_->awgIndex` with `oscIndex` in the path string. Confirmed by running the original binary directly (outputs `index:[1]` for `incrementSinePhase(1, 45.0)`). All 10 `incrementSinePhase` tests now pass byte-identical. Full suite: 788 passed, 3 equiv, 0 failed.
+
+## IF-131  `alui` Case 3 (large-immediate ORI/ANDI/XNORI): `alur` dst/src arguments reversed
+
+- **Source**: `ziasm_register_arithmetic_11` difftest failure (all 13 devices)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `AsmCommands::alui()` in `asm_commands.cpp` handles the case where a bitwise OR/AND/XNOR immediate is too large for a single immediate instruction. It loads the constant into `dst` via `ADDI` + optional `ADDIU`, then performs a register-register operation. The final `alur` call at line 384 was `alur(regCmd, src, dst)` — but this encodes `dst=src, src=dst`, which swaps the register fields in the instruction word. The original binary emits `orr R2, R1` (destination R2 holds the loaded constant, source R1 is the variable), while the recon emitted `orr R1, R2`.
+- **Root cause**: Simple argument-order inversion in the `alur(regCmd, src, dst)` call. The correct order is `alur(regCmd, dst, src)` since `dst` is where the constant was loaded and the result should accumulate.
+- **Resolution**: Changed `asm_commands.cpp:384` from `alur(regCmd, src, dst)` to `alur(regCmd, dst, src)`. All 13 `ziasm_register_arithmetic_11` tests now pass byte-identical. No regressions in full suite.
+
+## IF-132  `waitAnaTrigger`: reg2 loaded with trigger address instead of wait-flag argument
+
+- **Source**: `ziasm_triggers_3_uhfli/uhfawg/uhfqa` difftest failure (`.asm` and `.text` differ; wrong immediate in `addi R2`)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `CustomFunctions::waitAnaTrigger()` emits two `addi` instructions: reg1 gets the trigger address (from `readConst("AWG_ANA_TRIGGER1/2")`), reg2 gets the wait condition (args[1], 0 or 1). The recon incorrectly loaded `trigVal` (the trigger address) into reg2 instead of `args[1].value_.toInt()` (the wait flag). For `waitAnaTrigger(2, 0)`, this produced `addi R2, R0, 2` instead of `addi R2, R0, 0`. A stale comment ("Phase S.2 M5") incorrectly justified reusing `trigVal` for reg2.
+- **Root cause**: Wrong value used for the second `addi` — `trigVal` instead of `args[1].value_.toInt()`.
+- **Resolution**: Changed `custom_functions_io.cpp` in `waitAnaTrigger()` to compute `int waitFlag = args[1].value_.toInt()` and use it for the second `addi`. All 3 `ziasm_triggers_3` tests now pass byte-identical.
+
+## IF-133  `waitDigTrigger` unsupported-device path: false-wait branch emits extra `addi` + wrong `wtrig` form
+
+- **Source**: `ziasm_triggers_4_uhfli/uhfawg/uhfqa` difftest failure (`.asm` size 308 vs 284, extra instruction)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `CustomFunctions::waitDigTrigger()` unsupported-device path checks `args[1].toBool()` (the wait flag). When wait=true (`useSameReg`), it emits `wtrig(reg1, reg1)`. When wait=false, the original binary emits `wtrig(reg1, R0)` — using R0 (which is always 0 in this ISA) directly without allocating a new register. The recon instead allocated a fresh register, emitted an extra `addi R2, R0, trigVal`, then `wtrig(reg1, R2)` — adding one spurious instruction and encoding the wrong value in the second operand.
+- **Root cause**: Incorrect assumption that the false-wait branch mirrors the true-wait structure with a new register. The binary reuses R0 as a constant-zero register.
+- **Resolution**: Changed the `useSameReg=false` branch in `custom_functions_io.cpp::waitDigTrigger()` to `wtrig(reg1, AsmRegister(0))`. All 3 `ziasm_triggers_4` tests now pass byte-identical. No regressions in full suite (1207 passed, 3 equiv, 49 failed).
+
+## IF-135  `WaveformGenerator::merge` reserveOnly path: `channels_` not set to input count
+
+- **Source**: `ziasm_prefetching_0` difftest — all `.wf___playWave_*` sections half the expected byte size; `channels=1` in `.waveforms` for dual-channel assignWaveIndex waveforms
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `WaveformGenerator::merge()` (0x25f5c0) has two paths: one for normal (non-reserveOnly) signals and one for `reserveOnly_` signals (placeholder waves). In the reserveOnly path (0x25fa98), the function constructs and returns a `Signal(ReserveOnly, length, mergedBits)`. The `ReserveOnly` Signal constructor initializes `channels_=0`. In the non-reserveOnly path (0x25fc70), `result.channels_ = numChannels` is explicitly set. The reserveOnly path was missing this assignment.
+- **Effect**: When `assignWaveIndex(1, 2, w, 1, 2, w, idx)` is called with a dual-channel placeholder wave, `mergeWaveforms` calls `merge()` on two entries of the same placeholder. The result had `channels_=0` instead of `channels_=2`. This caused: (a) `Signal::getRawData()` to compute `byteSize_ = 0 * length * 2 = 0` for NOBITS ELF sections (all `.wf_` sections half the expected size, since `channels_=1` after clamping by some path), (b) `genPlayConfig()` to see `channels_=0→1` and compute `channelMask=1` instead of `3`, setting wrong `play_config` in `.waveforms` metadata, (c) wrong waveform memory accounting in `.wavemem`.
+- **Root cause**: Missing `result.channels_ = static_cast<uint16_t>(signals.size())` after the `Signal(ReserveOnly, ...)` construction in `merge()`.
+- **Resolution**: Added `result.channels_ = static_cast<uint16_t>(signals.size())` before the return in the reserveOnly branch of `merge()`. Fixes 24 tests (+1190 → +1214 passing in 1259-test suite). `ziasm_prefetching_0` still has additional failures in the prefetch address calculation and waveform ordering (separate pre-existing bugs).
+- **Location**: `reconstructed/src/waveform_generator.cpp:2627-2635`
+
+## IF-134  `writeWavesToElfAbsolute`: wrong skip condition for placeholder waveforms (Cervino/UHF devices)
+
+- **Source**: `ziasm_playconfig_cwfv_0_uhfli/uhfawg/uhfqa` difftest failures (`.wf_` sections missing in recon)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: In `writeWavesToElfAbsolute` (used for absolute-addressing devices: UHFLI, UHFAWG, UHFQA), the recon checked `wf->signal.data().empty()` (i.e., `samples_.empty()`) to skip waveforms with no data. However, the binary at `0x10e1aa` checks `signal.length_ == 0` (the uint64 at WaveformIR+0x80+0x50 = offset 0xD0 from WaveformIR base). `placeholder` waveforms have `reserveOnly_=true` so `samples_` is always empty, but `length_ > 0` (e.g., 1000). The incorrect empty-samples check caused all placeholder waveforms to be skipped in the absolute-addressing path, producing ELFs with missing `.wf_` sections.
+- **Root cause**: `Signal::data()` returns `samples_` (physical samples), which is empty for reserveOnly signals. The binary instead checks the logical `length_` field, which is set even for placeholder (reserve-only) waves.
+- **Resolution**: Changed condition to `wf->signal.length() == 0`. All 3 UHFLI/UHFAWG/UHFQA tests for `ziasm_playconfig_cwfv_0` now pass byte-identical.
+
+## IF-136  `playAuxWave`/`playDIOWave`/`playWaveIndexed`: missing prefetch instructions and wrong waveform emit on Cervino (UHF) devices
+
+- **Source**: `ziasm_playconfig_cwfv_2_uhfli/uhfawg/uhfqa`, `ziasm_playconfig_cwfv_3_uhfli/uhfawg/uhfqa`, `ziasm_various_playback_stuff_1_uhfli/uhfawg/uhfqa`, `ziasm_various_playback_stuff_2_uhfli/uhfawg/uhfqa` difftest failures (`.asm` size diff, `.wf_` section missing in recon)
+- **Severity**: likely-bug
+- **Status**: open
+- **Description**: After fixing IF-134 (the placeholder waveform data issue), several tests still fail:
+  - `cwfv_2` (`playAuxWave`): The AuxWave generates a new waveform `__playWaveI_4_3` (4000 samples) which appears in original `.waveforms` but not recon. Original emits `prf`/`wprf`/`wvf` for it; recon emits only `cwvf` without the corresponding `wvf`. The AuxWave waveform is not reaching `collectUsedWaves` (likely because `playAuxWave` doesn't set `results->node_` to chain the node into the prefetch tree, OR the waveform is not getting `used=true`).
+  - `cwfv_3` (`playDIOWave`): `.asm` size diff, `.channels` diff, `.waveforms` diff. `playDIOWave` also appears to not properly chain its node into results->node_ (line 634 of custom_functions_playback.cpp doesn't set `results->node_`). Additionally `.channels` byte differs (orig=0xe0 vs recon=0xc0) suggesting a channel mask calculation difference.
+  - `vps_1/vps_2` (`playWaveIndexed`): Recon generates MORE instructions than original (recon=381 vs orig=350). Register assignment and instruction ordering differ — the original uses `addi R1, R0, 200; addi R3, R1, 0; ssl R3, R3; addr R3, R2; wvf R3, R0, 256; wwvf` while recon generates a different sequence with an extra `wwvf` and different register usage.
+- **Root cause**: Not yet fully investigated. Likely multiple separate bugs in `playAuxWave`/`playDIOWave` node chaining and `playIndexed` register allocation.
+- **Location**: `reconstructed/src/custom_functions_playback.cpp:352`, `634`, and `reconstructed/src/custom_functions_play.cpp` (playIndexed section)
+
+## IF-137  `lock()`/`unlock()` missing `results->node_` assignment
+
+- **Source**: `ziasm_misc_2` difftest failures (`.linenr` off-by-1 in `wavetableFrontIndex_`)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `lock()` and `unlock()` in `custom_functions_io.cpp` returned `EvalResults` without setting `results->node_` to the LockPlaceholder/UnlockPlaceholder node. Without this, the node chain only contained the Play node; `placeCommands` called `placeSingleCommand` once (wavetableFront=3). After all prefetch processing, `wavetableFrontIndex_` was left at 3 (not 4). Then `unsyncCervino()` (compiler Step 16) emitted `st R0, 68` / `st R0, 69` with stale index=3 vs 4. The `.linenr` section reflected this wrong value.
+- **Root cause**: Missing `results->node_ = asmEntry.node` assignment in both `lock()` (binary: 0x14de27-0x14de47) and `unlock()` (0x14e33d-0x14e35c).
+- **Resolution**: Added `results->node_ = asmEntry.node` in both functions. All `ziasm_misc_2` variants pass.
+- **Location**: `reconstructed/src/custom_functions_io.cpp` (lock and unlock functions)
+
+## IF-138  `getSampleClock()` wrong string literal for `DEVICE_SAMPLE_RATE` lookup
+
+- **Source**: `ziasm_firmware_syscall_trap_1_hdawg8/hdawg4` difftest failures (missing `.required_sample_rate` ELF section)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `getSampleClock()` called `resources_->variableExists("$DEVICE_SAMPLE_RATE")` and `resources_->readConst("$DEVICE_SAMPLE_RATE", ...)` with a `$`-prefixed string literal. The binary's `constDeviceSampleRateE` global at 0x959dc0 is a libc++ SSO string where byte 0 = `$` (0x24) encodes length=18 and is-short. The actual string DATA starting at byte 1 is `"DEVICE_SAMPLE_RATE"` (18 chars, no `$`). So the binary's `variableExists` call matches variables stored as `"DEVICE_SAMPLE_RATE"`, not `"$DEVICE_SAMPLE_RATE"`. The recon's `"$DEVICE_SAMPLE_RATE"` literal would construct a 19-char C++ string with `$` as the first character, causing a miss and `usedSampleRate_` in `StaticResources::getVariable` never being set. Without the flag, `awg_compiler.cpp` does not emit the `.required_sample_rate` ELF section.
+- **Root cause**: Misreading the binary's SSO string layout: `$` in the rodata is the SSO length byte, not the first character of the string.
+- **Confirmed by**: GDB trace showing `StaticResources::getVariable` called with len=18, data=`"DEVICE_SAMPLE_RATE"` (no `$`).
+- **Resolution**: Changed `"$DEVICE_SAMPLE_RATE"` to `"DEVICE_SAMPLE_RATE"` in `getSampleClock()`. All `ziasm_firmware_syscall_trap_1_hdawg8/hdawg4` tests pass.
+- **Location**: `reconstructed/src/custom_functions.cpp:537-547`
+
+## IF-139  `writeToNode` slow-commit hardcodes scale=1.0 instead of using `type` argument
+
+- **Source**: `ziasm_firmware_syscall_trap_3` difftest failures (`.asm` and `.text` size diff — recon missing scale-dependent commit value)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: In `writeToNode()`, the common tail for BC cases 0,1,5 and the case 2 slow-arm both emit a "slow-commit" value via `addi(destReg, R0, float32_bits) + suser(kSuserNodeSlowCommit=0x14) + trap`. The recon hardcoded `Immediate(0x3F800)` = `float32(1.0) >> 12` in both `addiu` calls. The binary at 0x16643b-16648e instead loads `type.value_.toDouble()`, converts to `float32`, and calls `addi(float32_bits)` — which generates a hi/lo split (two instructions) when the lower 12 bits are nonzero. When `setDouble(path, val, scale)` is called with scale ≠ 1.0, the wrong hardcoded value was emitted.
+- **Encoding**: The sequencer stores a 32-bit float as: `addi R2, R0, (float32_bits & 0xFFF)` (lower 12 bits) + `addiu R2, R2, (float32_bits >> 12)` (upper 20 bits). When lower 12 bits = 0 (e.g., float32(1.0) = 0x3F800000), only `addiu R2, R0, 0x3F800` is needed.
+- **Resolution**: Replaced `addiu(Immediate(0x3F800))` with `addi(Immediate(float32(type.value_.toDouble()) bits))` in both the BC common tail and the case 2 slow-arm.
+- **Location**: `reconstructed/src/custom_functions_play.cpp` (writeToNode BC common tail and case 2 slow-arm)
+
+## IF-140  `writeToNode` case 2 fast-arm generates two triplets instead of one + slow-commit
+
+- **Source**: `ziasm_firmware_syscall_trap_4` difftest failures (recon generates 1 extra instruction, no trap)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: In `writeToNode()` case 2 (typeIdx=2, I+Q sine write), the fast-arm (varType==2, register) incorrectly generated TWO triplets: tag=0xc (I-channel) + tag=0xd (Q-channel), with no commit or trap. The binary at 0x165587-165747 generates only ONE triplet (tag=0xc, addr, val.reg_) then `jmp 0x16636b` to the slow-commit region, which emits: floatEqual warning on type.value_, `addi(float32(scale))`, suser(kSuserNodeSlowCommit=0x14), trap.
+- **Root cause**: The recon duplicated the Q-channel triplet (tag=0xd) into the fast-arm, imitating the slow-arm structure, instead of mirroring the binary's single-triplet + shared commit pattern. Additionally, the slow-commit floatEqual warning passes 3 args including `"integer"` hint (at 0x1663bc: `lea 0x79a579(%rip), %rcx` = `"integer"`), not 2 args.
+- **Confirmed by**: GDB trace showing `type.value_` (vartype=4=Const, value_which=2=double) is what the slow-commit reads at 0x16636b.
+- **Resolution**: Replaced the two-triplet fast-arm with: one triplet (tag=0xc) + floatEqual warning on `type.value_` (with `"integer"` hint) + `addi(float32(scale))` + suser(0x14) + trap.
+- **Location**: `reconstructed/src/custom_functions_play.cpp` (writeToNode case 2 fast-arm)
+
+## IF-140  `playDIOWave` missing `results->node_` assignment
+
+- **Source**: `ziasm_playconfig_cwfv_3` difftest (UHFLI/UHFAWG/UHFQA)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: `playDIOWave` in the recon did not set `results->node_` after calling `asmPlay` and pushing the asm entry. As a result, the DIOWave play node was absent from the `ast_` tree. `Prefetch::prepareTree` never visited it, `linkLoad` was never called, and `loadRef` was never set. When `placeSingleCommand` processed the play node, it found `loadRef=nil && dummy=false` and fell through to `play_finalize` with an empty `tempList`, emitting no wvf instruction.
+- **Confirmed by**: GDB traces showing (1) `linkLoad` called 3 times in original (two dummy=0, one dummy=1), but only twice in recon (one dummy=0, one dummy=1); (2) `assignLoad` never called directly for DIOWave node; (3) `mov %rcx, 0x38(%rax)` at binary offset `+1840` writes `results->node_` from the play node shared_ptr; (4) `placeSingleCommand` dummy-check hit only once in original (for playZero), never for DIOWave.
+- **Root cause**: The reconstruction previously read the binary's `playDIOWave` epilogue as not writing `results->node_` (offset `+0x38`). A broader disassembly search found the write at `+1840` — after an inlined push_back loop at `+1680`–`+1750`. Our earlier disassembly scan only looked in `+2014`–`+2251`.
+- **Resolution**: Added `results->node_ = results->assemblers_.back().node;` immediately after the `push_back` in `playDIOWave` (`custom_functions_playback.cpp` line ~629). All 3 test variants now pass byte-identical. No regressions across all test subsets.
+
+## IF-141  `WaveformGenerator::merge` checked only `signals[0].reserveOnly_` instead of all signals
+
+- **Source**: `ziasm_playconfig_cwfv_2` difftest (UHFLI/UHFAWG/UHFQA) — `.wf___playWaveI_4_3` missing from ELF
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The binary at `0x25fa80` accumulates an `allReserveOnly` flag by ANDing each signal's `reserveOnly_` bit in the load loop (`movzbl -0x50(%rbp),%eax; and 0xca(%rbx),%al`). The reconstruction only checked `signals[0].reserveOnly_`. When `playAuxWave(w, 10)` was called with a placeholder (`reserveOnly_=true`) and zeros (`reserveOnly_=false`), the recon incorrectly treated all signals as reserveOnly, returning an empty `Signal` instead of merging them. The resulting waveform had `length_=0` and was silently skipped by the ELF writer (`signal.length()==0` guard in `awg_compiler.cpp`).
+- **Confirmed by**: Debug prints tracing `signal.length()` at the ELF write site; GDB disassembly of the AND-accumulation loop in `merge`.
+- **Root cause**: Reconstruction mistakenly generalized the loop as checking only the first element.
+- **Resolution**: Changed `merge` in `waveform_generator.cpp` to accumulate `allReserveOnly = allReserveOnly && sig.reserveOnly_` over all signals before the early-return check.
+
+## IF-142  `WaveformGenerator::interleave` missing `length_` assignment after markerBits resize
+
+- **Source**: `ziasm_playconfig_cwfv_2` difftest — waveform present but wrong size
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: Binary at `0x25823d` executes `mov %rax, 0x50(%rbx)` which sets `result.length_ = result.samples_.size()` AFTER the markerBits resize block. An earlier reconstruction note placed this assignment at `0x258159` (which actually sets `channels_=1`), and it was subsequently removed. Without this assignment, `result.length_` remained 0 even though `samples_` was correctly populated, causing the waveform to be skipped by the ELF writer.
+- **Confirmed by**: Debug prints showing `signal.length()==0` at ELF write site even when `samples_.size()==4000`; disassembly confirming `mov %rax, 0x50(%rbx)` at `0x25823d` (after `0x258220`–`0x25823c` markerBits block).
+- **Root cause**: Misidentification of which instruction at `0x258159` sets `length_` vs `channels_`.
+- **Resolution**: Restored `result.length_ = result.samples_.size()` at the correct location (after markerBits resize) in `interleave` in `waveform_generator.cpp`. All 3 `cwfv_2` tests now pass byte-identical.
+
+## IF-143  `playWaveIndexed` (split_ devices): four bugs causing wrong prefetch and emit
+
+- **Source**: `ziasm_various_playback_stuff_1/2` difftests — UHFLI/UHFAWG/UHFQA
+- **Severity**: likely-bug (all fixed)
+- **Status**: **fixed**
+- **Description**: Four distinct reconstruction errors caused the indexed-play path for Hirzel split devices (UHFLI/UHFAWG/UHFQA) to emit wrong instructions:
+
+  **Bug A** (`custom_functions_play.cpp:1092`): `Immediate rateImm(rate)` used `rate=-1` (the `parseOptionalRate` sentinel for "no rate arg") instead of the actual offset constant `parseEnd[0].value_.toInt()`. This caused `addi R1, R0, -1` instead of `addi R1, R0, 200`. GDB-confirmed: `addi` call args at `0x161e56` with correct immediate=200 in original.
+
+  **Bug B** (`prefetch.cpp`, `moveLoadsToFront`): an extra `if (!loadNode->lengthReg.isValid() && cur->lengthReg.isValid()) loadNode->lengthReg = cur->lengthReg;` block propagated `lengthReg` from a matched Play node to the new Load node. GDB-confirmed: at `placeSingleCommand` step=4 for Load nodes on split devices, `lengthReg.valid=0` — the original binary does NOT propagate it here.
+
+  **Bug C** (`prefetch_placesingle.cpp`, `play_cervino_indexed` split branch): after the ssl loop, the code was missing the common finalize block: `try_emplace(nodeStates_, node)` → get `registerCervino` → `addr(idxReg, registerCervino)` → `wvfImpl(idxReg, totalSize, is4Ch)`. GDB-confirmed path: `jge 0x1db6f8` → `je 0x1dbb75` → `addr` at `0x1dbbb9` → `jmp 0x1d9d3a` → `wvfImpl` at `0x1d9ef7`.
+
+  **Bug D** (`prefetch.cpp`, `splitPath` in `allocate`): `if (playNode && playNode->length != 0)` indexed-path check was incorrectly placed inside `splitPath` (split_=true branch). For split_ devices, the original binary ALWAYS uses the full-wave `numSamplesForCache` formula regardless of `playNode->length`. Only the `!split_` (Cervino) path has the `playNode->length != 0` indexed check. This caused `numSamplesForCache=256` (128×2) instead of the correct `2000` (1000×2 bytes), resulting in `prf R1, R2, 256` instead of `prf R1, R2, 2016`.
+
+- **Confirmed by**: GDB traces at `0x162343` (asmPlay call args), `0x1d1a62` (play node lock), `0x1d1cb7` (Cache::allocate args showing rcx=2000), `0x1d1c52` (full-wave formula inputs), `0x1dbbb9` (addr call), `0x1d9ef7` (wvfImpl call).
+- **Resolution**: 
+  - Bug A: `Immediate rateImm(parseEnd[0].value_.toInt())`
+  - Bug B: removed the erroneous `lengthReg` propagation block in `moveLoadsToFront`
+  - Bug C: added `nodeStates_.try_emplace` + `addr` + `wvfImpl` after ssl loop in split branch
+  - Bug D: gated indexed-path check with `!split_`: `if (!split_ && playNode && playNode->length != 0)`
+  - Result: 1264/1272 passing (same as before; 6 new tests now pass byte-identical)
+
+## IF-144  `MemoryAllocator::allocateFirstSuitableFreeBlock`: wrong free-block ordering after split
+
+- **Found during**: investigating `ziasm_prefetching_0` difftest failures (all 10 device variants)
+- **Source**: `memory_allocator.cpp`, `wavetable_ir.cpp` (FIFO Phase 2 allocation path)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+
+- **Description**: When `allocateFirstSuitableFreeBlock` consumed a free block and split it into `before` and `after` remainders, the two pieces were re-inserted using `insert(begin(), before)` and `insert(end(), after)`. This broke the implicit address-ordering of `freeBlocks_`: after wlong (5120B, waveIndex=5) was allocated at 0x80002000 from the tail of the free region `[0x80000400, 0xFFFFFFFF)`, the deque became `[{0x80003400, 0xFFFFFFFF}, {0x80000400, 0x80002000}]` — tail-after-wlong first, gap-before-wlong second. Subsequent small waveforms (waveIndex=2,3,4) matched the tail gap first (because wlong's cacheLineUsage claimed that CL), placing them at 0x80003400+ instead of 0x80000600+.
+
+  **Root cause confirmed by GDB**: The binary stores *allocated* blocks in the deque (not free blocks), so it naturally iterates gaps in ascending address order. The recon's free-block deque must also be maintained in address order for correctness.
+
+  **Fix**: use index-based insertion so both remainders are inserted at the consumed block's position in address order: `after` first at `idx`, then `before` at `idx`, yielding `[..., before, after, ...]`.
+
+  **Incorrect addresses (recon before fix)**:
+  - waveIndex=2 → 0x80003400 (orig: 0x80000600)
+  - waveIndex=3 → 0x80000600 (orig: 0x80000800)
+  - waveIndex=4 → 0x80003600 (orig: 0x80000a00)
+
+  **Correct addresses after fix**: all waveform `addressValue` fields match the original binary exactly.
+
+- **Confirmed by**: GDB trace of `allocateFirstSuitableFreeBlock` deque page contents after each Phase 2 allocation; recon debug `fprintf` showing before/after block values; sub-batch test results (all 1272 tests pass with 0 failures).
+- **Resolution**: `memory_allocator.cpp:274–290`: replaced `insert(begin(), before) + insert(end(), after)` with index-based `insert(begin()+idx, after) + insert(begin()+idx, before)`.
+
+## IF-145  `assignWaveIndexImplicit`: Phase 1 lambda was a no-op stub
+
+- **Found during**: same `ziasm_prefetching_0` investigation
+- **Source**: `wavetable_ir.cpp`, `assignWaveIndexImplicit`
+- **Severity**: likely-bug
+- **Status**: **fixed** (earlier in this session)
+
+---
+
+## IF-143: playWaveIndexed emits extra ssl/addr/prf instructions (load_indexed_play misfiring)
+
+- **Found during**: `ziasm_various_playback_stuff_1/2` investigation
+- **Source**: `prefetch.cpp` (`createLoad`, `moveLoadsToFront`) and `prefetch_placesingle.cpp` (`load_indexed_play` trigger)
+- **Severity**: likely-bug
+- **Status**: **fixed**
+
+### Description
+
+`playWaveIndexed` on UHF devices (UHFLI/UHFAWG/UHFQA) generated extra instructions before the fix:
+
+- An extra `addi R4, R1, 0` + `ssl R4, R4` + `addr R3, R4` + `wwvf` + `prf`/`wprf` block appeared before the correct variable-init + ssl/addr/wvf sequence.
+- The `prf` size was also wrong (256 instead of 320 for a placeholder(160) wave).
+
+### Root Cause (three interacting bugs)
+
+**Bug A** (`prefetch.cpp`, `moveLoadsToFront`, formerly lines 842-853):
+A previous reconstruction incorrectly copied `lengthReg` from the matched play node to the load node inside `moveLoadsToFront`. Binary-verified (deep-thinking model analysis): at `0x1cd313`, the binary calls `vector::insert` to merge play lists but does **not** access offset `+0x88` (lengthReg). This copy was removed.
+
+**Bug B** (`prefetch_placesingle.cpp`, `load_indexed_play` trigger, step 4):
+The `load_indexed_play` path fires when the load node's `lengthReg` is valid and non-zero. Since `createLoad` legitimately copies `lengthReg` (needed for the large-waveform `split_=false` path), the guard needs to check `split_`. Binary-verified: at `0x1d1a84` the binary checks `0xbc(%r14)` (`split_`) before reaching `0x1d1a9b` (`playNode->length`). Fixed by adding `if (!split_)` around step 4.
+
+**Bug C** (`prefetch.cpp`, `allocate`, cache size computation, formerly line 1649):
+The indexed allocation path (`playNode->length * channels * 2`) was entered unconditionally when `playNode->length != 0`. For small waveforms where `split_=true`, the binary skips this path entirely (the `split_=true` jmp at `0x1d1a84` bypasses `0x1d1a9b`). Fixed by adding `!split_` to the condition.
+
+### Effect of fix
+
+- `ziasm_various_playback_stuff_1/2` (UHFLI/UHFAWG/UHFQA): 6 tests fixed (FAIL → PASS).
+- `uhf_doc_tv_mode` (large waveform, `split_=false`): unaffected, still passes.
+- No regressions.
+
+- **Description**: The Phase 1 lambda in `assignWaveIndexImplicit` was reconstructed as a no-op that returned immediately without assigning auto-indices. The binary assigns indices to all waveforms with `waveIndex == -1` by calling `waveIndexTracker_.assignAuto()` in a lower-bound loop over `waveIndexTracker_.indices_`. This caused all waveforms with explicit `assignWaveIndex(...)` calls to keep their correct indices, but the placeholder waveform (which has no explicit index) was left with `waveIndex = -1` instead of the next available index (7 for this test), which then cascaded into wrong `fixed_` / `addressValue` for the Phase 1 FIFO allocation.
+- **Resolution**: implemented the lower-bound loop over `indices_` in `assignWaveIndexImplicit` Phase 1 lambda.

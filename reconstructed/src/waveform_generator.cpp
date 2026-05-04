@@ -2106,7 +2106,6 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
 Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         // 0x258140
     Signal result = merge(args);                                               // 0x258154
     result.channels_ = 1;                                                      // 0x258159: WORD PTR [rbx+0x48] = 1
-    result.length_ = result.samples_.size();                                   // recompute length for channels_=1
 
     // The binary then adjusts the markerBits_ vector length.
     // At 0x25815f: r14 = result.markerBits_.begin() (+0x30), rdi = result.markerBits_.end() (+0x38)
@@ -2117,6 +2116,12 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
     } else if (result.markerBits_.empty()) {
         result.markerBits_.push_back(0);
     }
+
+    // 0x258232-25823d: length_ = samples_.size()
+    // Binary: mov 0x8(%rbx),%rax; sub (%rbx),%rax; sar $0x3,%rax; mov %rax,0x50(%rbx)
+    // This overwrites length_ with the actual sample count AFTER markerBits resize.
+    result.length_ = result.samples_.size();
+
     return result;
 }
 // multiply(sig1, sig2, ...) @0x258750
@@ -2623,15 +2628,27 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
         signals.push_back(readWave(args[i], paramName, -1, "merge")->signal);
     }
 
-    // Check first signal for reserveOnly_
-    if (signals[0].reserveOnly_) {                                             // 0x25fa98
+    // Check if ALL signals are reserveOnly_ — binary accumulates this as a
+    // boolean AND across all loaded signals (binary: movzbl -0x50(%rbp),%eax;
+    // and 0xca(%rbx),%al; mov %al,-0x50(%rbp) inside the load loop, initial
+    // value = 1). Only goes to the reserveOnly result path if ALL inputs are
+    // reserveOnly (branch at 0x25fa80: cmpb $0x0,-0x50(%rbp); je non-reserve).
+    bool allReserveOnly = true;
+    for (auto& s : signals) {
+        allReserveOnly = allReserveOnly && s.reserveOnly_;
+    }
+    if (allReserveOnly) {                                                          // 0x25fa80
         // Merge markerBits from all signals
         MarkerBitsPerChannel mergedBits;
         for (auto& s : signals) {
             for (auto b : s.markerBits_) mergedBits.push_back(b);
         }
         ReserveOnly tag;
-        return Signal(tag, signals[0].length_, mergedBits);
+        Signal result(tag, signals[0].length_, mergedBits);
+        // Binary sets channels_ = number of input signals (same as the
+        // non-reserveOnly path at 0x25fc70: result.channels_ = numChannels).
+        result.channels_ = static_cast<uint16_t>(signals.size());
+        return result;
     }
 
     // All signals must have same frame count

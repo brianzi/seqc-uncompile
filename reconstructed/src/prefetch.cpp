@@ -1646,7 +1646,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                 auto waveIR2 = wtIR->getWaveformByName(curOpt2);      // 0x1d1c31: call getWaveformByName
 
                 uint32_t numSamplesForCache = 0;
-                if (playNode && playNode->length != 0) {
+                if (!split_ && playNode && playNode->length != 0) {
                     // 0x1d1e01..0x1d1efc: Indexed-play allocation path.
                     // numSamples = playNode->length * channels * 2
                     auto* wfRaw = waveIR2.get();
@@ -2107,8 +2107,10 @@ std::shared_ptr<Node> Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a
     // 0x1d4b96-0x1d4b9c: set deviceIndex from config
     loadNode->deviceIndex = config_->deviceIndex;  // +0x24 of config → +0x40 of node
 
-    // 0x1d4c45-0x1d4c53: copy playLength
-    loadNode->lengthReg = n->lengthReg;  // +0x88 (AsmRegister — note: source writes int, may need comment)
+    // 0x1d4c45-0x1d4c53: copy lengthReg from play node to load node.
+    // The load node inherits the play node's lengthReg so that load_indexed_play
+    // in placeSingleCommand can use it (when split_=false, large-waveform path).
+    loadNode->lengthReg = n->lengthReg;  // +0x88
 
     // 0x1d4c53-0x1d4cc4: branch on isHirzel
     bool isHirzel = config_->isHirzel;  // +0x18

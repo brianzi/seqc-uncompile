@@ -6,6 +6,116 @@
 
 ---
 
+## Phase 43: Symbol-size divergence investigations
+
+Identified via `tests/symbol_size_compare.py` (2026-05-04), comparing
+original binary vs `reconstructed/build_release/` (clang++ -O2).
+1090 matched symbols; 291 <0.5x, 60 >2x. Items below exclude known
+shortcuts (GetNodeMap tables, StaticResources init, getAwgDeviceProps
+stubs) and focus on genuine reconstruction candidates.
+
+**Investigation approach for each item:**
+1. Disassemble original at the symbol's binary address (`objdump -d`)
+2. Compare against recon source + optionally recon disassembly
+3. Classify: missing switch arms? inlined callee? wrong algorithm?
+   duplicated logic? stub? data table vs code?
+4. Fix if straightforward; file IF + defer if complex
+5. Build + run full test suite after each fix
+
+### 43.1 — Near-stubs (ratio <0.15x): functions that are essentially empty in recon
+
+These have tiny recon bodies (~10–60B) where the original has hundreds of bytes.
+Most are likely returning a hardcoded/placeholder value.
+
+- [ ] **`AsmCommands::asmBranchNode()`** — orig 370B, recon 10B (0.03x).
+      Disassemble original; determine what it actually constructs/returns.
+- [ ] **`AsmCommands::asmLoopNode()`** — orig 370B, recon 10B (0.03x).
+      Same pattern as asmBranchNode — likely sibling implementation.
+- [ ] **`AsmCommands::asmSyncPlaceholderCervino()`** — orig 370B, recon 10B (0.03x).
+- [ ] **`AsmCommands::asmLoadPlaceholder()`** — orig 370B, recon 10B (0.03x).
+- [ ] **`AsmCommands::asmRate()`** — orig 398B, recon 43B (0.11x).
+- [ ] **`AsmCommands::asmSetPrecompFlags()`** — orig 398B, recon 43B (0.11x).
+- [ ] **`AsmCommands::asmSetVarPlaceholder()`** — orig 398B, recon 57B (0.14x).
+- [ ] **`AsmCommands::wwvfq()`** — orig 282B, recon 18B (0.06x).
+- [ ] **`AsmCommands::wprf()`** — orig 282B, recon 18B (0.06x).
+- [ ] **`zhinst::str(ECommandType)`** — orig 391B, recon 30B (0.08x).
+      Likely a switch-based string table; check how many cases are missing.
+- [ ] **`zhinst::str(EOperationType)`** — orig 390B, recon 30B (0.08x).
+- [ ] **`zhinst::str(EOperator)`** — orig 328B, recon 30B (0.09x).
+- [ ] **`Resources::printAll()`** — orig 262B, recon 18B (0.07x).
+- [ ] **`Assembler::highestRegisterNumber()`** — orig 776B, recon 104B (0.13x).
+      776B is substantial — investigate what computation the original performs.
+- [ ] **`zhinst::tracing::getDefaultLabOneResource()`** — orig 415B, recon 60B (0.14x).
+- [ ] **`VirtAddrNodeMapData::hash()`** — orig 717B, recon 171B (0.24x).
+      Hash function — determine which fields are being hashed in the original.
+
+### 43.2 — Significantly smaller in recon (0.25x–0.5x): likely missing logic
+
+- [ ] **`MathCompiler::MathCompiler()`** — orig 4811B, recon 1429B (0.30x).
+      Constructor is 3x too small — check how many map entries the original
+      registers vs what we register.
+- [ ] **`AsmCommands::syncCervino()`** — orig 4278B, recon 1825B (0.43x).
+      Core Cervino sync emission — missing ~2400B of logic.
+- [ ] **`createFor()`** — orig 638B, recon 180B (0.28x).
+      Parser AST builder — likely missing some initialization steps.
+- [ ] **`createCondExpression()`** — orig 521B, recon 164B (0.31x).
+- [ ] **`createIfElse()`** — orig 521B, recon 164B (0.31x).
+- [ ] **`createCase()`** — orig 399B, recon 155B (0.39x).
+- [ ] **`createFunctionCall()`** — orig 401B, recon 159B (0.40x).
+- [ ] **`ElfWriter::ElfWriter(unsigned short)`** — orig 516B, recon 257B (0.50x).
+      Constructor missing ~half its body.
+- [ ] **`EvalResults::setValue()` (3 overloads)** — orig ~615B each, recon ~311B (0.51x).
+      Each overload is half the size — likely missing a branch or copy step.
+- [ ] **`AsmCommands::alui()`** — orig 3992B, recon 2849B (0.71x).
+      ~1140B short — check how many opcode cases are handled in the original.
+- [ ] **`ZiFolder::ziFolder()`** — orig 2106B, recon 1520B (0.72x).
+- [ ] **`CustomFunctions::oscMaskCheckHirzel()`** — orig 1173B, recon 791B (0.67x).
+- [ ] **`SeqCIfElse::operator=()`** and **`SeqCCondExpr::operator=()`** — orig 367B, recon 80B (0.22x).
+      Likely missing child-move/copy steps.
+- [ ] **`WaveformGenerator::createDummyWaveform()`** — orig 676B, recon 347B (0.51x).
+- [ ] **`SeqCVariable::print()`** — orig 1022B, recon 773B (0.76x).
+- [ ] **`Prefetch::determineFixedWaves()`** — orig 3411B, recon 1741B (0.51x).
+      Recently fixed BFS bug (IF-107) but still half the original size — may
+      have additional logic missing beyond the double-push fix.
+- [ ] **`CachedParser::CachedParser()`** — orig 954B, recon 662B (0.69x).
+      Constructor ~300B short.
+
+### 43.3 — Significantly larger in recon (>1.5x): duplicated or wrong logic
+
+- [ ] **`Prefetch::placeLoads()`** — orig 1765B, recon 3338B (1.89x).
+      Nearly 2x too large — investigate if a callee was inlined in the original
+      or if recon has duplicated logic.
+- [ ] **`AsmOptimize::splitConstRegisters()`** — orig 1815B, recon 3041B (1.68x).
+      Optimizer function 68% larger — check for wrong loop structure or
+      unnecessary branches not in the original.
+- [ ] **`WavetableIR::assignWaveIndexImplicit()`** — orig 1076B, recon 2062B (1.92x).
+- [ ] **`AsmCommands::unsyncCervino()`** — orig 1228B, recon 1956B (1.59x).
+      Companion to syncCervino (43.2) but opposite direction — related error?
+- [ ] **`WavetableIR::allocateWaveforms()`** — orig 671B, recon 1334B (1.99x).
+- [ ] **`WavetableIR::allocateWaveformsForFifo()`** — orig 1049B, recon 1611B (1.54x).
+- [ ] **`WavetableIR::assignWaveformAllocationSizes()`** — orig 249B, recon 828B (3.33x).
+- [ ] **`WavetableIR::alignWaveformSizes()`** — orig 126B, recon 469B (3.72x).
+      3.7x — original is likely a few arithmetic ops; recon has bloated logic.
+- [ ] **`Signal::Signal()`** — orig 708B, recon 1737B (2.45x).
+- [ ] **`Signal::checkAllocation()`** — orig 304B, recon 716B (2.36x).
+- [ ] **`Prefetch::~Prefetch()`** — orig 634B, recon 1301B (2.05x).
+- [ ] **`Prefetch::preparePlays()`** — orig 291B, recon 638B (2.19x).
+- [ ] **`Prefetch::fillInPlaceholders()`** — orig 189B, recon 517B (2.74x).
+- [ ] **`CustomFunctions::getAccessModes()`** — orig 39B, recon 385B (9.87x).
+      Original is ~5 instructions (lookup table?); recon has a loop.
+- [ ] **`zhinst::swap(SeqCValue&, SeqCValue&)`** — orig 39B, recon 375B (9.62x).
+      Same pattern — original is trivial, recon is bloated.
+- [ ] **`Immediate::operator int()`** — orig 57B, recon 311B (5.46x).
+- [ ] **`zhinst::isIa(DeviceType const&)`** — orig 69B, recon 316B (4.58x).
+      isIa was already fixed (14b-ii-a) — but recon is still 4.5x too large.
+      Re-examine the implementation.
+- [ ] **`ElfReader::getLineMap()`** — orig 257B, recon 745B (2.90x).
+- [ ] **`Node::~Node()`** — orig 476B, recon 963B (2.02x).
+- [ ] **`AsmOptimize::registerAllocation()`** — orig 6288B, recon 5311B (0.84x).
+      Relatively close but still ~1000B short for a large function.
+
+---
+
 ## Summary of remaining work (refreshed 2026-04-29 post-Phase-D grooming)
 
 **Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.

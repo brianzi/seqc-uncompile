@@ -1,0 +1,5 @@
+// Minimal example for setTrigger command
+
+setTrigger(0b0001); // Set Trigger Output 1 HIGH, others LOW
+wait(10);          // Keep it high for a short duration
+setTrigger(0b0000); // Set all Trigger Outputs LOW

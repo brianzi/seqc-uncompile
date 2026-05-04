@@ -1,0 +1,2 @@
+// Analyze wait(cycles)
+wait(16); // Use a specific number, 16 cycles (must be multiple of 8)

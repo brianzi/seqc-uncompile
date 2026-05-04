@@ -1,0 +1,9 @@
+// Simple playZero example
+
+const ZERO_SAMPLES = 2048;
+
+// Output zeros for ZERO_SAMPLES sample clocks
+playZero(ZERO_SAMPLES);
+
+// Wait for the duration of playZero plus some buffer
+wait(ZERO_SAMPLES + 100);

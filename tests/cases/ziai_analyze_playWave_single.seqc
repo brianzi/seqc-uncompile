@@ -1,0 +1,7 @@
+// Analyze playWave(wave) - single channel
+
+// Define a simple ramp waveform (32 samples)
+wave w = ramp(32, 0.0, 1.0);
+
+// Play the waveform
+playWave(w);

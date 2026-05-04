@@ -1,0 +1,3 @@
+// Analyze executeTableEntry(entry_index)
+executeTableEntry(0); // Execute entry 0 (from implicit table 0?)
+wait(8); // Add a small wait

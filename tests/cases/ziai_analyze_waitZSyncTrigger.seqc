@@ -1,0 +1,6 @@
+// Analyze waitZSyncTrigger()
+
+// Wait for a ZSync trigger event
+waitZSyncTrigger();
+
+wait(1);

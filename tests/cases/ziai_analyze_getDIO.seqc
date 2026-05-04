@@ -1,0 +1,4 @@
+// Analyze getDIO()
+var dio_value;
+dio_value = getDIO(); // Read DIO port state
+wait(8); // Add a small wait

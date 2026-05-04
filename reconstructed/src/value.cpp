@@ -381,10 +381,18 @@ int32_t Value::toInt() const {  // 0x15c250
                 std::stol(storage_.str, nullptr, 10));
         case ValueType::Double: {
             double d = storage_.d;
-            if (d < 0.0)
-                return static_cast<int32_t>(std::ceil(d));
-            else
-                return static_cast<int32_t>(std::floor(d));
+            double truncated = (d < 0.0) ? std::ceil(d) : std::floor(d);
+            // @0x15c250: binary uses cvttsd2si; on overflow (value outside
+            // int32_t range), x86 cvttsd2si returns 0x80000000 ("indefinite").
+            // The binary detects this and retries via uint32_t truncation,
+            // which correctly handles large hex literals like 0xAAAAAAAA that
+            // are stored as positive doubles (e.g. 2863311530.0).
+            if (truncated >= static_cast<double>(INT32_MIN) &&
+                truncated <= static_cast<double>(INT32_MAX)) {
+                return static_cast<int32_t>(truncated);
+            }
+            // Overflow path: reinterpret via uint32_t (wrapping truncation)
+            return static_cast<int32_t>(static_cast<uint32_t>(truncated));
         }
         default:
             BOOST_THROW_EXCEPTION(ValueException(

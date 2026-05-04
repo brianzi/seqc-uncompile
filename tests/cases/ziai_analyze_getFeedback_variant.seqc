@@ -1,0 +1,12 @@
+// Minimal example for getFeedback(ZSYNC_DATA_PROCESSED_A, feedback_time)
+
+// const ZSYNC_DATA_PROCESSED_A = 1; // Assuming built-in
+const feedback_time = 100; // Example delay in sequencer cycles
+
+var feedback_result;
+
+// Function call under analysis
+feedback_result = getFeedback(ZSYNC_DATA_PROCESSED_A, feedback_time);
+
+// Use the result to prevent optimization and add a delay
+wait(feedback_result & 0xF + 4); // Trivial use + wait

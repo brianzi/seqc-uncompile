@@ -1,0 +1,8 @@
+// Analyze executeTableEntry(ZSYNC_DATA_PROCESSED_A, entry_index)
+
+// Assume ZSYNC_DATA_PROCESSED_A = 1
+const entry_index = 5;
+
+executeTableEntry(ZSYNC_DATA_PROCESSED_A, entry_index);
+
+wait(8);

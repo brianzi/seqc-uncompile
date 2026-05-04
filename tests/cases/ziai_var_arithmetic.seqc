@@ -1,0 +1,10 @@
+// Minimal example for runtime variable arithmetic
+
+var a = 10; // Declare and initialize
+var b = 5;
+var c;
+
+c = a + b; // Addition
+a = c - 3; // Subtraction
+
+// Variables are manipulated but not used for timing or output here

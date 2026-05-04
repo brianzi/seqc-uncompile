@@ -1,0 +1,7 @@
+// Analyze setSinePhase(sine, phase) - Index 2
+
+// Set phase of sine generator 2 (relative index 1) to 90.0 degrees
+setSinePhase(2, 90.0); 
+
+// Do something afterwards
+wait(1);

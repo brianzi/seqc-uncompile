@@ -1,0 +1,13 @@
+// Simple User Register example
+
+// Assign a value to user register 0
+setUserReg(0, 12345);
+
+// Wait a bit 
+wait(50);
+
+// Read it back into a variable (just for demonstration)
+var read_val = getUserReg(0);
+
+// End after a short delay
+wait(50);
