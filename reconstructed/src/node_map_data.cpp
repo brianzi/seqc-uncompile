@@ -60,10 +60,13 @@ size_t VirtAddrNodeMapData::hash() const {
         v = v ^ (v >> 28);
         seed = v;
     }
-    // Final combine of string hash and address hash
-    // The disasm performs a series of multiply-xor-shift operations combining
-    // h (from wyhash of name_) with seed.  We use the same splitmix finalizer.
-    size_t combined = h + seed;
+    // Final combine: splitmix the wyhash result, then combine with address seed
+    // and splitmix again (matches binary at 0x1c517d–0x1c51cf).
+    size_t tmp = h + kGoldenRatioHash;
+    tmp = (tmp ^ (tmp >> 32)) * kMul;
+    tmp = (tmp ^ (tmp >> 32)) * kMul;
+    tmp = tmp ^ (tmp >> 28);
+    size_t combined = tmp + seed + kGoldenRatioHash;
     combined = (combined ^ (combined >> 32)) * kMul;
     combined = (combined ^ (combined >> 32)) * kMul;
     combined = combined ^ (combined >> 28);

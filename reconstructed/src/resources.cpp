@@ -421,7 +421,12 @@ std::string Resources::toString() const  // @0x1ebcf0
 // ============================================================================
 void Resources::printAll()  // @0x1ec460
 {
-    print();
+    auto parent = parent_.lock();
+    if (parent) {
+        parent->print();
+    } else {
+        std::cout << toString();
+    }
     printScopes();
 }
 

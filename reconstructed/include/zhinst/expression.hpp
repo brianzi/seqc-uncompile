@@ -148,9 +148,9 @@ static_assert(sizeof(Expression) == 0x58 || sizeof(Expression) == 0x60,
 
 // ---- Enum → string helpers (for debug printing) ---------------------------
 
-const char* str(EOperationType t);   // 0x1c1530
-const char* str(EOperator op);       // 0x1c1790
-const char* str(ECommandType ct);    // 0x1c18e0
+std::string str(EOperationType t);   // 0x1c1530
+std::string str(EOperator op);       // 0x1c1790
+std::string str(ECommandType ct);    // 0x1c18e0
 
 // ---- Free functions: parser actions ("create*") ---------------------------
 

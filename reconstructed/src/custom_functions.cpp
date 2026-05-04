@@ -554,15 +554,9 @@ double CustomFunctions::getSampleClock() const {  // @0x16ba80
 
 // getAccessModes @0x16be50
 // Looks up accessModeMap_ (+0x128). Returns const set<AccessMode>&.
+// Binary: offsets this by +0x128, calls unordered_map::at(), returns reference.
 std::set<AccessMode> const& CustomFunctions::getAccessModes(NodeMapItem const& item) const {  // @0x16be50
-    auto it = accessModeMap_.find(item);
-    if (it != accessModeMap_.end()) {
-        return it->second;
-    }
-    // @0x16be80: throws std::out_of_range on miss (binary calls __throw_out_of_range)
-    throw std::out_of_range("getAccessModes: item not found in accessModeMap_");
-    static const std::set<AccessMode> empty;
-    return empty;
+    return accessModeMap_.at(item);
 }
 
 // ============================================================================

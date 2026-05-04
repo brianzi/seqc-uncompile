@@ -1301,7 +1301,6 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         auto splitEnd = scanEnd;
         bool aborted = false;
         for (auto checkIt = it + 1; checkIt != scanEnd; ++checkIt) {
-            if (checkIt == it) continue;  // skip self
             int chkCmdType = Assembler::getCmdType(checkIt->assembler.cmd);
 
             // If regDst(dest) matches destReg and cmdType bit1 → overwritten
@@ -1336,16 +1335,8 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     }
 
     // Post-pass: move tmpList back to asm_, skipping barrier entries — 2808f2..280ad6
-    // First, destroy all existing asm_ elements (release node shared_ptrs)
-    // 28093b..28096f: backward iteration destroying nodes
-    {
-        auto oldEnd = asm_.end();
-        for (auto dit = oldEnd; dit != asm_.begin(); ) {
-            --dit;
-            // shared_ptr<Node> release handled by Asm destructor
-        }
-        asm_.clear();
-    }
+    // Clear asm_ (destructor releases node shared_ptrs) — 28093b..28096f
+    asm_.clear();
 
     // Copy non-barrier entries from tmpList to asm_
     // 280980..2809ae: skip entries where cmd is INVALID(-1) or cmd=4
@@ -1358,10 +1349,6 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
         asm_.push_back(std::move(entry));
     }
-
-    // Destroy tmpList — 280a5c..280ad1
-    tmpList.clear();
-    tmpList.shrink_to_fit();
 
     return numRegs + splitCount;
 }

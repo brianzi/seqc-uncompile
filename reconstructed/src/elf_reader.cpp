@@ -191,26 +191,17 @@ ElfReader::SectionData ElfReader::getWaveform() const {
 // Parses ".linenr" section: 16-byte records → vector<Line>.
 std::vector<ElfReader::Line> ElfReader::getLineMap() const {
     std::vector<Line> lines;
-    ELFIO::section* sec = nullptr;
-    // Linear search for ".linenr" (same as getSection but doesn't throw)
-    for (const auto& sec_uptr : sections) {
-        if (sec_uptr->get_name() == ".linenr") {
-            sec = sec_uptr.get();
-            break;
-        }
-    }
-    if (!sec) return lines;
+    ELFIO::section* sec = getSection(".linenr");
 
     const auto* data = reinterpret_cast<const std::uint8_t*>(sec->get_data());
     auto size = sec->get_size();
-    auto count = size / 16;
-    lines.reserve(count);
+    if (size < 4) return lines;
 
-    for (decltype(count) i = 0; i < count; ++i) {
-        const auto* rec = data + i * 16;
+    auto count = size / 4;  // number of uint32 words
+    for (decltype(count) i = 0; i < count; i += 4) {
         Line ln;
-        std::memcpy(&ln.addr, rec + 4, sizeof(std::uint64_t));  // offset +4 within record
-        std::memcpy(&ln.line, rec + 12, sizeof(std::uint32_t)); // offset +12 within record
+        std::memcpy(&ln.addr, data + (i + 1) * 4, sizeof(std::uint64_t));
+        std::memcpy(&ln.line, data + (i + 3) * 4, sizeof(std::uint32_t));
         lines.push_back(ln);
     }
     return lines;

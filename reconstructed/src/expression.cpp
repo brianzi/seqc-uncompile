@@ -76,7 +76,7 @@ Expression::Expression(const Expression& other)  // 0x1bfa30
 // Enum → string helpers
 // ============================================================================
 
-const char* str(EOperationType t) {  // 0x1c1530
+std::string str(EOperationType t) {  // 0x1c1530
     switch (t) {
         case EOperationType::eCOMMAND:      return "eCOMMAND";
         case EOperationType::eFUNCTION:     return "eFUNCTION";
@@ -95,7 +95,7 @@ const char* str(EOperationType t) {  // 0x1c1530
     return "UNKNOWN";
 }
 
-const char* str(EOperator op) {  // 0x1c1790
+std::string str(EOperator op) {  // 0x1c1790
     switch (op) {
         case EOperator::eADD:    return "+";
         case EOperator::eSUB:    return "-";
@@ -123,7 +123,7 @@ const char* str(EOperator op) {  // 0x1c1790
     return "UNKNOWN";
 }
 
-const char* str(ECommandType ct) {  // 0x1c18e0
+std::string str(ECommandType ct) {  // 0x1c18e0
     switch (ct) {
         case ECommandType::eIF:       return "eIF";
         case ECommandType::eIFELSE:   return "eIFELSE";

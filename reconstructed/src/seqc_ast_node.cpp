@@ -922,9 +922,12 @@ std::unique_ptr<SeqCAstNode> SeqCValue::doClone() const {  // 0x208600
 
 SeqCValue& SeqCValue::operator=(SeqCValue o) { swap(*this, o); return *this; }
 
-void swap(SeqCValue& a, SeqCValue& b) {
-    swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
-    // Swap payloads with tag awareness (string needs proper move)
+void swap(SeqCValue& a, SeqCValue& b) {  // 0x1fe410
+    // Binary only swaps varType_ (+0x14) and the variant payload (+0x18).
+    // It does NOT swap the other base class fields.
+    std::swap(a.varType_, b.varType_);
+
+    // Swap payloads with tag awareness (equivalent to variant::swap)
     int atag = a.tag_, btag = b.tag_;
 
     // Move a's payload to tmp
