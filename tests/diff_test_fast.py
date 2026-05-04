@@ -50,9 +50,10 @@ BOLD = "\033[1m"
 def resolve_manifest(cases: List[TestCase]) -> List[dict]:
     """Convert TestCase list to JSON-serializable manifest for the batch worker."""
     entries = []
-    for c in cases:
+    for i, c in enumerate(cases):
         entry = {
             "name": c.name,
+            "_uid": f"{c.name}_{i}",   # unique file/event key, stable across runs
             "code": c.code,
             "devtype": c.devtype,
             "options": c.options,
@@ -87,10 +88,10 @@ def _reader_thread(proc: subprocess.Popen, side: str, q: queue.Queue):
 
 # ── Result reading ─────────────────────────────────────────────────────────
 
-def _read_compile_result(output_dir: str, name: str) -> CompileResult:
+def _read_compile_result(output_dir: str, uid: str) -> CompileResult:
     """Read a single compile result from the output directory."""
-    elf_path = os.path.join(output_dir, f"{name}.elf")
-    meta_path = os.path.join(output_dir, f"{name}.json")
+    elf_path = os.path.join(output_dir, f"{uid}.elf")
+    meta_path = os.path.join(output_dir, f"{uid}.json")
 
     elf_bytes = b""
     if os.path.exists(elf_path):
@@ -316,10 +317,11 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
     orig_thread.start()
     recon_thread.start()
 
-    # Collect events per test name, per side
+    # Collect events per uid, per side; also track uid->name for display
     orig_events: Dict[str, dict] = {}
     recon_events: Dict[str, dict] = {}
-    compared = set()  # names already compared
+    uid_to_name: Dict[str, str] = {}
+    compared = set()  # uids already compared
 
     passed = equiv = failed = 0
     index = 0
@@ -338,25 +340,27 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
 
         side = event["_side"]
         name = event["name"]
+        uid = event.get("_uid", name)
+        uid_to_name[uid] = name
 
         if side == "orig":
-            orig_events[name] = event
+            orig_events[uid] = event
             orig_cum += event.get("elapsed_s", 0)
         else:
-            recon_events[name] = event
+            recon_events[uid] = event
             recon_cum += event.get("elapsed_s", 0)
 
         # Check if both sides are done for this test
-        if name in compared:
+        if uid in compared:
             continue
-        if name not in orig_events or name not in recon_events:
+        if uid not in orig_events or uid not in recon_events:
             continue
 
-        compared.add(name)
+        compared.add(uid)
         index += 1
 
-        oe = orig_events[name]
-        re = recon_events[name]
+        oe = orig_events[uid]
+        re = recon_events[uid]
         ot = oe.get("elapsed_s", 0)
         rt = re.get("elapsed_s", 0)
 
@@ -377,8 +381,8 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
             continue
 
         # Need full comparison — read ELF files
-        orig_result = _read_compile_result(orig_dir, name)
-        recon_result = _read_compile_result(recon_dir, name)
+        orig_result = _read_compile_result(orig_dir, uid)
+        recon_result = _read_compile_result(recon_dir, uid)
         result = compare_results(name, orig_result, recon_result)
 
         if result.passed:
@@ -399,20 +403,21 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
     recon_proc.wait()
 
     # Check for any tests that never completed on one side
-    all_names = set(orig_events) | set(recon_events)
-    for name in all_names:
-        if name in compared:
+    all_uids = set(orig_events) | set(recon_events)
+    for uid in all_uids:
+        if uid in compared:
             continue
         index += 1
-        if name not in orig_events:
+        name = uid_to_name.get(uid, uid)
+        if uid not in orig_events:
             _print_result_line(index, total, name, FAIL,
                                " (original side never completed)", None, None)
             failed += 1
-        elif name not in recon_events:
+        elif uid not in recon_events:
             _print_result_line(index, total, name, FAIL,
                                " (recon side never completed)", None, None)
             failed += 1
-        compared.add(name)
+        compared.add(uid)
 
     # Check for import failures
     if orig_proc.returncode == 2:

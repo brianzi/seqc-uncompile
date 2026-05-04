@@ -45,9 +45,11 @@ import traceback
 
 def compile_one(mod, case: dict, output_dir: str):
     """Run in forked child. Compile one test case, write results, _exit."""
-    name = case["name"]
-    elf_path = os.path.join(output_dir, f"{name}.elf")
-    meta_path = os.path.join(output_dir, f"{name}.json")
+    # Use _uid (assigned by the harness) as the file key so that two test
+    # cases with the same display name don't clobber each other's files.
+    uid = case.get("_uid", case["name"])
+    elf_path = os.path.join(output_dir, f"{uid}.elf")
+    meta_path = os.path.join(output_dir, f"{uid}.json")
 
     # Timeout: 60 seconds
     signal.alarm(60)
@@ -175,7 +177,7 @@ def main():
             except Exception:
                 os._exit(2)
         else:
-            active[pid] = {"name": case["name"], "t0": t0}
+            active[pid] = {"name": case["name"], "_uid": case.get("_uid", case["name"]), "t0": t0}
 
     # Reap remaining children
     while active:
@@ -192,10 +194,11 @@ def _reap_one(active: dict, output_dir: str):
         return
 
     name = info["name"]
+    uid = info.get("_uid", name)
     elapsed = time.monotonic() - info["t0"]
 
-    elf_path = os.path.join(output_dir, f"{name}.elf")
-    meta_path = os.path.join(output_dir, f"{name}.json")
+    elf_path = os.path.join(output_dir, f"{uid}.elf")
+    meta_path = os.path.join(output_dir, f"{uid}.json")
 
     sig = None
     exit_code = None
@@ -232,6 +235,7 @@ def _reap_one(active: dict, output_dir: str):
     _emit({
         "event": "done",
         "name": name,
+        "_uid": uid,
         "exit_code": exit_code,
         "signal": sig,
         "elapsed_s": round(elapsed, 4),

@@ -264,6 +264,7 @@ class SectionDiff:
 class CompareResult:
     test_name: str
     passed: bool = False
+    equiv: bool = False       # True when sections match but raw bytes differ
     elf_size_orig: int = 0
     elf_size_recon: int = 0
     byte_identical: bool = False
@@ -388,25 +389,32 @@ def compare_results(name: str, orig: CompileResult,
                     break
 
     result.passed = len(result.section_diffs) == 0 and len(result.notes) == 0
+    if result.passed and not result.byte_identical:
+        result.equiv = True
     return result
 
 
 # ── Reporting ──────────────────────────────────────────────────────────────
 
 PASS = "\033[32mPASS\033[0m"
+EQUIV = "\033[33mEQUIV\033[0m"
 FAIL = "\033[31mFAIL\033[0m"
 SKIP = "\033[33mSKIP\033[0m"
 
 
 def print_result(r: CompareResult, verbose: bool = False):
-    status = PASS if r.passed else FAIL
-    extra = ""
     if r.byte_identical:
+        status = PASS
         extra = " (byte-identical)"
-    elif r.passed:
+    elif r.equiv:
+        status = EQUIV
         extra = ""
-    elif r.orig_error or r.recon_error:
-        extra = " (error)"
+    elif r.passed:
+        status = PASS
+        extra = ""
+    else:
+        status = FAIL
+        extra = " (error)" if (r.orig_error or r.recon_error) else ""
 
     print(f"  {status}  {r.test_name}{extra}")
 
@@ -470,6 +478,7 @@ def main():
     print()
 
     passed = 0
+    equiv = 0
     failed = 0
     skipped = 0
 
@@ -502,13 +511,17 @@ def main():
             print_result(result, verbose=args.verbose)
 
             if result.passed:
-                passed += 1
+                if result.equiv:
+                    equiv += 1
+                else:
+                    passed += 1
             else:
                 failed += 1
 
     print()
-    total = passed + failed + skipped
-    print(f"Results: {passed}/{total} passed, {failed} failed, {skipped} skipped")
+    total = passed + equiv + failed + skipped
+    print(f"Results: {passed} passed, {equiv} equiv, {failed} failed, {skipped} skipped"
+          f"  ({total} total)")
     return 0 if failed == 0 else 1
 
 
