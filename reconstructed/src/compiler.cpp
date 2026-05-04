@@ -81,8 +81,16 @@ Compiler::Compiler(const AWGCompilerConfig& config,
         config, deviceConstants, wavetable_, waveformGen_, asmCommands_,
         std::function<void(const std::string&)>(warningCb));
 
-    // SeqcParserContext at +0x100 is default-constructed by the
-    // member initializer list (zero-initialized POD + empty std::function).
+    // Wire SeqcParserContext error callback → messages_.parserMessage(lineNr, msg)
+    // Binary: Compiler::Compiler+0x2cb calls setErrorCallback with lambda:
+    //   [this](int lineNr, const string& msg) { messages_.parserMessage(lineNr, msg); }
+    // The lambda body disassembles to: mov 0x8(%rdi),%rdi; mov (%rsi),%esi;
+    //   add $0x38,%rdi; jmp CompilerMessageCollection::parserMessage
+    // (0x38 = offset of messages_ in Compiler; rsi=int& lineNr, rdx=string&)
+    parserContext_.setErrorCallback(
+        [this](int lineNr, const std::string& msg) {
+            messages_.parserMessage(lineNr, msg);
+        });
 
     // Cancel/progress callbacks start as empty weak_ptrs
 }
@@ -140,9 +148,10 @@ std::string Compiler::unifyLineEndings(const std::string& input) const {
 
 // 0x11d9b0
 std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
-    // Reset parser context at this+0x100
     auto* ctx = &parserContext_;
-    // ctx->reset();  // 0x247cc0
+
+    // Reset parser context at this+0x100                               // @0x11d9d7
+    ctx->reset();  // 0x247cc0
 
     void* scanner = nullptr;
     if (seqc_lex_init_extra(ctx, &scanner) != 0) {
@@ -158,10 +167,13 @@ std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
     seqc__delete_buffer(static_cast<yy_buffer_state*>(buf), scanner);
     seqc_lex_destroy(scanner);
 
-    // Check for syntax errors
-    // if (ctx->hadSyntaxError()) {
-    //     throw CompilerException("Syntax error");
-    // }
+    // Check for syntax errors                                           // @0x11da44
+    // GDB-confirmed: binary calls hadSyntaxError() at parse+148; if true,
+    // throws CompilerException("Syntax error while parsing seqC")
+    // (string at rodata 0x8ffdec).
+    if (ctx->hadSyntaxError()) {
+        throw CompilerException("Syntax error while parsing seqC");
+    }
 
     // Split source into lines and store in sourceLines_
     sourceLines_.clear();
@@ -265,25 +277,37 @@ CompileResult Compiler::compile(const std::string& source) {
     // Step 6: Convert to SeqC AST                                          // 0x11f7b0
     auto seqcAst = toSeqCAst(expr);
 
-    // Step 7: (Optional debug) Print SeqC AST                              // 0x11f7da
-    if (config_->debugFlags & 0x04) {
-        printSeqCAst(*seqcAst);
+    // The binary (libc++ ABI) handles null seqcAst gracefully: the libc++
+    // shared_ptr does not assert on null dereference. In the recon (libstdc++),
+    // operator* asserts non-null. Guard here: skip steps 7-8 if null.
+    // The parse error was already reported via parserContext_.errorCallback_
+    // → messages_.parserMessage(), so messages_.hadCompilerError() will be
+    // true and step 9 will throw the right exception.
+    // GDB-confirmed: binary at +1644 tests seqcAst raw ptr; if null, continues
+    // past refcount incr and into FrontEndLoweringFacade::lower (libc++ ABI
+    // handles null shared_ptr deref differently from libstdc++).
+    FrontEndLoweringFacade::LowerResult lowerResult;
+    if (seqcAst) {
+        // Step 7: (Optional debug) Print SeqC AST                          // 0x11f7da
+        if (config_->debugFlags & 0x04) {
+            printSeqCAst(*seqcAst);
+        }
+
+        // Step 8: Frontend lowering                                        // 0x11f911
+        // Binary reads config_->unknown_98 (offset 0x98) as loopUnrollLimit int
+        lowerResult = FrontEndLoweringFacade::lower(
+            std::static_pointer_cast<Resources>(resources),
+            *seqcAst,
+            messages_,
+            asmCommands_,
+            customFunctions_,
+            waveformGen_,
+            wavetable_,
+            config_->loopUnrollLimit);                                   // [config+0x98]
+
+        // Step 8b: Store lowered AST into Compiler.ast_                    // 0x11f92f
+        ast_ = std::move(lowerResult.astResult);
     }
-
-    // Step 8: Frontend lowering                                            // 0x11f911
-    // Binary reads config_->unknown_98 (offset 0x98) as loopUnrollLimit int
-    auto lowerResult = FrontEndLoweringFacade::lower(
-        std::static_pointer_cast<Resources>(resources),
-        *seqcAst,
-        messages_,
-        asmCommands_,
-        customFunctions_,
-        waveformGen_,
-        wavetable_,
-        config_->loopUnrollLimit);                                       // [config+0x98]
-
-    // Step 8b: Store lowered AST into Compiler.ast_                        // 0x11f92f
-    ast_ = std::move(lowerResult.astResult);
 
     // seqcAst destroyed here (shared_ptr dtor)                             // 0x11faec
 

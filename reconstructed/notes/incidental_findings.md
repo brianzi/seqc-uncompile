@@ -2452,6 +2452,68 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 ---
 
+## IF-123  `SeqcParserContext::errorCallback_` never wired in recon `Compiler` constructor
+
+- **Source**: hdawg_func_return_int difftest investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The original binary's `Compiler::Compiler` (at ctor+0x2cb) calls
+  `parserContext_.setErrorCallback(lambda)` where the lambda body is
+  `messages_.parserMessage(lineNr, msg)`. The recon constructor never set this
+  callback, leaving `SeqcParserContext::raiseError` a no-op — syntax errors from
+  the bison parser were silently discarded (no error message in `messages_`), so
+  `messages_.hadCompilerError()` returned false and the compiler continued past
+  a parse failure.
+- **Resolution**: Added `parserContext_.setErrorCallback(...)` call to
+  `Compiler::Compiler` in `reconstructed/src/compiler.cpp`. GDB-confirmed: the
+  lambda vtable at binary offset `0x9e62ac+rip` at ctor+685 disassembles to
+  `mov 0x8(%rdi),%rdi; mov (%rsi),%esi; add $0x38,%rdi; jmp parserMessage`
+  (captures `this`; `0x38` = `messages_` offset).
+
+## IF-124  `Compiler::compile` null-seqcAst crash (libstdc++ vs libc++ ABI)
+
+- **Source**: hdawg_func_return_int difftest investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: When the SeqC parser fails (seqcAst is null), the recon
+  calls `FrontEndLoweringFacade::lower(..., *seqcAst, ...)`, triggering
+  libstdc++ `__shared_ptr_deref` assertion (SIGABRT). The original binary
+  uses libc++ which has different null-deref behavior for shared_ptrs.
+  GDB-confirmed: binary at `Compiler::compile+1644` has `test %rbx,%rbx;
+  je +1671` — a null guard on the raw seqcAst pointer; if null, jumps past
+  refcount and into `lower()` where libc++'s ABI tolerates the null.
+- **Resolution**: Wrapped steps 7–8 (SeqC AST print + frontend lowering) in
+  `if (seqcAst)` guard in `compiler.cpp::Compiler::compile`. With IF-123 also
+  fixed, the parse error is now properly stored in `messages_` so step 9's
+  `hadCompilerError()` check throws the right exception.
+
+## IF-125  `SeqCBreakStatement::evaluate` had spurious `inSwitch_` guard
+
+- **Source**: hdawg_switch_basic / hdawg_switch_fallthrough difftest investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The recon's `SeqCBreakStatement::evaluate` had an
+  `if (!state.inSwitch_)` guard that skipped the error when inside a switch.
+  The original binary at `0x226970` has no such branch: the first instructions
+  are `ErrorMessages::format(0xd5, "break")` + `errorMessage(...)` unconditionally,
+  followed by allocating and returning an empty `EvalResults`.
+  GDB-confirmed: traced with a switch-body input; `inSwitch_=0x61` (true) but
+  the binary still calls `errorMessage` and returns empty EvalResults.
+- **Resolution**: Removed the `if (!state.inSwitch_)` guard. The function now
+  unconditionally emits error 0xd5 and returns empty `EvalResults`. This fixed
+  `hdawg_switch_basic` (which had break outside switch — was being silently
+  ignored). The `hdawg_switch_fallthrough` inline case (break inside switch)
+  remains failing because the recon is missing the `playZero(16)` warning —
+  a separate pre-existing switch evaluation order issue.
+
+## IF-126  `seqc_parser.tab.c` missing verbose error output; `EDirection` cast errors in grammar
+
+- **Source**: `hdawg_func_return_int` / `hdawg_func_nested_call` investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The pre-existing `seqc_parser.tab.c` was generated without `%define parse.error verbose`, so `yyerror` / `seqc_error` received only the bare string `"syntax error"` instead of the detailed `"syntax error, unexpected IDENTIFIER, expecting ';'"` that the original binary produces. Separately, the grammar file used integer literals `0` for `direction` field assignments instead of `EDirection::eIN`, which caused compile errors when regenerating with a stricter bison version.
+- **Resolution**: Added `%define parse.error verbose` to `seqc_parser.y`, fixed all `->direction = 0` assignments to `EDirection::eIN`, regenerated `seqc_parser.tab.c` and `seqc_parser.tab.h`. The bison-generated verbose error strings now match the original binary output exactly. Tests `hdawg_func_return_int` and `hdawg_func_nested_call` pass; full suite 326/327.
+
 ## IF-122  `Resources::parent_` strong/weak pointer inversion
 
 - **Source**: audit batch 19a

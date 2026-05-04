@@ -43,6 +43,7 @@ using namespace zhinst;
 /* Bison configuration */
 %define api.pure full
 %define api.prefix {seqc_}
+%define parse.error verbose
 
 /* Parser parameters — matches seqc_parse(ctx, result, scanner) @0x2ca2a0 */
 %parse-param {zhinst::SeqcParserContext* ctx}
@@ -308,7 +309,7 @@ assignment_expression
                mov -0x10(%rbx),%rcx reads $1, then writes 0x54 and 0x04.
                This sets the LHS variable to dir=eIN(0), vc=eLVALUE(1),
                which prevents checkVar from firing on uninitialized vars. */
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
             $$ = createOperator(ctx, $1, $3, EOperator::eASSIGN);
         }
@@ -319,61 +320,61 @@ assignment_expression
                (which is shared into the + operator) to direction=0,
                valueCategory=1.  Binary: 0x2ca880 call, then 0x2ca892/0x2ca89d. */
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eADD);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression SUB_ASSIGN assignment_expression  /* Rule 54 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSUB);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression MUL_ASSIGN assignment_expression  /* Rule 55 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eMUL);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression DIV_ASSIGN assignment_expression  /* Rule 56 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eDIV);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression MOD_ASSIGN assignment_expression  /* Rule 57 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eMOD);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression AND_ASSIGN assignment_expression  /* Rule 58 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eAND);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression XOR_ASSIGN assignment_expression  /* Rule 59 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eXOR);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression OR_ASSIGN assignment_expression  /* Rule 60 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eOR);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression LSH_ASSIGN assignment_expression  /* Rule 61 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHL);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     | unary_expression RSH_ASSIGN assignment_expression  /* Rule 62 */
         {
             $$ = createAssignOperator(ctx, $1, $3, EOperator::eSHR);
-            $1->direction = 0;
+            $1->direction = EDirection::eIN;
             $1->valueCategory = 1;
         }
     ;
@@ -423,7 +424,7 @@ init_declarator
     | declarator '=' initializer                /* Rule 69 — assignment in declaration */
         {
             $$ = createOperator(ctx, $1, $3, EOperator::eASSIGN);
-            $$->direction = 0;
+            $$->direction = EDirection::eIN;
             $$->valueCategory = 1;
         }
     ;

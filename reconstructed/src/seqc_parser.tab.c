@@ -228,7 +228,7 @@ typedef enum yysymbol_kind_t yysymbol_kind_t;
 
 
 /* Unqualified %code blocks.  */
-#line 64 "seqc_parser.y"
+#line 65 "seqc_parser.y"
 
     int seqc_lex(SEQC_STYPE* lvalp, void* scanner);
 
@@ -425,7 +425,7 @@ typedef int yy_state_fast_t;
 
 #define YY_ASSERT(E) ((void) (0 && (E)))
 
-#if !defined yyoverflow
+#if 1
 
 /* The parser invokes alloca or malloc; define the necessary symbols.  */
 
@@ -490,7 +490,7 @@ void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 # endif
-#endif /* !defined yyoverflow */
+#endif /* 1 */
 
 #if (! defined yyoverflow \
      && (! defined __cplusplus \
@@ -617,26 +617,26 @@ static const yytype_int8 yytranslate[] =
 /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
-       0,   114,   114,   116,   118,   120,   128,   130,   132,   134,
-     136,   138,   146,   148,   156,   158,   160,   162,   164,   166,
-     168,   176,   178,   180,   182,   190,   192,   194,   202,   204,
-     206,   214,   216,   218,   220,   222,   230,   232,   234,   242,
-     244,   252,   254,   262,   264,   272,   274,   282,   284,   292,
-     294,   302,   304,   315,   325,   331,   337,   343,   349,   355,
-     361,   367,   373,   385,   393,   403,   411,   413,   421,   423,
-     435,   437,   439,   441,   443,   445,   453,   455,   457,   465,
-     467,   475,   477,   485,   487,   495,   503,   511,   513,   521,
-     523,   525,   527,   529,   537,   539,   541,   543,   551,   553,
-     561,   563,   565,   567,   585,   587,   595,   597,   599,   607,
-     609,   611,   613,   615,   617,   619,   627,   629,   631,   633,
-     642,   643,   651,   653,   661,   663,   665,   674
+       0,   115,   115,   117,   119,   121,   129,   131,   133,   135,
+     137,   139,   147,   149,   157,   159,   161,   163,   165,   167,
+     169,   177,   179,   181,   183,   191,   193,   195,   203,   205,
+     207,   215,   217,   219,   221,   223,   231,   233,   235,   243,
+     245,   253,   255,   263,   265,   273,   275,   283,   285,   293,
+     295,   303,   305,   316,   326,   332,   338,   344,   350,   356,
+     362,   368,   374,   386,   394,   404,   412,   414,   422,   424,
+     436,   438,   440,   442,   444,   446,   454,   456,   458,   466,
+     468,   476,   478,   486,   488,   496,   504,   512,   514,   522,
+     524,   526,   528,   530,   538,   540,   542,   544,   552,   554,
+     562,   564,   566,   568,   586,   588,   596,   598,   600,   608,
+     610,   612,   614,   616,   618,   620,   628,   630,   632,   634,
+     643,   644,   652,   654,   662,   664,   666,   675
 };
 #endif
 
 /** Accessing symbol of state STATE.  */
 #define YY_ACCESSING_SYMBOL(State) YY_CAST (yysymbol_kind_t, yystos[State])
 
-#if SEQC_DEBUG || 0
+#if 1
 /* The user-facing name of the symbol whose (internal) number is
    YYSYMBOL.  No bounds checking.  */
 static const char *yysymbol_name (yysymbol_kind_t yysymbol) YY_ATTRIBUTE_UNUSED;
@@ -1136,8 +1136,275 @@ int yydebug;
 #endif
 
 
+/* Context of a parse error.  */
+typedef struct
+{
+  yy_state_t *yyssp;
+  yysymbol_kind_t yytoken;
+} yypcontext_t;
+
+/* Put in YYARG at most YYARGN of the expected tokens given the
+   current YYCTX, and return the number of tokens stored in YYARG.  If
+   YYARG is null, return the number of expected tokens (guaranteed to
+   be less than YYNTOKENS).  Return YYENOMEM on memory exhaustion.
+   Return 0 if there are more than YYARGN expected tokens, yet fill
+   YYARG up to YYARGN. */
+static int
+yypcontext_expected_tokens (const yypcontext_t *yyctx,
+                            yysymbol_kind_t yyarg[], int yyargn)
+{
+  /* Actual size of YYARG. */
+  int yycount = 0;
+  int yyn = yypact[+*yyctx->yyssp];
+  if (!yypact_value_is_default (yyn))
+    {
+      /* Start YYX at -YYN if negative to avoid negative indexes in
+         YYCHECK.  In other words, skip the first -YYN actions for
+         this state because they are default actions.  */
+      int yyxbegin = yyn < 0 ? -yyn : 0;
+      /* Stay within bounds of both yycheck and yytname.  */
+      int yychecklim = YYLAST - yyn + 1;
+      int yyxend = yychecklim < YYNTOKENS ? yychecklim : YYNTOKENS;
+      int yyx;
+      for (yyx = yyxbegin; yyx < yyxend; ++yyx)
+        if (yycheck[yyx + yyn] == yyx && yyx != YYSYMBOL_YYerror
+            && !yytable_value_is_error (yytable[yyx + yyn]))
+          {
+            if (!yyarg)
+              ++yycount;
+            else if (yycount == yyargn)
+              return 0;
+            else
+              yyarg[yycount++] = YY_CAST (yysymbol_kind_t, yyx);
+          }
+    }
+  if (yyarg && yycount == 0 && 0 < yyargn)
+    yyarg[0] = YYSYMBOL_YYEMPTY;
+  return yycount;
+}
 
 
+
+
+#ifndef yystrlen
+# if defined __GLIBC__ && defined _STRING_H
+#  define yystrlen(S) (YY_CAST (YYPTRDIFF_T, strlen (S)))
+# else
+/* Return the length of YYSTR.  */
+static YYPTRDIFF_T
+yystrlen (const char *yystr)
+{
+  YYPTRDIFF_T yylen;
+  for (yylen = 0; yystr[yylen]; yylen++)
+    continue;
+  return yylen;
+}
+# endif
+#endif
+
+#ifndef yystpcpy
+# if defined __GLIBC__ && defined _STRING_H && defined _GNU_SOURCE
+#  define yystpcpy stpcpy
+# else
+/* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
+   YYDEST.  */
+static char *
+yystpcpy (char *yydest, const char *yysrc)
+{
+  char *yyd = yydest;
+  const char *yys = yysrc;
+
+  while ((*yyd++ = *yys++) != '\0')
+    continue;
+
+  return yyd - 1;
+}
+# endif
+#endif
+
+#ifndef yytnamerr
+/* Copy to YYRES the contents of YYSTR after stripping away unnecessary
+   quotes and backslashes, so that it's suitable for yyerror.  The
+   heuristic is that double-quoting is unnecessary unless the string
+   contains an apostrophe, a comma, or backslash (other than
+   backslash-backslash).  YYSTR is taken from yytname.  If YYRES is
+   null, do not copy; instead, return the length of what the result
+   would have been.  */
+static YYPTRDIFF_T
+yytnamerr (char *yyres, const char *yystr)
+{
+  if (*yystr == '"')
+    {
+      YYPTRDIFF_T yyn = 0;
+      char const *yyp = yystr;
+      for (;;)
+        switch (*++yyp)
+          {
+          case '\'':
+          case ',':
+            goto do_not_strip_quotes;
+
+          case '\\':
+            if (*++yyp != '\\')
+              goto do_not_strip_quotes;
+            else
+              goto append;
+
+          append:
+          default:
+            if (yyres)
+              yyres[yyn] = *yyp;
+            yyn++;
+            break;
+
+          case '"':
+            if (yyres)
+              yyres[yyn] = '\0';
+            return yyn;
+          }
+    do_not_strip_quotes: ;
+    }
+
+  if (yyres)
+    return yystpcpy (yyres, yystr) - yyres;
+  else
+    return yystrlen (yystr);
+}
+#endif
+
+
+static int
+yy_syntax_error_arguments (const yypcontext_t *yyctx,
+                           yysymbol_kind_t yyarg[], int yyargn)
+{
+  /* Actual size of YYARG. */
+  int yycount = 0;
+  /* There are many possibilities here to consider:
+     - If this state is a consistent state with a default action, then
+       the only way this function was invoked is if the default action
+       is an error action.  In that case, don't check for expected
+       tokens because there are none.
+     - The only way there can be no lookahead present (in yychar) is if
+       this state is a consistent state with a default action.  Thus,
+       detecting the absence of a lookahead is sufficient to determine
+       that there is no unexpected or expected token to report.  In that
+       case, just report a simple "syntax error".
+     - Don't assume there isn't a lookahead just because this state is a
+       consistent state with a default action.  There might have been a
+       previous inconsistent state, consistent state with a non-default
+       action, or user semantic action that manipulated yychar.
+     - Of course, the expected token list depends on states to have
+       correct lookahead information, and it depends on the parser not
+       to perform extra reductions after fetching a lookahead from the
+       scanner and before detecting a syntax error.  Thus, state merging
+       (from LALR or IELR) and default reductions corrupt the expected
+       token list.  However, the list is correct for canonical LR with
+       one exception: it will still contain any token that will not be
+       accepted due to an error action in a later state.
+  */
+  if (yyctx->yytoken != YYSYMBOL_YYEMPTY)
+    {
+      int yyn;
+      if (yyarg)
+        yyarg[yycount] = yyctx->yytoken;
+      ++yycount;
+      yyn = yypcontext_expected_tokens (yyctx,
+                                        yyarg ? yyarg + 1 : yyarg, yyargn - 1);
+      if (yyn == YYENOMEM)
+        return YYENOMEM;
+      else
+        yycount += yyn;
+    }
+  return yycount;
+}
+
+/* Copy into *YYMSG, which is of size *YYMSG_ALLOC, an error message
+   about the unexpected token YYTOKEN for the state stack whose top is
+   YYSSP.
+
+   Return 0 if *YYMSG was successfully written.  Return -1 if *YYMSG is
+   not large enough to hold the message.  In that case, also set
+   *YYMSG_ALLOC to the required number of bytes.  Return YYENOMEM if the
+   required number of bytes is too large to store.  */
+static int
+yysyntax_error (YYPTRDIFF_T *yymsg_alloc, char **yymsg,
+                const yypcontext_t *yyctx)
+{
+  enum { YYARGS_MAX = 5 };
+  /* Internationalized format string. */
+  const char *yyformat = YY_NULLPTR;
+  /* Arguments of yyformat: reported tokens (one for the "unexpected",
+     one per "expected"). */
+  yysymbol_kind_t yyarg[YYARGS_MAX];
+  /* Cumulated lengths of YYARG.  */
+  YYPTRDIFF_T yysize = 0;
+
+  /* Actual size of YYARG. */
+  int yycount = yy_syntax_error_arguments (yyctx, yyarg, YYARGS_MAX);
+  if (yycount == YYENOMEM)
+    return YYENOMEM;
+
+  switch (yycount)
+    {
+#define YYCASE_(N, S)                       \
+      case N:                               \
+        yyformat = S;                       \
+        break
+    default: /* Avoid compiler warnings. */
+      YYCASE_(0, YY_("syntax error"));
+      YYCASE_(1, YY_("syntax error, unexpected %s"));
+      YYCASE_(2, YY_("syntax error, unexpected %s, expecting %s"));
+      YYCASE_(3, YY_("syntax error, unexpected %s, expecting %s or %s"));
+      YYCASE_(4, YY_("syntax error, unexpected %s, expecting %s or %s or %s"));
+      YYCASE_(5, YY_("syntax error, unexpected %s, expecting %s or %s or %s or %s"));
+#undef YYCASE_
+    }
+
+  /* Compute error message size.  Don't count the "%s"s, but reserve
+     room for the terminator.  */
+  yysize = yystrlen (yyformat) - 2 * yycount + 1;
+  {
+    int yyi;
+    for (yyi = 0; yyi < yycount; ++yyi)
+      {
+        YYPTRDIFF_T yysize1
+          = yysize + yytnamerr (YY_NULLPTR, yytname[yyarg[yyi]]);
+        if (yysize <= yysize1 && yysize1 <= YYSTACK_ALLOC_MAXIMUM)
+          yysize = yysize1;
+        else
+          return YYENOMEM;
+      }
+  }
+
+  if (*yymsg_alloc < yysize)
+    {
+      *yymsg_alloc = 2 * yysize;
+      if (! (yysize <= *yymsg_alloc
+             && *yymsg_alloc <= YYSTACK_ALLOC_MAXIMUM))
+        *yymsg_alloc = YYSTACK_ALLOC_MAXIMUM;
+      return -1;
+    }
+
+  /* Avoid sprintf, as that infringes on the user's name space.
+     Don't have undefined behavior even if the translation
+     produced a string with the wrong number of "%s"s.  */
+  {
+    char *yyp = *yymsg;
+    int yyi = 0;
+    while ((*yyp = *yyformat) != '\0')
+      if (*yyp == '%' && yyformat[1] == 's' && yyi < yycount)
+        {
+          yyp += yytnamerr (yyp, yytname[yyarg[yyi++]]);
+          yyformat += 2;
+        }
+      else
+        {
+          ++yyp;
+          ++yyformat;
+        }
+  }
+  return 0;
+}
 
 
 /*-----------------------------------------------.
@@ -1215,7 +1482,10 @@ YYSTYPE yylval YY_INITIAL_VALUE (= yyval_default);
      action routines.  */
   YYSTYPE yyval;
 
-
+  /* Buffer for error messages, and its allocated size.  */
+  char yymsgbuf[128];
+  char *yymsg = yymsgbuf;
+  YYPTRDIFF_T yymsg_alloc = sizeof yymsgbuf;
 
 #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N))
 
@@ -1426,307 +1696,307 @@ yyreduce:
   switch (yyn)
     {
   case 2: /* primary_expression: identifier  */
-#line 115 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1432 "seqc_parser.tab.c"
-    break;
-
-  case 3: /* primary_expression: CONSTANT  */
-#line 117 "seqc_parser.y"
-        { (yyval.expr) = createValue(ctx, (yyvsp[0].dval)); }
-#line 1438 "seqc_parser.tab.c"
-    break;
-
-  case 4: /* primary_expression: STRING_LITERAL  */
-#line 119 "seqc_parser.y"
-        { (yyval.expr) = createString(ctx, (yyvsp[0].sval)); }
-#line 1444 "seqc_parser.tab.c"
-    break;
-
-  case 5: /* primary_expression: '(' expression ')'  */
-#line 121 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[-1].expr); }
-#line 1450 "seqc_parser.tab.c"
-    break;
-
-  case 6: /* postfix_expression: primary_expression  */
-#line 129 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1456 "seqc_parser.tab.c"
-    break;
-
-  case 7: /* postfix_expression: postfix_expression '[' expression ']'  */
-#line 131 "seqc_parser.y"
-        { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1462 "seqc_parser.tab.c"
-    break;
-
-  case 8: /* postfix_expression: postfix_expression '(' ')'  */
-#line 133 "seqc_parser.y"
-        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
-#line 1468 "seqc_parser.tab.c"
-    break;
-
-  case 9: /* postfix_expression: postfix_expression '(' argument_expression_list ')'  */
-#line 135 "seqc_parser.y"
-        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1474 "seqc_parser.tab.c"
-    break;
-
-  case 10: /* postfix_expression: postfix_expression INC_OP  */
-#line 137 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eINC); }
-#line 1480 "seqc_parser.tab.c"
-    break;
-
-  case 11: /* postfix_expression: postfix_expression DEC_OP  */
-#line 139 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eDEC); }
-#line 1486 "seqc_parser.tab.c"
-    break;
-
-  case 12: /* argument_expression_list: assignment_expression  */
-#line 147 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1492 "seqc_parser.tab.c"
-    break;
-
-  case 13: /* argument_expression_list: argument_expression_list ',' assignment_expression  */
-#line 149 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendArgList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 1498 "seqc_parser.tab.c"
-    break;
-
-  case 14: /* unary_expression: postfix_expression  */
-#line 157 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1504 "seqc_parser.tab.c"
-    break;
-
-  case 15: /* unary_expression: INC_OP unary_expression  */
-#line 159 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eINC); }
-#line 1510 "seqc_parser.tab.c"
-    break;
-
-  case 16: /* unary_expression: DEC_OP unary_expression  */
-#line 161 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eDEC); }
-#line 1516 "seqc_parser.tab.c"
-    break;
-
-  case 17: /* unary_expression: '-' unary_expression  */
-#line 163 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eNEG, 1, (yyvsp[0].expr)); }
-#line 1522 "seqc_parser.tab.c"
-    break;
-
-  case 18: /* unary_expression: '+' unary_expression  */
-#line 165 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::ePOS, 1, (yyvsp[0].expr)); }
-#line 1528 "seqc_parser.tab.c"
-    break;
-
-  case 19: /* unary_expression: '~' unary_expression  */
-#line 167 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eINV, 1, (yyvsp[0].expr)); }
-#line 1534 "seqc_parser.tab.c"
-    break;
-
-  case 20: /* unary_expression: '!' unary_expression  */
-#line 169 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eNOT, 1, (yyvsp[0].expr)); }
-#line 1540 "seqc_parser.tab.c"
-    break;
-
-  case 21: /* multiplicative_expression: unary_expression  */
-#line 177 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1546 "seqc_parser.tab.c"
-    break;
-
-  case 22: /* multiplicative_expression: multiplicative_expression '*' unary_expression  */
-#line 179 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMUL); }
-#line 1552 "seqc_parser.tab.c"
-    break;
-
-  case 23: /* multiplicative_expression: multiplicative_expression '/' unary_expression  */
-#line 181 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eDIV); }
-#line 1558 "seqc_parser.tab.c"
-    break;
-
-  case 24: /* multiplicative_expression: multiplicative_expression '%' unary_expression  */
-#line 183 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMOD); }
-#line 1564 "seqc_parser.tab.c"
-    break;
-
-  case 25: /* additive_expression: multiplicative_expression  */
-#line 191 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1570 "seqc_parser.tab.c"
-    break;
-
-  case 26: /* additive_expression: additive_expression '+' multiplicative_expression  */
-#line 193 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eADD); }
-#line 1576 "seqc_parser.tab.c"
-    break;
-
-  case 27: /* additive_expression: additive_expression '-' multiplicative_expression  */
-#line 195 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSUB); }
-#line 1582 "seqc_parser.tab.c"
-    break;
-
-  case 28: /* shift_expression: additive_expression  */
-#line 203 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1588 "seqc_parser.tab.c"
-    break;
-
-  case 29: /* shift_expression: shift_expression LSH_OP additive_expression  */
-#line 205 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL); }
-#line 1594 "seqc_parser.tab.c"
-    break;
-
-  case 30: /* shift_expression: shift_expression RSH_OP additive_expression  */
-#line 207 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR); }
-#line 1600 "seqc_parser.tab.c"
-    break;
-
-  case 31: /* relational_expression: shift_expression  */
-#line 215 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1606 "seqc_parser.tab.c"
-    break;
-
-  case 32: /* relational_expression: relational_expression '<' shift_expression  */
-#line 217 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLT); }
-#line 1612 "seqc_parser.tab.c"
-    break;
-
-  case 33: /* relational_expression: relational_expression '>' shift_expression  */
-#line 219 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGT); }
-#line 1618 "seqc_parser.tab.c"
-    break;
-
-  case 34: /* relational_expression: relational_expression LE_OP shift_expression  */
-#line 221 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLE); }
-#line 1624 "seqc_parser.tab.c"
-    break;
-
-  case 35: /* relational_expression: relational_expression GE_OP shift_expression  */
-#line 223 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGE); }
-#line 1630 "seqc_parser.tab.c"
-    break;
-
-  case 36: /* equality_expression: relational_expression  */
-#line 231 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1636 "seqc_parser.tab.c"
-    break;
-
-  case 37: /* equality_expression: equality_expression EQ_OP relational_expression  */
-#line 233 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eEQ); }
-#line 1642 "seqc_parser.tab.c"
-    break;
-
-  case 38: /* equality_expression: equality_expression NE_OP relational_expression  */
-#line 235 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eNE); }
-#line 1648 "seqc_parser.tab.c"
-    break;
-
-  case 39: /* and_expression: equality_expression  */
-#line 243 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1654 "seqc_parser.tab.c"
-    break;
-
-  case 40: /* and_expression: and_expression '&' equality_expression  */
-#line 245 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eAND); }
-#line 1660 "seqc_parser.tab.c"
-    break;
-
-  case 41: /* exclusive_or_expression: and_expression  */
-#line 253 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1666 "seqc_parser.tab.c"
-    break;
-
-  case 42: /* exclusive_or_expression: exclusive_or_expression '^' and_expression  */
-#line 255 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eXOR); }
-#line 1672 "seqc_parser.tab.c"
-    break;
-
-  case 43: /* inclusive_or_expression: exclusive_or_expression  */
-#line 263 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1678 "seqc_parser.tab.c"
-    break;
-
-  case 44: /* inclusive_or_expression: inclusive_or_expression '|' exclusive_or_expression  */
-#line 265 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eOR); }
-#line 1684 "seqc_parser.tab.c"
-    break;
-
-  case 45: /* logical_and_expression: inclusive_or_expression  */
-#line 273 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1690 "seqc_parser.tab.c"
-    break;
-
-  case 46: /* logical_and_expression: logical_and_expression AND_OP inclusive_or_expression  */
-#line 275 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLAND); }
-#line 1696 "seqc_parser.tab.c"
-    break;
-
-  case 47: /* logical_or_expression: logical_and_expression  */
-#line 283 "seqc_parser.y"
+#line 116 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 1702 "seqc_parser.tab.c"
     break;
 
-  case 48: /* logical_or_expression: logical_or_expression OR_OP logical_and_expression  */
-#line 285 "seqc_parser.y"
-        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLOR); }
+  case 3: /* primary_expression: CONSTANT  */
+#line 118 "seqc_parser.y"
+        { (yyval.expr) = createValue(ctx, (yyvsp[0].dval)); }
 #line 1708 "seqc_parser.tab.c"
     break;
 
-  case 49: /* conditional_expression: logical_or_expression  */
-#line 293 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 4: /* primary_expression: STRING_LITERAL  */
+#line 120 "seqc_parser.y"
+        { (yyval.expr) = createString(ctx, (yyvsp[0].sval)); }
 #line 1714 "seqc_parser.tab.c"
     break;
 
-  case 50: /* conditional_expression: logical_or_expression '?' expression ':' conditional_expression  */
-#line 295 "seqc_parser.y"
-        { (yyval.expr) = createCondExpression(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 5: /* primary_expression: '(' expression ')'  */
+#line 122 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[-1].expr); }
 #line 1720 "seqc_parser.tab.c"
     break;
 
-  case 51: /* assignment_expression: conditional_expression  */
-#line 303 "seqc_parser.y"
+  case 6: /* postfix_expression: primary_expression  */
+#line 130 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 1726 "seqc_parser.tab.c"
     break;
 
+  case 7: /* postfix_expression: postfix_expression '[' expression ']'  */
+#line 132 "seqc_parser.y"
+        { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
+#line 1732 "seqc_parser.tab.c"
+    break;
+
+  case 8: /* postfix_expression: postfix_expression '(' ')'  */
+#line 134 "seqc_parser.y"
+        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
+#line 1738 "seqc_parser.tab.c"
+    break;
+
+  case 9: /* postfix_expression: postfix_expression '(' argument_expression_list ')'  */
+#line 136 "seqc_parser.y"
+        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
+#line 1744 "seqc_parser.tab.c"
+    break;
+
+  case 10: /* postfix_expression: postfix_expression INC_OP  */
+#line 138 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eINC); }
+#line 1750 "seqc_parser.tab.c"
+    break;
+
+  case 11: /* postfix_expression: postfix_expression DEC_OP  */
+#line 140 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-1].expr), NULL, EOperator::eDEC); }
+#line 1756 "seqc_parser.tab.c"
+    break;
+
+  case 12: /* argument_expression_list: assignment_expression  */
+#line 148 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1762 "seqc_parser.tab.c"
+    break;
+
+  case 13: /* argument_expression_list: argument_expression_list ',' assignment_expression  */
+#line 150 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendArgList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 1768 "seqc_parser.tab.c"
+    break;
+
+  case 14: /* unary_expression: postfix_expression  */
+#line 158 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1774 "seqc_parser.tab.c"
+    break;
+
+  case 15: /* unary_expression: INC_OP unary_expression  */
+#line 160 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eINC); }
+#line 1780 "seqc_parser.tab.c"
+    break;
+
+  case 16: /* unary_expression: DEC_OP unary_expression  */
+#line 162 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, NULL, (yyvsp[0].expr), EOperator::eDEC); }
+#line 1786 "seqc_parser.tab.c"
+    break;
+
+  case 17: /* unary_expression: '-' unary_expression  */
+#line 164 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eNEG, 1, (yyvsp[0].expr)); }
+#line 1792 "seqc_parser.tab.c"
+    break;
+
+  case 18: /* unary_expression: '+' unary_expression  */
+#line 166 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::ePOS, 1, (yyvsp[0].expr)); }
+#line 1798 "seqc_parser.tab.c"
+    break;
+
+  case 19: /* unary_expression: '~' unary_expression  */
+#line 168 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eINV, 1, (yyvsp[0].expr)); }
+#line 1804 "seqc_parser.tab.c"
+    break;
+
+  case 20: /* unary_expression: '!' unary_expression  */
+#line 170 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eNOT, 1, (yyvsp[0].expr)); }
+#line 1810 "seqc_parser.tab.c"
+    break;
+
+  case 21: /* multiplicative_expression: unary_expression  */
+#line 178 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1816 "seqc_parser.tab.c"
+    break;
+
+  case 22: /* multiplicative_expression: multiplicative_expression '*' unary_expression  */
+#line 180 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMUL); }
+#line 1822 "seqc_parser.tab.c"
+    break;
+
+  case 23: /* multiplicative_expression: multiplicative_expression '/' unary_expression  */
+#line 182 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eDIV); }
+#line 1828 "seqc_parser.tab.c"
+    break;
+
+  case 24: /* multiplicative_expression: multiplicative_expression '%' unary_expression  */
+#line 184 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMOD); }
+#line 1834 "seqc_parser.tab.c"
+    break;
+
+  case 25: /* additive_expression: multiplicative_expression  */
+#line 192 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1840 "seqc_parser.tab.c"
+    break;
+
+  case 26: /* additive_expression: additive_expression '+' multiplicative_expression  */
+#line 194 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eADD); }
+#line 1846 "seqc_parser.tab.c"
+    break;
+
+  case 27: /* additive_expression: additive_expression '-' multiplicative_expression  */
+#line 196 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSUB); }
+#line 1852 "seqc_parser.tab.c"
+    break;
+
+  case 28: /* shift_expression: additive_expression  */
+#line 204 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1858 "seqc_parser.tab.c"
+    break;
+
+  case 29: /* shift_expression: shift_expression LSH_OP additive_expression  */
+#line 206 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL); }
+#line 1864 "seqc_parser.tab.c"
+    break;
+
+  case 30: /* shift_expression: shift_expression RSH_OP additive_expression  */
+#line 208 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR); }
+#line 1870 "seqc_parser.tab.c"
+    break;
+
+  case 31: /* relational_expression: shift_expression  */
+#line 216 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1876 "seqc_parser.tab.c"
+    break;
+
+  case 32: /* relational_expression: relational_expression '<' shift_expression  */
+#line 218 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLT); }
+#line 1882 "seqc_parser.tab.c"
+    break;
+
+  case 33: /* relational_expression: relational_expression '>' shift_expression  */
+#line 220 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGT); }
+#line 1888 "seqc_parser.tab.c"
+    break;
+
+  case 34: /* relational_expression: relational_expression LE_OP shift_expression  */
+#line 222 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLE); }
+#line 1894 "seqc_parser.tab.c"
+    break;
+
+  case 35: /* relational_expression: relational_expression GE_OP shift_expression  */
+#line 224 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eGE); }
+#line 1900 "seqc_parser.tab.c"
+    break;
+
+  case 36: /* equality_expression: relational_expression  */
+#line 232 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1906 "seqc_parser.tab.c"
+    break;
+
+  case 37: /* equality_expression: equality_expression EQ_OP relational_expression  */
+#line 234 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eEQ); }
+#line 1912 "seqc_parser.tab.c"
+    break;
+
+  case 38: /* equality_expression: equality_expression NE_OP relational_expression  */
+#line 236 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eNE); }
+#line 1918 "seqc_parser.tab.c"
+    break;
+
+  case 39: /* and_expression: equality_expression  */
+#line 244 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1924 "seqc_parser.tab.c"
+    break;
+
+  case 40: /* and_expression: and_expression '&' equality_expression  */
+#line 246 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eAND); }
+#line 1930 "seqc_parser.tab.c"
+    break;
+
+  case 41: /* exclusive_or_expression: and_expression  */
+#line 254 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1936 "seqc_parser.tab.c"
+    break;
+
+  case 42: /* exclusive_or_expression: exclusive_or_expression '^' and_expression  */
+#line 256 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eXOR); }
+#line 1942 "seqc_parser.tab.c"
+    break;
+
+  case 43: /* inclusive_or_expression: exclusive_or_expression  */
+#line 264 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1948 "seqc_parser.tab.c"
+    break;
+
+  case 44: /* inclusive_or_expression: inclusive_or_expression '|' exclusive_or_expression  */
+#line 266 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eOR); }
+#line 1954 "seqc_parser.tab.c"
+    break;
+
+  case 45: /* logical_and_expression: inclusive_or_expression  */
+#line 274 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1960 "seqc_parser.tab.c"
+    break;
+
+  case 46: /* logical_and_expression: logical_and_expression AND_OP inclusive_or_expression  */
+#line 276 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLAND); }
+#line 1966 "seqc_parser.tab.c"
+    break;
+
+  case 47: /* logical_or_expression: logical_and_expression  */
+#line 284 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1972 "seqc_parser.tab.c"
+    break;
+
+  case 48: /* logical_or_expression: logical_or_expression OR_OP logical_and_expression  */
+#line 286 "seqc_parser.y"
+        { (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eLOR); }
+#line 1978 "seqc_parser.tab.c"
+    break;
+
+  case 49: /* conditional_expression: logical_or_expression  */
+#line 294 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1984 "seqc_parser.tab.c"
+    break;
+
+  case 50: /* conditional_expression: logical_or_expression '?' expression ':' conditional_expression  */
+#line 296 "seqc_parser.y"
+        { (yyval.expr) = createCondExpression(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 1990 "seqc_parser.tab.c"
+    break;
+
+  case 51: /* assignment_expression: conditional_expression  */
+#line 304 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 1996 "seqc_parser.tab.c"
+    break;
+
   case 52: /* assignment_expression: unary_expression '=' assignment_expression  */
-#line 305 "seqc_parser.y"
+#line 306 "seqc_parser.y"
         {
             /* Binary writes direction/valueCategory to $1 (the LHS),
                NOT to $$ (the operator).  Confirmed at 0x2ca99c:
@@ -1737,11 +2007,11 @@ yyreduce:
             (yyvsp[-2].expr)->valueCategory = 1;
             (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eASSIGN);
         }
-#line 1741 "seqc_parser.tab.c"
+#line 2011 "seqc_parser.tab.c"
     break;
 
   case 53: /* assignment_expression: unary_expression ADD_ASSIGN assignment_expression  */
-#line 316 "seqc_parser.y"
+#line 317 "seqc_parser.y"
         {
             /* Compound assignments: createAssignOperator first (copies $1 for
                assignment LHS with its default direction=2), then modify $1
@@ -1751,495 +2021,495 @@ yyreduce:
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1755 "seqc_parser.tab.c"
+#line 2025 "seqc_parser.tab.c"
     break;
 
   case 54: /* assignment_expression: unary_expression SUB_ASSIGN assignment_expression  */
-#line 326 "seqc_parser.y"
+#line 327 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSUB);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1765 "seqc_parser.tab.c"
+#line 2035 "seqc_parser.tab.c"
     break;
 
   case 55: /* assignment_expression: unary_expression MUL_ASSIGN assignment_expression  */
-#line 332 "seqc_parser.y"
+#line 333 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMUL);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1775 "seqc_parser.tab.c"
+#line 2045 "seqc_parser.tab.c"
     break;
 
   case 56: /* assignment_expression: unary_expression DIV_ASSIGN assignment_expression  */
-#line 338 "seqc_parser.y"
+#line 339 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eDIV);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1785 "seqc_parser.tab.c"
+#line 2055 "seqc_parser.tab.c"
     break;
 
   case 57: /* assignment_expression: unary_expression MOD_ASSIGN assignment_expression  */
-#line 344 "seqc_parser.y"
+#line 345 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eMOD);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1795 "seqc_parser.tab.c"
+#line 2065 "seqc_parser.tab.c"
     break;
 
   case 58: /* assignment_expression: unary_expression AND_ASSIGN assignment_expression  */
-#line 350 "seqc_parser.y"
+#line 351 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eAND);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1805 "seqc_parser.tab.c"
+#line 2075 "seqc_parser.tab.c"
     break;
 
   case 59: /* assignment_expression: unary_expression XOR_ASSIGN assignment_expression  */
-#line 356 "seqc_parser.y"
+#line 357 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eXOR);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1815 "seqc_parser.tab.c"
+#line 2085 "seqc_parser.tab.c"
     break;
 
   case 60: /* assignment_expression: unary_expression OR_ASSIGN assignment_expression  */
-#line 362 "seqc_parser.y"
+#line 363 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eOR);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1825 "seqc_parser.tab.c"
+#line 2095 "seqc_parser.tab.c"
     break;
 
   case 61: /* assignment_expression: unary_expression LSH_ASSIGN assignment_expression  */
-#line 368 "seqc_parser.y"
+#line 369 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHL);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1835 "seqc_parser.tab.c"
+#line 2105 "seqc_parser.tab.c"
     break;
 
   case 62: /* assignment_expression: unary_expression RSH_ASSIGN assignment_expression  */
-#line 374 "seqc_parser.y"
+#line 375 "seqc_parser.y"
         {
             (yyval.expr) = createAssignOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eSHR);
             (yyvsp[-2].expr)->direction = EDirection::eIN;
             (yyvsp[-2].expr)->valueCategory = 1;
         }
-#line 1845 "seqc_parser.tab.c"
+#line 2115 "seqc_parser.tab.c"
     break;
 
   case 63: /* expression: assignment_expression  */
-#line 386 "seqc_parser.y"
+#line 387 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1851 "seqc_parser.tab.c"
+#line 2121 "seqc_parser.tab.c"
     break;
 
   case 64: /* constant_expression: conditional_expression  */
-#line 394 "seqc_parser.y"
+#line 395 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1857 "seqc_parser.tab.c"
+#line 2127 "seqc_parser.tab.c"
     break;
 
   case 65: /* declaration: type_specifier init_declarator_list ';'  */
-#line 404 "seqc_parser.y"
+#line 405 "seqc_parser.y"
         { (yyval.expr) = addVariableType(ctx, (yyvsp[-1].expr), (yyvsp[-2].expr), false); }
-#line 1863 "seqc_parser.tab.c"
+#line 2133 "seqc_parser.tab.c"
     break;
 
   case 66: /* init_declarator_list: init_declarator  */
-#line 412 "seqc_parser.y"
+#line 413 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1869 "seqc_parser.tab.c"
+#line 2139 "seqc_parser.tab.c"
     break;
 
   case 67: /* init_declarator_list: init_declarator_list ',' init_declarator  */
-#line 414 "seqc_parser.y"
+#line 415 "seqc_parser.y"
         { (yyval.expr) = createOrAppendDeclList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 1875 "seqc_parser.tab.c"
+#line 2145 "seqc_parser.tab.c"
     break;
 
   case 68: /* init_declarator: declarator  */
-#line 422 "seqc_parser.y"
+#line 423 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
-#line 1881 "seqc_parser.tab.c"
+#line 2151 "seqc_parser.tab.c"
     break;
 
   case 69: /* init_declarator: declarator '=' initializer  */
-#line 424 "seqc_parser.y"
+#line 425 "seqc_parser.y"
         {
             (yyval.expr) = createOperator(ctx, (yyvsp[-2].expr), (yyvsp[0].expr), EOperator::eASSIGN);
             (yyval.expr)->direction = EDirection::eIN;
             (yyval.expr)->valueCategory = 1;
         }
-#line 1891 "seqc_parser.tab.c"
-    break;
-
-  case 70: /* type_specifier: KW_VAR  */
-#line 436 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Var); }
-#line 1897 "seqc_parser.tab.c"
-    break;
-
-  case 71: /* type_specifier: KW_CONST  */
-#line 438 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Const); }
-#line 1903 "seqc_parser.tab.c"
-    break;
-
-  case 72: /* type_specifier: KW_CVAR  */
-#line 440 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Cvar); }
-#line 1909 "seqc_parser.tab.c"
-    break;
-
-  case 73: /* type_specifier: KW_VOID  */
-#line 442 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Void); }
-#line 1915 "seqc_parser.tab.c"
-    break;
-
-  case 74: /* type_specifier: KW_WAVE  */
-#line 444 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_Wave); }
-#line 1921 "seqc_parser.tab.c"
-    break;
-
-  case 75: /* type_specifier: KW_STRING  */
-#line 446 "seqc_parser.y"
-        { (yyval.expr) = createVariableType(ctx, VarType_String); }
-#line 1927 "seqc_parser.tab.c"
-    break;
-
-  case 76: /* declarator: identifier  */
-#line 454 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1933 "seqc_parser.tab.c"
-    break;
-
-  case 77: /* declarator: identifier '[' constant_expression ']'  */
-#line 456 "seqc_parser.y"
-        { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1939 "seqc_parser.tab.c"
-    break;
-
-  case 78: /* declarator: identifier '[' ']'  */
-#line 458 "seqc_parser.y"
-        { (yyval.expr) = createArray(ctx, (yyvsp[-2].expr), NULL); }
-#line 1945 "seqc_parser.tab.c"
-    break;
-
-  case 79: /* function_declarator: identifier '(' parameter_list ')'  */
-#line 466 "seqc_parser.y"
-        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
-#line 1951 "seqc_parser.tab.c"
-    break;
-
-  case 80: /* function_declarator: identifier '(' ')'  */
-#line 468 "seqc_parser.y"
-        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
-#line 1957 "seqc_parser.tab.c"
-    break;
-
-  case 81: /* parameter_list: parameter_declaration  */
-#line 476 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1963 "seqc_parser.tab.c"
-    break;
-
-  case 82: /* parameter_list: parameter_list ',' parameter_declaration  */
-#line 478 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendParamList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 1969 "seqc_parser.tab.c"
-    break;
-
-  case 83: /* parameter_declaration: type_specifier declarator  */
-#line 486 "seqc_parser.y"
-        { (yyval.expr) = addVariableType(ctx, (yyvsp[0].expr), (yyvsp[-1].expr), false); }
-#line 1975 "seqc_parser.tab.c"
-    break;
-
-  case 84: /* parameter_declaration: declarator  */
-#line 488 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1981 "seqc_parser.tab.c"
-    break;
-
-  case 85: /* identifier: IDENTIFIER  */
-#line 496 "seqc_parser.y"
-        { (yyval.expr) = createVariable(ctx, (yyvsp[0].sval)); }
-#line 1987 "seqc_parser.tab.c"
-    break;
-
-  case 86: /* initializer: assignment_expression  */
-#line 504 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1993 "seqc_parser.tab.c"
-    break;
-
-  case 87: /* statement: unlabeled_statement  */
-#line 512 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 1999 "seqc_parser.tab.c"
-    break;
-
-  case 88: /* statement: labeled_statement  */
-#line 514 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2005 "seqc_parser.tab.c"
-    break;
-
-  case 89: /* unlabeled_statement: compound_statement  */
-#line 522 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2011 "seqc_parser.tab.c"
-    break;
-
-  case 90: /* unlabeled_statement: expression_statement  */
-#line 524 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2017 "seqc_parser.tab.c"
-    break;
-
-  case 91: /* unlabeled_statement: selection_statement  */
-#line 526 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2023 "seqc_parser.tab.c"
-    break;
-
-  case 92: /* unlabeled_statement: iteration_statement  */
-#line 528 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2029 "seqc_parser.tab.c"
-    break;
-
-  case 93: /* unlabeled_statement: jump_statement  */
-#line 530 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2035 "seqc_parser.tab.c"
-    break;
-
-  case 94: /* labeled_statement: KW_CASE constant_expression ':' statement  */
-#line 538 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2041 "seqc_parser.tab.c"
-    break;
-
-  case 95: /* labeled_statement: KW_DEFAULT ':' statement  */
-#line 540 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, NULL, (yyvsp[0].expr)); }
-#line 2047 "seqc_parser.tab.c"
-    break;
-
-  case 96: /* labeled_statement: KW_CASE constant_expression ':'  */
-#line 542 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, (yyvsp[-1].expr), NULL); }
-#line 2053 "seqc_parser.tab.c"
-    break;
-
-  case 97: /* labeled_statement: KW_DEFAULT ':'  */
-#line 544 "seqc_parser.y"
-        { (yyval.expr) = createCase(ctx, NULL, NULL); }
-#line 2059 "seqc_parser.tab.c"
-    break;
-
-  case 98: /* compound_statement: '{' '}'  */
-#line 552 "seqc_parser.y"
-        { (yyval.expr) = NULL; }
-#line 2065 "seqc_parser.tab.c"
-    break;
-
-  case 99: /* compound_statement: '{' compound_body '}'  */
-#line 554 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[-1].expr); }
-#line 2071 "seqc_parser.tab.c"
-    break;
-
-  case 100: /* compound_body: declaration  */
-#line 562 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2077 "seqc_parser.tab.c"
-    break;
-
-  case 101: /* compound_body: statement  */
-#line 564 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
-#line 2083 "seqc_parser.tab.c"
-    break;
-
-  case 102: /* compound_body: compound_body declaration  */
-#line 566 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
-#line 2089 "seqc_parser.tab.c"
-    break;
-
-  case 103: /* compound_body: compound_body statement  */
-#line 568 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
-#line 2095 "seqc_parser.tab.c"
-    break;
-
-  case 104: /* expression_statement: ';'  */
-#line 586 "seqc_parser.y"
-        { (yyval.expr) = NULL; }
-#line 2101 "seqc_parser.tab.c"
-    break;
-
-  case 105: /* expression_statement: expression ';'  */
-#line 588 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[-1].expr); }
-#line 2107 "seqc_parser.tab.c"
-    break;
-
-  case 106: /* selection_statement: KW_IF '(' expression ')' statement  */
-#line 596 "seqc_parser.y"
-        { (yyval.expr) = createIf(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2113 "seqc_parser.tab.c"
-    break;
-
-  case 107: /* selection_statement: KW_IF '(' expression ')' statement KW_ELSE statement  */
-#line 598 "seqc_parser.y"
-        { (yyval.expr) = createIfElse(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2119 "seqc_parser.tab.c"
-    break;
-
-  case 108: /* selection_statement: KW_SWITCH '(' expression ')' statement  */
-#line 600 "seqc_parser.y"
-        { (yyval.expr) = createSwitch(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2125 "seqc_parser.tab.c"
-    break;
-
-  case 109: /* iteration_statement: KW_WHILE '(' expression ')' statement  */
-#line 608 "seqc_parser.y"
-        { (yyval.expr) = createWhile(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2131 "seqc_parser.tab.c"
-    break;
-
-  case 110: /* iteration_statement: KW_DO statement KW_WHILE '(' expression ')' ';'  */
-#line 610 "seqc_parser.y"
-        { (yyval.expr) = createDoWhile(ctx, (yyvsp[-5].expr), (yyvsp[-2].expr)); }
-#line 2137 "seqc_parser.tab.c"
-    break;
-
-  case 111: /* iteration_statement: KW_FOR '(' expression_statement expression_statement ')' statement  */
-#line 612 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
-#line 2143 "seqc_parser.tab.c"
-    break;
-
-  case 112: /* iteration_statement: KW_FOR '(' declaration expression_statement ')' statement  */
-#line 614 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
-#line 2149 "seqc_parser.tab.c"
-    break;
-
-  case 113: /* iteration_statement: KW_FOR '(' expression_statement expression_statement expression ')' statement  */
-#line 616 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
-#line 2155 "seqc_parser.tab.c"
-    break;
-
-  case 114: /* iteration_statement: KW_FOR '(' declaration expression_statement expression ')' statement  */
-#line 618 "seqc_parser.y"
-        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2161 "seqc_parser.tab.c"
     break;
 
-  case 115: /* iteration_statement: KW_REPEAT '(' expression ')' statement  */
-#line 620 "seqc_parser.y"
-        { (yyval.expr) = createRepeat(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+  case 70: /* type_specifier: KW_VAR  */
+#line 437 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_Var); }
 #line 2167 "seqc_parser.tab.c"
     break;
 
-  case 116: /* jump_statement: KW_CONTINUE ';'  */
-#line 628 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eCONTINUE, 0); }
+  case 71: /* type_specifier: KW_CONST  */
+#line 439 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_Const); }
 #line 2173 "seqc_parser.tab.c"
     break;
 
-  case 117: /* jump_statement: KW_BREAK ';'  */
-#line 630 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eBREAK, 0); }
+  case 72: /* type_specifier: KW_CVAR  */
+#line 441 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_Cvar); }
 #line 2179 "seqc_parser.tab.c"
     break;
 
-  case 118: /* jump_statement: KW_RETURN ';'  */
-#line 632 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 0); }
+  case 73: /* type_specifier: KW_VOID  */
+#line 443 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_Void); }
 #line 2185 "seqc_parser.tab.c"
     break;
 
-  case 119: /* jump_statement: KW_RETURN expression ';'  */
-#line 634 "seqc_parser.y"
-        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 1, (yyvsp[-1].expr)); }
+  case 74: /* type_specifier: KW_WAVE  */
+#line 445 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_Wave); }
 #line 2191 "seqc_parser.tab.c"
     break;
 
-  case 120: /* translation_unit: %empty  */
-#line 642 "seqc_parser.y"
-        { *result = NULL; }
+  case 75: /* type_specifier: KW_STRING  */
+#line 447 "seqc_parser.y"
+        { (yyval.expr) = createVariableType(ctx, VarType_String); }
 #line 2197 "seqc_parser.tab.c"
     break;
 
-  case 121: /* translation_unit: external_declaration_list  */
-#line 644 "seqc_parser.y"
-        { *result = (yyvsp[0].expr); }
+  case 76: /* declarator: identifier  */
+#line 455 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
 #line 2203 "seqc_parser.tab.c"
     break;
 
-  case 122: /* external_declaration_list: external_declaration  */
-#line 652 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 77: /* declarator: identifier '[' constant_expression ']'  */
+#line 457 "seqc_parser.y"
+        { (yyval.expr) = createArray(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
 #line 2209 "seqc_parser.tab.c"
     break;
 
-  case 123: /* external_declaration_list: external_declaration_list external_declaration  */
-#line 654 "seqc_parser.y"
-        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+  case 78: /* declarator: identifier '[' ']'  */
+#line 459 "seqc_parser.y"
+        { (yyval.expr) = createArray(ctx, (yyvsp[-2].expr), NULL); }
 #line 2215 "seqc_parser.tab.c"
     break;
 
-  case 124: /* external_declaration: declaration  */
-#line 662 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 79: /* function_declarator: identifier '(' parameter_list ')'  */
+#line 467 "seqc_parser.y"
+        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-3].expr), (yyvsp[-1].expr)); }
 #line 2221 "seqc_parser.tab.c"
     break;
 
-  case 125: /* external_declaration: statement  */
-#line 664 "seqc_parser.y"
-        { (yyval.expr) = (yyvsp[0].expr); }
+  case 80: /* function_declarator: identifier '(' ')'  */
+#line 469 "seqc_parser.y"
+        { (yyval.expr) = createFunctionCall(ctx, (yyvsp[-2].expr), NULL); }
 #line 2227 "seqc_parser.tab.c"
     break;
 
-  case 126: /* external_declaration: function_definition  */
-#line 666 "seqc_parser.y"
+  case 81: /* parameter_list: parameter_declaration  */
+#line 477 "seqc_parser.y"
         { (yyval.expr) = (yyvsp[0].expr); }
 #line 2233 "seqc_parser.tab.c"
     break;
 
-  case 127: /* function_definition: type_specifier function_declarator compound_statement  */
-#line 675 "seqc_parser.y"
-        { (yyval.expr) = createFunction(ctx, (yyvsp[-2].expr), (yyvsp[-1].expr), (yyvsp[0].expr)); }
+  case 82: /* parameter_list: parameter_list ',' parameter_declaration  */
+#line 479 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendParamList(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
 #line 2239 "seqc_parser.tab.c"
     break;
 
+  case 83: /* parameter_declaration: type_specifier declarator  */
+#line 487 "seqc_parser.y"
+        { (yyval.expr) = addVariableType(ctx, (yyvsp[0].expr), (yyvsp[-1].expr), false); }
+#line 2245 "seqc_parser.tab.c"
+    break;
 
-#line 2243 "seqc_parser.tab.c"
+  case 84: /* parameter_declaration: declarator  */
+#line 489 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2251 "seqc_parser.tab.c"
+    break;
+
+  case 85: /* identifier: IDENTIFIER  */
+#line 497 "seqc_parser.y"
+        { (yyval.expr) = createVariable(ctx, (yyvsp[0].sval)); }
+#line 2257 "seqc_parser.tab.c"
+    break;
+
+  case 86: /* initializer: assignment_expression  */
+#line 505 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2263 "seqc_parser.tab.c"
+    break;
+
+  case 87: /* statement: unlabeled_statement  */
+#line 513 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2269 "seqc_parser.tab.c"
+    break;
+
+  case 88: /* statement: labeled_statement  */
+#line 515 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2275 "seqc_parser.tab.c"
+    break;
+
+  case 89: /* unlabeled_statement: compound_statement  */
+#line 523 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2281 "seqc_parser.tab.c"
+    break;
+
+  case 90: /* unlabeled_statement: expression_statement  */
+#line 525 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2287 "seqc_parser.tab.c"
+    break;
+
+  case 91: /* unlabeled_statement: selection_statement  */
+#line 527 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2293 "seqc_parser.tab.c"
+    break;
+
+  case 92: /* unlabeled_statement: iteration_statement  */
+#line 529 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2299 "seqc_parser.tab.c"
+    break;
+
+  case 93: /* unlabeled_statement: jump_statement  */
+#line 531 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2305 "seqc_parser.tab.c"
+    break;
+
+  case 94: /* labeled_statement: KW_CASE constant_expression ':' statement  */
+#line 539 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2311 "seqc_parser.tab.c"
+    break;
+
+  case 95: /* labeled_statement: KW_DEFAULT ':' statement  */
+#line 541 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, NULL, (yyvsp[0].expr)); }
+#line 2317 "seqc_parser.tab.c"
+    break;
+
+  case 96: /* labeled_statement: KW_CASE constant_expression ':'  */
+#line 543 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, (yyvsp[-1].expr), NULL); }
+#line 2323 "seqc_parser.tab.c"
+    break;
+
+  case 97: /* labeled_statement: KW_DEFAULT ':'  */
+#line 545 "seqc_parser.y"
+        { (yyval.expr) = createCase(ctx, NULL, NULL); }
+#line 2329 "seqc_parser.tab.c"
+    break;
+
+  case 98: /* compound_statement: '{' '}'  */
+#line 553 "seqc_parser.y"
+        { (yyval.expr) = NULL; }
+#line 2335 "seqc_parser.tab.c"
+    break;
+
+  case 99: /* compound_statement: '{' compound_body '}'  */
+#line 555 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[-1].expr); }
+#line 2341 "seqc_parser.tab.c"
+    break;
+
+  case 100: /* compound_body: declaration  */
+#line 563 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2347 "seqc_parser.tab.c"
+    break;
+
+  case 101: /* compound_body: statement  */
+#line 565 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2353 "seqc_parser.tab.c"
+    break;
+
+  case 102: /* compound_body: compound_body declaration  */
+#line 567 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+#line 2359 "seqc_parser.tab.c"
+    break;
+
+  case 103: /* compound_body: compound_body statement  */
+#line 569 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+#line 2365 "seqc_parser.tab.c"
+    break;
+
+  case 104: /* expression_statement: ';'  */
+#line 587 "seqc_parser.y"
+        { (yyval.expr) = NULL; }
+#line 2371 "seqc_parser.tab.c"
+    break;
+
+  case 105: /* expression_statement: expression ';'  */
+#line 589 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[-1].expr); }
+#line 2377 "seqc_parser.tab.c"
+    break;
+
+  case 106: /* selection_statement: KW_IF '(' expression ')' statement  */
+#line 597 "seqc_parser.y"
+        { (yyval.expr) = createIf(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2383 "seqc_parser.tab.c"
+    break;
+
+  case 107: /* selection_statement: KW_IF '(' expression ')' statement KW_ELSE statement  */
+#line 599 "seqc_parser.y"
+        { (yyval.expr) = createIfElse(ctx, (yyvsp[-4].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2389 "seqc_parser.tab.c"
+    break;
+
+  case 108: /* selection_statement: KW_SWITCH '(' expression ')' statement  */
+#line 601 "seqc_parser.y"
+        { (yyval.expr) = createSwitch(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2395 "seqc_parser.tab.c"
+    break;
+
+  case 109: /* iteration_statement: KW_WHILE '(' expression ')' statement  */
+#line 609 "seqc_parser.y"
+        { (yyval.expr) = createWhile(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2401 "seqc_parser.tab.c"
+    break;
+
+  case 110: /* iteration_statement: KW_DO statement KW_WHILE '(' expression ')' ';'  */
+#line 611 "seqc_parser.y"
+        { (yyval.expr) = createDoWhile(ctx, (yyvsp[-5].expr), (yyvsp[-2].expr)); }
+#line 2407 "seqc_parser.tab.c"
+    break;
+
+  case 111: /* iteration_statement: KW_FOR '(' expression_statement expression_statement ')' statement  */
+#line 613 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
+#line 2413 "seqc_parser.tab.c"
+    break;
+
+  case 112: /* iteration_statement: KW_FOR '(' declaration expression_statement ')' statement  */
+#line 615 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-3].expr), (yyvsp[-2].expr), NULL, (yyvsp[0].expr)); }
+#line 2419 "seqc_parser.tab.c"
+    break;
+
+  case 113: /* iteration_statement: KW_FOR '(' expression_statement expression_statement expression ')' statement  */
+#line 617 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2425 "seqc_parser.tab.c"
+    break;
+
+  case 114: /* iteration_statement: KW_FOR '(' declaration expression_statement expression ')' statement  */
+#line 619 "seqc_parser.y"
+        { (yyval.expr) = createFor(ctx, (yyvsp[-4].expr), (yyvsp[-3].expr), (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2431 "seqc_parser.tab.c"
+    break;
+
+  case 115: /* iteration_statement: KW_REPEAT '(' expression ')' statement  */
+#line 621 "seqc_parser.y"
+        { (yyval.expr) = createRepeat(ctx, (yyvsp[-2].expr), (yyvsp[0].expr)); }
+#line 2437 "seqc_parser.tab.c"
+    break;
+
+  case 116: /* jump_statement: KW_CONTINUE ';'  */
+#line 629 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eCONTINUE, 0); }
+#line 2443 "seqc_parser.tab.c"
+    break;
+
+  case 117: /* jump_statement: KW_BREAK ';'  */
+#line 631 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eBREAK, 0); }
+#line 2449 "seqc_parser.tab.c"
+    break;
+
+  case 118: /* jump_statement: KW_RETURN ';'  */
+#line 633 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 0); }
+#line 2455 "seqc_parser.tab.c"
+    break;
+
+  case 119: /* jump_statement: KW_RETURN expression ';'  */
+#line 635 "seqc_parser.y"
+        { (yyval.expr) = createCommand(ctx, ECommandType::eRETURN, 1, (yyvsp[-1].expr)); }
+#line 2461 "seqc_parser.tab.c"
+    break;
+
+  case 120: /* translation_unit: %empty  */
+#line 643 "seqc_parser.y"
+        { *result = NULL; }
+#line 2467 "seqc_parser.tab.c"
+    break;
+
+  case 121: /* translation_unit: external_declaration_list  */
+#line 645 "seqc_parser.y"
+        { *result = (yyvsp[0].expr); }
+#line 2473 "seqc_parser.tab.c"
+    break;
+
+  case 122: /* external_declaration_list: external_declaration  */
+#line 653 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2479 "seqc_parser.tab.c"
+    break;
+
+  case 123: /* external_declaration_list: external_declaration_list external_declaration  */
+#line 655 "seqc_parser.y"
+        { (yyval.expr) = createOrAppendStmtList(ctx, (yyvsp[-1].expr), (yyvsp[0].expr)); }
+#line 2485 "seqc_parser.tab.c"
+    break;
+
+  case 124: /* external_declaration: declaration  */
+#line 663 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2491 "seqc_parser.tab.c"
+    break;
+
+  case 125: /* external_declaration: statement  */
+#line 665 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2497 "seqc_parser.tab.c"
+    break;
+
+  case 126: /* external_declaration: function_definition  */
+#line 667 "seqc_parser.y"
+        { (yyval.expr) = (yyvsp[0].expr); }
+#line 2503 "seqc_parser.tab.c"
+    break;
+
+  case 127: /* function_definition: type_specifier function_declarator compound_statement  */
+#line 676 "seqc_parser.y"
+        { (yyval.expr) = createFunction(ctx, (yyvsp[-2].expr), (yyvsp[-1].expr), (yyvsp[0].expr)); }
+#line 2509 "seqc_parser.tab.c"
+    break;
+
+
+#line 2513 "seqc_parser.tab.c"
 
       default: break;
     }
@@ -2286,7 +2556,37 @@ yyerrlab:
   if (!yyerrstatus)
     {
       ++yynerrs;
-      yyerror (ctx, result, scanner, YY_("syntax error"));
+      {
+        yypcontext_t yyctx
+          = {yyssp, yytoken};
+        char const *yymsgp = YY_("syntax error");
+        int yysyntax_error_status;
+        yysyntax_error_status = yysyntax_error (&yymsg_alloc, &yymsg, &yyctx);
+        if (yysyntax_error_status == 0)
+          yymsgp = yymsg;
+        else if (yysyntax_error_status == -1)
+          {
+            if (yymsg != yymsgbuf)
+              YYSTACK_FREE (yymsg);
+            yymsg = YY_CAST (char *,
+                             YYSTACK_ALLOC (YY_CAST (YYSIZE_T, yymsg_alloc)));
+            if (yymsg)
+              {
+                yysyntax_error_status
+                  = yysyntax_error (&yymsg_alloc, &yymsg, &yyctx);
+                yymsgp = yymsg;
+              }
+            else
+              {
+                yymsg = yymsgbuf;
+                yymsg_alloc = sizeof yymsgbuf;
+                yysyntax_error_status = YYENOMEM;
+              }
+          }
+        yyerror (ctx, result, scanner, yymsgp);
+        if (yysyntax_error_status == YYENOMEM)
+          YYNOMEM;
+      }
     }
 
   if (yyerrstatus == 3)
@@ -2428,11 +2728,12 @@ yyreturnlab:
   if (yyss != yyssa)
     YYSTACK_FREE (yyss);
 #endif
-
+  if (yymsg != yymsgbuf)
+    YYSTACK_FREE (yymsg);
   return yyresult;
 }
 
-#line 678 "seqc_parser.y"
+#line 679 "seqc_parser.y"
 
 
 /* Error handler — seqc_error @0x2ca1b0 */
