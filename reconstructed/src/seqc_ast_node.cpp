@@ -829,8 +829,9 @@ void SeqCVariable::print() const {  // 0x1fdbd0
         s += ")";
         std::cout << s;
     }
-    std::cout.write(", ", 2);
+    std::cout.write(" [", 2);
     std::cout << str(direction_);
+    std::cout.write("]", 1);
 }
 
 std::unique_ptr<SeqCAstNode> SeqCVariable::doClone() const {  // 0x1fdf30

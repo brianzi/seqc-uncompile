@@ -6,6 +6,7 @@
 #include "zhinst/cached_parser.hpp"
 #include "zhinst/elf_reader.hpp"
 #include "zhinst/elf_writer.hpp"
+#include "zhinst/logging.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -78,10 +79,25 @@ CachedParser::CachedParser(std::size_t cacheSize,
     , cacheSize_(cacheSize)
     , currentSize_(0)
     , cachePath_(cachePath)
-    , indexFilePath_(cachePath / "index")
+    , indexFilePath_()           // binary zeroes +0x48..+0x58 initially
 {
     if (enabled_) {
-        boost::filesystem::create_directories(cachePath_);
+        boost::system::error_code ec;
+        boost::filesystem::create_directory(cachePath_, ec);
+
+        // Binary @0x2afb38: checks ec against errc::file_exists (0x11).
+        // If the directory already exists that is fine; any other error
+        // disables the cache and logs a warning.
+        if (ec && ec != boost::system::errc::file_exists) {
+            logging::detail::LogRecord rec(logging::Severity::Warning);
+            rec << "Couldn't create waveform cache directory: "
+                << ec.message() << " (" << ec << ")";
+            enabled_ = false;           // binary @0x2afd24: movb $0x0, 0x18(%rbx)
+            return;
+        }
+
+        // Build indexFilePath_ = cachePath_ / "index"  (binary @0x2afbba)
+        indexFilePath_ = cachePath_ / "index";
         loadCacheIndex();
     }
 }

@@ -2420,7 +2420,7 @@ void Prefetch::placeLoads() // 0x1cbf60
     }
 
     // 0x1cc2ea-0x1cc304: look up message and call logFunc_
-    auto &msg = ErrorMessages::messages[msgId];
+    auto &msg = ErrorMessages::messages.at(msgId);
     logFunc_(msg);
 
     // 0x1cc327: call optimize(root_)

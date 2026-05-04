@@ -167,13 +167,10 @@ ZiFolder ZiFolder::ziFolder(DirectoryType type)
         // directories (multiple find_parent_path_size calls) to locate
         // the install root. It then returns the parent of the parent
         // (or grandparent depending on depth) as a ZiFolder.
-        boost::filesystem::path homePath(homeDir);
-
-        // Walk up parent directories to find install root
-        // The binary calls find_parent_path_size up to 4 times in sequence,
-        // checking at each level whether a non-empty parent exists.
-        boost::filesystem::path root = homePath.parent_path();
-        return ZiFolder(root.string());
+        // The binary constructs a ZiFolder directly from homeDir — no
+        // parent_path stripping.  (The find_parent_path_size calls in the
+        // Executable branch do NOT apply here.)
+        return ZiFolder(std::string(homeDir));
     };
 
     if (type == DirectoryType::Executable) {
@@ -186,9 +183,24 @@ ZiFolder ZiFolder::ziFolder(DirectoryType type)
             return resolveHomeFolder();
         }
 
-        // Build a boost path from the readlink result, then take parent_path
-        // twice (grandparent of the executable).
+        // Build a boost path from the readlink result.  The binary walks
+        // up the directory tree, checking at each level that a non-empty
+        // parent exists.  If fewer than 3 parent levels exist it falls
+        // back to HOME-based resolution.  Otherwise it returns the
+        // grandparent (parent_path twice) of the executable.
         boost::filesystem::path exePath(buf);
+        boost::filesystem::path p1 = exePath.parent_path();  // e.g. /usr/bin
+        if (p1.empty()) {
+            return resolveHomeFolder();
+        }
+        boost::filesystem::path p2 = p1.parent_path();       // e.g. /usr
+        boost::filesystem::path p3 = p2.parent_path();        // e.g. /
+        if (p3.empty()) {
+            // Not enough depth — fall back to HOME resolution.
+            return resolveHomeFolder();
+        }
+        // The binary ultimately returns parent_path of the original
+        // readlink path taken twice (i.e. grandparent of the exe).
         boost::filesystem::path installRoot = exePath.parent_path().parent_path();
         return ZiFolder(installRoot.string());
     }

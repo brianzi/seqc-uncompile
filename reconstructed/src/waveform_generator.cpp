@@ -177,7 +177,19 @@ std::shared_ptr<WaveformFront> WaveformGenerator::createDummyWaveform(int length
     args.push_back(v);
 
     // Delegate to the registered "zeros" function via call().
-    return call("zeros", args);
+    auto tmp = call("zeros", args);
+
+    // The binary then looks up the waveform by name in the wavetable
+    // and marks it as used (sets +0x48 = true).  @0x25bfb4..0x25c01b
+    std::optional<std::string> name;
+    if (tmp) {
+        name = tmp->name;
+    }
+    auto wf = wavetableFront_->getWaveformByName(name);
+    if (wf) {
+        wf->used = true;
+    }
+    return wf;
 }
 
 // genericTriangle @0x25e0c0
