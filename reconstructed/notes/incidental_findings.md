@@ -2514,6 +2514,15 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Description**: The pre-existing `seqc_parser.tab.c` was generated without `%define parse.error verbose`, so `yyerror` / `seqc_error` received only the bare string `"syntax error"` instead of the detailed `"syntax error, unexpected IDENTIFIER, expecting ';'"` that the original binary produces. Separately, the grammar file used integer literals `0` for `direction` field assignments instead of `EDirection::eIN`, which caused compile errors when regenerating with a stricter bison version.
 - **Resolution**: Added `%define parse.error verbose` to `seqc_parser.y`, fixed all `->direction = 0` assignments to `EDirection::eIN`, regenerated `seqc_parser.tab.c` and `seqc_parser.tab.h`. The bison-generated verbose error strings now match the original binary output exactly. Tests `hdawg_func_return_int` and `hdawg_func_nested_call` pass; full suite 326/327.
 
+## IF-127  `evalCases` fallthrough: recon grammar nests `case 0: case 1:` but binary has flat list
+
+- **Source**: `hdawg_switch_fallthrough` (inline code variant) investigation
+- **Severity**: likely-bug
+- **Status**: **fixed**
+- **Description**: The recon grammar resolves `case 0: case 1: stmt;` with a shift (Rule 94), producing a nested AST where `case 1: stmt` is the body of `case 0:`. The binary grammar resolves with a reduce (Rule 96), producing a flat list: `case 0` (null body), `case 1` (stmt body), `break` (bare sibling). Consequence: in the recon's `evalCases`, `case 1`'s body (`playZero(16)`) was never evaluated (it was inside `case 0`'s body as a case label only), so the playZero warning was not emitted before the break error. GDB-confirmed: original binary has `case 0` with `body()=nullptr` (pointer at offset +0x20 is 0x0).
+- **Root cause**: Shift/reduce conflict in the grammar; recon bison version (3.8.2, 232 states) resolves differently than the original binary's bison version (233 states).
+- **Resolution**: In `evalCases`, before calling `evalCaseBody`, unroll any chain of nested `SeqCCaseEntry` bodies: all but the last are evaluated as label-only (fallthrough), the last is evaluated with `evalCaseBody` for its real body. This matches the binary's flat-list evaluation order. All 327 tests pass.
+
 ## IF-122  `Resources::parent_` strong/weak pointer inversion
 
 - **Source**: audit batch 19a

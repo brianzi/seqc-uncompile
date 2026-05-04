@@ -4664,19 +4664,13 @@ std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& state) const
 {
-    // Debug: print if in switch
-    // fprintf(stderr, "Break at line %d, inSwitch=%d\n", lineNr_, state.inSwitch_);
-
-    // Break is only unsupported in loops (while, repeat, for), not in switch
-    if (!state.inSwitch_) {                                   // @0x226970
-        ctx.messages->errorMessage(                           // @0x2269aa
-            ErrorMessages::format(ErrorMessageT(0xd5),        // @0x22699b
-                                  "break"),                    // rodata @0x905b73
-            lineNr_);                                          // lineNr = this->lineNr_
-        return std::make_shared<EvalResults>();
-    }
-    // When in switch, return empty result - but the issue is this doesn't
-    // propagate any "returnEncountered" flag to stop statement processing
+    // @0x226970: GDB-confirmed — the binary emits error 0xd5 unconditionally.
+    // There is no inSwitch_ guard: the first instructions are format(0xd5, "break")
+    // followed immediately by errorMessage(...), with no branch beforehand.
+    ctx.messages->errorMessage(                               // @0x2269aa
+        ErrorMessages::format(ErrorMessageT(0xd5),            // @0x22699b
+                              "break"),                        // rodata @0x905b73
+        lineNr_);                                              // lineNr = this->lineNr_
     return std::make_shared<EvalResults>();
 }
 
@@ -7443,12 +7437,37 @@ std::vector<std::shared_ptr<EvalResults>> SeqCSwitchCase::evalCases(
         auto* caseEntry = dynamic_cast<const SeqCCaseEntry*>(stmt.get());
 
         if (caseEntry) {
-            // Valid case entry — evalCaseBody                       // @0x216b61
+            // Valid case entry — evalCaseBody                           // @0x216b61
+            //
+            // AST normalization for fallthrough: the recon grammar resolves
+            // `case 0: case 1: stmt;` with a shift (Rule 94), making case 1
+            // the body of case 0. The binary grammar resolves with a reduce
+            // (Rule 96), producing a flat list: case 0 (null body), case 1
+            // (stmt body). We normalize here: if a case entry's body is itself
+            // a SeqCCaseEntry chain, unroll it into separate evalCaseBody calls
+            // with null bodies, then handle the innermost real body.
             try {
-                evalCaseBody(*caseEntry, results,
+                // Collect the chain of nested case entries
+                std::vector<const SeqCCaseEntry*> chain;
+                const SeqCCaseEntry* cur = caseEntry;
+                while (cur) {
+                    chain.push_back(cur);
+                    cur = dynamic_cast<const SeqCCaseEntry*>(cur->body());
+                }
+                // All but the last: evaluate with null body (fallthrough labels)
+                for (size_t i = 0; i + 1 < chain.size(); ++i) {
+                    // Temporarily evaluate as if body() == nullptr
+                    // by calling evalCaseBody on a view with null body.
+                    // Since SeqCCaseEntry has no setBody(), we replicate
+                    // evalCaseBody inline for the null-body case:
+                    auto caseResult = chain[i]->evaluate(subRes, ctx, state);
+                    if (caseResult) results.push_back(caseResult);
+                }
+                // Last in chain: has the real body (or null)
+                evalCaseBody(*chain.back(), results,
                              subRes, condResult, ctx, state);
-            } catch (CompilerException& e) {                         // @0x216dfc
-                // Emit exception message and continue               // @0x216e39
+            } catch (CompilerException& e) {                             // @0x216dfc
+                // Emit exception message and continue                   // @0x216e39
                 const char* msg = e.what();
                 ctx.messages->errorMessage(
                     msg ? std::string(msg) : std::string(), -1);
