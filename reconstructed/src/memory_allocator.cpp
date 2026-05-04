@@ -276,18 +276,20 @@ MemoryBlock MemoryAllocator::allocateFirstSuitableFreeBlock(Pred pred) {
             uint32_t origStart = block.start;
             uint32_t origEnd = block.end;
 
-            freeBlocks_.erase(it);
+            // Binary at 0x2aac75: calls deque::insert(it_next, remainder) where
+            // it_next is the iterator AFTER the erased element (block.end position).
+            // This preserves deque order: remainders go back in place of the consumed block.
+            auto insertPos = freeBlocks_.erase(it);  // returns iterator to next element
 
-            // Insert remainder before allocation
-            if (result.start > origStart) {
-                MemoryBlock before = {origStart, result.start, 0};
-                // Insert at appropriate position
-                freeBlocks_.insert(freeBlocks_.begin(), before);
-            }
-            // Insert remainder after allocation
+            // Insert "after" remainder first (at insertPos), then "before" before it,
+            // so the final order is [before, after] at the original block's position.
             if (result.end < origEnd) {
                 MemoryBlock after = {result.end, origEnd, 0};
-                freeBlocks_.insert(freeBlocks_.end(), after);
+                insertPos = freeBlocks_.insert(insertPos, after);
+            }
+            if (result.start > origStart) {
+                MemoryBlock before = {origStart, result.start, 0};
+                freeBlocks_.insert(insertPos, before);
             }
 
             return result;

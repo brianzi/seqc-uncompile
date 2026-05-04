@@ -318,11 +318,12 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             bool needsAlign = (waveCount == 0)
                            || (lastAllocBytes > wfAlign)
                            || (totalSize + allocationBytes > alignedLimit);
-            if (needsAlign)
+            if (needsAlign) {
                 totalSize = alignedLimit;
-
-            // Set elfAlignment_ (0x2a9a9d)
-            wf->elfAlignment_ = dc->waveformAlignment;               // DC+0x14
+                // Set elfAlignment_ only when alignment is performed (0x2a9a9d)
+                // Binary sets this only on the alignment path, not unconditionally.
+                wf->elfAlignment_ = dc->waveformAlignment;           // DC+0x14
+            }
 
             // Set addressValue = totalSize + addressBase_ (0x2a9aa3-0x2a9aa9)
             wf->addressValue = totalSize + addressBase_;
