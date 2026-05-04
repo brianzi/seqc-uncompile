@@ -400,3 +400,52 @@ sections are shown as one-liners.
 - Missing `.wf_*` section: Waveform not compiled into output — check
   waveform registration, `assignWaveIndex` node chaining, prefetch
   `collectUsedWaves`.
+
+### Fixing difftest failures: required workflow
+
+A failing difftest is a **symptom**. The goal is to find and fix the
+underlying reconstruction error, not just to make the test pass.
+
+**Mandatory steps for every difftest fix:**
+
+1. **Understand the symptom** — run the test verbose (`-v`) and read the
+   full error output. Is it a byte diff, an error mismatch, or a crash?
+
+2. **Locate the binary behavior** — use GDB to trace the original binary
+   on the failing input. Do not guess what the binary does from reading
+   recon source alone; verify with GDB.  For error-output mismatches,
+   set a breakpoint at the relevant `errorMessage` / `warningMessage`
+   site in the original and confirm which code path is taken and why.
+
+3. **Form a hypothesis** — identify which recon function differs from
+   the binary, and exactly what the binary does that the recon doesn't.
+   Write this down before touching any source file.
+
+4. **Verify the hypothesis with GDB** — before editing any source, use
+   GDB to confirm the hypothesis.  A single trace confirming the branch
+   taken or register value saves hours of wrong-path work.
+
+5. **Apply the fix** — edit the single function that was wrong.  The fix
+   should make the recon match the binary; it should not be a workaround
+   that merely produces the right test output through a different path.
+
+6. **Build** — `cmake --build .` from `reconstructed/build/`. Fix any
+   warnings or errors.
+
+7. **Run the specific test** — `python tests/diff_test.py --filter <name> -v`.
+   Confirm it passes.
+
+8. **Run the full suite** — `python tests/diff_test.py`. Confirm no
+   regressions.
+
+9. **Document** — add a finding to `reconstructed/notes/incidental_findings.md`
+   or update the relevant topic notes file with what was wrong and how
+   it was confirmed.
+
+**Anti-patterns to avoid:**
+
+- Editing source before GDB-verifying the binary behavior.
+- "Fixing" a test by matching its error output string through a different
+  code path than the binary uses.
+- Applying multiple fixes at once without testing each individually.
+- Committing before the full suite is clean.
