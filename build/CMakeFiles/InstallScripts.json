@@ -1,7 +1,0 @@
-{
-	"InstallScripts" : 
-	[
-		"/home/brian/zhinst/seqc_compiler/build/cmake_install.cmake"
-	],
-	"Parallel" : false
-}

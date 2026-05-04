@@ -1,3 +1,0 @@
-/home/brian/zhinst/seqc_compiler/build/CMakeFiles/zhinst_seqc.dir
-/home/brian/zhinst/seqc_compiler/build/CMakeFiles/edit_cache.dir
-/home/brian/zhinst/seqc_compiler/build/CMakeFiles/rebuild_cache.dir
