@@ -16,8 +16,8 @@
  * ============================================================================ */
 
 %{
-#include "zhinst/asm_parser_context.hpp"
-#include "zhinst/asm_expression.hpp"
+#include "zhinst/asm/asm_parser_context.hpp"
+#include "zhinst/asm/asm_expression.hpp"
 
 #include <cstdio>
 #include <cstdlib>

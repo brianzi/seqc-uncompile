@@ -75,9 +75,9 @@
 /* First part of user prologue.  */
 #line 31 "seqc_parser.y"
 
-#include "zhinst/expression.hpp"
-#include "zhinst/seqc_parser_context.hpp"
-#include "zhinst/resources.hpp"
+#include "zhinst/ast/expression.hpp"
+#include "zhinst/ast/seqc_parser_context.hpp"
+#include "zhinst/runtime/resources.hpp"
 
 #include <cstdio>
 #include <cstdlib>

@@ -17,8 +17,8 @@
  * ============================================================================ */
 
 %{
-#include "zhinst/asm_parser_context.hpp"
-#include "zhinst/asm_expression.hpp"
+#include "zhinst/asm/asm_parser_context.hpp"
+#include "zhinst/asm/asm_expression.hpp"
 #include "asm_parser.tab.h"
 
 /* bison-bridge expects YYSTYPE; with api.prefix {asm}, bison generates ASMSTYPE */

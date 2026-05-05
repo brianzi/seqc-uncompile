@@ -840,8 +840,8 @@ static const flex_int16_t yy_chk[567] =
  * Action switch: jump table at 0x95fbf0, max action 82
  * ============================================================================ */
 #line 21 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
-#include "zhinst/seqc_parser_context.hpp"
-#include "zhinst/expression.hpp"
+#include "zhinst/ast/seqc_parser_context.hpp"
+#include "zhinst/ast/expression.hpp"
 #include "seqc_parser.tab.h"
 
 /* bison-bridge expects YYSTYPE; with api.prefix {seqc}, bison generates SEQC_STYPE */

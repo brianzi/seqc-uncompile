@@ -18,8 +18,8 @@
  * ============================================================================ */
 
 %{
-#include "zhinst/seqc_parser_context.hpp"
-#include "zhinst/expression.hpp"
+#include "zhinst/ast/seqc_parser_context.hpp"
+#include "zhinst/ast/expression.hpp"
 #include "seqc_parser.tab.h"
 
 /* bison-bridge expects YYSTYPE; with api.prefix {seqc}, bison generates SEQC_STYPE */

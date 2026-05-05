@@ -54,7 +54,8 @@ set_source_files_properties(
 )
 
 # --- Sources ---
-file(GLOB ZHINST_SEQC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
+# Collect all .cpp files recursively under src/ (subdirectory layout).
+file(GLOB_RECURSE ZHINST_SEQC_SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
 # --- libc++ PRNG shim ---
 # prng_libcxx.cpp implements the binary's runtime PRNG behavior:
@@ -73,7 +74,7 @@ find_program(CLANGXX_EXECUTABLE clang++)
 if(CLANGXX_EXECUTABLE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # Using g++ (or other) for the bulk; force clang++ with libc++
     # for the shim TU only. Symbols inline as weak so no libc++.so dep.
-    set(PRNG_SHIM ${CMAKE_CURRENT_SOURCE_DIR}/src/prng_libcxx.cpp)
+    set(PRNG_SHIM ${CMAKE_CURRENT_SOURCE_DIR}/src/infra/prng_libcxx.cpp)
     list(REMOVE_ITEM ZHINST_SEQC_SOURCES ${PRNG_SHIM})
     set(PRNG_SHIM_OBJ ${CMAKE_CURRENT_BINARY_DIR}/prng_libcxx.o)
     add_custom_command(
