@@ -121,7 +121,7 @@ struct Waveform {
     Waveform(std::string name, File::Type type, std::string functionArgs,
              std::shared_ptr<File> file, bool used,
              detail::AddressImpl<uint32_t> addr, std::string genFunc,
-             int playConfig, int playIndex, int minLengthSamples, int field74,
+             int playConfig, int playIndex, int minLengthSamples, int allocationByteSize,
              DeviceConstants const& dc, Signal signal);
 
     // Copy-rename constructor — 0x114f10
