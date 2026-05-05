@@ -312,19 +312,29 @@ class ManifestLoader:
         return tags
 
 
-def load_manifest(manifest_path: Path) -> List[TestCase]:
+def load_manifest(manifest_path: Optional[Path] = None) -> List[TestCase]:
     """
     Load a test manifest and return flattened list of test cases.
     
+    Args:
+        manifest_path: Path to manifest file. If None, uses 'manifest.json' in 
+                      the current test directory.
+    
     Supports both v1.0 (flat array) and v2.0 (hierarchical) formats.
     """
+    if manifest_path is None:
+        manifest_path = Path(__file__).parent / "cases" / "manifest.json"
     loader = ManifestLoader(manifest_path)
     return loader.load()
 
 
-def load_manifest_as_dicts(manifest_path: Path) -> List[Dict[str, Any]]:
+def load_manifest_as_dicts(manifest_path: Optional[Path] = None) -> List[Dict[str, Any]]:
     """
     Load manifest and return as list of dictionaries for backward compatibility.
+    
+    Args:
+        manifest_path: Path to manifest file. If None, uses 'manifest.json' in 
+                      the current test directory.
     
     This is a convenience wrapper for existing test runners that expect
     the v1.0 dictionary format.

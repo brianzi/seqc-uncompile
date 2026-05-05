@@ -161,9 +161,15 @@ class TestCase:
     sequencer: Optional[str] = None
 
 
-def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, exclude_groups=None) -> List[TestCase]:
-    """Load test cases from a manifest.json file with optional filtering."""
-    manifest = cases_dir / "manifest.json"
+def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, exclude_groups=None, manifest_file=None) -> List[TestCase]:
+    """Load test cases from a manifest file with optional filtering."""
+    if manifest_file:
+        manifest = Path(manifest_file)
+        if not manifest.is_absolute():
+            manifest = cases_dir / manifest
+    else:
+        manifest = cases_dir / "manifest.json"
+    
     if not manifest.exists():
         print(f"ERROR: {manifest} not found", file=sys.stderr)
         sys.exit(2)
@@ -458,7 +464,9 @@ def main():
     p = argparse.ArgumentParser(description="SeqC differential ELF test harness")
     p.add_argument("--cases-dir", type=Path,
                    default=Path(__file__).parent / "cases",
-                   help="Directory containing manifest.json and .seqc files")
+                   help="Directory containing test case files")
+    p.add_argument("--manifest", type=str, default=None,
+                   help="Manifest file to load (default: manifest.json in cases-dir)")
     p.add_argument("--original-dir", type=Path, default=None,
                    help="Directory containing the original _seqc_compiler.so "
                         "(default: repo root)")
@@ -497,7 +505,12 @@ def main():
     if args.list_groups or args.list_tags:
         from manifest_loader import load_manifest
         from collections import Counter
-        manifest = args.cases_dir / "manifest.json"
+        if args.manifest:
+            manifest = Path(args.manifest)
+            if not manifest.is_absolute():
+                manifest = args.cases_dir / manifest
+        else:
+            manifest = args.cases_dir / "manifest.json"
         tests = load_manifest(manifest)
         
         if args.list_groups:
@@ -522,6 +535,8 @@ def main():
         cmd = [sys.executable, str(Path(__file__).parent / "show_manifest.py")]
         if args.cases_dir:
             cmd.extend(["--cases-dir", str(args.cases_dir)])
+        if args.manifest:
+            cmd.extend(["--manifest", args.manifest])
         if args.filter:
             cmd.extend(["--filter", args.filter])
         if args.tags:
@@ -552,7 +567,7 @@ def main():
     exclude_groups = args.exclude_groups.split(',') if args.exclude_groups else None
 
     # Load test cases
-    cases = load_test_cases(args.cases_dir, tags, exclude_tags, groups, exclude_groups)
+    cases = load_test_cases(args.cases_dir, tags, exclude_tags, groups, exclude_groups, args.manifest)
     if args.filter:
         cases = [c for c in cases if args.filter in c.name]
 

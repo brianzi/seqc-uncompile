@@ -102,7 +102,12 @@ def show_manifest(args):
     from manifest_loader import load_manifest
     
     # Load tests
-    manifest_path = args.cases_dir / "manifest.json"
+    if args.manifest:
+        manifest_path = Path(args.manifest)
+        if not manifest_path.is_absolute():
+            manifest_path = args.cases_dir / manifest_path
+    else:
+        manifest_path = args.cases_dir / "manifest.json"
     tests = load_manifest(manifest_path)
     
     # Apply filtering (reuse logic from diff_test.py)
@@ -262,7 +267,10 @@ Examples:
     
     parser.add_argument("--cases-dir", type=Path,
                         default=Path(__file__).parent / "cases",
-                        help="Directory containing manifest.json")
+                        help="Directory containing test case files")
+    
+    parser.add_argument("--manifest", type=str, default=None,
+                        help="Manifest file to load (default: manifest.json in cases-dir)")
     
     # Filtering options (same as test runners)
     parser.add_argument("--filter", default=None,
