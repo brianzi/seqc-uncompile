@@ -1,0 +1,11 @@
+// Switch-case statement example
+switch (getDIO()) {
+  case 0:
+    playWave(gauss(1024,1.0,512,64));
+  case 1:
+    playWave(gauss(1024,1.0,512,128));
+  case 2:
+    playWave(drag(1024,1.0,512,64));
+  default:
+    playWave(drag(1024,1.0,512,128));
+}

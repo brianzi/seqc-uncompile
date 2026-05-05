@@ -34,6 +34,7 @@ public:
     bool hadSyntaxError() const;              // 0x247ca0
 
     bool isComment() const;                   // 0x247bf0
+    bool isLineComment() const;
     void startBlockComment();                 // 0x247c40
     void endBlockComment();                   // 0x247c60
     void startLineComment();                  // 0x247c00

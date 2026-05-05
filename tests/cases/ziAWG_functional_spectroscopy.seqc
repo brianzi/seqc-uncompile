@@ -1,0 +1,32 @@
+// define which oscillator to use
+const OSC0 = 0;
+
+// set sequencer trigger output to 0
+setTrigger(0);
+
+// configure frequency sweep with a starting f of -500 MHz and a step of 1 MHz
+configFreqSweep(OSC0, -500000000.0, 1000000.0);
+
+// sweep oscillator frequency and repeat 100 times
+for(var j = 0; j < 100; j++) {
+    for(var i = 0; i < 101; i++) {
+        // self-triggering mode
+
+        // define time from setting the oscillator frequency to sending
+        // the spectroscopy trigger
+        playZero(160);
+
+        // set the oscillator frequency depending on the loop variable i
+        setSweepStep(OSC0, i);
+        resetOscPhase();
+
+        // define time to the next iteration
+        playZero(22448);
+
+        // trigger the integration unit and pulsed playback in pulsed mode
+        // set sequencer trigger output 1 to 1 and then to 0
+        // make sure the trigger singnal in spectroscopy mode is set to sequencer trigger output 1
+        setTrigger(1);
+        setTrigger(0);
+    }
+}

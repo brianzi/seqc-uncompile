@@ -1817,7 +1817,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setTrigger(                       
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
     if (static_cast<int>(arg.varType_) == 2) {
-        AsmRegister reg(arg.value_.toInt());
+        AsmRegister reg = arg.reg_;
         auto asmEntry = asmCommands_->strig(reg);
         results->assemblers_.push_back(std::move(asmEntry));
     } else if (isConstOrCvar(arg.varType_)) {

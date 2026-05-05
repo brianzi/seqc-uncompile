@@ -1,0 +1,10 @@
+wave w_gauss = gauss(2000, 1000, 200);
+
+while (true) {
+  waitDemodOscPhase(4);
+  setTrigger(1);
+  playWave(1, w_gauss);
+  waitWave();
+  setTrigger(0);
+  wait(100);
+}

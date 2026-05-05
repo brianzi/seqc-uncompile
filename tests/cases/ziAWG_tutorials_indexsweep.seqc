@@ -1,0 +1,34 @@
+var sweepPoints = 1000;
+
+// define user utility function
+void wait_us(const us) {
+  wait(us / 4.444e-3);
+}
+
+wave w_gauss = gauss(8000, 4000, 1000);
+
+// define user function
+void user_func(var index) {
+  // Set ID for assignment to sweep point
+  setID(index);
+  // Wait to synchronize AWG and demodulator sampling
+  waitDemodSample(1);
+  // Set Trigger for Sweeper measurement
+  setTrigger(1);
+  // Wait a variable time (sweep parameter)
+  wait(index);
+  // Play waveform
+  playWave(1, w_gauss);
+  waitWave();
+  wait_us(3);
+  setTrigger(0);
+}
+
+// Loop over sweeper variable (waiting time)
+var n;
+for (n = 0; n < sweepPoints; n = n + 1) {
+  user_func(n);
+  setID(0);
+  wait_us(100);
+}
+setID(0);

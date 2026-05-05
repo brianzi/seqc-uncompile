@@ -1,0 +1,7 @@
+// Repeat loop example
+repeat (100) {
+  setDIO(0x1);
+  wait(10);
+  setDIO(0x0);
+  wait(10);
+}

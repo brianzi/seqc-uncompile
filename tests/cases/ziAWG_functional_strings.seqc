@@ -1,0 +1,2 @@
+string AWG_PATH = "awgs/0/";
+string AWG_GAIN_PATH = AWG_PATH + "gains/0";

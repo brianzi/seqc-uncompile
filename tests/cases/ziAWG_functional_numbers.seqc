@@ -1,0 +1,6 @@
+const a = 10;            // Integer notation
+const b = -10;           // Negative number
+const h = 0xdeadbeef;    // Hexadecimal integer
+const bin = 0b10101;     // Binary integer
+const f = 0.1e-3;        // Floating point number.
+const not_float = 10e3;  // Not a floating point number

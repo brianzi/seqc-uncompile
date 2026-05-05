@@ -242,6 +242,9 @@ L?\"([^"\\\n]|\\.)*\" {
 
 \n          {
                 /* Rule 77: Newline — action @0x2c8f43 */
+                if (CTX->isLineComment()) {
+                    CTX->endLineComment();
+                }
                 CTX->incrementLineNumber();
             }
 

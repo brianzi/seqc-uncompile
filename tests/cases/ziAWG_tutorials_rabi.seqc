@@ -1,0 +1,54 @@
+const rows = 100;      // number of different pulse amplitudes
+const f_s = 1.8e9;     // AWG sampling rate
+const f_seq = 225e6;   // sequencer clock frequency
+const pulse_width_sec = 100e-9; // width of the Gaussian pulse (s)
+const gate_window_sec = 1.5e-6; // width of the demodulator data gating window (s)
+const period_sec = 30e-6; // time between successive pulses (s)
+
+void gate_start() {
+  setTrigger(0b01); // activate gate signal (AWG Trigger 1)
+  wait(20);         // wait a certain time (at least the inverse of the
+                    // demodulator sample rate) to make the rising edge
+                    // of AWG Trigger 2 visible in the demodulator data stream
+  setTrigger(0b11); // activate trigger signal for Data Acquisition tool (AWG Trigger 2)
+}
+
+void gate_stop() {
+  setTrigger(0b00); // reset gate and trigger signal
+}
+
+const gate_window = gate_window_sec*f_seq;
+
+// Waveform generation
+const pulse_width = pulse_width_sec*f_s;
+const waveform_length = 7*pulse_width_sec*f_s;
+
+cvar i;
+cvar amplitude;
+const decay_time = 100;
+const rabi_period = 40;
+wave w_array;
+for (i=0; i<rows; i=i+1) {
+  amplitude = 0.5 + exp(-i/decay_time)*0.5*cos(2*M_PI*i/rabi_period);
+  wave w_segment = amplitude*gauss(waveform_length, waveform_length/2, pulse_width);
+  w_array = join(w_array, w_segment);
+}
+
+// Beginning of the core sequencer program executed on the UHF at run time
+var t;
+var id = 0; // Row ID to be used by the Data Acquisition tool for data triage
+const loop_end = rows*waveform_length;
+while (true) {
+  id = 0;
+  for (t = 0; t < loop_end; t = t+waveform_length) {
+    setID(id);          // set the row ID
+    wait(period_sec*f_seq);
+    waitDemodSample(1); // synchronize the AWG with the demodulator sample rate
+    playWaveIndexed(w_array, t, waveform_length); // play waveform segment
+    wait(200);
+    gate_start();       // start the demodulator gate signal
+    wait(gate_window);
+    gate_stop();        // stop the demodulator gate signal
+    id = id+1;          // increment row ID
+  }
+}

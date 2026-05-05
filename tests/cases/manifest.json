@@ -8388,5 +8388,493 @@
     "file": "large_arith_ops.seqc",
     "devtype": "VHFLI",
     "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_simple_example",
+    "file": "ziAWG_functional_simple_example.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_grouping",
+    "file": "ziAWG_tutorials_grouping.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_phasechange",
+    "file": "ziAWG_tutorials_phasechange.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_qubit_characterization",
+    "file": "ziAWG_tutorials_qubit_characterization.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_triggered",
+    "file": "ziAWG_tutorials_triggered.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa_ex_ziAWG_functional_readout",
+    "file": "ziAWG_functional_readout.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "shfqa_ex_ziAWG_functional_spectroscopy",
+    "file": "ziAWG_functional_spectroscopy.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_simple_example",
+    "file": "ziAWG_functional_simple_example.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_aux",
+    "file": "ziAWG_tutorials_aux.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_boxcar",
+    "file": "ziAWG_tutorials_boxcar.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_branching1",
+    "file": "ziAWG_tutorials_branching1.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_branching2",
+    "file": "ziAWG_tutorials_branching2.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_exttrigger",
+    "file": "ziAWG_tutorials_exttrigger.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_freqchange",
+    "file": "ziAWG_tutorials_freqchange.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_indexsweep",
+    "file": "ziAWG_tutorials_indexsweep.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_multidevice",
+    "file": "ziAWG_tutorials_multidevice.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_multidevice_hdawg",
+    "file": "ziAWG_tutorials_multidevice_hdawg.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_nodesweep",
+    "file": "ziAWG_tutorials_nodesweep.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_oscdemod",
+    "file": "ziAWG_tutorials_oscdemod.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_oscsync",
+    "file": "ziAWG_tutorials_oscsync.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_rabi",
+    "file": "ziAWG_tutorials_rabi.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_ex_ziAWG_tutorials_aux",
+    "file": "ziAWG_tutorials_aux.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "uhfqa_ex_ziAWG_tutorials_exttrigger",
+    "file": "ziAWG_tutorials_exttrigger.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_comments",
+    "file": "ziAWG_functional_comments.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_comments",
+    "file": "ziAWG_functional_comments.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_for",
+    "file": "ziAWG_functional_for.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_for",
+    "file": "ziAWG_functional_for.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_if",
+    "file": "ziAWG_functional_if.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_if",
+    "file": "ziAWG_functional_if.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_numbers",
+    "file": "ziAWG_functional_numbers.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_numbers",
+    "file": "ziAWG_functional_numbers.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_repeat",
+    "file": "ziAWG_functional_repeat.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_repeat",
+    "file": "ziAWG_functional_repeat.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_strings",
+    "file": "ziAWG_functional_strings.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_strings",
+    "file": "ziAWG_functional_strings.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_switch",
+    "file": "ziAWG_functional_switch.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_switch",
+    "file": "ziAWG_functional_switch.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_variables",
+    "file": "ziAWG_functional_variables.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_variables",
+    "file": "ziAWG_functional_variables.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_waitWave",
+    "file": "ziAWG_functional_waitWave.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_waitWave",
+    "file": "ziAWG_functional_waitWave.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_functional_while",
+    "file": "ziAWG_functional_while.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_functional_while",
+    "file": "ziAWG_functional_while.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_periodic_chirp",
+    "file": "ziAWG_periodic_chirp.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_periodic_chirp",
+    "file": "ziAWG_periodic_chirp.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_array",
+    "file": "ziAWG_tutorials_array.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_array",
+    "file": "ziAWG_tutorials_array.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_join",
+    "file": "ziAWG_tutorials_join.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_join",
+    "file": "ziAWG_tutorials_join.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_marker",
+    "file": "ziAWG_tutorials_marker.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_marker",
+    "file": "ziAWG_tutorials_marker.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_multifreq",
+    "file": "ziAWG_tutorials_multifreq.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_multifreq",
+    "file": "ziAWG_tutorials_multifreq.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_oneline",
+    "file": "ziAWG_tutorials_oneline.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_oneline",
+    "file": "ziAWG_tutorials_oneline.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_outputassignment",
+    "file": "ziAWG_tutorials_outputassignment.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_outputassignment",
+    "file": "ziAWG_tutorials_outputassignment.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_playdual",
+    "file": "ziAWG_tutorials_playdual.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_playdual",
+    "file": "ziAWG_tutorials_playdual.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_repeat",
+    "file": "ziAWG_tutorials_repeat.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_repeat",
+    "file": "ziAWG_tutorials_repeat.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "hdawg_ex_ziAWG_tutorials_settrigger",
+    "file": "ziAWG_tutorials_settrigger.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "uhfli_ex_ziAWG_tutorials_settrigger",
+    "file": "ziAWG_tutorials_settrigger.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_awg_sourcefile_uhfli",
+    "file": "labone_ex_awg_sourcefile_uhfli.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_awg_vect_uhfli",
+    "file": "labone_ex_awg_vect_uhfli.seqc",
+    "devtype": "UHFLI",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_delay_uhfqa",
+    "file": "labone_ex_delay_uhfqa.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_monitor_uhfqa",
+    "file": "labone_ex_monitor_uhfqa.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_result_uhfqa",
+    "file": "labone_ex_result_uhfqa.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_threshold_uhfqa",
+    "file": "labone_ex_threshold_uhfqa.seqc",
+    "devtype": "UHFQA",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_rabi_shfsg",
+    "file": "labone_ex_rabi_shfsg.seqc",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_ramsey_shfsg",
+    "file": "labone_ex_ramsey_shfsg.seqc",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_cpmg_shfsg",
+    "file": "labone_ex_cpmg_shfsg.seqc",
+    "devtype": "SHFSG4",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_pulsed_res_shfqa",
+    "file": "labone_ex_pulsed_res_shfqa.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_readout_all_shfqa",
+    "file": "labone_ex_readout_all_shfqa.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "labone_ex_readout_single_shfqa",
+    "file": "labone_ex_readout_single_shfqa.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
+  },
+  {
+    "name": "hdawg_labone_ex_commandtable",
+    "file": "hdawg_labone_ex_commandtable.seqc",
+    "devtype": "HDAWG8",
+    "index": 0,
+    "samplerate": 2400000000.0
+  },
+  {
+    "name": "shfqa_labone_ex_readout_weights",
+    "file": "shfqa_labone_ex_readout_weights.seqc",
+    "devtype": "SHFQA4",
+    "index": 0
   }
 ]

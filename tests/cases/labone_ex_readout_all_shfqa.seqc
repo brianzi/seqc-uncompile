@@ -1,0 +1,4 @@
+repeat(100) {
+    waitDigTrigger(1);
+    startQA(QA_GEN_ALL, QA_INT_ALL, true, 0, 0x0);
+}

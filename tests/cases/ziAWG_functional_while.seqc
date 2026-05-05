@@ -1,0 +1,13 @@
+// While loop example
+const STOP_BIT = 0x8000;
+var run = 1;
+var i = 0;
+var dio = 0;
+while (run) {
+  dio = getDIO();
+  run = dio & STOP_BIT;
+
+  dio = dio | (i & 0xff);
+  setDIO(dio);
+  i = i + 1;
+}

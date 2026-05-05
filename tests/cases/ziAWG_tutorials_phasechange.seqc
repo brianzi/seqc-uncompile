@@ -1,0 +1,27 @@
+wave w_pulse = ones(800);
+
+while (true) {
+  // generate trigger for scope
+  setTrigger(1);
+  setTrigger(0);
+  // initialize oscillator frequency, reset phase
+  wait(100);
+  resetOscPhase();
+  setSinePhase(0, 0);
+  setSinePhase(1, 0);
+  wait(100);
+  
+  // play waveform and change sine generator phase
+  playWave(w_pulse, w_pulse);
+  
+  incrementSinePhase(1, 60); // phase increment takes effect at the end 
+                             // of the previous waveform
+  playWave(w_pulse, w_pulse);
+  incrementSinePhase(1, 60); // phase increment takes effect at the end 
+                             // of the previous waveform
+  playWave(w_pulse, w_pulse);
+  incrementSinePhase(1, 60); // phase increment takes effect at the end 
+                             // of the previous waveform
+  playWave(w_pulse, w_pulse);
+  wait(10000);
+}

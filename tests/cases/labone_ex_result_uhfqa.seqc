@@ -1,0 +1,27 @@
+const RATE = 0;
+const FS = 1.8e9*pow(2, -RATE);
+const LENGTH = 1.0e-6;
+const N = floor(LENGTH*FS);
+
+wave w = join(zeros(64), ones(10000), -ones(10000));
+
+setTrigger(AWG_INTEGRATION_ARM);
+var loop_cnt = getUserReg(0);
+var avg_cnt = getUserReg(1);
+var wait_delta = 1;
+
+repeat (avg_cnt) {
+    var wait_time = 0;
+
+    repeat(loop_cnt) {
+        wait_time += wait_delta;
+        playWave(w, w);
+        wait(wait_time);
+        setTrigger(AWG_INTEGRATION_TRIGGER + AWG_INTEGRATION_ARM);
+        setTrigger(AWG_INTEGRATION_ARM);
+        waitWave();
+        wait(1024);
+    }
+}
+
+setTrigger(0);

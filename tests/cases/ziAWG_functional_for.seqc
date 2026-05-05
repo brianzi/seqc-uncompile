@@ -1,0 +1,19 @@
+// FOR loop example to assemble a train of pulses into
+// a single waveform (compile-time execution)
+cvar gain_factor; // CVAR: integer or float values allowed
+wave w_pulse_series;
+for (gain_factor = 0; gain_factor < 1.0; gain_factor = gain_factor + 0.1) {
+  w_pulse_series = join(w_pulse_series, gain_factor*gauss(1008, 504, 100));
+}
+
+// Playback of waveform defined using compile-time FOR loop
+playWave(w_pulse_series);
+
+// FOR loop example to vary waiting time between
+// waveform playbacks (run-time execution)
+var i; // VAR: integer values allowed
+for (i = 0; i < 1000; i = i + 100) {
+  playWave(gauss(1008, 504, 100));
+  waitWave();
+  wait(i);
+}

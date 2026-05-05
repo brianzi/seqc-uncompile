@@ -1,0 +1,7 @@
+var b = 100; // Create and initialize a variable
+
+// Repeat the following block of statements 100 times
+repeat (100) {
+  b = b + 1; // Increment b
+  wait(b);   // Wait 'b' cycles
+}

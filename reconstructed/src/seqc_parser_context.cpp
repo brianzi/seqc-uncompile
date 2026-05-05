@@ -39,6 +39,10 @@ bool SeqcParserContext::isComment() const  // 0x247bf0
     return isComment_ != 0;
 }
 
+bool SeqcParserContext::isLineComment() const {
+    return lineComment_ != 0;
+}
+
 // ----------------------------------------------------------------------------
 // 0x247c40 — startBlockComment()
 //   mov BYTE [rdi+1], 1 ; mov BYTE [rdi], 1 ; ret

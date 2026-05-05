@@ -1,0 +1,62 @@
+//// Waveform definition
+
+//// (1) Common Parameter Definition
+// Clock parameters
+const sample_clock = 2.4e9;  // Hz
+const sequencer_clock = sample_clock/8;  // Hz
+
+// Control-pulse parameters
+const pulse_length = 1.9e-6;  // s
+const pulse_width = 0.187e-6;  // s
+const pi_amp = 1;  // relative to HDAWG output range
+const pi2_amp = 0.5;  // relative to HDAWG output range
+const rel_iq_amplitude = 0.9;  // relative to programmed pulse height
+                               // (dependent on mixer calibration)
+const rel_iq_phase = 270;  // deg (dependent on mixer calibration)
+
+// Readout-pulse parameters
+const readpulse_time = 12e-9;  // s; account for cable-length mismatch
+const readpulse_length = 2e-6;  // s; define trigger length for readout pulse
+const qubit_lifetime = 100e-9;  // s
+
+// Convert time to HDAWG samples and round to sequencer resolution
+const pulse_length_samples =  round(pulse_length*sample_clock/16)*16;
+const pulse_width_samples = round(pulse_width*sample_clock);
+const readpulse_time_samples =  round(readpulse_time*sample_clock/16)*16;
+const readpulse_length_samples = round(readpulse_length*sample_clock/16)*16;
+const qubit_lifetime_samples = round(qubit_lifetime*sequencer_clock);
+
+//// (2) Sequence-specific Parameter Definition
+const averages = 1;  // number of repetitions for signal averaging
+const length = 1;  // number of parameter variations through experimental sequence
+
+//// (3) Waveform Definition
+wave gauss_pulse = gauss(
+  pulse_length_samples, 1, pulse_length_samples/2, pulse_width_samples
+);
+
+//// Pulse-pattern Player
+
+var j;
+for (j = 0; j < averages; j = j + 1) {
+  cvar i;
+  for (i = 0; i < length; i = i + 1) {
+    //// (4) (Re)set IF phases
+    resetOscPhase(1);
+    setSinePhase(0, rel_iq_phase);
+    wait(30);
+
+    //// (5) Play Control-pulse Pattern
+    playWave(pi_amp*gauss_pulse, pi_amp*rel_iq_amplitude*gauss_pulse);
+    playZero(readpulse_time_samples);
+
+    //// (6) Play Readout Pulse Trigger
+    waitWave();
+    setTrigger(1);
+    playZero(readpulse_length_samples);
+    waitWave();
+    setTrigger(0);
+
+    wait(5*qubit_lifetime_samples);
+  }
+}

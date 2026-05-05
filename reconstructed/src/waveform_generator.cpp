@@ -1468,9 +1468,9 @@ Signal WaveformGenerator::hann(std::vector<Value> const& args) {               /
     }
     return sig;
 }
-// chirp(length, amplitude, startFreq[, stopFreq[, phase]]) @0x250bb0
-//   3 args: (length, amplitude, startFreq) — stopFreq = startFreq, phase = 0
-//   4 args: (length, amplitude, startFreq, stopFreq) — phase = 0
+// chirp @0x250bb0
+//   3 args: (length, startFreq, stopFreq) — amplitude = 1.0, phase = 0
+//   4 args: (length, startFreq, stopFreq, phase) — amplitude = 1.0
 //   5 args: (length, amplitude, startFreq, stopFreq, phase)
 // Linear frequency sweep: instantaneous freq = startFreq + freqRate * i
 //   where freqRate = (stopFreq - startFreq) / length.
@@ -1494,11 +1494,12 @@ Signal WaveformGenerator::chirp(std::vector<Value> const& args) {               
         stopFreq  = readDouble(args[3], "4 (stopFrequency)", "chirp");
         phase     = readDouble(args[4], "5 (phase)", "chirp");
     } else if (args.size() == 4) {
+        // 4 args: chirp(length, startFreq, stopFreq, phase) — amplitude defaults to 1.0
         length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "chirp");
-        startFreq = readDouble(args[2], "3 (startFrequency)", "chirp");
-        stopFreq  = readDouble(args[3], "4 (stopFrequency)", "chirp");
-        phase     = 0.0;
+        amplitude = 1.0;
+        startFreq = readDouble(args[1], "2 (startFrequency)", "chirp");
+        stopFreq  = readDouble(args[2], "3 (stopFrequency)", "chirp");
+        phase     = readDouble(args[3], "4 (phase)", "chirp");
     } else {
         // 3 args: chirp(length, startFreq, stopFreq) — amplitude defaults to 1.0
         length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");

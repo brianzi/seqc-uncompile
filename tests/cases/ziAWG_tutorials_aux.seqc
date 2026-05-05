@@ -1,0 +1,20 @@
+// Sampling rate of the system, adjust accordingly if the rate is reduced
+const FS = 1800e6;
+// Frequency of the 'sine' in the SINC waveform
+const F_SINC = 42e6;
+
+// Generate the four-channel auxiliary output waveform
+wave aux_ch1 =  1.0*gauss(8000, 4000, 1000);
+wave aux_ch2 =  0.5*gauss(8000, 4000, 1000);
+wave aux_ch3 = -0.5*gauss(8000, 4000, 1000);
+wave aux_ch4 = -1.0*gauss(8000, 4000, 1000);
+
+// Generate a waveform to be played on Signal Output 2
+wave w_sinc = sinc(8000, 4000, FS/F_SINC);
+
+while (true) {
+  // play the four Aux Output channels at reduced rate
+  playAuxWave(aux_ch1, aux_ch2, aux_ch3, aux_ch4, AWG_RATE_14MHZ);
+  // play a wave on Signal Output 2
+  playWave(w_sinc, AWG_RATE_1800MHZ);
+}

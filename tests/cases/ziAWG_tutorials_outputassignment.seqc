@@ -1,0 +1,24 @@
+wave w_gauss = 0.5*gauss(8000, 4000, 1000);
+wave w_drag  = 0.5*drag(8000, 4000, 1000);
+
+while (true) {
+  setTrigger(1);
+  // play wave on Signal Output 1 with AWG Output 1 (two equivalent commands):
+  playWave(w_gauss);
+  playWave(1, w_gauss);
+  // play wave on Signal Output 2 with AWG Output 1:
+  playWave(2, w_gauss);
+  // play identical Wave on Signal Output 1 and 2 generated with AWG Output 1:
+  playWave(1, 2,  w_gauss);
+  // play independent Waves on Signal Output 1 and 2 generated
+  // with AWG Output 1 and 2 (two equivalent commands):
+  playWave(w_gauss, w_drag);
+  playWave(1, w_gauss, 2, w_drag);
+  // add up two independent Waves on Signal Output 1
+  // generated with AWG Output 1 and 2:
+  playWave(1, w_gauss, 1, w_drag);
+
+  waitWave();
+  setTrigger(0);
+  wait(10000);
+}

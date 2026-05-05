@@ -1,0 +1,25 @@
+// repeat sequence 100 times
+repeat (100) {
+    // wait for a trigger over ZSync. Assume the trigger peorid is longer than the cycle time
+    waitZSyncTrigger();
+
+    // alternatively wait for a trigger from digital trigger 1
+    // waitDigTrigger(1);
+
+    // wait for 4096 Samples between the trigger and the first readout pulse
+    // Note: this playZero command does not yet block the sequencer
+    playZero(4096);
+
+    // define how many samples to wait between the two upcoming startQA commands
+    // Note: this command blocks the sequencer until the previous playZero command is finished
+    playZero(4096);
+
+    // play the pulse stored in Waveform Memory slot 0 and read out using Integration Weight 0
+    startQA(QA_GEN_0, QA_INT_0, true,  0x0, 0x0);
+
+    // minimal duration playZero command to wait until the previous playZero command is finished
+    playZero(32);
+
+    // play the pulse stored in Waveform Memory slot 0, 1 and 2, and read out using all Integration Weights
+    startQA(QA_GEN_0|QA_GEN_1|QA_GEN_2, QA_INT_ALL, true,  0x0, 0x0);
+}

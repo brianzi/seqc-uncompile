@@ -1,0 +1,26 @@
+wave t = ones(48);
+wave a = 0.5*ones(48);
+
+cvar rate;
+for (rate = 0; rate < 4; rate += 1) {
+  playWave(t, rate);
+  playWave(a, rate);
+  waitWave();
+  playWave(a, rate);
+  waitWave();
+  playWave(a, rate);
+  waitWave();
+  playWave(a, a, rate);
+  waitWave();
+  playWave(-a, -a, rate);
+  waitWave();
+  playWave(a, a, rate);
+  waitWave();
+  playWave(-a, -a, rate);
+  waitWave();
+  playWave(-a, rate);
+  playWave(a, rate);
+  playWave(-a, -a, rate);
+  playWave(a, rate);
+  wait(48);
+}

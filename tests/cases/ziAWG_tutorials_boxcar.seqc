@@ -1,0 +1,6 @@
+wave w_gauss = gauss(640, 320, 50);
+
+while (true) {
+  waitDemodOscPhase(1);
+  playWave(1, w_gauss);
+}

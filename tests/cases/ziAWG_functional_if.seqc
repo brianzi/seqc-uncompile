@@ -1,0 +1,12 @@
+// If-then-else statement example
+const REQUEST_BIT     = 0x0001;
+const ACKNOWLEDGE_BIT = 0x0002;
+const IDLE_BIT        = 0x8000;
+var dio = getDIO();
+if (dio & REQUEST_BIT) {
+  dio = dio | ACKNOWLEDGE_BIT;
+  setDIO(dio);
+} else {
+  dio = dio | IDLE_BIT;
+  setDIO(dio);
+}

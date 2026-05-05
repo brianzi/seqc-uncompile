@@ -1,0 +1,35 @@
+// This program generates a periodic frequency chirp on AWG Output 1
+// that enables fast frequency response measurement with the Scope in
+// Frequency Domain FFT mode.
+
+// With the correct configuration of the Scope, the measured FFT is free of
+// spectral leakage. The configuration depends on the parameters below.
+// Set the Scope Sampling Rate to f_s, and the Scope Length (pts) equal to n_s.
+// Use AWG Marker 1 to trigger the Scope.
+
+const f_start = 20e6;   // chirp start frequency (Hz)
+const f_stop = 30e6;    // chirp stop frequency (Hz)
+const f_s = 900e6;      // AWG ampling frequency (Sa/s)
+const t_s = 1/f_s;      // AWG sampling period (s)
+const A = 1.0;          // chirp amplitude (full scale)
+const n_s = pow(2,15);  // chirp waveform length (samples) equal to a power
+                        // of 2 to enable leakage-free FFT measurement
+                        // with the Scope
+
+// The following calculation adjusts f_stop to ensure
+// the chirp waveform starts and ends at 0 and therefore can be repeated
+// without discontinuity of the signal
+const k = (f_stop-f_start)/(n_s*t_s);             // Chirp rate (Hz/s)
+const P = round(n_s*t_s*(f_start + k*n_s*t_s/2));
+const f_stop_adjusted = 2*P/(n_s*t_s) - f_start;  // New stop frequency (Hz)
+
+// Generate waveform containing chirp signal (w_analog)
+// and marker data (w_marker)
+wave w_analog = A*chirp(n_s, f_start/f_s, f_stop_adjusted/f_s, 0);
+wave w_marker = join(marker(n_s/2, 0b00), marker(n_s/2, 0b01));
+wave w_chirp = w_analog + w_marker;
+
+// Play waveform in an infinite loop
+while (true) {
+    playWave(w_chirp);
+}

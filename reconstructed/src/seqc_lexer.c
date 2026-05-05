@@ -1,6 +1,6 @@
-#line 1 "seqc_lexer.c"
+#line 1 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 
-#line 3 "seqc_lexer.c"
+#line 3 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -820,7 +820,7 @@ static const flex_int16_t yy_chk[567] =
 #define yymore() yymore_used_but_not_detected
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
-#line 1 "seqc_lexer.l"
+#line 1 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 /* ============================================================================
  * Reconstructed from disassembly of _seqc_compiler.so
  * SeqC lexer — flex scanner for the SeqC language parser
@@ -839,7 +839,7 @@ static const flex_int16_t yy_chk[567] =
  *
  * Action switch: jump table at 0x95fbf0, max action 82
  * ============================================================================ */
-#line 21 "seqc_lexer.l"
+#line 21 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 #include "zhinst/seqc_parser_context.hpp"
 #include "zhinst/expression.hpp"
 #include "seqc_parser.tab.h"
@@ -854,10 +854,10 @@ static const flex_int16_t yy_chk[567] =
 
 /* Access the parser context via yyextra */
 #define CTX  (static_cast<zhinst::SeqcParserContext*>(yyextra))
-#line 857 "seqc_lexer.c"
+#line 857 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 #define YY_NO_INPUT 1
 /* UTF-8 byte range definitions used in string literals */
-#line 860 "seqc_lexer.c"
+#line 860 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 
 #define INITIAL 0
 
@@ -1127,10 +1127,10 @@ YY_DECL
 		}
 
 	{
-#line 51 "seqc_lexer.l"
+#line 51 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 
 
-#line 1133 "seqc_lexer.c"
+#line 1133 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1189,7 +1189,7 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 53 "seqc_lexer.l"
+#line 53 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 1: Block comment start — action @0x2c8c47 */
                 if (!CTX->isComment()) {
@@ -1199,7 +1199,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 60 "seqc_lexer.l"
+#line 60 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 2: Block comment end — action @0x2c8d63 */
                 if (CTX->isComment()) {
@@ -1211,7 +1211,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 69 "seqc_lexer.l"
+#line 69 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 3: Line comment start — action @0x2c8c1c */
                 if (!CTX->isComment()) {
@@ -1221,97 +1221,97 @@ YY_RULE_SETUP
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 76 "seqc_lexer.l"
+#line 76 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_CONST;   }  /* Rule 4  — 0x2c8bac */
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 77 "seqc_lexer.l"
+#line 77 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_CVAR;    }  /* Rule 5  — 0x2c8dbf */
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 78 "seqc_lexer.l"
+#line 78 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_STRING;   }  /* Rule 6  — 0x2c8ddb */
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 79 "seqc_lexer.l"
+#line 79 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_VAR;      }  /* Rule 7  — 0x2c8bc8 */
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 80 "seqc_lexer.l"
+#line 80 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_VOID;     }  /* Rule 8  — 0x2c8be4 */
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 81 "seqc_lexer.l"
+#line 81 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_WAVE;     }  /* Rule 9  — 0x2c8d87 */
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 82 "seqc_lexer.l"
+#line 82 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_BREAK;    }  /* Rule 10 — 0x2c8e67 */
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 83 "seqc_lexer.l"
+#line 83 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_CASE;     }  /* Rule 11 — 0x2c8c72 */
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 84 "seqc_lexer.l"
+#line 84 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_CONTINUE; }  /* Rule 12 — 0x2c8df7 */
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 85 "seqc_lexer.l"
+#line 85 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_DEFAULT;  }  /* Rule 13 — 0x2c8acc */
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 86 "seqc_lexer.l"
+#line 86 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_DO;       }  /* Rule 14 — 0x2c8a94 */
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 87 "seqc_lexer.l"
+#line 87 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_ELSE;     }  /* Rule 15 — 0x2c8ab0 */
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 88 "seqc_lexer.l"
+#line 88 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_FOR;      }  /* Rule 16 — 0x2c8e13 */
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 89 "seqc_lexer.l"
+#line 89 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_IF;       }  /* Rule 17 — 0x2c8caa */
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 90 "seqc_lexer.l"
+#line 90 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_REPEAT;   }  /* Rule 18 — 0x2c8e9f */
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 91 "seqc_lexer.l"
+#line 91 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_RETURN;   }  /* Rule 19 — 0x2c8f0b */
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 92 "seqc_lexer.l"
+#line 92 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_SWITCH;   }  /* Rule 20 — 0x2c8b74 */
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 93 "seqc_lexer.l"
+#line 93 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return KW_WHILE;    }  /* Rule 21 — 0x2c8e83 */
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 95 "seqc_lexer.l"
+#line 95 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 22: Identifier — action @0x2c8da3 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1323,7 +1323,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 104 "seqc_lexer.l"
+#line 104 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 23: Hex integer — action @0x2c8f27 -> 0x2c9340 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1337,7 +1337,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 115 "seqc_lexer.l"
+#line 115 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 24: Binary integer — action @0x2c8ebb -> stoull */
                 if (CTX->isComment()) { /* skip */ }
@@ -1351,7 +1351,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 126 "seqc_lexer.l"
+#line 126 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 25: Leading-zero integer — action @0x2c8f5f -> 0x2c9290 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1365,7 +1365,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 26:
 YY_RULE_SETUP
-#line 137 "seqc_lexer.l"
+#line 137 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 26: Decimal integer — action @0x2c8e4b -> 0x2c9290 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1379,7 +1379,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 148 "seqc_lexer.l"
+#line 148 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 27: Integer with exponent — action @0x2c8f7b -> 0x2c9253 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1391,7 +1391,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 157 "seqc_lexer.l"
+#line 157 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 28: Float (digits after dot) — action @0x2c8a5c -> 0x2c9253 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1403,7 +1403,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 166 "seqc_lexer.l"
+#line 166 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 29: Float (dot suffix) — action @0x2c8b90 -> 0x2c9253 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1415,7 +1415,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 175 "seqc_lexer.l"
+#line 175 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 30: Single-quoted string — action @0x2c87bc -> 0x2c9276 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1427,7 +1427,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 184 "seqc_lexer.l"
+#line 184 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 31: Double-quoted string — action @0x2c87a0 -> 0x2c9276 */
                 if (CTX->isComment()) { /* skip */ }
@@ -1439,227 +1439,227 @@ YY_RULE_SETUP
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 193 "seqc_lexer.l"
+#line 193 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return RSH_ASSIGN;  }  /* Rule 32 — 0x2c8c8e */
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 194 "seqc_lexer.l"
+#line 194 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return LSH_ASSIGN;  }  /* Rule 33 — 0x2c8a40 */
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 195 "seqc_lexer.l"
+#line 195 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ADD_ASSIGN;   }  /* Rule 34 — 0x2c8ae8 */
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 196 "seqc_lexer.l"
+#line 196 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return SUB_ASSIGN;   }  /* Rule 35 — 0x2c8880 */
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 197 "seqc_lexer.l"
+#line 197 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return MUL_ASSIGN;   }  /* Rule 36 — 0x2c8feb */
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 198 "seqc_lexer.l"
+#line 198 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return DIV_ASSIGN;   }  /* Rule 37 — 0x2c88b8 */
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 199 "seqc_lexer.l"
+#line 199 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return MOD_ASSIGN;   }  /* Rule 38 — 0x2c8810 */
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 200 "seqc_lexer.l"
+#line 200 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return AND_ASSIGN;   }  /* Rule 39 — 0x2c88d4 */
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 201 "seqc_lexer.l"
+#line 201 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return XOR_ASSIGN;   }  /* Rule 40 — 0x2c8f97 */
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 202 "seqc_lexer.l"
+#line 202 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return OR_ASSIGN;    }  /* Rule 41 — 0x2c8ce2 */
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 203 "seqc_lexer.l"
+#line 203 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return RSH_OP;       }  /* Rule 42 — 0x2c8b3c */
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 204 "seqc_lexer.l"
+#line 204 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return LSH_OP;       }  /* Rule 43 — 0x2c89ec */
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 205 "seqc_lexer.l"
+#line 205 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return INC_OP;       }  /* Rule 44 — 0x2c8998 */
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 206 "seqc_lexer.l"
+#line 206 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return DEC_OP;       }  /* Rule 45 — 0x2c8fb3 */
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 207 "seqc_lexer.l"
+#line 207 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return AND_OP;       }  /* Rule 46 — 0x2c882c */
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 208 "seqc_lexer.l"
+#line 208 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return OR_OP;        }  /* Rule 47 — 0x2c8944 */
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 209 "seqc_lexer.l"
+#line 209 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return LE_OP;        }  /* Rule 48 — 0x2c8b58 */
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 210 "seqc_lexer.l"
+#line 210 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return GE_OP;        }  /* Rule 49 — 0x2c8864 */
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 211 "seqc_lexer.l"
+#line 211 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return EQ_OP;        }  /* Rule 50 — 0x2c8fcf */
 	YY_BREAK
 case 51:
 YY_RULE_SETUP
-#line 212 "seqc_lexer.l"
+#line 212 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return NE_OP;        }  /* Rule 51 — 0x2c8b20 */
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 214 "seqc_lexer.l"
+#line 214 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ';';  }  /* Rule 52 — 0x2c8a08 */
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 215 "seqc_lexer.l"
+#line 215 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '{';  }  /* Rule 53 — 0x2c8960 */
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 216 "seqc_lexer.l"
+#line 216 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '}';  }  /* Rule 54 — 0x2c89d0 */
 	YY_BREAK
 case 55:
 YY_RULE_SETUP
-#line 217 "seqc_lexer.l"
+#line 217 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ',';  }  /* Rule 55 — 0x2c8e2f */
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 218 "seqc_lexer.l"
+#line 218 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ':';  }  /* Rule 56 — 0x2c8a78 */
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 219 "seqc_lexer.l"
+#line 219 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '=';  }  /* Rule 57 — 0x2c8cc6 */
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 220 "seqc_lexer.l"
+#line 220 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '(';  }  /* Rule 58 — 0x2c88f0 */
 	YY_BREAK
 case 59:
 YY_RULE_SETUP
-#line 221 "seqc_lexer.l"
+#line 221 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ')';  }  /* Rule 59 — 0x2c8928 */
 	YY_BREAK
 case 60:
 YY_RULE_SETUP
-#line 222 "seqc_lexer.l"
+#line 222 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '[';  }  /* Rule 60 — 0x2c9007 */
 	YY_BREAK
 case 61:
 YY_RULE_SETUP
-#line 223 "seqc_lexer.l"
+#line 223 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return ']';  }  /* Rule 61 — 0x2c889c */
 	YY_BREAK
 case 62:
 YY_RULE_SETUP
-#line 224 "seqc_lexer.l"
+#line 224 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '.';  }  /* Rule 62 — 0x2c9023 */
 	YY_BREAK
 case 63:
 YY_RULE_SETUP
-#line 225 "seqc_lexer.l"
+#line 225 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '&';  }  /* Rule 63 — 0x2c8a24 */
 	YY_BREAK
 case 64:
 YY_RULE_SETUP
-#line 226 "seqc_lexer.l"
+#line 226 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '!';  }  /* Rule 64 — 0x2c903f */
 	YY_BREAK
 case 65:
 YY_RULE_SETUP
-#line 227 "seqc_lexer.l"
+#line 227 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '~';  }  /* Rule 65 — 0x2c89b4 */
 	YY_BREAK
 case 66:
 YY_RULE_SETUP
-#line 228 "seqc_lexer.l"
+#line 228 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '-';  }  /* Rule 66 — 0x2c87f4 */
 	YY_BREAK
 case 67:
 YY_RULE_SETUP
-#line 229 "seqc_lexer.l"
+#line 229 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '+';  }  /* Rule 67 — 0x2c9077 */
 	YY_BREAK
 case 68:
 YY_RULE_SETUP
-#line 230 "seqc_lexer.l"
+#line 230 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '*';  }  /* Rule 68 — 0x2c8c00 */
 	YY_BREAK
 case 69:
 YY_RULE_SETUP
-#line 231 "seqc_lexer.l"
+#line 231 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '/';  }  /* Rule 69 — 0x2c8b04 */
 	YY_BREAK
 case 70:
 YY_RULE_SETUP
-#line 232 "seqc_lexer.l"
+#line 232 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '%';  }  /* Rule 70 — 0x2c897c */
 	YY_BREAK
 case 71:
 YY_RULE_SETUP
-#line 233 "seqc_lexer.l"
+#line 233 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '<';  }  /* Rule 71 — 0x2c87bc */
 	YY_BREAK
 case 72:
 YY_RULE_SETUP
-#line 234 "seqc_lexer.l"
+#line 234 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '>';  }  /* Rule 72 — 0x2c905b */
 	YY_BREAK
 case 73:
 YY_RULE_SETUP
-#line 235 "seqc_lexer.l"
+#line 235 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '^';  }  /* Rule 73 — 0x2c87d8 */
 	YY_BREAK
 case 74:
 YY_RULE_SETUP
-#line 236 "seqc_lexer.l"
+#line 236 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '|';  }  /* Rule 74 — 0x2c890c */
 	YY_BREAK
 case 75:
 YY_RULE_SETUP
-#line 237 "seqc_lexer.l"
+#line 237 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 { if (!CTX->isComment()) return '?';  }  /* Rule 75 — 0x2c8848 */
 	YY_BREAK
 case 76:
 YY_RULE_SETUP
-#line 239 "seqc_lexer.l"
+#line 239 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 76: Whitespace — skip (includes \v and \f) */
             }
@@ -1667,16 +1667,18 @@ YY_RULE_SETUP
 case 77:
 /* rule 77 can match eol */
 YY_RULE_SETUP
-#line 243 "seqc_lexer.l"
+#line 243 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 77: Newline — action @0x2c8f43 */
-                CTX->endLineComment();
+                if (CTX->isLineComment()) {
+                    CTX->endLineComment();
+                }
                 CTX->incrementLineNumber();
             }
 	YY_BREAK
 case 78:
 YY_RULE_SETUP
-#line 248 "seqc_lexer.l"
+#line 251 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 78: Carriage return — action @0x2c8f4b */
                 CTX->endLineComment();
@@ -1684,7 +1686,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 79:
 YY_RULE_SETUP
-#line 253 "seqc_lexer.l"
+#line 256 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 79: Unexpected character — action @0x2c8cfe */
                 if (!CTX->isComment()) {
@@ -1693,7 +1695,7 @@ YY_RULE_SETUP
             }
 	YY_BREAK
 case YY_STATE_EOF(INITIAL):
-#line 260 "seqc_lexer.l"
+#line 263 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 {
                 /* Rule 81: End of input — action @0x2c7e9f / 0x2c9237 */
                 return 0;
@@ -1701,10 +1703,10 @@ case YY_STATE_EOF(INITIAL):
 	YY_BREAK
 case 80:
 YY_RULE_SETUP
-#line 265 "seqc_lexer.l"
+#line 268 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 ECHO;
 	YY_BREAK
-#line 1706 "seqc_lexer.c"
+#line 1709 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.c"
 
 	case YY_END_OF_BUFFER:
 		{
@@ -2845,6 +2847,6 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 265 "seqc_lexer.l"
+#line 268 "/home/brian/zhinst/seqc_compiler/reconstructed/src/seqc_lexer.l"
 
 

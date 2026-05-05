@@ -1,0 +1,10 @@
+// Define placeholder with length 1024
+wave p1 = placeholder(1024);
+wave p2 = placeholder(1024);
+
+// Assign an index to the placeholder waveform
+assignWaveIndex(1,p1, 2,p2, 0);
+
+while(true) {
+  executeTableEntry(0);
+}

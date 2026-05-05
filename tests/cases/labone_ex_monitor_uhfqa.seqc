@@ -1,0 +1,15 @@
+const LENGTH = 4000;
+wave w = gauss(LENGTH, LENGTH/2, LENGTH/8);
+
+var loop_cnt = getUserReg(0);
+var wait_time = 0;
+
+repeat(loop_cnt) {
+  setTrigger(0);
+  playWave(w, -w);
+  wait(50);
+  setTrigger(AWG_MONITOR_TRIGGER);
+  setTrigger(0);
+  waitWave();
+  wait(1000);
+}

@@ -1,0 +1,5 @@
+wave w_gauss = 1.0 * gauss(640, 320, 50);
+
+repeat (5) {
+  playWave(1, w_gauss);
+}

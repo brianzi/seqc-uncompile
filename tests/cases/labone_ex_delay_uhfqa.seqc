@@ -1,0 +1,24 @@
+const RATE = 0;
+const FS = 1.8e9*pow(2, -RATE);
+
+wave w = join(zeros(32), ones(64), -ones(64), zeros(32));
+
+var loop_cnt = getUserReg(0);
+var trig1;
+var trig0;
+if (getUserReg(1)) {
+    trig1 = AWG_INTEGRATION_TRIGGER + AWG_INTEGRATION_ARM;
+    trig0 = AWG_INTEGRATION_ARM;
+} else {
+    trig1 = AWG_MONITOR_TRIGGER;
+    trig0 = 0;
+}
+
+repeat(loop_cnt) {
+    playWave(w, -w, RATE);
+    wait(25);
+    setTrigger(trig1);
+    setTrigger(trig0);
+    waitWave();
+    wait(1000);
+}

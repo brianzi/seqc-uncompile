@@ -1,0 +1,6 @@
+wave w_gauss = gauss(8000, 4000, 1000);
+
+setTrigger(1);
+playWave(1, w_gauss);
+waitWave();
+setTrigger(0);

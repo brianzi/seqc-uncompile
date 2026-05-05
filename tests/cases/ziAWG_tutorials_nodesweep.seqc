@@ -1,0 +1,37 @@
+// Play the example at reduced rate of 28 MSa/s
+const RATE = AWG_RATE_28MHZ;
+const FS = 1.8e9/pow(2, RATE);
+
+// Wait a number of microseconds
+void wait_us(const us) {
+  wait(1e-6*us*225e6);
+}
+
+void user_func() {
+  // Total waveform length, 1 ms
+  const N = 1e-3*FS;
+  // Length of rising edge, 100 us
+  const M = 100e-6*FS;
+  // Create waveform
+  wave edges = blackman(2*M, 1.0, 0.2);
+  wave w_pulse = join(cut(edges, 0, M-1),
+                      rect(N-2*M, 1.0),
+                      cut(edges, M, 2*M-1));
+  // Synchronize with demodulator data
+  waitDemodSample(1);
+  // Start waveform playback
+  playWave(1, w_pulse, RATE);
+}
+
+// Function for enabling sweeper recording, from/to in microseconds
+void sweeper_record(const from_us, const to_us) {
+  // Wait a bit, then make sweeper record data
+  wait_us(from_us);
+  setTrigger(1);
+  wait_us(to_us-from_us);
+  setTrigger(0);
+}
+
+// Execute the subprograms
+user_func();
+sweeper_record(100, 900);

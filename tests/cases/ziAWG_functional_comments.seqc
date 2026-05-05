@@ -1,0 +1,9 @@
+const a = 10; // This is a line comment. Everything between the double
+              // slash and the end of the line will be ignored.
+
+/* This is a block comment. Everything between the start-of-block-comment
+and end-of-block-comment markers is ignored.
+
+For example, the following statement will be ignored by the compiler.
+const b = 100;
+*/
