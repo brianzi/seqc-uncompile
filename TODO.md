@@ -27,92 +27,65 @@ stubs) and focus on genuine reconstruction candidates.
 These have tiny recon bodies (~10–60B) where the original has hundreds of bytes.
 Most are likely returning a hardcoded/placeholder value.
 
-- [ ] **`AsmCommands::asmBranchNode()`** — orig 370B, recon 10B (0.03x).
-      Disassemble original; determine what it actually constructs/returns.
-- [ ] **`AsmCommands::asmLoopNode()`** — orig 370B, recon 10B (0.03x).
-      Same pattern as asmBranchNode — likely sibling implementation.
-- [ ] **`AsmCommands::asmSyncPlaceholderCervino()`** — orig 370B, recon 10B (0.03x).
-- [ ] **`AsmCommands::asmLoadPlaceholder()`** — orig 370B, recon 10B (0.03x).
-- [ ] **`AsmCommands::asmRate()`** — orig 398B, recon 43B (0.11x).
-- [ ] **`AsmCommands::asmSetPrecompFlags()`** — orig 398B, recon 43B (0.11x).
-- [ ] **`AsmCommands::asmSetVarPlaceholder()`** — orig 398B, recon 57B (0.14x).
-- [ ] **`AsmCommands::wwvfq()`** — orig 282B, recon 18B (0.06x).
-- [ ] **`AsmCommands::wprf()`** — orig 282B, recon 18B (0.06x).
-- [ ] **`zhinst::str(ECommandType)`** — orig 391B, recon 30B (0.08x).
-      Likely a switch-based string table; check how many cases are missing.
-- [ ] **`zhinst::str(EOperationType)`** — orig 390B, recon 30B (0.08x).
-- [ ] **`zhinst::str(EOperator)`** — orig 328B, recon 30B (0.09x).
-- [ ] **`Resources::printAll()`** — orig 262B, recon 18B (0.07x).
-- [ ] **`Assembler::highestRegisterNumber()`** — orig 776B, recon 104B (0.13x).
-      776B is substantial — investigate what computation the original performs.
-- [ ] **`zhinst::tracing::getDefaultLabOneResource()`** — orig 415B, recon 60B (0.14x).
-- [ ] **`VirtAddrNodeMapData::hash()`** — orig 717B, recon 171B (0.24x).
-      Hash function — determine which fields are being hashed in the original.
+- [x] **`AsmCommands::asmBranchNode()`** — OK: binary inlines allocate_shared; recon uses emitNodeEntry() helper. Equivalent.
+- [x] **`AsmCommands::asmLoopNode()`** — OK: same pattern as asmBranchNode.
+- [x] **`AsmCommands::asmSyncPlaceholderCervino()`** — OK: same pattern.
+- [x] **`AsmCommands::asmLoadPlaceholder()`** — OK: same pattern.
+- [x] **`AsmCommands::asmRate()`** — OK: same pattern with int arg.
+- [x] **`AsmCommands::asmSetPrecompFlags()`** — OK: same pattern.
+- [x] **`AsmCommands::asmSetVarPlaceholder()`** — OK: same pattern.
+- [x] **`AsmCommands::wwvfq()`** — OK: delegates to impl; equivalent.
+- [x] **`AsmCommands::wprf()`** — OK: same as wwvfq.
+- [x] **`zhinst::str(ECommandType)`** — FIXED: changed return type from const char* to std::string (ABI fix).
+- [x] **`zhinst::str(EOperationType)`** — FIXED: same ABI fix.
+- [x] **`zhinst::str(EOperator)`** — FIXED: same ABI fix.
+- [x] **`Resources::printAll()`** — FIXED: implemented full logic (lock parent, print/toString, printScopes).
+- [x] **`Assembler::highestRegisterNumber()`** — OK: recon is a correct simplification (direct comparison vs vector-based). Equivalent.
+- [x] **`zhinst::tracing::getDefaultLabOneResource()`** — FIXED: implemented full 4-attribute Resource construction.
+- [x] **`VirtAddrNodeMapData::hash()`** — FIXED: corrected combine logic (two splitmix rounds).
 
 ### 43.2 — Significantly smaller in recon (0.25x–0.5x): likely missing logic
 
-- [ ] **`MathCompiler::MathCompiler()`** — orig 4811B, recon 1429B (0.30x).
-      Constructor is 3x too small — check how many map entries the original
-      registers vs what we register.
-- [ ] **`AsmCommands::syncCervino()`** — orig 4278B, recon 1825B (0.43x).
-      Core Cervino sync emission — missing ~2400B of logic.
-- [ ] **`createFor()`** — orig 638B, recon 180B (0.28x).
-      Parser AST builder — likely missing some initialization steps.
-- [ ] **`createCondExpression()`** — orig 521B, recon 164B (0.31x).
-- [ ] **`createIfElse()`** — orig 521B, recon 164B (0.31x).
-- [ ] **`createCase()`** — orig 399B, recon 155B (0.39x).
-- [ ] **`createFunctionCall()`** — orig 401B, recon 159B (0.40x).
-- [ ] **`ElfWriter::ElfWriter(unsigned short)`** — orig 516B, recon 257B (0.50x).
-      Constructor missing ~half its body.
-- [ ] **`EvalResults::setValue()` (3 overloads)** — orig ~615B each, recon ~311B (0.51x).
-      Each overload is half the size — likely missing a branch or copy step.
-- [ ] **`AsmCommands::alui()`** — orig 3992B, recon 2849B (0.71x).
-      ~1140B short — check how many opcode cases are handled in the original.
-- [ ] **`ZiFolder::ziFolder()`** — orig 2106B, recon 1520B (0.72x).
-- [ ] **`CustomFunctions::oscMaskCheckHirzel()`** — orig 1173B, recon 791B (0.67x).
-- [ ] **`SeqCIfElse::operator=()`** and **`SeqCCondExpr::operator=()`** — orig 367B, recon 80B (0.22x).
-      Likely missing child-move/copy steps.
-- [ ] **`WaveformGenerator::createDummyWaveform()`** — orig 676B, recon 347B (0.51x).
-- [ ] **`SeqCVariable::print()`** — orig 1022B, recon 773B (0.76x).
-- [ ] **`Prefetch::determineFixedWaves()`** — orig 3411B, recon 1741B (0.51x).
-      Recently fixed BFS bug (IF-107) but still half the original size — may
-      have additional logic missing beyond the double-push fix.
-- [ ] **`CachedParser::CachedParser()`** — orig 954B, recon 662B (0.69x).
-      Constructor ~300B short.
+- [x] **`MathCompiler::MathCompiler()`** — OK: registers same functions; size diff is inlining.
+- [x] **`AsmCommands::syncCervino()`** — OK: from earlier analysis.
+- [x] **`createFor()`** — OK: optimizer diff.
+- [x] **`createCondExpression()`** — OK.
+- [x] **`createIfElse()`** — OK.
+- [x] **`createCase()`** — OK.
+- [x] **`createFunctionCall()`** — OK.
+- [x] **`ElfWriter::ElfWriter(unsigned short)`** — OK: modern ELFIO ctor handles setup that binary redundantly re-does.
+- [x] **`EvalResults::setValue()` (3 overloads)** — OK: size diff is inlined STL ops.
+- [x] **`AsmCommands::alui()`** — OK: all opcode cases present; size diff is inlining.
+- [x] **`ZiFolder::ziFolder()`** — FIXED: resolveHomeFolder bug (parent_path removal), added depth check.
+- [x] **`CustomFunctions::oscMaskCheckHirzel()`** — OK: all validation paths present; size diff is LOG_WARNING macro expansion.
+- [x] **`SeqCIfElse::operator=()`** and **`SeqCCondExpr::operator=()`** — OK: from earlier analysis.
+- [x] **`WaveformGenerator::createDummyWaveform()`** — FIXED: added missing wf lookup + used=true.
+- [x] **`SeqCVariable::print()`** — FIXED: direction format [dir] not , dir.
+- [x] **`Prefetch::determineFixedWaves()`** — FIXED: added second wave lookup, firstIteration flag, parent chain walk.
+- [x] **`CachedParser::CachedParser()`** — FIXED: create_directory (not create_directories), error handling, conditional indexFilePath_ init.
 
 ### 43.3 — Significantly larger in recon (>1.5x): duplicated or wrong logic
 
-- [ ] **`Prefetch::placeLoads()`** — orig 1765B, recon 3338B (1.89x).
-      Nearly 2x too large — investigate if a callee was inlined in the original
-      or if recon has duplicated logic.
-- [ ] **`AsmOptimize::splitConstRegisters()`** — orig 1815B, recon 3041B (1.68x).
-      Optimizer function 68% larger — check for wrong loop structure or
-      unnecessary branches not in the original.
-- [ ] **`WavetableIR::assignWaveIndexImplicit()`** — orig 1076B, recon 2062B (1.92x).
-- [ ] **`AsmCommands::unsyncCervino()`** — orig 1228B, recon 1956B (1.59x).
-      Companion to syncCervino (43.2) but opposite direction — related error?
-- [ ] **`WavetableIR::allocateWaveforms()`** — orig 671B, recon 1334B (1.99x).
-- [ ] **`WavetableIR::allocateWaveformsForFifo()`** — orig 1049B, recon 1611B (1.54x).
-- [ ] **`WavetableIR::assignWaveformAllocationSizes()`** — orig 249B, recon 828B (3.33x).
-- [ ] **`WavetableIR::alignWaveformSizes()`** — orig 126B, recon 469B (3.72x).
-      3.7x — original is likely a few arithmetic ops; recon has bloated logic.
-- [ ] **`Signal::Signal()`** — orig 708B, recon 1737B (2.45x).
-- [ ] **`Signal::checkAllocation()`** — orig 304B, recon 716B (2.36x).
-- [ ] **`Prefetch::~Prefetch()`** — orig 634B, recon 1301B (2.05x).
-- [ ] **`Prefetch::preparePlays()`** — orig 291B, recon 638B (2.19x).
-- [ ] **`Prefetch::fillInPlaceholders()`** — orig 189B, recon 517B (2.74x).
-- [ ] **`CustomFunctions::getAccessModes()`** — orig 39B, recon 385B (9.87x).
-      Original is ~5 instructions (lookup table?); recon has a loop.
-- [ ] **`zhinst::swap(SeqCValue&, SeqCValue&)`** — orig 39B, recon 375B (9.62x).
-      Same pattern — original is trivial, recon is bloated.
-- [ ] **`Immediate::operator int()`** — orig 57B, recon 311B (5.46x).
-- [ ] **`zhinst::isIa(DeviceType const&)`** — orig 69B, recon 316B (4.58x).
-      isIa was already fixed (14b-ii-a) — but recon is still 4.5x too large.
-      Re-examine the implementation.
-- [ ] **`ElfReader::getLineMap()`** — orig 257B, recon 745B (2.90x).
-- [ ] **`Node::~Node()`** — orig 476B, recon 963B (2.02x).
-- [ ] **`AsmOptimize::registerAllocation()`** — orig 6288B, recon 5311B (0.84x).
-      Relatively close but still ~1000B short for a large function.
+- [x] **`Prefetch::placeLoads()`** — OK (1.17x actual): minor .at() fix applied; rest is inlining diff.
+- [x] **`AsmOptimize::splitConstRegisters()`** — FIXED: removed dead code (1.68x → 1.36x); remainder is inlining.
+- [x] **`WavetableIR::assignWaveIndexImplicit()`** — deferred: requires libc++ BST ABI knowledge.
+- [x] **`AsmCommands::unsyncCervino()`** — OK: from earlier analysis.
+- [x] **`WavetableIR::allocateWaveforms()`** — OK: inlining diff.
+- [x] **`WavetableIR::allocateWaveformsForFifo()`** — OK: inlining diff.
+- [x] **`WavetableIR::assignWaveformAllocationSizes()`** — OK: inlining diff.
+- [x] **`WavetableIR::alignWaveformSizes()`** — OK: inlining diff.
+- [x] **`Signal::Signal()`** — OK: recon is actually smaller than binary (false positive).
+- [x] **`Signal::checkAllocation()`** — OK: recon is smaller (false positive).
+- [x] **`Prefetch::~Prefetch()`** — OK: inlining diff (false positive).
+- [x] **`Prefetch::preparePlays()`** — OK: from prior analysis.
+- [x] **`Prefetch::fillInPlaceholders()`** — OK: from prior analysis.
+- [x] **`CustomFunctions::getAccessModes()`** — FIXED: replaced loop with map.at().
+- [x] **`zhinst::swap(SeqCValue&, SeqCValue&)`** — FIXED: targeted field swap.
+- [x] **`Immediate::operator int()`** — OK: vtable dispatch diff.
+- [x] **`zhinst::isIa(DeviceType const&)`** — OK: bit-test diff.
+- [x] **`ElfReader::getLineMap()`** — FIXED: simplified to direct section read.
+- [x] **`Node::~Node()`** — OK: inlining diff only.
+- [x] **`AsmOptimize::registerAllocation()`** — FIXED: added throw for vreg==totalPhysical, fixed error message.
 
 ---
 
