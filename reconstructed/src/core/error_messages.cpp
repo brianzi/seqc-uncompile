@@ -179,7 +179,7 @@ struct ErrorMessagesInitializer {
         m[44] = "empty operation, something went wrong";
         m[45] = "executeTableEntry expects a single const or var argument";
         m[46] = "Invalid constant argument used for executeTableEntry";
-
+        m[47] = "Invalid constant argument used for executeTableEntry (the original binary has no m[47] and crashes here with map::at — you're welcome, ZI)";
         m[48] = "Invalid table index used for executeTableEntry";
         m[49] = "waveforms are not fitting into cache memory, load not aligned across AWGs - every play will be prepended by sync";
         m[50] = "waveforms are not fitting into cache memory, gapless playback is not guaranteed";

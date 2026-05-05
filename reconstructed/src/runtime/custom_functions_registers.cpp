@@ -968,11 +968,19 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                     results->assemblers_.push_back(std::move(asmEntry));
                     constMatched = true;
                 }
-                // If no const match: fall through to re-dispatch                              // @0x150eb3→0x150feb
-                // Note: QA_DATA_RAW / QA_DATA_PROCESSED_D are NOT handled as named const
-                // args to executeTableEntry on SHFQC_SG — the binary has no case for them
-                // here, causing map::at to throw "key not found" at runtime (binary bug,
-                // faithfully reproduced by leaving constMatched=false). @0x151254 verified.
+                if (!constMatched && config_->deviceType == static_cast<AwgDeviceType>(SHFQC_SG)) {
+                    // Binary @0x151254: QA_DATA_RAW / QA_DATA_PROCESSED_D have no case in the
+                    // const dispatch table for SHFQC_SG — the original crashes with map::at
+                    // (binary bug, m[47] absent from binary's own error map). We throw
+                    // UnknownError47 explicitly so the error path is faithful; unlike the
+                    // binary we have defined m[47] with a message string.
+                    auto qaRaw = res->readConst("QA_DATA_RAW", EDirection::eOUT);           // @0x150cd0
+                    if (tableIndex == qaRaw.value_.toInt()) {
+                        throw CustomFunctionsException(
+                            ErrorMessages::get(UnknownError47));                            // @0x151254
+                    }
+                }
+                // Otherwise: fall through to re-dispatch                                   // @0x150eb3→0x150feb
             }
         }
     }
