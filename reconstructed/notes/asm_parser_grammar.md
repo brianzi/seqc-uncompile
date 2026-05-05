@@ -266,8 +266,8 @@ match the binary's tables byte-for-byte:
 
 ### Files Created
 
-- `src/asm_parser.y` — bison grammar (19 rules, semantic actions)
-- `src/asm_lexer.l` — flex lexer (token patterns, comment handling)
+- `src/asm/asm_parser.y` — bison grammar (19 rules, semantic actions)
+- `src/asm/asm_lexer.l` — flex lexer (token patterns, comment handling)
 - CMakeLists.txt updated with flex/bison build rules
 
 ### Key Build Notes

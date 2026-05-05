@@ -11,15 +11,15 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_expression.hpp`
-- `reconstructed/src/asm_expression.cpp`
+- `reconstructed/include/zhinst/asm/asm_expression.hpp`
+- `reconstructed/src/asm/asm_expression.cpp`
 
 Cross-read for usage:
-- `reconstructed/src/asm_parser_context.cpp` (`addNode`, `addCommand`)
-- `reconstructed/src/awg_assembler_impl_pipeline.cpp`
+- `reconstructed/src/asm/asm_parser_context.cpp` (`addNode`, `addCommand`)
+- `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp`
   (`assembleStringToExpressionsVec`, `assembleAsmList`, `assembleExpressions`)
-- `reconstructed/src/asm_list.cpp` (`parseStringToAsmList`)
-- `reconstructed/src/asm_optimize.cpp` (mentions `noOpt` semantics)
+- `reconstructed/src/asm/asm_list.cpp` (`parseStringToAsmList`)
+- `reconstructed/src/asm/asm_optimize.cpp` (mentions `noOpt` semantics)
 - `nm --demangle _seqc_compiler.so` for type/free-function exclusions.
 
 ## 2. Overview
@@ -79,24 +79,24 @@ Judgement:
 - Authoritative: type name is from the original binary; out of rename scope.
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:104
+- declared: include/zhinst/asm/asm_expression.hpp:104
 - nm: `_seqc_compiler.so` symbol table.
 
 ### AsmExpression::nopComment  [yes / medium / verify-not-original]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:108 — `std::string nopComment;  // +0x20  secondary string (NOP comment text)`
-- src/asm_expression.cpp:32 — `// nopComment (+0x20): destroy string` (only
+- include/zhinst/asm/asm_expression.hpp:108 — `std::string nopComment;  // +0x20  secondary string (NOP comment text)`
+- src/asm/asm_expression.cpp:32 — `// nopComment (+0x20): destroy string` (only
   destructor mention).
 - `grep` for `nopComment` across `reconstructed/` produces zero
   read/write sites in implementation code; the only matches are the
   declaration, two destructor comments, and the placeholder rename
   table at `notes/placeholder_field_names.md:26` (`str2 → nopComment`,
   classified medium-confidence).
-- src/awg_assembler_impl_pipeline.cpp:248 — at NOP-marker construction,
+- src/codegen/awg_assembler_impl_pipeline.cpp:248 — at NOP-marker construction,
   comment text is assigned to `nopExpr->comment` (the `+0x80` field),
   not to `+0x20`.
-- src/asm_list.cpp:410 — in the NOP marker case (`exprCmd == 4`), the
+- src/asm/asm_list.cpp:410 — in the NOP marker case (`exprCmd == 4`), the
   consumer also reads `expr->comment` (`+0x80`), not the `+0x20` string.
 
 Interpretation:
@@ -127,22 +127,22 @@ unreconstructed `asmparse` (0x292b50, ~217 KB). Synthesis should
 re-verify against the binary before committing to a rename.
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:108
-- destroyed: src/asm_expression.cpp:32 (comment only)
+- declared: include/zhinst/asm/asm_expression.hpp:108
+- destroyed: src/asm/asm_expression.cpp:32 (comment only)
 - grep `nopComment`: only declaration + dtor comment + placeholder note.
 
 ### AsmExpression::value  [unsure / low / —]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:110 — `int32_t value; // +0x3C
+- include/zhinst/asm/asm_expression.hpp:110 — `int32_t value; // +0x3C
   integer value / register number / PC`.
-- src/asm_expression.cpp:47 — `expr->value = value;` for type==3
+- src/asm/asm_expression.cpp:47 — `expr->value = value;` for type==3
   (integer immediate).
-- src/asm_expression.cpp:59 — `expr->value = regNum;` for type==1
+- src/asm/asm_expression.cpp:59 — `expr->value = regNum;` for type==1
   (register number).
-- src/asm_parser_context.cpp:338 — `cmd->value = pc;` in `addCommand`
+- src/asm/asm_parser_context.cpp:338 — `cmd->value = pc;` in `addCommand`
   (program-counter snapshot).
-- src/asm_list.cpp:482, 496-512, 526 — read as `e->value` and used
+- src/asm/asm_list.cpp:482, 496-512, 526 — read as `e->value` and used
   variously as integer, `AsmRegister(...)` argument, and `Immediate(...)`
   argument depending on parent `command`.
 
@@ -162,29 +162,29 @@ Proposals:
 - `payloadInt`                  (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:110
-- written:  src/asm_expression.cpp:47,59; src/asm_parser_context.cpp:338
-- read:     src/asm_list.cpp:482,496-512,526; src/awg_assembler_impl_pipeline.cpp (via getReg/getVal — symbol-table only).
+- declared: include/zhinst/asm/asm_expression.hpp:110
+- written:  src/asm/asm_expression.cpp:47,59; src/asm/asm_parser_context.cpp:338
+- read:     src/asm/asm_list.cpp:482,496-512,526; src/codegen/awg_assembler_impl_pipeline.cpp (via getReg/getVal — symbol-table only).
 
 ### AsmExpression::labelIndex / labelPc() / lineNumber()  [coordinated-rename]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:112 — `int32_t labelIndex; // +0x58
+- include/zhinst/asm/asm_expression.hpp:112 — `int32_t labelIndex; // +0x58
   label index/pc/counter` and the doc-comment block at lines 32–41
   explicitly states the field is "ALSO referred to as 'labelPc' or
   'lineNumber' in different reconstructed call sites — they are
   aliases."
-- include/zhinst/asm_expression.hpp:129–132 — three aliases:
+- include/zhinst/asm/asm_expression.hpp:129–132 — three aliases:
   `labelPc()`, `lineNumber()` declared as forwarding accessors.
-- src/asm_parser_context.cpp:382 — `cmd->labelPc() = lbl.pc;` (write
+- src/asm/asm_parser_context.cpp:382 — `cmd->labelPc() = lbl.pc;` (write
   via `labelPc` alias from `addCommand`; comment "+0x58 (labelPc is
   alias for labelIndex)").
-- src/awg_assembler_impl_pipeline.cpp:323 —
+- src/codegen/awg_assembler_impl_pipeline.cpp:323 —
   `exprObj->lineNumber() = labelCounter;` where `labelCounter` is
   *not* a source line number; the surrounding code at lines 412–420
   shows it is incremented only for non-LABEL instructions, i.e. it
   tracks the **opcode position** (PC).
-- src/awg_assembler_impl_pipeline.cpp:459 — first label-collection
+- src/codegen/awg_assembler_impl_pipeline.cpp:459 — first label-collection
   pass: `int labelIndex = e->lineNumber();` immediately reassigned to
   a variable named `labelIndex`, contradicting the alias name used in
   the read.
@@ -219,24 +219,24 @@ Cross-reference:
   `AsmExpression::lineNumber()` alias only — no cross-batch conflict.
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:112,129–132
-- written:  src/asm_parser_context.cpp:382;
-            src/awg_assembler_impl_pipeline.cpp:323
-- read:     src/awg_assembler_impl_pipeline.cpp:459
-- doc:      include/zhinst/asm_expression.hpp:32–41
+- declared: include/zhinst/asm/asm_expression.hpp:112,129–132
+- written:  src/asm/asm_parser_context.cpp:382;
+            src/codegen/awg_assembler_impl_pipeline.cpp:323
+- read:     src/codegen/awg_assembler_impl_pipeline.cpp:459
+- doc:      include/zhinst/asm/asm_expression.hpp:32–41
 
 ### AsmExpression::labelType() (alias)  [yes / medium / coordinated-rename]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:135–136 — `bool& labelType()`
+- include/zhinst/asm/asm_expression.hpp:135–136 — `bool& labelType()`
   forwarding to `hasLabel`.
-- src/asm_list.cpp:339 — `if (expr->labelType()) { ... instr.label =
+- src/asm/asm_list.cpp:339 — `if (expr->labelType()) { ... instr.label =
   expr->labelName; }` — used as a boolean predicate.
-- src/awg_assembler_impl_pipeline.cpp:326,332,458 — `if
+- src/codegen/awg_assembler_impl_pipeline.cpp:326,332,458 — `if
   (exprObj->labelType() == 1)`, `exprObj->labelType() = 1;`, `if
   (e->labelType() == 1)`. Treated as bool-valued integer (compared
   to 1, assigned 1).
-- include/zhinst/asm_expression.hpp:115 — underlying field is `bool
+- include/zhinst/asm/asm_expression.hpp:115 — underlying field is `bool
   hasLabel; // +0x78  true if label data present`.
 
 Interpretation:
@@ -253,20 +253,20 @@ Proposals (coordinated with `labelIndex` block):
 - keep both                                                    (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:115,135–136
-- read/written: src/asm_list.cpp:339; src/awg_assembler_impl_pipeline.cpp:326,332,458
+- declared: include/zhinst/asm/asm_expression.hpp:115,135–136
+- read/written: src/asm/asm_list.cpp:339; src/codegen/awg_assembler_impl_pipeline.cpp:326,332,458
 
 ### AsmExpression::noOpt() (alias)  [unsure / low / —]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:118,133–134 — `bool hasComment;
+- include/zhinst/asm/asm_expression.hpp:118,133–134 — `bool hasComment;
   // +0x98 ("noOpt" flag)` with alias `bool& noOpt()` returning
   `hasComment`.
-- src/awg_assembler_impl_pipeline.cpp:234 — `ast->noOpt() =
+- src/codegen/awg_assembler_impl_pipeline.cpp:234 — `ast->noOpt() =
   !parserCtx_.doOpt();` (set the bit when optimization is disabled).
-- src/asm_list.cpp:543 — `if (expr->noOpt()) { ... boost::json::parse(
+- src/asm/asm_list.cpp:543 — `if (expr->noOpt()) { ... boost::json::parse(
   expr->comment); ... entry.isWaveformCmd = true; }`.
-- src/asm_optimize.cpp:342,453 — comments "Skip instructions with noOpt
+- src/asm/asm_optimize.cpp:342,453 — comments "Skip instructions with noOpt
   flag at +0xA0" — guard for the optimizer.
 
 Interpretation:
@@ -288,15 +288,15 @@ Proposals:
   reading.
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:118,133–134
-- written:  src/awg_assembler_impl_pipeline.cpp:234
-- read:     src/asm_list.cpp:543; src/asm_optimize.cpp:342,453
+- declared: include/zhinst/asm/asm_expression.hpp:118,133–134
+- written:  src/codegen/awg_assembler_impl_pipeline.cpp:234
+- read:     src/asm/asm_list.cpp:543; src/asm/asm_optimize.cpp:342,453
 
 ### AsmExpression::isWaveformCmdOverride_  [no / high / —]
 
 Evidence:
-- include/zhinst/asm_expression.hpp:120 — declared.
-- src/asm_list.cpp:568–570 — `// 0x26789d: Check
+- include/zhinst/asm/asm_expression.hpp:120 — declared.
+- src/asm/asm_list.cpp:568–570 — `// 0x26789d: Check
   expr->isWaveformCmdOverride_ (byte at +0xA0)\n if
   (expr->isWaveformCmdOverride_) { entry.isWaveformCmd = true; }`.
 - notes/placeholder_field_names.md:19 — high-confidence rename from
@@ -311,8 +311,8 @@ Judgement:
 - Name accurately reflects the only observed use. Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/asm_expression.hpp:120
-- read:     src/asm_list.cpp:568–570
+- declared: include/zhinst/asm/asm_expression.hpp:120
+- read:     src/asm/asm_list.cpp:568–570
 
 ## 4. Symbols inspected and judged routinely fine
 

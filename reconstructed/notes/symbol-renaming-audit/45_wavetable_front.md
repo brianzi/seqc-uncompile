@@ -11,26 +11,26 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/wavetable_front.hpp`
-- `reconstructed/src/wavetable_front.cpp`
-- `reconstructed/src/wavetable_manager_front.cpp`
+- `reconstructed/include/zhinst/waveform/wavetable_front.hpp`
+- `reconstructed/src/waveform/wavetable_front.cpp`
+- `reconstructed/src/waveform/wavetable_manager_front.cpp`
 
 Cross-references consulted:
 
-- `reconstructed/include/zhinst/wavetable_ir.hpp` (sister type with the
+- `reconstructed/include/zhinst/waveform/wavetable_ir.hpp` (sister type with the
   same two leading address fields, but named differently —
   `addressBase_` / `firstWaveformOffset_`).
-- `reconstructed/src/wavetable_ir.cpp` (reads `frontMgr->lineNr_`,
+- `reconstructed/src/waveform/wavetable_ir.cpp` (reads `frontMgr->lineNr_`,
   `frontMgr->waveformCounter_`; calls `getUniqueName(name, lineIdx, counter)`).
-- `reconstructed/src/wavetable_manager_ir.cpp` (JSON serialiser /
+- `reconstructed/src/waveform/wavetable_manager_ir.cpp` (JSON serialiser /
   deserialiser; uses keys `"numDefs"` and `"numDefs2"` for the two
   leading int fields — see §3 detail block).
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` (every AST evaluator
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` (every AST evaluator
   prologue calls `ctx.wavetable->setLineNr(lineNr)` with the AST node's
   source line number — strong evidence for `lineNr_`).
-- `reconstructed/src/compiler.cpp` (`Compiler::setLineNr` tail-calls
+- `reconstructed/src/codegen/compiler.cpp` (`Compiler::setLineNr` tail-calls
   `WavetableFront::setLineNr`).
-- `reconstructed/src/waveform_front.cpp` and
+- `reconstructed/src/waveform/waveform_front.cpp` and
   `reconstructed/notes/symbol-renaming-audit/17_waveform_front.md`
   (sister batch — `WaveformFront::values` was flagged `yes / medium`;
   this batch confirms the parallel field assignment site).
@@ -187,12 +187,12 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: `include/zhinst/wavetable_front.hpp:155-156`
-- written: `src/wavetable_front.cpp:57-58`
-- read:    `src/wavetable_front.cpp:190` (only `address_`; no read of
+- declared: `include/zhinst/waveform/wavetable_front.hpp:155-156`
+- written: `src/waveform/wavetable_front.cpp:57-58`
+- read:    `src/waveform/wavetable_front.cpp:190` (only `address_`; no read of
   `address2_`)
-- counterpart: `include/zhinst/wavetable_ir.hpp:78-79`;
-  `src/wavetable_ir.cpp:58-59,99-100`
+- counterpart: `include/zhinst/waveform/wavetable_ir.hpp:78-79`;
+  `src/waveform/wavetable_ir.cpp:58-59,99-100`
 
 ### WavetableFront::oss_  [unsure / low / —]
 
@@ -233,8 +233,8 @@ Proposals:
 
 Locations consulted:
 
-- declared: `include/zhinst/wavetable_front.hpp:158`
-- written:  `src/wavetable_front.cpp:60-62` (commented-out)
+- declared: `include/zhinst/waveform/wavetable_front.hpp:158`
+- written:  `src/waveform/wavetable_front.cpp:60-62` (commented-out)
 
 ### WavetableFront::warningCallbackStorage_  [unsure / low / —]
 
@@ -273,7 +273,7 @@ Proposals:
 
 Locations consulted:
 
-- declared: `include/zhinst/wavetable_front.hpp:165-166`
+- declared: `include/zhinst/waveform/wavetable_front.hpp:165-166`
 
 ### WavetableFront::newWaveform(3-arg)::baseIndex  [yes / medium / —]
 
@@ -319,9 +319,9 @@ Proposals:
 
 Locations consulted:
 
-- `src/wavetable_front.cpp:211-215`
-- compare: `src/wavetable_manager_front.cpp:62-66`,
-  `src/wavetable_manager_front.cpp:254-258`
+- `src/waveform/wavetable_front.cpp:211-215`
+- compare: `src/waveform/wavetable_manager_front.cpp:62-66`,
+  `src/waveform/wavetable_manager_front.cpp:254-258`
 
 ### detail::WavetableManager<WaveformFront>::lineNr_  +  ::waveformCounter_  [yes / medium / cross-batch-arbitration]
 
@@ -432,15 +432,15 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: `include/zhinst/wavetable_front.hpp:79-81`
-- written:  `src/wavetable_front.cpp:380-382`;
-            `src/wavetable_manager_front.cpp:63-64,255-256`;
-            `src/wavetable_manager_ir.cpp:61-62`
-- read:     `src/wavetable_front.cpp:211-215`;
-            `src/wavetable_manager_front.cpp:62,254`;
-            `src/wavetable_ir.cpp:72-73,541-546`
-- JSON evidence: `src/wavetable_manager_ir.cpp:213-217,243-245`
-- AST callers: `src/seqc_ast_nodes_evaluate.cpp` — many sites
+- declared: `include/zhinst/waveform/wavetable_front.hpp:79-81`
+- written:  `src/waveform/wavetable_front.cpp:380-382`;
+            `src/waveform/wavetable_manager_front.cpp:63-64,255-256`;
+            `src/waveform/wavetable_manager_ir.cpp:61-62`
+- read:     `src/waveform/wavetable_front.cpp:211-215`;
+            `src/waveform/wavetable_manager_front.cpp:62,254`;
+            `src/waveform/wavetable_ir.cpp:72-73,541-546`
+- JSON evidence: `src/waveform/wavetable_manager_ir.cpp:213-217,243-245`
+- AST callers: `src/ast/seqc_ast_nodes_evaluate.cpp` — many sites
   (e.g. `:5417`,`:5532`,`:5666`,`:6363`,`:6999`,`:7189`,`:7547`,
   `:8095`,`:8357`,`:8680`,`:9035`,`:9320`,`:9685`,`:9867`).
 

@@ -11,11 +11,11 @@
 
 Sub-batch of the AST `evaluate()` audit covering control-flow and
 function-related node `evaluate()` definitions in
-`reconstructed/src/seqc_ast_nodes_evaluate.cpp`, **lines 5801–10137**.
+`reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp`, **lines 5801–10137**.
 
 ## 1. Files considered
 
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` — lines 5801–10137 only.
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` — lines 5801–10137 only.
 
 Methods in this batch (16 total `evaluate()` defs + 5 helpers):
 
@@ -275,7 +275,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:6097, 6160, 6236
+- src/ast/seqc_ast_nodes_evaluate.cpp:6097, 6160, 6236
 - and contrast: 5809, 6360, 6996 (sister methods using `lineNr_`)
 
 ---
@@ -284,7 +284,7 @@ Locations consulted:
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:6254 — `bool childHadError = false;`
+- src/ast/seqc_ast_nodes_evaluate.cpp:6254 — `bool childHadError = false;`
 - 6267 — `childHadError = childResult->hasError_;`
 - 6269 — `if (!childHadError) { ... build name + chain node_ ... }`
 - 6288 — `else { ... unreachable-code warning + extract return value
@@ -340,7 +340,7 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: src/seqc_ast_nodes_evaluate.cpp:6254
+- declared: src/ast/seqc_ast_nodes_evaluate.cpp:6254
 - written: 6254, 6267, 6314
 - read:    6269, 6318
 - discussed: notes/incidental_findings.md IF-30; batch 34 §3
@@ -352,7 +352,7 @@ Locations consulted:
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:7449-7450 —
+- src/ast/seqc_ast_nodes_evaluate.cpp:7449-7450 —
   ```cpp
   auto& lastResult = results.back();
   auto lastEval = *lastResult;  // get the EvalResults pointed to
@@ -386,7 +386,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:7449-7458
+- src/ast/seqc_ast_nodes_evaluate.cpp:7449-7458
 
 ---
 
@@ -394,7 +394,7 @@ Locations consulted:
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:8715
+- src/ast/seqc_ast_nodes_evaluate.cpp:8715
   `bool hasEndLabel = true;  // controls brz emission + endLabel`
   `// [rbp-0x110]`
 - Set true at line 8715 (default) and 8901, 8912.
@@ -429,7 +429,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:8715, 8830, 8901, 8912, 8920,
+- src/ast/seqc_ast_nodes_evaluate.cpp:8715, 8830, 8901, 8912, 8920,
   8939, 8976
 
 ---
@@ -438,7 +438,7 @@ Locations consulted:
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:9941
+- src/ast/seqc_ast_nodes_evaluate.cpp:9941
   `int hasErrorOrNull = 0;  // accumulated error flag`
 - The variable is never written or read after initialization in the
   visible source (lines 9941-10027).
@@ -461,7 +461,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:9941
+- src/ast/seqc_ast_nodes_evaluate.cpp:9941
 
 ---
 
@@ -469,7 +469,7 @@ Locations consulted:
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:10095-10101
+- src/ast/seqc_ast_nodes_evaluate.cpp:10095-10101
   ```cpp
   {
       auto r = result.get();
@@ -500,7 +500,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:10095-10101
+- src/ast/seqc_ast_nodes_evaluate.cpp:10095-10101
 
 ---
 
@@ -512,7 +512,7 @@ through the call graph and the consistent naming here is helpful.
 
 Evidence:
 
-- src/seqc_ast_nodes_evaluate.cpp:6435 —
+- src/ast/seqc_ast_nodes_evaluate.cpp:6435 —
   `auto funcScope = func->scope;` (after looking up the function).
 - Used as `funcScope->getRegister(paramName)` (6475),
   `funcScope->updateCvar/Const/Wave/String(...)` (6503-6545),
@@ -542,7 +542,7 @@ Proposals:
 
 Locations consulted:
 
-- src/seqc_ast_nodes_evaluate.cpp:6435 and downstream uses
+- src/ast/seqc_ast_nodes_evaluate.cpp:6435 and downstream uses
   6475-6705
 
 ---

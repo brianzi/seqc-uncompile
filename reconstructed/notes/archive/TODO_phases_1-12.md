@@ -20,7 +20,7 @@ All 83 methods + both Impl classes fully reconstructed. See OVERVIEW.md.
 - [x] Reconstruct copy ctor, move assignment, destructor
 - [x] Reconstruct `getOpcodeType()`, `getCycles()`, `getCmdType()`, `getRegisterOrder()`, `highestRegisterNumber()`
 - [x] Identify any methods that do final binary instruction encoding
-- [x] Create `src/assembler.cpp` with all above implementations
+- [x] Create `src/asm/assembler.cpp` with all above implementations
 - [x] Identify the 3 new opcodes: 0x60000007, 0xF1000000, 0xFB000000
 
 ### 2b. AsmEntry / AsmList::Asm (0xA8 bytes)
@@ -30,18 +30,18 @@ All 83 methods + both Impl classes fully reconstructed. See OVERVIEW.md.
 - [x] Understand the `AsmList::Asm` nested type (was "AsmEntry")
 - [x] Reconstruct AsmList methods (append, print, serialize, deserialize, maxRegister)
 - [x] Reconstruct AsmList::Asm methods (dtor, serializeNodeToJsonString, createUniqueID)
-- [x] Update `asm_list.hpp` and create `src/asm_list.cpp`
+- [x] Update `asm_list.hpp` and create `src/asm/asm_list.cpp`
 
 ### 2c. PlayConfig Methods
 
 - [x] Trace address loads in `genPlayConfig` / `asmPlay` to find .rodata locations
 - [x] Extract all shift/mask constant values
-- [x] Update `play_config.hpp` and `src/asm_commands.cpp`
+- [x] Update `play_config.hpp` and `src/asm/asm_commands.cpp`
 - [x] Implement `encodeCwvf()` — bit-packing (0x1dc500)
 - [x] Implement `operator!=()` (0x1d5770)
 - [x] Implement `toJson()` (0x269d60)
 - [x] Implement `fromJson()` (0x26b440) — discovered during enumeration
-- [x] Create `src/play_config.cpp`
+- [x] Create `src/waveform/play_config.cpp`
 
 ### 2d. Node Methods
 
@@ -59,7 +59,7 @@ All 83 methods + both Impl classes fully reconstructed. See OVERVIEW.md.
 - [x] Implement `clone()` (0x1d5d40)
 - [x] Implement tree methods: `last`, `insertBefore`, `updateParent`, `remove`, `swap`
 - [x] Identify and reconstruct tree-traversal / child management methods
-- [x] Create `src/node.cpp`
+- [x] Create `src/ast/node.cpp`
 - [x] Write `notes/node_tree_structure.md`
 - [x] Declare and reconstruct `toJson()` (0x264b90)
 - [x] Declare and reconstruct `fromJson()` (0x268280) — static
@@ -71,7 +71,7 @@ All 83 methods + both Impl classes fully reconstructed. See OVERVIEW.md.
 - [x] Determine name/string access mechanism (operator*, getName(), etc.)
 - [x] Fill in unknown gaps between known field offsets
 - [x] Reconstruct key methods (toString, copy-rename ctor, dtor)
-- [x] Update `waveform_front.hpp` and create `src/waveform_front.cpp`
+- [x] Update `waveform_front.hpp` and create `src/waveform/waveform_front.cpp`
 
 ### 2f. Value / Immediate Methods
 
@@ -79,12 +79,12 @@ All 83 methods + both Impl classes fully reconstructed. See OVERVIEW.md.
 - [x] Reconstruct `toInt()`, `toDouble()`, variant visitation
 - [x] Update `value.hpp`
 - [x] Enumerate remaining `zhinst::Value::` and `zhinst::Immediate::` symbols
-- [x] Move method bodies from header to `src/value.cpp`
+- [x] Move method bodies from header to `src/ast/value.cpp`
 - [x] Reconstruct `Value(string const&)` constructor (0x22c2b0)
 - [x] Reconstruct `operator<<(ostream&, Immediate)` (0x290b90)
 - [x] Reconstruct `operator<<(ostream&, AddressImpl<uint>)` (0x1c7ce0)
 - [x] Reconstruct `ValueException` ctor/dtor/what (0x16e7f0, 0x16e850, 0x16f110)
-- [x] Create `src/value.cpp`
+- [x] Create `src/ast/value.cpp`
 
 ### Phase 2 wrap-up
 
@@ -111,8 +111,8 @@ populates it. Nested `DeviceConstants::Register` sub-struct with anonymous enums
 - [x] Identify `DeviceConstants::Register` nested sub-struct and its anonymous enums
 - [x] Map fields used by AsmCommands (e.g. +0x40 → WaveformFront.field70)
 - [x] Map fields used by Waveform ctor, WavetableFront ctor, AWGAssembler ctor
-- [x] Create `include/zhinst/device_constants.hpp` with full layout
-- [x] Create `src/device_constants.cpp` with `getDeviceConstants()` implementation
+- [x] Create `include/zhinst/device/device_constants.hpp` with full layout
+- [x] Create `src/device/device_constants.cpp` with `getDeviceConstants()` implementation
 - [x] Update `notes/struct_layouts.md` with DeviceConstants offset table
 
 ### 3a wrap-up
@@ -132,8 +132,8 @@ BSS message table at 0xb84c38, ~53 symbols (mostly template instantiations of
 - [x] Document the template instantiation pattern (40+ specializations — document, don't reconstruct all)
 - [x] Reconstruct `getApiErrorMessage(ZIResult_enum)` (0x2e4820)
 - [x] Reconstruct `ResourcesException` ctor/dtor/what (0x1e3a20, 0x1f12f0, 0x1f1340)
-- [x] Create `include/zhinst/error_messages.hpp` with ErrorMessageT enum + declarations
-- [x] Create `src/error_messages.cpp`
+- [x] Create `include/zhinst/core/error_messages.hpp` with ErrorMessageT enum + declarations
+- [x] Create `src/core/error_messages.cpp`
 - [x] Note the apiErrorMessages BSS table at 0xb85230
 
 ### 3b wrap-up
@@ -161,8 +161,8 @@ from 48) inside Waveform base at +0x80. 17 methods, all reconstructed.
 - [x] Reconstruct `getRawData(SampleFormat) const` (0x293ec0)
 - [x] Reconstruct `operator==(Signal const&) const` (0x2a9750)
 - [x] Remaining ctors (4 more — MarkerBitsPerChannel variants, reserve-only)
-- [x] Create `include/zhinst/signal.hpp` with layout + declarations
-- [x] Create `src/signal.cpp`
+- [x] Create `include/zhinst/waveform/signal.hpp` with layout + declarations
+- [x] Create `src/waveform/signal.cpp`
 - [x] Update `notes/struct_layouts.md`
 
 ### 3c wrap-up
@@ -184,8 +184,8 @@ with codenames; Hirzel={HDAWG,SHFQA,SHFSG,SHFQC_SG,SHFLI}, Cervino={UHFLI,UHFQA,
 - [x] Reconstruct `getAwgDeviceTypeFromString(string const&)` static (0x270180)
 - [x] Reconstruct `getChannelGroupingModeString() const` (0x270b10)
 - [x] Reconstruct `~AWGCompilerConfig()` dtor (0xf8080)
-- [x] Create `include/zhinst/awg_compiler_config.hpp` with layout + declarations
-- [x] Create `src/awg_compiler_config.cpp`
+- [x] Create `include/zhinst/codegen/awg_compiler_config.hpp` with layout + declarations
+- [x] Create `src/codegen/awg_compiler_config.cpp`
 - [x] Correct AwgDeviceType enum in types.hpp + all references (device_constants, cervino_vs_hirzel, struct_layouts)
 
 ### 3d wrap-up
@@ -229,7 +229,7 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `getOpcode() const` (0x285140)
 - [x] Reconstruct `getReport() const` (0x285150)
 - [x] Reconstruct `printOpcode(int) const` (0x285170)
-- [x] Create `include/zhinst/awg_assembler.hpp`
+- [x] Create `include/zhinst/codegen/awg_assembler.hpp`
 
 ### 4b. AWGAssemblerImpl — encoding methods
 
@@ -259,7 +259,7 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `getReport() const` (0x285bc0)
 - [x] Reconstruct `writeToFile(string const&)` (0x288570)
 - [x] Reconstruct `getAST(string const&)` (0x286ca0)
-- [x] Create `src/awg_assembler_impl.cpp`
+- [x] Create `src/codegen/awg_assembler_impl.cpp`
 
 ### Phase 4 wrap-up
 
@@ -286,8 +286,8 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `File::typeFromStr(string)` (0x2a63c0)
 - [x] Reconstruct `File::operator==(File const&) const` (0x2a9680)
 - [x] Reconstruct copy-rename ctor (0x114f10)
-- [x] Create `include/zhinst/waveform.hpp` (separate from waveform_front.hpp)
-- [x] Create `src/waveform.cpp`
+- [x] Create `include/zhinst/waveform/waveform.hpp` (separate from waveform_front.hpp)
+- [x] Create `src/waveform/waveform.cpp`
 - [x] Refactor `waveform_front.hpp` to inherit from `waveform.hpp`
 
 ### 5b. WavetableManager\<T\>
@@ -303,7 +303,7 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `toJson() const` (0x29d780, IR instantiation)
 - [x] Reconstruct `fromJson(...)` (0x29dd10, IR instantiation)
 - [x] Reconstruct `operator==(...)` (0x29e0e0, IR instantiation)
-- [x] Create `src/wavetable_manager_front.cpp` and `src/wavetable_manager_ir.cpp`
+- [x] Create `src/waveform/wavetable_manager_front.cpp` and `src/waveform/wavetable_manager_ir.cpp`
 
 ### 5c. WavetableFront + WaveIndexTracker
 
@@ -320,8 +320,8 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `getNextAutoIndex()` / `hasGaps()` / `usedWaveIndices()` (0x29a880, 0x29a8e0, 0x29a7d0)
 - [x] Reconstruct template ctors for WaveIndexTracker (0x29d000, 0x29d410)
 - [x] Reconstruct `WavetableException` ctor/dtor/what (0x29a840, 0x29f980, 0x29f9d0)
-- [x] Update `include/zhinst/wavetable_front.hpp`
-- [x] Create `src/wavetable_front.cpp` and `src/wave_index_tracker.cpp`
+- [x] Update `include/zhinst/waveform/wavetable_front.hpp`
+- [x] Create `src/waveform/wavetable_front.cpp` and `src/waveform/wave_index_tracker.cpp`
 
 ### 5d. WaveformIR + WavetableIR
 
@@ -344,8 +344,8 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `setUsedWaveforms()` (0x29ece0)
 - [x] Reconstruct `loadWaveform()` (0x29f310)
 - [x] Reconstruct `fromJson()` (0x29db10)
-- [x] Create `include/zhinst/waveform_ir.hpp` and `include/zhinst/wavetable_ir.hpp`
-- [x] Create `src/waveform_ir.cpp` and `src/wavetable_ir.cpp`
+- [x] Create `include/zhinst/waveform/waveform_ir.hpp` and `include/zhinst/waveform/wavetable_ir.hpp`
+- [x] Create `src/waveform/waveform_ir.cpp` and `src/waveform/wavetable_ir.cpp`
 
 ### Phase 5 wrap-up
 
@@ -393,8 +393,8 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 
 - [x] Reconstruct `~AsmOptimize()` dtor (0x123200)
 - [x] Reconstruct `OptimizeException` dtor/what (0x281e00, 0x281e90)
-- [x] Create `include/zhinst/asm_optimize.hpp`
-- [x] Create `src/asm_optimize.cpp`
+- [x] Create `include/zhinst/asm/asm_optimize.hpp`
+- [x] Create `src/asm/asm_optimize.cpp`
 
 ### Phase 6 wrap-up
 
@@ -424,8 +424,8 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `CompilerMessage::str(bool) const` (0x104340)
 - [x] Reconstruct `CompilerException` ctor/dtor/what (0x11dec0, 0x11df20, 0x123bd0)
 - [x] Reconstruct `CompilerMessageCollection::compilerMessage(...)` (0x12b750) + errorMessage/warningMessage/infoMessage/parserMessage/reset
-- [x] Create `include/zhinst/compiler_message.hpp`, `src/compiler_message.cpp`
-- [x] Create `include/zhinst/compiler.hpp`, `src/compiler.cpp`
+- [x] Create `include/zhinst/core/compiler_message.hpp`, `src/core/compiler_message.cpp`
+- [x] Create `include/zhinst/codegen/compiler.hpp`, `src/codegen/compiler.cpp`
 - [x] Write `notes/pipeline.md` documenting the full compilation flow
 
 #### 7a wrap-up
@@ -445,7 +445,7 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct `Cache::play(...)` / `memoryWrite(...)` / `reuse(...)` / `stillInMemory(...)` (0x2834c0, 0x283020, 0x2833d0, 0x2832e0)
 - [x] Reconstruct `Cache::Pointer::str() const` (0x283c30)
 - [x] Reconstruct `Cache::print() const` / `resetPlay()` / getters (0x283b50, 0x283640, 0x282940–0x2829a0)
-- [x] Create `include/zhinst/cache.hpp`, `src/cache.cpp`
+- [x] Create `include/zhinst/runtime/cache.hpp`, `src/runtime/cache.cpp`
 
 #### 7b wrap-up
 
@@ -464,7 +464,7 @@ Targeted investigations to close or narrow open questions in unknowns.md.
 - [x] Reconstruct load placement: `placeLoads()` (0x1cbf60), `moveLoadsToFront()` (0x1ccad0), `createLoad()` (0x1d4a10), `mergeLoads()` (0x1d5040), `assignLoad()` (0x1d53a0), `linkLoad()` (0x1d33f0)
 - [x] Reconstruct helpers: `backwardTree()` (0x1d57d0), `removeBranches()` (0x1d3530), `expandSetVar()` (0x1d3af0), `findLockedPlay()` (0x1d3dd0), `sameLoads()` (0x1d5e20), `nodeByCachePointer()` (0x1d60d0)
 - [x] Reconstruct `allocate()` (0x1d0fb0, 7.6KB)
-- [x] Create `include/zhinst/prefetch.hpp`, `src/prefetch.cpp`
+- [x] Create `include/zhinst/codegen/prefetch.hpp`, `src/codegen/prefetch.cpp`
 
 #### 7c wrap-up
 
@@ -1128,8 +1128,8 @@ exception classes. See unknowns.md item 79.
       (std::bad_exception primary at +0x00, boost::exception at +0x08)
 - [x] Determine layout of zhinst::GenericErrorDescription<T>
       (= `{T (24B), std::string (24B)}`, 48 bytes total)
-- [x] Create reconstructed/include/zhinst/exception.hpp
-- [x] Create reconstructed/src/exception.cpp
+- [x] Create reconstructed/include/zhinst/core/exception.hpp
+- [x] Create reconstructed/src/core/exception.cpp
 - [x] Re-derive ZIAWGCompilerException, ZIAWGOptimizerException from
       zhinst::Exception. (24 other LabOne-API exception derivatives
       documented but not declared — none appear on any seqc compiler
@@ -1211,18 +1211,18 @@ Marker counts at start of Phase 10.8:
 
 | File                                     | Markers |
 |------------------------------------------|---------|
-| src/prefetch.cpp                         | 18      |
-| src/prefetch_placesingle.cpp             | 7       |
-| src/prefetch_splitplay.cpp               | 6       |
-| src/wavetable_ir.cpp                     | 5       |
-| src/wavetable_manager_ir.cpp             | 4       |
-| src/static_resources.cpp                 | 3       |
-| src/prefetch_prepare.cpp                 | 3       |
-| src/prefetch_helpers.cpp                 | 3       |
-| src/prefetch_emit.cpp                    | 3       |
-| include/zhinst/waveform_ir.hpp           | 3       |
-| src/awg_assembler_impl_pipeline.cpp      | 2       |
-| include/zhinst/error_messages.hpp        | 2       |
+| src/codegen/prefetch.cpp                         | 18      |
+| src/codegen/prefetch_placesingle.cpp             | 7       |
+| src/codegen/prefetch_splitplay.cpp               | 6       |
+| src/waveform/wavetable_ir.cpp                     | 5       |
+| src/waveform/wavetable_manager_ir.cpp             | 4       |
+| src/runtime/static_resources.cpp                 | 3       |
+| src/codegen/prefetch_prepare.cpp                 | 3       |
+| src/codegen/prefetch_helpers.cpp                 | 3       |
+| src/codegen/prefetch_emit.cpp                    | 3       |
+| include/zhinst/waveform/waveform_ir.hpp           | 3       |
+| src/codegen/awg_assembler_impl_pipeline.cpp      | 2       |
+| include/zhinst/core/error_messages.hpp        | 2       |
 | (10 other files at 1 marker each)        | 10      |
 | **Total**                                | **70**  |
 
@@ -1230,38 +1230,38 @@ Marker counts after 10.8a (prefetch.cpp + cascade):
 
 | File                                     | Markers | Δ      |
 |------------------------------------------|---------|--------|
-| src/prefetch_placesingle.cpp             | 6       | -1     |
-| src/wavetable_ir.cpp                     | 5       | 0      |
-| src/wavetable_manager_ir.cpp             | 4       | 0      |
-| src/prefetch_splitplay.cpp               | 4       | -2     |
-| src/static_resources.cpp                 | 3       | 0      |
-| src/prefetch_prepare.cpp                 | 3       | 0      |
-| src/prefetch_helpers.cpp                 | 3       | 0      |
-| src/prefetch_emit.cpp                    | 3       | 0      |
-| include/zhinst/waveform_ir.hpp           | 3       | 0      |
-| src/awg_assembler_impl_pipeline.cpp      | 2       | 0      |
-| include/zhinst/error_messages.hpp        | 2       | 0      |
+| src/codegen/prefetch_placesingle.cpp             | 6       | -1     |
+| src/waveform/wavetable_ir.cpp                     | 5       | 0      |
+| src/waveform/wavetable_manager_ir.cpp             | 4       | 0      |
+| src/codegen/prefetch_splitplay.cpp               | 4       | -2     |
+| src/runtime/static_resources.cpp                 | 3       | 0      |
+| src/codegen/prefetch_prepare.cpp                 | 3       | 0      |
+| src/codegen/prefetch_helpers.cpp                 | 3       | 0      |
+| src/codegen/prefetch_emit.cpp                    | 3       | 0      |
+| include/zhinst/waveform/waveform_ir.hpp           | 3       | 0      |
+| src/codegen/awg_assembler_impl_pipeline.cpp      | 2       | 0      |
+| include/zhinst/core/error_messages.hpp        | 2       | 0      |
 | (others, 1 each)                         | 11      | +1     |
-| ~~src/prefetch.cpp~~                     | 0       | **-18**|
-| ~~src/prefetch_print.cpp~~ (old: 3)      | 0       | **-3** |
+| ~~src/codegen/prefetch.cpp~~                     | 0       | **-18**|
+| ~~src/codegen/prefetch_print.cpp~~ (old: 3)      | 0       | **-3** |
 | **Total**                                | **49**  | **-21**|
 
 Marker counts after 10.8b (placesingle + splitplay):
 
 | File                                     | Markers | Δ      |
 |------------------------------------------|---------|--------|
-| src/wavetable_ir.cpp                     | 5       | 0      |
-| src/wavetable_manager_ir.cpp             | 4       | 0      |
-| src/static_resources.cpp                 | 3       | 0      |
-| src/prefetch_prepare.cpp                 | 3       | 0      |
-| src/prefetch_helpers.cpp                 | 3       | 0      |
-| src/prefetch_emit.cpp                    | 3       | 0      |
-| include/zhinst/waveform_ir.hpp           | 3       | 0      |
-| src/awg_assembler_impl_pipeline.cpp      | 2       | 0      |
-| include/zhinst/error_messages.hpp        | 2       | 0      |
+| src/waveform/wavetable_ir.cpp                     | 5       | 0      |
+| src/waveform/wavetable_manager_ir.cpp             | 4       | 0      |
+| src/runtime/static_resources.cpp                 | 3       | 0      |
+| src/codegen/prefetch_prepare.cpp                 | 3       | 0      |
+| src/codegen/prefetch_helpers.cpp                 | 3       | 0      |
+| src/codegen/prefetch_emit.cpp                    | 3       | 0      |
+| include/zhinst/waveform/waveform_ir.hpp           | 3       | 0      |
+| src/codegen/awg_assembler_impl_pipeline.cpp      | 2       | 0      |
+| include/zhinst/core/error_messages.hpp        | 2       | 0      |
 | (others, 1 each)                         | 11      | 0      |
-| ~~src/prefetch_placesingle.cpp~~         | 0       | **-6** |
-| ~~src/prefetch_splitplay.cpp~~           | 0       | **-4** |
+| ~~src/codegen/prefetch_placesingle.cpp~~         | 0       | **-6** |
+| ~~src/codegen/prefetch_splitplay.cpp~~           | 0       | **-4** |
 | **Total**                                | **39**  | **-10**|
 
 ### 10.8a. prefetch.cpp (18 markers → 0) — COMPLETE
@@ -1360,12 +1360,12 @@ Wavetable family. Themes resolved:
 Marker counts during 10.8c:
 | File                              | Before | After |
 |-----------------------------------|-------:|------:|
-| src/wavetable_ir.cpp              |      5 |     0 |
-| src/wavetable_manager_ir.cpp      |      4 |     0 |
-| include/zhinst/waveform_ir.hpp    |      3 |     0 |
-| src/waveform_ir.cpp               |      1 |     0 |
-| src/wavetable_manager_front.cpp   |      1 |     0 |
-| include/zhinst/waveform_front.hpp |      1 |     0 |
+| src/waveform/wavetable_ir.cpp              |      5 |     0 |
+| src/waveform/wavetable_manager_ir.cpp      |      4 |     0 |
+| include/zhinst/waveform/waveform_ir.hpp    |      3 |     0 |
+| src/waveform/waveform_ir.cpp               |      1 |     0 |
+| src/waveform/wavetable_manager_front.cpp   |      1 |     0 |
+| include/zhinst/waveform/waveform_front.hpp |      1 |     0 |
 | **subtotal**                      | **15** | **0** |
 
 Net project marker delta: 39 → 25 (-14). The +1 vs. the original "12
@@ -1607,7 +1607,7 @@ rest is Boost.Serialization template instantiations (document, don't reconstruct
 - [x] Stub cacheFile @0x2b05b0, cacheFileOutdated @0x2b14d0, getCachedFile @0x2b1900
 - [x] Reconstruct getHash @0x2b1fe0 (delegates to util::wave::hash)
 - [x] Document Boost serialization pattern (unknowns.md #114)
-- [x] Create reconstructed/src/cached_parser.cpp
+- [x] Create reconstructed/src/io/cached_parser.cpp
 - [x] Sub-phase wrap-up (OVERVIEW.md, unknowns.md #113-116)
 
 ### 12c. CsvParser — CANCELLED

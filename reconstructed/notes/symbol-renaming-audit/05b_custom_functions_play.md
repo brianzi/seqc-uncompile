@@ -11,9 +11,9 @@
 
 ## 1. Files considered
 
-- `reconstructed/src/custom_functions_play.cpp` (2478 lines)
+- `reconstructed/src/runtime/custom_functions_play.cpp` (2478 lines)
 
-Header `reconstructed/include/zhinst/custom_functions.hpp` was opened
+Header `reconstructed/include/zhinst/runtime/custom_functions.hpp` was opened
 read-only solely to confirm method declarations and signatures. All
 header-side renaming is out of scope for this sub-batch (handled by the
 header / class batch).
@@ -170,7 +170,7 @@ In scope here: parameters of these methods, the file-static helper
 ### appendSuser params (anonymous-namespace helper)  [no / medium / not-misnomer]
 
 Evidence:
-- src/custom_functions_play.cpp:41-48  two overloads:
+- src/runtime/custom_functions_play.cpp:41-48  two overloads:
   `appendSuser(AsmList& list, ...)` and
   `appendSuser(std::vector<AsmList::Asm>& vec, ...)`.
 - Both bodies do exactly `list.append(cmds->suser(reg, addr))` /
@@ -187,13 +187,13 @@ Interpretation:
 Judgement: no.
 
 Locations consulted:
-- defined: src/custom_functions_play.cpp:40-49
+- defined: src/runtime/custom_functions_play.cpp:40-49
 - used:    same file (50+ call sites)
 
 ### setWaitCyclesReg::res  [unsure / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:65 declared as
+- src/runtime/custom_functions_play.cpp:65 declared as
   `std::shared_ptr<Resources> res`.
 - The reconstructed body never references `res`.
 - The binary block @0x15cd58 just moves the EvalResults shared_ptr to
@@ -214,7 +214,7 @@ Proposals:
 ### setWaitCyclesReg::shifted  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:75-80
+- src/runtime/custom_functions_play.cpp:75-80
   `uint32_t shifted = devType - 2;` then `kCheckPlaySupportedMask >> shifted`.
 - Comment @line 77: "after subtracting 2".
 
@@ -234,7 +234,7 @@ Proposals:
 ### mergeWaveforms::useYSuffix  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_play.cpp:160 declared `bool useYSuffix`.
+- src/runtime/custom_functions_play.cpp:160 declared `bool useYSuffix`.
 - Used at line 282 to pick between `"playWave"` and `"playWaveI"`
   funDescr — but the suffix is **"I"**, not "Y".
 - Used again at lines 398-407 to dispatch
@@ -264,7 +264,7 @@ Cross-reference:
 ### mergeWaveforms::useFunDescrPath  [unsure / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:162 declared `bool useFunDescrPath`.
+- src/runtime/custom_functions_play.cpp:162 declared `bool useFunDescrPath`.
 - Used at line 379 to enter Sub-path A (explicit `getWaveformByFunDescr`
   + `newWaveform`) vs Sub-path B (`getOrCreateWaveform` factory).
 - Inline comment @line 358-362 admits the precise predicate is still
@@ -285,7 +285,7 @@ Proposals:
 ### mergeWaveforms::funDescr2  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:382 `std::string funDescr2 = "playWave";`
+- src/runtime/custom_functions_play.cpp:382 `std::string funDescr2 = "playWave";`
   inside the Sub-path-A branch.
 - Distinct from outer `funDescr` (line 273) but holds the same kind of
   value.
@@ -303,7 +303,7 @@ Proposals:
 ### play::playLength  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_play.cpp:487 `int playLength = 0;`
+- src/runtime/custom_functions_play.cpp:487 `int playLength = 0;`
 - Set only on the DigTrigger path: `playLength = firstVal.value_.toInt();`
   (line 495), validated `< 3` (line 496).
 - Passed to `asmPlay(..., playLength, ...)` at line 663 as the
@@ -325,7 +325,7 @@ Proposals:
 ### play::numChannels  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:520 `int numChannels = config_->numChannelGroups;`
+- src/runtime/custom_functions_play.cpp:520 `int numChannels = config_->numChannelGroups;`
 
 Interpretation:
 - The local renames the config field on read. The field, per
@@ -341,7 +341,7 @@ Proposals:
 ### play::channelIndex  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:521 `int channelIndex = config_->deviceIndex;`
+- src/runtime/custom_functions_play.cpp:521 `int channelIndex = config_->deviceIndex;`
 - Used as a "reference channel" comparator (line 539) and as the
   primary-channel selector (line 592).
 
@@ -360,7 +360,7 @@ Proposals:
 ### play::mask  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:526 `int mask = 0x3FFF;`
+- src/runtime/custom_functions_play.cpp:526 `int mask = 0x3FFF;`
 - Used at line 549 `mask &= ~(1 << ((b - 1) + shift));` then passed to
   `asmPlay(..., static_cast<unsigned int>(mask), ...)` at line 661 as
   the `suppress` (trigger-mask) parameter.
@@ -380,7 +380,7 @@ Proposals:
 ### play::isSecondaryChannel  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_play.cpp:580
+- src/runtime/custom_functions_play.cpp:580
   `bool isSecondaryChannel = (ch != channelIndex);`
 - Passed at line 587 as the `useFunDescrPath` parameter of
   `mergeWaveforms`.
@@ -403,8 +403,8 @@ Cross-reference:
 ### play::reg0 / play::regInv  [yes / low / —]
 
 Evidence:
-- src/custom_functions_play.cpp:654 `AsmRegister reg0(0);`
-- src/custom_functions_play.cpp:655 `AsmRegister regInv(-1);`
+- src/runtime/custom_functions_play.cpp:654 `AsmRegister reg0(0);`
+- src/runtime/custom_functions_play.cpp:655 `AsmRegister regInv(-1);`
 - playIndexed uses `regZero` (line 851) and `regInv` (line 1154).
 
 Interpretation:
@@ -422,7 +422,7 @@ Proposals:
 ### playIndexed::indexed (PlayArgs ctor flag)  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_play.cpp:745 `bool indexed = (subFunc == SubFunc::Aux);`
+- src/runtime/custom_functions_play.cpp:745 `bool indexed = (subFunc == SubFunc::Aux);`
 - Passed as the 5th ctor arg of `PlayArgs` (line 747).
 - Comment at lines 740-744 lists known callers with values:
   `play()=false, playAuxWave=true, playDIOWave=false, assignWaveIndex=false,
@@ -449,7 +449,7 @@ Cross-reference:
 ### playIndexed::rateBegin  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_play.cpp:778 `auto rateBegin = parseEnd + 2;`
+- src/runtime/custom_functions_play.cpp:778 `auto rateBegin = parseEnd + 2;`
 - Comment immediately above (lines 776-777): "parseOptionalRate
   receives parseEnd+2 (past the index/length args)."
 - Passed as the iterator argument of `parseOptionalRate(...)` at
@@ -471,7 +471,7 @@ Proposals:
 ### playIndexed::waveIndex  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_play.cpp:812
+- src/runtime/custom_functions_play.cpp:812
   `int waveIndex = parseEnd[1].value_.toInt();   // @0x161228 — length arg`
 - Adjacent comment `length arg` directly contradicts the local name
   `waveIndex`.
@@ -496,7 +496,7 @@ Proposals:
 ### writeToNode::accessMode  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_play.cpp:1511
+- src/runtime/custom_functions_play.cpp:1511
   `AccessMode accessMode = static_cast<AccessMode>(node.hasFast);`
 - Comment @lines 1454-1457 / 1509-1510: "either (a) the field is
   overloaded and AccessMode is encoded as a 0/1 byte that doubles as
@@ -521,7 +521,7 @@ Cross-reference:
 ### writeLS64bit::reg1 / writeLS64bit::reg2  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_play.cpp:2347 declared
+- src/runtime/custom_functions_play.cpp:2347 declared
   `void CustomFunctions::writeLS64bit(unsigned long value, int reg1, int reg2, ...)`.
 - Both are passed verbatim as the address operand to `appendSuser(...,
   detail::AddressImpl<unsigned int>(static_cast<unsigned int>(reg1)))`
@@ -546,7 +546,7 @@ Proposals:
 ### printF::funcName  [no / high / not-misnomer]
 
 Evidence:
-- src/custom_functions_play.cpp:2247
+- src/runtime/custom_functions_play.cpp:2247
   `std::string CustomFunctions::printF(... const& args, std::string const& /*funcName*/)`.
 - Header (line 410-411) declares the second parameter as `fmt`.
 - Reconstruction reads `fmtStr` from `args[0]` (line 2258), not from the

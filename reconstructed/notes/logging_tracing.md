@@ -112,10 +112,10 @@ Reconstructed in Phase 14c.
 
 ## Files added / modified
 
-- `reconstructed/include/zhinst/logging.hpp` — Severity enum, ZiLogger tag (via macro), LogRecord class.
-- `reconstructed/src/logging.cpp` — `ZiLogger::construct_logger()`, LogRecord ctor/dtor, error_code instantiation.
-- `reconstructed/include/zhinst/tracing.hpp` — TraceProvider singleton, ScopedSpan RAII, free helpers.
-- `reconstructed/src/tracing.cpp` — all 11 method bodies + ScopedSpan ctors using `activeProvider()` helper + placement-new Scope storage.
+- `reconstructed/include/zhinst/infra/logging.hpp` — Severity enum, ZiLogger tag (via macro), LogRecord class.
+- `reconstructed/src/infra/logging.cpp` — `ZiLogger::construct_logger()`, LogRecord ctor/dtor, error_code instantiation.
+- `reconstructed/include/zhinst/infra/tracing.hpp` — TraceProvider singleton, ScopedSpan RAII, free helpers.
+- `reconstructed/src/infra/tracing.cpp` — all 11 method bodies + ScopedSpan ctors using `activeProvider()` helper + placement-new Scope storage.
 - `reconstructed/include/opentelemetry/_stub_fwd.hpp` — stub umbrella for OpenTelemetry SDK API surface used by tracing.
 - `reconstructed/include/opentelemetry/{nostd,common,trace,sdk/{common,resource,trace},exporters/otlp}/*.h` — 14 thin `#include` shim headers.
 

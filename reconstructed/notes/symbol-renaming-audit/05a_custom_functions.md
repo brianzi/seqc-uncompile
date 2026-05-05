@@ -15,8 +15,8 @@ scope here and are audited separately as 05b/05c/05d.
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/custom_functions.hpp`
-- `reconstructed/src/custom_functions.cpp`
+- `reconstructed/include/zhinst/runtime/custom_functions.hpp`
+- `reconstructed/src/runtime/custom_functions.cpp`
 
 Symbol-table queries against `_seqc_compiler.so` confirmed all class,
 method, free-function and exception type names appear verbatim and are
@@ -137,8 +137,8 @@ Proposals:
   separate question (block below).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:292-297, 529-539
-- used:     src/custom_functions.cpp:286-290
+- declared: include/zhinst/runtime/custom_functions.hpp:292-297, 529-539
+- used:     src/runtime/custom_functions.cpp:286-290
 
 ### CustomFunctions::funcMap_maxLoadFactor_, ::aliasMap_maxLoadFactor_, ::pad_84_, ::pad_AC_  [unsure / low / coordinated-rename]
 
@@ -176,7 +176,7 @@ Proposals:
   audit.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:525-535
+- declared: include/zhinst/runtime/custom_functions.hpp:525-535
 
 ### CustomFunctions::unusedStringSet_B0_  [yes / low]
 
@@ -212,7 +212,7 @@ Proposals:
   dead.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:537-539
+- declared: include/zhinst/runtime/custom_functions.hpp:537-539
 - used:     none in this batch
 
 ### CustomFunctions::warningCallback_  [no / high / not-misnomer]
@@ -237,8 +237,8 @@ Judgement:
 - Name accurately reflects use.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:577
-- used:     src/custom_functions.cpp:113,336,353,641,675
+- declared: include/zhinst/runtime/custom_functions.hpp:577
+- used:     src/runtime/custom_functions.cpp:113,336,353,641,675
 
 ### CustomFunctions::externalTriggeringMode_  [no / high / not-misnomer]
 
@@ -260,8 +260,8 @@ Judgement:
 - Name confirmed correct.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:582
-- used:     src/custom_functions.cpp:1280-1285
+- declared: include/zhinst/runtime/custom_functions.hpp:582
+- used:     src/runtime/custom_functions.cpp:1280-1285
 
 ### CustomFunctions::usedFeatures_  [no / high / not-misnomer]
 
@@ -281,8 +281,8 @@ Judgement:
 - Name is correct.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:585
-- used:     src/custom_functions.cpp:378,461,702
+- declared: include/zhinst/runtime/custom_functions.hpp:585
+- used:     src/runtime/custom_functions.cpp:378,461,702
 
 ### CustomFunctions::nodeAddressMap_  [yes / medium]
 
@@ -315,8 +315,8 @@ Proposals:
   excluded — so any rename has to land on the field side.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:550
-- used:     src/custom_functions.cpp:486,492-498,527-533
+- declared: include/zhinst/runtime/custom_functions.hpp:550
+- used:     src/runtime/custom_functions.cpp:486,492-498,527-533
 
 ### CustomFunctions::resources_  [unsure / low / cross-batch-arbitration]
 
@@ -343,8 +343,8 @@ Cross-reference:
 - `Resources` and its methods are in batch 19.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:516
-- used:     src/custom_functions.cpp:541-547
+- declared: include/zhinst/runtime/custom_functions.hpp:516
+- used:     src/runtime/custom_functions.cpp:541-547
 
 ### CustomFunctions::SubFunc enumerators  [unsure / low]
 
@@ -377,7 +377,7 @@ Proposals:
 - keep current (medium).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:330-338
+- declared: include/zhinst/runtime/custom_functions.hpp:330-338
 
 ### CustomFunctions::mergeWaveforms parameters (`param2`..`param6`)  [yes / high]
 
@@ -420,7 +420,7 @@ Status:
   to batch 05b.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:376-381
+- declared: include/zhinst/runtime/custom_functions.hpp:376-381
 
 ### CustomFunctions::writeToNode parameters  [no / high (path) ; unsure / low (type)]
 
@@ -450,7 +450,7 @@ Proposals:
 - keep current (medium).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:397-399
+- declared: include/zhinst/runtime/custom_functions.hpp:397-399
 - symbol-table statics: writeToNode::absDevRegex, awgNodeRegex,
   sineNodeRegex, oscselNodeRegex.
 
@@ -481,7 +481,7 @@ Cross-reference:
 - Body in `custom_functions_io.cpp` (batch 05c).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:417-419
+- declared: include/zhinst/runtime/custom_functions.hpp:417-419
 
 ### CustomFunctions::checkOffspecWaveLength::expected  [unsure / medium]
 
@@ -506,8 +506,8 @@ Proposals:
 - keep current (medium).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:361
-- used:     src/custom_functions.cpp:622,629,633,637
+- declared: include/zhinst/runtime/custom_functions.hpp:361
+- used:     src/runtime/custom_functions.cpp:622,629,633,637
 
 ### CustomFunctions::checkFunctionSupported::devType  [yes / medium]
 
@@ -532,8 +532,8 @@ Proposals:
 - `supportedMask` (low).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:357
-- used:     src/custom_functions.cpp:572-590
+- declared: include/zhinst/runtime/custom_functions.hpp:357
+- used:     src/runtime/custom_functions.cpp:572-590
 
 ### CustomFunctions::optionAvailable::option  [yes / medium / cross-batch-arbitration]
 
@@ -571,9 +571,9 @@ Cross-reference:
 - `AWGCompilerConfig::includePaths` in batch 23.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:362
-- used:     src/custom_functions.cpp:682-704
-- counterpart: src/custom_functions.cpp:372-378, 452-461.
+- declared: include/zhinst/runtime/custom_functions.hpp:362
+- used:     src/runtime/custom_functions.cpp:682-704
+- counterpart: src/runtime/custom_functions.cpp:372-378, 452-461.
 
 ### PlayArgs::WaveAssignment::bits  [yes / medium]
 
@@ -609,8 +609,8 @@ Cross-reference:
   (batch 05b).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:221
-- used:     src/custom_functions.cpp:1023,1138,1141
+- declared: include/zhinst/runtime/custom_functions.hpp:221
+- used:     src/runtime/custom_functions.cpp:1023,1138,1141
 
 ### PlayArgs::secureLoadWaveform::argIndex  [yes / medium]
 
@@ -638,8 +638,8 @@ Proposals:
   here under the audit-only rule).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:252-253
-- used:     src/custom_functions.cpp:902, 1003 (call sites only)
+- declared: include/zhinst/runtime/custom_functions.hpp:252-253
+- used:     src/runtime/custom_functions.cpp:902, 1003 (call sites only)
 
 ### parseOptionalRate::parseEnd  [yes / medium]
 
@@ -666,8 +666,8 @@ Proposals:
 - `parseCursor` (low).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:262-264
-- used:     src/custom_functions.cpp:1254-1276
+- declared: include/zhinst/runtime/custom_functions.hpp:262-264
+- used:     src/runtime/custom_functions.cpp:1254-1276
 
 ### NodeMap::toPhase::value  [yes / low]
 
@@ -689,8 +689,8 @@ Proposals:
 - `phaseDeg` (low).
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:67
-- used:     src/custom_functions.cpp:1223-1228
+- declared: include/zhinst/runtime/custom_functions.hpp:67
+- used:     src/runtime/custom_functions.cpp:1223-1228
 
 ### CustomFunctions::wavetableFrontPrivate_  [no / medium]
 
@@ -712,8 +712,8 @@ Judgement:
 - Name is fit for purpose.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:518
-- used:     src/custom_functions.cpp:117-118
+- declared: include/zhinst/runtime/custom_functions.hpp:518
+- used:     src/runtime/custom_functions.cpp:117-118
 
 ### AccessMode enumerators (`Soft`, `Direct`, `Custom`)  [no / high / not-misnomer]
 
@@ -734,8 +734,8 @@ Judgement:
 - Names are correct.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:91-98
-- used:     src/custom_functions.cpp:53-61
+- declared: include/zhinst/runtime/custom_functions.hpp:91-98
+- used:     src/runtime/custom_functions.cpp:53-61
 
 ### ExternalTriggeringMode enumerators (`None`, `Dio`, `ZSync`)  [no / high / not-misnomer]
 
@@ -753,7 +753,7 @@ Judgement:
 - Correct.
 
 Locations consulted:
-- declared: include/zhinst/custom_functions.hpp:80-84
+- declared: include/zhinst/runtime/custom_functions.hpp:80-84
 
 ## 4. Symbols inspected and judged routinely fine
 

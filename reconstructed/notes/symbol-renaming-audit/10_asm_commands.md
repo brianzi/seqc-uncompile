@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_commands.hpp`
-- `reconstructed/src/asm_commands.cpp`
+- `reconstructed/include/zhinst/asm/asm_commands.hpp`
+- `reconstructed/src/asm/asm_commands.cpp`
 
 Cross-file usage surveyed in: `prefetch_emit.cpp`, `prefetch_splitplay.cpp`,
 `prefetch_placesingle.cpp`, `custom_functions_play.cpp`,
@@ -207,10 +207,10 @@ Cross-reference:
   `38_play_config.md` with status `cross-batch-arbitration`.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:201-204
-- defined: src/asm_commands.cpp:960-1044
-- callers: src/asm_commands.cpp:1082-1084, 1113-1115;
-  src/custom_functions_io.cpp:476
+- declared: include/zhinst/asm/asm_commands.hpp:201-204
+- defined: src/asm/asm_commands.cpp:960-1044
+- callers: src/asm/asm_commands.cpp:1082-1084, 1113-1115;
+  src/runtime/custom_functions_io.cpp:476
 
 ### AsmCommands::genPlayConfig::isHoldMode  [yes / medium / cross-batch-arbitration]
 
@@ -255,11 +255,11 @@ Cross-reference:
   `Cross-reference` to this parameter.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:204
-- defined: src/asm_commands.cpp:960-981
-- callers: src/asm_commands.cpp:1083; src/custom_functions_io.cpp:477;
-  src/custom_functions_play.cpp:1167;
-  src/custom_functions_playback.cpp:315-327, 591-619, 970-974,
+- declared: include/zhinst/asm/asm_commands.hpp:204
+- defined: src/asm/asm_commands.cpp:960-981
+- callers: src/asm/asm_commands.cpp:1083; src/runtime/custom_functions_io.cpp:477;
+  src/runtime/custom_functions_play.cpp:1167;
+  src/runtime/custom_functions_playback.cpp:315-327, 591-619, 970-974,
   1020-1024
 
 ### AsmCommands::genPlayConfig::holdCount  [yes / high / cross-batch-arbitration]
@@ -298,11 +298,11 @@ Cross-reference:
   parameter.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:203
-- defined: src/asm_commands.cpp:960-979
-- callers: src/asm_commands.cpp:1083; src/custom_functions_io.cpp:477;
-  src/custom_functions_play.cpp:1165;
-  src/custom_functions_playback.cpp:309-321, 589-617, 962-973,
+- declared: include/zhinst/asm/asm_commands.hpp:203
+- defined: src/asm/asm_commands.cpp:960-979
+- callers: src/asm/asm_commands.cpp:1083; src/runtime/custom_functions_io.cpp:477;
+  src/runtime/custom_functions_play.cpp:1165;
+  src/runtime/custom_functions_playback.cpp:309-321, 589-617, 962-973,
   1011-1023
 
 ### AsmCommands::genPlayConfig::isHold  [yes / medium / —]
@@ -347,8 +347,8 @@ Proposals:
 - isHold          (low) — keep current.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:202
-- defined: src/asm_commands.cpp:962-1041
+- declared: include/zhinst/asm/asm_commands.hpp:202
+- defined: src/asm/asm_commands.cpp:962-1041
 - callers: as listed above.
 
 ### AsmCommands::genPlayConfig::isBool  [yes / high / —]
@@ -381,8 +381,8 @@ Proposals:
 - isBool        (low) — keep current.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:202
-- defined: src/asm_commands.cpp:960-985
+- declared: include/zhinst/asm/asm_commands.hpp:202
+- defined: src/asm/asm_commands.cpp:960-985
 - callers: as above.
 
 ### AsmCommands::genPlayConfig::fourChannel  [yes / low / —]
@@ -417,8 +417,8 @@ Proposals:
 - fourChannel_unused  (low) — explicit dead-flag marker.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:202
-- defined: src/asm_commands.cpp:960-1044
+- declared: include/zhinst/asm/asm_commands.hpp:202
+- defined: src/asm/asm_commands.cpp:960-1044
 
 ### AsmCommands::asmPlay::holdCount  [yes / high / coordinated-rename]
 
@@ -446,8 +446,8 @@ Cross-reference:
   `PlayConfig::rate` (batch 38).
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:208
-- defined: src/asm_commands.cpp:1046-1104
+- declared: include/zhinst/asm/asm_commands.hpp:208
+- defined: src/asm/asm_commands.cpp:1046-1104
 
 ### AsmCommands::asmPlay::isHoldMode  [yes / medium / coordinated-rename]
 
@@ -471,8 +471,8 @@ Cross-reference:
   and `PlayConfig::is4Channel` (batch 38).
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:208
-- defined: src/asm_commands.cpp:1046-1104
+- declared: include/zhinst/asm/asm_commands.hpp:208
+- defined: src/asm/asm_commands.cpp:1046-1104
 
 ### AsmCommands::asmPlay::isHold / asmPlay::isBool / asmPlay::fourChannel  [yes-yes-unsure / medium-medium-low / —]
 
@@ -495,8 +495,8 @@ Proposals:
 - fourChannel: keep current (medium); fourChannel_unused (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:207
-- defined: src/asm_commands.cpp:1046-1104
+- declared: include/zhinst/asm/asm_commands.hpp:207
+- defined: src/asm/asm_commands.cpp:1046-1104
 
 ### AsmCommands::asmPlay::reg / regVal / reg2  [yes / medium / —]
 
@@ -537,8 +537,8 @@ Proposals:
   conduit; field-side already says it.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:206-210
-- defined: src/asm_commands.cpp:1087-1089
+- declared: include/zhinst/asm/asm_commands.hpp:206-210
+- defined: src/asm/asm_commands.cpp:1087-1089
 - callers: as listed.
 
 ### AsmCommands::asmPlay::nameIndex  [yes / medium / —]
@@ -567,10 +567,10 @@ Proposals:
 - nameIndex       (low) — keep current.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:207
-- defined: src/asm_commands.cpp:1063-1080
-- callers: src/custom_functions_play.cpp:647-664;
-  src/custom_functions_playback.cpp:967,1017.
+- declared: include/zhinst/asm/asm_commands.hpp:207
+- defined: src/asm/asm_commands.cpp:1063-1080
+- callers: src/runtime/custom_functions_play.cpp:647-664;
+  src/runtime/custom_functions_playback.cpp:967,1017.
 
 ### AsmCommands::asmTable parameters (group)  [yes-no / medium / coordinated-rename]
 
@@ -622,8 +622,8 @@ Cross-reference:
   parameter set (which holds the cross-batch-arbitration entries).
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:212-215
-- defined: src/asm_commands.cpp:1106-1129
+- declared: include/zhinst/asm/asm_commands.hpp:212-215
+- defined: src/asm/asm_commands.cpp:1106-1129
 
 ### AsmCommands::br/brz/brnz/brgz::flag  [yes / high / coordinated-rename]
 
@@ -660,10 +660,10 @@ Cross-reference:
   `coordinated-rename`).
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:59-62
-- defined: src/asm_commands.cpp:162-209
-- callers: src/prefetch_splitplay.cpp:364,385,393;
-  src/custom_functions_io.cpp:1906,1968
+- declared: include/zhinst/asm/asm_commands.hpp:59-62
+- defined: src/asm/asm_commands.cpp:162-209
+- callers: src/codegen/prefetch_splitplay.cpp:364,385,393;
+  src/runtime/custom_functions_io.cpp:1906,1968
 
 ### AsmCommands::syncCervino::flag  [unsure / low / —]
 
@@ -693,9 +693,9 @@ Proposals:
 - noSeq          (low) — match caller.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:163
-- defined: src/asm_commands.cpp:719-786
-- callers: src/prefetch_placesingle.cpp:1014
+- declared: include/zhinst/asm/asm_commands.hpp:163
+- defined: src/asm/asm_commands.cpp:719-786
+- callers: src/codegen/prefetch_placesingle.cpp:1014
 
 ### AsmCommands::asmPrefetch::nameIndex / regVal / extraVal  [yes / medium / —]
 
@@ -729,9 +729,9 @@ Proposals:
 - keep current             (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:194-195
-- defined: src/asm_commands.cpp:941-954
-- callers: src/custom_functions_play.cpp:615,635
+- declared: include/zhinst/asm/asm_commands.hpp:194-195
+- defined: src/asm/asm_commands.cpp:941-954
+- callers: src/runtime/custom_functions_play.cpp:615,635
 
 ### AsmCommands::prf::intArg  [yes / medium / —]
 
@@ -758,8 +758,8 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:44
-- defined: src/asm_commands.cpp:88-99
+- declared: include/zhinst/asm/asm_commands.hpp:44
+- defined: src/asm/asm_commands.cpp:88-99
 - callers: as listed.
 
 ### AsmCommands::smap::arg  [yes / low / —]
@@ -785,8 +785,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_commands.hpp:146
-- defined: src/asm_commands.cpp:627-644
+- declared: include/zhinst/asm/asm_commands.hpp:146
+- defined: src/asm/asm_commands.cpp:627-644
 
 ## 4. Symbols inspected and judged routinely fine
 

@@ -2,9 +2,9 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/elf_writer.hpp`
-- `reconstructed/src/elf_writer.cpp`
-- `reconstructed/src/write_waves_to_elf.cpp`
+- `reconstructed/include/zhinst/io/elf_writer.hpp`
+- `reconstructed/src/io/elf_writer.cpp`
+- `reconstructed/src/waveform/write_waves_to_elf.cpp`
 
 Symbol-table check (per RULES §3) via
 `nm --demangle /home/brian/zhinst/seqc_compiler/_seqc_compiler.so`:
@@ -66,14 +66,14 @@ number of locals.
 
 Evidence:
 
-- Declaration: `include/zhinst/elf_writer.hpp:104` —
+- Declaration: `include/zhinst/io/elf_writer.hpp:104` —
   `bool useAbsolute,` (with comment "if true AND waveform is reserveOnly,
   sets segment as NOBITS with address metadata").
-- Use: `src/elf_writer.cpp:192` —
+- Use: `src/io/elf_writer.cpp:192` —
   `if (useAbsolute && wfPtr->signal.reserveOnly_) { ... SHT_NOBITS ... }`.
-- Caller `writeWavesToElfMapped` at `src/write_waves_to_elf.cpp:79` passes
+- Caller `writeWavesToElfMapped` at `src/waveform/write_waves_to_elf.cpp:79` passes
   `/*mapped=*/true` to that parameter (i.e. argument value `true`).
-- Caller `writeWavesToElfAbsolute` at `src/write_waves_to_elf.cpp:160`
+- Caller `writeWavesToElfAbsolute` at `src/waveform/write_waves_to_elf.cpp:160`
   passes `/*mapped=*/false` (argument value `false`).
 - Binary disassembly @0x293dbc:
   `cmpb $0x0,-0x48(%rbp); je → PROGBITS branch`,
@@ -119,9 +119,9 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:101-105`
-- defined: `src/elf_writer.cpp:141-208`
-- used (callers): `src/write_waves_to_elf.cpp:76-80, 157-161`
+- declared: `include/zhinst/io/elf_writer.hpp:101-105`
+- defined: `src/io/elf_writer.cpp:141-208`
+- used (callers): `src/waveform/write_waves_to_elf.cpp:76-80, 157-161`
 - binary verification: `_seqc_compiler.so` @0x293dbc–0x293e0a
 - docs: `reconstructed/notes/elf_format.md:32`
 
@@ -129,14 +129,14 @@ Locations consulted:
 
 Evidence:
 
-- Declaration: `include/zhinst/elf_writer.hpp:123` —
+- Declaration: `include/zhinst/io/elf_writer.hpp:123` —
   `uint64_t memoryOffset_;`.
 - Used as PT_LOAD virtual/physical base in `addCode`
-  (`src/elf_writer.cpp:90-91`).
+  (`src/io/elf_writer.cpp:90-91`).
 - Used as ELF entry point in both `writeFile` overloads
-  (`src/elf_writer.cpp:219, 237`: `set_entry(memoryOffset_)`).
+  (`src/io/elf_writer.cpp:219, 237`: `set_entry(memoryOffset_)`).
 - Setter `setMemoryOffset(uint64_t offset)`
-  (`src/elf_writer.cpp:248-250`) — mangled symbol exists with that
+  (`src/io/elf_writer.cpp:248-250`) — mangled symbol exists with that
   exact method name, so the public verb is fixed.
 
 Interpretation:
@@ -152,20 +152,20 @@ Judgement:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:123`
-- used:     `src/elf_writer.cpp:36, 90-91, 158-159, 219, 237, 250`
+- declared: `include/zhinst/io/elf_writer.hpp:123`
+- used:     `src/io/elf_writer.cpp:36, 90-91, 158-159, 219, 237, 250`
 
 ### `ElfWriter::ElfWriter::machineType`, `ElfWriter::prepareHeader::machineType`  [no / medium / not-misnomer]
 
 Evidence:
 
-- Both signatures take `uint16_t machineType` (`include/zhinst/elf_writer.hpp:68, 74`).
-- Only call site in repo: `src/awg_compiler.cpp:756` —
+- Both signatures take `uint16_t machineType` (`include/zhinst/io/elf_writer.hpp:68, 74`).
+- Only call site in repo: `src/codegen/awg_compiler.cpp:756` —
   `ElfWriter elfWriter(2);`.
 - `notes/elf_format.md:6-10` — main compiler output uses
   `e_machine = 2`, cache uses `e_machine = 3`. The values passed to
   this parameter are exactly the per-variant `e_machine` codes.
-- The recon source comment in `prepareHeader` (`src/elf_writer.cpp:55-65`)
+- The recon source comment in `prepareHeader` (`src/io/elf_writer.cpp:55-65`)
   notes a discrepancy in which ELFIO vtable slot the value goes to,
   but does not affect the parameter's *meaning*.
 
@@ -180,24 +180,24 @@ Judgement:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:68, 74`
-- defined:  `src/elf_writer.cpp:34-43, 55-65`
-- caller:   `src/awg_compiler.cpp:756`
+- declared: `include/zhinst/io/elf_writer.hpp:68, 74`
+- defined:  `src/io/elf_writer.cpp:34-43, 55-65`
+- caller:   `src/codegen/awg_compiler.cpp:756`
 - docs:     `reconstructed/notes/elf_format.md:1-20`
 
 ### `ElfWriter::addWaveform::padSize`  [no / high / not-misnomer]
 
 Evidence:
 
-- Declaration: `include/zhinst/elf_writer.hpp:105` —
+- Declaration: `include/zhinst/io/elf_writer.hpp:105` —
   `detail::AddressImpl<uint32_t> padSize`.
-- Used at `src/elf_writer.cpp:158-159` —
+- Used at `src/io/elf_writer.cpp:158-159` —
   `set_virtual_address(wfPtr->addressValue - padSize);`.
-- Used at `src/elf_writer.cpp:166-178` — gates emission of `.dd_<name>`
+- Used at `src/io/elf_writer.cpp:166-178` — gates emission of `.dd_<name>`
   section and is the size of its zero-fill payload
   (`std::string padding(padSize, '\0'); ddSec->append_data(padding.data(), padding.size());`).
 - Caller-side derivation in `writeWavesToElfAbsolute`
-  (`src/write_waves_to_elf.cpp:148-150`):
+  (`src/waveform/write_waves_to_elf.cpp:148-150`):
   `gap = wf->addressValue - currentOffset; alignMask = -elfAlignment_; padding = gap & alignMask;`
   i.e. an aligned padding count in bytes.
 
@@ -213,17 +213,17 @@ Judgement:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:101-105`
-- defined:  `src/elf_writer.cpp:141-208`
-- caller:   `src/write_waves_to_elf.cpp:117-176`
+- declared: `include/zhinst/io/elf_writer.hpp:101-105`
+- defined:  `src/io/elf_writer.cpp:141-208`
+- caller:   `src/waveform/write_waves_to_elf.cpp:117-176`
 
 ### `ElfWriter::addCode::opcodes`  [no / high / not-misnomer]
 
 Evidence:
 
-- Declaration: `include/zhinst/elf_writer.hpp:81` —
+- Declaration: `include/zhinst/io/elf_writer.hpp:81` —
   `std::vector<uint32_t> const& opcodes`.
-- Used at `src/elf_writer.cpp:83-85`: data is reinterpret-cast to
+- Used at `src/io/elf_writer.cpp:83-85`: data is reinterpret-cast to
   `char const*` and stored in a `.text` section with
   `SHF_ALLOC|SHF_EXECINSTR` and 64-byte alignment.
 - `notes/elf_format.md:39` — `.text` content is described as
@@ -240,17 +240,17 @@ Judgement:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:81`
-- defined:  `src/elf_writer.cpp:75-97`
+- declared: `include/zhinst/io/elf_writer.hpp:81`
+- defined:  `src/io/elf_writer.cpp:75-97`
 - docs:     `reconstructed/notes/elf_format.md:39`
 
 ### `ElfWriter::addData::sectionName`  [no / high / not-misnomer]
 
 Evidence:
 
-- Declaration: `include/zhinst/elf_writer.hpp:84-85` —
+- Declaration: `include/zhinst/io/elf_writer.hpp:84-85` —
   `std::string const& sectionName`.
-- Used at `src/elf_writer.cpp:111` — `sections.add(sectionName)`
+- Used at `src/io/elf_writer.cpp:111` — `sections.add(sectionName)`
   (parameter is forwarded directly to ELFIO's section factory, which
   sets the section's name).
 - Caller-side strings observed in the codebase that flow into this
@@ -269,14 +269,14 @@ Judgement:
 
 Locations consulted:
 
-- declared: `include/zhinst/elf_writer.hpp:84-85`
-- defined:  `src/elf_writer.cpp:108-115`
+- declared: `include/zhinst/io/elf_writer.hpp:84-85`
+- defined:  `src/io/elf_writer.cpp:108-115`
 
 ### `ElfWriter::addWaveform::wfName2` (local)  [yes / medium / —]
 
 Evidence:
 
-- `src/elf_writer.cpp:168-185` — two locals are declared:
+- `src/io/elf_writer.cpp:168-185` — two locals are declared:
   `std::string wfName = wfPtr->name;` (inside the `padSize > 0` block)
   and `std::string wfName2 = wfPtr->name;` (after the block) for the
   `.wf_` section name.
@@ -300,7 +300,7 @@ Proposals:
 
 Locations consulted:
 
-- defined: `src/elf_writer.cpp:168, 185`
+- defined: `src/io/elf_writer.cpp:168, 185`
 
 ### `writeWavesToElfMapped::elfWriter`, `writeWavesToElfAbsolute::elfWriter`  [no / high / not-misnomer]
 
@@ -322,16 +322,16 @@ Judgement:
 
 Locations consulted:
 
-- declared/defined: `src/write_waves_to_elf.cpp:59-87, 117-173`
+- declared/defined: `src/waveform/write_waves_to_elf.cpp:59-87, 117-173`
 
 ### `writeWavesToElfMapped::wavetable`, `writeWavesToElfAbsolute::wavetable`  [no / high / not-misnomer]
 
 Evidence:
 
 - Declared as `std::shared_ptr<WavetableIR> wavetable`
-  (`src/write_waves_to_elf.cpp:61, 119`).
+  (`src/waveform/write_waves_to_elf.cpp:61, 119`).
 - Used as the receiver of `wavetable->forEachUsedWaveform(...)`
-  (`src/write_waves_to_elf.cpp:86, 172`) and
+  (`src/waveform/write_waves_to_elf.cpp:86, 172`) and
   `wavetable->getFirstWaveformOffset()` (`:124`).
 
 Interpretation:
@@ -344,13 +344,13 @@ Judgement:
 
 Locations consulted:
 
-- defined: `src/write_waves_to_elf.cpp:59-87, 117-173`
+- defined: `src/waveform/write_waves_to_elf.cpp:59-87, 117-173`
 
 ### `writeWavesToElfAbsolute::currentOffset` (local)  [no / high / not-misnomer]
 
 Evidence:
 
-- Initialized at `src/write_waves_to_elf.cpp:124` from
+- Initialized at `src/waveform/write_waves_to_elf.cpp:124` from
   `wavetable->getFirstWaveformOffset()`.
 - Updated each iteration to
   `wf->addressValue + rawData->size()` (`:166`), i.e. a running cursor
@@ -367,7 +367,7 @@ Judgement:
 
 Locations consulted:
 
-- defined: `src/write_waves_to_elf.cpp:124, 148, 166`
+- defined: `src/waveform/write_waves_to_elf.cpp:124, 148, 166`
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -401,8 +401,8 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** all in-scope symbols of
-  `include/zhinst/elf_writer.hpp`, `src/elf_writer.cpp`, and
-  `src/write_waves_to_elf.cpp` — i.e. the field `memoryOffset_`, all
+  `include/zhinst/io/elf_writer.hpp`, `src/io/elf_writer.cpp`, and
+  `src/waveform/write_waves_to_elf.cpp` — i.e. the field `memoryOffset_`, all
   parameters of all eight `ElfWriter` methods, all parameters of the
   two free functions, both lambda capture variables, and the
   noteworthy locals.

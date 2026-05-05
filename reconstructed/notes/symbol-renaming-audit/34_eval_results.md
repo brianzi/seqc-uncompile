@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/eval_results.hpp`
-- `reconstructed/src/eval_results.cpp`
+- `reconstructed/include/zhinst/ast/eval_results.hpp`
+- `reconstructed/src/ast/eval_results.cpp`
 
 Cross-batch context: batch 11 (`Value`) and batch 12 (`EvalResultValue`)
 are immediately adjacent — `EvalResults::values_` is a
@@ -114,7 +114,7 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:70
+- declared: include/zhinst/ast/eval_results.hpp:70
 - nm output above
 
 ---
@@ -122,17 +122,17 @@ Locations consulted:
 ### EvalResults::values_  [no / high / not-misnomer]
 
 Evidence:
-- include/zhinst/eval_results.hpp:74 — `std::vector<EvalResultValue> values_;`
+- include/zhinst/ast/eval_results.hpp:74 — `std::vector<EvalResultValue> values_;`
 - The vector type appears verbatim in many mangled symbols, e.g.
   `zhinst::CustomFunctions::setUserReg(std::vector<zhinst::EvalResultValue, …> const&, …)`,
   i.e. the public dispatch signature for built-ins is
   `(vector<EvalResultValue> const&, shared_ptr<Resources>) -> shared_ptr<EvalResults>`
   — the same vector type backs the field here.
-- Read site: src/eval_results.cpp:182-183 — `getValue()` returns
+- Read site: src/ast/eval_results.cpp:182-183 — `getValue()` returns
   `values_.back().value_`.
 - Write sites: every `setValue(...)` overload assigns a
   `std::vector<EvalResultValue>{...}` into `values_`
-  (src/eval_results.cpp:117, 128, 150, 195-197, 209, 222-225,
+  (src/ast/eval_results.cpp:117, 128, 150, 195-197, 209, 222-225,
   236-238, 254, 270).
 - Cross-batch consistency: batch 12 (`EvalResultValue`) found the
   members `varType_`, `varSubType_`, `value_`, `reg_` to be
@@ -151,9 +151,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:74
-- read:    src/eval_results.cpp:182,183
-- written: src/eval_results.cpp:67,117,128,150,195,209,222,236,254,270
+- declared: include/zhinst/ast/eval_results.hpp:74
+- read:    src/ast/eval_results.cpp:182,183
+- written: src/ast/eval_results.cpp:67,117,128,150,195,209,222,236,254,270
 - nm output above
 
 ---
@@ -161,13 +161,13 @@ Locations consulted:
 ### EvalResults::assemblers_  [no / medium]
 
 Evidence:
-- include/zhinst/eval_results.hpp:75 — `std::vector<AsmList::Asm> assemblers_;`
-- src/eval_results.cpp:101-104 — `addAssembler(entry)` calls
+- include/zhinst/ast/eval_results.hpp:75 — `std::vector<AsmList::Asm> assemblers_;`
+- src/ast/eval_results.cpp:101-104 — `addAssembler(entry)` calls
   `assemblers_.push_back(entry)`.
 - Header note: "addAssembler @0x15c1b0 pushes to vector at +0x18 with
   element stride 0xa8" (matches `sizeof(AsmList::Asm)`).
 - Other recon code accumulates instructions through this field
-  indirectly via `addAssembler` (e.g. src/custom_functions_io.cpp:327
+  indirectly via `addAssembler` (e.g. src/runtime/custom_functions_io.cpp:327
   `results->addAssembler(asmEntry);`) and via copy-ctor and dtor walks
   of the vector (header ll. 33-35).
 
@@ -189,9 +189,9 @@ Proposals:
   recommended without a stronger signal.
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:75
-- written via push_back: src/eval_results.cpp:103
-- written elsewhere: src/custom_functions_io.cpp:327; many other
+- declared: include/zhinst/ast/eval_results.hpp:75
+- written via push_back: src/ast/eval_results.cpp:103
+- written elsewhere: src/runtime/custom_functions_io.cpp:327; many other
   `results->addAssembler(...)` call sites (45+ across recon).
 
 ---
@@ -199,19 +199,19 @@ Locations consulted:
 ### EvalResults::hasError_  [yes / medium]
 
 Evidence:
-- include/zhinst/eval_results.hpp:76 — `bool hasError_ = false;`
+- include/zhinst/ast/eval_results.hpp:76 — `bool hasError_ = false;`
 - `reconstructed/notes/incidental_findings.md` IF-30 (status: fixed):
   > The reconstruction had `hasError_ = true` inside the node-chaining
   > block (whenever `childResult->node_` was non-null). The binary
   > (0x212800) has two completely separate paths: childHadError==0
   > does name-building + node-chaining only; childHadError==1 does
   > return-value extraction + hasError_=true + break.
-- src/seqc_ast_nodes_evaluate.cpp:5793-5831 (SeqCReturnStatement::
+- src/ast/seqc_ast_nodes_evaluate.cpp:5793-5831 (SeqCReturnStatement::
   evaluate): "sets `result->hasError_ = true` to signal 'return was
   encountered' to the enclosing statement-list".
-- src/seqc_ast_nodes_evaluate.cpp:6306 — `result->hasError_ = true;`
+- src/ast/seqc_ast_nodes_evaluate.cpp:6306 — `result->hasError_ = true;`
   is set when a child evaluated to a `SeqCReturnStatement`.
-- src/seqc_ast_nodes_evaluate.cpp:6125, 6188, 6267 — propagation:
+- src/ast/seqc_ast_nodes_evaluate.cpp:6125, 6188, 6267 — propagation:
   `result->hasError_ = result->hasError_ || childResult->hasError_;`.
   The local that drives the break is named `childHadError`.
 - The flag is consumed solely as a control-flow signal: after a child
@@ -241,10 +241,10 @@ Proposals:
   comments adequate compensation for the misleading name.
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:76
-- written: src/seqc_ast_nodes_evaluate.cpp:6072, 6125, 6188, 6267,
-  6306; src/eval_results.cpp:69 (default-init false)
-- read:    src/seqc_ast_nodes_evaluate.cpp:6125, 6188, 6267
+- declared: include/zhinst/ast/eval_results.hpp:76
+- written: src/ast/seqc_ast_nodes_evaluate.cpp:6072, 6125, 6188, 6267,
+  6306; src/ast/eval_results.cpp:69 (default-init false)
+- read:    src/ast/seqc_ast_nodes_evaluate.cpp:6125, 6188, 6267
 - discussed: notes/incidental_findings.md IF-23, IF-30
 
 ---
@@ -252,7 +252,7 @@ Locations consulted:
 ### EvalResults::node_  [no / low]
 
 Evidence:
-- include/zhinst/eval_results.hpp:77 — `std::shared_ptr<Node> node_;`
+- include/zhinst/ast/eval_results.hpp:77 — `std::shared_ptr<Node> node_;`
 - The header note (ll. 33-34) says destruction order destroys
   "shared_ptr +0x38" alongside the other shared_ptrs, confirming the
   type and offset.
@@ -278,8 +278,8 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:77
-- header note: include/zhinst/eval_results.hpp:33-35
+- declared: include/zhinst/ast/eval_results.hpp:77
+- header note: include/zhinst/ast/eval_results.hpp:33-35
 - referenced: notes/incidental_findings.md IF-23, IF-30
 
 ---
@@ -287,14 +287,14 @@ Locations consulted:
 ### EvalResults::waveformFront_  [no / high]
 
 Evidence:
-- include/zhinst/eval_results.hpp:78 — `std::shared_ptr<WaveformFront> waveformFront_;`
-- src/waveform_generator.cpp:409-410 — comment
+- include/zhinst/ast/eval_results.hpp:78 — `std::shared_ptr<WaveformFront> waveformFront_;`
+- src/waveform/waveform_generator.cpp:409-410 — comment
   `// 0x25c63c-0x25c640: store wf into results->waveformFront_ (+0x48)`
   and the code `results->waveformFront_ = std::move(wf);`.
-- src/seqc_ast_nodes_evaluate.cpp:3261, 3288, 3291 — propagation in
+- src/ast/seqc_ast_nodes_evaluate.cpp:3261, 3288, 3291 — propagation in
   SeqCAssign: `aux->waveformFront_` and `rhsResult.waveformFront_`
   feed `result->waveformFront_`.
-- src/seqc_ast_nodes_evaluate.cpp:6791 —
+- src/ast/seqc_ast_nodes_evaluate.cpp:6791 —
   `result->waveformFront_->secondaryName = result->name_;` (e.g.
   "zeros(64)") — clearly accesses a `WaveformFront`.
 - The type name `WaveformFront` is in the binary symbol table (e.g.
@@ -315,27 +315,27 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:78
-- written: src/waveform_generator.cpp:410; src/seqc_ast_nodes_evaluate.cpp:3261,3288
-- read:    src/seqc_ast_nodes_evaluate.cpp:3291,6791
+- declared: include/zhinst/ast/eval_results.hpp:78
+- written: src/waveform/waveform_generator.cpp:410; src/ast/seqc_ast_nodes_evaluate.cpp:3261,3288
+- read:    src/ast/seqc_ast_nodes_evaluate.cpp:3291,6791
 
 ---
 
 ### EvalResults::name_  [unsure / low]
 
 Evidence:
-- include/zhinst/eval_results.hpp:79 — `std::string name_;`
+- include/zhinst/ast/eval_results.hpp:79 — `std::string name_;`
 - Used in three semantically different ways at write sites:
   1. **Identifier name** — set to the SeqC variable identifier when
      evaluating a variable declaration:
-     - src/seqc_ast_nodes_evaluate.cpp:3052 `result->name_ = name;`
+     - src/ast/seqc_ast_nodes_evaluate.cpp:3052 `result->name_ = name;`
        (the declaration's identifier, fed in as the local `name`).
      - read at 5155, 5183 as `lhsResult.name_` / `rhsResult.name_`
        passed to `res.get()->updateCvar(<name>, …)` — this is a real
        variable-table lookup key.
   2. **Reconstructed source-text** — set to the textual form of the
      evaluated expression:
-     - src/seqc_ast_nodes_evaluate.cpp:3735 `lhsResult.name_ + " + " + rhsResult.name_`
+     - src/ast/seqc_ast_nodes_evaluate.cpp:3735 `lhsResult.name_ + " + " + rhsResult.name_`
      - 4090 `… + " - " + …`, 4295 `… + " * " + …`, 4525 `… + " / " + …`,
        4707, 4722, 4737, 4752, 4767, 4784, 4802, 4820, 4841, 4859,
        4902, 4945, 5038, 5224, 5388 (all comparison/logical/shift/
@@ -379,8 +379,8 @@ Proposals:
   fits role (1) less well (variable names are not just for display).
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:79
-- written: src/seqc_ast_nodes_evaluate.cpp:2813, 2843, 3052, 3375,
+- declared: include/zhinst/ast/eval_results.hpp:79
+- written: src/ast/seqc_ast_nodes_evaluate.cpp:2813, 2843, 3052, 3375,
   3735, 4090, 4295, 4525, 4707-4859, 4902, 4945, 5038, 5224, 5388,
   5831, 5857, 6129, 6131, 6192, 6194, 6273, 6275, 6427, 6661, 6663,
   6681, 6764, 6766, 6783, 7020, 7250, 7572, 8127, 8633, 8706 (124+
@@ -393,13 +393,13 @@ Locations consulted:
 ### EvalResults::arrayBacking_  [no / medium]
 
 Evidence:
-- include/zhinst/eval_results.hpp:80 — `std::shared_ptr<EvalResults> arrayBacking_;`
+- include/zhinst/ast/eval_results.hpp:80 — `std::shared_ptr<EvalResults> arrayBacking_;`
 - Header comment ll. 36-39:
   > SeqCArray::evaluate @0x211140 writes shared_ptr<EvalResults> into
   > ER+0x70 at 0x211798/0x2117a0 — identifies the arrayBacking_ field.
   > SeqCAssign::evaluate @0x243e60 propagates +0x70 from rhs if
   > non-null (check at 0x243f13).
-- src/seqc_ast_nodes_evaluate.cpp:3094-3101:
+- src/ast/seqc_ast_nodes_evaluate.cpp:3094-3101:
   > 3. If `lhsResult.arrayBacking_` (field at +0x70) is non-null,
   >    REPLACE aux with lhsResult.arrayBacking_.   // @0x243f13-243f5c
   > 4. SeqCArray::evaluate (the rhs of `arr[i] = expr;`) … stores the
@@ -427,9 +427,9 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:80
+- declared: include/zhinst/ast/eval_results.hpp:80
 - written: header note at line 36 (binary @0x211798/0x2117a0)
-- read:    src/seqc_ast_nodes_evaluate.cpp:3100, 3101 (and binary
+- read:    src/ast/seqc_ast_nodes_evaluate.cpp:3100, 3101 (and binary
   @0x243f13)
 - cross-ref: notes/frontend_lowering.md:43-45
 
@@ -438,7 +438,7 @@ Locations consulted:
 ### EvalResults::EvalResults(VarType type)  [param `type`: no / high]
 
 Evidence:
-- src/eval_results.cpp:66-67 — the parameter is forwarded directly to
+- src/ast/eval_results.cpp:66-67 — the parameter is forwarded directly to
   `makeERV(type)`, which sets `ev.varType_ = type;` (line 36).
 
 Interpretation:
@@ -453,15 +453,15 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- defined: src/eval_results.cpp:66
-- declared: include/zhinst/eval_results.hpp:85
+- defined: src/ast/eval_results.cpp:66
+- declared: include/zhinst/ast/eval_results.hpp:85
 
 ---
 
 ### EvalResults::EvalResults(EvalResults const& other)  [param `other`: no / high]
 
 Evidence:
-- src/eval_results.cpp:161-169 — every member is initialized from
+- src/ast/eval_results.cpp:161-169 — every member is initialized from
   `other.<member>` in declaration order; this is a textbook copy ctor.
 
 Interpretation:
@@ -476,14 +476,14 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- defined: src/eval_results.cpp:161
+- defined: src/ast/eval_results.cpp:161
 
 ---
 
 ### EvalResults::addAssembler::entry  [no / medium]
 
 Evidence:
-- src/eval_results.cpp:101-104 — the parameter is pushed into the
+- src/ast/eval_results.cpp:101-104 — the parameter is pushed into the
   `assemblers_` vector via `assemblers_.push_back(entry);`.
 - Type is `AsmList::Asm const&` (one assembler-list entry).
 
@@ -502,8 +502,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- defined: src/eval_results.cpp:101
-- declared: include/zhinst/eval_results.hpp:118
+- defined: src/ast/eval_results.cpp:101
+- declared: include/zhinst/ast/eval_results.hpp:118
 
 ---
 
@@ -543,7 +543,7 @@ on which there is anything to say is the string parameter:
 #### EvalResults::setValue(VarType, std::string const&)::s  [unsure / low]
 
 Evidence:
-- src/eval_results.cpp:234-238 — `s` is wrapped in `Value(s)` and
+- src/ast/eval_results.cpp:234-238 — `s` is wrapped in `Value(s)` and
   stored in `ev.value_`.
 - Type is `std::string const&`.
 - Other overloads use `val` for the embedded-Value source; this one
@@ -567,15 +567,15 @@ Proposals:
 - `val` (low) — would harmonize with the other overloads.
 
 Locations consulted:
-- declared: include/zhinst/eval_results.hpp:106
-- defined:  src/eval_results.cpp:234
+- declared: include/zhinst/ast/eval_results.hpp:106
+- defined:  src/ast/eval_results.cpp:234
 
 ---
 
 ### Anonymous-namespace helper `makeERV`  [no / low]
 
 Evidence:
-- src/eval_results.cpp:33-50 — defined in an anonymous namespace as a
+- src/ast/eval_results.cpp:33-50 — defined in an anonymous namespace as a
   factory for default-initialized `EvalResultValue` instances; used
   by several `setValue` overloads (lines 67, 117, 128, 196, 209, 224,
   237).
@@ -597,7 +597,7 @@ Proposals:
   trade-off only.
 
 Locations consulted:
-- defined: src/eval_results.cpp:33, 43
+- defined: src/ast/eval_results.cpp:33, 43
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -617,9 +617,9 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** every named symbol declared in
-  `include/zhinst/eval_results.hpp` (1 type, 7 fields, 14 method
+  `include/zhinst/ast/eval_results.hpp` (1 type, 7 fields, 14 method
   signatures with all of their named parameters) and every named
-  symbol defined in `src/eval_results.cpp` (the same plus the
+  symbol defined in `src/ast/eval_results.cpp` (the same plus the
   anonymous-namespace `makeERV` helper).
 - **Deferred:** none.
 - **Not covered (out of scope per RULES §2/§3):**

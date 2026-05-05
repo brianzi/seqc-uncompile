@@ -10,7 +10,7 @@ Reconstructed in Phase 15a-i (2026-04-23).
 
 ### EvalResults (0x80 bytes)
 
-New file: `include/zhinst/eval_results.hpp`
+New file: `include/zhinst/ast/eval_results.hpp`
 
 Central result type of the frontend lowering pipeline. Every SeqC
 built-in function and every `SeqCAstNode::evaluate()` virtual returns
@@ -119,16 +119,16 @@ once SeqCAstNode's evaluate vtable entry is declared.
 ## Files changed
 
 ### New
-- `reconstructed/include/zhinst/eval_results.hpp` — full EvalResults layout + 14 method decls
+- `reconstructed/include/zhinst/ast/eval_results.hpp` — full EvalResults layout + 14 method decls
 - `reconstructed/notes/frontend_lowering.md` — this file
 
 ### Modified
-- `include/zhinst/value.hpp` — layout corrected (0x20→0x28), static_assert updated
-- `include/zhinst/custom_functions.hpp` — EvalResultValue fields renamed; added includes for value.hpp and asm_register.hpp
-- `include/zhinst/frontend_lowering.hpp` — FrontendLoweringState.result typed as shared_ptr<Node>; added Node forward decl
-- `include/zhinst/compiler.hpp` — lower() return type changed to LowerResult; LowerResult struct added; EvalResults forward decl added
-- `src/compiler.cpp` — lower() body partially implemented (Context+State setup, return); included frontend_lowering.hpp
-- `src/custom_functions.cpp` — EvalResultValue dtor delegates to Value::~Value()
+- `include/zhinst/ast/value.hpp` — layout corrected (0x20→0x28), static_assert updated
+- `include/zhinst/runtime/custom_functions.hpp` — EvalResultValue fields renamed; added includes for value.hpp and asm_register.hpp
+- `include/zhinst/ast/frontend_lowering.hpp` — FrontendLoweringState.result typed as shared_ptr<Node>; added Node forward decl
+- `include/zhinst/codegen/compiler.hpp` — lower() return type changed to LowerResult; LowerResult struct added; EvalResults forward decl added
+- `src/codegen/compiler.cpp` — lower() body partially implemented (Context+State setup, return); included frontend_lowering.hpp
+- `src/runtime/custom_functions.cpp` — EvalResultValue dtor delegates to Value::~Value()
 
 ## Build
 

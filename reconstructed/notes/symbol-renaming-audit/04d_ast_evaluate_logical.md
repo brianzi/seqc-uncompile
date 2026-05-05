@@ -10,7 +10,7 @@
 > Individual rows below are NOT struck through; consult §6 for status.
 
 Comparison/logical/unary `evaluate()` overrides in
-`reconstructed/src/seqc_ast_nodes_evaluate.cpp`, **lines 4691–5800**.
+`reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp`, **lines 4691–5800**.
 Covers `SeqCGreater`, `SeqCEqual`, `SeqCShiftL`, `SeqCShiftR`,
 `SeqCAndExpr`, `SeqCOrExpr`, `SeqCLEqual`, `SeqCNEqual`, `SeqCLower`,
 `SeqCGEqual`, `SeqCLogAnd`, `SeqCLogOr`, `SeqCMod`, `SeqCInc`,
@@ -18,11 +18,11 @@ Covers `SeqCGreater`, `SeqCEqual`, `SeqCShiftL`, `SeqCShiftR`,
 
 ## 1. Files considered
 
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` lines 4691–5800
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` lines 4691–5800
   (only the 18 `evaluate()` method bodies in this range).
 
 Out of scope (handled by sibling batches):
-- header `reconstructed/include/zhinst/seqc_ast_nodes.hpp` (04a)
+- header `reconstructed/include/zhinst/ast/seqc_ast_node.hpp` (04a)
 - 04b/04c: lines 1–4690
 - 04e: lines 5801+ (starts at `SeqCReturnStatement::evaluate`)
 
@@ -171,7 +171,7 @@ Cross-reference:
   `assemblers_`.
 
 Locations consulted:
-- declared: 18 sites in src/seqc_ast_nodes_evaluate.cpp 4691–5800.
+- declared: 18 sites in src/ast/seqc_ast_nodes_evaluate.cpp 4691–5800.
 - used:     pervasively within each method.
 
 ### SeqC<Op>::evaluate::ctx  [no / high / not-misnomer]
@@ -263,7 +263,7 @@ Proposals:
 - keep current                    (low)
 
 Locations consulted:
-- declared: src/seqc_ast_nodes_evaluate.cpp:5069, 5070, 5248, 5249.
+- declared: src/ast/seqc_ast_nodes_evaluate.cpp:5069, 5070, 5248, 5249.
 - used:     5073, 5115, 5146, 5177, 5207, 5214, 5252, 5290, 5318,
             5345, 5372, 5379.
 
@@ -299,7 +299,7 @@ Cross-reference:
 - Batch 06 — `AsmRegister`.
 
 Locations consulted:
-- src/seqc_ast_nodes_evaluate.cpp:5102, 5107, 5131–5138, 5277,
+- src/ast/seqc_ast_nodes_evaluate.cpp:5102, 5107, 5131–5138, 5277,
   5282, 5303–5310.
 
 ### SeqCMod::evaluate::errLhs / errRhs  [unsure / low]
@@ -354,7 +354,7 @@ Cross-reference:
 - Batch 10 — `AsmCommands`.
 
 Locations consulted:
-- declared: src/seqc_ast_nodes_evaluate.cpp:5457, 5571.
+- declared: src/ast/seqc_ast_nodes_evaluate.cpp:5457, 5571.
 - used:     5460, 5470, 5577, 5588, 5601.
 
 ### SeqCInc::evaluate::asmCmd  vs  SeqCNeg::evaluate::asmCtx  [no / low]
@@ -410,7 +410,7 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- src/seqc_ast_nodes_evaluate.cpp:5717–5731.
+- src/ast/seqc_ast_nodes_evaluate.cpp:5717–5731.
 
 ### SeqC{LEqual,NEqual,GEqual}::evaluate::greaterResult / equalResult / lowerResult  [no / high]
 
@@ -477,7 +477,7 @@ Looked at, no separate block needed:
 ## 5. Coverage
 
 - **Fully covered:** all 18 `evaluate()` method bodies in
-  src/seqc_ast_nodes_evaluate.cpp lines 4691–5800
+  src/ast/seqc_ast_nodes_evaluate.cpp lines 4691–5800
   (`SeqCGreater`, `SeqCEqual`, `SeqCShiftL`, `SeqCShiftR`,
    `SeqCAndExpr`, `SeqCOrExpr`, `SeqCLEqual`, `SeqCNEqual`,
    `SeqCLower`, `SeqCGEqual`, `SeqCLogAnd`, `SeqCLogOr`, `SeqCMod`,

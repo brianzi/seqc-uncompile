@@ -1,6 +1,6 @@
 # Batch 01 — types.hpp
 
-File: `reconstructed/include/zhinst/types.hpp` (156 lines)
+File: `reconstructed/include/zhinst/core/types.hpp` (156 lines)
 
 ## Preamble — what is in this file
 
@@ -58,7 +58,7 @@ scope. None were eligible for an in-scope judgement.
 
 ## Coverage
 
-- **Fully covered:** `reconstructed/include/zhinst/types.hpp` — every
+- **Fully covered:** `reconstructed/include/zhinst/core/types.hpp` — every
   declaration in the file was inspected and classified. No in-scope
   symbols exist in this header, so zero suspect blocks are produced.
 - **Deferred / not covered:** none.

@@ -2,8 +2,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/callbacks.hpp`
-- `reconstructed/src/callbacks.cpp`
+- `reconstructed/include/zhinst/core/callbacks.hpp`
+- `reconstructed/src/core/callbacks.cpp`
 
 ## 2. Overview
 
@@ -16,9 +16,9 @@
 ### ProgressCallback::setProgress::progress  [no / medium / —]
 
 Evidence:
-- include/zhinst/callbacks.hpp:48 `virtual void setProgress(double progress);`
-- src/callbacks.cpp:17 `void ProgressCallback::setProgress(double /*progress*/) {`
-- src/awg_compiler.cpp:515 `progress->setProgress(1.0);` (call site, where `progress` here is the
+- include/zhinst/core/callbacks.hpp:48 `virtual void setProgress(double progress);`
+- src/core/callbacks.cpp:17 `void ProgressCallback::setProgress(double /*progress*/) {`
+- src/codegen/awg_compiler.cpp:515 `progress->setProgress(1.0);` (call site, where `progress` here is the
   shared_ptr lock of `progressCallback_`, not the parameter — but the magnitude
   passed, `1.0`, is the only call site found and is consistent with a
   fractional progress value in [0, 1]).
@@ -42,9 +42,9 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/callbacks.hpp:48
-- defined:  src/callbacks.cpp:17
-- used:     src/awg_compiler.cpp:515 (only non-commented call site found)
+- declared: include/zhinst/core/callbacks.hpp:48
+- defined:  src/core/callbacks.cpp:17
+- used:     src/codegen/awg_compiler.cpp:515 (only non-commented call site found)
 
 ## 4. Symbols inspected and judged routinely fine
 

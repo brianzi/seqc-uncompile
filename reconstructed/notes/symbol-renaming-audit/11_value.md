@@ -11,13 +11,13 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/value.hpp`
-- `reconstructed/src/value.cpp`
+- `reconstructed/include/zhinst/ast/value.hpp`
+- `reconstructed/src/ast/value.cpp`
 
 Adjacent (read for cross-reference, not in scope here):
-- `reconstructed/include/zhinst/address_impl.hpp` — owns `AddressImpl<T>` and
+- `reconstructed/include/zhinst/asm/address_impl.hpp` — owns `AddressImpl<T>` and
   its `value` member, header itself out of scope per the assignment.
-- `reconstructed/include/zhinst/eval_result_value.hpp` — for the
+- `reconstructed/include/zhinst/ast/eval_result_value.hpp` — for the
   cross-batch arbitration on `Value::value_` (see §3).
 
 `nm --demangle _seqc_compiler.so` was consulted for type/method exclusion.
@@ -131,8 +131,8 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:60
-- defined:  src/value.cpp:40-44
+- declared: include/zhinst/ast/value.hpp:60
+- defined:  src/ast/value.cpp:40-44
 - used: pervasively at hundreds of `Immediate(intExpr)` call sites in
   `custom_functions_play.cpp`, `prefetch_*.cpp`, `asm_commands.cpp` —
   all positional, no keyword arguments visible.
@@ -167,8 +167,8 @@ Proposals:
 - `tag_` (low)
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:55
-- used: src/value.cpp:35,41,47,53,58,69-94,97-110,120-124,130,140-148,156-163,172-180,190-196
+- declared: include/zhinst/ast/value.hpp:55
+- used: src/ast/value.cpp:35,41,47,53,58,69-94,97-110,120-124,130,140-148,156-163,172-180,190-196
 
 ### Immediate::data_  [unsure / low / —]
 
@@ -193,8 +193,8 @@ Proposals:
 - `storage_` (low) — matches `Value::storage_`
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:54
-- used: throughout src/value.cpp (lines above)
+- declared: include/zhinst/ast/value.hpp:54
+- used: throughout src/ast/value.cpp (lines above)
 
 ### VariantSlot (enum type) and its members  [yes / medium / —]
 
@@ -235,7 +235,7 @@ Proposals:
 - rename to `WhichSlot` to match `which_` (low)
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:122-129
+- declared: include/zhinst/ast/value.hpp:122-129
 - references: none in src/**.cpp; only notes/magic_numbers_proposal.md:63
 
 ### Value::pad_04_  [yes / high / cross-batch-arbitration]
@@ -307,10 +307,10 @@ Cross-reference:
   (`12_eval_result_value.md`).
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:168-171
-- written:  src/value.cpp:255 (`pad_04_{}`), 275, 285; hpp:190-192
-- referenced in comments: src/resources.cpp:589-590, 947-948
-- counterpart: include/zhinst/eval_result_value.hpp:42-46
+- declared: include/zhinst/ast/value.hpp:168-171
+- written:  src/ast/value.cpp:255 (`pad_04_{}`), 275, 285; hpp:190-192
+- referenced in comments: src/runtime/resources.cpp:589-590, 947-948
+- counterpart: include/zhinst/ast/eval_result_value.hpp:42-46
 
 ### Value::which_  [no / medium / —]
 
@@ -337,10 +337,10 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:170
-- used: src/value.cpp:238,277,287,294,297,302-303,312,314,318-319,496;
-  src/resources.cpp:198,512,549,595,602,609,616,651,976,1015,1062,1120,1242,1347,1495,1537,1605,1652;
-  src/waveform_generator.cpp:167; src/custom_functions.cpp:772,785,787,796
+- declared: include/zhinst/ast/value.hpp:170
+- used: src/ast/value.cpp:238,277,287,294,297,302-303,312,314,318-319,496;
+  src/runtime/resources.cpp:198,512,549,595,602,609,616,651,976,1015,1062,1120,1242,1347,1495,1537,1605,1652;
+  src/waveform/waveform_generator.cpp:167; src/runtime/custom_functions.cpp:772,785,787,796
 
 ### ValueException::msg_  [no / high / not-misnomer]
 
@@ -361,8 +361,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:104
-- used: src/value.cpp:216,222,226; referenced in src/seqc_ast_nodes_evaluate.cpp:3378
+- declared: include/zhinst/ast/value.hpp:104
+- used: src/ast/value.cpp:216,222,226; referenced in src/ast/seqc_ast_nodes_evaluate.cpp:3378
 
 ### Value::Storage and its slot members  [no / high / not-misnomer]
 
@@ -395,7 +395,7 @@ Judgement:
   identifies its content unambiguously.
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:172-182
+- declared: include/zhinst/ast/value.hpp:172-182
 - used: every `storage_.*` reference cited under `Value::which_`.
 
 ### Value::pad_0C_  [unsure / low / —]
@@ -420,8 +420,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/value.hpp:171
-- written:  src/value.cpp:257,275,285; hpp:190-192
+- declared: include/zhinst/ast/value.hpp:171
+- written:  src/ast/value.cpp:257,275,285; hpp:190-192
 
 ## 4. Symbols inspected and judged routinely fine
 

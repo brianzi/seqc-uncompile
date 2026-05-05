@@ -11,14 +11,14 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/address_impl.hpp` (header-only template; no .cpp).
+- `reconstructed/include/zhinst/asm/address_impl.hpp` (header-only template; no .cpp).
 
 Cross-referenced (read-only) for usage survey:
-- `reconstructed/src/value.cpp`
-- `reconstructed/src/asm_commands.cpp`
-- `reconstructed/src/prefetch.cpp`, `prefetch_emit.cpp`
-- `reconstructed/src/wavetable_front.cpp`, `wavetable_ir.cpp`
-- `reconstructed/src/custom_functions_io.cpp`, `custom_functions_play.cpp`
+- `reconstructed/src/ast/value.cpp`
+- `reconstructed/src/asm/asm_commands.cpp`
+- `reconstructed/src/codegen/prefetch.cpp`, `prefetch_emit.cpp`
+- `reconstructed/src/waveform/wavetable_front.cpp`, `wavetable_ir.cpp`
+- `reconstructed/src/runtime/custom_functions_io.cpp`, `custom_functions_play.cpp`
 
 `nm --demangle` confirms (excluded from rename per §3):
 - Type `zhinst::detail::AddressImpl<unsigned int>` — appears in many mangled
@@ -86,7 +86,7 @@ Proposals:
 - `bits_`  (low) — neutral, drops the address connotation.
 
 Locations consulted:
-- declared: include/zhinst/address_impl.hpp:20
+- declared: include/zhinst/asm/address_impl.hpp:20
 - used:     value.cpp:26,43,142,158,176,191; prefetch_emit.cpp:59;
   wavetable_front.cpp:57-58; wavetable_ir.cpp:58-59,99-100;
   asm_commands.cpp:520,533,659.

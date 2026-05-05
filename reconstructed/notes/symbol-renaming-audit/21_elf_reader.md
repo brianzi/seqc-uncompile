@@ -11,11 +11,11 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/elf_reader.hpp`
-- `reconstructed/src/elf_reader.cpp`
+- `reconstructed/include/zhinst/io/elf_reader.hpp`
+- `reconstructed/src/io/elf_reader.cpp`
 
 Cross-referenced for usage:
-- `reconstructed/src/cached_parser.cpp` (only known consumer of `ElfReader`).
+- `reconstructed/src/io/cached_parser.cpp` (only known consumer of `ElfReader`).
 
 ## 2. Overview
 
@@ -76,17 +76,17 @@ side-observation): the reconstruction places `ElfException` inside
 type-shape concern, not a renaming finding.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:75
-- defined:  src/elf_reader.cpp:36,41,44
+- declared: include/zhinst/io/elf_reader.hpp:75
+- defined:  src/io/elf_reader.cpp:36,41,44
 
 ### `ElfReader::formatSection_`  [unsure / medium / —]
 
 Evidence:
-- include/zhinst/elf_reader.hpp:153 declares the field at +0x70.
-- src/elf_reader.cpp:124-126 — assigned only when `name == ".format"`.
-- src/elf_reader.cpp:159-171 — `getCode()` reads its raw bytes,
+- include/zhinst/io/elf_reader.hpp:153 declares the field at +0x70.
+- src/io/elf_reader.cpp:124-126 — assigned only when `name == ".format"`.
+- src/io/elf_reader.cpp:159-171 — `getCode()` reads its raw bytes,
   size-aligned to 4.
-- src/cached_parser.cpp:317,361,378 — the `.format` section in cached
+- src/io/cached_parser.cpp:317,361,378 — the `.format` section in cached
   ELFs holds a single byte `'3'` (the cache-format version).
 
 Interpretation:
@@ -107,17 +107,17 @@ Proposals:
 - `dotFormatSection_` (low)
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:153
-- used:     src/elf_reader.cpp:124-126,159-171
+- declared: include/zhinst/io/elf_reader.hpp:153
+- used:     src/io/elf_reader.cpp:124-126,159-171
 
 ### `ElfReader::ddSections_`  [no / high / —]
 
 Evidence:
-- src/elf_reader.cpp:134-136 — populated for any section whose name
+- src/io/elf_reader.cpp:134-136 — populated for any section whose name
   starts with `.dd`.
-- src/elf_writer.cpp:167-169 — ElfWriter creates sections named
+- src/io/elf_writer.cpp:167-169 — ElfWriter creates sections named
   `.dd_<wfName>` (zero-padding sections per waveform).
-- src/elf_reader.cpp:178 — `getWaveform()` indexes into this vector.
+- src/io/elf_reader.cpp:178 — `getWaveform()` indexes into this vector.
 
 Interpretation:
 - The container holds exactly the sections whose name has the `.dd`
@@ -127,15 +127,15 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:154
-- used:     src/elf_reader.cpp:134-136,177-178
+- declared: include/zhinst/io/elf_reader.hpp:154
+- used:     src/io/elf_reader.cpp:134-136,177-178
 
 ### `ElfReader::ddSectionIndex_`  [unsure / low / —]
 
 Evidence:
-- include/zhinst/elf_reader.hpp:24,159 — comment says
+- include/zhinst/io/elf_reader.hpp:24,159 — comment says
   "ddSectionIndex_ / unused dword (zeroed by ctor; purpose unknown)".
-- src/elf_reader.cpp:177 — used as the index into `ddSections_` in
+- src/io/elf_reader.cpp:177 — used as the index into `ddSections_` in
   `getWaveform()`. Always 0 because nothing ever writes to it.
 - No write site exists in the file; not exposed via setter.
 
@@ -154,14 +154,14 @@ Proposals:
   vestigial.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:159
-- used:     src/elf_reader.cpp:177
+- declared: include/zhinst/io/elf_reader.hpp:159
+- used:     src/io/elf_reader.cpp:177
 
 ### `ElfReader::readHeader` (method)  [yes / medium / not-misnomer]
 
 Evidence:
 - `nm --demangle` shows `zhinst::ElfReader::readHeader()` at 0x2c3850.
-- src/elf_reader.cpp:109-138 — the method does not parse the ELF header
+- src/io/elf_reader.cpp:109-138 — the method does not parse the ELF header
   (ELFIO already did that in `load(path)`); it walks the section table
   and partitions sections into `formatSection_` / `ddSections_`.
 
@@ -179,14 +179,14 @@ Proposals:
 - keep current  (high) — required by §3.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:149
-- defined:  src/elf_reader.cpp:109
+- declared: include/zhinst/io/elf_reader.hpp:149
+- defined:  src/io/elf_reader.cpp:109
 
 ### `ElfReader::getCode` (method)  [yes / medium / not-misnomer]
 
 Evidence:
 - `nm --demangle` shows `zhinst::ElfReader::getCode() const` at 0x2c3bc0.
-- src/elf_reader.cpp:159-171 — returns the raw bytes of the section
+- src/io/elf_reader.cpp:159-171 — returns the raw bytes of the section
   cached as `formatSection_`, i.e. the `.format` section (which holds a
   single version byte, per cached_parser.cpp:317,361).
 
@@ -202,17 +202,17 @@ Proposals:
 - keep current  (high) — required by §3.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:133
-- defined:  src/elf_reader.cpp:159
+- declared: include/zhinst/io/elf_reader.hpp:133
+- defined:  src/io/elf_reader.cpp:159
 
 ### `ElfReader::getWaveform` (method)  [unsure / low / not-misnomer]
 
 Evidence:
 - `nm --demangle` shows `zhinst::ElfReader::getWaveform() const` at 0x2c3d40.
-- src/elf_reader.cpp:175-188 — returns raw bytes of
+- src/io/elf_reader.cpp:175-188 — returns raw bytes of
   `ddSections_[ddSectionIndex_]`, i.e. one of the `.dd_<wfName>`
   sections.
-- src/elf_writer.cpp:167-169 — `.dd_<name>` sections are zero-padding
+- src/io/elf_writer.cpp:167-169 — `.dd_<name>` sections are zero-padding
   sections inserted alongside the actual waveform data.
 
 Interpretation:
@@ -228,15 +228,15 @@ Proposals:
 - keep current  (high) — required by §3.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:136
-- defined:  src/elf_reader.cpp:175
+- declared: include/zhinst/io/elf_reader.hpp:136
+- defined:  src/io/elf_reader.cpp:175
 
 ### `ElfReader::SectionData::format`  [yes / medium / —]
 
 Evidence:
-- include/zhinst/elf_reader.hpp:122 — `std::uint32_t format = 0;
+- include/zhinst/io/elf_reader.hpp:122 — `std::uint32_t format = 0;
   // section type from ELFIO header`.
-- src/elf_reader.cpp:162,180 — assigned `sec->get_type()`, i.e. the
+- src/io/elf_reader.cpp:162,180 — assigned `sec->get_type()`, i.e. the
   ELF section type (SHT_PROGBITS, SHT_NOBITS, …), an ELF-spec field
   literally named `sh_type`.
 
@@ -256,14 +256,14 @@ Proposals:
 - keep current   (low)
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:122
-- used:     src/elf_reader.cpp:162,180
+- declared: include/zhinst/io/elf_reader.hpp:122
+- used:     src/io/elf_reader.cpp:162,180
 
 ### `ElfReader::Line::addr`  [unsure / low / —]
 
 Evidence:
-- include/zhinst/elf_reader.hpp:128 — `std::uint64_t addr;`.
-- src/elf_reader.cpp:212 — `memcpy(&ln.addr, rec + 4, sizeof(uint64_t))`,
+- include/zhinst/io/elf_reader.hpp:128 — `std::uint64_t addr;`.
+- src/io/elf_reader.cpp:212 — `memcpy(&ln.addr, rec + 4, sizeof(uint64_t))`,
   i.e. reads 8 bytes from offset +4 of a 16-byte record.
 - AGENTS.md / project conventions describe `.linenr` records as "pairs
   of 2×uint32 LE: `(instruction_index, line_number)`".
@@ -287,8 +287,8 @@ Proposals:
   index rather than a 64-bit address.
 
 Locations consulted:
-- declared: include/zhinst/elf_reader.hpp:128
-- used:     src/elf_reader.cpp:212
+- declared: include/zhinst/io/elf_reader.hpp:128
+- used:     src/io/elf_reader.cpp:212
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -320,9 +320,9 @@ Locations consulted:
 ## 5. Coverage
 
 **Fully covered:**
-- All in-scope identifiers in `reconstructed/include/zhinst/elf_reader.hpp`
-  and `reconstructed/src/elf_reader.cpp`.
-- All `ElfReader` use-sites in `reconstructed/src/cached_parser.cpp`.
+- All in-scope identifiers in `reconstructed/include/zhinst/io/elf_reader.hpp`
+  and `reconstructed/src/io/elf_reader.cpp`.
+- All `ElfReader` use-sites in `reconstructed/src/io/cached_parser.cpp`.
 
 **Deferred:**
 - Whether `ElfReader::Line::addr` is genuinely a 64-bit address or

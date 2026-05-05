@@ -1,7 +1,7 @@
 # AWG Device Props (Phase 14b-iii)
 
-Notes for `reconstructed/include/zhinst/awg_device_props.hpp` and
-`reconstructed/src/awg_device_props.cpp`.
+Notes for `reconstructed/include/zhinst/device/awg_device_props.hpp` and
+`reconstructed/src/device/awg_device_props.cpp`.
 
 ## Symbols decoded
 

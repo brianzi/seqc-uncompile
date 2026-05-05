@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/device_constants.hpp`
-- `reconstructed/src/device_constants.cpp`
+- `reconstructed/include/zhinst/device/device_constants.hpp`
+- `reconstructed/src/device/device_constants.cpp`
 
 ## 2. Overview
 
@@ -79,7 +79,7 @@ Judgement:
   authoritative; this is not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:97
+- declared: include/zhinst/device/device_constants.hpp:97
 - nm output above
 
 ### DeviceConstants::Register  [no / high / not-misnomer]
@@ -119,15 +119,15 @@ Proposals:
 - `SuserAddress`  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:107
-- references: src/custom_functions_io.cpp (numerous via `kSuser*`)
+- declared: include/zhinst/device/device_constants.hpp:107
+- references: src/runtime/custom_functions_io.cpp (numerous via `kSuser*`)
 
 ### DeviceConstants::hasExtendedReg  [unsure / low / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:143 declaration; comment says
+- include/zhinst/device/device_constants.hpp:143 declaration; comment says
   "true for HDAWG only".
-- src/device_constants.cpp lines 39, 70, 101, 132, 163, 194, 225, 256,
+- src/device/device_constants.cpp lines 39, 70, 101, 132, 163, 194, 225, 256,
   287: only `case 2` (HDAWG) sets it `true`; every other arm sets
   `false`.
 - `grep -rn 'hasExtendedReg' reconstructed/src` returns zero
@@ -147,16 +147,16 @@ Proposals:
 - `isHdawg`  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:143
-- written:  src/device_constants.cpp (every `case`)
+- declared: include/zhinst/device/device_constants.hpp:143
+- written:  src/device/device_constants.cpp (every `case`)
 - read:     none found
 
 ### DeviceConstants::cachePageCount, DeviceConstants::maxBlocks  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- include/zhinst/device_constants.hpp:153–154; comment says
+- include/zhinst/device/device_constants.hpp:153–154; comment says
   "cache pages (cacheType=0)" / "cache pages (cacheType=1)".
-- src/awg_compiler.cpp:299–301 selects between them by `cacheType`:
+- src/codegen/awg_compiler.cpp:299–301 selects between them by `cacheType`:
   ```
   ? deviceConstants_.maxBlocks      // DC+0x1C
   : deviceConstants_.cachePageCount; // DC+0x18
@@ -186,20 +186,20 @@ Cross-reference:
 - Counterparts in batch 36 (cache).
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:153,154
-- read:     src/awg_compiler.cpp:300,301; src/custom_functions_io.cpp:1530,1642
+- declared: include/zhinst/device/device_constants.hpp:153,154
+- read:     src/codegen/awg_compiler.cpp:300,301; src/runtime/custom_functions_io.cpp:1530,1642
 
 ### DeviceConstants::sineNodeBase  [yes / medium / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:155 declaration; comment says
+- include/zhinst/device/device_constants.hpp:155 declaration; comment says
   "always 16 — base offset for oscillator/sine node index".
-- src/custom_functions_io.cpp:1530:
+- src/runtime/custom_functions_io.cpp:1530:
   ```
   int nodeIdx = devConst_->sineNodeBase * devConst_->maxBlocks
               + devConst_->waveformElfAlignment;
   ```
-- src/custom_functions_io.cpp:1536: `int nodeOffset = devConst_->sineNodeBase;`
+- src/runtime/custom_functions_io.cpp:1536: `int nodeOffset = devConst_->sineNodeBase;`
 
 Interpretation:
 - `sineNodeBase` is multiplied by `maxBlocks` and added to
@@ -217,19 +217,19 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:155
-- read:     src/custom_functions_io.cpp:1530,1536,1642,1674
+- declared: include/zhinst/device/device_constants.hpp:155
+- read:     src/runtime/custom_functions_io.cpp:1530,1536,1642,1674
 
 ### DeviceConstants::waveformElfAlignment  [yes / medium / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:156 declaration; comment says
+- include/zhinst/device/device_constants.hpp:156 declaration; comment says
   "ELF segment alignment (bitsPerSample × channels)".
-- src/memory_allocator.cpp:99,107,119: used as alignment grain in
+- src/codegen/memory_allocator.cpp:99,107,119: used as alignment grain in
   `align_up(blockStart, waveformElfAlignment)`. Comment "GDB-verified:
   Phase 1 uses waveformElfAlignment (DC+0x24, always 64)".
-- src/waveform_ir.cpp:37,59,126: assigned to `WaveformIR::elfAlignment_`.
-- src/custom_functions_io.cpp:1530,1642: also used as additive constant
+- src/waveform/waveform_ir.cpp:37,59,126: assigned to `WaveformIR::elfAlignment_`.
+- src/runtime/custom_functions_io.cpp:1530,1642: also used as additive constant
   in `sineNodeBase * maxBlocks + waveformElfAlignment` node-index
   computation — completely unrelated to ELF.
 
@@ -250,28 +250,28 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:156
-- read:     src/memory_allocator.cpp:119; src/waveform_ir.cpp:37,59,126;
-            src/custom_functions_io.cpp:1530,1642
+- declared: include/zhinst/device/device_constants.hpp:156
+- read:     src/codegen/memory_allocator.cpp:119; src/waveform/waveform_ir.cpp:37,59,126;
+            src/runtime/custom_functions_io.cpp:1530,1642
 
 ### DeviceConstants::waveformGranularity, DeviceConstants::waveformPageSize, grainSize(), maxWaveformLength()  [coordinated-rename]
 
 Evidence:
-- include/zhinst/device_constants.hpp:202: `grainSize() { return waveformPageSize; }`.
-- include/zhinst/device_constants.hpp:203: `maxWaveformLength() { return waveformGranularity; }`.
-- src/prefetch_placesingle.cpp:521-523:
+- include/zhinst/device/device_constants.hpp:202: `grainSize() { return waveformPageSize; }`.
+- include/zhinst/device/device_constants.hpp:203: `maxWaveformLength() { return waveformGranularity; }`.
+- src/codegen/prefetch_placesingle.cpp:521-523:
   ```
   int grainSize = dc->grainSize();
   int paddedLen = ((len + grainSize - 1) / grainSize) * grainSize;
   int maxLen = dc->maxWaveformLength();
   ```
-- src/waveform.cpp:409: `uint32_t granularity = dc->waveformPageSize;`
-- src/wavetable_front.cpp:138: `uint32_t wfGrain = dc->waveformPageSize;`
-- src/prefetch_prepare.cpp:698: `int grainSize = static_cast<int>(devConst_->waveformPageSize);`
-- src/custom_functions.cpp:346,647: same `int alignment = ... waveformPageSize`.
-- src/custom_functions_play.cpp:1124 comment: "Also accessible as
+- src/waveform/waveform.cpp:409: `uint32_t granularity = dc->waveformPageSize;`
+- src/waveform/wavetable_front.cpp:138: `uint32_t wfGrain = dc->waveformPageSize;`
+- src/codegen/prefetch_prepare.cpp:698: `int grainSize = static_cast<int>(devConst_->waveformPageSize);`
+- src/runtime/custom_functions.cpp:346,647: same `int alignment = ... waveformPageSize`.
+- src/runtime/custom_functions_play.cpp:1124 comment: "Also accessible as
   devConst_->maxWaveformLength()" referring to `waveformGranularity`.
-- include/zhinst/waveform_front.hpp:71: comment says
+- include/zhinst/waveform/waveform_front.hpp:71: comment says
   `Waveform::seqRegWidth = dc.waveformGranularity (dc+0x40)`.
 
 Interpretation:
@@ -299,21 +299,21 @@ Proposals (coordinated):
   shims  (medium)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:164,165,202,203
-- read:     src/prefetch_placesingle.cpp:521-523,571-574;
-            src/prefetch_prepare.cpp:698; src/waveform.cpp:409;
-            src/wavetable_front.cpp:138; src/custom_functions.cpp:346,647;
-            src/seqc_ast_nodes_evaluate.cpp:6923;
-            src/prefetch_emit.cpp:231,793;
-            src/prefetch_splitplay.cpp:103;
-            src/waveform_front.cpp:96; src/waveform_ir.cpp:115;
-            include/zhinst/waveform_front.hpp:71
+- declared: include/zhinst/device/device_constants.hpp:164,165,202,203
+- read:     src/codegen/prefetch_placesingle.cpp:521-523,571-574;
+            src/codegen/prefetch_prepare.cpp:698; src/waveform/waveform.cpp:409;
+            src/waveform/wavetable_front.cpp:138; src/runtime/custom_functions.cpp:346,647;
+            src/ast/seqc_ast_nodes_evaluate.cpp:6923;
+            src/codegen/prefetch_emit.cpp:231,793;
+            src/codegen/prefetch_splitplay.cpp:103;
+            src/waveform/waveform_front.cpp:96; src/waveform/waveform_ir.cpp:115;
+            include/zhinst/waveform/waveform_front.hpp:71
 
 ### DeviceConstants::seqClockDivider  [unsure / medium / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:175 declaration; comment "0 or 1165".
-- src/custom_functions_io.cpp:2202-2212:
+- include/zhinst/device/device_constants.hpp:175 declaration; comment "0 or 1165".
+- src/runtime/custom_functions_io.cpp:2202-2212:
   ```
   // addi(reg2, AsmRegister(0), Immediate(devConst_->seqClockDivider))
   int immVal = devConst_->seqClockDivider;
@@ -341,20 +341,20 @@ Proposals:
 - `syncWaitCycles`  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:175
-- read:     src/custom_functions_io.cpp:2204; src/custom_functions_play.cpp:1792
+- declared: include/zhinst/device/device_constants.hpp:175
+- read:     src/runtime/custom_functions_io.cpp:2204; src/runtime/custom_functions_play.cpp:1792
 
 ### DeviceConstants::numOutputPorts  [yes / high / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:180 declaration; values 0/10/12.
-- src/custom_functions_io.cpp:2690,2698,2706,2714,2721:
+- include/zhinst/device/device_constants.hpp:180 declaration; values 0/10/12.
+- src/runtime/custom_functions_io.cpp:2690,2698,2706,2714,2721:
   ```
   asmCommands_->wvft(AsmRegister(0), 1 << devConst_->numOutputPorts);
   asmCommands_->wvft(AsmRegister(0), 9 << devConst_->numOutputPorts);
   ...
   ```
-- src/custom_functions_io.cpp:2738,2746:
+- src/runtime/custom_functions_io.cpp:2738,2746:
   ```
   1 << (devConst_->numOutputPorts + 1)
   if ((entryIndex >> devConst_->numOutputPorts) != 0) ...
@@ -366,7 +366,7 @@ Interpretation:
   table-entry index, and bits above hold a small selector (1, 9,
   0xd, 0xe, 0x10). Values 10/12 are the bit-widths of the index
   field, not a number of output ports.
-- src/static_resources.cpp:211 (`int n = deviceConstants.numOutputPorts;`)
+- src/runtime/static_resources.cpp:211 (`int n = deviceConstants.numOutputPorts;`)
   is the only call site that *might* read it as a port count, but
   that context is itself inside an HDAWG/SHFSG/SHFQC_SG arm with no
   loop visible in the snippet — needs deeper investigation.
@@ -380,22 +380,22 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:180
-- read:     src/custom_functions_io.cpp:2690,2698,2706,2714,2721,2738,2746;
-            src/static_resources.cpp:211
+- declared: include/zhinst/device/device_constants.hpp:180
+- read:     src/runtime/custom_functions_io.cpp:2690,2698,2706,2714,2721,2738,2746;
+            src/runtime/static_resources.cpp:211
 
 ### DeviceConstants::numAWGCores  [unsure / medium / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:181 declaration; values 0, 3, 5.
-- src/custom_functions_io.cpp:1372,1378:
+- include/zhinst/device/device_constants.hpp:181 declaration; values 0, 3, 5.
+- src/runtime/custom_functions_io.cpp:1372,1378:
   ```
   if (devConst_->numAWGCores > 0) {
       ... addi(reg2, zero2, Immediate(static_cast<int>(devConst_->numAWGCores)));
       ... suser(reg2, kSuserWaitCycles);  // 0x69
   }
   ```
-- src/custom_functions_io.cpp:1403,1408: same pattern.
+- src/runtime/custom_functions_io.cpp:1403,1408: same pattern.
 
 Interpretation:
 - The field is loaded as an immediate and then written via `suser`
@@ -416,20 +416,20 @@ Proposals:
   used for sync wait
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:181
-- read:     src/custom_functions_io.cpp:1372,1378,1403,1408
+- declared: include/zhinst/device/device_constants.hpp:181
+- read:     src/runtime/custom_functions_io.cpp:1372,1378,1403,1408
 
 ### DeviceConstants::waveformMemSize, DeviceConstants::maxSequenceLen  [unsure / low / cross-batch-arbitration]
 
 Evidence:
-- include/zhinst/device_constants.hpp:173,174 declaration; comments say
+- include/zhinst/device/device_constants.hpp:173,174 declaration; comments say
   "max waveform memory in samples" / "max sequence length (16000)".
-- src/awg_compiler.cpp:477,501: `maxSeqLen = ... .maxSequenceLen`,
+- src/codegen/awg_compiler.cpp:477,501: `maxSeqLen = ... .maxSequenceLen`,
   `maxWaveforms = ... .waveformMemSize`.
-- include/zhinst/device_constants.hpp:205: `maxWaveIndex() {
+- include/zhinst/device/device_constants.hpp:205: `maxWaveIndex() {
   return static_cast<uint32_t>(maxSequenceLen); }` — meaning
   `maxSequenceLen` doubles as the WaveIndexTracker bound.
-- src/wavetable_ir.cpp:62,103: `waveIndexTracker_(constants.maxWaveIndex(), ...)`.
+- src/waveform/wavetable_ir.cpp:62,103: `waveIndexTracker_(constants.maxWaveIndex(), ...)`.
 
 Interpretation:
 - `maxSequenceLen` is consumed by code that calls it `maxWaveforms` and
@@ -450,13 +450,13 @@ Cross-reference:
 - WavetableIR / Compiler batches.
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:173,174,205
-- read:     src/awg_compiler.cpp:477,501; src/wavetable_ir.cpp:62,103
+- declared: include/zhinst/device/device_constants.hpp:173,174,205
+- read:     src/codegen/awg_compiler.cpp:477,501; src/waveform/wavetable_ir.cpp:62,103
 
 ### Register::SyncRegA, Register::SyncRegB  [unsure / low / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:101-102 declaration.
+- include/zhinst/device/device_constants.hpp:101-102 declaration.
 - `nm` only shows the unnamed enum types `{unnamed type#7}`/`{unnamed
   type#8}` at addresses 0x44 / 0x45.
 - `SuserAddr::SyncRegA` and `SyncRegB` re-declare the same numeric
@@ -474,7 +474,7 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:101,102
+- declared: include/zhinst/device/device_constants.hpp:101,102
 
 ### SuserAddr::* (35 constants)  [no / medium / not-misnomer]
 
@@ -499,15 +499,15 @@ Judgement:
 - Individual constant names fit observed usage; not misnomers.
 
 Locations consulted:
-- declared: include/zhinst/device_constants.hpp:108-139
-- read:     src/custom_functions_io.cpp (numerous sites listed above);
-            src/custom_functions_play.cpp:119;
-            src/seqc_ast_nodes_evaluate.cpp:7511,7650
+- declared: include/zhinst/device/device_constants.hpp:108-139
+- read:     src/runtime/custom_functions_io.cpp (numerous sites listed above);
+            src/runtime/custom_functions_play.cpp:119;
+            src/ast/seqc_ast_nodes_evaluate.cpp:7511,7650
 
 ### getDeviceConstants::deviceType (parameter)  [no / medium / —]
 
 Evidence:
-- include/zhinst/device_constants.hpp:213; src/device_constants.cpp:28.
+- include/zhinst/device/device_constants.hpp:213; src/device/device_constants.cpp:28.
 - Used immediately as `int dt = static_cast<int>(deviceType);
   switch (dt) { ... }`.
 

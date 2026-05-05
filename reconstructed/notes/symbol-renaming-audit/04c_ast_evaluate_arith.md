@@ -9,7 +9,7 @@
 > [`SYNTHESIS.md` §6](SYNTHESIS.md#6-low-confidence-and-unsure-parked--reconciled-in-phase-s1).
 > Individual rows below are NOT struck through; consult §6 for status.
 
-Scope: `reconstructed/src/seqc_ast_nodes_evaluate.cpp` lines **2611–4690**
+Scope: `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` lines **2611–4690**
 only. The file's anonymous-namespace helpers used by these methods
 (`getBackReg`, `rhsCount`, `rhsTypeOrUnset`, `rhsSubOrDefault`) are
 declared at lines 156–179, but their definitions are out-of-range; this
@@ -49,9 +49,9 @@ All are excluded from rename. In-scope here: their **parameters** and
 
 ## 1. Files considered
 
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` lines 2611–4690.
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` lines 2611–4690.
 - Header context (declarations only, not in-scope for this batch):
-  `reconstructed/include/zhinst/seqc_ast_node.hpp` (param names in
+  `reconstructed/include/zhinst/ast/seqc_ast_node.hpp` (param names in
   header agree with .cpp: `res`, `ctx`, `state`, `lhsResult`,
   `rhsResult`).
 - Cross-batch context only (read, not edited):
@@ -186,14 +186,14 @@ All are excluded from rename. In-scope here: their **parameters** and
 ### SeqCAssign::evaluate::aux  [yes / medium / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:3092
+- src/ast/seqc_ast_nodes_evaluate.cpp:3092
   `auto aux = std::make_shared<EvalResults>(lhsResult);`
-- src/seqc_ast_nodes_evaluate.cpp:3094–3102 (block comment) explains:
+- src/ast/seqc_ast_nodes_evaluate.cpp:3094–3102 (block comment) explains:
   > "Allocate `aux = make_shared<EvalResults>(lhsResult)` — a copy of
   > the LHS, used internally so the dispatch can read lhs varType info
   > safely and so arrayBacking_/waveformFront_ propagation can happen
   > without mutating the caller's lhsResult."
-- src/seqc_ast_nodes_evaluate.cpp:3100–3102
+- src/ast/seqc_ast_nodes_evaluate.cpp:3100–3102
   `if (lhsResult.arrayBacking_) { aux = lhsResult.arrayBacking_; }`
   — `aux` is then re-pointed at `arrayBacking_` for indexed
   assignments, so it is conceptually "the effective LHS being
@@ -220,14 +220,14 @@ Proposals:
 - keep current    (low)
 
 Locations consulted:
-- declared: src/seqc_ast_nodes_evaluate.cpp:3092
-- used:     src/seqc_ast_nodes_evaluate.cpp:3101, 3115, 3118–3119,
+- declared: src/ast/seqc_ast_nodes_evaluate.cpp:3092
+- used:     src/ast/seqc_ast_nodes_evaluate.cpp:3101, 3115, 3118–3119,
             3164, 3188, 3291, 3295
 
 ### SeqCAssign::evaluate::rt  /  ::rs  [yes / low / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:3385–3393  (catch handler):
+- src/ast/seqc_ast_nodes_evaluate.cpp:3385–3393  (catch handler):
   ```
   VarType    rt = rhsResult.values_.empty() || ... ? Unset : back().varType_;
   VarSubType rs = rhsResult.values_.empty() || ... ? Default: back().varSubType_;
@@ -255,13 +255,13 @@ Note: rename would also align with the file-scope helpers
 `rhsTypeOrUnset` / `rhsSubOrDefault`.
 
 Locations consulted:
-- declared: src/seqc_ast_nodes_evaluate.cpp:3385, 3389
-- used:     src/seqc_ast_nodes_evaluate.cpp:3393
+- declared: src/ast/seqc_ast_nodes_evaluate.cpp:3385, 3389
+- used:     src/ast/seqc_ast_nodes_evaluate.cpp:3393
 
 ### SeqCAssign::evaluate::sp  /  ::mp  [unsure / low / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:3303–3306
+- src/ast/seqc_ast_nodes_evaluate.cpp:3303–3306
   ```
   auto* sp = wf->signal.samples_.data();
   auto* mp = wf->signal.markers_.data();
@@ -286,12 +286,12 @@ Proposals:
 ### SeqCDiv::evaluate::rhsCheck  [yes / low / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:4415–4417
+- src/ast/seqc_ast_nodes_evaluate.cpp:4415–4417
   ```
   double rhsCheck = rhsResult.getValue().toDouble();   // @0x231751
   if (floatEqual(rhsCheck, 0.0)) { ... }
   ```
-- src/seqc_ast_nodes_evaluate.cpp:4485–4487 (10 lines later, in the
+- src/ast/seqc_ast_nodes_evaluate.cpp:4485–4487 (10 lines later, in the
   Wave÷Const path):
   ```
   double rhsDouble = rhsResult.getValue().toDouble();
@@ -315,12 +315,12 @@ Proposals:
 - keep current       (low)
 
 Locations consulted:
-- declared/used: src/seqc_ast_nodes_evaluate.cpp:4415, 4417, 4473, 4475
+- declared/used: src/ast/seqc_ast_nodes_evaluate.cpp:4415, 4417, 4473, 4475
 
 ### SeqCOperator::evaluate(3-arg)::lv  /  ::rv  [unsure / low / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:2740–2747
+- src/ast/seqc_ast_nodes_evaluate.cpp:2740–2747
   ```
   auto const& lv = lhsResult->values_;
   if (!lv.empty() && lv.size() <= 1) { lhsType = lv.back().varType_; }
@@ -344,7 +344,7 @@ Proposals:
 ### SeqCValue::evaluate::t  [unsure / low / —]
 
 Evidence:
-- src/seqc_ast_nodes_evaluate.cpp:2798
+- src/ast/seqc_ast_nodes_evaluate.cpp:2798
   `Tag t = tag();`
 - Used as the switch selector at 2799.
 

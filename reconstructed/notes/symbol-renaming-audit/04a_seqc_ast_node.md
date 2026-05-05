@@ -11,19 +11,19 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/seqc_ast_node.hpp`
-- `reconstructed/src/seqc_ast_node.cpp`
-- `reconstructed/src/seqc_ast.cpp`
+- `reconstructed/include/zhinst/ast/seqc_ast_node.hpp`
+- `reconstructed/src/ast/seqc_ast_node.cpp`
+- `reconstructed/src/ast/seqc_ast.cpp`
 
 Out of scope (handled by 04b–04e):
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp`. Its symbols are not flagged
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp`. Its symbols are not flagged
   here, but it is consulted as evidence for callers of the in-scope members
   and methods.
 
 Cross-references consulted (read-only):
-- `reconstructed/include/zhinst/expression.hpp` (Expression layout that feeds
+- `reconstructed/include/zhinst/ast/expression.hpp` (Expression layout that feeds
   the SeqCAstNode ctor via `toSeqCAstRecursor`)
-- `reconstructed/include/zhinst/types.hpp` (`enum class EDirection`, `VarType`)
+- `reconstructed/include/zhinst/core/types.hpp` (`enum class EDirection`, `VarType`)
 - `reconstructed/notes/symbol-renaming-audit/42_expression.md` (already
   established that `Expression::valueType` is actually `EDirection`; this batch
   inherits the dataflow into `SeqCAstNode::direction_`)
@@ -236,15 +236,15 @@ Cross-reference:
   (seqc_ast_node) — flagged here only for cross-batch context".
 
 Locations consulted:
-- declared: include/zhinst/seqc_ast_node.hpp:106, 140-141, 149
+- declared: include/zhinst/ast/seqc_ast_node.hpp:106, 140-141, 149
   (and the same `int type` in 51 SEQC_*-macro-instantiated ctors plus the
   6 hand-written ctors at lines 197, 269, 387, 414, 443, 473, 521, 552, 587,
   621, 663, 706, 749, 785-789)
-- defined: src/seqc_ast_node.cpp:47-51 (and forwarded from every derived
+- defined: src/ast/seqc_ast_node.cpp:47-51 (and forwarded from every derived
   ctor at lines 142, 180, 219, 314, 347, 386, 427, 479, 527, 579, 636, 692,
   696, 798, 856, 864, 874)
-- consumed: src/seqc_ast_node.cpp:94 (printSeqCAstImpl);
-  src/seqc_ast_nodes_evaluate.cpp:6097, 6160, 6236, 6293, 7032, 7145, 8197,
+- consumed: src/ast/seqc_ast_node.cpp:94 (printSeqCAstImpl);
+  src/ast/seqc_ast_nodes_evaluate.cpp:6097, 6160, 6236, 6293, 7032, 7145, 8197,
   9025 (comment), 9062, 9142, 9284
 
 ### SeqCAstNode::valueCategory_, ::lineNr_, ::direction_, ::varType_  [no / high / not-misnomer]
@@ -289,13 +289,13 @@ Proposals:
 - keep current (high) for all four.
 
 Locations consulted:
-- declared: include/zhinst/seqc_ast_node.hpp:148-153
-- written: src/seqc_ast_node.cpp:47-51 (ctor), 81-86 (swap),
+- declared: include/zhinst/ast/seqc_ast_node.hpp:148-153
+- written: src/ast/seqc_ast_node.cpp:47-51 (ctor), 81-86 (swap),
   126, 134, 150, 155, 162, 184, 196, 227, 244, 279, 320, 333, 369, 408,
   448, 489, 507, 537, 555, 591, 612, 648, 667, 695, 699, 703, 719, 803,
   811, 838, 860, 868, 878, 887 (every derived ctor / clone / copy-ctor)
-- consumed: src/seqc_ast_node.cpp:94 (printer);
-  src/seqc_ast_nodes_evaluate.cpp:2687, 9744 etc.
+- consumed: src/ast/seqc_ast_node.cpp:94 (printer);
+  src/ast/seqc_ast_nodes_evaluate.cpp:2687, 9744 etc.
 
 ### SeqC*-binary `first_` / `second_` field family + matching ctor params  [yes / medium / coordinated-rename]
 
@@ -375,12 +375,12 @@ parameter rename (since each class's ctor body must move from
 `first_(std::move(first))` to `<role>_(std::move(<role>))`).
 
 Locations consulted:
-- declared: include/zhinst/seqc_ast_node.hpp:354-378 (macro), 383-512
+- declared: include/zhinst/ast/seqc_ast_node.hpp:354-378 (macro), 383-512
   (hand-written near-duplicates).
-- defined: src/seqc_ast_node.cpp:313-471 (macro impl + hand-written impls
+- defined: src/ast/seqc_ast_node.cpp:313-471 (macro impl + hand-written impls
   for SeqCFunctionCall, SeqCArray, SeqCCaseEntry, SeqCSwitchCase).
-- callers: src/seqc_ast.cpp (constructs every binary node);
-  src/seqc_ast_nodes_evaluate.cpp (consumes via accessors).
+- callers: src/ast/seqc_ast.cpp (constructs every binary node);
+  src/ast/seqc_ast_nodes_evaluate.cpp (consumes via accessors).
 
 ### SeqCAstNode::SeqCAstNode::vc, ::dir (and derived ctor counterparts)  [no / high / —]
 

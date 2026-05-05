@@ -11,11 +11,11 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/math_compiler.hpp`
-- `reconstructed/src/math_compiler.cpp`
+- `reconstructed/include/zhinst/codegen/math_compiler.hpp`
+- `reconstructed/src/codegen/math_compiler.cpp`
 
 Cross-references read for context:
-- `reconstructed/src/custom_functions.cpp:280–319` (sole call site of
+- `reconstructed/src/runtime/custom_functions.cpp:280–319` (sole call site of
   `MathCompiler::functionExists` and `MathCompiler::call`)
 
 Binary verification: `nm --demangle _seqc_compiler.so | grep MathCompiler`
@@ -50,10 +50,10 @@ Binary verification: `nm --demangle _seqc_compiler.so | grep MathCompiler`
 ### MathCompiler::functionExists::strict  [yes / medium / verify-not-original]
 
 Evidence:
-- src/math_compiler.cpp:137 declaration:
+- src/codegen/math_compiler.cpp:137 declaration:
   `bool MathCompiler::functionExists(std::string const& name,
    size_t argCount, bool strict) const`
-- src/math_compiler.cpp:138–157, dasm comment + reconstructed body:
+- src/codegen/math_compiler.cpp:138–157, dasm comment + reconstructed body:
   ```
   //   bl = strict (input)
   //   it = singleArgFns_.find(name)
@@ -63,7 +63,7 @@ Evidence:
   //                   else             return false
   //   return bl | al
   ```
-- src/custom_functions.cpp:301 only call site:
+- src/runtime/custom_functions.cpp:301 only call site:
   `if (mathCompiler_.functionExists(name, argCount, false)) {`
 
 Interpretation:
@@ -104,9 +104,9 @@ Cross-reference:
   that may have been preserved, and choose between the proposals above.
 
 Locations consulted:
-- declared: include/zhinst/math_compiler.hpp:90
-- defined:  src/math_compiler.cpp:137–158
-- used:     src/custom_functions.cpp:301
+- declared: include/zhinst/codegen/math_compiler.hpp:90
+- defined:  src/codegen/math_compiler.cpp:137–158
+- used:     src/runtime/custom_functions.cpp:301
 - binary:   `nm --demangle _seqc_compiler.so` shows
   `MathCompiler::functionExists(...) const` at 0x1c3e50
   (method name authoritative; param name not encoded).
@@ -114,7 +114,7 @@ Locations consulted:
 ### MathCompiler::functionExists::found  [unsure / low / —]
 
 Evidence:
-- src/math_compiler.cpp:146–157:
+- src/codegen/math_compiler.cpp:146–157:
   ```
   bool found = false;
   auto it = singleArgFns_.find(name);
@@ -151,12 +151,12 @@ Proposals:
 - keep current      (low)
 
 Locations consulted:
-- defined:  src/math_compiler.cpp:146–157
+- defined:  src/codegen/math_compiler.cpp:146–157
 
 ### MathCompiler::singleArgFns_, MathCompiler::multiArgFns_  [no / medium / —]
 
 Evidence:
-- include/zhinst/math_compiler.hpp:93–94:
+- include/zhinst/codegen/math_compiler.hpp:93–94:
   ```
   std::map<std::string, std::function<double(double)>>
       singleArgFns_;  // +0x00
@@ -164,11 +164,11 @@ Evidence:
       std::function<double(std::vector<double> const&)>>
       multiArgFns_;   // +0x18
   ```
-- src/math_compiler.cpp:41–69 (ctor): keys for `singleArgFns_` are 23
+- src/codegen/math_compiler.cpp:41–69 (ctor): keys for `singleArgFns_` are 23
   one-argument math functions (`abs`, `cos`, …); keys for
   `multiArgFns_` are 5 multi-arg functions (`avg`, `max`, `min`, `pow`,
   `sum`).
-- src/math_compiler.cpp:147,151,168,176 (lookup sites): both maps are
+- src/codegen/math_compiler.cpp:147,151,168,176 (lookup sites): both maps are
   searched by name and the resulting `function<…>` is invoked with
   either a single double or a `vector<double> const&`.
 
@@ -184,8 +184,8 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/math_compiler.hpp:93–94
-- used:     src/math_compiler.cpp:41–69, 147, 151, 168, 176;
+- declared: include/zhinst/codegen/math_compiler.hpp:93–94
+- used:     src/codegen/math_compiler.cpp:41–69, 147, 151, 168, 176;
             ctor/dtor offsets noted in header comment.
 
 ## 4. Symbols inspected and judged routinely fine
@@ -228,7 +228,7 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** all symbols in
-  `include/zhinst/math_compiler.hpp` and `src/math_compiler.cpp`,
+  `include/zhinst/codegen/math_compiler.hpp` and `src/codegen/math_compiler.cpp`,
   including type names, all method names, all method parameters, all
   data members, and all named locals. `nm --demangle` was consulted
   for every type, method, and free-function name in the file; no

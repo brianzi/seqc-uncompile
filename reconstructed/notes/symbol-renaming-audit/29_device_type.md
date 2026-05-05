@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/device_type.hpp`
-- `reconstructed/src/device_type.cpp`
+- `reconstructed/include/zhinst/device/device_type.hpp`
+- `reconstructed/src/device/device_type.cpp`
 
 Authoritative symbol-table reference:
 `nm --demangle /home/brian/zhinst/seqc_compiler/_seqc_compiler.so`.
@@ -110,8 +110,8 @@ Judgement:
   user-facing strings are excluded from rename.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:40-53
-- toString: src/device_type.cpp:322-338
+- declared: include/zhinst/device/device_type.hpp:40-53
+- toString: src/device/device_type.cpp:322-338
 - nm output for `zhinst::DeviceFamily` symbols
 
 ### DeviceTypeCode (enum) and enumerators  [no / high / not-misnomer]
@@ -132,8 +132,8 @@ Judgement:
 - Not misnomers.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:61-95
-- toString / toDeviceTypeCode bodies in src/device_type.cpp
+- declared: include/zhinst/device/device_type.hpp:61-95
+- toString / toDeviceTypeCode bodies in src/device/device_type.cpp
 
 ### DeviceOption (enum)  [no / high / not-misnomer]
 
@@ -150,7 +150,7 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:112
+- declared: include/zhinst/device/device_type.hpp:112
 - nm output
 
 ### DeviceOption::None  [unsure / medium / —]
@@ -180,9 +180,9 @@ Proposals:
   more strictly but loses readability.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:113-114
-- toString: src/device_type.cpp:461-497
-- toDeviceOption: src/device_type.cpp:780-822
+- declared: include/zhinst/device/device_type.hpp:113-114
+- toString: src/device/device_type.cpp:461-497
+- toDeviceOption: src/device/device_type.cpp:780-822
 
 ### DeviceOption::TenG  [yes / high / —]
 
@@ -215,9 +215,9 @@ Cross-reference:
 - See `Sixteen_W` below for a parallel case.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:124
-- toString: src/device_type.cpp:474
-- toDeviceOption: src/device_type.cpp:794
+- declared: include/zhinst/device/device_type.hpp:124
+- toString: src/device/device_type.cpp:474
+- toDeviceOption: src/device/device_type.cpp:794
 
 ### DeviceOption::Sixteen_W  [yes / high / —]
 
@@ -245,9 +245,9 @@ Cross-reference:
 - Coordinate with `TenG`.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:137
-- toString: src/device_type.cpp:487
-- toDeviceOption: src/device_type.cpp:807
+- declared: include/zhinst/device/device_type.hpp:137
+- toString: src/device/device_type.cpp:487
+- toDeviceOption: src/device/device_type.cpp:807
 
 ### sfc::FeaturesCode (struct)  [no / medium / not-misnomer]
 
@@ -268,7 +268,7 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:183-197
+- declared: include/zhinst/device/device_type.hpp:183-197
 - generateMfSfc: nm symbol at 0x2de910
 
 ### sfc::FeaturesCode::value (field)  [unsure / low / —]
@@ -294,7 +294,7 @@ Proposals:
   comment ("composed uint64 bitmask").
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:184
+- declared: include/zhinst/device/device_type.hpp:184
 
 ### sfc::Hf2Option / MfOption / UhfOption / HdawgOption / ShfOption / VhfOption (types)  [no / high / not-misnomer]
 
@@ -310,7 +310,7 @@ Judgement:
 - Not misnomers.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:199-273
+- declared: include/zhinst/device/device_type.hpp:199-273
 - nm output for `initializeSfcOptions<sfc::*Option, N>`
 
 ### sfc::*Option::Bit0xNNNN (enumerators)  [yes / high / coordinated-rename]
@@ -358,8 +358,8 @@ Status: `coordinated-rename` — all 39 enumerators across 6 enums
 should be renamed in one pass, since they share the same scheme.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:199-273
-- header comment block: include/zhinst/device_type.hpp:147-162
+- declared: include/zhinst/device/device_type.hpp:199-273
+- header comment block: include/zhinst/device/device_type.hpp:147-162
 - intended use site: per-family `initializeXxxOptions` helpers
   (deferred to phase 14b-ii-b; not present in this file)
 
@@ -377,7 +377,7 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:339
+- declared: include/zhinst/device/device_type.hpp:339
 - nm output
 
 ### DeviceOptionSet::values_  [unsure / medium / —]
@@ -405,8 +405,8 @@ Proposals:
 - `byCode_`     (medium) — parallel to existing `byName_`.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:369
-- used: src/device_type.cpp:251-293 (multiple)
+- declared: include/zhinst/device/device_type.hpp:369
+- used: src/device/device_type.cpp:251-293 (multiple)
 
 ### DeviceOptionSet::byName_  [no / medium / not-misnomer]
 
@@ -428,8 +428,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:370
-- used: src/device_type.cpp:251-289
+- declared: include/zhinst/device/device_type.hpp:370
+- used: src/device/device_type.cpp:251-289
 
 ### DeviceOptionSet::family_  [no / high / not-misnomer]
 
@@ -448,8 +448,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:371
-- used: src/device_type.cpp:280-293
+- declared: include/zhinst/device/device_type.hpp:371
+- used: src/device/device_type.cpp:280-293
 
 ### DeviceTypeImpl::clone (method)  [yes / high / —]
 
@@ -488,9 +488,9 @@ the public `clone()` interface. That is a separate symbol in another
 header.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:394
-- defined:  src/device_type.cpp:82-84
-- callers:  src/device_type.cpp:137,148
+- declared: include/zhinst/device/device_type.hpp:394
+- defined:  src/device/device_type.cpp:82-84
+- callers:  src/device/device_type.cpp:137,148
 - nm:       0x2d3280 `DeviceTypeImpl::doClone() const`
 
 ### DeviceTypeImpl::code_ / family_ / options_  [no / high / not-misnomer]
@@ -513,8 +513,8 @@ Judgement:
 - Not misnomers.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:403-405
-- getters:  src/device_type.cpp:87-98
+- declared: include/zhinst/device/device_type.hpp:403-405
+- getters:  src/device/device_type.cpp:87-98
 
 ### DeviceType::deviceType (method)  [yes / medium / —]
 
@@ -553,8 +553,8 @@ Proposals:
 Status: omitted — RULES §3 compels keeping the name.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:492
-- defined:  src/device_type.cpp:200-202
+- declared: include/zhinst/device/device_type.hpp:492
+- defined:  src/device/device_type.cpp:200-202
 - nm:       0x2d2c20 `DeviceType::deviceType() const`
 
 ### DeviceType::DeviceType(DeviceFamily, unsigned long)::options (param)  [unsure / low / —]
@@ -591,8 +591,8 @@ Proposals:
 - `featureBits`  (low) — aligns with the SFC ("features code") domain.
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:472
-- defined:  src/device_type.cpp:194-197
+- declared: include/zhinst/device/device_type.hpp:472
+- defined:  src/device/device_type.cpp:194-197
 - forwarded into `initializeSfcOptions` family (instantiations in nm)
 
 ### DeviceType::belongsTo::f (param)  [yes / low / —]
@@ -619,8 +619,8 @@ Proposals:
 - `family`  (high).
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:491
-- defined:  src/device_type.cpp:182-185
+- declared: include/zhinst/device/device_type.hpp:491
+- defined:  src/device/device_type.cpp:182-185
 
 ### toDeviceTypeCode / toDeviceFamily / toDeviceOption / splitDeviceOptions::s (param)  [unsure / low / —]
 
@@ -648,8 +648,8 @@ Proposals:
   `splitDeviceOptions`  (low).
 
 Locations consulted:
-- declared: include/zhinst/device_type.hpp:561,581,587,600
-- defined:  src/device_type.cpp:574-925 (multiple)
+- declared: include/zhinst/device/device_type.hpp:561,581,587,600
+- defined:  src/device/device_type.cpp:574-925 (multiple)
 
 ### `toDeviceTypeCode::codes` (function-local static)  [unsure / low / —]
 
@@ -677,7 +677,7 @@ Proposals:
 - `deviceTypeCodes`   (low) — parallel to `familyNames`.
 
 Locations consulted:
-- declared: src/device_type.cpp:575
+- declared: src/device/device_type.cpp:575
 - nm: NOT present (in contrast with the two confirmed statics above)
 
 ### `toDeviceFamily::familyNames` (function-local static) and `allDevices()::allDevicesSet`  [no / high / not-misnomer]
@@ -699,7 +699,7 @@ Judgement:
 - Not misnomers; tier-1 authoritative.
 
 Locations consulted:
-- declared: src/device_type.cpp:902 and 963
+- declared: src/device/device_type.cpp:902 and 963
 - nm: 0xb85210 and 0xb851f0
 
 ### isIa::broad_mask / unconditional_mask (locals)  [no / medium / —]
@@ -723,7 +723,7 @@ Judgement:
 - Not misnomers.
 
 Locations consulted:
-- defined: src/device_type.cpp:644-655
+- defined: src/device/device_type.cpp:644-655
 
 ### hasMf::probe (local)  [no / medium / —]
 
@@ -746,7 +746,7 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- defined: src/device_type.cpp:717-722
+- defined: src/device/device_type.cpp:717-722
 
 ## 4. Symbols inspected and judged routinely fine
 

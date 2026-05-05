@@ -11,17 +11,17 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/node_map_data.hpp`
-- `reconstructed/src/node_map_data.cpp`
-- `reconstructed/src/get_node_map.cpp` (1287 lines — surveyed; almost entirely
+- `reconstructed/include/zhinst/runtime/node_map_data.hpp`
+- `reconstructed/src/runtime/node_map_data.cpp`
+- `reconstructed/src/runtime/get_node_map.cpp` (1287 lines — surveyed; almost entirely
   data-table entries calling two anonymous-namespace helpers, no in-scope
   symbols beyond the helpers and their parameters)
 
 Sister/cross-batch context consulted (read-only):
-- `reconstructed/src/custom_functions.cpp` (getNodeAddress, getAccessModes)
-- `reconstructed/src/custom_functions_play.cpp:1430..1610`
+- `reconstructed/src/runtime/custom_functions.cpp` (getNodeAddress, getAccessModes)
+- `reconstructed/src/runtime/custom_functions_play.cpp:1430..1610`
   (he-said/she-said evidence around `NodeMapItem::hasFast` ↔ `accessMode`)
-- `reconstructed/include/zhinst/custom_functions.hpp` (AccessMode, NodeMap,
+- `reconstructed/include/zhinst/runtime/custom_functions.hpp` (AccessMode, NodeMap,
   CustomFunctions::addNodeAccess)
 - `reconstructed/notes/struct_layouts.md` (Block-D dispatch structure)
 - `reconstructed/notes/writeToNode_block_d_protocol.md`
@@ -130,7 +130,7 @@ Proposals:
 - `NodeValueKind`  (low)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:25-34
+- declared: include/zhinst/runtime/node_map_data.hpp:25-34
 - referenced: notes/magic_numbers_proposal.md:167 (origin); not referenced
   in any .cpp.
 
@@ -153,8 +153,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:28
-- used (dispatch): src/custom_functions_play.cpp:2138, 1604, 1779, 1914
+- declared: include/zhinst/runtime/node_map_data.hpp:28
+- used (dispatch): src/runtime/custom_functions_play.cpp:2138, 1604, 1779, 1914
   (case 0 arms — surveyed only).
 
 ### NodeTypeIdx::SinePair  [unsure / low / —]
@@ -181,8 +181,8 @@ Proposals:
 - `IqPair`  (low)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:29
-- contradicting tables: src/node_map_data.cpp:181, 196
+- declared: include/zhinst/runtime/node_map_data.hpp:29
+- contradicting tables: src/runtime/node_map_data.cpp:181, 196
 
 ### VirtAddrNodeMapData::addresses_  [unsure / medium / —]
 
@@ -217,10 +217,10 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:70
-- written: src/get_node_map.cpp (~566 + 252 + … data-table call sites
+- declared: include/zhinst/runtime/node_map_data.hpp:70
+- written: src/runtime/get_node_map.cpp (~566 + 252 + … data-table call sites
   via `addVirt(..., addresses, ...)`)
-- read:    src/node_map_data.cpp:42 (compareEq), :55 (hash), :85 (getJson)
+- read:    src/runtime/node_map_data.cpp:42 (compareEq), :55 (hash), :85 (getJson)
 
 ### VirtAddrNodeMapData::name_  [no / high / not-misnomer]
 
@@ -242,8 +242,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:69
-- read:     src/node_map_data.cpp:42, 49, 82
+- declared: include/zhinst/runtime/node_map_data.hpp:69
+- read:     src/runtime/node_map_data.cpp:42, 49, 82
 
 ### kGoldenRatioHash  [no / medium / not-misnomer]
 
@@ -354,10 +354,10 @@ Proposals:
 - `valueKind`  (low)
 
 Locations consulted:
-- declared: include/zhinst/node_map_data.hpp:108
-- written:  src/get_node_map.cpp (every call — ~1080 entries)
-- read:     src/node_map_data.cpp:140,177,192;
-            src/custom_functions_play.cpp:1543,1555,1569,1582,1604,1779,1914,2138
+- declared: include/zhinst/runtime/node_map_data.hpp:108
+- written:  src/runtime/get_node_map.cpp (every call — ~1080 entries)
+- read:     src/runtime/node_map_data.cpp:140,177,192;
+            src/runtime/custom_functions_play.cpp:1543,1555,1569,1582,1604,1779,1914,2138
 
 ### NodeMapItem::hasFast  [yes / medium / cross-batch-arbitration]
 
@@ -377,7 +377,7 @@ Evidence:
    addNodeAccess(node, accessMode);`
 - `addNodeAccess`'s 2nd parameter type is `AccessMode` (a 3-valued
   enum: Soft=0, Direct=1, Custom=2) — see
-  `include/zhinst/custom_functions.hpp:370`.
+  `include/zhinst/runtime/custom_functions.hpp:370`.
 - `get_node_map.cpp` — every entry that sets the slot to `true`
   also sets a non-zero `fastAddr` (lines 764-836). Entries that
   pass `true` look like normal oscillator/sine direct-write nodes
@@ -416,10 +416,10 @@ Cross-reference:
   binary at @0x15c6c0).
 
 Locations consulted:
-- declared:   include/zhinst/node_map_data.hpp:110
-- read:       src/node_map_data.cpp:144, 145, 160;
-              src/custom_functions_play.cpp:1511, 1536
-- written:    src/get_node_map.cpp:38,51 (helpers); 764-836 (true sites)
+- declared:   include/zhinst/runtime/node_map_data.hpp:110
+- read:       src/runtime/node_map_data.cpp:144, 145, 160;
+              src/runtime/custom_functions_play.cpp:1511, 1536
+- written:    src/runtime/get_node_map.cpp:38,51 (helpers); 764-836 (true sites)
 
 ### NodeMapItem::fastAddr  [no / medium / not-misnomer]
 
@@ -471,8 +471,8 @@ Proposals:
 - `sizeByType` (low)
 
 Locations consulted:
-- declared/used: src/node_map_data.cpp:181-185
-- sibling reference: src/node_map_data.cpp:196
+- declared/used: src/runtime/node_map_data.cpp:181-185
+- sibling reference: src/runtime/node_map_data.cpp:196
 
 ### VirtAddrNodeMapData::compareEq::o and DirectAddrNodeMapData::compareEq::o  [yes / low / —]
 
@@ -571,12 +571,12 @@ Proposals:
 ## 5. Coverage
 
 **Fully covered:**
-- `include/zhinst/node_map_data.hpp` — every in-scope symbol
+- `include/zhinst/runtime/node_map_data.hpp` — every in-scope symbol
   (enum + enumerators, fields of all three classes, padding,
   parameter names of all method declarations).
-- `src/node_map_data.cpp` — every in-scope local, parameter, and
+- `src/runtime/node_map_data.cpp` — every in-scope local, parameter, and
   constant.
-- `src/get_node_map.cpp` — fully scanned at the symbol level. Beyond
+- `src/runtime/get_node_map.cpp` — fully scanned at the symbol level. Beyond
   the two anonymous-namespace helpers `addDirect` / `addVirt`, their
   parameter names, the `Map` alias, and the two free functions
   (`dispatchHighDevType`, `getNodeMapForDevice`) and their
@@ -608,10 +608,10 @@ Proposals:
   it could in principle be in scope, but with only one declaration
   and no consumer-facing role it is left as a no-finding.
 - `NodeMap`, `NodeMap::entries_` — declared in
-  `include/zhinst/custom_functions.hpp` (batch 33's territory); only
+  `include/zhinst/runtime/custom_functions.hpp` (batch 33's territory); only
   *used* here. Not in scope for this batch.
 - `AwgDeviceType` and its enumerators — type lives in
-  `include/zhinst/types.hpp`; not in scope for this batch.
+  `include/zhinst/core/types.hpp`; not in scope for this batch.
 - `AccessMode` and `addNodeAccess` — counterparts to the
   `NodeMapItem::hasFast` arbitration; live in
-  `include/zhinst/custom_functions.hpp` (batch 33).
+  `include/zhinst/runtime/custom_functions.hpp` (batch 33).

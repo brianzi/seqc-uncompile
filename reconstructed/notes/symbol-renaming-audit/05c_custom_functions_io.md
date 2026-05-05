@@ -11,7 +11,7 @@
 
 ## 1. Files considered
 
-- `reconstructed/src/custom_functions_io.cpp` (3433 lines) — **partial** scan,
+- `reconstructed/src/runtime/custom_functions_io.cpp` (3433 lines) — **partial** scan,
   see §5 for line-range coverage. Header (`custom_functions.hpp`) and other
   `custom_functions_*.cpp` files are **out of scope** per the assignment.
 
@@ -167,9 +167,9 @@ Constants used (declared elsewhere; flagged here for cross-batch awareness only 
 ### `setDIO::supported` / `getDIO::supported` / `setID::supported` / others  [yes / medium / coordinated-rename]
 
 Evidence:
-- src/custom_functions_io.cpp:58 `bool supported = isShfFamily();`
-- src/custom_functions_io.cpp:104 (getDIO) same
-- src/custom_functions_io.cpp:344 (setID) same
+- src/runtime/custom_functions_io.cpp:58 `bool supported = isShfFamily();`
+- src/runtime/custom_functions_io.cpp:104 (getDIO) same
+- src/runtime/custom_functions_io.cpp:344 (setID) same
 - usage at :66, :86, :108, :349 — passed as second bool arg to
   `asmCommands_->sdio(reg, supported)`, `ldio(reg, supported)`,
   `sid(reg, supported)`. The comment block at :86–:94 explicitly says
@@ -198,12 +198,12 @@ Cross-reference:
 - AsmCommands::sdio / ldio / sid second parameter — see batches 10/49.
 
 Locations consulted:
-- src/custom_functions_io.cpp:49–112, 338–363.
+- src/runtime/custom_functions_io.cpp:49–112, 338–363.
 
 ### `wait::isSimpleDevice`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:565–574 "isSimpleDevice = false … if
+- src/runtime/custom_functions_io.cpp:565–574 "isSimpleDevice = false … if
   Hirzel mask matches → true; if VHFLI/GHFLI → true".
 - :612–621 (numeric branch) duplicates the same bitmask; same name.
 - The exact same check (deviceType bitmask 0x4000000040004041 with VHFLI/
@@ -229,13 +229,13 @@ Proposals:
 - keep current (low).
 
 Locations consulted:
-- src/custom_functions_io.cpp:565–574, 612–621, 837–844, 986–993,
+- src/runtime/custom_functions_io.cpp:565–574, 612–621, 837–844, 986–993,
   1068–1092.
 
 ### `assignWaveIndex::channelIndex`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:416 `int channelIndex = config.deviceIndex;`
+- src/runtime/custom_functions_io.cpp:416 `int channelIndex = config.deviceIndex;`
 - :510 `int devIdx = config.deviceIndex;` — *same value*, *different
   name* a few dozen lines later in the same function.
 - :515 `asmEntry.node->deviceIndex = config.deviceIndex;`
@@ -255,7 +255,7 @@ Proposals:
 - `deviceIndex` (low) — collides with the field name in this method.
 
 Locations consulted:
-- src/custom_functions_io.cpp:416–417, 510–515.
+- src/runtime/custom_functions_io.cpp:416–417, 510–515.
 
 ### `assignWaveIndex::channelParam`  [yes / medium / —]
 
@@ -287,7 +287,7 @@ Cross-reference:
 ### `setSinePhase::resultPtr` / `setSinePhase::rbx`  [yes / high / —]
 
 Evidence:
-- src/custom_functions_io.cpp:1568–1569
+- src/runtime/custom_functions_io.cpp:1568–1569
   ```
   auto resultPtr = results.get();
   auto rbx = asmCommands_;
@@ -307,7 +307,7 @@ Proposals:
 - If kept for some reason, rename `rbx` → `cmds` (low).
 
 Locations consulted:
-- src/custom_functions_io.cpp:1568–1576.
+- src/runtime/custom_functions_io.cpp:1568–1576.
 
 ### `setSinePhase::nodeIdx` / `nodeOffset` and `incrementSinePhase` mirrors  [yes / medium / coordinated-rename]
 
@@ -339,7 +339,7 @@ Proposals:
 ### `getAnaTrigger::localArg`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:1870–1877 `EvalResultValue localArg = arg;
+- src/runtime/custom_functions_io.cpp:1870–1877 `EvalResultValue localArg = arg;
   int argVal = localArg.value_.toInt(); … localArg = erv;` — overwritten
   with the readConst result for argVal in {1,2}.
 - :1896 `addi(reg2, …, Immediate(localArg.value_.toInt()))` reads from
@@ -411,7 +411,7 @@ Proposals:
 ### `appendSuser` (file-static helper)  [no / medium / not-misnomer]
 
 Evidence:
-- src/custom_functions_io.cpp:37–41 — wraps a single
+- src/runtime/custom_functions_io.cpp:37–41 — wraps a single
   `cmds->suser(reg, addr)` call and pushes the result onto `vec`.
 - All call sites (e.g. :578, :594, :636, :677, :1383, :1411, :1523,
   :1526, :1576, :1636, :1638, :1672, :2109, :2114, :2123, :2129,

@@ -11,13 +11,13 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/compiler.hpp`
-- `reconstructed/src/compiler.cpp`
+- `reconstructed/include/zhinst/codegen/compiler.hpp`
+- `reconstructed/src/codegen/compiler.cpp`
 
 Cross-referenced (read-only):
-- `reconstructed/include/zhinst/prefetch.hpp` (Prefetch::getUsedFourChannelMode etc.)
-- `reconstructed/src/awg_compiler.cpp` (consumer of all `Compiler` getters)
-- `reconstructed/src/resources_static_global.cpp` (StaticResources::usedSampleRate_)
+- `reconstructed/include/zhinst/codegen/prefetch.hpp` (Prefetch::getUsedFourChannelMode etc.)
+- `reconstructed/src/codegen/awg_compiler.cpp` (consumer of all `Compiler` getters)
+- `reconstructed/src/runtime/resources_static_global.cpp` (StaticResources::usedSampleRate_)
 - `reconstructed/notes/symbol-renaming-audit/23_awg_compiler_config.md`
   (canonical names of `AWGCompilerConfig` fields used here)
 - `reconstructed/notes/symbol-renaming-audit/09_prefetch.md`,
@@ -188,8 +188,8 @@ Proposals:
   use site.
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:187`
-- used:     `src/compiler.cpp:52` (init only)
+- declared: `include/zhinst/codegen/compiler.hpp:187`
+- used:     `src/codegen/compiler.cpp:52` (init only)
 
 ### Compiler::reserved18_  [unsure / low / verify-not-original]
 
@@ -217,8 +217,8 @@ Proposals:
 - `unknown18_`  (low) — slightly more conventional for placeholders.
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:189`
-- used:     `src/compiler.cpp:53,263`
+- declared: `include/zhinst/codegen/compiler.hpp:189`
+- used:     `src/codegen/compiler.cpp:53,263`
 
 ### Compiler::channelMode_  [yes / high / —]
 
@@ -268,10 +268,10 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:191`
-- used:     `src/compiler.cpp:55,561,596`
-- source:   `include/zhinst/prefetch.hpp:244`
-- consumer: `src/awg_compiler.cpp:892` (packs into `.channels` section)
+- declared: `include/zhinst/codegen/compiler.hpp:191`
+- used:     `src/codegen/compiler.cpp:55,561,596`
+- source:   `include/zhinst/codegen/prefetch.hpp:244`
+- consumer: `src/codegen/awg_compiler.cpp:892` (packs into `.channels` section)
 
 ### Compiler::usedSampleRate_  [unsure / low / cross-batch-arbitration]
 
@@ -318,17 +318,17 @@ Cross-reference:
   unqualified name.
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:192`
-- used:     `src/compiler.cpp:56,602`
-- source:   `include/zhinst/resources.hpp:513`,
-            `src/resources_static_global.cpp:166`
-- consumer: `src/awg_compiler.cpp:904`
+- declared: `include/zhinst/codegen/compiler.hpp:192`
+- used:     `src/codegen/compiler.cpp:56,602`
+- source:   `include/zhinst/runtime/resources.hpp:513`,
+            `src/runtime/resources_static_global.cpp:166`
+- consumer: `src/codegen/awg_compiler.cpp:904`
 
 ### Compiler::sourceFiles_  [unsure / low / verify-not-original]
 
 Evidence:
 - `compiler.hpp:196` `std::vector<std::string> sourceFiles_;         // +0x58`
-- `grep sourceFiles_ src/compiler.cpp` → no read or write site in the
+- `grep sourceFiles_ src/codegen/compiler.cpp` → no read or write site in the
   batch (only the layout comment at `compiler.hpp:13`).
 - `sourceLines_` (the adjacent vector) is filled by `parse()` from
   `getline(source)` — a clear write/role.
@@ -348,7 +348,7 @@ Proposals:
   better without more evidence.)
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:196`
+- declared: `include/zhinst/codegen/compiler.hpp:196`
 
 ### FrontEndLoweringFacade::lower::channelGrouping  [yes / medium / coordinated-rename]
 
@@ -385,9 +385,9 @@ Cross-reference:
   must be renamed together.
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:92`
-- defined:  `src/compiler.cpp:672,681`
-- caller:   `src/compiler.cpp:283`
+- declared: `include/zhinst/codegen/compiler.hpp:92`
+- defined:  `src/codegen/compiler.cpp:672,681`
+- caller:   `src/codegen/compiler.cpp:283`
 - batch 23: `notes/symbol-renaming-audit/23_awg_compiler_config.md:348`
 
 ### LowerResult  [unsure / low / verify-not-original]
@@ -419,8 +419,8 @@ Proposals:
 - `LoweredProgram`  (low)
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:75-78`
-- used:     `src/compiler.cpp:286,694-697`
+- declared: `include/zhinst/codegen/compiler.hpp:75-78`
+- used:     `src/codegen/compiler.cpp:286,694-697`
 
 ### Compiler::hadSyntaxError() (method)  [no / medium / —]
 
@@ -458,10 +458,10 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/compiler.hpp:171`
-- defined:  `src/compiler.cpp:605-609`
-- source:   `src/seqc_parser_context.cpp:86`
-- consumer: `src/awg_compiler.cpp:745,995`
+- declared: `include/zhinst/codegen/compiler.hpp:171`
+- defined:  `src/codegen/compiler.cpp:605-609`
+- source:   `src/ast/seqc_parser_context.cpp:86`
+- consumer: `src/codegen/awg_compiler.cpp:745,995`
 
 ## 4. Symbols inspected and judged routinely fine
 

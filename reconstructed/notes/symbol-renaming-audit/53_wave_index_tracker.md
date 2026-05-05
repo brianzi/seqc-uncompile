@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/wave_index_tracker.hpp`
-- `reconstructed/src/wave_index_tracker.cpp`
+- `reconstructed/include/zhinst/waveform/wave_index_tracker.hpp`
+- `reconstructed/src/waveform/wave_index_tracker.cpp`
 
 Symbol-table check (excluded from rename per RULES §3, tier-1):
 
@@ -64,13 +64,13 @@ remain in scope.
 ### WaveIndexTracker::maxIndex (field)  [unsure / low / —]
 
 Evidence:
-- include/zhinst/wave_index_tracker.hpp:84  `int maxIndex;                   // +0x00`
-- src/wave_index_tracker.cpp:55-56  ctor uses param `maxIdx` and inits
+- include/zhinst/waveform/wave_index_tracker.hpp:84  `int maxIndex;                   // +0x00`
+- src/waveform/wave_index_tracker.cpp:55-56  ctor uses param `maxIdx` and inits
   `: maxIndex(maxIdx)` — note no trailing underscore on the member
   while the two siblings are `indices_` and `autoIndex_`.
-- src/wave_index_tracker.cpp:88  `if (index >= maxIndex)` — used as an
+- src/waveform/wave_index_tracker.cpp:88  `if (index >= maxIndex)` — used as an
   exclusive upper bound on inserted indices.
-- src/error_messages.cpp:385  `m[250] = "waveform index exceeds
+- src/core/error_messages.cpp:385  `m[250] = "waveform index exceeds
   wavetable size"` — error thrown when `index >= maxIndex` (per
   wave_index_tracker.cpp:88-91 and `ErrorMessageT(0xFA)=250`).
 - notes/symbol-renaming-audit/31_device_constants.md:47  the value
@@ -98,22 +98,22 @@ Proposals:
 - keep current   (medium)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:84
-- used:     src/wave_index_tracker.cpp:56,88
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:84
+- used:     src/waveform/wave_index_tracker.cpp:56,88
 - callers:  31_device_constants.md (assignment site)
 
 ### WaveIndexTracker::indices_ (field)  [unsure / low / —]
 
 Evidence:
-- include/zhinst/wave_index_tracker.hpp:86  `std::set<int> indices_;`
-- include/zhinst/wave_index_tracker.hpp:103  public accessor is
+- include/zhinst/waveform/wave_index_tracker.hpp:86  `std::set<int> indices_;`
+- include/zhinst/waveform/wave_index_tracker.hpp:103  public accessor is
   `const std::set<int>& usedWaveIndices() const;`
-- src/wave_index_tracker.cpp:103-106  `usedWaveIndices()` returns
+- src/waveform/wave_index_tracker.cpp:103-106  `usedWaveIndices()` returns
   `indices_`.
-- src/wave_index_tracker.cpp:80-95  `assignAuto` calls
+- src/waveform/wave_index_tracker.cpp:80-95  `assignAuto` calls
   `indices_.find(index)`, `indices_.insert(index)` — set acts as the
   registry of *already-assigned* indices.
-- src/wavetable_ir.cpp:507  external code peeks the set as
+- src/waveform/wavetable_ir.cpp:507  external code peeks the set as
   `waveIndexTracker_.indices_` — same name used by client code.
 
 Interpretation:
@@ -137,21 +137,21 @@ Proposals:
 - keep current        (medium)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:86
-- used:     src/wave_index_tracker.cpp:80,88,95,105,114,125,129
-- ext use:  src/wavetable_ir.cpp:507
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:86
+- used:     src/waveform/wave_index_tracker.cpp:80,88,95,105,114,125,129
+- ext use:  src/waveform/wavetable_ir.cpp:507
 
 ### WaveIndexTracker::autoIndex_ (field)  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/wave_index_tracker.hpp:87  `int autoIndex_;`
-- src/wave_index_tracker.cpp:67  `autoIndex_ = 0;` inside `assign()`,
+- include/zhinst/waveform/wave_index_tracker.hpp:87  `int autoIndex_;`
+- src/waveform/wave_index_tracker.cpp:67  `autoIndex_ = 0;` inside `assign()`,
   i.e. assigning a specific index resets the auto-cursor.
-- src/wave_index_tracker.cpp:114-116  `getNextAutoIndex()` advances
+- src/waveform/wave_index_tracker.cpp:114-116  `getNextAutoIndex()` advances
   `autoIndex_` past every entry already present in the set.
-- src/wave_index_tracker.cpp:131  `hasGaps()` compares
+- src/waveform/wave_index_tracker.cpp:131  `hasGaps()` compares
   `autoIndex_ < *it` (max used index).
-- src/wavetable_ir.cpp:508,516,531,556,561,569  external code uses
+- src/waveform/wavetable_ir.cpp:508,516,531,556,561,569  external code uses
   `waveIndexTracker_.autoIndex_` as the running auto-assign cursor
   while filling in unused indices.
 
@@ -170,16 +170,16 @@ Proposals:
 - keep current   (high)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:87
-- used:     src/wave_index_tracker.cpp:54,58,67,112,114-116,129-131
-- ext use:  src/wavetable_ir.cpp:508,516,531,556,561,569
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:87
+- used:     src/waveform/wave_index_tracker.cpp:54,58,67,112,114-116,129-131
+- ext use:  src/waveform/wavetable_ir.cpp:508,516,531,556,561,569
 
 ### WaveIndexTracker::WaveIndexTracker(int)::maxIdx (param)  [unsure / low / —]
 
 Evidence:
-- src/wave_index_tracker.cpp:55  `WaveIndexTracker(int maxIdx)`
-- src/wave_index_tracker.cpp:56  `: maxIndex(maxIdx)`
-- include/zhinst/wave_index_tracker.hpp:90  declaration uses the
+- src/waveform/wave_index_tracker.cpp:55  `WaveIndexTracker(int maxIdx)`
+- src/waveform/wave_index_tracker.cpp:56  `: maxIndex(maxIdx)`
+- include/zhinst/waveform/wave_index_tracker.hpp:90  declaration uses the
   spelling `int maxIndex` (different from the cpp param spelling).
 
 Interpretation:
@@ -197,15 +197,15 @@ Proposals:
 - keep current   (low)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:90
-- defined:  src/wave_index_tracker.cpp:55-60
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:90
+- defined:  src/waveform/wave_index_tracker.cpp:55-60
 
 ### WaveIndexTracker::WaveIndexTracker<T>(int, WavetableManager<T> const&)::maxIdx (param)  [unsure / low / —]
 
 Evidence:
-- src/wave_index_tracker.cpp:148-152  template ctor parameter named
+- src/waveform/wave_index_tracker.cpp:148-152  template ctor parameter named
   `maxIdx`, member init `: maxIndex(maxIdx)`.
-- include/zhinst/wave_index_tracker.hpp:93-94  declaration uses
+- include/zhinst/waveform/wave_index_tracker.hpp:93-94  declaration uses
   `int maxIndex`.
 
 Interpretation:
@@ -220,15 +220,15 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:93-94
-- defined:  src/wave_index_tracker.cpp:147-163
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:93-94
+- defined:  src/waveform/wave_index_tracker.cpp:147-163
 
 ### WavetableException::message_ (field)  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/wave_index_tracker.hpp:125  `std::string message_;`
-- src/wave_index_tracker.cpp:18-19  ctor `: message_(msg)`.
-- src/wave_index_tracker.cpp:35-41  `what()` returns
+- include/zhinst/waveform/wave_index_tracker.hpp:125  `std::string message_;`
+- src/waveform/wave_index_tracker.cpp:18-19  ctor `: message_(msg)`.
+- src/waveform/wave_index_tracker.cpp:35-41  `what()` returns
   `message_.c_str()` (or `""` if empty).
 
 Interpretation:
@@ -242,18 +242,18 @@ Proposals:
 - keep current   (high)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:125
-- used:     src/wave_index_tracker.cpp:19,37,40
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:125
+- used:     src/waveform/wave_index_tracker.cpp:19,37,40
 
 ### WaveIndexTracker::assign(int)::index, assignAuto(int)::index (params)  [no / high / not-misnomer]
 
 Evidence:
-- src/wave_index_tracker.cpp:65-69  `void assign(int index)` resets
+- src/waveform/wave_index_tracker.cpp:65-69  `void assign(int index)` resets
   `autoIndex_=0` then forwards to `assignAuto(index)`.
-- src/wave_index_tracker.cpp:77-97  `int assignAuto(int index)`
+- src/waveform/wave_index_tracker.cpp:77-97  `int assignAuto(int index)`
   checks for duplicate, checks `index >= maxIndex`, then
   `indices_.insert(index)` and returns `index`.
-- src/wavetable_ir.cpp:556  caller `waveIndexTracker_.assignAuto(autoIdx)`
+- src/waveform/wavetable_ir.cpp:556  caller `waveIndexTracker_.assignAuto(autoIdx)`
   passes the integer wave index it wants registered.
 - error_messages.cpp:384-385  the two thrown errors are
   "waveform index already used" / "waveform index exceeds wavetable
@@ -272,9 +272,9 @@ Proposals:
 - keep current   (high)
 
 Locations consulted:
-- declared: include/zhinst/wave_index_tracker.hpp:97,100
-- defined:  src/wave_index_tracker.cpp:65-69, 77-97
-- callers:  src/wavetable_ir.cpp:556
+- declared: include/zhinst/waveform/wave_index_tracker.hpp:97,100
+- defined:  src/waveform/wave_index_tracker.cpp:65-69, 77-97
+- callers:  src/waveform/wavetable_ir.cpp:556
 
 ## 4. Symbols inspected and judged routinely fine
 

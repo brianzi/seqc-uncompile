@@ -537,8 +537,8 @@ reconstructed/
    that can now be properly resolved.
 
 - Sub-phase 10.8a (prefetch.cpp focus, marker total 49):
-  resolved all 18 markers in `src/prefetch.cpp` plus 3 cascading
-  TODOs in `src/prefetch_print.cpp`. Total 70 → 49.
+  resolved all 18 markers in `src/codegen/prefetch.cpp` plus 3 cascading
+  TODOs in `src/codegen/prefetch_print.cpp`. Total 70 → 49.
   Key changes:
   * **Node loadRef refactor**: replaced `Node* loadRef_ptr` +
     `void* loadRef_ctrl` pair (binary's libc++ weak_ptr decomposition
@@ -891,7 +891,7 @@ reconstructed/
 - **Phase 10.7d (zhinst::Exception base class)** — COMPLETE.
   Resolved unknowns.md items 79 (zhinst::Exception layout) and 80
   (zhinst::GenericErrorDescription<T> template). Reconstructed
-  `include/zhinst/exception.hpp` and `src/exception.cpp`.
+  `include/zhinst/core/exception.hpp` and `src/core/exception.cpp`.
 
   Verified layout (size 0x60, derived from
   `Exception::~Exception` calling `operator delete(this, 0x60)` at

@@ -2,8 +2,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/generic_device_type.hpp`
-- `reconstructed/src/generic_device_type.cpp`
+- `reconstructed/include/zhinst/device/generic_device_type.hpp`
+- `reconstructed/src/device/generic_device_type.cpp`
 
 Cross-references:
 
@@ -40,14 +40,14 @@ member-initializer list.)
 
 Evidence:
 
-- include/zhinst/generic_device_type.hpp:37
+- include/zhinst/device/generic_device_type.hpp:37
   `GenericDeviceType(std::string const& deviceType, std::vector<std::string> const& options);`
-- src/generic_device_type.cpp:46–47, 51–53 — the parameter is fed into
+- src/device/generic_device_type.cpp:46–47, 51–53 — the parameter is fed into
   `toDeviceTypeCode(deviceType)` and `toDeviceFamily(deviceType)`, both
   of which take `std::string const&` per their nm lines:
   `zhinst::toDeviceTypeCode(std::string const&)` @ 0x2d43d0 and
   `zhinst::toDeviceFamily(std::string const&)` @ 0x2debd0.
-- src/device_type.cpp:121 — the only caller in the reconstruction
+- src/device/device_type.cpp:121 — the only caller in the reconstruction
   forwards `deviceType` from `DeviceType(string, vector<string>)`:
   `: impl_(new detail::GenericDeviceType(deviceType, options))`. Batch
   29's table accepts that outer parameter as fine
@@ -72,23 +72,23 @@ Proposals:
 
 Locations consulted:
 
-- declared:  include/zhinst/generic_device_type.hpp:37
-- defined:   src/generic_device_type.cpp:42–53
-- callers:   src/device_type.cpp:121, 132
+- declared:  include/zhinst/device/generic_device_type.hpp:37
+- defined:   src/device/generic_device_type.cpp:42–53
+- callers:   src/device/device_type.cpp:121, 132
 - nm:        toDeviceTypeCode/Family signatures above
 
 ### GenericDeviceType::ctor::options (param)  [no / medium / not-misnomer]
 
 Evidence:
 
-- include/zhinst/generic_device_type.hpp:38 — declared as
+- include/zhinst/device/generic_device_type.hpp:38 — declared as
   `std::vector<std::string> const& options`.
-- src/generic_device_type.cpp:52 — passed into
+- src/device/generic_device_type.cpp:52 — passed into
   `toDeviceOptions(options, toDeviceFamily(deviceType))`. From nm:
   `zhinst::toDeviceOptions(std::vector<std::string,…> const&, zhinst::DeviceFamily)`
   @ 0x2d0fb0. The free function's first parameter is precisely a
   vector-of-option-name strings.
-- src/device_type.cpp:121 — caller forwards `options` verbatim from
+- src/device/device_type.cpp:121 — caller forwards `options` verbatim from
   `DeviceType(string, vector<string>)`. Batch 29 accepted that outer
   `options` parameter as fine
   (`DeviceType::ctor(string,vector)::options`).
@@ -112,9 +112,9 @@ Proposals:
 
 Locations consulted:
 
-- declared:  include/zhinst/generic_device_type.hpp:38
-- defined:   src/generic_device_type.cpp:42–53
-- callers:   src/device_type.cpp:121, 132
+- declared:  include/zhinst/device/generic_device_type.hpp:38
+- defined:   src/device/generic_device_type.cpp:42–53
+- callers:   src/device/device_type.cpp:121, 132
 - nm:        `toDeviceOptions(vector<string> const&, DeviceFamily)`
 
 ## 4. Symbols inspected and judged routinely fine

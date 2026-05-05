@@ -14,7 +14,7 @@ deferred from part 1. **Read-only scan**; only this file is edited.
 
 ## 1. Files considered
 
-- `reconstructed/src/custom_functions_io.cpp` lines 2650–3433
+- `reconstructed/src/runtime/custom_functions_io.cpp` lines 2650–3433
   (lines 1–2649 are out of scope; covered by the part-1 report).
 
 Symbol-table verification for the 10 methods in scope:
@@ -50,7 +50,7 @@ TUs (out of scope for this batch).
 `kSuser*`, `kDev*` constants and DeviceConstants member names
 (`numOutputPorts`, `numDIOBits`, `awgIndex`, etc.) do **not** appear
 in `nm`; they remain in scope but their declarations live in
-`include/zhinst/types.hpp` and `include/zhinst/device_constants.hpp`
+`include/zhinst/core/types.hpp` and `include/zhinst/device/device_constants.hpp`
 respectively. Concerns about those declarations are recorded as
 **cross-batch** (batch 31 device_constants, batch 27 node_map_data).
 This batch only flags *use-sites* and notes the misuse pattern; the
@@ -145,11 +145,11 @@ Grouping by method, in source order. Per method: params → locals.
 ### Use of `devConst_->numDIOBits` as oscillator-index upper bound  [yes / high / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_io.cpp:3068 (configFreqSweep) `if (oscIndex >
+- src/runtime/custom_functions_io.cpp:3068 (configFreqSweep) `if (oscIndex >
   static_cast<double>(devConst_->numDIOBits - 1)) throw …`
-- src/custom_functions_io.cpp:3155 (setSweepStep) same
-- src/custom_functions_io.cpp:3260 (setOscFreq) same
-- include/zhinst/device_constants.hpp:91 / :184 — field at +0x84
+- src/runtime/custom_functions_io.cpp:3155 (setSweepStep) same
+- src/runtime/custom_functions_io.cpp:3260 (setOscFreq) same
+- include/zhinst/device/device_constants.hpp:91 / :184 — field at +0x84
   documented as `numDIOBits  // values: 0, 6, or 8`.
 - The error here is `InvalidArgValue` (0) for the *oscillator index*
   argument; `arg0` in all three methods is documented as the
@@ -187,13 +187,13 @@ Cross-reference:
   (device_constants).
 
 Locations consulted:
-- src/custom_functions_io.cpp:3068, 3155, 3260.
-- include/zhinst/device_constants.hpp:91, 184.
+- src/runtime/custom_functions_io.cpp:3068, 3155, 3260.
+- include/zhinst/device/device_constants.hpp:91, 184.
 
 ### Use of `devConst_->numOutputPorts` as bit-shift amount  [unsure / medium / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_io.cpp:2690 `1 << devConst_->numOutputPorts`
+- src/runtime/custom_functions_io.cpp:2690 `1 << devConst_->numOutputPorts`
   — used as an immediate for `wvft` (table-entry shifted constant).
 - :2698 `9 << devConst_->numOutputPorts`
 - :2706 `0xd << devConst_->numOutputPorts`
@@ -205,7 +205,7 @@ Evidence:
 - :3359 (configureFeedbackProcessing) `int shift = 1 <<
   static_cast<int>(devConst_->numOutputPorts);` — used as an
   *additive base* for source IDs, not as a shift count.
-- include/zhinst/device_constants.hpp:87 / :180 — field at +0x78
+- include/zhinst/device/device_constants.hpp:87 / :180 — field at +0x78
   documented as `numOutputPorts  // 0, 10, or 12`.
 
 Interpretation:
@@ -236,14 +236,14 @@ Cross-reference:
 - `DeviceConstants::numOutputPorts` — batch 31 (device_constants).
 
 Locations consulted:
-- src/custom_functions_io.cpp:2690, 2698, 2706, 2714, 2721, 2738,
+- src/runtime/custom_functions_io.cpp:2690, 2698, 2706, 2714, 2721, 2738,
   2746, 3359.
-- include/zhinst/device_constants.hpp:87, 180.
+- include/zhinst/device/device_constants.hpp:87, 180.
 
 ### `setPRNGSeed` integer-literal path: `AsmRegister(args[0].value_.toInt())`  [yes / medium / cross-batch-arbitration]
 
 Evidence:
-- src/custom_functions_io.cpp:2772–2774
+- src/runtime/custom_functions_io.cpp:2772–2774
   ```
   if (argType == 2) {
       // Integer literal path …
@@ -292,16 +292,16 @@ Cross-reference:
 - `EvalResultValue::reg_` — batch 42 (expression).
 
 Locations consulted:
-- src/custom_functions_io.cpp:2772–2774.
-- src/custom_functions_io.cpp:2775–2796 (numeric path that uses
+- src/runtime/custom_functions_io.cpp:2772–2774.
+- src/runtime/custom_functions_io.cpp:2775–2796 (numeric path that uses
   `args[0].value_.toInt()` correctly, after range-checks).
-- src/custom_functions_io.cpp:3161 (sibling method, register path
+- src/runtime/custom_functions_io.cpp:3161 (sibling method, register path
   pattern).
 
 ### `setPRNGRange::val0` / `val1` vs `rangeMin` / `rangeMax`  [yes / low / —]
 
 Evidence:
-- src/custom_functions_io.cpp:2829 `int val0 = args[0].value_.toInt();`
+- src/runtime/custom_functions_io.cpp:2829 `int val0 = args[0].value_.toInt();`
 - :2833 `int val1 = args[1].value_.toInt();`
 - :2845 `int rangeMin = args[0].value_.toInt();`
 - :2846 `int rangeMax = args[1].value_.toInt();`
@@ -325,12 +325,12 @@ Proposals:
 - Keep current (low) if the redundant reads must mirror the binary.
 
 Locations consulted:
-- src/custom_functions_io.cpp:2829–2852.
+- src/runtime/custom_functions_io.cpp:2829–2852.
 
 ### `startQA::resultLengthShift` (UHFQA branch) and `startQA::resultAddr` second-register comment  [unsure / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:2903 `int resultLengthShift = 0;`
+- src/runtime/custom_functions_io.cpp:2903 `int resultLengthShift = 0;`
 - :2948 `resultLengthShift = args[rlsIdx].value_.toInt();`
 - :2981 (SHFQA composite) `int imm = (resultLengthShift << 22) |
   qaIntAll | (monitorEnable << 31) | (qaGenAllEnabled ? (1<<30):0);`
@@ -364,15 +364,15 @@ Proposals:
 - If GDB confirms different ABI-slot mapping, revisit (low).
 
 Locations consulted:
-- src/custom_functions_io.cpp:2903, 2948, 2981, 2995, 3009–3013.
+- src/runtime/custom_functions_io.cpp:2903, 2948, 2981, 2995, 3009–3013.
 
 ### `resetRTLoggerTimestamp` magic addresses `0x62` / `0x6d`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:3031 `unsigned int addr =
+- src/runtime/custom_functions_io.cpp:3031 `unsigned int addr =
   (config_->deviceType == static_cast<AwgDeviceType>(4)) ? 0x62u
   : 0x6du;`
-- include/zhinst/device_constants.hpp does not define `0x62` or
+- include/zhinst/device/device_constants.hpp does not define `0x62` or
   `0x6d` in `SuserAddr` — the inventory in part 1 listed
   `kSuser*` constants for many adjacent values but these two are
   not present, while `0x6E SyncHirzel` and `0x6F WaitLegacy` are.
@@ -398,14 +398,14 @@ Cross-reference:
 - `SuserAddr` table — batch 31 (device_constants).
 
 Locations consulted:
-- src/custom_functions_io.cpp:3022–3034.
-- include/zhinst/device_constants.hpp:107–140 (SuserAddr table).
-- include/zhinst/types.hpp:108–144 (kSuser* family).
+- src/runtime/custom_functions_io.cpp:3022–3034.
+- include/zhinst/device/device_constants.hpp:107–140 (SuserAddr table).
+- include/zhinst/core/types.hpp:108–144 (kSuser* family).
 
 ### `configFreqSweep::oscIndex` / `setSweepStep::oscIndex` / `setOscFreq::oscIndex` (double)  [yes / medium / coordinated-rename]
 
 Evidence:
-- src/custom_functions_io.cpp:3063 `double oscIndex = arg0.value_.toDouble();`
+- src/runtime/custom_functions_io.cpp:3063 `double oscIndex = arg0.value_.toDouble();`
 - :3098 `int oscIntVal = arg0.value_.toInt();`  — same value, int form,
   used a few lines later.
 - :3150 / :3190 (setSweepStep) same pattern — `double oscIndex` then
@@ -438,14 +438,14 @@ Proposals:
 - Keep current (low).
 
 Locations consulted:
-- src/custom_functions_io.cpp:3063 / 3098 (configFreqSweep).
-- src/custom_functions_io.cpp:3150 / 3190 (setSweepStep).
-- src/custom_functions_io.cpp:3255 / 3291 (setOscFreq).
+- src/runtime/custom_functions_io.cpp:3063 / 3098 (configFreqSweep).
+- src/runtime/custom_functions_io.cpp:3150 / 3190 (setSweepStep).
+- src/runtime/custom_functions_io.cpp:3255 / 3291 (setOscFreq).
 
 ### Use of literal suser addresses where named constants exist  [yes / medium / coordinated-rename]
 
 Evidence:
-- src/custom_functions_io.cpp:3085 `writeLS64bit(startFreqEncoded,
+- src/runtime/custom_functions_io.cpp:3085 `writeLS64bit(startFreqEncoded,
   0x8e, 0x8f, results, res);` — should be `kSuserSweepStartLo,
   kSuserSweepStartHi`.
 - :3092 `writeLS64bit(stepFreqEncoded, 0x90, 0x91, …);` — should be
@@ -458,7 +458,7 @@ Evidence:
   inconsistency.)
 - :3284 `writeLS64bit(freqEncoded, 0x8e, 0x8f, …);` — should be
   `kSuserSweepStartLo, kSuserSweepStartHi`.
-- include/zhinst/types.hpp:139–144 — all six constants are defined
+- include/zhinst/core/types.hpp:139–144 — all six constants are defined
   there.
 
 Interpretation:
@@ -480,15 +480,15 @@ Cross-reference:
   (device_constants), already established.
 
 Locations consulted:
-- src/custom_functions_io.cpp:3085, 3092, 3102, 3275, 3284, 3298.
-- src/custom_functions_io.cpp:3163, 3182, 3199 (sibling correct
+- src/runtime/custom_functions_io.cpp:3085, 3092, 3102, 3275, 3284, 3298.
+- src/runtime/custom_functions_io.cpp:3163, 3182, 3199 (sibling correct
   uses).
-- include/zhinst/types.hpp:139–144.
+- include/zhinst/core/types.hpp:139–144.
 
 ### `configureFeedbackProcessing::shift`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:3359 `int shift = 1 << static_cast<int>(
+- src/runtime/custom_functions_io.cpp:3359 `int shift = 1 << static_cast<int>(
   devConst_->numOutputPorts);`
 - :3360 `int src1 = shift + 1;`
 - :3361 `int src2 = shift + 2;`
@@ -512,12 +512,12 @@ Proposals:
 - Keep current (low).
 
 Locations consulted:
-- src/custom_functions_io.cpp:3358–3411, 3422.
+- src/runtime/custom_functions_io.cpp:3358–3411, 3422.
 
 ### `configureFeedbackProcessing::arg0..arg3`  [yes / medium / —]
 
 Evidence:
-- src/custom_functions_io.cpp:3344–3347
+- src/runtime/custom_functions_io.cpp:3344–3347
   ```
   auto const& arg0 = args[0];  // source (feedback source index)
   auto const& arg1 = args[1];  // shift
@@ -547,12 +547,12 @@ Proposals:
 - Keep current (low) — consistent with sibling methods.
 
 Locations consulted:
-- src/custom_functions_io.cpp:3344–3402.
+- src/runtime/custom_functions_io.cpp:3344–3402.
 
 ### `executeTableEntry::asmEntry` (3 emit-sites)  [no / medium / not-misnomer]
 
 Evidence:
-- src/custom_functions_io.cpp:2689, 2697, 2705, 2713, 2720, 2737,
+- src/runtime/custom_functions_io.cpp:2689, 2697, 2705, 2713, 2720, 2737,
   2749 — each block constructs a single `asmEntry` from a `wvft`
   call, then `push_back(std::move(asmEntry))`. Convention used
   throughout part-1 methods (e.g. setDIO, getQAResult).
@@ -567,7 +567,7 @@ Judgement:
 ### `<method>::nodePath` / `nodeItem` / `awgIdx` (configFreqSweep, setSweepStep, setOscFreq)  [no / high / not-misnomer]
 
 Evidence:
-- src/custom_functions_io.cpp:3110–3122 (configFreqSweep).
+- src/runtime/custom_functions_io.cpp:3110–3122 (configFreqSweep).
 - :3207–:3227 (setSweepStep).
 - :3307–:3327 (setOscFreq).
 - The node path strings (`"oscs/<n>/freq"`,

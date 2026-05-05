@@ -1,8 +1,8 @@
 # Batch 38 — play_config
 
 Files in scope:
-- `reconstructed/include/zhinst/play_config.hpp`
-- `reconstructed/src/play_config.cpp`
+- `reconstructed/include/zhinst/waveform/play_config.hpp`
+- `reconstructed/src/waveform/play_config.cpp`
 
 ## Preamble — symbols inspected
 
@@ -50,17 +50,17 @@ high. Suspect blocks below note this where relevant.
 
 ```
 - symbol:        PlayConfig::now
-- declared at:   include/zhinst/play_config.hpp:38
-- defined/used:  src/play_config.cpp:103-115 (toJson key "now"),
+- declared at:   include/zhinst/waveform/play_config.hpp:38
+- defined/used:  src/waveform/play_config.cpp:103-115 (toJson key "now"),
                  127 (fromJson), 91-95 (operator!= — note: now is
                  deliberately NOT compared);
-                 src/asm_commands.cpp:984
+                 src/asm/asm_commands.cpp:984
                    (config.now = isFourChannelBool param);
-                 src/prefetch_splitplay.cpp:39-40 (header comment
+                 src/codegen/prefetch_splitplay.cpp:39-40 (header comment
                    "config.now (bool) — confirmed (was 'indexed')"),
                    308 ("bool indexed = raw->config.now"),
                    401 (same);
-                 src/prefetch_placesingle.cpp:473, 507, 554, 563,
+                 src/codegen/prefetch_placesingle.cpp:473, 507, 554, 563,
                    571, 583, 634 — all of the form
                    "bool is4Ch = ...->config.now"
 - observations:  Every consumer reads `config.now` and binds it to a
@@ -101,16 +101,16 @@ high. Suspect blocks below note this where relevant.
 
 ```
 - symbol:        PlayConfig::is4Channel
-- declared at:   include/zhinst/play_config.hpp:33
-- defined/used:  src/play_config.cpp:108 (toJson "is4Channel"), 147
+- declared at:   include/zhinst/waveform/play_config.hpp:33
+- defined/used:  src/waveform/play_config.cpp:108 (toJson "is4Channel"), 147
                  (fromJson), 83 (operator!=);
-                 src/asm_commands.cpp:981
+                 src/asm/asm_commands.cpp:981
                    (config.is4Channel = isHoldMode param);
-                 src/prefetch_helpers.cpp:205-213
+                 src/codegen/prefetch_helpers.cpp:205-213
                    (Prefetch::getUsedFourChannelMode iterates entries
                    and returns true if any entry has is4Channel set,
                    reading PlayConfig+0x0C);
-                 src/prefetch.cpp:131, 395, 427, 450, 459, 480, 534,
+                 src/codegen/prefetch.cpp:131, 395, 427, 450, 459, 480, 534,
                    etc. — equality-compared between current and
                    saved CWVF state, treated as a regular config bit.
 - observations:  The consumer-side semantics line up with the name:
@@ -134,8 +134,8 @@ high. Suspect blocks below note this where relevant.
 
 ```
 - symbol:        local `dummyFlag` in PlayConfig::encodeCwvf
-- declared at:   src/play_config.cpp:33
-- defined/used:  src/play_config.cpp:33, 36, 53
+- declared at:   src/waveform/play_config.cpp:33
+- defined/used:  src/waveform/play_config.cpp:33, 36, 53
 - observations:  Computed as `hold || dummy` and used to (a) force
                  `channels` to 1 (line 36) and (b) drive the dummy
                  bit (line 53). The header comment block at
@@ -185,8 +185,8 @@ Fully covered:
 
 Deferred / out of scope for this batch:
 - Parameter names of `AsmCommands::genPlayConfig` (declared in
-  `include/zhinst/asm_commands.hpp:201-204`, defined in
-  `src/asm_commands.cpp:960-1044`). Multiple parameters there
+  `include/zhinst/asm/asm_commands.hpp:201-204`, defined in
+  `src/asm/asm_commands.cpp:960-1044`). Multiple parameters there
   (`isHold`, `fourChannel`, `isFourChannelBool`, `isBool`,
   `holdCount`, `isHoldMode`) appear scrambled relative to the fields
   they assign — e.g. `config.is4Channel = isHoldMode` and

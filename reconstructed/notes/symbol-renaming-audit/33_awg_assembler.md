@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/awg_assembler.hpp`
-- `reconstructed/src/awg_assembler.cpp`
+- `reconstructed/include/zhinst/codegen/awg_assembler.hpp`
+- `reconstructed/src/codegen/awg_assembler.cpp`
 
 `AWGAssembler` is a thin pImpl façade — every method forwards a single
 argument straight to `AWGAssemblerImpl`. The implementation class
@@ -83,8 +83,8 @@ Cross-reference:
   by the eventual unification.
 
 Locations consulted:
-- declared: include/zhinst/awg_assembler.hpp:11,22
-- used:     src/awg_assembler.cpp:35-38
+- declared: include/zhinst/codegen/awg_assembler.hpp:11,22
+- used:     src/codegen/awg_assembler.cpp:35-38
 - nm:       0x2850f0 (free)
 
 ### `AWGAssembler::pImpl_`  [no / high / not-misnomer]

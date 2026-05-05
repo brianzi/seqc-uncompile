@@ -11,15 +11,15 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/expression.hpp`
-- `reconstructed/src/expression.cpp`
+- `reconstructed/include/zhinst/ast/expression.hpp`
+- `reconstructed/src/ast/expression.cpp`
 
 Cross-references consulted (read-only):
-- `reconstructed/include/zhinst/seqc_ast_node.hpp` (downstream layout — SeqCAstNode
+- `reconstructed/include/zhinst/ast/seqc_ast_node.hpp` (downstream layout — SeqCAstNode
   members `valueCategory_`, `lineNr_`, `direction_`, `varType_`)
-- `reconstructed/src/seqc_ast_node.cpp` (base ctor wiring)
-- `reconstructed/src/compiler.cpp` (printAST uses field names)
-- `reconstructed/src/seqc_parser.tab.c` / `seqc_parser.y` (parser uses
+- `reconstructed/src/ast/seqc_ast_node.cpp` (base ctor wiring)
+- `reconstructed/src/codegen/compiler.cpp` (printAST uses field names)
+- `reconstructed/src/ast/seqc_parser.tab.c` / `seqc_parser.y` (parser uses
   `expr->valueType = 0` for assignment LHS)
 - `reconstructed/notes/seqc_parser_grammar.md` (decodes `valueType=0` as
   `direction_=eIN`)
@@ -183,13 +183,13 @@ Proposals:
 - keep current          (low)
 
 Locations consulted:
-- declared: include/zhinst/expression.hpp:112,125
-- written: src/expression.cpp:181,249,412,439,574,577;
-  src/seqc_parser.tab.c:1736,1751,1761,1771,1781,1791,1801,1811,1821,1831,1841,1887;
-  src/seqc_parser.y:311–376,426
-- consumed (downstream): src/seqc_ast_node.cpp:47-50;
-  include/zhinst/seqc_ast_node.hpp:106,152;
-  src/seqc_ast_nodes_evaluate.cpp:2928,2952
+- declared: include/zhinst/ast/expression.hpp:112,125
+- written: src/ast/expression.cpp:181,249,412,439,574,577;
+  src/ast/seqc_parser.tab.c:1736,1751,1761,1771,1781,1791,1801,1811,1821,1831,1841,1887;
+  src/ast/seqc_parser.y:311–376,426
+- consumed (downstream): src/ast/seqc_ast_node.cpp:47-50;
+  include/zhinst/ast/seqc_ast_node.hpp:106,152;
+  src/ast/seqc_ast_nodes_evaluate.cpp:2928,2952
 
 ### Expression::valueCategory  [no / high / not-misnomer]
 
@@ -216,10 +216,10 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/expression.hpp:116
-- written: src/expression.cpp:158,173,359,560,577
-- downstream: include/zhinst/seqc_ast_node.hpp:65,148;
-  src/seqc_ast_node.cpp:47-50,84
+- declared: include/zhinst/ast/expression.hpp:116
+- written: src/ast/expression.cpp:158,173,359,560,577
+- downstream: include/zhinst/ast/seqc_ast_node.hpp:65,148;
+  src/ast/seqc_ast_node.cpp:47-50,84
 
 ### Expression::lineNumber  [no / high / not-misnomer]
 
@@ -348,10 +348,10 @@ table, but worth a synthesis-level double-check that no header or
 documentation string makes this name authoritative.
 
 Locations consulted:
-- declared: include/zhinst/expression.hpp:161-162
-- defined: src/expression.cpp:206-236
-- called: src/seqc_parser.tab.c:1861,1973; src/seqc_parser.y (corresponding
-  rules); recursive at src/expression.cpp:220
+- declared: include/zhinst/ast/expression.hpp:161-162
+- defined: src/ast/expression.cpp:206-236
+- called: src/ast/seqc_parser.tab.c:1861,1973; src/ast/seqc_parser.y (corresponding
+  rules); recursive at src/ast/expression.cpp:220
 
 ### createFunction::nameExpr and ::params  [yes / high / coordinated-rename]
 
@@ -405,9 +405,9 @@ header-declaration parameter names (`name`, `params`) and the definition
 parameter names (`nameExpr`, `params`) become consistent.
 
 Locations consulted:
-- declared: include/zhinst/expression.hpp:185-186
-- defined: src/expression.cpp:371-398
-- called: src/seqc_parser.tab.c:2237; src/seqc_parser.y rule
+- declared: include/zhinst/ast/expression.hpp:185-186
+- defined: src/ast/expression.cpp:371-398
+- called: src/ast/seqc_parser.tab.c:2237; src/ast/seqc_parser.y rule
   function_definition
 
 ### createOrAppendListType::lhs / ::rhs (and 4 wrappers)  [yes / medium / coordinated-rename]
@@ -446,8 +446,8 @@ Status: `coordinated-rename` — applying to `createOrAppendListType`
 naturally cascades to all four wrappers.
 
 Locations consulted:
-- declared: include/zhinst/expression.hpp:172-182
-- defined: src/expression.cpp:314-348
+- declared: include/zhinst/ast/expression.hpp:172-182
+- defined: src/ast/expression.cpp:314-348
 
 ### createArray::lhs / ::rhs  [unsure / low / —]
 

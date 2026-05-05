@@ -11,10 +11,10 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_commands_impl.hpp`
-- `reconstructed/src/asm_commands_impl.cpp`
-- `reconstructed/src/asm_commands_impl_hirzel.cpp`
-- `reconstructed/src/asm_commands_impl_cervino.cpp`
+- `reconstructed/include/zhinst/asm/asm_commands_impl.hpp`
+- `reconstructed/src/asm/asm_commands_impl.cpp`
+- `reconstructed/src/asm/asm_commands_impl_hirzel.cpp`
+- `reconstructed/src/asm/asm_commands_impl_cervino.cpp`
 
 Cross-file usage surveyed in: `asm_commands.cpp` (the only direct
 caller of `impl_->...` virtuals; the wrapper is `AsmCommands::*`).
@@ -125,9 +125,9 @@ Cross-reference:
   be renamed together — same vtable slot. `coordinated-rename`.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:43-44, 73-74, 100-101
-- defined: src/asm_commands_impl_cervino.cpp:39-62; src/asm_commands_impl_hirzel.cpp:43-63
-- caller: src/asm_commands.cpp:115-119
+- declared: include/zhinst/asm/asm_commands_impl.hpp:43-44, 73-74, 100-101
+- defined: src/asm/asm_commands_impl_cervino.cpp:39-62; src/asm/asm_commands_impl_hirzel.cpp:43-63
+- caller: src/asm/asm_commands.cpp:115-119
 
 ### AsmCommandsImpl::wvf::waveIndex  [yes / medium / coordinated-rename]
 
@@ -166,9 +166,9 @@ Cross-reference:
 - Coordinated rename across base + Cervino + Hirzel overrides.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:44, 76, 101
-- defined: src/asm_commands_impl_cervino.cpp:39-62; src/asm_commands_impl_hirzel.cpp:43-63
-- caller: src/asm_commands.cpp:115-119
+- declared: include/zhinst/asm/asm_commands_impl.hpp:44, 76, 101
+- defined: src/asm/asm_commands_impl_cervino.cpp:39-62; src/asm/asm_commands_impl_hirzel.cpp:43-63
+- caller: src/asm/asm_commands.cpp:115-119
 
 ### AsmCommandsImpl::wvfi::markerReg  [yes / medium / coordinated-rename]
 
@@ -201,8 +201,8 @@ Cross-reference:
   stay aligned.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:45-46, 75-76, 103
-- defined: src/asm_commands_impl_cervino.cpp:66-82; src/asm_commands_impl_hirzel.cpp:67-71
+- declared: include/zhinst/asm/asm_commands_impl.hpp:45-46, 75-76, 103
+- defined: src/asm/asm_commands_impl_cervino.cpp:66-82; src/asm/asm_commands_impl_hirzel.cpp:67-71
 
 ### AsmCommandsImpl::wvfi::waveIndex  [yes / medium / coordinated-rename]
 
@@ -218,9 +218,9 @@ Interpretation, Judgement, Proposals — identical to
 `wvf::waveIndex` block above.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:46, 76, 103
-- defined: src/asm_commands_impl_cervino.cpp:66-82
-- caller: src/asm_commands.cpp:122-126
+- declared: include/zhinst/asm/asm_commands_impl.hpp:46, 76, 103
+- defined: src/asm/asm_commands_impl_cervino.cpp:66-82
+- caller: src/asm/asm_commands.cpp:122-126
 
 ### AsmCommandsImpl::wvf::waveReg  [unsure / low / —]
 
@@ -249,8 +249,8 @@ Proposals:
 - reg           (low) — would align with wrapper / siblings.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:43, 73, 100
-- defined: src/asm_commands_impl_cervino.cpp:39-62; src/asm_commands_impl_hirzel.cpp:43-63
+- declared: include/zhinst/asm/asm_commands_impl.hpp:43, 73, 100
+- defined: src/asm/asm_commands_impl_cervino.cpp:39-62; src/asm/asm_commands_impl_hirzel.cpp:43-63
 
 ### AsmCommandsImpl::brz::flag  [yes / high / coordinated-rename]
 
@@ -294,9 +294,9 @@ Cross-reference:
   flagged in batch 9.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:51-52, 81-82, 111-112
-- defined: src/asm_commands_impl_cervino.cpp:101-111; src/asm_commands_impl_hirzel.cpp:108-125
-- caller: src/asm_commands.cpp:162-170, 173-208
+- declared: include/zhinst/asm/asm_commands_impl.hpp:51-52, 81-82, 111-112
+- defined: src/asm/asm_commands_impl_cervino.cpp:101-111; src/asm/asm_commands_impl_hirzel.cpp:108-125
+- caller: src/asm/asm_commands.cpp:162-170, 173-208
 
 ### AsmCommandsImplHirzel::wvfs::arg  [yes / medium / —]
 
@@ -325,9 +325,9 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:48, 77, 106
-- defined: src/asm_commands_impl_hirzel.cpp:75-90
-- caller: src/asm_commands.cpp:129-137
+- declared: include/zhinst/asm/asm_commands_impl.hpp:48, 77, 106
+- defined: src/asm/asm_commands_impl_hirzel.cpp:75-90
+- caller: src/asm/asm_commands.cpp:129-137
 
 ### AsmCommandsImplHirzel::wvft::arg  [yes / medium / —]
 
@@ -342,9 +342,9 @@ Evidence:
 Interpretation, Judgement, Proposals — same as `wvfs::arg`.
 
 Locations consulted:
-- declared: include/zhinst/asm_commands_impl.hpp:49, 79, 108
-- defined: src/asm_commands_impl_hirzel.cpp:94-104
-- caller: src/asm_commands.cpp:140-141
+- declared: include/zhinst/asm/asm_commands_impl.hpp:49, 79, 108
+- defined: src/asm/asm_commands_impl_hirzel.cpp:94-104
+- caller: src/asm/asm_commands.cpp:140-141
 
 ## 4. Symbols inspected and judged routinely fine
 

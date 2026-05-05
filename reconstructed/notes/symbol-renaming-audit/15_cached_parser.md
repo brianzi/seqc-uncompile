@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/cached_parser.hpp`
-- `reconstructed/src/cached_parser.cpp`
+- `reconstructed/include/zhinst/io/cached_parser.hpp`
+- `reconstructed/src/io/cached_parser.cpp`
 
 Use-site survey across `reconstructed/src/**.cpp` and
 `reconstructed/include/zhinst/**.hpp`, especially `csv_parser.cpp`,
@@ -123,8 +123,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:201
-- used:     src/cached_parser.cpp:76,113-138,164-177,194,229-247,348,434-441
+- declared: include/zhinst/io/cached_parser.hpp:201
+- used:     src/io/cached_parser.cpp:76,113-138,164-177,194,229-247,348,434-441
 
 ### CachedParser::enabled_  [no / high / not-misnomer]
 
@@ -154,8 +154,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:203
-- used:     src/cached_parser.cpp:77,83,110,163,180,291,431,493
+- declared: include/zhinst/io/cached_parser.hpp:203
+- used:     src/io/cached_parser.cpp:77,83,110,163,180,291,431,493
 
 ### CachedParser::cacheSize_ / currentSize_  [no / high / —]
 
@@ -184,8 +184,8 @@ Proposals:
 - keep current  (high) — both
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:205-206
-- used:     src/cached_parser.cpp:78,79,128-138,239-246,295-300
+- declared: include/zhinst/io/cached_parser.hpp:205-206
+- used:     src/io/cached_parser.cpp:78,79,128-138,239-246,295-300
 
 ### CachedParser::cachePath_ / indexFilePath_  [no / high / —]
 
@@ -211,8 +211,8 @@ Proposals:
 - keep current  (high) — both
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:207-208
-- used:     src/cached_parser.cpp:80-84,113,167,196,197,310
+- declared: include/zhinst/io/cached_parser.hpp:207-208
+- used:     src/io/cached_parser.cpp:80-84,113,167,196,197,310
 
 ### CachedParser::cacheFile::markers / markerBitsVec  [yes / medium / coordinated-rename]
 
@@ -273,8 +273,8 @@ Cross-reference:
   the same rename.
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:165-171
-- used:     src/cached_parser.cpp:282-289,326-336,475-477
+- declared: include/zhinst/io/cached_parser.hpp:165-171
+- used:     src/io/cached_parser.cpp:282-289,326-336,475-477
 - related:  notes/elf_format.md:115-118
 
 ### CachedParser::cacheFile::sampleFormat  [unsure / low / —]
@@ -312,8 +312,8 @@ Proposals:
 - `channelInfo`    (low)
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:167
-- used:     src/cached_parser.cpp:323-324,455-460
+- declared: include/zhinst/io/cached_parser.hpp:167
+- used:     src/io/cached_parser.cpp:323-324,455-460
 - related:  cached_parser.hpp:137
 
 ### CachedParser::cacheFile::markerBits  [unsure / low / —]
@@ -343,8 +343,8 @@ Proposals:
 - `markerCount`  (low)
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:169
-- used:     src/cached_parser.cpp:339-340
+- declared: include/zhinst/io/cached_parser.hpp:169
+- used:     src/io/cached_parser.cpp:339-340
 
 ### CachedParser::cacheFile::budget (local)  [yes / medium / —]
 
@@ -382,8 +382,8 @@ Cross-reference:
 - Same byte/sample confusion observed in batch 36 (`Cache::numSamples`).
 
 Locations consulted:
-- declared: src/cached_parser.cpp:294
-- used:     src/cached_parser.cpp:294,295,300,347
+- declared: src/io/cached_parser.cpp:294
+- used:     src/io/cached_parser.cpp:294,295,300,347
 
 ### CachedParser::cacheFileOutdated::cachedElfPath  [no / high / not-misnomer]
 
@@ -420,9 +420,9 @@ Proposals:
 - keep cpp `cachedElfPath`  (high)
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:175
-- defined:  src/cached_parser.cpp:371-398
-- used:     src/cached_parser.cpp:439
+- declared: include/zhinst/io/cached_parser.hpp:175
+- defined:  src/io/cached_parser.cpp:371-398
+- used:     src/io/cached_parser.cpp:439
 
 ### CachedParser::CacheEntry::fileSize_  [yes / medium / —]
 
@@ -461,8 +461,8 @@ Cross-reference:
   finding, must rename together (coordinated).
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:124
-- used:     src/cached_parser.cpp:41,58,128,246,347; cached_parser.hpp:97
+- declared: include/zhinst/io/cached_parser.hpp:124
+- used:     src/io/cached_parser.cpp:41,58,128,246,347; cached_parser.hpp:97
 
 ### CachedParser::CacheEntry::valid_ (and ctor param `valid`)  [yes / medium / —]
 
@@ -511,8 +511,8 @@ Cross-reference:
   parameter (same row in §2): rename together.
 
 Locations consulted:
-- declared: include/zhinst/cached_parser.hpp:127, also hpp:96,99
-- used:     src/cached_parser.cpp:44,61,240,347,447;
+- declared: include/zhinst/io/cached_parser.hpp:127, also hpp:96,99
+- used:     src/io/cached_parser.cpp:44,61,240,347,447;
   cached_parser.cpp:222-223 (author comment)
 
 ## 4. Symbols inspected and judged routinely fine

@@ -11,16 +11,16 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/awg_assembler_impl.hpp`
-- `reconstructed/src/awg_assembler_impl.cpp`
-- `reconstructed/src/awg_assembler_impl_pipeline.cpp`
-- `reconstructed/src/awg_assembler_opcodes.cpp`
+- `reconstructed/include/zhinst/codegen/awg_assembler_impl.hpp`
+- `reconstructed/src/codegen/awg_assembler_impl.cpp`
+- `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp`
+- `reconstructed/src/codegen/awg_assembler_opcodes.cpp`
 
 Cross-referenced (read for context, not for findings):
 
-- `reconstructed/include/zhinst/asm_expression.hpp` (field
+- `reconstructed/include/zhinst/asm/asm_expression.hpp` (field
   `isWaveformCmdOverride_`, accessor `noOpt()`/`labelType()`)
-- `reconstructed/include/zhinst/asm_parser_context.hpp` (declared
+- `reconstructed/include/zhinst/asm/asm_parser_context.hpp` (declared
   `parserCtx_` member type)
 - Prior reports 33, 26, 25, 44, 10, 49, 06, 24, 23.
 
@@ -170,7 +170,7 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_assembler_impl.hpp:21-23
+- declared: include/zhinst/codegen/awg_assembler_impl.hpp:21-23
 - used: hpp:156, hpp:170; pipeline.cpp:453,462; opcodes.cpp:141-143;
   pipeline.cpp:644-649
 
@@ -362,8 +362,8 @@ Judgement:
 Proposals:
 - Header `format` → `startIndex` (high) — coordinated with the
   wrapper at `AWGAssembler::printOpcode(int format)`
-  (`include/zhinst/awg_assembler.hpp:31`,
-  `src/awg_assembler.cpp:74-77`).
+  (`include/zhinst/codegen/awg_assembler.hpp:31`,
+  `src/codegen/awg_assembler.cpp:74-77`).
 
 Cross-reference:
 - Batch 33 (awg_assembler) — wrapper side; deferred to this batch.

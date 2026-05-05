@@ -11,7 +11,7 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_register.hpp` (header-only)
+- `reconstructed/include/zhinst/asm/asm_register.hpp` (header-only)
 
 Site-wide usage surveyed via grep across `reconstructed/src/**.cpp` and
 `reconstructed/include/zhinst/**.hpp` (883 hits for `AsmRegister`,
@@ -73,7 +73,7 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:18
+- declared: include/zhinst/asm/asm_register.hpp:18
 - nm: AsmRegister::* (multiple)
 
 ---
@@ -113,9 +113,9 @@ Proposals:
 - keep current    (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:19
-- read:     src/assembler.cpp:316,320,324; src/seqc_ast_nodes_evaluate.cpp:6704;
-            src/resources.cpp:378
+- declared: include/zhinst/asm/asm_register.hpp:19
+- read:     src/asm/assembler.cpp:316,320,324; src/ast/seqc_ast_nodes_evaluate.cpp:6704;
+            src/runtime/resources.cpp:378
 
 ---
 
@@ -143,8 +143,8 @@ Proposals:
 - keep current    (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:20
-- read:     src/assembler.cpp:315,319,323
+- declared: include/zhinst/asm/asm_register.hpp:20
+- read:     src/asm/assembler.cpp:315,319,323
 
 ---
 
@@ -183,7 +183,7 @@ Proposals (for `v`):
 Status (for the ctor itself): verify-not-original — not in `nm`.
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:24
+- declared: include/zhinst/asm/asm_register.hpp:24
 - nm:       no 2-arg AsmRegister ctor present
 
 ---
@@ -213,9 +213,9 @@ Proposals (for `n`):
 - keep current    (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:25
+- declared: include/zhinst/asm/asm_register.hpp:25
 - nm:       `AsmRegister::AsmRegister(int)` @ 0x28eb40
-- used:     src/prefetch.cpp:776,2117,2121; src/prefetch_placesingle.cpp:151,157,178,…
+- used:     src/codegen/prefetch.cpp:776,2117,2121; src/codegen/prefetch_placesingle.cpp:151,157,178,…
 
 ---
 
@@ -241,8 +241,8 @@ Proposals:
 Status: verify-not-original
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:28
-- used:     src/resources.cpp:513,656,977,1016,1063,1121,1194,1218,1243,1729,1776,1873
+- declared: include/zhinst/asm/asm_register.hpp:28
+- used:     src/runtime/resources.cpp:513,656,977,1016,1063,1121,1194,1218,1243,1729,1776,1873
 
 ---
 
@@ -277,9 +277,9 @@ Proposals:
 Status: verify-not-original
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:29
-- used:     src/asm_commands.cpp:* (many); src/asm_commands_impl_*.cpp:*;
-            src/resources.cpp:254; src/seqc_ast_nodes_evaluate.cpp:8823
+- declared: include/zhinst/asm/asm_register.hpp:29
+- used:     src/asm/asm_commands.cpp:* (many); src/asm_commands_impl_*.cpp:*;
+            src/runtime/resources.cpp:254; src/ast/seqc_ast_nodes_evaluate.cpp:8823
 
 ---
 
@@ -302,7 +302,7 @@ Proposals:
 - keep current    (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:33
+- declared: include/zhinst/asm/asm_register.hpp:33
 - nm:       0x28ebb0
 
 ---
@@ -352,7 +352,7 @@ Proposals:
 Status: verify-not-original
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:36
+- declared: include/zhinst/asm/asm_register.hpp:36
 
 ---
 
@@ -390,7 +390,7 @@ Proposals:
 Status: verify-not-original
 
 Locations consulted:
-- declared: include/zhinst/asm_register.hpp:58-59
+- declared: include/zhinst/asm/asm_register.hpp:58-59
 - nm:       no matching free symbols
 
 ---
@@ -422,7 +422,7 @@ Proposals:
 ## 5. Coverage
 
 - **Fully covered:** all named symbols declared in
-  `include/zhinst/asm_register.hpp` (the type, both ctors, both
+  `include/zhinst/asm/asm_register.hpp` (the type, both ctors, both
   static factories, `magicSkipRegister`, `isValid`, `toInt`, the
   conversion operator, `operator==`/`operator!=`, both fields, and
   the two free-function wrappers in `namespace zhinst`).

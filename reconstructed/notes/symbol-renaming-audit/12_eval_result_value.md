@@ -2,8 +2,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/eval_result_value.hpp`
-- `reconstructed/src/eval_result_value.cpp`
+- `reconstructed/include/zhinst/ast/eval_result_value.hpp`
+- `reconstructed/src/ast/eval_result_value.cpp`
 
 Cross-batch context: this batch sits adjacent to batch 11 (`Value`) and
 batch 34 (`EvalResults`). The struct embeds a `Value` at +0x08 and is
@@ -61,25 +61,25 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:42
+- declared: include/zhinst/ast/eval_result_value.hpp:42
 - nm output checked above
 
 ### EvalResultValue::varType_  [no / high / not-misnomer]
 
 Evidence:
-- include/zhinst/eval_result_value.hpp:43 — `VarType varType_; // +0x00 — outer type tag`.
-- include/zhinst/resources.hpp defines `enum VarType` with members
+- include/zhinst/ast/eval_result_value.hpp:43 — `VarType varType_; // +0x00 — outer type tag`.
+- include/zhinst/runtime/resources.hpp defines `enum VarType` with members
   `VarType_Var=2`, `VarType_Const`, `VarType_String=4`, … and the type
   appears in mangled binary symbols (e.g.
   `EvalResults::setValue(VarType, …)`).
 - Use sites read the field as the discriminator that decides which
   `Value` accessor to call:
-  - `src/custom_functions_play.cpp:100` `if (arg1.varType_ == VarType_Var) …`
-  - `src/custom_functions_play.cpp:491` `if (firstVal.varType_ != VarType_Const)`
-  - `src/custom_functions_play.cpp:794` `VarType rateType = parseEnd[1].varType_;`
-  - `src/custom_functions_play.cpp:1607,1635,1682,1705,1728,1751,1933,2012,2095,2121,2152` repeatedly cast `valRef.varType_` to `int` to switch on `Var`/`Const` etc.
-  - `src/custom_functions_io.cpp:63` `if (static_cast<int>(arg.varType_) == 2)`.
-- Write site: `src/custom_functions_play.cpp:2429`
+  - `src/runtime/custom_functions_play.cpp:100` `if (arg1.varType_ == VarType_Var) …`
+  - `src/runtime/custom_functions_play.cpp:491` `if (firstVal.varType_ != VarType_Const)`
+  - `src/runtime/custom_functions_play.cpp:794` `VarType rateType = parseEnd[1].varType_;`
+  - `src/runtime/custom_functions_play.cpp:1607,1635,1682,1705,1728,1751,1933,2012,2095,2121,2152` repeatedly cast `valRef.varType_` to `int` to switch on `Var`/`Const` etc.
+  - `src/runtime/custom_functions_io.cpp:63` `if (static_cast<int>(arg.varType_) == 2)`.
+- Write site: `src/runtime/custom_functions_play.cpp:2429`
   `nameVal.varType_ = VarType_String;` (with the comment "first arg
   must be string type for generate()").
 
@@ -95,23 +95,23 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:43
-- used: src/custom_functions_play.cpp:97,100,491,536,761,769,794,909,1075,1289,1607,1635,1682,1705,1728,1751,1825,1838,1933,2012,2095,2121,2152,2267,2429; src/custom_functions_io.cpp:63,68; many more (842 grep hits across `reconstructed/`).
+- declared: include/zhinst/ast/eval_result_value.hpp:43
+- used: src/runtime/custom_functions_play.cpp:97,100,491,536,761,769,794,909,1075,1289,1607,1635,1682,1705,1728,1751,1825,1838,1933,2012,2095,2121,2152,2267,2429; src/runtime/custom_functions_io.cpp:63,68; many more (842 grep hits across `reconstructed/`).
 
 ### EvalResultValue::varSubType_  [no / high / not-misnomer]
 
 Evidence:
-- include/zhinst/eval_result_value.hpp:44 — `VarSubType varSubType_; // +0x04 — sub-type qualifier`.
-- include/zhinst/resources.hpp:102-109 defines `enum VarSubType` with
+- include/zhinst/ast/eval_result_value.hpp:44 — `VarSubType varSubType_; // +0x04 — sub-type qualifier`.
+- include/zhinst/runtime/resources.hpp:102-109 defines `enum VarSubType` with
   members `VarSubType_Default=0`, `VarSubType_Stub=1`,
   `VarSubType_FunctionArg=2`, `VarSubType_Numeric=3`,
   `VarSubType_String=4`. The enum type appears as an argument in
   multiple binary symbols (e.g. `Resources::addVar(…, VarSubType)`).
-- Read site: `src/custom_functions_play.cpp:1289`
+- Read site: `src/runtime/custom_functions_play.cpp:1289`
   `if (static_cast<int>(path.varSubType_) == 2) …` — reads it as the
   enum discriminator that determines whether the path argument needs
   special handling.
-- Write site: `src/custom_functions_play.cpp:2430`
+- Write site: `src/runtime/custom_functions_play.cpp:2430`
   `nameVal.varSubType_ = VarSubType_Numeric;`.
 
 Interpretation:
@@ -127,16 +127,16 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:44
-- used: src/custom_functions_play.cpp:1280,1289,2430
+- declared: include/zhinst/ast/eval_result_value.hpp:44
+- used: src/runtime/custom_functions_play.cpp:1280,1289,2430
 
 ### EvalResultValue::value_  [no / medium]
 
 Evidence:
-- include/zhinst/eval_result_value.hpp:45 — `Value value_; // +0x08 — embedded Value`.
+- include/zhinst/ast/eval_result_value.hpp:45 — `Value value_; // +0x08 — embedded Value`.
 - The field holds an embedded `zhinst::Value` (variant) payload. Use
   sites consistently call `Value` accessors on it:
-  - `src/custom_functions_play.cpp:200` `std::string wfName = erv.value_.toString();`
+  - `src/runtime/custom_functions_play.cpp:200` `std::string wfName = erv.value_.toString();`
   - `:218` `values.push_back(erv.value_);`
   - `:495` `playLength = firstVal.value_.toInt();`
   - `:812` `int waveIndex = parseEnd[1].value_.toInt();`
@@ -165,20 +165,20 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:45
-- used: src/custom_functions_play.cpp:200,218,495,541,812,878,914,944,949,1296,1610,1611,1614,1638,1639,1643,1648,1684,1689,1707,1712,1730,1735,1753,1758,1825,1838,1857,1874,1953,2031,2054,2055,2057,2062,2160,2258,2272,2277,2431; src/custom_functions_io.cpp:73,428; many more.
+- declared: include/zhinst/ast/eval_result_value.hpp:45
+- used: src/runtime/custom_functions_play.cpp:200,218,495,541,812,878,914,944,949,1296,1610,1611,1614,1638,1639,1643,1648,1684,1689,1707,1712,1730,1735,1753,1758,1825,1838,1857,1874,1953,2031,2054,2055,2057,2062,2160,2258,2272,2277,2431; src/runtime/custom_functions_io.cpp:73,428; many more.
 
 ### EvalResultValue::reg_  [no / medium]
 
 Evidence:
-- include/zhinst/eval_result_value.hpp:46 — `AsmRegister reg_; // +0x30 — register binding`.
+- include/zhinst/ast/eval_result_value.hpp:46 — `AsmRegister reg_; // +0x30 — register binding`.
 - All read sites assign to a local `AsmRegister` or pass to
   `appendSuser(...)` which expects an `AsmRegister`:
-  - `src/custom_functions_play.cpp:102` `waitReg = arg1.reg_;`
+  - `src/runtime/custom_functions_play.cpp:102` `waitReg = arg1.reg_;`
   - `:1081` `indexReg = parseEnd[0].reg_;`
   - `:1629` `appendSuser(localList, asmCommands_, valRef.reg_, …);`
   - `:1674,1990,2006,2087,2116,2154` similar `appendSuser(..., valRef.reg_, …)` calls.
-  - `src/custom_functions_io.cpp:65` `AsmRegister reg = arg.reg_;`.
+  - `src/runtime/custom_functions_io.cpp:65` `AsmRegister reg = arg.reg_;`.
 - Write site: `:2432` `nameVal.reg_ = AsmRegister(-1);` (default
   unbound register sentinel).
 - The header comment ties the field to disassembly:
@@ -203,8 +203,8 @@ Proposals:
 - `asmReg_` (low) — slight readability gain; not recommended
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:46
-- used: src/custom_functions_play.cpp:97,102,1067,1081,1522,1601,1629,1673-1674,1990,2006,2087,2094,2116,2154,2432; src/custom_functions_io.cpp:65
+- declared: include/zhinst/ast/eval_result_value.hpp:46
+- used: src/runtime/custom_functions_play.cpp:97,102,1067,1081,1522,1601,1629,1673-1674,1990,2006,2087,2094,2116,2154,2432; src/runtime/custom_functions_io.cpp:65
 
 ### EvalResultValue::~EvalResultValue  [no / high / not-misnomer]
 
@@ -223,8 +223,8 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/eval_result_value.hpp:48
-- defined: src/eval_result_value.cpp:13
+- declared: include/zhinst/ast/eval_result_value.hpp:48
+- defined: src/ast/eval_result_value.cpp:13
 - nm output above
 
 ## 4. Symbols inspected and judged routinely fine
@@ -236,8 +236,8 @@ above.)
 ## 5. Coverage
 
 - **Fully covered:** every named symbol in
-  `include/zhinst/eval_result_value.hpp` and
-  `src/eval_result_value.cpp` (the type, four members, the dtor).
+  `include/zhinst/ast/eval_result_value.hpp` and
+  `src/ast/eval_result_value.cpp` (the type, four members, the dtor).
 - **Deferred:** none.
 - **Not covered (out of scope per RULES §2/§3):**
   - The type name `EvalResultValue`, the embedded enum types

@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/assembler.hpp`
-- `reconstructed/src/assembler.cpp`
+- `reconstructed/include/zhinst/asm/assembler.hpp`
+- `reconstructed/src/asm/assembler.cpp`
 
 Cross-file usage surveyed in: `asm_list.cpp`, `asm_list.hpp`,
 `asm_optimize.cpp`, `awg_assembler_opcodes.cpp`,
@@ -179,10 +179,10 @@ Cross-reference:
   Synthesis should plan it together with the eventual fold.
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:16,139,172`
-- used: `src/asm_list.cpp` (≥20 sites), `src/asm_optimize.cpp` (≥10),
-  `src/awg_assembler_opcodes.cpp:38,194,219,263,330,539,598,606,628`,
-  `src/asm_parser_context.cpp:292,357,377`,
+- declared: `include/zhinst/asm/assembler.hpp:16,139,172`
+- used: `src/asm/asm_list.cpp` (≥20 sites), `src/asm/asm_optimize.cpp` (≥10),
+  `src/codegen/awg_assembler_opcodes.cpp:38,194,219,263,330,539,598,606,628`,
+  `src/asm/asm_parser_context.cpp:292,357,377`,
   `src/asm_commands_impl_*.cpp` (all `result.assembler` / `result.isWaveformCmd`)
 
 ---
@@ -207,9 +207,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:20`
-- used: `src/asm_list.cpp:378,407,476,488`, `src/asm_parser_context.cpp:357,377`,
-  `src/awg_assembler_opcodes.cpp:194,219,…`
+- declared: `include/zhinst/asm/assembler.hpp:20`
+- used: `src/asm/asm_list.cpp:378,407,476,488`, `src/asm/asm_parser_context.cpp:357,377`,
+  `src/codegen/awg_assembler_opcodes.cpp:194,219,…`
 
 ---
 
@@ -222,7 +222,7 @@ Evidence:
   `AsmCommands::wvfs`).
 - Header `assembler.hpp:81-84` declares only two members named
   `Type0 = 0`, `Type1 = 1`.
-- Use site: `src/prefetch_placesingle.cpp:517-518` — the value is
+- Use site: `src/codegen/prefetch_placesingle.cpp:517-518` — the value is
   produced by `static_cast<Assembler::PlayDummyType>(npD->config.hold)`
   i.e. directly from a `hold` field.
 - No `str()` for this enum, no JSON serializer, no log string giving
@@ -245,11 +245,11 @@ Proposals:
   (medium).
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:81-84`
-- used: `src/prefetch_placesingle.cpp:517-518`,
-  `src/asm_commands_impl_hirzel.cpp:75`,
-  `src/asm_commands_impl_cervino.cpp:86`, `src/asm_commands.cpp:129`,
-  `src/prefetch_emit.cpp:762`
+- declared: `include/zhinst/asm/assembler.hpp:81-84`
+- used: `src/codegen/prefetch_placesingle.cpp:517-518`,
+  `src/asm/asm_commands_impl_hirzel.cpp:75`,
+  `src/asm/asm_commands_impl_cervino.cpp:86`, `src/asm/asm_commands.cpp:129`,
+  `src/codegen/prefetch_emit.cpp:762`
 
 ---
 
@@ -261,10 +261,10 @@ Evidence:
   - `regSrc` (+0x20): READ when `cmdType & 1`
   - `regDst` (+0x28): WRITTEN when `cmdType & 2`
   - `regAux` (+0x30): READ if `cmdType ∈ {1,7}`, WRITTEN if `cmdType == 7`
-- `src/asm_optimize.cpp:154-204,547-611` has matching offset/role
+- `src/asm/asm_optimize.cpp:154-204,547-611` has matching offset/role
   comments at every read/write site.
-- `src/assembler.cpp:311-330` (`highestRegisterNumber`) and
-  `src/assembler.cpp:355-364` (the `str()` register printer) treat
+- `src/asm/assembler.cpp:311-330` (`highestRegisterNumber`) and
+  `src/asm/assembler.cpp:355-364` (the `str()` register printer) treat
   the three fields uniformly, just selecting which one is the
   destination/source as appropriate.
 
@@ -280,16 +280,16 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:176-178`
-- used: `src/assembler.cpp:311-330,355-364,449-451,465-467`,
-  `src/asm_optimize.cpp:73-94,154-204,547-611`
+- declared: `include/zhinst/asm/assembler.hpp:176-178`
+- used: `src/asm/assembler.cpp:311-330,355-364,449-451,465-467`,
+  `src/asm/asm_optimize.cpp:73-94,154-204,547-611`
 
 ---
 
 ### `AssemblerInstr::immediates` and `AssemblerInstr::outputs` (fields)  [immediates=no / outputs=unsure / low / —]
 
 Evidence:
-- `src/assembler.cpp:349-352,367-370` — `str()` writes `immediates`
+- `src/asm/assembler.cpp:349-352,367-370` — `str()` writes `immediates`
   before the registers and `outputs` after them, in disassembly form.
 - `assembler.hpp:179` comment: "OUTPUT operands (also used for ADDI
   zero-check by simplifyAssign)".
@@ -316,8 +316,8 @@ Proposals:
   (low)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:175,179`
-- used: `src/assembler.cpp:349-353,367-370,448,452,464,468`
+- declared: `include/zhinst/asm/assembler.hpp:175,179`
+- used: `src/asm/assembler.cpp:349-353,367-370,448,452,464,468`
 
 ---
 
@@ -327,7 +327,7 @@ Evidence:
 - `assembler.hpp:99-103` declares them as documentation for
   `getCycles`'s return value.
 - They are not in `nm` (file-local constexpr; no external linkage).
-- `src/assembler.cpp:160-205` returns the bare integers `1`, `3`, `0`
+- `src/asm/assembler.cpp:160-205` returns the bare integers `1`, `3`, `0`
   rather than the named constants. No call site uses the names.
 
 Interpretation:
@@ -342,7 +342,7 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:99-103`
+- declared: `include/zhinst/asm/assembler.hpp:99-103`
 - used: nowhere in the codebase (verified by grep)
 
 ---
@@ -353,11 +353,11 @@ Evidence:
 - `assembler.hpp:107-113` declares the enum and documents the
   register-access semantics: bit 0 = reads, bit 1 = writes, with
   the special `RegReg=7` combining read+write+aux-write.
-- `src/assembler.cpp:216-254` matches this: returns `1` for
+- `src/asm/assembler.cpp:216-254` matches this: returns `1` for
   read-only opcodes (PRF/WVF/BRZ/ST/...), `2` for LD (write only),
   `3` for ALU-immediate (read + write), `7` for ALU-reg-reg
   (read + write + aux-write).
-- The semantics are also encoded in `src/asm_optimize.cpp:73-94`
+- The semantics are also encoded in `src/asm/asm_optimize.cpp:73-94`
   (`isRead`, `isWritten`) by bit-anding against 1 and 2 respectively.
 
 Interpretation:
@@ -370,8 +370,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:107-113`
-- used: `src/asm_optimize.cpp:73-94,908`
+- declared: `include/zhinst/asm/assembler.hpp:107-113`
+- used: `src/asm/asm_optimize.cpp:73-94,908`
 
 ---
 
@@ -384,7 +384,7 @@ Evidence:
   - `DestOnly = 2` — one reg → reg0
   - `ThreeReg = 3` — two regs → reg1, reg2
   - `DestImmSrc = 4` — two regs → reg0, reg2
-- `src/assembler.cpp:263-301` returns these integer values; `3` is
+- `src/asm/assembler.cpp:263-301` returns these integer values; `3` is
   used for ALU-reg-reg *and* for PRF/WVF/WVFI/WTRIG (which have one
   source register plus immediates) — i.e. the `ThreeReg` label
   isn't quite literal at every site (PRF/WVF use two regs *and*
@@ -409,7 +409,7 @@ Proposals:
 - `TwoSrc` / `TwoRegImm` for value 3; keep others  (low)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:117-123`
+- declared: `include/zhinst/asm/assembler.hpp:117-123`
 - used: only the dispatcher/table in disassembly; no symbolic
   references in source.
 
@@ -420,7 +420,7 @@ Locations consulted:
 Evidence:
 - `nm` shows free function `zhinst::str(zhinst::AsmOperationType)`
   → tier-1 type-name **excluded**.
-- Tier-2 (faithful string evidence): `src/assembler.cpp:476-484`
+- Tier-2 (faithful string evidence): `src/asm/assembler.cpp:476-484`
   maps members to the literal strings `"cmd"`, `"name"`, `"value"`,
   `"reg"` — the same strings noted in the header comment as coming
   from binary `.rodata` at `0x28d280`.
@@ -438,18 +438,18 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:143-149`
-- used: `src/assembler.cpp:476-484`
+- declared: `include/zhinst/asm/assembler.hpp:143-149`
+- used: `src/asm/assembler.cpp:476-484`
 
 ---
 
 ### `commandFromString::lower` (local), `getCmdMap` (free fn)  [no / high / —]
 
 Evidence:
-- `src/assembler.cpp:91-98`: `std::string lower =
+- `src/asm/assembler.cpp:91-98`: `std::string lower =
   boost::to_lower_copy(name); … map.find(lower)`. The local holds
   exactly the lowercased input.
-- `src/assembler.cpp:26-73`: `getCmdMap()` returns the function-local
+- `src/asm/assembler.cpp:26-73`: `getCmdMap()` returns the function-local
   `static const std::map<…> cmdMap`.
 
 Interpretation:
@@ -462,14 +462,14 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- `src/assembler.cpp:26-98`
+- `src/asm/assembler.cpp:26-98`
 
 ---
 
 ### `AssemblerInstr::str::needComma` (local)  [yes / medium / —]
 
 Evidence:
-- `src/assembler.cpp:346-369`:
+- `src/asm/assembler.cpp:346-369`:
   ```
   bool needComma = false;
   for (const auto& imm : immediates) {
@@ -504,7 +504,7 @@ Proposals:
   refactoring `str()`)
 
 Locations consulted:
-- `src/assembler.cpp:346-376`
+- `src/asm/assembler.cpp:346-376`
 
 ---
 
@@ -526,7 +526,7 @@ Evidence:
   by `isWaveformCmd(instr)` in many call sites
   (`asm_commands_impl_cervino.cpp:60,80,122,135,148`,
   `asm_commands_impl_hirzel.cpp:61,88,102,136,149,162`).
-- `src/asm_list.cpp:200`: the field is checked by
+- `src/asm/asm_list.cpp:200`: the field is checked by
   `if (entry.isWaveformCmd && opcode != 3 && opcode != 4 && opcode != 5)`
   i.e. the field is true for {MESSAGE, 4, ERROR_MSG} and the
   conditional then suppresses exactly those opcodes — the field is
@@ -575,13 +575,13 @@ Cross-reference:
 - Batch 10 also deferred to the field name; same dependency.
 
 Locations consulted:
-- declared: `include/zhinst/assembler.hpp:202-205`
-- used: `src/asm_list.cpp:357,399,418,565,572,200`,
-  `src/asm_commands_impl_cervino.cpp:33,60,80,109,122,135,148`,
-  `src/asm_commands_impl_hirzel.cpp:26,37,61,88,102,123,136,149,162`,
-  `src/asm_optimize.cpp:343,454`
-- field decl: `include/zhinst/asm_list.hpp:61`
-- override decl: `include/zhinst/asm_expression.hpp:120`
+- declared: `include/zhinst/asm/assembler.hpp:202-205`
+- used: `src/asm/asm_list.cpp:357,399,418,565,572,200`,
+  `src/asm/asm_commands_impl_cervino.cpp:33,60,80,109,122,135,148`,
+  `src/asm/asm_commands_impl_hirzel.cpp:26,37,61,88,102,123,136,149,162`,
+  `src/asm/asm_optimize.cpp:343,454`
+- field decl: `include/zhinst/asm/asm_list.hpp:61`
+- override decl: `include/zhinst/asm/asm_expression.hpp:120`
 
 ---
 
@@ -593,7 +593,7 @@ Locations consulted:
   `CWVF`, `BRZ`, `BRNZ`, `BRGZ`, `ST`, `TRAP`, `IRPT`, `CWVFR`,
   `WVFE`, `WVFEI`, `WVFET`, `WTRIGI`, `JMP`, `FB`, `INVALID`) —
   match the lowercase keys in `getCmdMap()` 1:1 (faithful tier-2
-  string evidence, `src/assembler.cpp:28-71`).
+  string evidence, `src/asm/assembler.cpp:28-71`).
 - `OpcodeFormat::NoArg`, `RegImm20`, `RegTripleImm8`, `DualRegImm20`,
   `Complex`, `DualImm14` — comments at declaration describe what the
   encoding does and the names are self-consistent. Not currently

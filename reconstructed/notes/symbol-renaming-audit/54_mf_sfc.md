@@ -11,12 +11,12 @@
 
 ## 1. Files considered
 
-- `reconstructed/src/mf_sfc.cpp` (96 lines, single free function
+- `reconstructed/src/device/mf_sfc.cpp` (96 lines, single free function
   `zhinst::detail::generateMfSfc` plus an anonymous-namespace helper
   `bitIf`).
 
 The associated header declaration lives in
-`reconstructed/include/zhinst/device_type.hpp` (line 460); only the
+`reconstructed/include/zhinst/device/device_type.hpp` (line 460); only the
 parameter names there are in scope, and they are the same names as in
 the .cpp definition. The enclosing types (`DeviceOptionSet`,
 `DeviceOption`, `DeviceTypeCode`, `sfc::FeaturesCode`, `sfc::MfOption`)
@@ -72,8 +72,8 @@ Proposals:
 - `shiftBit`  (low)
 
 Locations consulted:
-- declared/defined: src/mf_sfc.cpp:27
-- used: src/mf_sfc.cpp:70-78
+- declared/defined: src/device/mf_sfc.cpp:27
+- used: src/device/mf_sfc.cpp:70-78
 
 ### bitIf::b (parameter)  [yes / medium / —]
 
@@ -98,8 +98,8 @@ Proposals:
 - `present`  (low)       // matches the call-site semantics
 
 Locations consulted:
-- declared: src/mf_sfc.cpp:27
-- used:     src/mf_sfc.cpp:28
+- declared: src/device/mf_sfc.cpp:27
+- used:     src/device/mf_sfc.cpp:28
 
 ### bitIf::shift (parameter)  [no / high / not-misnomer]
 
@@ -119,8 +119,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: src/mf_sfc.cpp:27
-- used:     src/mf_sfc.cpp:28, 70-78
+- declared: src/device/mf_sfc.cpp:27
+- used:     src/device/mf_sfc.cpp:28, 70-78
 
 ### generateMfSfc::code (local)  [no / medium / not-misnomer]
 
@@ -142,8 +142,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: src/mf_sfc.cpp:66
-- used:     src/mf_sfc.cpp:80, 83, 90
+- declared: src/device/mf_sfc.cpp:66
+- used:     src/device/mf_sfc.cpp:80, 83, 90
 
 ### generateMfSfc::commonBits (local)  [no / medium / not-misnomer]
 
@@ -163,8 +163,8 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: src/mf_sfc.cpp:69
-- used:     src/mf_sfc.cpp:81, 84
+- declared: src/device/mf_sfc.cpp:69
+- used:     src/device/mf_sfc.cpp:81, 84
 
 ### generateMfSfc::oss (local)  [no / low / —]
 
@@ -190,7 +190,7 @@ Judgement:
 ## 5. Coverage
 
 - **Fully covered:** every in-scope symbol declared inside
-  `src/mf_sfc.cpp` — the anonymous-namespace helper `bitIf` and its
+  `src/device/mf_sfc.cpp` — the anonymous-namespace helper `bitIf` and its
   two parameters; the four locals (`code`, `commonBits`, `oss`) and
   two parameters of `generateMfSfc`.
 - **Deferred:** none.
@@ -205,7 +205,7 @@ Judgement:
     `Bit0x20000` consumed indirectly here, is owned by batch 29; this
     batch does not duplicate findings on those enum members. They
     remain a `coordinated-rename` candidate at synthesis time, and
-    when renamed the consumer table in `src/device_mf.cpp`
+    when renamed the consumer table in `src/device/device_mf.cpp`
     (`kMfliKnownOptions`, `kMfiaKnownOptions`) must be updated in
     lock-step with this file's documentation comments.
   - `BOOST_THROW_EXCEPTION` (third-party macro), `bitIf` is not in

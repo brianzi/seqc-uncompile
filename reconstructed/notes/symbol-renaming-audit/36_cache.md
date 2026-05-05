@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/cache.hpp`
-- `reconstructed/src/cache.cpp`
+- `reconstructed/include/zhinst/runtime/cache.hpp`
+- `reconstructed/src/runtime/cache.cpp`
 
 Use-site survey across `reconstructed/src/**.cpp` and
 `reconstructed/include/zhinst/**.hpp` (esp. `prefetch.cpp`,
@@ -115,8 +115,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:159
-- used:     src/cache.cpp:45,58,78,147,149; src/prefetch.cpp:58-61
+- declared: include/zhinst/runtime/cache.hpp:159
+- used:     src/runtime/cache.cpp:45,58,78,147,149; src/codegen/prefetch.cpp:58-61
 
 ### Cache::appendMode_ / Cache::Cache::appendMode  [unsure / low / —]
 
@@ -156,10 +156,10 @@ Cross-reference:
   and batch 09 (prefetch).
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:160
-- used:     src/cache.cpp:46,78,189,190; src/prefetch.cpp:61
-- related:  include/zhinst/awg_compiler_config.hpp:101,124;
-            include/zhinst/prefetch.hpp:303-311
+- declared: include/zhinst/runtime/cache.hpp:160
+- used:     src/runtime/cache.cpp:46,78,189,190; src/codegen/prefetch.cpp:61
+- related:  include/zhinst/codegen/awg_compiler_config.hpp:101,124;
+            include/zhinst/codegen/prefetch.hpp:303-311
 
 ### Cache::Pointer::numRepeats_  [no / medium / not-misnomer]
 
@@ -191,10 +191,10 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:107
-- used:     src/cache.cpp:133,185;
-            src/prefetch_splitplay.cpp:137-156;
-            src/prefetch_placesingle.cpp:248,325
+- declared: include/zhinst/runtime/cache.hpp:107
+- used:     src/runtime/cache.cpp:133,185;
+            src/codegen/prefetch_splitplay.cpp:137-156;
+            src/codegen/prefetch_placesingle.cpp:248,325
 
 ### Cache::Pointer::hash_  [unsure / low / —]
 
@@ -226,8 +226,8 @@ Proposals:
 - `addrMask_`   (low)
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:106
-- used:     src/cache.cpp:115,132,184
+- declared: include/zhinst/runtime/cache.hpp:106
+- used:     src/runtime/cache.cpp:115,132,184
 
 ### Cache::allocate(5-arg)::pageSize  [yes / medium / cross-batch-arbitration]
 
@@ -272,10 +272,10 @@ Cross-reference:
 - Counterpart `Prefetch::maxBranches_` — batch 09 (prefetch).
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:130-135
-- used:     src/cache.cpp:86-100,104; src/prefetch.cpp:1677-1684
-- related:  include/zhinst/prefetch.hpp:266;
-            src/prefetch_prepare.cpp:321-328,411
+- declared: include/zhinst/runtime/cache.hpp:130-135
+- used:     src/runtime/cache.cpp:86-100,104; src/codegen/prefetch.cpp:1677-1684
+- related:  include/zhinst/codegen/prefetch.hpp:266;
+            src/codegen/prefetch_prepare.cpp:321-328,411
 
 ### Cache::allocate(5-arg)::numSamples / Cache::allocate(CacheType)::numSamples / Cache::getBestPosition::numSamples  [yes / medium / —]
 
@@ -311,8 +311,8 @@ Proposals:
   is preserved via tier-1 evidence not located in this batch
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:132,139,145
-- used:     src/cache.cpp:88-156,174-194; src/prefetch.cpp:1643-1684
+- declared: include/zhinst/runtime/cache.hpp:132,139,145
+- used:     src/runtime/cache.cpp:88-156,174-194; src/codegen/prefetch.cpp:1643-1684
 
 ### Cache::getBestPosition::appendMode  [yes / medium / —]
 
@@ -346,8 +346,8 @@ Proposals:
   the original (no tier-1 evidence found in this batch).
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:147
-- used:     src/cache.cpp:174-296
+- declared: include/zhinst/runtime/cache.hpp:147
+- used:     src/runtime/cache.cpp:174-296
 
 ### Cache::play::state  [yes / medium / cross-batch-arbitration]
 
@@ -404,8 +404,8 @@ Cross-reference:
   `PrefetcherNodeState::state` — batch 09 (prefetch).
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:152
-- used:     src/cache.cpp:388-418; src/prefetch.cpp:1770-1777,1810-1815
+- declared: include/zhinst/runtime/cache.hpp:152
+- used:     src/runtime/cache.cpp:388-418; src/codegen/prefetch.cpp:1770-1777,1810-1815
 
 ### Cache::PointerState::LastPlayed / Playing  [no / high / not-misnomer]
 
@@ -429,8 +429,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/cache.hpp:76-81
-- used:     src/cache.cpp:65,96,164,381,388-417,421-431,479-487
+- declared: include/zhinst/runtime/cache.hpp:76-81
+- used:     src/runtime/cache.cpp:65,96,164,381,388-417,421-431,479-487
 - binary:   strings(_seqc_compiler.so) → "playing", "last played"
 
 ## 4. Symbols inspected and judged routinely fine

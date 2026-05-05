@@ -11,22 +11,22 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/types.hpp`
+- `reconstructed/include/zhinst/core/types.hpp`
 
 Cross-references (read-only, for usage survey):
 
-- `reconstructed/include/zhinst/resources.hpp`
-- `reconstructed/include/zhinst/awg_compiler_config.hpp`
-- `reconstructed/include/zhinst/awg_device_props.hpp`
-- `reconstructed/src/asm_commands.cpp`
-- `reconstructed/src/custom_functions.cpp`
-- `reconstructed/src/custom_functions_io.cpp`
-- `reconstructed/src/custom_functions_play.cpp`
-- `reconstructed/src/custom_functions_playback.cpp`
-- `reconstructed/src/seqc_ast_node.cpp`
-- `reconstructed/src/resources.cpp`
-- `reconstructed/src/awg_compiler_config.cpp`
-- `reconstructed/src/awg_device_props.cpp`
+- `reconstructed/include/zhinst/runtime/resources.hpp`
+- `reconstructed/include/zhinst/codegen/awg_compiler_config.hpp`
+- `reconstructed/include/zhinst/device/awg_device_props.hpp`
+- `reconstructed/src/asm/asm_commands.cpp`
+- `reconstructed/src/runtime/custom_functions.cpp`
+- `reconstructed/src/runtime/custom_functions_io.cpp`
+- `reconstructed/src/runtime/custom_functions_play.cpp`
+- `reconstructed/src/runtime/custom_functions_playback.cpp`
+- `reconstructed/src/ast/seqc_ast_node.cpp`
+- `reconstructed/src/runtime/resources.cpp`
+- `reconstructed/src/codegen/awg_compiler_config.cpp`
+- `reconstructed/src/device/awg_device_props.cpp`
 
 Binary symbol-table check (per §3, against `_seqc_compiler.so`) used to
 exclude type names that are mangled and therefore authoritative.
@@ -116,7 +116,7 @@ Evidence:
 - `_seqc_compiler.so` `.rodata` strings (objdump): `UHFLI`, `HDAWG`,
   `UHFQA`, `SHFQA`, `SHFSG`, `SHFLI`, `GHFLI`, `VHFLI`, `SHFQC` are
   all present verbatim.
-- `reconstructed/src/awg_compiler_config.cpp:44` returns
+- `reconstructed/src/codegen/awg_compiler_config.cpp:44` returns
   `"SHFQC (SG)"` from a switch on value 32, and other cases return
   the bare display strings.
 - Header comments state these are display strings used by
@@ -134,9 +134,9 @@ Judgement:
   designators.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:34-44
-- used: src/awg_compiler_config.cpp:44, src/awg_compiler.cpp:227,1148,
-  src/awg_device_props.cpp:233, src/custom_functions_io.cpp:1299 etc.
+- declared: include/zhinst/core/types.hpp:34-44
+- used: src/codegen/awg_compiler_config.cpp:44, src/codegen/awg_compiler.cpp:227,1148,
+  src/device/awg_device_props.cpp:233, src/runtime/custom_functions_io.cpp:1299 etc.
 
 ### `AwgDeviceType::SHFQC_SG`  [no / medium / not-misnomer]
 
@@ -162,9 +162,9 @@ Judgement:
   and is unambiguous at every use site.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:40
-- used: src/awg_device_props.cpp:233,235,315; src/awg_compiler.cpp:227,1148;
-  src/compile_seqc.cpp:63; src/custom_functions_io.cpp:1299,1547,1647,1685,2709
+- declared: include/zhinst/core/types.hpp:40
+- used: src/device/awg_device_props.cpp:233,235,315; src/codegen/awg_compiler.cpp:227,1148;
+  src/codegen/compile_seqc.cpp:63; src/runtime/custom_functions_io.cpp:1299,1547,1647,1685,2709
 
 ### `EDirection::eIN` / `eOUT` / `eINOUT`  [no / high / not-misnomer]
 
@@ -196,12 +196,12 @@ Judgement:
 - Not misnomers; the names match the binary's serializer table.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:68-72
-- str() table: src/seqc_ast_node.cpp:35-37
+- declared: include/zhinst/core/types.hpp:68-72
+- str() table: src/ast/seqc_ast_node.cpp:35-37
 - AST callers: src/seqc_ast_node*.cpp
-- Resources callers: src/resources.cpp:563,570,1697,1751,1818;
-  src/custom_functions_io.cpp (many); src/custom_functions_playback.cpp:774-786;
-  src/custom_functions.cpp:543
+- Resources callers: src/runtime/resources.cpp:563,570,1697,1751,1818;
+  src/runtime/custom_functions_io.cpp (many); src/runtime/custom_functions_playback.cpp:774-786;
+  src/runtime/custom_functions.cpp:543
 
 ### `kRateInherit`, `kNoWaveIndex`, `kNoNodeId`, `kNoPlayIndex`  [unsure / low / —]
 
@@ -235,7 +235,7 @@ Proposals:
   these constants in a future task (low).
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:76-79
+- declared: include/zhinst/core/types.hpp:76-79
 - used: (none in src/ or include/)
 
 ### `kChannelTag_I`, `kChannelTag_Q`  [yes / low / coordinated-rename]
@@ -267,7 +267,7 @@ Cross-reference:
   used. A coordinated cleanup could introduce both.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:82-83
+- declared: include/zhinst/core/types.hpp:82-83
 
 ### `kDevAllButUHF`  [yes / medium / coordinated-rename]
 
@@ -303,8 +303,8 @@ Cross-reference:
   abbreviation collisions.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:50
-- used: src/custom_functions_io.cpp:129,228,340,366,1044
+- declared: include/zhinst/core/types.hpp:50
+- used: src/runtime/custom_functions_io.cpp:129,228,340,366,1044
 
 ### `kDevHirzel`  [yes / medium / —]
 
@@ -344,8 +344,8 @@ Proposals:
   confusion than it fixes.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:51
-- used: src/custom_functions_io.cpp:1257,1334,1383,1411,1478,1523,
+- declared: include/zhinst/core/types.hpp:51
+- used: src/runtime/custom_functions_io.cpp:1257,1334,1383,1411,1478,1523,
   1576,1591,1636,1638,1672
 
 ### `kDevCervino` and `kDevUHF`  [yes / medium / coordinated-rename]
@@ -382,8 +382,8 @@ Cross-reference:
   ambiguity).
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:54-55
-- used: src/custom_functions_io.cpp:698,765,1861,2226,2315,2379;
+- declared: include/zhinst/core/types.hpp:54-55
+- used: src/runtime/custom_functions_io.cpp:698,765,1861,2226,2315,2379;
   (kDevUHF: 0 uses)
 
 ### `kDevHirzelAll`  [yes / medium / —]
@@ -411,8 +411,8 @@ Proposals:
 - keep current (low).
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:58
-- used: src/custom_functions_io.cpp:340,366 + 4 others
+- declared: include/zhinst/core/types.hpp:58
+- used: src/runtime/custom_functions_io.cpp:340,366 + 4 others
 
 ### kSuser* dead constants (RTLoggerReset, RTLoggerResetHdawg, UserRegBase, QAResultLen, SweepStartLo/Hi, SweepStepLo/Hi)  [unsure / low / —]
 
@@ -441,7 +441,7 @@ Proposals:
   never be consumed.
 
 Locations consulted:
-- declared: include/zhinst/types.hpp:115,117,118,136,141,142,143,144
+- declared: include/zhinst/core/types.hpp:115,117,118,136,141,142,143,144
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -474,7 +474,7 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** all symbols declared in
-  `include/zhinst/types.hpp` (14 forward-declared types, 2 enum
+  `include/zhinst/core/types.hpp` (14 forward-declared types, 2 enum
   types and their members, 60+ namespace-scope constants).
 - **Deferred:** none.
 - **Not covered (out of scope per RULES §2/§3):**

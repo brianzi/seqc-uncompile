@@ -447,7 +447,7 @@ Side findings:
   suffix). The binary inlined this twice as the `$_1` lambda inside
   `assembleStringToExpressionsVec`; we externalize as a real method.
 - ✅ `SeqcParserContext::raiseError` + `setSyntaxError` — implemented
-  in new `src/seqc_parser_context.cpp` using raw byte-offset access.
+  in new `src/ast/seqc_parser_context.cpp` using raw byte-offset access.
   The class is opaque in the header (no data members); the binary
   uses an indirect callback at `[this+0x30]` (vtable[6]/+0x30 path)
   with std::clog fallback. **ABI risk noted**: the vtable offset is

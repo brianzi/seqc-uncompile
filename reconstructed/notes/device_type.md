@@ -677,23 +677,23 @@ into a follow-up sub-phase.
 
 End of Phase 14b-ii-b2: clean build, 0 warnings. New files:
 
-  * `include/zhinst/device_factories.hpp`
-  * `include/zhinst/generic_device_type.hpp`
-  * `src/device_factories.cpp`
-  * `src/device_unknown.cpp`
-  * `src/generic_device_type.cpp`
+  * `include/zhinst/device/device_factories.hpp`
+  * `include/zhinst/device/generic_device_type.hpp`
+  * `src/device/device_factories.cpp`
+  * `src/device/device_unknown.cpp`
+  * `src/device/generic_device_type.cpp`
 
 Modifications:
 
-  * `include/zhinst/device_type.hpp` — added `DeviceTypeImpl(tuple)`
+  * `include/zhinst/device/device_type.hpp` — added `DeviceTypeImpl(tuple)`
     ctor, `DeviceType(string, string)` ctor, and four new free
     function declarations (`splitDeviceOptions`, `toDeviceOption`,
     `toDeviceFamily`, `toDeviceOptions`).
-  * `src/device_type.cpp` — implemented the tuple ctor, the two
+  * `src/device/device_type.cpp` — implemented the tuple ctor, the two
     string-parsing DeviceType ctors, and three of the four new free
     functions. `toDeviceOption` is a forward declaration only (body
     deferred).
-  * `include/zhinst/device_subclasses.hpp` — added `UnknownDevice`
+  * `include/zhinst/device/device_subclasses.hpp` — added `UnknownDevice`
     declaration.
 
 ================================================================================
@@ -767,7 +767,7 @@ formatter and existing per-family option tables) and the parser table
 maps `"QC" -> QA`.
 
 End of Phase 14b-ii-b2-followup: clean build, 0 warnings. New impl in
-src/device_type.cpp (replaces the previous forward-declaration stub).
+src/device/device_type.cpp (replaces the previous forward-declaration stub).
 The undefined-symbol gap from end of 14b-ii-b2 is now closed; nm
 confirms `_ZN6zhinst14toDeviceOptionERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE`
 is now `T` (defined) in `device_type.cpp.o`.

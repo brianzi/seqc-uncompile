@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_list.hpp`
-- `reconstructed/src/asm_list.cpp`
+- `reconstructed/include/zhinst/asm/asm_list.hpp`
+- `reconstructed/src/asm/asm_list.cpp`
 
 Symbol-table reference (anchor for §3 exclusions):
 
@@ -103,10 +103,10 @@ Judgement:
   use (`Node::asmId`) both agree.
 
 Locations consulted:
-- declared: `include/zhinst/asm_list.hpp:55`
-- used: `src/asm_list.cpp:35-41,133,187,353,398,417,541,598`;
-  `src/asm_commands*.cpp` (many); `src/prefetch_emit.cpp:90,100`;
-  `src/compiler.cpp:323`.
+- declared: `include/zhinst/asm/asm_list.hpp:55`
+- used: `src/asm/asm_list.cpp:35-41,133,187,353,398,417,541,598`;
+  `src/asm_commands*.cpp` (many); `src/codegen/prefetch_emit.cpp:90,100`;
+  `src/codegen/compiler.cpp:323`.
 
 ---
 
@@ -168,12 +168,12 @@ Cross-reference:
   parameters in batch 49 (all `keep current (high)`).
 
 Locations consulted:
-- declared: `include/zhinst/asm_list.hpp:58`
-- used: `src/asm_list.cpp:131,355,400,419,543`;
-  `src/asm_commands.cpp:57,68,78,186,205,817,832,875,883`;
-  `src/prefetch_placesingle.cpp:76-78`;
-  `src/asm_optimize.cpp:1197,1210,1217,1221,1222`;
-  `src/compiler.cpp:640`.
+- declared: `include/zhinst/asm/asm_list.hpp:58`
+- used: `src/asm/asm_list.cpp:131,355,400,419,543`;
+  `src/asm/asm_commands.cpp:57,68,78,186,205,817,832,875,883`;
+  `src/codegen/prefetch_placesingle.cpp:76-78`;
+  `src/asm/asm_optimize.cpp:1197,1210,1217,1221,1222`;
+  `src/codegen/compiler.cpp:640`.
 
 ---
 
@@ -214,8 +214,8 @@ Cross-reference:
   on `AsmExpression`.
 
 Locations consulted:
-- declared: `include/zhinst/asm_list.hpp:71-72`
-- used: `src/asm_optimize.cpp:653,669`; `src/compiler.cpp:640`.
+- declared: `include/zhinst/asm/asm_list.hpp:71-72`
+- used: `src/asm/asm_optimize.cpp:653,669`; `src/codegen/compiler.cpp:640`.
 
 ---
 
@@ -287,12 +287,12 @@ Cross-reference:
   field renames, that finding must be revisited).
 
 Locations consulted:
-- declared: `include/zhinst/asm_list.hpp:61`
-- used: `src/asm_list.cpp:200,357,402,421,569,573,575`;
-  `src/asm_optimize.cpp:343,454,1197,1210,1222`;
-  `src/asm_commands.cpp:59,70,80,188,207,412,418,819,834`;
-  `src/asm_commands_impl_hirzel.cpp:123`;
-  `src/asm_commands_impl_cervino.cpp:109`.
+- declared: `include/zhinst/asm/asm_list.hpp:61`
+- used: `src/asm/asm_list.cpp:200,357,402,421,569,573,575`;
+  `src/asm/asm_optimize.cpp:343,454,1197,1210,1222`;
+  `src/asm/asm_commands.cpp:59,70,80,188,207,412,418,819,834`;
+  `src/asm/asm_commands_impl_hirzel.cpp:123`;
+  `src/asm/asm_commands_impl_cervino.cpp:109`.
 
 ---
 
@@ -321,10 +321,10 @@ Judgement:
 - No — name correctly describes the action.
 
 Locations consulted:
-- declared: `include/zhinst/asm_list.hpp:211`
-- used: `src/asm_commands.cpp:55,66,76,184,203`;
-  `src/asm_commands_impl_hirzel.cpp:23,34,46,79,97,111,131,144,157`;
-  `src/asm_commands_impl_cervino.cpp:30,42,74,104,117,130,143`.
+- declared: `include/zhinst/asm/asm_list.hpp:211`
+- used: `src/asm/asm_commands.cpp:55,66,76,184,203`;
+  `src/asm/asm_commands_impl_hirzel.cpp:23,34,46,79,97,111,131,144,157`;
+  `src/asm/asm_commands_impl_cervino.cpp:30,42,74,104,117,130,143`.
 
 ---
 
@@ -355,7 +355,7 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: `src/asm_list.cpp:309-310`
+- declared: `src/asm/asm_list.cpp:309-310`
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -403,7 +403,7 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** all in-scope symbols in
-  `include/zhinst/asm_list.hpp` and `src/asm_list.cpp` (data
+  `include/zhinst/asm/asm_list.hpp` and `src/asm/asm_list.cpp` (data
   members, free function `nextSequenceId`, parameters of all
   declared methods including default args, locals in
   `maxRegister`, `print`, `serialize`, `deserialize`, and

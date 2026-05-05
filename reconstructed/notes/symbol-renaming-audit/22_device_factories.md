@@ -11,14 +11,14 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/device_factories.hpp`
-- `reconstructed/src/device_factories.cpp`
+- `reconstructed/include/zhinst/device/device_factories.hpp`
+- `reconstructed/src/device/device_factories.cpp`
 
 Cross-referenced (read-only):
 
-- `reconstructed/include/zhinst/device_subclasses.hpp`
-- `reconstructed/include/zhinst/device_type.hpp`
-- `reconstructed/src/device_type.cpp`
+- `reconstructed/include/zhinst/device/device_subclasses.hpp`
+- `reconstructed/include/zhinst/device/device_type.hpp`
+- `reconstructed/src/device/device_type.cpp`
 
 Authoritative symbol table:
 
@@ -54,16 +54,16 @@ method names visible in `nm` are excluded per §3 and listed in §5.)
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:114
+- include/zhinst/device/device_factories.hpp:114
   `std::unique_ptr<DeviceTypeImpl> makeDeviceType(unsigned long opts);`
-- src/device_factories.cpp:44
+- src/device/device_factories.cpp:44
   `std::unique_ptr<DeviceTypeImpl> DeviceFamilyFactory::makeDeviceType(unsigned long opts) { return doMakeDeviceType(opts); }`
-- src/device_type.cpp:194
+- src/device/device_type.cpp:194
   `DeviceType::DeviceType(DeviceFamily family, unsigned long options) { … impl_ = factory->makeDeviceType(options).release(); }`
-- include/zhinst/device_subclasses.hpp:50,57,153,212,236,283
+- include/zhinst/device/device_subclasses.hpp:50,57,153,212,236,283
   Subclass ctors all use `unsigned long opts`:
   `explicit Hf2li(unsigned long opts);`, `explicit Shf(unsigned long opts);`, etc.
-- src/device_factories.cpp:109,126,149,170,190,217,234,250,278,292
+- src/device/device_factories.cpp:109,126,149,170,190,217,234,250,278,292
   All `doMakeDeviceType(unsigned long opts)` overrides use `opts` and
   forward it unchanged into the subclass ctor.
 
@@ -92,17 +92,17 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:114,121
-- defined : src/device_factories.cpp:44, plus all ten override sites
-- callers : src/device_type.cpp:189-196
+- declared: include/zhinst/device/device_factories.hpp:114,121
+- defined : src/device/device_factories.cpp:44, plus all ten override sites
+- callers : src/device/device_type.cpp:189-196
 
 ### `DeviceFamilyFactory::doMakeDeviceType::opts`  [no / medium / not-misnomer]
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:121,164
+- include/zhinst/device/device_factories.hpp:121,164
   Pure-virtual and macro-generated overrides both use `opts`.
-- src/device_factories.cpp:109,126,149,170,190,217,234,250,278,292
+- src/device/device_factories.cpp:109,126,149,170,190,217,234,250,278,292
   Every derived override forwards `opts` directly to the matching
   subclass ctor (whose own param is also `opts`).
 - nm — `Hf2Factory::doMakeDeviceType(unsigned long)` etc. Method
@@ -128,14 +128,14 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:121,136,150,164
-- defined : src/device_factories.cpp (all `doMakeDeviceType` bodies)
+- declared: include/zhinst/device/device_factories.hpp:121,136,150,164
+- defined : src/device/device_factories.cpp (all `doMakeDeviceType` bodies)
 
 ### `Hf2Factory::doMakeDeviceType::sub` (and `Mf|Uhf|Hdawg|Shfacc|Ghf|Vhf` twins)  [no / low / —]
 
 Evidence:
 
-- src/device_factories.cpp:110,127,150,171,218,235,293
+- src/device/device_factories.cpp:110,127,150,171,218,235,293
   `auto sub = opts & kSubtypeMask;`
   followed by `if (sub == kSubtypeN) return new XxxN(opts);`
 
@@ -158,17 +158,17 @@ Proposals:
 
 Locations consulted:
 
-- src/device_factories.cpp:110, 127, 150-156, 171, 218, 235, 293
+- src/device/device_factories.cpp:110, 127, 150-156, 171, 218, 235, 293
 
 ### `makeDeviceFamilyFactory::family`  [no / medium / not-misnomer]
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:194
+- include/zhinst/device/device_factories.hpp:194
   `makeDeviceFamilyFactory(DeviceFamily family);`
-- src/device_factories.cpp:303
+- src/device/device_factories.cpp:303
   `makeDeviceFamilyFactory(DeviceFamily family) { switch (family) { … } }`
-- src/device_type.cpp:188-196
+- src/device/device_type.cpp:188-196
   Both call sites pass a parameter literally named `family`:
   `DeviceType::DeviceType(DeviceFamily family) { auto factory = detail::makeDeviceFamilyFactory(family); … }`
 
@@ -187,20 +187,20 @@ Proposals:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:194
-- defined : src/device_factories.cpp:303
-- callers : src/device_type.cpp:188-196
+- declared: include/zhinst/device/device_factories.hpp:194
+- defined : src/device/device_factories.cpp:303
+- callers : src/device/device_type.cpp:188-196
 
 ### `DeviceOpts::SubtypeMask`, `Subtype1` … `Subtype4`  [unsure / low / verify-not-original]
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:81-91 — declares the namespace
+- include/zhinst/device/device_factories.hpp:81-91 — declares the namespace
   `DeviceOpts` with `SubtypeMask` (0x1C0), `Subtype1`..`Subtype4`,
   `FF`, `RTR`, `PLUS`, `LRT`.
 - `grep -rnE "DeviceOpts::(FF|RTR|PLUS|LRT|Subtype)" reconstructed/`
   returns **zero** matches outside the declaration.
-- src/device_factories.cpp:25-30 — anonymous namespace inside the
+- src/device/device_factories.cpp:25-30 — anonymous namespace inside the
   .cpp re-declares `kSubtypeMask`, `kSubtype1`..`kSubtype4` with
   identical values and these are the constants actually consumed
   (15 use sites in this file).
@@ -239,15 +239,15 @@ Proposals:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:80-91
-- declared: src/device_factories.cpp:24-30
-- used    : src/device_factories.cpp:110,127,150-156,171,218,235,293
+- declared: include/zhinst/device/device_factories.hpp:80-91
+- declared: src/device/device_factories.cpp:24-30
+- used    : src/device/device_factories.cpp:110,127,150-156,171,218,235,293
 
 ### `DeviceOpts::FF`, `RTR`, `PLUS`, `LRT`  [unsure / low / verify-not-original]
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:87-90
+- include/zhinst/device/device_factories.hpp:87-90
   `constexpr unsigned long FF = 0x020;` (and RTR=0x2000, PLUS=0x4000,
   LRT=0x8000)
 - No use sites anywhere in `reconstructed/`.
@@ -278,15 +278,15 @@ Proposals:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:87-90
+- declared: include/zhinst/device/device_factories.hpp:87-90
 - used    : nowhere
 
 ### `(anon)::kSubtypeMask`  [no / medium / not-misnomer]
 
 Evidence:
 
-- src/device_factories.cpp:25 `constexpr unsigned long kSubtypeMask = 0x1C0ul; // bits [8:6]`
-- src/device_factories.cpp:110,127,150,171,218,235,293
+- src/device/device_factories.cpp:25 `constexpr unsigned long kSubtypeMask = 0x1C0ul; // bits [8:6]`
+- src/device/device_factories.cpp:110,127,150,171,218,235,293
   `auto sub = opts & kSubtypeMask;` — the only operations on this
   constant are bitwise-AND used as a mask.
 
@@ -304,14 +304,14 @@ Proposals:
 
 Locations consulted:
 
-- declared: src/device_factories.cpp:25
-- used    : src/device_factories.cpp (7 sites)
+- declared: src/device/device_factories.cpp:25
+- used    : src/device/device_factories.cpp (7 sites)
 
 ### `(anon)::kSubtype1` … `kSubtype4`  [no / low / —]
 
 Evidence:
 
-- src/device_factories.cpp:26-29 — values `0x40`, `0x80`, `0xC0`,
+- src/device/device_factories.cpp:26-29 — values `0x40`, `0x80`, `0xC0`,
   `0x100`. Inline comments claim "slot 1 (LI variants)",
   "slot 2 (IS/AWG/8 variants)", "slot 3 (QA variants)",
   "slot 4 (IA variants)".
@@ -343,13 +343,13 @@ Proposals:
 
 Locations consulted:
 
-- src/device_factories.cpp:25-29 and all use sites already cited
+- src/device/device_factories.cpp:25-29 and all use sites already cited
 
 ### `DeviceOpts` (namespace name)  [unsure / low / —]
 
 Evidence:
 
-- include/zhinst/device_factories.hpp:81 `namespace DeviceOpts { … }`
+- include/zhinst/device/device_factories.hpp:81 `namespace DeviceOpts { … }`
 - The namespace contains only unused constants; see two preceding
   blocks.
 - Parallel concept exists as `DeviceOption` enum (batch 31 device
@@ -378,7 +378,7 @@ Proposals:
 
 Locations consulted:
 
-- declared: include/zhinst/device_factories.hpp:81-91
+- declared: include/zhinst/device/device_factories.hpp:81-91
 - used    : nowhere
 
 ## 4. Symbols inspected and judged routinely fine

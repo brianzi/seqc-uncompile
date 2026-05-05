@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/awg_compiler.hpp`
-- `reconstructed/src/awg_compiler.cpp`
+- `reconstructed/include/zhinst/codegen/awg_compiler.hpp`
+- `reconstructed/src/codegen/awg_compiler.cpp`
 
 Use-site survey: `grep -rn` across `reconstructed/src/` and
 `reconstructed/include/zhinst/`. Forward header is small (one pimpl
@@ -258,9 +258,9 @@ Proposals:
 - keep current          (low)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:135
-- written: src/awg_compiler.cpp:550
-- read:    src/awg_compiler.cpp:1060-1061, 1097-1098
+- declared: src/codegen/awg_compiler.cpp:135
+- written: src/codegen/awg_compiler.cpp:550
+- read:    src/codegen/awg_compiler.cpp:1060-1061, 1097-1098
 
 ### AWGCompilerImpl::string_218_  [unsure / low / verify-not-original]
 
@@ -297,8 +297,8 @@ Cross-reference:
   `verify-not-original`).
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:136
-- ctor:     src/awg_compiler.cpp:173
+- declared: src/codegen/awg_compiler.cpp:136
+- ctor:     src/codegen/awg_compiler.cpp:173
 
 ### AWGCompilerImpl::string_230_  [yes / high / —]
 
@@ -327,9 +327,9 @@ Proposals:
 - keep current        (low)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:137
-- written: src/awg_compiler.cpp:409
-- read:    src/awg_compiler.cpp:815, 822
+- declared: src/codegen/awg_compiler.cpp:137
+- written: src/codegen/awg_compiler.cpp:409
+- read:    src/codegen/awg_compiler.cpp:815, 822
 
 ### AWGCompilerImpl::string_248_  [yes / high / —]
 
@@ -361,9 +361,9 @@ Proposals:
 - keep current      (low)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:138
-- written: src/awg_compiler.cpp:463
-- read:    src/awg_compiler.cpp:818, 825, 1000, 1012
+- declared: src/codegen/awg_compiler.cpp:138
+- written: src/codegen/awg_compiler.cpp:463
+- read:    src/codegen/awg_compiler.cpp:818, 825, 1000, 1012
 
 ### AWGCompilerImpl::compileString::deviceByte  [yes / medium / —]
 
@@ -403,7 +403,7 @@ Proposals:
   semantic is later shown to be a raw flag with no cleaner label
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:391, 393, 400
+- declared/used: src/codegen/awg_compiler.cpp:391, 393, 400
 
 ### AWGCompilerImpl::compileString::opcodeCount  [yes / high / —]
 
@@ -444,7 +444,7 @@ Proposals:
 - keep current       (low)
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:476, 479, 484
+- declared/used: src/codegen/awg_compiler.cpp:476, 479, 484
 
 ### AWGCompilerImpl::compileString::totalWaveforms  [yes / medium / —]
 
@@ -495,7 +495,7 @@ Cross-reference:
   belongs in `incidental_findings.md`. Not addressable here.
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:491-509
+- declared/used: src/codegen/awg_compiler.cpp:491-509
 
 ### AWGCompiler::writeToStream::format & AWGCompilerImpl::writeToStream::format  [unsure / low / —]
 
@@ -545,9 +545,9 @@ Cross-reference:
   `writeToStream(ofs, path)`).
 
 Locations consulted:
-- declared (facade): include/zhinst/awg_compiler.hpp:58
-- declared (impl):   src/awg_compiler.cpp:742, 1262
-- used:             src/awg_compiler.cpp:742, 804-808, 815, 818,
+- declared (facade): include/zhinst/codegen/awg_compiler.hpp:58
+- declared (impl):   src/codegen/awg_compiler.cpp:742, 1262
+- used:             src/codegen/awg_compiler.cpp:742, 804-808, 815, 818,
                     928-932, 970-971
 
 ### compressSourceString::format  [yes / medium / —]
@@ -584,7 +584,7 @@ Cross-reference:
 - Coupled with `writeToStream::format`; rename them together.
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:62, 70, 83, 93
+- declared/used: src/codegen/awg_compiler.cpp:62, 70, 83, 93
 
 ### AWGCompilerImpl::writeToStream::mappedMode  [unsure / medium / —]
 
@@ -631,7 +631,7 @@ Cross-reference:
   name, this local should follow.
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:766, 767, 770-790
+- declared/used: src/codegen/awg_compiler.cpp:766, 767, 770-790
 
 ### AWGCompilerImpl::config_  [no / high / not-misnomer]
 
@@ -658,8 +658,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:127
-- read:     src/awg_compiler.cpp:164, 245, 297-299, 390, 392, 396,
+- declared: src/codegen/awg_compiler.cpp:127
+- read:     src/codegen/awg_compiler.cpp:164, 245, 297-299, 390, 392, 396,
             403, 759, 766, 771, 786, 812, 840, 903, 914, 1142,
             1162, 1165, 1170, 1181, 1221
 
@@ -690,9 +690,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:128
-- written: src/awg_compiler.cpp:164
-- read:    src/awg_compiler.cpp:166, 170, 177, 245, 297, 300, 301,
+- declared: src/codegen/awg_compiler.cpp:128
+- written: src/codegen/awg_compiler.cpp:164
+- read:    src/codegen/awg_compiler.cpp:166, 170, 177, 245, 297, 300, 301,
            334, 477, 501, 766
 
 ### AWGCompiler::impl_  [no / high / not-misnomer]
@@ -720,8 +720,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler.hpp:71
-- used:     src/awg_compiler.cpp:1238, 1244-1246, 1251, 1255,
+- declared: include/zhinst/codegen/awg_compiler.hpp:71
+- used:     src/codegen/awg_compiler.cpp:1238, 1244-1246, 1251, 1255,
             1259, 1263, 1267, 1271, 1275, 1279, 1283, 1287
 
 ### AWGCompilerImpl::getJsonArguments::destination  [no / high / not-misnomer]
@@ -754,9 +754,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: src/awg_compiler.cpp:1090
-- used:     src/awg_compiler.cpp:1094
-- caller:   src/awg_compiler.cpp:929-930
+- declared: src/codegen/awg_compiler.cpp:1090
+- used:     src/codegen/awg_compiler.cpp:1094
+- caller:   src/codegen/awg_compiler.cpp:929-930
 
 ### AWGCompilerImpl::getJsonWaveformMemoryInfo::exceedsFpga  [no / high / not-misnomer]
 
@@ -784,7 +784,7 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared/used: src/awg_compiler.cpp:293, 328, 336, 345
+- declared/used: src/codegen/awg_compiler.cpp:293, 328, 336, 345
 
 ## 4. Symbols inspected and judged routinely fine
 

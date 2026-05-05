@@ -12,11 +12,11 @@ of archival.
 
 | File | TODO | Stub | VERIFY | Other | Total |
 |------|------|------|--------|-------|-------|
-| `src/custom_functions.cpp` | 12 | 0 | 0 | 0 | **12** |
-| `src/waveform_generator.cpp` | 1 | 0 | 0 | 2 | **3** |
-| `src/node_map_data.cpp` | 0 | 0 | 0 | 0 | **0** ✅ |
-| `include/zhinst/custom_functions.hpp` | 3 | 0 | 0 | 6 | 9 |
-| `include/zhinst/seqc_ast_node.hpp` | 5 | 1 | 1 | 2 | 9 |
+| `src/runtime/custom_functions.cpp` | 12 | 0 | 0 | 0 | **12** |
+| `src/waveform/waveform_generator.cpp` | 1 | 0 | 0 | 2 | **3** |
+| `src/runtime/node_map_data.cpp` | 0 | 0 | 0 | 0 | **0** ✅ |
+| `include/zhinst/runtime/custom_functions.hpp` | 3 | 0 | 0 | 6 | 9 |
+| `include/zhinst/ast/seqc_ast_node.hpp` | 5 | 1 | 1 | 2 | 9 |
 | Other files (scattered) | 29 | 6 | 13 | 18 | 66 |
 | **Total** | **~67** | **~16** | **~17** | **~33** | **~133** |
 
@@ -59,7 +59,7 @@ header: `elf_reader.hpp` (minimal forward decl for ElfReader/ElfSection,
 since cacheFileOutdated and getCachedFile both use it). **Phase 14d
 upgraded `elf_reader.hpp` to a full reconstruction (0x98 bytes, real
 private `ELFIO::elfio` base, ElfException class, `sectionAsString()`
-helper) and added `src/elf_reader.cpp` with all 5 methods +
+helper) and added `src/io/elf_reader.cpp` with all 5 methods +
 ElfException ctor/dtor/what; cached_parser.cpp call sites switched
 from the fictional `getDataAsString()` to `sectionAsString()`.**
 

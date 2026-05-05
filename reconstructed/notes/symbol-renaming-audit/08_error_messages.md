@@ -2,8 +2,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/error_messages.hpp`
-- `reconstructed/src/error_messages.cpp`
+- `reconstructed/include/zhinst/core/error_messages.hpp`
+- `reconstructed/src/core/error_messages.cpp`
 
 Binary symbol table consulted:
 `nm --demangle /home/brian/zhinst/seqc_compiler/_seqc_compiler.so`.
@@ -95,11 +95,11 @@ Evidence:
   - `WaveformNotExist = 227` ↔ `m[227] = "waveform '%1%' does not exist"`
   - `ApiSuccess = 16384` ↔ `m[16384] = "Success (no error)"`
   - `FwBadAddress = 36866` ↔ `m[36866] = "Requested block address does not belong to any known aperture"`
-- Use sites in src/asm_commands.cpp, src/custom_functions_play.cpp,
-  src/waveform_generator.cpp, etc. consistently call
+- Use sites in src/asm/asm_commands.cpp, src/runtime/custom_functions_play.cpp,
+  src/waveform/waveform_generator.cpp, etc. consistently call
   `ErrorMessages::format(EnumName, …)` with arguments matching the
   format string's `%1%/%2%` positional specifiers — e.g.
-  src/asm_commands.cpp:91 `format(InvalidRegister, "prf")` against the
+  src/asm/asm_commands.cpp:91 `format(InvalidRegister, "prf")` against the
   `"%1% command without valid register"` template.
 
 Interpretation:
@@ -122,19 +122,19 @@ Proposals:
 - keep current (high) for the enum overall.
 
 Locations consulted:
-- declared: include/zhinst/error_messages.hpp:55-418
-- defined messages: src/error_messages.cpp:135-448
-- representative use sites: src/asm_commands.cpp:91-657,
-  src/custom_functions_play.cpp:151-2306,
-  src/waveform_generator.cpp:328-831, src/prefetch.cpp:490-2321,
-  src/csv_parser.cpp:161-1028.
+- declared: include/zhinst/core/error_messages.hpp:55-418
+- defined messages: src/core/error_messages.cpp:135-448
+- representative use sites: src/asm/asm_commands.cpp:91-657,
+  src/runtime/custom_functions_play.cpp:151-2306,
+  src/waveform/waveform_generator.cpp:328-831, src/codegen/prefetch.cpp:490-2321,
+  src/runtime/csv_parser.cpp:161-1028.
 
 ### `ErrorMessageT::UnknownError47`  [unsure / medium / verify-not-original]
 
 Evidence:
-- include/zhinst/error_messages.hpp:112
+- include/zhinst/core/error_messages.hpp:112
   `UnknownError47 = 47, // used at custom_functions_io.cpp — message string unknown`
-- src/error_messages.cpp:182-183 has no `m[47] = …` entry — line 182 is
+- src/core/error_messages.cpp:182-183 has no `m[47] = …` entry — line 182 is
   `m[46] = …` and the next assignment is `m[48] = …`. Comment at line
   133 confirms "Keys 0-255 with gaps at 47 and 53".
 - The header itself documents at line 45 "Gaps: 46, 52 are unassigned"
@@ -166,19 +166,19 @@ Proposals:
   — only after confirming no source file references the name.
 
 Locations consulted:
-- declared: include/zhinst/error_messages.hpp:112
-- defined messages: src/error_messages.cpp:182-183
-- header gap comment: include/zhinst/error_messages.hpp:45,118
+- declared: include/zhinst/core/error_messages.hpp:112
+- defined messages: src/core/error_messages.cpp:182-183
+- header gap comment: include/zhinst/core/error_messages.hpp:45,118
 
 ### `ErrorMessageT::InvalidRegister` / `ValueOverflow` / `UnsupportedOp` (aliases)  [no / medium / —]
 
 Evidence:
-- include/zhinst/error_messages.hpp:416-418 declares three duplicate
+- include/zhinst/core/error_messages.hpp:416-418 declares three duplicate
   enumerators with the same numeric values as
   `CmdWithoutRegister=0`, `ValueOutOfRange=5`, `InvalidOpcode=11`.
 - The header comment at lines 405-415 explains these are recon-side
   aliases used by `asm_commands.cpp` (which throws with `esi=0/5/0xb`).
-- src/asm_commands.cpp uses `ErrorMessageT::InvalidRegister` 25+ times,
+- src/asm/asm_commands.cpp uses `ErrorMessageT::InvalidRegister` 25+ times,
   always with the format string for `CmdWithoutRegister` ("%1% command
   without valid register"). The argument passed (e.g. `"prf"`,
   `"wvf"`, `"brz"`) is the assembler mnemonic that *does* fit the
@@ -200,13 +200,13 @@ Proposals:
 - keep current (medium).
 
 Locations consulted:
-- declared: include/zhinst/error_messages.hpp:405-418
-- used: src/asm_commands.cpp:91-657 (all `InvalidRegister`/`ValueOverflow`).
+- declared: include/zhinst/core/error_messages.hpp:405-418
+- used: src/asm/asm_commands.cpp:91-657 (all `InvalidRegister`/`ValueOverflow`).
 
 ### `ErrorMessages::format(BF&, T, Args...)::arg` and `args`  [no / medium / —]
 
 Evidence:
-- include/zhinst/error_messages.hpp:455-459
+- include/zhinst/core/error_messages.hpp:455-459
   `template <typename T, typename... Args>
    static std::string format(boost::format& fmt, T arg, Args... args) {
        fmt % arg;
@@ -234,14 +234,14 @@ Proposals:
 - keep current (high) for both.
 
 Locations consulted:
-- declared: include/zhinst/error_messages.hpp:455-471
+- declared: include/zhinst/core/error_messages.hpp:455-471
 - mangling evidence: `nm --demangle … | grep ErrorMessages::format`.
 
 ### `getApiErrorMessage::ziResultCode`  [no / high / —]
 
 Evidence:
-- include/zhinst/error_messages.hpp:495 `std::string const& getApiErrorMessage(int ziResultCode);`
-- src/error_messages.cpp:104-115 looks the value up in
+- include/zhinst/core/error_messages.hpp:495 `std::string const& getApiErrorMessage(int ziResultCode);`
+- src/core/error_messages.cpp:104-115 looks the value up in
   `ErrorMessages::messages` and returns `unknownError` on miss.
 - Symbol table: `zhinst::getApiErrorMessage(ZIResult_enum)` — the
   parameter type in the binary is `ZIResult_enum`, not bare `int`.
@@ -262,14 +262,14 @@ Proposals:
 - keep current (high).
 
 Locations consulted:
-- declared: include/zhinst/error_messages.hpp:495
-- defined:  src/error_messages.cpp:104-115
+- declared: include/zhinst/core/error_messages.hpp:495
+- defined:  src/core/error_messages.cpp:104-115
 - type evidence: `nm --demangle … | grep getApiErrorMessage`.
 
 ### (anon)`unknownError`  [no / high / not-misnomer]
 
 Evidence:
-- src/error_messages.cpp:102 `static const std::string unknownError = "unknownError";`
+- src/core/error_messages.cpp:102 `static const std::string unknownError = "unknownError";`
 - `nm --demangle` line:
   `0000000000962ba8 r zhinst::(anonymous namespace)::unknownError`
 - The `.rodata` value of the symbol is the string literal
@@ -288,7 +288,7 @@ Proposals:
 - keep current (high).
 
 Locations consulted:
-- declared: src/error_messages.cpp:102
+- declared: src/core/error_messages.cpp:102
 - symbol-table entry: `nm --demangle _seqc_compiler.so`.
 
 ## 4. Symbols inspected and judged routinely fine
@@ -317,7 +317,7 @@ Locations consulted:
 
 Incidental observation worth flagging at synthesis (not a naming
 issue, so no block):
-- include/zhinst/error_messages.hpp:45 says "Gaps: 46, 52 are
+- include/zhinst/core/error_messages.hpp:45 says "Gaps: 46, 52 are
   unassigned" but the actual gaps in the .cpp are at keys **47** and
   **53** (and `ExecTableInvalidConst=46`, `DeprecatedConst=52` are
   populated). The header comment block at lines 117-118 is correct;

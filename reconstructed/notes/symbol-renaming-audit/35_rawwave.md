@@ -2,19 +2,19 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/rawwave.hpp`
-- `reconstructed/src/rawwave.cpp`
+- `reconstructed/include/zhinst/waveform/rawwave.hpp`
+- `reconstructed/src/waveform/rawwave.cpp`
 
 Cross-reference reads:
-- `reconstructed/include/zhinst/signal.hpp` (Signal members `samples_`,
+- `reconstructed/include/zhinst/waveform/signal.hpp` (Signal members `samples_`,
   `markers_`, `markerBits_`, `channels_`, `length_`, `reserveOnly_`)
-- `reconstructed/src/signal.cpp` (`Signal::getRawData` — sole construction
+- `reconstructed/src/waveform/signal.cpp` (`Signal::getRawData` — sole construction
   site for all three RawWave subclasses)
-- `reconstructed/src/util_wave.cpp` (`double2awg`, `double2awg1m`,
+- `reconstructed/src/waveform/util_wave.cpp` (`double2awg`, `double2awg1m`,
   `double2awg16` definitions)
-- `reconstructed/src/cached_parser.cpp` (sole caller of `util::wave::hash`)
-- `reconstructed/src/elf_writer.cpp`,
-  `reconstructed/src/write_waves_to_elf.cpp` (RawWave consumers — only
+- `reconstructed/src/io/cached_parser.cpp` (sole caller of `util::wave::hash`)
+- `reconstructed/src/io/elf_writer.cpp`,
+  `reconstructed/src/waveform/write_waves_to_elf.cpp` (RawWave consumers — only
   use `size()` and `ptr()` via the abstract base)
 - `reconstructed/notes/struct_layouts.md` (struct offsets)
 
@@ -81,9 +81,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:30
-- defined:  src/util_wave.cpp:41
-- used:     src/signal.cpp:432; src/rawwave.cpp:111-112
+- declared: include/zhinst/waveform/rawwave.hpp:30
+- defined:  src/waveform/util_wave.cpp:41
+- used:     src/waveform/signal.cpp:432; src/waveform/rawwave.cpp:111-112
 
 ### `util::wave::double2awg::marker`  [no / high / not-misnomer]
 
@@ -104,9 +104,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:30
-- defined:  src/util_wave.cpp:41-51
-- used:     src/signal.cpp:432; src/rawwave.cpp:111
+- declared: include/zhinst/waveform/rawwave.hpp:30
+- defined:  src/waveform/util_wave.cpp:41-51
+- used:     src/waveform/signal.cpp:432; src/waveform/rawwave.cpp:111
 
 ### `util::wave::hash::filePath`  [no / high / not-misnomer]
 
@@ -128,8 +128,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:36
-- used:     src/cached_parser.cpp:496
+- declared: include/zhinst/waveform/rawwave.hpp:36
+- used:     src/io/cached_parser.cpp:496
 
 ### `RawWavePlaceHolder::byteSize_`  [no / high / not-misnomer]
 
@@ -156,9 +156,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:82
-- read:     src/rawwave.cpp:32, 48-51
-- written:  src/signal.cpp:413
+- declared: include/zhinst/waveform/rawwave.hpp:82
+- read:     src/waveform/rawwave.cpp:32, 48-51
+- written:  src/waveform/signal.cpp:413
 
 ### `RawWaveHirzel16::RawWaveHirzel16::markers`  [no / medium / —]
 
@@ -184,9 +184,9 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:111
-- defined:  src/rawwave.cpp:78-115
-- caller:   src/signal.cpp:419
+- declared: include/zhinst/waveform/rawwave.hpp:111
+- defined:  src/waveform/rawwave.cpp:78-115
+- caller:   src/waveform/signal.cpp:419
 
 ### `RawWaveHirzel16::RawWaveHirzel16::markerBits`  [no / high / not-misnomer]
 
@@ -214,9 +214,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/rawwave.hpp:112
-- defined:  src/rawwave.cpp:78-115
-- caller:   src/signal.cpp:419
+- declared: include/zhinst/waveform/rawwave.hpp:112
+- defined:  src/waveform/rawwave.cpp:78-115
+- caller:   src/waveform/signal.cpp:419
 - counterpart field: signal.hpp:40
 
 ### `RawWaveHirzel16::RawWaveHirzel16::markerMode` (local)  [no / low / —]
@@ -244,7 +244,7 @@ Proposals:
 - `markerBitsUnion` (low)
 
 Locations consulted:
-- declared/used: src/rawwave.cpp:92-115
+- declared/used: src/waveform/rawwave.cpp:92-115
 
 ## 4. Symbols inspected and judged routinely fine
 

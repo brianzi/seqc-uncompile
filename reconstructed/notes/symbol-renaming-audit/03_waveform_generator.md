@@ -11,17 +11,17 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/waveform_generator.hpp`
-- `reconstructed/src/waveform_generator.cpp`
+- `reconstructed/include/zhinst/waveform/waveform_generator.hpp`
+- `reconstructed/src/waveform/waveform_generator.cpp`
 
 Cross-reference reads:
-- `reconstructed/include/zhinst/error_messages.hpp` — error enums used
+- `reconstructed/include/zhinst/core/error_messages.hpp` — error enums used
   in `format()` calls (those enum names are out-of-scope here; owned by
   a different batch).
-- `reconstructed/include/zhinst/signal.hpp` — `Signal` member names
+- `reconstructed/include/zhinst/waveform/signal.hpp` — `Signal` member names
   (`samples_`, `markers_`, `markerBits_`, `channels_`, `length_`,
   `reserveOnly_`) referenced from this TU but defined elsewhere.
-- `reconstructed/include/zhinst/value.hpp` — `Value::type_`, `which_`,
+- `reconstructed/include/zhinst/ast/value.hpp` — `Value::type_`, `which_`,
   `storage_`, `ValueType`, `VarType` (different batch).
 - `nm --demangle _seqc_compiler.so | grep -i WaveformGenerator` for
   symbol-table verification.
@@ -174,9 +174,9 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform_generator.hpp:240-242
-- ctor init: src/waveform_generator.cpp:100
-- read: src/waveform_generator.cpp:299-309 (`getOrCreateWaveform`)
+- declared: include/zhinst/waveform/waveform_generator.hpp:240-242
+- ctor init: src/waveform/waveform_generator.cpp:100
+- read: src/waveform/waveform_generator.cpp:299-309 (`getOrCreateWaveform`)
 
 ### `WaveformGenerator::wavetableFront_`  [no / high / not-misnomer]
 
@@ -346,9 +346,9 @@ Cross-reference:
   with the field that ultimately stores it.
 
 Locations consulted:
-- declared: include/zhinst/waveform_generator.hpp:166-169
-- defined: src/waveform_generator.cpp:465-476, 478-492
-- callers (sample): src/waveform_generator.cpp:582,586,722,732,746,
+- declared: include/zhinst/waveform/waveform_generator.hpp:166-169
+- defined: src/waveform/waveform_generator.cpp:465-476, 478-492
+- callers (sample): src/waveform/waveform_generator.cpp:582,586,722,732,746,
   882-886,938-940,1005-1014,1065,1106-1115,1146-1153,1559-1561,
   1612-1619,1662-1665,1704-1709,2306-2307
 
@@ -394,9 +394,9 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform_generator.hpp:170-171
-- defined: src/waveform_generator.cpp:511-554 (only use at cpp:523)
-- callers: src/waveform_generator.cpp:762, 791, 802, 956, 2305, 2369,
+- declared: include/zhinst/waveform/waveform_generator.hpp:170-171
+- defined: src/waveform/waveform_generator.cpp:511-554 (only use at cpp:523)
+- callers: src/waveform/waveform_generator.cpp:762, 791, 802, 956, 2305, 2369,
   2398-2404, 2524, 2612, 2691
 
 ### `WaveformGenerator::genericTriangle::nPeriods` (and the 3-arg sawtooth/triangle adapters)  [yes / high / cross-batch-arbitration]
@@ -449,9 +449,9 @@ Cross-reference:
   batch.
 
 Locations consulted:
-- declared/defined: include/zhinst/waveform_generator.hpp:174-175;
-  src/waveform_generator.cpp:182-219
-- 3-arg call sites: src/waveform_generator.cpp:1126-1131 (sawtooth);
+- declared/defined: include/zhinst/waveform/waveform_generator.hpp:174-175;
+  src/waveform/waveform_generator.cpp:182-219
+- 3-arg call sites: src/waveform/waveform_generator.cpp:1126-1131 (sawtooth);
   cpp:1163-1169 (triangle)
 
 ### `WaveformGenerator::interpolateLinear::xPoints` and `yPoints`  [yes / medium / —]
@@ -494,8 +494,8 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform_generator.hpp:177-181
-- defined: src/waveform_generator.cpp:633-684 (loop body cpp:661-674)
+- declared: include/zhinst/waveform/waveform_generator.hpp:177-181
+- defined: src/waveform/waveform_generator.cpp:633-684 (loop body cpp:661-674)
 - evidence of param-name strings: `strings _seqc_compiler.so |
   grep '^[1-5] ('` shows `2 (from)`, `3 (to)`.
 
@@ -547,7 +547,7 @@ Cross-reference:
   `incidental_findings.md` (out of audit scope to write to).
 
 Locations consulted:
-- defined: src/waveform_generator.cpp:2287-2337
+- defined: src/waveform/waveform_generator.cpp:2287-2337
 
 ### Routine positive observations (no separate blocks)
 

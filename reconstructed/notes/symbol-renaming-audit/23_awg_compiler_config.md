@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/awg_compiler_config.hpp`
-- `reconstructed/src/awg_compiler_config.cpp`
+- `reconstructed/include/zhinst/codegen/awg_compiler_config.hpp`
+- `reconstructed/src/codegen/awg_compiler_config.cpp`
 
 Use-site survey via `grep -r` across `reconstructed/src/**.cpp` and
 `reconstructed/include/zhinst/**.hpp`. Notable consumer files:
@@ -165,9 +165,9 @@ Cross-reference:
   Hirzel).
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:68
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:68
 - used: see 30+ sites enumerated above
-- related: include/zhinst/awg_device_props.hpp:121;
+- related: include/zhinst/device/awg_device_props.hpp:121;
   notes/awg_device_props.md:154; notes/device_type.md:971
 
 ### AWGCompilerConfig::appendMode()  [yes / high / coordinated-rename]
@@ -215,9 +215,9 @@ Cross-reference:
   does not affect the Cache batch decision.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:124
-- used: src/prefetch.cpp:2263,2267 (sole site)
-- related: include/zhinst/prefetch.hpp:301-311 (parallel dead aliases)
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:124
+- used: src/codegen/prefetch.cpp:2263,2267 (sole site)
+- related: include/zhinst/codegen/prefetch.hpp:301-311 (parallel dead aliases)
 
 ### AWGCompilerConfig::splitIndex()  [yes / high / coordinated-rename]
 
@@ -250,7 +250,7 @@ Cross-reference:
   same disposition.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:125
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:125
 - used: none under src/
 
 ### AWGCompilerConfig::syncVersion()  [yes / high / coordinated-rename]
@@ -300,9 +300,9 @@ Cross-reference:
 - Companion to `appendMode()` and `splitIndex()`.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:126
-- used: src/prefetch_placesingle.cpp:999,1065
-- related: src/awg_compiler_config.cpp:77-87 (getChannelGroupingModeString)
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:126
+- used: src/codegen/prefetch_placesingle.cpp:999,1065
+- related: src/codegen/awg_compiler_config.cpp:77-87 (getChannelGroupingModeString)
 
 ### AWGCompilerConfig::numChannelGroups  [no / high / not-misnomer]
 
@@ -348,10 +348,10 @@ Cross-reference:
   name, also vindicated.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:71
-- used: src/awg_compiler_config.cpp:82-87; src/compile_seqc.cpp:201;
-  src/asm_commands.cpp:43; src/prefetch.cpp:63,755,2099;
-  src/prefetch_helpers.cpp:42,122,361,665; many more under
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:71
+- used: src/codegen/awg_compiler_config.cpp:82-87; src/codegen/compile_seqc.cpp:201;
+  src/asm/asm_commands.cpp:43; src/codegen/prefetch.cpp:63,755,2099;
+  src/codegen/prefetch_helpers.cpp:42,122,361,665; many more under
   custom_functions*.
 
 ### AWGCompilerConfig::channelGrouping  [yes / medium / —]
@@ -405,18 +405,18 @@ Proposals:
 Cross-reference:
 - Couples with the matching field in
   `FrontendLoweringState::channelGrouping`
-  (`include/zhinst/frontend_lowering.hpp:52`) — synthesis should
+  (`include/zhinst/ast/frontend_lowering.hpp:52`) — synthesis should
   rename both together. Coordinated-rename across files but
   in-batch judgement is unambiguous on the value's role.
 - Distinct from `numChannelGroups` (+0x1C) and unrelated to
   `getChannelGroupingModeString`.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:85
-- used: src/compile_seqc.cpp:206; src/compiler.cpp:283,672,681;
-  src/seqc_ast_nodes_evaluate.cpp:8202,8501,8779,10010
-- related: include/zhinst/frontend_lowering.hpp:43,52;
-  include/zhinst/compiler.hpp:92
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:85
+- used: src/codegen/compile_seqc.cpp:206; src/codegen/compiler.cpp:283,672,681;
+  src/ast/seqc_ast_nodes_evaluate.cpp:8202,8501,8779,10010
+- related: include/zhinst/ast/frontend_lowering.hpp:43,52;
+  include/zhinst/codegen/compiler.hpp:92
 
 ### AWGCompilerConfig::deviceType  [no / high / not-misnomer]
 
@@ -447,11 +447,11 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:63
-- used: src/awg_compiler_config.cpp:38,78; src/compile_seqc.cpp:193,200;
-  src/asm_commands.cpp:39; src/awg_compiler.cpp:164;
-  src/static_resources.cpp:58,82,103,130,138,208,231,341,359;
-  src/compiler.cpp:544; src/prefetch_placesingle.cpp:1065
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:63
+- used: src/codegen/awg_compiler_config.cpp:38,78; src/codegen/compile_seqc.cpp:193,200;
+  src/asm/asm_commands.cpp:39; src/codegen/awg_compiler.cpp:164;
+  src/runtime/static_resources.cpp:58,82,103,130,138,208,231,341,359;
+  src/codegen/compiler.cpp:544; src/codegen/prefetch_placesingle.cpp:1065
 
 ### AWGCompilerConfig::sampleFormat  [no / high / not-misnomer]
 
@@ -478,8 +478,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:64
-- used: src/compile_seqc.cpp:194; src/write_waves_to_elf.cpp:71,153
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:64
+- used: src/codegen/compile_seqc.cpp:194; src/waveform/write_waves_to_elf.cpp:71,153
 - related: notes/awg_device_props.md:153
 
 ### AWGCompilerConfig::awgIndex  [no / high / not-misnomer]
@@ -513,10 +513,10 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:72
-- used: src/compile_seqc.cpp:202; src/custom_functions.cpp:386-457;
-  src/custom_functions_io.cpp:1539-3318 (10+ sites);
-  src/custom_functions_play.cpp:1357-1421
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:72
+- used: src/codegen/compile_seqc.cpp:202; src/runtime/custom_functions.cpp:386-457;
+  src/runtime/custom_functions_io.cpp:1539-3318 (10+ sites);
+  src/runtime/custom_functions_play.cpp:1357-1421
 
 ### AWGCompilerConfig::numCores  [unsure / low / verify-not-original]
 
@@ -554,9 +554,9 @@ Cross-reference:
   out of scope for this audit but worth a TODO entry post-audit.
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:84
-- used: src/compile_seqc.cpp:205 (write-only); no reads at +0x94
-- mis-attributed reads at +0x1C: src/prefetch.cpp:2280,2312
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:84
+- used: src/codegen/compile_seqc.cpp:205 (write-only); no reads at +0x94
+- mis-attributed reads at +0x1C: src/codegen/prefetch.cpp:2280,2312
 
 ### AWGCompilerConfig::cacheType  [no / medium / —]
 
@@ -599,10 +599,10 @@ Cross-reference:
   notes it (`awg_compiler_config.hpp:115` historical comment).
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:69
-- used: src/compile_seqc.cpp:200; src/awg_compiler.cpp:298;
-  src/prefetch_emit.cpp:64; src/prefetch_placesingle.cpp:917-922;
-  src/compiler.cpp:539,544
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:69
+- used: src/codegen/compile_seqc.cpp:200; src/codegen/awg_compiler.cpp:298;
+  src/codegen/prefetch_emit.cpp:64; src/codegen/prefetch_placesingle.cpp:917-922;
+  src/codegen/compiler.cpp:539,544
 
 ### AWGCompilerConfig::serializeRoundTrip  [no / medium / —]
 
@@ -627,8 +627,8 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:74
-- used: src/compiler.cpp:427
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:74
+- used: src/codegen/compiler.cpp:427
 - related: notes/placeholder_field_names.md:47
 
 ### AWGCompilerConfig::optimizationFlags  [no / medium / —]
@@ -658,9 +658,9 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:82
-- used: src/compile_seqc.cpp:204; src/compiler.cpp:411;
-  src/awg_compiler.cpp:720 (comment only)
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:82
+- used: src/codegen/compile_seqc.cpp:204; src/codegen/compiler.cpp:411;
+  src/codegen/awg_compiler.cpp:720 (comment only)
 
 ### AWGCompilerConfig::debugDumpEnabled / debugJsonEnabled / debugDumpPath / debugJsonPath  [no / high / —]
 
@@ -689,9 +689,9 @@ Proposals:
 - keep current  (high) for all four
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:75-79
-- used: src/awg_compiler_config.cpp:18-29; src/compile_seqc.cpp:210;
-  src/compiler.cpp:417-418,497
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:75-79
+- used: src/codegen/awg_compiler_config.cpp:18-29; src/codegen/compile_seqc.cpp:210;
+  src/codegen/compiler.cpp:417-418,497
 
 ### AWGCompilerConfig::compressSource  [no / medium / —]
 
@@ -715,8 +715,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:88
-- used: src/awg_compiler.cpp:811 (comment-cited consumer)
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:88
+- used: src/codegen/awg_compiler.cpp:811 (comment-cited consumer)
 
 ### AWGCompilerConfig::wavetableSize / searchPath  [no / high / —]
 
@@ -742,9 +742,9 @@ Proposals:
 - keep current  (high) for both
 
 Locations consulted:
-- declared: include/zhinst/awg_compiler_config.hpp:90,92
-- used: src/awg_compiler.cpp:166-167; src/compile_seqc.cpp:213,215;
-  src/compiler.cpp:506-508
+- declared: include/zhinst/codegen/awg_compiler_config.hpp:90,92
+- used: src/codegen/awg_compiler.cpp:166-167; src/codegen/compile_seqc.cpp:213,215;
+  src/codegen/compiler.cpp:506-508
 
 ## 4. Symbols inspected and judged routinely fine
 

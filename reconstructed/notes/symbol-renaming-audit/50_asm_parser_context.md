@@ -11,16 +11,16 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_parser_context.hpp`
-- `reconstructed/src/asm_parser_context.cpp`
+- `reconstructed/include/zhinst/asm/asm_parser_context.hpp`
+- `reconstructed/src/asm/asm_parser_context.cpp`
 
 Cross-referenced (read-only) for usage:
-- `reconstructed/src/awg_assembler_impl_pipeline.cpp`
-- `reconstructed/src/asm_parser.y`
-- `reconstructed/src/asm_lexer.l`
-- `reconstructed/include/zhinst/awg_assembler_impl.hpp`
-- `reconstructed/include/zhinst/asm_expression.hpp`
-- `reconstructed/include/zhinst/yy_fwd.hpp`
+- `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp`
+- `reconstructed/src/asm/asm_parser.y`
+- `reconstructed/src/asm/asm_lexer.l`
+- `reconstructed/include/zhinst/codegen/awg_assembler_impl.hpp`
+- `reconstructed/include/zhinst/asm/asm_expression.hpp`
+- `reconstructed/include/zhinstast/seqc_parser_fwd.hpp (and asm/asm_parser_fwd.hpp)`
 - `reconstructed/notes/asm_parser_grammar.md`
 
 Authoritative symbol-table check (see §3 Coverage). `nm --demangle
@@ -119,8 +119,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:118
-- used:     src/asm_parser_context.cpp:46–88,131
+- declared: include/zhinst/asm/asm_parser_context.hpp:118
+- used:     src/asm/asm_parser_context.cpp:46–88,131
 
 ### AsmParserContext::doOpt_  [no / medium / —]
 
@@ -152,10 +152,10 @@ Proposals:
   name; not flagging.)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:122
-- used:     src/asm_parser_context.cpp:96–108;
-            src/awg_assembler_impl_pipeline.cpp:137,234;
-            src/asm_parser.y:88,94
+- declared: include/zhinst/asm/asm_parser_context.hpp:122
+- used:     src/asm/asm_parser_context.cpp:96–108;
+            src/codegen/awg_assembler_impl_pipeline.cpp:137,234;
+            src/asm/asm_parser.y:88,94
 
 ### AsmParserContext::trackedStringCopy::s  [unsure / low / —]
 
@@ -181,9 +181,9 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:103
-- used:     src/asm_parser_context.cpp:168;
-            src/asm_lexer.l:131,148
+- declared: include/zhinst/asm/asm_parser_context.hpp:103
+- used:     src/asm/asm_parser_context.cpp:168;
+            src/asm/asm_lexer.l:131,148
 
 ### addNode::text  [unsure / low / —]
 
@@ -213,9 +213,9 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:138
-- defined:  src/asm_parser_context.cpp:251
-- used:     src/asm_parser.y:109;
+- declared: include/zhinst/asm/asm_parser_context.hpp:138
+- defined:  src/asm/asm_parser_context.cpp:251
+- used:     src/asm/asm_parser.y:109;
             notes/asm_parser_grammar.md:145
 
 ### addCommand::cmd and addCommand::args  [yes / medium / cross-batch-arbitration]
@@ -284,9 +284,9 @@ Cross-reference:
   / `argList` are also the bison non-terminal names.
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:150–154
-- defined:  src/asm_parser_context.cpp:321–388
-- used:     src/asm_parser.y:114,119,124,129;
+- declared: include/zhinst/asm/asm_parser_context.hpp:150–154
+- defined:  src/asm/asm_parser_context.cpp:321–388
+- used:     src/asm/asm_parser.y:114,119,124,129;
             notes/asm_parser_grammar.md:146–183
 
 ### AsmParserContext::stringCopies_  [no / high / not-misnomer]
@@ -310,8 +310,8 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:127
-- used:     src/asm_parser_context.cpp:168–181
+- declared: include/zhinst/asm/asm_parser_context.hpp:127
+- used:     src/asm/asm_parser_context.cpp:168–181
 
 ### AsmParserContext::labels_  [no / high / not-misnomer]
 
@@ -332,9 +332,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:128
-- used:     src/asm_parser_context.cpp:188–196;
-            src/asm_parser_context.cpp (addCommand):368,373
+- declared: include/zhinst/asm/asm_parser_context.hpp:128
+- used:     src/asm/asm_parser_context.cpp:188–196;
+            src/asm/asm_parser_context.cpp (addCommand):368,373
 
 ### AsmParserContext::errorCallback_  [no / high / not-misnomer]
 
@@ -356,9 +356,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:126
-- used:     src/asm_parser_context.cpp:204–222;
-            src/awg_assembler_impl_pipeline.cpp:123,213,283
+- declared: include/zhinst/asm/asm_parser_context.hpp:126
+- used:     src/asm/asm_parser_context.cpp:204–222;
+            src/codegen/awg_assembler_impl_pipeline.cpp:123,213,283
 
 ### AsmParserContext::lineNumber_ and programCounter_  [no / high / not-misnomer]
 
@@ -383,8 +383,8 @@ Proposals:
 - keep current (high) for both.
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:124,125
-- used:     src/asm_parser_context.cpp:128–158,214,338
+- declared: include/zhinst/asm/asm_parser_context.hpp:124,125
+- used:     src/asm/asm_parser_context.cpp:128–158,214,338
 
 ### asmerror::result  [no / medium / —]
 
@@ -392,7 +392,7 @@ Evidence:
 - Bison-generated parser signature
   (`asmparse(ctx, AsmExpression** result, scanner)`); `asmerror`
   shares the same signature shape.
-- `yy_fwd.hpp:27` declares the same `result` parameter.
+- `seqc_parser_fwd.hpp (and asm_parser_fwd.hpp):27` declares the same `result` parameter.
 
 Interpretation:
 - `result` is the bison `*$$` out-pointer. Matches bison
@@ -405,8 +405,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/asm_parser_context.hpp:163–166;
-            include/zhinst/yy_fwd.hpp:23–27
+- declared: include/zhinst/asm/asm_parser_context.hpp:163–166;
+            include/zhinstast/seqc_parser_fwd.hpp (and asm/asm_parser_fwd.hpp):23–27
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -437,8 +437,8 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** every in-scope symbol declared in
-  `include/zhinst/asm_parser_context.hpp` and defined in
-  `src/asm_parser_context.cpp` — all data members, all method
+  `include/zhinst/asm/asm_parser_context.hpp` and defined in
+  `src/asm/asm_parser_context.cpp` — all data members, all method
   parameters, all relevant locals, free-function parameters
   (`addNode`, `addCommand`, `asmerror`, `asmparse`, `asmset_extra`,
   `asmlex_init_extra`), and the nested `Label` type's members and

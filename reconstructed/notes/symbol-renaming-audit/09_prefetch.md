@@ -11,14 +11,14 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/prefetch.hpp`
-- `reconstructed/src/prefetch.cpp`
-- `reconstructed/src/prefetch_helpers.cpp` (skim only — see §5)
-- `reconstructed/src/prefetch_emit.cpp` (skim only — see §5)
-- `reconstructed/src/prefetch_print.cpp` (skim only — see §5)
-- `reconstructed/src/prefetch_prepare.cpp` (countBranches, definePlaySize)
-- `reconstructed/src/prefetch_placesingle.cpp` (skim only — see §5)
-- `reconstructed/src/prefetch_splitplay.cpp` (skim only — see §5)
+- `reconstructed/include/zhinst/codegen/prefetch.hpp`
+- `reconstructed/src/codegen/prefetch.cpp`
+- `reconstructed/src/codegen/prefetch_helpers.cpp` (skim only — see §5)
+- `reconstructed/src/codegen/prefetch_emit.cpp` (skim only — see §5)
+- `reconstructed/src/codegen/prefetch_print.cpp` (skim only — see §5)
+- `reconstructed/src/codegen/prefetch_prepare.cpp` (countBranches, definePlaySize)
+- `reconstructed/src/codegen/prefetch_placesingle.cpp` (skim only — see §5)
+- `reconstructed/src/codegen/prefetch_splitplay.cpp` (skim only — see §5)
 
 Cross-batch counterpart consulted:
 `reconstructed/notes/symbol-renaming-audit/36_cache.md`.
@@ -160,10 +160,10 @@ Cross-reference:
   `numBranches` / `branches` / `bytesPerBranchDivisor`.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:266
-- used:     src/prefetch.cpp:43,1683;
-            src/prefetch_prepare.cpp:320-328,408-413,748-765
-- related:  src/cache.cpp:100,104 (via batch 36)
+- declared: include/zhinst/codegen/prefetch.hpp:266
+- used:     src/codegen/prefetch.cpp:43,1683;
+            src/codegen/prefetch_prepare.cpp:320-328,408-413,748-765
+- related:  src/runtime/cache.cpp:100,104 (via batch 36)
 
 ### Prefetch::split_  [no / high / not-misnomer]
 
@@ -223,9 +223,9 @@ Cross-reference:
 - Counterpart `Prefetch::isHirzel_()` — see block below.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:267
-- used:     src/prefetch.cpp:46,1607-1620,1684,2263-2265,2305;
-            src/prefetch_placesingle.cpp:676,729,732,808
+- declared: include/zhinst/codegen/prefetch.hpp:267
+- used:     src/codegen/prefetch.cpp:46,1607-1620,1684,2263-2265,2305;
+            src/codegen/prefetch_placesingle.cpp:676,729,732,808
 
 ### PrefetcherNodeState::state  [yes / medium / cross-batch-arbitration]
 
@@ -291,8 +291,8 @@ Cross-reference:
   (initial "fresh" sentinel) — see batch 36.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:138,154-155
-- used:     src/prefetch.cpp:1188-1194,1773-1777,1812-1815;
+- declared: include/zhinst/codegen/prefetch.hpp:138,154-155
+- used:     src/codegen/prefetch.cpp:1188-1194,1773-1777,1812-1815;
             indirect comments at prefetch.hpp:117-118
 
 ### PrefetcherNodeState::pageSize / playSize() alias  [yes / medium / coordinated-rename]
@@ -361,11 +361,11 @@ Cross-reference:
 - Coupled with the `playSize() / pageSize` alias-method block below.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:141,156-157
-- used:     src/prefetch_prepare.cpp:768-806;
-            src/prefetch_placesingle.cpp:484,616-620,642;
-            src/prefetch.cpp:1188-1194,1252-1265;
-            src/prefetch_helpers.cpp:495
+- declared: include/zhinst/codegen/prefetch.hpp:141,156-157
+- used:     src/codegen/prefetch_prepare.cpp:768-806;
+            src/codegen/prefetch_placesingle.cpp:484,616-620,642;
+            src/codegen/prefetch.cpp:1188-1194,1252-1265;
+            src/codegen/prefetch_helpers.cpp:495
 
 ### PrefetcherNodeState::requiredSlots / usedCache() alias  [yes / medium / coordinated-rename]
 
@@ -412,9 +412,9 @@ Cross-reference:
   field = misnomer).
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:142,158-159
-- used:     src/prefetch.cpp:67,1044-1053,1224;
-            src/prefetch_placesingle.cpp:1044 (sites grouped under "usedCache")
+- declared: include/zhinst/codegen/prefetch.hpp:142,158-159
+- used:     src/codegen/prefetch.cpp:67,1044-1053,1224;
+            src/codegen/prefetch_placesingle.cpp:1044 (sites grouped under "usedCache")
 
 ### PrefetcherNodeState::lengthReg() alias / `registerHirzel`  [yes / high / coordinated-rename]
 
@@ -471,10 +471,10 @@ Cross-reference:
   legacy wrappers over the canonical fields.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:136,152-153
-- used:     src/prefetch_prepare.cpp:778-799;
-            src/prefetch.cpp:781,2028,2114;
-            src/prefetch_placesingle.cpp:147-156,205-206,285,330-388,896-909
+- declared: include/zhinst/codegen/prefetch.hpp:136,152-153
+- used:     src/codegen/prefetch_prepare.cpp:778-799;
+            src/codegen/prefetch.cpp:781,2028,2114;
+            src/codegen/prefetch_placesingle.cpp:147-156,205-206,285,330-388,896-909
 
 ### PrefetcherNodeState::counter() alias / `state`  [yes / high / coordinated-rename]
 
@@ -508,8 +508,8 @@ Cross-reference:
 - See PNS::state cross-batch arbitration with `Cache::play::state`.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:138,154-155
-- used:     src/prefetch.cpp:1773-1777,1812-1815
+- declared: include/zhinst/codegen/prefetch.hpp:138,154-155
+- used:     src/codegen/prefetch.cpp:1773-1777,1812-1815
 
 ### Prefetch::isHirzel_() / set_isHirzel_() (private aliases)  [yes / high / —]
 
@@ -550,7 +550,7 @@ Cross-reference:
   batch) for the actual Hirzel test path.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:310-311
+- declared: include/zhinst/codegen/prefetch.hpp:310-311
 - used:     none in src/ (verified via grep `isHirzel_(`)
 
 ### PrefetcherNodeState::useDA  [unsure / low / —]
@@ -605,9 +605,9 @@ Cross-reference:
 - Tied to `WaveformIR::crossesCacheLine_` (a different batch).
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:145
-- used:     src/prefetch.cpp:786-789,1749;
-            src/prefetch_placesingle.cpp:205-206
+- declared: include/zhinst/codegen/prefetch.hpp:145
+- used:     src/codegen/prefetch.cpp:786-789,1749;
+            src/codegen/prefetch_placesingle.cpp:205-206
 
 ### PrefetcherNodeState::refTrack  [unsure / low / —]
 
@@ -636,8 +636,8 @@ Proposals:
 - `refCount`    (low)
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:140
-- used:     src/prefetch.cpp:1285,1294,1303,1335
+- declared: include/zhinst/codegen/prefetch.hpp:140
+- used:     src/codegen/prefetch.cpp:1285,1294,1303,1335
 
 ### Prefetch::minIndexedSize (static)  [unsure / low / verify-not-original]
 
@@ -673,8 +673,8 @@ Proposals:
 - keep current  (high) — likely original
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:250
-- used:     src/prefetch_placesingle.cpp:679,776,793,811
+- declared: include/zhinst/codegen/prefetch.hpp:250
+- used:     src/codegen/prefetch_placesingle.cpp:679,776,793,811
 - binary:   nm output line `b zhinst::Prefetch::minIndexedSize`
 
 ### Prefetch::usageEntries_  [no / medium / —]
@@ -699,9 +699,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:289
-- used:     src/prefetch_placesingle.cpp:418,452,1034;
-            src/prefetch_helpers.cpp:182,197,207,215
+- declared: include/zhinst/codegen/prefetch.hpp:289
+- used:     src/codegen/prefetch_placesingle.cpp:418,452,1034;
+            src/codegen/prefetch_helpers.cpp:182,197,207,215
 
 ### Prefetch::cwvfConfig_, lastCwvfNode_, globalCwvfValid_  [no / high / —]
 
@@ -748,10 +748,10 @@ Proposals:
 - keep current  (high) — for all three.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:269,290,291
-- used:     src/prefetch.cpp:55-56,115-145;
-            src/prefetch_placesingle.cpp:365,406-418,445-446;
-            src/prefetch_emit.cpp:133,147
+- declared: include/zhinst/codegen/prefetch.hpp:269,290,291
+- used:     src/codegen/prefetch.cpp:55-56,115-145;
+            src/codegen/prefetch_placesingle.cpp:365,406-418,445-446;
+            src/codegen/prefetch_emit.cpp:133,147
 
 ## 4. Symbols inspected and judged routinely fine
 

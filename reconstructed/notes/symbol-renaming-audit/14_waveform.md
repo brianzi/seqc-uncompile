@@ -11,9 +11,9 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/waveform.hpp`
-- `reconstructed/src/waveform.cpp`
-- `reconstructed/src/util_wave.cpp`
+- `reconstructed/include/zhinst/waveform/waveform.hpp`
+- `reconstructed/src/waveform/waveform.cpp`
+- `reconstructed/src/waveform/util_wave.cpp`
 
 Symbol-table reference: `nm --demangle _seqc_compiler.so`.
 
@@ -131,8 +131,8 @@ Proposals:
   qualified name.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:48,97
-- used:     src/waveform.cpp throughout
+- declared: include/zhinst/waveform/waveform.hpp:48,97
+- used:     src/waveform/waveform.cpp throughout
 - nm output for `Waveform::File*`
 
 ### WaveformFile::columnMode  [yes / low / —]
@@ -163,9 +163,9 @@ Proposals:
   hard to disprove without binary.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:51
-- used:     src/waveform.cpp:779,991; src/waveform_ir.cpp:45,65;
-            src/csv_parser.cpp:718 (comment only)
+- declared: include/zhinst/waveform/waveform.hpp:51
+- used:     src/waveform/waveform.cpp:779,991; src/waveform/waveform_ir.cpp:45,65;
+            src/runtime/csv_parser.cpp:718 (comment only)
 
 ### WaveformFile::data  [yes / high / —]
 
@@ -198,10 +198,10 @@ Proposals:
 - `fileHash`     (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:54
-- used:     src/csv_parser.cpp:488,489,493,809,810,812;
-            src/waveform_ir.cpp:41,62 (clear/shrink_to_fit);
-            src/waveform.cpp:797-805
+- declared: include/zhinst/waveform/waveform.hpp:54
+- used:     src/runtime/csv_parser.cpp:488,489,493,809,810,812;
+            src/waveform/waveform_ir.cpp:41,62 (clear/shrink_to_fit);
+            src/waveform/waveform.cpp:797-805
 
 ### Waveform::secondaryName  [yes / high / —]
 
@@ -237,12 +237,12 @@ Cross-reference:
   param, fromJson local) are listed as `coordinated-rename`.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:102
-- used:     src/waveform.cpp:84,114,156,208-211,353,485-487,
-            606,849,914,966; src/waveform_ir.cpp:108,134,165-166;
-            src/wavetable_manager_ir.cpp:154,155;
-            src/seqc_ast_nodes_evaluate.cpp:6789,6791;
-            src/waveform_front.cpp:89
+- declared: include/zhinst/waveform/waveform.hpp:102
+- used:     src/waveform/waveform.cpp:84,114,156,208-211,353,485-487,
+            606,849,914,966; src/waveform/waveform_ir.cpp:108,134,165-166;
+            src/waveform/wavetable_manager_ir.cpp:154,155;
+            src/ast/seqc_ast_nodes_evaluate.cpp:6789,6791;
+            src/waveform/waveform_front.cpp:89
 
 ### Waveform::funDescrName  [yes / medium / —]
 
@@ -278,13 +278,13 @@ Proposals:
 - Keep current     (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:107
-- used:     src/waveform.cpp:88,118,357,519-523,619,865,927,954,964;
-            src/waveform_ir.cpp:81,112;
-            src/wavetable_manager_front.cpp:197,221;
-            src/custom_functions.cpp:1107;
-            src/waveform_front.cpp:93;
-            include/zhinst/waveform_front.hpp:104-106
+- declared: include/zhinst/waveform/waveform.hpp:107
+- used:     src/waveform/waveform.cpp:88,118,357,519-523,619,865,927,954,964;
+            src/waveform/waveform_ir.cpp:81,112;
+            src/waveform/wavetable_manager_front.cpp:197,221;
+            src/runtime/custom_functions.cpp:1107;
+            src/waveform/waveform_front.cpp:93;
+            include/zhinst/waveform/waveform_front.hpp:104-106
 
 ### Waveform::playWord  [yes / high / —]
 
@@ -322,13 +322,13 @@ Cross-reference:
   `coordinated-rename`. See batch 38 for `PlayConfig::encodeCwvf`.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:108
-- used:     src/waveform.cpp:36,54,93,119,287,358,463,525-528,
+- declared: include/zhinst/waveform/waveform.hpp:108
+- used:     src/waveform/waveform.cpp:36,54,93,119,287,358,463,525-528,
             580-582,624-625,812,820,830,867-869,933-934;
-            src/custom_functions_io.cpp:479,484;
-            src/asm_commands.cpp:1091-1100;
-            src/waveform_front.cpp:94;
-            src/waveform_ir.cpp:82,113
+            src/runtime/custom_functions_io.cpp:479,484;
+            src/asm/asm_commands.cpp:1091-1100;
+            src/waveform/waveform_front.cpp:94;
+            src/waveform/waveform_ir.cpp:82,113
 
 ### Waveform::seqRegWidth  [yes / medium / —]
 
@@ -375,16 +375,16 @@ Cross-reference:
   `DeviceConstants::waveformMinSamples`.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:110
-- used:     src/waveform.cpp:38,90,121,303,344,360,465,535-538,
+- declared: include/zhinst/waveform/waveform.hpp:110
+- used:     src/waveform/waveform.cpp:38,90,121,303,344,360,465,535-538,
             582-583,629,812,820,830,875-877,933,936;
-            src/waveform_ir.cpp:84,115;
-            src/waveform_front.cpp:96;
-            src/custom_functions.cpp:655-656;
-            src/custom_functions_io.cpp:494-496;
-            src/wavetable_ir.cpp:795-808;
-            src/prefetch_prepare.cpp:695-699;
-            include/zhinst/device_constants.hpp:71,77
+            src/waveform/waveform_ir.cpp:84,115;
+            src/waveform/waveform_front.cpp:96;
+            src/runtime/custom_functions.cpp:655-656;
+            src/runtime/custom_functions_io.cpp:494-496;
+            src/waveform/wavetable_ir.cpp:795-808;
+            src/codegen/prefetch_prepare.cpp:695-699;
+            include/zhinst/device/device_constants.hpp:71,77
 
 ### Waveform::allocationByteSize  [unsure / medium / —]
 
@@ -444,12 +444,12 @@ Side observation (per RULES §2a):
   finding.
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:111
-- used:     src/waveform.cpp:39,52,91,122,313-321,361,466,
+- declared: include/zhinst/waveform/waveform.hpp:111
+- used:     src/waveform/waveform.cpp:39,52,91,122,313-321,361,466,
             540-543,584-585,630,812,821,832,879-881,933,937;
-            src/wavetable_ir.cpp:260-333;
-            src/prefetch_helpers.cpp:635-643;
-            src/prefetch_placesingle.cpp:1109;
+            src/waveform/wavetable_ir.cpp:260-333;
+            src/codegen/prefetch_helpers.cpp:635-643;
+            src/codegen/prefetch_placesingle.cpp:1109;
             src/incidental_findings.md:911 (allocator role)
 - nm:       `_ZN6zhinst8WaveformC2E...` (full ctor signature)
 
@@ -481,7 +481,7 @@ Proposals:
 - Keep current      (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:106
+- declared: include/zhinst/waveform/waveform.hpp:106
 - used:     widespread (see grep output for `addressValue`)
 
 ### Waveform::waveformType  [unsure / low / —]
@@ -509,9 +509,9 @@ Proposals:
 - Keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform.hpp:100
-- used:     src/waveform.cpp:60,83,100,482,603,844,911;
-            src/wavetable_ir.cpp:257,283
+- declared: include/zhinst/waveform/waveform.hpp:100
+- used:     src/waveform/waveform.cpp:60,83,100,482,603,844,911;
+            src/waveform/wavetable_ir.cpp:257,283
 
 ### Positive blocks (not-misnomer)
 

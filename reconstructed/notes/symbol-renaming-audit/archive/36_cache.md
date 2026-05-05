@@ -1,8 +1,8 @@
 # Batch 36 — cache (symbol renaming audit)
 
 Files audited:
-- `reconstructed/include/zhinst/cache.hpp`
-- `reconstructed/src/cache.cpp`
+- `reconstructed/include/zhinst/runtime/cache.hpp`
+- `reconstructed/src/runtime/cache.cpp`
 
 ## Symbols inspected
 
@@ -41,10 +41,10 @@ Free constants
 ### S1 — `Cache::allocate(5-arg)` parameter `pageSize`
 
 - symbol:        `Cache::allocate(shared_ptr<WaveformIR>, AddressImpl<uint32_t>, unordered_map<string,bool> const&, int pageSize, bool split)`
-- declared at:   `include/zhinst/cache.hpp:130-135` (param at line 134)
-- defined/used:  `src/cache.cpp:86-137` (param used at line 100)
-- call sites:    `src/prefetch.cpp:1657-1663` — passes `maxBranches_` (the
-                 Prefetch member at +0xB8) into this argument; `src/cache.cpp:1433`
+- declared at:   `include/zhinst/runtime/cache.hpp:130-135` (param at line 134)
+- defined/used:  `src/runtime/cache.cpp:86-137` (param used at line 100)
+- call sites:    `src/codegen/prefetch.cpp:1657-1663` — passes `maxBranches_` (the
+                 Prefetch member at +0xB8) into this argument; `src/runtime/cache.cpp:1433`
                  (comment) restates this.
 - observations:
   * The body uses the parameter exclusively as a divisor in
@@ -73,9 +73,9 @@ Free constants
 ### S2 — `Cache::allocate(5-arg)` parameter `split`
 
 - symbol:        `Cache::allocate(..., bool split)`
-- declared at:   `include/zhinst/cache.hpp:135`
-- defined/used:  `src/cache.cpp:91, 104`
-- call site:     `src/prefetch.cpp:1663` — passes `Prefetch::split_` (+0xBC).
+- declared at:   `include/zhinst/runtime/cache.hpp:135`
+- defined/used:  `src/runtime/cache.cpp:91, 104`
+- call site:     `src/codegen/prefetch.cpp:1663` — passes `Prefetch::split_` (+0xBC).
 - observations:
   * Body at `cache.cpp:104`: `if (split || numSamples < freePages) { allocate
     Normal (full waveform, no chunking) } else { compute chunkSize and allocate
@@ -103,10 +103,10 @@ Free constants
 ### S3 — `Cache::getBestPosition` parameter `appendMode`
 
 - symbol:        `Cache::getBestPosition(AddressImpl<uint32_t> numSamples, unordered_map<string,bool> const& nameMap, bool appendMode)`
-- declared at:   `include/zhinst/cache.hpp:144-147`
-- defined/used:  `src/cache.cpp:174-296`
-- call sites:    `src/cache.cpp:160` — `getBestPosition(alignedSize, nameMap, false)`
-                 (only external call); `src/cache.cpp:229` — recursive call with
+- declared at:   `include/zhinst/runtime/cache.hpp:144-147`
+- defined/used:  `src/runtime/cache.cpp:174-296`
+- call sites:    `src/runtime/cache.cpp:160` — `getBestPosition(alignedSize, nameMap, false)`
+                 (only external call); `src/runtime/cache.cpp:229` — recursive call with
                  `true` after the fast-path fails.
 - observations:
   * The class already has a member `Cache::appendMode_` (`hpp:160`) checked
@@ -137,9 +137,9 @@ Free constants
 ### S4 — `Cache::play` parameter `state`
 
 - symbol:        `Cache::play(shared_ptr<Pointer> ptr, PointerState state)`
-- declared at:   `include/zhinst/cache.hpp:152`
-- defined/used:  `src/cache.cpp:388-418`
-- call sites:    `src/prefetch.cpp:1756, 1794` — both pass
+- declared at:   `include/zhinst/runtime/cache.hpp:152`
+- defined/used:  `src/runtime/cache.cpp:388-418`
+- call sites:    `src/codegen/prefetch.cpp:1756, 1794` — both pass
                  `static_cast<Cache::PointerState>(curState.counter())`.
 - observations:
   * The body never assigns the parameter as the new state. It is used
@@ -168,9 +168,9 @@ Free constants
 ### S5 — `Cache::Pointer::hash_` (data member)
 
 - symbol:        `Cache::Pointer::hash_`
-- declared at:   `include/zhinst/cache.hpp:106`
-- defined/used:  written at `src/cache.cpp:132, 184`; read at
-                 `src/prefetch_splitplay.cpp:325` (used as
+- declared at:   `include/zhinst/runtime/cache.hpp:106`
+- defined/used:  written at `src/runtime/cache.cpp:132, 184`; read at
+                 `src/codegen/prefetch_splitplay.cpp:325` (used as
                  "the start-address used by the hash lookup").
 - observations:
   * Assigned at `cache.cpp:132` as
@@ -198,7 +198,7 @@ Free constants
 ### S6 — `unusedCacheLine` (file-scope constant)
 
 - symbol:        `zhinst::unusedCacheLine`
-- declared at:   `include/zhinst/cache.hpp:166`
+- declared at:   `include/zhinst/runtime/cache.hpp:166`
 - defined/used:  declared `static constexpr uint32_t = 0xFFFFFFFF`. No
                  reference under `reconstructed/src/` matches the symbol
                  (`grep` returns only the declaration site and the
@@ -228,7 +228,7 @@ Free constants
 
 - symbol:        locals `numAllocs`, `halfSize`, `altAllocs`, `chunkSize`,
                  `halfSz` in `Cache::allocate(5-arg)`
-- declared at:   `src/cache.cpp:117-133`
+- declared at:   `src/runtime/cache.cpp:117-133`
 - observations:
   * `numAllocs`, `altAllocs` are integer counts of chunks. The variables
     `halfSize` (line 119, `size_ >> 1`) and `halfSz` (line 131, `ptr->size_/2`)

@@ -14,22 +14,22 @@ edits outside this file.
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/wavetable_ir.hpp`
-- `reconstructed/src/wavetable_ir.cpp`
-- `reconstructed/src/wavetable_manager_ir.cpp`
+- `reconstructed/include/zhinst/waveform/wavetable_ir.hpp`
+- `reconstructed/src/waveform/wavetable_ir.cpp`
+- `reconstructed/src/waveform/wavetable_manager_ir.cpp`
 
 External cross-checks consulted (read-only, for context only):
 
-- `reconstructed/src/awg_compiler.cpp:260,304,332,769,774,778,790,796,914`
+- `reconstructed/src/codegen/awg_compiler.cpp:260,304,332,769,774,778,790,796,914`
   (call sites of `forEachUsedWaveform` / `getJsonIndex` /
   `getNextSegmentAddress` / `getFirstWaveformOffset`)
-- `reconstructed/src/write_waves_to_elf.cpp:85-86,122-124,171-172`
+- `reconstructed/src/waveform/write_waves_to_elf.cpp:85-86,122-124,171-172`
   (call sites of `forEachUsedWaveform` and `getFirstWaveformOffset`)
-- `reconstructed/src/compiler.cpp:524-544` (`setUsedWaveforms`,
+- `reconstructed/src/codegen/compiler.cpp:524-544` (`setUsedWaveforms`,
   `updateWaveforms` call sites)
-- `reconstructed/src/memory_allocator.cpp:30-37,94,208`
+- `reconstructed/src/codegen/memory_allocator.cpp:30-37,94,208`
   (cross-references back to `allocateWaveforms{,ForFifo}`)
-- `reconstructed/include/zhinst/device_constants.hpp:43-78,148-205`
+- `reconstructed/include/zhinst/device/device_constants.hpp:43-78,148-205`
   (`waveformAlignment`, `waveformMemorySize`, `cachePageCount`,
   `maxBlocks`, `bitsPerSample`, `waveformGranularity`,
   `waveformPageSize`, `maxWaveIndex()`)
@@ -225,14 +225,14 @@ Judgement:
 - Not a misnomer.
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:43
+- declared: include/zhinst/waveform/wavetable_ir.hpp:43
 - nm output above
 
 ### WaveOrder::ByName  [yes / high / —]
 
 Evidence:
-- include/zhinst/wavetable_ir.hpp:46 — declared `ByName = 1, // Sort by name`.
-- src/wavetable_ir.cpp:467-472 — the `ByName` branch of
+- include/zhinst/waveform/wavetable_ir.hpp:46 — declared `ByName = 1, // Sort by name`.
+- src/waveform/wavetable_ir.cpp:467-472 — the `ByName` branch of
   `forEachUsedWaveform` reads `usedWaveforms_[a]->waveIndex` (not the
   name) for comparison and is annotated:
   `// Despite the enum name, ByName sorts by waveIndex ascending.`
@@ -241,13 +241,13 @@ Evidence:
 - Binary symbol `…WaveOrder) const::$_0` exists at 0x2ad830 (visible
   in `nm` output above) — confirmed it is one of two stable_sort
   comparators inside `forEachUsedWaveform`.
-- Caller pattern at src/wavetable_ir.cpp:338 uses
+- Caller pattern at src/waveform/wavetable_ir.cpp:338 uses
   `fifoMode ? Natural : ByName` for `allocateWaveforms`, where the
   surrounding logic (assigning sequential `addressValue` via
   `addressBase_`) requires a deterministic by-waveIndex ordering, not
   an alphabetical one.
-- Other call sites (src/awg_compiler.cpp:774, src/wavetable_ir.cpp:779,
-  src/write_waves_to_elf.cpp:86) all feed the value into the same
+- Other call sites (src/codegen/awg_compiler.cpp:774, src/waveform/wavetable_ir.cpp:779,
+  src/waveform/write_waves_to_elf.cpp:86) all feed the value into the same
   `forEachUsedWaveform` and so receive a by-`waveIndex` order.
 
 Interpretation:
@@ -270,22 +270,22 @@ Cross-reference:
   a coordinated rename pair.
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:46
-- used:     src/wavetable_ir.cpp:338,467-472,779;
-            src/awg_compiler.cpp:774;
-            src/write_waves_to_elf.cpp:86
+- declared: include/zhinst/waveform/wavetable_ir.hpp:46
+- used:     src/waveform/wavetable_ir.cpp:338,467-472,779;
+            src/codegen/awg_compiler.cpp:774;
+            src/waveform/write_waves_to_elf.cpp:86
 
 ### WaveOrder::ByIndex  [yes / medium / —]
 
 Evidence:
-- include/zhinst/wavetable_ir.hpp:47 — `ByIndex = 2, // Sort by wave index`.
-- src/wavetable_ir.cpp:461-466 — the `ByIndex` branch reads
+- include/zhinst/waveform/wavetable_ir.hpp:47 — `ByIndex = 2, // Sort by wave index`.
+- src/waveform/wavetable_ir.cpp:461-466 — the `ByIndex` branch reads
   `usedWaveforms_[a]->addressValue` (not `waveIndex`) and is
   annotated: `// Binary $_1 at 0x2ae780: reads +0x4c (addressValue),
   unsigned cmp (jae)`.
 - Binary symbol `…WaveOrder) const::$_1` exists at 0x2ae780.
-- Call sites: src/awg_compiler.cpp:332,790;
-  src/write_waves_to_elf.cpp:172. Both are inside ELF-write paths
+- Call sites: src/codegen/awg_compiler.cpp:332,790;
+  src/waveform/write_waves_to_elf.cpp:172. Both are inside ELF-write paths
   where the waveforms must be emitted in **address** (i.e. memory
   layout) order, not in their assigned wave-index order.
 
@@ -315,19 +315,19 @@ Cross-reference:
   comparators 1:1.
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:47
-- used:     src/wavetable_ir.cpp:461-466;
-            src/awg_compiler.cpp:332,790;
-            src/write_waves_to_elf.cpp:172
+- declared: include/zhinst/waveform/wavetable_ir.hpp:47
+- used:     src/waveform/wavetable_ir.cpp:461-466;
+            src/codegen/awg_compiler.cpp:332,790;
+            src/waveform/write_waves_to_elf.cpp:172
 
 ### WaveOrder::Natural  [no / medium / —]
 
 Evidence:
-- include/zhinst/wavetable_ir.hpp:44 — `Natural = 0, // No sorting`.
-- src/wavetable_ir.cpp:454-482 — the `forEachUsedWaveform` body has
+- include/zhinst/waveform/wavetable_ir.hpp:44 — `Natural = 0, // No sorting`.
+- src/waveform/wavetable_ir.cpp:454-482 — the `forEachUsedWaveform` body has
   no sort branch for value 0; the iota-initialised `indices` array is
   used in insertion order. Value 0 is the implicit default.
-- Used at every "iterate in declaration order" site: src/wavetable_ir.cpp:435,
+- Used at every "iterate in declaration order" site: src/waveform/wavetable_ir.cpp:435,
   504, 658, 696, 815.
 
 Interpretation:
@@ -341,15 +341,15 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:44
-- used:     src/wavetable_ir.cpp as listed
+- declared: include/zhinst/waveform/wavetable_ir.hpp:44
+- used:     src/waveform/wavetable_ir.cpp as listed
 
 ### WavetableIR::allocateWaveforms::totalSamples  [yes / high / —]
 
 Evidence:
-- src/wavetable_ir.cpp:262 — declared
+- src/waveform/wavetable_ir.cpp:262 — declared
   `size_t totalSamples = 0;  // unused but kept for symmetry with binary stack layout`.
-- src/wavetable_ir.cpp:336 —
+- src/waveform/wavetable_ir.cpp:336 —
   `totalSamples += wf->getSampleCount();`
 - Per batch 16 (`16_waveform_ir.md`, `getSampleCount()` finding,
   high confidence): `WaveformIR::getSampleCount()` returns
@@ -380,13 +380,13 @@ Cross-reference:
   renamed (or deleted) at the same time.
 
 Locations consulted:
-- declared: src/wavetable_ir.cpp:262
-- used:     src/wavetable_ir.cpp:336
+- declared: src/waveform/wavetable_ir.cpp:262
+- used:     src/waveform/wavetable_ir.cpp:336
 
 ### WavetableIR::allocateWaveforms::sizeInBlocks  [yes / medium / —]
 
 Evidence:
-- src/wavetable_ir.cpp:292-300 (and the parallel block at lines
+- src/waveform/wavetable_ir.cpp:292-300 (and the parallel block at lines
   372-381 in the second forEachUsedWaveform):
   ```
   if (length == 0) sizeInBlocks = 0;
@@ -422,12 +422,12 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared/used: src/wavetable_ir.cpp:292-301, 372-384
+- declared/used: src/waveform/wavetable_ir.cpp:292-301, 372-384
 
 ### WavetableIR::allocateWaveforms::memorySizeInSamples  [yes / high / —]
 
 Evidence:
-- src/wavetable_ir.cpp:351 —
+- src/waveform/wavetable_ir.cpp:351 —
   `uint32_t memorySizeInSamples = deviceConstants_->waveformMemorySize;  // DC+0x0C`
 - DC field `waveformMemorySize` is, per batch 31 (overview row 18,
   positive evidence) and per the DC header comment at
@@ -465,13 +465,13 @@ Cross-reference:
   copy is the misnomer.
 
 Locations consulted:
-- declared: src/wavetable_ir.cpp:351
-- used:     src/wavetable_ir.cpp:353,396,397
+- declared: src/waveform/wavetable_ir.cpp:351
+- used:     src/waveform/wavetable_ir.cpp:353,396,397
 
 ### WavetableIR::allocateWaveforms::offsetInCL  [unsure / medium / —]
 
 Evidence:
-- src/wavetable_ir.cpp:396 — `offsetInCL = wf->addressValue % memorySizeInSamples;`
+- src/waveform/wavetable_ir.cpp:396 — `offsetInCL = wf->addressValue % memorySizeInSamples;`
 - Used at line 397 for boundary check and line 401 for the
   block-index computation `offsetInCL / alignment`.
 - Per the previous block, `memorySizeInSamples` is actually the cache
@@ -498,14 +498,14 @@ Proposals:
 - `offsetInRegion`  (low)
 
 Locations consulted:
-- declared/used: src/wavetable_ir.cpp:396-401
+- declared/used: src/waveform/wavetable_ir.cpp:396-401
 
 ### WavetableIR::updateWaveforms::allocFlag  [yes / high / —]
 
 Evidence:
-- include/zhinst/wavetable_ir.hpp:162 declaration:
+- include/zhinst/waveform/wavetable_ir.hpp:162 declaration:
   `void updateWaveforms(bool fifoMode, bool allocFlag);`
-- src/wavetable_ir.cpp:589-596 body:
+- src/waveform/wavetable_ir.cpp:589-596 body:
   ```
   if (fifoMode) allocateWaveformsForFifo();
   else          allocateWaveforms(allocFlag);
@@ -514,7 +514,7 @@ Evidence:
   (header line 148, src line 243). Inside that function, `fifoMode`
   selects `WaveOrder::Natural` vs `WaveOrder::ByName` and gates the
   `computedOffset` formula.
-- Sole caller src/compiler.cpp:543-544:
+- Sole caller src/codegen/compiler.cpp:543-544:
   ```
   wavetableIR->updateWaveforms(config.cacheType != 0 && config.isHirzel,
                                <something passed as allocFlag>);
@@ -538,15 +538,15 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:162
-- defined:  src/wavetable_ir.cpp:589-596
-- callee:   src/wavetable_ir.cpp:243-440 (`allocateWaveforms::fifoMode`)
-- caller:   src/compiler.cpp:543-544
+- declared: include/zhinst/waveform/wavetable_ir.hpp:162
+- defined:  src/waveform/wavetable_ir.cpp:589-596
+- callee:   src/waveform/wavetable_ir.cpp:243-440 (`allocateWaveforms::fifoMode`)
+- caller:   src/codegen/compiler.cpp:543-544
 
 ### WavetableIR::assignWaveIndexImplicit::countFn  [yes / medium / —]
 
 Evidence:
-- src/wavetable_ir.cpp:501-503:
+- src/waveform/wavetable_ir.cpp:501-503:
   ```
   auto countFn = [this](const std::shared_ptr<WaveformIR>& wf) {
       // no-op counting lambda
@@ -582,12 +582,12 @@ Status:
   is a TODO for the wavetable_ir reconstruction, not for this audit.
 
 Locations consulted:
-- defined: src/wavetable_ir.cpp:501-504
+- defined: src/waveform/wavetable_ir.cpp:501-504
 
 ### WavetableManager<WaveformIR>::WavetableManager(int,int,vec)::numDefs / numDefs2  [yes / medium / cross-batch-arbitration]
 
 Evidence:
-- src/wavetable_manager_ir.cpp:57-72 — parameter declaration:
+- src/waveform/wavetable_manager_ir.cpp:57-72 — parameter declaration:
   ```
   WavetableManager<WaveformIR>::WavetableManager(
       int numDefs, int numDefs2,
@@ -603,12 +603,12 @@ Evidence:
   explicitly says "or numDefs / second int field" — the layout
   comment itself records the historical uncertainty).
 - The corresponding JSON keys in `toJson()` and `fromJson()` are
-  `"numDefs"` and `"numDefs2"` (src/wavetable_manager_ir.cpp:213-214,
+  `"numDefs"` and `"numDefs2"` (src/waveform/wavetable_manager_ir.cpp:213-214,
   244-245). These are §4d-tier-2 *positive* evidence for those
   *names*: the strings appear verbatim in `.rodata` of the binary.
 - However, the **field** names (`lineNr_`, `waveformCounter_`) come
   from later analysis. The `assignWaveIndexImplicit` body
-  (src/wavetable_ir.cpp:544-545) reads
+  (src/waveform/wavetable_ir.cpp:544-545) reads
   `manager_->lineNr_` and `manager_->waveformCounter_` and feeds
   them into `getUniqueName(name, lineIdx, counter)` which produces
   a `__<base>_<lineNr>_<counter>` waveform name. This is consistent
@@ -651,26 +651,26 @@ Cross-reference:
   flagged separately below.
 
 Locations consulted:
-- declared: src/wavetable_manager_ir.cpp:57-58
-- assigned: src/wavetable_manager_ir.cpp:61-62
-- field uses: src/wavetable_ir.cpp:544-545,546
-- JSON keys: src/wavetable_manager_ir.cpp:213-214,244-245
+- declared: src/waveform/wavetable_manager_ir.cpp:57-58
+- assigned: src/waveform/wavetable_manager_ir.cpp:61-62
+- field uses: src/waveform/wavetable_ir.cpp:544-545,546
+- JSON keys: src/waveform/wavetable_manager_ir.cpp:213-214,244-245
 
 ### WavetableManager<WaveformIR>::lineNr_  [unsure / low / —]
 
 Evidence:
-- Declared in the layout comment at src/wavetable_manager_ir.cpp:9
+- Declared in the layout comment at src/waveform/wavetable_manager_ir.cpp:9
   (and implicitly in the primary template's `.hpp`, not present in
   the audit-scope files). The trailing-underscore style matches
   other private members.
-- Read at src/wavetable_ir.cpp:544 inside `assignWaveIndexImplicit`:
+- Read at src/waveform/wavetable_ir.cpp:544 inside `assignWaveIndexImplicit`:
   `int lineIdx = manager_->lineNr_;` then passed to `getUniqueName`
   along with `counter` to build a "filler" waveform name.
-- Read again at src/wavetable_ir.cpp:72 inside the
+- Read again at src/waveform/wavetable_ir.cpp:72 inside the
   `WavetableIR(WavetableFront&, …)` ctor: copied 8-byte block
   containing both `lineNr_` and `waveformCounter_` from the front's
   manager.
-- Serialised as JSON key `"numDefs"` (src/wavetable_manager_ir.cpp:244).
+- Serialised as JSON key `"numDefs"` (src/waveform/wavetable_manager_ir.cpp:244).
 - No observed use as a "line number" in any source-code sense
   inside the audited files — the value is simply a counter
   participant.
@@ -690,20 +690,20 @@ Proposals:
 - `numDefs` (matching JSON key)  (low)
 
 Locations consulted:
-- declared: src/wavetable_manager_ir.cpp:9 (layout comment)
-- used:     src/wavetable_ir.cpp:72,544;
-            src/wavetable_manager_ir.cpp:61,244
+- declared: src/waveform/wavetable_manager_ir.cpp:9 (layout comment)
+- used:     src/waveform/wavetable_ir.cpp:72,544;
+            src/waveform/wavetable_manager_ir.cpp:61,244
 
 ### WavetableManager<WaveformIR>::nameToIndex_  [no / high / not-misnomer]
 
 Evidence:
-- Layout comment src/wavetable_manager_ir.cpp:11-13 declares it as
+- Layout comment src/waveform/wavetable_manager_ir.cpp:11-13 declares it as
   `unordered_map<string, size_t>` storing "name -> index mappings
   for O(1) lookup".
-- `WavetableIR::getWaveformByName` at src/wavetable_ir.cpp:211 does
+- `WavetableIR::getWaveformByName` at src/waveform/wavetable_ir.cpp:211 does
   `manager_->nameToIndex_.find(*name)` and indexes
   `manager_->waveforms_` with the result — name → index → waveform.
-- `insertWaveform` at src/wavetable_manager_ir.cpp:174 inserts
+- `insertWaveform` at src/waveform/wavetable_manager_ir.cpp:174 inserts
   `(name, idx)` after a `waveforms_.emplace_back`.
 
 Interpretation:
@@ -717,18 +717,18 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: src/wavetable_manager_ir.cpp:12 (layout comment)
-- used:     src/wavetable_ir.cpp:211; src/wavetable_manager_ir.cpp:174
+- declared: src/waveform/wavetable_manager_ir.cpp:12 (layout comment)
+- used:     src/waveform/wavetable_ir.cpp:211; src/waveform/wavetable_manager_ir.cpp:174
 
 ### WavetableIR::usedWaveforms_  [no / high / not-misnomer]
 
 Evidence:
-- include/zhinst/wavetable_ir.hpp:81 declaration with comment "+0xA0".
-- `WavetableIR::setUsedWaveforms` (src/wavetable_ir.cpp:578-583)
+- include/zhinst/waveform/wavetable_ir.hpp:81 declaration with comment "+0xA0".
+- `WavetableIR::setUsedWaveforms` (src/waveform/wavetable_ir.cpp:578-583)
   assigns into it from the parameter list.
-- `WavetableIR::forEachUsedWaveform` (src/wavetable_ir.cpp:449-482)
+- `WavetableIR::forEachUsedWaveform` (src/waveform/wavetable_ir.cpp:449-482)
   iterates only this vector.
-- Caller src/compiler.cpp:524-527:
+- Caller src/codegen/compiler.cpp:524-527:
   ```
   // Step 5: getUsedWavesForDevice → setUsedWaveforms
   wavetableIR->setUsedWaveforms(waves);
@@ -747,9 +747,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/wavetable_ir.hpp:81
-- used:     src/wavetable_ir.cpp:449-482,578-583;
-            src/compiler.cpp:524-527
+- declared: include/zhinst/waveform/wavetable_ir.hpp:81
+- used:     src/waveform/wavetable_ir.cpp:449-482,578-583;
+            src/codegen/compiler.cpp:524-527
 
 ## 4. Symbols inspected and judged routinely fine
 

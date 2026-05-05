@@ -450,7 +450,7 @@
     after which all derived exception classes can be properly
     re-derived from it instead of from std::exception.
     **RESOLVED Phase 10.7d.** Full layout reconstructed in
-    include/zhinst/exception.hpp + src/exception.cpp. Verified
+    include/zhinst/core/exception.hpp + src/core/exception.cpp. Verified
     fields: vptrs at +0x00/+0x08, boost::exception data at
     +0x10..+0x2F, errorCode_ (24B) at +0x30, message_ (24B libc++
     SSO) at +0x48, total size 0x60. All 5 ctors, dtor, and 3
@@ -480,7 +480,7 @@
     0x1d79f8, Play at 0x1d7d49). The body content is correctly
     reverse-engineered, but the case-label structure is misleading.
     A future structural pass should split this. File-header comment
-    in src/prefetch_placesingle.cpp documents the address-range
+    in src/codegen/prefetch_placesingle.cpp documents the address-range
     attribution. Same systemic mislabel pattern resolved in 10.8a
     for `Prefetch::allocate`, `Prefetch::prepareTree`, `Prefetch::print`.
 

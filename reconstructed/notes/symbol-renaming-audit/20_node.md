@@ -11,27 +11,27 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/node.hpp`
-- `reconstructed/src/node.cpp`
+- `reconstructed/include/zhinst/ast/node.hpp`
+- `reconstructed/src/ast/node.cpp`
 
 Cross-batch context consulted (read-only):
 
-- `reconstructed/src/prefetch.cpp` (Node construction sites, asmId/nodeId
+- `reconstructed/src/codegen/prefetch.cpp` (Node construction sites, asmId/nodeId
   reads, loadRef reads)
-- `reconstructed/src/prefetch_print.cpp` (print() — exhaustive use of
+- `reconstructed/src/codegen/prefetch_print.cpp` (print() — exhaustive use of
   asmId, type, config, currentCwvf, globalRate, loadRef, play, branches,
   loop, next)
-- `reconstructed/src/prefetch_emit.cpp` (currentCwvf field reads,
+- `reconstructed/src/codegen/prefetch_emit.cpp` (currentCwvf field reads,
   loopBodyRunsAtLeastOnce, parent.lock())
-- `reconstructed/src/prefetch_placesingle.cpp` (length, loadRef)
-- `reconstructed/src/prefetch_splitplay.cpp` (length, loadRef)
-- `reconstructed/src/prefetch_prepare.cpp` (length)
-- `reconstructed/src/asm_commands.cpp` (Node ctor call site;
+- `reconstructed/src/codegen/prefetch_placesingle.cpp` (length, loadRef)
+- `reconstructed/src/codegen/prefetch_splitplay.cpp` (length, loadRef)
+- `reconstructed/src/codegen/prefetch_prepare.cpp` (length)
+- `reconstructed/src/asm/asm_commands.cpp` (Node ctor call site;
   `asmId = result.sequenceId`, `numWaveSlots = numChannelGroups_`)
-- `reconstructed/src/asm_list.cpp` (nodeId read at @0x267808)
-- `reconstructed/src/custom_functions_io.cpp` (only `config.deviceIndex`
+- `reconstructed/src/asm/asm_list.cpp` (nodeId read at @0x267808)
+- `reconstructed/src/runtime/custom_functions_io.cpp` (only `config.deviceIndex`
   — `AWGCompilerConfig` field, not a Node field, so unrelated)
-- `reconstructed/include/zhinst/error_messages.hpp` (PrefetchError,
+- `reconstructed/include/zhinst/core/error_messages.hpp` (PrefetchError,
   SwapNotConnected — namespace-scope enumerators owned by another batch)
 - `reconstructed/notes/symbol-renaming-audit/27_node_map_data.md`
   (sister batch — adjacent territory; cross-checked naming style)
@@ -159,9 +159,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:238
-- defined:  src/node.cpp:22
-- used:     src/node.cpp:46
+- declared: include/zhinst/ast/node.hpp:238
+- defined:  src/ast/node.cpp:22
+- used:     src/ast/node.cpp:46
 
 ### Node::nodeId  [no / medium / not-misnomer]
 
@@ -189,9 +189,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:245
-- written:  src/node.cpp:46
-- read:     src/node.cpp:491,499,511,517,523; src/asm_list.cpp:565
+- declared: include/zhinst/ast/node.hpp:245
+- written:  src/ast/node.cpp:46
+- read:     src/ast/node.cpp:491,499,511,517,523; src/asm/asm_list.cpp:565
 
 ### Node::asmId  [no / medium / not-misnomer]
 
@@ -224,10 +224,10 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:246
-- written:  src/asm_commands.cpp:79; src/prefetch.cpp:1115,1132,1319,1363
-- read:     src/node.cpp:197,551,600; src/prefetch_print.cpp (many);
-            src/prefetch.cpp:753,2098
+- declared: include/zhinst/ast/node.hpp:246
+- written:  src/asm/asm_commands.cpp:79; src/codegen/prefetch.cpp:1115,1132,1319,1363
+- read:     src/ast/node.cpp:197,551,600; src/codegen/prefetch_print.cpp (many);
+            src/codegen/prefetch.cpp:753,2098
 
 ### Node::loadRef  [no / medium / not-misnomer]
 
@@ -257,10 +257,10 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:261
-- read:     src/prefetch_print.cpp:102,191,392;
-            src/prefetch_placesingle.cpp:478,1024;
-            src/prefetch_splitplay.cpp:126
+- declared: include/zhinst/ast/node.hpp:261
+- read:     src/codegen/prefetch_print.cpp:102,191,392;
+            src/codegen/prefetch_placesingle.cpp:478,1024;
+            src/codegen/prefetch_splitplay.cpp:126
 
 ### JSON-key-anchored fields (one block, multiple symbols) [no / high / not-misnomer]
 
@@ -301,10 +301,10 @@ Proposals:
 - keep current (high) — for each of the 17 fields above.
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:84-114, 263-303
-- written:  src/node.cpp:549-571
-- read:     src/node.cpp:585-622; src/prefetch_emit.cpp (many);
-            src/prefetch_print.cpp (many)
+- declared: include/zhinst/ast/node.hpp:84-114, 263-303
+- written:  src/ast/node.cpp:549-571
+- read:     src/ast/node.cpp:585-622; src/codegen/prefetch_emit.cpp (many);
+            src/codegen/prefetch_print.cpp (many)
 
 ### Node::trig  [unsure / low / —]
 
@@ -336,9 +336,9 @@ Proposals:
   the serializer abbreviated; no evidence supports this
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:305
-- read:     src/node.cpp:231,568,622
-- written:  src/node.cpp:231,622
+- declared: include/zhinst/ast/node.hpp:305
+- read:     src/ast/node.cpp:231,568,622
+- written:  src/ast/node.cpp:231,622
 
 ### NodeType enumerators (tail not in str2type)  [unsure / low / verify-not-original]
 
@@ -376,8 +376,8 @@ Proposals:
 - batch-7-style usage audit per unanchored enumerator (low)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:44-67
-- mapped:   src/node.cpp:142-158, 169-184
+- declared: include/zhinst/ast/node.hpp:44-67
+- mapped:   src/ast/node.cpp:142-158, 169-184
 
 ### Node::Node(simple)::numWaveSlots  [no / medium / not-misnomer]
 
@@ -408,9 +408,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/node.hpp:127
-- defined:  src/node.cpp:45-48
-- callers:  src/asm_commands.cpp:79; src/prefetch.cpp:755,2099,2284,2297
+- declared: include/zhinst/ast/node.hpp:127
+- defined:  src/ast/node.cpp:45-48
+- callers:  src/asm/asm_commands.cpp:79; src/codegen/prefetch.cpp:755,2099,2284,2297
 
 ### Node::swap::devIdx  [yes / medium / —]
 
@@ -445,7 +445,7 @@ Proposals:
   scope here
 
 Locations consulted:
-- declared & used: src/node.cpp:416-418
+- declared & used: src/ast/node.cpp:416-418
 
 ### Node::updateParent::ch  [yes / low / —]
 
@@ -471,7 +471,7 @@ Proposals:
 - `siblings` (low)
 
 Locations consulted:
-- declared & used: src/node.cpp:269-279
+- declared & used: src/ast/node.cpp:269-279
 
 ### Node::toJson::idMap  [unsure / low / —]
 
@@ -504,7 +504,7 @@ Proposals:
 - `asmIdToNodeId` (low)
 
 Locations consulted:
-- declared & used: src/node.cpp:475-571
+- declared & used: src/ast/node.cpp:475-571
 
 ### Node::toJson::remappedId  [unsure / low / —]
 
@@ -527,7 +527,7 @@ Proposals:
 - `nodeIdJson` (low)
 
 Locations consulted:
-- src/node.cpp:506,550
+- src/ast/node.cpp:506,550
 
 ### Node::fromJson::nId / aId / devIdx / cfg1 / cfg2  [unsure / low / —]
 
@@ -565,7 +565,7 @@ Proposals:
 - keep current (low)
 
 Locations consulted:
-- src/node.cpp:599-608, 626-636
+- src/ast/node.cpp:599-608, 626-636
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -612,10 +612,10 @@ Locations consulted:
 ## 5. Coverage
 
 **Fully covered:**
-- `include/zhinst/node.hpp` — all in-scope symbols (NodeType enum and
+- `include/zhinst/ast/node.hpp` — all in-scope symbols (NodeType enum and
   enumerators, all 22 declared `Node` data members, simple/full
   ctor parameter lists, free `operator==/!=/&/|` declarations).
-- `src/node.cpp` — every in-scope local, parameter, lambda parameter,
+- `src/ast/node.cpp` — every in-scope local, parameter, lambda parameter,
   and namespace-scope free helper.
 
 **Deferred:** none — single-pass scan covered all symbols.

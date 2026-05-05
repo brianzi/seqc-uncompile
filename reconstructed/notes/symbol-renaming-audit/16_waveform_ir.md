@@ -14,17 +14,17 @@ edits outside this file.
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/waveform_ir.hpp`
-- `reconstructed/src/waveform_ir.cpp`
+- `reconstructed/include/zhinst/waveform/waveform_ir.hpp`
+- `reconstructed/src/waveform/waveform_ir.cpp`
 
 External cross-checks consulted (read-only, for context only):
-- `reconstructed/src/wavetable_ir.cpp` (allocateWaveforms, sets `elfAlignment_`, reads `fixed_`/`crossesCacheLine_`)
-- `reconstructed/src/elf_writer.cpp:141-189` (uses `elfAlignment_` as `set_align(...)`)
-- `reconstructed/src/write_waves_to_elf.cpp:117-176` (uses `-elfAlignment_` as alignment mask)
-- `reconstructed/src/awg_compiler.cpp:280-320,780` (reads `crossesCacheLine_`, `elfAlignment_`)
-- `reconstructed/src/prefetch.cpp:695-790,2142` (reads/sets `markedForLoad`, `crossesCacheLine_`)
-- `reconstructed/src/prefetch_prepare.cpp:140-160` (sets `markedForLoad`)
-- `reconstructed/src/prefetch_helpers.cpp:625-647` (reads/sets `fixed_`)
+- `reconstructed/src/waveform/wavetable_ir.cpp` (allocateWaveforms, sets `elfAlignment_`, reads `fixed_`/`crossesCacheLine_`)
+- `reconstructed/src/io/elf_writer.cpp:141-189` (uses `elfAlignment_` as `set_align(...)`)
+- `reconstructed/src/waveform/write_waves_to_elf.cpp:117-176` (uses `-elfAlignment_` as alignment mask)
+- `reconstructed/src/codegen/awg_compiler.cpp:280-320,780` (reads `crossesCacheLine_`, `elfAlignment_`)
+- `reconstructed/src/codegen/prefetch.cpp:695-790,2142` (reads/sets `markedForLoad`, `crossesCacheLine_`)
+- `reconstructed/src/codegen/prefetch_prepare.cpp:140-160` (sets `markedForLoad`)
+- `reconstructed/src/codegen/prefetch_helpers.cpp:625-647` (reads/sets `fixed_`)
 - `reconstructed/notes/symbol-renaming-audit/31_device_constants.md`
   (positive evidence on `waveformAlignment` / `waveformElfAlignment`)
 - `nm --demangle _seqc_compiler.so | grep WaveformIR`
@@ -69,14 +69,14 @@ Symbol-table check (excerpts; `nm --demangle`):
 ### WaveformIR::markedForLoad  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:78 — declared `bool markedForLoad; // +0xD8`.
-- src/prefetch_prepare.cpp:145,152: `waveform->markedForLoad = true;`
+- include/zhinst/waveform/waveform_ir.hpp:78 — declared `bool markedForLoad; // +0xD8`.
+- src/codegen/prefetch_prepare.cpp:145,152: `waveform->markedForLoad = true;`
   inside the loop that "marks each waveform's markedForLoad" before
   load-node placement (binary 0x1c9850: `movb $0x1, 0xd8(%rax)`).
-- src/prefetch.cpp:746: `if (!waveformIR->markedForLoad) { … skip }`
+- src/codegen/prefetch.cpp:746: `if (!waveformIR->markedForLoad) { … skip }`
   inside `moveLoadsToFront` — skips waveforms that don't need a load
   inserted.
-- src/prefetch.cpp:2142: `wfm->markedForLoad = true;` (binary 0x1d4e13).
+- src/codegen/prefetch.cpp:2142: `wfm->markedForLoad = true;` (binary 0x1d4e13).
 - This bool is independent of `Waveform::used` (+0x48); both are read
   separately at distinct sites (e.g. wavetable_ir.cpp:278 reads `used`,
   prefetch sites read `markedForLoad`).
@@ -93,20 +93,20 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:78
-- written:  src/prefetch_prepare.cpp:145,152; src/prefetch.cpp:2142
-- read:     src/prefetch.cpp:746
+- declared: include/zhinst/waveform/waveform_ir.hpp:78
+- written:  src/codegen/prefetch_prepare.cpp:145,152; src/codegen/prefetch.cpp:2142
+- read:     src/codegen/prefetch.cpp:746
 
 ### WaveformIR::fixed_  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:79 — declared `bool fixed_; // +0xD9`
+- include/zhinst/waveform/waveform_ir.hpp:79 — declared `bool fixed_; // +0xD9`
   with comment "placement-fixed; partitions FIFO alloc".
-- src/prefetch_helpers.cpp:629-644 — within `Prefetch::determineFixedWaves`
+- src/codegen/prefetch_helpers.cpp:629-644 — within `Prefetch::determineFixedWaves`
   (per OVERVIEW + binary 0x1cb9bf etc.): reads `if (wfm->fixed_) continue`
   to skip already-fixed waves; sets `wfm->fixed_ = true` only when
   `allocationByteSize < maxBlocks * waveformAlignment`.
-- src/wavetable_ir.cpp:629,671 — `if (!wf->fixed_)` / `if (wf->fixed_)`
+- src/waveform/wavetable_ir.cpp:629,671 — `if (!wf->fixed_)` / `if (wf->fixed_)`
   used to partition fixed-vs-free waveforms in `allocateWaveformsForFifo`.
 
 Interpretation:
@@ -123,29 +123,29 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:79
-- written:  src/prefetch_helpers.cpp:644
-- read:     src/prefetch_helpers.cpp:630; src/wavetable_ir.cpp:629,671
+- declared: include/zhinst/waveform/waveform_ir.hpp:79
+- written:  src/codegen/prefetch_helpers.cpp:644
+- read:     src/codegen/prefetch_helpers.cpp:630; src/waveform/wavetable_ir.cpp:629,671
 
 ### WaveformIR::crossesCacheLine_  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:80-85 — declared with detailed comment
+- include/zhinst/waveform/waveform_ir.hpp:80-85 — declared with detailed comment
   "set true for filler waveforms; for normal waveforms = bit 8 of the
   MemoryAllocator block.flags … cleared when a waveform is reloaded
   into a slot that does not straddle a cache line".
-- src/wavetable_ir.cpp:433 — `wf->crossesCacheLine_ = true;` for filler
+- src/waveform/wavetable_ir.cpp:433 — `wf->crossesCacheLine_ = true;` for filler
   waveform path.
-- src/wavetable_ir.cpp:555 — `lastWf->crossesCacheLine_ = true;` with
+- src/waveform/wavetable_ir.cpp:555 — `lastWf->crossesCacheLine_ = true;` with
   comment "fillers always span a CL boundary".
-- src/wavetable_ir.cpp:656,680 — `wf->crossesCacheLine_ = (block.flags >> 8) & 1`
+- src/waveform/wavetable_ir.cpp:656,680 — `wf->crossesCacheLine_ = (block.flags >> 8) & 1`
   copying MemoryAllocator block flags bit 8 into the field.
-- src/wavetable_ir.cpp:694 — `wf->crossesCacheLine_ = 0;` with comment
+- src/waveform/wavetable_ir.cpp:694 — `wf->crossesCacheLine_ = 0;` with comment
   "reloaded, no CL crossing".
-- src/awg_compiler.cpp:288,312 — `if (wf->crossesCacheLine_) {…}` used
+- src/codegen/awg_compiler.cpp:288,312 — `if (wf->crossesCacheLine_) {…}` used
   to gate alignment-handling in cache emission (comment "If
   crossesCacheLine_: insert alignedAddr into set, then accumulate").
-- src/prefetch.cpp:786 — `bool useDA = waveformIR->crossesCacheLine_;`
+- src/codegen/prefetch.cpp:786 — `bool useDA = waveformIR->crossesCacheLine_;`
   read inside Load-emission logic.
 - Binary cross-check: comments cite addresses 0x2a9e47, 0x2aa88b,
   0x2ad023, 0x2ad0ac for write sites and 0x119101 for the awg_compiler
@@ -165,27 +165,27 @@ Proposals:
 - keep current  (medium)
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:80
-- written:  src/wavetable_ir.cpp:433,555,656,680,694
-- read:     src/awg_compiler.cpp:312; src/prefetch.cpp:786
+- declared: include/zhinst/waveform/waveform_ir.hpp:80
+- written:  src/waveform/wavetable_ir.cpp:433,555,656,680,694
+- read:     src/codegen/awg_compiler.cpp:312; src/codegen/prefetch.cpp:786
 
 ### WaveformIR::elfAlignment_  [no / medium / not-misnomer]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:87 — declared `int32_t elfAlignment_;
+- include/zhinst/waveform/waveform_ir.hpp:87 — declared `int32_t elfAlignment_;
   // +0xDC per-waveform allocation size (from DC)`.  ← header comment
   is internally inconsistent with how the field is used (see below).
-- src/elf_writer.cpp:163-164 — `uint32_t alignment = wfPtr->elfAlignment_;
+- src/io/elf_writer.cpp:163-164 — `uint32_t alignment = wfPtr->elfAlignment_;
   seg->set_align(alignment);` — passed directly as ELFIO segment
   alignment.
-- src/elf_writer.cpp:174 — also fed to `ddSec->set_addr_align(alignment)`.
-- src/write_waves_to_elf.cpp:149 — `uint32_t alignMask =
+- src/io/elf_writer.cpp:174 — also fed to `ddSec->set_addr_align(alignment)`.
+- src/waveform/write_waves_to_elf.cpp:149 — `uint32_t alignMask =
   static_cast<uint32_t>(-wf->elfAlignment_); uint32_t padding = gap & alignMask;`
   i.e. used as a power-of-two alignment mask.
-- src/awg_compiler.cpp:784 — same `-elfAlignment_` mask pattern.
-- src/wavetable_ir.cpp:325 — `wf->elfAlignment_ = dc->waveformAlignment;
+- src/codegen/awg_compiler.cpp:784 — same `-elfAlignment_` mask pattern.
+- src/waveform/wavetable_ir.cpp:325 — `wf->elfAlignment_ = dc->waveformAlignment;
   // DC+0x14`.
-- src/waveform_ir.cpp:37,59,126 — written from `dc->waveformElfAlignment`
+- src/waveform/waveform_ir.cpp:37,59,126 — written from `dc->waveformElfAlignment`
   (DC+0x24) at construction time.
 - Cross-batch (batch 31, `device_constants.md`): the *source* field
   `DeviceConstants::waveformElfAlignment` was flagged `yes / medium`
@@ -225,23 +225,23 @@ Cross-reference:
   does not need to change.
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:87
-- written:  src/waveform_ir.cpp:37,59,126; src/wavetable_ir.cpp:325
-- read:     src/elf_writer.cpp:163,174; src/write_waves_to_elf.cpp:149;
-            src/awg_compiler.cpp:784
+- declared: include/zhinst/waveform/waveform_ir.hpp:87
+- written:  src/waveform/waveform_ir.cpp:37,59,126; src/waveform/wavetable_ir.cpp:325
+- read:     src/io/elf_writer.cpp:163,174; src/waveform/write_waves_to_elf.cpp:149;
+            src/codegen/awg_compiler.cpp:784
 
 ### WaveformIR::getSampleCount()  [yes / high / —]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:93 —
+- include/zhinst/waveform/waveform_ir.hpp:93 —
   `int getSampleCount() const { return allocationByteSize; }
    // Waveform::allocationByteSize +0x74`.
 - `Waveform::allocationByteSize` is genuinely a byte count: the value
-  written into it at src/wavetable_ir.cpp:302-304,333 is
+  written into it at src/waveform/wavetable_ir.cpp:302-304,333 is
   `((totalBits + 7) / 8)` further rounded to 64, i.e. **bytes**, not
-  samples. Comment at src/wavetable_ir.cpp:333 reads "store computed
+  samples. Comment at src/waveform/wavetable_ir.cpp:333 reads "store computed
   size".
-- Sole call site src/wavetable_ir.cpp:336:
+- Sole call site src/waveform/wavetable_ir.cpp:336:
   `totalSamples += wf->getSampleCount();` — accumulates into a local
   named `totalSamples` (declared line 262 with comment "unused but
   kept for symmetry with binary stack layout"; not actually consumed).
@@ -268,15 +268,15 @@ Proposals:
   comment) and use `allocationByteSize` directly  (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:93
-- used:     src/wavetable_ir.cpp:336
+- declared: include/zhinst/waveform/waveform_ir.hpp:93
+- used:     src/waveform/wavetable_ir.cpp:336
 
 ### WaveformIR::isUsed()  [no / low / —]
 
 Evidence:
-- include/zhinst/waveform_ir.hpp:92 — `bool isUsed() const { return used; }`
+- include/zhinst/waveform/waveform_ir.hpp:92 — `bool isUsed() const { return used; }`
   thin forwarder to `Waveform::used` at +0x48.
-- src/wavetable_ir.cpp:770 — `if (!waveform->isUsed() || …)` — used
+- src/waveform/wavetable_ir.cpp:770 — `if (!waveform->isUsed() || …)` — used
   exactly as a "is this waveform used" query.
 - Not in `nm --demangle` output (reconstruction-only).
 
@@ -292,13 +292,13 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared: include/zhinst/waveform_ir.hpp:92
-- used:     src/wavetable_ir.cpp:770
+- declared: include/zhinst/waveform/waveform_ir.hpp:92
+- used:     src/waveform/wavetable_ir.cpp:770
 
 ### WaveformIR::toJsonElement::format  [unsure / low / verify-not-original]
 
 Evidence:
-- src/waveform_ir.cpp:151 — parameter declared
+- src/waveform/waveform_ir.cpp:151 — parameter declared
   `WaveformIR::toJsonElement(SampleFormat format) const`.
 - Reconstructed body (lines 152-218) never references `format`.
 - Binary symbol `zhinst::WaveformIR::toJsonElement(zhinst::SampleFormat)`
@@ -325,7 +325,7 @@ Proposals:
 - `sampleFormat`  (low)
 
 Locations consulted:
-- declared/defined: src/waveform_ir.cpp:151
+- declared/defined: src/waveform/waveform_ir.cpp:151
 
 ## 4. Symbols inspected and judged routinely fine
 

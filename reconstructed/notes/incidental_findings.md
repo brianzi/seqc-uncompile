@@ -18,7 +18,7 @@ Each entry has:
 **Status**: open
 **Severity**: suspicious (misleading, may cause future errors)
 
-Lines 58-59 and 82 of `reconstructed/src/static_resources.cpp`:
+Lines 58-59 and 82 of `reconstructed/src/runtime/static_resources.cpp`:
 
 ```cpp
 if (config.deviceType == UHFQA /*SHFSG*/ ||
@@ -1251,7 +1251,7 @@ shipped compiler — not a reconstruction artifact.
 **Severity**: medium
 **Status**: fixed
 **Date**: 2026-04-29
-**File**: reconstructed/src/waveform_generator.cpp
+**File**: reconstructed/src/waveform/waveform_generator.cpp
 **Binary offset**: 0x255da0
 
 **Observation**: `wave w3 = join(w1, w2, 8);` — the third (numeric) arg
@@ -1693,7 +1693,7 @@ Recommendation: implement in two patches —
 ### IF-105 update (after partial implementation attempt)
 
 The `load_indexed_play` body has been reconstructed in
-`reconstructed/src/prefetch_placesingle.cpp` (matching binary 0x1da77f
+`reconstructed/src/codegen/prefetch_placesingle.cpp` (matching binary 0x1da77f
 for the no-Repeats / non-Hirzel / `< minIndexedSize` branch).  However,
 **the recon never reaches it** for `uhf_doc_tv_mode`.
 
@@ -2149,7 +2149,7 @@ fix, the codebase has zero inline-asm sites under either pattern.
 ## IF-107  `Prefetch::determineFixedWaves` enqueued `next` twice causing O(2^N) BFS
 
 **Severity**: critical (perf), confirmed-fixed
-**File**: `reconstructed/src/prefetch_helpers.cpp:589` (function
+**File**: `reconstructed/src/codegen/prefetch_helpers.cpp:589` (function
 `Prefetch::determineFixedWaves`, binary 0x1cb200)
 
 **Symptom**: `hdawg_cvar_unroll` test ran 155× slower than original
@@ -2193,9 +2193,9 @@ preserved (only the 2 known libc++ PRNG ABI failures remain).
 ## IF-108  `WaveformGenerator::rand` uses MINSTD LCG, not MT19937_64
 
 **Severity**: critical (correctness), confirmed-fixed
-**File**: `reconstructed/src/waveform_generator.cpp:1548`
+**File**: `reconstructed/src/waveform/waveform_generator.cpp:1548`
 (`WaveformGenerator::rand`, binary 0x251cf0); algorithm in
-`reconstructed/src/prng_libcxx.cpp:seqc_minstd_normal_amplitude`.
+`reconstructed/src/infra/prng_libcxx.cpp:seqc_minstd_normal_amplitude`.
 
 **Symptom**: `hdawg_doc_random_waves` and `hdawg_doc_randomSeed`
 differential tests failed (recon `.wf___rand_*` bytes differed from
@@ -2265,7 +2265,7 @@ no stdlib shim could fix it. Reverse-engineering the assembly
 revealed the actual algorithm.
 
 **Fix**: Added `seqc_minstd_normal_amplitude()` to
-`reconstructed/src/prng_libcxx.cpp` (portable C++; no stdlib PRNG).
+`reconstructed/src/infra/prng_libcxx.cpp` (portable C++; no stdlib PRNG).
 Wired into `WaveformGenerator::rand` (`waveform_generator.cpp:1548`),
 replacing the prior libc++ MT64 shim call. `randomGauss` and
 `randomUniform` continue to use the libc++ shim unchanged.
@@ -2465,7 +2465,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
   `messages_.hadCompilerError()` returned false and the compiler continued past
   a parse failure.
 - **Resolution**: Added `parserContext_.setErrorCallback(...)` call to
-  `Compiler::Compiler` in `reconstructed/src/compiler.cpp`. GDB-confirmed: the
+  `Compiler::Compiler` in `reconstructed/src/codegen/compiler.cpp`. GDB-confirmed: the
   lambda vtable at binary offset `0x9e62ac+rip` at ctor+685 disassembles to
   `mov 0x8(%rdi),%rdi; mov (%rsi),%esi; add $0x38,%rdi; jmp parserMessage`
   (captures `this`; `0x38` = `messages_` offset).
@@ -2547,7 +2547,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Status**: **fixed**
 - **Description**: The recon's `resetOscPhase()` had a single `else if (devType >= 2 && devType <= 0x20)` branch covering all "Hirzel" devices (HDAWG, UHFQA). For HDAWG, the correct behaviour is to call `writeToNode("oscs/phasereset", oscMask)`. But for UHFQA, the original binary uses a **completely different code path** — GDB-confirmed via jump table at `0x14043e` in the binary: UHFQA (devType=4, index=2) jumps to `0x1405ba`, not to the HDAWG path at `0x14044e`. The UHFQA path emits a pulse-reset sequence directly: `addi R_n, R0, 1; st R_n, 0x5f; st R0, 0x5f`. This writes 1 then 0 to hardware register address `0x5f` (phasereset). No node write is performed. The UHFQA node map does not contain `"oscs/phasereset"`, so the recon's `lookupNode("oscs/phasereset")` call threw a compilation error.
 - **Root cause**: The recon incorrectly grouped UHFQA with the HDAWG (Hirzel) path in a single `else if` branch, missing that the binary uses per-device jump-table dispatch and UHFQA has its own distinct path.
-- **Resolution**: Added a UHFQA-specific branch before the generic Hirzel branch in `custom_functions_io.cpp::resetOscPhase()` (`reconstructed/src/custom_functions_io.cpp:1419`). UHFQA now emits the direct `addi/st/st` pulse-reset sequence to register `0x5f`. GDB-verified: binary offsets `0x140858` and `0x14095c` both execute `st(..., 0x5f)` with reg=1 then reg=0. All 11 `resetOscPhase` tests now pass byte-identical (788 total passing, 0 failed).
+- **Resolution**: Added a UHFQA-specific branch before the generic Hirzel branch in `custom_functions_io.cpp::resetOscPhase()` (`reconstructed/src/runtime/custom_functions_io.cpp:1419`). UHFQA now emits the direct `addi/st/st` pulse-reset sequence to register `0x5f`. GDB-verified: binary offsets `0x140858` and `0x14095c` both execute `st(..., 0x5f)` with reg=1 then reg=0. All 11 `resetOscPhase` tests now pass byte-identical (788 total passing, 0 failed).
 
 ## IF-130  `incrementSinePhase` Phase 3 path uses `awgIndex` instead of `oscIndex`
 
@@ -2594,7 +2594,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Effect**: When `assignWaveIndex(1, 2, w, 1, 2, w, idx)` is called with a dual-channel placeholder wave, `mergeWaveforms` calls `merge()` on two entries of the same placeholder. The result had `channels_=0` instead of `channels_=2`. This caused: (a) `Signal::getRawData()` to compute `byteSize_ = 0 * length * 2 = 0` for NOBITS ELF sections (all `.wf_` sections half the expected size, since `channels_=1` after clamping by some path), (b) `genPlayConfig()` to see `channels_=0→1` and compute `channelMask=1` instead of `3`, setting wrong `play_config` in `.waveforms` metadata, (c) wrong waveform memory accounting in `.wavemem`.
 - **Root cause**: Missing `result.channels_ = static_cast<uint16_t>(signals.size())` after the `Signal(ReserveOnly, ...)` construction in `merge()`.
 - **Resolution**: Added `result.channels_ = static_cast<uint16_t>(signals.size())` before the return in the reserveOnly branch of `merge()`. Fixes 24 tests (+1190 → +1214 passing in 1259-test suite). `ziasm_prefetching_0` still has additional failures in the prefetch address calculation and waveform ordering (separate pre-existing bugs).
-- **Location**: `reconstructed/src/waveform_generator.cpp:2627-2635`
+- **Location**: `reconstructed/src/waveform/waveform_generator.cpp:2627-2635`
 
 ## IF-134  `writeWavesToElfAbsolute`: wrong skip condition for placeholder waveforms (Cervino/UHF devices)
 
@@ -2615,7 +2615,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
   - `cwfv_3` (`playDIOWave`): `.asm` size diff, `.channels` diff, `.waveforms` diff. `playDIOWave` also appears to not properly chain its node into results->node_ (line 634 of custom_functions_playback.cpp doesn't set `results->node_`). Additionally `.channels` byte differs (orig=0xe0 vs recon=0xc0) suggesting a channel mask calculation difference.
   - `vps_1/vps_2` (`playWaveIndexed`): Recon generates MORE instructions than original (recon=381 vs orig=350). Register assignment and instruction ordering differ — the original uses `addi R1, R0, 200; addi R3, R1, 0; ssl R3, R3; addr R3, R2; wvf R3, R0, 256; wwvf` while recon generates a different sequence with an extra `wwvf` and different register usage.
 - **Root cause**: Not yet fully investigated. Likely multiple separate bugs in `playAuxWave`/`playDIOWave` node chaining and `playIndexed` register allocation.
-- **Location**: `reconstructed/src/custom_functions_playback.cpp:352`, `634`, and `reconstructed/src/custom_functions_play.cpp` (playIndexed section)
+- **Location**: `reconstructed/src/runtime/custom_functions_playback.cpp:352`, `634`, and `reconstructed/src/runtime/custom_functions_play.cpp` (playIndexed section)
 
 ## IF-137  `lock()`/`unlock()` missing `results->node_` assignment
 
@@ -2625,7 +2625,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Description**: `lock()` and `unlock()` in `custom_functions_io.cpp` returned `EvalResults` without setting `results->node_` to the LockPlaceholder/UnlockPlaceholder node. Without this, the node chain only contained the Play node; `placeCommands` called `placeSingleCommand` once (wavetableFront=3). After all prefetch processing, `wavetableFrontIndex_` was left at 3 (not 4). Then `unsyncCervino()` (compiler Step 16) emitted `st R0, 68` / `st R0, 69` with stale index=3 vs 4. The `.linenr` section reflected this wrong value.
 - **Root cause**: Missing `results->node_ = asmEntry.node` assignment in both `lock()` (binary: 0x14de27-0x14de47) and `unlock()` (0x14e33d-0x14e35c).
 - **Resolution**: Added `results->node_ = asmEntry.node` in both functions. All `ziasm_misc_2` variants pass.
-- **Location**: `reconstructed/src/custom_functions_io.cpp` (lock and unlock functions)
+- **Location**: `reconstructed/src/runtime/custom_functions_io.cpp` (lock and unlock functions)
 
 ## IF-138  `getSampleClock()` wrong string literal for `DEVICE_SAMPLE_RATE` lookup
 
@@ -2636,7 +2636,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Root cause**: Misreading the binary's SSO string layout: `$` in the rodata is the SSO length byte, not the first character of the string.
 - **Confirmed by**: GDB trace showing `StaticResources::getVariable` called with len=18, data=`"DEVICE_SAMPLE_RATE"` (no `$`).
 - **Resolution**: Changed `"$DEVICE_SAMPLE_RATE"` to `"DEVICE_SAMPLE_RATE"` in `getSampleClock()`. All `ziasm_firmware_syscall_trap_1_hdawg8/hdawg4` tests pass.
-- **Location**: `reconstructed/src/custom_functions.cpp:537-547`
+- **Location**: `reconstructed/src/runtime/custom_functions.cpp:537-547`
 
 ## IF-139  `writeToNode` slow-commit hardcodes scale=1.0 instead of using `type` argument
 
@@ -2646,7 +2646,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Description**: In `writeToNode()`, the common tail for BC cases 0,1,5 and the case 2 slow-arm both emit a "slow-commit" value via `addi(destReg, R0, float32_bits) + suser(kSuserNodeSlowCommit=0x14) + trap`. The recon hardcoded `Immediate(0x3F800)` = `float32(1.0) >> 12` in both `addiu` calls. The binary at 0x16643b-16648e instead loads `type.value_.toDouble()`, converts to `float32`, and calls `addi(float32_bits)` — which generates a hi/lo split (two instructions) when the lower 12 bits are nonzero. When `setDouble(path, val, scale)` is called with scale ≠ 1.0, the wrong hardcoded value was emitted.
 - **Encoding**: The sequencer stores a 32-bit float as: `addi R2, R0, (float32_bits & 0xFFF)` (lower 12 bits) + `addiu R2, R2, (float32_bits >> 12)` (upper 20 bits). When lower 12 bits = 0 (e.g., float32(1.0) = 0x3F800000), only `addiu R2, R0, 0x3F800` is needed.
 - **Resolution**: Replaced `addiu(Immediate(0x3F800))` with `addi(Immediate(float32(type.value_.toDouble()) bits))` in both the BC common tail and the case 2 slow-arm.
-- **Location**: `reconstructed/src/custom_functions_play.cpp` (writeToNode BC common tail and case 2 slow-arm)
+- **Location**: `reconstructed/src/runtime/custom_functions_play.cpp` (writeToNode BC common tail and case 2 slow-arm)
 
 ## IF-140  `writeToNode` case 2 fast-arm generates two triplets instead of one + slow-commit
 
@@ -2657,7 +2657,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Root cause**: The recon duplicated the Q-channel triplet (tag=0xd) into the fast-arm, imitating the slow-arm structure, instead of mirroring the binary's single-triplet + shared commit pattern. Additionally, the slow-commit floatEqual warning passes 3 args including `"integer"` hint (at 0x1663bc: `lea 0x79a579(%rip), %rcx` = `"integer"`), not 2 args.
 - **Confirmed by**: GDB trace showing `type.value_` (vartype=4=Const, value_which=2=double) is what the slow-commit reads at 0x16636b.
 - **Resolution**: Replaced the two-triplet fast-arm with: one triplet (tag=0xc) + floatEqual warning on `type.value_` (with `"integer"` hint) + `addi(float32(scale))` + suser(0x14) + trap.
-- **Location**: `reconstructed/src/custom_functions_play.cpp` (writeToNode case 2 fast-arm)
+- **Location**: `reconstructed/src/runtime/custom_functions_play.cpp` (writeToNode case 2 fast-arm)
 
 ## IF-140  `playDIOWave` missing `results->node_` assignment
 

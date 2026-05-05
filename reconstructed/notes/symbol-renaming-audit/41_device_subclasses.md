@@ -13,27 +13,27 @@
 
 Header:
 
-- `reconstructed/include/zhinst/device_subclasses.hpp` (312 lines)
+- `reconstructed/include/zhinst/device/device_subclasses.hpp` (312 lines)
 
 Per-family implementation files:
 
-- `reconstructed/src/device_hdawg.cpp`
-- `reconstructed/src/device_shf.cpp`
-- `reconstructed/src/device_uhf.cpp`
-- `reconstructed/src/device_vhf.cpp`
-- `reconstructed/src/device_ghf.cpp`
-- `reconstructed/src/device_mf.cpp`
-- `reconstructed/src/device_hf2.cpp`
-- `reconstructed/src/device_pqsc.cpp`
-- `reconstructed/src/device_qhub.cpp`
-- `reconstructed/src/device_shfacc.cpp`
-- `reconstructed/src/device_hwmock.cpp`
-- `reconstructed/src/device_unknown.cpp`
+- `reconstructed/src/device/device_hdawg.cpp`
+- `reconstructed/src/device/device_shf.cpp`
+- `reconstructed/src/device/device_uhf.cpp`
+- `reconstructed/src/device/device_vhf.cpp`
+- `reconstructed/src/device/device_ghf.cpp`
+- `reconstructed/src/device/device_mf.cpp`
+- `reconstructed/src/device/device_hf2.cpp`
+- `reconstructed/src/device/device_pqsc.cpp`
+- `reconstructed/src/device/device_qhub.cpp`
+- `reconstructed/src/device/device_shfacc.cpp`
+- `reconstructed/src/device/device_hwmock.cpp`
+- `reconstructed/src/device/device_unknown.cpp`
 
 Cross-referenced (read-only):
 
-- `reconstructed/include/zhinst/device_type.hpp`        (base `DeviceTypeImpl`, `DeviceOption*`, `sfc::*Option::Bit0xNNNN` enums)
-- `reconstructed/include/zhinst/device_factories.hpp`   (`opts` parameter cluster)
+- `reconstructed/include/zhinst/device/device_type.hpp`        (base `DeviceTypeImpl`, `DeviceOption*`, `sfc::*Option::Bit0xNNNN` enums)
+- `reconstructed/include/zhinst/device/device_factories.hpp`   (`opts` parameter cluster)
 - `reconstructed/notes/symbol-renaming-audit/22_device_factories.md`
 - `reconstructed/notes/symbol-renaming-audit/29_device_type.md`
 - `reconstructed/notes/symbol-renaming-audit/30_awg_device_props.md`
@@ -100,18 +100,18 @@ ctors which take none).
 
 Evidence:
 
-- include/zhinst/device_subclasses.hpp:50,57,74,81,98,105,112,119,136,
+- include/zhinst/device/device_subclasses.hpp:50,57,74,81,98,105,112,119,136,
   143,153,160,167,174,181,188,195,202,212,219,226,236,243,283,290 —
   every single-arg ctor declared with `unsigned long opts`.
-- src/device_hdawg.cpp:47,54 — `Hdawg4::Hdawg4(unsigned long opts)` /
+- src/device/device_hdawg.cpp:47,54 — `Hdawg4::Hdawg4(unsigned long opts)` /
   `Hdawg8::Hdawg8(unsigned long opts)`, body forwards `opts` to
   `initializeSfcOptions(...)`.
-- src/device_shf.cpp:83,93,103,113,120,127,137,147 — same pattern, all
+- src/device/device_shf.cpp:83,93,103,113,120,127,137,147 — same pattern, all
   Shf-family subclasses take `unsigned long opts`.
-- src/device_hf2.cpp:59,72; src/device_uhf.cpp:81,88,95,102;
-  src/device_vhf.cpp:42,49; src/device_ghf.cpp:43,50;
-  src/device_mf.cpp:56,66; src/device_shfacc.cpp:25,32,39 — same pattern.
-- src/device_factories.cpp (cited in batch 22): every
+- src/device/device_hf2.cpp:59,72; src/device/device_uhf.cpp:81,88,95,102;
+  src/device/device_vhf.cpp:42,49; src/device/device_ghf.cpp:43,50;
+  src/device/device_mf.cpp:56,66; src/device/device_shfacc.cpp:25,32,39 — same pattern.
+- src/device/device_factories.cpp (cited in batch 22): every
   `<X>Factory::doMakeDeviceType(unsigned long opts)` forwards `opts`
   unchanged into the matching subclass ctor.
 
@@ -145,9 +145,9 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: include/zhinst/device_subclasses.hpp (lines listed above)
+- declared: include/zhinst/device/device_subclasses.hpp (lines listed above)
 - defined : every per-family .cpp file in this batch
-- callers : src/device_factories.cpp (per batch 22)
+- callers : src/device/device_factories.cpp (per batch 22)
 
 
 ### `<Subclass>::clone` override (×32)  [yes / high / coordinated-rename]
@@ -163,17 +163,17 @@ in the header and defines it in its .cpp. Names:
 
 Evidence:
 
-- include/zhinst/device_subclasses.hpp:45,52,59,69,76,83,93,100,107,
+- include/zhinst/device/device_subclasses.hpp:45,52,59,69,76,83,93,100,107,
   114,121,131,138,145,155,162,169,176,183,190,197,204,214,221,228,238,
   245,255,265,275,285,292,308 — every override declared as `clone()`.
-- src/device_hdawg.cpp:45,52,59 — `DeviceTypeImpl* Hdawg::clone() const
+- src/device/device_hdawg.cpp:45,52,59 — `DeviceTypeImpl* Hdawg::clone() const
   { return new Hdawg(*this); }` (and Hdawg4, Hdawg8 same).
-- src/device_shf.cpp:88,98,108,118,125,132,142,152 — same body shape.
-- src/device_hf2.cpp:53,66,79; src/device_uhf.cpp:79,86,93,100,107;
-  src/device_mf.cpp:51,61,71; src/device_vhf.cpp:46,53;
-  src/device_ghf.cpp:47,55; src/device_shfacc.cpp:29,36,43;
-  src/device_pqsc.cpp:14; src/device_qhub.cpp:14;
-  src/device_hwmock.cpp:14; src/device_unknown.cpp:45 — same.
+- src/device/device_shf.cpp:88,98,108,118,125,132,142,152 — same body shape.
+- src/device/device_hf2.cpp:53,66,79; src/device/device_uhf.cpp:79,86,93,100,107;
+  src/device/device_mf.cpp:51,61,71; src/device/device_vhf.cpp:46,53;
+  src/device/device_ghf.cpp:47,55; src/device/device_shfacc.cpp:29,36,43;
+  src/device/device_pqsc.cpp:14; src/device/device_qhub.cpp:14;
+  src/device/device_hwmock.cpp:14; src/device/device_unknown.cpp:45 — same.
 - nm --demangle: `0x2d3280 t zhinst::detail::DeviceTypeImpl::doClone()
   const` is the only `clone`/`doClone` zhinst-detail symbol exported
   by the binary. The base virtual is named `doClone` in the binary.
@@ -212,7 +212,7 @@ Cross-reference:
 
 Locations consulted:
 
-- declared: include/zhinst/device_subclasses.hpp (33 sites listed above)
+- declared: include/zhinst/device/device_subclasses.hpp (33 sites listed above)
 - defined : every per-family .cpp file in this batch
 - nm      : 0x2d3280 zhinst::detail::DeviceTypeImpl::doClone() const
 
@@ -221,19 +221,19 @@ Locations consulted:
 
 Evidence:
 
-- src/device_shf.cpp:65-76 — anonymous-namespace free function
+- src/device/device_shf.cpp:65-76 — anonymous-namespace free function
   `DeviceOptionSet buildInlineShfOptions(unsigned long opts,
   DeviceFamily family, bool addRtr, bool addPlus, bool addLrt)`.
   Body: insert `FF` if `opts & 0x20`; conditionally insert `RTR` /
   `PLUS` / `LRT` for the matching bits.
-- src/device_shf.cpp:3-22 (header comment) describes the disassembly
+- src/device/device_shf.cpp:3-22 (header comment) describes the disassembly
   pattern as "an inline if/insert chain on a few selector bits" — the
   helper is a recon-introduced consolidation of identical code at
   multiple subclass ctors.
-- src/device_vhf.cpp:33-37 `buildVhfFf(unsigned long opts)` — same
+- src/device/device_vhf.cpp:33-37 `buildVhfFf(unsigned long opts)` — same
   pattern, single bit; called by `Vhf::Vhf` only.
-- src/device_ghf.cpp:34-38 `buildGhfFf(unsigned long opts)` — same.
-- src/device_shfacc.cpp:17-21 `buildShfaccFf(unsigned long opts)` —
+- src/device/device_ghf.cpp:34-38 `buildGhfFf(unsigned long opts)` — same.
+- src/device/device_shfacc.cpp:17-21 `buildShfaccFf(unsigned long opts)` —
   same; called by `Shfacc`, `Shfppc2`, `Shfppc4`.
 - nm --demangle: none of `buildInlineShfOptions`, `buildVhfFf`,
   `buildGhfFf`, `buildShfaccFf` appear in the binary (anon-namespace
@@ -270,8 +270,8 @@ Proposals:
 
 Locations consulted:
 
-- declared+defined: src/device_shf.cpp:65-76, src/device_vhf.cpp:33-37,
-  src/device_ghf.cpp:34-38, src/device_shfacc.cpp:17-21
+- declared+defined: src/device/device_shf.cpp:65-76, src/device/device_vhf.cpp:33-37,
+  src/device/device_ghf.cpp:34-38, src/device/device_shfacc.cpp:17-21
 - callers       : same files (subclass ctor initializer lists)
 - nm            : not present (anon-ns)
 

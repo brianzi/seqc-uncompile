@@ -11,10 +11,10 @@
 
 ## 1. Files considered
 
-- `reconstructed/src/custom_functions_playback.cpp` (1036 lines, in scope)
+- `reconstructed/src/runtime/custom_functions_playback.cpp` (1036 lines, in scope)
 
 Out of scope (declarations only consulted, not audited):
-- `reconstructed/include/zhinst/custom_functions.hpp` — header lives in
+- `reconstructed/include/zhinst/runtime/custom_functions.hpp` — header lives in
   another batch; method declarations are read-only context here.
 
 ## 2. Overview

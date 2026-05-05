@@ -2,13 +2,13 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/frontend_lowering.hpp`
-- `reconstructed/src/frontend_lowering.cpp`
+- `reconstructed/include/zhinst/ast/frontend_lowering.hpp`
+- `reconstructed/src/ast/frontend_lowering.cpp`
 
 The pair only declares two stack-local structures (`FrontendLoweringContext`,
 `FrontendLoweringState`) and their defaulted destructors. **All meaningful
 use sites of the fields are in other TUs** — primarily
-`src/seqc_ast_nodes_evaluate.cpp` and `src/compiler.cpp`. Those use sites
+`src/ast/seqc_ast_nodes_evaluate.cpp` and `src/codegen/compiler.cpp`. Those use sites
 were consulted (not edited) to judge the field names.
 
 ## 2. Overview
@@ -53,7 +53,7 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:46`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:46`
 
 ---
 
@@ -99,9 +99,9 @@ Cross-reference:
 - All three should be renamed in lockstep.
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:52`
-- written: `src/compiler.cpp:681`
-- read:    `src/seqc_ast_nodes_evaluate.cpp:8202,8501,8779,10010`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:52`
+- written: `src/codegen/compiler.cpp:681`
+- read:    `src/ast/seqc_ast_nodes_evaluate.cpp:8202,8501,8779,10010`
 
 ---
 
@@ -123,7 +123,7 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:89`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:89`
 
 ---
 
@@ -163,9 +163,9 @@ Proposals:
   re-deriving the meaning.
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:91`
-- set:     `src/seqc_ast_nodes_evaluate.cpp:9799,9811`
-- read:    `src/seqc_ast_nodes_evaluate.cpp:7955,8015,8027,8032,9265`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:91`
+- set:     `src/ast/seqc_ast_nodes_evaluate.cpp:9799,9811`
+- read:    `src/ast/seqc_ast_nodes_evaluate.cpp:7955,8015,8027,8032,9265`
 
 ---
 
@@ -204,8 +204,8 @@ Proposals:
   conservative about scope breadth.
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:92`
-- used:    `src/seqc_ast_nodes_evaluate.cpp:5792,6065,6067,6341,6384,6686,6687,6688`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:92`
+- used:    `src/ast/seqc_ast_nodes_evaluate.cpp:5792,6065,6067,6341,6384,6686,6687,6688`
 
 ---
 
@@ -247,8 +247,8 @@ Proposals:
 - (rename pending GDB confirmation)
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:93`
-- used:    `src/seqc_ast_nodes_evaluate.cpp:6581,6583,6584,6600,6609,6640,6646,6796`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:93`
+- used:    `src/ast/seqc_ast_nodes_evaluate.cpp:6581,6583,6584,6600,6609,6640,6646,6796`
 
 ---
 
@@ -279,8 +279,8 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:94`
-- used:    `src/seqc_ast_nodes_evaluate.cpp:7180,7549,7550,7551,7567,7581,7602,7919,7939,8038,8052`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:94`
+- used:    `src/ast/seqc_ast_nodes_evaluate.cpp:7180,7549,7550,7551,7567,7581,7602,7919,7939,8038,8052`
 
 ---
 
@@ -310,8 +310,8 @@ Proposals:
 - `loweredAst` (low) — minor readability improvement
 
 Locations consulted:
-- declared: `include/zhinst/frontend_lowering.hpp:90`
-- used:    `src/compiler.cpp:656,661,692,694`
+- declared: `include/zhinst/ast/frontend_lowering.hpp:90`
+- used:    `src/codegen/compiler.cpp:656,661,692,694`
 
 ## 4. Symbols inspected and judged routinely fine
 

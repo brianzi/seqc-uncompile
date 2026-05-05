@@ -11,16 +11,16 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/waveform_front.hpp`
-- `reconstructed/src/waveform_front.cpp`
+- `reconstructed/include/zhinst/waveform/waveform_front.hpp`
+- `reconstructed/src/waveform/waveform_front.cpp`
 
 Cross-references consulted:
-- `reconstructed/include/zhinst/waveform_ir.hpp` (sister extension layout)
-- `reconstructed/src/wavetable_manager_front.cpp` (only writer of
+- `reconstructed/include/zhinst/waveform/waveform_ir.hpp` (sister extension layout)
+- `reconstructed/src/waveform/wavetable_manager_front.cpp` (only writer of
   `hasDuplicate_`, `values`, the convenience setters)
-- `reconstructed/src/custom_functions.cpp` (reader of `hasDuplicate_`)
-- `reconstructed/src/waveform_generator.cpp` (mentions `useCount_`)
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` (reader/writer of
+- `reconstructed/src/runtime/custom_functions.cpp` (reader of `hasDuplicate_`)
+- `reconstructed/src/waveform/waveform_generator.cpp` (mentions `useCount_`)
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` (reader/writer of
   `dirty_`)
 - `nm --demangle _seqc_compiler.so` for symbol-table exclusions.
 
@@ -51,15 +51,15 @@ Cross-references consulted:
 ### WaveformFront::useCount_  [unsure / low / —]
 
 Evidence:
-- `include/zhinst/waveform_front.hpp:56` — declaration
+- `include/zhinst/waveform/waveform_front.hpp:56` — declaration
   `int  useCount_;                    // +0xD8  (init=1)`
-- `src/waveform_front.cpp:60` — copy-rename ctor:
+- `src/waveform/waveform_front.cpp:60` — copy-rename ctor:
   `useCount_ = 1;            // mov DWORD PTR [rbx+0xd8], 1`
-- `src/waveform_front.cpp:102` — 3-arg ctor:
+- `src/waveform/waveform_front.cpp:102` — 3-arg ctor:
   `this->useCount_ = 1;        // +0xD8  — note: 1, NOT 0 (IR writes 0 here)`
-- `src/waveform_generator.cpp:279` (comment):
+- `src/waveform/waveform_generator.cpp:279` (comment):
   "and bump its use-count (uint32_t at WaveformFront +0xd8)."
-- `src/waveform_generator.cpp:305` (comment in the relevant body):
+- `src/waveform/waveform_generator.cpp:305` (comment in the relevant body):
   `// wf->useCount++;  // TODO: expose use-count field`
 - `nm`: no static / external symbol named `useCount_` (non-static
   member, not encoded — in scope per §3).
@@ -87,24 +87,24 @@ Proposals:
   later pass confirms the increment-on-lookup semantics.
 
 Locations consulted:
-- declared: `include/zhinst/waveform_front.hpp:56`
-- written: `src/waveform_front.cpp:60,102`
-- referenced (comments only): `src/waveform_generator.cpp:279,305`
+- declared: `include/zhinst/waveform/waveform_front.hpp:56`
+- written: `src/waveform/waveform_front.cpp:60,102`
+- referenced (comments only): `src/waveform/waveform_generator.cpp:279,305`
 
 ### WaveformFront::dirty_  [no / medium / not-misnomer]
 
 Evidence:
-- `include/zhinst/waveform_front.hpp:57`
+- `include/zhinst/waveform/waveform_front.hpp:57`
   `bool dirty_;                     // +0xDC  (init=0; "isModified" in source comments)`
 - Accessors at `:101-102`:
   `bool isModified() const      { return dirty_; }`
   `void setModified(bool v)     { dirty_ = v; }`
-- `src/seqc_ast_nodes_evaluate.cpp:3273-3274`:
+- `src/ast/seqc_ast_nodes_evaluate.cpp:3273-3274`:
   ```
   // Mark dirty: WaveformFront::dirty_ = 1 (+0xdc)
   if (wf) wf->dirty_ = true;
   ```
-- `src/seqc_ast_nodes_evaluate.cpp:3299,3307`:
+- `src/ast/seqc_ast_nodes_evaluate.cpp:3299,3307`:
   `// signal.markers_[idx], then sets dirty_=true.` /
   `wf->dirty_ = true;`
 - `nm`: non-static member, in scope; not exported.
@@ -125,19 +125,19 @@ Proposals:
 - `keep current` (high)
 
 Locations consulted:
-- declared: `include/zhinst/waveform_front.hpp:57`
-- accessors: `include/zhinst/waveform_front.hpp:101-102`
-- written: `src/waveform_front.cpp:61,103`;
-  `src/seqc_ast_nodes_evaluate.cpp:3274,3307`
+- declared: `include/zhinst/waveform/waveform_front.hpp:57`
+- accessors: `include/zhinst/waveform/waveform_front.hpp:101-102`
+- written: `src/waveform/waveform_front.cpp:61,103`;
+  `src/ast/seqc_ast_nodes_evaluate.cpp:3274,3307`
 
 ### WaveformFront::hasDuplicate_  [no / high / not-misnomer]
 
 Evidence:
-- `include/zhinst/waveform_front.hpp:58`
+- `include/zhinst/waveform/waveform_front.hpp:58`
   `bool hasDuplicate_;                     // +0xDD  (copied; "hasDuplicate")`
-- `src/waveform_front.cpp:64` — copy-rename ctor copies from source:
+- `src/waveform/waveform_front.cpp:64` — copy-rename ctor copies from source:
   `hasDuplicate_ = source->hasDuplicate_;  // movzx ecx, BYTE PTR [rax+0xdd]`
-- `src/wavetable_manager_front.cpp:120-130`:
+- `src/waveform/wavetable_manager_front.cpp:120-130`:
   ```
   existing.get()->setHasDuplicate(true); // +0xDD
   ...
@@ -149,9 +149,9 @@ Evidence:
   `newWaveformFromFile` — when an existing waveform with the same
   filename is found, both the existing and the new entries are
   flagged.)
-- `src/wavetable_manager_front.cpp:172-173`:
+- `src/waveform/wavetable_manager_front.cpp:172-173`:
   `existing->setHasDuplicate(true);` / `wf->setHasDuplicate(true);`
-- `src/custom_functions.cpp:1054-1055`:
+- `src/runtime/custom_functions.cpp:1054-1055`:
   ```
   // @0x171228: check wf->hasDuplicate_ (+0xDD, "hasDuplicate")
   if (wf->hasDuplicate_) {
@@ -172,22 +172,22 @@ Proposals:
 - `keep current` (high)
 
 Locations consulted:
-- declared: `include/zhinst/waveform_front.hpp:58`
-- written: `src/waveform_front.cpp:64,104`;
-  `src/wavetable_manager_front.cpp:123,130,172,173`
-- read: `src/custom_functions.cpp:1055`
+- declared: `include/zhinst/waveform/waveform_front.hpp:58`
+- written: `src/waveform/waveform_front.cpp:64,104`;
+  `src/waveform/wavetable_manager_front.cpp:123,130,172,173`
+- read: `src/runtime/custom_functions.cpp:1055`
 
 ### WaveformFront::values  [yes / medium / —]
 
 Evidence:
-- `include/zhinst/waveform_front.hpp:60`
+- `include/zhinst/waveform/waveform_front.hpp:60`
   `std::vector<Value> values;           // +0xE0  (each Value is 0x28 bytes)`
-- `src/wavetable_manager_front.cpp:198`:
+- `src/waveform/wavetable_manager_front.cpp:198`:
   `wf->values = args;                     // vector<Value> at +0xE0`
   (in `getWaveformForFront` / `newWaveform` — `args` is the vector of
   `Value`s passed to a waveform-generator function, e.g. the `values`
   vector built up in `seqc_ast_nodes_evaluate.cpp:405-407,459-461`).
-- `src/wavetable_manager_front.cpp:225-233`:
+- `src/waveform/wavetable_manager_front.cpp:225-233`:
   ```
   if (wf->values.size() != args.size()) continue;
   ...
@@ -196,7 +196,7 @@ Evidence:
   (used as the lookup key in `getWaveformByFunDescr`: a stored wave
   matches when its name equals `funDescrName` AND its `values` equal
   the requested `args`.)
-- `src/waveform_front.cpp:70` — copy-rename ctor copies the vector:
+- `src/waveform/waveform_front.cpp:70` — copy-rename ctor copies the vector:
   `values = std::vector<Value>(source->values.begin(), source->values.end());`
 - All other extension fields use the trailing-underscore convention
   (`useCount_`, `dirty_`, `hasDuplicate_`); `values` does not.
@@ -225,15 +225,15 @@ Proposals:
   to `values_` for stylistic consistency.
 
 Locations consulted:
-- declared: `include/zhinst/waveform_front.hpp:60`
-- written: `src/waveform_front.cpp:70`;
-  `src/wavetable_manager_front.cpp:198`
-- read: `src/wavetable_manager_front.cpp:225,233`
+- declared: `include/zhinst/waveform/waveform_front.hpp:60`
+- written: `src/waveform/waveform_front.cpp:70`;
+  `src/waveform/wavetable_manager_front.cpp:198`
+- read: `src/waveform/wavetable_manager_front.cpp:225,233`
 
 ### WaveformFront::WaveformFront(source, newName)::source  [no / medium / not-misnomer]
 
 Evidence:
-- `src/waveform_front.cpp:55-71` — the body uses `source` exclusively
+- `src/waveform/waveform_front.cpp:55-71` — the body uses `source` exclusively
   to (a) forward as the `Waveform`-base copy-source and (b) read
   `source->hasDuplicate_` and `source->values` to copy them into
   `*this`. The header declaration matches.
@@ -250,13 +250,13 @@ Proposals:
 - `keep current` (high)
 
 Locations consulted:
-- `include/zhinst/waveform_front.hpp:84`
-- `src/waveform_front.cpp:55-71`
+- `include/zhinst/waveform/waveform_front.hpp:84`
+- `src/waveform/waveform_front.cpp:55-71`
 
 ### WaveformFront::WaveformFront(source, newName)::newName  [no / high / not-misnomer]
 
 Evidence:
-- `src/waveform_front.cpp:57` — passed to `Waveform`-base copy-rename
+- `src/waveform/waveform_front.cpp:57` — passed to `Waveform`-base copy-rename
   ctor: `Waveform(std::shared_ptr<Waveform>(source), std::string(newName))`.
 
 Interpretation:
@@ -271,7 +271,7 @@ Proposals:
 ### WaveformFront::WaveformFront(name, type, dc)::{name,type,dc}  [no / high|medium / not-misnomer]
 
 Evidence:
-- `src/waveform_front.cpp:82-99`:
+- `src/waveform/waveform_front.cpp:82-99`:
   - `this->name             = name;` — stored verbatim into
     `Waveform::name`.
   - `this->waveformType     = type;` — stored verbatim into
@@ -294,7 +294,7 @@ Proposals:
 ### WaveformFront::toString::typeStr  /  ::oss  [no / high / —]
 
 Evidence:
-- `src/waveform_front.cpp:23-39` — `oss` is the
+- `src/waveform/waveform_front.cpp:23-39` — `oss` is the
   `std::ostringstream` accumulating the formatted string;
   `typeStr` is the local set per `switch` arm to the literal
   `"CSV"`/`"RAW"`/`"GEN"`/`"UNDEF"` and then streamed.

@@ -27,14 +27,14 @@ This part covers:
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/prefetch.hpp`
-- `reconstructed/src/prefetch.cpp`
-- `reconstructed/src/prefetch_helpers.cpp`
-- `reconstructed/src/prefetch_emit.cpp`
-- `reconstructed/src/prefetch_print.cpp`
-- `reconstructed/src/prefetch_prepare.cpp`
-- `reconstructed/src/prefetch_placesingle.cpp`
-- `reconstructed/src/prefetch_splitplay.cpp`
+- `reconstructed/include/zhinst/codegen/prefetch.hpp`
+- `reconstructed/src/codegen/prefetch.cpp`
+- `reconstructed/src/codegen/prefetch_helpers.cpp`
+- `reconstructed/src/codegen/prefetch_emit.cpp`
+- `reconstructed/src/codegen/prefetch_print.cpp`
+- `reconstructed/src/codegen/prefetch_prepare.cpp`
+- `reconstructed/src/codegen/prefetch_placesingle.cpp`
+- `reconstructed/src/codegen/prefetch_splitplay.cpp`
 
 Binary symbol table re-consulted via
 `nm --demangle _seqc_compiler.so | grep Prefetch::`. Confirms
@@ -136,7 +136,7 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:250
+- declared: include/zhinst/codegen/prefetch.hpp:250
 - binary:   nm output line `b zhinst::Prefetch::minIndexedSize`
 
 ### Prefetch::assignLoad::flag  [yes / high / —]
@@ -185,8 +185,8 @@ Proposals:
 - keep current            (low)
 
 Locations consulted:
-- declared/defined: src/prefetch.cpp:2005-2038
-- called from:      src/prefetch.cpp:1362, 2122, 2185
+- declared/defined: src/codegen/prefetch.cpp:2005-2038
+- called from:      src/codegen/prefetch.cpp:1362, 2122, 2185
 
 ### Prefetch::insertPlay::flag  [yes / high / —]
 
@@ -222,9 +222,9 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared/defined: src/prefetch_emit.cpp:714-741
-- called from:      src/prefetch_splitplay.cpp:328, 411
-- forwarded into:   src/prefetch_emit.cpp:640 (`wvfImpl::indexed`)
+- declared/defined: src/codegen/prefetch_emit.cpp:714-741
+- called from:      src/codegen/prefetch_splitplay.cpp:328, 411
+- forwarded into:   src/codegen/prefetch_emit.cpp:640 (`wvfImpl::indexed`)
 
 ### Prefetch::insertPlay::addrA / addrB  [unsure / low / —]
 
@@ -262,8 +262,8 @@ Proposals:
 - `firstAddr`/`secondAddr` (low) — least committal
 
 Locations consulted:
-- declared/defined: src/prefetch_emit.cpp:714-741
-- called from:      src/prefetch_splitplay.cpp:328, 411
+- declared/defined: src/codegen/prefetch_emit.cpp:714-741
+- called from:      src/codegen/prefetch_splitplay.cpp:328, 411
 
 ### Prefetch::findPlaceholder — header `out` vs cpp `asmList`  [unsure / low / —]
 
@@ -291,8 +291,8 @@ Proposals:
 - keep header `out`        (low)
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:220
-- defined:  src/prefetch_emit.cpp:95-108
+- declared: include/zhinst/codegen/prefetch.hpp:220
+- defined:  src/codegen/prefetch_emit.cpp:95-108
 
 ### Local: `useDA` clash in optimize / optimizeCwvf / createLoad  [no / medium / —]
 
@@ -357,8 +357,8 @@ Cross-reference:
   unaffected by this finding.
 
 Locations consulted:
-- declared: include/zhinst/prefetch.hpp:145 (field)
-- locals:   src/prefetch.cpp:102, 319, 521, 561, 786
+- declared: include/zhinst/codegen/prefetch.hpp:145 (field)
+- locals:   src/codegen/prefetch.cpp:102, 319, 521, 561, 786
 
 ## 4. Symbols inspected and judged routinely fine
 

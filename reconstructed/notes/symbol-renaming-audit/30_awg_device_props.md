@@ -11,12 +11,12 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/awg_device_props.hpp`
-- `reconstructed/src/awg_device_props.cpp`
+- `reconstructed/include/zhinst/device/awg_device_props.hpp`
+- `reconstructed/src/device/awg_device_props.cpp`
 
 Use-site survey via `grep -rn` across `reconstructed/{src,include}` for
 each in-scope symbol. Primary consumer is
-`reconstructed/src/compile_seqc.cpp` (the single call site that
+`reconstructed/src/codegen/compile_seqc.cpp` (the single call site that
 builds `AWGCompilerConfig` from an `AwgDeviceProps`). Cross-batch
 counterparts consulted:
 
@@ -151,9 +151,9 @@ Cross-reference:
   `not-misnomer / high`). Synthesis: keep both.
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:147
-- written: src/awg_device_props.cpp:159 (helper) + 9 template sites
-- consumed: src/compile_seqc.cpp:199
+- declared: include/zhinst/device/awg_device_props.hpp:147
+- written: src/device/awg_device_props.cpp:159 (helper) + 9 template sites
+- consumed: src/codegen/compile_seqc.cpp:199
 
 ### AwgDeviceProps::maxElfSize  [no / high / not-misnomer]
 
@@ -181,9 +181,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:144
-- written: src/awg_device_props.cpp:156 + 9 template sites (esp. 201)
-- consumed: src/compile_seqc.cpp:247
+- declared: include/zhinst/device/awg_device_props.hpp:144
+- written: src/device/awg_device_props.cpp:156 + 9 template sites (esp. 201)
+- consumed: src/codegen/compile_seqc.cpp:247
 
 ### AwgDeviceProps::addressImpl  [no / high / not-misnomer]
 
@@ -215,9 +215,9 @@ Cross-reference:
 - Consumer side: `AWGCompilerConfig::addressImpl` (batch 23).
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:145
-- written: src/awg_device_props.cpp:157 + 9 template sites
-- consumed: src/compile_seqc.cpp:196
+- declared: include/zhinst/device/awg_device_props.hpp:145
+- written: src/device/awg_device_props.cpp:157 + 9 template sites
+- consumed: src/codegen/compile_seqc.cpp:196
 
 ### AwgDeviceProps::sampleFormat  [no / high / not-misnomer]
 
@@ -244,9 +244,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:146
-- written: src/awg_device_props.cpp:158 + 9 template sites
-- consumed: src/compile_seqc.cpp:194; src/write_waves_to_elf.cpp:71,153
+- declared: include/zhinst/device/awg_device_props.hpp:146
+- written: src/device/awg_device_props.cpp:158 + 9 template sites
+- consumed: src/codegen/compile_seqc.cpp:194; src/waveform/write_waves_to_elf.cpp:71,153
 
 ### AwgDeviceProps::deviceType  [no / high / not-misnomer]
 
@@ -271,9 +271,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:140
-- written: src/awg_device_props.cpp:152 + 9 template sites
-- consumed: src/compile_seqc.cpp:193
+- declared: include/zhinst/device/awg_device_props.hpp:140
+- written: src/device/awg_device_props.cpp:152 + 9 template sites
+- consumed: src/codegen/compile_seqc.cpp:193
 
 ### AwgDeviceProps::elfDataPattern / elfProgressPattern / enablePattern  [no / high / not-misnomer]
 
@@ -305,9 +305,9 @@ Proposals:
 - keep current  (high) for all three
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:141-143
-- written: src/awg_device_props.cpp:153-155 (+ string literals at
-  src/awg_device_props.cpp:80-122)
+- declared: include/zhinst/device/awg_device_props.hpp:141-143
+- written: src/device/awg_device_props.cpp:153-155 (+ string literals at
+  src/device/awg_device_props.cpp:80-122)
 - consumed: cross-TU only via the AwgDeviceProps copy; no direct
   per-field reads outside this file's helper (the full props object
   is not currently consumed beyond the 5 fields listed in
@@ -366,8 +366,8 @@ Cross-reference:
   finding: a future reconstruction may surface a missing consumer.
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:148
-- written: src/awg_device_props.cpp:160 + per-template at
+- declared: include/zhinst/device/awg_device_props.hpp:148
+- written: src/device/awg_device_props.cpp:160 + per-template at
   192,204,212,220,228,236,244,252,260
 - consumed: none under `reconstructed/src/`
 
@@ -405,9 +405,9 @@ Proposals:
 - keep current  (high) for all three
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:42-44
-- used: src/awg_device_props.cpp:300-327, 347-376;
-        src/compile_seqc.cpp:46-50, 119-138
+- declared: include/zhinst/device/awg_device_props.hpp:42-44
+- used: src/device/awg_device_props.cpp:300-327, 347-376;
+        src/codegen/compile_seqc.cpp:46-50, 119-138
 
 ### toAwgDeviceType::code, toAwgDeviceType::seq  [no / high / —]
 
@@ -437,9 +437,9 @@ Proposals:
 - keep current  (high) for both
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:226
-- defined: src/awg_device_props.cpp:300
-- used: src/compile_seqc.cpp:134
+- declared: include/zhinst/device/awg_device_props.hpp:226
+- defined: src/device/awg_device_props.cpp:300
+- used: src/codegen/compile_seqc.cpp:134
 
 ### getAwgDeviceProps<T>::dt  [no / high / —]
 
@@ -473,9 +473,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:193-201
-- defined: src/awg_device_props.cpp:188,196,208,216,224,232,240,248,256
-- used: src/compile_seqc.cpp:56-69
+- declared: include/zhinst/device/awg_device_props.hpp:193-201
+- defined: src/device/awg_device_props.cpp:188,196,208,216,224,232,240,248,256
+- used: src/codegen/compile_seqc.cpp:56-69
 
 ### makeUnsupportedAwgSequencerErrorMessage::code, ::seq  [no / high / —]
 
@@ -502,9 +502,9 @@ Proposals:
 - keep current  (high) for both
 
 Locations consulted:
-- declared: include/zhinst/awg_device_props.hpp:240
-- defined: src/awg_device_props.cpp:347
-- used: src/compile_seqc.cpp:138
+- declared: include/zhinst/device/awg_device_props.hpp:240
+- defined: src/device/awg_device_props.cpp:347
+- used: src/codegen/compile_seqc.cpp:138
 
 ### AwgPathPatterns 3-arg ctor params: elfData / elfProgress / enable  [no / medium / —]
 
@@ -534,8 +534,8 @@ Proposals:
 - keep current  (high) for all three
 
 Locations consulted:
-- defined: src/awg_device_props.cpp:40-46
-- used: src/awg_device_props.cpp:80-122
+- defined: src/device/awg_device_props.cpp:40-46
+- used: src/device/awg_device_props.cpp:80-122
 
 ## 4. Symbols inspected and judged routinely fine
 

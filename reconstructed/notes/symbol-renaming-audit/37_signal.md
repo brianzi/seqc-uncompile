@@ -11,26 +11,26 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/signal.hpp`
-- `reconstructed/src/signal.cpp`
+- `reconstructed/include/zhinst/waveform/signal.hpp`
+- `reconstructed/src/waveform/signal.cpp`
 
 Cross-reference reads (read-only):
-- `reconstructed/include/zhinst/rawwave.hpp` (counterpart parameters
+- `reconstructed/include/zhinst/waveform/rawwave.hpp` (counterpart parameters
   `samples` / `markers` / `markerBits` of `RawWaveHirzel16` ctor and
   `byteSize_ = channels*length*2` byte-unit cross-check).
 - `reconstructed/notes/symbol-renaming-audit/35_rawwave.md`
   (already-judged counterparts).
 - `reconstructed/notes/symbol-renaming-audit/14_waveform.md`,
   `38_play_config.md` (sample/byte/channel concepts).
-- `reconstructed/src/waveform_generator.cpp` (heaviest call site for
+- `reconstructed/src/waveform/waveform_generator.cpp` (heaviest call site for
   every Signal ctor — see grep for `Signal(` invocations at lines
   228, 242, 268, 602, 724, 774, 819, 856, 1923, 1986, 2216, 2314,
   2336, 2437, 2499, 2623, 2706, etc.).
-- `reconstructed/src/waveform_ir.cpp:169,207`,
-  `reconstructed/src/wavetable_ir.cpp:539,800,837`,
-  `reconstructed/src/prefetch.cpp:1653,1662`,
-  `reconstructed/src/custom_functions.cpp:904,1005,1114`,
-  `reconstructed/src/custom_functions_play.cpp:432,1021` —
+- `reconstructed/src/waveform/waveform_ir.cpp:169,207`,
+  `reconstructed/src/waveform/wavetable_ir.cpp:539,800,837`,
+  `reconstructed/src/codegen/prefetch.cpp:1653,1662`,
+  `reconstructed/src/runtime/custom_functions.cpp:904,1005,1114`,
+  `reconstructed/src/runtime/custom_functions_play.cpp:432,1021` —
   uses of `signal.channels()`, `signal.length()`, `signal.markerBits_`.
 
 ### Symbol-table verification (RULES §3, `nm --demangle _seqc_compiler.so`)
@@ -158,9 +158,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:97
-- read:     src/signal.cpp:336, 419, 425, 432, 454-458 (operator==)
-- written:  src/signal.cpp:33-39, 53, 99, 113, ...
+- declared: include/zhinst/waveform/signal.hpp:97
+- read:     src/waveform/signal.cpp:336, 419, 425, 432, 454-458 (operator==)
+- written:  src/waveform/signal.cpp:33-39, 53, 99, 113, ...
 
 ### `Signal::markerBits_`  [no / high / not-misnomer]
 
@@ -185,9 +185,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:99
-- json key: src/signal.cpp:357, 387
-- usage:    src/signal.cpp:33, 63, 76-77, 92, 122, 136, 156, 176, 222,
+- declared: include/zhinst/waveform/signal.hpp:99
+- json key: src/waveform/signal.cpp:357, 387
+- usage:    src/waveform/signal.cpp:33, 63, 76-77, 92, 122, 136, 156, 176, 222,
             257-258, 346, 388, 472-475
 
 ### `Signal::reserveOnly_`  [no / high / not-misnomer]
@@ -211,9 +211,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:101
-- json key: src/signal.cpp:354, 395
-- usage:    src/signal.cpp:131, 272, 306, 409
+- declared: include/zhinst/waveform/signal.hpp:101
+- json key: src/waveform/signal.cpp:354, 395
+- usage:    src/waveform/signal.cpp:131, 272, 306, 409
 
 ### `Signal::channels_`  [no / high / not-misnomer]
 
@@ -241,9 +241,9 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:100
-- usage:    src/signal.cpp:67, 97, 175, 225, 262, 277, 309, 413
-- callers:  src/waveform_generator.cpp:231, src/prefetch.cpp:1653
+- declared: include/zhinst/waveform/signal.hpp:100
+- usage:    src/waveform/signal.cpp:67, 97, 175, 225, 262, 277, 309, 413
+- callers:  src/waveform/waveform_generator.cpp:231, src/codegen/prefetch.cpp:1653
 
 ### `Signal::length_`  [no / medium / not-misnomer]
 
@@ -281,10 +281,10 @@ Proposals:
   and from binary header offset documentation)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:102
-- json key: src/signal.cpp:352, 396
-- usage:    src/signal.cpp:67, 225, 262, 277, 295, 309, 413
-- callers:  src/wavetable_ir.cpp:539, 800; src/custom_functions.cpp:1114
+- declared: include/zhinst/waveform/signal.hpp:102
+- json key: src/waveform/signal.cpp:352, 396
+- usage:    src/waveform/signal.cpp:67, 225, 262, 277, 295, 309, 413
+- callers:  src/waveform/wavetable_ir.cpp:539, 800; src/runtime/custom_functions.cpp:1114
 
 ### `Signal::Signal(size_t,double,uint8_t,uint16_t)::numSamples`  [unsure / medium / —]
 
@@ -322,9 +322,9 @@ Proposals:
   product)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:52
-- defined:  src/signal.cpp:48-79
-- caller:   src/waveform_generator.cpp:602
+- declared: include/zhinst/waveform/signal.hpp:52
+- defined:  src/waveform/signal.cpp:48-79
+- caller:   src/waveform/waveform_generator.cpp:602
 
 ### `Signal::Signal(size_t,double,uint8_t,uint16_t)::numEntries` (local)  [no / low / —]
 
@@ -351,7 +351,7 @@ Proposals:
 - `mbIters` (low)
 
 Locations consulted:
-- src/signal.cpp:73-77
+- src/waveform/signal.cpp:73-77
 
 ### `Signal::Signal(ReserveOnly,size_t,MarkerBitsPerChannel)::tag`  [no / medium / —]
 
@@ -372,8 +372,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:57
-- defined:  src/signal.cpp:131
+- declared: include/zhinst/waveform/signal.hpp:57
+- defined:  src/waveform/signal.cpp:131
 
 ### `Signal::resizeSamples::newLength`  [unsure / medium / —]
 
@@ -408,8 +408,8 @@ Proposals:
 - `newLengthFrames` (low — same goal)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:71
-- defined:  src/signal.cpp:271-296
+- declared: include/zhinst/waveform/signal.hpp:71
+- defined:  src/waveform/signal.cpp:271-296
 
 ### `Signal::append(Signal&)::otherSamplesBegin` (local)  [unsure / low / —]
 
@@ -440,7 +440,7 @@ Proposals:
   this audit)
 
 Locations consulted:
-- defined: src/signal.cpp:235-263
+- defined: src/waveform/signal.cpp:235-263
 
 ### `SampleFormat::Cervino`  [no / high / not-misnomer]
 
@@ -466,8 +466,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:29
-- used:     src/signal.cpp:417 (default branch)
+- declared: include/zhinst/waveform/signal.hpp:29
+- used:     src/waveform/signal.cpp:417 (default branch)
 
 ### `SampleFormat::Hirzel16`  [no / medium / —]
 
@@ -497,8 +497,8 @@ Proposals:
   weakens the link to `RawWaveHirzel16`)
 
 Locations consulted:
-- declared: include/zhinst/signal.hpp:30
-- used:     src/signal.cpp:417
+- declared: include/zhinst/waveform/signal.hpp:30
+- used:     src/waveform/signal.cpp:417
 
 ## 4. Symbols inspected and judged routinely fine
 

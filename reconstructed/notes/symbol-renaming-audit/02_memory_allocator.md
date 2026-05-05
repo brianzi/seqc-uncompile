@@ -11,12 +11,12 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/memory_allocator.hpp`
-- `reconstructed/src/memory_allocator.cpp`
+- `reconstructed/include/zhinst/codegen/memory_allocator.hpp`
+- `reconstructed/src/codegen/memory_allocator.cpp`
 
 Cross-referenced (read-only):
-- `reconstructed/include/zhinst/device_constants.hpp`
-- `reconstructed/src/wavetable_ir.cpp` (only consumer of the public API)
+- `reconstructed/include/zhinst/device/device_constants.hpp`
+- `reconstructed/src/waveform/wavetable_ir.cpp` (only consumer of the public API)
 - `reconstructed/notes/symbol-renaming-audit/archive/36_cache.md`
   (cross-batch context for `unusedCacheLine` and `numSamples`/byte-vs-sample
   unit question)
@@ -97,8 +97,8 @@ Proposals:
   bit 8 is a property, not a validity bit.
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:32`
-- used: `src/memory_allocator.cpp:115-194,272-323`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:32`
+- used: `src/codegen/memory_allocator.cpp:115-194,272-323`
 
 ### MemoryAllocator::deviceConstants_  [no / high / not-misnomer]
 
@@ -123,8 +123,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:95`
-- used: `src/memory_allocator.cpp:48-66,116-194,210-247`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:95`
+- used: `src/codegen/memory_allocator.cpp:48-66,116-194,210-247`
 
 ### MemoryAllocator::lastAllocEnd_  [yes / medium / —]
 
@@ -163,8 +163,8 @@ Proposals:
 - `regionEnd_`      (low)
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:97`
-- used: `src/memory_allocator.cpp:51,301-306`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:97`
+- used: `src/codegen/memory_allocator.cpp:51,301-306`
 
 ### MemoryAllocator::memorySizeInSamples_  [unsure / low / cross-batch-arbitration]
 
@@ -201,8 +201,8 @@ Cross-reference:
   from `DeviceConstants::waveformMemorySize`.
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:98`
-- used: `src/memory_allocator.cpp:52,65,128,169,174-175,232`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:98`
+- used: `src/codegen/memory_allocator.cpp:52,65,128,169,174-175,232`
 
 ### MemoryAllocator::maxBlocksPerCL_  [yes / medium / —]
 
@@ -243,8 +243,8 @@ Proposals:
 - keep current          (low)
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:100`
-- used: `src/memory_allocator.cpp:54,170,227-231`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:100`
+- used: `src/codegen/memory_allocator.cpp:54,170,227-231`
 
 ### MemoryAllocator::numCacheLines_  [yes / medium / —]
 
@@ -279,8 +279,8 @@ Proposals:
 - keep current          (low)
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:103`
-- used: `src/memory_allocator.cpp:57,65,186`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:103`
+- used: `src/codegen/memory_allocator.cpp:57,65,186`
 
 ### MemoryAllocator::cacheLineUsage_  [no / medium / —]
 
@@ -305,8 +305,8 @@ Proposals:
 - `clOwner_`    (low) — slightly more precise but less obvious.
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:102`
-- used: `src/memory_allocator.cpp:66,128-131,177,183`
+- declared: `include/zhinst/codegen/memory_allocator.hpp:102`
+- used: `src/codegen/memory_allocator.cpp:66,128-131,177,183`
 
 ### MemoryAllocator::allocateCLAligned::size  [unsure / low / cross-batch-arbitration]
 
@@ -341,9 +341,9 @@ Cross-reference:
 - batch 36 `Cache::numSamples` family.
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:69`
-- used: `src/memory_allocator.cpp:96-194`; called from
-  `src/wavetable_ir.cpp:633,675`.
+- declared: `include/zhinst/codegen/memory_allocator.hpp:69`
+- used: `src/codegen/memory_allocator.cpp:96-194`; called from
+  `src/waveform/wavetable_ir.cpp:633,675`.
 
 ### MemoryAllocator::allocateReloadingCL::size  [unsure / low / cross-batch-arbitration]
 
@@ -367,9 +367,9 @@ Cross-reference:
 - batch 36 `Cache::numSamples` family.
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:75`
-- used: `src/memory_allocator.cpp:210-247`; called from
-  `src/wavetable_ir.cpp:687`.
+- declared: `include/zhinst/codegen/memory_allocator.hpp:75`
+- used: `src/codegen/memory_allocator.cpp:210-247`; called from
+  `src/waveform/wavetable_ir.cpp:687`.
 
 ### MemoryAllocator::allocateReloadingCL::usedAddrs  [yes / medium / —]
 
@@ -397,9 +397,9 @@ Proposals:
 - keep current        (low)
 
 Locations consulted:
-- declared: `include/zhinst/memory_allocator.hpp:76`
-- used: `src/memory_allocator.cpp:212,232-237`; called from
-  `src/wavetable_ir.cpp:687`.
+- declared: `include/zhinst/codegen/memory_allocator.hpp:76`
+- used: `src/codegen/memory_allocator.cpp:212,232-237`; called from
+  `src/waveform/wavetable_ir.cpp:687`.
 
 ### Cross-batch-context check: `unusedCacheLine` (batch 36)
 

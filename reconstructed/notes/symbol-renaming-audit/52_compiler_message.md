@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/compiler_message.hpp`
-- `reconstructed/src/compiler_message.cpp`
+- `reconstructed/include/zhinst/core/compiler_message.hpp`
+- `reconstructed/src/core/compiler_message.cpp`
 
 Binary symbol table consulted:
 `nm --demangle /home/brian/zhinst/seqc_compiler/_seqc_compiler.so`.
@@ -68,7 +68,7 @@ In-scope per §2: enum members, parameter names, data members, the
 ### CompilerMessage::CompilerMessageType::Error / Warning / Info  [no / high / not-misnomer]
 
 Evidence:
-- src/compiler_message.cpp:21 `static const char* typeNames[] = { "Compiler Error", "Warning", "Info" };`
+- src/core/compiler_message.cpp:21 `static const char* typeNames[] = { "Compiler Error", "Warning", "Info" };`
 - The string table lookup is indexed by the enum value, so `Error==0`,
   `Warning==1`, `Info==2` line up with positions 0,1,2 of `typeNames`.
 
@@ -85,16 +85,16 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/compiler_message.hpp:20-24
-- used:     src/compiler_message.cpp:18-38, src/seqc_ast_nodes_evaluate.cpp (via `errorMessage`)
+- declared: include/zhinst/core/compiler_message.hpp:20-24
+- used:     src/core/compiler_message.cpp:18-38, src/ast/seqc_ast_nodes_evaluate.cpp (via `errorMessage`)
 
 ### CompilerMessage::lineNr  [unsure / low / —]
 
 Evidence:
-- include/zhinst/compiler_message.hpp:27 `int lineNr;` (public POD field, no trailing underscore).
-- include/zhinst/compiler_message.hpp:53 `int lineNr_;` on `CompilerMessageCollection` (private, with underscore).
-- src/compiler_message.cpp:57 `if (it->lineNr == line && ...)` — read site.
-- src/compiler_message.cpp:64 `messages_.push_back(CompilerMessage{type, line, ...});` — write site as 2nd struct field.
+- include/zhinst/core/compiler_message.hpp:27 `int lineNr;` (public POD field, no trailing underscore).
+- include/zhinst/core/compiler_message.hpp:53 `int lineNr_;` on `CompilerMessageCollection` (private, with underscore).
+- src/core/compiler_message.cpp:57 `if (it->lineNr == line && ...)` — read site.
+- src/core/compiler_message.cpp:64 `messages_.push_back(CompilerMessage{type, line, ...});` — write site as 2nd struct field.
 
 Interpretation:
 - The semantic content of the name (a line number) matches usage
@@ -113,15 +113,15 @@ Proposals:
   reconstructed JSON keys; would still be in scope as a public field.
 
 Locations consulted:
-- declared: include/zhinst/compiler_message.hpp:27
-- used:     src/compiler_message.cpp:30,57,64
+- declared: include/zhinst/core/compiler_message.hpp:27
+- used:     src/core/compiler_message.cpp:30,57,64
 
 ### CompilerMessage::str::showLine  [yes / high / —]
 
 Evidence:
-- include/zhinst/compiler_message.hpp:31 `std::string str(bool showLine) const;`
-- src/compiler_message.cpp:30 `if (!showLine && lineNr > 0) { oss << " (line: " << lineNr << ")"; }`
-- src/awg_compiler.cpp:1206 `oss << msg.str(/*showLine=*/false) << "\n";  // @0x1040a1: str(false), @0x1040d4: "\n"`
+- include/zhinst/core/compiler_message.hpp:31 `std::string str(bool showLine) const;`
+- src/core/compiler_message.cpp:30 `if (!showLine && lineNr > 0) { oss << " (line: " << lineNr << ")"; }`
+- src/codegen/awg_compiler.cpp:1206 `oss << msg.str(/*showLine=*/false) << "\n";  // @0x1040a1: str(false), @0x1040d4: "\n"`
 
 Interpretation:
 - The branch that emits the `" (line: N)"` substring is taken when
@@ -142,21 +142,21 @@ Proposals:
   reconstruction has the polarity backwards (no evidence so far).
 
 Locations consulted:
-- declared: include/zhinst/compiler_message.hpp:31
-- defined:  src/compiler_message.cpp:18-38
-- used:     src/awg_compiler.cpp:1206
+- declared: include/zhinst/core/compiler_message.hpp:31
+- defined:  src/core/compiler_message.cpp:18-38
+- used:     src/codegen/awg_compiler.cpp:1206
 
 ### CompilerMessageCollection::parserMessage::line  [unsure / low / verify-not-original]
 
 Evidence:
-- include/zhinst/compiler_message.hpp:43 `void parserMessage(int line, const std::string& msg);`
-- src/compiler_message.cpp:87-90 forwards to
+- include/zhinst/core/compiler_message.hpp:43 `void parserMessage(int line, const std::string& msg);`
+- src/core/compiler_message.cpp:87-90 forwards to
   `compilerMessage(CompilerMessage::Error, line, msg)` and explicitly
   does **not** set `hadError_`.
 - A site-wide grep finds no external call sites of
   `CompilerMessageCollection::parserMessage` in `reconstructed/src/`;
   only `AWGAssemblerImpl::parserMessage` (a different method on a
-  different class, src/awg_assembler_impl_pipeline.cpp:572) is called.
+  different class, src/codegen/awg_assembler_impl_pipeline.cpp:572) is called.
 - That sibling `AWGAssemblerImpl::parserMessage(int level, std::string const& msg)`
   uses parameter name `level` and is used at lines 124/214/284 of
   awg_assembler_impl_pipeline.cpp passing a value named `code`.
@@ -187,18 +187,18 @@ Proposals:
 
 Cross-reference:
 - Sibling method `AWGAssemblerImpl::parserMessage(int level, std::string const&)`
-  — declared include/zhinst/awg_assembler_impl.hpp:153, defined
-  src/awg_assembler_impl_pipeline.cpp:572.
+  — declared include/zhinst/codegen/awg_assembler_impl.hpp:153, defined
+  src/codegen/awg_assembler_impl_pipeline.cpp:572.
 
 Locations consulted:
-- declared: include/zhinst/compiler_message.hpp:43
-- defined:  src/compiler_message.cpp:87-90
-- sibling:  include/zhinst/awg_assembler_impl.hpp:153, src/awg_assembler_impl_pipeline.cpp:124,214,284,572
+- declared: include/zhinst/core/compiler_message.hpp:43
+- defined:  src/core/compiler_message.cpp:87-90
+- sibling:  include/zhinst/codegen/awg_assembler_impl.hpp:153, src/codegen/awg_assembler_impl_pipeline.cpp:124,214,284,572
 
 ### CompilerMessageCollection::setLineNr::nr  [unsure / low / —]
 
 Evidence:
-- include/zhinst/compiler_message.hpp:47 `void setLineNr(int nr) { lineNr_ = nr; }`
+- include/zhinst/core/compiler_message.hpp:47 `void setLineNr(int nr) { lineNr_ = nr; }`
 - The setter is declared inline; the only thing the parameter does is
   get assigned to `lineNr_`.
 
@@ -216,7 +216,7 @@ Proposals:
   worth doing in a rename pass that also addresses the field name.
 
 Locations consulted:
-- declared: include/zhinst/compiler_message.hpp:47
+- declared: include/zhinst/core/compiler_message.hpp:47
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -225,7 +225,7 @@ Locations consulted:
 - `CompilerMessage::message` — holds the message text; matches usage.
 - `CompilerMessageCollection::compilerMessage::{type,line,msg}` — each
   argument is forwarded into the same-named struct slot.
-- `compilerMessage::text` (local in src/compiler_message.cpp:50) — a
+- `compilerMessage::text` (local in src/core/compiler_message.cpp:50) — a
   local `std::string` that is `msg` after stripping a trailing newline;
   name fits.
 - `CompilerMessageCollection::errorMessage::{msg,line}`,

@@ -366,13 +366,13 @@ From disassembly of seqc_parse's yyreduce switch (jump table at 0x960c5c):
 
 | File | Description | Status |
 |------|-------------|--------|
-| `src/seqc_parser.y` | Bison grammar | Grammar correct (yyr1/yyr2 exact match) |
-| `src/seqc_lexer.l` | Flex scanner | Functionally correct (yy_ec/yy_meta exact match) |
-| `src/seqc_parser.tab.c` | Generated parser | bison output |
-| `src/seqc_parser.tab.h` | Token enum | bison output |
-| `src/seqc_lexer.c` | Generated scanner | flex output |
-| `include/zhinst/seqc_parser_context.hpp` | Parser context | Updated with comment methods |
-| `src/seqc_parser_context.cpp` | Context impl | Comment/line tracking methods |
+| `src/ast/seqc_parser.y` | Bison grammar | Grammar correct (yyr1/yyr2 exact match) |
+| `src/ast/seqc_lexer.l` | Flex scanner | Functionally correct (yy_ec/yy_meta exact match) |
+| `src/ast/seqc_parser.tab.c` | Generated parser | bison output |
+| `src/ast/seqc_parser.tab.h` | Token enum | bison output |
+| `src/ast/seqc_lexer.c` | Generated scanner | flex output |
+| `include/zhinst/ast/seqc_parser_context.hpp` | Parser context | Updated with comment methods |
+| `src/ast/seqc_parser_context.cpp` | Context impl | Comment/line tracking methods |
 
 ## Assignment rules: `$1` vs `$$` field modification
 

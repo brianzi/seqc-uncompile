@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/play_config.hpp`
-- `reconstructed/src/play_config.cpp`
+- `reconstructed/include/zhinst/waveform/play_config.hpp`
+- `reconstructed/src/waveform/play_config.cpp`
 
 Cross-file usage surveyed in: `prefetch.cpp`, `prefetch_emit.cpp`,
 `prefetch_helpers.cpp`, `prefetch_placesingle.cpp`,
@@ -95,8 +95,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:30
-- used: src/play_config.cpp:36,77,105,132; src/asm_commands.cpp:989,1004; src/prefetch.cpp:131 (read), src/prefetch_helpers.cpp:194
+- declared: include/zhinst/waveform/play_config.hpp:30
+- used: src/waveform/play_config.cpp:36,77,105,132; src/asm/asm_commands.cpp:989,1004; src/codegen/prefetch.cpp:131 (read), src/codegen/prefetch_helpers.cpp:194
 
 ### PlayConfig::is4Channel  [no / high / not-misnomer]
 
@@ -129,8 +129,8 @@ Cross-reference:
   in batch 49 (asm_commands_impl) is the suspect side.
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:33
-- used: src/play_config.cpp:46,83,108,147; src/asm_commands.cpp:981; src/prefetch.cpp:131,395,427,450; src/prefetch_emit.cpp:334,380,424,459,480,534,603; src/prefetch_helpers.cpp:213,216
+- declared: include/zhinst/waveform/play_config.hpp:33
+- used: src/waveform/play_config.cpp:46,83,108,147; src/asm/asm_commands.cpp:981; src/codegen/prefetch.cpp:131,395,427,450; src/codegen/prefetch_emit.cpp:334,380,424,459,480,534,603; src/codegen/prefetch_helpers.cpp:213,216
 
 ### PlayConfig::markerBits  [no / high / not-misnomer]
 
@@ -153,8 +153,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:35
-- used: src/play_config.cpp:63,85,109,136; src/asm_commands.cpp:990,1010-1040
+- declared: include/zhinst/waveform/play_config.hpp:35
+- used: src/waveform/play_config.cpp:63,85,109,136; src/asm/asm_commands.cpp:990,1010-1040
 
 ### PlayConfig::precompFlags  [no / high / not-misnomer]
 
@@ -176,8 +176,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:37
-- used: src/play_config.cpp:65,89,111,140; src/asm_commands.cpp:983
+- declared: include/zhinst/waveform/play_config.hpp:37
+- used: src/waveform/play_config.cpp:65,89,111,140; src/asm/asm_commands.cpp:983
 
 ### PlayConfig::rate  [no / medium / not-misnomer]
 
@@ -208,8 +208,8 @@ Cross-reference:
   batch 49 is the suspect side.
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:31
-- used: src/play_config.cpp:31,39,79,94,106,144; src/asm_commands.cpp:979
+- declared: include/zhinst/waveform/play_config.hpp:31
+- used: src/waveform/play_config.cpp:31,39,79,94,106,144; src/asm/asm_commands.cpp:979
 
 ### PlayConfig::now  [unsure / low / cross-batch-arbitration]
 
@@ -257,8 +257,8 @@ Cross-reference:
   he-said/she-said.
 
 Locations consulted:
-- declared: include/zhinst/play_config.hpp:38
-- used: src/play_config.cpp:73,112,127; src/asm_commands.cpp:984; src/prefetch_splitplay.cpp:39-40,308,401; src/prefetch_placesingle.cpp:554,588,635,644,652,664,715
+- declared: include/zhinst/waveform/play_config.hpp:38
+- used: src/waveform/play_config.cpp:73,112,127; src/asm/asm_commands.cpp:984; src/codegen/prefetch_splitplay.cpp:39-40,308,401; src/codegen/prefetch_placesingle.cpp:554,588,635,644,652,664,715
 
 ### PlayConfig::encodeCwvf::dummyFlag  [yes / low / —]
 
@@ -285,7 +285,7 @@ Proposals:
 - keep current   (low)
 
 Locations consulted:
-- declared/used: src/play_config.cpp:33,36,53
+- declared/used: src/waveform/play_config.cpp:33,36,53
 
 ## 4. Symbols inspected and judged routinely fine
 

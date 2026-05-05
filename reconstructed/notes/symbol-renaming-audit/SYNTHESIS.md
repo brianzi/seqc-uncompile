@@ -346,7 +346,7 @@ this is a **focused micro-cluster pass** to do at execution time.
 | Batch | Scope | Conf |
 |---|---|---|
 | 29 | `sfc::*Option::Bit0xNNNN` enumerator family | high |
-| 41 | consumer tables `kMfliKnownOptions`, `kMfiaKnownOptions` in `src/device_mf.cpp` | high (lockstep) |
+| 41 | consumer tables `kMfliKnownOptions`, `kMfiaKnownOptions` in `src/device/device_mf.cpp` | high (lockstep) |
 | 54 | doc-comment cross-refs in `mf_sfc.cpp` | medium |
 
 Anchor: `29_device_type.md:27`, `54_mf_sfc.md`.
@@ -672,7 +672,7 @@ Compiler mirror is read by `Compiler::usedDeviceSampleRate()`, which
 ELF section.
 
 Recon: copy added to `Compiler::compile` at the analogous point
-(reconstructed/src/compiler.cpp Step 19b), with a public accessor
+(reconstructed/src/codegen/compiler.cpp Step 19b), with a public accessor
 `StaticResources::usedSampleRate()` added in the header to expose the
 private field through standard C++ access. **Status: fixed (writer
 found, recon now mirrors binary).** Both names stay as-is — they

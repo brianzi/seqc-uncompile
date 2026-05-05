@@ -47,7 +47,7 @@ these via `movaps xmm0, [rip+disp]` and stores them at fixed offsets
 in the output struct, batching adjacent uint32 fields.
 
 All values are cross-checked against the populated field assignments
-in `reconstructed/src/device_constants.cpp` and match exactly.
+in `reconstructed/src/device/device_constants.cpp` and match exactly.
 
 ## Sampling-rate doubles (IEEE-754 LE in .rodata)
 
@@ -84,7 +84,7 @@ Disassembly steps:
    ex, src_loc)` @ `0x270ab0`.
 
 Pattern is identical to the `ValueException` throw sites in
-`src/value.cpp` and the `Exception` throw sites in `src/device_type.cpp`
+`src/ast/value.cpp` and the `Exception` throw sites in `src/device/device_type.cpp`
 (reconstructed in 14b-ii-b2-followup).
 
 ## Field-population coverage
@@ -96,9 +96,9 @@ used a placeholder `std::runtime_error`.
 
 ## Cross-references
 
-- `getDeviceConstants` declared in `include/zhinst/device_constants.hpp`.
+- `getDeviceConstants` declared in `include/zhinst/device/device_constants.hpp`.
 - `DeviceConstants` struct: `static_assert(sizeof == 0x90)` (libstdc++).
-- `ZIAWGCompilerException` declared in `include/zhinst/exception.hpp`.
+- `ZIAWGCompilerException` declared in `include/zhinst/core/exception.hpp`.
 - Compare with sibling `getDeviceConstants(AwgDeviceType)` overload
   variant for `getAwgDeviceProps<>` family in `awg_device_props.cpp`
   (Phase 14b-iii) — same TU, same throw idiom.

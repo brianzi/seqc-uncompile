@@ -2,17 +2,17 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/seqc_parser_context.hpp`
-- `reconstructed/src/seqc_parser_context.cpp`
+- `reconstructed/include/zhinst/ast/seqc_parser_context.hpp`
+- `reconstructed/src/ast/seqc_parser_context.cpp`
 
 Cross-referenced (read-only) for usage:
-- `reconstructed/src/seqc_lexer.l`
-- `reconstructed/src/seqc_parser.y`
-- `reconstructed/src/expression.cpp`
-- `reconstructed/src/awg_assembler_impl_pipeline.cpp`
+- `reconstructed/src/ast/seqc_lexer.l`
+- `reconstructed/src/ast/seqc_parser.y`
+- `reconstructed/src/ast/expression.cpp`
+- `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp`
   (calls to `parserCtx_.setErrorCallback(...)`, `.hadSyntaxError()`)
-- `reconstructed/src/compiler.cpp`,
-  `reconstructed/include/zhinst/compiler.hpp`
+- `reconstructed/src/codegen/compiler.cpp`,
+  `reconstructed/include/zhinst/codegen/compiler.hpp`
   (owns `parserContext_`, exposes `hadSyntaxError()`)
 - Sibling batch reports: `50_asm_parser_context.md`,
   `07_compiler.md`, `15_cached_parser.md`.
@@ -103,9 +103,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:49
-- used:     src/seqc_parser_context.cpp:37–80;
-            src/seqc_lexer.l:55,62,71,76–256
+- declared: include/zhinst/ast/seqc_parser_context.hpp:49
+- used:     src/ast/seqc_parser_context.cpp:37–80;
+            src/ast/seqc_lexer.l:55,62,71,76–256
 
 ### SeqcParserContext::blockComment_ and SeqcParserContext::lineComment_  [unsure / low / coordinated-rename]
 
@@ -155,8 +155,8 @@ Cross-reference:
   follow that convention.
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:50–51
-- used:     src/seqc_parser_context.cpp:46–80,106–113
+- declared: include/zhinst/ast/seqc_parser_context.hpp:50–51
+- used:     src/ast/seqc_parser_context.cpp:46–80,106–113
 
 ### SeqcParserContext::hadSyntaxError_  [no / high / not-misnomer]
 
@@ -192,10 +192,10 @@ Cross-reference:
   also `not-misnomer`.
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:52
-- used:     src/seqc_parser_context.cpp:86–98,106–113;
-            src/compiler.cpp:605–608;
-            src/awg_assembler_impl_pipeline.cpp:264,488,588
+- declared: include/zhinst/ast/seqc_parser_context.hpp:52
+- used:     src/ast/seqc_parser_context.cpp:86–98,106–113;
+            src/codegen/compiler.cpp:605–608;
+            src/codegen/awg_assembler_impl_pipeline.cpp:264,488,588
 
 ### SeqcParserContext::currentLineNumber_  [no / high / not-misnomer]
 
@@ -231,9 +231,9 @@ Cross-reference:
   is later attempted.
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:54
-- used:     src/seqc_parser_context.cpp:19–31,106–113,137;
-            src/seqc_lexer.l:245
+- declared: include/zhinst/ast/seqc_parser_context.hpp:54
+- used:     src/ast/seqc_parser_context.cpp:19–31,106–113,137;
+            src/ast/seqc_lexer.l:245
 
 ### SeqcParserContext::pad_  [no / medium / —]
 
@@ -261,7 +261,7 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:55–56
+- declared: include/zhinst/ast/seqc_parser_context.hpp:55–56
 
 ### SeqcParserContext::errorCallback_  [no / high / not-misnomer]
 
@@ -292,9 +292,9 @@ Cross-reference:
   role; also `not-misnomer`.
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:58
-- used:     src/seqc_parser_context.cpp:120–145;
-            src/awg_assembler_impl_pipeline.cpp:123,213,283
+- declared: include/zhinst/ast/seqc_parser_context.hpp:58
+- used:     src/ast/seqc_parser_context.cpp:120–145;
+            src/codegen/awg_assembler_impl_pipeline.cpp:123,213,283
 
 ### SeqcParserContext::setErrorCallback::cb  [no / medium / —]
 
@@ -322,8 +322,8 @@ Proposals:
   descriptive but redundant with the function name; not flagging.
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:44–45
-- defined:  src/seqc_parser_context.cpp:120–124
+- declared: include/zhinst/ast/seqc_parser_context.hpp:44–45
+- defined:  src/ast/seqc_parser_context.cpp:120–124
 
 ### SeqcParserContext::raiseError::msg  [no / high / —]
 
@@ -348,11 +348,11 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/seqc_parser_context.hpp:32
-- defined:  src/seqc_parser_context.cpp:134–145
-- used:     src/seqc_parser.y:687;
-            src/seqc_lexer.l:65,256;
-            src/expression.cpp:589
+- declared: include/zhinst/ast/seqc_parser_context.hpp:32
+- defined:  src/ast/seqc_parser_context.cpp:134–145
+- used:     src/ast/seqc_parser.y:687;
+            src/ast/seqc_lexer.l:65,256;
+            src/ast/expression.cpp:589
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -367,8 +367,8 @@ Locations consulted:
 ## 5. Coverage
 
 - **Fully covered:** every in-scope symbol declared in
-  `include/zhinst/seqc_parser_context.hpp` and defined in
-  `src/seqc_parser_context.cpp` — all seven data members
+  `include/zhinst/ast/seqc_parser_context.hpp` and defined in
+  `src/ast/seqc_parser_context.cpp` — all seven data members
   (`isComment_`, `blockComment_`, `lineComment_`,
   `hadSyntaxError_`, `currentLineNumber_`, `pad_`,
   `errorCallback_`) and both method parameters

@@ -4,7 +4,7 @@ For a complete description of the ELF output format — all three variants,
 every section, segments, and reader-side consumption — see
 [elf_format.md](elf_format.md).
 
-ElfWriter (`src/elf_writer.cpp`, 248 lines, ctor 0x2934a0, prepareHeader,
+ElfWriter (`src/io/elf_writer.cpp`, 248 lines, ctor 0x2934a0, prepareHeader,
 addCode, addData, addWaveform, writeFile ×2, setMemoryOffset) was
 reconstructed in earlier phases without ambiguity. ElfReader required
 significant correction in Phase 14d, documented below.

@@ -12,15 +12,15 @@
 ## 1. Files considered
 
 In scope:
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp` lines **1–2610** only
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp` lines **1–2610** only
   (everything before the first `SeqCAstNode::evaluate` body at line 2611).
 
 Out-of-scope but consulted as context:
-- `reconstructed/include/zhinst/resources.hpp` lines 110–141
+- `reconstructed/include/zhinst/runtime/resources.hpp` lines 110–141
   (`VarTypeException`, `combine` decls — referenced by in-scope defs).
-- `reconstructed/include/zhinst/eval_results.hpp`
+- `reconstructed/include/zhinst/ast/eval_results.hpp`
   (field-name reference for `values_`, `assemblers_`).
-- `reconstructed/include/zhinst/frontend_lowering.hpp`
+- `reconstructed/include/zhinst/ast/frontend_lowering.hpp`
   (field-name reference for `messages`, `asmCommands`, `waveformGen`).
 - `_seqc_compiler.so` symbol table (`nm --demangle`) — used to
   establish §3 exclusions for free-function and type names.
@@ -122,8 +122,8 @@ functions' bodies.
 ### VarTypeException::msg_  [no / medium / not-misnomer]
 
 Evidence:
-- `reconstructed/include/zhinst/resources.hpp:121`  `std::string msg_;`
-- `reconstructed/src/seqc_ast_nodes_evaluate.cpp:54-55`  ctor stores
+- `reconstructed/include/zhinst/runtime/resources.hpp:121`  `std::string msg_;`
+- `reconstructed/src/ast/seqc_ast_nodes_evaluate.cpp:54-55`  ctor stores
   the parameter into `msg_`.
 - `:60`  `what()` returns `msg_.c_str()`.
 
@@ -206,7 +206,7 @@ Proposals:
   `negateWaveform`, but the *function name* is excluded by §3.)
 
 Locations consulted:
-- declared+defined: src/seqc_ast_nodes_evaluate.cpp:222-227, 382-390
+- declared+defined: src/ast/seqc_ast_nodes_evaluate.cpp:222-227, 382-390
 - callers: search of file shows only the 2-arg overload's name
   collides; the 1-arg overload's call sites are in 04c/d/e (not
   inspected here) — see comment at `:209-227`.

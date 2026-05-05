@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/resources.hpp`
-- `reconstructed/src/resources.cpp`
+- `reconstructed/include/zhinst/runtime/resources.hpp`
+- `reconstructed/src/runtime/resources.cpp`
 
 Out of scope (sub-batch 19b): `resources_function.cpp`,
 `resources_static_global.cpp`, `static_resources.cpp`,
@@ -576,10 +576,10 @@ Proposals:
 ## 5. Coverage
 
 **Fully covered:**
-- All declared symbols in `reconstructed/include/zhinst/resources.hpp`,
+- All declared symbols in `reconstructed/include/zhinst/runtime/resources.hpp`,
   including the nested `Variable` / `Function` / `State` types and
   static helper constants `VarFlag_Written`/`VarFlag_Frozen`.
-- All function/method bodies in `reconstructed/src/resources.cpp`,
+- All function/method bodies in `reconstructed/src/runtime/resources.cpp`,
   including their local variables.
 - Free functions `combine` (×2) and `str` (×2) at the parameter level
   (cross-checked against batch 04b).

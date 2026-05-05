@@ -11,8 +11,8 @@
 
 ## 1. Files considered
 
-- `reconstructed/include/zhinst/asm_optimize.hpp`
-- `reconstructed/src/asm_optimize.cpp`
+- `reconstructed/include/zhinst/asm/asm_optimize.hpp`
+- `reconstructed/src/asm/asm_optimize.cpp`
 
 `nm --demangle /home/brian/zhinst/seqc_compiler/_seqc_compiler.so`
 authoritatively names the type `zhinst::AsmOptimize`, the exception
@@ -140,8 +140,8 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared:  include/zhinst/asm_optimize.hpp:38-44, 183
-- used:      src/asm_optimize.cpp:47, 233, 249-280, 535, 661, 676
+- declared:  include/zhinst/asm/asm_optimize.hpp:38-44, 183
+- used:      src/asm/asm_optimize.cpp:47, 233, 249-280, 535, 661, 676
 
 ### `RegAction::RegAction_NotFound..RegAction_ReadWritten`  [yes / medium / —]
 
@@ -175,8 +175,8 @@ Proposals:
 - keep current  (low)
 
 Locations consulted:
-- declared:  include/zhinst/asm_optimize.hpp:47-52
-- used:      no symbolic uses in src/asm_optimize.cpp (raw integers
+- declared:  include/zhinst/asm/asm_optimize.hpp:47-52
+- used:      no symbolic uses in src/asm/asm_optimize.cpp (raw integers
   used instead at 144, 160, 167, 174, 177, 180).
 
 ### `AsmOptimize::cancel_`  [unsure / low / —]
@@ -204,8 +204,8 @@ Proposals:
 - `cancelCallback_`  (low)
 
 Locations consulted:
-- declared:  include/zhinst/asm_optimize.hpp:189
-- used:      src/asm_optimize.cpp:506, 977
+- declared:  include/zhinst/asm/asm_optimize.hpp:189
+- used:      src/asm/asm_optimize.cpp:506, 977
 
 ### `AsmOptimize::isLabelCalled` (method) and `::isLabelCalled::it` (param)  [unsure / low / —]
 
@@ -240,9 +240,9 @@ Proposals:
 - keep current  (medium) — and instead fix the comment
 
 Locations consulted:
-- declared:  include/zhinst/asm_optimize.hpp:114-115
-- defined:   src/asm_optimize.cpp:119-131
-- used:      src/asm_optimize.cpp:305 (deadCodeElimination)
+- declared:  include/zhinst/asm/asm_optimize.hpp:114-115
+- defined:   src/asm/asm_optimize.cpp:119-131
+- used:      src/asm/asm_optimize.cpp:305 (deadCodeElimination)
 
 ### `AsmOptimize::removeUnusedRegs::writeOnlyRegs` (local)  [yes / medium / —]
 
@@ -273,8 +273,8 @@ Proposals:
 - keep current         (low)
 
 Locations consulted:
-- declared:  src/asm_optimize.cpp:509
-- used:      src/asm_optimize.cpp:561-573
+- declared:  src/asm/asm_optimize.cpp:509
+- used:      src/asm/asm_optimize.cpp:561-573
 
 ### `AsmOptimize::splitConstRegisters::needsSplit` (local)  [yes / low / —]
 
@@ -300,7 +300,7 @@ Proposals:
 - keep current                  (low)
 
 Locations consulted:
-- src/asm_optimize.cpp:1252-1320
+- src/asm/asm_optimize.cpp:1252-1320
 
 ### `AsmList::Asm::isWaveformCmd` (cross-batch use here)  [yes / high / cross-batch-arbitration]
 
@@ -355,9 +355,9 @@ Cross-reference:
 - Batch 44 / asm_list (the field's owning header).
 
 Locations consulted:
-- src/asm_optimize.cpp:343, 454, 1148-1149, 1197, 1210, 1222
-- include/zhinst/asm_list.hpp:61, 88-92
-- (cross-batch) include/zhinst/assembler.hpp `isWaveformCmd` inline.
+- src/asm/asm_optimize.cpp:343, 454, 1148-1149, 1197, 1210, 1222
+- include/zhinst/asm/asm_list.hpp:61, 88-92
+- (cross-batch) include/zhinst/asm/assembler.hpp `isWaveformCmd` inline.
 
 ### `AsmList::Asm::lineNumber()` (cross-batch use here)  [no / high / not-misnomer]
 
@@ -388,8 +388,8 @@ Proposals:
 - keep current  (high)
 
 Locations consulted:
-- declared:  include/zhinst/asm_list.hpp:71-72
-- used:      src/asm_optimize.cpp:653, 669
+- declared:  include/zhinst/asm/asm_list.hpp:71-72
+- used:      src/asm/asm_optimize.cpp:653, 669
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -479,7 +479,7 @@ Locations consulted:
   - `registerAllocation::$_0` (lambda) — name is a compiler-mangled
     artefact, not a project-defined identifier.
 - **Cross-batch deferred:** the field `AsmList::Asm::isWaveformCmd`
-  (declared in `include/zhinst/asm_list.hpp:61`, batch 44) and the
+  (declared in `include/zhinst/asm/asm_list.hpp:61`, batch 44) and the
   free predicate `isWaveformCmd(const AssemblerInstr&)` (batch 26)
   are flagged for arbitration; both are observed and reinforced
   here but final renaming belongs to those batches' arbitration.

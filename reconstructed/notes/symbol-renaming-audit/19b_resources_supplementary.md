@@ -28,17 +28,17 @@ In-scope symbols are limited to:
 
 ## 1. Files considered
 
-- `reconstructed/src/resources_function.cpp` — `Resources::Function`
+- `reconstructed/src/runtime/resources_function.cpp` — `Resources::Function`
   method definitions and a few `Resources` free-store helpers
   (`functionExistsInScope`, `functionExists`, `getFunction`,
   `getPossibleFunctions`, `addFunction`, `getRegister`).
-- `reconstructed/src/resources_static_global.cpp` — `StaticResources`
+- `reconstructed/src/runtime/resources_static_global.cpp` — `StaticResources`
   ctor, dtor, `getVariable`. (`GlobalResources` ctor/dtor live in
   `global_resources.cpp`.)
-- `reconstructed/src/static_resources.cpp` — `StaticResources::init`
+- `reconstructed/src/runtime/static_resources.cpp` — `StaticResources::init`
   only.  All other `StaticResources` methods are in
   `resources_static_global.cpp`.
-- `reconstructed/src/global_resources.cpp` — `GlobalResources` ctor,
+- `reconstructed/src/runtime/global_resources.cpp` — `GlobalResources` ctor,
   dtor, TLS storage definitions for `regNumber`, `labelIndex`,
   `random[313]`.
 
@@ -179,7 +179,7 @@ Proposals:
   reconstructed as `rt` too).
 
 Locations consulted:
-- declared: include/zhinst/resources.hpp:308 (definition site), src/resources_function.cpp:81
+- declared: include/zhinst/runtime/resources.hpp:308 (definition site), src/runtime/resources_function.cpp:81
 
 ### Resources::addFunction::rt  [unsure / low / coordinated-rename]
 
@@ -206,7 +206,7 @@ Cross-reference:
   declarations in batch 19a.
 
 Locations consulted:
-- declared: include/zhinst/resources.hpp:431, src/resources_function.cpp:773
+- declared: include/zhinst/runtime/resources.hpp:431, src/runtime/resources_function.cpp:773
 
 ### StaticResources::init::n  [yes / low / —]
 
@@ -231,8 +231,8 @@ Proposals:
 - `portCount` (low) — shorter alternative.
 
 Locations consulted:
-- defined: src/static_resources.cpp:211
-- used:    src/static_resources.cpp:212–217
+- defined: src/runtime/static_resources.cpp:211
+- used:    src/runtime/static_resources.cpp:212–217
 
 ### GlobalResources::GlobalResources::parent  [unsure / low / cross-batch-arbitration]
 
@@ -269,9 +269,9 @@ Cross-reference:
   batch 19a.
 
 Locations consulted:
-- declared: include/zhinst/resources.hpp:570
-- defined:  src/global_resources.cpp:33
-- used:     src/global_resources.cpp:38
+- declared: include/zhinst/runtime/resources.hpp:570
+- defined:  src/runtime/global_resources.cpp:33
+- used:     src/runtime/global_resources.cpp:38
 
 ### GlobalResources::regNumber, labelIndex, random  [no / high / not-misnomer]
 
@@ -296,9 +296,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/resources.hpp:574–579 (header — out of
+- declared: include/zhinst/runtime/resources.hpp:574–579 (header — out of
   scope here, listed for context)
-- defined:  src/global_resources.cpp:11–13
+- defined:  src/runtime/global_resources.cpp:11–13
 
 ### StaticResources::init::config / deviceConstants  [no / high / not-misnomer]
 
@@ -325,9 +325,9 @@ Proposals:
 - keep current (high)
 
 Locations consulted:
-- declared: include/zhinst/resources.hpp:501–502
-- defined:  src/static_resources.cpp:51–52
-- used:     src/static_resources.cpp:58–253 (~30 reads)
+- declared: include/zhinst/runtime/resources.hpp:501–502
+- defined:  src/runtime/static_resources.cpp:51–52
+- used:     src/runtime/static_resources.cpp:58–253 (~30 reads)
 
 ### `kRate2GHzDeviceMask` (named constant)  [no / medium / —]
 
@@ -349,8 +349,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- defined: src/static_resources.cpp:107
-- used:    src/static_resources.cpp:110
+- defined: src/runtime/static_resources.cpp:107
+- used:    src/runtime/static_resources.cpp:110
 
 ### `extern const std::string` redeclarations in static_resources.cpp  [no / high / not-misnomer]
 
@@ -382,9 +382,9 @@ Cross-reference:
 - Defining batch 08 (`error_messages`).
 
 Locations consulted:
-- redeclared: src/static_resources.cpp:21–23
-- also redeclared: src/resources_static_global.cpp:24–26
-- canonical: src/error_messages.cpp (batch 08)
+- redeclared: src/runtime/static_resources.cpp:21–23
+- also redeclared: src/runtime/resources_static_global.cpp:24–26
+- canonical: src/core/error_messages.cpp (batch 08)
 
 ### Resources::Function::Function::name / signature mirroring  [no / medium / not-misnomer]
 
@@ -409,8 +409,8 @@ Proposals:
 - keep current (medium)
 
 Locations consulted:
-- defined: src/resources_function.cpp:79–93
-- used:    src/resources_function.cpp:210, 256–262, 574–581, 618–637,
+- defined: src/runtime/resources_function.cpp:79–93
+- used:    src/runtime/resources_function.cpp:210, 256–262, 574–581, 618–637,
            666–679, 770–784
 
 ### Resources::Function::addArguments(SeqCAstNode)::ps  [unsure / low / —]
@@ -433,8 +433,8 @@ Proposals:
 - keep current (low) — local scope is small.
 
 Locations consulted:
-- defined: src/resources_function.cpp:478
-- used:    src/resources_function.cpp:479
+- defined: src/runtime/resources_function.cpp:478
+- used:    src/runtime/resources_function.cpp:479
 
 ### StaticResources::StaticResources::target / ~StaticResources::target  [unsure / low / —]
 
@@ -465,8 +465,8 @@ Proposals:
 - keep current (low) — local scope.
 
 Locations consulted:
-- defined: src/resources_static_global.cpp:80, 109
-- used:    src/resources_static_global.cpp:81–83, 110–111
+- defined: src/runtime/resources_static_global.cpp:80, 109
+- used:    src/runtime/resources_static_global.cpp:81–83, 110–111
 
 ## 4. Symbols inspected and judged routinely fine
 
@@ -521,14 +521,14 @@ their use without recordable evidence either way):
 
 **Fully covered** (all four `.cpp` files in scope):
 
-- `reconstructed/src/resources_function.cpp` — every parameter, every
+- `reconstructed/src/runtime/resources_function.cpp` — every parameter, every
   local, no in-file constants/macros to consider.
-- `reconstructed/src/resources_static_global.cpp` — every parameter
+- `reconstructed/src/runtime/resources_static_global.cpp` — every parameter
   and local of the three method definitions; `extern` redeclarations.
-- `reconstructed/src/static_resources.cpp` — every parameter and
+- `reconstructed/src/runtime/static_resources.cpp` — every parameter and
   local of `init`; the file-local `kRate2GHzDeviceMask` constant;
   `extern` redeclarations.
-- `reconstructed/src/global_resources.cpp` — ctor parameter, ctor
+- `reconstructed/src/runtime/global_resources.cpp` — ctor parameter, ctor
   locals, the three TLS static data member definitions (excluded as
   tier-1).
 
