@@ -608,33 +608,91 @@ void Prefetch::determineFixedWaves() // 0x1cb200
 
             int devIdx = cur->deviceIndex;  // +0x40
 
-            // Get wave name at deviceIndex (binary checks devIdx >= 0 before access)
+            // Get wave name at deviceIndex (binary checks devIdx >= 0 before access)  // 0x1cb3df
             if (devIdx < 0)
                 break;
             auto& waveName = cur->wavesPerDev[devIdx];  // +0x28
             if (!waveName.has_value())
                 break;
 
-            // Look up WaveformIR
-            auto wfm = wavetableIR_->getWaveformByName(waveName);
-            if (!wfm) break;
-
-            // Already fixed? Skip
-            if (wfm->fixed_)  // +0xD9
-                break;
-
-            // Check size constraints
-            uint32_t maxAlloc = devConst_->maxBlocks * devConst_->waveformAlignment;  // @0x1cb5e3: imul edx, [rcx+0x14]
-            uint32_t wfmSize = (uint32_t)wfm->allocationByteSize;  // Waveform::allocationByteSize +0x74
-
-            // @0x1cb5ea: if allocationByteSize >= maxAlloc → skip (don't fix)
-            if (wfmSize >= maxAlloc) {
-                firstIteration = false;
-                break;
+            // First lookup: check if already fixed                                    // 0x1cb4bc
+            {
+                auto wfm = wavetableIR_->getWaveformByName(waveName);
+                if (wfm->fixed_)  // +0xD9, 0x1cb4cf
+                    break;
             }
 
-            // @0x1cb63d..onwards: allocationByteSize < maxAlloc → mark as fixed
-            wfm->fixed_ = true;  // +0xD9
+            // Second lookup: check size constraints                                   // 0x1cb5ce
+            {
+                auto waveNameAgain = cur->wavesPerDev[devIdx];  // re-read from node   // 0x1cb551
+                auto wfm2 = wavetableIR_->getWaveformByName(waveNameAgain);
+                uint32_t maxAlloc = devConst_->maxBlocks * devConst_->waveformAlignment;  // 0x1cb5e3
+                uint32_t wfmSize = (uint32_t)wfm2->allocationByteSize;  // +0x74
+
+                if (wfmSize >= maxAlloc) {                                              // 0x1cb5ea
+                    // Size too big — on first iteration, still mark fixed.
+                    // On subsequent iterations, do parent chain walk instead.
+                    if (firstIteration) {                                                // 0x1cb689
+                        // First iteration: mark fixed anyway                            // 0x1cb692
+                        auto waveNameMark = cur->wavesPerDev[devIdx];
+                        auto wfmMark = wavetableIR_->getWaveformByName(waveNameMark);
+                        wfmMark->fixed_ = true;  // 0x1cb9bf
+                    } else {
+                        // Parent chain walk                                             // 0x1cb6f3
+                        auto parentNode = cur->parent.lock();                            // 0x1cb6fd-0x1cb70d
+                        Node* ancestor = parentNode ? parentNode.get() : nullptr;
+
+                        while (ancestor) {
+                            if (ancestor->type == NodeType::Play) {                      // 0x1cb753-0x1cb75a
+                                // Check ancestor size: (bitsPerSample * length + 7) / 8
+                                int sizeVal = (int)(devConst_->bitsPerSample) * ancestor->length;  // 0x1cb76b-0x1cb76e
+                                int byteSize;
+                                if (sizeVal < 0)
+                                    byteSize = (sizeVal + 7) >> 3;  // 0x1cb776-0x1cb77e
+                                else
+                                    byteSize = sizeVal >> 3;
+                                int ancestorMaxAlloc = (int)(devConst_->sineNodeBase * devConst_->waveformAlignment);  // 0x1cb781
+                                if (byteSize > ancestorMaxAlloc)                         // 0x1cb785-0x1cb787
+                                    break;  // ancestor too big, stop walk
+
+                                // Get ancestor's wave name and check its fixed_ status  // 0x1cb78d-0x1cb870
+                                auto ancestorWaveName = ancestor->wavesPerDev[ancestor->deviceIndex];
+                                auto ancestorWfm = wavetableIR_->getWaveformByName(ancestorWaveName);
+                                bool ancestorFixed = ancestorWfm->fixed_;                // 0x1cb883
+
+                                if (!ancestorFixed) {                                    // 0x1cb8f0-0x1cb8f3
+                                    // Ancestor not fixed → mark CURRENT node's wfm as fixed  // 0x1cbae6
+                                    auto curWaveName = cur->waveAtCurrentDeviceIndex();  // 0x1cbafb
+                                    auto curWfm = wavetableIR_->getWaveformByName(curWaveName);
+                                    curWfm->fixed_ = true;                               // 0x1cbb17
+                                    break;
+                                }
+                                // Ancestor IS fixed → continue walking up               // 0x1cb916
+                            } else if (ancestor->type == NodeType::Loop ||
+                                       ancestor->type == NodeType::Branch) {             // 0x1cb904-0x1cb910
+                                // Loop/Branch ancestor → mark current node's wfm as fixed  // 0x1cba27
+                                auto curWaveName = cur->wavesPerDev[cur->deviceIndex];
+                                auto curWfm = wavetableIR_->getWaveformByName(curWaveName);
+                                curWfm->fixed_ = true;                                   // 0x1cbab1
+                                break;
+                            }
+                            // Walk to next ancestor                                     // 0x1cb916-0x1cb933
+                            auto nextParent = ancestor->parent.lock();
+                            ancestor = nextParent ? nextParent.get() : nullptr;
+                            parentNode = nextParent;  // keep shared_ptr alive
+                        }
+                    }
+                    firstIteration = false;
+                    break;
+                }
+            }
+
+            // Size < maxAlloc → mark as fixed                                         // 0x1cb692
+            {
+                auto waveNameMark = cur->wavesPerDev[devIdx];
+                auto wfmMark = wavetableIR_->getWaveformByName(waveNameMark);
+                wfmMark->fixed_ = true;  // 0x1cb9bf
+            }
 
             firstIteration = false;
         } while (false);
