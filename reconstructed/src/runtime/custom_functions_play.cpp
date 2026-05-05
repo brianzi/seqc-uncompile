@@ -1138,11 +1138,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   stack[6] = AsmRegister(-1)            → reg2
     //   stack[7] = 0                          → trigger
     //
-    // NOTE: unknowns.md #121 — r8b and r9b mappings have some uncertainty.
-    // The isHold and fourChannel register args were decoded from the sete/cmp
-    // pattern but the exact subFunc comparison value at each site has not been
-    // independently verified against the raw disasm bytes.
-    // The stack args (hold through trigger) are confident.
+    // NOTE: unknowns.md #121 (partial) — fourChannel: GDB confirmed cmp $0x3 (SubFunc::Now), fixed.
+    // isHold: binary uses movzbl -0x78(%rbp) (byte from combined/waveform ptr area), not a subFunc
+    // comparison; the exact source of -0x78(%rbp) is untraced. Keeping SubFunc::Aux as placeholder.
     AsmRegister regInvalid(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
     if (combined) {
@@ -1151,12 +1149,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     AsmList::Asm playEntry = asmCommands_->asmPlay(
         std::move(waveforms),
         /*deviceIndex=*/0,
-        /*isHold=*/(subFunc == SubFunc::Aux),                        // r8b: isAux flag
-        /*fourChannel=*/(subFunc == SubFunc::DigTrigger),             // r9b
+        /*isHold=*/(subFunc == SubFunc::Aux),  // r8b: NOTE unknowns.md #121 — binary loads -0x78(%rbp) byte, not a subFunc comparison; keeping Aux as placeholder until -0x78(%rbp) is traced
+        /*fourChannel=*/(subFunc == SubFunc::Now),   // r9b: GDB confirmed cmp $0x3 (Now), not DigTrigger
         /*hold=*/false,                                              // stack[0]
         /*rate=*/rate,                                               // stack[1]
         /*suppress=*/static_cast<unsigned int>(triggerMask),         // stack[2]: r13
-        /*is4Channel=*/(subFunc == SubFunc::Aux),                    // stack[3]
+        /*is4Channel=*/(subFunc == SubFunc::Aux),                    // stack[3]: GDB confirmed cmp $0x2 (Aux)
         indexReg,                                                    // stack[4]
         /*length=*/waveIndex,                                        // stack[5]
         regInvalid,                                                      // stack[6]
@@ -1492,7 +1490,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // source-level this is just `usedFeatures_.insert("MF")`.
         // The insert is UNCONDITIONAL — runs every time the oscselNodeRegex
         // matches.
-        // NOTE: unknowns.md #122 — what subsystem reads usedFeatures_["MF"] is unknown.
+        // Consumer: AWGCompilerImpl::getJsonVersion (awg_compiler.cpp:1182) reads
+        // usedFeatures_ and emits it as "required_options" JSON array. See unknowns.md #122.
         usedFeatures_.insert(tagMF);
     }
     // Binary: addNodeAccess, register allocation, address resolution, and

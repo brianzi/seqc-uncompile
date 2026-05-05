@@ -14,9 +14,8 @@ The full pre-2026-04-22 history is preserved in
 
 | #   | Title | Location | Notes |
 |-----|-------|----------|-------|
-| 120 | Error code for register-bound args in getAuxOutput3 | `custom_functions_registers.cpp:1333` | Exception thrown with code `0x3e` (approximated). Binary address `@0x1551b9` — needs GDB to read the actual immediate. |
-| 121 | r8b/r9b → isHold/fourChannel mapping in playZurichInstruments | `custom_functions_play.cpp:1144` | Decoded from sete/cmp pattern; exact subFunc comparison value at each register-assignment site not independently read from raw disasm bytes. Stack args (hold through trigger) are confident. |
-| 122 | What subsystem reads `usedFeatures_["MF"]` | `custom_functions_play.cpp:1498` | The insert is unconditional when oscselNodeRegex matches. The consumer of this map entry is unknown — no call site found reading the "MF" key. |
+| 121 | r8b (isHold) source in playZurichInstruments | `custom_functions_play.cpp:1155` | GDB confirmed fourChannel r9b = (subFunc == Now=3), fixed. isHold r8b = movzbl -0x78(%rbp): binary loads a byte from a stack location that holds the `combined` shared_ptr or adjacent data — exact semantic not yet traced. |
+
 
 ---
 
@@ -24,6 +23,8 @@ The full pre-2026-04-22 history is preserved in
 
 | #   | Title | Resolution |
 |-----|-------|-----------|
+| 122 | What subsystem reads `usedFeatures_["MF"]` | Consumer: `AWGCompilerImpl::getJsonVersion` at `awg_compiler.cpp:1182` reads the full `usedFeatures_` set and emits it as `"required_options"` JSON array. |
+| 120 | Error code for register-bound args in configFreqSweep | GDB @0x1551b4: `mov $0x41,%esi` → `ErrorMessages::format(FuncExpects3Const=65, "configFreqSweep")`. Previous approximation of `0x3e` was wrong. Fixed `custom_functions_registers.cpp`. |
 | 75  | cervino indexed nonsplit (2 stubs) | Resolved: play_cervino_indexed_nonsplit filled with prf(regH, regC, clampToCache(cacheSize/2)). Common indexed finalize split per-branch: Hirzel emits addr+goto play_common_prf; non-Hirzel emits addr+channels*totalSize+smap+addi+smap sequence. |
 | 45  | assembleAsmList register ordering | Resolved: verified from disasm — order is regDst(+0x28) → regAux(+0x30) → regSrc(+0x20) → outputs(+0x38) → label(+0x50). Fixed cout message to match binary strings. |
 | 55  | SeqcParserContext full layout (+0x08..+0x2F) | Resolved Phase 31d: full 0x38-byte layout decoded. +0x00..0x03 flag bytes, +0x04 lineNumber, +0x08 padding, +0x10 std::function errorCallback. All methods converted from raw-offset to typed member access. reset() and setErrorCallback() added. |

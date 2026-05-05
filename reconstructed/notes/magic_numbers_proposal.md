@@ -241,7 +241,7 @@ bare hex.
 | 0x11 | WriteMid | Multi-word write: 2nd word | `custom_functions.cpp:2361,6001` |
 | 0x12 | WriteHigh | Multi-word write: 3rd word (commit) | `custom_functions.cpp:2374,2421,2440,2528,2560` |
 | 0x13 | WriteHigh2 | Double-precision high 32 bits | `custom_functions.cpp:2489` |
-| 0x16 | WriteCommit | Commit/finalize node write | notes only (not yet in .cpp) |
+| 0x16 | WriteCommit | Commit/finalize node write | `kSuserNodeCommit` in `types.hpp:80`; used as `kSuserNodeCommit` in `custom_functions_play.cpp` |
 | 0x17 | DirectWrite | Single-value direct write | `custom_functions.cpp:2122-2302` (many) |
 | 0x19 | DirectWriteB | Companion for sine/stereo Q channel | `custom_functions.cpp:2178,2194` |
 | 0x1A | TriggerValue | Trigger value load | `custom_functions.cpp:4438,4460` |
@@ -404,10 +404,11 @@ The play() switch reconstruction was wrong (used 0-based cases); fixed to
 | 2 | 0x04 | Print SeqC AST |
 | 3 | 0x08 | Print instruction tree / assembly |
 
-### D2. Suser address 0x16 — "commit/finalize"
+### D2. Suser address 0x16 — "commit/finalize" — RESOLVED
 
-Documented in `writeToNode_block_d_protocol.md:277,280,286` but not
-yet present in reconstructed .cpp source.
+Named constant `kSuserNodeCommit = 0x16` defined in `types.hpp:80`.
+Used via `kSuserNodeCommit` in `custom_functions_play.cpp` write-to-node
+dispatch (e.g. line 1781). Was "notes only" when this file was written.
 
 ### D3. `ErrorMessageT` value 0x2F (47) — RESOLVED (Phase 22e)
 
