@@ -164,7 +164,7 @@ public:
     AttributeMap() = default;
 
     void SetAttribute(opentelemetry::nostd::string_view key,
-                      opentelemetry::common::AttributeValue value) {
+                      const opentelemetry::common::AttributeValue& value) {
         (void)key;
         (void)value;
     }
@@ -183,18 +183,34 @@ private:
 
 namespace resource {
 
-// Service-attribute container; produced by the static factory
-// `Resource::Create(attrs, schema_url)`.
+// Service-attribute container.  The binary layout is an AttributeMap
+// (unordered_map, 0x20 bytes on libc++) followed by a schema_url_
+// member.  `Resource::Create` is a named-ctor that copies attrs into
+// the internal map; direct SetAttribute is also supported.
 class Resource {
 public:
     Resource() = default;
 
+    void SetAttribute(opentelemetry::nostd::string_view key,
+                      const opentelemetry::common::AttributeValue& value) {
+        attribute_map_.SetAttribute(key, value);
+    }
+
+    const opentelemetry::sdk::common::AttributeMap& GetAttributes() const {
+        return attribute_map_;
+    }
+
     static Resource Create(const opentelemetry::sdk::common::AttributeMap& attrs,
                            const std::string& schema_url = std::string{}) {
-        (void)attrs;
-        (void)schema_url;
-        return Resource{};
+        Resource r;
+        r.attribute_map_ = attrs;
+        r.schema_url_ = schema_url;
+        return r;
     }
+
+private:
+    opentelemetry::sdk::common::AttributeMap attribute_map_;
+    std::string schema_url_;
 };
 
 }  // namespace resource

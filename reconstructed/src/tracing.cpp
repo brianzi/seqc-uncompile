@@ -57,15 +57,25 @@ const opentelemetry::sdk::trace::BatchSpanProcessorOptions
 
 }  // namespace
 
-// 0x0fa3b0
+// 0x0fa3b0  (415 bytes)
+// Binary constructs the Resource in-place as a function-local static,
+// zero-inits it, then calls SetAttribute 4 times directly on the
+// object's internal AttributeMap.  Each value is a stack-local variant
+// with type-tag 5 (const char*).  No intermediate AttributeMap +
+// Resource::Create path.
 const opentelemetry::sdk::resource::Resource& getDefaultLabOneResource() {
-    static const opentelemetry::sdk::resource::Resource resource = [] {
-        opentelemetry::sdk::common::AttributeMap attrs;
-        attrs.SetAttribute("service.name",       kServiceName);
-        attrs.SetAttribute("service.namespace",  kServiceNamespace);
-        attrs.SetAttribute("service.version",    kServiceVersion);
-        attrs.SetAttribute("service.commitHash", kCommitHash);
-        return opentelemetry::sdk::resource::Resource::Create(attrs, "");
+    static opentelemetry::sdk::resource::Resource resource = [] {
+        opentelemetry::sdk::resource::Resource r;
+        using AV = opentelemetry::common::AttributeValue;
+        AV v1{kServiceName};
+        r.SetAttribute(opentelemetry::nostd::string_view{"service.name", 12}, v1);
+        AV v2{kServiceNamespace};
+        r.SetAttribute(opentelemetry::nostd::string_view{"service.namespace", 17}, v2);
+        AV v3{kServiceVersion};
+        r.SetAttribute(opentelemetry::nostd::string_view{"service.version", 15}, v3);
+        AV v4{kCommitHash};
+        r.SetAttribute(opentelemetry::nostd::string_view{"service.commitHash", 18}, v4);
+        return r;
     }();
     return resource;
 }
