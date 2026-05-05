@@ -186,20 +186,8 @@ uint32_t asDecimal(CalVer const& v) {  // @0x1006e0
 // asBinary(CalVer const&) — @0x1007c0, 0x2b bytes
 //
 // Packs: year<<24 | (month & 0xFF)<<16 | (patch & 0xF)<<12 | (build & 0xFFF)
-//
-// Disassembly:
-//   mov eax, [rdi]        ; year (low 32 bits)
-//   mov ecx, [rdi+8]      ; month
-//   mov edx, [rdi+0x10]   ; patch
-//   and esi, 0xFFF, [rdi+0x18]  ; build & 0xFFF
-//   shl eax, 0x18
-//   movzx ecx, cl         ; month & 0xFF
-//   shl ecx, 0x10
-//   or  ecx, eax
-//   shl edx, 0x0c
-//   movzx eax, dx         ; (patch<<12) & 0xFFFF
-//   or  eax, ecx
-//   or  eax, esi
+// Note: movzx cl at month step masks to 8 bits; movzx dx at patch masks to
+// 16 bits (binary uses 12-bit shift so only low 4 bits of patch survive).
 // ---------------------------------------------------------------------------
 uint32_t asBinary(CalVer const& v) {  // @0x1007c0
     uint32_t r = static_cast<uint32_t>(v.year_) << 24;

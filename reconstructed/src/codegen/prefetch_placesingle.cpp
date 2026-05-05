@@ -71,10 +71,6 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     AsmList::Asm* placeholder = findPlaceholder(out, node);        // 0x1d7987
 
     // Copy the placeholder's wavetable-front context to the assembler.
-    // 0x1d79bf-0x1d79c7:
-    //   mov r14, [r15+0x70]    ; r14 = asmCommands_.get()
-    //   mov eax, [r12+0x88]    ; eax = placeholderAsm->wavetableFront
-    //   mov [r14+0x50], eax    ; asmCommands_->wavetableFrontIndex_ = eax
     asmCommands_->setWavetableFrontIndex(placeholder->wavetableFront);
 
     Node* np = node.get();
@@ -926,17 +922,12 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         int prfSize;
                         if (config_->isHirzel) {                   // 0x1da34f
                             // Hirzel: compute min(memCapacity * grainSize, totalSize, 0xfffff)
-                            // Disasm at 0x1da355..0x1da364:
-                            //   movzx ecx, BYTE PTR [r15+0x19]   ; ecx = config_->cacheType (channel selector)
-                            //   mov   rdx, QWORD PTR [r15+0x8]   ; rdx = devConst_
-                            //   mov   eax, DWORD PTR [rdx+0x14]  ; eax = devConst_->waveformAlignment (base grain)
-                            //   mov   edx, DWORD PTR [rdx+rcx*4+0x18]  ; edx = (uint32_t[])(&devConst_->cachePageCount)[cacheType]
-                            //   imul  edx, eax
-                            int channelIdx = config_->cacheType;                   // +0x19   // 0x1da355
-                            int baseGrain  = devConst_->waveformAlignment;         // devConst+0x14   // 0x1da35d
-                            // cachePageCount/maxBlocks form a uint32_t[2] starting at devConst+0x18
+                            // cacheType selects which entry in the devConst cachePageCount/maxBlocks
+                            // pair (uint32_t[2] at devConst+0x18); baseGrain at devConst+0x14.
+                            int channelIdx = config_->cacheType;
+                            int baseGrain  = devConst_->waveformAlignment;
                             int chanGrain  = (channelIdx == 0) ? devConst_->cachePageCount
-                                                               : devConst_->maxBlocks;     // 0x1da360
+                                                               : devConst_->maxBlocks;
                             int capacity = baseGrain * chanGrain;
                             // totalSize is the outer-scope variable set in indexed
                             // branches above (lines ~493/529/581). Stack slot
@@ -1015,14 +1006,10 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             AsmRegister reg1(resources_->getRegisterNumber());     // 0x1d7bbf
             AsmRegister reg2(resources_->getRegisterNumber());     // 0x1d7bd2
 
-            // Disasm at 0x1d7be5..0x1d7bef:
-            //   mov  rax, QWORD PTR [r15]            ; rax = config_
-            //   xor  r8d, r8d
-            //   cmp  DWORD PTR [rax+0x24], 0x0       ; check config_->deviceIndex == 0
-            //   sete r8b                             ; r8b = (deviceIndex == 0)
+            // Disasm at 0x1d7be5..0x1d7bef: noSeq = (config_->deviceIndex == 0)
             // The 4th syncCervino arg ("noSeq") is set when this is the sync/main
             // core (deviceIndex == 0). No separate "seqCount" field exists.
-            bool noSeq = (cfg->deviceIndex == 0);                 // 0x1d7beb
+            bool noSeq = (cfg->deviceIndex == 0);
 
             AsmList syncList = asmCommands_->syncCervino(reg1, reg2, noSeq); // 0x1d7c0b
 

@@ -123,8 +123,6 @@ void CustomFunctions::setWaitCyclesReg(std::vector<EvalResultValue> const& args,
     }
 
     // @0x15cd58: move results shared_ptr to output (return value via hidden first arg)
-    // movups xmm0, [rbx]; movups [rdi], xmm0; xorps+movups zero rbx
-    // This is the shared_ptr move: *outPtr = std::move(results);
 }
 
 // mergeWaveforms @0x15e060 — 2956 bytes (0x15e060..0x15eb1c)
@@ -922,7 +920,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             auto const& bits = wa.bits;
             if (bits.empty()) continue;
 
-            int shift = static_cast<int>(i) * 7;                   // lea eax,[r14*8]; sub eax,r14d → i*7
+            int shift = static_cast<int>(i) * 7;  // i*7 = i*8 - i (lea + sub)
             for (auto it = bits.begin(); it != bits.end(); ++it) {  // @0x161523 (SIMD) / @0x1615d0 (scalar)
                 int bit = *it;
                 triggerMask &= ~(1 << ((bit - 1) + shift));
@@ -1684,7 +1682,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     double d = valRef.value_.toDouble();           // @0x165025
                     float f = static_cast<float>(d);               // cvtsd2ss
                     int fbits;
-                    std::memcpy(&fbits, &f, sizeof(fbits));        // movd esi,xmm0
+                    std::memcpy(&fbits, &f, sizeof(fbits));
                     {
                         auto vec = asmCommands_->addi(             // @0x165082
                             destReg, AsmRegister(0), Immediate(fbits));
@@ -1706,7 +1704,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     double d = valRef.value_.toDouble();           // @0x165149
                     int64_t rawBits;
-                    std::memcpy(&rawBits, &d, sizeof(rawBits));    // movq rbx,xmm0
+                    std::memcpy(&rawBits, &d, sizeof(rawBits));
                     int low32 = static_cast<int>(rawBits);         // truncate
                     {
                         auto vec = asmCommands_->addi(             // @0x165182
@@ -1852,7 +1850,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         double dHi = valRef.value_.toDouble();
                         int64_t rawHi;
                         std::memcpy(&rawHi, &dHi, sizeof(rawHi));
-                        int high32 = static_cast<int>(rawHi >> 32);       // shr rbx,0x20
+                        int high32 = static_cast<int>(rawHi >> 32);
                         auto vec = asmCommands_->addi(
                             destReg, AsmRegister(0), Immediate(high32));
                         localList.entries.insert(localList.entries.end(),
@@ -1869,7 +1867,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         double dF2  = valRef.value_.toDouble();           // re-read
                         double clk2 = getSampleClock();
                         int64_t freq2 = NodeMap::toFrequency(dF2, clk2);
-                        int freqHigh32 = static_cast<int>(freq2 >> 32);   // shr rbx,0x20
+                        int freqHigh32 = static_cast<int>(freq2 >> 32);
                         auto vec = asmCommands_->addi(
                             destReg, AsmRegister(0), Immediate(freqHigh32));
                         localList.entries.insert(localList.entries.end(),

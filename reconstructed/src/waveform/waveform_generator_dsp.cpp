@@ -1068,10 +1068,10 @@ Signal WaveformGenerator::lfsrGaloisMarker(std::vector<Value> const& args) {   /
     uint32_t state = static_cast<uint32_t>(initial);                           // r15d = initial at 0x254035
     for (int i = 0; i < length; ++i) {                                         // 0x254056
         uint32_t lsb = state & 1;
-        state >>= 1;                                                           // shr r15d, 1
+        state >>= 1;
         if (lsb) {
             sig.append(0.0, markerByte);                                       // 0x254068
-            state ^= static_cast<uint32_t>(poly);                              // xor r15d, r13d
+            state ^= static_cast<uint32_t>(poly);
         } else {
             sig.append(0.0, 0);                                                // 0x254049
         }

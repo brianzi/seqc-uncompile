@@ -4,16 +4,13 @@ namespace zhinst {
 
 // 0x285180
 AWGAssemblerImpl::AWGAssemblerImpl(DeviceConstants const& dc)
-    : deviceConstants_(&dc),       // mov %rsi, (%rdi)
-      filename_(),                  // 0x08-0x1f zeroed (16 bytes xmm0)
-      asmSource_(),                // 0x20-0x37 zeroed
-      unusedStr038_(),                 // 0x38-0x4f zeroed
-      // 0x38-0x47 zeroed
-      // 0x48-0x57 zeroed
-      // 0x58-0x67 zeroed
-      opcodes_(),                  // 0x50-0x67 zeroed (vector: begin/end/cap)
-      memoryOffset_(0),            // 0x68 = 0
-      pad_memOffset_(0)            // 0x6c = pad
+    : deviceConstants_(&dc),
+      filename_(),                  // 0x08-0x1f zeroed (16 bytes xmm0 store — SSO buffer)
+      asmSource_(),
+      unusedStr038_(),
+      opcodes_(),                  // 0x50-0x67: begin/end/cap zeroed
+      memoryOffset_(0),
+      pad_memOffset_(0)
       // currentLine_ = 0 by in-class initializer (0x70)
       // pad_currentLine_ = 0 by in-class initializer (0x74)
 {
@@ -63,13 +60,12 @@ AWGAssemblerImpl::~AWGAssemblerImpl()
 // 0x288560
 void AWGAssemblerImpl::setMemoryOffset(unsigned int offset)
 {
-    memoryOffset_ = offset;  // mov %esi, 0x68(%rdi)
+    memoryOffset_ = offset;
 }
 
 // 0x289060
 std::vector<uint32_t> const& AWGAssemblerImpl::getOpcode() const
 {
-    // lea 0x50(%rdi), %rax — returns pointer to opcodes_ vector
     return opcodes_;
 }
 

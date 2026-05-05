@@ -385,7 +385,7 @@ void Prefetch::countBranches(std::shared_ptr<Node> node) // 0x1c9b30
 
     while (!stack.empty()) {                      // 0x1c9bd0
         auto current = stack.back();              // -0x40(%rbp)
-        stack.pop_back();                         // pop + refcount decrement
+        stack.pop_back();
 
         if (!current)
             continue;

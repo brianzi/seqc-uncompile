@@ -424,7 +424,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
         auto const& bits = wa.bits;
         if (bits.empty()) continue;
 
-        int shift = static_cast<int>(i) * 7;  // lea eax, [r14*8]; sub eax, r14d → i*7
+        int shift = static_cast<int>(i) * 7;  // i*7 = i*8 - i (lea + sub)
         // SIMD loop clears bits in mask based on channel assignments           // @0x134114
         for (auto it = bits.begin(); it != bits.end(); ++it) {
             int bit = *it;

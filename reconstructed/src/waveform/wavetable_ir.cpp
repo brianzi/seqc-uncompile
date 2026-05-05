@@ -860,16 +860,16 @@ void WavetableIR::assignWaveformAllocationSizes() {                 // @0x29f1d0
             size_t sampleCount = wf->signal.length();                  // +0xD0
 
             // Align sample count same way as alignWaveformSizes
-            uint32_t granularity = deviceConstants_->grainSize;  // DC+0x44
+            uint32_t granularity = deviceConstants_->grainSize;
             size_t aligned = ((sampleCount + granularity - 1) / granularity)
                              * granularity;
-            size_t maxSamples = deviceConstants_->maxWaveformLength;  // DC+0x40
+            size_t maxSamples = deviceConstants_->maxWaveformLength;
             // Binary uses cmova (max), NOT min — verified GDB @0x2aa4b3:
             // cmp %eax,%r8d; cmova %r8d,%eax → eax = max(aligned, granularity)
             if (maxSamples > aligned) aligned = maxSamples;
 
             // Compute allocation: aligned_samples * channels * bitsPerSample
-            uint32_t bps = deviceConstants_->bitsPerSample;            // DC+0x50
+            uint32_t bps = deviceConstants_->bitsPerSample;
             size_t bits = aligned * channelCount * bps;
             size_t bytes = (bits + 7) / 8;
 

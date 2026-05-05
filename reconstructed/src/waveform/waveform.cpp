@@ -199,7 +199,7 @@ Waveform Waveform::fromJson(boost::json::value const& json,
     auto const& typeJsonStr = obj.at("type").as_string();
     const char* typeCStr = typeJsonStr.data();
     std::string typeLocalStr(typeCStr, strlen(typeCStr));
-    File::Type fileType = File::typeFromStr(std::move(typeLocalStr));  // call 0x2a63c0
+    File::Type fileType = File::typeFromStr(std::move(typeLocalStr));
     // 0x2a571e: store result at [rbp-0xa4] (mov DWORD)
 
     // --- 3. Read "functionArgs" ---
@@ -623,16 +623,17 @@ Waveform::Waveform(std::shared_ptr<Waveform> source, std::string newName)  // 0x
 
     // 0x114fd2-0x114fd6: copy 8 bytes (playConfig + waveIndex together)
     playConfig = src->playConfig;                       // +0x68 ← [src+0x68]
-    waveIndex = src->waveIndex;                     // +0x6C ← [src+0x6C]
+    waveIndex = src->waveIndex;
 
     // 0x114fda-0x114fea
-    minLengthSamples = src->minLengthSamples;                 // +0x70 ← [src+0x70]
-    allocationByteSize = src->allocationByteSize;                         // +0x74 ← [src+0x74]
-    deviceConstants = src->deviceConstants;          // +0x78 ← [src+0x78]
+    minLengthSamples = src->minLengthSamples;
+    allocationByteSize = src->allocationByteSize;
+    deviceConstants = src->deviceConstants;
 
-    // 0x114fee-0x114ff9: copy-construct Signal
+    // 0x114fee-0x114ff9: copy-construct Signal via placement new +
+    // explicit Signal::Signal(const&) call (not a bitwise copy — vtable safe)
     // lea rdi, [rbx+0x80]; sub rsi, -0x80; call Signal::Signal(const&)
-    new (&signal) Signal(src->signal);              // +0x80 ← Signal copy ctor at 0x1150e0
+    new (&signal) Signal(src->signal);              // +0x80
 }
 
 // ============================================================================

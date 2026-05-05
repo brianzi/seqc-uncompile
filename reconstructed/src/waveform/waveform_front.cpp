@@ -57,12 +57,11 @@ WaveformFront::WaveformFront(std::shared_ptr<WaveformFront> source,
     : Waveform(std::shared_ptr<Waveform>(source), std::string(newName))
 {
     // --- Extension field initialization ---
-    useCount_ = 1;            // mov DWORD PTR [rbx+0xd8], 1
-    dirty_  = false;        // mov BYTE PTR [rbx+0xdc], 0
+    useCount_ = 1;
+    dirty_  = false;
 
     // Copy hasDuplicate_ from source
-    hasDuplicate_ = source->hasDuplicate_;  // movzx ecx, BYTE PTR [rax+0xdd]
-                                       // mov BYTE PTR [rbx+0xdd], cl
+    hasDuplicate_ = source->hasDuplicate_;
 
     // Copy the genArgs_ vector from source (element-wise, each Value is 0x28 bytes)
     // The binary zero-inits the vector then allocates and uses

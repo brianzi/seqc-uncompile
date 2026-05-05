@@ -146,7 +146,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
     // Compute aligned size
     uint32_t pageSize = pageSize_;
     if (cacheType == CacheType::Aligned) {
-        pageSize = pageSize_ * 2;  // shl by 1
+        pageSize = pageSize_ * 2;
     }
     uint32_t remainder = numSamples % pageSize;
     uint32_t alignedSize;

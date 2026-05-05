@@ -14,7 +14,6 @@ namespace zhinst {
 
 // ----------------------------------------------------------------------------
 // 0x247c80 — currentLineNumber() const
-//   mov eax, [rdi+0x4] ; ret
 // ----------------------------------------------------------------------------
 int32_t SeqcParserContext::currentLineNumber() const  // 0x247c80
 {
@@ -23,7 +22,6 @@ int32_t SeqcParserContext::currentLineNumber() const  // 0x247c80
 
 // ----------------------------------------------------------------------------
 // 0x247c90 — incrementLineNumber()
-//   inc DWORD [rdi+0x4] ; ret
 // ----------------------------------------------------------------------------
 void SeqcParserContext::incrementLineNumber()  // 0x247c90
 {
@@ -32,7 +30,6 @@ void SeqcParserContext::incrementLineNumber()  // 0x247c90
 
 // ----------------------------------------------------------------------------
 // 0x247bf0 — isComment() const
-//   movzx eax, BYTE [rdi] ; ret
 // ----------------------------------------------------------------------------
 bool SeqcParserContext::isComment() const  // 0x247bf0
 {
@@ -85,7 +82,6 @@ void SeqcParserContext::endLineComment()  // 0x247c20
 
 // ----------------------------------------------------------------------------
 // 0x247ca0 — hadSyntaxError() const
-//   movzx eax, BYTE [rdi+3] ; ret
 // ----------------------------------------------------------------------------
 bool SeqcParserContext::hadSyntaxError() const  // 0x247ca0
 {
@@ -94,7 +90,6 @@ bool SeqcParserContext::hadSyntaxError() const  // 0x247ca0
 
 // ----------------------------------------------------------------------------
 // 0x247cb0 — setSyntaxError()
-//   mov BYTE [rdi+3], 1 ; ret
 // ----------------------------------------------------------------------------
 void SeqcParserContext::setSyntaxError()  // 0x247cb0
 {
@@ -103,7 +98,6 @@ void SeqcParserContext::setSyntaxError()  // 0x247cb0
 
 // ----------------------------------------------------------------------------
 // 0x247cc0 — reset()
-//   movabs rax, 0x100000000 ; mov [rdi], rax ; ret
 // Clears flags (bytes 0-3) to 0, sets currentLineNumber (+0x04) to 1.
 // Does NOT reset errorCallback_.
 // ----------------------------------------------------------------------------

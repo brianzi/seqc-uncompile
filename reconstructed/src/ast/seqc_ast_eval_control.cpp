@@ -937,7 +937,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
 //   Returns true if the cases child (body_/body()) is non-null.
 bool SeqCSwitchCase::hasCases() const                                // @0x202760
 {
-    return body() != nullptr;                                        // cmp [rdi+0x20], 0; setne al
+    return body() != nullptr;
 }
 
 // SeqCSwitchCase::isSingleCase() — @0x202730
