@@ -1,0 +1,112 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "hdawg4": {
+      "devtype": "HDAWG4",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfqa2_qa": {
+      "devtype": "SHFQA2",
+      "sequencer": "qa"
+    },
+    "shfqc_qa": {
+      "devtype": "SHFQC",
+      "sequencer": "qa"
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    },
+    "shfsg4": {
+      "devtype": "SHFSG4"
+    },
+    "shfsg2": {
+      "devtype": "SHFSG2"
+    },
+    "shfsg8": {
+      "devtype": "SHFSG8"
+    },
+    "uhfli": {
+      "devtype": "UHFLI"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA"
+    },
+    "uhfawg": {
+      "devtype": "UHFAWG"
+    },
+    "ghfli": {
+      "devtype": "GHFLI"
+    },
+    "vhfli": {
+      "devtype": "VHFLI"
+    },
+    "shfli": {
+      "devtype": "SHFLI"
+    }
+  },
+  "groups": [
+    {
+      "name": "error_validation",
+      "comment": "Compiler error and warning tests - validates error messages match binary",
+      "tags": [
+        "errors",
+        "validation"
+      ],
+      "cases": [
+        {
+          "name": "err_undefined_var",
+          "file": "err_undefined_var.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "err_wave_length",
+          "file": "err_wave_length.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "err_unsupported_func",
+          "file": "err_unsupported_func.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "err_redefine_builtin",
+          "file": "err_redefine_builtin.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "err_wave_amplitude",
+          "file": "err_wave_amplitude.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "err_wave_as_int",
+          "file": "err_wave_as_int.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        }
+      ]
+    }
+  ]
+}

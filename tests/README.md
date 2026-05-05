@@ -4,6 +4,8 @@ Validates the reconstructed SeqC compiler against the original binary by
 compiling the same SeqC programs with both and comparing the ELF output
 section-by-section.
 
+**Test suite size:** 1346 test cases across 14 device types, organized into 8 groups
+
 ## Architecture
 
 ```
@@ -11,8 +13,11 @@ diff_test.py            ← original test harness (for single tests / debugging)
 diff_test_fast.py      ← fast batch runner (preferred for full suite)
 compile_worker.py      ← subprocess that loads one .so and compiles
 compile_worker_batch.py← batch worker for fast runner
+dump_elf.py            ← ELF section-by-section comparison/analysis tool
+symbol_size_compare.py ← binary symbol size analysis tool
+gdb/                   ← GDB trace helper scripts for debugging
 cases/
-  manifest.json        ← test case definitions
+  manifest.json        ← test case definitions (or manifest-*.json group files)
   *.seqc               ← SeqC source files (referenced by manifest)
 ```
 
@@ -92,6 +97,27 @@ python3 tests/diff_test.py --filter hdawg
 python3 tests/diff_test.py --filter shfqa
 ```
 
+**Working with the large test suite:**
+
+The test suite contains 1346 tests. Common filtering strategies:
+
+```bash
+# Run only HDAWG tests
+python3 tests/diff_test_fast.py --filter hdawg
+
+# Run documentation examples
+python3 tests/diff_test_fast.py --filter _doc_
+
+# Run error validation tests
+python3 tests/diff_test_fast.py --filter err_
+
+# Run a specific test
+python3 tests/diff_test.py --filter hdawg_playZero -v
+```
+
+For more advanced filtering (by tags, groups), see the manifest v2.0 format
+documentation in `MANIFEST_FORMAT.md`.
+
 ### Verbose output
 
 ```bash
@@ -155,3 +181,100 @@ When both compilers succeed:
 When one or both error:
 - Both error with identical message → **PASS**
 - Different errors or only one errors → **FAIL**
+
+## Debugging Tools
+
+### dump_elf.py - Detailed ELF comparison
+
+When a test fails with byte differences, use `dump_elf.py` to see exactly
+what differs:
+
+```bash
+# Compare original vs recon for a specific test
+python3 tests/dump_elf.py tests/cases/hdawg_playZero.seqc HDAWG8 \
+    --samplerate 2.4e9 --both
+
+# Dump original only
+python3 tests/dump_elf.py tests/cases/shfqa_feedback.seqc SHFQA4 \
+    --sequencer qa
+
+# Dump recon only
+python3 tests/dump_elf.py tests/cases/some_test.seqc HDAWG8 \
+    --samplerate 2.4e9 --recon
+```
+
+With `--both`, it compiles with both compilers and shows a side-by-side
+comparison of all differing sections. Identical sections are shown as
+one-liners. This is the primary workflow for understanding test failures.
+
+Key sections to check:
+- `.asm` - Sequencer instruction disassembly (text diff)
+- `.text` - Raw instruction bytes (binary diff)
+- `.waveforms` - Waveform metadata JSON
+- `.wf_*` - Waveform sample data
+- `.wavemem` - Memory usage accounting
+
+### symbol_size_compare.py - Binary size analysis
+
+Compare function sizes between original and reconstructed binaries to identify
+optimization mismatches:
+
+```bash
+python3 tests/symbol_size_compare.py \
+    --orig _seqc_compiler.so \
+    --recon reconstructed/build/_seqc_compiler.so
+```
+
+**Note:** Build the recon binary with `-O2` (Release mode) for meaningful
+comparison. Debug builds (`-O0`) will show large size ratios everywhere.
+
+### gdb/ - GDB trace helpers
+
+The `gdb/` directory contains Python scripts for tracing the original binary's
+execution under GDB. These are invaluable for understanding control flow and
+verifying reconstruction hypotheses.
+
+**Key scripts:**
+- `gdb_trace.py` - Generic UHFLI trace (placeholder test)
+- `gdb_trace_hdawg.py` - HDAWG executeTableEntry test
+- `gdb_trace_multi.py` - Multi-waveform test
+- `gdb_playzero.py` - playZero with ternary argument
+- `gdb_trace_moveloads.txt` - GDB command file for Prefetch tracing
+
+**Usage example:**
+
+```bash
+# Run a trace script under GDB
+gdb -batch -x tests/gdb/some_commands.txt \
+    --args python3 tests/gdb/gdb_trace_hdawg.py 2>&1 | grep ">>>"
+```
+
+See `gdb/README.md` for detailed debugging workflows and best practices.
+
+## Test Organization
+
+Tests are organized in manifest files under `tests/cases/`. The manifest format
+supports both v1.0 (flat array) and v2.0 (hierarchical groups with imports).
+
+**Current organization (8 top-level groups, 1346 tests):**
+
+| Group | Tests | Description |
+|-------|-------|-------------|
+| `core` | 234 | Core functionality - basic instructions, control flow, waveforms |
+| `ziai` | 459 | ZIAI (compiler analysis) - validation of individual SeqC constructs across devices |
+| `ziasm` | 468 | ZIASM (assembler) - low-level assembly tests in 11 subgroups (conditionals, firmware, misc, playconfig, prefetching, readout, register, triggers, user, various, waits) |
+| `documentation_examples` | 92 | Examples from product documentation and user guides |
+| `zhinst` | 60 | Zurich Instruments tools (webserver AWG presets) |
+| `labone_examples` | 14 | LabOne software integration examples |
+| `large_programs` | 13 | Large complex programs - stress tests |
+| `error_validation` | 6 | Compiler error and warning message validation |
+
+**Manifest files:**
+- `manifest.json` - Main file (v2.0 format, imports all group manifests)
+- `manifest-{group}.json` - Individual group manifests
+- `manifest.v1.json` - Backup of original flat format
+
+Tests can be filtered by name pattern, group, or tags (v2.0 manifests only).
+
+See `MANIFEST_FORMAT.md` for complete documentation on adding tests, using
+groups, and defining reusable configurations.

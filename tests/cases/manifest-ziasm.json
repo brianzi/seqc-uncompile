@@ -1,0 +1,3208 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "hdawg4": {
+      "devtype": "HDAWG4",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfqa2_qa": {
+      "devtype": "SHFQA2",
+      "sequencer": "qa"
+    },
+    "shfqc_qa": {
+      "devtype": "SHFQC",
+      "sequencer": "qa"
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    },
+    "shfsg4": {
+      "devtype": "SHFSG4"
+    },
+    "shfsg2": {
+      "devtype": "SHFSG2"
+    },
+    "shfsg8": {
+      "devtype": "SHFSG8"
+    },
+    "uhfli": {
+      "devtype": "UHFLI"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA"
+    },
+    "uhfawg": {
+      "devtype": "UHFAWG"
+    },
+    "ghfli": {
+      "devtype": "GHFLI"
+    },
+    "vhfli": {
+      "devtype": "VHFLI"
+    },
+    "shfli": {
+      "devtype": "SHFLI"
+    }
+  },
+  "groups": [
+    {
+      "name": "ziasm",
+      "comment": "ZIASM (Zurich Instruments Assembler) - low-level assembly tests",
+      "tags": [
+        "ziasm"
+      ],
+      "groups": [
+        {
+          "name": "conditionals",
+          "comment": "ZIASM conditionals tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "conditionals"
+          ],
+          "cases": [
+            {
+              "name": "test_and_branching_0_ghfli",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_0_hdawg4",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_0_hdawg8",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_0_shfli",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_0_shfqa2",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_0_shfqa4",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_0_shfqc",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_0_shfsg2",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_0_shfsg4",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_0_uhfawg",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_0_uhfli",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_0_uhfqa",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_0_vhfli",
+              "code": "var x = 5;\nwait(6);\nrepeat (10) { x += 1; } \nrepeat(10) { wait(2); }",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_ghfli",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_hdawg4",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_1_hdawg8",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_1_shfli",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_shfqa2",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_1_shfqa4",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_1_shfqc",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_1_shfsg2",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_1_shfsg4",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_1_uhfawg",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_uhfli",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_uhfqa",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_1_vhfli",
+              "code": "var x = 1;\nif(x) x = x+1;\nif(x > 0) x -= 1;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_ghfli",
+              "code": "while(1) { wait(2); }",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_hdawg4",
+              "code": "while(1) { wait(2); }",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_2_hdawg8",
+              "code": "while(1) { wait(2); }",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_2_shfli",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_shfqa2",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_2_shfqa4",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_2_shfqc",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_2_shfsg2",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_2_shfsg4",
+              "code": "while(1) { wait(2); }",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_2_uhfawg",
+              "code": "while(1) { wait(2); }",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_uhfli",
+              "code": "while(1) { wait(2); }",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_uhfqa",
+              "code": "while(1) { wait(2); }",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_2_vhfli",
+              "code": "while(1) { wait(2); }",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_ghfli",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_hdawg4",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_3_hdawg8",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_and_branching_3_shfli",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_shfqa2",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_3_shfqa4",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_3_shfqc",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_and_branching_3_shfsg2",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_3_shfsg4",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_and_branching_3_uhfawg",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_uhfli",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_uhfqa",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_and_branching_3_vhfli",
+              "code": "var x = 17;\nif(x == 21) x += 1;",
+              "devtype": "VHFLI",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "firmware",
+          "comment": "ZIASM firmware tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "firmware"
+          ],
+          "cases": [
+            {
+              "name": "test_syscall_trap_0_uhfqa",
+              "code": "setInt(\"qas/0/integration/length\", 1024);\nsetInt(\"qas/0/integration/length\", 24);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_1_hdawg4",
+              "code": "setDouble(\"oscs/0/freq\", 107.28836059570312); // 2**24\nsetDouble(\"oscs/0/freq\", 27465.8203125 / 2); // 2**31\nsetDouble(\"oscs/0/freq\", 112500000.0); // 2**44\nsetDouble(\"oscs/0/freq\", 900000000.0); // 2**48",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_syscall_trap_1_hdawg8",
+              "code": "setDouble(\"oscs/0/freq\", 107.28836059570312); // 2**24\nsetDouble(\"oscs/0/freq\", 27465.8203125 / 2); // 2**31\nsetDouble(\"oscs/0/freq\", 112500000.0); // 2**44\nsetDouble(\"oscs/0/freq\", 900000000.0); // 2**48",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_syscall_trap_1_uhfawg",
+              "code": "setDouble(\"oscs/0/freq\", 107.28836059570312); // 2**24\nsetDouble(\"oscs/0/freq\", 27465.8203125 / 2); // 2**31\nsetDouble(\"oscs/0/freq\", 112500000.0); // 2**44\nsetDouble(\"oscs/0/freq\", 900000000.0); // 2**48",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_1_uhfli",
+              "code": "setDouble(\"oscs/0/freq\", 107.28836059570312); // 2**24\nsetDouble(\"oscs/0/freq\", 27465.8203125 / 2); // 2**31\nsetDouble(\"oscs/0/freq\", 112500000.0); // 2**44\nsetDouble(\"oscs/0/freq\", 900000000.0); // 2**48",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_1_uhfqa",
+              "code": "setDouble(\"oscs/0/freq\", 107.28836059570312); // 2**24\nsetDouble(\"oscs/0/freq\", 27465.8203125 / 2); // 2**31\nsetDouble(\"oscs/0/freq\", 112500000.0); // 2**44\nsetDouble(\"oscs/0/freq\", 900000000.0); // 2**48",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_2_uhfawg",
+              "code": "setInt(\"awgs/0/time\", 3);\nsetInt(\"awgs/0/enable\", 0);\nsetInt(\"scopes/0/segments/count\", 42);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_2_uhfli",
+              "code": "setInt(\"awgs/0/time\", 3);\nsetInt(\"awgs/0/enable\", 0);\nsetInt(\"scopes/0/segments/count\", 42);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_2_uhfqa",
+              "code": "setInt(\"awgs/0/time\", 3);\nsetInt(\"awgs/0/enable\", 0);\nsetInt(\"scopes/0/segments/count\", 42);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_3_uhfawg",
+              "code": "setDouble(\"sigouts/0/offset\", 1e-13);\nsetDouble(\"sigouts/1/offset\", -0.03);\nsetDouble(\"sigouts/0/offset\", 1e-13, 0.532);\nsetDouble(\"sigouts/1/offset\", -0.03, 0.7);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_3_uhfli",
+              "code": "setDouble(\"sigouts/0/offset\", 1e-13);\nsetDouble(\"sigouts/1/offset\", -0.03);\nsetDouble(\"sigouts/0/offset\", 1e-13, 0.532);\nsetDouble(\"sigouts/1/offset\", -0.03, 0.7);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_3_uhfqa",
+              "code": "setDouble(\"sigouts/0/offset\", 1e-13);\nsetDouble(\"sigouts/1/offset\", -0.03);\nsetDouble(\"sigouts/0/offset\", 1e-13, 0.532);\nsetDouble(\"sigouts/1/offset\", -0.03, 0.7);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_4_uhfawg",
+              "code": "var x = -100;\nsetDouble(\"sigouts/0/offset\", x, 0.01);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_4_uhfli",
+              "code": "var x = -100;\nsetDouble(\"sigouts/0/offset\", x, 0.01);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_4_uhfqa",
+              "code": "var x = -100;\nsetDouble(\"sigouts/0/offset\", x, 0.01);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_5_uhfawg",
+              "code": "setInt(\"awgs/0/userregs/2\", 123);\nsetUserReg(5, 123);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_5_uhfli",
+              "code": "setInt(\"awgs/0/userregs/2\", 123);\nsetUserReg(5, 123);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_syscall_trap_5_uhfqa",
+              "code": "setInt(\"awgs/0/userregs/2\", 123);\nsetUserReg(5, 123);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "misc",
+          "comment": "ZIASM misc tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "misc"
+          ],
+          "cases": [
+            {
+              "name": "test_0_ghfli",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_hdawg4",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_hdawg8",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_shfli",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_shfsg2",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_shfsg4",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_uhfqa",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_0_vhfli",
+              "code": "resetRTLoggerTimestamp();",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_ghfli",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_hdawg4",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_1_hdawg8",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_1_shfli",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_shfsg2",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_1_shfsg4",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_1_uhfawg",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfli",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfqa",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_1_vhfli",
+              "code": "setID(100);\nsetSeqIndex(200);\nsetReadoutRegisterAddress(300);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfawg",
+              "code": "wave w = ones(128);\nlock(w);\nplayWave(w);\nunlock(w);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfli",
+              "code": "wave w = ones(128);\nlock(w);\nplayWave(w);\nunlock(w);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfqa",
+              "code": "wave w = ones(128);\nlock(w);\nplayWave(w);\nunlock(w);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfqa",
+              "code": "var x = getQAResult();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_4_ghfli",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_hdawg4",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_4_hdawg8",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_4_shfli",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_shfqa2",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_4_shfqa4",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_4_shfqc",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_4_shfsg2",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_4_shfsg4",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_4_uhfawg",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfli",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfqa",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_4_vhfli",
+              "code": "setDIO(getDIO() | 3);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_5_hdawg4",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_5_hdawg8",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_5_shfqa2",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfqa4",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfqc",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfsg2",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_5_shfsg4",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_5_uhfqa",
+              "code": "var x = getFeedback(ZSYNC_DATA_RAW);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_6_ghfli",
+              "code": "resetOscPhase();",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_6_hdawg4",
+              "code": "resetOscPhase();",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_6_hdawg8",
+              "code": "resetOscPhase();",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_6_shfli",
+              "code": "resetOscPhase();",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_6_shfqa2",
+              "code": "resetOscPhase();",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfqa4",
+              "code": "resetOscPhase();",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfqc",
+              "code": "resetOscPhase();",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfsg2",
+              "code": "resetOscPhase();",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_6_shfsg4",
+              "code": "resetOscPhase();",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_6_uhfqa",
+              "code": "resetOscPhase();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_6_vhfli",
+              "code": "resetOscPhase();",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_7_uhfawg",
+              "code": "getSweeperLength(1);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_7_uhfli",
+              "code": "getSweeperLength(1);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_7_uhfqa",
+              "code": "getSweeperLength(1);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "playconfig",
+          "comment": "ZIASM playconfig tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "playconfig"
+          ],
+          "cases": [
+            {
+              "name": "test_cwfv_0_ghfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_0_hdawg4",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_cwfv_0_hdawg8",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_cwfv_0_shfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_0_shfsg2",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_cwfv_0_shfsg4",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_cwfv_0_uhfawg",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_0_uhfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_0_uhfqa",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_0_vhfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);       //0xf24fff81\nplayWave(1, w);    // (same: 0xf24fff81)\nplayWave(1, 2, w); //0xf24fff01\nplayWave(2, w);    //0xf24fff41\nplayWave(2, 1, w); //0xf24fff01\n\nwait(16);\n\nplayWave(w, w);                //0xf24fbf83\nplayWave(1, w, 2, w);          //0xf24fbf83\nplayWave(1, 2, w, 1, w);       //0xf24fdf03\nplayWave(1, 2, w, 1, 2, w);    //0xf24f9f03\nplayWave(2, w, 1, w);          //0xf24fdf43\n\n\nwait(16);\n\nplayWave(1, w, 1, w); //0xf24fdf83\n\nplayWave(2, w, 2, w); //0xf24fbf43\nplayWave(1, w, 1, 2, w); //0xf24f9f83\nplayWave(2, w, 1, 2, w);  // 0xf24f9f43",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_1_uhfawg",
+              "code": "wave w = placeholder(1000);\nplayZero(256);\nplayZero(128, 10);\nplayZero(128, 5);\nplayZero(64);\n\n\nplayWave(w);\n\nplayWave(w, 0);      \nplayWave(w, 1);      \nplayWave(w, 2);\n\nplayWave(w, 12);     \n\nplayWave(w, AWG_RATE_220KHZ);     \n\nplayWave(w, 15);\n\n\nplayZero(128);\nplayZero(256);\n\nplayWave(w);\n\nplayWave(w, 10);\n\nplayWave(w, AWG_RATE_1800MHZ);\n\nplayWave(w);\nplayWave(w);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_1_uhfli",
+              "code": "wave w = placeholder(1000);\nplayZero(256);\nplayZero(128, 10);\nplayZero(128, 5);\nplayZero(64);\n\n\nplayWave(w);\n\nplayWave(w, 0);      \nplayWave(w, 1);      \nplayWave(w, 2);\n\nplayWave(w, 12);     \n\nplayWave(w, AWG_RATE_220KHZ);     \n\nplayWave(w, 15);\n\n\nplayZero(128);\nplayZero(256);\n\nplayWave(w);\n\nplayWave(w, 10);\n\nplayWave(w, AWG_RATE_1800MHZ);\n\nplayWave(w);\nplayWave(w);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_1_uhfqa",
+              "code": "wave w = placeholder(1000);\nplayZero(256);\nplayZero(128, 10);\nplayZero(128, 5);\nplayZero(64);\n\n\nplayWave(w);\n\nplayWave(w, 0);      \nplayWave(w, 1);      \nplayWave(w, 2);\n\nplayWave(w, 12);     \n\nplayWave(w, AWG_RATE_220KHZ);     \n\nplayWave(w, 15);\n\n\nplayZero(128);\nplayZero(256);\n\nplayWave(w);\n\nplayWave(w, 10);\n\nplayWave(w, AWG_RATE_1800MHZ);\n\nplayWave(w);\nplayWave(w);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_2_uhfawg",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayAuxWave(w, 10);\nplayWave(w);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_2_uhfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayAuxWave(w, 10);\nplayWave(w);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_2_uhfqa",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayAuxWave(w, 10);\nplayWave(w);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_3_uhfawg",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayDIOWave(w, 4);\nplayZero(128);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_3_uhfli",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayDIOWave(w, 4);\nplayZero(128);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_cwfv_3_uhfqa",
+              "code": "wave w = placeholder(1000);\n\nplayWave(w);\nplayDIOWave(w, 4);\nplayZero(128);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "prefetching",
+          "comment": "ZIASM prefetching tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "prefetching"
+          ],
+          "cases": [
+            {
+              "name": "test_0_ghfli",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_hdawg4",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_hdawg8",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_shfli",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_shfsg2",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_shfsg4",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_uhfawg",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfli",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfqa",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_0_vhfli",
+              "code": "wave w1 = placeholder(128);\nassignWaveIndex(1, 2, w1, 1, 2, w1, 0);\nwave wlong = placeholder(1280);\nassignWaveIndex(1, 2, wlong, 1, 2, wlong, 5);\nwave w2 = placeholder(128);\nassignWaveIndex(1, 2, w2, 1, 2, w2, 1);\nwave w3 = placeholder(128);\nassignWaveIndex(1, 2, w3, 1, 2, w3, 2);\nwave w4 = placeholder(128);\nassignWaveIndex(1, 2, w4, 1, 2, w4, 3);\nwave w5 = placeholder(128);\nassignWaveIndex(1, 2, w5, 1, 2, w5, 4);\nwave w6 = placeholder(256);\nassignWaveIndex(1, 2, w6, 1, 2, w6, 6);\nwait(6);\nplayWave(w6);",
+              "devtype": "VHFLI",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "readout",
+          "comment": "ZIASM readout tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "readout"
+          ],
+          "cases": [
+            {
+              "name": "test_triggering_0_uhfqa",
+              "code": "startQA(QA_INT_ALL, true, 7, 0);\nwaitDigTrigger(1,1);\nstartQA(QA_INT_ALL, false, 7, 0); \nwaitDigTrigger(1,1);\nstartQA(QA_INT_ALL, false, 18, 0);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_triggering_1_shfqa2",
+              "code": "startQA(1 << 0, false, 0, 0); \nstartQA(1 << 1, false, 0, 0); \nstartQA(1 << 2, false, 0, 0);\nstartQA(1 << 3, false, 0, 0);\nstartQA(1 << 4, false, 0, 0);\nstartQA(1 << 5, false, 0, 0);\nstartQA(1 << 6, false, 0, 0);\nstartQA(1 << 9, false, 0, 0);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_triggering_1_shfqa4",
+              "code": "startQA(1 << 0, false, 0, 0); \nstartQA(1 << 1, false, 0, 0); \nstartQA(1 << 2, false, 0, 0);\nstartQA(1 << 3, false, 0, 0);\nstartQA(1 << 4, false, 0, 0);\nstartQA(1 << 5, false, 0, 0);\nstartQA(1 << 6, false, 0, 0);\nstartQA(1 << 9, false, 0, 0);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_triggering_1_shfqc",
+              "code": "startQA(1 << 0, false, 0, 0); \nstartQA(1 << 1, false, 0, 0); \nstartQA(1 << 2, false, 0, 0);\nstartQA(1 << 3, false, 0, 0);\nstartQA(1 << 4, false, 0, 0);\nstartQA(1 << 5, false, 0, 0);\nstartQA(1 << 6, false, 0, 0);\nstartQA(1 << 9, false, 0, 0);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_triggering_1_uhfqa",
+              "code": "startQA(1 << 0, false, 0, 0); \nstartQA(1 << 1, false, 0, 0); \nstartQA(1 << 2, false, 0, 0);\nstartQA(1 << 3, false, 0, 0);\nstartQA(1 << 4, false, 0, 0);\nstartQA(1 << 5, false, 0, 0);\nstartQA(1 << 6, false, 0, 0);\nstartQA(1 << 9, false, 0, 0);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_triggering_2_uhfqa",
+              "code": "startQAMonitor();\nstartQAMonitor(2);\nstartQAResult(1, 0);\nsetReadoutRegisterAddress(19);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "register",
+          "comment": "ZIASM register tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "register"
+          ],
+          "cases": [
+            {
+              "name": "test_arithmetic_0_ghfli",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_0_hdawg4",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_0_hdawg8",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_0_shfli",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_0_shfqa2",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_0_shfqa4",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_0_shfqc",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_0_shfsg2",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_0_shfsg4",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_0_uhfawg",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_0_uhfli",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_0_uhfqa",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_0_vhfli",
+              "code": "var y = 4;\nvar z = 3;\nvar x = 5;\nx = y & x;\nx = z | y;\nx = x + y;\nx = x - y;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_ghfli",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_hdawg4",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_10_hdawg8",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_10_shfli",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_shfqa2",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_10_shfqa4",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_10_shfqc",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_10_shfsg2",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_10_shfsg4",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_10_uhfawg",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_uhfli",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_uhfqa",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_10_vhfli",
+              "code": "var x = 0;\nx = 0x80000 + 42;\nx = -0x100000 - 2;\nx = 0x7ffffabc;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_ghfli",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_hdawg4",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_11_hdawg8",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_11_shfli",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_shfqa2",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_11_shfqa4",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_11_shfqc",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_11_shfsg2",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_11_shfsg4",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_11_uhfawg",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_uhfli",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_uhfqa",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_11_vhfli",
+              "code": "var x = 137;\nx |= 0x800000;\nx += 0x100000;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_ghfli",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_hdawg4",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_1_hdawg8",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_1_shfli",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_shfqa2",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_1_shfqa4",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_1_shfqc",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_1_shfsg2",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_1_shfsg4",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_1_uhfawg",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_uhfli",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_uhfqa",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_1_vhfli",
+              "code": "var y = 4;\nvar z = y >> 1;\ny = z << 5;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_ghfli",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_hdawg4",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_2_hdawg8",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_2_shfli",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_shfqa2",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_2_shfqa4",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_2_shfqc",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_2_shfsg2",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_2_shfsg4",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_2_uhfawg",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_uhfli",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_uhfqa",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_2_vhfli",
+              "code": "var y = 13;\nvar x = ~y;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_ghfli",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_hdawg4",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_3_hdawg8",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_3_shfli",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_shfqa2",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_3_shfqa4",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_3_shfqc",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_3_shfsg2",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_3_shfsg4",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_3_uhfawg",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_uhfli",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_uhfqa",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_3_vhfli",
+              "code": "var y = 13;\ny |= 21;\ny &= 22;\ny+= 22;\ny -= 12;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_ghfli",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_hdawg4",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_4_hdawg8",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_4_shfli",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_shfqa2",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_4_shfqa4",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_4_shfqc",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_4_shfsg2",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_4_shfsg4",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_4_uhfawg",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_uhfli",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_uhfqa",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_4_vhfli",
+              "code": "var x = 3;\nx >>= 1;\nx  <<= 3;\nx = x*5;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_ghfli",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_hdawg4",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_5_hdawg8",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_5_shfli",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_shfqa2",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_5_shfqa4",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_5_shfqc",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_5_shfsg2",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_5_shfsg4",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_5_uhfawg",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_uhfli",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_uhfqa",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_5_vhfli",
+              "code": "var x = 6, x2 = 17;\nvar y = x2 >> x;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_ghfli",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_hdawg4",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_6_hdawg8",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_6_shfli",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_shfqa2",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_6_shfqa4",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_6_shfqc",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_6_shfsg2",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_6_shfsg4",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_6_uhfawg",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_uhfli",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_uhfqa",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_6_vhfli",
+              "code": "var x = 1;\nvar y = x != 14;\ny = y + 1;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_ghfli",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_hdawg4",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_7_hdawg8",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_7_shfli",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_shfqa2",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_7_shfqa4",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_7_shfqc",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_7_shfsg2",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_7_shfsg4",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_7_uhfawg",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_uhfli",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_uhfqa",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_7_vhfli",
+              "code": "var x = 123;\nwait(3);\nvar z = x?0:1;\nwait(3);\nvar z2 = !x;",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_ghfli",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_hdawg4",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_8_hdawg8",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_8_shfli",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_shfqa2",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_8_shfqa4",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_8_shfqc",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_8_shfsg2",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_8_shfsg4",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_8_uhfawg",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_uhfli",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_uhfqa",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_8_vhfli",
+              "code": "var x = 123;\nvar y = 3;\nx = x || (y && x);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_ghfli",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_hdawg4",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_9_hdawg8",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_arithmetic_9_shfli",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_shfqa2",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_9_shfqa4",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_9_shfqc",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_arithmetic_9_shfsg2",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_9_shfsg4",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_arithmetic_9_uhfawg",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_uhfli",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_uhfqa",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_arithmetic_9_vhfli",
+              "code": "var x = 1;\nx = 0;\nx = -142;",
+              "devtype": "VHFLI",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "triggers",
+          "comment": "ZIASM triggers tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "triggers"
+          ],
+          "cases": [
+            {
+              "name": "test_0_ghfli",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_hdawg4",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_hdawg8",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_shfli",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_shfqa2",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfqa4",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfqc",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfsg2",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_shfsg4",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_uhfawg",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfli",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfqa",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_0_vhfli",
+              "code": "var x;\nx = getDigTrigger(2);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_ghfli",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_hdawg4",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_1_hdawg8",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_1_shfli",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_shfqa2",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_1_shfqa4",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_1_shfqc",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_1_shfsg2",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_1_shfsg4",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_1_uhfawg",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfli",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfqa",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_1_vhfli",
+              "code": "var x;\n x = getDigTrigger(2);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfawg",
+              "code": "waitTrigger(0xff, 0xab);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfli",
+              "code": "waitTrigger(0xff, 0xab);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfqa",
+              "code": "waitTrigger(0xff, 0xab);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfawg",
+              "code": "waitDigTrigger(1, 1);\nwaitDigTrigger(1, 0);\nwaitDigTrigger(2, 1);\nwaitDigTrigger(2, 1);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfli",
+              "code": "waitDigTrigger(1, 1);\nwaitDigTrigger(1, 0);\nwaitDigTrigger(2, 1);\nwaitDigTrigger(2, 1);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfqa",
+              "code": "waitDigTrigger(1, 1);\nwaitDigTrigger(1, 0);\nwaitDigTrigger(2, 1);\nwaitDigTrigger(2, 1);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfawg",
+              "code": "waitAnaTrigger(1, 1);\nwaitAnaTrigger(2, 0);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfli",
+              "code": "waitAnaTrigger(1, 1);\nwaitAnaTrigger(2, 0);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfqa",
+              "code": "waitAnaTrigger(1, 1);\nwaitAnaTrigger(2, 0);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_5_ghfli",
+              "code": "waitDIOTrigger();",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_5_hdawg4",
+              "code": "waitDIOTrigger();",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_5_hdawg8",
+              "code": "waitDIOTrigger();",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_5_shfli",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_5_shfqa2",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfqa4",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfqc",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_5_shfsg2",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_5_shfsg4",
+              "code": "waitDIOTrigger();",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_5_uhfawg",
+              "code": "waitDIOTrigger();",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_5_uhfli",
+              "code": "waitDIOTrigger();",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_5_uhfqa",
+              "code": "waitDIOTrigger();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_5_vhfli",
+              "code": "waitDIOTrigger();",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_6_ghfli",
+              "code": "waitZSyncTrigger();",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_6_hdawg4",
+              "code": "waitZSyncTrigger();",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_6_hdawg8",
+              "code": "waitZSyncTrigger();",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_6_shfli",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_6_shfqa2",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfqa4",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfqc",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_6_shfsg2",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_6_shfsg4",
+              "code": "waitZSyncTrigger();",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_6_uhfqa",
+              "code": "waitZSyncTrigger();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_6_vhfli",
+              "code": "waitZSyncTrigger();",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_7_uhfqa",
+              "code": "waitQAResultTrigger();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_8_ghfli",
+              "code": "wait(100);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_8_hdawg4",
+              "code": "wait(100);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_8_hdawg8",
+              "code": "wait(100);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_8_shfli",
+              "code": "wait(100);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_8_shfqa2",
+              "code": "wait(100);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_8_shfqa4",
+              "code": "wait(100);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_8_shfqc",
+              "code": "wait(100);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_8_shfsg2",
+              "code": "wait(100);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_8_shfsg4",
+              "code": "wait(100);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_8_uhfawg",
+              "code": "wait(100);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_8_uhfli",
+              "code": "wait(100);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_8_uhfqa",
+              "code": "wait(100);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_8_vhfli",
+              "code": "wait(100);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_9_uhfawg",
+              "code": "at(100);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_9_uhfli",
+              "code": "at(100);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_9_uhfqa",
+              "code": "at(100);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "user",
+          "comment": "ZIASM user tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "user"
+          ],
+          "cases": [
+            {
+              "name": "test_registers_0_ghfli",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_0_hdawg4",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_registers_0_hdawg8",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_registers_0_shfli",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_0_shfqa2",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_0_shfqa4",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_0_shfqc",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_0_shfsg2",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_registers_0_shfsg4",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_registers_0_uhfawg",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_registers_0_uhfli",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_0_uhfqa",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_registers_0_vhfli",
+              "code": "var x = getUserReg(0);\nsetUserReg(2, x);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_ghfli",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_hdawg4",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_registers_1_hdawg8",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_registers_1_shfli",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_shfqa2",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_1_shfqa4",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_1_shfqc",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_registers_1_shfsg2",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_registers_1_shfsg4",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_registers_1_uhfawg",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_uhfli",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_uhfqa",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_registers_1_vhfli",
+              "code": "var y = 42;\nvar x = getUserReg(0);\nsetUserReg(128, x);\"",
+              "devtype": "VHFLI",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "various",
+          "comment": "ZIASM various tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "various"
+          ],
+          "cases": [
+            {
+              "name": "test_playback_stuff_0_uhfawg",
+              "code": "wave w = placeholder(1000);\nplayWave(w);\nplayWaveNow(w);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_0_uhfli",
+              "code": "wave w = placeholder(1000);\nplayWave(w);\nplayWaveNow(w);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_0_uhfqa",
+              "code": "wave w = placeholder(1000);\nplayWave(w);\nplayWaveNow(w);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_1_uhfawg",
+              "code": "wave w = placeholder(1000);\n \n playWaveIndexed(w, 200, 128);\n \n waitWave();\n playWave(w);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_1_uhfli",
+              "code": "wave w = placeholder(1000);\n \n playWaveIndexed(w, 200, 128);\n \n waitWave();\n playWave(w);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_1_uhfqa",
+              "code": "wave w = placeholder(1000);\n \n playWaveIndexed(w, 200, 128);\n \n waitWave();\n playWave(w);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_2_uhfawg",
+              "code": "var x = 50;\nwave w = placeholder(160);\n\nplayWaveIndexed(w, x + 100, 128);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_2_uhfli",
+              "code": "var x = 50;\nwave w = placeholder(160);\n\nplayWaveIndexed(w, x + 100, 128);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_playback_stuff_2_uhfqa",
+              "code": "var x = 50;\nwave w = placeholder(160);\n\nplayWaveIndexed(w, x + 100, 128);",
+              "devtype": "UHFQA",
+              "index": 0
+            }
+          ]
+        },
+        {
+          "name": "waits",
+          "comment": "ZIASM waits tests - assembly-level validation",
+          "tags": [
+            "ziasm",
+            "waits"
+          ],
+          "cases": [
+            {
+              "name": "test_0_hdawg4",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_hdawg8",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_0_shfqa2",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfqa4",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfqc",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_0_shfsg2",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_shfsg4",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_0_uhfawg",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfli",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_0_uhfqa",
+              "code": "setTrigger(1);\nwait(100);\nsetTrigger(1);\nwait(7);\nsetTrigger(1);\nwait(3);\nsetTrigger(1);\nwait(1);\nsetTrigger(1);\nwait(0);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfawg",
+              "code": "at(123);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfli",
+              "code": "at(123);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_1_uhfqa",
+              "code": "at(123);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfawg",
+              "code": "now();",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfli",
+              "code": "now();",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_2_uhfqa",
+              "code": "now();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_3_ghfli",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_3_hdawg4",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_3_hdawg8",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_3_shfli",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_3_shfqa2",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFQA2",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_3_shfqa4",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFQA4",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_3_shfqc",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFQC",
+              "index": 0,
+              "sequencer": "qa"
+            },
+            {
+              "name": "test_3_shfsg2",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_3_shfsg4",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_3_uhfawg",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfli",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_3_uhfqa",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_3_vhfli",
+              "code": "playZero(128);\nplayZero(320);\nplayZero(16);",
+              "devtype": "VHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_ghfli",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "GHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_hdawg4",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "HDAWG4",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_4_hdawg8",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "HDAWG8",
+              "index": 0,
+              "samplerate": 2400000000.0
+            },
+            {
+              "name": "test_4_shfli",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "SHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_shfsg2",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "SHFSG2",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_4_shfsg4",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "SHFSG4",
+              "index": 0,
+              "sequencer": "sg"
+            },
+            {
+              "name": "test_4_uhfawg",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "UHFAWG",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfli",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "UHFLI",
+              "index": 0
+            },
+            {
+              "name": "test_4_uhfqa",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "UHFQA",
+              "index": 0
+            },
+            {
+              "name": "test_4_vhfli",
+              "code": "playZero(128);\nwaitWave();",
+              "devtype": "VHFLI",
+              "index": 0
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

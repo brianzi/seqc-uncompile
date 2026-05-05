@@ -1,0 +1,1065 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "hdawg4": {
+      "devtype": "HDAWG4",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfsg8_sg": {
+      "devtype": "SHFSG8",
+      "sequencer": "sg"
+    },
+    "shfqc_qa": {
+      "devtype": "SHFQC",
+      "sequencer": "qa"
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    },
+    "shfqa2_qa": {
+      "devtype": "SHFQA2",
+      "sequencer": "qa"
+    },
+    "shfsg4_sg": {
+      "devtype": "SHFSG4",
+      "sequencer": "sg"
+    },
+    "shfsg2_sg": {
+      "devtype": "SHFSG2",
+      "sequencer": "sg"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA",
+      "index": 0
+    },
+    "uhfli": {
+      "devtype": "UHFLI",
+      "index": 0
+    },
+    "uhfawg": {
+      "devtype": "UHFAWG",
+      "index": 0
+    },
+    "ghfli": {
+      "devtype": "GHFLI",
+      "index": 0
+    },
+    "shfli": {
+      "devtype": "SHFLI",
+      "index": 0
+    },
+    "vhfli": {
+      "devtype": "VHFLI",
+      "index": 0
+    }
+  },
+  "groups": [
+    {
+      "name": "core",
+      "comment": "Core functionality tests - basic instructions, control flow, waveforms (excluding specialized groups)",
+      "tags": [
+        "core"
+      ],
+      "groups": [
+        {
+          "name": "general",
+          "defaults": {
+            "devtype": "HDAWG8",
+            "samplerate": 2e9
+          },
+          "cases": [
+            {
+              "name": "nop",
+              "code": "while(1);"
+            },
+            {
+              "name": "playZero",
+              "code": "playZero(32);"
+            },
+            {
+              "name": "repeat_playZero",
+              "code": "repeat(10) { playZero(32); }"
+            },
+            {
+              "name": "variable",
+              "code": "var x = 5;\nwhile(1);"
+            },
+            {
+              "name": "setTrigger",
+              "code": "setTrigger(1);\nsetTrigger(0);"
+            },
+            {
+              "name": "waitWave",
+              "code": "playZero(64);\nwaitWave();"
+            },
+            {
+              "name": "for_loop",
+              "file": "hdawg_for_loop.seqc"
+            },
+            {
+              "name": "if_else",
+              "file": "hdawg_if_else.seqc"
+            },
+            {
+              "name": "nested_repeat",
+              "file": "hdawg_nested_repeat.seqc"
+            },
+            {
+              "name": "arithmetic",
+              "file": "hdawg_arithmetic.seqc"
+            },
+            {
+              "name": "const",
+              "file": "hdawg_const.seqc"
+            },
+            {
+              "name": "do_while",
+              "file": "hdawg_do_while.seqc"
+            },
+            {
+              "name": "while_loop",
+              "file": "hdawg_while_loop.seqc"
+            },
+            {
+              "name": "comparisons",
+              "file": "hdawg_comparisons.seqc"
+            },
+            {
+              "name": "logical",
+              "file": "hdawg_logical.seqc"
+            },
+            {
+              "name": "ternary",
+              "file": "hdawg_ternary.seqc"
+            },
+            {
+              "name": "mixed_loops",
+              "file": "hdawg_mixed_loops.seqc"
+            },
+            {
+              "name": "playHold",
+              "file": "hdawg_playHold.seqc"
+            },
+            {
+              "name": "wait",
+              "file": "hdawg_wait.seqc"
+            },
+            {
+              "name": "assign_ops",
+              "file": "hdawg_assign_ops.seqc"
+            },
+            {
+              "name": "unary",
+              "file": "hdawg_unary.seqc"
+            },
+            {
+              "name": "inc_dec",
+              "file": "hdawg_inc_dec.seqc"
+            },
+            {
+              "name": "bitwise",
+              "file": "hdawg_bitwise.seqc"
+            },
+            {
+              "name": "setUserReg",
+              "code": "setUserReg(0, 42);"
+            },
+            {
+              "name": "getUserReg",
+              "code": "var x = getUserReg(0);"
+            },
+            {
+              "name": "setDIO",
+              "code": "setDIO(0xFF);"
+            },
+            {
+              "name": "getDIO",
+              "code": "var x = getDIO();"
+            },
+            {
+              "name": "sync",
+              "code": "sync();"
+            },
+            {
+              "name": "getCnt",
+              "code": "var c = getCnt(0);"
+            },
+            {
+              "name": "setTrigger_get",
+              "code": "setTrigger(1);\nvar t = getTrigger(1);"
+            },
+            {
+              "name": "waitPlayQueue",
+              "code": "playZero(32);\nwaitPlayQueueEmpty();"
+            },
+            {
+              "name": "info_msg",
+              "code": "info(\"hello\");"
+            },
+            {
+              "name": "error_msg",
+              "code": "error(\"fail\");"
+            },
+            {
+              "name": "executeTable",
+              "code": "executeTableEntry(0);"
+            },
+            {
+              "name": "setPRNG",
+              "code": "setPRNGSeed(12345);\nvar r = getPRNGValue();"
+            },
+            {
+              "name": "many_vars",
+              "file": "hdawg_many_vars.seqc"
+            },
+            {
+              "name": "switch_like",
+              "file": "hdawg_switch_like.seqc"
+            },
+            {
+              "name": "full_program",
+              "file": "hdawg_full_program.seqc"
+            },
+            {
+              "name": "deep_nesting",
+              "file": "hdawg_deep_nesting.seqc"
+            },
+            {
+              "name": "zsync",
+              "file": "hdawg_zsync.seqc"
+            },
+            {
+              "name": "dio",
+              "file": "hdawg_dio.seqc"
+            },
+            {
+              "name": "triggers",
+              "file": "hdawg_triggers.seqc"
+            },
+            {
+              "name": "user_regs",
+              "file": "hdawg_user_regs.seqc"
+            },
+            {
+              "name": "rate_constants",
+              "file": "hdawg_rate_constants.seqc"
+            },
+            {
+              "name": "wave_sine",
+              "file": "hdawg_wave_sine.seqc"
+            },
+            {
+              "name": "wave_gauss",
+              "file": "hdawg_wave_gauss.seqc"
+            },
+            {
+              "name": "wave_windows",
+              "file": "hdawg_wave_windows.seqc"
+            },
+            {
+              "name": "wave_ops",
+              "file": "hdawg_wave_ops.seqc"
+            },
+            {
+              "name": "wave_misc",
+              "file": "hdawg_wave_misc.seqc"
+            },
+            {
+              "name": "wave_marker",
+              "file": "hdawg_wave_marker.seqc"
+            },
+            {
+              "name": "wave_placeholder",
+              "file": "hdawg_wave_placeholder.seqc"
+            },
+            {
+              "name": "wave_vect",
+              "file": "hdawg_wave_vect.seqc"
+            },
+            {
+              "name": "all_alu",
+              "file": "hdawg_all_alu.seqc"
+            },
+            {
+              "name": "branches",
+              "file": "hdawg_branches.seqc"
+            },
+            {
+              "name": "prefetch",
+              "file": "hdawg_prefetch.seqc"
+            },
+            {
+              "name": "sync_lock",
+              "file": "hdawg_sync_lock.seqc"
+            },
+            {
+              "name": "msg_error",
+              "file": "hdawg_msg_error.seqc"
+            },
+            {
+              "name": "now_rt",
+              "file": "hdawg_now_rt.seqc"
+            },
+            {
+              "name": "user_function",
+              "file": "hdawg_user_function.seqc"
+            },
+            {
+              "name": "cvar",
+              "file": "hdawg_cvar.seqc"
+            },
+            {
+              "name": "wave_in_if",
+              "file": "hdawg_wave_in_if.seqc"
+            },
+            {
+              "name": "playWaveIndexed",
+              "file": "hdawg_playWaveIndexed.seqc"
+            },
+            {
+              "name": "setUserReg_var",
+              "file": "hdawg_setUserReg_var.seqc"
+            },
+            {
+              "name": "playHold_bool",
+              "file": "hdawg_playHold_bool.seqc"
+            },
+            {
+              "name": "many_vars_spill",
+              "file": "hdawg_many_vars_spill.seqc"
+            },
+            {
+              "name": "switch_case",
+              "file": "hdawg_switch_case.seqc"
+            },
+            {
+              "name": "return_func",
+              "file": "hdawg_return_func.seqc"
+            },
+            {
+              "name": "const_div_mod",
+              "file": "hdawg_const_div_mod.seqc"
+            },
+            {
+              "name": "array_index",
+              "file": "hdawg_array_index.seqc"
+            },
+            {
+              "name": "math_funcs",
+              "file": "hdawg_math_funcs.seqc"
+            },
+            {
+              "name": "cvar_unroll",
+              "file": "hdawg_cvar_unroll.seqc"
+            },
+            {
+              "name": "nested_func",
+              "file": "hdawg_nested_func.seqc"
+            },
+            {
+              "name": "cmd_table",
+              "file": "hdawg_cmd_table.seqc"
+            },
+            {
+              "name": "wait_variants",
+              "file": "hdawg_wait_variants.seqc"
+            },
+            {
+              "name": "misc_funcs",
+              "file": "hdawg_misc_funcs.seqc"
+            },
+            {
+              "name": "wait_zsync",
+              "file": "hdawg_wait_zsync.seqc"
+            },
+            {
+              "name": "ternary_ext",
+              "file": "hdawg_ternary_ext.seqc"
+            },
+            {
+              "name": "play_dual_ch",
+              "file": "hdawg_play_dual_ch.seqc"
+            },
+            {
+              "name": "play_variants",
+              "file": "hdawg_play_variants.seqc"
+            },
+            {
+              "name": "play_indexed",
+              "file": "hdawg_play_indexed.seqc"
+            },
+            {
+              "name": "play_dual_indexed",
+              "file": "hdawg_play_dual_indexed.seqc"
+            },
+            {
+              "name": "switch_fallthrough",
+              "file": "hdawg_switch_fallthrough.seqc"
+            },
+            {
+              "name": "wave_grow_merge",
+              "file": "hdawg_wave_grow_merge.seqc"
+            },
+            {
+              "name": "ternary_in_args",
+              "file": "hdawg_ternary_in_args.seqc"
+            },
+            {
+              "name": "cmd_table_var",
+              "file": "hdawg_cmd_table_var.seqc"
+            },
+            {
+              "name": "cvar_wave_loop",
+              "file": "hdawg_cvar_wave_loop.seqc"
+            },
+            {
+              "name": "repeat_edge",
+              "file": "hdawg_repeat_edge.seqc"
+            },
+            {
+              "name": "switch_play",
+              "file": "hdawg_switch_play.seqc"
+            },
+            {
+              "name": "nested_ternary",
+              "file": "hdawg_nested_ternary.seqc"
+            },
+            {
+              "name": "compound_assign",
+              "file": "hdawg_compound_assign.seqc"
+            },
+            {
+              "name": "prepost_inc",
+              "file": "hdawg_prepost_inc.seqc"
+            },
+            {
+              "name": "for_complex",
+              "file": "hdawg_for_complex.seqc"
+            },
+            {
+              "name": "cvar_math",
+              "file": "hdawg_cvar_math.seqc"
+            },
+            {
+              "name": "func_multireturn",
+              "file": "hdawg_func_multireturn.seqc"
+            },
+            {
+              "name": "void_func",
+              "file": "hdawg_void_func.seqc"
+            },
+            {
+              "name": "repeat_nested",
+              "file": "hdawg_repeat_nested.seqc"
+            },
+            {
+              "name": "while_play",
+              "file": "hdawg_while_play.seqc"
+            },
+            {
+              "name": "wave_arith",
+              "file": "hdawg_wave_arith.seqc"
+            },
+            {
+              "name": "dio_switch",
+              "file": "hdawg_dio_switch.seqc"
+            },
+            {
+              "name": "multi_func",
+              "file": "hdawg_multi_func.seqc"
+            },
+            {
+              "name": "max_int_loop",
+              "code": "var i = 0;\nrepeat(2147483647) { i = i + 1; if (i >= 10) break; }\nplayZero(32);"
+            },
+            {
+              "name": "zero_wait",
+              "code": "wait(0);"
+            },
+            {
+              "name": "min_wait",
+              "code": "wait(1);"
+            },
+            {
+              "name": "single_stmt",
+              "code": "playZero(32);"
+            },
+            {
+              "name": "chained_assign",
+              "code": "var a = 0;\nvar b = 0;\nvar c = 0;\na = b = c = 5;\nplayZero(32);"
+            },
+            {
+              "name": "nested_loops",
+              "code": "repeat(3) { repeat(2) { playZero(16); } }"
+            },
+            {
+              "name": "loop_break",
+              "code": "repeat(100) { break; playZero(32); }"
+            },
+            {
+              "name": "loop_continue",
+              "code": "repeat(5) { continue; playZero(16); }\nplayZero(32);"
+            },
+            {
+              "name": "do_while_break",
+              "code": "var i = 0;\ndo { i = i + 1; if (i >= 3) break; } while(i < 10);\nplayZero(32);"
+            },
+            {
+              "name": "bitwise_ops",
+              "code": "var a = 15;\nvar b = 7;\nvar c = a & b;\nvar d = a | b;\nvar e = a ^ b;\nvar f = a << 2;\nvar g = f >> 1;\nplayZero(32);"
+            },
+            {
+              "name": "unary_minus",
+              "code": "var a = 5;\nvar b = -a;\nvar c = -(-b);\nplayZero(32);"
+            },
+            {
+              "name": "comparison_chain",
+              "code": "var a = 5;\nvar b = 3;\nvar r1 = a > b;\nvar r2 = a >= b;\nvar r3 = a < b;\nvar r4 = a <= b;\nvar r5 = a == b;\nvar r6 = a != b;\nplayZero(32);"
+            },
+            {
+              "name": "multi_wave",
+              "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nplayWave(w1, w2);"
+            },
+            {
+              "name": "wave_assign",
+              "code": "wave w = rect(32, 1.0);\nwave w2 = w;\nplayWave(w2);"
+            },
+            {
+              "name": "func_no_args",
+              "code": "void f() { playZero(16); }\nf();"
+            },
+            {
+              "name": "func_return_int",
+              "code": "int f() { return 42; }\nvar x = f();\nplayZero(32);"
+            },
+            {
+              "name": "func_return_wave",
+              "code": "wave f() { return rect(16, 1.0); }\nwave w = f();\nplayWave(w);"
+            },
+            {
+              "name": "func_nested_call",
+              "code": "int g() { return 1; }\nint f() { return g() + 1; }\nvar x = f();\nplayZero(32);"
+            },
+            {
+              "name": "setTrigger_pattern",
+              "code": "setTrigger(1);\nwait(10);\nsetTrigger(0);\nwait(10);\nsetTrigger(2);\nwait(10);\nsetTrigger(0);"
+            },
+            {
+              "name": "waitDigTrigger",
+              "code": "waitDigTrigger(1);\nplayZero(32);"
+            },
+            {
+              "name": "waitWave_multiple",
+              "code": "playZero(64);\nwaitWave();\nplayZero(64);\nwaitWave();\nplayZero(64);"
+            },
+            {
+              "name": "switch_basic",
+              "code": "var x = 2;\nswitch(x) {\n  case 1: playZero(16); break;\n  case 2: playZero(32); break;\n  case 3: playZero(48); break;\n  default: playZero(64); break;\n}"
+            },
+            {
+              "name": "array_basic",
+              "code": "wave w = rect(32, 1.0);\nplayWave(w);"
+            },
+            {
+              "name": "scope_nested",
+              "code": "var a = 1;\n{\n  var b = 2;\n  {\n    var c = 3;\n    a = a + b + c;\n  }\n}\nplayZero(32);"
+            },
+            {
+              "name": "sine_2arg",
+              "code": "wave w = sine(64, 1.0);\nplayWave(w);"
+            },
+            {
+              "name": "cosine",
+              "code": "wave w = cosine(64, 1.0, 0.0);\nplayWave(w);"
+            },
+            {
+              "name": "rect_custom",
+              "code": "wave w = rect(128, 0.75);\nplayWave(w);"
+            },
+            {
+              "name": "gauss_wide",
+              "code": "wave w = gauss(128, 1.0, 0.0, 32.0);\nplayWave(w);"
+            },
+            {
+              "name": "ones",
+              "code": "wave w = ones(32);\nplayWave(w);"
+            },
+            {
+              "name": "zeros_large",
+              "code": "wave w = zeros(256);\nplayWave(w);"
+            },
+            {
+              "name": "scale_wave",
+              "code": "wave w = rect(32, 1.0);\nwave ws = scale(w, 0.5);\nplayWave(ws);"
+            },
+            {
+              "name": "add_waves",
+              "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nwave wa = add(w1, w2);\nplayWave(wa);"
+            },
+            {
+              "name": "multiply_waves",
+              "code": "wave w1 = rect(32, 1.0);\nwave w2 = rect(32, 0.5);\nwave wm = multiply(w1, w2);\nplayWave(wm);"
+            },
+            {
+              "name": "marker_basic",
+              "code": "wave w = marker(32, 1, 1);\nplayWave(w);"
+            },
+            {
+              "name": "playWaveIndexed_var",
+              "code": "var idx = 0;\nplayWaveIndexed(0, idx);\nplayZero(32);"
+            },
+            {
+              "name": "dual_ch_play",
+              "code": "playWave(0, 1, zeros(32), zeros(32));"
+            },
+            {
+              "name": "func_wave",
+              "file": "hdawg_func_wave.seqc"
+            },
+            {
+              "name": "func_wave_arg",
+              "file": "hdawg_func_wave_arg.seqc"
+            },
+            {
+              "name": "playWave_zeros",
+              "file": "hdawg_playWave_zeros.seqc"
+            },
+            {
+              "name": "playWave_ones",
+              "file": "hdawg_playWave_ones.seqc"
+            },
+            {
+              "name": "playWave_multi",
+              "file": "hdawg_playWave_multi.seqc"
+            },
+            {
+              "name": "assignWaveIdx",
+              "file": "hdawg_assignWaveIdx.seqc"
+            },
+            {
+              "name": "play_combo",
+              "file": "hdawg_play_combo.seqc"
+            },
+            {
+              "name": "wave_in_loop",
+              "file": "hdawg_wave_in_loop.seqc"
+            },
+            {
+              "name": "nested_if_loop",
+              "file": "hdawg_nested_if_loop.seqc"
+            }
+          ]
+        }
+      ],
+      "cases": [
+        {
+          "name": "awgidxs",
+          "code": "playZero(64);",
+          "devices": [
+            {
+              "index": 0
+            },
+            {
+              "index": 1
+            },
+            {
+              "index": 2
+            },
+            {
+              "index": 3
+            }
+          ],
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "shfqa_nop",
+          "code": "while(1);",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_basic",
+          "file": "shfqa_basic.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_startQA",
+          "code": "startQA(0x1, 1, 0, 0);",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_executeTable",
+          "code": "executeTableEntry(0);",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_setPRNG",
+          "code": "setPRNGSeed(12345);\nvar r = getPRNGValue();",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_setOscFreq",
+          "code": "setOscFreq(0, 100.0e6);",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_resetOscPhase",
+          "code": "resetOscPhase();",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_startQA_full",
+          "file": "shfqa_startQA_full.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_freq_sweep",
+          "file": "shfqa_freq_sweep.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_feedback",
+          "file": "shfqa_feedback.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_feedback_ext",
+          "file": "shfqa_feedback_ext.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_awg1",
+          "code": "playZero(32);",
+          "@base": "@shfqa4_qa",
+          "index": 1
+        },
+        {
+          "name": "shfqa_sweep",
+          "file": "shfqa_sweep.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfsg_nop",
+          "code": "while(1);",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_loops",
+          "file": "shfsg_loops.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_playZero_wait",
+          "code": "playZero(32);\nwaitWave();",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_setTrigger",
+          "code": "setTrigger(1);\nwait(100);\nsetTrigger(0);",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_executeTable",
+          "code": "executeTableEntry(0);",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_oscillator",
+          "file": "shfsg_oscillator.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_prng",
+          "file": "shfsg_prng.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_execute_var",
+          "file": "shfsg_execute_var.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_setID",
+          "file": "shfsg_setID.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_hirzel_shifts",
+          "file": "shfsg_hirzel_shifts.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfsg_awg1",
+          "code": "playZero(32);",
+          "@base": "@shfsg8_sg",
+          "index": 1
+        },
+        {
+          "name": "shfsg_osc_freq",
+          "file": "shfsg_osc_freq.seqc",
+          "@base": "@shfsg4_sg"
+        },
+        {
+          "name": "shfsg4_combo",
+          "file": "shfsg4_combo.seqc",
+          "@base": "@shfsg4_sg"
+        },
+        {
+          "name": "shfqa2_combo",
+          "file": "shfqa2_combo.seqc",
+          "@base": "@shfqa2_qa"
+        },
+        {
+          "name": "shfqa2_playZero",
+          "code": "playZero(32);",
+          "@base": "@shfqa2_qa"
+        },
+        {
+          "name": "shfqa2_wait_repeat",
+          "code": "wait(100);\nrepeat(3) { playZero(16); }",
+          "@base": "@shfqa2_qa"
+        },
+        {
+          "name": "shfsg2_nop",
+          "code": "while(1);",
+          "@base": "@shfsg2_sg"
+        },
+        {
+          "name": "shfsg2_playZero",
+          "code": "playZero(32);",
+          "@base": "@shfsg2_sg"
+        },
+        {
+          "name": "shfsg2_repeat",
+          "code": "repeat(3) { playZero(64); wait(100); }",
+          "@base": "@shfsg2_sg"
+        },
+        {
+          "name": "shfqc_qa_nop",
+          "code": "while(1);",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqc_qa_startQA",
+          "file": "shfqc_qa_startQA.seqc",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqc_qa_playZero",
+          "code": "playZero(32);",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqc_qa_wait",
+          "code": "wait(1000);",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqc_qa_repeat",
+          "code": "repeat(5) { playZero(32); }",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqc_sg_nop",
+          "code": "while(1);",
+          "@base": "@shfqc_sg"
+        },
+        {
+          "name": "shfqc_sg_playwave",
+          "file": "shfqc_sg_playwave.seqc",
+          "@base": "@shfqc_sg"
+        },
+        {
+          "name": "shfqc_combo",
+          "file": "shfqc_combo.seqc",
+          "@base": "@shfqc_sg"
+        },
+        {
+          "name": "uhfqa_nop",
+          "code": "while(1);",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_startQA",
+          "file": "uhfqa_startQA.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_misc_funcs",
+          "file": "uhfqa_misc_funcs.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_feedback",
+          "file": "uhfqa_feedback.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_playZero",
+          "code": "playZero(32);",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_repeat",
+          "code": "repeat(3) { playZero(32); }",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_wait",
+          "code": "wait(1000);\nplayZero(32);",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_startqa_0arg",
+          "file": "uhfqa_startqa_0arg.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfqa_startqa_3arg",
+          "file": "uhfqa_startqa_3arg.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "uhfli_nop",
+          "code": "while(1);",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_playback",
+          "file": "uhfli_playback.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_wait_funcs",
+          "file": "uhfli_wait_funcs.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_branches",
+          "file": "uhfli_branches.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_wait_variants",
+          "file": "uhfli_wait_variants.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_misc_funcs",
+          "file": "uhfli_misc_funcs.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_setTrigger",
+          "code": "setTrigger(1);\nwait(100);\nsetTrigger(0);\nplayZero(32);",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_repeat_wait",
+          "code": "repeat(4) { wait(50); playZero(16); }",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "uhfli_setrate_play",
+          "file": "uhfli_setrate_play.seqc",
+          "@base": "@uhfli"
+        },
+        {
+          "name": "hdawg4_nop",
+          "code": "while(1);",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "hdawg4_playZero",
+          "code": "playZero(32);",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "hdawg4_features",
+          "file": "hdawg4_features.seqc",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "hdawg4_playZero_dup",
+          "code": "playZero(32);",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "hdawg4_repeat",
+          "code": "repeat(5) { playZero(32); }",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "uhfawg_combo",
+          "file": "uhfawg_combo.seqc",
+          "@base": "@uhfawg"
+        },
+        {
+          "name": "uhfawg_playZero",
+          "code": "playZero(32);",
+          "@base": "@uhfawg"
+        },
+        {
+          "name": "uhfawg_wait",
+          "code": "wait(1000);",
+          "@base": "@uhfawg"
+        },
+        {
+          "name": "ghfli_combo",
+          "file": "ghfli_combo.seqc",
+          "@base": "@ghfli"
+        },
+        {
+          "name": "ghfli_playZero",
+          "code": "playZero(32);",
+          "@base": "@ghfli"
+        },
+        {
+          "name": "ghfli_wait",
+          "code": "wait(1000);",
+          "@base": "@ghfli"
+        },
+        {
+          "name": "shfli_combo",
+          "file": "shfli_combo.seqc",
+          "@base": "@shfli"
+        },
+        {
+          "name": "shfli_playZero",
+          "code": "playZero(32);",
+          "@base": "@shfli"
+        },
+        {
+          "name": "shfli_wait",
+          "code": "wait(1000);",
+          "@base": "@shfli"
+        },
+        {
+          "name": "vhfli_combo",
+          "file": "vhfli_combo.seqc",
+          "@base": "@vhfli"
+        },
+        {
+          "name": "vhfli_playZero",
+          "code": "playZero(32);",
+          "@base": "@vhfli"
+        },
+        {
+          "name": "vhfli_wait",
+          "code": "wait(1000);",
+          "@base": "@vhfli"
+        }
+      ]
+    }
+  ]
+}

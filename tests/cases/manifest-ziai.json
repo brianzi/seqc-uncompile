@@ -1,0 +1,3088 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "hdawg4": {
+      "devtype": "HDAWG4",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfqa2_qa": {
+      "devtype": "SHFQA2",
+      "sequencer": "qa"
+    },
+    "shfqc_qa": {
+      "devtype": "SHFQC",
+      "sequencer": "qa"
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    },
+    "shfsg4": {
+      "devtype": "SHFSG4"
+    },
+    "shfsg2": {
+      "devtype": "SHFSG2"
+    },
+    "shfsg8": {
+      "devtype": "SHFSG8"
+    },
+    "uhfli": {
+      "devtype": "UHFLI"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA"
+    },
+    "uhfawg": {
+      "devtype": "UHFAWG"
+    },
+    "ghfli": {
+      "devtype": "GHFLI"
+    },
+    "vhfli": {
+      "devtype": "VHFLI"
+    },
+    "shfli": {
+      "devtype": "SHFLI"
+    }
+  },
+  "groups": [
+    {
+      "name": "ziai",
+      "comment": "ZIAI (Zurich Instruments Assembly Intermediate) - compiler analysis tests for individual SeqC constructs",
+      "tags": [
+        "ziai",
+        "analysis"
+      ],
+      "cases": [
+        {
+          "name": "arithmetic_hdawg8",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "arithmetic_hdawg4",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "arithmetic_uhfli",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "arithmetic_uhfawg",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "arithmetic_uhfqa",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "arithmetic_shfqa4",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "arithmetic_shfqa2",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "arithmetic_shfsg4",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "arithmetic_shfsg2",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "arithmetic_shfqc",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "arithmetic_shfli",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "arithmetic_ghfli",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "arithmetic_vhfli",
+          "file": "ziai_analyze_arithmetic.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "bitwise_hdawg8",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "bitwise_hdawg4",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "bitwise_uhfli",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "bitwise_uhfawg",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "bitwise_uhfqa",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "bitwise_shfqa4",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "bitwise_shfqa2",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "bitwise_shfsg4",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "bitwise_shfsg2",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "bitwise_shfqc",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "bitwise_shfli",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "bitwise_ghfli",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "bitwise_vhfli",
+          "file": "ziai_analyze_bitwise.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "comparisons_hdawg8",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "comparisons_hdawg4",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "comparisons_uhfli",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "comparisons_uhfawg",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "comparisons_uhfqa",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "comparisons_shfqa4",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "comparisons_shfqa2",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "comparisons_shfsg4",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "comparisons_shfsg2",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "comparisons_shfqc",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "comparisons_shfli",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "comparisons_ghfli",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "comparisons_vhfli",
+          "file": "ziai_analyze_comparisons.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "configureFeedbackProcessing_hdawg8",
+          "file": "ziai_analyze_configureFeedbackProcessing.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "configureFeedbackProcessing_hdawg4",
+          "file": "ziai_analyze_configureFeedbackProcessing.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "configureFeedbackProcessing_shfsg4",
+          "file": "ziai_analyze_configureFeedbackProcessing.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "configureFeedbackProcessing_shfsg2",
+          "file": "ziai_analyze_configureFeedbackProcessing.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_hdawg8",
+          "file": "ziai_analyze_executeTableEntry.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_hdawg4",
+          "file": "ziai_analyze_executeTableEntry.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_shfsg4",
+          "file": "ziai_analyze_executeTableEntry.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_shfsg2",
+          "file": "ziai_analyze_executeTableEntry.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_1_5_hdawg8",
+          "file": "ziai_analyze_executeTableEntry_1_5.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_1_5_hdawg4",
+          "file": "ziai_analyze_executeTableEntry_1_5.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_1_5_shfsg4",
+          "file": "ziai_analyze_executeTableEntry_1_5.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_1_5_shfsg2",
+          "file": "ziai_analyze_executeTableEntry_1_5.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_5_hdawg8",
+          "file": "ziai_analyze_executeTableEntry_5.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_5_hdawg4",
+          "file": "ziai_analyze_executeTableEntry_5.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_5_shfsg4",
+          "file": "ziai_analyze_executeTableEntry_5.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_5_shfsg2",
+          "file": "ziai_analyze_executeTableEntry_5.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_dtype_hdawg8",
+          "file": "ziai_analyze_executeTableEntry_dtype.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_dtype_hdawg4",
+          "file": "ziai_analyze_executeTableEntry_dtype.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "executeTableEntry_dtype_shfsg4",
+          "file": "ziai_analyze_executeTableEntry_dtype.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "executeTableEntry_dtype_shfsg2",
+          "file": "ziai_analyze_executeTableEntry_dtype.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "for_loop_hdawg8",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "for_loop_hdawg4",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "for_loop_uhfli",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "for_loop_uhfawg",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "for_loop_uhfqa",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "for_loop_shfqa4",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "for_loop_shfqa2",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "for_loop_shfsg4",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "for_loop_shfsg2",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "for_loop_shfqc",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "for_loop_shfli",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "for_loop_ghfli",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "for_loop_vhfli",
+          "file": "ziai_analyze_for_loop.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "getDIO_hdawg8",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getDIO_hdawg4",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getDIO_uhfli",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "getDIO_uhfawg",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "getDIO_uhfqa",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "getDIO_shfqa4",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getDIO_shfqa2",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getDIO_shfsg4",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getDIO_shfsg2",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getDIO_shfqc",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getDIO_shfli",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "getDIO_ghfli",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "getDIO_vhfli",
+          "file": "ziai_analyze_getDIO.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "getFeedback_hdawg8",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_hdawg4",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_shfqa4",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_shfqa2",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_shfsg4",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getFeedback_shfsg2",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getFeedback_shfqc",
+          "file": "ziai_analyze_getFeedback.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_basic_hdawg8",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_basic_hdawg4",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_basic_shfqa4",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_basic_shfqa2",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_basic_shfsg4",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getFeedback_basic_shfsg2",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getFeedback_basic_shfqc",
+          "file": "ziai_analyze_getFeedback_basic.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getFeedback_variant_hdawg8",
+          "file": "ziai_analyze_getFeedback_variant.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_variant_hdawg4",
+          "file": "ziai_analyze_getFeedback_variant.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getFeedback_variant_shfsg4",
+          "file": "ziai_analyze_getFeedback_variant.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getFeedback_variant_shfsg2",
+          "file": "ziai_analyze_getFeedback_variant.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getPRNGValue_hdawg8",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getPRNGValue_hdawg4",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getPRNGValue_shfsg4",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getPRNGValue_shfsg2",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getPRNGValue_shfli",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "getPRNGValue_ghfli",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "getPRNGValue_vhfli",
+          "file": "ziai_analyze_getPRNGValue.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_hdawg8",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getTrigger_hdawg4",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getTrigger_uhfli",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_uhfawg",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_uhfqa",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_shfqa4",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getTrigger_shfqa2",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getTrigger_shfsg4",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getTrigger_shfsg2",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getTrigger_shfqc",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getTrigger_shfli",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_ghfli",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "getTrigger_vhfli",
+          "file": "ziai_analyze_getTrigger.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_hdawg8",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getUserReg_hdawg4",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "getUserReg_uhfli",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_uhfawg",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_uhfqa",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_shfqa4",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getUserReg_shfqa2",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getUserReg_shfsg4",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getUserReg_shfsg2",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "getUserReg_shfqc",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "getUserReg_shfli",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_ghfli",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "getUserReg_vhfli",
+          "file": "ziai_analyze_getUserReg.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_hdawg8",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "if_else_hdawg4",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "if_else_uhfli",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_uhfawg",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "if_else_uhfqa",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "if_else_shfqa4",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfqa2",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfsg4",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "if_else_shfsg2",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "if_else_shfqc",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfli",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_ghfli",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_vhfli",
+          "file": "ziai_analyze_if_else.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_hdawg8",
+          "file": "ziai_analyze_incrementSinePhase.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "incrementSinePhase_hdawg4",
+          "file": "ziai_analyze_incrementSinePhase.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "incrementSinePhase_shfli",
+          "file": "ziai_analyze_incrementSinePhase.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_ghfli",
+          "file": "ziai_analyze_incrementSinePhase.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_vhfli",
+          "file": "ziai_analyze_incrementSinePhase.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_idx0_hdawg8",
+          "file": "ziai_analyze_incrementSinePhase_idx0.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "incrementSinePhase_idx0_hdawg4",
+          "file": "ziai_analyze_incrementSinePhase_idx0.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "incrementSinePhase_idx0_shfli",
+          "file": "ziai_analyze_incrementSinePhase_idx0.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_idx0_ghfli",
+          "file": "ziai_analyze_incrementSinePhase_idx0.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "incrementSinePhase_idx0_vhfli",
+          "file": "ziai_analyze_incrementSinePhase_idx0.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playHold_hdawg8",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playHold_hdawg4",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playHold_shfsg4",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playHold_shfsg2",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playHold_shfli",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playHold_ghfli",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playHold_vhfli",
+          "file": "ziai_analyze_playHold.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_hdawg8",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playWave_dual_hdawg4",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playWave_dual_uhfli",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_uhfawg",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_uhfqa",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_shfsg4",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playWave_dual_shfsg2",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playWave_dual_shfli",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_ghfli",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_dual_vhfli",
+          "file": "ziai_analyze_playWave_dual.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_hdawg8",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playWave_single_hdawg4",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playWave_single_uhfli",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_uhfawg",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_uhfqa",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_shfsg4",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playWave_single_shfsg2",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playWave_single_shfli",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_ghfli",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playWave_single_vhfli",
+          "file": "ziai_analyze_playWave_single.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playZero_hdawg8",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playZero_hdawg4",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playZero_uhfli",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "playZero_uhfawg",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "playZero_uhfqa",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "playZero_shfqa4",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playZero_shfqa2",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playZero_shfsg4",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playZero_shfsg2",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playZero_shfqc",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playZero_shfli",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playZero_ghfli",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playZero_vhfli",
+          "file": "ziai_analyze_playZero.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetOscPhase_hdawg8",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "resetOscPhase_hdawg4",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "resetOscPhase_uhfqa",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "resetOscPhase_shfqa4",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "resetOscPhase_shfqa2",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "resetOscPhase_shfsg4",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "resetOscPhase_shfsg2",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "resetOscPhase_shfqc",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "resetOscPhase_shfli",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetOscPhase_ghfli",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetOscPhase_vhfli",
+          "file": "ziai_analyze_resetOscPhase.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_hdawg8",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_hdawg4",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_uhfqa",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_shfsg4",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "resetRTLoggerTimestamp_shfsg2",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "resetRTLoggerTimestamp_shfli",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_ghfli",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "resetRTLoggerTimestamp_vhfli",
+          "file": "ziai_analyze_resetRTLoggerTimestamp.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setDIO_hdawg8",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setDIO_hdawg4",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setDIO_uhfli",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "setDIO_uhfawg",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "setDIO_uhfqa",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "setDIO_shfqa4",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setDIO_shfqa2",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setDIO_shfsg4",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setDIO_shfsg2",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setDIO_shfqc",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setDIO_shfli",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setDIO_ghfli",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setDIO_vhfli",
+          "file": "ziai_analyze_setDIO.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setInt_uhfli",
+          "file": "ziai_analyze_setInt.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "setInt_uhfawg",
+          "file": "ziai_analyze_setInt.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "setInt_uhfqa",
+          "file": "ziai_analyze_setInt.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "setPRNGRange_hdawg8",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPRNGRange_hdawg4",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPRNGRange_shfsg4",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setPRNGRange_shfsg2",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setPRNGRange_shfli",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPRNGRange_ghfli",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPRNGRange_vhfli",
+          "file": "ziai_analyze_setPRNGRange.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPRNGSeed_hdawg8",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPRNGSeed_hdawg4",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPRNGSeed_shfsg4",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setPRNGSeed_shfsg2",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setPRNGSeed_shfli",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPRNGSeed_ghfli",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPRNGSeed_vhfli",
+          "file": "ziai_analyze_setPRNGSeed.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setPrecompClear_hdawg8",
+          "file": "ziai_analyze_setPrecompClear.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPrecompClear_hdawg4",
+          "file": "ziai_analyze_setPrecompClear.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPrecompClear_0_hdawg8",
+          "file": "ziai_analyze_setPrecompClear_0.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setPrecompClear_0_hdawg4",
+          "file": "ziai_analyze_setPrecompClear_0.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setSinePhase_hdawg8",
+          "file": "ziai_analyze_setSinePhase.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setSinePhase_hdawg4",
+          "file": "ziai_analyze_setSinePhase.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setSinePhase_shfli",
+          "file": "ziai_analyze_setSinePhase.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_ghfli",
+          "file": "ziai_analyze_setSinePhase.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_vhfli",
+          "file": "ziai_analyze_setSinePhase.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx0_hdawg8",
+          "file": "ziai_analyze_setSinePhase_idx0.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setSinePhase_idx0_hdawg4",
+          "file": "ziai_analyze_setSinePhase_idx0.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setSinePhase_idx0_shfli",
+          "file": "ziai_analyze_setSinePhase_idx0.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx0_ghfli",
+          "file": "ziai_analyze_setSinePhase_idx0.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx0_vhfli",
+          "file": "ziai_analyze_setSinePhase_idx0.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx2_shfli",
+          "file": "ziai_analyze_setSinePhase_idx2.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx2_ghfli",
+          "file": "ziai_analyze_setSinePhase_idx2.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setSinePhase_idx2_vhfli",
+          "file": "ziai_analyze_setSinePhase_idx2.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "setTrigger_hdawg8",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setTrigger_hdawg4",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setTrigger_uhfli",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "setTrigger_uhfawg",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "setTrigger_uhfqa",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "setTrigger_shfqa4",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setTrigger_shfqa2",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setTrigger_shfsg4",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setTrigger_shfsg2",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setTrigger_shfqc",
+          "file": "ziai_analyze_setTrigger.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setUserReg_hdawg8",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setUserReg_hdawg4",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "setUserReg_uhfli",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "setUserReg_uhfawg",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "setUserReg_uhfqa",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "setUserReg_shfqa4",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setUserReg_shfqa2",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setUserReg_shfsg4",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setUserReg_shfsg2",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "setUserReg_shfqc",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "setUserReg_shfli",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "setUserReg_ghfli",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "setUserReg_vhfli",
+          "file": "ziai_analyze_setUserReg.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_hdawg8",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "var_assignment_hdawg4",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "var_assignment_uhfli",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_uhfawg",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_uhfqa",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_shfqa4",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_assignment_shfqa2",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_assignment_shfsg4",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "var_assignment_shfsg2",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "var_assignment_shfqc",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_assignment_shfli",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_ghfli",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_assignment_vhfli",
+          "file": "ziai_analyze_var_assignment.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_hdawg8",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "wait_hdawg4",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "wait_uhfli",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_uhfawg",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "wait_uhfqa",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "wait_shfqa4",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_shfqa2",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_shfsg4",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "wait_shfsg2",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "wait_shfqc",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_shfli",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_ghfli",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_vhfli",
+          "file": "ziai_analyze_wait.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitDigTrigger_hdawg8",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitDigTrigger_hdawg4",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitDigTrigger_shfqa4",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitDigTrigger_shfqa2",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitDigTrigger_shfsg4",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitDigTrigger_shfsg2",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitDigTrigger_shfqc",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitDigTrigger_shfli",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitDigTrigger_ghfli",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitDigTrigger_vhfli",
+          "file": "ziai_analyze_waitDigTrigger.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitWave_hdawg8",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitWave_hdawg4",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitWave_uhfli",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitWave_uhfawg",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "waitWave_uhfqa",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "waitWave_shfsg4",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitWave_shfsg2",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitWave_shfli",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitWave_ghfli",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitWave_vhfli",
+          "file": "ziai_analyze_waitWave.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitZSyncTrigger_hdawg8",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitZSyncTrigger_hdawg4",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "waitZSyncTrigger_uhfqa",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "waitZSyncTrigger_shfqa4",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitZSyncTrigger_shfqa2",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitZSyncTrigger_shfsg4",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitZSyncTrigger_shfsg2",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "waitZSyncTrigger_shfqc",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "waitZSyncTrigger_shfli",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitZSyncTrigger_ghfli",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "waitZSyncTrigger_vhfli",
+          "file": "ziai_analyze_waitZSyncTrigger.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_hdawg8",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "while_loop_hdawg4",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "while_loop_uhfli",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_uhfawg",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "while_loop_uhfqa",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "while_loop_shfqa4",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfqa2",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfsg4",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "while_loop_shfsg2",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "while_loop_shfqc",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfli",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_ghfli",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_vhfli",
+          "file": "ziai_analyze_while_loop.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_hdawg8",
+          "file": "ziai_if_else.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "if_else_hdawg4",
+          "file": "ziai_if_else.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "if_else_uhfli",
+          "file": "ziai_if_else.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_uhfawg",
+          "file": "ziai_if_else.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "if_else_uhfqa",
+          "file": "ziai_if_else.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "if_else_shfqa4",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfqa2",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfsg4",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "if_else_shfsg2",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "if_else_shfqc",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "if_else_shfli",
+          "file": "ziai_if_else.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_ghfli",
+          "file": "ziai_if_else.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "if_else_vhfli",
+          "file": "ziai_if_else.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_hdawg8",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playwave_example_hdawg4",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playwave_example_uhfli",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_uhfawg",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_uhfqa",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_shfqa4",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playwave_example_shfqa2",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playwave_example_shfsg4",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playwave_example_shfsg2",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playwave_example_shfqc",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playwave_example_shfli",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_ghfli",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playwave_example_vhfli",
+          "file": "ziai_playwave_example.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_hdawg8",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playzero_example_hdawg4",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "playzero_example_uhfli",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_uhfawg",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_uhfqa",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_shfqa4",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playzero_example_shfqa2",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playzero_example_shfsg4",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playzero_example_shfsg2",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "playzero_example_shfqc",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "playzero_example_shfli",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_ghfli",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "playzero_example_vhfli",
+          "file": "ziai_playzero_example.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "set_trigger_hdawg8",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "set_trigger_hdawg4",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "set_trigger_uhfli",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "set_trigger_uhfawg",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "set_trigger_uhfqa",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "set_trigger_shfqa4",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "set_trigger_shfqa2",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "set_trigger_shfsg4",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "set_trigger_shfsg2",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "set_trigger_shfqc",
+          "file": "ziai_set_trigger.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "userreg_example_hdawg8",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "userreg_example_hdawg4",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "userreg_example_uhfli",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "userreg_example_uhfawg",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "userreg_example_uhfqa",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "userreg_example_shfqa4",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "userreg_example_shfqa2",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "userreg_example_shfsg4",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "userreg_example_shfsg2",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "userreg_example_shfqc",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "userreg_example_shfli",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "userreg_example_ghfli",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "userreg_example_vhfli",
+          "file": "ziai_userreg_example.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_hdawg8",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "var_arithmetic_hdawg4",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "var_arithmetic_uhfli",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_uhfawg",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_uhfqa",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_shfqa4",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_arithmetic_shfqa2",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_arithmetic_shfsg4",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "var_arithmetic_shfsg2",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "var_arithmetic_shfqc",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "var_arithmetic_shfli",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_ghfli",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "var_arithmetic_vhfli",
+          "file": "ziai_var_arithmetic.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_command_hdawg8",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "wait_command_hdawg4",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "wait_command_uhfli",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_command_uhfawg",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "wait_command_uhfqa",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "wait_command_shfqa4",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_command_shfqa2",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_command_shfsg4",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "wait_command_shfsg2",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "wait_command_shfqc",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "wait_command_shfli",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_command_ghfli",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "wait_command_vhfli",
+          "file": "ziai_wait_command.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_hdawg8",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "while_loop_hdawg4",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "while_loop_uhfli",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_uhfawg",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "while_loop_uhfqa",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "while_loop_shfqa4",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfqa2",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfsg4",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "while_loop_shfsg2",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "while_loop_shfqc",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "while_loop_shfli",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_ghfli",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "while_loop_vhfli",
+          "file": "ziai_while_loop.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

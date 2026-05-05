@@ -1,0 +1,112 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfsg4_sg": {
+      "devtype": "SHFSG4",
+      "sequencer": "sg"
+    },
+    "uhfli": {
+      "devtype": "UHFLI",
+      "index": 0
+    },
+    "uhfqa": {
+      "devtype": "UHFQA",
+      "index": 0
+    }
+  },
+  "groups": [
+    {
+      "name": "zhinst",
+      "comment": "Zurich Instruments official examples",
+      "tags": ["zhinst"],
+      "groups": [
+        {
+          "name": "labone_api_examples",
+          "comment": "LabOne software integration examples",
+          "tags": ["labone", "integration"],
+          "cases": [
+            {
+              "name": "awg_sourcefile",
+              "file": "labone_ex_awg_sourcefile_uhfli.seqc",
+              "@base": "@uhfli"
+            },
+            {
+              "name": "awg_vect",
+              "file": "labone_ex_awg_vect_uhfli.seqc",
+              "@base": "@uhfli"
+            },
+            {
+              "name": "delay",
+              "file": "labone_ex_delay_uhfqa.seqc",
+              "@base": "@uhfqa"
+            },
+            {
+              "name": "monitor",
+              "file": "labone_ex_monitor_uhfqa.seqc",
+              "@base": "@uhfqa"
+            },
+            {
+              "name": "result",
+              "file": "labone_ex_result_uhfqa.seqc",
+              "@base": "@uhfqa"
+            },
+            {
+              "name": "threshold",
+              "file": "labone_ex_threshold_uhfqa.seqc",
+              "@base": "@uhfqa"
+            },
+            {
+              "name": "rabi",
+              "file": "labone_ex_rabi_shfsg.seqc",
+              "@base": "@shfsg4_sg"
+            },
+            {
+              "name": "ramsey",
+              "file": "labone_ex_ramsey_shfsg.seqc",
+              "@base": "@shfsg4_sg"
+            },
+            {
+              "name": "cpmg",
+              "file": "labone_ex_cpmg_shfsg.seqc",
+              "@base": "@shfsg4_sg"
+            },
+            {
+              "name": "pulsed_res",
+              "file": "labone_ex_pulsed_res_shfqa.seqc",
+              "@base": "@shfqa4_qa"
+            },
+            {
+              "name": "readout_all",
+              "file": "labone_ex_readout_all_shfqa.seqc",
+              "@base": "@shfqa4_qa"
+            },
+            {
+              "name": "readout_single",
+              "file": "labone_ex_readout_single_shfqa.seqc",
+              "@base": "@shfqa4_qa"
+            },
+            {
+              "name": "commandtable",
+              "file": "hdawg_labone_ex_commandtable.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "readout_weights",
+              "file": "shfqa_labone_ex_readout_weights.seqc",
+              "@base": "@shfqa4_qa"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

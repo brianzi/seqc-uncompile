@@ -161,36 +161,57 @@ class TestCase:
     sequencer: Optional[str] = None
 
 
-def load_test_cases(cases_dir: Path) -> List[TestCase]:
-    """Load test cases from a manifest.json file."""
+def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, exclude_groups=None) -> List[TestCase]:
+    """Load test cases from a manifest.json file with optional filtering."""
     manifest = cases_dir / "manifest.json"
     if not manifest.exists():
         print(f"ERROR: {manifest} not found", file=sys.stderr)
         sys.exit(2)
 
-    with open(manifest) as f:
-        entries = json.load(f)
+    # Use manifest_loader for v1/v2 support
+    try:
+        from manifest_loader import load_manifest
+        test_cases_v2 = load_manifest(manifest)
+    except Exception as e:
+        print(f"ERROR loading manifest: {e}", file=sys.stderr)
+        sys.exit(2)
 
+    # Apply tag/group filtering
+    filtered = test_cases_v2
+    if tags:
+        tag_set = set(tags)
+        filtered = [t for t in filtered if tag_set & set(t.tags)]
+    if exclude_tags:
+        exclude_tag_set = set(exclude_tags)
+        filtered = [t for t in filtered if not (exclude_tag_set & set(t.tags))]
+    if groups:
+        group_set = set(groups)
+        filtered = [t for t in filtered if any(g in group_set for g in t.groups)]
+    if exclude_groups:
+        exclude_group_set = set(exclude_groups)
+        filtered = [t for t in filtered if not any(g in exclude_group_set for g in t.groups)]
+
+    # Convert to old TestCase format for compatibility
     cases = []
-    for entry in entries:
+    for tc in filtered:
         # If "file" key is present, read code from that file
-        code = entry.get("code", "")
-        if "file" in entry:
-            code_path = cases_dir / entry["file"]
+        code = tc.code or ""
+        if tc.file:
+            code_path = cases_dir / tc.file
             if code_path.exists():
                 code = f"@{code_path}"
             else:
-                print(f"WARNING: {code_path} not found, skipping {entry.get('name')}")
+                print(f"WARNING: {code_path} not found, skipping {tc.name}")
                 continue
 
         cases.append(TestCase(
-            name=entry["name"],
+            name=tc.name,
             code=code,
-            devtype=entry["devtype"],
-            options=entry.get("options", ""),
-            index=entry.get("index", 0),
-            samplerate=entry.get("samplerate"),
-            sequencer=entry.get("sequencer"),
+            devtype=tc.devtype,
+            options=tc.options,
+            index=tc.index,
+            samplerate=tc.samplerate,
+            sequencer=tc.sequencer,
         ))
     return cases
 
@@ -451,7 +472,69 @@ def main():
     p.add_argument("-v", "--verbose", action="store_true")
     p.add_argument("--filter", default=None,
                    help="Only run test cases whose name contains this string")
+    
+    # v2.0 manifest filtering
+    p.add_argument("--tags", default=None,
+                   help="Only run tests with these tags (comma-separated)")
+    p.add_argument("--exclude-tags", default=None,
+                   help="Exclude tests with these tags (comma-separated)")
+    p.add_argument("--groups", default=None,
+                   help="Only run tests from these groups (comma-separated)")
+    p.add_argument("--exclude-groups", default=None,
+                   help="Exclude tests from these groups (comma-separated)")
+    
+    # Discovery
+    p.add_argument("--list-groups", action="store_true",
+                   help="List all groups and exit")
+    p.add_argument("--list-tags", action="store_true",
+                   help="List all tags and exit")
+    p.add_argument("--show-only", action="store_true",
+                   help="Show selected tests in pretty format (don't run)")
+    
     args = p.parse_args()
+    
+    # Handle discovery commands
+    if args.list_groups or args.list_tags:
+        from manifest_loader import load_manifest
+        from collections import Counter
+        manifest = args.cases_dir / "manifest.json"
+        tests = load_manifest(manifest)
+        
+        if args.list_groups:
+            groups = Counter(t.groups[0] if t.groups else '(none)' for t in tests)
+            print("Groups:")
+            for group, count in sorted(groups.items()):
+                print(f"  {group:30} {count:4} tests")
+            return 0
+        
+        if args.list_tags:
+            all_tags = Counter()
+            for t in tests:
+                all_tags.update(t.tags)
+            print("Tags:")
+            for tag, count in sorted(all_tags.items()):
+                print(f"  {tag:30} {count:4} tests")
+            return 0
+    
+    # Handle show-only (delegate to show_manifest.py)
+    if args.show_only:
+        import subprocess
+        cmd = [sys.executable, str(Path(__file__).parent / "show_manifest.py")]
+        if args.cases_dir:
+            cmd.extend(["--cases-dir", str(args.cases_dir)])
+        if args.filter:
+            cmd.extend(["--filter", args.filter])
+        if args.tags:
+            cmd.extend(["--tags", args.tags])
+        if args.exclude_tags:
+            cmd.extend(["--exclude-tags", args.exclude_tags])
+        if args.groups:
+            cmd.extend(["--groups", args.groups])
+        if args.exclude_groups:
+            cmd.extend(["--exclude-groups", args.exclude_groups])
+        if args.verbose:
+            cmd.append("-v")
+        return subprocess.call(cmd)
 
     # Resolve paths
     repo_root = Path(__file__).resolve().parent.parent
@@ -462,8 +545,14 @@ def main():
     if args.recon_dir is None:
         args.recon_dir = repo_root / "reconstructed" / "build"
 
+    # Parse filter arguments
+    tags = args.tags.split(',') if args.tags else None
+    exclude_tags = args.exclude_tags.split(',') if args.exclude_tags else None
+    groups = args.groups.split(',') if args.groups else None
+    exclude_groups = args.exclude_groups.split(',') if args.exclude_groups else None
+
     # Load test cases
-    cases = load_test_cases(args.cases_dir)
+    cases = load_test_cases(args.cases_dir, tags, exclude_tags, groups, exclude_groups)
     if args.filter:
         cases = [c for c in cases if args.filter in c.name]
 

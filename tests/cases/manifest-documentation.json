@@ -1,0 +1,456 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfsg8_sg": {
+      "devtype": "SHFSG8",
+      "sequencer": "sg"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA",
+      "index": 0
+    },
+    "uhfli": {
+      "devtype": "UHFLI",
+      "index": 0
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    }
+  },
+  "groups": [
+    {
+      "name": "zhinst",
+      "comment": "Zurich Instruments official examples",
+      "tags": ["zhinst"],
+      "groups": [
+        {
+          "name": "manualdocs_ai_synthesized",
+          "comment": "Examples from product documentation and user guides (AI-synthesized)",
+          "tags": ["documentation", "examples"],
+          "groups": [
+            {
+              "name": "hdawg",
+              "comment": "HDAWG documentation examples",
+              "defaults": "@hdawg8",
+              "cases": [
+                {
+                  "name": "simple",
+                  "file": "hdawg_doc_simple.seqc"
+                },
+                {
+                  "name": "rise_flat_fall",
+                  "file": "hdawg_doc_rise_flat_fall.seqc"
+                },
+                {
+                  "name": "cvar_sample_loop",
+                  "file": "hdawg_doc_cvar_sample_loop.seqc"
+                },
+                {
+                  "name": "marker_gauss",
+                  "file": "hdawg_doc_marker_gauss.seqc"
+                },
+                {
+                  "name": "setTrigger_waitWave",
+                  "file": "hdawg_doc_setTrigger_waitWave.seqc"
+                },
+                {
+                  "name": "waitDigTrigger",
+                  "file": "hdawg_doc_waitDigTrigger.seqc"
+                },
+                {
+                  "name": "placeholder",
+                  "file": "hdawg_doc_placeholder.seqc"
+                },
+                {
+                  "name": "placeholder_dual",
+                  "file": "hdawg_doc_placeholder_dual.seqc"
+                },
+                {
+                  "name": "repeat_gauss",
+                  "file": "hdawg_doc_repeat_gauss.seqc"
+                },
+                {
+                  "name": "wave_file",
+                  "file": "hdawg_doc_wave_file.seqc"
+                },
+                {
+                  "name": "IQ_modulation",
+                  "file": "hdawg_doc_IQ_modulation.seqc"
+                },
+                {
+                  "name": "crossed_modulation",
+                  "file": "hdawg_doc_crossed_modulation.seqc"
+                },
+                {
+                  "name": "phase_changes",
+                  "file": "hdawg_doc_phase_changes.seqc"
+                },
+                {
+                  "name": "multifreq",
+                  "file": "hdawg_doc_multifreq.seqc"
+                },
+                {
+                  "name": "multi_ch_sync",
+                  "file": "hdawg_doc_multi_ch_sync.seqc"
+                },
+                {
+                  "name": "multi_ch_sections",
+                  "file": "hdawg_doc_multi_ch_sections.seqc"
+                },
+                {
+                  "name": "chirp",
+                  "file": "hdawg_doc_chirp.seqc"
+                },
+                {
+                  "name": "rrc",
+                  "file": "hdawg_doc_rrc.seqc"
+                },
+                {
+                  "name": "sinc",
+                  "file": "hdawg_doc_sinc.seqc"
+                },
+                {
+                  "name": "filter",
+                  "file": "hdawg_doc_filter.seqc"
+                },
+                {
+                  "name": "circshift",
+                  "file": "hdawg_doc_circshift.seqc"
+                },
+                {
+                  "name": "interleave",
+                  "file": "hdawg_doc_interleave.seqc"
+                },
+                {
+                  "name": "sawtooth_triangle",
+                  "file": "hdawg_doc_sawtooth_triangle.seqc"
+                },
+                {
+                  "name": "lfsrGalois",
+                  "file": "hdawg_doc_lfsrGalois.seqc"
+                },
+                {
+                  "name": "random_waves",
+                  "file": "hdawg_doc_random_waves.seqc"
+                },
+                {
+                  "name": "cosine_ramp",
+                  "file": "hdawg_doc_cosine_ramp.seqc"
+                },
+                {
+                  "name": "setInt_setDouble",
+                  "file": "hdawg_doc_setInt_setDouble.seqc"
+                },
+                {
+                  "name": "setID",
+                  "file": "hdawg_doc_setID.seqc"
+                },
+                {
+                  "name": "string_concat",
+                  "file": "hdawg_doc_string_concat.seqc"
+                },
+                {
+                  "name": "playWave_rate",
+                  "file": "hdawg_doc_playWave_rate.seqc"
+                },
+                {
+                  "name": "sync",
+                  "file": "hdawg_doc_sync.seqc"
+                },
+                {
+                  "name": "dio_triggered",
+                  "file": "hdawg_doc_dio_triggered.seqc"
+                },
+                {
+                  "name": "getDigTrigger",
+                  "file": "hdawg_doc_getDigTrigger.seqc"
+                },
+                {
+                  "name": "info_msg",
+                  "file": "hdawg_doc_info_msg.seqc"
+                },
+                {
+                  "name": "randomSeed",
+                  "file": "hdawg_doc_randomSeed.seqc"
+                },
+                {
+                  "name": "join_interp",
+                  "file": "hdawg_doc_join_interp.seqc"
+                },
+                {
+                  "name": "prefetch",
+                  "file": "hdawg_doc_prefetch.seqc"
+                },
+                {
+                  "name": "playWaveDIO",
+                  "file": "hdawg_doc_playWaveDIO.seqc"
+                }
+              ]
+            },
+            {
+              "name": "shfsg",
+              "comment": "SHFSG documentation examples",
+              "defaults": "@shfsg8_sg",
+              "cases": [
+                {
+                  "name": "simple",
+                  "file": "shfsg_doc_simple.seqc"
+                },
+                {
+                  "name": "gauss",
+                  "file": "shfsg_doc_gauss.seqc"
+                },
+                {
+                  "name": "repeat_gauss",
+                  "file": "shfsg_doc_repeat_gauss.seqc"
+                },
+                {
+                  "name": "rise_flat_fall",
+                  "file": "shfsg_doc_rise_flat_fall.seqc"
+                },
+                {
+                  "name": "cvar_sample_loop",
+                  "file": "shfsg_doc_cvar_sample_loop.seqc"
+                },
+                {
+                  "name": "resetOsc_playWave12",
+                  "file": "shfsg_doc_resetOsc_playWave12.seqc"
+                },
+                {
+                  "name": "wave_file",
+                  "file": "shfsg_doc_wave_file.seqc"
+                },
+                {
+                  "name": "marker_gauss",
+                  "file": "shfsg_doc_marker_gauss.seqc"
+                },
+                {
+                  "name": "setTrigger_waitWave",
+                  "file": "shfsg_doc_setTrigger_waitWave.seqc"
+                },
+                {
+                  "name": "marker_periodic",
+                  "file": "shfsg_doc_marker_periodic.seqc"
+                },
+                {
+                  "name": "waitDigTrigger",
+                  "file": "shfsg_doc_waitDigTrigger.seqc"
+                },
+                {
+                  "name": "ct_basic",
+                  "file": "shfsg_doc_ct_basic.seqc"
+                },
+                {
+                  "name": "ct_increment",
+                  "file": "shfsg_doc_ct_increment.seqc"
+                },
+                {
+                  "name": "ct_amp_registers",
+                  "file": "shfsg_doc_ct_amp_registers.seqc"
+                },
+                {
+                  "name": "ct_placeholder",
+                  "file": "shfsg_doc_ct_placeholder.seqc"
+                },
+                {
+                  "name": "ct_no_waveform",
+                  "file": "shfsg_doc_ct_no_waveform.seqc"
+                },
+                {
+                  "name": "drag_modulation",
+                  "file": "shfsg_doc_drag_modulation.seqc"
+                },
+                {
+                  "name": "phase_changes",
+                  "file": "shfsg_doc_phase_changes.seqc"
+                },
+                {
+                  "name": "freq_sweep",
+                  "file": "shfsg_doc_freq_sweep.seqc"
+                },
+                {
+                  "name": "zsync_execute",
+                  "file": "shfsg_doc_zsync_execute.seqc"
+                },
+                {
+                  "name": "execute_wait_cycles",
+                  "file": "shfsg_doc_execute_wait_cycles.seqc"
+                },
+                {
+                  "name": "configFreqSweep",
+                  "file": "shfsg_doc_configFreqSweep.seqc"
+                },
+                {
+                  "name": "prng_funcs",
+                  "file": "shfsg_doc_prng_funcs.seqc"
+                },
+                {
+                  "name": "waitSineOscPhase",
+                  "file": "shfsg_doc_waitSineOscPhase.seqc"
+                },
+                {
+                  "name": "playZero_playHold_rate",
+                  "file": "shfsg_doc_playZero_playHold_rate.seqc"
+                }
+              ]
+            },
+            {
+              "name": "shfqa",
+              "comment": "SHFQA documentation examples",
+              "defaults": "@shfqa4_qa",
+              "cases": [
+                {
+                  "name": "readout_basic",
+                  "file": "shfqa_doc_readout_basic.seqc"
+                },
+                {
+                  "name": "switch_startQA",
+                  "file": "shfqa_doc_switch_startQA.seqc"
+                },
+                {
+                  "name": "for_startQA",
+                  "file": "shfqa_doc_for_startQA.seqc"
+                },
+                {
+                  "name": "while_dio",
+                  "file": "shfqa_doc_while_dio.seqc"
+                },
+                {
+                  "name": "if_dio",
+                  "file": "shfqa_doc_if_dio.seqc"
+                },
+                {
+                  "name": "repeat_dio",
+                  "file": "shfqa_doc_repeat_dio.seqc"
+                }
+              ]
+            },
+            {
+              "name": "uhfqa",
+              "comment": "UHFQA documentation examples",
+              "defaults": "@uhfqa",
+              "cases": [
+                {
+                  "name": "simple",
+                  "file": "uhfqa_doc_simple.seqc"
+                },
+                {
+                  "name": "gauss",
+                  "file": "uhfqa_doc_gauss.seqc"
+                },
+                {
+                  "name": "repeat_gauss",
+                  "file": "uhfqa_doc_repeat_gauss.seqc"
+                },
+                {
+                  "name": "rise_flat_fall",
+                  "file": "uhfqa_doc_rise_flat_fall.seqc"
+                },
+                {
+                  "name": "cvar_sample_loop",
+                  "file": "uhfqa_doc_cvar_sample_loop.seqc"
+                },
+                {
+                  "name": "wave_file",
+                  "file": "uhfqa_doc_wave_file.seqc"
+                },
+                {
+                  "name": "marker_gauss",
+                  "file": "uhfqa_doc_marker_gauss.seqc"
+                },
+                {
+                  "name": "setTrigger_waitWave",
+                  "file": "uhfqa_doc_setTrigger_waitWave.seqc"
+                },
+                {
+                  "name": "waitDigTrigger",
+                  "file": "uhfqa_doc_waitDigTrigger.seqc"
+                },
+                {
+                  "name": "waitDemodOscPhase",
+                  "file": "uhfqa_doc_waitDemodOscPhase.seqc"
+                },
+                {
+                  "name": "playAuxWave",
+                  "file": "uhfqa_doc_playAuxWave.seqc"
+                },
+                {
+                  "name": "analog_digital_csv",
+                  "file": "uhfqa_doc_analog_digital_csv.seqc"
+                }
+              ]
+            },
+            {
+              "name": "uhfli",
+              "comment": "UHFLI documentation examples",
+              "defaults": "@uhfli",
+              "cases": [
+                {
+                  "name": "IQ_modulation",
+                  "file": "uhf_doc_IQ_modulation.seqc"
+                },
+                {
+                  "name": "carrier_envelope",
+                  "file": "uhf_doc_carrier_envelope.seqc"
+                },
+                {
+                  "name": "multifreq",
+                  "file": "uhf_doc_multifreq.seqc"
+                },
+                {
+                  "name": "output_assignment",
+                  "file": "uhf_doc_output_assignment.seqc"
+                },
+                {
+                  "name": "fast_freq_phase",
+                  "file": "uhf_doc_fast_freq_phase.seqc"
+                },
+                {
+                  "name": "branching",
+                  "file": "uhf_doc_branching.seqc"
+                },
+                {
+                  "name": "feedforward",
+                  "file": "uhf_doc_feedforward.seqc"
+                },
+                {
+                  "name": "index_sweep",
+                  "file": "uhf_doc_index_sweep.seqc"
+                },
+                {
+                  "name": "param_sweep",
+                  "file": "uhf_doc_param_sweep.seqc"
+                },
+                {
+                  "name": "tv_mode",
+                  "file": "uhf_doc_tv_mode.seqc"
+                }
+              ]
+            },
+            {
+              "name": "shfqc",
+              "comment": "SHFQC documentation examples",
+              "defaults": "@shfqc_sg",
+              "cases": [
+                {
+                  "name": "lf_path",
+                  "file": "shfqc_doc_lf_path.seqc"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "hdawg4": {
+      "devtype": "HDAWG4",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfqa2_qa": {
+      "devtype": "SHFQA2",
+      "sequencer": "qa"
+    },
+    "shfqc_qa": {
+      "devtype": "SHFQC",
+      "sequencer": "qa"
+    },
+    "shfqc_sg": {
+      "devtype": "SHFQC",
+      "sequencer": "sg"
+    },
+    "shfsg4": {
+      "devtype": "SHFSG4"
+    },
+    "shfsg2": {
+      "devtype": "SHFSG2"
+    },
+    "shfsg8": {
+      "devtype": "SHFSG8"
+    },
+    "uhfli": {
+      "devtype": "UHFLI"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA"
+    },
+    "uhfawg": {
+      "devtype": "UHFAWG"
+    },
+    "ghfli": {
+      "devtype": "GHFLI"
+    },
+    "vhfli": {
+      "devtype": "VHFLI"
+    },
+    "shfli": {
+      "devtype": "SHFLI"
+    }
+  },
+  "groups": [
+    {
+      "name": "large_programs",
+      "comment": "Large complex programs - stress tests for compiler",
+      "tags": [
+        "large",
+        "stress"
+      ],
+      "cases": [
+        {
+          "name": "large_arith_ops_hdawg8",
+          "file": "large_arith_ops.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "large_arith_ops_hdawg4",
+          "file": "large_arith_ops.seqc",
+          "devtype": "HDAWG4",
+          "index": 0,
+          "samplerate": 2400000000.0
+        },
+        {
+          "name": "large_arith_ops_uhfli",
+          "file": "large_arith_ops.seqc",
+          "devtype": "UHFLI",
+          "index": 0
+        },
+        {
+          "name": "large_arith_ops_uhfawg",
+          "file": "large_arith_ops.seqc",
+          "devtype": "UHFAWG",
+          "index": 0
+        },
+        {
+          "name": "large_arith_ops_uhfqa",
+          "file": "large_arith_ops.seqc",
+          "devtype": "UHFQA",
+          "index": 0
+        },
+        {
+          "name": "large_arith_ops_shfqa4",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFQA4",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "large_arith_ops_shfqa2",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFQA2",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "large_arith_ops_shfsg4",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFSG4",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "large_arith_ops_shfsg2",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFSG2",
+          "index": 0,
+          "sequencer": "sg"
+        },
+        {
+          "name": "large_arith_ops_shfqc",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFQC",
+          "index": 0,
+          "sequencer": "qa"
+        },
+        {
+          "name": "large_arith_ops_shfli",
+          "file": "large_arith_ops.seqc",
+          "devtype": "SHFLI",
+          "index": 0
+        },
+        {
+          "name": "large_arith_ops_ghfli",
+          "file": "large_arith_ops.seqc",
+          "devtype": "GHFLI",
+          "index": 0
+        },
+        {
+          "name": "large_arith_ops_vhfli",
+          "file": "large_arith_ops.seqc",
+          "devtype": "VHFLI",
+          "index": 0
+        }
+      ]
+    }
+  ]
+}

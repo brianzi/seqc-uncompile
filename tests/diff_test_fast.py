@@ -190,7 +190,69 @@ def main():
                    help="Only run test cases whose name contains this string")
     p.add_argument("-j", "--jobs", type=int, default=os.cpu_count(),
                    help="Parallelism per side (default: cpu_count)")
+    
+    # v2.0 manifest filtering
+    p.add_argument("--tags", default=None,
+                   help="Only run tests with these tags (comma-separated)")
+    p.add_argument("--exclude-tags", default=None,
+                   help="Exclude tests with these tags (comma-separated)")
+    p.add_argument("--groups", default=None,
+                   help="Only run tests from these groups (comma-separated)")
+    p.add_argument("--exclude-groups", default=None,
+                   help="Exclude tests from these groups (comma-separated)")
+    
+    # Discovery
+    p.add_argument("--list-groups", action="store_true",
+                   help="List all groups and exit")
+    p.add_argument("--list-tags", action="store_true",
+                   help="List all tags and exit")
+    p.add_argument("--show-only", action="store_true",
+                   help="Show selected tests in pretty format (don't run)")
+    
     args = p.parse_args()
+    
+    # Handle discovery commands
+    if args.list_groups or args.list_tags:
+        from manifest_loader import load_manifest
+        from collections import Counter
+        manifest = args.cases_dir / "manifest.json"
+        tests = load_manifest(manifest)
+        
+        if args.list_groups:
+            groups = Counter(t.groups[0] if t.groups else '(none)' for t in tests)
+            print("Groups:")
+            for group, count in sorted(groups.items()):
+                print(f"  {group:30} {count:4} tests")
+            return 0
+        
+        if args.list_tags:
+            all_tags = Counter()
+            for t in tests:
+                all_tags.update(t.tags)
+            print("Tags:")
+            for tag, count in sorted(all_tags.items()):
+                print(f"  {tag:30} {count:4} tests")
+            return 0
+    
+    # Handle show-only (delegate to show_manifest.py)
+    if args.show_only:
+        import subprocess
+        cmd = [sys.executable, str(Path(__file__).parent / "show_manifest.py")]
+        if args.cases_dir:
+            cmd.extend(["--cases-dir", str(args.cases_dir)])
+        if args.filter:
+            cmd.extend(["--filter", args.filter])
+        if args.tags:
+            cmd.extend(["--tags", args.tags])
+        if args.exclude_tags:
+            cmd.extend(["--exclude-tags", args.exclude_tags])
+        if args.groups:
+            cmd.extend(["--groups", args.groups])
+        if args.exclude_groups:
+            cmd.extend(["--exclude-groups", args.exclude_groups])
+        if args.verbose:
+            cmd.append("-v")
+        return subprocess.call(cmd)
 
     # Resolve paths
     repo_root = Path(__file__).resolve().parent.parent
@@ -201,8 +263,14 @@ def main():
     if args.recon_dir is None:
         args.recon_dir = repo_root / "reconstructed" / "build"
 
+    # Parse filter arguments
+    tags = args.tags.split(',') if args.tags else None
+    exclude_tags = args.exclude_tags.split(',') if args.exclude_tags else None
+    groups = args.groups.split(',') if args.groups else None
+    exclude_groups = args.exclude_groups.split(',') if args.exclude_groups else None
+
     # Load and filter test cases
-    cases = load_test_cases(args.cases_dir)
+    cases = load_test_cases(args.cases_dir, tags, exclude_tags, groups, exclude_groups)
     if args.filter:
         cases = [c for c in cases if args.filter in c.name]
 
