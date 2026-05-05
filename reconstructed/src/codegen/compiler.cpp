@@ -30,7 +30,8 @@
 #include "zhinst/device/device_constants.hpp"
 #include "zhinst/runtime/resources.hpp"
 
-#include "zhinst/ast/yy_fwd.hpp"
+#include "zhinst/ast/seqc_parser_fwd.hpp"
+#include "zhinst/asm/asm_parser_fwd.hpp"
 
 namespace zhinst {
 

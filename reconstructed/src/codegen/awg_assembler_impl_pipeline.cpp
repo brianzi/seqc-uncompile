@@ -23,7 +23,7 @@
 
 #include "zhinst/infra/log_macros.hpp"
 
-#include "zhinst/ast/yy_fwd.hpp"
+#include "zhinst/asm/asm_parser_fwd.hpp"
 
 namespace zhinst {
 
