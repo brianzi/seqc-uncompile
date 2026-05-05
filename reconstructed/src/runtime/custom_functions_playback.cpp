@@ -45,7 +45,7 @@ inline void appendSuser(std::vector<AsmList::Asm>& vec, std::shared_ptr<AsmComma
 extern ErrorMessages errMsg;
 
 
-// ---- Thin play() wrappers ------------------------------------------------
+// --- Thin play() wrappers ---
 
 std::shared_ptr<EvalResults> CustomFunctions::playWave(  // @0x1352f0 (189B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
@@ -76,7 +76,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveIndexedNow(  // @0x135550 
     return playIndexed(args, std::move(res), SubFunc::Now);
 }
 
-// ---- Thin delegating wrappers ---
+// --- Thin delegating wrappers ---
 
 std::shared_ptr<EvalResults> CustomFunctions::playAuxWaveIndexed(  // @0x136930 (182B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
@@ -90,7 +90,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDigTrigger(  // @0x1386a0 
     return play(args, std::move(res), SubFunc::DigTrigger);
 }
 
-// ---- Complex play wrappers (own PlayArgs construction, no play()/playIndexed() delegation) ---
+// --- Complex play wrappers (own PlayArgs construction, no play()/playIndexed() delegation) ---
 
 // ----------------------------------------------------------------------------
 // CustomFunctions::playAuxWave — @0x135610 (~5KB, 1118 disasm lines)
@@ -127,12 +127,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> /*res*/)
 {
-    // ---- Phase 1: device-type support — @0x13562d..0x135669 ---------------
+    // --- Phase 1: device-type support — @0x13562d..0x135669 ---
     // No external triggering mode check (unlike playDIOWave/playWaveDIO/playWaveZSync).
     // 0x5 = same support bitmask as playDIOWave.
     checkFunctionSupported("playAuxWave", static_cast<AwgDeviceType>(5));
 
-    // ---- Phase 2: arg-count check — @0x13566e..0x135675 -------------------
+    // --- Phase 2: arg-count check — @0x13566e..0x135675 ---
     // Empty-args branch jumps to error path @0x136490 which constructs a
     // format(0x3d, "playAuxWave", argc, /*expected*/1) message — same code
     // as playDIOWave's empty-args throw.
@@ -147,7 +147,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                                   static_cast<size_t>(1)));
     }
 
-    // ---- Phase 3: construct PlayArgs on the stack — @0x13567b..0x135768 ---
+    // --- Phase 3: construct PlayArgs on the stack — @0x13567b..0x135768 ---
     // The binary copies wavetableFront_ ([this+0x20]) and warningCallback_
     // ([this+0x190], invoked through the function vtable at [this+0x1B0])
     // into temp slots, then calls PlayArgs::PlayArgs.  Modeled here via the
@@ -155,13 +155,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       std::string("playAuxWave"), /*indexed=*/true);  // @0x135705
 
-    // ---- Phase 4: parse args + rate — @0x13576a..0x135790 -----------------
+    // --- Phase 4: parse args + rate — @0x13576a..0x135790 ---
     auto parseEnd = playArgs.parse(args);                              // @0x135774
     int rate = parseOptionalRate(args.cbegin(), args.cend(), parseEnd,
                                  std::string("playAuxWave"),
                                  /*strict=*/true);                      // @0x135790
 
-    // ---- Phase 5: rate sanity check — @0x135798..0x13579f -----------------
+    // --- Phase 5: rate sanity check — @0x135798..0x13579f ---
     // jle 0x13651c → throw format(0xa0, "playAuxWave") — invalid rate.
     if (rate <= 4) {
         // @0x13651c..0x1365a2: throw format(0xa0, cmdName).
@@ -172,11 +172,11 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                                   std::string("playAuxWave")));
     }
 
-    // ---- Phase 6: allocate EvalResults(Void) — @0x1357a5..0x1357db --------
+    // --- Phase 6: allocate EvalResults(Void) — @0x1357a5..0x1357db ---
     // make_shared<EvalResults>(VarType_Void) — Void return.
     auto results = std::make_shared<EvalResults>(VarType_Void);          // @0x1357d3
 
-    // ---- Phase 7: hasMarker_ guard — @0x1357df ----------------------------
+    // --- Phase 7: hasMarker_ guard — @0x1357df ---
     // If PlayArgs::hasMarker_ at +0x78 (= rbp-0x278 within the PlayArgs
     // stack frame) is set, skip the entire per-channel + asmPlay body and
     // jump straight to cleanup at @0x1363a0.
@@ -189,7 +189,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         unsigned int mask = 0x3FFF;                                    // r15d default
 
         if (assignments.empty()) {
-            // ---- Phase 8a: empty-assignments path — @0x1359ec..0x1359f9 ---
+            // --- Phase 8a: empty-assignments path — @0x1359ec..0x1359f9 ---
             // mask stays 0x3FFF; combinedWf stays null; skip directly to
             // checkOffspecWaveLength + asmPlay block (which will be skipped
             // unless config_->[+0x18] is set).
@@ -255,7 +255,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 }
             }
 
-            // ---- Phase 8e: mergeWaveforms — @0x135db6..0x135de1 ----------
+            // --- Phase 8e: mergeWaveforms — @0x135db6..0x135de1 ---
             // Same 6-arg signature as in playDIOWave.  channelsPerGroup is
             // re-read from config (sx WORD [config+0x16]) and passed as a
             // signed short.  The 7th arg (last bool, `param6`) is hard-coded
@@ -277,13 +277,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             mask = 0x3FC3;
         }
 
-        // ---- Phase 9: validate sample length — @0x135ef6..0x135f0d --------
+        // --- Phase 9: validate sample length — @0x135ef6..0x135f0d ---
         // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
         // [rdi+0x08] = devConst_, [rax+0x40] = maxWaveformLength.
         int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x135efe
         checkOffspecWaveLength(combinedWf, expectedLen);                // @0x135f08
 
-        // ---- Phase 10: emit-guard — @0x135f3a..0x135f57 -------------------
+        // --- Phase 10: emit-guard — @0x135f3a..0x135f57 ---
         // emitPlay = (combinedWf != nullptr) || config_->isHirzel
         // NOTE: config_+0x18 = isHirzel (verified AWGCompilerConfig layout).
         // On Hirzel devices, play is emitted even with null waveform.
@@ -298,7 +298,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             std::vector<std::shared_ptr<WaveformFront>> waveforms;
             waveforms.push_back(combinedWf);                             // @0x135fae
 
-            // ---- Phase 12: build asmPlay — @0x13608a..0x1360e3 -----------
+            // --- Phase 12: build asmPlay — @0x13608a..0x1360e3 ---
             // Two AsmRegister temporaries:
             //   reg  = AsmRegister(0)   @0x136093
             //   reg2 = AsmRegister(-1)  @0x1360a4
@@ -354,7 +354,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     // per-channel + asmPlay body is skipped entirely, control falls through
     // here into the function epilogue with an empty `results`.
 
-    // ---- Phase 14: return — @0x13645f.. ----------------------------------
+    // --- Phase 14: return — @0x13645f.. ---
     // The binary tears down PlayArgs and the cmdName string before returning
     // rbx (the EvalResults shared_ptr).  C++ destructors handle these.
     return results;
@@ -415,25 +415,23 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 //                 /*trigger*/0).
 //   13. Append the asm entry into results->assemblers_.
 //
-// IMPORTANT: The exact mapping of the integer pushed at @0x136cf4
-// ([rbp-0xa8]) into mergeWaveforms' `param5` is the result of
-// `parseOptionalRate(...)` (spilled at @0x136bd4); rate flows directly to
-// mergeWaveforms unchanged. The bool pushed at @0x136cf2 is hard-coded 0
-// in this code path.
+// The integer pushed at @0x136cf4 ([rbp-0xa8]) into mergeWaveforms' `param5`
+// is the result of parseOptionalRate(...) (spilled at @0x136bd4); rate flows
+// directly unchanged. The bool pushed at @0x136cf2 is hard-coded 0 here.
 std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> /*res*/)
 {
-    // ---- Phase 1: external triggering mode check — @0x136a0d..0x136a25 ----------------
+    // --- Phase 1: external triggering mode check — @0x136a0d..0x136a25 ---
     // state value 1 (DIO mode); same as playWaveDIO.
     checkExternalTriggeringMode(ExternalTriggeringMode::Dio);
 
-    // ---- Phase 2: device-type support check — @0x136a2b..0x136a54 ---------
+    // --- Phase 2: device-type support check — @0x136a2b..0x136a54 ---
     // 0x5 = bitmask of devices supporting playDIOWave (unusual; most other
     // wrappers use 0x1f2). Confirmed @0x136a4f: `mov edx, 0x5`.
     checkFunctionSupported("playDIOWave", static_cast<AwgDeviceType>(5));
 
-    // ---- Phase 3: arg-count check — @0x136a59..0x136a60 -------------------
+    // --- Phase 3: arg-count check — @0x136a59..0x136a60 ---
     // Empty-args branch jumps to error path @0x1373f8 which constructs a
     // format(0x3d, "playDIOWave", argc, …) message. Code 0x3d is the
     // "wrong-arg-count" template that takes the cmd name + 3 ints.
@@ -448,7 +446,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
                                   static_cast<size_t>(1)));
     }
 
-    // ---- Phase 4: construct PlayArgs on the stack — @0x136a66..0x136ae9 ---
+    // --- Phase 4: construct PlayArgs on the stack — @0x136a66..0x136ae9 ---
     // The binary copies wavetableFront_ (this+0x20) and warningCallback_
     // (this+0x190 / +0x1B0 invoker) into temp slots, then calls the
     // PlayArgs ctor. After the ctor consumes them, the temp std::function
@@ -458,13 +456,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       std::string("playDIOWave"), /*indexed=*/false);
 
-    // ---- Phase 5: parse args + rate — @0x136b49..0x136b6e -----------------
+    // --- Phase 5: parse args + rate — @0x136b49..0x136b6e ---
     auto parseEnd = playArgs.parse(args);                                // @0x136b53
     int rate = parseOptionalRate(args.cbegin(), args.cend(), parseEnd,
                                  std::string("playDIOWave"),
                                  /*strict=*/false);                       // @0x136b69
 
-    // ---- Phase 6: rate sanity check — @0x136b71..0x136b74 -----------------
+    // --- Phase 6: rate sanity check — @0x136b71..0x136b74 ---
     // jle 0x13742a → throw format(0xa1) — invalid/insufficient rate.
     if (rate <= 1) {
         // @0x13742a..0x137464: throw format(0xa1)
@@ -472,7 +470,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             ErrorMessages::format(DioSampleRateTooHigh));
     }
 
-    // ---- Phase 7: allocate EvalResults(Void) — @0x136b7a..0x136bb0 --------
+    // --- Phase 7: allocate EvalResults(Void) — @0x136b7a..0x136bb0 ---
     // make_shared<EvalResults>(VarType_Void).  Stored into rbx (return reg).
     auto results = std::make_shared<EvalResults>(VarType_Void);
 
@@ -482,11 +480,11 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     // and we jump straight to results assembly cleanup.  Otherwise we
     // continue into the merge / asmPlay path.
     if (!playArgs.hasMarker_) {
-        // -- Phase 8: maxSampleLen — @0x136bc1..0x136bd4 --------------------
+        // --- Phase 8: maxSampleLen — @0x136bc1..0x136bd4 ---
         int64_t maxSampleLen = playArgs.getMaxSampleLength();             // @0x136bcf
         // maxSampleLen is forwarded into asmPlay's length argument below.
 
-        // -- Phase 9: per-device-channel loop — @0x136bdb..0x136cb5 --------
+        // --- Phase 9: per-device-channel loop — @0x136bdb..0x136cb5 ---
         // channelIndex = config_->deviceIndex (config+0x24).
         int channelIndex = config_->deviceIndex;                          // @0x136bde
         // assignments = playArgs.waveAssignments_[channelIndex].
@@ -522,7 +520,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             }
         }
 
-        // -- Phase 10: mergeWaveforms — @0x136cd9..0x136cff ----------------
+        // --- Phase 10: mergeWaveforms — @0x136cd9..0x136cff ---
         // The 6-arg merge call:
         //   args[0..5] = (channelArgs, channelsPerGroup[0], false,
         //                 "playDIOWave", rate, /*lengthDiffers*/false)
@@ -547,8 +545,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             // division (sar 3 + imul 0x6db6db6db6db6db7 = ÷56 = ÷sizeof(EvalResultValue)).
             // If size >= 2, it calls channelArgs[0].value_.toString()
             // and sets dryRun = result.empty().  Otherwise dryRun = false.
-             // NOTE: original placeholder said "element[1]" — that was wrong.
-            // `add r13, 0x8` offsets into Value_ at +0x08 within element[0],
+             // `add r13, 0x8` offsets into Value_ at +0x08 within element[0],
             // not to element index 1.
             if (channelArgs.size() >= 2) {
                 dryRun = channelArgs[0].value_.toString().empty();          // @0x136dac
@@ -557,7 +554,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             }
         }
 
-        // -- Phase 11: validate sample length — @0x136e8d..0x136e9e --------
+        // --- Phase 11: validate sample length — @0x136e8d..0x136e9e ---
         // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
         // [r14+0x08] = devConst_, [rax+0x40] = maxWaveformLength.
         if (combinedWf) {
@@ -565,7 +562,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             checkOffspecWaveLength(combinedWf, expectedLen);              // @0x136e9e
         }
 
-        // -- Phase 12: build asmPlay — @0x136ecb..0x137067 -----------------
+        // --- Phase 12: build asmPlay — @0x136ecb..0x137067 ---
         // The branch at @0x136ee5 (`cmp cl, 0x1`) skips the asmPlay entirely
         // when (combinedWf == nullptr) AND (config.isHirzel == 0). When
         // either is set, we emit asmPlay.
@@ -619,7 +616,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
                 regInv,
                 /*trigger=*/0);                                            // @0x13705e
 
-            // -- Phase 13: append entry into results->assemblers_ ----------
+            // --- Phase 13: append entry into results->assemblers_ ---
             // The binary inlines the push_back: tail-pointer compare against
             // the capacity (@0x137169..0x137200) — falls back to
             // emplace_back_slow_path when full.  We use the high-level API.
@@ -632,7 +629,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     // body is skipped entirely; control falls through into the cleanup
     // sequence (PlayArgs dtor + return results).
 
-    // ---- Phase 14: return — @0x1373ab.. ----------------------------------
+    // --- Phase 14: return — @0x1373ab.. ---
     // The binary tears down PlayArgs (@0x13770a) and the temp string at
     // [rbp-0x58] before returning rbx (the EvalResults shared_ptr).
     // C++ destructors handle these automatically.
@@ -819,7 +816,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     return results;
 }
 
-// ---- Simple 0-arg functions -----------------------------------------------
+// --- Simple 0-arg functions ---
 
 std::shared_ptr<EvalResults> CustomFunctions::waitWave(  // @0x13a980 (620B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
@@ -887,7 +884,7 @@ std::shared_ptr<EvalResults> CustomFunctions::now(  // @0x14cbc0 (611B)
     return result;
 }
 
-// ---- Formatting functions -------------------------------------------------
+// --- Formatting functions ---
 
 std::shared_ptr<EvalResults> CustomFunctions::error(  // @0x14d830 (536B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
@@ -907,7 +904,7 @@ std::shared_ptr<EvalResults> CustomFunctions::info(  // @0x14da50 (531B)
     return result;
 }
 
-// ---- Simple 1-arg functions -----------------------------------------------
+// --- Simple 1-arg functions ---
 
 std::shared_ptr<EvalResults> CustomFunctions::setRate(  // @0x14c370 (933B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {

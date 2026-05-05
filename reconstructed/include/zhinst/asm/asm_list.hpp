@@ -27,30 +27,23 @@
 
 namespace zhinst {
 
-// ============================================================================
-// AsmList class — wraps a vector of Asm records.
-//
-// Total size: 0x18 (24 bytes) = std::vector<Asm>
-//   +0x00  data pointer (begin)
-//   +0x08  end pointer
-//   +0x10  capacity end pointer
-// ============================================================================
+// Offset  Size  Type                Name
+// +0x00   8     T*                  begin pointer
+// +0x08   8     T*                  end pointer
+// +0x10   8     T*                  capacity end pointer
+// sizeof(AsmList) = 0x18
 class AsmList {
 public:
-    // ========================================================================
-    // Asm (nested type) — a single output record produced by AsmCommands.
-    // Size: 0xA8 bytes.
-    //
-    // Layout:
-    //   +0x00  int             sequenceId      — from createUniqueID(false)
-    //   +0x04  (4 bytes padding)
-    //   +0x08  Assembler  assembler       — instruction data (0x80 bytes)
-    //   +0x88  int             wavetableFront  — waveform table context index
-    //   +0x8C  (4 bytes padding)
-    //   +0x90  shared_ptr<Node> node           — AST node (16 bytes; may be null)
-    //   +0xA0  bool            noOpt   — derived: (cmd-3) < 3u
-    //   +0xA1  (7 bytes padding to 0xA8)
-    // ========================================================================
+    // Offset  Size  Type              Name            Notes
+    // +0x00   4     int               sequenceId      from createUniqueID(false)
+    // +0x04   4     (padding)
+    // +0x08   0x80  Assembler         assembler       instruction data
+    // +0x88   4     int               wavetableFront  waveform table context index
+    // +0x8C   4     (padding)
+    // +0x90   16    shared_ptr<Node>  node            AST node (may be null)
+    // +0xA0   1     bool              noOpt           derived: (cmd-3) < 3u
+    // +0xA1   7     (padding to 0xA8)
+    // sizeof(AsmList::Asm) = 0xA8
     struct Asm {
         int sequenceId = 0;               // +0x00
         // +0x04: 4 bytes padding

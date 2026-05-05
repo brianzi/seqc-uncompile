@@ -1,46 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // WavetableFront and WavetableManager<WaveformFront>
-//
-// WavetableFront layout — 0x200 bytes total:
-//   0x000: DeviceConstants* deviceConstants_
-//   0x008: uint32_t addressValue_       (from AddressImpl<uint32_t>)
-//   0x00C: uint32_t addressValue2_      (duplicate/copy)
-//   0x010: std::ostringstream oss_       (0x108 bytes, to 0x118)
-//   0x118: CachedParser cachedParser_    (0x60 bytes, to 0x178)
-//   0x178: std::map<size_t, size_t> dioTableUsage_  (0x18 bytes, to 0x190)
-//   0x190: std::function<void(const std::string&, int)> warningCallback_ (0x20 bytes, to 0x1B0)
-//   0x1B0: (warningCallback_ __func ptr, points to 0x190 by default)
-//   0x1C0: (padding/unused 16 bytes)
-//   0x1D0: WavetableManager<WaveformFront>* manager_
-//   0x1D8: WaveIndexTracker waveIndexTracker_ (0x28 bytes, to 0x200)
-//          0x1D8: int numDefs_ / startIndex (first field of manager, stored separately)
-//          0x1E0: std::set<int> root node ptr
-//          0x1E8: set internal data (16 bytes)
-//          0x1F8: int flags/state
-//
-// WavetableManager<WaveformFront> layout — 0x48 bytes:
-//   0x00: int numDefs_
-//   0x04: int numDefs2_
-//   0x08: unordered_map<string, size_t> nameToIndex_ (hash table, ~0x28 bytes)
-//   0x30: vector<shared_ptr<WaveformFront>> waveforms_ (begin)
-//   0x38: vector end
-//   0x40: vector capacity end
-//   0x28: float (1.0f default at +0x28 in the new'd block)
-//
-// Actually refined from constructor at 0x29ab10:
-//   The 0x48-byte allocation is zeroed then:
-//     +0x28 = 0x3f800000 (1.0f)
-//     +0x30, +0x38, +0x40 = 0 (vector)
-//   This matches:
-//     0x00: int numDefs_          (set from DeviceConstants+0x60)
-//     0x04: int counter_
-//     0x08: unordered_map<string, size_t> nameToIndex_ (hash table)
-//     0x28: float amplitudeDefault_ (1.0f)
-//     0x30: shared_ptr<WaveformFront>* begin_ (vector data)
-//     0x38: shared_ptr<WaveformFront>* end_
-//     0x40: shared_ptr<WaveformFront>* cap_
-//
 // ============================================================================
 #pragma once
 
@@ -71,21 +31,23 @@ namespace zhinst {
 
 namespace detail {
 
-// ============================================================================
-// WavetableManager<WaveformFront> — 0x48 bytes
-// Heap-allocated, owned by WavetableFront
-// ============================================================================
+// Offset  Size  Type                                       Name
+// +0x00   4     int                                        numDefs_
+// +0x04   4     int                                        numDefs2_
+// +0x08   40    unordered_map<string, size_t>              nameToIndex_
+// +0x28   4     float                                      amplitudeDefault_  (init=1.0f)
+// +0x2C   4     (padding)
+// +0x30   24    vector<shared_ptr<WaveformT>>              waveforms_
+// sizeof(WavetableManager) = 0x48
 template <typename WaveformT>
 class WavetableManager {
 public:
-    // 0x00
-    int numDefs_;
-    // 0x04
-    int numDefs2_;
-    // 0x08 — unordered_map<string, size_t>: name -> index in waveforms_ vector
-    std::unordered_map<std::string, size_t> nameToIndex_;
-    // 0x30
-    std::vector<std::shared_ptr<WaveformT>> waveforms_;
+    int numDefs_;           // +0x00
+    int numDefs2_;          // +0x04
+    std::unordered_map<std::string, size_t> nameToIndex_;   // +0x08 (40B)
+    float amplitudeDefault_ = 1.0f;                         // +0x28
+    // +0x2C: 4B padding
+    std::vector<std::shared_ptr<WaveformT>> waveforms_;     // +0x30
 
     // --- Methods ---
     WavetableManager() = default;
@@ -147,30 +109,30 @@ public:
 
 } // namespace detail
 
-// ============================================================================
-// WavetableFront — 0x200 bytes
-// ============================================================================
+// Offset  Size   Type                                    Name
+// +0x000  8      DeviceConstants const*                  deviceConstants_
+// +0x008  4      uint32_t                                address_
+// +0x00C  4      uint32_t                                address2_
+// +0x010  0x108  std::ostringstream                      oss_
+// +0x118  0x60   CachedParser (opaque)                   cachedParser_
+// +0x178  24     std::map<size_t, size_t>                dioTableUsage_
+// +0x190  32     std::function<void(string,int)>         warningCallback_
+// +0x1B0  32     (internal warningCallback storage/pad)  warningCallbackStorage_
+// +0x1D0  8      WavetableManager<WaveformFront>*        manager_
+// +0x1D8  0x28   WaveIndexTracker (opaque)               waveIndexTracker_
+// sizeof(WavetableFront) = 0x200
 class WavetableFront {
 public:
-    // 0x000: DeviceConstants*
-    const DeviceConstants* deviceConstants_;
-    // 0x008: AddressImpl<uint32_t> (stored twice)
-    uint32_t address_;
-    uint32_t address2_;
-    // 0x010: std::ostringstream (0x108 bytes)
-    std::ostringstream oss_;
-    // 0x118: CachedParser (0x60 bytes)
-    char cachedParser_[0x60]; // CachedParser
-    // 0x178: std::map<size_t, size_t> dioTableUsage_
-    std::map<size_t, size_t> dioTableUsage_;
-    // 0x190: std::function<void(const string&, int)> warningCallback_
-    std::function<void(const std::string&, int)> warningCallback_;
-    // 0x1B0: (internal function storage pointer — points to warningCallback_ SSO or heap)
-    char warningCallbackStorage_[0x20];
-    // 0x1D0: WavetableManager<WaveformFront>* manager_
-    detail::WavetableManager<WaveformFront>* manager_;
-    // 0x1D8: WaveIndexTracker waveIndexTracker_ (0x28 bytes)
-    char waveIndexTracker_[0x28];
+    const DeviceConstants* deviceConstants_;            // +0x000
+    uint32_t address_;                                  // +0x008
+    uint32_t address2_;                                 // +0x00C
+    std::ostringstream oss_;                            // +0x010 (0x108B)
+    char cachedParser_[0x60];                           // +0x118
+    std::map<size_t, size_t> dioTableUsage_;            // +0x178
+    std::function<void(const std::string&, int)> warningCallback_;  // +0x190
+    char warningCallbackStorage_[0x20];                 // +0x1B0
+    detail::WavetableManager<WaveformFront>* manager_;  // +0x1D0
+    char waveIndexTracker_[0x28];                       // +0x1D8
 
     // --- Constructor / Destructor ---
     WavetableFront(

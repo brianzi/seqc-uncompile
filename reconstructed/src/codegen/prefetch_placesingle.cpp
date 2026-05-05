@@ -501,13 +501,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         }
                     }
 
-                    // ---- Common play: check isDummy (+0x66) ----
+                    // --- Common play: check isDummy (+0x66) ---
                     {
                         Node* npD = node.get();
                         if (!npD->config.dummy)                     // 0x1d90b9, +0x66 = config+0x1E
                             goto play_finalize;
 
-                        // ---- Hirzel dummy shortcut (0x1d90ca) ----
+                        // --- Hirzel dummy shortcut (0x1d90ca) ---
                         // For type==2 (Play) nodes on Hirzel devices with default rate,
                         // emit wvfs directly without going through wvfImpl.
                         if (nodeType == 2) {                        // 0x1d90ca: cmpl $0x2, 0x44(%rdi)
@@ -622,7 +622,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         }
                         int pageCount = sizePerDev / pagesNeeded;  // 0x1d9267
 
-                        // ----- Shared Hirzel/Cervino path -----
+                        // --- Shared Hirzel/Cervino path ---
                         // Binary: isHirzel branch at 0x1d92a1 selects the register:
                         //   Hirzel:  0x1d92cf adds +0x20 (registerHirzel), jmp 0x1d9d30
                         //   Cervino: 0x1d9d2c adds +0x28 (registerCervino), falls through to 0x1d9d30

@@ -7,12 +7,11 @@
 // See include/zhinst/exception.hpp for the full layout reconstruction
 // and the address map of every reconstructed function.
 //
-// IMPORTANT: This is a SOURCE-LEVEL reconstruction. The binary uses
-// multiple inheritance (std::bad_exception + boost::exception) and
-// stores fields via that MI layout. This source approximates the
-// observable behaviour (what(), code(), description(), throw/catch
-// matching against std::exception&) without requiring the consumer to
-// pull in <boost/exception/exception.hpp>.
+// Source-level reconstruction: the binary uses multiple inheritance
+// (std::bad_exception + boost::exception) and stores fields via that MI
+// layout. This source approximates the observable behaviour (what(),
+// code(), description(), throw/catch matching against std::exception&)
+// without requiring the consumer to pull in <boost/exception/exception.hpp>.
 // ============================================================================
 #include "zhinst/core/exception.hpp"
 

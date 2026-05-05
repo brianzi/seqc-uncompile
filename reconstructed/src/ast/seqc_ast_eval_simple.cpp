@@ -50,7 +50,7 @@ std::shared_ptr<EvalResults> SeqCOperation::evaluate(
     return nullptr;
 }
 
-// ---- Returns empty EvalResults (112B bodies) ------------------------------
+// --- Returns empty EvalResults (112B bodies) ---
 
 // SeqCLabel::evaluate(3) — @0x2130d0
 // Allocates a default-constructed EvalResults, returns it.
@@ -86,7 +86,7 @@ std::shared_ptr<EvalResults> SeqCNoOp::evaluate(
     return std::make_shared<EvalResults>();                  // @0x24627e
 }
 
-// ---- setLineNr preamble + return empty EvalResults (160B bodies) ----------
+// --- setLineNr preamble + return empty EvalResults (160B bodies) ---
 
 // SeqCVariableType::evaluate(3) — @0x209d10
 // Sets line number on messages, asmCommands, and wavetable, then returns
@@ -117,7 +117,7 @@ std::shared_ptr<EvalResults> SeqCNoCmd::evaluate(
     return std::make_shared<EvalResults>();                  // @0x22a598
 }
 
-// ---- setLineNr preamble + delegate to child (208B body) -------------------
+// --- setLineNr preamble + delegate to child (208B body) ---
 
 // SeqCPos::evaluate(3) — @0x228e80
 // Sets line number, then delegates to child_->evaluate() via virtual dispatch.
@@ -137,7 +137,7 @@ std::shared_ptr<EvalResults> SeqCPos::evaluate(
     return expr()->evaluate(std::move(res), ctx, state);
 }
 
-// ---- Error emitters + return empty (224B bodies) --------------------------
+// --- Error emitters + return empty (224B bodies) ---
 
 // SeqCContinueStatement::evaluate(3) — @0x226890
 // Emits error 0xd5 (StatementNotSupported) with "continue", returns empty.
@@ -171,7 +171,7 @@ std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     return std::make_shared<EvalResults>();
 }
 
-// ---- Throws CompilerException (240B body) ---------------------------------
+// --- Throws CompilerException (240B body) ---
 
 // SeqCParamList::evaluate(3) — @0x211050
 // Unconditionally throws CompilerException — a param list should never
@@ -326,7 +326,7 @@ std::shared_ptr<EvalResults> SeqCNEqual::evaluate(
 // Remaining evaluate() overrides (originally Phase 22d stubs, now implemented)
 // ============================================================================
 
-// ---- Operator 5-arg (inline logic, not delegated to helpers) ---------------
+// --- Operator 5-arg (inline logic, not delegated to helpers) ---
 
 // SeqCLower::evaluate(5) — @0x2371b0 (649B)
 // Calls evalLower, builds name with " < ".
@@ -570,7 +570,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
     bool lhsHas1 = !lhsVals.empty() && lhsVals.size() <= 1;
     bool rhsHas1 = !rhsVals.empty() && rhsVals.size() <= 1;
 
-    // ---- Path 1: lhsResult Var (post-increment) --------  @0x23be27
+    // --- Path 1: lhsResult Var (post-increment) --- @0x23be27
     if (lhsHas1 && lhsVals.back().varType_ == VarType_Var) {
 
         // Copy lhsResult assemblers into result.              @0x23be32
@@ -612,7 +612,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             // Binary: Immediate dtor vtable store-back (no-op in reconstruction) @0x23c346
         }
     }
-    // ---- Path 2: rhsResult Var (pre-increment) ----------  @0x23be9a
+    // --- Path 2: rhsResult Var (pre-increment) --- @0x23be9a
     else if (rhsHas1 && rhsVals.back().varType_ == VarType_Var) {
 
         // Copy rhsResult assemblers into result.              @0x23bec8
@@ -643,7 +643,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             // Binary: Immediate dtor vtable store-back (no-op in reconstruction) @0x23c5a6
         }
     }
-    // ---- Path 3: lhsResult Cvar (post-increment) --------  @0x23bf0f
+    // --- Path 3: lhsResult Cvar (post-increment) --- @0x23bf0f
     else if (lhsHas1 && lhsVals.back().varType_ == VarType_Cvar) {
 
         // Store OLD value in result.                           @0x23c752-23c77d
@@ -674,7 +674,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             result->setValue(VarType_Cvar, Value(newRhsVal));    // @0x23cd59
         }
     }
-    // ---- Path 4: rhsResult Cvar (pre-increment) ---------  @0x23bf6e
+    // --- Path 4: rhsResult Cvar (pre-increment) --- @0x23bf6e
     else if (rhsHas1 && rhsVals.back().varType_ == VarType_Cvar) {
 
         // Compute new value = old + 1.0, update cvar first.   @0x23c8a1-23c8be
@@ -704,14 +704,14 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             result->setValue(VarType_Cvar, Value(newVal2));
         }
     }
-    // ---- Path 5: lhsResult other (error) ----------------  @0x23bfd2
+    // --- Path 5: lhsResult other (error) --- @0x23bfd2
     else if (lhsHas1 && lhsVals.back().varType_ != VarType_Unset) {
         VarType vt = lhsVals.back().varType_;
         ctx.messages->errorMessage(
             ErrorMessages::format(ErrorMessageT(0x6f),
                 str(vt), lhsResult.name_), -1);                 // @0x23c398
     }
-    // ---- Path 6: rhsResult other (error) ----------------  @0x23c034
+    // --- Path 6: rhsResult other (error) --- @0x23c034
     else if (rhsHas1 && rhsVals.back().varType_ != VarType_Unset) {
         VarType vt = rhsVals.back().varType_;
         ctx.messages->errorMessage(
@@ -720,7 +720,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
     }
     // else: both empty/Unset — fall through to name_tail
 
-    // ---- Name tail ------                                    @0x23cdb3
+    // --- Name tail --- @0x23cdb3
     // Literal "++" at rodata 0x905bae.
     result->name_ = lhsResult.name_ + rhsResult.name_ + "++";
 
@@ -749,7 +749,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
     bool lhsHas1 = !lhsVals.empty() && lhsVals.size() <= 1;
     bool rhsHas1 = !rhsVals.empty() && rhsVals.size() <= 1;
 
-    // ---- Path 1: lhsResult Var (post-decrement) ---------
+    // --- Path 1: lhsResult Var (post-decrement) ---
     if (lhsHas1 && lhsVals.back().varType_ == VarType_Var) {
 
         result->assemblers_.insert(
@@ -787,7 +787,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
         }
     }
-    // ---- Path 2: rhsResult Var (pre-decrement) ----------
+    // --- Path 2: rhsResult Var (pre-decrement) ---
     else if (rhsHas1 && rhsVals.back().varType_ == VarType_Var) {
 
         result->assemblers_.insert(
@@ -815,7 +815,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             // Binary: Immediate dtor vtable store-back (no-op in reconstruction)
         }
     }
-    // ---- Path 3: lhsResult Cvar (post-decrement) --------
+    // --- Path 3: lhsResult Cvar (post-decrement) ---
     else if (lhsHas1 && lhsVals.back().varType_ == VarType_Cvar) {
 
         double oldVal = lhsVals.back().value_.toDouble();
@@ -842,7 +842,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             result->setValue(VarType_Cvar, Value(newRhsVal));
         }
     }
-    // ---- Path 4: rhsResult Cvar (pre-decrement) ---------
+    // --- Path 4: rhsResult Cvar (pre-decrement) ---
     else if (rhsHas1 && rhsVals.back().varType_ == VarType_Cvar) {
 
         double newVal1 = rhsVals.back().value_.toDouble() - 1.0;
@@ -869,14 +869,14 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             result->setValue(VarType_Cvar, Value(newVal2));
         }
     }
-    // ---- Path 5: lhsResult other (error) ----------------
+    // --- Path 5: lhsResult other (error) ---
     else if (lhsHas1 && lhsVals.back().varType_ != VarType_Unset) {
         VarType vt = lhsVals.back().varType_;
         ctx.messages->errorMessage(
             ErrorMessages::format(ErrorMessageT(0x70),
                 str(vt), lhsResult.name_), -1);
     }
-    // ---- Path 6: rhsResult other (error) ----------------
+    // --- Path 6: rhsResult other (error) ---
     else if (rhsHas1 && rhsVals.back().varType_ != VarType_Unset) {
         VarType vt = rhsVals.back().varType_;
         ctx.messages->errorMessage(
@@ -884,14 +884,14 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
                 str(vt), rhsResult.name_), -1);
     }
 
-    // ---- Name tail ------
+    // --- Name tail ---
     // Literal "--" at rodata (SeqCDec counterpart of SeqCInc's "++").
     result->name_ = lhsResult.name_ + rhsResult.name_ + "--";
 
     return result;
 }
 
-// ---- Unary 3-arg (all have inline logic) -----------------------------------
+// --- Unary 3-arg (all have inline logic) ---
 
 // SeqCNeg::evaluate(3) — @0x2284e0, 2009B
 //   Arithmetic negation (-x). Standalone 3-arg unary evaluate.
@@ -1574,7 +1574,7 @@ return_tail:                                                        // @0x227cc7
     return result;                                                  // @0x227dfe
 }
 
-// ---- List nodes 3-arg ------------------------------------------------------
+// --- List nodes 3-arg ---
 
 // SeqCArgList::evaluate(3) — @0x211de0 (1284B)
 //
@@ -1828,7 +1828,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
     return result;                                               // @0x212fa0
 }
 
-// ---- Two-child 3-arg -------------------------------------------------------
+// --- Two-child 3-arg ---
 
 // SeqCFunctionCall::evaluate(3) — @0x20c6a0, 15220B
 //   Evaluates a function call expression.

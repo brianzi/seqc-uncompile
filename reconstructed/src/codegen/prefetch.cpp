@@ -278,7 +278,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
   // 0x1cfcf5-0x1cfd05
   std::shared_ptr<Node> curShared = node;
 
-  // ---- Main iteration: walk the next-chain ----
+  // --- Main iteration: walk the next-chain ---
   // Entry at 0x1cfd3e; advance at 0x1d0869 → 0x1d08cf..0x1d0934 → back to
   // 0x1cfd10.
   while (curNode) {                // 0x1cfd17/0x1cfd38: test+je
@@ -510,7 +510,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
       break;
     }
 
-    // ==== Play (type 0x2, jump table idx 0) AND Table (type 0x200,
+    // --- Play (type 0x2, jump table idx 0) AND Table (type 0x200, ---
     // fall-through) ==== Both types share the case body at 0x1d02a8. Reached
     // via:
     //   - jump table[type-2] at idx 0 for type==Play (0x2)
@@ -1532,7 +1532,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
   // auto* nodeStatesPtr = &nodeStates_;  // this+0x10, stored at -0x88(%rbp)
   // auto* nameMapPtr = &nameMap_;        // this+0x38, stored at -0xc8(%rbp)
 
-  // ---- Main loop: iterate via node->next chain ----
+  // --- Main loop: iterate via node->next chain ---
   while (curNode) {            // 0x1d1017/0x1d101a → 0x1d2070
     Node *cur = curNode.get(); // 0x1d1020
     NodeType type = cur->type; // 0x1d1020: mov 0x44(%r12),%eax
@@ -1596,7 +1596,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                        true); // 0x1d15ca-0x1d15e3: call emplace_unique
       // 0x1d15e8: result+0x28 = true (movb $0x1,0x28(%rax))
 
-      // ---- Cache allocation logic (0x1d15f2 - 0x1d1d5a) ----
+      // --- Cache allocation logic (0x1d15f2 - 0x1d1d5a) ---
       // After nameMap insert, check if loadNode exists and has existing
       // allocation
 
@@ -1652,7 +1652,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
       }
 
       {
-        // ---- "no loadRef" allocation path (0x1d1a19) ----
+        // --- "no loadRef" allocation path (0x1d1a19) ---
         // Zero-init a shared_ptr for the play node reference
         // 0x1d1a19-0x1d1a1c: xorps xmm0; movaps → zero local shared_ptr
         std::shared_ptr<Node> playNode; // -0x100(%rbp), init null

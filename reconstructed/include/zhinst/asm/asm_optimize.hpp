@@ -2,17 +2,6 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // AsmOptimize — optimizer for AsmList instruction sequences
 //
-// Layout: 0xA0 bytes (approximate)
-//   +0x00: uint32_t numPhysicalRegs_    — physical register count (from device)
-//   +0x04: uint32_t pad
-//   +0x08: uint32_t optFlags_              — optimization pass bitmask
-//   +0x0C: uint32_t pad
-//   +0x10: vector<AsmList::Asm> asm_    — working copy of instructions (0x18)
-//   +0x28: (padding to 0x30)
-//   +0x30: std::function<...> errorCallback_   — error reporting (0x30)
-//   +0x60: std::function<...> warningCallback_ — warning reporting (0x30)
-//   +0x90: shared_ptr<CancelCallback> cancel_  — cancellation support (0x10)
-//
 // Optimization flags (bitmask at +0x08):
 //   0x01 = oneStepJumpElimination
 //   0x02 = removeUnusedLabels + mergeLabels
@@ -72,6 +61,17 @@ private:
 // pulling in the full resources.hpp header.
 class GlobalResources;
 
+// Offset  Size  Type                                    Name
+// +0x00   4     uint32_t                                numPhysicalRegs_
+// +0x04   4     (padding)
+// +0x08   4     uint32_t                                optFlags_
+// +0x0C   4     (padding)
+// +0x10   24    std::vector<AsmList::Asm>               asm_
+// +0x28   8     (padding to 0x30)
+// +0x30   48    std::function<void(string,int)>         errorCallback_
+// +0x60   48    std::function<void(string,int)>         warningCallback_
+// +0x90   16    std::shared_ptr<CancelCallback>         cancel_
+// sizeof(AsmOptimize) = 0xA0
 class AsmOptimize {
 public:
     // Constructor — builds optimizer with callbacks and device info

@@ -41,9 +41,10 @@ struct DeviceConstants;
 // ============================================================================
 // CacheException — inherits std::exception, has string message_
 //
-// Layout (0x20 bytes):
-//   +0x00: vtable*
-//   +0x08: std::string message_ (24 bytes, libc++ SSO)
+// Offset  Size  Type         Name      Notes
+// +0x00   8     vptr
+// +0x08   24    std::string  message_
+// sizeof(CacheException) = 0x20
 // ============================================================================
 class CacheException : public std::exception {
 public:
@@ -56,15 +57,15 @@ private:
 };
 
 // ============================================================================
-// Cache class — 0x28 bytes (40 bytes)
+// Cache class
 //
-// Layout:
-//   +0x00: uint32_t           size_        (AddressImpl<uint>, total cache size)
-//   +0x04: int32_t            pageSize_    (page/alignment size)
-//   +0x08: bool               isHirzel_    (if true, always append at end)
-//   +0x09: 7 bytes padding
-//   +0x10: vector<shared_ptr<Pointer>>  pointers_  (24 bytes: begin, end, cap)
-//   +0x28: END
+// Offset  Size  Type                          Name       Notes
+// +0x00   4     uint32_t                      size_      total cache size
+// +0x04   4     int32_t                       pageSize_  page/alignment size
+// +0x08   1     bool                          isHirzel_  if true, always append at end
+// +0x09   7     (padding)
+// +0x10   24    vector<shared_ptr<Pointer>>   pointers_
+// sizeof(Cache) = 0x28
 // ============================================================================
 class Cache {
 public:
@@ -88,18 +89,14 @@ public:
         Aligned = 1,
     };
 
-    // ========================================================================
-    // Cache::Pointer — 0x24 bytes (36 bytes)
-    //
-    // Layout:
-    //   +0x00: uint32_t          position_    (AddressImpl<uint>, start addr)
-    //   +0x04: uint32_t          size_        (num samples allocated)
-    //   +0x08: uint32_t          hash_        (computed: ~(position ^ (position + size/2)))
-    //   +0x0C: uint32_t          numRepeats_  (computed: numSamples/pageSize + 1 style)
-    //   +0x10: shared_ptr<WaveformIR> waveform_  (16 bytes; ptr at +0x10, ctrl at +0x18)
-    //   +0x20: PointerState      state_       (int32_t)
-    //   +0x24: END
-    // ========================================================================
+    // Offset  Size  Type                   Name         Notes
+    // +0x00   4     uint32_t               position_    start address
+    // +0x04   4     uint32_t               size_        num samples allocated
+    // +0x08   4     uint32_t               hash_        ~(pos ^ (pos + size/2))
+    // +0x0C   4     uint32_t               numRepeats_  numSamples/pageSize + 1
+    // +0x10   16    shared_ptr<WaveformIR> waveform_
+    // +0x20   4     PointerState           state_
+    // sizeof(Cache::Pointer) = 0x24 (libc++); 0x28 (libstdc++)
     struct Pointer {
         uint32_t position_;                     // +0x00
         uint32_t size_;                         // +0x04

@@ -285,7 +285,7 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
     // Step 1-4: alias resolution / argument count validation
     auto aliasIt = aliasMap_.find(name);
     if (aliasIt != aliasMap_.end()) {
-        // NOTE: aliasMap_ is empty in this binary (confirmed Phase 13c).
+        // aliasMap_ is empty in this binary.
         // If populated, the vector size selects error format 0x37 (1 entry) or 0x38 (2 entries).
     }
 
@@ -535,11 +535,10 @@ uint32_t CustomFunctions::getNodeAddress(NodeMapItem const& item) const {  // @0
 // getSampleClock @0x16ba80
 // Reads "DEVICE_SAMPLE_RATE" from resources_ (+0x10), fallback to devConst_->samplingRate (+0x70).
 //
-// IMPORTANT: The binary uses a global string constant `constDeviceSampleRateE` that is a libc++
-// SSO string object where byte 0 = '$' (0x24) encodes length=18 and is-short. The actual string
-// data starting at byte 1 is "DEVICE_SAMPLE_RATE" (18 chars, NO '$' prefix). The C source literal
-// that produces this SSO layout is "DEVICE_SAMPLE_RATE" (not "$DEVICE_SAMPLE_RATE").
-// Confirmed via GDB: StaticResources::getVariable is called with len=18, data="DEVICE_SAMPLE_RATE".
+// The binary uses a global string constant `constDeviceSampleRateE` encoded as a
+// libc++ SSO string: byte 0 = '$' (0x24, encodes length=18 + is-short), data at
+// byte 1 = "DEVICE_SAMPLE_RATE" (18 chars, no '$' prefix). The C literal is plain
+// "DEVICE_SAMPLE_RATE". Confirmed via GDB: len=18, data="DEVICE_SAMPLE_RATE".
 double CustomFunctions::getSampleClock() const {  // @0x16ba80
     // Binary first checks resources_ non-null, then variableExists("DEVICE_SAMPLE_RATE").
     // If exists: reads the constant and extracts the double value.

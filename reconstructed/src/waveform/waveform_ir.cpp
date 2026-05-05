@@ -91,13 +91,10 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
 //   +0xDA         crossesCacheLine_        = 0
 //   +0xDC         elfAlignment_                 = dc.waveformElfAlignment (dc+0x24)
 //
-// IMPORTANT: this constructor has no standalone symbol in the binary —
-// the dispatcher inlines it. We provide a body so that other TUs that
-// reference make_shared<WaveformIR>(name, type, dc) (e.g. the
-// reconstructed wavetable_manager_ir.cpp) can link. The body below is
-// the field-equivalent of the dispatcher's writes; it does NOT need to
-// produce byte-identical instructions, only byte-identical observable
-// state at end of construction.
+// This constructor has no standalone symbol in the binary — the dispatcher
+// inlines it. This body is the field-equivalent of the dispatcher's writes;
+// it does not need to produce byte-identical instructions, only byte-identical
+// observable state at end of construction.
 WaveformIR::WaveformIR(const std::string& name,
                        Waveform::File::Type type,
                        const DeviceConstants& dc)  // inlined at 0x2aa170

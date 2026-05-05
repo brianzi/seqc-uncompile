@@ -330,11 +330,12 @@ private:
 // ============================================================================
 // DeviceOptionSet — 72 bytes (0x48), DUAL STORAGE
 //
-// Layout:
-//   +0x00  unordered_set<DeviceOption>          (40 bytes) — fast lookup index
-//   +0x28  std::map<std::string, DeviceOption>  (24 bytes) — iteration order
-//   +0x40  DeviceFamily family_                 (4 bytes)
-//   +0x44  (padding, 4 bytes)
+// Offset  Size  Type                               Name      Notes
+// +0x00   40    unordered_set<DeviceOption>        values_   fast lookup
+// +0x28   24    map<string, DeviceOption>          byName_   iteration order
+// +0x40   4     DeviceFamily                       family_
+// +0x44   4     (padding)
+// sizeof(DeviceOptionSet) = 0x48
 // ============================================================================
 class DeviceOptionSet {
 public:
@@ -372,7 +373,14 @@ private:
 };
 
 // ============================================================================
-// detail::DeviceTypeImpl — polymorphic base class, 88 bytes (0x58)
+// detail::DeviceTypeImpl — polymorphic base class
+//
+// Offset  Size  Type            Name       Notes
+// +0x00   8     vptr                       (virtual: ~dtor, clone)
+// +0x08   4     DeviceTypeCode  code_
+// +0x0C   4     DeviceFamily    family_
+// +0x10   72    DeviceOptionSet options_
+// sizeof(DeviceTypeImpl) = 0x58
 // ============================================================================
 namespace detail {
 
@@ -463,7 +471,11 @@ sfc::FeaturesCode generateMfSfc(std::string const& deviceTypeName,
 }  // namespace detail
 
 // ============================================================================
-// DeviceType — pimpl wrapper, 8 bytes (single DeviceTypeImpl*)
+// DeviceType — pimpl wrapper
+//
+// Offset  Size  Type             Name   Notes
+// +0x00   8     DeviceTypeImpl*  impl_
+// sizeof(DeviceType) = 0x08
 // ============================================================================
 class DeviceType {
 public:

@@ -456,7 +456,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     std::shared_ptr<Resources> res,
     SubFunc subFunc) {  // @0x15f090  (7536 bytes, ends at 0x160e00)
 
-    // === Step 1: Build command name from SubFunc ===                @0x15f0c3
+    // --- Step 1: Build command name from SubFunc --- @0x15f0c3
     std::string cmdName;
     // NOTE: Jump table at 0x958ef8 with 5 entries (0-4). Callers pass
     // SubFunc enum values (Default=1, Aux=2, Now=3, DigTrigger=4).
@@ -475,14 +475,14 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         break;
     }
 
-    // === Step 2: Empty-args guard ===                              @0x15f1be
+    // --- Step 2: Empty-args guard --- @0x15f1be
     if (args.empty()) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncMinArgs,
                                   cmdName, 1, static_cast<int>(args.size())));  // @0x16080d
     }
 
-    // === Step 3: Copy args; DigTrigger extracts play-length ===    @0x15f1ce
+    // --- Step 3: Copy args; DigTrigger extracts play-length --- @0x15f1ce
     std::vector<EvalResultValue> argsCopy(args);                     // @0x15f225
     int firstArgVal = 0;
     if (subFunc == SubFunc::DigTrigger) {                            // @0x15f264
@@ -501,14 +501,14 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         argsCopy.erase(argsCopy.begin());                            // @0x15f340
     }
 
-    // === Step 4: Construct PlayArgs ===                            @0x15f4b6
+    // --- Step 4: Construct PlayArgs --- @0x15f4b6
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       cmdName, false);                               // @0x15f53c
     auto parseEnd = playArgs.parse(argsCopy);                        // @0x15f5ad
     int rate = parseOptionalRate(argsCopy.cbegin(), argsCopy.cend(),
                                  parseEnd, cmdName, false);          // @0x15f5ca
 
-    // === Step 5: Create EvalResults ===                            @0x15f5d2
+    // --- Step 5: Create EvalResults --- @0x15f5d2
     auto results = std::make_shared<EvalResults>(VarType_Void);        // @0x15f5ee
     // @0x15f614: cmpb $0x0, [rbp-0x1a8] = PlayArgs+0x78 = hasMarker_.
     // When hasMarker_ is set (any wave arg has varSubType_==2, i.e. FunctionArg),
@@ -520,7 +520,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         return results;
     }
 
-    // === Step 6: Per-channel loop ===                              @0x15f628
+    // --- Step 6: Per-channel loop --- @0x15f628
     int64_t maxSampleLen = playArgs.getMaxSampleLength();            // @0x15f62f
     int numChannels = config_->numChannelGroups;                     // +0x1c  @0x15f642
     int channelIndex = config_->deviceIndex;                         // +0x24
@@ -593,7 +593,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         }
     }
 
-    // === Step 7: Validation ===                                    @0x15fc27
+    // --- Step 7: Validation --- @0x15fc27
     auto combinedWf = channelWaveforms[channelIndex];
     if (subFunc == SubFunc::DigTrigger) {
         checkWaveformMinLengthTrig(combinedWf);                      // @0x15fc8f
@@ -602,7 +602,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         checkOffspecWaveLength(combinedWf, static_cast<int>(devConst_->maxWaveformLength)); // @0x15fcef
     }
 
-    // === Step 8: Assembly generation ===                           @0x15fd0f
+    // --- Step 8: Assembly generation --- @0x15fd0f
     // Binary control flow (verified via disassembly):
     //   SubFunc!=0: check isHirzel||combinedWf → asmPrefetch (if !isHirzel && combinedWf) → asmPlay → push
     //   SubFunc==0, isHirzel, combinedWf: asmPrefetch → fall through to asmPlay → push
@@ -681,7 +681,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     }
     step9_return:
 
-    // === Step 9: Return ===                                        @0x1607a4
+    // --- Step 9: Return --- @0x1607a4
     return results;
 }
 
@@ -710,7 +710,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // binary body of playIndexed.
     // ============================================================
 
-    // === Phase 1: Build command name from SubFunc ===                @0x160e31
+    // --- Phase 1: Build command name from SubFunc --- @0x160e31
     // Binary stores the cmdName as a libc++ short-string in the
     // 24-byte slot at [rbp-0x40]. Empty string for default path.
     std::string cmdName;
@@ -727,7 +727,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         break;
     }
 
-    // === Phase 2: Arg-count guard ===                               @0x160f16
+    // --- Phase 2: Arg-count guard --- @0x160f16
     // Binary: (size_in_bytes / 56) > 2  →  args.size() >= 3 to proceed.
     // Below 3 → error 0xC8 (200) "wrong number of arguments" at @0x162735.
     // (Existing stub used `< 2`, which was off by one.)
@@ -742,7 +742,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
                                   static_cast<int>(args.size())));    // got
     }
 
-    // === Phase 3: Construct PlayArgs ===                            @0x160f99..0x160fd1
+    // --- Phase 3: Construct PlayArgs --- @0x160f99..0x160fd1
     // r9b = (subFunc == Aux) ? 1 : 0  → indexed flag.
     // Cross-check: play()=false, playAuxWave=true, playDIOWave=false,
     // assignWaveIndex=false, playIndexed=(subFunc==Aux).
@@ -751,12 +751,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       cmdName, indexed);                             // @0x160fd1
 
-    // === Phase 4: parse() + validate index/length + parseOptionalRate ===
+    // --- Phase 4: parse() + validate index/length + parseOptionalRate ---
     // @0x16104c..0x1611af
     // parse() returns iterator past last consumed wave arg.
     auto parseEnd = playArgs.parse(args);                            // @0x16104c
 
-    // === Phase 4b: Validate index/length arg types ===              @0x1610fb..0x161190
+    // --- Phase 4b: Validate index/length arg types --- @0x1610fb..0x161190
     // Binary validates parseEnd[0] and parseEnd[1] (the index and length
     // args) BEFORE calling parseOptionalRate.  These two args are consumed
     // here; parseOptionalRate receives parseEnd+2 as its cursor.
@@ -792,7 +792,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             ErrorMessages::format(SampleRateTooHigh, cmdName));  // @0x162797
     }
 
-    // === Phase 5: EvalResults + extract waveIndex ===               @0x1611d6..0x161228
+    // --- Phase 5: EvalResults + extract waveIndex --- @0x1611d6..0x161228
     // Binary type-check on parseEnd[1] (the length arg): varType ∈ {4 (Const), 6 (Cvar)}.
     // Else error 0x9a @0x1627c5.
     {
@@ -831,7 +831,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         return results;  // jumps to common cleanup-and-return @0x1625ea
     }
 
-    // === Phase 6: Locate per-channel WaveAssignment vector ===     @0x161250..0x16127b
+    // --- Phase 6: Locate per-channel WaveAssignment vector --- @0x161250..0x16127b
     // Binary @0x161250-0x16125f computes:
     //   rax = [r12]                  ; r12 = `this`; rax = config_ ptr
     //   eax = [rax + 0x24]           ; config_->deviceIndex
@@ -868,7 +868,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     int triggerMask = 0x3fff;                                        // r13d init @0x1613d6 / @0x161405
 
     if (subFunc == SubFunc::Aux) {
-        // === Phase 6 (Aux only): name validation loop ===          @0x1612b4..0x161319
+        // --- Phase 6 (Aux only): name validation loop --- @0x1612b4..0x161319
         // For each WaveAssignment `wa` in the per-channel vector:
         //     std::string name = wa.value.toString();
         //     wavetableFront_->checkWaveformInitialized(name);
@@ -887,7 +887,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         // r14b=1 @0x1613dc — flag indicating Aux path taken; used in
         // later phases to gate the asmPlay variant.
     } else {
-        // === Phase 7 (non-Aux): per-channel arg-gather loop ===    @0x161410..0x1615f0
+        // --- Phase 7 (non-Aux): per-channel arg-gather loop --- @0x161410..0x1615f0
         //
         // Outer loop iterates waveAssignments_[deviceIndex] with
         // stride 0x50 (sizeof(WaveAssignment) = 80).
@@ -932,7 +932,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // === Phase 8: getWaveformSampleLength probe ===                  @0x161853..0x161867
+    // --- Phase 8: getWaveformSampleLength probe --- @0x161853..0x161867
     //
     // Disasm:
     //   mov  r15, [rbp-0xa0]            ; r15 = this
@@ -954,7 +954,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         firstWA.value.value_.toString());                            // r14d = WaveformSampleLength
 
     // ================================================================
-    // === Phase 9: synthesize zero-fill wave ===                      @0x16189a..0x1619d0
+    // --- Phase 9: synthesize zero-fill wave --- @0x16189a..0x1619d0
     //
     // Builds the literal string "zeros" (size byte 0xa = 5<<1 SSO):
     //   mov  BYTE  [rbp-0x70], 0xa
@@ -973,7 +973,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         waveformGen_->createDummyWaveform(static_cast<int>(baseLen));  // @0x161951
 
     // ================================================================
-    // === Phase 10: mergeWaveforms ===                                @0x161bf5..0x161c2b
+    // --- Phase 10: mergeWaveforms --- @0x161bf5..0x161c2b
     //
     // Disasm:
     //   xor  r8d, r8d
@@ -1003,7 +1003,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
                               /*useFunDescrPath=*/false);            // @0x161c2b
 
     // ================================================================
-    // === Phase 11: loadWaveform + post-merge length check ===        @0x161d31..0x161d76
+    // --- Phase 11: loadWaveform + post-merge length check --- @0x161d31..0x161d76
     //
     // Disasm @0x161d31..0x161d4b:
     //   mov  rax, [rbp-0xb0]                ; combined.get() (raw)
@@ -1030,7 +1030,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // gate cleanup branches; not semantically observable at source level.
 
     // ================================================================
-    // === Phase 12: addi(indexReg, 0, Immediate(waveIndex)) ===       @0x161dc2..0x161e56
+    // --- Phase 12: addi(indexReg, 0, Immediate(waveIndex)) --- @0x161dc2..0x161e56
     //
     // For varType ∈ {Const(4), Cvar(6)} (the rate-slot type-check at
     // @0x161db5 `cmp ecx, 0x4` after `and ecx, ~2`), the binary takes
@@ -1073,13 +1073,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     AsmRegister indexReg(0);  // placeholder; assigned by branch below.
     int offsetVarType = static_cast<int>(parseEnd[0].varType_);
     if (offsetVarType == 2) {
-        // === Phase 12 Var-branch ===                                @0x161f5c..0x161f6a
+        // --- Phase 12 Var-branch --- @0x161f5c..0x161f6a
         // Reuse the AsmRegister already bound to the runtime variable
         // `t` (parseEnd[0].reg_). No addi or placeholder is emitted;
         // no entries are pushed for this phase.
         indexReg = parseEnd[0].reg_;
     } else {
-        // === Phase 12 Const/Cvar-branch ===                          @0x161dc2..0x161e56
+        // --- Phase 12 Const/Cvar-branch --- @0x161dc2..0x161e56
         int regNum = Resources::getRegisterNumber();                 // @0x161df1
         indexReg = AsmRegister(regNum);
         AsmRegister regZeroForAddi(0);
@@ -1088,7 +1088,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             indexReg, regZeroForAddi, rateImm);                      // @0x161e56
 
         // ============================================================
-        // === Phase 13: asmSetVarPlaceholder(indexReg) ===            @0x161ee2
+        // --- Phase 13: asmSetVarPlaceholder(indexReg) --- @0x161ee2
         //
         // Emits the placeholder marker that downstream optimization
         // passes resolve once the wave-index is known. Inserted into
@@ -1098,7 +1098,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             asmCommands_->asmSetVarPlaceholder(indexReg);            // @0x161ee2
 
         // ============================================================
-        // === Phase 14: push addi + placeholder into local Assembler  @0x161e8d..0x161f81
+        // --- Phase 14: push addi + placeholder into local Assembler --- @0x161e8d..0x161f81
         //
         // The binary inlines std::vector<Asm>::push_back twice (fast
         // path @0x161ed4 for the addi entry, then again for the
@@ -1111,7 +1111,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // === Phase 15: checkOffspecWaveLength ===                        @0x16210d..0x16214a
+    // --- Phase 15: checkOffspecWaveLength --- @0x16210d..0x16214a
     //
     // Disasm:
     //   mov  rax, [r12+0x8]                 ; this->devConst_ (+0x08)
@@ -1123,7 +1123,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // === Phase 16: asmPlay ===                                       @0x162246..0x162343
+    // --- Phase 16: asmPlay --- @0x162246..0x162343
     //
     // Decoded SysV arg mapping (21b-followup-3 Group C):
     //   rdi = sret (AsmList::Asm return)
@@ -1166,7 +1166,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         /*trigger=*/0u);                                             // stack[7]: @0x162343
 
     // ================================================================
-    // === Phase 17: push asmPlay entry into results->assemblers_ ===  @0x162462..0x162511
+    // --- Phase 17: push asmPlay entry into results->assemblers_ --- @0x162462..0x162511
     //
     // Disasm @0x162506: lea rdi, [r15+0x18] (vector<Asm> &) followed
     // by emplace_back_slow_path. r15 = [r13+0] where r13 is the saved
@@ -1186,7 +1186,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     results->assemblers_.push_back(std::move(playEntry));            // @0x162511
 
     // ================================================================
-    // === Phase 18: cleanup + return ===                              @0x16254c..0x16271b
+    // --- Phase 18: cleanup + return --- @0x16254c..0x16271b
     //
     // The remaining 0x1cf bytes are:
     //   * Assembler dtor for the local @[rbp-0x1f8]                   @0x162553
@@ -1530,7 +1530,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         bool emitWarnAndReturn = false;  // path (C) miss OR typeIdx>5
 
         if (node.hasFast) {
-            // ---- Path (A) @0x164c50..164c5c ----
+            // --- Path (A) @0x164c50..164c5c ---
             addr = node.fastAddress();
             useFastJt = true;
             // typeIdx bounds: jt @958f68 covers 0..5; default at @0x165407
@@ -1540,7 +1540,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                 emitWarnAndReturn = true;
             }
         } else if (node.data != nullptr) {
-            // ---- Path (B): try DirectAddrNodeMapData ----
+            // --- Path (B): try DirectAddrNodeMapData ---
             // @0x164cc9..164cdf: __dynamic_cast(node.data, &NodeMapData_ti,
             //                                    &DirectAddrNodeMapData_ti, 0)
             auto* direct = dynamic_cast<DirectAddrNodeMapData*>(node.data);
@@ -1552,7 +1552,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     emitWarnAndReturn = true;  // → @0x164d05
                 }
             } else {
-                // ---- Path (C): nodeIndexMap_.find ----
+                // --- Path (C): nodeIndexMap_.find ---
                 auto mapIt = nodeIndexMap_.find(node);
                 if (mapIt == nodeIndexMap_.end()) {
                     // @0x16a045: unordered_map::at throws std::out_of_range
@@ -1590,7 +1590,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         }
 
         if (useFastJt) {
-            // ---- Per-case codegen: jump table @958f68 (path A) ----
+            // --- Per-case codegen: jump table @958f68 (path A) ---
             // All cases end with addi(destReg, R0, Immediate(addr)) appended.
             // Cases 0-1 require varType==2 (val is a register); cases 2-5
             // require varType!=2 (val is a scalar — extracted via toDouble).
@@ -1765,7 +1765,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     break;
                 }
             }
-            // ---- Per-case post-tails (path A) ----
+            // --- Per-case post-tails (path A) ---
             // Each case has its own tail sequence after the case body.
             // Only cases 0,5 use addi(addr)+suser(0x16) ("commit").
             // Cases 2 has no post-tail.
@@ -1903,7 +1903,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                 }
             }
         } else {
-            // ---- Per-case codegen: jump table @958f50 (paths B & C) ----
+            // --- Per-case codegen: jump table @958f50 (paths B & C) ---
             // Cases 0,1,5 are simple: addi with a small literal. Cases 2,3,4
             // embed multi-step triplet sequences (suser opcodes 0x10/0x11/0x12).
             // After cases 0,1,5: suser(destReg, 0x10) + addi(destReg, R0, Imm(addr)).
@@ -2137,7 +2137,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     break;
                 }
             }
-            // ---- Common tail for BC cases 0,1,5 ----
+            // --- Common tail for BC cases 0,1,5 ---
             // Cases 2,3,4 embed their own suser sequences inline and
             // do NOT hit this common tail.
             if (node.typeIdx == 0 || node.typeIdx == 1 || node.typeIdx == 5) {
@@ -2188,7 +2188,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             }
         }
 
-        // ---- Splice localList into results->assemblers_ ----
+        // --- Splice localList into results->assemblers_ ---
         // @0x169320..169357: vector::__insert_with_size on results->assemblers_
         // (vector<AsmList::Asm> at +0x18 in EvalResults).
         if (!localList.entries.empty()) {

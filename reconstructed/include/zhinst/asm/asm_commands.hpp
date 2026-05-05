@@ -23,13 +23,19 @@ namespace zhinst {
 
 // AsmCommands — generates assembler instruction records for the AWG processor.
 //
-// Member layout (approximate, from disassembly offset analysis):
-//   +0x00  (vtable ptr or base class data)
-//   +0x10  unique_ptr<AsmCommandsImpl> impl_
-//   +0x20  shared_ptr<WavetableFront> wavetable_  (approx)
-//   +0x40  function<void(const string&)> errorHandler_
-//   +0x50  int wavetableFrontIndex_  (line number / wavetable context; init=0)
-//   +0x54  int numChannelGroups_     (from AWGCompilerConfig+0x1c; 1/2/4; pre-alloc size for Node vectors)
+// Offset  Size  Type                                    Name
+// +0x00   8     (padding / no explicit base)
+// +0x08   8     (padding / reserved)
+// +0x10   8     std::unique_ptr<AsmCommandsImpl>        impl_
+// +0x18   8     (padding — unique_ptr is 8 bytes; shared_ptr begins at +0x20)
+// +0x20   16    std::shared_ptr<WavetableFront>         wavetable_     (approx)
+// +0x30   16    (padding to +0x40)
+// +0x40   32    std::function<void(const string&)>      errorHandler_
+// +0x50   4     int                                     wavetableFrontIndex_
+// +0x54   4     int                                     numChannelGroups_
+// +0x58         END (sizeof(AsmCommands) = 0x58, approximate)
+//
+// Notes: +0x20 and +0x40 are approximate; confirmed: +0x10, +0x50, +0x54.
 class AsmCommands {
 public:
     // Constructor — creates impl via AsmCommandsImpl::getInstance()

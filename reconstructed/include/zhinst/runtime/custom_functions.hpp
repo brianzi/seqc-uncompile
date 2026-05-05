@@ -163,13 +163,6 @@ public:
 //               (read/written by parse() at 0x15d7d5/0x15d819)
 // 0x79    7     (padding to 0x80)
 //
-// IMPORTANT: Previous "partial field layout" listing offsets +0x1A8, +0x1C0,
-// +0x2B0, +0x2B8, +0x2A0 was WRONG.  Those were stack-local variables in
-// play() (at rbp-0x78, rbp-0x60, etc.) adjacent to — but not inside — the
-// PlayArgs object at rbp-0x220.  Corrected offsets for the play() locals:
-//   rbp-0x78 = SubFunc param (int, stored at 15f0c7)
-//   Other locals are separate from PlayArgs entirely.
-//
 // Ctor logic (0x15d600):
 //   1. Copy shared_ptr<WavetableFront> → +0x00, atomic inc refcount
 //   2. Copy std::function (callback) → +0x10..+0x37

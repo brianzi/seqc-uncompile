@@ -3,36 +3,6 @@
 // WaveformFront — waveform metadata for the compiler frontend
 //
 // WaveformFront extends Waveform (base class, 0xD8 bytes).
-// Total size: 0xF8 (248 bytes). Confirmed:
-//   - __on_zero_shared_weak at 0x2a13a0 deletes 0x110 bytes
-//     (= 0x18 control block + 0xF8 object) → object is 0xF8.
-//   - __on_zero_shared at 0x2a1300 destroys vector<Value> at +0xE0..+0xF8
-//     (element stride 0x28), then jumps to ~Waveform — proving NO additional
-//     non-trivially-destructible field exists between +0xDD and +0xE0.
-//
-// Confirmed from:
-//   - WaveformFront::WaveformFront(shared_ptr<WaveformFront>, string) at 0x2a2510
-//   - WaveformFront::toString() const at 0x2c5120
-//   - __shared_ptr_emplace<WaveformFront>::__on_zero_shared() at 0x2a1300
-//   - WaveformIR::WaveformIR(shared_ptr<WaveformFront>) at 0x114da0
-//
-// Ctor field initialization (0x2a25b9..0x2a2671):
-//   mov DWORD PTR [rbx+0xd8], 0x1     ; useCount_ = 1
-//   mov BYTE  PTR [rbx+0xdc], 0x0     ; dirty_  = false
-//   mov BYTE  PTR [rbx+0xdd], cl      ; hasDuplicate_  = source->hasDuplicate_
-//   <padding +0xDE..+0xDF>
-//   <copy-construct vector<Value> at +0xE0 from source +0xE0>
-//
-// Layout:
-//   +0x00..+0xD7  Waveform base (0xD8 bytes)
-//   +0xD8         int        useCount_   (init=1)
-//   +0xDC         bool       dirty_    (init=0; source comments call it "isModified")
-//   +0xDD         bool       hasDuplicate_    (copied from source; "hasDuplicate")
-//   +0xDE..+0xDF  padding
-//   +0xE0         vector<Value> genArgs_     (24 bytes; element size 0x28)
-//   +0xF8         END
-//
-// Speculative fields verified absent from ctor/dtor — see IF-153.
 // ============================================================================
 #pragma once
 
@@ -45,6 +15,14 @@
 
 namespace zhinst {
 
+// Offset  Size  Type              Name            Notes
+// +0x00   0xD8  Waveform (base)
+// +0xD8   4     int               useCount_       init=1
+// +0xDC   1     bool              dirty_          "isModified"
+// +0xDD   1     bool              hasDuplicate_
+// +0xDE   2     (padding)
+// +0xE0   24    vector<Value>     genArgs_        element size 0x28
+// sizeof(WaveformFront) = 0xF8
 struct WaveformFront : Waveform {
     int  useCount_;                    // +0xD8  (init=1)
     bool dirty_;                     // +0xDC  (init=0; "isModified" in source comments)

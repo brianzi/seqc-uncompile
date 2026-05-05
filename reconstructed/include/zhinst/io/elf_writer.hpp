@@ -2,33 +2,10 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // zhinst::ElfWriter — 32-bit ELF binary output writer for AWG sequencer code
 //
-// Source file: ElfWriter.cpp (from .debug_line / symbol table)
-//
-// Class size: 0x78 bytes (ELFIO::elfio base 0x70 + memoryOffset_ 0x08)
-//
 // ElfWriter inherits privately from ELFIO::elfio and wraps it to produce
 // 32-bit ELF files targeting ZI AWG devices. The ELF header is configured
 // as: ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ET_EXEC, with a device-specific
 // e_machine value (the `machineType` parameter).
-//
-// Layout:
-//   +0x00..+0x6F: ELFIO::elfio base (0x70 bytes)
-//     +0x00: this-ptr (Sections proxy self-ref)
-//     +0x08: this-ptr (Segments proxy self-ref)
-//     +0x10: elf_header* header_
-//     +0x18: vector<section*> sections_
-//     +0x30: vector<segment*> segments_
-//     +0x48: bool  (endian converter flag)
-//     +0x50: vector<char> (internal string buffer)
-//     +0x68: uint64_t (layout offset tracker)
-//   +0x70: uint64_t memoryOffset_
-//   +0x78: END
-//
-// Confirmed from:
-//   - Constructor @0x2934a0: zeros +0x10..+0x68, allocs header, stores +0x70=0
-//   - setMemoryOffset @0x294410: stores to +0x70
-//   - writeFile(ostream) @0x294030: reads +0x70 to set entry point before save
-//   - ELFIO::elfio::~elfio @0x10e2e0: destructs fields up to +0x68
 // ============================================================================
 #pragma once
 
@@ -49,16 +26,20 @@ namespace zhinst {
 struct WaveformIR;  // forward declaration
 struct DeviceConstants;  // forward declaration
 
-// ============================================================================
-// ElfWriter — wraps ELFIO::elfio for AWG ELF output
+// Offset  Size  Type              Name           Notes
+// +0x00   8     T*                               Sections proxy self-ref (ELFIO base)
+// +0x08   8     T*                               Segments proxy self-ref (ELFIO base)
+// +0x10   8     elf_header*                      header_ (ELFIO base)
+// +0x18   24    vector<section*>                 sections_ (ELFIO base)
+// +0x30   24    vector<segment*>                 segments_ (ELFIO base)
+// +0x48   8     bool + padding                   endian flag (ELFIO base)
+// +0x50   24    vector<char>                     string buffer (ELFIO base)
+// +0x68   8     uint64_t                         layout offset (ELFIO base)
+// +0x70   8     uint64_t          memoryOffset_  AWG instruction memory base
+// sizeof(ElfWriter) = 0x78
 //
-// The class inherits from ELFIO::elfio (privately). In the binary, the
-// first 0x70 bytes ARE the elfio base object. We model this as inheritance
-// rather than composition because the constructor initializes `this` as
-// an elfio object directly (stores self-pointers at +0x00, +0x08).
-//
-// Total size: 0x78 bytes
-// ============================================================================
+// Note: fields +0x00..+0x68 are the ELFIO::elfio base (private inheritance).
+// The only ZI-owned field is memoryOffset_ at +0x70.
 class ElfWriter : private ELFIO::elfio {
 public:
     // --- Constructor ---

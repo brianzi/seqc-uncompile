@@ -129,7 +129,7 @@ struct ErrorMessagesInitializer {
     ErrorMessagesInitializer() {
         auto& m = ErrorMessages::messages;
 
-        // === Table corrected from original binary (GDB-extracted, 254 entries) ===
+        // --- Table corrected from original binary (GDB-extracted, 254 entries) ---
         // Keys 0-255 with gaps at 47 and 53
 
         m[0] = "%1% command without valid register";

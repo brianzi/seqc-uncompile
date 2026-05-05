@@ -1,25 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // Compiler — main SeqC compilation orchestrator
-//
-// Layout: ~0x138 bytes
-//   +0x00: AWGCompilerConfig const*    config_
-//   +0x08: DeviceConstants const*      deviceConstants_
-//   +0x10: int32_t                     lineNr_
-//   +0x14: uint16_t                    flags_
-//   +0x18: (reserved, 16 bytes)
-//   +0x28: shared_ptr<Node>            ast_
-//   +0x38: CompilerMessageCollection   messages_ (0x20 bytes)
-//   +0x58: vector<string>              sourceFiles_
-//   +0x70: vector<string>              sourceLines_
-//   +0x88: AsmList                     asmList_
-//   +0xA0: shared_ptr<WavetableFront>  wavetable_
-//   +0xB0: shared_ptr<AsmCommands>     asmCommands_
-//   +0xC0: shared_ptr<WaveformGenerator> waveformGen_
-//   +0xD0: shared_ptr<CustomFunctions>  customFunctions_
-//   +0xE0: weak_ptr<CancelCallback>    cancelCallback_
-//   +0xF0: weak_ptr<ProgressCallback>  progressCallback_
-//   +0x100: SeqcParserContext           parserContext_ (~0x38 bytes)
 // ============================================================================
 #pragma once
 
@@ -48,20 +29,11 @@ class WavetableIR;  // not transitively included
 
 namespace FrontEndLoweringFacade {
 
-// ============================================================================
-// LowerResult — sret return type of lower() (32 bytes = 2 shared_ptrs)
-//
-// CORRECTION 2026-04-23 (Phase 15a-i): lower() was declared void but
-// actually returns a 32B struct via sret (hidden first param).
-// Evidence: lower() @0x1c1fb6 writes [rbp-0x90] (FrontendLoweringState
-// .result, shared_ptr<Node>) into sret[0], and [rbp-0x50] (the evaluate
-// virtual's sret output, shared_ptr<EvalResults>) into sret[1].
-// Caller Compiler::compile @0x11f92f stores sret[0] into Compiler+0x28
-// (shared_ptr<Node> ast_) and sret[1] into a local.
-//
-// Previously claimed 64B / 4 shared_ptrs — WRONG. Only 32B / 2 sps.
-// The extra cleanup in the caller was for other stack locals, not sret.
-// ============================================================================
+// ---- LowerResult ----
+// sret return type of FrontEndLoweringFacade::lower() — 32 bytes (2 shared_ptrs).
+// Binary @0x1c1fb6: writes shared_ptr<Node> (from FrontendLoweringState.result)
+// into sret[0], and shared_ptr<EvalResults> (evaluate sret output) into sret[1].
+// Caller Compiler::compile @0x11f92f stores sret[0] into Compiler+0x28 (ast_).
 struct LowerResult {
     std::shared_ptr<Node>        astResult;    // +0x00 (from FrontendLoweringState.result)
     std::shared_ptr<EvalResults> evalResult;   // +0x10 (from evaluate virtual sret)
@@ -90,6 +62,33 @@ struct CompileResult {
     std::vector<Assembler> asmList;          // +0x00 (24 bytes)
     std::shared_ptr<WavetableIR> wavetableIR;    // +0x18 (16 bytes)
 };
+
+// ---- Compiler (class layout) ----
+//
+// Offset  Size  Type                                     Name
+// +0x00   8     AWGCompilerConfig const*                 config_
+// +0x08   8     DeviceConstants const*                   deviceConstants_
+// +0x10   4     int32_t                                  lineNr_
+// +0x14   2     uint16_t                                 flags_
+// +0x16   2     (padding)
+// +0x18   8     uint64_t                                 reserved18_
+// +0x20   4     uint32_t                                 channelCount_
+// +0x24   1     uint8_t                                  usedFourChannelMode_
+// +0x25   1     uint8_t                                  usedSampleRate_
+// +0x26   2     (padding)
+// +0x28   16    shared_ptr<Node>                         ast_
+// +0x38   32    CompilerMessageCollection                messages_
+// +0x58   24    vector<string>                           sourceFiles_
+// +0x70   24    vector<string>                           sourceLines_
+// +0x88   24    AsmList                                  asmList_
+// +0xA0   16    shared_ptr<WavetableFront>               wavetable_
+// +0xB0   16    shared_ptr<AsmCommands>                  asmCommands_
+// +0xC0   16    shared_ptr<WaveformGenerator>            waveformGen_
+// +0xD0   16    shared_ptr<CustomFunctions>              customFunctions_
+// +0xE0   16    weak_ptr<CancelCallback>                 cancelCallback_
+// +0xF0   16    weak_ptr<ProgressCallback>               progressCallback_
+// +0x100  56    SeqcParserContext                        parserContext_
+// sizeof(Compiler) = 0x138
 
 // ---- Compiler ----
 
