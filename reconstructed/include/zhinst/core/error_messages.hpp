@@ -109,7 +109,7 @@ enum ErrorMessageT : int {
     EmptyOperation              = 44,
     ExecTableExpectsArg         = 45,
     ExecTableInvalidConst       = 46,
-    UnknownError47              = 47,  // used at custom_functions_io.cpp — message string unknown
+    UnknownError47              = 47,  // used at custom_functions_registers.cpp @0x151254 (SHFQC_SG QA_DATA_RAW path); m[47] absent from binary map — binary throws map::at exception (binary bug)
     ExecTableInvalidIndex       = 48,
     WaveNotFittingCache         = 49,
     WaveNotFittingCacheGapless  = 50,

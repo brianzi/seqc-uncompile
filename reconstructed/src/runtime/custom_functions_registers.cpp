@@ -967,26 +967,12 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                         0xd << devConst_->execTableIndexBits);                                                 // @0x150c20
                     results->assemblers_.push_back(std::move(asmEntry));
                     constMatched = true;
-                } else if (config_->deviceType == static_cast<AwgDeviceType>(SHFQC_SG)) {
-                    // SHFQC_SG-specific constants                                                           // @0x150ca0
-                    auto qaRaw = res->readConst("QA_DATA_RAW", EDirection::eOUT);                 // @0x150cd0
-                    if (tableIndex == qaRaw.value_.toInt()) {
-                        auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                            0xe << devConst_->execTableIndexBits);                                             // @0x150cf0
-                        results->assemblers_.push_back(std::move(asmEntry));
-                        constMatched = true;
-                    } else {
-                        auto qaProcD = res->readConst("QA_DATA_PROCESSED_D", EDirection::eOUT);   // @0x150d60
-                        if (tableIndex == qaProcD.value_.toInt()) {
-                            auto asmEntry = asmCommands_->wvft(AsmRegister(0),
-                                0x10 << devConst_->execTableIndexBits);                                          // @0x150d80
-                            results->assemblers_.push_back(std::move(asmEntry));
-                            constMatched = true;
-                        }
-                        // If no QA match either: fall through to re-dispatch below            // @0x150eb3→0x150feb
-                    }
                 }
-                // If no const match and not SHFQC_SG: fall through to re-dispatch             // @0x150eb3→0x150feb
+                // If no const match: fall through to re-dispatch                              // @0x150eb3→0x150feb
+                // Note: QA_DATA_RAW / QA_DATA_PROCESSED_D are NOT handled as named const
+                // args to executeTableEntry on SHFQC_SG — the binary has no case for them
+                // here, causing map::at to throw "key not found" at runtime (binary bug,
+                // faithfully reproduced by leaving constMatched=false). @0x151254 verified.
             }
         }
     }

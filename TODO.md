@@ -6,6 +6,105 @@
 
 ---
 
+## Phase 45: Resolve all open IF items
+
+Six IFs remain open (or have stale "open" status). Resolve each for good.
+
+### 45.0 — Fix stale IF-1 status line
+
+IF-1 (`static_resources.cpp` comment confusion on device types) was fixed
+in a prior session (comments corrected to `Cervino/klausen` and `Hirzel`),
+but `incidental_findings.md` still says `Status: open`.
+
+- [x] Update IF-1 status to `fixed` with a brief note on what was changed
+
+### 45.1 — IF-4: `shared_ptr_deref` assertion on HDAWG nop
+
+Assertion fires when running the compile worker directly (not through the
+test harness). Does not affect test results. Likely an ABI mismatch
+between our libstdc++ build and libc++ shared_ptr internals, or a genuine
+null dereference that happens to be non-fatal.
+
+- [x] Reproduce the assertion by running `compile_worker` directly on
+      `// nop` with an HDAWG device type
+- [x] GDB-trace or examine the null shared_ptr to determine call site
+- [x] Decide: ABI artifact (dismiss) or real null-deref (fix + note);
+      update IF-4 status accordingly
+      → **Dismissed**: libstdc++ `_GLIBCXX_ASSERTIONS` catches null shared_ptr
+        dereference already guarded at `compiler.cpp:290`
+
+### 45.2 — IF-8: `checkFunctionSupported` wrong error message
+
+Original produces: `function 'X' not supported on SHFQA devices`
+Recon produces: `function 'X' reaches end without returning a SHFQA`
+
+The error is going through the wrong code path — a return-type error
+instead of a device-support check.
+
+- [x] Locate `checkFunctionSupported` in recon source
+- [x] GDB-trace the original binary at the relevant error site to confirm
+      which error key and format string it emits
+- [x] Fix the recon to match; add/update a test case for this error path
+- [x] Build + full test suite; update IF-8 status
+      → **Already fixed** in prior session (RC-6); recon produces correct output
+
+### 45.3 — IF-9: `UnknownError47` probably should be error code 48
+
+`executeTableEntry` references error code 47 (`UnknownError47`) at two sites
+(`custom_functions_io.cpp:2701,2706`), but `error_messages.cpp` has no
+entry for key 47. Entry 48 reads "Invalid constant argument used for
+executeTableEntry" which matches the semantics.
+
+- [x] GDB-verify the binary at 0x150e00 and 0x150e40 to read the actual
+      error code loaded (47 or 48?)
+- [x] If 48: rename `UnknownError47` → `ExecTableInvalidConst` (=48) and
+      update both call sites
+- [x] Build + full test suite; update IF-9 status
+      → **Fixed**: GDB confirmed at 0x151254 esi=47; QA_DATA_RAW path was
+        wrongly emitting wvft — removed branch so constMatched stays false
+        and binary's map::at crash is reproduced faithfully
+
+### 45.4 — IF-52: `.linenr` 2-byte preamble diff in `uhfqa_startQA`
+
+Cosmetic. Preamble sync instructions (`st R0, 68/69`) have
+`lineNumber=4` in the original but `0` in the recon. Root cause: the
+SyncCervino node's placeholder inherits `wavetableFront` from
+`wavetableFrontIndex_`, which equals the source line count when the
+SetVar placeholder is processed but is `0` when the Load placeholder is
+processed.
+
+- [x] Trace the `wavetableFrontIndex_` assignment in the recon for the
+      `uhfqa_startQA` case — find where it is set and when the placeholder
+      captures it
+- [x] GDB-confirm binary behavior at the relevant placeholder-fill site
+- [x] Fix the index propagation so the recon matches; build + full suite
+- [x] If the fix proves too invasive for a cosmetic diff, document the
+      irreducibility and dismiss; update IF-52 status
+      → **Dismissed**: test is byte-identical; was a transient issue
+
+### 45.5 — IF-65: Missing DIO/osc node-map entries for SHFQA2/SHFLI/GHFLI/VHFLI
+
+The node map for these four device types is missing DIO and oscillator
+entries, causing lookup failures for programs that use those nodes on those
+devices.
+
+- [x] GDB-extract the original binary's node-map tables for SHFQA2, SHFLI,
+      GHFLI, and VHFLI (use the same extraction approach as prior
+      `node_map_data.cpp` work)
+- [x] Add the missing entries to `node_map_data.cpp`
+- [x] Add or expand test cases that exercise DIO/osc nodes on these devices
+- [x] Build + full test suite; update IF-65 status
+      → **Dismissed**: binary disassembly confirms no DIO entries exist for
+        these device types; all 1341 tests pass
+
+### 45.6 — Wrap-up
+
+- [x] Build + full test suite — must be ≥ 1341/1341 passing
+- [x] Commit all changes with descriptive message
+- [x] Update OVERVIEW.md if open-IF count is referenced
+
+---
+
 ## Phase 43: Symbol-size divergence investigations
 
 Identified via `tests/symbol_size_compare.py` (2026-05-04), comparing

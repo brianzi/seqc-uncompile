@@ -15,7 +15,7 @@ Each entry has:
 ## IF-1  `static_resources.cpp` comment/name confusion on device types
 
 **Source**: RC-3 investigation (ZSYNC_DATA_RAW not found)
-**Status**: open
+**Status**: **fixed** (prior session) — inline comments corrected to `Cervino/klausen` and `Hirzel` to match verified enum mapping (UHFLI=1 Cervino, HDAWG=2 Hirzel)
 **Severity**: suspicious (misleading, may cause future errors)
 
 Lines 58-59 and 82 of `reconstructed/src/runtime/static_resources.cpp`:
@@ -109,7 +109,7 @@ actually reads a constant with direction `eOUT`.
 ## IF-4  `shared_ptr_deref` assertion on HDAWG nop via direct worker invocation
 
 **Source**: RC-3 debugging (running compile_worker directly)
-**Status**: open
+**Status**: **dismissed** (2026-05-05) — libstdc++ `_GLIBCXX_ASSERTIONS` catches the null `shared_ptr` dereference that the original libc++ binary exercises silently as UB. Root cause: `toSeqCAst()` returns null for pure-comment inputs; guarded by `if (seqcAst)` at `compiler.cpp:290`. Assertion no longer fires.
 **Severity**: suspicious
 
 When running the compile worker directly (not through diff_test.py) for
@@ -201,7 +201,7 @@ variable" error for builtin constants (ZSYNC_DATA_RAW, QA_GEN_ALL, etc.).
 ## IF-8  `checkFunctionSupported` error message format differs from binary
 
 **Source**: shfqa_executeTable, shfqa_setPRNG test failures
-**Status**: open
+**Status**: **fixed** (prior session) — `checkFunctionSupported` at `custom_functions.cpp:571` correctly uses `FuncNotSupported` (73) with format `"function '%1%' not supported on %2% devices"`. Both original and recon produce identical output. Was fixed as part of RC-6 (error message map m[73]/m[74] swap + try/catch).
 **Severity**: likely-bug
 
 Original produces: `function 'X' not supported on SHFQA devices`
@@ -214,10 +214,10 @@ or formats the wrong error message template.
 
 ---
 
-## IF-9  `UnknownError47` (=47) has no entry in error message map; likely should be 48
+## IF-9  `UnknownError47` (=47) has no entry in error message map; QA_DATA_RAW path wrong
 
 **Source**: hdawg_executeTable `map::at` error
-**Status**: open
+**Status**: **fixed** (2026-05-05) — GDB-verified at binary 0x151254: `QA_DATA_RAW` as a named-const arg to `executeTableEntry` on SHFQC_SG causes `map::at` to throw (binary bug: m[47] is absent from the binary's own error map). Recon was incorrectly emitting `wvfet R0, 0xe000` instead of crashing. Fix: removed the SHFQC_SG `QA_DATA_RAW`/`QA_DATA_PROCESSED_D` branch so `constMatched` stays false and the fallthrough reproduces the binary's crash. Enum comment updated to reference correct binary address and file.
 **Severity**: likely-bug
 
 `executeTableEntry` references `UnknownError47` (error code 47) at lines
@@ -952,7 +952,7 @@ in an if-else branch). Fixed by removing the `continue`.
 ## IF-52  linenr preamble metadata (uhfqa_startQA 2-byte diff)
 
 **Source**: uhfqa_startQA investigation
-**Status**: open
+**Status**: **dismissed** (2026-05-05) — test is byte-identical in current recon. `unsyncCervino()` correctly captures `wavetableFrontIndex_` at Step 16 (after all AST eval), giving the correct final line number. No SyncPlaceholderCervino node exists in this test case; the description's "SetVar vs Load placeholder" root cause does not apply. Was a transient issue in an earlier reconstruction pass.
 **Severity**: cosmetic
 
 Preamble sync instructions (`st R0, 68/69`) have `lineNumber=4`
@@ -1107,7 +1107,7 @@ many CustomFunctions methods.
 ## IF-65  Missing DIO/osc node map entries for SHFQA2, SHFLI, GHFLI, VHFLI
 
 **Source**: shfqa2_combo, shfli_combo, vhfli_combo, ghfli_combo failures
-**Status**: open (needs binary node map extraction)
+**Status**: **dismissed** (2026-05-05) — binary disassembly confirms the node maps for SHFLI/GHFLI/VHFLI contain only `oscs/N/freq` entries (8 per device, loop 0..7); no DIO entries exist in the binary for these types. SHFQA similarly has no `_/dios/0/output` entry. String `_/dios/0/output32` does not appear anywhere in the binary. All 1341 tests pass — the node maps in `get_node_map.cpp` are complete and correct.
 **Severity**: bug
 
 The node map tables in `get_node_map.cpp` are incomplete:
