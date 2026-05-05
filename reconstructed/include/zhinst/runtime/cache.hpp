@@ -91,9 +91,9 @@ public:
 
     // Offset  Size  Type                   Name         Notes
     // +0x00   4     uint32_t               position_    start address
-    // +0x04   4     uint32_t               size_        num samples allocated
+    // +0x04   4     uint32_t               size_        bytes allocated
     // +0x08   4     uint32_t               hash_        ~(pos ^ (pos + size/2))
-    // +0x0C   4     uint32_t               numRepeats_  numSamples/pageSize + 1
+    // +0x0C   4     uint32_t               numRepeats_  numBytes/pageSize + 1
     // +0x10   16    shared_ptr<WaveformIR> waveform_
     // +0x20   4     PointerState           state_
     // sizeof(Cache::Pointer) = 0x24 (libc++); 0x28 (libstdc++)
@@ -123,20 +123,20 @@ public:
     // Allocation
     std::shared_ptr<Pointer> allocate(
         std::shared_ptr<WaveformIR> waveform,
-        detail::AddressImpl<uint32_t> numSamples,
+        detail::AddressImpl<uint32_t> numBytes,
         std::unordered_map<std::string, bool> const& nameMap,
         int maxBranches,
         bool split);                                     // 0x282a30
 
     std::shared_ptr<Pointer> allocate(
         std::shared_ptr<WaveformIR> waveform,
-        detail::AddressImpl<uint32_t> numSamples,
+        detail::AddressImpl<uint32_t> numBytes,
         std::unordered_map<std::string, bool> const& nameMap,
         CacheType cacheType);                            // 0x282be0
 
     // Internal
     std::shared_ptr<Pointer> getBestPosition(
-        detail::AddressImpl<uint32_t> numSamples,
+        detail::AddressImpl<uint32_t> numBytes,
         std::unordered_map<std::string, bool> const& nameMap,
         bool gapScan);                                // 0x282cf0
 

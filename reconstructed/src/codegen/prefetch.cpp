@@ -1706,15 +1706,15 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         auto waveIR2 = wtIR->getWaveformByName(
             curOpt2); // 0x1d1c31: call getWaveformByName
 
-        uint32_t numSamplesForCache = 0;
+        uint32_t numBytesForCache = 0;
         if (!split_ && playNode && playNode->length != 0) {
           // 0x1d1e01..0x1d1efc: Indexed-play allocation path.
-          // numSamples = playNode->length * channels * 2
+          // numBytes = playNode->length * channels * 2
           auto *wfRaw = waveIR2.get();
           uint16_t channels = wfRaw->signal.channels(); // +0xC8
           uint32_t playLen =
               static_cast<uint32_t>(playNode->length); // node+0x90
-          numSamplesForCache = playLen * channels * 2; // 0x1d1ec5-0x1d1ec9
+          numBytesForCache = playLen * channels * 2; // 0x1d1ec5-0x1d1ec9
         } else {
           // 0x1d1c36-0x1d1c8a: Compute byte size from waveIR2
           // waveIR2->signal.channels_ (+0xC8), waveIR2->signal.length_ (+0xD0),
@@ -1738,16 +1738,16 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
             int32_t bps = dc->bitsPerSample; // +0x50
             totalBits *= bps;
             // Ceil-divide by 8 to get bytes
-            numSamplesForCache = static_cast<uint32_t>(
+            numBytesForCache = static_cast<uint32_t>(
                 totalBits / 8 + (totalBits % 8 >= 1 ? 1 : 0));
           }
         }
 
         // 0x1d1c8d-0x1d1cb7: Call Cache::allocate(5-arg)
-        // Args: waveIR1 (shared_ptr), numSamplesForCache, nameMap_,
+        // Args: waveIR1 (shared_ptr), numBytesForCache, nameMap_,
         // maxBranches_, split_
         auto allocResult = cachePtr->allocate( // 0x1d1cb7: call Cache::allocate
-            waveIR1, detail::AddressImpl<uint32_t>(numSamplesForCache),
+            waveIR1, detail::AddressImpl<uint32_t>(numBytesForCache),
             nameMap_,
             maxBranches_, // 0x1d1c8d: r9d = +0xB8
             split_);      // 0x1d1c94: +0xBC → stack[0]

@@ -85,7 +85,7 @@ std::shared_ptr<Cache> Cache::getScope() const {
 // 0x282a30
 std::shared_ptr<Cache::Pointer> Cache::allocate(
     std::shared_ptr<WaveformIR> waveform,
-    detail::AddressImpl<uint32_t> numSamples,
+    detail::AddressImpl<uint32_t> numBytes,
     std::unordered_map<std::string, bool> const& nameMap,
     int maxBranches,
     bool split)
@@ -101,27 +101,27 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
 
     std::shared_ptr<Pointer> result;
 
-    if (split || numSamples < freePages) {
+    if (split || numBytes < freePages) {
         // Case: split requested, or whole waveform fits in free memory
-        // — allocate the full numSamples as Normal (no splitting needed)
-        result = allocate(waveform, numSamples, nameMap, CacheType::Normal);
+        // — allocate the full numBytes as Normal (no splitting needed)
+        result = allocate(waveform, numBytes, nameMap, CacheType::Normal);
     } else {
         // Case: NOT split AND waveform exceeds free pages
         // — use double-buffering: compute chunk count, allocate partial as Aligned
         // Splitting heuristic (see unknowns.md #63):
-        //   numAllocs = max(numSamples/freePages + 1, numSamples/(size/2))
-        //   chunkSize = numSamples / numAllocs
+        //   numAllocs = max(numBytes/freePages + 1, numBytes/(size/2))
+        //   chunkSize = numBytes / numAllocs
         // The intent is double-buffering: the waveform is larger than cache,
         // so we allocate a chunk that fits, set up hash_ for address wrapping,
         // and numRepeats_ for the sequencer to know how many chunks to stream.
-        uint32_t numAllocs = numSamples / freePages;
+        uint32_t numAllocs = numBytes / freePages;
         numAllocs++;
         uint32_t halfSize = size_ >> 1;
-        uint32_t altAllocs = numSamples / halfSize;
+        uint32_t altAllocs = numBytes / halfSize;
         if (numAllocs <= altAllocs) {
             numAllocs = altAllocs;
         }
-        uint32_t chunkSize = numSamples / numAllocs;
+        uint32_t chunkSize = numBytes / numAllocs;
 
         // Allocate first chunk as Aligned
         result = allocate(waveform, chunkSize, nameMap, CacheType::Aligned);
@@ -130,7 +130,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
         Pointer* ptr = result.get();
         uint32_t halfSz = ptr->size_ / 2;
         ptr->hash_ = ~(ptr->position_ ^ (ptr->position_ + halfSz));
-        ptr->numRepeats_ = numSamples / halfSz + 1;
+        ptr->numRepeats_ = numBytes / halfSz + 1;
     }
 
     return result;
@@ -139,7 +139,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
 // 0x282be0
 std::shared_ptr<Cache::Pointer> Cache::allocate(
     std::shared_ptr<WaveformIR> waveform,
-    detail::AddressImpl<uint32_t> numSamples,
+    detail::AddressImpl<uint32_t> numBytes,
     std::unordered_map<std::string, bool> const& nameMap,
     CacheType cacheType)
 {
@@ -148,12 +148,12 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
     if (cacheType == CacheType::Aligned) {
         pageSize = pageSize_ * 2;
     }
-    uint32_t remainder = numSamples % pageSize;
+    uint32_t remainder = numBytes % pageSize;
     uint32_t alignedSize;
     if (remainder == 0) {
-        alignedSize = numSamples;
+        alignedSize = numBytes;
     } else {
-        alignedSize = numSamples + pageSize - remainder;
+        alignedSize = numBytes + pageSize - remainder;
     }
 
     // Get best position (allocates a Pointer internally)
@@ -172,7 +172,7 @@ std::shared_ptr<Cache::Pointer> Cache::allocate(
 
 // 0x282cf0
 std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
-    detail::AddressImpl<uint32_t> numSamples,
+    detail::AddressImpl<uint32_t> numBytes,
     std::unordered_map<std::string, bool> const& nameMap,
     bool gapScan)
 {
@@ -189,7 +189,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
     // If append mode (this->isHirzel_ == true), just place at offset 0 with requested size
     if (isHirzel_) {
         pointer->position_ = 0;
-        pointer->size_ = numSamples;
+        pointer->size_ = numBytes;
         return pointer;
     }
 
@@ -204,7 +204,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
     // 0x282cf0+0x97: Empty pointers — place at position 0 and emplace_back.
     if (begin == end) {
         pointer->position_ = 0;
-        pointer->size_ = numSamples;
+        pointer->size_ = numBytes;
         pointers_.emplace_back(pointer);
         return pointer;
     }
@@ -217,18 +217,18 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
         uint32_t endPos = lastPtr->position_ + lastPtr->size_;
 
         uint32_t freeSpace = size_ - endPos;
-        if (freeSpace >= numSamples) {
+        if (freeSpace >= numBytes) {
             // Fits at end — assign position and return.
             pointer->position_ = endPos;
-            pointer->size_ = numSamples;
+            pointer->size_ = numBytes;
             return pointer;
         }
 
         // 0x282cf0+0x180: Not enough room at end — fall back to gap scan.
         // Recursive call with appendMode=true.
-        return getBestPosition(numSamples, nameMap, /*gapScan=*/true);
+        return getBestPosition(numBytes, nameMap, /*gapScan=*/true);
     } else {
-        // 0x282cf0+0xaf: Gap-scan path — find smallest gap that fits numSamples.
+        // 0x282cf0+0xaf: Gap-scan path — find smallest gap that fits numBytes.
         // nameMap maps waveform names → bool; entries with value==true are
         // "about to be freed" and are skipped during gap calculation, allowing
         // their space to be reused.  Prefetch builds this map from the set of
@@ -252,12 +252,12 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
 
             // Gap between currentEnd and this pointer's position
             uint32_t gap = p->position_ - currentEnd;
-            if (gap == numSamples) {
+            if (gap == numBytes) {
                 // Exact fit — use it immediately
                 bestPosition = currentEnd;
                 break;
             }
-            if (gap > numSamples && gap < bestGap) {
+            if (gap > numBytes && gap < bestGap) {
                 bestGap = gap;
                 bestPosition = currentEnd;
             }
@@ -277,7 +277,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
                 trailingEnd = p->position_ + p->size_;
             }
             uint32_t trailingGap = size_ - trailingEnd;
-            if (trailingGap >= numSamples) {
+            if (trailingGap >= numBytes) {
                 bestPosition = trailingEnd;
             }
         }
@@ -290,7 +290,7 @@ std::shared_ptr<Cache::Pointer> Cache::getBestPosition(
         }
 
         pointer->position_ = bestPosition;
-        pointer->size_ = numSamples;
+        pointer->size_ = numBytes;
         return pointer;
     }
 }

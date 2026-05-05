@@ -38,19 +38,19 @@ namespace zhinst {
 //   +0x00  deviceConstants_     = dc
 //   +0x08  startOffset_         = startOffset
 //   +0x0C  lastAllocEnd_        = 0xFFFFFFFF (sentinel)
-//   +0x10  memorySizeInSamples_ = dc->waveformMemorySize        (DC+0x0C)
-//   +0x14  cacheLineSize_       = dc->waveformAlignment         (DC+0x14)
+//   +0x10  memorySizeInBytes_   = dc->waveformMemorySize        (DC+0x0C)
+//   +0x14  cacheLineSizeBytes_  = dc->waveformAlignment         (DC+0x14)
 //   +0x18  maxBlocksPerCL_      = dc->cachePageCount            (DC+0x18)
 //   +0x20  cacheLineUsage_      = vector<uint32_t> of numCLs slots, all 0xFFFFFFFF
-//   +0x38  numCacheLines_       = memorySizeInSamples_ / cacheLineSize_
+//   +0x38  numCacheLines_       = memorySizeInBytes_ / cacheLineSizeBytes_
 //   +0x40  freeBlocks_          = empty deque<MemoryBlock>
 // ---------------------------------------------------------------------------
 MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset)
     : deviceConstants_(dc),
       startOffset_(startOffset),
       lastAllocEnd_(0xFFFFFFFFu),
-      memorySizeInSamples_(dc->waveformMemorySize),
-      cacheLineSize_(dc->waveformAlignment),
+      memorySizeInBytes_(dc->waveformMemorySize),
+      cacheLineSizeBytes_(dc->waveformAlignment),
       maxBlocksPerCL_(dc->cachePageCount),
       pad_1C_(0),
       cacheLineUsage_(),
@@ -61,8 +61,8 @@ MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset
     // Initialize per-CL ownership table. cacheLineSize_ may legitimately be
     // 1 (no caching) for some device families; in that case there is one
     // "CL slot" per sample, which the binary tolerates.
-    if (cacheLineSize_ != 0) {
-        numCacheLines_ = memorySizeInSamples_ / cacheLineSize_;
+    if (cacheLineSizeBytes_ != 0) {
+        numCacheLines_ = memorySizeInBytes_ / cacheLineSizeBytes_;
         cacheLineUsage_.assign(numCacheLines_, 0xFFFFFFFFu);
     }
 }
@@ -125,8 +125,8 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
 
                 // CL ownership check: slot must already be claimed with matching clBase.
                 // Free slots (0xFFFFFFFF) are NOT accepted — Phase 1 only re-uses.
-                uint32_t slot = (aligned % memorySizeInSamples_) / cacheLineSize_;
-                uint32_t clBase = aligned - (aligned % cacheLineSize_);
+                uint32_t slot = (aligned % memorySizeInBytes_) / cacheLineSizeBytes_;
+                uint32_t clBase = aligned - (aligned % cacheLineSizeBytes_);
                 if (slot >= cacheLineUsage_.size() ||
                     cacheLineUsage_[slot] != clBase)
                     return {0, 0, 0};
@@ -134,7 +134,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
                 // Check allocation fits before next waveformAlignment boundary
                 // Binary at +498-529: success if nextBoundary >= blockEnd OR
                 // nextBoundary - aligned >= size. Fail if NEITHER holds.
-                uint32_t wfAlign = deviceConstants_->waveformAlignment;  // DC+0x14, =4096
+                uint32_t wfAlign = deviceConstants_->waveformAlignment;  // DC+0x14, =4096 bytes
                 uint32_t nextBoundary = (aligned / wfAlign + 1) * wfAlign;
                 bool fits = (nextBoundary >= blockEnd) ||
                             (nextBoundary - aligned >= size);
@@ -151,7 +151,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
     // Binary: second arg is blockEnd (absolute), not blockSize.
     return allocateFirstSuitableFreeBlock(
         [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
-            uint32_t clSize = deviceConstants_->waveformAlignment;
+            uint32_t clSize = deviceConstants_->waveformAlignment;  // bytes
             uint32_t alignQ = clSize;
             if (size > clSize)
                 alignQ = deviceConstants_->maxBlocks * clSize;
@@ -166,22 +166,22 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
             // Binary: slot index uses (aligned % memorySizeInSamples_) / cacheLineSize_
             // not aligned / cacheLineSize_, because addresses like 0x80000000 wrap via
             // modular arithmetic to stay within the cacheLineUsage_ vector bounds.
-            uint32_t modAddr = aligned % memorySizeInSamples_;
-            uint32_t numSlots = maxBlocksPerCL_ * cacheLineSize_;
+            uint32_t modAddr = aligned % memorySizeInBytes_;
+            uint32_t numSlots = maxBlocksPerCL_ * cacheLineSizeBytes_;
             if (numSlots > size) numSlots = size;
-            uint32_t startSlot = modAddr / cacheLineSize_;
-            uint32_t endSlot = (modAddr + numSlots + cacheLineSize_ - 1) / cacheLineSize_;
-            if (endSlot > memorySizeInSamples_ / cacheLineSize_)
-                endSlot = memorySizeInSamples_ / cacheLineSize_;
+            uint32_t startSlot = modAddr / cacheLineSizeBytes_;
+            uint32_t endSlot = (modAddr + numSlots + cacheLineSizeBytes_ - 1) / cacheLineSizeBytes_;
+            if (endSlot > memorySizeInBytes_ / cacheLineSizeBytes_)
+                endSlot = memorySizeInBytes_ / cacheLineSizeBytes_;
             for (uint32_t s = startSlot; s < endSlot && s < cacheLineUsage_.size(); ++s) {
                 if (cacheLineUsage_[s] != 0xFFFFFFFF)
                     return {0, 0, 0};  // slot occupied
             }
             // Claim slots
-            uint32_t clBase = aligned - (aligned % cacheLineSize_);
+            uint32_t clBase = aligned - (aligned % cacheLineSizeBytes_);
             for (uint32_t s = startSlot; s < endSlot && s < cacheLineUsage_.size(); ++s) {
                 cacheLineUsage_[s] = clBase;
-                clBase += cacheLineSize_;
+                clBase += cacheLineSizeBytes_;
             }
             numCacheLines_ -= (endSlot - startSlot);
 
@@ -229,7 +229,7 @@ MemoryBlock MemoryAllocator::allocateReloadingCL(
                 for (uint32_t i = 0;
                      i < numCLsNeeded && addr < blockEnd;
                      ++i, addr += align) {
-                    uint32_t key = (addr % memorySizeInSamples_) / cacheLineSize_;
+                    uint32_t key = (addr % memorySizeInBytes_) / cacheLineSizeBytes_;
                     auto it = usedAddrs.lower_bound(key);
                     if (it != usedAddrs.end() && *it == key) {
                         conflict = true;

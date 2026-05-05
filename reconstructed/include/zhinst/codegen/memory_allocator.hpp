@@ -46,12 +46,12 @@ static_assert(sizeof(MemoryBlock) == 12, "MemoryBlock must be 12 bytes");
 // 0x00    8     DeviceConstants*      deviceConstants_     Source of memory geometry
 // 0x08    4     uint32_t              startOffset_         Where allocation begins
 // 0x0C    4     uint32_t              lastAllocEnd_        0xFFFFFFFF sentinel initially
-// 0x10    4     uint32_t              memorySizeInSamples_ DC->waveformMemorySize (+0x0C)
-// 0x14    4     uint32_t              cacheLineSize_       DC->waveformAlignment (+0x14)
+// 0x10    4     uint32_t              memorySizeInBytes_   DC->waveformMemorySize (+0x0C)
+// 0x14    4     uint32_t              cacheLineSizeBytes_  DC->waveformAlignment (+0x14)
 // 0x18    4     uint32_t              maxBlocksPerCL_      DC->cachePageCount or maxBlocks
 // 0x1C    4     (padding)
 // 0x20    24    vector<uint32_t>      cacheLineUsage_      Per-CL ownership; 0xFFFFFFFF=free
-// 0x38    4     uint32_t              numCacheLines_       memorySizeInSamples / cacheLineSize
+// 0x38    4     uint32_t              numCacheLines_       memorySizeInBytes / cacheLineSizeBytes
 // 0x3C    4     (padding)
 // 0x40    48    deque<MemoryBlock>    freeBlocks_          Free block list (341 per page)
 // ============================================================================
@@ -95,8 +95,8 @@ private:
     const DeviceConstants*  deviceConstants_;      // +0x00
     uint32_t                startOffset_;           // +0x08
     uint32_t                lastAllocEnd_;          // +0x0C  sentinel 0xFFFFFFFF
-    uint32_t                memorySizeInSamples_;   // +0x10
-    uint32_t                cacheLineSize_;         // +0x14
+    uint32_t                memorySizeInBytes_;    // +0x10
+    uint32_t                cacheLineSizeBytes_;   // +0x14
     uint32_t                maxBlocksPerCL_;        // +0x18
     uint32_t                pad_1C_;                // +0x1C
     std::vector<uint32_t>   cacheLineUsage_;        // +0x20  per-CL owner; 0xFFFFFFFF=free

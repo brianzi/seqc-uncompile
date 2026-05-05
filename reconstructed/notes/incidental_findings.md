@@ -2268,9 +2268,15 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batches 02, 14, 16, 36, 46, 48
 - **Severity**: likely-bug
-- **Status**: open
+- **Status**: **fixed** (Phase 44.1, 2026-05-05)
 - **Description**: Multiple subsystems conflate byte counts with sample counts when computing wave memory sizes, offsets, and allocation. Parameters named `size` or `length` are sometimes in bytes (×2 for 16-bit samples) and sometimes in samples, with no consistent convention.
-- **Action**: Audit all wave-memory size parameters; establish a naming convention (e.g. `_bytes` / `_samples` suffixes) and fix any arithmetic that silently converts between the two.
+- **Fix**: Renamed all misnamed identifiers in Phase 44.1:
+  - `MemoryAllocator::memorySizeInSamples_` → `memorySizeInBytes_` (holds `dc->waveformMemorySize`, a byte count)
+  - `MemoryAllocator::cacheLineSize_` → `cacheLineSizeBytes_` (holds `dc->waveformAlignment` = 4096 bytes)
+  - `Cache::allocate` / `getBestPosition` parameter `numSamples` → `numBytes` (receives `totalBits/8`)
+  - `prefetch.cpp` local `numSamplesForCache` → `numBytesForCache`
+  - `memory_allocator.cpp` line 184: `cacheLineSize_` → `cacheLineSizeBytes_` in code (not just comments)
+  - All 1341 tests pass after renames.
 
 ---
 

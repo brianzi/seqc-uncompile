@@ -268,6 +268,35 @@ B3). What remains as truly mechanical is much smaller than expected.
   case-by-case if/when surfaced by other work, not as a dedicated
   phase.
 
+## Phase 44: IF-109 — bytes-vs-samples naming audit in wave-memory subsystem
+
+Parameters named `size` or `length` across the wave-memory subsystem
+are sometimes in bytes (×2 for 16-bit samples) and sometimes in samples,
+with no consistent convention. This audit establishes a naming convention
+(`_bytes` / `_samples` suffixes where ambiguous) and fixes any arithmetic
+that silently converts between the two.
+
+**Scope**: All size/length/offset parameters in:
+- `MemoryAllocator` and its callers
+- `WaveformData` / `Waveform` structs and accessors
+- `WaveformGenerator` signal-length paths
+- `collectUsedWaves` / `assignWaveIndex` / prefetcher waveform sizing
+
+**Approach**:
+1. Identify all ambiguous `size`/`length` parameters across those files
+2. Trace each to its use: is the value in bytes or samples at each use site?
+3. Rename parameters that are unambiguously one unit to `_bytes` or `_samples`
+4. Fix any arithmetic errors found (wrong ×2/÷2 or missing conversion)
+5. Build + full test suite after each file
+
+- [ ] **44.1** Audit `MemoryAllocator` size parameters
+- [ ] **44.2** Audit `WaveformData`/`Waveform` length/size fields
+- [ ] **44.3** Audit `WaveformGenerator` signal-length paths
+- [ ] **44.4** Audit `collectUsedWaves`/`assignWaveIndex`/prefetcher sizing
+- [ ] **44.5** Wrap-up: build, full test suite, commit
+
+---
+
 **Outstanding audit deferrals** (no longer a tracked phase):
 - ~~IF-116 `EDirection` enum type-fix~~ — **FIXED (2026-04-29)**:
   Converted `int32_t direction` → `EDirection` in expression.hpp;
