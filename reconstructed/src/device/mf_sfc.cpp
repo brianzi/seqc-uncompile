@@ -6,7 +6,6 @@
 // Source path (from debug info): /builds/labone/labone/device/types/src/
 //                                generate_mf_sfc.cpp
 // Binary address: 0x2de910 .. 0x2dead0
-// Phase 14b-iv.
 // ============================================================================
 
 #include "zhinst/device/device_type.hpp"
@@ -56,7 +55,7 @@ constexpr uint64_t bitIf(bool set, unsigned shift) {
 // function="sfc::FeaturesCode zhinst::detail::generateMfSfc(...)",
 // line=104, column=47 }.
 //
-// Phase 14e: return type promoted from the `uint64_t` stand-in to the
+// return type promoted from the `uint64_t` stand-in to the
 // real `sfc::FeaturesCode` strong-typed wrapper. Layout is identical
 // (single trailing uint64), so the previous bitwise composition and
 // the binary's `rax`-return convention both still hold byte-for-byte.

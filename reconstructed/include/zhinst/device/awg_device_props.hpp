@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// awg_device_props.hpp — Phase 14b-iii
+// awg_device_props.hpp
 //
 // Covers:
 //   - AwgSequencerType enum (3 named values + sentinel)
@@ -12,7 +12,7 @@
 //   - makeUnsupportedAwgSequencerErrorMessage @ 0x2cbdd0
 //
 // Note: The AwgDeviceType enum itself is defined in types.hpp from earlier
-// Phase 3d work (9 one-hot values: UHFLI=1, HDAWG=2, UHFQA=4, SHFQA=8,
+//  work (9 one-hot values: UHFLI=1, HDAWG=2, UHFQA=4, SHFQA=8,
 // SHFSG=16, SHFQC_SG=32, SHFLI=64, GHFLI=128, VHFLI=256).
 // ============================================================================
 #pragma once
@@ -114,7 +114,7 @@ static_assert(sizeof(AwgPathPatterns) == 3 * sizeof(std::string),
 //   +0x68  24   std::string fpgaRevisionPattern  (path pattern 4)
 //   Total: 0x80 bytes.
 //
-// Field verification (Phase 21f):
+// Field verification:
 //   +0x50 maxElfSize   — consumer: compileSeqc @0xf6a41 stores to JSON "maxelfsize"
 //   +0x58 addressImpl  — consumer: AWGCompilerImpl ctor @0x103b99 → config.addressImpl (+0x10)
 //   +0x5c sampleFormat — consumer: writeWavesToElf* @0x10e049/0x10e1f2 → config.sampleFormat (+0x04)

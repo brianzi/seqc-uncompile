@@ -1,7 +1,7 @@
 // ============================================================================
 // SeqcParserContext — parser context for SeqC flex/bison parser
 //
-// Full layout recovered Phase 31d from binary ctor/dtor/method disassembly:
+// Full layout recovered  from binary ctor/dtor/method disassembly:
 //   +0x00  uint8_t  isComment_           (composite: nonzero if in any comment)
 //   +0x01  uint8_t  blockComment_        (in block comment)
 //   +0x02  uint8_t  lineComment_         (in line comment)

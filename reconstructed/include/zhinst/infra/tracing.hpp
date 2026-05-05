@@ -1,4 +1,4 @@
-// Reconstructed from _seqc_compiler.so — Phase 14c (Tracing).
+// Reconstructed from _seqc_compiler.so
 //
 // Sources analyzed:
 //   - zhinst::tracing::TraceProvider singleton (provider @0xb84480)

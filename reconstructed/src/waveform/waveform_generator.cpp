@@ -50,7 +50,7 @@ namespace zhinst {
 // despite the name, callers use this to test for exact zero (e.g.
 // `if (floatEqual(beta, 0.0))`) which `==` handles identically.
 //
-// Phase 20b: out-of-line definition (was forward-decl only). Defined in
+// out-of-line definition (was forward-decl only). Defined in
 // the same TU as its callers since the binary's symbol is namespace-
 // scope `zhinst::floatEqual` and not part of any class.
 bool floatEqual(double a, double b) {  // 0x2ec050
@@ -408,7 +408,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
 //
 // NOTE: EvalResults is still only forward-declared in our headers, so we
 // cannot construct it directly in this TU.  Once the type is reconstructed
-// (Phase 15a), replace the stub body with the make_shared-based code below.
+//, replace the stub body with the make_shared-based code below.
 std::shared_ptr<EvalResults> WaveformGenerator::eval(
     std::string const& name,
     std::vector<Value> const& args)

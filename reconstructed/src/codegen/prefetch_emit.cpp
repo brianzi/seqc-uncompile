@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// Phase 7d: Prefetch — command emission and query methods
+// Prefetch — command emission and query methods
 //
 // Methods reconstructed:
 //   clampToCache         0x1d6c40

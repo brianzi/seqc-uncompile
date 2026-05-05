@@ -25,7 +25,7 @@
 // ============================================================================
 #pragma once
 
-#include "zhinst/core/exception.hpp"   // ZIAWGCompilerException (Phase 10.7d)
+#include "zhinst/core/exception.hpp"   // ZIAWGCompilerException
 
 #include <exception>
 #include <map>
@@ -44,7 +44,7 @@ namespace zhinst {
 // Values 16384+ are API/device error codes (used by getApiErrorMessage).
 // Gaps: 46, 52 are unassigned.
 //
-// Phase 10.7e renumbering: all SeqC compiler entries were previously
+//  renumbering: all SeqC compiler entries were previously
 // numbered 1..255 (off by +1 from the binary's actual 0..254 keys).
 // Corrected to match the binary map. The aliases InvalidRegister(=0),
 // ValueOverflow(=5), UnsupportedOp(=11) that previously coexisted
@@ -407,7 +407,7 @@ enum ErrorMessageT : int {
     //   wvfs: esi=5 → ValueOutOfRange    (= 5)
     //   wvfs/wvft/wwvfq cervino: esi=0xb → InvalidOpcode (= 11)
     //
-    // After the Phase 10.7e renumbering these aliases are now redundant —
+    // After the  renumbering these aliases are now redundant —
     // they resolve to the same values as the canonical names above:
     //   InvalidRegister ≡ CmdWithoutRegister  = 0
     //   ValueOverflow   ≡ ValueOutOfRange     = 5
@@ -497,7 +497,7 @@ std::string const& getApiErrorMessage(int ziResultCode);
 // ============================================================================
 // ZIAWGCompilerException — thrown on compiler/assembler errors
 //
-// As of Phase 10.7d this class is fully reconstructed in
+// As of  this class is fully reconstructed in
 // include/zhinst/exception.hpp (re-included at the top of this file).
 // It inherits from zhinst::Exception (verified MI layout: std::bad_exception
 // + boost::exception, total size 0x60). The two binary ctors (default at

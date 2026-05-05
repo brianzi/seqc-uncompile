@@ -1,5 +1,5 @@
 // ============================================================================
-// Reconstructed implementation for zhinst/elf_reader.hpp — Phase 14d.
+// Reconstructed implementation for zhinst/elf_reader.hpp
 //
 // Function addresses:
 //   - ElfReader::ElfReader(string)             0x2c3110

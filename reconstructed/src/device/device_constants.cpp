@@ -8,8 +8,8 @@
 // Switch on AwgDeviceType populates all fields of DeviceConstants.
 // Throws ZIAWGCompilerException for unsupported types.
 //
-// Field names revised in Phase 7e based on verified consumer usage.
-// Default-branch throw reconstructed in Phase 14b-iii.5: uses
+// Field names revised based on verified consumer usage.
+// Default-branch throw reconstructed in uses
 // BOOST_THROW_EXCEPTION(ZIAWGCompilerException(...)) to match the
 // boost::throw_exception call at 0x2cc44d with source_location
 // (file=constants.cpp, function=getDeviceConstants, line=312, column=65).

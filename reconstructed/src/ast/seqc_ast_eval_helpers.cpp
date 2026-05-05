@@ -29,7 +29,7 @@
 
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// seqc_ast_nodes_evaluate.cpp — Phase 21h
+// seqc_ast_nodes_evaluate.cpp
 //
 // Binary TU: SeqCAstNodesEvaluate.cpp (from _GLOBAL__sub_I_ symbol).
 //
@@ -148,7 +148,7 @@ VarType combine(VarType lhs, VarType rhs) {  // @0x247f50
 // VarSubType combinations.  Called by SeqCPlus::evaluate (and likely
 // other arithmetic operators) for the Const+Const and String+String rows.
 //
-// Fully reconstructed in Phase 21h.9: NOT a .rodata lookup table — pure
+// Fully reconstructed in NOT a .rodata lookup table — pure
 // conditional logic with priority-based semantics (60 bytes).
 // ============================================================================
 

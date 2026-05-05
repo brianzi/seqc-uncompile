@@ -7,7 +7,7 @@
 // POD struct, no vtable. Size: 0x90 (144 bytes, with alignment padding).
 // Populated by getDeviceConstants(AwgDeviceType) factory at 0x2cc0c0.
 //
-// Layout revised in Phase 7e after cross-referencing all consumer sites
+// Layout revised after cross-referencing all consumer sites
 // (Prefetch, WavetableIR, AWGAssemblerImpl, Cache, WaveformFront).
 // The original "RegisterBank" sub-struct groupings were incorrect — most
 // of the 16-byte groups are unrelated scalar fields that happen to be

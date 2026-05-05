@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_ghf.cpp — Phase 14b-ii-b1
+// device_ghf.cpp
 //
 // GHF-family device subclasses: Ghf, Ghfli.
 //

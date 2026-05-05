@@ -2,7 +2,7 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // StaticResources and GlobalResources — subclass implementations.
 //
-// Split from resources.cpp during Phase 20e-ii Batch 7 because the
+// Split from resources.cpp Batch 7 because the
 // getVariable override alone is ~270 lines of active code. The CMake
 // glob `file(GLOB src/*.cpp)` picks this file up automatically.
 //

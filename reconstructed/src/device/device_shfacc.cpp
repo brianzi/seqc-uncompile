@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_shfacc.cpp — Phase 14b-ii-b1
+// device_shfacc.cpp
 //
 // SHFACC-family device subclasses: Shfacc, Shfppc2, Shfppc4.
 // All three use the same inline option-bit pattern: opts & 0x20 -> FF.

@@ -1,6 +1,6 @@
 // Reconstructed implementation for zhinst/tracing.hpp.
 //
-// Phase 14c — Tracing.
+//  — Tracing.
 //
 // Function addresses:
 //   - getDefaultLabOneResource()             @0x0fa3b0

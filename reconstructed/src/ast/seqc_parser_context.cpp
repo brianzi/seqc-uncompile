@@ -2,7 +2,7 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // SeqcParserContext: small accessors and error reporting helpers
 //
-// Phase 31d: Full layout now known — all methods use typed member access.
+// Full layout now known — all methods use typed member access.
 // Previous raw-offset at_offset<> pattern replaced with direct members.
 // ============================================================================
 

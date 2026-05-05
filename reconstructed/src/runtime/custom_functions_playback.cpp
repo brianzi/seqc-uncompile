@@ -4,7 +4,7 @@
 // playAuxWave, playDIOWave, playWaveDIO, playWaveZSync, playZero, playHold,
 // waitWave, waitPlayQueueEmpty, sync, randomSeed, now, error, info, setRate.
 //
-// Split from custom_functions.cpp during Phase 22b.
+// Split from custom_functions.cpp
 // ============================================================================
 
 #include <boost/format.hpp>
@@ -189,13 +189,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         unsigned int mask = 0x3FFF;                                    // r15d default
 
         if (assignments.empty()) {
-            // --- Phase 8a: empty-assignments path — @0x1359ec..0x1359f9 ---
+            // --- : empty-assignments path — @0x1359ec..0x1359f9 ---
             // mask stays 0x3FFF; combinedWf stays null; skip directly to
             // checkOffspecWaveLength + asmPlay block (which will be skipped
             // unless config_->[+0x18] is set).
             mask = 0x3FFF;
         } else {
-            // ---- Phase 8b: validate every wave name — @0x135849..0x135884 -
+            // ---- : validate every wave name — @0x135849..0x135884 -
             // For each WaveAssignment wa:
             //   wavetableFront_->checkWaveformInitialized(wa.value.toString())
             // This throws if any referenced waveform name is not yet known.
@@ -204,7 +204,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 wavetableFront_->checkWaveformInitialized(name);        // @0x13585f
             }
 
-            // ---- Phase 8c: build per-channel waveform list — @0x135886..0x1359e7 -
+            // ---- : build per-channel waveform list — @0x135886..0x1359e7 -
             // channelsPerGroup taken from config_->channelsPerGroup[1] (the
             // INDEXED variant, +0x16) — playAuxWave uses indexed=true so
             // it picks the second slot of the 2-element uint16 array.
@@ -226,7 +226,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 }
             }
 
-            // ---- Phase 8d: pad empties with a "zeros" placeholder — @0x135a00..0x135cc6 -
+            // ---- : pad empties with a "zeros" placeholder — @0x135a00..0x135cc6 -
             // Count how many channel slots were filled by the bits scatter.
             size_t filledCount = 0;
             for (auto const& wa : assignments) {
@@ -255,7 +255,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 }
             }
 
-            // --- Phase 8e: mergeWaveforms — @0x135db6..0x135de1 ---
+            // --- : mergeWaveforms — @0x135db6..0x135de1 ---
             // Same 6-arg signature as in playDIOWave.  channelsPerGroup is
             // re-read from config (sx WORD [config+0x16]) and passed as a
             // signed short.  The 7th arg (last bool, `param6`) is hard-coded
@@ -283,7 +283,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x135efe
         checkOffspecWaveLength(combinedWf, expectedLen);                // @0x135f08
 
-        // --- Phase 10: emit-guard — @0x135f3a..0x135f57 ---
+        // --- : emit-guard — @0x135f3a..0x135f57 ---
         // emitPlay = (combinedWf != nullptr) || config_->isHirzel
         // NOTE: config_+0x18 = isHirzel (verified AWGCompilerConfig layout).
         // On Hirzel devices, play is emitted even with null waveform.
@@ -291,14 +291,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             (combinedWf != nullptr) || config_->isHirzel;               // @0x135f51
 
         if (emitPlay) {
-            // ---- Phase 11: build single-element waveforms vector — @0x135f5d..0x136083 -
+            // ---- : build single-element waveforms vector — @0x135f5d..0x136083 -
             // The binary stack-allocates a vector<shared_ptr<WaveformFront>>
             // containing exactly combinedWf (which may be null), then deep-
             // copies that one-element list into a freshly malloc'd buffer.
             std::vector<std::shared_ptr<WaveformFront>> waveforms;
             waveforms.push_back(combinedWf);                             // @0x135fae
 
-            // --- Phase 12: build asmPlay — @0x13608a..0x1360e3 ---
+            // --- : build asmPlay — @0x13608a..0x1360e3 ---
             // Two AsmRegister temporaries:
             //   reg  = AsmRegister(0)   @0x136093
             //   reg2 = AsmRegister(-1)  @0x1360a4
@@ -333,8 +333,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 regInv,
                 /*trigger=*/0);                                          // @0x1360de
 
-            // ---- Phase 13: append to results->assemblers_ — @0x136164..0x1362b9 -
-            // Phase 13: chain asmEntry.node into results->node_ — @0x136168..0x1361ea
+            // ---- : append to results->assemblers_ — @0x136164..0x1362b9 -
+            // chain asmEntry.node into results->node_ — @0x136168..0x1361ea
             // Same pattern as play(): if results->node_ is null, set it;
             // else walk to tail of next chain and append.
             // 0x1361b6: mov [rax+0x38], rcx  (node_ = asmEntry.node)
@@ -354,7 +354,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     // per-channel + asmPlay body is skipped entirely, control falls through
     // here into the function epilogue with an empty `results`.
 
-    // --- Phase 14: return — @0x13645f.. ---
+    // --- : return — @0x13645f.. ---
     // The binary tears down PlayArgs and the cmdName string before returning
     // rbx (the EvalResults shared_ptr).  C++ destructors handle these.
     return results;
@@ -520,7 +520,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             }
         }
 
-        // --- Phase 10: mergeWaveforms — @0x136cd9..0x136cff ---
+        // --- : mergeWaveforms — @0x136cd9..0x136cff ---
         // The 6-arg merge call:
         //   args[0..5] = (channelArgs, channelsPerGroup[0], false,
         //                 "playDIOWave", rate, /*lengthDiffers*/false)
@@ -554,7 +554,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             }
         }
 
-        // --- Phase 11: validate sample length — @0x136e8d..0x136e9e ---
+        // --- : validate sample length — @0x136e8d..0x136e9e ---
         // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
         // [r14+0x08] = devConst_, [rax+0x40] = maxWaveformLength.
         if (combinedWf) {
@@ -562,7 +562,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
             checkOffspecWaveLength(combinedWf, expectedLen);              // @0x136e9e
         }
 
-        // --- Phase 12: build asmPlay — @0x136ecb..0x137067 ---
+        // --- : build asmPlay — @0x136ecb..0x137067 ---
         // The branch at @0x136ee5 (`cmp cl, 0x1`) skips the asmPlay entirely
         // when (combinedWf == nullptr) AND (config.isHirzel == 0). When
         // either is set, we emit asmPlay.
@@ -616,7 +616,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
                 regInv,
                 /*trigger=*/0);                                            // @0x13705e
 
-            // --- Phase 13: append entry into results->assemblers_ ---
+            // --- : append entry into results->assemblers_ ---
             // The binary inlines the push_back: tail-pointer compare against
             // the capacity (@0x137169..0x137200) — falls back to
             // emplace_back_slow_path when full.  We use the high-level API.
@@ -629,7 +629,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     // body is skipped entirely; control falls through into the cleanup
     // sequence (PlayArgs dtor + return results).
 
-    // --- Phase 14: return — @0x1373ab.. ---
+    // --- : return — @0x1373ab.. ---
     // The binary tears down PlayArgs (@0x13770a) and the temp string at
     // [rbp-0x58] before returning rbx (the EvalResults shared_ptr).
     // C++ destructors handle these automatically.
@@ -809,7 +809,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     // devConst_ is at this+0x8 (per `mov rcx, [r14+0x8]`).
     int mask = shift << devConst_->execTableIndexBits;
 
-    // Phase 10: emit wvft(reg=0, mask) — @0x138115..0x138196
+    // emit wvft(reg=0, mask) — @0x138115..0x138196
     auto asmEntry = asmCommands_->wvft(AsmRegister(0), mask);
     results->assemblers_.push_back(std::move(asmEntry));
 

@@ -10,7 +10,7 @@
 // Plus NodeMapItem (24B) — hashable wrapper used as key in the map and as
 // element in the access list.
 //
-// Extracted from custom_functions.{hpp,cpp} during Phase 16b file-organization
+// Extracted from custom_functions.{hpp,cpp} file-organization
 // split (audit Section C1). See notes/audit_phase16a.md.
 // ============================================================================
 #pragma once

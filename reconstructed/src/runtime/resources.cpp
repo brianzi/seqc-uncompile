@@ -47,7 +47,7 @@ Resources::Variable::~Variable()  // @0x1e4be0
     //
     // Previously this dtor reached into the variant storage manually
     // because Variable was modeled with raw `flagWord/which_/variantStorage`
-    // fields. After the Phase 20e-ii Batch 5a wrap-up cleanup that
+    // fields. After the  Batch 5a wrap-up cleanup that
     // promoted the +0x08..+0x2F block to a real `Value value` member,
     // no manual cleanup is needed.
 }
@@ -441,7 +441,7 @@ void Resources::printScopes()  // @0x1ec570
 // ============================================================================
 // str(VarType) @0x247dd0 — convert VarType enum to string
 //
-// Verified against jump table at 0x95c2a0 (Phase 19c-followup, Finding 1).
+// Verified against jump table at 0x95c2a0.
 // The default branch returns "notype" (NOT "?"); this matches the binary's
 // fall-through path for unrecognised values, including the legacy Unset=0.
 // ============================================================================
@@ -547,7 +547,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
 //   4. Compares dword at var+0x00 with literal 4. Mismatch → throws
 //      ResourcesException(format(0xaf=TypeMismatchWrite,
 //                                str(VarType_Const), str(var->type))).
-//      Under the corrected enum mapping (Phase 19c-followup, Finding 1),
+//      Under the corrected enum mapping,
 //      tag 4 IS VarType_Const — there is no separate "record tag" enum.
 //   5. Populates EvalResultValue at [rbx]:
 //        +0x00 varType_    = 4 (VarType_Const)
@@ -1130,7 +1130,7 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
 #pragma GCC diagnostic pop
 
 // ============================================================================
-// addString / addWave / addCvar (stub overloads) — Phase 20e-ii Sub-phase 5b
+// addString / addWave / addCvar (stub overloads) Sub-phase 5b
 //
 // These three "declare without value" overloads are referenced by
 // Function::addArgument @0x1e9f60 (with st=VarSubType_FunctionArg=2). They

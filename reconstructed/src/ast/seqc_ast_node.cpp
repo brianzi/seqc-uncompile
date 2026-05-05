@@ -1,7 +1,7 @@
 // ============================================================================
 // SeqCAstNode — base class methods + 53 subclass implementations.
 //
-// Phase 13a: print() and doClone() bodies reconstructed from binary.
+// print() and doClone() bodies reconstructed from binary.
 //   - 51 simple print(): write fixed string literal to cout (tail-call to
 //     __put_character_sequence in binary; we use cout.write() equivalent).
 //   - 2 complex print(): SeqCVariable (0x1fdbd0), SeqCValue (0x1fe230).

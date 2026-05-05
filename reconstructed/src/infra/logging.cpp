@@ -1,6 +1,6 @@
 // Reconstructed implementation for zhinst/logging.hpp.
 //
-// Phase 14c — Logging.
+//  — Logging.
 //
 // Function addresses:
 //   - LogRecord::LogRecord(Severity)         @0x2ea220

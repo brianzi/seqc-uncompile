@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_type.cpp — Phase 14b-i + 14b-ii-a
+// device_type.cpp + 14b-ii-a
 //
 // Covers:
 //   - DeviceType pimpl wrapper (ctors/dtor/getters)
@@ -722,7 +722,7 @@ bool hasMf(DeviceType const& dt) {
 }
 
 // ============================================================================
-// Phase 14b-ii-b2: parsing helpers
+// parsing helpers
 // ============================================================================
 
 // @ 0x2d0460
@@ -747,7 +747,7 @@ std::vector<std::string> splitDeviceOptions(std::string const& s) {
     return out;
 }
 
-// @ 0x2d05b0 — Phase 14b-ii-b2-followup
+// @ 0x2d05b0
 //
 // Reverse-lookup of a DeviceOption from its name string. The binary
 // builds a function-local-static unordered_map<string, DeviceOption>

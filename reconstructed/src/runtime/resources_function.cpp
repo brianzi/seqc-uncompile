@@ -2,7 +2,7 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // Resources::Function — nested class implementations.
 //
-// Split out of resources.cpp during Phase 20e-ii Batch 5 because two of the
+// Split out of resources.cpp Batch 5 because two of the
 // methods (sameArgString @0x1eb330 and addArgument @0x1e9f60) are >500 disasm
 // lines each, and bundling them with the Resources base class methods made
 // resources.cpp unwieldy. The CMake glob `file(GLOB src/*.cpp)` picks this
@@ -142,7 +142,7 @@ Resources::Function::~Function() = default;  // @0x1ea820
 // Returns a CLONE of the body, not a borrow. The vtable+0x20 call is
 // SeqCAstNode::doClone() which returns `unique_ptr<SeqCAstNode>` (16B sret).
 // Header was previously declared `SeqCAstNode const* getBody() const`
-// (raw borrow); corrected to `unique_ptr<SeqCAstNode>` in Phase 20e-ii
+// (raw borrow); corrected to `unique_ptr<SeqCAstNode>`
 // Batch 5a alongside this body.
 //
 // NOTE: this implementation deliberately dereferences `body` (which is

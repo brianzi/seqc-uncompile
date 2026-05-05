@@ -9,11 +9,11 @@ bool floatEqual(double a, double b);
 namespace {
 
 // ============================================================================
-// Shared helpers — promoted from per-function lambdas (Phase 25d).
+// Shared helpers — promoted from per-function lambdas.
 // These were identically defined in 5-11 operator evaluate() overrides each.
 // ============================================================================
 
-// isConstOrCvar — now in resources.hpp (Phase 25g); available via zhinst::isConstOrCvar.
+// isConstOrCvar — now in resources.hpp; available via zhinst::isConstOrCvar.
 
 // getBackReg — extract AsmRegister from values_.back(), or default(0).
 // Binary uses `end - 8` trick to read the last 8 bytes of
@@ -52,7 +52,6 @@ inline VarSubType rhsSubOrDefault(EvalResults const& rhs) {
 //   rdi=sret, rsi=opName (string const&), rdx=lhsResult (EvalResults const&),
 //   rcx=rhsResult (EvalResults const&), r8=ctx (FrontendLoweringContext&).
 //
-// Phase 21h.4-followup resolved: body implemented below (Phase 21h.8).
 std::shared_ptr<EvalResults> combineWaveforms(
     std::string const& opName,
     EvalResults const& lhs,
@@ -65,7 +64,6 @@ std::shared_ptr<EvalResults> combineWaveforms(
 // Signature (Itanium ABI sret + xmm0 for double):
 //   rdi=sret, esi=sampleLength, xmm0=value (double), rdx=ctx&.
 //
-// Phase 21h.4-followup resolved: body implemented below (Phase 21h.8).
 std::shared_ptr<EvalResults> constWaveform(
     int sampleLength,
     double value,
@@ -84,7 +82,6 @@ std::shared_ptr<EvalResults> constWaveform(
 // ctx& is in rdx, suggesting the sret output occupies rdi and the int may
 // be dead/unused.  We declare per the mangled name but note the discrepancy.
 //
-// Phase 21h.5-followup resolved: body implemented below (Phase 21h.8).
 // Confirmed: int param is unused.
 std::shared_ptr<EvalResults> scaleWaveform(
     int scaleFactor,
@@ -106,7 +103,6 @@ std::shared_ptr<EvalResults> scaleWaveform(
 // Otherwise: extracts values from both, builds vector, calls
 // WaveformGenerator::eval("scale", values).
 //
-// Phase 21h.6-followup resolved: body implemented below (Phase 21h.8).
 std::shared_ptr<EvalResults> scaleWaveform(
     std::shared_ptr<EvalResults> scalar,
     std::shared_ptr<EvalResults> wave,
@@ -134,14 +130,13 @@ std::shared_ptr<EvalResults> scaleWaveform(
 //   5. Else: shift-and-add loop (up to 32 bits) emitting ssl/addr
 //      instructions.
 //
-// Phase 21h.6-followup resolved: full body implemented below (Phase 21h.8).
 std::shared_ptr<EvalResults> computeMult(
     std::shared_ptr<EvalResults> varOperand,
     std::shared_ptr<EvalResults> constOperand,
     std::shared_ptr<Resources> res,
     FrontendLoweringContext ctx);  // by value (not reference)
 
-// ---- Phase 22d: Additional helper forward declarations --------------------
+// ---- : Additional helper forward declarations --------------------
 
 // evalGreater @0x235ac0 — evaluates a > b for all VarType combinations.
 // Signature (from mangled name):

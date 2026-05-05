@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_hdawg.cpp — Phase 14b-ii-b1
+// device_hdawg.cpp
 //
 // HDAWG-family device subclasses: Hdawg, Hdawg4, Hdawg8.
 //

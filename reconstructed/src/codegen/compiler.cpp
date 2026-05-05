@@ -690,9 +690,7 @@ std::vector<int> Compiler::getLineMap(int offset) const {
 // FrontendLoweringState, dispatches to SeqCAstNode vtable[0] virtual
 // (the 3-arg evaluate: Resources, Context&, State&).
 // Returns {state.result (shared_ptr<Node>), evaluate_output (shared_ptr<EvalResults>)}.
-//
-// CORRECTION 2026-04-23 (Phase 15a-i): return type changed from void to
-// LowerResult (32B sret = 2 shared_ptrs). Evidence:
+// Return type is LowerResult (32B sret = 2 shared_ptrs). Evidence:
 //   - sret save at 0x1c1dba: mov [rbp-0xa0], rdi
 //   - 0x1c1fb6: movups [r15], [rbp-0x90]     → sret[0] = state.result (shared_ptr<Node>)
 //   - 0x1c1fcc: movups [r15+0x10], [rbp-0x50] → sret[1] = evaluate output (shared_ptr<EvalResults>)

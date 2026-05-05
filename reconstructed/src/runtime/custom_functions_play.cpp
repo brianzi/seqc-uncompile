@@ -4,7 +4,7 @@
 // play, playIndexed, writeToNode, addSyncCommand, printF, addWaitCycles,
 // writeLS64bit, generateWaveform.
 //
-// Split from custom_functions.cpp during Phase 22b.
+// Split from custom_functions.cpp
 // ============================================================================
 
 #include <boost/format.hpp>
@@ -306,7 +306,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     {
         std::optional<std::string> optName(funDescr);   // tag set to engaged @0x15e3e0
         result = wavetableFront_->getWaveformByName(optName);  // @0x15e3f8
-        // result == null → fall through to Phase 6.
+        // result == null → fall through to 
     }
 
     // ----------------------------------------------------------------
@@ -691,13 +691,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     SubFunc subFunc) {  // @0x160e00  (6428 bytes, ends at 0x16271c)
 
     // ============================================================
-    // Phase 21b-prereq-B reconstruction (in progress).
     //
-    // Phases 1-5 (cmdName build, arg-count guard, PlayArgs ctor,
+    //  (cmdName build, arg-count guard, PlayArgs ctor,
     // parse + parseOptionalRate, EvalResults + waveIndex extract)
     // are verified against disasm 0x160e00..0x16122d.
     //
-    // Phases 6-18 (per-channel arg gathering, getWaveformSampleLength,
+    //  (per-channel arg gathering, getWaveformSampleLength,
     // WaveformGenerator::call("zeros"), mergeWaveforms @0x161c2b,
     // loadWaveform, addi+asmSetVarPlaceholder, asmPlay, cleanup,
     // error tail) are partially reconstructed; remaining stubs noted
@@ -756,7 +755,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // parse() returns iterator past last consumed wave arg.
     auto parseEnd = playArgs.parse(args);                            // @0x16104c
 
-    // --- Phase 4b: Validate index/length arg types --- @0x1610fb..0x161190
+    // --- : Validate index/length arg types --- @0x1610fb..0x161190
     // Binary validates parseEnd[0] and parseEnd[1] (the index and length
     // args) BEFORE calling parseOptionalRate.  These two args are consumed
     // here; parseOptionalRate receives parseEnd+2 as its cursor.
@@ -816,7 +815,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //       Binary reads from `rbx = [rbp-0x318]` at @0x161228.
     int waveIndex = parseEnd[1].value_.toInt();                     // @0x161228 — length arg
 
-    // === Phase 5b: waveIndex==0 early-exit warning ===              @0x16131b..0x1613c9
+    // === : waveIndex==0 early-exit warning ===              @0x16131b..0x1613c9
     // Binary @0x161236: `test eax, eax; je 16131b` — when waveIndex
     // is zero the function does NOT throw; it formats error 0x9c with
     // cmdName, calls `warningCallback_(...)` (vtable[+0x30] indirect
@@ -847,7 +846,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //
     // Then @0x161272-0x16127b: `AsmRegister regZero(0)` — constructs
     // the constant-0 register that will be the addend in the addi
-    // emission later (Phase 12).
+    // emission later.
     //
     // Source-level model: `playArgs.waveAssignments_[config_->deviceIndex]`
     // selects the inner WaveAssignment vector. (deviceIndex named per
@@ -973,7 +972,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         waveformGen_->createDummyWaveform(static_cast<int>(baseLen));  // @0x161951
 
     // ================================================================
-    // --- Phase 10: mergeWaveforms --- @0x161bf5..0x161c2b
+    // --- : mergeWaveforms --- @0x161bf5..0x161c2b
     //
     // Disasm:
     //   xor  r8d, r8d
@@ -1003,7 +1002,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
                               /*useFunDescrPath=*/false);            // @0x161c2b
 
     // ================================================================
-    // --- Phase 11: loadWaveform + post-merge length check --- @0x161d31..0x161d76
+    // --- : loadWaveform + post-merge length check --- @0x161d31..0x161d76
     //
     // Disasm @0x161d31..0x161d4b:
     //   mov  rax, [rbp-0xb0]                ; combined.get() (raw)
@@ -1030,7 +1029,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // gate cleanup branches; not semantically observable at source level.
 
     // ================================================================
-    // --- Phase 12: addi(indexReg, 0, Immediate(waveIndex)) --- @0x161dc2..0x161e56
+    // --- : addi(indexReg, 0, Immediate(waveIndex)) --- @0x161dc2..0x161e56
     //
     // For varType ∈ {Const(4), Cvar(6)} (the rate-slot type-check at
     // @0x161db5 `cmp ecx, 0x4` after `and ecx, ~2`), the binary takes
@@ -1047,14 +1046,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   call Immediate::Immediate(rate)
     //   call AsmCommands::addi(indexReg, AsmRegister(0), Immediate(rate))
     //
-    // Then asmCommands_->asmSetVarPlaceholder(indexReg) (Phase 13)
+    // Then asmCommands_->asmSetVarPlaceholder(indexReg)
     // then push_back into the local Assembler instance at [rbp-0x1f8]
-    // (Phase 14).
+    //.
     //
     // Dispatch on parseEnd[0].varType_ (the OFFSET arg, not length):
     //   Const(4)/Cvar(6) → addi/SetVarPlaceholder path (below).
     //   Var(2)           → reuse parseEnd[0].reg_ as indexReg; skip
-    //                      Phases 13/14 entirely (no addi, no
+    //                       entirely (no addi, no
     //                      asmSetVarPlaceholder, no push of those
     //                      entries into results->assemblers_). The
     //                      pre-existing register holding `t` is fed
@@ -1073,13 +1072,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     AsmRegister indexReg(0);  // placeholder; assigned by branch below.
     int offsetVarType = static_cast<int>(parseEnd[0].varType_);
     if (offsetVarType == 2) {
-        // --- Phase 12 Var-branch --- @0x161f5c..0x161f6a
+        // ---  Var-branch --- @0x161f5c..0x161f6a
         // Reuse the AsmRegister already bound to the runtime variable
         // `t` (parseEnd[0].reg_). No addi or placeholder is emitted;
         // no entries are pushed for this phase.
         indexReg = parseEnd[0].reg_;
     } else {
-        // --- Phase 12 Const/Cvar-branch --- @0x161dc2..0x161e56
+        // ---  Const/Cvar-branch --- @0x161dc2..0x161e56
         int regNum = Resources::getRegisterNumber();                 // @0x161df1
         indexReg = AsmRegister(regNum);
         AsmRegister regZeroForAddi(0);
@@ -1088,7 +1087,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             indexReg, regZeroForAddi, rateImm);                      // @0x161e56
 
         // ============================================================
-        // --- Phase 13: asmSetVarPlaceholder(indexReg) --- @0x161ee2
+        // --- : asmSetVarPlaceholder(indexReg) --- @0x161ee2
         //
         // Emits the placeholder marker that downstream optimization
         // passes resolve once the wave-index is known. Inserted into
@@ -1098,7 +1097,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             asmCommands_->asmSetVarPlaceholder(indexReg);            // @0x161ee2
 
         // ============================================================
-        // --- Phase 14: push addi + placeholder into local Assembler --- @0x161e8d..0x161f81
+        // --- : push addi + placeholder into local Assembler --- @0x161e8d..0x161f81
         //
         // The binary inlines std::vector<Asm>::push_back twice (fast
         // path @0x161ed4 for the addi entry, then again for the
@@ -1111,7 +1110,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // --- Phase 15: checkOffspecWaveLength --- @0x16210d..0x16214a
+    // --- : checkOffspecWaveLength --- @0x16210d..0x16214a
     //
     // Disasm:
     //   mov  rax, [r12+0x8]                 ; this->devConst_ (+0x08)
@@ -1123,7 +1122,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // --- Phase 16: asmPlay --- @0x162246..0x162343
+    // --- : asmPlay --- @0x162246..0x162343
     //
     // Decoded SysV arg mapping (21b-followup-3 Group C):
     //   rdi = sret (AsmList::Asm return)
@@ -1141,10 +1140,10 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   stack[6] = AsmRegister(-1)            → reg2
     //   stack[7] = 0                          → trigger
     //
-    // NOTE: r8b and r9b mappings have some uncertainty — the isHold
-    // and fourChannel register args were decoded from the sete/cmp
-    // pattern but the exact subFunc comparison value at each site
-    // has not been independently verified against the raw disasm bytes.
+    // NOTE: unknowns.md #121 — r8b and r9b mappings have some uncertainty.
+    // The isHold and fourChannel register args were decoded from the sete/cmp
+    // pattern but the exact subFunc comparison value at each site has not been
+    // independently verified against the raw disasm bytes.
     // The stack args (hold through trigger) are confident.
     AsmRegister regInvalid(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
@@ -1166,7 +1165,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         /*trigger=*/0u);                                             // stack[7]: @0x162343
 
     // ================================================================
-    // --- Phase 17: push asmPlay entry into results->assemblers_ --- @0x162462..0x162511
+    // --- : push asmPlay entry into results->assemblers_ --- @0x162462..0x162511
     //
     // Disasm @0x162506: lea rdi, [r15+0x18] (vector<Asm> &) followed
     // by emplace_back_slow_path. r15 = [r13+0] where r13 is the saved
@@ -1186,7 +1185,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     results->assemblers_.push_back(std::move(playEntry));            // @0x162511
 
     // ================================================================
-    // --- Phase 18: cleanup + return --- @0x16254c..0x16271b
+    // --- : cleanup + return --- @0x16254c..0x16271b
     //
     // The remaining 0x1cf bytes are:
     //   * Assembler dtor for the local @[rbp-0x1f8]                   @0x162553
@@ -1198,14 +1197,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //
     // The exception path tail @0x162735..0x162cf5 contains:
     //   * 0x3d: "wrong number of arguments" formatter @0x16283a       (cmdName, expected, got)
-    //   * 0x98: invalid arg type (first/second) @0x162976,0x16299d    (cmdName) — Phase 4b
-    //   * 0xa0: rate-too-low formatter @0x1628e6                      (cmdName) — Phase 4
-    //   * 0x9a: rate type must be const @0x16293c                     (cmdName) — Phase 5
+    //   * 0x98: invalid arg type (first/second) @0x162976,0x16299d    (cmdName)
+    //   * 0xa0: rate-too-low formatter @0x1628e6                      (cmdName)
+    //   * 0x9a: rate type must be const @0x16293c                     (cmdName)
     //   * std::__throw_bad_function_call @0x162971
     //   * std::vector::__throw_length_error path @0x162aa3
     //   * Two more CustomFunctionsException ctor sites (longest-form
     //     length-error formatter using 0x6db... reciprocal) @0x162a3a/0x162a8c
-    //   These are wired into the throws above (Phase 2/4/5b/12).
+    //   These are wired into the throws above ().
 
     return results;                                                  // @0x162707
 }
@@ -1218,7 +1217,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
 // oscillator against the runtime configuration, and emits AsmCommands::suser
 // / AsmCommands::addi instructions into the result's assemblers_ list.
 //
-// Reconstruction sub-phases (Phase 21b):
+// Reconstruction sub-phases:
 //   21b.1 (this commit) — function skeleton, regex statics, setup, Block A
 //                         (absDevRegex), trailing lookupNode() call.
 //   21b.2 — Blocks B (awgNodeRegex) + C (sineNodeRegex).
@@ -1495,7 +1494,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // source-level this is just `usedFeatures_.insert("MF")`.
         // The insert is UNCONDITIONAL — runs every time the oscselNodeRegex
         // matches.
-        // NOTE: what subsystem reads usedFeatures_["MF"] is unknown.
+        // NOTE: unknowns.md #122 — what subsystem reads usedFeatures_["MF"] is unknown.
         usedFeatures_.insert(tagMF);
     }
     // Binary: addNodeAccess, register allocation, address resolution, and

@@ -2,16 +2,16 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // DeviceType / DeviceFamily / DeviceTypeCode / DeviceOption / DeviceOptionSet
 //
-// Phase 14b-i: enums, DeviceType pimpl wrapper, detail::DeviceTypeImpl base,
+// enums, DeviceType pimpl wrapper, detail::DeviceTypeImpl base,
 // DeviceOptionSet (dual-storage container) and its iterator.
 //
-// Phase 14b-ii-a: full DeviceOption enum, sfc::*Option per-family bitmask
+// full DeviceOption enum, sfc::*Option per-family bitmask
 // enums, OptionCodePair / initializeSfcOptions template registry, real
 // toString(DeviceOption,family) and toString(DeviceOptionSet,family,sep)
 // implementations.
 //
 // Per-family `detail::*` device subclasses and their `initializeXxxOptions`
-// helpers are deferred to Phase 14b-ii-b.
+// helpers are deferred to 
 //
 // Sources of evidence are noted in reconstructed/notes/device_type.md.
 // ============================================================================
@@ -276,7 +276,7 @@ enum class VhfOption : uint32_t {
 // constructor calls `initializeSfcOptions<sfc::ShfOption, 5>` directly
 // (mangled symbol confirmed in disasm of 0x2e3a00 ctor, knownOptions
 // array @ .rodata 0x96298c). The GHF family reuses `ShfOption`. See
-// reconstructed/notes/device_type.md (Phase 14b-ii-b1 correction).
+// reconstructed/notes/device_type.md.
 
 }  // namespace sfc
 

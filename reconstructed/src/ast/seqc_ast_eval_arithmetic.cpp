@@ -552,8 +552,8 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
     // Helper to read rhsType under the same size guard. The binary
     // re-loads [rbp+0x10] for every row, then walks rhsResult.values_
     // and reads [rcx-0x38] for varType.
-    // rhsTypeOrUnset — promoted to file-scope (Phase 25d)
-    // rhsSubOrDefault — promoted to file-scope (Phase 25d)
+    // rhsTypeOrUnset — promoted to file-scope
+    // rhsSubOrDefault — promoted to file-scope
 
     // The binary dispatches inside a try-block catching VarTypeException.
     try {
@@ -889,12 +889,12 @@ std::shared_ptr<EvalResults> SeqCPlus::evaluate(
     auto result = std::make_shared<EvalResults>();
 
     // 2. Helper: (type | 0x2) == 6 ↔ type ∈ {Const(4), Cvar(6)}.
-    // isConstOrCvar — promoted to file-scope (Phase 25d)
+    // isConstOrCvar — promoted to file-scope
 
     // 3. Helper: extract AsmRegister from values_.back(), or default(0).
     //    Binary uses `end - 8` trick to read the last 8 bytes of
     //    EvalResultValue (AsmRegister at +0x30 of the 0x38-byte struct).
-    // getBackReg — promoted to file-scope (Phase 25d)
+    // getBackReg — promoted to file-scope
 
     // 4. Read lhsResult.values_ size.                        // @0x22a67c-22a694
     //    If empty, go directly to the default error with lhsType = Unset.
@@ -920,9 +920,9 @@ std::shared_ptr<EvalResults> SeqCPlus::evaluate(
         const VarSubType lhsSub  = lhsResult.values_.back().varSubType_;
 
         // Helpers for rhs access.
-        // rhsCount — promoted to file-scope (Phase 25d)
-        // rhsTypeOrUnset — promoted to file-scope (Phase 25d)
-        // rhsSubOrDefault — promoted to file-scope (Phase 25d)
+        // rhsCount — promoted to file-scope
+        // rhsTypeOrUnset — promoted to file-scope
+        // rhsSubOrDefault — promoted to file-scope
 
         // ================================================================
         // Row 1: lhsType == Var(2), rhsType ∈ {Const(4), Cvar(6)}
@@ -1226,10 +1226,10 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
     auto result = std::make_shared<EvalResults>();
 
     // 2. Helper: (type | 0x2) == 6 ↔ type ∈ {Const(4), Cvar(6)}.
-    // isConstOrCvar — promoted to file-scope (Phase 25d)
+    // isConstOrCvar — promoted to file-scope
 
     // 3. Helper: extract AsmRegister from values_.back(), or default(0).
-    // getBackReg — promoted to file-scope (Phase 25d)
+    // getBackReg — promoted to file-scope
 
     // 4. Read lhsResult.values_ size.                        // @0x22ce5a-22ce72
     //    If empty → default error with lhsType = Unset.
@@ -1254,8 +1254,8 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
         const VarSubType lhsSub  = lhsResult.values_.back().varSubType_;
 
         // Helpers for rhs access.
-        // rhsCount — promoted to file-scope (Phase 25d)
-        // rhsTypeOrUnset — promoted to file-scope (Phase 25d)
+        // rhsCount — promoted to file-scope
+        // rhsTypeOrUnset — promoted to file-scope
 
         // ================================================================
         // Row 3: lhsType == Var(2), rhsType == Var(2)
@@ -1579,7 +1579,7 @@ std::shared_ptr<EvalResults> SeqCMult::evaluate(
     auto result = std::make_shared<EvalResults>();
 
     // 2. Helper: (type | 0x2) == 6 ↔ type ∈ {Const(4), Cvar(6)}.
-    // isConstOrCvar — promoted to file-scope (Phase 25d)
+    // isConstOrCvar — promoted to file-scope
 
     // 3. Read lhsResult.values_ size.                        // @0x22eaee-22eb06
     //    If empty → default error with lhsType = Unset.
@@ -1603,8 +1603,8 @@ std::shared_ptr<EvalResults> SeqCMult::evaluate(
         const VarType lhsType = lhsResult.values_.back().varType_;
 
         // Helpers for rhs access.
-        // rhsCount — promoted to file-scope (Phase 25d)
-        // rhsTypeOrUnset — promoted to file-scope (Phase 25d)
+        // rhsCount — promoted to file-scope
+        // rhsTypeOrUnset — promoted to file-scope
 
         // ================================================================
         // Row 2: lhsType ∈ {Const(4), Cvar(6)}, rhsType == Var(2)
@@ -1795,7 +1795,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
     auto result = std::make_shared<EvalResults>();
 
     // 2. Helper: (type | 0x2) == 6 ↔ type ∈ {Const(4), Cvar(6)}.
-    // isConstOrCvar — promoted to file-scope (Phase 25d)
+    // isConstOrCvar — promoted to file-scope
 
     // 3. Read lhsResult.values_ size and type.               // @0x231101-231112
     const size_t lhsCount = lhsResult.values_.size();
@@ -1804,8 +1804,8 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
         lhsType = lhsResult.values_.back().varType_;
 
     // Helpers for rhs access.
-    // rhsCount — promoted to file-scope (Phase 25d)
-    // rhsTypeOrUnset — promoted to file-scope (Phase 25d)
+    // rhsCount — promoted to file-scope
+    // rhsTypeOrUnset — promoted to file-scope
 
     // ================================================================
     // Row 1 & 2: Var(2) in either operand → error 0xdf.
@@ -1973,7 +1973,7 @@ name_tail:
 }
 
 // ============================================================================
-// Phase 22d — Batch 1: Trivial evaluate() overrides
+//  — Batch 1: Trivial evaluate() overrides
 // ============================================================================
 
 // ---- Returns nullptr (16B bodies) ----------------------------------------

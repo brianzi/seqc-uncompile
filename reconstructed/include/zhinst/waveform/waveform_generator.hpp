@@ -95,7 +95,7 @@ private:
 // block prefix → 0xC0 bytes for the WaveformGenerator body itself.
 //
 // `field_B0_`: zero-initialized in the ctor at 0x2482aa via
-// `xorps xmm0; movaps [rbx+0xb0], xmm0`, but Phase 15a investigation
+// `xorps xmm0; movaps [rbx+0xb0], xmm0`, but  investigation
 // found NO instruction in the binary that writes to a WaveformGenerator
 // instance's +0xB0/+0xB8 offsets. Earlier `+0xB0` read sightings inside
 // WaveformGenerator methods were misattributed: those reads target the
@@ -250,7 +250,7 @@ private:
     // +0x80: Warning callback (invoked for deprecated function aliases)
     std::function<void(std::string const&)>                  warningCallback_;   // +0x80
 
-    // +0xB0: Dead/vestigial shared_ptr — no setter exists in binary (Phase 15a)
+    // +0xB0: Dead/vestigial shared_ptr — no setter exists in binary
     std::shared_ptr<void>                                    reserved_B0_;       // +0xB0
 };
 

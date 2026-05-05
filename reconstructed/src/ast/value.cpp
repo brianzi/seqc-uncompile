@@ -56,7 +56,7 @@ Immediate::Immediate(std::string const& s)  // 0x290ae0
 }
 
 // ============================================================================
-// Immediate copy/move/copy-assign — Phase 20b additions.
+// Immediate copy/move/copy-assign additions.
 //
 // These three operations are referenced by callers but **never defined in
 // the binary** (no symbol present). They were either synthesized implicitly
@@ -239,7 +239,7 @@ Value::Value(std::string const& s) {  // 0x22c2b0
 }
 
 // ============================================================================
-// Value() default ctor — Phase 20b addition.
+// Value() default ctor addition.
 //
 // Not defined in the binary (no symbol `_ZN6zhinst5ValueC1Ev` present).
 // Required by Resources::Variable initialization (Variable holds a Value

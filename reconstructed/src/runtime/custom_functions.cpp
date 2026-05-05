@@ -1177,7 +1177,7 @@ int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict
 // ============================================================================
 // NodeMap::toFrequency / toPhase / pauPoffIwrap   @0x1c5630, @0x1c5680, @0x1c5650
 //
-// Disasm-derived (Phase 20d):
+// Disasm-derived:
 //   toFrequency: (int64_t)(freq * 2^48 / sampleClock)
 //                Constant at .rodata 0x956078 = 0x42f0000000000000 = 2^48 (double).
 //                cvttsd2si rax,xmm0 → returns signed int64; bit pattern reused as
@@ -1229,7 +1229,7 @@ int NodeMap::toPhase(float value) {  // @0x1c5680
 // ============================================================================
 // parseOptionalRate (free function)   @0x163980
 //
-// Disasm-derived (Phase 20d). The parameter naming in the header — (begin, end,
+// Disasm-derived. The parameter naming in the header — (begin, end,
 // parseEnd, name, strict) — is misleading: in the binary the third iterator
 // (rdx) is the *parse cursor* that the caller passes in (typically the result of
 // PlayArgs::parse()). The function checks whether exactly ONE EvalResultValue

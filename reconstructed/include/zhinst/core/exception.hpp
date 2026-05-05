@@ -3,7 +3,7 @@
 //
 // zhinst::Exception — base class for the entire ZI exception hierarchy.
 //
-// Reconstructed in Phase 10.7d. Layout is documented in
+// Reconstructed Layout is documented in
 // notes/struct_layouts.md (Exception entry).
 //
 // ----------------------------------------------------------------------------

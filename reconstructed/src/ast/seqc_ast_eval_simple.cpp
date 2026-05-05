@@ -187,7 +187,7 @@ std::shared_ptr<EvalResults> SeqCParamList::evaluate(
 }
 
 // ============================================================================
-// Phase 22d — Batch 2: Operator wrappers that delegate to helpers
+//  — Batch 2: Operator wrappers that delegate to helpers
 //
 // These 5-arg evaluate overrides delegate the actual computation to
 // anonymous-namespace helper functions, then build the name_ string
@@ -323,7 +323,7 @@ std::shared_ptr<EvalResults> SeqCNEqual::evaluate(
 }
 
 // ============================================================================
-// Remaining evaluate() overrides (originally Phase 22d stubs, now implemented)
+// Remaining evaluate() overrides (originally  stubs, now implemented)
 // ============================================================================
 
 // --- Operator 5-arg (inline logic, not delegated to helpers) ---
@@ -485,7 +485,7 @@ std::shared_ptr<EvalResults> SeqCMod::evaluate(
 
     // 2. Validate both operands: count==1 and type ∈ {Const(4), Cvar(6)}.
     //    (type | 0x2) == 6 is the test.                      // @0x231f3c–0x231fc1
-    // isConstOrCvar — promoted to file-scope (Phase 25d)
+    // isConstOrCvar — promoted to file-scope
 
     const size_t lhsCount = lhsResult.values_.size();
     const size_t rhsCount = rhsResult.values_.size();

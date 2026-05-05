@@ -31,11 +31,11 @@ namespace zhinst {
 //   +0x68  std::string comment   — annotation / disassembly comment (SSO: 32 bytes)
 //   +0x80  END
 //
-// Register semantic key (from getCmdType bitmask, Phase 15c; renamed Phase 27a):
+// Register semantic key (from getCmdType bitmask, ; renamed ):
 //   regSrc (+0x20) is READ  when cmdType & 1
 //   regDst (+0x28) is WRITTEN when cmdType & 2
 //   regAux (+0x30) is READ when cmdType ∈ {1, 7}; WRITTEN when cmdType == 7
-// Field rename completed in Phase 27a (was reg2/reg0/reg1 → regSrc/regDst/regAux).
+// Field rename completed (was reg2/reg0/reg1 → regSrc/regDst/regAux).
 class Assembler {
 public:
     // Instruction opcodes. Values determined from disassembly of AsmCommands
@@ -85,7 +85,7 @@ public:
         CWVF       = 0xF2000000,
         BRZ        = 0xF3000000,  // branch if zero
         BRNZ       = 0xF4000000,  // branch if not zero
-        BRGZ       = 0xF5000000,  // branch if greater than zero (NEW — Phase 2a)
+        BRGZ       = 0xF5000000,  // branch if greater than zero (NEW)
         ST         = 0xF6000000,
         TRAP       = 0xF7000000,
         IRPT       = 0xF8000000,

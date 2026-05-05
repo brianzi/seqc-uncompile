@@ -9,7 +9,7 @@
 //   +0x08: EValueCategory  (4 bytes)
 //   +0x0C: int             type (4 bytes)
 //   +0x10: EDirection      (4 bytes)  -- parameter direction (eIN/eOUT/eINOUT)
-//   +0x14: VarType         (4 bytes)  -- Phase 21d: NOT padding; set by every
+//   +0x14: VarType         (4 bytes)  -- NOT padding; set by every
 //                                        derived-class ctor (base ctor leaves it
 //                                        uninitialized; subclass ctors all take
 //                                        VarType as 4th explicit parameter)
@@ -68,7 +68,7 @@ enum class EValueCategory : int32_t {
     eRVALUE          = 2,
 };
 
-// EDirection — unified enum, defined in types.hpp (Phase 21i).
+// EDirection — unified enum, defined in types.hpp.
 // str() @0x1c1730 maps: 0→"in", 1→"out", 2→"inout".
 
 // Free functions — enum to string
@@ -83,7 +83,7 @@ std::string str(EDirection dir);      // @0x1c1730
 // D0 (deleting) destructor at 0x2462e0 is `ud2` — abstract, must never
 // be deleted directly through base pointer with `delete`.
 //
-// ---- Vtable layout (Phase 21d — verified from binary vtable dumps) ----
+// ---- Vtable layout ----
 //
 // The declaration order of virtuals in the ORIGINAL source determines
 // the vtable slot order. The order below matches the binary's vtable
@@ -149,7 +149,7 @@ protected:
                                      //        NOTE: SeqCVariable::print() casts this to VarType
                                      //        for display — overloaded meaning in that one subclass.
     EDirection direction_;      // +0x10
-    VarType         varType_{};      // +0x14  (Phase 21d: was "padding"; set by derived ctors)
+    VarType         varType_{};      // +0x14
 
     // Allow swap to access fields by reference
     friend void swap(SeqCAstNode& a, SeqCAstNode& b);            // 0x1fda40
@@ -734,7 +734,7 @@ private:
 static_assert(sizeof(SeqCParamList) == 0x30,
               "SeqCParamList must be 0x30 bytes");
 
-// SeqCParameter class REMOVED in Phase 21d — VarType is now a proper field
+// SeqCParameter class REMOVED — VarType is now a proper field
 // at +0x14 in the base class SeqCAstNode, accessible via varType(). The
 // old placeholder's reinterpret_cast hack is no longer needed.
 

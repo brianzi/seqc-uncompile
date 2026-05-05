@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_subclasses.hpp — Phase 14b-ii-b1
+// device_subclasses.hpp
 //
 // Per-family `detail::*` device subclasses derived from
 // `detail::DeviceTypeImpl`. All 32 subclasses share the same layout as
@@ -23,9 +23,9 @@
 // Factory classes (Hf2Factory, MfFactory, ..., VhfFactory) +
 // `detail::makeDeviceFamilyFactory` + `detail::UnknownDevice` +
 // `detail::GenericDeviceType` + `DeviceType(string, vector<string>)`
-// parser are deferred to Phase 14b-ii-b2.
+// parser are deferred to 
 //
-// See reconstructed/notes/device_type.md (Phase 14b-ii-b1) for the full
+// See reconstructed/notes/device_type.md for the full
 // subclass survey table (codes, families, vtables, init patterns).
 // ============================================================================
 #pragma once

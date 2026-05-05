@@ -13,7 +13,7 @@ namespace zhinst {
 // ============================================================================
 // Deprecated/relocated variable-name BSS strings used by the deprecation
 // post-check in StaticResources::getVariable. Definitions provided by
-// `src/error_messages.cpp` (Phase 20a). The header
+// `src/error_messages.cpp`. The header
 // `zhinst/error_messages.hpp` already exposes these `extern`; the local
 // declarations below are kept for documentation of the binary BSS
 // addresses and are redundant-but-compatible with the header.

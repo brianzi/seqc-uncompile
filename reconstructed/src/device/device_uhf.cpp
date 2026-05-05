@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_uhf.cpp — Phase 14b-ii-b1
+// device_uhf.cpp
 //
 // UHF-family device subclasses: Uhf, Uhfli, Uhfawg, Uhfqa, Uhfia.
 //

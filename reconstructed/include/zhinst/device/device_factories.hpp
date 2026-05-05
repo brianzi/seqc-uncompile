@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_factories.hpp — Phase 14b-ii-b2
+// device_factories.hpp
 //
 // Factory classes used to construct `detail::DeviceTypeImpl`-derived
 // device objects from a (DeviceFamily, options-bitmask) pair. All

@@ -20,7 +20,7 @@
 
 #include "zhinst/asm/asm_register.hpp"
 #include "zhinst/ast/eval_result_value.hpp"
-#include "zhinst/core/types.hpp"           // EDirection (unified enum, Phase 21i)
+#include "zhinst/core/types.hpp"           // EDirection (unified enum, )
 #include "zhinst/ast/value.hpp"
 
 namespace zhinst {
@@ -55,7 +55,7 @@ enum VarType : int32_t {
 // isConstOrCvar — tests whether VarType is Const(4) or Cvar(6).
 // Binary uses the bitwise trick: (type | 0x2) == 6.
 // Equivalent to: (type & ~1) == 4.
-// Promoted from per-function lambdas (Phase 25d/25g).
+// Promoted from per-function lambdas.
 inline bool isConstOrCvar(VarType t) {
     return (static_cast<int>(t) | 0x2) == 6;
 }
@@ -81,7 +81,7 @@ inline bool isConstOrCvar(VarType t) {
 enum VarSubType : int32_t {
     VarSubType_Default     = 0,
     VarSubType_Stub        = 1,
-    VarSubType_FunctionArg = 2,    // function parameter binding (Phase 20e-ii)
+    VarSubType_FunctionArg = 2,    // function parameter binding
     VarSubType_Vect     = 3,
     VarSubType_String      = 4,
 };
@@ -118,7 +118,7 @@ VarType combine(VarType lhs, VarType rhs);  // @0x247f50
 // for the Const+Const and String+String rows.
 VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
 
-// EDirection — unified direction enum, defined in types.hpp (Phase 21i).
+// EDirection — unified direction enum, defined in types.hpp.
 // In the Resources context:
 //   EDirection::eIN  (=0) = read-only path (skips +0x50 check)
 //   EDirection::eOUT (=1) = write/strict path (validates +0x50 byte)
@@ -179,7 +179,7 @@ public:
     // Size: 0x58 (88 bytes) — confirmed by `add r14, 0x58` at 1e8441 and
     // by stride of vector iterations.
     //
-    // FINAL LAYOUT (Phase 20e-ii Batch 5a wrap-up cleanup):
+    // FINAL LAYOUT:
     //   The 40-byte block at +0x08..+0x2F is a complete embedded `Value`
     //   object. Evidence: `readString @0x1e5db5` does `add rsi, 0x8;
     //   call Value::toString()` — passing `&v+8` as `this` to a Value
@@ -312,7 +312,7 @@ public:
         // The disasm has no null check — invoking on a Function with no body
         // installed will dereference nullptr and crash. NOTE: previous header
         // declared this as `SeqCAstNode const* getBody() const` (raw borrow)
-        // — corrected in Phase 20e-ii Batch 5a after disasm of @0x1eab50
+        // — corrected Batch 5a after disasm of @0x1eab50
         // showed it returns the result of node.doClone() (unique_ptr sret).
         std::unique_ptr<SeqCAstNode> getBody() const;              // @0x1eab50
 

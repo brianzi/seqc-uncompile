@@ -1,4 +1,4 @@
-// Reconstructed from _seqc_compiler.so — Phase 14c (Logging).
+// Reconstructed from _seqc_compiler.so
 //
 // Sources analyzed:
 //   - construct_logger() @0x2ea660 records source location
@@ -139,7 +139,7 @@ private:
 
 // Templated implementation — defined here so callers in any TU can
 // stream arbitrary types. The exported error_code instantiation is
-// emitted out-of-line in logging.cpp (Phase 14c).
+// emitted out-of-line in logging.cpp.
 template <typename T>
 inline LogRecord& LogRecord::operator<<(const T& value) {
     if (record_) {

@@ -1,5 +1,5 @@
 // ============================================================================
-// Reconstructed from disassembly of _seqc_compiler.so — Phase 14d.
+// Reconstructed from disassembly of _seqc_compiler.so
 //
 // ElfReader — thin C++ wrapper around ELFIO::elfio for reading ELF artifacts
 // produced by ElfWriter. Loads a file, validates the magic + class +

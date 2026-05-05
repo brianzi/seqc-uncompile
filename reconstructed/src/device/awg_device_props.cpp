@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// awg_device_props.cpp — Phase 14b-iii
+// awg_device_props.cpp
 //
 // Implements:
 //   - AwgPathPatterns 3-arg ctor (header-defined ctors are defaulted)

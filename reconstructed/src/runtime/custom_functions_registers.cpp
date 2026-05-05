@@ -1328,8 +1328,8 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     if (static_cast<int>(arg0.varType_) == 2 ||
         static_cast<int>(arg1.varType_) == 2 ||
         static_cast<int>(arg2.varType_) == 2) {
-        // NOTE: error code for register-bound args not confirmed;
-        //       using 0x3e as approximation.                                  // @0x1551b9
+        // NOTE: IF unknowns.md #120 — error code for register-bound args not
+        //       confirmed; using 0x3e as approximation.                         // @0x1551b9
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("configFreqSweep")));
     }

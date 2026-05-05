@@ -22,7 +22,7 @@ std::map<int, std::string> ErrorMessages::messages;  // populated below
 
 // ============================================================================
 // Process-wide singleton — BSS @ 0x95de60.
-// Phase 20a: extern declared in 4 caller TUs (cache, custom_functions,
+// extern declared in 4 caller TUs (cache, custom_functions,
 // node, prefetch_emit) but never defined. Definition added here.
 // ============================================================================
 ErrorMessages errMsg;
@@ -30,7 +30,7 @@ ErrorMessages errMsg;
 // ============================================================================
 // Three namespace-scope `const std::string` globals referenced from
 // static_resources.cpp:21-23. BSS addresses verified against binary.
-// Phase 20a: extern declared, never defined. String contents recovered
+// extern declared, never defined. String contents recovered
 // from binary rodata via `strings _seqc_compiler.so`:
 //   _ZN6zhinstL26constAwgIntegrationTriggerE → "AWG_INTEGRATION_TRIGGER"
 //   _ZN6zhinstL21zsyncDataPqscRegisterE      → "ZSYNC_DATA_PQSC_REGISTER"

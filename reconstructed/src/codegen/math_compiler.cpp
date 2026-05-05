@@ -1,7 +1,7 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // MathCompiler — implementation extracted from custom_functions.cpp during
-// Phase 16b file-organization split (audit Section C1).
+//  file-organization split (audit Section C1).
 //
 // See notes/audit_phase16a.md for the audit context.
 // ============================================================================

@@ -4,7 +4,6 @@
 // when a DeviceType is constructed from runtime strings (rather than
 // from a known compile-time {family, options} factory).
 //
-// Phase 14b-ii-b2.
 
 #pragma once
 

@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_unknown.cpp — Phase 14b-ii-b2
+// device_unknown.cpp
 //
 // detail::UnknownDevice — a special subclass produced by the
 // DeviceType(string, ...) parser when the device-type string isn't

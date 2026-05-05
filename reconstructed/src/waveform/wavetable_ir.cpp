@@ -26,7 +26,7 @@ namespace zhinst {
 // wavetable TUs).
 using detail::getUniqueName;
 
-// CsvParser is reconstructed under Phase 12 (loaders); for now declare just the
+// CsvParser is reconstructed under  (loaders); for now declare just the
 // static template entry point used by loadWaveform. Symbol:
 //   void CsvParser::csvFileToWaveform<WaveformIR>(shared_ptr<WaveformIR>, AwgDeviceType)
 //   at 0x2be830.

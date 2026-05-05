@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_qhub.cpp — Phase 14b-ii-b1
+// device_qhub.cpp
 // QHUB family (single member, default-constructed; empty options).
 // ============================================================================
 

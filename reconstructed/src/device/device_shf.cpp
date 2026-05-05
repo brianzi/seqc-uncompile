@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_shf.cpp — Phase 14b-ii-b1
+// device_shf.cpp
 //
 // SHF-family device subclasses: Shf, Shfqa2, Shfqa4, Shfsg2, Shfsg4,
 // Shfsg8, Shfqc, Shfli.

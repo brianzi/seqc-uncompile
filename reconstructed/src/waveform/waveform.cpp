@@ -973,7 +973,7 @@ Waveform::~Waveform()  // 0x1152e0
 }
 
 // ============================================================================
-// WaveformFile(const char*) — Phase 20b addition.
+// WaveformFile(const char*) addition.
 //
 // Address 0x2a7ff0 in the binary corresponds to a `std::construct_at<>`
 // helper that inlines the body — no dedicated `WaveformFile::WaveformFile

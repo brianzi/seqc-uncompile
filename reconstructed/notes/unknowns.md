@@ -10,12 +10,13 @@ The full pre-2026-04-22 history is preserved in
 
 ---
 
-## Open — tracked in TODO.md
+## Open
 
-All remaining open items are tracked as actionable work items in TODO.md
-(Phase 31). Listed here for cross-reference only.
-
-(none — all items resolved)
+| #   | Title | Location | Notes |
+|-----|-------|----------|-------|
+| 120 | Error code for register-bound args in getAuxOutput3 | `custom_functions_registers.cpp:1333` | Exception thrown with code `0x3e` (approximated). Binary address `@0x1551b9` — needs GDB to read the actual immediate. |
+| 121 | r8b/r9b → isHold/fourChannel mapping in playZurichInstruments | `custom_functions_play.cpp:1144` | Decoded from sete/cmp pattern; exact subFunc comparison value at each register-assignment site not independently read from raw disasm bytes. Stack args (hold through trigger) are confident. |
+| 122 | What subsystem reads `usedFeatures_["MF"]` | `custom_functions_play.cpp:1498` | The insert is unconditional when oscselNodeRegex matches. The consumer of this map entry is unknown — no call site found reading the "MF" key. |
 
 ---
 
@@ -109,6 +110,7 @@ All remaining open items are tracked as actionable work items in TODO.md
   nameMap). #68 confirmed (UsageEntry=PlayConfig). #69 documented
   (minIndexedSize=4096). #81 resolved (refactoring only).
   2 remain open: #45, #75. 5 total open unknowns.
+- **2026-05-05**: #120, #121, #122 added — surfaced during comment cleanup pass (NOTE: lines in custom_functions_registers.cpp and custom_functions_play.cpp).
 - **2026-04-26 (Phase 31b)**: Closed 2 items. #27 verified correct.
   #28 fixed (#disableOpt condition inversion in asm_list.cpp).
 - **2026-04-26 (Phase 31a)**: Closed 5 items. #90 resolved: Exception

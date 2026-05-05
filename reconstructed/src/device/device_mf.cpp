@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_mf.cpp — Phase 14b-ii-b1
+// device_mf.cpp
 //
 // MF-family device subclasses: Mf, Mfli, Mfia.
 // ============================================================================

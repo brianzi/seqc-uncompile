@@ -12,7 +12,7 @@
 //
 // Source path (inferred): CustomFunctions.cpp
 //
-// Phase 16b file split (audit §C1): extracted classes moved to dedicated
+//  file split (audit §C1): extracted classes moved to dedicated
 // headers:
 //   - EvalResultValue                       → eval_result_value.hpp
 //   - NodeMapData / VirtAddr / DirectAddr   → node_map_data.hpp
@@ -56,7 +56,7 @@ class WaveformGenerator;
 enum AwgDeviceType : int;
 // NodeMap — wraps std::map<std::string, NodeMapItem>; size 24B
 // (used as unique_ptr<NodeMap> in CustomFunctions +0xF8)
-// Originally local to custom_functions.cpp; promoted to header during Phase 22b
+// Originally local to custom_functions.cpp; promoted to header
 // file split so that multiple TUs can use it.
 class NodeMap {
 public:
@@ -200,7 +200,7 @@ struct PlayArgs {
         // inner copy loop @0x135990..0x1359d6 which copies exactly 0x38
         // bytes from WA+0..WA+0x38 into a vector<EvalResultValue> slot.
         //
-        // CORRECTION 2026-04-24 (Phase 21a, playAuxWave reconstruction):
+        // CORRECTION 2026-04-24:
         // The earlier `int type; int subType; EvalResultValue value;`
         // layout summed to 0x58, contradicting the 0x50 stride.  In fact
         // the WaveAssignment STARTS with the EvalResultValue directly —
@@ -297,7 +297,7 @@ int parseOptionalRate(
 //                  (CONFIRMED from addNodeAccess emplace_back_slow_path call
 //                   at 15c7e4 with 24-byte stride.)
 // 0x168   40    unordered_set<string>                             assignedWaveNames_
-//                  (Resolved Phase 14a: dtor at 127cf2 walks bucket array with
+//                  (Resolved dtor at 127cf2 walks bucket array with
 //                   string-node destruction; 1.0f max_load_factor at +0x188 in
 //                   ctor at 12bec9 confirms unordered_set. Spans +0x168..+0x190.)
 // 0x190   48    std::function<void(string const&)>                warningCallback_

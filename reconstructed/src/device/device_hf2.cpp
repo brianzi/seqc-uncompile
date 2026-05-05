@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_hf2.cpp — Phase 14b-ii-b1
+// device_hf2.cpp
 //
 // HF2-family device subclasses: Hf2, Hf2li, Hf2is.
 //

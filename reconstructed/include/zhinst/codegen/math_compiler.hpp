@@ -9,7 +9,7 @@
 //       binary's destruction sequence: multiArgFns_ first @127e7e, then
 //       singleArgFns_ @127e64).
 //
-// Extracted from custom_functions.hpp during Phase 16b file-organization
+// Extracted from custom_functions.hpp file-organization
 // split (audit Section C1). See notes/audit_phase16a.md.
 // ============================================================================
 #pragma once

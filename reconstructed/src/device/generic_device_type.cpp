@@ -1,6 +1,6 @@
 // reconstructed/src/generic_device_type.cpp
 //
-// detail::GenericDeviceType — Phase 14b-ii-b2.
+// detail::GenericDeviceType
 
 #include "zhinst/device/generic_device_type.hpp"
 

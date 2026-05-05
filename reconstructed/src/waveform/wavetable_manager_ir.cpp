@@ -176,7 +176,7 @@ void WavetableManager<WaveformIR>::insertWaveform(
 
 // NOTE: previous comment claimed the IR insertWaveform "uses the general
 // template definition" — but no such generic body exists; only the Front
-// specialization is defined in wavetable_manager_front.cpp. Phase 20c added
+// specialization is defined in wavetable_manager_front.cpp.  added
 // the IR specialization above to satisfy the link-time U reference.
 // Original address: 0x29d140
 

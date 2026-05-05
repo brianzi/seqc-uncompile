@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_factories.cpp — Phase 14b-ii-b2
+// device_factories.cpp
 //
 // All 13 factory classes (abstract base, NoDeviceTypeFactory,
 // UnknownDeviceTypeFactory, 11 per-family factories) plus the

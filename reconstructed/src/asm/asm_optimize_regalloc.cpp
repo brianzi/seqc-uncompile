@@ -117,7 +117,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
     }
 
-    // Phase 3b: Expand live ranges across backward branches — 27efbd..27f2ab
+    // Expand live ranges across backward branches — 27efbd..27f2ab
     // For each backward branch (target→source) and each virtual register:
     //   If the vreg's last reference is before sourceIdx, scan instructions
     //   [targetIdx, sourceIdx) to determine if the vreg is READ within the

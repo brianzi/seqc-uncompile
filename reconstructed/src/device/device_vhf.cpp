@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// device_vhf.cpp — Phase 14b-ii-b1
+// device_vhf.cpp
 //
 // VHF-family device subclasses: Vhf, Vhfli.
 //   - Vhf:   inline FF only.

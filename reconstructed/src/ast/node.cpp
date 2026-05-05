@@ -22,7 +22,7 @@ namespace zhinst {
 thread_local int Node::idCounter_ = 0;  // TLS offset 0x44
 
 // ============================================================================
-// Default constructor — Phase 20b addition.
+// Default constructor addition.
 //
 // Not defined in the binary (no symbol `_ZN6zhinst4NodeC1Ev` present).
 // Caller: asm_commands. Likely used for default-init in a Node-valued
@@ -449,7 +449,7 @@ void Node::swap(const std::shared_ptr<Node>& a,        // 0x1d2720
 // Pointer fields (next, loop, branches, parent) are serialized as integer
 // IDs via the remapping map. -1 means null/absent.
 //
-// JSON keys confirmed from .rodata string addresses (Phase 2d):
+// JSON keys confirmed from .rodata string addresses:
 //   0x906161 "nodeId"                → nodeId (+0x10) via idMap lookup
 //   0x906168 "asmId"                 → asmId (+0x14)
 //   0x90616e "wavesPerDev"           → wavesPerDev (+0x28)

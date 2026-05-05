@@ -1,7 +1,7 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // NodeMapData hierarchy + NodeMapItem — implementation extracted from
-// custom_functions.cpp during Phase 16b file-organization split (audit
+// custom_functions.cpp file-organization split (audit
 // Section C1).
 //
 // See notes/audit_phase16a.md for context.

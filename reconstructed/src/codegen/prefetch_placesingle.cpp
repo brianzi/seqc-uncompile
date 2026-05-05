@@ -1,6 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
-// Phase 7e: Prefetch::placeSingleCommand — the largest single method
+// Prefetch::placeSingleCommand — the largest single method
 //
 // Methods reconstructed:
 //   placeSingleCommand   0x1d7940 – 0x1dbb03 (with exception handlers to 0x1dd1a0)
@@ -14,7 +14,7 @@
 // involving nested isHirzel checks, ssl loops, smap/addr/wwvf/wprf/prf
 // instruction emission, and indexed play with minIndexedSize threshold.
 //
-// CASE LABEL ATTRIBUTION (Phase 10.8b investigation):
+// CASE LABEL ATTRIBUTION:
 // The switch dispatches via jump table at 0x95af74 (indexed by nodeType-1,
 // range 0..7). Verified targets:
 //   table[0] (type=1 Load)  → 0x1d79f8 — body extends to 0x1d7a4b, then
@@ -30,7 +30,7 @@
 // The source's monolithic `case 1:` body merges Load (0x1d79f8..0x1d7a4b +
 // 0x1d8281+) AND Play (0x1d7d49..0x1d8281-region) code under a single label.
 // A future refactor should split this into proper `case NodeType::Load:` and
-// `case NodeType::Play:` blocks. The Phase 10.8b session resolved the
+// `case NodeType::Play:` blocks. The  session resolved the
 // individual marker comments in-place rather than restructuring; the code is
 // semantically correct but the case label is misleading.
 // ============================================================================
@@ -67,7 +67,7 @@ namespace zhinst {
 void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     // Find placeholder entry in the AsmList for this node. Returns an
     // AsmList::Asm* iterator into the underlying vector (refactored
-    // Phase 10.8d; see prefetch.hpp:213).
+    // ; see prefetch.hpp:213).
     AsmList::Asm* placeholder = findPlaceholder(out, node);        // 0x1d7987
 
     // Copy the placeholder's wavetable-front context to the assembler.

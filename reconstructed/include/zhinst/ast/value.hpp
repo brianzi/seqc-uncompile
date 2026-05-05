@@ -138,7 +138,7 @@ enum class ValueType : int32_t {
 // patterns. Our libstdc++ build must use a real std::string member to
 // get correct construction/destruction semantics for 32-byte strings.
 //
-// CORRECTION 2026-04-23 (Phase 15a-i): Layout was previously listed as
+// CORRECTION 2026-04-23: Layout was previously listed as
 // 0x20 with which_ at +0x04 and storage at +0x08. Disasm evidence:
 //   Value::~Value @0x15a9c0 reads which_ from [rdi+0x08], not [rdi+0x04].
 //   Storage SSO check at [rdi+0x10], heap-free ptr at [rdi+0x20].
@@ -147,7 +147,7 @@ enum class ValueType : int32_t {
 // compiler putting which_ (int32) on an 8B boundary because the
 // storage union requires 8B alignment (contains double/pointer).
 //
-// CORRECTION 2026-04-26 (Phase 37b): Storage was char str_storage[24]
+// CORRECTION 2026-04-26: Storage was char str_storage[24]
 // which caused heap corruption on libstdc++ (32-byte string placement-
 // new overflowed the 24-byte buffer). Changed to real std::string
 // member. sizeof(Value) is now ABI-dependent: 40 on libc++, 48 on
