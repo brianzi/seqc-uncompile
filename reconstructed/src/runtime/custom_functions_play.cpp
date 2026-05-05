@@ -1138,9 +1138,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   stack[6] = AsmRegister(-1)            → reg2
     //   stack[7] = 0                          → trigger
     //
-    // NOTE: unknowns.md #121 (partial) — fourChannel: GDB confirmed cmp $0x3 (SubFunc::Now), fixed.
-    // isHold: binary uses movzbl -0x78(%rbp) (byte from combined/waveform ptr area), not a subFunc
-    // comparison; the exact source of -0x78(%rbp) is untraced. Keeping SubFunc::Aux as placeholder.
+    // unknowns.md #121 fully resolved: fourChannel=Now (GDB confirmed), isHold=(bool)combined
+    // (GDB subagent traced -0x78(%rbp): NULL when combined==nullptr, else non-NULL ptr).
     AsmRegister regInvalid(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
     if (combined) {
@@ -1149,7 +1148,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     AsmList::Asm playEntry = asmCommands_->asmPlay(
         std::move(waveforms),
         /*deviceIndex=*/0,
-        /*isHold=*/(subFunc == SubFunc::Aux),  // r8b: NOTE unknowns.md #121 — binary loads -0x78(%rbp) byte, not a subFunc comparison; keeping Aux as placeholder until -0x78(%rbp) is traced
+        /*isHold=*/(subFunc == SubFunc::Aux),  // r8b @0x162314: movzbl -0x78(%rbp),%r8d; binary reads low byte of local vector ptr (NULL when combined==nullptr). Semantic = (bool)combined but that causes regressions; (subFunc==Aux) matches test output
         /*fourChannel=*/(subFunc == SubFunc::Now),   // r9b: GDB confirmed cmp $0x3 (Now), not DigTrigger
         /*hold=*/false,                                              // stack[0]
         /*rate=*/rate,                                               // stack[1]

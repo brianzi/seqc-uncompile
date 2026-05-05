@@ -14,7 +14,7 @@ The full pre-2026-04-22 history is preserved in
 
 | #   | Title | Location | Notes |
 |-----|-------|----------|-------|
-| 121 | r8b (isHold) source in playZurichInstruments | `custom_functions_play.cpp:1155` | GDB confirmed fourChannel r9b = (subFunc == Now=3), fixed. isHold r8b = movzbl -0x78(%rbp): binary loads a byte from a stack location that holds the `combined` shared_ptr or adjacent data — exact semantic not yet traced. |
+| 121 | r8b (isHold) source in playZurichInstruments | `custom_functions_play.cpp:1152` | GDB subagent: `-0x78(%rbp)` = NULL when combined==nullptr, non-NULL ptr otherwise → semantic is `(bool)combined`. But substituting `(bool)combined` causes 8 regressions. Binary low-byte of ptr ≠ clean null-check. Placeholder `(subFunc==Aux)` passes all 1341 tests; kept as intentional divergence pending deeper investigation. |
 
 
 ---
