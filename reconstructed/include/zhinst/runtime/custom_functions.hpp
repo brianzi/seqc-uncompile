@@ -268,14 +268,9 @@ int parseOptionalRate(
 // ============================================================================
 // CustomFunctions — 0x1E0 (480) bytes
 //
-// Member layout (from REAL dtor @0x127c90 and ctor @0x12bcf0).
-//
-// HISTORICAL NOTE: An earlier pass mis-attributed offsets +0xF8/+0x100/+0x128/+0x150
-// /+0x168 to types derived from a destructor at 0x1306c1 — but 0x1306c1 belongs
-// to a DIFFERENT class (pybind11::detail::internals or similar), NOT CustomFunctions.
-// All field types below have been re-verified against the dtor at 0x127c90 (which
-// IS CustomFunctions::~CustomFunctions) and selected method bodies (lookupNode
-// @0x15c530, addNodeAccess @0x15c6c0, getNodeAddress @0x16ba10).
+// Member layout verified from dtor @0x127c90 and ctor @0x12bcf0.
+// Cross-checked: lookupNode @0x15c530, addNodeAccess @0x15c6c0,
+// getNodeAddress @0x16ba10.
 //
 // Offset  Size  Type                                              Name
 // ------  ----  ----                                              ----
@@ -540,11 +535,7 @@ private:
 
     MathCompiler                                       mathCompiler_;           // +0xC8
 
-    // CORRECTED: was previously declared as `std::map<std::string, NodeMapItem>`
-    // (24 bytes inline). REAL layout from lookupNode @0x15c530 line 15c54e:
-    // single 8-byte pointer dereferenced and passed to NodeMap::retrieve(...).
-    // NodeMap is a 24-byte heap-allocated wrapper containing a
-    // std::map<std::string, NodeMapItem>.
+    // Binary: 8-byte pointer at +0xF8, passed to NodeMap::retrieve() — from lookupNode @0x15c54e.
     std::unique_ptr<NodeMap>                           nodeMap_;                // +0xF8 (8B)
 
     std::unordered_map<NodeMapItem, uint32_t>           nodeIndexMap_;        // +0x100

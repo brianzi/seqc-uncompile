@@ -239,8 +239,8 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     // Value.  The binary's Phase 4 uses a stale r12 (values.begin() from
     // Phase 1) that was never refreshed after Phase 3's push_back, so
     // the size computation effectively returns the pre-append count.
-    // GDB-verified at 0x15e311-0x15e326: rbx-r12 uses old r12, giving
-    // count = number of waveform Values only, excluding the trailing Int.
+    // Binary: @0x15e311-0x15e326 uses stale r12 (values.begin() from Phase 1,
+    // never refreshed after Phase 3's push_back), so size = pre-append count.
     const size_t waveformCount = values.size();          // pre-Phase-3 count
 
     // ----------------------------------------------------------------
@@ -294,8 +294,8 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     // pre-set to 1 at @0x15e3e0) and calls
     //   wavetableFront_->getWaveformByName(optName)
     //
-    // GDB-verified: Phase 5 is UNCONDITIONAL — runs for both single and
-    // multi-value paths. The binary does NOT gate this on multiValue.
+    // Binary: Phase 5 is UNCONDITIONAL — runs for both single and
+    // multi-value paths. Does NOT gate on multiValue.
     // When the waveform already exists (e.g. from `wave w = zeros(64)`),
     // the name lookup succeeds and Phase 6 is skipped entirely.
     //
@@ -993,14 +993,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // The runtime offset [rbp-0xc8] is established earlier (phase 6/7
     // setup): @0x16182a / @0x16186a write 0x16. The Aux-vs-non-Aux
     // branch above writes either 0x14 (channelsPerGroup[0]) or 0x16
-    // (channelsPerGroup[1]). Both are 16-bit shorts adjacent in
-    // AWGCompilerConfig.
-    //
-    // CORRECTED (21b-followup-3): Aux path sets offset 0x14 →
-    // channelsPerGroup[0]; non-Aux path sets offset 0x16 →
-    // channelsPerGroup[1]. The byte offset from config_ base (0x14 or
-    // 0x16) corresponds to channelsPerGroup[0] and [1] since
-    // channelsPerGroup is uint16_t[2] at config+0x14.
+    // channelsPerGroup[0] at config+0x14; channelsPerGroup[1] at config+0x16
+    // (uint16_t[2]); Aux path uses [0], non-Aux uses [1].
     short channelCount = static_cast<short>(
         config_->channelsPerGroup[subFunc == SubFunc::Aux ? 0 : 1]);
     bool useYSuffix = (subFunc == SubFunc::Aux);
@@ -1120,13 +1114,9 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // === Phase 15: checkOffspecWaveLength ===                        @0x16210d..0x16214a
     //
     // Disasm:
-    //   mov  rax, [r12+0x8]                 ; this->devConst_ (CustomFunctions+0x08)
-    //   mov  edx, [rax+0x40]                ; expected length = devConst_->maxWaveformLength
+    //   mov  rax, [r12+0x8]                 ; this->devConst_ (+0x08)
+    //   mov  edx, [rax+0x40]                ; devConst_->maxWaveformLength (+0x40)
     //   call CustomFunctions::checkOffspecWaveLength(combined, expected)
-    //
-    // CORRECTED (21b-followup-3): [r12+0x08] loads devConst_ (not config_).
-    // DeviceConstants+0x40 = maxWaveformLength (values: 16, 32, 96).
-    // Also accessible as devConst_->maxWaveformLength.
     if (combined) {
         int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x16210d
         checkOffspecWaveLength(combined, expectedLen);               // @0x16214a
@@ -1288,9 +1278,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     auto results = std::make_shared<EvalResults>();   // @0x16457f..164584 + zero-init
 
     // @0x1645da: cmp DWORD [r15+0x04], 0x2; je 0x169df4 (epilogue).
-    // CORRECTED: binary checks varSubType_ (at +0x04, NOT varType_ at +0x00),
-    // and the branch target is the normal return, not an error throw.
-    // Semantics: varSubType_ == 2 means "nothing to write" — early exit.
+    // Binary: varSubType_==2 means "nothing to write" — early exit.
     if (static_cast<int>(path.varSubType_) == 2) {
         return results;                                // @0x169df4
     }
@@ -1331,8 +1319,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // r14 = this; [r14] = config_; [config_+0x24] = deviceIndex.
         if (config_->deviceIndex != static_cast<int32_t>(requestedDev)) {
             // @0x16473b: jne 0x169d83 → cleanup and silent return.
-            // CORRECTED: binary returns empty results on device-mismatch,
-            // does NOT throw. 0x169d83 is shared_ptr/string cleanup → epilogue.
+            // Binary: device-mismatch returns empty results, does NOT throw.
             return results;
         }
 
@@ -1511,13 +1498,12 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         // NOTE: what subsystem reads usedFeatures_["MF"] is unknown.
         usedFeatures_.insert(tagMF);
     }
-    // CORRECTED: the addNodeAccess, register allocation, address resolution,
-    // and per-typeIdx dispatch are UNCONDITIONAL — they execute for ALL nodes
-    // (not just oscselNodeRegex matches). The binary at @0x164b34 jumps over
-    // only the "MF" insert (je 0x164c0e), landing directly at addNodeAccess.
+    // Binary: addNodeAccess, register allocation, address resolution, and
+    // per-typeIdx dispatch are UNCONDITIONAL — @0x164b34 jumps over only
+    // the "MF" insert (je 0x164c0e), landing directly at addNodeAccess.
     {
         // accessMode is the byte at NodeMapItem+0x10 (NodeMapItem::hasFast).
-        // GDB-confirmed Soft(0) / Direct(1) only — see IF-112.
+        // NOTE: IF-112 — Soft(0) / Direct(1) only (confirmed).
         AccessMode accessMode = static_cast<AccessMode>(node.hasFast);
         addNodeAccess(node, accessMode);
 
@@ -1797,8 +1783,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     // @0x1685d5: suser(destReg, 0x16) — commit
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
-                    // Hirzel-only: addi(destReg, R0, 5) + suser(destReg, 0x69) — wait 5 cycles after commit
-                    // GDB-verified on HDAWG; not present on Cervino (UHF) devices.
+                    // Hirzel-only: addi(destReg, R0, 5) + suser(destReg, 0x69) — wait 5 cycles after commit.
+                    // Binary: not present on Cervino (UHF) devices.
                     if (devConst_->seqClockDivider != 0) {
                         {
                             auto vec = asmCommands_->addi(
@@ -1983,10 +1969,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         localList.entries.push_back(asmCommands_->trap());
                     } else {
                         // fast-arm: varType==2 (register).
-                        // @0x165592..165747: Binary generates ONE triplet (tag=0xc, I-channel only),
-                        // then jmp to slow-commit @0x16636b (same as slow-arm commit path).
-                        // CORRECTED: recon was incorrectly generating TWO triplets (tags 12+13)
-                        // with no commit. The binary only generates triplet A (tag=0xc) + slow-commit.
+                        // @0x165592..165747: binary generates ONE triplet (tag=0xc, I-channel),
+                        // then jmp to slow-commit @0x16636b.
                         {
                             auto v = asmCommands_->addi(destReg, AsmRegister(0),
                                                         Immediate(0xc));

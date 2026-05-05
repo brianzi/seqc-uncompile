@@ -102,7 +102,7 @@ public:
 //   +0x0C  4  uint32_t       fastAddr (fast address)
 //   +0x10  1  bool           hasFast  (has fast address; doubles as
 //                                       AccessMode 0/1 selector in playback —
-//                                       see IF-112, GDB-confirmed)
+//                                       NOTE: IF-112)
 //   +0x11  7  (padding)
 // ============================================================================
 struct NodeMapItem {

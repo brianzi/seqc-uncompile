@@ -241,7 +241,7 @@ std::string AWGCompilerImpl::getBinVersion() const {  // @0x10b830
 
     // 3. Build binary blob: [laboneVer:4][suffix:4][waveformRegBase:4][zero:4]
     // @0x10b8f0..0x10b920: string append sequence growing 4→8→16 bytes
-    // GDB-verified: [rbp-0x30]+0x10 = this+0x10 = deviceConstants_.waveformRegBase
+    // [rbp-0x30]+0x10 = this+0x10 = deviceConstants_.waveformRegBase
     uint32_t regBase = deviceConstants_.waveformRegBase;  // this+0x10 @0x10b934
     std::string result;
     result.append(reinterpret_cast<char const*>(&laboneVer), 4);

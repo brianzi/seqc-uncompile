@@ -39,28 +39,8 @@ struct Expression;     // zhinst/expression.hpp — referenced by
 // ============================================================================
 // VarType — variable type tag used in Resources::Variable
 //
-// CORRECTED MAPPING (Phase 19c-followup, Finding 1):
-//   The previous header had Const=3 / Cvar=4 / String=5 / Wave=6, which was
-//   inconsistent with the binary's actual `str(VarType)` jump table at
-//   0x95c2a0 (function @0x247dd0). The verified mapping is:
-//
-//     0 → "notype"  (Unset; default branch returns this string)
-//     1 → "void"    (VarType_Void — newly identified)
-//     2 → "var"
-//     3 → "string"
-//     4 → "const"
-//     5 → "wave"
-//     6 → "cvar"
-//
-//   Cross-checked against record-tag writes in addVar/addConst/addString/
-//   addWave/addCvar (Var=2, Const=4, String=3, Wave=5, Cvar=6) — every
-//   addX overload writes its tag matching this enum. The earlier "Variable
-//   tag 4 vs Const enum 3 discrepancy" noted in Phase 19b was a red
-//   herring caused by the wrong enum; there is NO separate "record tag".
-//
-// toString @0x1ebcf0 prints distinct prefixes per type ("v:", "c:", "s:",
-// "w:", "cv:") via the same dispatch — those prefixes were what gave the
-// (incorrect) earlier mapping.
+// Verified from jump table at rodata 0x95c2a0 (str(VarType) @0x247dd0)
+// and record-tag writes in addVar/addConst/addString/addWave/addCvar.
 // ============================================================================
 enum VarType : int32_t {
     VarType_Unset  = 0,

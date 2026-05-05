@@ -305,7 +305,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 
             // Binary @0x2a9a6a-0x2a9a96: Align totalSize to dc->waveformAlignment
             // before setting addressValue.
-            // Condition for alignment (GDB-verified @0x2a9a35-0x2a9a5d):
+            // Condition for alignment (@0x2a9a35-0x2a9a5d):
             //   - waveCount == 0: always align (first waveform).
             //   - lastAllocBytes > waveformAlignment: align.
             //   - totalSize + allocationBytes > alignedLimit: align.
@@ -635,8 +635,8 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
     uint32_t maxBlocks = dc->maxBlocks;                      // DC+0x1C
 
     // Inlined MemoryAllocator construction                   // 0x29ed5a
-    // Binary passes addressBase_ as startOffset (GDB-verified: tail region
-    // starts at 0x80000000 for HDAWG8)
+    // Binary: passes addressBase_ as startOffset (tail region starts at
+    // 0x80000000 for HDAWG8).
     MemoryAllocator allocator(dc, /*startOffset=*/addressBase_);
 
     // Phase 1: allocate waveforms with irBool0 == 1          // 0x29ee0d

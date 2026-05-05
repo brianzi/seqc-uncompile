@@ -782,8 +782,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             }
                         } else {
                             // Cervino non-split indexed path        // 0x1db60f
-                            // GDB-verified for uhf_doc_tv_mode: this path emits
-                            // ONLY a single wvfImpl(regCervino, totalSize, is4Ch).
+                            // Binary: emits ONLY a single wvfImpl(regCervino, totalSize, is4Ch).
                             // Binary flow:
                             //   0x1db60f: get nodeStates_[node].registerCervino → stateReg
                             //   0x1db66d: length = node->length saved in [rbp-0x58]

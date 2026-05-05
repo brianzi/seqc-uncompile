@@ -242,8 +242,7 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
         return sig;                                                              // 0x24a9e6
     } else {
         // 3-arg case: sine(length, amplitude, phase)
-        // Produces a constant waveform: every sample = sin(amplitude + phase)
-        // (GDB-verified: binary computes sin(amp+phase) for all samples)
+        // Binary: constant waveform, every sample = sin(amplitude + phase).
         length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
         phase     = readDouble(args[2], "3 (phase)", "sine");
@@ -295,8 +294,7 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
         return sig;
     } else {
         // 3-arg case: cosine(length, amplitude, phase)
-        // Produces a constant waveform: every sample = cos(amplitude + phase)
-        // (GDB-verified: same pattern as sine 3-arg)
+        // Binary: constant waveform, every sample = cos(amplitude + phase).
         length    = readPositiveInt(args[0], "1 (length)", 1, "cosine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "cosine");
         phase     = readDouble(args[2], "3 (phase)", "cosine");
@@ -436,7 +434,7 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
                                   "sawtooth", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // 3-arg default: 1.0 (GDB-verified)
+    double nPeriods = 1.0;                                                       // 3-arg default
     int length;
     double amplitude, phase;
 
@@ -462,7 +460,7 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
         return genericTriangle(length, amplitude, nPeriods, 1.0, phase);         // 0x24d14e — 4-arg path
     } else {
         // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
-        return genericTriangle(length, nPeriods, phase, 1.0, amplitude);         // 0x24d14e — 3-arg path (GDB-verified)
+        return genericTriangle(length, nPeriods, phase, 1.0, amplitude);         // 0x24d14e — 3-arg path
     }
 }
 // triangle(length, amplitude, phase[, nPeriods]) @0x24d330
@@ -474,7 +472,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
                                   "triangle", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // 3-arg default: 1.0 (GDB-verified)
+    double nPeriods = 1.0;                                                       // 3-arg default
     int length;
     double amplitude, phase;
 
@@ -500,7 +498,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
         return genericTriangle(length, amplitude, nPeriods, 0.5, phase);         // 0x24dbce — 4-arg path
     } else {
         // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
-        return genericTriangle(length, nPeriods, phase, 0.5, amplitude);         // 0x24dbce — 3-arg path (GDB-verified)
+        return genericTriangle(length, nPeriods, phase, 0.5, amplitude);         // 0x24dbce — 3-arg path
     }
 }
 // drag(length, amplitude, position, sigma) @0x24e950

@@ -279,8 +279,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 
         // ---- Phase 9: validate sample length — @0x135ef6..0x135f0d --------
         // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
-        // CORRECTED (21b-followup-3): [rdi+0x08] loads devConst_ (not config_),
-        // then [rax+0x40] = maxWaveformLength. Was misidentified as config_+0x48.
+        // [rdi+0x08] = devConst_, [rax+0x40] = maxWaveformLength.
         int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x135efe
         checkOffspecWaveLength(combinedWf, expectedLen);                // @0x135f08
 
@@ -338,7 +337,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             // Phase 13: chain asmEntry.node into results->node_ — @0x136168..0x1361ea
             // Same pattern as play(): if results->node_ is null, set it;
             // else walk to tail of next chain and append.
-            // GDB-verified: 0x1361b6 writes [rax+0x38] = rcx (node_ = asmEntry.node).
+            // 0x1361b6: mov [rax+0x38], rcx  (node_ = asmEntry.node)
             if (asmEntry.node) {
                 if (results->node_) {
                     auto tail = results->node_;
@@ -560,8 +559,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 
         // -- Phase 11: validate sample length — @0x136e8d..0x136e9e --------
         // checkOffspecWaveLength(combinedWf, devConst_->maxWaveformLength).
-        // CORRECTED (21b-followup-3): [r14+0x08] loads devConst_ (not config_),
-        // then [rax+0x40] = maxWaveformLength. Was misidentified as config_+0x48.
+        // [r14+0x08] = devConst_, [rax+0x40] = maxWaveformLength.
         if (combinedWf) {
             int expectedLen = static_cast<int>(devConst_->maxWaveformLength);  // @0x136e91
             checkOffspecWaveLength(combinedWf, expectedLen);              // @0x136e9e

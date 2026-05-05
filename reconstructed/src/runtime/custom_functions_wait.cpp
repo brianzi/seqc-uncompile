@@ -914,8 +914,8 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         }
     } else if (devType == static_cast<int>(AwgDeviceType::UHFQA)) {
         // @0x1405ba: UHFQA-specific path — pulse-reset via st(reg,0x5f); st(R0,0x5f)
-        // GDB-verified (2026-05-04): UHFQA takes a separate jump-table branch distinct
-        // from the HDAWG/Hirzel path. It accepts no arguments, then emits:
+        // Binary: UHFQA takes a separate jump-table branch from the HDAWG/Hirzel path.
+        // Accepts no arguments; emits:
         //   addi R_n, R0, 1
         //   st   R_n, 0x5f    (phasereset = 1)
         //   st   R0,  0x5f    (phasereset = 0, i.e. pulse-reset)
@@ -970,13 +970,11 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         }
 
         // @0x14109f..0x141138: build EvalResultValues and call writeToNode.
-        // GDB-verified (2026-04-29): the Hirzel path does NOT emit st(reg,0x5f)
-        // directly. Instead it constructs EvalResultValues for path="oscs/phasereset",
-        // val=oscMask, type=default, and delegates to writeToNode which handles
-        // the node address resolution and commit protocol.
+        // Binary: Hirzel path does NOT emit st(reg,0x5f) directly. Constructs
+        // EvalResultValues for path="oscs/phasereset", val=oscMask, type=default,
+        // and delegates to writeToNode for node address resolution and commit.
         {
-            // Build path EvalResultValue: varType_=VarType_String, value_="oscs/phasereset"
-            // GDB-verified: path.varType_=3 (String), path.varSubType_=0
+            // Build path EvalResultValue: varType_=VarType_String(3), varSubType_=0, value_="oscs/phasereset"
             EvalResultValue pathErv{};                                                   // @0x14109f
             pathErv.varType_ = VarType_String;                                           // @0x1410b1
             pathErv.value_ = Value(std::string("oscs/phasereset"));                      // @0x1410bb..0x1410dd

@@ -2777,3 +2777,118 @@ The indexed allocation path (`playNode->length * channels * 2`) was entered unco
 
 - **Description**: The Phase 1 lambda in `assignWaveIndexImplicit` was reconstructed as a no-op that returned immediately without assigning auto-indices. The binary assigns indices to all waveforms with `waveIndex == -1` by calling `waveIndexTracker_.assignAuto()` in a lower-bound loop over `waveIndexTracker_.indices_`. This caused all waveforms with explicit `assignWaveIndex(...)` calls to keep their correct indices, but the placeholder waveform (which has no explicit index) was left with `waveIndex = -1` instead of the next available index (7 for this test), which then cascaded into wrong `fixed_` / `addressValue` for the Phase 1 FIFO allocation.
 - **Resolution**: implemented the lower-bound loop over `indices_` in `assignWaveIndexImplicit` Phase 1 lambda.
+
+---
+
+## IF-146  Resources::Variable layout: subTypeRaw at +0x04, value.type_ at +0x08
+
+**Source**: Phase 20e-ii correction sweep
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was a bug, now correct in source)
+
+Earlier reconstruction had `pad_04` at +0x04 and `subType` at +0x08. The
+disassembly shows the binary reads from +0x04 in `getVariableSubType`
+(@0x1e4580), and `addVariable` / `addConst` callers write the caller-supplied
+`st` arg to +0x04 with a hardcoded secondary-tag literal at +0x08. Correct
+layout: `subTypeRaw` at +0x04, `value.type_` at +0x08. See `resources.hpp`
+`Variable` struct and `resources.cpp` `addConst` (@0x1e7150).
+
+---
+
+## IF-147  Resources::Function ctor: four args, not three
+
+**Source**: Phase 20e-ii correction sweep
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was a bug, now correct in source)
+
+The fourth argument is a `weak_ptr<Resources>` for the parent scope. The
+function's own child scope is constructed inside the ctor via
+`std::allocate_shared` and stored at +0x60. Binary ctor @0x1eaa00.
+
+---
+
+## IF-148  VarType enum mapping corrected (Phase 19c-followup Finding 1)
+
+**Source**: Phase 19c-followup
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was wrong, now correct)
+
+Previous mapping had Const=3 / Cvar=4 / String=5 / Wave=6. Verified mapping
+from binary jump table at 0x95c2a0 (function @0x247dd0):
+  0→"notype", 1→"void", 2→"var", 3→"string", 4→"const", 5→"wave", 6→"cvar".
+
+---
+
+## IF-149  CustomFunctions field layout: earlier pass used wrong destructor
+
+**Source**: Phase reconstruction correction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was a bug, now correct in source)
+
+An earlier pass mis-attributed offsets +0xF8/+0x100/+0x128/+0x150/+0x168 to a
+destructor at 0x1306c1, which belongs to pybind11 internals, NOT
+CustomFunctions. All field offsets re-verified against real dtor @0x127c90 and
+methods: lookupNode @0x15c530, addNodeAccess @0x15c6c0, getNodeAddress @0x16ba10.
+
+---
+
+## IF-150  CustomFunctions::nodeMap_: pointer not inline map
+
+**Source**: lookupNode reconstruction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was a bug, now correct in source)
+
+Was previously declared as `std::map<std::string, NodeMapItem>` (24 bytes
+inline). Real layout: single 8-byte pointer at +0xD0, dereferenced and passed
+to `NodeMap::retrieve(...)` — from `lookupNode` @0x15c530 line 0x15c54e.
+
+---
+
+## IF-151  AWGAssemblerImpl: spurious fields from earlier reconstruction
+
+**Source**: Phase reconstruction correction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was noise, now removed)
+
+Previously-listed `field_70_` (void*), `pad0_`, `opcodes_begin_/_end_` and
+`sourceLines_begin_/_end_` had no corresponding storage in the binary.
+`opcodes_` and `sourceLines_` are std::vectors accessed at offsets 0x50 and
+0x78 via normal vector interface. The region 0x00..0xF0 previously misidentified
+as `remaining_fields_[0x80]` is actually the embedded AsmParserContext at
+offset 0xf0.
+
+---
+
+## IF-152  Prefetch: pageSize_ was hallucinated
+
+**Source**: Prefetch reconstruction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was noise, now removed)
+
+`pageSize_` appeared only in the constructor init list, was never read
+elsewhere. The +0xBC slot is the bool `split_` initialized separately.
+
+---
+
+## IF-153  WaveformFront: args_ was hallucinated
+
+**Source**: WaveformFront reconstruction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was noise, now removed)
+
+`args_` had no usage anywhere in the binary. Other previously-misidentified
+fields were actually aliases for Waveform members already present:
+sampleLength→Waveform::signal.length_ (+0xD0), fileType→waveformType (+0x18),
+isModified→dirty_ (+0xDC), funDescrName_→Waveform::funDescrName (+0x50).
+
+---
+
+## IF-154  Cache::Pointer: pageCount was hallucinated
+
+**Source**: Cache reconstruction
+**Status**: confirmed (fixed)
+**Severity**: cosmetic (was noise, now removed)
+
+No `Cache::Pointer::pageCount` symbol exists in binary and no consumer in
+reconstructed source ever accessed such a field. Pointer is exactly 0x24 bytes.
+

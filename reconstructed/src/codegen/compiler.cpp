@@ -169,9 +169,8 @@ std::shared_ptr<Expression> Compiler::parse(const std::string& source) {
     seqc_lex_destroy(scanner);
 
     // Check for syntax errors                                           // @0x11da44
-    // GDB-confirmed: binary calls hadSyntaxError() at parse+148; if true,
-    // throws CompilerException("Syntax error while parsing seqC")
-    // (string at rodata 0x8ffdec).
+    // Binary: calls hadSyntaxError() at parse+148; throws CompilerException
+    // "Syntax error while parsing seqC" (rodata 0x8ffdec) if true.
     if (ctx->hadSyntaxError()) {
         throw CompilerException("Syntax error while parsing seqC");
     }
@@ -284,9 +283,9 @@ CompileResult Compiler::compile(const std::string& source) {
     // The parse error was already reported via parserContext_.errorCallback_
     // → messages_.parserMessage(), so messages_.hadCompilerError() will be
     // true and step 9 will throw the right exception.
-    // GDB-confirmed: binary at +1644 tests seqcAst raw ptr; if null, continues
-    // past refcount incr and into FrontEndLoweringFacade::lower (libc++ ABI
-    // handles null shared_ptr deref differently from libstdc++).
+    // Binary: at +1644 tests seqcAst raw ptr; if null, continues past refcount
+    // incr into FrontEndLoweringFacade::lower (libc++ handles null shared_ptr
+    // deref differently from libstdc++).
     FrontEndLoweringFacade::LowerResult lowerResult;
     if (seqcAst) {
         // Step 7: (Optional debug) Print SeqC AST                          // 0x11f7da

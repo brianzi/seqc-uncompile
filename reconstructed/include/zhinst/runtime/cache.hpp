@@ -109,9 +109,6 @@ public:
         PointerState state_;                    // +0x20
 
         // No additional fields: Pointer is exactly 0x24 bytes.
-        // Verified — no Cache::Pointer::pageCount symbol exists in binary,
-        // and no consumer in reconstructed src ever accesses such a field.
-        // (Removed hallucinated `int pageCount` member.)
 
         std::string str() const;                // 0x283c30
     };

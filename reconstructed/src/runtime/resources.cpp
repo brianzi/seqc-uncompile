@@ -55,14 +55,8 @@ Resources::Variable::~Variable()  // @0x1e4be0
 // ============================================================================
 // Resources::Function — @0x1eaa00 (ctor), @0x1ea820 (dtor)
 //
-// CORRECTED 2026-04-24 (Phase 20e-ii): The ctor takes FOUR args, not three.
-// The 4th is a weak_ptr<Resources> for the parent scope; the function's own
-// child scope is constructed inside the ctor via std::allocate_shared and
-// stored at +0x60. The previous 3-arg signature was wrong.
-//
 // Real bodies for ctor/dtor/addArguments/addBody/addArgument/isSame/
-// sameArgString live in src/resources_function.cpp (Phase 20e-ii Batch 5).
-// The stubs below have been removed in favour of that dedicated TU to keep
+// sameArgString live in src/resources_function.cpp. The stubs below have been removed in favour of that dedicated TU to keep
 // the per-method disasm context grouped.
 // ============================================================================
 
@@ -362,8 +356,7 @@ void Resources::print()  // @0x1ebbe0
 //
 // Builds a string representation of this scope's variables and functions.
 //
-// Format for each variable depends on varType (CORRECTED mapping per Phase
-// 19c-followup, Finding 1):
+// Format for each variable depends on varType (see VarType enum in resources.hpp):
 //   2 (var):    "v: <name> (Reg: <reg.value>)\n"
 //   3 (string): "s: <name> -> <value>\n"
 //   4 (const):  "c: <name> -> <value>\n"
@@ -519,13 +512,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
             ErrorMessages::format(ErrorMessageT::AlreadyDefined, name));
     }
 
-    // Build the Variable record. type=4 ⇒ VarType_Const under corrected
-    // enum mapping; the binary writes the literal 4 at 1e70e3.
-    //
-    // CORRECTED Phase 20e-ii: the binary writes `st` (3rd arg) to +0x04
-    // (subTypeRaw) at 1e71c7, and a *hardcoded* literal 3 to +0x08
-    // (value.type_) at 1e717b. The previous reconstruction had these
-    // backwards. See header comment on Variable layout for details.
+    // Build the Variable record: type=VarType_Const(4), subTypeRaw=st(+0x04), value.type_=Double(+0x08).
     Variable v{};
     v.type        = VarType_Const;
     v.subTypeRaw  = st;                      // 1e71c7: caller's `st` → +0x04
@@ -836,13 +823,6 @@ VarType Resources::getVariableType(std::string const& name)  // @0x1e4460
 //   - 1e45ed..1e45fa: same UnknownVar (0xb1) format call as
 //     getVariableType.
 //
-// HISTORICAL NOTE (Phase 20e-ii Batch 1 finding): the original header
-// had `subType` documented at +0x08 with `pad_04` at +0x04. The
-// disassembly shows the binary reads from +0x04 here, and the addX
-// disasms (Batch 2) show callers writing the `st` arg to +0x04 with a
-// HARDCODED secondary-tag literal at +0x08. The header has been
-// corrected (subTypeRaw at +0x04, value.type_ at +0x08). This method
-// returns the caller-supplied subtype, not the hardcoded tag.
 // ============================================================================
 VarSubType Resources::getVariableSubType(std::string const& name)  // @0x1e4580
 {

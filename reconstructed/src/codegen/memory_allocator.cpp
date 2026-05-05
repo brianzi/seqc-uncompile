@@ -96,7 +96,7 @@ MemoryAllocator::~MemoryAllocator() {  // 0x29f2d0
 MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
     // Phase 1: fast single-CL path (lambda#1 @0x2aa960)
     //
-    // GDB-verified: Phase 1 uses waveformElfAlignment (DC+0x24, always 64)
+    // Binary: Phase 1 uses waveformElfAlignment (DC+0x24, always 64)
     // for alignment, NOT waveformAlignment (DC+0x14, 4096 for HDAWG).
     // Phase 1 is strictly a "re-use within already-claimed CL" fast path.
     // Free CL slots (0xFFFFFFFF) cause rejection — only slots already owned
@@ -148,7 +148,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
     }
 
     // Phase 2: general multi-CL path (lambda#2 operator() @0x2accd0)
-    // GDB-verified: second arg is blockEnd (absolute), not blockSize.
+    // Binary: second arg is blockEnd (absolute), not blockSize.
     return allocateFirstSuitableFreeBlock(
         [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
             uint32_t clSize = deviceConstants_->waveformAlignment;
@@ -163,7 +163,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
                 return {0, 0, 0};
 
             // Check and fill CL ownership slots (SSE2 vectorized in binary)
-            // GDB-verified: slot index uses (aligned % memorySizeInSamples_) / cacheLineSize_
+            // Binary: slot index uses (aligned % memorySizeInSamples_) / cacheLineSize_
             // not aligned / cacheLineSize_, because addresses like 0x80000000 wrap via
             // modular arithmetic to stay within the cacheLineUsage_ vector bounds.
             uint32_t modAddr = aligned % memorySizeInSamples_;
@@ -298,8 +298,8 @@ MemoryBlock MemoryAllocator::allocateFirstSuitableFreeBlock(Pred pred) {
 
     // Try tail region: binary uses lastAllocEnd_ (initially 0xFFFFFFFF) as
     // the end bound, not startOffset_ + memorySizeInSamples_.
-    // GDB-verified at +579: eax = startOffset_, r11d = lastAllocEnd_.
-    // At +409: eax = freeBlocks_.back().end, r10d = lastAllocEnd_.
+    // @+579: eax = startOffset_, r11d = lastAllocEnd_.
+    // @+409: eax = freeBlocks_.back().end, r10d = lastAllocEnd_.
     uint32_t tailEnd = lastAllocEnd_;
     uint32_t tailStart = freeBlocks_.empty()
         ? startOffset_

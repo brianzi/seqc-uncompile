@@ -161,7 +161,7 @@ std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     FrontendLoweringContext& ctx,
     FrontendLoweringState& state) const
 {
-    // @0x226970: GDB-confirmed — the binary emits error 0xd5 unconditionally.
+    // @0x226970: binary emits error 0xd5 unconditionally.
     // There is no inSwitch_ guard: the first instructions are format(0xd5, "break")
     // followed immediately by errorMessage(...), with no branch beforehand.
     ctx.messages->errorMessage(                               // @0x2269aa

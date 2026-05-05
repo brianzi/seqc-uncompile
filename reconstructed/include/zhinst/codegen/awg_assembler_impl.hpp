@@ -69,18 +69,6 @@ using LabelBimap = boost::bimaps::bimap<
 //                                                          parser ctx → AWG offset 0xf3)
 //
 // Total: 0x170.
-//
-// NOTE: The "remaining_fields_[0x80]" stub from earlier reconstruction is
-// gone — that 0x80-byte region IS the embedded AsmParserContext at offset
-// 0xf0. The previous header double-counted parser-ctx fields (`flags_`,
-// `initialized_`, `lineNumber_`, `parserCtx_`) — these were the first
-// few bytes of parserCtx_ already.
-//
-// NOTE: The previously-listed `field_70_` (void*), `pad0_`,
-// `opcodes_begin_/_end_` and `sourceLines_begin_/_end_` were
-// hallucinations. opcodes_ and sourceLines_ are accessed via the normal
-// std::vector interface at offsets 0x50 and 0x78 respectively. The
-// "iterator" fields had no corresponding storage in the binary.
 // ============================================================================
 
 class AWGAssemblerImpl {

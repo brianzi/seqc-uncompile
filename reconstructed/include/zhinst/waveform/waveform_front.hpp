@@ -32,14 +32,7 @@
 //   +0xE0         vector<Value> genArgs_     (24 bytes; element size 0x28)
 //   +0xF8         END
 //
-// Speculative fields removed (verified absent by ctor + dtor):
-//   - isAllocated   → was Waveform::used at +0x48 (already present)
-//   - channels      → was Waveform::signal.channels_ at +0xC8 (signal+0x48)
-//   - sampleLength  → was Waveform::signal.length_ at +0xD0 (signal+0x50)
-//   - fileType      → was Waveform::waveformType at +0x18 (already present)
-//   - isModified    → was dirty_ at +0xDC (this very struct's field)
-//   - funDescrName_ → was Waveform::funDescrName at +0x50 (already present)
-//   - args_         → no usage anywhere; pure hallucination
+// Speculative fields verified absent from ctor/dtor — see IF-153.
 // ============================================================================
 #pragma once
 

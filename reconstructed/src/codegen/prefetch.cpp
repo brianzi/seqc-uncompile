@@ -34,9 +34,7 @@ Prefetch::Prefetch(AWGCompilerConfig const &config,
     : config_(&config), devConst_(&devConst), nodeStates_(), nameMap_(),
       root_(std::move(root)), asmCommands_(std::move(asmCommands)),
       resources_(), cache_(), waveformMaps_(), maxBranches_(1)
-      // pageSize_ removed: was hallucinated; only ever appeared in this init
-      // list, never read. The +0xBC slot is the bool `split_` initialized
-      // below.
+      // split_ at +0xBC initialized below.
       ,
       split_(false), cwvfConfig_(), usageEntries_(), lastCwvfNode_(),
       globalCwvfValid_(false), wavetableIR_(std::move(wavetableIR)),

@@ -19,7 +19,6 @@ namespace zhinst {
 // The instruction representation constructed by AsmCommands methods.
 // Size: 0x80 bytes (128 bytes).
 //
-// CORRECTED layout (Phase 2 + Phase 15c semantic correction):
 //
 //   +0x00  Command cmd           — opcode (Assembler::Command)
 //   +0x04  (4 bytes padding)

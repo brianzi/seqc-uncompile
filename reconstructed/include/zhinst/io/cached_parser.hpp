@@ -53,7 +53,7 @@
 //     +0x58  bool                 pinned_        fifth ctor arg
 //     = 0x60 total (padded)
 //
-// CachedFile (0x50 = 80 bytes), CORRECTED layout (Phase 13d):
+// CachedFile (0x50 = 80 bytes):
 //   - dtor @0x2b1f70 destroys vectors at +0x38, +0x20, +0x08
 //   - getCachedFile @0x2b1900 zero-inits +0x08..+0x4F at entry, then:
 //       * Read .channels section, take first int32, store low 16 bits at +0x00

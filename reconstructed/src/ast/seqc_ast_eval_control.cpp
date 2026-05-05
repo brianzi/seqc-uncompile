@@ -1965,7 +1965,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
         }
 
         // Unconditional branch back to whileLabel (not loopLabel)   // @0x21f2f5
-        // GDB-verified: br() uses [rbp-0x160] = whileLabel, not loopLabel
+        // Binary: br() uses [rbp-0x160] = whileLabel.
         AsmList::Asm brAsm =
             ctx.asmCommands->br(whileLabel, false);                  // @0x271df0
         result->assemblers_.push_back(brAsm);                        // @0x21f30a
@@ -2096,11 +2096,10 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
     }
 
     // ---- Re-evaluate condition (result discarded) ----              // @0x2201eb
-    // GDB-verified: the binary stores the second eval's result in a
-    // temporary at [rbp-0x300] but NEVER moves it to the condResult
-    // slot at [rbp-0xf0]. The first eval's condResult is the one
-    // used at the Cvar/Var dispatch below. The second eval exists
-    // only for its side effects (e.g., register allocation).
+    // Binary: second eval's result stored in temporary at [rbp-0x300] but
+    // NEVER moved to the condResult slot at [rbp-0xf0]. The first eval's
+    // condResult is used at the Cvar/Var dispatch below. The second eval
+    // exists only for its side effects (e.g., register allocation).
     {
         auto condResult2 = cond()->evaluate(subRes, ctx, state);      // @0x22023b
         (void)condResult2;  // intentionally discarded
