@@ -10,13 +10,12 @@ All 1346 tests are now correctly organized into 8 logical groups with hierarchic
 
 | Group | Tests | Description |
 |-------|-------|-------------|
-| `core` | 253 | Core functionality: basic instructions, control flow, waveforms, error validation, stress tests |
+| `core` | 243 | Core functionality: basic instructions, control flow, waveforms, error validation, stress tests |
 | `zhinst` | 166 | Zurich Instruments: webserver presets (152) + LabOne API examples (14) |
 | `ziai` | 459 | ZIAI analysis - individual SeqC construct validation across all devices |
 | `ziasm` | 468 | ZIASM assembly - 11 subgroups of low-level tests |
-| `documentation_examples` | 92 | Product documentation examples |
 
-**Total:** 1438 tests (all 1346 original + 92 additional)
+**Total:** 1336 tests
 
 ---
 
