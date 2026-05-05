@@ -55,9 +55,9 @@ void StaticResources::init(AWGCompilerConfig const& config,
     // Phase 1: Device-type-specific AWG_RATE constants
     // ================================================================
 
-    if (config.deviceType == UHFQA /*SHFSG*/ ||
-        config.deviceType == UHFLI /*HD*/) {                          // 0x1ec917–0x1ec91f
-        // --- HD/Hirzel rates (1800MHz base) --- 0x1ec925–0x1eccfe
+    if (config.deviceType == UHFQA /*Cervino/klausen*/ ||
+        config.deviceType == UHFLI /*Cervino*/) {                          // 0x1ec917–0x1ec91f
+        // --- Cervino rates (1800MHz base) --- 0x1ec925–0x1eccfe
         addConst("AWG_RATE_1800MHZ", 0.0,  VarSubType(0));       // 0x1ec947
         addConst("AWG_RATE_900MHZ",  1.0,  VarSubType(0));       // 0x1ec9a7
         addConst("AWG_RATE_450MHZ",  2.0,  VarSubType(0));       // 0x1ec9ec
@@ -79,8 +79,8 @@ void StaticResources::init(AWGCompilerConfig const& config,
         addConst("AWG_INTEGRATION_ARM",     67043328.0,   VarSubType(0));  // 0x1ecd44
     }
 
-    if (config.deviceType == HDAWG /*Cervino/SHF*/) {                // 0x1ecd4c
-        // --- Cervino rates (2400MHz base) --- 0x1ecd55–0x1ed0f8
+    if (config.deviceType == HDAWG /*Hirzel*/) {                // 0x1ecd4c
+        // --- Hirzel rates (2400MHz base) --- 0x1ecd55–0x1ed0f8
         addConst("AWG_RATE_2400MHZ",  0.0,  VarSubType(0));      // 0x1ecd77
         addConst("AWG_RATE_1200MHZ",  1.0,  VarSubType(0));
         addConst("AWG_RATE_600MHZ",   2.0,  VarSubType(0));

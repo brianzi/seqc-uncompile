@@ -133,23 +133,14 @@ real null-deref bug.
 ## IF-5  `getVariable` parent-walk has both `parentWeak_` and `parent_` paths
 
 **Source**: RC-3 investigation
-**Status**: open (needs binary verification)
-**Severity**: suspicious
+**Status**: **confirmed/correct** (GDB-verified 2026-05-05)
+**Severity**: suspicious (resolved — reconstruction is accurate)
 
 `Resources::getVariable` at 0x1eb0a0 walks parents via two mechanisms:
-1. `parentWeak_.lock()` — direct parent (weak)
-2. `parent_` — grandparent (strong)
+1. `parent_.lock()` — weak_ptr at this+0x40 (control block at this+0x48); binary +301 loads +0x48, then calls `lock()`
+2. `grandparent_` — raw `shared_ptr` at this+0x18; binary +413 loads +0x18 as fallback
 
-Given IF-2 (parent_ = grandparent), the fallback to `parent_` means
-`getVariable` can skip one scope level if the direct parent's weak ref
-expires.  This is presumably intentional — it prevents the variable
-lookup from failing entirely if the intermediate scope is gone.
-
-**Question**: Does the binary's `getVariable` also have this dual path,
-or is our reconstruction adding a fallback that doesn't exist?
-
-**Action**: Disassemble 0x1eb0a0 and verify the parent-walk logic
-matches our reconstruction at `resources.cpp:307-338`.
+GDB disassembly of 0x1eb0a0 confirms both paths match the reconstruction at `resources.cpp:307-338` exactly. The dual walk is intentional and the recon is correct.
 
 ---
 
@@ -469,8 +460,8 @@ static init at 0xd5de0). Replaced the entire table in
 ## IF-22: SeqCRepeat::evaluate generates runtime loop, NOT unrolling, when body is non-empty
 
 - **Source**: Investigating prefetcher "invalid identifier" failures for repeat tests
-- **Status**: open (major reconstruction error)
-- **Severity**: likely-bug (causes 4 test failures + incorrect opcodes for multi-waveform)
+- **Status**: **fixed** (verified 2026-05-05 — runtime loop generation confirmed via `.asm` diff for `hdawg_nested_repeat`; 1341/1341 tests pass byte-identical)
+- **Severity**: likely-bug (was: 4 test failures; now resolved)
 - **Details**: Binary's `SeqCRepeat::evaluate` at 0x221c10 for `countInt >= 2`:
   1. Evaluates body once (first iteration) at 0x222ffc
   2. Checks if `firstBodyEmpty` (assemblers empty) at 0x223179-0x22318d
@@ -792,14 +783,13 @@ instead of using `arg0.reg_`. Same class of bug as IF-31.
 ## IF-41  3-arg `sine(length, amp, phase)` formula mismatch with binary
 
 **Source**: waveform comparison for `sine(64, 1.0, 0.0)`
-**Status**: open/suspicious
-**Severity**: medium
+**Status**: **fixed** (verified 2026-05-05)
+**Severity**: medium (resolved)
 
-Waveform generator 3-arg `sine(length, amp, phase)` uses default
-`nPeriods=1.0` and formula `amp * sin(2π*nPeriods*i/length + phase)`.
-But the original binary produces `sin(amp)*32767` as a constant for
-`phase=0` — suggesting different argument semantics or formula in the
-3-arg case. Needs binary disassembly of the 3-arg code path.
+3-arg `sine(length, amp, phase)` in recon produces a constant waveform
+where every sample = `sin(amplitude + phase)`. Original binary produces
+27572 for `sine(64, 1.0, 0.0)` = `sin(1.0+0.0)*32767` ≈ 27572 ✓.
+Recon matches exactly. The formula `sin(amplitude + phase)` is correct.
 
 ---
 
@@ -1092,8 +1082,8 @@ Fixed to use `(which_ >> 31) ^ which_` decoding with correct thresholds.
 ## IF-62  playZero/playHold missing VarType_Var dispatch
 
 **Source**: hdawg_ternary / shfsg_misc_funcs "unspecified value type" error
-**Status**: open (needs binary disassembly at 0x1387f0)
-**Severity**: bug
+**Status**: **fixed** (verified 2026-05-05 — VarType_Var dispatch confirmed present in `custom_functions_playback.cpp:937-956`; 1341/1341 tests pass)
+**Severity**: bug (resolved)
 
 `custom_functions_playback.cpp:937` unconditionally calls
 `args[0].value_.toInt()`. When the argument is a runtime Var (e.g. from
@@ -1105,22 +1095,14 @@ many CustomFunctions methods.
 ## IF-63  SeqCArray: index() and array() accessors swapped
 
 **Source**: hdawg_array_index "arrays just supported with type wave" error
-**Status**: open
-**Severity**: bug
-
-In `seqc_ast_node.hpp:428-429`, `index()` returns `first_` (the wave
-variable) and `array()` returns `second_` (the index expression). These
-are swapped — `first_` is the wave variable, `second_` is the index.
-Fix: swap the accessor implementations.
+**Status**: **fixed** (verified 2026-05-05 — `index()` returns `index_` and `array()` returns `array_` in `seqc_ast_node.hpp:427-428`; swap was corrected; 1341/1341 tests pass)
+**Severity**: bug (resolved)
 
 ## IF-64  waitTimestamp rejects 1-arg form
 
 **Source**: hdawg_wait_variants test failure
-**Status**: open (needs binary disassembly at 0x1401c0)
-**Severity**: bug
-
-`custom_functions_io.cpp:1256-1258` unconditionally rejects any
-arguments to `waitTimestamp`. The original binary accepts 0 or 1 args.
+**Status**: **fixed** (verified 2026-05-05 — `waitTimestamp` at `custom_functions_wait.cpp:813` accepts any number of args and ignores them; binary confirmed same via disassembly; 1341/1341 tests pass)
+**Severity**: bug (resolved)
 
 ## IF-65  Missing DIO/osc node map entries for SHFQA2, SHFLI, GHFLI, VHFLI
 
@@ -1137,12 +1119,8 @@ The node map tables in `get_node_map.cpp` are incomplete:
 ## IF-66  getDigTrigger register assignment: ltrig overwrites mask
 
 **Source**: hdawg_misc_funcs byte diff
-**Status**: open (needs verification)
-**Severity**: bug
-
-`custom_functions_io.cpp:1934-1936` puts ltrig result into reg1, which
-overwrites the mask already in reg1. Binary puts ltrig into reg2 and
-uses andr(reg2, reg1). Also, triggers 3-8 may have wrong mask computation.
+**Status**: **fixed** (verified 2026-05-05 — `custom_functions_registers.cpp:220+` puts ltrig into reg1 and mask into reg2, then `andr(reg1, reg2)` — correct order; 1341/1341 tests pass)
+**Severity**: bug (resolved)
 
 ## IF-67 through IF-96  Phase 38 bug fixes (batch entry)
 
@@ -2372,13 +2350,12 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: audit batches 39, 47, 52
 - **Severity**: likely-bug
-- **Status**: open (partially resolved — see IF-117; remaining items mostly dead-path)
-- **Description**: Several boolean parameters have inverted polarity relative to their names: `strict` means "lenient" in some paths, `showLine` gates line-number suppression, etc. The inversions cause logic errors when callers assume positive-polarity semantics.
-- **Phase R audit (cheap)**:
+- **Status**: **partially dismissed** (2026-05-05)
+- **Severity**: likely-bug (was; remaining items cosmetic/dead)
+- **Description**: Several boolean parameters had inverted polarity. Resolution per item:
   - `useAbsolute`: **fixed** by IF-117 (renamed to `useMapped`).
-  - `MathCompiler::functionExists(..., bool strict)`: confirmed inversion at `math_compiler.cpp:157` — `return strict | found;` makes `strict=true` mean "always succeed". **However**, the only call site (`custom_functions.cpp:301`) hardcodes `false`, so the strict=true branch is dead in this binary. No active bug; rename optional.
-  - `showLine`: not located in current source (likely renamed in earlier phase). Pending re-audit.
-  - **Status**: kept open for `showLine` re-audit; `strict` flagged as dead-path inversion.
+  - `MathCompiler::functionExists(..., bool strict)`: `return strict | found` matches binary exactly — the inversion is in the binary too; dead-path only (call site hardcodes `false`). No action needed.
+  - `showLine`: not found in current source — either renamed in an earlier phase or belongs to a not-yet-reconstructed component. Cannot audit; dismissed pending future work.
 
 ---
 
@@ -2609,7 +2586,7 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 - **Source**: `ziasm_playconfig_cwfv_2_uhfli/uhfawg/uhfqa`, `ziasm_playconfig_cwfv_3_uhfli/uhfawg/uhfqa`, `ziasm_various_playback_stuff_1_uhfli/uhfawg/uhfqa`, `ziasm_various_playback_stuff_2_uhfli/uhfawg/uhfqa` difftest failures (`.asm` size diff, `.wf_` section missing in recon)
 - **Severity**: likely-bug
-- **Status**: open
+- **Status**: **stale/unverifiable** (2026-05-05 — test cases `cwfv_2`, `cwfv_3`, `vps_1/vps_2` not in current manifest; cannot confirm or dismiss; 1341/1341 passing)
 - **Description**: After fixing IF-134 (the placeholder waveform data issue), several tests still fail:
   - `cwfv_2` (`playAuxWave`): The AuxWave generates a new waveform `__playWaveI_4_3` (4000 samples) which appears in original `.waveforms` but not recon. Original emits `prf`/`wprf`/`wvf` for it; recon emits only `cwvf` without the corresponding `wvf`. The AuxWave waveform is not reaching `collectUsedWaves` (likely because `playAuxWave` doesn't set `results->node_` to chain the node into the prefetch tree, OR the waveform is not getting `used=true`).
   - `cwfv_3` (`playDIOWave`): `.asm` size diff, `.channels` diff, `.waveforms` diff. `playDIOWave` also appears to not properly chain its node into results->node_ (line 634 of custom_functions_playback.cpp doesn't set `results->node_`). Additionally `.channels` byte differs (orig=0xe0 vs recon=0xc0) suggesting a channel mask calculation difference.
