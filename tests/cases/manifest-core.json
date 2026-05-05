@@ -110,6 +110,78 @@
           ]
         },
         {
+          "name": "stress",
+          "comment": "Large/complex stress tests - compiler robustness across all devices",
+          "tags": ["stress", "large"],
+          "cases": [
+            {
+              "name": "arith_ops_hdawg8",
+              "file": "large_arith_ops.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "arith_ops_hdawg4",
+              "file": "large_arith_ops.seqc",
+              "@base": "@hdawg4"
+            },
+            {
+              "name": "arith_ops_uhfli",
+              "file": "large_arith_ops.seqc",
+              "@base": "@uhfli"
+            },
+            {
+              "name": "arith_ops_uhfawg",
+              "file": "large_arith_ops.seqc",
+              "@base": "@uhfawg"
+            },
+            {
+              "name": "arith_ops_uhfqa",
+              "file": "large_arith_ops.seqc",
+              "@base": "@uhfqa"
+            },
+            {
+              "name": "arith_ops_shfqa4",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfqa4_qa"
+            },
+            {
+              "name": "arith_ops_shfqa2",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfqa2_qa"
+            },
+            {
+              "name": "arith_ops_shfsg4",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfsg4_sg"
+            },
+            {
+              "name": "arith_ops_shfsg2",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfsg2_sg"
+            },
+            {
+              "name": "arith_ops_shfqc",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfqc_qa"
+            },
+            {
+              "name": "arith_ops_shfli",
+              "file": "large_arith_ops.seqc",
+              "@base": "@shfli"
+            },
+            {
+              "name": "arith_ops_ghfli",
+              "file": "large_arith_ops.seqc",
+              "@base": "@ghfli"
+            },
+            {
+              "name": "arith_ops_vhfli",
+              "file": "large_arith_ops.seqc",
+              "@base": "@vhfli"
+            }
+          ]
+        },
+        {
           "name": "general",
           "defaults": {
             "devtype": "HDAWG8",
