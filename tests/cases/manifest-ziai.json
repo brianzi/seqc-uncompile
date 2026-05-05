@@ -972,86 +972,86 @@
           "index": 0
         },
         {
-          "name": "if_else_hdawg8",
+          "name": "analyze_if_else_hdawg8",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "HDAWG8",
           "index": 0,
           "samplerate": 2400000000.0
         },
         {
-          "name": "if_else_hdawg4",
+          "name": "analyze_if_else_hdawg4",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "HDAWG4",
           "index": 0,
           "samplerate": 2400000000.0
         },
         {
-          "name": "if_else_uhfli",
+          "name": "analyze_if_else_uhfli",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "UHFLI",
           "index": 0
         },
         {
-          "name": "if_else_uhfawg",
+          "name": "analyze_if_else_uhfawg",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "UHFAWG",
           "index": 0
         },
         {
-          "name": "if_else_uhfqa",
+          "name": "analyze_if_else_uhfqa",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "UHFQA",
           "index": 0
         },
         {
-          "name": "if_else_shfqa4",
+          "name": "analyze_if_else_shfqa4",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFQA4",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "if_else_shfqa2",
+          "name": "analyze_if_else_shfqa2",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFQA2",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "if_else_shfsg4",
+          "name": "analyze_if_else_shfsg4",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFSG4",
           "index": 0,
           "sequencer": "sg"
         },
         {
-          "name": "if_else_shfsg2",
+          "name": "analyze_if_else_shfsg2",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFSG2",
           "index": 0,
           "sequencer": "sg"
         },
         {
-          "name": "if_else_shfqc",
+          "name": "analyze_if_else_shfqc",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFQC",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "if_else_shfli",
+          "name": "analyze_if_else_shfli",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "SHFLI",
           "index": 0
         },
         {
-          "name": "if_else_ghfli",
+          "name": "analyze_if_else_ghfli",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "GHFLI",
           "index": 0
         },
         {
-          "name": "if_else_vhfli",
+          "name": "analyze_if_else_vhfli",
           "file": "ziai_analyze_if_else.seqc",
           "devtype": "VHFLI",
           "index": 0
@@ -2336,86 +2336,86 @@
           "index": 0
         },
         {
-          "name": "while_loop_hdawg8",
+          "name": "analyze_while_loop_hdawg8",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "HDAWG8",
           "index": 0,
           "samplerate": 2400000000.0
         },
         {
-          "name": "while_loop_hdawg4",
+          "name": "analyze_while_loop_hdawg4",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "HDAWG4",
           "index": 0,
           "samplerate": 2400000000.0
         },
         {
-          "name": "while_loop_uhfli",
+          "name": "analyze_while_loop_uhfli",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "UHFLI",
           "index": 0
         },
         {
-          "name": "while_loop_uhfawg",
+          "name": "analyze_while_loop_uhfawg",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "UHFAWG",
           "index": 0
         },
         {
-          "name": "while_loop_uhfqa",
+          "name": "analyze_while_loop_uhfqa",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "UHFQA",
           "index": 0
         },
         {
-          "name": "while_loop_shfqa4",
+          "name": "analyze_while_loop_shfqa4",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFQA4",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "while_loop_shfqa2",
+          "name": "analyze_while_loop_shfqa2",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFQA2",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "while_loop_shfsg4",
+          "name": "analyze_while_loop_shfsg4",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFSG4",
           "index": 0,
           "sequencer": "sg"
         },
         {
-          "name": "while_loop_shfsg2",
+          "name": "analyze_while_loop_shfsg2",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFSG2",
           "index": 0,
           "sequencer": "sg"
         },
         {
-          "name": "while_loop_shfqc",
+          "name": "analyze_while_loop_shfqc",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFQC",
           "index": 0,
           "sequencer": "qa"
         },
         {
-          "name": "while_loop_shfli",
+          "name": "analyze_while_loop_shfli",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "SHFLI",
           "index": 0
         },
         {
-          "name": "while_loop_ghfli",
+          "name": "analyze_while_loop_ghfli",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "GHFLI",
           "index": 0
         },
         {
-          "name": "while_loop_vhfli",
+          "name": "analyze_while_loop_vhfli",
           "file": "ziai_analyze_while_loop.seqc",
           "devtype": "VHFLI",
           "index": 0

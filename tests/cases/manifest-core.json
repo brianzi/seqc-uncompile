@@ -75,7 +75,10 @@
         {
           "name": "errors",
           "comment": "Compiler error and warning tests - validates error messages match binary",
-          "tags": ["errors", "validation"],
+          "tags": [
+            "errors",
+            "validation"
+          ],
           "cases": [
             {
               "name": "undefined_var",
@@ -112,7 +115,10 @@
         {
           "name": "stress",
           "comment": "Large/complex stress tests - compiler robustness across all devices",
-          "tags": ["stress", "large"],
+          "tags": [
+            "stress",
+            "large"
+          ],
           "cases": [
             {
               "name": "arith_ops_hdawg8",
@@ -185,7 +191,8 @@
           "name": "general",
           "defaults": {
             "devtype": "HDAWG8",
-            "samplerate": 2e9
+            "samplerate": 2e9,
+            "index": 0
           },
           "cases": [
             {
@@ -757,6 +764,16 @@
               "file": "hdawg_assignWaveIdx.seqc"
             },
             {
+              "name": "assignWaveIdx2",
+              "file": "hdawg_assignWaveIdx.seqc",
+              "samplerate": 2.4e9
+            },
+            {
+              "name": "assignWaveIdx_hd4",
+              "file": "hdawg_assignWaveIdx.seqc",
+              "devtype": "HDAWG4"
+            },
+            {
               "name": "play_combo",
               "file": "hdawg_play_combo.seqc"
             },
@@ -790,6 +807,23 @@
             }
           ],
           "@base": "@hdawg8"
+        },
+        {
+          "name": "assignWaveIdx_2",
+          "file": "hdawg_assignWaveIdx.seqc",
+          "@base": "@hdawg4"
+        },
+        {
+          "name": "assignWaveIdx_3",
+          "file": "hdawg_assignWaveIdx.seqc",
+          "@base": "@hdawg8",
+          "samplerate": 2e9
+        },
+        {
+          "name": "assignWaveIdx_4",
+          "file": "hdawg_assignWaveIdx.seqc",
+          "@base": "@hdawg4",
+          "samplerate": 1.8e9
         },
         {
           "name": "shfqa_nop",
