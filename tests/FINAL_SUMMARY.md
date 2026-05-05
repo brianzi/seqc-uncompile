@@ -10,14 +10,13 @@ All 1346 tests are now correctly organized into 8 logical groups with hierarchic
 
 | Group | Tests | Description |
 |-------|-------|-------------|
-| `core` | 234 | Pure core functionality (basic instructions, control flow, waveforms) |
+| `core` | 240 | Core functionality: basic instructions, control flow, waveforms, error validation |
 | `ziai` | 459 | ZIAI analysis - individual SeqC construct validation across all devices |
 | `ziasm` | 468 | ZIASM assembly - 11 subgroups of low-level tests |
 | `documentation_examples` | 92 | Product documentation examples |
 | `zhinst` | 60 | Zurich Instruments webserver AWG presets |
 | `labone_examples` | 14 | LabOne API integration examples |
 | `large_programs` | 13 | Large/complex stress tests |
-| `error_validation` | 6 | Compiler error and warning validation |
 
 **Total:** 1346 tests (100% preserved)
 
@@ -28,13 +27,13 @@ All 1346 tests are now correctly organized into 8 logical groups with hierarchic
 ```
 tests/cases/
 ├── manifest.json (main, imports all below)
+├── manifest-core.json (240 tests, includes core + error validation)
 ├── manifest-ziai.json (459 tests)
 ├── manifest-ziasm.json (468 tests, 11 subgroups)
 ├── manifest-documentation.json (92 tests)
 ├── manifest-zhinst.json (60 tests)
 ├── manifest-labone.json (14 tests)
 ├── manifest-large.json (13 tests)
-├── manifest-errors.json (6 tests)
 └── manifest.v1.json (backup)
 ```
 

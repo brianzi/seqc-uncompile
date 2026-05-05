@@ -67,11 +67,48 @@
   "groups": [
     {
       "name": "core",
-      "comment": "Core functionality tests - basic instructions, control flow, waveforms (excluding specialized groups)",
+      "comment": "Core functionality tests - basic instructions, control flow, waveforms, and error validation",
       "tags": [
         "core"
       ],
       "groups": [
+        {
+          "name": "errors",
+          "comment": "Compiler error and warning tests - validates error messages match binary",
+          "tags": ["errors", "validation"],
+          "cases": [
+            {
+              "name": "undefined_var",
+              "file": "err_undefined_var.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "wave_length",
+              "file": "err_wave_length.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "unsupported_func",
+              "file": "err_unsupported_func.seqc",
+              "@base": "@shfqa4_qa"
+            },
+            {
+              "name": "redefine_builtin",
+              "file": "err_redefine_builtin.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "wave_amplitude",
+              "file": "err_wave_amplitude.seqc",
+              "@base": "@hdawg8"
+            },
+            {
+              "name": "wave_as_int",
+              "file": "err_wave_as_int.seqc",
+              "@base": "@hdawg8"
+            }
+          ]
+        },
         {
           "name": "general",
           "defaults": {
