@@ -2885,7 +2885,7 @@ reconstructed source ever accessed such a field. Pointer is exactly 0x24 bytes.
 ## IF-155  Empty input not rejected by recon (error 43 unreachable)
 
 **Source**: zivibes intake — `sp_01_empty.seqc` on HDAWG8 / SHFQA4 / SHFSG8 / UHFQA
-**Status**: confirmed (recon bug)
+**Status**: partially-fixed (downstream guard added, root cause remains)
 **Severity**: likely-bug
 
 Original binary, given a SeqC source consisting only of comments/whitespace
@@ -2894,19 +2894,61 @@ Original binary, given a SeqC source consisting only of comments/whitespace
 This corresponds to error-message id 43 in `error_messages.cpp:178`
 (`m[43] = "nothing to write, empty input"`).
 
-Recon never raises this error. No call site for id 43 is anywhere in
-`reconstructed/src/`. The compile pipeline silently produces a (presumably
-useless) ELF instead.
+Recon's `Compiler::compile` runs the full pipeline (label, placeholder,
+trailer emit) for empty input and ends up with `assemblerImpl_->getOpcode()`
+returning **5 instructions** (`cwvf 5242816`, `st R0, 146`, `wwvf`, `nop`,
+`end`).  `writeToStream` then proceeds without raising any error.
 
-**Reproduces**: `python tests/diff_test.py --filter sp_01_empty -v`
-4 failing tests, one per device.
+### GDB-confirmed binary flow
 
-**Hypothesis**: A guard near the end of the compile pipeline
-(post-AST, post-codegen, before ELF emission) checks "did we generate any
-instructions / waveforms / nodes?" and raises error 43 if empty. Needs GDB
-trace on the binary to find the call site and condition.
+1. **`Compiler::compile @0x11f150`** is called.
+2. After `parse()` returns at `0x11f283`: binary checks `test %r14, %r14`
+   and at `0x11f28d` does `je 0x11f557` — **if expr is NULL, jumps to a
+   short alternate path that bypasses steps 10–11** (label, placeholder,
+   trailer).  This path still allocates a `WavetableIR` etc. but never
+   appends any opcodes to `assemblerImpl_`.
+3. Control returns to `AWGCompilerImpl::writeToStream @0x108cc0`.
+4. `assembler_.getOpcode()` returns an empty vector (`begin == end`).
+5. `@0x108d0b cmp begin/end`; `@0x108d0f je 0x109a00`.
+6. `@0x109a00..0x109a14`: `__cxa_allocate_exception(0x60)` →
+   `mov $0x2b, %esi` → throws `ZIAWGCompilerException` with
+   `ErrorMessages::format(EmptyInput)` (id 43).
 
-Promoted to TODO.
+GDB observation for `sp_01_empty.seqc`:
+- `assembler_.getOpcode()` returned `begin=0x0 end=0x0 size=0` (binary)
+- recon emits 5 opcodes for the same input
+
+### What was fixed in this pass
+
+`writeToStream` now correctly raises `EmptyInput` when opcodes are empty
+(matching `0x108d0f → 0x109a00 → 0x109a14`), instead of silently
+`return`-ing.  See `awg_compiler.cpp:751-759` after this commit.  This
+guard is dormant for `sp_01_empty.seqc` because recon's pipeline never
+produces an empty opcode vector.
+
+### What remains unfixed (still failing)
+
+The root cause: recon's `Compiler::compile` does not take the
+"parse returned null → skip trailer emission" branch at the equivalent
+of `0x11f283/0x11f557`.  Recon's `parse()` (at `compiler.cpp:151`) wraps
+whatever the bison-generated `seqc_parse` produces in a `shared_ptr`;
+for empty source, the parser may produce a non-null empty-block
+Expression rather than the null pointer the binary expects.
+
+**To finish the fix**:
+1. GDB-trace the binary's parse() on empty source to see whether it
+   returns a true `nullptr` Expression* or whether the null-check at
+   `0x11f28a` is on something else (e.g., the unwrapped raw pointer
+   from `seqc__scan_string` rather than the parser result).
+2. GDB-trace what the alternate path at `0x11f557..0x11f5b6` actually
+   does (the `WavetableIR` allocation) and find where it returns from
+   `compile()` without reaching the trailer-emit block.
+3. Mirror that branch in recon's `Compiler::compile` so empty input
+   produces an empty assemblerImpl_ — the existing `EmptyInput` guard
+   in `writeToStream` will then fire and produce the correct error.
+
+Promoted to TODO 47.1 (still open).
+
 
 ---
 

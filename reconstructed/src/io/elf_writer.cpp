@@ -212,6 +212,10 @@ std::unique_ptr<RawWave> ElfWriter::addWaveform(                 // 0x2939f0
 // Binary size: 0x3c bytes (0x294030 - 0x29406c)
 //
 // Sets entry point to memoryOffset_ then calls elfio::save(ostream).
+// (The binary tail-calls save() and propagates its bool return, but
+// AWGCompilerImpl::writeToStream does not consume that bool — the
+// "empty input" check is performed earlier on the opcode vector,
+// before writeFile is reached.)
 // ============================================================================
 void ElfWriter::writeFile(std::ostream& os)                      // 0x294030
 {

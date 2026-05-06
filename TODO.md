@@ -4426,13 +4426,22 @@ IF-155 / IF-156 / IF-157.
 Original raises error 43 (`"nothing to write, empty input"`) when the
 SeqC source is empty / comments-only.  Recon silently produces an ELF.
 
-- [ ] GDB-trace original on `sp_01_empty.seqc` (HDAWG8) to find the
-      call site of error 43.  Likely a guard near the end of the
-      compile pipeline that checks instruction-count / waveform-count /
-      node-count.
-- [ ] Identify the equivalent location in recon and add the guard
+- [x] GDB-trace original on `sp_01_empty.seqc` (HDAWG8) to find the
+      call site of error 43 → confirmed at `0x108d0f` (empty-opcodes
+      branch in `writeToStream`) → `0x109a14` throws `EmptyInput` (43)
+- [x] Add the missing `throw EmptyInput` guard at the equivalent
+      recon call site (`awg_compiler.cpp:751-759`) — was a silent
+      `return` instead.  This guard is correct but dormant for
+      `sp_01_empty.seqc` because recon's pipeline produces 5 opcodes
+      where the binary produces 0.
+- [ ] **Root-cause fix (still open)**: recon's `Compiler::compile` is
+      missing the "parse returned null → skip trailer emission" branch
+      that the binary takes at `0x11f283/0x11f557`.  GDB-trace the
+      `0x11f557..0x11f5b6` block to mirror it in recon, so empty input
+      produces 0 opcodes and the new EmptyInput guard fires.  See
+      IF-155 for full notes.
 - [ ] Build, run `python tests/diff_test_fast.py --filter sp_01_empty`
-      (4 tests should now pass)
+      (4 tests should then pass)
 - [ ] Run full suite — confirm no regressions
 - [ ] Update IF-155 to `fixed`
 - [ ] Sub-phase wrap-up commit

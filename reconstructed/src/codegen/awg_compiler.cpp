@@ -746,10 +746,15 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
         return;
     }
 
-    // 2. Get opcodes, check non-empty
+    // 2. Get opcodes — if empty, raise the EmptyInput error.
+    //    Binary: @0x108d0b cmp begin/end of opcodes vector;
+    //    @0x108d0f je 0x109a00 → __cxa_allocate_exception(0x60) →
+    //    throws ErrorMessageT::EmptyInput (id 43).  Earlier reconstruction
+    //    silently `return`-ed here, which is incorrect.
     auto const& opcodes = assembler_.getOpcode();
     if (opcodes.empty()) {
-        return;  // @0x108d0f: opcodes begin == end → return
+        throw ZIAWGCompilerException(
+            ErrorMessages::format(EmptyInput));                    // @0x109a00..0x109a14
     }
 
     // 3. Create ELF writer with machine type 2
