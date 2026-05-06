@@ -14,7 +14,15 @@ The full pre-2026-04-22 history is preserved in
 
 | #   | Title | Location | Notes |
 |-----|-------|----------|-------|
-| 121 | r8b (isHold) source in playZurichInstruments | `custom_functions_play.cpp:1152` | GDB subagent: `-0x78(%rbp)` = NULL when combined==nullptr, non-NULL ptr otherwise → semantic is `(bool)combined`. But substituting `(bool)combined` causes 8 regressions. Binary low-byte of ptr ≠ clean null-check. Placeholder `(subFunc==Aux)` passes all 1341 tests; kept as intentional divergence pending deeper investigation. |
+
+
+---
+
+## Closed
+
+| #   | Title | Resolution |
+|-----|-------|-----------|
+| 121 | r8b (isHold) source in playZurichInstruments | Two-stage GDB trace: previous trace missed the third write at `0x161db8: mov [rbp-0x78],r14` which unconditionally overwrites the slot after both prior writes. r14's low byte holds an unrelated `sete` flag (channelArgs[0]-empty) computed at 0x161cfc/0x161d12, or 0 from `xor r14d,r14d` at 0x161d06 when channelArgs.size()<2. Empirically `r8b` is always 0: channelArgs[0] is the just-merged wave name (never empty), and the Aux path leaves channelArgs empty so size<2 → r14=0. **isHold = false** (literal). Verified across all 1341 tests. |
 
 
 ---

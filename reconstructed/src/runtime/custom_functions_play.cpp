@@ -1138,8 +1138,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //   stack[6] = AsmRegister(-1)            → reg2
     //   stack[7] = 0                          → trigger
     //
-    // unknowns.md #121 fully resolved: fourChannel=Now (GDB confirmed), isHold=(bool)combined
-    // (GDB subagent traced -0x78(%rbp): NULL when combined==nullptr, else non-NULL ptr).
+    // unknowns.md #121 fully resolved: fourChannel=Now (GDB confirmed),
+    // is4Channel=Aux (GDB confirmed), isHold=false (empirically verified).
     AsmRegister regInvalid(-1);                                          // @0x1622f2
     std::vector<std::shared_ptr<WaveformFront>> waveforms;
     if (combined) {
@@ -1148,7 +1148,18 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     AsmList::Asm playEntry = asmCommands_->asmPlay(
         std::move(waveforms),
         /*deviceIndex=*/0,
-        /*isHold=*/(subFunc == SubFunc::Aux),  // r8b @0x162314: movzbl -0x78(%rbp),%r8d; binary reads low byte of local vector ptr (NULL when combined==nullptr). Semantic = (bool)combined but that causes regressions; (subFunc==Aux) matches test output
+        /*isHold=*/false,  // r8b @0x162314: movzbl -0x78(%rbp),%r8d.
+                           // -0x78(%rbp) is overwritten at 0x161db8 by `mov [rbp-0x78],r14`,
+                           // where r14's low byte holds an unrelated `sete` flag computed at
+                           // 0x161cfc/0x161d12 (= "channelArgs[0] toString empty"), and is 0
+                           // via xor at 0x161d06 when channelArgs.size()<2. Empirically (GDB
+                           // confirmed across both Aux and non-Aux paths) the low byte read
+                           // here is always 0 — channelArgs[0] is the wave name just merged,
+                           // never empty; and on the Aux path channelArgs stays empty so
+                           // size<2 forces r14=0. The semantic value is therefore false.
+                           // The earlier writes at 0x1612aa (=rbx, vector ptr) and 0x1613df
+                           // (=NULL) are dead — both paths unconditionally re-write [rbp-0x78]
+                           // at 0x161db8 before the read.
         /*fourChannel=*/(subFunc == SubFunc::Now),   // r9b: GDB confirmed cmp $0x3 (Now), not DigTrigger
         /*hold=*/false,                                              // stack[0]
         /*rate=*/rate,                                               // stack[1]
