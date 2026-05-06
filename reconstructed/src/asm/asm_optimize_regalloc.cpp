@@ -426,7 +426,11 @@ cleanup:
 //   - Return numRegs + splitCount
 unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     // Pass 1: build rewritten list with barrier entries — 280490..280726
-    std::vector<AsmList::Asm> tmpList;
+    // NOTE: Using AsmList directly (not std::vector<Asm>) so we can pass it
+    // to splitReg which takes AsmList&. Layouts are identical (AsmList's
+    // sole data member is std::vector<Asm> entries) — the binary at
+    // 0x280872 also calls splitReg directly on this local.
+    AsmList tmpList;
     tmpList.reserve(asm_.size());
 
     AsmRegister magicReg = AsmRegister::magicSkipRegister();
@@ -435,14 +439,18 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         // Allocate new sequenceId — 2804f4: mov eax,[r14] (TLS regNumber)
         int newSeqId = GlobalResources::regNumber++;
 
-        // Create barrier entry: copy instruction, set cmd=INVALID, dest=magicReg
-        // 280503: copy ctor; 28052f: mov cmd,-1; 28053d: mov regDst,magicReg
+        // Create barrier entry: copy instruction, set cmd=INVALID, regSrc=magicReg
+        // 280503: copy ctor; 28052f: mov cmd,-1; 28053d: mov regSrc,magicReg
+        // (Binary writes magicReg to barrier.assembler.regSrc at offset Asm+0x28
+        //  = Assembler+0x20. The strip pass at 0x2809cb checks regSrc==magicReg,
+        //  and the outer-loop pass-2 filter "regSrc==0" naturally excludes
+        //  barriers since their regSrc is magicReg, not 0.)
         AsmList::Asm barrier;
         barrier.sequenceId = newSeqId;
         barrier.assembler = it->assembler;  // copy
         barrier.wavetableFront = it->wavetableFront;
         barrier.assembler.cmd = Assembler::INVALID;
-        barrier.assembler.regDst = magicReg;
+        barrier.assembler.regSrc = magicReg;
         barrier.node.reset();
         barrier.noOpt = false;
 
@@ -460,7 +468,13 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
             orig.noOpt = it->noOpt;
             tmpList.push_back(std::move(orig));
         } else {
-            // Emit barrier then original — 2805e0..280643
+            // Non-skip path: emit TWO barriers, then orig — 2805e0..2806d4
+            // The binary pushes the local barrier struct twice, then the orig.
+            // The two-barrier prefix gives splitReg a place to write boundary
+            // ADDI copies without clobbering real instructions.
+            // 0x2805ea..28063b (barrier 1) → 0x280677..2806c1 (barrier 2) →
+            // 0x28056f..2805c6 (orig).
+            tmpList.push_back(barrier);
             tmpList.push_back(std::move(barrier));
 
             AsmList::Asm orig;
@@ -499,69 +513,93 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         AsmRegister destReg = it->assembler.regDst;
 
         // Scan forward from next instruction — 280799..280840
+        // Binary semantics:
+        //   - Walk scanIt = it+1, skipping cmd==4 and cmd==INVALID
+        //   - On non-ADDIU cmd: scan FAILS (splitEnd = list.end(), cl=0)
+        //   - On ADDIU with regDst != destReg: FAILS
+        //   - On ADDIU with regDst == destReg:
+        //       - If outer cmd is ADDI: require scanIt.regSrc == destReg too
+        //       - If outer cmd is INVALID/cmd4: require scanIt.regSrc == 0,
+        //                                       and on success cl=1
+        //       - Otherwise (outer cmd is something else — not reachable
+        //         here because we filtered to {INVALID, ADDI, cmd4}, but
+        //         binary at 0x2808d6 sets cl=1 for "neither" path; this
+        //         maps to outer == ADDI branch in our filter).
+        //   - On scan SUCCESS: splitEnd = scanIt (the matching ADDIU),
+        //                      cl=1
+        // The post-check at 0x280846..28085c then decides:
+        //   if outer.cmd in {INVALID, cmd4} and cl==0 → skip outer iter
+        //   else → call splitReg(tmpList, destReg, it, splitEnd)
         auto scanEnd = tmpList.end();
-        // (Phase S.2 M5: removed dead local `bool needsSplit = false`
-        //  — written but never read. The "should we split?" decision
-        //  is captured by `canSplit` below, derived purely from
-        //  `cmd` and `scanEnd`.)
+        bool scanSuccess = false;
 
         auto scanIt = it;
         ++scanIt;
         for (; scanIt != tmpList.end(); ++scanIt) {
             auto scanCmd = scanIt->assembler.cmd;
 
-            // Skip dead(-1) and cmd=4 — 2807cc
+            // Skip cmd==4 and INVALID — 2807cc..2807d7
             if (scanCmd == static_cast<Assembler::Command>(4) ||
                 scanCmd == Assembler::INVALID)
                 continue;
 
-            // Check for ADDIU(0x50000000) with matching regDst — 2807d9
-            if (scanCmd == Assembler::ADDIU) {
-                if (scanIt->assembler.regDst == destReg) {
-                    // If current is ADDI, also check regSrc match — 2807f1..28080a
-                    if (cmd == Assembler::ADDI &&
-                        scanIt->assembler.regSrc == destReg) {
-                        // "double load" pattern — set up for split
-                    }
-                }
+            // Anything other than ADDIU: scan fails (splitEnd stays end()) — 2807df
+            if (scanCmd != Assembler::ADDIU)
+                break;
+
+            // ADDIU with mismatching regDst: fails — 2807e8
+            if (!(scanIt->assembler.regDst == destReg))
+                break;
+
+            // outer.cmd switch — 2807f1..28083a
+            if (cmd == Assembler::ADDI) {
+                // Require scanIt.regSrc == destReg
+                if (!(scanIt->assembler.regSrc == destReg))
+                    break;
+                // success path falls into 0x2808d6: cl=1
                 scanEnd = scanIt;
+                scanSuccess = true;
                 break;
             }
-
-            // Not a recognized pattern → end scan
-            scanEnd = scanIt;
+            if (cmd == Assembler::INVALID ||
+                cmd == static_cast<Assembler::Command>(4)) {
+                // Require scanIt.regSrc == 0
+                if (!(scanIt->assembler.regSrc == AsmRegister(0)))
+                    break;
+                scanEnd = scanIt;
+                scanSuccess = true;
+                break;
+            }
+            // (unreachable given outer filter)
             break;
         }
 
-        // Check if the pattern warrants a split — 280846..28085c
-        // Complex condition: if current cmd is dead(-1) or cmd=4,
-        // AND the forward scan found a valid endpoint...
-        bool canSplit = true;
-        if (cmd == static_cast<Assembler::Command>(4) ||
-            cmd == Assembler::INVALID) {
-            // Additional check: was a valid split endpoint found?
-            // 280854: test cl,cl; je → skip
-            if (scanEnd == tmpList.end())
-                canSplit = false;
-        }
-
-        if (!canSplit)
+        // Post-check at 0x280846..28085c:
+        //   if outer.cmd in {cmd4, INVALID} AND scan failed → skip
+        if ((cmd == static_cast<Assembler::Command>(4) ||
+             cmd == Assembler::INVALID) && !scanSuccess) {
             continue;
-
-        // Scan for register overwrite between current and scanEnd — 28088b..2808d1
+        }
         auto splitEnd = scanEnd;
+
+        // Pre-call overwrite check — 28088b..2808d1
+        // Scan all entries in [it+1, list.end()), SKIPPING the splitEnd entry.
+        // If any of them overwrites destReg (regDst with cmdType bit 1, or
+        // regAux with cmdType==7), skip this outer iteration.
+        // (The skip avoids flagging splitEnd itself, since splitEnd is the
+        // expected use site of destReg.)
         bool aborted = false;
-        for (auto checkIt = it + 1; checkIt != scanEnd; ++checkIt) {
+        for (auto checkIt = it + 1; checkIt != tmpList.end(); ++checkIt) {
+            if (checkIt == splitEnd)
+                continue;  // skip the splitEnd entry — 280890..280884
+
             int chkCmdType = Assembler::getCmdType(checkIt->assembler.cmd);
 
-            // If regDst(dest) matches destReg and cmdType bit1 → overwritten
             // 2808a1: lea rdi,[r14+0x30]; 2808b0: shr cl,1; test cl,al
             if (checkIt->assembler.regDst == destReg && (chkCmdType & 2)) {
                 aborted = true;
                 break;
             }
-
-            // If regAux(src2) matches destReg and cmdType==7 → also stop
             // 2808ba: lea rdi,[r14+0x38]; 2808ca: cmp r15d,0x7
             if (checkIt->assembler.regAux == destReg && chkCmdType == 7) {
                 aborted = true;
@@ -573,15 +611,11 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
             continue;
 
         // Perform the split — 280865..280877
-        // splitReg(tmpList-as-AsmList, destReg, it, splitEnd)
+        // splitReg(tmpList, destReg, it, splitEnd)
         // 280872: call 281000 splitReg
-        // NOTE: splitReg takes AsmList&, but we have vector<Asm>.
-        // The binary casts the vector to AsmList (same layout).
-        // For reconstruction, we call splitReg on asm_ and adjust.
-        // In practice the binary builds tmpList as a proper AsmList.
-        // For now, represent the call but note the impedance mismatch.
-        // NOTE: The actual splitReg call operates on the tmpList passed
-        // as an AsmList reference. Our signature takes AsmList& not vector&.
+        // tmpList is an AsmList, splitReg takes AsmList&; non-const
+        // iterator `it` converts implicitly to const_iterator.
+        splitReg(tmpList, destReg, it, splitEnd);
         ++splitCount;
     }
 
@@ -591,11 +625,11 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
     // Copy non-barrier entries from tmpList to asm_
     // 280980..2809ae: skip entries where cmd is INVALID(-1) or cmd=4
-    //   AND regDst(dest) == magicSkipRegister
+    //   AND regSrc(at Asm+0x28) == magicSkipRegister
     for (auto& entry : tmpList) {
         auto cmd = entry.assembler.cmd;
         if ((cmd == Assembler::INVALID || cmd == static_cast<Assembler::Command>(4)) &&
-            entry.assembler.regDst == magicReg)
+            entry.assembler.regSrc == magicReg)
             continue;  // skip barrier entries
 
         asm_.push_back(std::move(entry));
@@ -693,6 +727,13 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
         }
 
         // Allocate fresh register on first split                        // @0x281189
+        // GDB-confirmed (b_reg_count): binary actually bumps regNumber on
+        // EVERY threshold-met iteration (3 bumps observed per splitReg
+        // call), but the per-split boundary-write logic in this recon is
+        // not yet correct enough to exploit multiple bumps — see
+        // incidental_findings IF-156. For now, allocate once per call
+        // (matches recon's other paths). TODO: rewrite per-split boundary
+        // writes to match binary at 0x2811b7..0x281410.
         if (!didSplit) {
             int newRegNum = ++GlobalResources::regNumber;
             newReg = AsmRegister(newRegNum);

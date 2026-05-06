@@ -4451,11 +4451,30 @@ SeqC source is empty / comments-only.  Recon silently produces an ELF.
 `hb_b_reg_count.seqc` (17 simultaneously-live `var`s) compiles cleanly
 in original; recon errors `"run out of free registers"`.
 
-- [ ] GDB-trace original allocator on this input to identify spill /
-      coalesce / liveness step that recon is missing
-- [ ] Compare with recon's allocator path (likely in
-      `reconstructed/src/codegen/` register-allocation code)
-- [ ] Apply minimal fix matching binary's behavior
+- [x] GDB-trace original: confirmed call sequence is
+      `registerAllocation(46)` throws → `splitConstRegisters(46)` calls
+      `splitReg` 64× internally → `registerAllocation(110)` succeeds.
+      First 16 splitReg calls do 3 internal splits each (48 fresh
+      regs); remaining 48 calls do 0 splits.
+- [x] Compare with recon's allocator: `splitConstRegisters` had its
+      `splitReg(...)` call elided (was `++splitCount` only); recon's
+      retry path was therefore a no-op.
+- [x] Wire `splitReg` call into `splitConstRegisters`: `tmpList`
+      changed from `std::vector<Asm>` to `AsmList`; pass-1 barrier
+      writes `magicReg` to `regSrc` (was `regDst`); pass-1 emits 2
+      barriers per non-skip instruction; pass-2 forward-scan now
+      matches binary at 0x2807cc..0x28083a; pre-call overwrite check
+      now scans full range skipping splitEnd. (No regressions; suite
+      still 1595/1600.)
+- [ ] **Open: splitReg body still wrong.** Recon's `splitReg` produces
+      only 1 split per call where binary does 3. The recon allocates
+      `newReg` only on the first split (`if (!didSplit)` guard), and
+      always writes to fixed `startOff`/`endOff` slots — so multiple
+      splits per call would clobber each other's boundary writes
+      anyway. Need to reverse-engineer binary at 0x2811af..0x2812d9:
+      the `[rbp-0x50]` counter and `[rbp-0x1e8]` stack region (passed
+      via `r13`) suggest each split allocates a fresh boundary slot
+      rather than overwriting fixed ones. See IF-156.
 - [ ] Build + run `python tests/diff_test_fast.py --filter b_reg_count`
 - [ ] Full suite — confirm no regressions
 - [ ] Update IF-156 to `fixed`
@@ -4463,18 +4482,19 @@ in original; recon errors `"run out of free registers"`.
 
 ### 47.3 — IF-157: playWave_variants codegen + waveform-size diff
 
-`ht_h_func_030_playWave_variants.seqc` differs in `.text`, `.asm`,
+`ht_h_func_030_playWave_variants.seqc` differed in `.text`, `.asm`,
 `.waveforms`, `.wavemem`, and `.wf___playWave_15_8` (256 vs 128 bytes).
 
-- [ ] Use `python tests/dump_elf.py tests/cases/zivibes/ht_h_func_030_playWave_variants.seqc HDAWG8 --samplerate 2.4e9 --both`
-      to get full side-by-side
-- [ ] Determine which playWave call site produces the diverging
-      waveform (`__playWave_15_8` — likely line 15 col 8)
-- [ ] GDB-trace mergeWaveforms / waveform allocation paths if needed
-- [ ] Apply fix
-- [ ] Build + filter test, then full suite
-- [ ] Update IF-157 to `fixed`
-- [ ] Sub-phase wrap-up commit
+- [x] Use `dump_elf.py --both` to get side-by-side comparison
+- [x] Identify diverging waveform (`__playWave_15_8` from
+      `playWave(w1=ones(32), w2=zeros(64))`)
+- [x] GDB-trace `mergeWaveforms` at 0x25fb3c → confirmed binary passes
+      `rsi=64` (max signal length) to Signal ctor
+- [x] Apply fix (`waveform_generator_dsp.cpp:1983`): iterate all
+      signals and take max; was using `signals[0].size()` only
+- [x] Build + filter test passes byte-identical, full suite 1595/1600
+- [x] Update IF-157 to `fixed`
+- [x] Sub-phase wrap-up commit (`22d812a`)
 
 ### 47.4 — Phase 47 wrap-up
 

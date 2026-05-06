@@ -2955,30 +2955,82 @@ Promoted to TODO 47.1 (still open).
 ## IF-156  Recon register allocator stricter than binary on ~17-variable programs
 
 **Source**: zivibes intake — `hb_b_reg_count.seqc` (17 `var` declarations)
-**Status**: confirmed (recon bug)
+**Status**: **partially fixed** — splitConstRegisters wired up but splitReg body still incomplete
 **Severity**: likely-bug
 
 Original binary compiles 17 simultaneously-live `var` declarations without
 issue. Recon errors with:
   `"Compilation failed: run out of free registers, please reduce complexity"`
 
-Either recon's register allocator pessimistically refuses spills/coalesces
-that the binary performs, or recon mis-counts the available register pool,
-or recon's liveness analysis fails to recognize end-of-use of some variables.
+### GDB-verified call sequence in the binary
+
+For the failing test, the binary actually:
+1. Calls `registerAllocation(numRegs=46)` — **throws** (same as recon)
+2. Catch handler calls `splitConstRegisters(46)` — internally invokes `splitReg` **64 times**, returns `numRegs=110`
+3. Calls `registerAllocation(numRegs=110)` — **succeeds**
+
+Per-call breakdown of the 64 `splitReg` invocations:
+- First 16 calls: each performs 3 internal splits (3× `++GlobalResources::regNumber` per call) = 48 fresh registers
+- Remaining 48 calls: 0 splits (threshold not reached after the first 16 reduced live ranges)
+- Total fresh registers added by the catch path: ~64 (matches `110-46`)
+
+Counter trace at `0x281176 cmp r14d,0xa` for splitReg #1: `r14d` = 15, 31, 63
+across the 3 splits — instrCount is **not reset** between splits within
+one call. Yet only 3 splits fire per call, not "every iteration past 10",
+so some additional gating exists between the threshold check and the
+split body that we have not yet identified.
+
+### Recon-side state (post commit `<tbd>`)
+
+- `splitConstRegisters` is now correctly wired to call `splitReg` (was
+  comment-only `++splitCount` before).
+- Pass-1 barrier construction now writes `magicReg` to `regSrc` (not
+  `regDst`) — required for the post-pass strip filter to match the binary.
+- Pass-1 emits **two** barriers per non-skip instruction (matching binary
+  at 0x2805e0..0x2806d4).
+- Pass-2 forward-scan logic now matches the binary's branching at
+  0x2807cc..0x28083a, including the `regSrc==destReg` requirement for
+  outer cmd `ADDI` and the `regSrc==0` requirement for outer cmd
+  `INVALID/cmd4`.
+- Pre-call overwrite check now scans `[it+1, list.end())` skipping
+  `splitEnd` (matches 0x28088b..0x2808d1), instead of stopping at
+  `scanEnd`.
+- `tmpList` is now an `AsmList` (was `std::vector<Asm>`) so the
+  splitReg call type-checks; layouts are identical.
+
+### Open: splitReg body still produces too few splits
+
+With the catch path wired up, recon's `splitReg` produces only 1 split
+per call where the binary produces 3. Symptoms:
+- `b_reg_count` still throws "run out of free registers"
+- No regressions in the suite (1595/1600 holds); other tests don't exercise
+  the multi-split case
+
+The recon `splitReg` body at `asm_optimize_regalloc.cpp:673-783`
+currently:
+- Allocates `newReg` only on the first split (`if (!didSplit)` guard)
+- Always overwrites the same fixed `startOff`/`endOff` slots, so
+  multiple splits within one call would overwrite each other's
+  boundary writes anyway.
+
+The binary at `0x2811af mov 0x88(r12),%r14d` clobbers what we thought
+was `instrCount`, then immediately at `0x2811b7..0x2811cf` does
+nontrivial work involving a stack local at `[rbp-0x50]` (a counter
+that gets `++(*ptr)` at `0x2811bd`) and a stack region at `[rbp-0x1e8]`
+which is later passed to something via `r13`. This region is not yet
+reverse-engineered; it likely allocates a new boundary slot for each
+split rather than reusing fixed `startOff`/`endOff`.
 
 **Reproduces**: `python tests/diff_test.py --filter b_reg_count -v`
 
-Needs GDB trace on the binary's allocator path with this same input to
-identify which spill/coalesce step recon is missing.
-
-Promoted to TODO.
+Remains in TODO.
 
 ---
 
 ## IF-157  playWave_variants: waveform size halved + multiple section diffs
 
 **Source**: zivibes intake — `ht_h_func_030_playWave_variants.seqc` on HDAWG8
-**Status**: confirmed (recon bug)
+**Status**: **fixed** in commit `22d812a`
 **Severity**: likely-bug
 
 Differences vs original:
@@ -2987,20 +3039,31 @@ Differences vs original:
 - `.asm`: text diff
 - `.waveforms`: JSON diff
 - `.wavemem`: numeric diff
-- **`.wf___playWave_15_8`: size 256 vs 128** — recon emits a waveform
-  that is exactly half the size of the original
+- **`.wf___playWave_15_8`: size 256 vs 128** — recon emitted a waveform
+  exactly half the size of the original
 
-The source uses several patterns: `playWave(w1)`, `playWave(w1, w2)` (dual
-channel), `playWave` inside `repeat`, `playWave` inside `if/else`, and
-multiple sequential `playWave` calls. The internal name `__playWave_15_8`
-suggests a synthesized waveform from one specific call site (line 15 col 8?)
-which the original allocates at 256 samples but recon at 128.
+### Root cause
 
-Most likely: the original merges/concatenates two related waveforms and
-recon merges only one, or vice versa.  Could be a regression of the
-mergeWaveforms work covered in earlier phases.
+`WaveformGenerator::merge` (`waveform_generator_dsp.cpp:1983`) computed
+`frameCount` from `signals[0].samples_.size()` only — taking the first
+channel's length. For `playWave(w1, w2)` with `w1=ones(32)` and
+`w2=zeros(64)`, this produced a 32-sample merged waveform instead of 64.
 
-**Reproduces**: `python tests/diff_test.py --filter playWave_variants -v`
+GDB-confirmed at binary offset `0x25fb3c`: `rsi=64` (the maximum) is
+passed to the `Signal` constructor. Binary takes the **max** length
+across all input signals, not the first one's.
 
-Promoted to TODO.
+### Fix
+
+Iterate all signals and take the max length:
+
+```cpp
+size_t frameCount = 0;
+for (const auto& sig : signals)
+    frameCount = std::max(frameCount, sig.samples_.size());
+```
+
+**Resolved test**: `ht_h_func_030_playWave_variants` now byte-identical.
+
+---
 
