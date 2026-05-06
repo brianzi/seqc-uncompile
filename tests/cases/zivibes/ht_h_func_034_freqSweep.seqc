@@ -1,0 +1,32 @@
+// Hypothesis Test: Frequency Sweep Configuration (SHFQA specific)
+// Tests configFreqSweep and setSweepStep functions
+
+// Test 1: Configure frequency sweep
+configFreqSweep(0, 1000, 2000, 100);
+
+// Test 2: Set sweep step
+setSweepStep(0, 50);
+
+// Test 3: Multiple sweep configurations
+configFreqSweep(0, 1000, 2000, 100);
+wait(100);
+configFreqSweep(1, 3000, 4000, 200);
+wait(100);
+
+// Test 4: Sweep step in loop
+repeat(10) {
+    setSweepStep(0, 50);
+    wait(100);
+}
+
+// Test 5: Combine with startQA
+configFreqSweep(0, 1000, 2000, 100);
+startQA(0);
+wait(1000);
+
+// Test 6: Multiple sweeps
+configFreqSweep(0, 1000, 2000, 100);
+setSweepStep(0, 50);
+wait(500);
+setSweepStep(0, 100);
+wait(500);

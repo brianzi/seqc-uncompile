@@ -1,0 +1,31 @@
+// Hypothesis Test: setID and setSeqIndex Functions
+// Tests ID value attachment to streamed data
+
+// Test 1: setID with constant
+setID(0);
+wait(10);
+setID(1);
+wait(10);
+setID(100);
+
+// Test 2: setID with variable
+var id_val = 42;
+setID(id_val);
+
+// Test 3: setID in loop
+repeat(5) {
+    var i;
+    setID(i);
+    wait(10);
+    i += 1;
+}
+
+// Test 4: setSeqIndex (should be identical to setID)
+setSeqIndex(0);
+wait(10);
+setSeqIndex(1);
+wait(10);
+
+// Test 5: setSeqIndex with variable
+var seq_idx = 99;
+setSeqIndex(seq_idx);

@@ -1,0 +1,9 @@
+// Simplified multiplication test
+var a = 10;
+var mul_2 = a * 2;
+var mul_4 = a * 4;
+var mul_8 = a * 8;
+
+setUserReg(0, mul_2);
+setUserReg(1, mul_4);
+setUserReg(2, mul_8);

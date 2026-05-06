@@ -1,0 +1,19 @@
+// Test nested function calls
+var add(var a, var b) {
+  return a + b;
+}
+
+var mul(var x, var y) {
+  return x * y;
+}
+
+var result1 = add(5, 3);
+setUserReg(0, result1);
+wait(50);
+
+var result2 = mul(result1, 2);
+setUserReg(1, result2);
+wait(50);
+
+var result3 = add(mul(2, 3), mul(4, 5));
+setUserReg(2, result3);

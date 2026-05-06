@@ -1,0 +1,5 @@
+// Corrected repeat loop test
+repeat (10) {
+    wait(10);
+}
+setUserReg(0, 10);

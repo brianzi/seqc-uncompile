@@ -1,0 +1,7 @@
+// H-PROLOGUE-002: Device-Specific Program Prologue
+// This test shows that different devices generate different prologue sequences
+// The prologue appears at the start of every program
+
+var x = 42;
+setUserReg(0, x);
+wait(100);

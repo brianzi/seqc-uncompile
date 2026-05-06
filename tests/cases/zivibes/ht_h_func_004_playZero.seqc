@@ -1,0 +1,60 @@
+// H-FUNC-004: playZero() built-in function
+// Tests: playZero(samples) waveform function
+// Variables tested:
+//   - Different sample counts
+//   - Variable sample count
+//   - Multiple channels (if applicable)
+
+var samples = 1000;
+
+// Test: small sample counts
+playZero(16);
+playZero(32);
+playZero(64);
+
+// Test: medium sample counts
+playZero(100);
+playZero(256);
+playZero(512);
+
+// Test: larger sample counts
+playZero(1000);
+playZero(1024);
+playZero(2048);
+
+// Test: power of 2 sample counts
+playZero(128);
+playZero(256);
+playZero(512);
+playZero(1024);
+playZero(2048);
+playZero(4096);
+
+// Test: variable sample count
+playZero(samples);
+
+samples = 500;
+playZero(samples);
+
+samples = 2000;
+playZero(samples);
+
+// Test: computed sample count
+var computed = 100 + 156;
+playZero(computed);
+
+// Test: consecutive playZero
+playZero(100);
+playZero(200);
+playZero(300);
+
+// Test: playZero with wait
+playZero(100);
+wait(10);
+playZero(100);
+wait(10);
+playZero(100);
+
+// Test: larger values
+playZero(10000);
+playZero(65536);

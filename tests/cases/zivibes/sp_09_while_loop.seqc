@@ -1,0 +1,7 @@
+// While loop iteration
+// Tests: Conditional loop
+var counter = 0;
+while (counter < 5) {
+    wait(20);
+    counter = counter + 1;
+}

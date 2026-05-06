@@ -1,0 +1,20 @@
+// Test getUserReg and setUserReg patterns
+var reg0 = getUserReg(0);
+var reg1 = getUserReg(1);
+var reg2 = getUserReg(2);
+
+var sum = reg0 + reg1 + reg2;
+
+setUserReg(0, sum);
+setUserReg(1, reg0 * 2);
+setUserReg(2, reg1 + 100);
+setUserReg(3, reg2 - 50);
+
+// Chained operations
+var temp = getUserReg(0) + getUserReg(1);
+setUserReg(4, temp);
+
+// With constants
+setUserReg(5, 42);
+setUserReg(6, 0xDEADBEEF);
+setUserReg(7, -100);

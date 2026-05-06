@@ -1,0 +1,11 @@
+// Test waitDIOTrigger function
+waitDIOTrigger(0);
+setUserReg(0, 1);
+wait(100);
+
+waitDIOTrigger(1);
+setUserReg(1, 2);
+wait(100);
+
+waitDIOTrigger(3);
+setUserReg(2, 3);

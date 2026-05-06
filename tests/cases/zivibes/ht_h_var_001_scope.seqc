@@ -1,0 +1,72 @@
+// H-VAR-001: Variable scope and register allocation
+// Tests: How variables are allocated to registers
+// Variables tested:
+//   - Sequential variable declarations
+//   - Variable reuse after scope ends
+//   - Maximum number of simultaneous variables
+
+// Test: sequential variable declarations
+var a = 1;
+var b = 2;
+var c = 3;
+var d = 4;
+
+wait(a);
+wait(b);
+wait(c);
+wait(d);
+
+// Test: more variables (check register limit)
+var e = 5;
+var f = 6;
+var g = 7;
+var h = 8;
+
+wait(e);
+wait(f);
+wait(g);
+wait(h);
+
+// Test: variable reuse in different scopes
+{
+    var temp = 100;
+    wait(temp);
+}
+
+{
+    var temp = 200;  // Should reuse same register
+    wait(temp);
+}
+
+// Test: nested scopes
+var outer = 10;
+{
+    var inner = 20;
+    wait(outer);
+    wait(inner);
+    {
+        var innermost = 30;
+        wait(innermost);
+    }
+}
+wait(outer);
+
+// Test: loop variable scope
+var i;
+for (i = 0; i < 3; i += 1) {
+    var loop_var = i * 10;
+    wait(loop_var);
+}
+
+// Test: many variables (stress test)
+var v1 = 1;
+var v2 = 2;
+var v3 = 3;
+var v4 = 4;
+var v5 = 5;
+var v6 = 6;
+var v7 = 7;
+var v8 = 8;
+
+wait(v1 + v2 + v3 + v4);
+wait(v5 + v6 + v7 + v8);

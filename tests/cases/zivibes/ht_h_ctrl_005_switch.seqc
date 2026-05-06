@@ -1,0 +1,82 @@
+// H-CTRL-005: Switch statement control flow
+// Tests: switch-case construct
+// Variables tested:
+//   - Different numbers of cases
+//   - Default case
+//   - Fall-through behavior (if any)
+
+var mode;
+
+// Test: simple switch with 2 cases
+mode = 1;
+switch (mode) {
+    case 1:
+        wait(10);
+    case 2:
+        wait(20);
+}
+
+// Test: switch with 3 cases
+mode = 2;
+switch (mode) {
+    case 1:
+        wait(100);
+    case 2:
+        wait(200);
+    case 3:
+        wait(300);
+}
+
+// Test: switch with default
+mode = 5;
+switch (mode) {
+    case 1:
+        wait(1000);
+    case 2:
+        wait(2000);
+    default:
+        wait(9999);
+}
+
+// Test: switch with more cases
+mode = 3;
+switch (mode) {
+    case 0:
+        wait(0);
+    case 1:
+        wait(1);
+    case 2:
+        wait(2);
+    case 3:
+        wait(3);
+    case 4:
+        wait(4);
+    default:
+        wait(99);
+}
+
+// Test: switch hitting default
+mode = 100;
+switch (mode) {
+    case 1:
+        wait(10);
+    case 2:
+        wait(20);
+    default:
+        wait(50);
+}
+
+// Test: switch with non-sequential case values
+mode = 10;
+switch (mode) {
+    case 1:
+        wait(1);
+    case 5:
+        wait(5);
+    case 10:
+        wait(10);
+    case 100:
+        wait(100);
+    default:
+        wait(0);
+}

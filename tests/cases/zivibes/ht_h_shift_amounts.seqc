@@ -1,0 +1,27 @@
+// Test shift operations with various shift amounts
+var value = 0x00000001;
+
+// Left shifts
+var sl1 = value << 0;
+var sl2 = value << 1;
+var sl3 = value << 4;
+var sl4 = value << 8;
+var sl5 = value << 16;
+var sl6 = value << 31;
+
+// Right shifts
+var sr1 = value << 16;  // Setup for right shift
+var sr2 = sr1 >> 0;
+var sr3 = sr1 >> 1;
+var sr4 = sr1 >> 4;
+var sr5 = sr1 >> 8;
+var sr6 = sr1 >> 16;
+
+// Shifts with variables (if supported)
+var shift_amount = 4;
+var sv1 = value << shift_amount;
+
+setUserReg(0, sl1);
+setUserReg(1, sl6);
+setUserReg(2, sr6);
+setUserReg(3, sv1);

@@ -1,0 +1,30 @@
+// Hypothesis Test: playWaveDIO Function
+// Tests conditional waveform playback from command table
+
+// Define waveforms and assign to table
+wave w0 = ones(32);
+wave w1 = zeros(32);
+wave w2 = ones(64);
+
+assignWaveIndex(w0, 0);
+assignWaveIndex(w1, 1);
+assignWaveIndex(w2, 2);
+
+// Test 1: Basic playWaveDIO
+waitDIOTrigger();
+playWaveDIO();
+waitWave();
+
+// Test 2: Multiple playWaveDIO calls
+repeat(5) {
+    waitDIOTrigger();
+    playWaveDIO();
+    waitWave();
+}
+
+// Test 3: playWaveDIO with other operations
+waitDIOTrigger();
+setTrigger(1);
+playWaveDIO();
+waitWave();
+setTrigger(0);

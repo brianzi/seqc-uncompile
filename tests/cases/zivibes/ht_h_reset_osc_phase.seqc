@@ -1,0 +1,6 @@
+// Test resetOscPhase function
+resetOscPhase();
+wait(100);
+
+setUserReg(0, 1);
+setUserReg(1, 2);

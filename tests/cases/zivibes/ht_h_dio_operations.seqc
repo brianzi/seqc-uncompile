@@ -1,0 +1,11 @@
+// Test DIO (Digital I/O) operations
+var dio_value = getDIO();
+setDIO(0x12345678);
+wait(100);
+setDIO(0xFFFFFFFF);
+wait(100);
+setDIO(0x00000000);
+wait(100);
+
+setUserReg(0, dio_value);
+setUserReg(1, 1);

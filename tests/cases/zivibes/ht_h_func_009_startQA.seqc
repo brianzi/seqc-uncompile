@@ -1,0 +1,49 @@
+// H-FUNC-009: startQA() built-in function
+// Tests: startQA() quantum analyzer function
+// Note: This is device-specific (UHFQA, SHFQA only)
+// Variables tested:
+//   - Different generator/integrator combinations
+//   - Different trigger settings
+
+// Test: basic startQA with generator 0, integrator 0
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+wait(100);
+
+// Test: startQA with different generators
+startQA(QA_GEN_1, QA_INT_0, true, 0, 0);
+wait(100);
+
+// Test: startQA with different integrators
+startQA(QA_GEN_0, QA_INT_1, true, 0, 0);
+wait(100);
+
+// Test: startQA with trigger disabled
+startQA(QA_GEN_0, QA_INT_0, false, 0, 0);
+wait(100);
+
+// Test: startQA with different parameters
+startQA(QA_GEN_0, QA_INT_0, true, 1, 0);
+wait(100);
+
+startQA(QA_GEN_0, QA_INT_0, true, 0, 1);
+wait(100);
+
+// Test: multiple startQA calls
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+wait(50);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+wait(50);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+wait(50);
+
+// Test: startQA in loop
+var i;
+for (i = 0; i < 5; i += 1) {
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+    wait(20);
+}
+
+// Test: startQA with playZero
+playZero(100);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+wait(100);

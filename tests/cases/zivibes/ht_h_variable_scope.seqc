@@ -1,0 +1,33 @@
+// Test variable scope and lifetime
+// Explores how the compiler handles variable scoping and register reuse
+
+var global_var = 100;
+
+func test_scope() {
+  var local_var = 200;
+  setUserReg(0, local_var);
+  
+  {
+    var block_var = 300;
+    setUserReg(1, block_var);
+  }
+  
+  // block_var should be out of scope here
+  setUserReg(2, local_var);
+}
+
+test_scope();
+
+// Use global_var after function call
+setUserReg(3, global_var);
+
+// Reuse variable name in different scope
+{
+  var temp = 400;
+  setUserReg(4, temp);
+}
+
+{
+  var temp = 500;
+  setUserReg(5, temp);
+}

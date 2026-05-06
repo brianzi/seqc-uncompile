@@ -1,0 +1,13 @@
+// H-PROG-001: Program structure (prologue/epilogue)
+// Tests: Standard program structure elements
+// Variables tested:
+//   - Empty program
+//   - Minimal program
+//   - Program with various elements
+
+// This is a minimal program to observe:
+// 1. Program prologue (cwvf, st R0, 146)
+// 2. Program epilogue (wwvf, nop, end)
+
+// Single operation to separate prologue from epilogue
+wait(100);

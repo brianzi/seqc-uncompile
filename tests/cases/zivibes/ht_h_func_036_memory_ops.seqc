@@ -1,0 +1,42 @@
+// Hypothesis Test: Memory Operations and Advanced Addressing
+// Tests memory read/write patterns and addressing modes
+
+// Test 1: Read from various addresses
+var v0 = getDIO();           // address 32
+var v1 = getDIOTriggered();  // address 104
+var v2 = getCnt(0);          // address 100
+
+// Test 2: Write to various addresses
+setDIO(0x1234);              // address 32
+setTrigger(0x0F);            // address 34
+setUserReg(0, 42);           // address 0
+
+// Test 3: Sequential memory access
+repeat(5) {
+    var dio = getDIO();
+    setDIO(dio + 1);
+    wait(100);
+}
+
+// Test 4: Memory operations in conditional
+if (getDIO() > 0) {
+    setDIO(0);
+} else {
+    setDIO(1);
+}
+
+// Test 5: Combine multiple memory operations
+var cnt = getCnt(0);
+var dio = getDIO();
+var combined = cnt + dio;
+setUserReg(0, combined);
+setDIO(combined);
+
+// Test 6: Memory operations in nested loops
+repeat(3) {
+    repeat(2) {
+        var val = getDIO();
+        setDIO(val);
+        wait(50);
+    }
+}

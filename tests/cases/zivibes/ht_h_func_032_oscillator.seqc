@@ -1,0 +1,29 @@
+// Hypothesis Test: Oscillator Control Functions
+// Tests oscillator frequency, phase, and amplitude control
+
+// Test 1: Reset oscillator phase
+resetOscPhase(0);
+wait(100);
+
+// Test 2: Reset multiple oscillators
+resetOscPhase(0);
+resetOscPhase(1);
+wait(100);
+
+// Test 3: Reset in loop
+repeat(5) {
+    resetOscPhase(0);
+    wait(50);
+}
+
+// Test 4: Combine with other operations
+resetOscPhase(0);
+setDIO(0x1234);
+wait(100);
+resetOscPhase(1);
+setDIO(0x5678);
+
+// Test 5: Reset with phase setting
+setSinePhase(0, 0);
+resetOscPhase(0);
+wait(100);

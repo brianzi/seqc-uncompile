@@ -1,0 +1,28 @@
+// Hypothesis Test: waitWave Function
+// Tests waiting for waveform playback completion
+
+// Define a simple waveform
+wave w = ones(32);
+
+// Test 1: Basic waitWave after playWave
+playWave(w);
+waitWave();
+
+// Test 2: Multiple play/wait cycles
+playWave(w);
+waitWave();
+playWave(w);
+waitWave();
+
+// Test 3: waitWave with trigger
+setTrigger(1);
+playWave(w);
+waitWave();
+setTrigger(0);
+
+// Test 4: waitWave in loop
+repeat(3) {
+    playWave(w);
+    waitWave();
+    wait(10);
+}

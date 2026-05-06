@@ -1,0 +1,10 @@
+// Simplified function test - no parameters
+func get_value() {
+  return 42;
+}
+
+var result1 = get_value();
+setUserReg(0, result1);
+
+var result2 = get_value();
+setUserReg(1, result2);

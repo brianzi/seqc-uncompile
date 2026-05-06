@@ -1,0 +1,8 @@
+// Division with constants (works) vs variables (doesn't work)
+var result1 = 100 / 4;
+var result2 = 200 / 8;
+var result3 = 1000 / 10;
+
+setUserReg(0, result1);
+setUserReg(1, result2);
+setUserReg(2, result3);

@@ -1,0 +1,72 @@
+// H-CONST-001: Constant handling and folding
+// Tests: How constants are handled at compile time
+// Variables tested:
+//   - Simple constants
+//   - Constant expressions
+//   - Constants in expressions with variables
+
+// Test: simple constants
+const A = 10;
+const B = 20;
+const C = 100;
+
+wait(A);
+wait(B);
+wait(C);
+
+// Test: constant expressions (should be folded)
+const SUM = A + B;           // 30
+const DIFF = C - A;          // 90
+const PROD = A * B;          // 200
+
+wait(SUM);
+wait(DIFF);
+wait(PROD);
+
+// Test: nested constant expressions
+const D = SUM + DIFF;        // 120
+const E = PROD / A;          // 20
+
+wait(D);
+wait(E);
+
+// Test: constants with bitwise operations
+const MASK = 0xFF;
+const SHIFTED = 1 << 8;      // 256
+const ANDED = 0xFFFF & 0x00FF;  // 255
+
+wait(MASK);
+wait(SHIFTED);
+wait(ANDED);
+
+// Test: constants in variable expressions
+var x = A + 5;               // 15
+wait(x);
+
+x = B * 2;                   // 40
+wait(x);
+
+x = C - A - B;               // 70
+wait(x);
+
+// Test: constant as loop bound
+var i;
+for (i = 0; i < A; i += 1) {
+    wait(1);
+}
+
+// Test: constant in condition
+if (A < B) {
+    wait(A);
+} else {
+    wait(B);
+}
+
+// Test: hex and decimal constants
+const HEX_VAL = 0xFF;
+const DEC_VAL = 255;
+const SAME = HEX_VAL - DEC_VAL;  // 0
+
+wait(HEX_VAL);
+wait(DEC_VAL);
+wait(SAME);

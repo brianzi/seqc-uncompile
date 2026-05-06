@@ -1,0 +1,70 @@
+// H-CTRL-006: Function definitions and calls
+// Tests: User-defined functions with return values
+// Variables tested:
+//   - Functions with different parameter counts
+//   - Functions with different return types
+//   - Nested function calls
+
+// Test: function with no parameters
+var get_constant() {
+    return 42;
+}
+
+// Test: function with one parameter
+var double_it(var x) {
+    return x + x;
+}
+
+// Test: function with two parameters
+var add_two(var a, var b) {
+    return a + b;
+}
+
+// Test: function with three parameters
+var add_three(var a, var b, var c) {
+    return a + b + c;
+}
+
+// Test: function with computation
+var compute(var x, var y) {
+    var temp = x * 2;
+    temp = temp + y;
+    return temp;
+}
+
+// Main code
+var result;
+
+// Test: call function with no parameters
+result = get_constant();
+wait(result);
+
+// Test: call function with one parameter
+result = double_it(10);
+wait(result);
+
+result = double_it(25);
+wait(result);
+
+// Test: call function with two parameters
+result = add_two(5, 7);
+wait(result);
+
+result = add_two(100, 200);
+wait(result);
+
+// Test: call function with three parameters
+result = add_three(1, 2, 3);
+wait(result);
+
+// Test: call function with computation
+result = compute(10, 5);
+wait(result);
+
+// Test: nested function calls
+result = double_it(add_two(3, 4));
+wait(result);
+
+// Test: function result in expression
+result = add_two(10, 20) + 5;
+wait(result);

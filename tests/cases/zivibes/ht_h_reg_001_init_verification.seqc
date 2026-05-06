@@ -1,0 +1,13 @@
+// H-REG-001 Extension: Verify register initialization to zero
+// Tests whether all general-purpose registers start at zero
+
+// Read initial values without writing first
+var r0_init = getUserReg(0);
+var r1_init = getUserReg(1);
+var r2_init = getUserReg(2);
+var r3_init = getUserReg(3);
+
+setUserReg(0, r0_init);
+setUserReg(1, r1_init);
+setUserReg(2, r2_init);
+setUserReg(3, r3_init);

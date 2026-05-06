@@ -1,0 +1,21 @@
+// Test timing and wait statement patterns
+var delay1 = 10;
+var delay2 = 100;
+var delay3 = 1000;
+var delay4 = 10000;
+
+wait(10);
+wait(100);
+wait(1000);
+wait(10000);
+
+wait(delay1);
+wait(delay2);
+wait(delay3);
+wait(delay4);
+
+// Timing with expressions
+wait(delay1 + 10);
+wait(delay2 * 2);
+
+setUserReg(0, delay1);

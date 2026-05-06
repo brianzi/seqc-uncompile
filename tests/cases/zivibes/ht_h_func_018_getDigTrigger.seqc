@@ -1,0 +1,26 @@
+// Hypothesis Test: getDigTrigger Function
+// Tests reading digital trigger state
+
+// Test 1: Read trigger 1
+var trig1 = getDigTrigger(1);
+
+// Test 2: Read trigger 2
+var trig2 = getDigTrigger(2);
+
+// Test 3: Use trigger value in condition
+if (getDigTrigger(1) == 1) {
+    wait(10);
+} else {
+    wait(20);
+}
+
+// Test 4: Store trigger values
+setUserReg(0, trig1);
+setUserReg(1, trig2);
+
+// Test 5: Read in loop
+repeat(5) {
+    var t = getDigTrigger(1);
+    setDIO(t);
+    wait(10);
+}

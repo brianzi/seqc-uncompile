@@ -1,0 +1,8 @@
+// User-defined procedure
+// Tests: Void procedure declaration and calling
+void delay_sequence() {
+    wait(100);
+    wait(200);
+}
+
+delay_sequence();

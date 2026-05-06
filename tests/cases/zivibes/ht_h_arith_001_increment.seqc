@@ -1,0 +1,32 @@
+// H-ARITH-001: Increment variable by constant
+// Tests: x += c compiles to addi Rn, Rn, c
+// Variables tested:
+//   - Multiple registers (x→R1, y→R2, z→R3)
+//   - Multiple constants (1, 4, 100, -1, -0x1234)
+
+var x;
+var y;
+var z;
+
+// Test different constants on first variable (R1)
+x = 0;
+x += 1;        // Small positive
+x += 4;        // Another positive
+x += 100;      // Larger positive
+x += -1;       // Negative
+x += -0x1234;  // Larger negative (hex)
+
+// Test same operation on second variable (R2)
+y = 0;
+y += 1;
+y += 42;
+
+// Test same operation on third variable (R3)
+z = 0;
+z += 7;
+z += -7;
+
+// Use variables to prevent dead code elimination
+wait(x);
+wait(y);
+wait(z);

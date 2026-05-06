@@ -1,0 +1,5 @@
+// Repeat loop
+// Tests: Fixed iteration count
+repeat(10) {
+    wait(50);
+}

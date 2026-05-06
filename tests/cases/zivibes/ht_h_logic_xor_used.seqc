@@ -1,0 +1,18 @@
+// Test: XOR operation synthesis with results used
+// SEQC doesn't have native XOR, so compiler must synthesize it
+
+var a = 0xFF00FF00;
+var b = 0x0F0F0F0F;
+var c;
+
+// XOR register-register - result used in setUserReg
+c = a ^ b;
+setUserReg(0, c);
+
+// XOR with immediate - result used
+var d = a ^ 0x12345678;
+setUserReg(1, d);
+
+// XOR with different values
+var e = b ^ 0xAAAAAAAA;
+setUserReg(2, e);

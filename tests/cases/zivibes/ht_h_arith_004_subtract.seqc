@@ -1,0 +1,32 @@
+// H-ARITH-004: Subtraction operations
+// Tests: How subtraction is compiled (via negative immediate or subr?)
+// Variables tested:
+//   - Subtract constant: x -= c
+//   - Subtract variable: x = a - b
+//   - Decrement: x -= 1
+
+var a = 100;
+var b = 30;
+var c;
+
+// Test: subtract constant
+a -= 10;
+wait(a);
+
+a -= 1;      // Decrement by 1
+wait(a);
+
+a -= 50;     // Larger subtraction
+wait(a);
+
+// Test: subtract variable
+c = a - b;
+wait(c);
+
+// Test: subtract from self
+b = b - a;
+wait(b);
+
+// Test: subtract negative (effectively add)
+a -= -5;
+wait(a);

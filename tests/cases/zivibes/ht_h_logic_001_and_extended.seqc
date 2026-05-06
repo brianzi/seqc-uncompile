@@ -1,0 +1,17 @@
+// H-LOGIC-001 Extension: AND instruction with different register combinations
+// Tests whether andr works with all register pairs and different bit patterns
+
+var a = 0xAAAAAAAA;  // Alternating bits: 10101010...
+var b = 0x55555555;  // Alternating bits: 01010101...
+var c = a & b;       // Should be 0
+setUserReg(0, c);
+
+var x = 0xF0F0F0F0;
+var y = 0x0F0F0F0F;
+var z = x & y;       // Should be 0
+setUserReg(1, z);
+
+var p = 0xFFFFFFFF;
+var q = 0xFFFFFFFF;
+var r = p & q;       // Should be 0xFFFFFFFF
+setUserReg(2, r);

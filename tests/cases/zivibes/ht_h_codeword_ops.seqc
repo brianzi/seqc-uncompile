@@ -1,0 +1,12 @@
+// Test codeword operations
+codeword cw1 = 0x12345678;
+codeword cw2 = 0xABCDEF00;
+
+setUserReg(0, cw1);
+wait(50);
+
+setUserReg(1, cw2);
+wait(50);
+
+setUserReg(2, cw1 + cw2);
+wait(50);

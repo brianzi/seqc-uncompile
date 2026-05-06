@@ -1,0 +1,27 @@
+// Test combinations of bitwise operations
+// Explores how the compiler handles chained bitwise operations
+
+var a = 0xFF00FF00;
+var b = 0x00FF00FF;
+var c = 0x0F0F0F0F;
+
+// AND then OR
+var result1 = (a & b) | c;
+setUserReg(0, result1);
+
+// AND then AND
+var result2 = (a & b) & c;
+setUserReg(1, result2);
+
+// OR then AND
+var result3 = (a | b) & c;
+setUserReg(2, result3);
+
+// Multiple operations
+var result4 = (a & b) | (b & c);
+setUserReg(3, result4);
+
+// NOT operation (if supported)
+var d = 0xAAAAAAAA;
+var result5 = ~d;
+setUserReg(4, result5);

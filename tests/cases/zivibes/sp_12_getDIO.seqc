@@ -1,0 +1,5 @@
+// Read digital I/O
+// Tests: getDIO built-in function
+var dio_value;
+dio_value = getDIO();
+wait(100);

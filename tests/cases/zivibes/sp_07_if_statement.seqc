@@ -1,0 +1,8 @@
+// Conditional branching with if
+// Tests: If-else control flow
+var x = 10;
+if (x > 5) {
+    wait(100);
+} else {
+    wait(200);
+}

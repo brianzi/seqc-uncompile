@@ -1,0 +1,8 @@
+// Runtime variable operations
+// Tests: Variable declaration, assignment, arithmetic
+var x;
+var y;
+x = 10;
+y = 20;
+x = x + y;
+wait(x);

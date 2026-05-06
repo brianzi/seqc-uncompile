@@ -1,0 +1,23 @@
+// H-FUNCTION-002 Extension: Measure function call overhead
+// Tests whether function calls have constant overhead
+
+func simple_func() {
+  return 42;
+}
+
+func func_with_arg(int x) {
+  return x + 1;
+}
+
+func func_with_two_args(int x, int y) {
+  return x + y;
+}
+
+var result1 = simple_func();
+setUserReg(0, result1);
+
+var result2 = func_with_arg(10);
+setUserReg(1, result2);
+
+var result3 = func_with_two_args(10, 20);
+setUserReg(2, result3);

@@ -1,0 +1,21 @@
+// Test complex conditional chains
+var x = 50;
+var y = 100;
+var z = 0;
+
+if (x < y) {
+  if (y > 75) {
+    z = 1;
+  } else {
+    z = 2;
+  }
+} else if (x == y) {
+  z = 3;
+} else {
+  z = 4;
+}
+
+setUserReg(0, z);
+wait(50);
+
+setUserReg(1, 1);

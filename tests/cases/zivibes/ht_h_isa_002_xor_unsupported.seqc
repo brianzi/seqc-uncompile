@@ -1,0 +1,8 @@
+// H-ISA-002: XOR Operation Not Supported
+// This test demonstrates that XOR (^) is not supported in SEQC
+// The compiler will fail when attempting to compile this code
+
+var a = 0xAAAAAAAA;
+var b = 0x55555555;
+var c = a ^ b;  // This line causes compiler failure
+wait(1);

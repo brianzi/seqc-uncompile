@@ -1,0 +1,11 @@
+// Test negative numbers
+var a = -1;
+setUserReg(0, a);
+wait(50);
+
+var b = -100;
+setUserReg(1, b);
+wait(50);
+
+var c = -2147483648;
+setUserReg(2, c);

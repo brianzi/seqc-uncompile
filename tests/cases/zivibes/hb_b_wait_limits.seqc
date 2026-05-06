@@ -1,0 +1,34 @@
+// Boundary test: wait() cycle count limits
+// Tests: What range of wait values are supported
+
+// Test minimum values
+wait(1);
+wait(2);
+wait(4);
+wait(8);
+
+// Test powers of 2
+wait(16);
+wait(32);
+wait(64);
+wait(128);
+wait(256);
+wait(512);
+wait(1024);
+wait(2048);
+wait(4096);
+wait(8192);
+wait(16384);
+wait(32768);
+wait(65536);
+wait(131072);
+wait(262144);
+wait(524288);
+
+// Test maximum likely values
+wait(1048575);    // 20-bit max (0xFFFFF)
+wait(1048576);    // 21-bit (0x100000)
+
+// Test specific boundary values
+wait(0x7FFFF);    // 19-bit max
+wait(0xFFFFF);    // 20-bit max

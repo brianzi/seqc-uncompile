@@ -1,0 +1,11 @@
+// Test getUserReg function
+var val0 = getUserReg(0);
+setUserReg(0, val0);
+wait(50);
+
+var val1 = getUserReg(1);
+setUserReg(1, val1);
+wait(50);
+
+var val2 = getUserReg(2);
+setUserReg(2, val2);

@@ -1,0 +1,25 @@
+// Test deeply nested conditionals
+var a = 1;
+var b = 2;
+var c = 3;
+var result = 0;
+
+if (a < b) {
+  if (b < c) {
+    if (c > 0) {
+      if (a + b < c) {
+        result = 1;
+      } else {
+        result = 2;
+      }
+    } else {
+      result = 3;
+    }
+  } else {
+    result = 4;
+  }
+} else {
+  result = 5;
+}
+
+setUserReg(0, result);

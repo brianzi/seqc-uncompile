@@ -1,0 +1,4 @@
+// Play zero waveform
+// Tests: playZero built-in function
+playZero(1000);
+wait(100);

@@ -1,0 +1,45 @@
+// Test loop optimization behavior
+// Explores whether the compiler unrolls loops and under what conditions
+
+// Small loop - likely candidate for unrolling
+var sum1 = 0;
+for (int i = 0; i < 4; i++) {
+  sum1 = sum1 + i;
+}
+setUserReg(0, sum1);
+
+// Medium loop - may or may not be unrolled
+var sum2 = 0;
+for (int j = 0; j < 8; j++) {
+  sum2 = sum2 + 1;
+}
+setUserReg(1, sum2);
+
+// Loop with early exit
+var sum3 = 0;
+for (int k = 0; k < 10; k++) {
+  sum3 = sum3 + k;
+  if (sum3 > 20) {
+    break;
+  }
+}
+setUserReg(2, sum3);
+
+// Nested loops
+var sum4 = 0;
+for (int m = 0; m < 3; m++) {
+  for (int n = 0; n < 3; n++) {
+    sum4 = sum4 + 1;
+  }
+}
+setUserReg(3, sum4);
+
+// Loop with continue
+var sum5 = 0;
+for (int p = 0; p < 5; p++) {
+  if (p == 2) {
+    continue;
+  }
+  sum5 = sum5 + p;
+}
+setUserReg(4, sum5);

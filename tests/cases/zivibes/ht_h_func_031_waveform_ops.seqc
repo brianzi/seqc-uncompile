@@ -1,0 +1,32 @@
+// Hypothesis Test: Waveform Arithmetic Operations
+// Tests waveform creation and manipulation
+
+// Test 1: Basic waveform creation
+wave w1 = ones(32);
+wave w2 = zeros(32);
+wave w3 = ones(64);
+
+// Test 2: Waveform concatenation (if supported)
+wave w_concat = w1 + w2;
+playWave(w_concat);
+waitWave();
+
+// Test 3: Waveform scaling (if supported)
+wave w_scaled = w1 * 0.5;
+playWave(w_scaled);
+waitWave();
+
+// Test 4: Waveform in variable
+var waveform_index = 0;
+if (waveform_index == 0) {
+    playWave(w1);
+} else {
+    playWave(w2);
+}
+waitWave();
+
+// Test 5: Nested waveform usage
+repeat(3) {
+    playWave(w1 + w2);
+    waitWave();
+}

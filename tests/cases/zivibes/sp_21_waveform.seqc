@@ -1,0 +1,10 @@
+// Waveform definition and playback
+// Tests: Wave operations (may be device-specific)
+const WFM_LEN = 1024;
+
+wave w1 = ones(WFM_LEN);
+wave w2 = zeros(WFM_LEN);
+
+assignWaveIndex(1, w1, 2, w2, 0);
+playWave(1, w1, 2, w2);
+wait(100);

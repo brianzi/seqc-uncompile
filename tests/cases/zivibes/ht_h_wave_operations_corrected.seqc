@@ -1,0 +1,12 @@
+// Test wave operations with supported functions only
+playZero(1);
+playZero(2);
+
+// Timing with playZero
+wait(100);
+playZero(1);
+wait(200);
+playZero(2);
+
+setUserReg(0, 1);
+setUserReg(1, 2);

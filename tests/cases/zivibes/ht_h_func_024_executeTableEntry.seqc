@@ -1,0 +1,24 @@
+// Hypothesis Test: executeTableEntry Function
+// Tests command table execution (HDAWG feedback)
+
+// Define waveform for table
+wave w = ones(32);
+assignWaveIndex(w, 0);
+
+// Test 1: Execute with source and latency
+executeTableEntry(0, 100);
+
+// Test 2: Execute with source only
+executeTableEntry(0);
+
+// Test 3: Execute different sources
+executeTableEntry(0, 50);
+executeTableEntry(1, 50);
+executeTableEntry(2, 50);
+
+// Test 4: Execute in loop
+repeat(5) {
+    waitZSyncTrigger();
+    playZero(100);
+    executeTableEntry(0, 50);
+}

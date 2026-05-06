@@ -1,0 +1,32 @@
+// Hypothesis Test: XOR Synthesis
+// Tests workaround for missing XOR operation
+// OQ-003: XOR Operation Absence
+
+// XOR can be synthesized as: (a | b) & ~(a & b)
+// Or equivalently: (a & ~b) | (~a & b)
+
+var a = 0b10101010;
+var b = 0b11001100;
+
+// Method 1: (a | b) & ~(a & b)
+var or_ab = a | b;           // 0b11101110
+var and_ab = a & b;          // 0b10001000
+var not_and = ~and_ab;       // 0b01110111
+var xor_result1 = or_ab & not_and;  // Should be 0b01100110
+
+// Method 2: (a & ~b) | (~a & b)
+var not_b = ~b;              // 0b00110011
+var not_a = ~a;              // 0b01010101
+var a_and_notb = a & not_b;  // 0b00100010
+var nota_and_b = not_a & b;  // 0b01000100
+var xor_result2 = a_and_notb | nota_and_b;  // Should be 0b01100110
+
+// Test with different values
+var c = 0xFF00;
+var d = 0x0FF0;
+var xor_cd = (c | d) & ~(c & d);  // Should be 0xFFF0 ^ ... = 0xF0F0
+
+// Output results
+setUserReg(0, xor_result1);
+setUserReg(1, xor_result2);
+setUserReg(2, xor_cd);

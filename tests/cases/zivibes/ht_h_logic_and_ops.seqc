@@ -1,0 +1,22 @@
+// Test: Bitwise AND operations
+// Tests: AND with register, AND with immediate, AND with zero
+
+var a = 0xFF00FF00;
+var b = 0x0F0F0F0F;
+var c;
+var d;
+var e;
+
+// AND register-register
+c = a & b;
+
+// AND with immediate
+d = a & 0x12345678;
+
+// AND with zero (should optimize?)
+e = a & 0;
+
+// Multiple AND operations
+var f = 0xAAAAAAAA;
+var g = f & 0x55555555;
+var h = g & b;

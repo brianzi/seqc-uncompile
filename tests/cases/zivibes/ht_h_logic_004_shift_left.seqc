@@ -1,0 +1,58 @@
+// H-LOGIC-004: Left shift operations
+// Tests: x << c, x << y, x <<= c
+// Variables tested:
+//   - Shift by constant amounts (1, 2, 3, 4, 8)
+//   - Shift by variable
+//   - Shift of different values
+
+var a = 1;
+var b;
+var shift_amt = 3;
+
+// Test: shift by 1
+b = a << 1;       // 1 → 2
+wait(b);
+
+// Test: shift by 2
+b = a << 2;       // 1 → 4
+wait(b);
+
+// Test: shift by 3
+b = a << 3;       // 1 → 8
+wait(b);
+
+// Test: shift by 4
+b = a << 4;       // 1 → 16
+wait(b);
+
+// Test: shift by 8
+b = a << 8;       // 1 → 256
+wait(b);
+
+// Test: shift different value
+a = 0x0F;
+b = a << 4;       // 0x0F → 0xF0
+wait(b);
+
+// Test: shift by variable (if supported)
+a = 1;
+b = a << shift_amt;
+wait(b);
+
+// Test: compound shift
+a = 1;
+a <<= 1;
+wait(a);
+
+a <<= 2;
+wait(a);
+
+a <<= 4;
+wait(a);
+
+// Test: multiple shifts accumulate
+a = 1;
+a <<= 1;
+a <<= 1;
+a <<= 1;          // Should be 8
+wait(a);

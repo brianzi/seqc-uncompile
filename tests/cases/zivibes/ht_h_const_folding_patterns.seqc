@@ -1,0 +1,32 @@
+// Test constant folding and optimization
+// Explore which constant expressions are folded
+
+// Arithmetic constant folding
+var c1 = 10 + 20;
+var c2 = 100 - 50;
+var c3 = 5 * 8;
+var c4 = 100 / 10;
+var c5 = 2 << 3;
+var c6 = 16 >> 2;
+
+// Bitwise constant folding
+var c7 = 0xFF & 0x0F;
+var c8 = 0xFF | 0x0F;
+var c9 = 0xFF ^ 0x0F;
+var c10 = ~0xFF;
+
+// Complex constant expressions
+var c11 = (10 + 20) * 2;
+var c12 = (100 - 50) / 2;
+var c13 = (0xFF & 0x0F) | 0xF0;
+
+// Non-constant expressions (should not be folded)
+var x = 10;
+var nc1 = x + 20;
+var nc2 = x * 2;
+var nc3 = x & 0xFF;
+
+setUserReg(0, c1);
+setUserReg(1, c2);
+setUserReg(2, c3);
+setUserReg(3, nc1);

@@ -1,0 +1,33 @@
+// Hypothesis Test: prefetch Function
+// Tests waveform prefetching into cache (HDAWG specific)
+
+// Define waveforms
+wave w1 = ones(32);
+wave w2 = zeros(32);
+wave w3 = ones(64);
+
+// Test 1: Prefetch single waveform
+prefetch(w1);
+
+// Test 2: Prefetch with output channel
+prefetch(1, w1);
+
+// Test 3: Prefetch multiple waveforms
+prefetch(w1, w2);
+
+// Test 4: Prefetch before conditional
+var condition = getDIO();
+prefetch(w1, w2);  // Prefetch both possibilities
+if (condition > 0) {
+    playWave(w1);
+} else {
+    playWave(w2);
+}
+waitWave();
+
+// Test 5: Prefetch in loop
+repeat(3) {
+    prefetch(w1);
+    playWave(w1);
+    waitWave();
+}

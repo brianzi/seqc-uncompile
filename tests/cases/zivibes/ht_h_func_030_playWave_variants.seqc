@@ -1,0 +1,44 @@
+// Hypothesis Test: playWave Function Variants
+// Tests different playWave signatures and waveform types
+
+// Define various waveforms
+wave w1 = ones(32);
+wave w2 = zeros(64);
+wave w3 = ones(128);
+wave w4 = zeros(256);
+
+// Test 1: playWave with single waveform
+playWave(w1);
+waitWave();
+
+// Test 2: playWave with two waveforms (stereo/dual channel)
+playWave(w1, w2);
+waitWave();
+
+// Test 3: playWave with different sizes
+playWave(w3);
+waitWave();
+
+// Test 4: playWave in loop
+repeat(5) {
+    playWave(w1);
+    waitWave();
+    wait(100);
+}
+
+// Test 5: playWave with conditional
+var condition = getDIO();
+if (condition > 0) {
+    playWave(w1);
+} else {
+    playWave(w2);
+}
+waitWave();
+
+// Test 6: Multiple playWave calls
+playWave(w1);
+waitWave();
+playWave(w2);
+waitWave();
+playWave(w3);
+waitWave();

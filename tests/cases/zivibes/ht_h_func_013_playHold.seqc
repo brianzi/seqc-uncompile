@@ -1,0 +1,36 @@
+// Hypothesis Test: playHold Function
+// Tests holding last played value (HDAWG specific)
+
+// Define a waveform
+wave w = ones(32);
+
+// Test 1: Basic playHold after playWave
+playWave(w);
+playHold(64);
+
+// Test 2: playHold with different durations
+playWave(w);
+playHold(32);
+playHold(128);
+playHold(256);
+
+// Test 3: playHold with rate
+playWave(w);
+playHold(64, 2);  // rate = 2
+
+// Test 4: Variable duration
+var hold_time = 100;
+playWave(w);
+playHold(hold_time);
+
+// Test 5: playHold in sequence
+playWave(w);
+playHold(50);
+playZero(50);
+playHold(50);
+
+// Test 6: playHold in loop
+repeat(3) {
+    playWave(w);
+    playHold(32);
+}

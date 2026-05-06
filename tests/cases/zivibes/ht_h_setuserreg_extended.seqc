@@ -1,0 +1,14 @@
+// Test setUserReg with various indices
+setUserReg(0, 0x12345678);
+wait(50);
+
+setUserReg(1, 0xABCDEF00);
+wait(50);
+
+setUserReg(2, 0x11111111);
+wait(50);
+
+setUserReg(3, 0x22222222);
+wait(50);
+
+setUserReg(4, 0x33333333);

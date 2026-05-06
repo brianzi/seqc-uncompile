@@ -1,0 +1,3 @@
+// Single wait instruction
+// Tests: Basic timing operation
+wait(100);

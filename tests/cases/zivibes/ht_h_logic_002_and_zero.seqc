@@ -1,0 +1,6 @@
+// H-LOGIC-002: Bitwise AND with immediate zero
+// This test shows that AND with zero compiles to andi instruction with zero immediate
+
+var a = 0xDEADBEEF;
+var b = a & 0;  // AND with zero should result in zero
+setUserReg(0, b);

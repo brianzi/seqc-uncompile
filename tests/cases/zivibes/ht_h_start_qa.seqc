@@ -1,0 +1,6 @@
+// Test startQA function (Quantum Analyzer)
+// Note: This may be UHFQA/SHFQA specific
+startQA(0xFFFFFFFF, 0xFFFFFFFF);
+wait(100);
+
+setUserReg(0, 1);

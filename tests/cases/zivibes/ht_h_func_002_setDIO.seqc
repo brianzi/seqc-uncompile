@@ -1,0 +1,73 @@
+// H-FUNC-002: setDIO() built-in function
+// Tests: setDIO(value) digital output function
+// Variables tested:
+//   - Different bit patterns
+//   - Variable values
+//   - Boundary values
+
+var dio_val = 0x55;
+
+// Test: single bit patterns
+setDIO(0x0001);
+wait(10);
+
+setDIO(0x0002);
+wait(10);
+
+setDIO(0x0004);
+wait(10);
+
+setDIO(0x0008);
+wait(10);
+
+// Test: multiple bits
+setDIO(0x000F);
+wait(10);
+
+setDIO(0x00F0);
+wait(10);
+
+setDIO(0x00FF);
+wait(10);
+
+// Test: all zeros
+setDIO(0x0000);
+wait(10);
+
+// Test: alternating patterns
+setDIO(0x5555);
+wait(10);
+
+setDIO(0xAAAA);
+wait(10);
+
+// Test: variable value
+setDIO(dio_val);
+wait(10);
+
+dio_val = 0xAA;
+setDIO(dio_val);
+wait(10);
+
+// Test: computed value
+var computed = 0x0F | 0xF0;
+setDIO(computed);
+wait(10);
+
+// Test: larger values
+setDIO(0xFFFF);
+wait(10);
+
+setDIO(0x10000);
+wait(10);
+
+// Test: sequence of DIO changes
+setDIO(0x01);
+wait(5);
+setDIO(0x02);
+wait(5);
+setDIO(0x04);
+wait(5);
+setDIO(0x08);
+wait(5);
+setDIO(0x00);

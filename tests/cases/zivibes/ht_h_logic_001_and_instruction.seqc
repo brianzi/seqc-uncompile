@@ -1,0 +1,7 @@
+// H-LOGIC-001: Bitwise AND is implemented as single instruction
+// This test shows that AND operations compile to andr (AND register) instructions
+
+var a = 0xFF00FF00;
+var b = 0x0F0F0F0F;
+var c = a & b;
+setUserReg(0, c);

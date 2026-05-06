@@ -1,0 +1,34 @@
+// Test conditional execution patterns
+// Explores how the compiler handles different conditional structures
+
+var x = 10;
+var y = 20;
+
+// Simple if-else
+if (x < y) {
+  setUserReg(0, 1);
+} else {
+  setUserReg(0, 0);
+}
+
+// Nested if-else
+if (x > 5) {
+  if (y > 15) {
+    setUserReg(1, 1);
+  } else {
+    setUserReg(1, 0);
+  }
+} else {
+  setUserReg(1, 2);
+}
+
+// Multiple conditions
+if (x > 5 && y < 25) {
+  setUserReg(2, 1);
+} else {
+  setUserReg(2, 0);
+}
+
+// Ternary operator
+var result = (x < y) ? 100 : 200;
+setUserReg(3, result);

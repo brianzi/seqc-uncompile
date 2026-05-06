@@ -1,0 +1,60 @@
+// H-FUNC-003: getDIO() built-in function
+// Tests: getDIO() digital input function
+// Variables tested:
+//   - Simple read
+//   - Read into different variables
+//   - Read and use in expressions
+
+var dio_in;
+var dio_in2;
+var result;
+
+// Test: simple read
+dio_in = getDIO();
+wait(dio_in);
+
+// Test: read into different variable
+dio_in2 = getDIO();
+wait(dio_in2);
+
+// Test: multiple reads
+dio_in = getDIO();
+wait(10);
+dio_in = getDIO();
+wait(10);
+dio_in = getDIO();
+wait(10);
+
+// Test: read and mask
+dio_in = getDIO();
+result = dio_in & 0x00FF;
+wait(result);
+
+result = dio_in & 0xFF00;
+wait(result);
+
+// Test: read and compare
+dio_in = getDIO();
+if (dio_in > 0) {
+    wait(100);
+}
+
+// Test: read and use in expression
+dio_in = getDIO();
+result = dio_in + 10;
+wait(result);
+
+// Test: read in loop
+var i;
+for (i = 0; i < 5; i += 1) {
+    dio_in = getDIO();
+    wait(dio_in);
+}
+
+// Test: read and shift
+dio_in = getDIO();
+result = dio_in >> 4;
+wait(result);
+
+result = dio_in << 4;
+wait(result);

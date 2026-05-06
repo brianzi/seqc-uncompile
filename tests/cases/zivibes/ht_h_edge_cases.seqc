@@ -1,0 +1,34 @@
+// Test edge cases with special values
+var zero = 0;
+var one = 1;
+var minus_one = -1;
+var max_int = 2147483647;
+var min_int = -2147483648;
+
+// Operations with zero
+var z1 = zero + 1;
+var z2 = zero - 1;
+var z3 = zero * 100;
+var z4 = zero & 0xFF;
+var z5 = zero | 0xFF;
+
+// Operations with one
+var o1 = one + 1;
+var o2 = one * 100;
+var o3 = one << 8;
+var o4 = one >> 1;
+
+// Operations with negative one
+var m1 = minus_one + 1;
+var m2 = minus_one * 2;
+var m3 = ~minus_one;
+
+// Comparisons
+var c1 = (zero == 0) ? 1 : 0;
+var c2 = (minus_one < 0) ? 1 : 0;
+var c3 = (max_int > 0) ? 1 : 0;
+
+setUserReg(0, z1);
+setUserReg(1, o1);
+setUserReg(2, m1);
+setUserReg(3, c1);

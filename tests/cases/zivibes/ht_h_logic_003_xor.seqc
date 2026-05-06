@@ -1,0 +1,49 @@
+// H-LOGIC-003: Bitwise XOR operations
+// Tests: x ^ y, x ^ c (immediate), x ^= y, x ^= c
+// Variables tested:
+//   - XOR with immediate
+//   - XOR with register
+//   - Self-XOR (should give 0)
+
+var a = 0xFF;
+var b = 0x0F;
+var c;
+
+// Test: XOR with immediate
+c = a ^ 0x0F;     // Toggle low nibble
+wait(c);
+
+c = a ^ 0xFF;     // Toggle all bits → 0
+wait(c);
+
+c = a ^ 0x00;     // XOR with zero (identity)
+wait(c);
+
+// Test: XOR with register
+c = a ^ b;
+wait(c);
+
+a = 0xAA;
+b = 0x55;
+c = a ^ b;        // Alternating XOR → 0xFF
+wait(c);
+
+// Test: self-XOR (should be 0)
+c = a ^ a;
+wait(c);
+
+// Test: XOR for bit toggle
+a = 0xFF;
+c = a ^ 0x01;     // Toggle bit 0
+wait(c);
+
+c = a ^ 0x80;     // Toggle bit 7
+wait(c);
+
+// Test: compound XOR
+a = 0xFF;
+a ^= 0x0F;
+wait(a);
+
+a ^= b;
+wait(a);

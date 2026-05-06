@@ -1,0 +1,61 @@
+// H-LOGIC-005: Right shift operations
+// Tests: x >> c, x >> y, x >>= c
+// Variables tested:
+//   - Shift by constant amounts (1, 2, 3, 4, 8)
+//   - Shift by variable
+//   - Logical vs arithmetic shift (sign extension?)
+
+var a = 256;
+var b;
+var shift_amt = 3;
+
+// Test: shift by 1
+b = a >> 1;       // 256 → 128
+wait(b);
+
+// Test: shift by 2
+b = a >> 2;       // 256 → 64
+wait(b);
+
+// Test: shift by 3
+b = a >> 3;       // 256 → 32
+wait(b);
+
+// Test: shift by 4
+b = a >> 4;       // 256 → 16
+wait(b);
+
+// Test: shift by 8
+b = a >> 8;       // 256 → 1
+wait(b);
+
+// Test: shift different value
+a = 0xF0;
+b = a >> 4;       // 0xF0 → 0x0F
+wait(b);
+
+// Test: shift by variable (if supported)
+a = 256;
+b = a >> shift_amt;
+wait(b);
+
+// Test: compound shift
+a = 256;
+a >>= 1;
+wait(a);
+
+a >>= 2;
+wait(a);
+
+a >>= 4;
+wait(a);
+
+// Test: shift negative (check for sign extension)
+a = -256;
+b = a >> 4;       // Check if arithmetic or logical shift
+wait(b);
+
+// Test: shift to zero
+a = 1;
+b = a >> 1;       // 1 → 0
+wait(b);

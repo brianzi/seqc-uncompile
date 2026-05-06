@@ -1,0 +1,74 @@
+// H-CTRL-001: If-else control flow
+// Tests: if, if-else, if-else if-else
+// Variables tested:
+//   - Simple if
+//   - If-else
+//   - Chained if-else if-else
+//   - Different comparison operators in condition
+
+var x = 10;
+var y = 5;
+
+// Test: simple if (true condition)
+if (x > 5) {
+    wait(1);
+}
+
+// Test: simple if (false condition)
+if (x < 5) {
+    wait(2);
+}
+
+// Test: if-else (true branch)
+if (x > 5) {
+    wait(10);
+} else {
+    wait(20);
+}
+
+// Test: if-else (false branch)
+if (x < 5) {
+    wait(30);
+} else {
+    wait(40);
+}
+
+// Test: if-else if-else
+if (x < 5) {
+    wait(100);
+} else if (x < 10) {
+    wait(200);
+} else if (x < 15) {
+    wait(300);
+} else {
+    wait(400);
+}
+
+// Test: equality comparison
+if (x == 10) {
+    wait(50);
+}
+
+// Test: not equal comparison
+if (x != y) {
+    wait(60);
+}
+
+// Test: less than or equal
+if (y <= 5) {
+    wait(70);
+}
+
+// Test: greater than or equal
+if (x >= 10) {
+    wait(80);
+}
+
+// Test: compound condition
+if (x > 5 && y < 10) {
+    wait(90);
+}
+
+if (x < 5 || y > 0) {
+    wait(95);
+}

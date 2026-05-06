@@ -1,0 +1,15 @@
+// Test program for increment and decrement operators
+// Tests: ++, --
+
+void main() {
+  var a = 100;
+  var b = a++;
+  var c = ++a;
+  var d = a--;
+  var e = --a;
+  var f = 50;
+  f++;
+  f--;
+  ++f;
+  --f;
+}

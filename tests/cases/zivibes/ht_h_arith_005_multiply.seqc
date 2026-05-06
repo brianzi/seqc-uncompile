@@ -1,0 +1,35 @@
+// H-ARITH-005: Multiplication operations
+// Tests: How multiplication is compiled
+// Variables tested:
+//   - Multiply by constant: x * c
+//   - Multiply by variable: x * y
+//   - Multiply by powers of 2 (may optimize to shift)
+
+var a = 10;
+var b = 5;
+var c;
+
+// Test: multiply by small constant
+c = a * 2;
+wait(c);
+
+c = a * 3;
+wait(c);
+
+c = a * 4;    // Power of 2 - may optimize to shift
+wait(c);
+
+// Test: multiply by variable
+c = a * b;
+wait(c);
+
+// Test: multiply by larger constant
+c = a * 10;
+wait(c);
+
+// Test: multiply by power of 2
+c = a * 8;    // Should be shift by 3
+wait(c);
+
+c = a * 16;   // Should be shift by 4
+wait(c);

@@ -1,0 +1,30 @@
+// Hypothesis Test: configFreqSweep and setSweepStep Functions
+// Tests frequency sweep configuration (SHFQA specific)
+
+const OSC0 = 0;
+const OSC1 = 1;
+
+// Test 1: Configure frequency sweep
+// Start at -500 MHz, step by 1 MHz
+configFreqSweep(OSC0, -500000000.0, 1000000.0);
+
+// Test 2: Set sweep steps
+setSweepStep(OSC0, 0);   // First frequency
+wait(100);
+setSweepStep(OSC0, 1);   // Second frequency
+wait(100);
+setSweepStep(OSC0, 10);  // 11th frequency
+wait(100);
+
+// Test 3: Sweep in loop
+repeat(10) {
+    var i;
+    setSweepStep(OSC0, i);
+    resetOscPhase();
+    playZero(1000);
+    i += 1;
+}
+
+// Test 4: Configure second oscillator
+configFreqSweep(OSC1, 0.0, 500000.0);  // Start at 0, step 500 kHz
+setSweepStep(OSC1, 5);

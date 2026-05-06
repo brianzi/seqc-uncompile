@@ -1,0 +1,9 @@
+// Test string operations
+string str1 = "hello";
+string str2 = "world";
+
+// Try to use strings
+setUserReg(0, 1);
+wait(50);
+
+setUserReg(1, 2);

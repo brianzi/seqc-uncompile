@@ -1,0 +1,23 @@
+// Test multiple function definitions and calls
+var add(var a, var b) {
+  return a + b;
+}
+
+var sub(var a, var b) {
+  return a - b;
+}
+
+var mul(var a, var b) {
+  return a * b;
+}
+
+var result1 = add(10, 20);
+setUserReg(0, result1);
+wait(50);
+
+var result2 = sub(100, 30);
+setUserReg(1, result2);
+wait(50);
+
+var result3 = mul(5, 6);
+setUserReg(2, result3);

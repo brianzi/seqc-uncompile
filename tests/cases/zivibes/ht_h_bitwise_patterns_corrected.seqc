@@ -1,0 +1,23 @@
+// Corrected bitwise patterns - no XOR operations
+var x = 0x0F0F0F0F;
+var y = 0xF0F0F0F0;
+
+// AND patterns
+var and1 = x & y;
+var and2 = x & 0xFF;
+var and3 = x & 1;
+var and4 = x & 0;
+
+// OR patterns
+var or1 = x | y;
+var or2 = x | 0xFF;
+var or3 = x | 1;
+var or4 = x | 0;
+
+// NOT (complement)
+var not1 = ~x;
+var not2 = ~y;
+
+setUserReg(0, and1);
+setUserReg(1, or1);
+setUserReg(2, not1);

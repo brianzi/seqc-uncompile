@@ -1,0 +1,17 @@
+// Test playZero variants
+const SAMPLES = 1024;
+
+// playZero with constant samples
+playZero(100);
+wait(50);
+
+// playZero with variable samples
+var samples = 200;
+playZero(samples);
+wait(50);
+
+// playZero with expression
+playZero(samples + 100);
+wait(50);
+
+setUserReg(0, 1);

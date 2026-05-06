@@ -1,0 +1,13 @@
+// Corrected switch statement test - no break statements
+var mode = 2;
+switch (mode) {
+    case 1:
+        wait(100);
+    case 2:
+        wait(200);
+    case 3:
+        wait(300);
+    default:
+        wait(50);
+}
+setUserReg(0, mode);

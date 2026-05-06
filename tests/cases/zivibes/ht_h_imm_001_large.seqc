@@ -1,0 +1,29 @@
+// Hypothesis Test: Large Immediate Values
+// Tests how compiler handles values larger than 18-bit signed range
+// OQ-001: Large Immediate Value Handling
+
+// Test 1: Just within 18-bit range (max positive)
+var a = 262143;  // 0x3FFFF - max 18-bit signed
+
+// Test 2: Just within 18-bit range (max negative)  
+var b = -262144; // -0x40000 - min 18-bit signed
+
+// Test 3: Beyond 18-bit range - 20 bits
+var c = 0x100000; // 1048576 - requires multi-instruction
+
+// Test 4: Large positive - 24 bits
+var d = 0x1000000; // 16777216
+
+// Test 5: Max 32-bit signed
+var e = 0x7FFFFFFF; // 2147483647
+
+// Test 6: Large negative
+var f = -0x100000; // -1048576
+
+// Use variables to prevent optimization
+setUserReg(0, a);
+setUserReg(1, b);
+setUserReg(2, c);
+setUserReg(3, d);
+setUserReg(4, e);
+setUserReg(5, f);

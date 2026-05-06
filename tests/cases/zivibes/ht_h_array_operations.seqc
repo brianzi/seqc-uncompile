@@ -1,0 +1,31 @@
+// Test array operations and memory access patterns
+// Explores array indexing, addressing modes, and optimization
+
+var arr[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+// Sequential array access
+var v0 = arr[0];
+var v1 = arr[1];
+var v2 = arr[2];
+var v3 = arr[3];
+
+setUserReg(0, v0);
+setUserReg(1, v1);
+setUserReg(2, v2);
+setUserReg(3, v3);
+
+// Non-sequential access
+var v7 = arr[7];
+var v4 = arr[4];
+setUserReg(4, v7);
+setUserReg(5, v4);
+
+// Variable index access
+var idx = 2;
+var v_idx = arr[idx];
+setUserReg(6, v_idx);
+
+// Constant offset from variable
+var base = 1;
+var v_offset = arr[base + 2];
+setUserReg(7, v_offset);

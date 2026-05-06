@@ -1,0 +1,7 @@
+// Test playWave variant 5: two outputs and wave (1, 2, w1)
+const WFM_LEN = 1024;
+wave w1 = ones(WFM_LEN);
+
+playWave(1, 2, w1);
+wait(100);
+setUserReg(0, 5);

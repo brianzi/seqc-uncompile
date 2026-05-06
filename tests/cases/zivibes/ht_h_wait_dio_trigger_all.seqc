@@ -1,0 +1,7 @@
+// Test waitDIOTrigger() without parameters
+waitDIOTrigger();
+setUserReg(0, 1);
+wait(100);
+
+waitDIOTrigger();
+setUserReg(1, 2);

@@ -1,0 +1,35 @@
+// Hypothesis Test: startQA Function Variants (SHFQA/UHFQA specific)
+// Tests different startQA signatures and parameters
+
+// Test 1: Basic startQA
+startQA();
+
+// Test 2: startQA with index
+startQA(0);
+
+// Test 3: startQA with multiple indices
+startQA(0);
+wait(100);
+startQA(1);
+wait(100);
+
+// Test 4: startQA in loop
+repeat(5) {
+    startQA(0);
+    wait(1000);
+}
+
+// Test 5: startQA with conditional
+var qa_index = getDIO();
+if (qa_index == 0) {
+    startQA(0);
+} else {
+    startQA(1);
+}
+wait(1000);
+
+// Test 6: Multiple startQA calls
+startQA(0);
+wait(500);
+startQA(1);
+wait(500);

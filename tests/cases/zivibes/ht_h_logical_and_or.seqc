@@ -1,0 +1,13 @@
+// Test program for logical AND and OR operators
+// Tests: &&, ||
+
+void main() {
+  var a = 1;
+  var b = 0;
+  var c = (a && b) ? 1 : 0;
+  var d = (a || b) ? 1 : 0;
+  var e = (a && a) ? 1 : 0;
+  var f = (b || b) ? 1 : 0;
+  var g = ((a && b) || (b && a)) ? 1 : 0;
+  var h = ((a || b) && (a || a)) ? 1 : 0;
+}

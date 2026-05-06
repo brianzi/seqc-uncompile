@@ -1,0 +1,38 @@
+// Test comparison operation patterns
+// Explore how different comparisons compile
+
+var x = 10;
+var y = 20;
+
+// Less than
+var lt1 = (x < y) ? 1 : 0;
+var lt2 = (x < 10) ? 1 : 0;
+var lt3 = (x < 0) ? 1 : 0;
+
+// Greater than
+var gt1 = (x > y) ? 1 : 0;
+var gt2 = (x > 10) ? 1 : 0;
+var gt3 = (x > 0) ? 1 : 0;
+
+// Equal
+var eq1 = (x == y) ? 1 : 0;
+var eq2 = (x == 10) ? 1 : 0;
+var eq3 = (x == 0) ? 1 : 0;
+
+// Not equal
+var ne1 = (x != y) ? 1 : 0;
+var ne2 = (x != 10) ? 1 : 0;
+var ne3 = (x != 0) ? 1 : 0;
+
+// Less than or equal
+var le1 = (x <= y) ? 1 : 0;
+var le2 = (x <= 10) ? 1 : 0;
+
+// Greater than or equal
+var ge1 = (x >= y) ? 1 : 0;
+var ge2 = (x >= 10) ? 1 : 0;
+
+setUserReg(0, lt1);
+setUserReg(1, gt1);
+setUserReg(2, eq1);
+setUserReg(3, ne1);

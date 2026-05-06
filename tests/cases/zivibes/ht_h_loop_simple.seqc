@@ -1,0 +1,12 @@
+// Simplified loop test - no break or continue
+var sum1 = 0;
+for (int i = 0; i < 4; i++) {
+  sum1 = sum1 + i;
+}
+setUserReg(0, sum1);
+
+var sum2 = 0;
+for (int j = 0; j < 8; j++) {
+  sum2 = sum2 + 1;
+}
+setUserReg(1, sum2);

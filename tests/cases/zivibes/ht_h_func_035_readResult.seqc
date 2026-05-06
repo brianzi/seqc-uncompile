@@ -1,0 +1,33 @@
+// Hypothesis Test: Result Reading Functions (SHFQA/UHFQA specific)
+// Tests readResult and related measurement functions
+
+// Test 1: Read result from QA
+var result = readResult(0);
+setUserReg(0, result);
+
+// Test 2: Read multiple results
+var r0 = readResult(0);
+var r1 = readResult(1);
+setUserReg(0, r0);
+setUserReg(1, r1);
+
+// Test 3: Read result in loop
+repeat(5) {
+    var res = readResult(0);
+    setUserReg(0, res);
+    wait(100);
+}
+
+// Test 4: Read and use in condition
+var measurement = readResult(0);
+if (measurement > 100) {
+    setDIO(1);
+} else {
+    setDIO(0);
+}
+
+// Test 5: Read result with startQA
+startQA(0);
+wait(1000);
+var qa_result = readResult(0);
+setUserReg(0, qa_result);

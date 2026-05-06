@@ -1,0 +1,57 @@
+// H-CTRL-002: For loop control flow
+// Tests: for loop variations
+// Variables tested:
+//   - Different iteration counts
+//   - Different step sizes
+//   - Different comparison operators
+//   - Nested for loops
+
+var i;
+var j;
+
+// Test: simple for loop (count up)
+for (i = 0; i < 5; i += 1) {
+    wait(10);
+}
+
+// Test: for loop with different start
+for (i = 5; i < 10; i += 1) {
+    wait(20);
+}
+
+// Test: for loop with step > 1
+for (i = 0; i < 10; i += 2) {
+    wait(30);
+}
+
+// Test: for loop counting down
+for (i = 5; i > 0; i -= 1) {
+    wait(40);
+}
+
+// Test: for loop with <= comparison
+for (i = 0; i <= 3; i += 1) {
+    wait(50);
+}
+
+// Test: for loop with >= comparison (counting down)
+for (i = 3; i >= 0; i -= 1) {
+    wait(60);
+}
+
+// Test: nested for loops
+for (i = 0; i < 3; i += 1) {
+    for (j = 0; j < 2; j += 1) {
+        wait(70);
+    }
+}
+
+// Test: for loop with larger iteration count
+for (i = 0; i < 100; i += 1) {
+    wait(1);
+}
+
+// Test: for loop with variable in body
+for (i = 0; i < 5; i += 1) {
+    wait(i);
+}

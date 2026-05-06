@@ -1,0 +1,27 @@
+// Hypothesis Test: setSinePhase and incrementSinePhase Functions
+// Tests sine generator phase control (HDAWG specific)
+
+// Test 1: Set phase of sine 0
+setSinePhase(0, 0);      // 0 degrees
+
+// Test 2: Set phase of sine 1
+setSinePhase(1, 90);     // 90 degrees
+
+// Test 3: Set different phases
+setSinePhase(0, 45);
+setSinePhase(1, 180);
+
+// Test 4: Increment phase
+incrementSinePhase(0, 10);   // Add 10 degrees
+incrementSinePhase(0, 10);   // Add another 10 degrees
+
+// Test 5: Increment in loop
+repeat(36) {
+    incrementSinePhase(0, 10);  // Full rotation in 36 steps
+    wait(100);
+}
+
+// Test 6: Reset and set
+setSinePhase(0, 0);
+incrementSinePhase(0, 45);
+incrementSinePhase(0, 45);  // Now at 90 degrees

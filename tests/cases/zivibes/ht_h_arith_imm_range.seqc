@@ -1,0 +1,18 @@
+// Test immediate value ranges in arithmetic operations
+// Explores the limits of immediate values in addi, subi, andi instructions
+
+var small = 1;
+var result1 = small + 10;      // Small immediate
+setUserReg(0, result1);
+
+var medium = 1000;
+var result2 = medium + 5000;   // Medium immediate
+setUserReg(1, result2);
+
+var large = 100000;
+var result3 = large + 50000;   // Large immediate
+setUserReg(2, result3);
+
+var neg = -1;
+var result4 = neg + 1;         // Negative immediate
+setUserReg(3, result4);

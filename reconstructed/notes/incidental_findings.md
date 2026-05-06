@@ -2880,3 +2880,85 @@ isModified→dirty_ (+0xDC), funDescrName_→Waveform::funDescrName (+0x50).
 No `Cache::Pointer::pageCount` symbol exists in binary and no consumer in
 reconstructed source ever accessed such a field. Pointer is exactly 0x24 bytes.
 
+---
+
+## IF-155  Empty input not rejected by recon (error 43 unreachable)
+
+**Source**: zivibes intake — `sp_01_empty.seqc` on HDAWG8 / SHFQA4 / SHFSG8 / UHFQA
+**Status**: confirmed (recon bug)
+**Severity**: likely-bug
+
+Original binary, given a SeqC source consisting only of comments/whitespace
+(no statements, no waveform definitions), errors with:
+  `"Compilation failed: nothing to write, empty input"`
+This corresponds to error-message id 43 in `error_messages.cpp:178`
+(`m[43] = "nothing to write, empty input"`).
+
+Recon never raises this error. No call site for id 43 is anywhere in
+`reconstructed/src/`. The compile pipeline silently produces a (presumably
+useless) ELF instead.
+
+**Reproduces**: `python tests/diff_test.py --filter sp_01_empty -v`
+4 failing tests, one per device.
+
+**Hypothesis**: A guard near the end of the compile pipeline
+(post-AST, post-codegen, before ELF emission) checks "did we generate any
+instructions / waveforms / nodes?" and raises error 43 if empty. Needs GDB
+trace on the binary to find the call site and condition.
+
+Promoted to TODO.
+
+---
+
+## IF-156  Recon register allocator stricter than binary on ~17-variable programs
+
+**Source**: zivibes intake — `hb_b_reg_count.seqc` (17 `var` declarations)
+**Status**: confirmed (recon bug)
+**Severity**: likely-bug
+
+Original binary compiles 17 simultaneously-live `var` declarations without
+issue. Recon errors with:
+  `"Compilation failed: run out of free registers, please reduce complexity"`
+
+Either recon's register allocator pessimistically refuses spills/coalesces
+that the binary performs, or recon mis-counts the available register pool,
+or recon's liveness analysis fails to recognize end-of-use of some variables.
+
+**Reproduces**: `python tests/diff_test.py --filter b_reg_count -v`
+
+Needs GDB trace on the binary's allocator path with this same input to
+identify which spill/coalesce step recon is missing.
+
+Promoted to TODO.
+
+---
+
+## IF-157  playWave_variants: waveform size halved + multiple section diffs
+
+**Source**: zivibes intake — `ht_h_func_030_playWave_variants.seqc` on HDAWG8
+**Status**: confirmed (recon bug)
+**Severity**: likely-bug
+
+Differences vs original:
+- `e_entry`: orig=0x800002c0 recon=0x80000240 (32 fewer instructions)
+- `.text`: first diff at offset 0x14 (instruction 5)
+- `.asm`: text diff
+- `.waveforms`: JSON diff
+- `.wavemem`: numeric diff
+- **`.wf___playWave_15_8`: size 256 vs 128** — recon emits a waveform
+  that is exactly half the size of the original
+
+The source uses several patterns: `playWave(w1)`, `playWave(w1, w2)` (dual
+channel), `playWave` inside `repeat`, `playWave` inside `if/else`, and
+multiple sequential `playWave` calls. The internal name `__playWave_15_8`
+suggests a synthesized waveform from one specific call site (line 15 col 8?)
+which the original allocates at 256 samples but recon at 128.
+
+Most likely: the original merges/concatenates two related waveforms and
+recon merges only one, or vice versa.  Could be a regression of the
+mergeWaveforms work covered in earlier phases.
+
+**Reproduces**: `python tests/diff_test.py --filter playWave_variants -v`
+
+Promoted to TODO.
+

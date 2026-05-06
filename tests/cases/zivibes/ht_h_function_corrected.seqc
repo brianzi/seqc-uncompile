@@ -1,0 +1,8 @@
+// Corrected function test - proper SEQC syntax
+var add_numbers(var a, var b) {
+    return a + b;
+}
+
+var result;
+result = add_numbers(10, 20);
+setUserReg(0, result);

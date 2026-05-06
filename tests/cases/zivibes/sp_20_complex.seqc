@@ -1,0 +1,28 @@
+// Complex program combining multiple features
+// Tests: Multiple language features together
+const ITERATIONS = 5;
+const DIO_MASK = 0x00FF;
+
+var counter = 0;
+var dio_state;
+
+void pulse_dio(var pattern) {
+    setDIO(pattern);
+    wait(50);
+    setDIO(0);
+}
+
+repeat(ITERATIONS) {
+    dio_state = getDIO();
+    
+    if (dio_state & DIO_MASK) {
+        pulse_dio(0x0001);
+        counter = counter + 1;
+    } else {
+        pulse_dio(0x0002);
+    }
+    
+    wait(100);
+}
+
+setUserReg(0, counter);

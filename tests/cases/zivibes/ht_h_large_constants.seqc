@@ -1,0 +1,11 @@
+// Test large constant values
+var a = 0xFFFFFFFF;
+setUserReg(0, a);
+wait(50);
+
+var b = 0x80000000;
+setUserReg(1, b);
+wait(50);
+
+var c = 2147483647;
+setUserReg(2, c);

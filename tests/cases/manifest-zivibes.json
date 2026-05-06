@@ -1,0 +1,1329 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "shfsg8_sg": {
+      "devtype": "SHFSG8",
+      "sequencer": "sg"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA",
+      "index": 0
+    }
+  },
+  "groups": [
+    {
+      "name": "zivibes",
+      "comment": "External SeqC test snippets from /home/brian/work/vibes/zivibes",
+      "tags": [
+        "zivibes",
+        "external"
+      ],
+      "cases": [
+        {
+          "name": "sp_01_empty_hdawg8",
+          "file": "zivibes/sp_01_empty.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_01_empty_shfqa4_qa",
+          "file": "zivibes/sp_01_empty.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_01_empty_shfsg8_sg",
+          "file": "zivibes/sp_01_empty.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_01_empty_uhfqa",
+          "file": "zivibes/sp_01_empty.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_02_wait_hdawg8",
+          "file": "zivibes/sp_02_wait.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_02_wait_shfqa4_qa",
+          "file": "zivibes/sp_02_wait.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_02_wait_shfsg8_sg",
+          "file": "zivibes/sp_02_wait.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_02_wait_uhfqa",
+          "file": "zivibes/sp_02_wait.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_03_constants_hdawg8",
+          "file": "zivibes/sp_03_constants.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_03_constants_shfqa4_qa",
+          "file": "zivibes/sp_03_constants.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_03_constants_shfsg8_sg",
+          "file": "zivibes/sp_03_constants.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_03_constants_uhfqa",
+          "file": "zivibes/sp_03_constants.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_04_variables_hdawg8",
+          "file": "zivibes/sp_04_variables.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_04_variables_shfqa4_qa",
+          "file": "zivibes/sp_04_variables.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_04_variables_shfsg8_sg",
+          "file": "zivibes/sp_04_variables.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_04_variables_uhfqa",
+          "file": "zivibes/sp_04_variables.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_05_arithmetic_hdawg8",
+          "file": "zivibes/sp_05_arithmetic.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_05_arithmetic_shfqa4_qa",
+          "file": "zivibes/sp_05_arithmetic.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_05_arithmetic_shfsg8_sg",
+          "file": "zivibes/sp_05_arithmetic.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_05_arithmetic_uhfqa",
+          "file": "zivibes/sp_05_arithmetic.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_06_bitwise_hdawg8",
+          "file": "zivibes/sp_06_bitwise.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_06_bitwise_shfqa4_qa",
+          "file": "zivibes/sp_06_bitwise.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_06_bitwise_shfsg8_sg",
+          "file": "zivibes/sp_06_bitwise.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_06_bitwise_uhfqa",
+          "file": "zivibes/sp_06_bitwise.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_07_if_statement_hdawg8",
+          "file": "zivibes/sp_07_if_statement.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_07_if_statement_shfqa4_qa",
+          "file": "zivibes/sp_07_if_statement.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_07_if_statement_shfsg8_sg",
+          "file": "zivibes/sp_07_if_statement.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_07_if_statement_uhfqa",
+          "file": "zivibes/sp_07_if_statement.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_08_for_loop_hdawg8",
+          "file": "zivibes/sp_08_for_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_08_for_loop_shfqa4_qa",
+          "file": "zivibes/sp_08_for_loop.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_08_for_loop_shfsg8_sg",
+          "file": "zivibes/sp_08_for_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_08_for_loop_uhfqa",
+          "file": "zivibes/sp_08_for_loop.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_09_while_loop_hdawg8",
+          "file": "zivibes/sp_09_while_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_09_while_loop_shfqa4_qa",
+          "file": "zivibes/sp_09_while_loop.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_09_while_loop_shfsg8_sg",
+          "file": "zivibes/sp_09_while_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_09_while_loop_uhfqa",
+          "file": "zivibes/sp_09_while_loop.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_10_repeat_loop_hdawg8",
+          "file": "zivibes/sp_10_repeat_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_10_repeat_loop_shfqa4_qa",
+          "file": "zivibes/sp_10_repeat_loop.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_10_repeat_loop_shfsg8_sg",
+          "file": "zivibes/sp_10_repeat_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_10_repeat_loop_uhfqa",
+          "file": "zivibes/sp_10_repeat_loop.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_11_setDIO_hdawg8",
+          "file": "zivibes/sp_11_setDIO.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_11_setDIO_shfqa4_qa",
+          "file": "zivibes/sp_11_setDIO.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_11_setDIO_shfsg8_sg",
+          "file": "zivibes/sp_11_setDIO.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_11_setDIO_uhfqa",
+          "file": "zivibes/sp_11_setDIO.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_12_getDIO_hdawg8",
+          "file": "zivibes/sp_12_getDIO.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_12_getDIO_shfqa4_qa",
+          "file": "zivibes/sp_12_getDIO.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_12_getDIO_shfsg8_sg",
+          "file": "zivibes/sp_12_getDIO.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_12_getDIO_uhfqa",
+          "file": "zivibes/sp_12_getDIO.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_13_playZero_hdawg8",
+          "file": "zivibes/sp_13_playZero.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_13_playZero_shfqa4_qa",
+          "file": "zivibes/sp_13_playZero.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_13_playZero_shfsg8_sg",
+          "file": "zivibes/sp_13_playZero.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_13_playZero_uhfqa",
+          "file": "zivibes/sp_13_playZero.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_14_function_hdawg8",
+          "file": "zivibes/sp_14_function.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_14_function_shfqa4_qa",
+          "file": "zivibes/sp_14_function.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_14_function_shfsg8_sg",
+          "file": "zivibes/sp_14_function.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_14_function_uhfqa",
+          "file": "zivibes/sp_14_function.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_15_procedure_hdawg8",
+          "file": "zivibes/sp_15_procedure.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_15_procedure_shfqa4_qa",
+          "file": "zivibes/sp_15_procedure.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_15_procedure_shfsg8_sg",
+          "file": "zivibes/sp_15_procedure.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_15_procedure_uhfqa",
+          "file": "zivibes/sp_15_procedure.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_16_nested_loops_hdawg8",
+          "file": "zivibes/sp_16_nested_loops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_16_nested_loops_shfqa4_qa",
+          "file": "zivibes/sp_16_nested_loops.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_16_nested_loops_shfsg8_sg",
+          "file": "zivibes/sp_16_nested_loops.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_16_nested_loops_uhfqa",
+          "file": "zivibes/sp_16_nested_loops.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_17_switch_hdawg8",
+          "file": "zivibes/sp_17_switch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_17_switch_shfqa4_qa",
+          "file": "zivibes/sp_17_switch.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_17_switch_shfsg8_sg",
+          "file": "zivibes/sp_17_switch.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_17_switch_uhfqa",
+          "file": "zivibes/sp_17_switch.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_18_waitDIOTrigger_hdawg8",
+          "file": "zivibes/sp_18_waitDIOTrigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_18_waitDIOTrigger_shfqa4_qa",
+          "file": "zivibes/sp_18_waitDIOTrigger.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_18_waitDIOTrigger_shfsg8_sg",
+          "file": "zivibes/sp_18_waitDIOTrigger.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_18_waitDIOTrigger_uhfqa",
+          "file": "zivibes/sp_18_waitDIOTrigger.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_19_setUserReg_hdawg8",
+          "file": "zivibes/sp_19_setUserReg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_19_setUserReg_shfqa4_qa",
+          "file": "zivibes/sp_19_setUserReg.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_19_setUserReg_shfsg8_sg",
+          "file": "zivibes/sp_19_setUserReg.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_19_setUserReg_uhfqa",
+          "file": "zivibes/sp_19_setUserReg.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_20_complex_hdawg8",
+          "file": "zivibes/sp_20_complex.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_20_complex_shfqa4_qa",
+          "file": "zivibes/sp_20_complex.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_20_complex_shfsg8_sg",
+          "file": "zivibes/sp_20_complex.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_20_complex_uhfqa",
+          "file": "zivibes/sp_20_complex.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_21_waveform_hdawg8",
+          "file": "zivibes/sp_21_waveform.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_21_waveform_shfqa4_qa",
+          "file": "zivibes/sp_21_waveform.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_21_waveform_shfsg8_sg",
+          "file": "zivibes/sp_21_waveform.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_21_waveform_uhfqa",
+          "file": "zivibes/sp_21_waveform.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "sp_22_startQA_hdawg8",
+          "file": "zivibes/sp_22_startQA.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sp_22_startQA_shfqa4_qa",
+          "file": "zivibes/sp_22_startQA.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sp_22_startQA_shfsg8_sg",
+          "file": "zivibes/sp_22_startQA.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sp_22_startQA_uhfqa",
+          "file": "zivibes/sp_22_startQA.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "ht_h_abs_function",
+          "file": "zivibes/ht_h_abs_function.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_add_sub_ops",
+          "file": "zivibes/ht_h_add_sub_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_001_increment",
+          "file": "zivibes/ht_h_arith_001_increment.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_002_load_imm",
+          "file": "zivibes/ht_h_arith_002_load_imm.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_003_add_reg",
+          "file": "zivibes/ht_h_arith_003_add_reg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_004_subtract",
+          "file": "zivibes/ht_h_arith_004_subtract.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_005_multiply",
+          "file": "zivibes/ht_h_arith_005_multiply.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_006_divide",
+          "file": "zivibes/ht_h_arith_006_divide.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_007_modulo",
+          "file": "zivibes/ht_h_arith_007_modulo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_008_compound",
+          "file": "zivibes/ht_h_arith_008_compound.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_009_unary",
+          "file": "zivibes/ht_h_arith_009_unary.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_imm_range",
+          "file": "zivibes/ht_h_arith_imm_range.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_patterns",
+          "file": "zivibes/ht_h_arith_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_arith_patterns_corrected",
+          "file": "zivibes/ht_h_arith_patterns_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_array_operations",
+          "file": "zivibes/ht_h_array_operations.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_array_simple",
+          "file": "zivibes/ht_h_array_simple.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_assignwaveindex",
+          "file": "zivibes/ht_h_assignwaveindex.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_bit_manipulation",
+          "file": "zivibes/ht_h_bit_manipulation.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_bitwise_and_or",
+          "file": "zivibes/ht_h_bitwise_and_or.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_bitwise_combinations",
+          "file": "zivibes/ht_h_bitwise_combinations.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_bitwise_patterns",
+          "file": "zivibes/ht_h_bitwise_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_bitwise_patterns_corrected",
+          "file": "zivibes/ht_h_bitwise_patterns_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_codeword_ops",
+          "file": "zivibes/ht_h_codeword_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_comparison_logical",
+          "file": "zivibes/ht_h_comparison_logical.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_comparison_ops",
+          "file": "zivibes/ht_h_comparison_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_comparison_patterns",
+          "file": "zivibes/ht_h_comparison_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_complex_boolean",
+          "file": "zivibes/ht_h_complex_boolean.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_complex_conditionals",
+          "file": "zivibes/ht_h_complex_conditionals.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_conditional_patterns",
+          "file": "zivibes/ht_h_conditional_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_const_001_folding",
+          "file": "zivibes/ht_h_const_001_folding.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_const_002_folding",
+          "file": "zivibes/ht_h_const_002_folding.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_const_folding_extended",
+          "file": "zivibes/ht_h_const_folding_extended.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_const_folding_patterns",
+          "file": "zivibes/ht_h_const_folding_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_001_if",
+          "file": "zivibes/ht_h_ctrl_001_if.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_002_for",
+          "file": "zivibes/ht_h_ctrl_002_for.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_003_while",
+          "file": "zivibes/ht_h_ctrl_003_while.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_004_repeat",
+          "file": "zivibes/ht_h_ctrl_004_repeat.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_005_switch",
+          "file": "zivibes/ht_h_ctrl_005_switch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_006_function",
+          "file": "zivibes/ht_h_ctrl_006_function.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_007_procedure",
+          "file": "zivibes/ht_h_ctrl_007_procedure.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_008_recursive",
+          "file": "zivibes/ht_h_ctrl_008_recursive.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_009_nested_func",
+          "file": "zivibes/ht_h_ctrl_009_nested_func.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_ctrl_goto",
+          "file": "zivibes/ht_h_ctrl_goto.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_deeply_nested",
+          "file": "zivibes/ht_h_deeply_nested.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_dio_operations",
+          "file": "zivibes/ht_h_dio_operations.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_div_const",
+          "file": "zivibes/ht_h_div_const.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_divide_simple",
+          "file": "zivibes/ht_h_divide_simple.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_division_constant",
+          "file": "zivibes/ht_h_division_constant.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_edge_cases",
+          "file": "zivibes/ht_h_edge_cases.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_001_wait",
+          "file": "zivibes/ht_h_func_001_wait.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_002_setDIO",
+          "file": "zivibes/ht_h_func_002_setDIO.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_003_getDIO",
+          "file": "zivibes/ht_h_func_003_getDIO.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_004_playZero",
+          "file": "zivibes/ht_h_func_004_playZero.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_005_setUserReg",
+          "file": "zivibes/ht_h_func_005_setUserReg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_006_getUserReg",
+          "file": "zivibes/ht_h_func_006_getUserReg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_007_waitDIOTrigger",
+          "file": "zivibes/ht_h_func_007_waitDIOTrigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_008_playWave",
+          "file": "zivibes/ht_h_func_008_playWave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_009_startQA",
+          "file": "zivibes/ht_h_func_009_startQA.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_010_setTrigger",
+          "file": "zivibes/ht_h_func_010_setTrigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_011_waitWave",
+          "file": "zivibes/ht_h_func_011_waitWave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_012_resetOscPhase",
+          "file": "zivibes/ht_h_func_012_resetOscPhase.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_013_playHold",
+          "file": "zivibes/ht_h_func_013_playHold.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_014_sync",
+          "file": "zivibes/ht_h_func_014_sync.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_015_setID",
+          "file": "zivibes/ht_h_func_015_setID.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_016_assignWaveIndex",
+          "file": "zivibes/ht_h_func_016_assignWaveIndex.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_017_freqSweep",
+          "file": "zivibes/ht_h_func_017_freqSweep.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_018_getDigTrigger",
+          "file": "zivibes/ht_h_func_018_getDigTrigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_019_setIntDouble",
+          "file": "zivibes/ht_h_func_019_setIntDouble.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_020_getCnt",
+          "file": "zivibes/ht_h_func_020_getCnt.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_021_errorInfo",
+          "file": "zivibes/ht_h_func_021_errorInfo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_022_randomSeed",
+          "file": "zivibes/ht_h_func_022_randomSeed.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_023_waitZSync",
+          "file": "zivibes/ht_h_func_023_waitZSync.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_024_executeTableEntry",
+          "file": "zivibes/ht_h_func_024_executeTableEntry.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_025_sinePhase",
+          "file": "zivibes/ht_h_func_025_sinePhase.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_026_prefetch",
+          "file": "zivibes/ht_h_func_026_prefetch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_027_getDIOTriggered",
+          "file": "zivibes/ht_h_func_027_getDIOTriggered.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_028_waitSineOscPhase",
+          "file": "zivibes/ht_h_func_028_waitSineOscPhase.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_029_playWaveDIO",
+          "file": "zivibes/ht_h_func_029_playWaveDIO.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_030_playWave_variants",
+          "file": "zivibes/ht_h_func_030_playWave_variants.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_031_waveform_ops",
+          "file": "zivibes/ht_h_func_031_waveform_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_032_oscillator",
+          "file": "zivibes/ht_h_func_032_oscillator.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_033_startQA_variants",
+          "file": "zivibes/ht_h_func_033_startQA_variants.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_034_freqSweep",
+          "file": "zivibes/ht_h_func_034_freqSweep.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_035_readResult",
+          "file": "zivibes/ht_h_func_035_readResult.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_036_memory_ops",
+          "file": "zivibes/ht_h_func_036_memory_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_func_call_overhead",
+          "file": "zivibes/ht_h_func_call_overhead.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_function_calls",
+          "file": "zivibes/ht_h_function_calls.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_function_corrected",
+          "file": "zivibes/ht_h_function_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_function_simple",
+          "file": "zivibes/ht_h_function_simple.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_getsampleticks",
+          "file": "zivibes/ht_h_getsampleticks.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_getuserreg_extended",
+          "file": "zivibes/ht_h_getuserreg_extended.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_imm_001_large",
+          "file": "zivibes/ht_h_imm_001_large.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_inc_dec_ops",
+          "file": "zivibes/ht_h_inc_dec_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_isa_002_xor_unsupported",
+          "file": "zivibes/ht_h_isa_002_xor_unsupported.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_large_constants",
+          "file": "zivibes/ht_h_large_constants.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_001_and",
+          "file": "zivibes/ht_h_logic_001_and.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_001_and_extended",
+          "file": "zivibes/ht_h_logic_001_and_extended.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_001_and_instruction",
+          "file": "zivibes/ht_h_logic_001_and_instruction.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_002_and_zero",
+          "file": "zivibes/ht_h_logic_002_and_zero.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_002_or",
+          "file": "zivibes/ht_h_logic_002_or.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_003_xor",
+          "file": "zivibes/ht_h_logic_003_xor.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_004_shift_left",
+          "file": "zivibes/ht_h_logic_004_shift_left.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_005_and_immediate",
+          "file": "zivibes/ht_h_logic_005_and_immediate.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_005_shift_right",
+          "file": "zivibes/ht_h_logic_005_shift_right.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_006_compare",
+          "file": "zivibes/ht_h_logic_006_compare.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_007_logical",
+          "file": "zivibes/ht_h_logic_007_logical.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_008_xor_synth",
+          "file": "zivibes/ht_h_logic_008_xor_synth.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_and_ops",
+          "file": "zivibes/ht_h_logic_and_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_xor_synthesis",
+          "file": "zivibes/ht_h_logic_xor_synthesis.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logic_xor_used",
+          "file": "zivibes/ht_h_logic_xor_used.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logical_and_or",
+          "file": "zivibes/ht_h_logical_and_or.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_logical_not",
+          "file": "zivibes/ht_h_logical_not.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_complex_body",
+          "file": "zivibes/ht_h_loop_complex_body.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_for_corrected",
+          "file": "zivibes/ht_h_loop_for_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_optimization",
+          "file": "zivibes/ht_h_loop_optimization.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_repeat_corrected",
+          "file": "zivibes/ht_h_loop_repeat_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_simple",
+          "file": "zivibes/ht_h_loop_simple.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_unroll_test",
+          "file": "zivibes/ht_h_loop_unroll_test.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_loop_while_corrected",
+          "file": "zivibes/ht_h_loop_while_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_memory_access_patterns",
+          "file": "zivibes/ht_h_memory_access_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_minmax_functions",
+          "file": "zivibes/ht_h_minmax_functions.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_modulo_remainder",
+          "file": "zivibes/ht_h_modulo_remainder.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_multiple_functions",
+          "file": "zivibes/ht_h_multiple_functions.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_multiply_divide",
+          "file": "zivibes/ht_h_multiply_divide.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_multiply_simple",
+          "file": "zivibes/ht_h_multiply_simple.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_negative_numbers",
+          "file": "zivibes/ht_h_negative_numbers.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_nested_conditionals",
+          "file": "zivibes/ht_h_nested_conditionals.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_nested_functions",
+          "file": "zivibes/ht_h_nested_functions.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_1",
+          "file": "zivibes/ht_h_playwave_variant_1.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_2",
+          "file": "zivibes/ht_h_playwave_variant_2.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_3",
+          "file": "zivibes/ht_h_playwave_variant_3.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_4",
+          "file": "zivibes/ht_h_playwave_variant_4.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_5",
+          "file": "zivibes/ht_h_playwave_variant_5.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_6",
+          "file": "zivibes/ht_h_playwave_variant_6.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playwave_variant_7",
+          "file": "zivibes/ht_h_playwave_variant_7.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_playzero_variants",
+          "file": "zivibes/ht_h_playzero_variants.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_pow_function",
+          "file": "zivibes/ht_h_pow_function.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_procedure_corrected",
+          "file": "zivibes/ht_h_procedure_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_prog_001_structure",
+          "file": "zivibes/ht_h_prog_001_structure.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_prologue_002_device_specific",
+          "file": "zivibes/ht_h_prologue_002_device_specific.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_reg_001_count",
+          "file": "zivibes/ht_h_reg_001_count.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_reg_001_init_verification",
+          "file": "zivibes/ht_h_reg_001_init_verification.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_reg_002_count32",
+          "file": "zivibes/ht_h_reg_002_count32.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_register_pressure",
+          "file": "zivibes/ht_h_register_pressure.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_reset_osc_phase",
+          "file": "zivibes/ht_h_reset_osc_phase.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_settrigger",
+          "file": "zivibes/ht_h_settrigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_setuserreg_extended",
+          "file": "zivibes/ht_h_setuserreg_extended.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_shift_amounts",
+          "file": "zivibes/ht_h_shift_amounts.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_shift_dynamic",
+          "file": "zivibes/ht_h_shift_dynamic.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_shift_operations",
+          "file": "zivibes/ht_h_shift_operations.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_shift_right",
+          "file": "zivibes/ht_h_shift_right.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_start_qa",
+          "file": "zivibes/ht_h_start_qa.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_string_ops",
+          "file": "zivibes/ht_h_string_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_switch_corrected",
+          "file": "zivibes/ht_h_switch_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_timing_patterns",
+          "file": "zivibes/ht_h_timing_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_trigger_awg",
+          "file": "zivibes/ht_h_trigger_awg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_user_register_patterns",
+          "file": "zivibes/ht_h_user_register_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_var_001_scope",
+          "file": "zivibes/ht_h_var_001_scope.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_var_init_patterns",
+          "file": "zivibes/ht_h_var_init_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_var_lifetime_patterns",
+          "file": "zivibes/ht_h_var_lifetime_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_var_reassignment",
+          "file": "zivibes/ht_h_var_reassignment.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_variable_scope",
+          "file": "zivibes/ht_h_variable_scope.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_wait_dio_trigger",
+          "file": "zivibes/ht_h_wait_dio_trigger.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_wait_dio_trigger_all",
+          "file": "zivibes/ht_h_wait_dio_trigger_all.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_wave_operations",
+          "file": "zivibes/ht_h_wave_operations.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ht_h_wave_operations_corrected",
+          "file": "zivibes/ht_h_wave_operations_corrected.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hb_b_imm_boundary",
+          "file": "zivibes/hb_b_imm_boundary.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hb_b_imm_range",
+          "file": "zivibes/hb_b_imm_range.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hb_b_loop_count",
+          "file": "zivibes/hb_b_loop_count.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hb_b_reg_count",
+          "file": "zivibes/hb_b_reg_count.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hb_b_wait_limits",
+          "file": "zivibes/hb_b_wait_limits.seqc",
+          "@base": "@hdawg8"
+        }
+      ]
+    }
+  ]
+}

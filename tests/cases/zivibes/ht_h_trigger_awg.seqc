@@ -1,0 +1,11 @@
+// Test triggerAWG function
+triggerAWG(0);
+wait(100);
+
+triggerAWG(1);
+wait(100);
+
+triggerAWG(2);
+wait(100);
+
+setUserReg(0, 1);

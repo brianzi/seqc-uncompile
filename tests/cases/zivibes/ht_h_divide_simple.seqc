@@ -1,0 +1,9 @@
+// Simplified division test
+var c = 100;
+var div_2 = c / 2;
+var div_4 = c / 4;
+var div_8 = c / 8;
+
+setUserReg(0, div_2);
+setUserReg(1, div_4);
+setUserReg(2, div_8);

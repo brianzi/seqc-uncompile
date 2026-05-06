@@ -1,0 +1,38 @@
+// Test multiplication and division operations
+// Explores how the compiler handles mul/div and potential optimizations
+
+// Multiplication by constants
+var a = 10;
+var mul_2 = a * 2;
+var mul_4 = a * 4;
+var mul_8 = a * 8;
+var mul_3 = a * 3;
+
+setUserReg(0, mul_2);
+setUserReg(1, mul_4);
+setUserReg(2, mul_8);
+setUserReg(3, mul_3);
+
+// Multiplication by variables
+var b = 5;
+var mul_var = a * b;
+setUserReg(4, mul_var);
+
+// Division by constants
+var c = 100;
+var div_2 = c / 2;
+var div_4 = c / 4;
+var div_8 = c / 8;
+
+setUserReg(5, div_2);
+setUserReg(6, div_4);
+setUserReg(7, div_8);
+
+// Division by variables
+var d = 3;
+var div_var = c / d;
+setUserReg(8, div_var);
+
+// Mixed operations
+var result = (a * 2) + (c / 4);
+setUserReg(9, result);

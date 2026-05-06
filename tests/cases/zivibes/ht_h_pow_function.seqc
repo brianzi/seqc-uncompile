@@ -1,0 +1,10 @@
+// Test pow function
+var result1 = pow(2, 3);
+setUserReg(0, result1);
+wait(50);
+
+var result2 = pow(10, 2);
+setUserReg(1, result2);
+wait(50);
+
+setUserReg(2, pow(3, 4));

@@ -1,0 +1,16 @@
+// Test playWave and measurement operations
+playWave(1);
+playWave(2);
+
+var measurement1 = measure(1);
+var measurement2 = measure(2);
+
+setUserReg(0, measurement1);
+setUserReg(1, measurement2);
+
+// With timing
+wait(100);
+playWave(1);
+wait(200);
+var m3 = measure(1);
+setUserReg(2, m3);

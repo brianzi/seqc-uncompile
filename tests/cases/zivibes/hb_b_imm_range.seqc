@@ -1,0 +1,69 @@
+// Boundary test: Immediate value range
+// Tests: What range of immediate values are supported
+// Expected: 20-bit signed (-524288 to 524287)
+
+var x;
+
+// Test: positive boundary values
+x = 0;
+wait(x);
+
+x = 1;
+wait(x);
+
+x = 127;          // 7-bit max
+wait(x);
+
+x = 128;          // 8-bit
+wait(x);
+
+x = 255;          // 8-bit max
+wait(x);
+
+x = 256;          // 9-bit
+wait(x);
+
+x = 32767;        // 15-bit max (0x7FFF)
+wait(x);
+
+x = 32768;        // 16-bit (0x8000)
+wait(x);
+
+x = 65535;        // 16-bit max (0xFFFF)
+wait(x);
+
+x = 65536;        // 17-bit (0x10000)
+wait(x);
+
+x = 131071;       // 17-bit max
+wait(x);
+
+x = 262143;       // 18-bit max
+wait(x);
+
+x = 524287;       // 19-bit max (0x7FFFF)
+wait(x);
+
+// Test: negative boundary values
+x = -1;
+wait(10);
+
+x = -128;         // 8-bit min
+wait(10);
+
+x = -256;         // 9-bit
+wait(10);
+
+x = -32768;       // 16-bit min
+wait(10);
+
+x = -65536;       // 17-bit
+wait(10);
+
+x = -524288;      // 20-bit min (-0x80000)
+wait(10);
+
+// Test: values that might exceed range
+// Uncomment to test if compiler accepts or rejects:
+// x = 524288;    // 20-bit positive (may fail)
+// x = -524289;   // 21-bit negative (may fail)

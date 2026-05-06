@@ -1,0 +1,55 @@
+// H-FUNC-008: playWave() built-in function
+// Tests: playWave() waveform playback function
+// Note: This is device-specific (HDAWG, UHFQA, SHFSG only)
+// Variables tested:
+//   - Different waveform definitions
+//   - Different channels
+//   - Different waveform lengths
+
+// Define test waveforms
+wave w_zeros = zeros(1024);
+wave w_ones = ones(1024);
+wave w_short = zeros(64);
+wave w_long = zeros(4096);
+
+// Test: play zeros waveform
+playWave(w_zeros);
+
+// Test: play ones waveform
+playWave(w_ones);
+
+// Test: play short waveform
+playWave(w_short);
+
+// Test: play long waveform
+playWave(w_long);
+
+// Test: play waveform with channel specification
+playWave(1, w_zeros);
+playWave(2, w_zeros);
+
+// Test: consecutive waveform plays
+playWave(w_zeros);
+playWave(w_ones);
+playWave(w_zeros);
+
+// Test: waveform with wait
+playWave(w_zeros);
+wait(10);
+playWave(w_ones);
+wait(10);
+
+// Test: waveform in loop
+var i;
+for (i = 0; i < 3; i += 1) {
+    playWave(w_zeros);
+}
+
+// Test: different waveform lengths
+wave w_128 = zeros(128);
+wave w_256 = zeros(256);
+wave w_512 = zeros(512);
+
+playWave(w_128);
+playWave(w_256);
+playWave(w_512);

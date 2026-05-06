@@ -1,0 +1,56 @@
+// H-FUNC-001: wait() built-in function
+// Tests: wait(cycles) timing function
+// Variables tested:
+//   - Different cycle counts (small, medium, large)
+//   - Variable cycle count
+//   - Boundary values
+
+var cycles = 100;
+
+// Test: small wait values
+wait(1);
+wait(2);
+wait(4);
+wait(8);
+wait(16);
+
+// Test: medium wait values
+wait(100);
+wait(256);
+wait(1000);
+
+// Test: larger wait values
+wait(10000);
+wait(65535);
+wait(65536);
+
+// Test: power of 2 values
+wait(128);
+wait(512);
+wait(1024);
+wait(2048);
+wait(4096);
+
+// Test: variable wait
+wait(cycles);
+
+cycles = 50;
+wait(cycles);
+
+cycles = 200;
+wait(cycles);
+
+// Test: computed wait value
+var computed = 10 + 20;
+wait(computed);
+
+// Test: expression as argument (if supported)
+wait(10 + 5);
+
+// Test: very large wait (boundary)
+wait(0x7FFFF);    // 19-bit max positive
+
+// Test: consecutive waits
+wait(10);
+wait(10);
+wait(10);

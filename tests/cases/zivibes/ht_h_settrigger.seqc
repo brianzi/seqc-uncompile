@@ -1,0 +1,8 @@
+// Test setTrigger function
+setTrigger(0);
+wait(100);
+
+setTrigger(1);
+wait(100);
+
+setUserReg(0, 1);

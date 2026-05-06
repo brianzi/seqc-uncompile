@@ -1,0 +1,9 @@
+// Arithmetic operations
+// Tests: Addition, subtraction, multiplication, division
+var a = 100;
+var b = 50;
+var sum = a + b;
+var diff = a - b;
+var prod = a * b;
+var quot = a / b;
+wait(sum);

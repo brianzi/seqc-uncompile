@@ -1,0 +1,22 @@
+// Hypothesis Test: waitZSyncTrigger Function
+// Tests ZSync trigger waiting (QCCS synchronization)
+
+// Test 1: Basic ZSync wait
+waitZSyncTrigger();
+
+// Test 2: ZSync in sequence
+wait(100);
+waitZSyncTrigger();
+wait(100);
+
+// Test 3: ZSync in loop
+repeat(5) {
+    waitZSyncTrigger();
+    playZero(1000);
+}
+
+// Test 4: ZSync with DIO
+waitZSyncTrigger();
+setDIO(0x1234);
+waitZSyncTrigger();
+setDIO(0x5678);

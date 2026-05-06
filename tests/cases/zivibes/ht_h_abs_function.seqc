@@ -1,0 +1,12 @@
+// Test abs function
+var a = -100;
+var abs_a = abs(a);
+setUserReg(0, abs_a);
+wait(50);
+
+var b = 50;
+var abs_b = abs(b);
+setUserReg(1, abs_b);
+wait(50);
+
+setUserReg(2, abs(-1));

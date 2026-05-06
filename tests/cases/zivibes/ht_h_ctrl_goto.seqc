@@ -1,0 +1,23 @@
+// Test: Unconditional jump (goto) behavior
+// Note: SEQC may not support goto - this tests if it does
+
+var x = 0;
+
+// Simple forward jump
+x = 1;
+// If goto is supported, test it here
+// goto skip;
+x = 2;
+// skip:
+x = 3;
+
+// Use while(1) with break as alternative
+while (1) {
+  x = 10;
+  break;
+}
+
+// Infinite loop test (commented out to avoid hang)
+// while (1) {
+//   x = x + 1;
+// }

@@ -1,0 +1,26 @@
+// Hypothesis Test: error and info Functions
+// Tests runtime messaging
+
+// Test 1: Simple info message
+info("Starting sequence");
+
+// Test 2: Info with variable
+var count = 42;
+info("Count is: ", count);
+
+// Test 3: Info in loop
+repeat(3) {
+    var i;
+    info("Iteration: ", i);
+    wait(10);
+    i += 1;
+}
+
+// Test 4: Conditional error
+var x = 0;
+if (x < 0) {
+    error("Invalid value: ", x);
+}
+
+// Test 5: Info at end
+info("Sequence complete");

@@ -1,0 +1,27 @@
+// Hypothesis Test: getDIOTriggered Function
+// Tests reading DIO value at last trigger position
+
+// Test 1: Basic getDIOTriggered
+var dio_val = getDIOTriggered();
+
+// Test 2: Use in computation
+var masked = getDIOTriggered() & 0xFF;
+
+// Test 3: Store value
+setUserReg(0, dio_val);
+setUserReg(1, masked);
+
+// Test 4: Compare with current DIO
+var current = getDIO();
+var triggered = getDIOTriggered();
+if (current != triggered) {
+    setTrigger(1);
+}
+
+// Test 5: Read in loop after trigger
+repeat(5) {
+    waitDIOTrigger();
+    var val = getDIOTriggered();
+    setUserReg(0, val);
+    wait(100);
+}

@@ -1,0 +1,18 @@
+// Hypothesis Test: randomSeed Function
+// Tests random seed generation (HDAWG specific)
+
+// Test 1: Generate new seed
+randomSeed();
+
+// Test 2: Multiple seed generations
+randomSeed();
+wait(10);
+randomSeed();
+wait(10);
+randomSeed();
+
+// Test 3: Seed in loop
+repeat(5) {
+    randomSeed();
+    wait(100);
+}

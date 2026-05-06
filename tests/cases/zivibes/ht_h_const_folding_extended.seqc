@@ -1,0 +1,28 @@
+// H-CONST-002 Extension: Verify constant folding behavior
+// Tests whether the compiler performs constant folding for various operations
+
+// Simple constant folding
+var result1 = 10 + 20;
+setUserReg(0, result1);
+
+// Nested constant folding
+var result2 = (5 + 3) * (2 + 1);
+setUserReg(1, result2);
+
+// Constant folding with bitwise operations
+var result3 = (0xFF & 0x0F) | 0x10;
+setUserReg(2, result3);
+
+// Constant folding with shifts
+var result4 = (1 << 4) + (1 << 3);
+setUserReg(3, result4);
+
+// Mixed constant and variable
+var x = 10;
+var result5 = x + 5;  // Should NOT be folded
+setUserReg(4, result5);
+
+// Constant in conditional
+if (10 > 5) {
+  setUserReg(5, 1);
+}

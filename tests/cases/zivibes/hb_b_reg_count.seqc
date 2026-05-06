@@ -1,0 +1,49 @@
+// Boundary test: Register count
+// Tests: How many simultaneous variables can be held in registers
+
+// Declare many variables simultaneously
+var r1 = 1;
+var r2 = 2;
+var r3 = 3;
+var r4 = 4;
+var r5 = 5;
+var r6 = 6;
+var r7 = 7;
+var r8 = 8;
+var r9 = 9;
+var r10 = 10;
+var r11 = 11;
+var r12 = 12;
+var r13 = 13;
+var r14 = 14;
+var r15 = 15;
+var r16 = 16;
+
+// Use all variables to prevent dead code elimination
+wait(r1);
+wait(r2);
+wait(r3);
+wait(r4);
+wait(r5);
+wait(r6);
+wait(r7);
+wait(r8);
+wait(r9);
+wait(r10);
+wait(r11);
+wait(r12);
+wait(r13);
+wait(r14);
+wait(r15);
+wait(r16);
+
+// Test: use all in expression
+var sum = r1 + r2 + r3 + r4 + r5 + r6 + r7 + r8;
+wait(sum);
+
+sum = r9 + r10 + r11 + r12 + r13 + r14 + r15 + r16;
+wait(sum);
+
+// Test: all in single expression (may require spilling)
+sum = r1 + r2 + r3 + r4 + r5 + r6 + r7 + r8 + r9 + r10 + r11 + r12 + r13 + r14 + r15 + r16;
+wait(sum);

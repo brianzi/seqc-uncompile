@@ -1,0 +1,12 @@
+// Simplified array test
+var arr[4] = {1, 2, 3, 4};
+
+var v0 = arr[0];
+var v1 = arr[1];
+var v2 = arr[2];
+var v3 = arr[3];
+
+setUserReg(0, v0);
+setUserReg(1, v1);
+setUserReg(2, v2);
+setUserReg(3, v3);

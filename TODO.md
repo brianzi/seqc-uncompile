@@ -4410,3 +4410,66 @@ is just `wavetableFront++;` then loop continues. RAII handles the
 - [x] Update OVERVIEW.md if the goto count is referenced there
       (no references — skipped)
 - [x] Phase 39d sub-phase wrap-up
+
+---
+
+## Phase 47 — zivibes intake follow-ups
+
+Bulk intake of 193 unique `.seqc` snippets from `/home/brian/work/vibes/zivibes`
+into `tests/cases/zivibes/` produced 259 differential-test cases (sp_*
+exercised on 4 devices, ht_/hb_ on HDAWG only).  253 pass, 6 fail.  No
+new SIGSEGV or `map::at` crashes surfaced.  See incidental findings
+IF-155 / IF-156 / IF-157.
+
+### 47.1 — IF-155: empty-input rejection (4 failing tests)
+
+Original raises error 43 (`"nothing to write, empty input"`) when the
+SeqC source is empty / comments-only.  Recon silently produces an ELF.
+
+- [ ] GDB-trace original on `sp_01_empty.seqc` (HDAWG8) to find the
+      call site of error 43.  Likely a guard near the end of the
+      compile pipeline that checks instruction-count / waveform-count /
+      node-count.
+- [ ] Identify the equivalent location in recon and add the guard
+- [ ] Build, run `python tests/diff_test_fast.py --filter sp_01_empty`
+      (4 tests should now pass)
+- [ ] Run full suite — confirm no regressions
+- [ ] Update IF-155 to `fixed`
+- [ ] Sub-phase wrap-up commit
+
+### 47.2 — IF-156: register allocator fails on 17-variable program
+
+`hb_b_reg_count.seqc` (17 simultaneously-live `var`s) compiles cleanly
+in original; recon errors `"run out of free registers"`.
+
+- [ ] GDB-trace original allocator on this input to identify spill /
+      coalesce / liveness step that recon is missing
+- [ ] Compare with recon's allocator path (likely in
+      `reconstructed/src/codegen/` register-allocation code)
+- [ ] Apply minimal fix matching binary's behavior
+- [ ] Build + run `python tests/diff_test_fast.py --filter b_reg_count`
+- [ ] Full suite — confirm no regressions
+- [ ] Update IF-156 to `fixed`
+- [ ] Sub-phase wrap-up commit
+
+### 47.3 — IF-157: playWave_variants codegen + waveform-size diff
+
+`ht_h_func_030_playWave_variants.seqc` differs in `.text`, `.asm`,
+`.waveforms`, `.wavemem`, and `.wf___playWave_15_8` (256 vs 128 bytes).
+
+- [ ] Use `python tests/dump_elf.py tests/cases/zivibes/ht_h_func_030_playWave_variants.seqc HDAWG8 --samplerate 2.4e9 --both`
+      to get full side-by-side
+- [ ] Determine which playWave call site produces the diverging
+      waveform (`__playWave_15_8` — likely line 15 col 8)
+- [ ] GDB-trace mergeWaveforms / waveform allocation paths if needed
+- [ ] Apply fix
+- [ ] Build + filter test, then full suite
+- [ ] Update IF-157 to `fixed`
+- [ ] Sub-phase wrap-up commit
+
+### 47.4 — Phase 47 wrap-up
+
+- [ ] Update OVERVIEW.md with zivibes intake summary
+- [ ] Confirm full suite is clean (1600/1600 expected — 1341 prior +
+      259 new, minus any consolidated)
+- [ ] Final commit + push

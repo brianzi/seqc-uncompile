@@ -1,0 +1,28 @@
+// Test shift operations and their behavior
+// Explores left shift, right shift, and potential barrel shifter usage
+
+var value = 0x00000001;
+
+// Left shift by constant
+var shifted_left_1 = value << 1;
+var shifted_left_4 = value << 4;
+var shifted_left_8 = value << 8;
+
+setUserReg(0, shifted_left_1);
+setUserReg(1, shifted_left_4);
+setUserReg(2, shifted_left_8);
+
+// Right shift by constant
+var value2 = 0x80000000;
+var shifted_right_1 = value2 >> 1;
+var shifted_right_4 = value2 >> 4;
+var shifted_right_8 = value2 >> 8;
+
+setUserReg(3, shifted_right_1);
+setUserReg(4, shifted_right_4);
+setUserReg(5, shifted_right_8);
+
+// Shift by variable (if supported)
+var shift_amount = 3;
+var dynamic_shift = value << shift_amount;
+setUserReg(6, dynamic_shift);

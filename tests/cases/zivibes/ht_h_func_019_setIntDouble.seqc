@@ -1,0 +1,25 @@
+// Hypothesis Test: setInt and setDouble Functions
+// Tests writing to device nodes
+
+// Test 1: setInt with constant value
+setInt("awgs/0/enable", 1);
+
+// Test 2: setInt with variable
+var enable_val = 1;
+setInt("awgs/0/enable", enable_val);
+
+// Test 3: setDouble with constant
+setDouble("sigouts/0/offset", 0.5);
+
+// Test 4: setDouble with variable
+var offset = 0.25;
+setDouble("sigouts/0/offset", offset);
+
+// Test 5: setDouble with scale
+setDouble("sigouts/0/offset", offset, 2.0);
+
+// Test 6: Multiple node writes
+setInt("awgs/0/single", 1);
+setInt("awgs/0/enable", 1);
+wait(100);
+setInt("awgs/0/enable", 0);

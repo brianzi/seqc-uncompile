@@ -1,0 +1,43 @@
+// H-LOGIC-002: Bitwise OR operations
+// Tests: x | y, x | c (immediate), x |= y, x |= c
+// Variables tested:
+//   - OR with immediate (ori if exists)
+//   - OR with register (orr)
+//   - Different values
+
+var a = 0xF0;
+var b = 0x0F;
+var c;
+
+// Test: OR with immediate
+c = a | 0x0F;     // Set low nibble
+wait(c);
+
+c = a | 0x00;     // OR with zero (identity)
+wait(c);
+
+c = a | 0xFF;     // OR with all ones
+wait(c);
+
+// Test: OR with register
+c = a | b;        // Should give 0xFF
+wait(c);
+
+a = 0xAA;
+b = 0x55;
+c = a | b;        // Alternating bits → 0xFF
+wait(c);
+
+// Test: OR with larger values
+a = 0xFF00;
+c = a | 0x00FF;
+wait(c);
+
+// Test: compound OR
+a = 0xF0;
+a |= 0x0F;
+wait(a);
+
+a = 0xF0;
+a |= b;
+wait(a);

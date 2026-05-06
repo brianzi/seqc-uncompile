@@ -1,0 +1,37 @@
+// Test comparison and logical operations
+// Explores how comparisons are compiled and logical operators work
+
+var x = 10;
+var y = 20;
+var z = 10;
+
+// Comparisons
+var cmp_lt = (x < y) ? 1 : 0;
+var cmp_gt = (x > y) ? 1 : 0;
+var cmp_eq = (x == z) ? 1 : 0;
+var cmp_ne = (x != y) ? 1 : 0;
+var cmp_le = (x <= y) ? 1 : 0;
+var cmp_ge = (x >= y) ? 1 : 0;
+
+setUserReg(0, cmp_lt);
+setUserReg(1, cmp_gt);
+setUserReg(2, cmp_eq);
+setUserReg(3, cmp_ne);
+setUserReg(4, cmp_le);
+setUserReg(5, cmp_ge);
+
+// Logical AND
+var and_result = (x < y && y > 5) ? 1 : 0;
+setUserReg(6, and_result);
+
+// Logical OR
+var or_result = (x > y || x == z) ? 1 : 0;
+setUserReg(7, or_result);
+
+// Logical NOT
+var not_result = !(x > y) ? 1 : 0;
+setUserReg(8, not_result);
+
+// Complex logical expression
+var complex = ((x < y && y > 5) || (x == z && z > 0)) ? 1 : 0;
+setUserReg(9, complex);

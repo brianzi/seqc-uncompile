@@ -1,0 +1,44 @@
+// H-FUNC-007: waitDIOTrigger() built-in function
+// Tests: waitDIOTrigger() trigger wait function
+// Variables tested:
+//   - Simple trigger wait
+//   - Multiple trigger waits
+//   - Trigger wait in loop
+
+// Test: simple trigger wait
+waitDIOTrigger();
+wait(10);
+
+// Test: multiple trigger waits
+waitDIOTrigger();
+wait(10);
+waitDIOTrigger();
+wait(10);
+waitDIOTrigger();
+wait(10);
+
+// Test: trigger wait followed by DIO operations
+waitDIOTrigger();
+setDIO(0x01);
+wait(10);
+
+waitDIOTrigger();
+setDIO(0x02);
+wait(10);
+
+// Test: trigger wait in loop
+var i;
+for (i = 0; i < 3; i += 1) {
+    waitDIOTrigger();
+    wait(10);
+}
+
+// Test: trigger wait with playZero
+waitDIOTrigger();
+playZero(100);
+
+// Test: consecutive trigger waits
+waitDIOTrigger();
+waitDIOTrigger();
+waitDIOTrigger();
+wait(10);

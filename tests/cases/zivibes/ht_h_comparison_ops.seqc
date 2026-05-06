@@ -1,0 +1,15 @@
+// Test program for comparison operators
+// Tests: ==, !=, <, >, <=, >=
+
+void main() {
+  var a = 100;
+  var b = 50;
+  var c = (a == b) ? 1 : 0;
+  var d = (a != b) ? 1 : 0;
+  var e = (a < b) ? 1 : 0;
+  var f = (a > b) ? 1 : 0;
+  var g = (a <= b) ? 1 : 0;
+  var h = (a >= b) ? 1 : 0;
+  var i = (a == 100) ? 1 : 0;
+  var j = (b < 100) ? 1 : 0;
+}

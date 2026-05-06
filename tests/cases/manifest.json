@@ -5,6 +5,7 @@
     "./manifest-zhinst.json",
     "./manifest-ziai.json",
     "./manifest-documentation.json",
-    "./manifest-ziasm.json"
+    "./manifest-ziasm.json",
+    "./manifest-zivibes.json"
   ]
 }

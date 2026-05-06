@@ -1,0 +1,19 @@
+// Test variable lifetime and scope patterns
+// Explore how variables are allocated and deallocated
+
+var global1 = 1;
+var global2 = 2;
+
+void test_scope() {
+    var local1 = 10;
+    var local2 = 20;
+    setUserReg(0, local1);
+    setUserReg(1, local2);
+}
+
+var result1 = global1 + global2;
+test_scope();
+var result2 = global1 * global2;
+
+setUserReg(2, result1);
+setUserReg(3, result2);

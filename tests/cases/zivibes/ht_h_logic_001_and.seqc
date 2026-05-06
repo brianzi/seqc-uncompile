@@ -1,0 +1,52 @@
+// H-LOGIC-001: Bitwise AND operations
+// Tests: x & y, x & c (immediate), x &= y, x &= c
+// Variables tested:
+//   - AND with immediate (andi)
+//   - AND with register (andr)
+//   - Different mask values
+
+var a = 0xFF;
+var b = 0x0F;
+var c;
+
+// Test: AND with immediate (various masks)
+c = a & 0x0F;     // Low nibble mask
+wait(c);
+
+c = a & 0xF0;     // High nibble mask
+wait(c);
+
+c = a & 0x01;     // Single bit mask
+wait(c);
+
+c = a & 0xFF;     // Full mask (identity)
+wait(c);
+
+c = a & 0x00;     // Zero mask
+wait(c);
+
+// Test: AND with register
+c = a & b;
+wait(c);
+
+a = 0xAA;
+b = 0x55;
+c = a & b;        // Alternating bits
+wait(c);
+
+// Test: AND with larger values
+a = 0xFFFF;
+c = a & 0x00FF;
+wait(c);
+
+c = a & 0xFF00;
+wait(c);
+
+// Test: compound AND
+a = 0xFF;
+a &= 0x0F;
+wait(a);
+
+a = 0xFF;
+a &= b;
+wait(a);

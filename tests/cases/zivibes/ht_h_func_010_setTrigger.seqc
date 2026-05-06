@@ -1,0 +1,35 @@
+// Hypothesis Test: setTrigger Function
+// Tests AWG trigger output control
+
+// Test 1: Set single trigger (bit 0)
+setTrigger(0b0001);
+
+// Test 2: Set different trigger (bit 1)
+setTrigger(0b0010);
+
+// Test 3: Set multiple triggers
+setTrigger(0b0101);
+
+// Test 4: All triggers on
+setTrigger(0b1111);
+
+// Test 5: All triggers off
+setTrigger(0b0000);
+
+// Test 6: Variable trigger value
+var trig_val = 3;
+setTrigger(trig_val);
+
+// Test 7: Computed trigger value
+var t = 1;
+t = t << 2;  // Shift to bit 2
+setTrigger(t);
+
+// Test 8: Toggle pattern
+setTrigger(1);
+wait(10);
+setTrigger(0);
+wait(10);
+setTrigger(1);
+wait(10);
+setTrigger(0);

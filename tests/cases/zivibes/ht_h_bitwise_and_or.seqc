@@ -1,0 +1,13 @@
+// Test program for bitwise AND and OR operators
+// Tests: &, |
+
+void main() {
+  var a = 0xFF00;
+  var b = 0x00FF;
+  var c = a & b;
+  var d = a | b;
+  var e = 0x1234 & 0x5678;
+  var f = 0x1234 | 0x5678;
+  var g = c & d;
+  var h = c | d;
+}

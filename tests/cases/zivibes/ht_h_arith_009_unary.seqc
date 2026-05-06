@@ -1,0 +1,54 @@
+// H-ARITH-009: Unary operators
+// Tests: -, ~, !, ++, --
+// Variables tested:
+//   - Negation: -x
+//   - Bitwise NOT: ~x
+//   - Logical NOT: !x
+//   - Pre/post increment/decrement
+
+var a = 10;
+var b;
+
+// Test: negation
+b = -a;
+wait(b);
+
+a = -5;
+b = -a;      // Negate negative
+wait(b);
+
+// Test: bitwise NOT
+a = 0xFF;
+b = ~a;
+wait(b);
+
+a = 0;
+b = ~a;      // NOT of zero
+wait(b);
+
+// Test: logical NOT
+a = 0;
+b = !a;      // NOT of false
+wait(b);
+
+a = 1;
+b = !a;      // NOT of true
+wait(b);
+
+a = 42;
+b = !a;      // NOT of non-zero
+wait(b);
+
+// Test: increment/decrement (if supported)
+a = 10;
+a++;
+wait(a);
+
+a--;
+wait(a);
+
+++a;
+wait(a);
+
+--a;
+wait(a);

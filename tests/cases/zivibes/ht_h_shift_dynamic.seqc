@@ -1,0 +1,24 @@
+// Test dynamic shift operations with variable shift amounts
+// Explores whether the compiler handles variable shifts differently than constant shifts
+
+var value = 0x00000001;
+var shift_amount = 4;
+
+// Dynamic left shift
+var result1 = value << shift_amount;
+setUserReg(0, result1);
+
+// Dynamic right shift
+var value2 = 0x80000000;
+var result2 = value2 >> shift_amount;
+setUserReg(1, result2);
+
+// Shift by different variable
+var shift_amount2 = 8;
+var result3 = value << shift_amount2;
+setUserReg(2, result3);
+
+// Shift with expression
+var shift_expr = 2 + 2;
+var result4 = value << shift_expr;
+setUserReg(3, result4);

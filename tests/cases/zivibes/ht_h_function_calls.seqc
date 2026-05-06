@@ -1,0 +1,36 @@
+// Test function call overhead and behavior
+// Explores function call mechanisms and parameter passing
+
+func get_constant() {
+  return 42;
+}
+
+func add_one(int x) {
+  return x + 1;
+}
+
+func add_two(int a, int b) {
+  return a + b;
+}
+
+// Call function with no parameters
+var result1 = get_constant();
+setUserReg(0, result1);
+
+// Call function with one parameter
+var result2 = add_one(10);
+setUserReg(1, result2);
+
+// Call function with two parameters
+var result3 = add_two(10, 20);
+setUserReg(2, result3);
+
+// Nested function calls
+var result4 = add_one(add_one(5));
+setUserReg(3, result4);
+
+// Multiple calls to same function
+var result5 = add_one(1);
+var result6 = add_one(2);
+var result7 = add_one(3);
+setUserReg(4, result5 + result6 + result7);

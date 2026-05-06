@@ -1,0 +1,22 @@
+// Hypothesis Test: assignWaveIndex Function
+// Tests waveform index assignment for command table
+
+// Define waveforms
+wave w1 = ones(32);
+wave w2 = zeros(32);
+wave w3 = ones(64);
+
+// Test 1: Basic assignWaveIndex (waveform, index)
+assignWaveIndex(w1, 0);
+assignWaveIndex(w2, 1);
+assignWaveIndex(w3, 2);
+
+// Test 2: assignWaveIndex with output channel
+assignWaveIndex(1, w1, 10);
+assignWaveIndex(2, w2, 11);
+
+// Test 3: Play using assigned index
+playWave(w1);
+waitWave();
+playWave(w2);
+waitWave();

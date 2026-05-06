@@ -1,0 +1,30 @@
+// H-ARITH-003: Add two variables (register-register addition)
+// Tests: z = x + y compilation pattern
+// Variables tested:
+//   - Different source/dest combinations
+//   - Self-addition (x = x + x)
+
+var a = 10;
+var b = 20;
+var c = 30;
+var d;
+
+// Test: d = a + b (different registers)
+d = a + b;
+wait(d);
+
+// Test: d = b + c (different source pair)
+d = b + c;
+wait(d);
+
+// Test: a = a + b (dest same as first source)
+a = a + b;
+wait(a);
+
+// Test: b = a + b (dest same as second source)
+b = a + b;
+wait(b);
+
+// Test: c = c + c (self-addition / doubling)
+c = c + c;
+wait(c);

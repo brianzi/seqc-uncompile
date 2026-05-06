@@ -1,0 +1,13 @@
+// Test modulo and remainder operations
+var a = 100;
+var b = 7;
+
+var mod_result = a % b;
+setUserReg(0, mod_result);
+wait(50);
+
+// Test with constants
+setUserReg(1, 100 % 7);
+wait(50);
+
+setUserReg(2, 1);

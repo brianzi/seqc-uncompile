@@ -1,0 +1,6 @@
+// Corrected for loop test - proper SEQC syntax
+var i;
+for (i = 0; i < 10; i = i + 1) {
+    wait(10);
+}
+setUserReg(0, i);

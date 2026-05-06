@@ -1,0 +1,25 @@
+// H-LOOP-NO-UNROLL-001 Extension: Test loop unrolling behavior
+// Explores whether the compiler unrolls loops and under what conditions
+
+var sum = 0;
+
+// Small loop - might be unrolled
+for (int i = 0; i < 4; i++) {
+  sum = sum + i;
+}
+setUserReg(0, sum);
+
+// Medium loop - might not be unrolled
+var sum2 = 0;
+for (int j = 0; j < 8; j++) {
+  sum2 = sum2 + j;
+}
+setUserReg(1, sum2);
+
+// Loop with break - affects unrolling
+var sum3 = 0;
+for (int k = 0; k < 10; k++) {
+  if (k == 5) break;
+  sum3 = sum3 + k;
+}
+setUserReg(2, sum3);

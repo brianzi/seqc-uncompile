@@ -1,0 +1,27 @@
+// Hypothesis Test: resetOscPhase Function
+// Tests oscillator phase reset
+
+// Test 1: Reset all oscillators (no argument)
+resetOscPhase();
+
+// Test 2: Reset with mask - oscillator 0
+resetOscPhase(0b0001);
+
+// Test 3: Reset with mask - oscillator 1
+resetOscPhase(0b0010);
+
+// Test 4: Reset multiple oscillators
+resetOscPhase(0b0011);
+
+// Test 5: Reset in a sequence
+wait(100);
+resetOscPhase();
+wait(100);
+resetOscPhase(0b0001);
+wait(100);
+
+// Test 6: Reset in loop
+repeat(5) {
+    resetOscPhase();
+    wait(50);
+}

@@ -1,0 +1,64 @@
+// H-CTRL-003: While loop control flow
+// Tests: while loop variations
+// Variables tested:
+//   - Simple while
+//   - While with different conditions
+//   - Nested while loops
+
+var i;
+var j;
+
+// Test: simple while loop
+i = 0;
+while (i < 5) {
+    wait(10);
+    i += 1;
+}
+
+// Test: while with different initial value
+i = 5;
+while (i < 10) {
+    wait(20);
+    i += 1;
+}
+
+// Test: while counting down
+i = 5;
+while (i > 0) {
+    wait(30);
+    i -= 1;
+}
+
+// Test: while with != condition
+i = 0;
+while (i != 3) {
+    wait(40);
+    i += 1;
+}
+
+// Test: while with compound condition
+i = 0;
+j = 10;
+while (i < 5 && j > 5) {
+    wait(50);
+    i += 1;
+    j -= 1;
+}
+
+// Test: nested while loops
+i = 0;
+while (i < 3) {
+    j = 0;
+    while (j < 2) {
+        wait(60);
+        j += 1;
+    }
+    i += 1;
+}
+
+// Test: while with variable in body
+i = 1;
+while (i < 10) {
+    wait(i);
+    i += 1;
+}

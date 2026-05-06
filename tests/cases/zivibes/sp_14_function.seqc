@@ -1,0 +1,9 @@
+// User-defined function
+// Tests: Function declaration and calling
+var add_numbers(var a, var b) {
+    return a + b;
+}
+
+var result;
+result = add_numbers(10, 20);
+wait(result);

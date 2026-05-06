@@ -1,0 +1,4 @@
+// Wait for DIO trigger
+// Tests: waitDIOTrigger built-in function
+waitDIOTrigger();
+wait(100);

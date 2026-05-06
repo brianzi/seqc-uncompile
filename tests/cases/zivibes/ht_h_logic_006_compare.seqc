@@ -1,0 +1,66 @@
+// H-LOGIC-006: Comparison operations
+// Tests: ==, !=, <, >, <=, >= (as expressions, not in if)
+// Variables tested:
+//   - All comparison operators
+//   - Compare with constant
+//   - Compare with variable
+
+var a = 10;
+var b = 5;
+var c = 10;
+var result;
+
+// Test: equal
+result = (a == b);    // 10 == 5 → 0
+wait(result);
+
+result = (a == c);    // 10 == 10 → 1
+wait(result);
+
+result = (a == 10);   // Compare with constant
+wait(result);
+
+// Test: not equal
+result = (a != b);    // 10 != 5 → 1
+wait(result);
+
+result = (a != c);    // 10 != 10 → 0
+wait(result);
+
+// Test: less than
+result = (b < a);     // 5 < 10 → 1
+wait(result);
+
+result = (a < b);     // 10 < 5 → 0
+wait(result);
+
+result = (a < 15);    // Compare with constant
+wait(result);
+
+// Test: greater than
+result = (a > b);     // 10 > 5 → 1
+wait(result);
+
+result = (b > a);     // 5 > 10 → 0
+wait(result);
+
+// Test: less than or equal
+result = (a <= c);    // 10 <= 10 → 1
+wait(result);
+
+result = (a <= b);    // 10 <= 5 → 0
+wait(result);
+
+// Test: greater than or equal
+result = (a >= c);    // 10 >= 10 → 1
+wait(result);
+
+result = (b >= a);    // 5 >= 10 → 0
+wait(result);
+
+// Test: compare with zero
+result = (a > 0);
+wait(result);
+
+result = (a < 0);
+wait(result);

@@ -1,0 +1,22 @@
+// Test right shift operations
+// Explores whether right shifts use a different instruction than left shifts
+
+var value = 0x80000000;
+
+// Right shift by constant
+var shifted_right_1 = value >> 1;
+var shifted_right_4 = value >> 4;
+var shifted_right_8 = value >> 8;
+
+setUserReg(0, shifted_right_1);
+setUserReg(1, shifted_right_4);
+setUserReg(2, shifted_right_8);
+
+// Arithmetic vs logical right shift
+var signed_value = -1;
+var arith_shift = signed_value >> 2;
+setUserReg(3, arith_shift);
+
+// Multiple shifts
+var result = (value >> 2) >> 2;
+setUserReg(4, result);

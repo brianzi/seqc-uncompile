@@ -1,0 +1,32 @@
+// Test arithmetic operation patterns
+// Explore how different arithmetic operations compile
+
+var x = 10;
+var y = 20;
+
+// Addition patterns
+var add1 = x + y;
+var add2 = x + 1;
+var add3 = x + 0;
+var add4 = x + x;
+
+// Subtraction patterns
+var sub1 = x - y;
+var sub2 = x - 1;
+var sub3 = x - 0;
+var sub4 = y - x;
+
+// Multiplication patterns
+var mul1 = x * y;
+var mul2 = x * 2;
+var mul3 = x * 1;
+var mul4 = x * 0;
+
+// Negation
+var neg1 = -x;
+var neg2 = -y;
+
+setUserReg(0, add1);
+setUserReg(1, sub1);
+setUserReg(2, mul1);
+setUserReg(3, neg1);

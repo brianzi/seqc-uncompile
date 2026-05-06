@@ -1,0 +1,57 @@
+// H-LOGIC-007: Logical AND/OR operations (short-circuit)
+// Tests: &&, || operators
+// Variables tested:
+//   - Logical AND with various truth values
+//   - Logical OR with various truth values
+//   - Short-circuit evaluation
+
+var a = 1;    // true
+var b = 0;    // false
+var c = 42;   // truthy
+var result;
+
+// Test: logical AND
+result = (a && a);    // true && true → 1
+wait(result);
+
+result = (a && b);    // true && false → 0
+wait(result);
+
+result = (b && a);    // false && true → 0
+wait(result);
+
+result = (b && b);    // false && false → 0
+wait(result);
+
+result = (c && a);    // truthy && true → 1
+wait(result);
+
+// Test: logical OR
+result = (a || a);    // true || true → 1
+wait(result);
+
+result = (a || b);    // true || false → 1
+wait(result);
+
+result = (b || a);    // false || true → 1
+wait(result);
+
+result = (b || b);    // false || false → 0
+wait(result);
+
+result = (c || b);    // truthy || false → 1
+wait(result);
+
+// Test: combined
+result = (a && b) || c;
+wait(result);
+
+result = (a || b) && c;
+wait(result);
+
+// Test: with comparisons
+result = (a > 0) && (b == 0);
+wait(result);
+
+result = (a < 0) || (c > 0);
+wait(result);

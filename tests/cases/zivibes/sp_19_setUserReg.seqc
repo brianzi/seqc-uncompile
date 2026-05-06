@@ -1,0 +1,5 @@
+// Set user register
+// Tests: setUserReg built-in function
+var value = 42;
+setUserReg(0, value);
+wait(100);

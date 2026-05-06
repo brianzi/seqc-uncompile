@@ -1,0 +1,13 @@
+// Test min and max functions
+var a = 100;
+var b = 50;
+
+var min_val = min(a, b);
+setUserReg(0, min_val);
+wait(50);
+
+var max_val = max(a, b);
+setUserReg(1, max_val);
+wait(50);
+
+setUserReg(2, min(10, 20));

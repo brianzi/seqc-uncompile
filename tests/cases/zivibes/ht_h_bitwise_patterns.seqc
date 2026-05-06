@@ -1,0 +1,32 @@
+// Test bitwise operation patterns
+// Explore how different bitwise operations compile
+
+var x = 0x0F0F0F0F;
+var y = 0xF0F0F0F0;
+
+// AND patterns
+var and1 = x & y;
+var and2 = x & 0xFF;
+var and3 = x & 1;
+var and4 = x & 0;
+
+// OR patterns
+var or1 = x | y;
+var or2 = x | 0xFF;
+var or3 = x | 1;
+var or4 = x | 0;
+
+// XOR patterns
+var xor1 = x ^ y;
+var xor2 = x ^ 0xFF;
+var xor3 = x ^ 1;
+var xor4 = x ^ 0;
+
+// NOT (complement)
+var not1 = ~x;
+var not2 = ~y;
+
+setUserReg(0, and1);
+setUserReg(1, or1);
+setUserReg(2, xor1);
+setUserReg(3, not1);

@@ -1,0 +1,10 @@
+// Bitwise operations
+// Tests: AND, OR, XOR, shift operations
+var a = 0xFF;
+var b = 0x0F;
+var and_result = a & b;
+var or_result = a | b;
+var xor_result = a ^ b;
+var shift_left = a << 2;
+var shift_right = a >> 2;
+wait(and_result);

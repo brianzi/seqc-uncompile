@@ -1,0 +1,16 @@
+// Hypothesis Test: Recursive Function
+// Tests if recursion is supported (expected to fail)
+// OQ-007: Function Inlining Behavior
+
+// Attempt recursive factorial
+// This should fail if functions are always inlined
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);  // Recursive call
+    }
+}
+
+var result = factorial(5);  // Should be 120 if supported
+setUserReg(0, result);

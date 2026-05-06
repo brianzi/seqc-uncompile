@@ -1,0 +1,15 @@
+// Test loop with complex body
+var sum = 0;
+var i = 0;
+
+for (i = 0; i < 5; i = i + 1) {
+  sum = sum + i;
+  if (i == 2) {
+    sum = sum + 10;
+  }
+}
+
+setUserReg(0, sum);
+wait(50);
+
+setUserReg(1, 1);

@@ -1,0 +1,31 @@
+// H-ARITH-006: Division operations
+// Tests: How division is compiled
+// Variables tested:
+//   - Divide by constant: x / c
+//   - Divide by variable: x / y
+//   - Divide by powers of 2 (may optimize to shift)
+
+var a = 100;
+var b = 5;
+var c;
+
+// Test: divide by small constant
+c = a / 2;
+wait(c);
+
+c = a / 4;    // Power of 2 - may optimize to shift
+wait(c);
+
+c = a / 5;    // Non-power of 2
+wait(c);
+
+// Test: divide by variable
+c = a / b;
+wait(c);
+
+// Test: divide by larger power of 2
+c = a / 8;
+wait(c);
+
+c = a / 16;
+wait(c);

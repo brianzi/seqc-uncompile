@@ -1,0 +1,17 @@
+// Test bit manipulation functions
+var value = 0xFF00FF00;
+
+// Test bitwise NOT
+var not_value = ~value;
+setUserReg(0, not_value);
+wait(50);
+
+// Test bit shifting with variables
+var shift_amount = 4;
+var shifted = value << shift_amount;
+setUserReg(1, shifted);
+wait(50);
+
+// Test right shift
+var right_shifted = value >> 8;
+setUserReg(2, right_shifted);

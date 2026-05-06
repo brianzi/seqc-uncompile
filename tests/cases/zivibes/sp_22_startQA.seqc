@@ -1,0 +1,6 @@
+// Quantum Analyzer start
+// Tests: startQA built-in function (QA devices)
+repeat(10) {
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0);
+    wait(1000);
+}

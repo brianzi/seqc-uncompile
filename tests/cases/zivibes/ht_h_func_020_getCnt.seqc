@@ -1,0 +1,30 @@
+// Hypothesis Test: getCnt Function
+// Tests reading pulse counter values (HDAWG specific)
+
+// Test 1: Read counter 0
+var cnt0 = getCnt(0);
+
+// Test 2: Read counter 1
+var cnt1 = getCnt(1);
+
+// Test 3: Use counter in computation
+var total = cnt0 + cnt1;
+
+// Test 4: Store counter values
+setUserReg(0, cnt0);
+setUserReg(1, cnt1);
+setUserReg(2, total);
+
+// Test 5: Read counter in loop
+repeat(10) {
+    var c = getCnt(0);
+    setDIO(c);
+    wait(100);
+}
+
+// Test 6: Conditional based on counter
+if (getCnt(0) > 100) {
+    setTrigger(1);
+} else {
+    setTrigger(0);
+}

@@ -1,0 +1,10 @@
+// H-LOGIC-005: Bitwise AND with immediate value
+// This test shows that AND with immediate compiles to andi instruction
+
+var a = 0xFFFFFFFF;
+var b = a & 0x12345678;  // AND with immediate value
+setUserReg(0, b);
+
+var c = 0xAAAAAAAA;
+var d = c & 0x55555555;  // Another AND with different immediate
+setUserReg(1, d);

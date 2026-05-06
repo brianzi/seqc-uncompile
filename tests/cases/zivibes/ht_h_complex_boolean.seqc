@@ -1,0 +1,16 @@
+// Test complex boolean expressions with multiple operators
+var a = 10;
+var b = 20;
+var c = 30;
+
+var result1 = (a < b) && (b < c);
+var result2 = (a > b) || (b > c);
+var result3 = (a < b) && (b < c) && (c > 0);
+var result4 = (a == 10) || (b == 30) || (c == 50);
+var result5 = ((a + b) < c) && ((b + c) > a);
+
+setUserReg(0, result1 ? 1 : 0);
+setUserReg(1, result2 ? 1 : 0);
+setUserReg(2, result3 ? 1 : 0);
+setUserReg(3, result4 ? 1 : 0);
+setUserReg(4, result5 ? 1 : 0);

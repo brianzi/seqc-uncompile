@@ -1,0 +1,34 @@
+// Hypothesis Test: Deeply Nested Function Calls
+// Tests function inlining with deep nesting
+// OQ-007: Function Inlining Behavior
+
+function add1(x) {
+    return x + 1;
+}
+
+function add2(x) {
+    return add1(add1(x));  // Calls add1 twice
+}
+
+function add4(x) {
+    return add2(add2(x));  // Calls add2 twice
+}
+
+function add8(x) {
+    return add4(add4(x));  // Calls add4 twice
+}
+
+// Test nested calls
+var a = 0;
+a = add1(a);   // a = 1
+a = add2(a);   // a = 3
+a = add4(a);   // a = 7
+a = add8(a);   // a = 15
+
+setUserReg(0, a);
+
+// Test with different starting value
+var b = 100;
+b = add8(b);   // b = 108
+
+setUserReg(1, b);

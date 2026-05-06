@@ -1,0 +1,21 @@
+// Hypothesis Test: sync Function
+// Tests multi-device synchronization
+
+// Test 1: Basic sync
+sync();
+
+// Test 2: Sync in sequence
+wait(100);
+sync();
+wait(100);
+
+// Test 3: Sync in loop
+repeat(3) {
+    sync();
+    wait(50);
+}
+
+// Test 4: Sync with other operations
+setDIO(0x1234);
+sync();
+setDIO(0x5678);

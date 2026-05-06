@@ -1,0 +1,8 @@
+// Corrected procedure test - proper SEQC syntax
+void delay_sequence() {
+    wait(100);
+    wait(200);
+}
+
+delay_sequence();
+setUserReg(0, 1);

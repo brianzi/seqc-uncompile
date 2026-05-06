@@ -1,0 +1,12 @@
+// Test program for addition and subtraction operators
+// Tests: +, -
+
+void main() {
+  var a = 100;
+  var b = 50;
+  var c = a + b;
+  var d = a - b;
+  var e = c + d;
+  var f = e - 25;
+  var g = 1000 + 500 - 200;
+}

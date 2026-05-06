@@ -1,0 +1,32 @@
+// Hypothesis Test: Constant Folding and Compile-Time Math
+// Tests if multiplication/division work at compile time
+// OQ-002: Multiplication/Division Implementation
+
+// Test 1: Compile-time multiplication
+const mul_result = 5 * 7;  // Should fold to 35
+
+// Test 2: Compile-time division
+const div_result = 100 / 4;  // Should fold to 25
+
+// Test 3: Compile-time modulo
+const mod_result = 17 % 5;  // Should fold to 2
+
+// Test 4: Complex expression
+const complex = (10 * 3) + (20 / 4) - (7 % 3);  // 30 + 5 - 1 = 34
+
+// Test 5: Nested operations
+const nested = 2 * 3 * 4 * 5;  // 120
+
+// Test 6: Mixed with shifts
+const mixed = (8 * 4) + (32 >> 2);  // 32 + 8 = 40
+
+// Use constants in runtime code
+var x = mul_result;
+var y = div_result;
+var z = mod_result;
+var w = complex;
+
+setUserReg(0, x);
+setUserReg(1, y);
+setUserReg(2, z);
+setUserReg(3, w);

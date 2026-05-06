@@ -1,0 +1,19 @@
+// Test: XOR operation synthesis
+// SEQC doesn't have native XOR, so compiler must synthesize it
+
+var a = 0xFF00FF00;
+var b = 0x0F0F0F0F;
+var c;
+
+// XOR register-register
+c = a ^ b;
+
+// XOR with immediate
+var d = a ^ 0x12345678;
+
+// XOR with same value (should be zero)
+var e = a ^ a;
+
+// Multiple XOR
+var f = 0xAAAAAAAA;
+var g = f ^ 0x55555555;

@@ -1,0 +1,6 @@
+// Test getSampleTicks function
+var ticks = getSampleTicks();
+setUserReg(0, ticks);
+wait(100);
+
+setUserReg(1, 1);

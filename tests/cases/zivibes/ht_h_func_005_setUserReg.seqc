@@ -1,0 +1,66 @@
+// H-FUNC-005: setUserReg() built-in function
+// Tests: setUserReg(register, value) user register function
+// Variables tested:
+//   - Different register indices
+//   - Different values
+//   - Variable values
+
+var value = 42;
+
+// Test: write to register 0
+setUserReg(0, 100);
+wait(10);
+
+// Test: write to register 1
+setUserReg(1, 200);
+wait(10);
+
+// Test: write to register 2
+setUserReg(2, 300);
+wait(10);
+
+// Test: write to register 3
+setUserReg(3, 400);
+wait(10);
+
+// Test: write different values to same register
+setUserReg(0, 0);
+wait(10);
+
+setUserReg(0, 1);
+wait(10);
+
+setUserReg(0, 255);
+wait(10);
+
+setUserReg(0, 256);
+wait(10);
+
+setUserReg(0, 0xFFFF);
+wait(10);
+
+// Test: write variable value
+setUserReg(0, value);
+wait(10);
+
+value = 123;
+setUserReg(1, value);
+wait(10);
+
+// Test: write computed value
+var computed = 10 + 20;
+setUserReg(2, computed);
+wait(10);
+
+// Test: write to multiple registers in sequence
+setUserReg(0, 1);
+setUserReg(1, 2);
+setUserReg(2, 3);
+setUserReg(3, 4);
+wait(10);
+
+// Test: overwrite same register
+setUserReg(0, 100);
+setUserReg(0, 200);
+setUserReg(0, 300);
+wait(10);

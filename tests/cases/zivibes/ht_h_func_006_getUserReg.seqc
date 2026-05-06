@@ -1,0 +1,63 @@
+// H-FUNC-006: getUserReg() built-in function
+// Tests: getUserReg(register) user register read function
+// Variables tested:
+//   - Different register indices
+//   - Read into different variables
+//   - Read and use in expressions
+
+var reg_val;
+var reg_val2;
+var result;
+
+// Test: read from register 0
+reg_val = getUserReg(0);
+wait(reg_val);
+
+// Test: read from register 1
+reg_val = getUserReg(1);
+wait(reg_val);
+
+// Test: read from register 2
+reg_val = getUserReg(2);
+wait(reg_val);
+
+// Test: read from register 3
+reg_val = getUserReg(3);
+wait(reg_val);
+
+// Test: read into different variables
+reg_val = getUserReg(0);
+reg_val2 = getUserReg(1);
+wait(reg_val);
+wait(reg_val2);
+
+// Test: read and use in expression
+reg_val = getUserReg(0);
+result = reg_val + 10;
+wait(result);
+
+result = reg_val * 2;
+wait(result);
+
+// Test: read and compare
+reg_val = getUserReg(0);
+if (reg_val > 0) {
+    wait(100);
+}
+
+// Test: read in loop
+var i;
+for (i = 0; i < 4; i += 1) {
+    reg_val = getUserReg(i);
+    wait(reg_val);
+}
+
+// Test: write then read
+setUserReg(0, 42);
+reg_val = getUserReg(0);
+wait(reg_val);
+
+// Test: read and mask
+reg_val = getUserReg(0);
+result = reg_val & 0xFF;
+wait(result);

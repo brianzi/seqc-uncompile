@@ -1,0 +1,42 @@
+// Test register allocation under high pressure
+// Explores how the compiler handles many variables and spilling
+
+var a = 1;
+var b = 2;
+var c = 3;
+var d = 4;
+var e = 5;
+var f = 6;
+var g = 7;
+var h = 8;
+
+// Use all variables
+var result1 = a + b + c + d;
+setUserReg(0, result1);
+
+var result2 = e + f + g + h;
+setUserReg(1, result2);
+
+// Reuse variables
+var result3 = a + e;
+setUserReg(2, result3);
+
+var result4 = b + f;
+setUserReg(3, result4);
+
+// Complex expression with many variables
+var result5 = (a + b) * (c + d) + (e + f) * (g + h);
+setUserReg(4, result5);
+
+// Create more variables
+var i = 9;
+var j = 10;
+var k = 11;
+var l = 12;
+
+var result6 = i + j + k + l;
+setUserReg(5, result6);
+
+// Mix old and new
+var result7 = a + i + b + j;
+setUserReg(6, result7);

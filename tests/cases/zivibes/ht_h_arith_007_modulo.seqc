@@ -1,0 +1,31 @@
+// H-ARITH-007: Modulo operations
+// Tests: How modulo is compiled
+// Variables tested:
+//   - Modulo by constant: x % c
+//   - Modulo by variable: x % y
+//   - Modulo by powers of 2 (may optimize to AND)
+
+var a = 100;
+var b = 7;
+var c;
+
+// Test: modulo by small constant
+c = a % 2;     // May optimize to AND 1
+wait(c);
+
+c = a % 4;     // May optimize to AND 3
+wait(c);
+
+c = a % 7;     // Non-power of 2
+wait(c);
+
+// Test: modulo by variable
+c = a % b;
+wait(c);
+
+// Test: modulo by power of 2
+c = a % 8;     // May optimize to AND 7
+wait(c);
+
+c = a % 16;    // May optimize to AND 15
+wait(c);

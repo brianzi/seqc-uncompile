@@ -1,0 +1,16 @@
+// Test assignWaveIndex function
+const WFM_LEN = 1024;
+wave w1 = ones(WFM_LEN);
+wave w2 = zeros(WFM_LEN);
+wave w3 = ones(WFM_LEN);
+
+assignWaveIndex(1, w1);
+wait(50);
+
+assignWaveIndex(1, w1, 2, w2);
+wait(50);
+
+assignWaveIndex(1, w1, 2, w2, 3, w3);
+wait(50);
+
+setUserReg(0, 1);

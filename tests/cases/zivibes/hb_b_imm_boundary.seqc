@@ -1,0 +1,36 @@
+// Boundary test: Exact immediate value limits
+// Tests: Find exact boundary where addi switches to addiu
+
+var x;
+
+// Test values around 18-bit boundary (262143 = 0x3FFFF)
+x = 262143;     // Should be single addi
+wait(10);
+
+x = 262144;     // 0x40000 - may need addiu
+wait(10);
+
+// Test values around 17-bit boundary
+x = 131071;     // 0x1FFFF
+wait(10);
+
+x = 131072;     // 0x20000
+wait(10);
+
+// Test negative boundaries
+x = -262143;
+wait(10);
+
+x = -262144;
+wait(10);
+
+x = -131072;
+wait(10);
+
+x = -131073;
+wait(10);
+
+// Test specific boundary: 524287 (0x7FFFF = 19-bit max)
+// This is the value that required two instructions in earlier test
+x = 524287;
+wait(10);

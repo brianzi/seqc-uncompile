@@ -1,0 +1,58 @@
+// H-CTRL-007: Procedure definitions and calls (void functions)
+// Tests: User-defined procedures without return values
+// Variables tested:
+//   - Procedures with different parameter counts
+//   - Procedures with side effects
+
+// Test: procedure with no parameters
+void do_wait_10() {
+    wait(10);
+}
+
+// Test: procedure with one parameter
+void do_wait(var cycles) {
+    wait(cycles);
+}
+
+// Test: procedure with two parameters
+void do_two_waits(var a, var b) {
+    wait(a);
+    wait(b);
+}
+
+// Test: procedure with computation
+void wait_doubled(var x) {
+    var doubled = x + x;
+    wait(doubled);
+}
+
+// Test: procedure with loop
+void wait_n_times(var cycles, var count) {
+    var i;
+    for (i = 0; i < count; i += 1) {
+        wait(cycles);
+    }
+}
+
+// Main code
+
+// Test: call procedure with no parameters
+do_wait_10();
+
+// Test: call procedure with one parameter
+do_wait(20);
+do_wait(30);
+
+// Test: call procedure with two parameters
+do_two_waits(40, 50);
+
+// Test: call procedure with computation
+wait_doubled(25);
+
+// Test: call procedure with loop
+wait_n_times(5, 3);
+
+// Test: multiple procedure calls
+do_wait_10();
+do_wait(15);
+do_wait_10();
