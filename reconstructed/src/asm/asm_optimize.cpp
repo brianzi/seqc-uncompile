@@ -265,6 +265,7 @@ AsmList AsmOptimize::optimizePostWaveform(const AsmList& input) {
     if (optFlags_ & 0x10) {
         unsigned long numRegs = removeUnusedRegs();
 
+
         // Create a backup copy of the asm list
         AsmList backup; backup.entries = asm_;
 
@@ -274,6 +275,7 @@ AsmList AsmOptimize::optimizePostWaveform(const AsmList& input) {
             // On failure: swap backup back, split const registers, retry
             std::swap(asm_, backup.entries);
             unsigned long newNumRegs = splitConstRegisters(numRegs);
+
             registerAllocation(newNumRegs);
         }
         // backup is destroyed here

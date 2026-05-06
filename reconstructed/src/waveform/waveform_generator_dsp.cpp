@@ -1978,14 +1978,14 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
         return result;
     }
 
-    // All signals must have same frame count
-    signals[0].checkAllocation();
-    size_t frameCount = signals[0].samples_.size();
-
-    for (size_t i = 1; i < signals.size(); ++i) {
+    // Compute frameCount as max across all signals (binary uses max, not signals[0]).
+    // Different-length signals are handled silently: shorter ones produce 0.0 for
+    // missing frames (see interleave loop below).
+    size_t frameCount = 0;
+    for (size_t i = 0; i < signals.size(); ++i) {
         signals[i].checkAllocation();
-        // NOTE: The binary does NOT validate same length — different-length
-        // signals are handled silently (shorter ones produce 0.0 for missing frames).
+        if (signals[i].samples_.size() > frameCount)
+            frameCount = signals[i].samples_.size();
     }
 
     // Merge markerBits

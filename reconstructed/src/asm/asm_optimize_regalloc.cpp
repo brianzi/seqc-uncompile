@@ -346,7 +346,6 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
             }
 
             if (canMerge) {
-                // 27f96f-27f9a8: Call registerUpdate to rename preg → vreg
                 registerUpdate(physPreg[0],
                                AsmRegister(static_cast<int>(preg)),
                                AsmRegister(static_cast<int>(vreg)));
@@ -490,13 +489,14 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
             cmd != static_cast<Assembler::Command>(4))
             continue;
 
-        // Check if regDst(+0x28, dest) == AsmRegister(0) — 280784
-        if (!(it->assembler.regDst == AsmRegister(0)))
+        // Check if regSrc(+0x28, source) == AsmRegister(0) — 280784
+        // This identifies a constant load from r0: "ADDI rN, r0, #imm"
+        if (!(it->assembler.regSrc == AsmRegister(0)))
             continue;
 
-        // Get the actual destination register = regAux (+0x30)
+        // Get the actual destination register = regDst (+0x30)
         // 280795: mov r12,[r13+0x30]
-        AsmRegister destReg = it->assembler.regAux;
+        AsmRegister destReg = it->assembler.regDst;
 
         // Scan forward from next instruction — 280799..280840
         auto scanEnd = tmpList.end();
@@ -515,12 +515,12 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
                 scanCmd == Assembler::INVALID)
                 continue;
 
-            // Check for ADDIU(0x50000000) with matching regAux — 2807d9
+            // Check for ADDIU(0x50000000) with matching regDst — 2807d9
             if (scanCmd == Assembler::ADDIU) {
-                if (scanIt->assembler.regAux == destReg) {
-                    // If current is ADDI, also check regDst match — 2807f1..28080a
+                if (scanIt->assembler.regDst == destReg) {
+                    // If current is ADDI, also check regSrc match — 2807f1..28080a
                     if (cmd == Assembler::ADDI &&
-                        scanIt->assembler.regDst == destReg) {
+                        scanIt->assembler.regSrc == destReg) {
                         // "double load" pattern — set up for split
                     }
                 }
