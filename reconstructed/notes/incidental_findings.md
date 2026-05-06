@@ -217,19 +217,24 @@ or formats the wrong error message template.
 ## IF-9  `UnknownError47` (=47) has no entry in error message map; QA_DATA_RAW path wrong
 
 **Source**: hdawg_executeTable `map::at` error
-**Status**: **fixed** (2026-05-05) — GDB-verified at binary 0x151254: `QA_DATA_RAW` as a named-const arg to `executeTableEntry` on SHFQC_SG causes `map::at` to throw (binary bug: m[47] is absent from the binary's own error map). Recon was incorrectly emitting `wvfet R0, 0xe000` instead of crashing. Fix: removed the SHFQC_SG `QA_DATA_RAW`/`QA_DATA_PROCESSED_D` branch so `constMatched` stays false and the fallthrough reproduces the binary's crash. Enum comment updated to reference correct binary address and file.
-**Severity**: likely-bug
+**Status**: **fixed** (2026-05-05, revised 2026-05-06) — GDB-verified at binary 0x151254: `QA_DATA_RAW` (or `QA_DATA_PROCESSED_D`) as a named-const arg to `executeTableEntry` on `SHFQC_SG` causes the binary to throw `UnknownError47` (=47), but the binary's own `ErrorMessages` map has no entry for key 47. The binary therefore crashes with `std::map::at` throwing `std::out_of_range` instead of producing a proper error message. **This is a bug in the original ZI binary.**
+
+Two-stage fix:
+  1. (Initial) Removed the SHFQC_SG `QA_DATA_RAW`/`QA_DATA_PROCESSED_D` branch in `custom_functions_registers.cpp` so `constMatched` stays false and the fallthrough reproduces the same crash path as the binary.
+  2. (Revised, commit `ef7cd44`) Recon now throws `CustomFunctionsException(ErrorMessages::format(UnknownError47, …))` *explicitly*, and we define `m[47]` in `error_messages.cpp:182` with the message:
+     `"Invalid constant argument used for executeTableEntry (the original binary has no m[47] and crashes here with map::at — you're welcome, ZI)"`
+     This is an **intentional divergence**: the recon produces a clean exception with a proper message instead of crashing with `map::at`. The cheeky message string makes it self-documenting if anyone ever sees it in the wild.
+
+**Severity**: likely-bug (in upstream binary)
 
 `executeTableEntry` references `UnknownError47` (error code 47) at lines
 2701 and 2706 of `custom_functions_io.cpp`.  But `error_messages.cpp`
-has no `m[47]` entry.  It does have `m[48] = "Invalid constant argument
-used for executeTableEntry"` which matches the semantics.
+has no `m[47]` entry in the binary.  It does have `m[48] = "Invalid constant argument
+used for executeTableEntry"` which matches the semantics — the binary author probably
+intended to use 48 here but typo'd 47.
 
 The binary addresses at 0x150e00 and 0x150e40 should be checked to
-confirm whether the error code loaded is 47 or 48.
-
-**Action**: Verify binary error code at those addresses.  If 48, rename
-`UnknownError47` to `ExecTableInvalidConst` (=48) and update call sites.
+confirm whether the error code loaded is 47 or 48. (GDB at 0x151254 confirms 47.)
 
 ---
 
