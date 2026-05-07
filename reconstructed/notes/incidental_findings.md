@@ -3926,28 +3926,42 @@ narrowed to `.wf___chirp` only.
 
 ## IF-171  arith_chain (8-temp) bytewise codegen diff
 
-**Status**: open
-**Severity**: bug (codegen)
-**Found**: stress phase 52 (`arith_chain_smaller.seqc`)
+**Status**: fixed (2026-05-07, phase 57.G.4) — `SeqCMinus::evaluate`
+in `reconstructed/src/ast/seqc_ast_eval_arithmetic.cpp` had two
+reconstruction bugs in the assemblers_-merge ordering for
+subtraction:
 
-### Symptom
+1. **Row 3 (Var-Var)** swapped the merge order: recon merged
+   `rhsResult.assemblers_` first then `lhsResult.assemblers_`, while
+   the binary's path B (entered at @0x22cf78, Var-Var case) merges
+   `lhsResult.assemblers_` first (via `mov -0x70(%rbp),%rcx` =
+   lhsResult at @0x22cfc6, insert at @0x22cff3) then
+   `rhsResult.assemblers_` second (via `mov 0x10(%rbp),%rax` =
+   rhsResult at @0x22cffd, insert at @0x22d01b).
+2. **Row 2 (Const/Cvar - Var)** added a spurious second merge of
+   `lhsResult.assemblers_`. The binary's path A (entered at
+   @0x22cf09, Const/Cvar-Var case) only does ONE insert at @0x22cf3a
+   merging `rhsResult.assemblers_` — `lhsResult` is Const/Cvar so
+   has no assemblers to merge.
+
+The previous reconstruction had conflated the addresses for two
+different code paths (path A = Row 2, path B = Row 3), causing both
+rows to be miswritten.
+
+### Verification
+
+- `arith_chain_smaller_hdawg` and `arith_chain_smaller_shfsg` now
+  pass byte-identical.
+- Main: 1600/1600.  Stress: 430/444 (was 428/444 → +2).
+
+### Symptom (historical)
 
 A linear arithmetic chain with 8 temporaries (well below regalloc
-pressure) compiles to byte-different `.text` and `.asm` between orig
-and recon — same byte count, different bytes.  Same on HDAWG and
-SHFSG.  Indicates a codegen ordering / register-choice difference in
-straight-line arithmetic, not regalloc pressure.
-
-### Minimal repro
-
-`tests/cases/stress/arith_chain_smaller.seqc` on HDAWG and SHFSG.
-
-### Recommended next step
-
-1. `python tests/dump_elf.py tests/cases/stress/arith_chain_smaller.seqc HDAWG8 --samplerate 2.4e9 --both`
-   to view side-by-side `.asm`.
-2. Find the first differing instruction and trace the origin in the
-   recon arithmetic codegen.
+pressure) compiled to byte-different `.text` and `.asm` between orig
+and recon — same byte count, different bytes.  Visible diff:
+sub-expression `(t3+t4) - (t5+t6)` had its two side IRs emitted in
+swapped order.  Same on HDAWG and SHFSG (codegen pass, not
+device-specific).
 
 ## IF-172  zeros(0) emits stray waveform table entry
 

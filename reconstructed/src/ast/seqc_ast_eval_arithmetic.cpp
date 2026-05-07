@@ -1272,17 +1272,19 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
             rhsCount(rhsResult) > 0 && rhsCount(rhsResult) <= 1 &&
             rhsTypeOrUnset(rhsResult) == VarType_Var)
         {
-            // Merge rhsResult.assemblers_.                   // @0x22cf09-22cf3a
-            result->assemblers_.insert(
-                result->assemblers_.end(),
-                rhsResult.assemblers_.begin(),
-                rhsResult.assemblers_.end());
-
-            // Merge lhsResult.assemblers_.                   // @0x22cff8-22d01b
+            // Merge lhsResult.assemblers_ FIRST.            // @0x22cfc2-22cff3
+            // (Path B in binary: Var-Var Row 3 reads lhsResult from
+            //  -0x70(%rbp) and inserts that vector first.)
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 lhsResult.assemblers_.begin(),
                 lhsResult.assemblers_.end());
+
+            // Merge rhsResult.assemblers_ SECOND.            // @0x22cff8-22d01b
+            result->assemblers_.insert(
+                result->assemblers_.end(),
+                rhsResult.assemblers_.begin(),
+                rhsResult.assemblers_.end());
 
             int regNum = Resources::getRegisterNumber();      // @0x22d020
             result->setValue(VarType_Var, regNum);             // @0x22d02f
@@ -1387,18 +1389,14 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
             rhsCount(rhsResult) > 0 && rhsCount(rhsResult) <= 1 &&
             rhsTypeOrUnset(rhsResult) == VarType_Var)
         {
-            // Merge lhsResult.assemblers_.                   // [implicit: lhs has no asm for Const]
-            // Merge rhsResult.assemblers_.                   // @0x22cf09-area (shared code)
+            // Merge rhsResult.assemblers_.                   // @0x22cf09-22cf3a
+            // (Path A in binary: Const/Cvar-Var Row 2 inserts only
+            //  rhsResult.assemblers_; lhsResult is Const/Cvar so has
+            //  no assemblers to merge.)
             result->assemblers_.insert(
                 result->assemblers_.end(),
                 rhsResult.assemblers_.begin(),
                 rhsResult.assemblers_.end());
-
-            // Also merge lhsResult.assemblers_ (analogous to Var+Var Row 3).
-            result->assemblers_.insert(
-                result->assemblers_.end(),
-                lhsResult.assemblers_.begin(),
-                lhsResult.assemblers_.end());
 
             int regNum = Resources::getRegisterNumber();      // @0x22d020 (shared)
             result->setValue(VarType_Var, regNum);             // @0x22d02f (shared)
