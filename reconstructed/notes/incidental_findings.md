@@ -1466,7 +1466,13 @@ itself which is incomplete (see IF-103).
 ## IF-103  `play_cervino_indexed` body is not fully reconstructed
 
 **Source**: `uhf_doc_tv_mode` post-IF-102 investigation
-**Status**: open (investigation deepened — see IF-105)
+**Status**: fixed (Phase 41 series — see "IF-103 / IF-105 status summary"
+below at line ~1889 and "IF-105 update 5" at line ~2001).
+- Part 1 (`load_indexed_play` body) fixed in commit a247dfb.
+- Part 2 (`play_cervino_indexed` extra addi+ssl, missing wvf) fixed
+  in IF-105 update 5 (non-split body reconstructed).
+- Verified: `uhf_doc_tv_mode` byte-identical, all suites green
+  (1600/1600 main, 774/774 stress).
 **Severity**: bug (substantial reconstruction work)
 
 After IF-102, `uhf_doc_tv_mode` enters `play_cervino_indexed` but the
@@ -1565,7 +1571,12 @@ ELF loaders use).  No code change in `reconstructed/`.
 ## IF-105  `case 1` Load with `lengthReg!=0` (path 0x1da77f) is the actual emitter for indexed-play setup
 
 **Source**: `uhf_doc_tv_mode` deeper investigation (extends IF-103)
-**Status**: open (proposed fix below)
+**Status**: fixed (Phase 41 series, all 6 updates applied — see
+"IF-103 / IF-105 status summary" below at line ~1889 and "IF-105
+update 6" at line ~1911 which closed the final placement+regalloc
+divergence). `uhf_doc_tv_mode` byte-identical; suite went
+256/259 → 257/259 → 1600/1600 main + 774/774 stress (all green
+post-Phase-62).
 **Severity**: bug (substantial work; ~50–100 lines of new emission code)
 
 ### GDB-verified execution flow for `uhf_doc_tv_mode`
@@ -2131,6 +2142,7 @@ fix, the codebase has zero inline-asm sites under either pattern.
 
 ## IF-107  `Prefetch::determineFixedWaves` enqueued `next` twice causing O(2^N) BFS
 
+**Status**: fixed (Phase 42 series).
 **Severity**: critical (perf), confirmed-fixed
 **File**: `reconstructed/src/codegen/prefetch_helpers.cpp:589` (function
 `Prefetch::determineFixedWaves`, binary 0x1cb200)
@@ -2175,6 +2187,9 @@ preserved (only the 2 known libc++ PRNG ABI failures remain).
 
 ## IF-108  `WaveformGenerator::rand` uses MINSTD LCG, not MT19937_64
 
+**Status**: fixed (Phase 42 series — `seqc_minstd_normal_amplitude` added
+to `prng_libcxx.cpp`; `hdawg_doc_random_waves` and `hdawg_doc_randomSeed`
+now byte-identical).
 **Severity**: critical (correctness), confirmed-fixed
 **File**: `reconstructed/src/waveform/waveform_generator.cpp:1548`
 (`WaveformGenerator::rand`, binary 0x251cf0); algorithm in
