@@ -5158,3 +5158,88 @@ register must be in the range of 0 to 15". Confirms the bug
 is device-independent and reachable on HDAWG/SHFSG/SHFQA/UHFQA
 alike. No new IF needed; refer to IF-177.
 
+## IF-199  setPrecompClear flag not threaded into per-play cwvf encoding
+
+**Status**: fixed
+**Severity**: bug (codegen — recon misses precomp-flag toggles between plays)
+**Found**: stress phase 62 (4 cases: `precomp_chain_toggle`,
+`precomp_cwvf_branches`, `precomp_in_loop`, `precomp_marker_cwvf`)
+
+### Symptom
+
+When `setPrecompClear(0|1)` is interleaved with `playWave` calls,
+the original binary emits a fresh `cwvf` (or `cwvfr`) instruction
+before each play whose precomp-flag changed, encoding the new
+flag into the play config. **Recon emits only the initial `cwvf`
+and never re-emits it** — every subsequent play uses the original
+flag.
+
+### Root cause
+
+`CustomFunctions::setPrecompClear` in
+`reconstructed/src/runtime/custom_functions_registers.cpp:550-565`
+constructed the SetPrecomp `AsmList::Asm` entry, pushed it into
+`results->assemblers_`, but **failed to set
+`results->node_ = asmEntry.node`**. As a result the SetPrecomp
+Node was never linked into the AST `next`-chain via the standard
+`tail->next = bodyEval->node_` assignment in the eval pipeline,
+so `Prefetch::optimizeCwvf` never visited any type=0x1000
+(SetPrecomp) node.
+
+GDB confirmation (recon `_seqc_compiler.so`):
+- `asmSetPrecompFlags(flags=…)` called 10 times alternating
+  `0x1, 0x0, 0x1, …` (correct).
+- `optimizeCwvf` dispatch at 0x5ded7f saw types `0x1, 0x2, 0x8000`
+  but **never type 0x1000**, even though 10 SetPrecomp nodes were
+  created.
+
+Compare original `setPrecompClear` at 0x14c8a0–0x14c945: after
+calling `asmSetPrecompFlags`, it copies the AsmList::Asm into the
+`assemblers_` vector AND writes the entry's node shared_ptr to
+`results->node_` (`r15+0x50`) at 0x14c940 (`movups [r15+0x50],
+xmm0`).
+
+Other registrations such as `setRate`
+(`custom_functions_registers.cpp:653`) correctly do
+`results->node_ = asmEntry.node;` before pushing — `setPrecompClear`
+was an outlier.
+
+### Fix
+
+```cpp
+auto asmEntry = asmCommands_->asmSetPrecompFlags(flag);
+results->node_ = asmEntry.node;  // chain into AST next-chain (original @0x14c940)
+results->assemblers_.push_back(std::move(asmEntry));
+return results;
+```
+
+### Verification
+
+- `precomp_chain_toggle.seqc` (HDAWG8, sr=2.4e9) now byte-identical
+  to original (6972 B; all 19 sections IDENTICAL).
+- Full diff_test_fast.py: 1600/1600 passing, no regressions.
+
+### Earlier (incorrect) hypothesis — kept for posterity
+
+Initially suspected the SetPrecomp dispatch in `optimizeCwvf`
+(prefetch.cpp:696) was missing a `cwvf.precompFlags =
+curNode->defaultPrecompFlags` write. That is incorrect — the
+binary's SetPrecomp dispatch case does **not** update the running
+cwvf's precompFlags either. Instead, the propagation happens at
+the Play case (binary 0x1d03c2 reloads `r11d` from
+`-0x30(rbp)`/`defaultPrecompFlags`). The recon's prefetch logic
+was already correct; the SetPrecomp nodes simply never reached
+it.
+
+### Lesson
+
+A symptom in a downstream pass (cwvf-merge emitting only one
+`cwvf`) misled initial investigation toward the prefetch
+propagation logic. The real bug was a single missing assignment
+in the eval-result construction five layers upstream. **GDB
+trace of node-type dispatch counts is decisive** — once we saw
+`type=0x1000` never appeared at the dispatch despite 10
+`asmSetPrecompFlags` calls, the upstream chaining defect became
+obvious.
+
+

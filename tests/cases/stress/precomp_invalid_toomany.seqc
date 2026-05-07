@@ -1,0 +1,2 @@
+// A6 sibling: too many args.
+setPrecompClear(1, 2);

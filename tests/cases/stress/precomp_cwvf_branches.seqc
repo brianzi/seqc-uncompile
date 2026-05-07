@@ -1,0 +1,26 @@
+// A3: setPrecompClear injected into different cwvf branches.
+// Clone of cwvf_three_branches with precomp toggles in each branch.
+
+wave wA = gauss(256, 128, 32);
+wave wB = drag(256, 128, 40, 0.3);
+wave wC = sine(256, 0.5, 0, 2);
+
+var sel = getUserReg(0);
+if (sel == 0) {
+  setPrecompClear(1);
+  playWave(1, 2, wA);
+  playWave(1, 2, wB);
+} else if (sel == 1) {
+  setPrecompClear(0);
+  playWave(1, 2, wA);
+  setPrecompClear(1);
+  playWave(1, 2, wC);
+} else {
+  setPrecompClear(1);
+  playWave(1, 2, wB);
+  setPrecompClear(0);
+  playWave(1, 2, wC);
+  setPrecompClear(1);
+  playWave(1, 2, wA);
+}
+waitWave();

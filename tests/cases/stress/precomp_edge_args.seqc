@@ -1,0 +1,12 @@
+// A5: edge-case const arguments to setPrecompClear.
+// Implementation normalizes (val != 0) ? 1 : 0 — verify binary agrees.
+
+setPrecompClear(false);     // 0
+setPrecompClear(true);      // 1
+setPrecompClear(0);
+setPrecompClear(1);
+setPrecompClear(2);         // any nonzero -> 1
+setPrecompClear(-1);        // any nonzero -> 1
+setPrecompClear(0xFFFFFF);  // big nonzero -> 1
+setPrecompClear(0x7FFFFFFF);// max int -> 1
+playZero(64);

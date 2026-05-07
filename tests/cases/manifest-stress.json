@@ -3722,6 +3722,201 @@
           "name": "while_var_loop_uhfqa",
           "file": "stress/while_var_loop.seqc",
           "@base": "@uhfqa"
+        },
+        {
+          "name": "precomp_basic_hdawg",
+          "file": "stress/precomp_basic.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_basic_shfsg",
+          "file": "stress/precomp_basic.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "precomp_basic_shfqa",
+          "file": "stress/precomp_basic.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "precomp_basic_uhfqa",
+          "file": "stress/precomp_basic.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "precomp_edge_args_hdawg",
+          "file": "stress/precomp_edge_args.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_invalid_noargs_hdawg",
+          "file": "stress/precomp_invalid_noargs.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_invalid_toomany_hdawg",
+          "file": "stress/precomp_invalid_toomany.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_invalid_var_hdawg",
+          "file": "stress/precomp_invalid_var.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_invalid_float_hdawg",
+          "file": "stress/precomp_invalid_float.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_256_short_linear_hdawg",
+          "file": "stress/prefetch_256_short_linear.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_384_short_linear_hdawg",
+          "file": "stress/prefetch_384_short_linear.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_512_short_linear_hdawg",
+          "file": "stress/prefetch_512_short_linear.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_burst_then_long_hdawg",
+          "file": "stress/prefetch_burst_then_long.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_burst_then_zero_hdawg",
+          "file": "stress/prefetch_burst_then_zero.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_burst_branch_hdawg",
+          "file": "stress/prefetch_burst_branch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_burst_in_loop_hdawg",
+          "file": "stress/prefetch_burst_in_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_mixed_short_lengths_hdawg",
+          "file": "stress/prefetch_mixed_short_lengths.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_dup_shapes_hdawg",
+          "file": "stress/prefetch_dup_shapes.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_2ch_independent_hdawg",
+          "file": "stress/prefetch_2ch_independent.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_marker_short_hdawg",
+          "file": "stress/prefetch_marker_short.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_aWI_burst_hdawg",
+          "file": "stress/prefetch_aWI_burst.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_nested_branch_burst_hdawg",
+          "file": "stress/prefetch_nested_branch_burst.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_uhfqa_short_burst_uhfqa",
+          "file": "stress/prefetch_uhfqa_short_burst.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "prefetch_uhfqa_1024_entries_uhfqa",
+          "file": "stress/prefetch_uhfqa_1024_entries.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "prefetch_uhfqa_aWI_burst_uhfqa",
+          "file": "stress/prefetch_uhfqa_aWI_burst.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "prefetch_uhfqa_branch_burst_uhfqa",
+          "file": "stress/prefetch_uhfqa_branch_burst.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "prefetch_uhfqa_2ch_uhfqa",
+          "file": "stress/prefetch_uhfqa_2ch.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "setrate_cwvf_branches_hdawg",
+          "file": "stress/setrate_cwvf_branches.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_repeated_idempotent_hdawg",
+          "file": "stress/prefetch_repeated_idempotent.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prefetch_waitwave_invalidate_hdawg",
+          "file": "stress/prefetch_waitwave_invalidate.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "rate_chain_toggle_hdawg",
+          "file": "stress/rate_chain_toggle.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "rate_cwvf_branches_hdawg",
+          "file": "stress/rate_cwvf_branches.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "rate_in_loop_hdawg",
+          "file": "stress/rate_in_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "rate_marker_cwvf_hdawg",
+          "file": "stress/rate_marker_cwvf.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "rate_zero_hold_mix_hdawg",
+          "file": "stress/rate_zero_hold_mix.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_chain_toggle_hdawg",
+          "file": "stress/precomp_chain_toggle.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_cwvf_branches_hdawg",
+          "file": "stress/precomp_cwvf_branches.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_in_loop_hdawg",
+          "file": "stress/precomp_in_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "precomp_marker_cwvf_hdawg",
+          "file": "stress/precomp_marker_cwvf.seqc",
+          "@base": "@hdawg8"
         }
       ]
     }

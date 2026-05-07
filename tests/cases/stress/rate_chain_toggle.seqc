@@ -1,0 +1,23 @@
+// Rate-toggle analog of precomp_chain_toggle: alternate the rate parameter
+// between every consecutive play to stress per-play cwvf re-encoding for
+// the rate field (analogous to IF-199 for precomp).
+
+wave wg = gauss(192, 96, 24);
+wave wd = drag(192, 96, 30, 0.05);
+wave wr = rect(192, 0.5);
+wave ws = sine(192, 0.7, 0, 4);
+wave wo = ones(192);
+
+playWave(1, 2, wg, AWG_RATE_2400MHZ);
+playWave(1, 2, wd, AWG_RATE_1200MHZ);
+playWave(1, 2, wr, AWG_RATE_2400MHZ);
+playWave(1, 2, ws, AWG_RATE_600MHZ);
+playWave(1, 2, wo, AWG_RATE_2400MHZ);
+
+// Repeat with the toggle flipped relative to the wave.
+playWave(1, 2, wg, AWG_RATE_1200MHZ);
+playWave(1, 2, wd, AWG_RATE_2400MHZ);
+playWave(1, 2, wr, AWG_RATE_300MHZ);
+playWave(1, 2, ws, AWG_RATE_2400MHZ);
+playWave(1, 2, wo, AWG_RATE_150MHZ);
+waitWave();

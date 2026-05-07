@@ -560,6 +560,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setPrecompClear(                  
     int val = args[0].value_.toInt();
     unsigned int flag = (val != 0) ? 1u : 0u;
     auto asmEntry = asmCommands_->asmSetPrecompFlags(flag);
+    results->node_ = asmEntry.node;  // chain into AST next-chain (original @0x14c940)
     results->assemblers_.push_back(std::move(asmEntry));
     return results;
 }

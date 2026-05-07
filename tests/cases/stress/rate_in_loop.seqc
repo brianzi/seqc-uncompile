@@ -1,0 +1,16 @@
+// Rate parameter inside a loop, alternating via if/else (const choice).
+// Tests rate-flag threading across loop-carried cwvf state.
+
+wave w1 = gauss(192, 96, 24);
+wave w2 = rect(192, 0.5);
+
+for (var i = 0; i < 6; i = i + 1) {
+  if (i == 0 || i == 2 || i == 4) {
+    playWave(1, 2, w1, AWG_RATE_2400MHZ);
+    playWave(1, 2, w2, AWG_RATE_1200MHZ);
+  } else {
+    playWave(1, 2, w1, AWG_RATE_1200MHZ);
+    playWave(1, 2, w2, AWG_RATE_2400MHZ);
+  }
+}
+waitWave();

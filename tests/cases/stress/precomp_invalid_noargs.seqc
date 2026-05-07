@@ -1,0 +1,5 @@
+// A6: setPrecompClear validation errors. Each line is its own test of
+// the error path — only the first triggering call matters per compile.
+
+// This file tests the "no args" form. See _toomany / _var siblings for others.
+setPrecompClear();

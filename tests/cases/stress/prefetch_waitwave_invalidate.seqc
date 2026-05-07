@@ -1,0 +1,27 @@
+// D4: prefetch + waitWave + prefetch — does waitWave invalidate the
+// cache so that a second prefetch is required and not skipped?
+
+wave w1 = gauss(1024, 512, 64);
+wave w2 = drag(1024, 512, 64, 0.05);
+wave w3 = sine(1024, 0.7, 0, 4);
+
+prefetch(1, w1);
+prefetch(1, w2);
+playWave(1, w1);
+playWave(1, w2);
+waitWave();
+
+// Re-prefetch the same waves; should be no-op or refetch?
+prefetch(1, w1);
+prefetch(1, w2);
+prefetch(1, w3);
+playWave(1, w1);
+playWave(1, w2);
+playWave(1, w3);
+waitWave();
+
+// Long wait between prefetch and play
+prefetch(1, w1);
+playZero(16384);
+playWave(1, w1);
+waitWave();

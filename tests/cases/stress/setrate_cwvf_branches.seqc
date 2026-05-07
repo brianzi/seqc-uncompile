@@ -1,0 +1,26 @@
+// D1: setRate (HDAWG-only) interleaved with cwvf-affecting plays.
+// setRate changes sample-rate divisor; like setPrecompClear it should
+// affect subsequent play-config encoding.
+
+wave wA = gauss(192, 96, 24);
+wave wB = rect(192, 0.7);
+wave wC = sine(192, 0.5, 0, 4);
+
+setRate(AWG_RATE_2400MHZ);
+playWave(1, 2, wA);
+setRate(AWG_RATE_1200MHZ);
+playWave(1, 2, wB);
+setRate(AWG_RATE_600MHZ);
+playWave(1, 2, wC);
+
+var sel = getUserReg(0);
+if (sel == 0) {
+  setRate(AWG_RATE_2400MHZ);
+  playWave(1, 2, wA);
+} else {
+  setRate(AWG_RATE_1200MHZ);
+  playWave(1, 2, wB);
+}
+setRate(AWG_RATE_2400MHZ);
+playWave(1, 2, wC);
+waitWave();

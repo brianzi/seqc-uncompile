@@ -5714,10 +5714,8 @@ all four code paths (per the rule established in Phase 59).
       `randomUniform` (same `FuncExactArgs2 / 2` pattern, line 1003)
       but **deferred**: requires confirming differential test
       first to avoid speculative changes
-- [ ] **61.7** — User-review: choose Phase 62 = round 11 stress,
-      Phase 62 = investigate IF-196 (UHFQA wavetable overrun),
-      Phase 62 = IF-195 rename, or Phase 62 = add `randomUniform`
-      arity test then mirror-fix IF-197 sibling
+- [x] **61.7** — User-review chose Phase 62 = round 11 brainstorm
+      (precompClear + prefetch pressure)
 
 ### Lessons learned
 
@@ -5736,3 +5734,79 @@ all four code paths (per the rule established in Phase 59).
   Audit other variadic functions (chirp, sinc, randomUniform,
   drag, etc.) for the same pattern when convenient.
 
+## Phase 62 (Round 11): precompClear, prefetch-pressure, UHFQA wave-mem
+
+User-directed brainstorm round targeting: (A) `setPrecompClear` ×
+cwvf interactions (zero pre-existing coverage), (B) HDAWG prefetch
+pressure (>256 short waves, mixed lengths, branches), (C) UHFQA
+prefetch pressure including the IF-192/IF-196 trigger, (D) adjacent
+gaps (setRate × cwvf, prefetch idempotence, prefetch + waitWave).
+
+- [x] **62.A** — Wrote 9 hand-authored A-track `.seqc` files for
+      `setPrecompClear` corner cases (basic, chain_toggle,
+      cwvf_branches, in_loop, edge_args, 4×invalid, marker_cwvf).
+      Registered 13 manifest entries (basic also against
+      SHFSG/SHFQA/UHFQA for cross-device-rejection coverage).
+- [x] **62.B** — Wrote `tests/cases/stress/_gen/gen_prefetch_pressure.py`
+      generator script, generated 13 B-track `.seqc` files
+      (HDAWG: 256/384/512 short-wave bursts, burst+long-wave,
+      burst+playZero, burst+branch, burst-in-loop, mixed-lengths,
+      dedup, 2ch independent, marker-bearing, assignWaveIndex
+      burst, nested branch). Registered 13 manifest entries.
+- [x] **62.C** — Generated 5 C-track UHFQA cases via the same
+      generator (short_burst, 1024_entries=overflow trigger, aWI,
+      branch_burst, 2ch). Registered 5 manifest entries.
+- [x] **62.D** — 3 hand-authored D-track files
+      (setrate_cwvf_branches, prefetch_repeated_idempotent,
+      prefetch_waitwave_invalidate). Registered 3 entries.
+- [x] **62.E** — Full stress run: 759/763 pass (manifest 729 → 763).
+      4 failures **all in A-track**, all sharing root cause
+      (precomp-flag not threaded into cwvf encoding).
+- [x] **62.F** — Filed **IF-199** (FIXED CANDIDATE, deferred to
+      Phase 63): `setPrecompClear` flag not propagated to
+      per-play cwvf encoding in `prefetch.cpp:696-702`. Recon
+      emits only the initial `cwvf` and never re-emits when
+      precomp flag toggles between plays.
+- [x] **62.G** — Verified `prefetch_uhfqa_1024_entries` (1100 waves)
+      triggers IF-192's check correctly: orig and recon both report
+      "program is too large to fit into memory - has 3463
+      instructions, maximum is 1024". **IF-192 fix validated** under
+      a real overflow stress. **IF-196 (suspected twin bug) did not
+      surface** in this test — either the hypothesis is wrong, this
+      input doesn't reach check 11, or check 11 was already correct.
+      Needs separate UHFQA-CT-overflow scenario to differentiate.
+- [x] **62.H** — Main suite: 1600/1600 (no regressions from any
+      of the 34 new manifest entries).
+- [ ] **62.I** — User-review: choose Phase 63 = fix IF-199
+      (precomp-flag threading), Phase 63 = IF-196 dedicated UHFQA-CT
+      overflow test, Phase 63 = round 12 stress, or Phase 63 = audit
+      other variadic builtins for IF-197 sibling bugs.
+
+### Lessons learned
+
+- **Generator scripts pay off immediately for high-N cases.** The
+  256/384/512-wave bursts would have been tedious to hand-author;
+  the generator wrote them in one pass, ran in seconds, and
+  produced byte-clean diffs (or matched-error pairs) for all 18
+  generated cases. Committed alongside the .seqc for reproducibility.
+- **Prefetch logic is more correct than feared.** Recon handles
+  512 distinct short waves byte-clean (367 KB ELF). The "find
+  the right slot" stress did not surface a bug at this size.
+  Either the algorithm is solid, or pressure must be increased
+  further (1024+ waves, smaller cache pages, or specific
+  control-flow patterns).
+- **precompClear was a real coverage gap.** Zero pre-existing
+  tests, immediate find on first round of cases. **Patterns that
+  thread state through a sequence of plays (precomp, rate,
+  trigger flags) are systematically under-tested.** Worth
+  auditing all such state-threading functions for similar gaps.
+- **abc-rule discipline matters.** Initial drift into mid-round
+  triage corrected by user. Authoring all tests, registering
+  all manifest entries, then running once was strictly more
+  efficient — surfaced the same bug in 4 places (confirming
+  single root cause) instead of debugging each independently.
+- **Test-author bugs are real and need forking.** `drag` with
+  non-trivial sigma/beta combos easily exceeds amp 1.0; warning
+  message diverges from byte-clean compare. Used minimal
+  attribute-tweak fixes (rect substitution) when warnings
+  weren't the test angle.

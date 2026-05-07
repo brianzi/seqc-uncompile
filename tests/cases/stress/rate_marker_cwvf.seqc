@@ -1,0 +1,21 @@
+// Rate × marker × cwvf — maximum interaction analog of precomp_marker_cwvf.
+
+wave wM1 = marker(64, 1);
+wave wM2 = marker(64, 2);
+wave wMix1 = gauss(128, 64, 16) + marker(128, 1);
+wave wMix2 = drag(128, 64, 20, 0.05) + marker(128, 2);
+
+playWave(1, 2, wM1, AWG_RATE_2400MHZ);
+playWave(1, 2, wMix1, AWG_RATE_1200MHZ);
+
+var sel = getUserReg(0);
+if (sel == 0) {
+  playWave(1, 2, wMix1, AWG_RATE_600MHZ);
+  playWave(1, 2, wM2,   AWG_RATE_2400MHZ);
+} else {
+  playWave(1, 2, wMix2, AWG_RATE_2400MHZ);
+  playWave(1, 2, wM1,   AWG_RATE_300MHZ);
+}
+playWave(1, 2, wMix1, AWG_RATE_2400MHZ);
+playWave(1, 2, wMix2, AWG_RATE_2400MHZ);
+waitWave();

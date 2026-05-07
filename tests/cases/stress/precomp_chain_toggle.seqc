@@ -1,0 +1,32 @@
+// A2: alternate setPrecompClear(0/1) between every play with diverse shapes.
+// Direct "playconfig variant" stress for the precomp flag.
+
+wave wg = gauss(192, 96, 24);
+wave wd = drag(192, 96, 30, 0.3);
+wave wr = rect(192, 0.5);
+wave ws = sine(192, 0.7, 0, 4);
+wave wo = ones(192);
+
+setPrecompClear(1);
+playWave(1, 2, wg);
+setPrecompClear(0);
+playWave(1, 2, wd);
+setPrecompClear(1);
+playWave(1, 2, wr);
+setPrecompClear(0);
+playWave(1, 2, ws);
+setPrecompClear(1);
+playWave(1, 2, wo);
+
+// Repeat the cycle with the toggle flipped relative to the wave.
+setPrecompClear(0);
+playWave(1, 2, wg);
+setPrecompClear(1);
+playWave(1, 2, wd);
+setPrecompClear(0);
+playWave(1, 2, wr);
+setPrecompClear(1);
+playWave(1, 2, ws);
+setPrecompClear(0);
+playWave(1, 2, wo);
+waitWave();

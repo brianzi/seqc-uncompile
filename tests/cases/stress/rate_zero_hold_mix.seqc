@@ -1,0 +1,16 @@
+// Rate-toggle on playZero/playHold (no waveform sample data, but still
+// exercises the rate field of the play config encoding).
+
+wave wA = gauss(256, 128, 32);
+
+playWave(1, 2, wA, AWG_RATE_2400MHZ);
+playZero(128, AWG_RATE_1200MHZ);
+playZero(128, AWG_RATE_600MHZ);
+playZero(128, AWG_RATE_300MHZ);
+playZero(128, AWG_RATE_2400MHZ);
+playWave(1, 2, wA, AWG_RATE_1200MHZ);
+playHold(128);
+playZero(64, AWG_RATE_75MHZ);
+playWave(1, 2, wA, AWG_RATE_2400MHZ);
+playHold(64);
+waitWave();

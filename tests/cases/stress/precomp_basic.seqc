@@ -1,0 +1,5 @@
+// A1: setPrecompClear standalone, no waves. HDAWG-only.
+setPrecompClear(0);
+setPrecompClear(1);
+setPrecompClear(0);
+playZero(128);

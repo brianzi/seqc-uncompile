@@ -1,0 +1,3 @@
+// A6 sibling: non-const arg (var). Should hit error msg 193.
+var v = getUserReg(0);
+setPrecompClear(v);

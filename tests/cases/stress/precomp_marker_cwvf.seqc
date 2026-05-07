@@ -1,0 +1,27 @@
+// A8: maximum interaction — precompClear + marker + cwvf-branch + multi-shape.
+wave wM1 = marker(64, 1);
+wave wM2 = marker(64, 2);
+wave wM3 = marker(64, 4);
+wave wMix1 = gauss(128, 64, 16) + marker(128, 1);
+wave wMix2 = drag(128, 64, 20, 0.3) + marker(128, 2);
+
+setPrecompClear(1);
+playWave(1, 2, wM1);
+setPrecompClear(0);
+
+var sel = getUserReg(0);
+if (sel == 0) {
+  setPrecompClear(1);
+  playWave(1, 2, wMix1);
+  setPrecompClear(0);
+  playWave(1, 2, wM2);
+} else {
+  setPrecompClear(0);
+  playWave(1, 2, wMix2);
+  setPrecompClear(1);
+  playWave(1, 2, wM3);
+}
+setPrecompClear(0);
+playWave(1, 2, wMix1);
+playWave(1, 2, wMix2);
+waitWave();

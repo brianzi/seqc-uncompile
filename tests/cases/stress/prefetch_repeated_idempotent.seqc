@@ -1,0 +1,22 @@
+// D3: repeated-prefetch idempotence.
+// Calling prefetch on the same wave many times should not over-emit
+// fetch instructions; the prefetcher should dedup.
+
+wave w1 = gauss(1024, 512, 64);
+wave w2 = drag(1024, 512, 64, 0.05);
+wave w3 = sine(1024, 0.7, 0, 4);
+
+prefetch(1, w1);
+prefetch(1, w1);
+prefetch(1, w1);
+prefetch(1, w2);
+prefetch(1, w2);
+prefetch(1, w3);
+prefetch(1, w1);  // out-of-order re-prefetch
+prefetch(1, w3);
+
+playWave(1, w1);
+playWave(1, w2);
+playWave(1, w3);
+playWave(1, w1);
+waitWave();

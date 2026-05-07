@@ -904,7 +904,7 @@ AsmList::Asm AsmCommands::asmRate(int rate) const {
 }
 
 AsmList::Asm AsmCommands::asmSetPrecompFlags(unsigned int flags) const {
-    AsmList::Asm result = emitNodeEntry(NodeType::PrecompFlags);
+    AsmList::Asm result = emitNodeEntry(NodeType::SetPrecomp);
     result.node->defaultPrecompFlags = flags;  // +0x104
     return result;
 }

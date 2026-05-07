@@ -1,0 +1,16 @@
+// A4': setPrecompClear inside loop body, alternating via if/else (const args).
+// Cannot pass loop-var to setPrecompClear (requires const).
+
+wave w1 = gauss(192, 96, 24);
+wave w2 = drag(192, 96, 30, 0.05);
+
+for (var i = 0; i < 6; i = i + 1) {
+  if (i == 0 || i == 2 || i == 4) {
+    setPrecompClear(1);
+  } else {
+    setPrecompClear(0);
+  }
+  playWave(1, 2, w1);
+  playWave(1, 2, w2);
+}
+waitWave();

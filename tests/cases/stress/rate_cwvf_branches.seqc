@@ -1,0 +1,23 @@
+// Rate variants in cwvf-branches structure, analog of precomp_cwvf_branches.
+// Different rates in different branches; merge point must keep correct
+// per-branch rate encoding.
+
+wave wA = gauss(256, 128, 32);
+wave wB = drag(256, 128, 40, 0.05);
+wave wC = sine(256, 0.5, 0, 2);
+
+var sel = getUserReg(0);
+if (sel == 0) {
+  playWave(1, 2, wA, AWG_RATE_2400MHZ);
+  playWave(1, 2, wB, AWG_RATE_2400MHZ);
+} else if (sel == 1) {
+  playWave(1, 2, wA, AWG_RATE_1200MHZ);
+  playWave(1, 2, wC, AWG_RATE_2400MHZ);
+} else {
+  playWave(1, 2, wB, AWG_RATE_600MHZ);
+  playWave(1, 2, wC, AWG_RATE_300MHZ);
+  playWave(1, 2, wA, AWG_RATE_2400MHZ);
+}
+// After merge: explicit rate again.
+playWave(1, 2, wA, AWG_RATE_2400MHZ);
+waitWave();

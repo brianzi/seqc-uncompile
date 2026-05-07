@@ -1,0 +1,3 @@
+// A6 sibling: float arg. Implementation checks `(varType_ & ~1) != 4`
+// (4=int, 5=int-bool variant). Float should fail the type check.
+setPrecompClear(1.5);
