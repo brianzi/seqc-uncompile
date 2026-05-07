@@ -4795,7 +4795,33 @@ filtered the zero-length wave" bug.
 calculation. Likely both call into the wave-table iterator and
 count entries unconditionally.
 
-**Status**: open. To fix in Phase 58.
+**Status**: fixed (phase 58.D). Root cause was actually upstream of both
+budget and entry-point computation: `WavetableIR::assignWaveformAllocationSizes`
+(`reconstructed/src/waveform/wavetable_ir.cpp:852`) did not guard against
+`signal.length() == 0`. With sampleCount=0, `aligned` started at 0 then
+the `max(aligned, maxWaveformLength)` clamp inflated it to a full
+waveform block, giving `zeros(0)` a non-zero `allocationByteSize`. That
+bogus size both:
+  1. flowed into the fpgaMemoryUsed accumulator in
+     `awg_compiler.cpp:304` (whose own `allocationByteSize == 0` filter
+     was therefore not enough to skip the zero wave), and
+  2. shifted addresses computed by the Phase 1 lambda in
+     `allocateWaveforms`, which in turn shifted the wave-table layout
+     used by the prefetch pass — explaining IF-190 as the same bug.
+
+Fix: add `if (sampleCount == 0) aligned = 0; else { …existing… }` so the
+allocation byte size is 0 when the raw signal is empty.
+
+**Verification**:
+- `wave_min_length_hdawg`: byte-identical (2592 bytes), e_entry now 0x80.
+- `wave_zero_boundary_hdawg`: byte-identical (2944 bytes), `.text` and
+  `.asm` match orig (prf instruction + high-address slot at 524288 now
+  emit correctly).
+- Main suite 1600/1600.
+- Stress: 435 → 442 (cleared IF-189, IF-190; +5 collateral
+  passes from corrected wave-table layout in tests that touched
+  zero-length waves).
+- Confirms IFs 189 and 190 share a single root cause.
 
 
 ## IF-190  zeros() waveform not prefetched at high address; sequential register offsets emitted
@@ -4837,7 +4863,12 @@ Likely the same area as IFs 158/172/170 — the prefetch pass +
 zero-wave handling. The zero-wave gets a special fixed address
 slot and must be prefetched separately.
 
-**Status**: open. To fix in Phase 58.
+**Status**: fixed (phase 58.D). Same root cause as IF-189: see IF-189
+resolution. The "drops the prf instruction / wrong register offsets"
+symptom was a downstream consequence of `assignWaveformAllocationSizes`
+giving `zeros(0)` a non-zero allocation. With the zero wave correctly
+sized to 0, the wave-table layout, prefetch register slots, and
+`prf` emission all match orig byte-for-byte.
 
 
 ## IF-191  long_source: regalloc allocates beyond registerDepth=16 on very large input

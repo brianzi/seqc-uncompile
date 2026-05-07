@@ -865,14 +865,24 @@ void WavetableIR::assignWaveformAllocationSizes() {                 // @0x29f1d0
             uint16_t channelCount = wf->signal.channels();             // +0xC8
             size_t sampleCount = wf->signal.length();                  // +0xD0
 
-            // Align sample count same way as alignWaveformSizes
+            // Mirror Phase 1 of allocateWaveforms: a length==0 signal
+            // contributes 0 bytes (zeros(0) / cut(w,N,N) collapse).  Without
+            // this guard the max(aligned, maxWaveformLength) below would
+            // inflate the allocation to a full waveform block, which both
+            // pollutes the fpgaMemoryUsed budget (IF-189) and shifts the
+            // wave-table layout used by the prefetch pass (IF-190).
             uint32_t granularity = deviceConstants_->grainSize;
-            size_t aligned = ((sampleCount + granularity - 1) / granularity)
-                             * granularity;
-            size_t maxSamples = deviceConstants_->maxWaveformLength;
-            // Binary uses cmova (max), NOT min — verified GDB @0x2aa4b3:
-            // cmp %eax,%r8d; cmova %r8d,%eax → eax = max(aligned, granularity)
-            if (maxSamples > aligned) aligned = maxSamples;
+            size_t aligned;
+            if (sampleCount == 0) {
+                aligned = 0;
+            } else {
+                aligned = ((sampleCount + granularity - 1) / granularity)
+                          * granularity;
+                size_t maxSamples = deviceConstants_->maxWaveformLength;
+                // Binary uses cmova (max), NOT min — verified GDB @0x2aa4b3:
+                // cmp %eax,%r8d; cmova %r8d,%eax → eax = max(aligned, granularity)
+                if (maxSamples > aligned) aligned = maxSamples;
+            }
 
             // Compute allocation: aligned_samples * channels * bitsPerSample
             uint32_t bps = deviceConstants_->bitsPerSample;
