@@ -5240,6 +5240,106 @@ does **not** reach the `FuncExactArgs2` branch — it is caught
 upstream with "called function ... without arguments". Use a
 too-many-args call (3) to surface the divergence.
 
+### Audit sweep: gauss, rand (confirmed and fixed, 2026-05-07)
+
+A full sweep of every `FuncExactArgs2` site in the recon was performed
+to find any remaining IF-197-pattern bugs.  Methodology: enumerate all
+`ErrorMessages::format(FuncExactArgs2, name, N, ...)` call sites; for
+each, derive the function's valid arity set from the surrounding
+`if (args.size() ...)` guard; any site whose literal `N` does not
+equal the *minimum* of that set is a candidate.  Each candidate was
+then verified against `_seqc_compiler.so` disassembly by locating the
+`mov $0xN,%ecx` immediately preceding the `ErrorMessages::format`
+tail-call.
+
+Sites audited (file = `reconstructed/src/waveform/waveform_generator_dsp.cpp`
+unless noted):
+
+| Line | Builtin | Valid arities | Recon literal | Binary literal | Verdict |
+|------|---------|---------------|---------------|----------------|---------|
+| 124 | add | ≥2 | 2 | 2 | match |
+| 170 | gauss | {3,4} | **4** | **3** (`0x24e7e6`) | **MISMATCH → fixed** |
+| 214 | sin | {3,4} | 3 | 3 (`0x24aa27`) | match |
+| 268 | cos | {3,4} | 3 | 3 | match |
+| 334 | sinc | {3,4} | 3 | 3 | match |
+| 398 | ramp | {3} | 3 | 3 | match (exact) |
+| 436 | sawtooth | {3,4} | 3 | 3 | match |
+| 474 | triangle | {3,4} | 3 | 3 | match |
+| 529 | drag | {3,4} | 3 | 3 | match |
+| 635 | blackman | {2,3} | 2 | 2 (`0x24fc59`) | match |
+| 697 | hamming | {1,2} | 1 | 1 | match |
+| 750 | hann | {1,2} | 1 | 1 (`0x2501a7`) | match |
+| 893 | rand | {3,4} | **4** | **3** (`0x25284c`) | **MISMATCH → fixed** |
+| 952 | randomGauss | {3,4} | 3 | 3 | match (IF-197) |
+| 1003 | randomUniform | {1,2} | 1 | 1 | match (IF-197 sibling) |
+| 1115 | rrc | {3,4,5} | 3 | 3 | match |
+| 1244 | placeholder | {1,2,3} | 1 | 1 | match |
+| 1295 | join | ≥1 | 1 | 1 | match |
+| 1319 | join | ≥1 | 1 | 1 | match |
+| `waveform_generator.cpp:605` | marker/mask | {2} exact | 2 | 2 | match (exact) |
+| `waveform_generator.cpp:738` | helper (exact) | exact | `expected` | n/a | n/a (variable, not literal) |
+| `custom_functions_dio.cpp:131` | getZSyncData/UHFQA | {1} exact | 1 | 1 | match (exact) |
+| `custom_functions_dio.cpp:230` | getFeedback/UHFQA | {1} exact | 1 | 1 | match (exact) |
+
+Fixes applied:
+- `waveform_generator_dsp.cpp:170` — `gauss` literal `4` → `3`.
+  Binary `mov $0x3,%ecx` at `0x24e7e6`.
+- `waveform_generator_dsp.cpp:893` — `rand` literal `4` → `3`.
+  Binary `mov $0x3,%ecx` at `0x25284c`.
+
+Differential tests added:
+- `tests/cases/stress/wave_gauss_oor.seqc` — calls `gauss(64,1.0,32.0,8.0,0.0)`
+  (5 args).  Registered as `wave_gauss_oor_hdawg` and `wave_gauss_oor_shfsg`.
+  After fix both engines produce byte-identical
+  `function 'gauss' expects 3 argument(s), 5 argument(s) given`.
+- `tests/cases/stress/wave_rand_oor.seqc` — calls `rand(64,1.0,0.0,1.0,0.0)`
+  (5 args).  Registered as `wave_rand_oor_hdawg` and `wave_rand_oor_shfsg`.
+  After fix the arity wording itself is byte-identical
+  (`function 'rand' expects 3 argument(s), 5 argument(s) given`); the
+  diff is "accepted-differ" only because the binary additionally emits
+  a `Warning (line: N): function 'rand' is deprecated, please use 'randomGauss'`
+  prefix that recon does not emit.  That deprecation-warning gap is
+  out-of-scope for this audit and is logged separately as IF-200 below.
+
+Suite verification: main 1600/1600 unchanged; stress grew by 4 entries
+to 774/774, all green.
+
+## IF-200  `rand` deprecation warning missing in recon
+
+**Status**: open (2026-05-07) — discovered while constructing the
+`wave_rand_oor` differential test for the IF-197 audit sweep.
+**Severity**: cosmetic (warning text only — does not affect codegen)
+**Found**: IF-197 audit sweep, phase 62.audit
+
+### Symptom
+
+The original binary emits a deprecation warning whenever the
+`rand` builtin is invoked:
+
+```
+Warning (line: N): function 'rand' is deprecated, please use 'randomGauss'
+```
+
+The recon emits no warning.  When `rand` is otherwise valid the
+ELF still matches byte-for-byte (warnings are not in the ELF), so
+this only surfaces in error-output difftests where the warning
+prefixes the error string.
+
+### Notes
+
+The diagnostic is emitted from somewhere in the `rand` entry path
+(@`0x251cf0`).  The `randomGauss` and `randomUniform` siblings do
+not emit such a warning.  Locating and reconstructing the warning
+emission site is straightforward but was deferred to keep the
+IF-197 audit scope tight — the audit was about arity-error wording
+only.
+
+### Workaround
+
+`wave_rand_oor_*` stress entries currently rely on diff_test's
+"accepted-differ" tolerance for the warning prefix.  When IF-200
+is fixed, those entries will tighten to byte-identical automatically.
+
 ## IF-198  setUserReg range-check missing on recon
 
 **Status**: fixed (2026-05-07) — root cause was *not* the same as IF-177.

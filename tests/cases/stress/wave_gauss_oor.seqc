@@ -1,0 +1,6 @@
+// Trigger gauss arg-count error (IF-197 sibling).
+// gauss accepts 3 or 4 args; calling with 5 must error.
+// Binary's FuncExactArgs2 template is fed the MIN valid arity (3),
+// so the error message reads "expects 3 argument(s), 5 argument(s) given".
+wave w = gauss(64, 1.0, 32.0, 8.0, 0.0);
+playWave(w);
