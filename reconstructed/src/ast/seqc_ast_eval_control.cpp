@@ -2454,10 +2454,33 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
             }
         }
         else {
-            // countInt >= 2: evaluate body FIRST to catch unsupported
-            // statements (like break) before checking loopUnrollLimit.
-            // This matches binary behavior: "break statement is not supported"
-            // comes BEFORE "too many iterations" error.
+            // countInt >= 2 (@0x222f79 jge → 0x222fcf).
+            // Binary order (verified by GDB at 0x222fd5/0x222fd9 jg 0x2231d6):
+            //   1. Check countInt > loopUnrollLimit FIRST.  If exceeded,
+            //      SKIP the maybe_unroll body eval entirely and jump
+            //      directly to the runtime-loop init at 0x2231d6 — no
+            //      "too many iterations" error is ever emitted in the
+            //      const-count repeat path.
+            //   2. Otherwise eval body in "maybe_unroll" scope and
+            //      decide unroll vs runtime loop based on whether body
+            //      produced any assemblers.
+            // (IF-163: the previous reconstruction emitted error 0x7b
+            // here, but the binary has no such throw site in this
+            // function — the jg target 0x2231d6 is the runtime-loop
+            // init, not an error path.)
+            if (countInt > ctx.loopUnrollLimit) {                     // @0x222fd5
+                // Skip body eval; emit runtime loop with constant N.
+                auto initAsms = ctx.asmCommands->addi(
+                    counterReg, AsmRegister::Reg(0),
+                    Immediate(countInt));                             // @0x2231e8
+                result->assemblers_.insert(
+                    result->assemblers_.end(),
+                    initAsms.begin(),
+                    initAsms.end());
+                hasEndLabel = false;
+                goto var_path;                                        // → 0x22212f
+            }
+
             int savedLineNr = ctx.messages->lineNr();                // @0x222fe3
             subRes->setAtScopeBoundary(true);                        // @0x222ff2
 
@@ -2474,27 +2497,10 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
             ctx.asmCommands->setWavetableFrontIndex(savedLineNr);    // @0x223169
             ctx.wavetable->setLineNr(savedLineNr);                   // @0x223174
 
-            // NOW check loopUnrollLimit AFTER body eval              // @0x222fcf
-            // BUT skip if body eval already produced an error
-            // (e.g., "break statement is not supported")
-            if (!ctx.messages->hadCompilerError() &&
-                countInt > ctx.loopUnrollLimit) {                  // @0x222fd5
-                // Error 0x7b: too many iterations (BST lookup)      // @0x2231d6
-                auto const& msgs = ErrorMessages::messages;
-                auto it = msgs.find(0x7b);
-                if (it != msgs.end()) {
-                    ctx.messages->errorMessage(it->second, -1);
-                }
-                return result;
-            }
-
             // Check if firstBodyResult has empty assemblers          // @0x223179
-            // (firstBodyResult already computed above, before limit check)
             bool firstBodyEmpty = !firstBodyResult ||
                 firstBodyResult->assemblers_.begin() ==
                 firstBodyResult->assemblers_.end();
-
-            bodyResult = firstBodyResult;                             // @0x223196
 
             bodyResult = firstBodyResult;                             // @0x223196
 

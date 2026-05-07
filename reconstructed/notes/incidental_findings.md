@@ -3530,58 +3530,80 @@ Run: `python tests/diff_test.py --manifest manifest-stress.json --filter if162 -
 
 ## IF-163  Recon refuses to unroll repeat(N) above its threshold
 
-**Status**: open
+**Status**: fixed (phase 57.G.3)
 **Severity**: bug
 **Found**: stress phase 51 (`large_repeat_constants.seqc`, isolated to
 `if163_repeat_unroll_limit.seqc`)
 
 ### Symptom
 
-For `repeat(N)` with sufficiently large constant N, the recon errors:
+For `repeat(N)` with sufficiently large constant N, the recon errored:
 
 ```
 Compiler Error (line: N): too many iterations to unroll this loop,
-use a const variable for infinite loops
+use a const variable for infinite loop or a var variable for this many iterations
 ```
 
-The original binary compiles the same source successfully — it emits
-a sequencer loop instruction instead of unrolling.  The threshold at
-which recon switches behavior appears to be lower than the binary's,
-or recon lacks the "fall back to loop instruction" path entirely.
+The original binary compiled the same source successfully — it emits
+a sequencer loop instruction instead of unrolling.
 
-Confirmed:
+Confirmed before fix:
 - `repeat(10000) { playZero(32); }` — both pass byte-identical
-- `repeat(1000000) { playZero(32); }` — recon errors, original passes
+- `repeat(1000000) { playZero(32); }` — recon errored, original passed
 
-### Minimal repro
+### Root cause
 
-`tests/cases/stress/if163_repeat_unroll_limit.seqc`:
+In `SeqCRepeat::evaluate` the recon (file
+`reconstructed/src/ast/seqc_ast_eval_control.cpp`, the
+`countInt >= 2` branch) evaluated the body in a `maybe_unroll`
+sub-scope FIRST and then, if `countInt > ctx.loopUnrollLimit`, raised
+error 0x7b ("too many iterations to unroll").
 
-```seqc
-repeat(1000000) {
-    playZero(32);
-}
+The binary disassembly at `0x222fcf`–`0x2231d6` does the opposite:
+
+```
+0x222f76: cmp $0x2,%eax            ; countInt vs 2
+0x222f79: jge 0x222fcf              ; >=2 → limit-check branch
+0x222fcf: mov %eax,-0x110(%rbp)
+0x222fd5: cmp 0x48(%r13),%eax       ; countInt vs loopUnrollLimit
+0x222fd9: jg  0x2231d6              ; > limit → JUMP TO RUNTIME LOOP INIT
+0x222fdf: ...                       ; fall through: do maybe_unroll body eval
+...
+0x2231d6: mov 0x8(%r13),%rbx        ; runtime-loop init (NOT an error site)
+0x2231e8: xor %esi,%esi              ; AsmRegister(0) for addi
+0x2231ea: call AsmRegister::ctor
+0x2231ff: call Immediate(int)        ; Immediate(countInt)
+0x22321b: call AsmCommands::addi     ; addi(counterReg, 0, countInt)
 ```
 
-Run on HDAWG → recon errors; original passes.
+There is **no** error-0x7b throw site anywhere in `SeqCRepeat::evaluate`
+for the const-count path. When `countInt > loopUnrollLimit`, the
+binary skips the body eval entirely and emits a runtime loop
+(`addi(counterReg, R0, countInt)` then `goto var_path`).
 
-### Suspected location
+The previous reconstruction misread `0x2231d6` as an error site
+(see comment "Error 0x7b: too many iterations") when it is in fact
+the runtime-loop init label that the `jg` jumps TO.
 
-The `repeat()` codegen path that decides between unroll-vs-loop based
-on iteration count.  Look for the iteration-count threshold check.
-Likely files:
-- `reconstructed/src/codegen/` — anything matching repeat / unroll
-- The error string "too many iterations to unroll this loop" is the
-  search target for the throw site.
+### Fix
 
-### Recommended next step
+Move the `countInt > loopUnrollLimit` check to BEFORE the maybe_unroll
+body eval.  When the limit is exceeded, skip body eval, emit
+`addi(counterReg, R0, countInt)`, set `hasEndLabel=false`, and
+`goto var_path`.  Removed the error 0x7b path entirely.
 
-1. Grep for the error message string to locate the throw site.
-2. Identify the threshold constant being compared.
-3. GDB binary: confirm what threshold (if any) it uses, and whether
-   it has a fallback that recon is missing.
-4. Either raise the threshold or add the fallback "emit loop
-   instruction" path.
+### Verification
+
+- GDB-traced orig at `0x221c10`/`0x222f76`/`0x222fd5`/`0x2231d6`/`0x2231e8`
+  with `repeat(200000) { playZero(64); }`. Trace hit `Cvar_path` →
+  `limit_check` → (jg taken) → `addi_init` → `var_path`. No error
+  ever fired; ELF size matched recon `repeat(10) { playZero(64); }`
+  exactly (1416 bytes), confirming a constant-size runtime loop.
+- `if163_repeat_unroll_limit_hdawg` stress test: PASS.
+- `large_repeat_constants_hdawg/shfsg` stress tests: PASS (also
+  fixed by the same change).
+- Main suite: 1600/1600.
+- Stress fails: 19 → 16 (3 fixed, no regressions).
 
 ## IF-164  assignWaveIndex named-form: recon error wording differs
 
