@@ -1899,6 +1899,16 @@
           "@base": "@shfsg8_sg"
         },
         {
+          "name": "wave_random_uniform_oor_hdawg",
+          "file": "stress/wave_random_uniform_oor.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_random_uniform_oor_shfsg",
+          "file": "stress/wave_random_uniform_oor.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
           "name": "shfqa_int_weights_shfqa",
           "file": "stress/shfqa_int_weights.seqc",
           "@base": "@shfqa4_qa"

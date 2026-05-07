@@ -55,7 +55,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 0;
-        dc.waveformMemSize     = 1024;
+        dc.maxProgramSize     = 1024;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 0;
         dc.samplingRate        = 1.8e9;
@@ -86,7 +86,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 32;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 16384;
+        dc.maxProgramSize     = 16384;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.4e9;
@@ -117,7 +117,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 0;
-        dc.waveformMemSize     = 1024;
+        dc.maxProgramSize     = 1024;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 0;
         dc.samplingRate        = 1.8e9;
@@ -148,7 +148,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 32;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 16384;
+        dc.maxProgramSize     = 16384;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
@@ -179,7 +179,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 32768;
+        dc.maxProgramSize     = 32768;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
@@ -210,7 +210,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 32768;
+        dc.maxProgramSize     = 32768;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
@@ -241,7 +241,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 32768;
+        dc.maxProgramSize     = 32768;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;
@@ -272,7 +272,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 96;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 32768;
+        dc.maxProgramSize     = 32768;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 12.0e9;
@@ -303,7 +303,7 @@ DeviceConstants getDeviceConstants(AwgDeviceType deviceType)  // 0x2cc0c0
         dc.waveformMinSamples            = 16;
         dc.bitsPerSample       = 16;
         dc.numCounters            = 2;
-        dc.waveformMemSize     = 32768;
+        dc.maxProgramSize     = 32768;
         dc.maxSequenceLen      = 16000;
         dc.seqClockDivider     = 1165;
         dc.samplingRate        = 2.0e9;

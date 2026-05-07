@@ -271,9 +271,21 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         // If we've reached totalPhysical and there are still unmerged
         // conflicts, allocation has failed — throw. Binary at 0x2800f6
         // looks up ErrorMessages::messages[172] and the line number from
-        // asm_[vreg], then throws OptimizeException with lineNumber at +0x20.
+        // asm_[ physRegs[*it][0][0] ] (i.e., the first asm-list index in
+        // the live range of the smallest unmerged conflicting preg ≥ vreg),
+        // then throws OptimizeException with lineNumber at +0x20.
+        // (Disasm: 2800f6 mov 0x20(%r12),%rcx → set element value;
+        //          2800fb-280106 derefs physRegs[*it][0][0];
+        //          2801fd-280204 imul $0xa8 + offset 0x88 = asm_[idx].wavetableFront.)
         if (vreg == totalPhysical) {
-            int lineNr = (vreg < asm_.size()) ? asm_[vreg].lineNumber() : -1;
+            size_t preg = *it;
+            int lineNr = -1;
+            if (preg < physRegs.size() && !physRegs[preg].empty()
+                && !physRegs[preg][0].empty()) {
+                int asmIdx = physRegs[preg][0][0];
+                if (asmIdx >= 0 && static_cast<size_t>(asmIdx) < asm_.size())
+                    lineNr = asm_[asmIdx].lineNumber();
+            }
             throw OptimizeException(
                 "run out of free registers, please reduce complexity",
                 lineNr);
@@ -370,9 +382,18 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
 
         // 280164: If vreg >= numPhysical and physVreg still has ranges,
-        // allocation failed
+        // allocation failed. Binary reads line from asm_[ physRegs[vreg][0][0] ]
+        // (first asm-list index in vreg's own live range) — disasm
+        // 280164 mov (%rcx),%rax (rcx = physRegs[vreg].__begin_);
+        // 280167 mov (%rax),%ebx (= physRegs[vreg][0][0]);
+        // later imul $0xa8 + offset 0x88 = asm_[idx].wavetableFront.
         if (vreg >= numPhysical && !physVreg.empty()) {
-            int lineNr = (vreg < asm_.size()) ? asm_[vreg].lineNumber() : -1;
+            int lineNr = -1;
+            if (!physVreg[0].empty()) {
+                int asmIdx = physVreg[0][0];
+                if (asmIdx >= 0 && static_cast<size_t>(asmIdx) < asm_.size())
+                    lineNr = asm_[asmIdx].lineNumber();
+            }
             throw OptimizeException(
                 "run out of free registers, please reduce complexity",
                 lineNr);

@@ -345,16 +345,19 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
     // Validate: arg0 must be int type ((varType & ~1) == 4)                                       // @0x14a5f2..14a5f5: and eax,0xfffffffd; cmp eax,0x4
+    // Throw site @0x14b22b: error 0xc5 = SetUserRegConstFirst ("expects a const as first argument")
     if ((static_cast<int>(arg0.varType_) & ~1) != 4)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetUserRegArgs));
+            ErrorMessages::format(SetUserRegConstFirst));
     // Range-check arg0 against devConst_->memoryDepth                                             // @0x14a60a..14a624
+    // Throw site @0x14b264: error 0xc6 = SetUserRegRange ("register must be in the range of 0 to 15")
+    // thrown as CustomFunctionsValueException with argIndex = 1.
     int arg0Val = arg0.value_.toInt();
     if (static_cast<int64_t>(arg0Val) >= static_cast<int64_t>(devConst_->memoryDepth) || arg0Val < 0) {
         // Check if varSubType_ == 2 (allows bypass)                                               // @0x14a62d: cmp [rbp-0x11c],0x2
         if (static_cast<int>(arg0.varSubType_) != 2)
-            throw CustomFunctionsException(
-                ErrorMessages::format(SetUserRegArgs));
+            throw CustomFunctionsValueException(
+                ErrorMessages::get(SetUserRegRange), 1);
     }
     // Create results with VarType_Void                                                              // @0x14a633..14a65e
     auto results = std::make_shared<EvalResults>(VarType_Void);
@@ -370,8 +373,9 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
         for (auto& e : addiEntries) results->assemblers_.push_back(std::move(e));
         appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(arg0.value_.toInt()));
     } else {
+        // Throw site @0x14b2a8: error 0xc8 = SetUserRegVarConst ("expects a var or const as second argument")
         throw CustomFunctionsException(
-            ErrorMessages::format(SetUserRegArgs));
+            ErrorMessages::format(SetUserRegVarConst));
     }
     // addi(reg, R0, Imm(0xb)) + suser(reg, 0x10)                                                 // @0x14a9b8..14aaf9
     {

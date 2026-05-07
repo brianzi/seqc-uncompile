@@ -619,7 +619,7 @@ check_loop:
 //         memoryBits = memoryBytes (approx)
 //         memoryWords = ceil(memoryBits / 8)  // bits to bytes
 //
-//         memPerPage = devConst_->waveformMemSize / pageSize_
+//         memPerPage = devConst_->maxProgramSize / pageSize_
 //         // 0x1cab6c: mov 0x8(%r12),%rax; mov 0xc(%rax),%eax; div 0xb8(%r12)
 //
 //      f. If memoryWords >= memPerPage:

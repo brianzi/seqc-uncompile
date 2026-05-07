@@ -374,7 +374,7 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //  11. Get opcodes, check size vs deviceConstants_.maxSequenceLen (+0x60)
 //      - If too large: add error message, throw ZIAWGCompilerException
 //  12. Iterate wavetableIR waveforms, count total used waveforms
-//      - If count exceeds deviceConstants_.waveformMemSize (+0x68):
+//      - If count exceeds deviceConstants_.maxProgramSize (+0x68):
 //        add error message, throw ZIAWGCompilerException
 //  13. Lock progressCallback weak_ptr, call with 1.0 (100% done)
 //  14. Clean up temporaries
@@ -475,10 +475,10 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     //
     // Binary check at AWGCompilerImpl::compileString @0x107341..0x10739e:
     //   r15 = (getOpcode().end() - getOpcode().begin()) >> 2  (== vec.size() for vector<uint32_t>)
-    //   limit = *(uint64_t*)(this + 0x60)  == DeviceConstants[+0x58] == waveformMemSize
+    //   limit = *(uint64_t*)(this + 0x60)  == DeviceConstants[+0x58] == maxProgramSize
     //   if (r15 > limit) → format(ErrorMessageT(0xC), count, limit), throw.
     //
-    // The DC field at +0x58 is currently named `waveformMemSize` but its
+    // The DC field at +0x58 is currently named `maxProgramSize` but its
     // actual semantics is "max opcode words" / instruction-memory depth.
     // Values: UHFAWG=1024, UHFQA=1024, HDAWG=16384, SHF*=32768.  (See IF-195
     // for the field-rename follow-up.)
@@ -490,7 +490,7 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // silently.  Both fixed here.
     auto const& opcodes = assembler_.getOpcode();
     size_t opcodeCount = opcodes.size();                    // already in words
-    size_t maxOpcodes  = deviceConstants_.waveformMemSize;  // devConst+0x58
+    size_t maxOpcodes  = deviceConstants_.maxProgramSize;  // devConst+0x58
 
     if (opcodeCount > maxOpcodes) {  // @0x10739e
         CompilerMessage msg;
@@ -515,7 +515,13 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
             }
         }
 
-        size_t maxWaveforms = deviceConstants_.waveformMemSize;  // devConst+0x58
+        // Binary loads from [this+0x68] = [deviceConstants_+0x60] = maxSequenceLen
+        // (IF-196 confirmed: pre-fix this read maxProgramSize at DC+0x58, the same
+        // field check 10 was also wrongly reading pre-IF-192 — i.e. the two checks
+        // had their DC fields swapped in the original recon.  Correct semantics:
+        // this is a wavetable-entry-count limit, which is `maxSequenceLen` (=16000
+        // universally), NOT the opcode-memory limit.)
+        size_t maxWaveforms = deviceConstants_.maxSequenceLen;   // devConst+0x60
         if (nonNullWaveformCount > maxWaveforms) {
             CompilerMessage msg;
             msg.type = CompilerMessage::Error;

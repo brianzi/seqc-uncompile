@@ -1000,7 +1000,7 @@ Signal WaveformGenerator::randomUniform(std::vector<Value> const& args) {      /
     if (args.size() != 1 && args.size() != 2) {
         throw WaveformGeneratorException(
             ErrorMessages::format(FuncExactArgs2,
-                                  "randomUniform", 2, args.size()));
+                                  "randomUniform", 1, args.size()));
     }
 
     double amplitude = 1.0;  // default from rodata @0x956030

@@ -1,0 +1,6 @@
+// Trigger randomUniform arg-count error (IF-197 sibling).
+// randomUniform accepts 1 or 2 args; calling with 3 must error.
+// Binary's FuncExactArgs2 template is fed the MIN valid arity (1),
+// so the error message reads "expects 1 argument(s), 3 argument(s) given".
+wave w = randomUniform(64, 0.5, 0.1);
+playWave(w);

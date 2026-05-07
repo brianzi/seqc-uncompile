@@ -4987,9 +4987,10 @@ likely exists in check 11 (msg 0xF1) — see IF-196.
 ## IF-193  cut(w, N, N) length-1 result chained into another cut errors
 
 **Source**: Phase 59 round 10 — `cut_zero_chain` (passed via
-both-error, but error reason is suspect)
-**Status**: open
-**Severity**: suspicious
+both-error, but error reason was suspect)
+**Status**: dismissed (2026-05-07) — verified consistent with binary
+via static disassembly analysis. No code change needed.
+**Severity**: cosmetic (semantic edge case, both compilers agree)
 
 Test case `cut_zero_chain.seqc`:
 ```
@@ -5000,23 +5001,37 @@ playWave(b);
 ```
 
 Both orig and recon error on line 4 with "argument 2 (from) of cut
-is greater than the waveform length". The `from=0, to=0` on a
-length-1 wave should be in range, so the rejection is unexpected.
+is greater than the waveform length".
 
-Possible explanations:
-1. After the IF-176 fix, `cut(w, 5, 5)` is internally treated as
-   a length-0 wave (since the .wf section is suppressed) — then
-   `cut(a, 0, 0)` sees `length=0`, and `from=0 >= length` triggers
-   the error. If the binary does the same, this is consistent
-   behavior, not a bug — but worth confirming.
-2. SeqC `cut(from, to)` is conceptually "inclusive" for both ends,
-   so `cut(w, 5, 5)` is length 1, not length 0. If that's the
-   semantic the binary intends, then the binary itself has the
-   same edge-case behavior the recon mimics.
+### Resolution
 
-**Action**: GDB-trace the original to see at which instruction
-the bound check fires and what `length` it reads. If both compare
-the same value the same way, dismiss; if not, file as bug.
+Explanation 1 from the original note is correct, and the binary
+does exactly the same thing the recon does. Verified via
+disassembly of `WaveformGenerator::cut` (0x2598d0):
+
+1. **Bound check site** at 0x259c49–0x259c63:
+   ```
+   259c49: mov  -0xf0(%rbp),%r13          ; r13 = WaveformFront*
+   259c50: mov  0xd0(%r13),%eax           ; eax = signal.length_ (WF +0x80 + Sig +0x50)
+   259c57: cmp  %eax,%r14d                ; cmp from, length
+   259c5a: jge  25a0cb                    ; from >= length → throw template 88
+   259c60: cmp  %eax,%r12d                ; cmp to, length
+   259c63: jae  25a129                    ; to >= length  → throw template 88
+   ```
+   Both checks are `>=` (signed `jge` for `from`, unsigned `jae` for
+   `to`), exactly matching recon `waveform_generator_dsp.cpp:1666–1680`.
+
+2. **Length value for `a`**: orig's IF-176 path (0x259cd6–0x259cf4)
+   zeroes the entire Signal struct including `length_` at +0x50.
+   So `a`'s length is 0 in the binary, identical to recon (which
+   constructs `Signal(..., length=0)` at `waveform_generator_dsp.cpp:1707`).
+
+3. **Resulting evaluation**: `cut(a, 0, 0)` → `from=0 >= length=0`
+   → `jge` taken → throw `ArgGreaterThanLength` (template id 88).
+   Same code path, same value, same template, same message in
+   both implementations.
+
+Suite: 1600/1600 main + 768/768 stress (no change).
 
 ---
 
@@ -5024,26 +5039,66 @@ the same value the same way, dismiss; if not, file as bug.
 
 **Source**: Phase 59 round 10 — `regalloc_long_live_single_bb`
 (passed via both-error with "accepted" mismatch)
-**Status**: open
-**Severity**: suspicious (cosmetic if intentional, real if not)
+**Status**: fixed (2026-05-07) — line attribution corrected, all 4
+stress variants now report line 18 matching the binary exactly
+(previously reported lines 10/12). Suite remains 1600/1600 +
+768/768.
+**Severity**: cosmetic (no compilation-success divergence)
 
 Test case has ~50 vars in one basic block. Both compilers emit
 "run out of free registers, please reduce complexity", but on
 **different line numbers**:
 - orig: line 18
-- recon: line 10
+- recon: line 10 / 12 (depending on device)
 
-The harness flagged this as "error messages differ (accepted)"
-and let the test pass, but the line-number divergence suggests
-the recon and orig walk the AST/spill heuristic in different
-order. May be benign (different greedy choice) or may indicate
-the recon's regalloc spill point doesn't match the binary's.
+### Root cause (static analysis of `_seqc_compiler.so`)
 
-**Action**: compare the spill heuristic in `registerAllocation` /
-`getReg` against the original. If the recon really does spill at
-a different point under pressure, programs that are *just* under
-the limit on orig but *just over* on recon (or vice versa) would
-show up as compilation-success divergences.
+The recon's two throw sites in `AsmOptimize::registerAllocation`
+read the line number using **vreg as the asm-list index**:
+
+    int lineNr = (vreg < asm_.size()) ? asm_[vreg].lineNumber() : -1;
+
+That is wrong: `vreg` is a register number in 1..numRegs, **not**
+an instruction index into `asm_`.  The binary instead uses the
+**first instruction-index in some live range** as the asm-list
+key, then reads its `wavetableFront` (= `lineNumber()`) field.
+
+Disassembly at `0x2800f6..0x280106` (vreg == totalPhysical site):
+
+    2800f6:  mov 0x20(%r12),%rcx        ; rcx = *iter.value (smallest preg ≥ vreg
+                                          still in conflicts set)
+    2800fb:  lea (%rcx,%rcx,2),%rcx     ; rcx *= 3
+    2800ff:  mov (%rax,%rcx,8),%rax     ; rax = physRegs[*it].__begin_  (24-byte stride)
+    280103:  mov (%rax),%rax            ; rax = physRegs[*it][0].__begin_
+    280106:  mov (%rax),%ebx            ; ebx = physRegs[*it][0][0]  (first asm-list index)
+    ...
+    2801fd:  imul $0xa8,%rbx,%rdx       ; rdx = ebx * sizeof(Asm) = 168
+    280204:  mov 0x88(%rcx,%rdx,1),%ebx ; ebx = asm_[idx].wavetableFront
+
+Same pattern at `0x280164..0x28016b` (vreg ≥ numPhysical &
+!physVreg.empty() site), except using `physVreg` instead of
+`physRegs[*it]` (i.e. vreg's own live-range, not preg's).
+
+### Fix
+
+`reconstructed/src/asm/asm_optimize_regalloc.cpp:275-298` and
+`:380-398` — replace `asm_[vreg].lineNumber()` with
+`asm_[ physRegs[X][0][0] ].lineNumber()`, with the appropriate X
+(preg `*it` for the totalPhysical site, vreg for the second
+site).  Bounds-checked against `physRegs.size()`,
+`physRegs[X].empty()`, `physRegs[X][0].empty()`, and
+`asm_.size()`.
+
+### Decision
+
+The error was purely a line-attribution bug.  The two compilers
+**agree** on which spill point fails (vreg == totalPhysical with
+identical conflicts state); they only disagreed about which
+source line to print.  No spill-heuristic divergence — no
+constructible test where one succeeds and the other fails.
+After the fix, all 4 stress variants of
+`regalloc_long_live_single_bb` pass with identical error
+messages (line 18 in all cases).
 
 
 ---
@@ -5051,7 +5106,10 @@ show up as compilation-success divergences.
 ## IF-195  DeviceConstants field at +0x58 is misnamed `waveformMemSize`
 
 **Source**: Phase 60 fix of IF-192
-**Status**: open (rename pending)
+**Status**: fixed (2026-05-07, phase 62 cleanup) — renamed to `maxProgramSize` in
+`reconstructed/include/zhinst/device/device_constants.hpp:173` and propagated
+to all 9 readers across `device_constants.cpp`, `awg_compiler.cpp`, and a
+comment in `prefetch_prepare.cpp:622`. Suite remains 1600/1600 + 768/768.
 **Severity**: cosmetic (will mislead future readers)
 
 The `DeviceConstants` field at offset `+0x58` is currently named
@@ -5077,40 +5135,60 @@ program size.
 
 ---
 
-## IF-196  awg_compiler.cpp check 11 (msg 0xF1) likely has parallel field-swap bug
+## IF-196  awg_compiler.cpp check 11 (msg 0xF1) parallel field-swap bug
 
 **Source**: Phase 60 fix of IF-192 — discovered while inspecting
 the adjacent code path
-**Status**: open (needs binary verification)
-**Severity**: suspicious
+**Status**: confirmed and fixed (2026-05-07)
+**Severity**: bug (incorrect limit, but no observed test regression)
 
-`AWGCompilerImpl::compileString` step 11 emits
-`ErrorMessageT(0xF1)` ("number of waveforms in wavetable is too
-large - has %1% waveforms, maximum is %2%") guarded by:
+### Confirmation (static analysis of `_seqc_compiler.so`)
 
-```cpp
-size_t maxWaveforms = deviceConstants_.waveformMemSize;  // DC+0x58
-if (nonNullWaveformCount > maxWaveforms) { ... }
+Disassembly at `0x10743d..0x107448` (the cmp+ja that gates the
+`ErrorMessageT(0xF1)` block at `0x10769d`):
+
+```
+10743d:  mov  -0x60(%rbp),%rbx          ; rbx = this (AWGCompilerImpl*)
+107441:  mov  0x68(%rbx),%rcx           ; rcx = [this+0x68]
+107445:  cmp  %rcx,%r15                 ; r15 = nonNullWaveformCount
+107448:  ja   10769d                    ; > limit -> error
 ```
 
-After IF-192 we know `waveformMemSize` (DC+0x58) is actually the
-**opcode-words limit**, not a waveform-count limit. The IF-192
-subagent reported that the binary's parallel check at `0x10769d`
-reads the limit from `AWGCompilerImpl + 0x68 == DC + 0x60 ==
-maxSequenceLen`. So check 11 likely needs the **opposite** swap
-that IF-192 did — read `maxSequenceLen` (= 16000 universally)
-instead of `waveformMemSize`.
+Per `awg_compiler.hpp` layout, `deviceConstants_` is at +0x08
+of `AWGCompilerImpl`, so `[this+0x68] == [deviceConstants_+0x60]
+== maxSequenceLen` (= 16000 universally).
 
-This is a likely IF-192-twin bug: the two checks have swapped
-fields. With check 10 wrongly using `maxSequenceLen` (16000) and
-check 11 wrongly using `waveformMemSize` (1024), neither check
-fires when it should on UHFQA wavetable overruns either.
+Cross-check: the parallel post-IF-192 check 10 at `0x10739e`
+reads `0x60(%rbx)` == `[deviceConstants_+0x58]` ==
+`waveformMemSize`. Confirmed: the two checks did have their
+fields swapped in pre-IF-192 recon, and IF-192 only fixed half
+the swap.
 
-**Action**:
-1. GDB-trace (or static-analyze) `0x10769d` to confirm the field.
-2. Construct a UHFQA wavetable with > 1024 entries (or whatever
-   the real limit is) to differentially expose the bug.
-3. Apply the symmetric fix to check 11.
+### Fix
+
+`reconstructed/src/codegen/awg_compiler.cpp:518` — change
+`deviceConstants_.waveformMemSize` to
+`deviceConstants_.maxSequenceLen`.
+
+### Test impact
+
+None on existing suites: 1600/1600 main, 768/768 stress before
+and after.  The pre-fix code used 1024 (UHFQA) / 16384 (HDAWG) /
+32768 (SHF*) as the wavetable-entry cap; post-fix it is 16000
+universally.  No test currently has > 1024 distinct non-null
+wavetable entries, so neither value triggers the check.  The fix
+is correctness-only relative to the binary's behavior on
+hypothetical large-wavetable programs.
+
+### Note on `nonNullWaveformCount` semantics
+
+The binary loop counts only entries where
+`[wf+0x48] == 1` AND `[wf+0xd0] != 0`.  The recon (line 506-516
+of awg_compiler.cpp) currently counts all non-null `shared_ptr`
+entries unconditionally — see existing comment "Check if waveform
+is a 'playback' type and count it".  Until a test exercises this
+path the recon condition is untested, but it is a separate
+concern from IF-196 (which is purely about the limit field).
 
 ## IF-197  randomGauss arg-count error reports `4` instead of `3`
 
@@ -5137,26 +5215,61 @@ recon: Compiler Error (line: 3): function 'randomGauss' expects 4 argument(s), 2
 the `ErrorMessages::format(FuncExactArgs2, "randomGauss", N, ...)`
 call.
 
-### Open question (likely IF-197 sibling)
+### Sibling: randomUniform (confirmed and fixed, 2026-05-07)
 
-`randomUniform` (same file, line 1003) uses the same pattern with
-literal `2`, but valid arities are 1 or 2. By analogy, the binary
-likely reports `1` here. Not yet test-confirmed because no stress
-case calls `randomUniform` with the wrong arg count. **Pre-emptive
-fix not applied** — needs a confirming differential test first.
+`randomUniform` (same file, line 1003) used the same pattern with
+literal `2`. Valid arities are 1 or 2. Confirmed by static
+disassembly at `0x253ac3`: the binary passes `mov $0x1,%ecx`
+(literal `1`) to `ErrorMessages::format(FuncExactArgs2, ...)`.
 
-## IF-198  setUserReg range-check missing on recon (pre-existing, see IF-177)
+Confirming differential test: `tests/cases/stress/wave_random_uniform_oor.seqc`
+calls `randomUniform(64, 0.5, 0.1)` (3 args). Before fix:
 
-**Status**: open, duplicate of IF-177
-**Severity**: bug
+```
+orig:  function 'randomUniform' expects 1 argument(s), 3 argument(s) given
+recon: function 'randomUniform' expects 2 argument(s), 3 argument(s) given
+```
 
-Phase 61 backfill rediscovered the IF-177 issue across all 4
-device registrations of `setuserreg_oor.seqc`: recon throws
-"setUserReg expects exactly two arguments" when given 2 args
-with out-of-range register, while orig throws "setUserReg
-register must be in the range of 0 to 15". Confirms the bug
-is device-independent and reachable on HDAWG/SHFSG/SHFQA/UHFQA
-alike. No new IF needed; refer to IF-177.
+Fix: `waveform_generator_dsp.cpp:1003` literal `2` → `1`. After fix
+both error strings are byte-identical. Registered as
+`wave_random_uniform_oor_hdawg` and `wave_random_uniform_oor_shfsg`
+in `manifest-stress.json`.
+
+Note: the originally proposed test (0-arg call `randomUniform()`)
+does **not** reach the `FuncExactArgs2` branch — it is caught
+upstream with "called function ... without arguments". Use a
+too-many-args call (3) to surface the divergence.
+
+## IF-198  setUserReg range-check missing on recon
+
+**Status**: fixed (2026-05-07) — root cause was *not* the same as IF-177.
+The recon's `CustomFunctions::setUserReg` (custom_functions_registers.cpp:339)
+threw `CustomFunctionsException(format(SetUserRegArgs))` ("expects
+exactly two arguments") at *every* validation site — arg-count, arg0
+type, arg0 range, and arg1 type — instead of using the four distinct
+error templates the binary emits. Re-disassembling `0x14a420` with
+4 throw sites (`14b1ec` → 0xc7=199, `14b22b` → 0xc5=197, `14b264` →
+0xc6=198 via `CustomFunctionsValueException` argIndex=1, `14b2a8` →
+0xc8=200) confirmed the correct mapping. Fix:
+- arg0 type-check now throws `SetUserRegConstFirst` (197).
+- arg0 range-check now throws `SetUserRegRange` (198) wrapped in
+  `CustomFunctionsValueException(msg, 1)` to match `0x14b264` (note
+  the larger `__cxa_allocate_exception` size 0x40 and the `mov $0x1,%edx`
+  argIndex argument that distinguish the value exception from the
+  plain `CustomFunctionsException`).
+- arg1 type-check now throws `SetUserRegVarConst` (200).
+
+All 4 `setuserreg_oor_*` stress cases now produce a byte-identical
+error string ("setUserReg register must be in the range of 0 to 15")
+with no further "(accepted-differ)" reliance. Suite stays at
+1600/1600 main + 768/768 stress. Note: IF-177 (the `ones(var)` /
+"<func> can't be called with var arguments" wording) is unrelated;
+the original "duplicate of IF-177" note was wrong — IF-177 fixes
+the var-arg wording in `WaveformGenerator::readInt`, while IF-198
+fixes the wrong template selection in `setUserReg` itself for
+fully-const arguments.
+
+**Severity**: bug (user-facing — wrong error message)
 
 ## IF-199  setPrecompClear flag not threaded into per-play cwvf encoding
 

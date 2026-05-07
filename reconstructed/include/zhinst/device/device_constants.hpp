@@ -79,7 +79,7 @@ enum AwgDeviceType : int;
 //                                                  Always 16
 // 0x54    4     uint32_t    numCounters           Values: 0, 2 — hardware loop counter count (getCnt range check)
 //
-// 0x58    8     uint64_t    waveformMemSize       Max waveform memory (0x400/0x4000/0x8000)
+// 0x58    8     uint64_t    maxProgramSize        Max sequencer program in opcode words (1024/16384/32768)
 // 0x60    8     uint64_t    maxSequenceLen        Max sequence length (always 16000)
 // 0x68    4     uint32_t    seqClockDivider       0 (Cervino) or 1165/0x48D (Hirzel)
 // 0x6C    4     (padding)
@@ -170,7 +170,11 @@ struct DeviceConstants {
     uint32_t       bitsPerSample;         // +0x50  always 16
     uint32_t       numCounters;           // +0x54  values: 0, 2 — hardware counters
 
-    uint64_t       waveformMemSize;       // +0x58  max waveform memory in samples
+    uint64_t       maxProgramSize;        // +0x58  max sequencer program length in opcode words
+                                          //         (UHFAWG=1024, UHFQA=1024, HDAWG=16384, SHF*=32768)
+                                          //         Confirmed by IF-192/IF-196 binary analysis.
+                                          //         (Was named `waveformMemSize` until 2026-05-07
+                                          //         IF-195 cleanup — name was misleading.)
     uint64_t       maxSequenceLen;        // +0x60  max sequence length (16000)
     uint32_t       seqClockDivider;       // +0x68  0 or 1165
     uint32_t       _pad6C;               // +0x6C
