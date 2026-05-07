@@ -763,18 +763,21 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                 tempList.append(sslAsm);
                             }
 
-                            // After ssl loop: addr(idxReg, stRegCervino) + wvf
+                            // After ssl loop: addr(idxReg, stRegCervino) + wvfImpl
                             // Binary 0x1dae86: addr(idxReg, stateRegC) — fold cervino base
                             // into the ssl'd offset register.
-                            // Binary 0x1daecb: wvf(idxReg, R0, totalSize) — play slice.
+                            // Binary then jumps via 0x1dbb70 → 0x1d9d3a → 0x1d9ef7 to call
+                            // wvfImpl(idxReg, totalSize, config.now).  GDB-confirmed for
+                            // playWaveIndexedNow: r8d=1 → wvfi (IF-201 fix).
                             // NOTE: no wwvf here — the compiler appends wwvf+nop+end globally.
                             {
                                 AsmRegister stRegC = nodeStates_[node].registerCervino; // +0x28
                                 AsmList::Asm addrAsm = asmCommands_->addr(idxReg, stRegC);
                                 tempList.append(addrAsm);
 
-                                AsmList::Asm wvfAsm = asmCommands_->wvf(idxReg, AsmRegister(0), totalSize);
-                                tempList.append(wvfAsm);
+                                bool is4Ch = node.get()->config.now;       // +0x64 = config+0x1C
+                                AsmList wvfResult = wvfImpl(idxReg, totalSize, is4Ch);
+                                tempList.insert(tempList.end(), wvfResult.begin(), wvfResult.end());
                             }
                         } else {
                             // Cervino non-split indexed path        // 0x1db60f

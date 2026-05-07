@@ -3819,9 +3819,20 @@ obvious.
 ## IF-201  `playWaveIndexedNow` emits `wvf` instead of `wvfi`
 
 **Source**: coverage round (Phase 62-style), `cov_playWaveIndexedNow_*`
-**Status**: open
+**Status**: fixed (2026-05-08; commit pending)
 **Severity**: likely-bug
 **Found**: 2026-05-08
+
+**Resolution**: `prefetch_placesingle.cpp` (`play_cervino_indexed`,
+`split_=true` branch, around line 778) emitted a direct
+`asmCommands_->wvf(idxReg, R0, totalSize)` call.  The binary, on the
+same path (entry 0x1dabc7), falls through `0x1dbb70 → 0x1d9d3a →
+0x1d9ef7` and calls `wvfImpl(idxReg, totalSize, config.now)`, where
+`config.now` selects `wvfi` over `wvf`.  GDB-confirmed at 0x1d9ef7
+with `r8d=1` for `playWaveIndexedNow`.  Replaced the direct `wvf`
+call with `wvfImpl(idxReg, totalSize, node->config.now)`.  All 3
+`cov_playWaveIndexedNow_*` tests now pass; stress 894 → 897, no
+regressions in default/errors/labone/large suites.
 
 ### Symptom
 
