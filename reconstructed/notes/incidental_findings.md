@@ -3939,9 +3939,16 @@ the binary lacks.
 ## IF-203  `setInternalTrigger(var)` triggers internal "unspecified value type" error on SHFLI
 
 **Source**: coverage round, `cov_setInternalTrigger_solo_shfli`
-**Status**: open
+**Status**: fixed (commit 9af3670)
 **Severity**: likely-bug
 **Found**: 2026-05-08
+**Resolution**: Var-arg branch in `setInternalTrigger`
+(custom_functions_registers.cpp:99) wrongly called
+`AsmRegister(arg.value_.toInt())`; binary @0x146265 reads `arg.reg_`
+(offset +0x30) directly, mirroring `setTrigger` @0x1455e5. GDB-confirmed
+varType==2 path emits sinttrig with reg_. Also fixes IF-204 as a side
+effect (the GHFLI playZero warning was a downstream symptom, not an
+independent bug).
 
 ### Symptom
 
