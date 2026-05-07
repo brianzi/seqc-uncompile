@@ -319,11 +319,13 @@ bool Prefetch::needsNewCwvf(std::shared_ptr<Node> node) const {  // 0x1dc620
 
             // First block: compare channelMask and rate.
             // If either differs → return true immediately.
-            if (prev->currentCwvf.channelMask != cur->currentCwvf.channelMask)  // 0x1dc773–0x1dc77c
+            if (prev->currentCwvf.channelMask != cur->currentCwvf.channelMask) {  // 0x1dc773–0x1dc77c
                 return true;
+            }
             int prevRate = prev->currentCwvf.rate;                              // 0x1dc782
-            if (prevRate != cur->currentCwvf.rate)                              // 0x1dc785–0x1dc788
+            if (prevRate != cur->currentCwvf.rate) {                            // 0x1dc785–0x1dc788
                 return true;
+            }
 
             // Second block: compare suppress through dummy.
             // If any of these differ, jump to secondCheck with
@@ -351,21 +353,27 @@ bool Prefetch::needsNewCwvf(std::shared_ptr<Node> node) const {  // 0x1dc620
                 bool holdDiffers = (prevRate > 0) &&
                     (prev->currentCwvf.hold != cur->currentCwvf.hold);        // 0x1dc7d2–0x1dc7e4
 
+                // Binary 0x1dc7e8–0x1dc806 (re-derived):
+                //   cmp prev->loop, curNode; je → 1dc810 (use r12d=seenDiff)
+                //   test sil(holdDiffers); jne → 1dc810 (use r12d=seenDiff)
+                //   sil = 1                                       (candidate)
+                //   cmpb loopBodyRunsAtLeastOnce, 0; je → 1dc813 (sil=1)
+                //   jmp 1dc955 (checkSeenDifference path)
+                // I.e. when prev->loop == curNode OR holdDiffers, the running
+                // seenDifference is preserved; otherwise we mark sil=1 and
+                // either continue the second comparison (loop body may skip)
+                // or fall through to checkSeenDifference (loop body always runs).
                 if (prev->loop.get() == curNode.get()) {                      // 0x1dc7e8–0x1dc7f3
-                    // Loop points back to curNode — use holdDiffers as        // (je 1dc810)
-                    // new seenDifference.
-                    newSeenDifference = holdDiffers;
-                } else if (holdDiffers) {
-                    // Hold differs but loop doesn't match — use old value.   // 0x1dc7f5–0x1dc7f8
-                    newSeenDifference = seenDifference;
+                    newSeenDifference = seenDifference;                       // jmp 1dc810
+                } else if (holdDiffers) {                                     // 0x1dc7f5–0x1dc7f8
+                    newSeenDifference = seenDifference;                       // jmp 1dc810
                 } else {
-                    // No field differences. Check loopBodyRunsAtLeastOnce.
+                    // sil = 1 (1dc7fa)
                     if (!prev->loopBodyRunsAtLeastOnce) {                     // 0x1dc7fd–0x1dc804
-                        // Loop body might not run — mark seenDifference.     // 0x1dc7fa: sil=1
+                        // Loop body might skip → carry sil=1 into second cmp. // je 1dc813
                         newSeenDifference = true;
                     } else {
-                        // loopBodyRunsAtLeastOnce=true → skip to             // 0x1dc806 -> 0x1dc955
-                        // seenDifference path (check full config).
+                        // Loop body always runs → checkSeenDifference path.   // 0x1dc806
                         goto checkSeenDifference;
                     }
                 }

@@ -294,8 +294,20 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
       // Save/restore markers for branch iteration
       // 0x1cfd99-0x1cfda7: load branches vector (+0xC8 begin, +0xD0 end)
       auto &branches = curNode->branches;
-      bool allSameConfig = true;  // 0x1cfdba: -0x42(%rbp)
-      bool allSamePrecomp = true; // 0x1cfdc9: -0x48(%rbp) = 1
+      // Stack-slot mapping (binary):
+      //   -0x90(%rbp) = isFirstBranch flag (init 1 at 1cfdb7 via r15b=1; reset
+      //     to 0 at 1cfe10 / 1d0230 immediately after first iter completes).
+      //     This is the gate for the expectedCwvf assignment at 1d0084-1d00fe.
+      //   -0x48(%rbp) = allSameConfig accumulator (init 1 at 1cfdc9; cleared
+      //     to 0 at 1d01d0 on field mismatch; ANDed at 1d0280 with the
+      //     "isNonTrivial" flag).
+      //   -0x42(%rbp) = allSamePrecomp accumulator (init 1 at 1cfdba;
+      //     ANDed at 1d01e7 with `expectedPrecomp == tail->defaultPrecompFlags`).
+      // The recon previously conflated -0x90 with -0x48, causing expectedCwvf
+      // to be overwritten on every branch iteration → divergence undetectable.
+      bool isFirstBranch  = true; // 0x1cfdb7 / -0x90(%rbp)
+      bool allSameConfig  = true; // 0x1cfdc9 / -0x48(%rbp)
+      bool allSamePrecomp = true; // 0x1cfdba / -0x42(%rbp)
 
       // Track the "expected" cwvf from first branch for convergence checking.
       PlayConfig expectedCwvf = cwvf; // saved at various stack slots
@@ -378,12 +390,16 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
           }
         }
 
-        // Check if this branch's final state matches the first branch's.
-        // First branch? → use globalCwvfValid_ flag
-        if (allSameConfig) {                  // 0x1d005b-0x1d006c
-          if (!cur->branchMaySkipAllBodies) { // confirmed: 0x1d0073: cmpb
-                                              // $0x0,0x109(%rax)
-            // Update expected cwvf from this branch's tail node
+        // Snapshot the expected cwvf from the FIRST branch only.
+        // Binary 0x1d005b: testb $0x1,-0x90(%rbp) — gate is the
+        // isFirstBranch flag (init 1, cleared to 0 at 1cfe10 / 1d0230 after
+        // each iteration completes).  An additional check at 0x1d0073
+        // (cmpb $0x0,0x109(%rax) → branchMaySkipAllBodies) skips the snapshot
+        // when the Branch may skip all bodies — in that case the running
+        // cwvf (already in expectedCwvf) remains the expectation.
+        if (isFirstBranch) {                  // 0x1d005b-0x1d0066
+          if (!cur->branchMaySkipAllBodies) { // 0x1d0073: cmpb $0x0,0x109(%rax)
+            // Update expected cwvf from this branch's tail node.
             expectedCwvf = tail->currentCwvf;            // 0x1d0084-0x1d00fe
             expectedPrecomp = tail->defaultPrecompFlags; // 0x1d00f7
           }
@@ -444,6 +460,13 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
           if (expectedPrecomp != tail->defaultPrecompFlags)
             allSamePrecomp = false;
         }
+
+        // Clear isFirstBranch after first iteration completes.
+        // Binary: r15d ← 0 at 1cfe10 (loop-top fall-through) / 1d0230,
+        // then stored to -0x90(%rbp) at the next 1cffab via the recursive-call
+        // post-amble. Effect: -0x90 is 1 only on the iteration immediately
+        // following the FIRST branch's recursion.
+        isFirstBranch = false;
       } // end branch iteration
 
       // After all branches: decide whether to adopt the common state.

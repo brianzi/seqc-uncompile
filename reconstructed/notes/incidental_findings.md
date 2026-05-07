@@ -3130,10 +3130,53 @@ for (const auto& sig : signals)
 ## IF-158  Missing static `cwvf` in else-arm of in-loop if/else after cwvfr-arm
 
 **Source**: stress test `kitchen_sink_hdawg`, isolated to `if158_cwvf_in_loop.seqc`
-**Status**: open
+**Status**: fixed (phase 57.G.1)
 **Severity**: likely-bug
 
-### Symptom
+### Resolution
+
+Two related bugs in `Prefetch::optimizeCwvf` Branch handling
+(`reconstructed/src/codegen/prefetch.cpp`):
+
+1. The `expectedCwvf` snapshot was being overwritten on every branch
+   iteration instead of only the first.  The binary uses a separate
+   `isFirstBranch` flag at stack slot `-0x90(%rbp)` (initialized from
+   `r15b=1` at 0x1cfdb7, cleared to 0 at 0x1cfe10/0x1d0230 after each
+   iteration's recursive `optimizeCwvf` returns).  The recon had
+   conflated this with the `allSameConfig` accumulator at `-0x48(%rbp)`,
+   so divergence between the if-arm (`channelMask=3`) and else-arm
+   (`channelMask=1`) tail configs was never observed: each iteration
+   trivially compared `expectedCwvf` against itself.
+
+   Effect: the Branch's running cwvf was never reset to the
+   "diverged" sentinel (`channelMask = 0xFFFFFFFF`), so the surrounding
+   Loop inherited a wrong common-state cwvf and `needsNewCwvf` saw
+   `prev->channelMask == cur->channelMask` and skipped the static
+   `cwvf` reset emit.
+
+2. While auditing `Prefetch::needsNewCwvf` Loop case
+   (`prefetch_emit.cpp` 0x1dc7e8–0x1dc806) a polarity bug was found
+   and fixed: when `prev->loop == curNode`, the binary preserves
+   `seenDifference` (jumps to 0x1dc810 which sets `sil = r12d`); the
+   recon was instead writing `holdDiffers`.  This was not the trigger
+   for this test but was confirmed via static disassembly.
+
+**Verification**:
+- `python tests/diff_test.py --manifest manifest-stress.json --filter if158 -v` → PASS (byte-identical, 16380 bytes)
+- `python tests/diff_test.py --manifest manifest-stress.json --filter kitchen -v` → PASS (byte-identical, 45000 bytes)
+- Main suite 1600/1600.
+- Stress: 21 → 19 failures (cleared `if158_cwvf_in_loop_hdawg`,
+  `kitchen_sink_hdawg`; no regressions).
+
+**Root-cause confirmation**: GDB-traced original `needsNewCwvf` calls
+showed orig's Loop ancestor of the else-arm Play had
+`currentCwvf.channelMask = 0xFFFFFFFF` (divergence sentinel) while
+recon's had `1` (else-arm value).  Walking the parent chain in both,
+the Branch node showed `cm=0xFFFFFFFF` in orig vs `cm=1` in recon —
+isolating the bug to the Branch divergence-detection logic upstream
+of `needsNewCwvf`.
+
+### Original symptom
 
 A for-loop containing an if/else where:
 - the if-arm plays a dual placeholder (`playWave(phA, phB)`) → emits
@@ -3808,34 +3851,40 @@ comment state mid-line, and subsequent text was tokenized as code.
 
 Verified byte-identical output on `heavy_comments.seqc`.
 
-## IF-170  wavemem_pressure: bytewise diff with many distinct large waves
+## IF-170  wavemem_pressure: chirp builtin sample-data diff
 
-**Status**: open
-**Severity**: bug (codegen / wavemem accounting)
+**Status**: open (narrowed by phase 57.G.1)
+**Severity**: bug (waveform generator)
 **Found**: stress phase 52 (`wavemem_pressure.seqc`)
 
 ### Symptom
 
-Compiling 12 large (2048-sample) waves of various builtin shapes back
-to back yields a `.text` and likely `.wf_*` byte diff between orig and
-recon.  Both succeed.  Could be:
-- A waveform-generator builtin producing slightly different samples
-  for one or more of the 12 builtins, or
-- Wavemem accounting / placement diverging at large totals, or
-- Section ordering differing.
+`tests/cases/stress/wavemem_pressure.seqc` on HDAWG: ELF size matches
+(56000 bytes) but `.wf___chirp_14_23` (the 14th chirp invocation)
+diverges starting at byte offset 0xC10.  All other sections including
+`.wavemem`, `.text`, `.waveforms`, the other 11 builtin waveforms
+(blackman, cosine, drag×2, gauss×2, hann, ones, rect, sinc, sine) are
+byte-identical.
 
-### Minimal repro
+### What it is NOT
 
-`tests/cases/stress/wavemem_pressure.seqc` on HDAWG.
+After phase 57.G.1, the cwvf-related part of this test (initially
+suspected to overlap with IF-158) is confirmed unrelated: only the
+chirp sample data differs.  Wavemem accounting and codegen are
+correct.
 
 ### Recommended next step
 
-1. `python tests/dump_elf.py tests/cases/stress/wavemem_pressure.seqc HDAWG8 --samplerate 2.4e9 --both 2>&1 | grep DIFFERS`
-   to identify which sections differ.
-2. If a `.wf_*` differs, isolate the offending builtin into a
-   single-wave repro.
-3. If only `.text`/`.wavemem` differ, investigate placement /
-   accounting code.
+Isolate a single-call repro of the failing chirp invocation and
+compare against `Waveform::chirp` reconstruction; likely a parameter
+formula or accumulator-precision issue at large offset/length.
+
+### Original symptom
+
+Compiling 12 large (2048-sample) waves of various builtin shapes back
+to back yielded a `.text` and likely `.wf_*` byte diff between orig
+and recon.  Initial triage suspected wavemem accounting; phase 57.G.1
+narrowed to `.wf___chirp` only.
 
 ## IF-171  arith_chain (8-temp) bytewise codegen diff
 
