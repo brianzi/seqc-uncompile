@@ -1,0 +1,21 @@
+// Coverage Round 2 (FIXED variant): *= without var*var or notype RHS.
+// Original feat_compound_mul_assign.seqc errored on `c *= (k = k + 4)`
+// because assignment-as-expression yields notype.
+
+var a = 3;
+a *= 7;
+setUserReg(0, a);     // 21
+
+var b = 1;
+for (var i = 0; i < 6; i = i + 1) {
+    b *= 2;           // var *= literal — supported
+}
+setUserReg(1, b);     // 64
+
+// Sequential effects without nesting assignment
+var k = 1;
+k = k + 4;
+var c = 2;
+c *= 5;               // literal RHS
+setUserReg(2, c);     // 10
+setUserReg(3, k);     // 5

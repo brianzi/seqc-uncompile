@@ -1,0 +1,30 @@
+// Coverage Round 2 (FIXED variant): ++/-- in for-loop increment slot.
+// Original feat_inc_dec_in_for.seqc errored on `prod *= j` (var*var).
+// Removes the var*var case; keeps the inc/dec-in-for-increment focus.
+
+var sum = 0;
+for (var i = 0; i < 10; ++i) {
+    sum += i;
+}
+setUserReg(0, sum);    // 45
+
+// Postfix variant in increment slot
+var s2 = 0;
+for (var k = 0; k < 5; k++) {
+    s2 += k;
+}
+setUserReg(1, s2);     // 10
+
+// Pre-decrement in increment slot, counting down
+var s3 = 0;
+for (var m = 4; m > 0; --m) {
+    s3 += m;
+}
+setUserReg(2, s3);     // 10
+
+// Post-decrement in increment slot
+var s4 = 0;
+for (var n = 4; n > 0; n--) {
+    s4 += n;
+}
+setUserReg(3, s4);     // 10

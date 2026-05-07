@@ -1,0 +1,31 @@
+// Coverage Round 2 (FIXED variant): || without notype-yielding subexpr.
+// Original feat_logical_or_solo.seqc errored on `(1 || (ev=1))` because
+// assignment-as-expression yields notype.
+
+var a = 0;
+var b = 0;
+
+if (a || b) {
+    setUserReg(0, 1);
+} else {
+    setUserReg(0, 0);
+}
+
+a = 1;
+if (a || b) {
+    setUserReg(1, 1);
+}
+
+// Both true
+b = 1;
+if (a || b) {
+    setUserReg(2, 1);
+}
+
+// Combine with relational sub-expressions
+var x = 5;
+if ((x > 10) || (x < 0)) {
+    setUserReg(3, 0);
+} else {
+    setUserReg(3, 1);
+}

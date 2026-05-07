@@ -1,0 +1,23 @@
+// Coverage Round 2 (FIXED variant): do-while edges without
+// assignment-in-condition (which yields notype in this language).
+
+// Single-iteration do-while: condition false on first check.
+var x = 100;
+do {
+    x = x - 1;
+} while (x > 100);
+setUserReg(0, x);    // 99
+
+// Empty body — increment performed in the body to keep cond well-typed.
+var y = 0;
+do {
+    y = y + 1;
+} while (y < 4);
+setUserReg(1, y);    // 4
+
+// do-while terminating immediately
+var z = 0;
+do {
+    z = 42;
+} while (0);
+setUserReg(2, z);    // 42

@@ -4238,7 +4238,23 @@
         {"name": "feat_pre_inc_hdawg", "file": "stress/coverage_round_2/feat_pre_inc.seqc", "@base": "@hdawg8"},
         {"name": "feat_pre_inc_shfsg", "file": "stress/coverage_round_2/feat_pre_inc.seqc", "@base": "@shfsg8_sg"},
         {"name": "feat_pre_inc_shfqa", "file": "stress/coverage_round_2/feat_pre_inc.seqc", "@base": "@shfqa4_qa"},
-        {"name": "feat_pre_inc_uhfqa", "file": "stress/coverage_round_2/feat_pre_inc.seqc", "@base": "@uhfqa"}
+        {"name": "feat_pre_inc_uhfqa", "file": "stress/coverage_round_2/feat_pre_inc.seqc", "@base": "@uhfqa"},
+        {"name": "feat_compound_mul_assign_fixed_hdawg", "file": "stress/coverage_round_2/feat_compound_mul_assign_fixed.seqc", "@base": "@hdawg8"},
+        {"name": "feat_compound_mul_assign_fixed_shfsg", "file": "stress/coverage_round_2/feat_compound_mul_assign_fixed.seqc", "@base": "@shfsg8_sg"},
+        {"name": "feat_compound_mul_assign_fixed_shfqa", "file": "stress/coverage_round_2/feat_compound_mul_assign_fixed.seqc", "@base": "@shfqa4_qa"},
+        {"name": "feat_compound_mul_assign_fixed_uhfqa", "file": "stress/coverage_round_2/feat_compound_mul_assign_fixed.seqc", "@base": "@uhfqa"},
+        {"name": "feat_inc_dec_in_for_fixed_hdawg", "file": "stress/coverage_round_2/feat_inc_dec_in_for_fixed.seqc", "@base": "@hdawg8"},
+        {"name": "feat_inc_dec_in_for_fixed_shfsg", "file": "stress/coverage_round_2/feat_inc_dec_in_for_fixed.seqc", "@base": "@shfsg8_sg"},
+        {"name": "feat_inc_dec_in_for_fixed_shfqa", "file": "stress/coverage_round_2/feat_inc_dec_in_for_fixed.seqc", "@base": "@shfqa4_qa"},
+        {"name": "feat_inc_dec_in_for_fixed_uhfqa", "file": "stress/coverage_round_2/feat_inc_dec_in_for_fixed.seqc", "@base": "@uhfqa"},
+        {"name": "feat_logical_or_solo_fixed_hdawg", "file": "stress/coverage_round_2/feat_logical_or_solo_fixed.seqc", "@base": "@hdawg8"},
+        {"name": "feat_logical_or_solo_fixed_shfsg", "file": "stress/coverage_round_2/feat_logical_or_solo_fixed.seqc", "@base": "@shfsg8_sg"},
+        {"name": "feat_logical_or_solo_fixed_shfqa", "file": "stress/coverage_round_2/feat_logical_or_solo_fixed.seqc", "@base": "@shfqa4_qa"},
+        {"name": "feat_logical_or_solo_fixed_uhfqa", "file": "stress/coverage_round_2/feat_logical_or_solo_fixed.seqc", "@base": "@uhfqa"},
+        {"name": "feat_do_while_edges_fixed_hdawg", "file": "stress/coverage_round_2/feat_do_while_edges_fixed.seqc", "@base": "@hdawg8"},
+        {"name": "feat_do_while_edges_fixed_shfsg", "file": "stress/coverage_round_2/feat_do_while_edges_fixed.seqc", "@base": "@shfsg8_sg"},
+        {"name": "feat_do_while_edges_fixed_shfqa", "file": "stress/coverage_round_2/feat_do_while_edges_fixed.seqc", "@base": "@shfqa4_qa"},
+        {"name": "feat_do_while_edges_fixed_uhfqa", "file": "stress/coverage_round_2/feat_do_while_edges_fixed.seqc", "@base": "@uhfqa"}
       ]
     }
   ]
