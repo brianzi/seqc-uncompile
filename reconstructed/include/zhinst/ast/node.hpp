@@ -59,7 +59,10 @@ enum class NodeType : int {
     PlainLoad          = 0x4000,   // "plainload"
     AwgReady           = 0x8000,   // "awg_ready"
     SetVarPlaceholder  = 0x10000,  // "setvar_placeholder"
-    PrecompFlags       = 0x20000,  // "precomp_flags"
+    // 0x20000 — unused. (Earlier reconstruction had a spurious
+    // "PrecompFlags = 0x20000" here; the binary only uses
+    // SetPrecomp = 0x1000 for setPrecompClear-emitted nodes.
+    // Removed in IF-199 cleanup.)
     SyncPlaceholderCervino = 0x40000, // "sync_placeholder_cervino"
     UnlockPlaceholder  = 0x80000,  // "unlock_placeholder"
     Placeholder        = 0x100000, // "placeholder" (generic prefetch placeholder)
