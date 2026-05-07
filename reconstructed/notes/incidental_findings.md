@@ -3819,7 +3819,7 @@ obvious.
 ## IF-201  `playWaveIndexedNow` emits `wvf` instead of `wvfi`
 
 **Source**: coverage round (Phase 62-style), `cov_playWaveIndexedNow_*`
-**Status**: fixed (2026-05-08; commit pending)
+**Status**: fixed (2026-05-08; commit dddc8ca)
 **Severity**: likely-bug
 **Found**: 2026-05-08
 
