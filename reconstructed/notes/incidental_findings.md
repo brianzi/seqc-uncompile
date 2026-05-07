@@ -4148,3 +4148,178 @@ waitWave();
 3. The same crash pattern may affect `placeholder() + wave`, `cut()`
    of placeholder, scalar-mul of placeholder.  Add follow-up stress
    cases after the fix lands.
+
+
+## IF-182  ErrorMessages template m[1]/m[2] arity mismatches across awg_assembler
+
+Source: Phase 57.A.1 audit (`error_message_audit.md`).
+
+**Symptom**: every assembler register/value error throws
+`boost::io::too_many_args` instead of producing the intended diagnostic.
+
+**Root cause**: `error_messages.cpp` templates are correctly reconstructed
+(matches binary rodata at offsets ~80746):
+
+```
+m[1] = "opcode %1% register %1% not given"   (1 slot — uses %1% twice)
+m[2] = "opcode %1% value %1% not given"      (1 slot — uses %1% twice)
+```
+
+But 16 call sites in `src/codegen/awg_assembler_opcodes.cpp` (lines 231,
+241, 274, 283, 292, 301, 367, 379, 390, 404, 415, 430, 467, 514, 524, 578)
+pass **2 args** (opcode, position) → `too_many_args`.
+
+**Fix**: drop the second arg at every call site. The template intentionally
+substitutes the same value (the missing register/value identifier) twice.
+Verified against binary rodata — templates are correct, calls are wrong.
+
+**Severity**: HIGH — every assembler register/value error throws boost
+exception instead of diagnostic.
+
+**Affected stress tests**: any test that triggers a missing-register or
+missing-value assembler diagnostic.
+
+**Status**: open — to fix in Phase 57 Group A.
+
+
+## IF-183  ErrorMessages m[32] wrong message-id at asm_commands.cpp:452,458
+
+Source: Phase 57.A.1 audit.
+
+**Symptom**: `toInt32()` overflow path produces nonsensical "tried to modify
+const value" + boost `too_many_args` exception instead of "value X is out
+of range for 32 bits".
+
+**Root cause**: call passes id `0x20` (32 = `ConditionalNeedVarConst`,
+template "tried to modify const value", 0 slots) with 2 args (double, 32).
+The intended id is **5** (`ValueOutOfRange`, template "value %1% is out
+of range for %2% bits") — confirmed against binary rodata at offset
+80750. Likely `0x20` vs `0x05` transcription error in recon.
+
+**Fix**: change `format(ErrorMessageT(0x20), ...)` → `format(ErrorMessages::ValueOutOfRange, ...)` (id 5) at both lines.
+
+**Severity**: HIGH.
+
+
+## IF-184  ErrorMessages SetXxxArgs family — call sites pass extra funcName arg
+
+Source: Phase 57.A.1 audit. Subsumes IF-178 root-cause analysis.
+
+**Symptom**: `setRate`, `setUserReg`, `setInt`, `setDouble`,
+`setTrigger`, `setInternalTrigger`, `setPrecomp*`, `lock`, `unlock` —
+when called with bad arg patterns, recon throws `boost::io::too_many_args`
+exception instead of producing the intended diagnostic.
+
+**Root cause**: 18 call sites across `custom_functions_registers.cpp`
+and `custom_functions_playback.cpp` pass `std::string("setXxx")` as a
+funcName arg to templates that have **0 slots**. Binary rodata
+(strings 80926–80962) confirms these messages are verbatim with no
+`%1%` placeholder:
+
+```
+setRate expects a const argument
+setRate expects just one const argument
+setUserReg expects a const as first argument
+setUserReg register must be in the range of 0 to 15
+setUserReg expects exactly two arguments
+setUserReg expects a var or const as second argument
+setInt expects 2 arguments
+setInt expects a string as first argument, %1% given      ← (this one DOES have a slot)
+setInt expects a var or const as second argument, %1% given
+setDouble expects 2 or 3 arguments
+setDouble expects a string as first argument, %1% given
+setDouble expects a var or const as second argument, %1% given
+setDouble expects a const as third argument, %1% given
+setTrigger expects a single const or var argument
+setInternalTrigger expects a single const or var argument
+lock expects exactly one argument
+unlock expects exactly one argument
+```
+
+(Some of the above DO have a `%1%` for the actual-given-type — those
+templates are different ids and not in the IF-184 batch.)
+
+**Fix**: drop the `std::string("setXxx")` funcName arg from the 18
+overflow call sites. **Do not add slots to templates** — that would
+produce different output than the binary.
+
+**Affected stress tests**: `setuserreg_oor`, `giant_expression`,
+others that hit the SetXxxArgs paths.
+
+**Status**: open — to fix in Phase 57 Group A.
+
+
+## IF-185  ErrorMessages NodePrecisionLoss underflow (3 sites)
+
+Source: Phase 57.A.1 audit.
+
+**Symptom**: any non-integer setInt warning path
+(`custom_functions_play.cpp:1617`, `:1646`, `:2069`) throws
+`boost::io::too_few_args`.
+
+**Root cause**: template m[128] = `"node '%1%' requires an %2% value,
+therefore the double precision is lost"` has 2 slots; call passes 1
+(`valStr`). Missing arg is the **node-name string**.
+
+**Fix**: add the node-name as 2nd arg to `format(NodePrecisionLoss, ...)`
+at all 3 sites.
+
+**Severity**: HIGH — affects any non-integer setInt warning.
+
+**Status**: open — to fix in Phase 57 Group A.
+
+
+## IF-186  ErrorMessages get(4)/get(222) placeholder leaks — superset of IF-175
+
+Source: Phase 57.A.1 audit.
+
+**Symptom**: raw `%1% %2% %3% %4%` substring appears in user-facing
+error message.
+
+**Root cause**: 3 call sites use `ErrorMessages::get(N)` instead of
+`ErrorMessages::format(N, ...)` against multi-slot templates, so
+placeholders are never substituted:
+
+- `src/codegen/awg_assembler_opcodes.cpp:124` — `get(4)`, m[4]
+  TooFewArguments has 4 slots.
+- `src/codegen/awg_assembler_opcodes.cpp:333` — same.
+- `src/runtime/custom_functions_wait.cpp:761` — `get(222)`, m[222]
+  NotSupportedGrouping has 2 slots; affects waitSineOscPhase
+  channel-grouping diagnostic.
+
+**Fix**: change each `get(N)` to `format(N, ...args)` with the
+correct args. For m[4]: `(instr, opcode, expected, given)`. For m[222]:
+`("waitSineOscPhase", numChannelGroups)`.
+
+This subsumes IF-175 and adds the m[222] case.
+
+**Status**: open — to fix in Phase 57 Group A.
+
+
+## IF-187  ErrorMessages assorted underflows in custom_functions_play/playback/registers
+
+Source: Phase 57.A.1 audit. The non-IF-184/185/186 underflows.
+
+The remaining 11 underflow sites surfaced by the audit (not already
+covered by IF-179/184/185):
+
+| File:Line | ID | Slots | Args | Missing arg(s) |
+|---|---|---|---|---|
+| custom_functions_play.cpp:496 | 215 IndexMustBe | 2 | 1 | the index range string |
+| custom_functions_play.cpp:2274 | 136 FuncSingleArg | 1 | 0 | funcName |
+| custom_functions_play.cpp:2312 | 70 FuncInvalidArgType | 4 | 1 | funcName, argName, expectedType |
+| custom_functions_play.cpp:2324 | 166 FormatMoreArgs | 1 | 0 | funcName |
+| custom_functions_play.cpp:2328 | 168 FormatCantInterpret | 1 | 0 | funcName |
+| custom_functions_playback.cpp:861 | 169 FormatFuncArgs | 3 | 1 | expected & given counts |
+| custom_functions_registers.cpp:815,875,1147 | 69 FuncExpectsMaxArgs | 3 | 1 | max-args, given-args |
+| custom_functions_registers.cpp:828,836,884,1153,1175,1190,1210,1219 | 62 FuncExpectsConst | 1 | 0 | funcName |
+| custom_functions_registers.cpp:921 | 61 FuncMinArgs | 3 | 1 | min-args, given-args |
+
+All produce `boost::io::too_few_args` at runtime instead of the proper
+diagnostic.
+
+**Fix**: at each call site, supply the missing arg(s). Most just need
+the funcName from the caller's context (already known locally as a
+`std::string`).
+
+**Status**: open — to fix in Phase 57 Group A.
