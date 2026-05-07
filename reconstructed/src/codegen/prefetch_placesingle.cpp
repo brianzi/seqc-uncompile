@@ -610,13 +610,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         // Get waveform size per device
                         auto waveOpt = npCerv->waveAtCurrentDeviceIndex(); // 0x1d9225
                         auto wfIR = wavetableIR_->getWaveformByName(waveOpt); // 0x1d9238
-                        int sizePerDev = wfIR->getSizePerDevice(); // 0x1d9241
+                        int sizePerDevBytes = wfIR->getSizePerDevice(); // 0x1d9241 (returns bytes)
 
                         int pagesNeeded = 1;
                         if (!config_->isHirzel) {                  // 0x1d9250
                             pagesNeeded = nodeStates_.at(node).pagesNeeded; // 0x1d925c, +0x1c
                         }
-                        int pageCount = sizePerDev / pagesNeeded;  // 0x1d9267
+                        int pageCount = sizePerDevBytes / pagesNeeded;  // 0x1d9267
 
                         // --- Shared Hirzel/Cervino path ---
                         // Binary: isHirzel branch at 0x1d92a1 selects the register:

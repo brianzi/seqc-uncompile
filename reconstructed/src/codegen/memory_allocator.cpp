@@ -58,7 +58,7 @@ MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset
       pad_3C_(0),
       freeBlocks_()
 {
-    // Initialize per-CL ownership table. cacheLineSize_ may legitimately be
+    // Initialize per-CL ownership table. cacheLineSizeBytes_ may legitimately be
     // 1 (no caching) for some device families; in that case there is one
     // "CL slot" per sample, which the binary tolerates.
     if (cacheLineSizeBytes_ != 0) {
@@ -107,8 +107,8 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
     //   aligned = align_up(blockStart, waveformElfAlignment)
     //   available = blockEnd - aligned
     //   if (available < size) → fail
-    //   slot = (aligned % memorySizeInSamples_) / cacheLineSize_
-    //   clBase = aligned - (aligned % cacheLineSize_)
+    //   slot = (aligned % memorySizeInBytes_) / cacheLineSizeBytes_
+    //   clBase = aligned - (aligned % cacheLineSizeBytes_)
     //   if (cacheLineUsage_[slot] != clBase) → fail
     //   Then check: nextBoundary = (aligned / waveformAlignment + 1) * waveformAlignment
     //   if (nextBoundary >= blockEnd || nextBoundary - aligned >= size) → success
@@ -163,8 +163,8 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
                 return {0, 0, 0};
 
             // Check and fill CL ownership slots (SSE2 vectorized in binary)
-            // Binary: slot index uses (aligned % memorySizeInSamples_) / cacheLineSize_
-            // not aligned / cacheLineSize_, because addresses like 0x80000000 wrap via
+            // Binary: slot index uses (aligned % memorySizeInBytes_) / cacheLineSizeBytes_
+            // not aligned / cacheLineSizeBytes_, because addresses like 0x80000000 wrap via
             // modular arithmetic to stay within the cacheLineUsage_ vector bounds.
             uint32_t modAddr = aligned % memorySizeInBytes_;
             uint32_t numSlots = maxBlocksPerCL_ * cacheLineSizeBytes_;
@@ -260,7 +260,7 @@ MemoryBlock MemoryAllocator::allocateReloadingCL(
 //   2. For each free block, apply predicate
 //   3. On success: split the free block (remove consumed portion, insert
 //      remainders back into deque via deque::insert @0x2aae70)
-//   4. Also checks the "tail" region [lastFreeBlock.end, startOffset_+memorySizeInSamples_)
+//   4. Also checks the "tail" region [lastFreeBlock.end, startOffset_+memorySizeInBytes_)
 //   5. Returns MemoryBlock with flags=0 on failure
 //
 // Deque iteration uses magic constant 0x8060180601806019 for division by 341.
@@ -297,7 +297,7 @@ MemoryBlock MemoryAllocator::allocateFirstSuitableFreeBlock(Pred pred) {
     }
 
     // Try tail region: binary uses lastAllocEnd_ (initially 0xFFFFFFFF) as
-    // the end bound, not startOffset_ + memorySizeInSamples_.
+    // the end bound, not startOffset_ + memorySizeInBytes_.
     // @+579: eax = startOffset_, r11d = lastAllocEnd_.
     // @+409: eax = freeBlocks_.back().end, r10d = lastAllocEnd_.
     uint32_t tailEnd = lastAllocEnd_;

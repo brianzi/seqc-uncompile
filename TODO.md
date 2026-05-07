@@ -399,11 +399,43 @@ that silently converts between the two.
 4. Fix any arithmetic errors found (wrong ×2/÷2 or missing conversion)
 5. Build + full test suite after each file
 
-- [ ] **44.1** Audit `MemoryAllocator` size parameters
-- [ ] **44.2** Audit `WaveformData`/`Waveform` length/size fields
-- [ ] **44.3** Audit `WaveformGenerator` signal-length paths
-- [ ] **44.4** Audit `collectUsedWaves`/`assignWaveIndex`/prefetcher sizing
-- [ ] **44.5** Wrap-up: build, full test suite, commit
+- [x] **44.1** Audit `MemoryAllocator` size parameters
+      — DONE per IF-109 (prior session, 2026-05-05). Renamed
+      `memorySizeInSamples_`→`memorySizeInBytes_`,
+      `cacheLineSize_`→`cacheLineSizeBytes_`,
+      `Cache::allocate` param `numSamples`→`numBytes`,
+      `prefetch.cpp` local `numSamplesForCache`→`numBytesForCache`.
+      This pass cleaned 5 stale comment references in
+      `memory_allocator.cpp` (lines 61/110/111/166/263/300) that
+      still mentioned the pre-rename names.
+- [x] **44.2** Audit `WaveformData`/`Waveform` length/size fields
+      — All header field names already carry explicit unit suffixes
+      (`minLengthSamples`, `allocationByteSize`, `byteSize_`,
+      `elfAlignment_`, `Signal::length_` = samples per channel).
+      No changes required. `getSizePerDevice()` returns bytes — kept
+      as-is for binary-symbol fidelity; only caller now uses
+      `sizePerDevBytes` local.
+- [x] **44.3** Audit `WaveformGenerator` signal-length paths
+      — DSP-level `int length` locals faithfully reproduce the
+      SeqC-user-facing parameter name (`zeros(length)` etc.) and are
+      unambiguously samples by convention. Not renamed.
+      `WaveformGenerator::readWave`'s `expectedLength` parameter is
+      polymorphic across call sites (sentinel/-1 mostly, sample
+      count in one site, literal "1" in another) — kept polymorphic
+      with documentation in the audit notes.
+- [x] **44.4** Audit `collectUsedWaves`/`assignWaveIndex`/prefetcher sizing
+      — Renamed `prefetch_placesingle.cpp:613` local
+      `int sizePerDev` → `int sizePerDevBytes` and updated the
+      single dependent line. All other size locals in
+      `prefetch*.cpp`, `wavetable_*.cpp`, `awg_compiler.cpp` were
+      either already explicit (`numBytesForCache`, `sampleCount`)
+      or used `signal.length()` directly with an inline
+      `// +0xD0` comment indicating the offset.
+- [x] **44.5** Wrap-up: build, full test suite, commit
+      — Build clean. Default manifest 1600/1600. All 10 named
+      manifests clean (2407/2407). Grand total 4007/4007 across 11
+      manifests. No new IF entries filed (no arithmetic bugs found).
+      Audit recorded in `reconstructed/notes/bytes_vs_samples_audit.md`.
 
 ---
 
