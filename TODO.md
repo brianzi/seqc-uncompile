@@ -622,7 +622,7 @@ SeqC source is empty / comments-only.  Recon silently produces an ELF.
       (4 tests pass)
 - [x] Run full suite — **1600/1600**, no regressions
 - [x] Update IF-155 to `fixed`
-- [ ] Sub-phase wrap-up commit
+- [x] Sub-phase wrap-up commit (rolled into Phase 57 wrap-up `250c11b`)
 
 ### 47.2 — IF-156: register allocator fails on 17-variable program
 
@@ -659,7 +659,7 @@ in original; recon errors `"run out of free registers"`.
 - [x] Full suite — `tests/diff_test_fast.py` shows **1596/1600**
       (was 1595/1600, no regressions).
 - [x] Update IF-156 to `fixed`.
-- [ ] Sub-phase wrap-up commit.
+- [x] Sub-phase wrap-up commit (rolled into Phase 57 wrap-up `250c11b`).
 
 ### 47.3 — IF-157: playWave_variants codegen + waveform-size diff
 
@@ -679,10 +679,12 @@ in original; recon errors `"run out of free registers"`.
 
 ### 47.4 — Phase 47 wrap-up
 
-- [ ] Update OVERVIEW.md with zivibes intake summary
+- [x] Update OVERVIEW.md with zivibes intake summary (one-line entry
+      in the per-manifest count table at OVERVIEW.md:111 records the
+      259 zivibes cases as part of the main 1600 total)
 - [x] Confirm full suite is clean (1600/1600 expected — 1341 prior +
       259 new, minus any consolidated)
-- [ ] Final commit + push
+- [x] Final commit + push (rolled into Phase 57 wrap-up `250c11b`)
 
 ---
 
@@ -730,19 +732,20 @@ See `incidental_findings.md` IF-158 for full analysis. Subagent
 investigation `ses_1fde0697fffeWuLAE3xLqp38Lv` identified the
 suspected functions but did not GDB-verify.
 
-- [ ] Run the GDB recipe in IF-158 to identify which branch of
+- [x] Run the GDB recipe in IF-158 to identify which branch of
       `needsNewCwvf` (or which write to `Node::currentCwvf` in
       `optimizeCwvf`) differs between binary and recon
-- [ ] Fix the recon to match
-- [ ] `if158_cwvf_in_loop_hdawg` and `kitchen_sink_hdawg` byte-identical
-- [ ] Full suite still 1600/1600 (+15 stress = 1615/1615 expected)
-- [ ] Update IF-158 to `fixed`
+      (resolved in Phase 57.G.1)
+- [x] Fix the recon to match (Phase 57.G.1)
+- [x] `if158_cwvf_in_loop_hdawg` and `kitchen_sink_hdawg` byte-identical
+- [x] Full suite still 1600/1600 (+15 stress = 1615/1615 expected)
+- [x] Update IF-158 to `fixed`
 
 ### 48.3 — Phase 48 wrap-up
 
-- [ ] Sub-phase wrap-up commit (stress suite + IF-158 minimal repro +
-      open IF entry, no fix yet)
-- [ ] Push
+- [x] Sub-phase wrap-up commit (stress suite + IF-158 minimal repro +
+      open IF entry, no fix yet) — rolled into Phase 57 wrap-up `250c11b`
+- [x] Push
 
 ---
 
@@ -776,13 +779,17 @@ suspected functions but did not GDB-verify.
 See `incidental_findings.md` IF-159. Minimal repro at
 `tests/cases/stress/if159_assignwave_dup_crash.seqc`.
 
-- [ ] Reproduce under GDB, capture backtrace at the crash site
-- [ ] Identify the throw-without-exception or uncaught-throw site
-- [ ] Match to the binary's "already assigned index" error path
-- [ ] Fix the recon to produce the same graceful error
-- [ ] `if159_assignwave_dup_crash_hdawg` produces matching error string
-- [ ] Full suite still 1600/1600 + stress 32/32 (when IF-158 also fixed)
-- [ ] Update IF-159 to `fixed`
+- [x] Reproduce under GDB, capture backtrace at the crash site
+      (resolved in Phase 57.C.2)
+- [x] Identify the throw-without-exception or uncaught-throw site
+      (literal `throw;` in `WavetableFront::assignWaveIndex` at
+      `wavetable_front.cpp:354`)
+- [x] Match to the binary's "already assigned index" error path
+      (`WaveAlreadyAssigned` template id 248)
+- [x] Fix the recon to produce the same graceful error
+- [x] `if159_assignwave_dup_crash_hdawg` produces matching error string
+- [x] Full suite still 1600/1600 + stress 32/32 (when IF-158 also fixed)
+- [x] Update IF-159 to `fixed`
 
 ### 49.3 — Phase 49 wrap-up
 
@@ -1570,10 +1577,11 @@ note: orig emits 2 extra `cwvf` and folds empty-cut play into a
 single `wwvf`; recon's playback path doesn't yet handle the
 zero-length wave case.
 
-- [ ] **58.A.1** — Single subagent. Read IF-176 + dump_elf both-mode for
+- [x] **58.A.1** — Single subagent. Read IF-176 + dump_elf both-mode for
       `cut_extreme_hdawg` to see exact `.asm` divergence. Locate the
       playback emission for length-0 cut result. Apply orig's "fold to
       single wwvf" semantics. Verify all 4 tests now pass byte-identical.
+      (Done — fixed in commit `02e4bf7`; see 58.W.)
 
 ### Cluster 58.B — IF-186 deferred site (2 failures)
 
@@ -1585,12 +1593,14 @@ Phase 57.A left a single `// TODO IF-186` stub at
 4-slot template) but had no `instr/opcode/expected/given` locals
 visible. Need binary trace to find the right template id.
 
-- [ ] **58.B.1** — Single subagent. GDB-trace orig at
+- [x] **58.B.1** — Single subagent. GDB-trace orig at
       `awg_assembler_opcodes.cpp:124` equivalent on the failing
       `long_source` input to identify which template id orig uses for
       the "register out of range" diagnostic (likely `RegisterOutOfRange`
       or similar — verify against rodata). Apply the right `format()`
       call. Verify both `long_source` tests pass.
+      (Done — fixed in commit `3f6aeb1`; surfaced IF-191 also fixed
+      same phase as `223e91a`. See 58.W.)
 
 ### Cluster 58.C — IF-188 placeholder + concrete wave NOBITS (1 failure)
 
@@ -1602,12 +1612,13 @@ arithmetic operator on placeholder doesn't materialize the result
 when the other operand is concrete. SA-C1 recommended a binary audit
 of arithmetic operators' reserveOnly handling.
 
-- [ ] **58.C.1** — Single subagent. Read IF-188. Locate the arithmetic
+- [x] **58.C.1** — Single subagent. Read IF-188. Locate the arithmetic
       operator path in `waveform_generator_dsp.cpp` that creates the
       result Signal. Audit reserveOnly handling: when one operand is
       reserveOnly and the other is concrete, the result must be
       materialized (PROGBITS). GDB-verify against orig. Apply fix.
       Verify `placeholder_arith_hdawg` byte-identical.
+      (Done — fixed in commit `ca69068`; see 58.W.)
 
 ### Cluster 58.D — IFs 189, 190 zero-wave bookkeeping (2 failures)
 
@@ -1627,11 +1638,14 @@ instructions of `.text`.
 Likely same root area: zero-wave special handling in the prefetch /
 register-allocation pass.
 
-- [ ] **58.D.1** — Single subagent. Read IFs 189, 190. Investigate
+- [x] **58.D.1** — Single subagent. Read IFs 189, 190. Investigate
       together — likely same root cause (zero-waves need special
       address slot + prefetch + skip-from-budget treatment).
       GDB-verify orig's zero-wave emission path. Apply fix.
       Verify both stress tests pass.
+      (Done — fixed in commit `e68b5d4`; single root cause confirmed
+      = missing `length == 0` guard in
+      `WavetableIR::assignWaveformAllocationSizes`. See 58.W.)
 
 ### 58.0 — Phase 58 kickoff
 
@@ -1759,8 +1773,10 @@ device-specific code paths are exercised. Wave-based cases
       against hdawg+shfsg+shfqa+uhfqa, wave cases against hdawg+shfsg
 - [x] **59.6** — Re-triaged: surfaced 2 UHFQA failures (IF-192) and
       filed IFs 193, 194
-- [ ] **59.7** — User-review: choose Phase 60 = fix IF-192 vs.
+- [x] **59.7** — User-review: choose Phase 60 = fix IF-192 vs.
       Phase 60 = round 11 (more stress angles)
+      (Resolved: user chose IF-192 fix; executed as Phase 60 in
+      commit `040c669`.)
 
 ### Lessons learned
 
@@ -1953,10 +1969,15 @@ gaps (setRate × cwvf, prefetch idempotence, prefetch + waitWave).
       Needs separate UHFQA-CT-overflow scenario to differentiate.
 - [x] **62.H** — Main suite: 1600/1600 (no regressions from any
       of the 34 new manifest entries).
-- [ ] **62.I** — User-review: choose Phase 63 = fix IF-199
+- [x] **62.I** — User-review: choose Phase 63 = fix IF-199
       (precomp-flag threading), Phase 63 = IF-196 dedicated UHFQA-CT
       overflow test, Phase 63 = round 12 stress, or Phase 63 = audit
       other variadic builtins for IF-197 sibling bugs.
+      (Resolved: IF-199 fixed in commit `79e4436` (Phase 62 itself);
+      IF-196 fixed in `363538f` (Phase 62 cleanup); IF-197 sibling
+      audit done in `95c1327`. All four candidate options were
+      executed. No Phase 63 was needed; subsequent work is the
+      notes-maintenance pass instead.)
 
 ### Lessons learned
 

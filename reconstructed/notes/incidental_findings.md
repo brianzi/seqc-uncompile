@@ -512,7 +512,11 @@ static init at 0xd5de0). Replaced the entire table in
 
 ---
 
-## IF-23 — SeqCAssign Row 1 (Var=Const/Cvar) missing ADDI + SetVarPlaceholder
+## IF-23b — SeqCAssign Row 1 (Var=Const/Cvar) missing ADDI + SetVarPlaceholder
+
+(ID disambiguation 2026-05-08: this entry shared the IF-23 number with
+the earlier `SeqCStmtList::evaluate hasError_` entry above; renamed to
+IF-23b for clarity.  Both are fixed.)
 - **Source**: hdawg_arithmetic differential failure; GDB trace of binary
 - **Status**: **fixed** (2026-04-27)
 - **Severity**: critical (root cause of ~25+ test failures)
@@ -2273,7 +2277,11 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 - **Resolution**: Replaced the two-triplet fast-arm with: one triplet (tag=0xc) + floatEqual warning on `type.value_` (with `"integer"` hint) + `addi(float32(scale))` + suser(0x14) + trap.
 - **Location**: `reconstructed/src/runtime/custom_functions_play.cpp` (writeToNode case 2 fast-arm)
 
-## IF-140  `playDIOWave` missing `results->node_` assignment
+## IF-140b  `playDIOWave` missing `results->node_` assignment
+
+(ID disambiguation 2026-05-08: this entry shared the IF-140 number with
+the earlier `writeToNode` entry above; renamed to IF-140b for clarity.
+Both are fixed.)
 
 - **Source**: `ziasm_playconfig_cwfv_3` difftest (UHFLI/UHFAWG/UHFQA)
 - **Severity**: likely-bug
@@ -2358,7 +2366,11 @@ it's a hand-rolled inline implementation. Disassemble before assuming.
 
 ---
 
-## IF-143: playWaveIndexed emits extra ssl/addr/prf instructions (load_indexed_play misfiring)
+## IF-143b: playWaveIndexed emits extra ssl/addr/prf instructions (load_indexed_play misfiring)
+
+(ID disambiguation 2026-05-08: this entry shared the IF-143 number with
+the earlier `playWaveIndexed (split_ devices)` entry above; renamed to
+IF-143b for clarity.  Both are fixed.)
 
 - **Found during**: `ziasm_various_playback_stuff_1/2` investigation
 - **Source**: `prefetch.cpp` (`createLoad`, `moveLoadsToFront`) and `prefetch_placesingle.cpp` (`load_indexed_play` trigger)
