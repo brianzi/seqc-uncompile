@@ -4718,3 +4718,76 @@ and observe whether the resulting Signal has `reserveOnly_` set.
 The sibling probes (`cut_placeholder.seqc`,
 `scalar_mul_placeholder.seqc`) currently pass, suggesting the bug is
 specific to the binary-additive path with one concrete operand.
+
+
+## IF-189  fpgaMemoryUsed counts zero-length waves
+
+Source: Phase 58 triage of stress test `wave_min_length_hdawg`.
+
+**Symptom**: `.wavemem` JSON differs:
+- orig: `{"exceedsFpgaMemory":false,"fpgaMemoryUsed":1.220703125E-4}`
+- recon: `{"exceedsFpgaMemory":false,"fpgaMemoryUsed":1.8310546875E-4}`
+
+Ratio: recon = orig × 1.5. Test compiles 3 waves: `ones(32)`,
+`ones(16)`, `zeros(0)`. After IF-172 fix, the `zeros(0)` waveform
+table entry is suppressed and `.wf___zeros_12_5` is 0 bytes — but
+recon's fpga-memory accounting still adds the 16-sample budget for
+it, inflating the total by 50%.
+
+Note also `e_entry: orig=0x80000080  recon=0x800000c0` despite
+`.text` being byte-identical. Two possible explanations:
+1. Recon writes `e_entry` based on a stale instruction-count
+   counter that wasn't decremented when IF-172 dropped the entry.
+2. `.text` is identical but recon's section-header offset for
+   `.text` differs.
+
+Both diffs are likely the same "bookkeeping not updated when IF-172
+filtered the zero-length wave" bug.
+
+**Fix area**: the wavemem-budget computation pass + entry-point
+calculation. Likely both call into the wave-table iterator and
+count entries unconditionally.
+
+**Status**: open. To fix in Phase 58.
+
+
+## IF-190  zeros() waveform not prefetched at high address; sequential register offsets emitted
+
+Source: Phase 58 triage of stress test `wave_zero_boundary_hdawg`.
+
+**Symptom**: with multiple waves where one is `zeros(0)`, orig
+emits a special prefetch sequence:
+
+```
+cwvf 5242625
+addiu R1, R0, 524288       ← zeros high-addr load
+prf R1, R0, 4096            ← prefetch the zero region
+addi R2, R0, 64             ← w_one address (offset 64 from base)
+addiu R2, R2, 524288
+addi R3, R0, 128            ← w_two address
+addiu R3, R3, 524288
+```
+
+Recon emits sequential offsets only:
+```
+cwvf 5242625
+addi R1, R0, 64             ← skips the zeros high-addr + prefetch
+addiu R1, R1, 524288
+addi R2, R0, 128
+addiu R2, R2, 524288
+addi R3, R0, 192            ← shifted by 64 because R1/R2/R3 use sequential offsets
+addiu R3, R3, 524288
+```
+
+So recon (a) drops the `prf` instruction, (b) doesn't allocate
+the high-address (524288 = 0x80000) zeros pool, and (c) uses
+register offsets 64/128/192 instead of orig's 0(zeros)/64/128.
+
+This affects `e_entry` (0xc0 vs 0x100) and the first 4 instructions
+of `.text`.
+
+Likely the same area as IFs 158/172/170 — the prefetch pass +
+zero-wave handling. The zero-wave gets a special fixed address
+slot and must be prefetched separately.
+
+**Status**: open. To fix in Phase 58.

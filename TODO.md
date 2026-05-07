@@ -5371,3 +5371,103 @@ failures net; +3 new probes accepted).
 - 20260507-catch-abort-not-a-command.md (SA-C1)
 - 20260507-python-end-terminator.md (SA-G1)
 - 20260507-shared-ptr-by-value-arg.md (SA-G1)
+
+
+## Phase 58: Finish remaining difftests (444/444 stress)
+
+After Phase 57 closed 22 IFs, 9 stress failures remain, clustering
+into 4 underlying bugs. **Goal**: 444/444 stress + 1600/1600 main.
+
+**Hard rules** (carried from Phase 57):
+- Every fix re-runs main + stress before commit.
+- Bisect large repros into minimal `tests/cases/stress/` cases first.
+- All GDB friction logged under `tests/gdb/user-experiences/`.
+- No commit if main suite drops below 1600/1600.
+
+### Cluster 58.A — IF-176 cut(N,N) playback codegen (4 failures)
+
+Tests: `cut_extreme_{hdawg,shfsg}`, `cut_into_join_{hdawg,shfsg}`.
+
+Status from Phase 57.B: `.wf` and `.waveforms` byte-identical. Remaining
+diff in `.asm`/`.text`/`.wavemem` for empty-cut playback. Per IF-176
+note: orig emits 2 extra `cwvf` and folds empty-cut play into a
+single `wwvf`; recon's playback path doesn't yet handle the
+zero-length wave case.
+
+- [ ] **58.A.1** — Single subagent. Read IF-176 + dump_elf both-mode for
+      `cut_extreme_hdawg` to see exact `.asm` divergence. Locate the
+      playback emission for length-0 cut result. Apply orig's "fold to
+      single wwvf" semantics. Verify all 4 tests now pass byte-identical.
+
+### Cluster 58.B — IF-186 deferred site (2 failures)
+
+Tests: `long_source_{hdawg,shfsg}`.
+
+Phase 57.A left a single `// TODO IF-186` stub at
+`reconstructed/src/codegen/awg_assembler_opcodes.cpp:124` because the
+`getReg()` "register out of range" path uses `get(4)` (TooFewArguments,
+4-slot template) but had no `instr/opcode/expected/given` locals
+visible. Need binary trace to find the right template id.
+
+- [ ] **58.B.1** — Single subagent. GDB-trace orig at
+      `awg_assembler_opcodes.cpp:124` equivalent on the failing
+      `long_source` input to identify which template id orig uses for
+      the "register out of range" diagnostic (likely `RegisterOutOfRange`
+      or similar — verify against rodata). Apply the right `format()`
+      call. Verify both `long_source` tests pass.
+
+### Cluster 58.C — IF-188 placeholder + concrete wave NOBITS (1 failure)
+
+Test: `placeholder_arith_hdawg`.
+
+IF-188 (filed in Phase 57.C.1): `placeholder() + concrete wave`
+produces a NOBITS section instead of PROGBITS. Suggests the recon's
+arithmetic operator on placeholder doesn't materialize the result
+when the other operand is concrete. SA-C1 recommended a binary audit
+of arithmetic operators' reserveOnly handling.
+
+- [ ] **58.C.1** — Single subagent. Read IF-188. Locate the arithmetic
+      operator path in `waveform_generator_dsp.cpp` that creates the
+      result Signal. Audit reserveOnly handling: when one operand is
+      reserveOnly and the other is concrete, the result must be
+      materialized (PROGBITS). GDB-verify against orig. Apply fix.
+      Verify `placeholder_arith_hdawg` byte-identical.
+
+### Cluster 58.D — IFs 189, 190 zero-wave bookkeeping (2 failures)
+
+Tests: `wave_min_length_hdawg`, `wave_zero_boundary_hdawg`.
+
+**IF-189** (filed Phase 58 triage): `fpgaMemoryUsed` counts zero-length
+waves; recon = orig × 1.5 in `wave_min_length`. Also `e_entry` differs
+0x80 vs 0xc0 despite `.text` byte-identical — likely same bookkeeping
+not updated when IF-172 filtered the zero-length wave.
+
+**IF-190** (filed Phase 58 triage): `zeros()` waveform should be
+prefetched at high address (524288 = 0x80000) with `prf` instruction
+and a fixed register slot; recon emits sequential register offsets
+without the prefetch. Affects `wave_zero_boundary` first 4
+instructions of `.text`.
+
+Likely same root area: zero-wave special handling in the prefetch /
+register-allocation pass.
+
+- [ ] **58.D.1** — Single subagent. Read IFs 189, 190. Investigate
+      together — likely same root cause (zero-waves need special
+      address slot + prefetch + skip-from-budget treatment).
+      GDB-verify orig's zero-wave emission path. Apply fix.
+      Verify both stress tests pass.
+
+### 58.0 — Phase 58 kickoff
+
+- [x] Triage `wave_min_length` / `wave_zero_boundary` → IFs 189, 190
+- [x] Backlog (this section)
+- [ ] Dispatch all 4 clusters in parallel
+
+### 58.W — Phase 58 wrap-up
+
+- [ ] Cluster 58.A closed (IF-176 → fixed)
+- [ ] Cluster 58.B closed (IF-186 deferred site → fixed)
+- [ ] Cluster 58.C closed (IF-188 → fixed)
+- [ ] Cluster 58.D closed (IFs 189, 190 → fixed)
+- [ ] Final main + stress suite verification (target: **444/444**)
+- [ ] Phase wrap-up commit + push
