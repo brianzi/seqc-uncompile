@@ -22,7 +22,10 @@ namespace zhinst {
 // ============================================================================
 
 OptimizeException::OptimizeException(const std::string& msg)
-    : message_(msg) {}
+    : message_(msg), lineNumber_(0) {}
+
+OptimizeException::OptimizeException(const std::string& msg, int lineNumber)
+    : message_(msg), lineNumber_(lineNumber) {}
 
 OptimizeException::~OptimizeException() {}  // 0x281e00
 

@@ -1045,9 +1045,11 @@ std::shared_ptr<WaveformFront> PlayArgs::secureLoadWaveform(
     auto wf = wavetable_->getWaveformByName(optName);
 
     // @0x17121c: null check — if wf is null, fall through to throw at 0x171415
+    // Binary @0x171461 passes 0xE3 (=227, WaveformNotExist), not 0xE9
+    // (WaveformNotFound).  See IF-164.
     if (!wf) {
         throw CustomFunctionsValueException(
-            ErrorMessages::format(WaveformNotFound, name), 0);
+            ErrorMessages::format(WaveformNotExist, name), 0);
     }
 
     // @0x171228: check wf->hasDuplicate_ (+0xDD, "hasDuplicate")

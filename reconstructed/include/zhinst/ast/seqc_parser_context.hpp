@@ -3,8 +3,8 @@
 //
 // Full layout recovered  from binary ctor/dtor/method disassembly:
 //   +0x00  uint8_t  isComment_           (composite: nonzero if in any comment)
-//   +0x01  uint8_t  blockComment_        (in block comment)
-//   +0x02  uint8_t  lineComment_         (in line comment)
+//   +0x01  uint8_t  lineComment_         (in line comment)
+//   +0x02  uint8_t  blockComment_        (in block comment)
 //   +0x03  uint8_t  hadSyntaxError_      (set by setSyntaxError)
 //   +0x04  int32_t  currentLineNumber_   (1-based source line)
 //   +0x08  [8 bytes padding]
@@ -48,8 +48,8 @@ public:
 private:
     // +0x00
     uint8_t isComment_{0};
-    uint8_t blockComment_{0};
     uint8_t lineComment_{0};
+    uint8_t blockComment_{0};
     uint8_t hadSyntaxError_{0};
     // +0x04
     int32_t currentLineNumber_{1};

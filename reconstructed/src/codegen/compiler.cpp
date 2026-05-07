@@ -458,7 +458,16 @@ CompileResult Compiler::compile(const std::string& source) {
         cancelLocked);
 
     optimizer.prepareResources(asmList_);                                 // 0x120857
-    asmList_ = optimizer.optimizePreWaveform(asmList_);                   // 0x120879
+    try {
+        asmList_ = optimizer.optimizePreWaveform(asmList_);               // 0x120879
+    } catch (OptimizeException const& e) {
+        // Binary @0x121d09: catches OptimizeException, calls
+        // messages_.errorMessage(e.what(), e.lineNumber()) so that the
+        // standard "Compiler Error (line: N): " prefix is added by
+        // CompilerMessage::str().  See IF-165.
+        messages_.errorMessage(std::string(e.what()), e.lineNumber());
+        throw;
+    }
 
     // Step 13: Conditional serialize to file (if debugDumpEnabled)         // 0x120953
     if (config_->debugDumpEnabled) {
@@ -490,7 +499,14 @@ CompileResult Compiler::compile(const std::string& source) {
                   placeholderAsm, *deviceConstants_, *config_);
 
     // Step 15: Post-waveform optimization                                // 0x120e2d
-    asmList_ = optimizer.optimizePostWaveform(asmList_);
+    try {
+        asmList_ = optimizer.optimizePostWaveform(asmList_);
+    } catch (OptimizeException const& e) {
+        // Binary @0x121d09: catches OptimizeException, calls
+        // messages_.errorMessage(e.what(), e.lineNumber()).  See IF-165.
+        messages_.errorMessage(std::string(e.what()), e.lineNumber());
+        throw;
+    }
     // Step 16: Insert unsyncCervino (platform-specific)                  // 0x120f2b
     // Binary at 0x120f08: only called when deviceType == UHFLI(1) or UHFQA(4)
     if (deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFLI) ||

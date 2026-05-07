@@ -3526,7 +3526,7 @@ Likely files:
 
 ## IF-164  assignWaveIndex named-form: recon error wording differs
 
-**Status**: open
+**Status**: fixed (phase 57.F)
 **Severity**: bug (cosmetic / error-string)
 **Found**: stress phase 52 (`assign_pattern_mix.seqc`)
 
@@ -3540,22 +3540,29 @@ orig:  Compiler Error (line: 11): waveform 'named_a' does not exist
 recon: Compiler Error (line: 11): no waveform with the name 'named_a' found
 ```
 
-Same error class, different wording.  Likely two separate code paths
-both reporting "missing wave name" using different error templates.
+Same error class, different wording.
 
-### Minimal repro
+### Root cause
 
-In `tests/cases/stress/assign_pattern_mix.seqc` line 11 — the
-"named_a" assignWaveIndex form.
+Both error templates exist in the binary rodata:
+  - 227 (`WaveformNotExist`) = `"waveform '%1%' does not exist"`
+  - 233 (`WaveformNotFound`) = `"no waveform with the name '%1%' found"`
 
-### Recommended next step
+`PlayArgs::secureLoadWaveform` (recon @0x1711a0) was using template
+233, but the binary at @0x171461 passes `0xE3 = 227`. Verified by
+`objdump -d` over the format() call sites: 0xE3 is used at @0x14e02a
+(lock), @0x14e543 (unlock), @0x171461 (secureLoadWaveform); 0xE9 is
+used at @0x15dc39 (PlayArgs::getMaxSampleLength) and @0x29c76c
+(WavetableFront::checkWaveformInitialized).
 
-1. Grep for both error strings to locate the throw sites.
-2. Determine which path the binary takes and align recon to it.
+### Fix
+
+`reconstructed/src/runtime/custom_functions.cpp:1050` — change
+`WaveformNotFound` → `WaveformNotExist` in `PlayArgs::secureLoadWaveform`.
 
 ## IF-165  Compiler error format missing 'Compiler Error (line: N)' prefix
 
-**Status**: open
+**Status**: fixed (phase 57.F)
 **Severity**: bug (cosmetic / error-string)
 **Found**: stress phase 52 (`arith_chain_pressure.seqc`)
 
@@ -3570,20 +3577,57 @@ orig:  Compiler Error (line: 19): run out of free registers, please reduce compl
 recon: run out of free registers, please reduce complexity
 ```
 
-Suggests the recon throws this from a code path that skips the
-ErrorMessages::format wrapping (or the throw type is different from
-`CompilerError`/`CustomFunctionsException`, so the outer harness
-doesn't add the prefix).
+### Root cause
 
-### Minimal repro
+Two issues:
 
-`tests/cases/stress/arith_chain_pressure.seqc` (HDAWG/SHFSG).
+1. `OptimizeException` was missing its `lineNumber_` field at +0x20.
+   The binary's exception layout is:
+   - +0x00 vtable
+   - +0x08 std::string message_
+   - +0x20 int lineNumber_   (set at throw site from asm_[vreg].lineNumber)
+   - +0x28 total
 
-### Recommended next step
+   The throw site at @0x2802b5 does `mov %ebx, 0x20(%r14)` to store
+   the line number into the freshly-allocated exception.
 
-1. Grep for "run out of free registers" to find the throw site.
-2. Compare with how other compiler errors throw (`CompilerError` vs
-   `std::runtime_error`).
+2. `Compiler::compile()` was missing the catch handler that converts
+   `OptimizeException` into a `messages_.errorMessage(what, lineNr)`
+   call.  Binary @0x121d09 catches the exception, reads message_
+   (offset 0x10/0x18 long-form, or +0x09 SSO short-form), reads
+   lineNumber_ at +0x20, and calls
+   `CompilerMessageCollection::errorMessage(msg, line)` (12b720).
+   That collection is what `compile_seqc.cpp:265` reads via
+   `compiler.getCompileReport()` — which is then prefixed by
+   `CompilerMessage::str()` with `"Compiler Error (line: N): "`.
+
+Without the catch, the OptimizeException propagated up to the outer
+generic handler in `compile_seqc.cpp` which used `ex.what()` directly
+(no prefix).
+
+### Fix
+
+- `reconstructed/include/zhinst/asm/asm_optimize.hpp`: add
+  `lineNumber_` field at +0x20 and `lineNumber()` accessor; add
+  ctor overload `(msg, lineNr)`.
+- `reconstructed/src/asm/asm_optimize.cpp`: implement new ctor.
+- `reconstructed/src/asm/asm_optimize_regalloc.cpp`: pass
+  `asm_[vreg].lineNumber()` into the OptimizeException at the two
+  throw sites (lines 276 and 372).
+- `reconstructed/src/codegen/compiler.cpp`: wrap
+  `optimizePreWaveform` and `optimizePostWaveform` calls in
+  `try/catch (OptimizeException const&)` that calls
+  `messages_.errorMessage(e.what(), e.lineNumber())` then re-throws.
+
+### Caveat: line number accuracy
+
+The recon throws with `asm_[vreg].lineNumber()` where `vreg` is the
+virtual register that failed to allocate.  The binary's indexing of
+`asm_[idx]` to retrieve the line number uses a more complex
+`r12+0x20`-based lookup that wasn't fully reconstructed; the recon
+approximates by indexing with `vreg` directly.  This produces a
+real-but-different line number (e.g. 12 vs 19 in the test case).
+Diff-test treats this as "error messages differ (accepted)".
 3. Wrap the throw with the standard error-message framing.
 
 ## IF-166  ZSYNC_DATA_PQSC_REGISTER accepted on SHFQA/SHFQC by recon
@@ -3717,37 +3761,52 @@ recon.  Both succeed, no error messages — pure codegen divergence.
 
 ## IF-169  Lexer: `*/` inside `// ...` line comment confuses recon
 
-**Status**: open
+**Status**: fixed (phase 57.F)
 **Severity**: bug (lexer)
 **Found**: stress phase 52 (`heavy_comments.seqc`)
 
 ### Symptom
 
 Recon parses a single-line comment `// foo /* bar */ baz` incorrectly
-when the comment text contains both `/*` and `*/` markers — likely
-the lexer treats the markers as block-comment boundaries, then loses
-sync.
+when the comment text contains both `/*` and `*/` markers — the lexer
+treated `*/` as a block-comment terminator and ended comment state
+mid-line.
 
 ```
 recon: Compiler Error (line: 32): syntax error, unexpected IDENTIFIER, expecting ';'
 ```
 
-The original binary handles this correctly (line comments terminate
-at newline regardless of inner content).
+### Root cause
 
-### Minimal repro
+`SeqcParserContext` field layout was wrong AND the start/end methods
+were missing their guards.  Binary layout (verified by re-disassembly
+of @0x247c00..@0x247c70):
 
-`tests/cases/stress/heavy_comments.seqc` line 32:
-```
-// like /* this */ and /*nested*/
-```
+  - +0x00 isComment_     (composite, set by either start)
+  - +0x01 lineComment_   (NOT blockComment_ as the recon had)
+  - +0x02 blockComment_  (NOT lineComment_)
 
-### Recommended next step
+And the methods have these guards (which the recon was missing):
 
-1. Locate the recon lexer's line-comment handler.  Confirm it consumes
-   chars until `\n` and does not branch on `/*`/`*/`.
-2. If it currently does branch, fix to ignore comment markers inside
-   line comments.
+  - `startBlockComment()`: if (lineComment_) return; — don't enter
+    block-comment mode if already inside a line comment.
+  - `endBlockComment()`:   if (lineComment_) return; — don't clear
+    state if a line comment is active.  **This is what makes `*/`
+    inside `// ...` a harmless no-op.**
+  - `startLineComment()`:  if (blockComment_) return;
+  - `endLineComment()`:    if (blockComment_) return;
+
+Without the `endBlockComment()` guard, the `*/` lex action cleared
+comment state mid-line, and subsequent text was tokenized as code.
+
+### Fix
+
+- `reconstructed/include/zhinst/ast/seqc_parser_context.hpp`: swap
+  `lineComment_` and `blockComment_` field order to +0x01/+0x02.
+- `reconstructed/src/ast/seqc_parser_context.cpp`: add the four
+  cross-state guards to the start/end methods.
+
+Verified byte-identical output on `heavy_comments.seqc`.
 
 ## IF-170  wavemem_pressure: bytewise diff with many distinct large waves
 

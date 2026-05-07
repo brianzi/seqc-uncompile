@@ -44,15 +44,23 @@ enum RegAction : int {
 class CancelCallback;
 
 // Exception thrown by optimization passes
-class OptimizeException : public std::exception {  // 0x20 bytes
+//   +0x00  vtable
+//   +0x08  std::string message_   (libc++ 24-byte SSO)
+//   +0x20  int         lineNumber_ (source line for error framing)
+//   +0x28  total size
+class OptimizeException : public std::exception {
 public:
     OptimizeException(const std::string& msg);
+    OptimizeException(const std::string& msg, int lineNumber);
     ~OptimizeException() override;                  // 0x281e00
     const char* what() const noexcept override;     // 0x281e90
     // Returns message_.c_str() if non-empty, else "Optimize Exception"
 
+    int lineNumber() const noexcept { return lineNumber_; }
+
 private:
     std::string message_;   // +0x08
+    int lineNumber_{0};     // +0x20
 };
 
 // GlobalResources::regNumber is a thread-local static member of the

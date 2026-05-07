@@ -271,9 +271,12 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         // If we've reached totalPhysical and there are still unmerged
         // conflicts, allocation has failed — throw. Binary at 0x2800f6
         // looks up ErrorMessages::messages[172] and the line number from
-        // asm_[vreg], then throws OptimizeException.
+        // asm_[vreg], then throws OptimizeException with lineNumber at +0x20.
         if (vreg == totalPhysical) {
-            throw OptimizeException("run out of free registers, please reduce complexity");
+            int lineNr = (vreg < asm_.size()) ? asm_[vreg].lineNumber() : -1;
+            throw OptimizeException(
+                "run out of free registers, please reduce complexity",
+                lineNr);
         }
 
         // 27f89d-27f8ab: Save vreg, iterate conflicts set for candidate pregs
@@ -369,7 +372,10 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         // 280164: If vreg >= numPhysical and physVreg still has ranges,
         // allocation failed
         if (vreg >= numPhysical && !physVreg.empty()) {
-            throw OptimizeException("run out of free registers, please reduce complexity");
+            int lineNr = (vreg < asm_.size()) ? asm_[vreg].lineNumber() : -1;
+            throw OptimizeException(
+                "run out of free registers, please reduce complexity",
+                lineNr);
         }
     }
 

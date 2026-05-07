@@ -42,42 +42,52 @@ bool SeqcParserContext::isLineComment() const {
 
 // ----------------------------------------------------------------------------
 // 0x247c40 — startBlockComment()
-//   mov BYTE [rdi+1], 1 ; mov BYTE [rdi], 1 ; ret
+//   Guard: if (lineComment_ != 0) return;
+//   Then: isComment_ = 1; blockComment_ = 1;
 // ----------------------------------------------------------------------------
 void SeqcParserContext::startBlockComment()  // 0x247c40
 {
-    blockComment_ = 1;
+    if (lineComment_ != 0) return;
     isComment_ = 1;
+    blockComment_ = 1;
 }
 
 // ----------------------------------------------------------------------------
 // 0x247c60 — endBlockComment()
-//   mov BYTE [rdi+1], 0 ; mov BYTE [rdi], 0 ; ret
+//   Guard: if (lineComment_ != 0) return;   (binary @0x247c64 cmpb [rdi+1],0)
+//   Then: isComment_ = 0; blockComment_ = 0;
+//   This guard is what allows `*/` inside `// ...` line comment to be a
+//   harmless no-op rather than terminating comment state mid-line. (IF-169)
 // ----------------------------------------------------------------------------
 void SeqcParserContext::endBlockComment()  // 0x247c60
 {
-    blockComment_ = 0;
+    if (lineComment_ != 0) return;
     isComment_ = 0;
+    blockComment_ = 0;
 }
 
 // ----------------------------------------------------------------------------
 // 0x247c00 — startLineComment()
-//   mov BYTE [rdi+2], 1 ; mov BYTE [rdi], 1 ; ret
+//   Guard: if (blockComment_ != 0) return;
+//   Then: movw $0x101, [rdi]  →  isComment_ = 1; lineComment_ = 1;
 // ----------------------------------------------------------------------------
 void SeqcParserContext::startLineComment()  // 0x247c00
 {
-    lineComment_ = 1;
+    if (blockComment_ != 0) return;
     isComment_ = 1;
+    lineComment_ = 1;
 }
 
 // ----------------------------------------------------------------------------
 // 0x247c20 — endLineComment()
-//   mov BYTE [rdi+2], 0 ; mov BYTE [rdi], 0 ; ret
+//   Guard: if (blockComment_ != 0) return;
+//   Then: movw $0, [rdi]  →  isComment_ = 0; lineComment_ = 0;
 // ----------------------------------------------------------------------------
 void SeqcParserContext::endLineComment()  // 0x247c20
 {
-    lineComment_ = 0;
+    if (blockComment_ != 0) return;
     isComment_ = 0;
+    lineComment_ = 0;
 }
 
 // ----------------------------------------------------------------------------
