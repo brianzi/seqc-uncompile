@@ -4138,15 +4138,27 @@ Both are independent bugs; (b) is a serious user-facing regression
    recon thinks an arg is missing.
 ## IF-176  cut(w, N, N) length-1 case: orig drops .wf, recon emits 32 samples
 
-**Status**: partial (2026-05-07, phase 57.B) — `cut()` formula corrected
-in `waveform_generator_dsp.cpp:1645` so `from == to` now produces
-`cutLen = 0` (orig matches: `cut(w, N, N)` is a 0-sample wave). With the
-companion IF-172 fix in `wavetable_ir.cpp`, `.wf___cut_*` and
-`.waveforms` are now byte-identical for `cut_extreme`/`cut_into_join`.
-Remaining diff is in playback codegen (`.asm`/`.text`/`.linenr`/
-`.wavemem`/`e_entry`): orig emits 2 extra `cwvf` instructions and folds
-the empty cut play into a single `wwvf`; recon's playback path doesn't
-handle the empty-wave case the same way. Tracked separately.
+**Status**: fixed (2026-05-07, phase 58.A) — added an early-return for
+`startIdx == endIdx` in `WaveformGenerator::cut`
+(`waveform_generator_dsp.cpp:1685`). Orig (0x259c69-0x259cf4) returns a
+*fully zeroed* Signal in this case — channels_=0, length_=0, all vectors
+empty (markerBits dropped). The non-reserveOnly path (0x259cd6) zeroes
+the entire struct including channels_ at +0x48 via overlapping movups
+writes; the reserveOnly path (0x259c7a) does the same but additionally
+sets reserveOnly_=1 at +0x4A. Without channels_=0 the empty-cut Play
+node carried channels_=1 (from input markerBits.size()=1), making all
+plays look identical to `Prefetch::globalCwvf` → `globalCwvfValid_=true`
+→ initial cwvf 0x4FFFC0 + transition cwvf 0x4FFF00 both suppressed. Now
+recon emits both cwvf instructions and matches orig byte-for-byte. All
+4 stress tests (`cut_extreme_{hdawg,shfsg}`, `cut_into_join_{hdawg,shfsg}`)
+pass; main 1600/1600 maintained.
+
+### Phase 57.B partial (now superseded)
+`cut()` formula corrected in `waveform_generator_dsp.cpp:1645` so
+`from == to` produces `cutLen = 0`. With the companion IF-172 fix in
+`wavetable_ir.cpp`, `.wf___cut_*` and `.waveforms` became byte-identical
+for `cut_extreme`/`cut_into_join`. Remaining diff in playback codegen
+was traced to channels_ propagation (this fix).
 **Severity**: bug (waveform table + .wf emission)
 **Found**: stress phase 54 (`cut_extreme.seqc` HDAWG + SHFSG)
 

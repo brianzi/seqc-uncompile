@@ -1684,6 +1684,30 @@ Signal WaveformGenerator::cut(std::vector<Value> const& args) {                /
     // emitter (see wavetable_ir.cpp:792 IF-172/176 guard).
     int cutLen = (startIdx == endIdx) ? 0 : (endIdx - startIdx + 1);
 
+    // IF-176 (Phase 58): For start == end, orig (0x259c69-0x259cf4) returns a
+    // *fully zeroed* Signal — channels_=0, length_=0, all vectors empty —
+    // regardless of input reserveOnly. The non-reserveOnly path (0x259cd6)
+    // zeroes the entire struct including channels_ at +0x48 via overlapping
+    // movups writes; the reserveOnly path (0x259c7a) does the same but
+    // additionally sets reserveOnly_=1 at +0x4A. Both paths drop the input
+    // markerBits, so channels_=0 propagates into the play codegen, where
+    // genPlayConfig computes channelMask = (1 << channels) - 1 = 0 (asm at
+    // 0x2789de–0x2789e7). That distinct PlayConfig invalidates the global
+    // CWVF (Prefetch::globalCwvf @ 0x1d5620 → globalCwvfValid_=false), which
+    // in turn causes:
+    //   (1) placeCommands @ 0x1d6680 to emit the initial cwvf 0x4FFFC0;
+    //   (2) needsNewCwvf to fire for the empty plays, emitting cwvf 0x4FFF00
+    //       to switch channels from 1 → 0 before the wwvf trailer.
+    // Without this fix, recon's empty-cut play carries channels_=1 (from
+    // markerBits.size()=1), so all 5 plays match → globalCwvfValid_=true →
+    // both cwvf instructions are skipped and the .asm/.text/.linenr/.wavemem
+    // diverge from orig.
+    if (startIdx == endIdx) {                                                  // 0x259c71-0x259c74
+        return Signal(/*samples=*/{}, /*markers=*/{}, /*markerBits=*/{},
+                      /*channels=*/0, /*reserveOnly=*/sig.reserveOnly_,
+                      /*length=*/0);
+    }
+
     if (sig.reserveOnly_) {                                                    // 0x259ccc
         ReserveOnly tag;
         return Signal(tag, static_cast<size_t>(cutLen), sig.markerBits_);
