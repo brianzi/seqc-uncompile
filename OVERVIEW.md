@@ -103,22 +103,27 @@ sweeps), and 114 borderline-deferred case-by-case items; no further
 Phase Q phase planned. **95/95 undefined zhinst symbols resolved** —
 static archive fully self-contained.
 
-**Differential tests: 2499/2499 byte-identical** across 6 manifests
-(current as of 2026-05-08, post-Phase-62):
+**Differential tests: 2407/2407 byte-identical** across all manifests
+(current as of 2026-05-08, post-Phase-62 + Phase 44 audit + IF-200 fix):
 
 | Manifest                                          | Cases |
 | ------------------------------------------------- | -----:|
-| main (default `manifest.json`) — core 248 + zhinst 166 + ziai 459 + ziasm 468 + zivibes 259 | 1600 |
-| stress (`manifest-stress.json`)                   | 774 |
-| documentation (`manifest-documentation.json`)     |  92 |
-| labone (`manifest-labone.json`)                   |  14 |
-| large (`manifest-large.json`)                     |  13 |
-| errors (`manifest-errors.json`)                   |   6 |
-| **Total**                                         | **2499** |
+| main (default `manifest.json`) — imports the 6 leaf manifests below | 1600 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-core.json`      | 248 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-zhinst.json`    |  74 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-ziai.json`      | 459 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-ziasm.json`     | 468 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-zivibes.json`   | 259 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-documentation.json` |  92 |
+| stress (`manifest-stress.json`, standalone)       | 774 |
+| labone (`manifest-labone.json`, standalone)       |  14 |
+| large (`manifest-large.json`, standalone)         |  13 |
+| errors (`manifest-errors.json`, standalone)       |   6 |
+| **Total unique cases**                            | **2407** |
 
-The non-default manifests are not auto-imported by `manifest.json` and
-must be invoked explicitly via `--manifest`.  Score has held at
-2499/2499 across all current manifests since Phase 62.
+Standalone manifests are not auto-imported and must be invoked
+explicitly via `--manifest`.  Score has held at 2407/2407 across all
+manifests since the Phase 44 audit + IF-200 fix on 2026-05-08.
 
 ### Reconstruction history (archived)
 
