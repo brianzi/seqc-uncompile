@@ -3815,3 +3815,265 @@ trace of node-type dispatch counts is decisive** — once we saw
 obvious.
 
 
+
+## IF-201  `playWaveIndexedNow` emits `wvf` instead of `wvfi`
+
+**Source**: coverage round (Phase 62-style), `cov_playWaveIndexedNow_*`
+**Status**: open
+**Severity**: likely-bug
+**Found**: 2026-05-08
+
+### Symptom
+
+`playWaveIndexedNow(wave, offset, length)` on UHFAWG / UHFQA emits the
+non-immediate playback opcode `wvf` whereas the original binary emits
+the immediate variant `wvfi`. The non-immediate-now sibling
+`playWaveIndexed` (without `Now`) is byte-identical, so the bug is
+specific to the `SubFunc::Now` codegen path of `playIndexed`.
+
+```
+orig .asm:    wvfi R3, R0, 128
+recon .asm:   wvf  R3, R0, 128
+```
+
+The .text size is the same (the two opcodes differ in one bit pattern,
+not in instruction count).
+
+### Repro
+
+Three of three new tests fail this way:
+
+- `cov_playWaveIndexedNow_solo_uhfawg`  — single-call form
+- `cov_playWaveIndexedNow_solo_uhfqa`   — same source on UHFQA
+- `cov_playWaveIndexedNow_loop_uhfawg`  — inside a `for` loop
+
+Minimal repro (UHFAWG, kDevCervino):
+```
+wave w = join(gauss(64,32,8), ones(64));
+playWaveIndexedNow(w, 0, 64);
+```
+
+### Recommended next step
+
+GDB-trace `playIndexed(args, res, SubFunc::Now)` in the original binary
+at the wvf-emission site. Locate the asmCommands_ method dispatched
+when `SubFunc::Now` is in effect and compare to the `SubFunc::Default`
+dispatch. The recon `playIndexed` likely shares the same emit-call for
+both subfuncs; the binary almost certainly switches between
+`asmWvf*`/`asmWvfi*` based on `subFunc == Now`.
+
+Files: `reconstructed/src/runtime/custom_functions_play.cpp` (search
+for `playIndexed` and its switch on `SubFunc`).
+
+---
+
+## IF-202  `merge` and `grow` registered in recon `funcMap_` but unknown to original
+
+**Source**: coverage round, `cov_merge_*` and `cov_grow_*`
+**Status**: open
+**Severity**: likely-bug (cosmetic for now — recon accepts more than binary)
+**Found**: 2026-05-08
+
+### Symptom
+
+Recon successfully compiles SeqC programs that call `merge(w1,w2)` or
+`grow(w, length)` as freestanding waveform-DSL functions.  The
+**original binary rejects them**:
+
+```
+Compilation failed: Compiler Error (line: N): calling unknown function 'merge'
+Compilation failed: Compiler Error (line: N): calling unknown function 'grow'
+```
+
+`WaveformGenerator::merge` (@0x25f5c0) and `WaveformGenerator::grow`
+(@0x260640) clearly exist as compiled methods in the binary, with
+non-trivial implementations (~0x10c0 and ~0x8e0 bytes respectively).
+But the binary's funcMap_ registration block (`WaveformGenerator` ctor
+@~0x248200) apparently does **not** include `"merge"` or `"grow"` keys.
+Recon `waveform_generator.cpp:151-152` does include them, so recon
+exposes more functions than the binary does.
+
+### Repro
+
+Six of six new tests fail this way:
+
+- `cov_merge_2wave_{hdawg,shfsg,shfqa,uhfqa}`
+- `cov_merge_4wave_hdawg`
+- `cov_merge_diff_length_hdawg`
+- `cov_grow_solo_{hdawg,shfsg,shfqa,uhfqa}`
+- `cov_grow_chain_hdawg`
+
+### Recommended next step
+
+GDB-trace the funcMap_ population in the binary's `WaveformGenerator`
+ctor (@0x248200). Walk the emplace calls and confirm whether `"merge"`
+and `"grow"` strings are absent. If absent, the methods are likely
+called only internally (e.g. from `mergeWaveforms` reduction or from
+indexed-wave assembly), not via the user-facing dispatch.
+
+If confirmed, the fix is to remove lines 151-152 from
+`reconstructed/src/waveform/waveform_generator.cpp` (and possibly
+prune the alias-map / dispatch path comments referencing them). The
+methods themselves remain — they're called by other recon code paths.
+
+### Note
+
+This is the inverse of IF-200's `mask`/`rand` aliasMap omission: there
+the recon was missing entries the binary had; here recon has entries
+the binary lacks.
+
+---
+
+## IF-203  `setInternalTrigger(var)` triggers internal "unspecified value type" error on SHFLI
+
+**Source**: coverage round, `cov_setInternalTrigger_solo_shfli`
+**Status**: open
+**Severity**: likely-bug
+**Found**: 2026-05-08
+
+### Symptom
+
+A `for`-loop calling `setInternalTrigger(i)` with a runtime `var` arg
+compiles cleanly on the original binary (SHFLI), but recon throws an
+internal compiler error:
+
+```
+Compilation failed: Compiler Error (line: 8): unspecified value type
+detected in toInt conversion
+```
+
+The const-arg variants `setInternalTrigger(0)` and
+`setInternalTrigger(1)` (lines 2 and 4 of the same file) succeed —
+the problem is specific to register / var arguments.
+
+### Repro
+
+```
+setInternalTrigger(0);     // OK
+setInternalTrigger(1);     // OK
+var i;
+for (i = 0; i < 3; i++) {
+  setInternalTrigger(i);   // recon: "unspecified value type detected in toInt conversion"
+  playZero(64);
+}
+```
+
+### Recommended next step
+
+GDB-break inside `CustomFunctions::setInternalTrigger` (@0x146140) on
+the original with the var-arg input and observe which arg-type branch
+is taken. Recon (`custom_functions_registers.cpp:91`) likely calls
+`args[0].value_.toInt()` unconditionally; the binary probably checks
+`varType_` and emits an addi/register-based instruction sequence for
+the var case (similar to what `at()` does at @0x14d095).
+
+### Note
+
+The companion test `cov_setInternalTrigger_solo_ghfli` (GHFLI) fails
+differently — see IF-204.
+
+---
+
+## IF-204  Spurious `playZero(32)` minimum-length warning on GHFLI but not on original
+
+**Source**: coverage round, `cov_setInternalTrigger_solo_ghfli`
+**Status**: open
+**Severity**: cosmetic / suspicious
+**Found**: 2026-05-08
+
+### Symptom
+
+`playZero(32)` on GHFLI elicits a recon-only warning:
+
+```
+Warning (line: 3): play length 32 is below minimum of 96 samples,
+will be extended
+```
+
+The original compiler accepts the same source byte-identically with no
+warning emitted. The minimum-length figure (96) appears to come from a
+device-constants path that recon evaluates at compile time but the
+binary either suppresses or computes differently for GHFLI.
+
+### Repro
+
+Same source as IF-203 — but the GHFLI codepath errors on the warning,
+not on the var-arg trigger:
+
+```
+setInternalTrigger(0);
+playZero(32);   // <- warning here, recon-only
+setInternalTrigger(1);
+playZero(32);
+```
+
+The first `playZero(32)` precedes the for-loop where IF-203 manifests,
+so on GHFLI we see this warning *first* and the for-loop is never
+reached.
+
+### Recommended next step
+
+Compare the GHFLI device-constants block (`devConst_`) field for
+"minimum playZero length" between recon and binary. Likely recon is
+applying an HDAWG/SHFSG-class minimum to GHFLI when the binary keeps
+GHFLI at `1` or has a separate suppression rule.
+
+GDB-trace the path that emits `Warning ... below minimum of N samples`
+on a small recon-only program for GHFLI to find the comparison site.
+
+---
+
+## IF-205  3-arg `randomGauss` waveform samples differ from binary
+
+**Source**: coverage round, `cov_randomGauss_solo_{hdawg,shfsg}`
+**Status**: open
+**Severity**: likely-bug
+
+**Found**: 2026-05-08
+
+### Symptom
+
+`randomGauss(length, amplitude, mean)` (3-arg form, default stddev)
+produces a waveform whose first sample differs between recon and
+binary:
+
+```
+section '.wf___randomGauss_2_1' (256 samples, 512 bytes):
+  orig: first byte 0xff   recon: first byte 0x19
+```
+
+The companion 4-arg call `randomGauss(length, amplitude, mean, stddev)`
+in the same file produces a **byte-identical** waveform
+(`.wf___randomGauss_3_3` is IDENTICAL). The 3-arg path defaults
+stddev=1.0 in recon (`waveform_generator_dsp.cpp:948`) — but the
+binary likely uses a different default, or the PRNG state advances
+differently between the 3-arg and 4-arg entry paths, or the default is
+read from a different rodata constant.
+
+### Repro
+
+```
+wave a = randomGauss(256, 1.0, 0);          // orig != recon
+wave b = randomGauss(256, 0.5, 0.0, 0.25);  // identical
+playWave(a);
+playWave(b);
+```
+
+Failures: `cov_randomGauss_solo_hdawg`, `cov_randomGauss_solo_shfsg`.
+The `randomUniform` 1-arg / 2-arg variants pass without diff, so the
+RNG itself (mt19937_64 from `GlobalResources::random`) is correct.
+
+### Recommended next step
+
+GDB-break at the 3-arg entry of `WaveformGenerator::randomGauss`
+(@0x252930, ~3-arg path at 0x252973 or so) and read the loaded
+stddev double constant. The recon comment (line 947 of
+`waveform_generator_dsp.cpp`) cites "Default stddev = 1.0 from rodata
+@0x956030" — re-read that rodata in the binary and confirm the value.
+If it is something other than 1.0 (e.g. 0.4 or 2π), update the recon
+default.
+
+Alternatively, the bug could be in the readDouble helper — the binary
+might consume an extra PRNG word for the missing-arg path, advancing
+the mt19937_64 state by one before the sample loop. Compare
+`prng.next()` call counts between the 3-arg and 4-arg paths.
