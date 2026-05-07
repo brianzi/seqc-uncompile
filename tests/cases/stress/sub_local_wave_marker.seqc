@@ -1,0 +1,10 @@
+// Subroutine declaring local wave with marker bits.
+
+void inner() {
+    wave m = marker(64, 1);
+    wave g = gauss(64, 0.5, 16) + m;
+    playWave(1, 2, g);
+}
+inner();
+inner();
+waitWave();

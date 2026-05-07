@@ -4047,3 +4047,104 @@ waitWave();
 3. Once fixed, `marker_bits_zoo_hdawg` should pass with a warning-diff
    (or byte-identical if warnings aren't compared); add a follow-up
    stress case for `mask(N, M>=4)` to cover the `isMask=true` branch.
+
+### Phase 56 update — additional triggers
+
+`marker_bits_extreme.seqc`, `mask_bits_zoo.seqc` (HDAWG) reproduce
+the same `boost::too_few_args` for both the `marker()` and `mask()`
+sides of `markerImpl()`.  Confirms IF-179 covers both branches via
+the shared `format(ValueCapped, ...)` call site.
+
+Additionally, `shfqc_qa_repeat_startqa_var_init.seqc` (SHFQC qa)
+shows a **third** call site exhibiting the same family bug:
+`startQA` with var argument — orig issues
+`function 'startQA' expects (const) as argument`, recon throws
+`boost::too_few_args`.  Likely a different format template with
+similar arity mismatch.  Audit must extend beyond `markerImpl()`.
+
+## IF-180  cut(w, from, to) accepts out-of-range from when from > length
+
+**Status**: open
+**Severity**: bug (validation gap — silent acceptance of invalid input)
+**Found**: stress phase 56 (`cut_chain_one.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+`cut(w, from, to)` with `from >= length(w)` should be rejected.
+Orig validates and errors:
+
+```
+Compiler Error (line: N): argument 2 (from) of cut is greater
+than the waveform length
+```
+
+Recon silently accepts the call and produces (apparently empty
+or garbage) output, then carries on.  Direction reversed from
+IF-176: IF-176 was about content emission; IF-180 is about
+**missing input validation**.
+
+### Minimal repro
+
+```seqc
+wave w = gauss(128, 0.5, 32);
+wave w2 = cut(w, 0, 0);     // length-1 cut
+wave w3 = cut(w2, 5, 5);    // from=5 into a length-1 wave -> orig errors
+playWave(1, 2, w3);
+waitWave();
+```
+
+### Recommended next step
+
+1. Locate recon's `cut()` implementation (likely
+   `waveform_generator.cpp` or a sibling).
+2. Add the bounds check: `if (from >= length) throw …` matching
+   orig's error message.
+3. Cross-check the `to` bound (`to >= length`) and `from > to`
+   ordering — likely the same code path is missing all three
+   checks.
+
+## IF-181  placeholder() inside join() crashes recon worker (vector OOB)
+
+**Status**: open
+**Severity**: bug (worker SIGABRT — orig succeeds, recon dies)
+**Found**: stress phase 56 (`placeholder_in_join.seqc` HDAWG)
+
+### Symptom
+
+`assignWaveIndex(1, 2, join(placeholder(N), realWave), 0)` —
+recon worker aborts with libstdc++ debug assertion:
+
+```
+worker exit -6:
+/usr/include/c++/16.1.1/bits/stl_vector.h:1253:
+std::vector<_Tp, _Alloc>::reference std::vector<_Tp, _Alloc>::operator[]
+... Assertion '__n < this->size()' failed.
+```
+
+Orig handles the same construct without error.  The `join()`
+implementation in recon almost certainly tries to read sample data
+from the placeholder side, indexing past the end of a (zero-length
+or pre-resolution) sample buffer.
+
+### Minimal repro
+
+```seqc
+wave a = ones(64);
+wave p = placeholder(64);
+wave j = join(p, a);
+assignWaveIndex(1, 2, j, 0);
+executeTableEntry(0);
+waitWave();
+```
+
+### Recommended next step
+
+1. GDB-trace `join()` in recon with this input; identify the
+   indexing site (stl_vector.h:1253 backtrace will pinpoint the
+   `operator[]` call).
+2. Compare to orig's `join()` for placeholder-aware handling
+   (likely a check "if either operand is a placeholder, defer
+   sample materialization").
+3. The same crash pattern may affect `placeholder() + wave`, `cut()`
+   of placeholder, scalar-mul of placeholder.  Add follow-up stress
+   cases after the fix lands.

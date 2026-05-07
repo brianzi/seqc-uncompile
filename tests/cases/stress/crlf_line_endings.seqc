@@ -1,0 +1,4 @@
+// File written with CRLF line endings.  Lexer source-form corner.
+wave w = ones(64);
+playWave(1, 2, w);
+waitWave();

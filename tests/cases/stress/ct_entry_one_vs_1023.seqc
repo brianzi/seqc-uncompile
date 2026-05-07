@@ -1,0 +1,9 @@
+// CT entry index 1 paired with very high index 1023.
+
+wave a = ones(64);
+wave b = 0.5 * ones(64);
+assignWaveIndex(1, 2, a, 1);
+assignWaveIndex(1, 2, b, 1023);
+executeTableEntry(1);
+executeTableEntry(1023);
+waitWave();

@@ -1,0 +1,10 @@
+// shfqc_qa_repeat_startqa_var fork: initialize `i` to expose the
+// real intent (var arg in startQA inside repeat).  Original
+// triggers an "uninitialized var" error; this version skips that.
+
+var i = 0;
+repeat (10) {
+    i = i + 1;
+    startQA(QA_GEN_0, QA_INT_0, true, 0, i);
+    playZero(512);
+}

@@ -1,0 +1,7 @@
+// CT entry assigned only a placeholder, never resolved with a real wave.
+
+wave p = placeholder(64);
+assignWaveIndex(1, 2, p, 0);
+executeTableEntry(0);
+executeTableEntry(0);
+waitWave();

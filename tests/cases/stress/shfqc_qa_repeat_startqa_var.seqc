@@ -1,0 +1,8 @@
+// startQA with var args inside a repeat — SHFQC qa-mode pressure.
+
+var i;
+repeat (10) {
+    i = i + 1;
+    startQA(QA_GEN_0, QA_INT_0, true, 0, i);
+    playZero(512);
+}

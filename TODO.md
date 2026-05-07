@@ -5139,5 +5139,119 @@ localized: `waveform_generator.cpp:613` missing `funcName` arg.
 
 ### 55.2 — Phase 55 wrap-up
 
+- [x] Sub-phase wrap-up commit (1b5faa7)
+- [x] Push
+
+## Phase 56: Stress suite expansion (round 9) + IFs 180-181
+
+Goal: 40 new stress angles across IF-179 adjacency (mask/marker
+extreme bits, chirp/drag amp warning paths), const-fold corners
+(IF-174 family — const equality, zero-iter for, const ternary),
+wave-length corners (IF-172/176 adjacency — cut-of-cut length-1,
+ones(0), cut spanning join boundary, wave length 32), lexer
+source-form (CRLF, mixed tabs/spaces, very long line, unicode in
+comment, numeric literal forms), SHFQA / SHFQC combos
+(setupQAFeedback zoo, configFreqSweep extreme, SHFQC sg setPRNG,
+SHFQC qa repeat-startQA-var, integration weight forms), feedback
+and DIO (getFeedback var-shift, getFeedback in subroutine, setDIO
+bit ops, playWaveDIO interleave), subroutine and CT corners (sub
+local wave+marker, sub early return, CT marker-only wave, CT entry
+1 vs 1023), wave-cache identity (two identical waves, unused decls,
+dead store), optimization-pass triggers (splitConstRegisters
+pressure, regalloc long live range, dead marker set), type
+coercion (int-as-double, double-as-int, mixed-type ternary), and
+CT/placeholder extras (placeholder in join, placeholder-only CT
+entry).
+
+Suite scores after Phase 56:
+  main suite:   1600/1600 passing
+  stress suite: 401/441 passing (after 1 fork addition)
+
+New regressions surfaced:
+
+  IF-180 — `cut(w, from, to)` accepts `from > length(w)` silently;
+          orig errors with "argument 2 (from) of cut is greater
+          than the waveform length".  Validation gap in recon's
+          cut() implementation.
+  IF-181 — `placeholder()` inside `join()` crashes recon worker
+          (SIGABRT, libstdc++ vector OOB at stl_vector.h:1253).
+          Orig handles the same construct.  Likely missing
+          placeholder-awareness in recon's join() sample-merging
+          loop.
+
+IF-179 extended (no new IF):
+  - `marker_bits_extreme` and `mask_bits_zoo` reproduce on both
+    `marker()` and `mask()` branches of markerImpl().
+  - `shfqc_qa_repeat_startqa_var_init` exposes a **third** call site
+    of the same boost::format misuse family — `startQA` with var arg
+    error message.  Audit must extend beyond markerImpl().
+
+Existing-IF dupes (kept as additional repros):
+  - `cut_into_join` (HDAWG + SHFSG) → reproduces IF-176 (cut emits
+    .wf data orig drops); confirms bug spans cut-of-join too.
+  - `chirp_amp_clip` (HDAWG + SHFSG) → reproduces IF-173 (chirp
+    1-LSB sample diff).
+
+Test-author bugs (forked):
+  - `shfqc_qa_repeat_startqa_var.seqc` short-circuited at
+    "uninitialized var i".  Fork
+    `shfqc_qa_repeat_startqa_var_init.seqc` initializes `i = 0`
+    and reaches the intended angle — exposed IF-179 family
+    extension to startQA.
+
+Test-author bugs (not forked, low yield):
+  - `shfqa_setupqa_feedback_zoo`: `AVG_MODE_NONE` not a constant.
+  - `shfqa_int_weights` / `shfqa_integration_weights_forms`:
+    `assignWaveIndex` not supported on SHFQA.
+  - `setdio_bit_ops`: `setDIO` rejects expressions like `prev | 0x1`.
+  - `crlf_line_endings`, `unicode_in_comment`: both byte-identical
+    pass — lexer handles them transparently.
+
+Angles probed-and-clean (byte-identical pass):
+ones_zero, const_for_zero_iter, const_cond_eq, const_ternary,
+wave_len_32, mixed_tabs_spaces, very_long_line, numeric_literal_zoo,
+crlf_line_endings, unicode_in_comment, shfqc_sg_setprng,
+shfqa_configfreqsweep_extreme, getfeedback_var_shift,
+getfeedback_in_subroutine, playwave_dio_combo, sub_local_wave_marker,
+sub_early_return, ct_marker_only_wave, ct_entry_one_vs_1023,
+two_identical_waves, wave_unused_decl, wave_assign_then_unused,
+splitconst_pressure, regalloc_long_live_range, dead_marker_set,
+int_passed_double, double_to_int_arg, mixed_type_ternary,
+assignwaveindex_placeholder_only.
+
+### 56.1 — IF-180: cut() bounds-check missing
+
+See `incidental_findings.md` IF-180.
+
+- [ ] Locate recon's `cut()` implementation
+- [ ] Add bounds checks for from / to / from>to
+- [ ] Verify `cut_chain_one` passes (or both error consistently)
+- [ ] Update IF-180 to `fixed`
+
+### 56.2 — IF-181: placeholder() in join() crashes worker
+
+See `incidental_findings.md` IF-181.
+
+- [ ] GDB-trace `join()` in recon with placeholder operand
+- [ ] Identify the vector indexing site (stl_vector.h:1253)
+- [ ] Add placeholder-aware handling
+- [ ] Add follow-up stress cases for placeholder + arith,
+      cut(placeholder), scalar*placeholder
+- [ ] Update IF-181 to `fixed`
+
+### 56.3 — IF-179 extension audit
+
+The Phase-56 update under IF-179 documents two new triggers
+(`mask()` branch + `startQA` var-arg error).  The fix from
+55.1 must extend to all `ErrorMessages::format(...)` call sites,
+not just `markerImpl()`.
+
+- [ ] Grep all `ErrorMessages::format(...)` sites across the
+      runtime; cross-check arity vs template `%N%` slots
+- [ ] Verify `shfqc_qa_repeat_startqa_var_init` improves to
+      "byte-identical pass via same error message"
+
+### 56.4 — Phase 56 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

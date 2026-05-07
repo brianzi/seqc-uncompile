@@ -1,0 +1,11 @@
+// Many wave declarations, none played.
+
+wave a = ones(64);
+wave b = gauss(64, 0.5, 16);
+wave c = drag(64, 0.5, 16, 0.1);
+wave d = sine(64, 0.5, 0, 1);
+wave e = chirp(64, 0.5, 0, 1e6);
+wave f = sinc(64, 0.5, 1e3, 1e9);
+wave g = zeros(64);
+wave h = ones(128);
+playZero(1024);

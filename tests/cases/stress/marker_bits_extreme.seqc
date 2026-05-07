@@ -1,0 +1,9 @@
+// Very large marker bit values — triggers same warning path as IF-179.
+
+wave w1 = marker(64, 100);
+wave w2 = marker(64, 255);
+wave w3 = marker(64, 65535);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+waitWave();

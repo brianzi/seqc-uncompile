@@ -1,0 +1,10 @@
+// Ternary expression with mixed-type arms.
+
+wave w = ones(64);
+var c = 1;
+var x = (c == 1) ? 5 : 10;
+var y = (c == 1) ? 5 : 2;
+setUserReg(0, x);
+setUserReg(1, y);
+playWave(1, 2, w);
+waitWave();

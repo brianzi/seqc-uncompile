@@ -1,0 +1,10 @@
+// var assigned then overwritten without being read — dead store.
+
+wave w = ones(64);
+var x = 5;
+x = 6;
+x = 7;
+playWave(1, 2, w);
+var y = x + 1;
+setUserReg(0, y);
+waitWave();

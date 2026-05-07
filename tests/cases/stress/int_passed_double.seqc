@@ -1,0 +1,9 @@
+// Pass int where double expected.
+
+wave w1 = 1 * gauss(64, 0.5, 16);
+wave w2 = gauss(64, 1, 16);
+wave w3 = sine(64, 1, 0, 1);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+waitWave();

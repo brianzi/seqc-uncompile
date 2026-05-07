@@ -1,0 +1,8 @@
+// Non-ASCII bytes in line and block comments.
+// Greek: αβγδ — Math: ∀∃∈∉ — CJK: 你好世界 — Emoji-ish: ★☆♥
+/* Block comment with non-ASCII: π ≈ 3.14159, ∑(1/n²) = π²/6.
+   Long unicode run: αβγδεζηθικλμνξοπρστυφχψω */
+
+wave w = ones(64);
+playWave(1, 2, w);  // trailing comment with α β γ
+waitWave();

@@ -1,0 +1,9 @@
+// Constant comparisons inside if — IF-174 family (const-fold).
+
+wave w = ones(64);
+if (5 == 5) { playWave(1, 2, w); }
+if (5 == 6) { playWave(1, 2, w); } else { playWave(1, 2, w); }
+if (3 < 4) { playWave(1, 2, w); }
+if (4 > 5) { playWave(1, 2, w); }
+if (1 + 1 == 2) { playWave(1, 2, w); }
+waitWave();

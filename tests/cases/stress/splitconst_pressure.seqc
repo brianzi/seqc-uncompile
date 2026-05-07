@@ -1,0 +1,21 @@
+// Many constants derived from each other — stresses splitConstRegisters.
+
+const A = 1;
+const B = A + 1;
+const C = B * 2;
+const D = C + A;
+const E = D * B;
+const F = E - C;
+const G = F + D;
+const H = G * 2;
+wave w = ones(64);
+setUserReg(0, A);
+setUserReg(1, B);
+setUserReg(2, C);
+setUserReg(3, D);
+setUserReg(4, E);
+setUserReg(5, F);
+setUserReg(6, G);
+setUserReg(7, H);
+playWave(1, 2, w);
+waitWave();

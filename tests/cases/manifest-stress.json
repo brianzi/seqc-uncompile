@@ -1972,6 +1972,316 @@
           "name": "userreg_value_zoo_shfsg",
           "file": "stress/userreg_value_zoo.seqc",
           "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "mask_bits_zoo_hdawg",
+          "file": "stress/mask_bits_zoo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "marker_bits_extreme_hdawg",
+          "file": "stress/marker_bits_extreme.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "chirp_amp_clip_hdawg",
+          "file": "stress/chirp_amp_clip.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "chirp_amp_clip_shfsg",
+          "file": "stress/chirp_amp_clip.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "drag_beta_clip_hdawg",
+          "file": "stress/drag_beta_clip.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_cond_eq_hdawg",
+          "file": "stress/const_cond_eq.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_cond_eq_shfsg",
+          "file": "stress/const_cond_eq.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "const_for_zero_iter_hdawg",
+          "file": "stress/const_for_zero_iter.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_for_zero_iter_shfsg",
+          "file": "stress/const_for_zero_iter.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "const_ternary_hdawg",
+          "file": "stress/const_ternary.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_ternary_shfsg",
+          "file": "stress/const_ternary.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_chain_one_hdawg",
+          "file": "stress/cut_chain_one.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_chain_one_shfsg",
+          "file": "stress/cut_chain_one.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ones_zero_hdawg",
+          "file": "stress/ones_zero.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ones_zero_shfsg",
+          "file": "stress/ones_zero.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_into_join_hdawg",
+          "file": "stress/cut_into_join.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_into_join_shfsg",
+          "file": "stress/cut_into_join.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_len_32_hdawg",
+          "file": "stress/wave_len_32.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_len_32_shfsg",
+          "file": "stress/wave_len_32.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "crlf_line_endings_hdawg",
+          "file": "stress/crlf_line_endings.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "crlf_line_endings_shfsg",
+          "file": "stress/crlf_line_endings.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "mixed_tabs_spaces_hdawg",
+          "file": "stress/mixed_tabs_spaces.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "mixed_tabs_spaces_shfsg",
+          "file": "stress/mixed_tabs_spaces.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "unicode_in_comment_hdawg",
+          "file": "stress/unicode_in_comment.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "unicode_in_comment_shfsg",
+          "file": "stress/unicode_in_comment.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "numeric_literal_zoo_hdawg",
+          "file": "stress/numeric_literal_zoo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "numeric_literal_zoo_shfsg",
+          "file": "stress/numeric_literal_zoo.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfqa_setupqa_feedback_zoo_shfqa",
+          "file": "stress/shfqa_setupqa_feedback_zoo.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_configfreqsweep_extreme_shfqa",
+          "file": "stress/shfqa_configfreqsweep_extreme.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqc_sg_setprng_shfqc",
+          "file": "stress/shfqc_sg_setprng.seqc",
+          "@base": "@shfqc_sg"
+        },
+        {
+          "name": "shfqc_qa_repeat_startqa_var_shfqc",
+          "file": "stress/shfqc_qa_repeat_startqa_var.seqc",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "shfqa_integration_weights_forms_shfqa",
+          "file": "stress/shfqa_integration_weights_forms.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "getfeedback_var_shift_hdawg",
+          "file": "stress/getfeedback_var_shift.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "getfeedback_in_subroutine_hdawg",
+          "file": "stress/getfeedback_in_subroutine.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "setdio_bit_ops_hdawg",
+          "file": "stress/setdio_bit_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playwave_dio_combo_hdawg",
+          "file": "stress/playwave_dio_combo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sub_local_wave_marker_hdawg",
+          "file": "stress/sub_local_wave_marker.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sub_local_wave_marker_shfsg",
+          "file": "stress/sub_local_wave_marker.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "sub_early_return_hdawg",
+          "file": "stress/sub_early_return.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "sub_early_return_shfsg",
+          "file": "stress/sub_early_return.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ct_marker_only_wave_hdawg",
+          "file": "stress/ct_marker_only_wave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ct_entry_one_vs_1023_hdawg",
+          "file": "stress/ct_entry_one_vs_1023.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "two_identical_waves_hdawg",
+          "file": "stress/two_identical_waves.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "two_identical_waves_shfsg",
+          "file": "stress/two_identical_waves.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_unused_decl_hdawg",
+          "file": "stress/wave_unused_decl.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_unused_decl_shfsg",
+          "file": "stress/wave_unused_decl.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_assign_then_unused_hdawg",
+          "file": "stress/wave_assign_then_unused.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_assign_then_unused_shfsg",
+          "file": "stress/wave_assign_then_unused.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "splitconst_pressure_hdawg",
+          "file": "stress/splitconst_pressure.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "splitconst_pressure_shfsg",
+          "file": "stress/splitconst_pressure.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_long_live_range_hdawg",
+          "file": "stress/regalloc_long_live_range.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_long_live_range_shfsg",
+          "file": "stress/regalloc_long_live_range.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "dead_marker_set_hdawg",
+          "file": "stress/dead_marker_set.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "int_passed_double_hdawg",
+          "file": "stress/int_passed_double.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "int_passed_double_shfsg",
+          "file": "stress/int_passed_double.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "double_to_int_arg_hdawg",
+          "file": "stress/double_to_int_arg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "double_to_int_arg_shfsg",
+          "file": "stress/double_to_int_arg.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "mixed_type_ternary_hdawg",
+          "file": "stress/mixed_type_ternary.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "mixed_type_ternary_shfsg",
+          "file": "stress/mixed_type_ternary.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_in_join_hdawg",
+          "file": "stress/placeholder_in_join.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "assignwaveindex_placeholder_only_hdawg",
+          "file": "stress/assignwaveindex_placeholder_only.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "shfqc_qa_repeat_startqa_var_init_shfqc",
+          "file": "stress/shfqc_qa_repeat_startqa_var_init.seqc",
+          "@base": "@shfqc_qa"
         }
       ]
     }

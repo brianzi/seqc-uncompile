@@ -1,0 +1,8 @@
+// Constant ternary as playWave arg — const-fold corner (IF-174 family).
+
+wave w1 = ones(64);
+wave w2 = 0.5 * ones(64);
+playWave(1, 2, true ? w1 : w2);
+playWave(1, 2, false ? w1 : w2);
+playWave(1, 2, (1 == 1) ? w1 : w2);
+waitWave();

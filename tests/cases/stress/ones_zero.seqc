@@ -1,0 +1,6 @@
+// ones(0) — partner of zeros(0) (IF-172).  Possibly same length-0 bug.
+
+wave w0 = ones(0);
+wave w1 = ones(64);
+playWave(1, 2, w1);
+waitWave();

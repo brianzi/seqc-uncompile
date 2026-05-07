@@ -1,0 +1,9 @@
+// Wave of exactly 32 samples — common SeqC granularity boundary.
+
+wave w32 = ones(32);
+wave w64 = ones(64);
+wave w96 = ones(96);
+playWave(1, 2, w32);
+playWave(1, 2, w64);
+playWave(1, 2, w96);
+waitWave();

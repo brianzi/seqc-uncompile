@@ -1,0 +1,16 @@
+// Numeric literal forms: scientific, leading dot, trailing dot, hex, denormal.
+
+wave w1 = .5 * ones(64);
+wave w2 = 5. * 0.1 * ones(64);
+wave w3 = 1e+1 * 0.01 * ones(64);
+wave w4 = 1E-1 * ones(64);
+wave w5 = 0x40 * 0.01 * ones(64);
+const N = 0x100;
+wave w6 = ones(N);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+playWave(1, 2, w5);
+playWave(1, 2, w6);
+waitWave();

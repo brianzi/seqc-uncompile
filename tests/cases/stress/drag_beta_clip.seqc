@@ -1,0 +1,9 @@
+// Drag with extreme beta — known to trigger amplitude-limited warning.
+
+wave w1 = drag(1024, 0.5, 128, 50.0);
+wave w2 = drag(1024, 0.5, 128, 100.0);
+wave w3 = drag(1024, 0.5, 128, 1000.0);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+waitWave();

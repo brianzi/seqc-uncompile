@@ -1,0 +1,10 @@
+// IF-179 mirror: mask() with bits >= 4 (isMask=true branch of markerImpl).
+// Same root cause expected — should also crash recon with too_few_args.
+
+wave w0 = mask(64, 4);
+wave w1 = mask(64, 7);
+wave w2 = mask(64, 100);
+playWave(1, 2, w0);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+waitWave();

@@ -1,0 +1,11 @@
+// setDIO with bit operations — masking and OR patterns.
+
+setDIO(0x00000000);
+setDIO(0xFFFFFFFF);
+var prev = getDIO();
+setDIO(prev | 0x01);
+setDIO(prev & 0xFFFFFFFE);
+setDIO(prev ^ 0x55555555);
+wave w = ones(64);
+playWave(1, 2, w);
+waitWave();

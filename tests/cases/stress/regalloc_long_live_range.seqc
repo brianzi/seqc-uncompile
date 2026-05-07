@@ -1,0 +1,15 @@
+// var with a long live range — defined early, used late, with many
+// other vars created and consumed in between.
+
+wave w = ones(64);
+var anchor = 42;
+var a = 1; a = a + 1; setUserReg(0, a);
+var b = 2; b = b + 1; setUserReg(1, b);
+var c = 3; c = c + 1; setUserReg(2, c);
+var d = 4; d = d + 1; setUserReg(3, d);
+var e = 5; e = e + 1; setUserReg(4, e);
+var f = 6; f = f + 1; setUserReg(5, f);
+var g = 7; g = g + 1; setUserReg(6, g);
+playWave(1, 2, w);
+setUserReg(15, anchor);
+waitWave();

@@ -1,0 +1,11 @@
+// placeholder() inside join().
+
+wave a = ones(64);
+wave p = placeholder(64);
+wave j = join(p, a);
+wave j2 = join(a, p);
+assignWaveIndex(1, 2, j, 0);
+assignWaveIndex(1, 2, j2, 1);
+executeTableEntry(0);
+executeTableEntry(1);
+waitWave();

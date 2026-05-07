@@ -1,0 +1,11 @@
+// getFeedback inside a subroutine.
+
+void grab() {
+    var v = getFeedback(ZSYNC_DATA_PQSC_REGISTER, 0);
+    setUserReg(0, v);
+}
+wave w = ones(64);
+grab();
+playWave(1, 2, w);
+grab();
+waitWave();

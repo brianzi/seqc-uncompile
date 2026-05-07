@@ -1,0 +1,10 @@
+// Marker bit set then overwritten before any play — dead set.
+
+setTrigger(1);
+setTrigger(2);
+setTrigger(0);
+wave w = ones(64);
+playWave(1, 2, w);
+setTrigger(1);
+setTrigger(0);
+waitWave();

@@ -1,0 +1,10 @@
+// Cut-of-cut, both length-1 — adjacency to IF-176.
+
+wave w = gauss(128, 0.5, 32);
+wave w2 = cut(w, 0, 0);
+wave w3 = cut(w2, 0, 0);
+wave w4 = cut(cut(w, 5, 5), 0, 0);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+waitWave();

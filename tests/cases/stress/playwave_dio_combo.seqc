@@ -1,0 +1,10 @@
+// playWaveDIO and setDIO interleaved.
+
+wave w = ones(64);
+setDIO(0x1);
+playWaveDIO();
+setDIO(0x2);
+playWave(1, 2, w);
+setDIO(0x4);
+playWaveDIO();
+waitWave();

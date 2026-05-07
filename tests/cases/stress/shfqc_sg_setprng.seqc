@@ -1,0 +1,7 @@
+// PRNG family on SHFSG/SHFQC sg — does the SHFQC sg phantom-node bug
+// (IF-161/167) extend to setPRNG* nodes too?
+
+setPRNGSeed(42);
+setPRNGRange(0, 100);
+var r = getPRNGValue();
+playZero(1024);

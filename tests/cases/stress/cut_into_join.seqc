@@ -1,0 +1,12 @@
+// Cut spanning a join boundary — composition + length corner.
+
+wave a = ones(64);
+wave b = 0.5 * ones(64);
+wave j = join(a, b);
+wave c1 = cut(j, 60, 70);
+wave c2 = cut(j, 0, 127);
+wave c3 = cut(j, 64, 64);
+playWave(1, 2, c1);
+playWave(1, 2, c2);
+playWave(1, 2, c3);
+waitWave();

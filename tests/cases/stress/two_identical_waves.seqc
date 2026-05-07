@@ -1,0 +1,9 @@
+// Two waves with identical samples — exercises wave-cache hit path.
+
+wave a = gauss(64, 0.5, 16);
+wave b = gauss(64, 0.5, 16);
+wave c = gauss(64, 0.5, 16);
+playWave(1, 2, a);
+playWave(1, 2, b);
+playWave(1, 2, c);
+waitWave();

@@ -1,0 +1,7 @@
+// Chirp with extreme amplitude that may trigger amp-clip warning path.
+
+wave w1 = chirp(1024, 5.0, 1e6, 1e9);
+wave w2 = 10 * chirp(1024, 1.0, 1e6, 1e9);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+waitWave();

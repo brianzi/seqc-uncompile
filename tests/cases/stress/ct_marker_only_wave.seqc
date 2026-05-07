@@ -1,0 +1,9 @@
+// Command-table entry referencing a marker-only wave.
+
+wave m = marker(64, 1);
+wave g = gauss(64, 0.5, 16);
+assignWaveIndex(1, 2, m, 0);
+assignWaveIndex(1, 2, g, 1);
+executeTableEntry(0);
+executeTableEntry(1);
+waitWave();

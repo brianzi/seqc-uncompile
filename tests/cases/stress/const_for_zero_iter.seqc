@@ -1,0 +1,8 @@
+// cvar for-loop with zero / negative iteration count — const-fold corner.
+
+wave w = ones(64);
+cvar i;
+for (i = 0; i < 0; i = i + 1) { playWave(1, 2, w); }
+for (i = 5; i < 3; i = i + 1) { playWave(1, 2, w); }
+for (i = 0; i < 1; i = i + 1) { playWave(1, 2, w); }
+waitWave();

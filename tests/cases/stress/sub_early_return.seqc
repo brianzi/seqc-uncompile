@@ -1,0 +1,14 @@
+// Subroutine with early return (return mid-body).
+
+wave w = ones(64);
+void maybe(var cond) {
+    playWave(1, 2, w);
+    if (cond == 0) {
+        return;
+    }
+    playWave(1, 2, w);
+    playWave(1, 2, w);
+}
+maybe(0);
+maybe(1);
+waitWave();

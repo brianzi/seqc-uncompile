@@ -1,0 +1,8 @@
+// configFreqSweep with extreme arguments on SHFQA.
+
+configFreqSweep(0, 0.0, 1e6);
+configFreqSweep(0, -100e6, 1e3);
+configFreqSweep(0, 0.0, 1.0);
+playZero(1024);
+resetOscPhase();
+playZero(1024);

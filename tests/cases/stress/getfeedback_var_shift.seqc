@@ -1,0 +1,8 @@
+// getFeedback with var shift argument.
+
+var s = 4;
+var v = getFeedback(ZSYNC_DATA_PQSC_REGISTER, s);
+setUserReg(0, v);
+wave w = ones(64);
+playWave(1, 2, w);
+waitWave();

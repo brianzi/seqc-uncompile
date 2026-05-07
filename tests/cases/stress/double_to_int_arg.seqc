@@ -1,0 +1,9 @@
+// Pass non-integer double to integer length parameter.
+
+wave w1 = ones(64.0);
+wave w2 = ones(64.5);
+wave w3 = ones(64.999);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+waitWave();
