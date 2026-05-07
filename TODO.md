@@ -5461,13 +5461,50 @@ register-allocation pass.
 
 - [x] Triage `wave_min_length` / `wave_zero_boundary` → IFs 189, 190
 - [x] Backlog (this section)
-- [ ] Dispatch all 4 clusters in parallel
+- [x] Dispatch all 4 clusters in parallel
 
 ### 58.W — Phase 58 wrap-up
 
-- [ ] Cluster 58.A closed (IF-176 → fixed)
-- [ ] Cluster 58.B closed (IF-186 deferred site → fixed)
-- [ ] Cluster 58.C closed (IF-188 → fixed)
-- [ ] Cluster 58.D closed (IFs 189, 190 → fixed)
-- [ ] Final main + stress suite verification (target: **444/444**)
-- [ ] Phase wrap-up commit + push
+- [x] Cluster 58.A closed (IF-176 → fixed)
+- [x] Cluster 58.B closed (IF-186 deferred site → fixed; surfaced IF-191)
+- [x] Cluster 58.C closed (IF-188 → fixed)
+- [x] Cluster 58.D closed (IFs 189, 190 → fixed; single root cause)
+- [x] Cluster 58.E closed (IF-191 → fixed; 1-line uint8 truncation)
+- [x] Final main + stress suite verification: **1600/1600 + 444/444**
+- [x] Phase wrap-up commit + push
+
+### Phase 58 results
+
+**Suites:** main 1600/1600 (no change); stress 435/444 → **444/444**.
+**Goal achieved: zero stress failures.**
+
+**IFs closed (6):** 176, 186 (deferred site), 188, 189, 190, 191.
+
+**IFs new (filed during Phase 58):** 191 (long_source regalloc — fixed
+same phase as a 1-line `uint8_t` truncation bug in
+`Assembler::highestRegisterNumber`).
+
+**Commits (5 fixes + kickoff + wrap-up = 7):**
+- `3366419` phase 58 kickoff: scope + IFs 189, 190 filed
+- `02e4bf7` phase 58.A: IF-176
+- `3f6aeb1` phase 58.B: IF-186 deferred
+- `ca69068` phase 58.C: IF-188
+- `e68b5d4` phase 58.D: IFs 189+190
+- `223e91a` phase 58.E: IF-191
+- (this commit) phase 58 wrap-up
+
+**Notable findings:**
+- IF-189 + IF-190 turned out to be a **single root cause**: missing
+  `length == 0` guard in `WavetableIR::assignWaveformAllocationSizes`.
+  Fix gave +7 stress passes (the 2 target tests + 5 collateral).
+- IF-191 was a 1-line `uint8_t` cast in
+  `Assembler::highestRegisterNumber` truncating regs >255 — caused
+  cascade failures in regalloc liveness analysis on long sources.
+  Bisected to "128 setUserReg pairs" minimal trigger.
+- Phase 58.B's "fix" of IF-186 unmasked IF-191 (the leaked-template
+  message was hiding the real underlying error). Standard pattern:
+  fix a symptom, expose the next layer.
+
+**No GDB friction reports filed this phase** — all 5 root causes were
+identified via static disassembly (objdump) of the binary, without
+needing runtime traces.
