@@ -4093,7 +4093,7 @@ constant — see Resolution above.  No constants change needed.)
 ## IF-205  3-arg `randomGauss` waveform samples differ from binary
 
 **Source**: coverage round, `cov_randomGauss_solo_{hdawg,shfsg}`
-**Status**: fixed (waveform_generator_dsp.cpp randomGauss 3-arg signature)
+**Status**: fixed (waveform_generator_dsp.cpp randomGauss 3-arg signature; commit 3562176)
 **Severity**: likely-bug
 
 **Resolution** (2026-05-08): Hypothesis A (wrong default) was
