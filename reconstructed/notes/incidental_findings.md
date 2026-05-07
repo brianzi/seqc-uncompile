@@ -3704,7 +3704,12 @@ straight-line arithmetic, not regalloc pressure.
 
 ## IF-172  zeros(0) emits stray waveform table entry
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.B) — added length==0 guard at
+`wavetable_ir.cpp:792` (getJsonIndex filter); skips waveform-table
+entries whose `signal.length() == 0`. `wave_zero_boundary_shfsg` now
+passes; `wave_zero_boundary_hdawg` still fails on `.asm`/`.text`
+(playback codegen for zero-length wave is a separate gap, similar to
+IF-176 remaining playback gap).
 **Severity**: bug (waveform table)
 **Found**: stress phase 53 (`wave_zero_boundary.seqc`, `wave_min_length.seqc`)
 
@@ -3850,7 +3855,15 @@ Both are independent bugs; (b) is a serious user-facing regression
    recon thinks an arg is missing.
 ## IF-176  cut(w, N, N) length-1 case: orig drops .wf, recon emits 32 samples
 
-**Status**: open
+**Status**: partial (2026-05-07, phase 57.B) — `cut()` formula corrected
+in `waveform_generator_dsp.cpp:1645` so `from == to` now produces
+`cutLen = 0` (orig matches: `cut(w, N, N)` is a 0-sample wave). With the
+companion IF-172 fix in `wavetable_ir.cpp`, `.wf___cut_*` and
+`.waveforms` are now byte-identical for `cut_extreme`/`cut_into_join`.
+Remaining diff is in playback codegen (`.asm`/`.text`/`.linenr`/
+`.wavemem`/`e_entry`): orig emits 2 extra `cwvf` instructions and folds
+the empty cut play into a single `wwvf`; recon's playback path doesn't
+handle the empty-wave case the same way. Tracked separately.
 **Severity**: bug (waveform table + .wf emission)
 **Found**: stress phase 54 (`cut_extreme.seqc` HDAWG + SHFSG)
 
@@ -3890,7 +3903,14 @@ waitWave();
 
 ## IF-177  ones(var) / setUserReg(int, var) error wording diverges
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.B) — added
+`ValueType::Unspecified` check at the start of
+`WaveformGenerator::readInt` (`waveform_generator.cpp:485`) before the
+`val.toInt()` call. Now throws `WaveformGeneratorValueException` with
+template id 103 (`CantCallWithVar` → "<func> can't be called with var
+arguments") instead of leaking the generic "unspecified value type
+detected in toInt conversion" exception. `int_float_coercion_*` and
+`wave_computed_length_*` stress tests now pass.
 **Severity**: bug (user-facing — wrong error message)
 **Found**: stress phase 54 (`int_float_coercion.seqc`,
            `wave_computed_length.seqc` HDAWG + SHFSG)
@@ -4064,7 +4084,14 @@ similar arity mismatch.  Audit must extend beyond `markerImpl()`.
 
 ## IF-180  cut(w, from, to) accepts out-of-range from when from > length
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.B) — added two bounds checks at
+the start of `WaveformGenerator::cut` (`waveform_generator_dsp.cpp:1645`)
+and corrected the param-name strings from `"2 (offset)"`/`"3 (length)"`
+to `"2 (from)"`/`"3 (to)"` (verified via `strings _seqc_compiler.so`).
+Both `from >= length(w)` and `to >= length(w)` now throw
+`ArgGreaterThanLength` (template id 88). Verified via probes: orig
+errors on `from == length` and `to == length`, but allows `from > to`.
+`cut_chain_one_hdawg`/`cut_chain_one_shfsg` now pass.
 **Severity**: bug (validation gap — silent acceptance of invalid input)
 **Found**: stress phase 56 (`cut_chain_one.seqc` HDAWG + SHFSG)
 

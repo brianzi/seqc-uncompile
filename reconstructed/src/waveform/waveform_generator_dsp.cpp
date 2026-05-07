@@ -1646,11 +1646,36 @@ Signal WaveformGenerator::cut(std::vector<Value> const& args) {                /
     checkArgCount(args, "cut", 3);
 
     Signal sig    = readWave(args[0], "1 (waveform)", -1, "cut")->signal;        // 0x2599e6
-    int startIdx  = readPositiveInt(args[1], "2 (offset)", 1, "cut");          // 0x259af8
-    int endIdx    = readPositiveInt(args[2], "3 (length)", 1, "cut");          // 0x259c0f
-    // args[1] = start index (0-based), args[2] = end index (0-based, inclusive)
-    // length = endIdx - startIdx + 1
-    int cutLen = endIdx - startIdx + 1;
+    // Param names match orig binary strings: "2 (from)" / "3 (to)" — see
+    // strings _seqc_compiler.so | grep '(from)\|(to)'.
+    int startIdx  = readPositiveInt(args[1], "2 (from)", 1, "cut");            // 0x259af8
+    int endIdx    = readPositiveInt(args[2], "3 (to)",   1, "cut");            // 0x259c0f
+
+    // Bounds checks (IF-180): both from and to must be < length(w). Verified
+    // against orig with probes — orig errors on `from == length` or
+    // `to == length`. Template id 88 ("ArgGreaterThanLength") used for both.
+    int sigLen = static_cast<int>(sig.length());
+    if (startIdx >= sigLen) {
+        throw WaveformGeneratorValueException(
+            ErrorMessages::format(ArgGreaterThanLength,
+                                  std::string("2 (from)"),
+                                  std::string("cut")),
+            static_cast<size_t>(1));
+    }
+    if (endIdx >= sigLen) {
+        throw WaveformGeneratorValueException(
+            ErrorMessages::format(ArgGreaterThanLength,
+                                  std::string("3 (to)"),
+                                  std::string("cut")),
+            static_cast<size_t>(2));
+    }
+
+    // args[1] = start index (0-based, inclusive), args[2] = end index
+    // (0-based, inclusive). length = endIdx - startIdx + 1, EXCEPT when
+    // start == end orig produces a 0-sample wave (IF-176): the `.wf` is
+    // dropped and the table entry is filtered out by the wavetable JSON
+    // emitter (see wavetable_ir.cpp:792 IF-172/176 guard).
+    int cutLen = (startIdx == endIdx) ? 0 : (endIdx - startIdx + 1);
 
     if (sig.reserveOnly_) {                                                    // 0x259ccc
         ReserveOnly tag;

@@ -486,6 +486,15 @@ int WaveformGenerator::readInt(  // 0x25cca0
     Value val, std::string const& paramName, int argIndex,
     std::string const& funcName)
 {
+    // IF-177: detect var arguments (ValueType::Unspecified == 0) before
+    // toInt() — orig issues "<func> can't be called with var arguments"
+    // (template id 103 / CantCallWithVar) instead of the internal
+    // "unspecified value type detected in toInt conversion" exception.
+    if (val.type_ == ValueType::Unspecified) {
+        throw WaveformGeneratorValueException(
+            ErrorMessages::format(CantCallWithVar, funcName),
+            static_cast<size_t>(argIndex));
+    }
     if (val.type_ == ValueType::String) {
         throw WaveformGeneratorValueException(
             ErrorMessages::format(ArgMustBeConst,

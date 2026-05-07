@@ -788,8 +788,14 @@ std::string WavetableIR::getJsonIndex(SampleFormat format) const  // 0x29f480
     // 0x2af750 — lambda operator()
     forEachUsedWaveform(
         [&waveformsPtree, &format](const std::shared_ptr<WaveformIR>& waveform) {
-            // Skip if not used or has no allocation
-            if (!waveform->isUsed() || waveform->allocationByteSize == 0)
+            // Skip if not used, has no allocation, or has zero raw sample
+            // length. The length-0 check (IF-172/176) catches both
+            // `zeros(0)` and `cut(w, N, N)` (which orig collapses to a
+            // 0-sample wave per IF-176). Note that allocationByteSize is
+            // non-zero for these because alignWaveformSizes pads to
+            // minLengthSamples, so the raw signal.length() check is needed.
+            if (!waveform->isUsed() || waveform->allocationByteSize == 0
+                || waveform->signal.length() == 0)
                 return;
 
             // 0x2c5440 — WaveformIR::toJsonElement(SampleFormat)
