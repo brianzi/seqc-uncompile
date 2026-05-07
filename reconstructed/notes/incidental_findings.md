@@ -2885,8 +2885,33 @@ reconstructed source ever accessed such a field. Pointer is exactly 0x24 bytes.
 ## IF-155  Empty input not rejected by recon (error 43 unreachable)
 
 **Source**: zivibes intake — `sp_01_empty.seqc` on HDAWG8 / SHFQA4 / SHFSG8 / UHFQA
-**Status**: partially-fixed (downstream guard added, root cause remains)
+**Status**: **fixed** — all 4 sp_01_empty cases pass; full suite 1600/1600
 **Severity**: likely-bug
+
+### Final fix
+
+Added the missing `0x11f283 → 0x11f557` early-return branch in
+`Compiler::compile`: when `parse()` returns a null `Expression*`, allocate
+the same empty `WavetableIR` the binary does and return immediately
+with an empty `vector<Assembler>` asmList.  Downstream
+`AWGCompilerImpl::writeToStream` (already guarded in IF-155 partial fix
+at `awg_compiler.cpp:751-759`) then sees the empty opcode vector and
+throws `EmptyInput` (error id 43) — matching the binary.
+
+`reconstructed/src/codegen/compiler.cpp` ~line 251:
+```cpp
+auto expr = parse(normalized);
+if (!expr) {                                                // 0x11f28a..0x11f28d
+    auto wavetableIR = std::allocate_shared<WavetableIR>(
+        std::allocator<WavetableIR>(), *wavetable_, *deviceConstants_,
+        detail::AddressImpl<uint32_t>(config_->addressImpl),
+        static_cast<size_t>(config_->wavetableSize),
+        config_->searchPath, cancelCallback_);
+    return CompileResult{std::vector<Assembler>{}, std::move(wavetableIR)};
+}
+```
+
+### Original analysis (kept for reference)
 
 Original binary, given a SeqC source consisting only of comments/whitespace
 (no statements, no waveform definitions), errors with:
@@ -2947,7 +2972,7 @@ Expression rather than the null pointer the binary expects.
    produces an empty assemblerImpl_ — the existing `EmptyInput` guard
    in `writeToStream` will then fire and produce the correct error.
 
-Promoted to TODO 47.1 (still open).
+Promoted to TODO 47.1 (closed — fixed via early-return branch above).
 
 
 ---

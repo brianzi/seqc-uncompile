@@ -249,6 +249,28 @@ CompileResult Compiler::compile(const std::string& source) {
     // Step 3: Parse → shared_ptr<Expression>
     auto expr = parse(normalized);                              // 0x11f27e
 
+    // Step 3b: Early-out for empty input (parser returned null Expression*).
+    // Binary @0x11f283: test r14, r14; je 0x11f557 — when the raw parse
+    // result is null, jump to a short alternate path that allocates an
+    // empty WavetableIR and returns immediately, without running label /
+    // placeholder / trailer emit.  The returned CompileResult has an empty
+    // asmList; downstream `AWGCompilerImpl::writeToStream` then sees an
+    // empty opcode vector and throws ZIAWGCompilerException(EmptyInput =
+    // "nothing to write, empty input").  See IF-155.
+    if (!expr) {                                                // 0x11f28a..0x11f28d
+        // Binary @0x11f5b1: same allocate_shared<WavetableIR>(...) as the
+        // non-null path at 0x11f348.
+        auto wavetableIR = std::allocate_shared<WavetableIR>(
+            std::allocator<WavetableIR>(),
+            *wavetable_,
+            *deviceConstants_,
+            detail::AddressImpl<uint32_t>(config_->addressImpl),
+            static_cast<size_t>(config_->wavetableSize),
+            config_->searchPath,
+            cancelCallback_);
+        return CompileResult{std::vector<Assembler>{}, std::move(wavetableIR)};
+    }
+
     // Step 4: (Optional debug) Print old AST
     // if (config_->debugFlags & 0x02)                          // 0x11f376
     //     printAST(expr, "...");

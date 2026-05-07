@@ -4434,16 +4434,18 @@ SeqC source is empty / comments-only.  Recon silently produces an ELF.
       `return` instead.  This guard is correct but dormant for
       `sp_01_empty.seqc` because recon's pipeline produces 5 opcodes
       where the binary produces 0.
-- [ ] **Root-cause fix (still open)**: recon's `Compiler::compile` is
-      missing the "parse returned null → skip trailer emission" branch
-      that the binary takes at `0x11f283/0x11f557`.  GDB-trace the
-      `0x11f557..0x11f5b6` block to mirror it in recon, so empty input
-      produces 0 opcodes and the new EmptyInput guard fires.  See
-      IF-155 for full notes.
-- [ ] Build, run `python tests/diff_test_fast.py --filter sp_01_empty`
-      (4 tests should then pass)
-- [ ] Run full suite — confirm no regressions
-- [ ] Update IF-155 to `fixed`
+- [x] **Root-cause fix**: recon's `Compiler::compile` was missing the
+      "parse returned null → skip trailer emission" branch that the
+      binary takes at `0x11f283/0x11f557`.  Added the early-return at
+      `compiler.cpp` line ~251: when `parse()` returns null, allocate
+      empty `WavetableIR` (same `allocate_shared` call as non-null path
+      at `0x11f5b1`) and return `CompileResult{ {}, wavetableIR }`.
+      Downstream `EmptyInput` guard then fires.  See IF-155 for full
+      notes.
+- [x] Build, run `python tests/diff_test_fast.py --filter sp_01_empty`
+      (4 tests pass)
+- [x] Run full suite — **1600/1600**, no regressions
+- [x] Update IF-155 to `fixed`
 - [ ] Sub-phase wrap-up commit
 
 ### 47.2 — IF-156: register allocator fails on 17-variable program
