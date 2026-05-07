@@ -1,0 +1,20 @@
+// Coverage Round 2: prefix decrement --x.
+
+var a = 5;
+--a;
+--a;
+setUserReg(0, a);   // 3
+
+var b = 10;
+var c = --b * 2;    // b becomes 9, c = 18
+setUserReg(1, b);
+setUserReg(2, c);
+
+// Loop using pre-decrement in condition
+var k = 5;
+var iters = 0;
+while (--k > 0) {
+    iters = iters + 1;
+}
+setUserReg(3, iters);  // 4
+setUserReg(4, k);      // 0

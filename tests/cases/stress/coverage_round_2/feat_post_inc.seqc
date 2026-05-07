@@ -1,0 +1,17 @@
+// Coverage Round 2: postfix increment x++.
+
+var a = 0;
+a++;
+a++;
+setUserReg(0, a);    // 2
+
+// Value of postfix expression is OLD value
+var b = 10;
+var c = b++ + 1;     // b becomes 11, c = 11 (uses old b=10)
+setUserReg(1, b);    // 11
+setUserReg(2, c);    // 11
+
+var d = 5;
+var e = d++;         // e=5, d=6
+setUserReg(3, d);
+setUserReg(4, e);

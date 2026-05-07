@@ -1,0 +1,25 @@
+// Coverage Round 2: compound assigns inside loops with state-threading.
+
+var acc = 1;
+for (var i = 1; i <= 5; i = i + 1) {
+    acc *= i;          // factorial
+}
+setUserReg(0, acc);    // 120
+
+var sum = 0;
+for (var j = 0; j < 6; j = j + 1) {
+    sum += j;
+}
+setUserReg(1, sum);    // 15
+
+var bits = 0;
+for (var b = 0; b < 4; b = b + 1) {
+    bits |= (1 << b);
+}
+setUserReg(2, bits);   // 0xf
+
+var x = 1024;
+while (x > 1) {
+    x >>= 1;
+}
+setUserReg(3, x);      // 1

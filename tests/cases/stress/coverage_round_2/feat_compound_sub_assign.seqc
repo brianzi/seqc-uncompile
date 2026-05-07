@@ -1,0 +1,16 @@
+// Coverage Round 2: -= compound assignment.
+
+var a = 100;
+a -= 7;
+setUserReg(0, a);     // 93
+
+var b = 0;
+b -= 5;
+setUserReg(1, b);     // -5 (negative result)
+
+// Loop accumulating subtraction
+var c = 50;
+for (var i = 1; i <= 4; i = i + 1) {
+    c -= i;
+}
+setUserReg(2, c);     // 50 - (1+2+3+4) = 40

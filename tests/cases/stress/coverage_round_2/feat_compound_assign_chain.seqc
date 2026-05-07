@@ -1,0 +1,14 @@
+// Coverage Round 2: chain of compound assigns on the same variable.
+
+var x = 100;
+x += 5;       // 105
+x -= 3;       // 102
+x *= 2;       // 204
+x /= 4;       // 51
+x %= 10;      // 1
+x <<= 4;      // 16
+x |= 0x21;    // 0x31 = 49
+x ^= 0x1f;    // 0x2e = 46
+x &= 0x3f;    // 0x2e = 46
+x >>= 1;      // 23
+setUserReg(0, x);

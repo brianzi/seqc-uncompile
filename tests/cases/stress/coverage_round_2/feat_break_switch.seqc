@@ -1,0 +1,10 @@
+// Coverage Round 2: break inside switch (and combined with for outer).
+
+for (var i = 0; i < 5; i = i + 1) {
+    switch (i) {
+        case 0: setUserReg(0, 100); break;
+        case 1: setUserReg(1, 200); break;
+        case 2: setUserReg(2, 300); break;
+        default: setUserReg(3, i); break;
+    }
+}

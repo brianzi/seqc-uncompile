@@ -1,0 +1,20 @@
+// Coverage Round 2: combined logical NOT/AND/OR — operator precedence stress.
+
+var a = 1;
+var b = 0;
+var c = 1;
+
+if (!a && b) { setUserReg(0, 1); } else { setUserReg(0, 0); }   // 0
+if (!b && c) { setUserReg(1, 1); } else { setUserReg(1, 0); }   // 1
+if (!(a || b)) { setUserReg(2, 1); } else { setUserReg(2, 0); } // 0
+if (a || b && c) { setUserReg(3, 1); } else { setUserReg(3, 0); } // 1 (&& binds tighter)
+if ((a || b) && !c) { setUserReg(4, 1); } else { setUserReg(4, 0); } // 0
+
+// In a loop
+var seen = 0;
+for (var i = 0; i < 8; i = i + 1) {
+    if (!(i & 1) || (i > 5)) {  // even, or big
+        seen = seen + 1;
+    }
+}
+setUserReg(5, seen);    // 0,2,4,6,7 -> 5

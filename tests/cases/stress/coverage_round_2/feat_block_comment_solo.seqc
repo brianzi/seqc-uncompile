@@ -1,0 +1,20 @@
+// Coverage Round 2: block comments /* ... */ in various positions.
+
+/* leading block comment */
+var a = 5;
+/* between
+   statements
+   on multiple lines */
+var b = 10;
+
+/* nested-looking */ var c /* mid-decl */ = /* mid-init */ a + b;
+setUserReg(0, c);   // 15
+
+/* before block */ if (c > 0) /* between cond and body */ {
+    /* inside body */
+    setUserReg(1, c);
+}
+
+for (var i = 0; /* between init and cond */ i < 3; i = i + 1) {
+    setUserReg(2, i);
+}

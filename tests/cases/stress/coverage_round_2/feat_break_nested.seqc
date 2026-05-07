@@ -1,0 +1,17 @@
+// Coverage Round 2: break inside while + nested loop — only inner breaks.
+
+var inner_iters = 0;
+var outer_iters = 0;
+var i = 0;
+while (i < 4) {
+    var j = 0;
+    while (j < 100) {
+        if (j == 3) { break; }
+        inner_iters = inner_iters + 1;
+        j = j + 1;
+    }
+    outer_iters = outer_iters + 1;
+    i = i + 1;
+}
+setUserReg(0, inner_iters);   // 4 outer * 3 inner = 12
+setUserReg(1, outer_iters);   // 4

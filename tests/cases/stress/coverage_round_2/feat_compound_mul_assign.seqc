@@ -1,0 +1,18 @@
+// Coverage Round 2: *= compound assignment.
+
+var a = 3;
+a *= 7;
+setUserReg(0, a);     // 21
+
+var b = 1;
+for (var i = 0; i < 6; i = i + 1) {
+    b *= 2;
+}
+setUserReg(1, b);     // 64
+
+// Side-effect operand on RHS
+var c = 2;
+var k = 1;
+c *= (k = k + 4);     // c = 2 * 5 = 10, k = 5
+setUserReg(2, c);
+setUserReg(3, k);

@@ -1,0 +1,10 @@
+// Coverage Round 2: break inside for loop.
+
+var found = -1;
+for (var i = 0; i < 100; i = i + 1) {
+    if (i * i > 50) {
+        found = i;
+        break;
+    }
+}
+setUserReg(0, found);   // 8

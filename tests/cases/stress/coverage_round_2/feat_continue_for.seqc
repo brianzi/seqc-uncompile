@@ -1,0 +1,9 @@
+// Coverage Round 2: continue inside for loop — skip iteration on match.
+
+var seen = 0;
+for (var i = 0; i < 8; i = i + 1) {
+    if (i == 3) { continue; }
+    if (i == 5) { continue; }
+    seen = seen + 1;
+}
+setUserReg(0, seen);   // expect 6

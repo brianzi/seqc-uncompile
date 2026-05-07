@@ -1,0 +1,10 @@
+// Coverage Round 2: do-while nested inside for loop, both threading state.
+
+for (var i = 0; i < 3; i = i + 1) {
+    var j = 0;
+    do {
+        setUserReg(0, i * 10 + j);
+        j = j + 1;
+    } while (j < 2);
+}
+setUserReg(1, 99);

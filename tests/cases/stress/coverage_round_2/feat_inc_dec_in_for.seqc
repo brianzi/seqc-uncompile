@@ -1,0 +1,27 @@
+// Coverage Round 2: ++x and --x as the for-loop increment expression
+// (more idiomatic than `i = i + 1`).
+
+var sum = 0;
+for (var i = 0; i < 10; ++i) {
+    sum += i;
+}
+setUserReg(0, sum);    // 45
+
+var prod = 1;
+for (var j = 5; j > 0; --j) {
+    prod *= j;
+}
+setUserReg(1, prod);   // 120
+
+// Postfix variants
+var s2 = 0;
+for (var k = 0; k < 5; k++) {
+    s2 += k;
+}
+setUserReg(2, s2);     // 10
+
+var s3 = 0;
+for (var m = 4; m > 0; m--) {
+    s3 += m;
+}
+setUserReg(3, s3);     // 10

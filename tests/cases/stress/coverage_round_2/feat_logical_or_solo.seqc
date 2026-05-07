@@ -1,0 +1,21 @@
+// Coverage Round 2: logical OR operator (||) including short-circuit.
+
+var a = 0;
+var b = 0;
+
+if (a || b) {
+    setUserReg(0, 1);
+} else {
+    setUserReg(0, 0);
+}
+
+a = 1;
+if (a || b) {
+    setUserReg(1, 1);
+}
+
+// Short-circuit: RHS should not be evaluated when LHS is true
+var ev = 0;
+var ok = (1 || (ev = 1));    // ev should remain 0
+setUserReg(2, ev);            // 0 if short-circuit honored
+setUserReg(3, ok);            // 1

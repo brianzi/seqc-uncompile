@@ -1,0 +1,15 @@
+// Coverage Round 2: double-init plus arithmetic and compound assigns.
+
+var d = 0.5;
+d += 0.25;
+d *= 4.0;
+d -= 1.0;            // expect 1.0 conceptually
+setUserReg(0, d);
+
+// double in for-bound (cvar to keep deterministic)
+cvar i;
+var s = 0.0;
+for (i = 0; i < 4; i = i + 1) {
+    s = s + 0.5;
+}
+setUserReg(1, s);    // 2.0

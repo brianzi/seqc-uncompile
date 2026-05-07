@@ -1,0 +1,10 @@
+// Coverage Round 2: continue inside while loop with state threading.
+
+var i = 0;
+var sum = 0;
+while (i < 10) {
+    i = i + 1;
+    if ((i & 1) == 1) { continue; }   // skip odd
+    sum = sum + i;
+}
+setUserReg(0, sum);    // 2+4+6+8+10 = 30

@@ -1,0 +1,8 @@
+// Coverage Round 2: explicit double init of var (vs default int init).
+
+var x = 1.5;
+var y = 2.25;
+var z = x + y;       // 3.75 — but stored in var (likely truncates or stays double)
+setUserReg(0, x);    // implementation-defined: may be 1 or bit-cast
+setUserReg(1, y);
+setUserReg(2, z);

@@ -1,0 +1,20 @@
+// Coverage Round 2: postfix decrement x--.
+
+var a = 5;
+a--;
+a--;
+setUserReg(0, a);    // 3
+
+var b = 10;
+var c = b-- - 1;     // b becomes 9, c = 9 (uses old b=10)
+setUserReg(1, b);
+setUserReg(2, c);
+
+// Loop using postfix decrement in condition
+var k = 4;
+var iters = 0;
+while (k-- > 0) {    // tests old k>0 then decrements
+    iters = iters + 1;
+}
+setUserReg(3, iters);  // 4
+setUserReg(4, k);      // -1

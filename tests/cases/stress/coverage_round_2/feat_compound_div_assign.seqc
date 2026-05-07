@@ -1,0 +1,15 @@
+// Coverage Round 2: /= compound assignment (solo + state-threading).
+
+var a = 1000;
+a /= 5;
+setUserReg(0, a);     // 200
+
+var b = 99;
+b /= 10;
+setUserReg(1, b);     // 9 (truncating int divide)
+
+var c = 64;
+for (var i = 0; i < 4; i = i + 1) {
+    c /= 2;
+}
+setUserReg(2, c);     // 4

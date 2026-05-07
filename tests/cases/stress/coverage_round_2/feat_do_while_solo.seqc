@@ -1,0 +1,9 @@
+// Coverage Round 2: do { } while (cond)
+// Solo use — bare loop with simple counter and visible side-effect.
+
+var i = 0;
+do {
+    setUserReg(0, i);
+    i = i + 1;
+} while (i < 5);
+setUserReg(1, i);

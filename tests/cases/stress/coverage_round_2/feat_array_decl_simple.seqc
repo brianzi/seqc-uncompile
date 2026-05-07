@@ -1,0 +1,7 @@
+// Coverage Round 2: array decl with initializer list — solo.
+
+var arr[4] = {10, 20, 30, 40};
+setUserReg(0, arr[0]);
+setUserReg(1, arr[1]);
+setUserReg(2, arr[2]);
+setUserReg(3, arr[3]);

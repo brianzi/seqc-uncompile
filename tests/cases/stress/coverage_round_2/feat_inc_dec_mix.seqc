@@ -1,0 +1,23 @@
+// Coverage Round 2: mixed pre/post inc/dec in single expression — codegen
+// must serialize side-effects correctly.
+
+var a = 5;
+var b = 5;
+var r1 = ++a + b++;     // a=6, r1=6+5=11, b=6
+setUserReg(0, a);       // 6
+setUserReg(1, b);       // 6
+setUserReg(2, r1);      // 11
+
+var c = 10;
+var d = 10;
+var r2 = c-- - --d;     // c=10 used, c=9; d=9, r2=10-9=1
+setUserReg(3, c);       // 9
+setUserReg(4, d);       // 9
+setUserReg(5, r2);      // 1
+
+// Multiple updates of distinct variables
+var x = 0;
+var y = 0;
+var z = 0;
+var s = ++x + ++y + ++z;
+setUserReg(6, s);       // 3

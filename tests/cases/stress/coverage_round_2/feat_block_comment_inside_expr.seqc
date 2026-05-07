@@ -1,0 +1,17 @@
+// Coverage Round 2: block comments embedded inside expressions and
+// arithmetic chains.
+
+var x = 1 /* one */ + 2 /* two */ + 3 /* three */;
+setUserReg(0, x);   // 6
+
+var y = (1 << /* shift amt */ 4) | /* mask */ 0x0f;
+setUserReg(1, y);   // 0x1f
+
+/*
+ * Long multi-line comment
+ * spanning many lines
+ * with * and / inside but not the close marker
+ */
+
+var z = 0xff & /* mask low nibble */ 0x0f;
+setUserReg(2, z);   // 0x0f

@@ -1,0 +1,17 @@
+// Coverage Round 2: %= compound assignment (solo + edges).
+
+var a = 17;
+a %= 5;
+setUserReg(0, a);     // 2
+
+var b = 100;
+b %= 7;
+setUserReg(1, b);     // 2
+
+// Loop using %=
+var c = 1234;
+for (var i = 0; i < 3; i = i + 1) {
+    c %= 100;
+    c = c + 50;
+}
+setUserReg(2, c);

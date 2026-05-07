@@ -1,0 +1,22 @@
+// Coverage Round 2: prefix increment ++x — solo and in expressions.
+
+var a = 0;
+++a;
+++a;
+++a;
+setUserReg(0, a);   // 3
+
+// In expression context (value is post-increment new value)
+var b = 10;
+var c = ++b + 1;    // b becomes 11, c = 12
+setUserReg(1, b);   // 11
+setUserReg(2, c);   // 12
+
+// Inside loop condition area
+var n = 0;
+var s = 0;
+while (++n < 5) {
+    s = s + n;       // n=1,2,3,4
+}
+setUserReg(3, s);    // 10
+setUserReg(4, n);    // 5

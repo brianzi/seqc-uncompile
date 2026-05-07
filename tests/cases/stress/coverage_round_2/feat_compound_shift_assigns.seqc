@@ -1,0 +1,19 @@
+// Coverage Round 2: shift compound assigns <<= and >>=.
+
+var a = 1;
+a <<= 8;
+setUserReg(0, a);     // 256
+
+var b = 0xff00;
+b >>= 4;
+setUserReg(1, b);     // 0x0ff0
+
+// Variable shift amount
+var amt = 3;
+var c = 1;
+c <<= amt;
+setUserReg(2, c);     // 8
+
+var d = 1024;
+d >>= amt;
+setUserReg(3, d);     // 128

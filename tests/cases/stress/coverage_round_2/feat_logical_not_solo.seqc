@@ -1,0 +1,15 @@
+// Coverage Round 2: logical NOT operator.
+
+var a = 0;
+var b = 5;
+
+setUserReg(0, !a);     // 1 (NOT zero -> true)
+setUserReg(1, !b);     // 0 (NOT non-zero -> false)
+setUserReg(2, !!b);    // 1 (double NOT — boolean coerce)
+
+if (!a) {
+    setUserReg(3, 99);
+}
+if (!!b) {
+    setUserReg(4, 88);
+}

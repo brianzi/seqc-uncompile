@@ -1,0 +1,9 @@
+// Coverage Round 2: do-while threading playZero state across iterations.
+
+var n = 0;
+do {
+    playZero(64);
+    n = n + 1;
+} while (n < 3);
+waitWave();
+setUserReg(0, n);

@@ -1,0 +1,12 @@
+// Coverage Round 2: array decl referenced inside a subroutine.
+
+var lookup[4] = {100, 200, 300, 400};
+
+void emit(var idx) {
+    setUserReg(idx, lookup[idx]);
+}
+
+emit(0);
+emit(1);
+emit(2);
+emit(3);

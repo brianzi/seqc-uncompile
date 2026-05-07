@@ -1,0 +1,20 @@
+// Coverage Round 2: bitwise compound assigns &=, |=, ^=.
+
+var a = 0xff;
+a &= 0x55;
+setUserReg(0, a);     // 0x55
+
+var b = 0x10;
+b |= 0x07;
+setUserReg(1, b);     // 0x17
+
+var c = 0xff;
+c ^= 0x0f;
+setUserReg(2, c);     // 0xf0
+
+// Chain of bit-compound on same var
+var d = 0xffff;
+d &= 0x0ff0;
+d |= 0x0001;
+d ^= 0x00f0;
+setUserReg(3, d);     // expect 0x0f01

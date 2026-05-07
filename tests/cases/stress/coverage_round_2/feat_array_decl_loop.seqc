@@ -1,0 +1,15 @@
+// Coverage Round 2: array index r/w in loops, both const and var index.
+
+var arr[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+
+// Sum via cvar-indexed loop (loop unrolled at compile time).
+var sum = 0;
+cvar i;
+for (i = 0; i < 8; i = i + 1) {
+    sum = sum + arr[i];
+}
+setUserReg(0, sum);    // 36
+
+// Const-index reads
+setUserReg(1, arr[0]);
+setUserReg(2, arr[7]);
