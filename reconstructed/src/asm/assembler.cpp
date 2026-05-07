@@ -298,7 +298,15 @@ int64_t Assembler::highestRegisterNumber() const {
 
     if (!found)
         return 0;
-    return (1LL << 32) | static_cast<uint8_t>(maxReg);
+    // IF-191 fix (Phase 58.E): the orig keeps the FULL int value of the
+    // max register (the low-byte/high-bits AND/OR sequence at 0x2901b3..
+    // 0x2901db is a value-preserving identity).  Earlier reconstruction
+    // truncated to uint8_t, which silently mapped reg 256 → 0, reg 257 → 1,
+    // etc.  This caused regalloc / removeUnusedRegs to under-report
+    // numRegs once GlobalResources::regNumber crossed 256 within a single
+    // optimization pass, leaving R256+ references untouched in the output
+    // and triggering "register does not exist" at assemble time.
+    return (1LL << 32) | static_cast<uint32_t>(maxReg);
 }
 
 // 0x28ebd0 — Produce disassembly string.

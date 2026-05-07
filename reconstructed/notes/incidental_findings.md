@@ -4883,11 +4883,34 @@ diagnostic message text is now correct but the underlying error is
 real: recon's register allocator emits an out-of-range register
 reference at instruction index ~1152.
 
-**Hypothesis**: recon's regalloc / register-spilling differs from
-orig on very long sources. Orig spills earlier or reuses registers
-more aggressively; recon runs out at instruction ~1152 of the
-1500+ instruction source.
+**Root cause** (Phase 58.E): NOT the regalloc algorithm — the bug
+was in `Assembler::highestRegisterNumber()` at
+`reconstructed/src/asm/assembler.cpp:301`.  The reconstruction had
+`return (1LL << 32) | static_cast<uint8_t>(maxReg);` — truncating
+the max register number to 8 bits.  The orig binary at 0x2901b3..
+0x2901db computes `ebx = (eax & 0xffffff00) | (eax & 0xff)` which
+is the FULL int value (a value-preserving identity); the recon
+collapsed that to a uint8_t cast.
 
-**Fix area**: register allocator in `reconstructed/src/codegen/`.
+Once `GlobalResources::regNumber` crossed 256 within a single
+optimization pass (which happens ~exactly at the 128th `setUserReg`
+call: 128 × 2 vregs/call ≈ 256), `highestRegisterNumber` would
+report register 256 as 0, 257 as 1, etc.  This in turn made
+`AsmList::maxRegister()` and `AsmOptimize::removeUnusedRegs()`
+under-report `numRegs` to `registerAllocation`, so the live-range
+table was sized too small and the high vregs were never visited.
+The asm list emerged from optimization with R256+ references
+intact, and the assembler emit pass (`getReg`) then complained
+"register does not exist".
 
-**Status**: open. To fix in Phase 58.E.
+**Fix**: change the cast to `static_cast<uint32_t>(maxReg)`.
+
+**Verification**: minimal repro is 128+ `setUserReg` calls in
+sequence; bisect showed exactly 127 calls = OK, 128 = fail.
+Debug printf in step 19 of `compile()` confirmed
+`asmList_.maxRegister() = 1` (truncated) while a manual scan of
+`regSrc/regDst/regAux` found R256 at instruction 1153.  After
+fix, both `long_source_{hdawg,shfsg}` pass byte-identical;
+main suite 1600/1600, stress 444/444.
+
+**Status**: FIXED in Phase 58.E.
