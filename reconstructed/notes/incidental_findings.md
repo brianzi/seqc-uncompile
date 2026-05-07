@@ -4914,3 +4914,113 @@ fix, both `long_source_{hdawg,shfsg}` pass byte-identical;
 main suite 1600/1600, stress 444/444.
 
 **Status**: FIXED in Phase 58.E.
+
+---
+
+## IF-192  UHFQA missing 1024-instruction program-size limit
+
+**Source**: Phase 59 round 10 — `regalloc_2x_long_uhfqa`,
+`regalloc_pressure_subroutines_uhfqa`
+**Status**: open
+**Severity**: likely-bug
+
+The original UHFQA compiler enforces a hard limit of **1024
+instructions** per sequencer program and rejects with:
+
+```
+Compilation failed: Compiler Error: program is too large to fit
+into memory - has <N> instructions, maximum is 1024
+```
+
+Recon **lacks this check entirely** for UHFQA: large programs that
+exceed 1024 instructions compile silently and produce an oversized
+ELF.
+
+Failing cases (round 10, expanded device coverage):
+- `regalloc_2x_long_uhfqa` — orig: 2106 instructions, errored;
+  recon: succeeded
+- `regalloc_pressure_subroutines_uhfqa` — orig: 1798 instructions,
+  errored; recon: succeeded
+
+Same `.seqc` files compile fine on HDAWG/SHFSG/SHFQA (they have
+no such limit, or a much higher one — to be verified).
+
+**Hypothesis**: There is a per-device instruction-count check
+somewhere late in the compile pipeline (probably in the
+finalize/assembler stage). The UHFQA arm of that check is missing
+or its threshold constant is wrong (set to 0 or never reached).
+
+**Investigation steps**:
+1. `strings _seqc_compiler.so | grep -F 'too large to fit'` to
+   locate the format string and xref to find the check site.
+2. Check whether `Assembler::finalize()` (or equivalent) has a
+   device-keyed switch with a missing UHFQA branch.
+3. Compare with SHFQA/HDAWG limits (they likely have the same
+   pattern but different constants).
+
+**Verification**: minimal repro is `regalloc_2x_long.seqc` (300
+setUserReg pairs producing ~2100 instructions on UHFQA).
+
+---
+
+## IF-193  cut(w, N, N) length-1 result chained into another cut errors
+
+**Source**: Phase 59 round 10 — `cut_zero_chain` (passed via
+both-error, but error reason is suspect)
+**Status**: open
+**Severity**: suspicious
+
+Test case `cut_zero_chain.seqc`:
+```
+wave w = ones(64);
+wave a = cut(w, 5, 5);    // length-1 wave (post-IF-176 fix)
+wave b = cut(a, 0, 0);    // length-1 of length-1
+playWave(b);
+```
+
+Both orig and recon error on line 4 with "argument 2 (from) of cut
+is greater than the waveform length". The `from=0, to=0` on a
+length-1 wave should be in range, so the rejection is unexpected.
+
+Possible explanations:
+1. After the IF-176 fix, `cut(w, 5, 5)` is internally treated as
+   a length-0 wave (since the .wf section is suppressed) — then
+   `cut(a, 0, 0)` sees `length=0`, and `from=0 >= length` triggers
+   the error. If the binary does the same, this is consistent
+   behavior, not a bug — but worth confirming.
+2. SeqC `cut(from, to)` is conceptually "inclusive" for both ends,
+   so `cut(w, 5, 5)` is length 1, not length 0. If that's the
+   semantic the binary intends, then the binary itself has the
+   same edge-case behavior the recon mimics.
+
+**Action**: GDB-trace the original to see at which instruction
+the bound check fires and what `length` it reads. If both compare
+the same value the same way, dismiss; if not, file as bug.
+
+---
+
+## IF-194  Regalloc-overflow error reports differ in line attribution
+
+**Source**: Phase 59 round 10 — `regalloc_long_live_single_bb`
+(passed via both-error with "accepted" mismatch)
+**Status**: open
+**Severity**: suspicious (cosmetic if intentional, real if not)
+
+Test case has ~50 vars in one basic block. Both compilers emit
+"run out of free registers, please reduce complexity", but on
+**different line numbers**:
+- orig: line 18
+- recon: line 10
+
+The harness flagged this as "error messages differ (accepted)"
+and let the test pass, but the line-number divergence suggests
+the recon and orig walk the AST/spill heuristic in different
+order. May be benign (different greedy choice) or may indicate
+the recon's regalloc spill point doesn't match the binary's.
+
+**Action**: compare the spill heuristic in `registerAllocation` /
+`getReg` against the original. If the recon really does spill at
+a different point under pressure, programs that are *just* under
+the limit on orig but *just over* on recon (or vice versa) would
+show up as compilation-success divergences.
+

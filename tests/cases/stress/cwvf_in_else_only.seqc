@@ -1,0 +1,9 @@
+// Group F: wave used only in else-arm. Tests prefetch/cwvf handles asymmetric branch use.
+var x = getUserReg(0);
+wave a = ones(64);
+wave b = ones(64) * 0.5;
+if (x > 0) {
+  playWave(a);
+} else {
+  playWave(b);
+}

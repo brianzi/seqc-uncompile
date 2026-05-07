@@ -2297,6 +2297,426 @@
           "name": "shfqc_qa_repeat_startqa_var_init_shfqc",
           "file": "stress/shfqc_qa_repeat_startqa_var_init.seqc",
           "@base": "@shfqc_qa"
+        },
+        {
+          "name": "regalloc_2x_long_hdawg",
+          "file": "stress/regalloc_2x_long.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_branchy_long_hdawg",
+          "file": "stress/regalloc_branchy_long.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_pressure_subroutines_hdawg",
+          "file": "stress/regalloc_pressure_subroutines.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_loop_long_hdawg",
+          "file": "stress/regalloc_loop_long.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_high_vreg_in_branch_hdawg",
+          "file": "stress/regalloc_high_vreg_in_branch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_rmw_chain_hdawg",
+          "file": "stress/regalloc_rmw_chain.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_long_live_single_bb_hdawg",
+          "file": "stress/regalloc_long_live_single_bb.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "many_zeros_lengths_hdawg",
+          "file": "stress/many_zeros_lengths.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "zeros_then_play_hdawg",
+          "file": "stress/zeros_then_play.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "zeros_in_subroutine_hdawg",
+          "file": "stress/zeros_in_subroutine.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "mixed_zero_concrete_hdawg",
+          "file": "stress/mixed_zero_concrete.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "zero_wave_arith_hdawg",
+          "file": "stress/zero_wave_arith.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "zeros_in_join_hdawg",
+          "file": "stress/zeros_in_join.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "zeros_join_zeros_hdawg",
+          "file": "stress/zeros_join_zeros.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_minus_wave_hdawg",
+          "file": "stress/placeholder_minus_wave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_times_wave_hdawg",
+          "file": "stress/placeholder_times_wave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_chain_arith_hdawg",
+          "file": "stress/placeholder_chain_arith.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_in_join_arith_hdawg",
+          "file": "stress/placeholder_in_join_arith.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_assign_then_arith_hdawg",
+          "file": "stress/placeholder_assign_then_arith.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "placeholder_plus_marker_hdawg",
+          "file": "stress/placeholder_plus_marker.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_zero_chain_hdawg",
+          "file": "stress/cut_zero_chain.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_in_loop_hdawg",
+          "file": "stress/cut_in_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_full_range_hdawg",
+          "file": "stress/cut_full_range.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_overlap_join_hdawg",
+          "file": "stress/cut_overlap_join.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_chain_to_one_hdawg",
+          "file": "stress/cut_chain_to_one.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cwvf_in_else_only_hdawg",
+          "file": "stress/cwvf_in_else_only.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cwvf_three_branches_hdawg",
+          "file": "stress/cwvf_three_branches.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cwvf_loop_branch_loop_hdawg",
+          "file": "stress/cwvf_loop_branch_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cwvf_nested_for_hdawg",
+          "file": "stress/cwvf_nested_for.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wavemem_max_unique_hdawg",
+          "file": "stress/wavemem_max_unique.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wavemem_same_data_diff_name_hdawg",
+          "file": "stress/wavemem_same_data_diff_name.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "assignwaveindex_max_hdawg",
+          "file": "stress/assignwaveindex_max.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_branchy_long_fixed_hdawg",
+          "file": "stress/regalloc_branchy_long_fixed.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cwvf_three_branches_fixed_hdawg",
+          "file": "stress/cwvf_three_branches_fixed.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "regalloc_2x_long_shfsg",
+          "file": "stress/regalloc_2x_long.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_2x_long_shfqa",
+          "file": "stress/regalloc_2x_long.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_2x_long_uhfqa",
+          "file": "stress/regalloc_2x_long.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_branchy_long_shfsg",
+          "file": "stress/regalloc_branchy_long.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_branchy_long_shfqa",
+          "file": "stress/regalloc_branchy_long.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_branchy_long_uhfqa",
+          "file": "stress/regalloc_branchy_long.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_branchy_long_fixed_shfsg",
+          "file": "stress/regalloc_branchy_long_fixed.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_branchy_long_fixed_shfqa",
+          "file": "stress/regalloc_branchy_long_fixed.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_branchy_long_fixed_uhfqa",
+          "file": "stress/regalloc_branchy_long_fixed.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_pressure_subroutines_shfsg",
+          "file": "stress/regalloc_pressure_subroutines.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_pressure_subroutines_shfqa",
+          "file": "stress/regalloc_pressure_subroutines.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_pressure_subroutines_uhfqa",
+          "file": "stress/regalloc_pressure_subroutines.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_loop_long_shfsg",
+          "file": "stress/regalloc_loop_long.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_loop_long_shfqa",
+          "file": "stress/regalloc_loop_long.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_loop_long_uhfqa",
+          "file": "stress/regalloc_loop_long.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_high_vreg_in_branch_shfsg",
+          "file": "stress/regalloc_high_vreg_in_branch.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_high_vreg_in_branch_shfqa",
+          "file": "stress/regalloc_high_vreg_in_branch.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_high_vreg_in_branch_uhfqa",
+          "file": "stress/regalloc_high_vreg_in_branch.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_rmw_chain_shfsg",
+          "file": "stress/regalloc_rmw_chain.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_rmw_chain_shfqa",
+          "file": "stress/regalloc_rmw_chain.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_rmw_chain_uhfqa",
+          "file": "stress/regalloc_rmw_chain.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "regalloc_long_live_single_bb_shfsg",
+          "file": "stress/regalloc_long_live_single_bb.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "regalloc_long_live_single_bb_shfqa",
+          "file": "stress/regalloc_long_live_single_bb.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "regalloc_long_live_single_bb_uhfqa",
+          "file": "stress/regalloc_long_live_single_bb.seqc",
+          "@base": "@uhfqa"
+        },
+        {
+          "name": "many_zeros_lengths_shfsg",
+          "file": "stress/many_zeros_lengths.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "zeros_then_play_shfsg",
+          "file": "stress/zeros_then_play.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "zeros_in_subroutine_shfsg",
+          "file": "stress/zeros_in_subroutine.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "mixed_zero_concrete_shfsg",
+          "file": "stress/mixed_zero_concrete.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "zero_wave_arith_shfsg",
+          "file": "stress/zero_wave_arith.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "zeros_in_join_shfsg",
+          "file": "stress/zeros_in_join.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "zeros_join_zeros_shfsg",
+          "file": "stress/zeros_join_zeros.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_minus_wave_shfsg",
+          "file": "stress/placeholder_minus_wave.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_times_wave_shfsg",
+          "file": "stress/placeholder_times_wave.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_chain_arith_shfsg",
+          "file": "stress/placeholder_chain_arith.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_in_join_arith_shfsg",
+          "file": "stress/placeholder_in_join_arith.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_assign_then_arith_shfsg",
+          "file": "stress/placeholder_assign_then_arith.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_plus_marker_shfsg",
+          "file": "stress/placeholder_plus_marker.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_zero_chain_shfsg",
+          "file": "stress/cut_zero_chain.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_in_loop_shfsg",
+          "file": "stress/cut_in_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_full_range_shfsg",
+          "file": "stress/cut_full_range.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_overlap_join_shfsg",
+          "file": "stress/cut_overlap_join.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_chain_to_one_shfsg",
+          "file": "stress/cut_chain_to_one.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cwvf_in_else_only_shfsg",
+          "file": "stress/cwvf_in_else_only.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cwvf_three_branches_shfsg",
+          "file": "stress/cwvf_three_branches.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cwvf_three_branches_fixed_shfsg",
+          "file": "stress/cwvf_three_branches_fixed.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cwvf_loop_branch_loop_shfsg",
+          "file": "stress/cwvf_loop_branch_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cwvf_nested_for_shfsg",
+          "file": "stress/cwvf_nested_for.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wavemem_max_unique_shfsg",
+          "file": "stress/wavemem_max_unique.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wavemem_same_data_diff_name_shfsg",
+          "file": "stress/wavemem_same_data_diff_name.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "assignwaveindex_max_shfsg",
+          "file": "stress/assignwaveindex_max.seqc",
+          "@base": "@shfsg8_sg"
         }
       ]
     }

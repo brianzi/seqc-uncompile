@@ -5508,3 +5508,97 @@ same phase as a 1-line `uint8_t` truncation bug in
 **No GDB friction reports filed this phase** — all 5 root causes were
 identified via static disassembly (objdump) of the binary, without
 needing runtime traces.
+
+---
+
+## Phase 59: Stress round 10 — post-Phase-58 expansion + 4-device coverage
+
+After Phase 58 closed all known difftest failures (444/444 stress,
+1600/1600 main), this round expands the stress suite with 32 new
+.seqc cases targeting adjacencies to the 28 IFs fixed in Phases
+57+58, then registers portable cases against multiple device bases
+to surface device-specific divergences.
+
+**Workflow (per `seqc-stress-rounds` skill):** brainstorm 50
+angles → write 30 cases (groups A/B/C/D/F/J — adjacencies to
+recent fixes) → triage → fork test-author bugs → expand device
+coverage on portable cases → re-triage.
+
+**Key device-coverage rule introduced:** for cases with no
+device-specific syntax (e.g. setUserReg-only regalloc tests),
+register against **hdawg + shfsg + shfqa + uhfqa** so any
+device-specific code paths are exercised. Wave-based cases
+(playWave) stay hdawg + shfsg.
+
+### Round 10 inventory
+
+- 32 new `tests/cases/stress/*.seqc` files written:
+  - **Group A** (regalloc adjacencies to IF-191): `regalloc_2x_long`,
+    `regalloc_branchy_long`, `regalloc_pressure_subroutines`,
+    `regalloc_loop_long`, `regalloc_high_vreg_in_branch`,
+    `regalloc_rmw_chain`, `regalloc_long_live_single_bb`
+  - **Group B** (zero-wave bookkeeping, IFs 189/190): `many_zeros_lengths`,
+    `zeros_then_play`, `zeros_in_subroutine`, `mixed_zero_concrete`,
+    `zero_wave_arith`, `zeros_in_join`, `zeros_join_zeros`
+  - **Group C** (placeholder+wave arith, IF-188): `placeholder_minus_wave`,
+    `placeholder_times_wave`, `placeholder_chain_arith`,
+    `placeholder_in_join_arith`, `placeholder_assign_then_arith`,
+    `placeholder_plus_marker`
+  - **Group D** (cut(N,N) chains, IF-176): `cut_zero_chain`,
+    `cut_in_loop`, `cut_full_range`, `cut_overlap_join`, `cut_chain_to_one`
+  - **Group F** (cwvf/prefetch adjacencies, IF-158): `cwvf_in_else_only`,
+    `cwvf_three_branches`, `cwvf_loop_branch_loop`, `cwvf_nested_for`
+  - **Group J** (wavemem accounting): `wavemem_max_unique`,
+    `wavemem_same_data_diff_name`, `assignwaveindex_max`
+- 2 forks for SeqC `break`-in-`switch` test-author bugs:
+  - `regalloc_branchy_long_fixed` (if/else-if rewrite)
+  - `cwvf_three_branches_fixed` (if/else-if rewrite)
+- Manifest: 444 → 528 cases (+84 entries: 32 hdawg new + 2 fork
+  hdawg + 8 portable × 3 extra devices + 26 wave × shfsg)
+
+### Findings
+
+- **3 new IFs filed**: IF-192 (UHFQA missing 1024-instruction
+  program-size limit — recon silently produces oversized ELF;
+  surfaced by 4-device expansion of `regalloc_2x_long` and
+  `regalloc_pressure_subroutines`), IF-193 (cut(N,N) chained into
+  another cut errors with "from > length" — both compilers behave
+  identically, may indicate IF-176-fix downstream artifact, needs
+  GDB confirmation), IF-194 (regalloc-overflow error reports
+  different line numbers between orig and recon — may indicate
+  spill heuristic divergence under pressure)
+- 526/528 pass; 2 hard failures, both UHFQA, single root cause
+  (IF-192)
+- Main 1600/1600 unchanged
+
+### Wrap-up
+
+- [x] **59.1** — Brainstormed 50 angles, picked 30 (groups A/B/C/D/F/J)
+- [x] **59.2** — Wrote 32 new .seqc files in `tests/cases/stress/`
+- [x] **59.3** — Triaged first pass (hdawg-only): all 32 passed; 4 via
+      both-error
+- [x] **59.4** — Forked 2 `break`-in-switch test-author bugs into
+      `_fixed` variants
+- [x] **59.5** — Expanded device coverage: portable regalloc cases
+      against hdawg+shfsg+shfqa+uhfqa, wave cases against hdawg+shfsg
+- [x] **59.6** — Re-triaged: surfaced 2 UHFQA failures (IF-192) and
+      filed IFs 193, 194
+- [ ] **59.7** — User-review: choose Phase 60 = fix IF-192 vs.
+      Phase 60 = round 11 (more stress angles)
+
+### Lessons learned
+
+- **Single-device test registration hides device-specific bugs.**
+  Mirroring the existing `hdawg+shfsg`-only convention would have
+  missed IF-192 entirely; the 4-device expansion immediately found
+  it. New rule for future stress rounds: any case with no
+  device-specific syntax should be registered against all 4 main
+  device families.
+- **Test-author SeqC bugs still have value as error-pass coverage**
+  — keep originals AND fork fixed versions (per skill rule). The
+  `_fixed` forks let us actually exercise the regalloc/cwvf paths
+  the originals were designed to stress.
+- Round-10 productivity: 1 hard recon bug found (IF-192) + 2 leads
+  filed (193, 194), in line with the "fixes-disturb-area" yield
+  expectation.
+

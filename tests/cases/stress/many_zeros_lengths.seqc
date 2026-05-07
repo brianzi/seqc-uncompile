@@ -1,0 +1,20 @@
+// Group B: many distinct zeros() lengths. Tests zero-wave bookkeeping after IF-189/190 fix.
+wave z0 = zeros(0);
+wave z32 = zeros(32);
+wave z64 = zeros(64);
+wave z128 = zeros(128);
+wave z256 = zeros(256);
+wave z512 = zeros(512);
+wave z1024 = zeros(1024);
+wave z2048 = zeros(2048);
+wave z4096 = zeros(4096);
+wave z8192 = zeros(8192);
+playWave(z32);
+playWave(z64);
+playWave(z128);
+playWave(z256);
+playWave(z512);
+playWave(z1024);
+playWave(z2048);
+playWave(z4096);
+playWave(z8192);

@@ -1,0 +1,10 @@
+// Group B: zeros(0) inside a subroutine called multiple times.
+// Tests that zero-wave dedup/prune is consistent across call sites.
+void emit() {
+  wave z = zeros(0);
+  wave w = ones(64);
+  playWave(w);
+}
+emit();
+emit();
+emit();

@@ -1,0 +1,5 @@
+// Group C: assign placeholder to wave var, then perform arith (tests symbol-table propagation).
+wave p = placeholder(64);
+wave a = p;
+wave b = a + ones(64);
+playWave(b);

@@ -1,0 +1,10 @@
+// Group F: switch with three branches each touching a different wave.
+var sel = getUserReg(0);
+wave a = ones(64);
+wave b = ones(64) * 0.5;
+wave c = ones(64) * 0.25;
+switch (sel) {
+  case 0: playWave(a); break;
+  case 1: playWave(b); break;
+  case 2: playWave(c); break;
+}

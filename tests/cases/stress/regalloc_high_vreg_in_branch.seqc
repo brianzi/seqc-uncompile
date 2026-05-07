@@ -1,0 +1,16 @@
+// Group A: branch-arm asymmetry in vreg count. if-arm uses many regs, else-arm few.
+// Tests live-range merging at branch join.
+var x = getUserReg(0);
+if (x > 0) {
+  setUserReg(0, 1); setUserReg(1, 2); setUserReg(0, 3); setUserReg(1, 4);
+  setUserReg(0, 5); setUserReg(1, 6); setUserReg(0, 7); setUserReg(1, 8);
+  setUserReg(0, 9); setUserReg(1, 10); setUserReg(0, 11); setUserReg(1, 12);
+  setUserReg(0, 13); setUserReg(1, 14); setUserReg(0, 15); setUserReg(1, 0);
+  setUserReg(2, 17); setUserReg(3, 18); setUserReg(2, 19); setUserReg(3, 20);
+  setUserReg(2, 21); setUserReg(3, 22); setUserReg(2, 23); setUserReg(3, 24);
+  setUserReg(2, 25); setUserReg(3, 26); setUserReg(2, 27); setUserReg(3, 28);
+  setUserReg(2, 29); setUserReg(3, 30); setUserReg(2, 31); setUserReg(3, 0);
+} else {
+  setUserReg(4, 99);
+}
+setUserReg(5, x + 1);

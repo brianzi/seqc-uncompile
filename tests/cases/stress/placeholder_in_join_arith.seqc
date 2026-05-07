@@ -1,0 +1,6 @@
+// Group C: placeholder used inside join with arith. IF-181 was a crash; this is a non-crash variant.
+wave p1 = placeholder(32);
+wave p2 = placeholder(32);
+wave o = ones(32);
+wave j = join(p1, p2 + o);
+playWave(j);

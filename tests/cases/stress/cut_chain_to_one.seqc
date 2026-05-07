@@ -1,0 +1,5 @@
+// Group D: cut() result re-cut to length 1 (post-IF-176 chain).
+wave w = ones(128);
+wave a = cut(w, 0, 63);
+wave b = cut(a, 10, 10);
+playWave(b);

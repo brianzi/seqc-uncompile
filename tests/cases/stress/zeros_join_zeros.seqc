@@ -1,0 +1,6 @@
+// Group B: zeros(0) appears as both operands of join. Pure degenerate.
+wave z1 = zeros(0);
+wave z2 = zeros(0);
+wave j = join(z1, z2);
+wave o = ones(64);
+playWave(o);

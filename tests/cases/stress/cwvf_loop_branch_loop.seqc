@@ -1,0 +1,16 @@
+// Group F: nested loop containing branch containing loop with waves.
+// Stresses prefetch placement at multiple loop entries.
+var x = getUserReg(0);
+wave a = ones(64);
+wave b = ones(64) * 0.5;
+repeat(4) {
+  if (x > 0) {
+    repeat(2) {
+      playWave(a);
+    }
+  } else {
+    repeat(3) {
+      playWave(b);
+    }
+  }
+}

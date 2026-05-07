@@ -1,0 +1,7 @@
+// Group B: arithmetic involving zero-length waves and length-zero cuts.
+wave z = zeros(64);
+wave o = ones(64);
+wave s = z + o;        // zeros + ones = ones (degenerate add)
+wave c = cut(z, 0, 0); // length-1 cut of all-zero (post-IF-176)
+playWave(s);
+playWave(o);

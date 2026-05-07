@@ -1,0 +1,11 @@
+// Group J: same sample data assigned to many distinct named waves. Tests dedup.
+wave a = ones(64);
+wave b = ones(64);
+wave c = ones(64);
+wave d = ones(64);
+wave e = ones(64);
+wave f = ones(64);
+wave g = ones(64);
+wave h = ones(64);
+playWave(a); playWave(b); playWave(c); playWave(d);
+playWave(e); playWave(f); playWave(g); playWave(h);

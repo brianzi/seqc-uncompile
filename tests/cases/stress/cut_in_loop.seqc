@@ -1,0 +1,15 @@
+// Group D: cut() inside a loop with constant-folded indices each iteration.
+// Each iteration produces a distinct cut wave; tests dedup.
+wave w = ones(128);
+wave c0 = cut(w, 0, 31);
+wave c1 = cut(w, 16, 47);
+wave c2 = cut(w, 32, 63);
+wave c3 = cut(w, 48, 79);
+wave c4 = cut(w, 64, 95);
+wave c5 = cut(w, 80, 111);
+playWave(c0);
+playWave(c1);
+playWave(c2);
+playWave(c3);
+playWave(c4);
+playWave(c5);

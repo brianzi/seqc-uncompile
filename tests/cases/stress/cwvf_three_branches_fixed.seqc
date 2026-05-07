@@ -1,0 +1,13 @@
+// Fork of cwvf_three_branches.seqc using if/else-if (SeqC switch doesn't
+// support break — original kept for that error-pass coverage).
+var sel = getUserReg(0);
+wave a = ones(64);
+wave b = ones(64) * 0.5;
+wave c = ones(64) * 0.25;
+if (sel == 0) {
+  playWave(a);
+} else if (sel == 1) {
+  playWave(b);
+} else if (sel == 2) {
+  playWave(c);
+}

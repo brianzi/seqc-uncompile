@@ -1,0 +1,5 @@
+// Group C: placeholder() - ones() (only `add` was fixed in IF-188).
+wave p = placeholder(64);
+wave o = ones(64);
+wave d = p - o;
+playWave(d);

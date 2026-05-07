@@ -1,0 +1,15 @@
+// Group A: heavy regalloc inside a repeat() body. Tests live-range across loop back-edge.
+repeat(8) {
+  setUserReg(0, 1); setUserReg(1, 2); setUserReg(0, 3); setUserReg(1, 4);
+  setUserReg(0, 5); setUserReg(1, 6); setUserReg(0, 7); setUserReg(1, 8);
+  setUserReg(0, 9); setUserReg(1, 10); setUserReg(0, 11); setUserReg(1, 12);
+  setUserReg(0, 13); setUserReg(1, 14); setUserReg(0, 15); setUserReg(1, 0);
+  setUserReg(2, 17); setUserReg(3, 18); setUserReg(2, 19); setUserReg(3, 20);
+  setUserReg(2, 21); setUserReg(3, 22); setUserReg(2, 23); setUserReg(3, 24);
+  setUserReg(2, 25); setUserReg(3, 26); setUserReg(2, 27); setUserReg(3, 28);
+  setUserReg(2, 29); setUserReg(3, 30); setUserReg(2, 31); setUserReg(3, 0);
+  setUserReg(4, 33); setUserReg(5, 34); setUserReg(4, 35); setUserReg(5, 36);
+  setUserReg(4, 37); setUserReg(5, 38); setUserReg(4, 39); setUserReg(5, 40);
+  setUserReg(4, 41); setUserReg(5, 42); setUserReg(4, 43); setUserReg(5, 44);
+  setUserReg(4, 45); setUserReg(5, 46); setUserReg(4, 47); setUserReg(5, 0);
+}

@@ -1,0 +1,8 @@
+// Group B: interleave zeros(0) with concrete cut/join chains.
+wave a = ones(64);
+wave z = zeros(0);
+wave b = cut(a, 0, 31);
+wave c = join(b, ones(32));
+wave d = zeros(0);
+playWave(c);
+playWave(a);

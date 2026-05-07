@@ -1,0 +1,21 @@
+// Group J: many assignWaveIndex calls with placeholders to push CT slot usage.
+wave w0 = placeholder(64); assignWaveIndex(w0, 0);
+wave w1 = placeholder(64); assignWaveIndex(w1, 1);
+wave w2 = placeholder(64); assignWaveIndex(w2, 2);
+wave w3 = placeholder(64); assignWaveIndex(w3, 3);
+wave w4 = placeholder(64); assignWaveIndex(w4, 4);
+wave w5 = placeholder(64); assignWaveIndex(w5, 5);
+wave w6 = placeholder(64); assignWaveIndex(w6, 6);
+wave w7 = placeholder(64); assignWaveIndex(w7, 7);
+wave w8 = placeholder(64); assignWaveIndex(w8, 8);
+wave w9 = placeholder(64); assignWaveIndex(w9, 9);
+wave w10 = placeholder(64); assignWaveIndex(w10, 10);
+wave w11 = placeholder(64); assignWaveIndex(w11, 11);
+wave w12 = placeholder(64); assignWaveIndex(w12, 12);
+wave w13 = placeholder(64); assignWaveIndex(w13, 13);
+wave w14 = placeholder(64); assignWaveIndex(w14, 14);
+wave w15 = placeholder(64); assignWaveIndex(w15, 15);
+playWave(w0); playWave(w1); playWave(w2); playWave(w3);
+playWave(w4); playWave(w5); playWave(w6); playWave(w7);
+playWave(w8); playWave(w9); playWave(w10); playWave(w11);
+playWave(w12); playWave(w13); playWave(w14); playWave(w15);

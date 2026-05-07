@@ -1,0 +1,5 @@
+// Group C: placeholder() * ones() (multiplication path, post-IF-188).
+wave p = placeholder(64);
+wave o = ones(64);
+wave m = p * o;
+playWave(m);

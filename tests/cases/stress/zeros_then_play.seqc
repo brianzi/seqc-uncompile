@@ -1,0 +1,4 @@
+// Group B: zeros(0) declared then never used. Should be pruned (per IF-189 fix).
+wave dead = zeros(0);
+wave live = ones(64);
+playWave(live);

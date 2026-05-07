@@ -1,0 +1,8 @@
+// Group D: overlapping cut ranges joined together. Tests sample-data sharing/dedup.
+wave w = ones(64);
+wave lo = cut(w, 0, 31);
+wave mid = cut(w, 16, 47);
+wave hi = cut(w, 32, 63);
+wave j = join(lo, mid);
+wave k = join(j, hi);
+playWave(k);

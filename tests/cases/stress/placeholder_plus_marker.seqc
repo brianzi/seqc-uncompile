@@ -1,0 +1,5 @@
+// Group C: placeholder with marker bits + arith. Crosses IF-188 fix area.
+wave p = placeholder(64);
+wave m = marker(64, 1);
+wave s = p + m;
+playWave(s);

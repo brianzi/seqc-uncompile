@@ -1,0 +1,26 @@
+// Group A bonus: regalloc with intermediate var read-modify-write.
+// Read into temp, transform, write back; tests temp-vreg recycling.
+var t0 = getUserReg(0);
+var t1 = getUserReg(1);
+var t2 = getUserReg(2);
+var t3 = getUserReg(3);
+var t4 = getUserReg(4);
+var t5 = getUserReg(5);
+var t6 = getUserReg(6);
+var t7 = getUserReg(7);
+setUserReg(0, t0 + t1);
+setUserReg(1, t1 + t2);
+setUserReg(2, t2 + t3);
+setUserReg(3, t3 + t4);
+setUserReg(4, t4 + t5);
+setUserReg(5, t5 + t6);
+setUserReg(6, t6 + t7);
+setUserReg(7, t7 + t0);
+setUserReg(8, t0 * 2);
+setUserReg(9, t1 * 2);
+setUserReg(10, t2 * 2);
+setUserReg(11, t3 * 2);
+setUserReg(12, t4 * 2);
+setUserReg(13, t5 * 2);
+setUserReg(14, t6 * 2);
+setUserReg(15, t7 * 2);

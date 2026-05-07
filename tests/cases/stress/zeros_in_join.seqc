@@ -1,0 +1,5 @@
+// Group B: zeros(0) immediately consumed by cut/join (degenerate composition).
+wave z = zeros(0);
+wave o = ones(64);
+wave j = join(o, z);   // join with empty
+playWave(j);

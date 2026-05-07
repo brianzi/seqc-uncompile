@@ -1,0 +1,6 @@
+// Group C: chain of arith mixing placeholder + concrete + zero waves.
+wave p = placeholder(64);
+wave o = ones(64);
+wave z = zeros(64);
+wave r = p + o + z;
+playWave(r);

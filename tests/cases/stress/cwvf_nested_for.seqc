@@ -1,0 +1,9 @@
+// Group F: cwvf where wave is referenced in nested for-loops with constant bounds.
+wave a = ones(64);
+wave b = ones(64) * 0.5;
+for (cvar i = 0; i < 3; i = i + 1) {
+  for (cvar j = 0; j < 2; j = j + 1) {
+    playWave(a);
+    playWave(b);
+  }
+}

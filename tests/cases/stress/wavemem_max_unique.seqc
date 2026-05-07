@@ -1,0 +1,25 @@
+// Group J: many distinct wave shapes/lengths. Pushes wavemem accounting.
+wave w0  = ones(32);
+wave w1  = ones(48);
+wave w2  = ones(64);
+wave w3  = ones(80);
+wave w4  = ones(96);
+wave w5  = ones(112);
+wave w6  = ones(128);
+wave w7  = ones(160);
+wave w8  = ones(192);
+wave w9  = ones(224);
+wave w10 = ones(256);
+wave w11 = ones(320);
+wave w12 = ones(384);
+wave w13 = ones(448);
+wave w14 = ones(512);
+wave w15 = ones(640);
+wave w16 = ones(768);
+wave w17 = ones(896);
+wave w18 = ones(1024);
+wave w19 = ones(1280);
+playWave(w0); playWave(w1); playWave(w2); playWave(w3); playWave(w4);
+playWave(w5); playWave(w6); playWave(w7); playWave(w8); playWave(w9);
+playWave(w10); playWave(w11); playWave(w12); playWave(w13); playWave(w14);
+playWave(w15); playWave(w16); playWave(w17); playWave(w18); playWave(w19);

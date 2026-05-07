@@ -1,0 +1,38 @@
+// Fork of regalloc_branchy_long.seqc with `break` removed (SeqC switch
+// doesn't support break — original kept for that error-pass coverage).
+// Group A: regalloc pressure inside if/else-if chain (asymmetric branches).
+var sel = getUserReg(15);
+if (sel == 0) {
+  setUserReg(0, 1); setUserReg(1, 2); setUserReg(0, 3); setUserReg(1, 4);
+  setUserReg(0, 5); setUserReg(1, 6); setUserReg(0, 7); setUserReg(1, 8);
+  setUserReg(0, 9); setUserReg(1, 10); setUserReg(0, 11); setUserReg(1, 12);
+  setUserReg(0, 13); setUserReg(1, 14); setUserReg(0, 15); setUserReg(1, 0);
+  setUserReg(2, 17); setUserReg(3, 18); setUserReg(2, 19); setUserReg(3, 20);
+  setUserReg(2, 21); setUserReg(3, 22); setUserReg(2, 23); setUserReg(3, 24);
+  setUserReg(2, 25); setUserReg(3, 26); setUserReg(2, 27); setUserReg(3, 28);
+  setUserReg(2, 29); setUserReg(3, 30); setUserReg(2, 31); setUserReg(3, 0);
+  setUserReg(4, 33); setUserReg(5, 34); setUserReg(4, 35); setUserReg(5, 36);
+  setUserReg(4, 37); setUserReg(5, 38); setUserReg(4, 39); setUserReg(5, 40);
+} else if (sel == 1) {
+  setUserReg(2, 100); setUserReg(3, 101); setUserReg(2, 102); setUserReg(3, 103);
+  setUserReg(2, 104); setUserReg(3, 105); setUserReg(2, 106); setUserReg(3, 107);
+  setUserReg(2, 108); setUserReg(3, 109); setUserReg(2, 110); setUserReg(3, 111);
+  setUserReg(2, 112); setUserReg(3, 113); setUserReg(2, 114); setUserReg(3, 115);
+  setUserReg(2, 116); setUserReg(3, 117); setUserReg(2, 118); setUserReg(3, 119);
+  setUserReg(2, 120); setUserReg(3, 121); setUserReg(2, 122); setUserReg(3, 123);
+  setUserReg(2, 124); setUserReg(3, 125); setUserReg(2, 126); setUserReg(3, 127);
+  setUserReg(2, 128); setUserReg(3, 129); setUserReg(2, 130); setUserReg(3, 131);
+  setUserReg(2, 132); setUserReg(3, 133); setUserReg(2, 134); setUserReg(3, 135);
+  setUserReg(2, 136); setUserReg(3, 137); setUserReg(2, 138); setUserReg(3, 139);
+} else if (sel == 2) {
+  setUserReg(4, 200); setUserReg(5, 201); setUserReg(4, 202); setUserReg(5, 203);
+  setUserReg(4, 204); setUserReg(5, 205); setUserReg(4, 206); setUserReg(5, 207);
+} else {
+  setUserReg(6, 300); setUserReg(7, 301); setUserReg(6, 302); setUserReg(7, 303);
+  setUserReg(6, 304); setUserReg(7, 305); setUserReg(6, 306); setUserReg(7, 307);
+  setUserReg(6, 308); setUserReg(7, 309); setUserReg(6, 310); setUserReg(7, 311);
+  setUserReg(6, 312); setUserReg(7, 313); setUserReg(6, 314); setUserReg(7, 315);
+  setUserReg(6, 316); setUserReg(7, 317); setUserReg(6, 318); setUserReg(7, 319);
+  setUserReg(6, 320); setUserReg(7, 321); setUserReg(6, 322); setUserReg(7, 323);
+  setUserReg(6, 324); setUserReg(7, 325); setUserReg(6, 326); setUserReg(7, 327);
+}

@@ -1,0 +1,6 @@
+// Group D: chained zero-length cuts. Tests IF-176 fix composes.
+wave w = ones(64);
+wave a = cut(w, 5, 5);    // length 1 (post-IF-176: empty .wf)
+wave b = cut(a, 0, 0);    // length 1 of length 1
+playWave(b);
+playWave(w);

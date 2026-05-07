@@ -1,0 +1,5 @@
+// Group D: cut over the full range of a wave (effectively a no-op copy).
+wave w = ones(128);
+wave full = cut(w, 0, 127);
+playWave(full);
+playWave(w);
