@@ -1,0 +1,22 @@
+// Empty subroutine / subroutine with only braces / only one stmt.
+
+void empty_sub() {}
+
+void one_op_sub() {
+    setUserReg(0, 1);
+}
+
+void only_wait() {
+    waitWave();
+}
+
+empty_sub();
+empty_sub();
+one_op_sub();
+one_op_sub();
+only_wait();
+
+wave w = ones(64);
+playWave(1, 2, w);
+empty_sub();
+only_wait();

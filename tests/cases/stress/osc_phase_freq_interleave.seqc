@@ -1,0 +1,16 @@
+// resetOscPhase + setSinePhase + setOscFreq interleaving.
+
+setOscFreq(0, 100e6);
+setSinePhase(0, 0);
+resetOscPhase();
+playZero(64);
+setOscFreq(0, 200e6);
+incrementSinePhase(0, 0.5);
+playZero(64);
+resetOscPhase();
+setOscFreq(0, 50e6);
+setSinePhase(0, 1.0);
+playZero(64);
+resetOscPhase();
+playZero(64);
+waitWave();

@@ -1,0 +1,12 @@
+// AWG_RATE constants in expressions.
+
+playZero(64);
+playZero(64, AWG_RATE_2400MHZ);
+playZero(64, AWG_RATE_1200MHZ);
+playZero(64, AWG_RATE_600MHZ);
+playZero(64, AWG_RATE_300MHZ);
+playZero(64, AWG_RATE_150MHZ);
+playZero(64, AWG_RATE_75MHZ);
+playZero(64, AWG_RATE_37P5MHZ);
+playZero(64, AWG_RATE_18P75MHZ);
+waitWave();

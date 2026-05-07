@@ -1642,6 +1642,336 @@
           "name": "unary_chain_only_shfsg",
           "file": "stress/unary_chain_only.seqc",
           "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "switch_corners_hdawg",
+          "file": "stress/switch_corners.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "switch_corners_shfsg",
+          "file": "stress/switch_corners.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "switch_many_cases_hdawg",
+          "file": "stress/switch_many_cases.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "switch_many_cases_shfsg",
+          "file": "stress/switch_many_cases.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "switch_negative_cases_hdawg",
+          "file": "stress/switch_negative_cases.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "switch_negative_cases_shfsg",
+          "file": "stress/switch_negative_cases.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "comparison_chain_hdawg",
+          "file": "stress/comparison_chain.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "comparison_chain_shfsg",
+          "file": "stress/comparison_chain.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "const_expr_corners_hdawg",
+          "file": "stress/const_expr_corners.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_expr_corners_shfsg",
+          "file": "stress/const_expr_corners.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cvar_nested_hdawg",
+          "file": "stress/cvar_nested.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "block_scope_shadow_hdawg",
+          "file": "stress/block_scope_shadow.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "block_scope_shadow_shfsg",
+          "file": "stress/block_scope_shadow.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "subroutine_minimal_hdawg",
+          "file": "stress/subroutine_minimal.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_minimal_shfsg",
+          "file": "stress/subroutine_minimal.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "many_subroutines_hdawg",
+          "file": "stress/many_subroutines.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "many_subroutines_shfsg",
+          "file": "stress/many_subroutines.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_scalar_mul_hdawg",
+          "file": "stress/wave_scalar_mul.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_scalar_mul_shfsg",
+          "file": "stress/wave_scalar_mul.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_clipping_hdawg",
+          "file": "stress/wave_clipping.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_clipping_shfsg",
+          "file": "stress/wave_clipping.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "string_arg_hdawg",
+          "file": "stress/string_arg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "shfqa_repeat_startqa_shfqa",
+          "file": "stress/shfqa_repeat_startqa.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfqa_sweep_step_shfqa",
+          "file": "stress/shfqa_sweep_step.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "shfsg_osc_dense_shfsg",
+          "file": "stress/shfsg_osc_dense.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "hex_everywhere_hdawg",
+          "file": "stress/hex_everywhere.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "hex_everywhere_shfsg",
+          "file": "stress/hex_everywhere.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "comments_inline_hdawg",
+          "file": "stress/comments_inline.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "comments_inline_shfsg",
+          "file": "stress/comments_inline.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "block_comment_forms_hdawg",
+          "file": "stress/block_comment_forms.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "block_comment_forms_shfsg",
+          "file": "stress/block_comment_forms.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "repeat_small_n_hdawg",
+          "file": "stress/repeat_small_n.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "repeat_small_n_shfsg",
+          "file": "stress/repeat_small_n.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "playwave_wave_marker_mix_hdawg",
+          "file": "stress/playwave_wave_marker_mix.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "awg_rate_all_hdawg",
+          "file": "stress/awg_rate_all.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_div_mod_corners_hdawg",
+          "file": "stress/const_div_mod_corners.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "const_div_mod_corners_shfsg",
+          "file": "stress/const_div_mod_corners.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "div_by_zero_const_hdawg",
+          "file": "stress/div_by_zero_const.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "div_by_zero_const_shfsg",
+          "file": "stress/div_by_zero_const.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "big_else_if_40_hdawg",
+          "file": "stress/big_else_if_40.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "big_else_if_40_shfsg",
+          "file": "stress/big_else_if_40.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "marker_bits_zoo_hdawg",
+          "file": "stress/marker_bits_zoo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_in_switch_hdawg",
+          "file": "stress/subroutine_in_switch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_in_switch_shfsg",
+          "file": "stress/subroutine_in_switch.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "repeat_in_switch_hdawg",
+          "file": "stress/repeat_in_switch.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "repeat_in_switch_shfsg",
+          "file": "stress/repeat_in_switch.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "switch_in_repeat_hdawg",
+          "file": "stress/switch_in_repeat.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "switch_in_repeat_shfsg",
+          "file": "stress/switch_in_repeat.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ct_mixed_var_exec_hdawg",
+          "file": "stress/ct_mixed_var_exec.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_random_hdawg",
+          "file": "stress/wave_random.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_random_shfsg",
+          "file": "stress/wave_random.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfqa_int_weights_shfqa",
+          "file": "stress/shfqa_int_weights.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "sine_phase_dense_hdawg",
+          "file": "stress/sine_phase_dense.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_arith_with_play_hdawg",
+          "file": "stress/wave_arith_with_play.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_arith_with_play_shfsg",
+          "file": "stress/wave_arith_with_play.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_const_length_hdawg",
+          "file": "stress/wave_const_length.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_const_length_shfsg",
+          "file": "stress/wave_const_length.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "playwave_arg_forms_hdawg",
+          "file": "stress/playwave_arg_forms.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playwave_arg_forms_shfsg",
+          "file": "stress/playwave_arg_forms.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "osc_phase_freq_interleave_shfsg",
+          "file": "stress/osc_phase_freq_interleave.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "exec_sparse_repeat_hdawg",
+          "file": "stress/exec_sparse_repeat.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cvar_wave_dependent_hdawg",
+          "file": "stress/cvar_wave_dependent.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "while_var_loop_hdawg",
+          "file": "stress/while_var_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "while_var_loop_shfsg",
+          "file": "stress/while_var_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "userreg_value_zoo_hdawg",
+          "file": "stress/userreg_value_zoo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "userreg_value_zoo_shfsg",
+          "file": "stress/userreg_value_zoo.seqc",
+          "@base": "@shfsg8_sg"
         }
       ]
     }

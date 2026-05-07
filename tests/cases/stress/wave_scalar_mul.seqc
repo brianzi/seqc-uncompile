@@ -1,0 +1,16 @@
+// Wave operators: scalar * wave, wave * scalar.
+
+wave w = ones(64);
+
+wave w_x05 = 0.5 * w;
+wave w_x2  = 2.0 * w;        // would saturate, exercise it
+wave w_xneg = -1.0 * w;
+wave wm1 = w * 0.25;
+wave wm2 = w * 0.75;
+
+playWave(1, 2, w_x05);
+playWave(1, 2, w_x2);
+playWave(1, 2, w_xneg);
+playWave(1, 2, wm1);
+playWave(1, 2, wm2);
+waitWave();

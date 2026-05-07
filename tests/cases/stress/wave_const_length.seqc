@@ -1,0 +1,14 @@
+// Const wave declarations with const lengths.
+
+const N = 128;
+const M = N / 2;
+const K = N + M;
+
+wave w_n = ones(N);
+wave w_m = ones(M);
+wave w_k = ones(K);
+
+playWave(1, 2, w_n);
+playWave(1, 2, w_m);
+playWave(1, 2, w_k);
+waitWave();

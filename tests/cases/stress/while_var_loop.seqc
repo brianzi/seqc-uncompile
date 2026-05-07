@@ -1,0 +1,16 @@
+// playZero in tight loop with var increment.
+
+var i = 0;
+while (i < 10) {
+    playZero(32);
+    i = i + 1;
+}
+waitWave();
+
+i = 0;
+while (i < 5) {
+    playZero(64);
+    playZero(32);
+    i = i + 1;
+}
+waitWave();

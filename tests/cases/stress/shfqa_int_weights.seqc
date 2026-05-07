@@ -1,0 +1,13 @@
+// SHFQA: many concurrent integration weights.
+
+wave w_iw0 = ones(2048);
+wave w_iw1 = gauss(2048, 1024, 256);
+wave w_iw2 = sine(2048, 0.5, 0, 16);
+
+assignWaveIndex(w_iw0, 0);
+assignWaveIndex(w_iw1, 1);
+assignWaveIndex(w_iw2, 2);
+
+playZero(2048);
+startQA(QA_GEN_0, QA_INT_ALL, true, 0, 0x0);
+playZero(2048);

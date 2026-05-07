@@ -1,0 +1,13 @@
+// Wave operations chain mixed with playWave references.
+
+wave a = sine(64, 0.3, 0, 1);
+wave b = sine(64, 0.3, 1.57, 1);
+
+playWave(1, 2, a);
+wave c = a + b;
+playWave(1, 2, c);
+wave d = c - a;
+playWave(1, 2, d);
+wave e = a + a + b;
+playWave(1, 2, e);
+waitWave();

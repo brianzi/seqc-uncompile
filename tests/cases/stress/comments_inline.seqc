@@ -1,0 +1,21 @@
+// Mixed comments inline / between tokens / in expressions.
+
+var a /* inline */ = /* between = and value */ 5;
+setUserReg(0, a);
+
+setUserReg(1, /* arg comment */ a /* between args */ + /* op comment */ 1);
+
+playWave /* between fn name and ( */ ( 1 /* ch */ , /* sep */ 2 /* ch2 */ , ones(64) /* wave */ );
+waitWave();
+
+// Many sequential // comments
+// line 1
+// line 2
+// line 3
+// line 4
+// line 5
+setUserReg(2, 99);
+
+/* nested-looking but actually one block /* fake nested */ end
+   */
+setUserReg(3, 100);

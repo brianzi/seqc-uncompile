@@ -1,0 +1,11 @@
+// Comparison chain: a < b < c (not a real triple comparison —
+// parses as (a < b) < c).
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+
+setUserReg(3, a < b < c);
+setUserReg(4, a == b == c);
+setUserReg(5, a + b + c == 100);
+setUserReg(6, (a == b) == (b == c));

@@ -1,0 +1,34 @@
+// Switch with very many cases (sparse vs dense indices).
+
+var x = getUserReg(0);
+
+switch(x) {
+  case 0:  playZero(32);
+  case 1:  playZero(32);
+  case 2:  playZero(32);
+  case 3:  playZero(32);
+  case 4:  playZero(32);
+  case 5:  playZero(32);
+  case 6:  playZero(32);
+  case 7:  playZero(32);
+  case 8:  playZero(32);
+  case 9:  playZero(32);
+  case 10: playZero(32);
+  case 11: playZero(32);
+  case 12: playZero(32);
+  case 13: playZero(32);
+  case 14: playZero(32);
+  case 15: playZero(32);
+  default: playZero(64);
+}
+waitWave();
+
+// Sparse
+switch(x) {
+  case 0:    playZero(32);
+  case 100:  playZero(32);
+  case 1000: playZero(32);
+  case 10000:playZero(32);
+  default:   playZero(64);
+}
+waitWave();

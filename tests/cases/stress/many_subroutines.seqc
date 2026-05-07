@@ -1,0 +1,30 @@
+// Many subroutines, each used once — symbol table density.
+
+wave w = ones(32);
+
+void s00() { playWave(1, 2, w); }
+void s01() { playWave(1, 2, w); }
+void s02() { playWave(1, 2, w); }
+void s03() { playWave(1, 2, w); }
+void s04() { playWave(1, 2, w); }
+void s05() { playWave(1, 2, w); }
+void s06() { playWave(1, 2, w); }
+void s07() { playWave(1, 2, w); }
+void s08() { playWave(1, 2, w); }
+void s09() { playWave(1, 2, w); }
+void s10() { playWave(1, 2, w); }
+void s11() { playWave(1, 2, w); }
+void s12() { playWave(1, 2, w); }
+void s13() { playWave(1, 2, w); }
+void s14() { playWave(1, 2, w); }
+void s15() { playWave(1, 2, w); }
+void s16() { playWave(1, 2, w); }
+void s17() { playWave(1, 2, w); }
+void s18() { playWave(1, 2, w); }
+void s19() { playWave(1, 2, w); }
+
+s00(); s01(); s02(); s03(); s04();
+s05(); s06(); s07(); s08(); s09();
+s10(); s11(); s12(); s13(); s14();
+s15(); s16(); s17(); s18(); s19();
+waitWave();

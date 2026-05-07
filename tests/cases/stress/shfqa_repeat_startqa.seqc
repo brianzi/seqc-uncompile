@@ -1,0 +1,8 @@
+// SHFQA: setupQAFeedback corners + dense startQA inside repeat.
+
+configFreqSweep(0, 1e6, 1e9);
+
+repeat(50) {
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+    playZero(2048);
+}

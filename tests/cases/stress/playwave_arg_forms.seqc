@@ -1,0 +1,16 @@
+// playWave channel exec config flags.
+
+wave a = ones(64);
+wave b = gauss(64, 32, 8);
+
+// 4-arg variants vary
+playWave(1, a);
+waitWave();
+playWave(2, a);
+waitWave();
+playWave(1, a, 2, b);
+waitWave();
+playWave(a, b);   // implicit channels
+waitWave();
+playWave(a);
+waitWave();

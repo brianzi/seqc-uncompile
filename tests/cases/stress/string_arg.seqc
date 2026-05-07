@@ -1,0 +1,7 @@
+// String literals as args (function name in setUserReg-like contexts).
+
+wave w = ones(64);
+
+assignWaveIndex("wname", 1, 2, w, 0);   // string-name CT entry
+executeTableEntry(0);
+waitWave();

@@ -1,0 +1,16 @@
+// Wave with explicit channel marker bits combinations.
+
+wave w0 = marker(64, 0);
+wave w1 = marker(64, 1);
+wave w2 = marker(64, 2);
+wave w3 = marker(64, 3);
+wave w4 = marker(64, 4);  // out of typical 0..3 range
+wave w7 = marker(64, 7);
+
+playWave(1, 2, w0);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+playWave(1, 2, w7);
+waitWave();

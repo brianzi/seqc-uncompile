@@ -1,0 +1,18 @@
+// cvar (compile-time loop variable) corners.
+
+cvar i;
+for (i = 0; i < 4; i = i + 1) {
+    wave w_i = ones(32 + i * 16);
+    playWave(1, 2, w_i);
+}
+waitWave();
+
+cvar j;
+for (j = 0; j < 3; j = j + 1) {
+    cvar k;
+    for (k = 0; k < 2; k = k + 1) {
+        wave w_jk = ones(32 + (j * 2 + k) * 16);
+        playWave(1, 2, w_jk);
+    }
+}
+waitWave();

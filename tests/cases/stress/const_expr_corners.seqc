@@ -1,0 +1,31 @@
+// Const expression evaluation corners.
+
+const A = 5;
+const B = A + 3;
+const C = A * B;
+const D = (A + B) * C;
+const E = 1 << 10;
+const F = E - 1;
+const G = ~0;
+const H = -1;
+const I = A < B;
+const J = (A == 5) ? 100 : 200;
+
+var x = A;
+var y = B;
+var z = C;
+var w = D;
+setUserReg(0, x);
+setUserReg(1, y);
+setUserReg(2, z);
+setUserReg(3, w);
+setUserReg(4, E);
+setUserReg(5, F);
+setUserReg(6, G);
+setUserReg(7, H);
+setUserReg(8, I);
+setUserReg(9, J);
+
+wave wv = ones(B);
+playWave(1, 2, wv);
+waitWave();

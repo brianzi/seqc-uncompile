@@ -1,0 +1,37 @@
+// Repeat unrolling at small N (different small constants).
+
+repeat(0) {
+    playZero(32);
+}
+playZero(64);
+waitWave();
+
+repeat(1) {
+    playZero(32);
+}
+waitWave();
+
+repeat(2) {
+    playZero(32);
+}
+waitWave();
+
+repeat(3) {
+    playZero(32);
+}
+waitWave();
+
+repeat(7) {
+    playZero(32);
+}
+waitWave();
+
+repeat(15) {
+    playZero(32);
+}
+waitWave();
+
+repeat(16) {
+    playZero(32);
+}
+waitWave();

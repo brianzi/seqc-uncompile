@@ -1,0 +1,15 @@
+// Subroutine in switch arm.
+
+wave w = ones(64);
+
+void play_short() { playWave(1, 2, w); }
+void play_long()  { playWave(1, 2, w); playWave(1, 2, w); }
+
+var x = getUserReg(0);
+switch(x) {
+  case 0: play_short();
+  case 1: play_long();
+  case 2: play_short();
+  default: play_long();
+}
+waitWave();

@@ -1,0 +1,17 @@
+// hexadecimal in many places.
+
+setUserReg(0, 0x00);
+setUserReg(1, 0x01);
+setUserReg(2, 0xff);
+setUserReg(3, 0xFF);   // case
+setUserReg(4, 0xCAFE);
+setUserReg(5, 0xDEADBEEF);
+setUserReg(6, 0x80000000);
+setUserReg(7, 0x7FFFFFFF);
+setDIO(0xAA55AA55);
+
+var x = 0xff & 0x0f;
+setUserReg(8, x);
+
+const C = 0xCAFE;
+setUserReg(9, C);

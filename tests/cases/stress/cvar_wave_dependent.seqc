@@ -1,0 +1,8 @@
+// Wave that depends on cvar inside cvar loop body.
+
+cvar i;
+for (i = 0; i < 4; i = i + 1) {
+    wave w = gauss(64, 32 + i * 4, 8);
+    playWave(1, 2, w);
+}
+waitWave();

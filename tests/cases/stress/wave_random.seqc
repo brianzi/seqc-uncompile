@@ -1,0 +1,5 @@
+// Wave from rand: rand(N) builtin if exists.
+
+wave w_r = randomGauss(128, 0.5);
+playWave(1, 2, w_r);
+waitWave();

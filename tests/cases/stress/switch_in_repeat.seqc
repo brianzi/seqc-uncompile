@@ -1,0 +1,12 @@
+// Switch inside repeat.
+
+var x = getUserReg(0);
+
+repeat(5) {
+    switch(x) {
+        case 0: playZero(32);
+        case 1: playZero(64);
+        default: playZero(96);
+    }
+}
+waitWave();

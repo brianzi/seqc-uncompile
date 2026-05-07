@@ -1,0 +1,28 @@
+// Long sequence of setUserReg with diverse values; tests const
+// pool / load batching.
+
+setUserReg(0, 1);
+setUserReg(1, 2);
+setUserReg(2, 4);
+setUserReg(3, 8);
+setUserReg(4, 16);
+setUserReg(5, 32);
+setUserReg(6, 64);
+setUserReg(7, 128);
+setUserReg(8, 256);
+setUserReg(9, 512);
+setUserReg(10, 1024);
+setUserReg(11, 2048);
+setUserReg(12, 4096);
+setUserReg(13, 8192);
+setUserReg(14, 16384);
+setUserReg(15, 32768);
+
+setUserReg(0, 0);
+setUserReg(1, 65535);
+setUserReg(2, 65536);
+setUserReg(3, 100000);
+setUserReg(4, 1000000);
+setUserReg(5, 10000000);
+setUserReg(6, 0x12345678);
+setUserReg(7, 0xfedcba98);

@@ -1,0 +1,23 @@
+// const division and modulo (legal: const variants).
+
+const A = 100;
+const B = 7;
+
+const Q = A / B;
+const R = A % B;
+const D2 = A / 2;
+const M2 = A % 2;
+const ZeroM = 0 % B;
+const NegD = -100 / 7;
+const NegM = -100 % 7;
+
+setUserReg(0, Q);
+setUserReg(1, R);
+setUserReg(2, D2);
+setUserReg(3, M2);
+setUserReg(4, ZeroM);
+setUserReg(5, NegD);
+setUserReg(6, NegM);
+
+const E = (A + B) / (A - B);
+setUserReg(7, E);

@@ -1,0 +1,18 @@
+// Many sequential setSinePhase / incrementSinePhase (HDAWG only).
+
+setSinePhase(0, 0.0);
+playZero(32);
+setSinePhase(0, 1.57);
+playZero(32);
+setSinePhase(0, 3.14);
+playZero(32);
+setSinePhase(1, 0.0);
+playZero(32);
+
+incrementSinePhase(0, 0.1);
+playZero(32);
+incrementSinePhase(0, 0.2);
+playZero(32);
+incrementSinePhase(0, -0.1);
+playZero(32);
+waitWave();

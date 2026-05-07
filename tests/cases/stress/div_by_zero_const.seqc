@@ -1,0 +1,5 @@
+// Division by zero (const).
+
+const Z = 0;
+const X = 5 / Z;
+setUserReg(0, X);

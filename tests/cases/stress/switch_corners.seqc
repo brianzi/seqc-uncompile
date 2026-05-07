@@ -1,0 +1,30 @@
+// Switch with empty case body, only default, single case.
+
+var x = getUserReg(0);
+
+switch(x) {
+  case 0:
+  case 1:
+  case 2:
+  default:
+    playZero(32);
+}
+waitWave();
+
+switch(x) {
+  default:
+    playZero(64);
+}
+waitWave();
+
+switch(x) {
+  case 5:
+    playZero(32);
+}
+waitWave();
+
+// Empty switch
+switch(x) {
+}
+playZero(64);
+waitWave();

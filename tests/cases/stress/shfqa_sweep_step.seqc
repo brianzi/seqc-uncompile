@@ -1,0 +1,19 @@
+// SHFQA freq sweep + step combos.
+
+configFreqSweep(0, 1e6, 1e9);
+
+resetSweepStep(0);
+setSweepStep(0, 0);
+playZero(2048);
+
+setSweepStep(0, 1);
+playZero(2048);
+
+setSweepStep(0, 50);
+playZero(2048);
+
+incrementSweepStep(0);
+playZero(2048);
+
+incrementSweepStep(0);
+playZero(2048);

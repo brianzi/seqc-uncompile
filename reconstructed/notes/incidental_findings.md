@@ -3982,3 +3982,68 @@ setUserReg(0, 1, 2);
    chains; verify the param counts match what the template at
    `error_messages.cpp` line ~139, 196, 224 etc. declares.
 2. Likely a single misuse pattern (call site adds an extra `% x`).
+
+## IF-179  boost::too_few_args exception leaks from marker(len, bits>=4) warning path
+
+**Status**: open
+**Severity**: bug (user-facing — recon hard-errors where orig succeeds with a warning)
+**Found**: stress phase 55 (`marker_bits_zoo.seqc` HDAWG)
+
+### Symptom
+
+For `marker(64, 4)` / `marker(64, 7)` (any markerValue >= 4),
+orig accepts the input, emits a warning, and continues compilation.
+Recon throws a hard compilation error:
+
+```
+Compilation failed: Compiler Error (line: 7): boost::too_few_args:
+format-string referred to more arguments than were passed
+Compiler Error (line: 8): boost::too_few_args: format-string ...
+```
+
+The opposite direction of IF-178 (which is `too_many_args`).  Same
+underlying disease as IF-175 / IF-178: ErrorMessages format-template
+arity does not match the call site's argument count.
+
+### Root cause
+
+`reconstructed/src/waveform/waveform_generator.cpp:613` —
+`markerImpl()` warning path:
+
+```cpp
+std::string msg = ErrorMessages::format(
+    ValueCapped,
+    markerValue, markerValue & 3);     // 2 args
+```
+
+But the format template (`error_messages.cpp:234`,
+`m[99] = ValueCapped`) has **three** placeholders:
+
+```
+"%3% value %1% is larger than the maximum possible value 3, will be capped to %2%"
+```
+
+`%3%` is the function name ("marker" / "mask").  Call site is missing
+the third argument, so `boost::format` raises `too_few_args`.  Because
+this happens inside the warning-callback path, the exception is not
+caught locally and propagates as a fatal compilation error — flipping
+"warn and continue" into "hard error".
+
+### Minimal repro
+
+```seqc
+wave w = marker(64, 4);
+playWave(1, 2, w);
+waitWave();
+```
+
+### Recommended next step
+
+1. Add `funcName` as the third argument to the `format(ValueCapped, ...)`
+   call at `waveform_generator.cpp:613`.
+2. Grep for other `ErrorMessages::format(ValueCapped, ...)` call sites
+   (e.g. cap-value diagnostics in other builtins) and audit the same
+   way.
+3. Once fixed, `marker_bits_zoo_hdawg` should pass with a warning-diff
+   (or byte-identical if warnings aren't compared); add a follow-up
+   stress case for `mask(N, M>=4)` to cover the `isMask=true` branch.

@@ -1,0 +1,13 @@
+// Switch on negative cases.
+
+var x = getUserReg(0);
+
+switch(x) {
+  case -1: playZero(32);
+  case -2: playZero(32);
+  case -100: playZero(32);
+  case 0:  playZero(32);
+  case 1:  playZero(32);
+  default: playZero(64);
+}
+waitWave();

@@ -1,0 +1,25 @@
+// Block comment forms.
+
+/**/
+/* */
+/*x*/
+/* one line */
+/**********/
+/* multi
+   line */
+
+setUserReg(0, 1);
+
+/*
+ *
+ * formatted block
+ *
+ */
+
+setUserReg(1, 2);
+
+/* trailing */ setUserReg(2, 3);
+
+setUserReg(3, /* mid */ 4);
+
+setUserReg(4, 5); /* tail */

@@ -1,0 +1,14 @@
+// Wave saturation / amplitude clipping.
+
+wave w = ones(64);
+
+wave clip_pos = 5.0 * w;
+wave clip_neg = -5.0 * w;
+wave just_at  = 1.0 * w;
+wave just_neg = -1.0 * w;
+
+playWave(1, 2, clip_pos);
+playWave(1, 2, clip_neg);
+playWave(1, 2, just_at);
+playWave(1, 2, just_neg);
+waitWave();

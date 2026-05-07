@@ -1,0 +1,17 @@
+// CT placeholder + concrete + same-index reassign + var-index exec.
+
+wave ph = placeholder(64);
+wave g  = gauss(64, 32, 8);
+
+assignWaveIndex(1, 2, ph, 0);
+assignWaveIndex(1, 2, g,  1);
+
+var i = 0;
+executeTableEntry(i);
+i = 1;
+executeTableEntry(i);
+
+for (var j = 0; j < 2; j = j + 1) {
+    executeTableEntry(j);
+}
+waitWave();

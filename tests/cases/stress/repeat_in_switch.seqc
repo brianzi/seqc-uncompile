@@ -1,0 +1,13 @@
+// repeat inside switch arm.
+
+var x = getUserReg(0);
+
+switch(x) {
+  case 0:
+    repeat(3) { playZero(32); }
+  case 1:
+    repeat(5) { playZero(32); }
+  default:
+    repeat(2) { playZero(64); }
+}
+waitWave();

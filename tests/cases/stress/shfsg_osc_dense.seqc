@@ -1,0 +1,15 @@
+// SHFSG: dense oscillator switching + phase + amplitude on sg.
+
+setOscFreq(0, 100e6);
+playZero(64);
+setOscFreq(0, 200e6);
+playZero(64);
+setOscFreq(1, 50e6);
+playZero(64);
+configFreqSweep(0, 10e6, 100e6);
+playZero(64);
+setSweepStep(0, 5);
+playZero(64);
+resetOscPhase();
+playZero(64);
+waitWave();

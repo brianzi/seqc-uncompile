@@ -5058,5 +5058,86 @@ See `incidental_findings.md` IF-178 (sister of IF-175).
 
 ### 54.4 — Phase 54 wrap-up
 
+- [x] Sub-phase wrap-up commit (a7de620)
+- [x] Push
+
+## Phase 55: Stress suite expansion (round 8) + IF-179
+
+Goal: 40 new stress angles spanning marker-bit corners
+(`marker(N, k>=4)`), wave-builtin combinations (clipping, scalar
+mul, arithmetic+play interleave, random/Gaussian variants,
+const-length zoo, computed wave length, wave-arith with play),
+control-flow corners (switch with negative cases, switch-many-cases,
+switch-corners, switch-in-repeat, repeat-in-switch, subroutine-in-
+switch, big_else_if_40, while-with-var-bound, repeat with very-small
+N, cvar nested + wave-dependent), command-table mixed-mode (var/exec
+interleave, mixed-mode CT), playWave argument forms (channel/order
+permutations, wave+marker mix), subroutine zoo (minimal, many,
+recursion, in-switch), oscillator/sine churn (osc_phase_freq
+interleave, sine-phase-dense, shfsg-osc-dense), SHFQA-specific
+(int-weights, repeat-startQA, sweep-step), source-form corners
+(comments-inline, block-comment-forms, hex-everywhere, string-arg),
+const-expression corners (const_div_mod, const_expr_corners,
+div-by-zero-const), block-scope shadowing, AWG rate zoo, exec-sparse-
+repeat, userreg value zoo.
+
+Suite scores after Phase 55:
+  main suite:   1600/1600 passing
+  stress suite: 349/379 passing (after manifest additions)
+
+New regressions surfaced:
+
+  IF-179 — `boost::too_few_args` exception leaks from
+          `marker(len, bits>=4)` warning path.  Sister of IF-175 /
+          IF-178: `markerImpl()` calls `ErrorMessages::format(
+          ValueCapped, markerValue, markerValue & 3)` with 2 args,
+          but the format template `m[99]` has 3 placeholders
+          (`%1% %2% %3%`).  Missing `funcName` ("marker"/"mask")
+          third argument.  Because the throw happens inside the
+          warning path, it converts orig's "warn-and-continue" into
+          recon's "hard error".  Root cause precisely localized.
+
+Existing-IF dupes (kept as additional repros, not new findings):
+  - `assign_same_wave_multi`, `exec_table_var_index`, `ct_high_index`,
+    `subroutine_recursion`, `exec_sparse_repeat`, `subroutine_minimal`
+    → reproduce IF-159 family / pass-via-error consistency.
+  - `oscfreq_dense_shfqc` → reproduces IF-167 (setOscFreq on SHFQC sg).
+  - `large_repeat_constants` → likely IF-163 family (large repeat
+    unroll limit).
+  - `chirp_sinc_extreme` → reproduces IF-173 (chirp 1-LSB sample diff).
+
+Angles probed-and-clean (byte-identical pass):
+awg_rate_all, big_else_if_40, block_comment_forms, block_scope_shadow,
+comments_inline, comparison_chain, const_div_mod_corners,
+const_expr_corners, ct_mixed_var_exec, cvar_nested,
+cvar_wave_dependent, hex_everywhere, many_subroutines,
+osc_phase_freq_interleave (HDAWG), playwave_arg_forms,
+playwave_wave_marker_mix, repeat_in_switch, repeat_small_n,
+shfsg_osc_dense, sine_phase_dense, subroutine_in_switch,
+switch_corners, switch_in_repeat, switch_many_cases,
+switch_negative_cases, userreg_value_zoo, wave_arith_with_play,
+wave_clipping, wave_const_length, wave_scalar_mul, while_var_loop,
+div_by_zero_const (both error consistently),
+shfqa_sweep_step / shfqa_int_weights / shfqa_repeat_startqa
+(all (error) — consistency probes),
+string_arg / wave_random / heavy_comments (both error consistently),
+osc_phase_freq_interleave_shfsg (error consistency).
+
+### 55.1 — IF-179: boost::too_few_args from marker() warning path
+
+See `incidental_findings.md` IF-179.  Root cause already
+localized: `waveform_generator.cpp:613` missing `funcName` arg.
+
+- [ ] Add `funcName` as 3rd arg to `format(ValueCapped, ...)`
+      at `waveform_generator.cpp:613`
+- [ ] Grep all other `format(ValueCapped, ...)` sites; audit
+      param counts
+- [ ] Verify `marker_bits_zoo_hdawg` passes (or is warning-only diff)
+- [ ] Add follow-up `mask(N, M>=4)` stress case for the `isMask=true`
+      branch
+- [ ] Update IF-179 to `fixed`
+
+### 55.2 — Phase 55 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

@@ -1,0 +1,10 @@
+// playWave with mixed wave/marker on same channel arg form.
+
+wave g = gauss(64, 32, 8);
+wave m = marker(64, 1);
+
+playWave(1, g + m, 2, g - m);
+waitWave();
+
+playWave(1, g, 2, m);
+waitWave();

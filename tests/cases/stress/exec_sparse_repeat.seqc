@@ -1,0 +1,24 @@
+// Long chain of executeTableEntry to sparse / repeating indices.
+
+wave w = gauss(64, 32, 8);
+assignWaveIndex(1, 2, w, 0);
+assignWaveIndex(1, 2, w, 5);
+assignWaveIndex(1, 2, w, 10);
+assignWaveIndex(1, 2, w, 50);
+assignWaveIndex(1, 2, w, 100);
+
+executeTableEntry(0);
+executeTableEntry(5);
+executeTableEntry(10);
+executeTableEntry(50);
+executeTableEntry(100);
+executeTableEntry(0);
+executeTableEntry(0);
+executeTableEntry(100);
+executeTableEntry(0);
+executeTableEntry(50);
+executeTableEntry(0);
+executeTableEntry(10);
+executeTableEntry(5);
+executeTableEntry(0);
+waitWave();
