@@ -4695,9 +4695,54 @@ the funcName from the caller's context (already known locally as a
 
 ## IF-188  placeholder() + concrete wave produces wrong section type
 
-**Status**: open
+**Status**: FIXED in phase 58.C (SA-58C)
 **Severity**: bug (byte-mismatch — orig succeeds, recon emits diff bytes)
 **Found**: phase 57.C.1 follow-up probe (`placeholder_arith.seqc`)
+
+### Resolution
+
+Removed bogus early `if (first.reserveOnly_) return first;`
+short-circuit at the top of `WaveformGenerator::add` in
+`waveform_generator_dsp.cpp`. The previous comment claimed it
+"matches the disassembly's reserveOnly_ short-circuit" — but
+disassembly review of `add` at 0x256ff0 shows **no** early
+reserveOnly check. The `testb $0x1, -0x60(%rbp)` near the top
+(0x257103) is an SSO-bit test on a libc++ string allocated by
+`Value::toString()` (the parameter-name string), not a
+reserveOnly_ test. The actual reserveOnly_ check (offset 0xca on
+Signal) lives at 0x257663 inside the per-operand merge loop and
+simply triggers checkAllocation-style zero-fill (matches recon's
+`first.checkAllocation()` pre-loop and per-operand
+`s.checkAllocation()` calls).
+
+After removing the short-circuit, `placeholder(64) + ones(64)`
+correctly materializes: placeholder is zero-filled by
+checkAllocation, ones contributes 1.0 per sample, the result
+Signal is constructed from the samples-vector ctor (which sets
+reserveOnly_=false), so .wf___add_2_3 emits PROGBITS with full
+sample data matching orig (32767/0x7fff per sample).
+
+### Verification
+
+- `stress:placeholder_arith_hdawg` PASS (was FAIL).
+- Stress suite: 440/444 (was 439/444, +1).
+- Main suite: 1600/1600 (no regression).
+- `scale` (operator*-by-scalar) keeps its early reserveOnly
+  short-circuit because `scalar_mul_placeholder` (the only
+  scalar-only operand case) still passes — reserveOnly
+  propagation is correct there. If a future probe finds a
+  `placeholder * concrete-wave` case that breaks, audit `scale`
+  similarly.
+
+### Sibling audit
+- `subtract`: not present as a separate method in DSP source
+  (no caller seems to need it). No-op.
+- `multiply` (0x258750): inspected briefly — uses an
+  `allReserveOnly` accumulator and pads via inlined
+  `checkAllocation`, no top-level short-circuit. Likely correct
+  for mixed cases; left untouched.
+- `join` (0x255da0): IF-181 already removed its short-circuit.
+- Fix area: `add` only.
 
 ### Symptom
 
@@ -4712,7 +4757,7 @@ recon=8 i.e. SHT_NOBITS).  Sample data length matches but recon
 emits a NOBITS section (deferred allocation) where orig emits a
 real PROGBITS payload.
 
-### Probable root cause
+### Probable root cause (superseded — see Resolution above)
 
 After IF-181 was fixed, `join()` no longer short-circuits on
 reserveOnly operands.  The same short-circuit pattern likely exists
@@ -4720,16 +4765,6 @@ in the binary-arithmetic operators (`Signal operator+`, `operator*`,
 etc.) — they probably propagate `reserveOnly_=true` when one operand
 is reserveOnly, instead of materializing.  Orig presumably forces
 materialization once a non-reserveOnly operand participates.
-
-### Recommended next step
-
-Audit `Signal operator+`, `operator-`, `operator*` and the scalar
-overloads for reserveOnly handling.  Compare against the orig binary
-the way IF-181 was — GDB-trace orig running `placeholder(64)+ones(64)`
-and observe whether the resulting Signal has `reserveOnly_` set.
-The sibling probes (`cut_placeholder.seqc`,
-`scalar_mul_placeholder.seqc`) currently pass, suggesting the bug is
-specific to the binary-additive path with one concrete operand.
 
 
 ## IF-189  fpgaMemoryUsed counts zero-length waves
@@ -4803,3 +4838,25 @@ zero-wave handling. The zero-wave gets a special fixed address
 slot and must be prefetched separately.
 
 **Status**: open. To fix in Phase 58.
+
+
+## IF-191  long_source: regalloc allocates beyond registerDepth=16 on very large input
+
+Source: Phase 58.B post-mortem of IF-186 fix.
+
+**Symptom**: `long_source_{hdawg,shfsg}` stress test errors with
+`Assembler message at 1152 : register does not exist` (and similar
+at 1153). Orig compiles successfully. After IF-186 fix at
+awg_assembler_opcodes.cpp:128 (changed `get(4)` → `get(3)`), the
+diagnostic message text is now correct but the underlying error is
+real: recon's register allocator emits an out-of-range register
+reference at instruction index ~1152.
+
+**Hypothesis**: recon's regalloc / register-spilling differs from
+orig on very long sources. Orig spills earlier or reuses registers
+more aggressively; recon runs out at instruction ~1152 of the
+1500+ instruction source.
+
+**Fix area**: register allocator in `reconstructed/src/codegen/`.
+
+**Status**: open. To fix in Phase 58.E.

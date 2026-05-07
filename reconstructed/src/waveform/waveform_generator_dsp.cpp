@@ -125,9 +125,11 @@ Signal WaveformGenerator::add(std::vector<Value> const& args) {             // 0
     }
 
     Signal first = readWave(args[0], "wave_1", -1, "add")->signal;
-    if (first.reserveOnly_) {
-        return first;  // matches the disassembly's reserveOnly_ short-circuit
-    }
+    // NOTE: orig 0x256ff0 has NO early reserveOnly short-circuit. The
+    // reserveOnly check at 0x257663 is inside the per-operand loop and
+    // simply triggers checkAllocation-style zero-fill. The previous
+    // recon short-circuit was a misread of an SSO-bit test (libc++
+    // string is_long bit at -0x60). See IF-188.
     first.checkAllocation();
 
     std::vector<double> sum = first.samples_;
