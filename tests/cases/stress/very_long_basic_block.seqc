@@ -1,0 +1,53 @@
+// Long flat sequence — single big basic block, no control flow.
+// Exercises straight-line codegen with many sequential operations.
+
+wave w = ones(64);
+
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+playZero(32);
+playWave(1, 2, w);
+waitWave();
+
+setUserReg(0, 1);
+setUserReg(1, 2);
+setUserReg(2, 3);
+setUserReg(3, 4);
+setUserReg(4, 5);
+setUserReg(5, 6);
+setUserReg(6, 7);
+setUserReg(7, 8);
+
+setTrigger(1);
+setTrigger(2);
+setTrigger(0);
+
+playWave(1, 2, w);
+waitWave();

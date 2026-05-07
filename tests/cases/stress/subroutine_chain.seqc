@@ -1,0 +1,55 @@
+// Define many subroutines and call them in various orders.
+
+wave w0 = gauss(128, 64, 16);
+wave w1 = drag(128, 64, 16, 0.2);
+wave w2 = ones(128);
+
+void play_a() {
+    playWave(1, 2, w0);
+    waitWave();
+}
+
+void play_b() {
+    playWave(1, 2, w1);
+    waitWave();
+}
+
+void play_c() {
+    playWave(1, 2, w2);
+    waitWave();
+}
+
+void play_seq() {
+    play_a();
+    play_b();
+    play_c();
+}
+
+void play_alt() {
+    play_c();
+    play_a();
+    play_b();
+}
+
+void play_double() {
+    play_seq();
+    play_alt();
+}
+
+play_a();
+play_b();
+play_c();
+
+play_seq();
+play_alt();
+
+for (var i = 0; i < 4; i = i + 1) {
+    play_double();
+}
+
+var f = getUserReg(0);
+if (f == 1) {
+    play_seq();
+} else {
+    play_alt();
+}

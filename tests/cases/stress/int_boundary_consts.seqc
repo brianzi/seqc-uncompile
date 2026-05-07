@@ -1,0 +1,26 @@
+// Boundaries on integer constants used in various contexts.
+
+setUserReg(0, 0);
+setUserReg(1, 1);
+setUserReg(2, -1);
+setUserReg(3, 0x7fffffff);
+setUserReg(4, -2147483648);
+setUserReg(5, 32767);
+setUserReg(6, -32768);
+setUserReg(7, 65535);
+setUserReg(8, 65536);
+setUserReg(9, 0xffff);
+setUserReg(10, 0xffffff);
+setUserReg(11, 0xffffffff);
+
+var a = 0x7fffffff;
+var b = -2147483648;
+var c = a + 1;        // overflow at compile time? (likely ok per ziasm)
+var d = b - 1;
+var e = a >> 1;
+var f = b >> 1;
+
+setUserReg(12, a);
+setUserReg(13, b);
+setUserReg(14, e);
+setUserReg(15, f);

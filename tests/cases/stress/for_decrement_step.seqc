@@ -1,0 +1,26 @@
+// for-loop with decrementing counter and complex init/step.
+
+wave w = ones(64);
+
+for (var i = 10; i > 0; i = i - 1) {
+    playWave(1, 2, w);
+}
+waitWave();
+
+for (var j = 100; j > 0; j = j - 5) {
+    playZero(32);
+}
+waitWave();
+
+for (var k = 0; k < 32; k = k + 4) {
+    playZero(16);
+}
+waitWave();
+
+// Nested decrementing
+for (var a = 4; a > 0; a = a - 1) {
+    for (var b = 4; b > 0; b = b - 1) {
+        playZero(16);
+    }
+}
+waitWave();

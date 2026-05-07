@@ -1,0 +1,26 @@
+// SHFQA feedback path: getFeedback then conditional play.
+
+waitDigTrigger(1);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+
+var fb = getFeedback(ZSYNC_DATA_PQSC_REGISTER, 0);
+
+if (fb == 0) {
+    playZero(192);
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+} else {
+    playZero(384);
+    startQA(QA_GEN_1, QA_INT_1, true, 0, 0x0);
+}
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    waitDigTrigger(1);
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+    var v = getFeedback(ZSYNC_DATA_PQSC_REGISTER, 0);
+    if (v == 1) {
+        playZero(192);
+    } else {
+        playZero(384);
+    }
+}

@@ -1,0 +1,19 @@
+// Many waitWave() calls in succession; exercises wait sequencing.
+
+wave w = gauss(128, 64, 16);
+
+playWave(1, 2, w);
+waitWave();
+waitWave();
+waitWave();
+waitWave();
+
+playWave(1, 2, w);
+waitWave();
+waitWave();
+
+for (var i = 0; i < 4; i = i + 1) {
+    playWave(1, 2, w);
+    waitWave();
+    waitWave();
+}

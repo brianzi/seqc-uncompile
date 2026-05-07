@@ -1,0 +1,29 @@
+// Variant of arith_chain_pressure with fewer temporaries, kept under
+// the regalloc free-register limit. Isolates straight-line arithmetic
+// codegen vs the regalloc-pressure variant (which exposes IF-165:
+// orig vs recon error message format differs — orig has 'Compiler
+// Error (line: N)' prefix and a line number, recon has only the bare
+// error string).
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+var d = getUserReg(3);
+
+var t1 = a + b;
+var t2 = c + d;
+var t3 = t1 + t2;
+var t4 = (a * 2) + (b * 4);
+var t5 = (c << 1) | (d >> 1);
+var t6 = (t1 | t2) & 0xffff;
+var t7 = (t3 + t4) - (t5 + t6);
+var t8 = t7 + a;
+
+setUserReg(4, t1);
+setUserReg(5, t2);
+setUserReg(6, t3);
+setUserReg(7, t4);
+setUserReg(8, t5);
+setUserReg(9, t6);
+setUserReg(10, t7);
+setUserReg(11, t8);

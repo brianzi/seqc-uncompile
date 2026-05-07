@@ -1,0 +1,35 @@
+// Heavy comments + long whitespace blocks — exercises lexer.
+
+// =====================================================================
+// This is a block of comments meant to stress the lexer.
+// Many comments, indentation, mixed tab/space, blank lines.
+// =====================================================================
+
+   //   indented comment
+        // deeply indented comment
+//
+
+/*
+ * Block comments / star blocks.
+ * Multiple lines.
+ *
+ * With blank lines inside.
+ */
+
+wave w = ones(64); // trailing comment
+//
+// More gap.
+//
+playWave(1, 2, w); /* inline block comment */ waitWave();
+
+/*
+multi-line comment with code-like content:
+playWave(1, 2, w);
+waitWave();
+*/
+
+// Edge case: comment containing /* and */ markers
+// like /* this */ and /*nested*/
+
+playWave(1, 2, w);  // another trailing
+waitWave();

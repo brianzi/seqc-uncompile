@@ -1,0 +1,36 @@
+// Long arithmetic expression chain — exercises register allocator
+// for many simultaneous temporaries.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+var d = getUserReg(3);
+
+var t1 = a + b;
+var t2 = c + d;
+var t3 = t1 + t2;
+var t4 = (a * 2) + (b * 4);
+var t5 = (c << 1) | (d >> 1);
+var t6 = (t1 | t2) & 0xffff;
+var t7 = (t3 + t4) - (t5 + t6);
+var t8 = t7 + a;
+var t9 = t8 - b;
+var t10 = t9 * 2;
+var t11 = t10 + c;
+var t12 = t11 - d;
+var t13 = (t12 | a) & b;
+var t14 = (t13 << 2) + c;
+var t15 = (t14 >> 1) - d;
+
+setUserReg(4, t1);
+setUserReg(5, t2);
+setUserReg(6, t3);
+setUserReg(7, t4);
+setUserReg(8, t5);
+setUserReg(9, t6);
+setUserReg(10, t7);
+setUserReg(11, t8);
+setUserReg(12, t9);
+setUserReg(13, t10);
+setUserReg(14, t11);
+setUserReg(15, t12);

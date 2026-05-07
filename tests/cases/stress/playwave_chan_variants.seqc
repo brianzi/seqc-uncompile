@@ -1,0 +1,20 @@
+// playWave channel arg combinations: (1, w), (2, w), (1, 2, w), and
+// dual-wave (1, w1, 2, w2).
+
+wave w  = gauss(128, 64, 16);
+wave w2 = drag(128, 64, 16, 0.2);
+
+playWave(1, w);
+playWave(2, w);
+playWave(1, 2, w);
+playWave(1, w, 2, w2);
+waitWave();
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    playWave(1, w);
+    playWave(2, w);
+    playWave(1, 2, w);
+    playWave(1, w, 2, w2);
+}
+waitWave();

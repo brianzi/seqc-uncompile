@@ -4716,5 +4716,132 @@ See `incidental_findings.md` IF-163. Minimal repro at
 
 ### 51.3 — Phase 51 wrap-up
 
+- [x] Sub-phase wrap-up commit (`2a2cc2e`)
+- [x] Push
+
+## Phase 52: Stress suite expansion (round 5) + IFs 164-171
+
+### 52.1 — Add many more stress categories (~30)
+
+- [x] `wavemem_pressure.seqc` — exposes IF-170
+- [x] `cwvf_dedup_chain.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `prefetch_long_chain.seqc` (HDAWG) — byte-identical
+- [x] `assign_then_play_mix.seqc` (HDAWG) — byte-identical
+- [x] `playwave_indexed_var.seqc` (HDAWG) — byte-identical
+- [x] `userreg_all_16.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `wave_arith_ops.seqc` (HDAWG) — byte-identical
+- [x] `cut_join_zoo.seqc` (HDAWG) — byte-identical
+- [x] `marker_only_waves.seqc` (HDAWG) — byte-identical
+- [x] `cmdtable_index_bounds.seqc` (HDAWG) — pass-via-error;
+      reproduces IF-159 (recon worker abort)
+- [x] `prng_arith_chain.seqc` (HDAWG) — byte-identical
+- [x] `oscfreq_dense.seqc` (SHFSG ok; SHFQC sg → IF-167)
+- [x] `for_decrement_step.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `chained_waitwave.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `empty_blocks.seqc` (HDAWG/SHFSG) — exposes IF-168
+- [x] `subroutine_chain.seqc` (HDAWG) — byte-identical
+- [x] `bitshift_constants.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `repeated_same_instr.seqc` (HDAWG) — byte-identical
+- [x] `heavy_comments.seqc` (HDAWG/SHFSG) — exposes IF-169
+- [x] `var_shadowing.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `loop_invariant_motion.seqc` (HDAWG) — byte-identical
+- [x] `short_wave_zoo.seqc` (HDAWG) — byte-identical
+- [x] `portable_basic.seqc` (HDAWG/SHFSG/HDAWG4) — byte-identical
+- [x] `wave_builtins_zoo.seqc` (HDAWG) — byte-identical
+- [x] `big_else_if_cascade.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `assign_pattern_mix.seqc` (HDAWG) — exposes IF-164 via the
+      "named_a"/"named_dual" forms
+- [x] `assign_pattern_mix_unnamed.seqc` (HDAWG) — fork without
+      named forms; byte-identical (confirms angle isolated)
+- [x] `playwave_chan_variants.seqc` (HDAWG) — byte-identical
+- [x] `shfqa_startqa_loops.seqc` (SHFQA/SHFQC qa) — byte-identical
+- [x] `settrigger_dense.seqc` (HDAWG) — byte-identical
+- [x] `arith_chain_pressure.seqc` (HDAWG/SHFSG) — exposes IF-165
+      (regalloc-error message format diff)
+- [x] `arith_chain_smaller.seqc` (HDAWG/SHFSG) — exposes IF-171
+      (small straight-line arithmetic codegen diff)
+- [x] `shfqa_feedback_branch.seqc` (SHFQA/SHFQC qa) — exposes
+      IF-166 (`ZSYNC_DATA_PQSC_REGISTER` deprecation accepted)
+- [x] `shfqa_no_feedback.seqc` (SHFQA/SHFQC qa) — fork without
+      ZSYNC constant; byte-identical (confirms angle isolated)
+- [x] `very_long_basic_block.seqc` (HDAWG) — byte-identical
+- [x] `trigger_io_chain.seqc` (HDAWG) — byte-identical
+- [x] `int_boundary_consts.seqc` (HDAWG/SHFSG) — byte-identical
+- [x] `scaled_wave_zoo.seqc` (HDAWG) — byte-identical
+- [x] `placeholder_concrete_mix.seqc` (HDAWG) — byte-identical
+- [x] `wave_var_reassign.seqc` (HDAWG) — byte-identical
+- [x] `subroutine_in_control_flow.seqc` (HDAWG) — byte-identical
+- [x] `many_unique_lengths.seqc` (HDAWG) — byte-identical
+- [x] `shfsg_sine_amp_phase.seqc` (SHFSG) — byte-identical (after
+      removing setSineAmplitude which is not a builtin)
+
+### 52.2 — IF-164: assignWaveIndex named-form error wording diff
+
+See `incidental_findings.md` IF-164.
+
+- [ ] Grep for both error strings to find the throw sites
+- [ ] Determine which path the binary takes; align recon
+- [ ] Update IF-164 to `fixed`
+
+### 52.3 — IF-165: regalloc error message format diff
+
+See `incidental_findings.md` IF-165.
+
+- [ ] Grep "run out of free registers" to find recon throw site
+- [ ] Wrap throw in standard `Compiler Error (line: N)` framing
+- [ ] Update IF-165 to `fixed`
+
+### 52.4 — IF-166: ZSYNC_DATA_PQSC_REGISTER accepted on SHFQA/SHFQC
+
+See `incidental_findings.md` IF-166.
+
+- [ ] Locate constant table / per-device gating
+- [ ] Add SHFQA/SHFQC exclusion for ZSYNC_DATA_PQSC_REGISTER
+- [ ] Update IF-166 to `fixed`
+
+### 52.5 — IF-167: setOscFreq rejected on SHFQC sg (same shape as IF-161)
+
+See `incidental_findings.md` IF-167.  Likely fixed by the same change
+as IF-161.
+
+- [ ] Investigate after / together with IF-161
+- [ ] Update IF-167 to `fixed`
+
+### 52.6 — IF-168: Empty if/for/repeat blocks generate different code
+
+See `incidental_findings.md` IF-168.
+
+- [ ] `dump_elf.py --both` to identify the diverging instructions
+- [ ] Trace to the empty-block codegen path
+- [ ] Fix to match binary
+- [ ] Update IF-168 to `fixed`
+
+### 52.7 — IF-169: Lexer mishandles `*/` inside `// ...` line comment
+
+See `incidental_findings.md` IF-169.
+
+- [ ] Locate recon lexer line-comment handler
+- [ ] Ensure it consumes until `\n` ignoring inner comment markers
+- [ ] Update IF-169 to `fixed`
+
+### 52.8 — IF-170: wavemem_pressure bytewise diff
+
+See `incidental_findings.md` IF-170.
+
+- [ ] `dump_elf.py --both` to identify which sections diff
+- [ ] If a `.wf_*` differs, isolate the offending wave builtin
+- [ ] Investigate root cause
+- [ ] Update IF-170 to `fixed`
+
+### 52.9 — IF-171: arith_chain_smaller bytewise codegen diff
+
+See `incidental_findings.md` IF-171.
+
+- [ ] `dump_elf.py --both` to view side-by-side `.asm`
+- [ ] Find first differing instruction; trace recon arithmetic codegen
+- [ ] Update IF-171 to `fixed`
+
+### 52.10 — Phase 52 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

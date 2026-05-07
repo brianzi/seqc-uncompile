@@ -1,0 +1,25 @@
+// assignWaveIndex used heavily, mixing pinned indices, var-indexed
+// executeTableEntry across loops and branches.
+
+wave w0 = gauss(128, 64, 16);
+wave w1 = drag(128, 64, 16, 0.2);
+wave w2 = ones(128);
+wave w3 = rect(128, 0.5);
+
+assignWaveIndex(1, 2, w0, 0);
+assignWaveIndex(1, 2, w1, 1);
+assignWaveIndex(1, 2, w2, 2);
+assignWaveIndex(1, 2, w3, 3);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+executeTableEntry(3);
+waitWave();
+
+var idx = getUserReg(0);
+for (var i = 0; i < 4; i = i + 1) {
+    executeTableEntry(idx);
+    executeTableEntry(idx + 1);
+}
+waitWave();

@@ -1,0 +1,28 @@
+// Many large unique waveforms — pushes FPGA wave memory accounting.
+
+wave w0 = gauss(2048, 1024, 256);
+wave w1 = gauss(2048, 1024, 200);
+wave w2 = drag(2048, 1024, 256, 0.2);
+wave w3 = drag(2048, 1024, 200, 0.3);
+wave w4 = ones(2048);
+wave w5 = rect(2048, 0.7);
+wave w6 = sine(2048, 0.6, 0, 4);
+wave w7 = cosine(2048, 0.5, 0, 8);
+wave w8 = sinc(2048, 0.4, 1024, 64);
+wave w9 = blackman(2048, 0.5, 0.16);
+wave w10 = hann(2048, 0.5);
+wave w11 = chirp(2048, 0.5, 1e6, 100e6);
+
+playWave(1, 2, w0);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+playWave(1, 2, w5);
+playWave(1, 2, w6);
+playWave(1, 2, w7);
+playWave(1, 2, w8);
+playWave(1, 2, w9);
+playWave(1, 2, w10);
+playWave(1, 2, w11);
+waitWave();

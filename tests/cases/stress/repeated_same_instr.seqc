@@ -1,0 +1,36 @@
+// Same instruction used many times — exercises instruction dedup
+// (if any) or just verifies large basic blocks compile correctly.
+
+setUserReg(0, 1);
+setUserReg(0, 2);
+setUserReg(0, 3);
+setUserReg(0, 4);
+setUserReg(0, 5);
+setUserReg(0, 6);
+setUserReg(0, 7);
+setUserReg(0, 8);
+setUserReg(0, 9);
+setUserReg(0, 10);
+setUserReg(0, 11);
+setUserReg(0, 12);
+setUserReg(0, 13);
+setUserReg(0, 14);
+setUserReg(0, 15);
+setUserReg(0, 16);
+setUserReg(0, 17);
+setUserReg(0, 18);
+setUserReg(0, 19);
+setUserReg(0, 20);
+
+wave w = ones(64);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+waitWave();

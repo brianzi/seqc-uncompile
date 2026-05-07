@@ -1,0 +1,27 @@
+// Many waves declared, played in loop — exercises wave prefetch
+// over many in-flight wave references and loop-carried prefetch.
+
+wave w0 = gauss(192, 96, 24);
+wave w1 = gauss(192, 96, 30);
+wave w2 = gauss(192, 96, 36);
+wave w3 = gauss(192, 96, 40);
+wave w4 = gauss(192, 96, 48);
+wave w5 = drag(192, 96, 24, 0.2);
+wave w6 = drag(192, 96, 30, 0.3);
+wave w7 = ones(192);
+wave w8 = rect(192, 0.5);
+wave w9 = sine(192, 0.7, 0, 4);
+
+for (var i = 0; i < 8; i = i + 1) {
+    playWave(1, 2, w0);
+    playWave(1, 2, w1);
+    playWave(1, 2, w2);
+    playWave(1, 2, w3);
+    playWave(1, 2, w4);
+    playWave(1, 2, w5);
+    playWave(1, 2, w6);
+    playWave(1, 2, w7);
+    playWave(1, 2, w8);
+    playWave(1, 2, w9);
+}
+waitWave();

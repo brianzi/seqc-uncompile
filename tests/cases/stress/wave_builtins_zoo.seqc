@@ -1,0 +1,32 @@
+// Mixed waveform-generator functions, exercising different builtins.
+
+wave g  = gauss(256, 128, 32);
+wave d  = drag(256, 128, 32, 0.2);
+wave s  = sine(256, 0.5, 0, 4);
+wave c  = cosine(256, 0.5, 0, 4);
+wave si = sinc(256, 0.5, 128, 32);
+wave bm = blackman(256, 0.7, 0.16);
+wave hm = hamming(256, 0.7);
+wave hn = hann(256, 0.7);
+wave rc = rect(256, 0.6);
+wave o  = ones(256);
+wave z  = zeros(256);
+wave ch = chirp(256, 0.5, 1e6, 100e6);
+wave rm = ramp(256, 0.0, 1.0);
+wave rs = rrc(256, 0.5, 32, 0.3);
+
+playWave(1, 2, g);
+playWave(1, 2, d);
+playWave(1, 2, s);
+playWave(1, 2, c);
+playWave(1, 2, si);
+playWave(1, 2, bm);
+playWave(1, 2, hm);
+playWave(1, 2, hn);
+playWave(1, 2, rc);
+playWave(1, 2, o);
+playWave(1, 2, z);
+playWave(1, 2, ch);
+playWave(1, 2, rm);
+playWave(1, 2, rs);
+waitWave();

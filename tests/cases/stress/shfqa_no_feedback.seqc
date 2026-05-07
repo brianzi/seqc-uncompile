@@ -1,0 +1,27 @@
+// Variant of shfqa_feedback_branch that uses the form the original
+// binary actually accepts on SHFQA (constant TBD). Kept alongside
+// shfqa_feedback_branch.seqc which exposes IF-166: recon accepts (with
+// deprecation warning) the constant 'ZSYNC_DATA_PQSC_REGISTER' that
+// the original rejects as unknown on SHFQA.
+//
+// Both orig and recon currently reject the no-2nd-arg getFeedback
+// shape on SHFQA — kept as exploratory.
+
+waitDigTrigger(1);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+
+playZero(192);
+
+for (var i = 0; i < 4; i = i + 1) {
+    waitDigTrigger(1);
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+    playZero(192);
+}
+
+var f = getUserReg(0);
+if (f == 1) {
+    startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+} else {
+    startQA(QA_GEN_1, QA_INT_1, true, 0, 0x0);
+}
+playZero(192);

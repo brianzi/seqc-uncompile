@@ -1,0 +1,18 @@
+// Loop-invariant computations inside loop body — exercises whether
+// recon constant-folds or moves them.
+
+wave w = ones(64);
+
+var k = getUserReg(0);
+
+for (var i = 0; i < 16; i = i + 1) {
+    var c = 100 + 200;            // const-fold candidate
+    var d = k * 4;                // loop-invariant
+    var e = (k + 1) * 8;          // loop-invariant
+    setUserReg(1, c);
+    setUserReg(2, d);
+    setUserReg(3, e);
+    setUserReg(4, c + i);
+    playZero(32);
+}
+waitWave();

@@ -1,0 +1,16 @@
+// executeTableEntry with extreme indices: 0 and large pinned ones.
+
+wave w = gauss(128, 64, 16);
+
+assignWaveIndex(1, 2, w, 0);
+assignWaveIndex(1, 2, w, 1);
+assignWaveIndex(1, 2, w, 100);
+assignWaveIndex(1, 2, w, 1000);
+assignWaveIndex(1, 2, w, 1023);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(100);
+executeTableEntry(1000);
+executeTableEntry(1023);
+waitWave();

@@ -1,0 +1,30 @@
+// SHFSG / SHFQC oscillator dense usage: setOscFreq across many
+// oscillators, configFreqSweep where supported.
+
+setOscFreq(0, 100e6);
+setOscFreq(1, 150e6);
+setOscFreq(2, 200e6);
+setOscFreq(3, 250e6);
+setOscFreq(4, 300e6);
+setOscFreq(5, 350e6);
+setOscFreq(6, 400e6);
+setOscFreq(7, 450e6);
+
+wave w = gauss(192, 96, 24);
+
+playWave(w);
+waitWave();
+
+setOscFreq(0, 110e6);
+playWave(w);
+waitWave();
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    setOscFreq(0, 100e6);
+    playWave(w);
+    waitWave();
+    setOscFreq(0, 200e6);
+    playWave(w);
+    waitWave();
+}

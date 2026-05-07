@@ -1,0 +1,38 @@
+// All 16 user registers written/read with mixed values.
+
+setUserReg(0, 0);
+setUserReg(1, 1);
+setUserReg(2, 100);
+setUserReg(3, 1000);
+setUserReg(4, 100000);
+setUserReg(5, 0x7fffffff);
+setUserReg(6, -1);
+setUserReg(7, -1000);
+setUserReg(8, -100000);
+setUserReg(9, -2147483648);
+setUserReg(10, 0xdeadbeef);
+setUserReg(11, 0xcafebabe);
+setUserReg(12, 0xff);
+setUserReg(13, 0xffff);
+setUserReg(14, 0xffffff);
+setUserReg(15, 0xffffffff);
+
+var s = 0;
+s = s + getUserReg(0);
+s = s + getUserReg(1);
+s = s + getUserReg(2);
+s = s + getUserReg(3);
+s = s + getUserReg(4);
+s = s + getUserReg(5);
+s = s + getUserReg(6);
+s = s + getUserReg(7);
+s = s + getUserReg(8);
+s = s + getUserReg(9);
+s = s + getUserReg(10);
+s = s + getUserReg(11);
+s = s + getUserReg(12);
+s = s + getUserReg(13);
+s = s + getUserReg(14);
+s = s + getUserReg(15);
+
+setUserReg(0, s);

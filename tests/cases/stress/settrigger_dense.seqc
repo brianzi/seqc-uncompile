@@ -1,0 +1,31 @@
+// HDAWG: dense setTrigger calls with marker bits, mixed with playWave.
+
+wave w = ones(64);
+
+setTrigger(0);
+setTrigger(1);
+setTrigger(2);
+setTrigger(3);
+setTrigger(0xf);
+playWave(1, 2, w);
+setTrigger(0);
+
+waitWave();
+
+for (var i = 0; i < 8; i = i + 1) {
+    setTrigger(i & 0xf);
+    playZero(32);
+}
+setTrigger(0);
+
+// In branches
+var f = getUserReg(0);
+if (f == 1) {
+    setTrigger(0x5);
+    playWave(1, 2, w);
+} else {
+    setTrigger(0xa);
+    playWave(1, 2, w);
+}
+setTrigger(0);
+waitWave();

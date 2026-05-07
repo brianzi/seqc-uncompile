@@ -1,0 +1,24 @@
+// Variables with shadowing in nested scopes (if SeqC permits).
+
+wave w = ones(64);
+
+var x = 10;
+var y = 20;
+
+setUserReg(0, x);
+setUserReg(1, y);
+
+for (var i = 0; i < 4; i = i + 1) {
+    var x = i * 2;  // shadow outer x
+    setUserReg(2, x);
+    if (i == 2) {
+        var y = 99;  // shadow outer y
+        setUserReg(3, y);
+    }
+    playZero(32);
+}
+waitWave();
+
+// outer x, y still visible
+setUserReg(4, x);
+setUserReg(5, y);

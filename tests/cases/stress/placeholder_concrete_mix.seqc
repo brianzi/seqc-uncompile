@@ -1,0 +1,23 @@
+// Mix of placeholders and concrete waves played in interleaved order.
+
+wave ph1 = placeholder(256, true, true);
+wave ph2 = placeholder(384, true, true);
+wave g   = gauss(192, 96, 24);
+wave d   = drag(192, 96, 24, 0.2);
+
+assignWaveIndex(1, 2, ph1, 0);
+assignWaveIndex(1, 2, ph2, 1);
+
+executeTableEntry(0);
+playWave(1, 2, g);
+executeTableEntry(1);
+playWave(1, 2, d);
+waitWave();
+
+for (var i = 0; i < 4; i = i + 1) {
+    executeTableEntry(0);
+    playWave(1, 2, g);
+    executeTableEntry(1);
+    playWave(1, 2, d);
+}
+waitWave();

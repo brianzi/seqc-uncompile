@@ -1,0 +1,33 @@
+// Same wave used many times with different scalings — exercises the
+// scaled-wave caching and amplitude-scaled cwvf compaction.
+
+wave base = gauss(256, 128, 32);
+
+wave w1 = 0.1 * base;
+wave w2 = 0.2 * base;
+wave w3 = 0.3 * base;
+wave w4 = 0.4 * base;
+wave w5 = 0.5 * base;
+wave w6 = 0.6 * base;
+wave w7 = 0.7 * base;
+wave w8 = 0.8 * base;
+wave w9 = 0.9 * base;
+
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+playWave(1, 2, w5);
+playWave(1, 2, w6);
+playWave(1, 2, w7);
+playWave(1, 2, w8);
+playWave(1, 2, w9);
+playWave(1, 2, base);
+waitWave();
+
+// And sums
+wave sum1 = w1 + w2;
+wave sum2 = w3 + w4 + w5;
+playWave(1, 2, sum1);
+playWave(1, 2, sum2);
+waitWave();

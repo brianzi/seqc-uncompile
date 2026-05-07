@@ -1,0 +1,19 @@
+// Bit-shift constants: << / >> by various powers.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+
+setUserReg(2, a << 1);
+setUserReg(3, a << 2);
+setUserReg(4, a << 4);
+setUserReg(5, a << 8);
+setUserReg(6, a << 16);
+
+setUserReg(7, a >> 1);
+setUserReg(8, a >> 2);
+setUserReg(9, a >> 4);
+setUserReg(10, a >> 8);
+
+setUserReg(11, (a << 4) | b);
+setUserReg(12, (a >> 2) & 0xff);
+setUserReg(13, (a << 1) + (b << 2));

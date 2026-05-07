@@ -1,0 +1,24 @@
+// Large interleaved if/else cascade — exercises branch instruction
+// placement and code-block compaction.
+
+var f = getUserReg(0);
+wave w = ones(64);
+
+if (f == 0)        { playWave(1, 2, w); }
+else if (f == 1)   { playZero(64); }
+else if (f == 2)   { playWave(1, 2, w); playZero(32); }
+else if (f == 3)   { playZero(96); }
+else if (f == 4)   { playWave(1, 2, w); }
+else if (f == 5)   { playZero(64); playZero(64); }
+else if (f == 6)   { playWave(1, 2, w); waitWave(); }
+else if (f == 7)   { playZero(128); }
+else if (f == 8)   { playWave(1, 2, w); playWave(1, 2, w); }
+else if (f == 9)   { playZero(160); }
+else if (f == 10)  { playWave(1, 2, w); }
+else if (f == 11)  { playZero(192); }
+else if (f == 12)  { playWave(1, 2, w); playZero(32); playWave(1, 2, w); }
+else if (f == 13)  { playZero(224); }
+else if (f == 14)  { playWave(1, 2, w); }
+else if (f == 15)  { playZero(256); }
+else               { playZero(320); }
+waitWave();

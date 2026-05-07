@@ -1,0 +1,27 @@
+// playWaveIndexed with both pinned and computed indices, exercising
+// variable-index playWaveIndexed code paths.
+
+wave w0 = gauss(128, 64, 16);
+wave w1 = drag(128, 64, 16, 0.2);
+
+playWave(1, 2, w0);
+waitWave();
+
+assignWaveIndex(1, 2, w0, 0);
+assignWaveIndex(1, 2, w1, 1);
+
+executeTableEntry(0);
+waitWave();
+executeTableEntry(1);
+waitWave();
+
+var i = getUserReg(0);
+executeTableEntry(i);
+waitWave();
+executeTableEntry(i + 1);
+waitWave();
+
+for (var j = 0; j < 4; j = j + 1) {
+    executeTableEntry(j);
+}
+waitWave();

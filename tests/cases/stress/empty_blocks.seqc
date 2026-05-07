@@ -1,0 +1,32 @@
+// Empty-body constructs: if{}, for{}, repeat{}, deeply nested empties.
+
+var f = getUserReg(0);
+
+if (f == 1) {
+}
+
+if (f == 1) {
+} else {
+}
+
+for (var i = 0; i < 4; i = i + 1) {
+}
+
+repeat(8) {
+}
+
+if (f == 1) {
+    if (f == 2) {
+    } else {
+    }
+} else {
+    for (var j = 0; j < 2; j = j + 1) {
+    }
+}
+
+// Empty followed by real work
+wave w = ones(64);
+if (f == 1) {
+}
+playWave(1, 2, w);
+waitWave();

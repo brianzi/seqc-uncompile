@@ -1,0 +1,11 @@
+// Same source compiled across many devices (defined separately in
+// manifest) — pure smoke test for trivial code on every device.
+
+wave w = ones(128);
+playWave(1, 2, w);
+waitWave();
+
+for (var i = 0; i < 4; i = i + 1) {
+    playWave(1, 2, w);
+}
+waitWave();

@@ -1,0 +1,22 @@
+// Long chain of plays of the same wave — exercises cwvf dedup so each
+// playWave should reuse the same compiled waveform entry.
+
+wave w = gauss(256, 128, 32);
+
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+playWave(1, 2, w);
+waitWave();

@@ -1,0 +1,21 @@
+// Many short waves (8/16/32 samples) — exercises minimum length
+// handling and small-wave wavemem layout.
+
+wave w16  = ones(16);
+wave w32  = ones(32);
+wave w48  = ones(48);
+wave w64  = ones(64);
+wave w80  = ones(80);
+wave w96  = ones(96);
+wave w112 = ones(112);
+wave w128 = ones(128);
+
+playWave(1, 2, w16);
+playWave(1, 2, w32);
+playWave(1, 2, w48);
+playWave(1, 2, w64);
+playWave(1, 2, w80);
+playWave(1, 2, w96);
+playWave(1, 2, w112);
+playWave(1, 2, w128);
+waitWave();

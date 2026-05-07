@@ -1,0 +1,16 @@
+// Long chain of assignments to the same wave variable — exercises
+// SSA-style or last-write-wins handling in the IR.
+
+wave w = ones(64);
+
+w = ones(128);
+w = gauss(128, 64, 16);
+w = drag(128, 64, 16, 0.2);
+w = rect(128, 0.5);
+w = sine(128, 0.7, 0, 4);
+w = ones(192);
+w = zeros(192);
+w = gauss(192, 96, 24);
+
+playWave(1, 2, w);
+waitWave();

@@ -1,0 +1,30 @@
+// SHFSG/SHFQC sg: setSinePhase combined with playWave; original
+// setSineAmplitude does not exist as a SeqC builtin, dropped.
+
+setSinePhase(0);
+
+wave w = gauss(192, 96, 24);
+
+playWave(w);
+waitWave();
+
+setSinePhase(45);
+playWave(w);
+waitWave();
+
+setSinePhase(90);
+playWave(w);
+waitWave();
+
+setSinePhase(180);
+playWave(w);
+waitWave();
+
+for (var i = 0; i < 4; i = i + 1) {
+    setSinePhase(0);
+    playWave(w);
+    waitWave();
+    setSinePhase(90);
+    playWave(w);
+    waitWave();
+}

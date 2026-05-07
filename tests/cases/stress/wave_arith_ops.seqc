@@ -1,0 +1,22 @@
+// Compile-time waveform arithmetic: addition, scaling, negation.
+
+wave w1 = gauss(256, 128, 32);
+wave w2 = drag(256, 128, 32, 0.2);
+wave w3 = ones(256);
+
+wave sum = w1 + w2;
+wave diff = w1 - w2;
+wave scaled = 0.5 * w1;
+wave neg = -w1;
+
+playWave(1, 2, w1);
+playWave(1, 2, sum);
+playWave(1, 2, diff);
+playWave(1, 2, scaled);
+playWave(1, 2, neg);
+waitWave();
+
+// Chained
+wave combo = (0.3 * w1) + (0.7 * w2);
+playWave(1, 2, combo);
+waitWave();

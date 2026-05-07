@@ -1,0 +1,19 @@
+// Marker-only waves: marker(N, bits).
+
+wave m1 = marker(128, 1);
+wave m2 = marker(128, 2);
+wave m3 = marker(128, 3);
+wave m_long = marker(1024, 1);
+
+playWave(1, m1);
+playWave(2, m2);
+playWave(1, m3);
+playWave(1, m_long);
+waitWave();
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    playWave(1, m1);
+    playWave(2, m2);
+}
+waitWave();

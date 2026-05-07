@@ -3465,3 +3465,240 @@ Likely files:
 4. Either raise the threshold or add the fallback "emit loop
    instruction" path.
 
+## IF-164  assignWaveIndex named-form: recon error wording differs
+
+**Status**: open
+**Severity**: bug (cosmetic / error-string)
+**Found**: stress phase 52 (`assign_pattern_mix.seqc`)
+
+### Symptom
+
+`assignWaveIndex("named_a", 1, w_a, 3)` where `"named_a"` was never
+registered as a wave name:
+
+```
+orig:  Compiler Error (line: 11): waveform 'named_a' does not exist
+recon: Compiler Error (line: 11): no waveform with the name 'named_a' found
+```
+
+Same error class, different wording.  Likely two separate code paths
+both reporting "missing wave name" using different error templates.
+
+### Minimal repro
+
+In `tests/cases/stress/assign_pattern_mix.seqc` line 11 — the
+"named_a" assignWaveIndex form.
+
+### Recommended next step
+
+1. Grep for both error strings to locate the throw sites.
+2. Determine which path the binary takes and align recon to it.
+
+## IF-165  Compiler error format missing 'Compiler Error (line: N)' prefix
+
+**Status**: open
+**Severity**: bug (cosmetic / error-string)
+**Found**: stress phase 52 (`arith_chain_pressure.seqc`)
+
+### Symptom
+
+When the recon hits "run out of free registers" (and possibly other
+codegen-late errors), it emits the bare message instead of the
+standard `Compiler Error (line: N): <msg>` framing the binary uses:
+
+```
+orig:  Compiler Error (line: 19): run out of free registers, please reduce complexity
+recon: run out of free registers, please reduce complexity
+```
+
+Suggests the recon throws this from a code path that skips the
+ErrorMessages::format wrapping (or the throw type is different from
+`CompilerError`/`CustomFunctionsException`, so the outer harness
+doesn't add the prefix).
+
+### Minimal repro
+
+`tests/cases/stress/arith_chain_pressure.seqc` (HDAWG/SHFSG).
+
+### Recommended next step
+
+1. Grep for "run out of free registers" to find the throw site.
+2. Compare with how other compiler errors throw (`CompilerError` vs
+   `std::runtime_error`).
+3. Wrap the throw with the standard error-message framing.
+
+## IF-166  ZSYNC_DATA_PQSC_REGISTER accepted on SHFQA/SHFQC by recon
+
+**Status**: open
+**Severity**: bug
+**Found**: stress phase 52 (`shfqa_feedback_branch.seqc`)
+
+### Symptom
+
+On SHFQA / SHFQC qa, the constant `ZSYNC_DATA_PQSC_REGISTER` is:
+
+```
+orig:  Compiler Error (line: 6): tried to access unknown variable 'ZSYNC_DATA_PQSC_REGISTER'
+recon: Warning (line: 6): constant 'ZSYNC_DATA_PQSC_REGISTER' is deprecated, please use 'ZSYNC_DATA_PROCESS<truncated>'
+```
+
+The recon accepts the constant (with a deprecation warning), while
+the original binary refuses to define it on SHFQA/SHFQC sequencers.
+The constant is typically a HDAWG-only feedback-source identifier;
+recon's constant-table or per-device guard is missing the SHFQA/SHFQC
+exclusion.
+
+### Minimal repro
+
+`tests/cases/stress/shfqa_feedback_branch.seqc`, line 6:
+`var fb = getFeedback(ZSYNC_DATA_PQSC_REGISTER, 0);` on SHFQA4 or SHFQC qa.
+
+### Recommended next step
+
+1. Locate the constant table that registers `ZSYNC_DATA_PQSC_REGISTER`.
+2. Find the per-device gating (HDAWG vs SHFQA/SHFQC).
+3. Add the missing per-device exclusion.
+
+## IF-167  setOscFreq rejected on SHFQC sg with phantom node check
+
+**Status**: open
+**Severity**: bug (same shape as IF-161)
+**Found**: stress phase 52 (`oscfreq_dense.seqc`)
+
+### Symptom
+
+On `devtype=SHFQC sequencer=sg`, `setOscFreq(0, 100e6)` fails with:
+
+```
+recon: Compiler Error (line: 4): node 'sgchannels/0/oscs/0/freq' doesn't exist
+```
+
+while the original binary compiles fine.  Same source on plain SHFSG
+sg passes byte-identical.  This is structurally identical to IF-161
+(setSinePhase phantom node on SHFQC sg) — both are missing
+sg-channel node-tree entries on SHFQC.
+
+### Minimal repro
+
+`tests/cases/stress/oscfreq_dense.seqc` on `devtype=SHFQC sequencer=sg`.
+
+### Recommended next step
+
+1. Same investigation as IF-161.  Likely both fixed by the same
+   change to the SHFQC sg node tree.
+2. Once IF-161 is fixed, re-test this case.
+
+## IF-168  Empty if{}/for{}/repeat{} blocks generate different code
+
+**Status**: open
+**Severity**: bug (codegen)
+**Found**: stress phase 52 (`empty_blocks.seqc`)
+
+### Symptom
+
+A program containing only empty-bodied control-flow constructs
+(`if(x){}`, `if(x){}else{}`, `for(...){}`, `repeat(N){}`, plus
+nested empties) compiles to byte-different `.text` between orig and
+recon.  Both succeed, no error messages — pure codegen divergence.
+
+### Minimal repro
+
+`tests/cases/stress/empty_blocks.seqc` on HDAWG and SHFSG
+(byte-different on both).
+
+### Recommended next step
+
+1. Use `tests/dump_elf.py --both` to compare `.asm` text and pinpoint
+   which empty construct generates the difference.
+2. Likely candidates: empty-loop branch placement, missing
+   loop-counter setup elision, or extra no-op instructions in the
+   empty branch arm.
+
+## IF-169  Lexer: `*/` inside `// ...` line comment confuses recon
+
+**Status**: open
+**Severity**: bug (lexer)
+**Found**: stress phase 52 (`heavy_comments.seqc`)
+
+### Symptom
+
+Recon parses a single-line comment `// foo /* bar */ baz` incorrectly
+when the comment text contains both `/*` and `*/` markers — likely
+the lexer treats the markers as block-comment boundaries, then loses
+sync.
+
+```
+recon: Compiler Error (line: 32): syntax error, unexpected IDENTIFIER, expecting ';'
+```
+
+The original binary handles this correctly (line comments terminate
+at newline regardless of inner content).
+
+### Minimal repro
+
+`tests/cases/stress/heavy_comments.seqc` line 32:
+```
+// like /* this */ and /*nested*/
+```
+
+### Recommended next step
+
+1. Locate the recon lexer's line-comment handler.  Confirm it consumes
+   chars until `\n` and does not branch on `/*`/`*/`.
+2. If it currently does branch, fix to ignore comment markers inside
+   line comments.
+
+## IF-170  wavemem_pressure: bytewise diff with many distinct large waves
+
+**Status**: open
+**Severity**: bug (codegen / wavemem accounting)
+**Found**: stress phase 52 (`wavemem_pressure.seqc`)
+
+### Symptom
+
+Compiling 12 large (2048-sample) waves of various builtin shapes back
+to back yields a `.text` and likely `.wf_*` byte diff between orig and
+recon.  Both succeed.  Could be:
+- A waveform-generator builtin producing slightly different samples
+  for one or more of the 12 builtins, or
+- Wavemem accounting / placement diverging at large totals, or
+- Section ordering differing.
+
+### Minimal repro
+
+`tests/cases/stress/wavemem_pressure.seqc` on HDAWG.
+
+### Recommended next step
+
+1. `python tests/dump_elf.py tests/cases/stress/wavemem_pressure.seqc HDAWG8 --samplerate 2.4e9 --both 2>&1 | grep DIFFERS`
+   to identify which sections differ.
+2. If a `.wf_*` differs, isolate the offending builtin into a
+   single-wave repro.
+3. If only `.text`/`.wavemem` differ, investigate placement /
+   accounting code.
+
+## IF-171  arith_chain (8-temp) bytewise codegen diff
+
+**Status**: open
+**Severity**: bug (codegen)
+**Found**: stress phase 52 (`arith_chain_smaller.seqc`)
+
+### Symptom
+
+A linear arithmetic chain with 8 temporaries (well below regalloc
+pressure) compiles to byte-different `.text` and `.asm` between orig
+and recon — same byte count, different bytes.  Same on HDAWG and
+SHFSG.  Indicates a codegen ordering / register-choice difference in
+straight-line arithmetic, not regalloc pressure.
+
+### Minimal repro
+
+`tests/cases/stress/arith_chain_smaller.seqc` on HDAWG and SHFSG.
+
+### Recommended next step
+
+1. `python tests/dump_elf.py tests/cases/stress/arith_chain_smaller.seqc HDAWG8 --samplerate 2.4e9 --both`
+   to view side-by-side `.asm`.
+2. Find the first differing instruction and trace the origin in the
+   recon arithmetic codegen.
+

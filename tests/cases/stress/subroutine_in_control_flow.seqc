@@ -1,0 +1,32 @@
+// Subroutine called from inside loop and inside branch — exercises
+// call-site placement in non-trivial control flow.
+
+wave w = gauss(128, 64, 16);
+
+void play_one() {
+    playWave(1, 2, w);
+    waitWave();
+}
+
+void play_two() {
+    play_one();
+    play_one();
+}
+
+for (var i = 0; i < 4; i = i + 1) {
+    play_one();
+    if (i == 2) {
+        play_two();
+    }
+}
+
+var f = getUserReg(0);
+if (f == 1) {
+    play_two();
+} else {
+    play_one();
+}
+
+repeat(3) {
+    play_two();
+}

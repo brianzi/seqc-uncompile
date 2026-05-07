@@ -1,0 +1,18 @@
+// cut() and join() patterns.
+
+wave base = gauss(1024, 512, 128);
+
+wave first_half = cut(base, 0, 511);
+wave second_half = cut(base, 512, 1023);
+wave middle = cut(base, 256, 767);
+
+wave joined = join(first_half, second_half);
+wave triple = join(first_half, middle, second_half);
+
+playWave(1, 2, base);
+playWave(1, 2, first_half);
+playWave(1, 2, second_half);
+playWave(1, 2, middle);
+playWave(1, 2, joined);
+playWave(1, 2, triple);
+waitWave();

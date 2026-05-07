@@ -1,0 +1,36 @@
+// PRNG-related: setPRNGSeed, setPRNGRange, getPRNGValue used in
+// arithmetic, branches, loops.
+
+setPRNGSeed(0xdead);
+setPRNGRange(0, 100);
+
+var r0 = getPRNGValue();
+var r1 = getPRNGValue();
+var r2 = getPRNGValue();
+var r3 = getPRNGValue();
+
+setUserReg(0, r0);
+setUserReg(1, r1);
+setUserReg(2, r2);
+setUserReg(3, r3);
+
+// Re-seed
+setPRNGSeed(0xbeef);
+setPRNGRange(10, 50);
+
+for (var i = 0; i < 8; i = i + 1) {
+    var r = getPRNGValue();
+    setUserReg(4, r);
+}
+
+// In branches
+var f = getUserReg(15);
+if (f == 1) {
+    setPRNGSeed(0x1234);
+    var x = getPRNGValue();
+    setUserReg(5, x);
+} else {
+    setPRNGSeed(0x5678);
+    var y = getPRNGValue();
+    setUserReg(6, y);
+}

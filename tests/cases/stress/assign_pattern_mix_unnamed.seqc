@@ -1,0 +1,19 @@
+// Variant of assign_pattern_mix without the "named_*" forms; isolates
+// the unnamed assignWaveIndex patterns (the named-form behavior is
+// covered by the original assign_pattern_mix.seqc which exposes IF-164:
+// orig vs recon error wording diff for missing wave name).
+
+wave w_a = gauss(128, 64, 16);
+wave w_b = ones(128);
+wave m   = marker(128, 1);
+
+assignWaveIndex(1, w_a, 0);
+assignWaveIndex(2, w_b, 1);
+assignWaveIndex(1, w_a, 2, w_b, 2);
+assignWaveIndex(1, m, 3);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+executeTableEntry(3);
+waitWave();

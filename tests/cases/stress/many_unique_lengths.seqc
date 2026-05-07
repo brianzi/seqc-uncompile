@@ -1,0 +1,46 @@
+// Many waveforms, each played once, in a single loop iteration —
+// exercises wave registration ordering and per-wave .wf_ section
+// emission.
+
+wave w0  = ones(64);
+wave w1  = ones(80);
+wave w2  = ones(96);
+wave w3  = ones(112);
+wave w4  = ones(128);
+wave w5  = ones(144);
+wave w6  = ones(160);
+wave w7  = ones(176);
+wave w8  = ones(192);
+wave w9  = ones(208);
+wave w10 = ones(224);
+wave w11 = ones(240);
+wave w12 = ones(256);
+wave w13 = ones(272);
+wave w14 = ones(288);
+wave w15 = ones(304);
+wave w16 = ones(320);
+wave w17 = ones(336);
+wave w18 = ones(352);
+wave w19 = ones(368);
+
+playWave(1, 2, w0);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+playWave(1, 2, w5);
+playWave(1, 2, w6);
+playWave(1, 2, w7);
+playWave(1, 2, w8);
+playWave(1, 2, w9);
+playWave(1, 2, w10);
+playWave(1, 2, w11);
+playWave(1, 2, w12);
+playWave(1, 2, w13);
+playWave(1, 2, w14);
+playWave(1, 2, w15);
+playWave(1, 2, w16);
+playWave(1, 2, w17);
+playWave(1, 2, w18);
+playWave(1, 2, w19);
+waitWave();

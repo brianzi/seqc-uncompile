@@ -1,0 +1,28 @@
+// SHFQA-only: startQA with channel masks across multiple integration
+// channels, paired with playZero / waitDigTrigger sequencing.
+
+waitDigTrigger(1);
+startQA(QA_INT_0,                              0x1, true, 0, 0x0);
+playZero(192);
+startQA(QA_INT_0 | QA_INT_1,                   0x3, true, 0, 0x0);
+playZero(192);
+startQA(QA_INT_0 | QA_INT_1 | QA_INT_2,        0x7, true, 0, 0x0);
+playZero(192);
+startQA(QA_INT_ALL,                            QA_INT_ALL, true, 0, 0x0);
+playZero(192);
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    waitDigTrigger(1);
+    startQA(QA_INT_0, 0x1, true, 0, 0x0);
+    playZero(192);
+}
+
+// Branched
+var f = getUserReg(0);
+if (f == 1) {
+    startQA(QA_INT_0, 0x1, true, 1, 0x1);
+} else {
+    startQA(QA_INT_1, 0x2, false, 0, 0x0);
+}
+playZero(192);
