@@ -3996,13 +3996,58 @@ differently — see IF-204.
 ## IF-204  Spurious `playZero(32)` minimum-length warning on GHFLI but not on original
 
 **Source**: coverage round, `cov_setInternalTrigger_solo_ghfli`
-**Status**: open
+**Status**: fixed (cascade of IF-203 — no source change required)
 **Severity**: cosmetic / suspicious
 **Found**: 2026-05-08
+**Resolved**: 2026-05-08 (no code change; fixed by commit cfc82ea — IF-203)
+
+### Resolution
+
+Not an independent bug.  GDB-traced binary's `checkPlayMinLength`
+(@0x15b100) on the failing GHFLI input and confirmed:
+
+- Binary's `devConst_->maxWaveformLength` for GHFLI = **96** (matches
+  recon, rodata @0x8fc7c0+0x8 = `60 00 00 00`).
+- Binary DOES enter the warning branch at 0x15b116 with ESI=32, ECX=96.
+- The recon's `maxWaveformLength = 96` for GHFLI is therefore correct.
+
+The "spurious warning + Compiler Error" error string in the failing
+output was produced by the `Compilation failed:` catch-all in
+`compile_seqc.cpp:266` concatenating the (correctly emitted) warning
+text with the message of an exception thrown later.  The exception
+itself came from `setInternalTrigger(0)` going down the wrong arg-type
+branch on SHFLI/GHFLI (IF-203).  Once IF-203 was fixed (commit
+cfc82ea), `setInternalTrigger` no longer threw, the warning was
+emitted normally on both sides, and the test became byte-identical
+(`compileReport` matches between original and recon).
+
+Verified: stress run after IF-203 fix shows
+`cov_setInternalTrigger_solo_ghfli` PASS byte-identical (2044 bytes).
+
+### GDB trace summary (kept for posterity)
+
+```
+>>> playZero_const_call_check (0x1388f0)  esi=0x20  eax=0x20
+>>> checkPlayMinLength_entry  (0x15b100)  esi=0x20
+>>> checkPlayMinLength_cmp    (0x15b112)  esi=0x20  ecx=0x60   # 32 < 96
+>>> checkPlayMinLength_warn   (0x15b116)  warning branch entered
+```
+
+So binary emits the warning identically; the divergence was purely in
+whether a *subsequent* exception aborted compilation.
+
+### Lesson
+
+When a warning appears recon-only and the recon path also throws a
+compiler error in the same compile, suspect that the warning is
+genuinely shared but the throw site is recon-only.  GDB-checking the
+warning site BEFORE assuming a constants mismatch saved a wrong-path
+device-constants edit that would have regressed other GHFLI tests.
 
 ### Symptom
 
-`playZero(32)` on GHFLI elicits a recon-only warning:
+`playZero(32)` on GHFLI elicited a recon-only warning that aborted
+compilation:
 
 ```
 Warning (line: 3): play length 32 is below minimum of 96 samples,
@@ -4030,7 +4075,7 @@ The first `playZero(32)` precedes the for-loop where IF-203 manifests,
 so on GHFLI we see this warning *first* and the for-loop is never
 reached.
 
-### Recommended next step
+### Recommended next step (historical, no longer applicable)
 
 Compare the GHFLI device-constants block (`devConst_`) field for
 "minimum playZero length" between recon and binary. Likely recon is
@@ -4040,13 +4085,33 @@ GHFLI at `1` or has a separate suppression rule.
 GDB-trace the path that emits `Warning ... below minimum of N samples`
 on a small recon-only program for GHFLI to find the comparison site.
 
+(GDB trace was performed and showed the binary uses the same
+constant — see Resolution above.  No constants change needed.)
+
 ---
 
 ## IF-205  3-arg `randomGauss` waveform samples differ from binary
 
 **Source**: coverage round, `cov_randomGauss_solo_{hdawg,shfsg}`
-**Status**: open
+**Status**: fixed (waveform_generator_dsp.cpp randomGauss 3-arg signature)
 **Severity**: likely-bug
+
+**Resolution** (2026-05-08): Hypothesis A (wrong default) was
+*structurally* correct, but the wrong slot was defaulted.  The 3-arg
+form is **`randomGauss(length, mean, stddev)` with default
+amplitude=1.0**, not `randomGauss(length, amplitude, mean)` with
+default stddev=1.0.  Disassembly of the 3-arg branch (0x252bc2) shows:
+no `readDoubleAmplitude` call, readDouble strings `"2 (mean)"`
+(@0x252e19) and `"3 (standard deviation)"` (@0x253045), and a
+`movsd 0x956030(%rip), %xmm0; movsd %xmm0, -0x78(%rbp)` at 0x25305a
+that injects the rodata constant 1.0 into the **amplitude** slot.
+Test input `randomGauss(256, 1.0, 0)` → mean=1.0, stddev=0,
+amplitude=1.0 → every sample = 1.0 → saturates to int16 max 0x7fff,
+matching the original ELF byte-for-byte.  Also fixed: the 4-arg path
+in recon used wrong index strings `"2 (mean)"` / `"3 (standard
+deviation)"`; the binary uses `"3 (mean)"` (built via `inc rax` from
+`"2 (mean)"`) and `"4 (standard deviation)"` (rodata 0x905ea9).
+Stress: 894 → 897 (+3).
 
 **Found**: 2026-05-08
 

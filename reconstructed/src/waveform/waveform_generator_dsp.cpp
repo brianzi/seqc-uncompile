@@ -930,21 +930,27 @@ Signal WaveformGenerator::rand(std::vector<Value> const& args) {               /
 }
 
 // randomGauss(length, amplitude, mean, stddev) @0x252930
-// randomGauss(length, amplitude, mean)          — stddev defaults to 1.0
+// randomGauss(length, mean, stddev)             — amplitude defaults to 1.0
 //
-// Identical structure to rand() but with function name "randomGauss" in error
-// messages. The disassembly is nearly identical (same TLS mt19937_64,
-// same normal_distribution, same 3-or-4-arg paths).
+// Same TLS mt19937_64 normal_distribution as in the binary.  Note the
+// 3-arg signature **drops amplitude** (not stddev): the binary's 3-arg
+// path reads strings "2 (mean)" and "3 (standard deviation)" and never
+// calls readDoubleAmplitude — instead it loads the default amplitude
+// (1.0) from rodata @0x956030 into the amplitude slot.  Confirmed by
+// disassembly at 0x252bc2-0x253062 (3-arg branch) — IF-205.
 //
 // Disassembly notes:
 //   - Function name string "randomGauss" built at 0x252952
-//   - 3-arg path at 0x252991: (length, amplitude, mean), stddev = 1.0
 //   - 4-arg path at 0x25298b: (length, amplitude, mean, stddev)
-//   - readPositiveInt for "1 (length)" min=1 at 0x252ae6
-//   - readDoubleAmplitude for "2 (amplitude)" at 0x252d10
-//   - readDouble for "2 (mean)" at 0x252e19
-//   - readDouble for "3 (standard deviation)" at 0x253045
-//   - Default stddev = 1.0 from rodata @0x956030
+//       readPositiveInt "1 (length)"        @0x252ae6
+//       readDoubleAmplitude "2 (amplitude)" @0x252d10
+//       readDouble "3 (mean)"               @0x252f28  (string built via inc rax from "2 (mean)")
+//       readDouble "4 (standard deviation)" @0x2530f8  (string built via inc rax from "3 (...)")
+//   - 3-arg path at 0x252991: (length, mean, stddev), amplitude default
+//       readPositiveInt "1 (length)"        @0x252bf8
+//       readDouble "2 (mean)"               @0x252e19
+//       readDouble "3 (standard deviation)" @0x253045
+//       movsd 0x956030, %xmm0; movsd %xmm0, -0x78(%rbp)  @0x25305a   ← amplitude=1.0
 Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        // 0x252930
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -953,19 +959,19 @@ Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        /
     }
 
     int length;
-    double amplitude;
+    double amplitude = 1.0;  // default from rodata @0x956030 (3-arg form)
     double mean;
-    double stddev = 1.0;  // default from rodata @0x956030
+    double stddev;
 
     if (args.size() == 4) {                                                    // 0x25298b
         length    = readPositiveInt(args[0], "1 (length)", 1, "randomGauss");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "randomGauss");
-        mean      = readDouble(args[2], "2 (mean)", "randomGauss");
-        stddev    = readDouble(args[3], "3 (standard deviation)", "randomGauss");
+        mean      = readDouble(args[2], "3 (mean)", "randomGauss");
+        stddev    = readDouble(args[3], "4 (standard deviation)", "randomGauss");
     } else {  // 3 args                                                        // 0x252991
         length    = readPositiveInt(args[0], "1 (length)", 1, "randomGauss");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "randomGauss");
-        mean      = readDouble(args[2], "3 (mean)", "randomGauss");
+        mean      = readDouble(args[1], "2 (mean)", "randomGauss");
+        stddev    = readDouble(args[2], "3 (standard deviation)", "randomGauss");
     }
 
     Signal sig(static_cast<size_t>(length));                                   // 0x2531c5
