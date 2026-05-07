@@ -276,6 +276,23 @@ The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
   drives a code change. The cost is ~30 seconds; the cost of a wrong
   assumption is hours.
 
+### Logging GDB friction (mandatory)
+
+Whenever using GDB for binary analysis, if **anything about the GDB
+setup itself** trips you up — a breakpoint that didn't fire, a
+hung batch script, a wrong base-address calculation, a junk
+register/memory read, an unexpected interaction between GDB,
+Python, libstdc++ or libc++ — write a short report under
+`tests/gdb/user-experiences/`.  See that directory's `README.md`
+for the format.  This applies to **every agent and every
+delegated subagent**: when you delegate a task that may involve
+GDB, instruct the subagent to follow this rule.
+
+Goal: grow the GDB reference material so each future session
+hits fewer of the same friction points.  If GDB worked first try
+with no surprises, do not log anything — these reports exist to
+surface friction, not to accumulate trivia.
+
 ## Differential testing
 
 ### Running tests

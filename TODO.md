@@ -4640,31 +4640,8 @@ See `incidental_findings.md` IF-159. Minimal repro at
 - [x] `if162_assignwave_dual_size.seqc` (HDAWG) — minimal repro for
       IF-162
 
-### 50.2 — IF-161: setSinePhase rejected on SHFQC sg
 
-See `incidental_findings.md` IF-161. Minimal repro at
-`tests/cases/stress/if161_shfqc_setsinephase.seqc`. Control case
-on SHFSG8 sg passes byte-identical.
-
-- [ ] GDB on original SHFQC sg compile, breakpoint node-lookup site
-- [ ] Identify missing node-tree entry / wrong path prefix in recon
-- [ ] Add SHFQC sg-channel sine nodes (or fix prefix construction)
-- [ ] `if161_shfqc_setsinephase_shfqc` becomes byte-identical
-- [ ] Update IF-161 to `fixed`
-
-### 50.3 — IF-162: assignWaveIndex dual-placeholder size bug
-
-See `incidental_findings.md` IF-162. Minimal repro at
-`tests/cases/stress/if162_assignwave_dual_size.seqc`.
-Symptom is structurally identical to IF-157 (same first-signal-length
-bug) but on the `assignWaveIndex` codegen path.
-
-- [ ] GDB on original `mergeWaveforms` Phase 1 loop
-      (0x15e0f4..0x15e234), log `len`/`maxSampleLen` per iteration
-- [ ] Same trace on recon, compare
-- [ ] Fix the lookup or max computation
-- [ ] `if162_assignwave_dual_size_hdawg` becomes byte-identical
-- [ ] Update IF-162 to `fixed`
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 50.4 — Phase 50 wrap-up
 
@@ -4701,18 +4678,8 @@ bug) but on the `assignWaveIndex` codegen path.
 - [x] `if163_repeat_unroll_limit.seqc` (HDAWG) — minimal repro for
       IF-163
 
-### 51.2 — IF-163: recon refuses to unroll repeat(N) above its threshold
 
-See `incidental_findings.md` IF-163. Minimal repro at
-`tests/cases/stress/if163_repeat_unroll_limit.seqc`.
-
-- [ ] Grep for "too many iterations to unroll this loop" to find throw
-- [ ] Identify the threshold constant compared
-- [ ] GDB binary on the same input to determine its actual behavior
-      (no threshold? higher threshold? fallback to loop instr?)
-- [ ] Either raise the threshold or add the missing fallback path
-- [ ] `if163_repeat_unroll_limit_hdawg` becomes byte-identical
-- [ ] Update IF-163 to `fixed`
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 51.3 — Phase 51 wrap-up
 
@@ -4775,71 +4742,8 @@ See `incidental_findings.md` IF-163. Minimal repro at
 - [x] `shfsg_sine_amp_phase.seqc` (SHFSG) — byte-identical (after
       removing setSineAmplitude which is not a builtin)
 
-### 52.2 — IF-164: assignWaveIndex named-form error wording diff
 
-See `incidental_findings.md` IF-164.
-
-- [ ] Grep for both error strings to find the throw sites
-- [ ] Determine which path the binary takes; align recon
-- [ ] Update IF-164 to `fixed`
-
-### 52.3 — IF-165: regalloc error message format diff
-
-See `incidental_findings.md` IF-165.
-
-- [ ] Grep "run out of free registers" to find recon throw site
-- [ ] Wrap throw in standard `Compiler Error (line: N)` framing
-- [ ] Update IF-165 to `fixed`
-
-### 52.4 — IF-166: ZSYNC_DATA_PQSC_REGISTER accepted on SHFQA/SHFQC
-
-See `incidental_findings.md` IF-166.
-
-- [ ] Locate constant table / per-device gating
-- [ ] Add SHFQA/SHFQC exclusion for ZSYNC_DATA_PQSC_REGISTER
-- [ ] Update IF-166 to `fixed`
-
-### 52.5 — IF-167: setOscFreq rejected on SHFQC sg (same shape as IF-161)
-
-See `incidental_findings.md` IF-167.  Likely fixed by the same change
-as IF-161.
-
-- [ ] Investigate after / together with IF-161
-- [ ] Update IF-167 to `fixed`
-
-### 52.6 — IF-168: Empty if/for/repeat blocks generate different code
-
-See `incidental_findings.md` IF-168.
-
-- [ ] `dump_elf.py --both` to identify the diverging instructions
-- [ ] Trace to the empty-block codegen path
-- [ ] Fix to match binary
-- [ ] Update IF-168 to `fixed`
-
-### 52.7 — IF-169: Lexer mishandles `*/` inside `// ...` line comment
-
-See `incidental_findings.md` IF-169.
-
-- [ ] Locate recon lexer line-comment handler
-- [ ] Ensure it consumes until `\n` ignoring inner comment markers
-- [ ] Update IF-169 to `fixed`
-
-### 52.8 — IF-170: wavemem_pressure bytewise diff
-
-See `incidental_findings.md` IF-170.
-
-- [ ] `dump_elf.py --both` to identify which sections diff
-- [ ] If a `.wf_*` differs, isolate the offending wave builtin
-- [ ] Investigate root cause
-- [ ] Update IF-170 to `fixed`
-
-### 52.9 — IF-171: arith_chain_smaller bytewise codegen diff
-
-See `incidental_findings.md` IF-171.
-
-- [ ] `dump_elf.py --both` to view side-by-side `.asm`
-- [ ] Find first differing instruction; trace recon arithmetic codegen
-- [ ] Update IF-171 to `fixed`
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 52.10 — Phase 52 wrap-up
 
@@ -4911,41 +4815,7 @@ subroutine_local_heavy, gauss_pathological,
 hdawg_4ch_8ch, hdawg_rate_variants, odd_whitespace,
 subroutine_builtin_like_names, wave_max_length.
 
-### 53.1 — IF-172: zeros(0) stray waveform entry
-
-See `incidental_findings.md` IF-172.
-
-- [ ] Find waveform-table emit pass; locate length-0 filter
-- [ ] Add missing `if (length > 0)` guard
-- [ ] Update IF-172 to `fixed`
-
-### 53.2 — IF-173: chirp 1-LSB numerical diff at extreme sweep
-
-See `incidental_findings.md` IF-173.
-
-- [ ] GDB-trace orig chirp at sample idx ~201 with the repro input
-- [ ] Compare with recon chirp implementation; check fma vs mul+add,
-      double vs float, accumulator vs per-sample
-- [ ] Update IF-173 to `fixed`
-
-### 53.3 — IF-174: constant-condition branches not folded
-
-See `incidental_findings.md` IF-174.
-
-- [ ] `dump_elf.py --both` to find which of the 4 constructs diverges
-- [ ] Inspect AST-eval branch handling for `if`/`while` with
-      constant-bool conditions
-- [ ] Update IF-174 to `fixed`
-
-### 53.4 — IF-175: boost::format unsubstituted in TooFewArguments
-
-See `incidental_findings.md` IF-175.
-
-- [ ] Grep `ErrorMessages::get(4)` call sites; check substitution
-      chain
-- [ ] Independently: GDB orig at instruction idx ~1152 to see what
-      arg-count check differs
-- [ ] Update IF-175 to `fixed` once both sub-bugs resolved
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 53.5 — Phase 53 wrap-up
 
@@ -5032,29 +4902,7 @@ playwave_var_channel (both error consistently — channel must be const),
 subroutine_recursion (both crash consistently — likely SIGSEGV),
 marker_all_channels (both error — channel >2 invalid).
 
-### 54.1 — IF-176: cut(w, N, N) length-1 sample emission divergence
-
-See `incidental_findings.md` IF-176.
-
-- [ ] GDB orig at cut() builder for `cut(w, 0, 0)` to see semantics
-- [ ] Find recon cut() implementation; align with orig
-- [ ] Update IF-176 to `fixed`
-
-### 54.2 — IF-177: ones(var) error wording diverges
-
-See `incidental_findings.md` IF-177.
-
-- [ ] Find recon's wave-builtin var-arg detection; reorder so the
-      semantic check fires before the toInt call
-- [ ] Update IF-177 to `fixed`
-
-### 54.3 — IF-178: boost::too_many_args leak
-
-See `incidental_findings.md` IF-178 (sister of IF-175).
-
-- [ ] Audit `ErrorMessages::get(N)` call sites for parameter count
-      mismatch with the template's `%K%` slots
-- [ ] Update IF-178 to `fixed` (and likely fixes part of IF-175 too)
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 54.4 — Phase 54 wrap-up
 
@@ -5123,19 +4971,7 @@ shfqa_sweep_step / shfqa_int_weights / shfqa_repeat_startqa
 string_arg / wave_random / heavy_comments (both error consistently),
 osc_phase_freq_interleave_shfsg (error consistency).
 
-### 55.1 — IF-179: boost::too_few_args from marker() warning path
-
-See `incidental_findings.md` IF-179.  Root cause already
-localized: `waveform_generator.cpp:613` missing `funcName` arg.
-
-- [ ] Add `funcName` as 3rd arg to `format(ValueCapped, ...)`
-      at `waveform_generator.cpp:613`
-- [ ] Grep all other `format(ValueCapped, ...)` sites; audit
-      param counts
-- [ ] Verify `marker_bits_zoo_hdawg` passes (or is warning-only diff)
-- [ ] Add follow-up `mask(N, M>=4)` stress case for the `isMask=true`
-      branch
-- [ ] Update IF-179 to `fixed`
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 55.2 — Phase 55 wrap-up
 
@@ -5219,39 +5055,259 @@ splitconst_pressure, regalloc_long_live_range, dead_marker_set,
 int_passed_double, double_to_int_arg, mixed_type_ternary,
 assignwaveindex_placeholder_only.
 
-### 56.1 — IF-180: cut() bounds-check missing
-
-See `incidental_findings.md` IF-180.
-
-- [ ] Locate recon's `cut()` implementation
-- [ ] Add bounds checks for from / to / from>to
-- [ ] Verify `cut_chain_one` passes (or both error consistently)
-- [ ] Update IF-180 to `fixed`
-
-### 56.2 — IF-181: placeholder() in join() crashes worker
-
-See `incidental_findings.md` IF-181.
-
-- [ ] GDB-trace `join()` in recon with placeholder operand
-- [ ] Identify the vector indexing site (stl_vector.h:1253)
-- [ ] Add placeholder-aware handling
-- [ ] Add follow-up stress cases for placeholder + arith,
-      cut(placeholder), scalar*placeholder
-- [ ] Update IF-181 to `fixed`
-
-### 56.3 — IF-179 extension audit
-
-The Phase-56 update under IF-179 documents two new triggers
-(`mask()` branch + `startQA` var-arg error).  The fix from
-55.1 must extend to all `ErrorMessages::format(...)` call sites,
-not just `markerImpl()`.
-
-- [ ] Grep all `ErrorMessages::format(...)` sites across the
-      runtime; cross-check arity vs template `%N%` slots
-- [ ] Verify `shfqc_qa_repeat_startqa_var_init` improves to
-      "byte-identical pass via same error message"
+*Open IF investigation tasks moved to Phase 57 — see consolidated backlog.*
 
 ### 56.4 — Phase 56 wrap-up
 
-- [ ] Sub-phase wrap-up commit
-- [ ] Push
+- [x] Sub-phase wrap-up commit (46b85f3)
+- [x] Push
+
+## Phase 57: Fix open IF backlog (IFs 158, 159, 161-181)
+
+After 9 rounds of stress-test expansion (Phases 48-56) the open IF
+backlog is 22 findings.  This phase consolidates all open
+investigation work into a single coordinated fix campaign,
+**grouped by shared root cause and fix-cost** so that independent
+groups can be dispatched to **parallel subagents**.
+
+**Hard rule for every fix in this phase:**
+
+After applying any fix, re-run `python tests/diff_test_fast.py` (main
+suite — must remain 1600/1600) AND
+`python tests/diff_test_fast.py --manifest manifest-stress.json`
+(stress suite — every previously-passing case must still pass).
+Only then commit.  This is non-negotiable: no fix is "done" until
+both suites have been re-verified.
+
+**Bisection rule:** When a stress repro is large (≳20 lines) and the
+fix path is unclear, derive a minimal repro into `tests/cases/` (with
+its own manifest entry) **before** debugging.  Fix the minimal case
+first; the larger stress case is kept as an additional probe and
+verified after the minimal one passes.
+
+**GDB friction-logging rule:** Any agent (including delegated
+subagents) using GDB during this phase must log any setup hiccup
+under `tests/gdb/user-experiences/` per AGENTS.md.  When delegating
+GDB-involving work, repeat this instruction in the subagent prompt.
+
+### Group A — boost::format misuse family (parallel-safe, quick)
+
+Likely root cause: a small set of `ErrorMessages::format(N, ...)` /
+`ErrorMessages::get(N)` call sites where the argument count does not
+match the template's `%K%` slot count.  IF-179 has the call site
+exactly localized; IF-178 and IF-175 are likely siblings discoverable
+by audit.
+
+- [ ] **57.A.1** — Audit pass: grep all `ErrorMessages::format(`
+      and `ErrorMessages::get(` call sites in `reconstructed/src/`;
+      cross-reference each with its template in
+      `reconstructed/src/core/error_messages.cpp`; produce a table of
+      arity mismatches in `reconstructed/notes/error_message_audit.md`.
+- [ ] **57.A.2** — IF-179 fix: add `funcName` as 3rd arg to
+      `format(ValueCapped, ...)` at
+      `reconstructed/src/waveform/waveform_generator.cpp:613`.
+      Verify `marker_bits_zoo`, `marker_bits_extreme`, `mask_bits_zoo`
+      now pass.  Update IF-179 to `fixed`.
+- [ ] **57.A.3** — IF-178 fix: from the audit table, fix the call
+      sites whose templates have **fewer** slots than args supplied.
+      Verify `setuserreg_oor`, `giant_expression` now produce the
+      proper `Compiler Error (line: N): ...` message.  Update IF-178
+      to `fixed`.
+- [ ] **57.A.4** — IF-175 fix: two sub-bugs.
+      (a) Missing `.str()` substitution on `boost::format` result
+      (placeholder leak).  (b) The instruction-arg-count assembler
+      assertion at idx ~1152 in `long_source.seqc` — independent of
+      (a); needs separate investigation, possibly out-of-scope here.
+      Fix (a) first; mark IF-175 `partial-fixed` if (b) remains.
+- [ ] **57.A.5** — IF-179 extension: confirm `startQA`-var-arg
+      error path (`shfqc_qa_repeat_startqa_var_init`) is covered by
+      the audit fix.  If not, add the missing arg at that call site.
+
+**Subagent dispatch**: 57.A.1 must run first (single agent).
+After it returns, 57.A.2 / 57.A.3 / 57.A.4 / 57.A.5 are independent
+edits and can be dispatched in parallel — but each must run the test
+verification before its commit.
+
+### Group B — wave-builtin validation gaps (parallel-safe, quick)
+
+All four touch the wave generator / waveform-table emission code,
+likely 1-3 functions in
+`reconstructed/src/waveform/waveform_generator.cpp` and the table
+emitter.
+
+- [ ] **57.B.1** — IF-180 fix: add `if (from >= length) throw …` and
+      mirror checks for `to` / `from > to` in recon's `cut()`
+      builder.  Match orig's error string exactly.  Verify
+      `cut_chain_one_hdawg` and `_shfsg` now both pass via consistent
+      error.  Update IF-180 to `fixed`.
+- [ ] **57.B.2** — IF-172 fix: in the waveform-table emit pass, add
+      `if (length > 0)` guard before adding the entry.  Verify
+      `wave_min_length` (and any `zeros(0)` repro) byte-identical.
+      Update IF-172 to `fixed`.
+- [ ] **57.B.3** — IF-176 fix: `cut(w, N, N)` length-1 case — orig
+      drops `.wf` to 0 bytes.  Identify the orig drop semantics
+      (length-1 → 0 samples? cache-pruned?) via GDB on
+      `cut_extreme.seqc`, then align recon.  Verify `cut_extreme`,
+      `cut_into_join` now byte-identical.  Update IF-176 to `fixed`.
+- [ ] **57.B.4** — IF-177 fix: `ones(var)` — find recon's wave-
+      builtin var-arg detection; reorder so the semantic check fires
+      before the `toInt` conversion that produces the
+      "unspecified value type detected" message.  Match orig's
+      "ones can't be called with var arguments".  Verify
+      `int_float_coercion` and `wave_computed_length` improve.
+      Update IF-177 to `fixed`.
+
+**Subagent dispatch**: All four are largely independent edits in the
+same file area.  Recommended to dispatch a single subagent for the
+whole group (so it can read the file once and align consistently)
+rather than four parallel ones that may conflict on the same file.
+
+### Group C — crashes / worker aborts (GDB-required)
+
+Both are deterministic worker SIGABRTs with assertion sites known.
+Each gets its own subagent because the investigation is non-trivial.
+
+- [ ] **57.C.1** — IF-181 fix: `placeholder()` inside `join()`.
+      Minimal repro at `tests/cases/stress/placeholder_in_join.seqc`
+      (already 6 lines — no further bisection needed).
+      GDB-trace to identify the `stl_vector.h:1253` call site in
+      recon's `join()`; compare to orig's placeholder-aware path;
+      add the missing pre-check or sample-buffer init.  Verify
+      `placeholder_in_join_hdawg` now succeeds.  Add follow-up
+      probes (`placeholder + arith`, `cut(placeholder)`,
+      `scalar*placeholder`) to stress suite.  Update IF-181 to
+      `fixed`.
+- [ ] **57.C.2** — IF-159 fix: duplicate `assignWaveIndex` worker
+      abort.  ≥5 stress repros (`if159_assignwave_dup_crash`,
+      `assign_same_wave_multi`, `exec_table_var_index`,
+      `ct_high_index`, `assign_then_execute_immediate`).  GDB-trace
+      a minimal repro to identify the abort site (likely a
+      `set::insert` hitting an already-present key followed by an
+      unguarded `[]` deref).  Add the missing duplicate-detection
+      branch returning the orig error message.  Update IF-159 to
+      `fixed`.
+
+### Group D — constant-folding / dead-block elimination (single subagent)
+
+Likely one optimization pass missing or under-aggressive.  Both IFs
+share the symptom "extra `.text` instructions emitted that the orig
+folds away".
+
+- [ ] **57.D.1** — IF-174 fix: `if(true)`, `if(false)`,
+      `while(true)`, `while(false)`, `if(false){}else{}` not folded.
+      Locate the AST-eval branch handler for `if`/`while` with a
+      const-condition argument; add the fold (replace with body /
+      drop entirely).  Verify `true_false_usage`,
+      `while_true_loop` byte-identical.  Update IF-174 to `fixed`.
+- [ ] **57.D.2** — IF-168 fix: empty `if{}`/`for{}`/`repeat{}`
+      blocks emit byte-different `.text`.  Same area as 57.D.1
+      most likely; investigate together.  Verify `empty_blocks`
+      byte-identical.  Update IF-168 to `fixed`.
+
+### Group E — SHFQC sg device gating (single subagent)
+
+Both IFs are SHFQC sg → "phantom node-tree path" errors.  Almost
+certainly a device-id check that excludes SHFQC sg from the SG
+node-tree.  One fix expected to clear both.
+
+- [ ] **57.E.1** — Identify the device-detection / node-tree
+      registration code that maps SHFSG (works) vs SHFQC sg
+      (fails).  GDB-trace `setSinePhase` on both devices to see
+      where the path resolves.
+- [ ] **57.E.2** — Apply the gating fix.  Verify
+      `if161_shfqc_setsinephase_shfqc` and `oscfreq_dense_shfqc`
+      both pass.  Update IFs 161 and 167 to `fixed`.
+- [ ] **57.E.3** — IF-166 sister: `ZSYNC_DATA_PQSC_REGISTER`
+      accepted on SHFQA/SHFQC.  Likely the same per-device constant
+      table.  Add SHFQA/SHFQC exclusion.  Update IF-166 to `fixed`.
+
+### Group F — error-message wording diffs (low priority, parallel-safe)
+
+Aesthetic only — error strings differ but both error.  Each is a
+small, self-contained edit.  Defer to after Groups A-E if time
+short.
+
+- [ ] **57.F.1** — IF-164: align "waveform 'X' does not exist" vs
+      "no waveform with the name 'X' found" — grep for both strings
+      to find throw sites; pick whichever is in orig.  Update.
+- [ ] **57.F.2** — IF-165: regalloc error missing `Compiler Error
+      (line: N)` framing.  Wrap the throw.  Update.
+- [ ] **57.F.3** — IF-169: lexer mishandles `*/` inside `// ...`
+      line comment.  Fix the line-comment handler to consume to
+      `\n` ignoring inner comment markers.  Update.
+
+**Subagent dispatch**: Three independent small edits — parallel-safe.
+
+### Group G — codegen byte-diffs needing investigation (sequential)
+
+Higher-effort; some may need bisection of their stress files.
+
+- [ ] **57.G.1** — IF-158: missing static cwvf in else-arm.
+      `Prefetch::needsNewCwvf` @0x1dc620 Loop case.  GDB recipe
+      already exists in subagent report
+      `ses_1fde0697fffeWuLAE3xLqp38Lv`.  Bisect `kitchen_sink` and
+      `wavemem_pressure` to a minimal repro.  Fix; expect this to
+      also clear IF-170 (`wavemem_pressure`) since they likely
+      share the cwvf-emission bug.
+- [ ] **57.G.2** — IF-162: dual-placeholder `assignWaveIndex` uses
+      first-signal length.  Minimal repro at
+      `tests/cases/stress/if162_assignwave_dual_size.seqc`.
+      Function localized: `mergeWaveforms` Phase 1 in
+      `reconstructed/src/runtime/custom_functions_play.cpp`
+      (lines 193-206 / @0x15e060).  GDB orig vs recon, fix the
+      max computation.
+- [ ] **57.G.3** — IF-170: `wavemem_pressure` (12 large builtins).
+      Likely subsumed by IF-158 fix.  Re-test after 57.G.1 lands;
+      if still failing, bisect to identify the offending builtin.
+- [ ] **57.G.4** — IF-171: 8-temp linear arithmetic chain bytewise
+      diff.  Same `.asm`/`.text` size, different bytes — instruction
+      encoding bug or constant-pool ordering bug.  `dump_elf.py
+      --both` to find first differing instruction.
+- [ ] **57.G.5** — IF-163: `repeat(N>~10000)` refuses to unroll.
+      Grep for "too many iterations to unroll this loop"; identify
+      threshold; check orig's actual behavior (does it unroll up
+      to N? does it fall back to a runtime loop?).
+- [ ] **57.G.6** — IF-173: `chirp(1024, 0.5, 1e3, 1e9)` 1-LSB
+      sample diff at offset 0x192.  Wave-builder rounding /
+      fma-vs-mul+add.  GDB orig chirp at sample idx ~201; compare
+      with recon implementation.
+
+### Sequencing summary
+
+Optimal order to maximize agent throughput:
+
+1. **57.A.1** (audit) — single agent, blocks A.2-A.5.  ~15 min.
+2. **Parallel batch 1** — dispatch 5 subagents simultaneously:
+     - SA-A: 57.A.2 + 57.A.3 + 57.A.4 + 57.A.5 (sequential within)
+     - SA-B: 57.B.1 + 57.B.2 + 57.B.3 + 57.B.4 (sequential within)
+     - SA-C1: 57.C.1
+     - SA-D: 57.D.1 + 57.D.2
+     - SA-E: 57.E.1 + 57.E.2 + 57.E.3
+3. **After parallel batch 1 returns** — review, run main + stress
+   verification, commit per-group.
+4. **57.C.2** (IF-159) — separate, mid-effort GDB; can overlap with
+   batch 1 as a sixth subagent if context allows.
+5. **Parallel batch 2** (low priority) — three subagents for
+   57.F.1 / 57.F.2 / 57.F.3.
+6. **Group G** — sequential, hardest.  Take 57.G.1 (IF-158) first
+   since it likely subsumes IF-170.  Then 57.G.2, 57.G.4, 57.G.5,
+   57.G.6 in any order.
+
+### 57.0 — Phase 57 kickoff
+
+- [x] Backlog consolidation (this section)
+- [x] GDB user-experiences scaffolding (`tests/gdb/user-experiences/`
+      + AGENTS.md update)
+- [x] Commit consolidation + dispatch first parallel batch
+
+### 57.W — Phase 57 wrap-up
+
+- [ ] All Group A IFs closed
+- [ ] All Group B IFs closed
+- [ ] All Group C IFs closed
+- [ ] All Group D IFs closed
+- [ ] All Group E IFs closed
+- [ ] All Group F IFs closed (or explicitly deferred)
+- [ ] All Group G IFs closed (or explicitly deferred)
+- [ ] Final main + stress suite verification
+- [ ] Phase wrap-up commit + push
