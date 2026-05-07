@@ -3590,9 +3590,19 @@ sg-channel node-tree entries on SHFQC.
 
 ## IF-168  Empty if{}/for{}/repeat{} blocks generate different code
 
-**Status**: open
+**Status**: fixed (passing as of phase 57.D verification)
 **Severity**: bug (codegen)
 **Found**: stress phase 52 (`empty_blocks.seqc`)
+
+### Resolution
+
+`empty_blocks_hdawg` and `empty_blocks_shfsg` are byte-identical on
+the current main.  The fix landed implicitly via earlier 57.A–C
+work; no codegen change was needed in 57.D.  Phase 57.D additionally
+hardened `AsmOptimize::oneStepJumpElimination` to scan past
+non-matching LABELs (matching binary @0x27e130 semantics), which is
+not required by the current test surface but removes a known
+binary-vs-recon control-flow divergence.
 
 ### Symptom
 
@@ -3777,15 +3787,19 @@ waitWave();
 
 ## IF-174  if(true)/if(false)/while(false)/while(true) not folded — emits dead branch
 
-(Phase 54 update: `while(true)` also reproduces this — the
-`while_true_loop.seqc` stress test shows recon emits 2 extra
-instructions vs orig, same family as the `if(true)`/`if(false)`
-mis-fold.  Probably a single fix in the AST-eval branch handler
-covers all four constructs.)
-
-**Status**: open
+**Status**: fixed (passing as of phase 57.D verification)
 **Severity**: bug (constant folding)
 **Found**: stress phase 53 (`true_false_usage.seqc` HDAWG + SHFSG)
+
+### Resolution
+
+`true_false_usage_hdawg`, `true_false_usage_shfsg`, and
+`while_true_loop_*` are byte-identical on the current main.  Fixed
+implicitly via earlier 57.A–C work.  Phase 57.D added a defensive
+correctness improvement to `oneStepJumpElimination` (scan past
+non-matching LABELs to match binary @0x27e130) — no behavioral
+change on the current test surface but eliminates a known control-
+flow divergence.
 
 ### Symptom
 

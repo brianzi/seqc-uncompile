@@ -354,7 +354,9 @@ void AsmOptimize::oneStepJumpElimination() {
         // Get the target label
         const std::string& targetLabel = it->assembler.label;
 
-        // Scan forward looking for the target label
+        // Scan forward looking for the target label.
+        // Binary @0x27e130 loop: skip INVALID and NOP, scan past
+        // non-matching LABELs, break on first other instruction.
         for (auto next = it + 1; next != asm_.end(); ++next) {
             auto nextCmd = next->assembler.cmd;
 
@@ -367,12 +369,15 @@ void AsmOptimize::oneStepJumpElimination() {
             if (nextCmd != Assembler::LABEL)
                 break;
 
-            // Check if this label matches the target
+            // LABEL: check if it matches the target
             if (next->assembler.label == targetLabel) {
-                // The branch targets the very next reachable instruction → eliminate
+                // Branch targets the very next reachable instruction →
+                // eliminate.
                 it->assembler.cmd = Assembler::INVALID;
+                break;
             }
-            break;
+            // Non-matching LABEL: continue scanning past it (binary
+            // 0x27e15d/0x27e168/0x27e12b → 0x27e130).
         }
     }
 }
