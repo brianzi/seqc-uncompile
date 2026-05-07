@@ -4567,3 +4567,48 @@ suspected functions but did not GDB-verify.
 - [ ] Sub-phase wrap-up commit (stress suite + IF-158 minimal repro +
       open IF entry, no fix yet)
 - [ ] Push
+
+---
+
+## Phase 49: Stress suite expansion + IF-159
+
+### 49.1 — Add more stress categories
+
+- [x] `shfqa_qa_dispatch.seqc` (SHFQA4 qa) — startQA + branched/looped
+      QA dispatch (byte-identical)
+- [x] `uhfqa_qa_dispatch.seqc` (UHFQA) — UHFQA startQA + getQAResult
+      feedback (byte-identical)
+- [x] `subroutines_many_calls.seqc` (HDAWG) — user-defined functions,
+      many call sites, calls inside loops/conditionals (byte-identical)
+- [x] `cmdtable_huge.seqc` (HDAWG) — many CT entries with pinned
+      indices (byte-identical)
+- [x] `large_const_arith.seqc` (HDAWG) — large constants, folding,
+      near-int32 boundaries (byte-identical)
+- [x] `repeat_nesting.seqc` (HDAWG/SHFSG) — many `repeat()` constructs,
+      nested 4-deep, mixed with for-loops (byte-identical)
+- [x] `userreg_rw_patterns.seqc` (HDAWG/SHFSG) — many setUserReg/
+      getUserReg, RMW, cross-loop persistence (byte-identical)
+- [x] `shfsg_osc_modulation.seqc` (SHFSG) — oscillator, sine phase,
+      resetOscPhase in loops (byte-identical)
+- [x] `wave_dedup_stress.seqc` (HDAWG/SHFSG) — many short waves with
+      duplicates, exercises dedup/merge (byte-identical)
+- [x] `long_flat_program.seqc` (HDAWG/SHFSG) — single huge basic block
+      with 100+ instructions (byte-identical)
+
+### 49.2 — IF-159: recon aborts on duplicate assignWaveIndex
+
+See `incidental_findings.md` IF-159. Minimal repro at
+`tests/cases/stress/if159_assignwave_dup_crash.seqc`.
+
+- [ ] Reproduce under GDB, capture backtrace at the crash site
+- [ ] Identify the throw-without-exception or uncaught-throw site
+- [ ] Match to the binary's "already assigned index" error path
+- [ ] Fix the recon to produce the same graceful error
+- [ ] `if159_assignwave_dup_crash_hdawg` produces matching error string
+- [ ] Full suite still 1600/1600 + stress 32/32 (when IF-158 also fixed)
+- [ ] Update IF-159 to `fixed`
+
+### 49.3 — Phase 49 wrap-up
+
+- [ ] Sub-phase wrap-up commit
+- [ ] Push

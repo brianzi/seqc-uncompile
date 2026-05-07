@@ -1,0 +1,55 @@
+// Stress: many `repeat()` constructs at multiple nesting depths,
+// mixed with for-loops.  Tests the lowering of `repeat` to internal
+// counter regs and any fast-path optimizations for compile-time counts.
+
+wave w1 = gauss(64, 32, 8);
+wave w2 = ones(64);
+
+// Top-level repeats with various counts
+repeat(1) { playWave(w1); }
+repeat(2) { playWave(w1); }
+repeat(3) { playWave(w1); playWave(w2); }
+repeat(7) { playWave(w1); }
+repeat(16) { playZero(64); }
+repeat(31) { playZero(32); }
+repeat(63) { playZero(32); }
+repeat(127) { playZero(32); }
+
+// Nested repeats
+repeat(4) {
+  repeat(8) {
+    playWave(w1);
+  }
+  playWave(w2);
+}
+
+// Repeat with for-loop body
+repeat(4) {
+  for (var k = 0; k < 4; k = k + 1) {
+    playWave(w1);
+  }
+}
+
+// For with repeat body
+for (var k = 0; k < 4; k = k + 1) {
+  repeat(8) {
+    playZero(64);
+  }
+}
+
+// Deeply nested repeats
+repeat(2) {
+  repeat(2) {
+    repeat(2) {
+      repeat(2) {
+        playWave(w1);
+      }
+    }
+  }
+}
+
+// Repeat with conditional inside
+var u = getUserReg(0);
+repeat(8) {
+  if (u > 0) { playWave(w1); } else { playWave(w2); }
+}

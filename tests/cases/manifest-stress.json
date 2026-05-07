@@ -9,6 +9,13 @@
     "shfsg8_sg": {
       "devtype": "SHFSG8",
       "sequencer": "sg"
+    },
+    "shfqa4_qa": {
+      "devtype": "SHFQA4",
+      "sequencer": "qa"
+    },
+    "uhfqa": {
+      "devtype": "UHFQA"
     }
   },
   "groups": [
@@ -44,7 +51,33 @@
 
         { "name": "deep_nest_long_live_hdawg", "file": "stress/deep_nest_long_live.seqc", "@base": "@hdawg8" },
 
-        { "name": "if158_cwvf_in_loop_hdawg",  "file": "stress/if158_cwvf_in_loop.seqc",  "@base": "@hdawg8", "comment": "IF-158: minimal repro for missing static cwvf in else-arm of in-loop if/else after cwvfr-arm." }
+        { "name": "if158_cwvf_in_loop_hdawg",  "file": "stress/if158_cwvf_in_loop.seqc",  "@base": "@hdawg8", "comment": "IF-158: minimal repro for missing static cwvf in else-arm of in-loop if/else after cwvfr-arm." },
+
+        { "name": "shfqa_qa_dispatch_shfqa",   "file": "stress/shfqa_qa_dispatch.seqc",   "@base": "@shfqa4_qa" },
+
+        { "name": "uhfqa_qa_dispatch_uhfqa",   "file": "stress/uhfqa_qa_dispatch.seqc",   "@base": "@uhfqa" },
+
+        { "name": "subroutines_many_calls_hdawg", "file": "stress/subroutines_many_calls.seqc", "@base": "@hdawg8" },
+
+        { "name": "cmdtable_huge_hdawg",       "file": "stress/cmdtable_huge.seqc",       "@base": "@hdawg8" },
+
+        { "name": "large_const_arith_hdawg",   "file": "stress/large_const_arith.seqc",   "@base": "@hdawg8" },
+
+        { "name": "repeat_nesting_hdawg",      "file": "stress/repeat_nesting.seqc",      "@base": "@hdawg8" },
+        { "name": "repeat_nesting_shfsg",      "file": "stress/repeat_nesting.seqc",      "@base": "@shfsg8_sg" },
+
+        { "name": "userreg_rw_patterns_hdawg", "file": "stress/userreg_rw_patterns.seqc", "@base": "@hdawg8" },
+        { "name": "userreg_rw_patterns_shfsg", "file": "stress/userreg_rw_patterns.seqc", "@base": "@shfsg8_sg" },
+
+        { "name": "shfsg_osc_modulation_shfsg","file": "stress/shfsg_osc_modulation.seqc","@base": "@shfsg8_sg" },
+
+        { "name": "wave_dedup_stress_hdawg",   "file": "stress/wave_dedup_stress.seqc",   "@base": "@hdawg8" },
+        { "name": "wave_dedup_stress_shfsg",   "file": "stress/wave_dedup_stress.seqc",   "@base": "@shfsg8_sg" },
+
+        { "name": "long_flat_program_hdawg",   "file": "stress/long_flat_program.seqc",   "@base": "@hdawg8" },
+        { "name": "long_flat_program_shfsg",   "file": "stress/long_flat_program.seqc",   "@base": "@shfsg8_sg" },
+
+        { "name": "if159_assignwave_dup_crash_hdawg", "file": "stress/if159_assignwave_dup_crash.seqc", "@base": "@hdawg8", "comment": "IF-159: recon aborts (terminate called without active exception) when binary produces clean 'already assigned index' error." }
       ]
     }
   ]

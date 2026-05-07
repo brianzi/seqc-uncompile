@@ -1,0 +1,52 @@
+// Stress: extreme constant arithmetic — large immediate values,
+// folding boundaries, near-int32 overflow.
+
+const BIG1 = 1000000;
+const BIG2 = 10000000;
+const BIG3 = 100000000;
+const BIG_NEG = -2147483600;
+
+var u = getUserReg(0);
+
+// Constant folding at compile time
+var a = BIG1 + 1;
+var b = BIG1 - 1;
+var c = BIG2 + BIG1;
+var d = BIG3 - BIG2;
+var e = BIG1 * 3;
+var f = BIG2 / 7;
+
+// Mixed const + var
+var g = u + BIG1;
+var h = u - BIG1;
+var i = u + BIG2;
+var j = u + BIG3;
+var k = u + BIG_NEG;
+
+// Wait with large constants
+wait(BIG1);
+wait(BIG2);
+wait(a);
+wait(b);
+wait(g);
+wait(h);
+wait(i);
+wait(j);
+
+// Loop bounds are constants (folded)
+for (var n = 0; n < 100; n = n + 1) {
+  playZero(64);
+}
+
+// Conditionals with large literals
+if (u > BIG1) {
+  playZero(128);
+} else if (u > BIG2) {
+  playZero(256);
+} else {
+  playZero(64);
+}
+
+if (u + BIG1 > BIG2) {
+  wait(u + BIG3);
+}

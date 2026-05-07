@@ -1,0 +1,34 @@
+// Stress: SHFQA QA-channel — startQA/captureSet/integration weights
+// with multiple readout paths and triggering.
+
+waitDigTrigger(1);
+
+wave w0 = ones(64);
+wave w1 = sine(64, 0.7, 0.0, 1);
+wave w2 = sine(64, 0.5, 1.5708, 1);
+wave w3 = sine(128, 0.3, 0.0, 2);
+
+// Generator side: a few generator waves that get played repeatedly
+playZero(64);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+playZero(128);
+startQA(QA_GEN_1, QA_INT_1, true, 0, 0x0);
+playZero(96);
+startQA(QA_GEN_0 | QA_GEN_1, QA_INT_0 | QA_INT_1, true, 0, 0x0);
+
+// Loop with conditional QA dispatch
+for (var k = 0; k < 8; k = k + 1) {
+  if (k > 3) {
+    startQA(QA_GEN_2, QA_INT_2, true, 0, 0x0);
+  } else {
+    startQA(QA_GEN_3, QA_INT_3, true, 0, 0x0);
+  }
+  playZero(64);
+}
+waitDigTrigger(1);
+
+// Repeated QA dispatch with same args (cache stress)
+repeat(16) {
+  startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+  playZero(64);
+}

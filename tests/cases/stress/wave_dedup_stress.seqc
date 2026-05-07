@@ -1,0 +1,48 @@
+// Stress: many short waves to stress waveform-cache merging,
+// mergeWaveforms, and dedup logic.
+
+wave a01 = ones(32);
+wave a02 = ones(32);   // duplicate of a01 — should dedup
+wave a03 = ones(64);
+wave a04 = ones(64);   // dup
+wave a05 = ones(128);
+wave a06 = zeros(32);
+wave a07 = zeros(32);  // dup
+wave a08 = zeros(64);
+wave a09 = zeros(128);
+wave a10 = sine(32, 0.5, 0, 1);
+wave a11 = sine(32, 0.5, 0, 1);  // dup
+wave a12 = sine(64, 0.5, 0, 1);
+wave a13 = sine(32, 0.7, 0, 1);
+wave a14 = sine(32, 0.5, 1.5708, 1);  // different phase
+wave a15 = gauss(64, 32, 8);
+wave a16 = gauss(64, 32, 8);  // dup
+wave a17 = gauss(64, 32, 16);
+wave a18 = gauss(128, 64, 16);
+wave a19 = ramp(64, 0, 1);
+wave a20 = ramp(64, 0, 1);  // dup
+wave a21 = ramp(64, -1, 1);
+wave a22 = drag(64, 32, 8);
+wave a23 = drag(128, 64, 16);
+
+playWave(a01); playWave(a02); playWave(a03); playWave(a04);
+playWave(a05); playWave(a06); playWave(a07); playWave(a08);
+playWave(a09); playWave(a10); playWave(a11); playWave(a12);
+playWave(a13); playWave(a14); playWave(a15); playWave(a16);
+playWave(a17); playWave(a18); playWave(a19); playWave(a20);
+playWave(a21); playWave(a22); playWave(a23);
+
+// Dual-wave plays mixing dups and non-dups
+playWave(a01, a02);
+playWave(a01, a03);
+playWave(a06, a07);
+playWave(a10, a11);
+playWave(a15, a16);
+playWave(a18, a23);
+
+waitWave();
+
+// Re-play to stress cache hits
+playWave(a01); playWave(a01); playWave(a01);
+playWave(a15); playWave(a15);
+playWave(a23);

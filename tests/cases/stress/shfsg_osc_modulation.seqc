@@ -1,0 +1,38 @@
+// Stress: SHFSG generator stress with oscillator, modulation,
+// configFreqSweep, and resetOscPhase.
+
+wave w1 = ones(128);
+wave w2 = sine(256, 0.7, 0.0, 1);
+wave w3 = gauss(512, 256, 64);
+
+// Oscillator setup
+setOscFreq(0, 100e6);
+setOscFreq(1, 200e6);
+setOscFreq(2, 300e6);
+
+resetOscPhase();
+setSinePhase(0.0);
+setSinePhase(1.5708);
+
+// Plays with oscillator-modulated waves
+playWave(1, w1);
+playWave(1, w2);
+playWave(1, w3);
+
+resetOscPhase();
+playWave(1, 2, w2, 1, 2, w3);
+
+// In a loop with phase resets
+for (var k = 0; k < 8; k = k + 1) {
+  resetOscPhase();
+  playWave(1, w2);
+  setSinePhase(0.0);
+  playWave(1, w3);
+}
+waitWave();
+
+// Mixed
+playWave(1, w1);
+playWave(1, w2);
+resetOscPhase();
+playWave(1, w3);

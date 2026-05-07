@@ -3220,3 +3220,67 @@ elsePlay — vs which branch recon takes.  GDB recipe in subagent report
 - `kitchen_sink_hdawg` (full kitchen sink) — fails with same signature
 - `if158_cwvf_in_loop_hdawg` (minimal repro) — fails with same signature
 
+
+## IF-159  Recon aborts on duplicate `assignWaveIndex` for same waveform
+
+**Source**: stress test `cmdtable_huge` (during reduction)
+**Status**: open
+**Severity**: likely-bug (crash vs. graceful error)
+
+### Symptom
+
+When the same waveform is passed to `assignWaveIndex` twice with
+different (channel, index) tuples, the original binary throws a clean
+compiler error:
+
+```
+Compiler Error (line: N): waveform <name> has already assigned index
+```
+
+The recon instead **aborts** the worker with:
+
+```
+worker exit -6: terminate called without an active exception
+```
+
+This is a missing exception-throw or wrong control flow somewhere in
+the second-assignment path of `assignWaveIndex` — the recon presumably
+reaches a `throw;` with no in-flight exception, or hits an uncaught
+exception that std::terminate catches.
+
+### Minimal repro
+
+`tests/cases/stress/if159_assignwave_dup_crash.seqc`:
+
+```seqc
+wave g1 = gauss(128, 64, 16);
+
+assignWaveIndex(1, 2, g1, 100);
+assignWaveIndex(1, g1, 150);   // <-- recon crashes here
+```
+
+Run: `python tests/diff_test.py --manifest manifest-stress.json --filter if159 -v`
+
+The stress harness reports PASS because both errored, but the recon's
+behavior is wrong — should be a clean compiler error string, not a
+worker abort.
+
+### Suspected location
+
+`assignWaveIndex` codegen / waveform-registration path. Look for:
+- `WavetableEntry`-already-assigned check that should `throw` a
+  `CompilerError` but instead falls through, or
+- An exception thrown from inside a destructor / catch block (which
+  std::terminate-s with `terminate called without an active exception`).
+
+Likely files: `reconstructed/src/codegen/custom_functions_*.cpp`,
+`reconstructed/src/codegen/waveform_*.cpp`, or wherever
+`assignWaveIndex` dispatches.
+
+### Recommended next step
+
+1. Run the worker directly on the minimal repro under GDB to capture
+   the crash backtrace.
+2. Identify the throw site / destructor exception.
+3. Compare with the binary's "already assigned" error path and fix.
+

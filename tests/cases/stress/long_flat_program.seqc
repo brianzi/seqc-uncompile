@@ -1,0 +1,33 @@
+// Stress: very long flat program — single basic block, hundreds of
+// instructions, tests linenr and large-output handling.
+
+wave w1 = gauss(64, 32, 8);
+wave w2 = ones(64);
+
+// 50 plays in a row (no control flow)
+playWave(w1); playWave(w2); playWave(w1); playWave(w2); playWave(w1);
+playWave(w2); playWave(w1); playWave(w2); playWave(w1); playWave(w2);
+playWave(w1); playWave(w2); playWave(w1); playWave(w2); playWave(w1);
+playWave(w2); playWave(w1); playWave(w2); playWave(w1); playWave(w2);
+playWave(w1); playWave(w2); playWave(w1); playWave(w2); playWave(w1);
+playWave(w2); playWave(w1); playWave(w2); playWave(w1); playWave(w2);
+playWave(w1); playWave(w2); playWave(w1); playWave(w2); playWave(w1);
+playWave(w2); playWave(w1); playWave(w2); playWave(w1); playWave(w2);
+playWave(w1); playWave(w2); playWave(w1); playWave(w2); playWave(w1);
+playWave(w2); playWave(w1); playWave(w2); playWave(w1); playWave(w2);
+
+waitWave();
+
+// 30 playZeros
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+playZero(64); playZero(64); playZero(64); playZero(64); playZero(64);
+
+// 20 wait()s
+wait(10); wait(11); wait(12); wait(13); wait(14);
+wait(15); wait(16); wait(17); wait(18); wait(19);
+wait(20); wait(21); wait(22); wait(23); wait(24);
+wait(25); wait(26); wait(27); wait(28); wait(29);

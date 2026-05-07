@@ -1,0 +1,51 @@
+// Stress: UHFQA startQA + QA result feedback in branched / looped contexts.
+
+wave w1 = ones(128);
+wave w2 = sine(256, 0.7, 0, 1);
+wave w3 = gauss(256, 128, 32);
+
+playWave(w1);
+waitWave();
+startQA(QA_INT_0, true);
+wait(100);
+startQA(QA_INT_1, true);
+wait(100);
+startQA(QA_INT_ALL, true);
+wait(100);
+
+var r0 = getQAResult();
+var r1 = getQAResult();
+
+// Conditional dispatch
+if (r0 > 0) {
+  playWave(w1);
+  startQA(QA_INT_0, true);
+} else {
+  playWave(w2);
+  startQA(QA_INT_1, true);
+}
+waitWave();
+wait(100);
+
+// Loop with QA per-iteration
+for (var k = 0; k < 4; k = k + 1) {
+  playWave(w3);
+  waitWave();
+  startQA(QA_INT_0, true);
+  wait(100);
+  var rk = getQAResult();
+  if (rk > 0) {
+    playWave(w1);
+  } else {
+    playWave(w2);
+  }
+  waitWave();
+}
+
+// Many startQA forms back-to-back
+startQA();
+wait(50);
+startQA(QA_INT_0, 1);
+wait(50);
+startQA(QA_INT_ALL, 1, 0, 1);
+wait(50);

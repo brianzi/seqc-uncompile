@@ -1,0 +1,52 @@
+// Stress: very large counts of CT entries with mixed waveform refs
+// and assignWaveIndex pinning.
+
+wave g1  = gauss(128, 64, 16);
+wave g2  = gauss(256, 128, 32);
+wave g3  = gauss(512, 256, 64);
+wave g4  = gauss(1024, 512, 128);
+wave o1  = ones(128);
+wave o2  = ones(256);
+wave z1  = zeros(128);
+wave d1  = drag(256, 128, 32);
+wave d2  = drag(512, 256, 64);
+wave m1  = marker(128, 1) + 0.5 * gauss(128, 64, 16);
+wave m2  = marker(256, 3) + 0.5 * sine(256, 1, 0, 2);
+
+// Pin a chunk to specific CT slots (each waveform pinned exactly once)
+assignWaveIndex(1, 2, g1, 100);
+assignWaveIndex(1, 2, g2, 101);
+assignWaveIndex(1, 2, g3, 102);
+assignWaveIndex(1, 2, g4, 103);
+assignWaveIndex(1, 2, o1, 110);
+assignWaveIndex(1, 2, o2, 111);
+assignWaveIndex(1, 2, z1, 120);
+assignWaveIndex(1, 2, d1, 130);
+assignWaveIndex(1, 2, d2, 131);
+assignWaveIndex(1, 2, m1, 140);
+assignWaveIndex(1, 2, m2, 141);
+
+// Plays via CT entries
+executeTableEntry(100);
+executeTableEntry(101);
+executeTableEntry(102);
+executeTableEntry(103);
+executeTableEntry(110);
+executeTableEntry(111);
+executeTableEntry(120);
+executeTableEntry(130);
+executeTableEntry(131);
+executeTableEntry(140);
+executeTableEntry(141);
+
+// Var-driven dispatch
+var u = getUserReg(0);
+for (var k = 0; k < 4; k = k + 1) {
+  executeTableEntry(100 + k);
+}
+
+// Repeated re-dispatch (cache stress)
+repeat(8) {
+  executeTableEntry(100);
+  executeTableEntry(141);
+}

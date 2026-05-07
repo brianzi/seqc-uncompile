@@ -1,0 +1,40 @@
+// Stress: many getUserReg / setUserReg uses at varied indices, with
+// reads-after-writes and cross-loop persistence.
+
+setUserReg(0, 100);
+setUserReg(1, 200);
+setUserReg(5, 500);
+setUserReg(7, 700);
+setUserReg(10, 1000);
+setUserReg(15, 1500);
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(5);
+var d = getUserReg(7);
+var e = getUserReg(10);
+var f = getUserReg(15);
+
+setUserReg(0, a + b);
+setUserReg(1, c + d);
+setUserReg(5, e + f);
+
+var sum = a + b + c + d + e + f;
+setUserReg(2, sum);
+
+// In a loop
+for (var k = 0; k < 4; k = k + 1) {
+  setUserReg(8, k);
+  var x = getUserReg(8);
+  setUserReg(9, x + a);
+}
+
+// Read-modify-write
+var rmw = getUserReg(3);
+setUserReg(3, rmw + 1);
+rmw = getUserReg(3);
+setUserReg(3, rmw + 1);
+rmw = getUserReg(3);
+setUserReg(3, rmw + 1);
+
+wait(sum);

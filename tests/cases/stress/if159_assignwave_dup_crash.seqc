@@ -1,0 +1,11 @@
+// IF-159 minimal repro: assigning the SAME waveform to two CT indices
+// triggers a clean "already assigned index" error in the original
+// binary, but causes the recon to ABORT with `terminate called without
+// an active exception` (worker exit -6).
+//
+// The recon should produce the same graceful error, not crash.
+
+wave g1 = gauss(128, 64, 16);
+
+assignWaveIndex(1, 2, g1, 100);
+assignWaveIndex(1, g1, 150);   // <-- same wave, different chans/index → recon crashes

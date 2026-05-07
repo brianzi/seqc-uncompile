@@ -1,0 +1,51 @@
+// Stress: deep subroutine / function calls with parameters,
+// recursion-by-loop, and many call sites.
+
+void play_pulse(var idx, var n) {
+  playZero(64);
+  if (idx > n) {
+    playZero(128);
+  } else {
+    playZero(32);
+  }
+}
+
+void wait_pair(var a, var b) {
+  wait(a + b);
+  wait(a + b + 16);
+}
+
+var u0 = getUserReg(0);
+var u1 = getUserReg(1);
+
+// Many call sites with different args
+play_pulse(1, u0);
+play_pulse(2, u0);
+play_pulse(3, u0);
+play_pulse(u0, u1);
+play_pulse(u0 + 1, u1);
+play_pulse(u0 + 2, u1);
+
+wait_pair(10, u0);
+wait_pair(20, u0);
+wait_pair(30, u0);
+wait_pair(u0, u1);
+wait_pair(u0 + 5, u1 + 5);
+
+// Calls inside a loop
+for (var k = 0; k < 4; k = k + 1) {
+  play_pulse(k, u0);
+  wait_pair(k, u1);
+  if (k > 1) {
+    play_pulse(k + 10, u0 + u1);
+  }
+}
+
+// Calls inside conditionals
+if (u0 > 0) {
+  play_pulse(100, u0);
+  wait_pair(100, u1);
+} else {
+  play_pulse(200, u0);
+  wait_pair(200, u1);
+}
