@@ -1,0 +1,23 @@
+// Subroutine with heavy local var usage.
+
+wave w = ones(64);
+
+void busy() {
+    var a = 1;
+    var b = 2;
+    var c = 3;
+    var d = a + b;
+    var e = c * 2;
+    var f = d + e;
+    var g = f - a;
+    var h = g | b;
+    var i = h ^ c;
+    var j = i & 0xFF;
+    setUserReg(0, j);
+    playWave(1, 2, w);
+}
+
+busy();
+busy();
+busy();
+waitWave();

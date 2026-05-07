@@ -1,0 +1,11 @@
+// SeqC source with leading whitespace / tabs / odd indentation.
+
+	wave w = ones(64);
+
+      playWave(1, 2, w);
+   	   waitWave();
+
+	  for (	var i = 0;  i  < 4 ;  i = i + 1 ) {
+		    playWave( 1 , 2 , w ) ;
+	  }
+   waitWave(  );

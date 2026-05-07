@@ -1,0 +1,22 @@
+// waitWave() between every operation — strict ordering.
+
+wave w = ones(64);
+
+playWave(1, 2, w);
+waitWave();
+playZero(64);
+waitWave();
+playWave(1, 2, w);
+waitWave();
+playZero(64);
+waitWave();
+playWave(1, 2, w);
+waitWave();
+playZero(64);
+waitWave();
+playWave(1, 2, w);
+waitWave();
+playZero(64);
+waitWave();
+playWave(1, 2, w);
+waitWave();

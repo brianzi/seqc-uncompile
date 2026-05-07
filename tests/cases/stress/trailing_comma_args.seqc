@@ -1,0 +1,5 @@
+// Trailing comma in arg list.
+
+wave w = ones(64);
+playWave(1, 2, w,);
+waitWave();

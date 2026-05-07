@@ -1,0 +1,26 @@
+// Dead store: same variable assigned multiple times back-to-back;
+// only the last value should be observable.
+
+var x = 5;
+x = 10;
+x = 15;
+x = 20;
+x = 25;
+setUserReg(0, x);
+
+var y = getUserReg(1);
+y = y + 1;
+y = y + 2;
+y = y + 3;
+y = 100;            // wipes out the +6
+setUserReg(2, y);
+
+// Conditional dead store
+var z = 0;
+z = 1;
+if (getUserReg(3) == 1) {
+    z = 2;
+} else {
+    z = 3;
+}
+setUserReg(4, z);

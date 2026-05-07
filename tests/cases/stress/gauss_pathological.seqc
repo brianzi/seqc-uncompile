@@ -1,0 +1,10 @@
+// gauss with 0 width / pathological params.
+
+wave w_narrow = gauss(128, 64, 1);     // very narrow
+wave w_centered_at_0 = gauss(128, 0, 16);
+wave w_off_end = gauss(128, 200, 16);  // peak past end
+
+playWave(1, 2, w_narrow);
+playWave(1, 2, w_centered_at_0);
+playWave(1, 2, w_off_end);
+waitWave();

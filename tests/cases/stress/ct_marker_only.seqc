@@ -1,0 +1,14 @@
+// CT with marker-only waves at indexed slots.
+
+wave m1 = marker(64, 1);
+wave m2 = marker(64, 2);
+wave m3 = marker(64, 3);
+
+assignWaveIndex(1, 2, m1, 0);
+assignWaveIndex(1, 2, m2, 1);
+assignWaveIndex(1, 2, m3, 2);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+waitWave();

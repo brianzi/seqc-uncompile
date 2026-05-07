@@ -1,0 +1,12 @@
+// Subroutine defined but never called — tests dead-code elimination.
+
+wave w = ones(64);
+
+void unused_a() { playWave(1, 2, w); }
+void unused_b() { playZero(64); }
+void unused_c() { setUserReg(0, 1); }
+
+void used() { playWave(1, 2, w); waitWave(); }
+
+used();
+used();

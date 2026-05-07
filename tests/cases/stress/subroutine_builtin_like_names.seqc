@@ -1,0 +1,22 @@
+// Subroutines that share names with builtin-like words.  Tests the
+// symbol resolution / shadowing rules.
+
+wave w = ones(64);
+
+void play() {
+    playWave(1, 2, w);
+}
+
+void zero() {
+    playZero(64);
+}
+
+void wait_a_bit() {
+    waitWave();
+}
+
+play();
+zero();
+wait_a_bit();
+play();
+wait_a_bit();

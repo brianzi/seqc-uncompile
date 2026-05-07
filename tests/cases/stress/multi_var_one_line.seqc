@@ -1,0 +1,8 @@
+// Multiple var declarations on one line.
+
+var a = 1, b = 2, c = 3;
+
+setUserReg(0, a);
+setUserReg(1, b);
+setUserReg(2, c);
+setUserReg(3, a + b + c);

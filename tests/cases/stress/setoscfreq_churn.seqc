@@ -1,0 +1,17 @@
+// Many setOscFreq calls — oscillator frequency churn (HDAWG).
+
+setOscFreq(0, 1e6);
+setOscFreq(0, 2e6);
+setOscFreq(0, 3e6);
+setOscFreq(1, 1e6);
+setOscFreq(1, 2e6);
+setOscFreq(2, 5e6);
+setOscFreq(3, 7e6);
+
+setOscFreq(0, 100e6);
+setOscFreq(1, 100e6);
+setOscFreq(2, 100e6);
+setOscFreq(3, 100e6);
+
+playZero(128);
+waitWave();

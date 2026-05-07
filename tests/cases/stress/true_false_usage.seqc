@@ -1,0 +1,19 @@
+// True/false keyword usage outside of startQA.
+
+if (true) {
+    setUserReg(0, 1);
+}
+if (false) {
+    setUserReg(1, 99);
+} else {
+    setUserReg(1, 2);
+}
+
+var x = true;
+var y = false;
+setUserReg(2, x);
+setUserReg(3, y);
+
+while (false) {
+    setUserReg(4, 99);
+}

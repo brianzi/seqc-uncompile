@@ -1,0 +1,17 @@
+// SHFQA: startQA combinations.  Removed waitWave (not supported on
+// SHFQA) — playZero serializes naturally on the QA sequencer.
+
+wave w_int = ones(2048);
+configFreqSweep(0, 1e6, 1e9);
+
+resetOscPhase();
+setSweepStep(0, 0);
+
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+playZero(2048);
+
+startQA(QA_GEN_ALL, QA_INT_ALL, true, 0, 0x0);
+playZero(2048);
+
+startQA(QA_GEN_0 | QA_GEN_1 | QA_GEN_2, QA_INT_0 | QA_INT_3, true, 0, 0x0);
+playZero(2048);

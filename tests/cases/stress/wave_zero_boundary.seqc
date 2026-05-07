@@ -1,0 +1,12 @@
+// Empty wave / 0-length boundary explicitly.
+
+wave w_empty = zeros(0);
+wave w_one   = zeros(1);
+wave w_two   = zeros(2);
+wave w_min   = zeros(32);
+
+playWave(1, 2, w_empty);
+playWave(1, 2, w_one);
+playWave(1, 2, w_two);
+playWave(1, 2, w_min);
+waitWave();

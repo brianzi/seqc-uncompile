@@ -4843,5 +4843,111 @@ See `incidental_findings.md` IF-171.
 
 ### 52.10 — Phase 52 wrap-up
 
+- [x] Sub-phase wrap-up commit (`047aeb9`)
+- [x] Push
+
+## Phase 53: Stress suite expansion (round 6) + IFs 172-175
+
+Goal: 40 new stress angles spanning constant-folding identities,
+strength reduction, algebraic associativity, dead store, source-form
+extremes (empty, single-statement, very long line, 1000+ lines, odd
+whitespace, trailing comma, multi-var-one-line, true/false literals,
+extreme integer/float literals), wave-length boundaries (zero,
+single-sample, min, max), wave-builder extremes (gauss / chirp /
+sinc pathological), playback ordering (waitWave between every op vs
+no waitWave at all, mixed lengths back-to-back), CT extras (negative
+index, immediate execute after assign, marker-only assign, stride
+chains), subroutine variants (10-deep call chain, unused, many flat
+calls, only-waitWave, local-heavy, builtin-like names), HDAWG
+device-specific (4ch + 8ch on HDAWG8, rate variants, setOscFreq
+churn — moved to SHFSG), SHFQA startQA combos, max nesting depth.
+
+Suite scores after Phase 53:
+  main suite:   1600/1600 passing
+  stress suite: 192/217 passing (after fork additions)
+
+New regressions surfaced:
+
+  IF-172 — `zeros(0)` emits stray length-0 entry in `.waveforms`
+          table; orig drops it.  Affects `wave_zero_boundary`,
+          `wave_min_length`.
+  IF-173 — `chirp()` 1-LSB sample diff at extreme sweep
+          (`chirp(1024, 0.5, 1e3, 1e9)`); reproduces on HDAWG and
+          SHFSG (wave-builder bug, not codegen).
+  IF-174 — `if(true)` / `if(false){}else{}` / `while(false)` not
+          folded — recon emits 1 extra instruction (4-byte `.text`
+          delta) on HDAWG and SHFSG.
+  IF-175 — Unsubstituted boost::format placeholders (`%1% %2% %3%
+          %4%`) leak into user-facing TooFewArguments error in
+          `long_source.seqc`.  Two distinct bugs implied: (a) the
+          assembler thinks an instruction at idx ~1152 is missing
+          args (codegen?) and (b) the error path forgets `.str()`
+          /  `% a % b` substitution.
+
+Test-author bugs (forked):
+  - `shfqa_startqa_combos.seqc`: had `waitWave()` (not allowed on
+    SHFQA), short-circuited.  Fork
+    `shfqa_startqa_combos_fixed.seqc` is byte-identical — angle
+    found no regression.
+  - `setoscfreq_churn.seqc` mapped to HDAWG (unsupported).  New
+    mapping `setoscfreq_churn_shfsg` is byte-identical — angle
+    found no regression.
+
+Existing-IF dupes (kept as additional repros, not new findings):
+  - `assign_then_execute_immediate_hdawg`, `exec_stride_chain_hdawg`
+    → both reproduce IF-159 (worker abort on duplicate
+    assignWaveIndex).
+
+Angles probed-and-clean (no regression — confirmed via
+byte-identical pass): const_fold_identities, strength_reduction,
+algebraic_assoc, dead_store, empty_source, single_statement,
+numeric_literal_forms, var_no_init, max_nesting_depth,
+subroutine_call_chain_deep, subroutine_unused,
+subroutine_many_calls_flat, very_long_line, userreg_repeated_writes,
+waitwave_every_op, no_waitwave_ever, trailing_comma_args,
+multi_var_one_line, playwave_diff_lengths, float_precision,
+int_extreme_values, ct_marker_only, subroutine_only_waitwave,
+subroutine_local_heavy, gauss_pathological,
+hdawg_4ch_8ch, hdawg_rate_variants, odd_whitespace,
+subroutine_builtin_like_names, wave_max_length.
+
+### 53.1 — IF-172: zeros(0) stray waveform entry
+
+See `incidental_findings.md` IF-172.
+
+- [ ] Find waveform-table emit pass; locate length-0 filter
+- [ ] Add missing `if (length > 0)` guard
+- [ ] Update IF-172 to `fixed`
+
+### 53.2 — IF-173: chirp 1-LSB numerical diff at extreme sweep
+
+See `incidental_findings.md` IF-173.
+
+- [ ] GDB-trace orig chirp at sample idx ~201 with the repro input
+- [ ] Compare with recon chirp implementation; check fma vs mul+add,
+      double vs float, accumulator vs per-sample
+- [ ] Update IF-173 to `fixed`
+
+### 53.3 — IF-174: constant-condition branches not folded
+
+See `incidental_findings.md` IF-174.
+
+- [ ] `dump_elf.py --both` to find which of the 4 constructs diverges
+- [ ] Inspect AST-eval branch handling for `if`/`while` with
+      constant-bool conditions
+- [ ] Update IF-174 to `fixed`
+
+### 53.4 — IF-175: boost::format unsubstituted in TooFewArguments
+
+See `incidental_findings.md` IF-175.
+
+- [ ] Grep `ErrorMessages::get(4)` call sites; check substitution
+      chain
+- [ ] Independently: GDB orig at instruction idx ~1152 to see what
+      arg-count check differs
+- [ ] Update IF-175 to `fixed` once both sub-bugs resolved
+
+### 53.5 — Phase 53 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

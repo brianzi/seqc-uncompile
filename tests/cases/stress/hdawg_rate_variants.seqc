@@ -1,0 +1,18 @@
+// HDAWG: setRate / various AWG-rate-dependent operations.
+
+wave w = ones(128);
+
+playWave(1, 2, w);
+waitWave();
+
+playWave(1, 2, w, AWG_RATE_2400MHZ);
+waitWave();
+
+playWave(1, 2, w, AWG_RATE_1200MHZ);
+waitWave();
+
+playWave(1, 2, w, AWG_RATE_600MHZ);
+waitWave();
+
+playWave(1, 2, w, AWG_RATE_300MHZ);
+waitWave();

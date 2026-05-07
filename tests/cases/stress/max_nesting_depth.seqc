@@ -1,0 +1,51 @@
+// Maximum nesting depth: 10 levels of nested if.
+
+var f = getUserReg(0);
+wave w = ones(64);
+
+if (f == 0) {
+    if (f == 0) {
+        if (f == 0) {
+            if (f == 0) {
+                if (f == 0) {
+                    if (f == 0) {
+                        if (f == 0) {
+                            if (f == 0) {
+                                if (f == 0) {
+                                    if (f == 0) {
+                                        playWave(1, 2, w);
+                                        waitWave();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// 10 nested for loops
+for (var a = 0; a < 1; a = a + 1) {
+    for (var b = 0; b < 1; b = b + 1) {
+        for (var c = 0; c < 1; c = c + 1) {
+            for (var d = 0; d < 1; d = d + 1) {
+                for (var e = 0; e < 1; e = e + 1) {
+                    for (var g = 0; g < 1; g = g + 1) {
+                        for (var h = 0; h < 1; h = h + 1) {
+                            for (var i = 0; i < 1; i = i + 1) {
+                                for (var j = 0; j < 1; j = j + 1) {
+                                    for (var k = 0; k < 1; k = k + 1) {
+                                        playZero(32);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+waitWave();

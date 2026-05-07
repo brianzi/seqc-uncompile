@@ -1,0 +1,7 @@
+// Out-of-range numeric literals.
+
+setUserReg(0, 2147483647);    // INT32_MAX
+setUserReg(1, -2147483648);   // INT32_MIN
+setUserReg(2, 4294967295);    // UINT32_MAX
+setUserReg(3, 0xFFFFFFFF);
+setUserReg(4, 0x80000000);

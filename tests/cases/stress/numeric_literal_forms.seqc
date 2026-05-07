@@ -1,0 +1,29 @@
+// Numeric literal forms: scientific notation, hex, signed.
+
+var a = 0xff;
+var b = 0xFFFF;
+var c = 0xCAFEBABE;
+var d = 1000;
+var e = -1000;
+var f = 0;
+var g = -0;
+
+setUserReg(0, a);
+setUserReg(1, b);
+setUserReg(2, c);
+setUserReg(3, d);
+setUserReg(4, e);
+setUserReg(5, f);
+setUserReg(6, g);
+
+// Floating literals (used in waveform args)
+wave w1 = sine(128, 0.5,    0,   4);
+wave w2 = sine(128, 5e-1,   0,   4);
+wave w3 = sine(128, 0.50000, 0,  4);
+wave w4 = sine(128, .5,     0,   4);
+
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+waitWave();

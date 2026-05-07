@@ -1,0 +1,12 @@
+// Subroutine that does only waitWave().
+
+wave w = ones(64);
+
+void wait() { waitWave(); }
+
+playWave(1, 2, w);
+wait();
+playWave(1, 2, w);
+wait();
+playWave(1, 2, w);
+wait();

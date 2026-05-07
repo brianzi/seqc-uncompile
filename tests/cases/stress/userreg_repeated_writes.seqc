@@ -1,0 +1,22 @@
+// Many setUserReg writes to same register — last-write-wins.
+
+setUserReg(0, 1);
+setUserReg(0, 2);
+setUserReg(0, 3);
+setUserReg(0, 4);
+setUserReg(0, 5);
+setUserReg(0, 6);
+setUserReg(0, 7);
+setUserReg(0, 8);
+setUserReg(0, 9);
+setUserReg(0, 10);
+
+// Interleaved
+setUserReg(1, 100);
+setUserReg(2, 200);
+setUserReg(1, 101);
+setUserReg(2, 201);
+setUserReg(1, 102);
+setUserReg(2, 202);
+setUserReg(1, 103);
+setUserReg(2, 203);

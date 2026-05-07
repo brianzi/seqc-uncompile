@@ -1,0 +1,10 @@
+// CT entry: assignWaveIndex then immediately executeTableEntry on the
+// same line / next line.
+
+wave w = gauss(128, 64, 16);
+
+assignWaveIndex(1, 2, w, 0); executeTableEntry(0);
+assignWaveIndex(1, 2, w, 1);
+executeTableEntry(1);
+
+waitWave();

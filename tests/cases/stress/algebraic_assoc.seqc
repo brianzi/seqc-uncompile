@@ -1,0 +1,20 @@
+// Algebraic associativity: same value computed via different paren
+// arrangements.  Tests the IR's expression-tree shape consistency.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+
+setUserReg(3, (a + b) + c);
+setUserReg(4, a + (b + c));
+setUserReg(5, (a + c) + b);
+
+setUserReg(6, (a * b) + c);
+setUserReg(7, a * b + c);
+
+setUserReg(8, (a | b) | c);
+setUserReg(9, a | (b | c));
+
+setUserReg(10, ((a + b) + c) + (a + b));
+setUserReg(11, (a + (b + c)) + (a + b));
+setUserReg(12, a + b + c + a + b);

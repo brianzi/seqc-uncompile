@@ -3702,3 +3702,143 @@ straight-line arithmetic, not regalloc pressure.
 2. Find the first differing instruction and trace the origin in the
    recon arithmetic codegen.
 
+## IF-172  zeros(0) emits stray waveform table entry
+
+**Status**: open
+**Severity**: bug (waveform table)
+**Found**: stress phase 53 (`wave_zero_boundary.seqc`, `wave_min_length.seqc`)
+
+### Symptom
+
+`zeros(0)` causes recon to emit a `length=0` waveform entry in the
+`.waveforms` JSON; orig drops it entirely (filtered out before the
+table is written).  Affects `.waveforms` size, `.wavemem` accounting
+(`fpgaMemoryUsed` differs), and `e_entry` placement on devices where
+the resulting playZero/playWave changes instruction count.
+
+### Minimal repro
+
+```seqc
+wave w_empty = zeros(0);
+playWave(1, 2, w_empty);
+waitWave();
+```
+
+orig `.waveforms`:  no entry for `__zeros_*` of length 0.
+recon `.waveforms`: includes `{"name":"__zeros_3_1","function":"zeros(0)","length":"0",...}`.
+
+Both `.wf___zeros_*` sections are written as 0-byte sections by both
+sides — the divergence is only in the table.  Two stress files
+demonstrate it: `wave_zero_boundary` (explicit `zeros(0)`) and
+`wave_min_length` (where `zeros(0)` is a side-effect of declaring
+`wave w_zero = zeros(0)`).
+
+### Recommended next step
+
+1. Find the waveform-table emit pass and locate the filter that drops
+   length-0 entries.  Likely a missing `if (length > 0)` guard in
+   recon's table emission.
+
+## IF-173  chirp() sample numerics: extreme sweep produces 1-LSB off samples
+
+**Status**: open
+**Severity**: bug (waveform numerics)
+**Found**: stress phase 53 (`chirp_sinc_extreme.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+`chirp(1024, 0.5, 1e3, 1e9)` (6-decade frequency sweep) produces
+1024 16-bit samples that differ between orig and recon at offset
+0x192 (sample index 201) of the `.wf___chirp_*` section: orig=0x0d
+recon=0x0c.  Same `.wf` size, just sample value off by 1 LSB.
+Likely a cumulative phase / floating-point rounding difference in
+the chirp generator.  Reproduces on both HDAWG and SHFSG (so it is
+in the wave-builder, not device-specific codegen).
+
+### Minimal repro
+
+```seqc
+wave w = chirp(1024, 0.5, 1e3, 1e9);
+playWave(1, 2, w);
+waitWave();
+```
+
+### Recommended next step
+
+1. GDB-trace the chirp builder in orig at the same input; capture
+   the exact float ops near sample index 201.
+2. Compare with recon's chirp implementation; check for fma vs
+   mul+add, accumulator vs per-sample formula, double vs float.
+
+## IF-174  if(true)/if(false)/while(false) not folded — emits dead branch
+
+**Status**: open
+**Severity**: bug (constant folding)
+**Found**: stress phase 53 (`true_false_usage.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+Source containing constant-condition branches such as `if (true)`,
+`if (false) { ... } else { ... }`, and `while (false) { ... }`
+compiles to extra instructions in recon: `.text` is 168 bytes vs
+orig's 164 bytes (4 bytes = 1 extra instruction); `.asm` is 816 vs
+798 bytes; `.linenr` is 672 vs 656 bytes.  Pattern strongly suggests
+orig folds the always-true / always-false branch at compile time and
+elides the dead arm; recon emits both arms (or a runtime branch) for
+at least one of these constructs.
+
+### Minimal repro
+
+`tests/cases/stress/true_false_usage.seqc`.
+
+### Recommended next step
+
+1. Compare `.asm` side-by-side to identify which of the four
+   constructs (`if(true)`, `if(false){}`, `if(false){}else{}`,
+   `while(false)`) is the divergent one.
+2. Look at the AST-eval branch-handling code for handling of
+   constant boolean conditions.
+
+## IF-175  Unsubstituted boost::format placeholders in error messages
+
+**Status**: open
+**Severity**: bug (user-facing — leaks `%1% %2% %3% %4%`)
+**Found**: stress phase 53 (`long_source.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+A 375-line source of trivial `setUserReg` / `playZero` calls (no
+user error in the source itself) causes recon to emit:
+
+```
+Compilation failed: Assembler message at 1152 :
+instruction %1% (opcode %2%) expects at least %3% argument(s),
+%4% argument(s) given
+```
+
+The placeholders `%1%`, `%2%`, `%3%`, `%4%` are unsubstituted —
+this is the raw template from `error_messages.cpp:139` (message id
+4, `TooFewArguments`).  Orig succeeds with no error on the same
+source, suggesting:
+
+(a) recon has a real codegen bug that produces an instruction with
+    too few arguments at instruction index ~1152, AND
+(b) the error-emission path forgets to substitute the boost::format
+    arguments.
+
+Both are independent bugs; (b) is a serious user-facing regression
+(every TooFewArguments error in the wild would print raw `%1%`).
+
+### Minimal repro
+
+`tests/cases/stress/long_source.seqc` (HDAWG and SHFSG both reproduce).
+
+### Suggested investigation paths
+
+1. Find the call sites that build the TooFewArguments message (likely
+   in the assembler; grep for `ErrorMessages::get(4)`).  Check whether
+   the result is fed through a boost::format `%` chain and `.str()`,
+   or merely concatenated as the raw template string.
+2. Run a binary diff on the same input under GDB to see what (if
+   anything) the orig assembler emits at instruction 1152, and why
+   recon thinks an arg is missing.

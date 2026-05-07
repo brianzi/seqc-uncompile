@@ -1,0 +1,9 @@
+// Empty source — only whitespace and comments.  Tests the empty-AST
+// path through the compiler.
+
+// nothing here
+//
+//   indentation
+//
+/* a block
+   comment */

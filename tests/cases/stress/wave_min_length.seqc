@@ -1,0 +1,14 @@
+// Single-sample / minimum-length wave boundary.  HDAWG min wave length
+// is 32 samples; trying 16 and 32 here.
+
+wave w_min = ones(32);
+wave w_short = ones(16);   // below minimum — likely warning
+
+playWave(1, 2, w_min);
+playWave(1, 2, w_short);
+waitWave();
+
+// 0-length zeros() — boundary
+wave w_zero = zeros(0);
+playWave(1, 2, w_zero);
+waitWave();

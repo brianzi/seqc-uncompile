@@ -1,0 +1,20 @@
+// Var declared without init, then assigned later.
+
+var x;
+x = 5;
+setUserReg(0, x);
+
+var a;
+var b;
+var c;
+a = 1;
+b = 2;
+c = 3;
+setUserReg(1, a + b + c);
+
+// Inside loop
+var t;
+for (var i = 0; i < 4; i = i + 1) {
+    t = i * 2;
+    setUserReg(2, t);
+}

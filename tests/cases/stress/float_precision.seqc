@@ -1,0 +1,12 @@
+// Floating-point literal precision corners.
+
+wave w_a = sine(128, 0.1234567890123456, 0,         4);
+wave w_b = sine(128, 0.0000001,           0,         4);
+wave w_c = sine(128, 0.9999999,           0,         4);
+wave w_d = sine(128, 1.0,                 3.14159265, 4);
+
+playWave(1, 2, w_a);
+playWave(1, 2, w_b);
+playWave(1, 2, w_c);
+playWave(1, 2, w_d);
+waitWave();

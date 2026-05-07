@@ -1,0 +1,20 @@
+// Constant-folding identities: 0+x, x+0, 1*x, x*1, x-x, x/1, x|0,
+// x&-1, x<<0.  Every result should equal x (or 0 for x-x).
+
+var x = getUserReg(0);
+
+setUserReg(1, 0 + x);
+setUserReg(2, x + 0);
+setUserReg(3, 1 * x);
+setUserReg(4, x * 1);
+setUserReg(5, x - x);
+setUserReg(6, x / 1);
+setUserReg(7, x | 0);
+setUserReg(8, x & 0xffffffff);
+setUserReg(9, x << 0);
+setUserReg(10, x >> 0);
+setUserReg(11, x ^ 0);
+setUserReg(12, 0 - 0);
+setUserReg(13, 5 + 3);
+setUserReg(14, (1 + 2) * (3 + 4));
+setUserReg(15, (10 - 5) * 2);

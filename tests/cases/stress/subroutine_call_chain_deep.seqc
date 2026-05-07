@@ -1,0 +1,18 @@
+// Subroutine call chain: A -> B -> C -> ... -> J (10 deep).
+
+wave w = ones(64);
+
+void j() { playWave(1, 2, w); waitWave(); }
+void i() { j(); }
+void h() { i(); }
+void g() { h(); }
+void f() { g(); }
+void e() { f(); }
+void d() { e(); }
+void c() { d(); }
+void b() { c(); }
+void a() { b(); }
+
+a();
+a();
+a();

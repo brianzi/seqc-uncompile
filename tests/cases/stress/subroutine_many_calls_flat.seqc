@@ -1,0 +1,37 @@
+// Subroutine called many times in straight line.
+
+wave w = ones(32);
+
+void short_play() { playWave(1, 2, w); }
+
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+short_play();
+waitWave();

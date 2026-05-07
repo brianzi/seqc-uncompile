@@ -1,0 +1,4 @@
+// Source with CRLF line endings would be tested at file level — here
+// just a very long single line to stress the parser.
+
+playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave(); playWave(1, ones(64), 2, ones(64)); waitWave();

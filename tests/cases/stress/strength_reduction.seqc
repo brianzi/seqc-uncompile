@@ -1,0 +1,21 @@
+// Strength reduction: x*8 vs x<<3, x/4 vs x>>2.  Recon and orig
+// should compile both forms equivalently (or at least consistently).
+
+var x = getUserReg(0);
+
+setUserReg(1, x * 2);
+setUserReg(2, x << 1);
+setUserReg(3, x * 4);
+setUserReg(4, x << 2);
+setUserReg(5, x * 8);
+setUserReg(6, x << 3);
+setUserReg(7, x * 16);
+setUserReg(8, x << 4);
+setUserReg(9, x * 256);
+setUserReg(10, x << 8);
+
+setUserReg(11, x / 2);
+setUserReg(12, x >> 1);
+setUserReg(13, x / 4);
+setUserReg(14, x >> 2);
+setUserReg(15, x / 8);

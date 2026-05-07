@@ -1,0 +1,16 @@
+// chirp / sinc with extreme params.
+
+wave w_chirp_huge   = chirp(1024, 0.5, 1e3, 1e9);
+wave w_chirp_narrow = chirp(1024, 0.5, 1e8, 1.01e8);
+wave w_sinc_centered_off = sinc(1024, 0.5, 0,    32);
+wave w_sinc_centered_end = sinc(1024, 0.5, 1023, 32);
+wave w_sinc_narrow       = sinc(1024, 0.5, 512,  1);
+wave w_sinc_wide         = sinc(1024, 0.5, 512,  256);
+
+playWave(1, 2, w_chirp_huge);
+playWave(1, 2, w_chirp_narrow);
+playWave(1, 2, w_sinc_centered_off);
+playWave(1, 2, w_sinc_centered_end);
+playWave(1, 2, w_sinc_narrow);
+playWave(1, 2, w_sinc_wide);
+waitWave();

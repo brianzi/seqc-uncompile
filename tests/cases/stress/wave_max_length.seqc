@@ -1,0 +1,6 @@
+// Very long wave at near-max length.
+
+wave w_huge = ones(65536);
+
+playWave(1, 2, w_huge);
+waitWave();

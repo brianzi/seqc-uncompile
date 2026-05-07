@@ -1,0 +1,15 @@
+// No waitWave anywhere — back-to-back plays.
+
+wave w1 = ones(64);
+wave w2 = ones(96);
+wave w3 = ones(128);
+
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playZero(64);
+playZero(128);
+playZero(64);

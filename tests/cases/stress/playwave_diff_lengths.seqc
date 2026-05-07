@@ -1,0 +1,16 @@
+// playWave then immediately a different-length playWave (no waitWave).
+
+wave a = ones(32);
+wave b = ones(64);
+wave c = ones(128);
+wave d = ones(96);
+
+playWave(1, 2, a);
+playWave(1, 2, b);
+playWave(1, 2, c);
+playWave(1, 2, d);
+playWave(1, 2, a);
+playWave(1, 2, c);
+playWave(1, 2, b);
+playWave(1, 2, d);
+waitWave();

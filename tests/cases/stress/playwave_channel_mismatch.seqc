@@ -1,0 +1,14 @@
+// Mismatched playWave channels: same wave on same channel listed
+// twice, or out-of-order channel numbers.
+
+wave w  = ones(64);
+wave w2 = gauss(64, 32, 8);
+
+playWave(1, w, 1, w2);   // ch1 listed twice — likely error
+waitWave();
+
+playWave(2, w, 1, w2);   // out-of-order ch list
+waitWave();
+
+playWave(1, w, 2, w2, 3, w);  // 3 channels — only valid on certain devices
+waitWave();
