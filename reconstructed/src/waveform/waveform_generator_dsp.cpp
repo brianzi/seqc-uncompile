@@ -834,7 +834,15 @@ Signal WaveformGenerator::chirp(std::vector<Value> const& args) {               
 
     for (int i = 0; i < length; ++i) {                                           // 0x251a60
         double di = static_cast<double>(i);
-        double theta = f0 * di + phase + k * di * di;                            // 0x251a68-0x251a7f
+        // Binary computes theta in this exact instruction order:
+        //   xmm1 = f0*di + phase    (251a6d-251a71)
+        //   xmm0 = (di*di) * k      (251a76-251a7a)  — note (di*di)*k, NOT (k*di)*di
+        //   xmm0 = xmm0 + xmm1      (251a7f)
+        // The order of multiplications matters for FP rounding at large di
+        // (e.g. i=201 with k≈3e6 produces 1-LSB diffs from (k*di)*di).
+        double t1 = f0 * di + phase;                                             // 0x251a6d-0x251a71
+        double t2 = (di * di) * k;                                               // 0x251a76-0x251a7a
+        double theta = t2 + t1;                                                  // 0x251a7f
         sig.append(amplitude * std::sin(theta), 0);                              // 0x251a92
     }
 

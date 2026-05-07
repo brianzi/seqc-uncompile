@@ -3891,7 +3891,10 @@ Verified byte-identical output on `heavy_comments.seqc`.
 
 ## IF-170  wavemem_pressure: chirp builtin sample-data diff
 
-**Status**: open (narrowed by phase 57.G.1)
+**Status**: fixed (2026-05-07, phase 57.G.5) — subsumed by IF-173 fix.
+The single divergent section `.wf___chirp_14_23` was the same chirp-loop
+FP-ordering bug; correcting `(di*di)*k` ordering in `chirp` made
+`wavemem_pressure_hdawg` byte-identical.
 **Severity**: bug (waveform generator)
 **Found**: stress phase 52 (`wavemem_pressure.seqc`)
 
@@ -4007,9 +4010,24 @@ demonstrate it: `wave_zero_boundary` (explicit `zeros(0)`) and
 
 ## IF-173  chirp() sample numerics: extreme sweep produces 1-LSB off samples
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.G.5) — recon's chirp loop computed
+`theta = f0*di + phase + k*di*di`, which C++ evaluates as
+`(f0*di + phase) + ((k*di)*di)`.  The binary at 0x251a76-0x251a7f instead
+computes `(di*di)*k` first, then adds: `xmm0 = di*di; xmm0 *= k; xmm0 += xmm1`.
+For large `di` and large `k` (e.g. `chirp(1024, 0.5, 1e3, 1e9)` where
+k≈3e6), `(k*di)*di` and `(di*di)*k` round differently in the 53rd bit of
+the mantissa, producing 1-LSB diffs at ~83 of 1024 samples.  Aligning the
+multiplication order in `WaveformGenerator::chirp`
+(`reconstructed/src/waveform/waveform_generator_dsp.cpp:835`) made all
+chirp tests byte-identical.  Subsumes IF-170.
 **Severity**: bug (waveform numerics)
 **Found**: stress phase 53 (`chirp_sinc_extreme.seqc` HDAWG + SHFSG)
+
+### Verification
+- `chirp_sinc_extreme_{hdawg,shfsg}`: byte-identical.
+- `chirp_amp_clip_{hdawg,shfsg}`: byte-identical.
+- `wavemem_pressure_hdawg`: byte-identical (IF-170 subsumed).
+- Main: 1600/1600.  Stress: 435/444 (was 430/444 → +5).
 
 ### Symptom
 
