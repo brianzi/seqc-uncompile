@@ -5667,8 +5667,7 @@ No GDB needed — pure objdump archeology.
 - [x] **60.4** — Stress 528/528 + main 1600/1600
 - [x] **60.5** — Filed IFs 195 (rename) and 196 (mirror-bug
       candidate)
-- [ ] **60.6** — User-review: choose Phase 61 = investigate IF-196,
-      Phase 61 = rename per IF-195, or Phase 61 = round 11 stress
+- [x] **60.6** — User-review chose Phase 61 = backfill 4-device coverage
 
 ### Lessons learned
 
@@ -5684,4 +5683,56 @@ No GDB needed — pure objdump archeology.
   fix unmasked IF-195 (cosmetic) and IF-196 (suspicious twin).
   Each fix should explicitly look for adjacent code that may share
   the same defect class before declaring done.
+
+## Phase 61: 4-device coverage backfill
+
+Bulk-add SHFQA/UHFQA registrations to portable stress cases that
+were previously registered only against HDAWG/SHFSG. Goal: surface
+device-specific bugs by exercising the same SeqC source through
+all four code paths (per the rule established in Phase 59).
+
+- [x] **61.1** — Wrote categorizer (`/tmp/device_compat.json`):
+      detects HDAWG-only (DIO, AWG_RATE_*), SHF-only osc/sine,
+      SHFQA-only QA primitives; classifies 305 unique stress
+      `.seqc` files
+- [x] **61.2** — Bulk-added 201 device registrations to
+      `manifest-stress.json` (528 → 729 cases; mostly UHFQA and
+      SHFQA registrations on portable register/wait/control-flow
+      tests)
+- [x] **61.3** — Stress 729/729 (166 pass-via-error, expected for
+      portable-tests-on-restrictive-devices) + main 1600/1600
+- [x] **61.4** — Triaged 14 distinct "error messages differ
+      (accepted)" cases:
+      - 9 already documented (IF-177 setUserReg range, IF-179 family
+        startQA-const, IF-194 regalloc line drift, etc.)
+      - 1 new bug found and **fixed**: IF-197 randomGauss arity
+        error reports `4` instead of `3`
+      - 4 cases are line-attribution drift (IF-194 family, deferred)
+- [x] **61.5** — Filed IF-197 (fixed) and IF-198 (= duplicate of
+      IF-177, confirms device-independence)
+- [x] **61.6** — Pre-emptive sibling fix considered for
+      `randomUniform` (same `FuncExactArgs2 / 2` pattern, line 1003)
+      but **deferred**: requires confirming differential test
+      first to avoid speculative changes
+- [ ] **61.7** — User-review: choose Phase 62 = round 11 stress,
+      Phase 62 = investigate IF-196 (UHFQA wavetable overrun),
+      Phase 62 = IF-195 rename, or Phase 62 = add `randomUniform`
+      arity test then mirror-fix IF-197 sibling
+
+### Lessons learned
+
+- **Backfill quickly amortizes the categorizer cost.** Writing a
+  feature-detector regex took ~10 minutes; it generated 201 new
+  test entries that ran in 5s and surfaced 1 real recon bug
+  (IF-197) plus a confirmation that IF-177 is device-independent.
+- **`(error)` pass-through still has signal.** The "differ
+  (accepted)" notes are noisy but *not* worthless — filtering for
+  unique error-pair shapes (50 raw → 14 distinct → 1 new bug) is
+  a tractable triage. Worth doing whenever new device coverage
+  is added.
+- **Be minimum-arity for variadic-with-defaults functions.** The
+  `FuncExactArgs2` template reports a single number; binary
+  convention is the **minimum** valid arity, not the maximum.
+  Audit other variadic functions (chirp, sinc, randomUniform,
+  drag, etc.) for the same pattern when convenient.
 

@@ -949,7 +949,7 @@ Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        /
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
             ErrorMessages::format(FuncExactArgs2,
-                                  "randomGauss", 4, args.size()));
+                                  "randomGauss", 3, args.size()));
     }
 
     int length;

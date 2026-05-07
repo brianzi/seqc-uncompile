@@ -5112,3 +5112,49 @@ fires when it should on UHFQA wavetable overruns either.
    the real limit is) to differentially expose the bug.
 3. Apply the symmetric fix to check 11.
 
+## IF-197  randomGauss arg-count error reports `4` instead of `3`
+
+**Status**: fixed (2026-05-07, phase 61) — `waveform_generator_dsp.cpp:952`.
+**Severity**: bug (cosmetic — wrong number in error message)
+**Found**: stress phase 61 backfill (`wave_random_hdawg`)
+
+### Symptom
+
+`randomGauss` accepts 3 or 4 args. When called with the wrong
+count, recon reported "expects 4 argument(s)" while the binary
+reports "expects 3 argument(s)". The binary's `FuncExactArgs2`
+template is fed the **minimum** valid arity for variadic-with-
+defaults functions, not the maximum.
+
+```
+orig:  Compiler Error (line: 3): function 'randomGauss' expects 3 argument(s), 2 argument(s) given
+recon: Compiler Error (line: 3): function 'randomGauss' expects 4 argument(s), 2 argument(s) given
+```
+
+### Fix
+
+`waveform_generator_dsp.cpp:952` — change literal `4` to `3` in
+the `ErrorMessages::format(FuncExactArgs2, "randomGauss", N, ...)`
+call.
+
+### Open question (likely IF-197 sibling)
+
+`randomUniform` (same file, line 1003) uses the same pattern with
+literal `2`, but valid arities are 1 or 2. By analogy, the binary
+likely reports `1` here. Not yet test-confirmed because no stress
+case calls `randomUniform` with the wrong arg count. **Pre-emptive
+fix not applied** — needs a confirming differential test first.
+
+## IF-198  setUserReg range-check missing on recon (pre-existing, see IF-177)
+
+**Status**: open, duplicate of IF-177
+**Severity**: bug
+
+Phase 61 backfill rediscovered the IF-177 issue across all 4
+device registrations of `setuserreg_oor.seqc`: recon throws
+"setUserReg expects exactly two arguments" when given 2 args
+with out-of-range register, while orig throws "setUserReg
+register must be in the range of 0 to 15". Confirms the bug
+is device-independent and reachable on HDAWG/SHFSG/SHFQA/UHFQA
+alike. No new IF needed; refer to IF-177.
+
