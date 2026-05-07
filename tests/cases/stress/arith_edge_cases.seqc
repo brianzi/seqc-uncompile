@@ -1,0 +1,51 @@
+// Stress: numerical / arithmetic edge cases.
+// Tests const folder + integer ops that may misbehave at boundaries.
+
+const ZERO = 0;
+const ONE = 1;
+const NEG_ONE = -1;
+const MAX_INT = 2147483647;
+const MIN_INT = -2147483648;
+
+var u = getUserReg(0);
+
+// Add / sub with zero
+var a0 = u + 0;
+var a1 = 0 + u;
+var a2 = u - 0;
+var a3 = 0 - u;
+
+// Mul/div by 1
+var m0 = u * 1;
+var m1 = 1 * u;
+// var d0 = u / 1;  // var/const division actually allowed only for power-of-2 const
+
+// Mul/div by powers of 2
+var p2_a = u * 2;
+var p2_b = u * 4;
+var p2_c = u * 8;
+var p2_d = u * 16;
+var p2_e = u * 256;
+// var d2_a = u / 2;  // div is const-only on most paths
+// var d2_b = u / 4;
+// var d2_c = u / 8;
+
+// Bitwise (if supported — many devices)
+// var sh_l = u << 1;     // shift by var-const may not be supported uniformly
+// var sh_r = u >> 1;
+// var sh_l8 = u << 8;
+var b_and = u & 0xff;
+var b_or  = u | 0xff;
+var b_xor = u ^ 0xff;
+
+// Negative literals + comparisons
+if (u > -1) { playZero(64); }
+if (u < 1) { playZero(64); }
+if (u >= 0) { playZero(64); }
+if (u <= 0) { playZero(64); }
+
+// Use everything to keep alive
+var sum = a0 + a1 + a2 + a3 + m0 + m1
+        + p2_a + p2_b + p2_c + p2_d + p2_e
+        + b_and + b_or + b_xor;
+wait(sum);

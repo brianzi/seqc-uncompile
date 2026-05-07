@@ -4610,5 +4610,63 @@ See `incidental_findings.md` IF-159. Minimal repro at
 
 ### 49.3 — Phase 49 wrap-up
 
+- [x] Sub-phase wrap-up commit (`02a8e63`)
+- [x] Push
+
+## Phase 50: Stress suite expansion (round 3) + IF-161, IF-162
+
+### 50.1 — Add more stress categories
+
+- [x] `chained_arithmetic.seqc` (HDAWG) — long arithmetic chains,
+      shift / mask folds, near-register-pressure boundary
+      (byte-identical)
+- [x] `nested_branches_deep.seqc` (HDAWG/SHFSG) — 5+ levels of nested
+      `if`/`else` mixed with `repeat`/`for` (byte-identical)
+- [x] `feedback_then_play.seqc` (SHFQC qa→sg via two manifest cases)
+      — `getFeedback` → conditional `playWave` patterns
+      (byte-identical)
+- [x] `dio_complex.seqc` (HDAWG) — `setDIO` / `waitDIOTrigger` /
+      `getDIOTriggered` chains with masks (byte-identical)
+- [x] `placeholder_many_assigns.seqc` (HDAWG) — many distinct
+      placeholders assigned to CT (byte-identical)
+- [x] `markers_dense.seqc` (HDAWG) — dense `setTrigger` / marker bits
+      across many short plays (byte-identical)
+- [x] `randomized_loop_bodies.seqc` (HDAWG/SHFSG) — diverse
+      operation mixes inside loop bodies (byte-identical)
+- [x] `shfqc_sg_combo.seqc` (SHFQC sg) — exposes IF-161 (kept as
+      stress entry that pass-via-error)
+- [x] `many_placeholders.seqc` (HDAWG) — exposes IF-162 (recon emits
+      half-size waveform; kept as stress entry)
+- [x] `if162_assignwave_dual_size.seqc` (HDAWG) — minimal repro for
+      IF-162
+
+### 50.2 — IF-161: setSinePhase rejected on SHFQC sg
+
+See `incidental_findings.md` IF-161. Minimal repro at
+`tests/cases/stress/if161_shfqc_setsinephase.seqc`. Control case
+on SHFSG8 sg passes byte-identical.
+
+- [ ] GDB on original SHFQC sg compile, breakpoint node-lookup site
+- [ ] Identify missing node-tree entry / wrong path prefix in recon
+- [ ] Add SHFQC sg-channel sine nodes (or fix prefix construction)
+- [ ] `if161_shfqc_setsinephase_shfqc` becomes byte-identical
+- [ ] Update IF-161 to `fixed`
+
+### 50.3 — IF-162: assignWaveIndex dual-placeholder size bug
+
+See `incidental_findings.md` IF-162. Minimal repro at
+`tests/cases/stress/if162_assignwave_dual_size.seqc`.
+Symptom is structurally identical to IF-157 (same first-signal-length
+bug) but on the `assignWaveIndex` codegen path.
+
+- [ ] GDB on original `mergeWaveforms` Phase 1 loop
+      (0x15e0f4..0x15e234), log `len`/`maxSampleLen` per iteration
+- [ ] Same trace on recon, compare
+- [ ] Fix the lookup or max computation
+- [ ] `if162_assignwave_dual_size_hdawg` becomes byte-identical
+- [ ] Update IF-162 to `fixed`
+
+### 50.4 — Phase 50 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

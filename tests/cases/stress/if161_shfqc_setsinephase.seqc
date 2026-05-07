@@ -1,0 +1,7 @@
+// IF-161 minimal repro: setSinePhase fails on SHFQC sequencer=sg with
+// "node 'sgchannels/0/sines/0/phaseshift' doesn't exist", but works
+// fine on plain SHFSG (sg sequencer).  Original binary compiles this
+// without error on both devices.
+
+setSinePhase(0);
+playZero(64);

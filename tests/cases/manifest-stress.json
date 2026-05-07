@@ -1,22 +1,21 @@
 {
   "version": "2.0",
   "definitions": {
-    "hdawg8": {
-      "devtype": "HDAWG8",
-      "index": 0,
-      "samplerate": 2400000000.0
-    },
-    "shfsg8_sg": {
-      "devtype": "SHFSG8",
-      "sequencer": "sg"
-    },
-    "shfqa4_qa": {
-      "devtype": "SHFQA4",
-      "sequencer": "qa"
-    },
-    "uhfqa": {
-      "devtype": "UHFQA"
-    }
+    "hdawg8":     { "devtype": "HDAWG8", "index": 0, "samplerate": 2400000000.0 },
+    "hdawg8_idx1":{ "devtype": "HDAWG8", "index": 1, "samplerate": 2400000000.0 },
+    "hdawg8_idx2":{ "devtype": "HDAWG8", "index": 2, "samplerate": 2400000000.0 },
+    "hdawg8_idx3":{ "devtype": "HDAWG8", "index": 3, "samplerate": 2400000000.0 },
+    "hdawg4":     { "devtype": "HDAWG4", "index": 0, "samplerate": 2400000000.0 },
+    "shfsg8_sg":  { "devtype": "SHFSG8", "sequencer": "sg" },
+    "shfsg2_sg":  { "devtype": "SHFSG2", "sequencer": "sg" },
+    "shfqa4_qa":  { "devtype": "SHFQA4", "sequencer": "qa" },
+    "shfqa2_qa":  { "devtype": "SHFQA2", "sequencer": "qa" },
+    "shfqc_qa":   { "devtype": "SHFQC",  "sequencer": "qa" },
+    "shfqc_sg":   { "devtype": "SHFQC",  "sequencer": "sg" },
+    "shfli":      { "devtype": "SHFLI" },
+    "ghfli":      { "devtype": "GHFLI" },
+    "vhfli":      { "devtype": "VHFLI" },
+    "uhfqa":      { "devtype": "UHFQA" }
   },
   "groups": [
     {
@@ -77,7 +76,56 @@
         { "name": "long_flat_program_hdawg",   "file": "stress/long_flat_program.seqc",   "@base": "@hdawg8" },
         { "name": "long_flat_program_shfsg",   "file": "stress/long_flat_program.seqc",   "@base": "@shfsg8_sg" },
 
-        { "name": "if159_assignwave_dup_crash_hdawg", "file": "stress/if159_assignwave_dup_crash.seqc", "@base": "@hdawg8", "comment": "IF-159: recon aborts (terminate called without active exception) when binary produces clean 'already assigned index' error." }
+        { "name": "if159_assignwave_dup_crash_hdawg", "file": "stress/if159_assignwave_dup_crash.seqc", "@base": "@hdawg8", "comment": "IF-159: recon aborts (terminate called without active exception) when binary produces clean 'already assigned index' error." },
+
+        { "name": "hdawg_multi_awg_idx0",      "file": "stress/hdawg_multi_awg.seqc",     "@base": "@hdawg8" },
+        { "name": "hdawg_multi_awg_idx1",      "file": "stress/hdawg_multi_awg.seqc",     "@base": "@hdawg8_idx1" },
+        { "name": "hdawg_multi_awg_idx2",      "file": "stress/hdawg_multi_awg.seqc",     "@base": "@hdawg8_idx2" },
+        { "name": "hdawg_multi_awg_idx3",      "file": "stress/hdawg_multi_awg.seqc",     "@base": "@hdawg8_idx3" },
+        { "name": "hdawg_multi_awg_hdawg4",    "file": "stress/hdawg_multi_awg.seqc",     "@base": "@hdawg4" },
+
+        { "name": "prng_in_branches_hdawg",    "file": "stress/prng_in_branches.seqc",    "@base": "@hdawg8" },
+        { "name": "prng_in_branches_shfsg",    "file": "stress/prng_in_branches.seqc",    "@base": "@shfsg8_sg" },
+
+        { "name": "wait_variants_hdawg",       "file": "stress/wait_variants.seqc",       "@base": "@hdawg8" },
+        { "name": "wait_variants_shfsg",       "file": "stress/wait_variants.seqc",       "@base": "@shfsg8_sg" },
+
+        { "name": "settrigger_variants_hdawg", "file": "stress/settrigger_variants.seqc", "@base": "@hdawg8" },
+
+        { "name": "many_placeholders_hdawg",   "file": "stress/many_placeholders.seqc",   "@base": "@hdawg8" },
+
+        { "name": "trivial_one_wait_hdawg",    "file": "stress/trivial_one_wait.seqc",    "@base": "@hdawg8" },
+        { "name": "trivial_one_wait_shfsg",    "file": "stress/trivial_one_wait.seqc",    "@base": "@shfsg8_sg" },
+        { "name": "trivial_one_wait_shfqa",    "file": "stress/trivial_one_wait.seqc",    "@base": "@shfqa4_qa" },
+        { "name": "trivial_one_wait_uhfqa",    "file": "stress/trivial_one_wait.seqc",    "@base": "@uhfqa" },
+        { "name": "trivial_one_wait_shfqc_qa", "file": "stress/trivial_one_wait.seqc",    "@base": "@shfqc_qa" },
+        { "name": "trivial_one_wait_shfqc_sg", "file": "stress/trivial_one_wait.seqc",    "@base": "@shfqc_sg" },
+        { "name": "trivial_one_wait_shfli",    "file": "stress/trivial_one_wait.seqc",    "@base": "@shfli" },
+        { "name": "trivial_one_wait_ghfli",    "file": "stress/trivial_one_wait.seqc",    "@base": "@ghfli" },
+        { "name": "trivial_one_wait_vhfli",    "file": "stress/trivial_one_wait.seqc",    "@base": "@vhfli" },
+
+        { "name": "arith_edge_cases_hdawg",    "file": "stress/arith_edge_cases.seqc",    "@base": "@hdawg8" },
+        { "name": "arith_edge_cases_shfsg",    "file": "stress/arith_edge_cases.seqc",    "@base": "@shfsg8_sg" },
+
+        { "name": "lexer_robustness_hdawg",    "file": "stress/lexer_robustness.seqc",    "@base": "@hdawg8" },
+        { "name": "lexer_robustness_shfsg",    "file": "stress/lexer_robustness.seqc",    "@base": "@shfsg8_sg" },
+
+        { "name": "lockin_sweep_combo_shfli",  "file": "stress/lockin_sweep_combo.seqc",  "@base": "@shfli" },
+        { "name": "lockin_sweep_combo_ghfli",  "file": "stress/lockin_sweep_combo.seqc",  "@base": "@ghfli" },
+        { "name": "lockin_sweep_combo_vhfli",  "file": "stress/lockin_sweep_combo.seqc",  "@base": "@vhfli" },
+
+        { "name": "shfqc_qa_branched_shfqc",   "file": "stress/shfqc_qa_branched.seqc",   "@base": "@shfqc_qa" },
+        { "name": "shfqc_qa_branched_shfqa",   "file": "stress/shfqc_qa_branched.seqc",   "@base": "@shfqa4_qa" },
+        { "name": "shfqc_qa_branched_shfqa2",  "file": "stress/shfqc_qa_branched.seqc",   "@base": "@shfqa2_qa" },
+
+        { "name": "shfqc_sg_combo_shfqc",      "file": "stress/shfqc_sg_combo.seqc",      "@base": "@shfqc_sg" },
+        { "name": "shfqc_sg_combo_shfsg",      "file": "stress/shfqc_sg_combo.seqc",      "@base": "@shfsg8_sg" },
+        { "name": "shfqc_sg_combo_shfsg2",     "file": "stress/shfqc_sg_combo.seqc",      "@base": "@shfsg2_sg" },
+
+        { "name": "if161_shfqc_setsinephase_shfqc","file": "stress/if161_shfqc_setsinephase.seqc","@base": "@shfqc_sg", "comment": "IF-161: recon rejects setSinePhase on SHFQC sg with 'node sgchannels/0/sines/0/phaseshift doesn't exist'; original compiles fine. Plain SHFSG sg works." },
+        { "name": "if161_shfqc_setsinephase_shfsg","file": "stress/if161_shfqc_setsinephase.seqc","@base": "@shfsg8_sg", "comment": "Same source on SHFSG (control)." },
+
+        { "name": "if162_assignwave_dual_size_hdawg","file": "stress/if162_assignwave_dual_size.seqc","@base": "@hdawg8", "comment": "IF-162: assignWaveIndex with dual placeholders of different sizes uses the first signal's length instead of the max (same class of bug as IF-157 but on the assignWaveIndex path)." }
       ]
     }
   ]

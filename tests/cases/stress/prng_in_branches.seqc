@@ -1,0 +1,25 @@
+// Stress: PRNG functions across loops and conditionals.
+
+setPRNGSeed(42);
+setPRNGRange(0, 100);
+
+var r0 = getPRNGValue();
+var r1 = getPRNGValue();
+var r2 = getPRNGValue();
+
+setPRNGRange(0, 1000);
+var r3 = getPRNGValue();
+
+playZero(64);
+
+// In a loop
+for (var k = 0; k < 8; k = k + 1) {
+  var rk = getPRNGValue();
+  if (rk > 50) {
+    playZero(128);
+  } else {
+    playZero(64);
+  }
+}
+
+wait(r0 + r1 + r2 + r3 + 100);

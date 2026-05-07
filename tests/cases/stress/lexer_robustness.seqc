@@ -1,0 +1,50 @@
+// Stress: extreme whitespace, comments, and odd formatting.
+// Tests the lexer/parser robustness, not codegen.
+
+/*
+ * Multi-line block comment
+ * spanning multiple lines
+ *
+ *   with indentation
+ *   and  irregular   whitespace
+ */
+
+// Single-line comment
+
+wave    w1   =   gauss( 64 ,
+                        32 ,
+                        8 );  // inline
+wave   w2 =   ones(   64    );
+
+// Statement on one extreme line
+playWave(w1);playWave(w2);playWave(w1);waitWave();
+
+// Statement spread over many lines
+playWave(
+  1
+  ,
+  w1
+);
+
+// Many blank lines below
+
+
+
+
+wait( 100 );
+
+// Tabs for indentation
+for (var k = 0; k < 4; k = k + 1) {
+	playWave(w1);
+	if (k > 1) {
+		playWave(w2);
+	}
+}
+
+// Comment-heavy section
+playWave(w1); // play 1
+playWave(w2); // play 2
+              // standalone comment
+playWave(w1); // play 3
+/* trailing block comment */ playWave(w2);
+playWave(w1); /* mid-line */ playWave(w2);

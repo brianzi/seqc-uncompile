@@ -1,0 +1,43 @@
+// Stress: lots of placeholders + assignWaveIndex on HDAWG.
+// Tests waveform-table front allocation and pinning at scale.
+
+wave p01 = placeholder(64);
+wave p02 = placeholder(64);
+wave p03 = placeholder(128);
+wave p04 = placeholder(128);
+wave p05 = placeholder(256);
+wave p06 = placeholder(256);
+wave p07 = placeholder(512);
+wave p08 = placeholder(512);
+wave p09 = placeholder(1024);
+wave p10 = placeholder(1024);
+wave p11 = placeholder(2048);
+wave p12 = placeholder(2048);
+wave p13 = placeholder(64, true, false);
+wave p14 = placeholder(128, false, true);
+wave p15 = placeholder(256, true, true);
+wave p16 = placeholder(512, true, true);
+
+assignWaveIndex(1, p01, 1);
+assignWaveIndex(1, p02, 2);
+assignWaveIndex(1, p03, 3);
+assignWaveIndex(1, p04, 4);
+assignWaveIndex(1, p05, 5);
+assignWaveIndex(2, p06, 6);
+assignWaveIndex(2, p07, 7);
+assignWaveIndex(2, p08, 8);
+assignWaveIndex(1, p09, 2, p10, 9);
+assignWaveIndex(1, p11, 2, p12, 10);
+assignWaveIndex(1, p13, 11);
+assignWaveIndex(2, p14, 12);
+assignWaveIndex(1, p15, 2, p16, 13);
+
+executeTableEntry(1);
+executeTableEntry(2);
+executeTableEntry(9);
+executeTableEntry(10);
+executeTableEntry(13);
+
+for (var k = 1; k < 14; k = k + 1) {
+  executeTableEntry(k);
+}

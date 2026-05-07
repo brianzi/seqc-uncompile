@@ -1,0 +1,14 @@
+// IF-162 minimal repro: dual-channel `assignWaveIndex` with two
+// placeholders of DIFFERENT sizes computes the merged length from the
+// FIRST placeholder instead of the MAX.  Recon emits a half-size
+// waveform section.
+//
+// Symptom is identical to IF-157 (mergeWaveforms first-signal-length
+// bug, fixed for playWave path); this is the assignWaveIndex / pinned
+// CT entry path which has the same bug independently.
+
+wave p_small = placeholder(256, true, true);
+wave p_large = placeholder(512, true, true);
+
+assignWaveIndex(1, p_small, 2, p_large, 13);
+executeTableEntry(13);

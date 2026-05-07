@@ -1,0 +1,26 @@
+// Stress: SHFQC QA-side stress (multiple gen/int channels, branched).
+
+waitDigTrigger(1);
+playZero(64);
+
+startQA(QA_GEN_ALL, QA_INT_ALL, 1, 0);
+playZero(128);
+startQA(QA_GEN_0, QA_INT_0, 0, 0);
+playZero(64);
+startQA(QA_GEN_0 | QA_GEN_1, QA_INT_0 | QA_INT_1, 1, 0);
+playZero(64);
+startQA(QA_GEN_2, QA_INT_2, 1, 0);
+
+for (var k = 0; k < 8; k = k + 1) {
+  if (k > 3) {
+    startQA(QA_GEN_3, QA_INT_3, 1, 0);
+  } else {
+    startQA(QA_GEN_0, QA_INT_0, 1, 0);
+  }
+  playZero(64);
+}
+
+repeat(16) {
+  startQA(QA_GEN_0, QA_INT_0, 1, 0);
+  playZero(64);
+}

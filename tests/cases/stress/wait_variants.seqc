@@ -1,0 +1,42 @@
+// Stress: every wait/playZero variant in close succession.
+
+wait(1);
+wait(2);
+wait(100);
+wait(10000);
+
+playZero(32);
+playZero(64);
+playZero(128);
+playZero(256);
+playZero(1024);
+playZero(8000);
+
+waitWave();
+playZero(64);
+waitWave();
+
+// With var args
+var u = getUserReg(0);
+wait(u);
+wait(u + 1);
+wait(u + 100);
+playZero(u + 64);
+
+// Mixed wait/playZero/playWave
+wave w = ones(64);
+playWave(w);
+playZero(64);
+wait(10);
+playZero(128);
+waitWave();
+playZero(64);
+wait(20);
+playWave(w);
+waitWave();
+
+// Many short waits in a loop
+for (var k = 0; k < 8; k = k + 1) {
+  wait(k + 1);
+  playZero(64);
+}

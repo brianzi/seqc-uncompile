@@ -1,0 +1,21 @@
+// Stress: HDAWG with multiple AWG sequencer indices.
+// (Same source compiled at index 0/1/2/3 — manifest tests each.)
+
+wave w1 = gauss(128, 64, 16);
+wave w2 = ones(64);
+wave w3 = sine(128, 0.7, 0, 1);
+
+playWave(w1);
+playWave(w2);
+playWave(w3);
+waitWave();
+
+playWave(1, w1);
+playWave(2, w2);
+playWave(1, 2, w1, 1, 2, w2);
+waitWave();
+
+for (var k = 0; k < 4; k = k + 1) {
+  playWave(w1);
+  playWave(w2);
+}

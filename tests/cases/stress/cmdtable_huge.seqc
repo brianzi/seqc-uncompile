@@ -13,18 +13,19 @@ wave d2  = drag(512, 256, 64);
 wave m1  = marker(128, 1) + 0.5 * gauss(128, 64, 16);
 wave m2  = marker(256, 3) + 0.5 * sine(256, 1, 0, 2);
 
-// Pin a chunk to specific CT slots (each waveform pinned exactly once)
-assignWaveIndex(1, 2, g1, 100);
-assignWaveIndex(1, 2, g2, 101);
-assignWaveIndex(1, 2, g3, 102);
-assignWaveIndex(1, 2, g4, 103);
-assignWaveIndex(1, 2, o1, 110);
-assignWaveIndex(1, 2, o2, 111);
-assignWaveIndex(1, 2, z1, 120);
-assignWaveIndex(1, 2, d1, 130);
-assignWaveIndex(1, 2, d2, 131);
-assignWaveIndex(1, 2, m1, 140);
-assignWaveIndex(1, 2, m2, 141);
+// Pin a chunk to specific CT slots (each waveform pinned exactly once,
+// using the (chan, wave) variadic pin form).
+assignWaveIndex(1, g1, 2, g1, 100);
+assignWaveIndex(1, g2, 2, g2, 101);
+assignWaveIndex(1, g3, 2, g3, 102);
+assignWaveIndex(1, g4, 2, g4, 103);
+assignWaveIndex(1, o1, 2, o1, 110);
+assignWaveIndex(1, o2, 2, o2, 111);
+assignWaveIndex(1, z1, 2, z1, 120);
+assignWaveIndex(1, d1, 2, d1, 130);
+assignWaveIndex(1, d2, 2, d2, 131);
+assignWaveIndex(1, m1, 2, m1, 140);
+assignWaveIndex(1, m2, 2, m2, 141);
 
 // Plays via CT entries
 executeTableEntry(100);

@@ -1,0 +1,36 @@
+// Stress: setTrigger across loops and branches.
+
+setTrigger(0);
+playZero(64);
+setTrigger(1);
+playZero(64);
+setTrigger(0);
+playZero(64);
+setTrigger(0xff);
+playZero(64);
+setTrigger(0);
+
+// With var
+var u = getUserReg(0);
+setTrigger(u);
+playZero(64);
+setTrigger(u + 1);
+playZero(64);
+
+// In a loop
+for (var k = 0; k < 8; k = k + 1) {
+  setTrigger(k);
+  playZero(32);
+  setTrigger(0);
+  playZero(32);
+}
+
+// Conditional
+if (u > 0) {
+  setTrigger(0xa);
+  playZero(64);
+} else {
+  setTrigger(0xb);
+  playZero(64);
+}
+setTrigger(0);

@@ -3284,3 +3284,129 @@ Likely files: `reconstructed/src/codegen/custom_functions_*.cpp`,
 2. Identify the throw site / destructor exception.
 3. Compare with the binary's "already assigned" error path and fix.
 
+## IF-161  setSinePhase rejected on SHFQC sg with phantom node check
+
+**Status**: open
+**Severity**: bug
+**Found**: stress phase 50 (`shfqc_sg_combo.seqc`, isolated to
+`if161_shfqc_setsinephase.seqc`)
+
+### Symptom
+
+On `devtype=SHFQC sequencer=sg`, the recon errors out with:
+
+```
+Error: node 'sgchannels/0/sines/0/phaseshift' doesn't exist
+```
+
+The original binary compiles the same source without complaint.  The
+exact same source on `devtype=SHFSG{4,8} sequencer=sg` is byte-identical
+between orig and recon — i.e. `setSinePhase(0)` is supported on the
+SHFSG sg path but the SHFQC sg path rejects it.
+
+### Minimal repro
+
+`tests/cases/stress/if161_shfqc_setsinephase.seqc`:
+
+```seqc
+setSinePhase(0);
+playZero(64);
+```
+
+Run on SHFQC sg → recon errors; on SHFSG8 sg → byte-identical pass.
+
+### Suspected location
+
+The `setSinePhase` codegen path validates a node name against the
+device's node tree.  For SHFQC, the recon's node tree (or the prefix
+used to construct the node string) appears to omit
+`sgchannels/N/sines/N/phaseshift`, while the binary has it.  Likely
+either:
+
+- A device-specific node-tree initialization missing entries for SHFQC
+  sg channels, or
+- A path-construction routine using `qachannels/...` prefix on SHFQC
+  even when sequencer=sg.
+
+Files to inspect:
+- `reconstructed/src/runtime/custom_functions_*.cpp` for `setSinePhase`
+  registration / dispatch.
+- `reconstructed/src/runtime/device_*.cpp` (or wherever device node
+  trees are built) for SHFQC sg-channel nodes.
+
+### Recommended next step
+
+1. GDB on original SHFQC sg compile, breakpoint at the node-lookup site
+   to confirm which node-tree entry succeeds.
+2. Compare the recon's lookup path; locate missing entry.
+3. Add the SHFQC sg-channel sine nodes (or fix the prefix construction).
+
+## IF-162  assignWaveIndex dual placeholder uses first-signal length
+
+**Status**: open
+**Severity**: bug
+**Found**: stress phase 50 (`many_placeholders.seqc`, isolated to
+`if162_assignwave_dual_size.seqc`)
+
+### Symptom
+
+`assignWaveIndex(1, p_small, 2, p_large, idx)` with two placeholders of
+different sizes computes the merged waveform's sample length from the
+FIRST placeholder instead of the MAX of both.  The recon emits a
+half-size `.wf___playWave_*` section.
+
+For the minimal repro (p_small=256, p_large=512, dual-channel):
+
+| section | orig | recon |
+|---|---|---|
+| `.wf___playWave_13_4` size | 2048 bytes (length=512) | 1024 bytes (length=256) |
+
+Symptom is structurally identical to IF-157 (which fixed the same
+first-signal-length bug on the `playWave` path inside
+`WaveformGenerator::merge`), but this is the `assignWaveIndex` /
+pinned-CT-entry codegen path, which has the bug independently.
+
+### Minimal repro
+
+`tests/cases/stress/if162_assignwave_dual_size.seqc`:
+
+```seqc
+wave p_small = placeholder(256, true, true);
+wave p_large = placeholder(512, true, true);
+
+assignWaveIndex(1, p_small, 2, p_large, 13);
+executeTableEntry(13);
+```
+
+Run: `python tests/diff_test.py --manifest manifest-stress.json --filter if162 -v`
+
+### Suspected location
+
+`reconstructed/src/runtime/custom_functions_dio.cpp`
+`CustomFunctions::assignWaveIndex` (@0x133c40), specifically the call to
+`mergeWaveforms` at line ~451:
+
+```cpp
+int maxSampleLength = static_cast<int>(maxSampleLen);  // from playArgs.getMaxSampleLength()
+wf = mergeWaveforms(channelArgs, channelParam, false,
+                    std::string("assignWaveIndex"),
+                    maxSampleLength, false);
+```
+
+Either:
+- `PlayArgs::getMaxSampleLength()` (@0x15d9f0) returns the first
+  signal's length instead of the max for placeholder args, or
+- `mergeWaveforms` (@0x15e060) Phase 1's `maxSampleLen` tracking
+  (lines 193-206) doesn't see the second placeholder's length because
+  it lookups by name in `wavetableFront_->getWaveformSampleLength`,
+  and placeholders may not be registered there with their declared
+  size.
+
+### Recommended next step
+
+1. GDB on original at `mergeWaveforms` Phase 1 loop
+   (0x15e0f4..0x15e234) — log `len` and `maxSampleLen` per iteration
+   for the dual-placeholder repro.
+2. Same trace on recon, compare.
+3. Fix the lookup / max computation that's wrong.
+

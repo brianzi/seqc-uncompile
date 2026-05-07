@@ -1,0 +1,51 @@
+// Stress: lock-in instrument (SHFLI/GHFLI/VHFLI) sweep + sine combo.
+// All three lock-in devices use the same compiler frontend; this
+// program is reusable across them.
+
+resetOscPhase();
+setSinePhase(0);
+incrementSinePhase(45);
+
+wave w1 = rect(64, 0.5);
+wave w2 = rect(128, 0.7);
+wave w3 = gauss(64, 32, 12);
+wave w4 = sine(64, 0.5, 0, 1);
+
+playWave(w1);
+playWave(w2);
+playWave(w3);
+playWave(w4);
+waitWave();
+
+setOscFreq(0, 100e6);
+configFreqSweep(0, 50e6, 2);
+playWave(w1);
+waitWave();
+
+incrementSinePhase(30);
+playWave(w2);
+waitWave();
+
+resetOscPhase();
+playWave(w3);
+waitWave();
+
+// Loop with osc updates
+for (var k = 0; k < 4; k = k + 1) {
+  resetOscPhase();
+  playWave(w1);
+  incrementSinePhase(15);
+  playWave(w2);
+  waitWave();
+}
+
+// Conditional
+var u = getUserReg(0);
+if (u > 0) {
+  setSinePhase(90);
+  playWave(w3);
+} else {
+  setSinePhase(180);
+  playWave(w4);
+}
+waitWave();

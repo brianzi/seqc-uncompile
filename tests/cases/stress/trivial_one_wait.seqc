@@ -1,0 +1,5 @@
+// Stress: trivial / edge programs.
+// Tests how the compiler handles minimum-effort inputs.
+// Single statement only.
+
+wait(1);

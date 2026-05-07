@@ -1,0 +1,30 @@
+// Stress: SHFQC SG-side stress (mirrors HDAWG-style waveform play).
+
+wave w1 = rect(64, 1.0);
+wave w2 = rect(128, 0.7);
+wave w3 = gauss(256, 128, 32);
+wave w4 = sine(64, 0.5, 0, 1);
+
+playWave(w1);
+playWave(w2);
+playWave(w3);
+playWave(w4);
+waitWave();
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+
+resetOscPhase();
+setSinePhase(0);
+
+for (var k = 0; k < 4; k = k + 1) {
+  playWave(w1);
+  playWave(w3);
+  resetOscPhase();
+}
+waitWave();
+
+playZero(256);
+playWave(w2);
+playZero(128);
