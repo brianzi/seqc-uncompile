@@ -3939,7 +3939,7 @@ the binary lacks.
 ## IF-203  `setInternalTrigger(var)` triggers internal "unspecified value type" error on SHFLI
 
 **Source**: coverage round, `cov_setInternalTrigger_solo_shfli`
-**Status**: fixed (commit 9af3670)
+**Status**: fixed (commit cfc82ea)
 **Severity**: likely-bug
 **Found**: 2026-05-08
 **Resolution**: Var-arg branch in `setInternalTrigger`
