@@ -436,8 +436,15 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     AsmRegister magicReg = AsmRegister::magicSkipRegister();
 
     for (auto it = asm_.begin(); it != asm_.end(); ++it) {
-        // Allocate new sequenceId — 2804f4: mov eax,[r14] (TLS regNumber)
-        int newSeqId = GlobalResources::regNumber++;
+        // Allocate new sequenceId from TLS+0x40 (AsmList::Asm::createUniqueID
+        // counter), NOT from GlobalResources::regNumber (TLS+0x48).
+        // Disasm @0x2804b2 loads TLS module sym +0x40 into r14; @0x2804f4 then
+        // does *r14++ (post-inc).  TLS+0x40 is the createUniqueID nextID
+        // counter shared with all asm-list barrier/clone code paths; the
+        // earlier reconstruction conflated it with regNumber, causing
+        // regNumber to be over-incremented and splitReg's fresh registers
+        // to land far outside the live-range table sized by registerAllocation.
+        int newSeqId = AsmList::Asm::createUniqueID(false);
 
         // Create barrier entry: copy instruction, set cmd=INVALID, regSrc=magicReg
         // 280503: copy ctor; 28052f: mov cmd,-1; 28053d: mov regSrc,magicReg
@@ -641,142 +648,167 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 // 0x281000
 // Split a register's live range within a sub-range of the instruction list.
 //
-// Algorithm (derived from ~500 lines of disasm at 0x281000..0x28150b):
-//   1. Iterate instructions in (start, end] (exclusive of start, inclusive
-//      of end — the binary starts at start+0xa8).
-//   2. Skip INVALID/LABEL/cmd4 instructions (bitmask 0x29 on (cmd+1)).
-//   3. For each instruction that READS `reg` (via getCmdType checks on
-//      regDst and regAux), count it. If the instruction also WRITES `reg`
-//      (regDst with cmdType bit 1, or regAux with cmdType==7), abandon.
-//   4. Once count reaches 10, trigger a split:
-//      a. Allocate fresh virtual register from GlobalResources::regNumber.
-//      b. Write a "copy" Asm entry into the slot at `start` position:
-//         clones the assembler from a nearby instruction, sets ADDI cmd
-//         with regDst=newReg, regSrc=reg, immediate=0.
-//      c. If end != list.end(), write a similar copy entry at `end`.
-//      d. Replace regDst/regAux references to `reg` with `newReg` in the
-//         current instruction.
-//   5. After loop: if all splits succeeded AND at least one split occurred,
-//      kill the original instructions at start (and end if != list.end())
-//      by setting cmd = INVALID.
-//
-// The threshold of 10 ensures trivial ranges are not split.
-// The boundary-instruction insertion provides the register copy semantics
-// needed to maintain correctness across split points.
+// Per-iteration model (GDB-verified, see notes/splitreg_loop_model.md):
+//   - Loop walks (start, list.end()).  `end` is NOT a loop terminator; it's
+//     used only as a clone source for Block 2 and as the gating value for
+//     whether Block 2 fires.
+//   - Skip-check: cmd in {INVALID, LABEL, cmd4} (bitmask 0x29 on cmd+1).
+//   - Reads-reg detection: see 0x2810e7..0x28116f.  Reads via regSrc
+//     (cmdType&1) or regAux (cmdType in {1,7}).  If ALSO writes reg
+//     (regDst with cmdType bit 1 set, or regAux with cmdType==7), abandon.
+//   - Counter `instrCount` (r14d) bumps every NON-SKIP iter, regardless of
+//     whether it reads reg or fires a split.  NEVER reset.
+//   - If reads-reg AND instrCount >= 10: SPLIT_BUMP.  Else if reads-reg
+//     AND instrCount < 10: set allSplitOk=false, continue.
+//   - SPLIT_BUMP allocates fresh newReg per split (post-increment of
+//     GlobalResources::regNumber), writes Block 1 to &Asm[iter-2], writes
+//     Block 2 (gated on end!=list.end()) to &Asm[iter-1], then renames the
+//     CURRENT instruction's regSrc and regAux from reg to newReg.
+//   - Block 1: clones start->assembler (cmd preserved!), patches
+//     regDst=newReg.  Carries seqId=createUniqueID, wavetableFront from
+//     current, noOpt=((start.cmd-3)<3), node=null.
+//   - Block 2: clones end->assembler, patches regDst=newReg and
+//     regSrc = (start.cmd==ADDI ? newReg : R0).  Same per-slot envelope.
+//   - Epilogue: if (allSplitOk & didSplit), set start.assembler.cmd = INVALID;
+//     and if end!=list.end(), set end.assembler.cmd = INVALID.
 void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
                             AsmList::const_iterator start,
                             AsmList::const_iterator end) {
     if (start + 1 >= list.cend())
-        return;
+        return;                                                           // @0x281023..0x281026
 
-    // Save byte offsets for start/end relative to list.data(),           // @0x281026
-    // because the list may reallocate during Asm insertions.
-    // (The binary computes these at 0x281033..281047.)
-    ptrdiff_t startOff = start - list.cbegin();
-    ptrdiff_t endOff   = end   - list.cbegin();
+    // Save byte offsets for start/end relative to list.data() — the
+    // binary saves these at 0x281033..0x281047 because the slot writes
+    // dereference `list.data()` directly in the epilogue.  Within the
+    // loop we use them to access slots [iter-2] and [iter-1] safely.
+    ptrdiff_t startIdx = start - list.cbegin();
+    ptrdiff_t endIdx   = end   - list.cbegin();
+    ptrdiff_t listLen  = list.cend() - list.cbegin();
 
-    bool didSplit = false;                                                // [rbp-0x30]
-    bool allSplitOk = true;                                              // [rbp-0x34]
-    int instrCount = 0;                                                  // [rbp-0x2c]
+    bool didSplit   = false;                                              // [rbp-0x30]
+    bool allSplitOk = true;                                               // [rbp-0x34]
+    int  instrCount = 0;                                                  // r14d
 
-    AsmRegister newReg(0);  // will be allocated on first split
+    // Snapshot start/end assembler refs once — `list.entries[startIdx]`
+    // is a stable address as long as no insertions happen (we only
+    // overwrite slots in-place; no push_back / insert / erase).
+    const Assembler& startAsmSrc = list.entries[startIdx].assembler;     // @[rbp-0x98]
 
-    for (auto it = start + 1; it != list.cend(); ++it) {                 // @0x2810b0
-        auto cmd = it->assembler.cmd;
+    for (ptrdiff_t iter = startIdx + 1; iter < listLen; ++iter) {        // r12 walks
+        auto& slot = list.entries[iter];
+        auto cmd = slot.assembler.cmd;
 
-        // Skip INVALID(-1→0), LABEL(2→3), cmd4(4→5): bitmask 0x29       // @0x2810d2
+        // Skip INVALID(-1→0), LABEL(2→3), cmd4(4→5): bitmask 0x29       // @0x2810cf..0x2810d7
         uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
         if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
             continue;
 
+        // Loop tail @0x28147f restores r14d := [rbp-0x2c] = r14d_old + 1
+        // on every non-skip exit (abandon, no-use, threshold-fail, post-split).
+        // Equivalently: bump instrCount at every non-skip iter end.
+        // The threshold check uses the PRE-bump value (= r14d as it stands
+        // at the cmp instruction in the binary).
+
         int cmdType = Assembler::getCmdType(cmd);                        // @0x2810e0
 
-        // Check if regDst (+0x28, write-dest) matches `reg`               // @0x2810f7
+        // Reads-reg detection — disasm 0x2810e7..0x28116f
+        // Branch A: regSrc==reg AND (cmdType & 1)  → instruction READS via regSrc.
+        //   If regDst==reg AND (cmdType>>1)&1 → also WRITES regDst → abandon.
+        //   If regAux==reg AND cmdType==7      → also WRITES regAux → abandon.
+        //   Else → USE-DETECTED.
+        // Branch B: !A AND regAux==reg  → if cmdType in {1,7} then re-run
+        //   the WRITES-CHECK from branch A; else abandon (no read).
+        //
+        // We unfold both branches into a single boolean `usesReg`, with a
+        // dedicated `abandon` for the read+write combos that the binary
+        // discards.
         bool usesReg = false;
-        if (it->assembler.regDst == reg) {
-            if (cmdType & 1) {
-                // regDst is read AND matches → check if also written      // @0x281108
-                int ct2 = Assembler::getCmdType(cmd);
-                if (it->assembler.regAux == reg) {
-                    if (ct2 == 7)                                        // @0x281127
-                        continue;  // read-then-write → abandon this instr
-                }
+        bool abandon = false;
+        bool readsViaSrc = (cmdType & 1) && (slot.assembler.regSrc == reg);
+        bool readsViaAux = (cmdType == 1 || cmdType == 7) &&
+                           (slot.assembler.regAux == reg);
+        if (readsViaSrc || readsViaAux) {
+            // Check WRITE collision (binary path 0x281100..0x281147).
+            bool writesDst = ((cmdType >> 1) & 1) && (slot.assembler.regDst == reg);
+            bool writesAux = (cmdType == 7) && (slot.assembler.regAux == reg);
+            if (writesDst || writesAux) {
+                abandon = true;
+            } else {
                 usesReg = true;
-            } else if (it->assembler.regAux == reg) {
-                // regDst doesn't read, but regAux matches
-                if (cmdType == 7 || cmdType == 1)                        // @0x281164
-                    usesReg = true;
-            }
-        } else {
-            // regDst doesn't match; check regAux                            // @0x28114c
-            if (it->assembler.regAux == reg) {
-                if (cmdType == 7 || cmdType == 1)
-                    usesReg = true;
             }
         }
-
-        if (!usesReg)
+        if (abandon) {
+            ++instrCount;
             continue;
+        }
+        if (!usesReg) {
+            ++instrCount;
+            continue;
+        }
 
-        ++instrCount;
-
-        // Threshold: at least 10 uses before splitting is worthwhile    // @0x281178
+        // Threshold check — @0x281174..0x281178 (uses pre-bump r14d)
         if (instrCount < 10) {
             allSplitOk = false;
+            ++instrCount;
             continue;
         }
 
-        // Allocate fresh register on first split                        // @0x281189
-        // GDB-confirmed (b_reg_count): binary actually bumps regNumber on
-        // EVERY threshold-met iteration (3 bumps observed per splitReg
-        // call), but the per-split boundary-write logic in this recon is
-        // not yet correct enough to exploit multiple bumps — see
-        // incidental_findings IF-156. For now, allocate once per call
-        // (matches recon's other paths). TODO: rewrite per-split boundary
-        // writes to match binary at 0x2811b7..0x281410.
-        if (!didSplit) {
-            int newRegNum = ++GlobalResources::regNumber;
-            newReg = AsmRegister(newRegNum);
+        // ---- SPLIT_BUMP path  @0x281189..0x281470 ----
+
+        // Allocate fresh register: post-increment of GlobalResources::regNumber.
+        // Disasm @0x28119f..0x2811a4: esi = *p; *p = esi+1; AsmRegister(esi).
+        int newRegNum = GlobalResources::regNumber;
+        ++GlobalResources::regNumber;
+        AsmRegister newReg(newRegNum);
+
+        // First fresh sequenceId for Block 1.
+        int seqId1 = AsmList::Asm::createUniqueID(false);                // @0x2811b7..0x2811c0
+
+        // ---- Block 1 — write into slot &list.entries[iter-2]  @0x2811b7..0x281296 ----
+        if (iter >= 2) {
+            auto& blk1 = list.entries[iter - 2];
+            blk1.sequenceId    = seqId1;
+            blk1.assembler     = startAsmSrc;          // clone start.assembler  @0x2811dc
+            blk1.assembler.regDst = newReg;             // patch regDst         @0x281203..0x281207
+            blk1.wavetableFront = slot.wavetableFront; // from current          @0x2811af / @0x28123d
+            // noOpt = ((start.cmd - 3) < 3u)            // @0x2811f3..0x2811fc
+            blk1.noOpt = (static_cast<uint32_t>(startAsmSrc.cmd) - 3u) < 3u;
+            blk1.node.reset();                           // node zeroed          @0x2811e8..0x28129d
         }
 
-        // --- Insert copy Asm at `start` slot ---                       // @0x2811b7
-        // The binary clones the assembler from `end`'s Asm, then
-        // overwrites it with ADDI semantics (copy reg → newReg).
-        // Modeled here as overwriting the Asm at `start` in the list.
-        {
-            auto& startAsm = const_cast<AsmList::Asm&>(*(list.cbegin() + startOff));
-            startAsm.assembler = (list.cbegin() + endOff)->assembler;    // @0x2811dc
-            startAsm.assembler.cmd = Assembler::ADDI;
-            startAsm.assembler.regDst = newReg;   // write-dest = new
-            startAsm.assembler.regSrc = reg;       // read-src  = old
-            // immediate 0 is left in outputs (cloned from source)
+        // ---- Block 2 — gated on end != list.end()  @0x2812a5..0x2813eb ----
+        if (endIdx != listLen) {
+            int seqId2 = AsmList::Asm::createUniqueID(false);            // @0x2812bb..0x2812c4
+            const Assembler& endAsmSrc = list.entries[endIdx].assembler; // r13 = [rbp-0x88]
+            auto& blk2 = list.entries[iter - 1];
+            blk2.sequenceId    = seqId2;
+            blk2.assembler     = endAsmSrc;             // clone end.assembler   @0x2812d9
+            blk2.assembler.regDst = newReg;             // patch regDst         @0x281301..0x281305
+            // regSrc: if start.cmd == ADDI(0x40000000), use newReg; else R0.    @0x28130c..0x281331
+            if (startAsmSrc.cmd == Assembler::ADDI)
+                blk2.assembler.regSrc = newReg;
+            else
+                blk2.assembler.regSrc = AsmRegister(0);
+            blk2.wavetableFront = slot.wavetableFront;                    // @0x2812b3 / @0x28135a
+            blk2.noOpt = (static_cast<uint32_t>(endAsmSrc.cmd) - 3u) < 3u;// @0x2812f0..0x2812fa
+            blk2.node.reset();                                             // @0x2812e8 / @0x281365..
         }
 
-        // --- Insert copy Asm at `end` slot (if end != list.end()) ---  // @0x2812ad
-        if ((list.cbegin() + endOff) != list.cend()) {
-            auto& endAsm = const_cast<AsmList::Asm&>(*(list.cbegin() + endOff));
-            endAsm.assembler = (list.cbegin() + startOff)->assembler;    // @0x2812d9
-            endAsm.assembler.cmd = Assembler::ADDI;
-            endAsm.assembler.regDst = newReg;
-            endAsm.assembler.regSrc = AsmRegister(0);                     // @0x281325
-        }
-
-        // --- Replace register in current instruction ---               // @0x2813f7
-        auto& instr = const_cast<Assembler&>(it->assembler);
-        if (instr.regDst == reg) instr.regDst = newReg;                     // @0x281408
-        if (instr.regAux == reg) instr.regAux = newReg;                     // @0x281423
+        // ---- Rename CURRENT instruction's regSrc / regAux  @0x2813f7..0x28142d ----
+        // NOTE: NOT regDst — disasm uses [rbp-0x70] = &assembler.regSrc
+        // and [rbp-0x68] = &assembler.regAux.
+        if (slot.assembler.regSrc == reg) slot.assembler.regSrc = newReg;
+        if (slot.assembler.regAux == reg) slot.assembler.regAux = newReg;
 
         didSplit = true;
+        ++instrCount;  // loop-tail bump applies on SPLIT iters too        @0x28147f
     }
 
-    // --- Post-loop: kill originals if all splits succeeded ---          // @0x28148c
+    // ---- Epilogue  @0x28148c..0x2814bb ----
     if (allSplitOk && didSplit) {
-        auto& startAsm = const_cast<AsmList::Asm&>(*(list.cbegin() + startOff));
-        startAsm.assembler.cmd = Assembler::INVALID;  // INVALID
-
-        if ((list.cbegin() + endOff) != list.cend()) {                   // @0x2814a9
-            auto& endAsm = const_cast<AsmList::Asm&>(*(list.cbegin() + endOff));
-            endAsm.assembler.cmd = Assembler::INVALID;
+        list.entries[startIdx].assembler.cmd = Assembler::INVALID;
+        if (endIdx != listLen) {
+            list.entries[endIdx].assembler.cmd = Assembler::INVALID;
         }
     }
 }

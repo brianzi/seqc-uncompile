@@ -2955,30 +2955,64 @@ Promoted to TODO 47.1 (still open).
 ## IF-156  Recon register allocator stricter than binary on ~17-variable programs
 
 **Source**: zivibes intake — `hb_b_reg_count.seqc` (17 `var` declarations)
-**Status**: **partially fixed** — splitConstRegisters wired up but splitReg body still incomplete
+**Status**: **fixed** — `hb_b_reg_count` now byte-identical; full suite 1596/1600
 **Severity**: likely-bug
 
-Original binary compiles 17 simultaneously-live `var` declarations without
-issue. Recon errors with:
-  `"Compilation failed: run out of free registers, please reduce complexity"`
+### Root cause (final)
 
-### GDB-verified call sequence in the binary
+Two bugs compounded:
 
-For the failing test, the binary actually:
-1. Calls `registerAllocation(numRegs=46)` — **throws** (same as recon)
-2. Catch handler calls `splitConstRegisters(46)` — internally invokes `splitReg` **64 times**, returns `numRegs=110`
-3. Calls `registerAllocation(numRegs=110)` — **succeeds**
+1. **splitReg body** was a stub.  Reconstructed per the binary disassembly
+   at 0x281000..0x2814cc as a per-iteration Block 1 / Block 2 boundary
+   writer with threshold ≥10, fresh-reg allocation from
+   `GlobalResources::regNumber`, current-instruction renaming of regSrc +
+   regAux (NOT regDst), and an epilogue that invalidates start.cmd
+   (and end.cmd if `end != list.end()`) only when `allSplitOk && didSplit`.
+   GDB-verified per-call counts: 3, 3, 3, … (16 productive calls), then
+   0, 0, … (48 trailing calls on planted ADDIs); total 64 calls.
 
-Per-call breakdown of the 64 `splitReg` invocations:
-- First 16 calls: each performs 3 internal splits (3× `++GlobalResources::regNumber` per call) = 48 fresh registers
-- Remaining 48 calls: 0 splits (threshold not reached after the first 16 reduced live ranges)
-- Total fresh registers added by the catch path: ~64 (matches `110-46`)
+2. **splitConstRegisters Pass 1** was incrementing the wrong TLS counter.
+   The barrier-creation loop at 0x2804f4 reads `(%r14)` where r14 was set
+   at 0x2804b2 via `__tls_get_addr` for the TLS module symbol at offset
+   `b7acf8` plus `+0x40`.  TLS+0x40 is `AsmList::Asm::createUniqueID`'s
+   `nextID` counter — **not** `GlobalResources::regNumber` (which lives at
+   TLS+0x48, accessed via the separate symbol at `b7ad10`).  The recon
+   line `int newSeqId = GlobalResources::regNumber++;` over-incremented
+   regNumber by ~120 per compile, so when `splitReg` later allocated
+   fresh regs from regNumber it produced values around 169..216 — far
+   outside the live-range table (sized `numSlots = numRegs+1 = 111`)
+   that `registerAllocation` builds.  This caused the allocator to skip
+   those regs entirely (silent OOB-guarded `addToLiveRange`), leaving
+   them un-renamed.  The text re-emit in `compileString` then re-parsed
+   regs ≥ 16 and `getReg` rejected them as "register out of range" —
+   surfacing as `Assembler message at N : ... %1% ... %4% argument(s)
+   given` because of an unrelated msg-id mismatch in the recon's
+   error_messages table.
 
-Counter trace at `0x281176 cmp r14d,0xa` for splitReg #1: `r14d` = 15, 31, 63
-across the 3 splits — instrCount is **not reset** between splits within
-one call. Yet only 3 splits fire per call, not "every iteration past 10",
-so some additional gating exists between the threshold check and the
-split body that we have not yet identified.
+   Fix at `reconstructed/src/asm/asm_optimize_regalloc.cpp:440`:
+   ```cpp
+   int newSeqId = AsmList::Asm::createUniqueID(false);  // TLS+0x40
+   ```
+   instead of `GlobalResources::regNumber++` (TLS+0x48).
+
+### Verified
+
+- `tests/diff_test.py --filter hb_b_reg_count -v` → byte-identical (7580 bytes).
+- Full suite via `tests/diff_test_fast.py`: **1596/1600** (was 1595/1600, no regressions).
+- GDB on original confirmed `regNumber=244` at first splitReg call (after
+  Pass 1's 122 createUniqueID++), then `247, 250, 253, …` per call —
+  the binary really does use regNumber for fresh splits.  My recon now
+  matches that trajectory because Pass 1 no longer touches regNumber.
+
+### Historical notes (kept for reference)
+
+- IF-156's earlier per-call breakdown (16 productive × 3 splits + 48
+  zero-split calls = 64 total) is correct and matches the post-fix recon.
+- The `[rbp-0x48]` field in splitConstRegisters is reused: in Pass 1 it
+  holds `asm_.end()` (set at 0x2804a5), in Pass 2 it is reset to 0 at
+  0x280737 and then `incq`-ed at 0x280877 once per outer iter to count
+  splitReg calls.  Return value is `splitCount + numRegs` (= 64 + 46 =
+  110 for `hb_b_reg_count`).
 
 ### Recon-side state (post commit `<tbd>`)
 

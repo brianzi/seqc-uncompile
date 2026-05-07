@@ -4466,19 +4466,22 @@ in original; recon errors `"run out of free registers"`.
       matches binary at 0x2807cc..0x28083a; pre-call overwrite check
       now scans full range skipping splitEnd. (No regressions; suite
       still 1595/1600.)
-- [ ] **Open: splitReg body still wrong.** Recon's `splitReg` produces
-      only 1 split per call where binary does 3. The recon allocates
-      `newReg` only on the first split (`if (!didSplit)` guard), and
-      always writes to fixed `startOff`/`endOff` slots — so multiple
-      splits per call would clobber each other's boundary writes
-      anyway. Need to reverse-engineer binary at 0x2811af..0x2812d9:
-      the `[rbp-0x50]` counter and `[rbp-0x1e8]` stack region (passed
-      via `r13`) suggest each split allocates a fresh boundary slot
-      rather than overwriting fixed ones. See IF-156.
-- [ ] Build + run `python tests/diff_test_fast.py --filter b_reg_count`
-- [ ] Full suite — confirm no regressions
-- [ ] Update IF-156 to `fixed`
-- [ ] Sub-phase wrap-up commit
+- [x] **Resolved: splitReg body rewritten and TLS counter bug fixed.**
+      `splitReg` now uses per-iteration Block 1 / Block 2 boundary writes
+      (slots iter-2 and iter-1), allocates a fresh `newReg` per split via
+      post-increment of `GlobalResources::regNumber`, and renames
+      `regSrc`/`regAux` (not regDst) on the current instruction.
+      Additionally `splitConstRegisters` Pass 1 was over-incrementing
+      `regNumber` instead of the unrelated TLS counter at offset +0x40
+      (`AsmList::Asm::createUniqueID::nextID`); the recon now calls
+      `createUniqueID(false)` for the new sequenceId.  See IF-156 for
+      the full root-cause analysis.
+- [x] Build + run `python tests/diff_test.py --filter hb_b_reg_count -v`
+      → byte-identical (7580 bytes).
+- [x] Full suite — `tests/diff_test_fast.py` shows **1596/1600**
+      (was 1595/1600, no regressions).
+- [x] Update IF-156 to `fixed`.
+- [ ] Sub-phase wrap-up commit.
 
 ### 47.3 — IF-157: playWave_variants codegen + waveform-size diff
 
