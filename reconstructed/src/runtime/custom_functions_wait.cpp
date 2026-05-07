@@ -758,7 +758,9 @@ std::shared_ptr<EvalResults> CustomFunctions::waitSineOscPhase(                 
     // @0x13f7e4..0x13f7eb: check config_->numChannelGroups >= 2 → throw 0xde
     if (config_->numChannelGroups >= 2)                                                          // @0x13f7e7: cmp [rax+0x1c],2
         throw CustomFunctionsException(
-            ErrorMessages::get(NotSupportedGrouping));                               // @0x13fdf3
+            ErrorMessages::format(NotSupportedGrouping,
+                                  std::string("waitSineOscPhase"),
+                                  config_->numChannelGroups));                       // @0x13fdf3
 
     // @0x13f7f1..0x13f87a: build EvalResultValue locals, make_shared<EvalResults>(VarType_Void)
     auto results = std::make_shared<EvalResults>(VarType_Void);                                    // @0x13f875

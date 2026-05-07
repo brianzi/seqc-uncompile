@@ -858,7 +858,8 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
     checkFunctionSupported("randomSeed", kDevHirzelAll);
     if (!args.empty())
         throw CustomFunctionsException(
-            ErrorMessages::format(FormatFuncArgs, "randomSeed"));
+            ErrorMessages::format(FormatFuncArgs, "randomSeed", 0,
+                                  static_cast<int>(args.size())));
     // Host-side only: seeds the TLS random object. No assembly emitted.
     // Binary @0x14981a..149832: TLS init → get addr → Random::seedRandom()
     // seedRandom @0x16be80 opens std::random_device("/dev/urandom") and
@@ -911,13 +912,13 @@ std::shared_ptr<EvalResults> CustomFunctions::setRate(  // @0x14c370 (933B)
     checkFunctionSupported("setRate", static_cast<AwgDeviceType>(5));
     if (args.size() != 1)                                                                          // @0x14c3cb: cmp $0x38
         throw CustomFunctionsException(
-            ErrorMessages::format(SetRateOneConst, std::string("setRate")));           // error 0xc0
+            ErrorMessages::format(SetRateOneConst));           // error 0xc0
     // @0x14c3d5: copy arg[0]
     EvalResultValue arg0 = args[0];
     // @0x14c463: check varType is const/cvar ((varType & ~1) == 4)
     if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                               // @0x14c469: jne error
         throw CustomFunctionsException(
-            ErrorMessages::format(SetRateConst, std::string("setRate")));              // error 0xbf
+            ErrorMessages::format(SetRateConst));              // error 0xbf
     // @0x14c46f: make_shared<EvalResults>() — default ctor
     auto results = std::make_shared<EvalResults>();
     // @0x14c4d6: value_.toInt(), then asmRate

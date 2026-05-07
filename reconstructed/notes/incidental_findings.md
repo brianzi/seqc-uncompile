@@ -3807,7 +3807,7 @@ at least one of these constructs.
 
 ## IF-175  Unsubstituted boost::format placeholders in error messages
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.A) — see IF-186 fix at awg_assembler_opcodes.cpp:333. Line 124 site deferred (no locals available; needs GDB to determine correct template id).
 **Severity**: bug (user-facing — leaks `%1% %2% %3% %4%`)
 **Found**: stress phase 53 (`long_source.seqc` HDAWG + SHFSG)
 
@@ -3931,7 +3931,7 @@ playWave(1, 2, w);
 
 ## IF-178  boost::too_many_args exception leaks in error path
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.A) — superseded by IF-184 fixes (18 SetXxxArgs sites + IF-182 16 awg_assembler sites).
 **Severity**: bug (user-facing — wrong error message; sister of IF-175)
 **Found**: stress phase 54 (`setuserreg_oor.seqc`,
            `giant_expression.seqc` HDAWG + SHFSG)
@@ -3985,7 +3985,7 @@ setUserReg(0, 1, 2);
 
 ## IF-179  boost::too_few_args exception leaks from marker(len, bits>=4) warning path
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.A) — added missing `funcName` 3rd arg at waveform_generator.cpp:613 to ValueCapped format call.
 **Severity**: bug (user-facing — recon hard-errors where orig succeeds with a warning)
 **Found**: stress phase 55 (`marker_bits_zoo.seqc` HDAWG)
 
@@ -4179,7 +4179,7 @@ exception instead of diagnostic.
 **Affected stress tests**: any test that triggers a missing-register or
 missing-value assembler diagnostic.
 
-**Status**: open — to fix in Phase 57 Group A.
+**Status**: fixed (2026-05-07, phase 57.A) — dropped extra `position` arg at all 16 sites in awg_assembler_opcodes.cpp.
 
 
 ## IF-183  ErrorMessages m[32] wrong message-id at asm_commands.cpp:452,458
@@ -4199,6 +4199,8 @@ of range for %2% bits") — confirmed against binary rodata at offset
 **Fix**: change `format(ErrorMessageT(0x20), ...)` → `format(ErrorMessages::ValueOutOfRange, ...)` (id 5) at both lines.
 
 **Severity**: HIGH.
+
+**Status**: fixed (2026-05-07, phase 57.A) — replaced `ErrorMessageT(0x20)` with `ErrorMessageT::ValueOutOfRange` at asm_commands.cpp:452 and :458.
 
 
 ## IF-184  ErrorMessages SetXxxArgs family — call sites pass extra funcName arg
@@ -4246,7 +4248,7 @@ produce different output than the binary.
 **Affected stress tests**: `setuserreg_oor`, `giant_expression`,
 others that hit the SetXxxArgs paths.
 
-**Status**: open — to fix in Phase 57 Group A.
+**Status**: fixed (2026-05-07, phase 57.A) — dropped `std::string("setXxx")` arg at all 18 sites in custom_functions_registers.cpp and custom_functions_playback.cpp (:914, :920).
 
 
 ## IF-185  ErrorMessages NodePrecisionLoss underflow (3 sites)
@@ -4266,7 +4268,7 @@ at all 3 sites.
 
 **Severity**: HIGH — affects any non-integer setInt warning.
 
-**Status**: open — to fix in Phase 57 Group A.
+**Status**: fixed (2026-05-07, phase 57.A) — added `"integer"` 2nd arg at custom_functions_play.cpp:1618, :1647, :2070 (template m[128] uses %2% for the type-name hint, not node-name).
 
 
 ## IF-186  ErrorMessages get(4)/get(222) placeholder leaks — superset of IF-175
@@ -4293,7 +4295,7 @@ correct args. For m[4]: `(instr, opcode, expected, given)`. For m[222]:
 
 This subsumes IF-175 and adds the m[222] case.
 
-**Status**: open — to fix in Phase 57 Group A.
+**Status**: partially fixed (2026-05-07, phase 57.A) — fixed awg_assembler_opcodes.cpp:333 (replaced `get(4)` with `format(TooFewArguments, cmdName, 3, 2, nChildren)`) and custom_functions_wait.cpp:761 (replaced `get(NotSupportedGrouping)` with `format(NotSupportedGrouping, "waitSineOscPhase", numChannelGroups)`). **Deferred**: awg_assembler_opcodes.cpp:124 (`getReg()` "register out of range" path) — no instr/opcode/expected/given locals available; correct template id unknown without GDB trace. Stress test `long_source_hdawg/shfsg` still fails on this site.
 
 
 ## IF-187  ErrorMessages assorted underflows in custom_functions_play/playback/registers
@@ -4322,4 +4324,7 @@ diagnostic.
 the funcName from the caller's context (already known locally as a
 `std::string`).
 
-**Status**: open — to fix in Phase 57 Group A.
+**Status**: fixed (2026-05-07, phase 57.A) — supplied missing args at all 14 sites:
+- play.cpp:496 (IndexMustBe + "3 or larger"), :2274 (FuncSingleArg + funcName), :2312 (FuncInvalidArgType + funcName/i/expected), :2324 (FormatMoreArgs + funcName), :2328 (FormatCantInterpret + funcName).
+- playback.cpp:861 (FormatFuncArgs + 0/given).
+- registers.cpp:815/875/1147 (FuncExpectsMaxArgs + max/given), :921 (FuncMinArgs + 1/0), :828/836/884/1153/1175/1190/1210/1219 (FuncExpectsConst + funcName).

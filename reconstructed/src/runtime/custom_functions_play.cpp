@@ -493,7 +493,8 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         firstArgVal = firstVal.value_.toInt();                        // @0x15f32b
         if (firstArgVal < 3) {
             throw CustomFunctionsException(
-                ErrorMessages::format(IndexMustBe, cmdName));  // @0x160940
+                ErrorMessages::format(IndexMustBe, cmdName,
+                                      std::string("3 or larger")));  // @0x160940
         }
         // Strip first arg
         argsCopy.erase(argsCopy.begin());                            // @0x15f340
@@ -1615,7 +1616,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             // @0x165b46: warning 0x80 — value truncated.
                             std::string valStr = valRef.value_.toString();
                             std::string msg = ErrorMessages::format(
-                                NodePrecisionLoss, valStr);
+                                NodePrecisionLoss, valStr, "integer");
                             warningCallback_(msg);
                         }
                         {   // addi(destReg, R0, Immediate(intVal))   // @0x165c17
@@ -1644,7 +1645,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             // @0x165dbf: warning 0x80 — value truncated.
                             std::string valStr = valRef.value_.toString();
                             std::string msg = ErrorMessages::format(
-                                NodePrecisionLoss, valStr);
+                                NodePrecisionLoss, valStr, "integer");
                             warningCallback_(msg);
                         }
                         double valD = valRef.value_.toDouble();       // @0x165e57
@@ -2067,7 +2068,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                             if (!floatEqual(d2, static_cast<double>(intVal))) {
                                 std::string valStr = valRef.value_.toString();
                                 std::string msg = ErrorMessages::format(
-                                    NodePrecisionLoss, valStr);
+                                    NodePrecisionLoss, valStr, "integer");
                                 warningCallback_(msg);
                             }
                             double d3 = valRef.value_.toDouble();
@@ -2266,12 +2267,12 @@ void CustomFunctions::addSyncCommand(std::shared_ptr<EvalResults> results,
 // Catches boost::io::too_few_args → error 0xA6
 // Catches boost::io::too_many_args → error 0xA8 (CustomFunctionsValueException)
 std::string CustomFunctions::printF(std::vector<EvalResultValue> const& args,
-                                     std::string const& /*funcName*/) {  // @0x16c470
+                                     std::string const& funcName) {  // @0x16c470
     // @0x16c4a5: check args.empty()
     if (args.empty()) {
         // @0x16d1d0: throw error 0x88
         throw CustomFunctionsException(
-            ErrorMessages::format(FuncSingleArg));
+            ErrorMessages::format(FuncSingleArg, funcName));
     }
 
     // @0x16c4c0: first arg must be VarType==3 (string)
@@ -2310,7 +2311,10 @@ std::string CustomFunctions::printF(std::vector<EvalResultValue> const& args,
                 // Unknown type — throw error 0x46 @0x16cf90
                 throw CustomFunctionsValueException(
                     ErrorMessages::format(FuncInvalidArgType,
-                                          std::to_string(varType)),
+                                          std::to_string(varType),
+                                          funcName,
+                                          std::to_string(i),
+                                          std::string("string, int or double")),
                     i);
             }
         }
@@ -2321,11 +2325,11 @@ std::string CustomFunctions::printF(std::vector<EvalResultValue> const& args,
     } catch (boost::io::too_few_args const&) {
         // @0x16d060: error 0xA6 — not enough arguments for format string
         throw CustomFunctionsException(
-            ErrorMessages::format(FormatMoreArgs));
+            ErrorMessages::format(FormatMoreArgs, funcName));
     } catch (boost::io::too_many_args const&) {
         // @0x16d120: error 0xA8 — too many arguments for format string
         throw CustomFunctionsValueException(
-            ErrorMessages::format(FormatCantInterpret), 0);
+            ErrorMessages::format(FormatCantInterpret, funcName), 0);
     }
 }
 

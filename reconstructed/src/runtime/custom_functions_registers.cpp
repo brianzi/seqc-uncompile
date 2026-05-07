@@ -43,7 +43,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setTrigger(                       
     checkFunctionSupported("setTrigger", kDevPreSHFLI);
     if (args.size() != 1)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetTriggerArgs, std::string("setTrigger")));
+            ErrorMessages::format(SetTriggerArgs));
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
     if (static_cast<int>(arg.varType_) == 2) {
@@ -59,7 +59,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setTrigger(                       
         results->assemblers_.push_back(std::move(asmEntry));
     } else {
         throw CustomFunctionsException(
-            ErrorMessages::format(SetTriggerArgs, std::string("setTrigger")));
+            ErrorMessages::format(SetTriggerArgs));
     }
     return results;
 }
@@ -93,7 +93,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setInternalTrigger(               
     checkFunctionSupported("setInternalTrigger", kDevLIFamily);
     if (args.size() != 1)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetInternalTriggerArgs, std::string("setInternalTrigger")));
+            ErrorMessages::format(SetInternalTriggerArgs));
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
     if (static_cast<int>(arg.varType_) == 2) {
@@ -109,7 +109,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setInternalTrigger(               
         results->assemblers_.push_back(std::move(asmEntry));
     } else {
         throw CustomFunctionsException(
-            ErrorMessages::format(SetInternalTriggerArgs, std::string("setInternalTrigger")));
+            ErrorMessages::format(SetInternalTriggerArgs));
     }
     return results;
 }
@@ -236,13 +236,13 @@ std::shared_ptr<EvalResults> CustomFunctions::setInt(                           
     checkFunctionSupported("setInt", static_cast<AwgDeviceType>(UHFLI | HDAWG | UHFQA));
     if (args.size() != 2)                                                                          // @0x148131: cmp rax,0x70
         throw CustomFunctionsException(
-            ErrorMessages::format(SetIntArgs, std::string("setInt")));
+            ErrorMessages::format(SetIntArgs));
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
     // Validate: arg0 must be string (varType_==3)                                                 // @0x1483bc: cmp [rbp-0x98],0x3
     if (static_cast<int>(arg0.varType_) != 3)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetIntArgs, std::string("setInt")));
+            ErrorMessages::format(SetIntArgs));
     // Validate: arg1 must be numeric (bitmask 0x54: bits 2,4,6 = types 2,4,6)                    // @0x1483d5..1483dd: bt 0x54,ecx
     int arg1Type = static_cast<int>(arg1.varType_);
     if (arg1Type > 6 || !((0x54 >> arg1Type) & 1))
@@ -262,7 +262,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
     size_t sz = args.size();
     if ((sz & ~static_cast<size_t>(1)) != 2)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetDoubleArgs, std::string("setDouble")));
+            ErrorMessages::format(SetDoubleArgs));
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
     // Default 3rd arg: VarType_Const, double 1.0, VarSubType(2)                                      // @0x148d88..148dd0
@@ -277,7 +277,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
     // Validate: arg0 must be string (varType_==3)                                                 // @0x148e33: cmp [rbp-0x98],0x3
     if (static_cast<int>(arg0.varType_) != 3)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetDoubleArgs, std::string("setDouble")));
+            ErrorMessages::format(SetDoubleArgs));
     // Validate: arg1 must be numeric (bitmask 0x54)                                               // @0x148e43..148e51: bt 0x54,eax
     int arg1Type = static_cast<int>(arg1.varType_);
     if (arg1Type > 6 || !((0x54 >> arg1Type) & 1))
@@ -341,20 +341,20 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     checkFunctionSupported("setUserReg", kDevAll);
     if (args.size() != 2)                                                                          // @0x14a48d: cmp rax,0x70
         throw CustomFunctionsException(
-            ErrorMessages::format(SetUserRegArgs, std::string("setUserReg")));
+            ErrorMessages::format(SetUserRegArgs));
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
     // Validate: arg0 must be int type ((varType & ~1) == 4)                                       // @0x14a5f2..14a5f5: and eax,0xfffffffd; cmp eax,0x4
     if ((static_cast<int>(arg0.varType_) & ~1) != 4)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetUserRegArgs, std::string("setUserReg")));
+            ErrorMessages::format(SetUserRegArgs));
     // Range-check arg0 against devConst_->memoryDepth                                             // @0x14a60a..14a624
     int arg0Val = arg0.value_.toInt();
     if (static_cast<int64_t>(arg0Val) >= static_cast<int64_t>(devConst_->memoryDepth) || arg0Val < 0) {
         // Check if varSubType_ == 2 (allows bypass)                                               // @0x14a62d: cmp [rbp-0x11c],0x2
         if (static_cast<int>(arg0.varSubType_) != 2)
             throw CustomFunctionsException(
-                ErrorMessages::format(SetUserRegArgs, std::string("setUserReg")));
+                ErrorMessages::format(SetUserRegArgs));
     }
     // Create results with VarType_Void                                                              // @0x14a633..14a65e
     auto results = std::make_shared<EvalResults>(VarType_Void);
@@ -371,7 +371,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
         appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(arg0.value_.toInt()));
     } else {
         throw CustomFunctionsException(
-            ErrorMessages::format(SetUserRegArgs, std::string("setUserReg")));
+            ErrorMessages::format(SetUserRegArgs));
     }
     // addi(reg, R0, Imm(0xb)) + suser(reg, 0x10)                                                 // @0x14a9b8..14aaf9
     {
@@ -552,10 +552,10 @@ std::shared_ptr<EvalResults> CustomFunctions::setPrecompClear(                  
     checkFunctionSupported("setPrecompClear", static_cast<AwgDeviceType>(HDAWG));
     if (args.size() != 1)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetPrecompOneConst, std::string("setPrecompClear")));
+            ErrorMessages::format(SetPrecompOneConst));
     if ((static_cast<int>(args[0].varType_) & ~1) != 4)
         throw CustomFunctionsException(
-            ErrorMessages::format(SetPrecompConst, std::string("setPrecompClear")));
+            ErrorMessages::format(SetPrecompConst));
     auto results = std::make_shared<EvalResults>(VarType_Void);
     int val = args[0].value_.toInt();
     unsigned int flag = (val != 0) ? 1u : 0u;
@@ -638,10 +638,10 @@ std::shared_ptr<EvalResults> CustomFunctions::lock(                             
     checkFunctionSupported("lock", kDevCervino);
     if (args.size() != 1)
         throw CustomFunctionsException(
-            ErrorMessages::format(LockArgs, std::string("lock")));
+            ErrorMessages::format(LockArgs));
     if (static_cast<int>(args[0].varType_) != 5)
         throw CustomFunctionsException(
-            ErrorMessages::format(LockOnlyWave, std::string("lock")));
+            ErrorMessages::format(LockOnlyWave));
     std::string name = args[0].value_.toString();
     std::optional<std::string> optName(name);
     auto wf = wavetableFront_->getWaveformByName(optName);
@@ -659,10 +659,10 @@ std::shared_ptr<EvalResults> CustomFunctions::unlock(                           
     checkFunctionSupported("unlock", kDevCervino);
     if (args.size() != 1)
         throw CustomFunctionsException(
-            ErrorMessages::format(UnlockArgs, std::string("unlock")));
+            ErrorMessages::format(UnlockArgs));
     if (static_cast<int>(args[0].varType_) != 5)
         throw CustomFunctionsException(
-            ErrorMessages::format(UnlockOnlyWave, std::string("unlock")));
+            ErrorMessages::format(UnlockOnlyWave));
     std::string name = args[0].value_.toString();
     std::optional<std::string> optName(name);
     auto wf = wavetableFront_->getWaveformByName(optName);
@@ -812,7 +812,8 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
     // @0x14f67f: max 2 args (throws 0x45 if >= 3)
     if (args.size() >= 3)                                                                                   // @0x14f688
         throw CustomFunctionsException(
-            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQAResult")));
+            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQAResult"),
+                                  2, static_cast<int>(args.size())));
 
     // @0x14f6a2: readConst("QA_INT_ALL", EDirection(1)) — default integration mask
     auto qaIntAllErv = res->readConst("QA_INT_ALL", EDirection::eOUT);                            // @0x14f6d4
@@ -825,7 +826,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
         auto const& arg0 = args[0];
         if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                                   // @0x14f71e: type check
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQAResult")));
         qaIntAll = arg0.value_.toInt();                                                                     // @0x14f72a
 
         // @0x14f736: if 2nd arg exists
@@ -833,7 +834,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
             auto const& arg1 = args[1];
             if ((static_cast<int>(arg1.varType_) & ~1) != 4)                                               // @0x14f748
                 throw CustomFunctionsException(
-                    ErrorMessages::format(FuncExpectsConst));
+                    ErrorMessages::format(FuncExpectsConst, std::string("startQAResult")));
             resultAddr = arg1.value_.toInt();                                                               // @0x14f754
         }
     }
@@ -872,7 +873,8 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAMonitor(                   
     // @0x150115: max 1 arg (throws 0x45 if >= 2)
     if (args.size() >= 2)                                                                                   // @0x15011e
         throw CustomFunctionsException(
-            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQAMonitor")));
+            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQAMonitor"),
+                                  1, static_cast<int>(args.size())));
 
     int monitorVal = 0;                                                                                     // @0x150140
 
@@ -881,7 +883,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAMonitor(                   
         auto const& arg0 = args[0];
         if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                                   // @0x15015e
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQAMonitor")));
         monitorVal = arg0.value_.toInt();                                                                   // @0x15016a
     }
 
@@ -918,7 +920,8 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
     // @0x15096f: at least 1 arg required
     if (args.empty())                                                                                       // @0x150978
         throw CustomFunctionsException(
-            ErrorMessages::format(FuncMinArgs, std::string("executeTableEntry")));
+            ErrorMessages::format(FuncMinArgs, std::string("executeTableEntry"),
+                                  1, 0));
 
     auto const& arg0 = args[0];                                                                             // @0x1509a0
 
@@ -1144,13 +1147,15 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
     size_t maxArgs = (config_->deviceType == static_cast<AwgDeviceType>(8)) ? 5 : 4;                       // @0x152700
     if (args.size() > maxArgs)
         throw CustomFunctionsException(
-            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQA")));
+            ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQA"),
+                                  static_cast<int>(maxArgs),
+                                  static_cast<int>(args.size())));
 
     // @0x152740: validate all provided args are int type ((varType | 2) == 6 → types 4,5,6,7)
     for (size_t i = 0; i < args.size(); ++i) {                                                             // @0x152748
         if ((static_cast<int>(args[i].varType_) | 2) != 6)
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
     }
 
     auto results = std::make_shared<EvalResults>(VarType_Void);                                               // @0x152790
@@ -1172,7 +1177,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
             integrationWeightsMask = args[0].value_.toInt();                                                // @0x1528a0
             if (~qaGenAll & integrationWeightsMask)                                                         // @0x1528b0: validate mask
                 throw CustomFunctionsException(
-                    ErrorMessages::format(FuncExpectsConst));
+                    ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
         }
         // qaGenAllEnabled is set later, after qaIntAll is finalized                                          // bit 30 flag
     }
@@ -1187,7 +1192,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
         int intTrigMask = args[intTrigIdx].value_.toInt();                                                  // @0x152970
         if (~qaIntAll & intTrigMask)                                                                        // @0x152980: validate
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
         qaIntAll = intTrigMask;                                                                             // override with user value
     }
 
@@ -1207,7 +1212,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
         resultLengthShift = args[rlsIdx].value_.toInt();                                                    // @0x1529f0
         if (resultLengthShift >= 32)                                                                        // @0x152a00
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
     }
 
     // @0x152a40: optional result address arg
@@ -1216,7 +1221,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
         resultAddr = args[raIdx].value_.toInt();                                                            // @0x152a50
         if (resultAddr >= 256)                                                                              // @0x152a60
             throw CustomFunctionsException(
-                ErrorMessages::format(FuncExpectsConst));
+                ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
     }
 
     AsmRegister zero(0);

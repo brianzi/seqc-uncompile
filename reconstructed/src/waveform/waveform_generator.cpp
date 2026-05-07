@@ -612,7 +612,7 @@ Signal WaveformGenerator::markerImpl(                                          /
         if (warningCallback_) {
             std::string msg = ErrorMessages::format(
                 ValueCapped,
-                markerValue, markerValue & 3);
+                markerValue, markerValue & 3, funcName);
             warningCallback_(msg);
         }
         marker = static_cast<uint8_t>(markerValue & 3);

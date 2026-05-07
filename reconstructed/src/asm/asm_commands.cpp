@@ -450,13 +450,13 @@ int AsmCommands::toInt32(Value val) const {
     } catch (const std::overflow_error&) {
         double d = val.toDouble();
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x20), d, 32);
+            ErrorMessageT::ValueOutOfRange, d, 32);
         if (errorHandler_) errorHandler_(msg);
         return INT_MAX;
     } catch (const std::underflow_error&) {
         double d = val.toDouble();
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x20), d, 32);
+            ErrorMessageT::ValueOutOfRange, d, 32);
         if (errorHandler_) errorHandler_(msg);
         return INT_MIN;
     }
