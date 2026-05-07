@@ -170,6 +170,15 @@ Resources::Variable* StaticResources::getVariable(std::string const& name)  // @
     Variable* var = Resources::getVariable(name);
 
     // (3) Deprecation checks — warn but still return the variable.
+    // Per binary @0x129ee6/0x129eea: if var is null, skip the deprecation
+    // checks entirely and just return null.  Otherwise the warning would
+    // mask the real "tried to access unknown variable" error from the
+    // caller (e.g. SHFQA + ZSYNC_DATA_PQSC_REGISTER, which is HDAWG/SHFSG
+    // only — the binary wants the unknown-variable error to surface).
+    if (!var) {
+        return nullptr;
+    }
+
     auto* fn = reinterpret_cast<std::function<void(std::string const&)>*>(
         &functionStorage_);
 

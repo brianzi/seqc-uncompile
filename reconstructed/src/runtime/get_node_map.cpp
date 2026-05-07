@@ -1249,14 +1249,21 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::VHFLI>::get() {  // @0x1bc3b0
 namespace {
 
 std::unique_ptr<NodeMap> dispatchHighDevType(AwgDeviceType devType) {  // @0x1ba360
+    // Verified from disassembly: jump table at 0x9598f8 maps
+    //   index 0 (SHFSG=16)    -> GetNodeMap<SHFSG>::get()    @0x1ba393
+    //   index 1 (SHFQC_SG=32) -> GetNodeMap<SHFSG>::get()    @0x1ba393  (same!)
+    //   index 3 (SHFLI=64)    -> GetNodeMap<SHFLI>::get()    @0x1ba39d
+    //   index 7 (GHFLI=128)   -> GetNodeMap<GHFLI>::get()    @0x1ba3a7
+    //   indices 2,4,5,6 + default -> GetNodeMap<VHFLI>::get() @0x1ba3b1
+    // Note: SHFQA(8) is handled by an early-out at 0x1ba36c; everything
+    // else (incl. 256/VHFLI) falls into the VHFLI branch.
     switch (static_cast<int>(devType)) {
         case 8:   return GetNodeMap<AwgDeviceType::SHFQA>::get();
         case 16:  return GetNodeMap<AwgDeviceType::SHFSG>::get();
-        // case 32: SHFQC_SG — no GetNodeMap specialization in binary
+        case 32:  return GetNodeMap<AwgDeviceType::SHFSG>::get();  // SHFQC_SG reuses SHFSG node tree (binary jump-table idx1 → 0x1ba393)
         case 64:  return GetNodeMap<AwgDeviceType::SHFLI>::get();
         case 128: return GetNodeMap<AwgDeviceType::GHFLI>::get();
-        case 256: return GetNodeMap<AwgDeviceType::VHFLI>::get();
-        default:  return GetNodeMap<AwgDeviceType::VHFLI>::get();  // fallthrough in binary
+        default:  return GetNodeMap<AwgDeviceType::VHFLI>::get();  // VHFLI(256) and fallthrough
     }
 }
 

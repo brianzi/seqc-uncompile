@@ -3286,10 +3286,41 @@ Likely files: `reconstructed/src/codegen/custom_functions_*.cpp`,
 
 ## IF-161  setSinePhase rejected on SHFQC sg with phantom node check
 
-**Status**: open
+**Status**: fixed (phase 57.E)
 **Severity**: bug
 **Found**: stress phase 50 (`shfqc_sg_combo.seqc`, isolated to
 `if161_shfqc_setsinephase.seqc`)
+
+### Root cause
+
+`dispatchHighDevType` in `reconstructed/src/runtime/get_node_map.cpp`
+(binary `@0x1ba360`) was missing the `case 32` (SHFQC_SG) arm: a
+comment said "no GetNodeMap specialization in binary", and SHFQC_SG
+fell through to the VHFLI default. As a result, the SHFQC sg node
+tree had only `oscs/N/freq` virtual entries (the VHFLI/lyrebird
+node-map) and no `sgchannels/...` paths, so `setSinePhase` and
+`setOscFreq` reported the sgchannels node as missing.
+
+The binary's jump table at `0x9598f8` shows that idx0 (SHFSG=16) and
+**idx1 (SHFQC_SG=32) both point to `0x1ba393` → `GetNodeMap<SHFSG>::get()`**.
+Verified by reading the jump table contents directly:
+```
+idx0: target=0x1ba393   (SHFSG)
+idx1: target=0x1ba393   (SHFSG — SHFQC_SG aliases this)
+```
+
+### Fix
+
+Added `case 32: return GetNodeMap<AwgDeviceType::SHFSG>::get();` to
+`dispatchHighDevType`. SHFQC_SG now uses the same node tree as plain
+SHFSG, matching the binary.
+
+### Verification
+
+- `if161_shfqc_setsinephase_shfqc[SHFQC, seq=sg]` now byte-identical.
+- `oscfreq_dense_shfqc[SHFQC, seq=sg]` now byte-identical (also fixes IF-167).
+- Main suite still 1600/1600.
+- Stress suite: 416 → 419 passing (+3).
 
 ### Symptom
 
@@ -3529,9 +3560,41 @@ doesn't add the prefix).
 
 ## IF-166  ZSYNC_DATA_PQSC_REGISTER accepted on SHFQA/SHFQC by recon
 
-**Status**: open
+**Status**: fixed (phase 57.E)
 **Severity**: bug
 **Found**: stress phase 52 (`shfqa_feedback_branch.seqc`)
+
+### Root cause
+
+The constant `ZSYNC_DATA_PQSC_REGISTER` is correctly NOT registered
+for SHFQA in `static_resources.cpp` (HDAWG/SHFSG/SHFQC_SG only).
+However, `StaticResources::getVariable` in
+`reconstructed/src/runtime/resources_static_global.cpp` was running
+the deprecation-warning checks **even when `Resources::getVariable`
+returned null** for the lookup, emitting a deprecation warning that
+masked the real "tried to access unknown variable" error.
+
+The binary at `@0x129ee6` does:
+```
+cmp QWORD PTR [rbx], 0x0
+je  12a28d                 ; if var == null, skip deprecation, return null
+```
+
+i.e. the deprecation checks are gated on a non-null lookup result.
+
+### Fix
+
+Added an `if (!var) return nullptr;` early-return in
+`StaticResources::getVariable` between the `Resources::getVariable`
+delegation and the deprecation-name comparisons.
+
+### Verification
+
+- `shfqa_feedback_branch_shfqa[SHFQA4, seq=qa]` now reports the
+  matching `tried to access unknown variable 'ZSYNC_DATA_PQSC_REGISTER'`
+  error (was reporting the deprecation warning string).
+- Same for `shfqa_feedback_branch_shfqc[SHFQC, seq=qa]`.
+- Main suite still 1600/1600.
 
 ### Symptom
 
@@ -3561,7 +3624,7 @@ exclusion.
 
 ## IF-167  setOscFreq rejected on SHFQC sg with phantom node check
 
-**Status**: open
+**Status**: fixed (phase 57.E — same fix as IF-161)
 **Severity**: bug (same shape as IF-161)
 **Found**: stress phase 52 (`oscfreq_dense.seqc`)
 
