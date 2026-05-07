@@ -1,0 +1,12 @@
+// Unary chains only — modulo removed (not supported on var).
+
+var a = getUserReg(0);
+
+setUserReg(1, ~a);
+setUserReg(2, ~~a);
+setUserReg(3, ~0);
+setUserReg(4, ~~~a);
+
+setUserReg(8, -a);
+setUserReg(9, --a);
+setUserReg(10, ---a);

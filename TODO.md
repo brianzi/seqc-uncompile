@@ -4949,5 +4949,114 @@ See `incidental_findings.md` IF-175.
 
 ### 53.5 — Phase 53 wrap-up
 
+- [x] Sub-phase wrap-up commit (`a60d1e0`)
+- [x] Push
+
+## Phase 54: Stress suite expansion (round 7) + IFs 176-178
+
+Goal: 50 new stress angles spanning operators (compound assign, inc/dec,
+ternary, comparison-as-int, logical short-circuit, bitwise NOT,
+modulo, unary chains, int/float coercion, operator-precedence pile),
+control-flow corners (for with empty body / negative step / never-
+enter, while true/false, do-while, break/continue, return inside
+loop), wave/playback specifics (playHold, PRNG functions,
+assignWaveIndex with same wave to multiple indices, wave declared in
+subroutine / for body, playWave with var channel, executeTableEntry
+with var index), markers/triggers/DIO (rapid setTrigger, wait
+boundaries, waitDigTrigger / getDigTrigger, setDIO / getDIO
+patterns), wave composition (join with many waveforms, cut extreme,
+wave aliasing, wave summation chain), CT edges (high index in
+1023 range), error paths (forward-ref subroutine, redeclared
+wave/var, non-wave to playWave, OOR setUserReg, identifier forms,
+trailing whitespace + tabs), combos (SHFQC qa-only, subroutine using
+outer-scope wave, CT inside subroutine, subroutine in repeat,
+nested repeat with placeholders, SHFQA setupQAFeedback combos,
+markers on all channels, repeat with var bound, placeholder marker
+bits, playZero boundaries, if-arms with mixed play/no-play, giant
+expression, many unused wave decls, resetOscPhase rapid, subroutine
+recursion, wave with computed length).
+
+Suite scores after Phase 54:
+  main suite:   1600/1600 passing
+  stress suite: 282/313 passing (after fork additions)
+
+New regressions surfaced:
+
+  IF-176 — `cut(w, N, N)` length-1 case: orig drops `.wf` to 0
+          bytes but keeps the table entry; recon emits a 32-byte
+          `.wf` for it.  Distinct from IF-172 (zeros(0)).
+  IF-177 — `ones(var)` / similar wave-builtin with `var` arg: orig
+          says "ones can't be called with var arguments"; recon
+          says "unspecified value type detected in toInt
+          conversion".  User-facing message divergence in two
+          stress files (`int_float_coercion`, `wave_computed_length`).
+  IF-178 — `boost::too_many_args` exception leaks for setUserReg
+          OOR / arity error.  Sister of IF-175 — same boost::format
+          misuse family but a different failure mode (param-count
+          mismatch in the format string itself).
+
+Constant-fold extension (no new IF, updated existing):
+  `while(true)` extends IF-174 (same family — recon emits extra
+  cmp/branch instead of unconditional loop).  Documented under IF-174.
+
+Test-author bugs (forked):
+  - `compound_assign_ops.seqc` short-circuited at `/=` (division
+    not supported on var).  Fork
+    `compound_assign_ops_no_div.seqc` removes `/=`/`%=` and is
+    byte-identical — angle clean.
+  - `unary_chain_modulo.seqc` short-circuited at `%` (modulo not
+    supported on var).  Fork `unary_chain_only.seqc` removes
+    `%` and is byte-identical — angle clean.
+
+Existing-IF dupes (kept as additional repros, not new findings):
+  - `assign_same_wave_multi_hdawg`, `exec_table_var_index_hdawg`,
+    `ct_high_index_hdawg` → all reproduce IF-159 (worker abort on
+    duplicate assignWaveIndex).
+
+Angles probed-and-clean (byte-identical pass):
+ternary_expr, comparison_as_int, logical_short_circuit, inc_dec_ops,
+for_corners, do_while_loop, subroutine_return_in_loop, play_hold,
+wave_in_subroutine, wave_in_for_body, settrigger_rapid, wait_boundary,
+dig_trigger_io, dio_patterns, join_many, wave_alias, wave_sum_chain,
+trailing_ws_tabs, identifier_forms, shfqc_qa_only, ct_in_subroutine,
+subroutine_in_repeat, nested_repeat_placeholders, repeat_var_bound,
+placeholder_marker_bits, playzero_boundaries, if_arms_mixed_play,
+many_unused_wave_decls, reset_osc_rapid, subroutine_uses_outer_wave,
+subroutine_forward_ref (both error consistently),
+wave_redeclared (both error consistently),
+var_redeclared (both error consistently),
+playwave_nonwave_arg (both error consistently),
+break_continue (both error consistently — break unsupported),
+prng_functions (both error consistently — needs const args),
+playwave_var_channel (both error consistently — channel must be const),
+subroutine_recursion (both crash consistently — likely SIGSEGV),
+marker_all_channels (both error — channel >2 invalid).
+
+### 54.1 — IF-176: cut(w, N, N) length-1 sample emission divergence
+
+See `incidental_findings.md` IF-176.
+
+- [ ] GDB orig at cut() builder for `cut(w, 0, 0)` to see semantics
+- [ ] Find recon cut() implementation; align with orig
+- [ ] Update IF-176 to `fixed`
+
+### 54.2 — IF-177: ones(var) error wording diverges
+
+See `incidental_findings.md` IF-177.
+
+- [ ] Find recon's wave-builtin var-arg detection; reorder so the
+      semantic check fires before the toInt call
+- [ ] Update IF-177 to `fixed`
+
+### 54.3 — IF-178: boost::too_many_args leak
+
+See `incidental_findings.md` IF-178 (sister of IF-175).
+
+- [ ] Audit `ErrorMessages::get(N)` call sites for parameter count
+      mismatch with the template's `%K%` slots
+- [ ] Update IF-178 to `fixed` (and likely fixes part of IF-175 too)
+
+### 54.4 — Phase 54 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

@@ -1,0 +1,17 @@
+// Identifiers with digits, leading underscores, very long names.
+
+var x123 = 1;
+var _foo = 2;
+var __bar__ = 3;
+var ____ = 4;
+var aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa = 5;
+var x_1_2_3_underscore_separator = 6;
+var v0 = 7;
+
+setUserReg(0, x123);
+setUserReg(1, _foo);
+setUserReg(2, __bar__);
+setUserReg(3, ____);
+setUserReg(4, aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa);
+setUserReg(5, x_1_2_3_underscore_separator);
+setUserReg(6, v0);

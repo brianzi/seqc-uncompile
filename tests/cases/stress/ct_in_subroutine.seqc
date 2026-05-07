@@ -1,0 +1,11 @@
+// CT inside subroutine.
+
+wave w = gauss(64, 32, 8);
+
+void register_and_play() {
+    assignWaveIndex(1, 2, w, 0);
+    executeTableEntry(0);
+}
+
+register_and_play();
+waitWave();

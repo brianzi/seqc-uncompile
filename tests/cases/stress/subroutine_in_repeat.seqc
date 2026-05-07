@@ -1,0 +1,18 @@
+// Subroutine called inside repeat.
+
+wave w = ones(64);
+
+void short_play() {
+    playWave(1, 2, w);
+}
+
+repeat(5) {
+    short_play();
+}
+waitWave();
+
+repeat(20) {
+    short_play();
+    short_play();
+}
+waitWave();

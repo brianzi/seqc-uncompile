@@ -1,0 +1,13 @@
+// playHold — extend last sample for N cycles.
+
+wave w = ones(64);
+
+playWave(1, 2, w);
+playHold(128);
+waitWave();
+
+playWave(1, 2, w);
+playHold(32);
+playHold(32);
+playHold(32);
+waitWave();

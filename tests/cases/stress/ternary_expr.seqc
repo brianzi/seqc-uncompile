@@ -1,0 +1,12 @@
+// Ternary expression.
+
+var a = getUserReg(0);
+var b = (a > 0) ? 100 : 200;
+setUserReg(1, b);
+
+var c = (a == 0) ? a : a + 1;
+setUserReg(2, c);
+
+// Nested ternaries
+var d = (a > 10) ? 1 : (a > 5) ? 2 : (a > 0) ? 3 : 4;
+setUserReg(3, d);

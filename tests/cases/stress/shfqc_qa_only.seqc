@@ -1,0 +1,8 @@
+// SHFQC dual-channel: qa AND sg sequencers exercised in same source.
+// (This file will be tested separately on qa and sg seqs; each one
+// only executes the relevant builtins.)
+
+wave w = ones(2048);
+configFreqSweep(0, 1e6, 1e9);
+startQA(QA_GEN_0, QA_INT_0, true, 0, 0x0);
+playZero(2048);

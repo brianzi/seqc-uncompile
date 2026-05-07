@@ -1,0 +1,11 @@
+// playZero at boundary lengths.
+
+playZero(0);
+playZero(1);
+playZero(16);
+playZero(32);
+playZero(33);     // not-multiple-of-16 likely
+playZero(63);
+playZero(64);
+playZero(65535);
+waitWave();

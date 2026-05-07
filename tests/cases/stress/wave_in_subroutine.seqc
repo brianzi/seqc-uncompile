@@ -1,0 +1,11 @@
+// Wave declared inside subroutine local scope.
+
+void make_and_play() {
+    wave local_w = gauss(128, 64, 16);
+    playWave(1, 2, local_w);
+}
+
+make_and_play();
+make_and_play();
+make_and_play();
+waitWave();

@@ -1,0 +1,9 @@
+// while with constant true / false (already partly in IF-174 territory).
+
+while (true) {
+    playZero(64);
+    var x = getUserReg(0);
+    if (x == 99) {
+        // would need break
+    }
+}

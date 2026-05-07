@@ -1,0 +1,7 @@
+// Wave declared inside for-loop body.
+
+for (var i = 0; i < 4; i = i + 1) {
+    wave loop_w = ones(64);
+    playWave(1, 2, loop_w);
+}
+waitWave();

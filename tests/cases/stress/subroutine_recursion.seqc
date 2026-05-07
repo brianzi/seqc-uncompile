@@ -1,0 +1,14 @@
+// Subroutine recursion (if supported).
+
+wave w = ones(64);
+
+void recurse() {
+    var n = getUserReg(0);
+    if (n > 0) {
+        playWave(1, 2, w);
+        recurse();
+    }
+}
+
+recurse();
+waitWave();

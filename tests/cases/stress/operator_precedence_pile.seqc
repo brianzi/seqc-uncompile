@@ -1,0 +1,19 @@
+// Operator-precedence pile-up.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+var c = getUserReg(2);
+var d = getUserReg(3);
+
+setUserReg(4, a + b * c - d);
+setUserReg(5, a + b * c - d / 2);
+setUserReg(6, a | b & c);
+setUserReg(7, a | b & c ^ d);
+setUserReg(8, a << 2 | b >> 1);
+setUserReg(9, a + b * c | d & 0xff);
+setUserReg(10, a == b && c < d);
+setUserReg(11, a + b == c - d);
+setUserReg(12, a & 0xff | b << 8);
+setUserReg(13, (a + b) * (c - d));
+setUserReg(14, a * b + c * d);
+setUserReg(15, a * (b + c) * d);

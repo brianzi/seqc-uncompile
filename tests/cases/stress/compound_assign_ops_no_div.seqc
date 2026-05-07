@@ -1,0 +1,34 @@
+// Compound assign — only the operators allowed in SeqC
+// (no /=, no %=).  Splits the original which short-circuited at /=.
+
+var a = 10;
+a += 5;
+setUserReg(0, a);
+
+var b = 20;
+b -= 7;
+setUserReg(1, b);
+
+var c = 3;
+c *= 4;
+setUserReg(2, c);
+
+var e = 0xff;
+e &= 0x0f;
+setUserReg(4, e);
+
+var f = 0x0f;
+f |= 0xf0;
+setUserReg(5, f);
+
+var g = 0xff;
+g ^= 0x0f;
+setUserReg(6, g);
+
+var h = 1;
+h <<= 4;
+setUserReg(7, h);
+
+var i = 256;
+i >>= 4;
+setUserReg(8, i);

@@ -1,0 +1,13 @@
+// Wave declared with computed length expression.
+
+var n = 64;
+wave w_a = ones(n);
+wave w_b = ones(n + 32);
+wave w_c = ones(n * 2);
+wave w_d = ones(2 * 32);
+
+playWave(1, 2, w_a);
+playWave(1, 2, w_b);
+playWave(1, 2, w_c);
+playWave(1, 2, w_d);
+waitWave();

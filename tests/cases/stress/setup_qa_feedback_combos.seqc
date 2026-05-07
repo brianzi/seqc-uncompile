@@ -1,0 +1,15 @@
+// SHFQA setupQAFeedback combinations (path-only — no assertions).
+
+configFreqSweep(0, 1e6, 1e9);
+
+setupQAFeedback(0, 0);
+playZero(2048);
+
+setupQAFeedback(0, 0xff);
+playZero(2048);
+
+setupQAFeedback(1, 0xaaaa);
+playZero(2048);
+
+resetOscPhase();
+playZero(2048);

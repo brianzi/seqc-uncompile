@@ -1,0 +1,17 @@
+// Placeholder with various marker_bits.
+
+wave ph0 = placeholder(64);
+wave ph1 = placeholder(64, 1);
+wave ph2 = placeholder(64, 2);
+wave ph3 = placeholder(64, 3);
+
+assignWaveIndex(1, 2, ph0, 0);
+assignWaveIndex(1, 2, ph1, 1);
+assignWaveIndex(1, 2, ph2, 2);
+assignWaveIndex(1, 2, ph3, 3);
+
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+executeTableEntry(3);
+waitWave();

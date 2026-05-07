@@ -1,0 +1,27 @@
+// Nested if/else with playWave in some arms only.
+
+wave w = ones(64);
+var f = getUserReg(0);
+
+if (f == 0) {
+    playWave(1, 2, w);
+} else if (f == 1) {
+    setUserReg(1, 1);
+} else if (f == 2) {
+    playWave(1, 2, w);
+    setUserReg(1, 2);
+} else {
+    setUserReg(1, 99);
+}
+waitWave();
+
+if (f > 0) {
+    if (f > 5) {
+        playWave(1, 2, w);
+    } else {
+        setUserReg(2, 1);
+    }
+} else {
+    playWave(1, 2, w);
+}
+waitWave();

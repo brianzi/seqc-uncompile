@@ -1162,6 +1162,486 @@
           "name": "setoscfreq_churn_shfsg",
           "file": "stress/setoscfreq_churn_shfsg.seqc",
           "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "compound_assign_ops_hdawg",
+          "file": "stress/compound_assign_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "compound_assign_ops_shfsg",
+          "file": "stress/compound_assign_ops.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "inc_dec_ops_hdawg",
+          "file": "stress/inc_dec_ops.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "inc_dec_ops_shfsg",
+          "file": "stress/inc_dec_ops.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ternary_expr_hdawg",
+          "file": "stress/ternary_expr.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "ternary_expr_shfsg",
+          "file": "stress/ternary_expr.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "comparison_as_int_hdawg",
+          "file": "stress/comparison_as_int.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "comparison_as_int_shfsg",
+          "file": "stress/comparison_as_int.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "logical_short_circuit_hdawg",
+          "file": "stress/logical_short_circuit.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "logical_short_circuit_shfsg",
+          "file": "stress/logical_short_circuit.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "unary_chain_modulo_hdawg",
+          "file": "stress/unary_chain_modulo.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "unary_chain_modulo_shfsg",
+          "file": "stress/unary_chain_modulo.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "int_float_coercion_hdawg",
+          "file": "stress/int_float_coercion.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "int_float_coercion_shfsg",
+          "file": "stress/int_float_coercion.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "operator_precedence_pile_hdawg",
+          "file": "stress/operator_precedence_pile.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "operator_precedence_pile_shfsg",
+          "file": "stress/operator_precedence_pile.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "for_corners_hdawg",
+          "file": "stress/for_corners.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "for_corners_shfsg",
+          "file": "stress/for_corners.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "while_true_loop_hdawg",
+          "file": "stress/while_true_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "while_true_loop_shfsg",
+          "file": "stress/while_true_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "do_while_loop_hdawg",
+          "file": "stress/do_while_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "do_while_loop_shfsg",
+          "file": "stress/do_while_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "break_continue_hdawg",
+          "file": "stress/break_continue.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "break_continue_shfsg",
+          "file": "stress/break_continue.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "subroutine_return_in_loop_hdawg",
+          "file": "stress/subroutine_return_in_loop.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_return_in_loop_shfsg",
+          "file": "stress/subroutine_return_in_loop.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "play_hold_hdawg",
+          "file": "stress/play_hold.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prng_functions_hdawg",
+          "file": "stress/prng_functions.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "prng_functions_shfsg",
+          "file": "stress/prng_functions.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "assign_same_wave_multi_hdawg",
+          "file": "stress/assign_same_wave_multi.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_in_subroutine_hdawg",
+          "file": "stress/wave_in_subroutine.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_in_subroutine_shfsg",
+          "file": "stress/wave_in_subroutine.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_in_for_body_hdawg",
+          "file": "stress/wave_in_for_body.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_in_for_body_shfsg",
+          "file": "stress/wave_in_for_body.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "playwave_var_channel_hdawg",
+          "file": "stress/playwave_var_channel.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playwave_var_channel_shfsg",
+          "file": "stress/playwave_var_channel.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "exec_table_var_index_hdawg",
+          "file": "stress/exec_table_var_index.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "settrigger_rapid_hdawg",
+          "file": "stress/settrigger_rapid.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "settrigger_rapid_shfsg",
+          "file": "stress/settrigger_rapid.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wait_boundary_hdawg",
+          "file": "stress/wait_boundary.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wait_boundary_shfsg",
+          "file": "stress/wait_boundary.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "dig_trigger_io_hdawg",
+          "file": "stress/dig_trigger_io.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "dig_trigger_io_shfsg",
+          "file": "stress/dig_trigger_io.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "dio_patterns_hdawg",
+          "file": "stress/dio_patterns.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "join_many_hdawg",
+          "file": "stress/join_many.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "join_many_shfsg",
+          "file": "stress/join_many.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "cut_extreme_hdawg",
+          "file": "stress/cut_extreme.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_extreme_shfsg",
+          "file": "stress/cut_extreme.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_alias_hdawg",
+          "file": "stress/wave_alias.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_alias_shfsg",
+          "file": "stress/wave_alias.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_sum_chain_hdawg",
+          "file": "stress/wave_sum_chain.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_sum_chain_shfsg",
+          "file": "stress/wave_sum_chain.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ct_high_index_hdawg",
+          "file": "stress/ct_high_index.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_forward_ref_hdawg",
+          "file": "stress/subroutine_forward_ref.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_forward_ref_shfsg",
+          "file": "stress/subroutine_forward_ref.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_redeclared_hdawg",
+          "file": "stress/wave_redeclared.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_redeclared_shfsg",
+          "file": "stress/wave_redeclared.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "var_redeclared_hdawg",
+          "file": "stress/var_redeclared.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "var_redeclared_shfsg",
+          "file": "stress/var_redeclared.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "playwave_nonwave_arg_hdawg",
+          "file": "stress/playwave_nonwave_arg.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playwave_nonwave_arg_shfsg",
+          "file": "stress/playwave_nonwave_arg.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "setuserreg_oor_hdawg",
+          "file": "stress/setuserreg_oor.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "setuserreg_oor_shfsg",
+          "file": "stress/setuserreg_oor.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "identifier_forms_hdawg",
+          "file": "stress/identifier_forms.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "identifier_forms_shfsg",
+          "file": "stress/identifier_forms.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "trailing_ws_tabs_hdawg",
+          "file": "stress/trailing_ws_tabs.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "trailing_ws_tabs_shfsg",
+          "file": "stress/trailing_ws_tabs.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "shfqc_qa_only_shfqc_qa",
+          "file": "stress/shfqc_qa_only.seqc",
+          "@base": "@shfqc_qa"
+        },
+        {
+          "name": "subroutine_uses_outer_wave_hdawg",
+          "file": "stress/subroutine_uses_outer_wave.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_uses_outer_wave_shfsg",
+          "file": "stress/subroutine_uses_outer_wave.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "ct_in_subroutine_hdawg",
+          "file": "stress/ct_in_subroutine.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_in_repeat_hdawg",
+          "file": "stress/subroutine_in_repeat.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_in_repeat_shfsg",
+          "file": "stress/subroutine_in_repeat.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "nested_repeat_placeholders_hdawg",
+          "file": "stress/nested_repeat_placeholders.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "setup_qa_feedback_combos_shfqa",
+          "file": "stress/setup_qa_feedback_combos.seqc",
+          "@base": "@shfqa4_qa"
+        },
+        {
+          "name": "marker_all_channels_hdawg",
+          "file": "stress/marker_all_channels.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "repeat_var_bound_hdawg",
+          "file": "stress/repeat_var_bound.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "repeat_var_bound_shfsg",
+          "file": "stress/repeat_var_bound.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "placeholder_marker_bits_hdawg",
+          "file": "stress/placeholder_marker_bits.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playzero_boundaries_hdawg",
+          "file": "stress/playzero_boundaries.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "playzero_boundaries_shfsg",
+          "file": "stress/playzero_boundaries.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "if_arms_mixed_play_hdawg",
+          "file": "stress/if_arms_mixed_play.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "if_arms_mixed_play_shfsg",
+          "file": "stress/if_arms_mixed_play.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "giant_expression_hdawg",
+          "file": "stress/giant_expression.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "giant_expression_shfsg",
+          "file": "stress/giant_expression.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "many_unused_wave_decls_hdawg",
+          "file": "stress/many_unused_wave_decls.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "many_unused_wave_decls_shfsg",
+          "file": "stress/many_unused_wave_decls.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "reset_osc_rapid_shfsg",
+          "file": "stress/reset_osc_rapid.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "subroutine_recursion_hdawg",
+          "file": "stress/subroutine_recursion.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "subroutine_recursion_shfsg",
+          "file": "stress/subroutine_recursion.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "wave_computed_length_hdawg",
+          "file": "stress/wave_computed_length.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "wave_computed_length_shfsg",
+          "file": "stress/wave_computed_length.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "compound_assign_ops_no_div_hdawg",
+          "file": "stress/compound_assign_ops_no_div.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "compound_assign_ops_no_div_shfsg",
+          "file": "stress/compound_assign_ops_no_div.seqc",
+          "@base": "@shfsg8_sg"
+        },
+        {
+          "name": "unary_chain_only_hdawg",
+          "file": "stress/unary_chain_only.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "unary_chain_only_shfsg",
+          "file": "stress/unary_chain_only.seqc",
+          "@base": "@shfsg8_sg"
         }
       ]
     }

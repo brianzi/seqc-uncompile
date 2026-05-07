@@ -1,0 +1,11 @@
+// Subroutine that uses a wave declared at outer scope.
+
+wave outer_w = gauss(128, 64, 16);
+
+void use_outer() {
+    playWave(1, 2, outer_w);
+}
+
+use_outer();
+use_outer();
+waitWave();

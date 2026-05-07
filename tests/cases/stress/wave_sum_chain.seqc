@@ -1,0 +1,25 @@
+// Wave summation chain.
+
+wave a = sine(64, 0.3, 0,    1);
+wave b = sine(64, 0.3, 1.57, 1);
+wave c = sine(64, 0.3, 3.14, 1);
+wave d = sine(64, 0.3, 4.71, 1);
+
+wave sum2 = a + b;
+wave sum3 = a + b + c;
+wave sum4 = a + b + c + d;
+
+playWave(1, 2, sum2);
+playWave(1, 2, sum3);
+playWave(1, 2, sum4);
+waitWave();
+
+// Mixed + and -
+wave diff = a + b - c - d;
+playWave(1, 2, diff);
+waitWave();
+
+// Long chain
+wave big = a + b + a + b + a + b + a + b;
+playWave(1, 2, big);
+waitWave();

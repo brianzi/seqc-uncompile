@@ -1,0 +1,10 @@
+// Massive expression — single setUserReg with very deep nesting.
+
+setUserReg(0,
+  ((((1 + 2) * 3 - 4) | 5) & 0xff) ^
+  (((6 - 7) * 8 + 9) << 1) +
+  ((((10 + 11) * 12) | 13) & 0xff) -
+  (((14 + 15) * 16 - 17) | 18) +
+  ((((19 + 20) * 21 - 22) | 23) & 0xff) ^
+  ((((24 + 25) * 26 - 27) | 28) & 0xff)
+);

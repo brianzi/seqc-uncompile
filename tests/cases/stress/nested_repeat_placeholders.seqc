@@ -1,0 +1,16 @@
+// Nested repeat loops with placeholders.
+
+wave ph1 = placeholder(64);
+wave ph2 = placeholder(96);
+wave g  = gauss(64, 32, 8);
+
+assignWaveIndex(1, 2, ph1, 0);
+assignWaveIndex(1, 2, ph2, 1);
+
+repeat(3) {
+    repeat(2) {
+        executeTableEntry(0);
+        executeTableEntry(1);
+    }
+}
+waitWave();

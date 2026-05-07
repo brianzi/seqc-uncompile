@@ -1,0 +1,6 @@
+// Wave declared twice with same name.
+
+wave w = ones(64);
+wave w = zeros(64);    // redeclared
+playWave(1, 2, w);
+waitWave();

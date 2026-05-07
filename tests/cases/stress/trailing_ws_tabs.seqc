@@ -1,0 +1,10 @@
+// Trailing whitespace on every line + many tabs.
+
+var a	=	1;	
+var b	=	2;	
+var c	=	a	+	b;	
+setUserReg(0,	c);	
+
+wave w	=	ones(64);	
+playWave(1,	2,	w);	
+waitWave();	

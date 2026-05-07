@@ -1,0 +1,37 @@
+// Compound assignment operators.
+
+var a = 10;
+a += 5;
+setUserReg(0, a);   // 15
+
+var b = 20;
+b -= 7;
+setUserReg(1, b);   // 13
+
+var c = 3;
+c *= 4;
+setUserReg(2, c);   // 12
+
+var d = 100;
+d /= 5;
+setUserReg(3, d);   // 20
+
+var e = 0xff;
+e &= 0x0f;
+setUserReg(4, e);   // 0x0f
+
+var f = 0x0f;
+f |= 0xf0;
+setUserReg(5, f);   // 0xff
+
+var g = 0xff;
+g ^= 0x0f;
+setUserReg(6, g);   // 0xf0
+
+var h = 1;
+h <<= 4;
+setUserReg(7, h);   // 16
+
+var i = 256;
+i >>= 4;
+setUserReg(8, i);   // 16

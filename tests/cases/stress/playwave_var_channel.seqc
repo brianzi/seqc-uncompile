@@ -1,0 +1,16 @@
+// playWave with channel arg as a var (computed channel).
+
+wave w = ones(64);
+var ch = 1;
+
+playWave(ch, 2, w);
+waitWave();
+
+ch = 2;
+playWave(ch, 2, w);
+waitWave();
+
+for (var i = 1; i < 3; i = i + 1) {
+    playWave(i, 2, w);
+}
+waitWave();

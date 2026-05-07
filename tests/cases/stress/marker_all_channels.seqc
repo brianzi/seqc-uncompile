@@ -1,0 +1,11 @@
+// Marker on multiple channels simultaneously (HDAWG up to 8).
+
+wave m1 = marker(64, 1);
+wave m2 = marker(64, 2);
+wave m3 = marker(64, 3);
+
+playWave(1, m1, 2, m2, 3, m3, 4, m1);
+waitWave();
+
+playWave(1, m1, 2, m2, 3, m3, 4, m1, 5, m2, 6, m3, 7, m1, 8, m2);
+waitWave();

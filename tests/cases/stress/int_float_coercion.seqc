@@ -1,0 +1,17 @@
+// Float used where int expected, and vice versa.
+
+setUserReg(0, 3);          // ok
+setUserReg(1, 3.0);        // float in int context
+setUserReg(2, 3.5);        // truncation expected
+setUserReg(3, -3.5);       // negative truncation
+setUserReg(4, 1e3);        // scientific
+setUserReg(5, 1.5e2);
+
+var x = 5;
+wave w = ones(x);          // var as length — should accept
+playWave(1, 2, w);
+waitWave();
+
+wave w2 = sine(128, 1, 0, 4);  // int amp instead of float
+playWave(1, 2, w2);
+waitWave();

@@ -1,0 +1,13 @@
+// assignWaveIndex to extremely high index.
+
+wave w = gauss(64, 32, 8);
+
+assignWaveIndex(1, 2, w, 1023);
+executeTableEntry(1023);
+
+assignWaveIndex(1, 2, w, 512);
+executeTableEntry(512);
+
+assignWaveIndex(1, 2, w, 100);
+executeTableEntry(100);
+waitWave();

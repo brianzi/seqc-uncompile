@@ -1,0 +1,18 @@
+// setDIO / getDIO patterns.
+
+setDIO(0);
+setDIO(0xFF);
+setDIO(0xFFFF);
+setDIO(0xFFFFFFFF);
+setDIO(0x55555555);
+setDIO(0xAAAAAAAA);
+
+setDIO(getUserReg(0));
+
+var d = getDIO();
+setUserReg(1, d);
+setDIO(d + 1);
+
+var d2 = getDIO();
+setUserReg(2, d2 & 0xff);
+setUserReg(3, (d2 >> 8) & 0xff);

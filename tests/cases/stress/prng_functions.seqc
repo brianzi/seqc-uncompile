@@ -1,0 +1,20 @@
+// PRNG functions: setPRNGRange and getPRNGValue.
+
+setPRNGRange(0, 100);
+setPRNGSeed(12345);
+
+var v = getPRNGValue();
+setUserReg(0, v);
+v = getPRNGValue();
+setUserReg(1, v);
+v = getPRNGValue();
+setUserReg(2, v);
+
+setPRNGRange(-50, 50);
+v = getPRNGValue();
+setUserReg(3, v);
+
+setPRNGRange(0, 1);
+for (var i = 0; i < 10; i = i + 1) {
+    setUserReg(4, getPRNGValue());
+}

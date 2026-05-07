@@ -1,0 +1,14 @@
+// Logical && / || short-circuit.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+
+if (a > 0 && b > 0) { setUserReg(2, 1); }
+if (a > 0 || b > 0) { setUserReg(3, 1); }
+if (a == 0 && b == 0) { setUserReg(4, 1); } else { setUserReg(4, 2); }
+
+if (a > 0 && b > 0 && a < 10 && b < 10) { setUserReg(5, 1); }
+if (a == 0 || b == 0 || a == 99 || b == 99) { setUserReg(6, 1); }
+
+// Mixed precedence
+if ((a > 0 && b > 0) || a == 100) { setUserReg(7, 1); }

@@ -1,0 +1,11 @@
+// Subroutine called before its declaration (forward ref).
+
+wave w = ones(64);
+
+call_me();      // forward call
+call_me();
+waitWave();
+
+void call_me() {
+    playWave(1, 2, w);
+}

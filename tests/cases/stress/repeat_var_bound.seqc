@@ -1,0 +1,18 @@
+// Repeat with var bound (cannot unroll, must use loop instr).
+
+repeat(getUserReg(0)) {
+    playZero(64);
+}
+waitWave();
+
+var n = 5;
+repeat(n) {
+    playZero(64);
+}
+waitWave();
+
+var n2 = getUserReg(1) + 1;
+repeat(n2) {
+    playZero(64);
+}
+waitWave();

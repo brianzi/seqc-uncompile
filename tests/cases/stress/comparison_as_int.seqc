@@ -1,0 +1,15 @@
+// Comparison ops in places where their result is used as int.
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+
+setUserReg(2, a == b);
+setUserReg(3, a != b);
+setUserReg(4, a < b);
+setUserReg(5, a > b);
+setUserReg(6, a <= b);
+setUserReg(7, a >= b);
+
+// Combined
+setUserReg(8, (a == b) + (a != b));
+setUserReg(9, (a < b) * 100);

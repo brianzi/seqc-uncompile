@@ -1,0 +1,22 @@
+// Rapid setTrigger toggles.
+
+setTrigger(0);
+setTrigger(7);
+setTrigger(0);
+setTrigger(1);
+setTrigger(2);
+setTrigger(4);
+setTrigger(0);
+setTrigger(7);
+setTrigger(0);
+setTrigger(7);
+setTrigger(0);
+setTrigger(7);
+setTrigger(0);
+setTrigger(7);
+setTrigger(0);
+playZero(32);
+setTrigger(7);
+playZero(32);
+setTrigger(0);
+waitWave();

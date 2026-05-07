@@ -1,0 +1,20 @@
+// executeTableEntry with computed / var index.
+
+wave w = gauss(64, 32, 8);
+assignWaveIndex(1, 2, w, 0);
+assignWaveIndex(1, 2, w, 1);
+assignWaveIndex(1, 2, w, 2);
+assignWaveIndex(1, 2, w, 3);
+
+var idx = 0;
+executeTableEntry(idx);
+idx = 1;
+executeTableEntry(idx);
+
+executeTableEntry(getUserReg(0));
+executeTableEntry(getUserReg(0) + 1);
+
+for (var i = 0; i < 4; i = i + 1) {
+    executeTableEntry(i);
+}
+waitWave();

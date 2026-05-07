@@ -1,0 +1,12 @@
+// resetOscPhase / setSinePhase / incrementSinePhase rapid sequence.
+
+resetOscPhase();
+playZero(64);
+resetOscPhase();
+resetOscPhase();
+playZero(64);
+resetOscPhase();
+resetOscPhase();
+resetOscPhase();
+playZero(64);
+waitWave();

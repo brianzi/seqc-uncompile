@@ -1,0 +1,18 @@
+// join() with many waveforms.
+
+wave a = ones(32);
+wave b = zeros(32);
+wave c = gauss(32, 16, 4);
+wave d = drag(32, 16, 4, 0.1);
+
+wave concat = join(a, b, c, d, a, b, c, d, a, b, c, d);
+playWave(1, 2, concat);
+waitWave();
+
+wave concat2 = join(a, b);
+playWave(1, 2, concat2);
+waitWave();
+
+wave concat3 = join(a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a);
+playWave(1, 2, concat3);
+waitWave();

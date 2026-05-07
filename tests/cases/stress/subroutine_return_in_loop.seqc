@@ -1,0 +1,14 @@
+// return inside subroutine called from loop.
+
+wave w = ones(64);
+
+void early_exit() {
+    var r = getUserReg(0);
+    if (r > 5) { return; }
+    playWave(1, 2, w);
+}
+
+for (var i = 0; i < 4; i = i + 1) {
+    early_exit();
+}
+waitWave();

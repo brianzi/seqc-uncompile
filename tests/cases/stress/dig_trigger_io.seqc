@@ -1,0 +1,14 @@
+// waitDigTrigger / getDigTrigger reads.
+
+waitDigTrigger(1);
+playZero(32);
+waitDigTrigger(2);
+playZero(32);
+waitDigTrigger(1);
+playZero(32);
+waitWave();
+
+var t = getDigTrigger(1);
+setUserReg(0, t);
+var t2 = getDigTrigger(2);
+setUserReg(1, t2);

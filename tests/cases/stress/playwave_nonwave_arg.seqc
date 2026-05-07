@@ -1,0 +1,5 @@
+// playWave with a non-wave argument (should error).
+
+var x = 5;
+playWave(1, 2, x);
+waitWave();

@@ -3770,7 +3770,13 @@ waitWave();
 2. Compare with recon's chirp implementation; check for fma vs
    mul+add, accumulator vs per-sample formula, double vs float.
 
-## IF-174  if(true)/if(false)/while(false) not folded — emits dead branch
+## IF-174  if(true)/if(false)/while(false)/while(true) not folded — emits dead branch
+
+(Phase 54 update: `while(true)` also reproduces this — the
+`while_true_loop.seqc` stress test shows recon emits 2 extra
+instructions vs orig, same family as the `if(true)`/`if(false)`
+mis-fold.  Probably a single fix in the AST-eval branch handler
+covers all four constructs.)
 
 **Status**: open
 **Severity**: bug (constant folding)
@@ -3842,3 +3848,137 @@ Both are independent bugs; (b) is a serious user-facing regression
 2. Run a binary diff on the same input under GDB to see what (if
    anything) the orig assembler emits at instruction 1152, and why
    recon thinks an arg is missing.
+## IF-176  cut(w, N, N) length-1 case: orig drops .wf, recon emits 32 samples
+
+**Status**: open
+**Severity**: bug (waveform table + .wf emission)
+**Found**: stress phase 54 (`cut_extreme.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+`cut(w, 0, 0)` and `cut(w, 255, 255)` (start == end, intended
+length-1 cuts) cause a divergence:
+
+  orig: `.wf___cut_*` is **0 bytes** (sample data dropped)
+        `.waveforms` table still lists entry with length="32"
+  recon: `.wf___cut_*` is **64 bytes (32 samples)**
+         `.waveforms` table also lists entry with length="32"
+
+So orig and recon agree about the table entry, but disagree about
+whether to emit any sample data for it.  Affects `e_entry`, `.text`,
+`.asm`, `.linenr` (extra/different instructions to play it).
+Distinct from IF-172 — that was about `zeros(0)` (length 0 in both
+table and `.wf`); this is about cut() collapsing to length 1 / 0
+samples.
+
+### Minimal repro
+
+```seqc
+wave w = ones(256);
+wave c = cut(w, 0, 0);
+playWave(1, 2, c);
+waitWave();
+```
+
+### Recommended next step
+
+1. GDB orig at the cut() builder; see what happens to length when
+   `start == end`.  Is the length 1 or 0? Is the sample data
+   genuinely empty or is it dropped at a later filter?
+2. Find the recon cut() implementation; align with whichever
+   semantics orig uses.
+
+## IF-177  ones(var) / setUserReg(int, var) error wording diverges
+
+**Status**: open
+**Severity**: bug (user-facing — wrong error message)
+**Found**: stress phase 54 (`int_float_coercion.seqc`,
+           `wave_computed_length.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+When a user passes a `var` (runtime variable) where a `const` is
+required (e.g. `wave w = ones(x);` where `x` is a `var`), orig
+reports the actual semantic error:
+
+```
+Compiler Error (line: 4): ones can't be called with var arguments
+```
+
+Recon instead reports a generic / internal error:
+
+```
+Compiler Error (line: 4): unspecified value type detected in toInt conversion
+```
+
+Both reject the input — but recon's message is wrong (talks about
+"toInt conversion", not "var arguments").  Reproduces in two stress
+files independently (`int_float_coercion`, `wave_computed_length`).
+
+### Minimal repro
+
+```seqc
+var x = 5;
+wave w = ones(x);
+playWave(1, 2, w);
+```
+
+### Recommended next step
+
+1. Find the recon code that calls toInt on a `var`-typed expression
+   in the wave-builtin path; the check for "is this var?  bail with
+   semantic message" is missing or misordered.
+
+## IF-178  boost::too_many_args exception leaks in error path
+
+**Status**: open
+**Severity**: bug (user-facing — wrong error message; sister of IF-175)
+**Found**: stress phase 54 (`setuserreg_oor.seqc`,
+           `giant_expression.seqc` HDAWG + SHFSG)
+
+### Symptom
+
+For inputs that should produce a normal `setUserReg`-related
+diagnostic (out-of-range register, arity mismatch), recon throws
+out a raw boost exception message:
+
+```
+Compilation failed: boost::too_many_args: format-string referred to
+fewer arguments than were passed
+```
+
+Orig reports the proper messages:
+
+```
+Compilation failed: Compiler Error (line: 3): setUserReg register
+must be in the range of 0 to 15
+```
+
+```
+Compilation failed: Compiler Error (line: 3): setUserReg expects
+exactly two arguments
+```
+
+Same family as IF-175 (boost::format misuse) but a different failure
+mode: IF-175 leaks **unsubstituted placeholders** (`%1% %2%`); this
+one throws **too_many_args** because the format string has fewer
+`%N%` slots than the caller is feeding it.  Implies recon's
+ErrorMessages::get(...) call sites do not always match the format
+template's parameter count.
+
+### Minimal repro
+
+```seqc
+setUserReg(-1, 5);
+```
+or
+```seqc
+setUserReg(0, 1, 2);
+```
+
+### Recommended next step
+
+1. Grep all `ErrorMessages::get(N)` sites alongside their `% a % b`
+   chains; verify the param counts match what the template at
+   `error_messages.cpp` line ~139, 196, 224 etc. declares.
+2. Likely a single misuse pattern (call site adds an extra `% x`).

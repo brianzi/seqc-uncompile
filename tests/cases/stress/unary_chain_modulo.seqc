@@ -1,0 +1,16 @@
+// Bitwise NOT, modulo, unary chains.
+
+var a = getUserReg(0);
+
+setUserReg(1, ~a);
+setUserReg(2, ~~a);
+setUserReg(3, ~0);
+setUserReg(4, ~~~a);
+
+setUserReg(5, a % 7);
+setUserReg(6, a % 256);
+setUserReg(7, a % 1);
+
+setUserReg(8, -a);
+setUserReg(9, --a);   // unary chain, not decrement
+setUserReg(10, ---a);

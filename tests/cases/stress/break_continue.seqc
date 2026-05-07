@@ -1,0 +1,27 @@
+// break and continue in for/while/repeat.
+
+for (var i = 0; i < 10; i = i + 1) {
+    if (i == 5) { break; }
+    playZero(32);
+}
+waitWave();
+
+for (var j = 0; j < 10; j = j + 1) {
+    if (j == 3) { continue; }
+    playZero(32);
+}
+waitWave();
+
+var k = 0;
+while (k < 100) {
+    if (k > 10) { break; }
+    k = k + 1;
+}
+setUserReg(0, k);
+
+repeat(20) {
+    var r = getUserReg(0);
+    if (r == 99) { break; }
+    playZero(32);
+}
+waitWave();

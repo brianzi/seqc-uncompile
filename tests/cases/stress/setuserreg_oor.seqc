@@ -1,0 +1,6 @@
+// setUserReg with out-of-range register index.
+
+setUserReg(-1, 5);
+setUserReg(100, 5);
+setUserReg(16, 5);    // first invalid (regs 0..15)
+setUserReg(255, 5);

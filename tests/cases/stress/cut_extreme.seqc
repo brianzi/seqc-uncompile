@@ -1,0 +1,16 @@
+// cut(w, start, end) extreme.
+
+wave w = ones(256);
+
+wave c1 = cut(w, 0, 31);
+wave c2 = cut(w, 32, 63);
+wave c3 = cut(w, 224, 255);
+wave c4 = cut(w, 0, 0);        // length 1
+wave c5 = cut(w, 255, 255);    // length 1 at end
+
+playWave(1, 2, c1);
+playWave(1, 2, c2);
+playWave(1, 2, c3);
+playWave(1, 2, c4);
+playWave(1, 2, c5);
+waitWave();

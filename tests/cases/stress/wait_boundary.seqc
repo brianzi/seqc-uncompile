@@ -1,0 +1,11 @@
+// wait(N) at boundary values.
+
+wait(0);          // boundary: zero wait
+wait(1);          // minimum positive
+wait(2);
+wait(3);
+wait(100);
+wait(1000);
+wait(100000);     // very large
+playZero(64);
+waitWave();

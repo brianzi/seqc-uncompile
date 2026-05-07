@@ -1,0 +1,14 @@
+// do { ... } while(...)
+
+var i = 0;
+do {
+    playZero(32);
+    i = i + 1;
+} while (i < 4);
+waitWave();
+
+var j = 10;
+do {
+    setUserReg(0, j);
+    j = j - 1;
+} while (j > 0);

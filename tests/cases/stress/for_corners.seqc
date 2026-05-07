@@ -1,0 +1,23 @@
+// for with i = i + 0 (zero step).
+
+var i;
+for (i = 0; i < 0; i = i + 1) {
+    playZero(32);
+}
+playZero(64);
+waitWave();
+
+// for with empty body
+for (var j = 0; j < 4; j = j + 1) {}
+
+// for that never enters
+for (var k = 5; k < 5; k = k + 1) {
+    setUserReg(0, 99);
+}
+setUserReg(1, 1);
+
+// for with negative step (counts down)
+for (var l = 4; l > 0; l = l - 1) {
+    playZero(32);
+}
+waitWave();

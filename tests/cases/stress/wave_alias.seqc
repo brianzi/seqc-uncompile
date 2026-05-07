@@ -1,0 +1,12 @@
+// Wave assignment / aliasing.
+
+wave w1 = gauss(128, 64, 16);
+wave w2 = w1;
+wave w3 = w2;
+wave w4 = w3;
+
+playWave(1, 2, w1);
+playWave(1, 2, w2);
+playWave(1, 2, w3);
+playWave(1, 2, w4);
+waitWave();
