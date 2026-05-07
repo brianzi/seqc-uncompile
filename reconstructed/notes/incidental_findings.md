@@ -4944,7 +4944,32 @@ to 774/774, all green.
 
 ## IF-200  `rand` deprecation warning missing in recon
 
-**Status**: open (2026-05-07) — discovered while constructing the
+**Status**: fixed (2026-05-08) — root cause was that the recon
+`WaveformGenerator` ctor left `aliasMap_` empty (per a previous
+incorrect read of the binary).  Re-disassembly of `0x248200` shows
+two `<string,string>` emplace calls at `0x24957e` and `0x2495ee`
+(into the hash table at `this+0x28`) populating
+`aliasMap_["mask"]="marker"` and `aliasMap_["rand"]="randomGauss"`.
+Fix: add those two inserts in `waveform_generator.cpp:163-164`.
+
+A second discrepancy was uncovered while verifying the fix: the
+recon `WaveformGenerator::call` was redirecting the funcMap_ lookup
+to use the *aliased* name (`lookupName = aliasIt->second`).  The
+binary keeps using the *original* name (`%r14`, set once from `%rdx`
+at entry and reused at the funcMap_ find at `0x25c20b`); the alias
+value is consumed only as the second `format(DeprecatedFunc, ...)`
+argument.  This matters because the dispatched implementation's own
+arity / type errors echo the requested name verbatim — e.g.
+`function 'rand' expects 3 argument(s)`, not `'randomGauss'`.  Fixed
+in `waveform_generator.cpp:364-403`.
+
+After both fixes `wave_rand_oor_{hdawg,shfsg}` pass byte-identical
+(error strings match exactly, no longer flagged as
+"differ (accepted)") and the full 6-manifest suite remains 2499/2499.
+
+### Original (open) entry — preserved for history
+
+Originally opened (2026-05-07) — discovered while constructing the
 `wave_rand_oor` differential test for the IF-197 audit sweep.
 **Severity**: cosmetic (warning text only — does not affect codegen)
 **Found**: IF-197 audit sweep, phase 62.audit

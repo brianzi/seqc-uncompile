@@ -151,9 +151,17 @@ WaveformGenerator::WaveformGenerator(
     funcMap_["merge"]            = std::bind(&WaveformGenerator::merge,            this, _1);
     funcMap_["grow"]             = std::bind(&WaveformGenerator::grow,             this, _1);
 
-    // aliasMap_ is intentionally empty — the binary ctor does not populate it.
-    // The aliasMap_ machinery (deprecation warning + redirect in call()) exists
-    // but no aliases are registered in this binary version.
+    // Deprecated-name aliases — populated by the binary ctor at the very end
+    // of the function-registration block.  Two emplace calls into the
+    // <string,string> hash table at this+0x28:
+    //   * 0x24957e: aliasMap_["mask"] = "marker"
+    //   * 0x2495ee: aliasMap_["rand"] = "randomGauss"
+    // call() looks up the requested name here first; if found it formats
+    // ErrorMessages::DeprecatedFunc (template id 55) with (oldName, newName)
+    // and dispatches to warningCallback_ before falling through to funcMap_
+    // with the resolved (new) name.
+    aliasMap_["mask"] = "marker";
+    aliasMap_["rand"] = "randomGauss";
 }
 
 WaveformGenerator::~WaveformGenerator() {}  // 0x127840
@@ -346,22 +354,29 @@ std::shared_ptr<WaveformFront> WaveformGenerator::getOrCreateWaveform(
 // Algorithm (mirroring the binary):
 //   1. Find `name` in aliasMap_ (+0x28). If present, build an
 //      ErrorMessages::format(0x37, name, alias) deprecation message and
-//      invoke warningCallback_(msg) on it.  The lookup name is then the
-//      value (alias) instead of the original.
-//   2. Find the (possibly aliased) name in funcMap_.
+//      invoke warningCallback_(msg) on it.  The alias value is used ONLY
+//      in the warning message — the funcMap_ lookup and the dispatched
+//      name still use the ORIGINAL `name` (binary uses %r14 = original
+//      rdx throughout the post-warning lookup at 0x25c20b).
+//   2. Find the (original) name in funcMap_.
 //      * If absent, throw WaveformGeneratorValueException(
 //            ErrorMessages::format(0xd8, name), 0).
 //      * If present, clone the bound std::function and pass it as the
 //        factory to getOrCreateWaveform.
+//
+// IMPORTANT: the original requested name is preserved across alias
+// resolution — that's why arity errors emitted from the dispatched
+// implementation read e.g. `function 'rand' expects ...` even though
+// the implementation registered for "rand" in funcMap_ is the rand
+// method itself (aliasMap_["rand"]="randomGauss" affects only the
+// warning text, not the dispatch table key).
 std::shared_ptr<WaveformFront> WaveformGenerator::call(
     std::string const& name,
     std::vector<Value> const& args)
 {
-    // Resolve alias.
-    std::string lookupName = name;
+    // Emit deprecation warning if the name has an alias entry.
     auto aliasIt = aliasMap_.find(name);
     if (aliasIt != aliasMap_.end()) {
-        // Emit deprecation warning through warningCallback_.
         // Format slot 0x37 takes (oldName, newName).
         std::string warning = ErrorMessages::format(
             DeprecatedFunc, name, aliasIt->second);
@@ -371,11 +386,10 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
             // Matches __throw_bad_function_call at 25c310 in the binary.
             throw std::bad_function_call();
         }
-        lookupName = aliasIt->second;
     }
 
-    // Lookup in function registry.
-    auto funcIt = funcMap_.find(lookupName);
+    // Lookup in function registry — uses the ORIGINAL name (not the alias).
+    auto funcIt = funcMap_.find(name);
     if (funcIt == funcMap_.end()) {
         throw WaveformGeneratorValueException(
             ErrorMessages::format(UnknownFunction, name), 0);
@@ -385,7 +399,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
     // copies the function (via __value_func clone) before passing it to
     // getOrCreateWaveform; we do the same here implicitly by copying.
     auto factory = funcIt->second;  // copy the std::function
-    return getOrCreateWaveform(lookupName, args, std::move(factory));
+    return getOrCreateWaveform(name, args, std::move(factory));
 }
 
 // eval @0x25c540
