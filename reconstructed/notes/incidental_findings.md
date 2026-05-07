@@ -3126,3 +3126,97 @@ for (const auto& sig : signals)
 
 ---
 
+
+## IF-158  Missing static `cwvf` in else-arm of in-loop if/else after cwvfr-arm
+
+**Source**: stress test `kitchen_sink_hdawg`, isolated to `if158_cwvf_in_loop.seqc`
+**Status**: open
+**Severity**: likely-bug
+
+### Symptom
+
+A for-loop containing an if/else where:
+- the if-arm plays a dual placeholder (`playWave(phA, phB)`) → emits
+  `cwvfr Rn` (register-form cwvf, runtime config), and
+- the else-arm plays a single-channel placeholder (`playWave(1, phC)`)
+  → should emit a static `cwvf <imm>` to reset the config,
+
+drops the static `cwvf` instruction in the recon's else-arm. Resulting
+diff is exactly one missing `.text` instruction (4 bytes), one missing
+`.asm` line, and one missing `.linenr` entry (8 bytes).
+
+The same if/else pattern **outside** any loop emits correctly in both
+arms. The trigger is purely the surrounding for-loop.
+
+### Minimal repro
+
+`tests/cases/stress/if158_cwvf_in_loop.seqc`:
+
+```seqc
+wave g1  = gauss(128, 64, 16);
+wave phA = placeholder(512, true, true);
+wave phB = placeholder(512, true, true);
+wave phC = placeholder(2048, false, false);
+
+assignWaveIndex(phA, phB, 50);
+assignWaveIndex(1, phC, 51);
+
+var u0 = getUserReg(0);
+
+playWave(1, g1);            // <-- removing this makes the bug disappear
+
+for (var k = 0; k < 4; k = k + 1) {
+  if (u0 + k > 5) {
+    playWave(phA, phB);     // dual placeholder → cwvfr in if-arm
+  } else {
+    playWave(1, phC);       // single placeholder → static cwvf in else-arm
+  }                          //                     (DROPPED in recon)
+  waitWave();
+}
+```
+
+Run: `python tests/diff_test.py --manifest manifest-stress.json --filter if158 -v`
+
+### Suspected location
+
+Per subagent investigation `ses_1fde0697fffeWuLAE3xLqp38Lv`:
+
+| Function | File:line | Binary addr |
+|---|---|---|
+| `Prefetch::needsNewCwvf` | `reconstructed/src/codegen/prefetch_emit.cpp:272` | `0x1dc620` |
+| `Prefetch::placeSingleCommand` (Play case) | `reconstructed/src/codegen/prefetch_placesingle.cpp:445` | `0x1d7d49`–`0x1d7e21` |
+| `Prefetch::optimizeCwvf` (Branch / Loop cases) | `reconstructed/src/codegen/prefetch.cpp:292`, `:561` | `0x1cfd74`, `0x1d046f` |
+
+Hypothesis (unconfirmed, requires GDB):
+
+`needsNewCwvf` walks up the parent chain comparing `Node::currentCwvf`
+(+0x68). For an in-loop Play, the walk passes through the if/else
+Branch (skipped) and then into the for-Loop's Loop node case, which has
+~250 lines of inlined PlayConfig comparisons with `seenDifference`,
+`loopBodyRunsAtLeastOnce`, `prev->loop == curNode`, and
+`prev->branchMaySkipAllBodies` paths.  Likely candidates:
+
+1. `prefetch_emit.cpp:354–371` — Loop case `prev->loop.get() == curNode.get()`
+   test and its surrounding `seenDifference` / `loopBodyRunsAtLeastOnce`
+   logic (wrong polarity or wrong field offset).
+2. `prefetch_emit.cpp:414` (`checkSeenDifference` label) — wrong
+   polarity of `seenDifference` causing fall-through to `treeWalk`
+   instead of comparing the running config.
+3. `prefetch.cpp:564` Loop case — `curNode->currentCwvf = cwvf` early
+   write *before* loop-body recursion may carry stale pre-body config
+   instead of the post-body invalid sentinel set by Branch divergence
+   at `prefetch.cpp:457–466`.
+
+### Recommended next step
+
+Per AGENTS.md "GDB tracing for binary analysis": set breakpoints at
+`needsNewCwvf` entry/exit and the placesingle dispatch sites, run on
+the minimal repro, and observe which branch the binary takes for the
+elsePlay — vs which branch recon takes.  GDB recipe in subagent report
+(see commit message of stress-suite commit for task ID).
+
+### Related tests
+
+- `kitchen_sink_hdawg` (full kitchen sink) — fails with same signature
+- `if158_cwvf_in_loop_hdawg` (minimal repro) — fails with same signature
+

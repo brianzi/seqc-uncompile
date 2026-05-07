@@ -1,0 +1,91 @@
+// Stress: kitchen sink — many waves, many vars, branching, prefetch,
+// CT, markers, dual-channel — all in one program.  waitWave used
+// sparingly, more like real SeqC programs.
+
+const N_SHORT = 128;
+const N_MED   = 512;
+const N_LONG  = 2048;
+
+// --- Waveforms: a mix of every kind ---
+wave g1 = gauss(N_SHORT, N_SHORT/2, N_SHORT/8);
+wave g2 = gauss(N_MED,   N_MED/2,   N_MED/8);
+wave g3 = gauss(N_LONG,  N_LONG/2,  N_LONG/8);
+wave o1 = ones(N_SHORT);
+wave o2 = ones(N_MED);
+wave z1 = zeros(N_SHORT);
+wave m1 = marker(N_SHORT, 1) + 0.5 * gauss(N_SHORT, N_SHORT/2, N_SHORT/8);
+wave m2 = marker(N_MED, 3) + 0.5 * sine(N_MED, 1, 0, 2);
+wave d1 = drag(N_MED, N_MED/2, N_MED/8);
+wave d2 = drag(N_LONG, N_LONG/2, N_LONG/6);
+wave phA = placeholder(N_MED, true, true);
+wave phB = placeholder(N_MED, true, true);
+wave phC = placeholder(N_LONG, false, false);
+
+assignWaveIndex(phA, phB, 50);
+assignWaveIndex(1, phC, 51);
+assignWaveIndex(1, g3, 60);
+assignWaveIndex(1, d2, 61);
+
+// --- Variables: many overlapping live ranges ---
+var u0 = getUserReg(0);
+var u1 = getUserReg(1);
+var u2 = getUserReg(2);
+var u3 = getUserReg(3);
+var u4 = getUserReg(4);
+var u5 = getUserReg(5);
+var s1 = u0 + u1;
+var s2 = u2 + u3;
+var s3 = u4 + u5;
+var big = s1 + s2 + s3 + u0 * 2 + u1 * 3 + 12345;
+
+// --- Prefetch + branching plays ---
+prefetch(1, g1);
+prefetch(1, g2);
+prefetch(1, m1);
+
+if (u0 > 0) {
+  playWave(1, g1);
+  playWave(1, m1);
+} else {
+  playWave(1, g2);
+  playWave(1, o2);
+}
+waitWave();
+
+// --- CT + plays in a loop with conditional dispatch ---
+for (var k = 0; k < 4; k = k + 1) {
+  if (k + u1 > 2) {
+    executeTableEntry(60);
+  } else {
+    executeTableEntry(61);
+  }
+
+  if (s1 + k > 5) {
+    playWave(phA, phB);
+  } else {
+    playWave(1, phC);
+  }
+  waitWave();
+
+  // Use lots of vars to hold live ranges across the loop
+  wait(big + k);
+  wait(s1 + s2 + s3 + k);
+}
+
+// --- Mixed dual-wave plays with markers and rates — chained ---
+playWave(1, g1, 2, m1);
+playWave(d1, m2);
+playWave(g2, AWG_RATE_600MHZ);
+waitWave();
+
+playWave(o1, z1);
+playWave(1, 2, g1);
+
+// --- Final big arithmetic to keep all vars alive at the end ---
+var final_v = u0 + u1 + u2 + u3 + u4 + u5 + s1 + s2 + s3 + big;
+wait(final_v);
+
+// --- Replays to exercise cache + cwvf compaction (long chain) ---
+playWave(g1); playWave(g2); playWave(g3); playWave(o1); playWave(o2);
+playWave(z1); playWave(m1); playWave(m2); playWave(d1); playWave(d2);
+waitWave();

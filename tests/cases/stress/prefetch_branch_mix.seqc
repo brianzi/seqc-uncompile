@@ -1,0 +1,68 @@
+// Stress: prefetch directives interleaved with control flow.
+// Targets the prefetch hoisting / cache management around branches.
+// waitWave is sparse — only when needed for resync.
+
+wave a = gauss(1024, 512, 80);
+wave b = gauss(1024, 512, 100);
+wave c = gauss(1024, 512, 120);
+wave d = gauss(2048, 1024, 200);
+wave e = gauss(2048, 1024, 240);
+wave f = drag(512, 256, 64);
+wave g = drag(512, 256, 48);
+wave h = sine(256, 1, 0, 2);
+
+prefetch(1, a);
+prefetch(1, b);
+playWave(1, a);
+playWave(1, b);
+
+// Prefetch then branch
+prefetch(1, c);
+prefetch(1, d);
+var u = getUserReg(0);
+if (u > 0) {
+  playWave(1, c);
+  prefetch(1, e);
+  playWave(1, d);
+} else {
+  playWave(1, d);
+  prefetch(1, e);
+  playWave(1, c);
+}
+playWave(1, e);
+waitWave();
+
+// Prefetch inside a loop — sync only at end of iter
+for (var k = 0; k < 4; k = k + 1) {
+  prefetch(1, f);
+  prefetch(1, g);
+  playWave(1, f);
+  playWave(1, g);
+  waitWave();
+}
+
+// Prefetch + nested branch — chain plays without intermediate waits
+prefetch(1, h);
+prefetch(1, a);
+for (var j = 0; j < 3; j = j + 1) {
+  if (j == 0) {
+    playWave(1, h);
+  } else if (j == 1) {
+    playWave(1, a);
+  } else {
+    playWave(1, h);
+    playWave(1, a);
+  }
+}
+waitWave();
+
+// Final replay all — long chain
+playWave(1, a);
+playWave(1, b);
+playWave(1, c);
+playWave(1, d);
+playWave(1, e);
+playWave(1, f);
+playWave(1, g);
+playWave(1, h);
+waitWave();

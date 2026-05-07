@@ -1,0 +1,70 @@
+// Stress: every playWave/playZero/playHold variant intermixed.
+// Channel selection is via leading int args (1, 2, or both). The
+// playWave grammar is `playWave(*chans, wave, [*chans, wave], [rate])`
+// where each "chans" is zero, one, or two of {1, 2}.  See the ZIASM
+// "playconfig" tests for canonical encodings.  waitWave is sparse —
+// itself one of the variants in the mix.
+
+wave w1   = gauss(128, 64, 16);
+wave w2   = gauss(128, 64, 32);
+wave w3   = ones(96);
+wave w4   = sine(64, 1, 0, 1);
+wave wA   = drag(256, 128, 32);
+wave wB   = drag(256, 128, 24);
+
+// Single-wave forms with all channel-selection variants
+playWave(w1);             // implicit (both)
+playWave(1, w1);          // chan 1
+playWave(2, w2);          // chan 2
+playWave(1, 2, w1);       // explicit both
+waitWave();
+playWave(2, 1, w2);       // explicit both, reversed order
+
+// Dual-wave forms — many channel layouts
+playWave(w1, w2);                   // implicit
+playWave(1, w1, 2, w2);             // explicit per-wave
+playWave(2, w2, 1, w1);             // reversed
+waitWave();
+playWave(1, 2, w1, 1, w2);          // first on both, second on 1
+playWave(1, 2, w1, 1, 2, w2);       // both on both
+playWave(1, w1, 1, w2);             // both on chan 1 (overlay)
+playWave(2, w1, 2, w2);             // both on chan 2
+
+// With rate
+playWave(w3, AWG_RATE_600MHZ);
+playWave(1, w3, AWG_RATE_300MHZ);
+playWave(w3, w4, AWG_RATE_150MHZ);
+waitWave();
+
+// playZero with rate variants — chained
+playZero(64);
+playZero(128, AWG_RATE_1200MHZ);
+playZero(256, AWG_RATE_600MHZ);
+waitWave();
+playZero(512, AWG_RATE_75MHZ);
+
+// playHold variants (only valid after a playWave)
+playWave(wA);
+playHold(64);
+playWave(wA, wB);
+playHold(128);
+waitWave();
+
+playWave(1, wA, 2, wB);
+playHold(96);
+
+// Mixed sequence with re-uses to stress the cache
+playWave(w1);
+playZero(32);
+playWave(w2);
+playHold(64);
+playWave(1, 2, w1, 1, 2, w2);
+playZero(64, AWG_RATE_600MHZ);
+playWave(wA, wB);
+waitWave();
+
+// Re-use with rate (forces a different cache key)
+playWave(w1, AWG_RATE_600MHZ);
+playWave(w1, AWG_RATE_300MHZ);
+playWave(w1);
+waitWave();

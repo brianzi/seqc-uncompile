@@ -1,0 +1,51 @@
+{
+  "version": "2.0",
+  "definitions": {
+    "hdawg8": {
+      "devtype": "HDAWG8",
+      "index": 0,
+      "samplerate": 2400000000.0
+    },
+    "shfsg8_sg": {
+      "devtype": "SHFSG8",
+      "sequencer": "sg"
+    }
+  },
+  "groups": [
+    {
+      "name": "stress",
+      "comment": "Larger stress tests targeting algorithmically complex paths: regalloc, splitConstRegisters, splitReg, mergeWaveforms, cwvf compaction, prefetch, command table.",
+      "tags": ["stress", "internal"],
+      "cases": [
+        { "name": "regalloc_pressure_hdawg",   "file": "stress/regalloc_pressure.seqc",   "@base": "@hdawg8" },
+        { "name": "regalloc_pressure_shfsg",   "file": "stress/regalloc_pressure.seqc",   "@base": "@shfsg8_sg" },
+
+        { "name": "many_const_loads_hdawg",    "file": "stress/many_const_loads.seqc",    "@base": "@hdawg8" },
+        { "name": "many_const_loads_shfsg",    "file": "stress/many_const_loads.seqc",    "@base": "@shfsg8_sg" },
+
+        { "name": "regalloc_branchy_hdawg",    "file": "stress/regalloc_branchy.seqc",    "@base": "@hdawg8" },
+        { "name": "regalloc_branchy_shfsg",    "file": "stress/regalloc_branchy.seqc",    "@base": "@shfsg8_sg" },
+
+        { "name": "wave_zoo_lengths_hdawg",    "file": "stress/wave_zoo_lengths.seqc",    "@base": "@hdawg8" },
+
+        { "name": "playwave_variants_mix_hdawg","file": "stress/playwave_variants_mix.seqc","@base": "@hdawg8" },
+
+        { "name": "marker_mix_hdawg",          "file": "stress/marker_mix.seqc",          "@base": "@hdawg8" },
+
+        { "name": "placeholder_assign_mix_hdawg","file": "stress/placeholder_assign_mix.seqc","@base": "@hdawg8" },
+
+        { "name": "cmdtable_stress_hdawg",     "file": "stress/cmdtable_stress.seqc",     "@base": "@hdawg8" },
+
+        { "name": "prefetch_branch_mix_hdawg", "file": "stress/prefetch_branch_mix.seqc", "@base": "@hdawg8" },
+
+        { "name": "cwvf_short_waves_hdawg",    "file": "stress/cwvf_short_waves.seqc",    "@base": "@hdawg8" },
+
+        { "name": "kitchen_sink_hdawg",        "file": "stress/kitchen_sink.seqc",        "@base": "@hdawg8" },
+
+        { "name": "deep_nest_long_live_hdawg", "file": "stress/deep_nest_long_live.seqc", "@base": "@hdawg8" },
+
+        { "name": "if158_cwvf_in_loop_hdawg",  "file": "stress/if158_cwvf_in_loop.seqc",  "@base": "@hdawg8", "comment": "IF-158: minimal repro for missing static cwvf in else-arm of in-loop if/else after cwvfr-arm." }
+      ]
+    }
+  ]
+}

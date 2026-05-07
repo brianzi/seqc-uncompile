@@ -1,0 +1,69 @@
+// Stress: many DISTINCT large constants used at scattered points.
+// Each `c + u` is a fresh ADDI rN, r0, #imm — but most are short-lived
+// (consumed by the next wait()) so we don't blow the reg budget.
+// The point is to flood the asm stream with many distinct constant
+// loads so splitConstRegisters has lots of work in pass 1.
+
+var u = getUserReg(0);
+
+// 32 short-lived const-add waits — exercises pass 1 of
+// splitConstRegisters: many barriers + planted ADDIs + scan.
+wait(100007 + u);
+wait(200013 + u);
+wait(300017 + u);
+wait(400019 + u);
+wait(500023 + u);
+wait(600029 + u);
+wait(700031 + u);
+wait(800033 + u);
+wait(900037 + u);
+wait(110039 + u);
+wait(120049 + u);
+wait(130051 + u);
+wait(140057 + u);
+wait(150061 + u);
+wait(160063 + u);
+wait(170067 + u);
+wait(180071 + u);
+wait(190073 + u);
+wait(200081 + u);
+wait(210083 + u);
+wait(220087 + u);
+wait(230093 + u);
+wait(240101 + u);
+wait(250103 + u);
+wait(260107 + u);
+wait(270109 + u);
+wait(280113 + u);
+wait(290127 + u);
+wait(300131 + u);
+wait(310137 + u);
+wait(320139 + u);
+wait(330149 + u);
+
+// Now keep ~12 named constants live across a barrier — exercises
+// splitReg (long-lived constant registers needing to be split).
+var k0 = 1234567 + u;
+var k1 = 2345678 + u;
+var k2 = 3456789 + u;
+var k3 = 4567890 + u;
+var k4 = 5678901 + u;
+var k5 = 6789012 + u;
+var k6 = 7890123 + u;
+var k7 = 8901234 + u;
+var k8 = 9012345 + u;
+var k9 = 1023456 + u;
+var k10 = 1102345 + u;
+var k11 = 1203456 + u;
+
+wait(k0); wait(k1); wait(k2); wait(k3);
+wait(k4); wait(k5); wait(k6); wait(k7);
+wait(k8); wait(k9); wait(k10); wait(k11);
+
+// Use them again much later
+var sum = k0 + k1 + k2 + k3 + k4 + k5;
+wait(sum);
+sum = k6 + k7 + k8 + k9 + k10 + k11;
+wait(sum);
+sum = k0 + k11 + k1 + k10 + k2 + k9 + k3 + k8 + k4 + k7 + k5 + k6;
+wait(sum);

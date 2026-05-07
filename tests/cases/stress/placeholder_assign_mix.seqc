@@ -1,0 +1,72 @@
+// Stress: placeholder + assignWaveIndex with mixed lengths and markers.
+// Targets the wavetable index allocator, fixed-vs-implicit indices,
+// dual-channel placeholder pairing, and prefetch coordination.
+// waitWave used sparingly.
+
+const N1 = 128;
+const N2 = 512;
+const N3 = 1024;
+const N4 = 2048;
+
+// Single-channel placeholders, no markers
+wave ph_a1 = placeholder(N1);
+wave ph_a2 = placeholder(N2);
+wave ph_a3 = placeholder(N3);
+wave ph_a4 = placeholder(N4);
+
+// Single-channel placeholders, 1 marker
+wave ph_b1 = placeholder(N1, true, false);
+wave ph_b2 = placeholder(N2, true, false);
+wave ph_b3 = placeholder(N3, true, false);
+
+// Single-channel placeholders, 2 markers
+wave ph_c1 = placeholder(N1, true, true);
+wave ph_c2 = placeholder(N2, true, true);
+wave ph_c3 = placeholder(N3, true, true);
+
+// Dual-channel placeholders (paired)
+wave ph_dA = placeholder(N2, true, true);
+wave ph_dB = placeholder(N2, true, true);
+wave ph_eA = placeholder(N3, false, false);
+wave ph_eB = placeholder(N3, false, false);
+
+// Pin some to fixed indices, leave others to implicit assignment
+assignWaveIndex(1, ph_a1, 100);
+assignWaveIndex(2, ph_a2, 101);
+assignWaveIndex(1, ph_a3, 102);
+assignWaveIndex(1, ph_b1, 200);
+assignWaveIndex(1, ph_b2, 201);
+assignWaveIndex(1, ph_c1, 300);
+assignWaveIndex(1, ph_c2, 301);
+// Dual-channel
+assignWaveIndex(ph_dA, ph_dB, 400);
+assignWaveIndex(ph_eA, ph_eB, 401);
+// implicit: ph_a4, ph_b3, ph_c3 (no assignWaveIndex)
+
+// Plays — single, chained
+playWave(1, ph_a1);
+playWave(2, ph_a2);
+playWave(1, ph_a3);
+playWave(ph_a4);
+waitWave();
+
+playWave(1, ph_b1);
+playWave(1, ph_b2);
+playWave(ph_b3);
+playWave(1, ph_c1);
+playWave(1, ph_c2);
+playWave(ph_c3);
+waitWave();
+
+// Plays — dual
+playWave(ph_dA, ph_dB);
+playWave(ph_eA, ph_eB);
+
+// Mixed plays in a loop — only sync once at the end of each iter
+for (var k = 0; k < 3; k = k + 1) {
+  playWave(1, ph_a1);
+  playWave(1, ph_b1);
+  playWave(1, ph_c1);
+  playWave(ph_dA, ph_dB);
+  waitWave();
+}

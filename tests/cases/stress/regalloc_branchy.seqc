@@ -1,0 +1,45 @@
+// Stress: live ranges crossing branches and loops.
+// Variables are conditionally updated and read inside nested loops,
+// forcing the regalloc to keep ranges alive through control-flow
+// merges and loop back-edges.
+
+var u = getUserReg(0);
+var v = getUserReg(1);
+var acc1 = 0;
+var acc2 = 0;
+var acc3 = 0;
+var acc4 = 0;
+
+for (var i = 0; i < 4; i = i + 1) {
+  for (var j = 0; j < 3; j = j + 1) {
+    if (i + j > 3) {
+      acc1 = acc1 + u + j;
+      acc2 = acc2 + v - j;
+    } else {
+      acc1 = acc1 - 1;
+      acc2 = acc2 + 2;
+    }
+    var inner = acc1 + acc2;
+    if (inner > 100) {
+      acc3 = acc3 + inner;
+    }
+    acc4 = acc4 + i + j * 3 + u;
+    wait(acc4 + 1);
+  }
+  wait(acc1 + acc2 + acc3 + acc4 + u + v);
+}
+
+// Long final use keeps everything alive across the loop nest exit
+var total = acc1 + acc2 + acc3 + acc4 + u + v;
+wait(total);
+
+// Then re-derive intermediates from total, to extend live range further
+var t1 = total + 1;
+var t2 = total + 2;
+var t3 = total + 3;
+var t4 = total + 4;
+var t5 = total + 5;
+var t6 = total + 6;
+var t7 = total + 7;
+var t8 = total + 8;
+wait(t1 + t2 + t3 + t4 + t5 + t6 + t7 + t8);

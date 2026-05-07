@@ -1,0 +1,60 @@
+// Stress: many short distinct waves to exercise cwvf compaction
+// (the .text-level "load+play short wave" combiner) and the
+// wave-memory packing logic.  No per-play waitWave — long chains.
+
+wave w0  = ones(32);
+wave w1  = ones(48);
+wave w2  = ones(64);
+wave w3  = ones(96);
+wave w4  = ones(128);
+wave w5  = ones(160);
+wave w6  = ones(192);
+wave w7  = ones(224);
+wave w8  = ones(256);
+wave w9  = zeros(32);
+wave w10 = zeros(48);
+wave w11 = zeros(64);
+wave w12 = zeros(96);
+wave w13 = zeros(128);
+wave w14 = zeros(160);
+wave w15 = zeros(192);
+wave w16 = zeros(224);
+wave w17 = zeros(256);
+wave w18 = sine(32, 1, 0, 1);
+wave w19 = sine(48, 1, 0, 1);
+wave w20 = sine(64, 1, 0, 1);
+wave w21 = sine(96, 1, 0, 1);
+wave w22 = sine(128, 1, 0, 1);
+wave w23 = sine(160, 1, 0, 1);
+wave w24 = sine(192, 1, 0, 1);
+wave w25 = sine(224, 1, 0, 1);
+wave w26 = sine(256, 1, 0, 1);
+wave w27 = ramp(32, -1, 1);
+wave w28 = ramp(48, -1, 1);
+wave w29 = ramp(64, -1, 1);
+wave w30 = ramp(96, -1, 1);
+wave w31 = ramp(128, -1, 1);
+
+// Long chain — let the cwvf pass see many sequential short plays
+playWave(w0);  playWave(w1);  playWave(w2);  playWave(w3);
+playWave(w4);  playWave(w5);  playWave(w6);  playWave(w7);
+playWave(w8);  playWave(w9);  playWave(w10); playWave(w11);
+playWave(w12); playWave(w13); playWave(w14); playWave(w15);
+waitWave();
+
+playWave(w16); playWave(w17); playWave(w18); playWave(w19);
+playWave(w20); playWave(w21); playWave(w22); playWave(w23);
+playWave(w24); playWave(w25); playWave(w26); playWave(w27);
+playWave(w28); playWave(w29); playWave(w30); playWave(w31);
+
+// Replay in different order to exercise cache vs cwvf decisions
+playWave(w31); playWave(w0);  playWave(w27); playWave(w8);
+playWave(w19); playWave(w14); playWave(w7);  playWave(w22);
+waitWave();
+
+// Mix in some longer waves — chain with shorts
+wave big1 = gauss(2048, 1024, 200);
+wave big2 = gauss(4096, 2048, 400);
+playWave(w0); playWave(big1); playWave(w1); playWave(big2);
+playWave(w2); playWave(big1); playWave(w3); playWave(big2);
+waitWave();

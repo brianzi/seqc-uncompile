@@ -4504,6 +4504,66 @@ in original; recon errors `"run out of free registers"`.
 ### 47.4 — Phase 47 wrap-up
 
 - [ ] Update OVERVIEW.md with zivibes intake summary
-- [ ] Confirm full suite is clean (1600/1600 expected — 1341 prior +
+- [x] Confirm full suite is clean (1600/1600 expected — 1341 prior +
       259 new, minus any consolidated)
 - [ ] Final commit + push
+
+---
+
+## Phase 48: Stress test suite + IF-158
+
+### 48.1 — Build a stress test suite under `tests/cases/stress/`
+
+Goal: surface compiler bugs in algorithmically complex paths
+(regalloc, splitConstRegisters/splitReg, mergeWaveforms, cwvf
+compaction, prefetch, command table) that the existing suite doesn't
+exercise hard enough.
+
+- [x] Create `tests/cases/stress/` and `tests/cases/manifest-stress.json`
+- [x] `regalloc_pressure.seqc` (HDAWG/SHFSG) — 14-var live-range stress
+      (both error with "run out of free registers" — accepted divergence,
+      message-text differs but both error)
+- [x] `many_const_loads.seqc` (HDAWG/SHFSG) — 32 short-lived + 12
+      long-lived constants (byte-identical)
+- [x] `regalloc_branchy.seqc` (HDAWG/SHFSG) — branchy live ranges in
+      nested loops (byte-identical)
+- [x] `wave_zoo_lengths.seqc` (HDAWG) — gauss/ones/zeros/sine/ramp/drag/
+      blackman/hamming/hann/triangle at lengths 32..4096 (byte-identical)
+- [x] `playwave_variants_mix.seqc` (HDAWG) — every playWave/playZero/
+      playHold variant with all `(*chans, wave)` channel-selection
+      forms intermixed (byte-identical)
+- [x] `marker_mix.seqc` (HDAWG) — 0/1/2 markers, dual-channel marker
+      pairing (byte-identical)
+- [x] `placeholder_assign_mix.seqc` (HDAWG) — placeholder +
+      assignWaveIndex pinned/implicit, dual-channel (byte-identical)
+- [x] `cmdtable_stress.seqc` (HDAWG) — many CT entries, var-driven
+      indices (byte-identical)
+- [x] `prefetch_branch_mix.seqc` (HDAWG) — prefetch + branches/loops
+      (byte-identical)
+- [x] `cwvf_short_waves.seqc` (HDAWG) — 32 short waves for cwvf
+      compaction (byte-identical)
+- [x] `deep_nest_long_live.seqc` (HDAWG) — deeply nested control flow +
+      barrier-crossing live ranges (byte-identical)
+- [x] `kitchen_sink.seqc` (HDAWG) — combined stress
+      (**FAILS** — exposes IF-158)
+- [x] `if158_cwvf_in_loop.seqc` (HDAWG) — minimal repro for IF-158
+
+### 48.2 — IF-158: missing static cwvf in else-arm of in-loop if/else
+
+See `incidental_findings.md` IF-158 for full analysis. Subagent
+investigation `ses_1fde0697fffeWuLAE3xLqp38Lv` identified the
+suspected functions but did not GDB-verify.
+
+- [ ] Run the GDB recipe in IF-158 to identify which branch of
+      `needsNewCwvf` (or which write to `Node::currentCwvf` in
+      `optimizeCwvf`) differs between binary and recon
+- [ ] Fix the recon to match
+- [ ] `if158_cwvf_in_loop_hdawg` and `kitchen_sink_hdawg` byte-identical
+- [ ] Full suite still 1600/1600 (+15 stress = 1615/1615 expected)
+- [ ] Update IF-158 to `fixed`
+
+### 48.3 — Phase 48 wrap-up
+
+- [ ] Sub-phase wrap-up commit (stress suite + IF-158 minimal repro +
+      open IF entry, no fix yet)
+- [ ] Push

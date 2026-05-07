@@ -1,0 +1,82 @@
+// Stress: many distinct waveforms of varied lengths and shapes.
+// Targets the waveform table builder, cwvf compaction, wave-memory
+// accounting, and mergeWaveforms.  waitWave() is used sparingly so
+// plays naturally chain.
+
+wave g32   = gauss(32, 16, 5);
+wave g64   = gauss(64, 32, 10);
+wave g128  = gauss(128, 64, 20);
+wave g256  = gauss(256, 128, 40);
+wave g512  = gauss(512, 256, 80);
+wave g1024 = gauss(1024, 512, 160);
+wave g2048 = gauss(2048, 1024, 320);
+wave g4096 = gauss(4096, 2048, 640);
+
+wave o32   = ones(32);
+wave o96   = ones(96);
+wave o160  = ones(160);
+wave o288  = ones(288);
+
+wave z48   = zeros(48);
+wave z112  = zeros(112);
+wave z240  = zeros(240);
+wave z992  = zeros(992);
+
+wave s64   = sine(64, 1, 0, 1);
+wave s128  = sine(128, 0.5, 0, 2);
+wave s256  = sine(256, 1, 0, 4);
+
+wave r48   = ramp(48, 0, 1);
+wave r256  = ramp(256, -1, 1);
+
+wave d128  = drag(128, 64, 16);
+wave d512  = drag(512, 256, 64);
+
+wave b256  = blackman(256, 1, 0.16);
+wave h256  = hamming(256, 1);
+wave hn256 = hann(256, 1);
+wave tri96 = triangle(96, 1.0, 0.5);
+
+// Long natural chain of plays — only sync at logical groups.
+playWave(g32);
+playWave(g64);
+playWave(g128);
+playWave(g256);
+waitWave();
+
+playWave(g512);
+playWave(g1024);
+playWave(g2048);
+playWave(g4096);
+
+playWave(o32);
+playWave(o96);
+playWave(o160);
+playWave(o288);
+waitWave();
+
+playWave(z48);
+playWave(z112);
+playWave(z240);
+playWave(z992);
+playWave(s64);
+playWave(s128);
+playWave(s256);
+
+playWave(r48);
+playWave(r256);
+waitWave();
+
+playWave(d128);
+playWave(d512);
+playWave(b256);
+playWave(h256);
+playWave(hn256);
+playWave(tri96);
+
+// Replay some waves to exercise cache hits — no waitWave between
+playWave(g256);
+playWave(g1024);
+playWave(z240);
+playWave(d128);
+waitWave();

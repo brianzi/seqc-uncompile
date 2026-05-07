@@ -1,0 +1,49 @@
+// Stress: waveforms with 0, 1, and 2 markers in the same program.
+// Targets marker_bits accounting in the .waveforms section, the
+// per-channel marker layout in .wf_*, and dual-channel marker pairing.
+// waitWave() used sparingly.
+
+// 0 markers (plain waves)
+wave plain_a = gauss(128, 64, 16);
+wave plain_b = sine(128, 1, 0, 2);
+
+// 1 marker each
+wave m1_a    = marker(128, 1) + 0.5 * gauss(128, 64, 16);
+wave m1_b    = marker(128, 2) + 0.5 * sine(128, 1, 0, 2);
+wave m1_c    = marker(256, 1) + 0.3 * ones(256);
+
+// 2 markers (combined bitmask)
+wave m2_a    = marker(128, 3) + 0.5 * gauss(128, 64, 16);
+wave m2_b    = marker(256, 3) + 0.5 * drag(256, 128, 32);
+
+// Dual-channel with mixed marker counts
+wave dA = gauss(256, 128, 32);
+wave dB = marker(256, 1) + sine(256, 1, 0, 2);
+wave dC = marker(256, 2) + 0.5 * ones(256);
+wave dD = marker(256, 3) + 0.7 * gauss(256, 128, 24);
+
+playWave(plain_a);
+playWave(plain_b);
+playWave(m1_a);
+playWave(m1_b);
+waitWave();
+
+playWave(m1_c);
+playWave(m2_a);
+playWave(m2_b);
+
+// Dual-wave plays mixing marker counts — chained
+playWave(dA, dB);
+playWave(dB, dC);
+waitWave();
+
+playWave(dA, dD);
+playWave(dC, dD);
+playWave(1, dA, 2, dD);
+playWave(1, 2, dB);
+
+// Re-plays
+playWave(m1_a);
+playWave(m2_b);
+playWave(dB, dC);
+waitWave();

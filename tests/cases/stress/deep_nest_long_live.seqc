@@ -1,0 +1,63 @@
+// Stress: deeply nested control flow with long-living variables
+// crossing many "barriers" (waitWave, playWave, executeTableEntry).
+// Targets the regalloc's understanding of barriers/holes.
+// waitWave is sparse — used as one of the variants in the play mix.
+
+wave w1 = gauss(256, 128, 32);
+wave w2 = gauss(512, 256, 64);
+assignWaveIndex(1, w1, 10);
+assignWaveIndex(1, w2, 11);
+
+var u0 = getUserReg(0);
+var u1 = getUserReg(1);
+var u2 = getUserReg(2);
+var u3 = getUserReg(3);
+
+// Variables that need to live across the entire program
+var keep1 = u0 + 1;
+var keep2 = u1 * 2;
+var keep3 = u2 + u3;
+var keep4 = u0 + u1 + u2 + u3;
+
+repeat (3) {
+  for (var i = 0; i < 4; i = i + 1) {
+    while (i < 3) {
+      if (keep1 + i > 5) {
+        executeTableEntry(10);
+        playWave(w1);
+        wait(keep2 + i);
+      } else {
+        executeTableEntry(11);
+        playWave(w2);
+        wait(keep3 + i);
+      }
+      // No waitWave here — let the next iter chain
+      if (keep4 > 100) {
+        wait(keep1 + keep2);
+      } else {
+        wait(keep3 + keep4);
+      }
+      i = i + 1;
+    }
+    waitWave();
+    wait(keep1 + keep2 + keep3 + keep4 + i);
+  }
+}
+
+// All keeps still live — final use
+wait(keep1 + keep2 + keep3 + keep4);
+
+// Spawn a fresh wave of locals with similar pattern to stress
+// the second pass of registerAllocation
+var a = keep1 + 7;
+var b = keep2 + 13;
+var c = keep3 + 19;
+var d = keep4 + 23;
+for (var j = 0; j < 5; j = j + 1) {
+  a = a + j;
+  b = b + j * 2;
+  c = c + j * 3;
+  d = d + j * 5;
+  wait(a + b + c + d);
+}
+wait(a + b + c + d + keep1 + keep2 + keep3 + keep4);

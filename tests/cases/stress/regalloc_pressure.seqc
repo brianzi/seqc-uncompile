@@ -1,0 +1,68 @@
+// Stress: heavy register pressure with mixed live ranges.
+// Uses up to ~14 simultaneously-live vars (HDAWG limit) plus
+// re-assignments and interleaved use that create many overlapping
+// live intervals — exercises registerAllocation, splitConstRegisters,
+// and splitReg without exceeding the original's hard limit.
+
+var u0 = getUserReg(0);
+var u1 = getUserReg(1);
+var u2 = getUserReg(2);
+var u3 = getUserReg(3);
+var u4 = getUserReg(4);
+var u5 = getUserReg(5);
+var u6 = getUserReg(6);
+var u7 = getUserReg(7);
+var u8 = getUserReg(8);
+var u9 = getUserReg(9);
+var u10 = getUserReg(10);
+var u11 = getUserReg(11);
+var u12 = getUserReg(12);
+var u13 = getUserReg(13);
+
+// Mixed waits — short live ranges
+wait(u0); wait(u1); wait(u2); wait(u3);
+wait(u4); wait(u5); wait(u6); wait(u7);
+wait(u8); wait(u9); wait(u10); wait(u11);
+wait(u12); wait(u13);
+
+// Pairwise sums kept live — extends original live ranges
+var s01 = u0 + u1;
+var s23 = u2 + u3;
+var s45 = u4 + u5;
+var s67 = u6 + u7;
+wait(s01); wait(s23); wait(s45); wait(s67);
+
+var s89 = u8 + u9;
+var sab = u10 + u11;
+var scd = u12 + u13;
+wait(s89); wait(sab); wait(scd);
+
+// Cross sums extend live ranges across more of the program
+var c0 = u0 + u13;
+var c1 = u1 + u12;
+var c2 = u2 + u11;
+var c3 = u3 + u10;
+wait(c0 + c1); wait(c2 + c3);
+
+var c4 = u4 + u9;
+var c5 = u5 + u8;
+var c6 = u6 + u7;
+wait(c4 + c5 + c6);
+
+// Final big mix using everything still live
+var big = u0 + u1 + u2 + u3 + u4 + u5 + u6 + u7
+        + u8 + u9 + u10 + u11 + u12 + u13;
+big = big + s01 + s23 + s45 + s67 + s89 + sab + scd;
+big = big + c0 + c1 + c2 + c3 + c4 + c5 + c6;
+wait(big);
+
+// Re-assign and reuse to create discontinuous live intervals
+u0 = u0 + 17; u1 = u1 + 19; u2 = u2 + 23; u3 = u3 + 29;
+u4 = u4 + 31; u5 = u5 + 37; u6 = u6 + 41; u7 = u7 + 43;
+wait(u0 + u1 + u2 + u3 + u4 + u5 + u6 + u7);
+
+u8 = u8 + 47; u9 = u9 + 53; u10 = u10 + 59; u11 = u11 + 61;
+wait(u8 + u9 + u10 + u11);
+
+// Mix of stale + fresh values
+wait(u0 + u8 + u1 + u9 + u2 + u10 + u3 + u11);

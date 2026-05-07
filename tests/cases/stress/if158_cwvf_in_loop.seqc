@@ -1,0 +1,24 @@
+// IF-158 v6: outer playWave with non-placeholder, single channel, before loop.
+// Trigger: a static-cwvf-emitting Play before a for-loop containing
+// if/else dual-vs-single placeholder plays.
+
+wave g1  = gauss(128, 64, 16);
+wave phA = placeholder(512, true, true);
+wave phB = placeholder(512, true, true);
+wave phC = placeholder(2048, false, false);
+
+assignWaveIndex(phA, phB, 50);
+assignWaveIndex(1, phC, 51);
+
+var u0 = getUserReg(0);
+
+playWave(1, g1);            // <-- removing this makes the bug disappear
+
+for (var k = 0; k < 4; k = k + 1) {
+  if (u0 + k > 5) {
+    playWave(phA, phB);     // dual placeholder → cwvfr in if-arm
+  } else {
+    playWave(1, phC);       // single placeholder → static cwvf in else-arm (DROPPED in recon)
+  }
+  waitWave();
+}
