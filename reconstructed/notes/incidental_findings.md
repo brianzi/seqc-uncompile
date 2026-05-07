@@ -3445,12 +3445,56 @@ Files to inspect:
 
 ## IF-162  assignWaveIndex dual placeholder uses first-signal length
 
-**Status**: open
+**Status**: fixed (phase 57.G.2)
 **Severity**: bug
 **Found**: stress phase 50 (`many_placeholders.seqc`, isolated to
 `if162_assignwave_dual_size.seqc`)
 
-### Symptom
+### Resolution
+
+Bug was in `WaveformGenerator::merge` (`waveform_generator_dsp.cpp`),
+**reserveOnly result path** (binary 0x25fa98) — the recon constructed
+the result Signal as `Signal(tag, signals[0].length_, mergedBits)`,
+taking the FIRST signal's length unconditionally.
+
+Binary instead computes the length as the running max during the
+per-signal load loop (0x25f7c9..0x25f7e2: `r12d = max(r12d,
+signal.length_)` gated on `channels_!=0`), then post-loop folds in the
+trailing requestedLength hint via `cmp %r12d,%eax; cmovg %eax,%r12d`
+at 0x25f9bb..0x25f9c4, then validates each signal's length is `<=
+r12d` (else throws error 0xe8). The accumulated `r12d` is the value
+passed to the reserveOnly Signal ctor at 0x25fa98.
+
+Structurally this is the same bug as IF-157 (which fixed the
+non-reserveOnly path of `merge`). The IF-157 fix did not propagate to
+the reserveOnly branch because for non-placeholder waves the load
+loop's `checkAllocation()` makes `samples_.size() == length_`, so the
+non-reserveOnly path's `frameCount = max(samples_.size())` already
+gave the right answer — but for placeholders (`reserveOnly_=true`),
+`samples_` stays empty and the function takes the early-return
+reserveOnly path which had its own first-signal-length bug.
+
+Fix:
+
+```cpp
+size_t resultLength = static_cast<size_t>(requestedLength > 0 ? requestedLength : 0);
+for (auto& s : signals) {
+    if (s.channels_ != 0 && s.length_ > resultLength)
+        resultLength = s.length_;
+}
+ReserveOnly tag;
+Signal result(tag, resultLength, mergedBits);
+```
+
+**Verification**:
+- `if162_assignwave_dual_size_hdawg` byte-identical (5320 bytes).
+- Main suite 1600/1600.
+- Stress: 21 → 19 failures (cleared `if162_assignwave_dual_size_hdawg`
+  and one related case from the same family — likely
+  `many_placeholders.seqc` or another dual-placeholder
+  assignWaveIndex case; no regressions).
+
+### Original symptom
 
 `assignWaveIndex(1, p_small, 2, p_large, idx)` with two placeholders of
 different sizes computes the merged waveform's sample length from the
@@ -3465,8 +3509,10 @@ For the minimal repro (p_small=256, p_large=512, dual-channel):
 
 Symptom is structurally identical to IF-157 (which fixed the same
 first-signal-length bug on the `playWave` path inside
-`WaveformGenerator::merge`), but this is the `assignWaveIndex` /
-pinned-CT-entry codegen path, which has the bug independently.
+`WaveformGenerator::merge`).  Initial suspicion was the
+`assignWaveIndex` / pinned-CT-entry codegen path; actual root cause
+turned out to be the **reserveOnly** branch inside `merge` itself,
+which IF-157 did not touch.
 
 ### Minimal repro
 
@@ -3481,36 +3527,6 @@ executeTableEntry(13);
 ```
 
 Run: `python tests/diff_test.py --manifest manifest-stress.json --filter if162 -v`
-
-### Suspected location
-
-`reconstructed/src/runtime/custom_functions_dio.cpp`
-`CustomFunctions::assignWaveIndex` (@0x133c40), specifically the call to
-`mergeWaveforms` at line ~451:
-
-```cpp
-int maxSampleLength = static_cast<int>(maxSampleLen);  // from playArgs.getMaxSampleLength()
-wf = mergeWaveforms(channelArgs, channelParam, false,
-                    std::string("assignWaveIndex"),
-                    maxSampleLength, false);
-```
-
-Either:
-- `PlayArgs::getMaxSampleLength()` (@0x15d9f0) returns the first
-  signal's length instead of the max for placeholder args, or
-- `mergeWaveforms` (@0x15e060) Phase 1's `maxSampleLen` tracking
-  (lines 193-206) doesn't see the second placeholder's length because
-  it lookups by name in `wavetableFront_->getWaveformSampleLength`,
-  and placeholders may not be registered there with their declared
-  size.
-
-### Recommended next step
-
-1. GDB on original at `mergeWaveforms` Phase 1 loop
-   (0x15e0f4..0x15e234) — log `len` and `maxSampleLen` per iteration
-   for the dual-placeholder repro.
-2. Same trace on recon, compare.
-3. Fix the lookup / max computation that's wrong.
 
 ## IF-163  Recon refuses to unroll repeat(N) above its threshold
 

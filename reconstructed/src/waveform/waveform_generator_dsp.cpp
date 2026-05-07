@@ -1994,8 +1994,20 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
         for (auto& s : signals) {
             for (auto b : s.markerBits_) mergedBits.push_back(b);
         }
+        // IF-162: compute resultLength as max across signals (with channels_!=0)
+        // and the trailing requestedLength hint, mirroring binary's r12d
+        // accumulation in the per-signal load loop (0x25f7c9..0x25f7e2) and the
+        // post-loop `cmovg` against requestedLength at 0x25f9bb..0x25f9c4.
+        // Previously this took signals[0].length_ which produced a half-size
+        // waveform for `assignWaveIndex(1, p_small, 2, p_large, idx)` with
+        // placeholders of different lengths.
+        size_t resultLength = static_cast<size_t>(requestedLength > 0 ? requestedLength : 0);
+        for (auto& s : signals) {
+            if (s.channels_ != 0 && s.length_ > resultLength)
+                resultLength = s.length_;
+        }
         ReserveOnly tag;
-        Signal result(tag, signals[0].length_, mergedBits);
+        Signal result(tag, resultLength, mergedBits);
         // Binary sets channels_ = number of input signals (same as the
         // non-reserveOnly path at 0x25fc70: result.channels_ = numChannels).
         result.channels_ = static_cast<uint16_t>(signals.size());
