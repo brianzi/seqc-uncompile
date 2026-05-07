@@ -5602,3 +5602,86 @@ device-specific code paths are exercised. Wave-based cases
   filed (193, 194), in line with the "fixes-disturb-area" yield
   expectation.
 
+
+---
+
+## Phase 60: Fix IF-192 — UHFQA missing program-size check
+
+**Goal**: 528/528 stress + 1600/1600 main, fix the 2 UHFQA failures
+surfaced by Phase 59 round 10.
+
+**Result**: ✅ both fixed in single edit at
+`reconstructed/src/codegen/awg_compiler.cpp` lines 474-495.
+
+### Root cause (delegated to general subagent for binary archeology)
+
+The check **was** present in recon, not missing. It had two
+compounding bugs:
+
+1. **Wrong DeviceConstants field**: read `maxSequenceLen` (DC+0x60,
+   value 16000 universally) instead of `waveformMemSize` (DC+0x58,
+   value 1024 for UHFQA). The latter's misleading name (it actually
+   holds the opcode-words limit, not waveform memory) is the trap.
+2. **Bogus `/4` divisor**: `getOpcode()` already returns
+   `vector<uint32_t>`, so `.size()` is the instruction count. The
+   `/4` quadrupled the effective threshold.
+
+Combined effective UHFQA limit was 64000 (vs. real 1024), so the
+2106-instruction `regalloc_2x_long` and 1798-instruction
+`regalloc_pressure_subroutines` sailed through silently.
+
+### Subagent investigation findings
+
+The subagent located the binary check at
+`zhinst::AWGCompilerImpl::compileString @0x107341..0x107693`.
+Verified the binary reads:
+- count from `assembler_.getOpcode().size()` (no `/4`)
+- limit from `(uint64_t*)(this + 0x60) == DC[+0x58]`
+- formats with `ErrorMessageT(0xC)` and exception string
+  "Compiler error while generating assembly"
+
+No GDB needed — pure objdump archeology.
+
+### Discoveries documented as new IFs
+
+- **IF-195** (cosmetic, rename pending): `waveformMemSize` field at
+  DC+0x58 is misnamed — it's actually the max opcode words
+  (instruction-memory depth). The misnomer is what trapped the
+  original recon implementer. Recommend rename to
+  `maxProgramSize` / `maxOpcodeWords`.
+- **IF-196** (suspicious, needs verification): the **adjacent
+  check 11** (msg 0xF1, "number of waveforms in wavetable too
+  large") at `awg_compiler.cpp:489-510` likely has the
+  **mirror-image bug** — uses `waveformMemSize` (1024) when it
+  should use `maxSequenceLen` (16000), per the subagent's binary
+  read. Needs a UHFQA wavetable-overflow test to confirm.
+
+### Wrap-up
+
+- [x] **60.1** — Subagent located binary check site + identified
+      both bugs
+- [x] **60.2** — Applied fix: swap DC field, drop `/4`, set
+      `lineNr=-1`, fix exception string
+- [x] **60.3** — Verified `regalloc_2x_long_uhfqa` and
+      `regalloc_pressure_subroutines_uhfqa` now pass byte-clean
+- [x] **60.4** — Stress 528/528 + main 1600/1600
+- [x] **60.5** — Filed IFs 195 (rename) and 196 (mirror-bug
+      candidate)
+- [ ] **60.6** — User-review: choose Phase 61 = investigate IF-196,
+      Phase 61 = rename per IF-195, or Phase 61 = round 11 stress
+
+### Lessons learned
+
+- **A misnamed field is a latent bug magnet.** `waveformMemSize`
+  semantically means "max opcode words"; the wrong name caused two
+  separate review/implementation errors (the original recon and
+  this round's investigation initial hypothesis "check missing").
+  Renaming is cheap insurance against repeat occurrences.
+- **Subagents work well for binary archeology** when the question
+  is well-scoped ("find function X, identify check pseudocode").
+  Saved an estimated hour of manual disassembly walking.
+- **The "fix one symptom, find another" pattern continues.** IF-192
+  fix unmasked IF-195 (cosmetic) and IF-196 (suspicious twin).
+  Each fix should explicitly look for adjacent code that may share
+  the same defect class before declaring done.
+

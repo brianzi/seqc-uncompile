@@ -471,19 +471,36 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 9. Assemble the ASM list
     assembler_.assembleAsmList(asmList);
 
-    // 10. Check opcode size vs limits
+    // 10. Check opcode size vs hardware instruction-memory depth.
+    //
+    // Binary check at AWGCompilerImpl::compileString @0x107341..0x10739e:
+    //   r15 = (getOpcode().end() - getOpcode().begin()) >> 2  (== vec.size() for vector<uint32_t>)
+    //   limit = *(uint64_t*)(this + 0x60)  == DeviceConstants[+0x58] == waveformMemSize
+    //   if (r15 > limit) → format(ErrorMessageT(0xC), count, limit), throw.
+    //
+    // The DC field at +0x58 is currently named `waveformMemSize` but its
+    // actual semantics is "max opcode words" / instruction-memory depth.
+    // Values: UHFAWG=1024, UHFQA=1024, HDAWG=16384, SHF*=32768.  (See IF-195
+    // for the field-rename follow-up.)
+    //
+    // Pre-IF-192 had two compounding bugs here: wrong DC field
+    // (`maxSequenceLen` = 16000) AND a bogus `/4` (the opcode vector is
+    // already vector<uint32_t>).  Combined, the effective UHFQA limit was
+    // 64000 instead of 1024, so 2106-instruction programs compiled
+    // silently.  Both fixed here.
     auto const& opcodes = assembler_.getOpcode();
-    size_t opcodeWordCount = (opcodes.size());  // in uint32_t words
-    size_t maxSeqLen = deviceConstants_.maxSequenceLen;  // devConst+0x60
+    size_t opcodeCount = opcodes.size();                    // already in words
+    size_t maxOpcodes  = deviceConstants_.waveformMemSize;  // devConst+0x58
 
-    if (opcodeWordCount / 4 > maxSeqLen) {  // @0x10739e: sar $2, %r15; cmp %rcx, %r15
-        // Add error message and throw
+    if (opcodeCount > maxOpcodes) {  // @0x10739e
         CompilerMessage msg;
         msg.type = CompilerMessage::Error;
+        msg.lineNr = -1;
         msg.message = ErrorMessages::format(ErrorMessageT(0x0C),
-            static_cast<uint64_t>(opcodeWordCount / 4), maxSeqLen);
+            static_cast<uint64_t>(opcodeCount),
+            static_cast<uint64_t>(maxOpcodes));
         compileMessages_.push_back(std::move(msg));
-        throw ZIAWGCompilerException("Sequence too long");
+        throw ZIAWGCompilerException("Compiler error while generating assembly");
     }
 
     // 11. Check waveform memory usage (if wavetableIR_ exists)

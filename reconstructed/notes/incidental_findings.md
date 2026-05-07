@@ -4921,7 +4921,9 @@ main suite 1600/1600, stress 444/444.
 
 **Source**: Phase 59 round 10 — `regalloc_2x_long_uhfqa`,
 `regalloc_pressure_subroutines_uhfqa`
-**Status**: open
+**Status**: **FIXED** in Phase 60 — `awg_compiler.cpp:474..495`
+check 10 swapped to `waveformMemSize` (DC+0x58), removed bogus
+`/4`, set `lineNr=-1`, fixed exception string to match binary.
 **Severity**: likely-bug
 
 The original UHFQA compiler enforces a hard limit of **1024
@@ -4960,6 +4962,25 @@ or its threshold constant is wrong (set to 0 or never reached).
 
 **Verification**: minimal repro is `regalloc_2x_long.seqc` (300
 setUserReg pairs producing ~2100 instructions on UHFQA).
+
+**Root cause (Phase 60)**: not "missing check" as initially
+hypothesized — the check **was** present at
+`awg_compiler.cpp:474-487`, but suffered from **two compounding
+bugs**:
+
+1. Wrong DC field: read `maxSequenceLen` (DC+0x60, value 16000)
+   instead of `waveformMemSize` (DC+0x58, value 1024 for UHFQA).
+2. Bogus `/4` divisor: `getOpcode()` already returns
+   `vector<uint32_t>`, so `.size()` is the instruction count.
+   The `/4` made the threshold 4× larger.
+
+Combined, the effective UHFQA limit was 64000 (vs. true 1024),
+so 2106-instruction programs sailed through. Both bugs had to be
+fixed; neither alone would have made the test pass.
+
+The misnamed `waveformMemSize` field (see IF-195) is what made
+the original recon attempt pick the wrong field. A parallel bug
+likely exists in check 11 (msg 0xF1) — see IF-196.
 
 ---
 
@@ -5023,4 +5044,71 @@ the recon's regalloc spill point doesn't match the binary's.
 a different point under pressure, programs that are *just* under
 the limit on orig but *just over* on recon (or vice versa) would
 show up as compilation-success divergences.
+
+
+---
+
+## IF-195  DeviceConstants field at +0x58 is misnamed `waveformMemSize`
+
+**Source**: Phase 60 fix of IF-192
+**Status**: open (rename pending)
+**Severity**: cosmetic (will mislead future readers)
+
+The `DeviceConstants` field at offset `+0x58` is currently named
+`waveformMemSize` in `reconstructed/include/zhinst/device_constants.hpp`,
+but its actual semantics — verified by GDB-less disassembly of
+`AWGCompilerImpl::compileString @0x107397..0x10739e` — is **maximum
+sequencer-program length in opcode words** (the instruction-memory
+depth).
+
+Values: UHFAWG=1024, UHFQA=1024, HDAWG=16384, SHF*=32768. These
+are the limits for the message-12 "program is too large" check.
+
+The misnomer caused IF-192 (silent acceptance of oversized programs
+on UHFQA) to slip through review: the recon's check 10 used
+`maxSequenceLen` (= 16000 always) instead of `waveformMemSize`,
+because the latter's name suggested it had nothing to do with
+program size.
+
+**Action**: rename the field to `maxProgramSize` (or
+`maxOpcodeWords`) in a follow-up phase, propagate to all readers
+(currently 2 sites: `awg_compiler.cpp:476` after IF-192 fix,
+`awg_compiler.cpp:501` in check 11 — see IF-196).
+
+---
+
+## IF-196  awg_compiler.cpp check 11 (msg 0xF1) likely has parallel field-swap bug
+
+**Source**: Phase 60 fix of IF-192 — discovered while inspecting
+the adjacent code path
+**Status**: open (needs binary verification)
+**Severity**: suspicious
+
+`AWGCompilerImpl::compileString` step 11 emits
+`ErrorMessageT(0xF1)` ("number of waveforms in wavetable is too
+large - has %1% waveforms, maximum is %2%") guarded by:
+
+```cpp
+size_t maxWaveforms = deviceConstants_.waveformMemSize;  // DC+0x58
+if (nonNullWaveformCount > maxWaveforms) { ... }
+```
+
+After IF-192 we know `waveformMemSize` (DC+0x58) is actually the
+**opcode-words limit**, not a waveform-count limit. The IF-192
+subagent reported that the binary's parallel check at `0x10769d`
+reads the limit from `AWGCompilerImpl + 0x68 == DC + 0x60 ==
+maxSequenceLen`. So check 11 likely needs the **opposite** swap
+that IF-192 did — read `maxSequenceLen` (= 16000 universally)
+instead of `waveformMemSize`.
+
+This is a likely IF-192-twin bug: the two checks have swapped
+fields. With check 10 wrongly using `maxSequenceLen` (16000) and
+check 11 wrongly using `waveformMemSize` (1024), neither check
+fires when it should on UHFQA wavetable overruns either.
+
+**Action**:
+1. GDB-trace (or static-analyze) `0x10769d` to confirm the field.
+2. Construct a UHFQA wavetable with > 1024 entries (or whatever
+   the real limit is) to differentially expose the bug.
+3. Apply the symmetric fix to check 11.
 
