@@ -362,8 +362,12 @@ void WavetableFront::assignWaveIndex(
 
     if (currentIndex != -1) {
         // Already has a different index assigned — error
-        // throw WavetableException(ErrorMessages::format(0xf8, wf->name()))
-        throw; // WavetableException
+        // Binary throws WavetableException with ErrorMessage 0xF8 (=248,
+        // WaveAlreadyAssigned): "waveform %1% has already assigned index".
+        // Without this throw, the recon previously hit a bare `throw;`
+        // with no in-flight exception → std::terminate (worker exit -6).
+        throw WavetableException(
+            ErrorMessages::format(WaveAlreadyAssigned, ptr->name));
     }
 
     // In the binary, this clears autoIndex_ and calls assignAuto(index)       // @0x29cb5f

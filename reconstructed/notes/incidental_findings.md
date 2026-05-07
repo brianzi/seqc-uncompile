@@ -3221,11 +3221,39 @@ elsePlay — vs which branch recon takes.  GDB recipe in subagent report
 - `if158_cwvf_in_loop_hdawg` (minimal repro) — fails with same signature
 
 
-## IF-159  Recon aborts on duplicate `assignWaveIndex` for same waveform
+ ## IF-159  Recon aborts on duplicate `assignWaveIndex` for same waveform
 
 **Source**: stress test `cmdtable_huge` (during reduction)
-**Status**: open
+**Status**: fixed (phase 57.C.2)
 **Severity**: likely-bug (crash vs. graceful error)
+
+### Fix (phase 57.C.2)
+
+`WavetableFront::assignWaveIndex` in
+`reconstructed/src/waveform/wavetable_front.cpp:354` had a literal
+`throw;` (re-throw) on the "already assigned different index" branch
+with no in-flight exception, which std::terminate-d the worker with
+`terminate called without an active exception` (worker exit -6).
+
+Replaced with the correct binary behavior:
+```cpp
+throw WavetableException(
+    ErrorMessages::format(WaveAlreadyAssigned, ptr->name));
+```
+
+`WaveAlreadyAssigned` is ErrorMessage id 248 (=0xF8): `"waveform %1%
+has already assigned index"`. The recon now emits the exact same
+diagnostic as the binary on duplicate-assign, byte-identical.
+
+### Verification
+
+- All 5 stress repros (`if159_assignwave_dup_crash`,
+  `assign_same_wave_multi`, `exec_table_var_index`, `ct_high_index`,
+  `assign_then_execute_immediate`) now produce byte-identical error
+  messages to the original (previously the recon worker SIGABRT'd).
+- Main suite: 1600/1600 passing.
+- Stress suite: 419/444 (unchanged — the 5 were already PASS in the
+  difftest because both errored, just with different messages).
 
 ### Symptom
 
