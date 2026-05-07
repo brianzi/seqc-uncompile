@@ -1,0 +1,3 @@
+// placeholder() + ones() — mixed reserveOnly / concrete arith.
+wave w = placeholder(64) + ones(64);
+playWave(w);

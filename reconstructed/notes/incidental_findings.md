@@ -4132,7 +4132,7 @@ waitWave();
 
 ## IF-181  placeholder() inside join() crashes recon worker (vector OOB)
 
-**Status**: open
+**Status**: fixed (2026-05-07, phase 57.C.1)
 **Severity**: bug (worker SIGABRT — orig succeeds, recon dies)
 **Found**: stress phase 56 (`placeholder_in_join.seqc` HDAWG)
 
@@ -4148,10 +4148,7 @@ std::vector<_Tp, _Alloc>::reference std::vector<_Tp, _Alloc>::operator[]
 ... Assertion '__n < this->size()' failed.
 ```
 
-Orig handles the same construct without error.  The `join()`
-implementation in recon almost certainly tries to read sample data
-from the placeholder side, indexing past the end of a (zero-length
-or pre-resolution) sample buffer.
+Orig handles the same construct without error.
 
 ### Minimal repro
 
@@ -4164,17 +4161,61 @@ executeTableEntry(0);
 waitWave();
 ```
 
-### Recommended next step
+### Root cause (verified by GDB on orig)
 
-1. GDB-trace `join()` in recon with this input; identify the
-   indexing site (stl_vector.h:1253 backtrace will pinpoint the
-   `operator[]` call).
-2. Compare to orig's `join()` for placeholder-aware handling
-   (likely a check "if either operand is a placeholder, defer
-   sample materialization").
-3. The same crash pattern may affect `placeholder() + wave`, `cut()`
-   of placeholder, scalar-mul of placeholder.  Add follow-up stress
-   cases after the fix lands.
+Two cooperating bugs in the placeholder/join pipeline:
+
+1. **`WaveformGenerator::placeholder` did not always emit a markerBits
+   byte.**  When neither marker0 nor marker1 was passed, recon left
+   `markerBits_` empty.  The original binary @0x255be6-0x255c01
+   *unconditionally* `operator new[1]`s a single byte and writes the
+   OR'd marker bits (which is 0 when no markers) — so the orig's
+   `placeholder(64)` Signal has `markerBits_.size() == 1`, not 0.
+   GDB confirmation on `placeholder_in_join.seqc`: every placeholder
+   passed into `Signal::append` had `markerBits_` of byte-size 1.
+
+   Without this byte, `Signal::append` (which iterates
+   `this->markerBits_.size()` and OR-indexes `other.markerBits_[i]`)
+   read past the end of the empty vector → libstdc++ debug assert
+   under `_GLIBCXX_ASSERTIONS`.  Orig's libc++ doesn't bounds-check,
+   but the construct is still UB; supplying the byte makes it well
+   defined and matches orig byte-for-byte.
+
+2. **`WaveformGenerator::join` short-circuited when `first.reserveOnly_`
+   was true** — returning a fresh reserve-only Signal of total length
+   without ever materializing or appending the rest of the operands.
+   Orig has no such short-circuit (verified via static disassembly of
+   0x255da0): even if the first operand is a placeholder, orig falls
+   into the regular materialization path, where `Signal::append`
+   calls `checkAllocation()` on each operand to zero-fill the
+   placeholder samples and concatenates everything into a concrete
+   sample buffer.  After fix #1 alone, the test still failed because
+   recon emitted `[ones, zeros]` for `join(p, a)` instead of
+   `[zeros, ones]`.
+
+### Fix
+
+`reconstructed/src/waveform/waveform_generator_dsp.cpp`:
+
+- `placeholder()`: drop the `if (bits != 0)` guard around
+  `markerBits.push_back(bits)` — always push exactly one byte.
+- `join()`: remove the `if (first.reserveOnly_) { ... return ...; }`
+  short-circuit; let placeholder operands flow through
+  `checkAllocation()` + `Signal::append` like every other Signal.
+
+### Test result
+
+`placeholder_in_join_hdawg` is now byte-identical
+(orig=2776, recon=2776).  Main suite stays at 1600/1600.  Stress
+suite: 407 → 408 (+1).
+
+### Follow-up probes (added in same commit)
+
+`stress/placeholder_arith.seqc` (placeholder + ones), `cut_placeholder.seqc`,
+and `scalar_mul_placeholder.seqc` were added to surface related
+placeholder-in-arithmetic bugs.  `cut_placeholder` and
+`scalar_mul_placeholder` pass byte-identical; `placeholder_arith`
+exposes a new bug filed as **IF-188**.
 
 
 ## IF-182  ErrorMessages template m[1]/m[2] arity mismatches across awg_assembler
@@ -4355,3 +4396,42 @@ the funcName from the caller's context (already known locally as a
 - play.cpp:496 (IndexMustBe + "3 or larger"), :2274 (FuncSingleArg + funcName), :2312 (FuncInvalidArgType + funcName/i/expected), :2324 (FormatMoreArgs + funcName), :2328 (FormatCantInterpret + funcName).
 - playback.cpp:861 (FormatFuncArgs + 0/given).
 - registers.cpp:815/875/1147 (FuncExpectsMaxArgs + max/given), :921 (FuncMinArgs + 1/0), :828/836/884/1153/1175/1190/1210/1219 (FuncExpectsConst + funcName).
+
+
+## IF-188  placeholder() + concrete wave produces wrong section type
+
+**Status**: open
+**Severity**: bug (byte-mismatch — orig succeeds, recon emits diff bytes)
+**Found**: phase 57.C.1 follow-up probe (`placeholder_arith.seqc`)
+
+### Symptom
+
+```seqc
+wave w = placeholder(64) + ones(64);
+playWave(w);
+```
+
+Differential test `placeholder_arith_hdawg`: section
+`.wf___add_2_3` differs in **type** (orig=1 i.e. SHT_PROGBITS,
+recon=8 i.e. SHT_NOBITS).  Sample data length matches but recon
+emits a NOBITS section (deferred allocation) where orig emits a
+real PROGBITS payload.
+
+### Probable root cause
+
+After IF-181 was fixed, `join()` no longer short-circuits on
+reserveOnly operands.  The same short-circuit pattern likely exists
+in the binary-arithmetic operators (`Signal operator+`, `operator*`,
+etc.) — they probably propagate `reserveOnly_=true` when one operand
+is reserveOnly, instead of materializing.  Orig presumably forces
+materialization once a non-reserveOnly operand participates.
+
+### Recommended next step
+
+Audit `Signal operator+`, `operator-`, `operator*` and the scalar
+overloads for reserveOnly handling.  Compare against the orig binary
+the way IF-181 was — GDB-trace orig running `placeholder(64)+ones(64)`
+and observe whether the resulting Signal has `reserveOnly_` set.
+The sibling probes (`cut_placeholder.seqc`,
+`scalar_mul_placeholder.seqc`) currently pass, suggesting the bug is
+specific to the binary-additive path with one concrete operand.

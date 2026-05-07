@@ -1,0 +1,3 @@
+// scalar * placeholder() — scalar multiplying a reserveOnly wave.
+wave w = 2 * placeholder(64);
+playWave(w);

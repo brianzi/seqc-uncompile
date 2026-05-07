@@ -2274,6 +2274,21 @@
           "@base": "@hdawg8"
         },
         {
+          "name": "placeholder_arith_hdawg",
+          "file": "stress/placeholder_arith.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "cut_placeholder_hdawg",
+          "file": "stress/cut_placeholder.seqc",
+          "@base": "@hdawg8"
+        },
+        {
+          "name": "scalar_mul_placeholder_hdawg",
+          "file": "stress/scalar_mul_placeholder.seqc",
+          "@base": "@hdawg8"
+        },
+        {
           "name": "assignwaveindex_placeholder_only_hdawg",
           "file": "stress/assignwaveindex_placeholder_only.seqc",
           "@base": "@hdawg8"

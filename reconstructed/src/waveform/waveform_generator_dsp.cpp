@@ -1249,12 +1249,16 @@ Signal WaveformGenerator::placeholder(std::vector<Value> const& args) {        /
 
     // Build markerBits vector — always single-channel for placeholder.
     // Marker0 = bit 0, Marker1 = bit 1, combined into one byte.
-    // Binary @0x255bf0: or r13b,r15b then stores single byte.
+    // Binary @0x255be6-0x255c01: ALWAYS allocates 1 byte and stores the
+    // OR'd marker bits (even when both markers are absent / bits==0).
+    // This is essential: downstream code (Signal::append, join) iterates
+    // markerBits_ to OR them together and unconditionally indexes both
+    // sides — a placeholder with size-0 markerBits_ causes OOB reads.
     MarkerBitsPerChannel markerBits;
     uint8_t bits = 0;
     if (hasMarker0) bits |= 1;
     if (hasMarker1) bits |= 2;
-    if (bits != 0) markerBits.push_back(bits);
+    markerBits.push_back(bits);   // always one byte (matches orig 0x255be6)
 
     // Construct with reserveOnly=true
     ReserveOnly tag;
@@ -1310,19 +1314,14 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
                            ? static_cast<size_t>(requestedLength)
                            : 0;
 
-    if (first.reserveOnly_) {                                                  // reserveOnly short-circuit
-        size_t totalLength = first.length_;
-        for (size_t i = 1; i < waves.size(); ++i) {
-            totalLength += waves[i].second.length_;
-        }
-        if (interpLen > 0) {
-            // Per join boundary: interpLen interp samples.
-            // Plus one trailing block of interpLen zeros after last wave.
-            totalLength += waves.size() * interpLen;
-        }
-        ReserveOnly tag;
-        return Signal(tag, totalLength, first.markerBits_);
-    }
+    // NOTE: orig 0x255da0 has no reserveOnly short-circuit. Even if first is
+    // a placeholder (reserveOnly_), it falls into the regular materialization
+    // path below: first.checkAllocation() zero-fills it, and Signal::append
+    // materializes each subsequent wave (placeholder or real). The result is
+    // a fully concrete Signal whose placeholder regions are zero-filled.
+    // Verified via GDB on join(placeholder(64), ones(64)) — orig produces
+    // [zeros(64), ones(64)] in .wf___join_5_5, not a deferred-allocation
+    // Signal. (Phase 57 / IF-181)
 
     first.checkAllocation();
 
