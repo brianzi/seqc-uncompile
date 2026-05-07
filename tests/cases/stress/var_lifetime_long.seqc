@@ -1,0 +1,40 @@
+// Long-lived variables across nested loops & branches — stresses the
+// register allocator's live-range computation and spill heuristics.
+
+wave w = gauss(128, 64, 16);
+
+var counter = 0;
+var sum = 0;
+var flag = getUserReg(0);
+var ref = getUserReg(1);
+
+for (var i = 0; i < 8; i = i + 1) {
+    var local_a = i + 1;
+    var local_b = i * 2;
+
+    for (var j = 0; j < 4; j = j + 1) {
+        if (flag == 1) {
+            counter = counter + local_a;
+            sum = sum + j;
+            playWave(1, 2, w);
+        } else {
+            counter = counter + local_b;
+            sum = sum + ref;
+            playZero(64);
+        }
+    }
+
+    if (counter > ref) {
+        playWave(1, 2, w);
+    }
+}
+waitWave();
+
+// counter/sum/flag/ref still live here
+setUserReg(2, counter);
+setUserReg(3, sum);
+
+if (sum > flag) {
+    playWave(1, 2, w);
+}
+waitWave();

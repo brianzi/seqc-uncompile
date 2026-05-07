@@ -1,0 +1,40 @@
+// SHFSG oscillator phase / setSinePhase / resetOscPhase combined
+// densely with playWave to exercise oscillator-state bookkeeping.
+
+wave w = gauss(128, 64, 16);
+
+resetOscPhase();
+setSinePhase(0);
+playWave(w);
+waitWave();
+
+setSinePhase(90);
+playWave(w);
+waitWave();
+
+setSinePhase(180);
+playWave(w);
+waitWave();
+
+resetOscPhase();
+playWave(w);
+waitWave();
+
+// In a loop
+for (var i = 0; i < 4; i = i + 1) {
+    setSinePhase(45);
+    playWave(w);
+    waitWave();
+    resetOscPhase();
+}
+
+// Under branches
+var f = getUserReg(0);
+if (f == 1) {
+    setSinePhase(90);
+    playWave(w);
+} else {
+    resetOscPhase();
+    playWave(w);
+}
+waitWave();

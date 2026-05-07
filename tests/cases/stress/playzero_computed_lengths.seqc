@@ -1,0 +1,32 @@
+// playZero with computed lengths.  All N values must be sample-aligned
+// (multiples of 16 on HDAWG) and large enough; use var * const, var +
+// const, and constant folding.
+
+wave w = ones(64);
+
+playWave(1, 2, w);
+
+// Constant lengths, various sizes
+playZero(16);
+playZero(64);
+playZero(256);
+playZero(1024);
+playZero(4096);
+
+waitWave();
+
+// Loop with constant playZero
+for (var i = 0; i < 4; i = i + 1) {
+    playWave(1, 2, w);
+    playZero(48);
+}
+
+waitWave();
+
+// playZero with var * const expression
+var n = getUserReg(0);
+playWave(1, 2, w);
+playZero(n * 64);
+playZero(n * 128 + 32);
+
+waitWave();

@@ -1,0 +1,40 @@
+// repeat(N) with various large/small N constants.  Exercises the
+// repeat-loop instruction emission and any boundary handling.
+
+wave w = ones(64);
+
+// Small N
+repeat(1) {
+    playWave(1, 2, w);
+}
+
+repeat(2) {
+    playWave(1, 2, w);
+}
+
+// Mid-size N
+repeat(100) {
+    playWave(1, 2, w);
+    playZero(32);
+}
+
+// Large N
+repeat(10000) {
+    playZero(32);
+}
+
+// Very large N — exposes IF-163 (recon tries to unroll, hits limit;
+// original emits a loop instruction).
+repeat(1000000) {
+    playZero(32);
+}
+
+waitWave();
+
+// Nested large repeats
+repeat(50) {
+    repeat(50) {
+        playZero(16);
+    }
+}
+waitWave();

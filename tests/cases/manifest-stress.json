@@ -125,7 +125,34 @@
         { "name": "if161_shfqc_setsinephase_shfqc","file": "stress/if161_shfqc_setsinephase.seqc","@base": "@shfqc_sg", "comment": "IF-161: recon rejects setSinePhase on SHFQC sg with 'node sgchannels/0/sines/0/phaseshift doesn't exist'; original compiles fine. Plain SHFSG sg works." },
         { "name": "if161_shfqc_setsinephase_shfsg","file": "stress/if161_shfqc_setsinephase.seqc","@base": "@shfsg8_sg", "comment": "Same source on SHFSG (control)." },
 
-        { "name": "if162_assignwave_dual_size_hdawg","file": "stress/if162_assignwave_dual_size.seqc","@base": "@hdawg8", "comment": "IF-162: assignWaveIndex with dual placeholders of different sizes uses the first signal's length instead of the max (same class of bug as IF-157 but on the assignWaveIndex path)." }
+        { "name": "if162_assignwave_dual_size_hdawg","file": "stress/if162_assignwave_dual_size.seqc","@base": "@hdawg8", "comment": "IF-162: assignWaveIndex with dual placeholders of different sizes uses the first signal's length instead of the max (same class of bug as IF-157 but on the assignWaveIndex path)." },
+
+        { "name": "ct_phase_amp_mix_hdawg",        "file": "stress/ct_phase_amp_mix.seqc",        "@base": "@hdawg8" },
+
+        { "name": "playhold_variants_hdawg",       "file": "stress/playhold_variants.seqc",       "@base": "@hdawg8" },
+
+        { "name": "playzero_computed_lengths_hdawg","file": "stress/playzero_computed_lengths.seqc","@base": "@hdawg8" },
+        { "name": "playzero_computed_lengths_shfsg","file": "stress/playzero_computed_lengths.seqc","@base": "@shfsg8_sg" },
+
+        { "name": "digtrigger_branchy_hdawg",      "file": "stress/digtrigger_branchy.seqc",      "@base": "@hdawg8" },
+
+        { "name": "large_repeat_constants_hdawg",  "file": "stress/large_repeat_constants.seqc",  "@base": "@hdawg8" },
+        { "name": "large_repeat_constants_shfsg",  "file": "stress/large_repeat_constants.seqc",  "@base": "@shfsg8_sg" },
+
+        { "name": "startqa_param_matrix_shfqa",    "file": "stress/startqa_param_matrix.seqc",    "@base": "@shfqa4_qa" },
+        { "name": "startqa_param_matrix_shfqc",    "file": "stress/startqa_param_matrix.seqc",    "@base": "@shfqc_qa" },
+
+        { "name": "cmp_chain_branches_hdawg",      "file": "stress/cmp_chain_branches.seqc",      "@base": "@hdawg8" },
+        { "name": "cmp_chain_branches_shfsg",      "file": "stress/cmp_chain_branches.seqc",      "@base": "@shfsg8_sg" },
+
+        { "name": "many_assignwaves_named_hdawg",  "file": "stress/many_assignwaves_named.seqc",  "@base": "@hdawg8" },
+
+        { "name": "oscphase_dense_shfsg",          "file": "stress/oscphase_dense.seqc",          "@base": "@shfsg8_sg" },
+
+        { "name": "var_lifetime_long_hdawg",       "file": "stress/var_lifetime_long.seqc",       "@base": "@hdawg8" },
+        { "name": "var_lifetime_long_shfsg",       "file": "stress/var_lifetime_long.seqc",       "@base": "@shfsg8_sg" },
+
+        { "name": "if163_repeat_unroll_limit_hdawg","file": "stress/if163_repeat_unroll_limit.seqc","@base": "@hdawg8", "comment": "IF-163: recon tries to unroll repeat(1000000) and errors with 'too many iterations to unroll'; original emits a loop instruction." }
       ]
     }
   ]

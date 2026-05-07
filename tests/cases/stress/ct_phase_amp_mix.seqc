@@ -1,0 +1,40 @@
+// Command-table phase + amplitude variants: dense executeTableEntry()
+// usage with mixed pinned indices, in loops with var index, exercising
+// the CT phase / amplitude register bookkeeping in genPlayConfig.
+
+wave w1 = gauss(192, 96, 24);
+wave w2 = drag(192, 96, 24, 6);
+wave w3 = ones(128);
+
+assignWaveIndex(1, 2, w1, 0);
+assignWaveIndex(1, 2, w2, 1);
+assignWaveIndex(1, 2, w3, 2);
+
+// Pinned constant indices
+executeTableEntry(0);
+executeTableEntry(1);
+executeTableEntry(2);
+
+waitWave();
+
+// Same pinned indices in a small loop body
+for (var i = 0; i < 3; i = i + 1) {
+    executeTableEntry(0);
+    executeTableEntry(1);
+    executeTableEntry(2);
+}
+
+// Variable-indexed CT entry
+var idx = getUserReg(0);
+executeTableEntry(idx);
+executeTableEntry(idx + 1);
+
+// Same again under a conditional
+var f = getUserReg(1);
+if (f == 1) {
+    executeTableEntry(0);
+} else {
+    executeTableEntry(2);
+}
+
+waitWave();

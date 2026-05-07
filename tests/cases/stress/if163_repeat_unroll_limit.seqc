@@ -1,0 +1,8 @@
+// IF-163 minimal repro: recon tries to unroll repeat(1000000) and
+// errors with "too many iterations to unroll this loop, use a const
+// variable for infinite loops".  Original binary emits a loop
+// instruction and accepts the program.
+
+repeat(1000000) {
+    playZero(32);
+}

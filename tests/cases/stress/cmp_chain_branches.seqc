@@ -1,0 +1,45 @@
+// Comparison chains and mixed if/else if cascades.  Exercises the
+// branch instruction emission for ==, !=, <, <=, >, >=.
+
+wave w = ones(64);
+
+var a = getUserReg(0);
+var b = getUserReg(1);
+
+if (a == 0) {
+    playWave(1, 2, w);
+} else if (a == 1) {
+    playZero(64);
+} else if (a == 2) {
+    playWave(1, 2, w);
+    playZero(32);
+} else if (a == 3) {
+    playZero(96);
+} else {
+    playWave(1, 2, w);
+}
+waitWave();
+
+if (a < 5) {
+    playZero(64);
+}
+if (a <= 5) {
+    playZero(64);
+}
+if (a > 5) {
+    playZero(64);
+}
+if (a >= 5) {
+    playZero(64);
+}
+if (a != b) {
+    playZero(64);
+}
+
+// Chain on different vars
+if (a == 0) {
+    if (b == 0) { playZero(32); }
+    else if (b == 1) { playZero(64); }
+    else { playZero(96); }
+}
+waitWave();

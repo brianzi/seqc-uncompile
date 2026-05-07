@@ -3410,3 +3410,58 @@ Either:
 2. Same trace on recon, compare.
 3. Fix the lookup / max computation that's wrong.
 
+## IF-163  Recon refuses to unroll repeat(N) above its threshold
+
+**Status**: open
+**Severity**: bug
+**Found**: stress phase 51 (`large_repeat_constants.seqc`, isolated to
+`if163_repeat_unroll_limit.seqc`)
+
+### Symptom
+
+For `repeat(N)` with sufficiently large constant N, the recon errors:
+
+```
+Compiler Error (line: N): too many iterations to unroll this loop,
+use a const variable for infinite loops
+```
+
+The original binary compiles the same source successfully — it emits
+a sequencer loop instruction instead of unrolling.  The threshold at
+which recon switches behavior appears to be lower than the binary's,
+or recon lacks the "fall back to loop instruction" path entirely.
+
+Confirmed:
+- `repeat(10000) { playZero(32); }` — both pass byte-identical
+- `repeat(1000000) { playZero(32); }` — recon errors, original passes
+
+### Minimal repro
+
+`tests/cases/stress/if163_repeat_unroll_limit.seqc`:
+
+```seqc
+repeat(1000000) {
+    playZero(32);
+}
+```
+
+Run on HDAWG → recon errors; original passes.
+
+### Suspected location
+
+The `repeat()` codegen path that decides between unroll-vs-loop based
+on iteration count.  Look for the iteration-count threshold check.
+Likely files:
+- `reconstructed/src/codegen/` — anything matching repeat / unroll
+- The error string "too many iterations to unroll this loop" is the
+  search target for the throw site.
+
+### Recommended next step
+
+1. Grep for the error message string to locate the throw site.
+2. Identify the threshold constant being compared.
+3. GDB binary: confirm what threshold (if any) it uses, and whether
+   it has a fallback that recon is missing.
+4. Either raise the threshold or add the fallback "emit loop
+   instruction" path.
+

@@ -1,0 +1,38 @@
+// SHFQA startQA() with diverse parameter combinations: integration
+// channel masks, monitor flag, reset flag, trigger.
+
+waitDigTrigger(1);
+
+// Single integration channel
+startQA(QA_INT_0, 0x0, true, 0, 0x0);
+waitDigTrigger(1);
+
+// Multiple integration channels
+startQA(QA_INT_0 | QA_INT_1, 0x0, true, 0, 0x0);
+waitDigTrigger(1);
+
+// All 16 integration channels
+startQA(QA_INT_ALL, 0x0, true, 0, 0x0);
+waitDigTrigger(1);
+
+// With monitor result mask
+startQA(QA_INT_0, QA_INT_0, true, 0, 0x0);
+waitDigTrigger(1);
+
+// With reset
+startQA(QA_INT_0, 0x0, true, 1, 0x0);
+waitDigTrigger(1);
+
+// With trigger
+startQA(QA_INT_0, 0x0, true, 0, 0x1);
+waitDigTrigger(1);
+
+// All flags combined
+startQA(QA_INT_ALL, QA_INT_ALL, true, 1, 0x1);
+waitDigTrigger(1);
+
+// In a loop with varying channels
+for (var i = 0; i < 4; i = i + 1) {
+    startQA(QA_INT_0 | QA_INT_1, 0x0, true, 0, 0x0);
+    waitDigTrigger(1);
+}

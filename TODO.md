@@ -4668,5 +4668,53 @@ bug) but on the `assignWaveIndex` codegen path.
 
 ### 50.4 — Phase 50 wrap-up
 
+- [x] Sub-phase wrap-up commit (`666f660`)
+- [x] Push
+
+## Phase 51: Stress suite expansion (round 4) + IF-163
+
+### 51.1 — Add more stress categories
+
+- [x] `ct_phase_amp_mix.seqc` (HDAWG) — dense executeTableEntry
+      patterns, pinned + var-indexed, in loops/branches (byte-identical)
+- [x] `playhold_variants.seqc` (HDAWG) — playHold mixed with playWave/
+      playZero, in loops and under branches (byte-identical)
+- [x] `playzero_computed_lengths.seqc` (HDAWG/SHFSG) — playZero with
+      const, var*const, var+const lengths (byte-identical)
+- [x] `digtrigger_branchy.seqc` (HDAWG) — waitDigTrigger /
+      getDigTrigger combined with nested branches and loops
+      (byte-identical)
+- [x] `large_repeat_constants.seqc` (HDAWG/SHFSG) — exposes IF-163
+      (`repeat(1000000)`); kept as stress entry
+- [x] `startqa_param_matrix.seqc` (SHFQA/SHFQC qa) — startQA with full
+      parameter matrix (byte-identical)
+- [x] `cmp_chain_branches.seqc` (HDAWG/SHFSG) — ==, !=, <, <=, >, >=,
+      else-if cascades, nested compares (byte-identical)
+- [x] `many_assignwaves_named.seqc` (HDAWG) — assignWaveIndex with 8
+      explicit names; exercises name regex + assignedWaveNames_ set
+      (byte-identical)
+- [x] `oscphase_dense.seqc` (SHFSG) — setSinePhase / resetOscPhase
+      densely interleaved with playWave (byte-identical)
+- [x] `var_lifetime_long.seqc` (HDAWG/SHFSG) — long-lived counters
+      across deep nests; stresses regalloc live-range computation
+      (byte-identical)
+- [x] `if163_repeat_unroll_limit.seqc` (HDAWG) — minimal repro for
+      IF-163
+
+### 51.2 — IF-163: recon refuses to unroll repeat(N) above its threshold
+
+See `incidental_findings.md` IF-163. Minimal repro at
+`tests/cases/stress/if163_repeat_unroll_limit.seqc`.
+
+- [ ] Grep for "too many iterations to unroll this loop" to find throw
+- [ ] Identify the threshold constant compared
+- [ ] GDB binary on the same input to determine its actual behavior
+      (no threshold? higher threshold? fallback to loop instr?)
+- [ ] Either raise the threshold or add the missing fallback path
+- [ ] `if163_repeat_unroll_limit_hdawg` becomes byte-identical
+- [ ] Update IF-163 to `fixed`
+
+### 51.3 — Phase 51 wrap-up
+
 - [ ] Sub-phase wrap-up commit
 - [ ] Push

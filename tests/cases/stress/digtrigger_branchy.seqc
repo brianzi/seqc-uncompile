@@ -1,0 +1,42 @@
+// waitDigTrigger / getDigTrigger combined with branches and loops.
+// Exercises trigger-input dispatch and conditional control flow.
+
+wave w = gauss(128, 64, 16);
+
+waitDigTrigger(1);
+playWave(1, 2, w);
+waitWave();
+
+waitDigTrigger(2);
+playWave(1, 2, w);
+waitWave();
+
+// Branch on getDigTrigger
+var t = getDigTrigger(1);
+if (t == 1) {
+    playWave(1, 2, w);
+    waitWave();
+} else {
+    playZero(128);
+}
+
+// Loop with mixed waitDigTrigger inside
+for (var i = 0; i < 3; i = i + 1) {
+    waitDigTrigger(1);
+    playWave(1, 2, w);
+    waitWave();
+}
+
+// Nested branches
+var a = getDigTrigger(1);
+var b = getDigTrigger(2);
+if (a == 1) {
+    if (b == 1) {
+        playWave(1, 2, w);
+    } else {
+        playZero(64);
+    }
+} else {
+    playZero(96);
+}
+waitWave();
