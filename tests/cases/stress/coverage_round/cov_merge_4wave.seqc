@@ -1,0 +1,7 @@
+// merge — 4 waves chained
+wave a = gauss(64, 32, 8);
+wave b = ones(64);
+wave c = zeros(64);
+wave d = sine(64, 1.0, 0, 1);
+wave m = merge(a, b, c, d);
+playWave(m);

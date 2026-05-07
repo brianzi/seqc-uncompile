@@ -1,0 +1,5 @@
+// playWaveDigTrigger — UHF playback gated on dig trigger
+wave w = ones(96);
+playWaveDigTrigger(w);
+waitWave();
+playWaveDigTrigger(1, w, 2, w);

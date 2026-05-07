@@ -1,0 +1,9 @@
+// getQAResult — UHFQA, no args, returns var
+startQAResult(QA_INT_ALL, 0);
+waitQAResultTrigger();
+var r0 = getQAResult();
+setUserReg(0, r0);
+startQAResult(QA_INT_0, 1);
+waitQAResultTrigger();
+var r1 = getQAResult();
+setUserReg(1, r1);

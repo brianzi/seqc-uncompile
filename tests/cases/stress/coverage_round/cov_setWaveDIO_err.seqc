@@ -1,0 +1,3 @@
+// setWaveDIO — unconditionally errors with "setWaveDIO is not supported"
+wave w = ones(64);
+setWaveDIO(0, w);

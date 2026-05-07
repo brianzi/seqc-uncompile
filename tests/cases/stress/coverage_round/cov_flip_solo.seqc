@@ -1,0 +1,5 @@
+// flip — reverse a wave
+wave a = sawtooth(128, 1.0, 0, 1);
+wave b = flip(a);
+playWave(a);
+playWave(b);

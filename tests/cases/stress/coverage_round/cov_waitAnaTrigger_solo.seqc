@@ -1,0 +1,5 @@
+// waitAnaTrigger — UHF, 2 args
+waitAnaTrigger(1, 1);
+playZero(64);
+waitAnaTrigger(2, 0);
+playZero(64);

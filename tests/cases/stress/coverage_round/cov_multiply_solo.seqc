@@ -1,0 +1,9 @@
+// multiply — element-wise product of waves
+wave a = gauss(128, 64, 16);
+wave b = sine(128, 1.0, 0, 4);
+wave c = multiply(a, b);
+playWave(c);
+// 3-arg form (>=2 args)
+wave d = ones(128);
+wave e = multiply(a, b, d);
+playWave(e);

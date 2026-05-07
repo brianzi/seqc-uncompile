@@ -1,0 +1,8 @@
+// playWaveZSync — chained inside loop with state-threading setRate / setUserReg
+setRate(0);
+var i;
+for (i = 0; i < 4; i++) {
+  setUserReg(0, i);
+  playWaveZSync(ZSYNC_DATA_PROCESSED_A);
+  waitWave();
+}

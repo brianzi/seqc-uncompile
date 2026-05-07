@@ -1,0 +1,6 @@
+// scale — multiply by constant
+wave a = gauss(128, 64, 16);
+wave b = scale(a, 0.25);
+wave c = scale(a, -1.0);
+playWave(b);
+playWave(c);

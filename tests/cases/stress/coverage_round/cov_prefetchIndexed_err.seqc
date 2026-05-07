@@ -1,0 +1,3 @@
+// prefetchIndexed — always-error path (kDevNone)
+wave w = ones(64);
+prefetchIndexed(1, w, 0);

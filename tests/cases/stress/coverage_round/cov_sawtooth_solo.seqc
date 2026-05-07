@@ -1,0 +1,5 @@
+// sawtooth — 3-arg and 4-arg variants
+wave a = sawtooth(128, 1.0, 0, 1);
+wave b = sawtooth(256, 0.5, 0.25, 4);
+playWave(a);
+playWave(b);

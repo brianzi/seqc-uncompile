@@ -1,0 +1,10 @@
+// setSeqIndex — alias for setID (paired with cov_setID_for_alias_pair already covers primary)
+setSeqIndex(0);
+playZero(32);
+setSeqIndex(99);
+playZero(32);
+var i;
+for (i = 0; i < 4; i++) {
+  setSeqIndex(i);
+  playZero(64);
+}

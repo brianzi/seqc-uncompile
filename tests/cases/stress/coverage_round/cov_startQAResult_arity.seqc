@@ -1,0 +1,7 @@
+// startQAResult — UHFQA: 0/1/2 arg variants
+startQAResult();
+playZero(64);
+startQAResult(QA_INT_0);
+playZero(64);
+startQAResult(QA_INT_ALL, 0);
+playZero(64);

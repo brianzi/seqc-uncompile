@@ -1,0 +1,6 @@
+// playAuxWave — 4-channel aux output
+wave a = gauss(128, 64, 16);
+wave b = ones(128);
+wave c = zeros(128);
+wave d = sine(128, 0.5, 0, 1);
+playAuxWave(a, b, c, d);

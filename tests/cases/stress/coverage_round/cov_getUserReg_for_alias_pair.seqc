@@ -1,0 +1,4 @@
+// getUserReg primary — paired with getUser alias
+var v0 = getUserReg(0);
+var v1 = getUserReg(1);
+setUserReg(2, v0 + v1);

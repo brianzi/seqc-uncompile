@@ -1,0 +1,5 @@
+// startQAMonitor — UHFQA: 0/1 arg
+startQAMonitor();
+playZero(64);
+startQAMonitor(1);
+playZero(64);

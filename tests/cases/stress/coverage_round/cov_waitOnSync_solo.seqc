@@ -1,0 +1,4 @@
+// waitOnSync — SHFLI/GHFLI/VHFLI arg-less sync wait
+waitOnSync();
+playZero(64);
+waitOnSync();

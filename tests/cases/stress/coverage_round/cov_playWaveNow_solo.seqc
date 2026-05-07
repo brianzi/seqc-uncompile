@@ -1,0 +1,3 @@
+// playWaveNow — UHF immediate playback, solo
+wave w = ones(64);
+playWaveNow(w);

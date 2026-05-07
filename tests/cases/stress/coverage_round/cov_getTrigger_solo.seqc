@@ -1,0 +1,5 @@
+// getTrigger — solo + assigned
+var t0 = getTrigger();
+setUserReg(0, t0);
+var t1 = getTrigger();
+setUserReg(1, t1);

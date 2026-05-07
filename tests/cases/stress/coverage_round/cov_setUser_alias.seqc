@@ -1,0 +1,5 @@
+// setUser — alias for setUserReg
+setUser(0, 42);
+setUser(7, 0xdeadbeef);
+var x = 13;
+setUser(1, x);

@@ -1,0 +1,8 @@
+// waitOnGrid + waitOnSync chained — exercise both grid/sync wait kinds together
+var i;
+for (i = 0; i < 3; i++) {
+  waitOnGrid();
+  playZero(32);
+  waitOnSync();
+  playZero(64);
+}

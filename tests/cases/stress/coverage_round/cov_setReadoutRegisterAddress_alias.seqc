@@ -1,0 +1,5 @@
+// setReadoutRegisterAddress — alias for setID
+setReadoutRegisterAddress(0);
+playZero(32);
+setReadoutRegisterAddress(7);
+playZero(32);

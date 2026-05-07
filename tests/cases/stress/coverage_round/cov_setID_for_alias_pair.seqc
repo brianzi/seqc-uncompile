@@ -1,0 +1,5 @@
+// setID primary — paired with setReadoutRegisterAddress alias for byte-identical check
+setID(0);
+playZero(32);
+setID(7);
+playZero(32);

@@ -1,0 +1,10 @@
+// waitTrigger — UHF, 2 args
+waitTrigger(1, 1);
+playZero(64);
+waitTrigger(2, 0);
+playZero(64);
+var i;
+for (i = 0; i < 3; i++) {
+  waitTrigger(i + 1, i);
+  playZero(32);
+}

@@ -1,0 +1,5 @@
+// mask — sibling of marker, same (length, mask_value) signature
+wave m1 = mask(64, 1);
+wave m2 = mask(128, 3);
+playWave(m1);
+playWave(m2);

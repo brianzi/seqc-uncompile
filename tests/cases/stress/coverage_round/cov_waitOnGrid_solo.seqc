@@ -1,0 +1,5 @@
+// waitOnGrid — SHFLI/GHFLI/VHFLI (LI family) sole arg-less wait
+waitOnGrid();
+playZero(64);
+waitOnGrid();
+playZero(32);

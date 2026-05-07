@@ -1,0 +1,10 @@
+// playWaveDIO — HDAWG DIO-gated playback variants
+wave w0 = gauss(64, 32, 8);
+wave w1 = ones(64);
+assignWaveIndex(1, w0, 0);
+assignWaveIndex(1, w1, 1);
+var i;
+for (i = 0; i < 4; i++) {
+  waitDIOTrigger();
+  playWaveDIO();
+}

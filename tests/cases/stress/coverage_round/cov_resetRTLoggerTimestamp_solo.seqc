@@ -1,0 +1,4 @@
+// resetRTLoggerTimestamp — kDevHirzelPlusUHFQA, no args
+resetRTLoggerTimestamp();
+playZero(64);
+resetRTLoggerTimestamp();

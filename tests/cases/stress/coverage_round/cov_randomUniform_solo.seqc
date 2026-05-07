@@ -1,0 +1,5 @@
+// randomUniform — 1-arg and 2-arg variants
+wave a = randomUniform(256);
+wave b = randomUniform(256, 0.5);
+playWave(a);
+playWave(b);

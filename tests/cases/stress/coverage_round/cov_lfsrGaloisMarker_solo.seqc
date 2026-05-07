@@ -1,0 +1,5 @@
+// lfsrGaloisMarker — PRBS marker generator (4 args)
+wave w1 = lfsrGaloisMarker(1024, 1, 0x90000, 0x1);
+wave w2 = lfsrGaloisMarker(512, 0, 0x12345, 0x3);
+playWave(w1);
+playWave(w2);

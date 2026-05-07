@@ -1,0 +1,10 @@
+// waitCntTrigger — HDAWG only, 1 arg
+waitCntTrigger(1);
+playZero(32);
+waitCntTrigger(2);
+playZero(32);
+var i;
+for (i = 0; i < 4; i++) {
+  waitCntTrigger(i + 1);
+  playZero(64);
+}

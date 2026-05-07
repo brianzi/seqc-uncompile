@@ -1,0 +1,6 @@
+// playDIOWave — UHF DIO-gated playback (HDAWG variant exists separately as playWaveDIO)
+wave w0 = gauss(64, 32, 8);
+wave w1 = ones(64);
+playDIOWave(w0);
+waitWave();
+playDIOWave(1, w0, 2, w1);

@@ -1,0 +1,5 @@
+// playWaveIndexed — UHF FIFO-disabled (HDAWG errors on it). 3-arg form.
+wave w = join(gauss(64, 32, 8), ones(64), zeros(64));
+playWaveIndexed(w, 0, 64);
+playWaveIndexed(w, 64, 64);
+playWaveIndexed(w, 128, 64);

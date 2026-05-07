@@ -1,0 +1,8 @@
+// at — UHF time-trigger primitive (1 arg)
+at(100);
+playZero(64);
+at(200);
+playZero(64);
+var t = 500;
+at(t);
+playZero(32);

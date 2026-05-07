@@ -1,0 +1,5 @@
+// now — UHF time query (no args)
+var t0 = now();
+playZero(64);
+var t1 = now();
+setUserReg(0, t1 - t0);

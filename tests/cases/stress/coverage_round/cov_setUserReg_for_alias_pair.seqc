@@ -1,0 +1,5 @@
+// setUserReg primary — paired with setUser alias
+setUserReg(0, 42);
+setUserReg(7, 0xdeadbeef);
+var x = 13;
+setUserReg(1, x);

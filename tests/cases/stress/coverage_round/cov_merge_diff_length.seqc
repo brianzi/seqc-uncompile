@@ -1,0 +1,5 @@
+// merge — different-length inputs (binary takes max, zero-pads shorter)
+wave a = ones(32);
+wave b = ones(64);
+wave m = merge(a, b);
+playWave(m);

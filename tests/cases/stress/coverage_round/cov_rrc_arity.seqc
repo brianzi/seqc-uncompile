@@ -1,0 +1,7 @@
+// rrc — root-raised cosine: 3/4/5 arg variants
+wave a = rrc(512, 1.0, 256);
+wave b = rrc(512, 1.0, 256, 0.35);
+wave c = rrc(512, 1.0, 256, 0.35, 32);
+playWave(a);
+playWave(b);
+playWave(c);

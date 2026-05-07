@@ -1,0 +1,9 @@
+// playWaveNow — chained with setRate / waitWave / setUserReg
+wave w1 = gauss(128, 64, 16);
+wave w2 = ones(96);
+setRate(0);
+playWaveNow(w1);
+waitWave();
+setUserReg(0, 1);
+playWaveNow(w2);
+waitWave();

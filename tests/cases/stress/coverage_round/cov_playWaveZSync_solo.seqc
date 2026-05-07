@@ -1,0 +1,7 @@
+// playWaveZSync — HDAWG ZSync-mode playback (single ZSYNC_DATA_* arg)
+playWaveZSync(ZSYNC_DATA_RAW);
+waitWave();
+playWaveZSync(ZSYNC_DATA_PROCESSED_A);
+waitWave();
+playWaveZSync(ZSYNC_DATA_PROCESSED_B);
+waitWave();

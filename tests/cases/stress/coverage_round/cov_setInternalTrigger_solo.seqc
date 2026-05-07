@@ -1,0 +1,10 @@
+// setInternalTrigger — LI family, 1 arg
+setInternalTrigger(0);
+playZero(32);
+setInternalTrigger(1);
+playZero(32);
+var i;
+for (i = 0; i < 3; i++) {
+  setInternalTrigger(i);
+  playZero(64);
+}

@@ -1,0 +1,5 @@
+// waitDemodOscPhase primary — paired with waitOscPhaseOfDemod alias
+waitDemodOscPhase(1);
+playZero(64);
+waitDemodOscPhase(8);
+playZero(64);

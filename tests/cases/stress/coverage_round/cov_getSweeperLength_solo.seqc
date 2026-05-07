@@ -1,0 +1,5 @@
+// getSweeperLength — UHF, 1 arg (channel index)
+var n0 = getSweeperLength(0);
+setUserReg(0, n0);
+var n1 = getSweeperLength(1);
+setUserReg(1, n1);

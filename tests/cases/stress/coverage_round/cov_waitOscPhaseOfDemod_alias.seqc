@@ -1,0 +1,5 @@
+// waitOscPhaseOfDemod — alias for waitDemodOscPhase
+waitOscPhaseOfDemod(1);
+playZero(64);
+waitOscPhaseOfDemod(8);
+playZero(64);

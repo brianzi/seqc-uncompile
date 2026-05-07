@@ -1,0 +1,9 @@
+// lock + unlock — UHF, 1 arg (wave var)
+wave w1 = ones(64);
+wave w2 = gauss(64, 32, 8);
+lock(w1);
+playWave(w1);
+unlock(w1);
+lock(w2);
+playWave(w2);
+unlock(w2);

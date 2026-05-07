@@ -1,0 +1,4 @@
+// playWaveIndexedNow — UHF indexed immediate playback
+wave w = join(gauss(64, 32, 8), ones(64));
+playWaveIndexedNow(w, 0, 64);
+playWaveIndexedNow(w, 64, 64);

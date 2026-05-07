@@ -1,0 +1,5 @@
+// getCnt — HDAWG, 1 arg (channel)
+var c0 = getCnt(0);
+setUserReg(0, c0);
+var c1 = getCnt(1);
+setUserReg(1, c1);

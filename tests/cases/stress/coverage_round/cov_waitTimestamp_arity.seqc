@@ -1,0 +1,7 @@
+// waitTimestamp — HDAWG, accepts 0+ args
+waitTimestamp();
+playZero(64);
+waitTimestamp(1);
+playZero(64);
+waitTimestamp(1, 2, 3);
+playZero(64);

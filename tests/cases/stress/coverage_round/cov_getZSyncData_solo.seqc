@@ -1,0 +1,8 @@
+// getZSyncData — kDevAllButUHF, requires ZSync mode (entered automatically)
+waitZSyncTrigger();
+var d0 = getZSyncData(ZSYNC_DATA_RAW);
+setUserReg(0, d0);
+var d1 = getZSyncData(ZSYNC_DATA_PROCESSED_A);
+setUserReg(1, d1);
+var d2 = getZSyncData(ZSYNC_DATA_PROCESSED_B);
+setUserReg(2, d2);

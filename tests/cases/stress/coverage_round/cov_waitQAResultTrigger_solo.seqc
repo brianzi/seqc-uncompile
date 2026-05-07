@@ -1,0 +1,4 @@
+// waitQAResultTrigger — UHFQA, no args
+waitQAResultTrigger();
+playZero(32);
+waitQAResultTrigger();

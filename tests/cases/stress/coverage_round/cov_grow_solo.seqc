@@ -1,0 +1,4 @@
+// grow — zero-pad to longer length
+wave a = gauss(64, 32, 8);
+wave g = grow(a, 256);
+playWave(g);

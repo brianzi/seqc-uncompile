@@ -1,0 +1,6 @@
+// circshift — rotate samples
+wave a = sawtooth(128, 1.0, 0, 1);
+wave b = circshift(a, 32);
+wave c = circshift(a, -16);
+playWave(b);
+playWave(c);

@@ -1,0 +1,5 @@
+// merge — interleave 2 waveforms
+wave a = gauss(64, 32, 8);
+wave b = ones(64);
+wave m = merge(a, b);
+playWave(m);

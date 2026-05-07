@@ -1,0 +1,6 @@
+// playWaveIndexedNow — chained with var index in for loop
+wave w = join(ones(64), zeros(64), gauss(64, 32, 8));
+var t;
+for (t = 0; t < 192; t = t + 64) {
+  playWaveIndexedNow(w, t, 64);
+}

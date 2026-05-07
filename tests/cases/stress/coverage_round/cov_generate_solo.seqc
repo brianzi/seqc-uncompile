@@ -1,0 +1,7 @@
+// generate — call a built-in waveform generator by string name
+wave w1 = generate("gauss", 64, 32, 8);
+wave w2 = generate("ones", 64);
+wave w3 = generate("zeros", 64);
+playWave(w1);
+playWave(w2);
+playWave(w3);

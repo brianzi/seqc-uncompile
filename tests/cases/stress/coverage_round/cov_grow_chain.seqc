@@ -1,0 +1,6 @@
+// grow — chained with merge / scale
+wave a = ones(32);
+wave b = grow(a, 128);
+wave c = scale(b, 0.5);
+wave d = merge(c, c);
+playWave(d);

@@ -1,0 +1,4 @@
+// getUser — alias for getUserReg
+var v0 = getUser(0);
+var v1 = getUser(1);
+setUserReg(2, v0 + v1);

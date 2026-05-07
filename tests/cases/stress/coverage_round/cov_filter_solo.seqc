@@ -1,0 +1,6 @@
+// filter — IIR/FIR (3-arg b/a/x)
+wave b = vect(0.25, 0.5, 0.25);
+wave a = vect(1.0);
+wave x = sine(256, 1.0, 0, 4);
+wave y = filter(b, a, x);
+playWave(y);
