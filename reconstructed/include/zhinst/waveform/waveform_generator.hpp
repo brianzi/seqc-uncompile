@@ -8,11 +8,14 @@
 // Ctor: 0x248200  WaveformGenerator(shared_ptr<WavetableFront>, function<void(string const&)> const&)
 // Dtor: 0x127840
 //
-// The constructor registers ~35 waveform generation functions (zeros, ones,
+// The constructor registers 33 waveform generation functions (zeros, ones,
 // sin, cos, sinc, ramp, sawtooth, triangle, gauss, drag, blackman, hamming,
 // hann, rect, chirp, mask, marker, rand, randomGauss, randomUniform,
 // lfsrGaloisMarker, rrc, vect, placeholder, join, add, interleave, scale,
-// multiply, cut, flip, filter, circshift, merge, grow) into funcMap_.
+// multiply, cut, flip, filter, circshift) into funcMap_.  merge() and grow()
+// also exist as compiled methods but are NOT registered in funcMap_ — they
+// are reachable only via internal recon dispatch (custom_functions_play.cpp).
+// See IF-202.
 //
 // Each function has signature: Signal (vector<Value> const&)
 // They are bound as member function pointers via std::bind.

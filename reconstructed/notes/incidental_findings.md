@@ -3870,9 +3870,21 @@ for `playIndexed` and its switch on `SubFunc`).
 ## IF-202  `merge` and `grow` registered in recon `funcMap_` but unknown to original
 
 **Source**: coverage round, `cov_merge_*` and `cov_grow_*`
-**Status**: open
+**Status**: fixed (2026-05-08; see waveform_generator_funcmap.md)
 **Severity**: likely-bug (cosmetic for now — recon accepts more than binary)
 **Found**: 2026-05-08
+
+**Resolution**: Disassembly audit of `WaveformGenerator` ctor at
+0x248200..0x249b90 confirmed the binary registers exactly 33 funcMap_
+entries — `zeros..circshift` — and neither `merge` (0x25f5c0) nor
+`grow` (0x260640) is among them.  Removed the two recon-only
+`funcMap_["merge"]` and `funcMap_["grow"]` registrations from
+`reconstructed/src/waveform/waveform_generator.cpp`.  The methods
+themselves are kept because they are still called internally from
+`custom_functions_play.cpp`.  All 11 `cov_merge_*`/`cov_grow_*` tier-1
+stress tests now pass; no regressions elsewhere.  See
+`reconstructed/notes/waveform_generator_funcmap.md` for the
+authoritative key list.
 
 ### Symptom
 

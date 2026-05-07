@@ -148,8 +148,13 @@ WaveformGenerator::WaveformGenerator(
     funcMap_["flip"]             = std::bind(&WaveformGenerator::flip,             this, _1);
     funcMap_["filter"]           = std::bind(&WaveformGenerator::filter,           this, _1);
     funcMap_["circshift"]        = std::bind(&WaveformGenerator::circshift,        this, _1);
-    funcMap_["merge"]            = std::bind(&WaveformGenerator::merge,            this, _1);
-    funcMap_["grow"]             = std::bind(&WaveformGenerator::grow,             this, _1);
+    // NOTE: merge() and grow() are NOT registered in the binary's funcMap_
+    // (verified via objdump of WaveformGenerator ctor @0x248200..0x249b90 —
+    // only 33 method LEAs are loaded as %rcx for the emplace calls into
+    // funcMap_, and neither 0x25f5c0 [merge] nor 0x260640 [grow] appears).
+    // Both methods exist in the binary as compiled code, but are reachable
+    // only via internal call sites (custom_functions_play.cpp dispatch),
+    // not as user-callable SeqC functions.  See IF-202.
 
     // Deprecated-name aliases — populated by the binary ctor at the very end
     // of the function-registration block.  Two emplace calls into the
