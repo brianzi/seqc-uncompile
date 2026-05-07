@@ -120,12 +120,15 @@ unsigned int AWGAssemblerImpl::getReg(std::shared_ptr<AsmExpression> const& expr
         return (unsigned int)regNum;
     }
 
-    // Register out of range — IF-186: get(4) leaks raw %1%..%4% placeholders.
-    // TODO IF-186: caller has no instr/opcode/expected/given locals here in
-    // getReg(). Likely the binary uses a different message ID; needs GDB
-    // verification before correcting. Leaving as-is to preserve current
-    // behavior pending investigation.
-    errorMessage(ErrorMessages::get(4));
+    // Register out of range — IF-186 fix (Phase 58.B).
+    // Disassembly of orig 0x2892b0..0x289367 shows the regNum<0 branch
+    // (0x2892c0 js 0x2892d2) and the regNum>=registerDepth branch
+    // (fall-through past 0x2892cc ja 0x289365) BOTH land at 0x2892d2,
+    // which performs std::map find with key=3 (cmp $0x4 jge ; cmp $0x3 je).
+    // Key 3 = RegisterNotExist ("register does not exist", 0 slots).
+    // The previous get(4) emitted TooFewArguments (4 slots) and leaked
+    // raw %1%..%4% placeholders.
+    errorMessage(ErrorMessages::get(3));
     return 0;
 }
 
