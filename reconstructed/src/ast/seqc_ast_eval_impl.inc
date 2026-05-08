@@ -594,7 +594,7 @@ std::shared_ptr<EvalResults> invertBool(                    // @0x238fb0
         // Store result: Var type with new register number.          @0x2393e5-2393fb
         result->setValue(VarType_Var, static_cast<int>(destReg));
 
-    } else if ((static_cast<int>(varType) | 2) == 6) {
+    } else if (isConstOrCvar(varType)) {
         // Const(4) or Cvar(6) path: extract value, invert boolean.  @0x239271-239296
         // Extract the value via which_ dispatch and call toInt().
         Value val = vals[0].value_;                         // @0x239282-2392a9
@@ -805,10 +805,6 @@ std::shared_ptr<EvalResults> evalGreater(                   // @0x235ac0
 
     VarType lhsType = lhsHas1 ? lhsVals[0].varType_ : VarType_Unset;
     VarType rhsType = rhsHas1 ? rhsVals[0].varType_ : VarType_Unset;
-
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;  // matches Const(4) or Cvar(6)
-    };
 
     // ---- Case A: lhs=Var, rhs=Const/Cvar -----------------------  @0x235bd5-236389
     if (lhsHas1 && lhsType == VarType_Var &&
@@ -1073,10 +1069,6 @@ std::shared_ptr<EvalResults> evalLower(                     // @0x237440
     VarType lhsType = lhsHas1 ? lhsVals[0].varType_ : VarType_Unset;
     VarType rhsType = rhsHas1 ? rhsVals[0].varType_ : VarType_Unset;
 
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;
-    };
-
     // ---- Case A: lhs=Var, rhs=Const/Cvar -----------------------  @0x2375a0
     if (lhsHas1 && lhsType == VarType_Var &&
         rhsHas1 && isConstOrCvar(rhsType))
@@ -1328,10 +1320,6 @@ std::shared_ptr<EvalResults> evalEqual(                     // @0x239be0
 
     VarType lhsType = lhsHas1 ? lhsVals[0].varType_ : VarType_Unset;
     VarType rhsType = rhsHas1 ? rhsVals[0].varType_ : VarType_Unset;
-
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;  // matches Const(4) or Cvar(6)
-    };
 
     // ---- Case A: lhs=Var, rhs=Const/Cvar -----------------------  @0x239cf2-239d26
     if (lhsHas1 && lhsType == VarType_Var &&
@@ -1627,10 +1615,6 @@ std::shared_ptr<EvalResults> evalShift(                     // @0x232850
     VarSubType lhsSubType = lhsHas1 ? lhsVals[0].varSubType_ : VarSubType_Default;
     VarType    rhsType    = rhsHas1 ? rhsVals[0].varType_    : VarType_Unset;
     VarSubType rhsSubType = rhsHas1 ? rhsVals[0].varSubType_ : VarSubType_Default;
-
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;  // matches Const(4) or Cvar(6)
-    };
 
     auto isVarOrConstOrCvar = [](VarType t) -> bool {
         // bt 0x54, t — bits set at positions 2(Var), 4(Const), 6(Cvar)
@@ -1930,10 +1914,6 @@ std::shared_ptr<EvalResults> evalAnd(                       // @0x23ea20
     VarType    rhsType    = rhsHas1 ? rhsVals[0].varType_    : VarType_Unset;
     VarSubType rhsSubType = rhsHas1 ? rhsVals[0].varSubType_ : VarSubType_Default;
 
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;  // matches Const(4) or Cvar(6)
-    };
-
     // ---- Case A: lhs=Var, rhs=Const/Cvar ----------------------------
     if (lhsHas1 && lhsType == VarType_Var &&
         rhsHas1 && isConstOrCvar(rhsType))
@@ -2151,10 +2131,6 @@ std::shared_ptr<EvalResults> evalOr(                        // @0x240a30
     VarSubType lhsSubType = lhsHas1 ? lhsVals[0].varSubType_ : VarSubType_Default;
     VarType    rhsType    = rhsHas1 ? rhsVals[0].varType_    : VarType_Unset;
     VarSubType rhsSubType = rhsHas1 ? rhsVals[0].varSubType_ : VarSubType_Default;
-
-    auto isConstOrCvar = [](VarType t) -> bool {
-        return (static_cast<int>(t) | 2) == 6;  // matches Const(4) or Cvar(6)
-    };
 
     // ---- Case A: lhs=Var, rhs=Const/Cvar ----------------------------
     if (lhsHas1 && lhsType == VarType_Var &&
@@ -2384,7 +2360,7 @@ std::vector<AsmList::Asm> jumpIfZero(                                // @0x2149f
     }
 
     // 4. Const/Cvar path: evaluate at compile-time.                 // @0x214b1d
-    if ((static_cast<int>(v.varType_) | 2) == 6) {
+    if (isConstOrCvar(v.varType_)) {
         Value val = v.value_;                                        // @0x214b2c
         int intVal = val.toInt();                                    // @0x214c3d
         if (intVal == 0) {                                           // @0x214c89

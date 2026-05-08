@@ -988,7 +988,7 @@ Waveform::~Waveform()  // 0x1152e0
 // ============================================================================
 WaveformFile::WaveformFile(const char* filename)
     : name(filename)
-    , formatType(0)
+    , formatType(WaveformFile::FormatType::AutoDetect)
     , columnMode(0)
     , isIntegerFormat(0)
     , fileHash()

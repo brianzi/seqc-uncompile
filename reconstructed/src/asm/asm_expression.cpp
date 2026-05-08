@@ -39,11 +39,11 @@ AsmExpression::~AsmExpression() {  // 0x28b1f0
 // ============================================================================
 // createValue(int value) — 0x28bb90
 //
-// Allocates 0xa8 bytes, sets type=3, zeros fields, sets value at +0x3C.
+// Allocates 0xa8 bytes, sets type=Integer, zeros fields, sets value at +0x3C.
 // ============================================================================
 AsmExpression* createValue(int value) {  // 0x28bb90
     AsmExpression* expr = new AsmExpression();
-    expr->type = 3;         // +0x00 = 3 (integer type)
+    expr->type = AsmExprType::Integer;
     expr->value = value;    // +0x3C
     return expr;
 }
@@ -51,11 +51,11 @@ AsmExpression* createValue(int value) {  // 0x28bb90
 // ============================================================================
 // createRegister(int regNum) — 0x28bbf0
 //
-// Allocates 0xa8 bytes, sets type=1, zeros fields, sets value at +0x3C.
+// Allocates 0xa8 bytes, sets type=Register, zeros fields, sets value at +0x3C.
 // ============================================================================
 AsmExpression* createRegister(int regNum) {  // 0x28bbf0
     AsmExpression* expr = new AsmExpression();
-    expr->type = 1;         // +0x00 = 1 (register type)
+    expr->type = AsmExprType::Register;
     expr->value = regNum;   // +0x3C
     return expr;
 }
@@ -64,7 +64,7 @@ AsmExpression* createRegister(int regNum) {  // 0x28bbf0
 // createName(const char* name) — 0x28bc50
 //
 // Builds a std::string from the C string. If the resulting string is empty,
-// returns nullptr. Otherwise allocates 0xa8 bytes, sets type=2, and moves
+// returns nullptr. Otherwise allocates 0xa8 bytes, sets type=Label, and moves
 // the string into expr->name (+0x08).
 // ============================================================================
 AsmExpression* createName(const char* name) {  // 0x28bc50
@@ -74,7 +74,7 @@ AsmExpression* createName(const char* name) {  // 0x28bc50
     }
 
     AsmExpression* expr = new AsmExpression();
-    expr->type = 2;         // +0x00 = 2 (label/name type)
+    expr->type = AsmExprType::Label;
     expr->name = std::move(s);  // +0x08
     return expr;
 }
@@ -82,11 +82,11 @@ AsmExpression* createName(const char* name) {  // 0x28bc50
 // ============================================================================
 // createArgList(AsmExpression* first) — 0x28bdc0
 //
-// Allocates a new container AsmExpression (type=0), wraps `first` in a
+// Allocates a new container AsmExpression (type=Container), wraps `first` in a
 // shared_ptr, and pushes it into the children vector at +0x40.
 //
 // The binary:
-//   1. operator new(0xa8) → zero-init all fields, type=0
+//   1. operator new(0xa8) → zero-init all fields, type=Container
 //   2. If first != null:
 //      a. operator new(0x20) → create shared_ptr control block
 //      b. Set control block vtable, store `first` pointer at +0x18
@@ -96,7 +96,7 @@ AsmExpression* createName(const char* name) {  // 0x28bc50
 // ============================================================================
 AsmExpression* createArgList(AsmExpression* first) {  // 0x28bdc0
     AsmExpression* list = new AsmExpression();
-    list->type = 0;
+    list->type = AsmExprType::Container;
 
     if (first) {
         // Wrap first in shared_ptr and push into children
@@ -111,11 +111,11 @@ AsmExpression* createArgList(AsmExpression* first) {  // 0x28bdc0
 // appendArgList(AsmExpression* list, AsmExpression* child) — 0x28bec0
 //
 // Appends `child` (wrapped in shared_ptr) to `list`'s children vector.
-// If `list` is null, allocates a fresh container (type=0) first.
+// If `list` is null, allocates a fresh container (type=Container) first.
 // If `child` is null, skips the append and just returns list.
 //
 // The binary:
-//   1. If list == null: operator new(0xa8) → zero-init, type=0
+//   1. If list == null: operator new(0xa8) → zero-init, type=Container
 //   2. If child != null:
 //      a. Create shared_ptr control block (0x20 bytes)
 //      b. Push shared_ptr into list->children (+0x40)
@@ -126,7 +126,7 @@ AsmExpression* appendArgList(AsmExpression* list,  // 0x28bec0
                              AsmExpression* child) {
     if (!list) {
         list = new AsmExpression();
-        list->type = 0;
+        list->type = AsmExprType::Container;
     }
 
     if (child) {

@@ -165,7 +165,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                         result->assemblers_.insert(
                             result->assemblers_.end(),
                             instr.begin(), instr.end());
-                    } else if ((static_cast<int>(argType) | 2) == 6) {
+                    } else if (isConstOrCvar(argType)) {
                         // Arg is numeric — addi(dst, R0, Value)
                         auto instr = ctx.asmCommands->addi(
                             dstReg, AsmRegister(0), argVal.value_); // @0x27a020
@@ -179,7 +179,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                 case VarType_Cvar: {                               // @0x20de86 case 4
                     // Cvar: update compile-time value only (no register, no addi)
                     VarType argType = argVal.varType_;
-                    if ((static_cast<int>(argType) | 2) == 6) {
+                    if (isConstOrCvar(argType)) {
                         double val = argVal.value_.toDouble();
                         funcScope->updateCvar(paramName, val, argVal.varSubType_);
                     } else {
@@ -193,7 +193,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
 
                 case VarType_Const: {                              // @0x20dece
                     VarType argType = argVal.varType_;
-                    if ((static_cast<int>(argType) | 2) == 6) {
+                    if (isConstOrCvar(argType)) {
                         double val = argVal.value_.toDouble();
                         funcScope->updateConst(paramName, val, argVal.varSubType_, true);
                     } else {
@@ -555,7 +555,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
     // ---- Validate index result: exactly 1 Const/Cvar value ----   // @0x211318
     if (!indexResult ||
         indexResult->values_.size() != 1 ||
-        (indexResult->values_.back().varType_ | 0x2) != 0x6) {       // @0x211350
+        !isConstOrCvar(indexResult->values_.back().varType_)) {       // @0x211350
         // Error 0xe: array index must be a single const/cvar
         std::string msg = ErrorMessages::format(                     // @0x2113ca
             ArrayIndexNeedConst);
@@ -781,7 +781,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     // ================================================================
     // Const/Cvar path (varType | 2 == 6)                            // @0x213e1c
     // ================================================================
-    if ((static_cast<int>(condVal.varType_) | 2) == 6) {
+    if (isConstOrCvar(condVal.varType_)) {
         // Extract value and evaluate at compile-time.               // @0x213e2b
         Value val = condVal.value_;                                  // @0x213e3e
         int intVal = val.toInt();                                    // @0x214428
@@ -1000,12 +1000,12 @@ void evalCaseBody(
 
     if (condResult && !condResult->values_.empty()) {
         if (condResult->values_.size() == 1 &&
-            (condResult->values_.back().varType_ | 0x2) == 0x6) {
+            isConstOrCvar(condResult->values_.back().varType_)) {
             // Const/Cvar single value — evaluate body only if values match
             evalBody = false;  // default: don't eval
 
             if (caseResult->values_.size() == 1 &&
-                (caseResult->values_.back().varType_ | 0x2) == 0x6) {
+                isConstOrCvar(caseResult->values_.back().varType_)) {
                 // Both Const/Cvar — compare toInt values              // @0x217809
                 Value condValue;
                 auto& condVals = condResult->values_;
@@ -1349,7 +1349,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
             // Check: size==1 && (varType|2)==6 (Const/Cvar)         // @0x218ae7
             if (caseEntry &&
                 caseEntry->values_.size() == 1 &&
-                (caseEntry->values_.back().varType_ | 0x2) == 0x6)
+                isConstOrCvar(caseEntry->values_.back().varType_))
             {
                 // ---- Const/Cvar case entry ----                   // @0x218c80
 
@@ -1603,7 +1603,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     // ================================================================
     // Const/Cvar path ((varType | 2) == 6)                          // @0x218083
     // ================================================================
-    if ((condVal.varType_ | 0x2) == 0x6) {
+    if (isConstOrCvar(condVal.varType_)) {
         // ---- Set scopeBoundaryFlags_ = 1 ----                               // @0x218099
         subRes->setAtScopeBoundary(true);
 
@@ -1643,7 +1643,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 
             // Check: size==1 && (varType|2)==6 (Const/Cvar)         // @0x2181e9
             if (caseEntry->values_.size() == 1 &&
-                (caseEntry->values_.back().varType_ | 0x2) == 0x6)
+                isConstOrCvar(caseEntry->values_.back().varType_))
             {
                 // Extract condResult value.                         // @0x218221
                 Value condValue;
@@ -2875,7 +2875,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     // ================================================================
     // Const/Cvar path (varType | 2 == 6)                            // @0x2152c9
     // ================================================================
-    if ((static_cast<int>(condVal.varType_) | 2) == 6) {
+    if (isConstOrCvar(condVal.varType_)) {
         // Extract condition value at compile-time.                  // @0x2152d8
         Value val = condVal.value_;
         int intVal = val.toInt();                                    // @0x215d81
@@ -3101,7 +3101,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                     result->assemblers_.end(),
                     addiAsms.begin(),
                     addiAsms.end());
-            } else if ((static_cast<int>(ifVal.varType_) | 2) == 6) {
+            } else if (isConstOrCvar(ifVal.varType_)) {
                 // Const/Cvar: extract value→toInt→Immediate→addi    // @0x22464e
                 AsmRegister resultReg = result->values_.empty()
                     ? AsmRegister(0) : result->values_.back().reg_;
@@ -3160,7 +3160,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                     result->assemblers_.end(),
                     addiAsms.begin(),
                     addiAsms.end());
-            } else if ((static_cast<int>(elseVal.varType_) | 2) == 6) {
+            } else if (isConstOrCvar(elseVal.varType_)) {
                 // Const/Cvar: extract→toInt→addi                    // @0x22599b
                 AsmRegister resultReg = result->values_.empty()
                     ? AsmRegister(0) : result->values_.back().reg_;
@@ -3199,7 +3199,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
     // ================================================================
     // Const/Cvar path (varType | 2 == 6)                            // @0x22417e
     // ================================================================
-    if ((static_cast<int>(condVal.varType_) | 2) == 6) {
+    if (isConstOrCvar(condVal.varType_)) {
         // Extract condition value at compile time.                  // @0x22418d
         Value val = condVal.value_;
         int intVal = val.toInt();                                    // @0x2246a2

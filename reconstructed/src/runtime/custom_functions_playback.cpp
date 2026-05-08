@@ -394,7 +394,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 //        const auto& assignments = playArgs.waveAssignments_[deviceIndex];
 //      For each WaveAssignment `wa`:
 //        - Default mask = 0x3FFF.
-//        - If wa.value.varType_ != 4 → push wa.value into a local channelArgs vector.
+//        - If wa.value.varType_ != VarType_Const → push wa.value into a local channelArgs vector.
 //        - Always iterate wa.bits (vector<int>), clearing bits in mask:
 //             for each bit b: mask &= ~(0x40 << (7*b))
 //          (i.e. each entry clears a 1-byte slice of the 14-bit field).
@@ -505,7 +505,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
         } else {
             // @0x136c40..0x136ca5: outer loop over WaveAssignment entries.
             for (auto const& wa : assignments) {
-                if (wa.value.varType_ != 4) {
+                if (wa.value.varType_ != VarType_Const) {
                     // @0x136c48: type==4 entries skip the push_back.
                     channelArgs.push_back(wa.value);                       // @0x136c56
                 }
@@ -753,7 +753,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     auto const& arg0 = args[0];
 
     // Phase 4: arg type must be Const (VarType==4) — @0x137b8d..0x137b90
-    if (static_cast<int>(arg0.varType_) != 4) {
+    if (arg0.varType_ != VarType_Const) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst,
                                   std::string("playWaveZSync")));
@@ -916,7 +916,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setRate(  // @0x14c370 (933B)
     // @0x14c3d5: copy arg[0]
     EvalResultValue arg0 = args[0];
     // @0x14c463: check varType is const/cvar ((varType & ~1) == 4)
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                               // @0x14c469: jne error
+    if (!isConstOrCvar(arg0.varType_))                                               // @0x14c469: jne error
         throw CustomFunctionsException(
             ErrorMessages::format(SetRateConst));              // error 0xbf
     // @0x14c46f: make_shared<EvalResults>() — default ctor

@@ -36,7 +36,7 @@ struct DeviceConstants;  // forward declaration
 // Offset  Size  Type              Name
 // ------  ----  ----              ----
 // 0x00    24    std::string       name
-// 0x18     4    int32_t           formatType
+// 0x18     4    FormatType        formatType
 // 0x1C     4    int32_t           columnMode
 // 0x20     4    int32_t           isIntegerFormat
 // 0x24     4    (padding)
@@ -46,19 +46,29 @@ struct DeviceConstants;  // forward declaration
 // 0x40          END
 // ============================================================================
 struct WaveformFile {
-    std::string name;                   // +0x00
-    int32_t formatType;                    // +0x18
-    int32_t columnMode;                    // +0x1C
-    int32_t isIntegerFormat;                    // +0x20
-    // +0x24: 4 bytes padding
-    std::vector<unsigned int> fileHash;     // +0x28 — file hash (from CachedParser::getHash)
-
-    // File::Type enum
+    // File::Type enum — source file kind (CSV text, RAW binary, GEN generated)
     enum class Type : int {
         CSV = 0,
         RAW = 1,
         GEN = 2,
     };
+
+    // FormatType — detected data layout within a CSV file (+0x18 field)
+    //   AutoDetect    = 0: not yet determined; detection runs on first data line
+    //   AwgInteger    = 1: single-column AWG integer format (hex "0x..." values)
+    //   MultiColFloat = 2: multi-column floating-point (>2 columns detected)
+    enum class FormatType : int32_t {
+        AutoDetect    = 0,
+        AwgInteger    = 1,
+        MultiColFloat = 2,
+    };
+
+    std::string name;                   // +0x00
+    FormatType formatType;              // +0x18
+    int32_t columnMode;                    // +0x1C
+    int32_t isIntegerFormat;                    // +0x20
+    // +0x24: 4 bytes padding
+    std::vector<unsigned int> fileHash;     // +0x28 — file hash (from CachedParser::getHash)
 
     // Static string converters (lazy-initialized static maps)
     static std::string typeToStr(Type type);         // 0x2a3a90

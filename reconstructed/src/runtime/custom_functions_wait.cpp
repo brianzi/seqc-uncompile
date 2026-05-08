@@ -52,7 +52,7 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
     auto results = std::make_shared<EvalResults>(VarType_Void);                        // @0x139842
 
     // @0x13987b: check arg type — if type == 2 (register), emit warning and return
-    if (static_cast<int>(arg.varType_) == 1) {                                       // @0x13987e: cmp eax,1
+    if (arg.varType_ == VarType_Void) {                                       // @0x13987e: cmp eax,1
         // @0x139889: warning for bool type
         auto msg = ErrorMessages::format(FuncCalledWithLogical, "wait");  // @0x13989c
         if (warningCallback_)                                                        // @0x1398ac
@@ -60,9 +60,9 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
     }
 
     // @0x1398e2: check varType
-    auto varType = static_cast<int>(arg.varType_);
+    VarType varType = arg.varType_;
 
-    if (varType == 2) {
+    if (varType == VarType_Var) {
         // @0x1398e8: arg is a register — dispatch on device type
         auto devType = static_cast<int>(devConst_->deviceType);              // @0x1398f1
         bool isSimpleDevice = false;
@@ -100,7 +100,7 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
             auto wtrigEntry = asmCommands_->wtrig(reg, reg);
             results->assemblers_.push_back(std::move(wtrigEntry));
         }
-    } else if ((varType & ~1) == 4) {
+    } else if (isConstOrCvar(varType)) {
         // @0x1399bc: numeric value — convert to double, check >= 0
         double val = arg.value_.toDouble();                                          // @0x1399c8
         if (val < 0.0)                                                               // @0x1399d0
@@ -209,8 +209,8 @@ std::shared_ptr<EvalResults> CustomFunctions::waitTrigger(                      
     // @0x13ad01-0x13adaf: extract args[1] → local EvalResultValue copy (value at rbp-0x128..rbp-0x118 region)
 
     // @0x13adb6-0x13add4: validate both args are integer types: (varType & ~1) == 4
-    if ((static_cast<int>(args[0].varType_) & ~1) != 4 ||                                       // @0x13adbf: cmp eax, 4; jne 0x13b2b7
-        (static_cast<int>(args[1].varType_) & ~1) != 4)                                         // @0x13add1: cmp eax, 4; jne 0x13b2b7
+    if (!isConstOrCvar(args[0].varType_) ||                                       // @0x13adbf: cmp eax, 4; jne 0x13b2b7
+        !isConstOrCvar(args[1].varType_))                                         // @0x13add1: cmp eax, 4; jne 0x13b2b7
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstConst, "waitTrigger"));             // @0x13b2b7-0x13b304
 
@@ -273,8 +273,8 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
             ErrorMessages::format(FuncExpectsConstConst, "waitAnaTrigger"));          // @0x13be56
 
     // @0x13b52f..0x13b6a2: copy both args into locals, validate both are int types
-    if ((static_cast<int>(args[0].varType_) & ~1) != 4 ||                                       // @0x13b68a: and eax,0xfffffffd; cmp eax,4
-        (static_cast<int>(args[1].varType_) & ~1) != 4)                                         // @0x13b69c: same check on arg[1]
+    if (!isConstOrCvar(args[0].varType_) ||                                       // @0x13b68a: and eax,0xfffffffd; cmp eax,4
+        !isConstOrCvar(args[1].varType_))                                         // @0x13b69c: same check on arg[1]
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstConst, "waitAnaTrigger"));          // @0x13be01
 
@@ -345,7 +345,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
             uint64_t mask = 0x4000000040004041ULL;
             return (mask >> idx) & 1;
         }
-        return dt == 0x80 || dt == 0x100;
+        return dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI;
     };
 
     if (isSupported(devType)) {
@@ -354,7 +354,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitDigTrigger"));      // @0x13c1dc
         EvalResultValue arg0 = args[0];                                                          // @0x13c16f..0x13c273: copy arg[0]
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                        // @0x13c294: and eax,0xfffffffd; cmp eax,4
+        if (!isConstOrCvar(arg0.varType_))                                        // @0x13c294: and eax,0xfffffffd; cmp eax,4
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitDigTrigger"));
 
@@ -385,10 +385,10 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                   
 
         EvalResultValue arg0 = args[0];                                                          // @0x13c5e9..0x13c68f: copy arg[0]
         EvalResultValue arg1 = args[1];                                                          // copy arg[1]
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                        // @0x13c6a0
+        if (!isConstOrCvar(arg0.varType_))                                        // @0x13c6a0
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitDigTrigger"));
-        if ((static_cast<int>(arg1.varType_) & ~1) != 4)
+        if (!isConstOrCvar(arg1.varType_))
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitDigTrigger"));
 
@@ -656,7 +656,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitCntTrigger(  // @0x13e460 (133
     EvalResultValue arg0 = args[0];                                                  // deep copy via Value switch
 
     // @0x13e5c5..0x13e5cb: check arg is int type ((varType & ~1) == 4)
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4) {                               // @0x13e5cb: jne error
+    if (!isConstOrCvar(arg0.varType_)) {                               // @0x13e5cb: jne error
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstConst, "waitCntTrigger")); // @0x13e96c
     }
@@ -707,7 +707,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodOscPhase(                
 
     // @0x13ecc7..0x13edae: copy arg[0] into local, check int type
     EvalResultValue arg0 = args[0];                                                              // @0x13ecc7
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                            // @0x13edae: and eax,0xfffffffd; cmp eax,4
+    if (!isConstOrCvar(arg0.varType_))                                            // @0x13edae: and eax,0xfffffffd; cmp eax,4
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstConst, "waitDemodOscPhase"));       // @0x13f4e0
 
@@ -771,14 +771,14 @@ std::shared_ptr<EvalResults> CustomFunctions::waitSineOscPhase(                 
     bool isRegisterArg = false;
     EvalResultValue erv;
 
-    if (devType == 2) {
+    if (devType == AwgDeviceType::HDAWG) {
         // @0x13f88f..0x13f8a5: device type 2 (HDAWG): requires 1 arg
         if (args.size() != 1)                                                                    // @0x13f8a1: cmp rax,0x38
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitSineOscPhase"));    // @0x13fe5e
 
         EvalResultValue arg0 = args[0];                                                          // @0x13f8af..0x13f946
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                        // @0x13f94d
+        if (!isConstOrCvar(arg0.varType_))                                        // @0x13f94d
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "waitSineOscPhase"));    // @0x13feb1
 
@@ -789,7 +789,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitSineOscPhase(                 
         } else if (oscIdx == 2) {                                                                // @0x13f971
             erv = res->readConst("AWG_DEMOD_TRIGGER2_INDEX", EDirection::eOUT);        // @0x13f977..0x13f9d0
             didReadConst = true;
-        } else if (static_cast<int>(arg0.varType_) == 2) {                                      // @0x13fac2: register type
+        } else if (arg0.varType_ == VarType_Var) {                                      // @0x13fac2: register type
             isRegisterArg = true;
         } else {
             throw CustomFunctionsException(
@@ -843,7 +843,7 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         if (args.size() == 1) {
             // @0x140560: extract arg[0] value
             auto const& arg = args[0];
-            if ((static_cast<int>(arg.varType_) & ~1) != 4)                          // @0x140a2b
+            if (!isConstOrCvar(arg.varType_))                          // @0x140a2b
                 throw CustomFunctionsException(
                     ErrorMessages::format(FuncExpectsSingleArg, "resetOscPhase"));
 
@@ -961,7 +961,7 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
         } else {
             // @0x1404da: 1 arg — extract and validate
             auto const& arg = args[0];
-            if ((static_cast<int>(arg.varType_) & ~1) != 4)                          // @0x14101a
+            if (!isConstOrCvar(arg.varType_))                          // @0x14101a
                 throw CustomFunctionsException(
                     ErrorMessages::format(FuncExpectsSingleArg, "resetOscPhase"));
 
@@ -1014,8 +1014,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
     // @0x141e8a: get device type
     auto devType = static_cast<int>(devConst_->deviceType);
 
-    // Phase 1: handle deviceType == 2 (HDAWG) — 2-arg path
-    if (devType == 2) {                                                              // @0x141e8c: cmp eax,2
+    // Phase 1: handle deviceType == HDAWG — 2-arg path
+    if (devType == AwgDeviceType::HDAWG) {                                                              // @0x141e8c: cmp eax,2
         // @0x141e99: need 2 args
         if (args.size() != 2)                                                        // @0x141eae: cmp rax,0x70
             throw CustomFunctionsException(
@@ -1025,8 +1025,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         auto const& arg1 = args[1];  // phase value
 
         // @0x142018: validate both args are integer/numeric types
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4 ||                           // @0x142021
-            (static_cast<int>(arg1.varType_) & ~1) != 4)                             // @0x142033
+        if (!isConstOrCvar(arg0.varType_) ||                           // @0x142021
+            !isConstOrCvar(arg1.varType_))                             // @0x142033
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, "setSinePhase")); // @0x142942
 
@@ -1083,7 +1083,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         auto const& arg = args[0];
 
         // @0x14244a: validate arg type
-        if ((static_cast<int>(arg.varType_) & ~1) != 4)                              // @0x14244a
+        if (!isConstOrCvar(arg.varType_))                              // @0x14244a
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, "setSinePhase")); // @0x142a3b
 
@@ -1125,8 +1125,8 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
     // @0x142e36: get device type
     auto devType = static_cast<int>(devConst_->deviceType);
 
-    // Phase 1: handle deviceType == 2 (HDAWG) — 2-arg path
-    if (devType == 2) {                                                              // @0x142e38: cmp eax,2
+    // Phase 1: handle deviceType == HDAWG — 2-arg path
+    if (devType == AwgDeviceType::HDAWG) {                                                              // @0x142e38: cmp eax,2
         // @0x142e45: need 2 args
         if (args.size() != 2)                                                        // @0x142e5a: cmp rax,0x70
             throw CustomFunctionsException(
@@ -1136,8 +1136,8 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
         auto const& arg1 = args[1];  // phase increment
 
         // Validate both args are integer/numeric types
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4 ||
-            (static_cast<int>(arg1.varType_) & ~1) != 4)
+        if (!isConstOrCvar(arg0.varType_) ||
+            !isConstOrCvar(arg1.varType_))
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, "incrementSinePhase")); // @0x1438f2
 
@@ -1181,7 +1181,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
 
         auto const& arg = args[0];
 
-        if ((static_cast<int>(arg.varType_) & ~1) != 4)
+        if (!isConstOrCvar(arg.varType_))
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, "incrementSinePhase"));
 
@@ -1203,8 +1203,8 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
         int nodeOffset = devConst_->sineNodeBase;
     }
 
-    // Phase 3: for deviceType == 2 — node path construction and lookup
-    if (devType == 2) {
+    // Phase 3: for deviceType == HDAWG — node path construction and lookup
+    if (devType == AwgDeviceType::HDAWG) {
         int oscIndex = args[0].value_.toInt();
         auto path = "sines/" + std::to_string(static_cast<unsigned long>(oscIndex)) + "/phaseshift";
         auto node = lookupNode(path);
@@ -1236,7 +1236,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     auto const& arg = args[0];
 
     // @0x143e74: validate arg type
-    if ((static_cast<int>(arg.varType_) & ~1) != 4)                                  // @0x143e7a
+    if (!isConstOrCvar(arg.varType_))                                  // @0x143e7a
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsSingleArg, "waitDemodSample")); // @0x144f67
 

@@ -2356,13 +2356,14 @@ void Prefetch::placeLoads() // 0x1cbf60
   // 0x1cbf73: call getMemoryHighWatermark()
   size_t watermark = getMemoryHighWatermark();
 
-  // 0x1cbf78-0x1cbf8c: check device type — *(config_) == 0x20 (SHFSG) or 0x10
-  // (SHFQA)
+  // 0x1cbf78-0x1cbf8c: check device type — *(config_) == 0x20 (SHFQC_SG) or
+  // 0x10 (SHFSG). GDB-verified: cmp $0x20 is hit by SHFQC_SG (esi=0x20), cmp
+  // $0x10 is hit by SHFSG (esi=0x10).
   int devType =
       static_cast<int>(config_->deviceType);     // config_->deviceType at +0x00
   int cacheSize = devConst_->waveformMemorySize; // devConst_ +0x0C
 
-  if (devType == 0x20 /*SHFSG*/ || devType == 0x10 /*SHFQA*/) {
+  if (devType == 0x20 /*SHFQC_SG*/ || devType == 0x10 /*SHFSG*/) {
     if (watermark > static_cast<size_t>(cacheSize)) {
       // 0x1cc4db-0x1cc578: throw ZIAWGCompilerException
       // Compute memory in samples: watermark * 8 / bitsPerSample / 1024.0

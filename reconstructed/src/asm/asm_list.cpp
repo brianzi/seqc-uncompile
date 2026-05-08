@@ -428,41 +428,41 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
                 // --- Case D: General instruction ---
                 // 0x266672: Iterate sub-expressions (children at +0x40)
 
-                // First pass: collect type==3 into vec_input
-                // 0x2666a8: loop over children, check child->type == 3
+                // First pass: collect type==Integer into vec_input
+                // 0x2666a8: loop over children, check child->type == Integer
                 auto& children = expr->children;
                 auto childIt = children.begin();
                 auto childEnd = children.end();
 
                 for (; childIt != childEnd; ++childIt) {
                     AsmExpression* child = childIt->get();
-                    if (child->type != 3) break;  // stop at first non-integer
+                    if (child->type != AsmExprType::Integer) break;  // stop at first non-integer
                     vec_input.push_back(*childIt);
                 }
 
-                // Second pass: collect type==1 into vec_reg
-                // 0x266818: loop continues, check child->type == 1
+                // Second pass: collect type==Register into vec_reg
+                // 0x266818: loop continues, check child->type == Register
                 for (; childIt != childEnd; ++childIt) {
                     AsmExpression* child = childIt->get();
-                    if (child->type != 1) break;
+                    if (child->type != AsmExprType::Register) break;
                     vec_reg.push_back(*childIt);
                 }
 
-                // Third pass: collect type==3 into vec_output
-                // 0x266988: loop continues, check child->type == 3
+                // Third pass: collect type==Integer into vec_output
+                // 0x266988: loop continues, check child->type == Integer
                 for (; childIt != childEnd; ++childIt) {
                     AsmExpression* child = childIt->get();
-                    if (child->type != 3) break;
+                    if (child->type != AsmExprType::Integer) break;
                     vec_output.push_back(*childIt);
                 }
 
-                // Check for label (type==2) at current position
+                // Check for label (type==Label) at current position
                 // 0x266ac2: zero-init label string
                 std::string labelStr;
-                // 0x266ad5: check if more children remain and next is type==2
+                // 0x266ad5: check if more children remain and next is type==Label
                 if (childIt != childEnd) {
                     AsmExpression* child = childIt->get();
-                    if (child->type == 2) {
+                    if (child->type == AsmExprType::Label) {
                         // 0x266aec: copy child->name (at +0x08) into labelStr
                         labelStr = child->name;
                     }

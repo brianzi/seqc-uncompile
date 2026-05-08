@@ -10,8 +10,8 @@
 //
 //   Offset  Size  Type                                      Field
 //   ------  ----  ----                                      -----
-//   0x00    0x04  int32_t                                   type
-//                   1 = register, 2 = label/name, 3 = integer/value
+//   0x00    0x04  AsmExprType                               type
+//                   Container=0, Register=1, Label=2, Integer=3
 //   0x04    0x04  (padding)
 //   0x08    0x18  std::string                               name
 //                   Command/register/label name string.
@@ -100,7 +100,7 @@ enum class AsmExprType : int32_t {
 
 // sizeof = 0xa8 (168 bytes)
 struct AsmExpression {
-    int32_t type;           // +0x00  AsmExprType: 0=container, 1=reg, 2=label, 3=int
+    AsmExprType type;       // +0x00  AsmExprType: Container=0, Register=1, Label=2, Integer=3
     // 4 bytes padding       // +0x04
     std::string name;       // +0x08  command/register/label name
     std::string nopComment;       // +0x20  secondary string (NOP comment text)
@@ -134,17 +134,17 @@ struct AsmExpression {
 
 // ---- Factory free functions (called by flex/bison parser actions) ----
 
-// Allocate an AsmExpression with type=3 and the given integer value.
+// Allocate an AsmExpression with type=Integer and the given integer value.
 AsmExpression* createValue(int value);                          // 0x28bb90
 
-// Allocate an AsmExpression with type=1 and the given register number.
+// Allocate an AsmExpression with type=Register and the given register number.
 AsmExpression* createRegister(int regNum);                      // 0x28bbf0
 
-// Allocate an AsmExpression with type=2 and name from the C string.
+// Allocate an AsmExpression with type=Label and name from the C string.
 // Returns nullptr if the input string is empty.
 AsmExpression* createName(const char* name);                    // 0x28bc50
 
-// Allocate a new container AsmExpression (type=0) and push `first`
+// Allocate a new container AsmExpression (type=Container) and push `first`
 // as the first child (wrapped in shared_ptr).
 AsmExpression* createArgList(AsmExpression* first);             // 0x28bdc0
 

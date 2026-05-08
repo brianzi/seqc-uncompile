@@ -21,6 +21,7 @@ struct CompilerMessage {
         Error   = 0,  // "Compiler Error"
         Warning = 1,  // "Warning"
         Info    = 2,  // "Info"
+        Invalid = 3,  // sentinel — out-of-range guard used in bounds checks
     };
 
     CompilerMessageType type;   // +0x00

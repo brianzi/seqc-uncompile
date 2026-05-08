@@ -330,7 +330,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
         argList = new AsmExpression();  // 0xa8 bytes, zeroed
     }
 
-    argList->type = 0;     // +0x00
+    argList->type = AsmExprType::Container;     // +0x00
     argList->value = pc;   // +0x3C
 
     if (cmdToken) {

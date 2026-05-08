@@ -388,7 +388,7 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 1. Validate device type
     bool isHirzel = config_->isHirzel;                 // config+0x18
-    bool hasDeviceConstants = (deviceConstants_.deviceType != 0); // simplified check
+    bool hasDeviceConstants = (deviceConstants_.deviceType != kDevNone); // simplified check
 
     if (isHirzel && !hasDeviceConstants) {
         // @0x106cdb: throw for Hirzel device with unsupported type

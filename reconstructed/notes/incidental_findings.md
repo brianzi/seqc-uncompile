@@ -4172,3 +4172,32 @@ Alternatively, the bug could be in the readDouble helper — the binary
 might consume an extra PRNG word for the missing-arg path, advancing
 the mt19937_64 state by one before the sample loop. Compare
 `prng.next()` call counts between the 3-arg and 4-arg paths.
+
+---
+
+## IF-206  Wrong inline comments on `prefetch.cpp` device-type check (GDB-confirmed, fixed)
+
+**Source**: Magic constants audit (holistic cleanup pass)
+**Status**: fixed
+**Severity**: likely-bug (mislabelled comment could mislead future changes)
+
+`Prefetch::placeLoads()` at `prefetch.cpp:2364` had the condition:
+
+```cpp
+if (devType == 0x20 /*SHFSG*/ || devType == 0x10 /*SHFQA*/) {
+```
+
+Both inline comments were wrong. GDB trace on the original binary confirmed:
+- `cmp $0x20` is hit when `deviceType == SHFQC_SG` (esi=0x20=32)
+- `cmp $0x10` is hit when `deviceType == SHFSG` (esi=0x10=16)
+
+The constants were correct; the comments were wrong. The condition checks
+whether the device is SHFQC_SG **or** SHFSG for a memory overflow guard.
+`SHFQA` (0x08) and `SHFSG` (0x10) were mislabelled; had future work assumed
+the comment rather than the constant, the SHFQC_SG device would have been
+silently excluded from a memory safety check.
+
+Fixed in same pass: updated comment to `/*SHFQC_SG*/` and `/*SHFSG*/`,
+and surrounding disassembly note updated to match. Also converted the
+raw `0x20`/`0x10` literals to `AwgDeviceType::SHFQC_SG`/`AwgDeviceType::SHFSG`
+as part of the broader magic-constants cleanup (B1).

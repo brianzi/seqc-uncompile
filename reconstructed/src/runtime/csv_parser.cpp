@@ -251,31 +251,31 @@ void CsvParser::setSampleFromString<WaveformIR>(       // @0x2b8420
 // Trims each line with boost::algorithm::trim.
 // Skips empty lines.
 // Lines starting with '%' are comment lines:
-//   - If wf->file->formatType == 1 (AWG format), skip all comment lines.
+//   - If wf->file->formatType == AwgInteger (AWG format), skip all comment lines.
 //   - Otherwise, check for "% Time (s)" pattern; if found and it's the
 //     ONLY occurrence (exact 10-char match), skip that line.
 //   - In comment lines (non-"% Time (s)"), scan for separator chars using
 //     bitmask 0x800100000000200 (matches tab=9, comma=44, semicolon=59).
 //     If found, use boost::tokenizer with ",;\t" separators to extract
-//     columns. If >2 columns: set formatType=2 (multi-column float).
-//     If <=2 columns: set formatType=1 (single-column AWG integer).
+//     columns. If >2 columns: set formatType=MultiColFloat (multi-column float).
+//     If <=2 columns: set formatType=AwgInteger (single-column AWG integer).
 //
-// For non-comment data lines when formatType == 0 (first data line, auto-detect):
+// For non-comment data lines when formatType == AutoDetect (first data line, auto-detect):
 //   - Count separators using isCsvSeparator(), set field count in local var.
 //   - Check if value starts with "0x" and has no '.' or 'e': if so, leave
 //     isIntegerFormat as-is (AWG integer); otherwise set isIntegerFormat=0 (float format).
 //
-// For formatType == 1 (AWG integer format): scan for separator in data line
+// For formatType == AwgInteger (AWG integer format): scan for separator in data line
 //   using bitmask 0x800100000000200; if no separator found, treat as
 //   single-column (field count = -1).
 //
 // Data lines are stripped of trailing comment (everything after first '%'
 // that isn't part of a "% Time (s)" header), then appended to result vector.
 //
-// For format==0 (auto-detected float): each line is tokenized with
+// For format==AutoDetect (auto-detected float): each line is tokenized with
 // ",; \t" separator, individual tokens are trimmed and parsed with stod().
-// For format==2 (multi-column float): same tokenization.
-// For format==1 (AWG integer): lines are returned as-is (single string per line).
+// For format==MultiColFloat (multi-column float): same tokenization.
+// For format==AwgInteger (AWG integer): lines are returned as-is (single string per line).
 // ============================================================================
 template <typename WfT>
 std::vector<std::string> CsvParser::getLineVector(
@@ -308,8 +308,8 @@ std::vector<std::string> CsvParser::getLineVector(
 
         // Comment line handling (lines starting with '%')
         if (line[0] == '%') {
-            // If AWG integer format (formatType == 1), skip all comment lines
-            if (wf->file->formatType == 1) {
+            // If AWG integer format (formatType == AwgInteger), skip all comment lines
+            if (wf->file->formatType == WaveformFile::FormatType::AwgInteger) {
                 ++lineNum;
                 continue;
             }
@@ -353,9 +353,9 @@ std::vector<std::string> CsvParser::getLineVector(
                     ++colCount;
                 }
                 if (colCount > 2) {
-                    wf->file->formatType = 2;  // multi-column float
+                    wf->file->formatType = WaveformFile::FormatType::MultiColFloat;  // multi-column float
                 } else {
-                    wf->file->formatType = 1;  // AWG integer
+                    wf->file->formatType = WaveformFile::FormatType::AwgInteger;  // AWG integer
                 }
             }
 
@@ -380,8 +380,8 @@ std::vector<std::string> CsvParser::getLineVector(
         // Append to result vector
         result.push_back(line);
 
-        // Format auto-detection on first data line when formatType == 0
-        if (wf->file->formatType == 0) {
+        // Format auto-detection on first data line when formatType == AutoDetect
+        if (wf->file->formatType == WaveformFile::FormatType::AutoDetect) {
             if (firstDataLine) {
                 firstDataLine = false;
 
@@ -418,9 +418,9 @@ std::vector<std::string> CsvParser::getLineVector(
             }
         }
 
-        // For formatType == 1 (AWG integer format): scan data line for separator
+        // For formatType == AwgInteger (AWG integer format): scan data line for separator
         // using bitmask to detect column count per line
-        if (wf->file->formatType == 1) {
+        if (wf->file->formatType == WaveformFile::FormatType::AwgInteger) {
             bool hasSep = false;
             for (size_t i = 0; i < line.size(); ++i) {
                 unsigned char ch = static_cast<unsigned char>(line[i]);
@@ -459,11 +459,11 @@ template std::vector<std::string> CsvParser::getLineVector<WaveformIR>(
 //      directly into wf->signal, set channels_ and length_, done.
 //   5. If cache miss: call getLineVector<WfT>() to parse the CSV.
 //   6. Dispatch on wf->file->formatType (waveformType):
-//      - 1 (AWG integer): allocate samples/markers/markerBits arrays sized
+//      - AwgInteger (AWG integer): allocate samples/markers/markerBits arrays sized
 //        by lineCount * channels, iterate lines calling setSampleFromString
-//      - 2 (multi-column float): same but tokenize with ",; \t" first,
+//      - MultiColFloat (multi-column float): same but tokenize with ",; \t" first,
 //        each token → stod → sample
-//      - 0 (simple float / auto-detected): tokenize each line with ",; \t",
+//      - AutoDetect (simple float / auto-detected): tokenize each line with ",; \t",
 //        each token → trim → stod → sample
 //   7. After parsing: assign arrays to wf->signal, set channels/length,
 //      call Signal::checkAllocation().
@@ -532,8 +532,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
         if (rawLine[0] == '%') {
             // Comment line
-            if (fileRef.formatType == 1) {
-                // AWG format: skip all comment lines
+            if (fileRef.formatType == WaveformFile::FormatType::AwgInteger) {
                 ++lineNum;
                 continue;
             }
@@ -574,9 +573,9 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                             for (auto it = tok.begin(); it != tok.end(); ++it)
                                 ++colCount;
                             if (colCount > 2)
-                                fileRef.formatType = 2;
+                                fileRef.formatType = WaveformFile::FormatType::MultiColFloat;
                             else
-                                fileRef.formatType = 1;
+                                fileRef.formatType = WaveformFile::FormatType::AwgInteger;
                             break;
                         }
                     }
@@ -597,8 +596,8 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         // Append trimmed data line
         dataLines.push_back(rawLine);
 
-        // Auto-detect format on first data line (formatType == 0)
-        if (fileRef.formatType == 0 && dataLines.size() == 1) {
+        // Auto-detect format on first data line (formatType == AutoDetect)
+        if (fileRef.formatType == WaveformFile::FormatType::AutoDetect && dataLines.size() == 1) {
             // Count separators
             size_t numFields = 1;
             bool prevWasSep = false;
@@ -630,7 +629,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
     // Step 6: Dispatch on wf->file->formatType to parse data
     size_t numLines = dataLines.size();
 
-    if (fileRef.formatType == 2) {
+    if (fileRef.formatType == WaveformFile::FormatType::MultiColFloat) {
         // Multi-column float format
         // First pass: determine column count from first line
         uint16_t channels = wf->signal.channels_;
@@ -679,7 +678,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         if (channels > 0)
             wf->signal.length_ = wf->signal.samples_.size() / channels;
 
-    } else if (fileRef.formatType == 1) {
+    } else if (fileRef.formatType == WaveformFile::FormatType::AwgInteger) {
         // AWG integer format (or single-column)
         size_t numTokens = numLines;  // one token per line for AWG format
 
@@ -846,7 +845,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         }
 
         if (rawLine[0] == '%') {
-            if (fileRef.formatType == 1) {
+            if (fileRef.formatType == WaveformFile::FormatType::AwgInteger) {
                 ++lineNum;
                 continue;
             }
@@ -884,9 +883,9 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                             for (auto it = tok.begin(); it != tok.end(); ++it)
                                 ++colCount;
                             if (colCount > 2)
-                                fileRef.formatType = 2;
+                                fileRef.formatType = WaveformFile::FormatType::MultiColFloat;
                             else
-                                fileRef.formatType = 1;
+                                fileRef.formatType = WaveformFile::FormatType::AwgInteger;
                             break;
                         }
                     }
@@ -905,7 +904,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
 
         dataLines.push_back(rawLine);
 
-        if (fileRef.formatType == 0 && dataLines.size() == 1) {
+        if (fileRef.formatType == WaveformFile::FormatType::AutoDetect && dataLines.size() == 1) {
             size_t numFields = 1;
             bool prevWasSep = false;
             for (size_t i = 0; i < rawLine.size(); ++i) {
@@ -933,7 +932,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
 
     size_t numLines = dataLines.size();
 
-    if (fileRef.formatType == 2) {
+    if (fileRef.formatType == WaveformFile::FormatType::MultiColFloat) {
         uint16_t channels = wf->signal.channels_;
         size_t totalSamples = numLines * channels;
 
@@ -971,7 +970,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         if (channels > 0)
             wf->signal.length_ = wf->signal.samples_.size() / channels;
 
-    } else if (fileRef.formatType == 1) {
+    } else if (fileRef.formatType == WaveformFile::FormatType::AwgInteger) {
         size_t numTokens = numLines;
         if (numTokens == 0) {
             throw CsvException(

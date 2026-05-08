@@ -52,7 +52,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
 
-    if (static_cast<int>(arg.varType_) == 2) {
+    if (arg.varType_ == VarType_Var) {
         // Var: use reg_, not value_.toInt() (same pattern as setID)
         AsmRegister reg = arg.reg_;
         auto asmEntry = asmCommands_->sdio(reg, isShf);
@@ -151,9 +151,9 @@ std::shared_ptr<EvalResults> CustomFunctions::getZSyncData(                     
 
     if (!matched) {
         // Check if device supports ZSYNC_DATA_PROCESSED constants
-        int dt = static_cast<int>(deviceType);
-        bool supportsProcessed = (dt == 2 || dt == 16 || dt == 32 || dt == 64 ||
-                                  dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI);
+        bool supportsProcessed = (deviceType == AwgDeviceType::HDAWG || deviceType == AwgDeviceType::SHFSG ||
+                                  deviceType == AwgDeviceType::SHFQC_SG || deviceType == AwgDeviceType::SHFLI ||
+                                  deviceType == AwgDeviceType::GHFLI || deviceType == AwgDeviceType::VHFLI);
         if (supportsProcessed) {
             // Try ZSYNC_DATA_PROCESSED_A
             auto procAResult = res->readConst("ZSYNC_DATA_PROCESSED_A", EDirection::eOUT);
@@ -250,9 +250,9 @@ std::shared_ptr<EvalResults> CustomFunctions::getFeedback(                      
 
     if (!matched) {
         // Check if device supports ZSYNC_DATA_PROCESSED constants (bitmask 0x4000000040004001)
-        int dt = static_cast<int>(deviceType);
-        bool supportsZSync = (dt == 2 || dt == 16 || dt == 32 || dt == 64 ||
-                              dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI);
+        bool supportsZSync = (deviceType == AwgDeviceType::HDAWG || deviceType == AwgDeviceType::SHFSG ||
+                              deviceType == AwgDeviceType::SHFQC_SG || deviceType == AwgDeviceType::SHFLI ||
+                              deviceType == AwgDeviceType::GHFLI || deviceType == AwgDeviceType::VHFLI);
         if (supportsZSync) {
             auto procAResult = res->readConst("ZSYNC_DATA_PROCESSED_A", EDirection::eOUT);
             if (argVal == procAResult.value_.toInt()) {
@@ -263,8 +263,8 @@ std::shared_ptr<EvalResults> CustomFunctions::getFeedback(                      
             }
         }
 
-        // Additional check for deviceType == 0x20: try QA_DATA constants    // @0x13282f
-        if (!matched && dt == 0x20) {
+        // Additional check for deviceType == SHFQC_SG: try QA_DATA constants    // @0x13282f
+        if (!matched && deviceType == AwgDeviceType::SHFQC_SG) {
             auto qaRawResult = res->readConst("QA_DATA_RAW", EDirection::eOUT);
             if (argVal == qaRawResult.value_.toInt()) {
                 matched = true;
@@ -336,7 +336,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setID(                            
     bool isShf = isShfFamily();
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
-    if (static_cast<int>(arg.varType_) == 2) {
+    if (arg.varType_ == VarType_Var) {
         AsmRegister reg = arg.reg_;                                              // Var: use reg_, not value_.toInt()
         auto asmEntry = asmCommands_->sid(reg, isShf);
         results->assemblers_.push_back(std::move(asmEntry));
@@ -387,7 +387,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
 
     // The element returned by parse must be a var-type (or 2 → int);          // @0x133f52
     // extract the wave index from it
-    if ((static_cast<int>(parseEnd->varType_) | 0x2) != 0x6) {                 // (varType | 2) must == 6, i.e., 4 or 6
+    if (!isConstOrCvar(parseEnd->varType_)) {                 // (varType | 2) must == 6, i.e., 4 or 6
         // @0x134c7a → 0x134d7d: error 0x95 (149) — OnlyConstWaveIndex
         throw CustomFunctionsException(
             ErrorMessages::format(OnlyConstWaveIndex,
@@ -413,7 +413,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
 
     for (size_t i = 0; i < assignments.size(); ++i) {                          // @0x134055
         auto const& wa = assignments[i];
-        if (wa.value.varType_ != 4) {                                                    // @0x13405d
+        if (wa.value.varType_ != VarType_Const) {                                                    // @0x13405d
             channelArgs.push_back(wa.value);
         }
         // Get waveform name from value                                        // @0x134079

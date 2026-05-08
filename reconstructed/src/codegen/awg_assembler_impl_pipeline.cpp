@@ -503,7 +503,7 @@ void AWGAssemblerImpl::assembleExpressions(
 // =============================================================================
 int AWGAssemblerImpl::evaluate(const std::shared_ptr<AsmExpression>& expr) {  // 0x285b20
     AsmExpression* e = expr.get();
-    if (!e || e->type != 0) {
+    if (!e || e->type != AsmExprType::Container) {
         return 0;  // non-container expressions (reg/label/int) don't generate opcodes
     }
 

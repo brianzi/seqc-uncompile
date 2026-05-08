@@ -113,7 +113,7 @@ WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 // Disasm 0x2a9fe0..0x2aa0d3 details:
 //   1. allocate_shared<WaveformIR>(allocator<WaveformIR>{}, name, type=2, dc)
 //      → 0x2aa004 calls 0x2aa170 (dispatcher); the dispatcher inlines a
-//      WaveformIR(name, File::Type, DC&) ctor (no separate ctor symbol).
+//      WaveformIR(name, File::Type::GEN, DC&) ctor (no separate ctor symbol).
 //   2. Identity-guard: if &raw->signal != &signal, copy the three vector
 //      members (samples_/markers_/markerBits_) via __assign_with_size.
 //   3. Block-copy the 16 bytes at Signal+0x48..+0x57 (channels_/reserveOnly_/

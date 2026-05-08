@@ -338,7 +338,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     addConst("AWG_TIME_TRIGGER",               -2147483648.0,VarSubType(0));  // 0x1efc8e
 
     // --- Channel/Marker (skipped by type 8, je at 0x1efcae) --- 0x1efcdd–0x1efda2
-    if (config.deviceType != 8) {
+    if (config.deviceType != AwgDeviceType::SHFQA) {
         addConst("AWG_CHAN1",                  1.0,  VarSubType(0));  // 0x1efcdd
         addConst("AWG_CHAN2",                  2.0,  VarSubType(0));  // 0x1efd18
         addConst("AWG_MARKER1",               1.0,  VarSubType(0));  // 0x1efd62
@@ -356,7 +356,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     addConst("AWG_ENABLE_CHAN2_SIGOUT2",       8.0,  VarSubType(0));  // 0x1f00ba
 
     // --- OSC phase / USERREG (skipped by type 8, je at 0x1f00da) --- 0x1f010b–0x1f021e
-    if (config.deviceType != 8) {
+    if (config.deviceType != AwgDeviceType::SHFQA) {
         addConst("AWG_OSC_PHASE_START",        1.0,  VarSubType(0));  // 0x1f010b
         addConst("AWG_OSC_PHASE_MIDDLE",       0.0,  VarSubType(0));  // 0x1f0150
         addConst("AWG_USERREG_SWEEP_COUNT0",   35.0, VarSubType(0));  // 0x1f01b7

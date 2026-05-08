@@ -101,7 +101,7 @@ unsigned int AWGAssemblerImpl::getReg(std::shared_ptr<AsmExpression> const& expr
 {
     AsmExpression* e = expr.get();
 
-    if (e->type != 1) {
+    if (e->type != AsmExprType::Register) {
         // Not a register expression — report error (ErrorMessage #8)
         errorMessage(ErrorMessages::get(8));  // "expected register"
         return 0;
@@ -142,7 +142,7 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
     AsmExpression* e = expr.get();
 
     switch (e->type) {
-    case 2: {
+    case AsmExprType::Label: {
         // Symbol/label reference — look up in label map (bimap at this+0xD8)
         // The bimap maps string->int (label name -> address)
         auto& labelMap = labelBimap_;
@@ -165,7 +165,7 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
         return (unsigned int)val & mask;
     }
 
-    case 3: {
+    case AsmExprType::Integer: {
         // Integer literal
         int val = e->value;  // offset 0x3C
         unsigned int mask = (1u << bits) - 1;

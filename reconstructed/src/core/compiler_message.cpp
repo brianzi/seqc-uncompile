@@ -21,7 +21,7 @@ std::string CompilerMessage::str(bool hideLine) const {
     static const char* typeNames[] = { "Compiler Error", "Warning", "Info" };
     static const size_t typeLens[] = { 14, 7, 4 };
 
-    if (type >= 3) {
+    if (type >= CompilerMessage::Invalid) {
         // LOG_WARNING about unknown type
     }
 

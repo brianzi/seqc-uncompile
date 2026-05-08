@@ -1065,7 +1065,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
         // --- nodeType == 0x2000: SyncHirzel ---
         else if (nodeType == 0x2000) {                             // 0x1d7a66
             auto* cfg = config_;
-            if (cfg->numChannelGroups < 2 || cfg->deviceType != 2)
+            if (cfg->numChannelGroups < 2 || cfg->deviceType != AwgDeviceType::HDAWG)
                 return;
 
             AsmList::Asm syncAsm = asmCommands_->asmSyncHirzel();                 // 0x1d7a94

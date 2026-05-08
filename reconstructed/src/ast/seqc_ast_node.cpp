@@ -820,7 +820,7 @@ SeqCVariable::SeqCVariable(SeqCVariable const& o)
 //   6. Write "\n" (1 char, but uncertain — might be absent)
 void SeqCVariable::print() const {  // 0x1fdbd0
     std::cout.write("Variable: ", 10);
-    if (static_cast<int>(varType_) == 0) {
+    if (varType_ == VarType_Unset) {
         std::cout << name_;
     } else {
         std::string s = name_;

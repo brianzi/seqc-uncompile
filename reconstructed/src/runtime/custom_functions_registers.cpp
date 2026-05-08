@@ -46,7 +46,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setTrigger(                       
             ErrorMessages::format(SetTriggerArgs));
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
-    if (static_cast<int>(arg.varType_) == 2) {
+    if (arg.varType_ == VarType_Var) {
         AsmRegister reg = arg.reg_;
         auto asmEntry = asmCommands_->strig(reg);
         results->assemblers_.push_back(std::move(asmEntry));
@@ -70,7 +70,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getTrigger(                       
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getTrigger")));
     auto const& arg = args[0];
-    if ((static_cast<int>(arg.varType_) & ~1) != 4)
+    if (!isConstOrCvar(arg.varType_))
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getTrigger")));
     auto results = std::make_shared<EvalResults>();
@@ -96,7 +96,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setInternalTrigger(               
             ErrorMessages::format(SetInternalTriggerArgs));
     auto results = std::make_shared<EvalResults>(VarType_Void);
     auto const& arg = args[0];
-    if (static_cast<int>(arg.varType_) == 2) {
+    if (arg.varType_ == VarType_Var) {
         // Var arg: use the register binding directly (mirrors setTrigger @0x1455e5).
         // Calling arg.value_.toInt() here would throw "unspecified value type"
         // because var-typed EvalResultValues have no constant value. (IF-203)
@@ -123,7 +123,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getAnaTrigger(                    
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getAnaTrigger")));
     auto const& arg = args[0];
-    if ((static_cast<int>(arg.varType_) & ~1) != 4)                                                // @0x14685a: and eax,0xfffffffd; cmp eax,0x4
+    if (!isConstOrCvar(arg.varType_))                                                // @0x14685a: and eax,0xfffffffd; cmp eax,0x4
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getAnaTrigger")));
     // Read the trigger constant based on arg value (1 or 2)
@@ -137,7 +137,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getAnaTrigger(                    
         localArg = erv;
     } else {
         // deviceType==2 check: if arg is in range 3..9, fall through to register allocation
-        if (config_->deviceType != 2)                                                              // @0x1469e5: cmp [rcx],0x2
+        if (config_->deviceType != AwgDeviceType::HDAWG)                                          // @0x1469e5: cmp [rcx],0x2
             throw CustomFunctionsException(
                 ErrorMessages::format(IndexMustBe,
                     std::string("getAnaTrigger"), std::string("HDAWG")));
@@ -180,7 +180,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getDigTrigger(                    
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getDigTrigger")));
     auto const& arg = args[0];
-    if ((static_cast<int>(arg.varType_) & ~1) != 4)                                                // @0x14750e: and eax,0xfffffffd; cmp eax,0x4
+    if (!isConstOrCvar(arg.varType_))                                                // @0x14750e: and eax,0xfffffffd; cmp eax,0x4
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getDigTrigger")));
     // Read the trigger constant based on arg value (1 or 2).
@@ -199,7 +199,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getDigTrigger(                    
         resolvedArg = res->readConst("AWG_DIG_TRIGGER2", EDirection::eOUT);                        // @0x14760e: call readConst
     } else {
         // deviceType==2 check                                                                     // @0x14768c..14769e
-        if (config_->deviceType != 2)
+        if (config_->deviceType != AwgDeviceType::HDAWG)
             throw CustomFunctionsException(
                 ErrorMessages::format(IndexMustBe,
                     std::string("getDigTrigger"), std::string("HDAWG")));
@@ -243,7 +243,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setInt(                           
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
     // Validate: arg0 must be string (varType_==3)                                                 // @0x1483bc: cmp [rbp-0x98],0x3
-    if (static_cast<int>(arg0.varType_) != 3)
+    if (arg0.varType_ != VarType_String)
         throw CustomFunctionsException(
             ErrorMessages::format(SetIntArgs));
     // Validate: arg1 must be numeric (bitmask 0x54: bits 2,4,6 = types 2,4,6)                    // @0x1483d5..1483dd: bt 0x54,ecx
@@ -278,7 +278,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
         arg2 = args[2];
     }
     // Validate: arg0 must be string (varType_==3)                                                 // @0x148e33: cmp [rbp-0x98],0x3
-    if (static_cast<int>(arg0.varType_) != 3)
+    if (arg0.varType_ != VarType_String)
         throw CustomFunctionsException(
             ErrorMessages::format(SetDoubleArgs));
     // Validate: arg1 must be numeric (bitmask 0x54)                                               // @0x148e43..148e51: bt 0x54,eax
@@ -287,7 +287,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
         throw CustomFunctionsException(
             ErrorMessages::format(SetDoubleVarConstSecond, std::string("setDouble")));
     // Validate: arg2.varType_ must be int type ((varType & ~1) == 4)                              // @0x148e5a..148e63: and eax,0xfffffffd; cmp eax,0x4
-    if ((static_cast<int>(arg2.varType_) & ~1) != 4)
+    if (!isConstOrCvar(arg2.varType_))
         throw CustomFunctionsException(
             ErrorMessages::format(SetDoubleConstThird, std::string("setDouble")));
     // Call writeToNode(arg0, arg1, arg2, res)                                                     // @0x149186: call writeToNode
@@ -301,7 +301,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generate(                         
             ErrorMessages::format(GenerateExpectsString));
     auto const& firstArg = args[0];
     // First arg must be string (varType_==3)                                                      // @0x149a23: cmp eax,0x3
-    if (static_cast<int>(firstArg.varType_) != 3)
+    if (firstArg.varType_ != VarType_String)
         throw CustomFunctionsException(
             ErrorMessages::format(GenerateExpectsString));
     // If single arg and first arg has VarSubType==2 (marker), return early                        // @0x149a4b: cmp rax,0x1; jbe
@@ -311,7 +311,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generate(                         
                 firstArg.value_.toString()));
     }
     // Check if second arg has VarSubType==2 → early return with setValue                          // @0x149bb1: cmp [rbx-0x28],0x2 (varType_); 149bbb: cmp [r12+0x4],0x2 (varSubType_)
-    if (static_cast<int>(args[1].varType_) == 2 && static_cast<int>(args[1].varSubType_) == 2) {  // @0x149bc1: je 149d57
+    if (args[1].varType_ == VarType_Var && args[1].varSubType_ == VarSubType_FunctionArg) {  // @0x149bc1: je 149d57
         auto results = std::make_shared<EvalResults>();
         Value emptyVal;                                                                            // @0x149d61..149d77: VarType_Const, default Value
         results->setValue(VarType_Wave, VarSubType(2), emptyVal);                                    // @0x149d8c: call setValue(VarType,VarSubType,Value)
@@ -325,7 +325,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generate(                         
     std::vector<Value> values;
     values.reserve(localArgs.size());
     for (auto const& erv : localArgs) {
-        if (static_cast<int>(erv.varSubType_) == 2) {                                             // @0x149bad: cmp [rbx-0x28],0x2
+        if (erv.varSubType_ == VarSubType_FunctionArg) {                                             // @0x149bad: cmp [rbx-0x28],0x2
             // Marker entry with VarSubType==2 → throw error 0x67                                  // @0x149f92: throw 0x67
             throw CustomFunctionsException(
                 ErrorMessages::format(CantCallWithVar,
@@ -349,7 +349,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     auto const& arg1 = args[1];
     // Validate: arg0 must be int type ((varType & ~1) == 4)                                       // @0x14a5f2..14a5f5: and eax,0xfffffffd; cmp eax,0x4
     // Throw site @0x14b22b: error 0xc5 = SetUserRegConstFirst ("expects a const as first argument")
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4)
+    if (!isConstOrCvar(arg0.varType_))
         throw CustomFunctionsException(
             ErrorMessages::format(SetUserRegConstFirst));
     // Range-check arg0 against devConst_->memoryDepth                                             // @0x14a60a..14a624
@@ -358,7 +358,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     int arg0Val = arg0.value_.toInt();
     if (static_cast<int64_t>(arg0Val) >= static_cast<int64_t>(devConst_->memoryDepth) || arg0Val < 0) {
         // Check if varSubType_ == 2 (allows bypass)                                               // @0x14a62d: cmp [rbp-0x11c],0x2
-        if (static_cast<int>(arg0.varSubType_) != 2)
+        if (arg0.varSubType_ != VarSubType_FunctionArg)
             throw CustomFunctionsValueException(
                 ErrorMessages::get(SetUserRegRange), 1);
     }
@@ -367,7 +367,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     int regNum = Resources::getRegisterNumber();                                                   // @0x14a66e: call getRegisterNumber
     AsmRegister reg(regNum);
     // Branch on arg1 type                                                                         // @0x14a67e: cmp eax,0x2
-    if (static_cast<int>(arg1.varType_) == 2) {
+    if (arg1.varType_ == VarType_Var) {
         // arg1 is a register: suser(arg1.reg_, arg0.toInt())                                            // @0x14a6b3: call suser
         appendSuser(results->assemblers_, asmCommands_, arg1.reg_, detail::AddressImpl<unsigned int>(arg0.value_.toInt()));
     } else if (isConstOrCvar(arg1.varType_)) {                                     // @0x14a71e: and eax,0xfffffffd; cmp eax,0x4
@@ -429,7 +429,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getUserReg(  // @0x14b480 (2070B, 
     EvalResultValue arg0 = args[0];
 
     // @0x14b5e9..0x14b5ef: check arg is int type ((varType & ~1) == 4)
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4) {                               // @0x14b5ef: jne error
+    if (!isConstOrCvar(arg0.varType_)) {                               // @0x14b5ef: jne error
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, "getUserReg"));  // @0x14bb21
     }
@@ -438,7 +438,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getUserReg(  // @0x14b480 (2070B, 
     int userRegIdx = arg0.value_.toInt();                                            // @0x14b5fc
     if (static_cast<int64_t>(userRegIdx) >= static_cast<int64_t>(devConst_->memoryDepth) // @0x14b607: cmp [rcx+0x30], rax
         || userRegIdx < 0) {                                                         // @0x14b615: test eax,eax; jns ok
-        if (static_cast<int>(arg0.varType_) != 2) {                                  // @0x14b619: cmp [rbp-0x7c], 2; jne throw
+        if (arg0.varType_ != VarType_Var) {                                  // @0x14b619: cmp [rbp-0x7c], 2; jne throw
             throw CustomFunctionsValueException(
                 ErrorMessages::get(GetUserRegRange), 1);            // @0x14bb6f
         }
@@ -501,7 +501,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getSweeperLength(  // @0x14bca0 (1
     EvalResultValue arg0 = args[0];
 
     // @0x14bda3..0x14bda9: check arg is int type ((varType & ~1) == 4)
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4) {                               // @0x14bda9: jne error
+    if (!isConstOrCvar(arg0.varType_)) {                               // @0x14bda9: jne error
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, "getSweeperLength")); // @0x14c1ad
     }
@@ -509,7 +509,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getSweeperLength(  // @0x14bca0 (1
     // @0x14bdaf..0x14bdc1: range check: arg.toInt() must be <= 1 (or varType==2 fallback)
     int sweepIdx = arg0.value_.toInt();                                              // @0x14bdb9
     if (sweepIdx != 1) {                                                             // @0x14bdc1: cmp eax,1; je ok
-        if (static_cast<int>(arg0.varType_) != 2) {                                  // @0x14bdc3: cmp varType, 2; jne throw
+        if (arg0.varType_ != VarType_Var) {                                  // @0x14bdc3: cmp varType, 2; jne throw
             throw CustomFunctionsValueException(
                 ErrorMessages::get(GetSweeperLenArg), 1);            // @0x14c1f8
         }
@@ -560,7 +560,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setPrecompClear(                  
     if (args.size() != 1)
         throw CustomFunctionsException(
             ErrorMessages::format(SetPrecompOneConst));
-    if ((static_cast<int>(args[0].varType_) & ~1) != 4)
+    if (!isConstOrCvar(args[0].varType_))
         throw CustomFunctionsException(
             ErrorMessages::format(SetPrecompConst));
     auto results = std::make_shared<EvalResults>(VarType_Void);
@@ -590,7 +590,7 @@ std::shared_ptr<EvalResults> CustomFunctions::at(                               
     EvalResultValue arg0 = args[0];                                                              // @0x14ce93
 
     // @0x14cf35..0x14cf8a: if varType == 1 (bool), warn with error 0x36
-    if (static_cast<int>(arg0.varType_) == 1) {                                                  // @0x14cf35: cmp eax,1
+    if (arg0.varType_ == VarType_Void) {                                                  // @0x14cf35: cmp eax,1
         std::string warnMsg = ErrorMessages::format(FuncCalledWithLogical, "at");     // @0x14cf41..0x14cf4d
         if (warningCallback_) {                                                                  // @0x14cf59
             warningCallback_(warnMsg);                                                               // @0x14cf6c: call [rax+0x30]
@@ -600,13 +600,13 @@ std::shared_ptr<EvalResults> CustomFunctions::at(                               
     // @0x14cf8f..0x14cff6: make_shared<EvalResults>() — default ctor, NOT VarType_Void
     auto results = std::make_shared<EvalResults>();                                               // @0x14cf94
 
-    // @0x14cffa..0x14d007: check arg0.varType_ == 2 (register type)
-    if (static_cast<int>(arg0.varType_) == 2) {                                                  // @0x14d000: cmp eax,2
+    // @0x14cffa..0x14d007: check arg0.varType_ == VarType_Var (register type)
+    if (arg0.varType_ == VarType_Var) {                                                  // @0x14d000: cmp eax,2
         // @0x14d00d..0x14d024: suser(arg0.asmRegister_, 0x1d) — arg already in register
         appendSuser(results->assemblers_, asmCommands_, arg0.reg_, detail::AddressImpl<unsigned int>(kSuserRTLoggerData)); // @0x14d024                                   // @0x14d029..0x14d090
     } else {
         // @0x14d095..0x14d0fb: int type path — getRegisterNumber, addi, then suser
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                        // @0x14d095: and eax,0xfffffffd; cmp eax,4
+        if (!isConstOrCvar(arg0.varType_))                                        // @0x14d095: and eax,0xfffffffd; cmp eax,4
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConstConst, "at"));                  // @0x14d648
 
@@ -647,7 +647,7 @@ std::shared_ptr<EvalResults> CustomFunctions::lock(                             
     if (args.size() != 1)
         throw CustomFunctionsException(
             ErrorMessages::format(LockArgs));
-    if (static_cast<int>(args[0].varType_) != 5)
+    if (args[0].varType_ != VarType_Wave)
         throw CustomFunctionsException(
             ErrorMessages::format(LockOnlyWave));
     std::string name = args[0].value_.toString();
@@ -668,7 +668,7 @@ std::shared_ptr<EvalResults> CustomFunctions::unlock(                           
     if (args.size() != 1)
         throw CustomFunctionsException(
             ErrorMessages::format(UnlockArgs));
-    if (static_cast<int>(args[0].varType_) != 5)
+    if (args[0].varType_ != VarType_Wave)
         throw CustomFunctionsException(
             ErrorMessages::format(UnlockOnlyWave));
     std::string name = args[0].value_.toString();
@@ -707,7 +707,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getCnt(  // @0x14e8d0 (1258B, ends
     EvalResultValue arg0 = args[0];
 
     // @0x14ea2f..0x14ea35: check arg is int type ((varType & ~1) == 4)
-    if ((static_cast<int>(arg0.varType_) & ~1) != 4) {                               // @0x14ea35: jne error
+    if (!isConstOrCvar(arg0.varType_)) {                               // @0x14ea35: jne error
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, "getCnt"));      // @0x14ec6f
     }
@@ -715,7 +715,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getCnt(  // @0x14e8d0 (1258B, ends
     // @0x14ea3b..0x14ea4e: range check: counterIdx < numCounters
     int counterIdx = arg0.value_.toInt();                                            // @0x14ea42
     if (counterIdx >= devConst_->numCounters) {                                      // @0x14ea4e: jl ok
-        if (static_cast<int>(arg0.varType_) != 2) {                                  // @0x14ea50: cmp varType, 2; jne throw
+        if (arg0.varType_ != VarType_Var) {                                  // @0x14ea50: cmp varType, 2; jne throw
             throw CustomFunctionsValueException(
                 ErrorMessages::get(GetCntRange), 0);            // @0x14ecba
         }
@@ -832,7 +832,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
     // @0x14f70c: if args not empty, first arg overrides qaIntAll
     if (!args.empty()) {
         auto const& arg0 = args[0];
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                                   // @0x14f71e: type check
+        if (!isConstOrCvar(arg0.varType_))                                                   // @0x14f71e: type check
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, std::string("startQAResult")));
         qaIntAll = arg0.value_.toInt();                                                                     // @0x14f72a
@@ -840,7 +840,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
         // @0x14f736: if 2nd arg exists
         if (args.size() >= 2) {
             auto const& arg1 = args[1];
-            if ((static_cast<int>(arg1.varType_) & ~1) != 4)                                               // @0x14f748
+            if (!isConstOrCvar(arg1.varType_))                                               // @0x14f748
                 throw CustomFunctionsException(
                     ErrorMessages::format(FuncExpectsConst, std::string("startQAResult")));
             resultAddr = arg1.value_.toInt();                                                               // @0x14f754
@@ -889,7 +889,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAMonitor(                   
     // @0x15014c: if 1 arg, extract value
     if (!args.empty()) {
         auto const& arg0 = args[0];
-        if ((static_cast<int>(arg0.varType_) & ~1) != 4)                                                   // @0x15015e
+        if (!isConstOrCvar(arg0.varType_))                                                   // @0x15015e
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, std::string("startQAMonitor")));
         monitorVal = arg0.value_.toInt();                                                                   // @0x15016a
@@ -938,7 +938,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
     // @0x150a60: handle wait cycles from remaining args
     setWaitCyclesReg(args, results, res);                                                                   // @0x150a68
 
-    int argType = static_cast<int>(arg0.varType_);                                                          // @0x150a70
+    VarType argType = arg0.varType_;                                                          // @0x150a70
 
     // Binary dispatch (0x150b35..0x151060):
     //   1. varType==4 → try const-match (ZSYNC_DATA_RAW etc.)
@@ -950,7 +950,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
     //   4. else → throw
 
     bool constMatched = false;
-    if (argType == 4) {
+    if (argType == VarType_Const) {
         // Integer constant path                                                                             // @0x150a80
         int tableIndex = arg0.value_.toInt();                                                               // @0x150a8c
 
@@ -998,12 +998,12 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
 
     if (!constMatched) {
         // Re-dispatch: register or numeric path                                                             // @0x150feb
-        if (argType == 2) {
+        if (argType == VarType_Var) {
             // Register path                                                                                 // @0x150e80
             auto asmEntry = asmCommands_->wvft(arg0.reg_,
                 1 << (devConst_->execTableIndexBits + 1));                                                      // @0x150dfc: 1 << (execTableIndexBits + 1)
             results->assemblers_.push_back(std::move(asmEntry));
-        } else if ((argType & ~2) == 4) {
+        } else if (isConstOrCvar(argType)) {
             // Numeric (int/uint) path — direct table entry index                                            // @0x150f00
             int entryIndex = arg0.value_.toInt();                                                           // @0x150f10
             if (entryIndex < 0)
@@ -1033,16 +1033,16 @@ std::shared_ptr<EvalResults> CustomFunctions::setPRNGSeed(                      
 
     auto results = std::make_shared<EvalResults>(VarType_Void);                                           // @0x15144d
 
-    int argType = static_cast<int>(args[0].varType_);                                                   // @0x151502: [rbp-0x78]
+    VarType argType = args[0].varType_;                                                   // @0x151502: [rbp-0x78]
 
-    if (argType == 2) {
+    if (argType == VarType_Var) {
         // Variable path (VarType_Var) — emit suser using the bound register.    // @0x151518
         // Binary @0x151507 loads args[0].reg_ from [rbx+0x30] into rdx; rdx is
         // preserved across the cmp/jne and passed as the AsmRegister arg to
         // suser at @0x151528. (See IF-119 — prior recon constructed an
         // AsmRegister from value_.toInt(), which is wrong for VarType_Var.)
         appendSuser(results->assemblers_, asmCommands_, args[0].reg_, detail::AddressImpl<unsigned int>(kSuserPrngSeed)); // @0x151528
-    } else if ((argType & ~2) == 4) {
+    } else if (isConstOrCvar(argType)) {
         // Float/double path — range-check then load via register                                        // @0x1515a9
         double dval = args[0].value_.toDouble();                                                        // @0x1515bd
 
@@ -1161,7 +1161,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
 
     // @0x152740: validate all provided args are int type ((varType | 2) == 6 → types 4,5,6,7)
     for (size_t i = 0; i < args.size(); ++i) {                                                             // @0x152748
-        if ((static_cast<int>(args[i].varType_) | 2) != 6)
+        if (!isConstOrCvar(args[i].varType_))
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, std::string("startQA")));
     }
@@ -1332,9 +1332,9 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     auto const& arg2 = args[2];  // step frequency (or end frequency)
 
     // Check none are VarType_Var (register-bound)                              // @0x15468c
-    if (static_cast<int>(arg0.varType_) == 2 ||
-        static_cast<int>(arg1.varType_) == 2 ||
-        static_cast<int>(arg2.varType_) == 2) {
+    if (arg0.varType_ == VarType_Var ||
+        arg1.varType_ == VarType_Var ||
+        arg2.varType_ == VarType_Var) {
         throw CustomFunctionsException(                                          // @0x1551b9
             ErrorMessages::format(FuncExpects3Const, std::string("configFreqSweep")));
     }
@@ -1386,12 +1386,12 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     addWaitCycles(10, results, res);
 
     // Device-type-dependent node path construction:                           // @0x154c8d
-    auto dt = static_cast<int>(config_->deviceType);
+    auto devType = config_->deviceType;
     std::string nodePath;
-    if (dt == 0x40 || dt == 0x80 || dt == 0x100) {
+    if (devType == AwgDeviceType::SHFLI || devType == AwgDeviceType::GHFLI || devType == AwgDeviceType::VHFLI) {
         // @0x154cb3: "oscs/" + to_string(oscIntVal) + "/freq"
         nodePath = "oscs/" + std::to_string(oscIntVal) + "/freq";              // @0x154cca
-    } else if (dt == 0x10 || dt == 0x20) {
+    } else if (devType == AwgDeviceType::SHFSG || devType == AwgDeviceType::SHFQC_SG) {
         // @0x154de9: "sgchannels/" + to_string(awgIndex) + "/oscs/" + to_string(oscIntVal) + "/freq"
         std::string awgIdx = std::to_string(config_->awgIndex);                // @0x154df3 [config+0x20]
         nodePath = "sgchannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
@@ -1421,7 +1421,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
     auto const& arg1 = args[1];  // sweep step value
 
     // arg0 must not be register-bound                                               // @0x155853
-    if (static_cast<int>(arg0.varType_) == 2)
+    if (arg0.varType_ == VarType_Var)
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstVar,
                                   std::string("setSweepStep")));                     // @0x1565f9
@@ -1438,11 +1438,11 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
                                   std::string("setSweepStep")), 0);
 
     // Branch on arg1.varType                                                        // @0x1558a9
-    if (static_cast<int>(arg1.varType_) == 2) {
+    if (arg1.varType_ == VarType_Var) {
         // arg1 is register-bound: suser(arg1.register, 0x8d)                       // @0x1558b2
         auto suserEntry = asmCommands_->suser(arg1.reg_, kSuserSweepControl);
         results->assemblers_.push_back(std::move(suserEntry));
-    } else if ((static_cast<int>(arg1.varType_) & ~2) == 4) {
+    } else if (isConstOrCvar(arg1.varType_)) {
         // arg1 is a numeric value: validate >= 0, then addi                         // @0x15594e
         double stepVal = arg1.value_.toDouble();
         if (stepVal < 0.0)
@@ -1483,21 +1483,21 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
     addWaitCycles(10, results, res);
 
     // Device-type-dependent node path construction                                  // @0x155e06
-    auto dt = static_cast<int>(config_->deviceType);
+    auto devTypeSS = config_->deviceType;
     std::string nodePath;
-    if (dt == 0x8) {
+    if (devTypeSS == AwgDeviceType::SHFQA) {
         // SHFQA: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x1560fb
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "qachannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == 0x10 || dt == 0x20) {
+    } else if (devTypeSS == AwgDeviceType::SHFSG || devTypeSS == AwgDeviceType::SHFQC_SG) {
         // SHFSG/SHFQC_SG: "sgchannels/<awgIndex>/oscs/<oscIndex>/freq"             // @0x155e2b
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "sgchannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == 0x2) {
+    } else if (devTypeSS == AwgDeviceType::HDAWG) {
         // HDAWG: "generators/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x1560fb
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "generators/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == AwgDeviceType::SHFLI || dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI) {
+    } else if (devTypeSS == AwgDeviceType::SHFLI || devTypeSS == AwgDeviceType::GHFLI || devTypeSS == AwgDeviceType::VHFLI) {
         // SHFLI/GHFLI/VHFLI: "oscs/<oscIndex>/freq"                               // @0x156019
         nodePath = "oscs/" + std::to_string(oscIntVal) + "/freq";
     }
@@ -1524,8 +1524,8 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
     auto const& arg1 = args[1];  // frequency
 
     // Neither arg may be register-bound (VarType == 2)                              // @0x156c88
-    if (static_cast<int>(arg0.varType_) == 2 ||
-        static_cast<int>(arg1.varType_) == 2) {
+    if (arg0.varType_ == VarType_Var ||
+        arg1.varType_ == VarType_Var) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstVar,
                                   std::string("setOscFreq")));                       // @0x157a54
@@ -1583,21 +1583,21 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
 
     // Device-type-dependent node path construction                                  // @0x15736c
     int oscIntVal = arg0.value_.toInt();
-    auto dt = static_cast<int>(config_->deviceType);
+    auto devTypeOF = config_->deviceType;
     std::string nodePath;
-    if (dt == 0x8) {
+    if (devTypeOF == AwgDeviceType::SHFQA) {
         // SHFQA: "qachannels/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x157391
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "qachannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == 0x10 || dt == 0x20) {
+    } else if (devTypeOF == AwgDeviceType::SHFSG || devTypeOF == AwgDeviceType::SHFQC_SG) {
         // SHFSG/SHFQC_SG: "sgchannels/<awgIndex>/oscs/<oscIndex>/freq"             // @0x155e2b (same string)
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "sgchannels/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == 0x2) {
+    } else if (devTypeOF == AwgDeviceType::HDAWG) {
         // HDAWG: "generators/<awgIndex>/oscs/<oscIndex>/freq"                       // @0x15765e
         std::string awgIdx = std::to_string(config_->awgIndex);
         nodePath = "generators/" + awgIdx + "/oscs/" + std::to_string(oscIntVal) + "/freq";
-    } else if (dt == AwgDeviceType::SHFLI || dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI) {
+    } else if (devTypeOF == AwgDeviceType::SHFLI || devTypeOF == AwgDeviceType::GHFLI || devTypeOF == AwgDeviceType::VHFLI) {
         // SHFLI/GHFLI/VHFLI: "oscs/<oscIndex>/freq"                               // @0x15757c
         nodePath = "oscs/" + std::to_string(oscIntVal) + "/freq";
     }
@@ -1627,9 +1627,9 @@ std::shared_ptr<EvalResults> CustomFunctions::configureFeedbackProcessing(      
     auto const& thresholdArg = args[3];  // threshold
 
     // Args 1, 2 (from arg1.varType), and 3 must not be register-bound              // @0x1584ba
-    if (static_cast<int>(shiftArg.varType_) == 2 ||
-        static_cast<int>(numBitsArg.varType_) == 2 ||
-        static_cast<int>(thresholdArg.varType_) == 2) {
+    if (shiftArg.varType_ == VarType_Var ||
+        numBitsArg.varType_ == VarType_Var ||
+        thresholdArg.varType_ == VarType_Var) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConstVar,
                                   std::string("configureFeedbackProcessing")));      // @0x158e29

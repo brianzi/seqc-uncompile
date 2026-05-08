@@ -537,7 +537,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         std::vector<EvalResultValue> channelArgs;
         int waIndex = 0;                                               // rbx reset per group @0x15f773
         for (auto& wa : assignments) {                               // stride 0x50  @0x15f7ac
-            if (wa.value.varType_ != 4) {                              // @0x15f7b4
+            if (wa.value.varType_ != VarType_Const) {                              // @0x15f7b4
                 channelArgs.push_back(wa.value);
             }
             if (ch == channelIndex) {                                  // @0x15f889
@@ -909,7 +909,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         for (size_t i = 0; i < assignments.size(); ++i) {           // @0x161410
             auto const& wa = assignments[i];
 
-            if (wa.value.varType_ != 4) {                           // @0x161439: cmp [rsi+rbx],0x4
+            if (wa.value.varType_ != VarType_Const) {                           // @0x161439: cmp [rsi+rbx],0x4
                 channelArgs.push_back(wa.value);                    // @0x161450
             }
 
@@ -1069,8 +1069,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     //                      4b validator above which restricts varType
     //                      to {Var, Const, Cvar}.
     AsmRegister indexReg(0);  // placeholder; assigned by branch below.
-    int offsetVarType = static_cast<int>(parseEnd[0].varType_);
-    if (offsetVarType == 2) {
+    VarType offsetVarType = parseEnd[0].varType_;
+    if (offsetVarType == VarType_Var) {
         // ---  Var-branch --- @0x161f5c..0x161f6a
         // Reuse the AsmRegister already bound to the runtime variable
         // `t` (parseEnd[0].reg_). No addi or placeholder is emitted;
@@ -1285,7 +1285,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
 
     // @0x1645da: cmp DWORD [r15+0x04], 0x2; je 0x169df4 (epilogue).
     // Binary: varSubType_==2 means "nothing to write" — early exit.
-    if (static_cast<int>(path.varSubType_) == 2) {
+    if (path.varSubType_ == VarSubType_FunctionArg) {
         return results;                                // @0x169df4
     }
 
@@ -1605,9 +1605,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             // compute an Immediate, emit addi(destReg, R0, Immediate(...)),
             // then suser(destReg, 0x17).
             switch (node.typeIdx) {
-                case 0: {
+                case NodeTypeIdx::IntegerPassthrough: {
                     // @0x164c7f: register passthrough (single suser).
-                    if (static_cast<int>(valRef.varType_) != 2) {
+                    if (valRef.varType_ != VarType_Var) {
                         // slow-arm @0x165b17: scalar value → convert to int,
                         // warn if not exact integer, then emit as Immediate.
                         double d = valRef.value_.toDouble();          // @0x165b1e
@@ -1633,9 +1633,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     break;
                 }
-                case 1: {
+                case NodeTypeIdx::SinePair: {
                     // @0x165263: sine pair — two suser calls (0x17 + 0x19).
-                    if (static_cast<int>(valRef.varType_) != 2) {
+                    if (valRef.varType_ != VarType_Var) {
                         // slow-arm @0x165d97: scalar → split double into
                         // low32/high32 words, emit addi+suser for each.
                         double d = valRef.value_.toDouble();          // @0x165d9e
@@ -1680,9 +1680,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     break;
                 }
-                case 2: {
+                case NodeTypeIdx::FloatBits: {
                     // @0x165013: float-bits — toDouble → cvtsd2ss → Imm(float bits).
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a191: varType==2 is invalid for this case — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -1703,9 +1703,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
-                case 3: {
+                case NodeTypeIdx::RawDoubleLow32: {
                     // @0x165137: raw double low-32 bits.
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a1f5: varType==2 is invalid — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -1726,9 +1726,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
-                case 4: {
+                case NodeTypeIdx::Frequency: {
                     // @0x164ee7: frequency conversion.
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a12d: varType==2 is invalid for frequency — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -1749,9 +1749,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirect));
                     break;
                 }
-                case 5: {
+                case NodeTypeIdx::Phase: {
                     // @0x1652e6: phase conversion.
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a259: varType==2 is invalid for phase — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -1780,7 +1780,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             // Case 1 (sine pair) has an extensive multi-field tail.
             // See notes/writeToNode_block_d_protocol.md §Per-case post-tails.
             switch (node.typeIdx) {
-                case 0: {
+                case NodeTypeIdx::IntegerPassthrough: {
                     // @0x165c90: addi(destReg, R0, Imm(addr)) — shared common tail
                     {
                         auto vec = asmCommands_->addi(
@@ -1803,7 +1803,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     break;
                 }
-                case 1: {
+                case NodeTypeIdx::SinePair: {
                     // Sine pair extended tail — writes I/Q + addr + tag + freq + phase + commit.
                     // @0x166045: addi(destReg, R0, Imm(addr))
                     {
@@ -1850,10 +1850,10 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeCommit));
                     break;
                 }
-                case 2:
+                case NodeTypeIdx::FloatBits:
                     // No post-tail. The float-bits write completes with suser(0x17).
                     break;
-                case 3: {
+                case NodeTypeIdx::RawDoubleLow32: {
                     // @0x167610: addi(destReg, R0, Imm(high32)) — upper 32 bits of raw double.
                     // Recompute high32 from the same double (the body computed low32).
                     {
@@ -1870,7 +1870,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeDirectB));
                     break;
                 }
-                case 4: {
+                case NodeTypeIdx::Frequency: {
                     // @0x167a3e: addi(destReg, R0, Imm(freqHigh32)) — upper 32 bits of frequency.
                     // Recompute from the same toFrequency result (body computed freqLow32).
                     {
@@ -1896,7 +1896,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeFreqCommit));
                     break;
                 }
-                case 5: {
+                case NodeTypeIdx::Phase: {
                     // @0x167823: addi(destReg, R0, Imm(addr))
                     {
                         auto vec = asmCommands_->addi(
@@ -1915,7 +1915,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             // embed multi-step triplet sequences (suser opcodes 0x10/0x11/0x12).
             // After cases 0,1,5: suser(destReg, 0x10) + addi(destReg, R0, Imm(addr)).
             switch (node.typeIdx) {
-                case 0: {
+                case NodeTypeIdx::IntegerPassthrough: {
                     // @0x164de4: addi(destReg, R0, Immediate(1)).
                     auto vec = asmCommands_->addi(
                         destReg, AsmRegister(0), Immediate(1));
@@ -1923,7 +1923,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         vec.begin(), vec.end());
                     break;
                 }
-                case 1: {
+                case NodeTypeIdx::SinePair: {
                     // @0x16591b: addi(destReg, R0, Immediate(2)).
                     auto vec = asmCommands_->addi(
                         destReg, AsmRegister(0), Immediate(2));
@@ -1931,9 +1931,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                         vec.begin(), vec.end());
                     break;
                 }
-                case 2: {
+                case NodeTypeIdx::FloatBits: {
                     // @0x165587: double-triplet (sine I+Q write).
-                    if (static_cast<int>(valRef.varType_) != 2) {
+                    if (valRef.varType_ != VarType_Var) {
                         // slow-arm @0x166107: scalar value path.
                         // Uses tag 3 (not 0xc) and converts value to float bits.
                         // First triplet:
@@ -2019,9 +2019,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     break;
                 }
-                case 3: {
+                case NodeTypeIdx::RawDoubleLow32: {
                     // @0x165751: single triplet (Q channel only).
-                    if (static_cast<int>(valRef.varType_) != 2) {
+                    if (valRef.varType_ != VarType_Var) {
                         // slow-arm @0x166537: scalar path — 64-bit double write.
                         // Uses tag 4, splits double into low32 (suser 0x12)
                         // + high32 (suser 0x13).
@@ -2100,11 +2100,11 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     }
                     break;
                 }
-                case 4: {
+                case NodeTypeIdx::Frequency: {
                     // @0x165488: single triplet (general case).
                     // tag 2 → suser(0x10), addr → suser(0x11),
                     // val.reg_ → suser(0x12).
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a2bd: varType==2 is invalid — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -2128,9 +2128,9 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                     appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                     break;
                 }
-                case 5: {
+                case NodeTypeIdx::Phase: {
                     // @0x165a17: addi(destReg, R0, Immediate(3)).
-                    if (static_cast<int>(valRef.varType_) == 2) {
+                    if (valRef.varType_ == VarType_Var) {
                         // @0x16a31e: varType==2 is invalid — throw.
                         std::string valStr = valRef.value_.toString();
                         std::string msg = ErrorMessages::format(
@@ -2147,7 +2147,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
             // --- Common tail for BC cases 0,1,5 ---
             // Cases 2,3,4 embed their own suser sequences inline and
             // do NOT hit this common tail.
-            if (node.typeIdx == 0 || node.typeIdx == 1 || node.typeIdx == 5) {
+            if (node.typeIdx == NodeTypeIdx::IntegerPassthrough || node.typeIdx == NodeTypeIdx::SinePair || node.typeIdx == NodeTypeIdx::Phase) {
                 // suser(destReg, 0x10) → tag
                 appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeTag));
                 // addi(destReg, R0, Immediate(addr))
@@ -2161,7 +2161,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
                 // suser(destReg, 0x11) → addr
                 appendSuser(localList, asmCommands_, destReg, detail::AddressImpl<uint32_t>(kSuserNodeAddr));
                 // value → suser(0x12)
-                if (static_cast<int>(valRef.varType_) == 2) {
+                if (valRef.varType_ == VarType_Var) {
                     // register path: suser(valRef.reg_, 0x12)
                     appendSuser(localList, asmCommands_, valRef.reg_, detail::AddressImpl<uint32_t>(kSuserNodeValue));
                 } else {
@@ -2287,14 +2287,14 @@ std::string CustomFunctions::printF(std::vector<EvalResultValue> const& args,
     try {
         for (size_t i = 1; i < args.size(); ++i) {
             auto const& arg = args[i];
-            int varType = static_cast<int>(arg.varType_);
+            VarType varType = arg.varType_;
 
-            if (varType == 3) {
+            if (varType == VarType_String) {
                 // String arg — feed directly
                 // @0x16c620: string feed path
                 std::string s = arg.value_.toString();
                 formatter % s;
-            } else if (varType == 4 || varType == 6) {
+            } else if (varType == VarType_Const || varType == VarType_Cvar) {
                 // Numeric arg — check if integer
                 // @0x16c6a0: double value path
                 double val = arg.value_.toDouble();
@@ -2311,7 +2311,7 @@ std::string CustomFunctions::printF(std::vector<EvalResultValue> const& args,
                 // Unknown type — throw error 0x46 @0x16cf90
                 throw CustomFunctionsValueException(
                     ErrorMessages::format(FuncInvalidArgType,
-                                          std::to_string(varType),
+                                                                                                    std::to_string(static_cast<int>(varType)),
                                           funcName,
                                           std::to_string(i),
                                           std::string("string, int or double")),

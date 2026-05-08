@@ -69,7 +69,7 @@ Resources::Variable::~Variable()  // @0x1e4be0
 //   - Stores parent shared_ptr at +0x18 (from weak_ptr.lock() or empty)
 //   - Copies name string to +0x28
 //   - Stores weak_ptr arg at +0x40
-//   - state_ = 0, returnType_ = 0, scopeBoundaryFlags_ = 0
+//   - state_ = State::Unset, returnType_ = 0, scopeBoundaryFlags_ = 0
 //   - returnValue_ zeroed, returnReg_ = AsmRegister(0) = {0, true}
 //   - All vectors empty
 // ============================================================================
@@ -78,7 +78,7 @@ Resources::Resources(std::string const& name,  // @0x1e3420
     : grandparent_()  // set below after parent_ init
     , name_(name)
     , parent_(parent)
-    , state_(0)
+    , state_(State::Unset)
     , returnType_(VarType_Unset)
     , returnValue_()
     , returnReg_(AsmRegister(0))  // Binary @0x1e34ae: AsmRegister(0) → {0, true}
@@ -120,15 +120,15 @@ Resources::~Resources()  // D1 @0x12a8f0
 // ============================================================================
 // Resources::setState — @0x1e35f0
 //
-// If state_ == 0 (Unset), set to the requested value.
-// Otherwise, force to 3 (Locked).
+// If state_ == State::Unset, set to the requested value.
+// Otherwise, force to State::Locked.
 // ============================================================================
 void Resources::setState(State s)  // @0x1e35f0
 {
-    if (state_ == 0) {
-        state_ = static_cast<int32_t>(s);
+    if (state_ == State::Unset) {
+        state_ = s;
     } else {
-        state_ = static_cast<int32_t>(State::Locked);
+        state_ = State::Locked;
     }
 }
 
@@ -374,10 +374,10 @@ std::string Resources::toString() const  // @0x1ebcf0
     os << "=== " << name_ << " ===\n";
 
     // Print state (if set)
-    if (state_ >= 1 && state_ <= 3) {
+    if (state_ >= State::Active && state_ <= State::Locked) {
         // Jump table at state_-1, prints corresponding state string
         const char* stateNames[] = {"Active", "Paused", "Locked"};
-        os << "State: " << stateNames[state_ - 1] << "\n";
+        os << "State: " << stateNames[static_cast<int>(state_) - 1] << "\n";
     }
 
     // Print variables
@@ -868,7 +868,7 @@ bool Resources::constIsSet(std::string const& name)  // @0x1e8050
 // Resources::variableDependsOnVar — @0x1e40e0
 //
 // Returns true iff `name` is found in some ancestor (or local) scope AND
-// the originally-queried scope is in a non-default state (state_ != 0),
+// the originally-queried scope is in a non-default state (state_ != State::Unset),
 // OR a strict ancestor independently returned true. The state_ check is
 // applied at every level of recursion that finds a local match.
 //
@@ -878,31 +878,31 @@ bool Resources::constIsSet(std::string const& name)  // @0x1e8050
 //   - 1e41d9..1e41e1: local-hit return =
 //         setne r14b on (DWORD PTR [rbx+0x50] != 0)
 //     where rbx+0x50 is `state_` of the *calling* Resources. So a
-//     local match returns `(state_ != 0)`, NOT just `true`.
+//     local match returns `(state_ != State::Unset)`, NOT just `true`.
 //   - 1e4183..1e41cd: on local miss, lock parent_ (weak_count* at
 //     this+0x48). If lock returns a usable sp with a non-null raw ptr
 //     at this+0x40, recurse via variableDependsOnVar. After recursion:
-//     r14 = recursiveResult OR (state_ != 0). If lock failed/expired,
+//     r14 = recursiveResult OR (state_ != State::Unset). If lock failed/expired,
 //     the disasm DOES NOT fall back to grandparent_ — it returns 0 directly.
 //     The parent_ branch is the ONLY ancestor path here.
 //
 // Net behaviour:
 //   * No name in chain → false.
-//   * Name only in this scope → state_ != 0.
+//   * Name only in this scope → state_ != State::Unset.
 //   * Name in some ancestor → recurse: any ancestor frame's local hit
-//     propagates up OR'd with each intermediate scope's (state_ != 0)
+//     propagates up OR'd with each intermediate scope's (state_ != State::Unset)
 //     flag.
 // ============================================================================
 bool Resources::variableDependsOnVar(std::string const& name) const  // @0x1e40e0
 {
     for (auto const& var : variables_) {
         if (var.name == name) {
-            return state_ != 0;
+            return state_ != State::Unset;
         }
     }
     if (auto p = parent_.lock()) {
         bool parentResult = p->variableDependsOnVar(name);
-        return parentResult || (state_ != 0);
+        return parentResult || (state_ != State::Unset);
     }
     return false;
 }
@@ -1122,7 +1122,7 @@ void Resources::addConst(std::string const& name, VarSubType st)  // @0x1e74e0
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
     // No variant payload — already zero from value-init.
-    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+    v.flags      = (st == VarSubType_FunctionArg) ? 1 : 0;
 
     variables_.push_back(v);
 }
@@ -1194,7 +1194,7 @@ void Resources::addString(std::string const& name, VarSubType st)  // @0x1e54f0
     v.value      = Value(std::string{});  // empty-string variant
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
-    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+    v.flags      = (st == VarSubType_FunctionArg) ? 1 : 0;
 
     variables_.push_back(v);
 }
@@ -1218,7 +1218,7 @@ void Resources::addWave(std::string const& name, VarSubType st)  // @0x1e64f0
     v.value      = Value(std::string{});  // empty-string variant
     v.reg        = AsmRegister::Invalid();
     v.name       = name;
-    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+    v.flags      = (st == VarSubType_FunctionArg) ? 1 : 0;
 
     variables_.push_back(v);
 }
@@ -1244,7 +1244,7 @@ void Resources::addCvar(std::string const& name, VarSubType st)  // @0x1e8650
     v.reg             = AsmRegister::Invalid();
     v.name            = name;
     // No variant payload — value-initialised storage stays zero.
-    v.flags           = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+    v.flags           = (st == VarSubType_FunctionArg) ? 1 : 0;
 
     variables_.push_back(v);
 }
@@ -1350,7 +1350,7 @@ void Resources::addVar(std::string const& name, VarSubType st)  // @0x1e46b0
     v.name       = name;
     // Variant payload is value-initialized to int 0 (which_=0, payload=0).
     // No explicit write needed — Variable v{} above zeros value.storage_.
-    v.flags      = (static_cast<int32_t>(st) == 2) ? 1 : 0;
+    v.flags      = (st == VarSubType_FunctionArg) ? 1 : 0;
 
     variables_.push_back(v);
 }

@@ -98,7 +98,7 @@ public:
 //
 // Layout (from operator== @0x1c5490 and fastAddress @0x1c5470):
 //   +0x00  8  NodeMapData*   data     (polymorphic, dynamic_cast in getNodeAddress)
-//   +0x08  4  int32_t        typeIdx  (node type/index)
+//   +0x08  4  NodeTypeIdx    typeIdx  (node type/index)
 //   +0x0C  4  uint32_t       fastAddr (fast address)
 //   +0x10  1  bool           hasFast  (has fast address; doubles as
 //                                       AccessMode 0/1 selector in playback —
@@ -107,7 +107,7 @@ public:
 // ============================================================================
 struct NodeMapItem {
     NodeMapData*  data;       // +0x00
-    int32_t       typeIdx;    // +0x08
+    NodeTypeIdx   typeIdx;    // +0x08
     uint32_t      fastAddr;   // +0x0C
     // hasFast: only 0/1 ever observed (51 lookupNode hits across full test
     // suite via GDB; see notes/incidental_findings.md IF-112). The byte is

@@ -146,7 +146,7 @@ VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
 // 0x18    16    shared_ptr<Resources>                   grandparent_
 // 0x28    24    std::string                             name_
 // 0x40    16    weak_ptr<Resources>                     parent_
-// 0x50    4     int32_t                                 state_ (State enum)
+// 0x50    4     State                                   state_
 // 0x54    4     VarType                                 returnType_
 // 0x58    40    Value                                   returnValue_ (0x28 bytes)
 // 0x80    8     AsmRegister                             returnReg_
@@ -438,7 +438,7 @@ protected:
     std::shared_ptr<Resources> grandparent_;             // +0x18 (16 bytes)
     std::string                name_;               // +0x28 (24 bytes)
     std::weak_ptr<Resources>   parent_;              // +0x40 (16 bytes)
-    int32_t                    state_;              // +0x50
+    State                      state_;              // +0x50
     VarType                    returnType_;         // +0x54
     Value                      returnValue_;        // +0x58 (0x28 = 40 bytes)
     AsmRegister                returnReg_;          // +0x80 (8 bytes)

@@ -40,8 +40,7 @@ WaveformIR::WaveformIR(std::shared_ptr<WaveformFront> source)  // 0x114da0
         // Clear the file's data vector
         file->fileHash.clear();
         file->fileHash.shrink_to_fit();
-        // Set file metadata: formatType=0, columnMode=1, isIntegerFormat=1
-        file->formatType = 0;
+        file->formatType = WaveformFile::FormatType::AutoDetect;
         file->columnMode = 1;
         file->isIntegerFormat = 1;
     }
@@ -61,7 +60,7 @@ WaveformIR::WaveformIR(std::shared_ptr<Waveform> source)  // 0x2a9240
     if (file) {
         file->fileHash.clear();
         file->fileHash.shrink_to_fit();
-        file->formatType = 0;
+        file->formatType = WaveformFile::FormatType::AutoDetect;
         file->columnMode = 1;
         file->isIntegerFormat = 1;
     }

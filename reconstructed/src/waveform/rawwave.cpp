@@ -94,12 +94,17 @@ RawWaveHirzel16::RawWaveHirzel16(                                // 0x297140
         markerMode |= (markerBits[i] & 0x03);
     }
 
-    if (markerMode == 0) {
+    // markerMode values:
+    constexpr uint8_t kMarkerModeNone   = 0; // no markers — pure 16-bit sample encoding
+    constexpr uint8_t kMarkerModeOneBit = 1; // single marker bit — 1-marker encoding
+    // markerMode > 1: multi-bit markers — full marker encoding
+
+    if (markerMode == kMarkerModeNone) {
         // No markers — pure 16-bit sample encoding
         for (size_t i = 0; i < numSamples; ++i) {
             data_[i] = util::wave::double2awg16(samples[i]);     // 0x299700
         }
-    } else if (markerMode == 1) {
+    } else if (markerMode == kMarkerModeOneBit) {
         // Single marker bit — 1-marker encoding
         for (size_t i = 0; i < numSamples; ++i) {
             data_[i] = util::wave::double2awg1m(                 // 0x299680
