@@ -1,0 +1,82 @@
+/* ============================================================================
+ * custom.css — local overrides for Doxygen Awesome
+ * ============================================================================
+ * Loaded after theme/doxygen-awesome.css via HTML_EXTRA_STYLESHEET.  Keep
+ * vendor file pristine (it is a pinned vendored copy of v2.3.4); put all
+ * project-specific tweaks here.
+ *
+ * Sections:
+ *   1. Dark-mode contrast fixes
+ *   2. Reserved for future overrides
+ * ============================================================================ */
+
+/* ----------------------------------------------------------------------------
+ * 1. Dark-mode contrast fixes
+ * ----------------------------------------------------------------------------
+ * The vendored theme's @media (prefers-color-scheme: dark) block leaves
+ * --code-foreground unset in some Doxygen output paths, which yields
+ * light-gray identifier text on a near-white background when the OS is in
+ * dark mode but Doxygen's own JS dark-mode toggle has not flipped the
+ * html.dark-mode class.  Pin the foreground explicitly under both the
+ * media query and the class selector so all combinations render readably.
+ * ---------------------------------------------------------------------------- */
+
+@media (prefers-color-scheme: dark) {
+    html:not(.light-mode) {
+        --code-foreground: #d2dbde;
+        --fragment-foreground: #dbe4eb;
+    }
+
+    /* Inline <code> spans, including those inside .memname / .paramname /
+     * tables / paragraphs.  The vendor sets background but lets the color
+     * cascade fall back to the surrounding text colour, which is too dim
+     * against the slightly-darker code background. */
+    html:not(.light-mode) code,
+    html:not(.light-mode) .memname code,
+    html:not(.light-mode) .paramname code,
+    html:not(.light-mode) td code,
+    html:not(.light-mode) p code {
+        color: var(--code-foreground);
+        background: var(--code-background);
+    }
+
+    /* Identifiers inside the synopsis/declaration line of each member. */
+    html:not(.light-mode) .memItemLeft,
+    html:not(.light-mode) .memItemRight,
+    html:not(.light-mode) .memTemplItemLeft,
+    html:not(.light-mode) .memTemplItemRight,
+    html:not(.light-mode) .memTemplParams {
+        color: var(--page-foreground-color);
+    }
+
+    /* Cross-reference links inside code fragments — vendor leaves them
+     * at the default link colour, which is too dim on the dark fragment
+     * background. */
+    html:not(.light-mode) div.fragment a.code,
+    html:not(.light-mode) pre.fragment a.code,
+    html:not(.light-mode) code a {
+        color: var(--fragment-link);
+    }
+}
+
+/* Belt-and-braces: same overrides under the explicit dark-mode class so
+ * the JS toggle path also picks them up. */
+html.dark-mode {
+    --code-foreground: #d2dbde;
+    --fragment-foreground: #dbe4eb;
+}
+
+html.dark-mode code,
+html.dark-mode .memname code,
+html.dark-mode .paramname code,
+html.dark-mode td code,
+html.dark-mode p code {
+    color: var(--code-foreground);
+    background: var(--code-background);
+}
+
+html.dark-mode div.fragment a.code,
+html.dark-mode pre.fragment a.code,
+html.dark-mode code a {
+    color: var(--fragment-link);
+}

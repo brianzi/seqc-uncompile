@@ -160,6 +160,43 @@ This prevents loss of hard-won observations during deep debugging.
   `-fsyntax-only` directly. Keep that file regenerated after any
   CMakeLists or dependency change.
 
+## Documentation system
+
+The reconstructed compiler ships an inline-Doxygen documentation site
+rendered with Doxygen Awesome CSS.  The full how-to — markers, custom
+aliases, coverage tracking, theme update procedure, and the multi-phase
+plan — lives in `reconstructed/docs/README.md`.  Read it before writing
+or editing any documentation comments.
+
+Pointers for agents:
+
+- **Comment markers**: use `//!` (single-line) and `/*! */` (multi-line)
+  for documentation.  Plain `//` is reserved for reconstruction notes
+  and is **not** picked up by Doxygen.  Doxygen `///` and `/** */` are
+  forbidden — see `reconstructed/notes/comment_style_guide.md` §13.
+- **Accuracy discipline**: never invent details to fill a doc comment.
+  Three custom tags exist for the unknown / uncertain / divergent cases:
+  - `\unclear` — we don't yet know what this does.
+  - `\verifyme` — we have a hypothesis that is **not** GDB- or
+    test-verified yet.  State the hypothesis explicitly.
+  - `\binarynote` — verified fact about the original binary that
+    diverges from idiomatic C++.
+  Each tag generates a dedicated cross-reference page so the backlog is
+  discoverable.
+- **Build the site**: `cmake --build . --target docs` from
+  `reconstructed/build/`.  The target is registered automatically when
+  Doxygen is installed; if Doxygen is missing, cmake skips it without
+  failing.
+- **Coverage check**: `reconstructed/docs/coverage.sh` from the repo
+  root prints documented-symbol percentage and `\unclear` /
+  `\verifyme` / `\binarynote` counts.
+- **Phase plan**: see `TODO.md` Phase D entries.  The current phase
+  determines whether `WARN_IF_UNDOCUMENTED` is on or off — do not flip
+  that flag without a TODO entry sanctioning it.
+- **Theme overrides**: never edit `reconstructed/docs/theme/doxygen-awesome.css`
+  (vendored, pinned).  Put local overrides in
+  `reconstructed/docs/theme/custom.css` so version bumps stay clean.
+
 ## GDB tracing for binary analysis
 
 **GDB is the single most effective tool for resolving reconstruction

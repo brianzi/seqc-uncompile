@@ -189,6 +189,7 @@ if(DOXYGEN_FOUND)
     set(DOXYGEN_MAINPAGE      "${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md")
     set(DOXYGEN_INCLUDE_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/include")
     set(DOXYGEN_AWESOME_CSS   "${CMAKE_CURRENT_SOURCE_DIR}/docs/theme/doxygen-awesome.css")
+    set(DOXYGEN_CUSTOM_CSS    "${CMAKE_CURRENT_SOURCE_DIR}/docs/theme/custom.css")
     set(DOXYGEN_WARN_LOGFILE  "${DOXYGEN_OUTPUT_DIR}/doxygen-warnings.log")
 
     file(MAKE_DIRECTORY "${DOXYGEN_OUTPUT_DIR}")
