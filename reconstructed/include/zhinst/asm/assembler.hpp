@@ -36,6 +36,21 @@ namespace zhinst {
 //   regDst (+0x28) is WRITTEN when cmdType & 2
 //   regAux (+0x30) is READ when cmdType ∈ {1, 7}; WRITTEN when cmdType == 7
 // Field rename completed (was reg2/reg0/reg1 → regSrc/regDst/regAux).
+//! \brief Single AWG processor instruction record.
+//!
+//! `Assembler` is the in-memory representation of one assembled
+//! instruction: an opcode (`cmd`) plus its register operands (a source,
+//! a destination, and a dual-role auxiliary register), input and output
+//! immediate-operand lists, an optional branch-target label, and an
+//! annotation comment.  Per-opcode register semantics — which slots are
+//! read, which are written — are derived by the static `getCmdType()`
+//! helper from the `Command` enum value.
+//!
+//! Instances are produced by the per-method factories in `AsmCommands`,
+//! collected into an `AsmList`, optimised by `AsmOptimize`, and finally
+//! encoded into the binary `.text` segment by the device-specific
+//! `AsmCommandsImpl` subclass.  `str(verbose)` produces the
+//! human-readable disassembly that appears in the ELF `.asm` section.
 class Assembler {
 public:
     // Instruction opcodes. Values determined from disassembly of AsmCommands

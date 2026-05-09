@@ -31,6 +31,19 @@ namespace zhinst {
 //   [10] ssl(AsmRegister, int) const
 //   [11] ssr(AsmRegister, int) const
 //   [12] ldiotrig(AsmRegister, int) const
+//! \brief Device-specific instruction-encoding back end for `AsmCommands`.
+//!
+//! `AsmCommandsImpl` is the polymorphic pimpl behind `AsmCommands`:
+//! each AWG hardware family (Cervino, Hirzel) implements the abstract
+//! virtuals here with the opcode bit-patterns and operand layouts its
+//! processor expects.  The `getInstance(deviceType)` factory selects
+//! the right concrete subclass based on `AwgDeviceType`.
+//!
+//! Methods that have no encoding on a given family (for example
+//! Cervino lacks the wavetable-quad write) throw an exception when
+//! called on that subclass.  `isCWVFRSupported()` advertises whether
+//! the conditional-waveform-with-register-cancel form is available so
+//! the front end can choose between equivalent emission strategies.
 class AsmCommandsImpl {
 public:
     virtual ~AsmCommandsImpl();
@@ -61,6 +74,12 @@ public:
 };
 
 // Cervino implementation — older/FPGA devices.
+//! \brief `AsmCommandsImpl` back end for the older Cervino / FPGA family.
+//!
+//! Encodes the subset of instructions supported by the Cervino
+//! sequencer (UHFLI, UHFAWG, UHFQA, GHFLI, VHFLI), and throws for the
+//! Hirzel-only forms (`wwvfq`, `wvfs`, `wvft`).  Reports
+//! `isCWVFRSupported() == false`.
 class AsmCommandsImplCervino : public AsmCommandsImpl {
 public:
     ~AsmCommandsImplCervino() override;
@@ -88,6 +107,12 @@ public:
 };
 
 // Hirzel implementation — HDAWG, UHF, SHF devices.
+//! \brief `AsmCommandsImpl` back end for the Hirzel sequencer.
+//!
+//! Encodes the instruction set used by HDAWG, SHFQA, SHFSG, and SHFQC
+//! devices, including the wavetable-quad (`wwvfq`) and waveform-end
+//! (`wvfs`/`wvft`) forms unique to this family.  Reports
+//! `isCWVFRSupported() == true`.
 class AsmCommandsImplHirzel : public AsmCommandsImpl {
 public:
     ~AsmCommandsImplHirzel() override;

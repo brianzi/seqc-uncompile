@@ -32,8 +32,31 @@ namespace zhinst {
 // +0x08   8     T*                  end pointer
 // +0x10   8     T*                  capacity end pointer
 // sizeof(AsmList) = 0x18
+//! \brief Sequence of assembled instructions.
+//!
+//! `AsmList` is a thin wrapper around a `std::vector<AsmList::Asm>` that
+//! holds the instruction stream of a single sequencer.  Instructions are
+//! appended in emission order by `AsmCommands` and friends, optimised
+//! in place by `AsmOptimize`, then serialised to the ELF `.asm` and
+//! `.text` sections.  In addition to the standard container interface
+//! the class provides `serialize()` / `deserialize()` (round-trip text
+//! form including embedded JSON for placeholder nodes), `print()`
+//! (human-readable disassembly), `maxRegister()` (highest register seen,
+//! used by the register allocator), and a node-anchored `insert()`
+//! overload used by the prefetch pass to splice instructions at
+//! placeholder positions.
 class AsmList {
 public:
+    //! \brief One instruction record inside an `AsmList`.
+    //!
+    //! Pairs an `Assembler` instruction with the bookkeeping data the
+    //! later compiler stages need: a per-instance `sequenceId` for
+    //! stable identity across optimisation passes, a `wavetableFront`
+    //! index that doubles as the source-line number for diagnostic
+    //! commands (see `lineNumber()`), an optional `node` link back to
+    //! the IR `Node` that produced the instruction (used to recover
+    //! placeholder positions during prefetch), and a `noOpt` flag that
+    //! marks the entry as exempt from optimiser rewrites.
     // Offset  Size  Type              Name            Notes
     // +0x00   4     int               sequenceId      from createUniqueID(false)
     // +0x04   4     (padding)

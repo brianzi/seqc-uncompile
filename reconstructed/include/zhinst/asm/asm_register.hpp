@@ -15,6 +15,16 @@
 // Confirmed from disassembly: stored as 8 bytes in Assembler and Node
 // fields. The valid flag is separate from the value (not just value == -1).
 // Common pattern: valid=false, value=-1 for "no register".
+//! \brief AWG processor register identifier with explicit valid flag.
+//!
+//! `AsmRegister` is the operand type used everywhere a single-instruction
+//! register reference is needed.  It packs a register number with a
+//! separate `valid` boolean so an unset slot can be represented
+//! unambiguously without overloading a sentinel value: comparisons treat
+//! all invalid registers as equal regardless of `value`.  Use the
+//! `Invalid()` and `Reg(n)` factories at call sites; the
+//! `magicSkipRegister()` factory returns a sentinel used internally by
+//! the optimiser's register-allocation pass to mark barrier entries.
 struct AsmRegister {
     int value = -1;      // +0x00: register number (0-15), or -1 if unset
     bool valid = false;  // +0x04: whether this register slot is active

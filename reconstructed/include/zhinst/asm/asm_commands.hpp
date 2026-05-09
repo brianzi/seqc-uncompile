@@ -36,6 +36,23 @@ namespace zhinst {
 // +0x58         END (sizeof(AsmCommands) = 0x58, approximate)
 //
 // Notes: +0x20 and +0x40 are approximate; confirmed: +0x10, +0x50, +0x54.
+//! \brief Façade that emits AWG-processor instruction records.
+//!
+//! `AsmCommands` is the code-generation surface used by the rest of the
+//! compiler: every method on this class corresponds to one assembler
+//! mnemonic (`addr`, `brz`, `wvf`, `ld`, `cwvf`, …) and returns a
+//! freshly built `AsmList::Asm` ready for appending to the active
+//! `AsmList`.  Device-specific instruction encodings are delegated to
+//! the polymorphic `AsmCommandsImpl` (Cervino vs Hirzel) held as a
+//! pimpl, so the public API is uniform across hardware families.
+//!
+//! The class also exposes helpers for higher-level constructs that
+//! expand into multiple instructions or carry IR-side metadata:
+//! `asmPlay` / `asmTable` build playback nodes referencing concrete
+//! waveforms, `asmPrefetch` and `asm*Placeholder` create the
+//! placeholder entries the prefetch pass later fills in, and the
+//! `genPlayConfig` helper assembles a `PlayConfig` from waveform and
+//! channel-grouping context.
 class AsmCommands {
 public:
     // Constructor — creates impl via AsmCommandsImpl::getInstance()
