@@ -101,6 +101,22 @@ namespace detail {
 // Layout matches what the binary embeds: a `boost::log::record`
 // followed by a `basic_record_ostream<char>` and a self-pointer used
 // as an "stream is bound to record" flag.
+//! RAII helper that opens a Boost.Log record, accumulates streamed
+//! values into it, and pushes the finished record to the logging
+//! core on destruction.
+//!
+//! The `LOG_*` macros instantiate one of these for each log
+//! statement; user code never constructs it directly. The constructor
+//! consults the global filter for `severity` and only opens a record
+//! if logging is enabled, so disabled severities cost only a filter
+//! check. `operator<<` is a no-op when the record was not opened,
+//! making `LOG_TRACE() << expensiveCall()` safe (the call still runs,
+//! but its result is discarded cheaply).
+//!
+//! \binarynote The destructor swallows any exception thrown while
+//! pushing the record and routes it through `logExceptionToClog()`
+//! rather than allowing it to propagate; logging never throws to
+//! its caller.
 class LogRecord {
 public:
     // 0x2ea220 — opens a record at the given severity if logging is enabled.

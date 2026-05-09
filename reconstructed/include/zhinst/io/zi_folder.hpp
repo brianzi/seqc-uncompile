@@ -20,6 +20,24 @@
 
 namespace zhinst {
 
+//! Resolves Zurich Instruments LabOne directory paths anchored to a
+//! base path.
+//!
+//! Wraps a single base-path string and provides helpers for locating
+//! the canonical LabOne subdirectories (`data`, `settings`,
+//! `executable`) and for composing per-device session directory
+//! names. The static factory `ziFolder(DirectoryType)` returns a
+//! ready-made instance for the well-known directories: on MF devices
+//! these are fixed paths under `/data` or `/settings`; on host
+//! systems they are derived from `$HOME` or the running executable's
+//! location.
+//!
+//! `folderPath()` composes a full
+//! `<base>/<subdir>/$Zurich Instruments/LabOne/<deviceSerial>/<extra>`
+//! path (the `$Zurich Instruments` segment is inserted only for the
+//! standard `data` and `settings` subdirs). `sessionSaveDirectoryName()`
+//! produces a timestamped, per-device directory name suitable for
+//! storing one session's output.
 class ZiFolder {
 public:
     // DirectoryType selects which well-known ZI directory to resolve.

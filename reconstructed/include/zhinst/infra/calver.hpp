@@ -15,6 +15,19 @@ namespace zhinst {
 //   +0x08  size_t month_
 //   +0x10  size_t patch_
 //   +0x18  size_t build_
+//! Calendar-versioning value: a four-component LabOne version number
+//! (`year`, `month`, `patch`, `build`) with parsing, comparison, and
+//! pack/unpack helpers.
+//!
+//! The string form is `"YY.MM.PATCH"` or `"YY.MM.PATCH.BUILD"`; missing
+//! `build` parses as zero. Two pack formats are provided: `asDecimal()`
+//! produces a human-readable `YYMM_P_BBBB` integer, while `asBinary()`
+//! produces a tightly bit-packed `uint32_t`. Lexicographic ordering
+//! across all four fields is exposed via `operator==` and `operator<`.
+//!
+//! Use `getLaboneVersion()` to obtain the build's compile-time-embedded
+//! version, or `getLaboneVersionWithCommitHash()` for the same value
+//! formatted alongside the source commit hash.
 struct CalVer {
     size_t year_;   // +0x00
     size_t month_;  // +0x08

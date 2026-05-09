@@ -79,6 +79,20 @@ makeDefaultSpanProcessor();
 // Constructed lazy on first getInstance(). Disabled by default
 // (configure() must be called to install a TracerProvider; enable()
 // then turns the kill-switch on).
+//! Process-wide owner of the OpenTelemetry `TracerProvider` used by
+//! every span the compiler emits.
+//!
+//! The provider is unconfigured at startup: spans created via
+//! `ScopedSpan` are no-ops until a host application calls
+//! `configure()` to install a span processor (typically the OTLP/HTTP
+//! batch processor returned by `makeDefaultSpanProcessor()`). A
+//! separate `enable()` / `disable()` kill-switch lets the host pause
+//! tracing without tearing down the provider.
+//!
+//! Resource attributes are merged with a default set
+//! (`service.name=labone`, `service.namespace=zhinst`, plus version
+//! and commit-hash from `getDefaultLabOneResource()`) so every span
+//! carries enough metadata to attribute it to this build.
 class TraceProvider {
 public:
     // 0xfa570 — function-local-static singleton accessor.
@@ -144,6 +158,20 @@ private:
 //
 // Both ctors short-circuit (leaving an empty Span) when the
 // TraceProvider singleton is not yet initialized OR is disabled.
+//! RAII OpenTelemetry span scoped to the surrounding block.
+//!
+//! Construct one at the top of a region you want to time or trace,
+//! optionally with an initializer list of `(key, AttributeValue)`
+//! attributes; the destructor ends the span and pops the active
+//! `Scope`. The `tracer_scope` argument selects the named tracer to
+//! draw the span from (typically a subsystem name); `span_name`
+//! identifies the operation.
+//!
+//! \binarynote When the global `TraceProvider` is unconfigured or
+//! disabled, both constructors short-circuit to an empty span: no
+//! tracer lookup, no `StartSpan` call, no attached `Scope`. This
+//! makes `ScopedSpan` cheap to leave in hot paths even when tracing
+//! is off.
 class ScopedSpan {
 public:
     // 0xfaea0 — without per-span attributes.
