@@ -93,6 +93,29 @@ enum AwgDeviceType : int;
 //                                                  code paths in Prefetch (verified at 0x1dc683 etc.)
 // 0x89    7     (padding to 0x90)
 // ============================================================================
+//! \brief Per-device hardware-configuration POD consumed by every
+//! compilation pipeline (frontend, prefetch, wavetable IR,
+//! assembler, ELF writer).
+//!
+//! Built once per compile by `getDeviceConstants(AwgDeviceType)` and
+//! threaded through the compiler as `const DeviceConstants*` so each
+//! component can read the values that depend on the target sequencer
+//! generation: waveform-memory geometry (`waveformMemorySize`,
+//! `waveformAlignment`, `cachePageCount`, `maxBlocks`), waveform
+//! length / play-length limits (`maxWaveformLength`, `grainSize`,
+//! `playMinSamples`, `waveformMinSamples`), instruction-set features
+//! (`hasExtendedReg`, `hasPrecomp`, `hasDIO`, `numCounters`,
+//! `numAWGCores`, `numDIOBits`), sequencer / waveform / sine
+//! register base addresses, and the program-size / sequence-length
+//! / sample-rate caps that drive optimisation and ELF emission.
+//!
+//! The nested `Register` and `SuserAddr` sub-types collect the
+//! hardware register-address constants referenced by the assembler
+//! and `CustomFunctions` (sync registers, multi-word write-commit
+//! sequences, sine / PRNG / sweep / QA register slots, and the
+//! generation-specific sync register variants).  Two convenience
+//! accessors (`maxDioTableEntries`, `maxWaveIndex`) expose existing
+//! fields under the names used at the call sites that need them.
 struct DeviceConstants {
 
     // Nested Register type (contains anonymous enums for sequencer register addresses)

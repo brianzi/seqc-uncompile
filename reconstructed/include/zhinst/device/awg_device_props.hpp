@@ -66,6 +66,13 @@ std::string toString(AwgSequencerType seq);
 //   - awgPathPatternsGurnigel    @ 0xb850e0 (copy of GrimselLi; for GHFLI)
 //   - awgPathPatternsMaloja      @ 0xb85128 (copy of GrimselLi; for VHFLI)
 // ----------------------------------------------------------------------------
+//! \brief Three node-path templates that locate an AWG's data, progress,
+//! and enable nodes within the device's parameter tree.
+//!
+//! One instance is interned per device family (default for the legacy
+//! UHF/HDAWG families, plus dedicated patterns for the SHFQA, SHFSG,
+//! SHFLI, GHFLI, and VHFLI families) and copied into each
+//! `AwgDeviceProps` returned by `getAwgDeviceProps`.
 struct AwgPathPatterns {
     std::string elfDataPattern;        // +0x00
     std::string elfProgressPattern;    // +0x18
@@ -136,6 +143,18 @@ static_assert(sizeof(AwgPathPatterns) == 3 * sizeof(std::string),
 // `dt.hasOption(DeviceOption(0x13)=ME)` and picks the higher limit when
 // the ME (Memory Extension) option is set.
 // ----------------------------------------------------------------------------
+//! \brief Per-AWG-family device properties consumed by the compile
+//! driver and ELF writer.
+//!
+//! Built once per compile by the appropriate `getAwgDeviceProps<T>`
+//! specialisation (one per `AwgDeviceType` bit) and threaded through
+//! `compileSeqc` and `AWGCompilerImpl`.  Bundles the family bit, the
+//! four node-path templates (the three from `AwgPathPatterns` plus an
+//! FPGA-revision path), the maximum permitted ELF size, the waveform
+//! memory base address (`addressImpl`, also used as the program entry
+//! point), the wave-sample storage format (`sampleFormat`, 0/1/2),
+//! and the `isHirzel` flag that selects between the two sequencer
+//! generations.
 struct AwgDeviceProps {
     AwgDeviceType deviceType;          // +0x00
     std::string   elfDataPattern;      // +0x08

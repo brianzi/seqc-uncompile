@@ -30,6 +30,19 @@ namespace detail {
 // instead), then forwards everything as a tuple to the
 // DeviceTypeImpl(tuple) base ctor.
 // ============================================================================
+//! \brief Catch-all `DeviceTypeImpl` subclass used when a `DeviceType`
+//! is constructed from runtime device-type and option strings.
+//!
+//! The constructor parses the `deviceType` string into a
+//! `DeviceTypeCode` and `DeviceFamily` (via `toDeviceTypeCode` /
+//! `toDeviceFamily`) and the `options` string vector into a
+//! `DeviceOptionSet` (via `toDeviceOptions`, family-scoped; skipped
+//! when the resolved code is `Unknown`, in which case an empty
+//! family-scoped option set is used) and forwards the result to the
+//! `DeviceTypeImpl` base.  Adds no data members; exists so that
+//! string-constructed device types remain distinguishable through
+//! the polymorphic interface.
+// ============================================================================
 class GenericDeviceType : public DeviceTypeImpl {
 public:
     // @ 0x2d3c60
