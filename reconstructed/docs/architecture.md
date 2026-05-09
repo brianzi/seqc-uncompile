@@ -1,59 +1,244 @@
 # SeqC Compiler — Reconstructed {#mainpage}
 
 This site documents the reverse-engineered C++ reconstruction of
-`_seqc_compiler.so`, the SeqC compiler shipped with Zurich Instruments LabOne.
-
-The reconstruction lives in `reconstructed/src/` and
-`reconstructed/include/zhinst/`. It is built into a static library
+`_seqc_compiler.so`, the SeqC compiler shipped with Zurich Instruments
+LabOne.  The reconstruction lives in `reconstructed/src/` and
+`reconstructed/include/zhinst/`.  It is built into a static library
 `libzhinst_seqc.a` and a Python extension module `_seqc_compiler.so`
 that is differentially tested against the original binary by
 `tests/diff_test_fast.py` (currently 1600/1600 passing).
 
-## Status
+[TOC]
 
-This documentation site is in its initial setup phase
-(**Phase D0** of the documentation roadmap — see `TODO.md`).
-At this point only the framework, theme, and accuracy-discipline
-machinery are in place. **Almost no symbols are documented yet.**
+## What the compiler does
 
-Subsequent phases will add per-class and per-function documentation:
+SeqC is a small C-like sequencing language used to drive Zurich
+Instruments AWG / SHF instruments.  A SeqC program describes when to
+play waveforms, set node values, wait, branch on feedback, and so on.
+The compiler turns SeqC source plus a device-type descriptor into an
+**ELF32-LE container** holding sequencer machine code, waveform sample
+data, and a number of metadata sections (see [ELF output](#elf-output)).
 
-- **D1** — High-level architecture narrative on this page.
-- **D2** — `\brief` line on every public class.
-- **D3** — Full documentation of pipeline-driver functions.
-- **D4** — Public methods of high-traffic classes.
-- **D5** — Internal helpers.
-- **D6** — Long-form notes promoted to Doxygen pages.
+Single entry point, used by every caller:
 
-## Accuracy discipline
+```cpp
+// The top-level orchestrator. See codegen/compiler.hpp.
+//
+// Constructs Resources / AsmCommands / WaveformGenerator / CustomFunctions
+// internally, parses the source, lowers to assembly, runs the prefetcher,
+// optimises, and returns the final assembly list.
+zhinst::Compiler compiler(config, deviceConstants, wavetable, ...);
+auto result = compiler.compile(source, lineNumber);
+```
+
+The Python binding `compile_seqc()` wraps `Compiler::compile()` and an
+ELF writer to produce the `(elf_bytes, info_dict)` tuple consumed by
+LabOne.
+
+## Pipeline overview
+
+`Compiler::compile()` is a 12-step pipeline.  The full per-step
+disassembly map lives in `notes/pipeline.md`; the diagram below is the
+contract.
+
+```
+Source string
+  │
+  ├─ 1. unifyLineEndings           normalize \r\n / \r → \n
+  │
+  ├─ 2. parse                      flex/bison (seqc_lex / seqc_parse)
+  │       → Expression             raw parser AST
+  │
+  ├─ 3. toSeqCAst                  Expression → SeqCAstNode (typed AST)
+  │
+  ├─ 4. FrontEndLoweringFacade     virtual dispatch on SeqCAstNode
+  │       → AsmList + Node tree    populated in-place
+  │
+  ├─ 5. Build assembly preamble    labels, placeholder load
+  │
+  ├─ 6. Linearize Node tree        deque<Node> → AsmList instructions
+  │
+  ├─ 7. AsmOptimize::optimizePreWaveform     dead code elimination
+  │
+  ├─ 8. Serialize / deserialize    canonical-form round-trip
+  │
+  ├─ 9. runPrefetcher              waveform placement (sub-pipeline)
+  │
+  ├─ 10. AsmOptimize::optimizePostWaveform   jump elim, label cleanup,
+  │                                          register zeroing,
+  │                                          register allocation,
+  │                                          reportUserMessages
+  │
+  ├─ 11. unsyncCervino             platform-specific sync teardown
+  │
+  └─ 12. Build vector<Assembler>   final instruction list
+```
+
+The prefetcher (step 9) is itself a sub-pipeline that
+allocates waveform memory, assigns wave indices, and emits the load
+instructions that fetch waveform data into the cache before each
+`playWave`.  See `notes/pipeline.md` and
+`reconstructed/include/zhinst/codegen/prefetch.hpp`.
+
+## Component map
+
+The codebase is organised by include subdirectory; each one owns a
+distinct concern.  The table below maps directories to the components
+they contain and the notes file with the deep-dive details.
+
+| Directory | Role | Key types | Notes |
+|-----------|------|-----------|-------|
+| `core/` | Cross-cutting infrastructure: exceptions, error messages, logging. | `ZIAWGCompilerException`, `CompilerMessage`, `ErrorMessages` | `notes/error_message_audit.md`, `notes/logging_tracing.md` |
+| `device/` | Device-type discrimination and per-device constants. | `DeviceType`, `DeviceConstants` | `notes/device_type.md`, `notes/device_constants.md`, `notes/awg_device_props.md` |
+| `infra/` | STL adapters and small utilities (boost / libc++ ABI shims). | various | `notes/libcpp_abi.md` |
+| `ast/` | Parser-level `Expression`, typed `SeqCAstNode` hierarchy, evaluation, frontend lowering. | `Expression`, `SeqCAstNode`, `Value`, `EvalResults`, `FrontEndLoweringFacade` | `notes/frontend_lowering.md`, `notes/seqc_parser_grammar.md` |
+| `asm/` | Assembly representation: `AsmList`, optimisation passes, `AsmCommands` device dispatch. | `AsmList`, `AsmCommands`, `AsmCommandsImplCervino`, `AsmCommandsImplHirzel`, `AsmOptimize`, `AsmRegister` | `notes/optimization_passes.md`, `notes/asm_parser_grammar.md`, `notes/opcode_map.md` |
+| `codegen/` | Pipeline driver, prefetcher, AWG backend, math sub-compiler. | `Compiler`, `Prefetch`, `AWGAssembler`, `AWGCompiler`, `AWGCompilerConfig`, `MathCompiler`, `MemoryAllocator` | `notes/pipeline.md`, `notes/memory_allocator_analysis.md` |
+| `runtime/` | SeqC runtime model: scopes, registers, built-in functions, cache. | `Resources`, `StaticResources`, `GlobalResources`, `CustomFunctions`, `Cache`, `NodeMapData` | `notes/static_resources_cervino_consts.md`, `notes/special_registers.md` |
+| `waveform/` | Waveforms, signals, wavetables, waveform DSL. | `Waveform`, `WaveformFront`, `WaveformIR`, `Signal`, `PlayConfig`, `WaveformGenerator`, `WavetableFront`, `WavetableIR`, `WavetableManager<T>` | `notes/waveform_generator_funcmap.md`, `notes/bytes_vs_samples_audit.md` |
+| `io/` | Disk / ELF I/O: cached waveform parser, ELF reader/writer, ZI folder layout. | `CachedParser`, `ElfReader`, `ElfWriter`, `ZiFolder` | `notes/elf_format.md`, `notes/elf_reader.md` |
+
+The Python extension entry point `pybind_seqc.cpp` lives directly under
+`reconstructed/src/`.  It binds `compile_seqc()` and a handful of
+helpers; everything else flows through `Compiler`.
+
+## Top-level type relationships
+
+The orchestrator owns shared pointers to the major collaborators; the
+flow of data between them is pipeline-style rather than message-passing.
+
+```
+                 ┌───────────────────────────────────┐
+                 │            Compiler               │
+                 │  (codegen/compiler.hpp, ~0x138B)  │
+                 └────────────────┬──────────────────┘
+                                  │ owns
+        ┌────────────┬────────────┼────────────┬────────────┐
+        ▼            ▼            ▼            ▼            ▼
+  AsmCommands  WaveformGen  CustomFuncs   Resources   SeqcParserCtx
+   (asm/)      (waveform/)  (runtime/)   (runtime/)    (inline)
+        │            │            │
+        │            ▼            │
+        │      WavetableFront     │
+        │      WavetableIR        │
+        │      (waveform/)        │
+        ▼                         │
+   AsmList ◄────────────── populated by ──────────────┘
+        │                                              ▲
+        │ ┌────────────┐  ┌──────────┐  ┌──────────┐  │
+        └►│ AsmOptimize│  │ Prefetch │  │  Cache   │  │
+          │  (asm/)    │  │(codegen/)│  │(runtime/)│  │
+          └────────────┘  └────┬─────┘  └──────────┘  │
+                               │                       │
+                               └─── reads / mutates ───┘
+```
+
+`Resources` is the symbol-table base, with `StaticResources` (built-in
+constants, device-specific) and `GlobalResources` (TLS register / label
+counters, MT19937-64 PRNG) layered on top.  See
+`reconstructed/include/zhinst/runtime/resources.hpp`.
+
+`AsmCommands` is the device-portable instruction emitter; per-device
+encoding lives behind a Pimpl with two backends:
+
+- **Cervino** for older FPGA devices (UHFLI, UHFQA, GHFLI, VHFLI),
+  see `notes/cervino_vs_hirzel.md`.
+- **Hirzel** for newer devices (HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI).
+
+`WaveformGenerator` carries the DSL functions (`zeros`, `sine`, `gauss`,
+`marker`, `add`, `multiply`, `mergeWaveforms`, …) registered in a
+function-pointer map.  `CustomFunctions` does the same for the SeqC
+built-ins (`playWave`, `setTrigger`, `wait`, `setUserReg`, …).  The two
+maps are the canonical extension surfaces of the language.
+
+## ELF output {#elf-output}
+
+The compiler's product is an **ELF32 little-endian** container —
+**not** a standard executable but a custom firmware bundle.  The
+sections that matter for differential testing are documented in
+`AGENTS.md` under "SeqC output ELF format" and in
+`notes/elf_format.md`.  Quick reference:
+
+| Section | Format | Content |
+|---------|--------|---------|
+| `.text` | binary, 4-byte LE words | sequencer machine code |
+| `.asm` | text | human-readable disassembly of `.text` |
+| `.linenr` | binary, pairs of `(insn_idx, line_no)` | source-mapping table |
+| `.waveforms` | JSON | per-waveform metadata (channels, marker bits, play config) |
+| `.wf_<name>` | binary, 16-bit signed LE | raw waveform samples |
+| `.wavemem` | JSON | wave memory accounting |
+| `.channels`, `.nodes_json`, `.arguments`, `.version_json`, `.version_bin` | mixed | header / configuration metadata |
+
+`e_entry` encodes the sequencer instruction memory entry point
+(typically `0x80000000 + instruction_offset`).
+
+## Reading the source
+
+A few conventions used everywhere:
+
+- Every reconstructed `.cpp` notes the binary address of each function
+  it implements in a `// 0x<addr>` comment next to the definition.
+- Reconstruction-only commentary uses plain `//`.  Doxygen documentation
+  uses `//!` and `/*! */` (see `notes/comment_style_guide.md` §13).
+- Whenever a doc comment cannot be backed by disassembly, GDB, or test
+  evidence, it must use one of `\unclear` / `\verifyme` / `\binarynote`
+  rather than guess (see [Accuracy discipline](#accuracy-discipline)
+  below).
+
+## Accuracy discipline {#accuracy-discipline}
 
 Every documentation claim must be backed by one of:
 
 1. Disassembly evidence (binary address cited in the source file).
-2. GDB-verified runtime behavior.
+2. GDB-verified runtime behaviour.
 3. Cross-reference to a `reconstructed/notes/*.md` topic file.
 4. Differential test coverage in `tests/cases/manifest.json`.
 
-When none of these apply, documentation **must** use one of the
-project's custom Doxygen tags rather than guess:
+When none of these apply, documentation must use one of the project's
+custom Doxygen tags rather than guess:
 
 - `\unclear` — meaning genuinely unknown; needs investigation.
-- `\verifyme` — believed correct but not yet verified by GDB or test.
+- `\verifyme` — believed correct but not yet verified by GDB or test;
+  the hypothesis must be stated explicitly.
 - `\binarynote` — verified fact about the binary that diverges from
   idiomatic C++ (informational, not a gap).
 
 Each tag aggregates onto its own cross-reference page, accessible from
-the *Related Pages* section of the navigation. This makes the entire
-documentation backlog discoverable rather than scattered.
+the *Related Pages* section of the navigation, so the entire
+documentation backlog is discoverable rather than scattered.
+
+## Documentation roadmap
+
+This site is in **Phase D1** (architecture overview — this page).
+Subsequent phases:
+
+- **D2** — `\brief` line on every public class.  `WARN_IF_UNDOCUMENTED`
+  flips to `YES` and the warning log becomes the coverage tracker.
+- **D3** — full documentation of pipeline-driver functions
+  (`Compiler::*`, `Prefetch::*`, `AsmOptimize::*`).
+- **D4** — public methods of high-traffic classes (`AsmCommands`,
+  `WaveformGenerator`, `CustomFunctions`, `Resources`).
+- **D5** — internal helpers; close the `\unclear` / `\verifyme`
+  backlog.
+- **D6** — long-form notes promoted from `notes/` to first-class
+  Doxygen pages.
+
+`TODO.md` carries the live phase plan; `reconstructed/docs/coverage.sh`
+prints the current symbol-coverage percentage.
 
 ## Project layout pointers
 
-- `reconstructed/include/zhinst/` — public headers (~50 classes).
-- `reconstructed/src/` — implementations (~70 .cpp files).
-- `reconstructed/notes/` — architectural and forensic notes.
+- `reconstructed/include/zhinst/` — public headers (~63 files).
+- `reconstructed/src/` — implementations (~99 files).
+- `reconstructed/notes/` — architectural and forensic notes (the
+  canonical reference for binary-level details).
 - `reconstructed/notes/comment_style_guide.md` — the authoritative
   source-comment conventions, including §13 on documentation comments.
+- `reconstructed/docs/README.md` — how to build / extend this site.
 - `tests/` — differential test harness (excluded from this site).
+- `AGENTS.md` — development workflow, GDB recipes, ELF section
+  reference.
+- `OVERVIEW.md` — class-by-class reconstruction status snapshot.
 
 ## Building this site
 

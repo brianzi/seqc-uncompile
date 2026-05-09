@@ -457,3 +457,25 @@ mainpage.
   generated XML.  Baseline at end of D0: 4/2712 symbols (0.1%).
 - `reconstructed/notes/comment_style_guide.md` §13 added: documentation
   comments use `//!` and `/*! */`; reconstruction comments stay on `//`.
+
+**D0 follow-ups (2026-05-10):**
+- `reconstructed/docs/README.md` added — authoritative how-to for the
+  doc system (markers, aliases, build, coverage, theme update, anti-
+  patterns).  `AGENTS.md` carries a short pointer to it.
+- Dark-mode contrast fix: `HTML_COLORSTYLE` switched from `LIGHT` to
+  `AUTO_LIGHT`; `reconstructed/docs/theme/custom.css` added with
+  `--code-foreground` / `--fragment-foreground` overrides under both
+  the `prefers-color-scheme: dark` media query and the `html.dark-mode`
+  class selector.  Vendor CSS stays a pristine pinned copy.
+
+**D1 (architecture mainpage) complete (2026-05-10):**
+- `reconstructed/docs/architecture.md` fleshed out: pipeline overview
+  (12-step), per-subdirectory component map with `notes/` cross-
+  references, top-level type-relationship diagram, ELF output section
+  reference, accuracy-discipline statement, documentation roadmap.
+- All content sourced from `OVERVIEW.md` and `notes/pipeline.md` —
+  no new claims introduced.
+- Coverage now reports 0/2712 (the prior 4/2712 figure was an artifact
+  of `architecture.md` headings being counted as memberdef-equivalents
+  before the page was extended; the current count reflects only true
+  C++ symbol coverage, which D2 will start increasing).

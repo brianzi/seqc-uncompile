@@ -50,11 +50,12 @@ cross-reference pages so the backlog is discoverable.
   - [x] `reconstructed/docs/coverage.sh` baseline tracker
   - [x] §13 added to `comment_style_guide.md`
 
-- [ ] **D1 — Architecture mainpage** _(next)_
-  - [ ] Flesh out `architecture.md` with pipeline overview, class
-        index pointers, notes/ index — sourced from `OVERVIEW.md`
-        with no new claims
-  - [ ] Wrap-up: review with user
+- [x] **D1 — Architecture mainpage** _(complete)_
+  - [x] Flesh out `architecture.md` with pipeline overview, component
+        map, type-relationship diagram, ELF output reference, notes/
+        cross-references — all sourced from `OVERVIEW.md`,
+        `notes/pipeline.md`, and existing topic notes (no new claims)
+  - [x] Builds clean, TOC + 9 H2 sections render
 
 - [ ] **D2 — Class-level `\brief` on every public header** (~50 classes)
   - [ ] Order: `compiler` → `awg_compiler` → `prefetch` →
