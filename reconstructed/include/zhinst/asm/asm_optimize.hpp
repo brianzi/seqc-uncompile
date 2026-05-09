@@ -48,6 +48,18 @@ class CancelCallback;
 //   +0x08  std::string message_   (libc++ 24-byte SSO)
 //   +0x20  int         lineNumber_ (source line for error framing)
 //   +0x28  total size
+//! \brief Exception raised when register allocation cannot be satisfied.
+//!
+//! Thrown from `AsmOptimize::registerAllocation` (and its inner
+//! coalescing loop) when no further physical register can be assigned
+//! to a virtual register even after constant-register splitting and
+//! live-range spilling — the message is always a fixed
+//! "run out of free registers, please reduce complexity" string with
+//! the source line of the offending instruction in `lineNumber_`.
+//! Caught by `Compiler::compile` around `optimizePreWaveform` and
+//! `optimizePostWaveform`, which re-emits it through
+//! `messages_.errorMessage(...)` so the standard
+//! "Compiler Error (line: N): " prefix is applied before re-throwing.
 class OptimizeException : public std::exception {
 public:
     OptimizeException(const std::string& msg);
@@ -80,6 +92,30 @@ class GlobalResources;
 // +0x60   48    std::function<void(string,int)>         warningCallback_
 // +0x90   16    std::shared_ptr<CancelCallback>         cancel_
 // sizeof(AsmOptimize) = 0xA0
+//! \brief Driver for the post-codegen optimisation passes over an `AsmList`.
+//!
+//! Owns a working copy of the instruction stream and runs a fixed set
+//! of peephole / liveness / register-allocation passes selected by the
+//! `optFlags_` bitmask (see `OptPassFlag`).  Two public entry points
+//! split the work around waveform planning:
+//!
+//! - `optimizePreWaveform` — invoked before waveforms are emitted; runs
+//!   only `deadCodeElimination` (when `Opt_DeadCode` is set) so that
+//!   unreachable instructions don't influence waveform lowering.
+//! - `optimizePostWaveform` — invoked after waveform planning; runs
+//!   the remaining passes (`oneStepJumpElimination`, label cleanup,
+//!   register-zeroing fusion, register allocation) plus user
+//!   message/error reporting via `reportUserMessages`.
+//!
+//! `prepareResources` must be called once before either entry point;
+//! it bumps `GlobalResources::regNumber` past any virtual register
+//! number already used in the input so the allocator can mint fresh
+//! virtuals during spilling.  Diagnostics from `reportUserMessages`
+//! and from a failed `registerAllocation` (which throws
+//! `OptimizeException`) are routed through the `errorCallback_` /
+//! `warningCallback_` `std::function`s supplied at construction.
+//! `cancel_` is checked by the long-running register-allocation loop
+//! to support user-initiated cancellation.
 class AsmOptimize {
 public:
     // Constructor — builds optimizer with callbacks and device info

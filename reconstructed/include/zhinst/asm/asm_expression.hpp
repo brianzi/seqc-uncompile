@@ -99,6 +99,30 @@ enum class AsmExprType : int32_t {
 };
 
 // sizeof = 0xa8 (168 bytes)
+//! \brief Parse-tree node produced by the AWG assembler's flex/bison parser.
+//!
+//! Each instruction line scanned by the assembler produces a tree of
+//! `AsmExpression` nodes whose root is a container (operand list) and
+//! whose children are typed by `AsmExprType` — register references,
+//! integer immediates, and label/command name tokens.  The factory
+//! free functions in this header are the actions invoked from the
+//! parser grammar.
+//!
+//! Two downstream consumers walk these trees:
+//!
+//! - `AWGAssemblerImpl::assembleExpressions` runs a two-pass label
+//!   collection / opcode emission over the parsed expressions to
+//!   produce the binary instruction stream.
+//! - `AsmList::parseStringToAsmList` classifies each node's operands
+//!   by `type` to rebuild a structured `AsmList`, decoding the JSON
+//!   payload carried in `comment` to recover prefetch / noOpt
+//!   placeholder metadata.
+//!
+//! Label data (`labelIndex`, `labelName`, `hasLabel`) is attached by
+//! `addCommand` when the parser sees `label: instr ...`.  Comment
+//! data (`comment`, `hasComment`, `noOptOverride_`) is attached by
+//! `addNode` from text following `#` on the line and is interpreted
+//! as JSON only when the consumer is `parseStringToAsmList`.
 struct AsmExpression {
     AsmExprType type;       // +0x00  AsmExprType: Container=0, Register=1, Label=2, Integer=3
     // 4 bytes padding       // +0x04

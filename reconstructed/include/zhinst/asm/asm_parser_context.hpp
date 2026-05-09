@@ -48,6 +48,23 @@ namespace zhinst {
 // Forward declarations
 class AsmExpression;
 
+//! \brief Per-parse mutable state passed as `yyextra` to the asm flex/bison parser.
+//!
+//! One instance is created per assembler input and threaded through the
+//! generated scanner / parser via `asmset_extra` and `asmlex_init_extra`.
+//! It tracks the lexer's comment state (line vs block), accumulates the
+//! current line and program-counter position as the grammar progresses,
+//! caches the set of label names declared so far so forward references
+//! can be validated, owns the heap copies of identifier strings handed
+//! to the parser by `trackedStringCopy` (freed in bulk by
+//! `cleanStringCopies`), and forwards diagnostics through an optional
+//! `errorCallback_` (falling back to boost::log when no callback is
+//! installed).  The `doOpt_` flag is set to true at the start of every
+//! line (rule `inst`) and cleared when the trailing `DISABLE_OPT`
+//! token is seen (rule `inst DISABLE_OPT`); downstream the
+//! `AWGAssemblerImpl` pipeline copies `!doOpt()` into the
+//! per-instruction `noOpt` field so the optimiser leaves that
+//! instruction alone.
 class AsmParserContext {
 public:
     // ---- Inner types ----
@@ -59,6 +76,13 @@ public:
     //   +0x00  int32_t   pc          — program counter value
     //   +0x04  (4 bytes padding)
     //   +0x08  std::string name      — label name (0x18 bytes, libc++ SSO)
+    //! \brief Pairs a program-counter value with a label name.
+    //!
+    //! Constructed by `addCommand` whenever the parser sees a
+    //! `name: instr ...` line, attached to the resulting
+    //! `AsmExpression`'s `labelIndex` / `labelName` fields, and
+    //! recorded in the enclosing context's `labels_` set so later
+    //! references can resolve forward jumps.
     struct Label {
         int32_t pc;               // +0x00
         // 4 bytes padding

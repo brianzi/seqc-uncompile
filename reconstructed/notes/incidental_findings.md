@@ -4202,3 +4202,27 @@ and surrounding disassembly note updated to match. Also converted the
 raw `0x20`/`0x10` literals to `AwgDeviceType::SHFQC_SG`/`AwgDeviceType::SHFSG`
 as part of the broader magic-constants cleanup (B1).
 
+## IF-207  Swapped MESSAGE/ERROR_MSG values in `asm_optimize.hpp` banner comment
+
+**Source**: D2 Batch 7b verification (verify-then-write workflow)
+**Status**: open
+**Severity**: cosmetic (comment-only)
+
+The header banner comment above `AsmOptimize::reportUserMessages()` in
+`include/zhinst/asm/asm_optimize.hpp:160-162` reads:
+
+> Extract user MESSAGE (cmd==5) and ERROR_MSG (cmd==3) instructions
+
+The values are swapped relative to the canonical `Assembler::Command`
+enum (`MESSAGE = 0x03`, `ERROR_MSG = 0x05`) defined in `assembler.hpp`
+and confirmed by the implementation at `src/asm/asm_optimize.cpp:659`
+which dispatches via the symbolic enum constants
+(`if (cmd == Assembler::ERROR_MSG)` ... `if (cmd == Assembler::MESSAGE)`).
+The same swap appears in the corresponding source-file banner at
+`src/asm/asm_optimize.cpp:651`. Both should read
+`MESSAGE (cmd==3) and ERROR_MSG (cmd==5)`.
+
+Code is correct (uses the symbolic enum); only the surrounding
+documentation comments are wrong. Promote to TODO.md as a one-line
+comment fix at next sub-phase wrap-up.
+
