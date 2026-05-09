@@ -4226,3 +4226,52 @@ Code is correct (uses the symbolic enum); only the surrounding
 documentation comments are wrong. Promote to TODO.md as a one-line
 comment fix at next sub-phase wrap-up.
 
+## IF-208  Misleading `useDA` field name in `PrefetcherNodeState`
+
+**Source**: D2 Batch 8b verification (verify-then-write workflow); user
+caught a speculative "dual-amplitude / precompensation" gloss derived
+from the field name.
+**Status**: open
+**Severity**: cosmetic (field-name / comment clarity)
+
+The `bool useDA` field at `PrefetcherNodeState +0x38` (declared in
+`include/zhinst/codegen/prefetch.hpp`) does **not** track a "DA" or
+"precompensation" property despite the name and the surrounding
+inline comment `// (init=false, precomp/DA flag)`.  Verified usage:
+
+- **Set** in `Prefetch::assignLoad` at `src/codegen/prefetch.cpp:834`:
+  ```cpp
+  bool useDA = waveformIR->crossesCacheLine_;  // 0x1ccd0a movzbl 0xda(%rax)
+  it2->second.useDA = useDA;                   // 0x1ccd37 mov %r14b,0x58(%rax)
+  ```
+  i.e. the field is a copy of `WaveformIR::crossesCacheLine_`.
+
+- **Read** in `Prefetch::placeSingleCommand` at
+  `src/codegen/prefetch_placesingle.cpp:204`:
+  ```cpp
+  if (config_->isHirzel) {
+      auto& stateDA = nodeStates_[node];
+      if (stateDA.useDA) { ... emit prf with clampToCache ... }
+  }
+  ```
+  i.e. consumed only on Hirzel devices to gate emission of the
+  cache-clamped `prf` prefetch sequence required when a single load
+  straddles a cache-line boundary.
+
+The misleading name comes from local-variable shadows elsewhere in
+`prefetch.cpp` (lines 87, 331, 560, 600) where a different,
+unrelated `bool useDA = devConst_->hasPrecomp;` is used — those are
+genuine "use precomp" flags, but they are stack locals, not the PNS
+field.  The field reuses the identifier, creating a false visual
+association.
+
+**Recommended**: rename the field to `crossesCacheLine` (or
+`needsClampedPrefetch`) and remove the `precomp/DA` parenthetical
+from the inline layout comment.  Keep this as a TODO.md item rather
+than a doc-batch fix because the rename touches all read/write
+sites and warrants a dedicated commit + difftest run.
+
+Doc-batch mitigation: the `\brief` for `PrefetcherNodeState` describes
+the field by behaviour (`crossesCacheLine_` source + Hirzel `prf`
+gating) rather than by the misleading name.
+

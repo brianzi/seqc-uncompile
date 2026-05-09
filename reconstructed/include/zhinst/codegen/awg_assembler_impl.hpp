@@ -71,6 +71,28 @@ using LabelBimap = boost::bimaps::bimap<
 // Total: 0x170.
 // ============================================================================
 
+//! \brief Implementation of the standalone AWG assembler facade `AWGAssembler`.
+//!
+//! Owns the parser context, label table, accumulated source lines,
+//! diagnostic message vector, and the resulting opcode buffer for one
+//! assemble session.  `assembleString` / `assembleFile` /
+//! `assembleAsmList` drive the same internal pipeline (parse via
+//! `getAST` → label collection + opcode emission via
+//! `assembleExpressions`); `assembleStringToExpressionsVec` exits
+//! after parsing without emitting opcodes, exposing the AST to
+//! callers that want to inspect or rewrite it before assembly.
+//!
+//! Diagnostics are routed through `errorMessage` /
+//! `parserMessage` into the embedded `messages_` vector;
+//! `errorMessage` additionally flips the parser context's
+//! syntax-error flag so the caller's `getReport` reflects the
+//! failure.  The opcode emitters `opcode0`..`opcode5` factor out
+//! shared bit-packing for the six register / immediate operand
+//! shapes; `getReg` / `getVal` resolve operand expressions to
+//! register numbers / immediate bits with range checking.  An
+//! instance is held inside `AWGAssembler` (the public pimpl facade)
+//! and is also embedded by `AWGCompilerImpl` for post-pipeline
+//! `.asm` writes.
 class AWGAssemblerImpl {
 public:
     // ---- Message struct — stored in messages_ vector ----
@@ -89,6 +111,14 @@ public:
     //   +0x08  std::string text
     //
     // Total: 0x20.
+    //! \brief Diagnostic entry produced by the standalone AWG assembler.
+    //!
+    //! Held in `AWGAssemblerImpl::messages_` and consumed by
+    //! `getReport` to render the final report string.  The single
+    //! `code` slot is overloaded: `errorMessage` writes the current
+    //! source line number into it, while `parserMessage` writes the
+    //! caller-supplied severity level — `getReport` formats them
+    //! uniformly as a leading integer followed by `text`.
     struct Message {
         int code = 0;          // +0x00 — see note above
         std::string text;      // +0x08

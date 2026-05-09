@@ -25,6 +25,18 @@ namespace zhinst {
 // ============================================================================
 // MathCompilerException
 // ============================================================================
+//! \brief Exception thrown by `MathCompiler` for invalid math-function calls.
+//!
+//! Raised when `MathCompiler::call` is invoked with an unknown
+//! function name (no entry in either `singleArgFns_` or
+//! `multiArgFns_`), or when a known single-argument function is
+//! called with a different argument count, or when `pow` is called
+//! with anything other than two arguments.  The message is
+//! constructed via `ErrorMessages::format` parametrised by the
+//! function name (e.g. `FuncSingleArg`, `UnknownFunction`,
+//! `FuncExactly2Args`); line-number context is attached by the
+//! caller in `CustomFunctions::call` before surfacing the error to
+//! the user via `messages_`.
 class MathCompilerException : public std::exception {
     std::string msg_;
 public:
@@ -51,6 +63,20 @@ public:
 // Binary: Dtor visits +0x18 first then +0x00 — that's reverse-construction
 //       order, so single-arg is at +0x00 in the canonical layout.
 // ============================================================================
+//! \brief Compile-time evaluator for built-in scalar math functions.
+//!
+//! Owns two name → callable maps populated in the constructor — one
+//! for unary `double(double)` functions (trig / hyperbolic / log /
+//! rounding / `abs` / `sign`) and one for variadic
+//! `double(vector<double>)` functions (`avg`, `max`, `min`, `pow`,
+//! `sum`).  Held as an inline sub-object inside `CustomFunctions`
+//! and consulted from `CustomFunctions::call` after the user-defined
+//! function map (`funcMap_`) misses: when the call's arguments are
+//! all compile-time constants (`Const` / `Cvar`), the doubles are
+//! extracted via `Value::toDouble` and the result is constant-folded
+//! into a `Double` `EvalResults` so the surrounding SeqC code can
+//! treat the expression as a literal.  Calls with the wrong arity or
+//! an unknown name throw `MathCompilerException`.
 class MathCompiler {
 public:
     MathCompiler();  // @0x1c2250

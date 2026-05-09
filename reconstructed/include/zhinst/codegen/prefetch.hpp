@@ -98,6 +98,38 @@ struct WavetableIR;
 //   0x160    ---   END
 // ============================================================================
 
+//! \brief Cache-aware waveform prefetch / load planner over the lowered SeqC AST.
+//!
+//! Constructed once per compilation by `Compiler::runPrefetcher` and
+//! driven through three ordered phases:
+//!
+//! - `preparePlays` walks the AST in three sub-passes (`prepareTree`
+//!   to classify nodes and insert load placeholders, `countBranches`
+//!   to record per-node branching, and `definePlaySize` to compute
+//!   waveform play sizes and assign registers), populating
+//!   `nodeStates_` along the way.
+//! - `placeLoads` decides where in the program to insert load
+//!   instructions (creating, merging, and assigning loads) so that
+//!   every play's waveform is resident in the cache by the time it
+//!   executes — minimising redundant reloads while respecting the
+//!   cache's capacity and replacement geometry.  When the device
+//!   uses cache-type 1, `Compiler::runPrefetcher` first calls
+//!   `determineFixedWaves` to pin specific waveforms before
+//!   `placeLoads` runs.
+//! - `fillInPlaceholders` rewrites the input `AsmList`, replacing the
+//!   `Compiler`-supplied placeholder instructions with the concrete
+//!   load / play / cwvf / wvfs sequences chosen by the previous
+//!   phases.
+//!
+//! Several large public method clusters (`wvfImpl`, `wvfRegImpl`,
+//! `wvfs`, `splitPlay`, `insertPlay`, `clampToCache`) are the per-play
+//! emitter helpers used by `placeCommands` / `placeSingleCommand`
+//! during placeholder fill-in; `optimize`, `optimizeSync`,
+//! `optimizeCwvf`, `globalCwvf`, `mergeLoads`, `removeBranches`, and
+//! `expandSetVar` are the AST-rewrite passes invoked from within the
+//! three driver phases.  After fill-in, the `Compiler` reads back
+//! `getUsedChannels` / `getUsedFourChannelMode` for the ELF
+//! `.channels` section.
 class Prefetch {
 public:
     // PrefetcherNodeState is used as value type in the nodeStates_ map.
@@ -131,6 +163,23 @@ public:
     //   - lengthReg, counter, playSize, usedCache → aliases dropped (Cluster E)
     //   - totalSize → was actually a stack local in placeSingleCommand (-0x140(%rbp))
     //   - firstTime → no binary access anywhere
+    //! \brief Per-AST-node bookkeeping owned by `Prefetch::nodeStates_`.
+    //!
+    //! `Prefetch` walks the AST several times (`countBranches`,
+    //! `definePlaySize`, `placeLoads`, `allocate`, ...) and
+    //! accumulates per-node decisions in a hash map keyed by
+    //! `shared_ptr<Node>`; this is the value type.  `state` is a
+    //! small state machine (initialised to `3` = "unloaded") tracked
+    //! by `optimize`; `branchCount` and `pagesNeeded` come from the
+    //! branch-counting and play-sizing passes; `cachePtr` and
+    //! `usedCache_` are populated when `allocate` reserves a
+    //! `Cache::Pointer` for the node; the two per-device-family
+    //! register slots (`registerHirzel`, `registerCervino`) hold the
+    //! `AsmRegister` assigned to this load by `assignLoad`.
+    //! `useDA` is copied from the load's `WaveformIR::crossesCacheLine_`
+    //! and consulted in `placeSingleCommand` on Hirzel devices to gate
+    //! emission of the cache-clamped `prf` prefetch sequence required
+    //! when a single load straddles a cache-line boundary.
     struct PrefetcherNodeState {
         AsmRegister registerHirzel;                           // +0x00
         AsmRegister registerCervino;                          // +0x08

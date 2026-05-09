@@ -26,6 +26,13 @@ struct DeviceConstants;
 //   rax = start | (end << 32)
 //   dl  = flags (bit 0 = valid, bit 8 = crossesCacheLine)
 // ============================================================================
+//! \brief Free / allocated region descriptor used by `MemoryAllocator`.
+//!
+//! Represents a half-open `[start, end)` byte range together with a
+//! flags byte (bit 0 = the range was successfully allocated; bit 8 =
+//! the range straddles a cache-line boundary).  Returned by value
+//! from each `MemoryAllocator::allocate*` call and stored in the
+//! allocator's free-list deque between allocations.
 struct MemoryBlock {
     uint32_t start;     // +0x00  start address of block
     uint32_t end;       // +0x04  end address (start + size)
@@ -55,6 +62,32 @@ static_assert(sizeof(MemoryBlock) == 12, "MemoryBlock must be 12 bytes");
 // 0x3C    4     (padding)
 // 0x40    48    deque<MemoryBlock>    freeBlocks_          Free block list (341 per page)
 // ============================================================================
+//! \brief Cache-line-aware bump allocator for AWG waveform memory.
+//!
+//! Manages a single linear region of waveform memory (size and
+//! cache-line geometry derived from `DeviceConstants`) and hands out
+//! `MemoryBlock` ranges via two strategies:
+//!
+//! - `allocateCLAligned` is the default path used by
+//!   `WavetableIR::allocateWaveforms`; it tries a fast single-cache-line
+//!   fit first, then falls back to a multi-line allocation that may
+//!   straddle a cache-line boundary (recorded in the returned flags
+//!   so the consumer can later set `WaveformIR::crossesCacheLine_`).
+//! - `allocateReloadingCL` is the FIFO-reloading fallback, invoked by
+//!   `WavetableIR::allocateWaveformsForFifo` when a waveform won't fit
+//!   into the remaining free space; callers pass the set of
+//!   cache-line indices already owned by other waveforms in
+//!   `usedAddrs`, and the allocator finds a position whose cache
+//!   lines are entirely outside that set so the new waveform can be
+//!   reloaded without disturbing the resident ones.
+//!
+//! Both routines walk `freeBlocks_` via `allocateFirstSuitableFreeBlock`
+//! with a strategy-specific predicate; `cacheLineUsage_` tracks
+//! per-cache-line ownership (a sentinel `0xFFFFFFFF` denotes a free
+//! line) so multi-block fits within one cache line can be detected
+//! without re-scanning the free list.  An allocation failure returns
+//! a `MemoryBlock` with bit 0 of `flags` cleared, which callers test
+//! with `!(block.flags & 1)` to detect overflow.
 class MemoryAllocator {
 public:
     // Constructor is inlined at call sites — no standalone function.
