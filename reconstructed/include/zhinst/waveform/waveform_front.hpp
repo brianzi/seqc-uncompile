@@ -23,6 +23,14 @@ namespace zhinst {
 // +0xDE   2     (padding)
 // +0xE0   24    vector<Value>     genArgs_        element size 0x28
 // sizeof(WaveformFront) = 0xF8
+//! Front-end extension of `Waveform` that adds the bookkeeping
+//! needed during SeqC compilation: how often the waveform is
+//! referenced, whether it has been modified since its last
+//! placement, whether a duplicate was detected, and the original
+//! generator-function arguments (for cache lookup and re-evaluation).
+//!
+//! `WaveformGenerator` returns instances of this type; the IR
+//! lowering pass converts each one into a `WaveformIR`.
 struct WaveformFront : Waveform {
     int  useCount_;                    // +0xD8  (init=1)
     bool dirty_;                     // +0xDC  (init=0; "isModified" in source comments)

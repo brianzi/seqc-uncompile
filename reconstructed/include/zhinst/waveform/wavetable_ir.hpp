@@ -70,6 +70,19 @@ enum class WaveOrder : int {
 //   +0x90: WaveIndexTracker.indices_ (size)
 //   +0x98: WaveIndexTracker.autoIndex_
 // ============================================================================
+//! IR-stage wavetable: owns the `WaveformIR` collection for one AWG
+//! core after front-end lowering, and drives placement of those
+//! waveforms into the device's wave memory.
+//!
+//! Constructed either from a finished `WavetableFront` or directly
+//! from a manager during JSON deserialisation. Beyond storing the
+//! waveform list, it carries the address allocator state, the
+//! used-waveform pruning set, and a weak reference to the
+//! cancellation callback so long-running placement can be aborted.
+//!
+//! `allocateWaveforms()` and `allocateWaveformsForFifo()` are the
+//! main placement entry points; helpers like `alignWaveformSizes()`
+//! and `assignWaveIndexImplicit()` are run as part of those passes.
 class WavetableIR {
 public:
     const DeviceConstants* deviceConstants_;                             // +0x00

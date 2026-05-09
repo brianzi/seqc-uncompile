@@ -79,6 +79,14 @@ namespace detail {
 // 0x24     4    (padding)
 // 0x28          END (total 40 bytes)
 // ============================================================================
+//! Tracks which wave indices have already been assigned within one
+//! wavetable, and hands out the next available index on demand.
+//!
+//! `assign()` reserves a specific index (raising
+//! `WavetableException` on a duplicate or out-of-range value);
+//! `assignAuto()` reserves the lowest unused index. `hasGaps()`
+//! lets callers detect a non-contiguous index space, which downstream
+//! emitters need to know about.
 class WaveIndexTracker {
 public:
     int maxIndex;                   // +0x00
@@ -120,6 +128,10 @@ public:
 //
 // Inherits from std::exception (base class ~= just vptr, trivial)
 // ============================================================================
+//! Failure raised by `WaveIndexTracker` (and other wavetable
+//! consistency checks) when the requested wave-index assignment
+//! would conflict with an existing entry or exceed the configured
+//! maximum.
 class WavetableException : public std::exception {
 public:
     std::string message_;   // +0x08

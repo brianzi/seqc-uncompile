@@ -48,6 +48,8 @@ class EvalResults;
 //   vptr(+0x00) + string message_(+0x08)
 //   Inherits from std::exception
 //   vtable @0xb06710
+//! Generic failure raised by `WaveformGenerator` for non-argument
+//! errors (lookup miss, internal invariant violation, etc.).
 class WaveformGeneratorException : public std::exception {
 public:
     explicit WaveformGeneratorException(std::string const& msg);       // 0x25ca00
@@ -63,6 +65,10 @@ private:
 //   vptr(+0x00) + string message_(+0x08) + size_t argIndex_(+0x20)
 //   Inherits from std::exception
 //   vtable @0xb066d0
+//! Failure raised by `WaveformGenerator` when one of the
+//! `Value` arguments to a builtin waveform function is missing or
+//! has the wrong type / range. Carries the offending argument index
+//! so callers can attribute the error to a specific source position.
 class WaveformGeneratorValueException : public std::exception {
 public:
     WaveformGeneratorValueException(std::string const& msg, size_t argIndex);  // 0x25c4a0
@@ -113,6 +119,21 @@ private:
 // function pointers.  aliasMap_ maps deprecated names to current names;
 // call() checks aliasMap_ first and emits a warning via warningCallback_.
 // ============================================================================
+//! Registry and dispatcher for the SeqC built-in waveform DSP
+//! functions (`zeros`, `sin`, `gauss`, `chirp`, `cut`, `add`, …).
+//!
+//! Each registered function takes a `vector<Value>` of arguments
+//! and produces a `Signal`. `call()` resolves the function name
+//! (consulting the deprecated-alias map first and warning the host
+//! if a deprecated name was used), runs the generator, and routes
+//! the result through `getOrCreateWaveform()` to dedupe identical
+//! waveforms across the program. `eval()` wraps the result in an
+//! `EvalResults` for use by the SeqC interpreter.
+//!
+//! Argument readers (`readDouble`, `readInt`, `readWave`, …) are
+//! exposed so individual generator implementations validate their
+//! inputs uniformly and raise `WaveformGeneratorValueException`
+//! with the right argument index on mismatch.
 class WaveformGenerator {
 public:
     // --- Construction / Destruction ---

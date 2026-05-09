@@ -39,6 +39,15 @@ namespace detail {
 // +0x2C   4     (padding)
 // +0x30   24    vector<shared_ptr<WaveformT>>              waveforms_
 // sizeof(WavetableManager) = 0x48
+//! Storage and lookup for a collection of waveforms keyed by name
+//! and indexed in registration order.
+//!
+//! Templated on the waveform element type so it can hold either
+//! `WaveformFront` (used by `WavetableFront` during the front-end
+//! pass) or `WaveformIR` (used by `WavetableIR` after lowering).
+//! The `nameToIndex_` map provides O(1) lookup by name; the
+//! `waveforms_` vector preserves the registration order needed when
+//! emitting indices into the output ELF.
 template <typename WaveformT>
 class WavetableManager {
 public:
@@ -121,6 +130,21 @@ public:
 // +0x1D0  8      WavetableManager<WaveformFront>*        manager_
 // +0x1D8  0x28   WaveIndexTracker (opaque)               waveIndexTracker_
 // sizeof(WavetableFront) = 0x200
+//! Front-end wavetable: owns the `WaveformFront` collection for one
+//! AWG core during compilation, plus the on-disk waveform parser
+//! cache, the DIO-table usage map, and the wave-index tracker.
+//!
+//! Construction binds the wavetable to a concrete `DeviceConstants`
+//! and an address allocator, so subsequent `newWaveform*` calls can
+//! immediately compute placement metadata. The wavetable acts as a
+//! façade in front of the underlying `WavetableManager` template:
+//! callers go through methods like `waveformExists()`,
+//! `getWaveformByName()`, `getWaveformByFunDescr()`, and
+//! `assignWaveIndex()` rather than touching the manager directly.
+//!
+//! Warnings emitted during waveform creation (rate quantisation,
+//! truncation, deprecated-alias usage) are routed through
+//! `warningCallback_`.
 class WavetableFront {
 public:
     const DeviceConstants* deviceConstants_;            // +0x000
