@@ -1,27 +1,5 @@
 # Working Process
 
-## Symbol renaming audits
-
-When a **symbol renaming audit** is in progress, the rest of this
-document — TODO-driven phases, OVERVIEW.md updates, source/header
-edits, build verification, per-sub-phase commits — **does not apply**.
-The audit is a strictly read-only sweep that produces notes only.
-
-The detailed and authoritative description of the process lives in
-`@RULES-symbol-renaming.md`. In short:
-
-- Scope: parameters of free functions and methods, struct/class
-  members, and only-when-obviously-misleading local variables.
-- Excluded: symbols that faithfully reconstruct named symbols from the
-  original binary.
-- All reports go into `reconstructed/notes/symbol-renaming-audit/`.
-- **No edits to any file outside that folder during the audit** —
-  including source, headers, `TODO.md`, `OVERVIEW.md`, other notes
-  files, and build files.
-- No commits during the scan phase.
-- Synthesis and any subsequent renames happen as separate, explicit
-  steps after the scan returns to the user.
-
 ## Iteration Cycle
 
 1. **Execute**: Pick the next task from TODO.md. Disassemble, reconstruct,
@@ -73,8 +51,15 @@ re-derived.
 - **Sub-phase wrap-ups:** Steps 2-4 also happen at the end of each
   sub-phase (e.g. 2a, 2b, 2e), not only at the end of a full phase.
   This ensures findings are documented and TODO.md stays current.
-- Reconstructed headers go in `reconstructed/include/zhinst/`.
-- Reconstructed implementations go in `reconstructed/src/`.
+- Reconstructed headers go in `reconstructed/include/zhinst/<subsystem>/`;
+  the `.cpp` mirror lives at `reconstructed/src/<subsystem>/`.
+  Subsystems currently include: `asm/`, `ast/`, `codegen/`, `core/`,
+  `device/`, `infra/`, `io/`, `runtime/`, `waveform/`.  Place new files
+  alongside their existing peers; create a new subsystem directory only
+  when no existing one fits.
+- The Python module entry point lives at `reconstructed/src/pybind_seqc.cpp`.
+  The `_module_shim.cpp` you may see in `reconstructed/build/` is
+  generated boilerplate — do not edit it.
 - Every `.cpp` file should note the binary addresses of the functions
   it reconstructs, in comments next to each function definition.
 
@@ -86,7 +71,7 @@ re-derived.
   e.g. "fix 13 tests: wavemem formatting, cut() end-index, chirp/sinc
   3-arg overloads".
 - Include the test score in the commit message body (e.g.
-  "229/259 passing").
+  "1597/1600 passing").
 - Do NOT commit mid-debug with known regressions — always verify the
   full test suite before committing.
 - Typical commit points: after fixing a batch of test failures, after
@@ -104,8 +89,9 @@ re-derived.
   but must be folded into topic files at sub-phase wrap-up (step 2 of
   the iteration cycle).
 - Exception: `unknowns.md` is a special tracking file with stable
-  cross-reference identifiers (numbered items 1-116+) and is not
-  reorganized by topic.
+  cross-reference identifiers (originally 1-116, now extending into the
+  120s; older items live in `archive/unknowns_full_1-116.md`) and is
+  not reorganized by topic.
 - `archive/` holds historical or superseded content; phase-completion
   audits and snapshots that contain no long-lived technical content can
   be retired there.
@@ -126,8 +112,10 @@ and binary.  Examples:
 **Rule**: Every such observation must be recorded in
 `reconstructed/notes/incidental_findings.md` **immediately**, before
 continuing the main investigation.  Each entry gets a stable ID
-(IF-1, IF-2, ...), a severity, and a status.  Entries are never deleted,
-only updated to "confirmed", "dismissed", or "fixed".
+(IF-100, IF-101, ...; entries IF-1..IF-99 are archived in
+`reconstructed/notes/archive/IF_1-99.md`), a severity, and a status.
+Entries are never deleted, only updated to "confirmed", "dismissed",
+or "fixed".
 
 At sub-phase wrap-up, incidental findings are triaged:
 - **likely-bug**: promoted to a TODO.md work item
@@ -140,8 +128,9 @@ This prevents loss of hard-won observations during deep debugging.
 
 - The build system is `reconstructed/CMakeLists.txt` (cmake + a build
   directory at `reconstructed/build/`). Sources are picked up via
-  `file(GLOB CONFIGURE_DEPENDS src/*.cpp)`, so new .cpp files added
-  under `src/` are auto-registered — no CMakeLists edit required for
+  `file(GLOB_RECURSE ZHINST_SEQC_SOURCES CONFIGURE_DEPENDS src/*.cpp)`,
+  so new .cpp files added under `src/` (including any `src/<subsystem>/`
+  subdirectory) are auto-registered — no CMakeLists edit required for
   pure source additions.
 - **Per-file `g++ -fsyntax-only` is NOT a substitute for a real build.**
   It misses: linker errors (undefined symbols, multiple-definition
@@ -219,10 +208,11 @@ disassembly reading.
 
 ### Recipe: tracing the original binary
 
-The original binary is `_seqc_compiler.so`, a Python extension module.
-The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
+The original binary is `_seqc_compiler.so` (at the repo root,
+`./_seqc_compiler.so`), a Python extension module.
+The test helper `tests/gdb/gdb_trace.py` invokes it via Python. To trace:
 
-1. **Write a small test script** (or use `tests/gdb_trace.py`):
+1. **Write a small test script** (or use `tests/gdb/gdb_trace.py`):
 
    ```python
    import sys; sys.path.insert(0, '.')
@@ -278,7 +268,7 @@ The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
 3. **Run it:**
 
    ```bash
-   gdb -batch -x /tmp/gdb_trace.txt --args python3 tests/gdb_trace.py 2>&1 \
+   gdb -batch -x /tmp/gdb_trace.txt --args python3 tests/gdb/gdb_trace.py 2>&1 \
      | grep -E '>>>|rax|rbx'
    ```
 
@@ -294,11 +284,21 @@ The test helper `tests/gdb_trace.py` invokes it via Python. To trace:
 - **Base address**: Read from `info sharedlibrary _seqc_compiler`. The
   first hex column is the text segment base. Add binary offsets to this.
 - **Verify addresses**: Before trusting a breakpoint, check the first
-  byte: `*(unsigned char*)0x<addr>` should be `0x55` (push rbp) for
-  function entries.
-- **libc++ string layout** (SSO): bit 0 of byte 0 indicates long (1) vs
-  short (0). Short: length = byte0 >> 1, data at ptr+1. Long: data ptr
-  at ptr+16, length at ptr+8.
+  byte: `*(unsigned char*)0x<addr>` is usually `0x55` (push rbp) for
+  function entries — but functions built with `-fomit-frame-pointer`
+  may start with `push` of another callee-saved register, `sub rsp`,
+  or a stack canary load (`mov rax, fs:[0x28]`).  An unknown opcode at
+  the address is the real red flag.
+- **libc++ string layout** (SSO, 24 bytes total).  Bit 0 of byte 0
+  indicates form: short (0) or long (1).
+  - Short form (≤22 chars): byte 0 = `(size << 1)`; inline data at
+    `ptr+1` for up to 22 chars.
+  - Long form: 8-byte `(capacity << 1) | 1` at `+0x00`, 8-byte size
+    at `+0x08`, 8-byte data pointer at `+0x10`.
+
+  See `reconstructed/notes/libcpp_abi.md` for the full reference,
+  including allocator interactions and how this differs from the
+  libstdc++ layout.
 
 ### Lessons learned
 
@@ -356,28 +356,83 @@ python tests/diff_test_fast.py --filter 'hdawg_doc'
 
 ### Test manifest
 
-Test cases are defined in `tests/cases/manifest.json`. Each entry has:
+Test cases are defined in `tests/cases/manifest.json`, a **v2.0
+schema** that is a thin import shell:
+
+```json
+{ "version": "2.0", "imports": ["./manifest-core.json", "..."] }
+```
+
+Each imported sub-manifest (`manifest-core.json`, `manifest-zhinst.json`,
+`manifest-documentation.json`, `manifest-errors.json`,
+`manifest-stress.json`, `manifest-large.json`, `manifest-labone.json`,
+`manifest-ziai.json`, `manifest-ziasm.json`, `manifest-zivibes.json`)
+has the shape:
 
 ```json
 {
-  "name": "hdawg_play_dual_ch",
-  "file": "hdawg_play_dual_ch.seqc",
-  "devtype": "HDAWG8",
-  "index": 0,
-  "samplerate": 2400000000.0
+  "version": "2.0",
+  "definitions": {
+    "hdawg8":   { "devtype": "HDAWG8", "index": 0,
+                  "samplerate": 2400000000.0 },
+    "shfqa4_qa":{ "devtype": "SHFQA4", "sequencer": "qa" }
+  },
+  "groups": [
+    { "name": "core",
+      "tags": ["..."],
+      "groups": [ /* nested */ ],
+      "cases": [
+        { "name": "play_dual_ch",
+          "file": "play_dual_ch.seqc",
+          "@base": "@hdawg8" },
+        { "name": "awgidxs",
+          "code": "playZero(64);",
+          "devices": [{"index":0},{"index":1}],
+          "@base": "@hdawg8" }
+      ]
+    }
+  ]
 }
 ```
 
-- `file` — path to .seqc source relative to `tests/cases/`.
-  Alternatively `code` can inline the source as a string.
-- `devtype` — device string: HDAWG8, HDAWG4, SHFQA4, SHFQA2, SHFSG4,
-  SHFSG2, SHFQC, SHFLI, UHFLI, UHFQA, UHFAWG, GHFLI, VHFLI.
-- `index` — AWG sequencer index (usually 0).
-- `samplerate` — **HDAWG only**. Non-HDAWG devices must NOT include this
-  field or the original binary will error with "'samplerate' is relevant
-  for HDAWG only."
-- `sequencer` — for SHFQA/SHFQC: `"qa"` or `"sg"`. Omit for other
-  devices.
+Field reference:
+
+- `definitions` — named device-config templates referenced from cases
+  via `"@base": "@<name>"`.  The base supplies `devtype`, `index`,
+  `samplerate`, and `sequencer` defaults; the case may override any
+  field.
+- `groups` — hierarchical grouping; tags propagate down.  Use
+  `--groups <path>` / `--tags <tag>` to filter.
+- `cases[].file` vs `cases[].code` — exactly one of: path to .seqc
+  source relative to `tests/cases/`, or inline source string.
+- `cases[].devices` — optional array; each entry parametrises one
+  expansion of the case (e.g. running on every AWG index 0..3).
+- `devtype` — one of: `HDAWG4`, `HDAWG8`, `SHFQA2`, `SHFQA4`,
+  `SHFSG2`, `SHFSG4`, `SHFSG8`, `SHFQC`, `SHFLI`, `UHFLI`, `UHFQA`,
+  `UHFAWG`, `GHFLI`, `VHFLI`.
+- `samplerate` — **HDAWG only**.  Non-HDAWG devices must NOT include
+  this field or the original binary errors with "'samplerate' is
+  relevant for HDAWG only."
+- `sequencer` — `"qa"` or `"sg"` for SHFQA / SHFQC / SHFSG; omit for
+  others.
+
+To enumerate cases without running them: `python tests/diff_test_fast.py
+--show-only`.  Current suite size is around 1600 cases.
+
+To **add** a new test case:
+
+1. Drop the `.seqc` source under `tests/cases/` (or use inline `code`).
+2. Add a `cases[]` entry to the appropriate sub-manifest
+   (`manifest-zhinst.json` for compiler regressions,
+   `manifest-errors.json` for expected-error inputs,
+   `manifest-documentation.json` for documentation samples, etc.).
+   Reference an existing `definitions` template via `"@base": "@<name>"`.
+3. Verify: `python tests/diff_test_fast.py --filter <new_case_name>`.
+4. Run the full suite to confirm no incidental regressions.
+
+`tests/MANIFEST_FORMAT.md` is the canonical reference for the manifest
+schema; consult it for edge cases (multi-device parametrisation, tag
+inheritance, group nesting).
 
 ### compile_seqc() return value
 
@@ -386,33 +441,31 @@ dict.  Access the ELF as `result[0]`.
 
 ### SeqC output ELF format
 
-The compiler produces a **32-bit little-endian ELF** (EI_CLASS=1,
-EI_DATA=1). This is NOT a standard executable — it is a custom container
-for sequencer firmware. **Do not assume 64-bit** — all headers and
-section entries use the ELF32 format.
+The compiler emits a custom **32-bit little-endian ELF** (EI_CLASS=1,
+EI_DATA=1) — not a standard executable but a firmware container.
+**Do not assume 64-bit** — all headers and section entries use the
+ELF32 format.
 
-`e_entry` encodes the sequencer instruction memory entry point
-(typically `0x80000000 + instruction_offset`). Differences in `e_entry`
-usually mean the recon generates a different number of instructions.
+`reconstructed/notes/elf_format.md` is the **authoritative** schema for
+all three ELF variants (main compiler output, legacy assembler output,
+and waveform cache), including the full section list, conditional
+emissions, segment layout, and reader-side consumption.
+`reconstructed/notes/elf_reader.md` is authoritative for the `.linenr`
+record format.  **Do not duplicate per-section facts in this file —
+edit the notes instead.**
 
-#### Section reference
+`e_entry` equals the device's `addressImpl` constant — typically
+`0x80000000` for HDAWG and SHF devices, with other values for UHFLI /
+UHFQA — plus `+0x80` for the legacy `AWGAssembler` pipeline.  See
+`reconstructed/src/device/awg_device_props.cpp` for per-device values.
+Differences in `e_entry` between original and recon usually mean the
+recon generates a different number of instructions.
 
-| Section | Format | Description |
-|---------|--------|-------------|
-| `.text` | **Binary**: 4-byte LE instruction words | Sequencer machine code. Each 32-bit word is one instruction. Size / 4 = instruction count. Dump with: `struct.unpack_from('<I', data, i*4)` |
-| `.asm` | **Plain text** (ASCII) | Human-readable disassembly of `.text`. One line per instruction with mnemonic and operands (e.g. `addi R1, R0, 5`). Comparing `.asm` text is the fastest way to find codegen diffs. |
-| `.linenr` | **Binary**: 16-byte records of 4 × int32 LE | Source map. One record per emitted instruction (labels and `cmd==-1` entries are skipped). Fields per record: `(absIdx, counter, seq, lineNumber)` — see `reconstructed/notes/elf_reader.md` §"`.linenr` section format" for the full layout. The reader (`ElfReader::getLineMap`) packs columns 1–2 into a single `uint64_t addr` and exposes `(addr, lineNumber)` pairs. Size / 16 = entry count. |
-| `.c` | **Plain text** | Copy of the SeqC source code. |
-| `.filename` | **Plain text** | Output filename (usually `"output"`). |
-| `.waveforms` | **Plain text** (JSON) | Waveform metadata: `{"waveforms":[{"name":"...","channels":"2","marker_bits":"0;0","play_config":"..."},…]}`. Key fields: `marker_bits` uses `;` separator (not `,`). `play_config` is a hex string encoding channel assignment and suppress mask. |
-| `.wavemem` | **Plain text** (JSON) | Wave memory usage: `{"exceedsFpgaMemory":false,"fpgaMemoryUsed":3.66e-4}`. |
-| `.wf_<name>` | **Binary**: 16-bit signed LE samples | Raw waveform sample data. Each sample is a signed 16-bit int. For dual-channel waveforms, samples alternate I/Q. Full-scale is ±8191 (not ±8190). |
-| `.channels` | **Binary**: 8 bytes | Channel configuration. First byte is typically a channel bitmask or index. |
-| `.nodes_json` | **Plain text** (JSON) | Node configuration: `{"nodes":[]}` or with entries for setInt/setDouble targets. |
-| `.arguments` | **Plain text** (JSON) | Build arguments: `{"destination":"output","waves":""}`. |
-| `.version_json` | **Plain text** (JSON) | Compiler version info: `{"compiler":"...","target":"...","bitstream":"..."}`. |
-| `.version_bin` | **Binary**: 16 bytes | Binary-encoded version info. |
-| `.shstrtab` | **Binary** | Standard ELF section name string table. |
+For day-to-day debugging the most-touched sections are `.text`,
+`.asm`, `.linenr`, `.waveforms`, `.wf_<name>`, `.wavemem`, and
+`.channels`.  Section formats vary (binary, plain text, JSON,
+optionally zlib-compressed for `.c` and `.asm` depending on a config
+flag); consult `notes/elf_format.md` before assuming.
 
 #### Debugging byte diffs
 
