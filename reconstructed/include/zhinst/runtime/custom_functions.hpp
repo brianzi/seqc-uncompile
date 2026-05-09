@@ -54,10 +54,17 @@ class WavetableFront;
 class WaveformFront;
 class WaveformGenerator;
 enum AwgDeviceType : int;
-// NodeMap — wraps std::map<std::string, NodeMapItem>; size 24B
-// (used as unique_ptr<NodeMap> in CustomFunctions +0xF8)
-// Originally local to custom_functions.cpp; promoted to header
-// file split so that multiple TUs can use it.
+//! \brief Ordered registry of the parameter-tree node entries
+//! resolvable from SeqC code.
+//!
+//! Wraps a `std::map<std::string, NodeMapItem>` keyed by the node's
+//! string path.  `CustomFunctions` owns a single `NodeMap` instance
+//! at `+0xF8` (as `unique_ptr<NodeMap>`) and consults it through
+//! `lookupNode` whenever a SeqC built-in references a parameter
+//! node.  The class also exposes two static encoding helpers
+//! (`toPhase`, `toFrequency`) used by the node-write path to
+//! convert user-facing degrees / Hz values into the on-device fixed
+//! point format.
 class NodeMap {
 public:
     NodeMap() = default;
@@ -110,6 +117,12 @@ inline bool operator<(AccessMode a, AccessMode b) {
 //   vtable(+0x00) + string message_(+0x08)
 //   what() returns message_ or "CustomFunctions Exception" if empty.
 // ============================================================================
+//! \brief Diagnostic raised by `CustomFunctions` for SeqC built-in
+//! invocation errors that aren't tied to a specific argument value
+//! (unsupported function, mode mismatch, missing resource, etc.).
+//!
+//! Carries a free-form `message_` string returned by `what()`; an
+//! empty message degrades to the literal `"CustomFunctions Exception"`.
 class CustomFunctionsException : public std::exception {
     std::string message_;  // +0x08
 public:
@@ -123,6 +136,16 @@ public:
 //   vtable(+0x00) + string message_(+0x08) + size_t argIndex_(+0x20)
 //   + string varName_(+0x28)
 // ============================================================================
+//! \brief Diagnostic raised by `CustomFunctions` when a specific
+//! argument to a SeqC built-in is invalid (out-of-range, wrong type,
+//! malformed value).
+//!
+//! Extends `CustomFunctionsException`'s plain message with the
+//! offending `argIndex_` (zero-based position in the call's argument
+//! list) and an optional `varName_` filled in by the caller via
+//! `setVarName` once the bound variable's name is known — the SeqC
+//! frontend uses both fields to render the user-facing error
+//! message with the correct source location and variable label.
 class CustomFunctionsValueException : public std::exception {
     std::string message_;   // +0x08
     size_t      argIndex_;  // +0x20
@@ -179,6 +202,22 @@ public:
 //   3. reportWarning_ (+0x10/+0x30): invoke function manager destructor
 //   4. wavetable_ (+0x00/+0x08): decrement shared_ptr refcount
 // ============================================================================
+//! \brief Per-call helper that parses a `playWave`-family invocation's
+//! argument list into a per-channel set of waveform assignments.
+//!
+//! Constructed fresh by each `playWave` / `playWaveIndexed` /
+//! `playAuxWave` / etc. dispatch in `CustomFunctions` from the
+//! current `AWGCompilerConfig`, the wavetable front, a warning
+//! callback, the textual command name, and an `indexed` flag that
+//! selects the per-group channel-count column.  The entry point
+//! `parse` walks the argument vector, splitting it into either
+//! implicit-channel or explicit-channel form and populating
+//! `waveAssignments_` (one inner vector per channel group, each
+//! holding `WaveAssignment` records that pair an `EvalResultValue`
+//! with a list of channel-bit slots) plus the `hasMarker_` flag.
+//! `getMaxSampleLength` and `addChannelWave` are the remaining
+//! per-channel helpers used by the dispatchers after parsing
+//! completes.
 struct PlayArgs {
     // Constructor @0x15d600
     PlayArgs(AWGCompilerConfig const& config,
@@ -305,6 +344,41 @@ int parseOptionalRate(
 // 0x1C8   24    set<string>                                       usedFeatures_
 // ============================================================================
 
+//! \brief Dispatch table and execution context for every SeqC built-in
+//! function (`playWave`, `wait`, `setDIO`, `setOscFreq`, ...) the
+//! compiler recognises.
+//!
+//! Constructed once per compilation by `Compiler::compile` from the
+//! device's `AWGCompilerConfig` and `DeviceConstants`, the shared
+//! wavetable / waveform-generator / asm-commands singletons, and the
+//! caller's warning callback.  The constructor populates `funcMap_`
+//! (name → `std::function` returning `EvalResults`) with bound
+//! member-function entries for the ~80 built-ins declared below;
+//! `aliasMap_` records device-specific name aliases so the same
+//! call site can be resolved across SHF / HDAWG / UHF families.
+//! Once built, `CustomFunctions::call(name, args, res)` is the
+//! single entry point used by the SeqC AST evaluator: it checks
+//! `aliasMap_` for ambiguous-overload reporting, looks `name` up in
+//! `funcMap_`, falls back to `MathCompiler` for built-in scalar
+//! math, and finally delegates to `generateWaveform` (which routes
+//! the call through `generate()`) for waveform-generator builtins.
+//!
+//! Beyond the dispatch table the class accumulates the
+//! cross-compilation state that built-ins need to coordinate:
+//! `nodeMap_` / `nodeIndexMap_` / `nodeList_` track parameter-tree
+//! node references (consumed by the host via
+//! `Compiler::getNodeAccessList`), `accessModeMap_` records the
+//! `Soft` / `Direct` / `Custom` access mode each node was used in,
+//! `assignedWaveNames_` deduplicates `assignWaveIndex` registrations,
+//! `usedFeatures_` collects feature tags surfaced in the JSON
+//! output, and `externalTriggeringMode_` is the mutual-exclusion
+//! latch that prevents mixing DIO and ZSync I/O families in one
+//! program.  `mathCompiler_` is the embedded scalar-math
+//! constant-folder consulted on each `call` for built-ins that have
+//! a closed-form compile-time evaluation.  The `Compiler` and
+//! `AWGCompilerImpl` `friend` declarations expose `resources_`,
+//! `externalTriggeringMode_`, and `usedFeatures_` to the JSON
+//! emission path that builds the compile-result metadata.
 class CustomFunctions {
     friend class Compiler;  // Compiler::compile() directly writes resources_ (+0x10)
     friend class AWGCompilerImpl;  // getJsonVersion reads externalTriggeringMode_ and usedFeatures_ directly

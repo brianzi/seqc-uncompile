@@ -46,6 +46,12 @@ struct DeviceConstants;
 // +0x08   24    std::string  message_
 // sizeof(CacheException) = 0x20
 // ============================================================================
+//! \brief Diagnostic thrown by `Cache` when an allocation cannot be
+//! satisfied within the device's wave-cache region.
+//!
+//! Carries a free-form `message_` payload (returned verbatim by
+//! `what()`).  Raised from `Cache::allocate` overloads when neither the
+//! reuse path nor `getBestPosition` finds a suitable hole.
 class CacheException : public std::exception {
 public:
     explicit CacheException(std::string const& msg);  // 0x2835a0
@@ -67,6 +73,29 @@ private:
 // +0x10   24    vector<shared_ptr<Pointer>>   pointers_
 // sizeof(Cache) = 0x28
 // ============================================================================
+//! \brief Wave-cache occupancy tracker for a single AWG sequencer
+//! during prefetch planning.
+//!
+//! Owned by `Prefetch` and constructed once per compilation from the
+//! device's wave-cache size and page (cache-line) size; on Hirzel
+//! devices the `isHirzel_` flag forces a strict append-at-end
+//! allocation policy.  Each resident waveform slot is recorded as a
+//! `Pointer` (position, size, hash, repeat count, owning
+//! `WaveformIR`, lifecycle `PointerState`); `pointers_` holds them in
+//! allocation order.
+//!
+//! The two `allocate` overloads find or create a slot — the
+//! 5-argument form supports the general placement search (with a
+//! `nameMap` of currently-resident waveforms, a `maxBranches`
+//! limit, and a `split` toggle), the 2-argument `CacheType` form
+//! handles the simpler aligned/normal placement.  `getBestPosition`
+//! is the underlying placement search; `memoryWrite` /
+//! `stillInMemory` / `reuse` track residency across loads;
+//! `play` / `resetPlay` / `free` advance the per-slot
+//! `PointerState` (Ready → Playing → LastPlayed → Free) as the
+//! AST walk emits play instructions.  `getScope` returns a fresh
+//! sub-scope `Cache` mirroring the parent's geometry, used for
+//! branch-local placement tries.
 class Cache {
 public:
     // PointerState enum (int32_t)

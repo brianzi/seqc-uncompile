@@ -36,6 +36,18 @@ enum class NodeTypeIdx : int32_t {
 // ============================================================================
 // NodeMapData — abstract base, vtable @0xb02c98
 // ============================================================================
+//! \brief Abstract polymorphic payload for parameter-tree node entries
+//! tracked by `CustomFunctions` during SeqC compilation.
+//!
+//! Each device parameter referenced by a SeqC built-in (e.g. via
+//! `setInt`, `getDIO`, `setOscFreq`) is represented by a `NodeMapItem`
+//! that owns a `NodeMapData*` of one of two concrete subclasses
+//! (`VirtAddrNodeMapData` or `DirectAddrNodeMapData`) selected when
+//! the node is resolved from the device's parameter tree.  The four
+//! pure-virtual methods (`compareEq`, `hash`, `clone`, `getJson`)
+//! cover the operations needed to use `NodeMapItem` as a key in
+//! `std::unordered_map` / `unordered_set` and to serialise the
+//! collected node-access information into the compile-result JSON.
 class NodeMapData {
 public:
     virtual ~NodeMapData();                                  // @0x1c5720
@@ -56,6 +68,15 @@ public:
 //   +0x08  24  std::string             name_       — node name (JSON "name")
 //   +0x20  24  std::vector<int32_t>    addresses_  — virtual address list
 // ============================================================================
+//! \brief `NodeMapData` payload for parameter-tree nodes addressed
+//! through a string path that resolves to one or more virtual
+//! addresses.
+//!
+//! Holds the user-facing node `name_` and a list of `addresses_`
+//! collected from the parameter tree; `getJson` emits both as the
+//! `"name"` key plus an array of integer addresses, and `clone` /
+//! `compareEq` / `hash` participate in the `NodeMapItem` map
+//! protocol described on `NodeMapData`.
 class VirtAddrNodeMapData : public NodeMapData {
 public:
     VirtAddrNodeMapData() = default;
@@ -79,6 +100,13 @@ public:
 //   +0x00  8  vptr (from base)
 //   +0x08  4  uint32_t   addr_     direct hardware address
 // ============================================================================
+//! \brief `NodeMapData` payload for parameter-tree nodes that map
+//! directly to a single hardware register address.
+//!
+//! Used as the fast path in `CustomFunctions::getNodeAddress`, which
+//! down-casts via `dynamic_cast<DirectAddrNodeMapData*>` and reads
+//! `addr_` straight out without consulting the virtual-address list
+//! table.
 class DirectAddrNodeMapData : public NodeMapData {
 public:
     DirectAddrNodeMapData() = default;
@@ -105,6 +133,19 @@ public:
 //                                       NOTE: IF-112)
 //   +0x11  7  (padding)
 // ============================================================================
+//! \brief Hashable handle to a parameter-tree node, used as the
+//! key/value type in `CustomFunctions`'s node-tracking maps.
+//!
+//! Pairs a non-owning `NodeMapData*` (one of the two concrete
+//! subclasses) with a `NodeTypeIdx` value-encoding tag and a cached
+//! `fastAddr` shortcut for direct-address nodes.  The trailing
+//! `hasFast` flag records whether `fastAddr` is valid; in
+//! `custom_functions_play.cpp` it is also reinterpreted as an
+//! `AccessMode` selector (Soft=0 / Direct=1) when emitting node
+//! reads, while `Custom`(2) is only ever inserted into
+//! `CustomFunctions::accessModeMap_` via explicit literal call sites.
+//! `operator==` and the `std::hash` specialisation defined below are
+//! required for storage in `std::unordered_map<NodeMapItem, ...>`.
 struct NodeMapItem {
     NodeMapData*  data;       // +0x00
     NodeTypeIdx   typeIdx;    // +0x08

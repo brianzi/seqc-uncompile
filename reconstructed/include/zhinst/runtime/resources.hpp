@@ -90,6 +90,14 @@ enum VarSubType : int32_t {
 // VarTypeException — thrown by combine(VarType, VarType) on incompatible types.
 // Ctor @0x2480e0, dtor @0x248140, typeinfo @0xb06600.
 // ============================================================================
+//! \brief Diagnostic raised by the `combine(VarType, VarType)` lookup
+//! when an arithmetic/logical operator is asked to combine two
+//! variable categories that have no defined result type (e.g. mixing
+//! a wave with a string).
+//!
+//! Carries a free-form message returned verbatim by `what()`; raised
+//! from inside `SeqCOperator::evaluate` when the 7×7 result-type
+//! table for the operator's arguments has no entry.
 class VarTypeException : public std::exception {
 public:
     explicit VarTypeException(std::string const& msg);  // @0x2480e0
@@ -157,6 +165,39 @@ VarSubType combine(VarSubType lhs, VarSubType rhs);  // @0x247ea0
 // 0xC0    24    vector<shared_ptr<Resources>>           children_
 // ============================================================================
 
+//! \brief Lexical-scope and symbol-table node used by the SeqC
+//! frontend during AST evaluation.
+//!
+//! One `Resources` instance represents one scope (the program root,
+//! a function body, a `for` / `while` / `if` block, etc.) and is
+//! linked into a tree via `parent_` / `children_`.  Each scope owns
+//! its own `variables_` table (general-purpose `Variable` records
+//! holding type + sub-type + embedded `Value` + assigned register +
+//! name + flags) and its own `functions_` table of declared
+//! `Function` records (each with its own child scope for the
+//! function body).  `getVariable` walks the parent chain to resolve
+//! a name, and the typed add / update / read families on the
+//! interface (`addVar`, `addConst`, `addCvar`, `addString`,
+//! `addWave`, plus the corresponding `update*` and read accessors)
+//! provide the SeqC type system's CRUD operations on the current
+//! scope.
+//!
+//! The base class also tracks transient evaluation state: the
+//! lifecycle `state_` (Unset → Active → Paused → Locked),
+//! the function-scope `returnType_` / `returnValue_` / `returnReg_`
+//! triple, and the `scopeBoundaryFlags_` byte that
+//! `SeqCIfElse` / `SeqCCondExpr` set when entering a dead branch
+//! so that downstream `SeqCVariable::evaluate` calls can skip the
+//! `checkVar` enforcement.  Two specialised subclasses extend the
+//! base: `StaticResources` populates the device-global constant
+//! table at the program root (and surfaces the
+//! `usedSampleRate_` flag), and `GlobalResources` adds per-thread
+//! TLS counters (`regNumber`, `labelIndex`) plus a thread-local
+//! MT19937-64 PRNG (`random[]`) so register / label names and
+//! `randomSeed`-controlled values stay distinct across threads.
+//! `Compiler::compile` instantiates a `StaticResources` first and
+//! wraps it in a `GlobalResources` to obtain the root scope used by
+//! the SeqC AST evaluator.
 class Resources : public std::enable_shared_from_this<Resources> {
 public:
     // ========================================================================
@@ -453,6 +494,13 @@ protected:
 //
 // Layout (0x20 bytes): vptr + std::string msg_
 // ============================================================================
+//! \brief Diagnostic raised by `Resources` methods on scope/symbol
+//! lookup failures (missing variable, undefined function return
+//! type, malformed scope state).
+//!
+//! Message returned verbatim by `what()`; for example
+//! `getReturnType` raises this when called on a scope whose
+//! function return type was never set.
 class ResourcesException : public std::exception {
     std::string msg_;
 public:
@@ -473,6 +521,18 @@ public:
 //   +0x108  8   (padding)
 // ============================================================================
 
+//! \brief Root-scope `Resources` specialisation that pre-loads the
+//! device-specific constant table consumed by the SeqC frontend.
+//!
+//! Constructed by `Compiler::compile` from a warning-reporter
+//! callback and then primed via `init(config, deviceConstants)`,
+//! which inserts every device-global constant (sample rate, channel
+//! counts, alignment limits, AWG_RATE_*, etc.) into the base
+//! scope's `variables_` table so that SeqC programs can reference
+//! them by name.  The overridden `getVariable` recognises the small
+//! set of magic constant names (notably `DEVICE_SAMPLE_RATE`) and
+//! sets `usedSampleRate_` whenever one is read — a flag the
+//! compiler later mirrors into its compile-result metadata.
 class StaticResources : public Resources {
 public:
     StaticResources(std::function<void(std::string const&)> const& logger);  // @0x129cb0
@@ -553,6 +613,21 @@ private:
 // instance construction.
 // ============================================================================
 
+//! \brief Per-thread `Resources` wrapper that supplies the global
+//! register/label numbering and the seeded MT19937-64 PRNG used
+//! during SeqC compilation.
+//!
+//! Adds no instance fields beyond the `Resources` base; instead it
+//! exposes three `static thread_local` members shared across every
+//! `GlobalResources` constructed on the same thread:
+//! `regNumber` (next free assembly register, fed to
+//! `Resources::getRegister`), `labelIndex` (next free label suffix,
+//! fed to `Resources::newLabel`), and the 313-element MT19937-64
+//! `random[]` state (used by `randomSeed` / `getPRNGValue`).  The
+//! constructor wraps an existing root scope (the `StaticResources`
+//! returned by `Compiler::compile`) as `grandparent_` and re-seeds
+//! the PRNG deterministically so successive compilations on the
+//! same thread produce reproducible random-driven output.
 class GlobalResources : public Resources {
 public:
     GlobalResources(std::shared_ptr<Resources> const& grandparent);  // @0x12a710
