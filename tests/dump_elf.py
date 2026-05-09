@@ -83,14 +83,15 @@ def dump_section(name, data, indent="  "):
             word = struct.unpack_from('<I', data, i)[0]
             print(f"{indent}  [{i//4:3d}] 0x{word:08x}")
     elif name == '.linenr':
-        # Binary: pairs of (instruction_index, line_number) as 32-bit LE ints
-        print(f"{indent}{name}: {len(data)} bytes = {len(data)//8} entries")
-        for i in range(0, len(data), 8):
-            idx, ln = struct.unpack_from('<II', data, i)
-            print(f"{indent}  instr[{idx}] → line {ln}")
+        # Binary: 16-byte records of 4 x int32 LE: (absIdx, counter, seq, lineNumber)
+        # See reconstructed/notes/elf_reader.md for the full layout.
+        print(f"{indent}{name}: {len(data)} bytes = {len(data)//16} records")
+        for i in range(0, len(data), 16):
+            absIdx, counter, seq, ln = struct.unpack_from('<iiii', data, i)
+            print(f"{indent}  abs={absIdx} ctr={counter} seq={seq} line={ln}")
     elif name == '.channels':
-        # Binary: 8 bytes (format varies)
-        print(f"{indent}{name}: {data.hex()}")
+        # Binary: chanInfo.size() * sizeof(int) bytes (variable, per-device).
+        print(f"{indent}{name}: {len(data)} bytes = {data.hex()}")
     elif name == '.version_bin':
         # Binary: 16 bytes
         print(f"{indent}{name}: {data.hex()}")

@@ -497,7 +497,7 @@ Build clean; total cleared 7 symbols. Phase 20 progress: 89/95 (94%).
 
 - ✅ `util::wave::double2awg(double, uint)` @0x299630 — 14-bit signed
   sample with 2 marker bits in low 2. Constants from rodata: 1.0
-  (`0x956030`), -1.0 (`0x956068`), 8190.0 (`0x956330`).
+  (`0x956030`), -1.0 (`0x956068`), 8191.0 (`0x956330`).
 - ✅ `util::wave::double2awg1m(double, uint)` @0x299680 — 15-bit
   signed sample with 1 marker bit in low. Scale 16383.0 (`0x956338`).
 - ✅ `util::wave::double2awg16(double)` @0x299700 — 16-bit signed

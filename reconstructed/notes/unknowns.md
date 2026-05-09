@@ -22,16 +22,8 @@ The full pre-2026-04-22 history is preserved in
 
 | #   | Title | Resolution |
 |-----|-------|-----------|
-| 121 | r8b (isHold) source in playZurichInstruments | Two-stage GDB trace: previous trace missed the third write at `0x161db8: mov [rbp-0x78],r14` which unconditionally overwrites the slot after both prior writes. r14's low byte holds an unrelated `sete` flag (channelArgs[0]-empty) computed at 0x161cfc/0x161d12, or 0 from `xor r14d,r14d` at 0x161d06 when channelArgs.size()<2. Empirically `r8b` is always 0: channelArgs[0] is the just-merged wave name (never empty), and the Aux path leaves channelArgs empty so size<2 → r14=0. **isHold = false** (literal). Verified across all 1341 tests. |
-
-
----
-
-## Closed
-
-| #   | Title | Resolution |
-|-----|-------|-----------|
 | 122 | What subsystem reads `usedFeatures_["MF"]` | Consumer: `AWGCompilerImpl::getJsonVersion` at `awg_compiler.cpp:1182` reads the full `usedFeatures_` set and emits it as `"required_options"` JSON array. |
+| 121 | r8b (isHold) source in playZurichInstruments | Two-stage GDB trace: previous trace missed the third write at `0x161db8: mov [rbp-0x78],r14` which unconditionally overwrites the slot after both prior writes. r14's low byte holds an unrelated `sete` flag (channelArgs[0]-empty) computed at 0x161cfc/0x161d12, or 0 from `xor r14d,r14d` at 0x161d06 when channelArgs.size()<2. Empirically `r8b` is always 0: channelArgs[0] is the just-merged wave name (never empty), and the Aux path leaves channelArgs empty so size<2 → r14=0. **isHold = false** (literal). Verified across all 1341 tests. |
 | 120 | Error code for register-bound args in configFreqSweep | GDB @0x1551b4: `mov $0x41,%esi` → `ErrorMessages::format(FuncExpects3Const=65, "configFreqSweep")`. Previous approximation of `0x3e` was wrong. Fixed `custom_functions_registers.cpp`. |
 | 75  | cervino indexed nonsplit (2 stubs) | Resolved: play_cervino_indexed_nonsplit filled with prf(regH, regC, clampToCache(cacheSize/2)). Common indexed finalize split per-branch: Hirzel emits addr+goto play_common_prf; non-Hirzel emits addr+channels*totalSize+smap+addi+smap sequence. |
 | 45  | assembleAsmList register ordering | Resolved: verified from disasm — order is regDst(+0x28) → regAux(+0x30) → regSrc(+0x20) → outputs(+0x38) → label(+0x50). Fixed cout message to match binary strings. |
