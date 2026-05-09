@@ -43,6 +43,19 @@ class WavetableFront;
 //   +0x48  4   int32_t                               loopUnrollLimit
 //   +0x4C  4   (padding)
 // ============================================================================
+//! \brief Read-only environment passed to every AST `evaluate()` override.
+//!
+//! `FrontendLoweringContext` bundles the compiler subsystems an
+//! `evaluate()` implementation may need to consult: the message collector
+//! for diagnostics, the assembler-instruction registry for opcode lookup,
+//! the registry of SeqC built-in functions, the waveform code generator,
+//! and the wavetable bookkeeping front-end.  `loopUnrollLimit` caps how
+//! deeply loop bodies may be unrolled by `repeat()` and `for(...)`
+//! evaluations.
+//!
+//! The context is constructed once per compile, lives on the stack of the
+//! `lower()` driver, and is shared by reference across the entire AST
+//! traversal.
 struct FrontendLoweringContext {
     CompilerMessageCollection*                 messages;          // +0x00
     std::shared_ptr<AsmCommands>               asmCommands;       // +0x08
@@ -83,6 +96,15 @@ static_assert(sizeof(FrontendLoweringContext) == 0x50,
 // check inSwitch_ flag. SeqCSwitchCase, SeqCForLoop et al. set
 // inLoop_/inSwitch_ around their body evaluations.
 // ============================================================================
+//! \brief Mutable accumulator threaded through the AST `evaluate()` walk.
+//!
+//! `FrontendLoweringState` collects the output of the lowering traversal:
+//! `result` is the lowered IR root that grows as statements are processed,
+//! `labelStack` tracks the active break/continue label scope for
+//! `SeqCBreakStatement` / `SeqCContinueStatement`, and `inLoop_` /
+//! `inSwitch_` are scope flags that loop and switch evaluations toggle
+//! around their body so nested control-flow statements can validate they
+//! appear in a legal context.
 struct FrontendLoweringState {
     std::shared_ptr<Node>                      result;      // +0x00 (lowered AST root)
     uint64_t                                   inFunctionDef_{};    // +0x10 (zeroed in lower())

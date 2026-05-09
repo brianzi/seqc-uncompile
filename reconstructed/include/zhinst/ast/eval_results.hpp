@@ -41,6 +41,22 @@ struct EvalResultValue;
 enum VarType : int32_t;
 enum VarSubType : int32_t;
 
+//! \brief Result of evaluating a SeqC AST node or built-in function.
+//!
+//! `EvalResults` is the universal return type of the frontend lowering
+//! dispatch: every override of `SeqCAstNode::evaluate()` and every entry in
+//! the `CustomFunctions` built-in registry produces a
+//! `std::shared_ptr<EvalResults>`.  The instance carries a vector of typed
+//! `EvalResultValue`s (`values_`, used for multi-return built-ins such as
+//! tuple-producing functions), an attached assembler instruction list
+//! (`assemblers_`) emitted as a side effect of the evaluation, an optional
+//! lowered `Node` subtree (`node_`), an optional waveform descriptor
+//! (`waveformFront_`), an optional name binding (`name_`), and a link to a
+//! backing array result (`arrayBacking_`) when the value participates in a
+//! larger array expression.
+//!
+//! `returnEncountered_` is set by `SeqCReturnStatement` evaluation so that
+//! enclosing scopes can short-circuit further statement processing.
 class EvalResults {
 public:
     // --- Fields (0x80 bytes total) ---

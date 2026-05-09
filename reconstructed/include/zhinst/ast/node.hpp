@@ -116,6 +116,23 @@ inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>
 // 0x110         Total size
 // ============================================================================
 
+//! \brief Lowered intermediate-representation node produced by the frontend.
+//!
+//! `Node` is the central data structure of the post-lowering IR: every
+//! sequencer action — load, play, branch, loop, lock, prefetch placeholder,
+//! and friends — is represented by a `Node` whose `type` is a value from
+//! `NodeType`.  Nodes are linked into a tree via `next` (sibling chain),
+//! `branches` (alternative children for `Branch` nodes), `loop`
+//! (loop-body / else-branch link), and a back-pointer `parent` weak-ref;
+//! waveform usage per device is tracked in `wavesPerDev` with the active
+//! slot selected by `deviceIndex`.
+//!
+//! Tree edits go through the static helpers `insertBefore`, `updateParent`,
+//! `remove`, `swap`, and `clone`, which keep the parent/next/branches
+//! invariants consistent.  `toJson` / `fromJson` / `installPointers`
+//! serialise the IR for the on-disk node-graph cache; `installPointers`
+//! must be called after `fromJson` to rebuild the cross-node references
+//! that JSON stores as integer IDs.
 class Node : public std::enable_shared_from_this<Node> {
 public:
     // --- Default constructor (needed for make_shared<Node>()) ---

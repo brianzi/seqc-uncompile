@@ -112,6 +112,20 @@ enum class ECommandType : int32_t {
 // +0x50     4   VarType                           varType
 // +0x54     4   int32_t                           direction  (EDirection enum; always 2 in binary)
 //
+//! \brief Concrete-syntax tree node produced by the SeqC bison parser.
+//!
+//! `Expression` is the uniform node type emitted by the flex/bison frontend
+//! during parsing.  Every parser action — `createValue`, `createOperator`,
+//! `createIfElse`, etc. — allocates one of these and links children via
+//! `children`.  The kind of node is encoded by three orthogonal tags:
+//! `operationType` (top-level category such as command, function call,
+//! variable, value), `operator_` (binary/unary operator when applicable),
+//! and `commandType` (control-flow or unary-statement form when applicable);
+//! defaults are `eNONE`/`eNOCMD`.
+//!
+//! `Expression` is the *parser-side* AST and is later lowered into the
+//! virtual `SeqCAstNode` hierarchy by the frontend lowering pass; consumers
+//! manage instances through `std::shared_ptr<Expression>`.
 struct Expression {
     EOperationType                               operationType;  // +0x00
     int32_t                                      valueCategory;  // +0x04

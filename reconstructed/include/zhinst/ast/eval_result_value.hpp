@@ -25,6 +25,14 @@ namespace zhinst {
 enum VarType : int32_t;
 enum VarSubType : int32_t;
 
+//! \brief Single typed value entry inside an `EvalResults`.
+//!
+//! `EvalResultValue` is the per-element payload of `EvalResults::values_`
+//! and the element type of the argument vector passed to every SeqC
+//! built-in function.  It pairs a `Value` with the outer-tag pair
+//! `(varType_, varSubType_)` and an `AsmRegister` binding indicating the
+//! assembler register currently holding the value (or an invalid register
+//! when the value has not been materialised in hardware).
 struct EvalResultValue {
     VarType     varType_;      // +0x00 — outer type tag
     VarSubType  varSubType_;   // +0x04 — sub-type qualifier

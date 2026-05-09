@@ -24,6 +24,19 @@
 
 namespace zhinst {
 
+//! \brief Per-parse state shared between the SeqC flex lexer and bison parser.
+//!
+//! `SeqcParserContext` is the user-data argument threaded through the
+//! reentrant `seqc_lex` scanner and `seqc_parse` parser.  It tracks the
+//! current source line number (incremented by the lexer on each newline),
+//! the comment-nesting flags (line-comment and block-comment forms set as
+//! the lexer enters and leaves each form), a sticky syntax-error flag
+//! latched by `setSyntaxError()` for whole-file rejection, and a
+//! user-supplied error callback that bison invokes via `seqc_error()` to
+//! report diagnostics.
+//!
+//! `reset()` clears the per-parse state but preserves the error callback
+//! so a single context instance can be reused across multiple compilations.
 class SeqcParserContext {
 public:
     // --- Accessors ---

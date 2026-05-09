@@ -40,6 +40,17 @@ namespace zhinst {
 // Note: libstdc++ std::string is 32 bytes (SSO buffer), libc++ is 24.
 // The original binary was built with libc++ (0x1C = 28 bytes total).
 // ============================================================================
+//! \brief Tagged-union operand for assembly instructions.
+//!
+//! `Immediate` is a small variant that an assembly instruction operand can
+//! take one of three forms: an unsigned address, a signed 32-bit integer, or
+//! a string label.  The active alternative is recorded by `index_` (see
+//! `ImmediateKind`); a default-constructed instance is `Valueless` and will
+//! throw on conversion.
+//!
+//! Conversion operators (`int`, `unsigned int`) and `toString()` dispatch
+//! through a function-pointer table per active alternative; passing the
+//! wrong-typed conversion through them is a programming error.
 class Immediate {
 public:
     union Storage {
@@ -100,6 +111,11 @@ std::ostream& operator<<(std::ostream& os, Immediate const& imm);
 //   +0x00  vptr (vtable at b03cc8+0x10)
 //   +0x08  std::string msg_ (24 bytes, libc++ SSO)
 // ============================================================================
+//! \brief Exception thrown by `Value` conversion methods.
+//!
+//! Raised when `Value::toInt()`, `toDouble()`, `toBool()`, or `toString()`
+//! is called on an instance whose `type_` is `Unspecified`, or whose stored
+//! alternative cannot be coerced to the requested type.
 class ValueException : public std::exception {
     std::string msg_;
 public:
@@ -149,6 +165,17 @@ enum class ValueType : int32_t {
 // sizeof(Value) is ABI-dependent (40 on libc++, 48 on libstdc++). All
 // field accesses use named members, so the size difference is transparent.
 // ============================================================================
+//! \brief Tagged scalar literal carried through the SeqC frontend.
+//!
+//! `Value` is the runtime representation of a SeqC literal or evaluated
+//! constant.  It pairs an outer `ValueType` tag with a discriminated union
+//! holding one of `int32_t`, `bool`, `double`, or `std::string`.  A
+//! default-constructed `Value` has `type_ == Unspecified` and will throw
+//! `ValueException` from any of the `toX()` conversion methods.
+//!
+//! `Value` is the payload of `EvalResultValue::value_` and the return type
+//! of `EvalResults::getValue()`; it is the primary medium by which
+//! constant-folded expression values flow through the lowering pipeline.
 class Value {
 public:
     ValueType type_;       // +0x00
