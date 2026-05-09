@@ -102,10 +102,57 @@ style guide §"What is NOT used".  This keeps the line between
 //!
 //! \param cl  the command list to plan for; must already be lowered.
 //! \return    a plan whose `slots_` field is sorted by issue cycle.
-//! \binarynote The original binary uses a stable sort here; we use
-//!             `std::stable_sort` to match.
 PrefetchPlan PrefetchPlanner::plan(CommandList const& cl);
 ```
+
+## Voice & content rules for `\brief` and friends
+
+Documentation comments are **user-facing API documentation**, not a
+record of how the reconstruction was performed.  Four rules apply to
+every `//!` / `/*! */` block we add (they do **not** apply to existing
+`//` reconstruction notes — those stay as-is):
+
+1. **Document what the code does** — its behaviour, contract, and
+   relationship to neighbouring types.  A reader should learn how to
+   *use* the symbol from the doc comment alone.
+2. **Do not reference the original binary** by name (no
+   `_seqc_compiler.so`, no "the binary", no "in the binary the
+   layout is...").  The reconstruction's provenance is irrelevant
+   to a caller learning the API.
+3. **Do not cite addresses, vtable offsets, or other binary
+   artefacts** inside `//!` comments.  Hex offsets, function
+   addresses (`@0x12abcd`), and vtable / typeinfo pointers belong
+   in `//` reconstruction notes only.
+4. **Leave existing reconstruction comments alone.**  The pre-existing
+   `//` banners that describe binary layout, verified ctors / dtors,
+   field offsets, etc. remain in place and are not converted to
+   `//!` form.  When adding a new `//!` block, place it immediately
+   above the declaration even when a `//` reconstruction banner is
+   present — Doxygen ignores the `//` lines and picks up the `//!`
+   block correctly.
+
+Mechanically, an acceptable class-level brief looks like this:
+
+```cpp
+// ============================================================================
+// Reconstructed from disassembly of _seqc_compiler.so
+// ... existing reconstruction banner stays untouched ...
+// ============================================================================
+//! \brief One diagnostic emitted during a compile run — error, warning,
+//!        or info — together with its source line.
+//!
+//! Holds a `type` discriminant (`Error` / `Warning` / `Info` /
+//! `Invalid`), the SeqC source line it refers to (or `-1` when not
+//! source-attached), and the message text.  `str(hideLine)` renders
+//! the diagnostic for display, prefixing "Compiler Error" / "Warning"
+//! / "Info" per `type` and optionally suppressing the line number
+//! suffix.
+struct CompilerMessage { /* ... */ };
+```
+
+Note the brief explains *what the type is for* and *how to use the
+visible methods*; it never says "verified at 0x104340" or "32-byte POD
+in the binary".
 
 ## Custom aliases — accuracy discipline
 
@@ -117,7 +164,7 @@ discoverable from the rendered site.
 |-----|------|-------------|
 | `\unclear` | `unclear_list.html` | Documentation gap.  We don't yet understand what the symbol does or why it exists. |
 | `\verifyme` | `verifyme_list.html` | We have a hypothesis but it has **not** been GDB- or test-verified.  A stronger statement than `\unclear`: it commits to a guess that needs checking. |
-| `\binarynote` | `binarynote_list.html` | A verified fact about the original binary that diverges from idiomatic C++ (e.g. unusual sort order, ABI quirk, deliberately-preserved bug). |
+| `\binarynote` | `binarynote_list.html` | A non-idiomatic API behaviour the caller needs to be aware of (e.g. unusual sort order, off-by-one in a public field, a deliberately preserved quirk).  **Avoid in user-facing class-level briefs**; keep for the rare member-level case where surprising behaviour must be flagged.  Inside this tag — and only inside this tag — it is acceptable to mention the original binary if the surprising behaviour exists specifically to match it. |
 
 Two prose helpers:
 
@@ -133,8 +180,10 @@ Two prose helpers:
 - "I don't know what this does" → `\unclear`
 - "I think it does X, but I haven't proven it" → `\verifyme`, with the
   hypothesis stated explicitly
-- "It deliberately does X, which looks wrong but matches the binary" →
-  `\binarynote`, citing the binary address or notes file
+- "It deliberately does X, which would surprise a caller expecting
+  idiomatic behaviour" → `\binarynote`, with a brief justification.
+  Avoid for class-level briefs; favour members where the surprise
+  actually bites.
 
 Never invent details to fill a doc comment.  Use the tags.
 
@@ -189,6 +238,10 @@ under a `html.dark-mode { ... }` selector.
   Reconstruction notes describe how we figured things out from the
   binary; doc comments describe how callers should use the API.
   Mixing the two pollutes both.
+- **Do not name the original binary or cite addresses inside `//!`
+  blocks.**  See "Voice & content rules" above.  The single exception
+  is the body of a `\binarynote`, where a binary mention is permitted
+  if (and only if) it explains *why* the API behaves the way it does.
 - **Do not edit the vendored `theme/doxygen-awesome.css`.**  Put
   overrides in `theme/custom.css` so the vendor file stays a clean
   pin.

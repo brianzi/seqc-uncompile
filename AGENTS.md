@@ -163,13 +163,22 @@ Pointers for agents:
   for documentation.  Plain `//` is reserved for reconstruction notes
   and is **not** picked up by Doxygen.  Doxygen `///` and `/** */` are
   forbidden — see `reconstructed/notes/comment_style_guide.md` §13.
+- **Voice & content** for `//!` / `/*! */` blocks: document what the
+  code does (behaviour, contract), do **not** name the original binary
+  or cite addresses / vtable offsets, and leave existing `//`
+  reconstruction comments as-is when adding `//!` briefs above them.
+  Full rules and an annotated example: see "Voice & content rules" in
+  `reconstructed/docs/README.md`.
 - **Accuracy discipline**: never invent details to fill a doc comment.
   Three custom tags exist for the unknown / uncertain / divergent cases:
   - `\unclear` — we don't yet know what this does.
   - `\verifyme` — we have a hypothesis that is **not** GDB- or
     test-verified yet.  State the hypothesis explicitly.
-  - `\binarynote` — verified fact about the original binary that
-    diverges from idiomatic C++.
+  - `\binarynote` — non-idiomatic API behaviour the caller must be
+    aware of.  Avoid in user-facing class-level briefs; reserve for the
+    rare member-level case where surprising behaviour must be flagged.
+    Mentioning the original binary is permitted *only* inside a
+    `\binarynote` body and only when it explains the surprise.
   Each tag generates a dedicated cross-reference page so the backlog is
   discoverable.
 - **Build the site**: `cmake --build . --target docs` from
