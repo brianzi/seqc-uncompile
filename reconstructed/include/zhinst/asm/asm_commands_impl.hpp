@@ -40,10 +40,10 @@ namespace zhinst {
 //! the right concrete subclass based on `AwgDeviceType`.
 //!
 //! Methods that have no encoding on a given family (for example
-//! Cervino lacks the wavetable-quad write) throw an exception when
-//! called on that subclass.  `isCWVFRSupported()` advertises whether
-//! the conditional-waveform-with-register-cancel form is available so
-//! the front end can choose between equivalent emission strategies.
+//! Cervino lacks `wwvfq`) throw an exception when called on that
+//! subclass.  `isCWVFRSupported()` is a per-family capability flag
+//! consulted by `AsmCommands` to gate optional code-generation paths
+//! such as the marker-bit computation in `genPlayConfig`.
 class AsmCommandsImpl {
 public:
     virtual ~AsmCommandsImpl();
@@ -74,12 +74,12 @@ public:
 };
 
 // Cervino implementation — older/FPGA devices.
-//! \brief `AsmCommandsImpl` back end for the older Cervino / FPGA family.
+//! \brief `AsmCommandsImpl` back end for the older Cervino sequencer family.
 //!
-//! Encodes the subset of instructions supported by the Cervino
-//! sequencer (UHFLI, UHFAWG, UHFQA, GHFLI, VHFLI), and throws for the
-//! Hirzel-only forms (`wwvfq`, `wvfs`, `wvft`).  Reports
-//! `isCWVFRSupported() == false`.
+//! Encodes the subset of instructions supported by Cervino, and throws
+//! for the Hirzel-only forms (`wwvfq`, `wvfs`, `wvft`).  Reports
+//! `isCWVFRSupported() == false`.  Selected by `getInstance()` for the
+//! `AwgDeviceType` values not assigned to Hirzel.
 class AsmCommandsImplCervino : public AsmCommandsImpl {
 public:
     ~AsmCommandsImplCervino() override;
@@ -107,12 +107,12 @@ public:
 };
 
 // Hirzel implementation — HDAWG, UHF, SHF devices.
-//! \brief `AsmCommandsImpl` back end for the Hirzel sequencer.
+//! \brief `AsmCommandsImpl` back end for the Hirzel sequencer family.
 //!
-//! Encodes the instruction set used by HDAWG, SHFQA, SHFSG, and SHFQC
-//! devices, including the wavetable-quad (`wwvfq`) and waveform-end
-//! (`wvfs`/`wvft`) forms unique to this family.  Reports
-//! `isCWVFRSupported() == true`.
+//! Encodes the Hirzel instruction set, including the `wwvfq`, `wvfs`,
+//! and `wvft` forms that have no Cervino equivalent.  Reports
+//! `isCWVFRSupported() == true`.  Selected by `getInstance()` for the
+//! `AwgDeviceType` values picked out by its bitmask.
 class AsmCommandsImplHirzel : public AsmCommandsImpl {
 public:
     ~AsmCommandsImplHirzel() override;

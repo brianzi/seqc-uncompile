@@ -46,10 +46,11 @@ namespace zhinst {
 //! read, which are written — are derived by the static `getCmdType()`
 //! helper from the `Command` enum value.
 //!
-//! Instances are produced by the per-method factories in `AsmCommands`,
-//! collected into an `AsmList`, optimised by `AsmOptimize`, and finally
-//! encoded into the binary `.text` segment by the device-specific
-//! `AsmCommandsImpl` subclass.  `str(verbose)` produces the
+//! Instances are produced by the per-method factories in `AsmCommands`
+//! (with device-specific encoding choices delegated to
+//! `AsmCommandsImpl`), collected into an `AsmList`, optimised by
+//! `AsmOptimize`, and finally emitted as the on-wire opcode stream
+//! consumed by `ElfWriter::addCode`.  `str(verbose)` produces the
 //! human-readable disassembly that appears in the ELF `.asm` section.
 class Assembler {
 public:
@@ -60,19 +61,19 @@ public:
         END        = 0x00000000,
         NOP        = 0x00000001,
         LABEL      = 0x00000002,
-        MESSAGE    = 0x00000003,
+        MESSAGE    = 0x00000003,  // inline-asm 'msg' — warning-level diagnostic
         // 0x00000004 unused?
-        ERROR_MSG  = 0x00000005,
+        ERROR_MSG  = 0x00000005,  // inline-asm 'rer' — error-level diagnostic
 
-        // Waveform playback
-        PRF        = 0x10000000,
-        WVF        = 0x20000000,  // Cervino, or Hirzel with marker reg
-        WVFI       = 0x30000000,  // Cervino interleaved
-        WVFS_H     = 0x30000001,  // Hirzel wvfs (special/dummy)
+        // Waveform playback (short-opcode block)
+        PRF        = 0x10000000,  // prefetch into cache
+        WVF        = 0x20000000,  // play waveform (3-reg form)
+        WVFI       = 0x30000000,  // play waveform, indexed (Cervino)
+        WVFS_H     = 0x30000001,  // wvfs — set up waveform-fetch descriptor (Hirzel)
 
-        // ALU — signed immediate
+        // ALU — register + immediate (low 12 bits)
         ADDI       = 0x40000000,
-        ADDIU      = 0x50000000,  // unsigned immediate
+        ADDIU      = 0x50000000,  // immediate, upper word (imm << 12)
 
         // ALU — register-register
         ADDR       = 0x60000000,
@@ -80,32 +81,32 @@ public:
         ANDR       = 0x60000002,
         ORR        = 0x60000003,
         XNORR      = 0x60000004,
-        SSL        = 0x60000005,  // shift left
-        SSR        = 0x60000006,  // shift right
+        SSL        = 0x60000005,  // single-bit shift left
+        SSR        = 0x60000006,  // single-bit shift right
         XORR       = 0x60000007,  // xor register-register (confirmed: cmdMap "xorr")
 
-        // ALU — signed immediate (other ops)
+        // ALU — register + immediate (low / upper)
         ANDI       = 0x70000000,
-        ANDIU      = 0x80000000,
+        ANDIU      = 0x80000000,  // immediate, upper word
         ORI        = 0x90000000,
-        ORIU       = 0xA0000000,
+        ORIU       = 0xA0000000,  // immediate, upper word
         XNORI      = 0xB0000000,
-        XNORIU     = 0xC0000000,
+        XNORIU     = 0xC0000000,  // immediate, upper word
 
-        // Load / store / IO
+        // Load / store / IO / sync barriers / extended-opcode block
         LD         = 0xD0000000,
-        WTRIG      = 0xE0000000,
-        WPRF       = 0xF0000000,  // also "wwvfq" alias in cmdMap
-        WWVF       = 0xF1000000,  // write waveform (confirmed: cmdMap "wwvf")
-        CWVF       = 0xF2000000,
+        WTRIG      = 0xE0000000,  // wait for trigger
+        WPRF       = 0xF0000000,  // wait for prefetch (also "wwvfq" alias in cmdMap)
+        WWVF       = 0xF1000000,  // wait for waveform (confirmed: cmdMap "wwvf")
+        CWVF       = 0xF2000000,  // configure waveform — writes PlayConfig register
         BRZ        = 0xF3000000,  // branch if zero
         BRNZ       = 0xF4000000,  // branch if not zero
-        BRGZ       = 0xF5000000,  // branch if greater than zero (NEW)
+        BRGZ       = 0xF5000000,  // branch if greater than zero
         ST         = 0xF6000000,
         TRAP       = 0xF7000000,
         IRPT       = 0xF8000000,
-        CWVFR      = 0xF9000000,  // cancel waveform (register)
-        WVFE       = 0xFA000000,  // waveform end (was: WVF_H)
+        CWVFR      = 0xF9000000,  // configure waveform, register operand
+        WVFE       = 0xFA000000,  // wvf, extended-opcode form (1-reg)
         WVFEI      = 0xFB000000,  // waveform end interleaved (was: UNK_FB)
         WVFET      = 0xFC000000,  // waveform end triggered (was: WVFT_H)
         WTRIGI     = 0xFD000000,
