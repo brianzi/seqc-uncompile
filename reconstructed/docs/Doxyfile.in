@@ -1,0 +1,189 @@
+# ============================================================================
+# Doxyfile — reconstructed SeqC compiler
+# ============================================================================
+# Run from reconstructed/build/ via the `docs` cmake target, or directly:
+#   doxygen reconstructed/docs/Doxyfile
+# ============================================================================
+
+# ---- Project ---------------------------------------------------------------
+
+PROJECT_NAME           = "SeqC Compiler (reconstructed)"
+PROJECT_BRIEF          = "Reverse-engineered reconstruction of _seqc_compiler.so"
+PROJECT_NUMBER         =
+OUTPUT_DIRECTORY       = @DOXYGEN_OUTPUT_DIR@
+CREATE_SUBDIRS         = NO
+ALLOW_UNICODE_NAMES    = NO
+OUTPUT_LANGUAGE        = English
+
+# ---- Input -----------------------------------------------------------------
+
+INPUT                  = @DOXYGEN_INPUT_DIRS@
+INPUT_ENCODING         = UTF-8
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.h *.cpp *.inc *.md
+EXTENSION_MAPPING      = inc=C++
+
+EXCLUDE                = @DOXYGEN_EXCLUDE_DIRS@
+EXCLUDE_SYMLINKS       = NO
+EXCLUDE_PATTERNS       = */build/* */build_release/* */tests/* \
+                         */opentelemetry/* \
+                         *seqc_lexer.c* *seqc_parser.tab*
+
+USE_MDFILE_AS_MAINPAGE = @DOXYGEN_MAINPAGE@
+
+# ---- What to document ------------------------------------------------------
+#
+# Conservative defaults — only document what is explicitly annotated with //!
+# or /*! */.  This keeps undocumented internals out of the rendered output
+# until a documentation pass reaches them, but the warning log still flags
+# them so we can track coverage.
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_PRIV_VIRTUAL   = NO
+EXTRACT_PACKAGE        = NO
+EXTRACT_STATIC         = NO
+EXTRACT_LOCAL_CLASSES  = NO
+EXTRACT_LOCAL_METHODS  = NO
+EXTRACT_ANON_NSPACES   = NO
+HIDE_UNDOC_MEMBERS     = YES
+HIDE_UNDOC_CLASSES     = YES
+HIDE_FRIEND_COMPOUNDS  = NO
+HIDE_IN_BODY_DOCS      = NO
+INTERNAL_DOCS          = NO
+SHOW_INCLUDE_FILES     = YES
+SHOW_GROUPED_MEMB_INC  = NO
+FORCE_LOCAL_INCLUDES   = NO
+INLINE_INFO            = YES
+SORT_MEMBER_DOCS       = YES
+SORT_BRIEF_DOCS        = NO
+SORT_GROUP_NAMES       = NO
+
+# ---- Comment style ---------------------------------------------------------
+#
+# We use //! and /*! */ for documentation (see comment_style_guide.md §13).
+# JAVADOC_AUTOBRIEF lets a single-line //! be used as \brief.
+
+JAVADOC_AUTOBRIEF      = YES
+QT_AUTOBRIEF           = NO
+MULTILINE_CPP_IS_BRIEF = NO
+INHERIT_DOCS           = YES
+SEPARATE_MEMBER_PAGES  = NO
+TAB_SIZE               = 4
+MARKDOWN_SUPPORT       = YES
+TOC_INCLUDE_HEADINGS   = 4
+
+# ---- Custom aliases --------------------------------------------------------
+#
+# These tags carry our reconstruction- and accuracy-discipline metadata.
+# Each alias creates an entry on a dedicated cross-reference page, so the
+# entire backlog is discoverable from the rendered site.
+
+ALIASES += "unclear=\xrefitem unclear_list \"Unclear\" \"Documentation gaps requiring investigation\" "
+ALIASES += "verifyme=\xrefitem verifyme_list \"Needs verification\" \"Items that should be GDB- or test-verified\" "
+ALIASES += "binarynote=\xrefitem binarynote_list \"Binary note\" \"Verified facts about the original binary that diverge from idiomatic C++\" "
+ALIASES += "reconstructed{1}=\par Reconstructed from binary @\1\n"
+ALIASES += "reconstructed=\par Reconstructed from _seqc_compiler.so\n"
+ALIASES += "seenotes{1}=\par See notes\nreconstructed/notes/\1\n"
+ALIASES += "verified{1}=\par Verified\n\1\n"
+
+# ---- Source browsing -------------------------------------------------------
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+REFERENCES_LINK_SOURCE = YES
+SOURCE_TOOLTIPS        = YES
+USE_HTAGS              = NO
+VERBATIM_HEADERS       = YES
+
+# ---- Diagrams --------------------------------------------------------------
+
+HAVE_DOT               = NO
+CLASS_DIAGRAMS         = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = NO
+GROUP_GRAPHS           = YES
+UML_LOOK               = NO
+TEMPLATE_RELATIONS     = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+GRAPHICAL_HIERARCHY    = YES
+DIRECTORY_GRAPH        = YES
+
+# ---- Warnings (warn but never block) ---------------------------------------
+#
+# WARN_IF_UNDOCUMENTED is currently NO because almost no symbols are
+# documented yet (Phase D0).  It will be flipped to YES in Phase D2 once
+# class-level briefs start landing — at that point the warning log
+# becomes the coverage tracker.
+
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_DOC_ERROR      = YES
+WARN_IF_INCOMPLETE_DOC = YES
+WARN_NO_PARAMDOC       = YES
+WARN_AS_ERROR          = NO
+WARN_FORMAT            = "$file:$line: $text"
+WARN_LOGFILE           = @DOXYGEN_WARN_LOGFILE@
+
+# ---- Output formats --------------------------------------------------------
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_FILE_EXTENSION    = .html
+HTML_HEADER            =
+HTML_FOOTER            =
+HTML_EXTRA_STYLESHEET  = @DOXYGEN_AWESOME_CSS@
+HTML_COLORSTYLE        = LIGHT
+HTML_DYNAMIC_MENUS     = YES
+HTML_DYNAMIC_SECTIONS  = NO
+HTML_INDEX_NUM_ENTRIES = 100
+GENERATE_DOCSET        = NO
+GENERATE_HTMLHELP      = NO
+GENERATE_QHP           = NO
+GENERATE_ECLIPSEHELP   = NO
+DISABLE_INDEX          = NO
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+ENUM_VALUES_PER_LINE   = 4
+TREEVIEW_WIDTH         = 270
+EXT_LINKS_IN_WINDOW    = NO
+HTML_FORMULA_FORMAT    = png
+FORMULA_FONTSIZE       = 10
+
+GENERATE_LATEX         = NO
+GENERATE_RTF           = NO
+GENERATE_MAN           = NO
+GENERATE_XML           = YES
+XML_OUTPUT             = xml
+XML_PROGRAMLISTING     = NO
+XML_NS_MEMB_FILE_SCOPE = NO
+GENERATE_DOCBOOK       = NO
+
+# ---- Preprocessing ---------------------------------------------------------
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+EXPAND_ONLY_PREDEF     = NO
+SEARCH_INCLUDES        = YES
+INCLUDE_PATH           = @DOXYGEN_INCLUDE_PATH@
+INCLUDE_FILE_PATTERNS  = *.hpp *.h
+PREDEFINED             =
+SKIP_FUNCTION_MACROS   = YES
+
+# ---- Indexing --------------------------------------------------------------
+
+ALPHABETICAL_INDEX     = YES
+COLS_IN_ALPHA_INDEX    = 5
+SHOW_NAMESPACES        = YES
+SHOW_FILES             = YES
+SHOW_USED_FILES        = YES
+
+LAYOUT_FILE            =
+CITE_BIB_FILES         =

@@ -29,11 +29,68 @@ be invoked explicitly via `--manifest <name>.json`.
 
 ## Open work items
 
-**None tracked here.**  Future findings will land here as new phases.
+### Phase D — Inline code documentation
 
-The only open finding is the cosmetic `IF-200` (`rand` deprecation
-warning) — **fixed** as of commit `99f19ef` on 2026-05-08; tracked in
-`reconstructed/notes/incidental_findings.md`.
+Long-running phase to add Doxygen-rendered API documentation to the
+reconstructed code base.  See `reconstructed/docs/architecture.md` for
+the rendered mainpage and `reconstructed/notes/comment_style_guide.md`
+§13 for the documentation comment conventions.
+
+**Accuracy discipline:** every claim must be backed by disassembly
+evidence, GDB verification, a notes-file cross-reference, or test
+coverage.  When none apply, use `\unclear`, `\verifyme`, or
+`\binarynote` rather than guess.  These tags aggregate onto dedicated
+cross-reference pages so the backlog is discoverable.
+
+- [x] **D0 — Setup** _(complete)_
+  - [x] `reconstructed/docs/Doxyfile.in` with theme, aliases, warning config
+  - [x] `docs` cmake target (`cmake --build . --target docs`)
+  - [x] Doxygen Awesome CSS theme under `reconstructed/docs/theme/`
+  - [x] `reconstructed/docs/architecture.md` mainpage stub
+  - [x] `reconstructed/docs/coverage.sh` baseline tracker
+  - [x] §13 added to `comment_style_guide.md`
+
+- [ ] **D1 — Architecture mainpage** _(next)_
+  - [ ] Flesh out `architecture.md` with pipeline overview, class
+        index pointers, notes/ index — sourced from `OVERVIEW.md`
+        with no new claims
+  - [ ] Wrap-up: review with user
+
+- [ ] **D2 — Class-level `\brief` on every public header** (~50 classes)
+  - [ ] Order: `compiler` → `awg_compiler` → `prefetch` →
+        `custom_functions` → `resources` → `eval_results` →
+        `asm/*` → `wavetable/*` → `waveform/*` → remainder
+  - [ ] After each class: commit
+  - [ ] Wrap-up: flip `WARN_IF_UNDOCUMENTED = YES` in Doxyfile;
+        coverage script becomes meaningful
+
+- [ ] **D3 — Pipeline-driver functions** (~30 functions)
+  - [ ] Full `\brief` + `\details` + `\param` + `\return` + `\throws`
+  - [ ] Targets: `Compiler::compile`, `runPrefetcher`,
+        `AWGCompilerImpl::writeToStream`, `Prefetch::{preparePlays,
+        placeLoads, fillInPlaceholders}`, `WavetableIR::{updateWaveforms,
+        assignWaveformAllocationSizes}`, `AsmOptimize::{optimizePre/Post
+        Waveform}`, `FrontEndLoweringFacade::lower`,
+        `CustomFunctions::evaluate`, `WaveformGenerator` factory entries
+  - [ ] Per-group commits
+
+- [ ] **D4 — Public methods of high-traffic classes**
+  - [ ] Order: `Compiler` → `Prefetch` → `WavetableIR/Front` →
+        `CustomFunctions` (subdivided) → `AsmOptimize` →
+        `WaveformGenerator` → `Resources` family → AST nodes
+  - [ ] Per-class commits and `\unclear` triage
+
+- [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
+
+- [ ] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**
+  - [ ] `optimization_passes.md`
+  - [ ] `device_type.md`
+  - [ ] `prefetch.md` (if present)
+  - [ ] `wavetable.md` (if present)
+  - [ ] `incidental_findings.md` (as known-issues page)
+
+**Coverage baseline at end of D0:** 4/2712 symbols documented (0.1%).
+Run `reconstructed/docs/coverage.sh` to track progress.
 
 ## Archives
 

@@ -439,3 +439,21 @@ mechanical sweeps for Bucket 1.
 Phase Q final state: 39 already-done + 58 wontfix + 14 mechanical-resolved
 + 1 binary-fidelity skip = 112 closed; 114 borderline items deferred
 case-by-case. No further Phase Q phase planned.
+
+## Phase D — Inline code documentation
+
+In progress.  See `TODO.md` for the phase breakdown (D0..D6) and
+`reconstructed/docs/architecture.md` for the rendered Doxygen
+mainpage.
+
+**D0 (setup) complete (2026-05-09):**
+- Doxygen + Doxygen Awesome CSS configured under `reconstructed/docs/`.
+- `cmake --build . --target docs` builds the site to
+  `reconstructed/build/docs/html/`.
+- Custom aliases `\unclear`, `\verifyme`, `\binarynote` carry the
+  accuracy-discipline metadata; each renders to a dedicated
+  cross-reference page so the documentation backlog is discoverable.
+- `reconstructed/docs/coverage.sh` reports current coverage from the
+  generated XML.  Baseline at end of D0: 4/2712 symbols (0.1%).
+- `reconstructed/notes/comment_style_guide.md` §13 added: documentation
+  comments use `//!` and `/*! */`; reconstruction comments stay on `//`.

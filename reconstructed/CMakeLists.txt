@@ -172,3 +172,39 @@ else()
             "Could not find ELFIO. Install it or set ELFIO_INCLUDE_DIR.")
     endif()
 endif()
+
+# --- Documentation (Doxygen) ---
+#
+# Generates the reconstructed-code documentation site under
+# ${CMAKE_CURRENT_BINARY_DIR}/docs/html/ from the //! and /*! */
+# annotations in src/ and include/.  Warnings (undocumented symbols,
+# malformed doc syntax) are written to docs/doxygen-warnings.log but
+# do NOT fail the build — see reconstructed/notes/comment_style_guide.md
+# §13 for the documentation conventions.
+find_package(Doxygen QUIET)
+if(DOXYGEN_FOUND)
+    set(DOXYGEN_OUTPUT_DIR    "${CMAKE_CURRENT_BINARY_DIR}/docs")
+    set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md")
+    set(DOXYGEN_EXCLUDE_DIRS  "${CMAKE_CURRENT_SOURCE_DIR}/build ${CMAKE_CURRENT_SOURCE_DIR}/build_release")
+    set(DOXYGEN_MAINPAGE      "${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md")
+    set(DOXYGEN_INCLUDE_PATH  "${CMAKE_CURRENT_SOURCE_DIR}/include")
+    set(DOXYGEN_AWESOME_CSS   "${CMAKE_CURRENT_SOURCE_DIR}/docs/theme/doxygen-awesome.css")
+    set(DOXYGEN_WARN_LOGFILE  "${DOXYGEN_OUTPUT_DIR}/doxygen-warnings.log")
+
+    file(MAKE_DIRECTORY "${DOXYGEN_OUTPUT_DIR}")
+    configure_file(
+        "${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile.in"
+        "${DOXYGEN_OUTPUT_DIR}/Doxyfile"
+        @ONLY
+    )
+
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} "${DOXYGEN_OUTPUT_DIR}/Doxyfile"
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        COMMENT "Generating Doxygen documentation in ${DOXYGEN_OUTPUT_DIR}/html"
+        VERBATIM
+    )
+    message(STATUS "Doxygen ${DOXYGEN_VERSION} found — `make docs` available")
+else()
+    message(STATUS "Doxygen not found — `make docs` target unavailable")
+endif()

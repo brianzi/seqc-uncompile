@@ -214,6 +214,69 @@ Always prefixed with `NOTE:` (finding is informational, no action required) or
 
 ---
 
+## 13. Documentation comments (`//!` and `/*! */`)
+
+Documentation comments are **distinct from reconstruction-annotation
+comments**.  They use Doxygen-compatible markers so that
+`reconstructed/docs/` can render them as a browsable site.  See
+`reconstructed/docs/Doxyfile.in` for the full configuration.
+
+- Single-line: `//!`
+- Multi-line block: `/*! ... */`
+
+The plain `//` form is **reserved for reconstruction notes** (addresses,
+`// Binary:`, layout offsets, etc., per §1–§12).  Never mix the two
+markers in a single comment block.
+
+### Project-specific aliases
+
+Three custom Doxygen aliases carry the project's accuracy discipline.
+Each generates an entry on its own aggregated cross-reference page so
+the entire backlog is discoverable from the rendered site.
+
+| Alias | Meaning |
+|---|---|
+| `\unclear`    | Behaviour or semantics genuinely unknown; needs investigation. |
+| `\verifyme`   | Believed correct from disasm/notes but not yet GDB- or test-verified. |
+| `\binarynote` | Verified fact about the binary that diverges from idiomatic C++ (informational, not a gap). |
+
+Three further provenance aliases keep claims traceable:
+
+| Alias | Meaning |
+|---|---|
+| `\reconstructed{ADDR}` | Symbol reconstructed from binary @ADDR. |
+| `\seenotes{file.md}`   | Cross-reference to a `reconstructed/notes/` topic. |
+| `\verified{tag}`       | Provenance tag, e.g. `\verified gdb` / `\verified test:foo`. |
+
+### Worked example
+
+```cpp
+//! \brief Computes the next available cache-line slot for a waveform.
+//!
+//! Walks `pointers_` looking for a contiguous gap of at least
+//! `requestedSize` bytes starting on a 64-byte boundary.
+//!
+//! \reconstructed{0x2aa960}
+//! \seenotes{memory_allocator.md}
+//!
+//! \param requestedSize Allocation size in bytes; must be a multiple of 4.
+//! \return Byte offset of the first free slot, or -1 if none fits.
+//!
+//! \verifyme — the alignment requirement is inferred from the binary's
+//! `and 0xfffffffc` mask but no test exercises non-aligned input yet.
+int MemoryAllocator::findFreeSlot(uint32_t requestedSize);
+```
+
+### Accuracy rules
+
+1. Every claim must be backed by disassembly evidence, GDB verification,
+   a notes-file cross-reference, or test coverage.
+2. When none apply, use `\unclear` or `\verifyme` — never guess.
+3. Documentation comments are not a substitute for the reconstruction
+   notes (binary addresses, layout, etc.).  They complement them.
+
+---
+
 ## What is NOT used in source files
 
 | Pattern | Reason removed |
@@ -224,7 +287,7 @@ Always prefixed with `NOTE:` (finding is informational, no action required) or
 | `HISTORICAL NOTE:` blocks | Superseded content; retained in `notes/` files |
 | "Hallucination" / "Removed" notices | The hallucination is gone; comment is noise |
 | `// verify …` uncertainty notes | Promoted to `TODO` if still open, otherwise deleted |
-| Doxygen (`///`, `/** */`) | Not used; no API documentation target |
+| Doxygen `///` and `/** */` | Doxygen markers are `//!` and `/*! */` only — see §13 |
 | Copyright / license headers | Not applicable |
 
 ---
