@@ -101,6 +101,25 @@ std::string str(EDirection dir);      // @0x1c1730
 // SeqCOperator adds:
 //   vptr[8] (+0x40): evaluate(5-arg)      — binary-operator specialization
 //
+//! \brief Abstract base of the SeqC AST hierarchy.
+//!
+//! `SeqCAstNode` is the common interface for every node produced by
+//! lowering a parsed `Expression` tree.  Each subclass overrides the
+//! virtual `evaluate()` to drive the next phase of compilation: it
+//! returns a `std::shared_ptr<EvalResults>` that bundles any synthesised
+//! IR `Node`, emitted assembler instructions, constant value, and
+//! waveform metadata for the subtree it represents.  Other virtuals are
+//! `print()` for diagnostic dumps, `doClone()` for deep-copying subtrees,
+//! `children()` for generic tree-walking, `getListElements()` and
+//! `getVarTypes()` for parameter/argument list introspection.
+//!
+//! Common fields stored on every node are the parsed source line number,
+//! the value category (lvalue/rvalue), the parameter direction
+//! (in/out/inout), and the variable type tag.  Subclasses extend the
+//! base layout with strongly-typed unique-ptr children: see the
+//! family-specific groupings (`SEQC_TRIVIAL_LEAF`, `SEQC_UNARY`,
+//! `SEQC_OPERATOR`, `SEQC_BINARY`, `SEQC_LIST`) below for the 53 concrete
+//! node kinds.
 class SeqCAstNode {
 public:
     SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir);   // 0x1fda00
@@ -191,6 +210,11 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 
 // SeqCOperation — broken out of SEQC_TRIVIAL_LEAF for extra getVarTypes override.
 // vtable @0xb04f60.
+//! \brief Parameter-direction-aware leaf node.
+//!
+//! Trivial-leaf operation node that overrides `getVarTypes()` to expose
+//! the parameter's direction (in/out/inout) alongside its variable type
+//! when used as a function parameter slot.
 class SeqCOperation : public SeqCAstNode {
 public:
     SeqCOperation(EValueCategory vc, int lineNr, EDirection dir,
@@ -263,6 +287,16 @@ SEQC_UNARY(SeqCReturnStatement, 0xb057b0);
 // only differ in their own vtable's print/doClone/evaluate overrides.
 // ============================================================================
 
+//! \brief Binary-operator AST node base.
+//!
+//! `SeqCOperator` is the shared base for all 22 binary operator and
+//! assignment nodes (arithmetic, bitwise, comparison, logical,
+//! increment/decrement, plain assignment, no-op).  Holds the left- and
+//! right-hand subexpressions as owning unique-ptrs and adds an extra
+//! virtual `evaluate()` overload that takes the already-lowered operand
+//! results so the standard 3-argument `evaluate()` can lower the
+//! operands once and then dispatch to the operator-specific arithmetic
+//! in derived classes.
 class SeqCOperator : public SeqCAstNode {
 public:
     SeqCOperator(EValueCategory vc, int lineNr, EDirection dir,
@@ -381,6 +415,12 @@ class SeqCVariable;
 
 // SeqCFunctionCall — broken out of SEQC_BINARY because funName_ is unique_ptr<SeqCVariable>.
 // vtable @0xb05140.  Layout: SeqCAstNode(24B) + 2 unique_ptrs at +0x18, +0x20 = 0x28 bytes.
+//! \brief Function-call expression node.
+//!
+//! Pairs the callee identifier (a `SeqCVariable` holding the function
+//! name) with the argument list subtree.  Lowering looks the name up in
+//! the user-defined function table and then in the `CustomFunctions`
+//! built-in registry, evaluates the arguments, and dispatches the call.
 class SeqCFunctionCall : public SeqCAstNode {
 public:
     SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
@@ -408,6 +448,12 @@ static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 b
 
 // SeqCArray — broken out of SEQC_BINARY because array_ is unique_ptr<SeqCVariable>.
 // vtable @0xb051e8.  Layout identical (0x28 bytes).
+//! \brief Array-element access expression `array[index]`.
+//!
+//! Pairs the array identifier (a `SeqCVariable`) with the index
+//! subexpression.  Lowering resolves the array binding through the
+//! `Resources` symbol table and emits the offset arithmetic to read or
+//! write the addressed element.
 class SeqCArray : public SeqCAstNode {
 public:
     SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
@@ -437,6 +483,12 @@ SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  cond, ifBody, 0xb053e0);
 
 // SeqCCaseEntry — broken out of SEQC_BINARY for extra methods (validLabel, hasLabel).
 // vtable @0xb05518.  Layout identical (0x28 bytes).
+//! \brief Single `case`/`default` entry inside a switch body.
+//!
+//! Holds the case label expression (null for the `default` entry — see
+//! `validLabel()` / `hasLabel()`) and the body to execute when matched.
+//! Lowering rejects the node unless `state.inSwitch_` is set, ensuring
+//! case entries appear only inside an enclosing `SeqCSwitchCase`.
 class SeqCCaseEntry : public SeqCAstNode {
 public:
     SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
@@ -467,6 +519,14 @@ static_assert(sizeof(SeqCCaseEntry) == 0x28, "SeqCCaseEntry must be 0x28 bytes")
 class SeqCStmtList;
 // SeqCSwitchCase — broken out of SEQC_BINARY for extra methods (hasCases, evalCases).
 // vtable @0xb05480.  Layout identical to other SEQC_BINARY types (0x28 bytes).
+//! \brief `switch` statement node.
+//!
+//! Pairs the switch condition expression with a body that is normally a
+//! `SeqCStmtList` of `SeqCCaseEntry` children; the `cases()` /
+//! `singleCase()` / `hasCases()` helpers normalise access to the cases
+//! regardless of whether the body is a list or a single entry.  Sets
+//! `state.inSwitch_` around case-entry evaluation; `evalCases()`
+//! evaluates each case body in turn against the lowered condition value.
 class SeqCSwitchCase : public SeqCAstNode {
 public:
     SeqCSwitchCase(EValueCategory vc, int lineNr, EDirection dir,
@@ -515,6 +575,12 @@ SEQC_BINARY(SeqCRepeat,       count,    body,  count, body, 0xb05670);
 // Three-child direct-AstNode subclasses (48 bytes, 0x30)
 // ============================================================================
 
+//! \brief `if`/`else` statement node.
+//!
+//! Three-child node holding the condition, the then-branch body, and the
+//! else-branch body.  Lowering produces a `Branch` IR node with both
+//! arms wired up; constant-folded conditions short-circuit to a single
+//! arm.
 class SeqCIfElse : public SeqCAstNode {
 public:
     SeqCIfElse(EValueCategory vc, int lineNr, EDirection dir,
@@ -546,6 +612,11 @@ private:
 };
 static_assert(sizeof(SeqCIfElse) == 0x30, "SeqCIfElse must be 0x30 bytes");
 
+//! \brief Conditional expression node `cond ? a : b`.
+//!
+//! Three-child expression form of an if/else: evaluates the condition
+//! and yields the value of the then-branch or the else-branch as the
+//! expression result, instead of producing control-flow IR.
 class SeqCCondExpr : public SeqCAstNode {
 public:
     SeqCCondExpr(EValueCategory vc, int lineNr, EDirection dir,
@@ -581,6 +652,13 @@ static_assert(sizeof(SeqCCondExpr) == 0x30, "SeqCCondExpr must be 0x30 bytes");
 // Four-child direct-AstNode subclasses (56 bytes, 0x38)
 // ============================================================================
 
+//! \brief User-defined SeqC function definition.
+//!
+//! Bundles the call-site signature node (a `SeqCFunctionCall` carrying
+//! the function name), the parameter list, the function body, and the
+//! return-type declarator.  Lowering registers the function in the
+//! `Resources` symbol table and stashes the body for later inlining
+//! when the function is called.
 class SeqCFunction : public SeqCAstNode {
 public:
     SeqCFunction(EValueCategory vc, int lineNr, EDirection dir,
@@ -615,6 +693,13 @@ private:
 };
 static_assert(sizeof(SeqCFunction) == 0x38, "SeqCFunction must be 0x38 bytes");
 
+//! \brief C-style `for` loop node.
+//!
+//! Four-child node holding the initialiser, condition, increment, and
+//! body subexpressions.  Lowering toggles `state.inLoop_` around body
+//! evaluation so nested `break`/`continue` statements can validate
+//! their context, and unrolls the loop when the condition is constant
+//! (subject to `FrontendLoweringContext::loopUnrollLimit`).
 class SeqCForLoop : public SeqCAstNode {
 public:
     SeqCForLoop(EValueCategory vc, int lineNr, EDirection dir,
@@ -700,6 +785,14 @@ SEQC_LIST(SeqCStmtList,  stmts,  0xb05340);
 //
 // vtable @0xb052d8.
 // ----------------------------------------------------------------------------
+//! \brief Function-definition parameter list.
+//!
+//! List node holding the parameter declarations of a `SeqCFunction`.
+//! Differs from the generic `SEQC_LIST` family by exposing `params()`,
+//! which yields raw `SeqCAstNode const*` pointers into the elements for
+//! `Resources::Function::addArguments()` to iterate, and by overriding
+//! `getVarTypes()` to return the parameter types in declaration order
+//! for signature matching.
 class SeqCParamList : public SeqCAstNode {
 public:
     SeqCParamList(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
@@ -743,6 +836,12 @@ static_assert(sizeof(SeqCParamList) == 0x30,
 // ============================================================================
 
 // SeqCVariable (48 bytes, 0x30) — name string at +0x18 (libc++ SSO, 24B)
+//! \brief Identifier reference (variable, parameter, or function name).
+//!
+//! Carries a name string that lowering resolves through the `Resources`
+//! symbol table to produce the corresponding value, register binding, or
+//! function definition.  Reused as the callee field of
+//! `SeqCFunctionCall` and as the array identifier of `SeqCArray`.
 class SeqCVariable : public SeqCAstNode {
 public:
     SeqCVariable(EValueCategory vc, int lineNr, EDirection dir,
@@ -773,6 +872,13 @@ static_assert(sizeof(SeqCVariable) == 0x30 || sizeof(SeqCVariable) == 0x38,
 // Layout: SeqCAstNode base (0x18) + payload_[24] (+0x18..+0x30) + tag_ (+0x30) + pad (+0x34).
 // Binary dtor uses jump table @0xb065a0 to dispatch destruction
 // based on tag at +0x30 (tag -1/0xFFFFFFFF = empty, skips destruction).
+//! \brief Literal-value AST node (string or double).
+//!
+//! Tagged-payload leaf node carrying either a string literal or a
+//! double-precision number, selected by `tag()` (`Tag::eString` or
+//! `Tag::eDouble`).  An empty / default-constructed instance has
+//! `tag_ == -1` and holds no value.  Lowering wraps the payload into
+//! a `Value` and emits an `EvalResults` carrying that constant.
 class SeqCValue : public SeqCAstNode {
 public:
     enum class Tag : int32_t {
