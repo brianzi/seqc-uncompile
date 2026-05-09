@@ -47,6 +47,15 @@ namespace util { namespace wave {
 //   virtual size_t size() const = 0;
 //   virtual const char* ptr() const = 0;
 // ==========================================================================
+//! Type-erased view onto an encoded waveform's raw byte buffer,
+//! ready to be embedded in a `.wf_<name>` ELF section.
+//!
+//! Concrete subclasses encode samples in a device-specific format
+//! (Hirzel 16-bit, Cervino, or a deferred placeholder); callers see
+//! only the byte pointer and length pair returned by `ptr()` and
+//! `size()`. `ElfWriter::addWaveform()` returns one of these so the
+//! caller can determine the section size after encoding without
+//! knowing which subclass was selected.
 class RawWave {
 public:
     virtual ~RawWave() = default;
@@ -73,6 +82,13 @@ public:
 //   ptr() lazily allocates a zero-filled buffer of that size and returns it.
 //   The buffer uses std::vector<char> growth semantics (realloc + memset).
 // ==========================================================================
+//! `RawWave` subclass for reserve-only signals: holds a target byte
+//! size but materialises the underlying zero-filled buffer lazily on
+//! the first `ptr()` call.
+//!
+//! Used when a waveform's storage must be reserved in the output ELF
+//! but its samples will be supplied at runtime, so allocating the
+//! full buffer up front would be pointless overhead.
 class RawWavePlaceHolder : public RawWave {
 public:
     ~RawWavePlaceHolder() override;                              // 0x296f90 (D1), 0x296fc0 (D0)
@@ -105,6 +121,14 @@ public:
 //   The marker detection scans the entire MarkerBitsPerChannel vector,
 //   OR-ing all bytes masked with 0x03 using SIMD (SSE2 vectorized loop).
 // ==========================================================================
+//! `RawWave` subclass that encodes samples as 16-bit unsigned
+//! integers in the format expected by Hirzel-family devices (HDAWG
+//! and the SHF series).
+//!
+//! The constructor inspects the marker-bits-per-channel descriptor
+//! and selects the cheapest of three encoding paths:
+//! sample-only (`double2awg16`), single-bit marker
+//! (`double2awg1m`), or multi-bit marker (`double2awg`).
 class RawWaveHirzel16 : public RawWave {
 public:
     RawWaveHirzel16(std::vector<double> const& samples,          // 0x297140
@@ -133,6 +157,12 @@ public:
 // No explicit constructor symbol — constructed inline in Signal::getRawData():
 //   Converts each double sample via double2awg(sample, marker) into data_.
 // ==========================================================================
+//! `RawWave` subclass that encodes samples as 16-bit unsigned
+//! integers in the format expected by Cervino-family devices
+//! (UHFLI / UHFQA).
+//!
+//! Samples are produced inline by `Signal::getRawData()`; this class
+//! has no public constructor.
 class RawWaveCervino : public RawWave {
 public:
     ~RawWaveCervino() override;                                  // 0x2975b0 (D1), 0x2975e0 (D0)

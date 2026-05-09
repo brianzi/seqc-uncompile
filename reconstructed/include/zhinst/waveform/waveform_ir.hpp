@@ -74,6 +74,19 @@ namespace zhinst {
 
 struct WaveformFront;
 
+//! Back-end representation of a waveform: extends `Waveform` with
+//! the placement and prefetch flags that the IR / wavetable passes
+//! need but the front-end parsed form does not.
+//!
+//! Added flags mark whether prefetch determined the waveform is
+//! actually referenced (`markedForLoad`), whether wavetable
+//! placement has pinned it (`fixed_`), and whether its allocated
+//! slot straddles a cache-line boundary (`crossesCacheLine_`).
+//! `elfAlignment_` carries the per-waveform allocation size used
+//! when emitting the `.wf_<name>` ELF section. Constructed from
+//! either a `WaveformFront` or an existing `Waveform`, or in place
+//! by the wavetable manager from a name and device-constants
+//! reference.
 struct WaveformIR : Waveform {
     bool markedForLoad;     // +0xD8  "used"/"referenced" by prefetch passes
     bool fixed_;            // +0xD9  placement-fixed; partitions FIFO alloc

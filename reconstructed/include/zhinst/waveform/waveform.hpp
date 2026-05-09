@@ -45,6 +45,12 @@ struct DeviceConstants;  // forward declaration
 // 0x38     8    uint*             fileHash cap    }
 // 0x40          END
 // ============================================================================
+//! Source-file metadata for a `Waveform`: the path to the original
+//! sample file (CSV, RAW, or generated), the detected text/format
+//! variant, and the cache hash of its contents.
+//!
+//! Embedded in `Waveform` via `shared_ptr` so multiple waveforms
+//! that came from the same input file share the same descriptor.
 struct WaveformFile {
     // File::Type enum — source file kind (CSV text, RAW binary, GEN generated)
     enum class Type : int {
@@ -103,6 +109,17 @@ struct WaveformFile {
 // 0x80    0x58  Signal                      signal
 // 0xD8          END
 // ============================================================================
+//! Front-end representation of one waveform: name, source-file
+//! reference, the parsed `Signal` payload, the play-time
+//! configuration packed into `playConfig`, the placement-time
+//! address fields, and the device-constants pointer that produced
+//! it.
+//!
+//! Each unique waveform parsed or generated from SeqC source becomes
+//! one `Waveform` instance. The IR/back-end stage extends this with
+//! `WaveformIR`, which adds the prefetch / placement flags. JSON
+//! round-tripping (`toJson` / `fromJson`) supports the metadata
+//! sections written into the output ELF.
 struct Waveform {
     using File = WaveformFile;
 

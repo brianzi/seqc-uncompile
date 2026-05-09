@@ -44,6 +44,22 @@ struct ReserveOnly {};
 //   +0x50: uint64_t             length_        (8 bytes)
 //   +0x58: END
 // ==========================================================================
+//! In-memory representation of an interleaved multi-channel waveform
+//! signal: floating-point samples plus per-sample marker bytes and a
+//! per-channel marker-bits descriptor.
+//!
+//! `Signal` is the workhorse value type used throughout waveform
+//! generation, parsing, and serialisation. `samples_` carries
+//! `length_ * channels_` doubles in interleaved order; `markers_`
+//! carries one byte per sample; `markerBits_` records, for each
+//! channel, how many low-order bits of `markers_` are actually in
+//! use. `reserveOnly_` flags signals whose sample buffer is
+//! intentionally empty (the storage is reserved in the output ELF
+//! but populated at runtime).
+//!
+//! `getRawData()` produces the device-specific encoding (a
+//! `RawWave` subclass) selected by `SampleFormat`. JSON
+//! round-tripping is provided via `toJson()` / `fromJson()`.
 class Signal {
 public:
     // --- Constructors ---

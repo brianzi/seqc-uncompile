@@ -26,6 +26,15 @@ namespace zhinst {
 //   Bits 24-27 : markerBits     (4 bits)
 //   Bits 28-29 : trigger        (2 bits)
 //   Bits 30-31 : precompFlag    (2 bits)
+//! Per-`playWave` configuration packed into the 32-bit CWVF
+//! sequencer register: channel mask, sample rate, suppress mask,
+//! marker bits, trigger setup, precompensation flags, and assorted
+//! single-bit modifiers (`now`, `hold`, `dummy`, `is4Channel`).
+//!
+//! Carried alongside each Play / Table node in the waveform
+//! intermediate representation. `encodeCwvf()` packs the fields into
+//! the wire-format word; `toJson()` / `fromJson()` round-trip the
+//! struct through JSON for the public AWG metadata section.
 struct PlayConfig {
     detail::AddressImpl<uint32_t> channelMask = {};   // +0x00  JSON: "channelMask"
     int32_t  rate          = 0;       // +0x04  JSON: "rate"
