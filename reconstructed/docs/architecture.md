@@ -104,70 +104,77 @@ helpers; everything else flows through `Compiler`.
 
 ## Top-level type relationships
 
-The orchestrator owns shared pointers to the major collaborators; the
-flow of data between them is pipeline-style rather than message-passing.
+`Compiler` (in `codegen/compiler.hpp`, ~0x138 bytes) is the orchestrator.
+It owns the major collaborators as `shared_ptr` members and drives them
+through the pipeline.
 
-```
-                 ┌───────────────────────────────────┐
-                 │            Compiler               │
-                 │  (codegen/compiler.hpp, ~0x138B)  │
-                 └────────────────┬──────────────────┘
-                                  │ owns
-        ┌────────────┬────────────┼────────────┬────────────┐
-        ▼            ▼            ▼            ▼            ▼
-  AsmCommands  WaveformGen  CustomFuncs   Resources   SeqcParserCtx
-   (asm/)      (waveform/)  (runtime/)   (runtime/)    (inline)
-        │            │            │
-        │            ▼            │
-        │      WavetableFront     │
-        │      WavetableIR        │
-        │      (waveform/)        │
-        ▼                         │
-   AsmList ◄────────────── populated by ──────────────┘
-        │                                              ▲
-        │ ┌────────────┐  ┌──────────┐  ┌──────────┐  │
-        └►│ AsmOptimize│  │ Prefetch │  │  Cache   │  │
-          │  (asm/)    │  │(codegen/)│  │(runtime/)│  │
-          └────────────┘  └────┬─────┘  └──────────┘  │
-                               │                       │
-                               └─── reads / mutates ───┘
-```
+**Compiler-owned collaborators** (constructed in `Compiler`'s ctor unless
+noted; see `notes/pipeline.md` for offsets):
 
-`Resources` is the symbol-table base, with `StaticResources` (built-in
-constants, device-specific) and `GlobalResources` (TLS register / label
-counters, MT19937-64 PRNG) layered on top.  See
-`reconstructed/include/zhinst/runtime/resources.hpp`.
+- `AsmCommands` — instruction emitter (`asm/`).  Pimpl with two backends:
+  - **Cervino** for older FPGA devices (UHFLI, UHFQA, GHFLI, VHFLI) —
+    see `notes/cervino_vs_hirzel.md`.
+  - **Hirzel** for newer devices (HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI).
+- `WaveformGenerator` — waveform DSL functions (`zeros`, `sine`, `gauss`,
+  `marker`, `add`, `multiply`, `mergeWaveforms`, …) registered in a
+  function-pointer map.  See `waveform/`.
+- `CustomFunctions` — SeqC built-ins (`playWave`, `setTrigger`, `wait`,
+  `setUserReg`, …) registered in a similar map.  See `runtime/`.
+- `WavetableFront` — passed in by the caller; not constructed by
+  `Compiler`.  Front-end waveform table (creation, naming, loading,
+  DIO tracking).
+- `SeqcParserContext` — flex/bison parser state, embedded inline at
+  `Compiler+0x100`.
 
-`AsmCommands` is the device-portable instruction emitter; per-device
-encoding lives behind a Pimpl with two backends:
+`AsmList` is the working assembly list, embedded inline at
+`Compiler+0x88`.  It is populated by the lowering pass (step 4),
+extended by the linearisation pass (step 6), and mutated in place
+by `AsmOptimize` (steps 7 and 10) and the prefetcher (step 9).
 
-- **Cervino** for older FPGA devices (UHFLI, UHFQA, GHFLI, VHFLI),
-  see `notes/cervino_vs_hirzel.md`.
-- **Hirzel** for newer devices (HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI).
+**Created during `compile()`**, not in the ctor:
 
-`WaveformGenerator` carries the DSL functions (`zeros`, `sine`, `gauss`,
-`marker`, `add`, `multiply`, `mergeWaveforms`, …) registered in a
-function-pointer map.  `CustomFunctions` does the same for the SeqC
-built-ins (`playWave`, `setTrigger`, `wait`, `setUserReg`, …).  The two
-maps are the canonical extension surfaces of the language.
+- `WavetableIR` — IR-side waveform table (allocation, alignment, FIFO
+  layout, serialisation).  Produced from `WavetableFront`.
+- `Prefetch` — waveform-prefetch scheduler, instantiated by
+  `runPrefetcher()`.  Owns a `Cache` (waveform cache memory model) and
+  a per-node `PrefetcherNodeState` map.
+- `AsmOptimize` — instantiated for each optimisation invocation.
+
+**Symbol-table layer** (`runtime/resources.hpp`):
+
+- `Resources` — base scope/variable/function tracking.
+- `StaticResources` — adds device-specific built-in constants and the
+  logger callback.  See `notes/static_resources_cervino_consts.md`.
+- `GlobalResources` — adds TLS register/label counters and the
+  MT19937-64 PRNG.
+
+The two function-pointer maps in `WaveformGenerator` and
+`CustomFunctions` are the canonical extension surfaces of the language;
+the `notes/waveform_generator_funcmap.md` file enumerates the waveform
+DSL entries with their binary addresses.
 
 ## ELF output {#elf-output}
 
 The compiler's product is an **ELF32 little-endian** container —
-**not** a standard executable but a custom firmware bundle.  The
-sections that matter for differential testing are documented in
-`AGENTS.md` under "SeqC output ELF format" and in
-`notes/elf_format.md`.  Quick reference:
+**not** a standard executable but a custom firmware bundle.  Three
+related ELF variants are produced (main compiler output, legacy
+assembler output, waveform cache); the table below covers the main
+output's most-used sections.  See `notes/elf_format.md` for the
+authoritative full enumeration (including `.c`, `.filename`,
+`.required_sample_rate`, `.nodes`, `.dd_<name>`, segments, and the
+other two variants), and `notes/elf_reader.md` for `.linenr`'s exact
+record layout.
 
 | Section | Format | Content |
 |---------|--------|---------|
-| `.text` | binary, 4-byte LE words | sequencer machine code |
-| `.asm` | text | human-readable disassembly of `.text` |
-| `.linenr` | binary, pairs of `(insn_idx, line_no)` | source-mapping table |
-| `.waveforms` | JSON | per-waveform metadata (channels, marker bits, play config) |
-| `.wf_<name>` | binary, 16-bit signed LE | raw waveform samples |
-| `.wavemem` | JSON | wave memory accounting |
-| `.channels`, `.nodes_json`, `.arguments`, `.version_json`, `.version_bin` | mixed | header / configuration metadata |
+| `.text` | binary, 4-byte LE words (`vector<uint32_t>`) | Sequencer machine code. |
+| `.asm` | text (optionally zlib-compressed, level 9, depending on `config+0x9D`) | Assembly listing of `.text`. |
+| `.linenr` | binary, **16-byte records of 4 × int32** | Source-map: one record per emitted instruction, fields `(absIdx, counter, seq, lineNumber)`.  Reader (`ElfReader::getLineMap`) packs columns 1–2 into a `uint64_t addr` and exposes `(addr, lineNumber)` to consumers.  See `notes/elf_reader.md` §"`.linenr` section format" for the full layout, including why columns 0 and 1 are always identical. |
+| `.waveforms` | JSON (from `WavetableIR::getJsonIndex`) | Per-waveform metadata index (channels, marker bits, play config). |
+| `.wf_<name>` | binary, format determined by `Signal::getRawData(SampleFormat)` | Raw waveform sample bytes.  Common case for AWG output is signed 16-bit LE samples (full-scale ±8191), but the encoding is `SampleFormat`-dependent and the section may be `SHT_NOBITS` for reserve-only waveforms. |
+| `.wavemem` | JSON (from `getJsonWaveformMemoryInfo`) | Wave-memory accounting. |
+| `.channels` | binary, array of int32 | Channel info from `compiler.getChannelInfo()`.  Conditional on `chanInfo` being non-empty. |
+| `.nodes_json`, `.arguments`, `.version_json`, `.version_bin` | JSON / packed binary | Header / configuration metadata; see `notes/elf_format.md` for per-section schemas. |
 
 `e_entry` encodes the sequencer instruction memory entry point
 (typically `0x80000000 + instruction_offset`).

@@ -4201,3 +4201,42 @@ Fixed in same pass: updated comment to `/*SHFQC_SG*/` and `/*SHFSG*/`,
 and surrounding disassembly note updated to match. Also converted the
 raw `0x20`/`0x10` literals to `AwgDeviceType::SHFQC_SG`/`AwgDeviceType::SHFSG`
 as part of the broader magic-constants cleanup (B1).
+
+---
+
+## IF-207  `.linenr` ELF section mis-described as 8-byte pairs in two doc files
+
+**Source**: User review of Phase D1 architecture mainpage (commit f2f9b5a)
+**Status**: fixed
+**Severity**: likely-bug (incorrect documentation that contradicted notes)
+
+While drafting the Phase D1 architecture mainpage
+(`reconstructed/docs/architecture.md`), the ELF output section
+described `.linenr` as "binary, pairs of `(insn_idx, line_no)`",
+implying 8-byte (2 × uint32) records.  The actual layout, documented
+in `notes/elf_reader.md` §"`.linenr` section format" and confirmed in
+`Compiler::getLineMap` @0x123660, is **16-byte records of 4 × int32**:
+`(absIdx, counter, seq, lineNumber)`.  The reader
+(`ElfReader::getLineMap` @0x2c3ef0) packs columns 1–2 into a single
+`uint64_t addr` field and exposes `(addr, lineNumber)` pairs.
+
+Root cause: the architecture page was drafted partly from `AGENTS.md`'s
+"SeqC output ELF format" table without cross-checking against
+`notes/elf_format.md` / `notes/elf_reader.md`.  AGENTS.md itself
+carried the same incorrect "pairs of 2×uint32 LE" claim in its
+section-reference table.
+
+Fixes:
+- `architecture.md` ELF table updated with the correct 16-byte 4×int32
+  layout and a cross-reference to `notes/elf_reader.md`.
+- `AGENTS.md` `.linenr` row in §"Section reference" updated to match.
+- `architecture.md` ASCII type-relationship diagram (which had unbalanced
+  arrows and dangling columns) replaced with a structured prose list
+  in the same edit.
+
+Lesson: the accuracy-discipline rules established in Phase D0/D1 apply
+to **the documentation pages themselves**, not just to source-comment
+authoring.  When sourcing from `AGENTS.md` for documentation copy,
+verify each technical claim against the canonical `notes/*.md` files
+(or disassembly / GDB) before publishing.  AGENTS.md is workflow
+guidance, not a primary reference for binary facts.

@@ -401,7 +401,7 @@ usually mean the recon generates a different number of instructions.
 |---------|--------|-------------|
 | `.text` | **Binary**: 4-byte LE instruction words | Sequencer machine code. Each 32-bit word is one instruction. Size / 4 = instruction count. Dump with: `struct.unpack_from('<I', data, i*4)` |
 | `.asm` | **Plain text** (ASCII) | Human-readable disassembly of `.text`. One line per instruction with mnemonic and operands (e.g. `addi R1, R0, 5`). Comparing `.asm` text is the fastest way to find codegen diffs. |
-| `.linenr` | **Binary**: pairs of 2×uint32 LE | Maps instruction index → source line number. Each 8-byte entry is `(instruction_index, line_number)`. Size / 8 = entry count. |
+| `.linenr` | **Binary**: 16-byte records of 4 × int32 LE | Source map. One record per emitted instruction (labels and `cmd==-1` entries are skipped). Fields per record: `(absIdx, counter, seq, lineNumber)` — see `reconstructed/notes/elf_reader.md` §"`.linenr` section format" for the full layout. The reader (`ElfReader::getLineMap`) packs columns 1–2 into a single `uint64_t addr` and exposes `(addr, lineNumber)` pairs. Size / 16 = entry count. |
 | `.c` | **Plain text** | Copy of the SeqC source code. |
 | `.filename` | **Plain text** | Output filename (usually `"output"`). |
 | `.waveforms` | **Plain text** (JSON) | Waveform metadata: `{"waveforms":[{"name":"...","channels":"2","marker_bits":"0;0","play_config":"..."},…]}`. Key fields: `marker_bits` uses `;` separator (not `,`). `play_config` is a hex string encoding channel assignment and suppress mask. |
