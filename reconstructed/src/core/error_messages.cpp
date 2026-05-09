@@ -36,7 +36,7 @@ ErrorMessages errMsg;
 //   _ZN6zhinstL21zsyncDataPqscRegisterE      → "ZSYNC_DATA_PQSC_REGISTER"
 //   _ZN6zhinstL20zsyncDataPqscDecoderE       → "ZSYNC_DATA_PQSC_DECODER"
 //
-// NOTE: the binary mangles these with the `L` prefix indicating internal
+// Binary: mangles these with the `L` prefix indicating internal
 // linkage (declared `static` inside `namespace zhinst`). Our header
 // declares them `extern` so callers can reference them across TUs;
 // the actual binary may have them duplicated per-TU. This is a slight
@@ -129,7 +129,7 @@ struct ErrorMessagesInitializer {
     ErrorMessagesInitializer() {
         auto& m = ErrorMessages::messages;
 
-        // --- Table corrected from original binary (GDB-extracted, 254 entries) ---
+        // --- Table from original binary (254 entries) ---
         // Keys 0-255 with gaps at 47 and 53
 
         m[0] = "%1% command without valid register";

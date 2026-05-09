@@ -200,13 +200,9 @@ struct PlayArgs {
         // inner copy loop @0x135990..0x1359d6 which copies exactly 0x38
         // bytes from WA+0..WA+0x38 into a vector<EvalResultValue> slot.
         //
-        // CORRECTION 2026-04-24:
-        // The earlier `int type; int subType; EvalResultValue value;`
-        // layout summed to 0x58, contradicting the 0x50 stride.  In fact
-        // the WaveAssignment STARTS with the EvalResultValue directly —
-        // the previously-named `type`/`subType` fields are just
-        // EvalResultValue::varType_ and varSubType_ (the first 8 bytes of
-        // an EvalResultValue).  Confirmed by:
+        // The WaveAssignment STARTS with the EvalResultValue directly;
+        // the leading 8 bytes are EvalResultValue::varType_ and
+        // varSubType_.  Confirmed by:
         //   * @0x135854: `lea rsi, [rbx+0x8]` then call Value::toString
         //     ⇒ wa.value.value_ lives at WA+0x08 ⇒ wa.value lives at WA+0
         //   * @0x135990 inner copy: 0x38 bytes from WA+0 → vec<EvalResultValue>
@@ -512,7 +508,7 @@ private:
         std::vector<EvalResultValue> const&, std::shared_ptr<Resources>)>;
     std::unordered_map<std::string, FuncType>          funcMap_;                // +0x60
 
-    // NOTE: On libc++, unordered_map is 0x28 bytes (0x20 hash table + 4B max_load_factor + 4B pad).
+    // Binary: On libc++, unordered_map is 0x28 bytes (0x20 hash table + 4B max_load_factor + 4B pad).
     // The floats below are the trailing max_load_factor of the preceding map.
     float                                              funcMap_maxLoadFactor_{1.0f}; // +0x80  (libc++ internal)
     char                                               pad_84_[4];             // +0x84
@@ -536,9 +532,8 @@ private:
     std::vector<NodeMapItem>                           nodeList_;               // +0x150
 
     // RESOLVED (#101) via deeper dtor analysis at ~CustomFunctions @0x127cf2:
-    // The earlier "vector<T>" reading was wrong because I missed the node-walk
-    // loop at 127d40-127d70 (it's reached via a `jne` branch when the first
-    // node ptr is non-null). The full dtor sequence is:
+    // The full dtor sequence (node-walk reached via `jne` branch when the
+    // first node ptr is non-null):
     //
     //   127cf2: rdi = bucket_array_ptr  ([rbx+0x168])
     //   127cf9: store nullptr there

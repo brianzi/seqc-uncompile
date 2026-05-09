@@ -90,8 +90,7 @@ enum AwgDeviceType : int;
 // 0x81    3     (padding)
 // 0x84    4     uint32_t    numDIOBits            0, 6, or 8
 // 0x88    1     bool        hasPrecomp            Precompensation support. Also controls DA
-//                                                  code paths in Prefetch (previously mis-named
-//                                                  "useDA" — same field, verified at 0x1dc683 etc.)
+//                                                  code paths in Prefetch (verified at 0x1dc683 etc.)
 // 0x89    7     (padding to 0x90)
 // ============================================================================
 struct DeviceConstants {

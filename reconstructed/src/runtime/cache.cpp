@@ -307,7 +307,7 @@ void Cache::memoryWrite(std::shared_ptr<Pointer> ptr) {
     uint32_t ptrPos = ptr->position_;
     uint32_t ptrEnd = ptrPos + ptr->size_;
 
-    // Phase 1: Remove all overlapping entries.
+    // --- 1. Remove all overlapping entries ---
     // Two cases in binary (left-overlap at 0x283086, right-overlap at 0x28310b),
     // but both ultimately erase every entry whose range intersects [ptrPos, ptrEnd).
     for (auto it = pointers_.begin(); it != pointers_.end(); ) {
@@ -333,7 +333,7 @@ void Cache::memoryWrite(std::shared_ptr<Pointer> ptr) {
         }
     }
 
-    // Phase 2: Find sorted insertion point (by position_) and insert.
+    // --- 2. Find sorted insertion point (by position_) and insert ---
     // Binary at 0x28327b: linear scan comparing position_ values.
     auto insertPos = pointers_.end();
     for (auto it = pointers_.begin(); it != pointers_.end(); ++it) {

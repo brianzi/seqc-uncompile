@@ -82,11 +82,11 @@ MemoryAllocator::~MemoryAllocator() {  // 0x29f2d0
 // ---------------------------------------------------------------------------
 // allocateCLAligned — INLINED (no standalone address)
 //
-// Two-phase allocation:
-//   Phase 1 (lambda#1 @0x2aa960): Fast path — block fits within one cache line.
+// Two-stage allocation:
+//   Stage 1 (lambda#1 @0x2aa960): Fast path — block fits within one cache line.
 //     Checks alignment, CL ownership match, and that allocation doesn't cross
 //     a CL boundary.
-//   Phase 2 (lambda#2 @0x2aac80): General path — may span multiple CLs.
+//   Stage 2 (lambda#2 @0x2aac80): General path — may span multiple CLs.
 //     Computes multi-CL-aware alignment, checks and fills CL ownership slots
 //     using SSE2 vectorized comparison (operator() @0x2accd0).
 //     Decrements numCacheLines_ on ownership acquisition.
@@ -94,14 +94,14 @@ MemoryAllocator::~MemoryAllocator() {  // 0x29f2d0
 // Called from WavetableIR::allocateWaveformsForFifo inlined at ~0x2aa740.
 // ---------------------------------------------------------------------------
 MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
-    // Phase 1: fast single-CL path (lambda#1 @0x2aa960)
+    // --- 1. Fast single-CL path (lambda#1 @0x2aa960) ---
     //
-    // Binary: Phase 1 uses waveformElfAlignment (DC+0x24, always 64)
+    // Binary: this stage uses waveformElfAlignment (DC+0x24, always 64)
     // for alignment, NOT waveformAlignment (DC+0x14, 4096 for HDAWG).
-    // Phase 1 is strictly a "re-use within already-claimed CL" fast path.
+    // The fast path is strictly a "re-use within already-claimed CL" path.
     // Free CL slots (0xFFFFFFFF) cause rejection — only slots already owned
     // by the correct clBase are accepted.  First-time allocations always
-    // fall through to Phase 2 which claims the CL slots.
+    // fall through to the general multi-CL path which claims the CL slots.
     //
     // Binary tail path at 0x2aab9f-0x2aac1a:
     //   aligned = align_up(blockStart, waveformElfAlignment)
@@ -124,7 +124,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
                     return {0, 0, 0};
 
                 // CL ownership check: slot must already be claimed with matching clBase.
-                // Free slots (0xFFFFFFFF) are NOT accepted — Phase 1 only re-uses.
+                // Free slots (0xFFFFFFFF) are NOT accepted — the fast path only re-uses.
                 uint32_t slot = (aligned % memorySizeInBytes_) / cacheLineSizeBytes_;
                 uint32_t clBase = aligned - (aligned % cacheLineSizeBytes_);
                 if (slot >= cacheLineUsage_.size() ||
@@ -147,7 +147,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
             return result;
     }
 
-    // Phase 2: general multi-CL path (lambda#2 operator() @0x2accd0)
+    // --- 2. General multi-CL path (lambda#2 operator() @0x2accd0) ---
     // Binary: second arg is blockEnd (absolute), not blockSize.
     return allocateFirstSuitableFreeBlock(
         [&](unsigned int blockStart, unsigned int blockEnd) -> MemoryBlock {
@@ -186,7 +186,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
             numCacheLines_ -= (endSlot - startSlot);
 
             // Binary at 0x2acec7-0x2acf18: crossesCacheLine is always set in
-            // Phase 2 (multi-CL path). The condition is r14d != 0, where
+            // the multi-CL path. The condition is r14d != 0, where
             // r14d = min(maxBlocksPerCL * cacheLineSize, numSlots), which is
             // always positive for a valid allocator.
             uint32_t flags = 1 | (1 << 8);  // valid + crossesCacheLine
@@ -222,7 +222,7 @@ MemoryBlock MemoryAllocator::allocateReloadingCL(
                 }
 
                 // Check CL conflict: for each CL this allocation would touch,
-                // verify no entry exists in usedAddrs
+                // check no entry exists in usedAddrs
                 bool conflict = false;
                 uint32_t numCLsNeeded = maxBlocksPerCL_;
                 uint32_t addr = aligned;

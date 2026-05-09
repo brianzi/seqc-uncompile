@@ -1,12 +1,6 @@
 // ============================================================================
 // Reconstructed from disassembly of _seqc_compiler.so
 // Function: zhinst::logging::detail::logExceptionToClog @0x314a30 (953 bytes)
-//
-// namespace corrected from `zhinst::detail` to
-// `zhinst::logging::detail` to match the binary's mangled symbol
-// `_ZN6zhinst7logging6detail19logExceptionToClogE…` (was previously
-// `_ZN6zhinst6detail…`, which the linker rejected because logging.cpp
-// declares the function inside `namespace logging::detail`).
 // ============================================================================
 
 #include <cstdlib>

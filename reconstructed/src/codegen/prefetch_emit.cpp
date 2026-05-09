@@ -152,10 +152,9 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
 
         // Find insert position: skip past leading entries whose attached
         // Node has type == 4 (NodeType::Loop placeholder). Verified at
-        // 0x1d66eb: walks `asmList[i].node->type` (a int loaded from
-        // Node+0x10) until non-4. The previous reconstruction had a
-        // misnamed `insertPos->nodeType` field; the real field is
-        // `node->type` (Asm has no nodeType — see asm_list.hpp:54).
+        // 0x1d66eb: walks `asmList[i].node->type` (an int loaded from
+        // Node+0x10) until non-4. (Asm itself has no nodeType — see
+        // asm_list.hpp:54.)
         auto insertPos = out->begin();
         while (insertPos != out->end() && insertPos->node &&
                static_cast<int>(insertPos->node->type) == 4) {

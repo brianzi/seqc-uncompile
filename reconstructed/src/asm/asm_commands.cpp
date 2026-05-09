@@ -992,7 +992,6 @@ PlayConfig AsmCommands::genPlayConfig(
         config.markerBits = 0;
         // Binary: at 0x27921c: sete 0x66(%r8) — sets dummy = (waveform == nullptr).
         // For null waveform path, getWaveformByName returns null, so dummy = true.
-        // (Previously incorrectly analyzed as dummy = fourChannel from 0x278a39.)
         config.dummy = true;
         return config;
     }

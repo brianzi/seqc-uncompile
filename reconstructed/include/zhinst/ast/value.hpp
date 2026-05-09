@@ -138,26 +138,21 @@ enum class ValueType : int32_t {
 // patterns. Our libstdc++ build must use a real std::string member to
 // get correct construction/destruction semantics for 32-byte strings.
 //
-// CORRECTION 2026-04-23: Layout was previously listed as
-// 0x20 with which_ at +0x04 and storage at +0x08. Disasm evidence:
-//   Value::~Value @0x15a9c0 reads which_ from [rdi+0x08], not [rdi+0x04].
+// Layout: type_ at +0x00 (with 4B pad), which_ at +0x08 (with 4B pad),
+// storage union at +0x10. Disasm evidence:
+//   Value::~Value @0x15a9c0 reads which_ from [rdi+0x08].
 //   Storage SSO check at [rdi+0x10], heap-free ptr at [rdi+0x20].
-// The 4B padding after type_ and after which_ was missed in the
-// original layout — probably natural alignment padding from the
-// compiler putting which_ (int32) on an 8B boundary because the
-// storage union requires 8B alignment (contains double/pointer).
+// The padding before which_ comes from the storage union requiring 8B
+// alignment (contains double/pointer).
 //
-// CORRECTION 2026-04-26: Storage was char str_storage[24]
-// which caused heap corruption on libstdc++ (32-byte string placement-
-// new overflowed the 24-byte buffer). Changed to real std::string
-// member. sizeof(Value) is now ABI-dependent: 40 on libc++, 48 on
-// libstdc++. All field accesses use named members, no hardcoded
-// offsets, so the size difference is transparent.
+// Storage uses a real std::string member rather than a fixed buffer:
+// sizeof(Value) is ABI-dependent (40 on libc++, 48 on libstdc++). All
+// field accesses use named members, so the size difference is transparent.
 // ============================================================================
 class Value {
 public:
     ValueType type_;       // +0x00
-    int32_t   pad_04_{};   // +0x04 — alignment padding (was incorrectly which_)
+    int32_t   pad_04_{};   // +0x04 — alignment padding
     int32_t   which_;      // +0x08 — variant discriminator
     int32_t   pad_0C_{};   // +0x0C — alignment padding
     union Storage {

@@ -104,7 +104,7 @@ std::string str(EDirection dir);      // @0x1c1730
 class SeqCAstNode {
 public:
     SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir);   // 0x1fda00
-    // NOTE: base ctor takes 3 args; derived ctors all take VarType as 4th
+    // Binary: base ctor takes 3 args; derived ctors all take VarType as 4th
     // and write it to varType_ directly (the binary inlines the base ctor).
 
     // --- Virtual methods in declaration (= vtable) order ---
@@ -146,7 +146,7 @@ protected:
     // Layout (must match binary — all 16 bytes after vptr):
     EValueCategory  valueCategory_;  // +0x08
     int             lineNr_;         // +0x0C  Source line number. (Resolves unknown #96.)
-                                     //        NOTE: SeqCVariable::print() casts this to VarType
+                                     //        Binary: SeqCVariable::print() casts this to VarType
                                      //        for display — overloaded meaning in that one subclass.
     EDirection direction_;      // +0x10
     VarType         varType_{};      // +0x14

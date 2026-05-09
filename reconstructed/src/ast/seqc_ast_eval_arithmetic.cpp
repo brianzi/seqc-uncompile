@@ -128,7 +128,7 @@ std::shared_ptr<EvalResults> SeqCOperator::evaluate(
         } catch (ResourcesException const& e) {             // @0x210f72
             // Binary catches ResourcesException specifically (accesses msg_
             // at +0x08 directly, not via what() vtable call).
-            // NOTE: In practice this catch is rarely hit because
+            // Binary: In practice this catch is rarely hit because
             // SeqCVariable::evaluate has its own internal catch for
             // ResourcesException. This outer catch serves as a safety net.
             ctx.messages->errorMessage(
@@ -642,7 +642,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                              rhsResult.getValue().toDouble(),
                              lhsSub,
                              /*isCvar=*/false);
-            // NOTE: No ASM emission in this row.  Const assignment is
+            // Binary: No ASM emission in this row.  Const assignment is
             // compile-time — the binary extracts the rhs value via a
             // per-which jump table (@0x95c1cc), then calls setValue
             // to propagate the value into the result.       // @0x245047-24507e
@@ -659,7 +659,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
             res->updateCvar(name,
                             rhsResult.getValue().toDouble(),
                             lhsSub);
-            // NOTE: No ASM emission.  Same compile-time pattern as Row 3.
+            // Binary: No ASM emission.  Same compile-time pattern as Row 3.
             result->setValue(VarType_Cvar, lhsSub,
                              rhsResult.getValue());  // @0x2457de
             break;
@@ -673,7 +673,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
             res->updateString(name,
                               rhsResult.getValue().toString(),
                               lhsSub);
-            // NOTE: No ASM emission.  String assignment is compile-time.
+            // Binary: No ASM emission.  String assignment is compile-time.
             result->setValue(VarType_String, lhsSub,
                              rhsResult.getValue());  // @0x245913
             break;
@@ -1264,7 +1264,7 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
         // addi(resultReg, lhsReg, Immediate(0)) as MOV, then
         // subr(resultReg, rhsReg) to subtract.
         //
-        // NOTE: This row is checked FIRST in the binary (before Var+Const),
+        // Binary: This row is checked FIRST (before Var+Const),
         // because the binary tests lhsType==Var && rhsType has size guard &&
         // rhsType==Var before falling to the Var+Const/Cvar check.
         // ================================================================
@@ -1382,7 +1382,7 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
         // addi(resultReg, AsmRegister(0), lhsValue) to load const into reg,
         // then subr(resultReg, rhsReg) to subtract the variable.
         //
-        // NOTE: Unlike SeqCPlus, commutativity doesn't hold for subtraction,
+        // Unlike SeqCPlus, commutativity doesn't hold for subtraction,
         // so we need the two-step approach: load const, then subtract var.
         // ================================================================
         if (isConstOrCvar(lhsType) &&

@@ -95,7 +95,7 @@ public:
     EvalResults& operator=(EvalResults const&) = delete;
 };
 
-// NOTE: sizeof(EvalResults) will differ between libc++ (0x80) and
+// Binary: sizeof(EvalResults) will differ between libc++ (0x80) and
 // libstdc++ (0x88+) due to std::string size difference.
 // Cannot static_assert sizeof on the build host.
 

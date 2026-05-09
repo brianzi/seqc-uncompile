@@ -17,7 +17,7 @@
 namespace zhinst {
 
 void AsmOptimize::registerAllocation(unsigned long numRegs) {
-    // Phase 1: allocate live ranges — 27ebc4..27ec84
+    // --- 1. Allocate live ranges (27ebc4..27ec84) ---
     size_t numSlots = numRegs + 1;  // +1 for r0 (index 0)
     // Each slot is a vector<int> (0x18 bytes), zero-initialized
     std::vector<std::vector<int>> liveRanges(numSlots);
@@ -56,7 +56,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
     }
 
-    // Phase 2: build label→index map — 27ed4e..27eddc
+    // --- 2. Build label→index map (27ed4e..27eddc) ---
     // unordered_map<string, int> at [rbp-0x170] (0x28 bytes on stack)
     std::unordered_map<std::string, int> labelMap;
     {
@@ -72,7 +72,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
     }
 
-    // Phase 3: find backward-branch ranges — 27eddc..27efa2
+    // --- 3. Find backward-branch ranges (27eddc..27efa2) ---
     // For each branch instruction (BRZ/BRNZ/BRGZ/JMP), look up its
     // target label in labelMap. If the target index < current index,
     // record (target_index, current_index) as a branch range pair.
@@ -189,7 +189,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
         }
     }
 
-    // Phase 4: allocate physical registers — 27f316..27ff10
+    // --- 4. Allocate physical registers (27f316..27ff10) ---
     //
     // Data structures (from binary symbol names):
     //   using LiveRange = std::vector<int>;       // sorted instruction indices
@@ -259,7 +259,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
 
         // 27f853-27f88a: Find lower_bound of vreg in conflicts set.
         // If no entries >= vreg exist → all remaining vregs have been absorbed → exit.
-        // NOTE: vreg does NOT need to be in the conflicts set itself.
+        // vreg does NOT need to be in the conflicts set itself.
         // The conflicts set provides the pool of unmerged registers.
         auto it = conflicts.lower_bound(vreg);
         if (it == conflicts.end()) {
@@ -453,7 +453,7 @@ cleanup:
 //   - Return numRegs + splitCount
 unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     // Pass 1: build rewritten list with barrier entries — 280490..280726
-    // NOTE: Using AsmList directly (not std::vector<Asm>) so we can pass it
+    // Using AsmList directly (not std::vector<Asm>) so we can pass it
     // to splitReg which takes AsmList&. Layouts are identical (AsmList's
     // sole data member is std::vector<Asm> entries) — the binary at
     // 0x280872 also calls splitReg directly on this local.
@@ -675,7 +675,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 // 0x281000
 // Split a register's live range within a sub-range of the instruction list.
 //
-// Per-iteration model (GDB-verified, see notes/splitreg_loop_model.md):
+// Per-iteration model (see notes/splitreg_loop_model.md):
 //   - Loop walks (start, list.end()).  `end` is NOT a loop terminator; it's
 //     used only as a clone source for Block 2 and as the gating value for
 //     whether Block 2 fires.
@@ -822,7 +822,7 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
         }
 
         // ---- Rename CURRENT instruction's regSrc / regAux  @0x2813f7..0x28142d ----
-        // NOTE: NOT regDst — disasm uses [rbp-0x70] = &assembler.regSrc
+        // Binary: NOT regDst — disasm uses [rbp-0x70] = &assembler.regSrc
         // and [rbp-0x68] = &assembler.regAux.
         if (slot.assembler.regSrc == reg) slot.assembler.regSrc = newReg;
         if (slot.assembler.regAux == reg) slot.assembler.regAux = newReg;

@@ -250,7 +250,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
     // Reconstructed equivalent uses the public weak_ptr API.
     std::shared_ptr<CancelCallback> cancelLock = cancelCallback_.lock();
 
-    // Phase 1: load waveforms, compute sizes, assign addresses     // 0x29e398
+    // --- 1. Load waveforms, compute sizes, assign addresses (0x29e398) ---
     // Binary lambda $_0 at 0x2a9900:
     //   1. Checks cancel callback (if non-null, calls virtual method)
     //   2. Checks wf->used (+0x48); if false, throws WavetableException
@@ -348,7 +348,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
         computedOffset = static_cast<uint32_t>(raw - (raw % alignment));
     }
 
-    // Phase 2: Build cache-line occupancy vector and allocate     // 0x29e437
+    // --- 2. Build cache-line occupancy vector and allocate (0x29e437) ---
     uint32_t memorySizeBytes = deviceConstants_->waveformMemorySize;  // DC+0x0C
     uint32_t maxBlocksPerCL = deviceConstants_->cachePageCount;           // DC+0x18
     uint32_t numCacheLines = memorySizeBytes / alignment;             // 0x29e458
@@ -498,7 +498,7 @@ void WavetableIR::forEachUsedWaveform(
 //    h. Re-scan for next gap
 void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
 {
-    // Phase 1: assign implicit wave indices to waveforms with waveIndex == -1.
+    // --- 1. Assign implicit wave indices to waveforms with waveIndex == -1 ---
     // Binary $_0 at 0x2A9F10: for each waveform with waveIndex == -1, finds the
     // next available autoIndex (skipping explicitly assigned indices via lower_bound
     // loop), calls waveIndexTracker_.assignAuto(autoIndex), and sets wf->waveIndex.
@@ -639,7 +639,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
     // 0x80000000 for HDAWG8).
     MemoryAllocator allocator(dc, /*startOffset=*/addressBase_);
 
-    // Phase 1: allocate waveforms with irBool0 == 1          // 0x29ee0d
+    // --- 1. Allocate waveforms with irBool0 == 1 (0x29ee0d) ---
     std::set<size_t> allocatedSet;
     try {
         forEachUsedWaveform(
@@ -683,7 +683,7 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
             std::string("Waveform memory overflow: ") + e.what());
     }
 
-    // Phase 2: allocate remaining waveforms (irBool0 == 0)   // 0x29ee67
+    // --- 2. Allocate remaining waveforms (irBool0 == 0) (0x29ee67) ---
     forEachUsedWaveform(
         [&](const std::shared_ptr<WaveformIR>& wf) {
             // 0x2acfc2: Skip if nothing to allocate
@@ -739,10 +739,8 @@ void WavetableIR::allocateWaveformsForFifo()  // 0x29ed30
 //    CsvParser::csvFileToWaveform<WaveformIR>(wfCopy, deviceConstants_->deviceType).
 //
 // Notes:
-//  * The binary contains NO try/catch. The previous reconstruction's exception
-//    wrapping was speculative and has been removed.
-//  * The empty-vs-nonempty branch was inverted in the previous reconstruction
-//    (returned on empty); the binary loads on empty.
+//  * The binary contains NO try/catch — no exception wrapping is performed.
+//  * Branch polarity: the binary loads on the empty-vs-nonempty branch.
 void WavetableIR::loadWaveform(std::shared_ptr<WaveformIR> waveform)  // 0x29f310
 {
     WaveformIR* wf = waveform.get();

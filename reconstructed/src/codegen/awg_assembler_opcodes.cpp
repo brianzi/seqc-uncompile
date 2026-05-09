@@ -425,7 +425,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
     }
 
     // child[2] = immediate(20) — only present for 3+ child cases
-    // NOTE: The binary at 0x289f49 reads children[2] unconditionally even
+    // Binary: at 0x289f49 reads children[2] unconditionally even
     // when there are only 2 children. This relies on UB (reading past the
     // vector end) that happens to find null in the binary's allocator.
     // We add an explicit bounds check to avoid the UB crash.

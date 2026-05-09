@@ -175,7 +175,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getAnaTrigger(                    
 }
 std::shared_ptr<EvalResults> CustomFunctions::getDigTrigger(                                                                                                         // @0x147420 (~3.2KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    // NOTE: no checkFunctionSupported at top — validates arg first, then deviceType
+    // Binary: no checkFunctionSupported at top — validates arg first, then deviceType
     if (args.size() != 1)                                                                          // @0x147442: cmp rax,0x38
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst, std::string("getDigTrigger")));

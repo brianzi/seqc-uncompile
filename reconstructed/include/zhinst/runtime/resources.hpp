@@ -183,9 +183,9 @@ public:
     //   The 40-byte block at +0x08..+0x2F is a complete embedded `Value`
     //   object. Evidence: `readString @0x1e5db5` does `add rsi, 0x8;
     //   call Value::toString()` — passing `&v+8` as `this` to a Value
-    //   method. All previously-named fields (`flagWord`, `which_`,
-    //   `variantStorage`, `pad_28`) map onto Value's
-    //   (`type_`, `which_`, `storage_`) at the corresponding sub-offsets.
+    //   method. The fields (`flagWord`, `which_`, `variantStorage`,
+    //   `pad_28`) map onto Value's (`type_`, `which_`, `storage_`)
+    //   at the corresponding sub-offsets.
     //
     //   This was hidden by the per-add* hardcoded "secondary tag" pattern
     //   where addVar/addCvar/addConst write 1/3/4 to +0x08. Those literals
@@ -310,10 +310,8 @@ public:
         void addBody(SeqCAstNode const& node);                     // @0x1ea7b0
         // Returns a CLONE of body (calls `body->doClone()`, virtual slot +0x20).
         // The disasm has no null check — invoking on a Function with no body
-        // installed will dereference nullptr and crash. NOTE: previous header
-        // declared this as `SeqCAstNode const* getBody() const` (raw borrow)
-        // — corrected Batch 5a after disasm of @0x1eab50
-        // showed it returns the result of node.doClone() (unique_ptr sret).
+        // installed will dereference nullptr and crash. Returns the result
+        // of node.doClone() (unique_ptr sret), as shown by @0x1eab50.
         std::unique_ptr<SeqCAstNode> getBody() const;              // @0x1eab50
 
         // Returns true iff `name` matches `this->name` AND

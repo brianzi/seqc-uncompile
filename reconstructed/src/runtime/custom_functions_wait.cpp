@@ -1014,7 +1014,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
     // @0x141e8a: get device type
     auto devType = static_cast<int>(devConst_->deviceType);
 
-    // Phase 1: handle deviceType == HDAWG — 2-arg path
+    // --- 1. Handle deviceType == HDAWG — 2-arg path ---
     if (devType == AwgDeviceType::HDAWG) {                                                              // @0x141e8c: cmp eax,2
         // @0x141e99: need 2 args
         if (args.size() != 2)                                                        // @0x141eae: cmp rax,0x70
@@ -1073,7 +1073,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSinePhase(
         addNodeAccess(node, AccessMode::Custom);                                      // @0x1427ce
     }
 
-    // Phase 2: handle deviceType == 0x20 or 0x10 (SHFSG, SHFQA)
+    // --- 2. Handle deviceType == 0x20 or 0x10 (SHFSG, SHFQA) ---
     if (devType == AwgDeviceType::SHFQC_SG || devType == AwgDeviceType::SHFSG) {                                        // @0x14239b, 0x1423a0
         // @0x1423a6: need 1 arg (phase only, no osc index)
         if (args.size() != 1)                                                        // @0x1423bb: cmp rax,0x38
@@ -1125,7 +1125,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
     // @0x142e36: get device type
     auto devType = static_cast<int>(devConst_->deviceType);
 
-    // Phase 1: handle deviceType == HDAWG — 2-arg path
+    // --- 1. Handle deviceType == HDAWG — 2-arg path ---
     if (devType == AwgDeviceType::HDAWG) {                                                              // @0x142e38: cmp eax,2
         // @0x142e45: need 2 args
         if (args.size() != 2)                                                        // @0x142e5a: cmp rax,0x70
@@ -1172,7 +1172,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
         nodeIdx = oscIndex + nodeIdx * 2;
     }
 
-    // Phase 2: handle deviceType == 0x20 or 0x10 (SHFSG, SHFQA)
+    // --- 2. Handle deviceType == 0x20 or 0x10 (SHFSG, SHFQA) ---
     if (devType == AwgDeviceType::SHFQC_SG || devType == AwgDeviceType::SHFSG) {
         // Need 1 arg
         if (args.size() != 1)
@@ -1203,7 +1203,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
         int nodeOffset = devConst_->sineNodeBase;
     }
 
-    // Phase 3: for deviceType == HDAWG — node path construction and lookup
+    // --- 3. For deviceType == HDAWG — node path construction and lookup ---
     if (devType == AwgDeviceType::HDAWG) {
         int oscIndex = args[0].value_.toInt();
         auto path = "sines/" + std::to_string(static_cast<unsigned long>(oscIndex)) + "/phaseshift";
@@ -1211,7 +1211,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
         addNodeAccess(node, AccessMode::Custom);
     }
 
-    // Phase 4: for deviceType == 0x20 or 0x10
+    // --- 4. For deviceType == 0x20 or 0x10 ---
     if (devType == AwgDeviceType::SHFQC_SG || devType == AwgDeviceType::SHFSG) {
         auto path = "sgchannels/" + std::to_string(config_->awgIndex) + "/sines/0/phaseshift";
         auto node = lookupNode(path);

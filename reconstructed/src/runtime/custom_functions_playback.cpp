@@ -285,7 +285,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 
         // --- : emit-guard — @0x135f3a..0x135f57 ---
         // emitPlay = (combinedWf != nullptr) || config_->isHirzel
-        // NOTE: config_+0x18 = isHirzel (verified AWGCompilerConfig layout).
+        // Binary: config_+0x18 = isHirzel (verified AWGCompilerConfig layout).
         // On Hirzel devices, play is emitted even with null waveform.
         bool emitPlay =
             (combinedWf != nullptr) || config_->isHirzel;               // @0x135f51
@@ -660,26 +660,26 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveDIO(  // @0x137740
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> /*res*/)
 {
-    // Phase 1: external triggering mode check — @0x13775b..0x137777
+    // --- 1. External triggering mode check (@0x13775b..0x137777) ---
     checkExternalTriggeringMode(ExternalTriggeringMode::Dio);
 
-    // Phase 2: device-type support check — @0x137779..0x1377b1
+    // --- 2. Device-type support check (@0x137779..0x1377b1) ---
     checkFunctionSupported("playWaveDIO", kDevHirzel);
 
-    // Phase 3: arg-count check — @0x1377b6..0x1377bd (begin == end → empty)
+    // --- 3. Arg-count check (@0x1377b6..0x1377bd, begin == end → empty) ---
     if (!args.empty()) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs,
                                   std::string("playWaveDIO")));
     }
 
-    // Phase 4: allocate EvalResults(Void) — @0x1377c3..0x1377f5
+    // --- 4. Allocate EvalResults(Void) (@0x1377c3..0x1377f5) ---
     auto results = std::make_shared<EvalResults>(VarType_Void);  // Void
 
-    // Phase 5: build wvft mask = 1 << execTableIndexBits — @0x1377f9..0x137818
+    // --- 5. Build wvft mask = 1 << execTableIndexBits (@0x1377f9..0x137818) ---
     int mask = 1 << devConst_->execTableIndexBits;
 
-    // Phase 6: emit wvft(reg=0, mask) — @0x137805..0x13782a
+    // --- 6. Emit wvft(reg=0, mask) (@0x137805..0x13782a) ---
     auto asmEntry = asmCommands_->wvft(AsmRegister(0), mask);
     results->assemblers_.push_back(std::move(asmEntry));
 
@@ -732,13 +732,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
     std::vector<EvalResultValue> const& args,
     std::shared_ptr<Resources> res)
 {
-    // Phase 1: external triggering mode check — @0x137aa6..0x137abf (ZSync)
+    // --- 1. External triggering mode check (@0x137aa6..0x137abf, ZSync) ---
     checkExternalTriggeringMode(ExternalTriggeringMode::ZSync);
 
-    // Phase 2: device-type support check — @0x137a95..0x137aa6
+    // --- 2. Device-type support check (@0x137a95..0x137aa6) ---
     checkFunctionSupported("playWaveZSync", kDevHirzel);
 
-    // Phase 3: arg-count check — @0x137ac5..0x137ae9
+    // --- 3. Arg-count check (@0x137ac5..0x137ae9) ---
     // The disasm computes (args.size() - 1) and compares >= 2 (jae).
     // That fires when args.size() is 0 or >= 3. Equivalent to "size != 1".
     if (args.size() != 1) {
@@ -752,17 +752,17 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
 
     auto const& arg0 = args[0];
 
-    // Phase 4: arg type must be Const (VarType==4) — @0x137b8d..0x137b90
+    // --- 4. Arg type must be Const (VarType==4) (@0x137b8d..0x137b90) ---
     if (arg0.varType_ != VarType_Const) {
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsConst,
                                   std::string("playWaveZSync")));
     }
 
-    // Phase 5: extract integer table index — @0x137b9d
+    // --- 5. Extract integer table index (@0x137b9d) ---
     int tableIndex = arg0.value_.toInt();
 
-    // Phase 6: match against three ZSYNC constants — @0x137ba5..0x1380ef
+    // --- 6. Match against three ZSYNC constants (@0x137ba5..0x1380ef) ---
     // The binary keeps a "matched" flag in bl, and a candidate shift value
     // in eax that is overwritten on each match. Final wvft mask is computed
     // only if bl==1.
@@ -798,14 +798,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
             ErrorMessages::format(InvalidZSyncData));
     }
 
-    // Phase 7: allocate EvalResults(Void) — @0x137daa..0x137e05
+    // --- 7. Allocate EvalResults(Void) (@0x137daa..0x137e05) ---
     auto results = std::make_shared<EvalResults>(VarType_Void);
 
-    // Phase 8: process wait-cycle args (always empty here; call retained
+    // --- 8. Process wait-cycle args (always empty here; call retained ---
     // for fidelity with binary) — @0x137e45
     setWaitCyclesReg(args, results, res);
 
-    // Phase 9: compute mask = shift << execTableIndexBits — @0x1380f4..0x1380fe
+    // --- 9. Compute mask = shift << execTableIndexBits (@0x1380f4..0x1380fe) ---
     // devConst_ is at this+0x8 (per `mov rcx, [r14+0x8]`).
     int mask = shift << devConst_->execTableIndexBits;
 

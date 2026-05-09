@@ -48,7 +48,7 @@ public:
 //                  (dtor at 127e64 calls __tree<__value_type<string,
 //                   function<double(vector<double> const&)>>>::destroy)
 //
-// NOTE: Dtor visits +0x18 first then +0x00 — that's reverse-construction
+// Binary: Dtor visits +0x18 first then +0x00 — that's reverse-construction
 //       order, so single-arg is at +0x00 in the canonical layout.
 // ============================================================================
 class MathCompiler {

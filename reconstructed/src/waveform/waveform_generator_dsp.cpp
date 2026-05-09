@@ -125,7 +125,7 @@ Signal WaveformGenerator::add(std::vector<Value> const& args) {             // 0
     }
 
     Signal first = readWave(args[0], "wave_1", -1, "add")->signal;
-    // NOTE: orig 0x256ff0 has NO early reserveOnly short-circuit. The
+    // Binary: orig 0x256ff0 has NO early reserveOnly short-circuit. The
     // reserveOnly check at 0x257663 is inside the per-operand loop and
     // simply triggers checkAllocation-style zero-fill. The previous
     // recon short-circuit was a misread of an SSO-bit test (libc++
@@ -1330,7 +1330,7 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
                            ? static_cast<size_t>(requestedLength)
                            : 0;
 
-    // NOTE: orig 0x255da0 has no reserveOnly short-circuit. Even if first is
+    // Binary: orig 0x255da0 has no reserveOnly short-circuit. Even if first is
     // a placeholder (reserveOnly_), it falls into the regular materialization
     // path below: first.checkAllocation() zero-fills it, and Signal::append
     // materializes each subsequent wave (placeholder or real). The result is
@@ -1443,7 +1443,7 @@ Signal WaveformGenerator::join(std::vector<Value> const& args) {               /
 //     interleaved samples as a single logical channel."
 //   - Then manipulates the markers vector (extending/truncating)
 //
-// NOTE: The marker manipulation after merge (0x25815f-0x25822e) is
+// Binary: The marker manipulation after merge (0x25815f-0x25822e) is
 // complex — involves vector reallocation. Needs more analysis.
 Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         // 0x258140
     Signal result = merge(args);                                               // 0x258154
@@ -1471,7 +1471,7 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
 // Pointwise multiplication of two or more waveform signals.
 // Does NOT use readWave(); manually loads waveforms via wavetableFront_.
 //
-// Phase 1 (0x258826..0x258d0b): Load all waveforms by name:
+// Phase 1 — load (0x258826..0x258d0b): Load all waveforms by name:
 //   - Each arg must be type 4 (wave ref), else error AddExpectsMultiWave (83)
 //   - waveformExists check, else WaveformGeneratorValueException UnknownWaveform (90)
 //   - getWaveformByName + loadWaveform
@@ -1481,11 +1481,11 @@ Signal WaveformGenerator::interleave(std::vector<Value> const& args) {         /
 //   - markerBits_ OR'd across all waveforms
 //   - allReserveOnly = AND of all reserveOnly_ flags
 //
-// Phase 2 (0x258d0b..0x258d3c): Construct output:
+// Phase 2 — construct (0x258d0b..0x258d3c): Construct output:
 //   - If allReserveOnly → Signal(ReserveOnly, maxNSamples, markerBits)
 //   - Else → Signal(maxNSamples, markerBits)
 //
-// Phase 3 (0x258d3c..0x2593a1): Per-sample multiply loop:
+// Phase 3 — multiply (0x258d3c..0x2593a1): Per-sample multiply loop:
 //   - totalSamples = maxNSamples * channels (flat interleaved)
 //   - For each sample index, iterate all waveforms:
 //     - reserveOnly waveforms get samples/markers padded to channels*nSamples (zeros)
@@ -1706,7 +1706,7 @@ Signal WaveformGenerator::cut(std::vector<Value> const& args) {                /
     //   (1) placeCommands @ 0x1d6680 to emit the initial cwvf 0x4FFFC0;
     //   (2) needsNewCwvf to fire for the empty plays, emitting cwvf 0x4FFF00
     //       to switch channels from 1 → 0 before the wwvf trailer.
-    // Without this fix, recon's empty-cut play carries channels_=1 (from
+    // Without channels_=0, the empty-cut play carries channels_=1 (from
     // markerBits.size()=1), so all 5 plays match → globalCwvfValid_=true →
     // both cwvf instructions are skipped and the .asm/.text/.linenr/.wavemem
     // diverge from orig.
@@ -1861,21 +1861,21 @@ Signal WaveformGenerator::filter(std::vector<Value> const& args) {             /
     if (na >= 2) {
         // --- IIR path (na >= 2): feedback + FIR + normalize ---              // 0x25a9fb
         for (size_t n = 0; n < nX; ++n) {                                     // 0x25aa30..0x25aa61
-            // Step 1: IIR feedback — subtract a[k]*y[n-k] for k=1..na-1      // 0x25ab00
+            // --- 1. IIR feedback — subtract a[k]*y[n-k] for k=1..na-1 (0x25ab00) ---
             for (size_t k = 1; k < na; ++k) {                                 // 0x25ab27
                 if (k <= n) {                                                  // 0x25ab2a
                     yData[n] -= aData[k] * yData[n - k];                       // 0x25ab3b..0x25ab3f
                 }
             }
 
-            // Step 2: FIR — add b[k]*x[n-k] for k=0..nb-1                    // 0x25ab70
+            // --- 2. FIR — add b[k]*x[n-k] for k=0..nb-1 (0x25ab70) ---
             for (size_t k = 0; k < nb; ++k) {                                 // 0x25ab91
                 if (k <= n) {                                                  // 0x25ab94
                     yData[n] += bData[k] * xData[n - k];                       // 0x25aba3..0x25aba9
                 }
             }
 
-            // Step 3: Normalize by a[0]                                       // 0x25aa40
+            // --- 3. Normalize by a[0] (0x25aa40) ---
             yData[n] /= aData[0];                                             // 0x25aa46
         }
     } else {
@@ -2038,9 +2038,6 @@ Signal WaveformGenerator::merge(std::vector<Value> const& args) {              /
         // and the trailing requestedLength hint, mirroring binary's r12d
         // accumulation in the per-signal load loop (0x25f7c9..0x25f7e2) and the
         // post-loop `cmovg` against requestedLength at 0x25f9bb..0x25f9c4.
-        // Previously this took signals[0].length_ which produced a half-size
-        // waveform for `assignWaveIndex(1, p_small, 2, p_large, idx)` with
-        // placeholders of different lengths.
         size_t resultLength = static_cast<size_t>(requestedLength > 0 ? requestedLength : 0);
         for (auto& s : signals) {
             if (s.channels_ != 0 && s.length_ > resultLength)

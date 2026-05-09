@@ -140,7 +140,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                 {
                     AsmList tempList;                               // 0x1d8312
 
-                    // Step 1: Ensure registerHirzel is allocated    // 0x1d8348-0x1d839d
+                    // --- 1. Ensure registerHirzel is allocated (0x1d8348-0x1d839d) ---
                     auto& stateH = nodeStates_[node];
                     if (!stateH.registerHirzel.isValid()) {        // 0x1d8354
                         int regNum = resources_->getRegisterNumber(); // 0x1d8361
@@ -148,7 +148,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         nodeStates_[node].registerHirzel = newReg; // 0x1d8399
                     }
 
-                    // Step 2: Load registerHirzel and emit addi    // 0x1d83a4-0x1d8467
+                    // --- 2. Load registerHirzel and emit addi (0x1d83a4-0x1d8467) ---
                     AsmRegister regHirzel = nodeStates_[node].registerHirzel; // 0x1d83cc
                     AsmRegister zeroReg(0);                         // 0x1d83d9
 
@@ -162,7 +162,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         for (auto& a : addiVec) tempList.append(a);
                     }
 
-                    // Step 3: Check isHirzel for cervino next-node path // 0x1d84bf
+                    // --- 3. Check isHirzel for cervino next-node path (0x1d84bf) ---
                     if (!config_->isHirzel) {                      // 0x1d84c3
                         Node* npNode = node.get();
 
@@ -183,7 +183,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         }
                     }
 
-                    // Step 4: Check lengthReg (+0x88, NOT indexOffsetReg per IF-102)
+                    // --- 4. Check lengthReg (+0x88, NOT indexOffsetReg per IF-102) ---
                     // Only take load_indexed_play when split_=false (large waveform, stream path).
                     // When split_=true (small waveform fits in cache), the load uses standard prf.
                     // IF-143: binary gates this on split_=false (0x1d1a84 checks 0xbc(%r14)).
@@ -198,7 +198,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         }
                     }
 
-                    // Step 5: Hirzel prf emission                  // 0x1d85f6-0x1d86cb
+                    // --- 5. Hirzel prf emission (0x1d85f6-0x1d86cb) ---
                     if (config_->isHirzel) {                       // 0x1d85f6
                         auto& stateDA = nodeStates_[node];
                         if (stateDA.useDA) {                       // 0x1d8625: +0x58 in hash_node = +0x38 in PNS
@@ -597,8 +597,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                     {
                         // Check node->lengthReg: if valid and non-zero, goto indexed path
                         // Binary 0x1d91d4: `add $0x88, %rdi` → field offset +0x88
-                        // = lengthReg (NOT indexOffsetReg @ +0x94 as previously
-                        // documented). See IF-102.
+                        // = lengthReg (not indexOffsetReg @ +0x94). See IF-102.
                         Node* npCerv = node.get();
                         if (npCerv->lengthReg.isValid()) {         // 0x1d91dc, +0x88
                             AsmRegister zeroReg(0);
@@ -767,9 +766,9 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // Binary 0x1dae86: addr(idxReg, stateRegC) — fold cervino base
                             // into the ssl'd offset register.
                             // Binary then jumps via 0x1dbb70 → 0x1d9d3a → 0x1d9ef7 to call
-                            // wvfImpl(idxReg, totalSize, config.now).  GDB-confirmed for
-                            // playWaveIndexedNow: r8d=1 → wvfi (IF-201 fix).
-                            // NOTE: no wwvf here — the compiler appends wwvf+nop+end globally.
+                            // wvfImpl(idxReg, totalSize, config.now).
+                            // For playWaveIndexedNow: r8d=1 → wvfi (IF-201 fix).
+                            // Binary: no wwvf here — the compiler appends wwvf+nop+end globally.
                             {
                                 AsmRegister stRegC = nodeStates_[node].registerCervino; // +0x28
                                 AsmList::Asm addrAsm = asmCommands_->addr(idxReg, stRegC);

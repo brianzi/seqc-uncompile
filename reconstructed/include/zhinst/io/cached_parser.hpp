@@ -36,8 +36,7 @@
 //   cleanCache()                                   @ 0x2b0140  (private)
 //   removeOldFiles()                               @ 0x2b01a0  (private)
 //
-// NOTE: no default ctor exists in the binary — the previously-declared
-// CachedParser() was fabricated and is removed.
+// Binary: no default ctor exists.
 //
 // CacheEntry (0x60 = 96 bytes), verified by:
 //   - ctor @0x2b10b0: CacheEntry(string const&, string const&, size_t, vector<uint>, bool)

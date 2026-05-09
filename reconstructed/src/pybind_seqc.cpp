@@ -91,7 +91,7 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
     std::string options;
     boost::json::object jobj;
 
-    // Step 1-2: Try to extract options string from 3rd arg
+    // --- 1-2. Try to extract options string from 3rd arg ---
     // Binary @0xe0000: tries py::cast<string> on 3rd arg first.
     // If it's a string, that becomes the options parameter.
     // If not, extract config entries from it (dict or scalar samplerate).
@@ -127,7 +127,7 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
         }
     }
 
-    // Step 3: Merge kwargs into JSON config (always, regardless of 3rd arg type)
+    // --- 3. Merge kwargs into JSON config (always, regardless of 3rd arg type) ---
     // Binary @0xe0000: kwargs iteration happens unconditionally after the
     // try/catch block for the 3rd arg cast.
     for (auto& item : kwargs) {
@@ -147,14 +147,14 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
 
     std::string jsonConfig = boost::json::serialize(jobj);
 
-    // Step 4-5: Release GIL and call compileSeqc
+    // --- 4-5. Release GIL and call compileSeqc ---
     std::string packed;
     {
         py::gil_scoped_release release;
         packed = compileSeqc(jsonConfig, sourceCode, deviceId, awgIndex, options);
     }
 
-    // Step 6-8: Split packed result at first '\0'
+    // --- 6-8. Split packed result at first '\0' ---
     size_t sep = packed.find('\0');
     std::string jsonResult;
     std::string elfData;
@@ -165,7 +165,7 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
         jsonResult = packed;
     }
 
-    // Step 9: Return Python tuple (bytes(elf), json.loads(json_result))
+    // --- 9. Return Python tuple (bytes(elf), json.loads(json_result)) ---
     py::bytes elfBytes(elfData);
     py::object jsonDict = py::module_::import("json").attr("loads")(jsonResult);
     return py::make_tuple(elfBytes, jsonDict);

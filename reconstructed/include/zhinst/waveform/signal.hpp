@@ -82,7 +82,7 @@ public:
     std::vector<double> const& data() const { return samples_; }
     uint16_t channels() const { return channels_; }
     size_t length() const { return length_; }
-    // NOTE: granularity / maxLength / minLength / bitsPerSample are NOT methods
+    // Binary: granularity / maxLength / minLength / bitsPerSample are NOT methods
     // on Signal in the binary (verified — no such symbols exist). Earlier
     // call sites that appeared to call sig.granularity() etc. were actually
     // reading DeviceConstants fields (grainSize @+0x44 = grainSize,

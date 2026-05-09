@@ -731,7 +731,7 @@ bool AsmOptimize::simplifyAssign(AsmList::iterator it) {  // @0x280e10
         // regAux (+0x30): if dual-role matches → abort       // @0x280ee1
         if (scan->assembler.regAux == destReg)
             return false;
-        // NOTE: regDst (+0x28, write-dest) is NOT checked —
+        // Binary: regDst (+0x28, write-dest) is NOT checked —
         // a later write to the same register is harmless.
     }
 

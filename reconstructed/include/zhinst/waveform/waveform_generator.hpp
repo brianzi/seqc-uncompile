@@ -229,7 +229,7 @@ private:
     std::unordered_map<std::string,
         std::function<Signal(std::vector<Value> const&)>>    funcMap_;           // +0x00
 
-    // NOTE: On libc++, unordered_map is 0x28 bytes (0x20 hash table state +
+    // Binary: On libc++, unordered_map is 0x28 bytes (0x20 hash table state +
     // 4-byte max_load_factor float + 4 padding). The floats below are the
     // trailing max_load_factor of the preceding map, not separate fields.
     // We declare them explicitly for layout fidelity with the binary.

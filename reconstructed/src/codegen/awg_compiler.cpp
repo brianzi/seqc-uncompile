@@ -1115,7 +1115,7 @@ std::string AWGCompilerImpl::getAssemblerHeader(std::string const& path) const {
 //   "waves"       — array from outputData_ (wave file paths)
 // Serialized via write_json to ostringstream.
 //
-// NOTE: Uses boost::property_tree (not boost::json). Full implementation
+// Uses boost::property_tree (not boost::json). Full implementation
 // deferred until property_tree dependency is integrated into the build.
 // ============================================================================
 std::string AWGCompilerImpl::getJsonArguments(std::string const& destination) const {  // @0x10a3c0
@@ -1250,7 +1250,7 @@ void AWGCompilerImpl::setCancelCallback(std::weak_ptr<CancelCallback> cb) {  // 
     cancelCallback_ = cb;
     // @0x103f0b: forward to compiler_                                         // @0x103f0b
     compiler_.setCancelCallback(cb);
-    // NOTE: wavetable_->cancelCallback_ at +0x1C0 is also set in the binary,
+    // Binary: wavetable_->cancelCallback_ at +0x1C0 is also set,
     // but WavetableFront doesn't expose a setter yet.
 }
 

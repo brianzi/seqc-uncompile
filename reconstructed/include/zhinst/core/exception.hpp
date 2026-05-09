@@ -30,7 +30,7 @@
 //   +0x30  boost::system::error_code  errorCode_   // 24 bytes
 //          (xmm at +0x30..+0x3F  = error_value (8B) + padding (8B);
 //           qword at +0x40       = error_category const*)
-//          NOTE: in this libboost ABI error_code is 24 bytes:
+    //          Binary: in this libboost ABI error_code is 24 bytes:
 //          {int value, error_category const*, source_location source_}
 //   +0x48  std::string  message_               // 24 bytes (libc++ SSO)
 //          (SSO: byte 0 = (length<<1)|0, then up to 22 bytes inline,
@@ -155,7 +155,7 @@ struct ErrorCode {
     void const*                 category_  = nullptr; // +0x08 (error_category*)
     // boost::system::error_code carries a `source_location` (16B) since
     // boost 1.79+. We model it as two qwords to preserve total size = 24.
-    // NOTE: the binary's actual layout is { value (4B), pad, category*,
+    // Binary: actual layout is { value (4B), pad, category*,
     // source_location (8B?) } — exact internal split inside the +0x30..+0x47
     // region is irrelevant for source-level use; only `code()` returning by
     // value cares about total size.

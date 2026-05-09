@@ -44,12 +44,6 @@ Resources::Variable::~Variable()  // @0x1e4be0
     // Value at +0x08 are both destroyed automatically by the
     // compiler-generated subobject teardown. Value's destructor handles
     // the variant-payload string cleanup (when abs(which_) >= 3).
-    //
-    // Previously this dtor reached into the variant storage manually
-    // because Variable was modeled with raw `flagWord/which_/variantStorage`
-    // fields. After the  Batch 5a wrap-up cleanup that
-    // promoted the +0x08..+0x2F block to a real `Value value` member,
-    // no manual cleanup is needed.
 }
 
 // ============================================================================
@@ -473,8 +467,7 @@ std::string str(VarSubType vst) {
 // Resources::addConst — @0x1e7010
 //
 // Adds a const variable to variables_. The Variable record's `type` field at
-// +0x00 is written as 4, which under the corrected VarType mapping (Phase
-// 19c-followup, Finding 1) IS VarType_Const. The `subType` at +0x08 is
+// +0x00 is written as 4 (VarType_Const). The `subType` at +0x08 is
 // written as 3 (VarSubType_Vect, indicating a const-with-value form).
 //
 // Disassembly observations (1e7010..1e7331):
@@ -547,8 +540,7 @@ void Resources::addConst(std::string const& name, double val, VarSubType st)  //
 //   4. Compares dword at var+0x00 with literal 4. Mismatch → throws
 //      ResourcesException(format(0xaf=TypeMismatchWrite,
 //                                str(VarType_Const), str(var->type))).
-//      Under the corrected enum mapping,
-//      tag 4 IS VarType_Const — there is no separate "record tag" enum.
+//      Tag 4 IS VarType_Const — there is no separate "record tag" enum.
 //   5. Populates EvalResultValue at [rbx]:
 //        +0x00 varType_    = 4 (VarType_Const)
 //        +0x04..+0x0B [8 bytes copied from var+0x04 — covers subType +
@@ -1557,9 +1549,8 @@ void Resources::updateWave(std::string const& name,
 //   4. if (!force && [v+0x50] != 0) → throw errMsg[32] (no args, fetched
 //      directly via the global errMsg singleton's operator[]). Slot 32
 //      in the binary is the "can't modify const" message; the
-//      reconstructed enum currently labels slot 32 as
-//      `ConditionalNeedVarConst` which is a mislabel — see
-//      see unknowns.md item for details.
+//      reconstructed enum labels slot 32 as `ConditionalNeedVarConst`
+//      — see unknowns.md item for details.
 //   5. if ([v+0x51] != 0) skip the value write (frozen, jump to mark-
 //      written at 1e7a7d).
 //   6. v->value.type_ = ValueType::Double (Numeric tag at 1e7a40).

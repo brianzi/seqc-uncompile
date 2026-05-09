@@ -86,7 +86,6 @@ CustomFunctionsValueException::CustomFunctionsValueException(  // @0x163d00
 CustomFunctionsValueException::~CustomFunctionsValueException() {}  // @0x163d70
 
 const char* CustomFunctionsValueException::what() const noexcept {  // @0x172fd0
-    // NOTE: likely formats message_ + argIndex_ + varName_ together
     return message_.c_str();
 }
 
@@ -282,20 +281,20 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
     // 10. If not in MathCompiler either → call generateWaveform(name, args, res)
     //     (which prepends name as first arg and delegates to generate())
 
-    // Step 1-4: alias resolution / argument count validation
+    // --- 1-4. Alias resolution / argument count validation ---
     auto aliasIt = aliasMap_.find(name);
     if (aliasIt != aliasMap_.end()) {
         // aliasMap_ is empty in this binary.
         // If populated, the vector size selects error format 0x37 (1 entry) or 0x38 (2 entries).
     }
 
-    // Step 6-7: dispatch via funcMap_
+    // --- 6-7. Dispatch via funcMap_ ---
     auto it = funcMap_.find(name);
     if (it != funcMap_.end()) {
         return it->second(args, std::move(res));
     }
 
-    // Step 8-9: try MathCompiler                                  @0x159814
+    // --- 8-9. Try MathCompiler (@0x159814) ---
     // Binary: compute arg count from vector, call functionExists(name, argCount, false)
     size_t argCount = args.size();
     if (mathCompiler_.functionExists(name, argCount, false)) {     // @0x159841
@@ -315,7 +314,7 @@ std::shared_ptr<EvalResults> CustomFunctions::call(  // @0x159470 — 3200 bytes
         return er;
     }
 
-    // Step 10: fall through to waveform generation                @0x1599c8
+    // --- 10. Fall through to waveform generation (@0x1599c8) ---
     return generateWaveform(name, args, std::move(res));
 }
 
@@ -1015,9 +1014,8 @@ int PlayArgs::parseExplicitChannels(
                 auto& assignments = waveAssignments_[groupIdx];
 
                 WaveAssignment wa;
-                // (varType_/varSubType_ are inside wa.value — formerly tracked
-                // separately as wa.type/wa.subType before WaveAssignment's
-                // layout was corrected to start with EvalResultValue at +0.)
+                // (varType_/varSubType_ are inside wa.value — WaveAssignment's
+                // layout starts with EvalResultValue at +0.)
                 wa.value = *it;
                 wa.bits = std::move(channels);
                 assignments.push_back(std::move(wa));

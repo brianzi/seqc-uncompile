@@ -383,8 +383,8 @@ std::shared_ptr<EvalResults> scaleWaveform(  // @0x2309e0
 // sequence of ssl/addr/addi/asmZero instructions to implement integer
 // multiplication by MSB-first bit decomposition.
 //
-// NOTE: ctx is passed by value (not reference) per the mangled signature.
-// NOTE: res (shared_ptr<Resources>) is present in the signature for ABI
+// Binary: ctx is passed by value (not reference) per the mangled signature.
+// Binary: res (shared_ptr<Resources>) is present in the signature for ABI
 // compliance but is completely unused in the function body.
 //
 // Algorithm:
@@ -1363,7 +1363,7 @@ std::shared_ptr<EvalResults> evalEqual(                     // @0x239be0
                 addiAsms2.begin(), addiAsms2.end());
 
             // subr(tempReg, rhsConstReg) → tempReg = lhs - rhs.      @0x23b267-23b299
-            // NOTE: binary allocates a 3rd register for the subr src operand
+            // Binary: allocates a 3rd register for the subr src operand
             // (@0x23b272); analysis suggests this may be the same logical register
             // as rhsConstReg due to compiler register reuse.
             auto subrAsm = ctx.asmCommands->subr(tempReg, rhsConstReg);

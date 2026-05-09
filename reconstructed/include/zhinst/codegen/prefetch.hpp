@@ -287,17 +287,6 @@ private:
     // 8 bytes padding at +0x148
     std::weak_ptr<CancelCallback>                          cancelCb_;      // +0x150
     // Total: 0x160 bytes
-
-    // ========================================================================
-    // Legacy `isHirzel_` references in placeSingleCommand verified at
-    // 0x1d9f65 and 0x1dabb9: cmp BYTE [r15+0xbc],<imm> reads the
-    // same byte as `split_` (also at +0xBC, init 0 at 0x1c5953, set true at
-    // 0x1cbfda when `split_=true`). The .cpp uses with name `isHirzel_` were
-    // misidentified — they really test split mode.
-    //
-    // Hallucinated Prefetch members removed:
-    //   - pageSize_  Was only in ctor init list (pageSize_(1)); never read anywhere.
-    //   - npCerv     Was a local Node* variable in placeSingleCommand:210, not a member.
 };
 
 } // namespace zhinst

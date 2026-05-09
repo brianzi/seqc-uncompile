@@ -72,19 +72,16 @@ static_assert(sizeof(FrontendLoweringContext) == 0x50,
 // The shared_ptr at +0x00 holds the lowered AST root node. After the
 // virtual dispatch on SeqCAstNode in lower(), this is copied into the
 // first half of lower()'s sret return struct, and then stored into
-// Compiler+0x28 (which was previously labeled ast_ = shared_ptr<Node>,
-// confirming the pointee type).
+// Compiler+0x28 (declared as shared_ptr<Node> ast_).
 //
-// CORRECTION 2026-04-23: Pointee type resolved as Node
-// (was shared_ptr<void>, now resolved). Evidence: lower() @0x1c1fb6 copies
-// [rbp-0x90] (state.result, 16B) into sret[0]; caller Compiler::compile
-// @0x11f92f stores sret[0] into Compiler+0x28, which is declared as
-// shared_ptr<Node> ast_ — type must match.
+// Pointee type is Node. Evidence: lower() @0x1c1fb6 copies [rbp-0x90]
+// (state.result, 16B) into sret[0]; caller Compiler::compile @0x11f92f
+// stores sret[0] into Compiler+0x28 which is declared as
+// shared_ptr<Node> ast_.
 //
-// CORRECTION 2026-04-25: Size expanded from 0x30 to 0x38.
-// Evidence: SeqCCaseEntry::evaluate @0x21aa40 accesses [r8+0x31] to check
-// inSwitch_ flag. SeqCSwitchCase, SeqCForLoop et al. are expected to
-// set inLoop_/inSwitch_ around their body evaluations.
+// Size is 0x38: SeqCCaseEntry::evaluate @0x21aa40 accesses [r8+0x31] to
+// check inSwitch_ flag. SeqCSwitchCase, SeqCForLoop et al. set
+// inLoop_/inSwitch_ around their body evaluations.
 // ============================================================================
 struct FrontendLoweringState {
     std::shared_ptr<Node>                      result;      // +0x00 (lowered AST root)

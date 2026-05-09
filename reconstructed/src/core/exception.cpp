@@ -168,9 +168,8 @@ ErrorCode Exception::code() const noexcept
 //   ret
 //
 // Returns pointer to the internal errorCode_ field — semantically an
-// alias for &this->errorCode_. (Despite the name, the binary returns
-// only the error_code, not the message; the field name `description_`
-// in earlier notes was wrong.)
+// alias for &this->errorCode_. Despite the name, the binary returns
+// only the error_code, not the message.
 // ---------------------------------------------------------------------------
 ErrorCode const* Exception::description() const noexcept
 {

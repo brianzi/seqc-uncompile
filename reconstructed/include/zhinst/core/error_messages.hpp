@@ -43,14 +43,6 @@ namespace zhinst {
 // initializer at 0xd5de0 — keys 0x00..0xFE in binary).
 // Values 16384+ are API/device error codes (used by getApiErrorMessage).
 // Gaps: 46, 52 are unassigned.
-//
-//  renumbering: all SeqC compiler entries were previously
-// numbered 1..255 (off by +1 from the binary's actual 0..254 keys).
-// Corrected to match the binary map. The aliases InvalidRegister(=0),
-// ValueOverflow(=5), UnsupportedOp(=11) that previously coexisted
-// as duplicates are now the canonical names — the old CmdWithoutRegister
-// (=0), TooFewArguments(=4), etc. are renamed to match the binary's
-// actual semantics where they differed.
 // ============================================================================
 enum ErrorMessageT : int {
     // --- Assembler errors (0–11) ---
@@ -114,7 +106,6 @@ enum ErrorMessageT : int {
     WaveNotFittingCache         = 49,
     WaveNotFittingCacheGapless  = 50,
     WaveNotFittingMemory        = 51,
-    // 52 — previously listed under DeprecatedConst (53→52 in renumbering)
     // 53 — UNASSIGNED (binary has no key 0x35)
 
     // --- Deprecation/function validation (52–103) ---
@@ -486,7 +477,7 @@ extern const std::string zsyncDataPqscDecoder;
 extern const std::string zsyncDataPqscRegister;
 extern const std::string constAwgIntegrationTrigger;
 
-// NOTE: ResourcesException is defined in resources.hpp (not duplicated here).
+// ResourcesException is defined in resources.hpp (not duplicated here).
 
 // Free function: look up API error message by ZIResult_enum code.
 // Uses a separate hash table (apiErrorMessages, BSS at 0xb85230).

@@ -148,7 +148,7 @@ WaveformGenerator::WaveformGenerator(
     funcMap_["flip"]             = std::bind(&WaveformGenerator::flip,             this, _1);
     funcMap_["filter"]           = std::bind(&WaveformGenerator::filter,           this, _1);
     funcMap_["circshift"]        = std::bind(&WaveformGenerator::circshift,        this, _1);
-    // NOTE: merge() and grow() are NOT registered in the binary's funcMap_
+    // Binary: merge() and grow() are NOT registered in the binary's funcMap_
     // (verified via objdump of WaveformGenerator ctor @0x248200..0x249b90 —
     // only 33 method LEAs are loaded as %rcx for the emplace calls into
     // funcMap_, and neither 0x25f5c0 [merge] nor 0x260640 [grow] appears).
@@ -369,7 +369,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::getOrCreateWaveform(
 //      * If present, clone the bound std::function and pass it as the
 //        factory to getOrCreateWaveform.
 //
-// IMPORTANT: the original requested name is preserved across alias
+// Binary: the original requested name is preserved across alias
 // resolution — that's why arity errors emitted from the dispatched
 // implementation read e.g. `function 'rand' expects ...` even though
 // the implementation registered for "rand" in funcMap_ is the rand
@@ -425,7 +425,7 @@ std::shared_ptr<WaveformFront> WaveformGenerator::call(
 //     +0x90  uint64_t (zeroed)
 //   Total body size: 0x98 bytes when allocated by __shared_ptr_emplace.
 //
-// NOTE: EvalResults is still only forward-declared in our headers, so we
+// EvalResults is still only forward-declared in our headers, so we
 // cannot construct it directly in this TU.  Once the type is reconstructed
 //, replace the stub body with the make_shared-based code below.
 std::shared_ptr<EvalResults> WaveformGenerator::eval(

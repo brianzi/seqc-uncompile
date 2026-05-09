@@ -77,7 +77,7 @@ WavetableFront::WavetableFront(
     //   All other fields zero
 
     // Initialize WaveIndexTracker storage at this+0x1D8                       // @0x29abdd
-    // NOTE: Cannot use placement new because sizeof(WaveIndexTracker) differs
+    // Cannot use placement new because sizeof(WaveIndexTracker) differs
     // between libc++ (0x28) and libstdc++ (0x40) due to std::set layout.
     // The WavetableIR rebuilds its own tracker from waveform indices, so the
     // front-end tracker set is not critical. Zero-init to prevent garbage.
@@ -364,8 +364,6 @@ void WavetableFront::assignWaveIndex(
         // Already has a different index assigned — error
         // Binary throws WavetableException with ErrorMessage 0xF8 (=248,
         // WaveAlreadyAssigned): "waveform %1% has already assigned index".
-        // Without this throw, the recon previously hit a bare `throw;`
-        // with no in-flight exception → std::terminate (worker exit -6).
         throw WavetableException(
             ErrorMessages::format(WaveAlreadyAssigned, ptr->name));
     }

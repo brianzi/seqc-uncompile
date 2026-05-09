@@ -52,7 +52,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
                            DeviceConstants const& deviceConstants)  // @0x1ec8f0
 {
     // ================================================================
-    // Phase 1: Device-type-specific AWG_RATE constants
+    // --- 1. Device-type-specific AWG_RATE constants ---
     // ================================================================
 
     if (config.deviceType == UHFQA /*Cervino/klausen*/ ||
@@ -143,7 +143,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     }
 
     // ================================================================
-    // Phase 2: QA_INT / QA_GEN channel bitmask constants
+    // --- 2. QA_INT / QA_GEN channel bitmask constants ---
     // ================================================================
 
     // --- HDAWG4 (awg_count==4): 10 QA_INT channels ---           0x1ed4ff–0x1ed86f
@@ -223,7 +223,7 @@ void StaticResources::init(AWGCompilerConfig const& config,
     }
 
     // ================================================================
-    // Phase 3: Common constants (all device types)  0x1ee69b–0x1f05ed
+    // --- 3. Common constants (all device types) (0x1ee69b–0x1f05ed) ---
     // ================================================================
 
     // --- Device sample rate ---                                 0x1ee69b
@@ -237,9 +237,8 @@ void StaticResources::init(AWGCompilerConfig const& config,
     //       xmm0 = deviceConstants->samplingRate;  // [DC+0x70]
     //   }
     //   addConst("DEVICE_SAMPLE_RATE", xmm0, 0);
-    // The previous reconstruction's "sampleRate = 2.4e9" branch was wrong:
-    // the binary skips the addConst when type==2 + NaN, it does not
-    // substitute a literal value.
+    // Binary: when type==2 + NaN, the binary skips the addConst (it does
+    // not substitute a literal value).
     double sampleRate = config.deviceSampleRate;  // r14[0x8]
     bool emitSampleRate = true;
     if (std::isnan(sampleRate)) {

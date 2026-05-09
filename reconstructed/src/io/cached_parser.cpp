@@ -370,7 +370,7 @@ void CachedParser::cacheFile(
 
 // 0x2b14d0
 //
-// NOTE: despite the parameter being named `name`, this function does NOT search
+// Binary: despite the parameter being named `name`, this function does NOT search
 // index_. It opens `name` as a path to a cached ELF artifact and inspects two
 // sections within it:
 //
@@ -436,7 +436,7 @@ bool CachedParser::cacheFileOutdated(const std::string& cachedElfPath) const
 //   6. Any exception during ELF reading triggers cleanCache() and an empty
 //      result is returned (catch handler at 0x2b1f27).
 //
-// NOTE: there is no boolean "found" flag in CachedFile. Callers detect a
+// Binary: there is no boolean "found" flag in CachedFile. Callers detect a
 // miss by inspecting samples_.empty().
 CachedParser::CachedFile
 CachedParser::getCachedFile(const std::vector<unsigned int>& hash)

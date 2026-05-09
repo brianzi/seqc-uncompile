@@ -219,7 +219,7 @@ bool Prefetch::getUsedFourChannelMode() const // 0x1df400
 }
 
 // ============================================================================
-// NOTE: Prefetch::clampToCache() is defined in prefetch_emit.cpp (the
+// Prefetch::clampToCache() is defined in prefetch_emit.cpp (the
 // translation unit that owns the canonical 0x1d6c40 implementation). It is
 // intentionally NOT redefined here to avoid a multiple-definition link error.
 // ============================================================================

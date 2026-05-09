@@ -476,7 +476,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         std::shared_ptr<WaveformFront> wf,
         AwgDeviceType deviceType)
 {
-    // Step 1: null checks
+    // --- 1. Null checks ---
     if (!wf || !wf->file) {
         // errMsg[0xe9] = ErrorMessageT(233) = WaveformNotFound
         throw CsvException(errMsg[static_cast<ErrorMessageT>(0xe9)]);
@@ -484,15 +484,15 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
     auto& fileRef = *wf->file;
 
-    // Step 2: compute hash if not already present                              // @0x2ba910
+    // --- 2. Compute hash if not already present (@0x2ba910) ---
     if (fileRef.fileHash.begin() == fileRef.fileHash.end()) {
         fileRef.fileHash = cache.getHash(fileRef.name);                            // @0x2ba938
     }
 
-    // Step 3: check cache                                                     // @0x2ba960
+    // --- 3. Check cache (@0x2ba960) ---
     CachedParser::CachedFile cached = cache.getCachedFile(fileRef.fileHash);       // @0x2ba990
 
-    // Step 4: cache hit — copy directly into wf->signal                       // @0x2ba9a0
+    // --- 4. Cache hit — copy directly into wf->signal (@0x2ba9a0) ---
     if (!cached.samples_.empty()) {
         wf->signal.samples_ = std::move(cached.samples_);
         wf->signal.markers_ = std::move(cached.markers_);
@@ -507,7 +507,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         return;
     }
 
-    // Step 5: cache miss — parse CSV
+    // --- 5. Cache miss — parse CSV ---
 
     // Open CSV file
     boost::filesystem::ifstream ifs(fileRef.name, std::ios::in);
@@ -626,7 +626,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 
     ifs.close();
 
-    // Step 6: Dispatch on wf->file->formatType to parse data
+    // --- 6. Dispatch on wf->file->formatType to parse data ---
     size_t numLines = dataLines.size();
 
     if (fileRef.formatType == WaveformFile::FormatType::MultiColFloat) {
@@ -783,7 +783,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
             wf->signal.length_ = wf->signal.samples_.size() / channels;
     }
 
-    // Step 7: checkAllocation
+    // --- 7. checkAllocation ---
     wf->signal.checkAllocation();
 }
 

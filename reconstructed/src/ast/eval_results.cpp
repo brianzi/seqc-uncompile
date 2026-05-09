@@ -215,8 +215,7 @@ void EvalResults::setValue(VarType type)  // @0x20ad20
 // Replaces values_ with one EvalResultValue {VarType_Const(=4), sub=3,
 // value=Value(double), reg=(-1,false)}. Disassembly @0x2136cf writes the
 // literal `4` into the new EvalResultValue's varType_ field, and `3` into
-// subType. Under the corrected VarType mapping (,
-// Finding 1), 4 IS VarType_Const.
+// subType (4 IS VarType_Const).
 // ============================================================================
 void EvalResults::setValue(double val)  // @0x2136a0
 {

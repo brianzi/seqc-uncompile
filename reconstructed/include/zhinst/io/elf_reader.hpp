@@ -108,7 +108,7 @@ public:
     // Linear name search across the loaded section table. Returns a
     // non-owning pointer to the matching ELFIO::section. **Throws
     // ElfException("section not found: " + name + ...)** if the section
-    // is absent — the earlier stub's "or nullptr" claim was wrong.
+    // is absent.
     ELFIO::section* getSection(const std::string& name) const;   // 0x2c4000
 
     // Static utility: checks the first four bytes of `path` for the ELF

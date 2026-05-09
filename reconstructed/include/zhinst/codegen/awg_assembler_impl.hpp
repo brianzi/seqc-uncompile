@@ -161,13 +161,13 @@ public:
     AsmParserContext parserCtx_;                 // 0x0f0 (0x80 bytes)
 };
 
-// NOTE: Verifying sizeof(Message) == 0x20 requires the binary's libc++ ABI
+// Verifying sizeof(Message) == 0x20 requires the binary's libc++ ABI
 // (std::__1::basic_string == 24 bytes). Build hosts using libstdc++ have
 // std::string == 32 bytes, so a host-side static_assert(sizeof(Message) == 0x20)
 // would falsely fail. Layout has been verified directly from the disassembly:
 // Message stride is 0x20 (errorMessage emplace at 0x289070: add r14, 0x20).
 
-// NOTE: A static_assert(sizeof(AWGAssemblerImpl) == 0x170) is desirable
+// A static_assert(sizeof(AWGAssemblerImpl) == 0x170) is desirable
 // but depends on libc++/Boost ABI sizes for vector, string, bimap, and
 // AsmParserContext matching the reconstructed offsets exactly. Add it
 // once those component sizes are verified end-to-end.

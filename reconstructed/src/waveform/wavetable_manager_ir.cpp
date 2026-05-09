@@ -174,10 +174,9 @@ void WavetableManager<WaveformIR>::insertWaveform(
     nameToIndex_.emplace(name, idx);
 }
 
-// NOTE: previous comment claimed the IR insertWaveform "uses the general
-// template definition" — but no such generic body exists; only the Front
-// specialization is defined in wavetable_manager_front.cpp.  added
-// the IR specialization above to satisfy the link-time U reference.
+// The IR insertWaveform requires its own specialization (only the Front
+// specialization is defined in wavetable_manager_front.cpp); the IR
+// specialization above satisfies the link-time U reference.
 // Original address: 0x29d140
 
 // 0x29dd10 — WavetableManager<WaveformIR>::fromJson(const value&, const DeviceConstants&)

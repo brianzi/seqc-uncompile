@@ -259,8 +259,8 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
         VarType savedReturnType = returnType;                      // @0x20efb4
         int savedLineNr = ctx.messages->lineNr();                  // @0x20efce
 
-        // NOTE: state.inLoop_ at +0x30 is repurposed here as "inFunction" flag.
-        // Binary reads/writes state+0x30 for this purpose.
+        // Binary: state.inLoop_ at +0x30 is repurposed here as "inFunction" flag.
+        // Reads/writes state+0x30 for this purpose.
         uint8_t savedInLoop = state.inLoop_;                       // @0x20efd6
         state.inLoop_ = 1;                                        // @0x20efdc
 
@@ -666,7 +666,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
 //                         setValue, copy node, copy returnEncountered_
 //     0x2146d3–0x214744  Cleanup and return
 //
-//   NOTE: Binary calls SeqCIfCondition::ifBody() @0x201de0; our SEQC_BINARY
+//   Binary: calls SeqCIfCondition::ifBody() @0x201de0; our SEQC_BINARY
 //   macro generates body() — both access body_.get(), semantically identical.
 std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     std::shared_ptr<Resources> res,
@@ -850,7 +850,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
 //   Error codes: 0x1d=CaseOutsideSwitch, 0x17=CaseNeedsConst,
 //                0x1c=CaseRounded (warning), 0x1b=CasePositiveNatural.
 //
-//   NOTE: The binary extracts values_.back() 6 separate times; we call
+//   Binary: extracts values_.back() 6 separate times; we call
 //   getValue() once and reuse the Value for clarity.
 std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
     std::shared_ptr<Resources> res,

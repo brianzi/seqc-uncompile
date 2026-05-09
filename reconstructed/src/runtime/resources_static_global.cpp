@@ -64,8 +64,8 @@ StaticResources::StaticResources(
     // We reproduce this by reinterpreting our storage as a std::function
     // and using its copy constructor.
     //
-    // NOTE: This is ABI-fragile (libc++ specific). The header documents
-    // the layout; here we use placement new for correctness.
+    // ABI-fragile (libc++ specific). The header documents the layout; here
+    // we use placement new for correctness.
     // Under libc++, std::function is 0x30 bytes (48) which spans the full
     // functionStorage_[0x20] + functionPtr_ + pad_108_ region — correct.
     // Under libstdc++, std::function is 0x20 bytes (32) which fits within

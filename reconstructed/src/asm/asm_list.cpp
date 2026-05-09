@@ -291,25 +291,21 @@ AsmList& AsmList::deserialize(const std::string& str) {  // 0x266050
 std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
     const std::string& str)
 {
-    // Step 1: Get HDAWG device constants (hardcoded device type 2)
+    // --- 1. Get HDAWG device constants (hardcoded device type 2) ---
     // 0x26618d: call getDeviceConstants(AwgDeviceType(2))
     DeviceConstants constants = getDeviceConstants(AwgDeviceType(2));
 
-    // Step 2: Construct AWGAssembler
+    // --- 2. Construct AWGAssembler ---
     // 0x26619f: call AWGAssembler(constants)
     AWGAssembler assembler(constants);
 
-    // Step 3: Parse assembly text into expression trees
+    // --- 3. Parse assembly text into expression trees ---
     // 0x2661b1: call assembleStringToExpressionsVec(str)
     std::vector<std::shared_ptr<AsmExpression>> expressions =
         assembler.assembleStringToExpressionsVec(str);
 
-    // Step 4: Initialize result list and counters
+    // --- 4. Initialize result list and counters ---
     AsmList result;
-    // (Removed in Phase S.2 M5: dead locals `imm1`/`imm2` —
-    //  binary initialized two Immediate(1.0f) on the stack but never
-    //  read from them. They were stack scratch for an inlined
-    //  constructor and contribute nothing to the output.)
 
     // 0x266224: __tls_get_addr to get nextID pointer
     // 0x266241: wavetableFront counter = 0
@@ -321,7 +317,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
     std::unordered_map<int, boost::json::value> idMap;
     std::unordered_map<int, std::shared_ptr<Node>> nodeMap;
 
-    // Step 5: Iterate over parsed expressions
+    // --- 5. Iterate over parsed expressions ---
     // 0x26620a: loop begin, r12 = expressions.begin, compare to expressions.end
     for (auto it = expressions.begin(); it != expressions.end(); ++it) {
         // Each expression is a shared_ptr<AsmExpression> (16 bytes: ptr + ctrl)
@@ -591,7 +587,7 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
         wavetableFront++;
     }
 
-    // Step 6: Post-processing — install node pointers
+    // --- 6. Post-processing — install node pointers ---
     // 0x267a2f: Iterate result entries
     for (auto& entry : result.entries) {
         if (!entry.node) continue;
@@ -603,11 +599,11 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
         entry.node->installPointers(nodeMap, jv);
     }
 
-    // Step 7: Get report from AWGAssembler
+    // --- 7. Get report from AWGAssembler ---
     // 0x267c11: call AWGAssembler::getReport()
     std::string report = assembler.getReport();
 
-    // Step 8: Move results into return tuple
+    // --- 8. Move results into return tuple ---
     // 0x267c20: Initialize tuple<AsmList, string>
     // AsmList data is moved via __init_with_size
     return {std::move(result), std::move(report)};

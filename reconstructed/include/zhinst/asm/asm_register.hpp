@@ -2,7 +2,7 @@
 // Reconstructed from disassembly of _seqc_compiler.so
 // AsmRegister — register identifier for the AWG processor
 //
-// NOTE: AsmRegister lives at **global scope** (not inside namespace zhinst)
+// AsmRegister lives at **global scope** (not inside namespace zhinst)
 // to match the binary's mangling.  A `using ::AsmRegister;` inside the
 // zhinst namespace ensures all existing unqualified uses compile unchanged.
 // ============================================================================

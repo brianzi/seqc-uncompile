@@ -271,7 +271,7 @@ std::shared_ptr<EvalResults> SeqCAndExpr::evaluate(
 
 // SeqCOrExpr::evaluate(5) — @0x240820
 // Calls evalOr, builds name with " & ".
-// NOTE: The binary uses the same " & " separator as SeqCAndExpr —
+// Binary: uses the same " & " separator as SeqCAndExpr —
 // likely a copy-paste bug in the original source. Faithfully reproduced.
 std::shared_ptr<EvalResults> SeqCOrExpr::evaluate(
     std::shared_ptr<Resources> res,
@@ -367,7 +367,7 @@ std::shared_ptr<EvalResults> SeqCGEqual::evaluate(
 // 2. Converts each to boolean via valueToBool (skipping if already Stub-subtype).
 // 3. Delegates to evalAnd on the boolean results.
 // 4. Builds name: lhsResult.name_ + " && " + rhsResult.name_.
-// NOTE: The binary uses " && " — confirmed from DWORD 0x20262620.
+// Binary: uses " && " — confirmed from DWORD 0x20262620.
 std::shared_ptr<EvalResults> SeqCLogAnd::evaluate(
     std::shared_ptr<Resources> res,
     FrontendLoweringContext& ctx,
@@ -408,7 +408,7 @@ std::shared_ptr<EvalResults> SeqCLogAnd::evaluate(
 // SeqCLogOr::evaluate(5) — @0x243840, 1562B
 // Logical OR (||).
 // Mirror of SeqCLogAnd — identical structure, calls evalOr instead of evalAnd.
-// NOTE: The binary uses " && " in the name string (DWORD 0x20262620) —
+// Binary: uses " && " in the name string (DWORD 0x20262620) —
 // this is a copy-paste bug in the original source. Faithfully reproduced.
 std::shared_ptr<EvalResults> SeqCLogOr::evaluate(
     std::shared_ptr<Resources> res,
@@ -442,7 +442,7 @@ std::shared_ptr<EvalResults> SeqCLogOr::evaluate(
                          *lhsCopy, *rhsCopy);               // @0x243b72
 
     // 5. Build name: lhs " && " rhs.                       // @0x243b8e-243c8b
-    // NOTE: " && " confirmed — not " || ". Copy-paste bug in original.
+    // Binary: " && " confirmed — not " || ". Copy-paste bug in original.
     result->name_ = lhsResult.name_ + " && " + rhsResult.name_;
 
     return result;                                          // @0x243d56
@@ -1016,10 +1016,10 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
 //        - Other/null:   error 0x77
 //     4. Return mutated childResult (or error EvalResults).
 //
-//   NOTE: Wave(5) is NOT supported by bitwise inversion — falls to error.
-//   NOTE: Var case emits addi(tempReg, R0, Immediate(-1)) TWICE before the subr.
+//   Binary: Wave(5) is NOT supported by bitwise inversion — falls to error.
+//   Binary: Var case emits addi(tempReg, R0, Immediate(-1)) TWICE before the subr.
 //         This may be for dual-issue pipelines or a codegen quirk.
-//   NOTE: Const/Cvar case uses toInt() (not toDouble), stays in integer domain.
+//   Binary: Const/Cvar case uses toInt() (not toDouble), stays in integer domain.
 //
 std::shared_ptr<EvalResults> SeqCInv::evaluate(
     std::shared_ptr<Resources> res,
@@ -1150,7 +1150,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
 //                         nzero: asmOne(dest); end:
 //        - Const(4)/Cvar(6): toInt() → nonzero ? setValue(Value(0)) : setValue(Value(1))
 //        - String(3)/Wave(5): toString() → nonempty ? setValue(Value(1)) : setValue(Value(0))
-//                         NOTE: String/Wave path computes bool(x), not !x.
+//                         Binary: String/Wave path computes bool(x), not !x.
 //                         This appears to be a bug in the original binary.
 //        - Other/null:   error 0x86
 //     4. Return mutated childResult (or error EvalResults).
@@ -1254,7 +1254,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
 
     } else if (vt == VarType_Wave || vt == VarType_String) {   // @0x22a08b-22a095
         // String/Wave: toString(), check length.
-        // NOTE: Binary computes bool(x), not !x, for this path.
+        // Binary: computes bool(x), not !x, for this path.
         // nonempty → 1, empty → 0. This is likely a bug in the
         // original source — it should probably be inverted.   // @0x22a09b
         Value val = values.back().value_;                      // @0x22a09b

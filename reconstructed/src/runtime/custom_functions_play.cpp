@@ -151,7 +151,7 @@ void CustomFunctions::setWaitCyclesReg(std::vector<EvalResultValue> const& args,
 //
 // Error codes: 0xEF (empty values vector), 0x9E (channel count mismatch)
 //
-// NOTE: ~3KB function with 7 phases. Structural outline only.
+// ~3KB function with 7 phases. Structural outline only.
 // Full implementation requires PlayArgs and WaveformGenerator complete integration.
 std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     std::vector<EvalResultValue> const& args,
@@ -181,7 +181,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     std::shared_ptr<WaveformFront> result;  // sret slot (rdi → [rbp-0xd8])
 
     // ----------------------------------------------------------------
-    // Phase 1 — Collect Value objects from args, track max waveform
+    // --- 1. Collect Value objects from args, track max waveform ---
     // sample length seen.                                  @0x15e092..0x15e234
     //
     // The local vector<Value> is at [rbp-0x70]. Reservation is
@@ -219,7 +219,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     }
 
     // ----------------------------------------------------------------
-    // Phase 2 — Empty check.                              @0x15e234..0x15e23f
+    // --- 2. Empty check (@0x15e234..0x15e23f) ---
     //
     // If no waveform names were collected, throw
     // CustomFunctionsValueException(format(0xEF, callerName), 0).
@@ -233,16 +233,16 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
             0);
     }
 
-    // Capture waveform count BEFORE Phase 3 appends the trailing length
-    // Value.  The binary's Phase 4 uses a stale r12 (values.begin() from
-    // Phase 1) that was never refreshed after Phase 3's push_back, so
+    // Capture waveform count BEFORE step 3 appends the trailing length
+    // Value.  The binary's step 4 uses a stale r12 (values.begin() from
+    // step 1) that was never refreshed after step 3's push_back, so
     // the size computation effectively returns the pre-append count.
     // Binary: @0x15e311-0x15e326 uses stale r12 (values.begin() from Phase 1,
     // never refreshed after Phase 3's push_back), so size = pre-append count.
     const size_t waveformCount = values.size();          // pre-Phase-3 count
 
     // ----------------------------------------------------------------
-    // Phase 3 — Append length Value.                      @0x15e245..0x15e2df
+    // --- 3. Append length Value (@0x15e245..0x15e2df) ---
     //
     // Append either Value(requestedLength) (if it exceeds the max
     // observed sample length) or Value(0). The compiler builds the
@@ -255,7 +255,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     }
 
     // ----------------------------------------------------------------
-    // Phase 4 — Build the funDescr name (single vs multi-value).
+    // --- 4. Build the funDescr name (single vs multi-value) ---
     //                                                     @0x15e311..0x15e39b
     //
     // The disasm computes count = values.size() via the (byte-diff>>3)
@@ -284,7 +284,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     }
 
     // ----------------------------------------------------------------
-    // Phase 5 — Quick lookup by name (only on the multi-value path).
+    // --- 5. Quick lookup by name (only on the multi-value path) ---
     //                                                     @0x15e3e0..0x15e4aa
     //
     // The disasm constructs a std::optional<std::string> in
@@ -308,7 +308,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     }
 
     // ----------------------------------------------------------------
-    // Phase 6 — Build the actual waveform if not already cached.
+    // --- 6. Build the actual waveform if not already cached ---
     //                                                     @0x15e4aa..0x15e93f
     //
     // Two sub-paths depending on useFunDescrPath ([rbp+0x18]):
@@ -410,7 +410,7 @@ std::shared_ptr<WaveformFront> CustomFunctions::mergeWaveforms(
     }
 
     // ----------------------------------------------------------------
-    // Phase 7 — Channel count validation.                 @0x15e956..0x15ea21
+    // --- 7. Channel count validation (@0x15e956..0x15ea21) ---
     //
     // Read [WaveformFront+0xC8] (16-bit channels field — see comment
     // in waveform_front.hpp; this is Waveform::signal.channels_ at
@@ -456,7 +456,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
 
     // --- Step 1: Build command name from SubFunc --- @0x15f0c3
     std::string cmdName;
-    // NOTE: Jump table at 0x958ef8 with 5 entries (0-4). Callers pass
+    // Binary: Jump table at 0x958ef8 with 5 entries (0-4). Callers pass
     // SubFunc enum values (Default=1, Aux=2, Now=3, DigTrigger=4).
     // The case-to-string mapping below is inferred from the enum values
     // and string targets. Case 0 ("prefetch") is unreachable from
@@ -486,7 +486,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     if (subFunc == SubFunc::DigTrigger) {                            // @0x15f264
         auto const& firstVal = argsCopy.front();
         // Type check: must be int-like
-        if (firstVal.varType_ != VarType_Const /* VarType_Const (corrected mapping) */) {
+        if (firstVal.varType_ != VarType_Const) {
             throw CustomFunctionsException(
                 ErrorMessages::format(FuncExpectsConst, cmdName));  // @0x1608e4
         }
@@ -701,14 +701,12 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // error tail) are partially reconstructed; remaining stubs noted
     // inline (from 21b-prereq-B).
     //
-    // CRITICAL CORRECTION vs prior skeleton: the existing stub used
-    // asmTable() at the bottom — that was wrong. The binary calls
-    // asmPlay @0x162343 with an additional `addi indexReg, 0,
-    // waveIndex` step beforehand. There is no asmTable in the
-    // binary body of playIndexed.
+    // The binary calls asmPlay @0x162343 with an additional
+    // `addi indexReg, 0, waveIndex` step beforehand. There is no
+    // asmTable in the binary body of playIndexed.
     // ============================================================
 
-    // --- Phase 1: Build command name from SubFunc --- @0x160e31
+    // --- 1. Build command name from SubFunc --- @0x160e31
     // Binary stores the cmdName as a libc++ short-string in the
     // 24-byte slot at [rbp-0x40]. Empty string for default path.
     std::string cmdName;
@@ -720,18 +718,18 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         // @0x160e9d..0x160f15: emits a logging::Severity(1) (warning)
         // LogRecord — formatted "playIndexed: unknown SubFunc " + int
         // — but does NOT throw. Falls through with cmdName empty.
-        // NOTE: binary emits a boost::log warning here via LogRecord.
+        // Binary: emits a boost::log warning here via LogRecord.
         // Logging facade not integrated; warning is silently dropped.
         break;
     }
 
-    // --- Phase 2: Arg-count guard --- @0x160f16
+    // --- 2. Arg-count guard (@0x160f16) ---
     // Binary: (size_in_bytes / 56) > 2  →  args.size() >= 3 to proceed.
     // Below 3 → error 0xC8 (200) "wrong number of arguments" at @0x162735.
     // (Existing stub used `< 2`, which was off by one.)
     if (args.size() < 3) {
         // Error @0x162735 → format(0xC8, cmdName, ?, args.size())
-        // NOTE: error code 0x3d is inferred (the "expected at least N args"
+        // Binary: error code 0x3d is inferred (the "expected at least N args"
         // template). Binary throw at @0x162735.
         throw CustomFunctionsException(
             ErrorMessages::format(FuncMinArgs,
@@ -740,7 +738,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
                                   static_cast<int>(args.size())));    // got
     }
 
-    // --- Phase 3: Construct PlayArgs --- @0x160f99..0x160fd1
+    // --- 3. Construct PlayArgs (@0x160f99..0x160fd1) ---
     // r9b = (subFunc == Aux) ? 1 : 0  → indexed flag.
     // Cross-check: play()=false, playAuxWave=true, playDIOWave=false,
     // assignWaveIndex=false, playIndexed=(subFunc==Aux).
@@ -749,7 +747,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     PlayArgs playArgs(*config_, wavetableFront_, warningCallback_,
                       cmdName, indexed);                             // @0x160fd1
 
-    // --- Phase 4: parse() + validate index/length + parseOptionalRate ---
+    // --- 4. parse() + validate index/length + parseOptionalRate ---
     // @0x16104c..0x1611af
     // parse() returns iterator past last consumed wave arg.
     auto parseEnd = playArgs.parse(args);                            // @0x16104c
@@ -790,7 +788,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             ErrorMessages::format(SampleRateTooHigh, cmdName));  // @0x162797
     }
 
-    // --- Phase 5: EvalResults + extract waveIndex --- @0x1611d6..0x161228
+    // --- 5. EvalResults + extract waveIndex (@0x1611d6..0x161228) ---
     // Binary type-check on parseEnd[1] (the length arg): varType ∈ {4 (Const), 6 (Cvar)}.
     // Else error 0x9a @0x1627c5.
     {
@@ -810,8 +808,8 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // parseOptionalRate has copied the wave-index variant into it via
     // variant_assign @0x161131). At source level that is simply the
     // first parsed positional argument's int value.
-    // NOTE: the index is read from the first parsed positional arg.
-    //       Binary reads from `rbx = [rbp-0x318]` at @0x161228.
+    // Binary: the index is read from the first parsed positional arg.
+    //         Reads from `rbx = [rbp-0x318]` at @0x161228.
     int waveIndex = parseEnd[1].value_.toInt();                     // @0x161228 — length arg
 
     // === : waveIndex==0 early-exit warning ===              @0x16131b..0x1613c9
@@ -829,7 +827,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         return results;  // jumps to common cleanup-and-return @0x1625ea
     }
 
-    // --- Phase 6: Locate per-channel WaveAssignment vector --- @0x161250..0x16127b
+    // --- 6. Locate per-channel WaveAssignment vector (@0x161250..0x16127b) ---
     // Binary @0x161250-0x16125f computes:
     //   rax = [r12]                  ; r12 = `this`; rax = config_ ptr
     //   eax = [rax + 0x24]           ; config_->deviceIndex
@@ -866,7 +864,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     int triggerMask = 0x3fff;                                        // r13d init @0x1613d6 / @0x161405
 
     if (subFunc == SubFunc::Aux) {
-        // --- Phase 6 (Aux only): name validation loop --- @0x1612b4..0x161319
+        // --- 6 (Aux only). Name validation loop (@0x1612b4..0x161319) ---
         // For each WaveAssignment `wa` in the per-channel vector:
         //     std::string name = wa.value.toString();
         //     wavetableFront_->checkWaveformInitialized(name);
@@ -885,7 +883,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         // r14b=1 @0x1613dc — flag indicating Aux path taken; used in
         // later phases to gate the asmPlay variant.
     } else {
-        // --- Phase 7 (non-Aux): per-channel arg-gather loop --- @0x161410..0x1615f0
+        // --- 7 (non-Aux). Per-channel arg-gather loop (@0x161410..0x1615f0) ---
         //
         // Outer loop iterates waveAssignments_[deviceIndex] with
         // stride 0x50 (sizeof(WaveAssignment) = 80).
@@ -930,7 +928,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     }
 
     // ================================================================
-    // --- Phase 8: getWaveformSampleLength probe --- @0x161853..0x161867
+    // --- 8. getWaveformSampleLength probe (@0x161853..0x161867) ---
     //
     // Disasm:
     //   mov  r15, [rbp-0xa0]            ; r15 = this
@@ -952,7 +950,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
         firstWA.value.value_.toString());                            // r14d = WaveformSampleLength
 
     // ================================================================
-    // --- Phase 9: synthesize zero-fill wave --- @0x16189a..0x1619d0
+    // --- 9. Synthesize zero-fill wave (@0x16189a..0x1619d0) ---
     //
     // Builds the literal string "zeros" (size byte 0xa = 5<<1 SSO):
     //   mov  BYTE  [rbp-0x70], 0xa
@@ -1419,7 +1417,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
         if (oscIdx != config_->awgIndex) {                   // [config+0x20]
             // @0x16a0d9: ErrorMessages::format<int, string>(0x85, computed_idx, pathStr)
             // → CustomFunctionsValueException (with lineNumber=0).
-            // NOTE: r14d = r13d*r12d + r14d, a combined index.
+            // Binary: r14d = r13d*r12d + r14d, a combined index.
             throw CustomFunctionsValueException(
                 ErrorMessages::format(SequencerCantDrive,
                                       config_->deviceIndex, pathStr),
@@ -1436,8 +1434,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     // oscillator-select sub-path under sines/ and dispatches into
     // per-NodeMapItem-typeIdx codegen.
     //
-    // 21b.3 first-pass had a 2-way (fast/slow) structure; 21b.3-fix
-    // corrects this to a 3-way structure as follows:
+    // The dispatch is a 3-way structure:
     //
     //   1. Match path against oscselNodeRegex; if no match, jump to error
     //      tail @0x169e0d.
@@ -1482,8 +1479,8 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     //   7. After per-case emission, append local AsmList to
     //      results->assemblers_.
     //
-    // 21b.3-fix implements the corrected 3-way structure. Per-case
-    // asm-emission bodies remain incomplete in Block D part 2 (see markers).
+    // Per-case asm-emission bodies remain incomplete in Block D part 2
+    // (see markers).
     //
     // Cumulative asm-emit call counts in Block D: 53 suser, 44 addi,
     // 25 AsmList::append, 48 AsmRegister ctor, 44 Immediate ctor,
@@ -2211,7 +2208,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     // @0x169d83..0x169df4: shared_ptr/vector cleanup, string dealloc.
     // @0x169df4: function return (mov rax,[rbp-0x1c8]; epilogue; ret).
     //
-    // NOTE: Block F (0x169ea5..0x16a3f0) contains static regex lazy-init.
+    // Binary: Block F (0x169ea5..0x16a3f0) contains static regex lazy-init.
     // Block G (0x16a3f0..0x16b740) is unwinding/landing-pad code.
     // ----------------------------------------------------------------
 
@@ -2228,8 +2225,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
 void CustomFunctions::addSyncCommand(std::shared_ptr<EvalResults> results,
                                       std::shared_ptr<Resources> res) {  // @0x16bb30
     // @0x16bb4d-16bb52: Binary reads *(int32_t*)(*(this+0x00)) = config_->deviceType.
-    // Previously misidentified as results->values_[0].varType_ — corrected via GDB
-    // trace showing rsi=this, not rsi=results.__ptr_. The comparison values 2 and 1
+    // (rsi=this, not rsi=results.__ptr_.) The comparison values 2 and 1
     // match AwgDeviceType::HDAWG and AwgDeviceType::UHFLI respectively.
     int deviceType = static_cast<int>(config_->deviceType);
 
@@ -2433,7 +2429,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generateWaveform(
     }
 
     // @0x15aaa3: Build an EvalResultValue containing `name` as a string value.
-    // @0x15aaa7: DWORD [rbp-0xa8] = 4 (VarType_Const under corrected mapping —
+    // @0x15aaa7: DWORD [rbp-0xa8] = 4 (VarType_Const —
     //            note: even though the variant payload is a std::string, the
     //            varType_ tag is Const, not String.  This is intentional:
     //            function names are propagated as string-valued constants,

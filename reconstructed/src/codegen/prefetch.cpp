@@ -303,8 +303,9 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
       //     "isNonTrivial" flag).
       //   -0x42(%rbp) = allSamePrecomp accumulator (init 1 at 1cfdba;
       //     ANDed at 1d01e7 with `expectedPrecomp == tail->defaultPrecompFlags`).
-      // The recon previously conflated -0x90 with -0x48, causing expectedCwvf
-      // to be overwritten on every branch iteration → divergence undetectable.
+      // Field offsets: -0x90 (isFirstBranch) is distinct from -0x48
+      // (allSameConfig); conflating them overwrites expectedCwvf on every
+      // branch iteration.
       bool isFirstBranch  = true; // 0x1cfdb7 / -0x90(%rbp)
       bool allSameConfig  = true; // 0x1cfdc9 / -0x48(%rbp)
       bool allSamePrecomp = true; // 0x1cfdba / -0x42(%rbp)
@@ -783,9 +784,8 @@ Prefetch::moveLoadsToFront(std::shared_ptr<Node> node) // 0x1ccad0
   for (auto &waveformIR : usedWaves) { // 0x1ccb7b, 0x1ccb6e
 
     // 0x1ccb7f-0x1ccb86: Skip waveforms that don't need loading.
-    // Reads WaveformIR+0xD8 = markedForLoad. (Earlier reconstruction
-    // mislabelled this as +0xDA / irBool1 — verified at 0x1ccb7f the
-    // disasm is `cmp BYTE PTR [rax+0xd8], 0x1`.)
+    // Reads WaveformIR+0xD8 = markedForLoad (disasm at 0x1ccb7f is
+    // `cmp BYTE PTR [rax+0xd8], 0x1`).
     if (!waveformIR->markedForLoad) { // 0x1ccb7f  cmpb $0x1,0xd8(%rax)
       continue;                       // 0x1ccb86 → 0x1ccb6e
     }
@@ -2357,8 +2357,8 @@ void Prefetch::placeLoads() // 0x1cbf60
   size_t watermark = getMemoryHighWatermark();
 
   // 0x1cbf78-0x1cbf8c: check device type — *(config_) == 0x20 (SHFQC_SG) or
-  // 0x10 (SHFSG). GDB-verified: cmp $0x20 is hit by SHFQC_SG (esi=0x20), cmp
-  // $0x10 is hit by SHFSG (esi=0x10).
+  // 0x10 (SHFSG). Binary: cmp $0x20 hits SHFQC_SG (esi=0x20); cmp $0x10
+  // hits SHFSG (esi=0x10).
   int devType =
       static_cast<int>(config_->deviceType);     // config_->deviceType at +0x00
   int cacheSize = devConst_->waveformMemorySize; // devConst_ +0x0C

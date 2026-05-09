@@ -141,13 +141,10 @@ Resources::Function::~Function() = default;  // @0x1ea820
 //
 // Returns a CLONE of the body, not a borrow. The vtable+0x20 call is
 // SeqCAstNode::doClone() which returns `unique_ptr<SeqCAstNode>` (16B sret).
-// Header was previously declared `SeqCAstNode const* getBody() const`
-// (raw borrow); corrected to `unique_ptr<SeqCAstNode>`
-// Batch 5a alongside this body.
 //
-// NOTE: this implementation deliberately dereferences `body` (which is
-// itself a unique_ptr) and calls doClone() on the pointee. If body is null
-// the disasm crashes (no null check). We faithfully reproduce that — any
+// This implementation deliberately dereferences `body` (which is itself a
+// unique_ptr) and calls doClone() on the pointee. If body is null the
+// disasm crashes (no null check). We faithfully reproduce that — any
 // caller that invokes getBody() on a Function with no body installed will
 // segfault, matching the binary.
 // ============================================================================
@@ -328,9 +325,7 @@ void Resources::Function::addArgument(std::string const& name,
     case VarType_Var: {
         // Var args require the function's return type to be Var or Void.
         // The original binary checks this here (during addArgument) and reports
-        // the error at the function declaration's line number. The check was
-        // previously removed (incorrectly thinking it fired at the wrong line);
-        // the real issue was SeqCFunction::lineNr_ pointing to the wrong line.
+        // the error at the function declaration's line number.
         if (returnType != VarType_Var && returnType != VarType_Void) {
             throw ResourcesException(
                 ErrorMessages::format(FormatVarReturn,
