@@ -31,6 +31,9 @@ enum class SampleFormat : int {
 };
 
 // Tag type for reserve-only construction (empty struct for overload dispatch)
+//! Empty tag type used to disambiguate the `Signal` constructor that
+//! reserves storage without populating samples from the constructors
+//! that copy or move sample data.
 struct ReserveOnly {};
 
 // ==========================================================================
