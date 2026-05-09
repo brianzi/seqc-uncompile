@@ -44,6 +44,18 @@ class ProgressCallback;
 //   dtor @0x103260: load [this], null it, call Impl dtor, `delete(ptr, 0x2C0)`
 //   all methods: `mov rdi,[rdi]; jmp Impl::method`
 // ============================================================================
+//! \brief Public-facing facade for compiling SeqC source into an AWG ELF.
+//!
+//! This is the entry point exposed to Python (`_seqc_compiler.compile_seqc`)
+//! and to C++ embedders.  It is a thin pimpl over `AWGCompilerImpl`,
+//! which in turn embeds the inner `Compiler` orchestrator and an
+//! `AWGAssembler` for any post-pipeline `.asm` round-trips.  Source is
+//! supplied via `compileString` / `compileFile`; precompiled binary
+//! waveforms can be merged in via `addWaveforms`; the resulting ELF is
+//! emitted by `writeToFile` / `writeToStream`; and human-readable
+//! status is exposed through `getCompileReport` and
+//! `getJsonWaveformMemoryInfo`.  Long-running compiles can be
+//! interrupted or progress-reported via the optional weak callbacks.
 class AWGCompiler {
 public:
     explicit AWGCompiler(AWGCompilerConfig const& config);  // @0x103210

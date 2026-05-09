@@ -12,6 +12,21 @@ class Assembler;
 struct DeviceConstants;
 
 // sizeof(AWGAssembler) = 0x8
+//! \brief Standalone assembler for hand-written AWG `.asm` text.
+//!
+//! Exposes the assembler half of `_seqc_compiler` independently of the
+//! SeqC compiler front end: callers feed in textual instruction
+//! sequences (via `assembleString`/`assembleFile`/`assembleAsmList`)
+//! using the mnemonic syntax accepted by the flex/bison parser
+//! (`AsmParserContext` + `asm_lexer.l` + `asm_parser.y`), and the
+//! assembler resolves labels, computes the program counter, and
+//! produces the binary opcode stream returned by `getOpcode()`.
+//! Unlike the SeqC compiler pipeline, this path supports the
+//! diagnostic-only `msg` / `rer` mnemonics (warning / error directives
+//! routed through `AsmOptimize::reportUserMessages`).  A pimpl over
+//! `AWGAssemblerImpl`; one instance is also embedded inside
+//! `AWGCompilerImpl` to support post-pipeline `.asm` writes from the
+//! main compiler.
 class AWGAssembler {
 public:
     AWGAssembler(DeviceConstants const& dc);

@@ -27,6 +27,8 @@ class WavetableIR;  // not transitively included
 // ---- FrontEndLoweringFacade ----
 // Thin static facade that dispatches to SeqCAstNode virtual method
 
+//! \brief Free-function entry point that lowers a parsed SeqC AST into
+//! the form consumed by the back end.
 namespace FrontEndLoweringFacade {
 
 // ---- LowerResult ----
@@ -34,6 +36,11 @@ namespace FrontEndLoweringFacade {
 // Binary @0x1c1fb6: writes shared_ptr<Node> (from FrontendLoweringState.result)
 // into sret[0], and shared_ptr<EvalResults> (evaluate sret output) into sret[1].
 // Caller Compiler::compile @0x11f92f stores sret[0] into Compiler+0x28 (ast_).
+//! \brief Pair returned from `FrontEndLoweringFacade::lower`.
+//!
+//! Carries the lowered AST root (`astResult`, stored back into
+//! `Compiler::ast_`) alongside the `EvalResults` produced by
+//! evaluating that AST under the supplied resource environment.
 struct LowerResult {
     std::shared_ptr<Node>        astResult;    // +0x00 (from FrontendLoweringState.result)
     std::shared_ptr<EvalResults> evalResult;   // +0x10 (from evaluate virtual sret)
@@ -58,6 +65,12 @@ LowerResult lower(std::shared_ptr<Resources> resources,
 // ---- CompileResult ----
 // sret return type of Compiler::compile() — 40 bytes (24 + 16)
 // Binary at 0x121421: writes shared_ptr<WavetableIR> into sret+0x18
+//! \brief Final output of `Compiler::compile`.
+//!
+//! `asmList` holds the optimised, post-prefetch instruction stream
+//! (one `Assembler` per machine instruction) ready for ELF emission;
+//! `wavetableIR` is the resolved wavetable whose contents go into the
+//! `.waveforms`, `.wf_*`, and `.wavemem` ELF sections.
 struct CompileResult {
     std::vector<Assembler> asmList;          // +0x00 (24 bytes)
     std::shared_ptr<WavetableIR> wavetableIR;    // +0x18 (16 bytes)
@@ -92,6 +105,29 @@ struct CompileResult {
 
 // ---- Compiler ----
 
+//! \brief Inner orchestrator that drives the full SeqC compilation
+//! pipeline for a single source string.
+//!
+//! Constructed once per compilation by `AWGCompilerImpl`, holds the
+//! per-compile mutable state (parser context, message collection,
+//! source line cache, accumulated `AsmList`, AST root, wavetable, and
+//! the supporting `AsmCommands` / `WaveformGenerator` / `CustomFunctions`
+//! services), and exposes `compile()` as the master entry point.
+//!
+//! `compile()` performs the canonical pipeline: line-ending
+//! normalisation → flex/bison parse → `toSeqCAst` → front-end lowering
+//! via `FrontEndLoweringFacade::lower` → pre-waveform optimisation →
+//! optional serialise/deserialise round-trip → `runPrefetcher` →
+//! post-waveform optimisation → Cervino unsync pass → output
+//! `CompileResult`.  `OptimizeException` thrown by either optimiser
+//! pass is caught, framed as a compiler error via `messages_`, and
+//! re-thrown.
+//!
+//! Cancellation and progress reporting are routed through the
+//! `weak_ptr` callbacks supplied by the embedding `AWGCompilerImpl`;
+//! `setLineNr` propagates the current line number into `AsmCommands`
+//! and `WavetableFront` so emitted instructions can be tagged with the
+//! correct source location.
 class Compiler {
 public:
     // Constructor — stores config/device ptrs, creates AsmCommands,

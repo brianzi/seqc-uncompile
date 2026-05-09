@@ -59,6 +59,19 @@ namespace zhinst {
 //       The dtor checks bit0 of the first byte to decide if heap-allocated.
 // ============================================================================
 
+//! \brief All compile-time configuration for an `AWGCompiler` invocation.
+//!
+//! Bundles the device identity (`deviceType`, `isHirzel`,
+//! `cacheType`, `addressImpl`, `awgIndex`, `deviceIndex`,
+//! `numChannelGroups`, `channelsPerGroup`), the runtime sample-rate
+//! (`deviceSampleRate`, NaN meaning "use the device's default"), the
+//! waveform-output policy (`sampleFormat`, `wavetableSize`,
+//! `searchPath`, `includePaths`), and a set of debug toggles
+//! (`debugDumpEnabled` / `debugDumpPath`, `debugJsonEnabled` /
+//! `debugJsonPath`, `debugFlags`, `serializeRoundTrip`,
+//! `loopUnrollLimit`).  A reference is held by `Compiler` for the
+//! lifetime of one compilation; consumers throughout the back end
+//! query individual fields rather than copying the whole struct.
 struct AWGCompilerConfig {
     AwgDeviceType deviceType;           // 0x00
     SampleFormat sampleFormat;              // 0x04 — used by writeWavesToElf* (verified at 0x10e049, 0x10e1f2)
