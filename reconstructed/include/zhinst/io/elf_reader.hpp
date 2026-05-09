@@ -72,6 +72,12 @@ namespace zhinst {
 // observed `what()` behaviour and the "ELF Exception: " message prefix
 // are preserved.
 // ---------------------------------------------------------------------------
+//! Exception thrown by `ElfReader` when an ELF artifact fails to
+//! load or a requested section is missing.
+//!
+//! All messages are prefixed with `"ELF Exception: "`, so the
+//! `what()` text identifies the source even when the exception is
+//! caught as a generic `std::exception`.
 class ElfException : public std::exception {
 public:
     // Constructs the exception with the prefix "ELF Exception: " followed
@@ -91,6 +97,19 @@ private:
 // base class is 0x70 bytes; ElfReader adds formatSection_ + ddSections_
 // + ddSectionIndex_ for a total of 0x98 bytes.
 // ---------------------------------------------------------------------------
+//! Loads an ELF artifact produced by `ElfWriter` and exposes the
+//! sections the SeqC toolchain consumes.
+//!
+//! The constructor opens the file, validates the ELF magic / class /
+//! encoding, and walks the section table once to cache references
+//! to the `.format` section and every `.dd*` waveform-descriptor
+//! section. Section data is then served by name through
+//! `getSection()` (which throws `ElfException` on a missing name) or
+//! through the typed convenience accessors `getCode()`,
+//! `getWaveform()`, and `getLineMap()`.
+//!
+//! Only ELFCLASS32 / ELFDATA2LSB inputs are accepted; other ELF
+//! variants are silently treated as if they contained no sections.
 class ElfReader : private ELFIO::elfio {
 public:
     // Opens `path` and parses it as an ELF file. Throws ElfException

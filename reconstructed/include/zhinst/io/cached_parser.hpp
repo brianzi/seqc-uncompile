@@ -86,11 +86,40 @@
 
 namespace zhinst {
 
+//! On-disk LRU cache of parsed waveform sample data, keyed by a
+//! content hash of the source waveform file.
+//!
+//! Parsing waveforms from CSV / WAV / arbitrary text inputs is
+//! expensive; the same file is often reused across runs. This class
+//! stores parsed sample buffers (plus marker bits / markers) inside a
+//! cache directory and an `index` file mapping content hash to entry
+//! metadata. On a subsequent run, `getCachedFile()` returns the
+//! parsed result directly, skipping re-parsing entirely.
+//!
+//! The cache is byte-budgeted: `cacheSize` is the maximum total size
+//! of cached data. When inserting would exceed the budget,
+//! `removeOldFiles()` evicts oldest-first until room is freed; pinned
+//! entries (marked during a cache hit in the current run) are
+//! protected from eviction. Constructing with `cacheSize == 0`
+//! disables the cache entirely; subsequent calls become no-ops or
+//! return empty results.
+//!
+//! Thread-safety is the caller's responsibility — this class does
+//! not lock the on-disk index.
 class CachedParser {
 public:
     // ----- Nested types -----
 
     // CacheEntry — 0x60 bytes on libc++. One per cached waveform file in index_.
+    //! Index entry describing one cached waveform file: its display
+    //! name, on-disk path, byte size, cache-insertion timestamp, and
+    //! content hash. Serialised verbatim to the cache index file via
+    //! Boost.Serialization.
+    //!
+    //! \binarynote The `pinned_` flag is intentionally not serialised:
+    //! pinning is a per-run concept (set when the entry is hit in the
+    //! current run to protect it from eviction). On load it always
+    //! starts `false`.
     struct CacheEntry {
         CacheEntry() : byteSize_(0), timestamp_(0), pinned_(false) {} // default ctor for boost deserialization
         CacheEntry(const std::string& name, const std::string& filePath,
@@ -130,6 +159,14 @@ public:
     // CachedFile — 0x50 bytes. Returned by getCachedFile().
     // No explicit "found" flag: callers test samples_.empty() (or all-zero
     // channel_ + empty vectors) to detect a cache miss.
+    //! Result of a cache lookup: the channel index, marker-bit
+    //! sample stream, sample buffer, and marker stream of one cached
+    //! waveform file.
+    //!
+    //! \binarynote There is no explicit `found` flag. A cache miss is
+    //! signalled by returning a default-constructed value: `channel_`
+    //! is zero and all three vectors are empty. Callers detect this
+    //! by testing `samples_.empty()`.
     struct CachedFile {
         ~CachedFile();                                             // 0x2b1f70
 

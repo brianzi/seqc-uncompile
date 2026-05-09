@@ -40,6 +40,21 @@ struct DeviceConstants;  // forward declaration
 //
 // Note: fields +0x00..+0x68 are the ELFIO::elfio base (private inheritance).
 // The only ZI-owned field is memoryOffset_ at +0x70.
+//! Builds the 32-bit little-endian ELF firmware container that the
+//! AWG sequencer consumes.
+//!
+//! Wraps `ELFIO::elfio` and exposes a focused API for the sections
+//! the SeqC compiler emits: a single `.text` code segment plus
+//! per-waveform `.dd_<name>` / `.wf_<name>` pairs and arbitrary named
+//! data sections. The class fixes the ELF class and encoding
+//! (ELFCLASS32, ELFDATA2LSB, ET_EXEC) so callers only need to choose
+//! the device-specific `e_machine` value at construction time.
+//!
+//! Use `setMemoryOffset()` to pick the AWG instruction-memory base;
+//! it becomes both the entry point (`e_entry`) and the virtual /
+//! physical address of the `.text` PT_LOAD segment. After all
+//! sections have been added, `writeFile()` emits the final ELF to a
+//! stream or filesystem path.
 class ElfWriter : private ELFIO::elfio {
 public:
     // --- Constructor ---
