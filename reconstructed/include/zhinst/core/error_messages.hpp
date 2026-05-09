@@ -418,6 +418,16 @@ enum ErrorMessageT : int {
 // operator[] does std::map::at() (red-black tree traversal).
 // format<>() inlines the map lookup, wraps in boost::format, feeds args.
 // ============================================================================
+//! \brief Static catalogue of compiler diagnostic format strings, keyed
+//!        by `ErrorMessageT`, with a Boost.Format-backed variadic
+//!        `format()` helper.
+//!
+//! Acts as the single source of truth for every parameterised compiler
+//! message: each diagnostic is registered once as a `printf`-style
+//! Boost.Format pattern, then call sites obtain a fully-formatted
+//! `std::string` via `ErrorMessages::format(id, args...)`.  `operator[]`
+//! returns the raw pattern and throws `std::out_of_range` if the id is
+//! unknown, which surfaces missing-message bugs early.
 class ErrorMessages {
 public:
     // Lookup a format string by enum value.

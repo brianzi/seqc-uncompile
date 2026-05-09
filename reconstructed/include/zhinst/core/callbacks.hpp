@@ -27,6 +27,15 @@ namespace zhinst {
 //       if (lock->isCancelled()) { /* abort */ }
 //   }
 // ---------------------------------------------------------------------------
+//! \brief Pure-virtual cancellation hook polled by long-running compile
+//!        passes.
+//!
+//! The compiler holds a `weak_ptr<CancelCallback>` and locks it at safe
+//! points during expensive passes (front-end lowering, prefetch
+//! scheduling, wavetable assembly, assembler optimisation); when
+//! `isCancelled()` returns true the pass aborts cleanly and the compile
+//! returns an error.  The concrete implementation that decides when to
+//! cancel is supplied by the embedding application.
 class CancelCallback {
 public:
     virtual ~CancelCallback() = default;
@@ -42,6 +51,14 @@ public:
 // Created via make_shared (alloc 0x18 = 8 obj + 16 control block overhead).
 // Used via weak_ptr in Compiler at +0xF0.
 // ---------------------------------------------------------------------------
+//! \brief Progress-reporting hook called by the compiler with values in
+//!        `[0.0, 1.0]`; the default implementation is a no-op.
+//!
+//! Both the destructor and `setProgress` ship as empty defaults, so
+//! derived classes only need to override `setProgress` to receive
+//! updates.  The compiler keeps a `weak_ptr<ProgressCallback>` and
+//! invokes it at coarse pass boundaries; concrete implementations
+//! are supplied by the embedding application.
 class ProgressCallback {
 public:
     virtual ~ProgressCallback();               // 0x129960 (empty)

@@ -16,6 +16,14 @@ namespace zhinst {
 
 // ---- CompilerMessage (0x20 bytes) ----
 
+//! \brief One diagnostic emitted during a compile run — error, warning, or
+//!        info — together with its source line.
+//!
+//! Holds a `type` discriminant (`Error` / `Warning` / `Info` / `Invalid`),
+//! the SeqC source line it refers to (or `-1` when not source-attached),
+//! and the message text.  `str(hideLine)` renders the diagnostic for
+//! display, prefixing "Compiler Error" / "Warning" / "Info" per `type`
+//! and optionally suppressing the line number suffix.
 struct CompilerMessage {
     enum CompilerMessageType : int {
         Error   = 0,  // "Compiler Error"
@@ -34,6 +42,17 @@ struct CompilerMessage {
 
 // ---- CompilerMessageCollection (0x20 bytes, embedded in Compiler at +0x38) ----
 
+//! \brief Diagnostic sink used by every front-end and back-end pass to
+//!        emit errors, warnings, and informational messages.
+//!
+//! Keeps a vector of `CompilerMessage`s alongside a "current line"
+//! cursor that the typed `errorMessage` / `warningMessage` /
+//! `infoMessage` helpers fall back to when the caller does not supply
+//! one explicitly.  A sticky `hadCompilerError()` flag is set whenever
+//! an `Error`-typed message is recorded, so the driver can short-circuit
+//! later phases.  `parserMessage()` is the parser-specific entry that
+//! takes the line first; `reset()` empties the vector and clears the
+//! flag between compile runs.
 class CompilerMessageCollection {
 public:
     void compilerMessage(CompilerMessage::CompilerMessageType type,
@@ -59,6 +78,13 @@ private:
 
 // ---- CompilerException (0x20 bytes) ----
 
+//! \brief Lightweight `std::exception` subclass thrown for fatal compiler
+//!        errors that abort the front-end early.
+//!
+//! Independent of the boost-backed `zhinst::Exception` hierarchy: holds
+//! only the message string and exposes it through `what()`.  Used at
+//! points where the compiler cannot continue but where the richer
+//! `ZIAPIException` machinery is unwanted.
 class CompilerException : public std::exception {
 public:
     CompilerException(const std::string& msg);   // 0x11dec0

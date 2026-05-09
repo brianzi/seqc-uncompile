@@ -149,6 +149,13 @@ namespace zhinst {
 // the binary's 24-byte size. Real implementation lives in <boost/system>.
 // Kept opaque-ish to avoid coupling reconstructed source to a specific
 // boost version.
+//! \brief Compact stand-in for `boost::system::error_code` carried inside
+//!        every `zhinst::Exception`.
+//!
+//! Pairs an integer error value with an opaque category pointer (and a
+//! source-location placeholder), giving each `Exception` a programmatic
+//! identity in addition to its human-readable message.  Only `value()`
+//! and `to_string()` are exercised at the source level.
 struct ErrorCode {
     int                         value_     = 0;     // +0x00
     int                         _pad_      = 0;     // padding
@@ -184,6 +191,13 @@ inline ErrorCode makeDefaultErrorCode() {
 // Carries an error_code together with an explanatory message. Used as
 // a constructor input for Exception. Verified layout at the call site
 // 0x2e5810.
+//! \brief Error-code + message bundle accepted by `Exception`'s
+//!        description constructor.
+//!
+//! Pairs an `ErrorCode` with the human-readable explanation that should
+//! accompany it.  Construction call sites build a description in place
+//! and let `Exception(GenericErrorDescription)` move both fields into
+//! the new exception, avoiding a separate string copy.
 template <typename T>
 struct GenericErrorDescription {
     T            code{};       // +0x00 (24 bytes when T = ErrorCode)
@@ -200,6 +214,17 @@ struct GenericErrorDescription {
 // Base of the ZI exception hierarchy. See file-level comment for the
 // binary layout reconstruction.
 // ----------------------------------------------------------------------------
+//! \brief Base of the Zurich Instruments exception hierarchy thrown by
+//!        the SeqC compiler.
+//!
+//! Carries an `ErrorCode` and a human-readable message together, exposed
+//! as `code()`, `description()`, and `what()`.  Constructible from a
+//! message alone, an `ErrorCode` alone, both, or a
+//! `GenericErrorDescription` aggregate; supplying only an `ErrorCode`
+//! synthesises a default message from the code's category.  Each of
+//! the 26 derived `ZIxxxException` classes (declared via
+//! `ZHINST_DECLARE_EXCEPTION` below) adds no new state and exists solely
+//! so that `catch` clauses can discriminate by error kind.
 class Exception : public std::exception {
 public:
     // 0x2e5410 — default ctor. Initializes errorCode_ from
