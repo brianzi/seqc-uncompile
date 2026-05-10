@@ -44,47 +44,60 @@ void Prefetch::preparePlays() // 0x1c8740
 // ============================================================================
 // prepareTree(node) — 0x1c8870
 //
-// BFS traversal over the node tree using a deque as a stack.
-// For each node, dispatches on node->type (+0x44) to perform tree
+// LIFO traversal over the node tree using std::stack<shared_ptr<Node>,
+// std::deque<shared_ptr<Node>>>.  For each node, dispatches on
+// node->type (+0x44, NodeType enum from ast/node.hpp) to perform tree
 // transformations:
 //
-// - Play (0x01): Extract wave name at node->deviceIndex from wavesPerDev.
-//                Also iterates node->play (+0xA0..+0xA8 range) to check
-//                for valid waves; if any found, calls collectUsedWaves
-//                and pushes next to stack.
+// - Load (NodeType::Load == 0x0001):
+//                Resolves the wave name at node->deviceIndex from
+//                wavesPerDev (when deviceIndex >= 0), iterates the
+//                node->play range (+0xA0..+0xA8) locking each
+//                weak_ptr<Node> and marks each resolved waveform's
+//                markedForLoad flag (+0xD8).  Then iterates the local
+//                validWaves vector and marks those waveforms too.
+//                Finally calls collectUsedWaves(node) and pushes
+//                node->next.
 //
-// - Load (0x02): Calls linkLoad(node), then pushes next to stack.
+// - Play (NodeType::Play == 0x0002):
+//                Calls linkLoad(node), then pushes node->next.
 //
-// - Branch (0x04): Calls removeBranches(node, stack). This flattens
-//                  branches into the traversal stack.
+// - Branch (NodeType::Branch == 0x0004):
+//                Calls removeBranches(node, stack).  This flattens
+//                branches into the traversal stack itself.
 //
-// - Loop (0x08):  Pushes both next (+0xB8) and loop (+0xE0) to stack.
+// - Loop (NodeType::Loop == 0x0008):
+//                Pushes both node->next (+0xB8) and node->loop (+0xE0)
+//                to the stack.
 //
-// - SetVar (0x10): Calls expandSetVar(node), then pushes next.
+// - SetVar (NodeType::SetVar == 0x0010):
+//                Calls expandSetVar(node), then pushes node->next.
 //
-// - Rate (0x20):  (falls through to default — just pushes next)
+// - Lock (NodeType::Lock == 0x0040):
+//                If config_->isHirzel (+0x18) is true, just pushes
+//                node->next (Hirzel devices skip the merge logic).
+//                Otherwise iterates the next chain: for each step,
+//                resolves the wave name, looks up its WaveformIR,
+//                calls findLockedPlay to look for an already-locked
+//                play of the same wave.  On a hit, removes the
+//                current node and merges with any pending lastLoad
+//                via mergeLoads.  On a miss, synthesises a fresh
+//                load via createLoad and stores it as lastLoad.
+//                When lastLoad is non-null, copies node->asmId onto
+//                it and splices it in via insertBefore.  Loop ends
+//                when lastLoad is null after a step.
 //
-// - Wait (0x40): If config_->field_0x18 is false (not append mode):
-//                  For each branch child (iterating node->next chain):
-//                    Get wave name, look up WaveformIR via wavetableIR_,
-//                    call findLockedPlay to check if wave is already locked.
-//                    If locked play found: remove the wait node,
-//                    and if there's a next load, merge them via mergeLoads.
-//                    Otherwise: create a new load via createLoad,
-//                    and if next load exists, insert it before via insertBefore.
-//                  At end, for all valid waves in play range, mark them
-//                  as used in the WaveformIR (set waveform->used_ = true
-//                  at +0xD8).
-//                  Then calls collectUsedWaves on this node.
+// - Table (NodeType::Table == 0x0200):
+//                Calls linkLoad(node), then pushes node->next.
 //
-// - Table (0x200): Same as Load — calls linkLoad, pushes next.
+// - PlainLoad (NodeType::PlainLoad == 0x4000):
+//                Calls collectUsedWaves(node), then pushes node->next.
 //
-// - PlainLoad (0x4000): Calls collectUsedWaves, pushes next.
+// - All other types: pushes node->next only.
 //
-// - Default: Just pushes next to stack.
-//
-// After processing each node, the loop pops the next from the deque
-// and continues until the deque is empty.
+// After processing, the local validWaves vector is destroyed (frees
+// any heap-allocated optional<string> contents) and the loop pops
+// the next node from the stack until empty.
 // ============================================================================
 void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
 {
@@ -309,74 +322,38 @@ cleanup_validwaves:
 // ============================================================================
 // countBranches(node) — 0x1c9b30
 //
-// BFS traversal that counts maximum branch depth for each node.
-// For each node, inserts it into nodeStates_ map (emplace with default
-// PrefetcherNodeState), then processes based on type:
+// Stack traversal (std::deque used LIFO via back()/pop_back()) that
+// propagates per-node branchCount values through nodeStates_ and
+// records the program-wide maximum in this->maxBranches_ (+0xB8).
+// For each visited node, dispatches on node->type:
 //
-// - Branch (0x04):
-//     Gets branchCount from nodeStates_[current] (+0x34 in PNS).
-//     Iterates branches vector (+0xC8..+0xD0), counts them.
-//     branchCount += branches.size() - 1
-//     Updates max in Prefetch.maxBranches_ (+0xB8 in Prefetch — wait,
-//       that's pageSize_! Actually: uses this->field at +0xB8 of Prefetch
-//       as maxBranches storage — 0x1c9da6: mov -0x80(%rbp),%rsi;
-//       mov 0xb8(%rsi),%ecx — this is Prefetch +0xB8 = pageSize_)
-//     Actually reconsidering: pageSize_ is at +0xB8 of Prefetch but this
-//     code reads it as maxBranches_. The constructor sets it to 1, and
-//     countBranches takes max(current, branchCount). This IS maxBranches
-//     stored in what was labeled pageSize_.
-//     >>> DISCOVERY: +0xB8 is maxBranches_ (int), NOT pageSize_.
-//         The constructor init of 1 makes sense as initial max-branches.
+// - Branch (NodeType::Branch == 0x0004):
+//     Reads parent's branchCount from nodeStates_[current],
+//     computes newCount = branchCount + (branches.size() - 1).
+//     If newCount > maxBranches_, updates maxBranches_.
+//     Pushes node->next, copies parent's branchCount onto next's
+//     entry, then for each branch child whose stored branchCount is
+//     smaller than newCount, overwrites it with newCount and pushes
+//     the child to the stack.
 //
-//     Then pushes next (+0xB8 of node) to stack.
-//     For each branch child, looks up its nodeStates_ entry and
-//     compares branchCount. If current branchCount > child's, updates
-//     child's branchCount and pushes child to stack.
+// - Play (NodeType::Play == 0x0002):
+//     If !next, breaks.  Otherwise reads node's branchCount.
+//     If zero (never visited from a Branch), writes 1 onto next's
+//     entry; otherwise propagates the parent's branchCount onto
+//     next's entry.  Then pushes next.
 //
-// - Play (0x02):
-//     Gets branchCount from nodeStates_. If zero, sets to 1 (new discovery).
-//     Propagates to next (+0xB8) node's nodeStates_.
+// - Table (NodeType::Table == 0x0200):
+//     Same shape as Play.
 //
-// - Table (0x200):
-//     Same structure as Play — gets branchCount, if zero sets to 1,
-//     propagates to next.
+// - All other types:
+//     If node->next exists, copies branchCount onto its entry and
+//     pushes it.  If node->loop exists, also copies branchCount onto
+//     the loop child's entry and pushes the loop child.
 //
-// - Default (all other types):
-//     Gets branchCount from nodeStates_.
-//     Propagates to next (+0xB8) if present.
-//     If node has loop (+0xE0), propagates branchCount to loop child.
-//
-// PrefetcherNodeState field at +0x34 (relative to value start in hash node)
-// is the branchCount.
-//
-// DISCOVERY: PrefetcherNodeState.branchCount at offset +0x14 within the
-// struct (the emplace returns hash_node*, value is at +0x20 from node start,
-// the shared_ptr<Node> key occupies +0x20..+0x2F, so PNS starts at +0x30,
-// and +0x34 from the returned pointer = PNS+0x04). Wait — the emplace call
-// returns a pointer where +0x34 is accessed. Given the hash_node layout:
-//   +0x00: __next_ pointer
-//   +0x08: __hash_ 
-//   +0x10: __value_ (pair<shared_ptr<Node>, PrefetcherNodeState>)
-//   +0x10: key (shared_ptr<Node>) = 16 bytes
-//   +0x20: value (PrefetcherNodeState) starts here
-//   +0x34 from node = PNS + 0x14
-// So branchCount is at PrefetcherNodeState offset +0x14.
-//
-// Actually the return from __emplace_unique_key_args returns a
-// __hash_iterator which points to the hash_node. The +0x34 offset
-// from the returned pointer targets: node+0x34. The hash_node has:
-//   +0x00: __next_
-//   +0x08: __hash_cached  
-//   +0x10: pair.first (shared_ptr key) = 16 bytes  
-//   +0x20: pair.second (PrefetcherNodeState) starts
-// So +0x34 = PNS + 0x14. branchCount = PNS[0x14].
-//
-// But also +0x3c is accessed in definePlaySize (for playSize).
-// And +0x40 was accessed in constructor (cacheSize).
-// So PrefetcherNodeState layout includes at least:
-//   +0x14: int branchCount
-//   +0x1c: int playSize  (from definePlaySize +0x3c offset)
-//   +0x20: AsmRegister lengthReg (from definePlaySize AsmRegister write)
+// On entry every visited node receives a default-constructed
+// PrefetcherNodeState entry in nodeStates_ (branchCount initialised
+// to 1 by the struct default), so reads after emplace are safe even
+// for never-before-seen nodes.
 // ============================================================================
 void Prefetch::countBranches(std::shared_ptr<Node> node) // 0x1c9b30
 {
@@ -581,60 +558,63 @@ check_loop:
 // ============================================================================
 // definePlaySize(node) — 0x1ca370
 //
-// BFS traversal that determines the play size (number of waveform table
-// pages) for each Play node, and stores results in nodeStates_.
+// Stack traversal that determines the per-page footprint of each Play
+// node and reserves a length register when the wave memory required
+// for the play exceeds a single page.
 //
-// For each node:
-//   1. Push children (next, branches, loop) onto the stack for traversal
-//   2. If type == Play (0x02) and config.field_0x1E == false (+0x66 in node,
-//      which is PlayConfig +0x1E, likely a "skip" or "dynamic" flag):
+// For every visited node:
+//   1. Push node->next, every entry in node->branches, and node->loop
+//      (when present) onto the traversal stack.
+//   2. Continue if node->type != NodeType::Play (== 0x0002), or if
+//      node->config.dummy is set (skip dummy plays).
 //
-//      a. Look up WaveformIR via wavetableIR_->getWaveformByName(waveName)
-//         Get signal length: waveform->signal.length_ (at waveform+0xD0)
-//         This is the "waveLength" in samples.
+// For each non-dummy Play node:
 //
-//      b. Look up again to get the granularity from Signal (+0x70..+0x78)
-//         waveform->signal.sampleRate? Actually from signal's linked data.
+//   a. Resolve the wave name at node->deviceIndex from wavesPerDev
+//      (when deviceIndex >= 0).
+//   b. Look up the WaveformIR via wavetableIR_->getWaveformByName.
+//      Read waveLength = waveform->signal.length_ (Signal +0x68).
+//   c. Compute aligned playSize:
+//        grainSize = devConst_->grainSize (+0x44)
+//        minLenSamples = waveform->minLengthSamples (Waveform +0x70)
+//        playSize = ceil(waveLength / grainSize) * grainSize
+//        if (minLenSamples > playSize) playSize = minLenSamples
+//        (verified disasm 0x1ca918..0x1ca945)
+//   d. If playSize != waveLength, look up the waveform again and call
+//      waveform->signal.resizeSamples(playSize).
 //
-//      c. Compute aligned play size:
-//         playSize = ceil(waveLength / granularity) * granularity
-//         playSize = min(playSize, maxPlayLength)
-//         where maxPlayLength comes from the Signal's linked structure
+//   e. Compute memory footprint:
+//        channelCount = waveform->signal.channels()  (+0xC8 uint16)
+//        playCount    = waveform->signal.length_     (+0xD0)
+//        wfDc         = waveform->deviceConstants    (+0x78)
+//        Aligned cap (verified 0x1cab18..0x1cab4c):
+//          aligned = ceil(playCount / wfDc->grainSize) * wfDc->grainSize
+//          if (wfDc->maxWaveformLength > aligned)
+//              aligned = wfDc->maxWaveformLength
+//        sampleBits = wfDc->bitsPerSample (+0x50, always 16)
+//        memBits  = channelCount * aligned * sampleBits
+//        memWords = ceil(memBits / 8)
 //
-//      d. If playSize != waveLength, resize the waveform:
-//         waveform->signal.resizeSamples(playSize) // 0x1caa40
+//   f. Compute per-page budget:
+//        memPerPage = devConst_->waveformMemorySize / this->maxBranches_
+//        (verified 0x1cab6c: mov 0x8(%r12),%rax; mov 0xc(%rax),%eax;
+//                            div 0xb8(%r12))
 //
-//      e. Look up waveform again, compute memory footprint:
-//         channelCount = waveform->channelCount (+0xC8 as uint16)
-//         playCount = waveform->playCount (+0xD0 as int)
-//         sampleBits = signal->sampleBits (+0x50 as int, via signal at +0x78)
-//         
-//         If playCount != 0:
-//           playLength = ceil(playCount / sampleRate) * sampleRate
-//           playLength = min(playLength, maxPlay)
-//         else:
-//           playLength = 0
+//   g. If memPerPage < memWords, the wave does not fit in one page:
+//        nodeLength = current->length (+0x90)
+//        pagesNeeded = 1
+//        If nodeLength == 0, recompute from waveform with
+//          pagesNeeded = (nodeLength * channelCount * maxBranches_)
+//                        / (waveformMemorySize / 2) + 1
 //
-//         memoryBytes = channelCount * playLength * sampleBits
-//         memoryBits = memoryBytes (approx)
-//         memoryWords = ceil(memoryBits / 8)  // bits to bytes
-//
-//         memPerPage = devConst_->maxProgramSize / pageSize_
-//         // 0x1cab6c: mov 0x8(%r12),%rax; mov 0xc(%rax),%eax; div 0xb8(%r12)
-//
-//      f. If memoryWords >= memPerPage:
-//         Node's length (+0x90) needs splitting
-//         pagesNeeded = 1 (initially)
-//         ... additional page computation ...
-//
-//      g. Final: if pagesNeeded >= 2:
-//         Store pagesNeeded in nodeStates_[node].playSize() (+0x3c)
-//         Allocate a register: Resources::getRegisterNumber()
-//         Store register in nodeStates_[node].lengthReg() (+0x20)
-//         
-//         Also propagate to parent node if parent exists:
-//           nodeStates_[parent].lengthReg() = nodeStates_[node].lengthReg
-//           nodeStates_[parent].playSize() = pagesNeeded
+//      If pagesNeeded >= 2:
+//        nodeStates_[current].pagesNeeded = pagesNeeded   (+0x3C)
+//        regNum     = Resources::getRegisterNumber()
+//        lengthReg  = AsmRegister(regNum)
+//        nodeStates_[current].registerHirzel = lengthReg  (+0x20)
+//        If current->parent.lock() yields a parent ptr, mirror both
+//        registerHirzel and pagesNeeded onto the parent's entry so
+//        the surrounding control flow can reference them.
 // ============================================================================
 void Prefetch::definePlaySize(std::shared_ptr<Node> node) // 0x1ca370
 {

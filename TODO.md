@@ -136,6 +136,20 @@ cross-reference pages so the backlog is discoverable.
         now propagates the `weak_ptr` into
         `waveformGen_->cancelCallback_` (previously mislabelled
         `reserved_B0_`).
+  - [x] **D4 Batch 2a** — `Prefetch` class, ctor/dtor and the three
+        `preparePlays` sub-passes (`prepareTree`, `countBranches`,
+        `definePlaySize`).  Surfaced IF-212 (block-header summary
+        comments in `prefetch_prepare.cpp` contradicted the actual
+        function bodies — `Play`/`Load` case labels swapped, `Lock`
+        called "Wait" with stale `appendMode` / `field_0x18` /
+        `pageSize_` / `maxProgramSize` / `field_0x1E` field names)
+        and IF-213 (`Prefetch::findLockedPlay` is a stub that always
+        returns `nullptr`, so `prepareTree`'s locked-play merge path
+        is dead code).  IF-212 fixed in the same batch by rewriting
+        all three block-headers to match the verified bodies; IF-213
+        left open for a separate Lock-using-test investigation.
+        AGENTS.md gained a new "Verify-then-write: code is the
+        source of truth" section formalising the workflow.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

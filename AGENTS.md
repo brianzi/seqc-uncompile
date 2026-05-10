@@ -36,6 +36,90 @@ This avoids the "layout-first, methods-later" gap where structural
 findings are integrated but analyzed method logic is lost or must be
 re-derived.
 
+## Verify-then-write: code is the source of truth
+
+**Every claim written into a source file, header, doc comment, or
+notes file MUST be verified against primary evidence before it is
+written.**  Primary evidence is, in descending order of trust:
+
+1. The disassembly of `_seqc_compiler.so` (via `objdump -d` or GDB).
+2. The actual body of the reconstructed function (the `.cpp` source
+   for the symbol being described).
+3. The verified field name / offset in the canonical struct header
+   (the `.hpp` for the type being referenced).
+
+**Secondary sources are NEVER sufficient on their own.**  Secondary
+sources include:
+
+- `// ====` block-header summary comments at the top of recon
+  functions.  These were written during early reconstruction and
+  frequently drift out of sync with the body when fields are
+  renamed, enums are reworked, or branches are corrected.
+- Prose summaries in `notes/` files.
+- The summary text of a previously-closed incidental finding.
+- Variable names / parameter names from earlier reconstruction
+  passes that were later relabelled.
+- Any agent's recollection of "what this function does" from a
+  prior session.
+
+### Concrete workflow
+
+When writing a doc comment, audit note, or any new descriptive prose
+about an existing function or struct:
+
+1. **Read the body.**  Open the `.cpp` (or `.hpp` for inline
+   methods) and read the actual code, not the comment block above
+   it.  Do this even if a summary comment exists and looks
+   authoritative.
+2. **Cross-check field names.**  Every field reference in the prose
+   must match the canonical name in the type's `.hpp` *as currently
+   committed*, not as it was named when the summary was written.
+3. **Cross-check called helpers.**  When the prose claims "calls X
+   which does Y", open X's body and verify Y.  Do not trust X's
+   summary comment.  In particular, watch for stub bodies that
+   contain the intended logic only as a comment.
+4. **For semantics derived from the binary**, prefer GDB / objdump
+   over reading the recon body — see "GDB tracing for binary
+   analysis" below.
+5. **Log discrepancies as IF-NNN entries** in
+   `reconstructed/notes/incidental_findings.md` immediately, before
+   continuing the main task.  A wrong block-header summary is an
+   IF.  A stub body whose intended behaviour exists only as a
+   comment is an IF.
+6. **Fix the secondary source** in the same edit pass when the
+   discrepancy is purely descriptive (e.g. rewriting a wrong
+   summary comment to match the verified body).  This prevents the
+   next agent from being misled by the same stale text.
+
+### Anti-patterns
+
+- Writing a `\brief` from the `// ====` block-header summary
+  without opening the function body.
+- Trusting a parameter / field name from a recon comment when the
+  type's header has since been renamed (e.g. `pageSize_` →
+  `maxBranches_`, `field_0x18` → `isHirzel`, `field_0x1E` →
+  `dummy`).
+- Quoting a `notes/` file's claim about a function's behaviour
+  without re-verifying against the current `.cpp`.
+- "Updating the recap" or progress summary with claims that were
+  not re-verified in the current session.
+- Letting a subagent fill in doc briefs from summaries — subagents
+  inherit this rule and must follow the same workflow.
+
+### Why this matters
+
+The reconstruction has been through many rounds of field renames,
+enum corrections, and stub fills.  Every such change creates a
+window where prose summaries lag the code.  Documentation written
+from those stale summaries propagates errors directly into the
+user-facing Doxygen site, where they are much harder to spot than
+in code.  Worse, a wrong doc comment can mislead a future
+reconstruction pass that consults it as ground truth.
+
+The cost of opening the function body is seconds.  The cost of a
+wrong doc brief is hours of downstream confusion plus an awkward
+correction commit.
+
 ## Conventions
 
 - TODO.md is the shared task list. Changes require user review.

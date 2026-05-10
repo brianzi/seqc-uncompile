@@ -4443,4 +4443,92 @@ warnings (their out-of-line definitions matched the header
 declarations directly via the alias-aware lookup that doxygen
 handles for static members but not for non-static `operator==`).
 
+## IF-212  `prefetch_prepare.cpp` summary comments contradict code
+
+**Severity**: cosmetic, but high-risk for downstream doc accuracy.
+**Status**: open.
+**Discovered**: D4 Batch 2a verify-then-write check of
+`Prefetch::prepareTree`.
+
+The `// ====` block-header comments at the top of every function in
+`reconstructed/src/codegen/prefetch_prepare.cpp` describe the
+function semantics in prose form.  Several claims in the
+`prepareTree` block-header (lines 44-88) **contradict the actual
+function body** that immediately follows:
+
+1. Line 51 claims `Play (0x01)` is the wave-collection / used-mark
+   branch; lines 56-57 claim `Load (0x02)` calls `linkLoad`.
+   The code at lines 122-167 has these reversed: the first big
+   `case NodeType::Load:` (NodeType value `0x0001`) is the wave-
+   collection branch, and `case NodeType::Play:` (value `0x0002`)
+   calls `linkLoad`.  The block-header has the type *names* swapped
+   relative to the case-label dispatch.
+
+2. Line 67 calls the conditional "Wait" with type `0x40`, gated on
+   "config_->field_0x18 (not append mode)".  The code at line 199
+   uses `case NodeType::Lock:` (value `0x40`, name confirmed in
+   `node.hpp:51`; `Wait` is a separate enumerator with value
+   `0x200000` per `node.hpp:69`), and the gate is
+   `if (config_->isHirzel)` (line 202), where `isHirzel` is the
+   verified label for `+0x18` per `awg_compiler_config.hpp:31,81`
+   (the `appendMode` interpretation was already dropped per
+   `awg_compiler_config.hpp:114-115`).  The block-header narrative
+   was never updated when the field was renamed.
+
+This is a documentation-accuracy bug, not a code-correctness bug:
+the body itself uses the correct `NodeType::Lock` and
+`config_->isHirzel`.  The risk is that future doc-writing passes
+(D4+) trust the block-header summaries instead of the code, which
+would propagate the inversions into user-facing Doxygen briefs.
+
+**Action**: rewrite the prepareTree block-header comment in
+`prefetch_prepare.cpp` to match the body.  Then audit the
+`countBranches` and `definePlaySize` block-headers in the same file
+for similar drift before D4 Batch 2a writes briefs against them.
+
+## IF-213  `Prefetch::findLockedPlay` body is a stub that always returns null
+
+**Severity**: likely-bug.
+**Status**: open.
+**Discovered**: D4 Batch 2a verify-then-write check of `prepareTree`'s
+`Lock`-handling branch.
+
+`reconstructed/src/codegen/prefetch_helpers.cpp:388-424` defines
+`Prefetch::findLockedPlay` as a worklist walk over the node tree
+that *should* search for a `Play` node referencing the supplied
+`waveform` inside a `Lock` scope.  The body:
+
+- enqueues children correctly,
+- has the type-dispatch shell for `Play` and `Unlock`,
+- but the `if (cur->type == NodeType::Play)` block (lines 405-412)
+  contains only the comment `// If match: return current` with no
+  actual return statement and no waveform comparison,
+- and the function unconditionally falls through to
+  `return nullptr` at line 423.
+
+The `waveform` parameter is never read.  Compilers do not warn
+because `nullptr` is a valid `shared_ptr<Node>`.
+
+The `prepareTree` `Lock` branch (line 227) calls this function and
+takes one of two divergent code paths based on the result: a hit
+removes the wait node and merges loads via `mergeLoads`; a miss
+synthesises a fresh load via `createLoad`.  With the current stub,
+the hit path is dead code on every input, so every `Lock` node
+produces a freshly-created load even when an existing locked play
+would have served.
+
+This may be benign (extra load, same end result) or may produce a
+real diff against the binary on programs that use `Lock` blocks.
+The differential test suite passes 1600/1600, which suggests either:
+(a) no test exercises the locked-play merge path, or
+(b) the redundant-load output happens to match the binary on every
+covered case (e.g. because the binary's optimiser later merges
+them anyway).
+
+**Action**: GDB-trace `_ZNK6zhinst8Prefetch14findLockedPlayE...`
+on a Lock-using test (if one exists) and confirm the binary's
+match logic.  If no test covers it, write a minimal `playWave`-
+inside-Lock case to expose the path before fixing.  The fix should
+add the missing waveform-name comparison and `return current` in
+the `Play` branch.
 

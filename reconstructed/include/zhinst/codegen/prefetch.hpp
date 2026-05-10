@@ -203,6 +203,43 @@ public:
     };
 
     // Constructor                                                     // 0x1c5850
+    /*! \brief Construct a prefetch planner bound to a lowered SeqC AST
+     *  and the device's waveform cache.
+     *
+     *  \details Stores borrowed references to `config` and `devConst`
+     *  (both kept by pointer for the lifetime of the planner), takes
+     *  ownership of the four shared / weak resources, and seeds the
+     *  internal state needed before the first traversal:
+     *
+     *    - `cwvfConfig_.channelMask` is set to the `0xFFFFFFFF`
+     *      sentinel that `globalCwvf` treats as "no `cwvf` config
+     *      observed yet".
+     *    - The device cache is allocated via
+     *      `make_shared<Cache>(devConst.waveformMemorySize,
+     *      devConst.sampleLength, config.isHirzel)`.
+     *    - `waveformMaps_` is sized to `config.numChannelGroups`.
+     *    - `nodeStates_[root_]` is default-constructed and its
+     *      `usedCache_` field is then overwritten with the freshly
+     *      allocated `cache_->getSize()` so the root bookkeeping
+     *      starts with the full cache budget.
+     *    - `maxBranches_` is initialised to `1` by the in-class
+     *      member initialiser; `countBranches` only ever raises it.
+     *
+     *  \param config        The compiler configuration (referenced).
+     *  \param devConst      Device geometry constants (referenced).
+     *  \param asmCommands   Shared pointer to the assembly emitter,
+     *                       used by the `wvf*` / `splitPlay` /
+     *                       `insertPlay` helpers during fill-in.
+     *  \param root          The lowered AST root the planner walks.
+     *  \param wavetableIR   The wavetable IR queried by the
+     *                       traversals for per-name `WaveformIR`
+     *                       lookups.
+     *  \param logFunc       Callback used by `placeLoads` to surface
+     *                       the informational "wave fitting cache"
+     *                       messages.
+     *  \param cancelCb      Cancellation hook polled by the
+     *                       optimisation and placement passes.
+     */
     Prefetch(
         AWGCompilerConfig const& config,
         DeviceConstants const& devConst,
@@ -213,6 +250,9 @@ public:
         std::weak_ptr<CancelCallback> cancelCb);
 
     // Destructor                                                      // 0x11eed0
+    //! \brief Trivial destructor; releases all owned shared / weak
+    //! pointers and the per-node bookkeeping containers via implicit
+    //! member destruction.
     ~Prefetch();
 
     // --- Public methods (addresses noted) ---
@@ -245,8 +285,119 @@ public:
      *  `determineFixedWaves`, `placeLoads`, and `fillInPlaceholders`.
      */
     void preparePlays();                                               // 0x1c8740
+    /*! \brief Walk the AST once and apply per-`NodeType` rewrites that
+     *  prepare each node for branch-counting and play-sizing.
+     *
+     *  \details Drives a `std::stack<std::shared_ptr<Node>,
+     *  std::deque<...>>` initialised with `node`, popping nodes LIFO
+     *  and dispatching on `Node::type`:
+     *
+     *    - `NodeType::Load`: collect the wave name at the node's
+     *      device index from `wavesPerDev`, then iterate the
+     *      `node->play` weak-pointer range, locking each entry,
+     *      resolving its waveform via `wavetableIR_`, and setting
+     *      `WaveformIR::markedForLoad`.  Same `markedForLoad`
+     *      treatment is applied to every entry of the local
+     *      `validWaves` vector.  Then call `collectUsedWaves(node)`
+     *      and push `node->next`.
+     *    - `NodeType::Play`: forward to `linkLoad(node)`, then push
+     *      `node->next`.
+     *    - `NodeType::Branch`: forward to `removeBranches(node, stack)`,
+     *      which flattens the branch's children onto the same
+     *      traversal stack so they are visited in this pass.
+     *    - `NodeType::Loop`: push both `node->next` and `node->loop`.
+     *    - `NodeType::SetVar`: rewrite via `expandSetVar(node)`, then
+     *      push `node->next`.
+     *    - `NodeType::Lock`: on Hirzel targets (`config_->isHirzel`)
+     *      just push `node->next`.  On non-Hirzel targets, walk the
+     *      `next` chain looking for an existing locked play of the
+     *      same wave via `findLockedPlay`; on a hit, drop the
+     *      current node and merge any pending load with `mergeLoads`,
+     *      on a miss synthesise a fresh load via `createLoad`,
+     *      copy `node->asmId` onto it, and splice it in via
+     *      `Node::insertBefore`.  The walk terminates when no load
+     *      is held after a step.
+     *    - `NodeType::Table`: forward to `linkLoad(node)`, then push
+     *      `node->next`.
+     *    - `NodeType::PlainLoad`: call `collectUsedWaves(node)`,
+     *      then push `node->next`.
+     *    - All other types: push `node->next` only.
+     *
+     *  \param node  Subtree root to process; typically `root_`.
+     */
     void prepareTree(std::shared_ptr<Node> node);                      // 0x1c8870
+    /*! \brief Propagate per-node branch counts through `nodeStates_`
+     *  and record the program-wide maximum into `maxBranches_`.
+     *
+     *  \details Stack-driven traversal (LIFO via
+     *  `std::deque::back()` / `pop_back()`).  Every visited node is
+     *  emplaced into `nodeStates_` with a default-constructed
+     *  `PrefetcherNodeState` (which seeds `branchCount = 1`), then
+     *  dispatched on `Node::type`:
+     *
+     *    - `NodeType::Branch`: read the parent's `branchCount`,
+     *      compute `newCount = branchCount + branches.size() - 1`,
+     *      raise `maxBranches_` to `newCount` when larger, push
+     *      `node->next` while copying the parent's count onto its
+     *      entry, then for each branch child whose stored
+     *      `branchCount` is smaller than `newCount`, overwrite it
+     *      and push the child.
+     *    - `NodeType::Play` and `NodeType::Table`: skip when
+     *      `node->next` is null; otherwise read the parent's
+     *      `branchCount` and either write `1` onto the next entry
+     *      (when the parent value is zero, marking the very first
+     *      visit) or propagate the parent's value, then push `next`.
+     *    - All other types: copy `branchCount` onto `node->next`
+     *      (when present) and onto `node->loop` (when present), and
+     *      push each child that was updated.
+     *
+     *  \param node  Subtree root to process; typically `root_`.
+     */
     void countBranches(std::shared_ptr<Node> node);                    // 0x1c9b30
+    /*! \brief Compute each play's effective sample size and wave-
+     *  memory footprint, and reserve a length register when a play
+     *  needs more than one cache page.
+     *
+     *  \details Stack-driven traversal that, for every visited node,
+     *  pushes `node->next`, every entry of `node->branches`, and
+     *  `node->loop` (when present) onto the stack, then continues
+     *  unless the node is a `NodeType::Play` whose `config.dummy`
+     *  flag is clear.
+     *
+     *  For each non-dummy `Play`:
+     *
+     *    1. Resolve the wave name at `deviceIndex` from `wavesPerDev`.
+     *    2. Look up `WaveformIR` via
+     *       `wavetableIR_->getWaveformByName`, read
+     *       `waveform->signal.length_` as `waveLength`.
+     *    3. Compute `playSize` by rounding `waveLength` up to the
+     *       device `grainSize`, clamped *up* by
+     *       `Waveform::minLengthSamples` (the operation taken from
+     *       the binary is `if (minLenSamples > playSize) playSize =
+     *       minLenSamples`, i.e. a max, not a min).
+     *    4. When `playSize != waveLength`, call
+     *       `waveform->signal.resizeSamples(playSize)`.
+     *    5. Compute `memWords = ceil(channelCount * alignedLen *
+     *       bitsPerSample / 8)` using the per-waveform
+     *       `DeviceConstants` (`grainSize`, `maxWaveformLength`,
+     *       `bitsPerSample`).
+     *    6. Compute the per-page budget
+     *       `memPerPage = devConst_->waveformMemorySize /
+     *       maxBranches_`.
+     *    7. When `memPerPage < memWords`, the play does not fit in a
+     *       single page: compute `pagesNeeded` (folding in
+     *       `node->length` when nonzero, otherwise from the
+     *       waveform's own footprint).  When `pagesNeeded >= 2`,
+     *       store it into `nodeStates_[node].pagesNeeded`, reserve
+     *       a register through `Resources::getRegisterNumber()` and
+     *       store the resulting `AsmRegister` in the node's
+     *       `registerHirzel` slot (which doubles as the length-
+     *       tracking register here), and mirror both the register
+     *       and `pagesNeeded` onto the parent's entry when
+     *       `node->parent.lock()` succeeds.
+     *
+     *  \param node  Subtree root to process; typically `root_`.
+     */
     void definePlaySize(std::shared_ptr<Node> node);                   // 0x1ca370
     void determineFixedWaves();                                        // 0x1cb200
     /*! \brief Decide where each waveform load is emitted in the
