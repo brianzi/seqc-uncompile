@@ -521,21 +521,48 @@ cross-reference pages so the backlog is discoverable.
     - [x] `randomUniform` (0x253440) — re-audited; already correct.
     - [x] `lfsrGaloisMarker` (0x253bc0) — `"2 (marker)"` →
           `"2 (markerBit)"` (commit `d68f5a3`).
-    - [ ] Remaining: `gauss`, `sin`, `cos`, `sawtooth`,
-          `triangle`, `drag`, `blackman`, `hamming`, `hann`,
-          `placeholder`, `vect`.  All single-arity except for
-          the trig family (which take 1 or 2 of `length`,
-          `amplitude`, `nPeriods`, `riseRatio`, `phase`); audit
-          surface is small.  Defer until briefs are written for
-          each (Batch 6d for combinators completed; remaining
-          factories `gauss`/`sin`/`cos`/`sawtooth`/`triangle`/
-          `drag`/`blackman`/`hamming`/`hann`/`placeholder`/`vect`
-          still pending audit).
+    - [x] `gauss` (0x24ddb0) — fixed under IF-232.
+    - [x] `drag` (0x24e950), `blackman` (0x24f530),
+          `hamming` (0x24fd20), `hann` (0x250250),
+          `vect` (0x255570), `placeholder` (0x255850) —
+          re-audited (D-AUDIT-1 follow-up sweep, 2026-05-10);
+          all clean, no label drift.
+    - [x] `sin` (0x24a0f0), `cos` (0x24abd0),
+          `sawtooth` (0x24c8b0), `triangle` (0x24d330) —
+          3-arg paths were a *semantic* bug (same shape as
+          IF-231 `rand`): bound `(length, amplitude, phase)`
+          but binary binds `(length, phase, nPeriods)` with
+          `amplitude=1.0`.  Fixed under **IF-234** plus 8
+          cosmetic 4-arg label drifts (`"3 (phase)"` →
+          `"3 (phase offset)"`, `"4 (nPeriods)"` →
+          `"4 (number of periods)"`).  Coverage test
+          `hdawg_doc_trig_3arg.seqc` (manifest entry
+          `trig_3arg`) added; 1602/1602 tests passing.
+  - **Audit-method clarifications** (folded back into the
+    recipe above as of 2026-05-10 sweep):
+    1. Derive function end addresses from the `.text`
+       symbol-table size (`objdump -t | grep <symbol>`),
+       NOT from the next factory in a hand-curated list —
+       e.g. `cos`'s nominal range overlaps `sinc`.
+    2. Long parameter labels (≥16 chars) load via
+       `lea rip-rel + movupd %xmm0` (SSE2 packed-double),
+       not `movups` as the recipe suggested.  Match
+       `movup[sd]` in audit scripts.
+    3. `objdump -d` rip-rel comments use unprefixed hex
+       (`# 905dc8`); regexes expecting `0x` after the comment
+       marker silently miss them.
+    4. `objdump -s` packs hex bytes into ~16 four-byte groups
+       per line.  A `(?:[0-9a-f]{2,8} ?){1,4}` cap on the
+       byte-group repetition truncates the dump.  Use
+       `{1,8}` or `+`.
   - Likely cosmetic for the remaining factories (impacts
     user-visible error-message text only, no test currently
     exercises these error paths) but binary-faithfulness
     regressions should be fixed in the same commit as discovery,
     with each finding logged under IF-230's "Likely scope" section.
+  - **Status: complete.**  All 16 multi-arity factories audited;
+    semantic bugs (IF-231 `rand`, IF-234 trig family) and label
+    drifts (`chirp`, `lfsrGaloisMarker`, `gauss`) all fixed.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

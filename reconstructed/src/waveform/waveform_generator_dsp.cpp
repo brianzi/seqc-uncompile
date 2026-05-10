@@ -201,12 +201,19 @@ Signal WaveformGenerator::gauss(std::vector<Value> const& args) {           // 0
 }
 
 // ============================================================================
-// sin(length, amplitude, phase[, nPeriods]) @0x24a0f0
+// sin(length, amplitude, phase, nPeriods) @0x24a0f0
+// sin(length, phase, nPeriods)            — amplitude defaults to 1.0
 //   length:    int >= 1 (readPositiveInt)
-//   amplitude: double in [-1.0, 1.0]
-//   phase:     double (radians)
-//   nPeriods:  double >= 0 (default 1.0)
+//   amplitude: double in [-1.0, 1.0] (defaulted to 1.0 in 3-arg form)
+//   phase:     double (radians); binary label "2 (phase offset)" / "3 (phase offset)"
+//   nPeriods:  double >= 0; binary label "3 (number of periods)" / "4 (number of periods)"
 // Loop: theta = 2*nPeriods*PI*i/length + phase; sample = amplitude * sin(theta)
+//
+// 3-arg parameter binding (length, phase, nPeriods) verified against
+// _seqc_compiler.so 0x24a0f0: only one readDoubleAmplitude call site
+// exists in the entire function (4-arg only); 3-arg branch performs
+// readPositiveInt + readDouble("2 (phase offset)") + readDouble(
+// "3 (number of periods)") and defaults amplitude to 1.0.  See IF-234.
 Signal WaveformGenerator::sin(std::vector<Value> const& args) {                  // 0x24a0f0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -215,52 +222,47 @@ Signal WaveformGenerator::sin(std::vector<Value> const& args) {                 
     }
 
     int length;
-    double amplitude, phase;
+    double amplitude = 1.0;                                                       // 3-arg default
+    double phase;
+    double nPeriods;
 
     if (args.size() == 4) {
         length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
-        phase     = readDouble(args[2], "3 (phase)", "sine");
-        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "sine");
-
-        // Validate nPeriods >= 0                                                // 0x24a963
-        if (nPeriods < 0.0) {
-            throw WaveformGeneratorValueException(
-                ErrorMessages::format(ArgMustBePositive,
-                                      "nPeriods", "sine"), 3);
-        }
-
-        Signal sig(static_cast<size_t>(length));                                 // 0x24a974
-        if (length == 0) return sig;
-
-        // Precompute: twoNPeriodsPi = 2 * nPeriods * PI                        // 0x24a983-0x24a98f
-        double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
-        double dLength = static_cast<double>(length);
-
-        for (int i = 0; i < length; ++i) {                                      // 0x24a9b0
-            double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
-            sig.append(amplitude * std::sin(theta), 0);                          // 0x24a9d9
-        }
-        return sig;                                                              // 0x24a9e6
+        phase     = readDouble(args[2], "3 (phase offset)", "sine");
+        nPeriods  = readDouble(args[3], "4 (number of periods)", "sine");
     } else {
-        // 3-arg case: sine(length, amplitude, phase)
-        // Binary: constant waveform, every sample = sin(amplitude + phase).
+        // 3-arg path: sine(length, phase, nPeriods); amplitude defaults to 1.0.
         length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
-        phase     = readDouble(args[2], "3 (phase)", "sine");
-
-        Signal sig(static_cast<size_t>(length));
-        if (length == 0) return sig;
-
-        double value = std::sin(amplitude + phase);
-        for (int i = 0; i < length; ++i) {
-            sig.append(value, 0);
-        }
-        return sig;
+        phase     = readDouble(args[1], "2 (phase offset)", "sine");
+        nPeriods  = readDouble(args[2], "3 (number of periods)", "sine");
     }
+
+    // Validate nPeriods >= 0                                                    // 0x24a963
+    if (nPeriods < 0.0) {
+        throw WaveformGeneratorValueException(
+            ErrorMessages::format(ArgMustBePositive,
+                                  "nPeriods", "sine"), 3);
+    }
+
+    Signal sig(static_cast<size_t>(length));                                     // 0x24a974
+    if (length == 0) return sig;
+
+    // Precompute: twoNPeriodsPi = 2 * nPeriods * PI                             // 0x24a983-0x24a98f
+    double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
+    double dLength = static_cast<double>(length);
+
+    for (int i = 0; i < length; ++i) {                                           // 0x24a9b0
+        double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
+        sig.append(amplitude * std::sin(theta), 0);                              // 0x24a9d9
+    }
+    return sig;                                                                  // 0x24a9e6
 }
-// cos(length, amplitude, phase[, nPeriods]) @0x24abd0
+// cos(length, amplitude, phase, nPeriods) @0x24abd0
+// cos(length, phase, nPeriods)            — amplitude defaults to 1.0
 //   Identical to sin() but calls std::cos instead of std::sin.
+//   3-arg parameter binding (length, phase, nPeriods) verified against
+//   _seqc_compiler.so 0x24abd0; see IF-234.
 Signal WaveformGenerator::cos(std::vector<Value> const& args) {                  // 0x24abd0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -269,47 +271,39 @@ Signal WaveformGenerator::cos(std::vector<Value> const& args) {                 
     }
 
     int length;
-    double amplitude, phase;
+    double amplitude = 1.0;                                                       // 3-arg default
+    double phase;
+    double nPeriods;
 
     if (args.size() == 4) {
         length    = readPositiveInt(args[0], "1 (length)", 1, "cosine");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "cosine");
-        phase     = readDouble(args[2], "3 (phase)", "cosine");
-        double nPeriods  = readDouble(args[3], "4 (nPeriods)", "cosine");
-
-        if (nPeriods < 0.0) {
-            throw WaveformGeneratorValueException(
-                ErrorMessages::format(ArgMustBePositive,
-                                      "nPeriods", "cosine"), 3);
-        }
-
-        Signal sig(static_cast<size_t>(length));
-        if (length == 0) return sig;
-
-        double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
-        double dLength = static_cast<double>(length);
-
-        for (int i = 0; i < length; ++i) {                                      // 0x24b560
-            double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
-            sig.append(amplitude * std::cos(theta), 0);                          // 0x24b589
-        }
-        return sig;
+        phase     = readDouble(args[2], "3 (phase offset)", "cosine");
+        nPeriods  = readDouble(args[3], "4 (number of periods)", "cosine");
     } else {
-        // 3-arg case: cosine(length, amplitude, phase)
-        // Binary: constant waveform, every sample = cos(amplitude + phase).
+        // 3-arg path: cosine(length, phase, nPeriods); amplitude defaults to 1.0.
         length    = readPositiveInt(args[0], "1 (length)", 1, "cosine");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "cosine");
-        phase     = readDouble(args[2], "3 (phase)", "cosine");
-
-        Signal sig(static_cast<size_t>(length));
-        if (length == 0) return sig;
-
-        double value = std::cos(amplitude + phase);
-        for (int i = 0; i < length; ++i) {
-            sig.append(value, 0);
-        }
-        return sig;
+        phase     = readDouble(args[1], "2 (phase offset)", "cosine");
+        nPeriods  = readDouble(args[2], "3 (number of periods)", "cosine");
     }
+
+    if (nPeriods < 0.0) {
+        throw WaveformGeneratorValueException(
+            ErrorMessages::format(ArgMustBePositive,
+                                  "nPeriods", "cosine"), 3);
+    }
+
+    Signal sig(static_cast<size_t>(length));
+    if (length == 0) return sig;
+
+    double twoNPeriodsPi = 2.0 * nPeriods * M_PI;
+    double dLength = static_cast<double>(length);
+
+    for (int i = 0; i < length; ++i) {                                          // 0x24b560
+        double theta = static_cast<double>(i) * twoNPeriodsPi / dLength + phase;
+        sig.append(amplitude * std::cos(theta), 0);                              // 0x24b589
+    }
+    return sig;
 }
 // sinc(length, amplitude, position, beta) @0x24b6e0
 //   length:    int >= 1 (readPositiveInt)
@@ -432,8 +426,11 @@ Signal WaveformGenerator::ramp(std::vector<Value> const& args) {                
     }
     return sig;                                                                  // 0x24c6d6
 }
-// sawtooth(length, amplitude, phase[, nPeriods]) @0x24c8b0
+// sawtooth(length, amplitude, phase, nPeriods) @0x24c8b0
+// sawtooth(length, phase, nPeriods)            — amplitude defaults to 1.0
 //   Delegates to genericTriangle with riseRatio = 1.0.
+//   3-arg parameter binding (length, phase, nPeriods) verified against
+//   _seqc_compiler.so 0x24c8b0; see IF-234.
 Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {             // 0x24c8b0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -441,19 +438,21 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
                                   "sawtooth", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // 3-arg default
     int length;
-    double amplitude, phase;
+    double amplitude = 1.0;                                                       // 3-arg default
+    double phase;
+    double nPeriods;
 
     if (args.size() == 4) {
         length    = readPositiveInt(args[0], "1 (length)", 1, "sawtooth");       // 0x24ca67
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sawtooth");   // 0x24ccbb
-        phase     = readDouble(args[2], "3 (phase)", "sawtooth");                // 0x24cdd6
-        nPeriods  = readDouble(args[3], "4 (nPeriods)", "sawtooth");             // 0x24d0df
+        phase     = readDouble(args[2], "3 (phase offset)", "sawtooth");         // 0x24cdd6
+        nPeriods  = readDouble(args[3], "4 (number of periods)", "sawtooth");    // 0x24d0df
     } else {
+        // 3-arg path: sawtooth(length, phase, nPeriods); amplitude defaults to 1.0.
         length    = readPositiveInt(args[0], "1 (length)", 1, "sawtooth");       // 0x24cb93
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sawtooth");
-        phase     = readDouble(args[2], "3 (phase)", "sawtooth");
+        phase     = readDouble(args[1], "2 (phase offset)", "sawtooth");
+        nPeriods  = readDouble(args[2], "3 (number of periods)", "sawtooth");
     }
 
     // Validate nPeriods >= 0                                                    // 0x24d063
@@ -463,15 +462,13 @@ Signal WaveformGenerator::sawtooth(std::vector<Value> const& args) {            
                                   "nPeriods", "sawtooth"), 3);
     }
 
-    if (args.size() == 4) {
-        return genericTriangle(length, amplitude, nPeriods, 1.0, phase);         // 0x24d14e — 4-arg path
-    } else {
-        // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
-        return genericTriangle(length, nPeriods, phase, 1.0, amplitude);         // 0x24d14e — 3-arg path
-    }
+    return genericTriangle(length, amplitude, nPeriods, 1.0, phase);             // 0x24d14e
 }
-// triangle(length, amplitude, phase[, nPeriods]) @0x24d330
+// triangle(length, amplitude, phase, nPeriods) @0x24d330
+// triangle(length, phase, nPeriods)            — amplitude defaults to 1.0
 //   Delegates to genericTriangle with riseRatio = 0.5.
+//   3-arg parameter binding (length, phase, nPeriods) verified against
+//   _seqc_compiler.so 0x24d330; see IF-234.
 Signal WaveformGenerator::triangle(std::vector<Value> const& args) {             // 0x24d330
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -479,19 +476,21 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
                                   "triangle", 3, args.size()));
     }
 
-    double nPeriods = 1.0;                                                       // 3-arg default
     int length;
-    double amplitude, phase;
+    double amplitude = 1.0;                                                       // 3-arg default
+    double phase;
+    double nPeriods;
 
     if (args.size() == 4) {
         length    = readPositiveInt(args[0], "1 (length)", 1, "triangle");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "triangle");
-        phase     = readDouble(args[2], "3 (phase)", "triangle");
-        nPeriods  = readDouble(args[3], "4 (nPeriods)", "triangle");
+        phase     = readDouble(args[2], "3 (phase offset)", "triangle");
+        nPeriods  = readDouble(args[3], "4 (number of periods)", "triangle");
     } else {
+        // 3-arg path: triangle(length, phase, nPeriods); amplitude defaults to 1.0.
         length    = readPositiveInt(args[0], "1 (length)", 1, "triangle");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "triangle");
-        phase     = readDouble(args[2], "3 (phase)", "triangle");
+        phase     = readDouble(args[1], "2 (phase offset)", "triangle");
+        nPeriods  = readDouble(args[2], "3 (number of periods)", "triangle");
     }
 
     // Validate nPeriods >= 0                                                    // 0x24dae3
@@ -501,12 +500,7 @@ Signal WaveformGenerator::triangle(std::vector<Value> const& args) {            
                                   "nPeriods", "triangle"), 3);
     }
 
-    if (args.size() == 4) {
-        return genericTriangle(length, amplitude, nPeriods, 0.5, phase);         // 0x24dbce — 4-arg path
-    } else {
-        // 3-arg path: binary swaps amp↔nPeriods and phase↔phase in registers
-        return genericTriangle(length, nPeriods, phase, 0.5, amplitude);         // 0x24dbce — 3-arg path
-    }
+    return genericTriangle(length, amplitude, nPeriods, 0.5, phase);             // 0x24dbce
 }
 // drag(length, amplitude, position, sigma) @0x24e950
 // drag(length, position, sigma)            — amplitude defaults to 1.0

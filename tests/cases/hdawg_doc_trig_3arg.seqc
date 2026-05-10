@@ -1,0 +1,27 @@
+// Coverage for the 3-arg trig-family overloads, which the
+// reconstruction historically bound as (length, amplitude, phase) but
+// the binary actually binds as (length, phase, nPeriods) with
+// amplitude defaulted to 1.0.  See IF-234 (sin / cos / sawtooth /
+// triangle 3-arg parameter binding), parallel to IF-231 / IF-205.
+//
+// Each pair below exercises both arities of the same factory; the
+// 3-arg form must produce the same shape as the 4-arg form with
+// amplitude = 1.0.
+
+wave s3 = sine(64, 0.5, 2.0);            // length=64, phase=0.5, nPeriods=2
+wave s4 = sine(64, 1.0, 0.5, 2.0);       // length=64, amp=1.0, phase=0.5, nPeriods=2
+wave c3 = cosine(64, 0.25, 1.0);
+wave c4 = cosine(64, 1.0, 0.25, 1.0);
+wave w3 = sawtooth(64, 0.0, 1.5);
+wave w4 = sawtooth(64, 1.0, 0.0, 1.5);
+wave t3 = triangle(64, 0.125, 0.5);
+wave t4 = triangle(64, 1.0, 0.125, 0.5);
+
+playWave(s3);
+playWave(s4);
+playWave(c3);
+playWave(c4);
+playWave(w3);
+playWave(w4);
+playWave(t3);
+playWave(t4);

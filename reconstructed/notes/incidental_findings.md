@@ -5618,6 +5618,48 @@ one optional helpers, so the surface area for label drift is
 small; they will be re-audited in the brief-writing pass for
 each function.
 
+### Update (D-AUDIT-1 follow-up sweep, 2026-05-10)
+
+Audited the remaining 11 multi-arity factories
+(`gauss`, `sin`, `cos`, `sawtooth`, `triangle`, `drag`,
+`blackman`, `hamming`, `hann`, `vect`, `placeholder`).  Per-
+factory results:
+
+- **`gauss`** — clean (already fixed under IF-232).
+- **`drag`**, **`blackman`**, **`hamming`**, **`hann`**,
+  **`vect`** (dynamic `to_string(i+1)+" (waveform)"`),
+  **`placeholder`** — clean, no label drift.
+- **`sin`** (0x24a0f0), **`cos`** (0x24abd0),
+  **`sawtooth`** (0x24c8b0), **`triangle`** (0x24d330) —
+  promoted to **IF-234** (semantic 3-arg parameter-binding
+  bug, same shape as IF-231).  All four also had cosmetic
+  4-arg label drift (`"3 (phase)"` → `"3 (phase offset)"`,
+  `"4 (nPeriods)"` → `"4 (number of periods)"`); fixed in
+  the same edit.
+
+Audit method clarifications surfaced during this sweep
+(fold into `D-AUDIT-1` recipe in TODO.md):
+
+1. **Function end addresses**: derive from the `.text`
+   symbol-table size (`objdump -t | grep <symbol>`), NOT
+   from the next factory in a hand-curated list.  `cos`'s
+   nominal range overlaps `sinc`; naively slicing
+   `0x24abd0..0x24c8b0` picks up `sinc`'s call sites.
+2. **Long parameter labels (≥16 chars)**: the binary uses
+   `lea rip-rel + movupd %xmm0` (SSE2 packed-double load),
+   not `movups` as the original recipe suggested.  Match
+   `movup[sd]` (or just "16-byte SSE load from rip-rel
+   rodata") in audit scripts.
+3. **`objdump -d` rip-rel comments are unprefixed hex**
+   (`# 905dc8`, no `0x`).  Audit regexes expecting `0x`
+   after the comment marker silently miss them.
+4. **`objdump -s` packs hex bytes into ~16 four-byte
+   groups per line**.  A `(?:[0-9a-f]{2,8} ?){1,4}` cap on
+   the byte-group repetition truncates the dump.  Use
+   `{1,8}` or `+`.
+
+Audit complete for D-AUDIT-1.
+
 ## IF-231  `WaveformGenerator::rand` 3-arg overload had wrong parameter binding (semantic bug)
 
 **Severity**: likely-bug (semantic divergence; user-visible
@@ -5945,4 +5987,137 @@ a "fix" would diverge from the binary and could cause
 post-parse phases to short-circuit on parser-only errors
 that the binary intentionally lets fall through to the
 `parse()`-internal `CompilerException`.
+
+## IF-234  Trig-family 3-arg overloads (`sin`/`cos`/`sawtooth`/`triangle`) had wrong parameter binding (semantic bug)
+
+**Severity**: likely-bug (semantic divergence; user-visible
+sample values differ; analogous to IF-205 / IF-231).
+**Status**: fixed in D-AUDIT-1 follow-up
+(waveform_generator_dsp.cpp `sin`/`cos`/`sawtooth`/`triangle`
+3-arg paths).
+**Discovered**: D-AUDIT-1 sweep of remaining
+`WaveformGenerator` factories (per the IF-230 audit
+methodology) — disassembly of the four trig factories at
+0x24a0f0, 0x24abd0, 0x24c8b0, 0x24d330 shows only **one**
+`readDoubleAmplitude` call site per function (the 4-arg
+branch), and the 3-arg branch reads `args[1]` with label
+`"2 (phase offset)"` and `args[2]` with label
+`"3 (number of periods)"`.
+**GDB-verified**: 2026-05-10 with `sine(64, 0.5, 2.0)` /
+`cosine(64, 0.25, 1.0)` / `sawtooth(64, 0.0, 1.5)` /
+`triangle(64, 0.125, 0.5)` on HDAWG8 — for each call only
+two `readDouble` breakpoints fired (`*_phase` and `*_nper`),
+the corresponding `readDoubleAmplitude` breakpoint did not
+fire.  Subagent ran the trace; see session log.
+
+### Symptom (latent)
+
+The reconstruction implemented all four 3-arg overloads as
+`f(length, amplitude, phase)` with `nPeriods` defaulting to
+1.0:
+
+```cpp
+} else {  // 3 args   (recon, before fix — sin/cos)
+    length    = readPositiveInt(args[0], "1 (length)", 1, "sine");
+    amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sine");
+    phase     = readDouble(args[2], "3 (phase)", "sine");
+    // pre-fix sin/cos then collapsed to a constant waveform:
+    double value = std::sin(amplitude + phase);
+    /* fill all samples with `value` */
+}
+```
+
+For `sawtooth`/`triangle` the recon dispatched
+`genericTriangle(length, nPeriods, phase, riseRatio,
+amplitude)` after a register-shuffle rationalisation comment
+*"binary swaps amp↔nPeriods and phase↔phase in registers"*.
+
+The binary's 3-arg path is actually
+`f(length, phase, nPeriods)` with `amplitude` defaulting to
+1.0 — the **second** argument, not the third or fourth, is
+the one that defaults.  This is the same pattern as IF-205
+for `randomGauss` (fixed earlier) and IF-231 for `rand`
+(fixed in D4 Batch 6c).  All four trig 3-arg forms slipped
+through because no test exercised the 3-arg overload with
+values that would diverge from the wrong-binding output.
+
+### Binary evidence
+
+For each of the four factories, the call-site map between
+function entry and the next factory shows exactly:
+
+| reader                | label                      | branch            |
+|-----------------------|----------------------------|-------------------|
+| `readPositiveInt`     | `"1 (length)"`             | 4-arg             |
+| `readPositiveInt`     | `"1 (length)"`             | 3-arg             |
+| `readDoubleAmplitude` | `"2 (amplitude)"`          | 4-arg only        |
+| `readDouble`          | `"2 (phase offset)"`       | 3-arg             |
+| `readDouble`          | `"3 (phase offset)"`       | 4-arg             |
+| `readDouble`          | `"3 (number of periods)"`  | 3-arg             |
+| `readDouble`          | `"4 (number of periods)"`  | 4-arg             |
+
+The single `readDoubleAmplitude` call site per function
+confirms that only the 4-arg path reads amplitude from the
+user; the 3-arg path loads the rodata constant 1.0 into the
+amplitude slot.  Per-factory call-site addresses:
+
+- `sin`  @ 0x24a0f0 — `readDoubleAmplitude` @ 0x24a4f3 (4-arg only).
+- `cos`  @ 0x24abd0 — `readDoubleAmplitude` @ 0x24aff3 (4-arg only).
+- `sawtooth` @ 0x24c8b0 — `readDoubleAmplitude` @ 0x24ccbb (4-arg only).
+- `triangle` @ 0x24d330 — `readDoubleAmplitude` @ 0x24d758 (4-arg only).
+
+The long parameter labels `"2 (phase offset)"` and
+`"3 (number of periods)"` exceed the inline-`movabs` 8-byte
+window and are loaded from rodata via
+`movupd 0x6bb7??(%rip),%xmm0` (e.g. `sin` 3-arg phase-offset
+label resolves to rodata @ 0x905d93 = `"2 (phase offset)"`
+verified with `objdump -s --start-address=0x905d93
+--stop-address=0x905da3`).
+
+### Fix
+
+For each of `sin`, `cos`, `sawtooth`, `triangle`:
+
+1. Default `amplitude = 1.0` and read `phase`/`nPeriods` in
+   the 3-arg branch (same `readDouble` calls the binary
+   makes).  Remove the constant-waveform collapse special
+   case in `sin`/`cos` — the 3-arg path now drives the same
+   loop as the 4-arg path.  Remove the
+   "binary swaps amp↔nPeriods and phase↔phase in registers"
+   comment in `sawtooth`/`triangle` and the trailing
+   single-`if`/`else` `genericTriangle` dispatch — there is
+   only one dispatch now (4-arg shape).
+2. Update the 4-arg label strings from `"3 (phase)"` /
+   `"4 (nPeriods)"` to the binary-faithful
+   `"3 (phase offset)"` / `"4 (number of periods)"`.
+3. Update the 3-arg label strings to
+   `"2 (phase offset)"` / `"3 (number of periods)"`.
+
+Added a new test case `trig_3arg`
+(`hdawg_doc_trig_3arg.seqc`, registered in
+`manifest-documentation.json`) that exercises both arities
+of all four factories.  Each pair (`sine(64, 0.5, 2.0)` vs
+`sine(64, 1.0, 0.5, 2.0)`, etc.) produces byte-identical
+waveforms vs the binary post-fix.
+
+### Why IF-205 / IF-231 didn't catch this
+
+IF-205 (`randomGauss`) and IF-231 (`rand`) were each
+discovered by their own coverage round.  The trig family
+shares the same binary-side pattern (one
+`readDoubleAmplitude` site, amplitude defaulted in 3-arg)
+but has a much larger surface (four functions instead of
+one).  A systematic audit of all multi-arity factories'
+3-arg call-site counts at the time of IF-205 would have
+caught all of these — that audit is now D-AUDIT-1 and is
+the work item this fix completes.
+
+### Coverage gap closed
+
+`hdawg_doc_trig_3arg.seqc` (added with this fix) is the
+first test case that exercises the 3-arg overloads of
+`sine`, `cosine`, `sawtooth`, and `triangle` in a way that
+distinguishes `(length, phase, nPeriods)` from
+`(length, amplitude, phase)`.  Prior to it, only the 4-arg
+forms were covered.
 

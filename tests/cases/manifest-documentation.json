@@ -148,6 +148,10 @@
                   "file": "hdawg_doc_random_waves_3arg.seqc"
                 },
                 {
+                  "name": "trig_3arg",
+                  "file": "hdawg_doc_trig_3arg.seqc"
+                },
+                {
                   "name": "cosine_ramp",
                   "file": "hdawg_doc_cosine_ramp.seqc"
                 },
