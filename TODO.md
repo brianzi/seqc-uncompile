@@ -86,6 +86,9 @@ cross-reference pages so the backlog is discoverable.
           for factory dtors hidden behind `ZHINST_DECLARE_FACTORY` macro
           and for `SeqCDeclList::decls` / `SeqCStmtList::stmts` field
           briefs whose underlying fields no longer exist
+        - 147 warnings total (prior "1441" figure was the log line
+          count, not the warning count — multi-line "Possible
+          candidates" listings inflate the line total)
         - Decide per group: rewrite the brief location, drop the brief,
           or suppress with a Doxygen pragma
   - [ ] **IF-207 fix**: swap `MESSAGE`/`ERROR_MSG` values in the banner

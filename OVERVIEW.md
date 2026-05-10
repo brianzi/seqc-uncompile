@@ -494,7 +494,7 @@ mainpage.
   banner comment) and IF-208 (misleading `useDA` field name in
   `PrefetcherNodeState`); both promoted to D3 cleanup items.
 - `WARN_IF_UNDOCUMENTED = YES` in `Doxyfile.in` from D2 wrap-up
-  onward.  The 1441 entries in `build/docs/doxygen-warnings.log`
+  onward.  The 147 warnings in `build/docs/doxygen-warnings.log`
   are all parser cross-reference issues (overload mismatches on
   `evaluate(...)` overrides + macro-hidden factory dtors), not
   undocumented-symbol coverage gaps.  These are tracked under D3.
