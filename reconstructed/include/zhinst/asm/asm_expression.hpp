@@ -91,11 +91,12 @@ class AsmParserContext;
 class Assembler;
 
 // AsmExprType — expression node type discriminator (A2)
+//! \brief Tag selecting which payload an `AsmExpression` carries.
 enum class AsmExprType : int32_t {
-    Container = 0,   // arglist / container node
-    Register  = 1,   // register reference
-    Label     = 2,   // label / name
-    Integer   = 3,   // integer value
+    Container = 0,   //!< Operand-list / container node holding child expressions.
+    Register  = 1,   //!< Register reference; register number is in `value`.
+    Label     = 2,   //!< Label or command-name token; identifier is in `name`.
+    Integer   = 3,   //!< Integer immediate; numeric value is in `value`.
 };
 
 // sizeof = 0xa8 (168 bytes)
@@ -124,22 +125,22 @@ enum class AsmExprType : int32_t {
 //! `addNode` from text following `#` on the line and is interpreted
 //! as JSON only when the consumer is `parseStringToAsmList`.
 struct AsmExpression {
-    AsmExprType type;       // +0x00  AsmExprType: Container=0, Register=1, Label=2, Integer=3
+    AsmExprType type;       //!< Discriminator for which payload fields are meaningful.
     // 4 bytes padding       // +0x04
-    std::string name;       // +0x08  command/register/label name
-    std::string nopComment;       // +0x20  secondary string (NOP comment text)
-    uint32_t command;       // +0x38  Assembler::Command enum value
-    int32_t value;          // +0x3C  integer value / register number / PC
-    std::vector<std::shared_ptr<AsmExpression>> children;  // +0x40
-    int32_t labelIndex;     // +0x58  label index/pc/counter (see header comment)
+    std::string name;       //!< Command, register, or label identifier text.
+    std::string nopComment;       //!< Secondary string used for NOP marker comment text.
+    uint32_t command;       //!< Resolved `Assembler::Command` opcode (`INVALID` until set by `addCommand`).
+    int32_t value;          //!< Integer immediate (type=Integer), register number (type=Register), or PC for command nodes.
+    std::vector<std::shared_ptr<AsmExpression>> children;  //!< Child expressions; populated for Container nodes by `createArgList` / `appendArgList`.
+    int32_t labelIndex;     //!< Label PC value attached by `addCommand` (also called `labelPc` at some call sites).
     // 4 bytes padding       // +0x5C
-    std::string labelName;  // +0x60  label name string
-    bool hasLabel;          // +0x78  true if label data present
+    std::string labelName;  //!< Label identifier when `hasLabel` is true.
+    bool hasLabel;          //!< True when `labelIndex` and `labelName` carry valid label data.
     // 7 bytes padding       // +0x79
-    std::string comment;    // +0x80  comment / JSON blob string
-    bool hasComment;        // +0x98  true if comment present ("noOpt" flag)
+    std::string comment;    //!< Trailing `#`-prefixed comment text; treated as JSON metadata by `parseStringToAsmList`.
+    bool hasComment;        //!< True when `comment` is populated; aliased as `noOpt` at some call sites.
     // 7 bytes padding       // +0x99
-    bool noOptOverride_;          // +0xA0  noOpt override flag
+    bool noOptOverride_;          //!< When true, forces `noOpt` on the resulting `AsmList::Asm` entry regardless of `hasComment`.
     // 7 bytes padding       // +0xA1 to 0xA8
 
     // Accessor aliases (forwarding methods, NOT separate storage —
@@ -148,36 +149,95 @@ struct AsmExpression {
     //   labelPc      → labelIndex (+0x58) — positive evidence, kept
     //   noOpt        → hasComment (+0x98)
     //   lineNumber, labelType → dropped (Cluster E); callers use labelIndex, hasLabel directly
+    //! \brief Mutable alias for `labelIndex`, named to match call
+    //! sites that treat the field as a program-counter slot.
+    //! \return Reference to the underlying `labelIndex` storage.
     int32_t&       labelPc()           { return labelIndex; }
+    //! \brief Read-only alias for `labelIndex`, named to match call
+    //! sites that treat the field as a program-counter slot.
+    //! \return Current `labelIndex` value.
     int32_t        labelPc()    const  { return labelIndex; }
+    //! \brief Mutable alias for `hasComment`, named to match call
+    //! sites that treat the field as the per-instruction `noOpt`
+    //! flag.
+    //! \return Reference to the underlying `hasComment` storage.
     bool&          noOpt()             { return hasComment; }
+    //! \brief Read-only alias for `hasComment`, named to match call
+    //! sites that treat the field as the per-instruction `noOpt`
+    //! flag.
+    //! \return Current `hasComment` value.
     bool           noOpt()      const  { return hasComment; }
 
+    //! \brief Releases all owned strings and child expressions.
+    //! \details Destruction order mirrors the binary: the optional
+    //! `comment` and `labelName` strings are released only when
+    //! their `hasComment` / `hasLabel` guards are set, then the
+    //! `children` vector releases its `shared_ptr`s, followed by
+    //! `nopComment` and `name`.
     ~AsmExpression();       // 0x28b1f0
 };
 
 // ---- Factory free functions (called by flex/bison parser actions) ----
 
 // Allocate an AsmExpression with type=Integer and the given integer value.
+//! \brief Allocates an integer-immediate `AsmExpression`.
+//! \param value Integer value to store in the new expression's
+//! `value` field.
+//! \return Heap-allocated `AsmExpression` with `type = Integer`.
 AsmExpression* createValue(int value);                          // 0x28bb90
 
 // Allocate an AsmExpression with type=Register and the given register number.
+//! \brief Allocates a register-reference `AsmExpression`.
+//! \param regNum Register index to store in the new expression's
+//! `value` field.
+//! \return Heap-allocated `AsmExpression` with `type = Register`.
 AsmExpression* createRegister(int regNum);                      // 0x28bbf0
 
 // Allocate an AsmExpression with type=Label and name from the C string.
 // Returns nullptr if the input string is empty.
+//! \brief Allocates a label/name-token `AsmExpression`.
+//! \param name C string copied into the new expression's `name`
+//! field.
+//! \return Heap-allocated `AsmExpression` with `type = Label`, or
+//! `nullptr` when `name` is empty.
 AsmExpression* createName(const char* name);                    // 0x28bc50
 
 // Allocate a new container AsmExpression (type=Container) and push `first`
 // as the first child (wrapped in shared_ptr).
+//! \brief Allocates a container `AsmExpression` and seeds it with
+//! one child.
+//! \details `first` is wrapped in a `std::shared_ptr` and pushed
+//! into the container's `children` vector; the container takes
+//! ownership of the raw pointer.
+//! \param first Child expression to adopt; may be null to create
+//! an empty container.
+//! \return Heap-allocated container expression.
 AsmExpression* createArgList(AsmExpression* first);             // 0x28bdc0
 
 // Append `child` to `list`'s children vector (wrapped in shared_ptr).
 // If `list` is null, allocates a fresh container first.
+//! \brief Appends one child to a container `AsmExpression`,
+//! allocating the container on demand.
+//! \details `child` is wrapped in a `std::shared_ptr` and pushed
+//! into `list->children`; ownership transfers to the container.
+//! When `list` is null a fresh container is allocated first; when
+//! `child` is null only the container is returned.
+//! \param list Container expression to extend; may be null.
+//! \param child Child expression to adopt; may be null.
+//! \return The extended (or newly allocated) container expression.
 AsmExpression* appendArgList(AsmExpression* list,
                              AsmExpression* child);             // 0x28bec0
 
 // Stringify an AsmExpression tree (for debug/serialization).
+//! \brief Renders an `AsmExpression` tree as a debug/disassembly
+//! string.
+//! \param expr Root expression to stringify; must be non-null.
+//! \return Human-readable representation of the tree.
+//! \verifyme Hypothesis: this function mirrors the textual form
+//! consumed by `Assembler::commandFromString` and the operand
+//! parsers, but the implementation is not present in the
+//! reconstructed sources and the address `0x28cd20` has not been
+//! re-checked against the latest binary.
 std::string str(const std::shared_ptr<AsmExpression>& expr);    // 0x28cd20
 
 }  // namespace zhinst

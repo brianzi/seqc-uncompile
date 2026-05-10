@@ -6174,3 +6174,70 @@ hypothesis (rather than from confirmed disassembly), tag
 the declaration with `\verifyme` from the outset so it
 surfaces on the backlog page and does not silently age
 into orphan state.
+
+## IF-236  `str(shared_ptr<AsmExpression>)` declared but never reconstructed
+
+**Severity**: medium (missing reconstruction; live binary symbol)
+**Status**: confirmed
+**Source**: `reconstructed/include/zhinst/asm/asm_expression.hpp:241`
+**Binary symbol**: `_ZN6zhinst3strERKNSt3__110shared_ptrINS_13AsmExpressionEEE` at `0x28cd20`, size `0x55d` (1373 bytes), hidden visibility.
+
+### Observation
+
+The free function
+
+```cpp
+std::string str(const std::shared_ptr<AsmExpression>& expr);   // 0x28cd20
+```
+
+is declared in `asm_expression.hpp` but has no body anywhere in
+`reconstructed/src/`.  Unlike IF-235 (which is a placeholder
+declaration with no binary counterpart), this one **does**
+correspond to a real symbol in `_seqc_compiler.so`:
+
+```
+000000000028cd20 l F .text 000000000000055d
+  .hidden _ZN6zhinst3strERKNSt3__110shared_ptrINS_13AsmExpressionEEE
+```
+
+The function body uses an `ostringstream` (visible from the
+`basic_ostringstream::basic_ostringstream` call at `0x28cd45`)
+and is ~1.4 KB of disassembly, suggesting a recursive walk over
+the `AsmExpression` tree producing a textual rendering — the
+inverse of `Assembler::commandFromString`.
+
+No call site in the reconstructed sources references this
+declaration, which is why the static-archive link tolerates the
+missing body.  In the original binary, the symbol is presumably
+called from one of the assembler-debug paths (`Assembler::str`
+verbose mode, debug logging, error diagnostics).
+
+### Hypothesis
+
+`str(shared_ptr<AsmExpression>)` is the textual-form
+serialiser used by:
+  * `Assembler::str(verbose=true)` to render the parsed program.
+  * Diagnostic / error-message construction in
+    `Assembler::commandFromString` and friends.
+  * Possibly the AsmParserContext's syntax-error reporting path.
+
+The 1.4 KB body is consistent with a switch over
+`AsmExpression::Type` (Integer, Register, Name, Operation,
+ShiftedOperation, etc.) recursively descending into the
+`children` vector and emitting separators / operators
+appropriate to the expression family.
+
+### Action
+
+Tagged the declaration with `\verifyme` so it surfaces on the
+backlog page (subagent in D5-5 caught the gap during brief
+sweep).  Reconstruction of the body is appropriate D-class
+work but not blocking — no test exercises this path.
+
+### Lesson
+
+Missing reconstructions of live binary symbols can hide for
+arbitrarily long when no caller exists in the recon tree.
+The doc-coverage sweep is a useful secondary detector for
+these gaps because every undocumented symbol forces the
+agent to look for a body to verify against.
