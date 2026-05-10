@@ -24,6 +24,7 @@
 #include <boost/algorithm/string/replace.hpp>
 #include "zhinst/asm/asm_optimize.hpp"
 #include "zhinst/waveform/wavetable_ir.hpp"
+#include "zhinst/waveform/wavetable_front.hpp"
 #include "zhinst/codegen/prefetch.hpp"
 #include "zhinst/asm/address_impl.hpp"
 #include "zhinst/codegen/awg_compiler_config.hpp"
@@ -641,9 +642,8 @@ void Compiler::runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
 
 // 0x123480
 void Compiler::setCancelCallback(std::weak_ptr<CancelCallback> cb) {
-    cancelCallback_ = std::move(cb);
-    // Also propagates to sub-object at *(this+0xC0)+0xB0
-    // (likely WaveformGenerator's cancel callback)
+    cancelCallback_ = cb;                                         // @0x12349e-1234b1
+    waveformGen_->setCancelCallback(std::move(cb));               // @0x1234b6-1234e7
 }
 
 // 0x123510
@@ -689,9 +689,9 @@ std::vector<CompilerMessage> Compiler::getCompileMessages() const {
 
 // 0x123640
 void Compiler::setLineNr(int nr) {
-    lineNr_ = nr;
-    // Propagate to AsmCommands at *(this+0xB0)+0x50
-    // Also tail-calls WavetableFront::setLineNr on *(this+0xA0)
+    lineNr_ = nr;                                                 // @0x123644
+    asmCommands_->setWavetableFrontIndex(nr);                     // @0x12364e
+    wavetable_->setLineNr(nr);                                    // @0x123659 (tail call)
 }
 
 // 0x123660

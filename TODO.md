@@ -129,8 +129,13 @@ cross-reference pages so the backlog is discoverable.
         and `runPrefetcher` were already done in D3 Batch 1.  Surfaced
         IF-209 (`setLineNr` missing AsmCommands + WavetableFront
         propagation) and IF-210 (`setCancelCallback` missing
-        WaveformGenerator propagation); both flagged on the docs via
-        `\verifyme`.
+        WaveformGenerator propagation); both **GDB-confirmed and
+        fixed** in the same batch — `Compiler::setLineNr` now also
+        calls `asmCommands_->setWavetableFrontIndex(nr)` and tail-
+        calls `wavetable_->setLineNr(nr)`; `Compiler::setCancelCallback`
+        now propagates the `weak_ptr` into
+        `waveformGen_->cancelCallback_` (previously mislabelled
+        `reserved_B0_`).
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

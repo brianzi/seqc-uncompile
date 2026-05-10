@@ -4290,7 +4290,7 @@ gating) rather than by the misleading name.
 ## IF-209  `Compiler::setLineNr` recon body missing AsmCommands + WavetableFront propagation
 
 **Severity**: medium (functional gap, not just cosmetic).
-**Status**: open.
+**Status**: GDB-confirmed and fixed in D4 Batch 1 follow-up.
 **Discovered**: D4 Batch 1 audit, while writing `\brief` for the
 six-line getters/setters cluster on `Compiler`.
 
@@ -4332,6 +4332,26 @@ exercises.  Then either extend the recon body to include the
 propagation, or downgrade IF-209 to "by-design" with a `\binarynote`
 on `setLineNr`.
 
+**Resolution**: `objdump -d _seqc_compiler.so` on
+`_ZN6zhinst8Compiler9setLineNrEi` confirms the binary unconditionally
+performs all three writes:
+
+```
+123640: push rbp; mov rbp, rsp
+123644: mov [rdi+0x10], esi          ; lineNr_ = nr
+123647: mov rax, [rdi+0xb0]          ; rax = asmCommands_.ptr_
+12364e: mov [rax+0x50], esi          ; asmCommands_->wavetableFrontIndex_ = nr
+123651: mov rdi, [rdi+0xa0]          ; rdi = wavetable_.ptr_
+123658: pop rbp
+123659: jmp WavetableFront::setLineNr ; tail call
+```
+
+`asmCommands_->wavetableFrontIndex_` already had a public setter
+(`AsmCommands::setWavetableFrontIndex`); the recon body was extended
+to call it and then `wavetable_->setLineNr(nr)`.  See
+`reconstructed/src/codegen/compiler.cpp:691-695` and the `\details`
+brief on `Compiler::setLineNr`.
+
 Doc-batch mitigation: the `\brief` for `Compiler::setLineNr`
 describes the *current* recon behaviour (sets `lineNr_`) and does not
 promise propagation to `AsmCommands` or `WavetableFront`.  Adds a
@@ -4341,7 +4361,7 @@ known gap.
 ## IF-210  `Compiler::setCancelCallback` recon body missing WaveformGenerator propagation
 
 **Severity**: low (functional gap, but cancellation is best-effort).
-**Status**: open.
+**Status**: GDB-confirmed and fixed in D4 Batch 1 follow-up.
 **Discovered**: D4 Batch 1 audit, alongside IF-209.
 
 The reconstructed body of `Compiler::setCancelCallback` in
@@ -4372,6 +4392,31 @@ mid-compile.
 `waveformGen_->cancelCallback_` here, then either extend the recon
 body and add the field to `WaveformGenerator`, or downgrade IF-210
 to "by-design" with a `\binarynote`.
+
+**Resolution**: `objdump -d _seqc_compiler.so` on
+`_ZN6zhinst8Compiler17setCancelCallbackENSt3__18weak_ptrINS_14CancelCallbackEEE`
+confirms the binary unconditionally performs both writes: the local
+`cancelCallback_` store at `+0xE0`, then a 16-byte
+`movups xmm0, [rax+0xb0]` where `rax = *(this+0xc0) =
+waveformGen_.ptr_`.  The existing `reserved_B0_` member was
+mislabelled — it is a real `weak_ptr<CancelCallback>` slot used by
+this propagation path.  Fixes:
+
+- `reconstructed/include/zhinst/waveform/waveform_generator.hpp`:
+  rename `reserved_B0_` → `cancelCallback_`, retype to
+  `weak_ptr<CancelCallback>`, add a `setCancelCallback` setter and a
+  `CancelCallback` forward declaration.
+- `reconstructed/src/waveform/waveform_generator.cpp`: update the
+  member-initialiser list to use the new name.
+- `reconstructed/src/codegen/compiler.cpp:643-647`: extend
+  `Compiler::setCancelCallback` to call
+  `waveformGen_->setCancelCallback(std::move(cb))` after the local
+  store.
+
+`WaveformGenerator` itself still has no reader for the slot; the
+field is propagated for forward compatibility (a future cooperative-
+cancellation point inside an expensive waveform builder will be able
+to poll the same hook the outer pipeline polls).
 
 Doc-batch mitigation: the `\brief` for `Compiler::setCancelCallback`
 describes only the `cancelCallback_` store and adds a `\verifyme`

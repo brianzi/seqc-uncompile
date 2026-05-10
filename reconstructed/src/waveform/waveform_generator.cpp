@@ -109,7 +109,7 @@ WaveformGenerator::WaveformGenerator(
     , wavetableFront_(std::move(wavetableFront))
     , pad_78_(0)
     , warningCallback_(warningCallback)
-    , reserved_B0_()
+    , cancelCallback_()
 {
     using namespace std::placeholders;
 

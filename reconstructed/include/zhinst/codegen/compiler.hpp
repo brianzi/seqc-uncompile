@@ -469,19 +469,16 @@ public:
     /*! \brief Install a `CancelCallback` that the compiler will poll at
      *  long-running cooperative cancellation points.
      *
-     *  \details Stores `cb` into the `cancelCallback_` `weak_ptr`.
-     *  `AsmOptimize` and `Prefetch` poll this `weak_ptr` at their
-     *  cooperative checkpoints; on a positive cancellation answer
-     *  they raise an exception that propagates back out of
-     *  `compile()`.  The previous callback (if any) is overwritten
-     *  unconditionally; passing an empty `weak_ptr` therefore detaches
-     *  cancellation polling.
-     *
-     *  \verifyme  IF-210: the binary is suspected to additionally
-     *  propagate `cb` into `waveformGen_->cancelCallback_` (offset
-     *  `+0xB0` within `WaveformGenerator`).  The reconstructed body
-     *  performs only the local store; no current test exercises the
-     *  cancel path so the gap is invisible to differential testing.
+     *  \details Stores `cb` into `cancelCallback_` and propagates the
+     *  same `weak_ptr` into `waveformGen_->cancelCallback_` (so that
+     *  expensive waveform builders may eventually poll the same
+     *  hook).  `AsmOptimize` and `Prefetch` already poll
+     *  `cancelCallback_` at their cooperative checkpoints; on a
+     *  positive cancellation answer they raise an exception that
+     *  propagates back out of `compile()`.  The previous callback (if
+     *  any) is overwritten unconditionally; passing an empty
+     *  `weak_ptr` therefore detaches cancellation polling on both
+     *  this `Compiler` and its `WaveformGenerator`.
      *
      *  \param cb  Weak handle to the user-installed cancel hook.  May
      *             be empty to detach.
@@ -605,20 +602,14 @@ public:
     /*! \brief Set the current source-line number used to annotate
      *  subsequently-emitted assembly entries.
      *
-     *  \details Writes `nr` into `lineNr_`.  The recon body performs
-     *  only the local field write; downstream phases that need to
-     *  resolve a current line either read `lineNr_` directly through
-     *  the `Compiler` reference or carry their own copy that the
-     *  pipeline updates separately.
-     *
-     *  \verifyme  IF-209: the binary additionally propagates `nr` to
-     *  `asmCommands_` (offset `+0x50` within `AsmCommands`) and tail-
-     *  calls `WavetableFront::setLineNr` on `wavetable_`.  The recon
-     *  body is missing both writes; no current differential test
-     *  exercises a code path that observes the divergence, so the
-     *  gap is invisible to test runs but should be confirmed and
-     *  closed before adding any test that calls `setLineNr` between
-     *  pipeline phases.
+     *  \details Writes `nr` into three places, in order:
+     *   1.  `lineNr_` (this `Compiler`).
+     *   2.  `asmCommands_->setWavetableFrontIndex(nr)` — every
+     *       subsequent assembly entry produced through `AsmCommands`
+     *       reads this for its `lineNumber` field.
+     *   3.  `wavetable_->setLineNr(nr)` (tail call) — `WavetableFront`
+     *       caches the value as `manager_->numDefs_` so newly-created
+     *       waveform records carry the same line annotation.
      *
      *  \param nr  One-based source line to associate with the next
      *             assembly entries.

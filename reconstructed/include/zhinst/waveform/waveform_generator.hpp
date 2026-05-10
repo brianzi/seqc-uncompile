@@ -39,6 +39,7 @@ namespace zhinst {
 class WavetableFront;
 class WaveformFront;
 class EvalResults;
+class CancelCallback;
 
 // ============================================================================
 // Exception classes
@@ -96,24 +97,22 @@ private:
 //   +0x68  shared_ptr<WavetableFront>                                     wavetableFront_
 //   +0x78  (8 bytes padding/unknown)
 //   +0x80  function<void(string const&)>                                  warningCallback_
-//   +0xB0  shared_ptr<void>                                               field_B0_ (zero-initialized in ctor; NO SETTER FOUND in binary)
+//   +0xB0  weak_ptr<CancelCallback>                                       cancelCallback_ (set by Compiler::setCancelCallback @0x1234db)
 //   +0xC0  END
 //
 // Layout verified: ctor allocates via `__shared_ptr_emplace<WaveformGenerator>`
 // at 0x11d1b0 with `operator new(0xe0)`; subtract the 0x20-byte control
 // block prefix → 0xC0 bytes for the WaveformGenerator body itself.
 //
-// `field_B0_`: zero-initialized in the ctor at 0x2482aa via
-// `xorps xmm0; movaps [rbx+0xb0], xmm0`, but  investigation
-// found NO instruction in the binary that writes to a WaveformGenerator
-// instance's +0xB0/+0xB8 offsets. Earlier `+0xB0` read sightings inside
-// WaveformGenerator methods were misattributed: those reads target the
-// union body of `Value` parameter objects (which have a tag at +0xA8 and
-// a 16-byte union storage at +0xB0), not the WaveformGenerator `this`.
-// The slot is therefore reserved-but-unused — likely a feature that was
-// compiled out, or a hook that an external API was supposed to install
-// but the dynamic loader never reaches that code path. Kept in the layout
-// for byte-fidelity.
+// `cancelCallback_`: zero-initialized in the ctor at 0x2482aa via
+// `xorps xmm0; movaps [rbx+0xb0], xmm0`. Written by
+// `Compiler::setCancelCallback` (binary @0x123480) which copies the
+// `weak_ptr<CancelCallback>` argument here in addition to its own
+// `cancelCallback_` field.  No reader has been identified yet inside
+// `WaveformGenerator` — the slot exists so that a future cooperative-
+// cancellation point inside a long-running waveform generator (e.g. a
+// large `chirp` or `sinc` allocation) can poll the same callback the
+// outer pipeline polls.  See IF-210.
 //
 // The funcMap_ maps function names (e.g. "zeros", "sin") to bound member
 // function pointers.  aliasMap_ maps deprecated names to current names;
@@ -143,6 +142,25 @@ public:
 
     // --- Public API ---
     bool functionExists(std::string const& name) const;                                  // 0x25bc60
+
+    /*! \brief Install the cancellation hook that long-running waveform
+     *  generators may consult.
+     *
+     *  \details Stores `cb` into `cancelCallback_` (offset `+0xB0`).
+     *  Currently no `WaveformGenerator` member function actually polls
+     *  this slot — the writer is `Compiler::setCancelCallback`, which
+     *  propagates the same `weak_ptr` it stores into its own
+     *  `cancelCallback_`.  The slot exists so that a future
+     *  cooperative-cancellation point inside an expensive waveform
+     *  builder (e.g. `chirp`, `sinc`, large `cut`) can poll the
+     *  callback without re-routing through `Compiler`.
+     *
+     *  \param cb  Weak handle to the user-installed cancel hook.  May
+     *             be empty to detach.
+     */
+    void setCancelCallback(std::weak_ptr<CancelCallback> cb) {
+        cancelCallback_ = std::move(cb);
+    }
 
     // getOrCreateWaveform — caches waveforms by name; calls factory if not present.
     // If `name` is already in createdNames_ (+0x50 set), look up via
@@ -349,8 +367,11 @@ private:
     // +0x80: Warning callback (invoked for deprecated function aliases)
     std::function<void(std::string const&)>                  warningCallback_;   // +0x80
 
-    // +0xB0: Dead/vestigial shared_ptr — no setter exists in binary
-    std::shared_ptr<void>                                    reserved_B0_;       // +0xB0
+    // +0xB0: Cancellation hook propagated by Compiler::setCancelCallback.
+    // No reader inside WaveformGenerator has been identified yet; the
+    // slot exists to let a future cooperative-cancellation point poll
+    // the callback without re-routing through Compiler. See IF-210.
+    std::weak_ptr<CancelCallback>                            cancelCallback_;    // +0xB0
 };
 
 } // namespace zhinst
