@@ -353,6 +353,22 @@ std::string escapeStringForMatlab(std::string s) {  // @0x2f9110
 // If the range contains 'x' or 'X', parses the remainder as hexadecimal;
 // otherwise parses as decimal. Uses std::istringstream.
 // ---------------------------------------------------------------------------
+//! \brief Decode the digit payload of an XML numeric character
+//!        reference (`&#NNN;` or `&#xNNN;`) to its integer codepoint.
+//!
+//! \details The iterator range `[begin, end)` must span just the digit
+//! portion of the escape — i.e. the characters between `&#` and the
+//! terminating `;` (the leading `x`/`X` of a hexadecimal reference may
+//! still be present and is detected and skipped).  Parsing uses
+//! `std::istringstream` with either `std::hex` or `std::dec` and stops
+//! at the first non-digit, so malformed input silently yields `0`
+//! rather than throwing.  Named entities such as `&amp;`, `&lt;` and
+//! `&quot;` are handled elsewhere; this helper only resolves the
+//! numeric form.
+//!
+//! \param begin Iterator to the first character of the digit payload.
+//! \param end   Iterator one past the last character of the payload.
+//! \return Decoded Unicode codepoint as `int`; `0` on malformed input.
 int xmlEscapeSeqToInt(std::string::const_iterator begin,
                       std::string::const_iterator end) {  // @0x2fc280
     // @0x2fc2c0: search for 'x' or 'X' in range

@@ -44,6 +44,17 @@ namespace zhinst {
 // Values 16384+ are API/device error codes (used by getApiErrorMessage).
 // Gaps: 46, 52 are unassigned.
 // ============================================================================
+//! \brief Enumerator of every diagnostic identifier emitted by the SeqC
+//!        compiler and surfaced by the LabOne API/firmware layers.
+//!
+//! \details Acts as the key for `ErrorMessages::messages`, the table of
+//! Boost.Format pattern strings used to render user-facing diagnostics.
+//! The value space is partitioned by origin: low ids (0–254) name SeqC
+//! compiler errors and warnings, while four high-id ranges (16384–16389,
+//! 32768–32800, 36864–36877) name general status, LabOne API, and
+//! device-firmware codes consumed by `getApiErrorMessage()`.  A handful
+//! of source-compatibility aliases (`InvalidRegister`, `ValueOverflow`,
+//! `UnsupportedOp`) share values with their canonical counterparts.
 enum ErrorMessageT : int {
     // --- Assembler errors (0–11) ---
     CmdWithoutRegister          = 0,   // "%1% command without valid register"

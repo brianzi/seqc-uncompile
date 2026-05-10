@@ -24,19 +24,45 @@
 namespace zhinst {
 
 // Optimization pass flag bits for AsmOptimize::optFlags_ (A5)
+//! \brief Bitmask flags selecting which optimisation passes
+//!        `AsmOptimize` runs during `optimizePreWaveform` and
+//!        `optimizePostWaveform`.
+//!
+//! Stored OR'd together in `AsmOptimize::optFlags_`. Each bit gates
+//! one pass independently; clearing every bit disables all
+//! optimisation while still draining user diagnostics through
+//! `reportUserMessages`.
 enum OptPassFlag : uint32_t {
+    //! Enable `oneStepJumpElimination`: drop branches whose target is the immediate next reachable instruction.
     Opt_JumpElim     = 0x01,   // oneStepJumpElimination
+    //! Enable `removeUnusedLabels` followed by `mergeLabels`: prune labels with no referencing branch and coalesce adjacent labels.
     Opt_LabelCleanup = 0x02,   // removeUnusedLabels + mergeLabels
+    //! Enable `deadCodeElimination`: mark instructions unreachable after an unconditional transfer dead.
     Opt_DeadCode     = 0x04,   // deadCodeElimination
+    //! Enable `mergeRegisterZeroing` / write-only register elimination via `simplifyAssign`.
     Opt_MergeZero    = 0x08,   // mergeRegisterZeroing
+    //! Enable `removeUnusedRegs` + `registerAllocation` (with `splitConstRegisters` retry on spill).
     Opt_RegAlloc     = 0x10,   // removeUnusedRegs + registerAllocation
 };
 
 // RegAction — return values from getNextActionForReg (A12)
+//! \brief Bitmask classifying the next observed use of a register
+//!        in a forward scan of `AsmList`.
+//!
+//! Returned by `AsmOptimize::getNextActionForReg`. The two low bits
+//! are independent: bit 0 records a read, bit 1 records a write.
+//! The combined value `RegAction_Both` is also produced eagerly when
+//! the scan hits a branch (read of the register in a branch context)
+//! or any `regAux` mention, signalling that the caller cannot reason
+//! further about the register's liveness past that point.
 enum RegAction : int {
+    //! No use found before `asm_.end()`.
     RegAction_None    = 0,
+    //! Bit 0: next use is a non-branch read of the register.
     RegAction_Read        = 1,   // bit 0
+    //! Bit 1: next use is a write to the register.
     RegAction_Written     = 2,   // bit 1
+    //! Both bits: read+write seen, or ambiguous (branch read / `regAux` use).
     RegAction_Both = 3,   // both bits / branch
 };
 

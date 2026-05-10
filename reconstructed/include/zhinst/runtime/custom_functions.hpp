@@ -115,9 +115,23 @@ public:
 //
 // Underlying storage is int32_t at CustomFunctions+0x1C0.
 // ============================================================================
+//! \brief Tracks which family of external-triggering primitives the
+//!        program has used, enforcing the rule that DIO and ZSync
+//!        I/O cannot be mixed within a single SeqC program.
+//!
+//! \details Stored as `int32_t` at `CustomFunctions+0x1C0` and
+//! initialised to `None`. The first DIO or ZSync built-in call
+//! latches the mode; any subsequent call from the *other* family
+//! raises error 79 ("DIO and ZSync external triggering can't be
+//! mixed in the same program"). The selected mode is also emitted
+//! as the `"external_triggering"` JSON key (`"dio"` / `"zsync"`)
+//! in the compiler output.
 enum class ExternalTriggeringMode : int32_t {
+    //! Unset — no DIO or ZSync I/O built-in has been compiled yet.
     None  = 0,   // unset — no I/O function compiled yet
+    //! DIO family latched: `setDIO`, `getDIO`, `getDIOTriggered`, `waitDIOTrigger`, `playDIOWave`, `playWaveDIO`.
     Dio   = 1,   // DIO family (setDIO, getDIO, getDIOTriggered, waitDIOTrigger, playDIOWave, playWaveDIO)
+    //! ZSync family latched: `getZSyncData`, `getFeedback`, `waitZSyncTrigger`, `playWaveZSync`.
     ZSync = 2,   // ZSync family (getZSyncData, getFeedback, waitZSyncTrigger, playWaveZSync)
 };
 
@@ -126,12 +140,24 @@ enum class ExternalTriggeringMode : int32_t {
 //
 // Has a free function toString(AccessMode) with static table @0x9573c0.
 // ============================================================================
+//! \brief Classifies how a `CustomFunctions` entry is bound to the
+//!        device — drives the rendering of the per-function access
+//!        descriptor and ordering inside `std::set<AccessMode>`
+//!        containers.
+//!
+//! \details Encoded as `int32_t`; out-of-range values trigger the
+//! bounds check at the call site of `toString` (`cmp rax, 3; jae
+//! throw` @0x108a3f). String labels come from the SSO table at
+//! `.rodata` 0x9573c0 in the order shown below.
 enum class AccessMode : int32_t {
     // Verified from static SSO string table at .rodata 0x9573c0:
     //   [0] = "soft", [1] = "direct", [2] = "custom"
     // Bounds check at 0x108a3f: cmp rax, 3; jae throw
+    //! Soft access — function dispatched through the runtime indirection table.
     Soft   = 0,
+    //! Direct access — function bound to a fixed device node.
     Direct = 1,
+    //! Custom access — caller-supplied binding (e.g. user trigger lines).
     Custom = 2,
 };
 
@@ -142,6 +168,13 @@ enum class AccessMode : int32_t {
 //! out-of-range inputs).
 std::string toString(AccessMode mode);
 
+//! \brief Total order on `AccessMode` by underlying integer value.
+//! \details Required so `AccessMode` is a valid key for the
+//! `std::set<AccessMode>` containers held by `CustomFunctions`;
+//! orders as `Soft < Direct < Custom`.
+//! \param a Left operand.
+//! \param b Right operand.
+//! \return `true` if `a`'s integer value is strictly less than `b`'s.
 inline bool operator<(AccessMode a, AccessMode b) {
     return static_cast<int32_t>(a) < static_cast<int32_t>(b);
 }

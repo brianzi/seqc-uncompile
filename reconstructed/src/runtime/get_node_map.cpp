@@ -1270,6 +1270,20 @@ std::unique_ptr<NodeMap> dispatchHighDevType(AwgDeviceType devType) {  // @0x1ba
 } // anonymous namespace
 
 // Full dispatch matching initNodeMap @0x16b740 switch table.
+//! \brief Return a freshly-allocated `NodeMap` populated with the
+//!        parameter-tree schema for the given AWG device type.
+//!
+//! \details Dispatches on the numeric `AwgDeviceType` code. Family
+//! codes 1, 2, 4 (UHFLI, HDAWG, UHFQA) map directly; higher codes
+//! (8, 16, 32, 64, 128, 256) fan out through
+//! `dispatchHighDevType`, which selects between SHFQA / SHFSG /
+//! SHFLI / GHFLI / VHFLI specialisations and reuses the SHFSG
+//! node tree for `SHFQC_SG` (code 32). Code 0 returns `nullptr`;
+//! any code that falls off the high-dispatch switch is treated as
+//! VHFLI as a last-resort fallback.
+//! \param devType AWG device family enumerator.
+//! \return Owning pointer to a populated `NodeMap`, or `nullptr`
+//!         when `devType == 0` (no device).
 std::unique_ptr<NodeMap> getNodeMapForDevice(AwgDeviceType devType) {
     switch (static_cast<int>(devType)) {
         case 0:  return nullptr;

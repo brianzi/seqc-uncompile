@@ -66,6 +66,12 @@ using ::AsmRegister;
 // function rather than a member call. (Phase S.2 M5: removed the
 // matching `toInt(AsmRegister)` wrapper; the binary only defines
 // `operator int()`. Use `int(reg)` at call sites instead.)
+//! \brief Free-function form of `AsmRegister::isValid()`; returns
+//!        `true` iff `r` was constructed with a real register index
+//!        (i.e. the internal valid flag is set), `false` for the
+//!        default-constructed sentinel that signals "no register".
+//! \param r Register value to test.
+//! \return Forwarded result of `r.isValid()`.
 inline bool isValid(AsmRegister r) { return r.isValid(); }
 
 } // namespace zhinst

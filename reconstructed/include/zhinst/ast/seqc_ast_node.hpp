@@ -62,10 +62,15 @@ class EvalResults;
 
 // ---- Enums ----------------------------------------------------------------
 
+//! \brief Value-category tag carried by every SeqC AST node.
+//!
+//! Classifies the result the node yields when evaluated.  The enumerator
+//! string forms produced by `str(EValueCategory)` are
+//! `"eNOVALUECATEGORY"`, `"eLVALUE"`, and `"eRVALUE"`.
 enum class EValueCategory : int32_t {
-    eNOVALUECATEGORY = 0,
-    eLVALUE          = 1,
-    eRVALUE          = 2,
+    eNOVALUECATEGORY = 0,   //!< \brief No category yet assigned (parser-default).
+    eLVALUE          = 1,   //!< \brief Addressable result (assignable target).
+    eRVALUE          = 2,   //!< \brief Non-addressable result (computed value).
 };
 
 // EDirection — unified enum, defined in types.hpp.

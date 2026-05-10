@@ -25,6 +25,8 @@ std::map<int, std::string> ErrorMessages::messages;  // populated below
 // extern declared in 4 caller TUs (cache, custom_functions,
 // node, prefetch_emit) but never defined. Definition added here.
 // ============================================================================
+//! \brief Process-wide `ErrorMessages` instance used by the compiler to
+//!        look up diagnostic format strings via `errMsg[id]`.
 ErrorMessages errMsg;
 
 // ============================================================================
@@ -42,9 +44,26 @@ ErrorMessages errMsg;
 // the actual binary may have them duplicated per-TU. This is a slight
 // ABI deviation but shouldn't affect behaviour.
 // ============================================================================
+//! \name SeqC-resource identifier strings
+//! \brief Reserved waveform/source names referenced by the resource
+//!        manager and the SeqC parser to recognise built-in pseudo-waves.
+//!
+//! \details Each constant holds the canonical uppercase token the
+//! compiler matches against user identifiers when resolving the
+//! corresponding hardware feature.  They are linked into the resource
+//! lookup at `static_resources.cpp:21-23`.
+//! \{
+
+//! \brief Identifier for the ZSync PQSC decoder pseudo-resource
+//!        (`"ZSYNC_DATA_PQSC_DECODER"`).
 const std::string zsyncDataPqscDecoder       = "ZSYNC_DATA_PQSC_DECODER";
+//! \brief Identifier for the ZSync PQSC register pseudo-resource
+//!        (`"ZSYNC_DATA_PQSC_REGISTER"`).
 const std::string zsyncDataPqscRegister      = "ZSYNC_DATA_PQSC_REGISTER";
+//! \brief Identifier for the AWG integration-trigger pseudo-resource
+//!        (`"AWG_INTEGRATION_TRIGGER"`).
 const std::string constAwgIntegrationTrigger = "AWG_INTEGRATION_TRIGGER";
+//! \}
 
 // ============================================================================
 // ErrorMessages::operator[](ErrorMessageT) const
@@ -99,8 +118,30 @@ const char* ResourcesException::what() const noexcept  // 0x1f1340
 //
 // Returns reference to static "unknownError" string at 0x962ba8 if not found.
 // ============================================================================
+//! \brief Fallback diagnostic string returned by `getApiErrorMessage` when
+//!        the supplied code is not present in the message table.
 static const std::string unknownError = "unknownError";
 
+//! \brief Translate a LabOne API / device-firmware return code into its
+//!        human-readable diagnostic string.
+//!
+//! \details Looks up `ziResultCode` in the same message catalogue that
+//! drives the compiler's own diagnostics (`ErrorMessages::messages`),
+//! covering the high-id ranges 16384–16389 (general status),
+//! 32768–32800 (LabOne API), and 36864–36877 (device firmware).  If the
+//! code is not registered the function falls back to a fixed
+//! `"unknownError"` string rather than throwing, so callers can use it
+//! unconditionally on any non-zero return value.
+//!
+//! \param ziResultCode  Numeric `ZIResult_enum` value as returned by a
+//!                      LabOne C API call.
+//! \return Reference to a process-lifetime string owned by either the
+//!         message catalogue or the static `unknownError` fallback;
+//!         never throws.
+//!
+//! \verifyme — reconstruction uses `ErrorMessages::messages.find`, while
+//! the binary consults a separate hash table at BSS 0xb85230; the
+//! observable mapping is the same but the lookup container differs.
 std::string const& getApiErrorMessage(int ziResultCode)  // 0x2e4820
 {
     // Simplified: the binary does hash table lookup on apiErrorMessages.
@@ -461,10 +502,13 @@ struct ErrorMessagesInitializer {
 // ============================================================================
 namespace zhinst {
 
+//! \cond INTERNAL
+// Internal aliases used only by the explicit template instantiations
+// below; hidden from the public docs site along with the instantiations
+// themselves (Doxygen otherwise warns on each explicit instantiation).
 using S = std::string;
 using BF = boost::format;
 
-//! \cond INTERNAL
 // Explicit template instantiations of ErrorMessages::format. Hidden from
 // Doxygen because each instantiation otherwise generates a "no matching
 // class member" warning (Doxygen can't bind explicit-instantiation lines

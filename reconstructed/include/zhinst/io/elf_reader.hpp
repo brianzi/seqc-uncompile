@@ -188,6 +188,17 @@ private:
 // here keeps the reconstructed source readable without inventing a method
 // on ELFIO::section that doesn't actually exist in the upstream library.
 // Returns an empty string if `sec` is null or has zero size.
+//! \brief Return the contents of an ELFIO section as a `std::string`
+//!        of raw bytes, safely handling null sections and empty
+//!        payloads.
+//! \details Equivalent to the inlined `std::string(sec->get_data(),
+//! sec->get_size())` pattern used throughout the reader; returns an
+//! empty string when `sec` is `nullptr`, when `get_data()` returns
+//! null, or when `get_size()` is zero. The returned string is a
+//! copy and may contain embedded NULs (sections are not C-strings).
+//! \param sec Pointer to an ELFIO section, or `nullptr`.
+//! \return Section bytes as `std::string`; empty on any of the
+//!         null / zero-size conditions above.
 inline std::string sectionAsString(const ELFIO::section* sec) {
     if (sec == nullptr) return {};
     const char* data = sec->get_data();

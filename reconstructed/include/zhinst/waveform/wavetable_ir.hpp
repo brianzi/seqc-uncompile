@@ -40,9 +40,20 @@ namespace detail {
     template<typename T> class WavetableManager;
 }  // AddressImpl now via #include "zhinst/asm/address_impl.hpp"
 
+//! \brief Sort order applied to the waveform list emitted by
+//!        `WavetableIR` when serialising to `.waveforms` / `.wavemem`.
+//!
+//! \verifyme `ByWaveIndex` (1) and `ByIndex` (2) both sort by wave
+//! index in the current reconstruction; the two enumerators are
+//! preserved as distinct values because the binary's switch table
+//! has separate arms for them. The semantic difference (if any)
+//! between the two index-sorted modes is not yet confirmed.
 enum class WaveOrder : int {
+    //! No sorting — waveforms emitted in insertion order.
     Natural = 0,       // No sorting
+    //! Sort by wave index (slot in the wavetable).
     ByWaveIndex = 1,   // Sort by wave index
+    //! Sort by wave index — see class-level `\verifyme` note on the difference vs `ByWaveIndex`.
     ByIndex = 2,       // Sort by wave index
 };
 

@@ -53,6 +53,20 @@ namespace zhinst {
 // out-of-line definition (was forward-decl only). Defined in
 // the same TU as its callers since the binary's symbol is namespace-
 // scope `zhinst::floatEqual` and not part of any class.
+//! \brief Exact (not tolerance-based) equality test on two `double`
+//!        values, equivalent to the IEEE-754 `==` operator.
+//!
+//! \details Despite the name, this is *not* an approximate /
+//! epsilon comparison: the binary implements it with `cmpeqsd
+//! xmm0, xmm1`, which is the same bitwise comparison `operator==`
+//! performs on doubles. Existing call sites use it to test for
+//! exact zero (e.g. `if (floatEqual(beta, 0.0))`), where the
+//! distinction between an approximate and exact comparison does not
+//! matter. Like `==`, this returns `false` if either operand is
+//! NaN.
+//! \param a Left operand.
+//! \param b Right operand.
+//! \return `true` iff `a == b` under IEEE-754 semantics.
 bool floatEqual(double a, double b) {  // 0x2ec050
     return a == b;
 }

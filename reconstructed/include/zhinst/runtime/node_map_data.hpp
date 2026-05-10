@@ -24,12 +24,27 @@ namespace zhinst {
 
 // NodeTypeIdx — node value encoding type for NodeMapItem::typeIdx (A9)
 // Determines how the value is encoded when writing to a parameter-tree node.
+//! \brief Selector tag stored in `NodeMapItem::typeIdx` that
+//!        determines how a node's runtime value is encoded before
+//!        being written to the parameter tree.
+//!
+//! \details The numeric value indexes a jump table inside the node
+//! writer; each enumerator triggers a different conversion (raw
+//! pass-through, IQ pair, IEEE-754 bit reinterpretation, fixed-point
+//! frequency / phase, etc.). See `toFrequency()` / `toPhase()` for
+//! the fixed-point helpers used by the last two cases.
 enum class NodeTypeIdx : int32_t {
+    //! Direct register / integer value — written verbatim to the node.
     IntegerPassthrough = 0,  // direct register/int value
+    //! Dual 32-bit I+Q pair (`suser 0x17` + `suser 0x19`).
     SinePair           = 1,  // dual 32-bit I+Q (suser 0x17 + 0x19)
+    //! IEEE-754 single-precision bit pattern reinterpreted as an integer.
     FloatBits          = 2,  // IEEE-754 single-precision bit pattern
+    //! Low 32 bits of an IEEE-754 double; the high 32 bits are written by a paired second access.
     RawDoubleLow32     = 3,  // double low 32 bits + high32 via second write
+    //! Hz value converted to 48-bit fixed-point via `toFrequency()`.
     Frequency          = 4,  // Hz → 48-bit fixed-point via toFrequency()
+    //! Degrees converted to 23-bit fixed-point via `toPhase()`.
     Phase              = 5,  // degrees → 23-bit fixed-point via toPhase()
 };
 

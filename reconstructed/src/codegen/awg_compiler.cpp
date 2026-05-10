@@ -48,8 +48,29 @@ namespace zhinst {
 
 // Forward declarations for helpers not yet reconstructed
 namespace util { namespace wave {
+//! \brief Decode a single 14-bit-signed + 2-marker-bit AWG sample
+//!        word into a normalised double in `[-1.0, +1.0)`.
+//! \details Masks off the two marker bits (`& 0xFFFC`),
+//! sign-extends as `int16_t`, then divides by `32767.0`. Definition
+//! lives in `src/core/stubs.cpp`.
+//! \param raw 16-bit packed AWG sample word.
+//! \return Sample as floating-point amplitude.
 double awg2double(uint16_t raw);                 // @0x2996d0 — extract 18-bit sample as double
+//! \brief Extract the two marker bits from an AWG sample word.
+//! \details Returns `raw & 0x3`. The forward declaration here
+//! advertises `uint8_t`, but the canonical definition in
+//! `src/core/stubs.cpp` returns `uint16_t` (see IF-239 — mismatch
+//! is harmless because all caller use sites narrow the result).
+//! \param raw 16-bit packed AWG sample word.
+//! \return Marker bits in the low two bits of the return value.
 uint8_t awg2marker(uint16_t raw);                // @0x2996f0 — extract marker bits from raw word
+//! \brief Decode an HDAWG 32-bit sample word (shifted-and-packed)
+//!        into a normalised double in `[-1.0, +1.0)`.
+//! \details Right-shifts by 2, truncates to `uint16_t`, sign-extends
+//! as `int16_t`, then divides by `32767.0`. Definition lives in
+//! `src/core/stubs.cpp`.
+//! \param raw 32-bit packed HDAWG sample word.
+//! \return Sample as floating-point amplitude.
 double awg2double16(uint32_t raw);               // @0x299740 — 32-bit HDAWG sample to double
 }} // namespace util::wave
 using util::wave::awg2double;

@@ -18,6 +18,17 @@ class Assembler;
 class AsmExpression;
 
 // LabelBimap type alias — bimap<string, multiset_of<int>>
+//! \brief Boost.Bimap mapping label *names* to their referencing
+//!        instruction *indices* and back, used by `AWGAssemblerImpl`
+//!        to resolve forward / backward branch targets during
+//!        assembly.
+//!
+//! \details The `left` view is `std::string -> int` (unique label
+//! name -> position); the `right` view is `int -> std::string` with
+//! `multiset_of<int>` semantics so multiple branches can share a
+//! target position without collapsing duplicate keys. Label
+//! cleanup passes (`removeUnusedLabels`, `mergeLabels`) traverse
+//! the right view to find / coalesce co-located labels.
 using LabelBimap = boost::bimaps::bimap<
     std::string,
     boost::bimaps::multiset_of<int>>;

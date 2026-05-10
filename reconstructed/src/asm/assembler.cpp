@@ -23,6 +23,21 @@ namespace zhinst {
 // 43 entries. The map is keyed by lowercase string; commandToString does
 // a reverse (O(n)) linear scan to find the string for a given Command.
 // ============================================================================
+//! \brief Lazily-initialised lookup table from lowercase mnemonic
+//!        strings (`"end"`, `"nop"`, `"addi"`, …) to
+//!        `Assembler::Command` opcodes.
+//!
+//! \details Wraps a function-local `static const std::map` so the
+//! 43-entry table is constructed on first call and shared by all
+//! subsequent assembler invocations. The forward lookup is O(log n)
+//! via the map; the reverse direction (`commandToString`) does an
+//! O(n) linear scan over the same map, so this function is the sole
+//! canonical source of the mnemonic table. The original binary
+//! kept the equivalent map at `.bss` `0xb84c20`, initialised by a
+//! static constructor; the function-local pattern here matches the
+//! observed lazy-init behaviour. Note the `"wwvfq"` alias mapping
+//! to the same `WPRF` opcode as `"wprf"`.
+//! \return Const reference to the singleton mnemonic map.
 static const std::map<std::string, Assembler::Command>& getCmdMap() {
     static const std::map<std::string, Assembler::Command> cmdMap = {
         {"end",     Assembler::END},

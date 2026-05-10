@@ -20,6 +20,11 @@
 namespace zhinst {
 
 // str(EValueCategory) @0x1c16c0 — 3 cases
+//! \brief Returns the canonical string form of an `EValueCategory`:
+//! `"eNOVALUECATEGORY"`, `"eLVALUE"`, or `"eRVALUE"`.
+//! \param vc Value-category tag to render.
+//! \return Canonical string form of `vc`, or an empty string for any
+//! value outside the recognised set.
 std::string str(EValueCategory vc) {
     switch (vc) {
         case EValueCategory::eNOVALUECATEGORY: return "eNOVALUECATEGORY";
@@ -30,6 +35,11 @@ std::string str(EValueCategory vc) {
 }
 
 // str(EDirection) @0x1c1730 — jump table with 3 entries
+//! \brief Returns the canonical string form of an `EDirection`:
+//! `"in"`, `"out"`, or `"inout"`.
+//! \param dir Parameter-direction tag to render.
+//! \return Canonical string form of `dir`, or the literal `"unknown"`
+//! for any value outside the recognised set.
 std::string str(EDirection dir) {
     switch (dir) {
         case EDirection::eIN:    return "in";
@@ -154,6 +164,11 @@ void SeqCOperation::print() const { std::cout.write("Operation", 9); }  // @0x1f
 std::unique_ptr<SeqCAstNode> SeqCOperation::doClone() const {
     return std::make_unique<SeqCOperation>(valueCategory_, lineNr_, direction_, varType_);
 }
+//! \brief ADL-friendly free-function swap for `SeqCOperation`:
+//! exchanges the `SeqCAstNode` base subobject of `a` and `b`
+//! (operation nodes carry no extra owned fields).
+//! \param a First operation node.
+//! \param b Second operation node.
 void swap(SeqCOperation& a, SeqCOperation& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
 }
@@ -254,6 +269,11 @@ SeqCOperator& SeqCOperator::operator=(SeqCOperator o) {
     swap(*this, o); return *this;
 }
 
+//! \brief ADL-friendly free-function swap for `SeqCOperator`:
+//! exchanges the `SeqCAstNode` base subobject and the two operand
+//! pointers `lhs_` / `rhs_` of `a` and `b`.
+//! \param a First operator node.
+//! \param b Second operator node.
 void swap(SeqCOperator& a, SeqCOperator& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.lhs_, b.lhs_);
@@ -376,6 +396,12 @@ std::vector<const SeqCAstNode*> SeqCFunctionCall::children() const {
     return { funName_.get(), args_.get() };
 }
 
+//! \brief ADL-friendly free-function swap for `SeqCFunctionCall`:
+//! exchanges the `SeqCAstNode` base subobject, the callee identifier
+//! pointer `funName_`, and the argument-list pointer `args_` of `a`
+//! and `b`.
+//! \param a First function-call node.
+//! \param b Second function-call node.
 void swap(SeqCFunctionCall& a, SeqCFunctionCall& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.funName_, b.funName_);
@@ -415,6 +441,12 @@ std::vector<const SeqCAstNode*> SeqCArray::children() const {
     return { array_.get(), index_.get() };
 }
 
+//! \brief ADL-friendly free-function swap for `SeqCArray`:
+//! exchanges the `SeqCAstNode` base subobject, the array-identifier
+//! pointer `array_`, and the index-expression pointer `index_` of `a`
+//! and `b`.
+//! \param a First array-access node.
+//! \param b Second array-access node.
 void swap(SeqCArray& a, SeqCArray& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.array_, b.array_);
@@ -458,6 +490,12 @@ const SeqCAstNode* SeqCCaseEntry::body() const { return body_.get(); }
 bool SeqCCaseEntry::validLabel() const { return label_ != nullptr; }
 bool SeqCCaseEntry::hasLabel()   const { return label_ != nullptr; }
 
+//! \brief ADL-friendly free-function swap for `SeqCCaseEntry`:
+//! exchanges the `SeqCAstNode` base subobject, the label-expression
+//! pointer `label_`, and the case-body pointer `body_` of `a` and
+//! `b`.
+//! \param a First case-entry node.
+//! \param b Second case-entry node.
 void swap(SeqCCaseEntry& a, SeqCCaseEntry& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.label_, b.label_);
@@ -516,6 +554,12 @@ std::vector<const SeqCAstNode*> SeqCIfElse::children() const {  // 0x2022c0
 
 SeqCIfElse& SeqCIfElse::operator=(SeqCIfElse o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCIfElse`:
+//! exchanges the `SeqCAstNode` base subobject, the condition
+//! pointer `cond_`, the then-branch pointer `ifBody_`, and the
+//! else-branch pointer `elseBody_` of `a` and `b`.
+//! \param a First if/else node.
+//! \param b Second if/else node.
 void swap(SeqCIfElse& a, SeqCIfElse& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.cond_, b.cond_);
@@ -564,6 +608,12 @@ std::vector<const SeqCAstNode*> SeqCCondExpr::children() const {
 
 SeqCCondExpr& SeqCCondExpr::operator=(SeqCCondExpr o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCCondExpr`:
+//! exchanges the `SeqCAstNode` base subobject, the condition pointer
+//! `cond_`, the then-branch pointer `ifBody_`, and the else-branch
+//! pointer `elseBody_` of `a` and `b`.
+//! \param a First conditional-expression node.
+//! \param b Second conditional-expression node.
 void swap(SeqCCondExpr& a, SeqCCondExpr& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.cond_, b.cond_);
@@ -624,6 +674,12 @@ std::vector<const SeqCAstNode*> SeqCFunction::children() const {
 
 SeqCFunction& SeqCFunction::operator=(SeqCFunction o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCFunction`:
+//! exchanges the `SeqCAstNode` base subobject, the call-site pointer
+//! `call_`, the parameter-list pointer `params_`, the body pointer
+//! `body_`, and the return-type pointer `retType_` of `a` and `b`.
+//! \param a First function-definition node.
+//! \param b Second function-definition node.
 void swap(SeqCFunction& a, SeqCFunction& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.call_, b.call_);
@@ -677,6 +733,12 @@ std::vector<const SeqCAstNode*> SeqCForLoop::children() const {  // 0x202fd0
 
 SeqCForLoop& SeqCForLoop::operator=(SeqCForLoop o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCForLoop`:
+//! exchanges the `SeqCAstNode` base subobject, the initialiser
+//! pointer `init_`, the condition pointer `cond_`, the increment
+//! pointer `incr_`, and the body pointer `body_` of `a` and `b`.
+//! \param a First for-loop node.
+//! \param b Second for-loop node.
 void swap(SeqCForLoop& a, SeqCForLoop& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.init_, b.init_);
@@ -848,6 +910,11 @@ std::vector<std::string> SeqCVariable::getListElements() const {
 
 SeqCVariable& SeqCVariable::operator=(SeqCVariable o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCVariable`:
+//! exchanges the `SeqCAstNode` base subobject and the identifier
+//! string `name_` of `a` and `b`.
+//! \param a First identifier node.
+//! \param b Second identifier node.
 void swap(SeqCVariable& a, SeqCVariable& b) {
     swap(static_cast<SeqCAstNode&>(a), static_cast<SeqCAstNode&>(b));
     std::swap(a.name_, b.name_);
@@ -923,6 +990,20 @@ std::unique_ptr<SeqCAstNode> SeqCValue::doClone() const {  // 0x208600
 
 SeqCValue& SeqCValue::operator=(SeqCValue o) { swap(*this, o); return *this; }
 
+//! \brief ADL-friendly free-function swap for `SeqCValue`:
+//! exchanges the variable-type tag and the tagged `payload_` /
+//! `tag_` pair (string or double) of `a` and `b`.
+//! \details Performs a tag-aware payload exchange: when an operand
+//! holds a string, the string is move-constructed into a temporary
+//! and the source is destroyed in place, preserving the variant
+//! invariant in both halves of the swap.
+//! \binarynote Unlike the other `SeqCAstNode`-family swaps, this
+//! overload deliberately does **not** exchange the full base
+//! subobject — only `varType_` and the tagged payload move; the
+//! `valueCategory_`, `lineNr_`, and `direction_` fields stay with
+//! their respective objects.
+//! \param a First literal-value node.
+//! \param b Second literal-value node.
 void swap(SeqCValue& a, SeqCValue& b) {  // 0x1fe410
     // Binary only swaps varType_ (+0x14) and the variant payload (+0x18).
     // It does NOT swap the other base class fields.

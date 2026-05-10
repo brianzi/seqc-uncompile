@@ -217,16 +217,39 @@ void DeviceType::swap(DeviceType& other) {
 }
 
 // @ 0x2d2d30 — equality by code.
+//! \brief Compare two `DeviceType` values for equality.
+//! \details Defined as equality of the underlying impl `code()`
+//! (the `DeviceTypeCode` enum), so two `DeviceType` instances are
+//! equal iff they identify the same hardware family.
+//! \param lhs Left operand.
+//! \param rhs Right operand.
+//! \return `true` if both sides report the same `code()`.
 bool operator==(DeviceType const& lhs, DeviceType const& rhs) {
     return lhs.impl_->code() == rhs.impl_->code();
 }
 
 // @ 0x2d2d60 — less-than by code.
+//! \brief Strict total order on `DeviceType` by underlying code.
+//! \details Allows `DeviceType` to be used as a key in ordered
+//! associative containers; ordering reflects the numeric
+//! `DeviceTypeCode` enum, not any human-meaningful sort.
+//! \param lhs Left operand.
+//! \param rhs Right operand.
+//! \return `true` if `lhs.code()` is numerically less than
+//!         `rhs.code()`.
 bool operator<(DeviceType const& lhs, DeviceType const& rhs) {
     return lhs.impl_->code() < rhs.impl_->code();
 }
 
 // @ 0x2d2da0 — stream insertion: writes code.
+//! \brief Stream-insert a `DeviceType` by writing its numeric
+//!        `DeviceTypeCode` to the output stream.
+//! \details Matches the binary's behaviour of streaming the raw
+//! integer code rather than a human-readable name — callers that
+//! want the family string should go through `toString()` instead.
+//! \param os Destination stream.
+//! \param dt Device type value.
+//! \return Reference to `os` after insertion.
 std::ostream& operator<<(std::ostream& os, DeviceType const& dt) {
     os << dt.impl_->code();
     return os;
@@ -289,6 +312,15 @@ void DeviceOptionSet::insert(DeviceOption opt) {
 }
 
 // @ 0x2cfd80 — compares the unordered_sets only.
+//! \brief Compare two `DeviceOptionSet` instances for equality.
+//! \details Equal iff both the `family_` (`DeviceFamily`) and the
+//! `values_` (the unordered set of `DeviceOption` codes) match.
+//! \binarynote The block-header comment "compares the unordered_sets
+//! only" understates the check: the family field is also compared
+//! (see IF-240).
+//! \param a Left operand.
+//! \param b Right operand.
+//! \return `true` when family *and* option sets are equal.
 bool operator==(DeviceOptionSet const& a, DeviceOptionSet const& b) {
     return a.family_ == b.family_ && a.values_ == b.values_;
 }

@@ -76,12 +76,32 @@ enum class NodeType : int {
 };
 
 // Allow bitwise operations and comparison with int (used in reconstructed code)
+//! \name NodeType bitmask & raw-int operators
+//! \brief Mixed-mode comparison (`==`, `!=`) of `NodeType` against raw
+//! `int` and bitwise composition (`|`, `&`) of two `NodeType` values.
+//! \details `NodeType` enumerators are powers of two so masks built
+//! with `operator|` can be tested with `operator&` to filter a tree
+//! walk on multiple kinds at once.  The `int` comparison overloads
+//! exist because several reconstructed call sites still hold the
+//! discriminator as a raw integer (e.g. after a JSON round-trip).
+//! @{
+
+//! \brief Returns `true` when `a`'s integer value equals `b`.
 inline bool operator==(NodeType a, int b) { return static_cast<int>(a) == b; }
+//! \brief Returns `true` when `a` equals `b`'s integer value.
 inline bool operator==(int a, NodeType b) { return a == static_cast<int>(b); }
+//! \brief Returns `true` when `a`'s integer value differs from `b`.
 inline bool operator!=(NodeType a, int b) { return static_cast<int>(a) != b; }
+//! \brief Returns `true` when `a` differs from `b`'s integer value.
 inline bool operator!=(int a, NodeType b) { return a != static_cast<int>(b); }
+//! \brief Bitwise OR of two `NodeType` values, returning a combined
+//! mask cast back to `NodeType` for tree-walk predicates.
 inline NodeType operator|(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) | static_cast<int>(b)); }
+//! \brief Bitwise AND of two `NodeType` values, returning the
+//! intersection cast back to `NodeType` (zero / empty mask when no
+//! bits overlap).
 inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) & static_cast<int>(b)); }
+//! @}
 
 // ============================================================================
 // Node struct — complete field layout (0x110 bytes)

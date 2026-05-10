@@ -20,6 +20,11 @@ namespace zhinst {
 // Formats the uint value as "%u" using boost::format.
 // AddressImpl<uint> is passed by value (register-sized).
 // ============================================================================
+//! \brief Streams a 32-bit address-wrapper as an unsigned decimal
+//! number (formatted as `%u` via `boost::format`).
+//! \param os   Destination output stream.
+//! \param addr Address wrapper whose `value` is written to `os`.
+//! \return Reference to `os` to allow chaining.
 std::ostream& operator<<(std::ostream& os,  // 0x1c7ce0
                           detail::AddressImpl<uint32_t> addr)
 {

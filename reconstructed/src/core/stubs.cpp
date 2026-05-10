@@ -18,6 +18,23 @@ namespace zhinst {
 
 // 0x2ce770 — checks /proc/device-tree/model for "Zurich Instruments MF"
 // Always false on PC.
+//! \brief Reports whether the compiler is hosted on a Zurich
+//!        Instruments MF-class device (an instrument running the
+//!        LabOne stack on its own embedded SoC) rather than on a
+//!        regular workstation.
+//!
+//! \details The host check inspects `/proc/device-tree/model` for the
+//! `"Zurich Instruments MF"` signature.  On any normal PC the path is
+//! either missing or carries a different model string, so the function
+//! returns `false`; on an MF device it returns `true`, which gates
+//! behaviour such as on-device wave-path resolution.
+//!
+//! \return `true` only when running on an MF instrument; `false`
+//!         elsewhere (always `false` in the current reconstruction
+//!         stub).
+//!
+//! \verifyme — the reconstruction returns a constant `false`; the
+//! binary performs the device-tree check at runtime.
 bool runningOnMfDevice() {
     return false;
 }
@@ -63,7 +80,31 @@ std::string hash2str(const std::vector<uint32_t>& data) {
 }} // namespace util::wave
 
 // Top-level aliases (the binary exports both namespaced and non-namespaced)
+//! \brief Convert a packed 14-bit-sample-plus-2-marker AWG word into a
+//!        normalised `double` in roughly the range `[-1.0, 1.0)`.
+//!
+//! \details Thin forwarder that delegates to
+//! `util::wave::awg2double()` so call sites that pulled in the legacy
+//! non-namespaced spelling keep compiling.  The conversion clears the
+//! two marker bits with `& 0xFFFC`, sign-extends the remaining 14-bit
+//! signed sample to 16 bits and divides by `32767.0`.
+//!
+//! \param sample  Raw 16-bit AWG word (sample in the high 14 bits,
+//!                markers in the low 2 bits).
+//! \return Sample amplitude as a `double`.
 double awg2double(uint16_t sample) { return util::wave::awg2double(sample); }
+//! \brief Extract the two marker bits from a packed AWG sample word.
+//!
+//! \details Thin forwarder that delegates to
+//! `util::wave::awg2marker()`; equivalent to `sample & 0x3`.
+//!
+//! \param sample  Raw 16-bit AWG word (sample in the high 14 bits,
+//!                markers in the low 2 bits).
+//! \return Two-bit marker pattern in the low bits of a `uint16_t`.
+//!
+//! \binarynote The return type is `uint16_t` here whereas the
+//! `util::wave` overload returns `uint8_t`; both spellings coexist in
+//! the binary's symbol table.
 uint16_t awg2marker(uint16_t sample) { return util::wave::awg2marker(sample); }
 
 } // namespace zhinst

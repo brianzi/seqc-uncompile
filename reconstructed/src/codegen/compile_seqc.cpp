@@ -99,6 +99,54 @@ AwgDeviceProps dispatchGetAwgDeviceProps(AwgDeviceType dt, DeviceType const& dev
 //  15. On exception (zhinst::Exception): get report, prepend
 //      "Compilation failed: ", re-throw
 // ============================================================================
+//! \brief Compile a SeqC source file for a Zurich Instruments AWG and
+//!        return the produced ELF together with a JSON status report.
+//!
+//! \details This is the C++ entry point that backs the Python
+//! `compile_seqc(...)` binding.  The high-level pipeline is:
+//!   1. Parse `jsonConfig` as a Boost.JSON object and extract the
+//!      sequencer hint, samplerate, optional debug filename, optional
+//!      wave-search path, and a `';'`-separated waveform path list.
+//!   2. Resolve the target device by uppercasing `deviceId`/`options`,
+//!      constructing a `DeviceType`, mapping it to an `AwgDeviceType`
+//!      via the sequencer hint, and looking up the per-device
+//!      `AwgDeviceProps` (throws `Exception` on an unsupported
+//!      device/sequencer combination).
+//!   3. Build a default waveform search path under the LabOne data
+//!      folder (`<data>/awg/waves`) unless `wavepath` overrides it.
+//!   4. Populate an `AWGCompilerConfig` from the device properties and
+//!      JSON fields, construct an `AWGCompiler`, register waveform
+//!      paths, and run `compileString(sourceCode)` followed by
+//!      `writeToStream` to obtain the ELF image.
+//!   5. Build a JSON result object carrying the compile report
+//!      (`"messages"`), the device's maximum ELF size
+//!      (`"maxelfsize"`), and the wave-memory usage info
+//!      (`"wavemem"`).
+//!
+//! On a `zhinst::Exception` from the compiler the function prepends
+//! `"Compilation failed: "` to the compile report (or to `what()` if
+//! the report is empty) and re-throws.
+//!
+//! \param jsonConfig  Stringified JSON object with the per-call
+//!                    configuration (`sequencer`, `samplerate`,
+//!                    `filename`, `wavepath`, `waveforms`).  Invalid
+//!                    JSON is treated as an empty object.
+//! \param sourceCode  SeqC source text to compile.
+//! \param deviceId    Device-type identifier (case-insensitive),
+//!                    e.g. `"HDAWG8"`, `"SHFQA4"`.
+//! \param awgIndex    Zero-based AWG core index inside the target
+//!                    device.
+//! \param options     Newline-separated device options string
+//!                    (case-insensitive).
+//! \return A single `std::string` packing two payloads concatenated
+//!         with a `'\0'` separator: the serialized JSON status report
+//!         followed by the binary ELF image.  The Python binding
+//!         unpacks this into a `(elf_bytes, info_dict)` tuple.
+//!
+//! \verifyme The exact packing and the `outputut`/`output` stream
+//! label are taken from the binary; small wording differences from
+//! the canonical LabOne source are flagged in
+//! `reconstructed/notes/elf_format.md`.
 std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
                         std::string sourceCode,
                         std::string deviceId,

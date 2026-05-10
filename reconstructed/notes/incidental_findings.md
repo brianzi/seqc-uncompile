@@ -6405,3 +6405,68 @@ This commit:
   notes-file cross-references).
 
 
+
+---
+
+## IF-239 — `awg2marker` return-type mismatch between forward decl and definition
+
+**Severity**: low (cosmetic / type-system)
+**Status**: open
+
+**Location**:
+- Forward declaration: `reconstructed/src/codegen/awg_compiler.cpp:52` —
+  `uint8_t awg2marker(uint16_t raw);`
+- Canonical definition: `reconstructed/src/core/stubs.cpp:58` —
+  `uint16_t awg2marker(uint16_t sample) { return sample & 0x3; }`
+
+**Observation**: The forward declaration inside `namespace util::wave`
+in `awg_compiler.cpp` advertises a `uint8_t` return type, but the
+actual out-of-line definition returns `uint16_t`. The
+`using util::wave::awg2marker;` alias in `awg_compiler.cpp` then pulls
+in the `uint16_t` version (linker resolves by name + parameter list,
+not return type).
+
+**Impact**: All call sites use the result via narrowing assignment
+(`& 0x3` is already at most 2 bits), so the type discrepancy is
+behaviourally invisible. It is, however, an ODR-adjacent inconsistency
+that could trip C++ frontends with stricter type-checking, and a
+documentation hazard: a reader of `awg_compiler.cpp` will believe the
+return type is `uint8_t`.
+
+**Resolution candidates**:
+1. Align the forward decl to `uint16_t` (matches the binary).
+2. Re-verify the binary symbol's signature with `objdump -T` /
+   `nm --demangle` on `_seqc_compiler.so` to confirm which is correct.
+
+---
+
+## IF-240 — `operator==(DeviceOptionSet const&, DeviceOptionSet const&)` block-header summary understates the check
+
+**Severity**: low (documentation / comment drift)
+**Status**: open
+
+**Location**: `reconstructed/src/device/device_type.cpp:291-294`
+
+**Observation**: The block-header comment reads `// @ 0x2cfd80 —
+compares the unordered_sets only.` but the body is
+
+```cpp
+return a.family_ == b.family_ && a.values_ == b.values_;
+```
+
+which compares both the `family_` field and the `values_`
+unordered set. The summary is therefore misleading: the family is
+part of the equality contract.
+
+**Impact**: Future readers may believe two `DeviceOptionSet`s with
+identical option codes but different `DeviceFamily` enums compare
+equal — they do not.
+
+**Resolution**: The Doxygen brief added in this pass mentions the
+discrepancy under `\binarynote`. The legacy `//` block-header
+comment is preserved verbatim (style guide §14) and a `\binarynote`
+flag points at this IF for context. If a follow-up pass verifies
+against the binary that the family check exists at `0x2cfd80`
+itself (and is not a recon over-correction), the legacy comment
+can be rewritten.
+

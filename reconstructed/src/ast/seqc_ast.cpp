@@ -379,6 +379,17 @@ std::unique_ptr<SeqCAstNode> toSeqCAstRecursor(std::shared_ptr<Expression> expr)
 }  // anonymous namespace
 
 // 0x1f6240 — thin wrapper that copies the shared_ptr and calls the recursor
+//! \brief Converts a parser-built `Expression` tree into the typed
+//! `SeqCAstNode` hierarchy used by the lowering pass.
+//! \details Dispatches recursively on each node's `operationType`,
+//! `commandType`, and `operator_` discriminators to build the
+//! corresponding concrete `SeqCAstNode` subclass, then attaches the
+//! converted children.  A null input yields a null result.
+//! \param expr Root of the parsed `Expression` tree to convert (may
+//! be null).
+//! \return Newly-allocated SeqC AST tree mirroring `expr`, wrapped
+//! in a `shared_ptr` to the abstract base; null when `expr` is null
+//! or carries an unknown `operationType`.
 std::shared_ptr<SeqCAstNode> toSeqCAst(std::shared_ptr<Expression> expr) {
     auto result = toSeqCAstRecursor(std::move(expr));
     // Convert unique_ptr to shared_ptr (the binary returns shared_ptr)

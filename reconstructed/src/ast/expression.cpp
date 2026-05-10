@@ -18,6 +18,13 @@ namespace zhinst {
 // Helper: allocate an Expression with standard zero-init + default tail
 // ============================================================================
 
+//! \brief Allocates a fresh `Expression` whose fields carry the
+//! parser-default tail at `+0x48..+0x57` (`operator_=eNONE`,
+//! `commandType=eIF`, `varType=Unset`, `direction=eINOUT`).
+//! \details A thin wrapper around `new Expression()`; callers
+//! adjust the discriminator fields after the call to specialise
+//! the node.
+//! \return Owning raw pointer to a heap-allocated `Expression`.
 static Expression* allocExpression() {
     // operator new(0x58) + zero-init + load {21, 16, 0, 2} into +0x48
     return new Expression();   // default ctor sets the .rodata pattern
@@ -36,6 +43,15 @@ static Expression* allocExpression() {
 // Ownership model: create* functions allocate with `new Expression()` and
 // return a raw pointer.  pushChild transfers ownership into a shared_ptr
 // with the standard default deleter.  No no-op deleter is involved.
+//! \brief Wraps `raw` in a `std::shared_ptr<Expression>` with the
+//! default deleter and appends it to `vec`, transferring ownership.
+//! \details Used by every `createXxx` parser-action helper to attach
+//! a freshly-allocated child to a parent's `children` vector.  The
+//! raw pointer must be unowned at the call site.
+//! \param vec Destination vector that takes ownership of `raw`.
+//! \param raw Heap-allocated `Expression*` whose ownership is being
+//! transferred (must not be already managed by another smart
+//! pointer).
 static void pushChild(std::vector<std::shared_ptr<Expression>>& vec,
                       Expression* raw) {
     vec.push_back(std::shared_ptr<Expression>(raw));
@@ -426,6 +442,20 @@ Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
 // ============================================================================
 
 // Helper: create a command node with a .rodata-derived tag
+//! \brief Allocates a command-flavoured `Expression` whose
+//! `operationType` is `eCOMMAND` and whose `commandType` is set to
+//! `cmd`, with `operator_=eNONE`, `varType=Unset`, and
+//! `direction=eINOUT`.
+//! \details Shared helper used by every `createXxx` factory that
+//! builds a control-flow command (`if`, `for`, `while`, `switch`,
+//! etc.); callers attach the appropriate children and set
+//! `lineNumber` after the call.
+//! \param ctx Parser context the new node logically belongs to
+//!            (currently unused by this helper but kept in the
+//!            signature for parity with the other parser actions).
+//! \param cmd Command-type tag stored in `commandType`.
+//! \return Owning raw pointer to the freshly-allocated command
+//! node.
 static Expression* makeCommandNode(SeqcParserContext* ctx,
                                    ECommandType cmd) {
     auto* e = new Expression();

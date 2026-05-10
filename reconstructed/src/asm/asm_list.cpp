@@ -24,6 +24,18 @@ namespace zhinst {
 // Located at TLS offset 0x40 in the binary (.tbss segment).
 // Accessed via __tls_get_addr in inlined createUniqueID() calls.
 // ============================================================================
+//! \brief Thread-local monotonically increasing counter used to
+//!        stamp every `AsmList::Asm` record with a unique ID via
+//!        the inlined `createUniqueID()` helper.
+//!
+//! \details Lives at TLS offset `0x40` in the binary's `.tbss`
+//! segment and is read through `__tls_get_addr` at each inlined
+//! call site. The counter is per-thread by design: parallel
+//! compilation jobs each get their own ID space and never have to
+//! synchronise on a global atomic. `createUniqueID(true)` resets
+//! the counter to zero (used at the start of each compilation);
+//! `createUniqueID(false)` returns the current value and
+//! post-increments.
 static thread_local int nextID = 0;  // TLS offset 0x40
 
 // ============================================================================

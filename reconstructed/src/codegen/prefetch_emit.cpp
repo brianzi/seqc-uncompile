@@ -224,6 +224,28 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
 // totalBits = numPages * channels * bitsPerSample
 // bytes = ceil(totalBits / 8)
 // ============================================================================
+//! \brief Compute the number of bytes a `WaveformIR` would occupy
+//!        in device wave memory after page-rounding and channel /
+//!        bits-per-sample multiplication.
+//!
+//! \details Reads `signal.channels_`, `signal.length_` and
+//! `deviceConstants` from the IR, then:
+//!   - If `length_ == 0`, the page count is zero.
+//!   - Otherwise rounds `length_` up to a multiple of
+//!     `DeviceConstants::grainSize` (`maxPages` in this file's
+//!     vocabulary) and then clamps *up* to
+//!     `DeviceConstants::maxWaveformLength` (`waveGranularity`)
+//!     when the rounded value is still smaller than the
+//!     granularity. This produces the same minimum-allocation
+//!     behaviour the binary exhibits for very short waveforms.
+//!   - Multiplies pages × channels × `bitsPerSample` and divides
+//!     by 8 with ceiling rounding to convert bits → bytes.
+//!
+//! Used by the prefetch / memory-watermark accounting in this TU.
+//! \param wfm Non-null waveform IR pointer (caller guarantees
+//!            `wfm->deviceConstants` is valid).
+//! \return Allocation size in bytes (always non-negative, fits in
+//!         `int` because the binary stores it that way).
 static int computeWaveformMemoryBytes(const WaveformIR* wfm) {
     uint16_t channels = wfm->signal.channels_;       // +0xC8
     uint32_t length = wfm->signal.length_;            // +0xD0 (lower 32 bits)
