@@ -5566,6 +5566,58 @@ disassemble each entry point, decode all `movabs $0x...,%rax`
 immediates that precede `read*` calls, compare strings to the
 recon's `read*` literal arguments.
 
+### Update (D4 Batch 6c, 2026-05-10)
+
+Audited and fixed:
+
+**`chirp` (0x250bb0)** — GDB-verified all 12 read-call sites
+across 5/4/3-arg paths.  Recon used camelCase `"startFrequency"`,
+`"stopFrequency"`, and `"phase"`; binary uses spaced and more
+descriptive `"start frequency"`, `"stop frequency"`, and
+`"initial phase"`.  Unlike `rrc`/`sinc`, chirp's labels are NOT
+arity-blind — each path uses a label string with the correct
+user-visible argument index built either via inline movabs SSO
+immediates or via `lea rip-rel + movups xmm0` from rodata.
+Verified strings (size_byte values match `(len<<1)`):
+
+| Arity | Site     | Label                       |
+|-------|----------|-----------------------------|
+| 5-arg | 0x250f1b | `"1 (length)"`              |
+| 5-arg | 0x251294 | `"2 (amplitude)"`           |
+| 5-arg | 0x251605 | `"3 (start frequency)"`     |
+| 5-arg | 0x2518b2 | `"4 (stop frequency)"`      |
+| 5-arg | 0x2519d1 | `"5 (initial phase)"`       |
+| 4-arg | 0x250df3 | `"1 (length)"`              |
+| 4-arg | 0x251164 | `"2 (start frequency)"`     |
+| 4-arg | 0x2514dc | `"3 (stop frequency)"`      |
+| 4-arg | 0x2517f5 | `"4 (initial phase)"`       |
+| 3-arg | 0x251040 | `"1 (length)"`              |
+| 3-arg | 0x2513ba | `"2 (start frequency)"`     |
+| 3-arg | 0x25172d | `"3 (stop frequency)"`      |
+
+Fix: replaced 7 mismatched labels in `chirp` recon with the
+binary strings; added per-call address comments.
+
+**`lfsrGaloisMarker` (0x253bc0)** — single-arity (4 args), but
+recon's 2nd label was `"2 (marker)"` while the binary uses
+`"2 (markerBit)"` (size_byte=0x1a=26=(13<<1), GDB-confirmed).
+Fix: one-line label change.
+
+**`randomGauss` and `randomUniform`** — already correct (verified
+by re-reading the existing block-header maps; randomGauss was
+fixed in IF-205, randomUniform's labels are trivially `"1 (length)"`
+and `"2 (amplitude)"` and match).
+
+**`rand` 3-arg path** — discovered to be a *semantic* bug, not
+just label drift.  Promoted to its own entry: see IF-231.
+
+The remaining unaudited multi-arity factories (`gauss`, `sin`,
+`cos`, `sawtooth`, `triangle`, `drag`, `blackman`, `hamming`,
+`hann`) all have only the `length` arg as required and zero or
+one optional helpers, so the surface area for label drift is
+small; they will be re-audited in the brief-writing pass for
+each function.
+
 ## IF-231  `WaveformGenerator::rand` 3-arg overload had wrong parameter binding (semantic bug)
 
 **Severity**: likely-bug (semantic divergence; user-visible

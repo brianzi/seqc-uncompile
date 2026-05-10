@@ -809,24 +809,24 @@ Signal WaveformGenerator::chirp(std::vector<Value> const& args) {               
     double amplitude, startFreq, stopFreq, phase;
 
     if (args.size() == 5) {
-        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "chirp");
-        startFreq = readDouble(args[2], "3 (startFrequency)", "chirp");
-        stopFreq  = readDouble(args[3], "4 (stopFrequency)", "chirp");
-        phase     = readDouble(args[4], "5 (phase)", "chirp");
+        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");           // 0x250f1b
+        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "chirp");       // 0x251294
+        startFreq = readDouble(args[2], "3 (start frequency)", "chirp");          // 0x251605
+        stopFreq  = readDouble(args[3], "4 (stop frequency)", "chirp");           // 0x2518b2
+        phase     = readDouble(args[4], "5 (initial phase)", "chirp");            // 0x2519d1
     } else if (args.size() == 4) {
         // 4 args: chirp(length, startFreq, stopFreq, phase) — amplitude defaults to 1.0
-        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");
+        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");           // 0x250df3
         amplitude = 1.0;
-        startFreq = readDouble(args[1], "2 (startFrequency)", "chirp");
-        stopFreq  = readDouble(args[2], "3 (stopFrequency)", "chirp");
-        phase     = readDouble(args[3], "4 (phase)", "chirp");
+        startFreq = readDouble(args[1], "2 (start frequency)", "chirp");          // 0x251164
+        stopFreq  = readDouble(args[2], "3 (stop frequency)", "chirp");           // 0x2514dc
+        phase     = readDouble(args[3], "4 (initial phase)", "chirp");            // 0x2517f5
     } else {
         // 3 args: chirp(length, startFreq, stopFreq) — amplitude defaults to 1.0
-        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");
+        length    = readPositiveInt(args[0], "1 (length)", 1, "chirp");           // 0x251040
         amplitude = 1.0;
-        startFreq = readDouble(args[1], "2 (startFrequency)", "chirp");
-        stopFreq  = readDouble(args[2], "3 (stopFrequency)", "chirp");
+        startFreq = readDouble(args[1], "2 (start frequency)", "chirp");          // 0x2513ba
+        stopFreq  = readDouble(args[2], "3 (stop frequency)", "chirp");           // 0x25172d
         phase     = 0.0;
     }
 
@@ -1055,7 +1055,7 @@ Signal WaveformGenerator::randomUniform(std::vector<Value> const& args) {      /
 // Disassembly notes:
 //   - checkArgCount 4 args (error 0x5b thrown at 0x25408e if wrong count)
 //   - readPositiveInt "1 (samples)"    min=1  at 0x253cc8 → length
-//   - readPositiveInt "2 (marker)"     min=2  at 0x253dd1 → markerBit
+//   - readPositiveInt "2 (markerBit)"  min=2  at 0x253dd1 → markerBit
 //   - readPositiveInt "3 (polynomial)" min=3  at 0x253ee9 → poly
 //   - readPositiveInt "4 (initial)"    min=4  at 0x253feb → initial
 //   - Error 0x65 thrown at 0x254160 if initial==0 ("initial must be non-zero")
@@ -1071,7 +1071,7 @@ Signal WaveformGenerator::lfsrGaloisMarker(std::vector<Value> const& args) {   /
     checkArgCount(args, "lfsrGaloisMarker", 4);
 
     int length   = readPositiveInt(args[0], "1 (samples)", 1, "lfsrGaloisMarker");    // 0x253cc8
-    int marker   = readPositiveInt(args[1], "2 (marker)", 2, "lfsrGaloisMarker");     // 0x253dd1
+    int marker   = readPositiveInt(args[1], "2 (markerBit)", 2, "lfsrGaloisMarker");  // 0x253dd1
     int poly     = readPositiveInt(args[2], "3 (polynomial)", 3, "lfsrGaloisMarker"); // 0x253ee9
     int initial  = readPositiveInt(args[3], "4 (initial)", 4, "lfsrGaloisMarker");    // 0x253feb
 
