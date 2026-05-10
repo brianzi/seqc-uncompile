@@ -53,7 +53,23 @@ class CancelCallback;
 //! errors (lookup miss, internal invariant violation, etc.).
 class WaveformGeneratorException : public std::exception {
 public:
+    //! \brief Construct the exception with a pre-formatted
+    //!        diagnostic message.
+    //!
+    //! \details The message is copied into `message_`; `what()`
+    //! later returns it verbatim, falling back to a static
+    //! literal only when `msg` is empty.  Callers typically
+    //! produce `msg` via `ErrorMessages::format(...)` so the
+    //! resulting text is already localised and templated.
+    //!
+    //! \param msg  Pre-formatted diagnostic, owned-by-copy.
     explicit WaveformGeneratorException(std::string const& msg);       // 0x25ca00
+    //! \brief Release the embedded `message_` storage.
+    //!
+    //! \details Empty body; `message_`'s destructor handles
+    //! the heap buffer for long-form strings.  Declared so the
+    //! vtable slot is emitted in this translation unit, matching
+    //! the binary's vtable at `0xb06710`.
     ~WaveformGeneratorException() override;                            // 0x25ca60
     //! \brief Return the stored message, or the canonical literal
     //!        `"WaveformGenerator Exception"` when the message is
@@ -82,7 +98,27 @@ private:
 //! so callers can attribute the error to a specific source position.
 class WaveformGeneratorValueException : public std::exception {
 public:
+    //! \brief Construct the exception with a pre-formatted
+    //!        message and the offending argument's position.
+    //!
+    //! \details Copies `msg` into `message_` and stores
+    //! `argIndex` into `argIndex_` for later retrieval via
+    //! `argIndex()`.  The host catches this exception type at
+    //! the SeqC AST evaluator boundary and pairs `argIndex`
+    //! with the call-site's argument-list source positions to
+    //! attribute the error to a specific token.
+    //!
+    //! \param msg       Pre-formatted diagnostic (typically
+    //!                  produced by `ErrorMessages::format`),
+    //!                  owned-by-copy.
+    //! \param argIndex  Zero-based position of the offending
+    //!                  argument in the original call.
     WaveformGeneratorValueException(std::string const& msg, size_t argIndex);  // 0x25c4a0
+    //! \brief Release the embedded `message_` storage.
+    //!
+    //! \details Empty body; `message_`'s destructor frees any
+    //! long-form heap buffer.  Declared so the vtable slot is
+    //! emitted here, matching the binary's vtable at `0xb066d0`.
     ~WaveformGeneratorValueException() override;                               // 0x25c500
     //! \brief Return the stored message, or the canonical literal
     //!        `"WaveformGenerator Value Exception"` when the
@@ -99,6 +135,17 @@ public:
     //!          exception.
     const char* what() const noexcept override;                                // 0x2617a0
 
+    //! \brief Position of the argument whose value caused the
+    //!        exception.
+    //!
+    //! \details Returns the `argIndex` captured at construction
+    //! time.  Combined with the SeqC call site's argument-list
+    //! source positions, the host can highlight the exact
+    //! offending token in user diagnostics.  The accessor is
+    //! `inline` and never throws.
+    //!
+    //! \return  Zero-based position of the offending argument
+    //!          in the original call.
     size_t argIndex() const { return argIndex_; }
 
 private:

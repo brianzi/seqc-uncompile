@@ -724,6 +724,16 @@ mainpage.
     (logged as IF-232).  All other 10 factories
     (`vect` excluded — dynamic labels) match the binary
     exactly; D-AUDIT-1 closed.  Tests 1601/1601.
+  - **6e (2026-05-10)**: completed `WaveformGenerator` header
+    coverage by briefing the two exception-class ctors/dtors
+    (`WaveformGeneratorException`,
+    `WaveformGeneratorValueException`) and the
+    `argIndex()` accessor — the only remaining undocumented
+    public symbols on the class surface.  All ~50 public
+    methods, factories, and helpers in
+    `include/zhinst/waveform/waveform_generator.hpp` now
+    carry full briefs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
