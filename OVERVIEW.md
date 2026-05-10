@@ -663,7 +663,7 @@ mainpage.
    on `isLabelCalled` (the scan range is `[begin, it)`, not
    "after `it`") in the same commit.
 - **Batch 6 — `WaveformGenerator`** in progress, sub-batched
-  into 6a/6b/6c/6d.  6a/6b/6c complete:
+  into 6a/6b/6c/6d.  6a/6b/6c/6d complete:
   - **6a** (`389b48e`): lifecycle / readers / shape helpers
     (~14 briefs).  IF-229 fixed (cosmetic alias-substitution
     overstatement on the class brief).
@@ -699,6 +699,17 @@ mainpage.
     cross-references on `rand` and `randomGauss` for IF-205 /
     IF-231.  D-AUDIT-1 in `TODO.md` updated with the
     per-factory progress checklist.
+  - **6d**: 9 briefs for the `WaveformGenerator` combinators
+    in `waveform_generator_dsp.cpp` — `join`, `add`,
+    `interleave`, `scale`, `multiply`, `cut`, `flip`, `merge`,
+    `grow`.  All briefs verify-then-write against the function
+    bodies (not the legacy block-header summaries); existing
+    incidental findings (IF-162 length accumulation in `merge`,
+    IF-176 `cut(from==from)` channels=0 propagation, IF-181
+    `join` reserve-only materialisation, IF-188 `add` no
+    reserve-only short-circuit) cited inline so the user-facing
+    docs surface the documented quirks.  No new IFs.
+    Build clean (0 doc warnings); tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

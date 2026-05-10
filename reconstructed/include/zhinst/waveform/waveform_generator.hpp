@@ -1127,12 +1127,188 @@ public:
      *          or via `read*` for invalid argument types.
      */
     Signal placeholder(std::vector<Value> const& args);      // 0x255850
+
+    /*! \brief Concatenate two or more waveforms end-to-end with
+     *         optional linear interpolation between them.
+     *
+     *  \details Variadic factory accepting one or more waveform
+     *  arguments and at most one trailing integer.  Waveform
+     *  arguments are appended in order; the optional integer (if
+     *  present and `> 0`) requests an interpolation length applied
+     *  between consecutive waveforms.
+     *
+     *  Without an interpolation length the output is the plain
+     *  concatenation of every input's samples and markers; the
+     *  output's `markerBits_` is the bitwise OR of every input's
+     *  marker-bits, and the length is the sum of input lengths.
+     *
+     *  With an interpolation length `L > 0` and `N` waveforms the
+     *  output length becomes `(sum of input lengths) + N * L`.
+     *  Between every pair of consecutive waveforms the function
+     *  inserts an `L`-frame linear ramp from the previous wave's
+     *  last frame to the next wave's first frame (per channel,
+     *  marker bytes set to 0).  After the final wave it appends an
+     *  `L`-frame zero-pad block.  The channel count is
+     *  `max(first.channels_, 1)`.
+     *
+     *  Reserve-only inputs participate via `Signal::checkAllocation`,
+     *  which materialises them as zero-filled regions; the result
+     *  is always a fully concrete `Signal`.  See IF-181 for the
+     *  GDB verification of that behaviour.
+     *
+     *  \param args  At least one waveform argument; an optional
+     *          trailing non-string argument is consumed as an
+     *          interpolation length (frames).
+     *  \return  Concatenated `Signal`.
+     *  \throws WaveformGeneratorException  if no waveform arguments
+     *          are present, or via `readWave` for malformed
+     *          waveform references.
+     */
     Signal join(std::vector<Value> const& args);             // 0x255da0
+
+    /*! \brief Pointwise sum of two or more waveforms.
+     *
+     *  \details Variadic factory accepting two or more waveform
+     *  arguments.  Reads the first waveform with arbitrary length;
+     *  every subsequent waveform must match the first waveform's
+     *  length (enforced by `readWave`'s `expectedLength`
+     *  parameter).  The output's samples are the elementwise sum
+     *  of every input's samples; per-sample markers are bitwise
+     *  OR'd across inputs that have a matching `markers_` length;
+     *  the output `markerBits_` is the bitwise OR of every
+     *  input's marker-bits.
+     *
+     *  Reserve-only inputs are materialised via `checkAllocation`
+     *  (zero-filled) before being summed — there is no early
+     *  return for the all-reserve-only case (see IF-188).
+     *
+     *  \param args  At least two waveform arguments of equal length.
+     *  \return  Single-channel `Signal` whose samples are the sum
+     *          of every input's samples.
+     *  \throws WaveformGeneratorException  on fewer than two
+     *          arguments, or via `readWave` for length mismatches.
+     */
     Signal add(std::vector<Value> const& args);              // 0x256ff0
+
+    /*! \brief Interleave the channels of several single-channel
+     *         waveforms into a single logical channel.
+     *
+     *  \details Thin wrapper around `merge`: invokes `merge(args)`
+     *  to produce an `N`-channel `Signal`, then sets
+     *  `channels_ = 1` so downstream consumers treat the
+     *  interleaved sample stream as a single channel.  The
+     *  output's `markerBits_` is collapsed to a single byte (zero
+     *  if `merge` produced none), and `length_` is recomputed as
+     *  `samples_.size()` to reflect the interleaved layout.
+     *
+     *  Equivalent to `merge` for argument-validation purposes —
+     *  see `merge` for the accepted argument shapes (including
+     *  the optional trailing integer length hint and the
+     *  all-reserve-only short-circuit).
+     *
+     *  \param args  Forwarded to `merge`.
+     *  \return  Single-channel `Signal` whose samples are the
+     *          channel-interleaved concatenation of `merge`'s
+     *          output.
+     *  \throws WaveformGeneratorException  via `merge`.
+     */
     Signal interleave(std::vector<Value> const& args);       // 0x258140
+
+    /*! \brief Multiply every sample of a waveform by a scalar.
+     *
+     *  \details Two-argument factory `scale(waveform, factor)`.
+     *  Reads the waveform (any length) and a numeric `factor`,
+     *  then returns a `Signal` whose samples are
+     *  `waveform.samples_[i] * factor`.  Markers and `markerBits_`
+     *  are copied through unchanged.
+     *
+     *  Reserve-only inputs are returned by value without
+     *  materialising the sample buffer (the scaling is deferred
+     *  until the placeholder is resolved).
+     *
+     *  \param args  Exactly 2 arguments: a waveform and a numeric
+     *          scaling factor.
+     *  \return  Scaled `Signal` with the same length, markers, and
+     *          marker-bits layout as the input.
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     */
     Signal scale(std::vector<Value> const& args);            // 0x258270
+
+    /*! \brief Pointwise product of two or more waveforms.
+     *
+     *  \details Variadic factory accepting two or more waveform
+     *  arguments.  All inputs must agree on `channels_` (otherwise
+     *  raises `InconsistentChannels`); the output length is the
+     *  maximum of the inputs' sample counts and the output
+     *  `markerBits_` is the bitwise OR of every input's
+     *  marker-bits.  For each output sample the function multiplies
+     *  the corresponding samples across every input (per-sample
+     *  markers are byte-multiplied, which acts as logical AND for
+     *  `0/1`-valued markers); inputs that are too short for a given
+     *  index contribute a `0.0` product and a zero marker.
+     *
+     *  Reserve-only inputs participate as zero-filled buffers; if
+     *  every input is reserve-only the result is a reserve-only
+     *  `Signal` of `maxNSamples` frames.  When any output sample's
+     *  absolute value exceeds `1.0` the function emits an
+     *  `AmplitudeClipped` warning via `warningCallback_`.
+     *
+     *  \param args  At least two waveform arguments.
+     *  \return  `Signal` whose samples are the elementwise product
+     *          of the inputs.
+     *  \throws WaveformGeneratorException  on fewer than two
+     *          arguments, non-waveform arguments, unknown
+     *          waveforms, or channel-count mismatches.
+     */
     Signal multiply(std::vector<Value> const& args);         // 0x258750
+
+    /*! \brief Extract a contiguous slice of a waveform.
+     *
+     *  \details Three-argument factory `cut(waveform, from, to)`,
+     *  where `from` and `to` are 1-based inclusive sample indices
+     *  (each `>= 1` and `< length(waveform)`).  Returns the slice
+     *  `[from, to]` as a new `Signal` with `(to - from + 1)`
+     *  samples.
+     *
+     *  When `from == to` the function returns a fully zeroed
+     *  `Signal` (no samples, no markers, `channels_ = 0`,
+     *  `length_ = 0`) regardless of the input's `reserveOnly_`
+     *  flag — this is intentional and propagates a distinct
+     *  `PlayConfig` through the prefetch / codegen pipeline so
+     *  empty plays correctly invalidate the global CWVF (see
+     *  IF-176 for the full rationale and downstream side effects).
+     *
+     *  Reserve-only inputs (other than the `from == to` case
+     *  above) yield a reserve-only `Signal` of the requested cut
+     *  length, preserving the input's `markerBits_`.
+     *
+     *  \param args  Exactly 3 arguments: a waveform plus two
+     *          positive integer indices.
+     *  \return  Slice of the input waveform as a new `Signal`.
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     *  \throws WaveformGeneratorValueException  if `from` or `to`
+     *          is `>= length(waveform)` (template
+     *          `ArgGreaterThanLength`).
+     */
     Signal cut(std::vector<Value> const& args);              // 0x2598d0
+
+    /*! \brief Reverse the sample order of a waveform.
+     *
+     *  \details One-argument factory; thin wrapper that reads the
+     *  waveform via `readWave` (any length) and returns
+     *  `reverse(sig)`.  See the private `reverse` helper for the
+     *  exact reversal semantics — including the multi-channel
+     *  block-reverse where each frame of `channels_` consecutive
+     *  samples is treated as a unit, and marker bytes follow
+     *  their associated sample frames.
+     *
+     *  \param args  Exactly 1 waveform argument.
+     *  \return  Reversed `Signal`.
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `readWave` for malformed waveform references.
+     */
     Signal flip(std::vector<Value> const& args);             // 0x25a310
 
     /*! \brief Apply a discrete IIR/FIR transfer function to a waveform.
@@ -1192,7 +1368,70 @@ public:
      *          or via `read*` for invalid argument types.
      */
     Signal circshift(std::vector<Value> const& args);        // 0x25b0e0
+
+    /*! \brief Build a multi-channel `Signal` by interleaving
+     *         several single-channel waveforms.
+     *
+     *  \details Variadic factory accepting two or more waveform
+     *  arguments and at most one trailing integer.  The trailing
+     *  integer (if present) is interpreted as a requested-length
+     *  hint that participates in the all-reserve-only output
+     *  length — it does not truncate or extend the materialised
+     *  output.
+     *
+     *  Each waveform argument becomes one channel of the output;
+     *  `channels_` is therefore the number of waveform arguments.
+     *  The output length is the maximum of the inputs' sample
+     *  counts; shorter inputs contribute `0.0` samples and zero
+     *  markers for the missing frames.  Per-frame samples are
+     *  interleaved channel-by-channel and each channel keeps its
+     *  own marker byte (markers are *not* OR'd onto channel 0).
+     *  The output `markerBits_` is the concatenation of every
+     *  input's `markerBits_`.
+     *
+     *  When every input is reserve-only the function short-circuits
+     *  to a reserve-only `Signal` whose length is the maximum of
+     *  the input lengths and the requested-length hint, with
+     *  `channels_` set to the number of inputs.  See IF-162 for
+     *  the GDB-verified length-accumulation semantics.
+     *
+     *  Internal helper for `interleave` (which forwards to `merge`
+     *  and then collapses the result back to a single logical
+     *  channel).
+     *
+     *  \param args  At least two waveform arguments; an optional
+     *          trailing `Int` is consumed as a length hint.
+     *  \return  Multi-channel `Signal`.
+     *  \throws WaveformGeneratorException  on fewer than two
+     *          waveform arguments or via `readWave` for malformed
+     *          waveform references.
+     */
     Signal merge(std::vector<Value> const& args);            // 0x25f5c0
+
+    /*! \brief Zero-pad a waveform to a target length.
+     *
+     *  \details Two-argument factory `grow(waveform, length)`.
+     *  Returns a copy of `waveform` extended with zero-valued
+     *  samples (and zero marker bytes) so that the output has
+     *  exactly `length` frames.  When `length == 0` the input is
+     *  returned unchanged; when `length` equals the input's
+     *  current frame count the input is returned unchanged; when
+     *  `length` is *less than* the input's current frame count the
+     *  function raises an error (`grow` only extends, never
+     *  shrinks).
+     *
+     *  Reserve-only inputs short-circuit to a reserve-only
+     *  `Signal` of the requested length, preserving the input's
+     *  `markerBits_`.  The output's `channels_` matches the
+     *  input's `channels_`.
+     *
+     *  \param args  Exactly 2 arguments: a waveform and an integer
+     *          target length in frames.
+     *  \return  Zero-padded `Signal` of `length` frames.
+     *  \throws WaveformGeneratorException  on fewer than two
+     *          arguments, on `length < currentFrames`, or via
+     *          `read*` for invalid argument types.
+     */
     Signal grow(std::vector<Value> const& args);             // 0x260640
 
 private:

@@ -457,6 +457,32 @@ cross-reference pages so the backlog is discoverable.
           `isLabelCalled` (scan range is `[begin, it)`, not
           "after `it`") in the same commit.
         1600/1600 tests, 0 doxygen warnings.
+   - [ ] **D4 Batch 6** — `WaveformGenerator` class, sub-batched.
+         6a/6b/6c/6d complete; remaining sub-batches TBD if
+         further coverage gaps appear.
+         - **6a** (`389b48e`): ~14 briefs — lifecycle / readers /
+           shape helpers.  Surfaced IF-229 (cosmetic class brief
+           overstatement).
+         - **6b** (`a861b55`, fixes in `bf89075`): 18 simple-shape
+           factory briefs (`zeros`, `ones`, `sin`, `cos`, `sinc`,
+           `ramp`, `sawtooth`, `triangle`, `gauss`, `drag`,
+           `blackman`, `hamming`, `hann`, `rect`, `mask`,
+           `marker`, `rrc`, `vect`).  Surfaced IF-230 — fixed
+           `rrc` 3-arg and `sinc` 4-arg arity-blind label
+           strings.
+         - **6c** (`83f4973`, fixes in `73a2e5f`/`d68f5a3`): 8
+           briefs (`chirp`, `rand`, `randomGauss`,
+           `randomUniform`, `lfsrGaloisMarker`, `placeholder`,
+           `filter`, `circshift`).  Surfaced IF-231 (`rand`
+           3-arg semantic bug, fixed) and extended IF-230 to
+           `chirp` (7 spaced-vs-camelCase labels) and
+           `lfsrGaloisMarker` (`"2 (marker)"` → `"2 (markerBit)"`).
+         - **6d**: 9 combinator briefs (`join`, `add`,
+           `interleave`, `scale`, `multiply`, `cut`, `flip`,
+           `merge`, `grow`).  Verify-then-write against function
+           bodies; existing IFs (IF-162, IF-176, IF-181, IF-188)
+           cited in user-facing briefs.  No new IFs.
+         1601/1601 tests, 0 doxygen warnings throughout.
 
 - [ ] **D-AUDIT-1 — Audit `WaveformGenerator` factory parameter-label strings**
       _(spawned from D4 Batch 6b verify-then-write; see IF-230)_
@@ -501,7 +527,10 @@ cross-reference pages so the backlog is discoverable.
           the trig family (which take 1 or 2 of `length`,
           `amplitude`, `nPeriods`, `riseRatio`, `phase`); audit
           surface is small.  Defer until briefs are written for
-          each (Batch 6d for combinators is next anyway).
+          each (Batch 6d for combinators completed; remaining
+          factories `gauss`/`sin`/`cos`/`sawtooth`/`triangle`/
+          `drag`/`blackman`/`hamming`/`hann`/`placeholder`/`vect`
+          still pending audit).
   - Likely cosmetic for the remaining factories (impacts
     user-visible error-message text only, no test currently
     exercises these error paths) but binary-faithfulness
