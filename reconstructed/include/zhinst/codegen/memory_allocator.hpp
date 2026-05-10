@@ -34,9 +34,9 @@ struct DeviceConstants;
 //! from each `MemoryAllocator::allocate*` call and stored in the
 //! allocator's free-list deque between allocations.
 struct MemoryBlock {
-    uint32_t start;     // +0x00  start address of block
-    uint32_t end;       // +0x04  end address (start + size)
-    uint32_t flags;     // +0x08  bit 0 = valid, bit 8 = crossesCacheLine
+    uint32_t start;     //!< Inclusive start byte address of the block. +0x00  start address of block
+    uint32_t end;       //!< Exclusive end byte address (`start + size`). +0x04  end address (start + size)
+    uint32_t flags;     //!< Result flags: bit 0 set on successful allocation; bit 8 set when the block straddles a cache-line boundary. +0x08  bit 0 = valid, bit 8 = crossesCacheLine
 };
 static_assert(sizeof(MemoryBlock) == 12, "MemoryBlock must be 12 bytes");
 

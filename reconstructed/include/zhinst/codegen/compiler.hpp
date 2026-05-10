@@ -42,8 +42,8 @@ namespace FrontEndLoweringFacade {
 //! `Compiler::ast_`) alongside the `EvalResults` produced by
 //! evaluating that AST under the supplied resource environment.
 struct LowerResult {
-    std::shared_ptr<Node>        astResult;    // +0x00 (from FrontendLoweringState.result)
-    std::shared_ptr<EvalResults> evalResult;   // +0x10 (from evaluate virtual sret)
+    std::shared_ptr<Node>        astResult;    //!< Lowered AST root produced by the walk; stored into `Compiler::ast_` after `lower()` returns. +0x00 (from FrontendLoweringState.result)
+    std::shared_ptr<EvalResults> evalResult;   //!< Top-level `EvalResults` from evaluating the AST under the supplied resource environment. +0x10 (from evaluate virtual sret)
 };
 
 // 0x1c1da0 — ~1KB
@@ -119,8 +119,8 @@ LowerResult lower(std::shared_ptr<Resources> resources,
 //! `wavetableIR` is the resolved wavetable whose contents go into the
 //! `.waveforms`, `.wf_*`, and `.wavemem` ELF sections.
 struct CompileResult {
-    std::vector<Assembler> asmList;          // +0x00 (24 bytes)
-    std::shared_ptr<WavetableIR> wavetableIR;    // +0x18 (16 bytes)
+    std::vector<Assembler> asmList;          //!< Optimised, post-prefetch instruction stream emitted by the pipeline; consumed by the ELF writer. +0x00 (24 bytes)
+    std::shared_ptr<WavetableIR> wavetableIR;    //!< Resolved wavetable populated by the prefetch pass; produces the ELF `.waveforms`, `.wf_*`, and `.wavemem` sections. +0x18 (16 bytes)
 };
 
 // ---- Compiler (class layout) ----

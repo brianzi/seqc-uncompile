@@ -140,18 +140,33 @@ enum class ECommandType : int32_t {
 //! virtual `SeqCAstNode` hierarchy by the frontend lowering pass; consumers
 //! manage instances through `std::shared_ptr<Expression>`.
 struct Expression {
+    //! \brief Top-level node kind (command / value / variable / operator / ...).
     EOperationType                               operationType;  // +0x00
+    //! \brief Value category: `0` = default, `2` = rvalue (set on Value/String/FunctionCall nodes).
     int32_t                                      valueCategory;  // +0x04
+    //! \brief 1-based source line of the originating token.
     int32_t                                      lineNumber;     // +0x08
+    //! \brief ABI padding to 8-byte alignment for the following `double`.
     int32_t                                      pad0C_{};       // +0x0C
+    //! \brief Numeric literal payload (used when `operationType == eVALUE`).
     double                                       value;          // +0x10
+    //! \brief Identifier / string-literal payload, depending on `operationType`.
     std::string                                  name;           // +0x18
+    //! \brief Child sub-expressions (operands, body statements, parameter list, ...).
     std::vector<std::shared_ptr<Expression>>     children;       // +0x30
+    //! \brief Operator slot for `eOPERATOR` nodes; `eNONE` otherwise.
     EOperator                                    operator_;      // +0x48
+    //! \brief Command slot for `eCOMMAND` nodes; `eNOCMD` otherwise.
     ECommandType                                 commandType;    // +0x4C
+    //! \brief Variable-kind tag (`Unset`/`Var`/`Const`/`Cvar`/`String`/`Wave`).
     VarType                                      varType;        // +0x50
+    //! \brief Parameter direction tag (`EDirection`; always `2`/`eINOUT` in the binary).
     EDirection                                   direction;      // +0x54
 
+    //! \brief Default-construct an `eCOMMAND` node initialised to the
+    //!        binary's `.rodata` pattern (`operator_=eNONE`,
+    //!        `commandType=eNOCMD`, `varType=Unset`,
+    //!        `direction=eINOUT`, all numeric fields zero).
     // Default-initialise to the binary's .rodata pattern {21, 16, 0, 2}
     Expression()
         : operationType(EOperationType::eCOMMAND)
@@ -164,6 +179,11 @@ struct Expression {
         , direction(EDirection::eINOUT)
     {}
 
+    //! \brief Deep-copy ctor: clones every field; `children` is left
+    //!        as the (shared-pointer) copy of the source vector — the
+    //!        recursive sub-tree clone is performed by
+    //!        `copyExpression`.
+    //! \param other  Source expression to copy from.
     // Copy ctor — 0x1bfa30
     Expression(const Expression& other);
 };

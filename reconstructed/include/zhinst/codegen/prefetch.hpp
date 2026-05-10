@@ -184,16 +184,27 @@ public:
     //! cache-clamped `prf` prefetch sequence required when a single
     //! load straddles a cache-line boundary.
     struct PrefetcherNodeState {
+        //! \brief Hirzel-family register slot assigned by `assignLoad`; reused as the `lengthReg` slot during length tracking.
         AsmRegister registerHirzel;                           // +0x00
+        //! \brief Cervino-family register slot assigned by `assignLoad`.
         AsmRegister registerCervino;                          // +0x08
+        //! \brief Per-node state machine tracked by `optimize`; initial value `3` means "unloaded".
         int32_t state = 3;                                    // +0x10 (3=unloaded)
+        //! \brief Number of branches reaching this node, populated by `countBranches`.
         int32_t branchCount = 1;                              // +0x14
+        //! \brief Live reference-count tracker maintained by `optimize`.
         int32_t refTrack = 0;                                 // +0x18
+        //! \brief Number of cache pages this node's load occupies (also written through the `playSize` alias by `definePlaySize`).
         int32_t pagesNeeded = 1;                                 // +0x1C
+        //! \brief Cache utilisation counter populated when `allocate` reserves a slot.
         int32_t usedCache_ = 0;                            // +0x20
+        //! \brief ABI padding to 8-byte alignment for `cachePtr`.
         int32_t _pad24 = 0;                                   // +0x24
+        //! \brief Cache slot reserved for this node by `allocate` (null until reservation).
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
+        //! \brief Copied from the load's `WaveformIR::crossesCacheLine_`; gates `prf` emission on Hirzel devices when a load straddles a cache line.
         bool crossesCacheLine = false;                        // +0x38
+        //! \brief ABI padding rounding the struct to 0x40 bytes.
         char _pad39[7] = {};                                  // +0x39 padding (no field here)
 
         // ====================================================================

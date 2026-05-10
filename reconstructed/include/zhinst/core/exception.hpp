@@ -157,22 +157,29 @@ namespace zhinst {
 //! identity in addition to its human-readable message.  Only `value()`
 //! and `to_string()` are exercised at the source level.
 struct ErrorCode {
-    int                         value_     = 0;     // +0x00
-    int                         _pad_      = 0;     // padding
-    void const*                 category_  = nullptr; // +0x08 (error_category*)
+    int                         value_     = 0;     //!< Integer error value (the "code"). +0x00
+    int                         _pad_      = 0;     //!< Alignment padding between `value_` and the category pointer.
+    void const*                 category_  = nullptr; //!< Opaque pointer to the originating `boost::system::error_category` singleton. +0x08
     // boost::system::error_code carries a `source_location` (16B) since
     // boost 1.79+. We model it as two qwords to preserve total size = 24.
     // Binary: actual layout is { value (4B), pad, category*,
     // source_location (8B?) } — exact internal split inside the +0x30..+0x47
     // region is irrelevant for source-level use; only `code()` returning by
     // value cares about total size.
-    void const*                 source_    = nullptr; // +0x10
+    void const*                 source_    = nullptr; //!< Boost source-location filler; never inspected at the source level. +0x10
 
+    //! \brief Return the integer error value, suitable for
+    //!        equality / category-specific lookup.
+    //! \return The stored `value_` slot.
     int value() const noexcept { return value_; }
 
     // Approximation of boost::system::error_code::to_string().
     // Binary calls this at 0x2e55db to produce the code portion of the
     // Exception message.
+    //! \brief Render the error code as the string `"error:<N>"` for
+    //!        embedding in the human-readable message.
+    //! \return Newly built diagnostic fragment used by the
+    //!         `Exception(ErrorCode)` constructor.
     std::string to_string() const {
         return "error:" + std::to_string(value_);
     }
@@ -206,10 +213,15 @@ inline ErrorCode makeDefaultErrorCode() {
 //! the new exception, avoiding a separate string copy.
 template <typename T>
 struct GenericErrorDescription {
-    T            code{};       // +0x00 (24 bytes when T = ErrorCode)
-    std::string  message;      // +0x18 (24 bytes libc++)
+    T            code{};       //!< Programmatic error code (typically `ErrorCode`); 24 bytes when `T = ErrorCode`. +0x00
+    std::string  message;      //!< Human-readable explanation moved into the new `Exception`. +0x18
 
+    //! \brief Default-construct an empty description (zero code,
+    //!        empty message).
     GenericErrorDescription() = default;
+    //! \brief Bundle a code with a message in one step.
+    //! \param codeVal Programmatic error code; moved into `code`.
+    //! \param msg     Human-readable text; moved into `message`.
     GenericErrorDescription(T codeVal, std::string msg)
         : code(std::move(codeVal)), message(std::move(msg)) {}
 };

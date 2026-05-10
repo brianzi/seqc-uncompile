@@ -88,8 +88,14 @@ struct WaveformFront;
 //! by the wavetable manager from a name and device-constants
 //! reference.
 struct WaveformIR : Waveform {
+    //! \brief Set by the prefetch passes when this waveform is actually referenced (`true`) and so will be included in the cache plan.
     bool markedForLoad;     // +0xD8  "used"/"referenced" by prefetch passes
+    //! \brief Placement-fixed flag; partitions waveforms into the fixed and the FIFO-allocated halves of the wavetable.
     bool fixed_;            // +0xD9  placement-fixed; partitions FIFO alloc
+    //! \brief `true` when this waveform's allocated slot straddles a cache-line boundary
+    //!  (always `true` for filler waveforms; for normal waveforms set by
+    //!  `WavetableIR::allocateWaveforms` from bit 8 of the
+    //!  `MemoryAllocator` block flags, and cleared on reload into a non-straddling slot).
     bool crossesCacheLine_; // +0xDA  set true for filler waveforms; for
                             //         normal waveforms = bit 8 of the
                             //         MemoryAllocator block.flags written by
@@ -97,20 +103,42 @@ struct WaveformIR : Waveform {
                             //         when a waveform is reloaded into a slot
                             //         that does not straddle a cache line.
     // +0xDB: 1 byte padding
+    //! \brief Per-waveform allocation size (sourced from `DeviceConstants`) consumed by `ElfWriter::addWaveform`.
     int32_t elfAlignment_;       // +0xDC  per-waveform allocation size (from DC)
 
     // --- Convenience accessors (these forward to the appropriate base/Signal field;
     //     they are NOT separate storage — they exist so legacy call sites continue
     //     to compile while we audit each call's intended target) ---
+    //! \brief Forwarder for `Waveform::used` (whether the waveform is referenced).
+    //! \return  `true` iff the underlying `Waveform::used` flag is set.
     bool isUsed() const { return used; }                // Waveform::used at +0x48
+    //! \brief Forwarder for `Waveform::allocationByteSize`.
+    //! \return  The waveform's allocated size in bytes.
     int  getAllocationByteSize() const { return allocationByteSize; } // Waveform::allocationByteSize +0x74
 
+    //! \brief Construct a back-end IR node from a parsed front-end
+    //!        waveform, copying the front-end fields and zeroing the
+    //!        IR-specific flags.
+    //! \param source  Parsed front-end waveform to adopt.
     // Construct from WaveformFront — 0x114da0
     explicit WaveformIR(std::shared_ptr<WaveformFront> source);
 
+    //! \brief Construct a back-end IR node by adopting an existing
+    //!        `Waveform`'s base subobject; IR-specific flags start
+    //!        zeroed and `elfAlignment_` is copied from the source's
+    //!        backing-file alignment field.
+    //! \param source  Existing waveform whose base subobject is adopted.
     // Construct from Waveform — 0x2a9240
     explicit WaveformIR(std::shared_ptr<Waveform> source);
 
+    //! \brief Construct a placeholder IR waveform for the wavetable
+    //!        manager: only `name`, `waveformType`, and
+    //!        `deviceConstants_` are populated; `waveIndex` is set to
+    //!        `-1` and every other field (including the IR flags) is
+    //!        zeroed.
+    //! \param name  Waveform name.
+    //! \param type  Backing-file kind tag.
+    //! \param dc    Device-constants reference stored on the waveform.
     // Construct in-place from (name, file type, device constants).
     // The body of this ctor is inlined into the
     //   allocate_shared<WaveformIR>(allocator, name, File::Type, DC&)
@@ -123,9 +151,15 @@ struct WaveformIR : Waveform {
                Waveform::File::Type type,
                const DeviceConstants& dc);
 
+    //! \brief Property-tree element type used by `toJsonElement`.
     // Serialize to a property tree element — 0x2c5440
     // Returns a ptree (sret via rdi)
     using ptree = boost::property_tree::basic_ptree<std::string, std::string, std::less<std::string>>;
+    //! \brief Render this waveform as a JSON property-tree element
+    //!        suitable for inclusion in the `.waveforms` ELF section,
+    //!        encoding the samples in the requested `format`.
+    //! \param format  Sample-encoding format selector.
+    //! \return  Property-tree element ready to embed in the waveforms JSON.
     ptree toJsonElement(SampleFormat format) const;
 };
 

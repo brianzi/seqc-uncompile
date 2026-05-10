@@ -95,27 +95,43 @@ std::string toString(AwgSequencerType seq);
 //! SHFLI, GHFLI, and VHFLI families) and copied into each
 //! `AwgDeviceProps` returned by `getAwgDeviceProps`.
 struct AwgPathPatterns {
+    //! \brief Node-path template (with `%d`-style placeholders) locating the AWG's ELF data sink.
     std::string elfDataPattern;        // +0x00
+    //! \brief Node-path template locating the AWG's ELF upload-progress / status node.
     std::string elfProgressPattern;    // +0x18
+    //! \brief Node-path template locating the AWG's run / enable node.
     std::string enablePattern;         // +0x30
     // Total: 0x48 bytes.
 
+    //! \brief Default-construct with empty pattern strings (used as a
+    //!        zero-initialised placeholder for unknown families).
     // Default ctor — produces empty strings (default for unknown families).
     AwgPathPatterns() = default;
 
+    //! \brief Construct from the three node-path template strings.
+    //! \param elfData      Template stored in `elfDataPattern`.
+    //! \param elfProgress  Template stored in `elfProgressPattern`.
+    //! \param enable       Template stored in `enablePattern`.
     // Three-arg convenience ctor used to populate the named globals.
     AwgPathPatterns(std::string elfData,
                     std::string elfProgress,
                     std::string enable);
 
+    //! \brief Deep-copy ctor (member-wise copy of the three strings).
     // 0x2cc4f0 — copy ctor (deep-copies the 3 strings).
     AwgPathPatterns(AwgPathPatterns const&) = default;
 
+    //! \brief Release the three owned strings in reverse declaration order.
     // 0x2cc480 — dtor.
     ~AwgPathPatterns() = default;
 
+    //! \brief Defaulted move constructor.
     AwgPathPatterns(AwgPathPatterns&&) = default;
+    //! \brief Defaulted copy assignment.
+    //! \return  Reference to `*this`.
     AwgPathPatterns& operator=(AwgPathPatterns const&) = default;
+    //! \brief Defaulted move assignment.
+    //! \return  Reference to `*this`.
     AwgPathPatterns& operator=(AwgPathPatterns&&) = default;
 };
 // 3 strings, no other fields → 0x48 (libc++) or 0x60 (libstdc++).
@@ -177,17 +193,27 @@ static_assert(sizeof(AwgPathPatterns) == 3 * sizeof(std::string),
 //! and the `isHirzel` flag that selects between the two sequencer
 //! generations.
 struct AwgDeviceProps {
+    //! \brief One-hot AWG device-family bit.
     AwgDeviceType deviceType;          // +0x00
+    //! \brief Node-path template for the AWG's ELF data sink.
     std::string   elfDataPattern;      // +0x08
+    //! \brief Node-path template for the AWG's ELF upload-progress node.
     std::string   elfProgressPattern;  // +0x20
+    //! \brief Node-path template for the AWG's run / enable node.
     std::string   enablePattern;       // +0x38
+    //! \brief Maximum permitted size of the emitted ELF (JSON key `"maxelfsize"`).
     uint64_t      maxElfSize;          // +0x50  (max ELF binary size; JSON "maxelfsize")
+    //! \brief Waveform-memory base address (also the program entry point).
     uint32_t      addressImpl;         // +0x58  (waveform memory base address)
+    //! \brief Wave-sample storage format (`SampleFormat` enum encoded as `0`/`1`/`2`).
     uint32_t      sampleFormat;        // +0x5c  (SampleFormat enum: 0/1/2)
+    //! \brief `true` for Hirzel-generation device families (selects the modern sequencer).
     bool          isHirzel;            // +0x60  (true for Hirzel-gen devices)
+    //! \brief Node-path template for the FPGA revision (and slave revision on HDAWG).
     std::string   fpgaRevisionPattern; // +0x68  (also slaverevision for HDAWG)
     // Total: 0x80 bytes.
 
+    //! \brief Release the four owned strings in reverse declaration order.
     ~AwgDeviceProps();   // 0xf81e0 — explicit out-of-line dtor
 };
 // 4 strings + 32 bytes fixed fields → 0x80 (libc++) or 0xa0 (libstdc++).

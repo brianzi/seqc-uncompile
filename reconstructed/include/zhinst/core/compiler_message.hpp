@@ -25,16 +25,21 @@ namespace zhinst {
 //! display, prefixing "Compiler Error" / "Warning" / "Info" per `type`
 //! and optionally suppressing the line number suffix.
 struct CompilerMessage {
+    //! \brief Severity tag distinguishing errors, warnings, and
+    //!        informational messages.
+    //! \details `Invalid` is a sentinel used by bounds-checks; it must
+    //! never be passed to `str()` (the prefix lookup table is indexed
+    //! directly by enum value).
     enum CompilerMessageType : int {
-        Error   = 0,  // "Compiler Error"
-        Warning = 1,  // "Warning"
-        Info    = 2,  // "Info"
-        Invalid = 3,  // sentinel — out-of-range guard used in bounds checks
+        Error   = 0,  //!< Compiler error — sets `hadError_` and aborts later phases. "Compiler Error"
+        Warning = 1,  //!< Warning — non-fatal advisory diagnostic. "Warning"
+        Info    = 2,  //!< Informational message — no effect on success / failure. "Info"
+        Invalid = 3,  //!< Out-of-range sentinel used in bounds checks; never display. sentinel — out-of-range guard used in bounds checks
     };
 
-    CompilerMessageType type;   // +0x00
-    int lineNr;                 // +0x04
-    std::string message;        // +0x08 (24 bytes SSO)
+    CompilerMessageType type;   //!< Diagnostic severity; one of `Error`, `Warning`, or `Info`. +0x00
+    int lineNr;                 //!< SeqC source line number, or `-1` when the message is not source-attached. +0x04
+    std::string message;        //!< Human-readable diagnostic body. +0x08 (24 bytes SSO)
     // +0x20 END
 
     //! \brief Render the message for display, prefixed with the

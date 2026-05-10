@@ -73,35 +73,64 @@ namespace zhinst {
 //! lifetime of one compilation; consumers throughout the back end
 //! query individual fields rather than copying the whole struct.
 struct AWGCompilerConfig {
+    //! \brief Target AWG device family (one-hot bit).
     AwgDeviceType deviceType;           // 0x00
+    //! \brief Wave-sample storage format used by `writeWavesToElf*`.
     SampleFormat sampleFormat;              // 0x04 — used by writeWavesToElf* (verified at 0x10e049, 0x10e1f2)
+    //! \brief Override sample rate in Hz; NaN selects the device default.
     double deviceSampleRate;            // 0x08 — NaN means "use default"; read in StaticResources::init at 0x1ee69b
+    //! \brief Waveform-memory base address (also used as the program entry).
     uint32_t addressImpl;               // 0x10 — AddressImpl<unsigned int> value
+    //! \brief Per-group channel counts: `[0]` = normal, `[1]` = indexed.
     uint16_t channelsPerGroup[2];       // 0x14 — [0]=normal, [1]=indexed; read by PlayArgs ctor
+    //! \brief `true` on Hirzel-generation devices (selects the modern sequencer).
     bool isHirzel;                      // 0x18 — 1 = Hirzel device (cmpb $0x1,0x18(%rax) at 0x1d6c47)
+    //! \brief Wave-cache layout selector: `0` = Normal, `1` = Aligned.
     uint8_t cacheType;                  // 0x19 — 0=Normal, 1=Aligned (movzbl 0x19(%rax) at 0x1d6c4d)
+    //! \brief ABI padding to 4-byte alignment.
     char pad_1a[2];                     // 0x1A — padding
+    //! \brief Number of AWG channel groups (typically `1`, `2`, or `4`).
     int numChannelGroups;               // 0x1C — 1, 2, or 4
+    //! \brief AWG core index within the device; used for node paths and channel validation.
     int32_t awgIndex;                   // 0x20 — AWG core index (node paths + channel validation)
+    //! \brief Device index used for waveform lookup in multi-device sessions.
     int32_t deviceIndex;                // 0x24 — Device index for waveform lookup
+    //! \brief Round-trip serialisation toggle set by `AWGCompilerImpl`. \unclear — no reconstructed consumer.
     uint64_t serializeRoundTrip;                // 0x28 — no reconstructed consumer; may be set by AWGCompilerImpl
+    //! \brief Filesystem path that receives the debug-dump output when enabled.
     std::string debugDumpPath;              // 0x30 — 24 bytes, conditionally owned
+    //! \brief When `true`, the compiler writes a debug dump to `debugDumpPath`.
     bool debugDumpEnabled;               // 0x48
+    //! \brief ABI padding before the next string.
     char pad_49[7];                     // 0x49
+    //! \brief Filesystem path that receives the debug-JSON output when enabled.
     std::string debugJsonPath;              // 0x50 — 24 bytes, conditionally owned
+    //! \brief When `true`, the compiler writes a debug-JSON file to `debugJsonPath`.
     bool debugJsonEnabled;               // 0x68
+    //! \brief ABI padding before the next vector.
     char pad_69[7];                     // 0x69
+    //! \brief Search directories prepended to the `#include` resolution path.
     std::vector<std::string> includePaths; // 0x70 — begin/end/cap at 0x70/0x78/0x80
+    //! \brief Optimisation-pass bitmask. \unclear — no reconstructed consumer.
     uint64_t optimizationFlags;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
+    //! \brief Debug-print bitmask: `0x02` old AST, `0x04` SeqC AST, `0x08` tree/assembly.
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
+    //! \brief Number of AWG cores in this device configuration (binary default `0`).
     int32_t numCores = 0;               // 0x94 — number of AWG cores (binary default is 0)
+    //! \brief Maximum loop-unroll budget passed to `FrontEndLoweringFacade::lower()`.
     int32_t loopUnrollLimit;            // 0x98 — passed to FrontEndLoweringFacade::lower() as last arg
                                         //        (verified: mov eax,[rax+0x98] at 0x11f8d4 in compile())
+    //! \brief ABI padding before `compressSource`.
     uint8_t pad_9c;                     // 0x9C — padding
+    //! \brief When `true`, source sections in the output ELF are zlib-compressed.
     bool compressSource;                // 0x9D — if true, compress source sections in ELF (verified at 0x108f48)
+    //! \brief ABI padding to 4-byte alignment.
     uint8_t pad_9e[2];                  // 0x9E — padding
+    //! \brief Wavetable capacity in entries; sign-extended to `size_t` at the call site.
     int32_t wavetableSize;              // 0xA0 — sign-extended to size_t
+    //! \brief ABI padding before `searchPath`.
     int32_t pad_a4;                     // 0xA4
+    //! \brief Search-path root used when locating `.csv` / `.seqc` waveform files.
     boost::filesystem::path searchPath; // 0xA8 — dtor frees; path is a string wrapper (24 bytes)
 
     // ========================================================================

@@ -451,6 +451,15 @@ struct PlayArgs {
     //!                 assignment's `value` slot.
     void addChannelWave(int channel, EvalResultValue const& val);     // @0x170ec0
 
+    //! \brief One waveform/marker argument pair targeted at a set of
+    //!        per-group channel bits.
+    //!
+    //! Produced by `PlayArgs::parse` (and by the per-channel helper
+    //! `addChannelWave`) and stored inside the per-group inner vector
+    //! of `PlayArgs::waveAssignments_`.  `value` is the source
+    //! argument (an `EvalResultValue` carrying a `Wave`, `String`,
+    //! `Const`, or marker entry); `bits` enumerates the in-group
+    //! channel-bit slots the value drives.
     struct WaveAssignment {
         // Stride 0x50 (80 bytes) per entry — confirmed by playAuxWave's
         // inner copy loop @0x135990..0x1359d6 which copies exactly 0x38
@@ -462,10 +471,13 @@ struct PlayArgs {
         //   * @0x135854: `lea rsi, [rbx+0x8]` then call Value::toString
         //     ⇒ wa.value.value_ lives at WA+0x08 ⇒ wa.value lives at WA+0
         //   * @0x135990 inner copy: 0x38 bytes from WA+0 → vec<EvalResultValue>
+        //! \brief Source argument (waveform / marker / constant) consumed by the play.
         EvalResultValue value;       // +0x00 (0x38 bytes)
+        //! \brief In-group channel-bit slots driven by `value` (1-based slot numbers).
         std::vector<int> bits;       // +0x38, channel bit assignments
         // total = 0x50 ✓
 
+        //! \brief Default-construct an empty assignment (empty `value`, empty `bits`).
         WaveAssignment() = default;
         //! \brief Variant-aware deep copy of `o`.
         //!
@@ -476,9 +488,16 @@ struct PlayArgs {
         //! bytes, `double` as 8 bytes, `std::string` via
         //! placement new) — then copy-constructs `bits` from
         //! `o.bits`.
+        //!
+        //! \param o  Source assignment to copy from.
         WaveAssignment(WaveAssignment const& o);  // @0x171c00
+        //! \brief Defaulted copy assignment.
+        //! \return  Reference to `*this`.
         WaveAssignment& operator=(WaveAssignment const&) = default;
+        //! \brief Defaulted move constructor.
         WaveAssignment(WaveAssignment&&) = default;
+        //! \brief Defaulted move assignment.
+        //! \return  Reference to `*this`.
         WaveAssignment& operator=(WaveAssignment&&) = default;
     };
     // 0x50 on libc++ (binary), larger on libstdc++ due to Value's string union.
@@ -486,23 +505,51 @@ struct PlayArgs {
                   "PlayArgs::WaveAssignment must be at least 0x50 bytes");
 
     // --- Fields (0x80 bytes total) ---
+    //! \brief Shared wavetable consulted for waveform lookup and sample-length queries.
     std::shared_ptr<WavetableFront>              wavetable_;          // +0x00
+    //! \brief Callback invoked to surface non-fatal warnings during waveform load.
     std::function<void(std::string const&)>      reportWarning_;      // +0x10 (48B in libc++, but only 32B+8B used here; +0x30 = invoker)
+    //! \brief Source command name (e.g. `"playWave"`), embedded in diagnostics.
     std::string                                  cmdName_;            // +0x40
+    //! \brief Per-group channel count (from `AWGCompilerConfig::channelsPerGroup`).
     uint16_t                                     channelsPerGroup_;   // +0x58
+    //! \brief Total channel count (`channelsPerGroup_ * numChannelGroups`).
     uint16_t                                     totalChannels_;      // +0x5A
     // 4 bytes padding                                                // +0x5C
+    //! \brief Per-channel-group assignment lists populated by `parse`.
     std::vector<std::vector<WaveAssignment>>     waveAssignments_;    // +0x60
+    //! \brief `true` once `parse` has observed a marker (`varSubType_ == 2`) argument.
     bool                                         hasMarker_;          // +0x78
 
 private:
     // parse() helpers
+    //! \brief `parse` helper covering the implicit-channel form
+    //!        (waveform arguments listed in source order, with
+    //!        multi-channel waveforms expanding into synthetic
+    //!        continuation entries).
+    //! \param begin  Iterator at the start of the parseable range.
+    //! \param end    Iterator one past the last argument to consider.
+    //! \return Number of channels covered by the assignment.
     int parseImplicitChannels(
         std::vector<EvalResultValue>::const_iterator begin,
         std::vector<EvalResultValue>::const_iterator end);            // @0x16fb30
+    //! \brief `parse` helper covering the explicit-channel form
+    //!        (channel-number `Cvar` arguments interleaved with
+    //!        their waveform arguments).
+    //! \param begin  Iterator at the start of the parseable range.
+    //! \param end    Iterator one past the last argument to consider.
+    //! \return Number of channels covered by the assignment.
     int parseExplicitChannels(
         std::vector<EvalResultValue>::const_iterator begin,
         std::vector<EvalResultValue>::const_iterator end);            // @0x170000
+    //! \brief Look `name` up in `wavetable_`, raising a
+    //!        `CustomFunctionsValueException` (`WaveformNotFound`)
+    //!        when the entry is missing.
+    //!
+    //! \param name      Waveform name as it appears in source.
+    //! \param argIndex  Zero-based argument position used to format
+    //!                  the diagnostic.
+    //! \return  Shared pointer to the resolved `WaveformFront`.
     std::shared_ptr<WaveformFront> secureLoadWaveform(
         std::string const& name, size_t argIndex) const;             // @0x1711a0
 };

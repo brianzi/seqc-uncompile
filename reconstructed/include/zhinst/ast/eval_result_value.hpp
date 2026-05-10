@@ -34,10 +34,10 @@ enum VarSubType : int32_t;
 //! assembler register currently holding the value (or an invalid register
 //! when the value has not been materialised in hardware).
 struct EvalResultValue {
-    VarType     varType_;      // +0x00 — outer type tag
-    VarSubType  varSubType_;   // +0x04 — sub-type qualifier
-    Value       value_;        // +0x08 — embedded Value (0x28 bytes)
-    AsmRegister reg_;          // +0x30 — register binding
+    VarType     varType_;      //!< Outer type tag (`Int`, `Double`, `String`, …). +0x00 — outer type tag
+    VarSubType  varSubType_;   //!< Sub-type qualifier; typically zero unless the value carries a register / waveform sub-classification. +0x04 — sub-type qualifier
+    Value       value_;        //!< Embedded variant payload (scalar, string, register, or vector). +0x08 — embedded Value (0x28 bytes)
+    AsmRegister reg_;          //!< Optional binding to the assembler register currently holding `value_`; invalid by default. +0x30 — register binding
 
     //! \brief Destroys the embedded `Value` (releasing any string
     //! storage) and the `AsmRegister`.

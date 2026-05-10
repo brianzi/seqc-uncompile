@@ -29,14 +29,31 @@ namespace zhinst {
 //! version, or `getLaboneVersionWithCommitHash()` for the same value
 //! formatted alongside the source commit hash.
 struct CalVer {
+    //! \brief Calendar year component (two-digit, e.g. `26` for 2026).
     size_t year_;   // +0x00
+    //! \brief Calendar month component (1–12, no zero-padding).
     size_t month_;  // +0x08
+    //! \brief Patch number within the year/month release.
     size_t patch_;  // +0x10
+    //! \brief Build number within the patch; `0` when omitted from a parsed string.
     size_t build_;  // +0x18
 
+    //! \brief Default-construct an all-zero version (the "not set" sentinel).
     // Default ctor — zero-initializes all fields
     CalVer() : year_(0), month_(0), patch_(0), build_(0) {}
 
+    //! \brief Parse a dotted version string of the form `"YY.MM.PATCH"`
+    //!        or `"YY.MM.PATCH.BUILD"`.
+    //!
+    //! When `s` contains exactly three dots the string is split on the
+    //! last dot: the prefix is forwarded to `extractVersionTriple`, and
+    //! the suffix is parsed as `build` via `boost::lexical_cast<size_t>`.
+    //! Otherwise the entire string is forwarded to
+    //! `extractVersionTriple` and `build_` is left at zero.
+    //!
+    //! \param s  Dotted version string.
+    //! \throws  `boost::bad_lexical_cast` when a component is not a
+    //!          valid unsigned integer.
     // Parsing ctor: parses "YY.MM.PATCH" or "YY.MM.PATCH.BUILD"
     // If exactly 3 dots → splits on last dot, calls extractVersionTriple()
     //   on the prefix, then boost::lexical_cast<size_t> on the suffix (build).
@@ -46,11 +63,32 @@ struct CalVer {
     explicit CalVer(std::string const& s);
 
     // Accessors — trivial field reads
+    //! \brief Return the calendar-year component.
+    //! \return  `year_`.
     size_t year()  const;  // @0x100220, 9 bytes
+    //! \brief Return the calendar-month component.
+    //! \return  `month_`.
     size_t month() const;  // @0x100230, 10 bytes
+    //! \brief Return the patch component.
+    //! \return  `patch_`.
     size_t patch() const;  // @0x100240, 10 bytes
+    //! \brief Return the build component.
+    //! \return  `build_`.
     size_t build() const;  // @0x100250, 10 bytes
 
+    //! \brief Returns a reference to `*this` reinterpretable as the
+    //!        leading `{year, month, patch}` triple.
+    //!
+    //! The first three fields are laid out identically to
+    //! `std::array<size_t, 3>`; callers may reinterpret-cast the
+    //! returned reference to that type to obtain the triple form
+    //! used by the parser.
+    //!
+    //! \binarynote Returns by `const CalVer&`, not by value or by
+    //!             `std::array<size_t, 3>`; the caller is responsible
+    //!             for the reinterpretation.
+    //!
+    //! \return  Reference to `*this`.
     // Returns *this by pointer cast — the first 3 fields (year_, month_, patch_)
     // are laid out identically to std::array<size_t, 3>.
     // Caller reinterprets the returned CalVer* as array<size_t,3> const&.

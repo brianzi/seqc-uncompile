@@ -26,25 +26,64 @@
 //! `magicSkipRegister()` factory returns a sentinel used internally by
 //! the optimiser's register-allocation pass to mark barrier entries.
 struct AsmRegister {
+    //! \brief Register number (typically 0–15), or `-1` when unset.
     int value = -1;      // +0x00: register number (0-15), or -1 if unset
+    //! \brief `true` when this slot refers to a real register;
+    //!        `false` for the default-constructed "no register" sentinel.
     bool valid = false;  // +0x04: whether this register slot is active
     // +0x05: 3 bytes padding to 8-byte alignment
 
+    //! \brief Default-construct an invalid (unset) register slot.
     AsmRegister() = default;
+    //! \brief Construct from explicit `value` / `valid` components.
+    //! \param v      Register number (caller-supplied; not validated).
+    //! \param valid  Whether the slot should be marked active.
     AsmRegister(int v, bool valid) : value(v), valid(valid) {}
+    //! \brief Construct from a single signed index: negative values
+    //!        yield an invalid slot with `value == 0`; non-negative
+    //!        values yield a valid slot carrying `max(n, 0)`.
+    //!
+    //! Reproduces the binary's `cmovg`/`setns` idiom verbatim.
+    //!
+    //! \param n  Signed register index; negative means "invalid".
     AsmRegister(int n) : value(n > 0 ? n : 0), valid(n >= 0) {}  // @0x28eb40: cmovg + setns
 
     // Named constants for convenience
+    //! \brief Factory for the invalid sentinel (`{-1, false}`).
+    //! \return  An `AsmRegister` with `valid == false` and `value == -1`.
     static AsmRegister Invalid() { return {-1, false}; }
+    //! \brief Factory for a valid slot carrying register number `n`.
+    //! \param n  Register number to store.
+    //! \return  An `AsmRegister` with `valid == true` and `value == n`.
     static AsmRegister Reg(int n) { return {n, true}; }
 
+    //! \brief Sentinel register used internally by `splitConstRegisters`
+    //!        to mark barrier entries that should be stripped.
+    //!
+    //! Carries `value == INT_MAX` and `valid == true`; not a real
+    //! hardware register.
+    //!
+    //! \return  The barrier sentinel `AsmRegister`.
     // 0x28ebb0 — returns AsmRegister(INT_MAX, true): sentinel used by
     // splitConstRegisters to mark barrier entries that should be stripped.
     static AsmRegister magicSkipRegister() { return {0x7fffffff, true}; }
 
+    //! \brief Returns whether the slot refers to a real register
+    //!        (i.e. the `valid` flag is set).
+    //! \return  `true` if `valid`, `false` otherwise.
     bool isValid() const { return valid; }
+    //! \brief Explicit conversion to the underlying register number.
+    //!        No validity check is performed — callers must consult
+    //!        `isValid()` first when the slot may be unset.
     explicit operator int() const { return value; }
 
+    //! \brief Equality comparison with the invalid-slot collapse rule.
+    //!
+    //! Two invalid slots compare equal regardless of `value`;
+    //! otherwise both `valid` and `value` must match.
+    //!
+    //! \param o  Right-hand operand.
+    //! \return  `true` when both slots are equivalent under the rule above.
     bool operator==(const AsmRegister& o) const {
         // Binary semantics (0x28eb80): if both invalid, always equal
         // regardless of value. If both valid, compare values.
@@ -53,6 +92,9 @@ struct AsmRegister {
         if (!valid) return true;  // both invalid → equal
         return value == o.value;  // both valid → compare values
     }
+    //! \brief Negation of `operator==`.
+    //! \param o  Right-hand operand.
+    //! \return  `!(*this == o)`.
     bool operator!=(const AsmRegister& o) const { return !(*this == o); }
 };
 static_assert(sizeof(AsmRegister) == 8, "AsmRegister must be 8 bytes");
