@@ -746,23 +746,290 @@ public:
      *                for the current sub-tree.
      */
     void allocate(std::shared_ptr<Node> node, std::shared_ptr<Cache> cache); // 0x1d0fb0
+    /*! \brief Return every `WaveformIR` registered for `deviceIdx` in
+     *  insertion order, skipping names whose `WavetableIR` lookup
+     *  fails.
+     *
+     *  \details Reads `waveformMaps_[deviceIdx]` (one
+     *  `WaveformBimap` per channel group, populated by
+     *  `collectUsedWaves`) and walks its right (integer-keyed,
+     *  index-ordered) view, calling
+     *  `wavetableIR_->getWaveformByName` on each entry and pushing
+     *  any non-null result into the returned vector.  Returns an
+     *  empty vector when `deviceIdx` is out of range; never throws.
+     *  The result count may be smaller than the bimap size when a
+     *  wave name no longer resolves.
+     *
+     *  \param deviceIdx  Zero-based channel-group index into
+     *                    `waveformMaps_`.
+     *  \return  Vector of `WaveformIR` shared pointers in the order
+     *           the names were first registered for this device.
+     */
     std::vector<std::shared_ptr<WaveformIR>> getUsedWavesForDevice(size_t deviceIdx) const; // 0x1d2d60
+    /*! \brief Register every wave name carried by `node` into the
+     *  per-channel-group `waveformMaps_` bimaps.
+     *
+     *  \details For each channel group `i` in
+     *  `[0, config_->numChannelGroups)`, when
+     *  `node->wavesPerDev[i].has_value()` the function inserts
+     *  `(name, nextIndex)` into `waveformMaps_[i]`, where
+     *  `nextIndex` is the current size of the bimap's right view.
+     *  Boost bimap insertion is idempotent for existing names — the
+     *  recorded index reflects insertion order across all callers.
+     *  No-op when `node` is null.
+     *
+     *  \param node  Node whose `wavesPerDev` slots should be folded
+     *               into the global per-device wave registry.
+     */
     void collectUsedWaves(std::shared_ptr<Node> node);                 // 0x1d31c0
+    /*! \brief Synthesise a `Load` for `node` (a play or table node)
+     *  and splice it in immediately before `node` in the IR.
+     *
+     *  \details Calls `createLoad(node)`; when the result is
+     *  non-null, splices it in via `Node::insertBefore(loadNode)`.
+     *  Silently does nothing when `createLoad` returns null (wrong
+     *  `NodeType`, dummy flag set, or any of the other early-out
+     *  conditions in `createLoad`).
+     *
+     *  \param node  Play (`NodeType::Play`) or table
+     *               (`NodeType::Table`) node before which the new
+     *               load should appear.
+     */
     void linkLoad(std::shared_ptr<Node> node);                         // 0x1d33f0
+    /*! \brief Compact a `Branch` node's children, push the
+     *  surviving branches and the post-branch `next` onto the
+     *  caller's traversal stack, and splice the branch out when no
+     *  children remain.
+     *
+     *  \details No-op when `node` is null or its type is not
+     *  `NodeType::Branch`.  Otherwise scans
+     *  `node->branches` (`+0xC8`) with a write-pointer pass that
+     *  drops null `shared_ptr` entries; if any were removed, sets
+     *  `node->branchMaySkipAllBodies = true` (`+0x109`).  When the
+     *  vector is now empty, locks `node->parent` and calls
+     *  `Node::updateParent(parent, node, node->next)` to splice the
+     *  branch out, then pushes `node->next` onto `stack`.
+     *  Otherwise pushes `node->next` first (when non-null) followed
+     *  by every surviving branch — pushing `next` is essential so
+     *  that `prepareTree`'s LIFO walk visits the post-branch code,
+     *  not just the branch arms (regression-tested by
+     *  `uhf_doc_feedforward`).
+     *
+     *  \param node   The Branch node to prune.
+     *  \param stack  Caller's traversal stack; receives follow-up
+     *                nodes (the `next` join and each surviving
+     *                branch, or just `next` when the branch is
+     *                spliced out).
+     */
     void removeBranches(std::shared_ptr<Node> node,
         std::stack<std::shared_ptr<Node>>& stack) const;               // 0x1d3530
+    /*! \brief Expand each `SetVar` node in the sibling chain into
+     *  one clone per additional channel group.
+     *
+     *  \verifyme The recon body is a stub: it walks the chain and
+     *  on each `NodeType::SetVar` (`0x10`) node constructs
+     *  `std::make_shared<Node>(NodeType::SetVar, asmId, numSlots)`
+     *  in a loop bounded by `config_->numChannelGroups`, but the
+     *  fresh clones are never linked into the IR — they go out of
+     *  scope at the end of each loop iteration.  The intended
+     *  per-group field-copy and splice are missing.  See
+     *  incidental_findings.md IF-218.
+     *
+     *  \param node  Head of the sibling chain to scan.
+     */
     void expandSetVar(std::shared_ptr<Node> node) const;               // 0x1d3af0
+    /*! \brief Search the subtree rooted at `node` for a `Play` of
+     *  `waveform` that lives inside an unmatched `Lock` scope.
+     *
+     *  \verifyme The recon body is a stub: it walks the tree LIFO
+     *  but the `NodeType::Play` match block is empty and the
+     *  function always returns `nullptr`.  The original binary at
+     *  `0x1d3dd0` performs a real search (GDB-confirmed: hits a
+     *  `cmpl $0x2,0x44(%r13)` on Play nodes followed by `bcmp` on
+     *  the wave-name string and a success store via
+     *  `mov %rax,0x8(%rbx)`).  See incidental_findings.md IF-213.
+     *
+     *  \param node      Subtree root to search.
+     *  \param waveform  Target waveform the matching `Play` must
+     *                   reference.
+     *  \return  The matched `Play` node, or `nullptr` (currently
+     *           always `nullptr` in the stubbed recon).
+     */
     std::shared_ptr<Node> findLockedPlay(std::shared_ptr<Node> node,
         std::shared_ptr<WaveformIR> waveform) const;                   // 0x1d3dd0
+    /*! \brief Allocate a fresh `Load` IR node for the given play /
+     *  table node, register its book-keeping, and mark its
+     *  waveforms as load-targeted.
+     *
+     *  \details Returns `nullptr` when `node` is null, when
+     *  `node->type` is neither `NodeType::Play` (`0x02`) nor
+     *  `NodeType::Table` (`0x200`), or when `node->config.dummy`
+     *  is set.  Otherwise:
+     *
+     *    1. Reserves a register via `Resources::getRegisterNumber`.
+     *    2. Constructs `std::make_shared<Node>(NodeType::Load,
+     *       asmId, numChannelGroups)` and copies `wavesPerDev`,
+     *       `lengthReg`, and the configured `deviceIndex` onto it.
+     *    3. Emplaces the new load into `nodeStates_` and stores
+     *       the fresh `AsmRegister` in either `registerHirzel`
+     *       (`+0x00` of `PrefetcherNodeState`) or `registerCervino`
+     *       (`+0x08`) depending on `config_->isHirzel`.
+     *    4. Calls `assignLoad(node, result, isHirzel)` to back-link
+     *       the source play.
+     *    5. Pushes `node` (as a weak_ptr) into `result->play`
+     *       (`+0xA0`).
+     *    6. For every named wave on `node`, looks up the
+     *       `WaveformIR` via `wavetableIR_` and sets
+     *       `markedForLoad = true` (`+0xD8`; this is **not** the
+     *       neighbouring `fixed_` flag at `+0xD9`).
+     *    7. Calls `collectUsedWaves(node)`.
+     *
+     *  \verifyme The legacy block-header documents an
+     *  "already-loaded short-circuit" (parent.lock() && loadRef
+     *  set → return null) that the recon body does not implement.
+     *  See incidental_findings.md IF-219.
+     *
+     *  \param node  Source `Play` or `Table` node.
+     *  \return  The freshly constructed `Load`, or `nullptr` when
+     *           the source is ineligible.
+     */
     std::shared_ptr<Node> createLoad(std::shared_ptr<Node> node);       // 0x1d4a10
+    /*! \brief Fold every play-target of `src` (a `Load`) onto
+     *  `dst` (also a `Load`) and remove `src` from the IR.
+     *
+     *  \details No-op when either argument is null or either is not
+     *  of `NodeType::Load`.  Otherwise iterates `src->play`
+     *  (`+0xA0`); for each weak_ptr that locks to a non-null
+     *  target, calls `assignLoad(target, dst, config_->isHirzel)`
+     *  to redirect the target's `loadRef` and copy its register
+     *  slot, then linear-scans `dst->play` and pushes the same
+     *  weak_ptr when not already present.  After the loop,
+     *  unconditionally calls `Node::remove(src)` to splice `src`
+     *  out of the tree, regardless of how many targets were
+     *  successfully reassigned.  Callers must drop their own
+     *  references to `src` after the call.
+     *
+     *  \param node   The destination `Load` (absorbs `other`'s
+     *                play-targets); the parameter is named
+     *                `dst` in the implementation.
+     *  \param other  The source `Load`, removed from the IR on
+     *                return; named `src` in the implementation.
+     */
     void mergeLoads(std::shared_ptr<Node> node,
         std::shared_ptr<Node> other);                                  // 0x1d5040
+    /*! \brief Back-link a play node to a load and copy the matching
+     *  per-device register slot from the load's bookkeeping onto
+     *  the play's bookkeeping.
+     *
+     *  \details No-op when `load` is null.  Otherwise sets
+     *  `node->loadRef = load` (overwriting any prior weak_ptr),
+     *  emplaces both `load` and `node` into `nodeStates_`
+     *  (default-constructing `PrefetcherNodeState` on first
+     *  insertion), and copies one register field from the load's
+     *  state to the play's: `registerHirzel` (`+0x00`) when
+     *  `isHirzel` is true, otherwise `registerCervino` (`+0x08`).
+     *  The selection is governed entirely by `isHirzel`, not by
+     *  which slot is actually populated on the load.
+     *
+     *  \param node      Play node to back-link.
+     *  \param load      Load node owning the register slot to copy
+     *                   (early-out when null).
+     *  \param isHirzel  Selects the Hirzel (`+0x00`) vs Cervino
+     *                   (`+0x08`) register slot.
+     */
     void assignLoad(std::shared_ptr<Node> node,
         std::shared_ptr<Node> const& load, bool isHirzel);                 // 0x1d53a0
+    /*! \brief Maintain `cwvfConfig_` / `globalCwvfValid_` against
+     *  successive `Play` nodes for the global-CWVF optimisation.
+     *
+     *  \details No-op when `node` is null or `node->type` is not
+     *  `NodeType::Play` (`0x02`).  Optionally bails out early when
+     *  the node carries the `dummy` (`+0x66`) or `hold` (`+0x65`)
+     *  flag and either `rate == 0` or
+     *  (`rate == -1 && globalRate <= 0`) and the device has
+     *  precomp (`devConst_->hasPrecomp & 1`).
+     *
+     *  Otherwise:
+     *    - On the very first eligible call (`cwvfConfig_.channelMask
+     *      == 0xFFFFFFFF` sentinel, set by the constructor), copies
+     *      `node->config` into `cwvfConfig_`, stashes the node in
+     *      `lastCwvfNode_`, and sets `globalCwvfValid_ = true`.
+     *    - On subsequent calls, compares each PlayConfig field
+     *      (`channelMask`, `rate`, `suppress`, `is4Channel`,
+     *      `markerBits`, `trigger`, `precompFlags`, `dummy`; `hold`
+     *      only when `cwvfConfig_.rate > 0`); on any mismatch sets
+     *      `globalCwvfValid_ = false`.  The flag is never re-set to
+     *      true after the first call.
+     *
+     *  \param node  Candidate `Play` node to fold into the global
+     *               CWVF check.
+     */
     void globalCwvf(std::shared_ptr<Node> node);                       // 0x1d5620
+    /*! \brief Populate every visited node's `parent` weak_ptr to
+     *  point at its IR predecessor.
+     *
+     *  \details LIFO walk via a `std::deque<shared_ptr<Node>>`
+     *  worklist seeded with `node`.  For each popped current node:
+     *    - When `cur->next` is non-null, sets
+     *      `cur->next->parent = current` and pushes `cur->next`.
+     *    - For every entry of `cur->branches`, sets
+     *      `child->parent = current` and pushes `child`.
+     *
+     *  \verifyme A third visitor block re-enqueues `cur->next`
+     *  again instead of visiting `cur->loop`, so loop-body children
+     *  never receive a parent back-link.  See
+     *  incidental_findings.md IF-217.
+     *
+     *  \param node  Subtree root whose descendants should be
+     *               back-linked.
+     */
     void backwardTree(std::shared_ptr<Node> node) const;                // 0x1d57d0
+    /*! \brief Decide whether two load-bearing nodes can share a
+     *  single load (same wave name, page count, and length
+     *  register).
+     *
+     *  \details Reads `wavesPerDev[deviceIndex]` for both `a` and
+     *  `b` (treating a negative `deviceIndex` as "no name").  When
+     *  exactly one side has a value, returns `false`; when both
+     *  have values their strings must compare equal; when both are
+     *  empty the comparison continues.  Then looks up both nodes
+     *  in `nodeStates_` and returns `false` if their `pagesNeeded`
+     *  values differ (`PrefetcherNodeState::pagesNeeded`,
+     *  `PNS+0x1C` per `prefetch.hpp:192`).  Finally returns whether
+     *  `a->lengthReg` equals `b->lengthReg` (`+0x88`).
+     *
+     *  \throws std::out_of_range  if either node is missing from
+     *          `nodeStates_`.  Callers must therefore have run a
+     *          phase that registers both (e.g. `assignLoad`,
+     *          `createLoad`, or `allocate`) before invoking
+     *          `sameLoads`.
+     *
+     *  \param a  First node to compare.
+     *  \param b  Second node to compare.
+     *  \return  `true` only if the wave names, `pagesNeeded`, and
+     *           `lengthReg` all match.
+     */
     bool sameLoads(std::shared_ptr<Node> a,
         std::shared_ptr<Node> b) const;                                // 0x1d5e20
+    /*! \brief Find the first `Load` node whose wave name matches
+     *  the cache pointer's string.
+     *
+     *  \details LIFO walk over `root_` via a
+     *  `std::deque<shared_ptr<Node>>`.  For each visited node,
+     *  when `n->type == NodeType::Load` (`1`) and
+     *  `n->deviceIndex >= 0` and
+     *  `wavesPerDev[deviceIndex].has_value()`, compares the wave
+     *  name against `ptr->str()`; on match returns `n`.  Children
+     *  are pushed in order: every entry of `branches`, then `loop`
+     *  (when non-null), then `next` (when non-null), so traversal
+     *  order is determined by the resulting LIFO stack.  Returns
+     *  `nullptr` when no Load matches.
+     *
+     *  \param ptr  Cache pointer whose wave-name string is the
+     *              search key.
+     *  \return  The first matching `Load` node in LIFO traversal
+     *           order, or `nullptr`.
+     */
     std::shared_ptr<Node> nodeByCachePointer(
         std::shared_ptr<Cache::Pointer> ptr) const;                    // 0x1d60d0
 

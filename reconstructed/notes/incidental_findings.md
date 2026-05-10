@@ -4805,3 +4805,235 @@ in the same commit (no longer deferred).
 
 GDB driver: `tests/gdb/gdb_trace_lock.py`.
 GDB recipe: `tests/gdb/gdb_lock_trace.txt`.
+
+## IF-217  `Prefetch::backwardTree` re-enqueues `next` instead of `loop`
+
+**Severity**: likely-bug.
+**Status**: open (recon body unfixed; block-header & inline
+comments corrected in same commit so they match the buggy body
+rather than misleading future readers).
+**Discovered**: D4 Batch 2d verify-then-write of
+`Prefetch::backwardTree` (`prefetch_helpers.cpp:235-265`,
+original at `0x1d57d0`).
+
+The function is a LIFO worklist walk that should set every
+visited node's children to back-link to it via `Node::parent`.
+The body visits three child links per pop:
+
+1. `cur->next` (sibling chain at `+0xB8`) — handled at
+   `prefetch_helpers.cpp:247-251`.
+2. Every entry of `cur->branches` (vector at `+0xC8`) — handled
+   at `prefetch_helpers.cpp:254-257`.
+3. A third `if (cur->next) { cur->next->parent = current;
+   worklist.push_back(cur->next); }` at
+   `prefetch_helpers.cpp:259-263`, with the inline comment
+   `// For next / loop` and the parenthetical `// +0xB8 (was
+   elseBranch — confirmed same as next)`.
+
+The third block is **identical** to the first, both syntactically
+and semantically: it re-reads `cur->next`, re-writes its
+`parent`, and re-pushes it.  The intended third visitor — by
+analogy with every other walker in this file (`prepareTree`,
+`countBranches`, `optimizeSync`, `nodeByCachePointer`,
+`determineFixedWaves`, `findLockedPlay`) — is `cur->loop`
+(`+0xE0`, the loop-body / else-branch link), so that loop bodies
+get their parent back-pointers and are re-walked.
+
+As-written, `Node::loop` children **never receive a parent
+back-link** from `backwardTree`.  Any caller that relies on
+`parent.lock()` from inside a loop body will see a stale or
+default-constructed weak_ptr.
+
+**Why tests still pass at 1600/1600**: callers of
+`backwardTree` are limited (it is only invoked from a small set
+of Prefetch passes that themselves walk the tree top-down and
+already hold parent context).  The `Node::parent` weak_ptr is
+also commonly initialised earlier in the lowering pipeline
+(`AwgCompilerNodes::lower*` sets parents at construction time),
+so the back-link populated by `backwardTree` is largely
+redundant for the inputs the test corpus produces.  A regression
+test specifically exercising loop bodies whose parent link is
+stale would expose this.
+
+The duplicated push also means `next`-children are visited
+twice, doubling the worklist cost on `next`-heavy chains; this
+is wasteful but not incorrect.
+
+**Comment fix applied this commit**: replaced the misleading
+`// For next / loop` comment block at
+`prefetch_helpers.cpp:259-263` with an explicit
+`// IF-217: this re-enqueues cur->next instead of cur->loop` so
+that future readers don't misread the duplicate as intentional.
+
+**Action**:
+1. GDB-trace the original binary at `0x1d57d0` on a SeqC program
+   with a non-trivial loop (e.g. any `repeat (...)` in the
+   manifest's loop tests).  Confirm the third dispatch in the
+   binary reads `+0xE0` (`loop`) rather than `+0xB8` (`next`).
+2. If confirmed, change `cur->next` → `cur->loop` in both lines
+   `260` and `262` of `prefetch_helpers.cpp`.
+3. Run the full test suite — most likely 1600/1600 unchanged.
+4. Add a regression test that asserts `parent.lock()` is non-null
+   on a node inside a loop body after `backwardTree` runs.
+
+## IF-218  `Prefetch::expandSetVar` body is a stub that creates orphan SetVar clones
+
+**Severity**: likely-bug (stub).
+**Status**: open.
+**Discovered**: D4 Batch 2d verify-then-write of
+`Prefetch::expandSetVar` (`prefetch_helpers.cpp:352-375`,
+original at `0x1d3af0`).
+
+The recon body walks the sibling chain via `n = n->next.get()`,
+and on each `NodeType::SetVar` node:
+
+```cpp
+int numSlots  = n->asmId;
+int numGroups = config_->numChannelGroups;
+for (int i = 1; i < numGroups; ++i) {
+    auto newNode = std::make_shared<Node>(
+        NodeType::SetVar, n->asmId, numSlots);
+    // Copy wave names and adjust for device index
+    // Insert after current node
+}
+```
+
+The `make_shared<Node>` result is **stored in `newNode` and never
+used**.  The two comments inside the loop ("Copy wave names…",
+"Insert after current node") describe behaviour that **does not
+exist in the body**.  Every clone is destroyed at end of loop
+iteration when `newNode` goes out of scope.
+
+This is the same anti-pattern as IF-216 (stub body whose intended
+behaviour exists only as a comment), but in a function that the
+recon body never finished.  `expandSetVar` is functionally a
+no-op past walking the chain.
+
+**Caller**: `Prefetch::prepareTree` dispatches
+`NodeType::SetVar` to `expandSetVar(node)` and then pushes
+`node->next`.  If the binary's `expandSetVar` produces additional
+linked SetVar nodes per channel-group, they would be visited on
+subsequent stack pops via the spliced-in `next` pointers — none
+of which the recon ever creates.
+
+**Why tests still pass at 1600/1600**: SetVar nodes are produced
+by the lowering of variable-modification statements in `playWave`
+expressions on multi-channel-group devices.  No test in the
+current corpus appears to exercise this path on a multi-group
+device with `numChannelGroups > 1` in a way that requires the
+expansion.  The single-group case (`numGroups == 1`) makes the
+loop body never execute, so the recon's bug is invisible.
+
+**Action**:
+1. Identify the original binary's `expandSetVar` body via
+   `objdump -d --start-address=0x1d3af0 --stop-address=0x1d3dd0
+   _seqc_compiler.so` and reconstruct the per-clone fields:
+   what is copied from the source node, what is mutated
+   (probably `deviceIndex` or the per-group slot of
+   `wavesPerDev`), and how the clone is linked into the tree
+   (`Node::insertAfter` or similar).
+2. GDB-trace the original on a multi-channel-group SeqC program
+   that exercises `setUserReg`-like SetVar emission to confirm
+   the per-group splat semantics.
+3. Fix the body, run the suite, add a regression test.
+
+## IF-219  `Prefetch::createLoad` missing already-loaded short-circuit
+
+**Severity**: likely-bug.
+**Status**: open (recon body unfixed; block-header rewritten in
+same commit to match the buggy body).
+**Discovered**: D4 Batch 2d verify-then-write of
+`Prefetch::createLoad` (`prefetch.cpp:2192-2279`, original at
+`0x1d4a10`).
+
+The pre-existing block-header at `prefetch.cpp:2167-2191`
+documents step 2 as:
+
+> 2. Check if load already exists (via parent weak_ptr at +0x20)
+>    - If parent exists AND loadNode (+0x18) is set → already
+>      loaded, skip
+>    - Special case: if parent exists but loadNode is null,
+>      check isPlaceholder
+
+The actual recon body does **not** implement this check.  After
+the type-test (`nodeType != 0x200 && nodeType != 0x2`) it falls
+straight through to the `n->config.dummy` check.  There is no
+`n->loadRef.lock()` (or equivalent) test, no parent walk, no
+"already-loaded" early-return.
+
+This means every Play / Table node visited by `linkLoad` (which
+is the sole caller in the prepare-tree pass) gets a *fresh*
+load synthesised even if a previous pass already attached one.
+For the current single-pass `preparePlays` invocation the bug is
+latent: each node is only visited once and `linkLoad` is the
+first opportunity to attach a load.  But callers that legitimately
+expect re-entry safety would silently get duplicate loads,
+duplicate `nodeStates_` entries (the second `emplace` for the
+same node is a no-op for the entry but the freshly allocated
+`AsmRegister` is leaked), and a `markedForLoad` flag that gets
+re-set on every wave.
+
+The block-header also contains several stale labels:
+
+- `0x200` is called "SetPlay" at lines 2168, 2172, 2179, 2201,
+  2204; the verified `NodeType` enum has `0x200 = Table` and
+  `SetVar = 0x10`.  Same Play↔Load swap pattern as IF-215.
+- Line 2186 documents the call as `assignLoad(this, node,
+  loadNode, isHirzel)` (4 args); the actual call is
+  `assignLoad(node, result, isHirzel)` (3 args).
+- Line 2187 says "loadTargets_ (+0xA0)"; the field is
+  `Node::play` (verified at `node.hpp:104`).
+- Lines 2188-2189 say "mark waveform as not fixed (+0xD8 =
+  false)"; the body sets `wfm->markedForLoad = true` at
+  `prefetch.cpp:2270` (the inline comment correctly notes this
+  is *not* the `fixed_` flag — the contradiction is purely with
+  the block-header summary above).
+
+**Comment fix applied this commit**: rewrote the block-header at
+`prefetch.cpp:2165-2191` from the verified body, with an
+explicit note that the documented "already-loaded" guard is
+absent (IF-219).
+
+**Action**:
+1. `objdump -d --start-address=0x1d4a10 --stop-address=0x1d5040
+   _seqc_compiler.so` to confirm whether the binary actually has
+   the early-return guard the legacy comment described.
+2. If yes, add the guard before the `Resources::getRegisterNumber`
+   call.  GDB-trace a Play node that has been visited twice to
+   confirm.
+3. Run the full suite.  No regressions expected (the bug is
+   latent on the current call graph).
+
+## IF-220  Block-header & inline-comment drift across batch 2d Prefetch helpers
+
+**Severity**: cosmetic (purely descriptive; no code-behaviour
+impact).
+**Status**: fixed in same commit as discovery.
+**Discovered**: D4 Batch 2d verify-then-write of the 13
+tree-rewrite helpers in `prefetch.cpp` and
+`prefetch_helpers.cpp`.
+
+Cluster of stale comment / block-header drift.  Each individually
+is small; logged together because they share the same root cause
+(secondary-source rot from earlier rename / enum-correction
+passes — same family as IF-212 and IF-215).
+
+Sites fixed in this commit (all comment-only edits, no body
+changes):
+
+| File:Line | Was | Now |
+|---|---|---|
+| `prefetch.cpp:65` | "For SetVar (type==0x02) nodes" | "For Play (`NodeType::Play`, 0x02) nodes" |
+| `prefetch.cpp:2151,2161` | "+0x20 offset" / "+0x28 offset" for `registerHirzel`/`registerCervino` | "+0x00 / +0x08 per `prefetch.hpp:187-188`" |
+| `prefetch.cpp:2289-2291` | "if all were merged, removes the source" | "unconditionally removes the source after the loop" |
+| `prefetch.cpp:2306-2309` | "for each weak_ptr in dst->play, check parent chain back to src" | rewritten to describe the actual `srcTargets` iteration |
+| `prefetch_helpers.cpp:439` | "PNS.playSize() (+0x3C from hash node, PNS+0x0C)" | "PNS.pagesNeeded (+0x3C, PNS+0x1C)" |
+| `prefetch_helpers.cpp:495` | inline `// PNS+0x1C (hash_node+0x3C)` | unchanged (already correct) |
+| `prefetch_helpers.cpp:510` | "is a type-1 (Play) node" | "is a `Load` (type 1) node" |
+| `prefetch_helpers.cpp:560` | "Push next pointer (+0xe0)" | "Push loop/else-branch (+0xE0)" |
+
+The body of each function was verified line-by-line against
+`reconstructed/include/zhinst/ast/node.hpp:44-117` (NodeType +
+Node layout) and `reconstructed/include/zhinst/codegen/prefetch.hpp:186-203`
+(PrefetcherNodeState).  No behavioural divergence beyond what is
+tracked in IF-217 / IF-218 / IF-219.

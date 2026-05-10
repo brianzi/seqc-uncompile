@@ -256,8 +256,13 @@ void Prefetch::backwardTree(std::shared_ptr<Node> node) const // 0x1d57d0
             worklist.push_back(child);
         }
 
-        // For next / loop
-        if (cur->next) {  // +0xB8 (was elseBranch — confirmed same as next)
+        // IF-217: this re-enqueues cur->next instead of cur->loop.
+        // The intended third visitor (by analogy with every other
+        // walker in this file) is `cur->loop` (+0xE0), so loop bodies
+        // get a parent back-link and are re-walked.  As-written, the
+        // body double-visits cur->next and never visits loop children.
+        // See incidental_findings.md IF-217.
+        if (cur->next) {
             cur->next->parent = current;
             worklist.push_back(cur->next);
         }
@@ -345,9 +350,15 @@ void Prefetch::removeBranches(
 // 0x1d3af0 — Prefetch::expandSetVar(shared_ptr<Node>) const
 // Ends at 0x1d3dd0.
 //
-// For SetVar (type 0x200) nodes: expands them by creating additional
-// Load nodes for each channel group. Iterates through the node's
-// waveNames and creates separate Load nodes per channel group slot.
+// Walks the sibling chain (n = n->next.get()) looking for SetVar
+// (NodeType::SetVar = 0x10) nodes.  For each one, the body intends to
+// produce one cloned SetVar per channel-group beyond the first; the
+// recon's loop only constructs the clones via std::make_shared and
+// then drops them when the temporary `newNode` goes out of scope.
+//
+// IF-218: the body is a stub.  The clones are never linked into the IR
+// (no Node::insertAfter or splice into n->next), and no per-group
+// adjustment is applied.  See incidental_findings.md IF-218.
 // ============================================================================
 void Prefetch::expandSetVar(std::shared_ptr<Node> node) const // 0x1d3af0
 {
@@ -436,7 +447,10 @@ std::shared_ptr<Node> Prefetch::findLockedPlay(
 //      - If neither has value: they match
 //      - If one has and other doesn't: they don't match
 //   4. If names match: look up both nodes in nodeStates_ map,
-//      compare their PNS.playSize() (+0x3C offset from hash node, PNS+0x0C)
+//      compare their PrefetcherNodeState::pagesNeeded (PNS+0x1C
+//      per prefetch.hpp:192; node-keyed via the unordered_map
+//      lookup).  Throws std::out_of_range if either node is
+//      missing from nodeStates_.
 //   5. Also compare their lengthReg (AsmRegister at +0x88)
 //   6. Return true only if all comparisons pass.
 // ============================================================================
@@ -492,7 +506,7 @@ bool Prefetch::sameLoads(std::shared_ptr<Node> a,
     if (itA == nodeStates_.end())
         throw std::out_of_range("sameLoads: node not found in nodeStates_");
 
-    if (itB->second.pagesNeeded != itA->second.pagesNeeded)  // PNS+0x1C (hash_node+0x3C)
+    if (itB->second.pagesNeeded != itA->second.pagesNeeded)  // PNS+0x1C per prefetch.hpp:192
         return false;
 
     // Compare lengthReg (AsmRegister at +0x88)
@@ -506,10 +520,11 @@ bool Prefetch::sameLoads(std::shared_ptr<Node> a,
 // 0x1d60d0 — Prefetch::nodeByCachePointer(shared_ptr<Cache::Pointer>) const
 // Ends at 0x1d65ba.
 //
-// LIFO traversal starting from root node (this->node_ at +0x60). For each node,
-// checks if it is a type-1 (Play) node with a valid slot index, then compares
-// the string in that slot's data entry against ptr->str(). Returns the first
-// matching node. Pushes children (branches, next, child) onto a deque used as a stack.
+// LIFO traversal starting from root node (this->root_ at +0x60). For each
+// visited node, if it is a Load (NodeType::Load = 1) with a valid slot
+// index, compares the wave name in wavesPerDev[deviceIndex] against
+// ptr->str(); returns the first match.  Pushes children (branches, loop,
+// next) onto a deque used as a LIFO stack.
 // ============================================================================
 std::shared_ptr<Node> Prefetch::nodeByCachePointer(
     std::shared_ptr<Cache::Pointer> ptr) const // 0x1d60d0
@@ -557,12 +572,12 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
             queue.push_back(*it);
         }
 
-        // 0x1d6400: Push next pointer (+0xe0) if non-null
+        // 0x1d6400: Push loop / else-branch (+0xE0) if non-null
         if (n->loop) { // loop/else-branch at +0xE0
             queue.push_back(n->loop);
         }
 
-        // 0x1d6496: Push child/next sibling (+0xb8) if non-null
+        // 0x1d6496: Push next sibling (+0xB8) if non-null
         if (n->next) {
             queue.push_back(n->next);
         }

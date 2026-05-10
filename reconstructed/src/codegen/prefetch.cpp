@@ -62,17 +62,18 @@ Prefetch::~Prefetch() {
 // 0x1d5620 — Prefetch::globalCwvf(shared_ptr<Node>)
 // Ends at 0x1d5765.
 //
-// For SetVar (type==0x02) nodes: checks if the node's PlayConfig (+0x48)
-// matches the saved cwvfConfig_ (+0xC0). If cwvfConfig_.channelMask == -1
-// (first call), copies the node's config into cwvfConfig_ and saves the
-// node as lastCwvfNode_. Otherwise compares all PlayConfig fields;
-// if they differ, sets globalCwvfValid_ = false.
+// For Play (NodeType::Play, 0x02) nodes only — non-Play returns early:
+// checks whether the node's PlayConfig (+0x48) matches the saved
+// cwvfConfig_ (+0xC0).  On the very first call (cwvfConfig_.channelMask
+// == 0xFFFFFFFF sentinel) copies the node's config into cwvfConfig_,
+// saves the node as lastCwvfNode_, and sets globalCwvfValid_ = true.
+// On subsequent calls compares all PlayConfig fields field-by-field;
+// on any mismatch sets globalCwvfValid_ = false (never re-set to true).
 //
-// Additional checks for nodes with specific cwvf conditions:
-//   - if node->dummy (+0x66) is set OR node->hold (+0x65) is set:
-//     - if node->rate (+0x4C) == 0 or (rate == -1 && globalRate (+0x100) <= 0):
-//   - if devConst_->hasPrecomp (+0x88, bit 0): skip (return)
-//     - else: proceed to comparison
+// Optional early-out when the node carries the dummy (+0x66) or hold
+// (+0x65) flag and either rate == 0 or (rate == -1 && globalRate <= 0)
+// and the device has precomp (devConst_->hasPrecomp & 1): the node is
+// skipped without participating in the comparison.
 // ============================================================================
 void Prefetch::globalCwvf(std::shared_ptr<Node> node) // 0x1d5620
 {
@@ -2149,7 +2150,7 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
     // 0x1d544e: emplace node into nodeStates_
     auto [it2, _2] = nodeStates_.emplace(node, PrefetcherNodeState{});
     // 0x1d5453-0x1d545b: copy it1->second.registerHirzel (+0x20) to it2->second
-    it2->second.registerHirzel = it1->second.registerHirzel; // +0x20 offset
+    it2->second.registerHirzel = it1->second.registerHirzel; // PNS+0x00 per prefetch.hpp:187
   } else {
     // Cervino path
     // 0x1d5494: emplace load into nodeStates_
@@ -2158,36 +2159,44 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
     auto [it2, _2] = nodeStates_.emplace(node, PrefetcherNodeState{});
     // 0x1d54b6-0x1d54ba: copy registerCervino (+0x28) from load's state to
     // node's state
-    it2->second.registerCervino = it1->second.registerCervino; // +0x28 offset
+    it2->second.registerCervino = it1->second.registerCervino; // PNS+0x08 per prefetch.hpp:188
   }
 }
 
 // ============================================================================
 // 0x1d4a10 — Prefetch::createLoad(shared_ptr<Node>)
 //
-// Creates a Load node for a given Play/SetPlay node. Returns null if
-// the node already has a load, or if the node's isPlaceholder flag is set.
+// Synthesises a fresh Load node for a given Play (0x02) or Table (0x200)
+// source node and registers it with the per-node bookkeeping.  Returns
+// null when the source is null, has the wrong NodeType, or carries the
+// dummy flag (n->config.dummy at +0x66).
 //
-// Steps:
-//   1. Check node type is Play (0x2) or SetPlay (0x200)
-//   2. Check if load already exists (via parent weak_ptr at +0x20)
-//      - If parent exists AND loadNode (+0x18) is set → already loaded, skip
-//      - Special case: if parent exists but loadNode is null, check
-//      isPlaceholder
-//   3. Check isPlaceholder (+0x66) — if true, return null
-//   4. Get a new register number from Resources::getRegisterNumber()
-//   5. Create a new Node with type=Load (0x1), same asmId as source
-//   6. Copy deviceIndex from config_->numChannelGroups
-//   7. Copy waveNames_ (optional<string> vector at +0x28) from source
-//   8. Copy playLength (+0x88) from source node
-//   9. Branch on config_->isHirzel:
-//      - If isHirzel: set AsmRegister in PNS+0x00 (registerHirzel)
-//      - Else: set AsmRegister in PNS+0x08 (registerCervino)
-//  10. Call assignLoad(this, node, loadNode, isHirzel)
-//  11. Add source node as weak_ptr to loadNode's loadTargets_ (+0xA0)
-//  12. For each valid wave name, look up WaveformIR and mark it not fixed
-//  (+0xD8 = false)
-//  13. Call collectUsedWaves(node)
+// IF-219: the legacy block-header documented an "already-loaded short-
+// circuit" (parent.lock() && loadRef set → return null) that the recon
+// body does **not** implement.  Every eligible source produces a fresh
+// load.  See incidental_findings.md IF-219.
+//
+// Steps actually performed by the body:
+//   1. Bail on null / wrong type / dummy.
+//   2. Allocate a register via Resources::getRegisterNumber().
+//   3. Construct std::make_shared<Node>(NodeType::Load, asmId,
+//      numChannelGroups).
+//   4. Copy n->wavesPerDev (+0x28) and n->lengthReg (+0x88) onto the
+//      new load; set the load's deviceIndex from config_->deviceIndex.
+//   5. Emplace the new load into nodeStates_ and store the AsmRegister
+//      in either registerHirzel (PNS+0x00) or registerCervino (PNS+0x08)
+//      according to config_->isHirzel.
+//   6. Call assignLoad(node, result, isHirzel) — 3-arg form, despite
+//      the legacy comment — to back-link the source to the new load
+//      and copy the matching register slot.
+//   7. Push the source node into result->play (+0xA0,
+//      vector<weak_ptr<Node>>).  Field is named `play`, not
+//      `loadTargets_` as legacy text claimed.
+//   8. For each named wave on the source, look up the WaveformIR via
+//      wavetableIR_ and set wfm->markedForLoad = true (+0xD8 byte).
+//      This is the `markedForLoad` flag, not the (similarly located)
+//      `fixed_` flag at +0xD9.
+//   9. Call collectUsedWaves(node) to populate waveformMaps_.
 // ============================================================================
 std::shared_ptr<Node>
 Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
@@ -2198,19 +2207,17 @@ Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
   if (!n)
     return result;
 
-  // 0x1d4a41-0x1d4a4e: check type is Play(0x2) or SetPlay(0x200)
+  // 0x1d4a41-0x1d4a4e: check type is Play (0x2) or Table (0x200)
   int nodeType = static_cast<int>(n->type); // +0x44
   if (nodeType != 0x200 && nodeType != 0x2)
     return result;
 
-  // 0x1d4a54-0x1d4a6b: check parent weak_ptr at +0x20
-  // Lock weak_ptr → if parent exists:
-  //   0x1d4a6b: check loadNode (+0x18) — if non-null, already loaded → return
-  //   0x1d4f51: if loadNode is null, check isPlaceholder and re-enter
-  // If no parent (lock returns null): fall through
+  // IF-219: the legacy "already-loaded" guard documented in the
+  // block-header is not implemented in the recon body.  We fall
+  // straight through to the dummy check.
 
-  // 0x1d4aac: check isPlaceholder (+0x66)
-  if (n->config.dummy) // +0x66 = config+0x1E (was isPlaceholder)
+  // 0x1d4aac: check dummy flag (+0x66)
+  if (n->config.dummy)
     return result;
 
   // 0x1d4ab6: get fresh register number
@@ -2242,11 +2249,11 @@ Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
     // Create AsmRegister with regNum, emplace into nodeStates_
     AsmRegister reg(regNum);
     auto [it, _] = nodeStates_.emplace(result, PrefetcherNodeState{});
-    it->second.registerHirzel = reg; // +0x20 offset
+    it->second.registerHirzel = reg; // PNS+0x00 per prefetch.hpp:187
   } else {
     AsmRegister reg(regNum);
     auto [it, _] = nodeStates_.emplace(result, PrefetcherNodeState{});
-    it->second.registerCervino = reg; // +0x28 offset
+    it->second.registerCervino = reg; // PNS+0x08 per prefetch.hpp:188
   }
 
   // 0x1d4cc4-0x1d4cf4: call assignLoad(this, node, result, isHirzel)
@@ -2279,15 +2286,20 @@ Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
 }
 
 // ============================================================================
-// 0x1d5040 — Prefetch::mergeLoads(shared_ptr<Node>, shared_ptr<Node>)
+// 0x1d5040 — Prefetch::mergeLoads(shared_ptr<Node> dst, shared_ptr<Node> src)
 //
-// Merges load targets from one Load node into another. Iterates through
-// the source Load's loadTargets_ (weak_ptr vector at +0xA0), and for each
-// target that still has a valid parent chain, calls assignLoad to redirect
-// it to the destination Load node.
+// Folds every play-target of `src` (a Load) onto `dst` (also a Load) and
+// then **unconditionally** removes `src` from the IR via Node::remove(src).
+// Both arguments must be non-null and of NodeType::Load — otherwise the
+// function is a no-op.
 //
-// After processing all targets, if all were merged, removes the source
-// Load from the tree via Node::remove().
+// For each weak_ptr in src->play (+0xA0) that locks to a non-null target:
+//   1. Call assignLoad(target, dst, config_->isHirzel) to redirect the
+//      target's loadRef and copy the matching register slot.
+//   2. Linear-scan dst->play for an already-present weak_ptr to the same
+//      target; if absent, push the same weak_ptr.
+// The iteration completes for every src target regardless of how many
+// were merged; only after the loop is Node::remove(src) called.
 // ============================================================================
 void Prefetch::mergeLoads(std::shared_ptr<Node> dst,
                           std::shared_ptr<Node> src) // 0x1d5040
@@ -2303,11 +2315,6 @@ void Prefetch::mergeLoads(std::shared_ptr<Node> dst,
   auto it = srcTargets.begin();
 
   while (it != srcTargets.end()) {
-    // 0x1d50cc-0x1d5120: for each weak_ptr in dst->play,
-    // check if the target still has a valid parent chain
-    // (lock weak_ptr at +0x20, follow loadNode +0x18)
-    // If the parent chain leads back to src → this target should be merged
-
     // Lock the weak_ptr to get target node
     auto targetNode = it->lock(); // 0x1d512b-0x1d5134: lock weak at *it
 
