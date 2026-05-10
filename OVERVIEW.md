@@ -710,6 +710,20 @@ mainpage.
     reserve-only short-circuit) cited inline so the user-facing
     docs surface the documented quirks.  No new IFs.
     Build clean (0 doc warnings); tests 1601/1601.
+  - **7c (2026-05-10)**: 34 briefs in
+    `include/zhinst/codegen/math_compiler.hpp` — full
+    `MathCompiler` public surface (ctor + 23 unary + 5
+    variadic + `functionExists` + `call`) and the three
+    `MathCompilerException` members.  Documents the
+    `ln`/`log` aliasing (both natural log; use `log10` for
+    base-10), `sign` returning `0.0` for NaN, `avg([]) →
+    NaN`, `max/min` UB on empty input, the `pow` arity
+    self-check, the `strict` flag's lazy-evaluation
+    semantics in `functionExists`, and `call`'s asymmetric
+    diagnostics (`UnknownFunction` / `FuncSingleArg`,
+    variadic arity NOT validated except by `pow`'s own
+    self-check).  No new IFs.  Build clean (0 doc
+    warnings); tests 1601/1601.
   - **D-AUDIT-1 closeout (2026-05-10)**: completed the
     parameter-label sweep across the remaining 11
     `WaveformGenerator` factories (`gauss`, `sin`, `cos`,
@@ -784,6 +798,20 @@ mainpage.
     `objdump` of `getAwgDeviceTypeFromString` at 0x270180
     (verified `cervino → 1`, `hirzel → 2`).  No new IFs.
     Build clean (0 doc warnings); tests 1601/1601.
+  - **7c (2026-05-10)**: 34 briefs in
+    `include/zhinst/codegen/math_compiler.hpp` — full
+    `MathCompiler` public surface (ctor + 23 unary + 5
+    variadic + `functionExists` + `call`) and the three
+    `MathCompilerException` members.  Documents the
+    `ln`/`log` aliasing (both natural log; use `log10` for
+    base-10), `sign` returning `0.0` for NaN, `avg([]) →
+    NaN`, `max/min` UB on empty input, the `pow` arity
+    self-check, the `strict` flag's lazy-evaluation
+    semantics in `functionExists`, and `call`'s asymmetric
+    diagnostics (`UnknownFunction` / `FuncSingleArg`,
+    variadic arity NOT validated except by `pow`'s own
+    self-check).  No new IFs.  Build clean (0 doc
+    warnings); tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

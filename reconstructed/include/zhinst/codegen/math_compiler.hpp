@@ -40,9 +40,24 @@ namespace zhinst {
 class MathCompilerException : public std::exception {
     std::string msg_;
 public:
-    explicit MathCompilerException(std::string const& msg);  // @0x1c40c0
-    ~MathCompilerException() override;                        // @0x1c4120, D0 @0x1c4160
-    const char* what() const noexcept override;               // @0x1c41b0
+    //! \brief Construct from a pre-formatted error message.
+    //!
+    //! \details The message is typically produced by
+    //! `ErrorMessages::format` parametrised with the
+    //! offending function name (`UnknownFunction`,
+    //! `FuncSingleArg`, `FuncExactly2Args`).  Stored by copy
+    //! into `msg_` and returned verbatim from `what()`.
+    //!
+    //! \param msg  Pre-formatted, user-facing error string.
+    explicit MathCompilerException(std::string const& msg);
+    //! \brief Destroy the exception and release `msg_`.
+    ~MathCompilerException() override;
+    //! \brief Return the pre-formatted message stored at
+    //!        construction.
+    //!
+    //! \return  C-string view of `msg_`; valid for the
+    //!          lifetime of the exception object.
+    const char* what() const noexcept override;
 };
 
 // ============================================================================
@@ -79,42 +94,189 @@ public:
 //! an unknown name throw `MathCompilerException`.
 class MathCompiler {
 public:
-    MathCompiler();  // @0x1c2250
+    //! \brief Build the two name → callable maps that drive
+    //!        compile-time math-function evaluation.
+    //!
+    //! \details Populates `singleArgFns_` with 23 unary
+    //! `double(double)` entries (`abs`, `acos`, `acosh`, `asin`,
+    //! `asinh`, `atan`, `atanh`, `ceil`, `cos`, `cosh`, `exp`,
+    //! `floor`, `ln`, `log`, `log2`, `log10`, `round`, `sign`,
+    //! `sin`, `sinh`, `sqrt`, `tan`, `tanh`) and `multiArgFns_`
+    //! with 5 variadic `double(vector<double>)` entries (`avg`,
+    //! `max`, `min`, `pow`, `sum`).  Each entry binds the
+    //! corresponding `MathCompiler::*` member function with
+    //! `std::bind`/`std::function`; the binary inlines the
+    //! emplacements as a long sequence of `__tree::__emplace`
+    //! calls.
+    //!
+    //! \binarynote `ln` and `log` are aliases — both bind to
+    //!             `std::log` (natural log).  Callers wanting
+    //!             base-10 must use `log10` explicitly.
+    MathCompiler();
 
     // Single-argument math functions
-    double abs(double);        // @0x1c3520
-    double acos(double);       // @0x1c3530
-    double acosh(double);      // @0x1c35f0
-    double asin(double);       // @0x1c36b0
-    double asinh(double);      // @0x1c3770
-    double atan(double);       // @0x1c3780
-    double atanh(double);      // @0x1c3790
-    double cos(double);        // @0x1c3850
-    double cosh(double);       // @0x1c3860
-    double exp(double);        // @0x1c3870
-    double ln(double);         // @0x1c3880
-    double log(double);        // @0x1c3940
-    double log2(double);       // @0x1c3a00
-    double log10(double);      // @0x1c3ac0
-    double sign(double);       // @0x1c3b80
-    double sin(double);        // @0x1c3ba0
-    double sinh(double);       // @0x1c3bb0
-    double sqrt(double);       // @0x1c3bc0
-    double tan(double);        // @0x1c3be0
-    double tanh(double);       // @0x1c3bf0
-    double ceil(double);       // @0x1c3c00
-    double round(double);      // @0x1c3c10
-    double floor(double);      // @0x1c3c20
+    //! \brief `std::fabs(x)`. Absolute value.
+    double abs(double);
+    //! \brief `std::acos(x)`. Arc cosine in radians.
+    //!        NaN for `|x| > 1` (delegated to libc).
+    double acos(double);
+    //! \brief `std::acosh(x)`. Inverse hyperbolic cosine.
+    //!        NaN for `x < 1` (delegated to libc).
+    double acosh(double);
+    //! \brief `std::asin(x)`. Arc sine in radians.
+    //!        NaN for `|x| > 1` (delegated to libc).
+    double asin(double);
+    //! \brief `std::asinh(x)`. Inverse hyperbolic sine.
+    double asinh(double);
+    //! \brief `std::atan(x)`. Arc tangent in radians.
+    double atan(double);
+    //! \brief `std::atanh(x)`. Inverse hyperbolic tangent.
+    //!        NaN for `|x| > 1` (delegated to libc).
+    double atanh(double);
+    //! \brief `std::cos(x)`. Cosine; `x` in radians.
+    double cos(double);
+    //! \brief `std::cosh(x)`. Hyperbolic cosine.
+    double cosh(double);
+    //! \brief `std::exp(x)`. Natural exponential `e^x`.
+    double exp(double);
+    //! \brief `std::log(x)`. Natural logarithm.
+    //!
+    //! \binarynote Same implementation as `log` — both bind
+    //!             to `std::log`.
+    double ln(double);
+    //! \brief `std::log(x)`. Natural logarithm.
+    //!
+    //! \binarynote In SeqC `log` is the **natural** logarithm,
+    //!             not base-10 — same implementation as `ln`.
+    //!             Use `log10` for base-10.
+    double log(double);
+    //! \brief `std::log2(x)`. Base-2 logarithm.
+    double log2(double);
+    //! \brief `std::log10(x)`. Base-10 logarithm.
+    double log10(double);
+    //! \brief Sign of `x`: returns `+1.0` for `x > 0`,
+    //!        `-1.0` for `x < 0`, `0.0` for `x == 0`.
+    //!
+    //! \details Computed as `(x > 0) - (x < 0)` so NaN inputs
+    //! yield `0.0` (both comparisons are false).
+    double sign(double);
+    //! \brief `std::sin(x)`. Sine; `x` in radians.
+    double sin(double);
+    //! \brief `std::sinh(x)`. Hyperbolic sine.
+    double sinh(double);
+    //! \brief `std::sqrt(x)`. Non-negative square root.
+    //!        NaN for `x < 0` (delegated to libc).
+    double sqrt(double);
+    //! \brief `std::tan(x)`. Tangent; `x` in radians.
+    double tan(double);
+    //! \brief `std::tanh(x)`. Hyperbolic tangent.
+    double tanh(double);
+    //! \brief `std::ceil(x)`. Smallest integer ≥ `x`.
+    double ceil(double);
+    //! \brief `std::round(x)`. Round half away from zero.
+    double round(double);
+    //! \brief `std::floor(x)`. Largest integer ≤ `x`.
+    double floor(double);
 
     // Multi-argument math functions
-    double avg(std::vector<double> const&);  // @0x1c3c30
-    double max(std::vector<double> const&);  // @0x1c3c90
-    double min(std::vector<double> const&);  // @0x1c3cf0
-    double pow(std::vector<double> const&);  // @0x1c3d50
-    double sum(std::vector<double> const&);  // @0x1c3e10
+    //! \brief Arithmetic mean of `v`.
+    //!
+    //! \details Computes `sum(v) / v.size()` with no
+    //! empty-input guard; passing an empty vector yields
+    //! `0.0 / 0.0 == NaN` rather than raising.  Caller is
+    //! responsible for arity validation if that matters.
+    //!
+    //! \param v  Operand list; may be empty (returns NaN).
+    //! \return  Mean of the elements, or NaN when `v` is empty.
+    double avg(std::vector<double> const&);
+    //! \brief Largest element of `v`.
+    //!
+    //! \details Forwards to `std::max_element`.  Behaviour
+    //! is **undefined** for an empty vector (dereferences
+    //! `end()`); callers must ensure `!v.empty()` — typically
+    //! enforced upstream by the SeqC frontend's arity check.
+    double max(std::vector<double> const&);
+    //! \brief Smallest element of `v`.
+    //!
+    //! \details Forwards to `std::min_element`.  Behaviour
+    //! is **undefined** for an empty vector — see `max`.
+    double min(std::vector<double> const&);
+    //! \brief `pow(v[0], v[1])`. Strictly two-argument.
+    //!
+    //! \details Throws `MathCompilerException` formatted from
+    //! `ErrorMessageT::FuncExactly2Args` with `"pow"` whenever
+    //! `v.size() != 2`; otherwise tail-calls `std::pow`.
+    //!
+    //! \throws MathCompilerException  When `v.size() != 2`.
+    double pow(std::vector<double> const&);
+    //! \brief Sum of all elements of `v`. Returns `0.0` for
+    //!        an empty vector.
+    double sum(std::vector<double> const&);
 
-    bool functionExists(std::string const& name, size_t argCount, bool strict) const;  // @0x1c3e50
-    double call(std::string const& name, std::vector<double> const& args);             // @0x1c3eb0
+    //! \brief Test whether `name` is a known math function and
+    //!        — when `strict` is `true` — whether `argCount`
+    //!        matches its expected arity.
+    //!
+    //! \details Looks up `name` in `singleArgFns_` first, then
+    //! `multiArgFns_`.  When `strict` is `true` the function
+    //! returns `true` only if the name is found **and** the
+    //! arity is compatible: `argCount == 1` for unary
+    //! functions, `argCount != 0` for variadic ones.  When
+    //! `strict` is `false` the arity check is skipped and the
+    //! result is `true` for any matching name regardless of
+    //! `argCount`.
+    //!
+    //! \binarynote The binary's lazy-evaluation pattern is
+    //!             preserved: `strict | arity_match`.  In the
+    //!             non-strict case the arity bit becomes a
+    //!             don't-care; a known name with the wrong
+    //!             arity still returns `true` so the caller
+    //!             (typically `CustomFunctions::call` doing a
+    //!             pre-check) can defer the arity diagnostic
+    //!             to the eventual `call` site.
+    //!
+    //! \param name      Function name to look up.
+    //! \param argCount  Number of arguments the call site
+    //!                  intends to pass.
+    //! \param strict    When `true`, also enforce arity
+    //!                  matching; when `false`, return
+    //!                  `true` for any match.
+    //! \return  Whether `name` is known (and, if `strict`,
+    //!          callable with `argCount` arguments).
+    bool functionExists(std::string const& name, size_t argCount, bool strict) const;
+    //! \brief Dispatch `name(args...)` to one of the bound
+    //!        unary or variadic math callables.
+    //!
+    //! \details Search order: `singleArgFns_` first,
+    //! `multiArgFns_` only on miss.  For a unary match
+    //! `args.size()` must be exactly `1`; otherwise a
+    //! `MathCompilerException` formatted with
+    //! `ErrorMessageT::FuncSingleArg` and `name` is thrown.
+    //! For a variadic match the bound callable is invoked
+    //! with `args` as-is (arity validation, where applicable
+    //! — e.g. `pow` requires exactly two — happens inside
+    //! the bound function).  An entirely unknown name throws
+    //! `MathCompilerException` formatted with
+    //! `ErrorMessageT::UnknownFunction` and `name`.
+    //!
+    //! \binarynote Wrong-arity for a variadic function is
+    //!             *not* diagnosed here — only `pow` self-checks
+    //!             arity; `avg`/`max`/`min`/`sum` accept any
+    //!             non-zero count and may produce undefined
+    //!             behaviour or NaN on empty input (see the
+    //!             individual function briefs).  Callers
+    //!             needing strict arity validation should use
+    //!             `functionExists(name, args.size(), true)`
+    //!             before dispatching.
+    //!
+    //! \param name  Math-function name.
+    //! \param args  Operand list.
+    //! \return  Result of the bound math function.
+    //! \throws MathCompilerException  On unknown name, or
+    //!         when a unary function is invoked with
+    //!         `args.size() != 1`, or when `pow` is invoked
+    //!         with `args.size() != 2`.
+    double call(std::string const& name, std::vector<double> const& args);
 
     std::map<std::string, std::function<double(double)>>                       singleArgFns_;  // +0x00
     std::map<std::string, std::function<double(std::vector<double> const&)>>   multiArgFns_;   // +0x18
