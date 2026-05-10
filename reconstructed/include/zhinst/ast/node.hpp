@@ -159,12 +159,47 @@ public:
     //! counter, sets `deviceIndex = -1`, registers
     //! (`lengthReg` / `indexOffsetReg`) and `tableIndex` to invalid,
     //! and `globalRate = -1`.  Tree links remain empty.
+    //! \param type         Node-type tag stored at `+0x44`.
+    //! \param asmId        Owning sequencer / assembler id stored at
+    //!                     `+0x14`.
+    //! \param numWaveSlots Number of `optional<string>` waveform
+    //!                     slots to reserve in `wavesPerDev`.
     Node(NodeType type, int asmId, int numWaveSlots);
 
     // --- Full constructor (20 params): 0x26c4a0
     //! \brief Field-by-field constructor used by `fromJson` paths
     //! that already have every scalar in hand; takes ownership of
     //! the supplied `shared_ptr` tree links.
+    //! \param nodeId                 Pre-assigned identifier; bypasses
+    //!                               the thread-local counter.
+    //! \param asmId                  Owning sequencer/assembler id.
+    //! \param wavesPerDev            Per-device waveform slot vector.
+    //! \param deviceIndex            Currently-selected device index
+    //!                               (or `-1`).
+    //! \param type                   Node-type tag.
+    //! \param config                 Captured `play` config payload.
+    //! \param currentCwvf            Captured `currentCwvf` payload.
+    //! \param lengthReg              Register backing the length
+    //!                               operand.
+    //! \param length                 Constant length value (when
+    //!                               `lengthReg` is invalid).
+    //! \param indexOffsetReg         Register backing the wave-index
+    //!                               offset operand.
+    //! \param tableIndex             Command-table index (or `-1`).
+    //! \param next                   `next` sibling link.
+    //! \param branches               `branches` vector for `Branch`
+    //!                               nodes.
+    //! \param loop                   `loop` body link for `Loop`
+    //!                               nodes.
+    //! \param parent                 Weak link back to the parent.
+    //! \param globalRate             Global sample rate annotation
+    //!                               (or `-1`).
+    //! \param defaultPrecompFlags    Default precompensation flags
+    //!                               for the subtree.
+    //! \param loopBodyRunsAtLeastOnce Loop-body always-runs hint.
+    //! \param branchMaySkipAllBodies Branch-may-skip hint.
+    //! \param trig                   Trigger annotation copied from
+    //!                               the source.
     Node(int nodeId, int asmId,
          const std::vector<std::optional<std::string>>& wavesPerDev,
          int deviceIndex,
@@ -193,6 +228,9 @@ public:
     // Address: 0x269970
     //! \brief Returns the canonical string name of `t` (the same
     //! name used as the `"type"` JSON key).
+    //! \param t NodeType discriminator to render.
+    //! \return Canonical string name of `t`, or the literal
+    //! `"unknnown"` (sic) for any value not in the recognised set.
     //! \binarynote Returns the literal `"unknnown"` (sic — typo
     //! preserved from the binary) for any value not in the
     //! recognised set.
@@ -203,6 +241,9 @@ public:
     // Uses lazy-init static unordered_map; throws out_of_range if not found.
     //! \brief Inverse of `type2str`: looks up `s` in a lazily-built
     //! `unordered_map`.
+    //! \param s Canonical type name to look up (case-sensitive,
+    //! exact match against the names emitted by `type2str`).
+    //! \return The matching NodeType.
     //! \throws std::out_of_range when `s` is not a recognised type
     //! name.
     static NodeType str2type(const std::string& s);
@@ -212,6 +253,8 @@ public:
     //   Reads this->asmId (+0x14) and this->type (+0x44).
     //! \brief Renders a single-line debug representation:
     //! `"Node (asm id <asmId>, type <type2str(type)>)"`.
+    //! \return Single-line debug string with this node's `asmId`
+    //! and `type` interpolated in.
     std::string toString();
 
     // Node::waveAtCurrentDeviceIndex() const — 0x1c7de0
@@ -219,6 +262,8 @@ public:
     //   Reads deviceIndex at +0x40, wavesPerDev.data() at +0x28.
     //! \brief Returns `wavesPerDev[deviceIndex]` when
     //! `deviceIndex >= 0`, otherwise `std::nullopt`.
+    //! \return The waveform slot for the currently-selected device,
+    //! or `std::nullopt` when no device is selected.
     std::optional<std::string> waveAtCurrentDeviceIndex() const;
 
     // ---- Tree management methods ----
@@ -227,6 +272,8 @@ public:
     //   Follows node->next chain until null, returns last node.
     //! \brief Walks the `next` chain from `node` and returns the
     //! tail (the last node whose `next` is null).
+    //! \param node Starting node; may be null (returns null).
+    //! \return The tail of the `next` chain rooted at `node`.
     static std::shared_ptr<Node> last(std::shared_ptr<Node> node);
 
     // Node::insertBefore(newNode) — 0x1cd860
@@ -240,6 +287,7 @@ public:
     //! `... -> newNode -> *this -> ...`, transferring `*this`'s
     //! parent link to `newNode` and re-pointing `*this->parent` at
     //! `newNode`.
+    //! \param newNode Node to splice in immediately before `*this`.
     void insertBefore(std::shared_ptr<Node> newNode);
 
     // Node::updateParent(parent, oldChild, newChild) — static, 0x1d2f50
@@ -254,6 +302,11 @@ public:
     //! the old slot was a branches-vector element; for `next` /
     //! `loop` slots the link is simply cleared.  No-op if `parent`
     //! is null.
+    //! \param parent   Parent node whose link is being rewritten;
+    //!                 no-op when null.
+    //! \param oldChild Existing child link to find inside `parent`.
+    //! \param newChild Replacement (may be null to clear/erase the
+    //!                 slot).
     static void updateParent(std::shared_ptr<Node> parent,
                              std::shared_ptr<Node> oldChild,
                              std::shared_ptr<Node> newChild);
@@ -265,6 +318,7 @@ public:
     //! into `node`'s parent slot when present (otherwise simply
     //! clears the slot), then recursively `remove`s `node->loop`
     //! and every entry of `node->branches` and clears those links.
+    //! \param node Node to detach; no-op when null.
     static void remove(std::shared_ptr<Node> node);
 
     // Node::swap(a, b) — static, 0x1d2720
@@ -281,6 +335,9 @@ public:
     //! \details Walks up from `a` through `Loop`/`Branch` ancestors,
     //! copying that ancestor's `asmId` onto `b` if positive, then
     //! issues three `updateParent` calls to rewire the links.
+    //! \param a Parent of `b` whose slot will be replaced by `b`.
+    //! \param b Immediate child of `a`; must satisfy
+    //!          `b->parent.lock() == a`.
     //! \throws ZIAWGCompilerException (`SwapNotConnected`, error
     //! code 0xa4) if `b->parent` does not lock to `a`.
     static void swap(const std::shared_ptr<Node>& a,
@@ -297,6 +354,8 @@ public:
     //! configs, `globalRate`, `defaultPrecompFlags`, and the bool
     //! flags are deliberately left at their default-constructed
     //! values.
+    //! \return Newly-allocated detached node carrying the partial
+    //! field copy described above.
     std::shared_ptr<Node> clone() const;
 
     // ---- Serialization methods ----
@@ -309,6 +368,9 @@ public:
     //! object.  Pointer fields (`next`, `loop`, `branches`,
     //! `parent`, `play`) are emitted as integer IDs taken from
     //! `idMap`; an unmapped or null pointer becomes `-1`.
+    //! \param idMap Mapping from in-memory `nodeId` to the integer
+    //! ID written into the JSON output.
+    //! \return JSON object representation of this node.
     boost::json::value toJson(const std::unordered_map<int,int>& idMap) const;
 
     // Node::fromJson(json) — static, 0x268280
@@ -318,6 +380,9 @@ public:
     //! fields from `json`; pointer fields are left empty and must
     //! be reconnected by a subsequent `installPointers` call once
     //! every node in the graph has been deserialised.
+    //! \param json JSON object previously produced by `toJson`.
+    //! \return Newly-allocated node with scalar fields populated;
+    //! pointer fields remain empty.
     static std::shared_ptr<Node> fromJson(const boost::json::value& json);
 
     // Node::installPointers(nodeMap, json) — 0x269020
@@ -327,6 +392,11 @@ public:
     //! node's pointer fields (`play`, `next`, `branches`, `loop`,
     //! `parent`) by looking up the integer IDs stored in `json`
     //! through `nodeMap`.
+    //! \param nodeMap Map from the integer IDs emitted by `toJson`
+    //! to the live `shared_ptr<Node>` instances produced by
+    //! `fromJson`.
+    //! \param json    The same JSON object originally passed to
+    //! `fromJson` for this node.
     void installPointers(const std::unordered_map<int, std::shared_ptr<Node>>& nodeMap,
                          const boost::json::value& json);
 
