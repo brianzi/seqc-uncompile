@@ -37,6 +37,17 @@ namespace zhinst {
 //
 // Decoded from toString(DeviceFamily) jump table at .rodata 0x961eac.
 // ============================================================================
+//! \brief Coarse Zurich Instruments product family identifier, encoded
+//! as a one-hot bitmask so that several families can be combined for
+//! membership tests.
+//!
+//! Each named family occupies a single bit (`HF2 = 0x001` … `VHF =
+//! 0x400`), which lets `DeviceType::belongsTo()` implement family
+//! membership as a bitwise AND.  The enum also doubles as the storage
+//! for `expand()`, which decomposes a multi-bit value back into its
+//! constituent single-bit families.  `Unknown = 0` is the default
+//! sentinel; values with bit `0x800` set are produced by
+//! `toDeviceFamily()` on a parse miss and render as `"unknown"`.
 enum class DeviceFamily : uint32_t {
     Unknown = 0,
     HF2     = 0x001,
@@ -58,6 +69,17 @@ enum class DeviceFamily : uint32_t {
 // Decoded from toString(DeviceTypeCode) jump table at .rodata 0x961cc4.
 // 33 named values; toDeviceTypeCode() returns 33 ("unknown") on miss.
 // ============================================================================
+//! \brief Specific Zurich Instruments device-model identifier (33
+//! values, plain 0..32).
+//!
+//! Distinguishes individual product variants within a `DeviceFamily`
+//! (e.g. `HDAWG4` vs `HDAWG8`, `SHFQA2` vs `SHFQA4`).  Used as the
+//! primary discriminator throughout the compiler for per-model
+//! behaviour: instruction-set variant selection, channel counts,
+//! waveform memory sizes, and feature gating (see `getDeviceConstants`
+//! and `getAwgDeviceProps`).  `Unknown = 0` is the default; the
+//! lazily-built reverse-lookup table in `toDeviceTypeCode()` returns
+//! the sentinel value 33 on a parse miss.
 enum class DeviceTypeCode : uint32_t {
     Unknown = 0,
     HF2     = 1,
@@ -109,6 +131,22 @@ enum class DeviceTypeCode : uint32_t {
 // "no option" and the MF/MFK marker option). Inserted in the
 // per-family `initializeXxxOptions` arrays at .rodata 0x962394+.
 // ============================================================================
+//! \brief Hardware/software option installed on a device, as carried
+//! by `DeviceOptionSet`.
+//!
+//! 31 values (0..30).  After construction these are produced by
+//! `initializeSfcOptions()`, which maps each set bit of a per-family
+//! one-hot bitmask (see `sfc::Hf2Option`, `sfc::MfOption`, …) to the
+//! corresponding `DeviceOption` code.  The string rendered by
+//! `toString(DeviceOption, DeviceFamily)` is family-scoped: most names
+//! are constant, but value 0 renders as `"MFK"` on `DeviceFamily::HF2`
+//! and `"MF"` everywhere else, and value 6 renders as `"RTK"` on HF2
+//! and `"RT"` elsewhere.
+//!
+//! \binarynote `None` and `MF` share the integer value 0; the binary
+//! uses code 0 dually as both the "no option" sentinel and the
+//! MF/MFK marker, distinguished only by context (a value not present
+//! in the underlying set means "no option" regardless of name).
 enum class DeviceOption : uint32_t {
     None  = 0,    // sentinel; same value as MF (binary uses 0 dually)
     MF    = 0,    // toString -> "MF" (or "MFK" for DeviceFamily::HF2)
@@ -203,6 +241,9 @@ struct FeaturesCode {
     }
 };
 
+//! \brief Per-bit option mask used at construction of HF2-family
+//! devices; mapped through `initializeSfcOptions` into
+//! `DeviceOption` values.
 enum class Hf2Option : uint32_t {
     None = 0,
     MF  = 0x0001,  // -> code 0 (MF/MFK)
@@ -214,6 +255,9 @@ enum class Hf2Option : uint32_t {
     WEB = 0x1000,  // -> code 16 (WEB)
 };
 
+//! \brief Per-bit option mask used at construction of MF-family
+//! devices (MFLI / MFIA); mapped through `initializeSfcOptions` into
+//! `DeviceOption` values.  `IA` is only valid on MFLI.
 enum class MfOption : uint32_t {
     None  = 0,
     MD    = 0x00001,  // -> code 1  (MD)
@@ -227,6 +271,10 @@ enum class MfOption : uint32_t {
     NOUI  = 0x20000,  // -> code 18 (NOUI)
 };
 
+//! \brief Per-bit option mask used at construction of UHF-family
+//! devices (UHFLI / UHFAWG / UHFQA / UHFIA); mapped through
+//! `initializeSfcOptions` into `DeviceOption` values.  Several bits
+//! are only valid on a subset of the family — see per-bit comments.
 enum class UhfOption : uint32_t {
     None       = 0,
     MF         = 0x00001,  // -> code 0  (MF)
@@ -243,6 +291,9 @@ enum class UhfOption : uint32_t {
     CNT        = 0x10000,  // -> code 17 (CNT)
 };
 
+//! \brief Per-bit option mask used at construction of HDAWG-family
+//! devices (HDAWG4 / HDAWG8); mapped through `initializeSfcOptions`
+//! into `DeviceOption` values.
 enum class HdawgOption : uint32_t {
     None = 0,
     MF   = 0x00001,  // -> code 0  (MF)
@@ -253,6 +304,11 @@ enum class HdawgOption : uint32_t {
     CNT  = 0x10000,  // -> code 17 (CNT)
 };
 
+//! \brief Per-bit option mask used at construction of SHF-family
+//! devices (SHFQA{2,4} / SHFSG{2,4,8} / SHFQC / SHFLI) and reused
+//! verbatim by GHF-family `Ghfli`; mapped through
+//! `initializeSfcOptions` into `DeviceOption` values.  Several bits
+//! are SHFLI-only — see per-bit comments.
 enum class ShfOption : uint32_t {
     None       = 0,
     MF         = 0x00001,  // -> code 0  (MF)   [Shfli only]
@@ -269,6 +325,9 @@ enum class ShfOption : uint32_t {
     LRT        = 0x08000,  // -> code 29 (LRT)
 };
 
+//! \brief Per-bit option mask used at construction of VHF-family
+//! devices (VHFLI); mapped through `initializeSfcOptions` into
+//! `DeviceOption` values.
 enum class VhfOption : uint32_t {
     None  = 0,
     MD    = 0x0001,  // -> code 1  (MD)
@@ -319,8 +378,13 @@ public:
 
     explicit DeviceOptionSetConstIterator(underlying_iterator it);
 
+    //! \brief Yields the `DeviceOption` at the current position.
     DeviceOption dereference() const;
+    //! \brief Advances to the next `DeviceOption` in alphabetical
+    //! name order.
     void increment();
+    //! \brief Returns true when both iterators refer to the same
+    //! position in the same underlying map.
     bool equal(DeviceOptionSetConstIterator const& other) const;
 
     DeviceOption operator*() const { return dereference(); }
@@ -369,7 +433,10 @@ class DeviceOptionSet {
 public:
     using const_iterator = DeviceOptionSetConstIterator;
 
+    //! \brief Constructs an empty option set bound to the given family.
     explicit DeviceOptionSet(DeviceFamily family);                       // @ 0x2cf970
+    //! \brief Constructs an option set pre-populated with `options`,
+    //! bound to the given family.
     DeviceOptionSet(std::initializer_list<DeviceOption> const& options,
                     DeviceFamily family);                                // @ 0x2cf9a0
 
@@ -379,14 +446,26 @@ public:
     DeviceOptionSet& operator=(DeviceOptionSet&&) noexcept = default;
     ~DeviceOptionSet() = default;
 
+    //! \brief Returns an iterator to the first option in alphabetical
+    //! name order (per the family-scoped names from `toString`).
     const_iterator begin() const;       // @ 0x2cfb60
+    //! \brief Returns the past-the-end iterator.
     const_iterator end() const;         // @ 0x2cfb70
 
+    //! \brief O(1) membership test against the underlying
+    //! `unordered_set<DeviceOption>`.
     bool contains(DeviceOption opt) const;  // @ 0x2cfb80
+    //! \brief Returns true if the set contains no options.
     bool empty() const;                     // @ 0x2cfcc0
+    //! \brief Returns the number of options in the set.
     std::size_t size() const;               // @ 0x2cfcd0
+    //! \brief Returns the family this set was bound to at construction.
     DeviceFamily family() const;            // @ 0x2cfce0
 
+    //! \brief Inserts `opt` into both the value-set and the
+    //! name-keyed map.  The name used as the map key is
+    //! `toString(opt, family())`, so the set's iteration order
+    //! depends on the bound family.
     void insert(DeviceOption opt);          // @ 0x2cfcf0
 
     friend bool operator==(DeviceOptionSet const& a, DeviceOptionSet const& b);
@@ -425,10 +504,19 @@ namespace detail {
 //! `clone()` for copy semantics.
 class DeviceTypeImpl {
 public:
+    //! \brief Default-constructs an `Unknown` device with no options
+    //! and `DeviceFamily::Unknown`.
     DeviceTypeImpl();                                              // @ 0x2d3060
+    //! \brief Constructs with an explicit code/family pair and an
+    //! empty option set bound to `family`.
     DeviceTypeImpl(DeviceTypeCode code, DeviceFamily family);      // @ 0x2d3090
+    //! \brief Constructs with an explicit code/family pair and an
+    //! existing option set (moved into the implementation).
     DeviceTypeImpl(DeviceTypeCode code, DeviceFamily family,
                    DeviceOptionSet options);                       // @ 0x2d30b0
+    //! \brief Tuple-unpacking constructor used internally by
+    //! `GenericDeviceType` to forward parsed `(code, family,
+    //! options)` triples through a single argument.
     // Tuple-taking ctor used by the GenericDeviceType ctor (and by it
     // alone, as far as the binary shows). Unpacks the std::tuple by
     // moving its DeviceOptionSet into options_. The first 8 bytes of
@@ -438,12 +526,21 @@ public:
         std::tuple<DeviceTypeCode, DeviceFamily, DeviceOptionSet> args);  // @ 0x2d3190
 
     virtual ~DeviceTypeImpl();
+    //! \brief Polymorphic deep copy used by `DeviceType`'s copy
+    //! constructor and assignment to preserve the dynamic subclass
+    //! identity.
     virtual DeviceTypeImpl* clone() const;  // vtable[0]; impl @ 0x2d3280
                                             // (doClone in mangled name).
 
+    //! \brief Returns the broad product family this implementation
+    //! belongs to.
     DeviceFamily   family() const;          // @ 0x2d32e0
+    //! \brief Returns the specific device-model code.
     DeviceTypeCode code() const;            // @ 0x2d32f0
+    //! \brief Returns true if `opt` is in the implementation's
+    //! option set; delegates to `DeviceOptionSet::contains`.
     bool           hasOption(DeviceOption opt) const;  // @ 0x2d3300
+    //! \brief Returns the installed-options set.
     DeviceOptionSet const& options() const; // @ 0x2d3310
 
 protected:
@@ -458,6 +555,10 @@ protected:
 // Each entry of an `initializeXxxOptions::knownOptions` array. T is the
 // per-family one-hot bitmask enum (sfc::Hf2Option / MfOption / ...).
 // ----------------------------------------------------------------------------
+//! \brief One entry of a per-family option-mapping table: the
+//! single-bit `mask` value carried by the family-specific bitmask
+//! enum, paired with the canonical `DeviceOption` `code` it
+//! resolves to.
 template <class T>
 struct OptionCodePair {
     T            mask;
@@ -476,6 +577,21 @@ struct OptionCodePair {
 // All 15 per-family `initializeXxxOptions(unsigned long)` helpers in the
 // binary inline this same loop with their own `knownOptions` array.
 // ----------------------------------------------------------------------------
+//! \brief Translates a raw user-supplied options bitmask into a
+//! `DeviceOptionSet` by walking a per-family `(mask, code)` table.
+//!
+//! For each entry of `known`, if the corresponding bit is set in
+//! `options` the entry's `code` is inserted into a fresh
+//! `DeviceOptionSet` bound to `family`.  Bits not present in
+//! `known` are silently ignored.  This is the single template that
+//! all 15 per-family `initializeXxxOptions` helpers in the binary
+//! instantiate against their own `knownOptions` array.
+//!
+//! \param known   per-family option-mapping table (`mask` bits to
+//!                `DeviceOption` codes).
+//! \param family  family the resulting set is bound to.
+//! \param options raw options bitmask supplied by the caller.
+//! \return populated `DeviceOptionSet`.
 template <class T, std::size_t N>
 DeviceOptionSet initializeSfcOptions(
     std::array<OptionCodePair<T>, N> const& known,
@@ -504,6 +620,20 @@ DeviceOptionSet initializeSfcOptions(
 // Returns a `sfc::FeaturesCode` strong-typed wrapper around the composed
 // uint64 bitmask. The binary returns the value in `rax` (no sret), which
 // is consistent with FeaturesCode being a trivial 8-byte POD wrapper.
+//! \brief Encodes the MFLI/MFIA Smart Feature Code (SFC) bitfield
+//! that corresponds to the given device-type name and option set.
+//!
+//! Resolves `deviceTypeName` via `toDeviceTypeCode`, picks the
+//! MFLI- or MFIA-specific "always-on" base bits accordingly, then
+//! ORs in further bits for each `DeviceOption` in `options` that
+//! the encoding recognises.
+//!
+//! \param deviceTypeName Device-type string ("MFLI" or "MFIA"); any
+//!                       other value is rejected.
+//! \param options        Options carried by the target device.
+//! \return Composed 64-bit feature code wrapped in `sfc::FeaturesCode`.
+//! \throws zhinst::Exception if `deviceTypeName` does not resolve to
+//!         `DeviceTypeCode::MFLI` or `DeviceTypeCode::MFIA`.
 sfc::FeaturesCode generateMfSfc(std::string const& deviceTypeName,
                                 DeviceOptionSet const& options);
 
@@ -530,31 +660,66 @@ sfc::FeaturesCode generateMfSfc(std::string const& deviceTypeName,
 //! frontend, codegen, and ELF writer to gate per-family behaviour.
 class DeviceType {
 public:
+    //! \brief Default-constructs to an `Unknown` device with no
+    //! options.
     DeviceType();                                                   // @ 0x2d2900
+    //! \brief Constructs the canonical default device for `family`
+    //! via the family's factory (no options).
     DeviceType(DeviceFamily family);                                // @ 0x2d2930
+    //! \brief Constructs the canonical default device for `family`
+    //! with the given raw options bitmask, mapped through the
+    //! family's `initializeSfcOptions` table.
     DeviceType(DeviceFamily family, unsigned long options);          // @ 0x2d2990
+    //! \brief Constructs from an explicit `(code, family)` pair with
+    //! no options.
     DeviceType(DeviceTypeCode code, DeviceFamily family);           // @ 0x2d2960
+    //! \brief Constructs a generic device-type from a runtime
+    //! device-type name and a pre-split list of option strings.
+    //! Unknown option names are silently dropped.  Implemented via
+    //! `detail::GenericDeviceType`.
     DeviceType(std::string const& deviceType,
                std::vector<std::string> const& options);            // @ 0x2d2ae0
-    // Convenience overload: splits the second string into a vector via
-    // splitDeviceOptions(), then forwards to the (string, vector) ctor.
+    //! \brief Convenience overload: splits `options` on newlines via
+    //! `splitDeviceOptions()` and forwards to the
+    //! `(string, vector<string>)` constructor.
     DeviceType(std::string const& deviceType,
                std::string const& options);                         // @ 0x2d2a00
 
+    //! \brief Deep-copies via the underlying `clone()`.
     DeviceType(DeviceType const& other);                            // @ 0x2d2b40
+    //! \brief Steals the impl pointer from `other`, leaving it null.
     DeviceType(DeviceType&& other) noexcept;                        // @ 0x2d2b50
     DeviceType& operator=(DeviceType const& other);
     DeviceType& operator=(DeviceType&& other) noexcept;
     ~DeviceType();                                                  // @ 0x2d2b70
 
+    //! \brief Returns the specific device-model code.
     DeviceTypeCode  code() const;                                   // @ 0x2d2c40
+    //! \brief Returns the broad product family.
     DeviceFamily    family() const;                                 // @ 0x2d2c30
+    //! \brief Returns the installed-options set.
     DeviceOptionSet const& options() const;                         // @ 0x2d2c60
+    //! \brief Returns true if `opt` is in the installed-options set.
     bool            hasOption(DeviceOption opt) const;              // @ 0x2d2c50
+    //! \brief Returns true if any bit of this device's family is
+    //! also set in `f`; multi-bit `f` values test for membership in
+    //! any of the constituent families.
     bool            belongsTo(DeviceFamily f) const;                // @ 0x2d2c70
+    //! \brief Returns the raw pimpl pointer (non-owning) for
+    //! subsystems that need to access the polymorphic identity
+    //! directly.
     detail::DeviceTypeImpl* impl() const;                     // @ 0x2d2c20
+    //! \brief Returns the device-type-code string only; options are
+    //! NOT appended.  Use `getOptionsAsString()` for the options
+    //! portion.
+    //! \binarynote The single-arg `toString(DeviceType)` mirrored by
+    //! this method does not stringify options — the binary
+    //! intentionally splits the model name and the options into two
+    //! separate calls.
     std::string     toString() const;                               // @ 0x2d2cb0
+    //! \brief Writes `toString()` to `os`.
     void            print(std::ostream& os) const;                  // @ 0x2d2ce0
+    //! \brief Swaps impl pointers with `other` in O(1).
     void            swap(DeviceType& other);                        // @ 0x2d2d10
 
     friend bool operator==(DeviceType const& lhs, DeviceType const& rhs); // @ 0x2d2d30
@@ -570,37 +735,64 @@ private:
 // ============================================================================
 
 // @ 0x2df610
+//! \brief Renders a `DeviceFamily` as its canonical uppercase name
+//! (e.g. `"HDAWG"`, `"SHF"`).  Unrecognised single-bit values render
+//! as `"unknown"`.
 std::string toString(DeviceFamily family);
 
 // @ 0x2dfbc0 — decompose a DeviceFamily bitmask into its single-bit
 // components. Family values 0 and 1 produce an empty vector. A 0x800
 // bit acts as a saturation sentinel (no defined family uses it).
+//! \brief Decomposes a `DeviceFamily` bitmask into the list of its
+//! constituent single-bit families.
+//! \binarynote `Unknown = 0` and `HF2 = 1` both yield an empty
+//! vector; bit `0x800` acts as a saturation sentinel (no defined
+//! family uses it) and stops the walk early.
 std::vector<DeviceFamily> expand(DeviceFamily family);
 
 // @ 0x2df760 — apply toString() to each entry of `families`.
+//! \brief Returns the names of each family in `families` via
+//! `toString(DeviceFamily)`.
 std::vector<std::string>
 toStrings(std::vector<DeviceFamily> const& families);
 
 // @ 0x2dfa00 — operator<< writes toString(family) to ostream.
+//! \brief Writes `toString(family)` to `os`.
 std::ostream& operator<<(std::ostream& os, DeviceFamily family);
 
 // @ 0x2d40b0
+//! \brief Renders a `DeviceTypeCode` as its canonical name (e.g.
+//! `"HDAWG8"`, `"SHFQA4"`).  Out-of-range values render as
+//! `"unknown"`.
 std::string toString(DeviceTypeCode code);
 
 // @ 0x2cfee0 — looks up option name in the 31-entry jump table; for
 // DeviceOption values 0 ("MF"/"MFK") and 6 ("RT"/"RTK") the result depends
 // on whether `family == DeviceFamily::HF2`.
+//! \brief Renders a `DeviceOption` as its short name, scoped to the
+//! given `family`.
+//! \binarynote `DeviceOption(0)` renders as `"MFK"` on
+//! `DeviceFamily::HF2` and `"MF"` everywhere else; `DeviceOption(6)`
+//! renders as `"RTK"` on HF2 and `"RT"` elsewhere.  All other
+//! values are family-agnostic.
 std::string toString(DeviceOption opt, DeviceFamily family);
 
 // @ 0x2d2e20 — surprisingly simple: returns toString(dt.code()). Options
 // are NOT appended here. To stringify a DeviceType together with its
 // options, use the (DeviceOptionSet, DeviceFamily, separator) overload
 // below to format `dt.options()` separately and concatenate.
+//! \brief Returns the device-type-code name of `dt`.
+//! \binarynote Options are intentionally NOT appended; combine with
+//! `getOptionsAsString()` to render a device together with its
+//! options.
 std::string toString(DeviceType const& dt);
 
 // @ 0x2d0130 — joins option names from `set` (in alphabetical order, per
 // the underlying byName_ map) using `separator`. Implemented via a
 // vector<string> + boost::algorithm::join.
+//! \brief Joins the family-scoped names of every option in `set`
+//! using `separator`.  Options appear in the alphabetical order
+//! enforced by the set's name-keyed map.
 std::string toString(DeviceOptionSet const& set,
                      DeviceFamily family,
                      std::string const& separator);
@@ -608,19 +800,29 @@ std::string toString(DeviceOptionSet const& set,
 // @ 0x2d2dd0 — convenience wrapper around the (DeviceOptionSet,
 // DeviceFamily, separator) overload above. Equivalent to:
 //   toString(dt.options(), dt.family(), separator)
+//! \brief Convenience wrapper that renders `dt.options()` joined by
+//! `separator`, scoped to `dt.family()`.
 std::string getOptionsAsString(DeviceType const& dt,
                                std::string const& separator);
 
 // @ 0x2d2d90 — free function: delegates to dt.hasOption(opt).
+//! \brief Free-function form of `DeviceType::hasOption`; delegates
+//! to the member function.
 bool hasOption(DeviceType const& dt, DeviceOption const& opt);
 
 // @ 0x2d4350 — operator<< writes toString(code) to ostream.
+//! \brief Writes `toString(code)` to `os`.
 std::ostream& operator<<(std::ostream& os, DeviceTypeCode code);
 
 // @ 0x2d43d0 — reverse lookup; returns DeviceTypeCode(33) on failure.
 // Implementation uses a function-local static unordered_map<string,
 // DeviceTypeCode> built lazily (33 entries; key 0 is the special "none"
 // alias for DeviceTypeCode::Unknown, plus all 32 named codes).
+//! \brief Reverse lookup from a device-type name to its
+//! `DeviceTypeCode`.  The string `"none"` maps to
+//! `DeviceTypeCode::Unknown`.
+//! \return The matching code, or the sentinel value `DeviceTypeCode(33)`
+//!         on a parse miss.
 DeviceTypeCode toDeviceTypeCode(std::string const& s);
 
 // @ 0x2debd0 — fuzzy device-family lookup from a (possibly mixed-case,
@@ -641,18 +843,32 @@ DeviceTypeCode toDeviceTypeCode(std::string const& s);
 //      `boost::algorithm::starts_with(s, key)`.
 // On miss, returns DeviceFamily(0x800) (one bit beyond VHF=0x400 — the
 // Unknown sentinel that toString renders as "unknown").
+//! \brief Fuzzy reverse lookup from a (possibly option-suffixed)
+//! device-type string to its `DeviceFamily`, using prefix matching
+//! against a small lazily-built name table.
+//! \binarynote Special tokens: `"none"` maps to `DeviceFamily(0)`,
+//! `"DEFAULT"` maps to `DeviceFamily::HF2`, and the SHFACC /
+//! SHFPPC2 / SHFPPC4 prefixes map to `DeviceFamily::SHF`.  On any
+//! other miss the function returns the sentinel `DeviceFamily(0x800)`,
+//! which renders as `"unknown"`.
 DeviceFamily toDeviceFamily(std::string const& s);
 
 // @ 0x2d05b0 — reverse-lookup string -> DeviceOption. Throws on miss
 // (the lazy-init table is a std::unordered_map; toDeviceOptions() below
 // catches and swallows the resulting exception so unknown option names
 // are silently dropped during DeviceType parsing).
+//! \brief Reverse lookup from an option name to its `DeviceOption`
+//! value.
+//! \throws std::out_of_range if `s` is not a recognised option name.
 DeviceOption toDeviceOption(std::string const& s);
 
 // @ 0x2d0fb0 — builds a DeviceOptionSet by mapping each entry of `opts`
 // through toDeviceOption() and inserting it. Unknown option names are
 // caught and dropped (try/catch around insert). The resulting set
 // carries `family` as its DeviceFamily.
+//! \brief Builds a `DeviceOptionSet` bound to `family` from the
+//! given option-name strings.  Unrecognised names are silently
+//! dropped (the per-entry `toDeviceOption` exception is caught).
 DeviceOptionSet toDeviceOptions(std::vector<std::string> const& opts,
                                 DeviceFamily family);
 
@@ -660,22 +876,56 @@ DeviceOptionSet toDeviceOptions(std::vector<std::string> const& opts,
 // whitespace via `boost::algorithm::trim_copy_if(ctype::space)`, then
 // splits on '\n' (token_compress_off) into a `vector<string>`. An empty
 // trimmed input yields an empty vector.
+//! \brief Splits a device-options string on newlines after trimming
+//! surrounding whitespace.  An all-whitespace input yields an empty
+//! vector; empty lines between options are preserved as empty
+//! tokens.
 std::vector<std::string> splitDeviceOptions(std::string const& s);
 
 // ============================================================================
 // Free predicate functions
 // ============================================================================
+//! \brief Returns true if `dt` has a known device-type code (i.e.
+//! is not the default-constructed `Unknown`).
 bool isDefined(DeviceType const& dt);   // @ 0x2d2e50 — code != Unknown
+//! \brief Returns true if `dt` is an Impedance Analyzer.  Codes
+//! `UHFIA` and `MFIA` are unconditionally true; codes covered by an
+//! IA-capable family also return true if the device carries the
+//! `IA` option; all other codes are false.
+//! \binarynote The decision uses two compile-time bitmasks
+//! (`broad_mask = 0x46BF7901` selects codes whose membership is
+//! decided in-line, `unconditional_mask = 0x900` marks the always-IA
+//! codes); see `device_type.cpp` for the decoded logic.
 bool isIa(DeviceType const& dt);        // @ 0x2d2e70
+//! \brief Returns true if the device-type code is `MFIA`.
 bool isMfia(DeviceType const& dt);      // @ 0x2d2ec0 — code == MFIA
+//! \brief Returns true if the device-type code is `UHFQA`.
 bool isUhfqa(DeviceType const& dt);     // @ 0x2d2ee0 — code == UHFQA
+//! \brief Returns true if the device-type code is one of `SHFQA2`,
+//! `SHFQA4`, or `SHFQC`.
 bool isShfqa(DeviceType const& dt);     // @ 0x2d2f00 — code in {SHFQA2, SHFQA4, SHFQC}
+//! \brief Returns true if the device-type code is one of `SHFSG2`,
+//! `SHFSG4`, or `SHFSG8`.
 bool isShfsg(DeviceType const& dt);     // @ 0x2d2f40 — code in {SHFSG2, SHFSG4, SHFSG8}
+//! \brief Returns true if the device-type code is `SHFQC`.
 bool isShfqc(DeviceType const& dt);     // @ 0x2d2f80 — code == SHFQC
+//! \brief Returns true if the device-type code is one of `SHFPPC2`
+//! or `SHFPPC4`.
 bool isShfppc(DeviceType const& dt);    // @ 0x2d2fa0 — code in {SHFPPC2, SHFPPC4}
+//! \brief Returns true if the device-type code is `SHFLI`.
 bool isShfli(DeviceType const& dt);     // @ 0x2d2fd0 — code == SHFLI
+//! \brief Returns true if the device-type code is `GHFLI`.
 bool isGhfli(DeviceType const& dt);     // @ 0x2d2ff0 — code == GHFLI
+//! \brief Returns true if the device-type code is `VHFLI`.
 bool isVhfli(DeviceType const& dt);     // @ 0x2d3010 — code == VHFLI
+//! \brief Returns true if the device carries an MF-style marker
+//! option in its options set.
+//! \binarynote The probed option depends on family: on
+//! `DeviceFamily::MF` the predicate tests for `DeviceOption::MD`
+//! (code 1), and for every other family it tests for
+//! `DeviceOption::MF` (code 0).  This swap mirrors the binary's use
+//! of code 1 as the "this is an MF-flavoured unit" marker on the MF
+//! family itself.
 bool hasMf(DeviceType const& dt);       // @ 0x2d3030
 
 // @ 0x2d4c30 — returns the lazily-initialized
@@ -683,6 +933,9 @@ bool hasMf(DeviceType const& dt);       // @ 0x2d3030
 // DeviceTypeCode values (0..32). The function-local static is built
 // once on first call by an anonymous-namespace helper that uses a
 // transform_iterator<int -> DeviceTypeCode> to bulk-insert the range.
+//! \brief Returns a reference to a lazily-initialised flat set
+//! containing every named `DeviceTypeCode` value (0..32).  Used as
+//! the universe of valid codes by validation paths.
 boost::container::flat_set<DeviceTypeCode> const& allDevices();
 
 }  // namespace zhinst

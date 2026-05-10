@@ -874,6 +874,30 @@ mainpage.
     free-function alias.  No source changes; no new
     IFs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7h (2026-05-10)**: ~40 briefs across
+    `include/zhinst/device/device_type.hpp` covering the
+    four core enums (`DeviceFamily` one-hot bitmask,
+    `DeviceTypeCode`, `DeviceOption`, all six
+    `sfc::*Option` per-family masks), the
+    `DeviceOptionSetConstIterator` / `DeviceOptionSet` /
+    `detail::DeviceTypeImpl` / `DeviceType` public
+    member surfaces, the `OptionCodePair` /
+    `initializeSfcOptions` / `generateMfSfc` template
+    helpers, and every free string-conversion / parsing
+    / predicate function (`toString` overloads, `expand`,
+    `toDeviceTypeCode`, `toDeviceFamily`,
+    `toDeviceOption`, `toDeviceOptions`,
+    `splitDeviceOptions`, `is*` predicates, `hasMf`,
+    `allDevices`).  Three `\binarynote` annotations
+    capture the family-context oddities documented in
+    notes: `DeviceOption(0)`/`(6)` rendering as
+    `MFK`/`RTK` only on HF2, `toString(DeviceType)`
+    intentionally omitting options, `hasMf` swapping
+    `MF`/`MD` based on family, and `toDeviceFamily`'s
+    special tokens (`"none"`, `"DEFAULT"`, `SHFACC`,
+    `SHFPPC2`, `SHFPPC4`).  No source changes; no new
+    IFs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
