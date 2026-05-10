@@ -1407,7 +1407,7 @@ public:
     //! \brief Implement the SeqC `playWaveNow` built-in.
     //!
     //! Verifies device support against the
-    //! `HDAWG | UHFAWG` mask and forwards to
+    //! `kDevCervino` mask (`UHFLI | UHFQA`) and forwards to
     //! `play(args, res, SubFunc::Now)` so the underlying `asmPlay`
     //! is emitted with the immediate-play flag set.
     //!
@@ -1423,7 +1423,7 @@ public:
     //! Rejects HDAWG with `DeprecatedFuncFifo` (HDAWG uses the
     //! FIFO architecture, which deprecates indexed playback at
     //! source level), then verifies device support against the
-    //! `HDAWG | UHFAWG` mask and forwards to
+    //! `kDevCervino` mask (`UHFLI | UHFQA`) and forwards to
     //! `playIndexed(args, res, SubFunc::Default)`.
     //!
     //! \param args  SeqC call arguments in source order.
@@ -1436,8 +1436,9 @@ public:
 
     //! \brief Implement the SeqC `playWaveIndexedNow` built-in.
     //!
-    //! Verifies device support against the `HDAWG | UHFAWG` mask
-    //! and forwards to `playIndexed(args, res, SubFunc::Now)`.
+    //! Verifies device support against the `kDevCervino` mask
+    //! (`UHFLI | UHFQA`) and forwards to
+    //! `playIndexed(args, res, SubFunc::Now)`.
     //!
     //! \param args  SeqC call arguments in source order.
     //! \param res   Current resource scope.
@@ -1485,8 +1486,9 @@ public:
 
     //! \brief Implement the SeqC `playAuxWaveIndexed` built-in.
     //!
-    //! Verifies device support against the `HDAWG | UHFAWG` mask
-    //! and forwards to `playIndexed(args, res, SubFunc::Aux)`,
+    //! Verifies device support against the `kDevCervino` mask
+    //! (`UHFLI | UHFQA`) and forwards to
+    //! `playIndexed(args, res, SubFunc::Aux)`,
     //! which selects the auxiliary-wave variant of indexed
     //! playback.
     //!
@@ -1581,8 +1583,9 @@ public:
 
     //! \brief Implement the SeqC `playWaveDigTrigger` built-in.
     //!
-    //! Verifies device support against the `HDAWG | UHFAWG` mask
-    //! and forwards to `play(args, res, SubFunc::DigTrigger)`,
+    //! Verifies device support against the `kDevCervino` mask
+    //! (`UHFLI | UHFQA`) and forwards to
+    //! `play(args, res, SubFunc::DigTrigger)`,
     //! which expects a leading const-int play length (≥ 3) and
     //! routes the play through the digital-trigger path.
     //!
@@ -1654,6 +1657,19 @@ public:
     //!          unsupported devices.
     std::shared_ptr<EvalResults> playHold(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x139030
     std::shared_ptr<EvalResults> wait(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x139760
+    //! \brief Implement the SeqC `waitWave` built-in.
+    //!
+    //! Verifies device support against `kDevHirzelAll`, rejects any
+    //! arguments (`FuncExpectsNoArgs`), and emits a single `wwvf`
+    //! instruction that stalls the sequencer until the currently
+    //! playing waveform completes.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `wwvf` instruction.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> waitWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x13a980
     std::shared_ptr<EvalResults> waitTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x13abf0
     std::shared_ptr<EvalResults> waitAnaTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x13b4b0
@@ -1670,6 +1686,20 @@ public:
     std::shared_ptr<EvalResults> setSinePhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x141df0
     std::shared_ptr<EvalResults> incrementSinePhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x142da0
     std::shared_ptr<EvalResults> waitDemodSample(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x143d50
+    //! \brief Implement the SeqC `waitPlayQueueEmpty` built-in.
+    //!
+    //! Verifies device support against `AwgDeviceType::HDAWG`
+    //! (the only device with this built-in), rejects any arguments
+    //! (`FuncExpectsNoArgs`), and emits a single `wwvfq`
+    //! instruction that stalls the sequencer until the playback
+    //! queue drains.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `wwvfq` instruction.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> waitPlayQueueEmpty(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x145240
     std::shared_ptr<EvalResults> setTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x1454c0
     std::shared_ptr<EvalResults> getTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x145ad0
@@ -1678,20 +1708,116 @@ public:
     std::shared_ptr<EvalResults> getDigTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x147420
     std::shared_ptr<EvalResults> setInt(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x1480d0
     std::shared_ptr<EvalResults> setDouble(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);             // @0x148ac0
+    //! \brief Implement the SeqC `randomSeed` built-in.
+    //!
+    //! Verifies device support against `kDevHirzelAll`, rejects any
+    //! arguments (`FormatFuncArgs`), and seeds the per-thread
+    //! mt19937-64 PRNG used by host-side `randomGauss`/`randomUniform`
+    //! evaluations from `/dev/urandom`.  No assembly is emitted.
+    //!
+    //! Routed through `seqc_libcxx_mt19937_seed_urandom` so the
+    //! seed-state layout matches the libc++ ABI exactly; this is
+    //! what `normal_distribution` in the same shim consumes when
+    //! producing Box-Muller pairs in the order the original binary
+    //! requires.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed); empty.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> randomSeed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x1497c0
     std::shared_ptr<EvalResults> generate(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x149940
     std::shared_ptr<EvalResults> setUserReg(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14a420
     std::shared_ptr<EvalResults> getUserReg(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14b480
     std::shared_ptr<EvalResults> getSweeperLength(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);      // @0x14bca0
+    //! \brief Implement the SeqC `setRate` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires exactly one argument that is a
+    //! `Const` or `Cvar`, and emits an `asmRate` instruction
+    //! configuring the sequencer playback rate.  The integer value
+    //! is read via `arg.value_.toInt()` and forwarded to
+    //! `asmCommands_->asmRate(rate)`; the resulting node is stored
+    //! in `results->node_`.
+    //!
+    //! \param args  Single `Const`/`Cvar` integer rate code.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `asmRate` instruction with its node bound
+    //!          to `results->node_`.
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`SetRateOneConst`), wrong type (`SetRateConst`),
+    //!          or unsupported devices.
     std::shared_ptr<EvalResults> setRate(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);               // @0x14c370
     std::shared_ptr<EvalResults> setPrecompClear(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x14c720
     std::shared_ptr<EvalResults> setWaveDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14cae0
+    //! \brief Implement the SeqC `now` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), rejects any arguments
+    //! (`FuncExpectsNoArgs`), and emits a `suser` instruction that
+    //! reads the current sequencer timestamp from the user-register
+    //! address `kSuserNow` (`0x1C`) into register 0.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `suser` instruction.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> now(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                   // @0x14cbc0
     std::shared_ptr<EvalResults> at(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                    // @0x14ce30
+    //! \brief Implement the SeqC `error` built-in.
+    //!
+    //! Formats a runtime message via `printF(args, "error")`
+    //! (boost-style `%d`/`%s`/`%f` substitution from any number of
+    //! `EvalResultValue` arguments) and emits an `asmMessage`
+    //! instruction with the error flag set.  No device-support
+    //! check; no argument-count restriction beyond what `printF`
+    //! enforces internally.
+    //!
+    //! \param args  Format string followed by any number of
+    //!              substitution arguments.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `asmMessage` instruction.
+    //! \throws  `CustomFunctionsException` propagated from
+    //!          `printF` on format-string errors.
     std::shared_ptr<EvalResults> error(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                 // @0x14d830
+
+    //! \brief Implement the SeqC `info` built-in.
+    //!
+    //! Formats an informational runtime message via
+    //! `printF(args, "info")` and emits an `asmMessage` instruction
+    //! with the error flag clear.  Identical to `error()` apart
+    //! from the boolean passed to `asmMessage` (and therefore the
+    //! severity reported by the runtime).
+    //!
+    //! \param args  Format string followed by any number of
+    //!              substitution arguments.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted `asmMessage` instruction.
+    //! \throws  `CustomFunctionsException` propagated from
+    //!          `printF` on format-string errors.
     std::shared_ptr<EvalResults> info(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14da50
     std::shared_ptr<EvalResults> lock(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14dc70
     std::shared_ptr<EvalResults> unlock(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x14e180
+    //! \brief Implement the SeqC `sync` built-in.
+    //!
+    //! Verifies device support against `kDevHirzelAll`, rejects any
+    //! arguments (`FuncExpectsNoArgs`), and delegates to
+    //! `addSyncCommand(result, res)` which emits the device-
+    //! appropriate sync instruction sequence (Hirzel uses
+    //! `syncHirzel`; Cervino uses `syncCervino`).
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Resource scope forwarded to `addSyncCommand`.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted sync instructions.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> sync(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14e690
     std::shared_ptr<EvalResults> getCnt(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x14e8d0
     std::shared_ptr<EvalResults> waitQAResultTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);   // @0x14edc0
