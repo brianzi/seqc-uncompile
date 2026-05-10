@@ -628,8 +628,30 @@ cross-reference pages so the backlog is discoverable.
           (StaticResources::errorReportTarget — see IF-235).
           IF-235 logged (low/confirmed): orphan declared-but-
           undefined helper.
-    - [ ] **D5-5** — Asm parser/expression family (~78 briefs):
-          AsmParserContext, AsmExpression, Assembler.
+    - [x] **D5-5** — Asm parser/expression family. Done in
+          `0bf65ce`. +98 briefs, coverage 39.8% → 43.0%. Eight
+          new `\binarynote` (comment-state cross-locking
+          no-ops, clearSyntaxError name-vs-effect mismatch,
+          cleanStringCopies pointer invalidation, addCommand
+          double-null contract, highestRegisterNumber full
+          register-index preservation). One new `\verifyme`
+          on str(shared_ptr<AsmExpression>) — see IF-236.
+          IF-236 logged (medium/confirmed): missing
+          reconstruction of live binary symbol at 0x28cd20
+          (1373 bytes, ostringstream-based AsmExpression →
+          text serialiser).
+          - [ ] **Follow-up (D-class work, not blocking)**:
+                reconstruct
+                `str(shared_ptr<AsmExpression>)` body. No test
+                exercises this path so it can wait.
+          - [ ] **Follow-up (cross-reference doc)**: write
+                `notes/parser_contexts_compared.md` cross-
+                referencing AsmParserContext and
+                SeqcParserContext (near-twin structures: same
+                comment-state machine, same errorCallback_ +
+                boost::log fallback, same line-counter
+                pattern). Saves future agents from re-deriving
+                the parallel.
     - [ ] **D5-6** — AWGAssemblerImpl + AWGCompilerImpl (~72
           briefs); private impl classes whose facades were
           documented in 7a.
