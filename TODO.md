@@ -431,6 +431,32 @@ cross-reference pages so the backlog is discoverable.
         `EvalResults`-returning declarations; 0 doxygen
         warnings with `WARN_IF_UNDOCUMENTED=YES`).
         1600/1600 tests passing throughout.
+  - [x] **D4 Batch 5** — `AsmOptimize` class, complete coverage
+        in a single commit (`25f5aa0`):
+        - Audited the 5 pre-existing briefs
+          (`OptimizeException`, class brief,
+          `optimizePreWaveform`, `optimizePostWaveform`); all
+          accurate against the binary, no IF needed.
+        - 3 lifecycle briefs added: ctor, dtor,
+          `prepareResources`.
+        - 17 private-method briefs added: 5 query helpers
+          (`isRead`, `isWritten`, `isLabelCalled`,
+          `getNextActionForReg`, `registerIsNeverWritten`); 8
+          peephole passes (`deadCodeElimination`,
+          `oneStepJumpElimination`, `removeUnusedLabels`,
+          `mergeLabels`, `mergeRegisterZeroing`,
+          `removeUnusedRegs`, `reportUserMessages`,
+          `simplifyAssign`); 4 register-allocator routines
+          (`registerAllocation`, `splitConstRegisters`,
+          `splitReg`, `registerUpdate`).
+        - Flipped `EXTRACT_PRIVATE` to `YES` in
+          `Doxyfile.in`.  Side effects elsewhere are zero
+          because `EXTRACT_ALL=NO` keeps undocumented privates
+          silently skipped tree-wide.
+        - Corrected one stale legacy comment on
+          `isLabelCalled` (scan range is `[begin, it)`, not
+          "after `it`") in the same commit.
+        1600/1600 tests, 0 doxygen warnings.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

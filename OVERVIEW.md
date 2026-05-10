@@ -612,11 +612,55 @@ mainpage.
   - **3c-ii** (`91d9e41`): 13 `WavetableFront` factory and
     query/utility briefs.  `WavetableFront` now fully
     documented.
-  - **3c-iii** (`f08c46f`): 14 `WavetableManager<T>` templated
-    method briefs (covering both `WaveformFront` and
-    `WaveformIR` instantiations) plus the two trivial
-    frontend-lowering dtors (`FrontendLoweringContext::~`,
-    `FrontendLoweringState::~`).
+   - **3c-iii** (`f08c46f`): 14 `WavetableManager<T>` templated
+     method briefs (covering both `WaveformFront` and
+     `WaveformIR` instantiations) plus the two trivial
+     frontend-lowering dtors (`FrontendLoweringContext::~`,
+     `FrontendLoweringState::~`).
+- **Batch 4 — `CustomFunctions`** complete across eight
+  sub-batches (130+ briefs total):
+  - **4a** (`e8a2600`): periphery — exception classes, lookup
+    helpers, `AccessMode`, `PlayArgs`, `NodeMap`.
+  - **4b** (`03ebeea`): dispatch surface — `call`,
+    `executeCall`, registration plumbing.
+  - **4c** (`a3c6af5`): `custom_functions_play.cpp`
+    play-family built-ins.
+  - **4d** (`0f91745`): `custom_functions_waveforms.cpp`
+    waveform built-ins.
+  - **4e** (`3ebf2e3`): `custom_functions_oscillators.cpp`
+    oscillator / phase / DIO built-ins.
+  - **4f** (`bafa9a9`): `custom_functions_qa_feedback.cpp`
+    QA / feedback built-ins.  Corrected the AwgDeviceType
+    bit-decomposition table during the pass (no `UHFAWG`
+    enumerator exists; `kDevHirzel = 0x1F2`, etc.).
+  - **4g** (`fbc7f4a`): `custom_functions_wait_trigger.cpp`
+    wait / trigger / sine-phase built-ins (16 methods).
+  - **4h** (`5821661`): `custom_functions_registers.cpp`
+    register / trigger / QA / sweep built-ins (31 methods).
+  Header has zero undocumented `EvalResults`-returning
+  declarations after the run; 0 doxygen warnings at every
+  commit; 1600/1600 maintained throughout.
+- **Batch 5 — `AsmOptimize`** complete (`25f5aa0`).  Audited
+  the five existing briefs (`OptimizeException`, the class
+  brief, `optimizePreWaveform`, `optimizePostWaveform`); all
+  accurate against the binary, no IF needed.  Added briefs
+  for the three undocumented public lifecycle members (ctor,
+  dtor, `prepareResources`) and for **all 17 private members**
+  — 5 query helpers (`isRead`, `isWritten`, `isLabelCalled`,
+  `getNextActionForReg`, `registerIsNeverWritten`), 8
+  peephole passes (`deadCodeElimination`,
+  `oneStepJumpElimination`, `removeUnusedLabels`,
+  `mergeLabels`, `mergeRegisterZeroing`, `removeUnusedRegs`,
+  `reportUserMessages`, `simplifyAssign`), and 4
+  register-allocator routines (`registerAllocation`,
+  `splitConstRegisters`, `splitReg`, `registerUpdate`).
+  Flipped `EXTRACT_PRIVATE` to `YES` in `Doxyfile.in` so the
+  new private briefs surface on the class page; the global
+  warning count remains at 0 because `EXTRACT_ALL=NO` keeps
+  undocumented privates silently skipped elsewhere in the
+  tree.  Corrected one stale legacy reconstruction comment
+  on `isLabelCalled` (the scan range is `[begin, it)`, not
+  "after `it`") in the same commit.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
