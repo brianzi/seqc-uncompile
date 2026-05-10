@@ -763,14 +763,35 @@ cross-reference pages so the backlog is discoverable.
             preserved verbatim below new //!< briefs per §14.
           Total +91 documented; coverage 47.5% → 50.4% (1463 →
           1552; crossed 50% threshold).  Commit 025eb8b.
-    - [ ] **D5-10** — Remaining `zhinst::` namespace free
-          functions (61 left after D5-9).  Top buckets:
-          src/ast/seqc_ast_node.cpp (13), src/core/error_messages.cpp
-          (8), include/zhinst/ast/node.hpp (6), src/device/device_type.cpp
-          (4), src/ast/expression.cpp (3), src/core/stubs.cpp (3),
-          src/codegen/awg_compiler.cpp (3), runtime/custom_functions.hpp
-          (3); long tail of 1-2 per file.  Tackle as one
-          sub-batch per file family or one big sweep.
+    - [x] **D5-10** — Remaining `zhinst::` namespace free
+          functions (61 entries across 26 files).  Closed in
+          three parallel sub-batches:
+          - D5-10a (AST cluster, 25): node.hpp enum operators
+            (\name group, 6); EValueCategory + enumerators (4);
+            11 swap() + 2 str() in seqc_ast_node.cpp;
+            expression.cpp helpers (3); toSeqCAst;
+            operator<<(AddressImpl<uint32_t>).
+          - D5-10b (Error/Core cluster, 14): ErrorMessageT
+            enum, errMsg singleton, 3 resource-id strings
+            (\name group), 4 *None sentinels, getApiErrorMessage,
+            runningOnMfDevice, awg2double/marker stubs,
+            xmlEscapeSeqToInt, compileSeqc entry point, S/BF
+            typedefs in \cond INTERNAL.
+          - D5-10c (Codegen/Device/Misc cluster, 22):
+            OptPassFlag + RegAction enums, asm_register::isValid,
+            LabelBimap, sectionAsString, custom_functions enums
+            + operator<, NodeTypeIdx, WaveOrder, nextID,
+            getCmdMap, awg2double/marker/double16 forward decls,
+            computeWaveformMemoryBytes, DeviceType operators (4),
+            getNodeMapForDevice, floatEqual.
+          Two IFs: IF-239 (awg2marker uint8/uint16 ODR latent),
+          IF-240 (DeviceOptionSet operator== summary
+          understates check).  §14 verified — 2 mechanical
+          -lines were content-equivalent reformats, no // recon
+          comments lost.  Coverage 50.4% → 52.9% (+76 net);
+          namespacezhinst undoc gap: 61 → 0. Commit 048d357.
+    - [x] **zhinst:: free-function gap eliminated** end of D5-10.
+          ~150 entries documented across D5-8/9/10.
   - Workflow: each sub-batch follows the AGENTS.md
     verify-then-write rule.  Subagent dispatch is encouraged
     for mechanical sweeps; user-verifies before commit.
