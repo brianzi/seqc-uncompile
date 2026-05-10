@@ -1,0 +1,47 @@
+set pagination off
+set confirm off
+set auto-load safe-path /
+
+set stop-on-solib-events 1
+run
+
+python
+import gdb
+while True:
+    info = gdb.execute("info sharedlibrary _seqc_compiler", to_string=True)
+    base = None
+    for line in info.split('\n'):
+        if '_seqc_compiler' in line and '0x' in line:
+            tok = line.split()[0]
+            if tok.startswith('0x'):
+                base = int(tok, 16); break
+    if base: break
+    gdb.execute("continue")
+
+gdb.execute("set stop-on-solib-events 0")
+
+sites = [
+    ('findLockedPlay_entry',     0x1d3dd0),
+    ('cmp_play_type',            0x1d3f8f),  # cmpl $0x2, 0x44(%r13)  -> Play check
+    ('cmp_unlock_type',          0x1d41d4),  # cmpl $0x80, 0x44(%r13) -> Unlock check
+    ('bcmp_call_1',              0x1d404a),  # name compare site 1
+    ('bcmp_call_2',              0x1d428e),  # name compare site 2
+    ('return_match',             0x1d43ad),  # mov %rax, 0x8(%rbx) - success
+    ('return_null_early',        0x1d3e54),  # early null return
+    ('return_null_late',         0x1d439f),  # late null
+]
+
+import gdb
+for name, off in sites:
+    bp = gdb.Breakpoint(f'*{base + off}')
+    cmd = f"""commands {bp.number}
+silent
+printf ">>> {name} (0x{off:x})  rax=%lx r13=%lx rbx=%lx\\n", $rax, $r13, $rbx
+continue
+end"""
+    gdb.execute(cmd)
+
+end
+
+continue
+quit

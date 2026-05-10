@@ -689,6 +689,62 @@ public:
      *               Usually `root_`.
      */
     void optimizeCwvf(std::shared_ptr<Node> node);                     // 0x1cfc70
+    /*! \brief Reserve and reuse cache slots for every waveform
+     *  referenced by the prefetch tree, threading the per-device
+     *  `Cache` through scoped child caches at branches and loops.
+     *
+     *  \details Iterates the linked list rooted at `node` (via
+     *  `Node::next`) and dispatches on `Node::type`:
+     *
+     *  - `Load` (`0x01`) — the heavy case.  Reads the waveform
+     *    name from `wavesPerDev[deviceIndex]`, inserts
+     *    `(name, true)` into `nameMap_`, then locks the node's
+     *    `loadRef` weak_ptr (+0x18).  When the locked load already
+     *    has a `Cache::Pointer` whose state is at least 2, copies
+     *    the pointer into the current node's `nodeStates_` slot
+     *    and advances.  Otherwise, when `Cache::stillInMemory`
+     *    reports the load is reusable, calls `Cache::reuse`
+     *    followed by `nodeByCachePointer` + `mergeLoads` to fold
+     *    the current node into the original.  Failing both reuse
+     *    paths, allocates fresh storage: looks up the
+     *    `WaveformIR` via `wavetableIR_`, computes the byte size
+     *    as `channels * ceil(length/grainSize) * grainSize *
+     *    bitsPerSample / 8` (or `playNode->length * channels * 2`
+     *    for indexed-play), calls `Cache::allocate(waveIR,
+     *    byteSize, nameMap_, maxBranches_, split_)`, and stores
+     *    the returned pointer.
+     *  - `Play` (`0x02`) — locks the node's load reference and
+     *    calls `Cache::play()` on the load's cache pointer.
+     *  - `Branch` (`0x04`) — for each entry in `Node::branches`
+     *    creates a scoped `Cache` via `cache->getScope()` and
+     *    recursively calls `allocate(child, scopedCache)`.
+     *  - `Loop` (`0x08`) — when `Node::loop` is non-null, creates
+     *    a scoped `Cache` and recurses into the loop body.
+     *  - `Lock` (`0x40`) — reads the waveform name and inserts
+     *    `(name, true)` into `nameMap_`; no cache work.
+     *  - `Unlock` (`0x80`) — same, but inserts `(name, false)`
+     *    to clear the mark left by the matching `Lock`.
+     *  - `Table` (`0x200`) — locks the node's load reference and
+     *    calls `Cache::play()` on the current node's cache
+     *    pointer.  When the load reference is null and
+     *    `Node::config.dummy` is also clear, throws
+     *    `ZIAWGCompilerException` with `ErrorMessages::format`
+     *    code 0xA2.
+     *  - Any other type — silently advances to `next`.
+     *
+     *  Every `std::exception` raised inside the loop is caught
+     *  and re-thrown as `ZIAWGCompilerException` with
+     *  `ErrorMessages::format` code 0xA2 wrapping the original
+     *  message.
+     *
+     *  \param node   Head of the chain to allocate cache for.
+     *                Typically `root_` on the top-level call;
+     *                child nodes when recursed from `Branch` or
+     *                `Loop`.
+     *  \param cache  Per-device `Cache` instance (or a scope
+     *                derived from one) tracking memory layout
+     *                for the current sub-tree.
+     */
     void allocate(std::shared_ptr<Node> node, std::shared_ptr<Cache> cache); // 0x1d0fb0
     std::vector<std::shared_ptr<WaveformIR>> getUsedWavesForDevice(size_t deviceIdx) const; // 0x1d2d60
     void collectUsedWaves(std::shared_ptr<Node> node);                 // 0x1d31c0

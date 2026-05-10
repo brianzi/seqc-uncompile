@@ -1,0 +1,53 @@
+set pagination off
+set confirm off
+set auto-load safe-path /
+
+# Catch library load via solib events
+set stop-on-solib-events 1
+run
+
+# Resolve _seqc_compiler.so base address
+python
+import gdb
+while True:
+    info = gdb.execute("info sharedlibrary _seqc_compiler", to_string=True)
+    found = False
+    base = None
+    for line in info.split('\n'):
+        if '_seqc_compiler' in line and '0x' in line:
+            tok = line.split()[0]
+            if tok.startswith('0x'):
+                base = int(tok, 16)
+                found = True
+                break
+    if found:
+        break
+    gdb.execute("continue")
+
+gdb.execute("set stop-on-solib-events 0")
+
+# Breakpoint sites of interest in Prefetch::allocate
+sites = [
+    ('allocate_entry',     0x1d0fb0),  # function entry
+    ('high_type_check',    0x1d1025),  # cmp $0x3f, jg
+    ('cmp_0x40',           0x1d1090),  # cmp $0x40 (Lock per enum, named Wait in recon)
+    ('cmp_0x80',           0x1d1099),  # cmp $0x80 (Unlock per enum, named Rate? in recon)
+    ('cmp_0x200',          0x1d10a4),  # cmp $0x200 (Table)
+    ('handleWait_target',  0x1d140d),  # what 0x40 jumps to
+    ('handleRate_target',  0x1d145a),  # what 0x80 jumps to
+]
+
+import gdb
+for name, off in sites:
+    bp = gdb.Breakpoint(f'*{base + off}')
+    cmd = f"""commands {bp.number}
+silent
+printf ">>> {name} (0x{off:x})  rax=%lx rcx=%lx rax_low32=%u\\n", $rax, $rcx, ($rax & 0xffffffff)
+continue
+end"""
+    gdb.execute(cmd)
+
+end
+
+continue
+quit

@@ -1479,54 +1479,59 @@ void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
 // Iterates the node linked list (via node->next). For each node, switches
 // on node->type and performs cache allocation / bookkeeping:
 //
-// Type dispatch (jump table at 0x95af54, indexed by type-1 for type ≤ 8):
-//   type=1 (Play):        0x1d1045 — get waveform name, mark in nameMap_
-//   type=2 (Load/SetVar): 0x1d130d — lock load ptr, Cache::play() on load's
-//   cachePtr type=4 (Branch):      0x1d117a — recurse into each branch child
-//   with scoped cache type=8 (Loop):        0x1d1273 — recurse into loop body
-//   with scoped cache type=0x40 (Wait):     0x1d140d — get waveform name, mark
-//   in nameMap_ (variant A) type=0x80 (Rate?):    0x1d145a — get waveform name,
-//   mark in nameMap_ (variant B) type=0x200 (Table):   0x10af   — lock load
-//   ptr, Cache::play() on current node's cachePtr
+// Type dispatch:
+//   - Low values (type ≤ 0x3F) go through a jump table at 0x95af54
+//     indexed by (type-1).  Verified entries:
+//        type=0x01 (Load):   0x1d1045 — register waveform name in nameMap_
+//                            and run the cache-allocation / reuse logic
+//        type=0x02 (Play):   0x1d130d — lock load ptr, Cache::play()
+//                            on load's cachePtr
+//        type=0x04 (Branch): 0x1d117a — recurse into each branch child
+//                            with a scoped Cache
+//        type=0x08 (Loop):   0x1d1273 — recurse into the loop body
+//                            with a scoped Cache
+//        all other low indices fall through to the advance path.
+//   - High values (type > 0x3F) are dispatched by explicit cmp:
+//        type=0x40  (Lock):   0x1d140d — register waveform name with
+//                             nameMap_[name] = true.  GDB-confirmed
+//                             on `lock(w)` SeqC programs.
+//        type=0x80  (Unlock): 0x1d145a — register waveform name with
+//                             nameMap_[name] = false.  GDB-confirmed
+//                             on `unlock(w)` SeqC programs.
+//        type=0x200 (Table):  0x1d10af — lock load ptr, Cache::play()
+//                             on current node's cachePtr
+//        any other high type is silently skipped to the advance path.
 //
-// For Play/Wait/Rate-like nodes (types 1, 0x40, 0x80):
-//   1. Read wavesPerDev[deviceIndex] to get optional<string> waveform name
-//   2. Insert waveform name into nameMap_ (with bool = true for type 1, false
-//   for 0x80)
-//   3. If node has load ptr (weak_ptr at +0x18/+0x20): lock it, look up
-//      nodeStates_ for the load node, get its cachePtr, then
-//      look up nodeStates_ for current node and call
-//      Cache::play(cachePtr, nodeState.counter()) — replay the cached pointer
-//      with the current counter/state.
-//   4. If no load ptr: check node play vector (+0xA0). If empty and
-//      nodeStates_[node].crossesCacheLine flag (+0x66 in hash node) is not set,
-//      throw ZIAWGCompilerException (error 0xA2).
+// For Load (type 1) — the heavy case — the steps are:
+//   1. Read wavesPerDev[deviceIndex] to get the waveform name.
+//   2. Insert (name, true) into nameMap_.
+//   3. Lock the node's loadRef weak_ptr (+0x18/+0x20).  When non-null
+//      and its nodeStates_ entry already has a cachePtr with state ≥ 2,
+//      copy the cachePtr from loadNode's state into curNode's state and
+//      advance.
+//   4. Otherwise, if the loadRef's cachePtr exists and Cache::stillInMemory,
+//      call Cache::reuse(cachePtr), then nodeByCachePointer + mergeLoads
+//      to fold the current node into the original.
+//   5. If neither reuse path applies, fall into the "no loadRef" allocation
+//      path: read the play vector (+0xA0); when split_ is set or a play
+//      reference exists, look up the WaveformIR via wavetableIR_, compute
+//      the byte size from
+//      `channels * ceil(length/grainSize) * grainSize * bitsPerSample / 8`
+//      (or `playNode->length * channels * 2` for indexed-play), and call
+//      `Cache::allocate(waveIR, byteSize, nameMap_, maxBranches_, split_)`.
+//      Store the returned Cache::Pointer into nodeStates_[curNode].cachePtr.
 //
-// For Load/SetVar (type 2) and Table (type 0x200):
-//   Same load-ptr locking and Cache::play() logic, but operating on the
-//   node's own load pointer.
+// For Lock (type 0x40) and Unlock (type 0x80):
+//   - Read wavesPerDev[deviceIndex] (when present) and emplace
+//     `(name, true)` for Lock, `(name, false)` for Unlock into nameMap_.
+//   - No cache allocation.
 //
-// For Play nodes that reach the allocation path (have play refs but
-// no existing cache pointer to reuse):
-//   1. Look up the load node via nodeStates_[loadNode].cachePtr
-//   2. If cachePtr exists and counter >= 2:
-//      - Copy cachePtr from loadNode's state → current node's state
-//      (transfer the Cache::Pointer shared_ptr)
-//   3. Otherwise, if cachePtr is null or not stillInMemory():
-//      - Get WaveformIR from WavetableIR::getWaveformByName(waveName)
-//      - Compute numSamples from WaveformIR:
-//        signal (+0x78) → length (+0x50) → sampleCount (+0x40/+0x44)
-//        For node->length > 0: numSamples = ceil(length / sampleCount) *
-//        sampleCount Then: byteSize = channels_per_signal * numSamples *
-//        bits_per_sample / 8 (rounded up to byte boundary)
-//      - Call Cache::allocate(waveformIR, byteSize, nameMap_, maxBranches_,
-//      split_)
-//      - Store returned Cache::Pointer into nodeStates_[node].cachePtr
-//   4. If cachePtr is stillInMemory():
-//      - Call Cache::reuse(cachePtr)
-//      - Look up the original node that owns this cachePtr via
-//      nodeByCachePointer()
-//      - Call mergeLoads(originalNode, currentNode) to merge them
+// For Play (type 2) and Table (type 0x200):
+//   - Lock the load ptr and call Cache::play() on the load's cachePtr
+//     (Play) or the current node's cachePtr (Table).
+//   - On a null load ptr the Table branch additionally checks
+//     `node->config.dummy` (Node+0x66); when also unset, throws
+//     ZIAWGCompilerException(format(0xA2, ...)).
 //
 // For Branch (type 4):
 //   - Iterate branches vector (node+0xC8..node+0xD0)
@@ -1570,11 +1575,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
     // 0x1d1025-0x1d10a9: Type dispatch
     if (static_cast<int>(type) > 0x3F) { // 0x1d1025: cmp $0x3f; jg
       // High type values: 0x40, 0x80, 0x200
-      if (type == NodeType::Wait) { // 0x1d1090: cmp $0x40 → 0x1d140d
-        goto handleWait;
+      if (type == NodeType::Lock) { // 0x1d1090: cmp $0x40 → 0x1d140d
+        goto handleLock;
       } else if (static_cast<int>(type) ==
                  0x80) { // 0x1d1099: cmp $0x80 → 0x1d145a
-        goto handleRate80;
+        goto handleUnlock;
       } else if (static_cast<int>(type) ==
                  0x200) { // 0x1d10a4: cmp $0x200 → 0x1d10af
         goto handleTable200;
@@ -1794,10 +1799,10 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
       goto advance; // cleanup then 0x1d1660
     }
 
-    handleWait: {
+    handleLock: {
       // ==================================================================
-      // type=0x40 (Wait): 0x1d140d — same waveform-name lookup,
-      // nameMap[name]=true
+      // type=0x40 (Lock): 0x1d140d — same waveform-name lookup,
+      // nameMap[name]=true (mark waveform as referenced inside the lock)
       // ==================================================================
       // 0x1d140d-0x1d14a3: Same wavesPerDev[deviceIndex] lookup
       int devIdx = cur->deviceIndex; // 0x1d140d: movslq 0x40(%r12)
@@ -1807,20 +1812,21 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
       auto &optName = cur->wavesPerDev[devIdx];
       std::string waveName; // declared before label to avoid goto-crosses-init
       if (!optName.has_value()) // 0x1d142c: cmpb → 0x1d15c2
-        goto waitInsertNameMap;
+        goto lockInsertNameMap;
 
       waveName = *optName; // 0x1d1437-0x1d1455
 
-    waitInsertNameMap:
+    lockInsertNameMap:
       // 0x1d15c2-0x1d15e8: nameMap_[waveName] = true
       nameMap_.emplace(std::move(waveName), true); // 0x1d15ca-0x1d15e3
       // 0x1d15e8: movb $0x1,0x28(%rax)
       goto advance;
     }
 
-    handleRate80: {
+    handleUnlock: {
       // ==================================================================
-      // type=0x80: 0x1d145a — waveform-name lookup, nameMap[name]=false
+      // type=0x80 (Unlock): 0x1d145a — waveform-name lookup,
+      // nameMap[name]=false (clear the mark set by the matching Lock)
       // ==================================================================
       int devIdx = cur->deviceIndex; // 0x1d145a: movslq 0x40(%r12)
       if (devIdx < 0)
@@ -1829,11 +1835,11 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
       auto &optName = cur->wavesPerDev[devIdx];
       std::string waveName; // declared before label to avoid goto-crosses-init
       if (!optName.has_value())
-        goto rate80InsertNameMap;
+        goto unlockInsertNameMap;
 
       waveName = *optName;
 
-    rate80InsertNameMap:
+    unlockInsertNameMap:
       // 0x1d160c-0x1d1632: nameMap_[waveName] = false
       nameMap_.emplace(std::move(waveName), false); // 0x1d1614-0x1d162d
       // 0x1d1632: movb $0x0,0x28(%rax)

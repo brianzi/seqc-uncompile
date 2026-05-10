@@ -158,27 +158,48 @@ cross-reference pages so the backlog is discoverable.
         clamps *up* to the same field (`max`) — opposite operations
         on the same `DeviceConstants` field.
   - [x] **D4 Batch 2c** — `Prefetch::optimize`, `optimizeSync`,
-        `optimizeCwvf` (3 of 4 planned methods documented;
-        `allocate` deferred — see IF-216).  Surfaced and fixed
-        IF-214 (15-site "BFS" misnomer in `prefetch.cpp` /
-        `prefetch_helpers.cpp` — actually LIFO via
-        `std::deque::back()` / `pop_back()`) and IF-215
+        `optimizeCwvf`, `allocate` (4 of 4 methods documented).
+        Surfaced and fixed IF-214 (15-site "BFS" misnomer in
+        `prefetch.cpp` / `prefetch_helpers.cpp` — actually LIFO
+        via `std::deque::back()` / `pop_back()`), IF-215
         (`Prefetch::optimize` block-header listed dispatched type
         as `Play 0x02` when body cmps `Load 0x01`; rebuilt header
         from a body-verified read of the four real cases plus the
-        three Load-parent sub-cases).  IF-216 logged as
-        likely-bug: `Prefetch::allocate:1573` dispatches on
-        `NodeType::Wait` (0x200000) where the binary cmps `$0x40`
-        (`Lock`); same Play↔Load swap pattern in the surrounding
-        block-header.  No regressions; 1600/1600 tests pass.
-  - [ ] **D4 Batch 2c follow-up** — investigate IF-216 and IF-213
-        together (both Lock-pipeline likely-bugs).  Steps:
-        write a Lock-using SeqC reproducer, GDB-trace
-        `Prefetch::allocate` (`0x1d0fb0`) and `findLockedPlay`
-        (`0x1d3e80`-ish) on the original binary, confirm the real
-        dispatch behaviour, fix the recon bodies, rewrite the
-        `allocate` block-header from verified evidence, and write
-        the deferred `Prefetch::allocate` doc brief.
+        three Load-parent sub-cases), and IF-216 (recon body bug:
+        `Prefetch::allocate:1573` dispatched on `NodeType::Wait`
+        (`0x200000`) where the binary cmps `$0x40` (`Lock`); same
+        Play↔Load swap pattern in the surrounding block-header).
+        IF-216 GDB-confirmed and fixed in the follow-up: symbol
+        renamed `Wait` → `Lock`, label `handleWait` →
+        `handleLock`, `handleRate80` → `handleUnlock`, block-
+        header rewritten from verified evidence, doc brief for
+        `allocate` written.  No regressions; 1600/1600 tests pass.
+  - [x] **D4 Batch 2c follow-up (IF-216)** — investigated
+        `Prefetch::allocate` Lock/Unlock dispatch by GDB-tracing
+        `_seqc_compiler.so` at `0x1d0fb0` on
+        `tests/cases/uhfli_misc_funcs.seqc`.  Confirmed the
+        `cmp $0x40` site is taken by genuine `Lock`-typed nodes
+        and the `cmp $0x80` site by `Unlock`-typed nodes.  Recon
+        symbol fixes applied above.  GDB driver and recipe
+        committed at `tests/gdb/gdb_trace_lock.py` and
+        `tests/gdb/gdb_lock_trace.txt`.
+  - [ ] **D4 Batch 2c follow-up (IF-213)** — reconstruct
+        `Prefetch::findLockedPlay` (currently a stub at
+        `prefetch_helpers.cpp:388-424`).  GDB-confirmed during
+        IF-216 investigation that the binary at `0x1d3dd0` is a
+        ~1.4 KB function that walks the tree, dispatches on Play
+        (`0x02`) and Unlock (`0x80`) types, performs `bcmp` on
+        waveform names, and returns the matched node via the
+        success path at `0x1d43ad`.  Recon stub always returns
+        `nullptr`; tests pass only because `prepareTree`'s
+        `createLoad` fallback happens to produce the same ELF for
+        the trivial `lock(w); playWave(w); unlock(w);` pattern in
+        the corpus.  Reconstruction is non-trivial:
+        jump-table-style dispatch, two `bcmp` sites, dual return
+        paths, weak_ptr handling.  Deferred to a dedicated
+        reconstruction effort.  See IF-213 for full evidence.
+        GDB driver: `tests/gdb/gdb_trace_lock.py`; recipe:
+        `tests/gdb/gdb_findlocked_trace.txt`.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

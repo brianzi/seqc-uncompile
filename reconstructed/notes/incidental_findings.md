@@ -4489,7 +4489,8 @@ for similar drift before D4 Batch 2a writes briefs against them.
 ## IF-213  `Prefetch::findLockedPlay` body is a stub that always returns null
 
 **Severity**: likely-bug.
-**Status**: open.
+**Status**: open — GDB-confirmed during D4-2c follow-up; recon
+fix deferred to a dedicated reconstruction effort.
 **Discovered**: D4 Batch 2a verify-then-write check of `prepareTree`'s
 `Lock`-handling branch.
 
@@ -4531,6 +4532,44 @@ match logic.  If no test covers it, write a minimal `playWave`-
 inside-Lock case to expose the path before fixing.  The fix should
 add the missing waveform-name comparison and `return current` in
 the `Play` branch.
+
+**GDB confirmation (D4-2c follow-up)**: traced
+`findLockedPlay` (`0x1d3dd0`) on `tests/cases/uhfli_misc_funcs.seqc`
+(which contains `lock(w); playWave(w); unlock(w);`).  Trace
+output shows the binary:
+
+  1. Enters `findLockedPlay` (initial entry).
+  2. Hits the `cmpl $0x2, 0x44(%r13)` site at `0x1d3f8f` —
+     i.e. the body really does test `node->type == Play`.
+  3. Calls `bcmp` at `0x1d404a` — waveform-name comparison.
+  4. Reaches `mov %rax, 0x8(%rbx)` at `0x1d43ad` — the
+     success-return path that writes the matched node into
+     the return shared_ptr.
+  5. Re-enters `findLockedPlay` (second invocation, presumably
+     for the matching `Unlock` side).
+
+So `findLockedPlay` is a real ~1.4 KB function that walks the
+tree, checks Play-type nodes against the supplied waveform, and
+returns the matching node.  The recon stub at
+`prefetch_helpers.cpp:388-424` does none of this and always
+returns `nullptr` — exactly as suspected.
+
+The reason `tests/cases/uhfli_misc_funcs.seqc` still passes
+byte-identical is that `prepareTree`'s downstream `createLoad`
+fallback happens to produce the same ELF for this particular
+trivial Lock pattern.  More elaborate Lock-pattern programs
+(e.g. multiple Plays sharing the same waveform inside a Lock,
+or nested Locks) likely diverge silently — there are no tests
+exercising them.
+
+The actual reconstruction of `findLockedPlay` is non-trivial
+(jump-table-style dispatch on node types `0x02` and `0x80`,
+weak_ptr handling, two `bcmp` sites, dual return paths).  See
+`TODO.md` "D4 Batch 2c follow-up" for the dedicated work item.
+
+GDB driver: `tests/gdb/gdb_trace_lock.py`; trace recipe:
+`/tmp/gdb_findlocked_trace.txt` (kept in scratch — promote to
+`tests/gdb/` if recreating the trace later).
 
 ## IF-214  "BFS" misnomer pervasive in Prefetch traversal comments
 
@@ -4653,7 +4692,7 @@ consult the corrected header.
 ## IF-216  `Prefetch::allocate` dispatches on `NodeType::Wait` where binary cmps `$0x40` (`Lock`)
 
 **Severity**: likely-bug.
-**Status**: open.
+**Status**: fixed (D4-2c follow-up); GDB-confirmed.
 **Discovered**: D4 Batch 2c verify-then-write of
 `Prefetch::allocate` (`prefetch.cpp:1552-2070`, original at
 `0x1d0fb0`).
@@ -4726,3 +4765,43 @@ This entry is a sibling of IF-213 (`findLockedPlay` stub) — both
 are likely-bugs in the Lock-handling pipeline that no existing
 test currently exposes.  Investigating them together (a single
 Lock-using GDB session) may resolve both.
+
+**Resolution (D4-2c follow-up)**: GDB-traced the original binary
+at `0x1d0fb0` on `tests/cases/uhfli_misc_funcs.seqc`
+(`lock(w); playWave(w); unlock(w);`).  Trace at the dispatch
+sites confirms:
+
+- `0x1d1090` (`cmp $0x40` → `0x1d140d`) fires with `eax = 0x40`,
+  i.e. the branch is taken by genuine `Lock`-typed nodes.  The
+  recon's `NodeType::Wait` (`0x200000`) was a typo for
+  `NodeType::Lock` (`0x40`).
+- `0x1d1099` (`cmp $0x80` → `0x1d145a`) fires with `eax = 0x80`,
+  i.e. the branch is taken by `Unlock`-typed nodes.  The
+  surrounding "Rate?" label was wrong.
+- `0x1d10a4` (`cmp $0x200` → `0x1d10af`) is the `Table` branch;
+  unchanged.
+
+Fixed in the same commit:
+
+- `prefetch.cpp:1573` `NodeType::Wait` → `NodeType::Lock`.
+- `goto handleWait` / `handleWait:` / `waitInsertNameMap` →
+  `handleLock` / `lockInsertNameMap` (cosmetic but matches
+  semantics).
+- `goto handleRate80` / `handleRate80:` / `rate80InsertNameMap`
+  → `handleUnlock` / `unlockInsertNameMap`.
+- The `// type=0x40 (Wait)` and `// type=0x80` block comments on
+  the dispatch labels rewritten to `(Lock)` / `(Unlock)` and
+  describe the matched-name-map semantics
+  (`nameMap_[name] = true` for Lock, `false` for Unlock).
+- The function-level block-header at `prefetch.cpp:1475-1554`
+  fully rewritten: the type list now lists every verified case
+  in source order with the correct enum names; the
+  per-case-summary section reorganised so each NodeType has its
+  own block.
+
+Verified clean: 1600/1600 tests pass, build clean, 0 doxygen
+warnings.  The Doxygen brief for `Prefetch::allocate` was added
+in the same commit (no longer deferred).
+
+GDB driver: `tests/gdb/gdb_trace_lock.py`.
+GDB recipe: `tests/gdb/gdb_lock_trace.txt`.
