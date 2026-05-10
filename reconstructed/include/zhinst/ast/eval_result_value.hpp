@@ -39,6 +39,8 @@ struct EvalResultValue {
     Value       value_;        // +0x08 — embedded Value (0x28 bytes)
     AsmRegister reg_;          // +0x30 — register binding
 
+    //! \brief Destroys the embedded `Value` (releasing any string
+    //! storage) and the `AsmRegister`.
     ~EvalResultValue();  // @0x15c820
 };
 // sizeof(EvalResultValue): 0x38 on libc++ (binary), 0x40 on libstdc++.

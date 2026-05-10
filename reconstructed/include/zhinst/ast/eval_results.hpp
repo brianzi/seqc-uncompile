@@ -71,17 +71,29 @@ public:
 
     // --- Constructors / Destructor ---
 
+    //! \brief Default-constructs an empty results object: no values,
+    //! no assemblers, no node, no waveform, no name, no array
+    //! backing, `returnEncountered_ == false`.
     EvalResults() = default;                              // zero-initialized in make_shared emplace
+    //! \brief Constructs a results object whose `values_` holds a
+    //! single default-constructed `EvalResultValue` tagged with the
+    //! given `VarType` (sub-type defaulted, `Value` left
+    //! `Unspecified`, register invalid).  Used as the seed result
+    //! for a typed evaluation that will later overwrite the value.
     EvalResults(VarType type);                            // @0x176bc0
+    //! \brief Deep-copies all members: both vectors are
+    //! element-copy-constructed; the three `shared_ptr`s have their
+    //! refcounts bumped; `name_` and `returnEncountered_` are
+    //! value-copied.
     EvalResults(EvalResults const& other);                // @0x231c60
     ~EvalResults();                                       // @0x16f3d0
 
     // --- getValue ---
-    // Returns the Value from the LAST element of values_ by sret.
-    // Evidence: getValue @0x211ab0 reads vector.end at [this+0x08],
-    //   extracts the Value field (at element+0x08) from the last
-    //   EvalResultValue, and writes it to the sret buffer at offset +0x00.
-    //   If values_ is empty, returns a default Value (all zeros).
+    //! \brief Returns a copy of the `Value` payload of the **last**
+    //! element of `values_`, or a default-constructed (`Unspecified`)
+    //! `Value` if `values_` is empty.
+    //! \binarynote The accessor reads only the trailing element; the
+    //! varType/varSubType/register fields are not returned.
     Value getValue() const;                               // @0x211ab0
 
     // --- setValue overloads ---
@@ -89,22 +101,52 @@ public:
     // new value. The overloads differ in what fields they set on the
     // EvalResultValue (VarType, VarSubType, Value contents, AsmRegister).
 
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `VarType_Const`, sub-type defaulted, holding `val`, with an
+    //! invalid register binding.
     void setValue(Value const& val);                      // @0x15a750
+    //! \brief Replaces `values_` with a single default-constructed
+    //! entry tagged with `type` (sub-type defaulted, `Value`
+    //! `Unspecified`, register invalid).
     void setValue(VarType type);                          // @0x20ad20
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(type, default)` whose `Value` is `Unspecified` but whose
+    //! register binding is `AsmRegister(val, valid=true)`.  Used to
+    //! attach a freshly-allocated register to a typed slot before the
+    //! value itself has been computed.
     void setValue(VarType type, int val);                 // @0x15c850
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(VarType_Const, VarSubType_Vect)` holding `Value(val)`.
+    //! \binarynote The sub-type is `VarSubType_Vect` (3), not
+    //! `VarSubType_Default` — preserved from the binary; consumers
+    //! that filter on sub-type must allow this case.
     void setValue(double val);                            // @0x2136a0
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(type, default)` holding `Value(s)`.
     void setValue(VarType type, std::string const& s);    // @0x20af20
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(type, default)` holding `val`, with an invalid register
+    //! binding.
     void setValue(VarType type, Value const& val);        // @0x211b70
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(type, default)` holding `val` and bound to register
+    //! `AsmRegister(i, valid=true)`.
     void setValue(VarType type, Value const& val, int i); // @0x2107b0
+    //! \brief Replaces `values_` with a single entry tagged
+    //! `(type, sub)` holding `val`, with an invalid register
+    //! binding.
     void setValue(VarType type, VarSubType sub,
                   Value const& val);                      // @0x16bfb0
+    //! \brief Full-featured form: replaces `values_` with a single
+    //! entry whose every field — type, sub-type, value, and register
+    //! binding — is caller-specified.
     void setValue(VarType type, VarSubType sub,
                   Value const& val, int i);               // @0x247600
 
     // --- addAssembler ---
-    // Pushes an AsmList::Asm entry into assemblers_ (element size 0xa8).
-    // Evidence: addAssembler @0x15c1b0 uses vector emplace_back with
-    //   stride 0xa8 and copies from the Asm parameter.
+    //! \brief Appends `entry` to `assemblers_`, recording an
+    //! assembler instruction emitted as a side effect of the current
+    //! evaluation.
     void addAssembler(AsmList::Asm const& entry);         // @0x15c1b0
 
     // No copy assignment operator observed in the binary.
