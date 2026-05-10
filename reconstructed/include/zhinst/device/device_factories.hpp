@@ -94,6 +94,19 @@ namespace detail {
 // the derived class's `doMakeDefault()` / `doMakeDeviceType(opts)`
 // virtual methods.
 // ---------------------------------------------------------------------------
+//! \brief Abstract factory base for constructing concrete
+//! `detail::DeviceTypeImpl` instances from an options bitmask.
+//!
+//! Public `makeDefault()` / `makeDeviceType(opts)` helpers dispatch
+//! through the vtable into the family-specific
+//! `doMakeDefault()` / `doMakeDeviceType(opts)` overrides.  One
+//! concrete subclass exists per `DeviceFamily` (Hf2Factory, MfFactory,
+//! UhfFactory, HdawgFactory, ShfFactory, ShfaccFactory, GhfFactory,
+//! PqscFactory, QhubFactory, HwmockFactory, VhfFactory) plus two
+//! special factories (`NoDeviceTypeFactory` for the Unknown family and
+//! `UnknownDeviceTypeFactory` for unrecognised family values).  The
+//! correct factory for a given family is produced by
+//! `makeDeviceFamilyFactory`.
 class DeviceFamilyFactory {
 public:
     virtual ~DeviceFamilyFactory();
@@ -118,6 +131,9 @@ protected:
 // default-constructed DeviceTypeImpl (i.e., the base class with
 // code=Unknown, family=Unknown). Vtable @ 0xb092d8.
 // ---------------------------------------------------------------------------
+//! \brief Factory used for `DeviceFamily::Unknown`; both
+//! `makeDefault()` and `makeDeviceType(opts)` produce a plain
+//! base-`DeviceTypeImpl` carrying `code = Unknown` and `family = Unknown`.
 class NoDeviceTypeFactory : public DeviceFamilyFactory {
 public:
     ~NoDeviceTypeFactory() override;
@@ -132,6 +148,9 @@ protected:
 // in the documented enum. Both makeDefault() and doMakeDeviceType()
 // return a new UnknownDevice. Vtable @ 0xb09310.
 // ---------------------------------------------------------------------------
+//! \brief Catch-all factory used when a `DeviceFamily` value is not
+//! one of the documented one-hot bits; both `makeDefault()` and
+//! `makeDeviceType(opts)` produce an `UnknownDevice` instance.
 class UnknownDeviceTypeFactory : public DeviceFamilyFactory {
 public:
     ~UnknownDeviceTypeFactory() override;
