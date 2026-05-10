@@ -172,6 +172,37 @@ public:
     void setUsedWaveforms(const std::vector<std::shared_ptr<WaveformIR>>& waveforms);
 
     // updateWaveforms — 0x29ed10
+    /*! \brief Allocate device memory addresses for every used waveform,
+     *  selecting between the cache-managed and FIFO allocation
+     *  strategies.
+     *
+     *  \details A two-line dispatcher: when `fifoMode` is true,
+     *  delegates to `allocateWaveformsForFifo()` (the streaming /
+     *  Hirzel-style strategy where the prefetcher reuses cache lines
+     *  via `MemoryAllocator::allocateReloadingCL`); otherwise
+     *  delegates to `allocateWaveforms(allocFifoMode)` (the
+     *  fits-in-cache strategy where every used waveform gets a
+     *  unique tail-region address).  Both strategies write the
+     *  resulting per-waveform `addressValue` and
+     *  `crossesCacheLine_` fields on each `WaveformIR` and update
+     *  the IR's `addressBase_` to the end of the last allocation.
+     *
+     *  Called from `Compiler::runPrefetcher` after
+     *  `assignWaveformAllocationSizes` has populated each
+     *  waveform's `allocationByteSize`, and before
+     *  `Prefetch::placeLoads` consumes those addresses to plan
+     *  load placement.
+     *
+     *  \param fifoMode        Selects FIFO vs cache strategy.
+     *                         True for streaming compiles where
+     *                         the working set exceeds device cache.
+     *  \param allocFifoMode   Forwarded to `allocateWaveforms`
+     *                         when `fifoMode` is false; ignored
+     *                         otherwise.
+     *  \throws WavetableException  Wrapped from the inner
+     *                         allocator when waveform memory
+     *                         overflows.
+     */
     void updateWaveforms(bool fifoMode, bool allocFifoMode);
 
     // allocateWaveformsForFifo — 0x29ed30
@@ -181,6 +212,33 @@ public:
     void alignWaveformSizes();
 
     // assignWaveformAllocationSizes — 0x29f1d0
+    /*! \brief Compute and store the per-waveform device-memory
+     *  footprint (`WaveformIR::allocationByteSize`) for every used
+     *  waveform.
+     *
+     *  \details Walks `forEachUsedWaveform(WaveOrder::Natural)` and
+     *  for each entry:
+     *    1. Polls the cancellation callback and bails on cancel.
+     *    2. Calls `loadWaveform` when the waveform's sample buffer
+     *       is empty (placeholder waveforms are realised lazily so
+     *       their sample count is known here).
+     *    3. Computes the aligned sample count: zero-length signals
+     *       map to zero (so `zeros(0)` and degenerate `cut(w,N,N)`
+     *       contribute nothing to the memory budget), otherwise
+     *       the sample count is rounded up to
+     *       `DeviceConstants::grainSize` and then *raised* to
+     *       `DeviceConstants::maxWaveformLength` when that is
+     *       larger — every non-empty waveform consumes at least
+     *       one full waveform block.
+     *    4. Multiplies by `signal.channels()` and
+     *       `DeviceConstants::bitsPerSample`, converts to bytes
+     *       (rounding up), and aligns the result to a 64-byte
+     *       boundary before storing it as `allocationByteSize`.
+     *
+     *  Called from `Compiler::runPrefetcher` immediately before
+     *  `updateWaveforms`, since the allocator needs the byte size
+     *  of every waveform before it can place them.
+     */
     void assignWaveformAllocationSizes();
 
     // loadWaveform — 0x29f310
