@@ -57,13 +57,16 @@ cross-reference pages so the backlog is discoverable.
         `notes/pipeline.md`, and existing topic notes (no new claims)
   - [x] Builds clean, TOC + 9 H2 sections render
 
-- [ ] **D2 — Class-level `\brief` on every public header** (~50 classes)
-  - [ ] Order: `compiler` → `awg_compiler` → `prefetch` →
-        `custom_functions` → `resources` → `eval_results` →
-        `asm/*` → `wavetable/*` → `waveform/*` → remainder
-  - [ ] After each class: commit
-  - [ ] Wrap-up: flip `WARN_IF_UNDOCUMENTED = YES` in Doxyfile;
-        coverage script becomes meaningful
+- [x] **D2 — Class-level `\brief` on every public header** _(complete)_
+  - [x] Topological order: Batches 1–11, ~144 public classes briefed
+        across `core/`, `infra/`, `io/`, `ast/`, `asm/`, `codegen/`,
+        `runtime/`, `waveform/`, `device/`
+  - [x] Per-batch commits with verify-then-write workflow against `.cpp`
+  - [x] `WARN_IF_UNDOCUMENTED = YES` in Doxyfile (flipped at wrap-up)
+  - [x] No undocumented-symbol warnings remaining; the 1441 warnings
+        in `build/docs/doxygen-warnings.log` are all parser cross-
+        reference issues (overload resolution + macro-hidden symbols),
+        not coverage gaps — promoted to D3 as cleanup items below
 
 - [ ] **D3 — Pipeline-driver functions** (~30 functions)
   - [ ] Full `\brief` + `\details` + `\param` + `\return` + `\throws`
@@ -74,6 +77,25 @@ cross-reference pages so the backlog is discoverable.
         Waveform}`, `FrontEndLoweringFacade::lower`,
         `CustomFunctions::evaluate`, `WaveformGenerator` factory entries
   - [ ] Per-group commits
+  - [ ] **Doxygen warning cleanup** (carried over from D2 wrap-up):
+        - 131 "no [uniquely] matching class member" warnings on
+          overloaded `evaluate(...)` overrides in `seqc_ast_eval_*.cpp`
+          (Doxygen can't pick the right overload for the `\brief`
+          attached to the out-of-line definition)
+        - 16 "documented symbol was not declared or defined" warnings
+          for factory dtors hidden behind `ZHINST_DECLARE_FACTORY` macro
+          and for `SeqCDeclList::decls` / `SeqCStmtList::stmts` field
+          briefs whose underlying fields no longer exist
+        - Decide per group: rewrite the brief location, drop the brief,
+          or suppress with a Doxygen pragma
+  - [ ] **IF-207 fix**: swap `MESSAGE`/`ERROR_MSG` values in the banner
+        comment above `AsmOptimize::reportUserMessages()` in
+        `include/zhinst/asm/asm_optimize.hpp:160-162` and the matching
+        comment in `src/asm/asm_optimize.cpp:651` (cosmetic)
+  - [ ] **IF-208 fix**: rename `PrefetcherNodeState::useDA` to a name
+        that reflects its actual role (cross-cache-line load flag on
+        Hirzel) and update the misleading inline comment in
+        `include/zhinst/codegen/prefetch.hpp` (cosmetic)
 
 - [ ] **D4 — Public methods of high-traffic classes**
   - [ ] Order: `Compiler` → `Prefetch` → `WavetableIR/Front` →

@@ -117,14 +117,14 @@ DIRECTORY_GRAPH        = YES
 
 # ---- Warnings (warn but never block) ---------------------------------------
 #
-# WARN_IF_UNDOCUMENTED is currently NO because almost no symbols are
-# documented yet (Phase D0).  It will be flipped to YES in Phase D2 once
-# class-level briefs start landing — at that point the warning log
-# becomes the coverage tracker.
+# WARN_IF_UNDOCUMENTED is YES from Phase D2 wrap-up onward: the
+# class-level brief pass has landed, and the warning log now serves
+# as the coverage tracker for any remaining undocumented public
+# symbols (Phase D3 enum/free-function briefs and beyond).
 
 QUIET                  = NO
 WARNINGS               = YES
-WARN_IF_UNDOCUMENTED   = NO
+WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
 WARN_IF_INCOMPLETE_DOC = YES
 WARN_NO_PARAMDOC       = YES

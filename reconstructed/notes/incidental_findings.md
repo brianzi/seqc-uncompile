@@ -4205,7 +4205,7 @@ as part of the broader magic-constants cleanup (B1).
 ## IF-207  Swapped MESSAGE/ERROR_MSG values in `asm_optimize.hpp` banner comment
 
 **Source**: D2 Batch 7b verification (verify-then-write workflow)
-**Status**: open
+**Status**: open — promoted to TODO.md D3 cleanup item at D2 wrap-up
 **Severity**: cosmetic (comment-only)
 
 The header banner comment above `AsmOptimize::reportUserMessages()` in
@@ -4231,7 +4231,7 @@ comment fix at next sub-phase wrap-up.
 **Source**: D2 Batch 8b verification (verify-then-write workflow); user
 caught a speculative "dual-amplitude / precompensation" gloss derived
 from the field name.
-**Status**: open
+**Status**: open — promoted to TODO.md D3 cleanup item at D2 wrap-up
 **Severity**: cosmetic (field-name / comment clarity)
 
 The `bool useDA` field at `PrefetcherNodeState +0x38` (declared in

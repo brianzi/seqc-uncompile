@@ -479,3 +479,24 @@ mainpage.
   of `architecture.md` headings being counted as memberdef-equivalents
   before the page was extended; the current count reflects only true
   C++ symbol coverage, which D2 will start increasing).
+
+**D2 (class-level briefs) complete (2026-05-10):**
+- ~144 public classes briefed across 11 batches in topological order:
+  `core/` (9), `infra/` (4), `io/` (5), `ast/` (24), `asm/` (12),
+  `codegen/` (12 + 7 internals), `runtime/` (16), `waveform/` (18),
+  `device/` (44).  `\binarynote` count: 4; `\unclear` / `\verifyme`
+  counts: 0.
+- Each batch followed a verify-then-write workflow: the brief was
+  composed only after the corresponding `.cpp` (and, where relevant,
+  the calling site) was inspected to confirm the claimed behaviour.
+  Two cosmetic discrepancies surfaced in the process and were logged
+  as IF-207 (`MESSAGE`/`ERROR_MSG` swap in an `asm_optimize.hpp`
+  banner comment) and IF-208 (misleading `useDA` field name in
+  `PrefetcherNodeState`); both promoted to D3 cleanup items.
+- `WARN_IF_UNDOCUMENTED = YES` in `Doxyfile.in` from D2 wrap-up
+  onward.  The 1441 entries in `build/docs/doxygen-warnings.log`
+  are all parser cross-reference issues (overload mismatches on
+  `evaluate(...)` overrides + macro-hidden factory dtors), not
+  undocumented-symbol coverage gaps.  These are tracked under D3.
+- 1600/1600 differential tests passing throughout the phase; commits
+  span `4bff93b` through `4101782`.

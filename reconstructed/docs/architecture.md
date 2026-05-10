@@ -216,13 +216,16 @@ documentation backlog is discoverable rather than scattered.
 
 ## Documentation roadmap
 
-This site is in **Phase D1** (architecture overview — this page).
+This site is in **Phase D2 wrap-up** (architecture overview + a
+`\brief` on every public class).  `WARN_IF_UNDOCUMENTED` is `YES` so
+the doxygen warning log now serves as the coverage tracker.
 Subsequent phases:
 
-- **D2** — `\brief` line on every public class.  `WARN_IF_UNDOCUMENTED`
-  flips to `YES` and the warning log becomes the coverage tracker.
 - **D3** — full documentation of pipeline-driver functions
-  (`Compiler::*`, `Prefetch::*`, `AsmOptimize::*`).
+  (`Compiler::*`, `Prefetch::*`, `AsmOptimize::*`); plus cleanup of
+  the parser cross-reference warnings inherited from D2 (overload
+  resolution on out-of-line `evaluate(...)` definitions, macro-hidden
+  factory dtors).
 - **D4** — public methods of high-traffic classes (`AsmCommands`,
   `WaveformGenerator`, `CustomFunctions`, `Resources`).
 - **D5** — internal helpers; close the `\unclear` / `\verifyme`

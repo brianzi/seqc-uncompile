@@ -71,10 +71,11 @@ The "documented" count comes from XML `<memberdef>` entries with a
 non-empty `<briefdescription>`.  `xmlstarlet` is preferred; the script
 falls back to a Python regex parser if it is missing.
 
-`WARN_IF_UNDOCUMENTED` is currently `NO` (Phase D0/D1) so the warning
-log only flags doc-syntax errors and parameter mismatches.  It will be
-flipped to `YES` in Phase D2 once class-level briefs land, at which
-point the log itself becomes the coverage tracker.
+`WARN_IF_UNDOCUMENTED` is `YES` from the Phase D2 wrap-up onward, so
+the warning log doubles as the coverage tracker for any remaining
+undocumented public symbols (Phase D3 enum/free-function briefs and
+beyond).  Doc-syntax errors and parameter mismatches are reported
+unconditionally.
 
 ## Comment markers — what to write
 
