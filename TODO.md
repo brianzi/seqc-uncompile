@@ -564,7 +564,54 @@ cross-reference pages so the backlog is discoverable.
     semantic bugs (IF-231 `rand`, IF-234 trig family) and label
     drifts (`chirp`, `lfsrGaloisMarker`, `gauss`) all fixed.
 
-- [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
+- [ ] **D5 — Internal helpers / opcodes / leaves**
+  - Scoping data captured 2026-05-10 from `reconstructed/build/docs/xml/`:
+    coverage 874/3081 (28.4%); largest unbriefed compounds (gap = total - documented):
+    - `zhinst::` namespace free functions / types: 177
+    - `zhinst::Resources`: 70
+    - `zhinst::AWGAssemblerImpl`: 39
+    - `zhinst::DeviceConstants` + nested `SuserAddr`: 67
+    - `zhinst::PlayConfig`: 34
+    - `zhinst::AWGCompilerImpl`: 33
+    - `zhinst::AsmParserContext`: 32
+    - `zhinst::Signal`: 27
+    - `zhinst::Cache`: 21
+    - `zhinst::Waveform`: 24
+    - `zhinst::WavetableFront`: 28 (WavetableManager: 26)
+    - `zhinst::Resources::Function`: 19
+    - `zhinst::AsmExpression` / `Assembler` / `MemoryAllocator` /
+      `CachedParser` / `Exception` / `WaveformFront` (15-19 each)
+    - `zhinst::SeqCArgList` / `SeqCDeclList` / `SeqCStmtList`: 15 each
+  - Sub-batch order (proposed, may evolve):
+    - [ ] **D5-1** — PlayConfig + Signal + Waveform (~85 briefs).
+          Three small POD/value classes used across codegen and
+          waveform synthesis.  Low risk; high downstream
+          visibility (every later brief that mentions these
+          types becomes self-linking).
+    - [ ] **D5-2** — DeviceConstants + SuserAddr (~67 briefs;
+          mostly bitmask / address constants).  Pairs with the
+          existing `cervino_vs_hirzel.md` and `special_registers.md`
+          notes.
+    - [ ] **D5-3** — Cache + CachedParser (~39 briefs).
+    - [ ] **D5-4** — Resources family (~89 briefs incl.
+          Resources::Function).  Symbol-table backbone; likely
+          to surface IFs.
+    - [ ] **D5-5** — Asm parser/expression family (~78 briefs):
+          AsmParserContext, AsmExpression, Assembler.
+    - [ ] **D5-6** — AWGAssemblerImpl + AWGCompilerImpl (~72
+          briefs); private impl classes whose facades were
+          documented in 7a.
+    - [ ] **D5-7** — Waveform-IR remainder: WavetableFront /
+          WavetableManager / WaveformFront.
+    - [ ] **D5-8** — Remaining smaller compounds: Exception,
+          MemoryAllocator, AsmExpression, SeqC list types, etc.
+    - [ ] **D5-9** — `zhinst::` namespace free functions
+          (diffuse; tackle by file).
+  - Workflow: each sub-batch follows the AGENTS.md
+    verify-then-write rule.  Subagent dispatch is encouraged
+    for mechanical sweeps; user-verifies before commit.
+    Sub-batches commit independently; tests + docs warning
+    count between commits.
 
 - [ ] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**
   - [ ] `optimization_passes.md`
