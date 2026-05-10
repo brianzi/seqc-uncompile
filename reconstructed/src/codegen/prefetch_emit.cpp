@@ -132,7 +132,10 @@ AsmList Prefetch::fillInPlaceholders(AsmList const& asmList) {  // 0x1d65c0
 //
 // If the node is the root AND globalCwvfValid_ is false, emits a cwvf (or
 // addi+cwvfr for large values) instruction at the position just past any
-// leading type-4 (placeholder) entries in the output list.
+// leading NodeType::Loop (0x08) entries in the output list.  (Earlier
+// reconstruction text incorrectly called these "type-4 (placeholder)"
+// entries — fixed in IF-221.  type 4 is Loop per node.hpp:48; Placeholder
+// is 0x100000.)
 //
 // Then iterates through the node linked list (following node->next), calling
 // placeSingleCommand on each node. Checks cancellation callback each iteration.
@@ -151,13 +154,13 @@ void Prefetch::placeCommands(AsmList* out, std::shared_ptr<Node> node) {  // 0x1
         uint32_t cwvfValue = rateValue | suppressValue;
 
         // Find insert position: skip past leading entries whose attached
-        // Node has type == 4 (NodeType::Loop placeholder). Verified at
-        // 0x1d66eb: walks `asmList[i].node->type` (an int loaded from
-        // Node+0x10) until non-4. (Asm itself has no nodeType — see
+        // Node has type == 4 (NodeType::Branch).  Verified at 0x1d66eb:
+        // walks `asmList[i].node->type` (an int loaded from Node+0x44)
+        // until non-Branch.  (Asm itself has no nodeType — see
         // asm_list.hpp:54.)
         auto insertPos = out->begin();
         while (insertPos != out->end() && insertPos->node &&
-               static_cast<int>(insertPos->node->type) == 4) {
+               insertPos->node->type == NodeType::Branch) {
             ++insertPos;
         }
 

@@ -5037,3 +5037,157 @@ The body of each function was verified line-by-line against
 Node layout) and `reconstructed/include/zhinst/codegen/prefetch.hpp:186-203`
 (PrefetcherNodeState).  No behavioural divergence beyond what is
 tracked in IF-217 / IF-218 / IF-219.
+
+## IF-221  `Prefetch::placeCommands` mislabels Loop as "Placeholder"
+
+**Severity**: cosmetic.
+**Status**: fixed in same commit as discovery.
+**Discovered**: D4 Batch 2e-i verify-then-write of
+`Prefetch::placeCommands` (`prefetch_emit.cpp:130-203`,
+original at `0x1d6680`).
+
+The block-header at `prefetch_emit.cpp:135` and the inline
+comment at `prefetch_emit.cpp:154` describe the leading-entry
+skip as "type-4 (placeholder) entries".  The body literally
+checks `static_cast<int>(insertPos->node->type) == 4`, which is
+`NodeType::Loop` per the verified enum
+(`reconstructed/include/zhinst/ast/node.hpp:48`).
+`NodeType::Placeholder` is `0x100000`, a distinct value.
+
+Same Play↔Load / Wait↔Lock confusion family as IF-212 / IF-215 /
+IF-216, just for a different bit.  Fixed by relabelling both
+the block-header and the inline comment as `NodeType::Loop`
+(0x08).
+
+## IF-222  `Prefetch::placeSingleCommand` file-header NodeType label drift
+
+**Severity**: cosmetic.
+**Status**: fixed in same commit as discovery.
+**Discovered**: D4 Batch 2e-i verify-then-write of
+`Prefetch::placeSingleCommand`
+(`prefetch_placesingle.cpp:67-1132`, original at `0x1d7940`).
+
+The file-level summary comment lists the high-NodeType cases
+the function dispatches on, with three errors per the verified
+`NodeType` enum:
+
+- `0x200` is labelled "Sync (Load/Play)" — actual value is
+  `NodeType::Table`.  The body at line 1024 dispatches Table
+  semantics (locks `loadRef`, allocates registers, encodes a
+  CWVF immediate).  Inline comment at line 1023 ("`nodeType ==
+  0x200: Sync (Load/Play)`") repeats the same wrong label.
+- `0x8000` is labelled "CWVF-store" / "Store/Reset node" — actual
+  value is `NodeType::AwgReady`.  Body emits a single
+  `st(R0, 0x92)` consistent with AwgReady-set semantics.
+- `0x4000` is `NodeType::PlainLoad` and is handled by the body
+  at lines 1076-1118 but is **omitted** from the file-header's
+  case-attribution table.
+
+Fixed by rewriting the file-header table to list every case in
+source order with the verified enum names (Load, Play, Branch,
+Loop, SyncCervino, Table, SyncHirzel, PlainLoad, AwgReady) and
+correcting the inline `0x200` and `0x8000` comments.
+
+## IF-223  `Prefetch::placeSingleCommand` `case 0x200 (Table)` body is partially stubbed
+
+**Severity**: likely-bug (stub).
+**Status**: open (recon body unfixed; comments at the stub site
+left as-is so the gap is explicit).
+**Discovered**: D4 Batch 2e-i verify-then-write of
+`Prefetch::placeSingleCommand`
+(`prefetch_placesingle.cpp:1024-1063`, original at `0x1d7940` /
+case dispatch at `0x1d7a5b`).
+
+The recon body for the `nodeType == 0x200 (Table)` case
+(`prefetch_placesingle.cpp:1024-1063`) emits:
+
+1. Locks `np->loadRef` and bails on null.
+2. Bails when `loadState.cachePtr == nullptr`.
+3. Pushes `npSync->config` into `usageEntries_`.
+4. Allocates two registers via `resources_->getRegisterNumber()`.
+5. Encodes a CWVF immediate via `PlayConfig::encodeCwvf` and
+   emits either `cwvf` (small immediate) or `addi`+`cwvfr`
+   (large value).
+6. Inserts the partial `tempList` at the placeholder.
+
+The comment at `prefetch_placesingle.cpp:1059-1060` says:
+
+> Emit smap, ssl loop, addr, prf — same pattern as case 2
+> cervino_nonsplit  (0x1d8b3c..0x1dba0d mirrors the play
+> cervino_nonsplit structure)
+
+This `smap` / `ssl` loop / `addr` / `prf` tail (which the
+binary at `0x1d8b3c..0x1dba0d` emits, a ~3 KB region) is
+**not implemented** in the recon body.  Only the CWVF emission
+portion is.
+
+This is the same anti-pattern as IF-217 / IF-218 (stub body
+whose intended behaviour exists only as a comment).  The
+partial body produces a valid AsmList that is missing the
+table-fetch / per-channel addr / prefetch instructions for the
+Table case.
+
+**Why tests still pass at 1600/1600**: the test corpus appears
+not to exercise `NodeType::Table` reaching `placeSingleCommand`
+on a code path where the missing tail would matter.  Table
+nodes are produced by table-driven playWave variants
+(`playWave(table, ...)`) but the simple cases in the corpus
+don't reach the partial-emission divergence.
+
+**Action**:
+1. `objdump -d --start-address=0x1d8b3c --stop-address=0x1dba0d
+   _seqc_compiler.so` to identify the Table-case tail.
+2. Cross-reference with the existing `play_cervino_nonsplit`
+   reconstruction in the same file (the comment claims they
+   mirror).
+3. GDB-trace the original on a SeqC program that exercises
+   `NodeType::Table` placement (likely a `playWave(t, ...)`
+   variant on a multi-channel device).
+4. Reconstruct the smap/ssl/addr/prf tail.
+5. Run the full suite; add a regression test if the existing
+   corpus does not cover the path.
+
+## IF-224  `Prefetch::placeSingleCommand` `play_cervino_indexed_nonsplit` label is a stub
+
+**Severity**: likely-bug (stub).
+**Status**: open (recon body unfixed).
+**Discovered**: D4 Batch 2e-i verify-then-write of
+`Prefetch::placeSingleCommand`
+(`prefetch_placesingle.cpp:862-868`, original at `0x1db562`).
+
+The labelled block:
+
+```cpp
+play_cervino_indexed_nonsplit:                      // 0x1db562
+    {
+        // Indexed non-split Cervino: wwvf + ssl loop + addr + prf(clampToCache)
+        // Similar to cervino_indexed but without the splitPlay path
+        // ... follows same pattern as above
+    }
+    goto play_finalize;
+```
+
+is reachable via the Cervino indexed non-split control-flow
+path (when `!isHirzel && !split_ && lengthReg.isValid() &&
+pagesNeeded < 2 && indexed`).  The body is empty — only the
+descriptive comment remains.  Falls through to `play_finalize`
+which inserts the (empty) `tempList`.
+
+This contrasts with the sibling `play_cervino_indexed2_hirzel`
+label at line 870, which does have a full reconstructed body
+(addi+ssl loop+addr).  The reconstruction was apparently halted
+mid-pass.
+
+**Why tests still pass at 1600/1600**: same coverage gap as
+IF-223 — the test corpus appears not to exercise this exact
+combination of flags reaching the indexed-nonsplit Cervino
+path.
+
+**Action**:
+1. `objdump -d --start-address=0x1db562 --stop-address=0x1db6f8
+   _seqc_compiler.so` to identify the body.
+2. Reconstruct following the comment's hint (wwvf + ssl loop +
+   addr + prf with `clampToCache`).
+3. GDB-trace on a multi-Cervino indexed playWave with a small
+   waveform (so `pagesNeeded < 2`).
+4. Add regression test.

@@ -5,34 +5,35 @@
 // Methods reconstructed:
 //   placeSingleCommand   0x1d7940 – 0x1dbb03 (with exception handlers to 0x1dd1a0)
 //
-// This is the main dispatch function that generates assembly instructions
-// for a single node based on its nodeType2 (+0x44) field. It dispatches
-// to different code paths for Load(1), Play(2), Branch(4), Loop(8),
-// Sync(0x100/0x200), CWVF-store(0x8000), and Sync-Hirzel(0x2000) nodes.
+// Main dispatch function that generates assembly instructions for a single
+// node based on its NodeType (Node+0x44).  Cases handled, in source order:
 //
-// The cervino non-split path (0x1d91b8..0x1dba0d) is the most complex,
-// involving nested isHirzel checks, ssl loops, smap/addr/wwvf/wprf/prf
-// instruction emission, and indexed play with minIndexedSize threshold.
+//   case 1  Load          (0x01)        — load setup; falls into Play tail
+//   case 2  Play          (0x02)        — main playWave emission
+//   case 4  Branch        (0x04)        — recurse into np->branches
+//   case 8  Loop          (0x08)        — recurse into np->loop
+//   nodeType == 0x100     SyncCervino   — small inline emission
+//   nodeType == 0x200     Table         — partial: cwvf only (IF-223 stub)
+//   nodeType == 0x2000    SyncHirzel    — asmSyncHirzel
+//   nodeType == 0x4000    PlainLoad     — addi + prf
+//   nodeType == 0x8000    AwgReady      — st(R0, 0x92)
+//
+// (NodeType values per reconstructed/include/zhinst/ast/node.hpp:45-69.)
+//
+// The cervino non-split path (0x1d91b8..0x1dba0d) is the most complex
+// segment, involving nested isHirzel checks, ssl loops,
+// smap/addr/wwvf/wprf/prf instruction emission, and indexed play with
+// minIndexedSize threshold.  Several internal labels in that region are
+// stubs awaiting reconstruction (see IF-224 for play_cervino_indexed_nonsplit).
 //
 // CASE LABEL ATTRIBUTION:
 // The switch dispatches via jump table at 0x95af74 (indexed by nodeType-1,
-// range 0..7). Verified targets:
-//   table[0] (type=1 Load)  → 0x1d79f8 — body extends to 0x1d7a4b, then
-//                              jmps to 0x1d8281 for the name-lookup tail
-//                              (Cache lookup, register alloc, addi emission)
-//   table[1] (type=2 Play)  → 0x1d7d49 — body covers the cervino emission,
-//                              cwvf, ssl loops, prf, etc. Reads loadRef via
-//                              `__shared_weak_count::lock()` on Node+0x18/+0x20.
-//   table[3] (type=4 Loop)  → 0x1d7e26 (case 4 in source)
-//   table[7] (type=8 Branch)→ 0x1d7cc3 (case 8 in source)
+// range 0..7).  Verified targets:
+//   table[0] (type=1 Load)   → 0x1d79f8
+//   table[1] (type=2 Play)   → 0x1d7d49
+//   table[3] (type=4 Branch) → 0x1d7e26
+//   table[7] (type=8 Loop)   → 0x1d7cc3
 // table[2,4,5,6] all jump to 0x1dbaf2 (default exit).
-//
-// The source's monolithic `case 1:` body merges Load (0x1d79f8..0x1d7a4b +
-// 0x1d8281+) AND Play (0x1d7d49..0x1d8281-region) code under a single label.
-// A future refactor should split this into proper `case NodeType::Load:` and
-// `case NodeType::Play:` blocks. The  session resolved the
-// individual marker comments in-place rather than restructuring; the code is
-// semantically correct but the case label is misleading.
 // ============================================================================
 
 #include "zhinst/codegen/prefetch.hpp"
@@ -1020,7 +1021,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     }
     // --- nodeType > 0x1ff ---
     else if (nodeType <= 0x3fff) {
-        // --- nodeType == 0x200: Sync (Load/Play) ---
+        // --- nodeType == 0x200: Table (partial — IF-223 stub) ---
         if (nodeType == 0x200) {                                   // 0x1d7a5b
             // 0x1d7ebb: lock weak_ptr at np+0x18..+0x20
             std::shared_ptr<Node> loadNode = np->loadRef.lock();
@@ -1116,7 +1117,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
             out->insert(placeholderIter(), tempList.begin(), tempList.end());
         }
-        // --- nodeType == 0x8000: Store/Reset node ---
+        // --- nodeType == 0x8000: AwgReady node ---
         else if (nodeType == 0x8000) {                             // 0x1d7afb
             AsmList tempList;
             AsmList::Asm stAsm = asmCommands_->st(AsmRegister(0), 0x92);        // 0x1d7b34

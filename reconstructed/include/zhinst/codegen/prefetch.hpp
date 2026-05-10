@@ -1072,14 +1072,116 @@ public:
      *                  (programmer-error condition).
      */
     AsmList fillInPlaceholders(AsmList const& asmList);                // 0x1d65c0
+
+    /*! \brief Walk a Node linked list and emit assembly for each node.
+     *
+     *  \details
+     *  When invoked on the root node, first emits a leading `cwvf`
+     *  instruction (or `addi`+`cwvfr` pair when the encoded value
+     *  exceeds the immediate range) carrying the default rate / suppress
+     *  bits derived from `PlayConfig::defaultRateShift` /
+     *  `PlayConfig::suppressShift`.  The instruction is inserted just
+     *  past any leading entries whose attached node is of type
+     *  `NodeType::Branch` (a transient placement marker), so that the
+     *  global cwvf precedes the first real emission.  This per-root
+     *  emission happens at most once per `placeCommands` call and is
+     *  gated by `globalCwvfValid_`.
+     *
+     *  Then walks the `Node::next` chain, calling `placeSingleCommand`
+     *  on each node until the chain ends or the cancellation callback
+     *  reports cancellation.  Branches and loop bodies are visited
+     *  recursively from inside `placeSingleCommand` (cases 4 / 8).
+     *
+     *  \param out   Output `AsmList` whose placeholder slots are
+     *               progressively replaced by real instructions.
+     *  \param node  Head of the node chain to emit.  Empty pointer is a
+     *               no-op.
+     */
     void placeCommands(AsmList* out, std::shared_ptr<Node> node);      // 0x1d6680
+
+    /*! \brief Emit assembly for a single node, dispatching on
+     *         `Node::type`.
+     *
+     *  \details
+     *  Locates the placeholder slot for the node via `findPlaceholder`,
+     *  copies the slot's wavetable-front context into the assembler,
+     *  then dispatches on the `NodeType` value at `Node+0x44`:
+     *
+     *  - `Load (0x01)`         : allocates the Hirzel state register if
+     *                            needed, emits `addi` for the wave
+     *                            address, optionally an `addi` for the
+     *                            cervino state register, then either a
+     *                            cache-aware `prf` (Hirzel,
+     *                            cross-cache-line case) or routes into
+     *                            the indexed-play / cervino-prf paths.
+     *  - `Play (0x02)`         : emits the playWave sequence, including
+     *                            the cervino non-split path with `cwvf`,
+     *                            ssl loops, `addr`, and `prf`
+     *                            instructions; routes through
+     *                            `splitPlay` when `split_` is set and
+     *                            through indexed variants when the node
+     *                            carries a length register.
+     *  - `Branch (0x04)`       : recurses with `placeCommands` for each
+     *                            entry of `Node::branches`.
+     *  - `Loop (0x08)`         : recurses with `placeCommands` for
+     *                            `Node::loop`.
+     *  - `SyncCervino (0x100)` : emits the cervino synchronisation
+     *                            sequence inline.
+     *  - `Table (0x200)`       : encodes the table cwvf and emits it,
+     *                            either as a single `cwvf` or as
+     *                            `addi`+`cwvfr` for large immediates.
+     *                            \verifyme  The table-fetch tail (smap
+     *                            / ssl loop / addr / prf) is currently
+     *                            unimplemented; see incidental finding
+     *                            IF-223.
+     *  - `SyncHirzel (0x2000)` : emits `asmSyncHirzel` when the device
+     *                            is HDAWG with at least two channel
+     *                            groups; otherwise no-op.
+     *  - `PlainLoad (0x4000)`  : emits `addi` + cache-clamped `prf` for
+     *                            the wave at the node's current device
+     *                            index.
+     *  - `AwgReady (0x8000)`   : emits a single `st(R0, 0x92)`.
+     *
+     *  All emitted instructions are accumulated into a temporary
+     *  `AsmList` and inserted into `out` at the placeholder position
+     *  (re-found on each insert because the underlying vector may
+     *  reallocate).
+     *
+     *  \verifyme  The `play_cervino_indexed_nonsplit` label inside the
+     *  `Play` case is presently a stub; see incidental finding IF-224.
+     *
+     *  \param out   Output `AsmList` containing placeholder slots for
+     *               this node's instructions.
+     *  \param node  Node whose instructions to emit; must be the same
+     *               shared pointer used when the placeholder was
+     *               registered.
+     *
+     *  \throws ZIAWGCompilerException  Propagated from
+     *          `findPlaceholder` if the node has no placeholder slot
+     *          in `out`.
+     */
     void placeSingleCommand(AsmList* out, std::shared_ptr<Node> node); // 0x1d7940
-    // findPlaceholder — locates the AsmList::Asm whose sequenceId equals
-    // node->asmId. Returns the iterator (raw pointer into the underlying
-    // vector). Throws ZIAWGCompilerException(errMsg[0xA3]) when not found.
-    // Verified at 0x1d6b50: linear scan with 0xA8 element stride; returned
-    // value (rax) is the matching `Asm*` or end()-equivalent before the
-    // throw branch.
+
+    /*! \brief Locate the placeholder `Asm` slot reserved for a given
+     *         node.
+     *
+     *  \details
+     *  Linear scan over `out` looking for the entry whose `sequenceId`
+     *  matches `node->asmId`.  Returns a raw pointer into the
+     *  underlying vector so callers can compute an iterator (and
+     *  recompute it after each `insert`, since the vector may
+     *  reallocate).
+     *
+     *  \param out   `AsmList` to search.  Must have been seeded with
+     *               placeholder slots by `fillInPlaceholders`.
+     *  \param node  Node whose placeholder is wanted; the lookup key is
+     *               `node->asmId`.
+     *  \return  Pointer to the matching placeholder slot.  Never
+     *           `nullptr` on the success path.
+     *
+     *  \throws ZIAWGCompilerException  When no placeholder with a
+     *          matching `sequenceId` is found in `out`.
+     */
     AsmList::Asm* findPlaceholder(AsmList* out,
         std::shared_ptr<Node> node);                                   // 0x1d6b50
 
