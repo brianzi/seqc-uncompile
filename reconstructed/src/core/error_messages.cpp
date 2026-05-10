@@ -464,6 +464,12 @@ namespace zhinst {
 using S = std::string;
 using BF = boost::format;
 
+//! \cond INTERNAL
+// Explicit template instantiations of ErrorMessages::format. Hidden from
+// Doxygen because each instantiation otherwise generates a "no matching
+// class member" warning (Doxygen can't bind explicit-instantiation lines
+// to their parameterised template declaration).
+
 // --- format(ErrorMessageT, Args...) ---
 // Zero-arg variadic (binary emits format<>(ErrorMessageT) — no non-template overload)
 template std::string ErrorMessages::format<>(ErrorMessageT);
@@ -523,5 +529,6 @@ template std::string ErrorMessages::format<S, S, S, char const*>(BF&, S, S, S, c
 template std::string ErrorMessages::format<S, S, S, S>(BF&, S, S, S, S);
 template std::string ErrorMessages::format<S, S, unsigned long, S>(BF&, S, S, unsigned long, S);
 template std::string ErrorMessages::format<unsigned long, S>(BF&, unsigned long, S);
+//! \endcond
 
 } // namespace zhinst

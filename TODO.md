@@ -68,29 +68,41 @@ cross-reference pages so the backlog is discoverable.
         reference issues (overload resolution + macro-hidden symbols),
         not coverage gaps — promoted to D3 as cleanup items below
 
-- [ ] **D3 — Pipeline-driver functions** (~30 functions)
-  - [ ] Full `\brief` + `\details` + `\param` + `\return` + `\throws`
-  - [ ] Targets: `Compiler::compile`, `runPrefetcher`,
-        `AWGCompilerImpl::writeToStream`, `Prefetch::{preparePlays,
+- [x] **D3 — Pipeline-driver functions** (~30 functions)
+  - [x] Full `\brief` + `\details` + `\param` + `\return` + `\throws`
+  - [x] Targets: `Compiler::compile`, `runPrefetcher`,
+        `AWGCompiler::writeToStream`, `Prefetch::{preparePlays,
         placeLoads, fillInPlaceholders}`, `WavetableIR::{updateWaveforms,
         assignWaveformAllocationSizes}`, `AsmOptimize::{optimizePre/Post
         Waveform}`, `FrontEndLoweringFacade::lower`,
-        `CustomFunctions::evaluate`, `WaveformGenerator` factory entries
-  - [ ] Per-group commits
-  - [ ] **Doxygen warning cleanup** (carried over from D2 wrap-up):
-        - 131 "no [uniquely] matching class member" warnings on
-          overloaded `evaluate(...)` overrides in `seqc_ast_eval_*.cpp`
-          (Doxygen can't pick the right overload for the `\brief`
-          attached to the out-of-line definition)
-        - 16 "documented symbol was not declared or defined" warnings
-          for factory dtors hidden behind `ZHINST_DECLARE_FACTORY` macro
-          and for `SeqCDeclList::decls` / `SeqCStmtList::stmts` field
-          briefs whose underlying fields no longer exist
-        - 147 warnings total (prior "1441" figure was the log line
-          count, not the warning count — multi-line "Possible
-          candidates" listings inflate the line total)
-        - Decide per group: rewrite the brief location, drop the brief,
-          or suppress with a Doxygen pragma
+        `CustomFunctions::call`, `WaveformGenerator::{getOrCreateWaveform,
+        call, eval}` (14 driver methods total across 5 batches)
+  - [x] Per-group commits (Batches 1-5: d7685d2, ff1f747, 09dc245,
+        e80b126, 0dffcc2)
+  - [x] **Doxygen warning cleanup** (149 → 0):
+        - Enabled `MACRO_EXPANSION=YES` + `EXPAND_ONLY_PREDEF=YES` with
+          `EXPAND_AS_DEFINED` listing the AST class-generator macros
+          (`SEQC_TRIVIAL_LEAF`, `SEQC_UNARY`, `SEQC_OPERATOR`,
+          `SEQC_BINARY`, `SEQC_LIST`) and `ZHINST_DECLARE_FACTORY` so
+          Doxygen sees their generated member declarations (resolved
+          ~140 of the warnings)
+        - Wrapped explicit template instantiations in `error_messages.cpp`
+          and `wave_index_tracker.cpp` in `\cond INTERNAL` (Doxygen
+          can't bind explicit-instantiation lines to their parameterised
+          template declaration; resolved 56 warnings)
+        - Wrapped `logging.cpp`'s `BOOST_LOG_GLOBAL_LOGGER`-generated
+          `ZiLogger` and the `detail::LogRecord` definitions in
+          `\cond INTERNAL` (the public docs already live in
+          `infra/logging.hpp`; resolved 3 warnings)
+        - Renamed `Waveform::File::operator==` to its canonical
+          `WaveformFile::operator==` in `waveform.cpp` to match the
+          header-side declaration (resolved 1 warning; the `using
+          File = WaveformFile;` alias inside `class Waveform` is the
+          source of the confusion)
+        - Re-aligned the numbered list items in
+          `compiler.hpp::compile`/`runPrefetcher` `\details` blocks so
+          single-digit and double-digit markers share the same column
+          (resolved 2 "Invalid list item" warnings)
   - [x] **IF-207 fix**: swapped `MESSAGE`/`ERROR_MSG` values corrected
         in the banner comment above `AsmOptimize::reportUserMessages()`
         in `include/zhinst/asm/asm_optimize.hpp:253` and the matching

@@ -500,3 +500,45 @@ mainpage.
   undocumented-symbol coverage gaps.  These are tracked under D3.
 - 1600/1600 differential tests passing throughout the phase; commits
   span `4bff93b` through `4101782`.
+
+**D3 (pipeline-driver functions) complete (2026-05-10):**
+
+- 14 driver methods documented across 5 batches:
+  - **Batch 1** (`d7685d2`): `Compiler::compile`, `Compiler::runPrefetcher`.
+  - **Batch 2** (`ff1f747`): `Prefetch::{preparePlays, placeLoads,
+    fillInPlaceholders}`.
+  - **Batch 3** (`09dc245`): `AWGCompiler::writeToStream`,
+    `AsmOptimize::{optimizePreWaveform, optimizePostWaveform}`.
+  - **Batch 4** (`e80b126`): `WavetableIR::{updateWaveforms,
+    assignWaveformAllocationSizes}`.
+  - **Batch 5** (`0dffcc2`): `FrontEndLoweringFacade::lower`,
+    `CustomFunctions::call`, `WaveformGenerator::{getOrCreateWaveform,
+    call, eval}`.
+- Each method documented with full `\brief` + `\details` (numbered
+  pipeline steps) + `\param` + `\return` + `\throws`.
+- IF-207 (MESSAGE / ERROR_MSG comment swap in `AsmOptimize`) and IF-208
+  (`PrefetcherNodeState::useDA` → `crossesCacheLine` rename) closed in
+  cleanup commit `0441b43`.
+- **Doxygen warning cleanup** (`<commit-pending>`): 149 → 0 warnings.
+  Strategy:
+  - Enabled targeted macro expansion for the AST class-generator
+    macros (`SEQC_TRIVIAL_LEAF`, `SEQC_UNARY`, `SEQC_OPERATOR`,
+    `SEQC_BINARY`, `SEQC_LIST`) and the device-factory generator
+    (`ZHINST_DECLARE_FACTORY`) by adding them to `EXPAND_AS_DEFINED`
+    with `MACRO_EXPANSION=YES` + `EXPAND_ONLY_PREDEF=YES`.  Resolved
+    ~140 warnings.
+  - Wrapped explicit template instantiations in
+    `src/core/error_messages.cpp` and `src/waveform/wave_index_tracker.cpp`
+    in `\cond INTERNAL` (Doxygen cannot bind explicit-instantiation
+    lines to their parameterised template declaration).
+  - Wrapped the `BOOST_LOG_GLOBAL_LOGGER`-generated `ZiLogger` and
+    `detail::LogRecord` definitions in `src/infra/logging.cpp` in
+    `\cond INTERNAL`; public docs already live in the header.
+  - Renamed `Waveform::File::operator==` to `WaveformFile::operator==`
+    in `src/waveform/waveform.cpp` (the `using File = WaveformFile;`
+    alias inside `class Waveform` was confusing Doxygen's symbol
+    binder).
+  - Re-aligned numbered-list markers in `compiler.hpp::compile` /
+    `runPrefetcher` `\details` blocks so single- and double-digit
+    items share the same column.
+- 1600/1600 differential tests passing throughout the phase.

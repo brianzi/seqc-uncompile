@@ -201,31 +201,31 @@ public:
      *  the populated wavetable IR.
      *
      *  \details The pipeline executes in this order:
-     *    1. Reset `messages_` and lock the cancel / progress callbacks.
-     *    2. `unifyLineEndings` — normalise `\r\n` / `\r` to `\n`.
-     *    3. `parse` — flex/bison parse of the normalised source into an
+     *   1.  Reset `messages_` and lock the cancel / progress callbacks.
+     *   2.  `unifyLineEndings` — normalise `\r\n` / `\r` to `\n`.
+     *   3.  `parse` — flex/bison parse of the normalised source into an
      *       `Expression` tree.  An empty/parse-failure tree short-
      *       circuits to an empty `CompileResult` carrying only an empty
      *       `WavetableIR` (downstream `AWGCompilerImpl::writeToStream`
      *       then surfaces the standard "empty input" error).
-     *    4. Construct `StaticResources` (with a warning callback bound
+     *   4.  Construct `StaticResources` (with a warning callback bound
      *       to `messages_.warningMessage`), initialise it with
      *       `config_` and `*deviceConstants_`, then wrap it in
      *       `GlobalResources` and publish that as
      *       `customFunctions_->resources_`.
-     *    5. `toSeqCAst` — convert the parser AST into the SeqC AST.
-     *    6. `FrontEndLoweringFacade::lower` — lower the SeqC AST into
+     *   5.  `toSeqCAst` — convert the parser AST into the SeqC AST.
+     *   6.  `FrontEndLoweringFacade::lower` — lower the SeqC AST into
      *       an evaluation tree, populating `lowerResult.astResult`
      *       (stored back into `ast_`) and `lowerResult.evalResult`.
-     *    7. After lowering, `messages_.hadCompilerError()` is checked;
+     *   7.  After lowering, `messages_.hadCompilerError()` is checked;
      *       if true the function throws `CompilerException` with
      *       message "Compiler error while evaluating sequence".
-     *    8. Build the assembly preamble: a `start` label, a load
+     *   8.  Build the assembly preamble: a `start` label, a load
      *       placeholder, an `Entry`-style root `Node` either grafted
      *       on top of `ast_` (when the program has a `main`) or on top
      *       of `lowerResult.evalResult->node_`.  Walk the resulting
      *       node tree and back-fill `parent` pointers via BFS.
-     *    9. Append the placeholder, the lowered evaluator's
+     *   9.  Append the placeholder, the lowered evaluator's
      *       `assemblers_`, and the trailer triple
      *       (`wwvf` + `nop` + `end`) to `asmList_`.
      *   10. Construct an `AsmOptimize`, prepare its register / label
@@ -296,29 +296,29 @@ public:
      *  \details Construct a `Prefetch` over `ast_` and `wavetableIR`
      *  with a warning callback bound to `messages_.warningMessage`,
      *  then drive the waveform pipeline:
-     *    1. `Prefetch::preparePlays` — walk the AST, prepare per-play
+     *   1.  `Prefetch::preparePlays` — walk the AST, prepare per-play
      *       state, count branches, and define play sizes.
-     *    2. `Prefetch::getUsedWavesForDevice(deviceIndex)` →
+     *   2.  `Prefetch::getUsedWavesForDevice(deviceIndex)` →
      *       `WavetableIR::setUsedWaveforms` to register which
      *       waveforms the prefetcher actually needs.
-     *    3. `WavetableIR::assignWaveIndexImplicit` — assign indices to
+     *   3.  `WavetableIR::assignWaveIndexImplicit` — assign indices to
      *       waveforms that did not receive an explicit
      *       `assignWaveIndex` annotation.
-     *    4. `WavetableIR::alignWaveformSizes` — round each waveform's
+     *   4.  `WavetableIR::alignWaveformSizes` — round each waveform's
      *       sample count up to the device's grain size.
-     *    5. `WavetableIR::assignWaveformAllocationSizes` — compute the
+     *   5.  `WavetableIR::assignWaveformAllocationSizes` — compute the
      *       per-waveform allocation footprint (samples × channel
      *       count × format).
-     *    6. `Prefetch::determineFixedWaves` — only when
+     *   6.  `Prefetch::determineFixedWaves` — only when
      *       `config.cacheType == 1` (fixed-cache mode): mark the
      *       waveforms that the prefetcher must pin.
-     *    7. `WavetableIR::updateWaveforms(useCache, hasDIO)` — finalise
+     *   7.  `WavetableIR::updateWaveforms(useCache, hasDIO)` — finalise
      *       the waveform records (`useCache` is true when caching is
      *       enabled and the target is a Hirzel-generation device;
      *       `hasDIO` is the device's DIO presence flag).
-     *    8. `Prefetch::placeLoads` — schedule cache loads against the
+     *   8.  `Prefetch::placeLoads` — schedule cache loads against the
      *       prepared play tree.
-     *    9. `Prefetch::fillInPlaceholders(asmList)` — produce the
+     *   9.  `Prefetch::fillInPlaceholders(asmList)` — produce the
      *       final assembly list with the original `placeholder`
      *       expanded into the scheduled load instructions; the result
      *       replaces `asmList_`.

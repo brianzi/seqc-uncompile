@@ -178,8 +178,12 @@ WaveIndexTracker::WaveIndexTracker(int maxIdx,  // 0x29d000 / 0x29d410
 #include "zhinst/waveform/waveform_front.hpp"
 #include "zhinst/waveform/waveform_ir.hpp"
 namespace zhinst {
+//! \cond INTERNAL
+// Explicit template instantiations of the templated WaveIndexTracker
+// constructor for the two WavetableManager element types in use.
 template WaveIndexTracker::WaveIndexTracker(
     int, const detail::WavetableManager<WaveformFront>&);
 template WaveIndexTracker::WaveIndexTracker(
     int, const detail::WavetableManager<WaveformIR>&);
+//! \endcond
 } // namespace zhinst

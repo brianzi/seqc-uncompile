@@ -755,7 +755,7 @@ Waveform::File::Type Waveform::File::typeFromStr(std::string str)  // 0x2a63c0
 //     0x2a972d: call bcmp                             — compare contents
 //   0x2a9734: sete al                                 — return bcmp==0
 // ============================================================================
-bool Waveform::File::operator==(Waveform::File const& other) const  // 0x2a9680
+bool WaveformFile::operator==(WaveformFile const& other) const  // 0x2a9680
 {
     // r14 = this, rbx = &other
 

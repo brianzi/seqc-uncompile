@@ -30,6 +30,14 @@
 
 namespace zhinst::logging {
 
+//! \cond INTERNAL
+// The class definitions below are macro-generated (BOOST_LOG_GLOBAL_LOGGER)
+// or live in nested namespaces (zhinst::logging::detail) that Doxygen has
+// trouble matching against the header declarations. Public documentation
+// for ZiLogger and LogRecord lives in zhinst/infra/logging.hpp; suppress
+// duplicate processing here to avoid spurious "no matching declaration"
+// warnings.
+
 // Implements the `static logger_type construct_logger()` member that
 // `BOOST_LOG_GLOBAL_LOGGER(ZiLogger, ...)` declares but does not
 // define. Default-constructs the severity logger; the
@@ -109,5 +117,6 @@ LogRecord& LogRecord::operator<< <boost::system::error_code>(
 }
 
 }  // namespace detail
+//! \endcond
 
 }  // namespace zhinst::logging
