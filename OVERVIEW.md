@@ -827,6 +827,31 @@ mainpage.
     silently dropping negative signs.  No source changes;
     no new IFs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7f (2026-05-10)**: ~80 briefs covering the full
+    `AsmCommands` public surface in
+    `include/zhinst/asm/asm_commands.hpp` — the
+    instruction-builder façade.  Documents the constructor,
+    every assembler mnemonic emitter (waveform playback /
+    branch / ALU register-register / shift / ALU
+    immediate-unsigned and signed / `Value`-overloads /
+    load-store / trigger / misc I/O / control flow / sync /
+    pseudo-instructions / node-creating commands /
+    placeholder management / `genPlayConfig` / `asmPlay` /
+    `asmTable` / misc), plus `setWavetableFrontIndex` and
+    `wavetableFrontIndex` accessors.  Calls out: the
+    multi-instruction expansion rules in `alui` (and
+    `addi32`'s always-2-instruction variant), the
+    `Value`-overload error path through `toInt32` /
+    `errorHandler_`, the `luser`/`suser` aliasing of
+    `ld`/`st`, the dummy-play path through `asmPlay` with
+    empty `waveforms`, and the marker-processing gating on
+    `impl_->isCWVFRSupported()` (UHF/Cervino devices skip
+    marker bits).  One `\binarynote` on `genPlayConfig`
+    flagging the duplicated four-channel boolean
+    parameters.  Pre-existing `// ====` block comments and
+    field-offset annotations preserved verbatim alongside
+    the new `//!` briefs.  No source changes; no new IFs.
+    Build clean (0 doc warnings); tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
