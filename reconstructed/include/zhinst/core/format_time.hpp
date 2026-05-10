@@ -8,29 +8,59 @@
 
 namespace zhinst {
 
-// Formats a ptime using an explicit strftime-style format string.
-// Internally creates a boost::date_time::time_facet with the given format,
-// installs it in a locale on std::cout's locale, then streams through it.
-// @0x2f6190, ~0x1b3 bytes
+//! \brief Format a `boost::posix_time::ptime` using an
+//!        explicit `strftime`-style format string.
+//!
+//! \details Constructs a
+//! `boost::date_time::time_facet<ptime, char>` with `fmt`,
+//! installs it on a `std::locale` derived from `std::cout`'s
+//! current locale, and streams `t` through it.  Returns the
+//! resulting string.
+//!
+//! \binarynote The intermediate locale is derived from
+//!             `std::cout`'s locale, not the global C++
+//!             locale, so changes to global locale state
+//!             between calls do not affect formatting unless
+//!             they have been propagated to `std::cout`.
+//!
+//! \param t    Time point to format.
+//! \param fmt  `strftime`-style format string (NUL-terminated).
+//! \return  Formatted time string.
 std::string formatTime(boost::posix_time::ptime const& t, char const* fmt);
 
-// Formats a ptime with a predefined format.
-// If compact == true:  fmt = "%Y%m%d_%H%M%S"       (at 0x90cf3c)
-// If compact == false: fmt = "%Y/%m/%d %H:%M:%S"    (at 0x90cf4a)
-// Just dispatches to formatTime(ptime, char const*).
-// @0x2f7440, 0x30 bytes
+//! \brief Format a `ptime` with one of two predefined styles.
+//!
+//! \details Selects the format string by `compact`:
+//! `compact == true`  → `"%Y%m%d_%H%M%S"` (filename-safe);
+//! `compact == false` → `"%Y/%m/%d %H:%M:%S"` (display).
+//! Dispatches to the explicit-format overload.
+//!
+//! \param t        Time point to format.
+//! \param compact  `true` for the underscore-joined compact
+//!                 form, `false` for the slash/space display
+//!                 form.
+//! \return  Formatted time string.
 std::string formatTime(boost::posix_time::ptime const& t, bool compact);
 
-// Converts a Unix epoch (seconds) to ptime, then formats.
-//   epoch: seconds since Unix epoch
-//   compact: selects format string (same as above)
-//   utcToLocal: if true, applies boost c_local_adjustor<ptime>::utc_to_local()
-//
-// Conversion: ptime = epoch(1970-01-01) + microseconds(epoch * 1000000)
-//   (the binary multiplies by 0xF4240 = 1000000, then adds the
-//    1970-01-01 epoch offset 0x2ed263d83a88000 ticks)
-//
-// @0x2f7470, 0x78 bytes
+//! \brief Format a Unix-epoch second-count using one of the
+//!        two predefined styles, with optional UTC →
+//!        local-time conversion.
+//!
+//! \details Converts `epoch` to a `ptime` by adding
+//! `microseconds(epoch * 1'000'000)` to the Unix-epoch base
+//! (`1970-01-01T00:00:00`).  When `utcToLocal` is `true` the
+//! resulting `ptime` is shifted via
+//! `boost::date_time::c_local_adjustor<ptime>::utc_to_local`
+//! before formatting; otherwise the value is formatted as-is
+//! (still nominally UTC).  Format selection follows the same
+//! `compact` convention as the `ptime`/`bool` overload.
+//!
+//! \param epoch       Seconds since the Unix epoch.
+//! \param compact     `true` for `"%Y%m%d_%H%M%S"`, `false`
+//!                    for `"%Y/%m/%d %H:%M:%S"`.
+//! \param utcToLocal  When `true`, convert from UTC to the
+//!                    process's local time before formatting.
+//! \return  Formatted time string.
 std::string formatTime(long epoch, bool compact, bool utcToLocal);
 
 } // namespace zhinst

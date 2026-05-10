@@ -812,6 +812,21 @@ mainpage.
     variadic arity NOT validated except by `pow`'s own
     self-check).  No new IFs.  Build clean (0 doc
     warnings); tests 1601/1601.
+  - **7e (2026-05-10)**: 21 briefs across three small
+    zero-coverage utility headers — `core/platform.hpp`
+    (10 free functions: `getPlatformName`,
+    `isDirectoryWriteable`, `isMountPoint`, `isPureAscii`,
+    two `isValidUtf8` overloads, `isInList`, `quote`, two
+    `toSubscript` overloads, `toSuperscript`,
+    `escapeStringForMatlab`), `core/format_time.hpp`
+    (3 `formatTime` overloads), `device/serial_predicates.hpp`
+    (10 `is*Serial` predicates documenting the per-family
+    short/long serial-number ranges).  Two `\binarynote`
+    annotations: `isDirectoryWriteable`'s non-unique
+    `Info.txt` probe filename, and `toSubscript(long)`
+    silently dropping negative signs.  No source changes;
+    no new IFs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
