@@ -59,6 +59,10 @@ public:
     std::vector<std::shared_ptr<WaveformT>> waveforms_;     // +0x30
 
     // --- Methods ---
+    //! \brief Default-construct an empty manager: zero counters,
+    //! empty name index, empty waveform vector, and the
+    //! `amplitudeDefault_` initialised to `1.0f` via the in-class
+    //! initialiser.
     WavetableManager() = default;
     //! Releases every owned waveform (in reverse insertion
     //! order) and the name-index hash table.  Compiler-
