@@ -41,6 +41,8 @@ class SeqcParserContext {
 public:
     // --- Accessors ---
     //! \brief Returns the current 1-based source line number.
+    //! \return The current line counter as last advanced by
+    //! incrementLineNumber().
     int32_t currentLineNumber() const;        // 0x247c80
     //! \brief Increments the current source line number; called by
     //! the lexer on every newline.
@@ -49,29 +51,37 @@ public:
     //! the registered `errorCallback_` with `(currentLineNumber_,
     //! msg)`, or falls back to logging `"[Line N]: msg"` to
     //! `std::clog` if no callback is set.
+    //! \param msg Diagnostic text forwarded verbatim to the callback
+    //! (or the fallback log line).
     void raiseError(const std::string& msg);  // 0x247ae0
     //! \brief Latches the sticky `hadSyntaxError_` flag; consulted
     //! by the compiler driver after parsing to decide whether to
     //! reject the whole input.
     void setSyntaxError();                    // 0x247cb0
     //! \brief Returns the latched syntax-error flag.
+    //! \return `true` if setSyntaxError() has been called since the
+    //! last reset(); `false` otherwise.
     bool hadSyntaxError() const;              // 0x247ca0
 
     //! \brief Returns true while the lexer is inside any comment
     //! (line- or block-form).
+    //! \return `true` while either a line- or block-comment state is
+    //! currently latched.
     bool isComment() const;                   // 0x247bf0
     //! \brief Returns true while the lexer is specifically inside a
     //! line comment.
+    //! \return `true` only while a line-comment scope is active.
     bool isLineComment() const;
     //! \brief Begins block-comment state.
     //! \binarynote No-op when already inside a line comment, so an
-    //! embedded `/*` inside `// ...` does not start a block scope.
-    //! See IF-169 for the symmetric `*/` no-op.
+    //! embedded `/` followed by `*` inside `//` line text does not
+    //! start a block scope.  See IF-169 for the symmetric end-marker
+    //! no-op.
     void startBlockComment();                 // 0x247c40
     //! \brief Ends block-comment state.
     //! \binarynote No-op when inside a line comment, so a stray
-    //! `*/` inside `// ...` is harmless rather than terminating
-    //! comment state mid-line (IF-169).
+    //! block-comment end marker inside a `//` line is harmless
+    //! rather than terminating comment state mid-line (IF-169).
     void endBlockComment();                   // 0x247c60
     //! \brief Begins line-comment state.
     //! \binarynote No-op when already inside a block comment.
@@ -89,6 +99,9 @@ public:
     //! \brief Installs the diagnostic sink invoked by `raiseError()`.
     //! The callback receives `(line_number, message)` for each
     //! diagnostic.
+    //! \param cb Function object invoked with `(line_number,
+    //! message)` for every raiseError() call; pass an empty
+    //! `std::function` to clear and fall back to `std::clog`.
     void setErrorCallback(                    // 0x247a60
         std::function<void(int, const std::string&)> cb);
 
