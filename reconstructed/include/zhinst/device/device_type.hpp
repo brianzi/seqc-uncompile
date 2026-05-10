@@ -180,6 +180,13 @@ namespace sfc {
 // keyed on `FeaturesCode` vs raw integer types. The wrapper is trivially
 // copyable, trivially destructible, and standard-layout, so calling
 // convention matches the observed `rax`-return.
+//! \brief Strong-typed 64-bit wrapper for an MFLI/MFIA Smart Feature
+//! Code (SFC) bitfield.
+//!
+//! Returned by `detail::generateMfSfc` and threaded through the SFC
+//! subsystem.  Wrapping the integer keeps the type distinct from raw
+//! `uint64_t` device-option bitmasks at call sites that may overload
+//! on both.
 struct FeaturesCode {
     std::uint64_t value;
 
@@ -298,6 +305,13 @@ class DeviceTypeImpl;
 // Methods @ 0x2cf900..0x2cf960. dereference() reads node[+0x38] which is
 // the DeviceOption field of the value pair.
 // ============================================================================
+//! \brief Forward iterator over a `DeviceOptionSet` that yields
+//! `DeviceOption` values in alphabetical order of their family-scoped
+//! string names.
+//!
+//! Wraps the const_iterator of the set's `byName_` ordered-map storage,
+//! exposing only the option value (not the name).  Returned by
+//! `DeviceOptionSet::begin()` / `end()`.
 class DeviceOptionSetConstIterator {
 public:
     using map_type = std::map<std::string, DeviceOption>;
@@ -337,6 +351,20 @@ private:
 // +0x44   4     (padding)
 // sizeof(DeviceOptionSet) = 0x48
 // ============================================================================
+//! \brief Set of `DeviceOption` values associated with a specific
+//! `DeviceFamily`, stored with dual indexing for fast membership and
+//! ordered iteration.
+//!
+//! Members are kept in two parallel containers: an
+//! `unordered_set<DeviceOption>` for O(1) `contains()` and an
+//! ordered `map<string, DeviceOption>` keyed by each option's
+//! family-scoped string name (via `toString(opt, family)`) for
+//! deterministic alphabetical iteration.  Both are updated together
+//! by `insert`.  The `family_` field selects which name an option
+//! resolves to for options whose string differs across families
+//! (e.g. `MF` vs `MFK` on HF2).  Used wherever the compiler needs
+//! to test for or enumerate the user-supplied options on a
+//! `DeviceType`.
 class DeviceOptionSet {
 public:
     using const_iterator = DeviceOptionSetConstIterator;
@@ -384,6 +412,17 @@ private:
 // ============================================================================
 namespace detail {
 
+//! \brief Polymorphic base for all concrete device-type identities.
+//!
+//! Carries the `DeviceTypeCode` (specific model), the `DeviceFamily`
+//! (broader product family), and the `DeviceOptionSet` (installed
+//! hardware/software options) that together describe one connected
+//! instrument.  Subclasses (one per family/model in
+//! `device_subclasses.hpp`, plus `GenericDeviceType` for runtime-string
+//! construction) only override the vtable to preserve their identity
+//! through `clone()`; they add no data members.  Instances are owned
+//! by `DeviceType` via raw pimpl pointer and reproduced by
+//! `clone()` for copy semantics.
 class DeviceTypeImpl {
 public:
     DeviceTypeImpl();                                              // @ 0x2d3060
@@ -477,6 +516,18 @@ sfc::FeaturesCode generateMfSfc(std::string const& deviceTypeName,
 // +0x00   8     DeviceTypeImpl*  impl_
 // sizeof(DeviceType) = 0x08
 // ============================================================================
+//! \brief Value-typed handle to a concrete device-type identity (model,
+//! family, and installed options).
+//!
+//! Pimpl wrapper around an owned `detail::DeviceTypeImpl*`.  Provides
+//! deep-copy semantics by delegating to `clone()` so the wrapper can
+//! be passed by value while preserving the dynamic subclass identity.
+//! Constructible from any of: a known `(family, options)` pair, a
+//! `(code, family)` pair, a runtime device-type string with options
+//! (parsed via `splitDeviceOptions` / `toDeviceOption` and instantiated
+//! through `detail::GenericDeviceType`), or default-constructed to
+//! `UnknownDevice`.  The threaded-through device identity used by the
+//! frontend, codegen, and ELF writer to gate per-family behaviour.
 class DeviceType {
 public:
     DeviceType();                                                   // @ 0x2d2900
