@@ -122,6 +122,9 @@ std::string str(EDirection dir);      // @0x1c1730
 //! node kinds.
 class SeqCAstNode {
 public:
+    //! \brief Constructs the AST-node base with the value-category /
+    //! source-line / parameter-direction trio used by every derived
+    //! kind; derived constructors set `varType_` directly.
     SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir);   // 0x1fda00
     // Binary: base ctor takes 3 args; derived ctors all take VarType as 4th
     // and write it to varType_ directly (the binary inlines the base ctor).
@@ -131,19 +134,38 @@ public:
     // vptr[0]: primary evaluate dispatch. Returns shared_ptr<EvalResults> via sret.
     // Base implementation @0x209dc0 returns null shared_ptr (zeroes 16 bytes).
     // Binary TU: SeqCAstNodesEvaluate.cpp (from _GLOBAL__sub_I_ symbol).
+    //! \brief Lowers the subtree rooted at `*this`, returning the
+    //! `EvalResults` produced by the evaluation.
+    //! \details The base implementation returns a null shared_ptr;
+    //! every concrete node kind overrides it to perform its specific
+    //! lowering against `res` (symbol table), `ctx` (compiler
+    //! subsystems), and `state` (mutable accumulator).
     virtual std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const;               // @0x209dc0
 
     // vptr[1]: default returns vector with single empty string.
+    //! \brief Returns the textual element list this node contributes
+    //! to a parameter-list / argument-list rendering; the base
+    //! returns a single empty string and list-shaped derived nodes
+    //! override it to return one element per child.
     virtual std::vector<std::string> getListElements() const;    // @0x209dd0
 
     // vptr[2]: default returns empty vector.
+    //! \brief Returns the immediate child nodes for tree traversal;
+    //! the base returns an empty vector and composite nodes
+    //! override it to expose their owned children.
     virtual std::vector<const SeqCAstNode*> children() const;    // @0x1fda20
 
     // vptr[3-4]: pure virtual — print/doClone.
+    //! \brief Pretty-prints this node (and, by recursion, its
+    //! subtree) to `std::cout`; pure-virtual, every concrete kind
+    //! overrides it.
     virtual void print() const = 0;
+    //! \brief Deep-clones this node; pure-virtual, derived kinds
+    //! return a `std::unique_ptr` to a fresh copy of themselves
+    //! including all owned children.
     virtual std::unique_ptr<SeqCAstNode> doClone() const = 0;
 
     // vptr[5-6]: destructor (D2 + D0).
@@ -152,13 +174,27 @@ public:
     // vptr[7]: returns vector<string> of VarType names for parameter nodes.
     // Default implementation @0x1fdb40 (ICF-merged across trivial leaves):
     // returns vector with single element str(varType_).
+    //! \brief Returns the variable-type names contributed by this
+    //! node to a function-signature rendering; the base returns
+    //! `{ str(varType_) }` and parameter-list / list nodes override
+    //! it to concatenate their children's types.
     virtual std::vector<std::string> getVarTypes() const;        // @0x1fdb40
 
     // Accessors
+    //! \brief Returns the value-category tag (lvalue/rvalue/...)
+    //! recorded at construction.
     EValueCategory  valueCategory() const { return valueCategory_; }
+    //! \brief Returns the 1-based source line number recorded at
+    //! construction.
     int             lineNr()        const { return lineNr_; }
+    //! \brief Returns the parameter-direction tag (in/out/inout)
+    //! recorded at construction.
     EDirection direction()     const { return direction_; }
+    //! \brief Returns the variable-type tag attached to this node.
     VarType         varType()       const { return varType_; }
+    //! \brief Overwrites this node's variable-type tag; used by the
+    //! parser actions that resolve declarations after the AST has
+    //! been built.
     void            setVarType(VarType vt) { varType_ = vt; }
 
 protected:
@@ -179,10 +215,17 @@ static_assert(sizeof(SeqCAstNode) == 0x18,
 
 // Free function — swaps the (valueCategory, lineNr) qword and direction.
 // Note: does NOT swap vptrs.
+//! \brief Field-level swap of two `SeqCAstNode` bases: exchanges
+//! `valueCategory_`, `lineNr_`, and `direction_`.
+//! \binarynote The vptrs are intentionally **not** swapped, so
+//! the dynamic types of `a` and `b` are preserved across the
+//! call; only the base-class scalar fields move.
 void swap(SeqCAstNode& a, SeqCAstNode& b);                       // 0x1fda40
 
 // Free function — pretty-prints an AST tree to std::cout.
 // Internally calls anonymous-namespace helper @0x1fa430 with empty indent.
+//! \brief Pretty-prints the AST rooted at `node` to `std::cout`,
+//! recursing through `children()` with increasing indentation.
 void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 
 // ============================================================================
@@ -506,8 +549,13 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
     const SeqCAstNode* label()      const { return label_.get(); }
+    //! \brief Returns the case body subtree.
     const SeqCAstNode* body()       const;  // out-of-line for symbol emission
+    //! \brief Returns true when this entry has an explicit label
+    //! (i.e., it is a `case <expr>:` entry rather than `default:`).
     bool               validLabel() const;  // label_ != nullptr
+    //! \brief Alias for `validLabel()` — true when an explicit
+    //! label is present.
     bool               hasLabel()   const;  // label_ != nullptr
     friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
 private:
@@ -548,10 +596,25 @@ public:
     const SeqCAstNode* body() const { return body_.get(); }
 
     // Switch-specific helpers
+    //! \brief Returns true when the switch body holds at least one
+    //! `SeqCCaseEntry` child (either as a single entry or as the
+    //! non-empty `cases()` list).
     bool hasCases() const;                                           // @0x202760
+    //! \brief Returns true when the switch body is a single
+    //! `SeqCCaseEntry` rather than a `SeqCStmtList` of entries.
     bool isSingleCase() const;                                       // @0x202730
+    //! \brief Returns the body cast to `SeqCCaseEntry*` when
+    //! `isSingleCase()` is true; undefined otherwise.
     const SeqCCaseEntry* singleCase() const;                         // @0x202770
+    //! \brief Returns the body cast to `SeqCStmtList*` when the
+    //! body is a list of case entries; null when the body is a
+    //! single entry.
     const SeqCStmtList* cases() const;                               // @0x202700
+    //! \brief Evaluates each case body in turn against the
+    //! lowered condition value, returning one `EvalResults` per
+    //! case in source order; `state.inSwitch_` must be set by the
+    //! caller around the call so nested `break` statements
+    //! validate.
     std::vector<std::shared_ptr<EvalResults>> evalCases(
         std::shared_ptr<Resources> subRes,
         std::shared_ptr<EvalResults> condResult,
@@ -857,6 +920,7 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x209ea0
 
+    //! \brief Returns the identifier text carried by this node.
     const std::string& name() const { return name_; }
 
     friend void swap(SeqCVariable& a, SeqCVariable& b);
@@ -881,15 +945,24 @@ static_assert(sizeof(SeqCVariable) == 0x30 || sizeof(SeqCVariable) == 0x38,
 //! a `Value` and emits an `EvalResults` carrying that constant.
 class SeqCValue : public SeqCAstNode {
 public:
+    //! \brief Discriminator identifying which alternative is held
+    //! in `payload_`.
     enum class Tag : int32_t {
         eString = 0,   // variant holds std::string at +0x18
         eDouble = 1,   // variant holds double at +0x18
         // -1 (0xFFFFFFFF) = empty/none (from dtor — skips destruction)
     };
 
+    //! \brief Constructs an empty (`tag_ == -1`) value node; the
+    //! payload-bearing constructors are used when an actual
+    //! literal is parsed.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
+    //! \brief Constructs a string-payload value node tagged
+    //! `Tag::eString`.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               std::string s);   // 0x1fd860 (make_unique callsite) — by value per binary
+    //! \brief Constructs a double-payload value node tagged
+    //! `Tag::eDouble`.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               double d);               // 0x1fd950 (make_unique callsite)
     SeqCValue(SeqCValue const& o);
@@ -903,12 +976,19 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x213140
 
+    //! \brief Returns the discriminator selecting the active
+    //! payload alternative; `static_cast<Tag>(-1)` indicates the
+    //! empty / default-constructed state.
     Tag tag() const { return static_cast<Tag>(tag_); }
 
+    //! \brief Returns the held double; well-defined only when
+    //! `tag() == Tag::eDouble`.
     double asDouble() const {
         return payload_.d;
     }
 
+    //! \brief Returns the held string by const reference;
+    //! well-defined only when `tag() == Tag::eString`.
     const std::string& asString() const {
         return payload_.str;
     }
