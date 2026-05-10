@@ -644,28 +644,94 @@ public:
     std::vector<int> getLineMap(int offset) const;                 // 0x123660
 
 private:
+    //! \brief Grants `AWGCompilerImpl::getJsonVersion` direct
+    //!        read access to `customFunctions_` for emission of
+    //!        the compile-result JSON.
     friend class AWGCompilerImpl;  // getJsonVersion reads customFunctions_ directly
+    //! \brief Owning compilation's configuration (sequencer
+    //!        index, debug flags, sample rate); captured by raw
+    //!        pointer.
     const AWGCompilerConfig* config_;              // +0x00
+    //! \brief Per-device geometry / feature table (DIO presence,
+    //!        opcode set, waveform geometry); captured by raw
+    //!        pointer.
     const DeviceConstants* deviceConstants_;        // +0x08
+    //! \brief Current source line during the parse / lower
+    //!        pipeline; written by `setLineNr` and consumed by
+    //!        `messages_` when framing diagnostics.
     int32_t lineNr_;                               // +0x10
+    //! \brief Per-compile feature/flag bitset (see the matching
+    //!        binary symbol table for bit assignments).
+    //! \unclear  Per-bit semantics — no bit consumer has been
+    //!           reconstructed yet.
     uint16_t flags_;                               // +0x14
+    //! \brief Alignment padding ahead of `reserved18_`.
     uint8_t pad16_[2];                             // +0x16
+    //! \brief 8-byte slot reserved in the binary layout; no
+    //!        reconstructed reader or writer.
+    //! \unclear  Original purpose.
     uint64_t reserved18_;                          // +0x18
+    //! \brief Number of physical output channels selected for
+    //!        the compile (1, 2, 4, or 8 depending on device).
     uint32_t channelCount_;                        // +0x20
+    //! \brief Non-zero when the program has activated 4-channel
+    //!        mode (HDAWG groups of four); consumed by the
+    //!        `.channels` ELF section emitter.
     uint8_t usedFourChannelMode_;                   // +0x24
+    //! \brief Non-zero when the program has touched a
+    //!        device-specific sample-rate node, triggering the
+    //!        emission of the optional `.required_sample_rate`
+    //!        ELF section.
     uint8_t usedSampleRate_;                       // +0x25
+    //! \brief Alignment padding ahead of the embedded
+    //!        `shared_ptr` chain.
     uint8_t pad26_[2];                             // +0x26
+    //! \brief Root of the lowered SeqC AST built by `compile()`;
+    //!        consumed by the optimisation / prefetch / codegen
+    //!        passes.
     std::shared_ptr<Node> ast_;                    // +0x28
+    //! \brief Collection of pipeline diagnostics
+    //!        (errors / warnings / info) emitted during the
+    //!        compile; surfaced through `messages()`.
     CompilerMessageCollection messages_;           // +0x38 (0x20 bytes)
+    //! \brief Source file names introduced by `#include`
+    //!        directives, in order of first appearance.
     std::vector<std::string> sourceFiles_;         // +0x58
+    //! \brief Verbatim source lines (one element per input line)
+    //!        used by diagnostics to render the offending source
+    //!        context.
     std::vector<std::string> sourceLines_;         // +0x70
+    //! \brief Generated assembler list plus its companion
+    //!        `WavetableIR`; produced by codegen, consumed by
+    //!        the prefetcher and the final ELF emitter.
     AsmList asmList_;                              // +0x88 (0x18 bytes)
+    //! \brief Shared front-side wavetable copied from the
+    //!        embedding `AWGCompilerImpl`; updated in place by
+    //!        the lowering / codegen passes.
     std::shared_ptr<WavetableFront> wavetable_;    // +0xA0
+    //! \brief Shared assembler-command registry; bound at
+    //!        construction with its error callback wired to
+    //!        `messages_.errorMessage`.
     std::shared_ptr<AsmCommands> asmCommands_;     // +0xB0
+    //! \brief Shared waveform-generator handle; bound at
+    //!        construction with its warning callback wired to
+    //!        `messages_.warningMessage`.
     std::shared_ptr<WaveformGenerator> waveformGen_;     // +0xC0
+    //! \brief SeqC built-in dispatch table created at
+    //!        construction and consulted on every function-call
+    //!        AST node during lowering.
     std::shared_ptr<CustomFunctions> customFunctions_;   // +0xD0
+    //! \brief Caller-supplied cancellation hook polled at
+    //!        pipeline checkpoints; an expired `weak_ptr`
+    //!        disables cancellation.
     std::weak_ptr<CancelCallback> cancelCallback_;       // +0xE0
+    //! \brief Caller-supplied progress hook invoked at pipeline
+    //!        milestones with a value in `[0.0, 1.0]`; an
+    //!        expired `weak_ptr` disables reporting.
     std::weak_ptr<ProgressCallback> progressCallback_;   // +0xF0
+    //! \brief Inline flex/bison parser context shared with the
+    //!        SeqC lexer; its syntax-error callback is wired to
+    //!        `messages_.parserMessage`.
     SeqcParserContext parserContext_;                // +0x100 (0x38 bytes)
     // +0x138 END
 };

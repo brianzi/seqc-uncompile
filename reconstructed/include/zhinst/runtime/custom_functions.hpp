@@ -67,7 +67,10 @@ enum AwgDeviceType : int;
 //! point format.
 class NodeMap {
 public:
+    //! \brief Default-construct an empty registry.
     NodeMap() = default;
+    //! \brief Destroy the registry; the underlying `std::map`
+    //!        owns its entries.
     ~NodeMap() = default;
     //! \brief Look a parameter-tree node up by its slash-delimited
     //! string path.
@@ -103,6 +106,11 @@ public:
     //! \return  The encoded 48-bit phase increment ready for a
     //!          node write.
     static uint64_t toFrequency(double freq, double sampleClock);  // @0x1c5630
+    //! \brief Ordered `path → NodeMapItem` registry consulted by
+    //!        `retrieve`.
+    //! \details Populated lazily as SeqC built-ins encounter new
+    //! node paths; the `std::map` ordering keeps the iteration
+    //! order deterministic for the JSON access-list emitter.
     std::map<std::string, NodeMapItem> entries_;
 };
 
@@ -191,6 +199,9 @@ inline bool operator<(AccessMode a, AccessMode b) {
 //! Carries a free-form `message_` string returned by `what()`; an
 //! empty message degrades to the literal `"CustomFunctions Exception"`.
 class CustomFunctionsException : public std::exception {
+    //! \brief Free-form diagnostic text returned by `what()`; an
+    //!        empty string degrades to the literal
+    //!        `"CustomFunctions Exception"`.
     std::string message_;  // +0x08
 public:
     //! \brief Construct an exception carrying the rendered
@@ -227,8 +238,14 @@ public:
 //! frontend uses both fields to render the user-facing error
 //! message with the correct source location and variable label.
 class CustomFunctionsValueException : public std::exception {
+    //! \brief Pre-formatted diagnostic text returned by `what()`.
     std::string message_;   // +0x08
+    //! \brief Zero-based position of the offending argument in the
+    //!        source call list.
     size_t      argIndex_;  // +0x20
+    //! \brief Bound variable name, filled in lazily by `setVarName`
+    //!        once the SeqC frontend has resolved the source
+    //!        identifier.
     std::string varName_;   // +0x28
 public:
     //! \brief Construct a per-argument value diagnostic carrying
@@ -638,16 +655,46 @@ int parseOptionalRate(
 //! `externalTriggeringMode_`, and `usedFeatures_` to the JSON
 //! emission path that builds the compile-result metadata.
 class CustomFunctions {
+    //! \brief Grants the SeqC `Compiler` direct write access to
+    //!        `resources_` while running its main `compile()`
+    //!        pipeline.
     friend class Compiler;  // Compiler::compile() directly writes resources_ (+0x10)
+    //! \brief Grants `AWGCompilerImpl::getJsonVersion` direct
+    //!        read access to `externalTriggeringMode_` and
+    //!        `usedFeatures_` when building the compile-result
+    //!        JSON.
     friend class AWGCompilerImpl;  // getJsonVersion reads externalTriggeringMode_ and usedFeatures_ directly
 public:
     // SubFunc — enum for play() / playIndexed() dispatch
     // Confirmed from binary: playWave passes 1, playWaveNow passes 3.
+    //! \brief Discriminator selecting the `play()` / `playIndexed()`
+    //!        sub-pipeline invoked by each `playWave*` family
+    //!        built-in.
+    //! \details Passed as the trailing `int` argument to the
+    //! private `play` / `playIndexed` helpers, choosing between
+    //! prefetch-only emission, the default (asm + prefetch) path,
+    //! the auxiliary indexed path, the immediate ("Now") path,
+    //! and the digital-trigger gated path.  `playAuxWave`,
+    //! `playDIOWave`, `playWaveDIO`, and `playWaveZSync` do **not**
+    //! delegate to `play`/`playIndexed` and therefore never carry
+    //! a `SubFunc` value.
     enum class SubFunc : int {
+        //! Prefetch-only path: no `asmPlay` instruction is
+        //! emitted (used by `prefetch` itself to warm the cache
+        //! without producing a play).
         Prefetch   = 0,   // prefetch (prefetch-only path, no asmPlay)
+        //! Default path used by `playWave` and `playWaveIndexed`.
         Default    = 1,   // playWave, playWaveIndexed
+        //! Auxiliary indexed path used by `playAuxWaveIndexed`
+        //! (reached through `playIndexed`).
         Aux        = 2,   // playAuxWaveIndexed (via playIndexed)
+        //! Immediate-dispatch path used by `playWaveNow` and
+        //! `playWaveIndexedNow` — emits the play with the
+        //! "now" flag set so the device dispatches it without
+        //! waiting for the trigger.
         Now        = 3,   // playWaveNow, playWaveIndexedNow
+        //! Digital-trigger-gated path used by
+        //! `playWaveDigTrigger` (reached through `play`).
         DigTrigger = 4,   // playWaveDigTrigger (via play)
         // Note: playAuxWave, playDIOWave, playWaveDIO, playWaveZSync
         // are complex wrappers that do NOT delegate to play()/playIndexed().
@@ -2793,45 +2840,116 @@ public:
 
     // --- Accessors for Compiler::getNodeAccessList / getNodeToModeMap ---
     // The binary accesses these via raw pointer arithmetic (this+0x150, this+0x128).
+    //! \brief Read-only view of the registered `NodeMapItem`s in
+    //!        registration order.
+    //! \details Used by `Compiler::getNodeAccessList` to emit the
+    //! per-compile node-access metadata.
+    //! \return  Reference to `nodeList_`; valid until the next
+    //!          mutating `CustomFunctions` call.
     const std::vector<NodeMapItem>& nodeList() const { return nodeList_; }
+    //! \brief Read-only view of the per-node access-mode set.
+    //! \details Used by `Compiler::getNodeToModeMap` to emit the
+    //! `"access_modes"` JSON metadata.
+    //! \return  Reference to `accessModeMap_`; valid until the
+    //!          next mutating `CustomFunctions` call.
     const std::unordered_map<NodeMapItem, std::set<AccessMode>>& accessModeMap() const { return accessModeMap_; }
 
 private:
     // --- Fields (see layout table above) ---
+    //! \brief Per-compilation configuration (device type, debug
+    //!        flags, sample rate); captured by raw pointer and
+    //!        owned by the enclosing `AWGCompilerImpl`.
     AWGCompilerConfig const*                           config_;                 // +0x00
+    //! \brief Per-device geometry / feature table; captured by
+    //!        raw pointer and owned by the enclosing
+    //!        `AWGCompilerImpl`.
     DeviceConstants const*                             devConst_;               // +0x08
+    //! \brief Pipeline-wide `Resources` container shared with
+    //!        `Compiler` (which writes to it directly via the
+    //!        friend grant) and consulted by every emitting
+    //!        built-in.
     std::shared_ptr<Resources>                         resources_;              // +0x10
+    //! \brief Shared front-side wavetable used to register and
+    //!        look up named waveforms across the compile.
     std::shared_ptr<WavetableFront>                    wavetableFront_;         // +0x20
+    //! \brief Per-instance scratch wavetable allocated in the
+    //!        constructor; used by built-ins that synthesise
+    //!        anonymous waveforms (e.g. `assignWaveIndex`) without
+    //!        polluting the shared front-side table.
     std::shared_ptr<WavetableFront>                    wavetableFrontPrivate_;  // +0x30
+    //! \brief Shared waveform-generator handle invoked by
+    //!        `generateWaveform` on a built-in miss to dispatch
+    //!        `zeros` / `sin` / etc.
     std::shared_ptr<WaveformGenerator>                 waveformGen_;            // +0x40
+    //! \brief Shared assembler-command registry used by emitting
+    //!        built-ins to append instructions to the SeqC
+    //!        compile's `AsmList`.
     std::shared_ptr<AsmCommands>                       asmCommands_;            // +0x50
 
     // Function dispatch map: function name → bound member function
+    //! \brief Callable signature for entries in `funcMap_`.
+    //! \details A SeqC built-in receives the argument vector and
+    //! the pipeline-wide `Resources`, returning a freshly
+    //! allocated `EvalResults` (or throwing
+    //! `CustomFunctionsException` / `CustomFunctionsValueException`
+    //! on error).
     using FuncType = std::function<std::shared_ptr<EvalResults>(
         std::vector<EvalResultValue> const&, std::shared_ptr<Resources>)>;
+    //! \brief Name → built-in dispatch table; populated in the
+    //!        constructor with ~80 entries and queried by
+    //!        `functionExists` / `call`.
     std::unordered_map<std::string, FuncType>          funcMap_;                // +0x60
 
     // Binary: On libc++, unordered_map is 0x28 bytes (0x20 hash table + 4B max_load_factor + 4B pad).
     // The floats below are the trailing max_load_factor of the preceding map.
+    //! \brief Trailing `max_load_factor` slot of the libc++
+    //!        `unordered_map` `funcMap_`; preserved for ABI
+    //!        layout fidelity.
     float                                              funcMap_maxLoadFactor_{1.0f}; // +0x80  (libc++ internal)
+    //! \brief 4-byte alignment padding between
+    //!        `funcMap_maxLoadFactor_` and `aliasMap_`.
     char                                               pad_84_[4];             // +0x84
 
+    //! \brief Optional `name → [aliases]` table consulted by
+    //!        `call` before the main dispatch; empty in the
+    //!        current binary, retained as the documented
+    //!        extension point for deprecation warnings.
     std::unordered_map<std::string, std::vector<std::string>> aliasMap_;         // +0x88
 
+    //! \brief Trailing `max_load_factor` slot of the libc++
+    //!        `unordered_map` `aliasMap_`; preserved for ABI
+    //!        layout fidelity.
     float                                              aliasMap_maxLoadFactor_{1.0f}; // +0xA8  (libc++ internal)
+    //! \brief 4-byte alignment padding between
+    //!        `aliasMap_maxLoadFactor_` and `unusedStringSet_B0_`.
     char                                               pad_AC_[4];             // +0xAC
 
     // +0xB0: set<string> — no reconstructed consumer found; may be populated by
     // a not-yet-reconstructed method. Kept for layout fidelity.
+    //! \brief String set present in the binary layout but with
+    //!        no observed reader or writer in the reconstructed
+    //!        pipeline; preserved for ABI fidelity.
+    //! \unclear  Original purpose — likely an extension hook.
     std::set<std::string>                              unusedStringSet_B0_;    // +0xB0
 
+    //! \brief Inline compile-time math-function evaluator
+    //!        consulted by `call` after `funcMap_` misses.
     MathCompiler                                       mathCompiler_;           // +0xC8
 
     // Binary: 8-byte pointer at +0xF8, passed to NodeMap::retrieve() — from lookupNode @0x15c54e.
+    //! \brief Lazily-built path → `NodeMapItem` registry used by
+    //!        `lookupNode`; constructed on first use.
     std::unique_ptr<NodeMap>                           nodeMap_;                // +0xF8 (8B)
 
+    //! \brief Maps each consulted node to the assembler-side
+    //!        index reserved for it; consumed by the JSON
+    //!        node-access emitter.
     std::unordered_map<NodeMapItem, uint32_t>           nodeIndexMap_;        // +0x100
+    //! \brief Per-node set of `AccessMode`s observed across the
+    //!        compile; exposed via the `accessModeMap()` accessor.
     std::unordered_map<NodeMapItem, std::set<AccessMode>> accessModeMap_;      // +0x128
+    //! \brief Ordered list of every `NodeMapItem` consulted by
+    //!        the compile; exposed via the `nodeList()` accessor.
     std::vector<NodeMapItem>                           nodeList_;               // +0x150
 
     // RESOLVED (#101) via deeper dtor analysis at ~CustomFunctions @0x127cf2:
@@ -2854,20 +2972,55 @@ private:
     //
     // Tracks waveform names registered via assignWaveIndex().
     // Tracks waveform names registered via assignWaveIndex().
+    //! \brief Set of waveform names registered through
+    //!        `assignWaveIndex`; used to deduplicate repeated
+    //!        registrations within one compile.
     std::unordered_set<std::string>                    assignedWaveNames_;      // +0x168 (40B, ends just before +0x190)
 
+    //! \brief Caller-supplied sink for non-fatal built-in
+    //!        warnings (length clamps, duplicate-CSV waveform
+    //!        names, etc.); copied from the constructor's
+    //!        `warningCb` argument.
     std::function<void(std::string const&)>            warningCallback_;        // +0x190 (48B)
 
     // External triggering mode: None=unset, Dio=1, ZSync=2.
     // Guards against mixing DIO and ZSync operations in one program.
     // Throw ErrorMessageT(0x4f) if externalTriggeringMode_ != None and != expected.
+    //! \brief Latched external-triggering family (`None`,
+    //!        `Dio`, or `ZSync`); enforced by
+    //!        `checkExternalTriggeringMode` to forbid mixing DIO
+    //!        and ZSync I/O in the same program.
     ExternalTriggeringMode                             externalTriggeringMode_{ExternalTriggeringMode::None}; // +0x1C0
+    //! \brief 4-byte alignment padding after the trailing
+    //!        `externalTriggeringMode_` enum.
     char                                               pad_1C4_[4];             // +0x1C4..+0x1C7
 
+    //! \brief Set of feature tags collected during the compile
+    //!        (e.g. `"playzero"`, `"feedback"`); emitted as the
+    //!        `"features_used"` array in the compile-result JSON.
     std::set<std::string>                              usedFeatures_;           // +0x1C8
 
     // --- Extracted helpers (not in binary — refactoring for readability) ---
+    //! \brief Latch / validate the program's external-triggering
+    //!        family (DIO vs ZSync).
+    //! \details If `externalTriggeringMode_` is still `None`,
+    //! latches it to `expected`.  Otherwise raises
+    //! `CustomFunctionsException` (`DioZsyncMixed`) when
+    //! `expected` disagrees with the latched mode, enforcing the
+    //! rule that DIO and ZSync I/O cannot co-exist in one
+    //! program.
+    //! \param expected  Mode requested by the calling built-in.
+    //! \throws CustomFunctionsException  When a DIO call follows
+    //!         a ZSync call (or vice versa).
     void checkExternalTriggeringMode(ExternalTriggeringMode expected);
+    //! \brief Test whether the compilation target is an SHF-family
+    //!        instrument (`SHFLI`, `VHFLI`, `GHFLI`).
+    //! \details Reads `config_->deviceType` and compares against
+    //! the three SHF device codes; used by DIO / ZSync built-ins
+    //! to take the SHF-specific code path (no `lookupNode` call,
+    //! different node-access pattern).
+    //! \return  `true` for SHF / VHF / GHF Lock-In; `false`
+    //!          otherwise.
     bool isShfFamily() const;
 };
 

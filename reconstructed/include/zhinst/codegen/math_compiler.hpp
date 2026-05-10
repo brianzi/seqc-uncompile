@@ -38,6 +38,8 @@ namespace zhinst {
 //! caller in `CustomFunctions::call` before surfacing the error to
 //! the user via `messages_`.
 class MathCompilerException : public std::exception {
+    //! \brief Pre-formatted, user-facing diagnostic returned by
+    //!        `what()`.
     std::string msg_;
 public:
     //! \brief Construct from a pre-formatted error message.
@@ -336,7 +338,19 @@ public:
     //!         with `args.size() != 2`.
     double call(std::string const& name, std::vector<double> const& args);
 
+    //! \brief Registry of unary `double(double)` math functions
+    //!        keyed by name.
+    //! \details Populated by the constructor with 23 entries
+    //! (`abs`, `acos`, …, `tanh`).  Consulted first by `call`
+    //! and `functionExists`; missing names fall through to
+    //! `multiArgFns_`.
     std::map<std::string, std::function<double(double)>>                       singleArgFns_;  // +0x00
+    //! \brief Registry of variadic `double(vector<double>)`
+    //!        math functions keyed by name.
+    //! \details Populated by the constructor with 5 entries
+    //! (`avg`, `max`, `min`, `pow`, `sum`).  Searched only on a
+    //! `singleArgFns_` miss; per-entry arity checks (e.g. `pow`
+    //! requires exactly 2) live inside the bound callables.
     std::map<std::string, std::function<double(std::vector<double> const&)>>   multiArgFns_;   // +0x18
 };
 

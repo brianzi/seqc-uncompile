@@ -360,6 +360,14 @@ public:
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // @0x103360
 
 private:
+    //! \brief Heap-allocated implementation owned by this pimpl
+    //!        facade.
+    //! \details Allocated with `operator new(0x2C0)` in the
+    //! constructor and released by the destructor; every public
+    //! method tail-calls the matching `AWGCompilerImpl` member
+    //! via `impl_`.  Never `nullptr` for the lifetime of the
+    //! enclosing `AWGCompiler` (the constructor either succeeds
+    //! or propagates `std::bad_alloc` before storing here).
     AWGCompilerImpl* impl_;  // +0x00, sole member
 };
 

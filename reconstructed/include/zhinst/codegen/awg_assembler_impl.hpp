@@ -426,18 +426,50 @@ public:
     LabelBimap const& getLabelBimap() const { return labelBimap_; }
 
     // ---- Fields (verified offsets in comment block above) ----
+    //! \brief Per-device profile (register depth, immediate ranges)
+    //!        consulted by `getReg` / `getVal`; not owned.
     DeviceConstants const* deviceConstants_;     // 0x000  //!< Per-device profile (register depth, immediate ranges) consulted by `getReg` / `getVal`; not owned.
+    //! \brief Source filename recorded by `assembleFile`; emitted as
+    //!        the `.filename` ELF section by `writeToFile`.
     std::string filename_;                       // 0x008  //!< Source filename recorded by `assembleFile`; surfaced in the `.filename` ELF section by `writeToFile`.
+    //! \brief Cached source text from the most recent
+    //!        `assembleFile`; emitted as the `.asm` ELF section by
+    //!        `writeToFile`.
     std::string asmSource_;                      // 0x020  //!< Cached source text from the most recent `assembleFile` call; emitted as the `.asm` section by `writeToFile`.
+    //! \brief Reserved string slot present in the binary layout but
+    //!        with no observed reader or writer in the reconstructed
+    //!        pipeline.
+    //! \unclear  Original purpose.
     std::string unusedStr038_;                    // 0x038  //!< Reserved string slot present in the binary layout but with no observed reader or writer in the reconstructed pipeline. \unclear  Original purpose.
+    //! \brief Emitted 32-bit instruction words; populated by
+    //!        `assembleExpressions` and exposed via `getOpcode`.
     std::vector<uint32_t> opcodes_;              // 0x050  //!< Emitted 32-bit instruction words; populated by `assembleExpressions` and exposed via `getOpcode`.
+    //! \brief Base address used when writing the standalone ELF;
+    //!        `writeToFile` adds a fixed `+0x80` device-header
+    //!        padding before forwarding to `ElfWriter`.
     uint32_t memoryOffset_ = 0;                  // 0x068  //!< Base address used when writing the standalone ELF; `writeToFile` adds a fixed `+0x80` device-header padding before forwarding to `ElfWriter`.
+    //! \brief Alignment padding to keep `currentLine_` 8-byte
+    //!        aligned.
     uint32_t pad_memOffset_ = 0;                 // 0x06c  //!< Alignment padding to keep `currentLine_` 8-byte aligned.
+    //! \brief Source line currently being parsed / evaluated; written
+    //!        into the `code` slot of each `errorMessage` diagnostic.
     int32_t currentLine_ = 0;                    // 0x070  //!< Source line currently being parsed / evaluated; written into the `code` slot of each `errorMessage` diagnostic.
+    //! \brief Alignment padding ahead of the embedded vectors.
     uint32_t pad_currentLine_ = 0;               // 0x074  //!< Alignment padding ahead of the embedded vectors.
+    //! \brief Per-line source-text cache appended to during the
+    //!        parse pass; consumed by `printOpcode` to interleave
+    //!        instructions with their text.
     std::vector<std::string> sourceLines_;       // 0x078  //!< Per-line source-text cache appended to during the parse pass; consumed by `printOpcode` to interleave instructions with their text.
+    //! \brief Diagnostic vector populated by `errorMessage` /
+    //!        `parserMessage` and rendered by `getReport`.
     std::vector<Message> messages_;              // 0x090  //!< Diagnostic vector populated by `errorMessage` / `parserMessage` and rendered by `getReport`.
+    //! \brief Bidirectional `name ↔ opcode-index` map populated in
+    //!        pass 1 of `assembleExpressions` and read by `getVal`
+    //!        / `printOpcode`.
     LabelBimap labelBimap_;                      // 0x0a8  //!< Bidirectional `name ↔ opcode-index` map populated in pass 1 of `assembleExpressions` and read by `getVal` / `printOpcode`.
+    //! \brief Inline flex/bison parser context shared with the
+    //!        lexer (`yyextra`) and used to query the syntax-error
+    //!        flag after assembly.
     AsmParserContext parserCtx_;                 // 0x0f0  //!< Inline flex/bison context shared with the lexer (yyextra) and used to query the syntax-error flag after assembly.
 };
 

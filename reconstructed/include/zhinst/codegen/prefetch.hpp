@@ -1487,25 +1487,70 @@ public:
     void print(std::shared_ptr<Node> node, int indent) const;         // 0x1c5dd0
 
     // Static
+    //! \brief Lower bound on the played-region size that the
+    //!        prefetcher will track as an indexed load.
+    //! \details Programs that play smaller chunks fall through
+    //! to the non-indexed path so the cache-residency planner
+    //! avoids fragmenting its book-keeping on negligible
+    //! waveform slices.  Stored in BSS at `0xb846d8` in the
+    //! binary; mutated only by tests / debug overrides.
     static int minIndexedSize;  // BSS at 0xb846d8
 
 private:
+    //! \brief Bidirectional map between optional waveform names
+    //!        and the integer indices used in the assembler
+    //!        stream.
+    //! \details Used by `assignLoad` and the load-merging
+    //! passes to deduplicate identical waveforms across the
+    //! emitted `AsmList`.  Anonymous waveforms (e.g. inline
+    //! literals) carry `std::nullopt` as the name half.
     using WaveformBimap = boost::bimaps::bimap<
         std::optional<std::string>, unsigned long>;
 
+    //! \brief Per-compilation configuration; captured by raw
+    //!        pointer and owned by the enclosing
+    //!        `AWGCompilerImpl`.
     AWGCompilerConfig const*                               config_;         // +0x00
+    //! \brief Per-device geometry / feature table; captured by
+    //!        raw pointer and owned by the enclosing
+    //!        `AWGCompilerImpl`.
     DeviceConstants const*                                 devConst_;       // +0x08
+    //! \brief Per-AST-node prefetch state populated during
+    //!        `prepareTree` / `countBranches` / `definePlaySize`
+    //!        and consumed by `placeLoads`.
     std::unordered_map<std::shared_ptr<Node>,
                        PrefetcherNodeState>                nodeStates_;     // +0x10 (0x28 bytes)
+    //! \brief Set of waveform names already seen during the
+    //!        prepare phase; used to detect duplicate
+    //!        registrations.
     std::unordered_map<std::string, bool>                  nameMap_;        // +0x38 (0x28 bytes)
+    //! \brief Root of the lowered SeqC AST being analysed.
     std::shared_ptr<Node>                                  root_;           // +0x60
+    //! \brief Shared `AsmCommands` registry used to append the
+    //!        load / play / cwvf / wvfs instructions emitted
+    //!        during fill-in.
     std::shared_ptr<AsmCommands>                           asmCommands_;    // +0x70
+    //! \brief Pipeline-wide `Resources` container shared with
+    //!        the rest of the compile.
     std::shared_ptr<Resources>                             resources_;      // +0x80
+    //! \brief Cache-residency planner that owns the on-device
+    //!        waveform-memory book-keeping consulted during
+    //!        `placeLoads`.
     std::shared_ptr<Cache>                                 cache_;          // +0x90
+    //! \brief One bidirectional name → index map per cache
+    //!        page, indexed by page number.
     std::vector<WaveformBimap>                             waveformMaps_;   // +0xA0
+    //! \brief Maximum number of conditional branches reachable
+    //!        from a node; computed by `countBranches` and
+    //!        consumed by `definePlaySize`.
     int32_t                                                maxBranches_;    // +0xB8 (init=1, used by countBranches/definePlaySize)
+    //! \brief Flag set by the splitter when a play must be
+    //!        broken across multiple load chunks.
     bool                                                   split_;         // +0xBC (init=false)
     // 3 bytes padding
+    //! \brief Working `PlayConfig` used by the `cwvf` /
+    //!        `globalCwvf` passes; reset between plays and
+    //!        threaded through `placeCommands`.
     PlayConfig                                             cwvfConfig_;    // +0xC0 (0x20 bytes, init: channelMask=-1, rest=0)
     //   +0xC0  channelMask (init -1)
     //   +0xC4  rate (init 0)
@@ -1526,14 +1571,29 @@ private:
         UsageEntry(const PlayConfig& pc) : config(pc) {}
     };
 
+    //! \brief Per-cwvf usage entries (one `PlayConfig` per
+    //!        observed play) feeding the cwvf-validity tracking
+    //!        machinery.
     std::vector<UsageEntry>                                usageEntries_;  // +0xE0 (24 bytes)
+    //! \brief Last AST node visited by the `globalCwvf` pass;
+    //!        used to detect repeat hits without re-walking the
+    //!        tree.
     std::shared_ptr<Node>                                  lastCwvfNode_;  // +0xF8 (last node seen in globalCwvf)
+    //! \brief Whether the running `globalCwvf` accumulator is
+    //!        still consistent across the AST walk.
     bool                                                   globalCwvfValid_; // +0x108
     // 7 bytes padding
+    //! \brief Output `WavetableIR` produced by `placeLoads` and
+    //!        consumed by the ELF writer.
     std::shared_ptr<WavetableIR>                           wavetableIR_;   // +0x110
+    //! \brief Diagnostic sink for non-fatal prefetcher
+    //!        messages; supplied by the embedding compiler.
     std::function<void(std::string const&)>                logFunc_;       // +0x120 (0x28 bytes)
     // logFunc_.__buf_ at +0x120 (32 bytes), logFunc_.__f_ at +0x140
     // 8 bytes padding at +0x148
+    //! \brief Cancellation hook polled at each prefetch phase
+    //!        boundary; an expired `weak_ptr` disables
+    //!        cancellation.
     std::weak_ptr<CancelCallback>                          cancelCb_;      // +0x150
     // Total: 0x160 bytes
 };
