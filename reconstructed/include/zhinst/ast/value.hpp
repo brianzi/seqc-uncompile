@@ -66,10 +66,20 @@ public:
     uint32_t index_;   // after union — see ImmediateKind enum below
 
     // --- Constructors (all confirmed from disassembly) ---
+    //! \brief Default-constructs a `Valueless` immediate; any
+    //! conversion will throw.
     Immediate() : index_(0xFFFFFFFF) {}       // default: valueless state
+    //! \brief Constructs an `Address`-kind immediate from an
+    //! existing `AddressImpl` wrapper.
     Immediate(detail::AddressImpl<uint32_t> addr);  // 0x290ab0
+    //! \brief Constructs an `Address`-kind immediate from a raw
+    //! unsigned value (same kind as the `AddressImpl` overload).
     Immediate(uint32_t v);                           // 0x290ac0 — sets index=0 (same as AddressImpl)
+    //! \brief Constructs an `Integer`-kind immediate from a signed
+    //! 32-bit value.
     Immediate(int32_t v);                            // 0x290ad0 — sets index=1
+    //! \brief Constructs a `String`-kind immediate carrying the
+    //! given label/symbol name.
     Immediate(std::string const& s);                 // 0x290ae0 — sets index=2
     Immediate(Immediate const& other);               // copy ctor (needed due to union with std::string)
     Immediate(Immediate&& other) noexcept;           // move ctor
@@ -78,30 +88,47 @@ public:
     ~Immediate();                                    // 0x15c4f0
 
     // --- Query ---
+    //! \brief Returns true iff the active alternative is
+    //! `ImmediateKind::Address`.
     bool holdsUnsigned() const;     // 0x290b30 — returns index_ == 0
 
     // --- Conversions ---
+    //! \brief Returns the integer value of an `Integer`-kind
+    //! immediate; calling on any other kind dispatches through the
+    //! variant's converter table and is a programming error.
     operator int() const;           // 0x290cc0 — vtable dispatch at b070b0
+    //! \brief Returns the unsigned address value of an
+    //! `Address`-kind immediate; calling on any other kind
+    //! dispatches through the variant's converter table and is a
+    //! programming error.
     operator unsigned int() const;  // 0x290d00 — vtable dispatch at b070c8
 
     // --- Comparison ---
+    //! \brief Element-wise equality: equal iff both immediates hold
+    //! the same alternative with the same value.
     bool operator==(Immediate const& other) const;  // 0x290d40 — vtable dispatch at b070e0
 };
 
 // ImmediateKind — variant discriminator for Immediate::index_ (A1)
+//! \brief Discriminator value carried by `Immediate::index_`,
+//! identifying the active variant alternative.
 enum class ImmediateKind : uint32_t {
-    Address   = 0,            // unsigned address value
-    Integer   = 1,            // signed int32
-    String    = 2,            // std::string
-    Valueless = 0xFFFFFFFF,   // empty / default-constructed
+    Address   = 0,            //!< Active alternative is `AddressImpl<uint32_t>`.
+    Integer   = 1,            //!< Active alternative is `int32_t`.
+    String    = 2,            //!< Active alternative is `std::string` (label).
+    Valueless = 0xFFFFFFFF,   //!< Default-constructed / moved-from state.
 };
 
 // toString(Immediate) — 0x290b40 (free function, sret)
 // Dispatches through vtable at b07068. Returns string representation.
+//! \brief Renders an `Immediate` as the string the assembler
+//! emits for its active alternative (`%u` for addresses, decimal
+//! for integers, the literal string for label kinds).
 std::string toString(Immediate const& imm);
 
 // operator<<(ostream&, Immediate const&) — 0x290b90
 // Copies Immediate, calls toString, writes to ostream.
+//! \brief Writes `toString(imm)` to `os`.
 std::ostream& operator<<(std::ostream& os, Immediate const& imm);
 
 // ============================================================================
@@ -119,20 +146,27 @@ std::ostream& operator<<(std::ostream& os, Immediate const& imm);
 class ValueException : public std::exception {
     std::string msg_;
 public:
+    //! \brief Constructs a `ValueException` carrying `msg` as the
+    //! `what()` string.
     explicit ValueException(std::string const& msg);  // 0x16e7f0
     ~ValueException() override;                        // 0x16e850
+    //! \brief Returns the `msg` passed at construction.
     const char* what() const noexcept override;        // 0x16f110
 };
 
 // ============================================================================
 // ValueType — outer type tag for Value
 // ============================================================================
+//! \brief Outer tag carried by `Value::type_`, identifying the
+//! semantic type of the held literal.  `Unspecified` is the
+//! default; every `toX()` conversion on an `Unspecified` value
+//! throws `ValueException`.
 enum class ValueType : int32_t {
-    Unspecified = 0,   // throws on any conversion attempt
-    Int        = 1,    // holds int32_t
-    Bool       = 2,    // holds bool
-    Double     = 3,    // holds double
-    String     = 4,    // holds std::string
+    Unspecified = 0,   //!< Default state; conversions throw.
+    Int        = 1,    //!< Holds `int32_t` in `storage_.i`.
+    Bool       = 2,    //!< Holds `bool` in `storage_.b`.
+    Double     = 3,    //!< Holds `double` in `storage_.d`.
+    String     = 4,    //!< Holds `std::string` in `storage_.str`.
 };
 
 // ============================================================================
@@ -197,11 +231,16 @@ public:
     // --- Constructors ---
     // Int, Bool, Double constructors are fully inlined (no symbols).
     // String constructor is the only non-inline one:
+    //! \brief Constructs a `String`-kind value from the given text.
     Value(std::string const& s);  // 0x22c2b0 — sets type_=4, which_=3, copies string
+    //! \brief Default-constructs an `Unspecified` value; any
+    //! conversion will throw `ValueException`.
     Value();  // default ctor — needed by Resources::Variable initialization
-    // Inlined constructors for numeric types (no symbols in binary):
+    //! \brief Constructs a `Double`-kind value.
     explicit Value(double d) : type_(ValueType(3)), pad_04_{}, which_(2), pad_0C_{} { storage_.d = d; }
+    //! \brief Constructs an `Int`-kind value.
     explicit Value(int32_t i) : type_(ValueType(1)), pad_04_{}, which_(0), pad_0C_{} { storage_.i = i; }
+    //! \brief Constructs a `Bool`-kind value.
     explicit Value(bool b) : type_(ValueType(2)), pad_04_{}, which_(1), pad_0C_{} { storage_.b = b; }
 
     // Copy/move — implicit in binary (char[24] union was trivially copyable).
@@ -212,12 +251,37 @@ public:
     Value& operator=(Value&& other) noexcept;
 
     // --- Conversion methods ---
+    //! \brief Coerces the held value to `double`: numeric kinds
+    //! convert directly, `Bool` converts to 0.0/1.0, and `String`
+    //! is parsed via `std::stod`.
+    //! \throws ValueException if `type_ == Unspecified` or out of
+    //! the recognised set.
     double toDouble() const;       // 0x15a560
+    //! \brief Coerces the held value to `int32_t`: `Int` returns
+    //! directly, `Bool` returns 0/1, `String` is parsed via
+    //! `std::stol`, and `Double` is truncated toward zero.
+    //! \binarynote The `Double` path matches the binary's `cvttsd2si`
+    //! semantics: values outside `[INT32_MIN, INT32_MAX]` are
+    //! reinterpreted via wrapping `uint32_t` truncation, which
+    //! preserves the encoding of large hex literals stored as
+    //! positive doubles (e.g. `0xAAAAAAAA`).
+    //! \throws ValueException if `type_ == Unspecified` or out of
+    //! the recognised set.
     int32_t toInt() const;         // 0x15c250
+    //! \brief Coerces the held value to `bool`: `Int` is non-zero,
+    //! `Bool` is direct, `String` matches the literal `"true"`
+    //! exactly, and `Double` is non-zero within `~1e-15`.
+    //! \throws ValueException if `type_ == Unspecified` or out of
+    //! the recognised set.
     bool toBool() const;           // 0x164200
+    //! \brief Renders the held value as a string.
+    //! \throws ValueException if `type_ == Unspecified` or out of
+    //! the recognised set.
     std::string toString() const;  // 0x15de50
 
     // --- Comparison ---
+    //! \brief Returns true iff both values hold the same type and
+    //! the same payload value.
     bool operator==(Value const& other) const;  // 0x21a780
 
     // --- Destructor ---
