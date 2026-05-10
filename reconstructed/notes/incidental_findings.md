@@ -4532,3 +4532,121 @@ inside-Lock case to expose the path before fixing.  The fix should
 add the missing waveform-name comparison and `return current` in
 the `Play` branch.
 
+## IF-214  "BFS" misnomer pervasive in Prefetch traversal comments
+
+**Severity**: cosmetic, doc-risk.
+**Status**: fixed in same edit pass that logged the IF.
+**Discovered**: D4 Batch 2b/2c verify-then-write of
+`Prefetch::determineFixedWaves`, `optimize`, `optimizeSync`,
+`optimizeCwvf`, `allocate`, `moveLoadsToFront`,
+`getMemoryHighWatermark`, `getRequiredMemory`, and
+`collectUsedWaves`.
+
+At least 9 distinct comment sites in
+`reconstructed/src/codegen/prefetch.cpp` and
+`reconstructed/src/codegen/prefetch_helpers.cpp` describe the
+traversal as "BFS" (or "BFS/DFS") when the actual code is a LIFO
+stack walk: `std::deque<shared_ptr<Node>> worklist;
+worklist.push_back(...); ...; auto cur = worklist.back();
+worklist.pop_back();`.  `back()` + `pop_back()` is LIFO, so these
+are depth-first traversals using a deque as a stack, not BFS.
+
+Concrete sites (incomplete list, found via
+`grep -n "BFS" reconstructed/src/codegen/prefetch*.cpp`):
+
+- `prefetch.cpp:145`  `setParents` — "BFS traversal using a deque"
+- `prefetch.cpp:743`  `moveLoadsToFront` — "does a BFS over the tree"
+- `prefetch.cpp:856,861,972`  inner Play-rewrite loop in
+  `moveLoadsToFront` — "BFS traversal setup", "BFS loop", "BFS"
+- `prefetch.cpp:1000,1078`  `optimize` — "BFS traversal of the
+  node tree using a deque as worklist", "Main BFS loop"
+- `prefetch_helpers.cpp:231`  `setParents` cousin — "BFS traversal
+  that sets parent weak_ptr"
+- `prefetch_helpers.cpp:277,331`  `removeBranches` — references
+  "prepareTree's BFS" (which is itself a stack walk —
+  `std::stack<shared_ptr<Node>>` — also not BFS)
+- `prefetch_helpers.cpp:392`  `findLockedPlay` — "BFS/DFS
+  traversal" (hedge; the code is LIFO)
+- `prefetch_helpers.cpp:509`  third-cousin tree walker — "BFS
+  traversal starting from root node"
+
+Risk is identical to IF-212: doc-writing passes that quote the
+prose summaries propagate the misnomer into user-facing Doxygen
+briefs.  D4 Batch 2a's three Prefetch sub-pass briefs already use
+the verified phrasing ("LIFO traversal", "stack-driven traversal",
+"Stack-driven traversal (LIFO via deque::back / pop_back)"); D4
+Batch 2b's `determineFixedWaves` brief uses the same.
+
+**Action**: in a single comment-only edit pass, rewrite each "BFS"
+mention in the two files to match what the code actually does
+("LIFO stack walk via `std::deque::back()` / `pop_back()`" or
+similar).  No source-code changes are needed.
+
+**Resolution**: all 15 sites in `prefetch.cpp` and
+`prefetch_helpers.cpp` rewritten to "LIFO walk", "LIFO loop",
+"stack walk", or equivalent that names `std::deque::back()` /
+`pop_back()` explicitly.  `grep -n "BFS"` on both files returns
+empty.  Build clean, 1600/1600 tests pass.
+
+## IF-215  `Prefetch::optimize` block-header misidentifies dispatched NodeType
+
+**Severity**: cosmetic, doc-risk.
+**Status**: fixed in same edit pass that logged the IF.
+**Discovered**: D4 Batch 2c verify-then-write of `Prefetch::optimize`.
+
+The `// ====` block-header comment for `Prefetch::optimize`
+(`prefetch.cpp:997-1061`) opens with:
+
+```
+// 1. **Play nodes (type == 0x02)**: The core optimization target.
+```
+
+and goes on to describe the parent-walking / `sameLoads` /
+`mergeLoads` logic as the Play-node case.  The function body line
+1144-1145 actually dispatches:
+
+```
+} else if (nodeType ==
+           static_cast<int>(NodeType::Load)) { // 0x1cde1a: cmp $0x1
+  // --- LOAD node (type == 0x01) — this is the Play optimization case ---
+```
+
+i.e. the case-label is `NodeType::Load` (= `0x0001`), not
+`NodeType::Play` (= `0x0002`).  The comment block has them
+swapped, and the inline label on line 1146 contradicts itself
+("LOAD node ... — this is the Play optimization case").
+
+Per the verified enum in `reconstructed/include/zhinst/ast/node.hpp:45-46`:
+
+```
+Load               = 0x0001,   // "load"
+Play               = 0x0002,   // "play"
+```
+
+This is the same Play↔Load name swap that IF-212 documented in
+`prepareTree`.  The code is correct (it dispatches on the value
+that the binary reads); the prose is wrong.
+
+**Action**: rewrite the `optimize` block-header comment to refer
+to `Load` (not `Play`) for the parent-walking case, and remove the
+self-contradicting "this is the Play optimization case" line.
+Audit the rest of the `optimize` body for any further mislabelled
+case branches in the same pass.  Defer the doc brief for
+`Prefetch::optimize` until the block-header has been corrected and
+re-read against the body.
+
+**Resolution**: block-header (`prefetch.cpp:1006-1063`) fully
+rewritten from a body-verified read of the dispatch sites at
+`0x1cde00`–`0x1cf4b3`.  The four real cases (`Loop`/`Branch`/
+`Load`/default) are now listed in the order the source dispatches,
+and the three `Load`-parent sub-cases (`SetVar`/`Load`/`Play`/other)
+are spelled out with the verified `cmp` constants.  The
+self-contradictory inline label on line 1148 ("LOAD node ... — this
+is the Play optimization case") was rewritten to "the core
+optimization case".  The mislabelled inline at line 1157 ("Check
+if parent is a Loop (type == 0x10 i.e. SetVar)") was rewritten to
+"Check if parent is a SetVar (type == 0x10)".  No source-code
+changes were needed.  Build clean, 1600/1600 tests pass.  The
+brief for `Prefetch::optimize` (D4 Batch 2c) can now safely
+consult the corrected header.
+

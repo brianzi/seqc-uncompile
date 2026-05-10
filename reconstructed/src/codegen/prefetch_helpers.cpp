@@ -228,7 +228,7 @@ bool Prefetch::getUsedFourChannelMode() const // 0x1df400
 // 0x1d57d0 — Prefetch::backwardTree(shared_ptr<Node>) const
 // Ends at ~0x1d5e20.
 //
-// BFS traversal that sets parent weak_ptr (at +0xF0/+0xF8) for each child
+// LIFO traversal that sets parent weak_ptr (at +0xF0/+0xF8) for each child
 // to point back to the parent node. Modifies tree in place.
 // Uses a deque-based worklist.
 // ============================================================================
@@ -274,7 +274,7 @@ void Prefetch::backwardTree(std::shared_ptr<Node> node) const // 0x1d57d0
 //
 // In the multi-branch path: pushes node->next (the join node after the
 // branch) onto the stack first, then pushes each remaining branch.
-// Pushing node->next is essential — without it, prepareTree's BFS would
+// Pushing node->next is essential — without it, prepareTree's stack walk would
 // terminate after the branch arms and never visit the code following the
 // if/else (regression-tested by uhf_doc_feedforward).
 //
@@ -328,7 +328,7 @@ void Prefetch::removeBranches(
         stack.push(n->next);
     } else {
         // 0x1d3759-0x1d37b6: Push node->next first (the join node after the
-        // branch). Without this push, prepareTree's BFS would terminate after
+        // branch). Without this push, prepareTree's stack walk would terminate after
         // processing the branch arms, never visiting the code after the
         // if/else. Confirmed by GDB tracing of uhf_doc_feedforward.
         if (n->next) {
@@ -389,7 +389,7 @@ std::shared_ptr<Node> Prefetch::findLockedPlay(
     std::shared_ptr<Node> node,
     std::shared_ptr<WaveformIR> waveform) const // 0x1d3dd0
 {
-    // BFS/DFS traversal looking for Play nodes with matching waveform
+    // LIFO worklist walk looking for Play nodes with matching waveform
     // inside Lock scopes
     std::deque<std::shared_ptr<Node>> worklist;
     worklist.push_back(node);
@@ -506,22 +506,22 @@ bool Prefetch::sameLoads(std::shared_ptr<Node> a,
 // 0x1d60d0 — Prefetch::nodeByCachePointer(shared_ptr<Cache::Pointer>) const
 // Ends at 0x1d65ba.
 //
-// BFS traversal starting from root node (this->node_ at +0x60). For each node,
+// LIFO traversal starting from root node (this->node_ at +0x60). For each node,
 // checks if it is a type-1 (Play) node with a valid slot index, then compares
 // the string in that slot's data entry against ptr->str(). Returns the first
-// matching node. Pushes children (branches, next, child) onto a deque for BFS.
+// matching node. Pushes children (branches, next, child) onto a deque used as a stack.
 // ============================================================================
 std::shared_ptr<Node> Prefetch::nodeByCachePointer(
     std::shared_ptr<Cache::Pointer> ptr) const // 0x1d60d0
 {
-    // 0x1d60f5: Initialize a deque (BFS queue) and push root node
+    // 0x1d60f5: Initialize a deque (used as a LIFO stack) and push root node
     std::deque<std::shared_ptr<Node>> queue;
     queue.push_back(root_); // root_ at +0x60
 
     if (queue.empty())
         return nullptr;
 
-    // 0x1d6189: BFS loop — pop from back (DFS-style actually)
+    // 0x1d6189: LIFO loop — pop from back
     while (!queue.empty()) {
         std::shared_ptr<Node> current = std::move(queue.back()); // 0x1d61a9
         queue.pop_back(); // 0x1d620e..0x1d6257
@@ -575,7 +575,8 @@ std::shared_ptr<Node> Prefetch::nodeByCachePointer(
 // 0x1cb200 — Prefetch::determineFixedWaves()
 // Ends at 0x1cbf60.
 //
-// BFS traversal using deque. For each Play(0x02) node in the tree:
+// LIFO walk via std::deque (push_back / back() / pop_back()).  For each
+// Play(0x02) node in the tree:
 //   1. Get wave name at current deviceIndex
 //   2. Look up WaveformIR in wavetableIR_
 //   3. If waveform is already fixed → skip

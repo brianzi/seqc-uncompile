@@ -142,7 +142,7 @@ void Prefetch::globalCwvf(std::shared_ptr<Node> node) // 0x1d5620
 // 0x1cf7b0 — Prefetch::optimizeSync(shared_ptr<Node>)
 // Ends at 0x1cfc31.
 //
-// BFS traversal using a deque. For each node (popped from back):
+// LIFO stack walk via std::deque (back()/pop_back()).  For each node:
 //   - If node has next (+0xB8): enqueue next
 //   - For each child in branches (+0xC8): enqueue child
 //   - If node has loop/else (+0xE0): enqueue loop
@@ -740,7 +740,8 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
 //
 // Algorithm: For each WaveformIR used on the current device that needs loading
 // (markedForLoad == true at +0xD8), creates a new Load node and inserts it
-// before the input node. Then does a BFS over the tree: for each Play node
+// before the input node. Then walks the tree (LIFO via
+// std::deque::back()/pop_back()): for each Play node
 // whose waveform name matches the current WaveformIR and the device string
 // matches, it sets the Play's load pointer (+0x18/+0x20) to the new Load node,
 // copies the Play's play-reference list (+0xA0) into the Load node, and calls
@@ -853,12 +854,12 @@ Prefetch::moveLoadsToFront(std::shared_ptr<Node> node) // 0x1ccad0
     // (so the returned value reflects the new head)
     node = loadNode; // 0x1ccded-0x1ccdf8
 
-    // 0x1cce24-0x1cce86: BFS traversal setup — create a deque, push node->next
+    // 0x1cce24-0x1cce86: traversal setup — create a deque, push node->next
     std::deque<std::shared_ptr<Node>> worklist; // 0x1cce24-0x1cce2f
     Node *startNode = node.get();        // 0x1cce33-0x1cce3a: r14 = *(-0x98)
     worklist.push_back(startNode->next); // 0x1cce40-0x1cce86: push next (+0xB8)
 
-    // 0x1ccee9-0x1cd2d6: BFS loop — process nodes from back of deque
+    // 0x1ccee9-0x1cd2d6: LIFO loop — process nodes from back of deque
     while (!worklist.empty()) { // 0x1cced4-0x1cced7
       // Pop from back
       auto current = worklist.back(); // 0x1ccee7-0x1ccf0a
@@ -969,7 +970,7 @@ Prefetch::moveLoadsToFront(std::shared_ptr<Node> node) // 0x1ccad0
         }
       }
 
-      // 0x1cd0f0-0x1cd2d6: Not a matching Play — enqueue children for BFS
+      // 0x1cd0f0-0x1cd2d6: Not a matching Play — push children for the walk
       // Enqueue next sibling
       if (cur->next) {                 // 0x1cd0f7-0x1cd101
         worklist.push_back(cur->next); // 0x1cd138-0x1cd186
@@ -997,67 +998,73 @@ Prefetch::moveLoadsToFront(std::shared_ptr<Node> node) // 0x1ccad0
 // 0x1cdae0 — Prefetch::optimize(shared_ptr<Node>)
 // Ends at 0x1cf7b0 (~7.3KB).
 //
-// Algorithm: BFS traversal of the node tree using a deque as worklist.
+// Algorithm: LIFO walk of the node tree using a std::deque as a stack
+// (push_back / back() / pop_back()).
 // For each node, resolves its parent (via weak_ptr at +0xF0) and looks
 // up the parent's PrefetcherNodeState in nodeStates_.
 //
-// The optimization has three main cases based on node type:
+// The optimization dispatches on the current node's type at 0x1cde00.
+// The cases (and their cmp constants) are:
 //
-// 1. **Play nodes (type == 0x02)**: The core optimization target.
-//    If the parent is a Loop (type == 0x08) and the parent's lengthReg
-//    (AsmRegister at +0x88) matches the play node's lengthReg, then
-//    the parent's load pointer (+0x18/+0x20 weak_ptr) is resolved
-//    and if the load is also type Play (type == 0x02), then the
-//    play node's next chain is enqueued and we continue.
+// 1. **Loop nodes (type == 0x08)** — push next, then push the loop
+//    target.  No further work.
 //
-//    Otherwise, the parent is type Play (type == 0x01, i.e. Load):
-//    - Walk up the parent chain (parent→parent→...) while each is a
-//      Play/Load node, calling sameLoads(parent, currentNode) to see
-//      if they reference the same waveform. If sameLoads returns true,
-//      call mergeLoads(currentNode, parent) to combine them.
-//    - If sameLoads is false, for each parent in the chain, get the
-//      waveform name from wavesPerDev[deviceIndex], look it up in
-//      wavetableIR_ to get the WaveformIR, compute the waveform byte
-//      size as: (channels * ceil(sampleCount / alignment) * alignment *
-//      bitsPerSample) / 8, round up. Divide by the node's pageSize
-//      from nodeStates_. If the result (pages needed) <= the parent's
-//      usedCache, the waveform fits and we can swap the nodes.
+// 2. **Branch nodes (type == 0x04)** — push next, then push every
+//    entry of the `branches` vector.
 //
-//    When the parent type != Play and parent has a load pointer
-//    (+0x18 non-null), the parent is type 0x02 (a non-load parent with
-//    an associated load). In this case, the refTrack in nodeStates_ is
-//    adjusted (incremented/decremented) to track how many references
-//    share the same load. If the parent is the node's loop target
-//    (+0xE0) or next (+0xB8), specific merge/split logic applies.
+// 3. **Load nodes (type == 0x01)** — the core optimization target.
+//    The parent (resolved via `Node::parent` weak_ptr at +0xF0) is
+//    inspected and one of three sub-cases is taken on `parent->type`:
 //
-// 2. **Branch nodes (type == 0x04)**:
-//    Enqueue the next pointer (+0xB8) if present, then iterate all
-//    branch children (+0xC8 vector) and enqueue each.
+//    a. Parent is `SetVar` (0x10) and parent->lengthReg ==
+//       current->lengthReg.  If parent's own parent is non-null and
+//       not a Loop, copy parent's `asmId` to current; then push
+//       current's next chain and clean up.
 //
-// 3. **Loop nodes (type == 0x08)**:
-//    Enqueue next (+0xB8) if present, then enqueue the loop target
-//    (+0xE0) if present.
+//    b. Parent is `Load` (0x01).  Copy parent's asmId to current,
+//       then walk the ancestor chain (parent → parent->parent → ...)
+//       while each ancestor is a Load.  For each ancestor, call
+//       `sameLoads(ancestor, current)` — on a hit, call
+//       `mergeLoads(current, ancestor)`, push root_, and clean up.
+//       On full chain miss, fall through to the waveform-fit check.
 //
-// 4. **All other node types**:
-//    Just enqueue next (+0xB8) if present.
+//    c. Parent is `Play` (0x02).  Call `sameLoads(current, parent)`.
+//       On a hit, look up `current` in nodeStates_; if its
+//       `pagesNeeded >= 2` push current's next and continue,
+//       otherwise reset parent's state, resolve parent's `loadRef`
+//       (weak_ptr at +0x18), call `mergeLoads(current,
+//       parent->loadRef)`, push root_, clean up.  On a miss, fall
+//       through to the waveform-fit check (after resolving parent's
+//       parent for later use).
 //
-// After processing the node itself, if a Play node's waveform doesn't
-// fit in the parent's cache pages (usedCache < pagesNeeded), or if the
-// parent references a different load that can't be merged, the node is
-// swapped with its parent via Node::swap(), the parent's asmId is
-// copied to the node, and the root_ is re-enqueued.
+//    d. Any other parent type — look up parent in nodeStates_ to
+//       grab `usedCache_`, then fall through to the waveform-fit
+//       check.
 //
-// Special case: when a Play node's parent has zero or negative refTrack
-// and the parent has a load pointer, the function:
-//   a. Calls Node::last(currentNode) to find the tail of the chain
-//   b. Clones the current node via Node::clone()
-//   c. Calls Node::updateParent to splice the clone after the last node
-//   d. Calls Node::updateParent again to detach the current node
-//   e. Nulls out the current node's next pointer
-//   f. Copies asmId from the load to the clone
-//   g. Calls assignLoad(clone, currentNode, config_->isHirzel) to
-//      create a new load assignment
-//   h. Re-enqueues root_
+//    Waveform-fit check (common tail for sub-cases b/c/d that did
+//    not merge):
+//      1. Look up the current node's waveform name in
+//         `wavesPerDev[deviceIndex]`; skip the rest if absent.
+//      2. Resolve the WaveformIR via `wavetableIR_->getWaveformByName`.
+//      3. Compute byte size from
+//         `channels * ceil(sampleCount / alignment) * alignment *
+//          bitsPerSample / 8`, capped by `playConfig.maxSamples`.
+//      4. Divide by `nodeStates_[current].pagesNeeded` to get the
+//         number of pages required.
+//      5. If `parent.usedCache_ < pagesNeeded`, the waveform does not
+//         fit — push current's next and continue.
+//      6. Otherwise the waveform fits, and a parent/current swap or
+//         clone-and-reassign sequence runs (see body 0x1ceaa5
+//         onwards): on `refTrack > 0` the nodes are swapped via
+//         `Node::swap`, asmIds are updated, and root_ is re-pushed;
+//         on `refTrack <= 0` the current node is cloned, spliced in
+//         after `Node::last(current)` via `Node::updateParent`, the
+//         original is detached, and `assignLoad(clone, current,
+//         config_->isHirzel)` registers the new load before pushing
+//         root_.
+//
+// 4. **All other node types** — push next if present.  No further
+//    work.
 // ============================================================================
 void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
 {
@@ -1075,7 +1082,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
   // 0x1cdb6d: precompute &nodeStates_ for repeated use
   auto *nodeStatesPtr = &nodeStates_; // 0x1cdb6d
 
-  // --- Main BFS loop ---
+  // --- Main LIFO walk ---
   while (!worklist.empty()) { // 0x1cdb90
     // 0x1cdb99-0x1cdc71: Pop back from worklist into `current`
     auto current = worklist.back(); // 0x1cdb99
@@ -1143,7 +1150,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
       }
     } else if (nodeType ==
                static_cast<int>(NodeType::Load)) { // 0x1cde1a: cmp $0x1
-      // --- LOAD node (type == 0x01) — this is the Play optimization case ---
+      // --- LOAD node (type == 0x01) — the core optimization case ---
 
       // 0x1cde23: parent must exist (checked above for Play nodes to optimize)
       if (!parent.get())   // 0x1cde23
@@ -1152,7 +1159,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
       {
         int parentType = static_cast<int>(parent->type); // 0x1cde33
 
-        // 0x1cde37: Check if parent is a Loop (type == 0x10 i.e. SetVar)
+        // 0x1cde37: Check if parent is a SetVar (type == 0x10)
         if (parentType ==
             static_cast<int>(NodeType::SetVar)) { // 0x1cde37: cmp $0x10
           // 0x1cde40-0x1cde56: Compare parent's lengthReg (+0x88) with
