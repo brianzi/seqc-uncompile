@@ -6121,3 +6121,56 @@ distinguishes `(length, phase, nPeriods)` from
 `(length, amplitude, phase)`.  Prior to it, only the 4-arg
 forms were covered.
 
+
+
+## IF-235  `StaticResources::errorReportTarget()` is a declared-but-undefined orphan helper
+
+**Severity**: low (cosmetic / dead declaration)
+**Status**: confirmed
+**Source**: `reconstructed/include/zhinst/runtime/resources.hpp:1081`
+
+### Observation
+
+`StaticResources` declares a protected member
+`std::function<void(std::string const&)> errorReportTarget() const;`
+that has no definition anywhere in the reconstructed tree
+(no body in `static_resources.cpp`,
+`resources_static_global.cpp`, or `resources.cpp`) and no
+call site (`grep -rn errorReportTarget reconstructed/`
+returns only the declaration plus a single passing mention
+in `static_resources.cpp:26`).
+
+The static-archive link silently tolerates this because the
+symbol is never referenced; an executable link or a virtual-
+dispatch use would surface a `relocation against undefined
+symbol` failure.
+
+### Why the declaration exists
+
+The `// Returns a callable that forwards to the
+std::function stored inline at (functionStorage_,
+functionPtr_)` comment block above the declaration documents
+the binary's inline access pattern at addresses
+`0x12a256-0x12a26d`.  Earlier reconstruction work
+hypothesised that the binary exposed this access via a
+named helper member, and the declaration was added as a
+placeholder for the eventual reconstruction of that helper.
+The actual binary appears to inline the `std::function`
+re-packaging at every call site rather than using a single
+named accessor, so the placeholder was never filled in.
+
+### Action
+
+Documented inline with a `\verifyme` doc comment so the
+member shows up on the verify-me backlog page; the
+declaration is left in place to preserve the existing
+research note.  No code change to source files — purely a
+documentation bookkeeping entry.
+
+### Lesson
+
+When reconstruction adds a forward declaration on
+hypothesis (rather than from confirmed disassembly), tag
+the declaration with `\verifyme` from the outset so it
+surfaces on the backlog page and does not silently age
+into orphan state.
