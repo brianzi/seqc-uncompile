@@ -76,11 +76,12 @@ struct WaveformFront : Waveform {
      *  \param source   Source waveform. Must be non-null.
      *  \param newName  New user-visible name for the copy.
      */
-    WaveformFront(std::shared_ptr<WaveformFront> source, std::string const& newName);
+    WaveformFront(std::shared_ptr<WaveformFront> source, std::string const& newName);  // 0x2a2510
 
     //! \brief Tears down the front-extension `genArgs_` vector and
     //! then runs the `Waveform` base destructor. Called via the
     //! `shared_ptr` deleter when the last reference is dropped.
+    // Implicit destructor (invoked at 0x2a1300 via __on_zero_shared).
     ~WaveformFront();
 
     /*! \brief Format a human-readable single-line description of
@@ -91,7 +92,7 @@ struct WaveformFront : Waveform {
      *
      *  \return The formatted description.
      */
-    std::string toString() const;
+    std::string toString() const;  // 0x2c5120
 
     // --- Convenience accessors that forward to existing fields ---
     // (these forward to Waveform-base or our own bools; they exist so legacy

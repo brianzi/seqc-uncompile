@@ -1232,6 +1232,6 @@ std::string str(VarType vt);
 //! name used in diagnostics.
 //! \param vst Enumerator to format.
 //! \return Display name of the enumerator.
-std::string str(VarSubType vst);
+std::string str(VarSubType vst);  // 0x247ee0
 
 } // namespace zhinst

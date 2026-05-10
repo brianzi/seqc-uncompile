@@ -128,7 +128,7 @@ struct PlayConfig {
     //! exact memberwise equality.
     //! \param other Configuration to compare against.
     //! \return `true` if any compared field differs, `false` otherwise.
-    bool operator!=(const PlayConfig& other) const;
+    bool operator!=(const PlayConfig& other) const;  // 0x1d5770
 
     //! \brief Serialise this configuration to a JSON object.
     //! \details The produced object has exactly ten keys:

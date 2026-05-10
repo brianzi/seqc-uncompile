@@ -221,6 +221,7 @@ public:
     //!                  `0` disables the cache.
     //! \param cachePath Directory in which cached `.wave` artifacts and
     //!                  the `index` file are stored.
+    // Only ctor present in the binary.
     CachedParser(std::size_t cacheSize, const boost::filesystem::path& cachePath);
 
     //! \brief Destroy the parser; the on-disk index is not flushed
@@ -264,7 +265,7 @@ public:
                    const std::vector<std::uint8_t>& markers,
                    int markerBits,
                    const std::vector<double>& samples,
-                   const std::vector<std::uint8_t>& markerBitsVec);
+                   const std::vector<std::uint8_t>& markerBitsVec);  // 0x2b05b0
 
     //! \brief Decide whether a previously cached `.wave` artifact is
     //! out-of-date relative to its source file.
@@ -281,7 +282,7 @@ public:
     //! \param name Path of the cached `.wave` file.
     //! \return `true` if the cached file is missing, malformed, or
     //!         older than its source.
-    bool cacheFileOutdated(const std::string& name) const;
+    bool cacheFileOutdated(const std::string& name) const;  // 0x2b14d0
 
     //! \brief Look up a cached parse result by content hash.
     //! \details On a hit, refreshes the entry's `timestamp_` and pins
@@ -296,7 +297,7 @@ public:
     //! \param hash Content hash to look up.
     //! \return Loaded data on a cache hit; default-constructed value
     //!         on a miss.
-    CachedFile getCachedFile(const std::vector<unsigned int>& hash);
+    CachedFile getCachedFile(const std::vector<unsigned int>& hash);  // 0x2b1900
 
     //! \brief Compute the content hash of a source file.
     //! \details Returns an empty vector if the cache is disabled;
@@ -304,7 +305,7 @@ public:
     //! \param filePath Path of the source file to hash.
     //! \return Content hash, or an empty vector when the cache is
     //!         disabled.
-    std::vector<unsigned int> getHash(const std::string& filePath) const;
+    std::vector<unsigned int> getHash(const std::string& filePath) const;  // 0x2b1fe0
 
 private:
     //! \brief Deserialise `index_` from `indexFilePath_` and

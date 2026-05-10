@@ -6303,3 +6303,105 @@ neighbouring `// ----` comment block, also re-read the body —
 the comment block may describe the intended API while the
 verified body describes a slightly different one.  Block-header
 comments age out of sync with the code they describe.
+
+---
+
+## IF-238  D5-1 through D5-7 silently dropped reconstruction-comment information
+
+**Severity**: medium
+**Status**: fixed (this commit)
+**Discovered**: 2026-05-11 mid-D5
+
+### Summary
+
+The D5 documentation pass (commits `1bbc46a` D5-1, `0104d2b` D5-2,
+`5b8462d` D5-3, `74c5012` D5-4, `0bf65ce` D5-5, `c251ebe` D5-6, plus
+the partially-applied D5-7 in `2d547ae`) added Doxygen `//!` briefs
+across 14 header / source files but in the process **silently
+deleted** a number of plain `//` reconstruction-annotation lines
+that carried recon-only facts with no Doxygen-side equivalent.
+
+The lost information consisted primarily of binary-symbol address
+anchors (`// 0x2b05b0`, `// Reconstructed from operator!= at
+0x1d5770`) and reconstruction-history provenance (rename history
+of asm opcodes such as `// (was: UNK_FB)`, `cmdMap` confirmation
+notes such as `// confirmed: cmdMap "xorr"`, the "only ctor in the
+binary" forbidden-overload note for `CachedParser`, etc.).  Field
+offsets, ABI padding markers, and behavioural prose were almost
+always *relocated* (folded into the new `//!` briefs) and survived
+intact; the genuinely-dropped facts were narrowly the addresses
+and the recon-history annotations.
+
+### Audit
+
+A four-way subagent audit walked `git diff 0116fe7..HEAD` for
+every removed `-//` line and categorised each as RESTORE,
+RELOCATED, COSMETIC, or STALE/CORRECTED.  Across all 14 files,
+14 lines were classified as RESTORE:
+
+- `play_config.hpp`: 1 (operator!= address)
+- `waveform_front.hpp`: 3 (copy-rename ctor, dtor, toString addresses)
+- `assembler.hpp`: 5 (XORR/WWVF cmdMap provenance, WVFEI/WVFET/JMP rename history)
+- `resources.hpp`: 1 (`str(VarSubType)` address `0x247ee0`)
+- `cached_parser.hpp`: 5 (`cacheFile` / `cacheFileOutdated` / `getCachedFile` / `getHash` addresses, plus "only ctor in binary" note)
+- `signal.hpp`, `waveform.hpp`, `wavetable_front.hpp`,
+  `asm_expression.hpp`, `asm_parser_context.hpp`, `cache.hpp`,
+  `awg_assembler_impl.hpp`, `device_constants.hpp`,
+  `awg_compiler.cpp`: 0 (all dropped lines either RELOCATED or COSMETIC)
+
+In addition, one STALE/CORRECTED candidate was identified in
+`resources.hpp`: the pre-pass `//` comment above
+`Function::addArgument` claimed the implementation calls
+`scope->addVar(name, VarSubType_Stub)`, but the new `//!` brief
+asserted `VarSubType_FunctionArg`.  The two contradicted each
+other; the deletion was a silent correction rather than a silent
+loss.
+
+### Verification
+
+`reconstructed/src/runtime/resources_function.cpp:335` — the
+verified body of `Resources::Function::addArgument` (binary
+`@0x1e9f60`) calls `scope->addVar(name, VarSubType_FunctionArg)`,
+matching the new `//!` brief; the pre-pass `// VarSubType_Stub`
+text was wrong (drifted text).  This is corroborated by five
+independent comments elsewhere in `resources.cpp` (lines 1071,
+1089, 1128, 1265, 1297) all referring to `VarSubType_FunctionArg`
+as the parameter-binding subtype passed by `Function::addArgument`.
+
+### Resolution
+
+This commit:
+
+1. Restores the 14 RESTORE-bucket lines as `//` annotations
+   adjacent to the corresponding `//!` brief blocks (typically as
+   trailing `// 0xNNNNNN` address anchors on the declaration
+   line, or as a standalone `//` recon note immediately below the
+   `//!` block).
+2. Leaves the STALE/CORRECTED case unchanged in source — the new
+   `//!` brief is verified-correct, and the pre-pass `//` claim
+   is verified-wrong.  The forensic record lives in this IF
+   instead of being restored as a stale comment.
+3. Adds §14 to `reconstructed/notes/comment_style_guide.md`
+   defining the `//` ↔ `//!` coexistence rule:
+   *content preservation, not form preservation*.  Future doc
+   passes must keep recon-only facts (addresses, offsets, ABI
+   notes, rename history) somewhere in the file even when the
+   form moves.
+
+### Lessons
+
+- Verify-then-write applies to deletion as well as addition.
+  Removing a `//` line during a doc pass is equivalent to
+  asserting "this fact is preserved elsewhere" — that
+  assertion must be checked before the line is dropped.
+- Address anchors (`// 0xNNNNNN`) are the most easily-lost
+  category because they have no behavioural equivalent in the
+  user-facing brief and are visually small.  Future passes
+  should sweep address comments specifically.
+- Subagent dispatch contracts should explicitly list the
+  recon-fact categories that must be preserved (addresses,
+  offsets, ABI padding, rename history, "only X in binary"
+  forbidden-overload notes, JSON-key inventories,
+  notes-file cross-references).
+
+

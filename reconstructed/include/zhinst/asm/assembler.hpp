@@ -92,6 +92,7 @@ public:
         SSL        = 0x60000005,  //!< Single-bit shift left.
         SSR        = 0x60000006,  //!< Single-bit shift right.
         XORR       = 0x60000007,  //!< Register XOR register → destination register.
+                                  // Mnemonic confirmed via cmdMap entry "xorr".
 
         // ALU — register + immediate (low / upper)
         ANDI       = 0x70000000,  //!< AND register with immediate.
@@ -106,6 +107,7 @@ public:
         WTRIG      = 0xE0000000,  //!< Wait for trigger event.
         WPRF       = 0xF0000000,  //!< Wait for prefetch (alias `wwvfq` in the cmd map).
         WWVF       = 0xF1000000,  //!< Wait for waveform completion.
+                                  // Mnemonic confirmed via cmdMap entry "wwvf".
         CWVF       = 0xF2000000,  //!< Configure waveform — writes the PlayConfig register.
         BRZ        = 0xF3000000,  //!< Branch if register is zero.
         BRNZ       = 0xF4000000,  //!< Branch if register is non-zero.
@@ -116,9 +118,12 @@ public:
         CWVFR      = 0xF9000000,  //!< Configure waveform with register operand.
         WVFE       = 0xFA000000,  //!< Waveform end (1-register, extended-opcode form).
         WVFEI      = 0xFB000000,  //!< Waveform end, interleaved.
+                                  // Was: UNK_FB (placeholder name in earlier passes).
         WVFET      = 0xFC000000,  //!< Waveform end, triggered.
+                                  // Was: WVFT_H (placeholder name in earlier passes).
         WTRIGI     = 0xFD000000,  //!< Wait for trigger, indexed.
         JMP        = 0xFE000000,  //!< Unconditional jump.
+                                  // Was: BRZ_H (placeholder name in earlier passes; see notes/opcode_map.md).
         FB         = 0xFF000000,  //!< Feedback / status-register read.
 
         // Sentinel

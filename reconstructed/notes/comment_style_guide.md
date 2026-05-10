@@ -277,6 +277,93 @@ int MemoryAllocator::findFreeSlot(uint32_t requestedSize);
 
 ---
 
+## 14. Coexistence of `//!` documentation and `//` reconstruction notes
+
+When adding `//!` documentation to a declaration that already carries
+reconstruction annotations, the rule is **content preservation**, not
+form preservation.  Reconstruction notes carry information the docs
+site deliberately does not surface — binary addresses, struct field
+offsets, ABI padding, "reconstructed from 0x…" provenance, observed
+behaviour, JSON-key inventories, cross-references to `notes/`.  That
+information must survive every documentation pass.  The form it lives
+in (line, position, surrounding wording) is fluid; the **facts** are
+not.
+
+### What this means in practice
+
+1. **Information first.**  Every fact in a `//` comment — binary
+   address, field offset, padding marker, behavioural observation,
+   "reconstructed from", note cross-reference — must still be present
+   somewhere in the file after a `//!` pass.  It can move (line,
+   position, wording), but it cannot be silently dropped.
+
+2. **Verify-then-write still applies (per AGENTS.md).**  When
+   integrating recon notes alongside `//!`, double-check the claim
+   against the disassembly / function body.  If a `//` claim is wrong
+   (drifted offset, stale address after a renaming pass, contradictory
+   semantics) — **correct it**, log an IF for the discrepancy, and
+   keep the corrected fact.  The `//` text is not immutable; only the
+   information content is non-negotiable.
+
+3. **Two audiences, two channels.**  `//!` is for the user of the docs
+   site (behaviour, contract, types, units).  `//` carries
+   recon-internal facts that we deliberately do not surface in the
+   docs (offsets, addresses, ABI footnotes, internal-only provenance).
+   When a fact is genuinely both — e.g. a behavioural observation with
+   no binary-specific anchoring — folding it into the `//!` brief and
+   removing the `//` original is fine, because the information has
+   moved, not vanished.
+
+4. **Cosmetic-only `//` lines** carry no information and may be
+   replaced.  The test is: *does this `//` line carry a fact that
+   isn't visible elsewhere in the file?*  Examples of cosmetic-only:
+   - `// --- Static shift constants ---` section dividers (replace
+     with `\name` group when desired).
+   - Heading-style separators with no content beyond the heading.
+
+5. **Anti-patterns** (observed in D5-1 and corrected):
+   - Deleting `// Reconstructed from operator!= at 0x1d5770.` — this
+     is recon-only provenance (binary address) and has no `//!`
+     equivalent; it must be kept.
+   - Deleting `// 3 bytes padding` between fields — this is an ABI
+     fact about the struct layout and has no `//!` equivalent.
+   - Folding `+0x04` field offsets into `//!<` field briefs and
+     removing the trailing `// +0x04` — the offset then leaks into
+     the user-facing docs site (which does not want addresses) **and**
+     the standalone recon annotation is lost.
+   - Replacing a multi-line `//` prose block describing a
+     reconstruction observation with a `//!` brief that paraphrases
+     only part of it.
+
+### Practical layout
+
+The two channels typically stack, with `//` reconstruction notes
+nearest the declaration on the side that suits the fact:
+
+```cpp
+//! \brief Equality comparison ignoring transient fields.
+//! \details Compares hold only when rate > 0.
+// Reconstructed from operator!= at 0x1d5770.
+// Field-wise inequality. Special: hold field only compared when rate > 0.
+bool operator!=(const PlayConfig& other) const;
+```
+
+For fields, the `//!` brief goes above and the recon offset trails:
+
+```cpp
+//! \brief Sample-rate divider. JSON key `"rate"`.
+int32_t rate = 0;       // +0x04
+```
+
+ABI padding is recon-only and stays inline:
+
+```cpp
+bool dummy = false;     // +0x1E
+// 1 byte padding
+```
+
+---
+
 ## What is NOT used in source files
 
 | Pattern | Reason removed |
