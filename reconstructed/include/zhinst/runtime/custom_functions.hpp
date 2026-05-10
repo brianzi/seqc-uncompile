@@ -1316,9 +1316,81 @@ public:
     //! \throws  `CustomFunctionsException` on argument-count or
     //!          unknown-variant errors.
     std::shared_ptr<EvalResults> getFeedback(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x132420
+    //! \brief Implement the SeqC `setID` built-in.
+    //!
+    //! Verifies device support against `kDevHirzelAll` and emits an
+    //! `sid` instruction tagging subsequent traffic with a sequencer
+    //! identifier.  When the argument is a `Var`, its register is
+    //! used directly; for a `Const` or `Cvar`, a fresh register is
+    //! allocated, loaded with the value via `addi`, and then passed
+    //! to `sid`.  The `isShf` flag is forwarded so the assembler can
+    //! select the SHF-family encoding.
+    //!
+    //! \param args  Single argument: register or constant identifier.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `sid` (and optional `addi`) instructions.
+    //! \throws  `CustomFunctionsException` on argument-count or
+    //!          type errors, or when the device is not supported.
     std::shared_ptr<EvalResults> setID(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                 // @0x1334a0
+
+    //! \brief Implement the SeqC `assignWaveIndex` built-in.
+    //!
+    //! Registers a multi-channel waveform with an explicit
+    //! command-table index.  Behaviour:
+    //!   - If a leading string argument is present, validates it
+    //!     against the C-identifier regex `[a-zA-Z_][a-zA-Z0-9_]*`
+    //!     and records it in `assignedWaveNames_`.
+    //!   - Constructs `PlayArgs`, parses the remaining arguments,
+    //!     and requires the trailing argument to be a `Const`/`Cvar`
+    //!     wave index.
+    //!   - Walks `waveAssignments_[deviceIndex]`, builds the
+    //!     channel-arg list, and clears trigger-mask bits per
+    //!     channel-bit assignment.
+    //!   - Calls `mergeWaveforms` to produce a single
+    //!     `WaveformFront`, marks it `used`, encodes a `PlayConfig`
+    //!     into `playConfig`, and routes it through
+    //!     `wavetableFront_->assignWaveIndex(wf, waveIndex)` (with an
+    //!     optional `updateWave(wf, name)` when a name was given).
+    //!   - Emits an `asmLoadPlaceholder` whose node carries the
+    //!     waveform name in `wavesPerDev[deviceIndex]` and the
+    //!     device index, and chains it into `results->node_`.
+    //!
+    //! \param args  Optional name string, channel waveform
+    //!              expressions, and trailing const wave index.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the placeholder
+    //!          load node.
+    //! \throws  `CustomFunctionsException` for invalid identifiers
+    //!          (`WaveIndexExceedsTable`), non-const wave-index
+    //!          arguments (`OnlyConstWaveIndex`), unsupported
+    //!          devices, or off-spec waveform lengths.
     std::shared_ptr<EvalResults> assignWaveIndex(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x133c40
+
+    //! \brief Implement the SeqC `prefetch` built-in.
+    //!
+    //! Verifies device support against `HDAWG` and forwards to
+    //! `play(args, res, SubFunc::Prefetch)`, which schedules a
+    //! waveform fetch ahead of its play instruction without emitting
+    //! the play itself.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `play()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from `play()`.
     std::shared_ptr<EvalResults> prefetch(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x1351d0
+
+    //! \brief Implement the SeqC `prefetchIndexed` built-in.
+    //!
+    //! Currently unsupported on every device — calls
+    //! `checkFunctionSupported("prefetchIndexed", kDevNone)`, which
+    //! always throws.  The body is therefore unreachable.
+    //!
+    //! \param args  Ignored.
+    //! \param res   Ignored.
+    //! \return  Never returns.
+    //! \throws  `CustomFunctionsException` (always).
     std::shared_ptr<EvalResults> prefetchIndexed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x135290
     //! \brief Implement the SeqC `playWave` built-in.
     //!
@@ -1374,6 +1446,41 @@ public:
     //!          supported, plus anything propagated from
     //!          `playIndexed()`.
     std::shared_ptr<EvalResults> playWaveIndexedNow(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x135550
+    //! \brief Implement the SeqC `playAuxWave` built-in.
+    //!
+    //! Direct emit of an `asmPlay` instruction for a multi-channel
+    //! "auxiliary" waveform set.  Verifies device support against
+    //! `kDevCervino` (UHFLI + UHFQA), constructs `PlayArgs` in
+    //! indexed mode, parses arguments, and validates the rate
+    //! (`> 4`).  When the parsed arguments do not include a marker,
+    //! the device's own channel slot in `waveAssignments_` is
+    //! processed in three aux-specific phases:
+    //!   - For each `WaveAssignment`, calls
+    //!     `wavetableFront_->checkWaveformInitialized(name)`.
+    //!   - Pads a vector of `channelsPerGroup[1]` arguments by
+    //!     scattering each assignment value to the channel positions
+    //!     it names; empty slots are filled with a `zeros` waveform
+    //!     whose length is taken from the first assignment.
+    //!   - Calls `mergeWaveforms` with `useYSuffix=true` and
+    //!     `rate` as the merge rate, then emits `asmPlay` with
+    //!     `is4Channel=true`, `suppress=mask` (`0x3FFF` for the
+    //!     empty path or `0x3FC3` for the merge path), and a
+    //!     constant `(AsmRegister(0), length=0, AsmRegister(-1),
+    //!     trigger=0)` register block.
+    //!
+    //! The `asmPlay` is skipped entirely when the merged waveform is
+    //! null and the device is not Hirzel, and the per-channel body
+    //! is skipped when `PlayArgs::hasMarker_` is set.
+    //!
+    //! \param args  At least one play argument (waveforms,
+    //!              optional rate); first arg is required.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `asmPlay` (when emitted).
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`FuncMinArgs`), invalid rate (`SampleRateTooHigh`),
+    //!          unsupported devices, off-spec waveform lengths, or
+    //!          uninitialised waveform names.
     std::shared_ptr<EvalResults> playAuxWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x135610
 
     //! \brief Implement the SeqC `playAuxWaveIndexed` built-in.
@@ -1390,8 +1497,86 @@ public:
     //!          supported, plus anything propagated from
     //!          `playIndexed()`.
     std::shared_ptr<EvalResults> playAuxWaveIndexed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x136930
+    //! \brief Implement the SeqC `playDIOWave` built-in.
+    //!
+    //! Emits an `asmPlay` instruction whose trigger mask is derived
+    //! from a single-channel waveform merge plus optional
+    //! marker-bit clearing.  Phases:
+    //!   - Asserts external triggering mode is `Dio` (transitioning
+    //!     from `None` if needed) and verifies device support
+    //!     against `kDevCervino`.
+    //!   - Requires at least one argument; constructs `PlayArgs`
+    //!     in non-indexed mode, parses arguments, and validates
+    //!     `rate > 1`.
+    //!   - When no marker was parsed, walks
+    //!     `waveAssignments_[deviceIndex]`: non-`Const` entries are
+    //!     pushed into a channel-arg vector, and each entry's `bits`
+    //!     clear bytes from a default `0x3FFF` mask via
+    //!     `mask &= ~(0x40 << (7 * b))`.
+    //!   - When channel arguments exist, calls `mergeWaveforms`
+    //!     with `channelsPerGroup[0]` to produce the merged
+    //!     waveform, derives a `dryRun` flag from the second
+    //!     channel-arg's emptiness, and validates the result via
+    //!     `checkOffspecWaveLength`.
+    //!   - Emits `asmPlay` with the single-element waveforms vector,
+    //!     `isHold=dryRun`, the computed `mask` as `length`, and
+    //!     fixed `(AsmRegister(0), AsmRegister(-1), trigger=0)`
+    //!     auxiliary registers.  The emit is suppressed when the
+    //!     merged waveform is null and the device is not Hirzel.
+    //!
+    //! \param args  Channel-waveform expressions and optional rate.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `asmPlay` (when emitted).
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`FuncMinArgs`), invalid rate
+    //!          (`DioSampleRateTooHigh`), unsupported devices, or
+    //!          incompatible external triggering mode.
     std::shared_ptr<EvalResults> playDIOWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x1369f0
+
+    //! \brief Implement the SeqC `playWaveDIO` built-in.
+    //!
+    //! Emits a single `wvft` instruction whose mask is
+    //! `1 << execTableIndexBits`, triggered by a DIO event.
+    //! Asserts external triggering mode is `Dio`, verifies device
+    //! support against `kDevHirzel`, and rejects any arguments
+    //! (`FuncExpectsNoArgs`).
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `wvft` instruction.
+    //! \throws  `CustomFunctionsException` when arguments are
+    //!          supplied, the device is unsupported, or the
+    //!          triggering mode is incompatible.
     std::shared_ptr<EvalResults> playWaveDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x137740
+
+    //! \brief Implement the SeqC `playWaveZSync` built-in.
+    //!
+    //! Emits a single `wvft` instruction whose mask is derived from
+    //! a `Const` argument naming one of three ZSYNC data-source
+    //! resources.  Phases:
+    //!   - Asserts external triggering mode is `ZSync` and verifies
+    //!     device support against `kDevHirzel`.
+    //!   - Requires exactly one argument and rejects non-`Const`
+    //!     types (`FuncExpectsConst`).
+    //!   - Reads `ZSYNC_DATA_RAW`, `ZSYNC_DATA_PROCESSED_A`, and
+    //!     `ZSYNC_DATA_PROCESSED_B` constants and matches the
+    //!     argument's integer value, selecting shift `1`, `9`, or
+    //!     `0xD` respectively.  Throws `InvalidZSyncData` when no
+    //!     constant matches.
+    //!   - Calls `setWaitCyclesReg` (always a no-op given the
+    //!     single-argument requirement), then emits
+    //!     `wvft(AsmRegister(0), shift << execTableIndexBits)`.
+    //!
+    //! \param args  Single `Const` argument: a `ZSYNC_DATA_*` value.
+    //! \param res   Resource scope used to read the ZSYNC constants.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `wvft` instruction.
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`FuncArgs2or3`), wrong type (`FuncExpectsConst`),
+    //!          unknown variant (`InvalidZSyncData`), unsupported
+    //!          devices, or incompatible triggering mode.
     std::shared_ptr<EvalResults> playWaveZSync(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x137a50
 
     //! \brief Implement the SeqC `playWaveDigTrigger` built-in.
@@ -1408,7 +1593,65 @@ public:
     //!          supported, plus anything propagated from `play()`
     //!          (including invalid-leading-arg errors).
     std::shared_ptr<EvalResults> playWaveDigTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x1386a0
+    //! \brief Implement the SeqC `playZero` built-in.
+    //!
+    //! Emits an `asmPlay` instruction whose waveform list is empty
+    //! and whose duration is either an immediate sample count or a
+    //! runtime register.  Verifies device support against
+    //! `kDevAll`, then requires 1 or 2 arguments.  The first
+    //! argument selects the duration source:
+    //!   - `Var`: the duration is taken from `arg.reg_` at runtime;
+    //!     the immediate `length` is left at 0.
+    //!   - `Const` / `Cvar`: the integer length is validated by
+    //!     `checkPlayMinLength` and `checkPlayAlignment` and used
+    //!     as the immediate `length`; no runtime register.
+    //!
+    //! The optional second argument is a play rate parsed by
+    //! `getPlayRate(arg, "playZero", false)`; absent → `-1`.
+    //! `asmPlay` is invoked with an empty waveforms vector,
+    //! `channelIndex = config_->deviceIndex`, all hold/four-channel
+    //! flags false, `suppress = 0x3FFF`, and the
+    //! `(AsmRegister(0), length, AsmRegister(regNum), trigger=0)`
+    //! register block.  The resulting node is chained into
+    //! `results->node_`.
+    //!
+    //! \param args  1 or 2 arguments: duration (var/const) and
+    //!              optional rate.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `asmPlay` node.
+    //! \throws  `CustomFunctionsException` for argument count
+    //!          (`FuncMinArgs`, `FuncExpectsMaxArgs`),
+    //!          alignment / minimum-length violations, or
+    //!          unsupported devices.
     std::shared_ptr<EvalResults> playZero(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x1387f0
+
+    //! \brief Implement the SeqC `playHold` built-in.
+    //!
+    //! Identical in structure to `playZero` but emits the play with
+    //! the `hold` flag set so the previous output sample is
+    //! repeated for the duration.  Verifies device support against
+    //! `kDevHirzel`, requires 1 or 2 arguments, and dispatches the
+    //! duration source on the first argument's `varType_`:
+    //!   - `Var`: runtime register from `arg.reg_`; immediate
+    //!     length 0.
+    //!   - otherwise: immediate length validated by
+    //!     `checkPlayMinLength` and `checkPlayAlignment`.
+    //!
+    //! Optional second argument is the play rate via
+    //! `getPlayRate(arg, "playHold", false)`; absent → `-1`.  The
+    //! `asmPlay` call is identical to `playZero` except `hold=true`.
+    //! The resulting node is chained into `results->node_`.
+    //!
+    //! \param args  1 or 2 arguments: duration (var/const) and
+    //!              optional rate.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `asmPlay` node.
+    //! \throws  `CustomFunctionsException` for argument count
+    //!          (`FuncMinArgs`, `FuncExpectsMaxArgs`),
+    //!          alignment / minimum-length violations, or
+    //!          unsupported devices.
     std::shared_ptr<EvalResults> playHold(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x139030
     std::shared_ptr<EvalResults> wait(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x139760
     std::shared_ptr<EvalResults> waitWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x13a980

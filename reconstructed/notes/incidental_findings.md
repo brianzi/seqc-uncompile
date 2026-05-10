@@ -5327,3 +5327,104 @@ the `\brief` for `size()` (D4 Batch 3a).  No new test added
 because the function is dead code in the current pipeline;
 if a future reconstruction wires it into a live caller the
 brief alone documents the intended semantics.
+
+## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
+
+**Severity**: cosmetic (readability / doc-accuracy hazard).
+**Status**: open.
+**Discovered**: D4 Batch 4e while writing briefs for
+`playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
+`playZero`, `playHold` in
+`reconstructed/src/runtime/custom_functions_playback.cpp` and
+the wave-index built-ins in
+`reconstructed/src/runtime/custom_functions_dio.cpp`.
+
+Many reconstructed call sites still carry raw hex/decimal
+literals inherited from disassembly, even though the same
+value has a name elsewhere in the tree (or could trivially be
+given one).  Categories observed so far:
+
+1. **Device-support bitmasks** passed to
+   `checkFunctionSupported`.  `core/types.hpp:32-43` already
+   exports `kDevAll`, `kDevAllButUHF`, `kDevHirzel`,
+   `kDevSHFPlus`, `kDevLIFamily`, `kDevCervino`, `kDevUHF`,
+   `kDevPreSHFLI`, `kDevQA`, `kDevHirzelAll`,
+   `kDevHirzelPlusUHFQA`, `kDevNone`.  Yet
+   `custom_functions_playback.cpp` repeatedly writes
+   `static_cast<AwgDeviceType>(5)` (= `kDevCervino`) for
+   `playWaveNow`, `playWaveIndexed`, `playWaveIndexedNow`,
+   `playAuxWaveIndexed`, `playWaveDigTrigger`, `playAuxWave`,
+   `playDIOWave`, `now`, and `setRate`.
+
+2. **Trigger-mask defaults**: `0x3FFF` (full 14-bit mask) and
+   `0x3FC3` (aux-merge variant) appear inline in
+   `playAuxWave`, `playDIOWave`, `assignWaveIndex`, `play`.
+   The per-channel byte-clear pattern
+   `mask &= ~(0x40 << (7 * b))` recurs in `playDIOWave` and
+   `assignWaveIndex` with the same semantics.
+
+3. **ZSYNC shift constants**: `1`, `9`, `0xD` for
+   `ZSYNC_DATA_RAW`, `_PROCESSED_A`, `_PROCESSED_B` in
+   `playWaveZSync` (`custom_functions_playback.cpp:777, 783,
+   789`).  These are bound to the matched constant's name in
+   prose but live as bare ints in the code.
+
+4. **Sentinel registers**: `AsmRegister(-1)` is used as the
+   "unused second register" slot in every `asmPlay` call site
+   (`playAuxWave`, `playDIOWave`, `playZero`, `playHold`).
+
+5. **Rate-validity floors**: `playAuxWave` rejects
+   `rate <= 4`, `playDIOWave` rejects `rate <= 1`.  Both are
+   bare literals with no shared symbol.
+
+6. **PlayConfig encoding**: per-field shift/mask constants
+   inside `PlayConfig::encodeCwvf` / `genPlayConfig` are
+   currently raw literals; not yet audited for promotion to
+   named members of `PlayConfig` itself.
+
+7. **`wvft` reg-zero immediate**: `AsmRegister(0)` as the
+   first arg of every `wvft(…)` call site
+   (`playWaveDIO`, `playWaveZSync`, `executeTableEntry`).
+
+**Why this is filed as cosmetic**: the literals are
+binary-faithful — every value matches the original
+disassembly — and there is no behavioural bug.  The cost is
+borne by readers and by D4 doc-comment accuracy: briefs end
+up quoting the literal (e.g. the `playAuxWave` brief
+references three separate trigger-mask hex values), which
+then drifts whenever the constant is renamed.
+
+**Risk if left open**: a future reconstruction pass renames a
+literal in one site without updating its sibling sites,
+producing silent semantic drift.  Doc briefs that quote the
+literal also rot independently of the call site they
+describe.
+
+**Suggested fix scope** (NOT promoted to TODO.md without
+user agreement):
+
+- E1: replace `static_cast<AwgDeviceType>(N)` arguments to
+  `checkFunctionSupported` with the matching `kDev*` alias
+  from `core/types.hpp`.  All required aliases already exist;
+  no new constants needed.  Easiest sub-task; expected to
+  close ~30 call sites.
+- E2: introduce named constants for the trigger-mask
+  defaults (`kPlayTriggerMaskFull = 0x3FFF`,
+  `kPlayTriggerMaskAuxMerge = 0x3FC3`) and a helper
+  `clearChannelTriggerByte(mask, bit)` for the
+  `0x40 << (7*b)` pattern.
+- E3: name the ZSYNC shift constants in `playWaveZSync`.
+- E4: name `AsmRegister(-1)` and the rate-validity floors.
+- E5: audit `PlayConfig` field encoding for promotion to
+  named members.
+
+**Verification requirement for any fix**: must be NFC at the
+binary level — every replacement is a literal-for-name swap
+that compiles to the same value.  Confirm by running the full
+diff-test suite after each sub-phase and spot-checking ELF
+byte output for a representative test.
+
+**Anti-scope**: opcode bit positions inside the assembler
+encoders are intentionally left as literals — they belong
+next to the encoder body, not in a shared header, and are
+already covered by the surrounding context.
