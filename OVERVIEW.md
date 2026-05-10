@@ -898,6 +898,26 @@ mainpage.
     `SHFPPC2`, `SHFPPC4`).  No source changes; no new
     IFs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7i (2026-05-10)**: Briefs across
+    `include/zhinst/core/types.hpp`: `AwgDeviceType`
+    one-hot enum + per-value briefs, the 12 `kDev*`
+    named bitmask combinations, the `EDirection` enum
+    + per-value briefs, the four `kRateInherit` /
+    `kNoWaveIndex` / `kNoNodeId` / `kNoPlayIndex`
+    sentinels, the two `kChannelTag_I` / `kChannelTag_Q`
+    `writeToNode` channel tags, and every SUSER
+    register-address constant grouped under a single
+    `\name` Doxygen group (write-protocol, trigger /
+    timing, sync, AWG-core / wait, oscillator / sine
+    phase, PRNG, QA, frequency-sweep, misc) plus the
+    two LD/ST direct-address constants in their own
+    group.  Cross-references the
+    `cervino_vs_hirzel.md` and `special_registers.md`
+    notes for the full register map.  Existing
+    block-header comments preserved verbatim alongside
+    the new `//!`/`//!<` briefs.  No source changes;
+    no new IFs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
