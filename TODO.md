@@ -686,8 +686,34 @@ cross-reference pages so the backlog is discoverable.
                 device-conditional branches (mapped vs absolute
                 mode, `.nodes` vs `.nodes_json`) currently live
                 only in scattered comments.
-    - [ ] **D5-7** — Waveform-IR remainder: WavetableFront /
-          WavetableManager / WaveformFront.
+    - [x] **D5-7** — Waveform-IR remainder: WavetableFront /
+          WavetableManager / WaveformFront. Done (2d547ae).
+          Scope-discovery finding: WavetableFront /
+          WavetableManager were already fully briefed in
+          D4-3c-i/ii/iii (445c0c0, 91d9e41, f08c46f); the
+          genuinely-uncovered file in this scope was
+          `waveform_front.hpp` (struct-level brief only).
+          Result: +19 briefs on WaveformFront (5 fields,
+          4 declared methods, 9 inline accessors) plus 1
+          brief on `WavetableManager<T>` default ctor.
+          One new \\binarynote (WaveformFront 3-arg ctor
+          inlined into WavetableManager::newWaveformFromFile).
+          No IFs surfaced. Coverage 44.4% → 45.0%.
+    - [x] **D5-AUDIT** — Reconstruction-comment preservation
+          audit + restoration (IF-238). Done (bd0c54b).
+          Four-way subagent audit of `git diff 0116fe7..HEAD`
+          surfaced 14 silently-dropped recon-only `//` lines
+          across 5 files (binary-address anchors + opcode
+          rename history + 'only ctor in binary' note);
+          all restored as // comments adjacent to the //!
+          briefs. One STALE/CORRECTED case
+          (`Function::addArgument` `VarSubType_Stub` vs
+          `_FunctionArg`) verified — //! is correct, pre-pass
+          // text was drifted; forensic record in IF-238.
+          Style-guide §14 added: 'content preservation, not
+          form preservation' rule; verify-then-write applies
+          to deletion as well as addition. Build clean,
+          docs 0-warning, 1602/1602.
     - [ ] **D5-8** — Remaining smaller compounds: Exception,
           MemoryAllocator, AsmExpression, SeqC list types, etc.
     - [ ] **D5-9** — `zhinst::` namespace free functions
