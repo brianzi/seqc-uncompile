@@ -549,8 +549,145 @@ public:
      *               becomes the new head.
      */
     std::shared_ptr<Node> moveLoadsToFront(std::shared_ptr<Node> node); // 0x1ccad0
+    /*! \brief Core merge / hoist / clone pass that compresses
+     *  `Load` nodes against their parent context.
+     *
+     *  \details Walks the tree LIFO via a `std::deque` worklist
+     *  (`push_back` / `back` / `pop_back`).  For each popped node
+     *  the parent is resolved from `Node::parent` (weak_ptr) and
+     *  one of four cases is taken on the *current* node's type:
+     *
+     *  - `NodeType::Loop` (`0x08`) — push `next`, then push the
+     *    loop body (`Node::loop`).
+     *  - `NodeType::Branch` (`0x04`) — push `next`, then push
+     *    every child in `Node::branches`.
+     *  - `NodeType::Load` (`0x01`) — the optimization target.
+     *    Dispatches further on `parent->type`:
+     *
+     *    - Parent is `SetVar` (`0x10`) and parent's `lengthReg`
+     *      equals current's: when the parent's own parent exists
+     *      and is not a Loop, copy parent's `asmId` to current;
+     *      then push current's `next` and clean up.
+     *    - Parent is `Load` (`0x01`): copy parent's `asmId` to
+     *      current, then walk the ancestor chain
+     *      (`parent->parent->...`) while every step is a `Load`.
+     *      For each ancestor call `sameLoads(ancestor, current)`
+     *      — on a hit invoke `mergeLoads(current, ancestor)`,
+     *      push `root_`, and clean up.  On a full chain miss,
+     *      fall through to the waveform-fit check.
+     *    - Parent is `Play` (`0x02`): call `sameLoads(current,
+     *      parent)`.  On a hit, look up `current` in
+     *      `nodeStates_`; if its `pagesNeeded >= 2` push current's
+     *      `next` and continue; otherwise reset parent's state,
+     *      lock parent's `loadRef`, call `mergeLoads(current,
+     *      parent->loadRef)`, push `root_`, and clean up.  On a
+     *      miss, fall through to the waveform-fit check.
+     *    - Other parent type: look up parent in `nodeStates_` to
+     *      grab `usedCache_`, then fall through to the
+     *      waveform-fit check.
+     *
+     *    The waveform-fit tail (sub-cases that did not merge):
+     *    resolve the current node's waveform name from
+     *    `wavesPerDev[deviceIndex]`, look up its `WaveformIR`
+     *    via `wavetableIR_`, compute the byte size as
+     *    `channels * ceil(sampleCount / alignment) * alignment *
+     *    bitsPerSample / 8` capped by `playConfig.maxSamples`,
+     *    divide by `nodeStates_[current].pagesNeeded` to get the
+     *    pages required, and if `parent.usedCache_` is too small
+     *    push `next` and continue.  Otherwise the waveform fits:
+     *    on `refTrack > 0` swap nodes via `Node::swap`, fix up
+     *    `asmId`, re-push `root_`; on `refTrack <= 0` clone the
+     *    current node, splice the clone in after
+     *    `Node::last(current)` via `Node::updateParent`, detach
+     *    the original, and call `assignLoad(clone, current,
+     *    config_->isHirzel)` before re-pushing `root_`.
+     *
+     *  - Any other node type — push `next` if present.  No further
+     *    work.
+     *
+     *  Throws `std::out_of_range` when an expected entry is
+     *  missing from `nodeStates_`.
+     *
+     *  \param node  Root of the sub-tree to optimize.  Typically
+     *               `root_`, but the algorithm is re-entered on
+     *               clones spliced in by other passes.
+     */
     void optimize(std::shared_ptr<Node> node);                         // 0x1cdae0
+    /*! \brief Reorder `Placeholder` and `Load` nodes so that any
+     *  `Placeholder` is positioned immediately before the next
+     *  `Load` it precedes.
+     *
+     *  \details LIFO walk via `std::deque`
+     *  (`push_back` / `back` / `pop_back`) starting from `node`.
+     *  At each step the children (`next`, every entry in
+     *  `branches`, and `loop`) are pushed first; then the current
+     *  node's type drives a small state machine that tracks the
+     *  most recently seen `Placeholder`:
+     *
+     *  - `NodeType::Load` — when a pending `Placeholder` is
+     *    tracked, call `Node::swap(lastPlaceholder, current)` to
+     *    move the placeholder ahead of this load.
+     *  - `NodeType::Placeholder` — record the node as the new
+     *    `lastPlaceholder`.
+     *  - Anything else — clear `lastPlaceholder`.
+     *
+     *  This guarantees that downstream passes see each
+     *  placeholder adjacent to the load it parameterises, which is
+     *  the layout the wavetable patch-up code in `placeCommands`
+     *  expects.
+     *
+     *  \param node  Root of the sub-tree to scan.  Usually
+     *               `root_`.
+     */
     void optimizeSync(std::shared_ptr<Node> node);                     // 0x1cf7b0
+    /*! \brief Propagate the running `PlayConfig` (channel-mask,
+     *  rate, marker / trigger / precomp flags) down the node
+     *  chain so that every node carries the correct
+     *  `currentCwvf`.
+     *
+     *  \details Iterative walk along `next` (with recursion into
+     *  `branches` and `loop`).  Carries three running quantities
+     *  initialised from the input node: `cwvf` (the running
+     *  `PlayConfig`), `globalRate`, and `defaultPrecompFlags`.
+     *
+     *  Per-node behaviour (key `NodeType` values):
+     *
+     *  - `Branch` (`0x04`) — write `globalRate`, then for each
+     *    branch child propagate the running config and recurse;
+     *    after all branches converge, adopt the common state if
+     *    every branch agreed (PlayConfig field-by-field, with
+     *    special hold/rate handling, plus
+     *    `defaultPrecompFlags`); otherwise reset to "invalid"
+     *    (channel mask `-1`, all flags zero) so the next `Play`
+     *    forces a fresh CWVF instruction.
+     *  - `Table` (`0x200`) — write the running config and check
+     *    whether the node qualifies for CWVF folding
+     *    (`config.dummy || config.hold`, plus rate / precomp
+     *    conditions); if so copy the running CWVF over the
+     *    node's default config and call `globalCwvf(node)` to
+     *    update global agreement.
+     *  - `Loop` (`0x08`) — write the config, propagate it into
+     *    the loop body, walk the body's `next` chain to its tail,
+     *    and adopt the tail's config as the new running state.
+     *  - `Rate` (`0x20`) — write the config, then adopt the
+     *    node's `defaultPrecompFlags` going forward.
+     *  - `SetPrecomp` (`0x1000`) — write the config, then adopt
+     *    the node's `globalRate` going forward.
+     *  - Any other type — write the running config to the node.
+     *
+     *  After the per-type handling the running CWVF is also
+     *  written to the `Prefetch`-owned tracking fields, then the
+     *  walk advances to `node->next`.
+     *
+     *  Throws `ZIAWGCompilerException` (formatted via
+     *  `ErrorMessages::format`) on two structural failures: the
+     *  post-`Branch` next-chain scan finding no qualifying
+     *  terminator, and the analogous post-`SetPrecomp` scan
+     *  failure.
+     *
+     *  \param node  Root of the sub-tree to propagate through.
+     *               Usually `root_`.
+     */
     void optimizeCwvf(std::shared_ptr<Node> node);                     // 0x1cfc70
     void allocate(std::shared_ptr<Node> node, std::shared_ptr<Cache> cache); // 0x1d0fb0
     std::vector<std::shared_ptr<WaveformIR>> getUsedWavesForDevice(size_t deviceIdx) const; // 0x1d2d60

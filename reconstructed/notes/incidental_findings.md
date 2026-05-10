@@ -4650,3 +4650,79 @@ changes were needed.  Build clean, 1600/1600 tests pass.  The
 brief for `Prefetch::optimize` (D4 Batch 2c) can now safely
 consult the corrected header.
 
+## IF-216  `Prefetch::allocate` dispatches on `NodeType::Wait` where binary cmps `$0x40` (`Lock`)
+
+**Severity**: likely-bug.
+**Status**: open.
+**Discovered**: D4 Batch 2c verify-then-write of
+`Prefetch::allocate` (`prefetch.cpp:1552-2070`, original at
+`0x1d0fb0`).
+
+The high-NodeType dispatch at `prefetch.cpp:1571-1584` is:
+
+```cpp
+if (static_cast<int>(type) > 0x3F) { // 0x1d1025: cmp $0x3f; jg
+  if (type == NodeType::Wait) { // 0x1d1090: cmp $0x40 → 0x1d140d
+    goto handleWait;
+  } else if (static_cast<int>(type) == 0x80) { ...
+```
+
+Per the verified `NodeType` enum in
+`reconstructed/include/zhinst/ast/node.hpp:45-69`:
+
+- `Lock = 0x0040`
+- `Unlock = 0x0080`
+- `Table = 0x0200`
+- `Wait = 0x200000`
+
+The address comment on the cmp is unambiguous: `cmp $0x40`.  That
+matches `Lock`, not `Wait`.  The recon code symbolically names
+this `NodeType::Wait`, which the compiler will lower to `cmp
+$0x200000` — guaranteed to never match a Lock node and equally
+guaranteed to potentially mismatch a Wait node coming through this
+path.
+
+The `handleWait:` label at `prefetch.cpp:1797` and the
+neighbouring block-header further mislabel the `0x40` branch as
+"Wait", and `0x80` as "Rate?" (`Unlock` per the enum).  These are
+documentation mistakes in addition to the recon bug, but the
+*code* mistake is the `NodeType::Wait` symbol.
+
+Knock-on block-header errors in the same comment block:
+
+- `prefetch.cpp:1483` "type=1 (Play)" — should be `Load`.
+- `prefetch.cpp:1484` "type=2 (Load/SetVar)" — should be `Play`.
+- `prefetch.cpp:1487` "type=0x40 (Wait)" — should be `Lock`.
+- `prefetch.cpp:1488` "type=0x80 (Rate?)" — should be `Unlock`.
+
+These are the same Play↔Load swap pattern as IF-212 / IF-215, plus
+two new mislabels for the high-bit types.
+
+**Why tests still pass at 1600/1600**: no test exercises a Lock or
+Wait node reaching `Prefetch::allocate`.  Lock-using SeqC programs
+appear to be either rare in the test corpus or stripped before
+allocation.  This is likely the same coverage gap that masks
+IF-213 (`findLockedPlay` stub).
+
+**Action**:
+1. **Defer** writing the Doxygen brief for `Prefetch::allocate`
+   until the dispatch is fixed and the block-header is rewritten.
+2. GDB-trace the original binary at `0x1d0fb0` on a Lock-using
+   SeqC program (e.g. anything using `setUserReg`/`waitDigTrigger`
+   inside a lock; or write a minimal reproducer if no test covers
+   it).  Confirm whether the `cmp $0x40` branch handles `Lock`,
+   `Wait`, or both, and whether `Wait`-typed nodes reach
+   `allocate` via a different path or are stripped earlier.
+3. Once GDB-confirmed, change the symbolic name in
+   `prefetch.cpp:1573` to match (`NodeType::Lock` is the
+   address-comment-implied fix), rewrite the block-header at
+   `prefetch.cpp:1483-1490` from the verified body, and run the
+   full test suite to confirm no regressions.
+4. Add a regression test if no existing case exercises the path.
+5. Then write the doc brief for `Prefetch::allocate` against the
+   corrected source.
+
+This entry is a sibling of IF-213 (`findLockedPlay` stub) — both
+are likely-bugs in the Lock-handling pipeline that no existing
+test currently exposes.  Investigating them together (a single
+Lock-using GDB session) may resolve both.

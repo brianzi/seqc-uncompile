@@ -157,6 +157,28 @@ cross-reference pages so the backlog is discoverable.
         to `maxWaveformLength` (`min`) while `getRequiredMemory`
         clamps *up* to the same field (`max`) — opposite operations
         on the same `DeviceConstants` field.
+  - [x] **D4 Batch 2c** — `Prefetch::optimize`, `optimizeSync`,
+        `optimizeCwvf` (3 of 4 planned methods documented;
+        `allocate` deferred — see IF-216).  Surfaced and fixed
+        IF-214 (15-site "BFS" misnomer in `prefetch.cpp` /
+        `prefetch_helpers.cpp` — actually LIFO via
+        `std::deque::back()` / `pop_back()`) and IF-215
+        (`Prefetch::optimize` block-header listed dispatched type
+        as `Play 0x02` when body cmps `Load 0x01`; rebuilt header
+        from a body-verified read of the four real cases plus the
+        three Load-parent sub-cases).  IF-216 logged as
+        likely-bug: `Prefetch::allocate:1573` dispatches on
+        `NodeType::Wait` (0x200000) where the binary cmps `$0x40`
+        (`Lock`); same Play↔Load swap pattern in the surrounding
+        block-header.  No regressions; 1600/1600 tests pass.
+  - [ ] **D4 Batch 2c follow-up** — investigate IF-216 and IF-213
+        together (both Lock-pipeline likely-bugs).  Steps:
+        write a Lock-using SeqC reproducer, GDB-trace
+        `Prefetch::allocate` (`0x1d0fb0`) and `findLockedPlay`
+        (`0x1d3e80`-ish) on the original binary, confirm the real
+        dispatch behaviour, fix the recon bodies, rewrite the
+        `allocate` block-header from verified evidence, and write
+        the deferred `Prefetch::allocate` doc brief.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
