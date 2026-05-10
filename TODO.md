@@ -479,12 +479,34 @@ cross-reference pages so the backlog is discoverable.
       | grep -B1 'call.*read' | grep movabs
     ```
     decode each immediate as little-endian ASCII and compare to
-    the recon's literal arguments.
-  - Likely cosmetic (impacts user-visible error-message text only,
-    no test currently exercises these error paths) but
-    binary-faithfulness regressions should be fixed in the same
-    commit as discovery, with each finding logged under IF-230's
-    "Likely scope" section.
+    the recon's literal arguments.  For long strings (>15 chars)
+    the binary uses `lea rip-rel + movups xmm0` from rodata
+    instead of inline `movabs` — decode the rodata target with
+    `objdump -s --start-address=0x<addr> --stop-address=0x<addr+N>`.
+  - **Progress as of D4 Batch 6c (2026-05-10):**
+    - [x] `chirp` (0x250bb0) — 7 labels fixed (camelCase
+          `startFrequency`/`stopFrequency`/`phase` → spaced
+          `start frequency`/`stop frequency`/`initial phase`)
+          across 5/4/3-arg paths.  GDB-verified.  Commit `d68f5a3`.
+    - [x] `rand` (0x251cf0) — 3-arg path was a *semantic* bug,
+          not just a label; fixed under IF-231 (commit `73a2e5f`).
+    - [x] `randomGauss` (0x252930) — re-audited; already correct
+          (fixed under IF-205 earlier).
+    - [x] `randomUniform` (0x253440) — re-audited; already correct.
+    - [x] `lfsrGaloisMarker` (0x253bc0) — `"2 (marker)"` →
+          `"2 (markerBit)"` (commit `d68f5a3`).
+    - [ ] Remaining: `gauss`, `sin`, `cos`, `sawtooth`,
+          `triangle`, `drag`, `blackman`, `hamming`, `hann`,
+          `placeholder`, `vect`.  All single-arity except for
+          the trig family (which take 1 or 2 of `length`,
+          `amplitude`, `nPeriods`, `riseRatio`, `phase`); audit
+          surface is small.  Defer until briefs are written for
+          each (Batch 6d for combinators is next anyway).
+  - Likely cosmetic for the remaining factories (impacts
+    user-visible error-message text only, no test currently
+    exercises these error paths) but binary-faithfulness
+    regressions should be fixed in the same commit as discovery,
+    with each finding logged under IF-230's "Likely scope" section.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

@@ -108,13 +108,13 @@ static archive fully self-contained.
 
 | Manifest                                          | Cases |
 | ------------------------------------------------- | -----:|
-| main (default `manifest.json`) — imports the 6 leaf manifests below | 1600 |
+| main (default `manifest.json`) — imports the 6 leaf manifests below | 1601 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`manifest-core.json`      | 248 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`manifest-zhinst.json`    |  74 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`manifest-ziai.json`      | 459 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`manifest-ziasm.json`     | 468 |
 | &nbsp;&nbsp;&nbsp;&nbsp;`manifest-zivibes.json`   | 259 |
-| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-documentation.json` |  92 |
+| &nbsp;&nbsp;&nbsp;&nbsp;`manifest-documentation.json` |  93 |
 | stress (`manifest-stress.json`, standalone)       | 774 |
 | labone (`manifest-labone.json`, standalone)       |  14 |
 | large (`manifest-large.json`, standalone)         |  13 |
@@ -587,9 +587,10 @@ mainpage.
     caller is the debug-only `print`, so no production effect).
 - **Open IFs from D4** (all with full TODO entries and
   objdump / GDB recipes): IF-213, IF-217, IF-218, IF-219, IF-223,
-  IF-224, IF-226.  Each is latent — the differential test corpus
-  does not exercise the divergent code path, hence 1600/1600
-  remains green.
+  IF-224, IF-226, IF-228 (cosmetic), IF-230 (open / expanding,
+  audit ongoing per D-AUDIT-1).  Each is latent — the
+  differential test corpus does not exercise the divergent code
+  path, hence 1601/1601 remains green.
 - **Batch 3 — `WavetableIR` / `WavetableFront` /
   `WavetableManager<T>` + frontend-lowering structs** complete
   across five sub-batches (59 briefs total + 1 latent bug fix):
@@ -654,13 +655,50 @@ mainpage.
   `reportUserMessages`, `simplifyAssign`), and 4
   register-allocator routines (`registerAllocation`,
   `splitConstRegisters`, `splitReg`, `registerUpdate`).
-  Flipped `EXTRACT_PRIVATE` to `YES` in `Doxyfile.in` so the
-  new private briefs surface on the class page; the global
-  warning count remains at 0 because `EXTRACT_ALL=NO` keeps
-  undocumented privates silently skipped elsewhere in the
-  tree.  Corrected one stale legacy reconstruction comment
-  on `isLabelCalled` (the scan range is `[begin, it)`, not
-  "after `it`") in the same commit.
+   Flipped `EXTRACT_PRIVATE` to `YES` in `Doxyfile.in` so the
+   new private briefs surface on the class page; the global
+   warning count remains at 0 because `EXTRACT_ALL=NO` keeps
+   undocumented privates silently skipped elsewhere in the
+   tree.  Corrected one stale legacy reconstruction comment
+   on `isLabelCalled` (the scan range is `[begin, it)`, not
+   "after `it`") in the same commit.
+- **Batch 6 — `WaveformGenerator`** in progress, sub-batched
+  into 6a/6b/6c/6d.  6a/6b/6c complete:
+  - **6a** (`389b48e`): lifecycle / readers / shape helpers
+    (~14 briefs).  IF-229 fixed (cosmetic alias-substitution
+    overstatement on the class brief).
+  - **6b** (commit `bf89075` for fixes; `a861b55` for briefs):
+    18 simple-shape factory briefs (`zeros`, `ones`, `sin`,
+    `cos`, `sinc`, `ramp`, `sawtooth`, `triangle`, `gauss`,
+    `drag`, `blackman`, `hamming`, `hann`, `rect`, `mask`,
+    `marker`, `rrc`, `vect`).  Surfaced and fixed IF-230 in
+    `rrc` 3-arg path and `sinc` 4-arg path
+    (arity-blind hardcoded parameter-label strings); each
+    `\binarynote` cross-references IF-230.  No LaTeX in briefs
+    — formulas use plain ASCII in backticks because the doc
+    build has no LaTeX.
+  - **6c** (commits `73a2e5f`, `d68f5a3`, `83f4973`): 8 briefs
+    for `chirp`, `rand`, `randomGauss`, `randomUniform`,
+    `lfsrGaloisMarker`, `placeholder`, `filter`, `circshift`.
+    Audit surfaced two new IFs:
+    - **IF-231** (`73a2e5f`): `rand` 3-arg semantic bug.  The
+      recon implemented `rand(length, amplitude, mean)` with
+      `stddev` defaulting to 1.0; GDB-tracing the binary on
+      `rand(64, 0.25, 0.125)` proved the actual signature is
+      `rand(length, mean, stddev)` with `amplitude` defaulting
+      to 1.0 — exact symmetry with IF-205 for `randomGauss`.
+      Fixed and added the first 3-arg `rand` test case
+      (`hdawg_doc_random_waves_3arg`, +1 to suite total).
+    - **IF-230 extension** (`d68f5a3`): `chirp` had 7 labels
+      using camelCase that differed from the binary's spaced
+      strings (`startFrequency` → `start frequency`, etc.);
+      `lfsrGaloisMarker`'s second label was `"2 (marker)"`
+      instead of the binary's `"2 (markerBit)"`.  All
+      GDB-verified via SSO inline-byte inspection.
+    The briefs commit (`83f4973`) carries `\binarynote`
+    cross-references on `rand` and `randomGauss` for IF-205 /
+    IF-231.  D-AUDIT-1 in `TODO.md` updated with the
+    per-factory progress checklist.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
