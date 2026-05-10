@@ -200,6 +200,57 @@ cross-reference pages so the backlog is discoverable.
         reconstruction effort.  See IF-213 for full evidence.
         GDB driver: `tests/gdb/gdb_trace_lock.py`; recipe:
         `tests/gdb/gdb_findlocked_trace.txt`.
+  - [x] **D4 Batch 2d** — Prefetch tree-rewrite helpers (13
+        methods): `getUsedWavesForDevice`, `collectUsedWaves`,
+        `linkLoad`, `removeBranches`, `expandSetVar`,
+        `findLockedPlay`, `createLoad`, `mergeLoads`, `assignLoad`,
+        `globalCwvf`, `backwardTree`, `sameLoads`,
+        `nodeByCachePointer`.  Surfaced three likely-bugs
+        (IF-217/218/219) and a cosmetic cluster (IF-220).  Cosmetic
+        comment drift fixed in same commit; likely-bug code paths
+        flagged with `\verifyme` in briefs and explicit IF markers
+        in recon comments, deferred to dedicated follow-ups.
+        1600/1600 tests, build clean, 0 doxygen warnings.
+        (commit `1e7cd32`)
+  - [ ] **D4 Batch 2d follow-up (IF-217)** — fix
+        `Prefetch::backwardTree` to enqueue `cur->loop` instead of
+        re-enqueueing `cur->next` in the third visitor block
+        (`prefetch_helpers.cpp:259-268`).  Currently loop-body
+        children never receive a parent back-link.  GDB-trace the
+        original binary at `0x1d57d0` on a SeqC program with a
+        `repeat (...)` loop to confirm the third dispatch reads
+        `+0xE0` (`loop`) rather than `+0xB8` (`next`); flip the
+        two field reads; add a regression test asserting
+        `parent.lock()` is non-null on a node inside a loop body
+        after `backwardTree` runs.  Tests will likely remain
+        1600/1600 — the bug is latent because `Node::parent` is
+        already populated earlier in the lowering pipeline.  See
+        IF-217 for full evidence.
+  - [ ] **D4 Batch 2d follow-up (IF-218)** — reconstruct
+        `Prefetch::expandSetVar` body
+        (`prefetch_helpers.cpp:352-375`, original `0x1d3af0`).
+        Current recon body walks the sibling chain and constructs
+        `make_shared<Node>(NodeType::SetVar, ...)` clones in a
+        `for (i=1; i<numGroups; ++i)` loop, but the clones are
+        never linked into the IR — the temporary goes out of
+        scope each iteration.  `objdump -d
+        --start-address=0x1d3af0 --stop-address=0x1d3dd0
+        _seqc_compiler.so` to identify the per-clone field-copy
+        and splice; GDB-trace on a multi-channel-group SeqC
+        program that exercises SetVar emission to confirm the
+        per-group splat semantics; add regression test.  See
+        IF-218 for full evidence.
+  - [ ] **D4 Batch 2d follow-up (IF-219)** — investigate whether
+        `Prefetch::createLoad` is missing an "already-loaded"
+        early-return that the legacy block-header documented.
+        `objdump -d --start-address=0x1d4a10
+        --stop-address=0x1d5040 _seqc_compiler.so` to confirm
+        whether the binary actually has the `parent.lock() &&
+        loadRef set → return null` guard before the
+        `Resources::getRegisterNumber` call.  If yes, add the
+        guard.  Bug is latent on the current call graph (each node
+        is only visited once per pass).  See IF-219 for full
+        evidence.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
