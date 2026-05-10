@@ -109,19 +109,38 @@ namespace detail {
 //! `makeDeviceFamilyFactory`.
 class DeviceFamilyFactory {
 public:
+    //! \brief Polymorphic destructor for the factory hierarchy.
     virtual ~DeviceFamilyFactory();
 
+    //! \brief Constructs the family's default device instance (no
+    //!        options) by dispatching to `doMakeDefault()`.
+    //! \return Owning pointer to a freshly-allocated default device.
     // @ 0x2e0590 — calls [vtable+0x10] = doMakeDefault().
     std::unique_ptr<DeviceTypeImpl> makeDefault();
 
+    //! \brief Constructs a device for `opts` by dispatching to
+    //!        `doMakeDeviceType(opts)`; the derived factory uses the
+    //!        family's selector bits to pick the concrete subclass
+    //!        and the remaining bits as the options bitmask.
+    //! \param opts Raw per-family options bitmask.
+    //! \return Owning pointer to a freshly-allocated device.
     // @ 0x2e05b0 — calls [vtable+0x18] = doMakeDeviceType(opts).
     std::unique_ptr<DeviceTypeImpl> makeDeviceType(unsigned long opts);
 
+    //! \brief Zero-arg overload equivalent to `makeDefault()`.
+    //! \return Owning pointer to a freshly-allocated default device.
     // Zero-arg overload — same as makeDefault() in the binary.
     std::unique_ptr<DeviceTypeImpl> makeDeviceType();
 
 protected:
+    //! \brief Family-specific implementation of the default-device
+    //!        construction; overridden by every concrete factory.
+    //! \return Owning pointer to a freshly-allocated default device.
     virtual std::unique_ptr<DeviceTypeImpl> doMakeDefault() = 0;
+    //! \brief Family-specific implementation of the options-aware
+    //!        construction; overridden by every concrete factory.
+    //! \param opts Raw per-family options bitmask.
+    //! \return Owning pointer to a freshly-allocated device.
     virtual std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long opts) = 0;
 };
 
@@ -136,10 +155,21 @@ protected:
 //! base-`DeviceTypeImpl` carrying `code = Unknown` and `family = Unknown`.
 class NoDeviceTypeFactory : public DeviceFamilyFactory {
 public:
+    //! \brief Trivial defaulted destructor.
     ~NoDeviceTypeFactory() override;
+    //! \brief Returns a default-constructed base `DeviceTypeImpl`
+    //!        (code `Unknown`, family `Unknown`).
+    //! \return Owning pointer to a freshly-allocated default device.
     std::unique_ptr<DeviceTypeImpl> makeDefault();          // per-subclass override
 protected:
+    //! \brief Family-specific default: returns a default-constructed
+    //!        base `DeviceTypeImpl`.
+    //! \return Owning pointer to a freshly-allocated default device.
     std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          // @ 0x2e0700
+    //! \brief Family-specific options-aware constructor; ignores
+    //!        `opts` and returns a default-constructed base
+    //!        `DeviceTypeImpl`.
+    //! \return Owning pointer to a freshly-allocated default device.
     std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long) override;  // @ 0x2e0730
 };
 
@@ -153,10 +183,19 @@ protected:
 //! `makeDeviceType(opts)` produce an `UnknownDevice` instance.
 class UnknownDeviceTypeFactory : public DeviceFamilyFactory {
 public:
+    //! \brief Trivial defaulted destructor.
     ~UnknownDeviceTypeFactory() override;
+    //! \brief Returns a freshly-allocated `UnknownDevice` instance.
+    //! \return Owning pointer to a new `UnknownDevice`.
     std::unique_ptr<DeviceTypeImpl> makeDefault();          // per-subclass override
 protected:
+    //! \brief Family-specific default: returns a freshly-allocated
+    //!        `UnknownDevice` instance.
+    //! \return Owning pointer to a new `UnknownDevice`.
     std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          // @ 0x2e0760
+    //! \brief Family-specific options-aware constructor; ignores
+    //!        `opts` and returns a freshly-allocated `UnknownDevice`.
+    //! \return Owning pointer to a new `UnknownDevice`.
     std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long) override;  // @ 0x2e07b0
 };
 
@@ -164,26 +203,69 @@ protected:
 // Per-family factory declarations. All 8 bytes (vptr only). All
 // constructed by `makeDeviceFamilyFactory(DeviceFamily)`.
 // ---------------------------------------------------------------------------
+//! \brief Declares a concrete per-family factory class deriving from
+//!        `DeviceFamilyFactory`.
+//!
+//! Every expansion is structurally identical: an empty-state class
+//! whose virtual `doMakeDefault()` / `doMakeDeviceType(opts)`
+//! overrides build the family's default device or — when the family
+//! has subtype variants — pick the concrete subclass from the
+//! subtype selector bits in `opts`.  Out-of-line bodies live in
+//! `device_factories.cpp`; the subtype-selector scheme for each
+//! family is documented in the file-level banner above.
+//!
+//! \param NAME Identifier of the generated factory class.
 #define ZHINST_DECLARE_FACTORY(NAME)                                       \
     class NAME : public DeviceFamilyFactory {                              \
     public:                                                                \
+        /*! \brief Trivial defaulted destructor. */                        \
         ~NAME() override;                                                  \
+        /*! \brief Constructs the family's default device (no             \
+         *         options) by dispatching to `doMakeDefault()`.          \
+         *  \return Owning pointer to the freshly-allocated default       \
+         *          device.                                               \
+         */                                                                \
         std::unique_ptr<DeviceTypeImpl> makeDefault();                     \
     protected:                                                             \
+        /*! \brief Family-specific default-device construction.           \
+         *  \return Owning pointer to a freshly-allocated default device. \
+         */                                                                \
         std::unique_ptr<DeviceTypeImpl> doMakeDefault() override;          \
+        /*! \brief Family-specific options-aware construction; selects   \
+         *         the concrete subclass from the family's subtype       \
+         *         selector bits and uses the remaining bits as the      \
+         *         per-family option bitmask.                            \
+         *  \param opts Raw per-family options bitmask.                  \
+         *  \return Owning pointer to the freshly-allocated device.      \
+         */                                                                \
         std::unique_ptr<DeviceTypeImpl> doMakeDeviceType(unsigned long opts) override; \
     }
 
+//! \brief Factory for `DeviceFamily::HF2` (subtypes: `Hf2`, `Hf2li`, `Hf2is`).
 ZHINST_DECLARE_FACTORY(Hf2Factory);     // vtable b093c0
+//! \brief Factory for `DeviceFamily::MF` (subtypes: `Mf`, `Mfli`, `Mfia`).
 ZHINST_DECLARE_FACTORY(MfFactory);      // vtable b094c8
+//! \brief Factory for `DeviceFamily::UHF` (subtypes: `Uhf`, `Uhfli`,
+//!        `Uhfawg`, `Uhfqa`, `Uhfia`).
 ZHINST_DECLARE_FACTORY(UhfFactory);     // vtable b09620
+//! \brief Factory for `DeviceFamily::HDAWG` (subtypes: `Hdawg`,
+//!        `Hdawg4`, `Hdawg8`).
 ZHINST_DECLARE_FACTORY(HdawgFactory);   // vtable b09758
+//! \brief Factory for `DeviceFamily::SHF` (subtypes: `Shf`, `Shfqa2`,
+//!        `Shfqa4`, `Shfsg2`, `Shfsg4`, `Shfsg8`, `Shfqc`, `Shfli`).
 ZHINST_DECLARE_FACTORY(ShfFactory);     // vtable b09928
+//! \brief Factory for `DeviceFamily::SHFACC` (subtypes: `Shfacc`,
+//!        `Shfppc2`, `Shfppc4`).
 ZHINST_DECLARE_FACTORY(ShfaccFactory);  // vtable b09aa8
+//! \brief Factory for `DeviceFamily::GHF` (subtypes: `Ghf`, `Ghfli`).
 ZHINST_DECLARE_FACTORY(GhfFactory);     // vtable b09b88
+//! \brief Factory for `DeviceFamily::PQSC` (single subtype: `Pqsc`).
 ZHINST_DECLARE_FACTORY(PqscFactory);    // vtable b09c28
+//! \brief Factory for `DeviceFamily::QHUB` (single subtype: `Qhub`).
 ZHINST_DECLARE_FACTORY(QhubFactory);    // vtable b09cb0
+//! \brief Factory for `DeviceFamily::HWMOCK` (single subtype: `Hwmock`).
 ZHINST_DECLARE_FACTORY(HwmockFactory);  // vtable b09d38
+//! \brief Factory for `DeviceFamily::VHF` (subtypes: `Vhf`, `Vhfli`).
 ZHINST_DECLARE_FACTORY(VhfFactory);     // vtable b09de8
 
 #undef ZHINST_DECLARE_FACTORY

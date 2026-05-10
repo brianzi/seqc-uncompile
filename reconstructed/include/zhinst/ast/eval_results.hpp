@@ -61,12 +61,33 @@ class EvalResults {
 public:
     // --- Fields (0x80 bytes total) ---
 
+    //! \brief Ordered list of result entries; built-ins with a
+    //! single return value carry one element, tuple-returning
+    //! built-ins (e.g. multi-channel waveform getters) populate
+    //! several.
     std::vector<EvalResultValue> values_;               // +0x00 (24B)
+    //! \brief Assembler instructions emitted as a side effect of
+    //! the evaluation; later flushed into the enclosing
+    //! `AsmList`.
     std::vector<AsmList::Asm>    assemblers_;            // +0x18 (24B)
+    //! \brief Set when a `return` statement was evaluated inside
+    //! this scope; consumed by callers to short-circuit further
+    //! statement processing.
     bool                         returnEncountered_ = false;      // +0x30 (1B + 7B pad)
+    //! \brief Optional lowered IR subtree produced by the
+    //! evaluation (e.g. a play / branch root); `nullptr` when the
+    //! evaluation emitted no IR.
     std::shared_ptr<Node>        node_;                  // +0x38 (16B)
+    //! \brief Optional waveform descriptor produced by a
+    //! waveform-creating expression; `nullptr` when the
+    //! evaluation does not yield a waveform.
     std::shared_ptr<WaveformFront> waveformFront_;       // +0x48 (16B)
+    //! \brief Optional name binding associated with the result —
+    //! e.g. the identifier `playWave` will resolve to.
     std::string                  name_;                  // +0x58 (24B libc++ / 32B libstdc++)
+    //! \brief Link to the array-result the value participates in
+    //! when the evaluation is one element of a larger array
+    //! expression; `nullptr` for standalone values.
     std::shared_ptr<EvalResults> arrayBacking_;          // +0x70 (16B)
 
     // --- Constructors / Destructor ---
@@ -88,6 +109,8 @@ public:
     //! value-copied.
     //! \param other Source object whose state is duplicated.
     EvalResults(EvalResults const& other);                // @0x231c60
+    //! \brief Destroys the contained vectors, `shared_ptr`
+    //! members, and `name_` string.
     ~EvalResults();                                       // @0x16f3d0
 
     // --- getValue ---
@@ -175,6 +198,9 @@ public:
     void addAssembler(AsmList::Asm const& entry);         // @0x15c1b0
 
     // No copy assignment operator observed in the binary.
+    //! \brief Copy assignment is deleted — the binary contains no
+    //! implementation; clone by constructing a fresh
+    //! `EvalResults(other)` instead.
     EvalResults& operator=(EvalResults const&) = delete;
 };
 

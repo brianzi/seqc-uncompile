@@ -35,6 +35,7 @@ namespace detail {
 // (in the ctor and newWaveform) bind to it instead of triggering implicit
 // instantiation of the primary template — which would conflict with the
 // specialization definition further down. Required by C++14 [temp.expl.spec]/6.
+//! \copydoc zhinst::detail::WavetableManager::insertWaveform
 template<>
 void WavetableManager<WaveformIR>::insertWaveform(
     std::shared_ptr<WaveformIR> wf);
@@ -53,6 +54,7 @@ void WavetableManager<WaveformIR>::insertWaveform(
 //    e. Calls insertWaveform to add to manager
 //    f. Releases temporaries
 // 5. Destructs the temporary Waveform
+//! \copydoc zhinst::detail::WavetableManager::WavetableManager(int,int,const std::vector<Waveform>&)
 template<>
 WavetableManager<WaveformIR>::WavetableManager(
     int numDefs, int numDefs2,
@@ -79,6 +81,7 @@ WavetableManager<WaveformIR>::WavetableManager(
 //    - Walk the linked-list chain of hash nodes (at +0x18)
 //    - For each node: free key string if heap-allocated, then free node (0x30 bytes)
 //    - Free bucket array (buckets ptr at +0x08, size = bucket_count * 8)
+//! \copydoc zhinst::detail::WavetableManager::~WavetableManager
 template<>
 WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 {
@@ -121,6 +124,7 @@ WavetableManager<WaveformIR>::~WavetableManager()  // 0x29dfa0
 //      memcpy of the trailing Signal scalar block.
 //   4. If &raw->functionArgs != &fillName, basic_string copy-assign.
 //   5. insertWaveform(this, wf).
+//! \copydoc zhinst::detail::WavetableManager::newWaveform(const std::string&,const Signal&,const std::string&,const DeviceConstants&)
 template<>
 std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
     const std::string& name,
@@ -164,6 +168,7 @@ std::shared_ptr<WaveformIR> WavetableManager<WaveformIR>::newWaveform(
 // Mirror of the WaveformFront specialization at 0x2a1200. Body is identical:
 // the index becomes waveforms_.size() before the push_back, then we record
 // name->idx in nameToIndex_.
+//! \copydoc zhinst::detail::WavetableManager::insertWaveform
 template<>
 void WavetableManager<WaveformIR>::insertWaveform(
     std::shared_ptr<WaveformIR> wf)
@@ -192,6 +197,7 @@ void WavetableManager<WaveformIR>::insertWaveform(
 // 6. Constructs WavetableManager(numDefs, numDefs2, waveformVector)
 // 7. Destroys temporary vector
 // Returns: WavetableManager<WaveformIR> (sret via rdi)
+//! \copydoc zhinst::detail::WavetableManager::fromJson
 template<>
 WavetableManager<WaveformIR> WavetableManager<WaveformIR>::fromJson(
     const boost::json::value& json,
@@ -226,6 +232,7 @@ WavetableManager<WaveformIR> WavetableManager<WaveformIR>::fromJson(
 //    { "numDefs": numDefs_, "numDefs2": numDefs2_, "waveforms": [array] }
 // 3. Uses boost::json::array from the collected values
 // Returns: boost::json::value (sret via rdi)
+//! \copydoc zhinst::detail::WavetableManager::toJson
 template<>
 boost::json::value WavetableManager<WaveformIR>::toJson() const  // 0x29d780
 {
@@ -261,6 +268,7 @@ boost::json::value WavetableManager<WaveformIR>::toJson() const  // 0x29d780
 //    - Compares key strings and values (size_t indices)
 //    - If any mismatch, returns false
 // Returns combined result of all checks.
+//! \copydoc zhinst::detail::WavetableManager::operator==
 template<>
 bool WavetableManager<WaveformIR>::operator==(
     const WavetableManager<WaveformIR>& other) const  // 0x29e0e0

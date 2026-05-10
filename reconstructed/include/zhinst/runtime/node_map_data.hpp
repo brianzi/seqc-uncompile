@@ -65,10 +65,29 @@ enum class NodeTypeIdx : int32_t {
 //! collected node-access information into the compile-result JSON.
 class NodeMapData {
 public:
+    //! \brief Virtual destructor; releases subclass storage through
+    //! the base pointer.
     virtual ~NodeMapData();                                  // @0x1c5720
+    //! \brief Returns `true` when `*this` and `other` describe the
+    //! same parameter-tree node; the caller guarantees `typeid`
+    //! match before dispatching here so subclasses may
+    //! `static_cast<>` `other`.
+    //! \param other Other payload to compare against.
+    //! \return `true` if the two payloads are equivalent.
     virtual bool compareEq(NodeMapData const& other) const = 0;
+    //! \brief Returns a hash combining every field that participates
+    //! in `compareEq`; used by `std::hash<NodeMapItem>` to put
+    //! entries into `CustomFunctions`'s `unordered_map`s.
+    //! \return Combined hash value.
     virtual size_t hash() const = 0;
+    //! \brief Returns a heap-allocated deep copy of `*this`; the
+    //! caller owns the result.
+    //! \return Newly `new`-allocated clone.
     virtual NodeMapData* clone() const = 0;
+    //! \brief Writes the payload's serialisable fields into `obj`
+    //! (used to render the node-access summary in the compile-result
+    //! JSON).
+    //! \param obj Target JSON object the payload appends keys to.
     virtual void getJson(boost::json::object& obj) const = 0;
 };
 
@@ -94,15 +113,40 @@ public:
 //! protocol described on `NodeMapData`.
 class VirtAddrNodeMapData : public NodeMapData {
 public:
+    //! \brief Default-constructs an empty payload with no name and
+    //! no addresses.
     VirtAddrNodeMapData() = default;
+    //! \brief Copy-constructs from `other`, duplicating `name_` and
+    //! `addresses_`.
+    //! \param other Source payload to copy.
     VirtAddrNodeMapData(VirtAddrNodeMapData const&);         // @0x1c4dc0
+    //! \brief Destructor; releases `name_` and `addresses_`.
     ~VirtAddrNodeMapData() override;                         // @0x1c4ec0, D0 @0x1c56c0
+    //! \brief Compares `name_` and `addresses_` against `other`
+    //! (assumed to be a `VirtAddrNodeMapData`; the caller verifies
+    //! type compatibility through `NodeMapItem::operator==`).
+    //! \param other Other payload to compare against.
+    //! \return `true` if both name and address list match.
     bool compareEq(NodeMapData const& other) const override; // @0x1c4cc0
+    //! \brief Hashes `name_` (via `std::hash<string>`) combined with
+    //! every element of `addresses_` using a golden-ratio
+    //! splitmix-style mixer.
+    //! \return Combined hash value.
     size_t hash() const override;                            // @0x1c4f10
+    //! \brief Returns a `new`-allocated deep copy of this payload.
+    //! \return Newly allocated clone owned by the caller.
     NodeMapData* clone() const override;                     // @0x1c51e0
+    //! \brief Writes `obj["name"] = name_` and `obj["index"] =
+    //! addresses_` as an array of integers.
+    //! \param obj Target JSON object the payload appends keys to.
     void getJson(boost::json::object& obj) const override;   // @0x1c5240
 
+    //! \brief Node name as written in the SeqC source (path through
+    //! the device parameter tree).
     std::string             name_;       // +0x08
+    //! \brief Virtual addresses resolved from `name_` against the
+    //! device tree; multiple entries occur when the path matches a
+    //! list-valued parameter.
     std::vector<int32_t>    addresses_;  // +0x20
 };
 
@@ -124,13 +168,30 @@ public:
 //! table.
 class DirectAddrNodeMapData : public NodeMapData {
 public:
+    //! \brief Default-constructs with `addr_` left uninitialised
+    //! (callers set the field explicitly before use).
     DirectAddrNodeMapData() = default;
+    //! \brief Destructor; trivial — no owned resources.
     ~DirectAddrNodeMapData() override;                       // @0x1c5730
+    //! \brief Compares `addr_` for equality against `other`'s
+    //! `addr_`.
+    //! \param other Other payload to compare against.
+    //! \return `true` if both payloads carry the same direct address.
     bool compareEq(NodeMapData const& other) const override; // @0x1c5460
+    //! \brief Returns a splitmix-style hash of `addr_` seeded with
+    //! the golden-ratio constant.
+    //! \return Hash of `addr_`.
     size_t hash() const override;                            // @0x1c5370
+    //! \brief Returns a `new`-allocated copy carrying the same
+    //! `addr_`.
+    //! \return Newly allocated clone owned by the caller.
     NodeMapData* clone() const override;                     // @0x1c53c0
+    //! \brief Writes `obj["direct_address"] = addr_` as a 64-bit
+    //! integer.
+    //! \param obj Target JSON object the payload appends keys to.
     void getJson(boost::json::object& obj) const override;   // @0x1c5400
 
+    //! \brief Hardware register address the parameter resolves to.
     uint32_t addr_;  // +0x08 (after 8-byte vptr from NodeMapData)
 };
 
@@ -162,21 +223,51 @@ public:
 //! `operator==` and the `std::hash` specialisation defined below are
 //! required for storage in `std::unordered_map<NodeMapItem, ...>`.
 struct NodeMapItem {
+    //! \brief Non-owning pointer to the polymorphic payload that
+    //! describes the underlying parameter-tree node.
     NodeMapData*  data;       // +0x00
+    //! \brief Value-encoding selector applied when the node is
+    //! written from SeqC (`IntegerPassthrough`, `Frequency`, etc.).
     NodeTypeIdx   typeIdx;    // +0x08
+    //! \brief Cached direct hardware address when the node is
+    //! addressable without a virtual-address lookup; valid only
+    //! when `hasFast == true`.
     uint32_t      fastAddr;   // +0x0C
     // hasFast: only 0/1 ever observed (51 lookupNode hits across full test
     // suite via GDB; see notes/incidental_findings.md IF-112). The byte is
     // also read by custom_functions_play.cpp:1511 as
     // `AccessMode(hasFast)` → Soft(0)/Direct(1); Custom(2) only enters
     // accessModeMap_ via explicit literal in other call sites.
+    //! \brief Flag indicating that `fastAddr` is valid; reused as an
+    //! `AccessMode` selector (Soft=0 / Direct=1) when emitting node
+    //! reads in `custom_functions_play.cpp`.
     bool          hasFast;    // +0x10
+    //! \brief Padding to align the struct size to 0x18 bytes.
     char          pad_11[7];  // +0x11
 
+    //! \brief Two-stage equality: first compares `typeIdx`,
+    //! `hasFast`, and (when both have fast addresses) `fastAddr`;
+    //! then verifies `typeid(*data) == typeid(*other.data)` and
+    //! dispatches to `data->compareEq`.
+    //! \param other Other item to compare against.
+    //! \return `true` if both items refer to the same parameter node.
     bool operator==(NodeMapItem const& other) const;  // @0x1c5490
+    //! \brief Returns `fastAddr` when `hasFast` is set, otherwise
+    //! `0`.
+    //! \return Cached direct address or `0` when unavailable.
     uint32_t fastAddress() const;                      // @0x1c5470
 
+    //! \brief Renders the item as a JSON object by delegating field
+    //! emission to `data->getJson` and appending a `"size"` key
+    //! whose value comes from a 4-entry lookup table indexed by
+    //! `typeIdx - 1`.
+    //! \return JSON object describing the node-access record.
     boost::json::value toJson() const;                 // @0x1c54f0
+    //! \brief Returns the in-words size used when writing the node
+    //! value to hardware; resolved through the same `typeIdx`-keyed
+    //! 4-entry table used by `toJson`.
+    //! \return Word count for the value-encoding (2 for IQ/double/
+    //! integer pairs, 1 for `SinePair`, etc.).
     size_t size() const;                               // @0x1c55a0
 };
 static_assert(sizeof(NodeMapItem) == 0x18,
@@ -188,6 +279,10 @@ static_assert(sizeof(NodeMapItem) == 0x18,
 // std::unordered_map / unordered_set (needed by CustomFunctions members).
 namespace std {
 template<> struct hash<zhinst::NodeMapItem> {
+    //! \brief Delegates to `NodeMapData::hash()` when `data` is
+    //! non-null, returning `0` otherwise; enables use of
+    //! `NodeMapItem` as a key in `std::unordered_map` /
+    //! `unordered_set`.
     size_t operator()(zhinst::NodeMapItem const& item) const {
         // Delegates to NodeMapData::hash() — simplified here
         return item.data ? item.data->hash() : 0;

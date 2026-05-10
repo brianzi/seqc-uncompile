@@ -226,16 +226,30 @@ namespace sfc {
 //! `uint64_t` device-option bitmasks at call sites that may overload
 //! on both.
 struct FeaturesCode {
+    //! \brief Underlying 64-bit SFC bitfield.
     std::uint64_t value;
 
+    //! \brief Default-constructs to an all-zero SFC bitfield.
     constexpr FeaturesCode() noexcept : value(0) {}
+    //! \brief Wraps the given raw 64-bit SFC bitfield.
+    //! \param v Raw SFC bitfield value.
     constexpr explicit FeaturesCode(std::uint64_t v) noexcept : value(v) {}
 
+    //! \brief Extracts the underlying 64-bit SFC bitfield.
+    //! \return The raw `value` member.
     constexpr explicit operator std::uint64_t() const noexcept { return value; }
 
+    //! \brief Equality comparison on the underlying bitfields.
+    //! \param a Left operand.
+    //! \param b Right operand.
+    //! \return `true` if `a.value == b.value`.
     friend constexpr bool operator==(FeaturesCode a, FeaturesCode b) noexcept {
         return a.value == b.value;
     }
+    //! \brief Inequality comparison on the underlying bitfields.
+    //! \param a Left operand.
+    //! \param b Right operand.
+    //! \return `true` if `a.value != b.value`.
     friend constexpr bool operator!=(FeaturesCode a, FeaturesCode b) noexcept {
         return a.value != b.value;
     }
@@ -373,9 +387,13 @@ class DeviceTypeImpl;
 //! `DeviceOptionSet::begin()` / `end()`.
 class DeviceOptionSetConstIterator {
 public:
+    //! \brief Map type the iterator walks (option-name → option).
     using map_type = std::map<std::string, DeviceOption>;
+    //! \brief Underlying ordered-map `const_iterator` wrapped by this class.
     using underlying_iterator = map_type::const_iterator;
 
+    //! \brief Wraps an existing map const_iterator.
+    //! \param it Position in the option set's name-keyed map.
     explicit DeviceOptionSetConstIterator(underlying_iterator it);
 
     //! \brief Yields the `DeviceOption` at the current position.
@@ -391,21 +409,34 @@ public:
     //!         in the same underlying map; `false` otherwise.
     bool equal(DeviceOptionSetConstIterator const& other) const;
 
+    //! \brief Dereference; equivalent to `dereference()`.
+    //! \return The `DeviceOption` at the current position.
     DeviceOption operator*() const { return dereference(); }
+    //! \brief Pre-increment; advances past the current element.
+    //! \return Reference to `*this` after advancing.
     DeviceOptionSetConstIterator& operator++() { increment(); return *this; }
+    //! \brief Post-increment; returns the position before advancing.
+    //! \return Copy of the iterator at its pre-increment position.
     DeviceOptionSetConstIterator operator++(int) {
         DeviceOptionSetConstIterator tmp(*this);
         increment();
         return tmp;
     }
+    //! \brief Equality comparison against another iterator.
+    //! \param other Iterator to compare against.
+    //! \return `true` when both iterators refer to the same position.
     bool operator==(DeviceOptionSetConstIterator const& other) const {
         return equal(other);
     }
+    //! \brief Inequality comparison against another iterator.
+    //! \param other Iterator to compare against.
+    //! \return `true` when the two iterators refer to different positions.
     bool operator!=(DeviceOptionSetConstIterator const& other) const {
         return !equal(other);
     }
 
 private:
+    //! \brief Wrapped ordered-map const_iterator.
     underlying_iterator iter_;
 };
 
@@ -435,6 +466,8 @@ private:
 //! `DeviceType`.
 class DeviceOptionSet {
 public:
+    //! \brief Forward const_iterator type yielded by `begin()` /
+    //!        `end()`; walks the set in alphabetical name order.
     using const_iterator = DeviceOptionSetConstIterator;
 
     //! \brief Constructs an empty option set bound to the given family.
@@ -447,10 +480,19 @@ public:
     DeviceOptionSet(std::initializer_list<DeviceOption> const& options,
                     DeviceFamily family);                                // @ 0x2cf9a0
 
+    //! \brief Copy-constructs by duplicating both storage indices and
+    //!        the bound family.
     DeviceOptionSet(DeviceOptionSet const&) = default;
+    //! \brief Move-constructs by stealing both storage indices.
     DeviceOptionSet(DeviceOptionSet&&) noexcept = default;
+    //! \brief Copy-assigns by duplicating both storage indices and
+    //!        the bound family.
+    //! \return Reference to `*this`.
     DeviceOptionSet& operator=(DeviceOptionSet const&) = default;
+    //! \brief Move-assigns by stealing both storage indices.
+    //! \return Reference to `*this`.
     DeviceOptionSet& operator=(DeviceOptionSet&&) noexcept = default;
+    //! \brief Destroys both storage indices.
     ~DeviceOptionSet() = default;
 
     //! \brief Returns an iterator to the first option in alphabetical
@@ -484,13 +526,20 @@ public:
     void insert(DeviceOption opt);          // @ 0x2cfcf0
 
     friend bool operator==(DeviceOptionSet const& a, DeviceOptionSet const& b);
+    //! \brief Inequality comparison; negation of `operator==`.
+    //! \param a Left operand.
+    //! \param b Right operand.
+    //! \return `true` when the two sets differ in either family or contents.
     friend bool operator!=(DeviceOptionSet const& a, DeviceOptionSet const& b) {
         return !(a == b);
     }
 
 private:
+    //! \brief Fast O(1) membership index.
     std::unordered_set<DeviceOption> values_;       // +0x00, 40 bytes
+    //! \brief Iteration-order index keyed by family-scoped option name.
     std::map<std::string, DeviceOption> byName_;    // +0x28, 24 bytes
+    //! \brief Family the set is bound to; selects option-name scoping.
     DeviceFamily family_;                           // +0x40
 };
 
@@ -547,6 +596,7 @@ public:
     explicit DeviceTypeImpl(
         std::tuple<DeviceTypeCode, DeviceFamily, DeviceOptionSet> args);  // @ 0x2d3190
 
+    //! \brief Polymorphic destructor for the device-type hierarchy.
     virtual ~DeviceTypeImpl();
     //! \brief Polymorphic deep copy used by `DeviceType`'s copy
     //! constructor and assignment to preserve the dynamic subclass
@@ -574,8 +624,11 @@ public:
     DeviceOptionSet const& options() const; // @ 0x2d3310
 
 protected:
+    //! \brief Specific device-model identifier.
     DeviceTypeCode  code_;     // +0x08
+    //! \brief Broad product-family identifier.
     DeviceFamily    family_;   // +0x0c
+    //! \brief Installed hardware/software options.
     DeviceOptionSet options_;  // +0x10
 };
 
@@ -591,7 +644,9 @@ protected:
 //! resolves to.
 template <class T>
 struct OptionCodePair {
+    //! \brief Single-bit value of the family-specific bitmask enum.
     T            mask;
+    //! \brief Canonical `DeviceOption` this bit maps to.
     DeviceOption code;
 };
 
@@ -730,8 +785,18 @@ public:
     //! \brief Steals the impl pointer from `other`, leaving it null.
     //! \param other Source instance to move from.
     DeviceType(DeviceType&& other) noexcept;                        // @ 0x2d2b50
+    //! \brief Copy-assigns by cloning the source impl (or
+    //!        copy-and-swap equivalent), then destroying the prior
+    //!        impl.  Self-assignment is a no-op.
+    //! \param other Source instance to copy from.
+    //! \return Reference to `*this`.
     DeviceType& operator=(DeviceType const& other);
+    //! \brief Move-assigns by destroying the prior impl and stealing
+    //!        the source impl pointer.  Self-assignment is a no-op.
+    //! \param other Source instance to move from.
+    //! \return Reference to `*this`.
     DeviceType& operator=(DeviceType&& other) noexcept;
+    //! \brief Destroys the owned `DeviceTypeImpl` instance.
     ~DeviceType();                                                  // @ 0x2d2b70
 
     //! \brief Returns the specific device-model code.
@@ -780,6 +845,7 @@ public:
     friend std::ostream& operator<<(std::ostream& os, DeviceType const& dt); // @ 0x2d2da0
 
 private:
+    //! \brief Owned pimpl pointer carrying the polymorphic identity.
     detail::DeviceTypeImpl* impl_;  // +0x00
 };
 

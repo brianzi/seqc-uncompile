@@ -79,8 +79,9 @@ namespace detail {
 // 0x24     4    (padding)
 // 0x28          END (total 40 bytes)
 // ============================================================================
-//! Tracks which wave indices have already been assigned within one
-//! wavetable, and hands out the next available index on demand.
+//! \brief Tracks which wave indices have already been assigned
+//!        within one wavetable, and hands out the next available
+//!        index on demand.
 //!
 //! `assign()` reserves a specific index (raising
 //! `WavetableException` on a duplicate or out-of-range value);
@@ -89,32 +90,69 @@ namespace detail {
 //! emitters need to know about.
 class WaveIndexTracker {
 public:
+    //! \brief Highest valid index + 1; assignments at or above this
+    //!        value throw `WavetableException`.
     int maxIndex;                   // +0x00
     // +0x04: padding
+    //! \brief Set of indices currently reserved by `assign` /
+    //!        `assignAuto`.
     std::set<int> indices_;         // +0x08 (internally 24 bytes in libc++)
+    //! \brief Next auto-assigned index returned by `assignAuto`;
+    //!        advanced past every used index by `getNextAutoIndex`.
     int autoIndex_;                 // +0x20
 
-    // Constructor — 0x29a5e0
-    explicit WaveIndexTracker(int maxIndex);
+    //! \brief Construct an empty tracker with the given upper bound.
+    //! \param maxIndex  Highest assignable index + 1; passed
+    //! through from the device-specific `maxWavetableEntries`.
+    explicit WaveIndexTracker(int maxIndex);                            // 0x29a5e0
 
-    // Template constructor from WavetableManager — 0x29d000 / 0x29d410
+    //! \brief Construct a tracker pre-populated from every waveform
+    //!        already registered in `mgr`.
+    //! \details Iterates `mgr.waveforms_` and inserts each
+    //! waveform's stored `waveIndex` into `indices_` (skipping
+    //! the `-1` sentinel used for "no index yet").  After
+    //! construction `autoIndex_` is advanced to the first unused
+    //! slot via the usual `getNextAutoIndex` walk.
+    //! \param maxIndex  Highest assignable index + 1.
+    //! \param mgr       Source manager whose waveforms supply the
+    //!                  initial reservations.
     template<typename T>
-    WaveIndexTracker(int maxIndex, const detail::WavetableManager<T>& mgr);
+    WaveIndexTracker(int maxIndex, const detail::WavetableManager<T>& mgr);  // 0x29d000 / 0x29d410
 
-    // Assign a specific index (resets autoIndex to 0, then calls assignAuto) — 0x29a600
-    void assign(int index);
+    //! \brief Reserve a specific index after rewinding the
+    //!        auto-index cursor.
+    //! \details Sets `autoIndex_ = 0` and then delegates to
+    //! `assignAuto(index)` so the same uniqueness / range checks
+    //! apply.  Callers that pre-rewound need not call this.
+    //! \param index  Index to reserve.
+    void assign(int index);                                             // 0x29a600
 
-    // Insert index into the set; throws WavetableException on duplicate or >= maxIndex — 0x29a620
-    int assignAuto(int index);
+    //! \brief Reserve `index` and return it after validation.
+    //! \details Throws `WavetableException` when `index >=
+    //! maxIndex` or when `index` is already present in
+    //! `indices_`; otherwise inserts it.
+    //! \param index  Index to reserve.
+    //! \return The same `index` that was reserved.
+    //! \throws WavetableException  On duplicate or out-of-range.
+    int assignAuto(int index);                                          // 0x29a620
 
-    // Returns const ref to the internal set — 0x29a7d0
-    const std::set<int>& usedWaveIndices() const;
+    //! \brief Read-only view of every index currently reserved.
+    //! \return Reference to the internal `std::set<int>`; valid for
+    //! the lifetime of `*this`.
+    const std::set<int>& usedWaveIndices() const;                       // 0x29a7d0
 
-    // Advance autoIndex past any used indices — 0x29a880
-    void getNextAutoIndex();
+    //! \brief Advance `autoIndex_` to the lowest unused slot.
+    //! \details Iterates from the current `autoIndex_` upward
+    //! while `indices_` contains it.  Used internally before each
+    //! auto-assignment to skip over manually reserved indices.
+    void getNextAutoIndex();                                            // 0x29a880
 
-    // Returns true if autoIndex < max element in set — 0x29a8e0
-    bool hasGaps();
+    //! \brief Report whether the reserved indices skip any values
+    //!        below the current maximum.
+    //! \return `true` when `autoIndex_` precedes the largest
+    //! reserved index (i.e. there is at least one hole), `false`
+    //! when the reservations are contiguous from 0.
+    bool hasGaps();                                                     // 0x29a8e0
 };
 
 // ============================================================================
@@ -128,22 +166,28 @@ public:
 //
 // Inherits from std::exception (base class ~= just vptr, trivial)
 // ============================================================================
-//! Failure raised by `WaveIndexTracker` (and other wavetable
-//! consistency checks) when the requested wave-index assignment
-//! would conflict with an existing entry or exceed the configured
-//! maximum.
+//! \brief Failure raised by `WaveIndexTracker` (and other wavetable
+//!        consistency checks) when the requested wave-index
+//!        assignment would conflict with an existing entry or exceed
+//!        the configured maximum.
 class WavetableException : public std::exception {
 public:
+    //! \brief Diagnostic text returned later by `what()`.
     std::string message_;   // +0x08
 
-    // Constructor — 0x29a7e0
-    explicit WavetableException(const std::string& msg);
+    //! \brief Construct the exception with the given diagnostic
+    //!        message.
+    //! \param msg  Pre-formatted diagnostic, owned-by-copy.
+    explicit WavetableException(const std::string& msg);                // 0x29a7e0
 
-    // Destructor — 0x29a840
-    ~WavetableException() override;
+    //! \brief Release the embedded `message_` storage and chain to
+    //!        `~std::exception`.
+    ~WavetableException() override;                                     // 0x29a840
 
-    // what() — 0x29f9d0
-    const char* what() const noexcept override;
+    //! \brief Return the stored diagnostic text.
+    //! \return `message_.c_str()`; pointer is valid for the lifetime
+    //! of `*this`.
+    const char* what() const noexcept override;                         // 0x29f9d0
 };
 
 } // namespace zhinst

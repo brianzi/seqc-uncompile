@@ -88,16 +88,35 @@ class CancelCallback;
 //! "Compiler Error (line: N): " prefix is applied before re-throwing.
 class OptimizeException : public std::exception {
 public:
+    //! \brief Construct with the given diagnostic message and a
+    //!        zero line number.
+    //! \param msg  Pre-formatted diagnostic, owned-by-copy.
     OptimizeException(const std::string& msg);
+    //! \brief Construct with the given diagnostic message and
+    //!        source line for error framing.
+    //! \param msg         Pre-formatted diagnostic, owned-by-copy.
+    //! \param lineNumber  Source line associated with the failing
+    //!                    instruction; later retrievable via
+    //!                    `lineNumber()`.
     OptimizeException(const std::string& msg, int lineNumber);
+    //! \brief Release the embedded `message_` storage and chain to
+    //!        `~std::exception`.
     ~OptimizeException() override;                  // 0x281e00
+    //! \brief Return the stored message, or the canonical literal
+    //!        `"Optimize Exception"` when the message is empty.
+    //! \return Null-terminated diagnostic string owned by `*this`.
     const char* what() const noexcept override;     // 0x281e90
     // Returns message_.c_str() if non-empty, else "Optimize Exception"
 
+    //! \brief Return the source line captured at construction.
+    //! \return The `lineNumber` argument the exception was
+    //! constructed with, or `0` for the single-argument overload.
     int lineNumber() const noexcept { return lineNumber_; }
 
 private:
+    //! \brief Diagnostic text returned by `what()`.
     std::string message_;   // +0x08
+    //! \brief Source line associated with the failing instruction.
     int lineNumber_{0};     // +0x20
 };
 
@@ -783,14 +802,28 @@ private:
 
     // ---- Data members ----
 
+    //! \brief Upper bound on physical registers available to
+    //!        `registerAllocation`.
     uint32_t numPhysicalRegs_;                              // +0x00
+    //! \brief Alignment padding (zero-initialised).
     uint32_t pad04_;                                        // +0x04
+    //! \brief Pass-selection bitmask (`OptPassFlag` values OR'd
+    //!        together).
     uint32_t optFlags_;                                        // +0x08
+    //! \brief Alignment padding (zero-initialised).
     uint32_t pad0C_;                                        // +0x0C
+    //! \brief Working copy of the instruction stream mutated by the
+    //!        optimisation passes.
     std::vector<AsmList::Asm> asm_;                         // +0x10 (working copy)
     // padding to +0x30
+    //! \brief Host-supplied sink for `ERROR_MSG` instructions and
+    //!        `OptimizeException` re-emission.
     std::function<void(const std::string&, int)> errorCallback_;    // +0x30
+    //! \brief Host-supplied sink for `MESSAGE` instructions emitted
+    //!        during optimisation.
     std::function<void(const std::string&, int)> warningCallback_;  // +0x60
+    //! \brief Cooperative-cancellation handle polled by the longer
+    //!        passes; may be null.
     std::shared_ptr<CancelCallback> cancel_;                        // +0x90
 };
 

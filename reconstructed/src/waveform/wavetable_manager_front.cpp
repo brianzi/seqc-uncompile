@@ -20,6 +20,7 @@ namespace detail {
 // directly in scope without any using-declaration.
 
 // 0x29fa40 — WavetableManager<WaveformFront>::~WavetableManager()
+//! \copydoc zhinst::detail::WavetableManager::~WavetableManager
 template<>
 WavetableManager<WaveformFront>::~WavetableManager() {
     // Release all shared_ptrs in waveforms_ vector (iterate from end to begin)
@@ -37,6 +38,7 @@ WavetableManager<WaveformFront>::~WavetableManager() {
 }
 
 // 0x2a1200 — WavetableManager<WaveformFront>::insertWaveform(shared_ptr<WaveformFront>)
+//! \copydoc zhinst::detail::WavetableManager::insertWaveform
 template<>
 void WavetableManager<WaveformFront>::insertWaveform(
     std::shared_ptr<WaveformFront> wf)
@@ -53,6 +55,7 @@ void WavetableManager<WaveformFront>::insertWaveform(
 }
 
 // 0x29aec0 — WavetableManager<WaveformFront>::newEmptyWaveform(const string&, const DeviceConstants&)
+//! \copydoc zhinst::detail::WavetableManager::newEmptyWaveform
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::newEmptyWaveform(
@@ -89,6 +92,7 @@ WavetableManager<WaveformFront>::newEmptyWaveform(
 }
 
 // 0x29b110 — WavetableManager<WaveformFront>::newWaveformFromFile(name, filename, type, dc)
+//! \copydoc zhinst::detail::WavetableManager::newWaveformFromFile(const std::string&,const std::string&,Waveform::File::Type,const DeviceConstants&)
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::newWaveformFromFile(
@@ -135,6 +139,7 @@ WavetableManager<WaveformFront>::newWaveformFromFile(
 }
 
 // 0x29b560 — WavetableManager<WaveformFront>::newWaveformFromFile(name, signal, addr, filename, type, dc)
+//! \copydoc zhinst::detail::WavetableManager::newWaveformFromFile(const std::string&,const Signal&,AddressImpl<uint32_t>,const std::string&,Waveform::File::Type,const DeviceConstants&)
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::newWaveformFromFile(
@@ -178,6 +183,7 @@ WavetableManager<WaveformFront>::newWaveformFromFile(
 }
 
 // 0x29ba00 — WavetableManager<WaveformFront>::newWaveform(name, signal, funName, args, dc)
+//! \copydoc zhinst::detail::WavetableManager::newWaveform(const std::string&,const Signal&,const std::string&,const std::vector<Value>&,const DeviceConstants&)
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::newWaveform(
@@ -203,6 +209,7 @@ WavetableManager<WaveformFront>::newWaveform(
 }
 
 // 0x29c210 — WavetableManager<WaveformFront>::getWaveformForFront(funName, args) const
+//! \copydoc zhinst::detail::WavetableManager::getWaveformForFront
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::getWaveformForFront(
@@ -244,6 +251,7 @@ WavetableManager<WaveformFront>::getWaveformForFront(
 }
 
 // 0x29c440 — WavetableManager<WaveformFront>::copyWaveform(shared_ptr<WaveformFront>)
+//! \copydoc zhinst::detail::WavetableManager::copyWaveform
 template<>
 std::shared_ptr<WaveformFront>
 WavetableManager<WaveformFront>::copyWaveform(
@@ -267,6 +275,7 @@ WavetableManager<WaveformFront>::copyWaveform(
 }
 
 // 0x29ccf0 — WavetableManager<WaveformFront>::updateWave(shared_ptr<WaveformFront>, const string&)
+//! \copydoc zhinst::detail::WavetableManager::updateWave
 template<>
 void WavetableManager<WaveformFront>::updateWave(
     std::shared_ptr<WaveformFront> wf,

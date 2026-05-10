@@ -107,15 +107,32 @@ public:
 
 private:
     // +0x00
+    //! \brief Non-zero while the lexer is inside any comment
+    //! (line or block); the OR of `lineComment_` and
+    //! `blockComment_`.
     uint8_t isComment_{0};
+    //! \brief Non-zero while the lexer is inside a `//`-style line
+    //! comment; cleared by `endLineComment()`.
     uint8_t lineComment_{0};
+    //! \brief Non-zero while the lexer is inside a C-style block
+    //! comment (opened by slash-star and closed by star-slash).
     uint8_t blockComment_{0};
+    //! \brief Sticky flag set the first time `raiseError()` is
+    //! invoked; consulted by callers to detect parse failure.
     uint8_t hadSyntaxError_{0};
     // +0x04
+    //! \brief Current source-line number; advanced by the lexer on
+    //! every newline and used as the first argument to
+    //! `errorCallback_`.
     int32_t currentLineNumber_{1};
     // +0x08 — padding to align std::function at +0x10
+    //! \brief Padding to align `errorCallback_` to its natural
+    //! alignment within the struct.
     char pad_[8]{};
     // +0x10
+    //! \brief Diagnostic sink invoked by `raiseError()` with the
+    //! current line number and the formatted message; empty by
+    //! default (errors go to `std::clog`).
     std::function<void(int, const std::string&)> errorCallback_;
 };
 

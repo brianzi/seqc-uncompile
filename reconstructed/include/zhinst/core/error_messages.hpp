@@ -444,9 +444,24 @@ public:
     // Lookup a format string by enum value.
     // Throws std::out_of_range if key not found.
     // Binary address: 0x108380
+    //! \brief Returns the registered format-string pattern for
+    //! diagnostic `id`.
+    //! \param id Diagnostic identifier to look up.
+    //! \return The Boost.Format pattern string associated with
+    //! `id`.
+    //! \throws std::out_of_range when `id` has no entry in
+    //! `messages`.
     std::string const& operator[](ErrorMessageT id) const;
 
     // Static lookup by integer key (used as ErrorMessages::get(n) in opcodes code)
+    //! \brief Integer-keyed convenience accessor used by call
+    //! sites that already hold the raw integer code (typically the
+    //! assembler emitter).
+    //! \param id Integer diagnostic identifier.
+    //! \return The Boost.Format pattern string registered for
+    //! `id`.
+    //! \throws std::out_of_range when `id` has no entry in
+    //! `messages`.
     static std::string const& get(int id) { return messages.at(id); }
 
     // Format a message with arguments (variadic template).
@@ -464,6 +479,16 @@ public:
     // Inner helper — feeds args into an existing boost::format object.
     // Binary splits the first arg out of the pack (affects mangling):
     //   format<T, Args...>(BF&, T, Args...) not format<Args...>(BF&, Args...)
+    //! \brief Variadic helper that feeds `arg` into `fmt` and
+    //! recursively forwards the remaining `args`; the recursion
+    //! terminates in the no-argument overload that returns
+    //! `fmt.str()`.
+    //! \param fmt  In-flight `boost::format` object accumulating
+    //!             argument substitutions.
+    //! \param arg  First argument bound to the next `%` placeholder.
+    //! \param args Remaining arguments fed to subsequent
+    //!             placeholders.
+    //! \return The fully formatted message string.
     template <typename T, typename... Args>
     static std::string format(boost::format& fmt, T arg, Args... args) {
         fmt % arg;
@@ -471,11 +496,24 @@ public:
     }
 
     // Base case: no more args to feed.
+    //! \brief Variadic recursion terminator: returns the rendered
+    //! string when no further arguments remain to be fed.
+    //! \param fmt Fully populated `boost::format` object.
+    //! \return The rendered message string.
     static std::string format(boost::format& fmt) {
         return fmt.str();
     }
 
     // Outer entry — creates the format object, delegates to inner.
+    //! \brief Variadic entry point: builds the `boost::format`
+    //! object from the pattern registered for `id` and forwards
+    //! `args...` into the recursive feeder above.
+    //! \param id   Diagnostic identifier whose pattern to render.
+    //! \param args Arguments substituted into the `%` placeholders
+    //!             of the pattern.
+    //! \return The fully formatted message string.
+    //! \throws std::out_of_range when `id` has no entry in
+    //! `messages`.
     template <typename... Args>
     static std::string format(ErrorMessageT id, Args... args) {
         boost::format fmt(messages.at(static_cast<int>(id)));
@@ -483,6 +521,9 @@ public:
     }
 
     // Static message map (BSS at 0xb84c38)
+    //! \brief Global registry mapping `ErrorMessageT` integer values
+    //! to their Boost.Format pattern strings; populated once during
+    //! module initialisation and consulted by every `format()` call.
     static std::map<int, std::string> messages;
 };
 

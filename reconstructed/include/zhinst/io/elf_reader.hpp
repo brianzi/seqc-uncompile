@@ -80,15 +80,25 @@ namespace zhinst {
 //! caught as a generic `std::exception`.
 class ElfException : public std::exception {
 public:
-    // Constructs the exception with the prefix "ELF Exception: " followed
-    // by the supplied message. Prefix is hard-coded in the binary via
-    // movabs immediates at 0x2c7a78..0x2c7a94.
+    //! \brief Constructs the exception with the prefix
+    //!        `"ELF Exception: "` followed by `message`.
+    //! \details The prefix is fixed at construction time; subsequent
+    //! `what()` reads it back via the SSO `std::string` storage.
+    //! \param message  User-supplied diagnostic text; copied.
+    // Prefix is hard-coded in the binary via movabs immediates at
+    // 0x2c7a78..0x2c7a94.
     explicit ElfException(const std::string& message);   // 0x2c7a40
+    //! \brief Release the embedded `message_` storage and chain to
+    //!        `~std::exception`.
     ~ElfException() override;                            // 0x2c7b60
 
+    //! \brief Return the prefixed diagnostic text.
+    //! \return `message_.c_str()` — never null; valid for the
+    //! lifetime of `*this`.
     const char* what() const noexcept override;          // 0x2c7b40
 
 private:
+    //! \brief `"ELF Exception: "` + caller-supplied message.
     std::string message_;   // "ELF Exception: " + msg
 };
 
@@ -112,69 +122,112 @@ private:
 //! variants are silently treated as if they contained no sections.
 class ElfReader : private ELFIO::elfio {
 public:
-    // Opens `path` and parses it as an ELF file. Throws ElfException
-    // (with message "not a valid ELF file " + path) if the magic check
-    // fails. After the load succeeds, runs readHeader() to populate
-    // formatSection_ and ddSections_.
+    //! \brief Open `path` and parse it as an ELF artifact, caching
+    //!        the `.format` section and every `.dd*` section for
+    //!        later retrieval.
+    //! \details Validates the ELF magic via `isElfFile`, then loads
+    //! the file through `ELFIO::elfio::load(path)` and runs
+    //! `readHeader()` to populate `formatSection_` and
+    //! `ddSections_`.
+    //! \param path  Filesystem path to the ELF artifact.
+    //! \throws ElfException  with message `"not a valid ELF
+    //! file " + path` when the magic check fails.
     explicit ElfReader(const std::string& path);   // 0x2c3110
 
-    // Frees the dd-sections vector buffer, chains to ~ELFIO::elfio.
+    //! \brief Release the cached section vector and chain to the
+    //!        `ELFIO::elfio` destructor.
     ~ElfReader();                                  // 0x2b18c0
 
+    //! \brief Non-copyable: copying an open ELF reader would
+    //!        double-own the underlying `ELFIO::elfio` state.
     ElfReader(const ElfReader&) = delete;
+    //! \brief Non-copyable: copy-assignment is deleted for the
+    //!        same reason as the copy constructor.
     ElfReader& operator=(const ElfReader&) = delete;
 
-    // Linear name search across the loaded section table. Returns a
-    // non-owning pointer to the matching ELFIO::section. **Throws
-    // ElfException("section not found: " + name + ...)** if the section
-    // is absent.
+    //! \brief Look up an ELF section by exact name.
+    //! \details Linear scan over the section table.  Returns the
+    //! matching section pointer; raises `ElfException` when no
+    //! section matches the requested name.
+    //! \param name  Section name (e.g. `".text"`, `".linenr"`).
+    //! \return Non-owning pointer to the matching section.
+    //! \throws ElfException  When the section is absent.
     ELFIO::section* getSection(const std::string& name) const;   // 0x2c4000
 
-    // Static utility: checks the first four bytes of `path` for the ELF
-    // magic 0x464c457f (\x7fELF). Used by the ctor as a precondition.
+    //! \brief Cheap precondition check: peek at the first four
+    //!        bytes of `path` and test the ELF magic 0x464c457f
+    //!        (`\x7fELF`).
+    //! \details Opens via `boost::filesystem::ifstream`; failure to
+    //! open is treated as "not an ELF file".  Used by the
+    //! `ElfReader` constructor before the full ELFIO load.
+    //! \param path  Filesystem path to test.
+    //! \return `true` when the magic matches, `false` otherwise.
     static bool isElfFile(const std::string& path);              // 0x2c3320
 
     // ELF section data extraction.
 
-    // Return type for getCode() and getWaveform() — a format tag plus raw bytes.
+    //! \brief Return type for `getCode()` and `getWaveform()`:
+    //!        section-type tag plus raw bytes.
     struct SectionData {
+        //! \brief Section type as reported by the ELFIO header.
         std::uint32_t sectionType = 0;   // section type from ELFIO header
+        //! \brief Raw section bytes (size-aligned per accessor).
         std::vector<std::uint8_t> data;  // raw bytes (size-aligned per method)
     };
 
-    // Line map entry — 16-byte record from ".linenr" section.
+    //! \brief Line-map record (a 16-byte entry from the `.linenr`
+    //!        section, see notes/elf_reader.md).
     struct Line {
+        //! \brief Instruction address the record pins.
         std::uint64_t addr;
+        //! \brief Source line associated with `addr`.
         std::uint32_t line;
     };
 
-    // getCode() @0x2c3bc0 — reads formatSection_ data, size aligned to 4.
-    SectionData getCode() const;
+    //! \brief Return the `.format` section payload (4-byte aligned).
+    //! \return A `SectionData` whose `data` holds the raw bytes of
+    //! the cached `formatSection_`.
+    SectionData getCode() const;                            // 0x2c3bc0
 
-    // getWaveform() @0x2c3d40 — reads ddSections_[ddSectionIndex_], size aligned to 2.
-    SectionData getWaveform() const;
+    //! \brief Return the currently selected `.dd*` waveform-
+    //!        descriptor section (2-byte aligned).
+    //! \return A `SectionData` for `ddSections_[ddSectionIndex_]`.
+    SectionData getWaveform() const;                        // 0x2c3d40
 
-    // getLineMap() @0x2c3ef0 — reads ".linenr" section, parses 16-byte records.
-    std::vector<Line> getLineMap() const;
+    //! \brief Parse the `.linenr` section into a vector of 16-byte
+    //!        `Line` records.
+    //! \return Sequence of address → line mappings in section order.
+    std::vector<Line> getLineMap() const;                   // 0x2c3ef0
 
 private:
-    // Walks the section table and partitions sections by name:
-    //   - ".format"  -> formatSection_   (single)
-    //   - starts with ".dd" -> push_back into ddSections_
-    // Other sections are ignored. Skips early if the ELF header reports
-    // get_class() != ELFCLASS32 OR get_encoding() != ELFDATA2LSB
-    // (sentinel checks observed in the binary — ElfWriter only ever
-    // produces 32-bit little-endian files).
+    //! \brief Walk the section table once and classify each entry
+    //!        into the `formatSection_` / `ddSections_` caches.
+    //! \details Early-exits without populating either cache when
+    //! the ELF header reports `get_class() != ELFCLASS32` or
+    //! `get_encoding() != ELFDATA2LSB`, matching the
+    //! 32-bit-little-endian-only constraint that
+    //! `ElfWriter` produces.
     void readHeader();                             // 0x2c3850
 
     // ----- Storage (immediately after the 0x70-byte ELFIO::elfio base) -----
 
+    //! \brief Cached pointer to the `.format` section, or `nullptr`
+    //!        when absent.
     ELFIO::section* formatSection_ = nullptr;        // +0x70 ".format" section
+    //! \brief Cached pointers to every section whose name starts
+    //!        with `".dd"`, in section-table order.
     std::vector<ELFIO::section*> ddSections_;        // +0x78..+0x90 — sections
                                                      //   whose names start ".dd"
 
-    // Trailing dword zeroed by the ctor (purpose unknown — possibly a flags
-    // field for a not-yet-reconstructed feature). Kept for layout fidelity.
+    //! \brief Current selector into `ddSections_` used by
+    //!        `getWaveform()`.
+    //!
+    //! Trailing dword zeroed by the constructor; the binary's
+    //! purpose for this slot is not yet established (see
+    //! `notes/elf_reader.md`).
+    //! \verifyme — exact role of this index has not been
+    //! verified.  Treated as a pass-through accessor for the time
+    //! being.
     std::uint32_t ddSectionIndex_ = 0;                          // +0x90
 };
 

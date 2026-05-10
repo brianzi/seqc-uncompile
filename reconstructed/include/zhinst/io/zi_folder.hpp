@@ -49,6 +49,9 @@ public:
     // The cmp $0x2 / jne pattern at 0x2cf0d7 and the setne+cmove at
     // 0x2cf166-0x2cf17b confirm three enum values: 0=Data, 1=Settings,
     // 2=Executable.
+    //! \brief Selector for the well-known LabOne directory
+    //! `ziFolder()` should resolve: user-data root, settings root,
+    //! or the running executable's directory.
     enum class DirectoryType : int {
         Data       = 0,   // resolves to "<base>/data"
         Settings   = 1,   // resolves to "<base>/settings"
@@ -56,6 +59,10 @@ public:
     };
 
     // Move-constructs from a base path string.                 @0x2ce2c0
+    //! \brief Constructs a folder rooted at `basePath`; the
+    //! argument is move-constructed into `basePath_`.
+    //! \param basePath Filesystem path used as the prefix for all
+    //!                 paths derived from this instance.
     explicit ZiFolder(std::string basePath);
 
     // Build a folder path:  <basePath> / <subdir> / "LabOne" / <deviceSerial> / <extra>
@@ -67,6 +74,16 @@ public:
     // and `extra` (if non-empty).
     //
     // Returns a boost::filesystem::path encoded as std::string. @0x2ce2f0
+    //! \brief Composes
+    //! `<basePath_>/<subdir>[/$Zurich Instruments]/LabOne/[<extra>]`
+    //! where the `$Zurich Instruments` segment is inserted only when
+    //! `subdir` is the canonical `"/data"` or `"/settings"` literal.
+    //! \param subdir Sub-directory marker; the literal strings
+    //!               `"/data"` and `"/settings"` trigger the vendor
+    //!               segment, any other value is appended verbatim.
+    //! \param extra  Optional tail segment appended after `LabOne`
+    //!               (e.g. device serial); empty value is skipped.
+    //! \return Composed path encoded as `std::string`.
     std::string folderPath(const std::string& subdir,
                            const std::string& extra) const;
 
@@ -75,6 +92,12 @@ public:
     // where `suffix` is "0" if serial.size() == 1, else empty.
     //
     // Static function.                                          @0x2ce620
+    //! \brief Builds a per-session, per-device directory name of
+    //! the form `"session_<timestamp>_<padding><serial>"` (with a
+    //! single `"0"` zero-pad when the serial is one character).
+    //! \param serial Device serial number to embed in the name.
+    //! \return Directory-name suitable for storing one session's
+    //! data.
     static std::string sessionSaveDirectoryName(const std::string& serial);
 
     // Factory: resolve a well-known ZI directory to a ZiFolder.
@@ -85,9 +108,20 @@ public:
     //   parent directories to find the install root.
     //
     // Static function.                                          @0x2cf0c0
+    //! \brief Resolves the well-known LabOne directory selected by
+    //! `type` and returns a `ZiFolder` rooted at it.
+    //! \details `Executable` uses `readlink("/proc/self/exe")` and
+    //! walks two parent directories up; `Data` / `Settings` return
+    //! the fixed `/data` / `/settings` paths on MF devices and fall
+    //! back to a `$HOME`-derived install root on host systems.
+    //! \param type Which well-known directory to locate.
+    //! \return A `ZiFolder` whose `basePath_` is the resolved
+    //! directory.
     static ZiFolder ziFolder(DirectoryType type);
 
 private:
+    //! \brief Filesystem root all `folderPath` invocations are
+    //! anchored to.
     std::string basePath_;  // offset 0x00, size 24
 };
 

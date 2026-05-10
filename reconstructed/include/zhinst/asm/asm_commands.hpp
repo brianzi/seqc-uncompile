@@ -1344,17 +1344,49 @@ public:
     int  wavetableFrontIndex() const { return wavetableFrontIndex_; }
 
 private:
+    //! \brief Pimpl pointer holding the queued instruction list and
+    //! the per-channel-group accounting state.
     std::unique_ptr<AsmCommandsImpl> impl_;                      // +0x10
+    //! \brief Wavetable currently active for newly-emitted entries;
+    //! used to stamp wavetable references on emitted assemblers.
     std::shared_ptr<WavetableFront> wavetable_;                  // ~+0x20
+    //! \brief Callback invoked with the error message when an
+    //! emitter helper detects a misuse (out-of-range index,
+    //! incompatible operand, etc.).
     std::function<void(const std::string&)> errorHandler_;       // ~+0x40
+    //! \brief Index of the wavetable-front entry stamped onto every
+    //! subsequent `AsmList::Asm`; updated via
+    //! `setWavetableFrontIndex`.
     int wavetableFrontIndex_ = 0;                                // +0x50
+    //! \brief Number of channel groups the surrounding compilation
+    //! targets; used by waveform-emitting helpers to size per-group
+    //! payloads.
     int numChannelGroups_ = 0;                                   // +0x54
 
     // Helper: build an AsmList::Asm from a local Assembler
+    //! \brief Wraps `instr` in an `AsmList::Asm`, stamping the
+    //! current `wavetableFrontIndex_` and the active source-line
+    //! annotation.
+    //! \param instr Concrete assembler instruction to wrap.
+    //! \return Newly-built `AsmList::Asm` entry.
     AsmList::Asm emitEntry(const Assembler& instr) const;
+    //! \brief Like `emitEntry(instr)` but stamps
+    //! `overrideWavetableFront` instead of the current
+    //! `wavetableFrontIndex_` — used by helpers that emit
+    //! cross-wavetable references.
+    //! \param instr                   Concrete assembler
+    //!                                instruction to wrap.
+    //! \param overrideWavetableFront  Wavetable-front index forced
+    //!                                onto the entry.
+    //! \return Newly-built `AsmList::Asm` entry.
     AsmList::Asm emitEntry(const Assembler& instr, int overrideWavetableFront) const;
 
     // Helper: build an AsmList::Asm with a Node
+    //! \brief Builds an `AsmList::Asm` whose payload is a fresh IR
+    //! `Node` of the given `type` (used by emitters that attach a
+    //! lowered-IR node to the assembler stream).
+    //! \param type Node-type discriminator for the new IR node.
+    //! \return Newly-built `AsmList::Asm` carrying the `Node`.
     AsmList::Asm emitNodeEntry(NodeType type) const;
 };
 

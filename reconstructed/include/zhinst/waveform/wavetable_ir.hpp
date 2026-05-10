@@ -28,6 +28,9 @@
 namespace boost { namespace filesystem { class path; } }
 namespace boost { namespace property_tree {
     template<typename Key, typename Data, typename KeyCompare> class basic_ptree;
+    //! \brief Convenience alias for the standard `std::string`-keyed
+    //! `boost::property_tree::basic_ptree` instantiation used by
+    //! `WavetableIR` when shuttling JSON configuration around.
     typedef basic_ptree<std::string, std::string, std::less<std::string>> ptree;
 } }
 
@@ -96,13 +99,35 @@ enum class WaveOrder : int {
 //! and `assignWaveIndexImplicit()` are run as part of those passes.
 class WavetableIR {
 public:
+    //! \brief Pointer to the device-constants block describing
+    //! sample widths, address strides, and alignment requirements
+    //! used during placement.
     const DeviceConstants* deviceConstants_;                             // +0x00
+    //! \brief Base address (in wave-memory address units) at which
+    //! this AWG core's waveforms start.
     uint32_t addressBase_;                                              // +0x08
+    //! \brief Offset from `addressBase_` to the first allocatable
+    //! waveform slot; non-zero when prelude waveforms have already
+    //! consumed the front of the address space.
     uint32_t firstWaveformOffset_;                                      // +0x0C
+    //! \brief CSV / sample cache used by waveform loaders to avoid
+    //! re-parsing the same file across allocation passes.
     CachedParser cachedParser_;                                         // +0x10 (0x60 bytes)
+    //! \brief Owning pointer to the manager that holds the
+    //! `WaveformIR` collection; created either by converting from a
+    //! `WavetableFront` or by JSON deserialisation.
     std::unique_ptr<detail::WavetableManager<WaveformIR>> manager_;    // +0x70
+    //! \brief Allocator tracking which wave indices are already in
+    //! use; supplies fresh indices to
+    //! `assignWaveIndexImplicit`.
     WaveIndexTracker waveIndexTracker_;                                  // +0x78 (0x28 bytes)
+    //! \brief Subset of waveforms confirmed to be reachable from
+    //! the generated code; populated by the pruning pass and used
+    //! when serialising the wave list.
     std::vector<std::shared_ptr<WaveformIR>> usedWaveforms_;           // +0xA0 (0x18 bytes)
+    //! \brief Weak handle to the host-supplied cancellation
+    //! callback; long allocation passes poll this so the compiler
+    //! can be aborted.
     std::weak_ptr<CancelCallback> cancelCallback_;                      // +0xB8 (0x10 bytes)
 
     // ---- Constructors ----

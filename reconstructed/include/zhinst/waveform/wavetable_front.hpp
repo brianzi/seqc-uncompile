@@ -39,8 +39,8 @@ namespace detail {
 // +0x2C   4     (padding)
 // +0x30   24    vector<shared_ptr<WaveformT>>              waveforms_
 // sizeof(WavetableManager) = 0x48
-//! Storage and lookup for a collection of waveforms keyed by name
-//! and indexed in registration order.
+//! \brief Storage and lookup for a collection of waveforms keyed by
+//!        name and indexed in registration order.
 //!
 //! Templated on the waveform element type so it can hold either
 //! `WaveformFront` (used by `WavetableFront` during the front-end
@@ -51,11 +51,20 @@ namespace detail {
 template <typename WaveformT>
 class WavetableManager {
 public:
+    //! \brief Line-number seed used by `getUniqueName` when minting
+    //!        synthetic names.
     int numDefs_;           // +0x00
+    //! \brief Monotonic counter appended to synthetic names to
+    //!        guarantee per-line uniqueness.
     int numDefs2_;          // +0x04
+    //! \brief Name → index lookup into `waveforms_`.
     std::unordered_map<std::string, size_t> nameToIndex_;   // +0x08 (40B)
+    //! \brief Default per-waveform amplitude (`1.0f`).
     float amplitudeDefault_ = 1.0f;                         // +0x28
     // +0x2C: 4B padding
+    //! \brief Registered waveforms in insertion order; the index
+    //!        within this vector is the waveform's stable identity
+    //!        for the rest of the pipeline.
     std::vector<std::shared_ptr<WaveformT>> waveforms_;     // +0x30
 
     // --- Methods ---
@@ -64,9 +73,10 @@ public:
     //! `amplitudeDefault_` initialised to `1.0f` via the in-class
     //! initialiser.
     WavetableManager() = default;
-    //! Releases every owned waveform (in reverse insertion
-    //! order) and the name-index hash table.  Compiler-
-    //! generated destruction order otherwise.
+    //! \brief Release every owned waveform (in reverse insertion
+    //!        order) and the name-index hash table.
+    //!
+    //! Compiler-generated destruction order otherwise.
     ~WavetableManager();                                    // 0x29fa40
 
     /*! \brief Register a fresh placeholder waveform under an
@@ -224,11 +234,11 @@ public:
         std::shared_ptr<WaveformT> wf,
         const std::string& newName);                        // 0x29ccf0
 
-    //! Append `wf` to the end of `waveforms_` and record
-    //! its position in `nameToIndex_` under
-    //! `wf->name`.  Insertion order is therefore the
-    //! waveform's stable index for the rest of the
-    //! pipeline.
+    //! \brief Append `wf` to the end of `waveforms_` and record
+    //!        its position in `nameToIndex_` under `wf->name`.
+    //!
+    //! Insertion order is therefore the waveform's stable index
+    //! for the rest of the pipeline.
     //!
     //! \param wf  Waveform to register.
     void insertWaveform(std::shared_ptr<WaveformT> wf);    // 0x2a1200
@@ -328,10 +338,11 @@ public:
      */
     bool operator==(const WavetableManager& other) const;
 
-    //! Reseed the manager's `numDefs_` line-number counter
-    //! used by `getUniqueName`.  Inlined into
-    //! `WavetableFront::setLineNr`; provided here for
-    //! direct manager-level access.
+    //! \brief Reseed the manager's `numDefs_` line-number counter
+    //!        used by `getUniqueName`.
+    //!
+    //! Inlined into `WavetableFront::setLineNr`; provided
+    //! here for direct manager-level access.
     //!
     //! \param nr  New value for `numDefs_`.
     void setLineNr(int nr);                                 // (inlined via WavetableFront)
@@ -368,15 +379,32 @@ public:
 //! `warningCallback_`.
 class WavetableFront {
 public:
+    //! \brief Device-constants snapshot for the bound AWG core
+    //!        (caller-owned).
     const DeviceConstants* deviceConstants_;            // +0x000
+    //! \brief Per-core wave-memory base address.
     uint32_t address_;                                  // +0x008
+    //! \brief Secondary address slot used by dual-channel devices.
     uint32_t address2_;                                 // +0x00C
+    //! \brief Scratch string stream used by waveform diagnostics.
     std::ostringstream oss_;                            // +0x010 (0x108B)
+    //! \brief Opaque storage for the CSV parser cache; resolves
+    //!        relative waveform paths against the project root.
     char cachedParser_[0x60];                           // +0x118
+    //! \brief Running DIO-table usage map keyed by caller-chosen
+    //!        identifier (typically SeqC source line).
     std::map<size_t, size_t> dioTableUsage_;            // +0x178
+    //! \brief Sink invoked by waveform generators for non-fatal
+    //!        diagnostics (rate quantisation, truncation, etc.).
     std::function<void(const std::string&, int)> warningCallback_;  // +0x190
+    //! \brief Inline storage backing `warningCallback_`'s small-
+    //!        functor optimisation; not addressed directly.
     char warningCallbackStorage_[0x20];                 // +0x1B0
+    //! \brief Heap-allocated underlying manager holding the
+    //!        waveform vector and name index.
     detail::WavetableManager<WaveformFront>* manager_;  // +0x1D0
+    //! \brief Opaque storage for the front-end wave-index tracker
+    //!        placeholder; `WavetableIR` rebuilds its own.
     char waveIndexTracker_[0x28];                       // +0x1D8
 
     // --- Constructor / Destructor ---
@@ -410,16 +438,17 @@ public:
         size_t lineNr,
         const boost::filesystem::path& path);                 // 0x29ab10
 
-    //! Tears down the wavetable: destroys the wave-index
-    //! tracker, deletes the heap-allocated manager, and
-    //! releases the warning callback, DIO-table-usage map,
-    //! sample-parser cache, and string stream in reverse
-    //! declaration order.
+    //! \brief Tear down the wavetable.
+    //!
+    //! Destroys the wave-index tracker, deletes the heap-
+    //! allocated manager, and releases the warning callback,
+    //! DIO-table-usage map, sample-parser cache, and string
+    //! stream in reverse declaration order.
     ~WavetableFront();                                      // 0x29a940
 
     // --- Accessors ---
-    //! No-op default warning sink installed by the
-    //! constructor.
+    //! \brief No-op default warning sink installed by the
+    //!        constructor.
     //!
     //! Used as the initial value of `warningCallback_` so
     //! that warnings emitted before the Compiler installs
@@ -431,19 +460,23 @@ public:
     //! \param level  Warning level (currently unused).
     static void dummyWarning(const std::string& msg, int level); // 0x29ac60
 
-    //! Pointer to the first waveform in the underlying
-    //! manager's vector.  Pairs with `end()` for whole-list
-    //! iteration in registration order.
+    //! \brief Pointer to the first waveform in the underlying
+    //!        manager's vector.
+    //!
+    //! Pairs with `end()` for whole-list iteration in
+    //! registration order.
     //! \return First-element pointer.
     const std::shared_ptr<WaveformFront>* begin() const;    // 0x29ad00
-    //! One-past-the-end pointer for whole-list iteration.
+    //! \brief One-past-the-end pointer for whole-list iteration.
     //! \return Sentinel pointer.
     const std::shared_ptr<WaveformFront>* end() const;      // 0x29ad20
 
-    //! Install the warning sink invoked by waveform
-    //! generators when they need to surface a non-fatal
-    //! diagnostic (rate quantisation, truncation, deprecated
-    //! alias).  The previous callback is dropped.
+    //! \brief Install the warning sink invoked by waveform
+    //!        generators when surfacing a non-fatal diagnostic.
+    //!
+    //! Receives rate-quantisation, truncation, and
+    //! deprecated-alias notices.  The previous callback is
+    //! dropped.
     //!
     //! \param cb  New warning sink.  Receives the formatted
     //!            warning message and a severity level.
@@ -473,7 +506,7 @@ public:
     size_t getMemorySize() const;                           // 0x29adc0
 
     // --- Waveform creation (delegates to manager_) ---
-    //! Register a placeholder waveform with no sample data.
+    //! \brief Register a placeholder waveform with no sample data.
     //!
     //! Forwards to `manager_->newEmptyWaveform` with the
     //! wavetable's bound device constants.  The returned
@@ -487,9 +520,8 @@ public:
     std::shared_ptr<WaveformFront> newEmptyWaveform(
         const std::string& name);                           // 0x29ae90
 
-    //! Register a waveform whose samples come from a file
-    //! (CSV, binary, or other supported formats), without a
-    //! pre-supplied `Signal`.
+    //! \brief Register a file-backed waveform without a pre-
+    //!        supplied `Signal`.
     //!
     //! Forwards to `manager_->newWaveformFromFile`; the
     //! manager creates an unloaded `WaveformFront` and
@@ -505,9 +537,8 @@ public:
         const std::string& filename,
         Waveform::File::Type type);                         // 0x29b0e0
 
-    //! Register a waveform whose samples come from a file
-    //! and whose initial `Signal` is already known (channel
-    //! count, marker layout, length).
+    //! \brief Register a file-backed waveform whose initial
+    //!        `Signal` is already known.
     //!
     //! Forwards to `manager_->newWaveformFromFile`, passing
     //! the wavetable's current `address_` so the new
@@ -524,8 +555,8 @@ public:
         const std::string& filename,
         Waveform::File::Type type);                         // 0x29b520
 
-    //! Register a generator-produced waveform under an
-    //! explicit name.
+    //! \brief Register a generator-produced waveform under an
+    //!        explicit name.
     //!
     //! Forwards to `manager_->newWaveform` with the
     //! generator descriptor (`funName` + `args`) so that
@@ -545,8 +576,8 @@ public:
         const std::string& funName,
         const std::vector<Value>& args);                    // 0x29b9d0
 
-    //! Register a generator-produced waveform under an
-    //! auto-generated name.
+    //! \brief Register a generator-produced waveform under an
+    //!        auto-generated name.
     //!
     //! Mints a unique name via
     //! `getUniqueName(funName, manager_->numDefs_,
@@ -567,9 +598,11 @@ public:
         const std::vector<Value>& args);                    // 0x29bce0
 
     // --- Query / Utility ---
-    //! Concatenate every waveform's `toString()` output for
-    //! debug printing.  Used by the Compiler driver's verbose
-    //! dump path; not consumed by any production output.
+    //! \brief Concatenate every waveform's `toString()` output
+    //!        for debug printing.
+    //!
+    //! Used by the Compiler driver's verbose dump path; not
+    //! consumed by any production output.
     //! \return Concatenated waveform descriptions.
     std::string toString() const;                           // 0x29bd90
 
@@ -597,14 +630,14 @@ public:
      */
     void loadWaveform(std::shared_ptr<WaveformFront> wf);   // 0x29bff0
 
-    //! Test whether a waveform with the given name has been
-    //! registered.
+    //! \brief Test whether a waveform with the given name has
+    //!        been registered.
     //!
     //! \param name  User-visible identifier.
     //! \return True iff `name` is in the manager's name index.
     bool waveformExists(const std::string& name) const;     // 0x29c160
 
-    //! Look up a waveform by source-language name.
+    //! \brief Look up a waveform by source-language name.
     //!
     //! Resolves through the manager's `nameToIndex_` map.
     //! Empty optional and unknown names both return null
@@ -615,8 +648,8 @@ public:
     std::shared_ptr<WaveformFront> getWaveformByName(
         const std::optional<std::string>& name) const;      // 0x29c180
 
-    //! Look up a waveform by its generator descriptor for
-    //! deduplication.
+    //! \brief Look up a waveform by its generator descriptor for
+    //!        deduplication.
     //!
     //! Forwards to `manager_->getWaveformForFront`, which
     //! scans previously registered waveforms for one whose
@@ -633,8 +666,8 @@ public:
         const std::string& funName,
         const std::vector<Value>& args) const;              // 0x29c1f0
 
-    //! Register a deep copy of `src` under a new
-    //! auto-generated name.
+    //! \brief Register a deep copy of `src` under a new
+    //!        auto-generated name.
     //!
     //! Forwards to `manager_->copyWaveform` after bumping
     //! the source's refcount so the manager can move from
@@ -672,7 +705,7 @@ public:
     void checkWaveformInitialized(
         const std::string& name);                           // 0x29c540
 
-    //! Read the raw sample length of a registered waveform.
+    //! \brief Read the raw sample length of a registered waveform.
     //!
     //! Looks up `name` and returns
     //! `WaveformFront::signal.length()` directly — does not
@@ -733,7 +766,7 @@ public:
     void assignWaveIndex(
         std::shared_ptr<WaveformFront> wf, int index);      // 0x29cb40
 
-    //! Rename a registered waveform.
+    //! \brief Rename a registered waveform.
     //!
     //! Forwards to `manager_->updateWave`, which updates
     //! the manager's name index so subsequent lookups
@@ -750,10 +783,11 @@ public:
         std::shared_ptr<WaveformFront> wf,
         const std::string& newName);                        // 0x29cc70
 
-    //! Reseed the manager's line-number counter used by
-    //! `getUniqueName` when minting synthetic waveform
-    //! names.  Called by the front-end at every new SeqC
-    //! statement so that synthesised names like
+    //! \brief Reseed the manager's line-number counter used by
+    //!        `getUniqueName` when minting synthetic names.
+    //!
+    //! Called by the front-end at every new SeqC statement
+    //! so that synthesised names like
     //! `__sin_<line>_<counter>` carry the user-visible
     //! source line.
     //!

@@ -262,20 +262,66 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 // ============================================================================
 
 #define SEQC_TRIVIAL_LEAF(Name, VtableAddr)                                 \
+    /*! \brief Trivial-leaf AST node — carries no children or extra        \
+     *  payload beyond the standard `SeqCAstNode` base fields.             \
+     *                                                                      \
+     *  All six trivial-leaf kinds (`SeqCCommand`, `SeqCVariableType`,     \
+     *  `SeqCLabel`, `SeqCContinueStatement`, `SeqCBreakStatement`,        \
+     *  `SeqCNoCmd`) share an identical layout and an identical            \
+     *  implementation modulo the printed label and the per-class vtable. \
+     *  Total size is 0x18 bytes (statically asserted below).              \
+     */                                                                     \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
+        /*! \brief Constructs the leaf with the base-class attributes;     \
+         *  no further state is held.                                       \
+         *  \param vc     Value category of the node.                       \
+         *  \param lineNr 1-based source line number.                       \
+         *  \param dir    Parameter-direction tag.                          \
+         *  \param vt     Variable-type tag assigned to `varType_`.        \
+         */                                                                 \
         Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt)                                                    \
             : SeqCAstNode(vc, lineNr, dir) { varType_ = vt; }                \
+        /*! \brief Copy constructor — copies the base AST attributes;      \
+         *  no owned children to clone.                                     \
+         *  \param o Source node copied from.                               \
+         */                                                                 \
         Name(Name const& o);                                                \
+        /*! \brief Copy-and-swap assignment.                                \
+         *  \param o Source node, copied on entry and swapped on exit.     \
+         *  \return Reference to `*this`.                                   \
+         */                                                                 \
         Name& operator=(Name o);                                            \
+        /*! \brief Default destructor. */                                   \
         ~Name() override;                                                   \
+        /*! \brief Writes the class label to `std::cout` as a raw          \
+         *  `std::cout.write()` with no trailing newline; used by the      \
+         *  AST debug-print walker.                                         \
+         */                                                                 \
         void print() const override;                                        \
+        /*! \brief Polymorphic deep clone — returns a fresh instance of    \
+         *  the same concrete leaf type with identical base attributes.   \
+         *  \return Owning pointer to the cloned node.                      \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> doClone() const override;                \
+        /*! \brief Lowers the leaf for this AST kind, returning the        \
+         *  `EvalResults` produced by its evaluation.                       \
+         *  \param res   Shared compile resources (symbol tables, etc.).   \
+         *  \param ctx   Lowering context (messages, asm commands, etc.). \
+         *  \param state Per-call lowering state.                          \
+         *  \return The `EvalResults` produced by lowering this node.       \
+         */                                                                 \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
+        /*! \brief ADL-friendly swap — exchanges only the                  \
+         *  `SeqCAstNode` base subobject (trivial leaves carry no extra   \
+         *  owned fields).                                                  \
+         *  \param a First leaf to swap.                                    \
+         *  \param b Second leaf to swap.                                   \
+         */                                                                 \
         friend void swap(Name& a, Name& b);                                \
     };                                                                      \
     static_assert(sizeof(Name) == 0x18, #Name " must be 0x18 bytes")
@@ -289,27 +335,71 @@ void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 //! when used as a function parameter slot.
 class SeqCOperation : public SeqCAstNode {
 public:
+    //! \brief Constructs the operation leaf with the base AST attributes
+    //! and the variable-type tag used by `getVarTypes()` to expose the
+    //! parameter's type at signature-rendering time.
+    //! \param vc     Value-category tag.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag (in/out/inout).
+    //! \param vt     Variable-type tag assigned to `varType_`.
     SeqCOperation(EValueCategory vc, int lineNr, EDirection dir,
                   VarType vt);  // out-of-line for symbol emission
+    //! \brief Copy constructor — copies the base AST attributes; no
+    //! owned children to clone.
+    //! \param o Source node copied from.
     SeqCOperation(SeqCOperation const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source node, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCOperation& operator=(SeqCOperation o);
+    //! \brief Default destructor.
     ~SeqCOperation() override;
+    //! \brief Writes the label `"Operation"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCOperation`
+    //! with identical base attributes.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Lowers the operation node, returning the `EvalResults`
+    //! produced by its evaluation.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this node.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
+    //! \brief Returns `{ str(varType_) }` so the parameter's
+    //! variable-type name participates in function-signature rendering.
+    //! \return Single-element vector with the variable-type's string
+    //! form.
     std::vector<std::string> getVarTypes() const override;  // @0x1fdb40
+    //! \brief ADL-friendly swap — exchanges only the `SeqCAstNode`
+    //! base subobject (operation nodes carry no extra owned fields).
+    //! \param a First operation node.
+    //! \param b Second operation node.
     friend void swap(SeqCOperation& a, SeqCOperation& b);
 };
 static_assert(sizeof(SeqCOperation) == 0x18, "SeqCOperation must be 0x18 bytes");
 
+//! \brief Generic command leaf — placeholder node for parser-emitted
+//! command statements that carry no operands of their own.
 SEQC_TRIVIAL_LEAF(SeqCCommand,           0xb05050);
+//! \brief Variable-type declarator leaf used to carry a parsed type
+//! name (e.g. function return type) through the AST without operands.
 SEQC_TRIVIAL_LEAF(SeqCVariableType,      0xb050a0);
+//! \brief Identifier-label leaf used for labelled targets that need
+//! no additional payload beyond the base `varType_` slot.
 SEQC_TRIVIAL_LEAF(SeqCLabel,             0xb05390);
+//! \brief `continue` statement leaf — jumps to the next loop iteration
+//! at lowering time when emitted inside a loop body.
 SEQC_TRIVIAL_LEAF(SeqCContinueStatement, 0xb05710);
+//! \brief `break` statement leaf — exits the innermost loop or
+//! `switch` body at lowering time.
 SEQC_TRIVIAL_LEAF(SeqCBreakStatement,    0xb05760);
+//! \brief No-op command leaf — produced by the parser as a placeholder
+//! where a statement is grammatically required but semantically empty.
 SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
 
 #undef SEQC_TRIVIAL_LEAF
@@ -321,32 +411,90 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
 // ============================================================================
 
 #define SEQC_UNARY(Name, VtableAddr)                                        \
+    /*! \brief Single-child unary AST node — wraps one owned operand      \
+     *  expression as `child_` at offset +0x18.                            \
+     *                                                                      \
+     *  All five unary kinds (`SeqCNeg`, `SeqCPos`, `SeqCInv`,             \
+     *  `SeqCNotExpr`, `SeqCReturnStatement`) share an identical layout   \
+     *  and an identical implementation modulo the printed label, the    \
+     *  per-class vtable, and the lowering rule in `evaluate()`.          \
+     *  Total size is 0x20 bytes (statically asserted below).             \
+     */                                                                     \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
+        /*! \brief Construct the unary node, taking ownership of the      \
+         *  operand subtree.                                                \
+         *  \param vc     Value category of the node.                       \
+         *  \param lineNr 1-based source line number.                       \
+         *  \param dir    Parameter-direction tag.                          \
+         *  \param vt     Variable-type tag assigned to `varType_`.        \
+         *  \param child  Owned operand subexpression; moved into          \
+         *                `child_`.                                        \
+         */                                                                 \
         Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt,                                                    \
              std::unique_ptr<SeqCAstNode> child);                           \
+        /*! \brief Deep-copy constructor — clones the operand via         \
+         *  `doClone()` (null operands are preserved as null).             \
+         *  \param o Source node copied from.                              \
+         */                                                                 \
         Name(Name const& o);                                                \
+        /*! \brief Copy-and-swap assignment.                                \
+         *  \param o Source node, copied on entry and swapped on exit.     \
+         *  \return Reference to `*this`.                                   \
+         */                                                                 \
         Name& operator=(Name o);                                            \
+        /*! \brief Default destructor; releases the owned operand. */      \
         ~Name() override;                                                   \
+        /*! \brief Writes the class label to `std::cout`. */               \
         void print() const override;                                        \
+        /*! \brief Polymorphic deep clone — returns a fresh instance     \
+         *  of the same concrete unary kind with a cloned operand.        \
+         *  \return Owning pointer to the cloned node.                      \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> doClone() const override;                \
+        /*! \brief Returns a one-entry vector with the operand pointer    \
+         *  (may be null) for generic tree-walking.                        \
+         *  \return Vector of borrowed child pointers (size 1).             \
+         */                                                                 \
         std::vector<const SeqCAstNode*> children() const override;          \
+        /*! \brief Lowers the unary form: evaluates the operand and       \
+         *  applies the operator-specific arithmetic / side effect.        \
+         *  \param res   Shared compile resources.                          \
+         *  \param ctx   Lowering context.                                  \
+         *  \param state Per-call lowering state.                          \
+         *  \return The `EvalResults` produced by lowering this node.       \
+         */                                                                 \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
+        /*! \brief Borrowed pointer to the operand subexpression.          \
+         *  \return Non-owning pointer to the held child (may be null).    \
+         */                                                                 \
         const SeqCAstNode* expr() const { return child_.get(); }            \
+        /*! \brief ADL-friendly swap — exchanges the base subobject and  \
+         *  the operand pointer.                                            \
+         *  \param a First node to swap.                                    \
+         *  \param b Second node to swap.                                   \
+         */                                                                 \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::unique_ptr<SeqCAstNode> child_;  /* +0x18 */                   \
     };                                                                      \
     static_assert(sizeof(Name) == 0x20, #Name " must be 0x20 bytes")
 
+//! \brief Unary minus expression `-expr`.
 SEQC_UNARY(SeqCNeg,             0xb05800);
+//! \brief Unary plus expression `+expr`.
 SEQC_UNARY(SeqCPos,             0xb05850);
+//! \brief Bitwise complement expression `~expr`.
 SEQC_UNARY(SeqCInv,             0xb058a0);
+//! \brief Logical negation expression `!expr`.
 SEQC_UNARY(SeqCNotExpr,         0xb058f0);
+//! \brief `return expr;` statement — wraps the optional return-value
+//! subexpression and signals the enclosing statement list to stop
+//! evaluating subsequent statements.
 SEQC_UNARY(SeqCReturnStatement, 0xb057b0);
 
 #undef SEQC_UNARY
@@ -371,22 +519,64 @@ SEQC_UNARY(SeqCReturnStatement, 0xb057b0);
 //! in derived classes.
 class SeqCOperator : public SeqCAstNode {
 public:
+    //! \brief Constructs the operator node, taking ownership of both
+    //! operand subtrees.
+    //! \param vc     Value category of the node.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag assigned to `varType_`.
+    //! \param lhs    Owned left-hand operand subtree.
+    //! \param rhs    Owned right-hand operand subtree.
     SeqCOperator(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCAstNode> lhs,
                  std::unique_ptr<SeqCAstNode> rhs);
+    //! \brief Deep-copy constructor — clones both operand subtrees via
+    //! `doClone()`.
+    //! \param o Source node copied from.
     SeqCOperator(SeqCOperator const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source operator, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCOperator& operator=(SeqCOperator o);
+    //! \brief Default destructor; releases both owned operands.
     ~SeqCOperator() override;
+    //! \brief Writes the label `"Operator"` to `std::cout`; overridden
+    //! by each concrete subclass to emit its own kind label.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCOperator`
+    //! base instance; overridden by each concrete subclass to clone as
+    //! its own kind.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns the two operand pointers in declaration order
+    //! (`lhs`, `rhs`).
+    //! \return Two-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
 
+    //! \brief Three-argument lowering entry point — lowers both
+    //! operands once and dispatches to the concrete-kind 5-argument
+    //! `evaluate()` with the already-lowered operand results.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this operator.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x210aa0
 
+    //! \brief Operator-specific evaluation overload — receives the
+    //! already-lowered operand results and applies the concrete-kind
+    //! arithmetic / comparison / assignment.  The base implementation
+    //! returns a null `EvalResults`; every concrete operator subclass
+    //! overrides it.
+    //! \param res       Shared compile resources.
+    //! \param ctx       Lowering context.
+    //! \param state     Per-call lowering state.
+    //! \param lhsResult `EvalResults` produced by lowering `lhs()`.
+    //! \param rhsResult `EvalResults` produced by lowering `rhs()`.
+    //! \return The `EvalResults` produced by applying this operator.
     virtual std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
@@ -394,9 +584,17 @@ public:
         EvalResults const& lhsResult,
         EvalResults const& rhsResult) const;       // vptr[8]
 
+    //! \brief Borrowed pointer to the left-hand operand subtree.
+    //! \return Non-owning pointer to `lhs_` (may be null).
     const SeqCAstNode* lhs() const { return lhs_.get(); }
+    //! \brief Borrowed pointer to the right-hand operand subtree.
+    //! \return Non-owning pointer to `rhs_` (may be null).
     const SeqCAstNode* rhs() const { return rhs_.get(); }
 
+    //! \brief ADL-friendly swap — exchanges the `SeqCAstNode` base
+    //! subobject and both operand pointers.
+    //! \param a First operator node.
+    //! \param b Second operator node.
     friend void swap(SeqCOperator& a, SeqCOperator& b);
 
 protected:
@@ -408,14 +606,55 @@ static_assert(sizeof(SeqCOperator) == 0x28,
               "SeqCOperator must be 0x28 (40) bytes");
 
 #define SEQC_OPERATOR(Name, VtableAddr)                                     \
+    /*! \brief Concrete binary-operator AST node.                          \
+     *                                                                      \
+     *  One of the 22 binary-operator / assignment / no-op subclasses of  \
+     *  `SeqCOperator` (arithmetic, bitwise, shift, comparison, logical, \
+     *  increment/decrement, plain assignment, no-op).  All 22 share the  \
+     *  `SeqCOperator` layout (`lhs_` at +0x18, `rhs_` at +0x20, total    \
+     *  size 0x28 bytes) and only differ in their per-class vtable —     \
+     *  specifically in the overrides of `print()`, `doClone()`, and the \
+     *  5-argument `evaluate()` that consumes already-lowered operand    \
+     *  results.                                                           \
+     */                                                                     \
     class Name : public SeqCOperator {                                      \
     public:                                                                 \
         using SeqCOperator::SeqCOperator;                                   \
+        /*! \brief Deep-copy constructor — forwards to the              \
+         *  `SeqCOperator` copy constructor (which clones both           \
+         *  operands).                                                     \
+         *  \param o Source node copied from.                             \
+         */                                                                 \
         Name(Name const& o);                                                \
+        /*! \brief Copy-and-swap assignment via the `SeqCOperator` base \
+         *  swap.                                                           \
+         *  \param o Source node, copied on entry and swapped on exit.     \
+         *  \return Reference to `*this`.                                   \
+         */                                                                 \
         Name& operator=(Name o);                                            \
+        /*! \brief Default destructor; resets the vptr so the base       \
+         *  `SeqCOperator` cleanup releases the owned operands.           \
+         */                                                                 \
         ~Name() override;                                                   \
+        /*! \brief Writes the class label to `std::cout`. */               \
         void print() const override;                                        \
+        /*! \brief Polymorphic deep clone — returns a fresh instance     \
+         *  of the same concrete operator kind with cloned `lhs_` and    \
+         *  `rhs_`.                                                        \
+         *  \return Owning pointer to the cloned node.                      \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> doClone() const override;                \
+        /*! \brief Operator-specific evaluation against already-lowered  \
+         *  operand results: applies the kind's arithmetic / comparison /\
+         *  bitwise / logical / assignment behaviour to `lhsResult` and  \
+         *  `rhsResult` and returns the resulting `EvalResults`.          \
+         *  \param res       Shared compile resources.                     \
+         *  \param ctx       Lowering context.                             \
+         *  \param state     Per-call lowering state.                      \
+         *  \param lhsResult `EvalResults` produced by lowering `lhs()`.  \
+         *  \param rhsResult `EvalResults` produced by lowering `rhs()`.  \
+         *  \return The `EvalResults` produced by applying this operator. \
+         */                                                                 \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
@@ -425,27 +664,51 @@ static_assert(sizeof(SeqCOperator) == 0x28,
     };                                                                      \
     static_assert(sizeof(Name) == 0x28, #Name " must be 0x28 bytes")
 
+//! \brief Addition / string-concatenation operator (`lhs + rhs`).
 SEQC_OPERATOR(SeqCPlus,    0xb05990);
+//! \brief Subtraction operator (`lhs - rhs`).
 SEQC_OPERATOR(SeqCMinus,   0xb059e8);
+//! \brief Multiplication operator (`lhs * rhs`).
 SEQC_OPERATOR(SeqCMult,    0xb05a40);
+//! \brief Division operator (`lhs / rhs`).
 SEQC_OPERATOR(SeqCDiv,     0xb05a98);
+//! \brief Modulo operator (`lhs % rhs`).
 SEQC_OPERATOR(SeqCMod,     0xb05af0);
+//! \brief Bitwise right-shift operator (`lhs >> rhs`).
 SEQC_OPERATOR(SeqCShiftR,  0xb05b48);
+//! \brief Bitwise left-shift operator (`lhs << rhs`).
 SEQC_OPERATOR(SeqCShiftL,  0xb05ba0);
+//! \brief Greater-than comparison operator (`lhs > rhs`).
 SEQC_OPERATOR(SeqCGreater, 0xb05bf8);
+//! \brief Less-than comparison operator (`lhs < rhs`).
 SEQC_OPERATOR(SeqCLower,   0xb05c50);
+//! \brief Less-than-or-equal comparison operator (`lhs <= rhs`).
 SEQC_OPERATOR(SeqCLEqual,  0xb05ca8);
+//! \brief Greater-than-or-equal comparison operator (`lhs >= rhs`).
 SEQC_OPERATOR(SeqCGEqual,  0xb05d00);
+//! \brief Equality comparison operator (`lhs == rhs`).
 SEQC_OPERATOR(SeqCEqual,   0xb05d58);
+//! \brief Inequality comparison operator (`lhs != rhs`).
 SEQC_OPERATOR(SeqCNEqual,  0xb05db0);
+//! \brief Post-increment / compound-assignment-style increment operator.
 SEQC_OPERATOR(SeqCInc,     0xb05e08);
+//! \brief Post-decrement / compound-assignment-style decrement operator.
 SEQC_OPERATOR(SeqCDec,     0xb05e60);
+//! \brief Bitwise AND operator (`lhs & rhs`).
 SEQC_OPERATOR(SeqCAndExpr, 0xb05eb8);
+//! \brief Bitwise OR operator (`lhs | rhs`).
 SEQC_OPERATOR(SeqCOrExpr,  0xb05f10);
+//! \brief Bitwise XOR operator (`lhs ^ rhs`).
 SEQC_OPERATOR(SeqCXorExpr, 0xb05f68);
+//! \brief Logical AND operator (`lhs && rhs`).
 SEQC_OPERATOR(SeqCLogAnd,  0xb05fc0);
+//! \brief Logical OR operator (`lhs || rhs`).
 SEQC_OPERATOR(SeqCLogOr,   0xb06018);
+//! \brief Plain assignment operator (`lhs = rhs`).
 SEQC_OPERATOR(SeqCAssign,  0xb06070);
+//! \brief No-op operator slot — placeholder used by the parser where
+//! an operator node is grammatically required but has no semantic
+//! effect.
 SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
 
 #undef SEQC_OPERATOR
@@ -457,24 +720,78 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
 // ============================================================================
 
 #define SEQC_BINARY(Name, FirstAccessor, SecondAccessor, F1, F2, VtableAddr) \
+    /*! \brief Two-child direct-`SeqCAstNode` subclass — wraps a pair    \
+     *  of owned subexpressions / subtrees as `F1##_` (+0x18) and        \
+     *  `F2##_` (+0x20).                                                  \
+     *                                                                     \
+     *  Used by `SeqCIfCondition`, `SeqCWhileLoop`, `SeqCDoWhile` and    \
+     *  `SeqCRepeat`; their roles differ only in the role names of the  \
+     *  two children, the accessor names, the printed label, and the    \
+     *  per-class lowering rule.  Total size is 0x28 bytes.              \
+     */                                                                     \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
+        /*! \brief Construct the binary node, taking ownership of both   \
+         *  subtrees.                                                      \
+         *  \param vc     Value category of the node.                      \
+         *  \param lineNr 1-based source line number.                      \
+         *  \param dir    Parameter-direction tag.                         \
+         *  \param vt     Variable-type tag assigned to `varType_`.       \
+         *  \param F1     First child subtree; moved into `F1##_`.        \
+         *  \param F2     Second child subtree; moved into `F2##_`.       \
+         */                                                                 \
         Name(EValueCategory vc, int lineNr, EDirection dir,              \
              VarType vt,                                                    \
              std::unique_ptr<SeqCAstNode> F1,                               \
              std::unique_ptr<SeqCAstNode> F2);                              \
+        /*! \brief Deep-copy constructor — clones both subtrees via      \
+         *  `doClone()`.                                                   \
+         *  \param o Source node copied from.                              \
+         */                                                                 \
         Name(Name const& o);                                                \
+        /*! \brief Copy-and-swap assignment.                               \
+         *  \param o Source node, copied on entry and swapped on exit.    \
+         *  \return Reference to `*this`.                                  \
+         */                                                                 \
         Name& operator=(Name o);                                            \
+        /*! \brief Default destructor; releases both owned children. */   \
         ~Name() override;                                                   \
+        /*! \brief Writes the class label to `std::cout`. */              \
         void print() const override;                                        \
+        /*! \brief Polymorphic deep clone — returns a fresh instance     \
+         *  of the same concrete kind with cloned children.                \
+         *  \return Owning pointer to the cloned node.                     \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> doClone() const override;                \
+        /*! \brief Returns a two-entry vector with both child pointers   \
+         *  in declaration order (either may be null).                    \
+         *  \return Vector of borrowed child pointers (size 2).            \
+         */                                                                 \
         std::vector<const SeqCAstNode*> children() const override;          \
+        /*! \brief Lowers this two-child node, evaluating both subtrees  \
+         *  and applying the kind-specific lowering rule.                  \
+         *  \param res   Shared compile resources.                         \
+         *  \param ctx   Lowering context.                                 \
+         *  \param state Per-call lowering state.                         \
+         *  \return The `EvalResults` produced by lowering this node.      \
+         */                                                                 \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
+        /*! \brief Borrowed pointer to the first owned subtree.           \
+         *  \return Non-owning pointer to `F1##_` (may be null).           \
+         */                                                                 \
         const SeqCAstNode* FirstAccessor()  const { return F1##_.get(); }   \
+        /*! \brief Borrowed pointer to the second owned subtree.          \
+         *  \return Non-owning pointer to `F2##_` (may be null).           \
+         */                                                                 \
         const SeqCAstNode* SecondAccessor() const { return F2##_.get(); }   \
+        /*! \brief ADL-friendly swap — exchanges the base subobject and \
+         *  both child pointers.                                           \
+         *  \param a First node to swap.                                   \
+         *  \param b Second node to swap.                                  \
+         */                                                                 \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::unique_ptr<SeqCAstNode> F1##_;   /* +0x18 */                   \
@@ -495,22 +812,60 @@ class SeqCVariable;
 //! built-in registry, evaluates the arguments, and dispatches the call.
 class SeqCFunctionCall : public SeqCAstNode {
 public:
+    //! \brief Constructs the call node, taking ownership of the callee
+    //! identifier and the argument-list subtree.
+    //! \param vc      Value category of the call expression.
+    //! \param lineNr  1-based source line number.
+    //! \param dir     Parameter-direction tag.
+    //! \param vt      Variable-type tag (the call's return-type tag).
+    //! \param funName Owned callee identifier (function name).
+    //! \param args    Owned argument-list subtree.
     SeqCFunctionCall(EValueCategory vc, int lineNr, EDirection dir,
                      VarType vt,
                      std::unique_ptr<SeqCVariable> funName,
                      std::unique_ptr<SeqCAstNode> args);
+    //! \brief Deep-copy constructor — clones both the callee identifier
+    //! and the argument-list subtree.
+    //! \param o Source node copied from.
     SeqCFunctionCall(SeqCFunctionCall const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source call, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCFunctionCall& operator=(SeqCFunctionCall o);
+    //! \brief Default destructor; releases both owned children.
     ~SeqCFunctionCall() override;
+    //! \brief Writes the label `"FunctionCall"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh
+    //! `SeqCFunctionCall` with cloned callee and arguments.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ funName(), arguments() }` in that order.
+    //! \return Two-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the call: resolves `funName()` against the
+    //! user-defined function table and the built-in registry, evaluates
+    //! the arguments, and dispatches to the resolved target.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering the call.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
+    //! \brief Borrowed pointer to the callee identifier.
+    //! \return Non-owning pointer to the held `SeqCVariable` (may be
+    //! null).
     const SeqCVariable* funName()    const { return funName_.get(); }
+    //! \brief Borrowed pointer to the argument-list subtree.
+    //! \return Non-owning pointer to the held argument-list node (may
+    //! be null).
     const SeqCAstNode*  arguments()  const { return args_.get(); }
+    //! \brief ADL-friendly swap — exchanges the base subobject, the
+    //! callee pointer, and the argument-list pointer.
+    //! \param a First call node.
+    //! \param b Second call node.
     friend void swap(SeqCFunctionCall& a, SeqCFunctionCall& b);
 private:
     std::unique_ptr<SeqCVariable>  funName_;   /* +0x18 */
@@ -528,22 +883,60 @@ static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 b
 //! write the addressed element.
 class SeqCArray : public SeqCAstNode {
 public:
+    //! \brief Constructs the array-access node, taking ownership of
+    //! both children.
+    //! \param vc     Value category of the access expression.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param array  Owned array-identifier node.
+    //! \param index  Owned index-expression subtree.
     SeqCArray(EValueCategory vc, int lineNr, EDirection dir,
               VarType vt,
               std::unique_ptr<SeqCVariable> array,
               std::unique_ptr<SeqCAstNode> index);
+    //! \brief Deep-copy constructor — clones both children.
+    //! \param o Source node copied from.
     SeqCArray(SeqCArray const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source array access, copied on entry and swapped on
+    //! exit.
+    //! \return Reference to `*this`.
     SeqCArray& operator=(SeqCArray o);
+    //! \brief Default destructor; releases both owned children.
     ~SeqCArray() override;
+    //! \brief Writes the label `"Array"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCArray`
+    //! with cloned array identifier and index subtree.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ array(), index() }` in that order.
+    //! \return Two-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the array-element access: resolves `array()`
+    //! through the `Resources` symbol table and emits the offset
+    //! arithmetic to read or write the addressed element.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering the access.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
+    //! \brief Borrowed pointer to the index-expression subtree.
+    //! \return Non-owning pointer to the held index subtree (may be
+    //! null).
     const SeqCAstNode*  index() const { return index_.get(); }
+    //! \brief Borrowed pointer to the array-identifier node.
+    //! \return Non-owning pointer to the held `SeqCVariable` (may be
+    //! null).
     const SeqCVariable* array() const { return array_.get(); }
+    //! \brief ADL-friendly swap — exchanges the base subobject, the
+    //! array-identifier pointer, and the index pointer.
+    //! \param a First array-access node.
+    //! \param b Second array-access node.
     friend void swap(SeqCArray& a, SeqCArray& b);
 private:
     std::unique_ptr<SeqCVariable>  array_;   /* +0x18 */
@@ -551,6 +944,10 @@ private:
 };
 static_assert(sizeof(SeqCArray) == 0x28, "SeqCArray must be 0x28 bytes");
 
+//! \brief Single-arm `if` condition node — wraps the condition
+//! expression and the then-branch body when no `else` is present.
+//! Lowering folds constant-true conditions to the body and constant-false
+//! conditions to a no-op.
 SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  cond, ifBody, 0xb053e0);
 
 // SeqCCaseEntry — broken out of SEQC_BINARY for extra methods (validLabel, hasLabel).
@@ -563,20 +960,52 @@ SEQC_BINARY(SeqCIfCondition,  cond,     ifBody,  cond, ifBody, 0xb053e0);
 //! case entries appear only inside an enclosing `SeqCSwitchCase`.
 class SeqCCaseEntry : public SeqCAstNode {
 public:
+    //! \brief Constructs the case-entry node, taking ownership of the
+    //! optional label expression and the body subtree.
+    //! \param vc     Value category of the entry.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param label  Owned label expression; null for the `default`
+    //!               entry.
+    //! \param body   Owned body subtree to execute when the entry
+    //!               matches.
     SeqCCaseEntry(EValueCategory vc, int lineNr, EDirection dir,
                   VarType vt,
                   std::unique_ptr<SeqCAstNode> label,
                   std::unique_ptr<SeqCAstNode> body);
+    //! \brief Deep-copy constructor — clones both children.
+    //! \param o Source node copied from.
     SeqCCaseEntry(SeqCCaseEntry const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source entry, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCCaseEntry& operator=(SeqCCaseEntry o);
+    //! \brief Default destructor; releases both owned children.
     ~SeqCCaseEntry() override;
+    //! \brief Writes the label `"CaseEntry"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh
+    //! `SeqCCaseEntry` with cloned label and body.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ label(), body() }` in that order.
+    //! \return Two-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the case entry; rejects the node unless
+    //! `state.inSwitch_` is set so case entries are only accepted
+    //! inside an enclosing `SeqCSwitchCase`.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this entry.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
+    //! \brief Borrowed pointer to the label expression (null for the
+    //! `default` entry).
+    //! \return Non-owning pointer to the held label subtree.
     const SeqCAstNode* label()      const { return label_.get(); }
     //! \brief Returns the case body subtree.
     //! \return Non-owning pointer to the body subtree.
@@ -589,6 +1018,10 @@ public:
     //! label is present.
     //! \return Same as `validLabel()`.
     bool               hasLabel()   const;  // label_ != nullptr
+    //! \brief ADL-friendly swap — exchanges the base subobject, the
+    //! label pointer, and the body pointer.
+    //! \param a First case-entry node.
+    //! \param b Second case-entry node.
     friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
 private:
     std::unique_ptr<SeqCAstNode> label_;   /* +0x18 */
@@ -609,22 +1042,56 @@ class SeqCStmtList;
 //! evaluates each case body in turn against the lowered condition value.
 class SeqCSwitchCase : public SeqCAstNode {
 public:
+    //! \brief Constructs the switch node, taking ownership of the
+    //! condition expression and the body subtree.
+    //! \param vc     Value category of the switch expression.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param cond   Owned condition expression.
+    //! \param body   Owned body — usually a `SeqCStmtList` of
+    //!               `SeqCCaseEntry` children but a single entry is
+    //!               accepted.
     SeqCSwitchCase(EValueCategory vc, int lineNr, EDirection dir,
                    VarType vt,
                    std::unique_ptr<SeqCAstNode> cond,
                    std::unique_ptr<SeqCAstNode> body);
+    //! \brief Deep-copy constructor — clones both children.
+    //! \param o Source node copied from.
     SeqCSwitchCase(SeqCSwitchCase const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source switch, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCSwitchCase& operator=(SeqCSwitchCase o);
+    //! \brief Default destructor; releases both owned children.
     ~SeqCSwitchCase() override;
+    //! \brief Writes the label `"SwitchCase"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh
+    //! `SeqCSwitchCase` with cloned condition and body.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ cond(), body() }` in that order.
+    //! \return Two-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the switch: evaluates `cond()`, sets
+    //! `state.inSwitch_` for the body, then calls `evalCases()` to run
+    //! each case body against the condition value.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this switch.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;
 
+    //! \brief Borrowed pointer to the condition expression.
+    //! \return Non-owning pointer to the held condition (may be null).
     const SeqCAstNode* cond() const { return cond_.get(); }
+    //! \brief Borrowed pointer to the body subtree (list of case
+    //! entries or a single entry).
+    //! \return Non-owning pointer to the held body (may be null).
     const SeqCAstNode* body() const { return body_.get(); }
 
     // Switch-specific helpers
@@ -666,6 +1133,10 @@ public:
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const;                         // @0x216980
 
+    //! \brief ADL-friendly swap — exchanges the base subobject, the
+    //! condition pointer, and the body pointer.
+    //! \param a First switch node.
+    //! \param b Second switch node.
     friend void swap(SeqCSwitchCase& a, SeqCSwitchCase& b);
 
 private:
@@ -673,8 +1144,17 @@ private:
     std::unique_ptr<SeqCAstNode> body_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCSwitchCase) == 0x28, "SeqCSwitchCase must be 0x28 bytes");
+//! \brief `while (cond) body` loop node — evaluates `body` repeatedly
+//! while `cond` is non-zero; `state.inLoop_` is toggled around the body
+//! to validate nested `break`/`continue`.
 SEQC_BINARY(SeqCWhileLoop,    cond,     body,  cond, body, 0xb055d0);
+//! \brief `do body while (cond);` loop node — like `SeqCWhileLoop`
+//! but with body-first semantics; `body` is always evaluated at least
+//! once before `cond` is tested.
 SEQC_BINARY(SeqCDoWhile,      body,     cond,  body, cond, 0xb05620);
+//! \brief `repeat (count) body` loop node — evaluates `body` exactly
+//! `count` times; the body is unrolled when `count` is a compile-time
+//! constant (subject to the loop-unroll limit on the lowering context).
 SEQC_BINARY(SeqCRepeat,       count,    body,  count, body, 0xb05670);
 
 #undef SEQC_BINARY
@@ -691,26 +1171,67 @@ SEQC_BINARY(SeqCRepeat,       count,    body,  count, body, 0xb05670);
 //! arm.
 class SeqCIfElse : public SeqCAstNode {
 public:
+    //! \brief Constructs the if/else node, taking ownership of the
+    //! condition and both branch bodies.
+    //! \param vc       Value category of the node.
+    //! \param lineNr   1-based source line number.
+    //! \param dir      Parameter-direction tag.
+    //! \param vt       Variable-type tag.
+    //! \param cond     Owned condition expression.
+    //! \param ifBody   Owned then-branch subtree.
+    //! \param elseBody Owned else-branch subtree.
     SeqCIfElse(EValueCategory vc, int lineNr, EDirection dir,
                VarType vt,
                std::unique_ptr<SeqCAstNode> cond,
                std::unique_ptr<SeqCAstNode> ifBody,
                std::unique_ptr<SeqCAstNode> elseBody);   // 0x202150
+    //! \brief Deep-copy constructor — clones all three children.
+    //! \param o Source node copied from.
     SeqCIfElse(SeqCIfElse const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source if/else, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCIfElse& operator=(SeqCIfElse o);
+    //! \brief Default destructor; releases all three owned children.
     ~SeqCIfElse() override;
+    //! \brief Writes the label `"IfElse"` to `std::cout`.
     void print() const override;                          // 0x201df0
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCIfElse`
+    //! with cloned condition and both branch bodies.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;  // 0x2021a0
+    //! \brief Returns `{ cond(), ifBody(), elseBody() }` in that
+    //! order.
+    //! \return Three-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;  // 0x2022c0
+    //! \brief Lowers the if/else: evaluates `cond()`, lowers each
+    //! branch under the appropriate constant-folded path, and emits a
+    //! `Branch` IR node when both arms remain live.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this if/else.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x214d50
 
+    //! \brief Borrowed pointer to the condition expression.
+    //! \return Non-owning pointer to the held condition (may be null).
     const SeqCAstNode* cond()     const { return cond_.get(); }      // 0x202320
+    //! \brief Borrowed pointer to the then-branch subtree.
+    //! \return Non-owning pointer to the held then-branch (may be
+    //! null).
     const SeqCAstNode* ifBody()   const { return ifBody_.get(); }    // 0x202330
+    //! \brief Borrowed pointer to the else-branch subtree.
+    //! \return Non-owning pointer to the held else-branch (may be
+    //! null).
     const SeqCAstNode* elseBody() const { return elseBody_.get(); }  // 0x202340
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! all three child pointers.
+    //! \param a First if/else node.
+    //! \param b Second if/else node.
     friend void swap(SeqCIfElse& a, SeqCIfElse& b);
 
 private:
@@ -727,26 +1248,70 @@ static_assert(sizeof(SeqCIfElse) == 0x30, "SeqCIfElse must be 0x30 bytes");
 //! expression result, instead of producing control-flow IR.
 class SeqCCondExpr : public SeqCAstNode {
 public:
+    //! \brief Constructs the conditional expression, taking ownership
+    //! of the condition and both result subexpressions.
+    //! \param vc       Value category of the expression.
+    //! \param lineNr   1-based source line number.
+    //! \param dir      Parameter-direction tag.
+    //! \param vt       Variable-type tag.
+    //! \param cond     Owned condition expression.
+    //! \param ifBody   Owned then-result subexpression.
+    //! \param elseBody Owned else-result subexpression.
     SeqCCondExpr(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCAstNode> cond,
                  std::unique_ptr<SeqCAstNode> ifBody,
                  std::unique_ptr<SeqCAstNode> elseBody);
+    //! \brief Deep-copy constructor — clones all three children.
+    //! \param o Source node copied from.
     SeqCCondExpr(SeqCCondExpr const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source expression, copied on entry and swapped on
+    //! exit.
+    //! \return Reference to `*this`.
     SeqCCondExpr& operator=(SeqCCondExpr o);
+    //! \brief Default destructor; releases all three owned children.
     ~SeqCCondExpr() override;
+    //! \brief Writes the label `"CondExpr"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCCondExpr`
+    //! with cloned condition and both result subexpressions.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ cond(), ifBody(), elseBody() }` in that
+    //! order.
+    //! \return Three-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the conditional expression: evaluates `cond()`
+    //! and yields the value of the then-branch or the else-branch
+    //! subexpression as the expression result (instead of producing
+    //! control-flow IR).
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this conditional
+    //! expression.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x223d90
 
+    //! \brief Borrowed pointer to the condition expression.
+    //! \return Non-owning pointer to the held condition (may be null).
     const SeqCAstNode* cond()     const { return cond_.get(); }
+    //! \brief Borrowed pointer to the then-branch subexpression.
+    //! \return Non-owning pointer to the held then-result (may be
+    //! null).
     const SeqCAstNode* ifBody()   const { return ifBody_.get(); }    // @0x2040e0
+    //! \brief Borrowed pointer to the else-branch subexpression.
+    //! \return Non-owning pointer to the held else-result (may be
+    //! null).
     const SeqCAstNode* elseBody() const { return elseBody_.get(); }  // @0x2040f0
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! all three child pointers.
+    //! \param a First conditional expression.
+    //! \param b Second conditional expression.
     friend void swap(SeqCCondExpr& a, SeqCCondExpr& b);
 
 private:
@@ -769,28 +1334,75 @@ static_assert(sizeof(SeqCCondExpr) == 0x30, "SeqCCondExpr must be 0x30 bytes");
 //! when the function is called.
 class SeqCFunction : public SeqCAstNode {
 public:
+    //! \brief Constructs the function-definition node, taking
+    //! ownership of all four child subtrees.
+    //! \param vc      Value category of the definition.
+    //! \param lineNr  1-based source line number.
+    //! \param dir     Parameter-direction tag.
+    //! \param vt      Variable-type tag.
+    //! \param call    Owned signature node — a `SeqCFunctionCall`
+    //!                carrying the function name.
+    //! \param params  Owned parameter-list subtree.
+    //! \param body    Owned function-body subtree.
+    //! \param retType Owned return-type declarator.
     SeqCFunction(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt,
                  std::unique_ptr<SeqCFunctionCall> call,
                  std::unique_ptr<SeqCAstNode> params,
                  std::unique_ptr<SeqCAstNode> body,
                  std::unique_ptr<SeqCVariableType> retType);
+    //! \brief Deep-copy constructor — clones all four children.
+    //! \param o Source node copied from.
     SeqCFunction(SeqCFunction const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source function, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCFunction& operator=(SeqCFunction o);
+    //! \brief Default destructor; releases all four owned children.
     ~SeqCFunction() override;
+    //! \brief Writes the label `"Function"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCFunction`
+    //! with cloned signature, parameters, body, and return-type
+    //! declarator.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ call(), params(), body(), retType() }` in
+    //! that order.
+    //! \return Four-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Lowers the function definition: registers the function
+    //! in the `Resources` symbol table and stashes the body for later
+    //! inlining at every call site.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this definition.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x20b200
 
+    //! \brief Borrowed pointer to the signature node (a
+    //! `SeqCFunctionCall` carrying the function name).
+    //! \return Non-owning pointer to the held signature (may be null).
     const SeqCFunctionCall* call()  const { return call_.get(); }         // @0x1fec10, +0x18
+    //! \brief Borrowed pointer to the parameter-list subtree.
+    //! \return Non-owning pointer to the held parameter list (may be
+    //! null).
     const SeqCAstNode* params()     const { return params_.get(); }       // @0x1fec20, +0x20
+    //! \brief Borrowed pointer to the function-body subtree.
+    //! \return Non-owning pointer to the held body (may be null).
     const SeqCAstNode* body()       const { return body_.get(); }         // @0x1fec30, +0x28
+    //! \brief Borrowed pointer to the return-type declarator.
+    //! \return Non-owning pointer to the held return-type node (may
+    //! be null).
     const SeqCVariableType* retType() const { return retType_.get(); }    // @0x1fec40, +0x30
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! all four child pointers.
+    //! \param a First function node.
+    //! \param b Second function node.
     friend void swap(SeqCFunction& a, SeqCFunction& b);
 
 private:
@@ -810,28 +1422,74 @@ static_assert(sizeof(SeqCFunction) == 0x38, "SeqCFunction must be 0x38 bytes");
 //! (subject to `FrontendLoweringContext::loopUnrollLimit`).
 class SeqCForLoop : public SeqCAstNode {
 public:
+    //! \brief Constructs the for-loop node, taking ownership of all
+    //! four child subtrees.
+    //! \param vc     Value category of the loop.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param init   Owned initialiser subtree.
+    //! \param cond   Owned condition expression.
+    //! \param incr   Owned increment subtree.
+    //! \param body   Owned loop-body subtree.
     SeqCForLoop(EValueCategory vc, int lineNr, EDirection dir,
                 VarType vt,
                 std::unique_ptr<SeqCAstNode> init,
                 std::unique_ptr<SeqCAstNode> cond,
                 std::unique_ptr<SeqCAstNode> incr,
                 std::unique_ptr<SeqCAstNode> body);     // 0x202f00
+    //! \brief Deep-copy constructor — clones all four children.
+    //! \param o Source node copied from.
     SeqCForLoop(SeqCForLoop const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source loop, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCForLoop& operator=(SeqCForLoop o);
+    //! \brief Default destructor; releases all four owned children.
     ~SeqCForLoop() override;
+    //! \brief Writes the label `"ForLoop"` to `std::cout`.
     void print() const override;                         // 0x202bc0
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCForLoop`
+    //! with cloned initialiser, condition, increment, and body.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override; // 0x202f70
+    //! \brief Returns `{ init(), cond(), incr(), body() }` in that
+    //! order.
+    //! \return Four-entry vector of borrowed child pointers.
     std::vector<const SeqCAstNode*> children() const override;  // 0x202fd0
+    //! \brief Lowers the loop: evaluates `init()` once, then iterates
+    //! `cond()` / `body()` / `incr()` while toggling `state.inLoop_`
+    //! around body evaluation so nested `break` / `continue`
+    //! statements can validate their context.  Unrolls the loop when
+    //! `cond()` is a compile-time constant (subject to
+    //! `FrontendLoweringContext::loopUnrollLimit`).
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this loop.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x21b680
 
+    //! \brief Borrowed pointer to the initialiser subtree.
+    //! \return Non-owning pointer to the held initialiser (may be
+    //! null).
     const SeqCAstNode* init() const { return init_.get(); }   // 0x203020
+    //! \brief Borrowed pointer to the condition expression.
+    //! \return Non-owning pointer to the held condition (may be null).
     const SeqCAstNode* cond() const { return cond_.get(); }   // 0x203030
+    //! \brief Borrowed pointer to the increment subtree.
+    //! \return Non-owning pointer to the held increment (may be null).
     const SeqCAstNode* incr() const { return incr_.get(); }   // 0x203040
+    //! \brief Borrowed pointer to the loop-body subtree.
+    //! \return Non-owning pointer to the held body (may be null).
     const SeqCAstNode* body() const { return body_.get(); }   // 0x203050
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! all four child pointers.
+    //! \param a First loop node.
+    //! \param b Second loop node.
     friend void swap(SeqCForLoop& a, SeqCForLoop& b);
 
 private:
@@ -1005,8 +1663,15 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
     };                                                                      \
     static_assert(sizeof(Name) == 0x30, #Name " must be 0x30 bytes")
 
+//! \brief Argument-list node — holds the ordered list of argument
+//! expressions of a `SeqCFunctionCall`.
 SEQC_LIST(SeqCArgList,   params, 0xb05238);
+//! \brief Declaration-list node — holds the ordered list of variable
+//! declarations introduced by a `var`/parameter declaration block.
 SEQC_LIST(SeqCDeclList,  decls,  0xb05288);
+//! \brief Statement-list node — holds the ordered sequence of
+//! statement subtrees in a block (function body, branch arm, loop
+//! body, switch case, etc.).
 SEQC_LIST(SeqCStmtList,  stmts,  0xb05340);
 
 #undef SEQC_LIST
@@ -1029,30 +1694,83 @@ SEQC_LIST(SeqCStmtList,  stmts,  0xb05340);
 //! for signature matching.
 class SeqCParamList : public SeqCAstNode {
 public:
+    //! \brief Constructs an empty parameter list with the given base
+    //! AST attributes; parameters are appended later via `append()`.
+    //! \param vc     Value category of the parameter list.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag assigned to `varType_`.
     SeqCParamList(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
+    //! \brief Constructs a parameter list pre-populated with the
+    //! given element vector.
+    //! \param vc       Value category of the parameter list.
+    //! \param lineNr   1-based source line number.
+    //! \param dir      Parameter-direction tag.
+    //! \param vt       Variable-type tag.
+    //! \param elements Initial parameter nodes; ownership transfers.
     SeqCParamList(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
                   std::vector<std::unique_ptr<SeqCAstNode>> elements);
+    //! \brief Deep-copy constructor — clones every parameter via
+    //! `doClone()` (null entries are preserved as null).
+    //! \param o Source node copied from.
     SeqCParamList(SeqCParamList const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source list, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCParamList& operator=(SeqCParamList o);
+    //! \brief Default destructor; releases all owned parameter nodes.
     ~SeqCParamList() override;
+    //! \brief Writes the label `"ParamList"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh
+    //! `SeqCParamList` with cloned parameter children.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns raw, non-owning pointers to every parameter
+    //! element in declaration order.
+    //! \return Vector of borrowed parameter pointers.
     std::vector<const SeqCAstNode*> children() const override;
+    //! \brief Returns the string-form list elements contributed by
+    //! each parameter, used by signature rendering.
+    //! \return Concatenated string elements from all parameters.
     std::vector<std::string> getListElements() const override;   // @0x2007e0
+    //! \brief Lowers the parameter list: evaluates each parameter in
+    //! order and accumulates the results for the enclosing function
+    //! definition.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return Accumulated `EvalResults`.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
         FrontendLoweringState& state) const override;  // @0x211050
 
+    //! \brief Returns the parameter types in declaration order for
+    //! signature matching.
+    //! \return Variable-type names of every parameter, in order.
     std::vector<std::string> getVarTypes() const override;  // @0x200f20
 
+    //! \brief Append a parameter node, transferring ownership.
+    //! \param elem Parameter node to take ownership of (may be null).
     void append(std::unique_ptr<SeqCAstNode> elem);
+    //! \brief Read-only access to the underlying owned-parameter
+    //! vector.
+    //! \return Const reference to the internal element storage.
     const std::vector<std::unique_ptr<SeqCAstNode>>& elements() const {
         return elements_;
     }
 
+    //! \brief Raw, non-owning pointers to every parameter element —
+    //! used by `Resources::Function::addArguments()` to iterate the
+    //! parameter nodes.
+    //! \return Vector of borrowed parameter pointers.
     std::vector<const SeqCAstNode*> params() const;  // @0x201050
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! the element vector.
+    //! \param a First parameter list.
+    //! \param b Second parameter list.
     friend void swap(SeqCParamList& a, SeqCParamList& b);
 
 private:
@@ -1078,14 +1796,44 @@ static_assert(sizeof(SeqCParamList) == 0x30,
 //! `SeqCFunctionCall` and as the array identifier of `SeqCArray`.
 class SeqCVariable : public SeqCAstNode {
 public:
+    //! \brief Constructs the identifier reference, taking ownership of
+    //! the name string.
+    //! \param vc     Value category of the reference.
+    //! \param lineNr 1-based source line number.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag assigned to `varType_`.
+    //! \param name   Identifier text; moved into `name_`.
     SeqCVariable(EValueCategory vc, int lineNr, EDirection dir,
                  VarType vt, std::string name);
+    //! \brief Deep-copy constructor — copies the base attributes and
+    //! the identifier string.
+    //! \param o Source node copied from.
     SeqCVariable(SeqCVariable const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source identifier, copied on entry and swapped on
+    //! exit.
+    //! \return Reference to `*this`.
     SeqCVariable& operator=(SeqCVariable o);
+    //! \brief Default destructor; releases the name string.
     ~SeqCVariable() override;
+    //! \brief Writes the identifier text to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCVariable`
+    //! with identical attributes and an identical name string.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
+    //! \brief Returns `{ name_ }` — the identifier text packaged as a
+    //! single-element list.
+    //! \return Single-entry vector with the identifier text.
     std::vector<std::string> getListElements() const override;   // 0x209e60
+    //! \brief Lowers the identifier reference: looks up the name in
+    //! the `Resources` symbol table and produces the corresponding
+    //! value, register binding, or function definition.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by resolving the
+    //! identifier.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
@@ -1095,6 +1843,10 @@ public:
     //! \return Reference to the stored identifier string.
     const std::string& name() const { return name_; }
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! the identifier string.
+    //! \param a First identifier node.
+    //! \param b Second identifier node.
     friend void swap(SeqCVariable& a, SeqCVariable& b);
 
 private:
@@ -1120,7 +1872,9 @@ public:
     //! \brief Discriminator identifying which alternative is held
     //! in `payload_`.
     enum class Tag : int32_t {
+        //! \brief Payload holds a `std::string` at `payload_.str`.
         eString = 0,   // variant holds std::string at +0x18
+        //! \brief Payload holds a `double` at `payload_.d`.
         eDouble = 1,   // variant holds double at +0x18
         // -1 (0xFFFFFFFF) = empty/none (from dtor — skips destruction)
     };
@@ -1151,12 +1905,31 @@ public:
     //! \param d      Double payload stored in `payload_.d`.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               double d);               // 0x1fd950 (make_unique callsite)
+    //! \brief Deep-copy constructor — copies the base attributes and
+    //! the payload according to `tag_`.
+    //! \param o Source node copied from.
     SeqCValue(SeqCValue const& o);
+    //! \brief Copy-and-swap assignment.
+    //! \param o Source value, copied on entry and swapped on exit.
+    //! \return Reference to `*this`.
     SeqCValue& operator=(SeqCValue o);
+    //! \brief Destructor; destroys the active payload alternative
+    //! based on `tag_` (an empty / default-constructed instance with
+    //! `tag_ == -1` skips destruction).
     ~SeqCValue() override;
+    //! \brief Writes the label `"Value"` to `std::cout`.
     void print() const override;
+    //! \brief Polymorphic deep clone — returns a fresh `SeqCValue`
+    //! with the same `tag_` and a copy of the payload.
+    //! \return Owning pointer to the cloned node.
     std::unique_ptr<SeqCAstNode> doClone() const override;
 
+    //! \brief Lowers the literal: wraps the payload into a `Value`
+    //! and emits an `EvalResults` carrying that constant.
+    //! \param res   Shared compile resources.
+    //! \param ctx   Lowering context.
+    //! \param state Per-call lowering state.
+    //! \return The `EvalResults` produced by lowering this literal.
     std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
@@ -1184,17 +1957,37 @@ public:
         return payload_.str;
     }
 
+    //! \brief ADL-friendly swap — exchanges the base subobject and
+    //! the tagged payload (`payload_` + `tag_`).
+    //! \param a First value node.
+    //! \param b Second value node.
     friend void swap(SeqCValue& a, SeqCValue& b);
 
     // Payload union — must accommodate std::string which is 24 bytes on
     // libc++ (binary) but 32 bytes on libstdc++ (reconstruction).
     // Using a real std::string member avoids the buffer-overflow that
     // occurred with char[24] on libstdc++.
+    //! \brief Active-alternative storage for the literal payload —
+    //! a raw union of `double` and `std::string` whose live member
+    //! is selected by the enclosing `tag_` field.  The
+    //! default/destructor are user-provided so the enclosing
+    //! `SeqCValue` can manage the active alternative's lifetime
+    //! according to `tag_`.
     union Payload {
+        //! \brief Held when `tag_ == eDouble`.
         double      d;
+        //! \brief Held when `tag_ == eString`.
         std::string str;
 
+        //! \brief Default-constructs the union with the
+        //! `double` alternative active (zero-initialised); the
+        //! enclosing node sets `tag_` accordingly and replaces the
+        //! alternative through placement-new when a string is
+        //! installed.
         Payload() : d(0.0) {}
+        //! \brief Trivial union destructor — the enclosing
+        //! `SeqCValue` is responsible for destroying the active
+        //! alternative based on `tag_` before this runs.
         ~Payload() {}
     };
 

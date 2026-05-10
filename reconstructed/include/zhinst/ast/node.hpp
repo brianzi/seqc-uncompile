@@ -46,23 +46,45 @@ class Node;
 //!
 //! Values are powers of two so they can be combined into bitmasks
 //! by tree-traversal predicates that filter on multiple kinds.
+//! Every enumerator maps 1:1 to the canonical string emitted by
+//! `Node::type2str()` (and accepted by `Node::str2type()`); the
+//! mapping is also the JSON `"type"` key used by `toJson()` /
+//! `fromJson()`.
 enum class NodeType : int {
+    //! `"load"` — load a waveform into the playback cache.
     Load               = 0x0001,   // "load"
+    //! `"play"` — play one or more waveforms.
     Play               = 0x0002,   // "play"
+    //! `"branch"` — conditional branch with alternatives in `Node::branches`.
     Branch             = 0x0004,   // "branch"
+    //! `"loop"` — loop boundary with body link in `Node::loop`.
     Loop               = 0x0008,   // "loop"
+    //! `"setvar"` — bind a length register before a variable-length play.
     SetVar             = 0x0010,   // "setvar"
+    //! `"rate"` — global sample-rate marker; payload in `Node::globalRate`.
     Rate               = 0x0020,   // "rate"
+    //! `"lock"` — lock a per-device waveform slot for the subtree.
     Lock               = 0x0040,   // "lock"
+    //! `"unlock"` — release a slot previously locked by `Lock`.
     Unlock             = 0x0080,   // "unlock"
+    //! `"sync_cervino"` — Cervino-family synchronisation barrier.
     SyncCervino        = 0x0100,   // "sync_cervino"
+    //! `"table"` — execute a wavetable entry; payload in `Node::tableIndex`.
     Table              = 0x0200,   // "table"
+    //! `"prefetch"` — prefetch placeholder inserted during the prefetch pass.
     Prefetch           = 0x0400,   // "prefetch" (placeholder during prefetch pass)
+    //! `"lock_placeholder"` — placeholder later resolved into `Lock`.
     LockPlaceholder    = 0x0800,   // "lock_placeholder"
+    //! `"setprecomp"` — set per-subtree default pre-compensation flags
+    //! (`Node::defaultPrecompFlags`).
     SetPrecomp         = 0x1000,   // "setprecomp"
+    //! `"sync_hirzel"` — Hirzel-family synchronisation barrier.
     SyncHirzel         = 0x2000,   // "sync_hirzel"
+    //! `"plainload"` — load without prefetch annotations.
     PlainLoad          = 0x4000,   // "plainload"
+    //! `"awg_ready"` — barrier produced at AWG-ready boundaries.
     AwgReady           = 0x8000,   // "awg_ready"
+    //! `"setvar_placeholder"` — placeholder later resolved into `SetVar`.
     SetVarPlaceholder  = 0x10000,  // "setvar_placeholder"
     // 0x20000 — unused. (Earlier reconstruction had a spurious
     // "PrecompFlags = 0x20000" here; the binary only uses
@@ -434,7 +456,9 @@ public:
     // +0x00, +0x08: inherited from enable_shared_from_this<Node>
     //   (weak_ptr<Node> member — pointer + control block)
 
+    //! \brief Unique node identifier assigned from `idCounter_`.
     int nodeId;             // +0x10  — assigned from TLS counter (node_id++)
+    //! \brief Owning sequencer / assembler index this node targets.
     int asmId;              // +0x14  — asm/device index
 
     // +0x18, +0x20: Load reference — weak_ptr<Node>.
@@ -450,50 +474,90 @@ public:
     //
     //   Source aliases (all map here):
     //     loadNode, loadPtr, load, loadRef → +0x18..+0x20
+    //! \brief Weak link to the `Load` node responsible for staging
+    //! this node's waveform; set by the prefetch pass and consumed
+    //! by `Prefetch::createLoad` and friends.
     std::weak_ptr<Node> loadRef;       // +0x18 (16 bytes: Node* + ctrl block*)
 
+    //! \brief One waveform-slot name per device the node may target;
+    //! the active entry is `wavesPerDev[deviceIndex]`.
     std::vector<std::optional<std::string>> wavesPerDev;  // +0x28 (24 bytes)
 
+    //! \brief Index into `wavesPerDev` selecting the currently
+    //! targeted device; `-1` means none.
     int deviceIndex = -1;   // +0x40  — index into wavesPerDev; -1 = invalid
+    //! \brief `NodeType` discriminator identifying the action this
+    //! node performs.
     NodeType type;          // +0x44
 
+    //! \brief Primary play configuration (waveform indices, marker
+    //! bits, channel routing) associated with this node.
     PlayConfig config;      // +0x48  (0x20 bytes) — primary play config
+    //! \brief Currently-active CWVF (compressed waveform) play
+    //! configuration when the node belongs to a CWVF subtree.
     PlayConfig currentCwvf; // +0x68  (0x20 bytes) — current CWVF config
 
+    //! \brief Register backing the length operand for
+    //! variable-length plays; invalid when length is a literal.
     AsmRegister lengthReg;       // +0x88  (8 bytes: int value + bool valid)
+    //! \brief Literal length value used when `lengthReg` is invalid.
     int length = 0;              // +0x90
+    //! \brief Register backing the wave-index offset operand;
+    //! invalid when no offset register is bound.
     AsmRegister indexOffsetReg;  // +0x94  (8 bytes)
+    //! \brief Command-table entry index for `Table` nodes; `-1` when
+    //! the node does not reference a wavetable entry.
     int tableIndex = -1;         // +0x9C
 
     // +0xA0: vector of weak_ptr<Node> (24 bytes)
     // Destructor iterates and calls __release_weak() on each control block.
     // JSON key: "play". In installPointers, reconnected from "play" array.
+    //! \brief Weak references to the `Play` nodes that consume the
+    //! waveform staged by this node (typically populated on `Load`
+    //! nodes).
     std::vector<std::weak_ptr<Node>> play;  // +0xA0
 
+    //! \brief Strong link to the next sibling in the IR chain;
+    //! `nullptr` marks the chain tail.
     // +0xB8: shared_ptr<Node> — next sibling in chain (16 bytes)
     //   last() follows this chain; insertBefore sets newNode->next = this;
     //   remove() splices this link; updateParent checks parent->next == oldChild.
     std::shared_ptr<Node> next;  // +0xB8
 
+    //! \brief Alternative-branch children for `Branch` nodes; each
+    //! entry is the head of one branch's `next` chain.
     // +0xC8: vector<shared_ptr<Node>> — child branches (24 bytes)
     //   Used when parent NodeType == Branch (0x4). updateParent scans this vector.
     std::vector<std::shared_ptr<Node>> branches;  // +0xC8
 
+    //! \brief Body link for `Loop` nodes (and else-branch alias on
+    //! `Branch` nodes) pointing at the head of the contained chain.
     // +0xE0: shared_ptr<Node> — loop/else-branch link (16 bytes)
     //   updateParent checks parent->loop == oldChild as alternative to next.
     //   remove() recursively removes this if present.
     std::shared_ptr<Node> loop;  // +0xE0
 
+    //! \brief Weak back-link to this node's parent, maintained by
+    //! `updateParent`.
     // +0xF0: weak_ptr<Node> — parent link (16 bytes)
     //   Destructor calls __release_weak() on the control block at +0xF8.
     //   insertBefore/updateParent set newChild->parent = parentNode.
     std::weak_ptr<Node> parent;  // +0xF0
 
+    //! \brief Sample-rate value carried by `Rate` nodes; `-1` when
+    //! unset.
     int globalRate = -1;                     // +0x100  (rate for Rate nodes)
+    //! \brief Default precompensation flag mask applied to the
+    //! subtree rooted at this node; emitted by `SetPrecomp` nodes.
     unsigned int defaultPrecompFlags = 0;    // +0x104
+    //! \brief Set when the compiler can prove a `Loop` node's body
+    //! executes at least once (enables hoisting optimisations).
     bool loopBodyRunsAtLeastOnce = false;    // +0x108
+    //! \brief Set when at least one branch alternative may skip the
+    //! entire body (forces conservative placement decisions).
     bool branchMaySkipAllBodies = false;     // +0x109
     // +0x10A: 2 bytes padding
+    //! \brief Trigger annotation copied from the source statement.
     int trig = 0;                            // +0x10C
     // Total size: 0x110
 };

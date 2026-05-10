@@ -347,23 +347,66 @@ public:
     std::string getJsonVersion() const;                            // @0x10ac60
 
 private:
+    //! \brief Compilation configuration captured by the ctor (raw
+    //! pointer; caller-owned).
     AWGCompilerConfig const* config_;                    // +0x000  //!< Compilation configuration captured by the ctor (raw pointer; caller-owned).
+    //! \brief Per-device profile copied from
+    //! `getDeviceConstants(config_->deviceType)`; consulted across
+    //! the pipeline for limits and feature flags.
     DeviceConstants deviceConstants_;                     // +0x008 (0x90 bytes)  //!< Per-device profile copied from `getDeviceConstants(config_->deviceType)`; consulted across the pipeline for limits and feature flags.
+    //! \brief Waveform registry constructed in the ctor; mutated
+    //! by `addWaveforms` and read by the inner `Compiler` and
+    //! `writeToStream`.
     std::shared_ptr<WavetableFront> wavetable_;          // +0x098  //!< Waveform registry constructed in the ctor; mutated by `addWaveforms` and read by the inner `Compiler` and `writeToStream`.
+    //! \brief Optimised waveform IR moved out of
+    //! `Compiler::compile`; consumed by `writeToStream` and
+    //! `getJsonWaveformMemoryInfo`. Reset on each `compileString`.
     std::shared_ptr<WavetableIR> wavetableIR_;           // +0x0A8  //!< Optimised waveform IR moved out of `Compiler::compile`; consumed by `writeToStream` and `getJsonWaveformMemoryInfo`. Reset on each `compileString`.
+    //! \brief Alignment padding ahead of the embedded `Compiler`.
     char pad_0B8_[8];                                    // +0x0B8  //!< Alignment padding ahead of the embedded `Compiler`.
+    //! \brief Inner pipeline driver (lex / parse / lower / optimise
+    //! / codegen); produces `vector<Assembler>` consumed by
+    //! `assembler_`.
     Compiler compiler_;                                  // +0x0C0 (0x138 bytes)  //!< Inner pipeline driver (lex / parse / lower / optimise / codegen); produces `vector<Assembler>` consumed by `assembler_`.
     // Compiler ends at +0x1F8; next is +0x200
+    //! \brief Alignment padding between `compiler_` and the string
+    //! block.
     char pad_1F8_[8];                                    // +0x1F8  //!< Alignment padding between `compiler_` and the string block.
+    //! \brief Path of the most recent `compileFile` source;
+    //! surfaced in the assembler banner and the `.arguments` JSON.
     std::string sourceFilename_;                             // +0x200  //!< Path of the most recent `compileFile` source; surfaced in the assembler banner and the `.arguments` JSON.
+    //! \brief Reserved string slot present in the binary layout
+    //! but with no observed reader/writer in the reconstructed
+    //! pipeline.
+    //! \unclear Original purpose (see
+    //! `notes/symbol-renaming-audit/28_awg_compiler.md`).
     std::string pad_218_;                                // +0x218  //!< Reserved string slot present in the binary layout but with no observed reader/writer in the reconstructed pipeline. \unclear  Original purpose (see `notes/symbol-renaming-audit/28_awg_compiler.md`).
+    //! \brief Cached SeqC source from the most recent
+    //! `compileString`; emitted as the `.c` ELF section.
     std::string sourceText_;                             // +0x230  //!< Cached SeqC source from the most recent `compileString`; emitted as the `.c` ELF section.
+    //! \brief Pretty-printed assembler listing produced by
+    //! `compileString`; emitted as the `.asm` ELF section and
+    //! consumed by `writeAssemblerToFile`.
     std::string assemblerText_;                             // +0x248  //!< Pretty-printed assembler listing produced by `compileString`; emitted as the `.asm` ELF section and consumed by `writeAssemblerToFile`.
+    //! \brief Accumulated diagnostics from the inner `Compiler`
+    //! and the limit checks; rendered by `getCompileReport`.
     std::vector<CompilerMessage> compileMessages_;       // +0x260  //!< Accumulated diagnostics from the inner `Compiler` and the limit checks; rendered by `getCompileReport`.
+    //! \brief Embedded standalone assembler used for opcode
+    //! emission (consuming the `Compiler`'s `vector<Assembler>`)
+    //! and for post-pipeline `.asm` round-trips.
     AWGAssembler assembler_;                              // +0x278  //!< Embedded standalone assembler used for opcode emission (consuming the `Compiler`'s `vector<Assembler>`) and for post-pipeline `.asm` round-trips.
+    //! \brief Persistent list of waveform-file paths registered
+    //! via `addWaveforms`; surfaced in the `.arguments` JSON.
     std::vector<std::string> wavePaths_;                  // +0x280  //!< Persistent list of waveform-file paths registered via `addWaveforms`; surfaced in the `.arguments` JSON.
+    //! \brief User cancel hook polled between `addWaveforms`
+    //! entries and forwarded to `compiler_`.
     std::weak_ptr<CancelCallback> cancelCallback_;       // +0x298  //!< User cancel hook polled between `addWaveforms` entries and forwarded to `compiler_`.
+    //! \brief User progress hook invoked with `1.0` when
+    //! `compileString` finishes successfully and forwarded to
+    //! `compiler_`.
     std::weak_ptr<ProgressCallback> progressCallback_;   // +0x2A8  //!< User progress hook invoked with `1.0` when `compileString` finishes successfully and forwarded to `compiler_`.
+    //! \brief Trailing alignment padding to round the impl size to
+    //! 0x2C0.
     char pad_2B8_[8];                                    // +0x2B8  //!< Trailing alignment padding to round the impl size to 0x2C0.
 };
 

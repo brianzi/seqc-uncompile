@@ -61,12 +61,22 @@ public:
     // Initializes a 32-bit ELF with the given machine type.
     // Sets: ELFCLASS32, ELFDATA2LSB, EV_CURRENT, ET_EXEC, e_machine=machineType.
     // Calls prepareHeader(machineType) at the end.
+    //! \brief Initialises a fresh 32-bit little-endian ET_EXEC ELF
+    //! and calls `prepareHeader(machineType)` to install the AWG
+    //! header layout.
+    //! \param machineType ELF `e_machine` value identifying the
+    //! target AWG family.
     explicit ElfWriter(uint16_t machineType);                    // 0x2934a0
 
     // Destructor is the ELFIO::elfio destructor (inherited)    // via 0x10e2e0
 
     // --- Header configuration ---
     // Sets ELF header: e_type=ET_NONE(0), e_machine=machineType, e_flags=0
+    //! \brief Rewrites the ELF header so the file becomes ET_NONE
+    //! with `e_machine = machineType` and `e_flags = 0`; called from
+    //! the constructor and re-callable if the machine type needs to
+    //! be switched.
+    //! \param machineType ELF `e_machine` value to install.
     void prepareHeader(uint16_t machineType);                    // 0x2936b0
 
     // --- Section builders ---
@@ -74,9 +84,21 @@ public:
     // Adds a ".text" section (SHT_PROGBITS, SHF_ALLOC|SHF_EXECINSTR, align=64)
     // with the given opcodes. Creates a PT_LOAD segment with PF_R|PF_X and
     // align=64, virtual/physical address = memoryOffset_.
+    //! \brief Emits the `.text` code section (executable, alloc,
+    //! 64-byte aligned) and wraps it in a `PT_LOAD` segment based
+    //! at `memoryOffset_` with PF_R | PF_X permissions.
+    //! \param opcodes 32-bit instruction stream to install as
+    //! `.text` payload.
     void addCode(std::vector<uint32_t> const& opcodes);          // 0x293710
 
     // Adds a named section (SHT_PROGBITS, align=4) with raw data.
+    //! \brief Appends a 4-byte-aligned `SHT_PROGBITS` section
+    //! named `sectionName` carrying the bytes at `[data, data +
+    //! size)`.
+    //! \param data        Pointer to the raw bytes to copy in.
+    //! \param size        Number of bytes available at `data`.
+    //! \param sectionName ELF section name (e.g. `.waveforms`,
+    //!                    `.channels`, `.asm`).
     void addData(const char* data, size_t size,
                  std::string const& sectionName);                // 0x293990
 
@@ -94,6 +116,24 @@ public:
     // The caller can query size() on the returned object to know how many
     // bytes of waveform data were written (used by writeWavesToElfAbsolute
     // to track cumulative offset).
+    //! \brief Emits the `.dd_<name>` descriptor section and the
+    //! `.wf_<name>` raw-sample section for `waveform`, wraps them in
+    //! a dedicated `PT_LOAD` segment, and returns the
+    //! `RawWave` so the caller can track the bytes consumed.
+    //! \param waveform   Waveform to serialise; the function reads
+    //!                   `signal` and `name` to derive section
+    //!                   names and payload.
+    //! \param format     Sample-encoding format (`Cervino` or
+    //!                   `Hirzel16`) selecting word width and
+    //!                   interleave.
+    //! \param useMapped  When true and `waveform->signal` is
+    //!                   `reserveOnly`, emits the segment as
+    //!                   `SHT_NOBITS` carrying only address
+    //!                   metadata.
+    //! \param padSize    Padding / alignment quantum applied to the
+    //!                   waveform segment.
+    //! \return The `RawWave` produced by `Signal::getRawData`;
+    //! `RawWave::size()` reports the bytes written to the section.
     std::unique_ptr<RawWave> addWaveform(
                            std::shared_ptr<WaveformIR> waveform,
                            SampleFormat format,
@@ -104,18 +144,34 @@ public:
 
     // Writes the ELF to an output stream. If the header exists, sets the
     // entry point to memoryOffset_ before saving.
+    //! \brief Writes the populated ELF to `os`; sets the entry
+    //! point to `memoryOffset_` first when a header is present.
+    //! \param os Destination stream (typically opened in binary
+    //!           mode).
     void writeFile(std::ostream& os);                            // 0x294030
 
     // Opens a file and writes the ELF. Uses boost::filesystem::basic_ofstream
     // with ios::binary|ios::trunc mode.
+    //! \brief Convenience overload: opens `filename` in
+    //! `binary | trunc` mode and forwards to the stream overload.
+    //! \param filename Filesystem path the ELF is written to.
+    //! \return `true` on success, `false` when the file could not
+    //! be opened or the underlying write failed.
     bool writeFile(std::string const& filename);                 // 0x2942a0
 
     // --- Configuration ---
 
     // Sets the memory offset used as the entry point and segment base address.
+    //! \brief Sets the AWG instruction-memory base address used as
+    //! `e_entry` and as the virtual/physical address of the
+    //! `.text` `PT_LOAD` segment.
+    //! \param offset Memory base address (device-specific; e.g.
+    //!               `0x80000000` for HDAWG / SHF).
     void setMemoryOffset(uint64_t offset);                       // 0x294410
 
 private:
+    //! \brief AWG instruction-memory base address; populated by
+    //! `setMemoryOffset` and consumed by `addCode` / `writeFile`.
     uint64_t memoryOffset_;          // +0x70, default = 0
 };
 

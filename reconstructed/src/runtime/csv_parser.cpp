@@ -48,16 +48,23 @@ namespace zhinst {
 // ============================================================================
 class CsvException : public std::exception {           // @0x2b8b80 ctor, @0x2b8be0 dtor
 public:
+    //! \brief Constructs a CSV parse exception carrying the
+    //! human-readable `msg` as its `what()` message.
+    //! \param msg Diagnostic text returned by `what()`.
     explicit CsvException(std::string const& msg)      // @0x2b8b80
         : message_(msg) {}
 
+    //! \brief Destructor; releases the owned message string.
     ~CsvException() override = default;                // @0x2b8be0
 
+    //! \brief Returns the C-string view of the diagnostic message
+    //! supplied at construction time.
     const char* what() const noexcept override {
         return message_.c_str();
     }
 
 private:
+    //! \brief Owned diagnostic message returned by `what()`.
     std::string message_;  // +0x08
 };
 
@@ -92,6 +99,20 @@ bool isCsvSeparator(char c) {                          // @0x2ba7d0
 // ============================================================================
 class CsvParser {
 public:
+    //! \brief Parses the CSV file referenced by `wf->file` and
+    //! populates `wf->signal` with samples, markers and
+    //! marker-bit aggregates, consulting `cache` to short-circuit
+    //! the parse when the file's hash already maps to a cached
+    //! result.
+    //! \tparam WfT       Waveform front type
+    //!                   (`WaveformFront` / `WaveformIR`).
+    //! \param cache       Shared CSV cache keyed by file hash.
+    //! \param wf          Waveform whose `file` and `signal` are
+    //!                    populated.
+    //! \param deviceType  Selects the per-device sample-encoding
+    //!                    branch (16-bit vs 32-bit AWG layout).
+    //! \throws CsvException on null waveform, missing file, or any
+    //! malformed row.
     template <typename WfT>
     static void csvFileToWaveform(CachedParser& cache, std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
 
@@ -100,6 +121,14 @@ private:
     // auto-detects format, returns vector of data line strings (stripped of
     // comment-only prefix content, tokenized by separators).
     // @0x2b8c20 (WaveformFront), @0x2bc200 (WaveformIR)
+    //! \brief Opens the CSV file referenced by `wf->file`, strips
+    //! comment-only and empty lines, auto-detects the data
+    //! delimiter, and returns the surviving data lines.
+    //! \tparam WfT          Waveform front type.
+    //! \param cachedParser  Cache consulted for per-file metadata
+    //!                     (delimiter hint, integer-format flag).
+    //! \param wf            Waveform whose `file` is read.
+    //! \return Vector of data-line strings ready for cell tokenisation.
     template <typename WfT>
     static std::vector<std::string> getLineVector(
         CachedParser& cachedParser,
@@ -108,6 +137,19 @@ private:
     // setSampleFromString: parses a single cell string into a sample value
     // and marker, stores into the waveform's signal buffers.
     // @0x2b85c0 (WaveformFront), @0x2b8420 (WaveformIR)
+    //! \brief Parses one CSV cell into a sample / marker pair and
+    //! writes it into `wf->signal` at `(row, col)`; OR-folds the
+    //! marker into `markerBits_[idx % size]`.
+    //! \tparam WfT         Waveform front type.
+    //! \param cellStr      Raw cell text from the CSV line.
+    //! \param wf           Waveform whose signal buffers receive
+    //!                    the parsed value.
+    //! \param deviceType   Selects the integer-range and sample
+    //!                    decoder used for AWG-integer cells.
+    //! \param row          Zero-based row index within the file.
+    //! \param col          Zero-based column index within the row.
+    //! \throws CsvException when an integer cell is negative or
+    //! exceeds the device's encoding range.
     template <typename WfT>
     static void setSampleFromString(
         std::string const& cellStr,
@@ -130,6 +172,10 @@ private:
 //        marker in wf->signal.markers_[row*channels + col],
 //        OR's marker into wf->signal.markerBits_[index % markerBits.size()]
 // ============================================================================
+//! \brief `WaveformFront` specialisation of
+//! `CsvParser::setSampleFromString` — see the primary template
+//! brief for behaviour; specialises the call to operate on a
+//! `WaveformFront`'s `signal_` buffers.
 template <>
 void CsvParser::setSampleFromString<WaveformFront>(    // @0x2b85c0
         std::string const& cellStr,
@@ -192,6 +238,10 @@ void CsvParser::setSampleFromString<WaveformFront>(    // @0x2b85c0
 // setSampleFromString<WaveformIR>  @0x2b8420
 // Identical logic to WaveformFront specialization.
 // ============================================================================
+//! \brief `WaveformIR` specialisation of
+//! `CsvParser::setSampleFromString` — identical control flow to
+//! the `WaveformFront` specialisation, operating on a
+//! `WaveformIR`'s `signal_` buffers.
 template <>
 void CsvParser::setSampleFromString<WaveformIR>(       // @0x2b8420
         std::string const& cellStr,
@@ -470,6 +520,10 @@ template std::vector<std::string> CsvParser::getLineVector<WaveformIR>(
 //   8. CachedParser::cacheFile(...) to store parsed data.
 //   9. Clean up temporary vectors and getLineVector result.
 // ============================================================================
+//! \brief `WaveformFront` specialisation of
+//! `CsvParser::csvFileToWaveform` — see the primary template
+//! brief for behaviour; specialises the call to populate a
+//! `WaveformFront::signal`.
 template <>
 void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
         CachedParser& cache,
@@ -792,6 +846,9 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
 // Nearly identical to WaveformFront. The binary is a separate ~7KB function
 // with the same structure but operating on WaveformIR.
 // ============================================================================
+//! \brief `WaveformIR` specialisation of
+//! `CsvParser::csvFileToWaveform` — identical structure to the
+//! `WaveformFront` specialisation, populating a `WaveformIR::signal`.
 template <>
 void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         CachedParser& cache,

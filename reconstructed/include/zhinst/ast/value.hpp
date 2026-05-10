@@ -53,16 +53,31 @@ namespace zhinst {
 //! wrong-typed conversion through them is a programming error.
 class Immediate {
 public:
+    //! \brief Union of the three possible immediate payloads.
+    //!
+    //! Active alternative is selected by `Immediate::index_`; only
+    //! the matching member is constructed.  `Storage` itself has
+    //! trivial ctor / dtor so the enclosing `Immediate` is
+    //! responsible for in-place construction / destruction of the
+    //! active member.
     union Storage {
-        detail::AddressImpl<uint32_t> address;  // index 0
-        int32_t                       integer;  // index 1
-        std::string                   str;      // index 2
+        detail::AddressImpl<uint32_t> address;  //!< \brief Active when `index_ == 0`.
+        int32_t                       integer;  //!< \brief Active when `index_ == 1`.
+        std::string                   str;      //!< \brief Active when `index_ == 2`.
 
+        //! \brief Trivial — the active member is constructed in
+        //!        place by `Immediate`.
         Storage() {}
+        //! \brief Trivial — the active member is destroyed in
+        //!        place by `Immediate`.
         ~Storage() {}
     };
 
+    //! \brief Tagged-union storage holding one of the three
+    //!        alternatives (see `ImmediateKind`).
     Storage data_;     // +0x00
+    //! \brief Active-alternative discriminator; values match
+    //!        `ImmediateKind`.
     uint32_t index_;   // after union — see ImmediateKind enum below
 
     // --- Constructors (all confirmed from disassembly) ---
@@ -86,10 +101,28 @@ public:
     //! \param s Label or symbol text used as the immediate's
     //! payload.
     Immediate(std::string const& s);                 // 0x290ae0 — sets index=2
+    //! \brief Copy-construct from `other`, deep-copying the active
+    //!        alternative (in particular, copying the string when
+    //!        the active kind is `String`).
+    //! \param other  Source immediate.
     Immediate(Immediate const& other);               // copy ctor (needed due to union with std::string)
+    //! \brief Move-construct from `other`, transferring ownership
+    //!        of the active alternative and leaving `other` in the
+    //!        `Valueless` state.
+    //! \param other  Source immediate; mutated to `Valueless`.
     Immediate(Immediate&& other) noexcept;           // move ctor
+    //! \brief Copy-assign: destroys the current active alternative
+    //!        and copy-constructs the one held by `other`.
+    //! \param other  Source immediate.
+    //! \return `*this`.
     Immediate& operator=(Immediate const& other);    // copy assignment
+    //! \brief Move-assign: destroys the current active alternative
+    //!        and move-constructs the one held by `other`, leaving
+    //!        `other` in the `Valueless` state.
+    //! \param other  Source immediate; mutated to `Valueless`.
+    //! \return `*this`.
     Immediate& operator=(Immediate&& other) noexcept; // move assignment
+    //! \brief Destroy the active alternative in place.
     ~Immediate();                                    // 0x15c4f0
 
     // --- Query ---
@@ -153,12 +186,15 @@ std::ostream& operator<<(std::ostream& os, Immediate const& imm);
 //! is called on an instance whose `type_` is `Unspecified`, or whose stored
 //! alternative cannot be coerced to the requested type.
 class ValueException : public std::exception {
+    //! \brief Diagnostic text returned by `what()`.
     std::string msg_;
 public:
     //! \brief Constructs a `ValueException` carrying `msg` as the
     //! `what()` string.
     //! \param msg Diagnostic text returned later by `what()`.
     explicit ValueException(std::string const& msg);  // 0x16e7f0
+    //! \brief Release the embedded `msg_` storage and chain to
+    //!        `~std::exception`.
     ~ValueException() override;                        // 0x16e850
     //! \brief Returns the `msg` passed at construction.
     //! \return Pointer to the internal C string of `msg_`; valid
@@ -224,20 +260,37 @@ enum class ValueType : int32_t {
 //! constant-folded expression values flow through the lowering pipeline.
 class Value {
 public:
+    //! \brief Outer semantic-type tag; see `ValueType`.
     ValueType type_;       // +0x00
+    //! \brief Alignment padding (zero-initialised).
     int32_t   pad_04_{};   // +0x04 — alignment padding
+    //! \brief Variant discriminator selecting the active member of
+    //!        `storage_`.
     int32_t   which_;      // +0x08 — variant discriminator
+    //! \brief Alignment padding (zero-initialised).
     int32_t   pad_0C_{};   // +0x0C — alignment padding
+    //! \brief Union of the four possible payload types.
+    //!
+    //! Active alternative is selected jointly by `type_` and
+    //! `which_`.  `Storage` itself has trivial ctor / dtor so
+    //! `Value` is responsible for in-place construction /
+    //! destruction of the active member.
     union Storage {
-        int32_t     i;              // which==0, type_==Int
-        bool        b;              // which==1, type_==Bool
-        double      d;              // which==2, type_==Double
-        std::string str;            // which>=3, type_==String
+        int32_t     i;              //!< \brief Active when `type_ == Int`.
+        bool        b;              //!< \brief Active when `type_ == Bool`.
+        double      d;              //!< \brief Active when `type_ == Double`.
+        std::string str;            //!< \brief Active when `type_ == String`.
                                     // (24 bytes on libc++, 32 on libstdc++)
 
+        //! \brief Trivial — `i` is zero-initialised; `Value`
+        //!        reconstructs the active member in place.
         Storage() : i(0) {}
+        //! \brief Trivial — `Value` destroys the active member in
+        //!        place.
         ~Storage() {}
     };
+    //! \brief Tagged-union storage holding one of the four
+    //!        alternatives (see `ValueType`).
     Storage storage_;      // +0x10
 
     // --- Constructors ---
@@ -261,9 +314,25 @@ public:
 
     // Copy/move — implicit in binary (char[24] union was trivially copyable).
     // Explicit here because libstdc++ union has real std::string member.
+    //! \brief Copy-construct from `other`, deep-copying the active
+    //!        alternative.
+    //! \param other  Source value.
     Value(Value const& other);
+    //! \brief Move-construct from `other`, transferring ownership
+    //!        of the active alternative and leaving `other` in the
+    //!        `Unspecified` state.
+    //! \param other  Source value; mutated to `Unspecified`.
     Value(Value&& other) noexcept;
+    //! \brief Copy-assign: destroys the current active alternative
+    //!        and copy-constructs the one held by `other`.
+    //! \param other  Source value.
+    //! \return `*this`.
     Value& operator=(Value const& other);
+    //! \brief Move-assign: destroys the current active alternative
+    //!        and move-constructs the one held by `other`, leaving
+    //!        `other` in the `Unspecified` state.
+    //! \param other  Source value; mutated to `Unspecified`.
+    //! \return `*this`.
     Value& operator=(Value&& other) noexcept;
 
     // --- Conversion methods ---
@@ -310,6 +379,8 @@ public:
     bool operator==(Value const& other) const;  // 0x21a780
 
     // --- Destructor ---
+    //! \brief Destroy the active payload member of `storage_` in
+    //!        place; the `Storage` union has a trivial destructor.
     ~Value();  // 0x15a9c0
 };
 

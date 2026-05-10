@@ -24,6 +24,11 @@ namespace zhinst {
 template <AwgDeviceType T>
 class GetNodeMap {
 public:
+    //! \brief Returns a freshly-built `NodeMap` containing every
+    //! parameter-tree entry the SeqC built-ins may reference on the
+    //! device family `T`.
+    //! \tparam T Device family selecting which specialisation runs.
+    //! \return Owning pointer to the fully populated `NodeMap`.
     static std::unique_ptr<NodeMap> get();
 };
 
@@ -34,6 +39,18 @@ namespace {
 
 using Map = std::map<std::string, NodeMapItem>;
 
+//! \brief Inserts a `DirectAddrNodeMapData`-backed entry under
+//! `key` carrying the single hardware address `addr` and the
+//! supplied encoding tag and fast-address shortcut.
+//! \param m         Target node map being populated.
+//! \param key       Node-path key under which to insert.
+//! \param addr      Hardware address stored on the
+//!                  `DirectAddrNodeMapData` payload.
+//! \param typeIdx   Value-encoding selector recorded on the
+//!                  `NodeMapItem`.
+//! \param hasFast   Whether `fastAddr` is valid for this entry.
+//! \param fastAddr  Cached fast hardware address when `hasFast` is
+//!                  set.
 void addDirect(Map& m, const char* key, uint32_t addr, NodeTypeIdx typeIdx,
                bool hasFast = false, uint32_t fastAddr = 0) {
     auto* data = new DirectAddrNodeMapData;
@@ -46,6 +63,19 @@ void addDirect(Map& m, const char* key, uint32_t addr, NodeTypeIdx typeIdx,
     m[key] = item;
 }
 
+//! \brief Inserts a `VirtAddrNodeMapData`-backed entry under `key`
+//! carrying the device-tree node `name` and the resolved list of
+//! virtual addresses.
+//! \param m          Target node map being populated.
+//! \param key        Node-path key under which to insert.
+//! \param name       Node name stored on the
+//!                   `VirtAddrNodeMapData` payload.
+//! \param addresses  Virtual addresses the node resolves to.
+//! \param typeIdx    Value-encoding selector recorded on the
+//!                   `NodeMapItem`.
+//! \param hasFast    Whether `fastAddr` is valid for this entry.
+//! \param fastAddr   Cached fast hardware address when `hasFast`
+//!                   is set.
 void addVirt(Map& m, const char* key, const char* name,
              std::vector<int32_t> addresses, NodeTypeIdx typeIdx,
              bool hasFast = false, uint32_t fastAddr = 0) {
@@ -66,6 +96,8 @@ void addVirt(Map& m, const char* key, const char* name,
 // UHFLI — 566 entries @0x1948d0
 // ---------------------------------------------------------------------------
 template <>
+//! \brief UHFLI specialisation of `GetNodeMap::get()` — populates
+//! the 566-entry parameter-tree node map for UHFLI devices.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -644,6 +676,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFLI>::get() {  // @0x1948d0
 // HDAWG — 186 entries @0x1ad9a0
 // ---------------------------------------------------------------------------
 template <>
+//! \brief HDAWG specialisation of `GetNodeMap::get()` — populates
+//! the HDAWG parameter-tree node map.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::HDAWG>::get() {  // @0x1ad9a0
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -842,6 +876,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::HDAWG>::get() {  // @0x1ad9a0
 // UHFQA — 209 entries @0x1b1470
 // ---------------------------------------------------------------------------
 template <>
+//! \brief UHFQA specialisation of `GetNodeMap::get()` — populates
+//! the UHFQA parameter-tree node map.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFQA>::get() {  // @0x1b1470
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -1063,6 +1099,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::UHFQA>::get() {  // @0x1b1470
 // SHFQA — 24 entries @0x1ba3d0
 // ---------------------------------------------------------------------------
 template <>
+//! \brief SHFQA specialisation of `GetNodeMap::get()` — populates
+//! the SHFQA parameter-tree node map.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFQA>::get() {  // @0x1ba3d0
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -1102,6 +1140,9 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFQA>::get() {  // @0x1ba3d0
 // SHFSG — 72 entries @0x1bae40
 // ---------------------------------------------------------------------------
 template <>
+//! \brief SHFSG specialisation of `GetNodeMap::get()` — populates
+//! the SHFSG parameter-tree node map (also reused by SHFQC's SG
+//! sequencer path).
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFSG>::get() {  // @0x1bae40
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -1186,6 +1227,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFSG>::get() {  // @0x1bae40
 // SHFLI — 8 entries @0x1bbcb0
 // ---------------------------------------------------------------------------
 template <>
+//! \brief SHFLI specialisation of `GetNodeMap::get()` — populates
+//! the SHFLI parameter-tree node map.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFLI>::get() {  // @0x1bbcb0
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -1206,6 +1249,8 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::SHFLI>::get() {  // @0x1bbcb0
 // GHFLI — 8 entries @0x1bc030
 // ---------------------------------------------------------------------------
 template <>
+//! \brief GHFLI specialisation of `GetNodeMap::get()` — populates
+//! the GHFLI parameter-tree node map.
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::GHFLI>::get() {  // @0x1bc030
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
@@ -1226,6 +1271,9 @@ std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::GHFLI>::get() {  // @0x1bc030
 // VHFLI — 8 entries @0x1bc3b0
 // ---------------------------------------------------------------------------
 template <>
+//! \brief VHFLI specialisation of `GetNodeMap::get()` — populates
+//! the VHFLI parameter-tree node map (also serves as the
+//! dispatcher's catch-all fallback).
 std::unique_ptr<NodeMap> GetNodeMap<AwgDeviceType::VHFLI>::get() {  // @0x1bc3b0
     auto nm = std::make_unique<NodeMap>();
     auto& m = nm->entries_;
