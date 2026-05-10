@@ -596,7 +596,28 @@ cross-reference pages so the backlog is discoverable.
           33.8%. All addresses cross-checked against
           `notes/special_registers.md`. No IFs; no `\unclear`
           / `\verifyme` / `\binarynote` added.
-    - [ ] **D5-3** — Cache + CachedParser (~39 briefs).
+    - [x] **D5-3** — Cache + CachedParser. Done in `5b8462d`.
+          +67 briefs, coverage 33.8% → 35.9%. 4 new
+          `\binarynote` (Cache::getCachedFile miss-via-empty,
+          cacheFile byte-budget estimate, cacheFileOutdated
+          parameter-name surprise, CacheEntry::pinned_ omitted
+          from serialize). No IFs.
+          - [ ] **Follow-up (low-priority)**: write
+                `reconstructed/notes/cache.md` consolidating
+                (a) the PointerState machine
+                (play / resetPlay / reuse), (b) the splitting
+                heuristic in Cache::allocate(5-arg) (cross-refs
+                `unknowns.md` #63), (c) the nameMap semantics in
+                getBestPosition (cross-refs #62, already
+                resolved). Currently this knowledge lives only
+                in cache.cpp body comments. Not blocking.
+          - [ ] **Follow-up (cosmetic)**: rename
+                `cacheFileOutdated` parameter `name` →
+                `cachedElfPath` in the public header to match
+                the .cpp body. Improves API ergonomics but is a
+                reconstruction-only relabel; needs to be
+                explicitly flagged that the binary signature is
+                unchanged.
     - [ ] **D5-4** — Resources family (~89 briefs incl.
           Resources::Function).  Symbol-table backbone; likely
           to surface IFs.
