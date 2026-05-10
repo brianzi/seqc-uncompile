@@ -125,6 +125,9 @@ public:
     //! \brief Constructs the AST-node base with the value-category /
     //! source-line / parameter-direction trio used by every derived
     //! kind; derived constructors set `varType_` directly.
+    //! \param vc     Value-category tag (lvalue / rvalue / ...).
+    //! \param lineNr 1-based source line number for diagnostics.
+    //! \param dir    Parameter-direction tag (in / out / inout).
     SeqCAstNode(EValueCategory vc, int lineNr, EDirection dir);   // 0x1fda00
     // Binary: base ctor takes 3 args; derived ctors all take VarType as 4th
     // and write it to varType_ directly (the binary inlines the base ctor).
@@ -140,6 +143,14 @@ public:
     //! every concrete node kind overrides it to perform its specific
     //! lowering against `res` (symbol table), `ctx` (compiler
     //! subsystems), and `state` (mutable accumulator).
+    //! \param res   Symbol-table / resource container shared across
+    //!              the evaluation.
+    //! \param ctx   Compiler subsystems handle (waveform manager,
+    //!              assemblers, message sinks, ...).
+    //! \param state Mutable per-evaluation accumulator threaded
+    //!              through every node visit.
+    //! \return The `EvalResults` produced by lowering this subtree
+    //! (null from the base; non-null from every concrete override).
     virtual std::shared_ptr<EvalResults> evaluate(
         std::shared_ptr<Resources> res,
         FrontendLoweringContext& ctx,
@@ -150,12 +161,16 @@ public:
     //! to a parameter-list / argument-list rendering; the base
     //! returns a single empty string and list-shaped derived nodes
     //! override it to return one element per child.
+    //! \return Element strings contributed by this node (one empty
+    //! string from the base; one entry per child from list nodes).
     virtual std::vector<std::string> getListElements() const;    // @0x209dd0
 
     // vptr[2]: default returns empty vector.
     //! \brief Returns the immediate child nodes for tree traversal;
     //! the base returns an empty vector and composite nodes
     //! override it to expose their owned children.
+    //! \return Pointers to the immediate children (empty from the
+    //! base; one entry per owned child from composite nodes).
     virtual std::vector<const SeqCAstNode*> children() const;    // @0x1fda20
 
     // vptr[3-4]: pure virtual — print/doClone.
@@ -166,6 +181,8 @@ public:
     //! \brief Deep-clones this node; pure-virtual, derived kinds
     //! return a `std::unique_ptr` to a fresh copy of themselves
     //! including all owned children.
+    //! \return Owning pointer to a deep copy of this node and its
+    //! owned subtree.
     virtual std::unique_ptr<SeqCAstNode> doClone() const = 0;
 
     // vptr[5-6]: destructor (D2 + D0).
@@ -178,23 +195,30 @@ public:
     //! node to a function-signature rendering; the base returns
     //! `{ str(varType_) }` and parameter-list / list nodes override
     //! it to concatenate their children's types.
+    //! \return Variable-type names contributed by this node (one
+    //! entry from the base; one per parameter from list nodes).
     virtual std::vector<std::string> getVarTypes() const;        // @0x1fdb40
 
     // Accessors
     //! \brief Returns the value-category tag (lvalue/rvalue/...)
     //! recorded at construction.
+    //! \return The stored `EValueCategory`.
     EValueCategory  valueCategory() const { return valueCategory_; }
     //! \brief Returns the 1-based source line number recorded at
     //! construction.
+    //! \return The 1-based source line number.
     int             lineNr()        const { return lineNr_; }
     //! \brief Returns the parameter-direction tag (in/out/inout)
     //! recorded at construction.
+    //! \return The stored `EDirection`.
     EDirection direction()     const { return direction_; }
     //! \brief Returns the variable-type tag attached to this node.
+    //! \return The stored `VarType`.
     VarType         varType()       const { return varType_; }
     //! \brief Overwrites this node's variable-type tag; used by the
     //! parser actions that resolve declarations after the AST has
     //! been built.
+    //! \param vt New variable-type tag to install.
     void            setVarType(VarType vt) { varType_ = vt; }
 
 protected:
@@ -550,12 +574,15 @@ public:
         FrontendLoweringState& state) const override;
     const SeqCAstNode* label()      const { return label_.get(); }
     //! \brief Returns the case body subtree.
+    //! \return Non-owning pointer to the body subtree.
     const SeqCAstNode* body()       const;  // out-of-line for symbol emission
     //! \brief Returns true when this entry has an explicit label
     //! (i.e., it is a `case <expr>:` entry rather than `default:`).
+    //! \return `true` when an explicit label is present.
     bool               validLabel() const;  // label_ != nullptr
     //! \brief Alias for `validLabel()` — true when an explicit
     //! label is present.
+    //! \return Same as `validLabel()`.
     bool               hasLabel()   const;  // label_ != nullptr
     friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
 private:
@@ -599,22 +626,35 @@ public:
     //! \brief Returns true when the switch body holds at least one
     //! `SeqCCaseEntry` child (either as a single entry or as the
     //! non-empty `cases()` list).
+    //! \return `true` when at least one case entry is present.
     bool hasCases() const;                                           // @0x202760
     //! \brief Returns true when the switch body is a single
     //! `SeqCCaseEntry` rather than a `SeqCStmtList` of entries.
+    //! \return `true` when the body is a single case entry.
     bool isSingleCase() const;                                       // @0x202730
     //! \brief Returns the body cast to `SeqCCaseEntry*` when
     //! `isSingleCase()` is true; undefined otherwise.
+    //! \return Non-owning pointer to the lone case entry.
     const SeqCCaseEntry* singleCase() const;                         // @0x202770
     //! \brief Returns the body cast to `SeqCStmtList*` when the
     //! body is a list of case entries; null when the body is a
     //! single entry.
+    //! \return Non-owning pointer to the case-entry list, or null
+    //! when the body is a single entry.
     const SeqCStmtList* cases() const;                               // @0x202700
     //! \brief Evaluates each case body in turn against the
     //! lowered condition value, returning one `EvalResults` per
     //! case in source order; `state.inSwitch_` must be set by the
     //! caller around the call so nested `break` statements
     //! validate.
+    //! \param subRes     Symbol-table sub-scope used for the case
+    //!                   bodies.
+    //! \param condResult Lowered condition value supplied to each
+    //!                   case body.
+    //! \param ctx        Compiler subsystems handle.
+    //! \param state      Mutable per-evaluation accumulator (must
+    //!                   already have `inSwitch_` set).
+    //! \return One `EvalResults` per case, in source order.
     std::vector<std::shared_ptr<EvalResults>> evalCases(
         std::shared_ptr<Resources> subRes,
         std::shared_ptr<EvalResults> condResult,
@@ -921,6 +961,7 @@ public:
         FrontendLoweringState& state) const override;  // @0x209ea0
 
     //! \brief Returns the identifier text carried by this node.
+    //! \return Reference to the stored identifier string.
     const std::string& name() const { return name_; }
 
     friend void swap(SeqCVariable& a, SeqCVariable& b);
@@ -956,13 +997,27 @@ public:
     //! \brief Constructs an empty (`tag_ == -1`) value node; the
     //! payload-bearing constructors are used when an actual
     //! literal is parsed.
+    //! \param vc     Value-category tag (lvalue / rvalue / ...).
+    //! \param lineNr 1-based source line number for diagnostics.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt);
     //! \brief Constructs a string-payload value node tagged
     //! `Tag::eString`.
+    //! \param vc     Value-category tag.
+    //! \param lineNr 1-based source line number for diagnostics.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param s      String payload moved into `payload_.s`.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               std::string s);   // 0x1fd860 (make_unique callsite) — by value per binary
     //! \brief Constructs a double-payload value node tagged
     //! `Tag::eDouble`.
+    //! \param vc     Value-category tag.
+    //! \param lineNr 1-based source line number for diagnostics.
+    //! \param dir    Parameter-direction tag.
+    //! \param vt     Variable-type tag.
+    //! \param d      Double payload stored in `payload_.d`.
     SeqCValue(EValueCategory vc, int lineNr, EDirection dir, VarType vt,
               double d);               // 0x1fd950 (make_unique callsite)
     SeqCValue(SeqCValue const& o);
@@ -979,16 +1034,21 @@ public:
     //! \brief Returns the discriminator selecting the active
     //! payload alternative; `static_cast<Tag>(-1)` indicates the
     //! empty / default-constructed state.
+    //! \return The active `Tag`, or `static_cast<Tag>(-1)` for the
+    //! empty state.
     Tag tag() const { return static_cast<Tag>(tag_); }
 
     //! \brief Returns the held double; well-defined only when
     //! `tag() == Tag::eDouble`.
+    //! \return The double stored in `payload_.d`.
     double asDouble() const {
         return payload_.d;
     }
 
     //! \brief Returns the held string by const reference;
     //! well-defined only when `tag() == Tag::eString`.
+    //! \return Const reference to the string stored in
+    //! `payload_.str`.
     const std::string& asString() const {
         return payload_.str;
     }
