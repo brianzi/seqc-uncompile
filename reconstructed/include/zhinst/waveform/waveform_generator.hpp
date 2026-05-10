@@ -259,21 +259,21 @@ public:
 
     // --- Public API ---
     //! \brief Test whether a given built-in name is currently
-    //!        registered in `funcMap_`.
+    //!        registered in `funcMap_` or `aliasMap_`.
     //!
-    //! \details \unclear  Declared in the header but the
-    //! implementation is currently a stub at binary address
-    //! `0x25bc60`; the recon source has no body.  Callers in
-    //! `Resources::functionExists` and the SeqC AST evaluator
-    //! consult `funcMap_.count(name) != 0` directly through
-    //! their own copies, so the dedicated entry point is
-    //! reachable but unreconstructed for now.  Once the binary
-    //! is disassembled, the body is expected to delegate to
-    //! `funcMap_.find(name) != funcMap_.end()`.
+    //! \details Probes both registry maps in order: returns
+    //! `true` if `name` is a key of `funcMap_` (a directly
+    //! registered factory such as `"zeros"`, `"sine"`,
+    //! `"vect"`), or otherwise if `name` is a key of
+    //! `aliasMap_` (a deprecated name that `call()` would
+    //! transparently rewrite to a current name, e.g.
+    //! `"rand"` → `"randomGauss"`, with a warning).  Both
+    //! map lookups use `find` rather than `count`; semantics
+    //! are equivalent.
     //!
     //! \param name  Built-in name to test.
-    //! \return  `true` when `funcMap_` holds an entry for
-    //!          `name`; `false` otherwise.
+    //! \return  `true` when `funcMap_` or `aliasMap_` holds
+    //!          an entry for `name`; `false` otherwise.
     bool functionExists(std::string const& name) const;                                  // 0x25bc60
 
     /*! \brief Install the cancellation hook that long-running waveform

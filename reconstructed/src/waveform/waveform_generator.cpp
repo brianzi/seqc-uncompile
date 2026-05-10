@@ -171,6 +171,20 @@ WaveformGenerator::WaveformGenerator(
 
 WaveformGenerator::~WaveformGenerator() {}  // 0x127840
 
+// functionExists @0x25bc60
+// Reports whether a name is registered as a callable factory or as an
+// alias.  The binary checks two unordered_maps:
+//   1. funcMap_ (`*this+0x00`) via __hash_table::find — returns true on hit.
+//   2. aliasMap_ (`*this+0x28`) via __hash_table::find — returns true on hit.
+// Neither map is consulted via count(): the binary calls find() and compares
+// the result iterator to nullptr (begin/end sentinel) — equivalent semantics.
+bool WaveformGenerator::functionExists(std::string const& name) const {
+    if (funcMap_.find(name) != funcMap_.end()) {
+        return true;                                                              // 0x25bc7a-0x25bc80
+    }
+    return aliasMap_.find(name) != aliasMap_.end();                               // 0x25bc81-0x25bc99
+}
+
 // ============================================================================
 // Implemented methods
 // ============================================================================
