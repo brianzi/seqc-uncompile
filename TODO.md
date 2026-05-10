@@ -714,8 +714,37 @@ cross-reference pages so the backlog is discoverable.
           form preservation' rule; verify-then-write applies
           to deletion as well as addition. Build clean,
           docs 0-warning, 1602/1602.
-    - [ ] **D5-8** — Remaining smaller compounds: Exception,
-          MemoryAllocator, AsmExpression, SeqC list types, etc.
+    - [x] **D5-8** — Remaining smaller compounds: Exception,
+          MemoryAllocator, SeqC*List trio. Done (5d08a34).
+          Three parallel subagent dispatches, each held to §14
+          coexistence rule. Result: +78 documented symbols,
+          coverage 45.0% → 47.5%.
+          - core/exception.hpp: 17/17 documented; 2 new
+            \\binarynote (empty-msg default substitution,
+            description() return type surprise).
+          - codegen/memory_allocator.hpp: 19/19 documented; 1
+            new \\verifyme on the ctor (no standalone symbol;
+            field-init reconstructed from inlined call sites).
+          - ast/seqc_ast_node.hpp: 14 briefs added inside the
+            SEQC_LIST macro; propagated to all three list
+            classes via Doxygen macro expansion. Per class:
+            14/15 documented (private elements_ remains
+            undocumented per Doxygen norms).
+          - Implementation finding: single-line //! briefs
+            inside backslash-continued macro bodies break the
+            macro (// extends to end of spliced logical line,
+            eating subsequent macro tokens). MUST use /*! */
+            for every brief inside a macro regardless of
+            length. See comment_style_guide.md follow-up below.
+          - Diff is pure-additive (0 lines removed verified
+            via \`git diff | grep -cE '^-[^-]'\` = 0).
+    - [ ] **D5-8 follow-up — macro doc-comment style note**
+          Add a one-paragraph note to `comment_style_guide.md`
+          §13 (or §14) clarifying that //! inside a
+          backslash-continued macro body MUST use the /*! */
+          form regardless of line count, because phase-2 line
+          splicing turns // into a logical-line-eating black
+          hole. Encountered during D5-8 SEQC_LIST work.
     - [ ] **D5-9** — `zhinst::` namespace free functions
           (diffuse; tackle by file).
   - Workflow: each sub-batch follows the AGENTS.md
