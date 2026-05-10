@@ -895,6 +895,32 @@ public:
      *  \throws WaveformGeneratorException  on wrong argument count.
      */
     Signal rect(std::vector<Value> const& args);             // 0x250770
+
+    /*! \brief Linear-frequency-sweep (chirp) sinusoid.
+     *
+     *  \details Three-, four-, or five-argument factory:
+     *  - `chirp(length, startFrequency, stopFrequency)`:
+     *    amplitude defaults to 1.0, initial phase defaults to 0.
+     *  - `chirp(length, startFrequency, stopFrequency, initialPhase)`:
+     *    amplitude defaults to 1.0.
+     *  - `chirp(length, amplitude, startFrequency, stopFrequency, initialPhase)`.
+     *
+     *  Computes, for `i` in `[0, length)` with sampling rate baked
+     *  into the (already-normalised) `startFrequency` /
+     *  `stopFrequency`:
+     *  - `freqRate = (stopFrequency - startFrequency) / length`
+     *  - `theta = 2*pi*startFrequency*i + pi*freqRate*i*i + initialPhase`
+     *  - `sample[i] = amplitude * sin(theta)`
+     *
+     *  The output is zero-padded with samples of value 0 to a
+     *  16-sample alignment boundary (so a request for 70 samples
+     *  yields a 80-sample `Signal`).
+     *
+     *  \param args  3, 4, or 5 arguments.
+     *  \return  Signal of `length` samples (16-sample-aligned, single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     */
     Signal chirp(std::vector<Value> const& args);            // 0x250bb0
 
     //! \brief Deprecated alias for `marker`; thin wrapper that
@@ -924,9 +950,99 @@ public:
      *          failures inside `markerImpl`.
      */
     Signal marker(std::vector<Value> const& args);           // 0x251cd0
+
+    /*! \brief Gaussian-noise waveform driven by an inline Park-Miller
+     *         MINSTD generator (deterministic per call).
+     *
+     *  \details Three- or four-argument factory:
+     *  - `rand(length, mean, stddev)`: amplitude defaults to 1.0.
+     *  - `rand(length, amplitude, mean, stddev)`.
+     *
+     *  Each output sample is `amplitude * (mean + stddev * z)` where
+     *  `z` is a standard normal drawn via the Marsaglia polar
+     *  Box-Muller transform from a Park-Miller MINSTD LCG (multiplier
+     *  48271, modulus 2^31 - 1).  The PRNG state is **reset to 1 at
+     *  the start of every call**, so the same `(length, mean, stddev,
+     *  amplitude)` arguments always yield the same samples.  This is
+     *  the only `rand`-family factory that does not share the global
+     *  `mt19937_64` instance.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     *  \binarynote The 3-argument overload is `rand(length, mean,
+     *          stddev)` — `amplitude` is the slot that defaults to
+     *          1.0, **not** `stddev`.  Mirrors the same convention
+     *          used by `randomGauss`.  See IF-205 / IF-231.
+     */
     Signal rand(std::vector<Value> const& args);             // 0x251cf0
+
+    /*! \brief Gaussian-noise waveform driven by the shared
+     *         `mt19937_64` PRNG.
+     *
+     *  \details Three- or four-argument factory:
+     *  - `randomGauss(length, mean, stddev)`: amplitude defaults to 1.0.
+     *  - `randomGauss(length, amplitude, mean, stddev)`.
+     *
+     *  Each output sample is `amplitude * (mean + stddev * z)` where
+     *  `z` is drawn from `std::normal_distribution<double>` over the
+     *  thread-local `GlobalResources::random` engine.  Re-seedable via
+     *  the `randomSeed` user function; consecutive calls within one
+     *  compile session advance the same shared engine.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     *  \binarynote The 3-argument overload is `randomGauss(length,
+     *          mean, stddev)` — `amplitude` is the slot that defaults
+     *          to 1.0, **not** `stddev`.  See IF-205.
+     */
     Signal randomGauss(std::vector<Value> const& args);      // 0x252930
+
+    /*! \brief Uniform-noise waveform on `[-amplitude, +amplitude]`.
+     *
+     *  \details One- or two-argument factory:
+     *  - `randomUniform(length)`: amplitude defaults to 1.0.
+     *  - `randomUniform(length, amplitude)`.
+     *
+     *  Each output sample is drawn from
+     *  `std::uniform_real_distribution<double>(-amplitude, +amplitude)`
+     *  over the thread-local `GlobalResources::random` engine
+     *  (shared with `randomGauss`).
+     *
+     *  \param args  1 or 2 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     */
     Signal randomUniform(std::vector<Value> const& args);    // 0x253440
+
+    /*! \brief Pseudo-random marker pattern from a Galois-form LFSR.
+     *
+     *  \details Four-argument factory
+     *  `lfsrGaloisMarker(samples, markerBit, polynomial, initial)`.
+     *  Iterates a 32-bit state register `length` times: at each step
+     *  the LSB is tested, the state is shifted right by one, and if
+     *  the original LSB was set the state is XORed with `polynomial`.
+     *  The output `Signal` has all sample values 0; its marker stream
+     *  encodes the LFSR output by setting bit `markerBit` (1 or 2)
+     *  whenever the original LSB was set.
+     *
+     *  Argument constraints:
+     *  - `samples >= 1`,
+     *  - `markerBit` must be 1 or 2 (any other value throws),
+     *  - `polynomial >= 1`,
+     *  - `initial >= 1` (zero would lock the LFSR; a dedicated
+     *    error message is emitted).
+     *
+     *  \param args  Exactly 4 arguments.
+     *  \return  Signal of `samples` zero-valued samples whose marker
+     *          stream carries the LFSR sequence.
+     *  \throws WaveformGeneratorException  on wrong argument count,
+     *          `markerBit` outside `{1, 2}`, or `initial == 0`.
+     */
     Signal lfsrGaloisMarker(std::vector<Value> const& args); // 0x253bc0
 
     /*! \brief Root-raised-cosine (RRC) filter impulse response.
@@ -982,6 +1098,34 @@ public:
      *          or via `readDouble` for non-numeric arguments.
      */
     Signal vect(std::vector<Value> const& args);             // 0x255570
+
+    /*! \brief Reservation stub for a yet-to-be-defined waveform.
+     *
+     *  \details One- to three-argument factory:
+     *  - `placeholder(samples)`,
+     *  - `placeholder(samples, marker0)`,
+     *  - `placeholder(samples, marker0, marker1)`.
+     *
+     *  Returns a `Signal` constructed in *reserve-only* mode: the
+     *  sample buffer is not allocated, only the length and marker
+     *  shape are recorded so downstream prefetch / wave-table-IR
+     *  passes can lay out the slot.  Each marker argument is read
+     *  as an integer that is interpreted as a boolean (zero → marker
+     *  bit absent, non-zero → bit set).  The combined marker bits
+     *  are stored as a single byte (`markerBits[0] = (marker0 ?
+     *  0x1 : 0) | (marker1 ? 0x2 : 0)`).
+     *
+     *  The marker-bits vector is **always** allocated with one
+     *  element even when both markers are absent — downstream
+     *  consumers (`Signal::append`, `join`, `merge`) iterate
+     *  `markerBits_` unconditionally and would otherwise read OOB.
+     *
+     *  \param args  1, 2, or 3 arguments.
+     *  \return  Signal in reserve-only mode with the requested
+     *          length and marker layout.
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     */
     Signal placeholder(std::vector<Value> const& args);      // 0x255850
     Signal join(std::vector<Value> const& args);             // 0x255da0
     Signal add(std::vector<Value> const& args);              // 0x256ff0
@@ -990,7 +1134,63 @@ public:
     Signal multiply(std::vector<Value> const& args);         // 0x258750
     Signal cut(std::vector<Value> const& args);              // 0x2598d0
     Signal flip(std::vector<Value> const& args);             // 0x25a310
+
+    /*! \brief Apply a discrete IIR/FIR transfer function to a waveform.
+     *
+     *  \details Three-argument factory `filter(b, a, x)` where
+     *  `b` and `a` are coefficient waveforms (numerator and
+     *  denominator of the transfer function `H(z) = B(z) / A(z)`)
+     *  and `x` is the input signal.  Computes
+     *
+     *  ```
+     *  y[n] = (sum_{k=0}^{Nb-1} b[k] * x[n-k]
+     *        - sum_{k=1}^{Na-1} a[k] * y[n-k]) / a[0]
+     *  ```
+     *
+     *  with implicit zero-padding for negative indices.  Operates
+     *  on single-channel waveforms only.
+     *
+     *  Validation:
+     *  - `b` must have at least one sample,
+     *  - `a` must have at least one sample,
+     *  - `a[0]` must be non-zero,
+     *  - `x` must be single-channel.
+     *
+     *  If `x` has zero samples the function returns a copy of `x`
+     *  unchanged.
+     *
+     *  \param args  Exactly 3 arguments (`b`, `a`, `x`); enforced
+     *          by the dispatcher rather than re-checked here.
+     *  \return  Single-channel `Signal` of the same length as `x`.
+     *  \throws WaveformGeneratorValueException  on validation
+     *          failures (empty `a` or `b`, zero leading `a`,
+     *          multi-channel `x`).
+     */
     Signal filter(std::vector<Value> const& args);           // 0x25a540
+
+    /*! \brief Circularly left-shift a waveform's samples (and markers).
+     *
+     *  \details Two-argument factory `circshift(waveform, shift)`.
+     *  Returns a copy of the input `waveform` whose samples are
+     *  rotated left by `shift` positions: the first `shift` samples
+     *  are moved to the end.  For multi-channel waveforms the
+     *  rotation operates on whole frames (each frame = `channels_`
+     *  consecutive samples).  Marker bits are rotated by `shift mod
+     *  markers.size()` so they stay aligned with their associated
+     *  samples.  The shift is normalised modulo
+     *  `samples.size() / channels`, so a shift equal to the number
+     *  of frames returns a copy unchanged.
+     *
+     *  Reserve-only inputs (from `placeholder`) are returned by
+     *  value without rotation, since their sample buffer has not yet
+     *  been allocated.
+     *
+     *  \param args  Exactly 2 arguments: a waveform and an integer
+     *          shift `>= 1` (validated by `readPositiveInt`).
+     *  \return  Rotated copy of the input waveform.
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or via `read*` for invalid argument types.
+     */
     Signal circshift(std::vector<Value> const& args);        // 0x25b0e0
     Signal merge(std::vector<Value> const& args);            // 0x25f5c0
     Signal grow(std::vector<Value> const& args);             // 0x260640
