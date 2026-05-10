@@ -745,8 +745,32 @@ cross-reference pages so the backlog is discoverable.
           form regardless of line count, because phase-2 line
           splicing turns // into a logical-line-eating black
           hole. Encountered during D5-8 SEQC_LIST work.
-    - [ ] **D5-9** — `zhinst::` namespace free functions
-          (diffuse; tackle by file).
+    - [x] **D5-9** — `zhinst::` namespace free functions
+          (diffuse; tackle by file).  Closed in three parallel
+          sub-batches:
+          - D5-9a: core/exception.hpp + .cpp (53 entries — 26
+            ZHINST_DECLARE_EXCEPTION + 26 ZHINST_DEFINE_EXCEPTION
+            invocations + 2 macro defs + makeDefaultErrorCode).
+            Macro briefs don't propagate; per-invocation //!
+            required.  \name family group wraps the 26
+            declarations.
+          - D5-9b: infra/calver.hpp + .cpp (11 entries — all
+            CalVer helpers and operators).
+          - D5-9c: device/awg_device_props.hpp + .cpp (27
+            entries — AwgSequencerType + enumerators + primary
+            template + 9 specialisations + 3 free helpers).
+            Per-enumerator `// toString -> "X"` comments
+            preserved verbatim below new //!< briefs per §14.
+          Total +91 documented; coverage 47.5% → 50.4% (1463 →
+          1552; crossed 50% threshold).  Commit 025eb8b.
+    - [ ] **D5-10** — Remaining `zhinst::` namespace free
+          functions (61 left after D5-9).  Top buckets:
+          src/ast/seqc_ast_node.cpp (13), src/core/error_messages.cpp
+          (8), include/zhinst/ast/node.hpp (6), src/device/device_type.cpp
+          (4), src/ast/expression.cpp (3), src/core/stubs.cpp (3),
+          src/codegen/awg_compiler.cpp (3), runtime/custom_functions.hpp
+          (3); long tail of 1-2 per file.  Tackle as one
+          sub-batch per file family or one big sweep.
   - Workflow: each sub-batch follows the AGENTS.md
     verify-then-write rule.  Subagent dispatch is encouraged
     for mechanical sweeps; user-verifies before commit.
