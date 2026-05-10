@@ -39,7 +39,7 @@ USE_MDFILE_AS_MAINPAGE = @DOXYGEN_MAINPAGE@
 # them so we can track coverage.
 
 EXTRACT_ALL            = NO
-EXTRACT_PRIVATE        = NO
+EXTRACT_PRIVATE        = YES
 EXTRACT_PRIV_VIRTUAL   = NO
 EXTRACT_PACKAGE        = NO
 EXTRACT_STATIC         = NO
