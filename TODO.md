@@ -583,15 +583,19 @@ cross-reference pages so the backlog is discoverable.
       `CachedParser` / `Exception` / `WaveformFront` (15-19 each)
     - `zhinst::SeqCArgList` / `SeqCDeclList` / `SeqCStmtList`: 15 each
   - Sub-batch order (proposed, may evolve):
-    - [ ] **D5-1** — PlayConfig + Signal + Waveform (~85 briefs).
-          Three small POD/value classes used across codegen and
-          waveform synthesis.  Low risk; high downstream
-          visibility (every later brief that mentions these
-          types becomes self-linking).
-    - [ ] **D5-2** — DeviceConstants + SuserAddr (~67 briefs;
-          mostly bitmask / address constants).  Pairs with the
-          existing `cervino_vs_hirzel.md` and `special_registers.md`
-          notes.
+    - [x] **D5-1** — PlayConfig + Signal + Waveform.
+          Done in `1bbc46a`. +98 briefs, coverage 28.4% → 31.5%.
+          3 new `\binarynote` (PlayConfig::operator!= asymmetry,
+          PlayConfig::now exclusion, Signal::append non-const
+          other due to checkAllocation mutation); 1 new
+          `\unclear` on WaveformFile::columnMode (CSV
+          column-mode descriptor — semantic role still TBD).
+          No IFs surfaced.
+    - [x] **D5-2** — DeviceConstants + SuserAddr + Register.
+          Done in `0104d2b`. +68 briefs, coverage 31.5% →
+          33.8%. All addresses cross-checked against
+          `notes/special_registers.md`. No IFs; no `\unclear`
+          / `\verifyme` / `\binarynote` added.
     - [ ] **D5-3** — Cache + CachedParser (~39 briefs).
     - [ ] **D5-4** — Resources family (~89 briefs incl.
           Resources::Function).  Symbol-table backbone; likely
