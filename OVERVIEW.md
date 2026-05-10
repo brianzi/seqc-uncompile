@@ -918,6 +918,32 @@ mainpage.
     the new `//!`/`//!<` briefs.  No source changes;
     no new IFs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7j (2026-05-10)**: ~40 briefs across
+    `include/zhinst/ast/expression.hpp`: the three
+    parser-AST tag enums (`EOperationType`,
+    `EOperator`, `ECommandType`) with per-value briefs
+    rendering the source-token correspondence; the
+    three `str()` debug-printer overloads; every
+    `create*` parser-action factory (`createValue`,
+    `createString`, `createVariable`,
+    `addVariableType`, `createVariableType`,
+    `createOperator`, `createAssignOperator`,
+    `createArray`, `createListType` +
+    `createOrAppend{ListType,ArgList,DeclList,
+    ParamList,StmtList}`, `createFunctionCall`,
+    `createFunction`, `createCommand` variadic, and
+    every control-flow `createIf` /
+    `createIfElse` / `createSwitch` / `createCase` /
+    `createCondExpression` / `createFor` /
+    `createWhile` / `createRepeat` / `createDoWhile`);
+    plus `copyExpression` and the bison `seqc_error`
+    callback.  `seqc_error` brief verified against
+    `expression.cpp:583` — return value is 1 (not 0)
+    and the implementation calls
+    `ctx->raiseError(msg)` followed by
+    `ctx->setSyntaxError()`.  No source changes; no
+    new IFs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

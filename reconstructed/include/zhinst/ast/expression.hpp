@@ -25,67 +25,80 @@ class SeqcParserContext;  // forward decl — no header yet
 // ---- Enums ----------------------------------------------------------------
 
 // Expression::operationType (+0x00)  —  jump table @0x95a82c
+//! \brief Top-level kind of an `Expression` parser-AST node.
+//!
+//! Stored in `Expression::operationType` and used as the primary
+//! discriminator by the frontend lowering pass.  Together with
+//! `EOperator` (binary/unary operator slot) and `ECommandType`
+//! (control-flow / unary-statement slot) it forms the three
+//! orthogonal tags carried by every parser node.
 enum class EOperationType : int32_t {
-    eCOMMAND       = 0,
-    eFUNCTION      = 1,
-    eFUNCTIONCALL  = 2,
-    eVARIABLE      = 3,
-    eOPERATOR      = 4,
-    eARRAY         = 5,
-    eARGLIST       = 6,
-    eDECLLIST      = 7,
-    ePARAMLIST     = 8,
-    eSTMTLIST      = 9,
-    eLABEL         = 10,
-    eVARIABLETYPE  = 11,
-    eVALUE         = 12,
+    eCOMMAND       = 0,    //!< Control-flow / statement form (see `ECommandType`).
+    eFUNCTION      = 1,    //!< Function definition (return type + params + body).
+    eFUNCTIONCALL  = 2,    //!< Call site (callee + arg list).
+    eVARIABLE      = 3,    //!< Variable reference by name.
+    eOPERATOR      = 4,    //!< Binary/unary operator application (see `EOperator`).
+    eARRAY         = 5,    //!< Array indexing (`a[i]`).
+    eARGLIST       = 6,    //!< Argument list of a call.
+    eDECLLIST      = 7,    //!< Comma-separated declarator list.
+    ePARAMLIST     = 8,    //!< Parameter list of a function definition.
+    eSTMTLIST      = 9,    //!< Sequence of statements.
+    eLABEL         = 10,   //!< Label (e.g. `case` value).
+    eVARIABLETYPE  = 11,   //!< Type-qualifier node (carries `VarType`).
+    eVALUE         = 12,   //!< Numeric or string literal.
 };
 
 // Expression::operator_ (+0x48)  —  jump table @0x95a860
+//! \brief Operator carried by `eOPERATOR` (and assignment-operator)
+//! `Expression` nodes.  `eNONE` is the default for non-operator
+//! nodes.  Renderable via `str(EOperator)`.
 enum class EOperator : int32_t {
-    eADD       = 0,   // "+"
-    eSUB       = 1,   // "-"
-    eMUL       = 2,   // "*"
-    eDIV       = 3,   // "/"
-    eMOD       = 4,   // "%"
-    eSHL       = 5,   // "<<"
-    eSHR       = 6,   // ">>"
-    eGT        = 7,   // ">"
-    eLT        = 8,   // "<"
-    eLE        = 9,   // "<="
-    eGE        = 10,  // ">="
-    eEQ        = 11,  // "=="
-    eNE        = 12,  // "!="
-    eINC       = 13,  // "++"
-    eDEC       = 14,  // "--"
-    eAND       = 15,  // "&"
-    eOR        = 16,  // "|"
-    eXOR       = 17,  // "^"
-    eLAND      = 18,  // "&&"
-    eLOR       = 19,  // "||"
-    eASSIGN    = 20,  // "="
-    eNONE      = 21,  // "" (unset / default)
+    eADD       = 0,   //!< `+`
+    eSUB       = 1,   //!< `-`
+    eMUL       = 2,   //!< `*`
+    eDIV       = 3,   //!< `/`
+    eMOD       = 4,   //!< `%`
+    eSHL       = 5,   //!< `<<`
+    eSHR       = 6,   //!< `>>`
+    eGT        = 7,   //!< `>`
+    eLT        = 8,   //!< `<`
+    eLE        = 9,   //!< `<=`
+    eGE        = 10,  //!< `>=`
+    eEQ        = 11,  //!< `==`
+    eNE        = 12,  //!< `!=`
+    eINC       = 13,  //!< `++`
+    eDEC       = 14,  //!< `--`
+    eAND       = 15,  //!< `&`
+    eOR        = 16,  //!< `|`
+    eXOR       = 17,  //!< `^`
+    eLAND      = 18,  //!< `&&`
+    eLOR       = 19,  //!< `||`
+    eASSIGN    = 20,  //!< `=`
+    eNONE      = 21,  //!< unset / default
 };
 
 // Expression::commandType (+0x4C)  —  jump table @0x95a8b8
+//! \brief Control-flow or unary-statement form carried by
+//! `eCOMMAND` `Expression` nodes.  `eNOCMD` is the default for
+//! non-command nodes.  Renderable via `str(ECommandType)`.
 enum class ECommandType : int32_t {
-    eIF        = 0,
-    eIFELSE    = 1,
-    eSWITCH    = 2,
-    eCASE      = 3,
-    eFOR       = 4,
-    eWHILE     = 5,
-    eDOWHILE   = 6,
-    eREPEAT    = 7,
-    eCONDEXP   = 8,
-    eCONTINUE  = 9,
-    eBREAK     = 10,
-    eRETURN    = 11,
-    eNEG       = 12,
-    ePOS       = 13,
-    eINV       = 14,
-    eNOT       = 15,
-    eNOCMD     = 16,
+    eIF        = 0,   //!< `if (cond) body`
+    eIFELSE    = 1,   //!< `if (cond) thenBody else elseBody`
+    eSWITCH    = 2,   //!< `switch (val) body`
+    eCASE      = 3,   //!< `case val: body`
+    eFOR       = 4,   //!< `for (init; cond; incr) body`
+    eWHILE     = 5,   //!< `while (cond) body`
+    eDOWHILE   = 6,   //!< `do body while (cond)`
+    eREPEAT    = 7,   //!< `repeat (count) body`
+    eCONDEXP   = 8,   //!< Conditional expression (`cond ? a : b`).
+    eCONTINUE  = 9,   //!< `continue;`
+    eBREAK     = 10,  //!< `break;`
+    eRETURN    = 11,  //!< `return [val];`
+    eNEG       = 12,  //!< Unary `-`.
+    ePOS       = 13,  //!< Unary `+`.
+    eINV       = 14,  //!< Bitwise `~`.
+    eNOT       = 15,  //!< Logical `!`.
+    eNOCMD     = 16,  //!< Unset / default.
 };
 
 // VarType used by createVariableType — stored at +0x50.
@@ -162,70 +175,144 @@ static_assert(sizeof(Expression) == 0x58 || sizeof(Expression) == 0x60,
 
 // ---- Enum → string helpers (for debug printing) ---------------------------
 
+//! \brief Renders an `EOperationType` as its enumerator name (e.g.
+//! `"eVALUE"`); used for debug logging and error messages.
 std::string str(EOperationType t);   // 0x1c1530
+//! \brief Renders an `EOperator` as the source operator token it
+//! corresponds to (e.g. `"+"`, `"<<"`); `eNONE` renders as `""`.
 std::string str(EOperator op);       // 0x1c1790
+//! \brief Renders an `ECommandType` as its enumerator name (e.g.
+//! `"eIF"`); used for debug logging and error messages.
 std::string str(ECommandType ct);    // 0x1c18e0
 
 // ---- Free functions: parser actions ("create*") ---------------------------
 
 // Returns raw Expression* — callers wrap in shared_ptr.
 
+//! \brief Parser action: builds a numeric-literal `eVALUE`
+//! `Expression` carrying `val` and the current source line number.
 Expression* createValue(SeqcParserContext* ctx, double val);                     // 0x1bf260
+//! \brief Parser action: builds a string-literal `eVALUE`
+//! `Expression` (with `varType = VarType_String`) carrying `s` as
+//! its name and the current source line number.
 Expression* createString(SeqcParserContext* ctx, const char* s);                 // 0x1bf2d0
+//! \brief Parser action: builds an `eVARIABLE` `Expression`
+//! referencing the named identifier.
 Expression* createVariable(SeqcParserContext* ctx, const char* name);            // 0x1bf420
+//! \brief Parser action: stamps the type carried by `typeExpr` onto
+//! `expr` (or every child of `expr` when `expr` is an `eDECLLIST`),
+//! creating placeholder nodes for nullptr inputs and disposing of
+//! `typeExpr` unless `isConst` requests it be kept.
 Expression* addVariableType(SeqcParserContext* ctx, Expression* expr,
                             Expression* typeExpr, bool isConst);                 // 0x1bf560
+//! \brief Parser action: builds a free-standing `eVARIABLETYPE`
+//! `Expression` carrying the given `VarType`.
 Expression* createVariableType(SeqcParserContext* ctx, VarType vt);              // 0x1bf7c0
+//! \brief Parser action: builds an `eOPERATOR` `Expression` with
+//! the given operator and `[lhs, rhs]` as its child operands.
 Expression* createOperator(SeqcParserContext* ctx, Expression* lhs,
                            Expression* rhs, EOperator op);                       // 0x1bf830
+//! \brief Parser action: builds a compound-assignment `eOPERATOR`
+//! `Expression` (e.g. `+=`, `<<=`) by combining `op` with `eASSIGN`.
 Expression* createAssignOperator(SeqcParserContext* ctx, Expression* lhs,
                                  Expression* rhs, EOperator op);                 // 0x1bf9c0
+//! \brief Parser action: builds an `eARRAY` indexing `Expression`
+//! with `[lhs, rhs]` as its child operands.
 Expression* createArray(SeqcParserContext* ctx, Expression* lhs,
                         Expression* rhs);                                        // 0x1bfb50
+//! \brief Parser action: builds a list-kind `Expression` of the
+//! given `EOperationType` (e.g. `eARGLIST`, `eDECLLIST`,
+//! `ePARAMLIST`, `eSTMTLIST`) with `[lhs, rhs]` as its initial
+//! children.
 Expression* createListType(SeqcParserContext* ctx, EOperationType opType,
                            Expression* lhs, Expression* rhs);                    // 0x1bfb70
+//! \brief Parser action: appends `rhs` to `lhs` if `lhs` is already
+//! a list of `opType`, otherwise constructs a fresh list via
+//! `createListType`.
 Expression* createOrAppendListType(SeqcParserContext* ctx,
                                    EOperationType opType,
                                    Expression* lhs, Expression* rhs);            // 0x1bfd20
+//! \brief Parser action: append-or-create wrapper specialised for
+//! `eARGLIST`.
 Expression* createOrAppendArgList(SeqcParserContext* ctx,
                                   Expression* lhs, Expression* rhs);             // 0x1bfd00
+//! \brief Parser action: append-or-create wrapper specialised for
+//! `eDECLLIST`.
 Expression* createOrAppendDeclList(SeqcParserContext* ctx,
                                    Expression* lhs, Expression* rhs);            // 0x1bfe00
+//! \brief Parser action: append-or-create wrapper specialised for
+//! `ePARAMLIST`.
 Expression* createOrAppendParamList(SeqcParserContext* ctx,
                                     Expression* lhs, Expression* rhs);           // 0x1bfe20
+//! \brief Parser action: append-or-create wrapper specialised for
+//! `eSTMTLIST`.
 Expression* createOrAppendStmtList(SeqcParserContext* ctx,
                                    Expression* lhs, Expression* rhs);            // 0x1bfe40
+//! \brief Parser action: builds an `eFUNCTIONCALL` `Expression`
+//! pairing the callee `func` with its `args` (an `eARGLIST`).
 Expression* createFunctionCall(SeqcParserContext* ctx,
                                Expression* func, Expression* args);              // 0x1bfe60
+//! \brief Parser action: builds an `eFUNCTION` `Expression`
+//! grouping a return-type expression, parameter list, and body.
 Expression* createFunction(SeqcParserContext* ctx, Expression* returnTypeExpr,
                            Expression* params, Expression* body);                // 0x1c0000
+//! \brief Parser action: builds an `eCOMMAND` `Expression` of the
+//! given `ECommandType` from `count` variadic child operands.  Used
+//! by the `createIf` / `createWhile` / etc. helpers below as well
+//! as directly for the no-operand control-flow forms (`continue`,
+//! `break`, `return`).
 Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
                            int count, ...);                                      // 0x1c0330
+//! \brief Parser action: builds an `eIF` command from condition
+//! and body.
 Expression* createIf(SeqcParserContext* ctx, Expression* cond,
                      Expression* body);                                          // 0x1c0530
+//! \brief Parser action: builds an `eIFELSE` command from
+//! condition, then-body, and else-body.
 Expression* createIfElse(SeqcParserContext* ctx, Expression* cond,
                          Expression* thenBody, Expression* elseBody);            // 0x1c06c0
+//! \brief Parser action: builds an `eSWITCH` command from
+//! discriminant value and body.
 Expression* createSwitch(SeqcParserContext* ctx, Expression* val,
                          Expression* body);                                      // 0x1c08d0
+//! \brief Parser action: builds an `eCASE` command (label value +
+//! body) inside a `switch`.
 Expression* createCase(SeqcParserContext* ctx, Expression* val,
                        Expression* body);                                        // 0x1c0a60
+//! \brief Parser action: builds an `eCONDEXP` command (ternary
+//! `cond ? trueBranch : falseBranch`).
 Expression* createCondExpression(SeqcParserContext* ctx, Expression* cond,
                                  Expression* trueBranch,
                                  Expression* falseBranch);                       // 0x1c0bf0
+//! \brief Parser action: builds an `eFOR` command from init /
+//! cond / incr / body.
 Expression* createFor(SeqcParserContext* ctx, Expression* init,
                       Expression* cond, Expression* incr,
                       Expression* body);                                         // 0x1c0e00
+//! \brief Parser action: builds an `eWHILE` command from cond and
+//! body.
 Expression* createWhile(SeqcParserContext* ctx, Expression* cond,
                         Expression* body);                                       // 0x1c1080
+//! \brief Parser action: builds an `eREPEAT` command from a count
+//! expression and body (`repeat (count) body`).
 Expression* createRepeat(SeqcParserContext* ctx, Expression* count,
                          Expression* body);                                      // 0x1c1210
+//! \brief Parser action: builds an `eDOWHILE` command from body
+//! and cond (`do body while (cond)`).
 Expression* createDoWhile(SeqcParserContext* ctx, Expression* body,
                           Expression* cond);                                     // 0x1c13a0
 
-// Deep copy (recursive) — 0x1bef20
+//! \brief Recursive deep copy of an `Expression` tree — clones
+//! every node and the entire `children` subtree as fresh
+//! `shared_ptr<Expression>` instances.
 std::shared_ptr<Expression> copyExpression(std::shared_ptr<Expression> expr);
 
-// Bison error callback — 0x2ca1b0
+//! \brief Bison parser error callback invoked by the generated
+//! parser when a syntax error is detected.  Forwards `msg` to
+//! `ctx->raiseError()` and then sets the parser-context syntax-error
+//! flag via `ctx->setSyntaxError()`.  The `lval` and `scanner`
+//! parameters are unused.
+//! \return Always 1 (the value the bison runtime expects on error).
 int seqc_error(SeqcParserContext* ctx, Expression** /*lval*/,
                void* /*scanner*/, const char* msg);
 
