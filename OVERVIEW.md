@@ -590,6 +590,33 @@ mainpage.
   IF-224, IF-226.  Each is latent — the differential test corpus
   does not exercise the divergent code path, hence 1600/1600
   remains green.
+- **Batch 3 — `WavetableIR` / `WavetableFront` /
+  `WavetableManager<T>` + frontend-lowering structs** complete
+  across five sub-batches (59 briefs total + 1 latent bug fix):
+  - **3a** (`b5a38cc`): `detail::getUniqueName` plus 7
+    `WavetableIR` accessors / iterators.  Surfaced and fixed
+    IF-227 in the same commit (`WavetableIR::size()` recon body
+    divided element count by `sizeof(shared_ptr)` = 16, silently
+    yielding `count/16`; binary at `0x29e290` performs the
+    divide at the raw libc++ pointer level; replaced with
+    `manager_->waveforms_.size()`).  Latent — no live caller.
+  - **3b** (`a375672`): 12 `WavetableIR` ctor / dtor /
+    serialization / allocation briefs.  Combined with the D3
+    briefs for `updateWaveforms` and
+    `assignWaveformAllocationSizes`, `WavetableIR` is now
+    fully documented.
+  - **3c-i** (`445c0c0`): 10 `WavetableFront` lifecycle and
+    simple-accessor briefs (ctor, dtor, `dummyWarning`,
+    `begin`, `end`, `setWarningCallback`, `getMemorySize`,
+    `toString`, `loadWaveform`, `setLineNr`).
+  - **3c-ii** (`91d9e41`): 13 `WavetableFront` factory and
+    query/utility briefs.  `WavetableFront` now fully
+    documented.
+  - **3c-iii** (`f08c46f`): 14 `WavetableManager<T>` templated
+    method briefs (covering both `WaveformFront` and
+    `WaveformIR` instantiations) plus the two trivial
+    frontend-lowering dtors (`FrontendLoweringContext::~`,
+    `FrontendLoweringState::~`).
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

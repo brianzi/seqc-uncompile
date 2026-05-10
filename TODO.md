@@ -338,6 +338,62 @@ cross-reference pages so the backlog is discoverable.
         tree; difftests will not exercise this since the only
         caller is `Prefetch::print` (debug-only printer to
         `std::cout`).  See IF-226 for full evidence.
+  - [x] **D4 Batch 3a** — `WavetableIR` accessors and the shared
+        `detail::getUniqueName` helper (8 briefs):
+        `getUniqueName`, `WavetableIR::{begin, end, size,
+        getWaveformByName, getNextSegmentAddress,
+        getFirstWaveformOffset, getJsonIndex}`.  Surfaced one
+        latent bug (IF-227, `WavetableIR::size()` body divided
+        the element count by `sizeof(shared_ptr)` = 16,
+        silently yielding `count/16`; binary at `0x29e290` does
+        the divide at the raw libc++ pointer level; replaced
+        body with `manager_->waveforms_.size()` in same
+        commit).  Latent because no live caller exists.
+        1600/1600 tests, build clean, 0 doxygen warnings.
+  - [x] **D4 Batch 3b** — `WavetableIR` ctors / dtor /
+        serialization / allocation API (12 briefs):
+        `WavetableIR(WavetableFront, ...)`,
+        `WavetableIR(WavetableManager, ...)`,
+        `~WavetableIR`, `toJson`, `fromJson`, `operator==`,
+        `allocateWaveforms`, `forEachUsedWaveform`,
+        `assignWaveIndexImplicit`, `setUsedWaveforms`,
+        `allocateWaveformsForFifo`, `alignWaveformSizes`,
+        `loadWaveform`.  Combined with the D3-era briefs for
+        `updateWaveforms` and `assignWaveformAllocationSizes`,
+        `WavetableIR` is now fully documented (every public
+        method has a brief).  Headers-only diff; 1600/1600
+        tests, 0 doxygen warnings.
+  - [x] **D4 Batch 3c-i** — `WavetableFront` ctor / dtor /
+        lifecycle methods (10 briefs): ctor, dtor,
+        `dummyWarning`, `begin`, `end`,
+        `setWarningCallback`, `getMemorySize`, `toString`,
+        `loadWaveform`, `setLineNr`.  Headers-only diff;
+        1600/1600 tests, 0 doxygen warnings.
+  - [x] **D4 Batch 3c-ii** — `WavetableFront` factory and
+        query/utility surface (13 briefs): `newEmptyWaveform`,
+        `newWaveformFromFile` ×2, `newWaveform` ×2,
+        `waveformExists`, `getWaveformByName`,
+        `getWaveformByFunDescr`, `copyWaveform`,
+        `checkWaveformInitialized`,
+        `getWaveformSampleLength`, `updateDioTableUsage`,
+        `assignWaveIndex`, `updateWave`.  `WavetableFront`
+        is now fully documented.  Headers-only diff;
+        1600/1600 tests, 0 doxygen warnings.
+  - [x] **D4 Batch 3c-iii** — `WavetableManager<T>` templated
+        method briefs (14) + 2 trivial frontend-lowering
+        dtors.  Manager methods cover both `WaveformFront`
+        and `WaveformIR` instantiations: `~WavetableManager`,
+        `newEmptyWaveform`, `newWaveformFromFile` ×2,
+        `newWaveform` (Front 5-arg, IR 4-arg),
+        `getWaveformForFront`, `copyWaveform`, `updateWave`,
+        `insertWaveform`, the IR-rebuild ctor, `toJson`,
+        `fromJson`, `operator==`, `setLineNr`.  Frontend-
+        lowering dtors: `FrontendLoweringContext::~` and
+        `FrontendLoweringState::~`.  D4 Batch 3 (Wavetable
+        namespace + frontend-lowering structs) closes here:
+        59 briefs across 5 commits + 1 latent bug fix
+        (IF-227).  1600/1600 tests, build clean, 0 doxygen
+        warnings.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
