@@ -45,10 +45,23 @@ namespace detail {
 // ============================================================================
 class GenericDeviceType : public DeviceTypeImpl {
 public:
+    //! \brief Construct a generic device-type from runtime strings.
+    //!
+    //! Parses `deviceType` into a `DeviceTypeCode` / `DeviceFamily`
+    //! (via `toDeviceTypeCode` / `toDeviceFamily`) and `options`
+    //! into a `DeviceOptionSet` (via `toDeviceOptions`, skipped
+    //! when the resolved code is `Unknown` — an empty option set
+    //! is used instead), then forwards the result to the
+    //! `DeviceTypeImpl` base.
+    //! \param deviceType Device-type string (e.g. `"HDAWG8"`).
+    //! \param options    Option strings parsed in the family scope.
     // @ 0x2d3c60
     GenericDeviceType(std::string const& deviceType,
                       std::vector<std::string> const& options);
 
+    //! \brief Virtual destructor; the binary's vtable retains the
+    //! `GenericDeviceType` identity but adds no extra fields to
+    //! release.
     // @ 0x2d4030
     ~GenericDeviceType() override;
 

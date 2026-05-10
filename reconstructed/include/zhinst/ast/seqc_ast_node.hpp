@@ -191,6 +191,8 @@ public:
     virtual std::unique_ptr<SeqCAstNode> doClone() const = 0;
 
     // vptr[5-6]: destructor (D2 + D0).
+    //! \brief Virtual destructor; the base body is trivial — owned
+    //! children, if any, are released by the concrete subclass.
     virtual ~SeqCAstNode();                                      // D2 @0x209000 (trivial)
 
     // vptr[7]: returns vector<string> of VarType names for parameter nodes.
@@ -228,11 +230,22 @@ public:
 
 protected:
     // Layout (must match binary — all 16 bytes after vptr):
+    //! \brief Value-category tag (lvalue / rvalue / ...) supplied at
+    //! construction and exposed via `valueCategory()`.
     EValueCategory  valueCategory_;  // +0x08
+    //! \brief 1-based source line number recorded at construction;
+    //! used by diagnostics and AST printing.
+    //! \binarynote `SeqCVariable::print()` reinterprets this slot as a
+    //! `VarType` for display — an overloaded meaning in that one
+    //! subclass.
     int             lineNr_;         // +0x0C  Source line number. (Resolves unknown #96.)
                                      //        Binary: SeqCVariable::print() casts this to VarType
                                      //        for display — overloaded meaning in that one subclass.
+    //! \brief Parameter-direction tag (in / out / inout) supplied at
+    //! construction and exposed via `direction()`.
     EDirection direction_;      // +0x10
+    //! \brief Variable-type tag attached to this node; default-
+    //! constructed and may be overwritten by `setVarType()`.
     VarType         varType_{};      // +0x14
 
     // Allow swap to access fields by reference
@@ -480,6 +493,9 @@ SEQC_TRIVIAL_LEAF(SeqCNoCmd,             0xb05940);
          */                                                                 \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
+        /*! \brief Owned operand subexpression (`child_`); accessed       \
+         *  through `expr()`.                                              \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> child_;  /* +0x18 */                   \
     };                                                                      \
     static_assert(sizeof(Name) == 0x20, #Name " must be 0x20 bytes")
@@ -598,7 +614,11 @@ public:
     friend void swap(SeqCOperator& a, SeqCOperator& b);
 
 protected:
+    //! \brief Owned left-hand operand subexpression; accessed through
+    //! `lhs()`.
     std::unique_ptr<SeqCAstNode> lhs_;   // +0x18
+    //! \brief Owned right-hand operand subexpression; accessed
+    //! through `rhs()`.
     std::unique_ptr<SeqCAstNode> rhs_;   // +0x20
 };
 
@@ -794,7 +814,13 @@ SEQC_OPERATOR(SeqCNoOp,    0xb060c8);
          */                                                                 \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
+        /*! \brief Owned first subtree (`F1##_`); accessed through the   \
+         *  first named getter.                                            \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> F1##_;   /* +0x18 */                   \
+        /*! \brief Owned second subtree (`F2##_`); accessed through the  \
+         *  second named getter.                                           \
+         */                                                                 \
         std::unique_ptr<SeqCAstNode> F2##_;   /* +0x20 */                   \
     };                                                                      \
     static_assert(sizeof(Name) == 0x28, #Name " must be 0x28 bytes")
@@ -868,7 +894,9 @@ public:
     //! \param b Second call node.
     friend void swap(SeqCFunctionCall& a, SeqCFunctionCall& b);
 private:
+    //! \brief Owned callee identifier subtree; accessed via `funName()`.
     std::unique_ptr<SeqCVariable>  funName_;   /* +0x18 */
+    //! \brief Owned argument-list subtree; accessed via `arguments()`.
     std::unique_ptr<SeqCAstNode>   args_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCFunctionCall) == 0x28, "SeqCFunctionCall must be 0x28 bytes");
@@ -939,7 +967,9 @@ public:
     //! \param b Second array-access node.
     friend void swap(SeqCArray& a, SeqCArray& b);
 private:
+    //! \brief Owned array-identifier subtree; accessed via `array()`.
     std::unique_ptr<SeqCVariable>  array_;   /* +0x18 */
+    //! \brief Owned index-expression subtree; accessed via `index()`.
     std::unique_ptr<SeqCAstNode>   index_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCArray) == 0x28, "SeqCArray must be 0x28 bytes");
@@ -1024,7 +1054,11 @@ public:
     //! \param b Second case-entry node.
     friend void swap(SeqCCaseEntry& a, SeqCCaseEntry& b);
 private:
+    //! \brief Owned label expression; null for the `default` entry.
+    //! Accessed via `label()`.
     std::unique_ptr<SeqCAstNode> label_;   /* +0x18 */
+    //! \brief Owned body subtree executed when the entry matches;
+    //! accessed via `body()`.
     std::unique_ptr<SeqCAstNode> body_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCCaseEntry) == 0x28, "SeqCCaseEntry must be 0x28 bytes");
@@ -1140,7 +1174,11 @@ public:
     friend void swap(SeqCSwitchCase& a, SeqCSwitchCase& b);
 
 private:
+    //! \brief Owned switch-condition expression; accessed via `cond()`.
     std::unique_ptr<SeqCAstNode> cond_;   /* +0x18 */
+    //! \brief Owned switch body — usually a `SeqCStmtList` of
+    //! `SeqCCaseEntry` children but may be a single entry; accessed
+    //! via `body()`.
     std::unique_ptr<SeqCAstNode> body_;  /* +0x20 */
 };
 static_assert(sizeof(SeqCSwitchCase) == 0x28, "SeqCSwitchCase must be 0x28 bytes");
@@ -1235,8 +1273,11 @@ public:
     friend void swap(SeqCIfElse& a, SeqCIfElse& b);
 
 private:
+    //! \brief Owned condition expression; accessed via `cond()`.
     std::unique_ptr<SeqCAstNode> cond_;       // +0x18
+    //! \brief Owned then-branch subtree; accessed via `ifBody()`.
     std::unique_ptr<SeqCAstNode> ifBody_;     // +0x20
+    //! \brief Owned else-branch subtree; accessed via `elseBody()`.
     std::unique_ptr<SeqCAstNode> elseBody_;   // +0x28
 };
 static_assert(sizeof(SeqCIfElse) == 0x30, "SeqCIfElse must be 0x30 bytes");
@@ -1315,8 +1356,11 @@ public:
     friend void swap(SeqCCondExpr& a, SeqCCondExpr& b);
 
 private:
+    //! \brief Owned condition expression; accessed via `cond()`.
     std::unique_ptr<SeqCAstNode> cond_;          // +0x18
+    //! \brief Owned then-branch subexpression; accessed via `ifBody()`.
     std::unique_ptr<SeqCAstNode> ifBody_;        // +0x20
+    //! \brief Owned else-branch subexpression; accessed via `elseBody()`.
     std::unique_ptr<SeqCAstNode> elseBody_;      // +0x28
 };
 static_assert(sizeof(SeqCCondExpr) == 0x30, "SeqCCondExpr must be 0x30 bytes");
@@ -1406,9 +1450,14 @@ public:
     friend void swap(SeqCFunction& a, SeqCFunction& b);
 
 private:
+    //! \brief Owned signature node — a `SeqCFunctionCall` carrying
+    //! the function name; accessed via `call()`.
     std::unique_ptr<SeqCFunctionCall> call_;   // +0x18
+    //! \brief Owned parameter-list subtree; accessed via `params()`.
     std::unique_ptr<SeqCAstNode> params_;      // +0x20
+    //! \brief Owned function-body subtree; accessed via `body()`.
     std::unique_ptr<SeqCAstNode> body_;        // +0x28
+    //! \brief Owned return-type declarator; accessed via `retType()`.
     std::unique_ptr<SeqCVariableType> retType_; // +0x30
 };
 static_assert(sizeof(SeqCFunction) == 0x38, "SeqCFunction must be 0x38 bytes");
@@ -1493,9 +1542,13 @@ public:
     friend void swap(SeqCForLoop& a, SeqCForLoop& b);
 
 private:
+    //! \brief Owned initialiser subtree; accessed via `init()`.
     std::unique_ptr<SeqCAstNode> init_;   // +0x18
+    //! \brief Owned loop-condition expression; accessed via `cond()`.
     std::unique_ptr<SeqCAstNode> cond_;   // +0x20
+    //! \brief Owned increment subtree; accessed via `incr()`.
     std::unique_ptr<SeqCAstNode> incr_;   // +0x28
+    //! \brief Owned loop-body subtree; accessed via `body()`.
     std::unique_ptr<SeqCAstNode> body_;   // +0x30
 };
 static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
@@ -1659,6 +1712,10 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
          */                                                                  \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
+        /*! \brief Owned child nodes in declaration order; accessed       \
+         *  through `elements()` / `children()` / the per-class named    \
+         *  accessor.                                                     \
+         */                                                                 \
         std::vector<std::unique_ptr<SeqCAstNode>> elements_;  /* +0x18 */   \
     };                                                                      \
     static_assert(sizeof(Name) == 0x30, #Name " must be 0x30 bytes")
@@ -1774,6 +1831,8 @@ public:
     friend void swap(SeqCParamList& a, SeqCParamList& b);
 
 private:
+    //! \brief Owned parameter nodes in declaration order; accessed
+    //! via `elements()`, `children()`, and `params()`.
     std::vector<std::unique_ptr<SeqCAstNode>> elements_;  // +0x18
 };
 static_assert(sizeof(SeqCParamList) == 0x30,
@@ -1850,6 +1909,10 @@ public:
     friend void swap(SeqCVariable& a, SeqCVariable& b);
 
 private:
+    //! \brief Identifier text owned by the node; accessed via
+    //! `name()`.  Layout occupies 24 bytes under libc++ (binary) and
+    //! 32 bytes under libstdc++ — both are accepted by the
+    //! `static_assert` below.
     std::string name_;   // +0x18 (24B libc++ SSO; 32B with libstdc++)
 };
 // Size differs by libstdc++ vs libc++; both forms are accepted.
@@ -1992,8 +2055,15 @@ public:
     };
 
 private:
+    //! \brief Storage for the active payload alternative; the live
+    //! union member is selected by `tag_`.
     Payload  payload_;         // +0x18  (24 bytes libc++, 32 bytes libstdc++)
+    //! \brief Discriminator that selects the active `payload_`
+    //! alternative; `-1` denotes the empty / default-constructed
+    //! state (in which case the destructor skips destruction).
     int32_t  tag_{-1};         // +0x30 (libc++) / +0x38 (libstdc++)
+    //! \brief Tail padding word kept so the binary's slot layout is
+    //! preserved; carries no semantic value.
     int32_t  pad34_{};         // +0x34 / +0x3C
 };
 // On libc++ (binary): sizeof == 0x38.  On libstdc++: sizeof >= 0x38 (typically 0x40).

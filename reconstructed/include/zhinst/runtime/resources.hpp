@@ -1025,10 +1025,18 @@ protected:
 //! `getReturnType` raises this when called on a scope whose
 //! function return type was never set.
 class ResourcesException : public std::exception {
+    //! \brief Diagnostic text returned verbatim by `what()`; supplied
+    //! at construction.
     std::string msg_;
 public:
+    //! \brief Constructs the exception with the given diagnostic
+    //! message, which `what()` later returns verbatim.
+    //! \param msg Diagnostic text (copied in).
     explicit ResourcesException(std::string const& msg);  // @0x1e3a20
+    //! \brief Virtual destructor; releases the owned message string.
     ~ResourcesException() override;                        // @0x1f12f0
+    //! \brief Returns the stored diagnostic text as a C-string.
+    //! \return Null-terminated diagnostic message.
     const char* what() const noexcept override;            // @0x1f1340
 };
 

@@ -38,7 +38,13 @@ namespace zhinst {
 //! cancel is supplied by the embedding application.
 class CancelCallback {
 public:
+    //! \brief Defaulted virtual destructor; the implementation lives
+    //! in the embedding application's binding layer.
     virtual ~CancelCallback() = default;
+    //! \brief Returns `true` when the embedding application has
+    //! requested cancellation of the current compile pass; polled at
+    //! safe points by the long-running passes.
+    //! \return `true` to abort the pass, `false` to continue.
     virtual bool isCancelled() = 0;
 };
 
@@ -61,7 +67,15 @@ public:
 //! are supplied by the embedding application.
 class ProgressCallback {
 public:
+    //! \brief Virtual destructor with an empty default body; the
+    //! out-of-line definition emits the vtable slot in this TU.
     virtual ~ProgressCallback();               // 0x129960 (empty)
+    //! \brief Receives a progress update in `[0.0, 1.0]`.  The
+    //! default implementation is an empty no-op; derived classes
+    //! override it to surface progress to the embedding
+    //! application.
+    //! \param progress Current pass progress in the range
+    //!                 `[0.0, 1.0]`.
     virtual void setProgress(double progress);  // 0x129980 (empty default)
 };
 

@@ -218,8 +218,17 @@ public:
     void reset();                                                // 0x12ba90
 
 private:
+    //! \brief Diagnostics recorded so far, in insertion order; the
+    //! container the typed `*Message()` helpers funnel into and that
+    //! `messages()` exposes read-only.
     std::vector<CompilerMessage> messages_;  // +0x00 (24 bytes)
+    //! \brief "Current line" cursor used as the default `line` when
+    //! the typed wrappers are called without an explicit override.
     int lineNr_;                             // +0x18
+    //! \brief Sticky flag set by `errorMessage()`; queried by
+    //! `hadCompilerError()` so later passes can short-circuit.  Note
+    //! that `parserMessage()` does **not** set this flag (parser
+    //! errors are tracked separately).
     bool hadError_;                          // +0x1c
     // +0x1d: 3 bytes padding
     // +0x20 END
@@ -266,6 +275,8 @@ public:
     const char* what() const noexcept override;  // 0x123bd0
 
 private:
+    //! \brief Diagnostic message returned verbatim by `what()`; copied
+    //! in from the constructor argument.
     std::string message_;  // +0x08 (24 bytes)
     // +0x20 END
 };

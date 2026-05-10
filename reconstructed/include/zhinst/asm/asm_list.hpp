@@ -307,7 +307,11 @@ public:
     int maxRegister() const;
 
     // --- Container-like forwarding (code often uses AsmList directly as a container) ---
+    //! \brief Mutable iterator alias forwarding to the underlying
+    //! `std::vector<Asm>::iterator`.
     using iterator = std::vector<Asm>::iterator;
+    //! \brief Const iterator alias forwarding to the underlying
+    //! `std::vector<Asm>::const_iterator`.
     using const_iterator = std::vector<Asm>::const_iterator;
     //! \brief Iterator to the first entry.
     //! \return  Mutable iterator at the list's beginning.
@@ -476,6 +480,11 @@ public:
     AsmList& operator=(Asm&& single) { entries.clear(); entries.push_back(std::move(single)); return *this; }
 
     // --- Storage: exactly std::vector<Asm> ---
+    //! \brief Owned entry storage — a flat `std::vector<Asm>` that
+    //! holds the list's instructions in emission order.  Exposed as
+    //! a public field because every container-forwarding method
+    //! above operates on it directly; the field is the entire
+    //! payload of the class.
     std::vector<Asm> entries;
 };
 

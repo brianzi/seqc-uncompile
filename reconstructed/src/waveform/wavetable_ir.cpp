@@ -32,6 +32,17 @@ using detail::getUniqueName;
 //   at 0x2be830.
 class CsvParser {
 public:
+    //! \brief Local forward declaration of
+    //! `CsvParser::csvFileToWaveform` used to call into the CSV
+    //! loader from wavetable-IR code without pulling in the full
+    //! `csv_parser.cpp` interface; see the primary definition in
+    //! `csv_parser.cpp` for the full contract.
+    //! \tparam WfT       Waveform front type.
+    //! \param cache       Shared CSV cache keyed by file hash.
+    //! \param wf          Waveform whose `file` and `signal` are
+    //!                    populated.
+    //! \param deviceType  Selects the per-device sample-encoding
+    //!                    branch.
     template <typename WfT>
     static void csvFileToWaveform(CachedParser& cache, std::shared_ptr<WfT> wf, AwgDeviceType deviceType);
 };
