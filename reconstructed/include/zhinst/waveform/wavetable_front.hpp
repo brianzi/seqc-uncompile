@@ -252,26 +252,94 @@ public:
     size_t getMemorySize() const;                           // 0x29adc0
 
     // --- Waveform creation (delegates to manager_) ---
+    //! Register a placeholder waveform with no sample data.
+    //!
+    //! Forwards to `manager_->newEmptyWaveform` with the
+    //! wavetable's bound device constants.  The returned
+    //! waveform has no signal payload yet — callers fill it
+    //! in via the waveform-generator framework before
+    //! marking it `used`.
+    //!
+    //! \param name  User-visible identifier.  Must be unique
+    //!              within this wavetable.
+    //! \return Newly registered waveform.
     std::shared_ptr<WaveformFront> newEmptyWaveform(
         const std::string& name);                           // 0x29ae90
 
+    //! Register a waveform whose samples come from a file
+    //! (CSV, binary, or other supported formats), without a
+    //! pre-supplied `Signal`.
+    //!
+    //! Forwards to `manager_->newWaveformFromFile`; the
+    //! manager creates an unloaded `WaveformFront` and
+    //! defers the parse until `loadWaveform` is called.
+    //!
+    //! \param name      User-visible identifier.
+    //! \param filename  Path to the file (resolved against
+    //!                  the cached parser's project root).
+    //! \param type      File type (CSV / binary / ...).
+    //! \return Newly registered waveform.
     std::shared_ptr<WaveformFront> newWaveformFromFile(
         const std::string& name,
         const std::string& filename,
         Waveform::File::Type type);                         // 0x29b0e0
 
+    //! Register a waveform whose samples come from a file
+    //! and whose initial `Signal` is already known (channel
+    //! count, marker layout, length).
+    //!
+    //! Forwards to `manager_->newWaveformFromFile`, passing
+    //! the wavetable's current `address_` so the new
+    //! waveform records the placement-time address slot.
+    //!
+    //! \param name      User-visible identifier.
+    //! \param signal    Pre-built signal metadata.
+    //! \param filename  Path to the file.
+    //! \param type      File type.
+    //! \return Newly registered waveform.
     std::shared_ptr<WaveformFront> newWaveformFromFile(
         const std::string& name,
         const Signal& signal,
         const std::string& filename,
         Waveform::File::Type type);                         // 0x29b520
 
+    //! Register a generator-produced waveform under an
+    //! explicit name.
+    //!
+    //! Forwards to `manager_->newWaveform` with the
+    //! generator descriptor (`funName` + `args`) so that
+    //! later `getWaveformByFunDescr` calls can deduplicate
+    //! identical generator invocations.
+    //!
+    //! \param name     User-visible identifier.
+    //! \param signal   Generator-produced signal payload.
+    //! \param funName  Generator function name (e.g.
+    //!                 `"gauss"`, `"sin"`).
+    //! \param args     Generator arguments, forming the
+    //!                 dedup key together with `funName`.
+    //! \return Newly registered waveform.
     std::shared_ptr<WaveformFront> newWaveform(
         const std::string& name,
         const Signal& signal,
         const std::string& funName,
         const std::vector<Value>& args);                    // 0x29b9d0
 
+    //! Register a generator-produced waveform under an
+    //! auto-generated name.
+    //!
+    //! Mints a unique name via
+    //! `getUniqueName(funName, manager_->numDefs_,
+    //! manager_->numDefs2_++)` and then delegates to the
+    //! named overload.  Used for anonymous generator
+    //! invocations like `playWave(gauss(64, 32, 16))` where
+    //! the user did not assign the waveform to a `wave`
+    //! variable.
+    //!
+    //! \param signal   Generator-produced signal payload.
+    //! \param funName  Generator function name.
+    //! \param args     Generator arguments.
+    //! \return Newly registered waveform with a synthetic
+    //!         `__<funName>_<line>_<counter>` name.
     std::shared_ptr<WaveformFront> newWaveform(
         const Signal& signal,
         const std::string& funName,
@@ -308,29 +376,155 @@ public:
      */
     void loadWaveform(std::shared_ptr<WaveformFront> wf);   // 0x29bff0
 
+    //! Test whether a waveform with the given name has been
+    //! registered.
+    //!
+    //! \param name  User-visible identifier.
+    //! \return True iff `name` is in the manager's name index.
     bool waveformExists(const std::string& name) const;     // 0x29c160
 
+    //! Look up a waveform by source-language name.
+    //!
+    //! Resolves through the manager's `nameToIndex_` map.
+    //! Empty optional and unknown names both return null
+    //! rather than throwing.
+    //!
+    //! \param name  Optional waveform name.
+    //! \return Matching waveform, or null when not found.
     std::shared_ptr<WaveformFront> getWaveformByName(
         const std::optional<std::string>& name) const;      // 0x29c180
 
+    //! Look up a waveform by its generator descriptor for
+    //! deduplication.
+    //!
+    //! Forwards to `manager_->getWaveformForFront`, which
+    //! scans previously registered waveforms for one whose
+    //! `(funName, args)` pair matches.  Returning the same
+    //! waveform for repeated calls with identical arguments
+    //! lets the front-end avoid re-emitting identical
+    //! generator-produced sample buffers.
+    //!
+    //! \param funName  Generator function name.
+    //! \param args     Generator arguments.
+    //! \return Matching waveform, or null when no previous
+    //!         registration matches.
     std::shared_ptr<WaveformFront> getWaveformByFunDescr(
         const std::string& funName,
         const std::vector<Value>& args) const;              // 0x29c1f0
 
+    //! Register a deep copy of `src` under a new
+    //! auto-generated name.
+    //!
+    //! Forwards to `manager_->copyWaveform` after bumping
+    //! the source's refcount so the manager can move from
+    //! the temporary safely.  Used by code paths that need
+    //! a private mutable waveform sharing only the initial
+    //! sample state of an existing one (typically for
+    //! per-iteration mutation inside loop unrolling).
+    //!
+    //! \param src  Source waveform.  Must be non-null.
+    //! \return Newly registered copy.
     std::shared_ptr<WaveformFront> copyWaveform(
         const std::shared_ptr<WaveformFront>& src);         // 0x29c3b0
 
+    /*! \brief Verify that a named waveform exists and has
+     *  associated source data.
+     *
+     *  \details Looks the name up in the manager's index
+     *  and applies two checks:
+     *    1. The waveform must exist — otherwise raises
+     *       a "waveform not found" diagnostic.
+     *    2. The waveform must have either a backing file
+     *       or a generator descriptor — otherwise raises
+     *       an "uninitialized waveform" diagnostic.
+     *
+     *  The second check catches the corner case where a
+     *  waveform variable was registered but its generator
+     *  threw before producing samples (for example
+     *  `marker(32, 1, 1)` with an out-of-range bit
+     *  argument).  Such waveforms must not reach the
+     *  lowering pass.
+     *
+     *  \param name  Waveform identifier to validate.
+     *  \throws WavetableException  When either check fails.
+     */
     void checkWaveformInitialized(
         const std::string& name);                           // 0x29c540
 
+    //! Read the raw sample length of a registered waveform.
+    //!
+    //! Looks up `name` and returns
+    //! `WaveformFront::signal.length()` directly — does not
+    //! apply grain-rounding or other allocation-side
+    //! adjustments.  Used by the front-end when SeqC code
+    //! reads a waveform's `length` property.
+    //!
+    //! \param name  Waveform identifier.
+    //! \return Raw sample count of the waveform's signal.
     uint32_t getWaveformSampleLength(
         const std::string& name);                           // 0x29c860
 
+    /*! \brief Track DIO-table entries used by a `playWaveDIO`
+     *  call and report whether the budget is still under the
+     *  device's limit.
+     *
+     *  \details Records `value` against `key` in
+     *  `dioTableUsage_` (replacing any prior value for that
+     *  key), sums the values, and compares against the
+     *  device's `maxDioTableEntries`.  Returns true while
+     *  the running total stays strictly below the limit so
+     *  callers can detect overflow before emitting the
+     *  next entry.
+     *
+     *  \param key    Caller-chosen identifier (typically
+     *                the SeqC source line) so subsequent
+     *                calls with the same key replace
+     *                rather than accumulate.
+     *  \param value  Number of DIO-table entries this call
+     *                site contributes.
+     *  \return True while total usage remains under the
+     *          device limit; false once it would meet or
+     *          exceed it.
+     */
     bool updateDioTableUsage(size_t key, size_t value);     // 0x29ca10
 
+    /*! \brief Bind a waveform to an explicit wave-index slot.
+     *
+     *  \details Used when SeqC source assigns an
+     *  `assignWaveIndex(wave, n)` mapping.  The call is a
+     *  no-op when the waveform already holds the requested
+     *  index.  When it currently holds a *different*
+     *  index, raises a `WavetableException` (waveform may
+     *  not be reassigned to a new index once placed).
+     *  Otherwise stores `index` on the waveform.
+     *
+     *  The set-side of the wave-index tracker is not
+     *  updated here because the front-end tracker is a
+     *  layout-incompatible placeholder; `WavetableIR`
+     *  rebuilds its own tracker from the waveform indices
+     *  during lowering.
+     *
+     *  \param wf     Waveform to bind.
+     *  \param index  Target wave-index slot.
+     *  \throws WavetableException  When `wf` already has a
+     *                different explicit index.
+     */
     void assignWaveIndex(
         std::shared_ptr<WaveformFront> wf, int index);      // 0x29cb40
 
+    //! Rename a registered waveform.
+    //!
+    //! Forwards to `manager_->updateWave`, which updates
+    //! the manager's name index so subsequent lookups
+    //! resolve `newName` to the same waveform object.
+    //! Used by waveform-generator framework when a
+    //! user-visible name is finalised after the underlying
+    //! waveform has already been registered under a
+    //! synthetic name.
+    //!
+    //! \param wf       Waveform to rename.  Held by value
+    //!                 so the manager can move from it.
+    //! \param newName  New user-visible identifier.
     void updateWave(
         std::shared_ptr<WaveformFront> wf,
         const std::string& newName);                        // 0x29cc70
