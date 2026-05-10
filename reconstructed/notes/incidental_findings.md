@@ -5191,3 +5191,84 @@ path.
 3. GDB-trace on a multi-Cervino indexed playWave with a small
    waveform (so `pagesNeeded < 2`).
 4. Add regression test.
+
+## IF-225  `Prefetch::getUsedChannels` block-header mislabels reduced field
+
+**Severity**: cosmetic.
+**Status**: fixed in same commit as discovery.
+**Discovered**: D4 Batch 2e-iii verify-then-write of
+`Prefetch::getUsedChannels`
+(`prefetch_helpers.cpp:178-201`, original at `0x1df2f0`).
+
+The block-header at lines 182-184 says the function "reads
+`channelMask` at +0x08 (uint32_t), inverts it (~mask), and ORs
+into the accumulator".  The body actually reads
+`entry.config.suppress` (`PlayConfig+0x08` per
+`reconstructed/include/zhinst/waveform/play_config.hpp:41`),
+not `channelMask` (`PlayConfig+0x00`, line 39).  The binary
+comment at line 194 ("`mov 0x8(%rdx),%esi` — reads
+`PlayConfig+0x08 = suppress`") agrees with the body and
+contradicts the block-header.
+
+The function name (`getUsedChannels`) reinforces the
+field-name confusion in the header but is itself a contract,
+not an offset claim — the function returns the OR-reduction of
+inverted `suppress` masks across `usageEntries_`, which
+encodes which channels are *not* suppressed, hence "used".
+
+Same anti-pattern as the IF-220 cluster (block-header drifted
+out of sync with the body).  Fixed by rewriting the
+block-header to name `suppress` and to explain that the
+inverted-OR reduction yields the union of channels that were
+not suppressed by any entry.
+
+## IF-226  `Prefetch::getUsedCache` body is a stub
+
+**Severity**: likely-bug (stub).
+**Status**: open (recon body unfixed; comment marker added in
+same commit).
+**Discovered**: D4 Batch 2e-iii verify-then-write of
+`Prefetch::getUsedCache`
+(`prefetch_helpers.cpp:799-811`, original at `0x1c7eb0`).
+
+The recon body is literally:
+
+```cpp
+int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {
+    // STUB — needs full reconstruction from disassembly
+    (void)node;
+    return 0;
+}
+```
+
+The block-header describes the intended behaviour ("Recursive:
+sums cache usage for the node and all its children") but the
+body has not been reconstructed; the function unconditionally
+returns 0.
+
+`Prefetch::print` (the only documented caller, in
+`prefetch_print.cpp:237`) feeds the result into
+`detail::AddressImpl<uint32_t>(getUsedCache(nodeCopy))` to
+print the per-Play-node used-cache field as the first member
+of a `(usedCache, perNodeUsedCache)` debug pair.  With the stub
+in place this always prints `0x00000000`.
+
+**Why tests still pass at 1600/1600**: `Prefetch::print` is a
+debug-only printer to `std::cout` and is not called from any
+production code path in the compiler.  `getUsedCache` has no
+other callers in the recon, so the stub has no observable
+effect on differential output.
+
+**Action**:
+1. `objdump -d --start-address=0x1c7eb0 --stop-address=...
+   _seqc_compiler.so` to identify the function body and end
+   address (expected end before the next `.text` symbol).
+2. Determine the recursion shape (likely walks `Node::next`,
+   `Node::loop`, `Node::branches`, accumulating per-leaf
+   waveform memory via `computeWaveformMemoryBytes` or via
+   `PrefetcherNodeState::usedCache_`).
+3. Reconstruct the body.
+4. Optionally add a unit test that constructs a small Node
+   tree and asserts `getUsedCache` returns the expected
+   accumulated size.  Difftests will not exercise this since
+   `print` is debug-only.

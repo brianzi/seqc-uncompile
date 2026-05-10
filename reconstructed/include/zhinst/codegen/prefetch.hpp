@@ -1383,13 +1383,107 @@ public:
         detail::AddressImpl<uint32_t> addrB) const;                    // 0x1def50
 
     // Cache analysis
+
+    /*! \brief Recursively sum the cache footprint of a node and its
+     *         descendants.
+     *
+     *  \details
+     *  Intended to walk the node's `next`, `loop`, and `branches`
+     *  links, accumulating per-leaf waveform-memory consumption (or
+     *  the cached `PrefetcherNodeState::usedCache_` value) for every
+     *  visited node.  The result feeds the debug printer
+     *  (`Prefetch::print`) which displays a `(usedCache,
+     *  perNodeUsedCache)` pair next to each Play node.
+     *
+     *  \verifyme  The current body is a stub that always returns 0;
+     *  see incidental finding IF-226.  Difftests do not exercise
+     *  this since the only caller is the debug-only `print`.
+     *
+     *  \param node  Root of the subtree whose cache footprint is
+     *               wanted.
+     *  \return  Total cache bytes consumed by the subtree.
+     */
     int getUsedCache(std::shared_ptr<Node> node) const;                // 0x1c7eb0
 
     // Queries
+
+    /*! \brief Compute the union of channels used by all recorded
+     *         playWave configurations.
+     *
+     *  \details
+     *  Iterates over `usageEntries_` (every `PlayConfig` collected
+     *  by the prefetcher across the placement pass) and reduces
+     *  `~entry.config.suppress` with bitwise OR.  Because `suppress`
+     *  is a bitmask of channels that the entry actively suppresses,
+     *  inverting and OR-reducing yields the set of channels actually
+     *  driven by at least one play — i.e. the channels the device
+     *  is "using" for output.
+     *
+     *  \return  Bitmask of channels driven by at least one playWave
+     *           configuration; `0` if `usageEntries_` is empty.
+     */
     uint32_t getUsedChannels() const;                                  // 0x1df2f0
+
+    /*! \brief Report whether any recorded playWave configuration uses
+     *         four-channel mode.
+     *
+     *  \details
+     *  Linear scan of `usageEntries_` returning `true` on the first
+     *  entry whose `PlayConfig::is4Channel` flag is set.  Returns
+     *  `false` if the vector is empty or no entry has the flag.
+     *
+     *  \return  `true` when at least one play uses four-channel mode.
+     */
     bool getUsedFourChannelMode() const;                               // 0x1df400
 
     // Print/debug
+
+    /*! \brief Recursively dump a node tree to `std::cout` for
+     *         debugging.
+     *
+     *  \details
+     *  Walks the `Node::next` linked list starting at `node`,
+     *  emitting one human-readable line per node prefixed by
+     *  `[<indent-spaces>]` and dispatching on `Node::type` to format
+     *  type-specific fields:
+     *
+     *  - `Load`        : `load <wave> (<pagesNeeded>) [@<addr>]
+     *                    [@<load-addr> (load-asmID <id>)] with R<reg>
+     *                    asmID <id> rate <r> globalRate <g>
+     *                    precompFlags <p>`.
+     *  - `Play`        : same body as `Load` plus
+     *                    `pointing to asmID <id> ...` for each entry
+     *                    of `Node::play` and a trailing
+     *                    `(<getUsedCache>, <usedCache_>)` pair.
+     *  - `Branch`      : `branch` per entry of `Node::branches`,
+     *                    each recursing with `indent+2`.
+     *  - `Loop`        : `loop` followed by recursion into
+     *                    `Node::loop` with `indent+2`.
+     *  - `SetVar`      : `setvar  R<reg> asmID <id>`.
+     *  - `Rate`        : `rate <globalRate>`.
+     *  - `Lock` /
+     *    `Unlock`      : `lock <wave>` / `unlock <wave>`.
+     *  - `SyncCervino` : `sync_cervino`.
+     *  - `Table`       : same body as `Play` but always uses
+     *                    `registerCervino`.
+     *  - `SetPrecomp`  : `setPrecomp <precompFlags>`.
+     *  - `SyncHirzel`  : `sync_hirzel asmID <id>`.
+     *  - `PlainLoad`   : `plainload <wave> (<pagesNeeded>) [@<addr>]
+     *                    with R<reg> asmID <id>`.
+     *  - `AwgReady`    : `awg_ready asmID <id>`.
+     *  - default       : warning log "Unknown Node::NodeType with
+     *                    code <type>." and stop.
+     *
+     *  When `node` is null the function falls back to `root_`; if
+     *  both are null it returns silently.  Output goes directly to
+     *  `std::cout`, not through the configured log function.
+     *
+     *  \param node    Head of the chain to print; null falls back to
+     *                 `root_`.
+     *  \param indent  Number of leading spaces to print inside the
+     *                 `[ ]` prefix (used to convey tree depth as
+     *                 callers recurse with `indent+2`).
+     */
     void print(std::shared_ptr<Node> node, int indent) const;         // 0x1c5dd0
 
     // Static

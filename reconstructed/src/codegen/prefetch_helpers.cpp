@@ -180,14 +180,19 @@ size_t Prefetch::getRequiredMemory() const // 0x1cc930
 // Ends at 0x1df3f1.
 //
 // Iterates usageEntries_ vector (at +0xE0, elements 0x20 bytes each).
-// For each entry, reads channelMask at +0x08 (uint32_t), inverts it (~mask),
-// and ORs into the accumulator.
+// For each entry, reads `suppress` at PlayConfig+0x08 (uint32_t),
+// inverts it (~suppress), and ORs into the accumulator.  The
+// inverted-OR reduction gives the union of channels that were *not*
+// suppressed by any entry — i.e. the set of channels actually used
+// by the prefetcher across all playWave configurations seen, hence
+// the function name.  (IF-225: an earlier version of this comment
+// called the field "channelMask" — which is at PlayConfig+0x00, a
+// different offset; corrected here.)
 //
-// Uses SSE SIMD vectorization: processes 8 entries at a time (stride 0x20),
-// gathering the channelMask field, XORing with all-ones (invert), OR-reducing.
-// Falls back to scalar loop for remainder.
-//
-// Returns the union of all inverted channel masks.
+// Uses SSE SIMD vectorization: processes 8 entries at a time
+// (stride 0x20), gathering the suppress field, XORing with
+// all-ones (invert), OR-reducing.  Falls back to scalar loop for
+// remainder.
 // ============================================================================
 uint32_t Prefetch::getUsedChannels() const // 0x1df2f0
 {
@@ -799,13 +804,16 @@ Prefetch::getUsedWavesForDevice(size_t deviceIdx) const // 0x1d2d60
 // ============================================================================
 // getUsedCache — 0x1c7eb0
 // Recursive: sums cache usage for the node and all its children.
-// TODO: Full reconstruction from binary needed; stub returns 0 for now.
+// IF-226: body is a stub returning 0; full reconstruction from binary
+// pending.  Only caller is Prefetch::print (debug-only), so no
+// observable effect on production output.
 // ============================================================================
 int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
-    // STUB — needs full reconstruction from disassembly
-    // The real implementation recursively walks node->left_ (+0xB8),
-    // node->right_ (+0xE0), and node->children_ (+0xC8..+0xD0),
-    // summing cache memory via computeWaveformMemoryBytes for leaf waveforms.
+    // STUB (IF-226) — needs full reconstruction from disassembly.
+    // Intended behaviour: recursively walks node->next (+0xB8),
+    // node->loop (+0xE0), and node->branches (+0xC8..+0xD0),
+    // summing cache memory via computeWaveformMemoryBytes for leaf
+    // waveforms (or via PrefetcherNodeState::usedCache_).
     (void)node;
     return 0;
 }

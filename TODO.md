@@ -308,6 +308,36 @@ cross-reference pages so the backlog is discoverable.
         `prefetch_splitplay.cpp` matched the bodies after
         line-by-line audit.  1600/1600 tests, build clean,
         0 doxygen warnings.
+  - [x] **D4 Batch 2e-iii** — Prefetch cache / queries / debug
+        printer (4 methods): `getUsedCache`, `getUsedChannels`,
+        `getUsedFourChannelMode`, `print`.  Surfaced one
+        cosmetic comment-drift (IF-225, `getUsedChannels`
+        block-header named the reduced field `channelMask` when
+        the body and binary both read `suppress`) and one
+        likely-bug stub (IF-226, `getUsedCache` returns 0
+        unconditionally; only caller is the debug-only
+        `print`).  Cosmetic drift fixed in same commit; stub
+        flagged with `\verifyme` in brief and explicit IF
+        marker in recon comments, deferred to dedicated
+        follow-up.  1600/1600 tests, build clean, 0 doxygen
+        warnings.
+  - [ ] **D4 Batch 2e-iii follow-up (IF-226)** — reconstruct
+        `Prefetch::getUsedCache` body
+        (`prefetch_helpers.cpp:799-815`, original `0x1c7eb0`).
+        Currently a stub that always returns 0.  `objdump -d
+        --start-address=0x1c7eb0 --stop-address=...
+        _seqc_compiler.so` to identify the function body and
+        end address (expected to be the next `.text` symbol
+        boundary).  Determine the recursion shape (likely walks
+        `Node::next`, `Node::loop`, `Node::branches` summing
+        per-leaf waveform memory via
+        `computeWaveformMemoryBytes`, or sums
+        `PrefetcherNodeState::usedCache_` across visited
+        nodes).  Reconstruct the body.  Optionally add a unit
+        test asserting expected total over a hand-crafted Node
+        tree; difftests will not exercise this since the only
+        caller is `Prefetch::print` (debug-only printer to
+        `std::cout`).  See IF-226 for full evidence.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
