@@ -136,10 +136,88 @@ struct AWGCompilerConfig {
     // Remaining forwarding accessors: all dropped (Cluster E).
     // Callers now use fields directly: cacheType, numChannelGroups.
 
+    //! \brief Release the heap allocations owned by the
+    //!        config struct.
+    //!
+    //! \details Member subobjects' destructors handle the actual
+    //! frees in reverse declaration order: `searchPath`'s
+    //! `boost::filesystem::path` (which owns a `std::string`),
+    //! `includePaths`'s vector buffer plus each element string,
+    //! `debugJsonPath`, and `debugDumpPath`.  In the binary the
+    //! two debug-path strings are only freed when their
+    //! respective `*Enabled` flags are set; the libstdc++ recon
+    //! relies on the SSO short-string check inside
+    //! `std::string::~string` to achieve the same effect for
+    //! short or never-initialised strings.
     ~AWGCompilerConfig();
 
+    //! \brief Map an `AwgDeviceType` enum value to its short
+    //!        device-family display string.
+    //!
+    //! \details Recognises the bit-flag enum values
+    //! `1`→`"UHFLI"`, `2`→`"HDAWG"`, `4`→`"UHFQA"`,
+    //! `8`→`"SHFQA"`, `16`→`"SHFSG"`, `32`→`"SHFQC (SG)"`,
+    //! `64`→`"SHFLI"`, `128`→`"GHFLI"`, `256`→`"VHFLI"`.  Any
+    //! other value (including `0` and combinations of multiple
+    //! flags) returns the empty string.  The strings are short
+    //! enough to fit in libc++'s SSO inline storage and the
+    //! binary constructs them with single-instruction immediate
+    //! moves rather than rodata loads.
+    //!
+    //! Used by `AWGCompilerImpl::compileString` to format the
+    //! device-name argument of the `ErrorMessageT(0xDA)` /
+    //! `ErrorMessageT(0xDB)` "unsupported device" diagnostics.
+    //!
+    //! \param type  Device-type enum value.
+    //! \return  Short device-family name, or empty when `type`
+    //!          is not one of the recognised single-bit values.
     static std::string getAwgDeviceTypeString(AwgDeviceType type);
+    //! \brief Inverse of `getAwgDeviceTypeString`, but keyed by
+    //!        the internal **codename** rather than the
+    //!        marketing string.
+    //!
+    //! \details Performs case-insensitive
+    //! `boost::algorithm::iequals` comparisons against the
+    //! internal Zurich Instruments project codenames:
+    //! `"cervino"`→`UHFLI`, `"hirzel"`→`HDAWG`,
+    //! `"klausen"`→`UHFQA`, `"grimsel_qa"`→`SHFQA`,
+    //! `"grimsel_sg"`→`SHFSG`, `"grimsel_qc_sg"`→`SHFQC (SG)`,
+    //! `"grimsel_li"`→`SHFLI`, `"gurnigel"`→`GHFLI`,
+    //! `"maloja"`→`VHFLI`.  These are the names used in
+    //! firmware build identifiers and internal device
+    //! manifests, not the customer-facing product names that
+    //! `getAwgDeviceTypeString` produces.  An unknown
+    //! codename raises a `ZIAWGCompilerException` formatted
+    //! with `ErrorMessageT(0xD9)` carrying `str`.
+    //!
+    //! \binarynote The inverse function for the
+    //!             marketing-string form (e.g. `"HDAWG"` →
+    //!             `2`) is **not** provided — callers needing
+    //!             that lookup must do their own table walk.
+    //!
+    //! \param str  Device codename, case-insensitive.
+    //! \return  The corresponding `AwgDeviceType` enum value.
+    //! \throws ZIAWGCompilerException  When `str` does not
+    //!         match any known codename.
     static AwgDeviceType getAwgDeviceTypeFromString(std::string const& str);
+    //! \brief Render the per-instance channel-grouping mode as
+    //!        a short display string.
+    //!
+    //! \details Only meaningful for HDAWG (`deviceType == 2`);
+    //! every other device type returns the empty string.  For
+    //! HDAWG the `numChannelGroups` field is mapped to:
+    //! `1`→`"4x2"` (four 2-channel groups), `2`→`"2x4"` (two
+    //! 4-channel groups), `4`→`"1x8"` (one 8-channel group).
+    //! Any other `numChannelGroups` value returns the empty
+    //! string.  The mode strings describe how the eight HDAWG
+    //! output channels are partitioned across the AWG cores.
+    //!
+    //! Used in compiler diagnostics and the JSON arguments
+    //! section to describe the active grouping at compile
+    //! time.
+    //!
+    //! \return  Channel-grouping mode string, or empty for
+    //!          non-HDAWG devices and unsupported group counts.
     std::string getChannelGroupingModeString() const;
 };
 

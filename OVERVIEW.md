@@ -769,6 +769,21 @@ mainpage.
     not `messages_.hadError_`) and added a `\binarynote` to
     the `parserMessage` brief cross-referencing IF-233.
     Build clean (0 doc warnings); tests 1601/1601.
+  - **7d (2026-05-10)**: 4 briefs for `AWGCompilerConfig` in
+    `include/zhinst/codegen/awg_compiler_config.hpp` —
+    destructor plus the three method/static helpers
+    (`getAwgDeviceTypeString`, `getAwgDeviceTypeFromString`,
+    `getChannelGroupingModeString`).  Documents the full
+    bit-flag → marketing-string table (1=UHFLI..256=VHFLI),
+    the inverse table keyed by the internal Zurich
+    Instruments project codenames (cervino / hirzel /
+    klausen / grimsel_* / gurnigel / maloja —
+    case-insensitive `boost::iequals`), and the HDAWG-only
+    channel-grouping mode strings (`"4x2"`, `"2x4"`, `"1x8"`).
+    Codename → enum-value mapping spot-checked against
+    `objdump` of `getAwgDeviceTypeFromString` at 0x270180
+    (verified `cervino → 1`, `hirzel → 2`).  No new IFs.
+    Build clean (0 doc warnings); tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
