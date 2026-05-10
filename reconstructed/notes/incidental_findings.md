@@ -4205,7 +4205,10 @@ as part of the broader magic-constants cleanup (B1).
 ## IF-207  Swapped MESSAGE/ERROR_MSG values in `asm_optimize.hpp` banner comment
 
 **Source**: D2 Batch 7b verification (verify-then-write workflow)
-**Status**: open — promoted to TODO.md D3 cleanup item at D2 wrap-up
+**Status**: fixed in D3 cleanup — comment corrected in
+`include/zhinst/asm/asm_optimize.hpp:253` and
+`src/asm/asm_optimize.cpp:651` to read
+`MESSAGE (cmd==3) and ERROR_MSG (cmd==5)`.
 **Severity**: cosmetic (comment-only)
 
 The header banner comment above `AsmOptimize::reportUserMessages()` in
@@ -4231,7 +4234,16 @@ comment fix at next sub-phase wrap-up.
 **Source**: D2 Batch 8b verification (verify-then-write workflow); user
 caught a speculative "dual-amplitude / precompensation" gloss derived
 from the field name.
-**Status**: open — promoted to TODO.md D3 cleanup item at D2 wrap-up
+**Status**: fixed in D3 cleanup — field renamed to `crossesCacheLine`
+in `include/zhinst/codegen/prefetch.hpp:193` and at all four
+read/write sites (`src/codegen/prefetch.cpp:834,837` write,
+`src/codegen/prefetch.cpp:1495,1845` comments,
+`src/codegen/prefetch_placesingle.cpp:204` read). Surrounding layout
+comment also updated. The unrelated `bool useDA = devConst_->hasPrecomp`
+stack locals in `prefetch.cpp` lines 87/331/560/600 were left as-is
+per the audit recommendation (those genuinely encode the precomp
+flag and are scoped strictly to the optimizer/createLoad bodies, so
+no shadowing remains after the field rename).
 **Severity**: cosmetic (field-name / comment clarity)
 
 The `bool useDA` field at `PrefetcherNodeState +0x38` (declared in

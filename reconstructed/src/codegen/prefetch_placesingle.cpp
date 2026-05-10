@@ -201,7 +201,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                     // --- 5. Hirzel prf emission (0x1d85f6-0x1d86cb) ---
                     if (config_->isHirzel) {                       // 0x1d85f6
                         auto& stateDA = nodeStates_[node];
-                        if (stateDA.useDA) {                       // 0x1d8625: +0x58 in hash_node = +0x38 in PNS
+                        if (stateDA.crossesCacheLine) {            // 0x1d8625: +0x58 in hash_node = +0x38 in PNS
                             AsmRegister regH2 = nodeStates_[node].registerHirzel; // 0x1d8652
                             AsmRegister zr2(0);                    // 0x1d865f
 

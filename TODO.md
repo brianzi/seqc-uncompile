@@ -91,14 +91,16 @@ cross-reference pages so the backlog is discoverable.
           candidates" listings inflate the line total)
         - Decide per group: rewrite the brief location, drop the brief,
           or suppress with a Doxygen pragma
-  - [ ] **IF-207 fix**: swap `MESSAGE`/`ERROR_MSG` values in the banner
-        comment above `AsmOptimize::reportUserMessages()` in
-        `include/zhinst/asm/asm_optimize.hpp:160-162` and the matching
+  - [x] **IF-207 fix**: swapped `MESSAGE`/`ERROR_MSG` values corrected
+        in the banner comment above `AsmOptimize::reportUserMessages()`
+        in `include/zhinst/asm/asm_optimize.hpp:253` and the matching
         comment in `src/asm/asm_optimize.cpp:651` (cosmetic)
-  - [ ] **IF-208 fix**: rename `PrefetcherNodeState::useDA` to a name
-        that reflects its actual role (cross-cache-line load flag on
-        Hirzel) and update the misleading inline comment in
-        `include/zhinst/codegen/prefetch.hpp` (cosmetic)
+  - [x] **IF-208 fix**: renamed `PrefetcherNodeState::useDA` to
+        `crossesCacheLine` (cross-cache-line load flag on Hirzel) at
+        all four read/write sites and updated the inline layout comment
+        in `include/zhinst/codegen/prefetch.hpp:159,193`. The unrelated
+        local-variable `useDA = devConst_->hasPrecomp` shadows in
+        `prefetch.cpp` were left as-is per the audit recommendation.
 
 - [ ] **D4 — Public methods of high-traffic classes**
   - [ ] Order: `Compiler` → `Prefetch` → `WavetableIR/Front` →

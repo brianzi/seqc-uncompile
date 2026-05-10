@@ -702,7 +702,7 @@ Per-node state stored in `nodeStates_` unordered_map.
 | +0x20  | 4    | int                           | usedCache        | Cache bytes used                   |
 | +0x24  | 4    | (padding)                     |                  |                                    |
 | +0x28  | 0x10 | shared_ptr\<Cache::Pointer\>  | cachePtr         | Cache allocation                   |
-| +0x38  | 1    | bool                          | useDA            | From devConst_->useDA              |
+| +0x38  | 1    | bool                          | crossesCacheLine | Copied from WaveformIR::crossesCacheLine_ |
 
 ## MemoryBlock (0x0C = 12 bytes) — NEW Phase 8b
 

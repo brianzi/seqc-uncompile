@@ -648,7 +648,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
 }
 
 // 0x280b60
-// Extract user MESSAGE (cmd==5) and ERROR_MSG (cmd==3) instructions.
+// Extract user MESSAGE (cmd==3) and ERROR_MSG (cmd==5) instructions.
 // Converts the first immediate to a string via toString(Immediate),
 // reads the line number from +0x88 in the Asm entry, and invokes
 // the error or warning callback. Then marks the instruction as dead.

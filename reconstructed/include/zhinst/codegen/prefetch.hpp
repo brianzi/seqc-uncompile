@@ -156,7 +156,9 @@ public:
     //   +0x20  4  int32_t       usedCache_       (init=0; verified mov r15d,[rax+0x40] at 0x1cdcfd/0x1ce61e)
     //   +0x24  4  (padding)
     //   +0x28 16  shared_ptr<Cache::Pointer> cachePtr  (init=null)
-    //   +0x38  1  bool          useDA            (init=false, precomp/DA flag)
+    //   +0x38  1  bool          crossesCacheLine (init=false; copied from
+    //                                              WaveformIR::crossesCacheLine_
+    //                                              by assignLoad)
     //   +0x39  7  (padding)
     //
     // Hallucinated PNS fields removed entirely:
@@ -176,10 +178,11 @@ public:
     //! `Cache::Pointer` for the node; the two per-device-family
     //! register slots (`registerHirzel`, `registerCervino`) hold the
     //! `AsmRegister` assigned to this load by `assignLoad`.
-    //! `useDA` is copied from the load's `WaveformIR::crossesCacheLine_`
-    //! and consulted in `placeSingleCommand` on Hirzel devices to gate
-    //! emission of the cache-clamped `prf` prefetch sequence required
-    //! when a single load straddles a cache-line boundary.
+    //! `crossesCacheLine` is copied from the load's
+    //! `WaveformIR::crossesCacheLine_` and consulted in
+    //! `placeSingleCommand` on Hirzel devices to gate emission of the
+    //! cache-clamped `prf` prefetch sequence required when a single
+    //! load straddles a cache-line boundary.
     struct PrefetcherNodeState {
         AsmRegister registerHirzel;                           // +0x00
         AsmRegister registerCervino;                          // +0x08
@@ -190,7 +193,7 @@ public:
         int32_t usedCache_ = 0;                            // +0x20
         int32_t _pad24 = 0;                                   // +0x24
         std::shared_ptr<Cache::Pointer> cachePtr;             // +0x28
-        bool useDA = false;                                   // +0x38
+        bool crossesCacheLine = false;                        // +0x38
         char _pad39[7] = {};                                  // +0x39 padding (no field here)
 
         // ====================================================================

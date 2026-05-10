@@ -828,13 +828,13 @@ Prefetch::moveLoadsToFront(std::shared_ptr<Node> node) // 0x1ccad0
       auto [it, _] = nodeStates_.emplace(loadNode, PrefetcherNodeState{});
       it->second.registerHirzel = reg; // 0x1ccd02: mov %rcx,0x20(%rax)
       // 0x1ccd06-0x1ccd3b: Also emplace and read waveformIR->crossesCacheLine_
-      // (+0xDA) into the nodeStates_ entry's useDA flag. Binary at 0x1ccd06:
-      // mov (%r12),%rax reloads the WaveformIR pointer from the usedWaves
-      // iterator, then movzbl 0xda(%rax) reads crossesCacheLine_.
-      bool useDA = waveformIR->crossesCacheLine_; // 0x1ccd0a: movzbl 0xda(%rax)
+      // (+0xDA) into the nodeStates_ entry's crossesCacheLine flag. Binary at
+      // 0x1ccd06: mov (%r12),%rax reloads the WaveformIR pointer from the
+      // usedWaves iterator, then movzbl 0xda(%rax) reads crossesCacheLine_.
+      bool crossesCacheLine = waveformIR->crossesCacheLine_; // 0x1ccd0a: movzbl 0xda(%rax)
 
       auto [it2, _2] = nodeStates_.emplace(loadNode, PrefetcherNodeState{});
-      it2->second.useDA = useDA; // 0x1ccd37: mov %r14b,0x58(%rax)
+      it2->second.crossesCacheLine = crossesCacheLine; // 0x1ccd37: mov %r14b,0x58(%rax)
     } else {                     // 0x1ccd40
       // 0x1ccd40-0x1ccd7f: emplace loadNode into nodeStates_, set
       // registerCervino
@@ -1492,7 +1492,7 @@ void Prefetch::optimize(std::shared_ptr<Node> node) // 0x1cdae0
 //      Cache::play(cachePtr, nodeState.counter()) — replay the cached pointer
 //      with the current counter/state.
 //   4. If no load ptr: check node play vector (+0xA0). If empty and
-//      nodeStates_[node].useDA flag (+0x66 in hash node) is not set,
+//      nodeStates_[node].crossesCacheLine flag (+0x66 in hash node) is not set,
 //      throw ZIAWGCompilerException (error 0xA2).
 //
 // For Load/SetVar (type 2) and Table (type 0x200):
@@ -1842,7 +1842,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
       std::shared_ptr<Node> loadNode = cur->loadRef.lock(); // -0x50(%rbp)
       // 0x1d10e2-0x1d10e8: If loadNode is null, check fallback
       if (!loadNode) { // 0x1d14da: test → 0x1d14e7
-        // 0x1d14e7-0x1d14f2: Check nodeStates_[curNode].useDA flag
+        // 0x1d14e7-0x1d14f2: Check nodeStates_[curNode].crossesCacheLine flag
         // hash_node+0x66 = PNS struct internal offset
         auto &state = nodeStates_[curNode];
         if (!curNode->config.dummy) { // 0x1d14ee: cmpb $0x0,0x66(%rax) —

@@ -250,7 +250,7 @@ private:
     // eliminate their instructions, returns max register number seen
     unsigned long removeUnusedRegs();                                   // 0x27e760
 
-    // Extract user MESSAGE (cmd==5) and ERROR_MSG (cmd==3) instructions,
+    // Extract user MESSAGE (cmd==3) and ERROR_MSG (cmd==5) instructions,
     // invoke error/warning callbacks, then mark as dead
     void reportUserMessages();                                          // 0x280b60
 
