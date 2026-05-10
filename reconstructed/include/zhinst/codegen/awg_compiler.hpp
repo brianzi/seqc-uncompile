@@ -67,6 +67,56 @@ public:
     void addWaveforms(std::vector<std::string> const& paths); // @0x1032c0
 
     // --- Output ---
+    /*! \brief Serialise the most recently compiled program into a
+     *  custom 32-bit ELF and write the bytes to `os`.
+     *
+     *  \details Forwards to the inner implementation, which:
+     *    1. Returns immediately when the parser recorded a syntax
+     *       error during the last `compileString` / `compileFile`
+     *       (no output is produced and no exception is raised).
+     *    2. Throws `ZIAWGCompilerException` formatted with
+     *       `EmptyInput` when the assembler holds no opcodes.
+     *    3. Constructs an `ElfWriter` initialised with the device's
+     *       `addressImpl` memory offset.
+     *    4. Emits each used waveform: in **mapped** mode (when the
+     *       device exposes pre-compiled waveform memory) waveforms
+     *       are added in `WaveOrder::ByWaveIndex`; in **absolute**
+     *       mode they are added in `WaveOrder::ByIndex` with
+     *       per-waveform alignment-padding computed from
+     *       `addressValue` and `elfAlignment_` and waveforms whose
+     *       `signal.length()` is zero are skipped.
+     *    5. Updates the writer's memory offset to
+     *       `WavetableIR::getNextSegmentAddress()` and appends the
+     *       opcode stream as `.text`.
+     *    6. Adds the trailing metadata sections in fixed order:
+     *       `.filename`, `.c` and `.asm` (raw or zlib-compressed
+     *       depending on `AWGCompilerConfig::compressSource`),
+     *       `.linenr`, the device-conditional node-access section
+     *       (`.nodes` for UHFQA / UHFLI, `.nodes_json` otherwise),
+     *       optional `.channels`, optional `.required_sample_rate`
+     *       (only when `Compiler::usedDeviceSampleRate()` is true
+     *       and the configured sample rate is finite), `.waveforms`,
+     *       `.wavemem`, `.arguments`, `.version_json`, and
+     *       `.version_bin`.
+     *    7. Calls `ElfWriter::writeFile(os)` to flush the assembled
+     *       binary.
+     *
+     *  The ELF schema and per-section formats are documented in
+     *  `notes/elf_format.md`.
+     *
+     *  \param os      Output stream that receives the binary ELF
+     *                 bytes.  Caller is responsible for opening the
+     *                 stream in binary mode if writing to disk.
+     *  \param format  The originating filename (used for the
+     *                 `.filename` and `.arguments` sections and as
+     *                 the source name passed to the source
+     *                 compressor).  Pass the path supplied to
+     *                 `compileFile`, or an empty string for
+     *                 in-memory compiles.
+     *  \throws ZIAWGCompilerException  When the assembler has no
+     *                 opcodes (i.e. `compileString` / `compileFile`
+     *                 was never called or produced no output).
+     */
     void writeToStream(std::ostream& os, std::string const& format);  // @0x1032d0
     void writeToFile(std::string const& path);                         // @0x1032e0
     void writeAssemblerToFile(std::string const& path);                // @0x1032f0

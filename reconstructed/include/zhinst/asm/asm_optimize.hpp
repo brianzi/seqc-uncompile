@@ -136,10 +136,67 @@ public:
 
     // Pre-waveform optimization pass (copies input, runs deadCodeElimination if flag 0x04)
     // Returns optimized AsmList by sret
+    /*! \brief Run the optimisation passes that must execute before
+     *  waveform planning, returning the rewritten instruction stream.
+     *
+     *  \details Copies `input.entries` into the internal working
+     *  vector `asm_`, then conditionally runs
+     *  `deadCodeElimination()` when `Opt_DeadCode` is set in
+     *  `optFlags_`.  No other pass is executed at this stage.  The
+     *  rationale is that unreachable instructions (e.g. dead branches
+     *  emitted by the lowering frontend) must be pruned before the
+     *  prefetcher inspects waveform usage, so dead `play*` calls
+     *  don't keep waveforms alive in `WavetableIR`.  All other
+     *  passes are deferred to `optimizePostWaveform` because they
+     *  depend on register allocation and label cleanup that must
+     *  happen after waveform-load placeholders have been expanded
+     *  by `Prefetch::fillInPlaceholders`.
+     *
+     *  \param input  The pre-waveform instruction list as produced
+     *                by the lowering frontend.  Not modified.
+     *  \return       A copy of `asm_` after the (optional) dead-code
+     *                pass has run.
+     */
     AsmList optimizePreWaveform(const AsmList& input);                  // 0x27db40
 
     // Post-waveform optimization pass (all other passes based on flags)
     // Returns optimized AsmList by sret
+    /*! \brief Run the optimisation passes that must execute after
+     *  waveform planning, returning the final instruction stream
+     *  ready for assembly.
+     *
+     *  \details Copies `input.entries` into `asm_`, then runs each
+     *  pass guarded by its `optFlags_` bit:
+     *    1. `Opt_JumpElim`     — `oneStepJumpElimination`.
+     *    2. `Opt_LabelCleanup` — `removeUnusedLabels` followed by
+     *       `mergeLabels`.
+     *    3. `Opt_MergeZero`    — `mergeRegisterZeroing`.
+     *    4. `Opt_RegAlloc`     — `removeUnusedRegs` to compute the
+     *       virtual-register count, then `registerAllocation` on a
+     *       backup of `asm_`.  When that throws (the spill heuristic
+     *       failed to fit the working set into `numPhysicalRegs_`),
+     *       the backup is restored, `splitConstRegisters` is run to
+     *       break long-lived constant-bearing live ranges into
+     *       shorter ones, and `registerAllocation` is retried with
+     *       the new virtual-register count.  A second failure is
+     *       not caught and propagates as `OptimizeException`.
+     *
+     *  Independently of the flags, `reportUserMessages` is always
+     *  invoked at the end to drain any user-emitted `MESSAGE`
+     *  (warning) and `ERROR_MSG` (error) instructions through the
+     *  `warningCallback_` / `errorCallback_` `std::function`s and
+     *  mark them dead so they do not reach the assembler.
+     *
+     *  \param input  The post-waveform instruction list as produced
+     *                by `Prefetch::fillInPlaceholders`.  Not modified.
+     *  \return       A copy of `asm_` after every enabled pass has
+     *                run and user diagnostics have been reported.
+     *  \throws OptimizeException  When `registerAllocation` fails
+     *                a second time after `splitConstRegisters`, i.e.
+     *                the program cannot be expressed in
+     *                `numPhysicalRegs_` physical registers even
+     *                after constant-register splitting.
+     */
     AsmList optimizePostWaveform(const AsmList& input);                 // 0x27ddf0
 
 private:
