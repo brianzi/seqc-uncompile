@@ -458,6 +458,34 @@ cross-reference pages so the backlog is discoverable.
           "after `it`") in the same commit.
         1600/1600 tests, 0 doxygen warnings.
 
+- [ ] **D-AUDIT-1 — Audit `WaveformGenerator` factory parameter-label strings**
+      _(spawned from D4 Batch 6b verify-then-write; see IF-230)_
+  - Background: during 6b audit, two factories (`rrc` at 0x254290
+    and `sinc` at 0x24b6e0) were found to mislabel `read*` calls
+    in their multi-arity overloads.  The binary uses inline
+    `movabs $<8-byte-string>,%rax` immediates that are
+    arity-blind: e.g. `rrc`'s 3-arg path uses `"3 (position)"` and
+    `"4 (beta)"` even though the user passes them as args 2 and
+    3, and `sinc`'s 4-arg path uses `"3 (position)"` and
+    `"3 (beta)"` (same `"3 (beta)"` literal as the 3-arg form,
+    not `"4 (beta)"`).  Both fixed in source as part of 6b.
+  - Audit the remaining multi-arity factories for the same
+    pattern: `gauss`, `sin`, `cos`, `sawtooth`, `triangle`,
+    `drag`, `blackman`, `hamming`, `hann`, `chirp`, `rand`,
+    `randomGauss`, `randomUniform`, `lfsrGaloisMarker`,
+    `placeholder`, `vect`.  Method:
+    ```
+    objdump -d _seqc_compiler.so | awk '/^0+<entry> </,/ret/' \
+      | grep -B1 'call.*read' | grep movabs
+    ```
+    decode each immediate as little-endian ASCII and compare to
+    the recon's literal arguments.
+  - Likely cosmetic (impacts user-visible error-message text only,
+    no test currently exercises these error paths) but
+    binary-faithfulness regressions should be fixed in the same
+    commit as discovery, with each finding logged under IF-230's
+    "Likely scope" section.
+
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
 - [ ] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**

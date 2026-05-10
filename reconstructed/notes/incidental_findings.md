@@ -5464,3 +5464,104 @@ behaviour and it is what the test suite covers.
 **Fix applied in same commit**: rewrote the brief to reflect
 the actual two-step flow (warn-on-alias, then look up the
 *original* name; throw on funcMap_ miss).
+
+## IF-230  `WaveformGenerator::rrc` 3-arg path used wrong `readDouble` parameter labels
+
+**Severity**: cosmetic (user-visible error-message text;
+binary-faithfulness regression but no test currently
+exercises the 3-arg overload's error paths).
+**Status**: fixed in D4 Batch 6b (same commit as the brief
+that surfaced it).
+**Discovered**: D4 Batch 6b verify-then-write audit of
+`waveform_generator_dsp.cpp:1117-1200` against the binary
+disassembly of `WaveformGenerator::rrc` at 0x254290.
+
+The reconstruction of the 3-argument path
+(`rrc(length, position, beta)`) labelled the two `readDouble`
+calls as:
+
+```cpp
+position = readDouble(args[1], "2 (position)", "rrc");
+beta     = readDouble(args[2], "3 (position)", "rrc");
+```
+
+The second label was an obvious copy-paste typo (`"3 (position)"`
+duplicating the position string for what is actually `beta`).
+However, audit of the binary showed that **both** labels were
+wrong, not just the typo:
+
+The binary uses exactly two parameter-name strings throughout
+all three arity paths (3-arg, 4-arg, 5-arg):
+
+| readDouble site | label loaded into rax (movabs) |
+|---|---|
+| 0x254a89 (5-arg position)  | `"3 (position)"` |
+| 0x254bac (4-arg position)  | `"3 (position)"` |
+| 0x254cd5 (3-arg position)  | `"3 (position)"` |
+| 0x254dfa (5-arg beta)      | `"4 (beta)"`     |
+| 0x254f19 (4-arg beta)      | `"4 (beta)"`     |
+| 0x25500b (3-arg beta)      | `"4 (beta)"`     |
+| 0x25512e (5-arg width)     | `"5 (width)"`   |
+
+The strings are hardcoded inline as 8-byte SSO short-string
+immediates (e.g. `0x7469736f70282033` = `"3 (posit"`) and do
+**not** track the actual zero-based argument index in the user
+call.  This means in the 3-arg overload, the user gets an error
+message referring to "argument 3 (position)" for what they
+passed as the second argument, and "argument 4 (beta)" for what
+they passed as the third.  This is binary-faithful surprising
+behaviour, not a binary bug we should "improve away".
+
+**Fix applied in same commit**: changed the 3-arg path labels to
+match the binary (`"3 (position)"` and `"4 (beta)"`) and added a
+comment in the source pointing at this IF entry and the verified
+addresses.
+
+**Recon-faithfulness implication**: any future audit of error
+messages emitted by `rrc` should expect the same label regardless
+of overload.  No test currently exercises the 3-arg-path error
+output, which is why the typo + miscount went undetected.
+
+### Same pattern in `WaveformGenerator::sinc` (also fixed in this commit)
+
+Cross-checking the other 3/4-arg overloads turned up the same
+hardcoded-label-string pattern in `sinc` at 0x24b6e0.  The binary
+has only **two** parameter-name strings for position and beta,
+shared across both arities:
+
+| readPositiveInt / readDouble site | label loaded into rax |
+|---|---|
+| 0x24bbcf (3-arg position)         | `"2 (position)"`      |
+| 0x24bcf9 (4-arg position)         | `"3 (position)"`      |
+| 0x24be20 (3-arg beta)             | `"3 (beta)"`          |
+| 0x24bf33 (4-arg beta)             | `"3 (beta)"`          |
+
+The reconstruction of the 4-arg path had:
+
+```cpp
+position  = readPositiveInt(args[2], "2 (position)", 2, "sinc");
+beta      = readDouble(args[3], "4 (beta)", "sinc");
+```
+
+Both labels were wrong: the 4-arg path uses `"3 (position)"` (not
+`"2 (position)"`) and `"3 (beta)"` (not `"4 (beta)"`).  Note in
+particular that the binary uses the same `"3 (beta)"` literal in
+both arities, even though the user-visible argument index for beta
+is 3 in the 3-arg form and 4 in the 4-arg form — same arity-blind
+hardcoding as `rrc`.  The 3-arg path was already correct.
+
+Fix applied alongside the `rrc` fix.
+
+### Likely scope of this pattern
+
+Both functions affected so far (`rrc`, `sinc`) follow the convention
+that the 3-arg overload's labels are taken as the canonical strings,
+and the 4/5-arg overloads inherit them verbatim despite the
+larger argument indices.  Other multi-arity factories
+(`gauss`, `sin`, `cos`, `sawtooth`, `triangle`, `drag`,
+`blackman`, `hamming`, `hann`, `chirp`, `rand`, `randomGauss`,
+`randomUniform`) should be audited for the same kind of
+mis-numbered labels in subsequent batches.  Audit method:
+disassemble each entry point, decode all `movabs $0x...,%rax`
+immediates that precede `read*` calls, compare strings to the
+recon's `read*` literal arguments.

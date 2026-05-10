@@ -340,8 +340,13 @@ Signal WaveformGenerator::sinc(std::vector<Value> const& args) {                
     if (args.size() == 4) {
         length    = readPositiveInt(args[0], "1 (length)", 1, "sinc");           // 0x24b890
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "sinc");       // 0x24bae2
-        position  = readPositiveInt(args[2], "2 (position)", 2, "sinc");         // 0x24bc0b
-        beta      = readDouble(args[3], "4 (beta)", "sinc");                     // 0x24bf66
+        // Binary-faithful: 4-arg path labels are "3 (position)" and
+        // "3 (beta)" — not "4 (...)" — because the strings are
+        // hardcoded inline movabs immediates that do NOT track the
+        // user-visible argument index.  Verified at 0x24bcf9
+        // ("3 (position)") and 0x24bf33 ("3 (beta)").  See IF-230.
+        position  = readPositiveInt(args[2], "3 (position)", 2, "sinc");         // 0x24bc0b
+        beta      = readDouble(args[3], "3 (beta)", "sinc");                     // 0x24bf66
     } else {
         // 3-arg path: sinc(length, position, beta) — amplitude defaults to 1.0
         length    = readPositiveInt(args[0], "1 (length)", 1, "sinc");           // 0x24b9b6
@@ -1138,8 +1143,13 @@ Signal WaveformGenerator::rrc(std::vector<Value> const& args) {                /
         beta      = readDouble(args[3], "4 (beta)", "rrc");
     } else {
         length   = readPositiveInt(args[0], "1 (length)", 1, "rrc");
-        position = readDouble(args[1], "2 (position)", "rrc");
-        beta     = readDouble(args[2], "3 (position)", "rrc");
+        // Binary-faithful: 3-arg path uses the same hardcoded
+        // parameter-name strings as the 4/5-arg paths, even though
+        // the user passes them in slots 2 and 3.  Verified at
+        // 0x254a89 / 0x254bac / 0x254cd5 (all "3 (position)") and
+        // 0x254dfa / 0x254f19 / 0x25500b (all "4 (beta)").  See IF-230.
+        position = readDouble(args[1], "3 (position)", "rrc");
+        beta     = readDouble(args[2], "4 (beta)", "rrc");
     }
 
     // Warn if position > length                                        // 0x254e4b
