@@ -1320,15 +1320,93 @@ public:
     std::shared_ptr<EvalResults> assignWaveIndex(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x133c40
     std::shared_ptr<EvalResults> prefetch(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x1351d0
     std::shared_ptr<EvalResults> prefetchIndexed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x135290
+    //! \brief Implement the SeqC `playWave` built-in.
+    //!
+    //! Verifies the device is in `kDevHirzelAll` and forwards to
+    //! `play(args, res, SubFunc::Default)`.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `play()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from `play()`.
     std::shared_ptr<EvalResults> playWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x1352f0
+
+    //! \brief Implement the SeqC `playWaveNow` built-in.
+    //!
+    //! Verifies device support against the
+    //! `HDAWG | UHFAWG` mask and forwards to
+    //! `play(args, res, SubFunc::Now)` so the underlying `asmPlay`
+    //! is emitted with the immediate-play flag set.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `play()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from `play()`.
     std::shared_ptr<EvalResults> playWaveNow(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x1353b0
+
+    //! \brief Implement the SeqC `playWaveIndexed` built-in.
+    //!
+    //! Rejects HDAWG with `DeprecatedFuncFifo` (HDAWG uses the
+    //! FIFO architecture, which deprecates indexed playback at
+    //! source level), then verifies device support against the
+    //! `HDAWG | UHFAWG` mask and forwards to
+    //! `playIndexed(args, res, SubFunc::Default)`.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `playIndexed()`.
+    //! \throws  `CustomFunctionsException` (`DeprecatedFuncFifo`)
+    //!          on HDAWG, or unsupported-device, plus anything
+    //!          propagated from `playIndexed()`.
     std::shared_ptr<EvalResults> playWaveIndexed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x135480
+
+    //! \brief Implement the SeqC `playWaveIndexedNow` built-in.
+    //!
+    //! Verifies device support against the `HDAWG | UHFAWG` mask
+    //! and forwards to `playIndexed(args, res, SubFunc::Now)`.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `playIndexed()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from
+    //!          `playIndexed()`.
     std::shared_ptr<EvalResults> playWaveIndexedNow(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x135550
     std::shared_ptr<EvalResults> playAuxWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x135610
+
+    //! \brief Implement the SeqC `playAuxWaveIndexed` built-in.
+    //!
+    //! Verifies device support against the `HDAWG | UHFAWG` mask
+    //! and forwards to `playIndexed(args, res, SubFunc::Aux)`,
+    //! which selects the auxiliary-wave variant of indexed
+    //! playback.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `playIndexed()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from
+    //!          `playIndexed()`.
     std::shared_ptr<EvalResults> playAuxWaveIndexed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x136930
     std::shared_ptr<EvalResults> playDIOWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x1369f0
     std::shared_ptr<EvalResults> playWaveDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x137740
     std::shared_ptr<EvalResults> playWaveZSync(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x137a50
+
+    //! \brief Implement the SeqC `playWaveDigTrigger` built-in.
+    //!
+    //! Verifies device support against the `HDAWG | UHFAWG` mask
+    //! and forwards to `play(args, res, SubFunc::DigTrigger)`,
+    //! which expects a leading const-int play length (≥ 3) and
+    //! routes the play through the digital-trigger path.
+    //!
+    //! \param args  SeqC call arguments in source order.
+    //! \param res   Current resource scope.
+    //! \return  The `EvalResults` produced by `play()`.
+    //! \throws  `CustomFunctionsException` when the device is not
+    //!          supported, plus anything propagated from `play()`
+    //!          (including invalid-leading-arg errors).
     std::shared_ptr<EvalResults> playWaveDigTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x1386a0
     std::shared_ptr<EvalResults> playZero(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x1387f0
     std::shared_ptr<EvalResults> playHold(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x139030
