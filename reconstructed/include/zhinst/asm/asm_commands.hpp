@@ -100,6 +100,14 @@ public:
     //! registers; on failure raises
     //! `ResourcesException(InvalidRegister, "prf")`.
     //! Emitted by the prefetch family in `prefetch_*.cpp`.
+    //!
+    //! \param reg1    Hirzel-cache slot register; validated and rejected
+    //!                as `InvalidRegister` on failure.
+    //! \param reg2    Cervino-cache slot register; validated and rejected
+    //!                as `InvalidRegister` on failure.
+    //! \param intArg  20-bit length immediate encoded into the instruction
+    //!                word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm prf(AsmRegister reg1, AsmRegister reg2, int intArg) const;
     //! \brief Emit `WPRF` — **wait for prefetch** barrier
     //!        (opcode `0xF0000000`, no operands).
@@ -111,6 +119,8 @@ public:
     //! `0xFFFFFFFF` because its hardware has no separate
     //! prefetch-completion signal.  Device-specific encoding
     //! is delegated to `impl_`.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wprf() const;
     //! \brief Emit `WWVFQ` — **wait for waveform queue**
     //!        barrier (opcode alias of `WPRF` at
@@ -121,6 +131,8 @@ public:
     //! `ResourcesException(UnsupportedOp, "wwvfq")` because
     //! UHF-family devices have no playback queue.  Emitted
     //! by `waitPlayQueueEmpty`.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wwvfq() const;
     //! \brief Emit `WWVF` — **wait for waveform** barrier
     //!        (opcode `0xF1000000`, no operands).
@@ -128,6 +140,8 @@ public:
     //! \details Appended by `waitWave` and by the program
     //! trailer in `compiler.cpp` to drain in-flight waveform
     //! playback before program end.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wwvf() const;
     //! \brief Emit `WVF` — **play waveform** (opcode
     //!        `0x20000000`).
@@ -140,6 +154,13 @@ public:
     //! Validates `reg`; on failure raises
     //! `ResourcesException(InvalidRegister, "wvf")`.
     //! Device-specific encoding is delegated to `impl_`.
+    //!
+    //! \param reg     Marker-source register; validated and rejected
+    //!                as `InvalidRegister` on failure.
+    //! \param dstReg  Waveform-address register; on Hirzel, `R0` selects
+    //!                the extended-opcode `WVFE` form.
+    //! \param length  Length immediate encoded into the instruction word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wvf(AsmRegister reg, AsmRegister dstReg, int length) const;
     //! \brief Emit `WVFI` — play waveform, **indexed**
     //!        (opcode `0x30000000`).
@@ -152,6 +173,12 @@ public:
     //! Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "wvfi")` on
     //! failure.  Delegates to `impl_`.
+    //!
+    //! \param reg     Index register; validated and rejected as
+    //!                `InvalidRegister` on failure.
+    //! \param dstReg  Destination / address register.
+    //! \param length  Length immediate encoded into the instruction word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wvfi(AsmRegister reg, AsmRegister dstReg, int length) const;
     //! \brief Emit `WVFS` — set up a waveform-fetch
     //!        descriptor (opcode `0x30000001`).
@@ -169,6 +196,14 @@ public:
     //! \binarynote Hirzel-only.  Cervino's
     //! `AsmCommandsImplCervino::wvfs` throws
     //! `ResourcesException(UnsupportedOp, "wvfs")`.
+    //!
+    //! \param type    `PlayDummyType` selector occupying a 1-bit slot;
+    //!                must be `0` or `1`, otherwise `ValueOverflow` is
+    //!                raised.
+    //! \param reg     Length register; pass `R0` to mean "no register".
+    //! \param length  20-bit offset immediate encoded into the
+    //!                instruction word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wvfs(Assembler::PlayDummyType type, AsmRegister reg, int length) const;
     //! \brief Emit `WVFT` — execute a waveform-table entry
     //!        (Hirzel extended-opcode `WVFET` = `0xFC000000`).
@@ -181,6 +216,10 @@ public:
     //! \binarynote Hirzel-only.  Cervino's
     //! `AsmCommandsImplCervino::wvft` throws
     //! `ResourcesException(UnsupportedOp, "wvft")`.
+    //!
+    //! \param reg     Table-entry index register.
+    //! \param length  Length immediate encoded into the instruction word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wvft(AsmRegister reg, int length) const;
     //! \brief Emit `CWVF` — **configure waveform**, immediate
     //!        form (opcode `0xF2000000`).
@@ -191,6 +230,9 @@ public:
     //! immediate.  When the packed value would not fit, the
     //! caller falls back to the register-operand spillover
     //! form `cwvfr`.
+    //!
+    //! \param value  Packed PlayConfig word (24-bit immediate payload).
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm cwvf(int value) const;
     //! \brief Emit `CWVFR` — configure waveform from
     //!        register-supplied PlayConfig word
@@ -204,6 +246,9 @@ public:
     //! `impl_->isCWVFRSupported()`.  This same flag also
     //! gates marker-bit computation in `genPlayConfig` and
     //! the Hirzel-only `wvfs` / `wvft` / `wwvfq` factories.
+    //!
+    //! \param reg  Register holding the packed PlayConfig word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm cwvfr(AsmRegister reg) const;
 
     // =====================================================================
@@ -223,6 +268,7 @@ public:
     //! \param noOpt  When `true`, mark the branch as
     //!               non-optimisable so later passes preserve
     //!               it verbatim.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm br(const std::string& label, bool noOpt) const;
     //! \brief Emit `BRZ` — branch if `reg == 0`
     //!        (opcode `0xF3000000`, 3-cycle branch penalty).
@@ -231,6 +277,13 @@ public:
     //! `ResourcesException(InvalidRegister, "brz")` on
     //! failure.  Device-specific encoding via `impl_` (Hirzel
     //! diverts the `reg == R0` case to `JMP`; see `br`).
+    //!
+    //! \param reg    Operand register tested against zero; validated and
+    //!               rejected as `InvalidRegister` on failure.
+    //! \param label  Target label name resolved at link time.
+    //! \param noOpt  When `true`, marks the emitted instruction as
+    //!               non-optimisable so later passes preserve it verbatim.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm brz(AsmRegister reg, const std::string& label, bool noOpt) const;
     //! \brief Emit `BRNZ` — branch if `reg != 0`
     //!        (opcode `0xF4000000`, 3-cycle branch penalty).
@@ -239,6 +292,13 @@ public:
     //! `ResourcesException(InvalidRegister, "brnz")` on
     //! failure.  Encoded directly (not via `impl_`) — same
     //! encoding on both device families.
+    //!
+    //! \param reg    Operand register tested against zero; validated and
+    //!               rejected as `InvalidRegister` on failure.
+    //! \param label  Target label name resolved at link time.
+    //! \param noOpt  When `true`, marks the emitted instruction as
+    //!               non-optimisable so later passes preserve it verbatim.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm brnz(AsmRegister reg, const std::string& label, bool noOpt) const;
     //! \brief Emit `BRGZ` — branch if `reg > 0`
     //!        (opcode `0xF5000000`, 3-cycle branch penalty).
@@ -246,6 +306,13 @@ public:
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "brgz")` on
     //! failure.  Encoded directly.
+    //!
+    //! \param reg    Operand register tested for positivity; validated
+    //!               and rejected as `InvalidRegister` on failure.
+    //! \param label  Target label name resolved at link time.
+    //! \param noOpt  When `true`, marks the emitted instruction as
+    //!               non-optimisable so later passes preserve it verbatim.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm brgz(AsmRegister reg, const std::string& label, bool noOpt) const;
 
     // =====================================================================
@@ -267,21 +334,47 @@ public:
     //! commandToString(cmd))` on failure.  The named
     //! convenience wrappers below dispatch through this
     //! function.
+    //!
+    //! \param cmd  ALU operation selector (`ADDR`, `SUBR`, `ANDR`, `ORR`,
+    //!             `XNORR`, `XORR`).
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm alur(Assembler::Command cmd, AsmRegister dst, AsmRegister src) const;
     //! \brief `dst += src` — opcode `0x60000000`.
     //!        Convenience for `alur(ADDR, …)`.
+    //!
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm addr(AsmRegister dst, AsmRegister src) const;
     //! \brief `dst -= src` — opcode `0x60000001`.
     //!        Convenience for `alur(SUBR, …)`.
+    //!
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm subr(AsmRegister dst, AsmRegister src) const;
     //! \brief `dst &= src` — opcode `0x60000002`.
     //!        Convenience for `alur(ANDR, …)`.
+    //!
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm andr(AsmRegister dst, AsmRegister src) const;
     //! \brief `dst |= src` — opcode `0x60000003`.
     //!        Convenience for `alur(ORR, …)`.
+    //!
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm orr(AsmRegister dst, AsmRegister src) const;
     //! \brief `dst = ~(dst ^ src)` — opcode `0x60000004`.
     //!        Convenience for `alur(XNORR, …)`.
+    //!
+    //! \param dst  Destination register; also acts as the left operand.
+    //! \param src  Source register supplying the right operand.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm xnorr(AsmRegister dst, AsmRegister src) const;
 
     // =====================================================================
@@ -301,6 +394,10 @@ public:
     //! `wvf`/`wvfi`.  Delegates to `impl_`; raises
     //! `ResourcesException(InvalidRegister, "ssl")` on
     //! register validation failure.
+    //!
+    //! \param reg  Register shifted in place; validated and rejected as
+    //!             `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ssl(AsmRegister reg) const;
     //! \brief Emit `SSR` — single-bit shift right of `reg`
     //!        (opcode `0x60000006`).
@@ -310,6 +407,10 @@ public:
     //! `impl_`; raises
     //! `ResourcesException(InvalidRegister, "ssr")` on
     //! register validation failure.
+    //!
+    //! \param reg  Register shifted in place; validated and rejected as
+    //!             `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ssr(AsmRegister reg) const;
 
     // =====================================================================
@@ -333,24 +434,52 @@ public:
     //! `immediates` slot).  Validates `dst`/`src`; raises
     //! `ResourcesException(InvalidRegister, commandToString(cmd))`
     //! on failure.
+    //!
+    //! \param cmd  ALU operation selector (`ADDIU`, `ANDIU`, `ORIU`,
+    //!             `XNORIU`).
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  12-bit immediate, implicitly shifted left by 12 before
+    //!             being applied.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm aluiu(Assembler::Command cmd, AsmRegister dst,
                    AsmRegister src, Immediate imm) const;
     //! \brief `dst = src + (imm << 12)` — opcode
     //!        `0x50000000`.  Upper-word complement to
     //!        `addi`; chain after `addi` to encode wide
     //!        immediates.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  12-bit immediate, implicitly shifted left by 12.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm addiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = src & (imm << 12)` — opcode
     //!        `0x80000000`.  Upper-word complement to
     //!        `andi`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  12-bit immediate, implicitly shifted left by 12.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm andiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = src | (imm << 12)` — opcode
     //!        `0xA0000000`.  Upper-word complement to
     //!        `ori`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  12-bit immediate, implicitly shifted left by 12.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm oriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = ~(src ^ (imm << 12))` — opcode
     //!        `0xC0000000`.  Upper-word complement to
     //!        `xnori`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  12-bit immediate, implicitly shifted left by 12.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
 
     // =====================================================================
@@ -386,11 +515,25 @@ public:
     //! Validates `dst`/`src`; raises
     //! `ResourcesException(InvalidRegister, commandToString(cmd))`
     //! on failure.
+    //!
+    //! \param cmd  ALU operation selector (`ADDI`, `ANDI`, `ORI`,
+    //!             `XNORI`); any other command raises
+    //!             `ResourcesException(ErrorMessageT(0xD8), …)`.
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Signed immediate; values outside the 19-bit signed
+    //!             range trigger the multi-instruction expansion.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> alui(Assembler::Command cmd, AsmRegister dst,
                                AsmRegister src, Immediate imm) const;
     //! \brief `dst = src + imm`. May expand to two
     //!        instructions when `imm` exceeds the 19-bit
     //!        signed range — see `alui`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Signed immediate; wide values trigger expansion.
+    //! \return  Sequence of one or two assembler-instruction descriptors.
     std::vector<AsmList::Asm> addi(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief Always emit a 2-instruction ADDI sequence
     //!        carrying a full 32-bit signed immediate.
@@ -404,15 +547,37 @@ public:
     //! Validates `dst`/`src`; raises
     //! `ResourcesException(InvalidRegister, "addi32")` on
     //! failure.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Full 32-bit signed immediate, split across the
+    //!             low-12 and upper-word halves.
+    //! \return  Two-element `ADDI`/`ADDIU` sequence flagged as
+    //!          non-optimisable.
     std::vector<AsmList::Asm> addi32(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = src & imm`. Multi-instruction expansion
     //!        for large `imm` — see `alui`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Signed immediate; wide values trigger expansion.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> andi(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = src | imm`. Multi-instruction expansion
     //!        for large `imm` — see `alui`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Signed immediate; wide values trigger expansion.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> ori(AsmRegister dst, AsmRegister src, Immediate imm) const;
     //! \brief `dst = ~(src ^ imm)`. Multi-instruction
     //!        expansion for large `imm` — see `alui`.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param imm  Signed immediate; wide values trigger expansion.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> xnori(AsmRegister dst, AsmRegister src, Immediate imm) const;
 
     // =====================================================================
@@ -438,27 +603,75 @@ public:
 
     //! \brief `Value`-overload of `addi`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> addi(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `addiu`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm addiu(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `andi`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> andi(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `andiu`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm andiu(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `ori`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> ori(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `oriu`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm oriu(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `xnori`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  Sequence of one or more assembler-instruction descriptors.
     std::vector<AsmList::Asm> xnori(AsmRegister dst, AsmRegister src, Value val) const;
     //! \brief `Value`-overload of `xnoriu`; converts `val`
     //!        through `toInt32` then dispatches.
+    //!
+    //! \param dst  Destination register.
+    //! \param src  Source register supplying the left operand.
+    //! \param val  Source value clamped through `toInt32` then forwarded
+    //!             to the integer overload.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm xnoriu(AsmRegister dst, AsmRegister src, Value val) const;
 
     // =====================================================================
@@ -475,6 +688,12 @@ public:
     //! See the special-register map for the meaning of
     //! individual addresses (DIO `0x20`, trigger `0x22`,
     //! ZSync `0x6A..0x6C`, PRNG `0x77`, …).
+    //!
+    //! \param reg   Destination register; validated and rejected as
+    //!              `InvalidRegister` on failure.
+    //! \param addr  Source memory-mapped register address; encoded into
+    //!              the outputs slot.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ld(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     //! \brief Emit `ST reg, addr` — store `reg` to
     //!        memory-mapped register `addr`
@@ -484,6 +703,12 @@ public:
     //! `ResourcesException(InvalidRegister, "st")` on
     //! failure.  `addr` carries an internal bounds check
     //! against `DeviceConstants::memoryDepth`.
+    //!
+    //! \param reg   Source register; validated and rejected as
+    //!              `InvalidRegister` on failure.
+    //! \param addr  Destination memory-mapped register address; bounds-
+    //!              checked against `DeviceConstants::memoryDepth`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm st(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     //! \brief Read the DIO bus into `reg`.
     //!
@@ -495,6 +720,12 @@ public:
     //! bank at the caller layer.  Raises
     //! `ResourcesException(InvalidRegister, "ldio")` on
     //! register validation failure.
+    //!
+    //! \param reg       Destination register; validated and rejected as
+    //!                  `InvalidRegister` on failure.
+    //! \param highBank  Selects the high (`0x1FE`) vs low (`0x20`) DIO
+    //!                  bank.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ldio(AsmRegister reg, bool highBank) const;
     //! \brief Store `reg` to the DIO bus.
     //!
@@ -503,6 +734,12 @@ public:
     //! `ldio`).  Raises
     //! `ResourcesException(InvalidRegister, "sdio")` on
     //! register validation failure.
+    //!
+    //! \param reg       Source register; validated and rejected as
+    //!                  `InvalidRegister` on failure.
+    //! \param highBank  Selects the high (`0x1FE`) vs low (`0x20`) DIO
+    //!                  bank.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm sdio(AsmRegister reg, bool highBank) const;
     //! \brief Load from the user-register address space.
     //!
@@ -513,6 +750,11 @@ public:
     //! `getPRNGValue`, …).  Raises
     //! `ResourcesException(InvalidRegister, "luser")` on
     //! register validation failure.
+    //!
+    //! \param reg   Destination register; validated and rejected as
+    //!              `InvalidRegister` on failure.
+    //! \param addr  Source user-register address.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     //! \brief Store to the user-register address space.
     //!
@@ -522,6 +764,11 @@ public:
     //! range (sync, oscillator phase, PRNG, sweep, QA, …).
     //! Raises `ResourcesException(InvalidRegister, "suser")`
     //! on register validation failure.
+    //!
+    //! \param reg   Source register; validated and rejected as
+    //!              `InvalidRegister` on failure.
+    //! \param addr  Destination user-register address.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm suser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
@@ -535,6 +782,10 @@ public:
     //! `getDigTrigger`.  Raises
     //! `ResourcesException(InvalidRegister, "ltrig")` on
     //! register validation failure.
+    //!
+    //! \param reg  Destination register; validated and rejected as
+    //!             `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ltrig(AsmRegister reg) const;
     //! \brief Write `reg` to the trigger register —
     //!        `st(reg, 0x22)`.
@@ -543,6 +794,10 @@ public:
     //! `setTrigger`, `startQAResult`, `startQAMonitor`.
     //! Raises `ResourcesException(InvalidRegister, "strig")`
     //! on register validation failure.
+    //!
+    //! \param reg  Source register; validated and rejected as
+    //!             `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm strig(AsmRegister reg) const;
     //! \brief Write `reg` to the internal-trigger register —
     //!        `st(reg, 0x23)`.
@@ -550,6 +805,10 @@ public:
     //! \details LI-family only; used by `setInternalTrigger`.
     //! Raises `ResourcesException(InvalidRegister, "sinttrig")`
     //! on register validation failure.
+    //!
+    //! \param reg  Source register; validated and rejected as
+    //!             `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm sinttrig(AsmRegister reg) const;
     //! \brief Emit `WTRIG r1, r2` — wait for trigger
     //!        condition (opcode `0xE0000000`).
@@ -560,6 +819,12 @@ public:
     //! before this barrier.  Validates both; raises
     //! `ResourcesException(InvalidRegister, "wtrig")` on
     //! failure.
+    //!
+    //! \param r1  Aux-slot register; validated and rejected as
+    //!            `InvalidRegister` on failure.
+    //! \param r2  Source-slot register; validated and rejected as
+    //!            `InvalidRegister` on failure.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wtrig(AsmRegister r1, AsmRegister r2) const;
     //! \brief Emit `WTRIGI value` — wait for trigger,
     //!        immediate operand (opcode `0xFD000000`).
@@ -569,6 +834,10 @@ public:
     //! instruction word.  No current frontend factory emits
     //! this — present for completeness with the assembler
     //! parser.
+    //!
+    //! \param value  5-bit immediate payload encoded into the instruction
+    //!               word.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wtrigi(int value) const;
 
     // =====================================================================
@@ -584,6 +853,12 @@ public:
     //! SHFLI / VHFLI / GHFLI.  Raises
     //! `ResourcesException(InvalidRegister, "sid")` on
     //! register validation failure.
+    //!
+    //! \param reg       Source register; validated and rejected as
+    //!                  `InvalidRegister` on failure.
+    //! \param highBank  Selects the high (`0x1FF`) vs low (`0x21`)
+    //!                  device-id register.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm sid(AsmRegister reg, bool highBank) const;
     //! \brief Emit a 3-instruction `smap` sequence —
     //!        command-table mapping write.
@@ -601,6 +876,13 @@ public:
     //! reuses the same address for
     //! `resetRTLoggerTimestamp()`.  The hardware
     //! disambiguates by device.
+    //!
+    //! \param r1     Scratch register loaded with `value` and stored to
+    //!               the map-key address.
+    //! \param r2     Source register stored to the map-value address.
+    //! \param value  Map-key immediate loaded into `r1`.
+    //! \return  Sequence of two or three assembler-instruction
+    //!          descriptors.
     std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int value) const;
     //! \brief Emit `LDIOTRIG` — load I/O trigger value into
     //!        `reg`.
@@ -610,6 +892,9 @@ public:
     //! lives at different addresses in the two families.
     //! Used by `getDIOTriggered`, `getZSyncData(RAW)`, and
     //! `getFeedback(RAW)`.  Delegates to `impl_`.
+    //!
+    //! \param reg  Destination register receiving the I/O trigger value.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ldiotrig(AsmRegister reg) const;
     //! \brief Emit `LCNT reg, addr` — load HW loop counter
     //!        (`ld(reg, 0x64 + addr.value)`).
@@ -623,6 +908,10 @@ public:
     //! hardware loop counters at this register window.
     //! Raises `ResourcesException(InvalidRegister, "lcnt")`
     //! on register validation failure.
+    //!
+    //! \param reg   Destination register receiving the counter value.
+    //! \param addr  Counter index (0 or 1) added to the base `0x64`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
@@ -635,21 +924,29 @@ public:
     //! \details Emitted by the `play` validation paths in
     //! `custom_functions_play.cpp` to abort the sequencer on
     //! a runtime contract violation.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm trap() const;
     //! \brief Emit `IRPT` — raise interrupt
     //!        (opcode `0xF8000000`, no operands).
     //!
     //! \details No current frontend factory emits this;
     //! present for completeness with the assembler parser.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm irpt() const;
     //! \brief Emit `END` — program terminator
     //!        (opcode `0x00000000`, no operands).
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm end() const;
     //! \brief Emit `NOP` — no-operation, one cycle
     //!        (opcode `0x00000001`, no operands).
     //!
     //! \details Used by the wait family and the program
     //! trailer in `compiler.cpp` for fixed-cycle padding.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm nop() const;
 
     // =====================================================================
@@ -694,6 +991,8 @@ public:
     //!        prefetch / sync pass later replaces with the
     //!        full `syncCervino` expansion once the
     //!        barrier participants are known.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmSyncPlaceholderCervino() const;
     //! \brief Emit the single-instruction Hirzel-family
     //!        synchronisation barrier — `suser(R0, 0x6E)`.
@@ -704,6 +1003,8 @@ public:
     //! sequence is unnecessary.
     //!
     //! \binarynote Hirzel-only counterpart of `syncCervino`.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmSyncHirzel() const;
 
     // =====================================================================
@@ -712,9 +1013,15 @@ public:
 
     //! \brief Zero `reg` via `ADDI reg, R0, 0` (opcode
     //!        `0x40000000`).
+    //!
+    //! \param reg  Destination register set to zero.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmZero(AsmRegister reg) const;
     //! \brief Set `reg` to `1` via `ADDI reg, R0, 1`
     //!        (opcode `0x40000000`).
+    //!
+    //! \param reg  Destination register set to one.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmOne(AsmRegister reg) const;
     //! \brief Emit a `LABEL` directive carrying `label`
     //!        (pseudo-opcode `0x00000002`).
@@ -725,6 +1032,9 @@ public:
     //! `wavetableFront` is forced to `0` so labels do not
     //! inherit the surrounding per-waveform context — they
     //! are global to the `AsmList`.
+    //!
+    //! \param label  Label name carried by the directive.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmLabel(const std::string& label) const;
     //! \brief Emit a diagnostic `MESSAGE` (`isError ==
     //!        false`, opcode `0x00000003`) or `ERROR_MSG`
@@ -742,6 +1052,12 @@ public:
     //! frontend does not emit them.  They are consumed by
     //! `AsmOptimize::reportUserMessages` and routed to the
     //! warning / error callbacks.
+    //!
+    //! \param msg      Diagnostic text payload stored in the immediates
+    //!                 slot.
+    //! \param isError  Selects `ERROR_MSG` (`true`) or `MESSAGE`
+    //!                 (`false`).
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmMessage(const std::string& msg, bool isError) const;
 
     // =====================================================================
@@ -750,18 +1066,29 @@ public:
 
     //! \brief Emit a `Branch` IR node entry — placeholder for
     //!        a branch target the IR pass will resolve.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmBranchNode() const;
     //! \brief Emit a `Loop` IR node entry — placeholder for
     //!        loop boundary metadata used by later passes.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmLoopNode() const;
     //! \brief Emit a `Rate` IR node carrying the global
     //!        sample-rate `rate` (written into
     //!        `Node::globalRate` at `+0x100`).
+    //!
+    //! \param rate  Global sample-rate written into `Node::globalRate`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmRate(int rate) const;
     //! \brief Emit a `SetPrecomp` IR node carrying the
     //!        default pre-compensation `flags` bitmask
     //!        (written into `Node::defaultPrecompFlags`
     //!        at `+0x104`).
+    //!
+    //! \param flags  Default pre-compensation flags bitmask written into
+    //!               `Node::defaultPrecompFlags`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmSetPrecompFlags(unsigned int flags) const;
 
     // =====================================================================
@@ -774,6 +1101,9 @@ public:
     //! \details Stores `reg` into `Node::lengthReg`.  Used
     //! to defer the resolution of variable-length playback
     //! until the surrounding context is fully analysed.
+    //!
+    //! \param reg  Length register stored into `Node::lengthReg`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmSetVarPlaceholder(AsmRegister reg);
     //! \brief Emit a `LockPlaceholder` node binding waveform
     //!        `wvf` to slot `index` for later locking.
@@ -783,6 +1113,12 @@ public:
     //! `node->deviceIndex = index`.  The lock pass uses
     //! these to drive `LD`/`ST` accesses to the per-device
     //! waveform memory.
+    //!
+    //! \param wvf    Waveform whose name is recorded in
+    //!               `node->wavesPerDev[index]`.
+    //! \param index  Per-device slot index also stored as
+    //!               `node->deviceIndex`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmLockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
     //! \brief Emit an `UnlockPlaceholder` node releasing the
     //!        slot bound by an earlier `asmLockPlaceholder`.
@@ -790,10 +1126,18 @@ public:
     //! \details Sets `node->deviceIndex = index`.  `wvf` is
     //! retained for symmetry with `asmLockPlaceholder` but
     //! the unlock node only needs the index.
+    //!
+    //! \param wvf    Waveform retained for symmetry with
+    //!               `asmLockPlaceholder`; not stored on the node.
+    //! \param index  Per-device slot index stored as
+    //!               `node->deviceIndex`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmUnlockPlaceholder(std::shared_ptr<WaveformFront> wvf, int index);
     //! \brief Emit a `Load` placeholder — a pass-through
     //!        marker the prefetch pass replaces with a
     //!        concrete load sequence.
+    //!
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmLoadPlaceholder();
     //! \brief Emit a `PlainLoad` prefetch node binding
     //!        waveform `wvf` to register / length metadata.
@@ -809,6 +1153,7 @@ public:
     //! \param nameIndex  Per-device slot index.
     //! \param regVal     Length-register value to embed.
     //! \param extraVal   Explicit length to embed.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmPrefetch(std::shared_ptr<WaveformFront> wvf,
                          int nameIndex, int regVal, int extraVal);
 
@@ -842,6 +1187,20 @@ public:
     //!             `asmPlay` call), and `is4Channel`
     //!             populates `PlayConfig::is4Channel`
     //!             directly.
+    //!
+    //! \param wvf          Source waveform; when null, `dummy = true`
+    //!                     and channel/marker fields are zeroed.
+    //! \param isHold       When `true`, single-channel waveforms map to
+    //!                     `channelMask = 0b10`.
+    //! \param fourChannel  Unused inside `genPlayConfig`; consumed by
+    //!                     the surrounding `asmPlay` call.
+    //! \param playNow      Populates `PlayConfig::now`.
+    //! \param hold         Populates `PlayConfig::hold`.
+    //! \param rate         Populates `PlayConfig::rate`.
+    //! \param suppress     Populates `PlayConfig::suppress`.
+    //! \param is4Channel   Populates `PlayConfig::is4Channel`.
+    //! \param trigger      Populates `PlayConfig::trigger`.
+    //! \return  Fully populated `PlayConfig` record.
     PlayConfig genPlayConfig(const std::shared_ptr<WaveformFront>& wvf,
                              bool isHold, bool fourChannel, bool playNow,
                              bool hold, int rate, unsigned int suppress,
@@ -864,6 +1223,21 @@ public:
     //! `genPlayConfig`; the resulting `PlayConfig` is also
     //! encoded back into `WaveformFront::playConfig` via
     //! `encodeCwvf(-1)` and the waveform is marked `used`.
+    //!
+    //! \param waveforms    Per-device waveform list; an empty list selects
+    //!                     the dummy-play path.
+    //! \param deviceIndex  Active device-slot index; `-1` for dummy play.
+    //! \param isHold       Hold-mode flag forwarded to `genPlayConfig`.
+    //! \param fourChannel  Four-channel flag forwarded to `genPlayConfig`.
+    //! \param hold         Populates `PlayConfig::hold`.
+    //! \param rate         Populates `PlayConfig::rate`.
+    //! \param suppress     Populates `PlayConfig::suppress`.
+    //! \param is4Channel   Populates `PlayConfig::is4Channel`.
+    //! \param lengthReg    Length register stored on the node.
+    //! \param length       Explicit length stored on the node.
+    //! \param reg2         Auxiliary register stored on the node.
+    //! \param trigger      Populates `PlayConfig::trigger`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmPlay(std::vector<std::shared_ptr<WaveformFront>> waveforms,
                      int deviceIndex, bool isHold, bool fourChannel, bool hold,
                      int rate, unsigned int suppress, bool is4Channel,
@@ -883,6 +1257,20 @@ public:
     //! to `false` / `0` — table playback never carries
     //! a "play now" flag or external-trigger context at
     //! this layer.
+    //!
+    //! \param tableIndex   Wavetable entry index recorded on the node.
+    //! \param wvf          Source waveform; marked `used` when non-null.
+    //! \param deviceIndex  Active device-slot index recorded on the node.
+    //! \param isHold       Hold-mode flag forwarded to `genPlayConfig`.
+    //! \param fourChannel  Four-channel flag forwarded to `genPlayConfig`
+    //!                     (also pinned as the `playNow` argument).
+    //! \param rate         Populates `PlayConfig::rate`.
+    //! \param suppress     Populates `PlayConfig::suppress`.
+    //! \param is4Channel   Populates `PlayConfig::is4Channel` (also pinned
+    //!                     as the `hold` argument).
+    //! \param lengthReg    Length register stored on the node.
+    //! \param length       Explicit length stored on the node.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmTable(int tableIndex, std::shared_ptr<WaveformFront> wvf,
                       int deviceIndex, bool isHold, bool fourChannel,
                       int rate, unsigned int suppress, bool is4Channel,
@@ -903,6 +1291,10 @@ public:
     //! `waitDIOTrigger`, `waitZSyncTrigger`,
     //! `waitDigTrigger(idx)`, `waitCntTrigger(idx)`,
     //! `waitOnGrid`, and `waitSineOscPhase(osc)`.
+    //!
+    //! \param value  Resource-constant offset added to the base `0x40`
+    //!               to form the destination address.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmWtrigLSPlaceholder(int value);
     //! \brief Emit `FB value` — configure feedback
     //!        processing pipeline (opcode `0xFF000000`).
@@ -920,6 +1312,10 @@ public:
     //! channels are valid sources — `ZSYNC_DATA_RAW` /
     //! `QA_DATA_RAW` are accepted by `getFeedback()` but
     //! rejected here.
+    //!
+    //! \param value  23-bit packed immediate produced by
+    //!               `configureFeedbackProcessing`.
+    //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm fb(int value) const;
 
     // Setter for the dual-purpose wavetable-front / source-line index at
@@ -937,9 +1333,14 @@ public:
     //! copied into each `AsmList::Asm::wavetableFront`
     //! produced by subsequent emit calls (except `asmLabel`
     //! and `asmMessage`, which force `0`).
+    //!
+    //! \param value  New `wavetableFront` index propagated into every
+    //!               subsequently emitted entry.
     void setWavetableFrontIndex(int value) { wavetableFrontIndex_ = value; }
     //! \brief Read the current `wavetableFront` index — see
     //!        `setWavetableFrontIndex`.
+    //!
+    //! \return  The current `wavetableFront` index.
     int  wavetableFrontIndex() const { return wavetableFrontIndex_; }
 
 private:
