@@ -90,85 +90,158 @@ public:
     // Waveform playback
     // =====================================================================
 
-    //! \brief Emit `PRF` (waveform prefetch with two register
-    //!        operands plus a 20-bit immediate index).
+    //! \brief Emit `PRF` — opcode `0x10000000`, prefetch a
+    //!        waveform into the playback cache.
     //!
-    //! \details Encodes `reg1` into the high register slot,
-    //! `reg2` into the secondary slot, and `intArg` into a
-    //! 20-bit immediate output.  Validates both registers; on
-    //! failure raises `ResourcesException(InvalidRegister,
-    //! "prf")`.
+    //! \details Three-register format (`opcodeType=3`,
+    //! `regOrder=3`): `reg1` selects the Hirzel-cache slot,
+    //! `reg2` the Cervino-cache slot, and `intArg` carries
+    //! the 20-bit length immediate.  Validates both
+    //! registers; on failure raises
+    //! `ResourcesException(InvalidRegister, "prf")`.
+    //! Emitted by the prefetch family in `prefetch_*.cpp`.
     AsmList::Asm prf(AsmRegister reg1, AsmRegister reg2, int intArg) const;
-    //! \brief Emit `WPRF` (wait for waveform prefetch).
-    //!        Device-specific encoding; delegates to `impl_`.
-    AsmList::Asm wprf() const;
-    //! \brief Emit `WWVFQ` (wait waveform queue).
-    //!        Device-specific encoding; delegates to `impl_`.
-    AsmList::Asm wwvfq() const;
-    //! \brief Emit `WWVF` (write-waveform trigger,
-    //!        opcode `0xF1000000`). No operands.
-    AsmList::Asm wwvf() const;
-    //! \brief Emit `WVF` (play waveform from register source
-    //!        with destination register and explicit length).
+    //! \brief Emit `WPRF` — **wait for prefetch** barrier
+    //!        (opcode `0xF0000000`, no operands).
     //!
-    //! \details Validates `reg`; on failure raises
+    //! \details The `w` prefix denotes "wait for" (see opcode
+    //! naming conventions); `wprf` pairs with `prf` to
+    //! synchronise the prefetch pipeline.  Cervino emits the
+    //! real opcode; Hirzel substitutes the no-op sentinel
+    //! `0xFFFFFFFF` because its hardware has no separate
+    //! prefetch-completion signal.  Device-specific encoding
+    //! is delegated to `impl_`.
+    AsmList::Asm wprf() const;
+    //! \brief Emit `WWVFQ` — **wait for waveform queue**
+    //!        barrier (opcode alias of `WPRF` at
+    //!        `0xF0000000`, no operands).
+    //!
+    //! \binarynote Hirzel-only.  Cervino's
+    //! `AsmCommandsImplCervino::wwvfq` throws
+    //! `ResourcesException(UnsupportedOp, "wwvfq")` because
+    //! UHF-family devices have no playback queue.  Emitted
+    //! by `waitPlayQueueEmpty`.
+    AsmList::Asm wwvfq() const;
+    //! \brief Emit `WWVF` — **wait for waveform** barrier
+    //!        (opcode `0xF1000000`, no operands).
+    //!
+    //! \details Appended by `waitWave` and by the program
+    //! trailer in `compiler.cpp` to drain in-flight waveform
+    //! playback before program end.
+    AsmList::Asm wwvf() const;
+    //! \brief Emit `WVF` — **play waveform** (opcode
+    //!        `0x20000000`).
+    //!
+    //! \details Three-register format on Cervino (waveform
+    //! address in `dstReg`, marker source in `reg`, length
+    //! immediate).  On Hirzel, when `dstReg == R0` the
+    //! factory falls through to the extended-opcode form
+    //! `WVFE` (`0xFA000000`, single register) instead.
+    //! Validates `reg`; on failure raises
     //! `ResourcesException(InvalidRegister, "wvf")`.
     //! Device-specific encoding is delegated to `impl_`.
     AsmList::Asm wvf(AsmRegister reg, AsmRegister dstReg, int length) const;
-    //! \brief Emit `WVFI` (play waveform indexed; like `wvf`
-    //!        but reads the index from `reg`).
+    //! \brief Emit `WVFI` — play waveform, **indexed**
+    //!        (opcode `0x30000000`).
     //!
-    //! \details Validates `reg`; raises
+    //! \details The `i` suffix means "indexed" (the address
+    //! comes from an index register), **not** "interleaved".
+    //! Cervino-only — Hirzel's `wvfi` impl throws
+    //! `UnsupportedOp` (the equivalent extended-opcode
+    //! `WVFEI` exists in the parser but is never emitted).
+    //! Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "wvfi")` on
     //! failure.  Delegates to `impl_`.
     AsmList::Asm wvfi(AsmRegister reg, AsmRegister dstReg, int length) const;
-    //! \brief Emit `WVFS` (play synthetic / dummy waveform
-    //!        such as `playZero` or `playHold`).
+    //! \brief Emit `WVFS` — set up a waveform-fetch
+    //!        descriptor (opcode `0x30000001`).
     //!
-    //! \details `type` selects the synthetic-waveform variant
-    //! (`PlayDummyType` enum); valid values are `0` and `1`.
-    //! Any other value raises `ResourcesException(ValueOverflow,
-    //! "wvfs")`.  The chosen length register is the *higher*
-    //! of `reg` and `R0` so callers may pass `R0` to mean
-    //! "no register".  Delegates to `impl_`.
+    //! \details `type` is a `PlayDummyType` selector that
+    //! occupies a 1-bit slot; valid values are `0` and `1`,
+    //! anything else raises `ResourcesException(ValueOverflow,
+    //! "wvfs")`.  The remaining bits hold a 20-bit offset.
+    //! The chosen length register is the higher of `reg` and
+    //! `R0` so callers may pass `R0` to mean "no register".
+    //! Emitted by `Prefetch::wvfs` to install the
+    //! prefetch-descriptor pair (`addi` + `wvfs`) that
+    //! precedes a waveform-fetch.
+    //!
+    //! \binarynote Hirzel-only.  Cervino's
+    //! `AsmCommandsImplCervino::wvfs` throws
+    //! `ResourcesException(UnsupportedOp, "wvfs")`.
     AsmList::Asm wvfs(Assembler::PlayDummyType type, AsmRegister reg, int length) const;
-    //! \brief Emit `WVFT` (play waveform from table by
-    //!        register, with explicit length).  Delegates
-    //!        to `impl_`.
+    //! \brief Emit `WVFT` — execute a waveform-table entry
+    //!        (Hirzel extended-opcode `WVFET` = `0xFC000000`).
+    //!
+    //! \details Single-register form: `reg` carries the
+    //! table-entry index, `length` the immediate.  Emitted
+    //! by `playWaveDIO`, `playZSync`, and `executeTableEntry`
+    //! to dispatch a precomposed table entry.
+    //!
+    //! \binarynote Hirzel-only.  Cervino's
+    //! `AsmCommandsImplCervino::wvft` throws
+    //! `ResourcesException(UnsupportedOp, "wvft")`.
     AsmList::Asm wvft(AsmRegister reg, int length) const;
-    //! \brief Emit `CWVF` (configure waveform; immediate
-    //!        encoded play-config word).
+    //! \brief Emit `CWVF` — **configure waveform**, immediate
+    //!        form (opcode `0xF2000000`).
+    //!
+    //! \details Writes the PlayConfig register (rate,
+    //! suppress flag, marker bits, channel mask) packed by
+    //! `PlayConfig::encodeCwvf()` into the 24-bit
+    //! immediate.  When the packed value would not fit, the
+    //! caller falls back to the register-operand spillover
+    //! form `cwvfr`.
     AsmList::Asm cwvf(int value) const;
-    //! \brief Emit `CWVFR` (configure waveform from
-    //!        register-supplied play-config word).
+    //! \brief Emit `CWVFR` — configure waveform from
+    //!        register-supplied PlayConfig word
+    //!        (opcode `0xF9000000`).
+    //!
+    //! \details Spillover form of `cwvf` for packed
+    //! PlayConfig values that exceed the 24-bit immediate
+    //! capacity.
+    //!
+    //! \binarynote Hirzel-only — gated by
+    //! `impl_->isCWVFRSupported()`.  This same flag also
+    //! gates marker-bit computation in `genPlayConfig` and
+    //! the Hirzel-only `wvfs` / `wvft` / `wwvfq` factories.
     AsmList::Asm cwvfr(AsmRegister reg) const;
 
     // =====================================================================
     // Branch
     // =====================================================================
 
-    //! \brief Emit unconditional branch — encoded as a
-    //!        `BRZ R0, label` (always-true branch on `R0`).
+    //! \brief Emit an unconditional branch to `label`.
+    //!
+    //! \details Encoded as `BRZ R0, label` (branch on a
+    //! register that is always zero).  On Hirzel this falls
+    //! through `AsmCommandsImplHirzel::brz`'s `reg == R0`
+    //! branch and produces the dedicated `JMP` opcode
+    //! `0xFE000000` instead of `BRZ`'s `0xF3000000`; on
+    //! Cervino the branch remains a `BRZ` carrying `R0`.
     //!
     //! \param label  Target label name (resolved at link).
     //! \param noOpt  When `true`, mark the branch as
     //!               non-optimisable so later passes preserve
     //!               it verbatim.
     AsmList::Asm br(const std::string& label, bool noOpt) const;
-    //! \brief Emit `BRZ` (branch if `reg == 0`).
+    //! \brief Emit `BRZ` — branch if `reg == 0`
+    //!        (opcode `0xF3000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "brz")` on
-    //! failure.  Device-specific encoding via `impl_`.
+    //! failure.  Device-specific encoding via `impl_` (Hirzel
+    //! diverts the `reg == R0` case to `JMP`; see `br`).
     AsmList::Asm brz(AsmRegister reg, const std::string& label, bool noOpt) const;
-    //! \brief Emit `BRNZ` (branch if `reg != 0`).
+    //! \brief Emit `BRNZ` — branch if `reg != 0`
+    //!        (opcode `0xF4000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "brnz")` on
-    //! failure.  Encoded directly (not via `impl_`).
+    //! failure.  Encoded directly (not via `impl_`) — same
+    //! encoding on both device families.
     AsmList::Asm brnz(AsmRegister reg, const std::string& label, bool noOpt) const;
-    //! \brief Emit `BRGZ` (branch if `reg > 0`,
-    //!        opcode `0xF5000000`).
+    //! \brief Emit `BRGZ` — branch if `reg > 0`
+    //!        (opcode `0xF5000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "brgz")` on
@@ -181,63 +254,103 @@ public:
 
     //! \brief Emit a generic ALU register-register
     //!        instruction (`ADDR`, `SUBR`, `ANDR`, `ORR`,
-    //!        `XNORR`, …).
+    //!        `XNORR`, `XORR`).
     //!
-    //! \details Validates both `dst` and `src`; raises
+    //! \details The `r` suffix on these mnemonics means
+    //! "**r**egister operand" (3-register form, `dst = dst OP
+    //! src`).  Opcodes share the `0x60000000` base with the
+    //! low nibble selecting the operation: `ADDR=0x..00`,
+    //! `SUBR=0x..01`, `ANDR=0x..02`, `ORR=0x..03`,
+    //! `XNORR=0x..04`, `XORR=0x..07`.  Validates both `dst`
+    //! and `src`; raises
     //! `ResourcesException(InvalidRegister,
     //! commandToString(cmd))` on failure.  The named
     //! convenience wrappers below dispatch through this
     //! function.
     AsmList::Asm alur(Assembler::Command cmd, AsmRegister dst, AsmRegister src) const;
-    //! \brief `dst += src`. Convenience for `alur(ADDR, …)`.
+    //! \brief `dst += src` — opcode `0x60000000`.
+    //!        Convenience for `alur(ADDR, …)`.
     AsmList::Asm addr(AsmRegister dst, AsmRegister src) const;
-    //! \brief `dst -= src`. Convenience for `alur(SUBR, …)`.
+    //! \brief `dst -= src` — opcode `0x60000001`.
+    //!        Convenience for `alur(SUBR, …)`.
     AsmList::Asm subr(AsmRegister dst, AsmRegister src) const;
-    //! \brief `dst &= src`. Convenience for `alur(ANDR, …)`.
+    //! \brief `dst &= src` — opcode `0x60000002`.
+    //!        Convenience for `alur(ANDR, …)`.
     AsmList::Asm andr(AsmRegister dst, AsmRegister src) const;
-    //! \brief `dst |= src`. Convenience for `alur(ORR, …)`.
+    //! \brief `dst |= src` — opcode `0x60000003`.
+    //!        Convenience for `alur(ORR, …)`.
     AsmList::Asm orr(AsmRegister dst, AsmRegister src) const;
-    //! \brief `dst = ~(dst ^ src)`. Convenience for
-    //!        `alur(XNORR, …)`.
+    //! \brief `dst = ~(dst ^ src)` — opcode `0x60000004`.
+    //!        Convenience for `alur(XNORR, …)`.
     AsmList::Asm xnorr(AsmRegister dst, AsmRegister src) const;
 
     // =====================================================================
     // Shift (delegates to impl_)
     // =====================================================================
 
-    //! \brief Emit `SSL` (shift register `reg` single-bit
-    //!        left).  Delegates to `impl_`; raises
-    //!        `ResourcesException(InvalidRegister, "ssl")`
-    //!        on register validation failure.
+    //! \brief Emit `SSL` — single-bit shift left of `reg`
+    //!        (opcode `0x60000005`).
+    //!
+    //! \details No count operand: shift amount is fixed at
+    //! 1.  Encoding differs by family — Cervino places `reg`
+    //! in both the destination and source slots; Hirzel
+    //! places `reg` in the destination and `R0` in the
+    //! source.  Used by prefetch address arithmetic
+    //! (`Prefetch::wvfRegImpl`, `prefetch_splitplay`,
+    //! `prefetch_placesingle`) between `addi` and
+    //! `wvf`/`wvfi`.  Delegates to `impl_`; raises
+    //! `ResourcesException(InvalidRegister, "ssl")` on
+    //! register validation failure.
     AsmList::Asm ssl(AsmRegister reg) const;
-    //! \brief Emit `SSR` (shift register `reg` single-bit
-    //!        right).  Delegates to `impl_`; raises
-    //!        `ResourcesException(InvalidRegister, "ssr")`
-    //!        on register validation failure.
+    //! \brief Emit `SSR` — single-bit shift right of `reg`
+    //!        (opcode `0x60000006`).
+    //!
+    //! \details Same encoding-pattern split as `ssl` (Cervino
+    //! reg-in-both-slots vs Hirzel reg/R0).  Delegates to
+    //! `impl_`; raises
+    //! `ResourcesException(InvalidRegister, "ssr")` on
+    //! register validation failure.
     AsmList::Asm ssr(AsmRegister reg) const;
 
     // =====================================================================
-    // ALU immediate-unsigned (single instruction)
+    // ALU immediate, upper word (single instruction)
     // =====================================================================
 
-    //! \brief Emit a generic single-instruction
-    //!        immediate-unsigned ALU op (`ADDIU`, `ANDIU`,
-    //!        `ORIU`, `XNORIU`).
+    //! \brief Emit a generic immediate-upper-word ALU op
+    //!        (`ADDIU`, `ANDIU`, `ORIU`, `XNORIU`).
     //!
-    //! \details The 20-bit unsigned `imm` is stored as an
-    //! `outputs` immediate (not the `immediates` slot).
-    //! Validates `dst`/`src`; raises
+    //! \details The `u` suffix means "**u**pper word", **not**
+    //! "unsigned": the 12-bit immediate is implicitly shifted
+    //! left by 12 before being applied.  These mnemonics are
+    //! chained after the matching `i`-suffix low-bits form
+    //! to encode wide constants — `addi` followed by `addiu`
+    //! reconstructs a 24-bit immediate split across the
+    //! low 12 bits and the upper word.  Opcode bases:
+    //! `ADDIU=0x50000000`, `ANDIU=0x80000000`,
+    //! `ORIU=0xA0000000`, `XNORIU=0xC0000000`.
+    //!
+    //! `imm` is stored as an `outputs` immediate (not the
+    //! `immediates` slot).  Validates `dst`/`src`; raises
     //! `ResourcesException(InvalidRegister, commandToString(cmd))`
     //! on failure.
     AsmList::Asm aluiu(Assembler::Command cmd, AsmRegister dst,
                    AsmRegister src, Immediate imm) const;
-    //! \brief `dst = src + imm` (unsigned 20-bit immediate).
+    //! \brief `dst = src + (imm << 12)` — opcode
+    //!        `0x50000000`.  Upper-word complement to
+    //!        `addi`; chain after `addi` to encode wide
+    //!        immediates.
     AsmList::Asm addiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    //! \brief `dst = src & imm` (unsigned 20-bit immediate).
+    //! \brief `dst = src & (imm << 12)` — opcode
+    //!        `0x80000000`.  Upper-word complement to
+    //!        `andi`.
     AsmList::Asm andiu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    //! \brief `dst = src | imm` (unsigned 20-bit immediate).
+    //! \brief `dst = src | (imm << 12)` — opcode
+    //!        `0xA0000000`.  Upper-word complement to
+    //!        `ori`.
     AsmList::Asm oriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
-    //! \brief `dst = ~(src ^ imm)` (unsigned 20-bit immediate).
+    //! \brief `dst = ~(src ^ (imm << 12))` — opcode
+    //!        `0xC0000000`.  Upper-word complement to
+    //!        `xnori`.
     AsmList::Asm xnoriu(AsmRegister dst, AsmRegister src, Immediate imm) const;
 
     // =====================================================================
@@ -247,11 +360,18 @@ public:
     //! \brief Emit a signed-immediate ALU op
     //!        (`ADDI`/`ANDI`/`ORI`/`XNORI`), expanding to
     //!        multiple instructions when `imm` does not fit
-    //!        the 19-bit signed immediate field.
+    //!        the signed low-12-bit immediate field.
     //!
-    //! \details For an immediate in the
-    //! `[-2^18, 2^18 - 1]` range, emits a single instruction
-    //! with `imm` in the outputs slot.  Otherwise:
+    //! \details The `i` suffix means "**i**mmediate operand"
+    //! and addresses the low 12 bits of the constant; wide
+    //! values are extended with the matching `iu` upper-word
+    //! form.  Opcode bases: `ADDI=0x40000000`,
+    //! `ANDI=0x70000000`, `ORI=0x90000000`,
+    //! `XNORI=0xB0000000`.
+    //!
+    //! For an immediate in the `[-2^18, 2^18 - 1]` range,
+    //! emits a single instruction with `imm` in the outputs
+    //! slot.  Otherwise:
     //! - `ADDI` is split into `ADDI dst, src, low12` followed
     //!   by `ADDIU dst, dst, upper>>12`.
     //! - `ANDI` / `ORI` / `XNORI` first load the constant
@@ -345,79 +465,110 @@ public:
     // Load / Store
     // =====================================================================
 
-    //! \brief Emit `LD reg, addr` (load from data-memory
-    //!        address `addr` into `reg`).
+    //! \brief Emit `LD reg, addr` — load from memory-mapped
+    //!        register `addr` into `reg`
+    //!        (opcode `0xD0000000`).
     //!
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "ld")` on
     //! failure.  `addr.value` is stored in the outputs slot.
+    //! See the special-register map for the meaning of
+    //! individual addresses (DIO `0x20`, trigger `0x22`,
+    //! ZSync `0x6A..0x6C`, PRNG `0x77`, …).
     AsmList::Asm ld(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    //! \brief Emit `ST reg, addr` (store `reg` to data-memory
-    //!        address `addr`).
+    //! \brief Emit `ST reg, addr` — store `reg` to
+    //!        memory-mapped register `addr`
+    //!        (opcode `0xF6000000`).
     //!
     //! \details Validates `reg`; raises
     //! `ResourcesException(InvalidRegister, "st")` on
-    //! failure.
+    //! failure.  `addr` carries an internal bounds check
+    //! against `DeviceConstants::memoryDepth`.
     AsmList::Asm st(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
-    //! \brief Load DIO bus value into `reg`.
+    //! \brief Read the DIO bus into `reg`.
     //!
-    //! \details Convenience for `ld(reg, kDioAddrLow)` or
-    //! `ld(reg, kDioAddrHigh)` selected by `highBank`.
-    //! Raises `ResourcesException(InvalidRegister, "ldio")`
-    //! on register validation failure.
+    //! \details Convenience wrapping `ld(reg, 0x20)` for the
+    //! low bank (`highBank == false`) or `ld(reg, 0x1FE)`
+    //! for the high bank (`highBank == true`).  The high
+    //! bank is only meaningful on SHFLI / VHFLI / GHFLI;
+    //! other devices alias both addresses or reject the high
+    //! bank at the caller layer.  Raises
+    //! `ResourcesException(InvalidRegister, "ldio")` on
+    //! register validation failure.
     AsmList::Asm ldio(AsmRegister reg, bool highBank) const;
     //! \brief Store `reg` to the DIO bus.
     //!
-    //! \details Convenience for `st(reg, kDioAddrLow)` or
-    //! `st(reg, kDioAddrHigh)` selected by `highBank`.
-    //! Raises `ResourcesException(InvalidRegister, "sdio")`
-    //! on register validation failure.
+    //! \details Convenience wrapping `st(reg, 0x20)` /
+    //! `st(reg, 0x1FE)` selected by `highBank` (see
+    //! `ldio`).  Raises
+    //! `ResourcesException(InvalidRegister, "sdio")` on
+    //! register validation failure.
     AsmList::Asm sdio(AsmRegister reg, bool highBank) const;
     //! \brief Load from the user-register address space.
     //!
     //! \details Same opcode as `ld`; the distinct mnemonic
     //! is preserved in the IR for diagnostic clarity but
-    //! emits the same `LD` instruction.  Raises
+    //! emits the same `LD` instruction.  Used for the
+    //! 0x000–0x3FF user-register page (`getUserReg`,
+    //! `getPRNGValue`, …).  Raises
     //! `ResourcesException(InvalidRegister, "luser")` on
     //! register validation failure.
     AsmList::Asm luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
     //! \brief Store to the user-register address space.
     //!
     //! \details Same opcode as `st`; see `luser` for the
-    //! aliasing rationale.  Raises
-    //! `ResourcesException(InvalidRegister, "suser")` on
-    //! register validation failure.
+    //! aliasing rationale.  Used for the 0x000–0x3FF user
+    //! page plus the named control registers in the 0x40+
+    //! range (sync, oscillator phase, PRNG, sweep, QA, …).
+    //! Raises `ResourcesException(InvalidRegister, "suser")`
+    //! on register validation failure.
     AsmList::Asm suser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
     // Trigger
     // =====================================================================
 
-    //! \brief Read the trigger register into `reg`
-    //!        (`ld(reg, kAddrTrigger)`).  Raises
-    //!        `ResourcesException(InvalidRegister, "ltrig")`
-    //!        on register validation failure.
-    AsmList::Asm ltrig(AsmRegister reg) const;
-    //! \brief Write `reg` to the trigger register
-    //!        (`st(reg, kAddrTrigger)`).  Raises
-    //!        `ResourcesException(InvalidRegister, "strig")`
-    //!        on register validation failure.
-    AsmList::Asm strig(AsmRegister reg) const;
-    //! \brief Write `reg` to the internal-trigger register
-    //!        (`st(reg, kAddrInternalTrig)`).  Raises
-    //!        `ResourcesException(InvalidRegister, "sinttrig")`
-    //!        on register validation failure.
-    AsmList::Asm sinttrig(AsmRegister reg) const;
-    //! \brief Emit `WTRIG r1, r2` (wait for trigger
-    //!        condition encoded across two registers).
+    //! \brief Read the trigger register into `reg` —
+    //!        `ld(reg, 0x22)`.
     //!
-    //! \details `r2` populates the source slot and `r1` the
-    //! aux slot.  Validates both; raises
+    //! \details Used by `getTrigger` / `getAnaTrigger` /
+    //! `getDigTrigger`.  Raises
+    //! `ResourcesException(InvalidRegister, "ltrig")` on
+    //! register validation failure.
+    AsmList::Asm ltrig(AsmRegister reg) const;
+    //! \brief Write `reg` to the trigger register —
+    //!        `st(reg, 0x22)`.
+    //!
+    //! \details Pre-SHFLI devices only; used by
+    //! `setTrigger`, `startQAResult`, `startQAMonitor`.
+    //! Raises `ResourcesException(InvalidRegister, "strig")`
+    //! on register validation failure.
+    AsmList::Asm strig(AsmRegister reg) const;
+    //! \brief Write `reg` to the internal-trigger register —
+    //!        `st(reg, 0x23)`.
+    //!
+    //! \details LI-family only; used by `setInternalTrigger`.
+    //! Raises `ResourcesException(InvalidRegister, "sinttrig")`
+    //! on register validation failure.
+    AsmList::Asm sinttrig(AsmRegister reg) const;
+    //! \brief Emit `WTRIG r1, r2` — wait for trigger
+    //!        condition (opcode `0xE0000000`).
+    //!
+    //! \details Three-register format: `r2` populates the
+    //! source slot and `r1` the aux slot.  The trigger value
+    //! is typically pre-loaded into a register via `addi`
+    //! before this barrier.  Validates both; raises
     //! `ResourcesException(InvalidRegister, "wtrig")` on
     //! failure.
     AsmList::Asm wtrig(AsmRegister r1, AsmRegister r2) const;
-    //! \brief Emit `WTRIGI value` (wait for trigger with
-    //!        immediate mask).
+    //! \brief Emit `WTRIGI value` — wait for trigger,
+    //!        immediate operand (opcode `0xFD000000`).
+    //!
+    //! \details The `i` suffix denotes the immediate-operand
+    //! variant; `value` occupies the low 5 bits of the
+    //! instruction word.  No current frontend factory emits
+    //! this — present for completeness with the assembler
+    //! parser.
     AsmList::Asm wtrigi(int value) const;
 
     // =====================================================================
@@ -425,47 +576,80 @@ public:
     // =====================================================================
 
     //! \brief Write `reg` to the device-id register
-    //!        (`st(reg, kIdAddrLow|kIdAddrHigh)` selected
-    //!        by `highBank`).  Raises
-    //!        `ResourcesException(InvalidRegister, "sid")`
-    //!        on register validation failure.
+    //!        (`st(reg, 0x21)` low bank or
+    //!        `st(reg, 0x1FF)` high bank, selected by
+    //!        `highBank`).
+    //!
+    //! \details Hirzel-only; high bank is reserved for
+    //! SHFLI / VHFLI / GHFLI.  Raises
+    //! `ResourcesException(InvalidRegister, "sid")` on
+    //! register validation failure.
     AsmList::Asm sid(AsmRegister reg, bool highBank) const;
-    //! \brief Emit a 3-instruction `smap` sequence
-    //!        (mapping-table write).
+    //! \brief Emit a 3-instruction `smap` sequence —
+    //!        command-table mapping write.
     //!
     //! \details Returns the concatenation of `alui(ADDI, r1,
     //! R0, value)` (which itself may be 1 or 2 instructions
     //! depending on the magnitude of `value`), followed by
-    //! `st(r1, 0x62)` and `st(r2, 0x63)`.  Validates `r1`
-    //! and `r2`; raises
+    //! `st(r1, 0x62)` (map key) and `st(r2, 0x63)` (map
+    //! value).  Validates `r1` and `r2`; raises
     //! `ResourcesException(InvalidRegister, "smap")` on
     //! failure.
-    std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int value) const;
-    //! \brief Emit a DIO-trigger load (`LDIOTRIG`).
-    //!        Device-specific encoding; delegates to
-    //!        `impl_`.
-    AsmList::Asm ldiotrig(AsmRegister reg) const;
-    //! \brief Emit `LCNT reg, addr` (load loop counter).
     //!
-    //! \details Adds `0x64` (100) to `addr.value` before
-    //! delegating to `ld`, placing the access into the
-    //! loop-counter bank that overlaps the upper register
-    //! address space.  Raises
-    //! `ResourcesException(InvalidRegister, "lcnt")` on
-    //! register validation failure.
+    //! \binarynote Address `0x62` is overloaded: it is the
+    //! `smap` map-key register on most devices, but UHFQA
+    //! reuses the same address for
+    //! `resetRTLoggerTimestamp()`.  The hardware
+    //! disambiguates by device.
+    std::vector<AsmList::Asm> smap(AsmRegister r1, AsmRegister r2, int value) const;
+    //! \brief Emit `LDIOTRIG` — load I/O trigger value into
+    //!        `reg`.
+    //!
+    //! \details Encoded as `LD reg, 0x60` on Cervino and
+    //! `LD reg, 0x68` on Hirzel — the I/O-trigger register
+    //! lives at different addresses in the two families.
+    //! Used by `getDIOTriggered`, `getZSyncData(RAW)`, and
+    //! `getFeedback(RAW)`.  Delegates to `impl_`.
+    AsmList::Asm ldiotrig(AsmRegister reg) const;
+    //! \brief Emit `LCNT reg, addr` — load HW loop counter
+    //!        (`ld(reg, 0x64 + addr.value)`).
+    //!
+    //! \details Adds the loop-counter base `0x64` to
+    //! `addr.value` before delegating to `ld`, placing the
+    //! access into the loop-counter bank `0x64..0x65`
+    //! (counter index 0 or 1).  Used by `getCnt(idx)`.
+    //!
+    //! \binarynote HDAWG-only.  No other device exposes
+    //! hardware loop counters at this register window.
+    //! Raises `ResourcesException(InvalidRegister, "lcnt")`
+    //! on register validation failure.
     AsmList::Asm lcnt(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
 
     // =====================================================================
     // Control flow / special
     // =====================================================================
 
-    //! \brief Emit `TRAP` (debugger trap / breakpoint).
+    //! \brief Emit `TRAP` — debugger trap / breakpoint
+    //!        (opcode `0xF7000000`, no operands).
+    //!
+    //! \details Emitted by the `play` validation paths in
+    //! `custom_functions_play.cpp` to abort the sequencer on
+    //! a runtime contract violation.
     AsmList::Asm trap() const;
-    //! \brief Emit `IRPT` (raise interrupt).
+    //! \brief Emit `IRPT` — raise interrupt
+    //!        (opcode `0xF8000000`, no operands).
+    //!
+    //! \details No current frontend factory emits this;
+    //! present for completeness with the assembler parser.
     AsmList::Asm irpt() const;
-    //! \brief Emit `END` (program terminator).
+    //! \brief Emit `END` — program terminator
+    //!        (opcode `0x00000000`, no operands).
     AsmList::Asm end() const;
-    //! \brief Emit `NOP` (no-operation; one cycle).
+    //! \brief Emit `NOP` — no-operation, one cycle
+    //!        (opcode `0x00000001`, no operands).
+    //!
+    //! \details Used by the wait family and the program
+    //! trailer in `compiler.cpp` for fixed-cycle padding.
     AsmList::Asm nop() const;
 
     // =====================================================================
@@ -478,13 +662,19 @@ public:
     //! \details Builds a 7- or 8-instruction sequence
     //! coordinating two scratch registers, the
     //! sync trigger mask `0x800000`, the per-core sync
-    //! mask `0x400000`, and the user-register banks
-    //! `0x44`/`0x45` so that every AWG core in a sync
-    //! group has reached the barrier before any continues.
-    //! `flag == true` selects the 8-instruction primary
-    //! path (uses `0x44`); `flag == false` selects the
-    //! 7-instruction shorter path (uses `0x45`).  The two
-    //! scratch registers `reg1`/`reg2` are clobbered.
+    //! mask `0x400000`, and the user-register banks at
+    //! addresses `0x44`/`0x45` so that every AWG core in a
+    //! sync group has reached the barrier before any
+    //! continues.  `flag == true` selects the
+    //! 8-instruction primary path (uses `0x44`); `flag ==
+    //! false` selects the 7-instruction shorter path (uses
+    //! `0x45`).  The two scratch registers `reg1`/`reg2` are
+    //! clobbered.
+    //!
+    //! \binarynote Cervino-only.  Hirzel devices use the
+    //! single-instruction `asmSyncHirzel` because their sync
+    //! protocol is implemented entirely in hardware once the
+    //! user-register write at `0x6E` occurs.
     //!
     //! \param reg1  First scratch register.
     //! \param reg2  Second scratch register.
@@ -493,8 +683,8 @@ public:
     //! \return  Multi-instruction sequence as an `AsmList`.
     AsmList syncCervino(AsmRegister reg1, AsmRegister reg2, bool flag) const;
     //! \brief Emit the 2-instruction Cervino unsync
-    //!        sequence (clears user registers `0x44` and
-    //!        `0x45`).
+    //!        sequence — clears user registers `0x44` and
+    //!        `0x45`.
     //!
     //! \return  Two `ST R0, 0x44` / `ST R0, 0x45` entries
     //!          packaged as an `AsmList`.
@@ -506,37 +696,52 @@ public:
     //!        barrier participants are known.
     AsmList::Asm asmSyncPlaceholderCervino() const;
     //! \brief Emit the single-instruction Hirzel-family
-    //!        synchronisation barrier.
+    //!        synchronisation barrier — `suser(R0, 0x6E)`.
     //!
-    //! \details Equivalent to `suser(R0, kSuserSyncHirzel)`;
-    //! Hirzel devices implement sync entirely in hardware
-    //! once the user-register write occurs, so the
-    //! multi-instruction Cervino sequence is unnecessary.
+    //! \details Hirzel devices implement sync entirely in
+    //! hardware once the user-register write at address
+    //! `0x6E` occurs, so the multi-instruction Cervino
+    //! sequence is unnecessary.
+    //!
+    //! \binarynote Hirzel-only counterpart of `syncCervino`.
     AsmList::Asm asmSyncHirzel() const;
 
     // =====================================================================
     // Pseudo-instructions / directives
     // =====================================================================
 
-    //! \brief Zero `reg` via `ADDI reg, R0, 0`.
+    //! \brief Zero `reg` via `ADDI reg, R0, 0` (opcode
+    //!        `0x40000000`).
     AsmList::Asm asmZero(AsmRegister reg) const;
-    //! \brief Set `reg` to `1` via `ADDI reg, R0, 1`.
+    //! \brief Set `reg` to `1` via `ADDI reg, R0, 1`
+    //!        (opcode `0x40000000`).
     AsmList::Asm asmOne(AsmRegister reg) const;
-    //! \brief Emit a `LABEL` directive carrying `label`.
+    //! \brief Emit a `LABEL` directive carrying `label`
+    //!        (pseudo-opcode `0x00000002`).
     //!
-    //! \details The entry's `wavetableFront` is forced to
-    //! `0` so labels do not inherit the surrounding
-    //! per-waveform context — they are global to the
-    //! `AsmList`.
+    //! \details Pure pseudo-instruction — `LABEL` is **not**
+    //! present in the `cmdMap` parser table; it never
+    //! produces a machine word.  The entry's
+    //! `wavetableFront` is forced to `0` so labels do not
+    //! inherit the surrounding per-waveform context — they
+    //! are global to the `AsmList`.
     AsmList::Asm asmLabel(const std::string& label) const;
-    //! \brief Emit a diagnostic `MESSAGE` (`isError == false`)
-    //!        or `ERROR` (`isError == true`) pseudo-instruction
-    //!        carrying a string payload.
+    //! \brief Emit a diagnostic `MESSAGE` (`isError ==
+    //!        false`, opcode `0x00000003`) or `ERROR_MSG`
+    //!        (`isError == true`, opcode `0x00000005`)
+    //!        pseudo-instruction carrying a string payload.
     //!
-    //! \details The opcode is `3` for messages and `5` for
-    //! errors; the message text is stored in the
+    //! \details The message text is stored in the
     //! `immediates` slot as an `Immediate(string)`.
-    //! `wavetableFront` is forced to `0`.
+    //! `wavetableFront` is forced to `0` so the diagnostic
+    //! is not bound to any per-waveform context.
+    //!
+    //! \binarynote These two opcodes are normally only
+    //! produced by the standalone `AWGAssemblerImpl` parsing
+    //! a hand-written `.asm` source — the SeqC compiler
+    //! frontend does not emit them.  They are consumed by
+    //! `AsmOptimize::reportUserMessages` and routed to the
+    //! warning / error callbacks.
     AsmList::Asm asmMessage(const std::string& msg, bool isError) const;
 
     // =====================================================================
@@ -687,15 +892,34 @@ public:
     // Misc
     // =====================================================================
 
-    //! \brief Emit a `WTRIG-LS` placeholder as a `ST R0,
-    //!        (value + 0x40)` write.
+    //! \brief Emit a `WTRIG-LS` placeholder as
+    //!        `ST R0, (value + 0x40)`.
     //!
-    //! \details The `+0x40` offset places the store in the
-    //! late-sync trigger bank.  The placeholder is later
-    //! patched by the trigger-resolution pass.
+    //! \details Encodes a wait-trigger as a store to address
+    //! `0x40 + N`, where `N` is resolved at compile time
+    //! from a resource constant such as
+    //! `AWG_MAP_TRIGGER_INDEX`, `AWG_ZSYNC_TRIGGER_INDEX`,
+    //! `AWG_DIG_TRIGGER{1,2}_INDEX`, etc.  Used by
+    //! `waitDIOTrigger`, `waitZSyncTrigger`,
+    //! `waitDigTrigger(idx)`, `waitCntTrigger(idx)`,
+    //! `waitOnGrid`, and `waitSineOscPhase(osc)`.
     AsmList::Asm asmWtrigLSPlaceholder(int value);
-    //! \brief Emit `FB value` (feedback / future-broadcast
-    //!        immediate instruction).
+    //! \brief Emit `FB value` — configure feedback
+    //!        processing pipeline (opcode `0xFF000000`).
+    //!
+    //! \details `value` is the 23-bit packed immediate
+    //! produced by `configureFeedbackProcessing(source,
+    //! shift, numBits, threshold)` in `custom_functions_io.cpp`.
+    //! Bit layout: `mode` (2 bits at 22:21, derived from
+    //! `source`), `shift` (5 bits at 20:16), `numBits − 1`
+    //! (4 bits at 15:12, encoded as `((numBits << 12) +
+    //! 0xf000) & 0xffff`), and `threshold` (12 bits at
+    //! 11:0).
+    //!
+    //! \binarynote Hirzel-only.  Only the processed feedback
+    //! channels are valid sources — `ZSYNC_DATA_RAW` /
+    //! `QA_DATA_RAW` are accepted by `getFeedback()` but
+    //! rejected here.
     AsmList::Asm fb(int value) const;
 
     // Setter for the dual-purpose wavetable-front / source-line index at
