@@ -379,12 +379,16 @@ public:
     explicit DeviceOptionSetConstIterator(underlying_iterator it);
 
     //! \brief Yields the `DeviceOption` at the current position.
+    //! \return The option value at the iterator's current position.
     DeviceOption dereference() const;
     //! \brief Advances to the next `DeviceOption` in alphabetical
     //! name order.
     void increment();
     //! \brief Returns true when both iterators refer to the same
     //! position in the same underlying map.
+    //! \param other Iterator to compare against.
+    //! \return `true` when both iterators refer to the same position
+    //!         in the same underlying map; `false` otherwise.
     bool equal(DeviceOptionSetConstIterator const& other) const;
 
     DeviceOption operator*() const { return dereference(); }
@@ -434,9 +438,12 @@ public:
     using const_iterator = DeviceOptionSetConstIterator;
 
     //! \brief Constructs an empty option set bound to the given family.
+    //! \param family Device family the set is bound to.
     explicit DeviceOptionSet(DeviceFamily family);                       // @ 0x2cf970
     //! \brief Constructs an option set pre-populated with `options`,
     //! bound to the given family.
+    //! \param options Initial options to insert.
+    //! \param family  Device family the set is bound to.
     DeviceOptionSet(std::initializer_list<DeviceOption> const& options,
                     DeviceFamily family);                                // @ 0x2cf9a0
 
@@ -448,24 +455,32 @@ public:
 
     //! \brief Returns an iterator to the first option in alphabetical
     //! name order (per the family-scoped names from `toString`).
+    //! \return Iterator positioned at the first option.
     const_iterator begin() const;       // @ 0x2cfb60
     //! \brief Returns the past-the-end iterator.
+    //! \return Iterator one past the last option.
     const_iterator end() const;         // @ 0x2cfb70
 
     //! \brief O(1) membership test against the underlying
     //! `unordered_set<DeviceOption>`.
+    //! \param opt Option to test for membership.
+    //! \return `true` when `opt` is present; `false` otherwise.
     bool contains(DeviceOption opt) const;  // @ 0x2cfb80
     //! \brief Returns true if the set contains no options.
+    //! \return `true` when the set is empty; `false` otherwise.
     bool empty() const;                     // @ 0x2cfcc0
     //! \brief Returns the number of options in the set.
+    //! \return Count of options currently held.
     std::size_t size() const;               // @ 0x2cfcd0
     //! \brief Returns the family this set was bound to at construction.
+    //! \return The bound device family.
     DeviceFamily family() const;            // @ 0x2cfce0
 
     //! \brief Inserts `opt` into both the value-set and the
     //! name-keyed map.  The name used as the map key is
     //! `toString(opt, family())`, so the set's iteration order
     //! depends on the bound family.
+    //! \param opt Option to insert.
     void insert(DeviceOption opt);          // @ 0x2cfcf0
 
     friend bool operator==(DeviceOptionSet const& a, DeviceOptionSet const& b);
@@ -509,14 +524,21 @@ public:
     DeviceTypeImpl();                                              // @ 0x2d3060
     //! \brief Constructs with an explicit code/family pair and an
     //! empty option set bound to `family`.
+    //! \param code   Device-model code.
+    //! \param family Device family.
     DeviceTypeImpl(DeviceTypeCode code, DeviceFamily family);      // @ 0x2d3090
     //! \brief Constructs with an explicit code/family pair and an
     //! existing option set (moved into the implementation).
+    //! \param code    Device-model code.
+    //! \param family  Device family.
+    //! \param options Option set to move into this implementation.
     DeviceTypeImpl(DeviceTypeCode code, DeviceFamily family,
                    DeviceOptionSet options);                       // @ 0x2d30b0
     //! \brief Tuple-unpacking constructor used internally by
     //! `GenericDeviceType` to forward parsed `(code, family,
     //! options)` triples through a single argument.
+    //! \param args Tuple holding the code, family, and option set
+    //!             to install.
     // Tuple-taking ctor used by the GenericDeviceType ctor (and by it
     // alone, as far as the binary shows). Unpacks the std::tuple by
     // moving its DeviceOptionSet into options_. The first 8 bytes of
@@ -529,18 +551,26 @@ public:
     //! \brief Polymorphic deep copy used by `DeviceType`'s copy
     //! constructor and assignment to preserve the dynamic subclass
     //! identity.
+    //! \return Newly-allocated copy whose dynamic type matches the
+    //!         most-derived subclass.
     virtual DeviceTypeImpl* clone() const;  // vtable[0]; impl @ 0x2d3280
                                             // (doClone in mangled name).
 
     //! \brief Returns the broad product family this implementation
     //! belongs to.
+    //! \return The bound device family.
     DeviceFamily   family() const;          // @ 0x2d32e0
     //! \brief Returns the specific device-model code.
+    //! \return The device-model code.
     DeviceTypeCode code() const;            // @ 0x2d32f0
     //! \brief Returns true if `opt` is in the implementation's
     //! option set; delegates to `DeviceOptionSet::contains`.
+    //! \param opt Option to test for.
+    //! \return `true` when `opt` is present in the option set;
+    //!         `false` otherwise.
     bool           hasOption(DeviceOption opt) const;  // @ 0x2d3300
     //! \brief Returns the installed-options set.
+    //! \return Reference to the implementation's option set.
     DeviceOptionSet const& options() const; // @ 0x2d3310
 
 protected:
@@ -665,49 +695,69 @@ public:
     DeviceType();                                                   // @ 0x2d2900
     //! \brief Constructs the canonical default device for `family`
     //! via the family's factory (no options).
+    //! \param family Device family to instantiate.
     DeviceType(DeviceFamily family);                                // @ 0x2d2930
     //! \brief Constructs the canonical default device for `family`
     //! with the given raw options bitmask, mapped through the
     //! family's `initializeSfcOptions` table.
+    //! \param family  Device family to instantiate.
+    //! \param options Raw per-family options bitmask.
     DeviceType(DeviceFamily family, unsigned long options);          // @ 0x2d2990
     //! \brief Constructs from an explicit `(code, family)` pair with
     //! no options.
+    //! \param code   Device-model code.
+    //! \param family Device family.
     DeviceType(DeviceTypeCode code, DeviceFamily family);           // @ 0x2d2960
     //! \brief Constructs a generic device-type from a runtime
     //! device-type name and a pre-split list of option strings.
     //! Unknown option names are silently dropped.  Implemented via
     //! `detail::GenericDeviceType`.
+    //! \param deviceType Device-type name string.
+    //! \param options    Per-option name strings.
     DeviceType(std::string const& deviceType,
                std::vector<std::string> const& options);            // @ 0x2d2ae0
     //! \brief Convenience overload: splits `options` on newlines via
     //! `splitDeviceOptions()` and forwards to the
     //! `(string, vector<string>)` constructor.
+    //! \param deviceType Device-type name string.
+    //! \param options    Newline-separated option-name string.
     DeviceType(std::string const& deviceType,
                std::string const& options);                         // @ 0x2d2a00
 
     //! \brief Deep-copies via the underlying `clone()`.
+    //! \param other Source instance to copy from.
     DeviceType(DeviceType const& other);                            // @ 0x2d2b40
     //! \brief Steals the impl pointer from `other`, leaving it null.
+    //! \param other Source instance to move from.
     DeviceType(DeviceType&& other) noexcept;                        // @ 0x2d2b50
     DeviceType& operator=(DeviceType const& other);
     DeviceType& operator=(DeviceType&& other) noexcept;
     ~DeviceType();                                                  // @ 0x2d2b70
 
     //! \brief Returns the specific device-model code.
+    //! \return The device-model code.
     DeviceTypeCode  code() const;                                   // @ 0x2d2c40
     //! \brief Returns the broad product family.
+    //! \return The bound device family.
     DeviceFamily    family() const;                                 // @ 0x2d2c30
     //! \brief Returns the installed-options set.
+    //! \return Reference to the device's option set.
     DeviceOptionSet const& options() const;                         // @ 0x2d2c60
     //! \brief Returns true if `opt` is in the installed-options set.
+    //! \param opt Option to test for.
+    //! \return `true` when `opt` is present; `false` otherwise.
     bool            hasOption(DeviceOption opt) const;              // @ 0x2d2c50
     //! \brief Returns true if any bit of this device's family is
     //! also set in `f`; multi-bit `f` values test for membership in
     //! any of the constituent families.
+    //! \param f Family bitmask to test against.
+    //! \return `true` when this device's family overlaps `f`;
+    //!         `false` otherwise.
     bool            belongsTo(DeviceFamily f) const;                // @ 0x2d2c70
     //! \brief Returns the raw pimpl pointer (non-owning) for
     //! subsystems that need to access the polymorphic identity
     //! directly.
+    //! \return Non-owning pointer to the underlying implementation.
     detail::DeviceTypeImpl* impl() const;                     // @ 0x2d2c20
     //! \brief Returns the device-type-code string only; options are
     //! NOT appended.  Use `getOptionsAsString()` for the options
@@ -716,10 +766,13 @@ public:
     //! this method does not stringify options — the binary
     //! intentionally splits the model name and the options into two
     //! separate calls.
+    //! \return Device-type-code name string.
     std::string     toString() const;                               // @ 0x2d2cb0
     //! \brief Writes `toString()` to `os`.
+    //! \param os Output stream to write to.
     void            print(std::ostream& os) const;                  // @ 0x2d2ce0
     //! \brief Swaps impl pointers with `other` in O(1).
+    //! \param other Instance to swap impl pointers with.
     void            swap(DeviceType& other);                        // @ 0x2d2d10
 
     friend bool operator==(DeviceType const& lhs, DeviceType const& rhs); // @ 0x2d2d30
