@@ -399,6 +399,45 @@ public:
      *  \param node  Subtree root to process; typically `root_`.
      */
     void definePlaySize(std::shared_ptr<Node> node);                   // 0x1ca370
+    /*! \brief Mark every reachable waveform that fits the device's
+     *  fixed-allocation budget as `WaveformIR::fixed_`, optionally
+     *  walking the parent chain to make the decision when the
+     *  immediate per-waveform cap is exceeded.
+     *
+     *  \details Stack-driven traversal of `root_` (LIFO via
+     *  `std::deque`).  For every `NodeType::Play` node visited:
+     *
+     *    1. Resolve the wave name at `deviceIndex` from `wavesPerDev`
+     *       and look up its `WaveformIR` via `wavetableIR_`.  Skip
+     *       when the wave is already `fixed_`.
+     *    2. Compute the per-allocation cap
+     *       `maxAlloc = devConst_->maxBlocks * waveformAlignment` and
+     *       compare it against `WaveformIR::allocationByteSize`.
+     *    3. When the wave fits, mark it `fixed_ = true`.
+     *    4. When the wave does not fit and this is the very first
+     *       processed play, still mark it `fixed_ = true` (the first
+     *       play is treated as a forced anchor).  On any subsequent
+     *       oversized play, walk `parent.lock()` upwards looking for
+     *       another `Play`, `Loop`, or `Branch` ancestor:
+     *         - For a `Play` ancestor, recompute its byte footprint
+     *           from `bitsPerSample * length` and compare against
+     *           `sineNodeBase * waveformAlignment`; stop the walk
+     *           when this cap is exceeded.  When the ancestor's
+     *           own wave is *not* yet `fixed_`, mark the *current*
+     *           wave `fixed_` and stop.  When the ancestor *is*
+     *           already `fixed_`, keep walking upwards.
+     *         - For a `Loop` or `Branch` ancestor, mark the current
+     *           wave `fixed_` and stop.
+     *
+     *  After processing the play (or for non-`Play` nodes), the
+     *  traversal pushes `node->next`, plus either `node->loop` (for
+     *  `Loop`) or every entry of `node->branches` (for `Branch`),
+     *  onto the worklist.
+     *
+     *  Called by `Compiler::runPrefetcher` only when the device's
+     *  cache type is `1`; the resulting `fixed_` flags subsequently
+     *  steer `placeLoads` and the cache allocator.
+     */
     void determineFixedWaves();                                        // 0x1cb200
     /*! \brief Decide where each waveform load is emitted in the
      *  scheduled tree, optionally splitting the program when the
@@ -435,8 +474,80 @@ public:
      *  watermark exceeds `DeviceConstants::waveformMemorySize`.
      */
     void placeLoads();                                                 // 0x1cbf60
+    /*! \brief Compute the largest per-device waveform-memory address
+     *  reached after subtracting the device's base address, used by
+     *  `placeLoads` to decide whether SHFSG / SHFQC_SG programs fit.
+     *
+     *  \details Iterates `getUsedWavesForDevice(devIdx)` for either
+     *  every channel group (when `numChannelGroups >= 2` and
+     *  `deviceType == HDAWG`) or just `config_->deviceIndex`
+     *  otherwise.  For each waveform:
+     *
+     *  - When `signal.length_ != 0`, round it up to
+     *    `DeviceConstants::grainSize` and clamp the result *down* to
+     *    `maxWaveformLength` (`min(rounded, maxWaveformLength)`).
+     *  - Otherwise the page count is zero.
+     *  - Multiply by `signal.channels_` and `bitsPerSample`, divide
+     *    by 8 rounding up.
+     *  - Subtract `config_->addressImpl` from `WaveformIR::addressValue`
+     *    and add the byte count to give a per-waveform "net memory"
+     *    figure.
+     *
+     *  Returns the maximum of those net figures across all waveforms
+     *  on all visited devices.
+     *
+     *  \return Largest net waveform-memory address (in bytes) reached
+     *          across all visited devices and their waveforms.
+     */
     size_t getMemoryHighWatermark() const;                             // 0x1cc650
+    /*! \brief Compute the per-device sum of waveform-memory bytes
+     *  required and return the maximum across devices.
+     *
+     *  \details Same per-device iteration scheme as
+     *  `getMemoryHighWatermark`, but per-waveform the operation is
+     *  reversed in two places:
+     *
+     *  - The page count uses `max(rounded, maxWaveformLength)`
+     *    instead of `min` (waveforms below the per-device floor are
+     *    inflated to the floor for accounting purposes).
+     *  - Per-waveform byte counts are *summed* within a device
+     *    rather than max-reduced, and `addressValue` /
+     *    `config_->addressImpl` are not subtracted.
+     *
+     *  Returns the maximum of those per-device sums.  Used by
+     *  `placeLoads` to decide whether a single-shot run fits in
+     *  cache or needs splitting.
+     *
+     *  \return Largest per-device sum of waveform-memory bytes.
+     */
     size_t getRequiredMemory() const;                                  // 0x1cc930
+    /*! \brief Hoist a freshly-synthesised `Load` node ahead of every
+     *  waveform on the current device that needs loading, splicing it
+     *  into the existing node chain.
+     *
+     *  \details Returns `node` unchanged when `node` is null or has
+     *  no `next` sibling, or when
+     *  `getUsedWavesForDevice(config_->deviceIndex)` is empty.
+     *
+     *  Otherwise iterates the result of `getUsedWavesForDevice` and,
+     *  for each `WaveformIR` whose `markedForLoad` flag is set,
+     *  constructs a new `Node(NodeType::Load, node->asmId,
+     *  config_->numChannelGroups)`, copies the wave name into the
+     *  new node's `wavesPerDev[deviceIndex]` slot, sets
+     *  `deviceIndex`, reserves a register through
+     *  `Resources::getRegisterNumber()` and emplaces a corresponding
+     *  `PrefetcherNodeState` (storing the register in
+     *  `registerHirzel` or `registerCervino` depending on
+     *  `config_->isHirzel`), then walks the original tree to wire
+     *  every matching `Play` to the new load and splice it into
+     *  place via `Node::updateParent`.
+     *
+     *  \param node  The current head of the chain to hoist loads
+     *               in front of.
+     *  \return      The (possibly updated) head of the chain — when
+     *               loads were inserted, the first inserted load
+     *               becomes the new head.
+     */
     std::shared_ptr<Node> moveLoadsToFront(std::shared_ptr<Node> node); // 0x1ccad0
     void optimize(std::shared_ptr<Node> node);                         // 0x1cdae0
     void optimizeSync(std::shared_ptr<Node> node);                     // 0x1cf7b0

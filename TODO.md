@@ -150,6 +150,13 @@ cross-reference pages so the backlog is discoverable.
         left open for a separate Lock-using-test investigation.
         AGENTS.md gained a new "Verify-then-write: code is the
         source of truth" section formalising the workflow.
+  - [x] **D4 Batch 2b** — `Prefetch::determineFixedWaves`,
+        `getMemoryHighWatermark`, `getRequiredMemory`,
+        `moveLoadsToFront` (4 methods).  Bodies verified directly;
+        confirmed `getMemoryHighWatermark` clamps page count *down*
+        to `maxWaveformLength` (`min`) while `getRequiredMemory`
+        clamps *up* to the same field (`max`) — opposite operations
+        on the same `DeviceConstants` field.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
