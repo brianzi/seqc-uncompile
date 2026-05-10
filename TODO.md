@@ -391,9 +391,46 @@ cross-reference pages so the backlog is discoverable.
         lowering dtors: `FrontendLoweringContext::~` and
         `FrontendLoweringState::~`.  D4 Batch 3 (Wavetable
         namespace + frontend-lowering structs) closes here:
-        59 briefs across 5 commits + 1 latent bug fix
-        (IF-227).  1600/1600 tests, build clean, 0 doxygen
-        warnings.
+         59 briefs across 5 commits + 1 latent bug fix
+         (IF-227).  1600/1600 tests, build clean, 0 doxygen
+         warnings.
+  - [x] **D4 Batch 4** — `CustomFunctions` class, complete
+        coverage across 8 sub-batches:
+        - **4a** (`e8a2600`): 22 briefs — periphery
+          (`NodeMap`, exception classes, `PlayArgs`, free
+          helpers).
+        - **4b** (`03ebeea`): 28 briefs — ctor/dtor +
+          dispatch / utilities (`call`, `checkFunctionSupported`,
+          `checkExternalTriggeringMode`, `lookupNode`,
+          `addNodeAccess`, etc.).
+        - **4c** (`a3c6af5`): 5 briefs — DIO/ZSync built-ins.
+        - **4d** (`0f91745`): 6 briefs — play-family thin
+          wrappers.
+        - **4e** (`3ebf2e3`): 10 briefs — `setID`,
+          `assignWaveIndex`, `prefetch`, `prefetchIndexed`,
+          `playAuxWave`, `playDIOWave`, `playWaveDIO`,
+          `playWaveZSync`, `playZero`, `playHold`; surfaced
+          IF-228 (pervasive integer-literal magic numbers,
+          cosmetic-only).
+        - **4f** (`bafa9a9`): 8 briefs — `waitWave`,
+          `waitPlayQueueEmpty`, `sync`, `randomSeed`, `now`,
+          `error`, `info`, `setRate`; corrected mask-label
+          drift (`HDAWG | UHFAWG` → real masks; UHFAWG is not
+          an enumerator).
+        - **4g** (`fbc7f4a`): 16 briefs — every built-in in
+          `custom_functions_wait.cpp`.
+        - **4h** (`5821661`): 31 briefs — every built-in in
+          `custom_functions_registers.cpp` (`setTrigger`,
+          `getTrigger`, trigger family, `setInt`/`setDouble`,
+          `generate`, user-reg family, `setPrecompClear`,
+          `setWaveDIO`, `at`, `lock`/`unlock`, `getCnt`, QA
+          family, `executeTableEntry`, PRNG family, `startQA`,
+          `resetRTLoggerTimestamp`, sweep family,
+          `configureFeedbackProcessing`).
+        Header is now fully documented (0 undocumented
+        `EvalResults`-returning declarations; 0 doxygen
+        warnings with `WARN_IF_UNDOCUMENTED=YES`).
+        1600/1600 tests passing throughout.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
