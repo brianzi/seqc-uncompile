@@ -184,6 +184,7 @@ AwgDeviceProps buildAwgDeviceProps(AwgDeviceType        type,
 //   maxSamples = r14d ? 0x80000000 : 0x10000000
 // ----------------------------------------------------------------------------
 
+//! \brief AWG device properties for the UHFLI family.
 // 0x2cc900
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const& /*dt*/) {
@@ -192,6 +193,9 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const& /*dt*/)
         0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the HDAWG family; selects the
+//! larger ELF-size limit when the Memory Extension (ME) device option
+//! is present.
 // 0x2ccb80
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const& dt) {
@@ -204,6 +208,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const& dt) {
         maxElfSize, 0x80000000u, 1u, true, kSlaveRevisionPattern);
 }
 
+//! \brief AWG device properties for the UHFQA family.
 // 0x2cc5f0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const& /*dt*/) {
@@ -212,6 +217,8 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const& /*dt*/)
         0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the SHFQA family (and the SHFQC
+//! when its QA generator is selected).
 // 0x2cce30
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const& /*dt*/) {
@@ -220,6 +227,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 2u, false, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the SHFSG family.
 // 0x2cd0c0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const& /*dt*/) {
@@ -228,6 +236,8 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the SHFQC when its SG sequencer
+//! is selected.
 // 0x2cd350
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const& /*dt*/) {
@@ -236,6 +246,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const& /*dt
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the SHFLI family.
 // 0x2cd5e0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const& /*dt*/) {
@@ -244,6 +255,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the GHFLI family.
 // 0x2cdb00
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const& /*dt*/) {
@@ -252,6 +264,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
+//! \brief AWG device properties for the VHFLI family.
 // 0x2cd870
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/) {
@@ -297,6 +310,9 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/)
 //     mov   eax, 0x20         ; provisional: 32 (SHFQC_SG)
 //     cmovne eax, ecx         ; if not SG, take cl (0 or 8)
 // ----------------------------------------------------------------------------
+//! \brief Resolves a `(DeviceTypeCode, AwgSequencerType)` pair to the
+//! one-hot `AwgDeviceType` bit, or `AwgDeviceType(0)` when the
+//! combination is unsupported.
 AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq) {
     const int c = static_cast<int>(code);
     switch (c) {
@@ -344,6 +360,9 @@ AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq) {
 //   seq==2 -> 2-char "SG"    (0x4753   LE)  , size 2
 //   else   -> 7-char "unknown" (split LE writes), size 7
 // ----------------------------------------------------------------------------
+//! \brief Builds the diagnostic message used when `toAwgDeviceType`
+//! returns the no-match sentinel; format is
+//! `"Unsupported device or sequencer type (<device>, sequencer: <seq>)."`.
 std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
                                                     AwgSequencerType seq)
 {
@@ -365,6 +384,8 @@ std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
     return out;
 }
 
+//! \brief Renders an `AwgSequencerType` as `"auto"`, `"QA"`, `"SG"`,
+//! or `"unknown"` for out-of-range values.
 // toString(AwgSequencerType) @0x2cbce0
 std::string toString(AwgSequencerType seq) {
     switch (seq) {

@@ -178,6 +178,12 @@ struct ErrorCode {
     }
 };
 
+//! \brief Returns the sentinel `ErrorCode` used to tag exceptions that
+//!        were not constructed with an explicit code.
+//! \details The returned code carries the ZI API's "unspecified error"
+//! value `0x8000`.  Every `Exception` default- or message-only
+//! constructor seeds its `errorCode_` from this helper so that callers
+//! inspecting `code()` always see a well-defined value.
 // Sentinel value for the Exception default ctor (unknowns #91).
 // Binary calls make_error_code(ZIResult_enum) @0x2e4550 with value 0x8000.
 // The real implementation uses a custom ZiApiErrorCategory singleton at
@@ -367,6 +373,24 @@ private:
 //   - defaulted dtor
 // ----------------------------------------------------------------------------
 
+//! \brief Declares a concrete `Exception` subclass whose sole purpose
+//!        is type-identity-based dispatch in `catch` clauses.
+//!
+//! Each expansion produces a class derived from `Exception` with three
+//! members:
+//!   - a default constructor that forwards the stringified class name
+//!     as the message to `Exception(std::string)`;
+//!   - an explicit `std::string` constructor that forwards its argument
+//!     to `Exception(std::string)`;
+//!   - an `override` destructor.
+//!
+//! The subclass adds no fields and no behaviour beyond `Exception`; it
+//! differs from its siblings only in vtable identity, allowing callers
+//! to write `catch (ZIDeviceException&)` and similar.  The matching
+//! `ZHINST_DEFINE_EXCEPTION` in `exception.cpp` emits the out-of-line
+//! bodies.
+//!
+//! \param ClassName Identifier of the generated class.
 #define ZHINST_DECLARE_EXCEPTION(ClassName)                            \
     class ClassName : public Exception {                               \
     public:                                                            \
@@ -375,33 +399,73 @@ private:
         ~ClassName() override;                                         \
     }
 
+//! \name Concrete exception types
+//! \brief The 26 `Exception` subclasses thrown by the compiler and the
+//!        runtime, one per error category.
+//!
+//! Every entry is a `ZHINST_DECLARE_EXCEPTION` expansion: a class
+//! derived from `Exception` that adds no state and exists solely so
+//! that `catch` clauses can discriminate by type.  Per-class
+//! behaviour is identical and is described on
+//! `ZHINST_DECLARE_EXCEPTION`; the brief on each line names the error
+//! category the type represents.
+//! @{
+
 // Binary addresses: default ctor / string ctor
+//! Thrown for failures originating in the ZI API layer.
 ZHINST_DECLARE_EXCEPTION(ZIAPIException);                   // 0x2e58c0 / 0x2e5930
+//! Thrown for general I/O failures (file, stream, transport).
 ZHINST_DECLARE_EXCEPTION(ZIIOException);                    // 0x2e5a30 / 0x2e5aa0
+//! Thrown for device-level errors not covered by a more specific type.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceException);                // 0x2e5c90 / 0x2e5cf0
+//! Thrown for socket / network communication failures.
 ZHINST_DECLARE_EXCEPTION(ZISocketException);                // 0x2e5d60 / 0x2e5dc0
+//! Thrown when a buffer or counter overflows its capacity.
 ZHINST_DECLARE_EXCEPTION(ZIOverflowException);              // 0x2e5e30 / 0x2e5ea0
+//! Thrown when a buffer underruns or starves a consumer.
 ZHINST_DECLARE_EXCEPTION(ZIUnderrunException);              // 0x2e5f10 / 0x2e5f80
+//! Thrown when an operation does not complete within its time budget.
 ZHINST_DECLARE_EXCEPTION(ZITimeoutException);               // 0x2e5ff0 / 0x2e6060
+//! Thrown when a write is attempted on a read-only resource.
 ZHINST_DECLARE_EXCEPTION(ZIReadOnlyException);              // (none)  / 0x2e60d0
+//! Thrown when a read is attempted on a write-only resource.
 ZHINST_DECLARE_EXCEPTION(ZIWriteOnlyException);             // (none)  / 0x2e6190
+//! Thrown when a requested name, path, or entity does not exist.
 ZHINST_DECLARE_EXCEPTION(ZINotFoundException);              // 0x2e6250 / 0x2e62c0
+//! Thrown when source input contains an unknown or misused keyword.
 ZHINST_DECLARE_EXCEPTION(ZIInvalidKeywordException);        // (none)  / 0x2e6330
+//! Thrown when a value's type does not match the operation's expectation.
 ZHINST_DECLARE_EXCEPTION(ZITypeMismatchException);          // 0x2e63f0 / 0x2e6480
+//! Thrown when a numeric or indexed value falls outside the legal range.
 ZHINST_DECLARE_EXCEPTION(ZIOutOfRangeException);            // 0x2e64f0 / 0x2e6560
+//! Thrown to signal that a long-running operation was interrupted.
 ZHINST_DECLARE_EXCEPTION(ZIInterruptException);             // 0x2e65d0 / 0x2e6640
+//! Thrown for invariant violations and unexpected internal states.
 ZHINST_DECLARE_EXCEPTION(ZIInternalException);              // 0x2e66b0 / 0x2e6760
+//! Thrown when a device exists but is not currently discoverable.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceNotVisibleException);      // 0x2e6820 / 0x2e68f0
+//! Thrown when a requested device serial is not known to the server.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceNotFoundException);        // 0x2e69b0 / 0x2e6a80
+//! Thrown when a device is already claimed by another session.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceInUseException);           // 0x2e6b40 / 0x2e6c00
+//! Thrown for failures of the host/device transport interface.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceInterfaceException);       // 0x2e6cc0 / 0x2e6d90
+//! Thrown when a device connection cannot be established in time.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceConnectionTimeoutException); // 0x2e6e50 / 0x2e6f20
+//! Thrown when a device is reachable only on a different interface than requested.
 ZHINST_DECLARE_EXCEPTION(ZIDeviceDifferentInterfaceException); // 0x2e6fe0 / 0x2e70c0
+//! Thrown for device firmware errors (mismatch, upload failure, runtime fault).
 ZHINST_DECLARE_EXCEPTION(ZIDeviceFWException);              // 0x2e7180 / 0x2e7230
+//! Thrown by the AWG compiler front-end on user-source errors.
 ZHINST_DECLARE_EXCEPTION(ZIAWGCompilerException);           // 0x2e72f0 / 0x2e7360
+//! Thrown by the AWG optimizer when a pass cannot complete.
 ZHINST_DECLARE_EXCEPTION(ZIAWGOptimizerException);          // 0x2e73d0 / 0x2e7460
+//! Thrown when a host/firmware/API version is incompatible.
 ZHINST_DECLARE_EXCEPTION(ZIVersionException);               // 0x2e74d0 / 0x2e7540
+//! Thrown when a node path is syntactically invalid or otherwise rejected.
 ZHINST_DECLARE_EXCEPTION(ZIIllegalPathException);           // 0x2e75b0 / 0x2e7620
+
+//! @}
 
 #undef ZHINST_DECLARE_EXCEPTION
 

@@ -188,6 +188,23 @@ ErrorCode const* Exception::description() const noexcept
 // Binary constructor addresses are documented per-class in exception.hpp.
 // ===========================================================================
 
+//! \brief Emits the out-of-line bodies for a class declared via
+//!        `ZHINST_DECLARE_EXCEPTION`.
+//!
+//! For the given `ClassName` this defines:
+//!   - the default constructor, forwarding the stringified class name
+//!     to `Exception(std::string)` so that `what()` returns e.g.
+//!     `"ZIDeviceException"` when no message is supplied;
+//!   - the string constructor, forwarding (by move) its argument to
+//!     `Exception(std::string)`;
+//!   - the destructor as `= default`.
+//!
+//! The generated definitions add no state or behaviour beyond
+//! `Exception`; their sole purpose is to give each exception type a
+//! distinct vtable identity for `catch`-clause dispatch.
+//!
+//! \param ClassName Identifier of the class whose bodies are emitted;
+//!        must match a corresponding `ZHINST_DECLARE_EXCEPTION`.
 #define ZHINST_DEFINE_EXCEPTION(ClassName)                                   \
     ClassName::ClassName()                                                    \
         : Exception(std::string(#ClassName))                                 \
@@ -197,32 +214,70 @@ ErrorCode const* Exception::description() const noexcept
     {}                                                                       \
     ClassName::~ClassName() = default
 
+//! \name Concrete exception type definitions
+//! \brief Out-of-line bodies (default ctor, string ctor, dtor) for the
+//!        26 `Exception` subclasses declared in `exception.hpp`.
+//!
+//! Every entry is a `ZHINST_DEFINE_EXCEPTION` expansion.  Behaviour is
+//! identical across the family and is documented on
+//! `ZHINST_DEFINE_EXCEPTION`; the brief on each line identifies the
+//! type whose bodies are being emitted.
+//! @{
+
+//! Defines the bodies of `ZIAPIException`.
 ZHINST_DEFINE_EXCEPTION(ZIAPIException);                   // 0x2e58c0 / 0x2e5930
+//! Defines the bodies of `ZIIOException`.
 ZHINST_DEFINE_EXCEPTION(ZIIOException);                    // 0x2e5a30 / 0x2e5aa0
+//! Defines the bodies of `ZIDeviceException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceException);                // 0x2e5c90 / 0x2e5cf0
+//! Defines the bodies of `ZISocketException`.
 ZHINST_DEFINE_EXCEPTION(ZISocketException);                // 0x2e5d60 / 0x2e5dc0
+//! Defines the bodies of `ZIOverflowException`.
 ZHINST_DEFINE_EXCEPTION(ZIOverflowException);              // 0x2e5e30 / 0x2e5ea0
+//! Defines the bodies of `ZIUnderrunException`.
 ZHINST_DEFINE_EXCEPTION(ZIUnderrunException);              // 0x2e5f10 / 0x2e5f80
+//! Defines the bodies of `ZITimeoutException`.
 ZHINST_DEFINE_EXCEPTION(ZITimeoutException);               // 0x2e5ff0 / 0x2e6060
+//! Defines the bodies of `ZIReadOnlyException`.
 ZHINST_DEFINE_EXCEPTION(ZIReadOnlyException);              // (none)  / 0x2e60d0
+//! Defines the bodies of `ZIWriteOnlyException`.
 ZHINST_DEFINE_EXCEPTION(ZIWriteOnlyException);             // (none)  / 0x2e6190
+//! Defines the bodies of `ZINotFoundException`.
 ZHINST_DEFINE_EXCEPTION(ZINotFoundException);              // 0x2e6250 / 0x2e62c0
+//! Defines the bodies of `ZIInvalidKeywordException`.
 ZHINST_DEFINE_EXCEPTION(ZIInvalidKeywordException);        // (none)  / 0x2e6330
+//! Defines the bodies of `ZITypeMismatchException`.
 ZHINST_DEFINE_EXCEPTION(ZITypeMismatchException);          // 0x2e63f0 / 0x2e6480
+//! Defines the bodies of `ZIOutOfRangeException`.
 ZHINST_DEFINE_EXCEPTION(ZIOutOfRangeException);            // 0x2e64f0 / 0x2e6560
+//! Defines the bodies of `ZIInterruptException`.
 ZHINST_DEFINE_EXCEPTION(ZIInterruptException);             // 0x2e65d0 / 0x2e6640
+//! Defines the bodies of `ZIInternalException`.
 ZHINST_DEFINE_EXCEPTION(ZIInternalException);              // 0x2e66b0 / 0x2e6760
+//! Defines the bodies of `ZIDeviceNotVisibleException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceNotVisibleException);      // 0x2e6820 / 0x2e68f0
+//! Defines the bodies of `ZIDeviceNotFoundException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceNotFoundException);        // 0x2e69b0 / 0x2e6a80
+//! Defines the bodies of `ZIDeviceInUseException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceInUseException);           // 0x2e6b40 / 0x2e6c00
+//! Defines the bodies of `ZIDeviceInterfaceException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceInterfaceException);       // 0x2e6cc0 / 0x2e6d90
+//! Defines the bodies of `ZIDeviceConnectionTimeoutException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceConnectionTimeoutException); // 0x2e6e50 / 0x2e6f20
+//! Defines the bodies of `ZIDeviceDifferentInterfaceException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceDifferentInterfaceException); // 0x2e6fe0 / 0x2e70c0
+//! Defines the bodies of `ZIDeviceFWException`.
 ZHINST_DEFINE_EXCEPTION(ZIDeviceFWException);              // 0x2e7180 / 0x2e7230
+//! Defines the bodies of `ZIAWGCompilerException`.
 ZHINST_DEFINE_EXCEPTION(ZIAWGCompilerException);           // 0x2e72f0 / 0x2e7360
+//! Defines the bodies of `ZIAWGOptimizerException`.
 ZHINST_DEFINE_EXCEPTION(ZIAWGOptimizerException);          // 0x2e73d0 / 0x2e7460
+//! Defines the bodies of `ZIVersionException`.
 ZHINST_DEFINE_EXCEPTION(ZIVersionException);               // 0x2e74d0 / 0x2e7540
+//! Defines the bodies of `ZIIllegalPathException`.
 ZHINST_DEFINE_EXCEPTION(ZIIllegalPathException);           // 0x2e75b0 / 0x2e7620
+
+//! @}
 
 #undef ZHINST_DEFINE_EXCEPTION
 

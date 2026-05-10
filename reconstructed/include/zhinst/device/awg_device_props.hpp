@@ -38,12 +38,33 @@ namespace zhinst {
 // value; it's the default branch for any value > 2. We treat it as a
 // sentinel-only state (no source-level enumerator).
 // ----------------------------------------------------------------------------
+//! \brief Selects which sequencer kind is targeted on a multi-sequencer
+//! device.
+//!
+//! Only relevant for device families that host more than one sequencer
+//! kind behind a single device code (currently just the SHFQC, which
+//! exposes both a QA generator and an SG sequencer); for single-kind
+//! families the value is ignored.  Used by `toAwgDeviceType` to resolve
+//! the `(DeviceTypeCode, sequencer)` pair into a concrete
+//! `AwgDeviceType` and by `toString` / the unsupported-sequencer error
+//! formatter to render the user-facing name.
 enum class AwgSequencerType : int {
-    Auto = 0,   // toString -> "auto"
-    QA   = 1,   // toString -> "QA"
-    SG   = 2,   // toString -> "SG"
+    Auto = 0,   //!< \brief Family default: pick the only sequencer on
+                //!  single-sequencer devices, or fail (unsupported) on
+                //!  multi-sequencer devices where an explicit choice is
+                //!  required.
+                // toString -> "auto"
+    QA   = 1,   //!< \brief Quantum-analyser sequencer (the QA generator
+                //!  on SHFQA / SHFQC).
+                // toString -> "QA"
+    SG   = 2,   //!< \brief Signal-generator sequencer (the SG sequencer
+                //!  on SHFSG / SHFQC).
+                // toString -> "SG"
 };
 
+//! \brief Renders an `AwgSequencerType` as the short human-readable
+//! name used in error messages and diagnostics (`"auto"`, `"QA"`,
+//! `"SG"`, or `"unknown"` for out-of-range values).
 // toString(AwgSequencerType) @0x2cbce0
 std::string toString(AwgSequencerType seq);
 
@@ -203,20 +224,60 @@ static_assert(sizeof(AwgDeviceProps) == 32 + 4 * sizeof(std::string),
 // no template-as-template-definition; only explicit specializations
 // generated for each AwgDeviceType value.
 // ----------------------------------------------------------------------------
+// ----------------------------------------------------------------------------
+//! \brief Returns the `AwgDeviceProps` for a specific AWG device family,
+//! selected at compile time by the `AwgDeviceType` template argument.
+//!
+//! Each AWG-capable device family has a fixed set of properties — the
+//! family bit, the three node-path templates (data / progress /
+//! enable), the FPGA- or slave-revision path, the maximum permitted
+//! ELF size, the waveform memory base address, the wave-sample storage
+//! format, and the `isHirzel` generation flag — that the compiler and
+//! ELF writer need to drive the rest of the pipeline.  Those values
+//! are baked into one explicit specialisation per family, so the
+//! template argument both names the target family and selects the
+//! correct value table without a runtime dispatch.
+//!
+//! For most families the `DeviceType` argument is ignored; the
+//! HDAWG specialisation is the only one that inspects it (to enable
+//! the larger ELF-size limit when the Memory Extension option is
+//! present).  The set of explicit specialisations matches the set of
+//! one-hot `AwgDeviceType` bits exactly — there is no fallback for
+//! an arbitrary `AwgDeviceType` value.
 template <AwgDeviceType T>
 AwgDeviceProps getAwgDeviceProps(DeviceType const& dt);
 
 // Explicit specialization DECLARATIONS (definitions in awg_device_props.cpp).
 // We do not provide a primary template definition: the binary contains
 // only these 9 specializations, each emitted as a unique function body.
+
+//! \brief Specialisation returning the AWG device properties for the
+//! UHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! HDAWG family; the only specialisation that consults the
+//! `DeviceType` argument (to honour the Memory Extension option).
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! UHFQA family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! SHFQA family (and the SHFQC when its QA generator is selected).
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! SHFSG family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! SHFQC when its SG sequencer is selected.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! SHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! GHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const&);
+//! \brief Specialisation returning the AWG device properties for the
+//! VHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const&);
 
 // ----------------------------------------------------------------------------
@@ -242,6 +303,18 @@ template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType co
 //
 // Returns AwgDeviceType(0) (no enumerator) on unsupported combinations.
 // ----------------------------------------------------------------------------
+//! \brief Resolves a `(DeviceTypeCode, AwgSequencerType)` pair to the
+//! one-hot `AwgDeviceType` bit identifying the AWG family the compiler
+//! should target.
+//!
+//! The sequencer argument only affects multi-sequencer device codes —
+//! currently just SHFQC, which resolves to `SHFQA` when the QA
+//! sequencer is requested and to `SHFQC_SG` when the SG sequencer is
+//! requested.  For all other supported codes the sequencer argument is
+//! ignored.  Unsupported codes — and SHFQC with a missing or `Auto`
+//! sequencer choice — return `AwgDeviceType(0)`, which callers treat
+//! as the "no matching family" sentinel and surface via
+//! `makeUnsupportedAwgSequencerErrorMessage`.
 AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq);
 
 // ----------------------------------------------------------------------------
@@ -256,6 +329,14 @@ AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq);
 // where <dtype> = toString(code) and <seq> = "auto"|"QA"|"SG"|"unknown"
 // depending on the AwgSequencerType value (0/1/2/other).
 // ----------------------------------------------------------------------------
+//! \brief Builds the user-facing diagnostic shown when
+//! `toAwgDeviceType` cannot resolve the given device code and
+//! sequencer choice to a supported AWG family.
+//!
+//! The returned string has the form
+//! `"Unsupported device or sequencer type (<device>, sequencer: <seq>)."`,
+//! where `<device>` is `toString(code)` and `<seq>` is one of
+//! `"auto"`, `"QA"`, `"SG"`, or `"unknown"` per `toString(seq)`.
 std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
                                                     AwgSequencerType seq);
 
