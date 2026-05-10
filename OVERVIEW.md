@@ -542,3 +542,61 @@ mainpage.
     `runPrefetcher` `\details` blocks so single- and double-digit
     items share the same column.
 - 1600/1600 differential tests passing throughout the phase.
+
+**D4 (per-class public-method briefs) — in progress:**
+
+- D4 ordering: `Compiler` → `Prefetch` → `WavetableIR` /
+  `FrontEndLoweringFacade` → `CustomFunctions` → `AsmOptimize` →
+  `WaveformGenerator` → `Resources` → AST nodes.  Per-class commits;
+  large classes are subdivided into sub-batches.
+- **Batch 1 — `Compiler`** complete (`381c1ee`).  Surfaced and fixed
+  IF-209 (constructor missing `nodeFactory_` initialisation) and
+  IF-210 (`runPrefetcher` ABI signature drift), both GDB-confirmed
+  before the fix (`01f4bd9`).
+- **Batch 2 — `Prefetch`** complete across five sub-batches:
+  - **2a** (`abde6a6`): constructor / destructor / 3 prepare-pass
+    helpers.  Surfaced IF-212 (cosmetic comment drift, fixed in
+    same commit) and IF-213 (`findLockedPlay` stub, GDB-confirmed
+    real divergence; deferred).
+  - **2b** (`0c1e524`): 4 placement-precondition methods.  IF-214
+    + IF-215 fixed in cleanup (`31f0cbc`).
+  - **2c** (`b025126`, `d247227`): 4 cache / placement-helper
+    methods.  IF-216 fixed; IF-213 GDB-confirmed.
+  - **2d** (`1e7cd32`): 13 tree-rewrite helpers.  Surfaced IF-217
+    (`backwardTree` `next` vs `loop`), IF-218 (`expandSetVar`
+    stub), IF-219 (`createLoad` missing already-loaded guard) —
+    all deferred — and IF-220 (cosmetic comment cluster, fixed in
+    same commit).  TODO entries with full GDB recipes filed
+    (`e93aea3`).
+  - **2e-i** (`3a7ed28`): `placeCommands`, `findPlaceholder`,
+    `placeSingleCommand`.  IF-221 (cosmetic, fixed: `Branch`
+    nodes mislabelled as "placeholder" in skip-loop), IF-222
+    (cosmetic, fixed: file-header NodeType labels for Table /
+    PlainLoad / AwgReady), IF-223 (Table case missing
+    smap/ssl/addr/prf tail; deferred), IF-224
+    (`play_cervino_indexed_nonsplit` empty body; deferred).
+  - **2e-ii** (`cb4f1e6`): 7 waveform-instruction helpers
+    (`clampToCache`, `wvfImpl`, `wvfRegImpl`, `wvfs`,
+    `needsNewCwvf`, `splitPlay`, `insertPlay`).  No new IFs.
+  - **2e-iii** (`33a40ce`): 4 cache / query / debug-printer
+    methods (`getUsedCache`, `getUsedChannels`,
+    `getUsedFourChannelMode`, `print`).  IF-225 (cosmetic, fixed:
+    `getUsedChannels` block-header named the reduced field
+    `channelMask` when body and binary read `suppress`), IF-226
+    (`getUsedCache` body is a stub returning 0; deferred — only
+    caller is the debug-only `print`, so no production effect).
+- **Open IFs from D4** (all with full TODO entries and
+  objdump / GDB recipes): IF-213, IF-217, IF-218, IF-219, IF-223,
+  IF-224, IF-226.  Each is latent — the differential test corpus
+  does not exercise the divergent code path, hence 1600/1600
+  remains green.
+- **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
+  formalised during 2d-2e: every brief opened the function body
+  and cross-checked field names against the canonical `.hpp`
+  before being written; subagent audits were re-verified before
+  IFs were logged.  This caught one false-positive audit claim
+  (the audit reported `PlayConfig::now` as misnamed; verification
+  showed `now` is the canonical field per `play_config.hpp:47`,
+  so no IF was logged).
+- 1600/1600 differential tests passing throughout the phase;
+  build clean and 0 doxygen warnings at every commit.
