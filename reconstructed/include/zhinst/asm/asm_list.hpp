@@ -167,6 +167,10 @@ public:
         //! comparison.  The intent is identity / liveness
         //! comparison across passes that may rewrite the
         //! instruction in place.
+        //!
+        //! \param other  Entry to compare against.
+        //! \return  `true` when the identity bookkeeping
+        //!          fields match.
         bool operator==(const Asm& other) const {
             return sequenceId == other.sequenceId
                 && wavetableFront == other.wavetableFront
@@ -178,9 +182,16 @@ public:
     AsmList() = default;
     //! \brief Construct from a pre-built `std::vector<Asm>`,
     //!        adopting its storage by move.
+    //!
+    //! \param v  Source vector whose storage is moved into
+    //!           the new list.
     AsmList(std::vector<Asm> v) : entries(std::move(v)) {}
     //! \brief Replace the entire entry vector by move-assign
     //!        from a raw `std::vector<Asm>`.
+    //!
+    //! \param v  Source vector whose storage is moved into
+    //!           this list.
+    //! \return  `*this`.
     AsmList& operator=(std::vector<Asm> v) { entries = std::move(v); return *this; }
 
     //! \brief Destroy the list and every `Asm` it contains.
@@ -299,39 +310,63 @@ public:
     using iterator = std::vector<Asm>::iterator;
     using const_iterator = std::vector<Asm>::const_iterator;
     //! \brief Iterator to the first entry.
+    //! \return  Mutable iterator at the list's beginning.
     iterator begin() { return entries.begin(); }
     //! \brief Iterator past the last entry.
+    //! \return  Mutable iterator one past the list's end.
     iterator end() { return entries.end(); }
     //! \brief Const iterator to the first entry.
+    //! \return  Const iterator at the list's beginning.
     const_iterator begin() const { return entries.begin(); }
     //! \brief Const iterator past the last entry.
+    //! \return  Const iterator one past the list's end.
     const_iterator end() const { return entries.end(); }
     //! \brief Const iterator to the first entry (explicit
     //!        const overload).
+    //! \return  Const iterator at the list's beginning.
     const_iterator cbegin() const { return entries.cbegin(); }
     //! \brief Const iterator past the last entry (explicit
     //!        const overload).
+    //! \return  Const iterator one past the list's end.
     const_iterator cend() const { return entries.cend(); }
     //! \brief Number of entries currently in the list.
+    //! \return  Entry count.
     size_t size() const { return entries.size(); }
     //! \brief Whether the list contains no entries.
+    //! \return  `true` when the list is empty.
     bool empty() const { return entries.empty(); }
     //! \brief Pre-allocate storage for at least `n` entries.
+    //! \param n  Minimum capacity to reserve.
     void reserve(size_t n) { entries.reserve(n); }
     //! \brief Copy-append an entry (vector forwarding).
+    //! \param e  Entry to append.
     void push_back(const Asm& e) { entries.push_back(e); }
     //! \brief Move-append an entry (vector forwarding).
+    //! \param e  Entry to append; moved from.
     void push_back(Asm&& e) { entries.push_back(std::move(e)); }
     //! \brief Forward to `std::vector::insert` for any
     //!        argument shape (single value, count+value,
     //!        iterator range, initializer list).
+    //!
+    //! \param pos    Position before which to insert.
+    //! \param args   Forwarded arguments selecting the
+    //!               underlying `std::vector::insert`
+    //!               overload.
+    //! \return  Iterator to the first inserted entry (or
+    //!          `pos` when nothing was inserted).
     template<typename... Args>
     iterator insert(const_iterator pos, Args&&... args) { return entries.insert(pos, std::forward<Args>(args)...); }
     //! \brief Erase the entry at `pos`; returns iterator to
     //!        the next entry.
+    //! \param pos  Position of the entry to erase.
+    //! \return  Iterator to the entry that followed `pos`.
     iterator erase(const_iterator pos) { return entries.erase(pos); }
     //! \brief Erase entries in `[first, last)`; returns
     //!        iterator to the entry after `last`.
+    //! \param first  Begin of the range to erase.
+    //! \param last   End of the range to erase (exclusive).
+    //! \return  Iterator to the entry that followed the
+    //!          erased range.
     iterator erase(const_iterator first, const_iterator last) { return entries.erase(first, last); }
     //! \brief Remove every entry, leaving the list empty.
     void clear() { entries.clear(); }
@@ -345,6 +380,11 @@ public:
     //! Used by the prefetch pass to expand a placeholder
     //! node into the full instruction sequence the pass
     //! produced for it.
+    //!
+    //! \param placeholder  IR node identifying the entry
+    //!                     before which to splice.
+    //! \param source       List whose entries are spliced
+    //!                     in (read from begin to end).
     void insert(std::shared_ptr<Node> const& placeholder, AsmList& source) {
         insert(placeholder, source.begin(), source.end());
     }
@@ -359,6 +399,12 @@ public:
     //! appended at the end of the list — chosen
     //! deliberately so prefetch-pass output is never
     //! silently dropped.
+    //!
+    //! \param placeholder  IR node identifying the entry
+    //!                     before which to splice.
+    //! \param first        Begin of the range to splice in.
+    //! \param last         End of the range to splice in
+    //!                     (exclusive).
     void insert(std::shared_ptr<Node> const& placeholder, const_iterator first, const_iterator last) {
         // Find the entry whose node == placeholder
         for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -371,16 +417,22 @@ public:
         entries.insert(entries.end(), first, last);
     }
     //! \brief Indexed mutable access to an entry.
+    //! \param i  Zero-based entry index.
+    //! \return  Mutable reference to the entry at `i`.
     Asm& operator[](size_t i) { return entries[i]; }
     //! \brief Indexed const access to an entry.
+    //! \param i  Zero-based entry index.
+    //! \return  Const reference to the entry at `i`.
     const Asm& operator[](size_t i) const { return entries[i]; }
     //! \brief Reference to the first entry (UB on empty
     //!        list).
+    //! \return  Mutable reference to the first entry.
     Asm& front() { return entries.front(); }
     //! \copydoc front()
     const Asm& front() const { return entries.front(); }
     //! \brief Reference to the last entry (UB on empty
     //!        list).
+    //! \return  Mutable reference to the last entry.
     Asm& back() { return entries.back(); }
     //! \copydoc back()
     const Asm& back() const { return entries.back(); }
@@ -388,6 +440,10 @@ public:
     //! \brief Element-wise equality on the underlying entry
     //!        vector (uses `Asm::operator==`'s identity
     //!        comparison — see its docs).
+    //!
+    //! \param other  List to compare against.
+    //! \return  `true` when both lists have the same length
+    //!          and pairwise-equal entries.
     bool operator==(const AsmList& other) const { return entries == other.entries; }
     //! \brief ADL `swap` — exchanges the two lists' entry
     //!        vectors in O(1).
@@ -402,14 +458,21 @@ public:
     //! one; this ctor (and the matching assignments below)
     //! avoid forcing those sites to construct a vector
     //! explicitly.
+    //!
+    //! \param single  Entry to seed the new list with.
     AsmList(const Asm& single) { entries.push_back(single); }
     //! \copydoc AsmList(const Asm&)
     AsmList(Asm&& single) { entries.push_back(std::move(single)); }
     //! \brief Replace the list with a single-entry list
     //!        copied from `single`.
+    //! \param single  Entry to seed the list with.
+    //! \return  `*this`.
     AsmList& operator=(const Asm& single) { entries.clear(); entries.push_back(single); return *this; }
     //! \brief Replace the list with a single-entry list
     //!        moved from `single`.
+    //! \param single  Entry to seed the list with; moved
+    //!                from.
+    //! \return  `*this`.
     AsmList& operator=(Asm&& single) { entries.clear(); entries.push_back(std::move(single)); return *this; }
 
     // --- Storage: exactly std::vector<Asm> ---
