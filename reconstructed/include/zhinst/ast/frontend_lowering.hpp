@@ -65,6 +65,11 @@ struct FrontendLoweringContext {
     int32_t                                    loopUnrollLimit;   // +0x48
     // 4 bytes padding to 0x50
 
+    //! Releases the four owned subsystem `shared_ptr`s
+    //! (assembler-command registry, custom-functions table,
+    //! waveform generator, wavetable front-end) in reverse
+    //! declaration order.  The non-owning `messages`
+    //! pointer is left untouched.
     ~FrontendLoweringContext();  // 0x1233b0
 };
 
@@ -113,6 +118,10 @@ struct FrontendLoweringState {
     uint8_t                                    inSwitch_{}; // +0x31 (checked by SeqCCaseEntry)
     // +0x32..0x37 padding to 0x38
 
+    //! Releases the lowered-AST root `shared_ptr` and the
+    //! `labelStack` vector (with its element strings) in
+    //! reverse declaration order.  Scope-flag bytes have
+    //! no destruction work.
     ~FrontendLoweringState();  // 0x1c2190
 };
 

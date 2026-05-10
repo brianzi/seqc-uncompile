@@ -60,18 +60,76 @@ public:
 
     // --- Methods ---
     WavetableManager() = default;
+    //! Releases every owned waveform (in reverse insertion
+    //! order) and the name-index hash table.  Compiler-
+    //! generated destruction order otherwise.
     ~WavetableManager();                                    // 0x29fa40
 
+    /*! \brief Register a fresh placeholder waveform under an
+     *  auto-minted name.
+     *
+     *  \details Used by the front-end whenever it needs to
+     *  reserve a waveform slot before the corresponding
+     *  generator has produced sample data.  Mints
+     *  `getUniqueName(name, numDefs_, numDefs2_++)` so
+     *  every empty-waveform request gets a fresh
+     *  identifier even when callers pass the same `name`
+     *  argument.  The waveform is created with file
+     *  type `GEN`, `waveIndex == -1`, and bound to the
+     *  given device constants.
+     *
+     *  \param name  Caller-supplied prefix for the synthetic
+     *               name.
+     *  \param dc    Device constants the new waveform binds
+     *               to.
+     *  \return Newly registered waveform.
+     */
     std::shared_ptr<WaveformT> newEmptyWaveform(
         const std::string& name,
         const DeviceConstants& dc);                         // 0x29aec0
 
+    /*! \brief Register a file-backed waveform without
+     *  pre-supplied sample data.
+     *
+     *  \details Allocates a `WaveformFront` bound to `name`,
+     *  attaches a `Waveform::File` describing the source
+     *  file, and inserts it under `name`.  When `name`
+     *  collides with an existing registration both entries
+     *  are flagged with `setHasDuplicate(true)` so later
+     *  passes can detect the ambiguity.
+     *
+     *  \param name      Waveform identifier.
+     *  \param filename  Path to the source file (relative
+     *                   to the wavetable's parser root).
+     *  \param type      File type (CSV / binary / ...).
+     *  \param dc        Device constants.
+     *  \return Newly registered waveform.
+     */
     std::shared_ptr<WaveformT> newWaveformFromFile(
         const std::string& name,
         const std::string& filename,
         Waveform::File::Type type,
         const DeviceConstants& dc);                         // 0x29b110
 
+    /*! \brief Register a file-backed waveform whose `Signal`
+     *  is already populated.
+     *
+     *  \details As above, but additionally copies the
+     *  caller's `Signal` into the new waveform and stores
+     *  `addr` as the placement-time address slot.  Used
+     *  when the front-end has pre-parsed the file and only
+     *  needs the manager to record the registration plus
+     *  duplicate-detection state.
+     *
+     *  \param name      Waveform identifier.
+     *  \param signal    Pre-built signal payload.
+     *  \param addr      Address slot recorded on the new
+     *                   waveform.
+     *  \param filename  Source file path.
+     *  \param type      File type.
+     *  \param dc        Device constants.
+     *  \return Newly registered waveform.
+     */
     std::shared_ptr<WaveformT> newWaveformFromFile(
         const std::string& name,
         const Signal& signal,
@@ -80,6 +138,22 @@ public:
         Waveform::File::Type type,
         const DeviceConstants& dc);                         // 0x29b560
 
+    /*! \brief Register a generator-produced waveform under an
+     *  explicit name.
+     *
+     *  \details Allocates a `WaveformFront` with file type
+     *  `GEN`, copies the generator-produced `Signal`,
+     *  records the `(funName, args)` descriptor for later
+     *  dedup lookups via `getWaveformForFront`, and
+     *  inserts under `name`.
+     *
+     *  \param name     User-visible waveform identifier.
+     *  \param signal   Generator output.
+     *  \param funName  Generator function name (dedup key).
+     *  \param args     Generator arguments (dedup key).
+     *  \param dc       Device constants.
+     *  \return Newly registered waveform.
+     */
     std::shared_ptr<WaveformT> newWaveform(
         const std::string& name,
         const Signal& signal,
@@ -87,32 +161,175 @@ public:
         const std::vector<Value>& args,
         const DeviceConstants& dc);                         // 0x29ba00
 
+    /*! \brief Look up a previously registered generator
+     *  invocation for deduplication.
+     *
+     *  \details Linear scan over the registered waveforms.
+     *  A waveform matches when all of:
+     *    - its file type is `GEN`,
+     *    - its `funDescrName()` equals `funName`,
+     *    - its generator-args vector size equals
+     *      `args.size()` and every element compares equal
+     *      via `Value::operator==`,
+     *    - it has not been marked modified (`isModified()`
+     *      false).
+     *
+     *  Used by the front-end so that repeated calls with
+     *  identical generator arguments share one underlying
+     *  waveform.
+     *
+     *  \param funName  Generator function name.
+     *  \param args     Generator arguments.
+     *  \return Matching waveform, or null when no
+     *          unmodified previous match exists.
+     */
     std::shared_ptr<WaveformT> getWaveformForFront(
         const std::string& funName,
         const std::vector<Value>& args) const;              // 0x29c210
 
+    /*! \brief Register a copy of `src` under an auto-minted
+     *  name.
+     *
+     *  \details Mints `getUniqueName(src->name, numDefs_,
+     *  numDefs2_++)` and constructs the copy via
+     *  `allocate_shared` using the source-plus-name copy
+     *  constructor of `WaveformT`, so the copy shares
+     *  initial sample state with `src` but carries its
+     *  own metadata identity.  Used for per-iteration
+     *  mutation under loop unrolling.
+     *
+     *  \param src  Source waveform.  Must be non-null.
+     *  \return Newly registered copy.
+     */
     std::shared_ptr<WaveformT> copyWaveform(
         std::shared_ptr<WaveformT> src);                    // 0x29c440
 
+    /*! \brief Rename `wf` to `newName`, updating the name
+     *  index in place.
+     *
+     *  \details Removes the waveform's existing entry from
+     *  `nameToIndex_` (if present), updates the waveform's
+     *  internal name to `newName`, and re-inserts the
+     *  same vector index under the new key.  The
+     *  underlying `waveforms_` vector is not reordered.
+     *
+     *  \param wf       Waveform to rename.
+     *  \param newName  New identifier.
+     */
     void updateWave(
         std::shared_ptr<WaveformT> wf,
         const std::string& newName);                        // 0x29ccf0
 
+    //! Append `wf` to the end of `waveforms_` and record
+    //! its position in `nameToIndex_` under
+    //! `wf->name`.  Insertion order is therefore the
+    //! waveform's stable index for the rest of the
+    //! pipeline.
+    //!
+    //! \param wf  Waveform to register.
     void insertWaveform(std::shared_ptr<WaveformT> wf);    // 0x2a1200
 
     // IR-specialization methods (declared here, defined in wavetable_manager_ir.cpp)
+    /*! \brief IR-side constructor that rebuilds the manager
+     *  from a list of plain `Waveform` records.
+     *
+     *  \details Used by `fromJson` to materialise a
+     *  `WavetableManager<WaveformIR>` from a deserialised
+     *  waveform list.  Sets the counters from `numDefs` /
+     *  `numDefs2`, then for each entry constructs a
+     *  fresh `WaveformIR` wrapping a copy of the source
+     *  `Waveform` and inserts it via `insertWaveform`.
+     *
+     *  \param numDefs    Initial value for `numDefs_`.
+     *  \param numDefs2   Initial value for `numDefs2_`.
+     *  \param waveforms  Source waveforms; each is copied
+     *                    into the new manager.
+     */
     WavetableManager(int numDefs, int numDefs2, const std::vector<Waveform>& waveforms);
 
+    /*! \brief IR-side waveform factory used by the
+     *  `WavetableIR` placement pipeline.
+     *
+     *  \details Allocates a `WaveformIR` with file type
+     *  `GEN` bound to `dc`, copies the supplied `Signal`
+     *  (samples / markers / marker-bit vectors plus the
+     *  trailing channel/length scalar block), and stores
+     *  `fillName` in the waveform's `functionArgs` slot
+     *  before inserting the waveform under `name`.
+     *
+     *  \param name      User-visible identifier.
+     *  \param signal    Source signal payload.  Copied.
+     *  \param fillName  Stored as the waveform's
+     *                   `functionArgs` text — used by the
+     *                   filler synthesis path in
+     *                   `assignWaveIndexImplicit` to label
+     *                   reserve-only entries.
+     *  \param dc        Device constants.
+     *  \return Newly registered waveform.
+     */
     std::shared_ptr<WaveformT> newWaveform(
         const std::string& name,
         const Signal& signal,
         const std::string& fillName,
         const DeviceConstants& dc);
 
+    /*! \brief Serialise the manager's contents for round-trip
+     *  via `fromJson()`.
+     *
+     *  \details Emits an object of the form
+     *  `{ "numDefs": <int>, "numDefs2": <int>,
+     *     "waveforms": [<waveform>, ...] }` where each
+     *  waveform entry is the result of
+     *  `WaveformIR::toJson()`.  The name-index map is not
+     *  serialised because `fromJson` rebuilds it via
+     *  `insertWaveform`.
+     *
+     *  \return JSON object payload.
+     */
     boost::json::value toJson() const;
+
+    /*! \brief Deserialise a manager previously emitted by
+     *  `toJson()`.
+     *
+     *  \details Reads the `numDefs`, `numDefs2`, and
+     *  `waveforms` fields and constructs the result via
+     *  the 3-argument IR constructor, which re-inserts
+     *  every waveform and rebuilds the name index.
+     *
+     *  \param json  JSON object as produced by `toJson()`.
+     *  \param dc    Device constants used by
+     *               `Waveform::fromJson` to interpret
+     *               sample-format-dependent fields.
+     *  \return Reconstructed manager (returned by value).
+     *  \throws boost::system::system_error  When the JSON
+     *               is missing required keys or fails the
+     *               waveform-side validation.
+     */
     static WavetableManager fromJson(const boost::json::value& json, const DeviceConstants& dc);
+
+    /*! \brief Structural equality for cache-key comparisons.
+     *
+     *  \details Compares (in order):
+     *    - the waveform lists element-wise via
+     *      `WaveformIR::operator==`,
+     *    - `numDefs_` and `numDefs2_`,
+     *    - the size and key/value contents of
+     *      `nameToIndex_`.
+     *
+     *  Two managers are equal iff all four match.
+     *
+     *  \param other  Manager to compare against.
+     *  \return True when both managers would produce
+     *          identical placement output.
+     */
     bool operator==(const WavetableManager& other) const;
 
+    //! Reseed the manager's `numDefs_` line-number counter
+    //! used by `getUniqueName`.  Inlined into
+    //! `WavetableFront::setLineNr`; provided here for
+    //! direct manager-level access.
+    //!
+    //! \param nr  New value for `numDefs_`.
     void setLineNr(int nr);                                 // (inlined via WavetableFront)
 };
 
