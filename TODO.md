@@ -618,9 +618,16 @@ cross-reference pages so the backlog is discoverable.
                 reconstruction-only relabel; needs to be
                 explicitly flagged that the binary signature is
                 unchanged.
-    - [ ] **D5-4** — Resources family (~89 briefs incl.
-          Resources::Function).  Symbol-table backbone; likely
-          to surface IFs.
+    - [x] **D5-4** — Resources family. Done in `74c5012`.
+          +120 briefs, coverage 35.9% → 39.8%. Five new
+          `\binarynote` (Function::addArgument diagnostic line
+          number, Function::getBody null-deref hazard,
+          variableExistsInScope grandparent fallback, checkVar
+          lax type acceptance, readCvar TypeMismatchWrite +
+          literal "CVAR" diagnostic). One new `\verifyme`
+          (StaticResources::errorReportTarget — see IF-235).
+          IF-235 logged (low/confirmed): orphan declared-but-
+          undefined helper.
     - [ ] **D5-5** — Asm parser/expression family (~78 briefs):
           AsmParserContext, AsmExpression, Assembler.
     - [ ] **D5-6** — AWGAssemblerImpl + AWGCompilerImpl (~72
