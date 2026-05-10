@@ -710,6 +710,20 @@ mainpage.
     reserve-only short-circuit) cited inline so the user-facing
     docs surface the documented quirks.  No new IFs.
     Build clean (0 doc warnings); tests 1601/1601.
+  - **D-AUDIT-1 closeout (2026-05-10)**: completed the
+    parameter-label sweep across the remaining 11
+    `WaveformGenerator` factories (`gauss`, `sin`, `cos`,
+    `sawtooth`, `triangle`, `drag`, `blackman`, `hamming`,
+    `hann`, `placeholder`, `vect`).  Only `gauss` (0x24ddb0)
+    diverged: 4-arg labels were unindexed (`"length"` →
+    `"1 (length)"`, …), 3-arg labels likewise, the standard
+    deviation was named `"width"` instead of the binary's
+    `"sigma"`, and both arities called `readInt` where the
+    binary calls `readPositiveInt`.  Fixed in
+    `waveform_generator_dsp.cpp` and the gauss header brief
+    (logged as IF-232).  All other 10 factories
+    (`vect` excluded — dynamic labels) match the binary
+    exactly; D-AUDIT-1 closed.  Tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

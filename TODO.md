@@ -484,7 +484,7 @@ cross-reference pages so the backlog is discoverable.
            cited in user-facing briefs.  No new IFs.
          1601/1601 tests, 0 doxygen warnings throughout.
 
-- [ ] **D-AUDIT-1 — Audit `WaveformGenerator` factory parameter-label strings**
+- [x] **D-AUDIT-1 — Audit `WaveformGenerator` factory parameter-label strings**
       _(spawned from D4 Batch 6b verify-then-write; see IF-230)_
   - Background: during 6b audit, two factories (`rrc` at 0x254290
     and `sinc` at 0x24b6e0) were found to mislabel `read*` calls

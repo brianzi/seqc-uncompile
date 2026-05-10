@@ -5718,3 +5718,100 @@ to it, only the 4-arg form was covered (by
 `hdawg_doc_random_waves.seqc` line 3 and stress
 `wave_rand_oor.seqc`).
 
+## IF-232  `WaveformGenerator::gauss` parameter labels and `readInt` vs `readPositiveInt`
+
+**Severity**: cosmetic (user-visible error-message text;
+binary-faithfulness regression but no test currently
+exercises gauss's error paths).
+**Status**: fixed in D-AUDIT-1 (D4 Batch 6 follow-up,
+2026-05-10).
+**Discovered**: D-AUDIT-1 sweep of remaining
+`WaveformGenerator` factories (per the IF-230 audit
+methodology) — disassembly of `gauss` at 0x24ddb0 shows
+parameter-label movabs immediates and `read*` call targets
+that diverge from the recon at
+`waveform_generator_dsp.cpp:166-201`.
+
+### Discrepancies
+
+The recon used short, unprefixed labels and the wrong reader
+for `length`; the binary uses indexed labels of the
+`"<arg-index> (<param>)"` form and `readPositiveInt` for
+`length`.  Per-call mapping below; binary call addresses are
+GDB-/objdump-verified, parameter-label strings are decoded
+from inline `movabs $<imm64>,%rax; mov %rax,off(%rbp)`
+sequences plus the trailing `movw`/`movb` size-byte writes
+(libc++ short SSO layout — see `notes/libcpp_abi.md`).
+
+| recon (pre-fix) | binary | call site |
+|---|---|---|
+| `readInt(args[0], "length", 1, "gauss")` (4-arg) | `readPositiveInt(args[0], "1 (length)", 1, "gauss")` | 0x24df6b |
+| `readInt(args[0], "length", 1, "gauss")` (3-arg) | `readPositiveInt(args[0], "1 (length)", 1, "gauss")` | 0x24e095 |
+| `readDoubleAmplitude(args[1], "amplitude", "gauss")` | `readDoubleAmplitude(args[1], "2 (amplitude)", "gauss")` | 0x24e1c2 |
+| `readDouble(args[2], "position", "gauss")` (4-arg) | `readDouble(args[2], "3 (position)", "gauss")` | 0x24e40c |
+| `readDouble(args[3], "width", "gauss")` (4-arg) | `readDouble(args[3], "4 (sigma)", "gauss")` | 0x24e62c |
+| `readDouble(args[1], "position", "gauss")` (3-arg) | `readDouble(args[1], "2 (position)", "gauss")` | 0x24e2e7 |
+| `readDouble(args[2], "width", "gauss")` (3-arg) | `readDouble(args[2], "3 (sigma)", "gauss")` | 0x24e532 |
+
+The most consequential discrepancy is the parameter name
+`"width"` vs the binary's `"sigma"` — these are the same
+mathematical quantity (Gaussian standard deviation) but
+differently named in the user-facing error text.  The
+`readInt` → `readPositiveInt` change is behaviourally
+indistinguishable for valid inputs (since `min=1` already
+rejects negatives in the inner `readInt`), but the error
+template and call-target match the binary post-fix.
+
+### Verification
+
+`objdump -d --start-address=0x24df60 --stop-address=0x24df80
+_seqc_compiler.so` shows `call 25d490 <readPositiveInt>`,
+not `call 25cca0 <readInt>` (symbol addresses from
+`objdump -t`).
+
+`objdump -d --start-address=0x24e4f0 --stop-address=0x24e535
+_seqc_compiler.so` decodes the `"3 (sigma)"` literal
+construction:
+
+```
+24e4fa: movb   $0x12,-0x40(%rbp)              # size byte: 0x12 = 9*2 = 9 chars
+24e4fe: movabs $0x616d676973282033,%rax       # "3 (sigma" little-endian
+24e508: mov    %rax,-0x3f(%rbp)
+24e50c: movw   $0x29,-0x37(%rbp)              # ")\0" finishes the 9-char string
+```
+
+Same pattern at 0x24e1bX for `"2 (amplitude)"`, 0x24e3D5 /
+0x24e2A5 for `"3 (position)"` / `"2 (position)"`, etc.
+
+### Fix
+
+Updated `gauss` in `waveform_generator_dsp.cpp` to use
+`readPositiveInt` for both arities, and replaced every
+parameter label with the binary's exact string (renaming
+the function-local `width` C++ variable left as-is — that
+is internal and unaffected by the binary's user-facing
+label).
+
+### Why this wasn't caught earlier
+
+`gauss` was reconstructed early (Phase 1-era), before the
+verify-then-write workflow was formalised (which happened
+during D4 Batch 2d-2e; AGENTS.md §"Verify-then-write").
+The original block-header summary (`length`, `amplitude`,
+`position`, `width`) was used as the source of truth for
+the `read*` call-site labels rather than re-verifying
+against the binary.  D-AUDIT-1 specifically targets this
+class of stale-summary regression across the
+`WaveformGenerator` factory surface.
+
+### Audit findings: remaining factories clean
+
+The D-AUDIT-1 sweep also re-checked `sin`, `cos`,
+`sawtooth`, `triangle`, `drag`, `blackman`, `hamming`,
+`hann`, `placeholder`, and `vect` (`vect` builds dynamic
+labels via `to_string(i+1) + " (waveform)"`, no static
+literals to compare).  All ten match the binary's
+parameter-label strings and `read*` call targets exactly —
+no further fixes required.  D-AUDIT-1 may now be closed
+as complete.
+

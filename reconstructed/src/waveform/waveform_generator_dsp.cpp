@@ -174,15 +174,15 @@ Signal WaveformGenerator::gauss(std::vector<Value> const& args) {           // 0
     double amp, position, width;
 
     if (args.size() == 4) {
-        length   = readInt(args[0], "length", 1, "gauss");
-        amp      = readDoubleAmplitude(args[1], "amplitude", "gauss");
-        position = readDouble(args[2], "position", "gauss");
-        width    = readDouble(args[3], "width", "gauss");
+        length   = readPositiveInt(args[0], "1 (length)", 1, "gauss");
+        amp      = readDoubleAmplitude(args[1], "2 (amplitude)", "gauss");
+        position = readDouble(args[2], "3 (position)", "gauss");
+        width    = readDouble(args[3], "4 (sigma)", "gauss");
     } else {
-        // 3-arg form: gauss(length, position, width) — amplitude defaults to 1.0
-        length   = readInt(args[0], "length", 1, "gauss");              // 0x24ddf9
-        position = readDouble(args[1], "position", "gauss");
-        width    = readDouble(args[2], "width", "gauss");
+        // 3-arg form: gauss(length, position, sigma) — amplitude defaults to 1.0
+        length   = readPositiveInt(args[0], "1 (length)", 1, "gauss");      // 0x24e095 (binary uses readPositiveInt)
+        position = readDouble(args[1], "2 (position)", "gauss");            // 0x24e2e7
+        width    = readDouble(args[2], "3 (sigma)", "gauss");               // 0x24e532
         amp      = 1.0;
     }
 

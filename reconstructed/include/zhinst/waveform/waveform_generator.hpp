@@ -791,17 +791,20 @@ public:
     /*! \brief Gaussian envelope.
      *
      *  \details Three- or four-argument factory:
-     *  - `gauss(length, position, width)`:
+     *  - `gauss(length, position, sigma)`:
      *    amplitude defaults to 1.0.
-     *  - `gauss(length, amplitude, position, width)`.
+     *  - `gauss(length, amplitude, position, sigma)`.
      *
-     *  Computes sample[i] = `amplitude * exp(-((i - position)^2) / (2 * width^2))`.
-     *  If `width == 0` the output is left zero-initialised (matches the
+     *  Computes sample[i] = `amplitude * exp(-((i - position)^2) / (2 * sigma^2))`.
+     *  If `sigma == 0` the output is left zero-initialised (matches the
      *  binary's NaN/Inf-producing degenerate case, suppressed here).
      *
      *  \param args  3 or 4 arguments.
      *  \return  Signal of `length` samples (single channel).
      *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \binarynote The user-visible parameter name in error messages is
+     *              `sigma`, not `width`; the recon previously used
+     *              `"width"` (see IF-232).
      */
     Signal gauss(std::vector<Value> const& args);            // 0x24ddb0
 
