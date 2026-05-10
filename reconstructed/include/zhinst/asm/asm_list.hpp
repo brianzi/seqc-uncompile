@@ -84,23 +84,89 @@ public:
         //     (read by AsmOptimize::reportUserMessages at 0x280c02:
         //     `mov eax, [r13+0x88]`) — accessed via `lineNumber()`.
         // Same 4 bytes; accessor methods (not a separate field) so layout is stable.
+
+        //! \brief Aliased view of `wavetableFront` reused as
+        //!        a **source line number** for `MESSAGE` and
+        //!        `ERROR_MSG` pseudo-instructions.
+        //!
+        //! \details The `+0x88` int is overloaded by command
+        //! type: ordinary instructions store the
+        //! waveform-table context index propagated from
+        //! `AsmCommands::wavetableFrontIndex_`, while
+        //! diagnostic pseudo-instructions store the source
+        //! line they originated from.  Both views alias the
+        //! same 4 bytes; the accessor exists purely for
+        //! call-site clarity at message-reporting sites
+        //! (e.g. `AsmOptimize::reportUserMessages`).
+        //!
+        //! \return  Mutable / const reference to the
+        //!          source-line view of the dual-purpose
+        //!          field.
         int& lineNumber()       { return wavetableFront; }
+        //! \copydoc lineNumber()
         int  lineNumber() const { return wavetableFront; }
 
-        ~Asm();  // 0x122dd0
+        //! \brief Release the entry's `node` and tear down
+        //!        the embedded `Assembler`.
+        //!
+        //! \details Member-subobject dtors run in reverse
+        //! declaration order: `node` (shared_ptr release,
+        //! atomic-decrement of the control block) then
+        //! `assembler` (frees its inline string and vector
+        //! buffers).  The trivial `sequenceId`,
+        //! `wavetableFront`, and `noOpt` fields require no
+        //! special teardown.
+        ~Asm();
 
-        // Asm::serializeNodeToJsonString(idMap) const — 0x2698b0
-        //   Calls node->toJson(idMap), then boost::json::serialize().
-        //   Returns the JSON string. Uses sret calling convention.
+        //! \brief Render this entry's IR `node` as a JSON
+        //!        string.
+        //!
+        //! \details Calls `node->toJson(idMap)` to build a
+        //! `boost::json::value`, then
+        //! `boost::json::serialize`.  Used during
+        //! `AsmList::serialize()` to embed placeholder-node
+        //! state inline in the `.asm` text dump so the
+        //! corresponding `deserialize()` can reconstruct
+        //! the IR side of the instruction stream.  Caller
+        //! must ensure `node` is non-null.
+        //!
+        //! \param idMap  Mapping from raw entry sequence
+        //!               IDs to the dense IDs assigned in
+        //!               `serialize()`'s pass 1; used to
+        //!               rewrite intra-list references in
+        //!               the JSON output.
+        //! \return  Serialised JSON form of `node`.
         std::string serializeNodeToJsonString(
             const std::unordered_map<int,int>& idMap) const;
 
-        // createUniqueID(bool reset) — always inlined, no standalone function.
-        //   Static thread-local nextID at TLS offset 0x40.
-        //   If reset=true: nextID = 0.
-        //   If reset=false: returns nextID++ (post-increment).
+        //! \brief Allocate the next process-unique
+        //!        instruction sequence ID, or reset the
+        //!        counter.
+        //!
+        //! \details Backed by a thread-local `nextID`
+        //! counter (TLS offset `0x40`).  When `reset` is
+        //! `false`, returns the current value and
+        //! post-increments; when `true`, resets the
+        //! counter to `0` and returns `0`.  Always inlined
+        //! in the binary; no standalone symbol exists.
+        //! `nextSequenceId()` is the conventional alias
+        //! for the post-increment form.
+        //!
+        //! \param reset  When `true`, zero the counter
+        //!               instead of post-incrementing it.
+        //! \return  The pre-increment counter value, or
+        //!          `0` when resetting.
         static int createUniqueID(bool reset);
 
+        //! \brief Compare two entries by their identity
+        //!        bookkeeping fields only.
+        //!
+        //! \details Compares `sequenceId`, `wavetableFront`,
+        //! and `noOpt` — the embedded `Assembler` and IR
+        //! `node` are deliberately *not* part of the
+        //! comparison.  The intent is identity / liveness
+        //! comparison across passes that may rewrite the
+        //! instruction in place.
         bool operator==(const Asm& other) const {
             return sequenceId == other.sequenceId
                 && wavetableFront == other.wavetableFront
@@ -108,89 +174,191 @@ public:
         }
     };
 
+    //! \brief Default-construct an empty list.
     AsmList() = default;
+    //! \brief Construct from a pre-built `std::vector<Asm>`,
+    //!        adopting its storage by move.
     AsmList(std::vector<Asm> v) : entries(std::move(v)) {}
+    //! \brief Replace the entire entry vector by move-assign
+    //!        from a raw `std::vector<Asm>`.
     AsmList& operator=(std::vector<Asm> v) { entries = std::move(v); return *this; }
 
-    // --- Destructor: 0x11d5b0
-    //   Iterates elements from end to begin, destroying each
-    //   (release shared_ptr, destroy Assembler), then frees buffer.
+    //! \brief Destroy the list and every `Asm` it contains.
+    //!
+    //! \details Iterates the entries from end to begin
+    //! tearing each down (releasing its `node` shared_ptr
+    //! and destroying the embedded `Assembler`) before
+    //! freeing the vector buffer.
     ~AsmList();
 
-    // --- append(entry): 0x15d180
-    //   Copy-appends an Asm record. Fast path: placement new if capacity
-    //   allows; slow path: vector reallocation.
-    //   Copies: sequenceId (int), Assembler (copy ctor), wavetableFront (int),
-    //   node (shared_ptr copy + atomic inc), noOpt (bool).
+    //! \brief Copy-append an instruction record at the end
+    //!        of the list.
+    //!
+    //! \details Performs the standard `vector::push_back`
+    //! placement-new on the fast path (when capacity
+    //! suffices) or grows the buffer otherwise.  Copies
+    //! every field of `entry` including the `node`
+    //! shared_ptr (atomic-increment of its control block).
+    //!
+    //! \param entry  Instruction record to append.
     void append(const Asm& entry);
 
-    // --- print(showNode, os, showHeader) const: 0x264250
-    //   Iterates entries. For each:
-    //     If showHeader: prints "NNN (NNN): " with wavetableFront and sequenceId.
-    //     If opcode != -1: prints Assembler::str(true) + "\n".
-    //     If opcode == -1 (placeholder):
-    //       If showNode && node: prints "// placeholder: " + node->toString() + "\n".
-    //       If showNode && !node: prints "// <empty command>\n".
-    //       Else: just "\n".
+    //! \brief Render the list as human-readable disassembly.
+    //!
+    //! \details For each entry: when `showHeader` is `true`,
+    //! prefixes `"<wavetableFront> (<sequenceId>): "`; when
+    //! the opcode is real, appends `Assembler::str(true)`
+    //! followed by a newline; when the opcode is the
+    //! placeholder sentinel `-1`, behaviour depends on
+    //! `showNode` and `node` — non-null nodes render as
+    //! `"// placeholder: <node->toString()>\n"`, null
+    //! nodes render as `"// <empty command>\n"` when
+    //! `showNode` is `true`, and as a bare newline
+    //! otherwise.
+    //!
+    //! \param showNode    Whether to print placeholder
+    //!                    bodies for opcode-`-1` entries.
+    //! \param os          Output stream.
+    //! \param showHeader  Whether to prefix each line with
+    //!                    the `wavetableFront`/`sequenceId`
+    //!                    pair.
     void print(bool showNode, std::ostream& os, bool showHeader) const;
 
-    // --- serialize() const: 0x2646d0
-    //   Two-pass serialization to string:
-    //   Pass 1: Build idMap (unordered_map<int,int>) — assigns sequential IDs
-    //           to entries, skipping opcode==4 and (opcode==-1 && node==null).
-    //   Pass 2: For each entry:
-    //     If opcode != -1: emit Assembler::str(true), optionally " #disableOpt"
-    //                      suffix if noOpt && specific opcode check.
-    //     If opcode == -1 && node: emit "placeholder # " + node.toJson(idMap) serialized.
-    //   Returns the full string.
+    //! \brief Serialise the list to its round-trip text form.
+    //!
+    //! \details Two-pass:
+    //! - Pass 1 builds a dense `idMap`
+    //!   (`unordered_map<int,int>`) assigning sequential
+    //!   IDs to entries while skipping opcode-`4` entries
+    //!   and placeholder entries with a null `node`.
+    //! - Pass 2 emits one line per entry: real opcodes
+    //!   render via `Assembler::str(true)` (with an optional
+    //!   `" #disableOpt"` suffix when `noOpt` is set on a
+    //!   qualifying opcode), and non-null placeholders
+    //!   render as `"placeholder # " +
+    //!   serializeNodeToJsonString(idMap)`.
+    //!
+    //! Used to round-trip the assembler stream through the
+    //! ELF `.asm` section so that `deserialize` can later
+    //! rebuild an equivalent in-memory list.
+    //!
+    //! \return  Multi-line serialised text form.
     std::string serialize() const;
 
-    // --- deserialize(str): 0x266050
-    //   Calls parseStringToAsmList(str), moves result into this.
-    //   Returns *this.
+    //! \brief Rebuild the list in place from text produced
+    //!        by `serialize()`.
+    //!
+    //! \details Delegates to `parseStringToAsmList(str)`
+    //! and move-assigns the parsed entries over the
+    //! current contents.  Returns `*this` for chaining.
+    //! Any error / warning text produced by the parser is
+    //! discarded by this overload — call
+    //! `parseStringToAsmList` directly to capture it.
+    //!
+    //! \param str  Text-form input to parse.
+    //! \return  `*this`.
     AsmList& deserialize(const std::string& str);
 
-    // --- parseStringToAsmList(str): 0x266160 (static)
-    //   Parses assembly text back into AsmList. Uses:
-    //     1. getDeviceConstants(AwgDeviceType::2) — hardcoded device type
-    //     2. AWGAssembler::assembleStringToExpressionsVec(str) — parse text
-    //     3. Iterates expressions, builds Asm entries with createUniqueID
-    //   Returns tuple<AsmList, string> (AsmList + error/warning messages).
-    //   ~7000 bytes of code — complex parser.
+    //! \brief Parse assembler text into a fresh `AsmList`,
+    //!        returning any diagnostic output alongside.
+    //!
+    //! \details Uses the legacy `AWGAssembler` text parser
+    //! against the device-constants for `AwgDeviceType` 2
+    //! (HDAWG) — the device family is hardcoded because
+    //! the text form is device-agnostic.  Each parsed
+    //! expression becomes one `Asm` entry with a fresh
+    //! `sequenceId` from `createUniqueID(false)`.
+    //!
+    //! \binarynote The device-type parameter is hardwired
+    //!             to HDAWG (`AwgDeviceType(2)`) regardless
+    //!             of which device originally produced the
+    //!             text — round-tripping non-HDAWG
+    //!             instructions relies on the encoded form
+    //!             being device-portable.
+    //!
+    //! \param str  Assembler text to parse.
+    //! \return  `(parsed_list, diagnostic_text)` pair; the
+    //!          diagnostic string is empty on success.
     static std::tuple<AsmList, std::string> parseStringToAsmList(const std::string& str);
 
-    // --- maxRegister() const: 0x269910
-    //   Iterates all entries, calls Assembler::highestRegisterNumber() on each.
-    //   Returns the maximum register number found (0 if empty).
-    //   highestRegisterNumber() returns packed int64: bit 32 = valid flag,
-    //   lower 32 = register number.
+    //! \brief Highest register number referenced anywhere
+    //!        in the list.
+    //!
+    //! \details Walks every entry calling
+    //! `Assembler::highestRegisterNumber()` (which encodes
+    //! a packed `int64`: bit 32 is a validity flag, the
+    //! low 32 bits are the register number).  Returns `0`
+    //! on an empty list.  Used by the register allocator
+    //! to size its scratch tables.
+    //!
+    //! \return  Maximum register number seen across all
+    //!          entries.
     int maxRegister() const;
 
     // --- Container-like forwarding (code often uses AsmList directly as a container) ---
     using iterator = std::vector<Asm>::iterator;
     using const_iterator = std::vector<Asm>::const_iterator;
+    //! \brief Iterator to the first entry.
     iterator begin() { return entries.begin(); }
+    //! \brief Iterator past the last entry.
     iterator end() { return entries.end(); }
+    //! \brief Const iterator to the first entry.
     const_iterator begin() const { return entries.begin(); }
+    //! \brief Const iterator past the last entry.
     const_iterator end() const { return entries.end(); }
+    //! \brief Const iterator to the first entry (explicit
+    //!        const overload).
     const_iterator cbegin() const { return entries.cbegin(); }
+    //! \brief Const iterator past the last entry (explicit
+    //!        const overload).
     const_iterator cend() const { return entries.cend(); }
+    //! \brief Number of entries currently in the list.
     size_t size() const { return entries.size(); }
+    //! \brief Whether the list contains no entries.
     bool empty() const { return entries.empty(); }
+    //! \brief Pre-allocate storage for at least `n` entries.
     void reserve(size_t n) { entries.reserve(n); }
+    //! \brief Copy-append an entry (vector forwarding).
     void push_back(const Asm& e) { entries.push_back(e); }
+    //! \brief Move-append an entry (vector forwarding).
     void push_back(Asm&& e) { entries.push_back(std::move(e)); }
+    //! \brief Forward to `std::vector::insert` for any
+    //!        argument shape (single value, count+value,
+    //!        iterator range, initializer list).
     template<typename... Args>
     iterator insert(const_iterator pos, Args&&... args) { return entries.insert(pos, std::forward<Args>(args)...); }
+    //! \brief Erase the entry at `pos`; returns iterator to
+    //!        the next entry.
     iterator erase(const_iterator pos) { return entries.erase(pos); }
+    //! \brief Erase entries in `[first, last)`; returns
+    //!        iterator to the entry after `last`.
     iterator erase(const_iterator first, const_iterator last) { return entries.erase(first, last); }
+    //! \brief Remove every entry, leaving the list empty.
     void clear() { entries.clear(); }
 
-    // Insert range before the entry whose node matches the given placeholder.
-    // Used by Prefetch::placeSingleCommand to splice instructions at placeholder positions.
+    //! \brief Splice the entirety of `source`'s entries into
+    //!        this list immediately before the entry whose
+    //!        IR node matches `placeholder`.
+    //!
+    //! \details Convenience wrapper that calls
+    //! `insert(placeholder, source.begin(), source.end())`.
+    //! Used by the prefetch pass to expand a placeholder
+    //! node into the full instruction sequence the pass
+    //! produced for it.
     void insert(std::shared_ptr<Node> const& placeholder, AsmList& source) {
         insert(placeholder, source.begin(), source.end());
     }
+    //! \brief Splice the iterator range `[first, last)` into
+    //!        this list immediately before the entry whose
+    //!        IR node matches `placeholder`.
+    //!
+    //! \details Linear scan over `entries` looking for the
+    //! first entry whose `node` shared_ptr compares equal
+    //! to `placeholder`; the range is inserted at that
+    //! position.  When no entry matches, the range is
+    //! appended at the end of the list — chosen
+    //! deliberately so prefetch-pass output is never
+    //! silently dropped.
     void insert(std::shared_ptr<Node> const& placeholder, const_iterator first, const_iterator last) {
         // Find the entry whose node == placeholder
         for (auto it = entries.begin(); it != entries.end(); ++it) {
@@ -202,20 +370,46 @@ public:
         // If not found, append at end
         entries.insert(entries.end(), first, last);
     }
+    //! \brief Indexed mutable access to an entry.
     Asm& operator[](size_t i) { return entries[i]; }
+    //! \brief Indexed const access to an entry.
     const Asm& operator[](size_t i) const { return entries[i]; }
+    //! \brief Reference to the first entry (UB on empty
+    //!        list).
     Asm& front() { return entries.front(); }
+    //! \copydoc front()
     const Asm& front() const { return entries.front(); }
+    //! \brief Reference to the last entry (UB on empty
+    //!        list).
     Asm& back() { return entries.back(); }
+    //! \copydoc back()
     const Asm& back() const { return entries.back(); }
 
+    //! \brief Element-wise equality on the underlying entry
+    //!        vector (uses `Asm::operator==`'s identity
+    //!        comparison — see its docs).
     bool operator==(const AsmList& other) const { return entries == other.entries; }
+    //! \brief ADL `swap` — exchanges the two lists' entry
+    //!        vectors in O(1).
     friend void swap(AsmList& a, AsmList& b) { std::swap(a.entries, b.entries); }
 
     // Implicit conversion from single Asm — prefetch code assigns Asm to AsmList
+    //! \brief Implicit single-entry conversion: build a
+    //!        one-element list from a single `Asm`.
+    //!
+    //! \details The prefetch pass and other call sites
+    //! frequently treat a single instruction as a list of
+    //! one; this ctor (and the matching assignments below)
+    //! avoid forcing those sites to construct a vector
+    //! explicitly.
     AsmList(const Asm& single) { entries.push_back(single); }
+    //! \copydoc AsmList(const Asm&)
     AsmList(Asm&& single) { entries.push_back(std::move(single)); }
+    //! \brief Replace the list with a single-entry list
+    //!        copied from `single`.
     AsmList& operator=(const Asm& single) { entries.clear(); entries.push_back(single); return *this; }
+    //! \brief Replace the list with a single-entry list
+    //!        moved from `single`.
     AsmList& operator=(Asm&& single) { entries.clear(); entries.push_back(std::move(single)); return *this; }
 
     // --- Storage: exactly std::vector<Asm> ---
@@ -224,6 +418,17 @@ public:
 
 // Free function alias — used in AsmCommandsImpl{Cervino,Hirzel}
 // Maps to AsmList::Asm::createUniqueID(false).
+//! \brief Allocate the next process-unique instruction
+//!        sequence ID.
+//!
+//! \details Convenience alias for
+//! `AsmList::Asm::createUniqueID(false)`; used pervasively
+//! by `AsmCommandsImplCervino` / `AsmCommandsImplHirzel`
+//! when stamping freshly built `Asm` records with their
+//! identity.
+//!
+//! \return  Post-incremented value of the thread-local
+//!          sequence counter.
 inline int nextSequenceId() { return AsmList::Asm::createUniqueID(false); }
 
 } // namespace zhinst

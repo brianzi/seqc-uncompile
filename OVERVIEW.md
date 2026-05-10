@@ -852,6 +852,28 @@ mainpage.
     field-offset annotations preserved verbatim alongside
     the new `//!` briefs.  No source changes; no new IFs.
     Build clean (0 doc warnings); tests 1601/1601.
+  - **7g (2026-05-10)**: ~40 briefs across the
+    `AsmList` / `AsmList::Asm` public surface in
+    `include/zhinst/asm/asm_list.hpp`.  Documents the
+    `Asm` member set (`lineNumber` dual-purpose
+    accessor, `~Asm`, `serializeNodeToJsonString`,
+    `createUniqueID` TLS counter, identity-only
+    `operator==`), the `AsmList` lifecycle (3 ctors,
+    dtor, `append`), the round-trip text I/O group
+    (`print`, `serialize` two-pass algorithm,
+    `deserialize`, `parseStringToAsmList` with the
+    HDAWG-hardcoded `\binarynote`), `maxRegister`,
+    every container-forwarding member (iterators /
+    `size` / `empty` / `reserve` / `push_back` /
+    `insert` / `erase` / `clear` / indexed access /
+    `front`/`back` / `operator==` / ADL `swap`), the
+    two `insert(placeholder, …)` overloads (with the
+    "append on miss" fallback documented), the four
+    implicit single-`Asm` ctor / assignment forms used
+    by the prefetch pass, and the `nextSequenceId()`
+    free-function alias.  No source changes; no new
+    IFs.  Build clean (0 doc warnings); tests
+    1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
