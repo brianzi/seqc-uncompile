@@ -1186,17 +1186,198 @@ public:
         std::shared_ptr<Node> node);                                   // 0x1d6b50
 
     // Waveform instruction helpers
+
+    /*! \brief Clamp a waveform address to the device's available cache
+     *         capacity.
+     *
+     *  \details
+     *  For non-Hirzel devices the address is simply clamped to the
+     *  20-bit hardware limit (`0xFFFFF`).
+     *
+     *  For Hirzel devices the cache capacity is computed from the
+     *  device's per-cache-type page count
+     *  (`DeviceConstants::cachePageCount` for `cacheType == 0`,
+     *  `DeviceConstants::maxBlocks` for `cacheType == 1`) multiplied by
+     *  `DeviceConstants::waveformAlignment` (the page size).  The
+     *  result is `min(capacity, addr, 0xFFFFF)`.  When the cache type
+     *  is 1 (aligned) the final value is rounded up to the next
+     *  page-size boundary so the emission lands on a grain edge.
+     *
+     *  \param addr  Address (or size) to clamp, in bytes.
+     *  \return  Clamped address suitable as the immediate of a `prf` /
+     *           cache-aware emission.
+     */
     detail::AddressImpl<uint32_t> clampToCache(
         detail::AddressImpl<uint32_t> addr) const;                     // 0x1d6c40
+
+    /*! \brief Emit a waveform-play instruction (`wvf` / `wvfi`) with
+     *         an immediate offset.
+     *
+     *  \details
+     *  Produces an `AsmList` containing either a single `wvf`/`wvfi`
+     *  instruction (when `offset` fits in the 20-bit immediate, i.e.
+     *  `< 0x100000`) or an `addi` + `wvf`/`wvfi` pair (when the offset
+     *  is too large, in which case a freshly allocated temporary
+     *  register is loaded with the offset and the play instruction
+     *  uses that register with a zero immediate).
+     *
+     *  \param reg      Wave-state register to play from.
+     *  \param offset   Byte offset into the waveform memory.
+     *  \param indexed  When `true`, emit the indexed variant `wvfi`;
+     *                  when `false`, emit `wvf`.
+     *  \return  AsmList holding one or two instructions ready to be
+     *           spliced into the placement output.
+     */
     AsmList wvfImpl(AsmRegister reg, int offset, bool indexed) const;  // 0x1d6ca0
+
+    /*! \brief Emit a waveform-play instruction (`wvf` / `wvfi`) whose
+     *         offset comes from a register.
+     *
+     *  \details
+     *  Allocates a temporary address register, copies `offset` into it
+     *  with `addi(tempReg, offset, 0)`, then emits an `ssl(tempReg)`
+     *  to set the sample length and finally a `wvf` or `wvfi`
+     *  instruction (depending on `indexed`) using `reg` as the
+     *  wave-state register and the temporary as the address with a
+     *  zero immediate.
+     *
+     *  \param reg      Wave-state register to play from.
+     *  \param offset   Register holding the byte offset into waveform
+     *                  memory.
+     *  \param indexed  When `true`, emit the indexed variant `wvfi`;
+     *                  when `false`, emit `wvf`.
+     *  \return  AsmList holding the addi + ssl + wvf/wvfi sequence.
+     */
     AsmList wvfRegImpl(AsmRegister reg, AsmRegister offset,
         bool indexed) const;                                           // 0x1d7020
+
+    /*! \brief Emit a waveform-set (`wvfs`) instruction sequence.
+     *
+     *  \details
+     *  When `offset < 0x100000`, emits a single
+     *  `wvfs(playDummyType, reg, offset)`.  When `reg` is invalid it
+     *  is replaced with `R0` for both branches.
+     *
+     *  When `offset >= 0x100000`, splits the address into a high-bits
+     *  `addi` + low-bits `wvfs` pair: a temporary register is loaded
+     *  with `addi(tempReg, reg, offset - 0xFFFFF)` and then
+     *  `wvfs(playDummyType, tempReg, 0xFFFFF)` is emitted.  When the
+     *  caller's `reg` was originally invalid (defaulted to `R0`), the
+     *  configuration has at least two channel groups, the address
+     *  computed from `DeviceConstants::maxWaveformLength`,
+     *  `DeviceConstants::grainSize` and
+     *  `DeviceConstants::bitsPerSample` exceeds 20 bits, and the
+     *  emitted `addi` is a single `ADDI` instruction, an extra
+     *  `addiu(tempReg, tempReg, 0)` is appended to extend the address
+     *  into the upper register half before the `wvfs`.
+     *
+     *  \param type    Dummy / hold flavour selecting which `wvfs`
+     *                 opcode variant to emit.
+     *  \param reg     Base register; replaced with `R0` when invalid.
+     *  \param offset  Byte offset into waveform memory.
+     *  \return  AsmList containing the wvfs sequence (1, 2, or 3
+     *           instructions depending on the path taken).
+     */
     AsmList wvfs(Assembler::PlayDummyType type,
         AsmRegister reg, int offset) const;                            // 0x1d73e0
 
     // Analysis
+
+    /*! \brief Determine whether a node requires a fresh `cwvf`
+     *         instruction.
+     *
+     *  \details
+     *  Walks up `Node::parent` weak pointers comparing the node's
+     *  `currentCwvf` (`Node+0x68`, a `PlayConfig`) against ancestor
+     *  configurations.  Returns `true` as soon as any of the always-
+     *  compared `PlayConfig` fields (`channelMask`, `rate`,
+     *  `suppress`, `is4Channel`, `markerBits`, `trigger`,
+     *  `precompFlags`, `dummy`) differs from the corresponding field
+     *  on an ancestor; the `hold` field participates in the
+     *  comparison only when `rate > 0`.
+     *
+     *  Has one early-out: a Play node whose `config.dummy` or
+     *  `config.hold` is set, whose `rate` is either 0 or
+     *  `(-1 && globalRate <= 0)`, on a device with `hasPrecomp`,
+     *  reports `false` immediately — the precompensation path takes
+     *  over the cwvf programming.
+     *
+     *  Recurses into the parent chain when the parent is a `Loop`
+     *  whose first comparison matches but whose containing structure
+     *  still has to be examined.
+     *
+     *  \param node  Node whose cwvf requirement is being decided;
+     *               must have a populated `parent` link in the
+     *               typical use.
+     *  \return  `true` if a new `cwvf` instruction must precede the
+     *           node's emission, `false` if the parent chain already
+     *           guarantees the same configuration.
+     */
     bool needsNewCwvf(std::shared_ptr<Node> node) const;               // 0x1dc620
+
+    /*! \brief Generate the assembly sequence for a waveform play that
+     *         spans more than one cache page.
+     *
+     *  \details
+     *  Computes the total waveform byte length, either from the
+     *  node's pre-computed length × channel count × 2 fast path
+     *  (when `Node::length` is non-zero) or from the waveform's raw
+     *  signal data rounded up against
+     *  `DeviceConstants::maxWaveformLength` and
+     *  `DeviceConstants::bitsPerSample` (when the length must be
+     *  derived).
+     *
+     *  Determines how many full cache half-pages fit and what
+     *  remainder is left over by consulting the load node's cache
+     *  pointer (`PrefetcherNodeState::cachePtr->numRepeats_` and
+     *  `size_`).  Allocates registers for the address, optional
+     *  per-PlayConfig copy, optional cervino register, and the
+     *  Hirzel state register; emits the initial `addi` carrying the
+     *  base address (waveform offset + total length) and one
+     *  per-channel `ssl` plus an `addr` to publish the address.
+     *
+     *  Generates three labels (`play`, `last`, `done`) and emits the
+     *  loop body: a first `insertPlay` for the main half-page,
+     *  followed by an `addi` to advance the wave register by half a
+     *  page, an `addi` + `subr` to maintain a loop counter, an
+     *  optional `brgz` that skips the remainder when the count
+     *  reaches zero, optional `prf` + `wprf` for non-Hirzel devices,
+     *  a `brz` back-edge to the `play` label, a second `insertPlay`
+     *  for the remainder (when non-zero), and finally the `done`
+     *  label.
+     *
+     *  \param node  Play node whose waveform must be split across
+     *               cache pages.
+     *  \return  AsmList containing the entire split-play sequence
+     *           ready to be inserted at the node's placeholder.
+     */
     AsmList splitPlay(std::shared_ptr<Node> node) const;               // 0x1dd1a0
+
+    /*! \brief Append a labelled play sequence to an in-progress
+     *         AsmList.
+     *
+     *  \details
+     *  Emits, in order:
+     *
+     *  1. An `asmLabel(name)` carrying the supplied label string.
+     *  2. The `wvfImpl(reg, addrA, indexed)` waveform-play sequence.
+     *  3. On non-Hirzel devices, an `xnori(reg, reg, addrB)` to
+     *     mask the cache hash bits into the wave-state register.
+     *
+     *  \param list     Output AsmList; new instructions are pushed
+     *                  to the back.
+     *  \param indexed  Forwarded to `wvfImpl`; selects `wvfi`
+     *                  versus `wvf`.
+     *  \param name     Label name to emit (typically one of the
+     *                  `play` / `last` labels generated by
+     *                  `splitPlay`).
+     *  \param reg      Wave-state register that the play will use
+     *                  and that the optional `xnori` will mask.
+     *  \param addrA    Byte offset for the play instruction.
+     *  \param addrB    Cache hash mask used by the `xnori` mask
+     *                  step on non-Hirzel devices; ignored on
+     *                  Hirzel.
+     */
     void insertPlay(AsmList& list, bool indexed, std::string const& name,
         AsmRegister reg, detail::AddressImpl<uint32_t> addrA,
         detail::AddressImpl<uint32_t> addrB) const;                    // 0x1def50

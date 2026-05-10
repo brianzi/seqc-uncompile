@@ -300,6 +300,14 @@ cross-reference pages so the backlog is discoverable.
         to confirm; add a regression test.  Tests currently
         1600/1600 because no case in the corpus reaches this
         path.  See IF-224 for full evidence.
+  - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
+        helpers (7 methods): `clampToCache`, `wvfImpl`,
+        `wvfRegImpl`, `wvfs`, `needsNewCwvf`, `splitPlay`,
+        `insertPlay`.  No new IFs surfaced; the existing
+        block-header summaries in `prefetch_emit.cpp` /
+        `prefetch_splitplay.cpp` matched the bodies after
+        line-by-line audit.  1600/1600 tests, build clean,
+        0 doxygen warnings.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 
