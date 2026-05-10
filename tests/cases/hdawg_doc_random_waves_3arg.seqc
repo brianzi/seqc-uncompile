@@ -1,0 +1,9 @@
+// Coverage for the 3-arg `rand(length, mean, stddev)` form, which
+// defaults amplitude=1.0.  Distinct from the 4-arg form covered by
+// hdawg_doc_random_waves.seqc.  See IF-205 / IF-230 for the parallel
+// randomGauss issue and rand 3-arg paramName audit.
+
+wave w3 = rand(128, 0.0, 0.25);
+wave w4 = rand(128, 0.5, 0.0, 0.25);
+playWave(w3);
+playWave(w4);

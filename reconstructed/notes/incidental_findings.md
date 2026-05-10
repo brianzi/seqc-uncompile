@@ -5565,3 +5565,104 @@ mis-numbered labels in subsequent batches.  Audit method:
 disassemble each entry point, decode all `movabs $0x...,%rax`
 immediates that precede `read*` calls, compare strings to the
 recon's `read*` literal arguments.
+
+## IF-231  `WaveformGenerator::rand` 3-arg overload had wrong parameter binding (semantic bug)
+
+**Severity**: likely-bug (semantic divergence; user-visible
+sample values differ; analogous to IF-205 for `randomGauss`).
+**Status**: fixed in D4 Batch 6c (waveform_generator_dsp.cpp
+`rand` 3-arg signature).
+**Discovered**: D4 Batch 6c verify-then-write audit of
+`waveform_generator_dsp.cpp:880-935` against the binary
+disassembly of `WaveformGenerator::rand` at 0x251cf0.
+**GDB-verified**: 2026-05-10 with `rand(64, 0.25, 0.125)` on
+HDAWG8 — only three `read*` sites fired in the 3-arg branch
+(no `readDoubleAmplitude` call), with paramName SSO inline
+bytes confirmed via `x/24bc $rdx`.
+
+### Symptom (latent)
+
+The reconstruction implemented the 3-arg overload as
+`rand(length, amplitude, mean)` with `stddev` defaulting to
+1.0:
+
+```cpp
+} else {  // 3 args   (recon, before fix)
+    length    = readPositiveInt(args[0], "1 (length)", 1, "rand");
+    amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "rand");
+    mean      = readDouble(args[2], "3 (mean)", "rand");
+    // stddev remains 1.0
+}
+```
+
+The binary's 3-arg path is actually
+`rand(length, mean, stddev)` with `amplitude` defaulting to
+1.0 — the **second** argument, not the fourth, is the one that
+defaults.  This is the same pattern as IF-205 for
+`randomGauss`, which was fixed earlier; the symmetric bug in
+`rand` slipped through because no test exercised the 3-arg
+form.
+
+### Binary evidence
+
+Disassembly of `rand` at 0x251cf0 dispatches `cmp $0x4 → je
+0x251d6e` (4-arg entry) then `cmp $0x3 → jne throw` and falls
+through at 0x251d37 (3-arg entry).  Counting `read*` call
+sites between 0x251cf0 and 0x252820 turns up **seven** total:
+
+| addr     | callee               | size_byte | paramName              |
+|----------|----------------------|-----------|-----------------------|
+| 0x251ea1 | readPositiveInt      | 0x14      | `"1 (length)"` (4-arg) |
+| 0x251fc4 | readPositiveInt      | 0x14      | `"1 (length)"` (3-arg) |
+| 0x2520ec | readDoubleAmplitude  | 0x1a      | `"2 (amplitude)"` (4-arg only) |
+| 0x252205 | readDouble           | 0x10      | `"2 (mean)"` (3-arg)   |
+| 0x252321 | readDouble           | 0x10      | `"3 (mean)"` (4-arg, via `inc rax` from `"2 (mean)"`) |
+| 0x25244d | readDouble           | 0x2c      | `"3 (standard deviation)"` (3-arg, lea rodata @0x905e92) |
+| 0x25250e | readDouble           | 0x2c      | `"4 (standard deviation)"` (4-arg, lea rodata @0x905ea9) |
+
+There is **only one** `readDoubleAmplitude` call site in the
+entire function (0x2520ec), confirming that only the 4-arg
+path reads amplitude from the user.  The 3-arg path skips it
+and the binary loads the rodata constant 1.0 (@0x956030) into
+the amplitude slot.
+
+### GDB confirmation
+
+```
+>>> HIT readPosInt_3arg_len    size_byte=0x14  inline="1 (length)..."
+>>> HIT readDouble_3arg_first  size_byte=0x10  inline="2 (mean)"
+>>> HIT readDouble_3arg_second size_byte=0x2c  inline="3 (standard "
+```
+
+The `readDoubleAmplitude` breakpoint at 0x2520ec did **not** fire
+during a 3-arg call, confirming amplitude is the defaulted slot.
+
+### Fix
+
+Swapped the 3-arg path to `(length, mean, stddev)`, defaulted
+`amplitude = 1.0` instead of `stddev = 1.0`, and updated the
+disassembly notes to reflect the verified call-site map.  Added
+a new test case `random_waves_3arg` (HDAWG8) under
+`manifest-documentation.json` that exercises both
+`rand(128, 0.0, 0.25)` and `rand(128, 0.5, 0.0, 0.25)`; both
+produce byte-identical waveforms vs the binary post-fix.
+
+### Why IF-205 didn't catch this
+
+IF-205 was discovered via a coverage-round test of
+`randomGauss`, and its fix targeted `randomGauss` specifically.
+The `rand` block-header summary (lines 873-878 pre-fix) inherited
+the original-source layout `(length, amplitude, mean)` for the
+3-arg form and was never re-verified against the binary.  This is
+a textbook AGENTS.md "verify-then-write" failure — the 3-arg
+summary was used as primary evidence for downstream reconstruction
+when it should have been treated as a stale secondary source.
+
+### Coverage gap closed
+
+`hdawg_doc_random_waves_3arg.seqc` (added with this fix) is the
+first test case that exercises the 3-arg `rand` overload.  Prior
+to it, only the 4-arg form was covered (by
+`hdawg_doc_random_waves.seqc` line 3 and stress
+`wave_rand_oor.seqc`).
+

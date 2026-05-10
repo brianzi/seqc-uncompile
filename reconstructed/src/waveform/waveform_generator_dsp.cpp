@@ -878,19 +878,28 @@ Signal WaveformGenerator::marker(std::vector<Value> const& args) {             /
 // (GlobalResources::random) with std::normal_distribution.
 //
 // Disassembly notes:
-//   - 3-arg path starts at 0x251d31: (length, amplitude, mean), stddev = 1.0
-//   - 4-arg path starts at 0x251d6e: (length, amplitude, mean, stddev)
-//   - readPositiveInt for "1 (length)" min=1
-//   - readDoubleAmplitude for "2 (amplitude)"
-//   - readDouble for mean (param name "2 (mean)" or "3 (mean)" via inc trick)
-//   - readDouble for stddev (param name "3 (standard deviation)" or "4 (...)")
-//   - Default stddev = 1.0 loaded from rodata @0x956030
-//   - Signal::Signal(size_t) at 0x25254e constructs output
+//   - 3-arg path falls through at 0x251d37: (length, mean, stddev),
+//     amplitude defaults to 1.0 (loaded from rodata @0x956030).
+//   - 4-arg path entry 0x251d6e: (length, amplitude, mean, stddev).
+//   - readPositiveInt for "1 (length)" min=1.
+//   - readDoubleAmplitude for "2 (amplitude)" (4-arg path only).
+//   - readDouble param strings (3-arg vs 4-arg):
+//       3-arg mean   "2 (mean)"               via movabs imm @0x2521d5
+//       3-arg stddev "3 (standard deviation)" via lea rodata @0x905e92
+//       4-arg mean   "3 (mean)"               via movabs+inc @0x2522ee
+//       4-arg stddev "4 (standard deviation)" via lea rodata @0x905ea9
+//   - Default amplitude = 1.0 loaded from rodata @0x956030 (3-arg).
+//   - Signal::Signal(size_t) at 0x25254e constructs output.
 //   - Generation loop at 0x252580+ uses an inline Park-Miller MINSTD LCG
 //     (multiplier 48271, modulus 2^31-1, state reset to 1 each call) with
 //     a Marsaglia polar Box-Muller transform.  This is the ONLY rand*
 //     function that does NOT use the MT19937_64 in GlobalResources::random.
 //   - Samples are: amplitude * (mean + stddev * normal_polar())
+//   - GDB-verified 2026-05-10 (3-arg call rand(64, 0.25, 0.125)): only
+//     three read* sites fire — readPositiveInt @0x251fc4 with "1 (length)",
+//     readDouble @0x252205 with "2 (mean)", readDouble @0x25244d with
+//     "3 (standard deviation)"; readDoubleAmplitude is skipped, paralleling
+//     the IF-205 finding for randomGauss.
 Signal WaveformGenerator::rand(std::vector<Value> const& args) {               // 0x251cf0
     if (args.size() != 3 && args.size() != 4) {
         throw WaveformGeneratorException(
@@ -899,21 +908,20 @@ Signal WaveformGenerator::rand(std::vector<Value> const& args) {               /
     }
 
     int length;
-    double amplitude;
+    double amplitude = 1.0;  // 3-arg default from rodata @0x956030
     double mean;
-    double stddev = 1.0;  // default from rodata @0x956030
+    double stddev;
 
     if (args.size() == 4) {                                                    // 0x251d6e
         length    = readPositiveInt(args[0], "1 (length)", 1, "rand");
         amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "rand");
-        mean      = readDouble(args[2], "2 (mean)", "rand");                   // 0x252205
-        stddev    = readDouble(args[3], "3 (standard deviation)", "rand");      // 0x25244d
-    } else {  // 3 args                                                        // 0x251d31
-        length    = readPositiveInt(args[0], "1 (length)", 1, "rand");
-        amplitude = readDoubleAmplitude(args[1], "2 (amplitude)", "rand");
         mean      = readDouble(args[2], "3 (mean)", "rand");                   // 0x252321
-        // stddev remains 1.0; the binary loads 1.0 from @0x956030 and
-        // branches past the 4th readDouble.                                   // 0x252452
+        stddev    = readDouble(args[3], "4 (standard deviation)", "rand");     // 0x25250e
+    } else {  // 3 args, fall through @0x251d37
+        length    = readPositiveInt(args[0], "1 (length)", 1, "rand");         // 0x251fc4
+        mean      = readDouble(args[1], "2 (mean)", "rand");                   // 0x252205
+        stddev    = readDouble(args[2], "3 (standard deviation)", "rand");     // 0x25244d
+        // amplitude remains 1.0 (rodata @0x956030).
     }
 
     Signal sig(static_cast<size_t>(length));                                   // 0x25254e
