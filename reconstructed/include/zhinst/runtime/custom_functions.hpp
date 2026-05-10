@@ -1216,10 +1216,105 @@ public:
     // All share signature: shared_ptr<EvalResults>(vector<EvalResultValue> const&, shared_ptr<Resources>)
     // Registered in funcMap_ during construction. Bodies stubbed with addresses.
 
+    //! \brief Implement the SeqC `setDIO` built-in: write a single
+    //! value to the device's DIO output bus.
+    //!
+    //! Latches the DIO/ZSync mutual-exclusion mode to `Dio` (throws
+    //! if already set to `ZSync`).  Requires exactly one argument.
+    //! When the argument is `Var`, emits `sdio(reg, isShf)`
+    //! directly using its register; when `Const` / `Cvar`,
+    //! allocates a scratch register, emits
+    //! `addi32(reg, R0, Imm(value))` followed by
+    //! `sdio(reg, isShf)`.  On non-SHF devices, also looks up
+    //! `_/dios/0/output` and records `Custom` access (silently
+    //! ignored when the node is absent for the current device).
+    //!
+    //! \param args  Single-element argument list with the value
+    //!              to write.
+    //! \param res   Current resource scope (unused).
+    //! \return  `EvalResults` (`VarType_Void`) carrying the emitted
+    //!          assembly.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsSingleArg`)
+    //!          on argument-count or type mismatch.
     std::shared_ptr<EvalResults> setDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x130780
+
+    //! \brief Implement the SeqC `getDIO` built-in: read the
+    //! device's DIO input bus into a fresh register.
+    //!
+    //! Latches the DIO/ZSync mutual-exclusion mode to `Dio`.
+    //! Requires zero arguments.  Allocates a register, emits
+    //! `ldio(reg, isShf)`, and returns an `EvalResults` whose
+    //! value slot is `(VarType_Var, regNum)`.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Current resource scope (unused).
+    //! \return  `EvalResults` whose value slot is the new DIO read
+    //!          register.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when `args` is non-empty.
     std::shared_ptr<EvalResults> getDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x131040
+
+    //! \brief Implement the SeqC `getDIOTriggered` built-in: read
+    //! the trigger-latched DIO input value.
+    //!
+    //! Latches the DIO/ZSync mutual-exclusion mode to `Dio`.
+    //! Requires zero arguments.  Allocates a register, emits
+    //! `ldiotrig(reg)`, and returns an `EvalResults` whose value
+    //! slot is `(VarType_Var, regNum)`.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Current resource scope (unused).
+    //! \return  `EvalResults` whose value slot is the new
+    //!          trigger-latched DIO register.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when `args` is non-empty.
     std::shared_ptr<EvalResults> getDIOTriggered(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x131410
+
+    //! \brief Implement the SeqC `getZSyncData` built-in: read a
+    //! ZSync-bus payload into a fresh register, dispatching on
+    //! which `ZSYNC_DATA_*` constant the caller named.
+    //!
+    //! Calls `checkFunctionSupported("getZSyncData", kDevAllButUHF)`
+    //! and latches the DIO/ZSync mode to `ZSync`.  UHFQA requires
+    //! exactly one argument; every other supported device accepts
+    //! one or two (the optional second is forwarded into
+    //! `setWaitCyclesReg`).  The first argument is matched against
+    //! `ZSYNC_DATA_RAW`, and on HDAWG / SHFSG / SHFQC_SG / SHFLI /
+    //! GHFLI / VHFLI also against `ZSYNC_DATA_PROCESSED_A` and
+    //! `ZSYNC_DATA_PROCESSED_B`.  An unmatched value raises
+    //! `CustomFunctionsException` (`InvalidZSyncData`).  Emits
+    //! `ld(reg, 0x6a)` for SHFQA, `ldiotrig` for `ZSYNC_DATA_RAW`,
+    //! `ld(reg, 0x6b)` for `..._PROCESSED_A`, and
+    //! `ld(reg, 0x6c)` for `..._PROCESSED_B`.
+    //!
+    //! \param args  ZSync-data variant constant, optionally
+    //!              followed by the wait-cycles argument.
+    //! \param res   Resource scope used to read the variant
+    //!              constants and to thread `setWaitCyclesReg`.
+    //! \return  `EvalResults` whose value slot is the new ZSync
+    //!          read register.
+    //! \throws  `CustomFunctionsException` on argument-count or
+    //!          unknown-variant errors.
     std::shared_ptr<EvalResults> getZSyncData(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x1316f0
+
+    //! \brief Implement the SeqC `getFeedback` built-in: read a
+    //! ZSync- or QA-feedback payload into a fresh register.
+    //!
+    //! Same dispatch shape as `getZSyncData` but additionally
+    //! recognises the QA-feedback constants `QA_DATA_RAW` and
+    //! `QA_DATA_PROCESSED_D` on `SHFQC_SG`.  Emits
+    //! `ld(reg, 0xc0)` for `QA_DATA_RAW` and
+    //! `ld(reg, 0xc1)` for `QA_DATA_PROCESSED_D`; the rest of the
+    //! emit table mirrors `getZSyncData`.
+    //!
+    //! \param args  Feedback-variant constant, optionally
+    //!              followed by the wait-cycles argument.
+    //! \param res   Resource scope used to read the variant
+    //!              constants and to thread `setWaitCyclesReg`.
+    //! \return  `EvalResults` whose value slot is the new feedback
+    //!          read register.
+    //! \throws  `CustomFunctionsException` on argument-count or
+    //!          unknown-variant errors.
     std::shared_ptr<EvalResults> getFeedback(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x132420
     std::shared_ptr<EvalResults> setID(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                 // @0x1334a0
     std::shared_ptr<EvalResults> assignWaveIndex(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x133c40
