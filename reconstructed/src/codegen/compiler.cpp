@@ -303,9 +303,17 @@ CompileResult Compiler::compile(const std::string& source) {
     // The binary (libc++ ABI) handles null seqcAst gracefully: the libc++
     // shared_ptr does not assert on null dereference. In the recon (libstdc++),
     // operator* asserts non-null. Guard here: skip steps 7-8 if null.
-    // The parse error was already reported via parserContext_.errorCallback_
-    // → messages_.parserMessage(), so messages_.hadCompilerError() will be
-    // true and step 9 will throw the right exception.
+    //
+    // The null-seqcAst path is reached only when the parser returned an
+    // empty AST (typically empty source); a *syntax error* during parse
+    // would have already thrown CompilerException("Syntax error while
+    // parsing seqC") inside parse() at compiler.cpp:175-177, gated on
+    // SeqcParserContext::hadSyntaxError_ (a separate flag from
+    // messages_.hadError_; see IF-233 for the rationale).  So when we
+    // reach this point with a null seqcAst, parse-time errors are not
+    // the cause; lowering is simply skipped and step 9 below
+    // (messages_.hadCompilerError()) gates only post-parse errors
+    // (AsmCommands, evaluation, etc.) reported via errorMessage().
     // Binary: at +1644 tests seqcAst raw ptr; if null, continues past refcount
     // incr into FrontEndLoweringFacade::lower (libc++ handles null shared_ptr
     // deref differently from libstdc++).

@@ -750,6 +750,25 @@ mainpage.
     historical `maxSequenceLen`-vs-`maxProgramSize` field
     mis-binding.  No new IFs.  Build clean (0 doc warnings);
     tests 1601/1601.
+  - **7b (2026-05-10)**: 12 briefs for `CompilerMessage`,
+    `CompilerMessageCollection`, and `CompilerException` in
+    `include/zhinst/core/compiler_message.hpp` — the
+    diagnostic-message infrastructure used by every compile
+    pass.  Verify-then-write against the impls in
+    `src/core/compiler_message.cpp` surfaced one
+    documentation-correctness IF (IF-233): the recon `.cpp`
+    correctly omits the `hadError_` write in `parserMessage`,
+    matching the binary's 5-instruction tail-call body, but a
+    stale narrative comment in `compiler.cpp:303-308` claimed
+    the opposite.  Verified the asymmetry against the binary
+    via `objdump` of `errorMessage` (writes
+    `movb $0x1,0x1c(%rbx)` after the `compilerMessage` call)
+    and `parserMessage` (no such write); fixed the stale
+    comment to describe the actual invariant (parse-error
+    short-circuit lives on `SeqcParserContext::hadSyntaxError_`,
+    not `messages_.hadError_`) and added a `\binarynote` to
+    the `parserMessage` brief cross-referencing IF-233.
+    Build clean (0 doc warnings); tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`

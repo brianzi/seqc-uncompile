@@ -5815,3 +5815,134 @@ parameter-label strings and `read*` call targets exactly —
 no further fixes required.  D-AUDIT-1 may now be closed
 as complete.
 
+## IF-233  `CompilerMessageCollection::parserMessage` does not set `hadError_` (binary-faithful asymmetry)
+
+**Severity**: cosmetic (documentation / mental-model
+correction; behaviour matches the binary).
+**Status**: confirmed binary-faithful; recon `.cpp` already
+matches the binary; one stale recon comment in
+`compiler.cpp:303-308` corrected.
+**Discovered**: D4 Batch 7b verify-then-write of
+`compiler_message.hpp` briefs (2026-05-10).
+
+### The asymmetry
+
+`CompilerMessageCollection::errorMessage(msg, line)` and
+`CompilerMessageCollection::parserMessage(line, msg)` both
+funnel into `compilerMessage(Error, line, msg)`.  However,
+**only `errorMessage` sets the sticky `hadError_` flag**;
+`parserMessage` deliberately does not.  This is binary-
+faithful and load-bearing — it is not a recon defect.
+
+### Verification (objdump primary)
+
+`errorMessage` at `0x12b720` (8 lines of relevant body):
+
+```
+12b72c: test   %edx,%edx               # if (line < 0)
+12b72e: jns    12b733
+12b730: mov    0x18(%rbx),%edx         #   line = lineNr_;
+12b733: mov    %rbx,%rdi
+12b736: xor    %esi,%esi                # type = Error (0)
+12b738: call   12b750 <compilerMessage>
+12b73d: movb   $0x1,0x1c(%rbx)         # hadError_ = true   <-- THE WRITE
+```
+
+`parserMessage` at `0x12ba30` (entire body, 5 instructions):
+
+```
+12ba34: mov    %rdx,%rcx                # rcx = msg
+12ba37: mov    %esi,%edx                # rdx = line
+12ba39: xor    %esi,%esi                # type = Error (0)
+12ba3b: pop    %rbp
+12ba3c: jmp    12b750 <compilerMessage> # tail-call
+                                         # NO write to 0x1c(%rdi)
+```
+
+`hadError_` is at `+0x1c` per
+`hadCompilerError` at `0x12ba80`:
+```
+12ba84: movzbl 0x1c(%rdi),%eax
+```
+
+So the absence of `movb $0x1,0x1c(...)` in `parserMessage`
+is intentional: a parser-emitted error reaches
+`messages_` (so it shows up in `getCompileReport`) but does
+**not** trip `hadCompilerError()`.
+
+### Why the asymmetry is load-bearing
+
+The compile pipeline tracks parser errors through a
+**separate** flag, `SeqcParserContext::hadSyntaxError_`,
+set at `seqc_parser_context.cpp:106` from inside
+`yyerror`.  `Compiler::parse()` consults
+`ctx->hadSyntaxError()` immediately after `seqc_parse`
+returns and throws `CompilerException("Syntax error
+while parsing seqC")` (`compiler.cpp:175-177`).  This
+short-circuit fires inside `parse()` at step 3 of
+`Compiler::compile`, long before the
+`messages_.hadCompilerError()` gate at step 9
+(`compiler.cpp:338`) is ever reached.
+
+So the two error-tracking mechanisms are intentionally
+disjoint:
+1. **Parser errors** — flagged on `SeqcParserContext`,
+   trip `parse()`'s own `CompilerException`, never need
+   to influence `messages_.hadError_`.
+2. **AsmCommands / lowering / evaluation errors** —
+   reported via `errorMessage`, tripping
+   `messages_.hadError_`, gated at step 9.
+
+Both surface their text through `messages_` for inclusion
+in `getCompileReport()`, which is why `parserMessage`
+still routes through the same de-dup'd vector.
+
+### Stale comment in `compiler.cpp:303-308`
+
+The fall-through narrative comment in `Compiler::compile`
+(at the `if (seqcAst)` block guard) claims:
+
+> "The parse error was already reported via
+>  `parserContext_.errorCallback_` →
+>  `messages_.parserMessage()`, so
+>  `messages_.hadCompilerError()` will be true and step 9
+>  will throw the right exception."
+
+This is **wrong** on two counts:
+
+1. `parserMessage` does not set `hadError_`, so
+   `hadCompilerError()` will **not** be true after a
+   parser error.
+2. Step 9 is unreachable on a parser error anyway —
+   `parse()` itself throws inside step 3 (verified at
+   `compiler.cpp:175-177`), so control never reaches the
+   `if (seqcAst)` block when there was a syntax error.
+
+The block guard's actual purpose is to handle the
+distinct **empty-input** case: the binary's libc++
+`shared_ptr<Expression>` permits a null target where
+libstdc++ would assert; the recon adds the explicit null
+check so the lowering pass is skipped on empty source.
+Step 9's `messages_.hadCompilerError()` gate exists for
+post-parse errors (lowering, evaluation, AsmCommands).
+
+### Fix
+
+Comment in `compiler.cpp:303-311` rewritten to describe
+the actual invariant (empty-input-protection rationale)
+and to cross-reference IF-233 for the `hadError_`
+asymmetry.  No source-behaviour change.  The
+`compiler_message.hpp` brief for `parserMessage` carries
+a `\binarynote` cross-referencing IF-233.
+
+### Why this matters
+
+Without IF-233 documented, future agents reading the
+`hadCompilerError()` getter or `parserMessage` body would
+reasonably assume the asymmetry is a recon bug and "fix"
+it by adding `hadError_ = true` to `parserMessage`.  Such
+a "fix" would diverge from the binary and could cause
+post-parse phases to short-circuit on parser-only errors
+that the binary intentionally lets fall through to the
+`parse()`-internal `CompilerException`.
+
