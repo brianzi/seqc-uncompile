@@ -2066,12 +2066,133 @@ public:
     //! \throws  `CustomFunctionsException` when arguments are
     //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> waitPlayQueueEmpty(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x145240
+    //! \brief Implement the SeqC `setTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevPreSHFLI` (every device
+    //! family except SHFLI/GHFLI/VHFLI), requires exactly one
+    //! integer argument, and emits an `strig` instruction that
+    //! drives the sequencer's trigger output.  A `Var` argument is
+    //! forwarded register-to-register; a `Const`/`Cvar` is first
+    //! materialised via `addi(reg, R0, value)` and then passed to
+    //! `strig`.
+    //!
+    //! \param args  Single argument; `Var`, `Const`, or `Cvar`.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the emitted
+    //!          `strig` instruction.
+    //! \throws  `CustomFunctionsException` (`SetTriggerArgs`) on
+    //!          wrong argument count or type, or unsupported device.
     std::shared_ptr<EvalResults> setTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x1454c0
+
+    //! \brief Implement the SeqC `getTrigger` built-in.
+    //!
+    //! Requires exactly one `Const`/`Cvar` integer mask argument
+    //! and emits the three-instruction sequence
+    //! `addi(maskReg, R0, mask) ; ltrig(valueReg) ; andr(valueReg, maskReg)`,
+    //! returning the masked trigger-input bits in `valueReg`.  No
+    //! device-support check.
+    //!
+    //! \param args  Single `Const`/`Cvar` integer trigger mask.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Var` whose register
+    //!          carries the masked trigger value.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsConst`) when
+    //!          the argument count or type is wrong.
     std::shared_ptr<EvalResults> getTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x145ad0
+
+    //! \brief Implement the SeqC `setInternalTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevLIFamily`
+    //! (`SHFLI | GHFLI | VHFLI`), requires exactly one integer
+    //! argument, and emits an `sinttrig` instruction driving the
+    //! internal trigger.  A `Var` argument is forwarded directly;
+    //! a `Const`/`Cvar` is materialised via `addi` first.
+    //!
+    //! \param args  Single argument; `Var`, `Const`, or `Cvar`.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the emitted
+    //!          `sinttrig` instruction.
+    //! \throws  `CustomFunctionsException` (`SetInternalTriggerArgs`)
+    //!          on wrong argument count or type, or unsupported
+    //!          device.
     std::shared_ptr<EvalResults> setInternalTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x146140
+
+    //! \brief Implement the SeqC `getAnaTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires a single `Const`/`Cvar` channel
+    //! index, and emits a "saturate to one" sequence that returns
+    //! `1` if any masked trigger bit is set and `0` otherwise:
+    //! `addi(maskReg, R0, mask) ; ltrig(reg) ; andr(reg, maskReg) ;
+    //! brz(reg, atzero) ; asmOne(reg) ; label(atzero)`.  Channel
+    //! indices `1`/`2` resolve to the `AWG_ANA_TRIGGER1`/`2`
+    //! constants; indices `3..8` are accepted only on HDAWG.
+    //!
+    //! \param args  Single `Const`/`Cvar` integer in `1..8`.
+    //! \param res   Used to look up `AWG_ANA_TRIGGER1`/`2`.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          `0` or `1`.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsConst`) on
+    //!          wrong argument count or type;
+    //!          (`IndexMustBe`) when `3..8` is used on a non-HDAWG
+    //!          device; or unsupported device.
     std::shared_ptr<EvalResults> getAnaTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x146740
+
+    //! \brief Implement the SeqC `getDigTrigger` built-in.
+    //!
+    //! Mirrors `getAnaTrigger()` but for the digital trigger inputs
+    //! and with no device-support precondition.  Indices `1`/`2`
+    //! resolve to `AWG_DIG_TRIGGER1`/`2`; indices `3..8` are
+    //! accepted only on HDAWG and emit a zero mask register
+    //! (resolvedArg defaults to `0`).  The asm sequence is identical
+    //! to `getAnaTrigger()` (label "dtzero").
+    //!
+    //! \param args  Single `Const`/`Cvar` integer in `1..8`.
+    //! \param res   Used to look up `AWG_DIG_TRIGGER1`/`2`.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          `0` or `1`.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsConst`) on
+    //!          wrong argument count or type;
+    //!          (`IndexMustBe`) when `3..8` is used on a non-HDAWG
+    //!          device.
     std::shared_ptr<EvalResults> getDigTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x147420
+    //! \brief Implement the SeqC `setInt` built-in.
+    //!
+    //! Verifies device support against the bitmask
+    //! `UHFLI | HDAWG | UHFQA` (no named alias), requires exactly
+    //! two arguments — a node-path string and a numeric value
+    //! (`Var`/`Const`/`Cvar`) — and delegates to `writeToNode(path,
+    //! value, defaultTypeArg, res)` with an implicit third argument
+    //! `(Const, 1.0)` indicating an integer node write.
+    //!
+    //! \param args  Two arguments: (path string, integer value).
+    //! \param res   Forwarded to `writeToNode`.
+    //! \return  `EvalResults` produced by `writeToNode`.
+    //! \throws  `CustomFunctionsException` (`SetIntArgs`) on wrong
+    //!          argument count or string-arg type;
+    //!          (`SetIntVarConstSecond`) on wrong second-arg type;
+    //!          or unsupported device.
     std::shared_ptr<EvalResults> setInt(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x1480d0
+
+    //! \brief Implement the SeqC `setDouble` built-in.
+    //!
+    //! Verifies device support against the bitmask
+    //! `UHFLI | HDAWG | UHFQA` (no named alias), accepts two or
+    //! three arguments — node-path string, numeric value, and
+    //! optional `Const`/`Cvar` type-tag — and delegates to
+    //! `writeToNode(path, value, typeArg, res)`.  When only two
+    //! arguments are supplied a default `Const`/`1.0`/SubType(2)
+    //! type-tag is synthesised.
+    //!
+    //! \param args  Two or three arguments: (path string, value
+    //!              numeric, optional type tag).
+    //! \param res   Forwarded to `writeToNode`.
+    //! \return  `EvalResults` produced by `writeToNode`.
+    //! \throws  `CustomFunctionsException` (`SetDoubleArgs`) on
+    //!          wrong argument count or string-arg type;
+    //!          (`SetDoubleVarConstSecond`) on wrong second-arg
+    //!          type; (`SetDoubleConstThird`) on wrong third-arg
+    //!          type; or unsupported device.
     std::shared_ptr<EvalResults> setDouble(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);             // @0x148ac0
     //! \brief Implement the SeqC `randomSeed` built-in.
     //!
@@ -2092,9 +2213,92 @@ public:
     //! \throws  `CustomFunctionsException` when arguments are
     //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> randomSeed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x1497c0
+    //! \brief Implement the SeqC `generate` built-in.
+    //!
+    //! Requires at least one argument whose first element is a
+    //! string naming the generator function (`gauss`, `sine`,
+    //! `chirp`, ...) and forwards the remaining arguments to
+    //! `waveformGen_->eval(name, values)`.  Variable references
+    //! (`Var` with `SubType_FunctionArg`) are rejected because
+    //! waveform generators cannot accept symbolic shapes; if such
+    //! an argument appears at index 1, an empty `EvalResults` of
+    //! `VarType_Wave` is returned instead.  No assembly is emitted
+    //! by `generate()` itself; the underlying generator may emit
+    //! waveform data and a load instruction.
+    //!
+    //! \param args  Generator name string followed by zero or more
+    //!              constant arguments.
+    //! \param res   Unused; the generator manages its own resources.
+    //! \return  `EvalResults` produced by the named generator;
+    //!          empty `VarType_Wave` for the symbolic-arg shortcut.
+    //! \throws  `CustomFunctionsException` (`GenerateExpectsString`)
+    //!          when the first argument is missing or not a string;
+    //!          (`FuncNoArgsGiven`) when only the name is supplied;
+    //!          (`CantCallWithVar`) when a non-shortcut `Var`
+    //!          argument is encountered.
     std::shared_ptr<EvalResults> generate(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x149940
+
+    //! \brief Implement the SeqC `setUserReg` built-in.
+    //!
+    //! Verifies device support against `kDevAll`, requires exactly
+    //! two arguments — a `Const`/`Cvar` index and a `Var` or
+    //! `Const`/`Cvar` value — and emits `suser(value, index)` to
+    //! write a host-visible user register.  The constant index is
+    //! range-checked against `devConst_->memoryDepth`.  The write
+    //! is followed by an unconditional 0xb / address-tag pair on
+    //! `kSuserNodeTag` / `kSuserNodeAddr` and a `trap` so the host
+    //! can observe completion; on HDAWG an additional `luser/suser`
+    //! readback pair is emitted.  When the device groups channels
+    //! (`numChannelGroups >= 2`) `addSyncCommand` is called.
+    //!
+    //! \param args  Two arguments: (index, value).
+    //! \param res   Forwarded to `addSyncCommand` on multi-group
+    //!              devices.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`SetUserRegArgs`,
+    //!          `SetUserRegConstFirst`, `SetUserRegVarConst`,
+    //!          `SetUserRegRange`) for malformed calls; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> setUserReg(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14a420
+
+    //! \brief Implement the SeqC `getUserReg` built-in.
+    //!
+    //! Verifies device support against `kDevAll`, requires exactly
+    //! one `Const`/`Cvar` index in `[0, memoryDepth)`, and emits an
+    //! `luser(reg, index)` that reads a host-writable user register.
+    //! On HDAWG an additional `addi(reg2, R0, seqClockDivider) ;
+    //! suser(reg2, kSuserWaitCycles)` pair is emitted to bridge the
+    //! readback latency.  When the device groups channels
+    //! (`numChannelGroups >= 2`) `addSyncCommand` is called.
+    //!
+    //! \param args  Single `Const`/`Cvar` user-register index.
+    //! \param res   Forwarded to `addSyncCommand` on multi-group
+    //!              devices.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          the user-register value.
+    //! \throws  `CustomFunctionsException` (`GetUserRegArgs`,
+    //!          `FuncExpectsConst`, `GetUserRegRange`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> getUserReg(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14b480
+
+    //! \brief Implement the SeqC `getSweeperLength` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires exactly one `Const`/`Cvar`
+    //! argument equal to `1` (or `2`), and emits a single
+    //! `luser(reg, AWG_USERREG_SWEEP_COUNT0_or_1)` reading the
+    //! configured sweeper iteration count from the corresponding
+    //! user register.
+    //!
+    //! \param args  Single `Const`/`Cvar`; value `1` selects
+    //!              `SWEEP_COUNT0`, value `2` selects `SWEEP_COUNT1`.
+    //! \param res   Used to look up the user-register constant.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          the sweep count.
+    //! \throws  `CustomFunctionsException` (`GetSweeperLenArgs`,
+    //!          `FuncExpectsConst`, `GetSweeperLenArg`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> getSweeperLength(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);      // @0x14bca0
     //! \brief Implement the SeqC `setRate` built-in.
     //!
@@ -2115,7 +2319,32 @@ public:
     //!          (`SetRateOneConst`), wrong type (`SetRateConst`),
     //!          or unsupported devices.
     std::shared_ptr<EvalResults> setRate(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);               // @0x14c370
+    //! \brief Implement the SeqC `setPrecompClear` built-in.
+    //!
+    //! HDAWG-only.  Requires exactly one `Const`/`Cvar` integer
+    //! `0` or `1` (clearing or arming the precompensation filters)
+    //! and delegates to `asmCommands_->asmSetPrecompFlags(flag)`.
+    //! The resulting node is chained into `results->node_`.
+    //!
+    //! \param args  Single `Const`/`Cvar` flag (`0` or `1`).
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          `asmSetPrecompFlags` instruction.
+    //! \throws  `CustomFunctionsException` (`SetPrecompOneConst`,
+    //!          `SetPrecompConst`) for malformed calls; or
+    //!          unsupported device (non-HDAWG).
     std::shared_ptr<EvalResults> setPrecompClear(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x14c720
+
+    //! \brief Implement the SeqC `setWaveDIO` built-in.
+    //!
+    //! Unconditionally throws — `setWaveDIO` is no longer supported
+    //! by any current device family.  Arguments are ignored.
+    //!
+    //! \param args  Ignored.
+    //! \param res   Ignored.
+    //! \return  Never returns.
+    //! \throws  `CustomFunctionsException("setWaveDIO is not supported")`
+    //!          on every call.
     std::shared_ptr<EvalResults> setWaveDIO(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x14cae0
     //! \brief Implement the SeqC `now` built-in.
     //!
@@ -2132,6 +2361,27 @@ public:
     //! \throws  `CustomFunctionsException` when arguments are
     //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> now(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                   // @0x14cbc0
+    //! \brief Implement the SeqC `at` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires exactly one integer argument,
+    //! and emits a two-step sequence: the argument value is written
+    //! into the RT-logger data register via `suser(reg,
+    //! kSuserRTLoggerData)`, then a `wtrig` waits on the
+    //! `AWG_TIME_TRIGGER` event.  A `Var` argument is forwarded
+    //! directly; a `Const`/`Cvar` is materialised via `addi` first.
+    //! When called with a logical/boolean argument
+    //! (`VarType_Void`) a `FuncCalledWithLogical` warning is raised
+    //! through `warningCallback_` (not an error).
+    //!
+    //! \param args  Single integer argument; `Var`, `Const`, or
+    //!              `Cvar`.
+    //! \param res   Used to look up `AWG_TIME_TRIGGER`.
+    //! \return  `EvalResults` carrying the emitted `suser`/`wtrig`
+    //!          instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsConstConst`)
+    //!          on wrong argument count or non-integer type; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> at(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                    // @0x14ce30
     //! \brief Implement the SeqC `error` built-in.
     //!
@@ -2167,7 +2417,39 @@ public:
     //! \throws  `CustomFunctionsException` propagated from
     //!          `printF` on format-string errors.
     std::shared_ptr<EvalResults> info(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14da50
+    //! \brief Implement the SeqC `lock` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires exactly one waveform argument,
+    //! looks the waveform up via
+    //! `wavetableFront_->getWaveformByName(name)`, and emits an
+    //! `asmLockPlaceholder(wf, deviceIndex)` reserving the
+    //! waveform's slot for the duration of the lock.  The resulting
+    //! node is chained into `results->node_`.
+    //!
+    //! \param args  Single `VarType_Wave` argument.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted lock-placeholder instruction.
+    //! \throws  `CustomFunctionsException` (`LockArgs`,
+    //!          `LockOnlyWave`, `WaveformNotExist`) for malformed
+    //!          calls; or unsupported device.
     std::shared_ptr<EvalResults> lock(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14dc70
+
+    //! \brief Implement the SeqC `unlock` built-in.
+    //!
+    //! Mirror of `lock()`: verifies device support against
+    //! `kDevCervino`, requires exactly one waveform argument, looks
+    //! it up, and emits an `asmUnlockPlaceholder(wf, deviceIndex)`
+    //! releasing the previously reserved slot.
+    //!
+    //! \param args  Single `VarType_Wave` argument.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted unlock-placeholder instruction.
+    //! \throws  `CustomFunctionsException` (`UnlockArgs`,
+    //!          `UnlockOnlyWave`, `WaveformNotExist`) for malformed
+    //!          calls; or unsupported device.
     std::shared_ptr<EvalResults> unlock(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x14e180
     //! \brief Implement the SeqC `sync` built-in.
     //!
@@ -2184,20 +2466,296 @@ public:
     //! \throws  `CustomFunctionsException` when arguments are
     //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> sync(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x14e690
+    //! \brief Implement the SeqC `getCnt` built-in.
+    //!
+    //! HDAWG-only.  Requires exactly one `Const`/`Cvar` counter
+    //! index in `[0, devConst_->numCounters)` and emits a single
+    //! `lcnt(reg, index)` reading the cycle/event counter.
+    //!
+    //! \param args  Single `Const`/`Cvar` counter index.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          the counter value.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsSingleArg`,
+    //!          `FuncExpectsConst`, `FuncExpectsConstConst`,
+    //!          `GetCntRange`) for malformed calls; or unsupported
+    //!          device (non-HDAWG).
     std::shared_ptr<EvalResults> getCnt(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                // @0x14e8d0
+
+    //! \brief Implement the SeqC `waitQAResultTrigger` built-in.
+    //!
+    //! UHFQA-only.  Rejects any arguments and emits
+    //! `addi(reg, R0, AWG_DEMOD_TRIGGER2) ; wtrig(reg, reg)` so the
+    //! sequencer blocks until the next QA-result demodulator
+    //! trigger arrives.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Used to look up `AWG_DEMOD_TRIGGER2`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted `wtrig`.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when arguments are supplied; or unsupported device.
     std::shared_ptr<EvalResults> waitQAResultTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);   // @0x14edc0
+
+    //! \brief Implement the SeqC `getQAResult` built-in.
+    //!
+    //! UHFQA-only.  Rejects any arguments and emits a single
+    //! `ld(reg, kSuserQAResult)` (`0x61`) reading the most recent
+    //! QA-result word into a fresh register.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          the QA-result value.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when arguments are supplied; or unsupported device.
     std::shared_ptr<EvalResults> getQAResult(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x14f380
+
+    //! \brief Implement the SeqC `startQAResult` built-in.
+    //!
+    //! UHFQA-only.  Accepts up to two `Const`/`Cvar` arguments
+    //! (integration-mask and result-address overrides; defaulting
+    //! to `QA_INT_ALL` and the canonical result address) and emits
+    //! the two-pass `strig` sequence used to launch a QA-result
+    //! acquisition: pass 1 sends `(qaIntMask << 16) | (resultAddr +
+    //! 0x10)` and pass 2 sends the bare `resultAddr`.
+    //!
+    //! \param args  Up to two `Const`/`Cvar` arguments.
+    //! \param res   Used to look up `QA_INT_ALL`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsMaxArgs`,
+    //!          `FuncExpectsConst`) for malformed calls; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> startQAResult(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x14f620
+
+    //! \brief Implement the SeqC `startQAMonitor` built-in.
+    //!
+    //! UHFQA-only.  Accepts up to one `Const`/`Cvar` argument
+    //! (monitor address override) and emits the two-pass `strig`
+    //! sequence used to launch a QA-monitor acquisition: pass 1
+    //! sends `monitorAddr + 0x20` and pass 2 sends the bare
+    //! `monitorAddr`.
+    //!
+    //! \param args  Up to one `Const`/`Cvar` argument.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsMaxArgs`,
+    //!          `FuncExpectsConst`) for malformed calls; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> startQAMonitor(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x1500b0
+    //! \brief Implement the SeqC `executeTableEntry` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`, requires at
+    //! least one argument selecting the command-table entry, and
+    //! emits a `wvft` instruction.  The first argument may be a
+    //! constant `ZSYNC_DATA_RAW` / `ZSYNC_DATA_PROCESSED_A` /
+    //! `ZSYNC_DATA_PROCESSED_B` (encoded as `k <<
+    //! execTableIndexBits` for `k=1,9,0xd`), a `Var` (encoded as
+    //! `1 << (execTableIndexBits + 1)`), or a numeric literal in
+    //! `[0, 2^execTableIndexBits)`.  Any further arguments are
+    //! wait-cycle modifiers handled by `setWaitCyclesReg`.  On
+    //! SHFQC_SG an additional `QA_DATA_RAW` constant is recognised
+    //! but currently throws `UnknownError47` (binary bug).
+    //!
+    //! \param args  Entry selector followed by optional wait-cycle
+    //!              arguments.
+    //! \param res   Used for constant lookups and `setWaitCyclesReg`.
+    //! \return  `EvalResults` carrying the emitted `wvft` and any
+    //!          wait-cycle instructions.
+    //! \throws  `CustomFunctionsException` (`FuncMinArgs`,
+    //!          `ExecTableExpectsArg`, `ExecTableInvalidIndex`,
+    //!          `UnknownError47`) for malformed calls; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> executeTableEntry(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);     // @0x150900
+
+    //! \brief Implement the SeqC `setPRNGSeed` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`, requires
+    //! exactly one integer argument in `(0, 2^32)`, and emits a
+    //! `suser(value, kSuserPrngSeed)` writing the PRNG seed.  A
+    //! `Var` argument is forwarded directly; a `Const`/`Cvar` is
+    //! materialised via `addi` first and range-checked.
+    //!
+    //! \param args  Single integer seed; `Var`, `Const`, or `Cvar`.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted `suser`.
+    //! \throws  `CustomFunctionsException` (`SetTriggerArgs`,
+    //!          `PrngSeedPositive`, `PrngSeedZero`, `PrngSeedMax`)
+    //!          for malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> setPRNGSeed(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x1513e0
+
+    //! \brief Implement the SeqC `getPRNGValue` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`, rejects any
+    //! arguments, and emits a single
+    //! `luser(reg, kSuserPrngValue)` reading the next PRNG sample.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Var` whose register holds
+    //!          the PRNG sample.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when arguments are supplied; or unsupported device.
     std::shared_ptr<EvalResults> getPRNGValue(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x151a70
+
+    //! \brief Implement the SeqC `setPRNGRange` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`, requires
+    //! exactly two integer arguments `(rangeMin, rangeMax)`
+    //! satisfying `0 <= rangeMin <= 0xFFFE`, `0 <= rangeMax <
+    //! 0xFFFF`, and `rangeMin <= rangeMax`.  Emits two
+    //! `addi`/`suser` pairs writing `rangeMin` to
+    //! `kSuserPrngRangeLow` (`0x75`) and `rangeMax - rangeMin + 1`
+    //! to `kSuserPrngRangeSpan` (`0x76`).
+    //!
+    //! \param args  Two `Const`/`Cvar` arguments: (min, max).
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` /
+    //!          `CustomFunctionsValueException` (`PrngRangeArgs`)
+    //!          for malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> setPRNGRange(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x151ce0
+    //! \brief Implement the SeqC `startQA` built-in.
+    //!
+    //! Verifies device support against `kDevQA`
+    //! (`UHFQA | SHFQA`), accepts up to four (UHFQA) or five
+    //! (SHFQA) `Const`/`Cvar` arguments, and emits the
+    //! device-specific instruction sequence that arms a QA
+    //! generator + integration acquisition.
+    //!
+    //! On SHFQA, two `addi`/`suser` pairs encode `(resultAddr <<
+    //! 24) | weights` into `kSuserQAWeights` and
+    //! `(resultLengthShift << 22) | qaIntAll | (monitor << 31) |
+    //! (genEnabled << 30)` into `kSuserQATrigger`.  On UHFQA, an
+    //! `addi`/`sid` writes the generator mask, then two
+    //! `addi32`/`strig` pairs trigger the acquisition.
+    //!
+    //! Argument validation enforces that the supplied generator and
+    //! integration masks are subsets of `QA_GEN_ALL` and
+    //! `QA_INT_ALL`, that `resultLengthShift < 32`, and that
+    //! `resultAddr < 256`.
+    //!
+    //! \param args  Up to 4 (UHFQA) or 5 (SHFQA) `Const`/`Cvar`
+    //!              arguments; layout differs per device.
+    //! \param res   Used to look up `QA_GEN_ALL` / `QA_INT_ALL`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsMaxArgs`,
+    //!          `FuncExpectsConst`) for malformed calls; or
+    //!          unsupported device.
     std::shared_ptr<EvalResults> startQA(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);               // @0x152690
+
+    //! \brief Implement the SeqC `resetRTLoggerTimestamp` built-in.
+    //!
+    //! Verifies device support against `kDevHirzelPlusUHFQA`,
+    //! rejects any arguments, and emits a single
+    //! `st(R0, addr)` writing zero to the RT-logger timestamp
+    //! address (`0x62` on UHFQA, `0x6d` on Hirzel devices).
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted `st` instruction.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNoArgs`)
+    //!          when arguments are supplied; or unsupported device.
     std::shared_ptr<EvalResults> resetRTLoggerTimestamp(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res); // @0x153f90
+
+    //! \brief Implement the SeqC `configFreqSweep` built-in.
+    //!
+    //! Verifies device support against `kDevSHFPlus`, requires
+    //! exactly three non-`Var` arguments — oscillator index, start
+    //! frequency, and step frequency — and writes the encoded
+    //! 64-bit start and step values into `kSuserSweepStartLo/Hi`
+    //! and `kSuserSweepStepLo/Hi` via two `writeLS64bit` calls.
+    //! It then writes the oscillator index to `kSuserSweepOscIdx`,
+    //! inserts a 10-cycle settling wait via `addWaitCycles`, and
+    //! marks the per-channel `oscs/N/freq` (or per-AWG `sgchannels`
+    //! / `qachannels`) node as written via `lookupNode` +
+    //! `addNodeAccess(AccessMode(2))`.  Frequencies are encoded by
+    //! `NodeMap::toFrequency(freq, getSampleClock())`.
+    //!
+    //! \param args  Three `Const`/`Cvar` arguments: (oscillator
+    //!              index, start frequency, step frequency).
+    //! \param res   Forwarded to `writeLS64bit` and `addWaitCycles`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsSingleArg`,
+    //!          `FuncExpects3Const`, `GetUserRegArgs`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> configFreqSweep(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x154240
+
+    //! \brief Implement the SeqC `setSweepStep` built-in.
+    //!
+    //! Verifies device support against `kDevSHFPlus`, requires
+    //! exactly two arguments — a non-`Var` oscillator index and a
+    //! `Var`/`Const`/`Cvar` step value — and writes the step into
+    //! `kSuserSweepControl` (via `suser` for `Var`, otherwise via
+    //! `addi`/`suser`).  The oscillator index is written to
+    //! `kSuserSweepOscIdx`, followed by a 10-cycle settling wait
+    //! and a `lookupNode` + `addNodeAccess` on the per-device
+    //! frequency node (`oscs/N/freq` for LI families,
+    //! `sgchannels/<awg>/oscs/N/freq` for SHFSG/SHFQC_SG,
+    //! `qachannels/<awg>/oscs/N/freq` for SHFQA, `generators/...`
+    //! for HDAWG).
+    //!
+    //! \param args  Two arguments: (oscillator index, step value).
+    //! \param res   Forwarded to `addWaitCycles`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNArgs`,
+    //!          `FuncExpectsConstVar`, `InvalidArgValue`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> setSweepStep(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x155640
+
+    //! \brief Implement the SeqC `setOscFreq` built-in.
+    //!
+    //! Verifies device support against `kDevSHFPlus`, requires
+    //! exactly two non-`Var` arguments — oscillator index and
+    //! frequency — and emits the sequence: write `0` into
+    //! `kSuserSweepControl` (disabling sweep), write the encoded
+    //! 64-bit frequency into `kSuserSweepStartLo/Hi` via
+    //! `writeLS64bit`, write the oscillator index to
+    //! `kSuserSweepOscIdx`, then a 10-cycle settling wait and a
+    //! `lookupNode` + `addNodeAccess` on the per-device frequency
+    //! node (same routing as `setSweepStep`).  Frequencies are
+    //! encoded by `NodeMap::toFrequency(freq, getSampleClock())`.
+    //!
+    //! \param args  Two `Const`/`Cvar` arguments: (oscillator
+    //!              index, frequency in Hz).
+    //! \param res   Forwarded to `writeLS64bit` and `addWaitCycles`.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted instructions.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNArgs`,
+    //!          `FuncExpectsConstVar`, `InvalidArgValue`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> setOscFreq(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x156a70
+
+    //! \brief Implement the SeqC `configureFeedbackProcessing` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`, requires
+    //! exactly four non-`Var` arguments — feedback source, shift,
+    //! number of bits, and threshold — and emits a single `fb`
+    //! instruction with the bit-packed encoding `[22:21]=mode,
+    //! [20:16]=shift, [15:12]=numBits-1, [11:0]=threshold`.
+    //!
+    //! Validation enforces `source ∈ {srcBase + 1, srcBase + 2}`
+    //! (with `srcBase + 4` additionally accepted on SHFQC_SG and
+    //! mapping to mode `2`), `shift ∈ [0, 32)`, `numBits ∈ (0,
+    //! 17)`, `threshold ∈ [0, 0x1000)`, where `srcBase = 1 <<
+    //! execTableIndexBits`.
+    //!
+    //! \param args  Four `Const`/`Cvar` arguments: (source, shift,
+    //!              numBits, threshold).
+    //! \param res   Unused.
+    //! \return  `EvalResults` of `VarType_Void` carrying the
+    //!          emitted `fb` instruction.
+    //! \throws  `CustomFunctionsException` (`FuncExpectsNArgs`,
+    //!          `FuncExpectsConstVar`, `InvalidArgValue`) for
+    //!          malformed calls; or unsupported device.
     std::shared_ptr<EvalResults> configureFeedbackProcessing(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);  // @0x157e60
 
     // --- Accessors for Compiler::getNodeAccessList / getNodeToModeMap ---
