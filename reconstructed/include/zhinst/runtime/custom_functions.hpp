@@ -69,8 +69,39 @@ class NodeMap {
 public:
     NodeMap() = default;
     ~NodeMap() = default;
+    //! \brief Look a parameter-tree node up by its slash-delimited
+    //! string path.
+    //!
+    //! \param path  The node path as it appears in SeqC source
+    //!              (e.g. `"sigouts/0/amplitude"`).
+    //! \return  The matching `NodeMapItem` when `path` is in
+    //!          `entries_`; otherwise a default-constructed
+    //!          `NodeMapItem` with `data == nullptr`, which the
+    //!          caller treats as "not registered".
     NodeMapItem retrieve(std::string const& path) const;  // @0x1c55d0
+    //! \brief Encode a phase-in-degrees value as the device's
+    //! 23-bit fixed-point representation.
+    //!
+    //! Multiplies `value` by `2^23 / 360` (≈23301.689f), rounds to
+    //! the nearest integer, then folds the result into 23-bit
+    //! two's-complement form (sign-extending the top bit when set,
+    //! masking to 23 bits otherwise; the lone-sign-bit pattern
+    //! `0x400000` is left untouched).
+    //!
+    //! \param value  Phase in degrees (positive or negative).
+    //! \return  The encoded 23-bit phase ready for a node write.
     static int toPhase(float value);  // @0x1c5680
+    //! \brief Encode a frequency-in-Hz value as the device's
+    //! 48-bit phase-increment representation.
+    //!
+    //! Computes `(int64_t)(freq * 2^48 / sampleClock)` and
+    //! reinterprets the bit pattern as `uint64_t` for protocol
+    //! encoding.
+    //!
+    //! \param freq        Frequency in Hertz.
+    //! \param sampleClock Device sample clock in Hertz.
+    //! \return  The encoded 48-bit phase increment ready for a
+    //!          node write.
     static uint64_t toFrequency(double freq, double sampleClock);  // @0x1c5630
     std::map<std::string, NodeMapItem> entries_;
 };
@@ -106,6 +137,9 @@ enum class AccessMode : int32_t {
 
 // Free function: toString(AccessMode)
 // Static table at .rodata 0x9573c0
+//! \brief Render an `AccessMode` value as one of the lowercase
+//! strings `"soft"` / `"direct"` / `"custom"` (or `"unknown"` for
+//! out-of-range inputs).
 std::string toString(AccessMode mode);
 
 inline bool operator<(AccessMode a, AccessMode b) {
@@ -126,8 +160,21 @@ inline bool operator<(AccessMode a, AccessMode b) {
 class CustomFunctionsException : public std::exception {
     std::string message_;  // +0x08
 public:
+    //! \brief Construct an exception carrying the rendered
+    //! diagnostic `msg`.
+    //!
+    //! \param msg  Pre-rendered diagnostic stored verbatim and
+    //!             returned by `what()`.
     explicit CustomFunctionsException(std::string const& msg);  // @0x15a4c0
+    //! \brief Destroy the exception, releasing the owned
+    //! `message_` string.
     ~CustomFunctionsException() override;                        // @0x15a520, D0 @0x16e6c0
+    //! \brief Return the stored message as a C string, or the
+    //! literal `"CustomFunctions Exception"` when `message_` is
+    //! empty.
+    //!
+    //! \return  C-string view of `message_` (or the fallback
+    //!          literal).
     const char* what() const noexcept override;                  // @0x16e710
 };
 
@@ -151,11 +198,43 @@ class CustomFunctionsValueException : public std::exception {
     size_t      argIndex_;  // +0x20
     std::string varName_;   // +0x28
 public:
+    //! \brief Construct a per-argument value diagnostic carrying
+    //! `msg` and the offending argument's zero-based position.
+    //!
+    //! The `varName_` field is left empty; callers fill it via
+    //! `setVarName` once the bound variable's name is available.
+    //!
+    //! \param msg       Pre-rendered diagnostic stored verbatim
+    //!                  and returned by `what()`.
+    //! \param argIndex  Zero-based position of the offending
+    //!                  argument in the source call list.
     CustomFunctionsValueException(std::string const& msg, size_t argIndex);  // @0x163d00
+    //! \brief Destroy the exception, releasing both `message_`
+    //! and `varName_`.
     ~CustomFunctionsValueException() override;                                // @0x163d70, D0 @0x172f70
+    //! \brief Return the stored message as a C string.
+    //!
+    //! Unlike `CustomFunctionsException::what`, an empty
+    //! `message_` is returned as an empty string rather than
+    //! substituted with a literal — callers always populate
+    //! `message_` for value exceptions.
+    //!
+    //! \return  C-string view of `message_`.
     const char* what() const noexcept override;                               // @0x172fd0
+    //! \brief Record the source variable's name for inclusion in
+    //! the rendered diagnostic.
+    //!
+    //! \param name  Variable name to store in `varName_`.
     void setVarName(std::string const& name);                                 // @0x210750
+    //! \brief Read the bound variable's name (empty until
+    //! `setVarName` has been called).
+    //!
+    //! \return  Reference to the stored `varName_`.
     std::string const& varName() const { return varName_; }                    // inline accessor
+    //! \brief Read the zero-based argument index supplied at
+    //! construction.
+    //!
+    //! \return  The stored `argIndex_`.
     size_t argIndex() const { return argIndex_; }                              // inline accessor
 };
 
@@ -219,19 +298,107 @@ public:
 //! per-channel helpers used by the dispatchers after parsing
 //! completes.
 struct PlayArgs {
+    //! \brief Initialise per-call parsing state from the device
+    //! configuration, the shared wavetable, a warning sink, the
+    //! source command name, and the indexed-vs-default selector.
+    //!
+    //! `channelsPerGroup_` is read from
+    //! `config.channelsPerGroup[indexed]`, `totalChannels_` is
+    //! `channelsPerGroup_ * config.numChannelGroups`, and
+    //! `waveAssignments_` is sized to `numChannelGroups` empty
+    //! inner vectors.  `hasMarker_` starts `false`.
+    //!
+    //! \param config         Device configuration supplying the
+    //!                       per-group channel count and the
+    //!                       group count.
+    //! \param wavetable      Shared wavetable consulted by
+    //!                       `secureLoadWaveform` and
+    //!                       `getMaxSampleLength`.
+    //! \param reportWarning  Callback invoked when a CSV-duplicate
+    //!                       warning fires during waveform load.
+    //! \param cmdName        Source command name, embedded in
+    //!                       diagnostics raised by `parse`.
+    //! \param indexed        Selects the indexed column of
+    //!                       `config.channelsPerGroup`.
     // Constructor @0x15d600
     PlayArgs(AWGCompilerConfig const& config,
              std::shared_ptr<WavetableFront> wavetable,
              std::function<void(std::string const&)> reportWarning,
              std::string const& cmdName,
              bool indexed);
+    //! \brief Release the captured wavetable, warning callback,
+    //! command name, and per-group `WaveAssignment` storage in
+    //! reverse declaration order.
     ~PlayArgs();  // @0x15efe0
 
-    // Returns iterator past last consumed arg
+    /*! \brief Parse a `playWave`-family argument list, populating
+     *  `waveAssignments_` and `hasMarker_`, and return the
+     *  iterator one past the last consumed argument.
+     *
+     *  \details A pre-scan walks every argument once: every entry
+     *  with `varSubType_ == 2` flips `hasMarker_` to `true`, and
+     *  the boundary between the parseable head of the call and an
+     *  optional trailing arg (for example, an explicit rate) is
+     *  set to one past the last `Wave`/`String`-typed entry.
+     *  Dispatch on the first argument's `varType_` then chooses
+     *  between two parsers:
+     *    - `parseImplicitChannels` when the first arg is `Wave`
+     *      or `String` (waveforms named in source order, with
+     *      multi-channel waveforms expanding into synthetic
+     *      continuation entries);
+     *    - `parseExplicitChannels` otherwise (channel-number
+     *      `Cvar` args interleaved with waveform args).
+     *  The returned channel count is validated against
+     *  `totalChannels_` and the parse boundary is returned to the
+     *  caller as the resume cursor for any optional trailing
+     *  argument.
+     *
+     *  \param args  Already-evaluated argument list from the
+     *               source call site.
+     *  \return  Iterator into `args` one past the last consumed
+     *           argument.
+     *  \throws  `CustomFunctionsException` when `args` is empty.
+     *  \throws  `CustomFunctionsValueException` when the channel
+     *           count exceeds `totalChannels_` or one of the
+     *           per-channel parsers rejects an argument
+     *           (mixed numbering, duplicate channel,
+     *           missing waveform, wrong channel count).
+     */
     std::vector<EvalResultValue>::const_iterator
     parse(std::vector<EvalResultValue> const& args);                  // @0x15d7b0
 
+    //! \brief Return the maximum sample length across every
+    //! waveform referenced in `waveAssignments_`.
+    //!
+    //! Walks each per-group `WaveAssignment`, skips marker and
+    //! `Const` entries, looks the waveform up by name through
+    //! `wavetable_->getWaveformByName`, and returns the largest
+    //! `signal.length()` encountered (zero when the table is
+    //! empty).
+    //!
+    //! \return  The largest waveform sample length, sign-extended
+    //!          to `int64_t`.
+    //! \throws  `CustomFunctionsValueException` (`WaveformNotFound`)
+    //!          when a referenced waveform is missing from the
+    //!          table, or `UninitializedWaveform` when a found
+    //!          waveform has neither a backing file nor a
+    //!          generator descriptor.
     int64_t getMaxSampleLength() const;                               // @0x15d9f0
+    //! \brief Append a `WaveAssignment` for a single explicit
+    //! channel slot.
+    //!
+    //! Computes the destination group as `channel /
+    //! channelsPerGroup_` and the in-group slot number as
+    //! `(channel % channelsPerGroup_) + 1`, then pushes a
+    //! `WaveAssignment` carrying a deep copy of `val` (with a
+    //! variant-aware copy of the embedded `Value`) and a
+    //! single-element `bits` vector containing the slot number.
+    //! Channel indices that meet or exceed `totalChannels_` are
+    //! silently ignored.
+    //!
+    //! \param channel  Zero-based absolute channel index.
+    //! \param val      Source argument copied into the new
+    //!                 assignment's `value` slot.
     void addChannelWave(int channel, EvalResultValue const& val);     // @0x170ec0
 
     struct WaveAssignment {
@@ -250,7 +417,16 @@ struct PlayArgs {
         // total = 0x50 ✓
 
         WaveAssignment() = default;
-        WaveAssignment(WaveAssignment const& o);  // @0x171c00 — variant-aware copy
+        //! \brief Variant-aware deep copy of `o`.
+        //!
+        //! Copies the leading `EvalResultValue` field-by-field —
+        //! `varType_`, `varSubType_`, `reg_`, the `Value`'s
+        //! `type_` / `which_` discriminators, and the storage
+        //! union dispatched on `which_` (`int`/`bool` as 8
+        //! bytes, `double` as 8 bytes, `std::string` via
+        //! placement new) — then copy-constructs `bits` from
+        //! `o.bits`.
+        WaveAssignment(WaveAssignment const& o);  // @0x171c00
         WaveAssignment& operator=(WaveAssignment const&) = default;
         WaveAssignment(WaveAssignment&&) = default;
         WaveAssignment& operator=(WaveAssignment&&) = default;
@@ -282,9 +458,58 @@ private:
 };
 
 // Free functions related to CustomFunctions argument parsing
+//! \brief Pop and return the trailing `String`-typed argument
+//! from `args`, or `std::nullopt` when the last argument has any
+//! other type (or `args` is empty).
+//!
+//! Used by built-ins that accept an optional textual suffix (a
+//! waveform name, channel label, etc.) at the tail of their call
+//! list.  When the trailing element is a `String`, it is removed
+//! from `args` in place and its rendered text is returned;
+//! otherwise `args` is left unchanged and `nullopt` is returned.
 std::optional<std::string> parseOptionalString(std::vector<EvalResultValue>& args);  // @0x15d3e0
+//! \brief Decode a rate argument from `val` and return its
+//! integer rate code.
+//!
+//! The argument must be either `Const` or `Cvar`.  When `strict`
+//! is `true` the returned value is the user-facing rate minus
+//! two; when `strict` is `false` the raw integer is returned
+//! unchanged.
+//!
+//! \param val     Argument carrying the rate value.
+//! \param name    Source command name, used for diagnostics.
+//! \param strict  Selects the strict (subtract-two) decoding.
+//! \return  The decoded rate code.
+//! \throws  `CustomFunctionsException` (error 0x9f) when `val`'s
+//!          type is neither `Const` nor `Cvar`.
 int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict);     // @0x163730
 
+//! \brief Parse the optional rate argument that may follow the
+//! main `playWave` argument list, validating that the parse
+//! cursor is left at `end`.
+//!
+//! `parseEnd` is the cursor returned by `PlayArgs::parse`; the
+//! function expects either no remaining arguments or exactly one
+//! `Const`/`Cvar` rate value.  When one rate value remains it is
+//! decoded through `getPlayRate(*parseEnd, cmdName, strict)`;
+//! when none remain the "absent rate" sentinel is returned —
+//! `5` in strict mode, `0xffffffff` otherwise.
+//!
+//! \param begin     Iterator at the start of the original argument
+//!                  list (used only for error positioning).
+//! \param end       Iterator at one past the last argument.
+//! \param parseEnd  Cursor returned by `PlayArgs::parse`.
+//! \param cmdName   Source command name, used for diagnostics.
+//! \param strict    Forwarded to `getPlayRate` and selects the
+//!                  no-rate sentinel.
+//! \return  The decoded rate code, or the "absent rate" sentinel.
+//! \throws  `CustomFunctionsValueException`
+//!          (`MixedChannelNumbering`) when more than one
+//!          unparsed argument remains between `parseEnd` and
+//!          `end`.
+//! \throws  `CustomFunctionsException` propagated from
+//!          `getPlayRate` when the rate argument has the wrong
+//!          type.
 // parseOptionalRate — parse optional rate argument from arg list     @0x163980
 int parseOptionalRate(
     std::vector<EvalResultValue>::const_iterator begin,
