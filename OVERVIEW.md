@@ -587,10 +587,12 @@ mainpage.
     caller is the debug-only `print`, so no production effect).
 - **Open IFs from D4** (all with full TODO entries and
   objdump / GDB recipes): IF-213, IF-217, IF-218, IF-219, IF-223,
-  IF-224, IF-226, IF-228 (cosmetic), IF-230 (open / expanding,
-  audit ongoing per D-AUDIT-1).  Each is latent — the
-  differential test corpus does not exercise the divergent code
-  path, hence 1601/1601 remains green.
+  IF-224, IF-226, IF-228 (cosmetic).  IF-230 / IF-231 / IF-232 /
+  IF-234 (D-AUDIT-1 family) all closed; D-AUDIT-1 itself
+  truly closed at sweep end (2026-05-10).  Each remaining
+  open IF is latent — the differential test corpus does not
+  exercise the divergent code path, hence 1602/1602 remains
+  green.
 - **Batch 3 — `WavetableIR` / `WavetableFront` /
   `WavetableManager<T>` + frontend-lowering structs** complete
   across five sub-batches (59 briefs total + 1 latent bug fix):
@@ -944,6 +946,108 @@ mainpage.
     `ctx->setSyntaxError()`.  No source changes; no
     new IFs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7k–7o (2026-05-10)**: AST-subsystem brief sweep
+    across five headers: `ast/value.hpp` (Immediate
+    variant + ValueException + Value with 4 ctors,
+    toDouble/toInt/toBool/toString/operator==), 
+    `ast/eval_results.hpp` + `ast/eval_result_value.hpp`
+    (EvalResults with 9 setValue overloads, getValue
+    last-element semantics, addAssembler), 
+    `ast/seqc_parser_context.hpp` (parse-state machine
+    incl. comment-state edges and the
+    `hadSyntaxError_`-vs-`messages_.hadError_`
+    asymmetry from IF-233), `ast/node.hpp` (Node base,
+    20-param ctor, swap throwing
+    `ZIAWGCompilerException(SwapNotConnected, 0xa4)`
+    when `b->parent` doesn't lock to `a`,
+    toJson/installPointers two-pass serialization), and
+    `ast/seqc_ast_node.hpp` (base virtuals + leaf /
+    unary / operator / binary / list family
+    class-level briefs — Doxygen can't apply per-method
+    briefs inside the macro expansions, so coverage is
+    by class).  No source changes; no new IFs.  Each
+    sub-batch verified body-then-brief; surfaced no
+    documentation-correctness drift in this pass.
+  - **7k-fix–7o-fix (2026-05-10)**: backfill
+    `\param`/`\return` blocks across the same five AST
+    headers to satisfy `WARN_NO_PARAMDOC=YES`.  Doc
+    warnings dropped 459 → 396 (-63) across the five
+    fixes.  The `seqc_ast_node.hpp` base-virtual fix
+    cascades onto every concrete derived node — Doxygen
+    treats inherited briefs as documenting overrides
+    too, so silencing the four base virtuals
+    (`evaluate`/`getListElements`/`children`/`print`)
+    silenced inherited-comment warnings on every
+    `SeqC*Node` subclass.  Build clean; tests 1601/1601.
+  - **7p (2026-05-10)**: `\param`/`\return` backfill on
+    `include/zhinst/asm/asm_commands.hpp` — all 73
+    instruction emitter methods covering waveform,
+    branch, ALU, I/O, trigger, table-mapping, prefetch,
+    sync, and placeholder families.  Subagent-dispatched
+    + independently verified.  Doc warnings 315 → 167
+    (-148; file fully clean).  Build clean; tests
+    1601/1601.
+  - **7q (2026-05-10)**: `\param`/`\return` backfill on
+    `include/zhinst/device/device_type.hpp` — covers
+    `DeviceOptionSet` iterator/container,
+    `detail::DeviceTypeImpl` hierarchy, and the public
+    `DeviceType` facade.  Adding `\return` to the base
+    `DeviceTypeImpl::clone()` collaterally silenced 33
+    inherited-comment warnings on every subclass override
+    in `device_subclasses.hpp`.  Doc warnings 167 → 94
+    (-73).  Build clean; tests 1601/1601.
+  - **7r (2026-05-10)**: `\param`/`\return` backfill on
+    `include/zhinst/codegen/math_compiler.hpp` — 23
+    unary math functions (`abs`, full trig +
+    inverse + hyperbolic pairs, `exp`/`ln`/`log`/`log2`/
+    `log10`, `sign`, `sqrt`, `ceil`/`round`/`floor`)
+    plus the 4 variadic helpers (`max`, `min`, `pow`,
+    `sum`).  Pre-existing `\throws` on `pow` preserved.
+    Doc warnings 94 → 40 (-54).  Build clean; tests
+    1601/1601.
+  - **7s (2026-05-10)**: `\param`/`\return` backfill on
+    `include/zhinst/asm/asm_list.hpp` — 23 declarations
+    covering `Asm::operator==`, the `AsmList` container
+    surface (ctors, assignment, iterator family,
+    capacity, mutators, element access, comparison), and
+    the placeholder-targeted `insert` overloads.  Doc
+    warnings 40 → 0 (-40).  **Entire reconstructed
+    codebase now reports zero Doxygen warnings under
+    strict `WARN_IF_UNDOCUMENTED=YES`,
+    `WARN_IF_DOC_ERROR=YES`, `WARN_NO_PARAMDOC=YES`.**
+    Build clean; tests 1601/1601.  Documentation
+    coverage at sweep close: 874/3081 symbols (28.4%);
+    backlog: 1 `\unclear`, 0 `\verifyme`, 43
+    `\binarynote`.
+  - **D-AUDIT-1 closeout for real (2026-05-10)**: the
+    previous "closeout" after `gauss` was premature —
+    11 multi-arity factories had not actually been
+    audited.  Re-audited the remaining 11
+    (`gauss`, `sin`, `cos`, `sawtooth`, `triangle`,
+    `drag`, `blackman`, `hamming`, `hann`, `vect`,
+    `placeholder`).  Six clean (`drag`, `blackman`,
+    `hamming`, `hann`, `vect`, `placeholder`).
+    `gauss` already fixed under IF-232.  The four
+    trig-family factories (`sin`/`cos`/`sawtooth`/
+    `triangle`) had a *semantic* 3-arg parameter-binding
+    bug — same shape as IF-205 (`randomGauss`) and
+    IF-231 (`rand`): bound `(length, amplitude, phase)`
+    but binary binds `(length, phase, nPeriods)` with
+    `amplitude=1.0`.  Promoted to **IF-234** and fixed
+    in the same edit, plus 8 cosmetic 4-arg label drifts
+    (`"3 (phase)"` → `"3 (phase offset)"`,
+    `"4 (nPeriods)"` → `"4 (number of periods)"`).
+    Coverage test `hdawg_doc_trig_3arg.seqc`
+    (manifest entry `trig_3arg`) added — exercises both
+    arities of all four factories; byte-identical to
+    binary post-fix.  Audit-method clarifications
+    (objdump end-address derivation, `movupd` vs
+    `movups`, rip-rel hex prefix, `objdump -s`
+    byte-group cap) folded back into TODO.md
+    D-AUDIT-1 recipe and IF-230 "Likely scope".
+    All 16 multi-arity factories now audited;
+    D-AUDIT-1 truly closed.  Tests 1602/1602
+    (added `trig_3arg`); 0 doc warnings.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
@@ -952,5 +1056,8 @@ mainpage.
   (the audit reported `PlayConfig::now` as misnamed; verification
   showed `now` is the canonical field per `play_config.hpp:47`,
   so no IF was logged).
-- 1600/1600 differential tests passing throughout the phase;
-  build clean and 0 doxygen warnings at every commit.
+- 1600/1600 → 1601/1601 → 1602/1602 differential tests
+  passing throughout the phase (incremented as new coverage
+  tests were added: `random_waves_3arg` for IF-231,
+  `trig_3arg` for IF-234); build clean and 0 doxygen
+  warnings at every commit.
