@@ -51,6 +51,53 @@ struct LowerResult {
 // FrontendLoweringState, dispatches to SeqCAstNode vtable[0] virtual
 // (the 3-arg evaluate: Resources, Context&, State&), and returns
 // {state.result, evaluate_output} as a LowerResult.
+/*! \brief Lower a parsed SeqC AST into the back-end node tree plus
+ *  its top-level evaluation result.
+ *
+ *  \details Builds a stack-local `FrontendLoweringContext` populated
+ *  with the supplied resource environment (`asmCommands`,
+ *  `customFunctions`, `waveformGen`, `wavetable`, `loopUnrollLimit`)
+ *  and the diagnostics sink `messages`, plus an empty
+ *  `FrontendLoweringState`, then dispatches the top-level virtual
+ *  `SeqCAstNode::evaluate(resources, context, state)`.  That call
+ *  walks the AST polymorphically: each statement / expression node
+ *  emits assembler placeholders into `context.asmCommands`, populates
+ *  `state.result` with the lowered back-end `Node` graph, and
+ *  threads its own per-node `EvalResults` up the call chain.  The
+ *  facade returns the pair `{state.result, top-level EvalResults}`,
+ *  which `Compiler::compile` stores into `Compiler::ast_` (root) and
+ *  uses to drive the rest of the pipeline.
+ *
+ *  \param resources       The static / dynamic resource environment
+ *                         (variables, registers, device constants)
+ *                         visible to every AST node during lowering.
+ *  \param ast             The root of the parsed SeqC AST.  Mutated
+ *                         only via the virtual `evaluate` it
+ *                         dispatches to (the AST itself is not
+ *                         rewritten).
+ *  \param messages        Diagnostics sink for warnings and errors
+ *                         emitted by the lowering pass.
+ *  \param asmCommands     Sink for emitted assembler placeholders.
+ *                         The lowering pass appends to this; the
+ *                         back end consumes it after the facade
+ *                         returns.
+ *  \param customFunctions Resolver for built-in / user functions
+ *                         invoked from SeqC (`playWave`, `wait`,
+ *                         math built-ins, etc.).
+ *  \param waveformGen     Factory for waveform-generator built-ins
+ *                         (`zeros`, `sin`, …) called from SeqC.
+ *  \param wavetable       Front-end wavetable that records every
+ *                         waveform reference for later wave-table
+ *                         construction by `WavetableIR`.
+ *  \param loopUnrollLimit Iteration cap that the lowering pass
+ *                         applies when constant-folding `repeat (N)`
+ *                         loops; sourced from
+ *                         `AWGCompilerConfig::loopUnrollLimit`.
+ *  \return                A `LowerResult` carrying the lowered
+ *                         back-end `Node` root (`astResult`) and
+ *                         the top-level `EvalResults`
+ *                         (`evalResult`).
+ */
 LowerResult lower(std::shared_ptr<Resources> resources,
                    SeqCAstNode& ast,
                    CompilerMessageCollection& messages,

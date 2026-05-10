@@ -406,6 +406,51 @@ public:
 
     // --- Public API ---
     bool functionExists(std::string const& name) const;  // @0x159410
+    /*! \brief Resolve and invoke a SeqC function call, returning its
+     *  evaluated result.
+     *
+     *  \details Three-stage dispatch:
+     *    1. Look `name` up in `aliasMap_`.  When the alias entry
+     *       carries one alias, format a `DeprecatedFunc`
+     *       diagnostic and report it through `errorCallback_`;
+     *       with two aliases, format the `DeprecatedFunc2`
+     *       variant.  In the current binary `aliasMap_` is empty,
+     *       so this branch never fires; the path exists for
+     *       future built-ins that may need overload resolution.
+     *    2. Look the (possibly aliased) name up in `funcMap_`.  On
+     *       hit, invoke the bound `std::function` with `args` and
+     *       `res` and return its `EvalResults`.
+     *    3. On miss, query `mathCompiler_.functionExists(name,
+     *       argCount, false)`.  When the math compiler claims the
+     *       name, coerce every argument to `double` via
+     *       `Value::toDouble`, call `mathCompiler_.call`, and wrap
+     *       the scalar result in a fresh `EvalResults` whose value
+     *       slot is set to `(VarType_Cvar, Value(double))`.
+     *    4. On a final miss, delegate to
+     *       `generateWaveform(name, args, res)`, which prepends
+     *       `name` as the first argument and dispatches into
+     *       `WaveformGenerator::call` for built-in waveform
+     *       generators (`zeros`, `sin`, etc.).
+     *
+     *  Used by every SeqC function-call AST node during lowering;
+     *  the returned `EvalResults` becomes the value of the call
+     *  expression in the surrounding statement.
+     *
+     *  \param name  Function name as it appears in source.
+     *  \param args  Already-evaluated arguments in source order.
+     *  \param res   The current resource / variable environment
+     *               (forwarded to whichever backend ultimately
+     *               handles the call).
+     *  \return      `EvalResults` produced by the resolved backend
+     *               (`funcMap_`, `mathCompiler_`, or
+     *               `generateWaveform`).
+     *  \throws      Implementation-defined exceptions (e.g.
+     *               `WaveformGeneratorValueException`,
+     *               `CustomFunctionsValueException`,
+     *               `ZIAWGCompilerException`) propagated from the
+     *               resolved backend; this method itself does not
+     *               raise.
+     */
     std::shared_ptr<EvalResults> call(
         std::string const& name,
         std::vector<EvalResultValue> const& args,

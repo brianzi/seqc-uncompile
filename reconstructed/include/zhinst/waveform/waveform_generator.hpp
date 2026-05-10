@@ -151,6 +151,32 @@ public:
     // then call wavetableFront_->newWaveform(signal, name, args) which creates
     // and registers a new WaveformFront.
     // Returns shared_ptr<WaveformFront>.  @0x25bca0
+    /*! \brief Return the `WaveformFront` for a named built-in
+     *  waveform, materialising it through `factory` on first use
+     *  and serving subsequent calls from the per-generator cache.
+     *
+     *  \details On a cache hit (`name` is already in
+     *  `createdNames_`) the existing `WaveformFront` is fetched
+     *  via `wavetableFront_->getWaveformByFunDescr` and its
+     *  use-count is bumped so the wavetable knows to keep it
+     *  alive.  On a miss, `factory(args)` is invoked to produce
+     *  the raw `Signal`, then `wavetableFront_->newWaveform`
+     *  registers a fresh `WaveformFront` keyed by `(name, args)`
+     *  and the result is stored in `createdNames_` so the next
+     *  call hits the cache.
+     *
+     *  \param name     Built-in name (`"zeros"`, `"sin"`, …) that
+     *                  also serves as the cache key.
+     *  \param args     Argument vector forwarded to `factory` and
+     *                  used as part of the cache key.
+     *  \param factory  Callable that produces the underlying
+     *                  `Signal` when this is the first reference.
+     *                  Typically one of the bound `Signal foo(args)`
+     *                  members below, supplied by `call` after
+     *                  `funcMap_` resolution.
+     *  \return         The cached or newly-registered
+     *                  `WaveformFront`.
+     */
     std::shared_ptr<WaveformFront> getOrCreateWaveform(
         std::string const& name,
         std::vector<Value> const& args,
@@ -171,6 +197,33 @@ public:
     // 3. Otherwise clone the bound function and pass it as the factory to
     //    getOrCreateWaveform.
     // Returns shared_ptr<WaveformFront>.  @0x25c120
+    /*! \brief Resolve a built-in waveform name (with deprecation
+     *  alias support) and return its `WaveformFront`, materialising
+     *  it on first use.
+     *
+     *  \details Three-step resolution:
+     *    1. Look `name` up in `aliasMap_`.  When the name is a
+     *       deprecated alias for a current built-in, format the
+     *       `DeprecatedFunc` warning through `warningCallback_`
+     *       and substitute the canonical name for the lookup
+     *       that follows.
+     *    2. Look the (resolved) name up in `funcMap_`.  When
+     *       absent, raise `WaveformGeneratorValueException`
+     *       formatted with `UnknownFunction`.
+     *    3. Clone the bound `Signal foo(args)` and forward it as
+     *       the `factory` argument to `getOrCreateWaveform(name,
+     *       args, factory)`, which handles cache lookup or
+     *       fresh registration.
+     *
+     *  \param name  Built-in or alias name as it appears in
+     *               SeqC source.
+     *  \param args  Already-evaluated `Value` arguments.
+     *  \return      The cached or newly-registered
+     *               `WaveformFront`.
+     *  \throws WaveformGeneratorValueException  When `name`
+     *               (after alias resolution) is not registered
+     *               in `funcMap_`.
+     */
     std::shared_ptr<WaveformFront> call(std::string const& name,
                                         std::vector<Value> const& args);
 
@@ -179,6 +232,28 @@ public:
     // The EvalResults gets a string-typed Value containing the function name
     // assigned to VarType=5 (eWave?), and the WaveformFront stored at +0x60.
     // Returns shared_ptr<EvalResults>.  @0x25c540
+    /*! \brief Resolve and invoke a built-in waveform generator,
+     *  returning the result wrapped in an `EvalResults` that the
+     *  SeqC interpreter can splice into a surrounding expression.
+     *
+     *  \details Forwards to `call(name, args)` to obtain the
+     *  underlying `WaveformFront`, then constructs a fresh
+     *  `EvalResults` whose value slot stores the function name
+     *  (string-typed `Value`, `VarType` 5 — the wave variant)
+     *  and whose secondary waveform slot holds the
+     *  `WaveformFront` itself.  This is the entry point used by
+     *  the lowering frontend when a SeqC expression of the form
+     *  `wave w = sin(...);` needs a value object that both
+     *  carries the waveform and survives further AST evaluation.
+     *
+     *  \param name  Built-in name (subject to `call`'s alias
+     *               resolution).
+     *  \param args  Already-evaluated `Value` arguments.
+     *  \return      `EvalResults` carrying the resolved
+     *               `WaveformFront`.
+     *  \throws WaveformGeneratorValueException  Propagated from
+     *               `call` when `name` is unknown.
+     */
     std::shared_ptr<EvalResults> eval(std::string const& name,
                                       std::vector<Value> const& args);
 
