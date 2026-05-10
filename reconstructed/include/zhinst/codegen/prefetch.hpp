@@ -214,11 +214,72 @@ public:
 
     // --- Public methods (addresses noted) ---
 
+    /*! \brief Run the three tree-preparation passes that populate the
+     *  per-node prefetch state before any load placement is attempted.
+     *
+     *  \details Calls, in order:
+     *    1. `prepareTree(root_)`   — classify each node by `NodeType`
+     *       and apply per-type tree transformations: `Play` /
+     *       `PlainLoad` collect their used waveforms, `Load` / `Table`
+     *       call `linkLoad`, `Branch` is flattened into the traversal
+     *       stack via `removeBranches`, `SetVar` is rewritten via
+     *       `expandSetVar`, and `Wait` (in non-append mode) inspects
+     *       each branch's first wave: if `findLockedPlay` returns an
+     *       existing locked play the wait is removed and any
+     *       neighbouring load is merged via `mergeLoads`, otherwise
+     *       a fresh load is synthesised via `createLoad`.  In the
+     *       `Wait` and `Play` / `PlainLoad` branches the visited
+     *       waveforms are also flagged as used on the corresponding
+     *       `WaveformIR` and folded into `collectUsedWaves`.
+     *    2. `countBranches(root_)` — accumulate the branch fan-out
+     *       per node into `nodeStates_`.
+     *    3. `definePlaySize(root_)` — compute each play's effective
+     *       sample size and assign register slots.
+     *
+     *  After this call, `nodeStates_`, the per-node play sizes, and
+     *  the `WaveformIR::used_` flags are all populated, which is the
+     *  precondition for `getUsedWavesForDevice`,
+     *  `determineFixedWaves`, `placeLoads`, and `fillInPlaceholders`.
+     */
     void preparePlays();                                               // 0x1c8740
     void prepareTree(std::shared_ptr<Node> node);                      // 0x1c8870
     void countBranches(std::shared_ptr<Node> node);                    // 0x1c9b30
     void definePlaySize(std::shared_ptr<Node> node);                   // 0x1ca370
     void determineFixedWaves();                                        // 0x1cb200
+    /*! \brief Decide where each waveform load is emitted in the
+     *  scheduled tree, optionally splitting the program when the
+     *  waveform working set exceeds the device cache.
+     *
+     *  \details Steps:
+     *    1. Compute `getMemoryHighWatermark()` and, on SHFSG /
+     *       SHFQC_SG, abort with a `ZIAWGCompilerException` carrying
+     *       the formatted "wave memory exceeded" message when the
+     *       watermark is larger than `DeviceConstants::waveformMemorySize`.
+     *    2. Compute `getRequiredMemory()`.  If it fits in the cache
+     *       *or* the target is Hirzel-class, set `split_ = true` and
+     *       call `moveLoadsToFront(root_)` to hoist each load to the
+     *       front of the scheduled program (the result becomes the
+     *       new working root).
+     *    3. On HDAWG with at least two cores, prepend a
+     *       `NodeType::SyncHirzel` marker to the working root's
+     *       child chain; on HDAWG / SHFQA / SHFSG / SHFQC_SG prepend a
+     *       `NodeType::AwgReady` marker.
+     *    4. When the program was *not* split (single-shot fits in
+     *       cache), look up the appropriate informational message
+     *       (`WaveNotFittingCache` for multi-core HDAWG,
+     *       `WaveNotFittingCacheGapless` otherwise), report it via
+     *       `logFunc_`, then run `optimize(root_)`.
+     *    5. `optimizeSync(root_)` and copy the root's `playConfig`
+     *       into `cwvfConfig`.
+     *    6. `optimizeCwvf(root_)` followed by `allocate(root_, cache_)`
+     *       to bind the resulting load nodes to concrete cache slots.
+     *
+     *  Cancellation is checked indirectly through the optimisation
+     *  passes; this method itself does not poll `cancelCb_`.
+     *
+     *  \throws ZIAWGCompilerException When the SHFSG / SHFQC_SG memory
+     *  watermark exceeds `DeviceConstants::waveformMemorySize`.
+     */
     void placeLoads();                                                 // 0x1cbf60
     size_t getMemoryHighWatermark() const;                             // 0x1cc650
     size_t getRequiredMemory() const;                                  // 0x1cc930
@@ -248,6 +309,43 @@ public:
         std::shared_ptr<Cache::Pointer> ptr) const;                    // 0x1d60d0
 
     // Asm placement
+    /*! \brief Produce the prefetch-aware assembly list by copying
+     *  `asmList` and walking the scheduled node tree to expand each
+     *  load placeholder into the concrete instructions that perform
+     *  the load.
+     *
+     *  \details Allocates an `AsmList out(asmList)` (a deep copy that
+     *  preserves the original `sequenceId`-keyed entries used by
+     *  `findPlaceholder`), then calls `placeCommands(&out, root_)`
+     *  which:
+     *    - emits the program-wide `cwvf` (or `addi` + `cwvfr` for
+     *      large defaults) at the slot just past any leading
+     *      `NodeType::Loop` placeholder when this is the root and
+     *      `globalCwvfValid_` is false; and
+     *    - walks the `Node::next` chain calling `placeSingleCommand`
+     *      on each node, polling `cancelCb_` between iterations and
+     *      breaking the walk when a cancellation is observed.
+     *
+     *  Each `placeSingleCommand` invocation locates the matching
+     *  placeholder slot in `out` via `findPlaceholder` (linear scan
+     *  by `sequenceId`) and replaces it with the load instruction
+     *  sequence selected for that node, including the Hirzel-only
+     *  cache-clamped `prf` prefetch sequence when the node's
+     *  `crossesCacheLine_`-derived flag is set on the corresponding
+     *  `PrefetcherNodeState`.
+     *
+     *  \param asmList  The instruction list produced by the pre-
+     *                  waveform optimisation pass; it carries the
+     *                  load placeholders that `placeCommands`
+     *                  expands.  Not modified.
+     *  \return         A new `AsmList` with every placeholder
+     *                  rewritten into the concrete load sequence
+     *                  chosen by `placeLoads`.
+     *  \throws ZIAWGCompilerException  Propagated from
+     *                  `findPlaceholder` when a node's `asmId` does
+     *                  not match any entry in the copied list
+     *                  (programmer-error condition).
+     */
     AsmList fillInPlaceholders(AsmList const& asmList);                // 0x1d65c0
     void placeCommands(AsmList* out, std::shared_ptr<Node> node);      // 0x1d6680
     void placeSingleCommand(AsmList* out, std::shared_ptr<Node> node); // 0x1d7940
