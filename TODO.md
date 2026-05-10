@@ -652,9 +652,40 @@ cross-reference pages so the backlog is discoverable.
                 boost::log fallback, same line-counter
                 pattern). Saves future agents from re-deriving
                 the parallel.
-    - [ ] **D5-6** — AWGAssemblerImpl + AWGCompilerImpl (~72
-          briefs); private impl classes whose facades were
-          documented in 7a.
+    - [x] **D5-6** — AWGAssemblerImpl + AWGCompilerImpl. Done
+          in `c251ebe`. +42 briefs, coverage 43.0% → 44.4%.
+          Lower symbol delta than expected because Doxygen
+          merges declaration + out-of-line definition into a
+          single documented symbol. Seven new `\binarynote`
+          (assembleAsmList LABEL no-advance, writeToFile
+          opcode-buffer clear, parserMessage syntax-error
+          flip, compileString silent state reset, addWaveforms
+          unrecognised-extension recording, writeToStream
+          silent no-output on prior syntax error,
+          writeAssemblerToFile silent no-op on empty text).
+          Two new inline `\unclear` (unusedStr038_, pad_218_;
+          not counted by coverage.sh regex). IF-237 logged
+          (low/confirmed, fixed-cosmetic): the
+          '// ---- Error reporting helpers ----' header
+          comment claimed only errorMessage flips
+          setSyntaxError; recon body of parserMessage also
+          flips it. Captured via `\binarynote`; subagent
+          suggests a GDB pass.
+          - [ ] **Follow-up (low priority, GDB)**: verify
+                IF-237. One breakpoint at 0x289190 + a
+                watchpoint on parserCtx_+0x03 confirms whether
+                the binary really flips hadSyntaxError_ in
+                parserMessage, or whether the recon body
+                copy-pasted from errorMessage by mistake.
+          - [ ] **Follow-up (D-class, low priority)**: extract
+                pipeline orchestration notes from
+                awg_compiler.cpp block-headers into
+                `notes/awg_compiler_impl.md`, leaving each
+                `// ====` as a one-line address comment. The
+                writeToStream ELF-section emission order and
+                device-conditional branches (mapped vs absolute
+                mode, `.nodes` vs `.nodes_json`) currently live
+                only in scattered comments.
     - [ ] **D5-7** — Waveform-IR remainder: WavetableFront /
           WavetableManager / WaveformFront.
     - [ ] **D5-8** — Remaining smaller compounds: Exception,
