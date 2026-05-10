@@ -71,15 +71,20 @@ public:
     Immediate() : index_(0xFFFFFFFF) {}       // default: valueless state
     //! \brief Constructs an `Address`-kind immediate from an
     //! existing `AddressImpl` wrapper.
+    //! \param addr Pre-wrapped address payload.
     Immediate(detail::AddressImpl<uint32_t> addr);  // 0x290ab0
     //! \brief Constructs an `Address`-kind immediate from a raw
     //! unsigned value (same kind as the `AddressImpl` overload).
+    //! \param v Address payload as an unsigned 32-bit value.
     Immediate(uint32_t v);                           // 0x290ac0 — sets index=0 (same as AddressImpl)
     //! \brief Constructs an `Integer`-kind immediate from a signed
     //! 32-bit value.
+    //! \param v Signed integer payload.
     Immediate(int32_t v);                            // 0x290ad0 — sets index=1
     //! \brief Constructs a `String`-kind immediate carrying the
     //! given label/symbol name.
+    //! \param s Label or symbol text used as the immediate's
+    //! payload.
     Immediate(std::string const& s);                 // 0x290ae0 — sets index=2
     Immediate(Immediate const& other);               // copy ctor (needed due to union with std::string)
     Immediate(Immediate&& other) noexcept;           // move ctor
@@ -90,6 +95,8 @@ public:
     // --- Query ---
     //! \brief Returns true iff the active alternative is
     //! `ImmediateKind::Address`.
+    //! \return `true` when `index_ == 0` (Address kind), otherwise
+    //! `false`.
     bool holdsUnsigned() const;     // 0x290b30 — returns index_ == 0
 
     // --- Conversions ---
@@ -106,6 +113,8 @@ public:
     // --- Comparison ---
     //! \brief Element-wise equality: equal iff both immediates hold
     //! the same alternative with the same value.
+    //! \param other Right-hand operand to compare against.
+    //! \return `true` when both alternatives and payloads match.
     bool operator==(Immediate const& other) const;  // 0x290d40 — vtable dispatch at b070e0
 };
 
@@ -148,9 +157,12 @@ class ValueException : public std::exception {
 public:
     //! \brief Constructs a `ValueException` carrying `msg` as the
     //! `what()` string.
+    //! \param msg Diagnostic text returned later by `what()`.
     explicit ValueException(std::string const& msg);  // 0x16e7f0
     ~ValueException() override;                        // 0x16e850
     //! \brief Returns the `msg` passed at construction.
+    //! \return Pointer to the internal C string of `msg_`; valid
+    //! for the lifetime of `*this`.
     const char* what() const noexcept override;        // 0x16f110
 };
 
@@ -232,15 +244,19 @@ public:
     // Int, Bool, Double constructors are fully inlined (no symbols).
     // String constructor is the only non-inline one:
     //! \brief Constructs a `String`-kind value from the given text.
+    //! \param s Text payload copied into `storage_.str`.
     Value(std::string const& s);  // 0x22c2b0 — sets type_=4, which_=3, copies string
     //! \brief Default-constructs an `Unspecified` value; any
     //! conversion will throw `ValueException`.
     Value();  // default ctor — needed by Resources::Variable initialization
     //! \brief Constructs a `Double`-kind value.
+    //! \param d Double payload stored in `storage_.d`.
     explicit Value(double d) : type_(ValueType(3)), pad_04_{}, which_(2), pad_0C_{} { storage_.d = d; }
     //! \brief Constructs an `Int`-kind value.
+    //! \param i Signed integer payload stored in `storage_.i`.
     explicit Value(int32_t i) : type_(ValueType(1)), pad_04_{}, which_(0), pad_0C_{} { storage_.i = i; }
     //! \brief Constructs a `Bool`-kind value.
+    //! \param b Boolean payload stored in `storage_.b`.
     explicit Value(bool b) : type_(ValueType(2)), pad_04_{}, which_(1), pad_0C_{} { storage_.b = b; }
 
     // Copy/move — implicit in binary (char[24] union was trivially copyable).
@@ -254,12 +270,14 @@ public:
     //! \brief Coerces the held value to `double`: numeric kinds
     //! convert directly, `Bool` converts to 0.0/1.0, and `String`
     //! is parsed via `std::stod`.
+    //! \return Held payload coerced to `double`.
     //! \throws ValueException if `type_ == Unspecified` or out of
     //! the recognised set.
     double toDouble() const;       // 0x15a560
     //! \brief Coerces the held value to `int32_t`: `Int` returns
     //! directly, `Bool` returns 0/1, `String` is parsed via
     //! `std::stol`, and `Double` is truncated toward zero.
+    //! \return Held payload coerced to `int32_t`.
     //! \binarynote The `Double` path matches the binary's `cvttsd2si`
     //! semantics: values outside `[INT32_MIN, INT32_MAX]` are
     //! reinterpreted via wrapping `uint32_t` truncation, which
@@ -271,10 +289,14 @@ public:
     //! \brief Coerces the held value to `bool`: `Int` is non-zero,
     //! `Bool` is direct, `String` matches the literal `"true"`
     //! exactly, and `Double` is non-zero within `~1e-15`.
+    //! \return Held payload coerced to `bool`.
     //! \throws ValueException if `type_ == Unspecified` or out of
     //! the recognised set.
     bool toBool() const;           // 0x164200
     //! \brief Renders the held value as a string.
+    //! \return String rendering of the held payload (decimal for
+    //! numeric kinds, `"true"`/`"false"` for booleans, identity
+    //! for `String`).
     //! \throws ValueException if `type_ == Unspecified` or out of
     //! the recognised set.
     std::string toString() const;  // 0x15de50
@@ -282,6 +304,9 @@ public:
     // --- Comparison ---
     //! \brief Returns true iff both values hold the same type and
     //! the same payload value.
+    //! \param other Right-hand operand to compare against.
+    //! \return `true` when both `type_` and the active payload
+    //! match.
     bool operator==(Value const& other) const;  // 0x21a780
 
     // --- Destructor ---
