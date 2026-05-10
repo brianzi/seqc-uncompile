@@ -80,11 +80,13 @@ public:
     //! given `VarType` (sub-type defaulted, `Value` left
     //! `Unspecified`, register invalid).  Used as the seed result
     //! for a typed evaluation that will later overwrite the value.
+    //! \param type Top-level VarType to stamp on the seed entry.
     EvalResults(VarType type);                            // @0x176bc0
     //! \brief Deep-copies all members: both vectors are
     //! element-copy-constructed; the three `shared_ptr`s have their
     //! refcounts bumped; `name_` and `returnEncountered_` are
     //! value-copied.
+    //! \param other Source object whose state is duplicated.
     EvalResults(EvalResults const& other);                // @0x231c60
     ~EvalResults();                                       // @0x16f3d0
 
@@ -92,6 +94,8 @@ public:
     //! \brief Returns a copy of the `Value` payload of the **last**
     //! element of `values_`, or a default-constructed (`Unspecified`)
     //! `Value` if `values_` is empty.
+    //! \return The trailing entry's `Value`, or an `Unspecified`
+    //! `Value` when `values_` is empty.
     //! \binarynote The accessor reads only the trailing element; the
     //! varType/varSubType/register fields are not returned.
     Value getValue() const;                               // @0x211ab0
@@ -104,42 +108,61 @@ public:
     //! \brief Replaces `values_` with a single entry tagged
     //! `VarType_Const`, sub-type defaulted, holding `val`, with an
     //! invalid register binding.
+    //! \param val Payload `Value` to install on the new entry.
     void setValue(Value const& val);                      // @0x15a750
     //! \brief Replaces `values_` with a single default-constructed
     //! entry tagged with `type` (sub-type defaulted, `Value`
     //! `Unspecified`, register invalid).
+    //! \param type Top-level VarType to stamp on the new entry.
     void setValue(VarType type);                          // @0x20ad20
     //! \brief Replaces `values_` with a single entry tagged
     //! `(type, default)` whose `Value` is `Unspecified` but whose
     //! register binding is `AsmRegister(val, valid=true)`.  Used to
     //! attach a freshly-allocated register to a typed slot before the
     //! value itself has been computed.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param val  Register index packaged as a valid AsmRegister.
     void setValue(VarType type, int val);                 // @0x15c850
     //! \brief Replaces `values_` with a single entry tagged
     //! `(VarType_Const, VarSubType_Vect)` holding `Value(val)`.
+    //! \param val Numeric value wrapped in a `Value`.
     //! \binarynote The sub-type is `VarSubType_Vect` (3), not
     //! `VarSubType_Default` — preserved from the binary; consumers
     //! that filter on sub-type must allow this case.
     void setValue(double val);                            // @0x2136a0
     //! \brief Replaces `values_` with a single entry tagged
     //! `(type, default)` holding `Value(s)`.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param s    String payload wrapped in a `Value`.
     void setValue(VarType type, std::string const& s);    // @0x20af20
     //! \brief Replaces `values_` with a single entry tagged
     //! `(type, default)` holding `val`, with an invalid register
     //! binding.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param val  Payload `Value` to install on the new entry.
     void setValue(VarType type, Value const& val);        // @0x211b70
     //! \brief Replaces `values_` with a single entry tagged
     //! `(type, default)` holding `val` and bound to register
     //! `AsmRegister(i, valid=true)`.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param val  Payload `Value` to install on the new entry.
+    //! \param i    Register index packaged as a valid AsmRegister.
     void setValue(VarType type, Value const& val, int i); // @0x2107b0
     //! \brief Replaces `values_` with a single entry tagged
     //! `(type, sub)` holding `val`, with an invalid register
     //! binding.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param sub  VarSubType refinement of `type`.
+    //! \param val  Payload `Value` to install on the new entry.
     void setValue(VarType type, VarSubType sub,
                   Value const& val);                      // @0x16bfb0
     //! \brief Full-featured form: replaces `values_` with a single
     //! entry whose every field — type, sub-type, value, and register
     //! binding — is caller-specified.
+    //! \param type Top-level VarType to stamp on the new entry.
+    //! \param sub  VarSubType refinement of `type`.
+    //! \param val  Payload `Value` to install on the new entry.
+    //! \param i    Register index packaged as a valid AsmRegister.
     void setValue(VarType type, VarSubType sub,
                   Value const& val, int i);               // @0x247600
 
@@ -147,6 +170,8 @@ public:
     //! \brief Appends `entry` to `assemblers_`, recording an
     //! assembler instruction emitted as a side effect of the current
     //! evaluation.
+    //! \param entry Assembler-instruction descriptor to append to
+    //! `assemblers_`.
     void addAssembler(AsmList::Asm const& entry);         // @0x15c1b0
 
     // No copy assignment operator observed in the binary.
