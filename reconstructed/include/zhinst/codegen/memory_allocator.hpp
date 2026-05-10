@@ -90,17 +90,81 @@ static_assert(sizeof(MemoryBlock) == 12, "MemoryBlock must be 12 bytes");
 //! with `!(block.flags & 1)` to detect overflow.
 class MemoryAllocator {
 public:
+    //! \brief Construct an allocator over a device's waveform memory region.
+    //!
+    //! \details Captures `dc` (used later to read `waveformAlignment`,
+    //! `waveformElfAlignment`, `cachePageCount` / `maxBlocks` on every
+    //! allocation), records `startOffset` as the first byte available
+    //! for allocation, and arms `lastAllocEnd_` with the sentinel
+    //! `0xFFFFFFFF` so that the very first call to
+    //! `allocateFirstSuitableFreeBlock` treats the entire post-`startOffset`
+    //! region as one large tail.  When `dc->waveformAlignment` is non-zero
+    //! the per-cache-line ownership table `cacheLineUsage_` is sized to
+    //! `waveformMemorySize / waveformAlignment` slots and every entry is
+    //! initialised to the free sentinel `0xFFFFFFFF`.
+    //!
+    //! \param dc          Device constants supplying the memory geometry;
+    //!                    must outlive this allocator.
+    //! \param startOffset First byte (in waveform-memory address space)
+    //!                    available for allocation.
+    //!
+    //! \verifyme — initialisation values are taken from the inlined
+    //! constructor patterns visible at the call sites in `WavetableIR`;
+    //! the standalone constructor symbol does not exist in the binary.
     // Constructor is inlined at call sites — no standalone function.
     MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset);
 
+    //! \brief Release the free-list deque and the per-cache-line table.
+    //!
+    //! \details Compiler-generated body: destroys `freeBlocks_` first,
+    //! then `cacheLineUsage_`.  All other fields are scalars.
     ~MemoryAllocator();  // 0x29f2d0
 
+    //! \brief Allocate `size` bytes with cache-line-aware placement.
+    //!
+    //! \details Runs in two stages:
+    //! - **Stage 1 (fast re-use):** when `size < waveformAlignment`,
+    //!   walk the free list looking for a free block whose
+    //!   `waveformElfAlignment`-aligned start lies inside a cache-line
+    //!   slot already owned by the same cache-line base, with enough
+    //!   room left before the next `waveformAlignment` boundary.  Free
+    //!   slots (sentinel `0xFFFFFFFF`) are *not* accepted at this
+    //!   stage — only re-use of an already-claimed cache line.
+    //! - **Stage 2 (general multi-CL):** align to `waveformAlignment`
+    //!   (or `maxBlocks * waveformAlignment` when the request exceeds a
+    //!   single cache line), require every cache-line slot the
+    //!   allocation would cover to be free, then claim those slots and
+    //!   set the `crossesCacheLine` flag (bit 8) in the returned block.
+    //!
+    //! \param size Allocation size in bytes.
+    //! \return On success, a `MemoryBlock` `{start, end, flags}` with
+    //!         bit 0 set; on failure, `{0, 0, 0}`.  Callers should test
+    //!         `block.flags & 1` to distinguish.
     // Allocate a block with cache-line alignment.
     // Two-phase: first tries fast path (fits in one CL), then general path.
     // Both phases call allocateFirstSuitableFreeBlock with different lambdas.
     // INLINED — no standalone address.
     MemoryBlock allocateCLAligned(unsigned int size);
 
+    //! \brief Allocate `size` bytes avoiding cache-line conflicts with an
+    //!        existing waveform set (FIFO-reload fallback).
+    //!
+    //! \details Walks the free list and, for each candidate
+    //! `waveformAlignment`-aligned start, verifies that none of the
+    //! `maxBlocksPerCL_` cache-line indices the allocation would touch
+    //! appear in `usedAddrs`.  On a conflict the candidate is bumped by
+    //! `waveformAlignment` and re-tried within the same free block;
+    //! when the block is exhausted the search moves on to the next.
+    //! Used by `WavetableIR::allocateWaveformsForFifo` after
+    //! `allocateCLAligned` fails to make room for a reloading waveform.
+    //!
+    //! \param size      Allocation size in bytes.
+    //! \param usedAddrs Cache-line indices already occupied by waveforms
+    //!                  that must remain resident; entries are
+    //!                  `(addr % memorySizeInBytes_) / cacheLineSizeBytes_`.
+    //! \return On success, a `MemoryBlock` with bit 0 of `flags` set
+    //!         (the `crossesCacheLine` bit is *not* set on this path);
+    //!         on failure, `{0, 0, 0}`.
     // Allocate avoiding cache-line conflicts with existing waveforms.
     // Builds a set of used CL indices, then finds a position with no overlap.
     // Fallback when allocateCLAligned fails.
@@ -108,6 +172,26 @@ public:
     MemoryBlock allocateReloadingCL(unsigned int size,
                                     std::set<unsigned long> const& usedAddrs);
 
+    //! \brief Drive the shared free-list scan with a strategy-specific
+    //!        placement predicate.
+    //!
+    //! \details Iterates `freeBlocks_` in order, calling
+    //! `pred(block.start, block.end)` for each free block.  When
+    //! `pred` returns a block whose `flags & 1` is set, the consumed
+    //! range is removed from the free list and the (up to) two
+    //! remainders are inserted back at the same position so deque
+    //! order is preserved.  When the free-list scan exhausts without a
+    //! hit, one final candidate is tried at the tail region
+    //! `[freeBlocks_.back().end, lastAllocEnd_)` (or
+    //! `[startOffset_, lastAllocEnd_)` when the deque is empty).
+    //!
+    //! \tparam Pred Callable `(uint32_t blockStart, uint32_t blockEnd)
+    //!              -> MemoryBlock`.
+    //! \param  pred Strategy supplied by the caller; one of three
+    //!              binary lambdas (single-CL fast, multi-CL general,
+    //!              reloading-conflict avoidance).
+    //! \return The block returned by `pred` on its first hit, or
+    //!         `{0, 0, 0}` if no candidate position succeeded.
     // Template: iterate freeBlocks_ deque, apply predicate to each block.
     // Three instantiations:
     //   allocateCLAligned::lambda#1  @0x2aa960 (fast: single CL check)
@@ -116,8 +200,19 @@ public:
     template <typename Pred>
     MemoryBlock allocateFirstSuitableFreeBlock(Pred pred);
 
+    //! \brief Query whether the free list is non-empty.
+    //! \return `true` if `freeBlocks_` currently holds at least one
+    //!         block, `false` otherwise.
     bool hasFreeBlocks() const { return !freeBlocks_.empty(); }
+
+    //! \brief The most recently appended free block (back of the deque).
+    //! \return A copy of `freeBlocks_.back()`; undefined when the
+    //!         deque is empty (caller must check `hasFreeBlocks()` first).
     MemoryBlock lastFreeBlock() const { return freeBlocks_.back(); }
+
+    //! \brief Largest `start` address among the current free blocks.
+    //! \return The maximum `start` field over `freeBlocks_`, or `0` if
+    //!         the free list is empty.
     uint32_t maxFreeBlockStart() const {
         uint32_t m = 0;
         for (auto& b : freeBlocks_) if (b.start > m) m = b.start;
@@ -125,16 +220,46 @@ public:
     }
 
 private:
+    //! \brief Source of memory geometry (alignment, capacity, page count).
+    //! \details Borrowed; not owned by the allocator.
     const DeviceConstants*  deviceConstants_;      // +0x00
+    //! \brief First waveform-memory byte the allocator may hand out.
     uint32_t                startOffset_;           // +0x08
+    //! \brief Upper bound for the tail-region scan; sentinel
+    //!        `0xFFFFFFFF` initially so the whole post-`startOffset_`
+    //!        region is treated as one tail block.
     uint32_t                lastAllocEnd_;          // +0x0C  sentinel 0xFFFFFFFF
+    //! \brief Total size of the managed waveform-memory region in bytes
+    //!        (mirrors `DeviceConstants::waveformMemorySize`).
     uint32_t                memorySizeInBytes_;    // +0x10
+    //! \brief Cache-line size in bytes
+    //!        (mirrors `DeviceConstants::waveformAlignment`).
     uint32_t                cacheLineSizeBytes_;   // +0x14
+    //! \brief Maximum number of cache lines a single allocation may
+    //!        consume (mirrors `DeviceConstants::cachePageCount` /
+    //!        `maxBlocks`).
     uint32_t                maxBlocksPerCL_;        // +0x18
+    //! \brief ABI tail padding to align the following `vector` to
+    //!        eight-byte boundary; not used at runtime.
     uint32_t                pad_1C_;                // +0x1C
+    //! \brief Per-cache-line ownership table.
+    //! \details Element `i` holds the cache-line base address of the
+    //! waveform that currently owns slot `i`, or the sentinel
+    //! `0xFFFFFFFF` when the slot is free.  Sized at construction to
+    //! `memorySizeInBytes_ / cacheLineSizeBytes_` entries.
     std::vector<uint32_t>   cacheLineUsage_;        // +0x20  per-CL owner; 0xFFFFFFFF=free
+    //! \brief Number of cache-line slots in `cacheLineUsage_`.
+    //! \details Set at construction to
+    //! `memorySizeInBytes_ / cacheLineSizeBytes_`; decremented by each
+    //! multi-CL allocation by the number of slots it claims.
     uint32_t                numCacheLines_;          // +0x38
+    //! \brief ABI tail padding to align the following `deque` to
+    //!        eight-byte boundary; not used at runtime.
     uint32_t                pad_3C_;                // +0x3C
+    //! \brief Ordered list of free `[start, end)` regions.
+    //! \details Maintained by `allocateFirstSuitableFreeBlock`: each
+    //! successful allocation removes the consumed slice and re-inserts
+    //! the (up to two) remainders in place, preserving address order.
     std::deque<MemoryBlock> freeBlocks_;            // +0x40  free block list
 };
 // static_assert(sizeof(MemoryAllocator) == 0x70,

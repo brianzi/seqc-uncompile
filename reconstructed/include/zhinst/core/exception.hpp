@@ -227,47 +227,94 @@ struct GenericErrorDescription {
 //! so that `catch` clauses can discriminate by error kind.
 class Exception : public std::exception {
 public:
+    //! \brief Constructs an `Exception` carrying the default ZI error
+    //!        code and the message `"ZIException"`.
+    //! \details The error code is the ZI API sentinel value `0x8000`
+    //! (see `makeDefaultErrorCode()`); the message is a fixed literal
+    //! identifying the exception kind in catch-all logs.
     // 0x2e5410 — default ctor. Initializes errorCode_ from
     // make_error_code(0x8000) (= ZIResult_enum sentinel) and message_
     // to the literal "ZIException".
     Exception();
 
+    //! \brief Constructs an `Exception` whose `what()` returns the
+    //!        supplied message and whose code is the default sentinel.
+    //! \details `msg` is moved into the internal message buffer.
+    //! \param msg Human-readable message; if empty, the message is
+    //!        replaced with the default text derived from the error
+    //!        code's category.
+    //! \binarynote An empty `msg` triggers a fallback that fills the
+    //! message from the error category rather than leaving it blank.
     // 0x2e54b0 — string ctor (by value, moved into message_).
     // If `msg` is empty (SSO byte 0 == 0), falls back to
     // ErrorCodeTraits<error_code>::defaultMessage(errorCode_).
     explicit Exception(std::string msg);
 
+    //! \brief Constructs an `Exception` for the given error code,
+    //!        synthesising a message from the code.
+    //! \details The resulting message has the form
+    //! `"ZIException with status code: <code-string>"`.
+    //! \param code Error code to copy into the new exception.
     // 0x2e55b0 — error_code ctor. Builds message_ from
     // `code.to_string() + "; "` (verified via to_string + insert at
     // 0x2e5601 / 0x2e5618 with prefix string at .rodata 0x90c6c6).
     explicit Exception(ErrorCode const& code);
 
+    //! \brief Constructs an `Exception` carrying both an error code
+    //!        and a caller-supplied message.
+    //! \param code Error code copied into the new exception.
+    //! \param msg  Message text used verbatim; if empty, replaced by
+    //!             the error category's default message.
     // 0x2e5700 — error_code + string ctor. Uses the supplied message
     // verbatim (default message fallback only when string is empty).
     Exception(ErrorCode const& code, std::string msg);
 
+    //! \brief Constructs an `Exception` from an error-code-plus-message
+    //!        description, moving both fields into the new object.
+    //! \param desc Bundle whose `code` and `message` are moved out;
+    //!        the description is left in a valid moved-from state.
     // 0x2e5810 — GenericErrorDescription ctor. Moves both code and
     // message out of the description.
     explicit Exception(GenericErrorDescription<ErrorCode> desc);
 
+    //! \brief Destroys the exception and releases its message buffer.
     // 0x2e7720 — virtual dtor. Releases boost::exception::data_ and
     // the message_ string.
     ~Exception() override;
 
+    //! \brief Returns the human-readable message as a null-terminated
+    //!        C string.
+    //! \return Pointer to the message buffer; valid for the lifetime
+    //!         of the exception.
     // 0x2e5870 — returns SSO buffer or heap data ptr depending on
     // string layout. Matches std::string::c_str().
     const char* what() const noexcept override;
 
+    //! \brief Returns the error code carried by this exception, by value.
+    //! \return A copy of the internal `ErrorCode`.
     // 0x2e5890 — returns errorCode_ by value (sret in binary).
     ErrorCode code() const noexcept;
 
+    //! \brief Returns a pointer to the internal error-code field.
+    //! \return Pointer to the embedded `ErrorCode`; valid for the
+    //!         lifetime of the exception.
+    //! \binarynote Despite its name, this accessor exposes only the
+    //! error code, not the message; the pointer aliases an internal
+    //! field rather than returning an independent description object.
     // 0x2e58b0 — returns &errorCode_ (pointer into the object).
     ErrorCode const* description() const noexcept;
 
 protected:
+    //! \brief Mutable access to the message buffer for derived ctors
+    //!        that need to rewrite the human-readable text after
+    //!        forwarding to a base constructor.
+    //! \return Reference to the internal message string.
     // Direct access for derived classes that may reset the message via
     // their own ctors (none currently observed, but kept as a hook).
     std::string&       message()       noexcept { return message_; }
+
+    //! \brief Read-only access to the message buffer.
+    //! \return `const` reference to the internal message string.
     std::string const& message() const noexcept { return message_; }
 
 private:
@@ -276,12 +323,33 @@ private:
     //  int throw_line_` here, occupying offsets +0x10..+0x2F of the
     // derived-most object. For source compilation we just hold raw
     // pointers; the exact field semantics are not invoked from src/.
+
+    //! \brief Opaque pointer to the boost::exception error-info container.
+    //! \details Source-level placeholder; never read or written from
+    //! reconstructed code.
     void const* boost_data_           = nullptr;  // ~ +0x10
+
+    //! \brief Source-location filler — name of the throwing function.
+    //! \details Source-level placeholder; never read or written from
+    //! reconstructed code.
     void const* boost_throw_function_ = nullptr;  // ~ +0x18
+
+    //! \brief Source-location filler — file path of the throw site.
+    //! \details Source-level placeholder; never read or written from
+    //! reconstructed code.
     void const* boost_throw_file_     = nullptr;  // ~ +0x20
+
+    //! \brief Source-location filler — line number of the throw site,
+    //!        or `-1` when not set.
+    //! \details Source-level placeholder; never read or written from
+    //! reconstructed code.
     long        boost_throw_line_     = -1;       // ~ +0x28
 
+    //! \brief Programmatic identity of the exception, returned by
+    //!        `code()` and pointed at by `description()`.
     ErrorCode   errorCode_;       // ~ +0x30 (24 bytes in binary)
+
+    //! \brief Human-readable message returned by `what()`.
     std::string message_;         // ~ +0x48 (24 bytes libc++ SSO)
 };
 

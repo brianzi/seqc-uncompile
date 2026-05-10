@@ -845,29 +845,155 @@ static_assert(sizeof(SeqCForLoop) == 0x38, "SeqCForLoop must be 0x38 bytes");
 // ============================================================================
 
 #define SEQC_LIST(Name, NamedAccessor, VtableAddr)                           \
+    /*! \brief AST list node holding an ordered sequence of child nodes.    \
+     *                                                                       \
+     *  One of the three macro-generated list nodes (`SeqCArgList`,         \
+     *  `SeqCDeclList`, `SeqCStmtList`).  All three share an identical      \
+     *  layout — a single `std::vector<std::unique_ptr<SeqCAstNode>>` of    \
+     *  owned children at offset +0x18 — and an identical implementation    \
+     *  modulo the printed label and the named accessor.  Total size is    \
+     *  0x30 bytes (statically asserted below).                             \
+     */                                                                      \
     class Name : public SeqCAstNode {                                       \
     public:                                                                 \
+        /*! \brief Construct an empty list with the given AST attributes.   \
+         *                                                                   \
+         *  Forwards `vc`, `lineNr`, `dir` to `SeqCAstNode` and assigns    \
+         *  `vt` to `varType_`.  The element vector is default-constructed \
+         *  empty; callers populate it via `append()`.                     \
+         *                                                                   \
+         *  \param vc     Value category of the list expression.            \
+         *  \param lineNr Source line number from the parser.               \
+         *  \param dir    Direction tag (input / output / inout).           \
+         *  \param vt     Variable type carried in `varType_`.              \
+         */                                                                  \
         Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt); \
+        /*! \brief Construct a list pre-populated with `elements`.          \
+         *                                                                   \
+         *  Same as the empty-ctor but moves `elements` into `elements_`.  \
+         *  Ownership of every child node transfers to the new list.       \
+         *                                                                   \
+         *  \param vc       Value category of the list expression.          \
+         *  \param lineNr   Source line number from the parser.             \
+         *  \param dir      Direction tag (input / output / inout).         \
+         *  \param vt       Variable type carried in `varType_`.            \
+         *  \param elements Initial child nodes; ownership transfers.       \
+         */                                                                  \
         Name(EValueCategory vc, int lineNr, EDirection dir, VarType vt,  \
              std::vector<std::unique_ptr<SeqCAstNode>> elements);           \
+        /*! \brief Deep-copy constructor.                                   \
+         *                                                                   \
+         *  Copies the base AST attributes and clones every child by       \
+         *  calling `doClone()` on each non-null element; null elements    \
+         *  are preserved as null entries in the new vector.               \
+         *                                                                   \
+         *  \param o Source list to copy from.                              \
+         */                                                                  \
         Name(Name const& o);                                                \
+        /*! \brief Copy-and-swap assignment.                                \
+         *                                                                   \
+         *  `o` is taken by value (invoking the deep-copy ctor) and then   \
+         *  swapped into `*this`, providing the strong exception guarantee.\
+         *                                                                   \
+         *  \param o Source list, copied on entry and swapped on exit.     \
+         *  \return Reference to `*this`.                                   \
+         */                                                                  \
         Name& operator=(Name o);                                            \
+        /*! \brief Default destructor; releases owned child nodes. */       \
         ~Name() override;                                                   \
+        /*! \brief Write the class label to `std::cout`.                    \
+         *                                                                   \
+         *  Emits the literal class tag — `"ArgList"`, `"DeclList"`, or    \
+         *  `"StmtList"` — as a raw `std::cout.write()` with no trailing  \
+         *  newline.  Used by the AST debug-print walker.                  \
+         */                                                                  \
         void print() const override;                                        \
+        /*! \brief Polymorphic deep clone.                                  \
+         *                                                                   \
+         *  Builds a new instance of the same concrete list type with     \
+         *  identical AST attributes and a vector of cloned children      \
+         *  produced by recursively calling `doClone()` on each element.  \
+         *                                                                   \
+         *  \return Owning pointer to a freshly-cloned list node.           \
+         */                                                                  \
         std::unique_ptr<SeqCAstNode> doClone() const override;                \
+        /*! \brief Raw, non-owning pointers to every child element.         \
+         *                                                                   \
+         *  Walks `elements_` in order and returns each `unique_ptr::get()`,\
+         *  preserving null entries as null pointers.                      \
+         *                                                                   \
+         *  \return Vector of borrowed pointers to the owned children.      \
+         */                                                                  \
         std::vector<const SeqCAstNode*> children() const override;          \
+        /*! \brief Flatten string-form list elements from every child.      \
+         *                                                                   \
+         *  Iterates `elements_`, calls `getListElements()` on each child  \
+         *  and concatenates the results in order.  Used by callers that  \
+         *  need the printable form of nested list contents.               \
+         *                                                                   \
+         *  \return Concatenated string elements contributed by all       \
+         *          children, in declaration order.                         \
+         */                                                                  \
         std::vector<std::string> getListElements() const override;          \
+        /*! \brief Evaluate every child in order, accumulating results.     \
+         *                                                                   \
+         *  For `SeqCArgList` and `SeqCDeclList`: evaluates each child,    \
+         *  concatenates assemblers, values and names (comma-separated),  \
+         *  and reports error 0x12 with the list label on a null child    \
+         *  result.                                                         \
+         *                                                                   \
+         *  For `SeqCStmtList`: additionally skips null elements, catches  \
+         *  child-thrown exceptions as line-less error messages, threads  \
+         *  `EvalResults::node_` into a single linked chain, breaks on    \
+         *  the first child whose `returnEncountered_` is set, extracts   \
+         *  its return value via `Resources::setReturnValue()`, and emits \
+         *  unreachable-code warning 0x22 if a `SeqCReturnStatement`      \
+         *  precedes another statement.                                    \
+         *                                                                   \
+         *  \param res   Shared compile resources (symbol tables, etc.).   \
+         *  \param ctx   Lowering context (messages, asm commands, etc.). \
+         *  \param state Per-call lowering state.                          \
+         *  \return Accumulated `EvalResults`; an empty result on failure  \
+         *          for `SeqCArgList`/`SeqCDeclList`.                      \
+         */                                                                  \
         std::shared_ptr<EvalResults> evaluate(                              \
             std::shared_ptr<Resources> res,                                 \
             FrontendLoweringContext& ctx,                                    \
             FrontendLoweringState& state) const override;                   \
                                                                              \
+        /*! \brief Append a child element, transferring ownership.          \
+         *                                                                   \
+         *  Pushes `elem` onto the back of `elements_`; null pointers are \
+         *  permitted and preserved.                                       \
+         *                                                                   \
+         *  \param elem Child node to take ownership of; may be null.       \
+         */                                                                  \
         void append(std::unique_ptr<SeqCAstNode> elem);                     \
+        /*! \brief Read-only access to the underlying owned-child vector.   \
+         *  \return Const reference to the internal element storage.        \
+         */                                                                  \
         const std::vector<std::unique_ptr<SeqCAstNode>>& elements() const { \
             return elements_;                                               \
         }                                                                   \
+        /*! \brief Raw, non-owning pointers to every child (named alias).   \
+         *                                                                   \
+         *  Functionally equivalent to `children()` — walks `elements_`    \
+         *  and returns each `get()`.  The named alias                     \
+         *  (`params()` / `decls()` / `stmts()`) reflects the role of the  \
+         *  list in its parent AST node and is the binding callers use.   \
+         *                                                                   \
+         *  \return Vector of borrowed pointers to the owned children.      \
+         */                                                                  \
         std::vector<const SeqCAstNode*> NamedAccessor() const;              \
                                                                              \
+        /*! \brief ADL-friendly swap.                                       \
+         *                                                                   \
+         *  Swaps the `SeqCAstNode` base subobject and `elements_`; used  \
+         *  by `operator=` to implement copy-and-swap.                     \
+         *                                                                   \
+         *  \param a First list to swap.                                    \
+         *  \param b Second list to swap.                                   \
+         */                                                                  \
         friend void swap(Name& a, Name& b);                                \
     private:                                                                \
         std::vector<std::unique_ptr<SeqCAstNode>> elements_;  /* +0x18 */   \
