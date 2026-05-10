@@ -40,21 +40,55 @@ namespace zhinst {
 class SeqcParserContext {
 public:
     // --- Accessors ---
+    //! \brief Returns the current 1-based source line number.
     int32_t currentLineNumber() const;        // 0x247c80
+    //! \brief Increments the current source line number; called by
+    //! the lexer on every newline.
     void incrementLineNumber();               // 0x247c90
+    //! \brief Reports an error on the current source line: invokes
+    //! the registered `errorCallback_` with `(currentLineNumber_,
+    //! msg)`, or falls back to logging `"[Line N]: msg"` to
+    //! `std::clog` if no callback is set.
     void raiseError(const std::string& msg);  // 0x247ae0
+    //! \brief Latches the sticky `hadSyntaxError_` flag; consulted
+    //! by the compiler driver after parsing to decide whether to
+    //! reject the whole input.
     void setSyntaxError();                    // 0x247cb0
+    //! \brief Returns the latched syntax-error flag.
     bool hadSyntaxError() const;              // 0x247ca0
 
+    //! \brief Returns true while the lexer is inside any comment
+    //! (line- or block-form).
     bool isComment() const;                   // 0x247bf0
+    //! \brief Returns true while the lexer is specifically inside a
+    //! line comment.
     bool isLineComment() const;
+    //! \brief Begins block-comment state.
+    //! \binarynote No-op when already inside a line comment, so an
+    //! embedded `/*` inside `// ...` does not start a block scope.
+    //! See IF-169 for the symmetric `*/` no-op.
     void startBlockComment();                 // 0x247c40
+    //! \brief Ends block-comment state.
+    //! \binarynote No-op when inside a line comment, so a stray
+    //! `*/` inside `// ...` is harmless rather than terminating
+    //! comment state mid-line (IF-169).
     void endBlockComment();                   // 0x247c60
+    //! \brief Begins line-comment state.
+    //! \binarynote No-op when already inside a block comment.
     void startLineComment();                  // 0x247c00
+    //! \brief Ends line-comment state at the next newline.
+    //! \binarynote No-op when inside a block comment.
     void endLineComment();                    // 0x247c20
 
     // --- Lifecycle ---
+    //! \brief Clears all comment flags, the syntax-error flag, and
+    //! resets `currentLineNumber_` to 1.  Does **not** clear
+    //! `errorCallback_`, allowing the same context instance to be
+    //! reused across multiple compilations.
     void reset();                             // 0x247cc0
+    //! \brief Installs the diagnostic sink invoked by `raiseError()`.
+    //! The callback receives `(line_number, message)` for each
+    //! diagnostic.
     void setErrorCallback(                    // 0x247a60
         std::function<void(int, const std::string&)> cb);
 
