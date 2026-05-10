@@ -116,66 +116,113 @@ public:
 
     // Single-argument math functions
     //! \brief `std::fabs(x)`. Absolute value.
+    //! \param x  Operand.
+    //! \return  Absolute value of `x`.
     double abs(double);
     //! \brief `std::acos(x)`. Arc cosine in radians.
     //!        NaN for `|x| > 1` (delegated to libc).
+    //! \param x  Operand.
+    //! \return  Arc cosine of `x` in radians, or NaN when `|x| > 1`.
     double acos(double);
     //! \brief `std::acosh(x)`. Inverse hyperbolic cosine.
     //!        NaN for `x < 1` (delegated to libc).
+    //! \param x  Operand.
+    //! \return  Inverse hyperbolic cosine of `x`, or NaN when `x < 1`.
     double acosh(double);
     //! \brief `std::asin(x)`. Arc sine in radians.
     //!        NaN for `|x| > 1` (delegated to libc).
+    //! \param x  Operand.
+    //! \return  Arc sine of `x` in radians, or NaN when `|x| > 1`.
     double asin(double);
     //! \brief `std::asinh(x)`. Inverse hyperbolic sine.
+    //! \param x  Operand.
+    //! \return  Inverse hyperbolic sine of `x`.
     double asinh(double);
     //! \brief `std::atan(x)`. Arc tangent in radians.
+    //! \param x  Operand.
+    //! \return  Arc tangent of `x` in radians.
     double atan(double);
     //! \brief `std::atanh(x)`. Inverse hyperbolic tangent.
     //!        NaN for `|x| > 1` (delegated to libc).
+    //! \param x  Operand.
+    //! \return  Inverse hyperbolic tangent of `x`, or NaN when `|x| > 1`.
     double atanh(double);
     //! \brief `std::cos(x)`. Cosine; `x` in radians.
+    //! \param x  Angle in radians.
+    //! \return  Cosine of `x`.
     double cos(double);
     //! \brief `std::cosh(x)`. Hyperbolic cosine.
+    //! \param x  Operand.
+    //! \return  Hyperbolic cosine of `x`.
     double cosh(double);
     //! \brief `std::exp(x)`. Natural exponential `e^x`.
+    //! \param x  Operand.
+    //! \return  `e` raised to the power `x`.
     double exp(double);
     //! \brief `std::log(x)`. Natural logarithm.
     //!
     //! \binarynote Same implementation as `log` — both bind
     //!             to `std::log`.
+    //! \param x  Operand.
+    //! \return  Natural logarithm of `x`.
     double ln(double);
     //! \brief `std::log(x)`. Natural logarithm.
     //!
     //! \binarynote In SeqC `log` is the **natural** logarithm,
     //!             not base-10 — same implementation as `ln`.
     //!             Use `log10` for base-10.
+    //! \param x  Operand.
+    //! \return  Natural logarithm of `x`.
     double log(double);
     //! \brief `std::log2(x)`. Base-2 logarithm.
+    //! \param x  Operand.
+    //! \return  Base-2 logarithm of `x`.
     double log2(double);
     //! \brief `std::log10(x)`. Base-10 logarithm.
+    //! \param x  Operand.
+    //! \return  Base-10 logarithm of `x`.
     double log10(double);
     //! \brief Sign of `x`: returns `+1.0` for `x > 0`,
     //!        `-1.0` for `x < 0`, `0.0` for `x == 0`.
     //!
     //! \details Computed as `(x > 0) - (x < 0)` so NaN inputs
     //! yield `0.0` (both comparisons are false).
+    //! \param x  Operand.
+    //! \return  `+1.0`, `-1.0`, or `0.0` depending on the sign of `x`;
+    //!          `0.0` for NaN.
     double sign(double);
     //! \brief `std::sin(x)`. Sine; `x` in radians.
+    //! \param x  Angle in radians.
+    //! \return  Sine of `x`.
     double sin(double);
     //! \brief `std::sinh(x)`. Hyperbolic sine.
+    //! \param x  Operand.
+    //! \return  Hyperbolic sine of `x`.
     double sinh(double);
     //! \brief `std::sqrt(x)`. Non-negative square root.
     //!        NaN for `x < 0` (delegated to libc).
+    //! \param x  Operand.
+    //! \return  Non-negative square root of `x`, or NaN when `x < 0`.
     double sqrt(double);
     //! \brief `std::tan(x)`. Tangent; `x` in radians.
+    //! \param x  Angle in radians.
+    //! \return  Tangent of `x`.
     double tan(double);
     //! \brief `std::tanh(x)`. Hyperbolic tangent.
+    //! \param x  Operand.
+    //! \return  Hyperbolic tangent of `x`.
     double tanh(double);
     //! \brief `std::ceil(x)`. Smallest integer ≥ `x`.
+    //! \param x  Operand.
+    //! \return  Smallest integer value not less than `x`.
     double ceil(double);
     //! \brief `std::round(x)`. Round half away from zero.
+    //! \param x  Operand.
+    //! \return  `x` rounded to the nearest integer, halves away from zero.
     double round(double);
     //! \brief `std::floor(x)`. Largest integer ≤ `x`.
+    //! \param x  Operand.
+    //! \return  Largest integer value not greater than `x`.
     double floor(double);
 
     // Multi-argument math functions
@@ -195,11 +242,17 @@ public:
     //! is **undefined** for an empty vector (dereferences
     //! `end()`); callers must ensure `!v.empty()` — typically
     //! enforced upstream by the SeqC frontend's arity check.
+    //!
+    //! \param v  Operand list; must be non-empty.
+    //! \return  Largest element of `v`.
     double max(std::vector<double> const&);
     //! \brief Smallest element of `v`.
     //!
     //! \details Forwards to `std::min_element`.  Behaviour
     //! is **undefined** for an empty vector — see `max`.
+    //!
+    //! \param v  Operand list; must be non-empty.
+    //! \return  Smallest element of `v`.
     double min(std::vector<double> const&);
     //! \brief `pow(v[0], v[1])`. Strictly two-argument.
     //!
@@ -207,10 +260,15 @@ public:
     //! `ErrorMessageT::FuncExactly2Args` with `"pow"` whenever
     //! `v.size() != 2`; otherwise tail-calls `std::pow`.
     //!
+    //! \param v  Operand list; must contain exactly two elements
+    //!           (base, exponent).
+    //! \return  `v[0]` raised to the power `v[1]`.
     //! \throws MathCompilerException  When `v.size() != 2`.
     double pow(std::vector<double> const&);
     //! \brief Sum of all elements of `v`. Returns `0.0` for
     //!        an empty vector.
+    //! \param v  Operand list; may be empty.
+    //! \return  Sum of the elements of `v`, or `0.0` when `v` is empty.
     double sum(std::vector<double> const&);
 
     //! \brief Test whether `name` is a known math function and
