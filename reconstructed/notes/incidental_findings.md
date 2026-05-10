@@ -5428,3 +5428,39 @@ byte output for a representative test.
 encoders are intentionally left as literals — they belong
 next to the encoder body, not in a shared header, and are
 already covered by the surrounding context.
+
+
+## IF-229  `WaveformGenerator::call` brief overstates alias substitution
+
+**Severity**: cosmetic (doc-comment drift).
+**Status**: fixed in D4 Batch 6a (this commit).
+**Discovered**: D4 Batch 6a verify-then-write audit of
+`waveform_generator.cpp:378-408` against the existing
+`/*! \brief … */` block at
+`waveform_generator.hpp:218-244`.
+
+The pre-existing `\details` text claimed:
+
+> 1. Look `name` up in `aliasMap_`.  When the name is a
+>    deprecated alias for a current built-in, format the
+>    `DeprecatedFunc` warning through `warningCallback_`
+>    and substitute the canonical name for the lookup
+>    that follows.
+
+The reconstruction body (and the disassembly at
+`0x25c1c8..0x25c20b` which keeps the original `%r14 = name`
+across the warning path and uses it as the funcMap_ lookup
+key) does **not** substitute.  The alias map serves only to
+emit the deprecation warning; the funcMap_ lookup uses the
+**original** requested name.
+
+Both deprecated names that exist in `aliasMap_` (`"mask"`
+and `"rand"`) also have entries in `funcMap_` registered by
+the ctor (lines 133, 135 of `waveform_generator.cpp`), so
+the dispatch goes to the deprecated implementation while
+the user is warned to migrate.  This is the binary-faithful
+behaviour and it is what the test suite covers.
+
+**Fix applied in same commit**: rewrote the brief to reflect
+the actual two-step flow (warn-on-alias, then look up the
+*original* name; throw on funcMap_ miss).
