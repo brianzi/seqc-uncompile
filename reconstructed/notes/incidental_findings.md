@@ -5272,3 +5272,58 @@ effect on differential output.
    tree and asserts `getUsedCache` returns the expected
    accumulated size.  Difftests will not exercise this since
    `print` is debug-only.
+
+---
+
+## IF-227  `WavetableIR::size()` recon body silently divides by 16
+
+**Severity**: likely-bug (latent — function has no callers).
+**Status**: fixed in same commit (D4 Batch 3a).
+**Discovered**: D4 Batch 3a verify-then-write of the
+`WavetableIR` accessors (`wavetable_ir.cpp:194-197`,
+original at `0x29e290`).
+
+The recon body was:
+
+```cpp
+size_t WavetableIR::size() const {
+    return (manager_->waveforms_.end() - manager_->waveforms_.begin())
+         / sizeof(std::shared_ptr<WaveformIR>);
+}
+```
+
+`vector<T>::end() - vector<T>::begin()` returns the element
+count (a `difference_type`), not a byte distance.  Dividing
+that count by `sizeof(shared_ptr<WaveformIR>)` (= 16) yields
+`count/16`, which is wrong for any waveform list that is not
+a multiple of 16 entries — and zero for any list shorter
+than 16.
+
+The original binary at `0x29e290` performs the equivalent
+computation at the *raw libc++ vector internals* level:
+
+```
+mov    0x70(%rdi),%rcx        ; rcx = manager_
+mov    0x38(%rcx),%rax        ; rax = waveforms_._end (T*)
+sub    0x30(%rcx),%rax        ; rax -= waveforms_._begin (T*)
+sar    $0x4,%rax              ; rax >>= 4 (divide by sizeof(T)=16)
+```
+
+The `sub` produces a *byte* distance because the operands
+are raw pointer values; `sar $0x4` then divides by
+`sizeof(shared_ptr<WaveformIR>) = 16` to recover the element
+count.  The correct C++-level expression is simply
+`manager_->waveforms_.size()`.
+
+**Why tests still pass at 1600/1600**: a repo-wide grep for
+`WavetableIR::size()` (or any indirect call site) returns no
+hits.  The accessor exists in the public interface but has
+no live callers in the recon, so the divide-by-16 has no
+observable effect on differential output.
+
+**Fix**: replaced the body with `return
+manager_->waveforms_.size();` in the same commit that added
+the `\brief` for `size()` (D4 Batch 3a).  No new test added
+because the function is dead code in the current pipeline;
+if a future reconstruction wires it into a live caller the
+brief alone documents the intended semantics.

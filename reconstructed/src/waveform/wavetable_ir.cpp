@@ -191,9 +191,15 @@ const std::shared_ptr<WaveformIR>* WavetableIR::end() const  // 0x29e280
 }
 
 // 0x29e290 — WavetableIR::size() const
+//
+// Binary: load manager_ at +0x70, then compute
+// (waveforms_._end - waveforms_._begin) >> 4 (sar by 4 = divide by
+// sizeof(shared_ptr)=16). At the C++ level this is just
+// vector::size(), since the internal end-begin byte-distance / 16
+// is exactly the element count for a vector<shared_ptr<T>>.
 size_t WavetableIR::size() const  // 0x29e290
 {
-    return (manager_->waveforms_.end() - manager_->waveforms_.begin()) / sizeof(std::shared_ptr<WaveformIR>);
+    return manager_->waveforms_.size();
 }
 
 // 0x29e2b0 — WavetableIR::getWaveformByName(const optional<string>&) const

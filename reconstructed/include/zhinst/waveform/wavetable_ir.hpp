@@ -137,22 +137,74 @@ public:
     // ---- Iterators / accessors ----
 
     // begin — 0x29e270
+    //! Pointer to the first waveform in the underlying manager's
+    //! waveform list.  Together with `end()` this lets the IR be
+    //! used directly with range-based `for` loops, but iteration
+    //! sees *every* waveform the manager owns — not only those in
+    //! `usedWaveforms_`.  Use `forEachUsedWaveform()` when only
+    //! the in-use subset is wanted.
+    //!
+    //! \return Pointer to the first element of the manager's
+    //!         waveform vector.
     const std::shared_ptr<WaveformIR>* begin() const;
 
     // end — 0x29e280
+    //! One-past-the-end pointer of the underlying manager's
+    //! waveform list.  Pairs with `begin()` for whole-list
+    //! traversal.
+    //!
+    //! \return Sentinel pointer one past the last waveform.
     const std::shared_ptr<WaveformIR>* end() const;
 
     // size — 0x29e290
+    //! Number of waveforms tracked by the manager.  Counts every
+    //! waveform owned by the manager, including filler entries
+    //! synthesised by `assignWaveIndexImplicit()` and waveforms
+    //! that were never marked used.
+    //!
+    //! \return Element count of the manager's waveform vector.
     size_t size() const;
 
     // getWaveformByName — 0x29e2b0
+    //! Look up a waveform by source-language name.
+    //!
+    //! Resolves the name through the manager's `nameToIndex_`
+    //! map and returns the matching `WaveformIR`.  Used by the
+    //! front-end lowering when a `playWave`-style call references
+    //! a previously declared waveform identifier.
+    //!
+    //! \param name  Optional waveform name.  An empty optional or
+    //!              an unknown name both return a null
+    //!              `shared_ptr` rather than throwing.
+    //! \return The matching waveform, or null if `name` is empty
+    //!         or not registered with the manager.
     std::shared_ptr<WaveformIR> getWaveformByName(
         const std::optional<std::string>& name) const;
 
     // getNextSegmentAddress — 0x29e320
+    //! Current allocation high-water mark.
+    //!
+    //! Returns the device-memory address that the next waveform
+    //! placed by the allocator will receive.  Equal to the
+    //! configured base address before any allocation runs, and
+    //! advanced by `allocateWaveforms()` /
+    //! `allocateWaveformsForFifo()` past every placed waveform.
+    //!
+    //! \return Next free device-memory address (in bytes).
     uint32_t getNextSegmentAddress() const;
 
     // getFirstWaveformOffset — 0x29e330
+    //! Offset of the first waveform's payload relative to the
+    //! wave-memory base.
+    //!
+    //! In cache-managed mode this leaves room for the per-wave
+    //! header table that the runtime expects ahead of the
+    //! waveform payloads; in FIFO mode the offset is zero.  Set
+    //! by `allocateWaveforms()` when it computes the alignment
+    //! pre-roll.
+    //!
+    //! \return Offset (in bytes) from the wave-memory base to
+    //!         the first waveform payload.
     uint32_t getFirstWaveformOffset() const;
 
     // ---- Allocation methods ----
@@ -245,6 +297,26 @@ public:
     void loadWaveform(std::shared_ptr<WaveformIR> waveform);
 
     // getJsonIndex — 0x29f480
+    //! Serialise the used-waveform list as the `.waveforms` ELF
+    //! section payload.
+    //!
+    //! Emits a JSON document of the form
+    //! `{ "waveforms": [ <entry>, <entry>, ... ] }` where each
+    //! entry is `WaveformIR::toJsonElement(format)` — the
+    //! per-waveform metadata (name, length, channel count,
+    //! address, sample-format-specific scaling) consumed by the
+    //! runtime to map source-level waveform identifiers to
+    //! placed device memory.  Entries are emitted in
+    //! `WaveOrder::ByWaveIndex` order, and waveforms that are
+    //! unused, have zero allocation, or have a zero raw
+    //! sample length (`zeros(0)` and `cut(w, N, N)` collapses)
+    //! are skipped.
+    //!
+    //! \param format  Sample-format selector forwarded to each
+    //!                waveform's `toJsonElement` so the embedded
+    //!                scaling matches the device's DAC width.
+    //! \return Single-line JSON string ready to be embedded as
+    //!         the `.waveforms` section content.
     std::string getJsonIndex(SampleFormat format) const;
 };
 
