@@ -1656,6 +1656,44 @@ public:
     //!          alignment / minimum-length violations, or
     //!          unsupported devices.
     std::shared_ptr<EvalResults> playHold(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x139030
+    //! \brief Implement the SeqC `wait` built-in.
+    //!
+    //! Stalls the sequencer for a given number of cycles.  Requires
+    //! exactly one argument; the argument may be a register
+    //! (`Var`), a `Const`/`Cvar` integer, or `Void` (for which a
+    //! `FuncCalledWithLogical` warning is emitted via
+    //! `warningCallback_`).  Negative const values throw
+    //! `WaitPositive`.  Argument-type errors throw
+    //! `FuncExpectsSingleArg`.
+    //!
+    //! Code paths:
+    //!   - **Var (register) on Hirzel-family devices** (HDAWG +
+    //!     SHF* + GHFLI + VHFLI): emits a single
+    //!     `suser(arg.reg_, kSuserWaitCycles)` (`0x69`).
+    //!   - **Var on Cervino-family devices** (UHFLI/UHFQA): reads
+    //!     `AWG_WAIT_TRIGGER`, builds an `addi` to load the trigger
+    //!     value into a fresh register, emits
+    //!     `suser(arg.reg_, kSuserTriggerLoad)` (`0x1A`), and
+    //!     `wtrig(reg, reg)`.
+    //!   - **Const/Cvar on Hirzel**: same `addi`+`suser` shape but
+    //!     the immediate is loaded from `arg.value_.toInt()`.
+    //!   - **Const/Cvar on Cervino**: dispatches on
+    //!     `devConst_->triggerLatencyCycles`: if the wait fits
+    //!     within the latency window, emits a `nop` loop of
+    //!     `arg.value_.toInt()` instructions; otherwise emits the
+    //!     two-register `AWG_WAIT_TRIGGER` + `kSuserTriggerLoad` +
+    //!     `wtrig` sequence with `(arg - triggerLatencyCycles)` as
+    //!     the remainder load.
+    //!
+    //! \param args  Single argument: cycle count (register or
+    //!              integer constant).
+    //! \param res   Resource scope used to read `AWG_WAIT_TRIGGER`
+    //!              on Cervino-family paths.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          instruction sequence.
+    //! \throws  `CustomFunctionsException` on argument-count or
+    //!          type errors; `CustomFunctionsValueException`
+    //!          (`WaitPositive`) for negative const values.
     std::shared_ptr<EvalResults> wait(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);                  // @0x139760
     //! \brief Implement the SeqC `waitWave` built-in.
     //!
@@ -1671,20 +1709,347 @@ public:
     //! \throws  `CustomFunctionsException` when arguments are
     //!          supplied or the device is not supported.
     std::shared_ptr<EvalResults> waitWave(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);              // @0x13a980
+    //! \brief Implement the SeqC `waitTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevCervino`
+    //! (`UHFLI | UHFQA`), requires exactly two `Const`/`Cvar`
+    //! arguments (`FuncExpectsConstConst` on count or type
+    //! errors), and emits a `wtrig` instruction synchronised on a
+    //! trigger value.  The first argument is loaded into a fresh
+    //! register via `addi`; if both arguments are equal that
+    //! register is reused for both `wtrig` operands, otherwise a
+    //! second register is allocated and loaded with the second
+    //! value.
+    //!
+    //! \param args  Two `Const`/`Cvar` integer arguments: the
+    //!              trigger value and the comparison reference.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi`(s) and `wtrig`.
+    //! \throws  `CustomFunctionsException`
+    //!          (`FuncExpectsConstConst`) on count, type, or
+    //!          unsupported-device errors.
     std::shared_ptr<EvalResults> waitTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);           // @0x13abf0
+
+    //! \brief Implement the SeqC `waitAnaTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevCervino` and requires
+    //! exactly two `Const`/`Cvar` arguments
+    //! (`FuncExpectsConstConst`).  The first argument selects the
+    //! analog trigger source (`1` → `AWG_ANA_TRIGGER1`, `2` →
+    //! `AWG_ANA_TRIGGER2`, otherwise throw); the second is a
+    //! wait-condition flag.  Emits `addi(reg1, R0, trigVal)`,
+    //! `addi(reg2, R0, args[1].toInt())`, and `wtrig(reg1, reg2)`.
+    //!
+    //! \param args  Two `Const`/`Cvar` integer arguments: trigger
+    //!              source index (1 or 2) and wait-condition flag.
+    //! \param res   Resource scope used to read the
+    //!              `AWG_ANA_TRIGGER<N>` constant.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi`(s) and `wtrig`.
+    //! \throws  `CustomFunctionsException` for argument-count,
+    //!          type, invalid trigger index, or unsupported-device
+    //!          errors.
     std::shared_ptr<EvalResults> waitAnaTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x13b4b0
+
+    //! \brief Implement the SeqC `waitDigTrigger` built-in.
+    //!
+    //! Validates the device against an inline bitmask
+    //! (Hirzel-family + GHFLI/VHFLI; mask `0x4000000040004041`
+    //! over `deviceType - 2`) and dispatches:
+    //!   - **Supported path** (1 arg): trigger index restricted to
+    //!     `{1, 2}`, builds `"AWG_DIG_TRIGGER<n>_INDEX"` from
+    //!     `args[0].toInt()`, reads the constant, and emits a
+    //!     single `asmWtrigLSPlaceholder(constVal)`.
+    //!   - **Unsupported path** (2 args): reads
+    //!     `"AWG_DIG_TRIGGER<n>"` for `args[0]`, loads it into a
+    //!     register, then emits either `wtrig(reg, reg)` or
+    //!     `wtrig(reg, R0)` depending on `args[1].toBool()`.
+    //!
+    //! All argument-count and type errors throw
+    //! `FuncExpectsConstConst`; the index range error is reported
+    //! via the same symbol.
+    //!
+    //! \param args  Trigger index plus optional wait-condition.
+    //! \param res   Resource scope used to read the
+    //!              `AWG_DIG_TRIGGER*` constants.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          instruction sequence.
+    //! \throws  `CustomFunctionsException`
+    //!          (`FuncExpectsConstConst`) on count, type, or
+    //!          unsupported-device errors.
     std::shared_ptr<EvalResults> waitDigTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x13c110
+
+    //! \brief Implement the SeqC `waitOnGrid` built-in.
+    //!
+    //! Verifies device support against `kDevLIFamily`
+    //! (`SHFLI | GHFLI | VHFLI`), rejects any arguments
+    //! (`FuncExpectsNoArgs`), reads `AWG_GRID_TRIGGER`, and emits
+    //! a single `asmWtrigLSPlaceholder(trigValue)` synchronising
+    //! the sequencer on the grid trigger.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Resource scope used to read
+    //!              `AWG_GRID_TRIGGER`.
+    //! \return  `EvalResults(VarType_Void)` carrying the
+    //!          placeholder.
+    //! \throws  `CustomFunctionsException` on arguments or
+    //!          unsupported devices.
     std::shared_ptr<EvalResults> waitOnGrid(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x13d000
+
+    //! \brief Implement the SeqC `waitOnSync` built-in.
+    //!
+    //! Verifies device support against `kDevLIFamily`, rejects any
+    //! arguments (`FuncExpectsNoArgs`), and emits a single
+    //! `st(R0, kSuserWaitOnSync)` store that requests the sync
+    //! barrier.  No register allocation, no `readConst`.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          store.
+    //! \throws  `CustomFunctionsException` on arguments or
+    //!          unsupported devices.
     std::shared_ptr<EvalResults> waitOnSync(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);            // @0x13d3a0
+
+    //! \brief Implement the SeqC `waitDIOTrigger` built-in.
+    //!
+    //! Asserts external triggering mode is `Dio`, rejects any
+    //! arguments (`FuncExpectsNoArgs`), and dispatches on an
+    //! inline device-type bitmask:
+    //!   - **Supported devices** (Hirzel-family + GHFLI/VHFLI):
+    //!     reads `AWG_MAP_TRIGGER_INDEX` and emits
+    //!     `asmWtrigLSPlaceholder(trigValue)`.
+    //!   - **Unsupported devices**: reads `AWG_MAP_TRIGGER`,
+    //!     loads it into a register via `addi`, and emits
+    //!     `wtrig(reg, reg)`.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Resource scope used to read the
+    //!              `AWG_MAP_TRIGGER*` constants.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          instruction sequence.
+    //! \throws  `CustomFunctionsException` on arguments,
+    //!          unsupported devices, or incompatible triggering
+    //!          mode.
     std::shared_ptr<EvalResults> waitDIOTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x13d630
+
+    //! \brief Implement the SeqC `waitZSyncTrigger` built-in.
+    //!
+    //! Verifies device support against `kDevAllButUHF`, asserts
+    //! external triggering mode is `ZSync`, and rejects any
+    //! arguments (`FuncExpectsNoArgs`).  Emits the placeholder
+    //! `wtrig` from a device-specific constant:
+    //!   - HDAWG → `AWG_MAP_TRIGGER_INDEX`.
+    //!   - SHFQA / SHFSG / SHFQC_SG → `AWG_ZSYNC_TRIGGER_INDEX`.
+    //!   - SHFLI / GHFLI / VHFLI → `AWG_MAP_TRIGGER_INDEX`.
+    //!   - Fallback → `AWG_MAP_TRIGGER` + `addi` +
+    //!     `wtrig(reg, reg)`.
+    //!
+    //! \param args  Must be empty.
+    //! \param res   Resource scope used to read the trigger-index
+    //!              constant.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          instruction sequence.
+    //! \throws  `CustomFunctionsException` on arguments,
+    //!          unsupported devices, or incompatible triggering
+    //!          mode.
     std::shared_ptr<EvalResults> waitZSyncTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);      // @0x13dcf0
+
+    //! \brief Implement the SeqC `waitCntTrigger` built-in.
+    //!
+    //! Verifies device support against `AwgDeviceType::HDAWG`
+    //! (and re-checks `config_->deviceType == HDAWG`), requires
+    //! exactly one `Const`/`Cvar` argument
+    //! (`FuncExpectsSingleArg` / `FuncExpectsConstConst`), and
+    //! restricts the counter index to `{0, 1}` (otherwise
+    //! `IndexMustBe("waitCntTrigger", "either 0 or 1")`).  Builds
+    //! `"AWG_CNT_TRIGGER<n>_INDEX"`, reads the constant, and
+    //! emits a single `asmWtrigLSPlaceholder(trigValue)`.
+    //!
+    //! \param args  Single counter index (0 or 1).
+    //! \param res   Resource scope used to read the
+    //!              `AWG_CNT_TRIGGER<n>_INDEX` constant.
+    //! \return  `EvalResults(VarType_Void)` carrying the
+    //!          placeholder.
+    //! \throws  `CustomFunctionsException` on argument-count, type,
+    //!          out-of-range index, or unsupported-device errors.
     std::shared_ptr<EvalResults> waitCntTrigger(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);        // @0x13e460
+
+    //! \brief Implement the SeqC `waitDemodOscPhase` built-in.
+    //!
+    //! Verifies device support against `AwgDeviceType::UHFLI`,
+    //! accepts 1 or 2 arguments (the second is silently ignored
+    //! with a `warningCallback_` notification), and requires
+    //! `args[0]` to be `Const`/`Cvar` in `1..8` selecting the
+    //! demod trigger source.  Reads
+    //! `"AWG_DEMOD_TRIGGER<n>"`, loads it via `addi(reg, R0,
+    //! trigVal)`, and emits `wtrig(reg, reg)`.
+    //!
+    //! \param args  Demod trigger index (1..8); optional
+    //!              ignored second argument.
+    //! \param res   Resource scope used to read
+    //!              `AWG_DEMOD_TRIGGER<n>`.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi` + `wtrig`.
+    //! \throws  `CustomFunctionsException`
+    //!          (`FuncExpectsConstConst`) on argument-count, type,
+    //!          out-of-range index, or unsupported-device errors.
     std::shared_ptr<EvalResults> waitDemodOscPhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);     // @0x13eba0
+
+    //! \brief Implement the SeqC `waitSineOscPhase` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel` and rejects
+    //! grouped channels (`NotSupportedGrouping` when
+    //! `config_->numChannelGroups >= 2`).  Behaviour by device:
+    //!   - **HDAWG**: requires exactly one argument; if
+    //!     `Const`/`Cvar`, the value selects oscillator `1` or
+    //!     `2` and reads `"AWG_DEMOD_TRIGGER<n>_INDEX"`; if
+    //!     `Var`, the register is used as a passthrough.
+    //!   - **SHFSG / SHFQC_SG**: requires no arguments; reads
+    //!     `AWG_DEMOD_TRIGGER1_INDEX`.
+    //!
+    //! Emits a single `asmWtrigLSPlaceholder(constVal)` in both
+    //! paths.
+    //!
+    //! \param args  Oscillator index on HDAWG; empty on SG paths.
+    //! \param res   Resource scope used to read the
+    //!              `AWG_DEMOD_TRIGGER*_INDEX` constants.
+    //! \return  `EvalResults(VarType_Void)` carrying the
+    //!          placeholder.
+    //! \throws  `CustomFunctionsException` for grouping
+    //!          (`NotSupportedGrouping`), argument-count
+    //!          (`FuncExpectsConstConst`), or unsupported-device
+    //!          errors.
     std::shared_ptr<EvalResults> waitSineOscPhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);      // @0x13f790
+
+    //! \brief Implement the SeqC `waitTimestamp` built-in.
+    //!
+    //! Verifies device support against `AwgDeviceType::HDAWG` and
+    //! emits a single `st(R0, kSuserTimestamp)` (`0x1B`) store
+    //! requesting the sequencer to wait for the configured
+    //! timestamp.  Arguments are accepted in any number and
+    //! silently ignored — there is no count or type validation.
+    //!
+    //! \param args  Ignored.
+    //! \param res   Unused.
+    //! \return  `EvalResults` (default-constructed) carrying the
+    //!          emitted store.
+    //! \throws  `CustomFunctionsException` only for unsupported
+    //!          devices.
     std::shared_ptr<EvalResults> waitTimestamp(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x1401c0
+
+    //! \brief Implement the SeqC `resetOscPhase` built-in.
+    //!
+    //! Verifies device support against `kDevAllButUHF`, accepts
+    //! 0 or 1 argument (≥ 2 → `FuncExpectsSingleArg`), and
+    //! dispatches three ways:
+    //!   - **SHF+ family** (`devType & kDevSHFPlus`): validates
+    //!     the optional oscillator-bitmask argument against
+    //!     `devConst_->numDIOBits`, loads it via `addi(reg, R0,
+    //!     oscMask)` (or an all-osc default when the argument is
+    //!     absent), then `st(reg, 0x7A)` for SHFQA or
+    //!     `st(reg, 0x78)` otherwise.  When `numAWGCores > 0`,
+    //!     additionally emits `addi(reg2, R0, numAWGCores)` plus
+    //!     `suser(reg2, kSuserWaitCycles)`.
+    //!   - **UHFQA**: requires no arguments and emits a
+    //!     pulse-reset: `addi(reg, R0, 1)`, `st(reg, 0x5F)`,
+    //!     `st(R0, 0x5F)`.
+    //!   - **HDAWG / Hirzel** (`devType ∈ [HDAWG, SHFQC_SG]`):
+    //!     validates the oscillator bitmask via
+    //!     `oscMaskCheckHirzel` and delegates to
+    //!     `writeToNode("oscs/phasereset", oscMask, …)` rather
+    //!     than emitting asm directly.
+    //!
+    //! \param args  Optional oscillator bitmask (`Const`/`Cvar`
+    //!              integer).
+    //! \param res   Resource scope forwarded to `writeToNode` on
+    //!              the Hirzel path.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          instructions or node-write.
+    //! \throws  `CustomFunctionsException` for argument count
+    //!          (`FuncExpectsSingleArg`), invalid oscillator mask,
+    //!          or unsupported-device errors.
     std::shared_ptr<EvalResults> resetOscPhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);         // @0x1403b0
+
+    //! \brief Implement the SeqC `setSinePhase` built-in.
+    //!
+    //! Verifies device support against `kDevHirzel`.  Behaviour:
+    //!   - **HDAWG**: requires two `Const`/`Cvar` arguments
+    //!     (`ExpectsTwoConst("setSinePhase")`) — oscillator index
+    //!     `{0, 1}` and phase value.
+    //!   - **SHFSG / SHFQC_SG**: requires one `Const`/`Cvar`
+    //!     argument (`ExpectsOneConst("setSinePhase")`) — phase
+    //!     value (single oscillator).
+    //!
+    //! In both paths, converts the phase via
+    //! `NodeMap::toPhase(static_cast<float>(phaseVal))`, loads it
+    //! into a register via `addi`, and emits
+    //! `suser(reg, kSuserSinePhase0)` or
+    //! `suser(reg, kSuserSinePhase1)` (HDAWG osc-0 / osc-1) or
+    //! `kSuserSinePhase0` (SG path).  Then registers the
+    //! corresponding node path
+    //! (`"sines/<idx>/phaseshift"` or
+    //! `"sgchannels/<awgIdx>/sines/0/phaseshift"`) via
+    //! `lookupNode` + `addNodeAccess(node, AccessMode::Custom)`.
+    //!
+    //! \param args  Oscillator index + phase (HDAWG) or phase
+    //!              only (SG).
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi` + `suser`.
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`ExpectsOneConst` / `ExpectsTwoConst`), type
+    //!          (`FuncExpectsConst`), oscillator-index range
+    //!          (`SineGenIndex`), or unsupported-device errors.
     std::shared_ptr<EvalResults> setSinePhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);          // @0x141df0
+
+    //! \brief Implement the SeqC `incrementSinePhase` built-in.
+    //!
+    //! Mechanically identical to `setSinePhase` but emits
+    //! `suser(reg, kSuserSinePhaseInc0)` / `kSuserSinePhaseInc1`
+    //! (`0x72` / `0x73`) rather than the absolute-phase opcodes
+    //! `kSuserSinePhase0` / `kSuserSinePhase1`.  The phase value
+    //! is treated as an increment delta to the current sine
+    //! oscillator phase.
+    //!
+    //! Same device-mask (`kDevHirzel`), same argument shape
+    //! (HDAWG: 2 `Const`/`Cvar` — index `{0, 1}` + phase;
+    //! SHFSG/SHFQC_SG: 1 `Const`/`Cvar` — phase), same
+    //! `lookupNode` + `addNodeAccess(AccessMode::Custom)` follow-up.
+    //!
+    //! \param args  Oscillator index + delta (HDAWG) or delta
+    //!              only (SG).
+    //! \param res   Unused.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi` + `suser`.
+    //! \throws  `CustomFunctionsException` for argument-count
+    //!          (`ExpectsOneConst` / `ExpectsTwoConst`), type
+    //!          (`FuncExpectsConst`), oscillator-index range
+    //!          (`SineGenIndex`), or unsupported-device errors.
     std::shared_ptr<EvalResults> incrementSinePhase(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);    // @0x142da0
+
+    //! \brief Implement the SeqC `waitDemodSample` built-in.
+    //!
+    //! Verifies device support against `AwgDeviceType::UHFLI`,
+    //! requires exactly one `Const`/`Cvar` argument in `1..8`
+    //! (all error variants collapse to
+    //! `FuncExpectsSingleArg`), and reads
+    //! `"AWG_DEMODRATE_TRIGGER<n>"` for the chosen index.  Emits
+    //! three `addi` instructions (`reg1`, `reg2` ← `trigConst`,
+    //! `reg3` ← `0`) followed by two consecutive `wtrig` calls:
+    //! `wtrig(reg1, reg2)` then `wtrig(reg1, reg3)` — the
+    //! demod-sample wait sequence (wait for trigger, then wait
+    //! for it to clear).
+    //!
+    //! \param args  Demod trigger index (1..8).
+    //! \param res   Resource scope used to read
+    //!              `AWG_DEMODRATE_TRIGGER<n>`.
+    //! \return  `EvalResults(VarType_Void)` carrying the emitted
+    //!          `addi`s and `wtrig`s.
+    //! \throws  `CustomFunctionsException`
+    //!          (`FuncExpectsSingleArg`) on argument-count, type,
+    //!          out-of-range index, or unsupported-device errors.
     std::shared_ptr<EvalResults> waitDemodSample(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x143d50
     //! \brief Implement the SeqC `waitPlayQueueEmpty` built-in.
     //!
