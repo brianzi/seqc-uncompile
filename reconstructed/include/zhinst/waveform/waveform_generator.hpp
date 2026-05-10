@@ -654,28 +654,333 @@ public:
     // --- Waveform generation functions ---
     // Each takes vector<Value> const& and returns Signal.
     // Registered in funcMap_ by the constructor.
+
+    //! \brief Constant-zero waveform of the given length.
+    //! \details One-argument factory: `zeros(length)` returns a
+    //!          single-channel `Signal` of `length` samples, every
+    //!          sample equal to 0.0.  No marker bits are set.
+    //! \param args  Single argument: integer `length` >= 1.
+    //! \return  Signal of `length` zero-valued samples.
+    //! \throws WaveformGeneratorException  on wrong argument count
+    //!         or non-positive `length`.
     Signal zeros(std::vector<Value> const& args);            // 0x249b90
+
+    //! \brief Constant-one waveform of the given length.
+    //! \details One-argument factory: `ones(length)` returns a
+    //!          single-channel `Signal` of `length` samples, every
+    //!          sample equal to 1.0.
+    //! \param args  Single argument: integer `length` >= 1.
+    //! \return  Signal of `length` samples, all set to 1.0.
+    //! \throws WaveformGeneratorException  on wrong argument count
+    //!         or non-positive `length`.
     Signal ones(std::vector<Value> const& args);             // 0x249e10
+
+    /*! \brief Sinusoidal waveform.
+     *
+     *  \details Three- or four-argument factory:
+     *  - `sin(length, amplitude, phase)`:
+     *    constant waveform; every sample equals
+     *    `sin(amplitude + phase)`.  This is a degenerate
+     *    binary-faithful behaviour, not the typical use.
+     *  - `sin(length, amplitude, phase, nPeriods)`:
+     *    sample[i] = `amplitude * sin(2*pi*nPeriods*i/length + phase)`.
+     *
+     *  All read-error messages report the function as `"sine"`.
+     *
+     *  \param args  3 or 4 arguments.  See per-overload list above.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \throws WaveformGeneratorValueException  if `nPeriods < 0`
+     *          (4-arg overload only).
+     */
     Signal sin(std::vector<Value> const& args);              // 0x24a0f0
+
+    /*! \brief Cosinusoidal waveform.
+     *
+     *  \details Identical structure to `sin`, but uses `std::cos`:
+     *  - `cos(length, amplitude, phase)`:
+     *    constant waveform; every sample equals
+     *    `cos(amplitude + phase)`.
+     *  - `cos(length, amplitude, phase, nPeriods)`:
+     *    sample[i] = `amplitude * cos(2*pi*nPeriods*i/length + phase)`.
+     *
+     *  All read-error messages report the function as `"cosine"`.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \throws WaveformGeneratorValueException  if `nPeriods < 0`
+     *          (4-arg overload only).
+     */
     Signal cos(std::vector<Value> const& args);              // 0x24abd0
+
+    /*! \brief Sinc-function envelope.
+     *
+     *  \details Three- or four-argument factory:
+     *  - `sinc(length, position, beta)`:
+     *    amplitude defaults to 1.0.
+     *  - `sinc(length, amplitude, position, beta)`.
+     *
+     *  Computes, for `i` in `[0, length)`, with `c = i - position`:
+     *  - `c == 0`:  sample = `amplitude` (the limit `sinc(0) = 1`).
+     *  - otherwise: `x = 2*pi*beta*c/length`,
+     *    sample = `amplitude * sin(x) / x`.
+     *
+     *  Emits a warning via the warning callback if `position > length`.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or if `beta == 0`.
+     *  \binarynote The 4-argument overload reports its third
+     *          parameter in error messages as `"3 (position)"` and
+     *          its fourth as `"3 (beta)"` — both literal strings
+     *          are arity-blind and do not track the user-visible
+     *          argument index.  See IF-230.
+     */
     Signal sinc(std::vector<Value> const& args);             // 0x24b6e0
+
+    /*! \brief Linear ramp from `startLevel` to `endLevel`.
+     *
+     *  \details Three-argument factory: `ramp(length, startLevel, endLevel)`.
+     *  Both levels are bounded to `|level| <= 1.0` (else
+     *  `WaveformGeneratorValueException`).
+     *  - `length >= 2`: sample[i] = `startLevel + i * (endLevel - startLevel) / (length - 1)`.
+     *  - `length == 1`: a single sample equal to `endLevel`.
+     *
+     *  \param args  Three arguments: integer `length` >= 1, two
+     *          doubles `startLevel` and `endLevel` each in `[-1, 1]`.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \throws WaveformGeneratorValueException  if either level is
+     *          outside `[-1, 1]`.
+     */
     Signal ramp(std::vector<Value> const& args);             // 0x24c2c0
+
+    /*! \brief Sawtooth waveform (rising-edge only).
+     *
+     *  \details Three- or four-argument factory; in both cases
+     *  delegates to `genericTriangle` with `riseRatio = 1.0`:
+     *  - `sawtooth(length, amplitude, phase)`:
+     *    `nPeriods` defaults to 1.0.
+     *  - `sawtooth(length, amplitude, phase, nPeriods)`:
+     *    explicit period count.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \throws WaveformGeneratorValueException  if `nPeriods < 0`.
+     */
     Signal sawtooth(std::vector<Value> const& args);         // 0x24c8b0
+
+    /*! \brief Symmetric triangle waveform.
+     *
+     *  \details Three- or four-argument factory; delegates to
+     *  `genericTriangle` with `riseRatio = 0.5`:
+     *  - `triangle(length, amplitude, phase)`:
+     *    `nPeriods` defaults to 1.0.
+     *  - `triangle(length, amplitude, phase, nPeriods)`.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \throws WaveformGeneratorValueException  if `nPeriods < 0`.
+     */
     Signal triangle(std::vector<Value> const& args);         // 0x24d330
+
+    /*! \brief Gaussian envelope.
+     *
+     *  \details Three- or four-argument factory:
+     *  - `gauss(length, position, width)`:
+     *    amplitude defaults to 1.0.
+     *  - `gauss(length, amplitude, position, width)`.
+     *
+     *  Computes sample[i] = `amplitude * exp(-((i - position)^2) / (2 * width^2))`.
+     *  If `width == 0` the output is left zero-initialised (matches the
+     *  binary's NaN/Inf-producing degenerate case, suppressed here).
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     */
     Signal gauss(std::vector<Value> const& args);            // 0x24ddb0
+
+    /*! \brief DRAG (derivative-of-Gaussian) pulse.
+     *
+     *  \details Three- or four-argument factory:
+     *  - `drag(length, position, sigma)`:
+     *    amplitude defaults to 1.0.
+     *  - `drag(length, amplitude, position, sigma)`.
+     *
+     *  Computes the derivative of a Gaussian, normalised so its peak
+     *  equals `amplitude`:
+     *  sample[i] = `(amplitude * (i - position) / sigma) * exp(-0.5) * exp(-(i - position)^2 / (2 * sigma^2))`,
+     *  expressed in the binary's instruction order via the precomputed
+     *  coefficients `exp(-0.5) / sigma` and `amplitude * sigma / exp(-0.5)`.
+     *
+     *  Emits a warning via the warning callback if `position > length`.
+     *
+     *  \param args  3 or 4 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count
+     *          or if `sigma == 0`.
+     */
     Signal drag(std::vector<Value> const& args);             // 0x24e950
+
+    /*! \brief Generalised Blackman window.
+     *
+     *  \details Two- or three-argument factory:
+     *  - `blackman(length, alpha)`:
+     *    amplitude defaults to 1.0.
+     *  - `blackman(length, amplitude, alpha)`.
+     *
+     *  Computes
+     *  `w[n] = a * ((1 - alpha) / 2 - 0.5 * cos(2*pi*n / (N - 1))
+     *               + (alpha / 2) * cos(4*pi*n / (N - 1)))`,
+     *  where `a` is the supplied or default amplitude and `N == length`.
+     *  Standard Blackman uses `alpha = 0.16`.
+     *
+     *  \param args  2 or 3 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     */
     Signal blackman(std::vector<Value> const& args);         // 0x24f530
+
+    /*! \brief Hamming window.
+     *
+     *  \details One- or two-argument factory:
+     *  - `hamming(length)`:
+     *    amplitude defaults to 1.0.
+     *  - `hamming(length, amplitude)`.
+     *
+     *  Computes `w[n] = a * (0.54 - 0.46 * cos(2*pi*n / (N - 1)))`.
+     *
+     *  \param args  1 or 2 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     */
     Signal hamming(std::vector<Value> const& args);          // 0x24fd20
+
+    /*! \brief Hann window.
+     *
+     *  \details One- or two-argument factory:
+     *  - `hann(length)`:
+     *    amplitude defaults to 0.5.
+     *  - `hann(length, amplitude)`:
+     *    the supplied amplitude is internally multiplied by 0.5
+     *    before the per-sample loop, matching the binary.
+     *
+     *  Computes `w[n] = a' * (1 - cos(2*pi*n / (N - 1)))`,
+     *  where `a'` is the (possibly halved) amplitude.  The conventional
+     *  Hann window factor of 0.5 is therefore present in both
+     *  overloads.
+     *
+     *  \param args  1 or 2 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     */
     Signal hann(std::vector<Value> const& args);             // 0x250250
+
+    /*! \brief Constant-amplitude rectangular waveform.
+     *
+     *  \details Two-argument factory: `rect(length, amplitude)`.
+     *  Returns a single-channel `Signal` of `length` samples, every
+     *  sample equal to `amplitude`.  The amplitude is read with
+     *  `readDoubleAmplitude`, which warns (but does not clip) when
+     *  `|amplitude| > 1`.
+     *
+     *  \param args  Two arguments: integer `length` >= 1 and
+     *          double `amplitude`.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     */
     Signal rect(std::vector<Value> const& args);             // 0x250770
     Signal chirp(std::vector<Value> const& args);            // 0x250bb0
+
+    //! \brief Deprecated alias for `marker`; thin wrapper that
+    //!        forwards to `markerImpl(args, isMask=true)`.
+    //! \details Registered in `funcMap_` directly (not via
+    //!          `aliasMap_`) so the call dispatches here even
+    //!          though `aliasMap_` also records `"mask" -> "marker"`
+    //!          for the deprecation warning.  The `isMask` flag
+    //!          changes the user-visible function name in error
+    //!          messages produced by `markerImpl` from `"marker"`
+    //!          to `"mask"`.
+    //! \param args  Same shape as `marker`.
+    //! \return  Same as `marker(args)`.
     Signal mask(std::vector<Value> const& args);             // 0x251cb0
+
+    /*! \brief Marker-only waveform.
+     *
+     *  \details Thin wrapper that forwards to
+     *  `markerImpl(args, isMask=false)`.  The implementation builds
+     *  a `Signal` whose sample data is zero and whose marker bits
+     *  carry the supplied marker value.  Marker values >= 4 trigger
+     *  a `ValueCapped` warning and are masked with `markerValue & 3`.
+     *
+     *  \param args  See `markerImpl` for the accepted shapes.
+     *  \return  Signal whose marker bits encode the requested pattern.
+     *  \throws WaveformGeneratorException  on argument validation
+     *          failures inside `markerImpl`.
+     */
     Signal marker(std::vector<Value> const& args);           // 0x251cd0
     Signal rand(std::vector<Value> const& args);             // 0x251cf0
     Signal randomGauss(std::vector<Value> const& args);      // 0x252930
     Signal randomUniform(std::vector<Value> const& args);    // 0x253440
     Signal lfsrGaloisMarker(std::vector<Value> const& args); // 0x253bc0
+
+    /*! \brief Root-raised-cosine (RRC) filter impulse response.
+     *
+     *  \details Three-, four-, or five-argument factory:
+     *  - `rrc(length, position, beta)`:
+     *    amplitude defaults to 1.0, width defaults to 1.0.
+     *  - `rrc(length, amplitude, position, beta)`:
+     *    width defaults to 1.0.
+     *  - `rrc(length, amplitude, position, beta, width)`.
+     *
+     *  Computes, for `i` in `[0, length)`, with `t = (i - position) * width`
+     *  (where `width = 1 / samples_per_symbol`):
+     *  - `t == 0`: `h = 1 - beta + 4*beta/pi`.
+     *  - `t == ±1/(4*beta)`: closed-form
+     *    `h = (beta/sqrt(2)) * ((1+2/pi)*sin(pi/(4*beta)) + (1-2/pi)*cos(pi/(4*beta)))`.
+     *  - otherwise: standard RRC formula
+     *    `h = (sin((1-beta)*pi*t) + 4*beta*t*cos((1+beta)*pi*t)) / (pi*t*(1 - (4*beta*t)^2))`.
+     *
+     *  Each output sample is multiplied by `amplitude`.  Emits a
+     *  warning via the warning callback if `position > length`.
+     *
+     *  \param args  3, 4, or 5 arguments.
+     *  \return  Signal of `length` samples (single channel).
+     *  \throws WaveformGeneratorException  on wrong argument count.
+     *  \binarynote The 3-argument overload reports its `position` and
+     *          `beta` parameters in error messages as
+     *          `"3 (position)"` and `"4 (beta)"` even though the
+     *          user passes them in slots 2 and 3 — the literal
+     *          strings are arity-blind and do not track the
+     *          user-visible argument index.  See IF-230.
+     */
     Signal rrc(std::vector<Value> const& args);              // 0x254290
+
+    /*! \brief Build a `Signal` directly from numeric arguments.
+     *
+     *  \details Variadic factory: each argument is read as a `double`
+     *  and appended to the output sample vector in order.  At most
+     *  100 elements are allowed; passing 101 or more arguments throws
+     *  `WaveformGeneratorException` with the `VectTooManyArgs` error
+     *  message.
+     *
+     *  Per-argument parameter names are constructed as
+     *  `"<i+1> (waveform)"` for the `i`th argument (1-based), so an
+     *  out-of-range value is reported with its position in the call.
+     *
+     *  \param args  Up to 100 numeric values (integers, doubles, or
+     *          booleans).  Strings are rejected with a `readDouble`
+     *          error.
+     *  \return  Signal of `args.size()` samples (single channel).
+     *          An empty argument list yields an empty `Signal`.
+     *  \throws WaveformGeneratorException  if `args.size() >= 101`,
+     *          or via `readDouble` for non-numeric arguments.
+     */
     Signal vect(std::vector<Value> const& args);             // 0x255570
     Signal placeholder(std::vector<Value> const& args);      // 0x255850
     Signal join(std::vector<Value> const& args);             // 0x255da0
