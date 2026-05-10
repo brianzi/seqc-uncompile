@@ -97,6 +97,31 @@ public:
     // ---- Constructors ----
 
     // From WavetableFront — 0x29ce20
+    /*! \brief Build the IR-stage wavetable from a finished
+     *  front-end wavetable.
+     *
+     *  \details Snapshots the configuration that placement needs:
+     *  device constants, the per-AWG base address, the sample
+     *  cache (sized to `wavetableSize`, rooted at `path`), and a
+     *  weak handle to the cancel callback so long allocation
+     *  passes can be aborted.  Then converts every
+     *  `WaveformFront` owned by `front`'s manager into a
+     *  `WaveformIR` and inserts it into a freshly allocated
+     *  `WavetableManager<WaveformIR>` whose `numDefs_` /
+     *  `numDefs2_` counters are seeded from the front-end
+     *  manager so synthetic-name minting (`getUniqueName`)
+     *  continues from where the front left off.
+     *
+     *  \param front          Front-end wavetable to clone from.
+     *  \param constants      Device-constants snapshot used for
+     *                        every subsequent allocation pass.
+     *  \param address        Per-core wave-memory base address.
+     *  \param wavetableSize  CSV cache capacity, in entries.
+     *  \param path           Project directory used to resolve
+     *                        relative `placeholder` waveform paths.
+     *  \param cancelCb       Weak handle polled by allocation
+     *                        passes to honour user cancellations.
+     */
     WavetableIR(const WavetableFront& front,
                 const DeviceConstants& constants,
                 detail::AddressImpl<uint32_t> address,
@@ -105,6 +130,26 @@ public:
                 std::weak_ptr<CancelCallback> cancelCb);
 
     // From WavetableManager<WaveformIR> — 0x29d230
+    /*! \brief Build the IR-stage wavetable directly from a
+     *  pre-existing waveform manager.
+     *
+     *  \details Used by `fromJson()` to reconstitute a wavetable
+     *  whose waveform list has already been deserialised.
+     *  Copies `mgr` into the new wavetable, attaches the
+     *  configuration arguments, and leaves `usedWaveforms_`
+     *  empty — callers populate it via `setUsedWaveforms()`
+     *  once the in-use subset is known.
+     *
+     *  \param mgr            Source manager.  Copied (not moved)
+     *                        so the caller's reference remains
+     *                        valid.
+     *  \param constants      Device-constants snapshot.
+     *  \param address        Per-core wave-memory base address.
+     *  \param wavetableSize  CSV cache capacity, in entries.
+     *  \param path           Project directory for placeholder
+     *                        waveform resolution.
+     *  \param cancelCb       Weak cancel-callback handle.
+     */
     WavetableIR(const detail::WavetableManager<WaveformIR>& mgr,
                 const DeviceConstants& constants,
                 detail::AddressImpl<uint32_t> address,
@@ -113,14 +158,49 @@ public:
                 std::weak_ptr<CancelCallback> cancelCb);
 
     // Destructor — 0x29d550
+    //! Releases the manager, used-waveform list, wave-index
+    //! tracker, sample cache, and cancel-callback handle in
+    //! reverse declaration order.  No special teardown beyond
+    //! the implicit member destructors.
     ~WavetableIR();
 
     // ---- Serialization ----
 
     // toJson — 0x29d670
+    //! Serialise the wavetable for round-trip via `fromJson()`.
+    //!
+    //! Wraps the manager's JSON representation in a single-key
+    //! object: `{ "wavetable_manager": <manager_->toJson()> }`.
+    //! Address allocator state and the cancel-callback handle
+    //! are intentionally not serialised — they are
+    //! reconstructed from the deserialisation arguments.
+    //!
+    //! \return JSON object containing the manager payload.
     boost::json::value toJson() const;
 
     // fromJson (static, returns shared_ptr<WavetableIR>) — 0x29db10
+    /*! \brief Deserialise a wavetable previously emitted by
+     *  `toJson()`.
+     *
+     *  \details Reads the embedded `wavetable_manager` object,
+     *  rebuilds a `WavetableManager<WaveformIR>` via its own
+     *  `fromJson`, and constructs a fresh `WavetableIR` around
+     *  it using the manager-taking constructor.
+     *
+     *  \param json           JSON object as produced by `toJson()`.
+     *  \param constants      Device-constants snapshot for the
+     *                        target core.
+     *  \param address        Per-core wave-memory base address.
+     *  \param wavetableSize  CSV cache capacity.
+     *  \param path           Project directory for placeholder
+     *                        waveform resolution.
+     *  \param cancelCb       Weak cancel-callback handle.
+     *  \return Shared owner of the reconstructed wavetable.
+     *  \throws boost::system::system_error  When the JSON is
+     *                        missing the `wavetable_manager`
+     *                        key or fails the inner
+     *                        manager-side validation.
+     */
     static std::shared_ptr<WavetableIR> fromJson(
         boost::json::value json,
         const DeviceConstants& constants,
@@ -132,6 +212,17 @@ public:
     // ---- Comparison ----
 
     // operator== — 0x29e090
+    //! Structural equality for cache-key comparisons.
+    //!
+    //! Two wavetables compare equal iff their managers compare
+    //! equal (same waveform list, same name index) **and** they
+    //! share the same `addressBase_` and `firstWaveformOffset_`.
+    //! The `cachedParser_`, `waveIndexTracker_`, used-waveform
+    //! list, and cancel callback do not participate.
+    //!
+    //! \param other  Wavetable to compare against.
+    //! \return True when both wavetables would place identical
+    //!         payloads at identical addresses.
     bool operator==(const WavetableIR& other) const;
 
     // ---- Iterators / accessors ----
@@ -210,17 +301,104 @@ public:
     // ---- Allocation methods ----
 
     // allocateWaveforms — 0x29e340
+    /*! \brief Place every used waveform in the cache-managed
+     *  region of wave memory.
+     *
+     *  \details Two-phase allocator used when the working set
+     *  fits in cache:
+     *    1. **Sizing pass** — for every used waveform, ensures
+     *       the sample buffer is loaded (`loadWaveform`),
+     *       computes the aligned byte size, and lays the
+     *       waveforms out tail-to-tail starting at
+     *       `addressBase_`, inserting `waveformAlignment`
+     *       padding only when a waveform would otherwise span
+     *       a cache-line boundary or when the previous
+     *       waveform was already an oversized one.
+     *    2. **Cache-line marking pass** — folds every
+     *       waveform's address into the cache-line occupancy
+     *       vector and sets `WaveformIR::crossesCacheLine_`
+     *       on the entries that consume more than one line
+     *       (the prefetcher uses that bit to schedule a `prf`
+     *       ahead of the play).
+     *
+     *  Iteration order in phase 1 is `WaveOrder::Natural` for
+     *  FIFO mode (preserves the registration order used to
+     *  stream waveforms in) and `WaveOrder::ByWaveIndex`
+     *  otherwise (compacts low-index waveforms toward the base
+     *  so wave-index-driven addressing remains tight).
+     *
+     *  Throws via `WavetableException` when a waveform that
+     *  was registered but never marked used is encountered.
+     *
+     *  \param fifoMode  Selects the iteration order described
+     *                   above.  Always paired with
+     *                   `allocateWaveformsForFifo()` from
+     *                   `updateWaveforms`; this method only
+     *                   handles the cache-managed strategy.
+     *  \throws WavetableException  When an unused-but-
+     *                   registered waveform reaches the
+     *                   sizing pass.
+     */
     void allocateWaveforms(bool fifoMode);
 
     // forEachUsedWaveform — 0x29e5e0
+    /*! \brief Apply `callback` to every used waveform in a
+     *  configurable order.
+     *
+     *  \details Builds an index permutation over
+     *  `usedWaveforms_`, sorts it according to `order`
+     *  (`Natural` skips sorting; `ByIndex` sorts by
+     *  `WaveformIR::addressValue` ascending; `ByWaveIndex`
+     *  sorts by `WaveformIR::waveIndex` ascending), then
+     *  invokes `callback` on each waveform in the sorted
+     *  order.  This indirection lets the caller iterate the
+     *  same underlying list in whichever order the current
+     *  pass needs without disturbing the storage order.
+     *
+     *  \param callback  Functor applied to each used
+     *                   waveform.  Exceptions thrown from the
+     *                   callback propagate to the caller.
+     *  \param order     Iteration order — see `WaveOrder`.
+     */
     void forEachUsedWaveform(
         std::function<void(const std::shared_ptr<WaveformIR>&)> callback,
         WaveOrder order) const;
 
     // assignWaveIndexImplicit — 0x29e8a0
+    /*! \brief Assign wave indices to waveforms that did not
+     *  receive an explicit one, then synthesise filler
+     *  waveforms to plug any remaining gaps.
+     *
+     *  \details Two phases:
+     *    1. **Implicit assignment** — every used waveform
+     *       whose `waveIndex` is still `-1` is given the next
+     *       free index from `waveIndexTracker_`, advancing
+     *       past any explicitly-assigned indices.
+     *    2. **Gap filling** — once the natural waveforms have
+     *       been assigned, walks the still-unassigned indices
+     *       below the highest-used one and synthesises a
+     *       reserve-only "filler" waveform per gap (named via
+     *       `getUniqueName("filler", numDefs_, numDefs2_++)`).
+     *       Fillers are appended to `usedWaveforms_`, marked
+     *       `used_=true` and `crossesCacheLine_=true`, and
+     *       receive the gap's index.
+     *
+     *  Filler waveforms become `SHT_NOBITS`-style entries in
+     *  the ELF (no sample data emitted) but reserve the
+     *  index slot so wave-index addressing stays dense.
+     */
     void assignWaveIndexImplicit();
 
     // setUsedWaveforms — 0x29ece0
+    //! Replace the in-use waveform subset.
+    //!
+    //! Copies `waveforms` into `usedWaveforms_`, replacing the
+    //! previous contents.  Self-assignment is a no-op.  The
+    //! address allocator and wave-index tracker are *not*
+    //! reset — callers that swap in a new used set are
+    //! expected to re-run the relevant placement passes.
+    //!
+    //! \param waveforms  New in-use list.
     void setUsedWaveforms(const std::vector<std::shared_ptr<WaveformIR>>& waveforms);
 
     // updateWaveforms — 0x29ed10
@@ -258,9 +436,56 @@ public:
     void updateWaveforms(bool fifoMode, bool allocFifoMode);
 
     // allocateWaveformsForFifo — 0x29ed30
+    /*! \brief Place every used waveform in the FIFO / streaming
+     *  region of wave memory.
+     *
+     *  \details Two-pass allocator that reuses cache lines:
+     *    1. **Fixed pass** — every waveform with the
+     *       `WaveformIR::fixed_` flag set is allocated via
+     *       `MemoryAllocator::allocateCLAligned` first,
+     *       grabbing a stable address it will keep for the
+     *       lifetime of the sequence.  Each allocated cache
+     *       line is recorded in a "do not reload" set.
+     *    2. **Reloading pass** — the remaining waveforms try
+     *       the cache-aligned allocator first, and on
+     *       failure fall back to
+     *       `MemoryAllocator::allocateReloadingCL` which
+     *       evicts cache lines outside the do-not-reload set.
+     *       Successfully reloaded waveforms have
+     *       `crossesCacheLine_` cleared because the runtime
+     *       guarantees a fresh load before each play.
+     *
+     *  After both passes the high-water mark of the underlying
+     *  allocator is written back to `addressBase_` so callers
+     *  can read the next-free address through
+     *  `getNextSegmentAddress()`.
+     *
+     *  \throws WavetableException  When either pass cannot
+     *                       satisfy a request — wraps the
+     *                       inner allocator's failure with a
+     *                       "Waveform memory overflow"
+     *                       message.
+     */
     void allocateWaveformsForFifo();
 
     // alignWaveformSizes — 0x29f150
+    /*! \brief Round every used waveform's sample count up to
+     *  device-grain alignment.
+     *
+     *  \details Walks `usedWaveforms_` in `Natural` order and
+     *  rounds each waveform's sample count up to a multiple
+     *  of `DeviceConstants::grainSize`, then clamps the
+     *  result to at least `WaveformIR::minLengthSamples`
+     *  (the per-waveform minimum imposed by the device's DMA
+     *  burst size).  Zero-length signals are left untouched
+     *  so that `zeros(0)` and degenerate `cut(w, N, N)`
+     *  collapses do not get inflated to a full grain.
+     *
+     *  Resizes the signal in place via
+     *  `Signal::resizeSamples` only when the aligned count
+     *  differs from the current count, so the common case
+     *  (already aligned) avoids a sample-buffer reallocation.
+     */
     void alignWaveformSizes();
 
     // assignWaveformAllocationSizes — 0x29f1d0
@@ -294,6 +519,30 @@ public:
     void assignWaveformAllocationSizes();
 
     // loadWaveform — 0x29f310
+    /*! \brief Materialise a placeholder waveform's sample data
+     *  from its source CSV.
+     *
+     *  \details Lazy-load helper used by the allocation
+     *  passes when they encounter a waveform whose sample
+     *  buffer is still empty.  Skips the load when:
+     *    - the waveform already has its `waveformType` set
+     *      (in-memory waveforms registered via `playWave`
+     *      from a SeqC array), or
+     *    - the sample buffer is already populated.
+     *
+     *  Otherwise routes through `CsvParser::csvFileToWaveform`
+     *  using `cachedParser_` so repeated references to the
+     *  same CSV path within a compile share parser state.
+     *  Exceptions raised by the parser propagate
+     *  unwrapped — callers wrap them in
+     *  `WavetableException` if they want a wavetable-level
+     *  diagnostic.
+     *
+     *  \param waveform  Waveform to (re)hydrate.  The
+     *                   shared_ptr is held by value so the
+     *                   parser's downstream consumers can
+     *                   keep their own owners.
+     */
     void loadWaveform(std::shared_ptr<WaveformIR> waveform);
 
     // getJsonIndex — 0x29f480
