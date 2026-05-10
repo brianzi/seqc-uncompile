@@ -149,6 +149,81 @@ public:
     // 6. runPrefetcher
     // 7. Post-waveform optimize, unsyncCervino
     // 8. Build output vector<Assembler>
+    /*! \brief Run the full compilation pipeline on a single SeqC source
+     *  string and produce an assembled instruction list together with
+     *  the populated wavetable IR.
+     *
+     *  \details The pipeline executes in this order:
+     *    1. Reset `messages_` and lock the cancel / progress callbacks.
+     *    2. `unifyLineEndings` — normalise `\r\n` / `\r` to `\n`.
+     *    3. `parse` — flex/bison parse of the normalised source into an
+     *       `Expression` tree.  An empty/parse-failure tree short-
+     *       circuits to an empty `CompileResult` carrying only an empty
+     *       `WavetableIR` (downstream `AWGCompilerImpl::writeToStream`
+     *       then surfaces the standard "empty input" error).
+     *    4. Construct `StaticResources` (with a warning callback bound
+     *       to `messages_.warningMessage`), initialise it with
+     *       `config_` and `*deviceConstants_`, then wrap it in
+     *       `GlobalResources` and publish that as
+     *       `customFunctions_->resources_`.
+     *    5. `toSeqCAst` — convert the parser AST into the SeqC AST.
+     *    6. `FrontEndLoweringFacade::lower` — lower the SeqC AST into
+     *       an evaluation tree, populating `lowerResult.astResult`
+     *       (stored back into `ast_`) and `lowerResult.evalResult`.
+     *    7. After lowering, `messages_.hadCompilerError()` is checked;
+     *       if true the function throws `CompilerException` with
+     *       message "Compiler error while evaluating sequence".
+     *    8. Build the assembly preamble: a `start` label, a load
+     *       placeholder, an `Entry`-style root `Node` either grafted
+     *       on top of `ast_` (when the program has a `main`) or on top
+     *       of `lowerResult.evalResult->node_`.  Walk the resulting
+     *       node tree and back-fill `parent` pointers via BFS.
+     *    9. Append the placeholder, the lowered evaluator's
+     *       `assemblers_`, and the trailer triple
+     *       (`wwvf` + `nop` + `end`) to `asmList_`.
+     *   10. Construct an `AsmOptimize`, prepare its register / label
+     *       resources from `asmList_`, then run
+     *       `optimizePreWaveform`.  Any `OptimizeException` is caught,
+     *       framed as an error message via
+     *       `messages_.errorMessage(e.what(), e.lineNumber())`, and
+     *       re-thrown.
+     *   11. Optionally serialise `asmList_` to a debug-dump file and/or
+     *       round-trip it through `serialize` / `deserialize` when the
+     *       corresponding `config_` flags are set.
+     *   12. Allocate a `WavetableIR` from the current `WavetableFront`,
+     *       then call `runPrefetcher` to populate it and rewrite
+     *       `asmList_` with the prefetch-aware version.
+     *   13. Run `optimizePostWaveform` (same exception handling as
+     *       step 10).
+     *   14. On UHFLI / UHFQA targets, prepend the
+     *       `AsmCommands::unsyncCervino` sequence to `asmList_`.
+     *   15. Final error check: if `messages_.hadCompilerError()`
+     *       throws `CompilerException` with message "Compiler error
+     *       while assembling output file".
+     *   16. Project `asmList_` into a `vector<Assembler>` skipping
+     *       entries whose command is `Assembler::INVALID`.
+     *   17. Publish the final `usedSampleRate_` flag from
+     *       `staticResources` so that
+     *       `AWGCompilerImpl::usedDeviceSampleRate()` reports it.
+     *
+     *  Cancellation requests posted through `cancelCallback_` are
+     *  observed at `AsmOptimize` and `Prefetch` boundaries; debug
+     *  flags on `config_` enable AST and final-assembly dumps at
+     *  steps 5, 6, and 14.
+     *
+     *  \param source   Raw SeqC source as supplied by the caller.
+     *                  May contain `\r\n` / `\r` line endings.
+     *  \return         A `CompileResult` with the assembled instruction
+     *                  list (`std::vector<Assembler>`) and the populated
+     *                  `WavetableIR`.  An empty source produces a
+     *                  result with an empty instruction vector and an
+     *                  otherwise-default `WavetableIR`.
+     *  \throws CompilerException  When `messages_.hadCompilerError()`
+     *                  is set after lowering or after assembly.
+     *  \throws OptimizeException  Re-thrown after framing as an error
+     *                  message when either `optimizePreWaveform` or
+     *                  `optimizePostWaveform` raises one.
+     */
     CompileResult compile(const std::string& source);  // 0x11f150
 
     // ---- Helpers called by compile() ----
@@ -167,6 +242,65 @@ public:
     void reset();                                                  // 0x11dfe0
 
     // Prefetch orchestrator: construct Prefetch, run waveform pipeline
+    /*! \brief Run the waveform / prefetch sub-pipeline against the
+     *  populated `WavetableFront` and rewrite `asmList_` with the
+     *  prefetch-aware instruction list.
+     *
+     *  \details Construct a `Prefetch` over `ast_` and `wavetableIR`
+     *  with a warning callback bound to `messages_.warningMessage`,
+     *  then drive the waveform pipeline:
+     *    1. `Prefetch::preparePlays` — walk the AST, prepare per-play
+     *       state, count branches, and define play sizes.
+     *    2. `Prefetch::getUsedWavesForDevice(deviceIndex)` →
+     *       `WavetableIR::setUsedWaveforms` to register which
+     *       waveforms the prefetcher actually needs.
+     *    3. `WavetableIR::assignWaveIndexImplicit` — assign indices to
+     *       waveforms that did not receive an explicit
+     *       `assignWaveIndex` annotation.
+     *    4. `WavetableIR::alignWaveformSizes` — round each waveform's
+     *       sample count up to the device's grain size.
+     *    5. `WavetableIR::assignWaveformAllocationSizes` — compute the
+     *       per-waveform allocation footprint (samples × channel
+     *       count × format).
+     *    6. `Prefetch::determineFixedWaves` — only when
+     *       `config.cacheType == 1` (fixed-cache mode): mark the
+     *       waveforms that the prefetcher must pin.
+     *    7. `WavetableIR::updateWaveforms(useCache, hasDIO)` — finalise
+     *       the waveform records (`useCache` is true when caching is
+     *       enabled and the target is a Hirzel-generation device;
+     *       `hasDIO` is the device's DIO presence flag).
+     *    8. `Prefetch::placeLoads` — schedule cache loads against the
+     *       prepared play tree.
+     *    9. `Prefetch::fillInPlaceholders(asmList)` — produce the
+     *       final assembly list with the original `placeholder`
+     *       expanded into the scheduled load instructions; the result
+     *       replaces `asmList_`.
+     *   10. Cache `Prefetch::getUsedChannels` and
+     *       `getUsedFourChannelMode` into `channelCount_` and
+     *       `usedFourChannelMode_` for downstream ELF section emission.
+     *
+     *  Optional debug branches: serialise / round-trip `wavetableIR`
+     *  through JSON when the corresponding `config` flags are set;
+     *  call `Prefetch::print` when `config.debugFlags & 0x08` is set.
+     *
+     *  \param wavetableIR     Freshly-allocated, empty `WavetableIR`
+     *                         that this call populates.
+     *  \param asmList         The `AsmList` produced by
+     *                         `optimizePreWaveform`; consumed by
+     *                         `fillInPlaceholders` to produce the
+     *                         post-prefetch list assigned to
+     *                         `asmList_`.
+     *  \param asmCommands     Shared `AsmCommands` used to construct
+     *                         the per-load instructions.
+     *  \param placeholder     The load-placeholder `AsmList::Asm`
+     *                         emitted earlier in `compile()`; the
+     *                         anchor that `fillInPlaceholders` expands.
+     *  \param deviceConstants Per-device geometry and feature flags
+     *                         (DIO presence is read here).
+     *  \param config          The active `AWGCompilerConfig`
+     *                         (`deviceIndex`, `cacheType`, `isHirzel`,
+     *                         and the debug flags are read here).
+     */
     void runPrefetcher(std::shared_ptr<WavetableIR> wavetableIR,
                        const AsmList& asmList,
                        std::shared_ptr<AsmCommands> asmCommands,
