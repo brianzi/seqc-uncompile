@@ -121,22 +121,47 @@ public:
     //! current run to protect it from eviction). On load it always
     //! starts `false`.
     struct CacheEntry {
+        //! \brief Default-construct an empty entry with zeroed scalars
+        //! and `pinned_ = false`.
+        //! \details Used by Boost.Serialization when materialising
+        //! entries from the on-disk index; the named fields are filled
+        //! in by the serialiser before the entry is observable.
         CacheEntry() : byteSize_(0), timestamp_(0), pinned_(false) {} // default ctor for boost deserialization
+
+        //! \brief Construct a fresh index entry, stamping `timestamp_`
+        //! with the current wall-clock time.
+        //! \param name     Display name of the cached source (typically
+        //!                 the user-visible file name).
+        //! \param filePath On-disk path of the cached `.wave` artifact
+        //!                 inside the cache directory.
+        //! \param fileSize Cached payload size in bytes (used for the
+        //!                 cache-byte budget).
+        //! \param hash     Content hash that keys this entry inside
+        //!                 the parser's `index_` map.
+        //! \param valid    Initial value of `pinned_`; normally `true`
+        //!                 for newly written entries (so they survive
+        //!                 the immediate eviction pass of the same run).
         CacheEntry(const std::string& name, const std::string& filePath,
                    std::size_t fileSize, std::vector<unsigned int> hash,
                    bool valid);                                    // 0x2b10b0
+
+        //! \brief Destroy the entry and release its strings and hash
+        //! vector.
         ~CacheEntry();                                             // 0x2b1320
+
+        //! \brief Copy-assign every field, including `pinned_`.
+        //! \param other Source entry; self-assignment is a no-op.
+        //! \return Reference to `*this`.
         CacheEntry& operator=(const CacheEntry& other);            // 0x2b1210
 
-        // Boost.Serialization support (instantiated for text_iarchive/text_oarchive).
-        //
-        // Resolved #114: Binary serializes exactly 5 fields (NOT 6).
-        // text_iarchive @0x2b7700: load(name_), load(filePath_),
-        //   istream>>byteSize_, istream>>timestamp_, load_object(hash_).
-        // text_oarchive @0x2b8440: save(name_), save(filePath_),
-        //   ostream<<byteSize_, ostream<<timestamp_, save_object(hash_).
-        // pinned_ is NOT serialized — it is reconstructed at load time
-        // (set to false by default, set to true on cache hit in getCachedFile).
+        //! \brief Boost.Serialization hook for the on-disk index file.
+        //! \details Persists exactly five fields: `name_`, `filePath_`,
+        //! `byteSize_`, `timestamp_`, `hash_`. `pinned_` is deliberately
+        //! omitted because it is a per-run flag (see the class-level
+        //! `\binarynote`).
+        //! \tparam Archive Boost.Archive instantiation (text input or
+        //!                 text output).
+        //! \param ar Archive to read from or write to.
         template <class Archive>
         void serialize(Archive& ar, unsigned int /*version*/)
         {
@@ -147,12 +172,12 @@ public:
             ar & hash_;
         }
 
-        std::string               name_;       // +0x00
-        std::string               filePath_;   // +0x18
-        std::size_t               byteSize_;   // +0x30
-        std::time_t               timestamp_;  // +0x38
-        std::vector<unsigned int> hash_;       // +0x40
-        bool                      pinned_;      // +0x58
+        std::string               name_;       //!< Display name of the cached source. +0x00
+        std::string               filePath_;   //!< On-disk path of the cached `.wave` artifact. +0x18
+        std::size_t               byteSize_;   //!< Cached payload size in bytes; charged against `cacheSize_`. +0x30
+        std::time_t               timestamp_;  //!< Wall-clock time at insertion or last hit; oldest entries are evicted first. +0x38
+        std::vector<unsigned int> hash_;       //!< Content hash that keys this entry inside the cache index. +0x40
+        bool                      pinned_;     //!< Per-run pin: `true` protects the entry from eviction in `removeOldFiles()`; reset to `false` on load. +0x58
         // padded to 0x60
     };
 
@@ -168,36 +193,71 @@ public:
     //! is zero and all three vectors are empty. Callers detect this
     //! by testing `samples_.empty()`.
     struct CachedFile {
+        //! \brief Destroy the result and release its sample / marker
+        //! buffers.
         ~CachedFile();                                             // 0x2b1f70
 
-        std::uint16_t              channel_;     // +0x00 (from .channels)
+        std::uint16_t              channel_;     //!< Channel / oscillator index recovered from the `.channels` ELF section (low 16 bits). +0x00
         // 6 bytes padding to +0x08
-        std::vector<std::uint8_t>  markerBits_;  // +0x08 (from .marker_bits)
-        std::vector<double>        samples_;     // +0x20 (from .data)
-        std::vector<std::uint8_t>  markers_;     // +0x38 (from .marker)
+        std::vector<std::uint8_t>  markerBits_;  //!< Marker-bit stream from the `.marker_bits` section. +0x08
+        std::vector<double>        samples_;     //!< Decoded sample data from the `.data` section; emptiness signals a cache miss. +0x20
+        std::vector<std::uint8_t>  markers_;     //!< Marker stream from the `.marker` section. +0x38
         // padded to 0x50
     };
 
     // ----- Construction -----
 
-    // The only ctor present in the binary.
-    // - cacheSize == 0 leaves the cache disabled (enabled_ = false) and
-    //   does not touch the filesystem or call loadCacheIndex.
-    // - cacheSize != 0 creates the cache directory, appends "index" to
-    //   build indexFilePath_, then calls loadCacheIndex().
+    //! \brief Open or create the on-disk waveform cache rooted at
+    //! `cachePath`.
+    //! \details When `cacheSize == 0` the cache is left disabled
+    //! (`enabled_` is `false`) and no filesystem I/O is performed;
+    //! every public method becomes a no-op or returns an empty result.
+    //! When `cacheSize != 0` the directory is created (existing
+    //! directories are tolerated), `indexFilePath_` is set to
+    //! `cachePath / "index"`, and the persisted index is loaded. If
+    //! directory creation fails for any other reason the cache is
+    //! disabled and a warning is logged.
+    //! \param cacheSize Maximum total size of cached payloads in bytes;
+    //!                  `0` disables the cache.
+    //! \param cachePath Directory in which cached `.wave` artifacts and
+    //!                  the `index` file are stored.
     CachedParser(std::size_t cacheSize, const boost::filesystem::path& cachePath);
 
+    //! \brief Destroy the parser; the on-disk index is not flushed
+    //! here (it is rewritten on every mutating operation).
     ~CachedParser();
 
-    // Non-copyable, non-movable (no such symbols in the binary).
+    //! \brief Deleted: cache is non-copyable (it owns an on-disk
+    //! resource).
     CachedParser(const CachedParser&) = delete;
+    //! \brief Deleted: cache is non-assignable.
     CachedParser& operator=(const CachedParser&) = delete;
 
     // ----- Public methods -----
 
-    // Cache a parsed waveform file. Inserts/updates a CacheEntry in index_,
-    // writes the actual sample/marker data to cachePath_/<hash>, then
-    // calls saveCacheIndex().                                       // 0x2b05b0
+    //! \brief Persist a parsed waveform to disk and register it in
+    //! the index under `hash`.
+    //! \details Charges the cache budget, evicting oldest entries via
+    //! `removeOldFiles()` if the new entry would push `currentSize_`
+    //! past `cacheSize_`; if eviction is blocked by a pinned entry the
+    //! charge is rolled back and the call returns without writing.
+    //! Otherwise the payload is serialised as a small ELF file
+    //! (`csv<hash2str>.wave` inside `cachePath_`) carrying the
+    //! `.format`, `.file_name`, `.channels`, `.marker_bits`, `.data`,
+    //! `.marker`, and `.config` sections, the index entry is
+    //! inserted (or replaced), and the index is flushed.
+    //! \binarynote The byte budget charged is
+    //! `samples.size() * sizeof(double) / 4`, not the actual on-disk
+    //! file size — the cache accounting is intentionally an estimate.
+    //! \param name           Display name of the original source file.
+    //! \param hash           Content hash used as the index key.
+    //! \param sampleFormat   Channel / oscillator descriptor written
+    //!                       to the `.channels` section as a 4-byte int.
+    //! \param markers        Bytes written to the `.marker_bits` section.
+    //! \param markerBits     Marker-bit count, serialised as decimal
+    //!                       text in the `.config` section.
+    //! \param samples        Sample data written to the `.data` section.
+    //! \param markerBitsVec  Bytes written to the `.marker` section.
     void cacheFile(const std::string& name,
                    std::vector<unsigned int> hash,
                    int sampleFormat,
@@ -206,26 +266,81 @@ public:
                    const std::vector<double>& samples,
                    const std::vector<std::uint8_t>& markerBitsVec);
 
-    // Check whether a cached file is outdated (file modified since caching).
-    // Returns true if outdated or not found.                        // 0x2b14d0
+    //! \brief Decide whether a previously cached `.wave` artifact is
+    //! out-of-date relative to its source file.
+    //! \details Opens the cached ELF, verifies the `.format` section
+    //! holds the expected version byte (`'3'`), and reads the
+    //! `.file_name` section to recover the original source path. The
+    //! cached file is considered outdated when the source's
+    //! `last_write_time` is newer than the cached ELF's, or when any
+    //! step throws (missing file, missing section, ELF parse error,
+    //! etc.).
+    //! \binarynote Despite the parameter name, this takes the path of
+    //! the cached `.wave` artifact, not the original source — the
+    //! source path is recovered from inside the artifact.
+    //! \param name Path of the cached `.wave` file.
+    //! \return `true` if the cached file is missing, malformed, or
+    //!         older than its source.
     bool cacheFileOutdated(const std::string& name) const;
 
-    // Retrieve a cached file by its hash. Returns a default-constructed
-    // CachedFile (channel_=0, all vectors empty) if not in cache or outdated.
-    // No explicit "found" flag — callers test samples_.empty().      // 0x2b1900
+    //! \brief Look up a cached parse result by content hash.
+    //! \details On a hit, refreshes the entry's `timestamp_` and pins
+    //! it so the eviction pass spares it for the rest of this run,
+    //! then re-reads the cached ELF's `.channels`, `.marker_bits`,
+    //! `.data`, and `.marker` sections into the returned `CachedFile`.
+    //! On a miss, an outdated hit (deleted in passing), or any
+    //! exception during ELF reading (which also triggers
+    //! `cleanCache()`), a default-constructed `CachedFile` is returned.
+    //! \binarynote A miss is signalled by an empty `samples_` /
+    //! all-zero `channel_` rather than a separate `found` flag.
+    //! \param hash Content hash to look up.
+    //! \return Loaded data on a cache hit; default-constructed value
+    //!         on a miss.
     CachedFile getCachedFile(const std::vector<unsigned int>& hash);
 
-    // Compute hash for a file path. Returns empty vector if cache disabled.
-    // Delegates to zhinst::util::wave::hash().                      // 0x2b1fe0
+    //! \brief Compute the content hash of a source file.
+    //! \details Returns an empty vector if the cache is disabled;
+    //! otherwise delegates to `zhinst::util::wave::hash`.
+    //! \param filePath Path of the source file to hash.
+    //! \return Content hash, or an empty vector when the cache is
+    //!         disabled.
     std::vector<unsigned int> getHash(const std::string& filePath) const;
 
 private:
-    // Implementation methods present in the binary.
+    //! \brief Deserialise `index_` from `indexFilePath_` and
+    //! recompute `currentSize_`.
+    //! \details Silently leaves `index_` empty when the file does not
+    //! exist; calls `cleanCache()` and starts fresh on any I/O or
+    //! deserialisation error. Triggers `removeOldFiles()` if the
+    //! restored payload total exceeds `cacheSize_`.
     void loadCacheIndex();   // 0x2afec0 — deserialize index_ from indexFilePath_
+
+    //! \brief Serialise `index_` to `indexFilePath_`.
+    //! \details Skipped when the cache is disabled or `index_` is
+    //! empty. On any I/O or serialisation failure the cache is
+    //! sticky-disabled (`enabled_ = false`) so subsequent operations
+    //! become no-ops for the rest of the run.
     void saveCacheIndex();   // 0x2b03c0 — serialize index_ to indexFilePath_
+
+    //! \brief Drop all cached state from memory and disk and recreate
+    //! an empty cache directory.
+    //! \details Clears `index_`, resets `currentSize_` to zero
+    //! (without touching `cacheSize_`), removes `cachePath_`
+    //! recursively, and re-creates it. Filesystem exceptions are
+    //! swallowed.
     void cleanCache();       // 0x2b0140 — clear map, remove+recreate cachePath_
+
+    //! \brief Evict oldest cached entries until `currentSize_ <=
+    //! cacheSize_` or a pinned entry is hit, then flush the index.
+    //! \details Sorts the index by `timestamp_` ascending, then for
+    //! each entry deletes the on-disk file, subtracts its `byteSize_`
+    //! from `currentSize_`, and removes it from `index_`. Iteration
+    //! stops at the first `pinned_ == true` entry encountered.
+    //! `saveCacheIndex()` is called unconditionally after the loop.
+    //! \return `true` if iteration stopped because of a pinned entry
+    //!         (i.e. the cache may still be over-budget after the
+    //!         call).
     bool removeOldFiles();   // 0x2b01a0 — evict oldest entries past cacheSize_
-                             // Returns true if a pinned entry stopped eviction early.
 
     // ----- Layout (must match binary; see header comment) -----
 
@@ -234,14 +349,14 @@ private:
     // We declare the field with the host's std::map for correctness in
     // host-side analysis, but note that on the binary's libc++ this
     // occupies exactly 0x30 bytes.
-    std::map<std::vector<unsigned int>, CacheEntry> index_;  // +0x00 (0x30 bytes on libc++)
+    std::map<std::vector<unsigned int>, CacheEntry> index_;  //!< Hash → entry map of every cached waveform; embedded `__tree` head is the first member of the class. +0x00 (0x30 bytes on libc++)
 
-    bool        enabled_;          // +0x18
+    bool        enabled_;          //!< `true` while the cache is usable; sticky-disabled to `false` after any I/O failure or when `cacheSize_ == 0`. +0x18
     // 7 bytes padding to +0x20
-    std::size_t cacheSize_;        // +0x20  cache capacity in BYTES (0 = disabled)
-    std::size_t currentSize_;      // +0x28  current total size of cached files in BYTES
-    boost::filesystem::path cachePath_;      // +0x30 (24 bytes on libc++)
-    boost::filesystem::path indexFilePath_;  // +0x48 (24 bytes on libc++) = cachePath_ / "index"
+    std::size_t cacheSize_;        //!< Cache capacity in bytes; `0` disables the cache. +0x20  cache capacity in BYTES (0 = disabled)
+    std::size_t currentSize_;      //!< Running total of `byteSize_` charged across all entries; compared against `cacheSize_` to drive eviction. +0x28  current total size of cached files in BYTES
+    boost::filesystem::path cachePath_;      //!< Directory holding cached `.wave` artifacts and the `index` file. +0x30 (24 bytes on libc++)
+    boost::filesystem::path indexFilePath_;  //!< `cachePath_ / "index"`; the on-disk persisted form of `index_`. +0x48 (24 bytes on libc++) = cachePath_ / "index"
 };
 
 // Cannot static_assert sizeof(CachedParser) == 0x60 from the host:
