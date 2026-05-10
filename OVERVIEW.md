@@ -519,7 +519,7 @@ mainpage.
 - IF-207 (MESSAGE / ERROR_MSG comment swap in `AsmOptimize`) and IF-208
   (`PrefetcherNodeState::useDA` → `crossesCacheLine` rename) closed in
   cleanup commit `0441b43`.
-- **Doxygen warning cleanup** (`<commit-pending>`): 149 → 0 warnings.
+- **Doxygen warning cleanup** (`2cd360b`): 149 → 0 warnings.
   Strategy:
   - Enabled targeted macro expansion for the AST class-generator
     macros (`SEQC_TRIVIAL_LEAF`, `SEQC_UNARY`, `SEQC_OPERATOR`,
