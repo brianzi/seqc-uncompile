@@ -119,6 +119,18 @@ cross-reference pages so the backlog is discoverable.
         `CustomFunctions` (subdivided) → `AsmOptimize` →
         `WaveformGenerator` → `Resources` family → AST nodes
   - [ ] Per-class commits and `\unclear` triage
+  - [x] **D4 Batch 1** — `Compiler` class (16 public methods):
+        constructor, destructor, `unifyLineEndings`, `parse`,
+        `printAST`, `reset`, `setCancelCallback`,
+        `setProgressCallback`, `getNodeAccessList`,
+        `getNodeToModeMap`, `getChannelInfo`,
+        `usedDeviceSampleRate`, `hadSyntaxError`,
+        `getCompileMessages`, `setLineNr`, `getLineMap`.  `compile`
+        and `runPrefetcher` were already done in D3 Batch 1.  Surfaced
+        IF-209 (`setLineNr` missing AsmCommands + WavetableFront
+        propagation) and IF-210 (`setCancelCallback` missing
+        WaveformGenerator propagation); both flagged on the docs via
+        `\verifyme`.
 
 - [ ] **D5 — Internal helpers / opcodes / leaves** _(on demand)_
 

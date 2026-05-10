@@ -179,10 +179,52 @@ class Compiler {
 public:
     // Constructor — stores config/device ptrs, creates AsmCommands,
     // WaveformGenerator, CustomFunctions as shared_ptrs
+    /*! \brief Construct a `Compiler` ready to compile SeqC source for a
+     *  single AWG sequencer.
+     *
+     *  \details The constructor only wires up the long-lived collaborator
+     *  graph; no SeqC source is parsed and no waveform memory is touched
+     *  until `compile()` is called.  Specifically it:
+     *   1.  Stores `config` and `deviceConstants` as raw pointers (the
+     *       caller owns their lifetimes; the typical owner is the
+     *       enclosing `AWGCompilerImpl`).
+     *   2.  Default-initialises `messages_`, `lineNr_`, the channel-mode
+     *       counters, and the cancel / progress `weak_ptr`s.
+     *   3.  Creates `asmCommands_` (`std::make_shared<AsmCommands>`),
+     *       binding its error callback to `messages_.errorMessage`.
+     *   4.  Creates `waveformGen_` (`std::make_shared<WaveformGenerator>`),
+     *       binding its warning callback to `messages_.warningMessage`.
+     *   5.  Creates `customFunctions_` with the freshly-built
+     *       `asmCommands_`, `waveformGen_`, and the same warning
+     *       callback.
+     *   6.  Wires `parserContext_`'s syntax-error callback to
+     *       `messages_.parserMessage(lineNr, msg)` so flex/bison
+     *       diagnostics flow into the same message bag the rest of the
+     *       pipeline appends to.
+     *
+     *  \param config           Compilation configuration (sequencer
+     *                          index, debug flags, cache mode, etc.).
+     *                          Captured by raw pointer; must outlive
+     *                          this `Compiler`.
+     *  \param deviceConstants  Per-device geometry and feature flags
+     *                          (DIO presence, waveform geometry,
+     *                          opcode set).  Also captured by raw
+     *                          pointer; must outlive this `Compiler`.
+     *  \param wavetable        Shared `WavetableFront` that this
+     *                          `Compiler` reads from and writes back
+     *                          via the AST and `WaveformGenerator`.
+     */
     Compiler(const AWGCompilerConfig& config,
              const DeviceConstants& deviceConstants,
              std::shared_ptr<WavetableFront> wavetable);        // 0x11d080
 
+    //! \brief Destroy the `Compiler` and release all owned shared state.
+    //!
+    //! All owned `shared_ptr` members (`asmCommands_`, `waveformGen_`,
+    //! `customFunctions_`, `wavetable_`) are released in reverse
+    //! construction order.  No additional cleanup is performed; the
+    //! defaulted destructor is sufficient because every member type is
+    //! itself RAII-managed.
     ~Compiler();                                                 // 0x103660
 
     // ---- Main entry point ----
@@ -276,16 +318,83 @@ public:
     // ---- Helpers called by compile() ----
 
     // Normalize \r\n and \r to \n using boost::replace_all_copy
+    /*! \brief Normalise line-ending conventions in a SeqC source string
+     *  to LF (`\n`).
+     *
+     *  \details Performs a single full-buffer scan-and-replace.  When
+     *  the input contains `\r\n` the carriage-return / line-feed pairs
+     *  are collapsed to a single `\n`; otherwise, when standalone `\r`
+     *  characters are present they are each rewritten to `\n`.  When
+     *  the input already uses `\n` exclusively the original string is
+     *  returned by value (a copy), so the caller may treat the result
+     *  as owning a normalised buffer in every case.
+     *
+     *  \param input  Raw SeqC source as supplied by the caller.
+     *  \return       The same source with all line endings collapsed
+     *                to `\n`.
+     */
     std::string unifyLineEndings(const std::string& input) const;  // 0x11d720
 
     // Parse source via flex/bison (seqc_parse), returns AST
+    /*! \brief Parse a normalised SeqC source string into the parser-side
+     *  expression tree.
+     *
+     *  \details Resets `parserContext_` and runs the flex/bison
+     *  pipeline (`seqc_lex_init_extra` → `seqc__scan_string` →
+     *  `seqc_parse` → cleanup) against the supplied buffer.  The raw
+     *  `Expression*` produced by the bison parser is wrapped in a
+     *  `shared_ptr<Expression>` and returned to the caller; on the way
+     *  out the source is split at LF boundaries and stored in
+     *  `sourceLines_` so later phases can attach line context to error
+     *  messages.  Any syntax error reported by the parser becomes an
+     *  entry in `messages_` (via the parser-context callback wired in
+     *  the constructor) and additionally raises a `CompilerException`
+     *  here; lexer-init failure also raises `CompilerException`.
+     *
+     *  \param source  Normalised (LF-only) SeqC source.  Caller is
+     *                 responsible for running `unifyLineEndings`
+     *                 first if their buffer may contain `\r`.
+     *  \return        Owning handle to the parser AST root.  Never
+     *                 null on success.
+     *  \throws CompilerException  When the lexer fails to initialise
+     *                 ("Failed to initialize lexer") or the parser
+     *                 reported a syntax error ("Syntax error while
+     *                 parsing seqC").
+     */
     std::shared_ptr<Expression> parse(const std::string& source);  // 0x11d9b0
 
     // Debug: print AST to stdout
+    /*! \brief Recursively dump a parser AST sub-tree to `std::cout`
+     *  (debug aid).
+     *
+     *  \details Writes a single line per node containing the operation
+     *  type, optional operator, source line number, optional command
+     *  type, optional `VarType`, and optional `name`, then descends
+     *  into the children.  Intended for manual inspection during
+     *  development; never invoked by the production pipeline.  A
+     *  `nullptr` `expr` is silently ignored so callers may dump a
+     *  potentially-empty parse result without guarding.
+     *
+     *  \param expr   Sub-tree root to dump.  May be null.
+     *  \param label  Prefix written before the root node's line; used
+     *                to mark which compilation phase produced the
+     *                tree (e.g. `"parse"`, `"after lower"`).
+     */
     void printAST(std::shared_ptr<Expression> expr,
                   const std::string& label);                       // 0x122640
 
     // Reset the message collection
+    /*! \brief Drop every message accumulated by the previous
+     *  `compile()` invocation.
+     *
+     *  \details Clears `messages_` (the `CompilerMessageCollection`)
+     *  in place, preserving its callback wiring; collaborator state
+     *  such as `parserContext_`, `asmList_`, `sourceLines_`, and the
+     *  cancel / progress `weak_ptr`s are not touched.  Typically
+     *  called by the embedding `AWGCompilerImpl` between two
+     *  consecutive `compile()` calls so that older diagnostics do not
+     *  leak into the new run.
+     */
     void reset();                                                  // 0x11dfe0
 
     // Prefetch orchestrator: construct Prefetch, run waveform pipeline
@@ -357,32 +466,190 @@ public:
 
     // ---- Getters / Setters ----
 
+    /*! \brief Install a `CancelCallback` that the compiler will poll at
+     *  long-running cooperative cancellation points.
+     *
+     *  \details Stores `cb` into the `cancelCallback_` `weak_ptr`.
+     *  `AsmOptimize` and `Prefetch` poll this `weak_ptr` at their
+     *  cooperative checkpoints; on a positive cancellation answer
+     *  they raise an exception that propagates back out of
+     *  `compile()`.  The previous callback (if any) is overwritten
+     *  unconditionally; passing an empty `weak_ptr` therefore detaches
+     *  cancellation polling.
+     *
+     *  \verifyme  IF-210: the binary is suspected to additionally
+     *  propagate `cb` into `waveformGen_->cancelCallback_` (offset
+     *  `+0xB0` within `WaveformGenerator`).  The reconstructed body
+     *  performs only the local store; no current test exercises the
+     *  cancel path so the gap is invisible to differential testing.
+     *
+     *  \param cb  Weak handle to the user-installed cancel hook.  May
+     *             be empty to detach.
+     */
     void setCancelCallback(std::weak_ptr<CancelCallback> cb);      // 0x123480
+
+    /*! \brief Install a `ProgressCallback` that receives periodic
+     *  progress notifications from `compile()`.
+     *
+     *  \details Stores `cb` into the `progressCallback_` `weak_ptr`.
+     *  The pipeline currently invokes the callback only at the major
+     *  phase boundaries observable in `compile()`; finer-grained
+     *  notifications are TBD.  As with `setCancelCallback`, passing an
+     *  empty `weak_ptr` detaches the previously-installed callback.
+     *
+     *  \param cb  Weak handle to the user-installed progress hook.
+     *             May be empty to detach.
+     */
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // 0x123510
 
     // Returns pointer to customFunctions_->nodeList_ (vector<NodeMapItem> at +0x150)
+    /*! \brief Return the list of LabOne data-server nodes the most-
+     *  recent `compile()` run referenced.
+     *
+     *  \details Each `NodeMapItem` records a node path string together
+     *  with its inferred access mode (subscribed, polled, etc.).  The
+     *  list is populated by `CustomFunctions` as it lowers SeqC
+     *  built-ins that touch the data server (`getNode`, `setNode`,
+     *  `playWave` with feedback, ...).  The returned pointer aliases
+     *  internal storage of `customFunctions_`; it is invalidated by
+     *  the next `compile()` or by destruction of this `Compiler`.
+     *
+     *  \return  Pointer to the live `nodeList_`, or `nullptr` if
+     *           `customFunctions_` was never set up (only happens if
+     *           the constructor failed before completion).
+     */
     const std::vector<NodeMapItem>* getNodeAccessList() const;             // 0x123550
 
     // Returns pointer to customFunctions_->accessModeMap_ (unordered_map at +0x128)
+    /*! \brief Return the per-node access-mode map populated during the
+     *  most-recent `compile()` run.
+     *
+     *  \details Companion to `getNodeAccessList`: the map keys are the
+     *  `NodeMapItem`s appearing in that list, and each value is the
+     *  set of `AccessMode`s observed for the node across all SeqC
+     *  built-ins that referenced it.  The returned pointer aliases
+     *  internal storage of `customFunctions_` and follows the same
+     *  invalidation rules.
+     *
+     *  \return  Pointer to the live `accessModeMap_`, or `nullptr`
+     *           when `customFunctions_` is missing.
+     */
     const std::unordered_map<NodeMapItem, std::set<AccessMode>>* getNodeToModeMap() const;  // 0x123570
 
     // Returns {channelCount (int at +0x20), mode (byte at +0x24)}
+    /*! \brief Report the channel count and four-channel-mode flag the
+     *  most-recent `compile()` settled on for the target sequencer.
+     *
+     *  \details Returns a fresh two-element `std::vector<int>`:
+     *  element 0 is the active channel count and element 1 is the
+     *  four-channel-mode flag (non-zero on devices that pack two
+     *  logical sequencers into one four-channel emission).  Both
+     *  fields are written by the prefetch / channel-assignment phase
+     *  inside `compile()`; calling this getter before the first
+     *  `compile()` run yields `{0, 0}`.
+     *
+     *  \return  Two-element vector `{channelCount, fourChannelMode}`.
+     */
     std::vector<int> getChannelInfo() const;                       // 0x123590
 
     // Returns byte at this+0x25
+    /*! \brief Return whether the most-recent `compile()` run actually
+     *  consulted the device-supplied sample rate.
+     *
+     *  \details The pipeline records this flag whenever a SeqC
+     *  built-in resolves a duration in samples by multiplying by the
+     *  device sample rate.  Callers (the LabOne data-server bindings)
+     *  use the answer to decide whether the compiled program must be
+     *  re-emitted when the device's sample-rate setting changes.
+     *
+     *  \return  `true` when the compiled program references the
+     *           device sample rate, `false` otherwise.
+     */
     bool usedDeviceSampleRate() const;                             // 0x1235e0
 
     // Access parserContext_.hadSyntaxError() — used by AWGCompilerImpl
     // Binary reads byte at Compiler+0x100+0x03 directly.
+    /*! \brief Report whether the most-recent `parse()` call observed a
+     *  syntax error.
+     *
+     *  \details Forwards to `parserContext_.hadSyntaxError()`; the
+     *  flag is set by the bison error handler when the parser cannot
+     *  reduce the input.  `parse()` itself raises a
+     *  `CompilerException` when this flag is set, so a `true` answer
+     *  is only observable when the caller catches that exception and
+     *  inspects the `Compiler` afterwards.
+     *
+     *  \return  `true` when the previous `parse()` produced a syntax
+     *           error.
+     */
     bool hadSyntaxError() const;                                   // inline, delegates to parserContext_
 
     // Copies messages from CompilerMessageCollection
+    /*! \brief Return a copy of every diagnostic emitted by the most-
+     *  recent `compile()` run.
+     *
+     *  \details Each `CompilerMessage` carries a severity (info /
+     *  warning / error), a one-based source line number, and the
+     *  human-readable text.  Messages from all phases (parser, AST
+     *  lowering, optimisation, prefetch, output emission) are
+     *  collected into the same bag and returned in the order they
+     *  were appended.  Returning by value lets the caller inspect or
+     *  display the messages without holding any lock against further
+     *  `compile()` activity.
+     *
+     *  \return  All collected diagnostics in append order.
+     */
     std::vector<CompilerMessage> getCompileMessages() const;       // 0x1235f0
 
     // Sets lineNr at +0x10, propagates to AsmCommands and WavetableFront
+    /*! \brief Set the current source-line number used to annotate
+     *  subsequently-emitted assembly entries.
+     *
+     *  \details Writes `nr` into `lineNr_`.  The recon body performs
+     *  only the local field write; downstream phases that need to
+     *  resolve a current line either read `lineNr_` directly through
+     *  the `Compiler` reference or carry their own copy that the
+     *  pipeline updates separately.
+     *
+     *  \verifyme  IF-209: the binary additionally propagates `nr` to
+     *  `asmCommands_` (offset `+0x50` within `AsmCommands`) and tail-
+     *  calls `WavetableFront::setLineNr` on `wavetable_`.  The recon
+     *  body is missing both writes; no current differential test
+     *  exercises a code path that observes the divergence, so the
+     *  gap is invisible to test runs but should be confirmed and
+     *  closed before adding any test that calls `setLineNr` between
+     *  pipeline phases.
+     *
+     *  \param nr  One-based source line to associate with the next
+     *             assembly entries.
+     */
     void setLineNr(int nr);                                        // 0x123640
 
     // Builds vector<int> from asmList entries: groups of 4 ints per instruction
+    /*! \brief Build the flat line-map projection of `asmList_` for a
+     *  given starting offset.
+     *
+     *  \details Walks every entry of `asmList_` and emits four `int`s
+     *  per non-skipped instruction:
+     *    - `counter + offset`  — instruction address (PC) including
+     *      the caller-supplied base offset.
+     *    - `counter`            — zero-based instruction index.
+     *    - `seq`                — running label sequence number;
+     *      bumped each time a `LABEL` entry is encountered.
+     *    - `entry.lineNumber()` — original SeqC source line.
+     *
+     *  Entries whose command is `Assembler::INVALID` (`cmd == -1`)
+     *  are skipped entirely; `LABEL` entries advance `seq` but do not
+     *  themselves produce output.  The result is consumed by the
+     *  ELF-emission layer to build the `.linenr` section.
+     *
+     *  \param offset  Base instruction address to add to every
+     *                 emitted PC value.  Typically the device's
+     *                 `addressImpl` constant (e.g. `0x80000000` on
+     *                 HDAWG / SHF).
+     *  \return        Flat `int` vector with `4 *
+     *                 emitted-instruction-count` entries.
+     */
     std::vector<int> getLineMap(int offset) const;                 // 0x123660
 
 private:

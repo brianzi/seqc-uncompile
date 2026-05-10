@@ -4287,3 +4287,115 @@ Doc-batch mitigation: the `\brief` for `PrefetcherNodeState` describes
 the field by behaviour (`crossesCacheLine_` source + Hirzel `prf`
 gating) rather than by the misleading name.
 
+## IF-209  `Compiler::setLineNr` recon body missing AsmCommands + WavetableFront propagation
+
+**Severity**: medium (functional gap, not just cosmetic).
+**Status**: open.
+**Discovered**: D4 Batch 1 audit, while writing `\brief` for the
+six-line getters/setters cluster on `Compiler`.
+
+The reconstructed body of `Compiler::setLineNr(int)` in
+`reconstructed/src/codegen/compiler.cpp:691-695` is:
+
+```cpp
+void Compiler::setLineNr(int nr) {
+    lineNr_ = nr;
+    // Propagate to AsmCommands at *(this+0xB0)+0x50
+    // Also tail-calls WavetableFront::setLineNr on *(this+0xA0)
+}
+```
+
+i.e. only the field write is implemented; the AsmCommands and
+WavetableFront propagation noted in the inline comment is **missing
+from the body**.  The propagation targets exist:
+- `WavetableFront::setLineNr(int)` at
+  `reconstructed/src/waveform/wavetable_front.cpp:388-391` writes
+  `manager_->numDefs_` (matches binary `0x29ce10`).
+- `AsmCommands` field at `+0x50` is presumed to be its own line-number
+  cache (used by every `setWavetableFrontIndex` call site, e.g.
+  `reconstructed/src/ast/seqc_ast_eval_arithmetic.cpp:100`); the
+  setter has not been reconstructed yet.
+
+Whether the gap matters in practice depends on who calls
+`Compiler::setLineNr`.  It is exposed via the `AWGCompiler` /
+`AWGCompilerImpl` chain but is not currently exercised by any of the
+1600 differential tests (otherwise we would already see asm-list line
+mismatches).  Worth verifying with GDB which sites in the binary
+actually trigger this propagation before deciding whether to extend the
+recon body or just document the discrepancy.
+
+**Action**: GDB-trace the binary `Compiler::setLineNr` (vtable look-up
+or direct symbol; address visible in disassembly) on a representative
+test case to confirm whether the AsmCommands + WavetableFront writes
+fire unconditionally or only along a code path no current test
+exercises.  Then either extend the recon body to include the
+propagation, or downgrade IF-209 to "by-design" with a `\binarynote`
+on `setLineNr`.
+
+Doc-batch mitigation: the `\brief` for `Compiler::setLineNr`
+describes the *current* recon behaviour (sets `lineNr_`) and does not
+promise propagation to `AsmCommands` or `WavetableFront`.  Adds a
+`\verifyme` referencing IF-209 so the doc reader is alerted to the
+known gap.
+
+## IF-210  `Compiler::setCancelCallback` recon body missing WaveformGenerator propagation
+
+**Severity**: low (functional gap, but cancellation is best-effort).
+**Status**: open.
+**Discovered**: D4 Batch 1 audit, alongside IF-209.
+
+The reconstructed body of `Compiler::setCancelCallback` in
+`reconstructed/src/codegen/compiler.cpp:643-647` is:
+
+```cpp
+void Compiler::setCancelCallback(std::weak_ptr<CancelCallback> cb) {
+    cancelCallback_ = std::move(cb);
+    // Also propagates to sub-object at *(this+0xC0)+0xB0
+    // (likely WaveformGenerator's cancel callback)
+}
+```
+
+Layout review confirms `+0xC0` is `waveformGen_` (the
+`shared_ptr<WaveformGenerator>` member).  The inline comment
+hypothesises that the binary additionally writes the same `weak_ptr`
+into `WaveformGenerator` at offset `+0xB0`.  The reconstructed body
+performs only the `cancelCallback_` write; no propagation.
+
+`WaveformGenerator` does not currently expose any `setCancelCallback`
+API (`grep -r "setCancelCallback" reconstructed/include/zhinst/waveform/`
+returns nothing), and nothing in the reconstructed pipeline reads a
+cancel callback from `WaveformGenerator`.  Like IF-209 the gap does
+not surface in the differential tests because no test cancels
+mid-compile.
+
+**Action**: GDB-confirm whether the binary writes through
+`waveformGen_->cancelCallback_` here, then either extend the recon
+body and add the field to `WaveformGenerator`, or downgrade IF-210
+to "by-design" with a `\binarynote`.
+
+Doc-batch mitigation: the `\brief` for `Compiler::setCancelCallback`
+describes only the `cancelCallback_` store and adds a `\verifyme`
+referencing IF-210.
+
+## IF-211  `Waveform::File::operator==` qualifier inconsistency in waveform.cpp
+
+**Severity**: cosmetic.
+**Status**: fixed in D3 warning-triage commit `2cd360b`.
+**Discovered**: D3 doxygen warning triage.
+
+`reconstructed/src/waveform/waveform.cpp` defined `operator==`,
+`typeToStr`, and `typeFromStr` using the in-class type alias
+`Waveform::File::` (the alias is `using File = WaveformFile;` inside
+`class Waveform`).  This compiled correctly because the alias resolves
+identically, but Doxygen's symbol binder could not match the qualified
+name back to the class, generating a "no uniquely matching class
+member" warning.
+
+`operator==` was renamed to its canonical `WaveformFile::operator==`
+in commit `2cd360b`.  `typeToStr` and `typeFromStr` were left in the
+`Waveform::File::` form because they did not generate doxygen
+warnings (their out-of-line definitions matched the header
+declarations directly via the alias-aware lookup that doxygen
+handles for static members but not for non-static `operator==`).
+
+
