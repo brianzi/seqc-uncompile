@@ -621,15 +621,50 @@ public:
     };
 
     // --- Ctor / Dtor ---
+    //! \brief Build the dispatch context, register every SeqC
+    //! built-in into `funcMap_`, and capture the per-compilation
+    //! configuration / resources.
+    //!
+    //! Stores raw pointers to `config` and `devConst`, moves the
+    //! shared `wavetable`, `waveformGen`, and `asmCommands`
+    //! singletons into the corresponding fields, copies
+    //! `warningCb` into `warningCallback_`, allocates the private
+    //! per-instance `WavetableFront` slot, default-constructs
+    //! `mathCompiler_`, and inserts ~80 named built-ins (one
+    //! `std::bind` entry per member function) into `funcMap_`.
+    //! `nodeMap_` starts empty and is filled lazily on the first
+    //! `lookupNode` call; `aliasMap_`, `unusedStringSet_B0_`,
+    //! `nodeIndexMap_`, `accessModeMap_`, `nodeList_`,
+    //! `assignedWaveNames_`, and `usedFeatures_` start empty;
+    //! `externalTriggeringMode_` starts at `None`.
+    //!
+    //! \param config       Owning compilation's device config.
+    //! \param devConst     Per-device constants table.
+    //! \param wavetable    Shared front-side wavetable singleton.
+    //! \param waveformGen  Shared waveform-generator singleton.
+    //! \param asmCommands  Shared assembler-command registry.
+    //! \param warningCb    Sink invoked when a built-in raises a
+    //!                     non-fatal warning (length clamps,
+    //!                     duplicate-CSV waveform names, etc.).
     CustomFunctions(AWGCompilerConfig const& config,
                     DeviceConstants const& devConst,
                     std::shared_ptr<WavetableFront> wavetable,
                     std::shared_ptr<WaveformGenerator> waveformGen,
                     std::shared_ptr<AsmCommands> asmCommands,
                     std::function<void(std::string const&)> const& warningCb);  // @0x12bcf0
+    //! \brief Release every owned subsystem `shared_ptr`,
+    //! `funcMap_` / `aliasMap_` entries, the lazy `NodeMap`, and
+    //! all per-compilation tracking sets in reverse declaration
+    //! order.
     ~CustomFunctions();  // @0x127c90
 
     // --- Public API ---
+    //! \brief Test whether `name` is registered in `funcMap_`.
+    //!
+    //! \param name  Function name to look up.
+    //! \return  `true` when `funcMap_` contains a binding for
+    //!          `name`, `false` otherwise.  Does not consult
+    //!          `aliasMap_` or the math compiler.
     bool functionExists(std::string const& name) const;  // @0x159410
     /*! \brief Resolve and invoke a SeqC function call, returning its
      *  evaluated result.
@@ -682,25 +717,240 @@ public:
         std::shared_ptr<Resources> res);                  // @0x159470
 
     // --- Utility methods ---
+    //! \brief Verify that the current device's `deviceType` bit is
+    //! covered by the `allowedDevTypes` mask, otherwise throw.
+    //!
+    //! `config_->deviceType` is a single power-of-two `AwgDeviceType`
+    //! enumerator; `allowedDevTypes` is a bitmask of one or more
+    //! enumerators OR'd together.  When the device's bit lies outside
+    //! the mask the method formats `FuncNotSupported` (with the
+    //! call-site `name` and the device's textual name from
+    //! `AWGCompilerConfig::getAwgDeviceTypeString`) and raises a
+    //! `CustomFunctionsException`.
+    //!
+    //! \param name             Calling built-in's name, embedded in
+    //!                         the diagnostic.
+    //! \param allowedDevTypes  Bitmask of permitted device types.
+    //! \throws  `CustomFunctionsException` (`FuncNotSupported`)
+    //!          when the current device is not in the allowed set.
     void checkFunctionSupported(std::string const& name, AwgDeviceType allowedDevTypes);  // @0x15aeb0
+
+    //! \brief Throw when a triggered waveform is shorter than the
+    //! device's minimum trigger-play sample length.
+    //!
+    //! No-op when `wf` is null.  Reads
+    //! `devConst_->playMinSamples` and `wf->signal.length_`; if the
+    //! wave has fewer samples, formats `MinWaveformLength` with the
+    //! minimum-sample count as a string and raises
+    //! `CustomFunctionsException`.
+    //!
+    //! \param wf  Waveform to validate; may be null.
+    //! \throws  `CustomFunctionsException` (`MinWaveformLength`)
+    //!          when `wf` is below the per-device trigger minimum.
     void checkWaveformMinLengthTrig(std::shared_ptr<WaveformFront> wf);           // @0x15b000
+
+    //! \brief Clamp `length` to the device-specific minimum playback
+    //! length and warn if clamping was needed.
+    //!
+    //! Compares `length` against `devConst_->maxWaveformLength`
+    //! (treated as the minimum valid play length here per the binary
+    //! convention).  When `length < min`, invokes `warningCallback_`
+    //! with `PlayLenBelowMin` and returns `min`; otherwise returns
+    //! `length` unchanged.
+    //!
+    //! \param length  Requested play length in samples.
+    //! \return  `length`, or the clamped minimum when below it.
     int  checkPlayMinLength(int length);                                           // @0x15b100
+
+    //! \brief Round `length` up to the next multiple of the device's
+    //! sample-grain alignment and warn if rounding was needed.
+    //!
+    //! Reads `devConst_->grainSize` as the alignment.  When `length`
+    //! is not a multiple of the grain, computes the next multiple,
+    //! invokes `warningCallback_` with `PlayLenNotAligned`, and
+    //! returns the rounded length; otherwise returns `length`
+    //! unchanged.
+    //!
+    //! \param length  Requested play length in samples.
+    //! \return  `length`, or the next-grain-aligned length.
     int  checkPlayAlignment(int length);                                           // @0x15b190
+
+    //! \brief Warn when a named waveform is shorter than its
+    //! requested length or is not grain-aligned.
+    //!
+    //! No-op when `wf` is null.  Two checks:
+    //!   - When `expected > wf->signal.length_`, formats
+    //!     `WaveformBelowMin` with the wave's name, actual length,
+    //!     and the requested length, and warns via
+    //!     `warningCallback_`.
+    //!   - Otherwise, when `wf->signal.length_` is not a multiple of
+    //!     `devConst_->grainSize`, computes the next multiple
+    //!     (clamped at `wf->minLengthSamples`), formats
+    //!     `WaveNotAligned`, and warns via `warningCallback_`.
+    //!
+    //! Both diagnostics are warnings, never exceptions.
+    //!
+    //! \param wf        Waveform whose CSV / placeholder length is
+    //!                  being validated; may be null.
+    //! \param expected  Requested length in samples.
     void checkOffspecWaveLength(std::shared_ptr<WaveformFront> wf, int expected);  // @0x15b370
+
+    //! \brief Test whether `option` was passed in the compiler's
+    //! include-paths / option list, recording it as a used feature
+    //! when present.
+    //!
+    //! Linearly scans `config_->includePaths` for an exact match.
+    //! On hit, inserts `option` into `usedFeatures_` (consumed by
+    //! the JSON `required_options` array) and returns `true`; on
+    //! miss returns `false` without modifying state.
+    //!
+    //! \param option  Option / feature tag to look up.
+    //! \return  `true` when present, `false` otherwise.
     bool optionAvailable(std::string const& option);                               // @0x15b9c0
 
+    //! \brief Test whether `mask` fits within the Grimsel device's
+    //! oscillator-bit count.
+    //!
+    //! Returns `true` exactly when every bit set in `mask` lies
+    //! within the low `devConst_->numDIOBits` bits.
+    //!
+    //! \param mask  Oscillator-selection bitmask.
+    //! \return  `true` when `mask` fits, `false` otherwise.
     bool oscMaskCheckGrimsel(unsigned int mask);  // @0x15ba90
+
+    //! \brief Test whether `mask` is a legal oscillator-selection
+    //! for the Hirzel-family device given its channel grouping and
+    //! the optional `MF` (multi-frequency) feature.
+    //!
+    //! Scans `config_->includePaths` for the literal `"MF"` and,
+    //! when present, inserts it into `usedFeatures_` and uses the
+    //! wider 16-bit oscillator window; otherwise the 4-bit window
+    //! applies.  Within the chosen window the legal subset depends
+    //! on `(numChannelGroups, awgIndex)` per the per-channel-group
+    //! masks (e.g. group 0 takes the low half, group 1 the high
+    //! half, etc.).  Issues a `LOG_WARNING` for invalid `awgIndex`
+    //! values and returns `false`.
+    //!
+    //! \param mask  Oscillator-selection bitmask.
+    //! \return  `true` when `mask` is legal for the current channel
+    //!          group, `false` otherwise.
     bool oscMaskCheckHirzel(unsigned int mask);   // @0x15bab0
+
+    //! \brief Compute the all-oscillators bitmask for the
+    //! Hirzel-family device given its channel grouping.
+    //!
+    //! When `MF` is in `config_->includePaths`, inserts `"MF"` into
+    //! `usedFeatures_` and selects from the 16-bit window:
+    //! `0xFFFF` for `numChannelGroups==4`, `0xFF` shifted by
+    //! `awgIndex*8` for `==2`, and `0xF` shifted by `awgIndex*4`
+    //! for `==1`.  Without `MF`, selects from the 4-bit window:
+    //! `0xF` for `==4`, `0x3` shifted by `awgIndex*2` for `==2`,
+    //! `1u << awgIndex` for `==1`.  Returns `0` when the channel
+    //! grouping is unrecognised.
+    //!
+    //! \return  Bitmask covering every oscillator owned by the
+    //!          current channel group.
     unsigned int oscMaskSetAllHirzel();            // @0x15bf50
+
+    //! \brief Compute the all-oscillators bitmask for the Grimsel
+    //! device.
+    //!
+    //! Returns `(1u << devConst_->numDIOBits) - 1`, i.e. every bit
+    //! up to (but not including) the device's DIO-bit count.
+    //!
+    //! \return  Mask with the low `numDIOBits` bits set.
     unsigned int oscMaskSetAllGrimsel();           // @0x15c0b0
 
+    //! \brief Resolve a parameter-tree path string to its
+    //! `NodeMapItem`, lazily initialising the device's node map on
+    //! first use.
+    //!
+    //! Calls `initNodeMap()` to populate `nodeMap_` if needed, then
+    //! delegates to `NodeMap::retrieve(path)`.  When `retrieve`
+    //! returns a valid item, returns it by value (with the data
+    //! pointer cloned via the `NodeMapData` vtable).  When the path
+    //! is not found, formats `NodeNotExist` and raises
+    //! `CustomFunctionsValueException` with `argIndex == 0`.
+    //!
+    //! \param path  Parameter-tree path to resolve.
+    //! \return  The resolved `NodeMapItem`.
+    //! \throws  `CustomFunctionsValueException` (`NodeNotExist`)
+    //!          when `path` does not name a known node.
     NodeMapItem lookupNode(std::string const& path);  // @0x15c530
+
+    //! \brief Record an access-mode use of `item`, adding it to the
+    //! flat `nodeList_` on first encounter.
+    //!
+    //! Inserts `mode` into `accessModeMap_[item]`, then attempts to
+    //! emplace `item → nodeList_.size()` into `nodeIndexMap_`.
+    //! When the emplace inserts (the item was previously unseen),
+    //! pushes a copy of `item` onto `nodeList_` so that subsequent
+    //! `getNodeAddress` calls can return the stored index.
+    //!
+    //! \param item  Resolved parameter-tree node being accessed.
+    //! \param mode  Access mode (`Soft`, `Direct`, or `Custom`).
     void addNodeAccess(NodeMapItem const& item, AccessMode mode);  // @0x15c6c0
 
+    //! \brief Implement the `setWaitCyclesReg` SeqC built-in by
+    //! emitting an `addi` (when needed) plus a `suser` to the
+    //! legacy wait-cycle register.
+    //!
+    //! Only runs on devices in the supported-device bitmask
+    //! (`HDAWG`, `UHFQA`, `SHFQA`, `SHFSG`, `SHFQC` SG,
+    //! `SHFLI`, `VHFLI`, `GHFLI`); other devices skip the body and
+    //! return without emission.  When `args.size() == 2` and
+    //! `args[1]` is a `Var`, the existing register is reused;
+    //! otherwise allocates a fresh register, emits
+    //! `addi(reg, R0, Imm(value))`, and finally appends
+    //! `suser(reg, kSuserWaitLegacy)` (`0x6F`).
+    //!
+    //! \param args     Argument vector: `[name, value]`.
+    //! \param results  Output assemblers / node container.
+    //! \param res      Resource scope (forwarded to the caller).
     void setWaitCyclesReg(std::vector<EvalResultValue> const& args,
                           std::shared_ptr<EvalResults> results,
                           std::shared_ptr<Resources> res);  // @0x15ca90
 
+    //! \brief Merge a list of waveform-name arguments into a single
+    //! `WaveformFront`, registering it with the wavetable and
+    //! delegating to `WaveformGenerator::merge` /
+    //! `interleave` / `grow` as needed.
+    //!
+    //! Iterates `args`, looking each named waveform up in
+    //! `wavetableFront_->getWaveformSampleLength` and accumulating
+    //! both the maximum observed length and a local
+    //! `vector<Value>` of the names.  Throws
+    //! `CustomFunctionsValueException` (`NoWaveformInFunc`) when
+    //! the values vector is empty after the scan.  Appends a
+    //! length-Value (either `requestedLength` when it exceeds the
+    //! max or `0`), builds a `funDescr` name from the inputs,
+    //! resolves or creates the merged waveform via
+    //! `getWaveformByName` / `getWaveformByFunDescr` /
+    //! `newWaveform`, then calls into `WaveformGenerator` to fill
+    //! the sample buffer (`grow`, `merge`, `interleave`).
+    //!
+    //! \param args              Argument vector containing waveform
+    //!                          names and (optionally) generator
+    //!                          parameters.
+    //! \param channelCount      Number of channels per group, used
+    //!                          for interleaving.
+    //! \param useYSuffix        When `true`, append a `_y` suffix
+    //!                          to the generated name for the
+    //!                          quadrature half of the waveform.
+    //! \param callerName        Name of the calling built-in,
+    //!                          embedded in error messages.
+    //! \param requestedLength   Caller-requested sample length;
+    //!                          used as the merged length when it
+    //!                          exceeds every input.
+    //! \param useFunDescrPath   When `true`, look the merged
+    //!                          waveform up by function descriptor
+    //!                          rather than by name.
+    //! \return  The merged `WaveformFront`, registered with the
+    //!          wavetable.
+    //! \throws  `CustomFunctionsValueException` (`NoWaveformInFunc`)
+    //!          when no waveform names were collected.
+    //! \throws  `CustomFunctionsException` (`ChannelCountMismatch`)
+    //!          when the inputs disagree on channel count.
     std::shared_ptr<WaveformFront> mergeWaveforms(
                         std::vector<EvalResultValue> const& args,
                         short channelCount, bool useYSuffix,
@@ -708,44 +958,255 @@ public:
                         int requestedLength, bool useFunDescrPath);  // @0x15e060
                         // Mangled: ...sbRK<string>ib (last param is bool, not int64_t)
 
+    //! \brief Implement `playWave` / `playWaveNow` /
+    //! `playWaveDigTrigger` / prefetch-only dispatch.
+    //!
+    //! `subFunc` selects the command name (`"playWave"`,
+    //! `"playWaveNow"`, `"playWaveDigTrigger"`, or `"prefetch"`)
+    //! and minor behaviour tweaks.  The body:
+    //!   1. Validates `args` is non-empty.
+    //!   2. For `DigTrigger`, extracts the leading const-int play
+    //!      length (must be ≥ 3) and strips it from a working copy
+    //!      of `args`.
+    //!   3. Constructs a `PlayArgs(*config_, wavetableFront_,
+    //!      warningCallback_, cmdName, /*indexed=*/false)`,
+    //!      invokes `parse()`, then `parseOptionalRate()` for the
+    //!      tail rate argument.
+    //!   4. Returns immediately when `PlayArgs::hasMarker_` is set
+    //!      (function-body / first-pass evaluation context).
+    //!   5. For each channel group, calls `mergeWaveforms` to
+    //!      combine the assignments, then runs
+    //!      `checkWaveformMinLengthTrig` (DigTrigger only) and
+    //!      `checkOffspecWaveLength`.
+    //!   6. Emits `asmPrefetch` (Cervino) and `asmPlay` (all paths
+    //!      except prefetch-only on non-Hirzel, which throws
+    //!      `0xa5`); for Hirzel `prefetch`, emits `asmPrefetch`
+    //!      only.
+    //!
+    //! \param args     SeqC call arguments in source order.
+    //! \param res      Current resource scope.
+    //! \param subFunc  Selects the command variant.
+    //! \return  `EvalResults` whose `assemblers_` / `node_` slots
+    //!          carry the emitted instructions.
+    //! \throws  `CustomFunctionsException` on argument-count, type,
+    //!          or device-support errors.
     std::shared_ptr<EvalResults> play(
         std::vector<EvalResultValue> const& args,
         std::shared_ptr<Resources> res,
         SubFunc subFunc);  // @0x15f090
 
+    //! \brief Implement `playWaveIndexed` / `playAuxWaveIndexed` /
+    //! `playWaveIndexedNow`.
+    //!
+    //! Mirrors `play()` but threads a runtime wave-index through
+    //! the emitted assembly:
+    //!   1. Selects the command name from `subFunc`
+    //!      (1=`playWaveIndexed`, 2=`playAuxWaveIndexed`,
+    //!      3=`playWaveIndexedNow`); unknown values log a warning
+    //!      and continue with an empty name.
+    //!   2. Requires `args.size() >= 3` (`FuncMinArgs` otherwise).
+    //!   3. Constructs `PlayArgs` with `indexed = (subFunc ==
+    //!      Aux)`, parses the channel-assignment block, and reads
+    //!      the trailing optional rate.
+    //!   4. Per channel: gathers args, requests the wave's sample
+    //!      length, falls back to `WaveformGenerator::call("zeros",
+    //!      ...)` for empty channels, and merges via
+    //!      `mergeWaveforms`.
+    //!   5. Emits an `addi(indexReg, R0, waveIndex)` to load the
+    //!      wave-index argument followed by `asmPlay`.
+    //!
+    //! \param args     SeqC call arguments in source order.
+    //! \param res      Current resource scope.
+    //! \param subFunc  Selects the indexed command variant.
+    //! \return  `EvalResults` whose `assemblers_` / `node_` slots
+    //!          carry the emitted instructions.
+    //! \throws  `CustomFunctionsException` on argument-count, type,
+    //!          or device-support errors.
     std::shared_ptr<EvalResults> playIndexed(
         std::vector<EvalResultValue> const& args,
         std::shared_ptr<Resources> res,
         SubFunc subFunc);  // @0x160e00
 
+    //! \brief Convert a sample count and rate divisor into the
+    //! cycle count consumed by the device's wait machine.
+    //!
+    //! Clamps `rate` to non-negative.  On HDAWG, computes
+    //! `max(((samples + 7) << rate) >> 3, 4) - 3`; on every other
+    //! device, computes `((samples + 3) << rate) >> 2`.
+    //!
+    //! \param samples  Sample count to wait for.
+    //! \param rate     `playRate` divisor (positive: divide clock).
+    //! \return  Equivalent wait-machine cycle count.
     int getWaitTime(int samples, int rate);  // @0x163930
 
-    // Returns shared_ptr<EvalResults> via sret in the binary (rdi at @0x164550
-    // line 1 stores into rbx, then [rbx]=control-block-payload, [rbx+8]=ptr).
+    //! \brief Resolve a parameter-tree write to one of the
+    //! supported per-channel sub-paths and emit the assembly
+    //! sequence that performs the write.
+    //!
+    //! Steps:
+    //!   1. Stops with an empty result when `path.varSubType_ ==
+    //!      FunctionArg` (function-body / first-pass context).
+    //!   2. Strips an optional absolute-device prefix
+    //!      `"/<deviceId>/..."` (regex `absDevRegex`) and
+    //!      validates the device id against
+    //!      `config_->deviceIndex`; mismatches return an empty
+    //!      result.
+    //!   3. Calls `lookupNode(pathStr)` for the `NodeMapItem`.
+    //!   4. Tries `awgs/<channel>/...` (`awgNodeRegex`) and
+    //!      `sines/<oscIdx>/...` (`sineNodeRegex`); on match,
+    //!      converts the index to the AWG-relative form and throws
+    //!      `SequencerCantDrive` when it doesn't equal
+    //!      `config_->awgIndex`.
+    //!   5. For `sines/<idx>/oscselect` (`oscselNodeRegex`),
+    //!      records the `"MF"` feature and dispatches into the
+    //!      per-`NodeMapType` codegen jump tables.
+    //!   6. Calls `addNodeAccess(node, AccessMode(node.hasFast))`
+    //!      and emits the resolved address and `val`-typed payload
+    //!      via a sequence of `addi` / `suser` instructions appended
+    //!      to the returned `EvalResults`.
+    //!
+    //! \param path  Parameter-tree path argument (string-typed
+    //!              `EvalResultValue`).
+    //! \param val   Value to write (typed `EvalResultValue`).
+    //! \param type  Type hint argument from the SeqC call.
+    //! \param res   Current resource scope.
+    //! \return  `EvalResults` containing the emitted assembly, or
+    //!          an empty result when the write is silently
+    //!          skipped.
+    //! \throws  `CustomFunctionsValueException` (`SequencerCantDrive`)
+    //!          when the path targets a different sequencer than the
+    //!          current one.
     std::shared_ptr<EvalResults> writeToNode(EvalResultValue path, EvalResultValue val,
                                               EvalResultValue type,
                                               std::shared_ptr<Resources> res);  // @0x164550
 
+    //! \brief Lazily populate `nodeMap_` for the current device
+    //! type.  Subsequent calls are no-ops.
     void initNodeMap();  // @0x16b740
+
+    //! \brief Return the runtime address used to drive `item` from
+    //! generated assembly.
+    //!
+    //! Fast path: when `item.data` is a `DirectAddrNodeMapData`,
+    //! returns its embedded `addr_`.  Slow path: returns
+    //! `nodeIndexMap_.at(item)` (the index into `nodeList_`
+    //! recorded by `addNodeAccess`).
+    //!
+    //! \param item  Resolved parameter-tree node.
+    //! \return  Direct address (fast) or `nodeList_` index (slow).
+    //! \throws  `std::out_of_range` when `item` was never registered
+    //!          via `addNodeAccess` and is not direct-addressed.
     uint32_t getNodeAddress(NodeMapItem const& item) const;  // @0x16ba10
+
+    //! \brief Return the device's effective sample-clock frequency
+    //! in Hertz.
+    //!
+    //! When `resources_` carries a `DEVICE_SAMPLE_RATE` constant,
+    //! returns its `double` value; otherwise falls back to
+    //! `devConst_->samplingRate`.
+    //!
+    //! \return  Sample clock in Hz.
     double getSampleClock() const;  // @0x16ba80
 
+    //! \brief Append the device-appropriate cross-AWG sync
+    //! instruction (`asmSyncHirzel` for HDAWG, placeholder
+    //! `asmSyncPlaceholderCervino` for UHFLI) to the result
+    //! assembler list.  No-op for other devices.
+    //!
+    //! For UHFLI the placeholder `node` is also propagated into
+    //! `results->node_` so a later pass can resolve the actual
+    //! sync target.
+    //!
+    //! \param results  Output assembler / node container.
+    //! \param res      Current resource scope (forwarded).
     void addSyncCommand(std::shared_ptr<EvalResults> results,
                         std::shared_ptr<Resources> res);  // @0x16bb30
 
+    //! \brief Return the set of `AccessMode`s recorded for `item`
+    //! by previous `addNodeAccess` calls.
+    //!
+    //! \param item  Resolved parameter-tree node.
+    //! \return  Reference to the live set of access modes.
+    //! \throws  `std::out_of_range` when `item` was never recorded.
     std::set<AccessMode> const& getAccessModes(NodeMapItem const& item) const;  // @0x16be50
 
+    //! \brief Implement the SeqC `printf`-style built-in.
+    //!
+    //! The first `args` entry is the format string.  Remaining
+    //! entries are fed to a `boost::format` formatter:
+    //! `String` arguments are forwarded as `std::string`,
+    //! `Const` / `Cvar` numeric arguments are forwarded as `long
+    //! long` when bit-identical to their rounded value and as
+    //! `double` otherwise; any other type raises
+    //! `CustomFunctionsValueException` (`FuncInvalidArgType`).
+    //! Empty `args` raises `CustomFunctionsException`
+    //! (`FuncSingleArg`).  `boost::io::too_few_args` is converted
+    //! to `FormatMoreArgs`; `too_many_args` to
+    //! `FormatCantInterpret`.
+    //!
+    //! \param args  Format string followed by interpolation
+    //!              arguments.
+    //! \param fmt   Calling built-in's name, embedded in
+    //!              error messages.  (Despite the parameter
+    //!              name, this is the function-call name from
+    //!              source, not the format string itself —
+    //!              `args[0]` carries the format string.)
+    //! \return  The formatted string.
+    //! \throws  `CustomFunctionsException` for missing arguments or
+    //!          format-arity mismatches.
+    //! \throws  `CustomFunctionsValueException` for invalid
+    //!          per-argument types or excess arguments.
     std::string printF(std::vector<EvalResultValue> const& args,
                        std::string const& fmt);  // @0x16c470
 
+    //! \brief Emit `addi(reg, R0, cycles)` followed by
+    //! `suser(reg, kSuserWaitCycles)` (`0x69`) into `results`,
+    //! where `reg` is a freshly allocated scratch register.
+    //!
+    //! \param cycles   Wait-cycle count to load.
+    //! \param results  Output assembler container.
+    //! \param res      Current resource scope (forwarded).
     void addWaitCycles(int cycles,
                        std::shared_ptr<EvalResults> results,
                        std::shared_ptr<Resources> res);  // @0x16d8c0
 
+    //! \brief Split a 64-bit `value` into two 32-bit halves and
+    //! emit them as a sequence of
+    //! `addi(reg, R0, low) ; suser(reg, reg1) ;
+    //!  addi(reg, R0, high) ; suser(reg, reg2)` instructions.
+    //!
+    //! \param value    64-bit payload to write.
+    //! \param reg1     User-register address receiving the low 32
+    //!                 bits.
+    //! \param reg2     User-register address receiving the high 32
+    //!                 bits.
+    //! \param results  Output assembler container.
+    //! \param res      Current resource scope (forwarded).
     void writeLS64bit(unsigned long value, int reg1, int reg2,
                       std::shared_ptr<EvalResults> results,
                       std::shared_ptr<Resources> res);  // @0x16dbb0
 
+    //! \brief Forward an unknown function call into the waveform
+    //! generator, prepending `name` as a string-typed first
+    //! argument.
+    //!
+    //! Copies `args`, inserts a synthesised `EvalResultValue`
+    //! containing `name` at the front, and dispatches to
+    //! `generate(newArgs, res)` (the internal back-end that
+    //! resolves built-in waveform constructors such as `zeros`,
+    //! `sin`, `gauss`).  Re-throws
+    //! `CustomFunctionsValueException` and
+    //! `CustomFunctionsException` after a fresh
+    //! allocation so that the call site sees a clean exception
+    //! object.
+    //!
+    //! \param name  Function name from the SeqC source.
+    //! \param args  Already-evaluated arguments.
+    //! \param res   Current resource scope.
+    //! \return  `EvalResults` from the waveform generator.
+    //! \throws  `CustomFunctionsValueException` or
+    //!          `CustomFunctionsException` propagated from
+    //!          `generate()`.
     std::shared_ptr<EvalResults> generateWaveform(
         std::string const& name,
         std::vector<EvalResultValue> const& args,
