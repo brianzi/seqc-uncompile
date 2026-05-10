@@ -100,48 +100,250 @@ std::string compressSourceString(std::string const& source, std::string const& o
 // ============================================================================
 // AWGCompilerImpl — the real implementation (0x2C0 bytes)
 // ============================================================================
+//! \brief Pimpl behind the public `AWGCompiler` facade; orchestrates
+//!        the full SeqC → ELF compile pipeline.
+//!
+//! \details Owns the per-device `DeviceConstants`, the
+//! `WavetableFront` waveform registry, the inner `Compiler` (which
+//! drives parse / lower / optimise / codegen), an embedded
+//! `AWGAssembler` (used to encode the `Compiler`'s
+//! `vector<Assembler>` into opcode words and for post-pipeline
+//! `.asm` round-trips), the diagnostic `compileMessages_` vector,
+//! the cached source / assembler text, the externally-supplied
+//! waveform-file paths, and the cancel / progress weak callbacks.
+//! `compileString` / `compileFile` drive the front end and produce
+//! `wavetableIR_`; `addWaveforms` registers external waveforms
+//! before compile; `writeToStream` / `writeToFile` /
+//! `writeAssemblerToFile` serialise the result; `getCompileReport`
+//! / `getJsonWaveformMemoryInfo` / `getBinVersion` /
+//! `getJsonVersion` / `getJsonArguments` expose status and metadata.
 class AWGCompilerImpl {
 public:
+    //! \brief Construct the impl and prime every owned subordinate
+    //!        for a single AWG sequencer.
+    //! \details Captures `config` by raw pointer (caller-owned
+    //! lifetime), copies the matching `DeviceConstants` block via
+    //! `getDeviceConstants(config.deviceType)`, allocates a fresh
+    //! `WavetableFront` shared via `make_shared`, default-constructs
+    //! the inner `Compiler` against the captured config / constants
+    //! / wavetable, and default-constructs the embedded
+    //! `AWGAssembler`, the four scratch strings, the message vector,
+    //! the wave-path list, and the two weak callbacks.
+    //! \param config  Compilation configuration; the impl borrows
+    //!                a raw pointer and the caller must keep it
+    //!                alive.
     explicit AWGCompilerImpl(AWGCompilerConfig const& config);  // @0x103b40
+    //! \brief Release the embedded `Compiler`, the `AWGAssembler`
+    //!        pimpl, the wavetable handles, the message vector,
+    //!        and the wave-path list in reverse construction order.
     ~AWGCompilerImpl();                                          // @0x103400
 
+    //! \brief Drive the full SeqC → opcode pipeline on an in-memory
+    //!        source string.
+    //! \details Validates `config_->deviceType` against
+    //! `deviceConstants_`; stashes `source` into `sourceText_`;
+    //! clears `compileMessages_` and resets `wavetableIR_`; calls
+    //! `compiler_.compile(source)` and moves the resulting
+    //! `vector<Assembler>` and `WavetableIR` into local state;
+    //! pretty-prints the assembly into `assemblerText_`; appends
+    //! the inner pipeline's messages; runs `assembler_.assembleAsmList`
+    //! to produce opcode words; enforces the device's
+    //! opcode-memory and waveform-program limits; and finally
+    //! invokes `progressCallback_` with `1.0`.  Any exception
+    //! escaping `Compiler::compile` is wrapped in
+    //! `ZIAWGCompilerException` after appending the inner
+    //! pipeline's messages.
+    //! \param source  SeqC program text.
+    //! \throws zhinst::Exception  On invalid device type, opcode
+    //!         overflow, waveform overflow, or wrapped inner
+    //!         exceptions.
+    //! \binarynote Resets `wavetableIR_` and clears
+    //!             `compileMessages_` before running, so any
+    //!             previous state is silently dropped on re-entry.
     void compileString(std::string const& source);
+    //! \brief Slurp a SeqC source file from disk and forward to
+    //!        `compileString`.
+    //! \details `boost::filesystem::status`-checks the path
+    //! (raising `ZIAWGCompilerException("File not found: ...")`
+    //! when the entry is missing), reads the whole file via
+    //! `ifstream::rdbuf`, records `path` in `sourceFilename_` (used
+    //! by `getAssemblerHeader` and `getJsonArguments`), then
+    //! delegates to `compileString`.
+    //! \param path  Filesystem path to the SeqC source file.
+    //! \throws zhinst::Exception  When the file is missing or the
+    //!         delegated `compileString` raises.
     void compileFile(std::string const& path);
+    //! \brief Pre-load externally-provided binary or text
+    //!        waveforms into `wavetable_` for later SeqC reference.
+    //! \details Appends the supplied paths to the persistent
+    //! `wavePaths_` list (later surfaced through the
+    //! `getJsonArguments` `"waves"` array), then iterates each
+    //! path and dispatches on extension: `.csv`/`.txt` go through
+    //! `WavetableFront::newWaveformFromFile` directly, `.bin`/`.wave`
+    //! decode 16-bit packed sample/marker words via `awg2double` /
+    //! `awg2marker` into a fresh `Signal`, and `.bin16`/`.wave16`
+    //! decode HDAWG 32-bit words via `awg2double16`.  Other
+    //! extensions are warned-and-skipped.  Between entries the
+    //! `cancelCallback_` is polled and the loop exits early on
+    //! cancellation.
+    //! \param paths  Filesystem paths to register, in order.
+    //! \throws zhinst::Exception  On per-file I/O failure
+    //!         (`ErrorMessageT(0xE3)`).
+    //! \binarynote Always extends `wavePaths_` even for
+    //!             unrecognised extensions; the warning-and-skip
+    //!             path leaves the entry recorded for the
+    //!             arguments JSON.
     void addWaveforms(std::vector<std::string> const& paths);
+    //! \brief Serialise the most recent compile to a custom 32-bit
+    //!        ELF and write it to `os`.
+    //! \details Short-circuits silently when the parser flagged a
+    //! syntax error; raises `ZIAWGCompilerException(EmptyInput)`
+    //! when no opcodes were produced.  Otherwise constructs an
+    //! `ElfWriter`, emits each used waveform in either mapped or
+    //! absolute mode (depending on `deviceConstants_.hasPrecomp`),
+    //! adds the opcode `.text`, and appends the trailing metadata
+    //! sections (`.filename`, `.c`, `.asm`, `.linenr`, `.nodes` /
+    //! `.nodes_json`, optional `.channels` and
+    //! `.required_sample_rate`, `.waveforms`, `.wavemem`,
+    //! `.arguments`, `.version_json`, `.version_bin`) in fixed
+    //! order before flushing via `ElfWriter::writeFile`.
+    //! `compressSource` toggles whether `.c` and `.asm` are zlib
+    //! compressed.
+    //! \param os      Output stream receiving the binary ELF.
+    //! \param format  Originating filename used for the
+    //!                `.filename` and `.arguments` sections.
+    //! \throws zhinst::Exception  On `EmptyInput`.
+    //! \binarynote Returns silently with no output when the most
+    //!             recent compile recorded a syntax error — no
+    //!             exception is raised.
     void writeToStream(std::ostream& os, std::string const& format);
+    //! \brief Open `path` and emit the compiled ELF to it.
+    //! \details Opens an `std::ofstream` in
+    //! `std::ios::binary | std::ios::trunc` mode and forwards to
+    //! `writeToStream(ofs, path)`; the stream is closed by its
+    //! destructor on return.  All caveats and exceptions of
+    //! `writeToStream` apply unchanged.
+    //! \param path  Destination file path; existing contents are
+    //!              truncated.
+    //! \throws zhinst::Exception  Propagated from `writeToStream`.
     void writeToFile(std::string const& path);
+    //! \brief Write the human-readable assembler listing for the
+    //!        most recent compile to a text file.
+    //! \details Returns silently when the parser flagged a syntax
+    //! error or when `assemblerText_` is empty.  Otherwise builds
+    //! the output by prefixing `getAssemblerHeader(path)` (the
+    //! "do not edit" banner with source filename, hard-coded
+    //! compiler version, and a local timestamp) ahead of
+    //! `assemblerText_` and a trailing newline, then truncates and
+    //! writes the destination as a plain text file.  This output
+    //! does not pass through the ELF writer.
+    //! \param path  Destination file path; existing contents are
+    //!              truncated.
+    //! \binarynote No-ops when `assemblerText_` is empty (i.e. no
+    //!             prior compile or all-empty compile) — silently
+    //!             leaving any pre-existing file unmodified.
     void writeAssemblerToFile(std::string const& path);
 
+    //! \brief Build a multi-line text report from
+    //!        `compileMessages_` and the embedded assembler.
+    //! \details Iterates each `CompilerMessage` in insertion order,
+    //! emitting `msg.str(false)` (line-number-prefixed form)
+    //! followed by `"\n"`, then concatenates
+    //! `assembler_.getReport()`.
+    //! \return  Concatenated report; empty when neither subordinate
+    //!          produced output.
     std::string getCompileReport() const;           // @0x104030
+    //! \brief Serialise per-waveform memory accounting for the
+    //!        most recent compile as a JSON object string.
+    //! \details Returns `"{}"` when `wavetableIR_` is null;
+    //! otherwise iterates every used waveform via
+    //! `wavetableIR_->forEachUsedWaveform(..., WaveOrder::ByIndex)`,
+    //! tracking per-waveform contributions to FPGA waveform memory
+    //! while honouring cache-line crossings and the per-device cap
+    //! of `waveformAlignment * (isHirzel ? maxBlocks :
+    //! cachePageCount)`.  Returns a JSON object with
+    //! `"exceedsFpgaMemory"` and `"fpgaMemoryUsed"` keys.
+    //! \return  JSON object string (always valid JSON).
     std::string getJsonWaveformMemoryInfo() const;  // @0x10a1b0
+    //! \brief Build the 16-byte binary version blob for the
+    //!        `.version_bin` ELF section.
+    //! \details Concatenates LabOne version (`asBinary(getLaboneVersion())`,
+    //! 4 bytes), a 4-byte device-family suffix tag (`hirz`, `grim`,
+    //! `gurn`, `malo`, or `cerv` depending on `config_->deviceType`),
+    //! `deviceConstants_.waveformRegBase` (4 bytes), and four zero
+    //! pad bytes.
+    //! \return  16-byte binary blob (not human-readable).
     std::string getBinVersion() const;              // @0x10b830
 
+    //! \brief Install (or detach) the cancellation hook polled by
+    //!        the compile pipeline.
+    //! \details Stores `cb` into `cancelCallback_` and forwards
+    //! the same handle to `compiler_.setCancelCallback` so both
+    //! the outer waveform-loading stage and the inner compile
+    //! observe the same cancel hook.
+    //! \param cb  Weak handle; pass an empty `weak_ptr` to detach.
     void setCancelCallback(std::weak_ptr<CancelCallback> cb);      // @0x103eb0
+    //! \brief Install (or detach) the progress-reporting hook
+    //!        invoked by the compile pipeline.
+    //! \details Stores `cb` into `progressCallback_` and forwards
+    //! the same handle to `compiler_.setProgressCallback`.  The
+    //! impl invokes the held callback with `1.0` once
+    //! `compileString` finishes successfully.
+    //! \param cb  Weak handle; pass an empty `weak_ptr` to detach.
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // @0x103f90
 
+    //! \brief Build the multi-line "do not edit" header prepended
+    //!        to assembler-listing files by `writeAssemblerToFile`.
+    //! \details Combines the banner, the destination path, the
+    //! recorded `sourceFilename_` (when non-empty), the hard-coded
+    //! `"ziAWG Compiler Version 26.01.3.9"` string, and a
+    //! `formatTime`-rendered local timestamp.
+    //! \param path  Destination filename, written into the second
+    //!              line of the banner.
+    //! \return  Header text including trailing blank line.
     std::string getAssemblerHeader(std::string const& path) const;  // @0x1083d0
+    //! \brief Build the JSON object emitted as the `.arguments`
+    //!        ELF section.
+    //! \details Uses `boost::property_tree::ptree` with
+    //! `"destination"` set to the supplied filename, an optional
+    //! `"source"` entry from `sourceFilename_`, and a `"waves"`
+    //! array built from `wavePaths_`.
+    //! \param destination  Output filename written into the
+    //!                     `"destination"` key.
+    //! \return  Serialised JSON document.
     std::string getJsonArguments(std::string const& destination) const;  // @0x10a3c0
+    //! \brief Build the JSON object emitted as the `.version_json`
+    //!        ELF section.
+    //! \details Carries `"compiler"` (LabOne binary version),
+    //! `"target"` (device-family code name: `hirzel`, `grimsel`,
+    //! `gurnigel`, `maloja`, or `cervino`), `"bitstream"`
+    //! (`waveformRegBase`), an optional `"external_triggering"`
+    //! key (`"dio"` or `"zsync"` depending on
+    //! `compiler_.customFunctions_->externalTriggeringMode_`), and
+    //! an optional `"required_options"` array sourced from
+    //! `customFunctions_->usedFeatures_`.
+    //! \return  Serialised JSON document.
     std::string getJsonVersion() const;                            // @0x10ac60
 
 private:
-    AWGCompilerConfig const* config_;                    // +0x000
-    DeviceConstants deviceConstants_;                     // +0x008 (0x90 bytes)
-    std::shared_ptr<WavetableFront> wavetable_;          // +0x098
-    std::shared_ptr<WavetableIR> wavetableIR_;           // +0x0A8
-    char pad_0B8_[8];                                    // +0x0B8
-    Compiler compiler_;                                  // +0x0C0 (0x138 bytes)
+    AWGCompilerConfig const* config_;                    // +0x000  //!< Compilation configuration captured by the ctor (raw pointer; caller-owned).
+    DeviceConstants deviceConstants_;                     // +0x008 (0x90 bytes)  //!< Per-device profile copied from `getDeviceConstants(config_->deviceType)`; consulted across the pipeline for limits and feature flags.
+    std::shared_ptr<WavetableFront> wavetable_;          // +0x098  //!< Waveform registry constructed in the ctor; mutated by `addWaveforms` and read by the inner `Compiler` and `writeToStream`.
+    std::shared_ptr<WavetableIR> wavetableIR_;           // +0x0A8  //!< Optimised waveform IR moved out of `Compiler::compile`; consumed by `writeToStream` and `getJsonWaveformMemoryInfo`. Reset on each `compileString`.
+    char pad_0B8_[8];                                    // +0x0B8  //!< Alignment padding ahead of the embedded `Compiler`.
+    Compiler compiler_;                                  // +0x0C0 (0x138 bytes)  //!< Inner pipeline driver (lex / parse / lower / optimise / codegen); produces `vector<Assembler>` consumed by `assembler_`.
     // Compiler ends at +0x1F8; next is +0x200
-    char pad_1F8_[8];                                    // +0x1F8
-    std::string sourceFilename_;                             // +0x200
-    std::string pad_218_;                                // +0x218 (no read/write located; treated as unused slot — see notes/symbol-renaming-audit/28_awg_compiler.md §string_218_)
-    std::string sourceText_;                             // +0x230
-    std::string assemblerText_;                             // +0x248
-    std::vector<CompilerMessage> compileMessages_;       // +0x260
-    AWGAssembler assembler_;                              // +0x278 — AWGAssembler (8B pimpl)
-    std::vector<std::string> wavePaths_;                  // +0x280 — wave file paths (vector<string>::insert in addWaveforms)
-    std::weak_ptr<CancelCallback> cancelCallback_;       // +0x298
-    std::weak_ptr<ProgressCallback> progressCallback_;   // +0x2A8
-    char pad_2B8_[8];                                    // +0x2B8
+    char pad_1F8_[8];                                    // +0x1F8  //!< Alignment padding between `compiler_` and the string block.
+    std::string sourceFilename_;                             // +0x200  //!< Path of the most recent `compileFile` source; surfaced in the assembler banner and the `.arguments` JSON.
+    std::string pad_218_;                                // +0x218  //!< Reserved string slot present in the binary layout but with no observed reader/writer in the reconstructed pipeline. \unclear  Original purpose (see `notes/symbol-renaming-audit/28_awg_compiler.md`).
+    std::string sourceText_;                             // +0x230  //!< Cached SeqC source from the most recent `compileString`; emitted as the `.c` ELF section.
+    std::string assemblerText_;                             // +0x248  //!< Pretty-printed assembler listing produced by `compileString`; emitted as the `.asm` ELF section and consumed by `writeAssemblerToFile`.
+    std::vector<CompilerMessage> compileMessages_;       // +0x260  //!< Accumulated diagnostics from the inner `Compiler` and the limit checks; rendered by `getCompileReport`.
+    AWGAssembler assembler_;                              // +0x278  //!< Embedded standalone assembler used for opcode emission (consuming the `Compiler`'s `vector<Assembler>`) and for post-pipeline `.asm` round-trips.
+    std::vector<std::string> wavePaths_;                  // +0x280  //!< Persistent list of waveform-file paths registered via `addWaveforms`; surfaced in the `.arguments` JSON.
+    std::weak_ptr<CancelCallback> cancelCallback_;       // +0x298  //!< User cancel hook polled between `addWaveforms` entries and forwarded to `compiler_`.
+    std::weak_ptr<ProgressCallback> progressCallback_;   // +0x2A8  //!< User progress hook invoked with `1.0` when `compileString` finishes successfully and forwarded to `compiler_`.
+    char pad_2B8_[8];                                    // +0x2B8  //!< Trailing alignment padding to round the impl size to 0x2C0.
 };
 
 // ============================================================================
@@ -159,6 +361,9 @@ private:
 // 9. Zero 0x30 bytes at +0x280..+0x2AF (output vector + weak_ptrs)
 // 10. Zero pad at +0x2B0
 // ============================================================================
+//! \brief Construct the impl, look up `deviceConstants_`, allocate
+//!        `wavetable_`, and default-construct every other owned
+//!        subordinate.
 AWGCompilerImpl::AWGCompilerImpl(AWGCompilerConfig const& config)  // @0x103b40
     : config_(&config),
       deviceConstants_(getDeviceConstants(config.deviceType)),            // @0x103ba4
@@ -193,6 +398,8 @@ AWGCompilerImpl::AWGCompilerImpl(AWGCompilerConfig const& config)  // @0x103b40
     // Member init order follows declaration order which matches binary layout.
 }
 
+//! \brief Default destructor — releases every owned subordinate in
+//!        reverse construction order.
 AWGCompilerImpl::~AWGCompilerImpl() = default;  // @0x103400 — releases all members in reverse order
 
 // ============================================================================
@@ -211,6 +418,8 @@ AWGCompilerImpl::~AWGCompilerImpl() = default;  // @0x103400 — releases all me
 //   6. Read config_->addressImpl (at config+0x10), pack into 16-byte result
 //   7. Return as std::string (binary blob, not human-readable)
 // ============================================================================
+//! \brief Build the 16-byte binary version blob written to the
+//!        `.version_bin` ELF section.
 std::string AWGCompilerImpl::getBinVersion() const {  // @0x10b830
     // 1. Get LabOne version as binary u32
     uint32_t laboneVer = asBinary(getLaboneVersion());
@@ -268,6 +477,8 @@ std::string AWGCompilerImpl::getBinVersion() const {  // @0x10b830
 //        ["usage_fraction"] = totalSamples / waveformAlignment (as double)
 //   5. Return the JSON value as string
 // ============================================================================
+//! \brief Aggregate per-waveform memory usage and serialise it as
+//!        the JSON object surfaced through `getJsonWaveformMemoryInfo`.
 std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
     // If no wavetableIR, return empty JSON object "{}"
     if (!wavetableIR_) {
@@ -385,6 +596,9 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //   - Re-throw as ZIAWGCompilerException with the caught exception's message
 //     (or empty string if what() is null)
 // ============================================================================
+//! \brief Drive the full SeqC → opcode pipeline (validate device,
+//!        compile, pretty-print, assemble, enforce limits, signal
+//!        progress).
 void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 1. Validate device type
     bool isHirzel = config_->isHirzel;                 // config+0x18
@@ -553,6 +767,9 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
 //   7. Extract ostringstream string → call compileString(str)  @0x106cb0
 //   8. Clean up streams
 // ============================================================================
+//! \brief Slurp a SeqC source file from disk and forward to
+//!        `compileString` after recording the path in
+//!        `sourceFilename_`.
 void AWGCompilerImpl::compileFile(std::string const& path) {  // @0x106690
     // 1-2. Check file exists
     boost::filesystem::path fpath(path);
@@ -605,6 +822,9 @@ void AWGCompilerImpl::compileFile(std::string const& path) {  // @0x106690
 //      - Lock cancel callback, check if cancelled
 //      - (Various cleanup of temporary shared_ptrs)
 // ============================================================================
+//! \brief Append the supplied paths to `wavePaths_`, then dispatch
+//!        on file extension to register each waveform with
+//!        `wavetable_`.
 void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // @0x104660
     // 1. Append paths to internal wave path list
     // @0x104681: vector<string>::insert at +0x280
@@ -762,6 +982,9 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 //  13. Call elfWriter.writeFile(os)                               @0x109930
 //  14. Clean up ElfWriter
 // ============================================================================
+//! \brief Serialise the most recent compile (opcode stream,
+//!        waveform data, and metadata sections) into a 32-bit ELF
+//!        on `os`.
 void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format) {  // @0x108cc0
     // 1. Check for syntax errors — parserContext at Compiler+0x100, byte +0x03
     // @0x108ce4: if hadSyntaxError, return immediately
@@ -992,6 +1215,8 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
 //   3. Call writeToStream(ofstream, path)                         @0x10ba79
 //   4. Destroy ofstream (close + dtor chain)
 // ============================================================================
+//! \brief Open `path` in `binary | trunc` mode and forward to
+//!        `writeToStream`.
 void AWGCompilerImpl::writeToFile(std::string const& path) {  // @0x10b9b0
     // 1-2. Open output file
     std::ofstream ofs(
@@ -1021,6 +1246,8 @@ void AWGCompilerImpl::writeToFile(std::string const& path) {  // @0x10b9b0
 //   9. Extract ostringstream content → write to ofstream
 //  10. Close file, clean up
 // ============================================================================
+//! \brief Write the human-readable assembler listing (banner +
+//!        `assemblerText_`) to `path` as plain text.
 void AWGCompilerImpl::writeAssemblerToFile(std::string const& path) {  // @0x107d10
     // 1. Check syntax error — @0x107d31: if hadSyntaxError, return
     if (compiler_.hadSyntaxError()) {
@@ -1070,6 +1297,8 @@ void AWGCompilerImpl::writeAssemblerToFile(std::string const& path) {  // @0x107
 //  10. Write "//\n" + "//****..." banner + "\n\n"
 //  11. Extract ostringstream → return string
 // ============================================================================
+//! \brief Build the multi-line "do not edit" banner that
+//!        `writeAssemblerToFile` prepends to its output.
 std::string AWGCompilerImpl::getAssemblerHeader(std::string const& path) const {  // @0x1083d0
     static const char banner[] =
         "//*************************************************************"
@@ -1118,6 +1347,9 @@ std::string AWGCompilerImpl::getAssemblerHeader(std::string const& path) const {
 // Uses boost::property_tree (not boost::json). Full implementation
 // deferred until property_tree dependency is integrated into the build.
 // ============================================================================
+//! \brief Build the JSON object emitted as the `.arguments` ELF
+//!        section (destination filename, source filename, wave
+//!        paths).
 std::string AWGCompilerImpl::getJsonArguments(std::string const& destination) const {  // @0x10a3c0
     boost::property_tree::ptree root;
 
@@ -1159,6 +1391,10 @@ std::string AWGCompilerImpl::getJsonArguments(std::string const& destination) co
 // fields ("compiler" and "target") are implemented; the others are
 // conditionally omitted until the source data is identified.
 // ============================================================================
+//! \brief Build the JSON object emitted as the `.version_json`
+//!        ELF section (compiler version, target family, bitstream
+//!        register base, optional triggering mode and required
+//!        feature set).
 std::string AWGCompilerImpl::getJsonVersion() const {  // @0x10ac60
     boost::property_tree::ptree root;
 
@@ -1226,6 +1462,9 @@ std::string AWGCompilerImpl::getJsonVersion() const {  // @0x10ac60
     return oss.str();
 }
 
+//! \brief Concatenate the formatted `compileMessages_` followed by
+//!        `assembler_.getReport()` into the user-facing report
+//!        string.
 std::string AWGCompilerImpl::getCompileReport() const {  // @0x104030
     // Binary: creates ostringstream, iterates compileMessages_, calls
     // each message's str(false), writes to stream + "\n", then appends
@@ -1245,6 +1484,8 @@ std::string AWGCompilerImpl::getCompileReport() const {  // @0x104030
 }
 
 
+//! \brief Store `cb` into `cancelCallback_` and forward to
+//!        `compiler_.setCancelCallback`.
 void AWGCompilerImpl::setCancelCallback(std::weak_ptr<CancelCallback> cb) {  // @0x103eb0
     // @0x103ec0: store cb into this+0x298                                     // @0x103ec0
     cancelCallback_ = cb;
@@ -1254,6 +1495,8 @@ void AWGCompilerImpl::setCancelCallback(std::weak_ptr<CancelCallback> cb) {  // 
     // but WavetableFront doesn't expose a setter yet.
 }
 
+//! \brief Store `cb` into `progressCallback_` and forward to
+//!        `compiler_.setProgressCallback`.
 void AWGCompilerImpl::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {  // @0x103f90
     // @0x103fa0: store cb into this+0x2A8                                     // @0x103fa0
     progressCallback_ = cb;

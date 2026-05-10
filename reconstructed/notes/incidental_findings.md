@@ -6241,3 +6241,65 @@ arbitrarily long when no caller exists in the recon tree.
 The doc-coverage sweep is a useful secondary detector for
 these gaps because every undocumented symbol forces the
 agent to look for a body to verify against.
+
+## IF-237  `AWGAssemblerImpl::parserMessage` also flips the syntax-error flag
+
+**Severity**: low (cosmetic — recon comment is incomplete, body is correct)
+**Status**: confirmed, fixed-cosmetic
+**Source**: `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp:572` (body) and `reconstructed/include/zhinst/codegen/awg_assembler_impl.hpp:~250` (header note)
+
+### Observation
+
+The reconstructed `parserMessage(int level, std::string const& msg)`
+body at `awg_assembler_impl_pipeline.cpp:572` ends with
+
+```cpp
+messages_.push_back(msg);
+parserCtx_.setSyntaxError();
+```
+
+— i.e. it not only emits a diagnostic but also flips the parser
+context's syntax-error flag, exactly like `errorMessage`.  The
+pre-existing `// ---- Error reporting helpers ----` comment block
+in the header, however, claimed that **only** `errorMessage`
+called `setSyntaxError()`:
+
+> "errorMessage additionally calls parserCtx_.setSyntaxError() afterwards."
+
+This is misleading: by the recon body, `parserMessage` does the
+same thing.  The asymmetry implied by the comment does not
+exist in the recon code.
+
+### Action
+
+* Captured the surprise via a `\binarynote` on the
+  `parserMessage` brief in `awg_assembler_impl.hpp` so it shows
+  up on the binarynote backlog page.
+* Did **not** rewrite the existing `// ---- Error reporting
+  helpers ----` block-header comment in this pass — it is plain
+  `//` text consumed only by humans and is a candidate for a
+  follow-up cleanup along with the rest of the header's
+  reconstruction notes.
+* Did **not** verify against the original binary in this pass.
+  The recon body and the binary may agree (in which case the
+  binarynote correctly documents the API) or disagree (in which
+  case the recon body is wrong and parserMessage should be a
+  pure-non-fatal diagnostic that does not poison
+  `hadSyntaxError`).
+
+### Hypothesis to verify (D-class follow-up)
+
+GDB-trace the original `AWGAssemblerImpl::parserMessage @0x289190`
+on a known warning input (`msg` mnemonic in an `.asm` source) and
+check whether `parserCtx_+0x03 (hadSyntaxError_)` is set after
+the call.  If it is **not** set in the binary, the recon body is
+wrong (recon writes the flag, binary does not) and `parserMessage`
+should be downgraded to a pure-warning emitter.
+
+### Lesson
+
+When briefing a method whose contract is described in a
+neighbouring `// ----` comment block, also re-read the body —
+the comment block may describe the intended API while the
+verified body describes a slightly different one.  Block-header
+comments age out of sync with the code they describe.

@@ -125,30 +125,201 @@ public:
     };
 
     // ---- Lifecycle ----
+    //! \brief Construct an empty assembler bound to a device profile.
+    //! \details Captures `dc` by raw pointer (the caller owns the
+    //! `DeviceConstants` lifetime and must outlive this instance), then
+    //! default-constructs every owned container — opcode buffer,
+    //! source-line / message vectors, label bimap, and inline
+    //! `AsmParserContext`.  No source is parsed and no opcodes are
+    //! emitted until one of the `assemble*` entry points is invoked.
+    //! \param dc  Per-device constants table consulted by `getReg` /
+    //!            `getVal` for register-depth and immediate-range
+    //!            checks during opcode encoding.
     AWGAssemblerImpl(DeviceConstants const& dc);            // 0x285180
+    //! \brief Release the parser context, label bimap, message
+    //!        vector, opcode buffer, and the embedded strings in
+    //!        reverse construction order.
     ~AWGAssemblerImpl();                                    // 0x2853c0
 
     // ---- Public API ----
+    //! \brief Slurp an `.asm` source file from disk and assemble it.
+    //! \details Calls `boost::filesystem::status` first; a missing or
+    //! unreadable entry raises `ZIAWGCompilerException` formatted with
+    //! `FileNotExist`.  On success records `path` in `filename_`,
+    //! reads the whole file via `ifstream::rdbuf` into `asmSource_`,
+    //! and forwards to `assembleString`.
+    //! \param path  Filesystem path to the assembler source.
+    //! \throws zhinst::Exception  When the file does not exist or
+    //!         when `assembleString` propagates a syntax error.
     void assembleFile(std::string const& path);             // 0x285ec0
+    //! \brief Assemble an in-memory `.asm` source string into the
+    //!        opcode buffer.
+    //! \details Resets the parser's syntax-error flag and installs
+    //! `parserMessage` as the lexer/parser error callback, then
+    //! iterates the source line-by-line: each line is parsed by
+    //! `getAST`, the resulting `AsmExpression` (if any) is tagged
+    //! with the current `noOpt()` flag, appended to a local
+    //! expressions vector, and a copy of the raw source line is
+    //! appended to `sourceLines_`.  After all lines are processed
+    //! `assembleExpressions` runs the label-collection + opcode
+    //! emission pass.
+    //! \param src  Assembler source text (newline-separated).
     void assembleString(std::string const& src);            // 0x286490
+    //! \brief Assemble a pre-built sequence of `Assembler`
+    //!        instructions emitted by the SeqC compile pipeline.
+    //! \details Used by `AWGCompilerImpl::compileString` to feed the
+    //! optimised `vector<Assembler>` from `Compiler::compile` into
+    //! the assembler without going through textual round-tripping.
+    //! Skips entries marked `ERROR_MSG` / `MESSAGE` (printing a
+    //! warning to `std::cout` instead), synthesises an
+    //! `AsmExpression` per remaining instruction with children laid
+    //! out in the canonical immediates → regDst → regAux → regSrc →
+    //! outputs → label order, then runs `assembleExpressions`.
+    //! \param asmList  Instruction list from the SeqC compile
+    //!                 pipeline.
+    //! \binarynote `LABEL` entries do not advance the internal
+    //!             label-counter so the per-label index tracks the
+    //!             eventual opcode position rather than the asmList
+    //!             position.
     void assembleAsmList(std::vector<Assembler> const& asmList);
+    //! \brief Parse an `.asm` source string to an expressions vector
+    //!        without emitting opcodes.
+    //! \details Same per-line parse loop as `assembleString` but
+    //! also captures `//`-comments (via `extractComment`) onto each
+    //! `AsmExpression`, fabricates a NOP expression with command 4
+    //! for comment-only lines, and returns the collected vector by
+    //! value (sret) so callers can inspect or rewrite the AST
+    //! before driving `assembleExpressions` themselves.  Raises
+    //! `ZIAWGCompilerException("Syntax error in assembly source")`
+    //! after dumping the report to `std::cout` if the parser flagged
+    //! a syntax error.
+    //! \param src  Assembler source text.
+    //! \return  Owning vector of parsed expressions (one per
+    //!          non-empty line, plus NOP placeholders for comment
+    //!          lines).
+    //! \throws zhinst::Exception  On a parser-level syntax error.
     std::vector<std::shared_ptr<AsmExpression>>
         assembleStringToExpressionsVec(std::string const& src);   // 0x286e40
+    //! \brief Set the base address used when writing the assembled
+    //!        output to ELF.
+    //! \details Stores `offset` into `memoryOffset_`; consumed by
+    //! `writeToFile` (which adds a fixed `+0x80` device-header
+    //! padding before passing to `ElfWriter::setMemoryOffset`).
+    //! \param offset  Linear byte offset of the AWG instruction
+    //!                memory the opcodes will be loaded into.
     void setMemoryOffset(unsigned int offset);              // 0x288560
+    //! \brief Emit the most recently assembled program as a
+    //!        standalone ELF on disk.
+    //! \details No-op if the parser flagged a syntax error or if no
+    //! opcodes were generated.  Otherwise constructs an
+    //! `ElfWriter(2)` at `memoryOffset_ + 0x80`, appends the opcode
+    //! stream as `.text`, the version banner as `.comment`, the
+    //! source-file basename as `.filename`, and `asmSource_` as
+    //! `.asm`, then flushes via `ElfWriter::writeFile`.  After a
+    //! successful write the opcode buffer is cleared, so back-to-back
+    //! writes require a fresh `assemble*` call.
+    //! \param path  Destination ELF path (truncated if it exists).
+    //! \throws zhinst::Exception  Formatted with `CantWriteFile`
+    //!         when the underlying writer fails.
+    //! \binarynote The opcode buffer is cleared on the success
+    //!             path; `getOpcode()` returns an empty vector
+    //!             after `writeToFile`.
     void writeToFile(std::string const& path);              // 0x288570
+    //! \brief Access the assembled opcode stream.
+    //! \details Returns a reference into the impl-owned vector;
+    //! valid until the next `assemble*` / `writeToFile` call
+    //! mutates or clears the buffer.
+    //! \return  Const reference to the 32-bit opcode words in
+    //!          program order.
     std::vector<uint32_t> const& getOpcode() const;         // 0x289060
+    //! \brief Format every accumulated diagnostic message into a
+    //!        single human-readable report string.
+    //! \details Iterates `messages_` and emits one
+    //! `"Assembler message at <code> : <text>\n"` line per entry.
+    //! `code` is the line number for messages emitted by
+    //! `errorMessage` and the severity level for messages emitted
+    //! by `parserMessage`; the report does not distinguish them.
+    //! \return  Report text; empty if no messages were emitted.
     std::string getReport() const;                          // 0x285bc0
+    //! \brief Pretty-print the assembled program to `std::cout`.
+    //! \details Walks the opcode buffer and emits, for each index,
+    //! the resolved label name (looked up in `labelBimap_.right`),
+    //! the `(idx + startIndex)` 8-digit hex offset, the 8-digit hex
+    //! opcode, and the matching `sourceLines_` entry — falling back
+    //! to `"nop"` for trailing zero opcodes that have no source
+    //! line.
+    //! \param startIndex  Offset added to each printed instruction
+    //!                    index so the listing can be relocated to
+    //!                    a non-zero base address.
     void printOpcode(int startIndex) const;                     // 0x288b50
 
     // ---- Opcode encoding (awg_assembler_opcodes.cpp) ----
+    //! \brief Resolve an `AsmExpression` operand to a register
+    //!        number.
+    //! \details Reports `ErrorMessage` 8 ("expected register") if
+    //! `expr` is not of `Register` kind, `ErrorMessage` 3 if the
+    //! register number is negative, and `ErrorMessage` 16 (with the
+    //! register and the device's `registerDepth`) if the number
+    //! exceeds the device limit.  All error paths return 0.
+    //! \param expr  Operand expression from a parsed instruction.
+    //! \return  Register number bounded by
+    //!          `deviceConstants_->registerDepth`.
     unsigned int getReg(std::shared_ptr<AsmExpression> const& expr);     // 0x2892b0
+    //! \brief Resolve an `AsmExpression` operand to an immediate
+    //!        bit-pattern of the requested width.
+    //! \details Evaluates an integer-literal operand, label
+    //! reference (resolved against `labelBimap_`), or arithmetic
+    //! sub-expression and range-checks the result against `bits`.
+    //! Out-of-range values and unresolved labels emit diagnostics
+    //! via `errorMessage` and return 0.
+    //! \param expr  Operand expression.
+    //! \param bits  Maximum width of the encoded immediate.
+    //! \return  Immediate value masked to `bits`.
     unsigned int getVal(std::shared_ptr<AsmExpression> const& expr,
                         int bits);                                       // 0x289370
+    //! \brief Encode a no-operand instruction (just the base
+    //!        opcode word).
+    //! \param base  Base opcode value.
+    //! \param expr  Parsed expression (operand list expected
+    //!              empty).
+    //! \return  Encoded 32-bit instruction word in the low half.
     uint64_t opcode0(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x2895c0
+    //! \brief Encode a `register + 20-bit immediate` instruction.
+    //! \param base  Base opcode value.
+    //! \param expr  Parsed expression with `[reg, imm20]`
+    //!              children.
+    //! \return  Encoded 32-bit instruction word.
     uint64_t opcode1(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289860
+    //! \brief Encode a `register + three 8-bit immediates`
+    //!        instruction.
+    //! \param base  Base opcode value.
+    //! \param expr  Parsed expression with `[reg, imm8, imm8,
+    //!              imm8]` children.
+    //! \return  Encoded 32-bit instruction word.
     uint64_t opcode2(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289a10
+    //! \brief Encode a two-register / immediate instruction (and
+    //!        the `WVFS_H` / `ADDI` literal special cases).
+    //! \param base  Base opcode value (selects the literal sub-form
+    //!              for known sentinels).
+    //! \param expr  Parsed expression with the operand layout
+    //!              required by the chosen base.
+    //! \return  Encoded 32-bit instruction word.
     uint64_t opcode3(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x289c90
+    //! \brief Encode the dispatch family covering 0-, 1-, and
+    //!        2-operand control / I/O instructions (`TRAP`, `JMP`,
+    //!        `WTRIGI`, `ST`, `LD` variants, …).
+    //! \param base  Base opcode value used both as the encoded
+    //!              prefix and as a discriminator selecting the
+    //!              concrete operand layout.
+    //! \param expr  Parsed expression matching the layout for
+    //!              `base`.
+    //! \return  Encoded 32-bit instruction word.
     uint64_t opcode4(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x28a010
+    //! \brief Encode a two-immediate (14-bit + 14-bit) instruction.
+    //! \param base  Base opcode top nibble.
+    //! \param expr  Parsed expression with `[imm14, imm14]`
+    //!              children.
+    //! \return  Encoded 32-bit instruction word.
     uint64_t opcode5(unsigned int base, std::shared_ptr<AsmExpression> const& expr); // 0x28a610
 
     // ---- Pipeline (awg_assembler_impl_pipeline.cpp) ----
@@ -158,10 +329,55 @@ public:
     // `nm` on `_seqc_compiler.so` confirms the binary has no
     // matching `AWGAssemblerImpl::parseLine/parseString/encodeExpressions`
     // symbols either, so the prior decls were spurious.
+    //! \brief Parse a single source line into an `AsmExpression`
+    //!        tree.
+    //! \details Initialises the flex/bison scanner via
+    //! `asmlex_init_extra(&parserCtx_, &scanner)`, scans `line` with
+    //! `asm_scan_string`, drives `asmparse` to completion, and
+    //! wraps the resulting raw `AsmExpression*` in a `shared_ptr`
+    //! before tearing the scanner down.  Returns an empty
+    //! `shared_ptr` on lexer-init failure or on a parser error
+    //! (with the latter logged via `LOG_ERROR`).
+    //! \param src  Source text for one assembler line.
+    //! \return  Parsed expression, or empty pointer on failure.
     std::shared_ptr<AsmExpression> getAST(std::string const& src);
+    //! \brief Two-pass label resolution + opcode emission core.
+    //! \details Pass 1 walks `expressions` and inserts every
+    //! `hasLabel` entry into `labelBimap_` keyed by name with the
+    //! label's index.  Pass 2 sets `currentLine_` from the matching
+    //! `lineNumbers` slot, dispatches each non-LABEL expression to
+    //! `evaluate`, and appends the produced opcode word to
+    //! `opcodes_`.  After the second pass a trailing zero word is
+    //! appended unless the program already ends with one, and a
+    //! parser-recorded syntax error raises
+    //! `ZIAWGCompilerException("Syntax error in assembly source")`
+    //! after dumping the report to `std::cout`.
+    //! \param exprs    Collected per-line `AsmExpression` trees.
+    //! \param offsets  Line numbers (one entry per expression),
+    //!                 written into `currentLine_` before
+    //!                 evaluating each.
+    //! \throws zhinst::Exception  On a syntax error caught during
+    //!         the second pass.
     void assembleExpressions(std::vector<std::shared_ptr<AsmExpression>> const& exprs,
                              std::vector<uint64_t> const& offsets);          // 0x285620
+    //! \brief Dispatch one expression to the appropriate
+    //!        `opcodeN` encoder and return the emitted word.
+    //! \details Returns 0 for non-`Container` expressions and for
+    //! `INVALID` commands.  Otherwise looks up the encoding family
+    //! via `Assembler::getOpcodeType(command)` and forwards to
+    //! `opcode0`..`opcode5`.
+    //! \param expr  Container expression representing one
+    //!              instruction.
+    //! \return  Encoded opcode word in the low 32 bits.
     int evaluate(std::shared_ptr<AsmExpression> const& expr);                // 0x285b20
+    //! \brief Extract the substring after the first `//` comment
+    //!        marker.
+    //! \details Inlined into both call sites in the binary; this
+    //! out-of-line definition is provided so the reconstructed
+    //! pipeline TU links.  Returns an empty string when no `//`
+    //! marker is present; whitespace is preserved.
+    //! \param line  Source line to inspect.
+    //! \return  Comment text following the marker, or empty.
     std::string extractComment(std::string const& line);
 
     // ---- Error reporting helpers ----
@@ -169,26 +385,49 @@ public:
     // emitted Message is currentLine_ (errorMessage) or `level`
     // (parserMessage). errorMessage additionally calls
     // parserCtx_.setSyntaxError() afterwards.
+    //! \brief Record a fatal assembler diagnostic and flag the
+    //!        parser context as having seen a syntax error.
+    //! \details Pushes a `Message{currentLine_, msg}` onto
+    //! `messages_` and then calls `parserCtx_.setSyntaxError()` so
+    //! downstream `hadSyntaxError()` checks short-circuit further
+    //! emission.
+    //! \param msg  Human-readable diagnostic text.
     void errorMessage(std::string const& msg);                               // 0x289070
+    //! \brief Record a parser-level message at the supplied
+    //!        severity.
+    //! \details Same emit pattern as `errorMessage` but the leading
+    //! `code` slot of the new `Message` carries the caller-supplied
+    //! `level` rather than the current source line.
+    //! \param level  Severity level passed in by the lexer/parser
+    //!               error callback.
+    //! \param msg    Diagnostic text.
+    //! \binarynote Like `errorMessage`, this also flips
+    //!             `parserCtx_.setSyntaxError()`, so any parser
+    //!             call site treating it as a non-fatal warning
+    //!             will still cause subsequent emission stages to
+    //!             short-circuit.
     void parserMessage(int level, std::string const& msg);                   // 0x289190
 
     // ---- Label access ----
+    //! \brief Read-only view of the resolved label table.
+    //! \return  Reference to the `name ↔ index` bimap populated
+    //!          during `assembleExpressions`.
     LabelBimap const& getLabelBimap() const { return labelBimap_; }
 
     // ---- Fields (verified offsets in comment block above) ----
-    DeviceConstants const* deviceConstants_;     // 0x000
-    std::string filename_;                       // 0x008
-    std::string asmSource_;                      // 0x020
-    std::string unusedStr038_;                    // 0x038 — no observed reader/writer
-    std::vector<uint32_t> opcodes_;              // 0x050  // verified at 0x2885da: addCode(&[r14+0x50]) takes vector<unsigned int> directly
-    uint32_t memoryOffset_ = 0;                  // 0x068
-    uint32_t pad_memOffset_ = 0;                 // 0x06c (alignment)
-    int32_t currentLine_ = 0;                    // 0x070
-    uint32_t pad_currentLine_ = 0;               // 0x074 (alignment)
-    std::vector<std::string> sourceLines_;       // 0x078
-    std::vector<Message> messages_;              // 0x090
-    LabelBimap labelBimap_;                      // 0x0a8 (0x48 bytes)
-    AsmParserContext parserCtx_;                 // 0x0f0 (0x80 bytes)
+    DeviceConstants const* deviceConstants_;     // 0x000  //!< Per-device profile (register depth, immediate ranges) consulted by `getReg` / `getVal`; not owned.
+    std::string filename_;                       // 0x008  //!< Source filename recorded by `assembleFile`; surfaced in the `.filename` ELF section by `writeToFile`.
+    std::string asmSource_;                      // 0x020  //!< Cached source text from the most recent `assembleFile` call; emitted as the `.asm` section by `writeToFile`.
+    std::string unusedStr038_;                    // 0x038  //!< Reserved string slot present in the binary layout but with no observed reader or writer in the reconstructed pipeline. \unclear  Original purpose.
+    std::vector<uint32_t> opcodes_;              // 0x050  //!< Emitted 32-bit instruction words; populated by `assembleExpressions` and exposed via `getOpcode`.
+    uint32_t memoryOffset_ = 0;                  // 0x068  //!< Base address used when writing the standalone ELF; `writeToFile` adds a fixed `+0x80` device-header padding before forwarding to `ElfWriter`.
+    uint32_t pad_memOffset_ = 0;                 // 0x06c  //!< Alignment padding to keep `currentLine_` 8-byte aligned.
+    int32_t currentLine_ = 0;                    // 0x070  //!< Source line currently being parsed / evaluated; written into the `code` slot of each `errorMessage` diagnostic.
+    uint32_t pad_currentLine_ = 0;               // 0x074  //!< Alignment padding ahead of the embedded vectors.
+    std::vector<std::string> sourceLines_;       // 0x078  //!< Per-line source-text cache appended to during the parse pass; consumed by `printOpcode` to interleave instructions with their text.
+    std::vector<Message> messages_;              // 0x090  //!< Diagnostic vector populated by `errorMessage` / `parserMessage` and rendered by `getReport`.
+    LabelBimap labelBimap_;                      // 0x0a8  //!< Bidirectional `name ↔ opcode-index` map populated in pass 1 of `assembleExpressions` and read by `getVal` / `printOpcode`.
+    AsmParserContext parserCtx_;                 // 0x0f0  //!< Inline flex/bison context shared with the lexer (yyextra) and used to query the syntax-error flag after assembly.
 };
 
 // Verifying sizeof(Message) == 0x20 requires the binary's libc++ ABI
