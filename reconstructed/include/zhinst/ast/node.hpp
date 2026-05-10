@@ -41,6 +41,11 @@ class Node;
 // Confirmed from Node::type2str() jump table at 0x269970.
 // The jump table handles (value-1) for values 1..0x40, then explicit
 // comparisons for higher powers of two.
+//! \brief Discriminator carried by `Node::type` identifying the
+//! sequencer action represented by an IR node.
+//!
+//! Values are powers of two so they can be combined into bitmasks
+//! by tree-traversal predicates that filter on multiple kinds.
 enum class NodeType : int {
     Load               = 0x0001,   // "load"
     Play               = 0x0002,   // "play"
@@ -136,6 +141,9 @@ inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>
 class Node : public std::enable_shared_from_this<Node> {
 public:
     // --- Default constructor (needed for make_shared<Node>()) ---
+    //! \brief Default-constructs an empty IR node with all fields
+    //! zero/default-initialised; used by `fromJson()` before scalar
+    //! fields are populated.
     Node();
 
     // --- Simple constructor: Node(NodeType type, int asmId, int numWaveSlots)
@@ -144,9 +152,19 @@ public:
     //     sets nodeId from TLS counter, asmId from param, type at +0x44,
     //     deviceIndex = -1, lengthReg/indexOffsetReg = AsmRegister(-1), tableIndex = -1,
     //     globalRate = -1 (as 8-byte store 0x00000000FFFFFFFF).
+    //! \brief Constructs a node tagged `type` for sequencer `asmId`,
+    //! reserving `numWaveSlots` waveform-slot entries in
+    //! `wavesPerDev`.
+    //! \details Assigns a fresh `nodeId` from the thread-local
+    //! counter, sets `deviceIndex = -1`, registers
+    //! (`lengthReg` / `indexOffsetReg`) and `tableIndex` to invalid,
+    //! and `globalRate = -1`.  Tree links remain empty.
     Node(NodeType type, int asmId, int numWaveSlots);
 
     // --- Full constructor (20 params): 0x26c4a0
+    //! \brief Field-by-field constructor used by `fromJson` paths
+    //! that already have every scalar in hand; takes ownership of
+    //! the supplied `shared_ptr` tree links.
     Node(int nodeId, int asmId,
          const std::vector<std::optional<std::string>>& wavesPerDev,
          int deviceIndex,
@@ -167,31 +185,48 @@ public:
          bool branchMaySkipAllBodies,
          int trig);
 
+    //! \brief Releases the embedded `shared_ptr` / `weak_ptr`
+    //! members in declaration-reverse order.
     ~Node();  // 0x12afe0
 
     // Node::type2str(NodeType) — static, returns string name
     // Address: 0x269970
+    //! \brief Returns the canonical string name of `t` (the same
+    //! name used as the `"type"` JSON key).
+    //! \binarynote Returns the literal `"unknnown"` (sic — typo
+    //! preserved from the binary) for any value not in the
+    //! recognised set.
     static std::string type2str(NodeType t);
 
     // Node::str2type(string const&) — static, reverse of type2str
     // Address: 0x26ac00
     // Uses lazy-init static unordered_map; throws out_of_range if not found.
+    //! \brief Inverse of `type2str`: looks up `s` in a lazily-built
+    //! `unordered_map`.
+    //! \throws std::out_of_range when `s` is not a recognised type
+    //! name.
     static NodeType str2type(const std::string& s);
 
     // Node::toString() — "Node (asm id %d, type %s)"
     // Address: 0x264440
     //   Reads this->asmId (+0x14) and this->type (+0x44).
+    //! \brief Renders a single-line debug representation:
+    //! `"Node (asm id <asmId>, type <type2str(type)>)"`.
     std::string toString();
 
     // Node::waveAtCurrentDeviceIndex() const — 0x1c7de0
     //   Returns wavesPerDev[deviceIndex] if deviceIndex >= 0, else empty optional.
     //   Reads deviceIndex at +0x40, wavesPerDev.data() at +0x28.
+    //! \brief Returns `wavesPerDev[deviceIndex]` when
+    //! `deviceIndex >= 0`, otherwise `std::nullopt`.
     std::optional<std::string> waveAtCurrentDeviceIndex() const;
 
     // ---- Tree management methods ----
 
     // Node::last(node) — static, 0x1d5cb0
     //   Follows node->next chain until null, returns last node.
+    //! \brief Walks the `next` chain from `node` and returns the
+    //! tail (the last node whose `next` is null).
     static std::shared_ptr<Node> last(std::shared_ptr<Node> node);
 
     // Node::insertBefore(newNode) — 0x1cd860
@@ -200,12 +235,25 @@ public:
     //   copies this->parent to newNode->parent,
     //   calls updateParent(parent, this, newNode),
     //   then sets this->parent = newNode.
+    //! \brief Splices `newNode` immediately before `*this` in the
+    //! sibling chain so the resulting order is
+    //! `... -> newNode -> *this -> ...`, transferring `*this`'s
+    //! parent link to `newNode` and re-pointing `*this->parent` at
+    //! `newNode`.
     void insertBefore(std::shared_ptr<Node> newNode);
 
     // Node::updateParent(parent, oldChild, newChild) — static, 0x1d2f50
     //   Replaces oldChild with newChild in parent's links (next, loop,
     //   or branches vector). Then sets newChild->parent = parent (as weak_ptr).
     //   If replacing with nullptr in branches vector, erases the element.
+    //! \brief Replaces `oldChild` with `newChild` in whichever of
+    //! `parent`'s links currently holds it (`next`, the `branches`
+    //! vector when `parent->type == Branch`, or `loop`), and sets
+    //! `newChild->parent = parent` if `newChild` is non-null.
+    //! \details Passing `newChild == nullptr` erases the entry when
+    //! the old slot was a branches-vector element; for `next` /
+    //! `loop` slots the link is simply cleared.  No-op if `parent`
+    //! is null.
     static void updateParent(std::shared_ptr<Node> parent,
                              std::shared_ptr<Node> oldChild,
                              std::shared_ptr<Node> newChild);
@@ -213,6 +261,10 @@ public:
     // Node::remove(node) — static, 0x1d4440
     //   Removes node from the tree. If node has next, splices it into
     //   parent's slot. Then recursively removes loop and each branch.
+    //! \brief Detaches `node` from the tree: splices `node->next`
+    //! into `node`'s parent slot when present (otherwise simply
+    //! clears the slot), then recursively `remove`s `node->loop`
+    //! and every entry of `node->branches` and clears those links.
     static void remove(std::shared_ptr<Node> node);
 
     // Node::swap(a, b) — static, 0x1d2720
@@ -223,6 +275,14 @@ public:
     //         updateParent(a, b, b->next)
     //   Net effect: a and b exchange structural positions.
     //   Throws error 0xa4 if precondition violated.
+    //! \brief Exchanges the structural positions of a parent `a`
+    //! and its immediate child `b`: after the call, `b` occupies
+    //! `a`'s former slot and `a` becomes a child of `b`.
+    //! \details Walks up from `a` through `Loop`/`Branch` ancestors,
+    //! copying that ancestor's `asmId` onto `b` if positive, then
+    //! issues three `updateParent` calls to rewire the links.
+    //! \throws ZIAWGCompilerException (`SwapNotConnected`, error
+    //! code 0xa4) if `b->parent` does not lock to `a`.
     static void swap(const std::shared_ptr<Node>& a,
                      const std::shared_ptr<Node>& b);
 
@@ -230,6 +290,13 @@ public:
     //   Allocates new Node via simple ctor, copies: deviceIndex, wavesPerDev,
     //   play, lengthReg, indexOffsetReg, tableIndex, trig.
     //   Does NOT copy: configs, next/loop/branches/parent, globalRate, etc.
+    //! \brief Returns a partial copy of this node: `type`, `asmId`,
+    //! `wavesPerDev`, `deviceIndex`, `play`, `lengthReg`,
+    //! `indexOffsetReg`, `tableIndex`, and `trig` are copied; the
+    //! tree links (`next`, `loop`, `branches`, `parent`), the play
+    //! configs, `globalRate`, `defaultPrecompFlags`, and the bool
+    //! flags are deliberately left at their default-constructed
+    //! values.
     std::shared_ptr<Node> clone() const;
 
     // ---- Serialization methods ----
@@ -238,16 +305,28 @@ public:
     //   Serializes this Node to a boost::json::value (object).
     //   The idMap remaps internal nodeId values to serializable indices.
     //   Pointer fields serialized as integer IDs (-1 = null).
+    //! \brief Serialises this node to a `boost::json::value`
+    //! object.  Pointer fields (`next`, `loop`, `branches`,
+    //! `parent`, `play`) are emitted as integer IDs taken from
+    //! `idMap`; an unmapped or null pointer becomes `-1`.
     boost::json::value toJson(const std::unordered_map<int,int>& idMap) const;
 
     // Node::fromJson(json) — static, 0x268280
     //   Deserializes scalar fields from JSON. Pointer fields left empty —
     //   reconnected later by installPointers().
+    //! \brief Allocates a fresh node and populates only its scalar
+    //! fields from `json`; pointer fields are left empty and must
+    //! be reconnected by a subsequent `installPointers` call once
+    //! every node in the graph has been deserialised.
     static std::shared_ptr<Node> fromJson(const boost::json::value& json);
 
     // Node::installPointers(nodeMap, json) — 0x269020
     //   Reconnects pointer fields (play, next, branches, loop, parent)
     //   after deserialization using the nodeMap (int ID → shared_ptr<Node>).
+    //! \brief Second-pass deserialisation step: reconnects this
+    //! node's pointer fields (`play`, `next`, `branches`, `loop`,
+    //! `parent`) by looking up the integer IDs stored in `json`
+    //! through `nodeMap`.
     void installPointers(const std::unordered_map<int, std::shared_ptr<Node>>& nodeMap,
                          const boost::json::value& json);
 
@@ -255,6 +334,9 @@ public:
     // Mangled: _ZN6zhinst4Node10idCounter_E
     // BSS-template offset 0x44 in the shared library's TLS module block.
     // Read+post-incremented by Node(NodeType,int,int) to assign nodeId.
+    //! \brief Thread-local monotonic counter that supplies each
+    //! freshly-constructed node's `nodeId`; read and
+    //! post-incremented by the `(NodeType, int, int)` constructor.
     static thread_local int idCounter_;
 
     // ---- Fields (confirmed offsets, names from JSON keys) ----
