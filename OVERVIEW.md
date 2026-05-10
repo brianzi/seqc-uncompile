@@ -734,6 +734,22 @@ mainpage.
     `include/zhinst/waveform/waveform_generator.hpp` now
     carry full briefs.  Build clean (0 doc warnings); tests
     1601/1601.
+  - **7a (2026-05-10)**: 11 briefs for the public-facing
+    `AWGCompiler` facade in
+    `include/zhinst/codegen/awg_compiler.hpp` — the topmost
+    C++ API the Python `_seqc_compiler.compile_seqc` binding
+    wraps.  Covered: ctor, dtor, `compileString`, `compileFile`,
+    `addWaveforms`, `writeToFile`, `writeAssemblerToFile`,
+    `getCompileReport`, `getJsonWaveformMemoryInfo`, both
+    `set*Callback` setters.  Each brief is verify-then-write
+    against the corresponding `AWGCompilerImpl::*` body in
+    `awg_compiler.cpp` (the facade methods themselves are
+    one-line pimpl forwards), so the documentation describes
+    actual behaviour rather than the trivial dispatch.
+    `compileString`'s brief cites IF-192 / IF-195 for the
+    historical `maxSequenceLen`-vs-`maxProgramSize` field
+    mis-binding.  No new IFs.  Build clean (0 doc warnings);
+    tests 1601/1601.
 - **Verify-then-write workflow** (AGENTS.md §"Verify-then-write")
   formalised during 2d-2e: every brief opened the function body
   and cross-checked field names against the canonical `.hpp`
