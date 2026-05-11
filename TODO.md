@@ -327,7 +327,7 @@ cross-reference pages so the backlog is discoverable.
         this label.  Block-header comment corrected.  Tests:
         1602/1602 (no behaviour change — corpus does not
          exercise the gate combination that routes here).  See
-         IF-224 for full disassembly trail.
+          IF-224 for full disassembly trail.
    - [x] **D4 Batch 2e-i follow-up (IF-244)** — fixed
          (documentation-only relabel; no goto graph changes).
          The block at `prefetch_placesingle.cpp:884-908`
@@ -351,6 +351,33 @@ cross-reference pages so the backlog is discoverable.
          when the dispatch wiring is reconstructed.  Tests:
          1602/1602 (no behaviour change — neither label
          executes).  Build clean, 0 new doxygen warnings.
+   - [x] **D4 Batch 2e-i follow-up (IF-223 sub-path C)** —
+         fixed.  With IF-244 unblocked (mislabel resolved) and
+         IF-241..IF-243 resolved (formula, idxReg name, and
+         `awgCfg_+0xC` premise corrections), IF-223 sub-path C
+         was reconstructed inline within the Table case at
+         `prefetch_placesingle.cpp` ~lines 1258-1432.  Three
+         branches now dispatch on `lengthRegInvalidOrZero` and
+         `Prefetch::split_`: (B) length invalid → existing
+         smap-triplet with `totalSize = sizePerDevice /
+         (isHirzel ? 1 : pagesNeeded)` and `stateReg = isHirzel
+         ? Hirzel : Cervino`; (C-non-split) length valid &&
+         `!split_` → re-converges with B's smap-triplet but with
+         `totalSize = (length * numChannels) * 2` (signed 32-bit
+         per IF-241) and **forced** `stateReg = registerCervino`
+         (audit §4f-1); (C-split) length valid && `split_` →
+         allocates `idxReg` (per IF-242), emits
+         `addi(idxReg, lengthReg, 0)` + per-channel `ssl(idxReg)`
+         loop bound by `numChannels` + `addr(idxReg, regHirzel)`
+         + `prf(regHirzel, regCervino, clampToCache(cacheSize >>
+         1))` + `wprf` (the latter unconditional with `\verifyme`
+         pending IF-244 action item 3 helper extraction; binary
+         gates on `!isHirzel` at `0x1db935`).  Tests: 1602/1602
+         (corpus does not exercise sub-path C; behaviour change
+         is latent until a `playWaveTable` test with non-empty
+         cache + valid per-channel length register is added).
+         Build clean, 0 new doxygen warnings.  IF-223 marked
+         **fixed** in `incidental_findings.md`.
    - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
         helpers (7 methods): `clampToCache`, `wvfImpl`,
         `wvfRegImpl`, `wvfs`, `needsNewCwvf`, `splitPlay`,

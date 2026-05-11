@@ -5047,9 +5047,14 @@ correcting the inline `0x200` and `0x8000` comments.
 ## IF-223  `Prefetch::placeSingleCommand` `case 0x200 (Table)` body is partially stubbed
 
 **Severity**: likely-bug (stub).
-**Status**: **partially fixed** (sub-paths A and B reconstructed;
-sub-path C deferred via `\verifyme`).  See sub-path table below
-for the verified structure.
+**Status**: **fixed** (all three sub-paths reconstructed: A, B, and
+C with both C-non-split and C-split branches).  See sub-path table
+below for the verified structure.  The C-split `wprf` emission is
+flagged `\verifyme` pending IF-244 action item 3
+(`emitPrfEpilogueAndInsert_` helper extraction) — currently emitted
+unconditionally where the binary gates on `!isHirzel` at
+`0x1db935`.  Tests remain 1602/1602: corpus does not exercise
+sub-path C.
 **Discovered**: D4 Batch 2e-i verify-then-write of
 `Prefetch::placeSingleCommand`
 (`prefetch_placesingle.cpp:1024-1063`, original at `0x1d7940` /

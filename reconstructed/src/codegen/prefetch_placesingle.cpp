@@ -1261,51 +1261,154 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                 bool lengthRegInvalidOrZero =
                     !lengthRegT.isValid() || (lengthRegT == AsmRegister(0));
 
-                if (!lengthRegInvalidOrZero) {
-                    //! \verifyme  Sub-path C (Table, lengthReg valid
-                    //! && != R0): the binary at 0x1d949f branches to
-                    //! 0x1daed4, which emits a split / non-split tail
-                    //! with ssl/addi/prf/wprf.  Reconstruction is
-                    //! deferred; when wired in, the split-tail body
-                    //! at 0x1db562..0x1db60a corresponds to
-                    //! `table_indexed_with_clamp` (above) — IF-244
-                    //! confirmed it is **not** shared with Play
-                    //! `cervino_indexed_nonsplit` (the two have
-                    //! different `wprf` placement, presence of
-                    //! `clampToCache`, and shared-tail exits).
-                    //! Tests exercising `playWaveTable` with a
-                    //! non-empty cache AND a valid per-channel length
-                    //! register will diverge from the binary until
-                    //! this block is finished.  Tracked as IF-223
-                    //! sub-path C.
-                    // (fall through to out->insert with smap #1 only;
-                    //  this matches sub-path A output for now.)
-                } else {
+                // ----- Compute totalSize and stateReg -----
+                //
+                // Three sub-paths share the smap-triplet emission
+                // (0x1da564..0x1da6cc); they differ only in how
+                // totalSize and stateReg are computed:
+                //
+                //   B    (lengthReg invalid):
+                //         totalSize = sizePerDevice
+                //                     / (isHirzel ? 1 : pagesNeeded)
+                //         stateReg  = isHirzel ? Hirzel : Cervino
+                //   C-non-split (lengthReg valid, split_ != 1):
+                //         totalSize = (length * numChannels) * 2
+                //         stateReg  = registerCervino   (forced)
+                //   C-split     (lengthReg valid, split_ == 1):
+                //         does NOT emit the smap-triplet; instead
+                //         emits ssl-loop / addr / prf / wprf — see
+                //         the dedicated branch below.
+                //
+                // (IF-223 sub-path C, polarity verified by IF-241:
+                //  the binary gate at 0x1daed4 is
+                //  `cmpb $1, [r15+0xbc]; jne 0x1db749` — fall-through
+                //  is split_==1, jump-taken is split_!=1.  Earlier
+                //  IF-223 sub-path table had the polarity inverted;
+                //  see notes/incidental_findings.md IF-241 for the
+                //  polarity correction.)
+                int totalSizeT = 0;
+                AsmRegister stateRegT;
+                bool emitSmapTriplet = true;
+
+                if (lengthRegInvalidOrZero) {
                     // Sub-path B: lengthReg invalid or == R0.
                     //
                     // Compute totalSize from waveform size and (if
                     // !isHirzel) pagesNeeded.                        // 0x1d94a5..0x1d951a
-                    int totalSizeT = 0;
-                    {
-                        auto waveOptT = npSync->waveAtCurrentDeviceIndex();   // 0x1d94b6
-                        auto wfT = wavetableIR_->getWaveformByName(waveOptT); // 0x1d94c9
-                        int sizePerDevice =
-                            static_cast<int>(wfT->getSizePerDevice());        // 0x1d94d2
-                        if (config_->isHirzel) {                              // 0x1d94df
-                            totalSizeT = sizePerDevice;
-                        } else {
-                            int pagesNeeded =
-                                nodeStates_[node].pagesNeeded;                // PNS+0x1C, 0x1d9514
-                            totalSizeT = sizePerDevice / pagesNeeded;
-                        }
+                    auto waveOptT = npSync->waveAtCurrentDeviceIndex();   // 0x1d94b6
+                    auto wfT = wavetableIR_->getWaveformByName(waveOptT); // 0x1d94c9
+                    int sizePerDevice =
+                        static_cast<int>(wfT->getSizePerDevice());        // 0x1d94d2
+                    if (config_->isHirzel) {                              // 0x1d94df
+                        totalSizeT = sizePerDevice;
+                    } else {
+                        int pagesNeeded =
+                            nodeStates_[node].pagesNeeded;                // PNS+0x1C, 0x1d9514
+                        totalSizeT = sizePerDevice / pagesNeeded;
                     }
 
                     // Pick stateReg: registerHirzel when isHirzel,
                     // else registerCervino.                          // 0x1d9552 / 0x1d9581 / 0x1da560
-                    AsmRegister stateRegT = config_->isHirzel
+                    stateRegT = config_->isHirzel
                         ? nodeStates_[node].registerHirzel           // PNS+0x00
                         : nodeStates_[node].registerCervino;         // PNS+0x08
+                } else {
+                    // Sub-path C: lengthReg valid && != R0.  Gate at
+                    // 0x1daed4 (`cmpb $1, [r15+0xbc]; jne 0x1db749`)
+                    // dispatches on split_ (IF-241 polarity).
+                    if (!this->split_) {
+                        // C-non-split (jne taken → 0x1db749..0x1db826):
+                        // re-converges with sub-path B at 0x1da56e
+                        // (forced stateReg = registerCervino, distinct
+                        // totalSize formula).                         // 0x1db820..0x1db823
+                        auto waveOptC = npSync->waveAtCurrentDeviceIndex();
+                        auto wfC = wavetableIR_->getWaveformByName(waveOptC);
+                        uint16_t numChannelsC = wfC->signal.channels_;     // +0xc8
+                        int lengthC = npSync->length;                       // +0x90
+                        // Signed 32-bit: r12d = length * numChannels;
+                        // then add r12d, r12d → totalSize.            // 0x1db820..0x1db823
+                        totalSizeT = (lengthC * numChannelsC) * 2;
 
+                        // C-non-split forces stateReg = registerCervino
+                        // (audit §4f-1: "re-emplace, pick registerCervino,
+                        //  jmp 0x1da56e").
+                        stateRegT = nodeStates_[node].registerCervino;     // PNS+0x08
+                    } else {
+                        // C-split (fall-through, split_ == true):
+                        // 0x1daed4..0x1db740 territory.  Does NOT emit
+                        // the smap-triplet.  Instead allocates idxReg
+                        // (audit's `bgReg` ≡ Play's `idxReg`, IF-242),
+                        // then emits addi(idxReg, lengthReg, 0) +
+                        // per-channel ssl(idxReg) loop +
+                        // addr(idxReg, registerHirzel) +
+                        // prf(registerHirzel, registerCervino,
+                        //     clampToCache(cacheSize >> 1)) +
+                        // wprf (deferred-emission gate at 0x1db935;
+                        // emitted unconditionally here pending shared-
+                        // tail helper extraction — see IF-244 action
+                        // item 3).
+                        emitSmapTriplet = false;
+
+                        auto waveOptCS = npSync->waveAtCurrentDeviceIndex();
+                        auto wfCS = wavetableIR_->getWaveformByName(waveOptCS);
+                        uint16_t numChannelsCS = wfCS->signal.channels_;   // +0xc8
+
+                        // Allocate idxReg.                           // 0x1daf55..0x1daf6a
+                        AsmRegister idxReg(resources_->getRegisterNumber());
+
+                        // addi(idxReg, lengthReg, Imm(0)).            // 0x1daf85..
+                        {
+                            auto addiVec = asmCommands_->addi(
+                                idxReg, npSync->lengthReg, Immediate(0));
+                            for (auto& a : addiVec) tempList.append(a);
+                        }
+
+                        // Per-channel ssl(idxReg) loop.               // 0x1daf??..
+                        for (uint16_t ch = 0; ch < numChannelsCS; ++ch) {
+                            AsmList::Asm sslAsm = asmCommands_->ssl(idxReg);
+                            tempList.append(sslAsm);
+                        }
+
+                        // addr(idxReg, registerHirzel).               // 0x1db1??..
+                        AsmRegister regHirzelCS =
+                            nodeStates_[node].registerHirzel;          // PNS+0x00
+                        {
+                            AsmList::Asm addrAsm =
+                                asmCommands_->addr(idxReg, regHirzelCS);
+                            tempList.append(addrAsm);
+                        }
+
+                        // prf(regHirzel, regCervino,
+                        //     clampToCache(cacheSize >> 1)).          // 0x1db22c..0x1db2c8
+                        AsmRegister regCervinoCS =
+                            nodeStates_[node].registerCervino;         // PNS+0x08
+                        uint32_t cacheSizeCS =
+                            nodeStates_[node].cachePtr->size_;         // PNS+0x28 → +0x04
+                        uint32_t clampedCS =
+                            clampToCache(cacheSizeCS >> 1);
+                        {
+                            AsmList::Asm prfAsm = asmCommands_->prf(
+                                regHirzelCS, regCervinoCS,
+                                static_cast<int>(clampedCS));
+                            tempList.append(prfAsm);
+                        }
+
+                        //! \verifyme IF-223 sub-path C-split: `wprf`
+                        //! is emitted unconditionally here, but the
+                        //! binary gates it on `!isHirzel` at the
+                        //! shared `0x1db935` tail.  Pending IF-244
+                        //! action item 3 (extract
+                        //! `emitPrfEpilogueAndInsert_` helper).
+                        {
+                            AsmList::Asm wprfAsm = asmCommands_->wprf();
+                            tempList.append(wprfAsm);
+                        }
+                    }
+                }
+
+                // Shared smap-triplet emission (sub-paths B and
+                // C-non-split).
+                if (emitSmapTriplet) {
                     // smap #2: smap(reg1, stateReg, tableIndex).     // 0x1da591
                     {
                         auto smapVec = asmCommands_->smap(
