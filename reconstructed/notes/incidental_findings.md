@@ -5133,47 +5133,41 @@ don't reach the partial-emission divergence.
 ## IF-224  `Prefetch::placeSingleCommand` `play_cervino_indexed_nonsplit` label is a stub
 
 **Severity**: likely-bug (stub).
-**Status**: open (recon body unfixed).
+**Status**: **fixed** (commit pending) — body reconstructed at
+`prefetch_placesingle.cpp:863-913` from full disassembly of
+`0x1db562..0x1db60a`.  The implementation is much smaller than
+the IF originally suggested.
 **Discovered**: D4 Batch 2e-i verify-then-write of
 `Prefetch::placeSingleCommand`
 (`prefetch_placesingle.cpp:862-868`, original at `0x1db562`).
 
-The labelled block:
+**Resolution**: confirmed by objdump (no GDB needed).  The
+labelled block emits exactly two `AsmList::Asm` entries into
+`tempList` and then falls through to `play_finalize`:
 
-```cpp
-play_cervino_indexed_nonsplit:                      // 0x1db562
-    {
-        // Indexed non-split Cervino: wwvf + ssl loop + addr + prf(clampToCache)
-        // Similar to cervino_indexed but without the splitPlay path
-        // ... follows same pattern as above
-    }
-    goto play_finalize;
+```
+[0x1db562..0x1db5b0] load asmCommands_ / 3× nodeStates_[node] expand
+[0x1db5cc..0x1db5d8] cacheSize = cachePtr->size_; cacheSize >>= 1
+[0x1db5dd]          clamped = clampToCache(cacheSize)
+[0x1db5e2..0x1db605] prf(registerHirzel, registerCervino, clamped),
+                     tempList.append(prf)
+[0x1db60a]          jmp shared-tail 0x1db911
+[0x1db918..0x1db952] dtor prf-temp, then wprf() & tempList.append(wprf)
+[0x1db952 → play_finalize]
 ```
 
-is reachable via the Cervino indexed non-split control-flow
-path (when `!isHirzel && !split_ && lengthReg.isValid() &&
-pagesNeeded < 2 && indexed`).  The body is empty — only the
-descriptive comment remains.  Falls through to `play_finalize`
-which inserts the (empty) `tempList`.
+The IF's earlier conjecture about a "wwvf + ssl loop + addr"
+trio at this label was wrong — those instructions are emitted
+earlier in `placeSingleCommand` (before the dispatch reaches
+this label) and the label itself is only the prf+wprf finalize
+epilogue.  The block-header comment in the recon source has
+been corrected accordingly.
 
-This contrasts with the sibling `play_cervino_indexed2_hirzel`
-label at line 870, which does have a full reconstructed body
-(addi+ssl loop+addr).  The reconstruction was apparently halted
-mid-pass.
-
-**Why tests still pass at 1600/1600**: same coverage gap as
-IF-223 — the test corpus appears not to exercise this exact
-combination of flags reaching the indexed-nonsplit Cervino
-path.
-
-**Action**:
-1. `objdump -d --start-address=0x1db562 --stop-address=0x1db6f8
-   _seqc_compiler.so` to identify the body.
-2. Reconstruct following the comment's hint (wwvf + ssl loop +
-   addr + prf with `clampToCache`).
-3. GDB-trace on a multi-Cervino indexed playWave with a small
-   waveform (so `pagesNeeded < 2`).
-4. Add regression test.
+**Why tests still pass at 1602/1602 even before the fix**: same
+coverage gap as IF-223 — the test corpus does not exercise the
+exact combination of `!isHirzel && !split_ && lengthReg.isValid()
+&& pagesNeeded < 2 && indexed` that routes through this label.
+ELF output is unchanged.
 
 ## IF-225  `Prefetch::getUsedChannels` block-header mislabels reduced field
 

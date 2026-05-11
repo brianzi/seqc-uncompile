@@ -298,23 +298,21 @@ cross-reference pages so the backlog is discoverable.
         sections.  Tests currently 1600/1600 because no case in
         the corpus reaches this divergence.  See IF-223 for full
         evidence.
-  - [ ] **D4 Batch 2e-i follow-up (IF-224)** — reconstruct the
-        `play_cervino_indexed_nonsplit` label body in
-        `Prefetch::placeSingleCommand`
-        (`prefetch_placesingle.cpp:862-868`, original
-        `0x1db562..0x1db6f8`).  Currently an empty block falling
-        through to `play_finalize` with the descriptive comment
-        as the only content (wwvf + ssl loop + addr + prf with
-        `clampToCache`).  `objdump -d
-        --start-address=0x1db562 --stop-address=0x1db6f8
-        _seqc_compiler.so` for the body; cross-reference with
-        the sibling `play_cervino_indexed2_hirzel` block
-        (lines 870-915) which has a full reconstructed body in
-        the same pattern.  GDB-trace on a multi-Cervino indexed
-        playWave with a small waveform (so `pagesNeeded < 2`)
-        to confirm; add a regression test.  Tests currently
-        1600/1600 because no case in the corpus reaches this
-        path.  See IF-224 for full evidence.
+  - [x] **D4 Batch 2e-i follow-up (IF-224)** — fixed.
+        `play_cervino_indexed_nonsplit` label body reconstructed
+        at `prefetch_placesingle.cpp:863-913` from full
+        disassembly of `0x1db562..0x1db60a`.  Despite the
+        earlier "wwvf + ssl loop + addr + prf" hypothesis, the
+        actual block is much smaller: it emits exactly one
+        `prf(registerHirzel, registerCervino,
+        clampToCache(cachePtr->size_ / 2))` followed by one
+        `wprf()` into `tempList`, then falls through to
+        `play_finalize`.  The wwvf/ssl/addr/addi sequence was
+        emitted earlier in `placeSingleCommand` before reaching
+        this label.  Block-header comment corrected.  Tests:
+        1602/1602 (no behaviour change — corpus does not
+        exercise the gate combination that routes here).  See
+        IF-224 for full disassembly trail.
   - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
         helpers (7 methods): `clampToCache`, `wvfImpl`,
         `wvfRegImpl`, `wvfs`, `needsNewCwvf`, `splitPlay`,

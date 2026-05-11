@@ -862,9 +862,49 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
 
                 play_cervino_indexed_nonsplit:                      // 0x1db562
                     {
-                        // Indexed non-split Cervino: wwvf + ssl loop + addr + prf(clampToCache)
-                        // Similar to cervino_indexed but without the splitPlay path
-                        // ... follows same pattern as above
+                        // Cervino indexed, non-split path.  The dispatch
+                        // gate (set in the caller chain) is
+                        //   !isHirzel && !split_ && lengthReg.isValid()
+                        //   && pagesNeeded < 2 && indexed.
+                        //
+                        // Despite the earlier inferred header
+                        // ("wwvf + ssl loop + addr + prf(clampToCache)"),
+                        // the binary block at 0x1db562..0x1db60a only
+                        // emits a single prf, followed (at the shared
+                        // tail 0x1db937..0x1db952, unconditional in this
+                        // !isHirzel path) by a wprf.  The wwvf / ssl /
+                        // addr / addi were emitted earlier in
+                        // placeSingleCommand before this label was
+                        // reached; this label is only the
+                        // prf-and-finalize epilogue.
+                        //
+                        // prf(registerHirzel, registerCervino,
+                        //     clampToCache(cachePtr->size_ / 2))
+
+                        AsmRegister regHirzel =
+                            nodeStates_[node].registerHirzel;       // PNS+0x00, 0x1db587
+                        AsmRegister regCervino =
+                            nodeStates_[node].registerCervino;      // PNS+0x08, 0x1db5af
+                        uint32_t cacheSize =
+                            nodeStates_[node].cachePtr->size_;      // PNS+0x28 → +0x04, 0x1db5d5
+
+                        uint32_t clamped =
+                            clampToCache(cacheSize >> 1);           // 0x1db5d8..0x1db5dd
+
+                        {
+                            AsmList::Asm prfAsm = asmCommands_->prf(
+                                regHirzel, regCervino,
+                                static_cast<int>(clamped));         // 0x1db5f5
+                            tempList.append(prfAsm);                 // 0x1db605
+                        }
+
+                        // Shared tail at 0x1db937..0x1db952 — wprf is
+                        // emitted unconditionally because this label's
+                        // gate guarantees !isHirzel.
+                        {
+                            AsmList::Asm wprfAsm = asmCommands_->wprf(); // 0x1db942
+                            tempList.append(wprfAsm);                    // 0x1db952
+                        }
                     }
                     goto play_finalize;
 
