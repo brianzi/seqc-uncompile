@@ -1061,7 +1061,8 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     }
     // --- nodeType > 0x1ff ---
     else if (nodeType <= 0x3fff) {
-        // --- nodeType == 0x200: Table (partial — IF-223 stub) ---
+        // --- nodeType == 0x200: Table (sub-paths A+B implemented;
+        //     sub-path C deferred — see IF-223 \verifyme below) ---
         if (nodeType == 0x200) {                                   // 0x1d7a5b
             // 0x1d7ebb: lock weak_ptr at np+0x18..+0x20
             std::shared_ptr<Node> loadNode = np->loadRef.lock();
@@ -1080,26 +1081,141 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             AsmRegister reg1(resources_->getRegisterNumber());     // 0x1d89dd
             AsmRegister reg2(resources_->getRegisterNumber());     // 0x1d89f0
 
-            // Encode cwvf inline (PlayConfig::encodeCwvf inlined) // 0x1d8a03..0x1d8b3c
-            int cwvfEncoded = PlayConfig::encodeCwvf(npSync->config, npSync->globalRate);  // +0x100, passed as defaultRate
+            // Inline PlayConfig::encodeCwvf at 0x1d8a03..0x1d8b3c.
+            // defaultRate is config.rate when non-negative, else
+            // node->globalRate (Node+0x100).  See IF-223 §6 for
+            // the verified sign-test + cmov gate at 0x1d8a35..0x1d8a3c.
+            int defaultRate = (npSync->config.rate >= 0)
+                                ? npSync->config.rate
+                                : npSync->globalRate;
+            uint32_t cwvfEncoded = npSync->config.encodeCwvf(defaultRate);
 
             AsmList tempList;
 
-            if (cwvfEncoded >= 0x1000000) {
-                AsmRegister cwvfReg(resources_->getRegisterNumber());
-                auto addiVec = asmCommands_->addi(cwvfReg, AsmRegister(0), Immediate(cwvfEncoded));
+            // addi(reg2, R0, Imm(encodedCwvf)) — always emitted.    // 0x1d8b64
+            // (The Table case has no `cwvf`/`cwvfr` short-form
+            // fallback; the `>=0x1000000` branch the previous stub
+            // emitted was fabricated — see IF-223 §8d item 1.)
+            {
+                auto addiVec = asmCommands_->addi(
+                    reg2, AsmRegister(0),
+                    Immediate(static_cast<int>(cwvfEncoded)));
                 for (auto& a : addiVec) tempList.append(a);
-
-                AsmList::Asm cwvfrAsm = asmCommands_->cwvfr(cwvfReg);
-                tempList.append(cwvfrAsm);
-            } else {
-                AsmList::Asm cwvfAsm = asmCommands_->cwvf(cwvfEncoded);
-                tempList.append(cwvfAsm);
             }
 
-            // Emit smap, ssl loop, addr, prf — same pattern as case 2 cervino_nonsplit
-            // (0x1d8b3c..0x1dba0d mirrors the play cervino_nonsplit structure)
+            // ------------------------------------------------------------
+            // smap-triplet emission for Table case (0x1d932b..0x1da6cc).
+            //
+            // Always emit smap(reg1, reg2, 0x400 | tableIndex) at
+            // 0x1d932b.  Then dispatch on loadState.cachePtr->size_
+            // and node->lengthReg validity:
+            //
+            //   A. cachePtr->size_ == 0
+            //         → straight to out->insert.                    // 0x1d944e
+            //   B. cachePtr->size_ != 0 AND
+            //      (lengthReg invalid OR lengthReg == R0)
+            //         → also emit
+            //             smap(reg1, stateReg, tableIndex)          // 0x1da591
+            //             addi(reg2, R0, Imm(totalSize))            // 0x1da617
+            //             smap(reg1, reg2, 0x800 | tableIndex)      // 0x1da69b
+            //           where stateReg = isHirzel ? registerHirzel
+            //                                     : registerCervino
+            //           and   totalSize = waveform->getSizePerDevice()
+            //                             / (isHirzel ? 1 : pagesNeeded).
+            //   C. cachePtr->size_ != 0 AND lengthReg valid && != R0
+            //         → branch to 0x1daed4 (split / non-split tail
+            //           emitting ssl/addi/prf/wprf).  Deferred —
+            //           see \verifyme below.
+            // ------------------------------------------------------------
+            int32_t tableIndex = npSync->tableIndex;                 // +0x9C
 
+            // smap #1: always.                                       // 0x1d9354
+            {
+                auto smapVec = asmCommands_->smap(
+                    reg1, reg2, 0x400 + tableIndex);
+                for (auto& a : smapVec) tempList.append(a);
+            }
+
+            // Re-check loadState entry: the binary calls __emplace
+            // again at 0x1d943d (against `node`, not `loadNode`)
+            // before reading cachePtr.  Functionally equivalent to
+            // a second nodeStates_[node] lookup.
+            auto& loadState2 = nodeStates_[node];                    // 0x1d943d
+            uint32_t cacheSize2 =
+                loadState2.cachePtr ? loadState2.cachePtr->size_ : 0u;
+
+            // Sub-path A: cachePtr->size_ == 0 → finalize.          // 0x1d944e
+            if (cacheSize2 != 0u) {
+                AsmRegister lengthRegT = npSync->lengthReg;          // +0x88
+                bool lengthRegInvalidOrZero =
+                    !lengthRegT.isValid() || (lengthRegT == AsmRegister(0));
+
+                if (!lengthRegInvalidOrZero) {
+                    //! \verifyme  Sub-path C (Table, lengthReg valid
+                    //! && != R0): the binary at 0x1d949f branches to
+                    //! 0x1daed4, which emits a split / non-split tail
+                    //! with ssl/addi/prf/wprf.  Reconstruction is
+                    //! deferred because the split tail at
+                    //! 0x1db562..0x1db60a partially shares code with
+                    //! `play_cervino_indexed_nonsplit` and needs a
+                    //! separate factoring pass.  Tests exercising
+                    //! `playWaveTable` with a non-empty cache AND a
+                    //! valid per-channel length register will diverge
+                    //! from the binary until this block is finished.
+                    //! Tracked as IF-223 sub-path C.
+                    // (fall through to out->insert with smap #1 only;
+                    //  this matches sub-path A output for now.)
+                } else {
+                    // Sub-path B: lengthReg invalid or == R0.
+                    //
+                    // Compute totalSize from waveform size and (if
+                    // !isHirzel) pagesNeeded.                        // 0x1d94a5..0x1d951a
+                    int totalSizeT = 0;
+                    {
+                        auto waveOptT = npSync->waveAtCurrentDeviceIndex();   // 0x1d94b6
+                        auto wfT = wavetableIR_->getWaveformByName(waveOptT); // 0x1d94c9
+                        int sizePerDevice =
+                            static_cast<int>(wfT->getSizePerDevice());        // 0x1d94d2
+                        if (config_->isHirzel) {                              // 0x1d94df
+                            totalSizeT = sizePerDevice;
+                        } else {
+                            int pagesNeeded =
+                                nodeStates_[node].pagesNeeded;                // PNS+0x1C, 0x1d9514
+                            totalSizeT = sizePerDevice / pagesNeeded;
+                        }
+                    }
+
+                    // Pick stateReg: registerHirzel when isHirzel,
+                    // else registerCervino.                          // 0x1d9552 / 0x1d9581 / 0x1da560
+                    AsmRegister stateRegT = config_->isHirzel
+                        ? nodeStates_[node].registerHirzel           // PNS+0x00
+                        : nodeStates_[node].registerCervino;         // PNS+0x08
+
+                    // smap #2: smap(reg1, stateReg, tableIndex).     // 0x1da591
+                    {
+                        auto smapVec = asmCommands_->smap(
+                            reg1, stateRegT, tableIndex);
+                        for (auto& a : smapVec) tempList.append(a);
+                    }
+
+                    // addi(reg2, R0, Imm(totalSize)).                // 0x1da617
+                    {
+                        auto addiVec = asmCommands_->addi(
+                            reg2, AsmRegister(0), Immediate(totalSizeT));
+                        for (auto& a : addiVec) tempList.append(a);
+                    }
+
+                    // smap #3: smap(reg1, reg2, 0x800 | tableIndex). // 0x1da69b
+                    {
+                        auto smapVec = asmCommands_->smap(
+                            reg1, reg2, 0x800 + tableIndex);
+                        for (auto& a : smapVec) tempList.append(a);
+                    }
+                }
+            }
+
+            // Final out->insert (parallel epilogue at 0x1da6df,
+            // distinct from the Play-case `play_finalize` at 0x1dba0d).
             out->insert(placeholderIter(), tempList.begin(), tempList.end());
         }
         // --- nodeType == 0x2000: SyncHirzel ---

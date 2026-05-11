@@ -286,24 +286,33 @@ cross-reference pages so the backlog is discoverable.
         `\verifyme` in briefs and explicit IF markers in recon
         comments, deferred to dedicated follow-ups.  1600/1600
         tests, build clean, 0 doxygen warnings.
-  - [ ] **D4 Batch 2e-i follow-up (IF-223)** — reconstruct the
-        Table-case (`nodeType == 0x200`) tail in
-        `Prefetch::placeSingleCommand`
-        (`prefetch_placesingle.cpp:1023-1063`, original
-        `0x1d8b3c..0x1dba0d`).  Current recon emits only the
-        leading cwvf and inserts an incomplete tempList.
-        `objdump -d --start-address=0x1d8b3c
-        --stop-address=0x1dba0d _seqc_compiler.so` to identify
-        the smap / ssl loop / addr / prf instruction sequence
-        (the comment claims it mirrors the cervino_nonsplit
-        emission already in the file).  GDB-trace the original
-        on a SeqC program exercising `playWave(table, ...)` on a
-        multi-channel device to confirm which branches fire and
-        with what register / size values; reconstruct the tail;
-        add a regression test that diffs the `.text` / `.asm`
-        sections.  Tests currently 1600/1600 because no case in
-        the corpus reaches this divergence.  See IF-223 for full
-        evidence.
+  - [x] **D4 Batch 2e-i follow-up (IF-223)** — partially fixed
+        (sub-paths A and B reconstructed; sub-path C deferred via
+        `\verifyme`).  Consolidated objdump audit revealed the
+        IF's "smap + ssl loop + addr + prf, mirrors
+        cervino_nonsplit" hypothesis was wrong about both scope
+        and pattern.  The Table case actually has **three
+        sub-paths**, all converging at `out->insert` at
+        `0x1da6df` (parallel to, but distinct from, the Play-case
+        `play_finalize` at `0x1dba0d`):
+        A (cachePtr empty) emits `addi(reg2,zero,encodedCwvf) +
+        smap(reg1,reg2,0x400|tableIndex)`; B (cachePtr non-empty,
+        no lengthReg) additionally emits
+        `smap(reg1,stateReg,tableIndex) + addi(reg2,zero,
+        totalSize) + smap(reg1,reg2,0x800|tableIndex)`; C
+        (lengthReg valid && != R0) branches to `0x1daed4..
+        0x1db740` for split / non-split tail with ssl/addi/prf/
+        wprf.  Sub-paths A and B now reconstructed at
+        `prefetch_placesingle.cpp:1083-1227`; sub-path C deferred
+        because the split-tail at `0x1db562..0x1db60a` shares
+        code with `play_cervino_indexed_nonsplit` (recon line
+        884-908) and needs separate factoring (IF-244).  Two
+        pre-existing recon bugs also fixed in same pass:
+        fabricated `>=0x1000000` cwvf-vs-cwvfr branch and wrong
+        `defaultRate` argument to `encodeCwvf`.  Five new IFs
+        filed for sub-path C open questions (IF-241..IF-245).
+        Tests: 1602/1602 (corpus does not exercise sub-path C).
+        Build clean, 0 doxygen warnings.
   - [x] **D4 Batch 2e-i follow-up (IF-224)** — fixed.
         `play_cervino_indexed_nonsplit` label body reconstructed
         at `prefetch_placesingle.cpp:863-913` from full

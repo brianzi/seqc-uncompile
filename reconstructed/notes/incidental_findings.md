@@ -5047,61 +5047,115 @@ correcting the inline `0x200` and `0x8000` comments.
 ## IF-223  `Prefetch::placeSingleCommand` `case 0x200 (Table)` body is partially stubbed
 
 **Severity**: likely-bug (stub).
-**Status**: open (recon body unfixed; comments at the stub site
-left as-is so the gap is explicit).
+**Status**: **partially fixed** (sub-paths A and B reconstructed;
+sub-path C deferred via `\verifyme`).  See sub-path table below
+for the verified structure.
 **Discovered**: D4 Batch 2e-i verify-then-write of
 `Prefetch::placeSingleCommand`
 (`prefetch_placesingle.cpp:1024-1063`, original at `0x1d7940` /
 case dispatch at `0x1d7a5b`).
 
-The recon body for the `nodeType == 0x200 (Table)` case
-(`prefetch_placesingle.cpp:1024-1063`) emits:
+### Verified structure (per consolidated objdump audit)
 
-1. Locks `np->loadRef` and bails on null.
-2. Bails when `loadState.cachePtr == nullptr`.
-3. Pushes `npSync->config` into `usageEntries_`.
-4. Allocates two registers via `resources_->getRegisterNumber()`.
-5. Encodes a CWVF immediate via `PlayConfig::encodeCwvf` and
-   emits either `cwvf` (small immediate) or `addi`+`cwvfr`
-   (large value).
-6. Inserts the partial `tempList` at the placeholder.
+The IF's original "smap + ssl loop + addr + prf" hypothesis was
+wrong about both **scope** and **pattern**.  The Table case
+actually has **three sub-paths**, all converging at `out->insert`
+at `0x1da6df` (the parallel epilogue, distinct from the
+Play-case `play_finalize` at `0x1dba0d`):
 
-The comment at `prefetch_placesingle.cpp:1059-1060` says:
+| Sub-path | Gate | Range | Emits |
+|---|---|---|---|
+| **A** cachePtr empty | `loadState->cachePtr->size_ == 0` | `0x1d8b3c..0x1d932b` → jmp `0x1da6df` | `addi(reg2,zero,encodedCwvf)` + `smap(reg1,reg2,0x400\|tableIndex)` |
+| **B** cachePtr non-empty, no lengthReg | `cachePtr.size_!=0 && (!lengthReg.isValid() \|\| lengthReg==R0)` | falls through `0x1d94a5..0x1da6df` | A + `smap(reg1,stateReg,tableIndex)` + `addi(reg2,zero,totalSize)` + `smap(reg1,reg2,0x800\|tableIndex)` where `totalSize = wfir->getSizePerDevice() / (isHirzel ? 1 : pagesNeeded)` and `stateReg = isHirzel ? registerHirzel : registerCervino` |
+| **C** cachePtr non-empty, lengthReg valid | `cachePtr.size_!=0 && lengthReg.isValid() && lengthReg!=R0` | jmp `0x1daed4..0x1db740` | C1 (`!split_`): re-converges with B at `0x1da56e` with `totalSize = 2*node->length*waveform.numChannels`. C2 (`split_==true`): full ssl-loop / addr / prf / wprf path |
 
-> Emit smap, ssl loop, addr, prf — same pattern as case 2
-> cervino_nonsplit  (0x1d8b3c..0x1dba0d mirrors the play
-> cervino_nonsplit structure)
+Window correction: the IF originally cited `0x1d8b3c..0x1dba0d`
+as the Table tail.  In reality that window is only ~20 % Table
+code (the inlined `encodeCwvf` at `0x1d89d6..0x1d8b9c` plus the
+smap-triplet at `0x1d932b..0x1da6df`); the rest is interleaved
+Play-case code.  The Table-exclusive ssl/addr/prf/wprf region
+lives at **`0x1daed4..0x1db740`** (single xref from `0x1d949f`).
 
-This `smap` / `ssl` loop / `addr` / `prf` tail (which the
-binary at `0x1d8b3c..0x1dba0d` emits, a ~3 KB region) is
-**not implemented** in the recon body.  Only the CWVF emission
-portion is.
+### Resolution (sub-paths A and B)
 
-This is the same anti-pattern as IF-217 / IF-218 (stub body
-whose intended behaviour exists only as a comment).  The
-partial body produces a valid AsmList that is missing the
-table-fetch / per-channel addr / prefetch instructions for the
-Table case.
+Reconstructed at `prefetch_placesingle.cpp:1083-1227` (commit
+pending).  Verified APIs:
 
-**Why tests still pass at 1600/1600**: the test corpus appears
-not to exercise `NodeType::Table` reaching `placeSingleCommand`
-on a code path where the missing tail would matter.  Table
-nodes are produced by table-driven playWave variants
-(`playWave(table, ...)`) but the simple cases in the corpus
-don't reach the partial-emission divergence.
+- `smap(AsmRegister r1, AsmRegister r2, int value)` returns
+  `std::vector<AsmList::Asm>`; `r1` is the scratch/key register
+  loaded with the immediate, `r2` is the value register stored.
+- `PlayConfig::encodeCwvf(int defaultRate)` packs the cwvf word;
+  `defaultRate = (config.rate < 0) ? node->globalRate : config.rate`
+  per binary `0x1d8a35..0x1d8a3c` sign-test + cmov.
 
-**Action**:
-1. `objdump -d --start-address=0x1d8b3c --stop-address=0x1dba0d
-   _seqc_compiler.so` to identify the Table-case tail.
-2. Cross-reference with the existing `play_cervino_nonsplit`
-   reconstruction in the same file (the comment claims they
-   mirror).
-3. GDB-trace the original on a SeqC program that exercises
-   `NodeType::Table` placement (likely a `playWave(t, ...)`
-   variant on a multi-channel device).
-4. Reconstruct the smap/ssl/addr/prf tail.
-5. Run the full suite; add a regression test if the existing
-   corpus does not cover the path.
+Pre-existing recon bugs that were **also fixed** in this pass:
+
+1. **Fabricated `>=0x1000000` cwvf-vs-cwvfr branch** at the old
+   lines 1088-1098.  The Table case has no such fallback; it
+   always emits `addi(reg2, R0, Imm(encoded))`.  The fabricated
+   branch was conflating the Table path with the Play
+   `cervino_nonsplit` path at `0x1d8087..0x1d8157`.
+2. **Wrong `defaultRate` argument** at the old line 1084:
+   `PlayConfig::encodeCwvf(npSync->config, npSync->globalRate)`
+   unconditionally passed `globalRate`.  Should be the ternary
+   above.  (Tests still pass because `encodeCwvf` internally
+   clamps negative `defaultRate` to 0, so for `rate >= 0` cases
+   not yet exercised in the corpus the output happens to match.)
+
+### Deferred (sub-path C)
+
+Sub-path C (lengthReg valid && != R0, branching to `0x1daed4`)
+is **not** reconstructed.  The current code falls through to
+`out->insert` after only emitting smap #1, which is wrong but
+matches sub-path A's output for now and produces a `\verifyme`
+marker in the source.
+
+Reasons for deferral:
+- The split-tail at `0x1db562..0x1db60a` partially shares code
+  with `play_cervino_indexed_nonsplit` (recon at
+  `prefetch_placesingle.cpp:884-908`) — needs a separate
+  factoring pass before reconstructing.
+- Five open questions remain (see below) that need GDB
+  verification on table-using test inputs before committing
+  code.
+
+### Why tests pass at 1602/1602 even with sub-path C deferred
+
+The test corpus does not exercise `playWaveTable` with both a
+populated wavetable cache AND a valid per-channel length
+register.  Tests using `playWaveTable` either have empty caches
+(hits sub-path A) or invalid/zero `lengthReg` (hits sub-path B).
+Adding a regression test for sub-path C is a follow-up item.
+
+### Open questions to resolve before sub-path C
+
+1. **Sub-path C1 totalSize formula**: binary computes
+   `2 * node->length * waveform.numChannels` at `0x1daee5`,
+   `0x1daffa`, `0x1daf1d`.  GDB-verify on a table test before
+   coding.
+2. **`bgReg` allocation purpose**: at `0x1daf5c` a fresh register
+   is allocated and bound via `addi(bgReg, lengthReg, 0)`, then
+   used as input to `ssl(bgReg)`.  Need to trace the
+   `0x1db82b → 0x1dbc7d → 0x1dbba9` chain to confirm what comes
+   after the ssl loop.
+3. **`awgCfg_+0xC` field identity**: the comparison at `0x1db223`
+   `cmp 0xc(%rcx),%eax` (where `rcx = awgCfg_`, `eax = cachePtr->size_`)
+   gates the alternate prf encoding.  Field unknown — plausibly
+   `awgCfg_->minIndexedSize` or `cacheLineSize`.
+4. **C2-tail / play_cervino_indexed_nonsplit factoring**: the
+   block at `0x1db562..0x1db60a` and the wprf at
+   `0x1db92e..0x1db952` appear shared between Table-C2 and Play
+   cervino_indexed_nonsplit (recon line 884-908).  Cross-check
+   xrefs and gating before factoring into a helper.
+5. **`-0x118(%rbp) optional<string> engaged flag` writes**: the
+   `cmpb $1, -0x118(%rbp)` checks throughout the C path are
+   cosmetic (gating the opt's heap-data destructor) and have no
+   instruction-emission impact.
+
+Each open question is mirrored in this file as a separate IF
+entry (IF-241 .. IF-245) for individual triage.
+
+
 
 ## IF-224  `Prefetch::placeSingleCommand` `play_cervino_indexed_nonsplit` label is a stub
 
@@ -6457,4 +6511,121 @@ flag points at this IF for context. If a follow-up pass verifies
 against the binary that the family check exists at `0x2cfd80`
 itself (and is not a recon over-correction), the legacy comment
 can be rewritten.
+
+## IF-241  Table sub-path C1 totalSize formula needs GDB confirmation
+
+**Severity**: suspicious (sub-path C deferral support).
+**Status**: open — gates IF-223 sub-path C reconstruction.
+**Discovered**: D4 IF-223 consolidated audit, §9 open-question 1.
+
+In sub-path C1 (Table case, `lengthReg.isValid() && lengthReg != R0
+&& !split_`), the binary at `0x1daee5`, `0x1daffa`, `0x1daf1d`
+appears to compute `totalSize = 2 * node->length *
+waveform.numChannels`, then jumps to `0x1da56e` to share the
+smap-triplet emission with sub-path B.
+
+This formula differs from sub-path B
+(`getSizePerDevice() / (isHirzel ? 1 : pagesNeeded)`).  The
+factor-of-2 in particular is conjectural from static
+disassembly; needs GDB verification on a `playWaveTable` test
+input that sets a non-empty cache and a valid lengthReg.
+
+**Action**: build a SeqC test that exercises Table-C1, GDB-trace
+the original at `0x1daff8..0x1daffd`, confirm the multiplications.
+
+## IF-242  Table sub-path C `bgReg` allocation purpose unclear
+
+**Severity**: suspicious (sub-path C deferral support).
+**Status**: open — gates IF-223 sub-path C reconstruction.
+**Discovered**: D4 IF-223 consolidated audit, §9 open-question 2.
+
+At `0x1daf5c` the Table split-path allocates a fresh
+`AsmRegister bgReg`, then emits `addi(bgReg, lengthReg,
+Immediate(0))` — effectively a `mov bgReg, lengthReg`.  It is
+later used as input to `ssl(bgReg)` and (presumably)
+`addr(bgReg, ...)`.
+
+The semantic role of `bgReg` (background register?  base
+register?  buffer register?) is not yet identified.  The trail
+through the ssl loop continues at `0x1db82b → 0x1dbc7d →
+0x1dbba9`, outside the Part-2 audit window.
+
+**Action**: extend the audit window to cover the addr emission
+chain and confirm `bgReg`'s role.  Likely a pointer/offset
+register passed alongside lengthReg into the ssl/addr fetch
+sequence.
+
+## IF-243  `awgCfg_+0xC` field unidentified — gates Table prf-encoding choice
+
+**Severity**: suspicious (sub-path C deferral support).
+**Status**: open — gates IF-223 sub-path C reconstruction.
+**Discovered**: D4 IF-223 consolidated audit, §9 open-question 3.
+
+Inside the Table split-path tail the binary at `0x1db21c`
+loads `rcx = awgCfg_` (`Prefetch+0x8`, but the read is from
+`+0x8` of `r15` which is `awgCfg_`), then at `0x1db223`
+compares `cmp 0xc(%rcx), %eax` where `eax = cachePtr->size_`.
+The branch on this comparison gates the alternate prf encoding
+at `0x1db562..0x1db60a` versus the main path.
+
+`awgCfg_+0xC` is not currently named in
+`reconstructed/include/zhinst/codegen/awg_compiler_config.hpp`.
+Plausible candidates: `minIndexedSize`, `cacheLineSize`,
+`pagesPerCacheLine`.
+
+**Action**: cross-reference other reads of `awgCfg_+0xC`
+elsewhere in the binary to identify the field by use.  Compare
+against documented `AwgCompilerConfig` fields.
+
+## IF-244  Table-C2 split tail and `play_cervino_indexed_nonsplit` may share code
+
+**Severity**: suspicious (refactoring opportunity).
+**Status**: open — gates IF-223 sub-path C reconstruction and
+factoring.
+**Discovered**: D4 IF-223 consolidated audit, §9 open-question 4.
+
+The Table-C2 split-path tail at `0x1db562..0x1db60a` (the
+`prf(rH, rC, clampToCache(size/2)) + wprf` pair) appears to
+share code with `play_cervino_indexed_nonsplit` in the Play
+case, already reconstructed at
+`prefetch_placesingle.cpp:884-908`.
+
+At least four xrefs into `0x1db562 / 0x1db911 / 0x1db92e`
+originate from inside `0x1d9aa0..0x1d9d04` (Play
+cervino_indexed_nonsplit) **and** from `0x1db5dd → 0x1db5e2 →
+0x1db911` (Table-C2 split path).  However, the gating logic
+into these blocks may differ slightly between Play and Table
+contexts.
+
+**Action**: read the gating code on both sides, confirm
+identical preconditions, then either:
+- factor the shared block into a helper (e.g.
+  `emitPrfWprfPair(stateH, stateC, halfSize)`), or
+- keep two separate copies if the gating differs enough to
+  warrant duplication.
+
+This is a prerequisite for clean Table sub-path C
+reconstruction: duplicating the code into both Play and Table
+contexts before factoring would create a maintenance burden.
+
+## IF-245  Table-case `cmpb $1, -0x118(%rbp)` checks are cosmetic optional<string> dtor gates
+
+**Severity**: cosmetic / dismissed.
+**Status**: confirmed (no action needed).
+**Discovered**: D4 IF-223 consolidated audit, §9 open-question 5.
+
+The repeated `cmpb $1, -0x118(%rbp)` checks throughout the
+Table case (e.g. at `0x1daf2c`) test the engaged-flag of an
+`std::optional<std::string>` stack temporary (the optional
+returned by `Node::waveAtCurrentDeviceIndex()`).  When set,
+the binary follows up with a heap-data destructor for the
+optional's owned string.
+
+These checks have **no instruction-emission impact** — they
+gate only stack-temporary cleanup.  The recon's use of
+`auto waveOptT = npSync->waveAtCurrentDeviceIndex();` already
+generates equivalent dtor code via RAII, so no explicit
+handling is needed.
+
+Recorded for completeness; no follow-up action.
 
