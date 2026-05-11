@@ -82,6 +82,7 @@ TOC_INCLUDE_HEADINGS   = 4
 ALIASES += "unclear=\xrefitem unclear_list \"Unclear\" \"Documentation gaps requiring investigation\" "
 ALIASES += "verifyme=\xrefitem verifyme_list \"Needs verification\" \"Items that should be GDB- or test-verified\" "
 ALIASES += "binarynote=\xrefitem binarynote_list \"Binary note\" \"Verified facts about the original binary that diverge from idiomatic C++\" "
+ALIASES += "unverifiable=\xrefitem unverifiable_list \"Unverifiable from SeqC\" \"Hypotheses about code paths or symbols that have no SeqC-reachable entry, so cannot be confirmed by GDB tracing of compile inputs\" "
 ALIASES += "reconstructed{1}=\par Reconstructed from binary @\1\n"
 ALIASES += "reconstructed=\par Reconstructed from _seqc_compiler.so\n"
 ALIASES += "seenotes{1}=\par See notes\nreconstructed/notes/\1\n"

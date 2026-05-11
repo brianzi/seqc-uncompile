@@ -225,7 +225,7 @@ private:
     //! Trailing dword zeroed by the constructor; the binary's
     //! purpose for this slot is not yet established (see
     //! `notes/elf_reader.md`).
-    //! \verifyme Unverifiable from SeqC: the field is written by the
+    //! \unverifiable Unverifiable from SeqC: the field is written by the
     //! constructor but never read by any reconstructed accessor, so
     //! no observable behaviour drives its semantic role.  Treated as
     //! a pass-through layout slot for the time being.

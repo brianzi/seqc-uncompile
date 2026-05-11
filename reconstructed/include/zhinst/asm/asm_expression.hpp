@@ -240,7 +240,7 @@ AsmExpression* appendArgList(AsmExpression* list,
 //! no head text.
 //! \param expr Root expression to stringify; must be non-null.
 //! \return Human-readable representation of the tree.
-//! \verifyme Unverifiable from SeqC: the function has no external
+//! \unverifiable Unverifiable from SeqC: the function has no external
 //! caller in the binary (only a recursive self-call inside its body),
 //! so no `compile_seqc` input drives a difftest of its output.
 //! Reconstructed from disassembly; whitespace and tag spelling

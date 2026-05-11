@@ -189,7 +189,7 @@ A few conventions used everywhere:
   uses `//!` and `/*! */` (see `notes/comment_style_guide.md` §13).
 - Whenever a doc comment cannot be backed by disassembly, GDB, or test
   evidence, it must use one of `\unclear` / `\verifyme` / `\binarynote`
-  rather than guess (see [Accuracy discipline](#accuracy-discipline)
+  / `\unverifiable` rather than guess (see [Accuracy discipline](#accuracy-discipline)
   below).
 
 ## Accuracy discipline {#accuracy-discipline}
@@ -209,6 +209,10 @@ custom Doxygen tags rather than guess:
   the hypothesis must be stated explicitly.
 - `\binarynote` — verified fact about the binary that diverges from
   idiomatic C++ (informational, not a gap).
+- `\unverifiable` — hypothesis about a code path or symbol that has no
+  SeqC-reachable entry, so cannot be confirmed by GDB tracing of compile
+  inputs (a permanent state, distinct from `\verifyme` which expects
+  eventual resolution).
 
 Each tag aggregates onto its own cross-reference page, accessible from
 the *Related Pages* section of the navigation, so the entire

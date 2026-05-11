@@ -1106,7 +1106,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     else if (nodeType <= 0x3fff) {
         // --- nodeType == 0x200: Table (sub-paths A+B reconstructed;
         //     sub-path C left stubbed) ---
-        //! \verifyme Unverifiable from SeqC: `NodeType::Table` is
+        //! \unverifiable Unverifiable from SeqC: `NodeType::Table` is
         //! unreachable from the SeqC front-end (IF-249).  Sub-paths A
         //! and B are fully reconstructed for layout fidelity; sub-path
         //! C remains stubbed.  See IF-223 (closed) for the prior

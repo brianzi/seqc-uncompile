@@ -157,15 +157,16 @@ in the binary".
 
 ## Custom aliases — accuracy discipline
 
-Three project-specific tags carry the reconstruction discipline.  Each
+Four project-specific tags carry the reconstruction discipline.  Each
 generates a dedicated cross-reference page so the entire backlog is
 discoverable from the rendered site.
 
 | Tag | Page | Use when... |
 |-----|------|-------------|
 | `\unclear` | `unclear_list.html` | Documentation gap.  We don't yet understand what the symbol does or why it exists. |
-| `\verifyme` | `verifyme_list.html` | We have a hypothesis but it has **not** been GDB- or test-verified.  A stronger statement than `\unclear`: it commits to a guess that needs checking. |
+| `\verifyme` | `verifyme_list.html` | We have a hypothesis but it has **not** been GDB- or test-verified.  A stronger statement than `\unclear`: it commits to a guess that needs checking.  Expects eventual resolution. |
 | `\binarynote` | `binarynote_list.html` | A non-idiomatic API behaviour the caller needs to be aware of (e.g. unusual sort order, off-by-one in a public field, a deliberately preserved quirk).  **Avoid in user-facing class-level briefs**; keep for the rare member-level case where surprising behaviour must be flagged.  Inside this tag — and only inside this tag — it is acceptable to mention the original binary if the surprising behaviour exists specifically to match it. |
+| `\unverifiable` | `unverifiable_list.html` | Hypothesis about a code path or symbol that has no SeqC-reachable entry, so cannot be confirmed by GDB tracing of compile inputs.  Distinct from `\verifyme` because resolution requires a different verification strategy (or is impossible) — not just unwritten work. |
 
 Two prose helpers:
 
@@ -181,6 +182,9 @@ Two prose helpers:
 - "I don't know what this does" → `\unclear`
 - "I think it does X, but I haven't proven it" → `\verifyme`, with the
   hypothesis stated explicitly
+- "I think it does X but the symbol has no SeqC-reachable caller, so
+  GDB tracing of compile inputs cannot confirm it" → `\unverifiable`,
+  with the verification gap stated explicitly
 - "It deliberately does X, which would surprise a caller expecting
   idiomatic behaviour" → `\binarynote`, with a brief justification.
   Avoid for class-level briefs; favour members where the surprise

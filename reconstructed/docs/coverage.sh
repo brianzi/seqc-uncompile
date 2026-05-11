@@ -35,11 +35,12 @@ undoc_compounds=$(grep -cE 'Compound .* is not documented' "${warn_log}" || true
 undoc_params=$(grep -cE 'parameter .* is not documented|parameters of member|argument .* of command @param is not found' "${warn_log}" || true)
 
 # Count tag occurrences across the source tree (counts \unclear, \verifyme,
-# \binarynote — not the alias definitions themselves).
+# \binarynote, \unverifiable — not the alias definitions themselves).
 src_dirs=("${repo_root}/reconstructed/src" "${repo_root}/reconstructed/include")
 unclear=$( { grep -rE '^\s*//!?.*\\unclear\b' "${src_dirs[@]}" 2>/dev/null || true; } | wc -l)
 verifyme=$( { grep -rE '^\s*//!?.*\\verifyme\b' "${src_dirs[@]}" 2>/dev/null || true; } | wc -l)
 binarynote=$( { grep -rE '^\s*//!?.*\\binarynote\b' "${src_dirs[@]}" 2>/dev/null || true; } | wc -l)
+unverifiable=$( { grep -rE '^\s*//!?.*\\unverifiable\b' "${src_dirs[@]}" 2>/dev/null || true; } | wc -l)
 
 # Documented vs. total symbols (rough heuristic from XML index)
 documented=0
@@ -81,6 +82,7 @@ echo "    members            : ${undoc_members}"
 echo "    compounds          : ${undoc_compounds}"
 echo "    parameters         : ${undoc_params}"
 echo "Open backlog tags:"
-echo "  \\unclear    : ${unclear}"
-echo "  \\verifyme   : ${verifyme}"
-echo "  \\binarynote : ${binarynote}"
+echo "  \\unclear      : ${unclear}"
+echo "  \\verifyme     : ${verifyme}"
+echo "  \\binarynote   : ${binarynote}"
+echo "  \\unverifiable : ${unverifiable}"

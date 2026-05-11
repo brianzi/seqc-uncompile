@@ -202,7 +202,7 @@ AsmExpression* appendArgList(AsmExpression* list,  // 0x28bec0
 // All field offsets used here are verified against asm_expression.hpp:
 // type @+0x00, name @+0x08, command @+0x38, value @+0x3c, children @+0x40.
 // ============================================================================
-//! \verifyme Unverifiable from SeqC: the function has no external
+//! \unverifiable Unverifiable from SeqC: the function has no external
 //! caller in the binary (only a recursive self-call inside its body),
 //! so no `compile_seqc` input drives a difftest of its output.
 //! Reconstructed from disassembly; whitespace and capitalisation

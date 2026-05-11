@@ -66,7 +66,7 @@ namespace zhinst::logging {
 //! threshold.  Values increase with importance so range comparisons
 //! (`severity >= Warning`) behave as expected.
 //!
-//! \verifyme Unverifiable from SeqC: no exported symbol or non-inlined
+//! \unverifiable Unverifiable from SeqC: no exported symbol or non-inlined
 //! call site fixes the integer mapping; only the wire-form `uint32` in
 //! `attribute_value_impl` is observable.  Underlying type, enumerator
 //! order, and integer values are inferred from string-table order

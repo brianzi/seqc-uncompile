@@ -1135,7 +1135,7 @@ public:
      *  - `Table (0x200)`       : encodes the table cwvf and emits it,
      *                            either as a single `cwvf` or as
      *                            `addi`+`cwvfr` for large immediates.
-     *                            \verifyme  The `Table` arm is
+     *                            \unverifiable  The `Table` arm is
      *                            reconstructed from disassembly only
      *                            and is unverifiable from SeqC inputs:
      *                            `NodeType::Table` is unreachable from
