@@ -6848,3 +6848,86 @@ handling is needed.
 
 Recorded for completeness; no follow-up action.
 
+
+## IF-246  IF-244's `play_cervino_indexed_nonsplit` block is mis-attributed and incomplete (GDB-confirmed)
+
+**Severity**: **likely-bug** (recon documentation block describes a different binary path than IF-244 claimed).
+**Status**: confirmed (D9.1 GDB trace, task `ses_1e9b705b9ffe6stbJmBc71NSAF`).
+**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:865-941`; IF-244.
+**Discovered**: D9.1 GDB verification of IF-244 hypotheses.
+
+### Findings
+
+D9.1 set breakpoints at `0x1db4ad`, `0x1db4bd`, `0x1db52b`, `0x1db55d`, `0x1db92e`, `0x1d85f6` (`isHirzel` cmp), and the `load_cervino_prf` entry `0x1d9c33`. Two inputs were traced:
+- UHFAWG `wave w = placeholder(65536); playWaveIndexed(w, 0, 128);` — reaches `0x1db4ad` via `0x1d85fa jne → load_cervino_prf @0x1d9c33 → Path B @0x1db1f3 → Path B1 @0x1db223` (gate: `cacheSize == waveformMemorySize`).
+- HDAWG8 with `tests/cases/hdawg_doc_prefetch.seqc` reached `0x1db92e` only via sub-path A (`0x1d8629`/`0x1d86cb`), not via the `0x1db4ad..0x1db55d` block.
+
+### Three corrections to IF-244
+
+1. **Side attribution wrong**. The block at `0x1db4ad..0x1db55d` is reached only via the **Load** dispatch (`load_cervino_prf @0x1d9c33`), never via the Play dispatch. IF-244's claim that it is the "actual Play `cervino_indexed_nonsplit` tail" is unsupported by xref evidence; the predecessor list of `0x1db92e` that IF-244 cites (line 6766-6773) attributes `0x1db55d` to Play, but D9.1 traced `0x1db55d` reached only after a Load path.
+
+2. **Emission shape wrong**. The actual binary body emits **two** `prf` calls with `wprf` between them: `prf @0x1db2b3` (cacheSize/2) → `2× addi` → `wprf @0x1db4bd` → `prf @0x1db52b` (cacheSize/2 again) → `jmp 0x1db55d → 0x1db92e`. IF-244 documents only the second `prf` and characterises `wprf` as "inline before prf (unconditional)" — true relative to the second `prf`, but omits the first `prf` entirely.
+
+3. **Dispatch gate wrong**. IF-244 hypothesised `!isHirzel && !split_ && lengthReg.isValid() && pagesNeeded < 2 && indexed && Play-case`. The actual gate chain is `!isHirzel` (`0x1d85fa`) → enters `load_cervino_prf` → `numRepeats < 2` → `cachePtr->size_ == devConst_->waveformMemorySize`. There is no `lengthReg.isValid()` test on this path and no Play-case condition.
+
+### Recon impact
+
+The label-only block `play_cervino_indexed_nonsplit` at `prefetch_placesingle.cpp:865-941` is wrong on its face: it is documented as Play-side, has no incoming goto, and its body is missing the first `prf` and `2× addi`. The closest correct implementation is the **Path B1 stub inside `load_cervino_prf`** at `prefetch_placesingle.cpp:343-349`, which already emits "one prf with halfSize" but is itself incomplete (also missing the first prf, the addis, and the wprf-between).
+
+### Action
+
+Tracked as TODO **D9.3** (replace dead block with correct Load-side reconstruction) and **D10** (full rewrite of `load_cervino_prf` Path B1 from scratch using D9.1 evidence). IF-244's `play_cervino_indexed_nonsplit` documentation block should be deleted in D9.3.
+
+
+## IF-247  `wprf` gate at shared tail `0x1db935` confirmed `!isHirzel`
+
+**Severity**: confirmed (resolves a `\verifyme`).
+**Status**: confirmed (D9.2 GDB trace, task `ses_1e9a95462ffesKCS1nbPbpLpOH`).
+**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:1398-1407` (`\verifyme` site).
+**Discovered**: D9.2 GDB verification of IF-244 caveat.
+
+### Finding
+
+The disassembly at the shared prefetch tail is:
+```
+0x1db92e:   mov    (%r15),%rax            ; rax = this->config_
+0x1db931:   cmpb   $0x0,0x18(%rax)         ; cmp config_->isHirzel, 0
+0x1db935:   jne    0x1db963                ; if isHirzel != 0 → SKIP wprf
+0x1db937..0x1db95e:                        ; wprf emit + AsmList::append + Asm::~Asm
+0x1db963:   ...                            ; tempList → out insert
+```
+
+GDB-verified `[rax+0x18]` values:
+- UHFAWG (isHirzel=0): gate falls through, `wprf` IS called.
+- HDAWG8 (isHirzel=1): gate is taken, `wprf` is NOT called.
+
+### Recon impact
+
+The Table-C-split inline emission at `prefetch_placesingle.cpp:1404-1407` emits `wprf` unconditionally. For HDAWG / SHFSG / SHFQC_SG / SHFLI (all `isHirzel=1`) flowing through this path, the recon **over-emits** `wprf`. This is a **latent divergence** — no test in the corpus currently exercises Table sub-path C2 on a modern device (D8 case 2 is the corresponding coverage gap).
+
+### Action
+
+Promote the `\verifyme` at line 1398-1407 to a real `if (!config_->isHirzel)` gate, tracked under **D9.3**. The fix is mechanical and one-line; the test verification (D8 case 2) is the prerequisite for landing it without a regression risk.
+
+
+## IF-248  D9.1 "isHirzel inversion" claim is a naming-convention confusion, not a code bug
+
+**Severity**: cosmetic / dismissed.
+**Status**: confirmed-dismissed.
+**Source**: D9.1 trace report.
+**Discovered**: D9.1 GDB verification, follow-up audit.
+
+### Background
+
+The D9.1 subagent's report stated that the recon's "Hirzel = HDAWG / Cervino = SHFSG/SHFQC" interpretation is "inverted" because GDB shows HDAWG, SHFSG, and SHFQC_SG all have `config_->isHirzel = 1` (and UHFAWG has `0`). The subagent flagged this as potentially affecting "every code path gated on `config_->isHirzel`."
+
+### Why it is dismissed
+
+The recon's `awg_device_props.cpp` already assigns `isHirzel = true` to HDAWG / SHFSG / SHFQC_SG / SHFLI and `false` to UHFQA / UHFAWG / SHFQA, exactly matching the GDB-verified flag values. The header docstring at `awg_compiler_config.hpp:31,87` documents `isHirzel = 1` as "Hirzel device" / "selects the modern sequencer." All gate logic in the recon reads `config_->isHirzel` as the same boolean the binary reads — there is no semantic inversion at the **flag** level.
+
+What the D9.1 subagent observed as "inversion" is a **prose-naming inconsistency**: some recon comments (e.g. `prefetch_placesingle.cpp:626`, `IF-244` text) use "Cervino" as a label for the `!isHirzel` arm of certain dispatches, which clashes with internal Zurich Instruments codename conventions where "Cervino" is itself a modern hardware generation. This is a prose/comment cleanup issue with no impact on emitted code or test outcomes.
+
+### Action
+
+None on code or tests. Optional follow-up: when documentation pass D7 sweeps `\verifyme` / `\unclear` tags, audit prose uses of "Hirzel" / "Cervino" in code comments for naming consistency. Not promoted to a TODO entry — too low-value to schedule.
+
