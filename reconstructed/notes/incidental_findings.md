@@ -4446,7 +4446,18 @@ handles for static members but not for non-static `operator==`).
 ## IF-212  `prefetch_prepare.cpp` summary comments contradict code
 
 **Severity**: cosmetic, but high-risk for downstream doc accuracy.
-**Status**: open.
+**Status**: **fixed** — verified 2026-05-11.  The `prepareTree`,
+`countBranches`, and `definePlaySize` block-headers now match
+their bodies (the body itself was always correct; only the
+prose drifted, and the prose has since been rewritten to use
+`NodeType::Load`/`Play`/`Lock`/`isHirzel`/`maxBranches_`).
+The remaining stale references inside the `Lock` case body
+(case-label comment "Wait", "if append mode", "Not append
+mode", and the local variable `waitNode`) were corrected in
+the same pass: case-label is now "Lock", the gate comment
+explains Hirzel devices skip the merge logic, and the local
+was renamed `waitNode → lockNode`.  Build clean, 1603/1603
+tests pass.
 **Discovered**: D4 Batch 2a verify-then-write check of
 `Prefetch::prepareTree`.
 

@@ -208,23 +208,23 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
             goto cleanup_validwaves;
         }
 
-        // ---- Wait (0x40) ---- // explicit cmp 0x40 → 0x1c8e64
+        // ---- Lock (0x40) ---- // explicit cmp 0x40 → 0x1c8e64
         case NodeType::Lock: {
             // Check if config_->isHirzel (+0x18) is set
             // 0x1c8e64: mov -0x70(%rbp),%rax; mov (%rax),%rax; cmpb $0x0,0x18(%rax)
             if (config_->isHirzel) {
-                // If append mode, just push next to stack
+                // Hirzel devices skip the lock-merge logic entirely.
                 goto push_next_and_loop;          // 0x1c9514
             }
 
-            // Not append mode: process Wait node for prefetch insertion
+            // Non-Hirzel: walk the next chain and merge locked plays.
             // Loop over the next chain starting from current
-            auto waitNode = current;              // -0xb0(%rbp)
+            auto lockNode = current;              // -0xb0(%rbp)
             std::shared_ptr<Node> lastLoad;       // -0xc0(%rbp), initially null
 
             while (true) {
-                // Get next node in chain via waitNode->next
-                auto nextNode = waitNode->next;   // 0x1c8eae: movups 0xb8(%rbx)
+                // Get next node in chain via lockNode->next
+                auto nextNode = lockNode->next;   // 0x1c8eae: movups 0xb8(%rbx)
 
                 // Get wave name for this node
                 int devIdx2 = current->deviceIndex; // 0x1c8ed8
@@ -239,24 +239,24 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
                 // Try to find a locked play for this waveform
                 auto lockedPlay = findLockedPlay(nextNode, waveform);      // 0x1c8f70
 
-                // Move lockedPlay to waitNode context
-                waitNode = lockedPlay;  // -0xb0(%rbp) ← result  // 0x1c8f9b
+                // Move lockedPlay to lockNode context
+                lockNode = lockedPlay;  // -0xb0(%rbp) ← result  // 0x1c8f9b
 
                 if (lockedPlay) {
                     // Found locked play: remove the wait node
                     // 0x1c9095: Lock into parent via weak_ptr
-                    auto parent = waitNode->parent.lock();  // 0x1c90af
-                    Node::remove(waitNode);                 // 0x1c90d2
+                    auto parent = lockNode->parent.lock();  // 0x1c90af
+                    Node::remove(lockNode);                 // 0x1c90d2
 
                     // If lastLoad exists, merge
                     if (lastLoad) {
                         // Lock parent again
-                        auto parent2 = waitNode->parent.lock();
+                        auto parent2 = lockNode->parent.lock();
                         mergeLoads(parent2, lastLoad);     // 0x1c9170
                     }
                 } else {
                     // No locked play: create a new Load node
-                    auto loadNode = createLoad(waitNode);  // 0x1c9202
+                    auto loadNode = createLoad(lockNode);  // 0x1c9202
                     // createLoad returns into lastLoad (-0xc0)
                     lastLoad = loadNode;
                 }
@@ -265,12 +265,12 @@ void Prefetch::prepareTree(std::shared_ptr<Node> node) // 0x1c8870
                 if (lastLoad) {
                     // 0x1c9312: mov 0x14(%rdi),%ecx; mov %ecx,0x14(%rax)
                     lastLoad->asmId = current->asmId;
-                    // Insert lastLoad before waitNode
+                    // Insert lastLoad before lockNode
                     current->insertBefore(lastLoad);       // 0x1c9345
                 }
 
-                // Move to next iteration (waitNode = waitNode->next chain)
-                // Loop continues while waitNode->next exists // 0x1c8ea7..0x1c9302
+                // Move to next iteration (lockNode = lockNode->next chain)
+                // Loop continues while lockNode->next exists // 0x1c8ea7..0x1c9302
                 if (!lastLoad)
                     break;
                 // (loop restarts at 0x1c8ea0)
