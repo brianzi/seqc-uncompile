@@ -1114,26 +1114,29 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     investigated and dismissed — recon's per-device assignments in
     `awg_device_props.cpp` already match the binary. See **IF-248**.
 
-  - [ ] **D9.3 — Apply the resolved actions to source**:
-    - Delete the dead `play_cervino_indexed_nonsplit` block at
-      `prefetch_placesingle.cpp:865-941` (mis-attributed and
-      incomplete; full corrected description preserved in IF-246).
-    - Delete the dead `table_indexed_with_clamp` block at
-      `prefetch_placesingle.cpp:951-1022` (no incoming goto; content
-      documented in IF-244).
-    - Promote the `\verifyme` at lines 1398-1407 to a real
+  - [x] **D9.3 — Apply the resolved actions to source** (commit
+    `d1515c8`).
+    - Deleted the dead `play_cervino_indexed_nonsplit` block (was
+      `prefetch_placesingle.cpp:865-941`); corrected description
+      preserved in IF-246; full Path B1 reconstruction tracked by D10.
+    - Deleted the dead `table_indexed_with_clamp` block (was
+      `prefetch_placesingle.cpp:951-1022`); content documented in
+      IF-244; the C2 dispatch from the Table case (IF-223 follow-up)
+      should be modelled at the call site when wired up.
+    - Promoted the `\verifyme` at lines 1398-1407 to a real
       `if (!config_->isHirzel)` gate around the inline Table-C-split
-      `wprf` emission. Per IF-247 this is a latent over-emission for
-      modern devices on Table sub-path C2; no current test exercises
-      this path so the change cannot be difftest-verified, but the
-      gate should match the binary regardless.
+      `wprf` emission. Latent over-emission for modern devices on
+      Table sub-path C2 closed (no current test exercises this path).
+    - Build clean, 1602/1602 tests pass, no new doxygen warnings.
+      Backlog tag deltas: `\verifyme` 16->13, `\binarynote` 81->80.
 
-  - [ ] **D9.4 — Optional: extract `emitPrfEpilogueAndInsert_` helper**
-    (former IF-244 action item 3). Only worth doing if D9.3 leaves
-    multiple call sites with the same prf+wprf+insert epilogue.
-    Mechanical refactor, no semantic change. Likely demoted/dropped
-    after D9.3 since the dead blocks are being deleted rather than
-    wired in.
+  - [~] **D9.4 — Dropped: extract `emitPrfEpilogueAndInsert_` helper**.
+    With the two dead blocks deleted in D9.3, only three inline call
+    sites remain (cervino-nonsplit / cervino-split / table-C-split),
+    each with subtle differences (clamp vs no-clamp, gated vs
+    unconditional `wprf`). A shared helper would have to wrap so much
+    conditional behaviour that it would obscure rather than clarify.
+    Dropped per iteration-cycle review at D9.3 wrap-up.
 
 - [ ] **D10 — Reconstruct `load_cervino_prf` Path B1 fully** (follow-on
   from IF-246)

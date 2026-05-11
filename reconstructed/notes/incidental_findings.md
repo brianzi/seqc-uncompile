@@ -6732,11 +6732,17 @@ in `prefetch.hpp:58`.  IF-243 is resolved.
 **Severity**: **likely-bug** (recon mislabeled; promotes to TODO).
 **Status**: **fixed** (documentation-only relabel; action items 1
 and 2 below executed in commit following IF-244 entry; action item 3,
-the optional `emitPrfEpilogueAndInsert_` helper, deferred and
-tracked as a separate TODO entry — see TODO.md). Voice-rule
-cleanup applied to `prefetch_placesingle.cpp` doc comments:
-addresses, register names, and `_seqc_compiler.so` references
-were moved out of `//!` briefs into `//` reconstruction blocks
+the optional `emitPrfEpilogueAndInsert_` helper, was queued as TODO
+D9.4 and **dropped** at the D9.3 wrap-up — with the two dead label
+blocks deleted by D9.3 (commit `d1515c8`), only three inline call
+sites remain, each with subtle differences (clamp vs no-clamp,
+gated vs unconditional `wprf`); a shared helper would obscure rather
+than clarify. See also IF-246 (D9.1 reframed item 1 as a Load-side
+mis-attribution, fixed by deletion in D9.3) and IF-247 (D9.2
+confirmed the `wprf` gate, promoted to a real `if (!config_->isHirzel)`
+in D9.3)). Voice-rule cleanup applied to `prefetch_placesingle.cpp`
+doc comments: addresses, register names, and `_seqc_compiler.so`
+references were moved out of `//!` briefs into `//` reconstruction blocks
 per AGENTS.md.
 **Discovered**: D4 IF-223 follow-up, subagent audit
 `ses_1ea02f346ffeXjP1970hUIsRqE`.
@@ -6852,8 +6858,8 @@ Recorded for completeness; no follow-up action.
 ## IF-246  IF-244's `play_cervino_indexed_nonsplit` block is mis-attributed and incomplete (GDB-confirmed)
 
 **Severity**: **likely-bug** (recon documentation block describes a different binary path than IF-244 claimed).
-**Status**: confirmed (D9.1 GDB trace, task `ses_1e9b705b9ffe6stbJmBc71NSAF`).
-**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:865-941`; IF-244.
+**Status**: fixed (D9.3 commit `d1515c8` deleted the mis-attributed block; full Path B1 reconstruction tracked by D10).
+**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:865-941` (deleted in D9.3); IF-244.
 **Discovered**: D9.1 GDB verification of IF-244 hypotheses.
 
 ### Findings
@@ -6881,9 +6887,9 @@ Tracked as TODO **D9.3** (replace dead block with correct Load-side reconstructi
 
 ## IF-247  `wprf` gate at shared tail `0x1db935` confirmed `!isHirzel`
 
-**Severity**: confirmed (resolves a `\verifyme`).
-**Status**: confirmed (D9.2 GDB trace, task `ses_1e9a95462ffesKCS1nbPbpLpOH`).
-**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:1398-1407` (`\verifyme` site).
+**Severity**: confirmed (resolved a `\verifyme`).
+**Status**: fixed (D9.3 commit `d1515c8` promoted the `\verifyme` to a real `if (!config_->isHirzel)` gate at the inline Table-C-split `wprf` site).
+**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp` Table-C-split `wprf` site (was lines 1398-1407, now gated).
 **Discovered**: D9.2 GDB verification of IF-244 caveat.
 
 ### Finding
