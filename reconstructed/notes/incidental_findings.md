@@ -7228,3 +7228,53 @@ the recon faithful to the binary's data-flow even where the
 observable result already matches.
 
 
+## IF-252  `CalVer::triple()` returns `CalVer const&` for caller-side reinterpret
+
+**Severity**: cosmetic (no callers in binary or recon today;
+strict-aliasing UB only materialises if a caller actually
+reinterpret-casts the result).
+
+**Status**: confirmed (disassembly + grep, 2026-05-11).
+
+**Discovered**: D7 `\binarynote` triage (asm+infra batch).
+
+`CalVer::triple()` (`infra/calver.hpp:96`, definition
+`infra/calver.cpp:135`) is declared to return `CalVer const&`
+and the binary at `0x100260` does exactly `mov %rdi,%rax;
+ret` — i.e. it returns the receiver pointer unchanged.  The
+declared contract (per the `\binarynote` block on the recon
+header) is that callers may then reinterpret the returned
+reference as `std::array<size_t, 3> const&`, exploiting the
+fact that `year_`/`month_`/`patch_` occupy the same first 24
+bytes as `array<size_t, 3>`.
+
+### Why this is flagged
+
+1. The reinterpret would be a strict-aliasing violation
+   (`CalVer` and `std::array<size_t, 3>` are unrelated types).
+   GCC and Clang are permitted to assume aliased loads through
+   the two pointers do not alias and may reorder/coalesce
+   accesses.
+2. `std::array<T, N>` is permitted to contain trailing padding
+   for alignment, although on x86-64 with `size_t = uint64_t`
+   this is not an issue in practice.
+
+### Why it does not bite today
+
+A grep across the entire codebase finds zero call sites in the
+recon (only the declaration and definition).  An
+`objdump`-level search of `_seqc_compiler.so` for callers of
+`_ZNK6zhinst6CalVer6tripleEv` (mangled symbol) finds zero call
+sites in the binary either.  The function is effectively dead
+code preserved for ABI / vtable parity.  As long as nothing
+calls it, the UB never materialises.
+
+### Action
+
+None required.  Document in the existing `\binarynote` on the
+header (already present) that the reinterpret would be UB if
+performed.  Consider deleting the function entirely once we
+are confident no out-of-tree consumer relies on it; for now
+keep it for binary-faithfulness.
+
+
