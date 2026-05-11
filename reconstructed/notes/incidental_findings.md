@@ -5220,53 +5220,91 @@ not suppressed by any entry.
 ## IF-226  `Prefetch::getUsedCache` body is a stub
 
 **Severity**: likely-bug (stub).
-**Status**: open (recon body unfixed; comment marker added in
-same commit).
+**Status**: **fixed** (commit pending) — body reconstructed
+from binary disassembly, replacing the unconditional `return 0`.
 **Discovered**: D4 Batch 2e-iii verify-then-write of
 `Prefetch::getUsedCache`
-(`prefetch_helpers.cpp:799-811`, original at `0x1c7eb0`).
+(`prefetch_helpers.cpp:806-820`, original at `0x1c7eb0`).
 
-The recon body is literally:
+The original stub was:
 
 ```cpp
 int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {
-    // STUB — needs full reconstruction from disassembly
     (void)node;
     return 0;
 }
 ```
 
-The block-header describes the intended behaviour ("Recursive:
-sums cache usage for the node and all its children") but the
-body has not been reconstructed; the function unconditionally
-returns 0.
+**Correction to the original IF**: the "only caller is
+`Prefetch::print` (debug-only)" claim was **wrong**.
+`getUsedCache` is also called from the `mergeWaveforms`-adjacent
+loop at `prefetch.cpp:1112,1118` (binary `0x1cdcfd-0x1cddab`),
+which debits `nodeStates_[current].usedCache_` by the returned
+value:
 
-`Prefetch::print` (the only documented caller, in
-`prefetch_print.cpp:237`) feeds the result into
-`detail::AddressImpl<uint32_t>(getUsedCache(nodeCopy))` to
-print the per-Play-node used-cache field as the first member
-of a `(usedCache, perNodeUsedCache)` debug pair.  With the stub
-in place this always prints `0x00000000`.
+```cpp
+int actualUsed = getUsedCache(current);
+if (usedCache >= actualUsed) {
+    int used2 = getUsedCache(current);
+    nodeStates_[current].usedCache_ -= used2;
+}
+```
 
-**Why tests still pass at 1600/1600**: `Prefetch::print` is a
-debug-only printer to `std::cout` and is not called from any
-production code path in the compiler.  `getUsedCache` has no
-other callers in the recon, so the stub has no observable
-effect on differential output.
+The stub returning 0 made the gate `usedCache >= 0` trivially
+true (so the branch always fired) and the subtraction
+`usedCache_ -= 0` a no-op, silently dropping the cache
+accounting.  No test failures were observed because the
+production corpus apparently does not stress the path where
+the `usedCache_` debit changes downstream allocation
+decisions, but the bug was latent in production code, not
+debug-only as originally claimed.
 
-**Action**:
-1. `objdump -d --start-address=0x1c7eb0 --stop-address=...
-   _seqc_compiler.so` to identify the function body and end
-   address (expected end before the next `.text` symbol).
-2. Determine the recursion shape (likely walks `Node::next`,
-   `Node::loop`, `Node::branches`, accumulating per-leaf
-   waveform memory via `computeWaveformMemoryBytes` or via
-   `PrefetcherNodeState::usedCache_`).
-3. Reconstruct the body.
-4. Optionally add a unit test that constructs a small Node
-   tree and asserts `getUsedCache` returns the expected
-   accumulated size.  Difftests will not exercise this since
-   `print` is debug-only.
+**Resolution**: confirmed by full disassembly of `0x1c7eb0..0x1c8738`
+(no GDB needed).  The function is a simple recursive walk
+over `Node::next` (+0xB8), `Node::loop` (+0xE0), and
+`Node::branches` (+0xC8..+0xD0), with a per-node leaf
+contribution that depends on `Node::type` and the prefetcher
+state:
+
+| Case | Contribution |
+|---|---|
+| `Load` + `length != 0` | `(length * channels) / pagesNeeded` (**signed** `idivl` at `0x1c83db`) |
+| `Load` + `length == 0` | `-computeWaveformMemoryBytes(wfm) / pagesNeeded` (unsigned `divl`; **negated** at `0x1c8664`) |
+| `Play` + `state != 0` + `length != 0` | `(length * channels) / pagesNeeded` (signed) |
+| `Play` + `state != 0` + `length == 0` | `+computeWaveformMemoryBytes(wfm) / pagesNeeded` (unsigned, **no** negation) |
+| `Play` + `state == 0` (Loaded) | `0` |
+| All other `NodeType` | `0` |
+
+where `wfm = wavetableIR_->getWaveformByName(node->wavesPerDev[node->deviceIndex])`
+(empty optional when `deviceIndex < 0`), and `pagesNeeded =
+nodeStates_.at(node).pagesNeeded` (PNS+0x1C).  Both
+`nodeStates_.at(...)` lookups in the Play path are kept
+distinct, matching the binary's double-`find` pattern
+(`0x1c8241` for the state gate, `0x1c83c2`/`0x1c848c` for
+`pagesNeeded`).
+
+`computeWaveformMemoryBytes` was inlined by the compiler at
+`0x1c843a..0x1c8485` / `0x1c855d..0x1c8616`; the reconstruction
+likewise inlines it in `getUsedCache` rather than reach into
+the file-local static defined in `prefetch_emit.cpp:249`,
+keeping the TU self-contained.
+
+**Negation semantics**: only the `Load + length == 0` path
+negates the contribution.  This is a *refund* of the cache
+quota for a Load that has been emitted but has not yet had a
+length assigned — the cache pages it reserved have not yet
+been consumed and are returned to the pool.  The stub
+returning 0 silently masked this refund path entirely; tests
+still pass because the difftest corpus does not stress
+incrementally-sized waveforms heavily enough to expose
+mis-balanced cache accounting.
+
+Tests remain 1602/1602.  No regression test was added — the
+function's effect is on internal `usedCache_` state, not on
+the differential ELF output, so a targeted unit test would
+need to inspect the prefetcher state mid-pass.  Worth
+revisiting if stress tests in `manifest-stress.json` ever
+fail with cache-allocation errors.
 
 ---
 

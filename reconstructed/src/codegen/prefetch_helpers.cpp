@@ -14,6 +14,9 @@
 
 #include <deque>
 #include <stack>
+#include <optional>
+#include <string>
+#include <cstdint>
 
 namespace zhinst {
 
@@ -803,20 +806,148 @@ Prefetch::getUsedWavesForDevice(size_t deviceIdx) const // 0x1d2d60
 }
 
 // ============================================================================
-// getUsedCache — 0x1c7eb0
-// Recursive: sums cache usage for the node and all its children.
-// IF-226: body is a stub returning 0; full reconstruction from binary
-// pending.  Only caller is Prefetch::print (debug-only), so no
-// observable effect on production output.
+// getUsedCache — 0x1c7eb0 .. 0x1c8738
+//
+// Recursively sums per-node "used cache" contributions over the
+// (next, loop, branches) subtree.  The leaf contribution depends on
+// `Node::type` and the prefetcher state of the node:
+//
+//   - Load(length != 0)        : +(length * channels) / pagesNeeded   (signed)
+//   - Load(length == 0)        : -computeWaveformMemoryBytes(wfm) / pagesNeeded
+//                                 (the leaf is negated at 0x1c8664)
+//   - Play (state != Loaded)
+//        length != 0            : +(length * channels) / pagesNeeded  (signed)
+//        length == 0            : +computeWaveformMemoryBytes(wfm) / pagesNeeded
+//   - Play (state == 0 Loaded) : 0
+//   - all other NodeType       : 0
+//
+// `wfm` is `wavetableIR_->getWaveformByName(node->wavesPerDev[node->deviceIndex])`.
+// `pagesNeeded` is `nodeStates_.at(node).pagesNeeded` (PNS+0x1C).  The
+// binary actually performs the `nodeStates_.find` lookup twice on the
+// Play path (once for the state check, once for pagesNeeded); we
+// preserve that to keep observable behaviour identical.
+//
+// `computeWaveformMemoryBytes` is inlined by the compiler at
+// `0x1c843a..0x1c8485` / `0x1c855d..0x1c8616`; we likewise inline the
+// helper rather than reach into prefetch_emit.cpp's static, keeping
+// this TU self-contained.
+//
+// Sole production caller: the `mergeWaveforms`-adjacent loop at
+// `0x1cdcfd-0x1cddab` (recon `prefetch.cpp:1112,1118`) which uses the
+// result to debit `nodeStates_[current].usedCache_`.  The previous
+// stub returned 0 unconditionally, silently turning that debit into a
+// no-op; that masked the Load+length==0 *refund* path (negated
+// contribution) entirely.  See IF-226.
 // ============================================================================
 int Prefetch::getUsedCache(std::shared_ptr<Node> node) const {  // 0x1c7eb0
-    // STUB (IF-226) — needs full reconstruction from disassembly.
-    // Intended behaviour: recursively walks node->next (+0xB8),
-    // node->loop (+0xE0), and node->branches (+0xC8..+0xD0),
-    // summing cache memory via computeWaveformMemoryBytes for leaf
-    // waveforms (or via PrefetcherNodeState::usedCache_).
-    (void)node;
-    return 0;
+    int contribution = 0;
+
+    const NodeType t = node->type;  // 0x1c8119 (Node+0x44)
+
+    if (t == NodeType::Load) {  // 0x1c8137 cmp $0x1
+        int length = node->length;  // 0x1c8141 (Node+0x90)
+
+        // Look up the source waveform.  When deviceIndex is < 0
+        // (no active device slot), the binary still calls
+        // getWaveformByName with an empty optional — matching the
+        // jump-to-empty-stub paths at 0x1c830a / 0x1c8366.
+        std::optional<std::string> waveName;
+        if (node->deviceIndex >= 0)  // 0x1c815f
+            waveName = node->wavesPerDev[node->deviceIndex];
+        auto wfm = wavetableIR_->getWaveformByName(waveName);  // 0x1c83aa / 0x1c842a
+
+        const int pagesNeeded = nodeStates_.at(node).pagesNeeded;  // PNS+0x1C
+
+        if (length != 0) {  // 0x1c8148 test
+            // Signed integer division at 0x1c83db (cltd; idivl).
+            int channels = wfm->signal.channels_;  // WaveformIR+0xC8
+            contribution = (length * channels) / pagesNeeded;
+        } else {
+            // 0x1c843a..0x1c8485: inline computeWaveformMemoryBytes(wfm).
+            uint16_t channels = wfm->signal.channels_;        // +0xC8
+            uint32_t wfmLength = wfm->signal.length_;          // +0xD0
+            const DeviceConstants* dc = wfm->deviceConstants;  // +0x78
+            uint32_t waveGranularity = dc->maxWaveformLength;  // DC+0x40
+            uint32_t grainSize = dc->grainSize;                // DC+0x44
+            uint32_t numPages;
+            if (wfmLength != 0) {
+                numPages = ((wfmLength + grainSize - 1) / grainSize) * grainSize;
+                if (waveGranularity > numPages)
+                    numPages = waveGranularity;
+            } else {
+                numPages = 0;
+            }
+            int bitsPerSample = dc->bitsPerSample;  // DC+0x50
+            uint64_t totalBits = static_cast<uint64_t>(numPages) *
+                                 static_cast<uint64_t>(channels) *
+                                 static_cast<uint64_t>(bitsPerSample);
+            int bytes = static_cast<int>((totalBits + 7) / 8);
+
+            // Unsigned division at 0x1c8613 (divl), then negation at
+            // 0x1c8664 (neg %r15d) — Load+length==0 *refunds* cache.
+            contribution = -static_cast<int>(
+                static_cast<uint32_t>(bytes) / static_cast<uint32_t>(pagesNeeded));
+        }
+    } else if (t == NodeType::Play) {  // 0x1c822d cmp $0x2
+        // Two distinct nodeStates_ lookups, matching the binary
+        // (0x1c8241 for the state gate, 0x1c83c2/0x1c848c for
+        // pagesNeeded).  Both throw std::out_of_range on miss.
+        if (nodeStates_.at(node).state != 0) {  // PNS+0x10; 0x1c824f != 0 (Loaded)
+            int length = node->length;  // Node+0x90
+
+            std::optional<std::string> waveName;
+            if (node->deviceIndex >= 0)
+                waveName = node->wavesPerDev[node->deviceIndex];
+            auto wfm = wavetableIR_->getWaveformByName(waveName);
+
+            const int pagesNeeded = nodeStates_.at(node).pagesNeeded;
+
+            if (length != 0) {
+                // Signed idivl at 0x1c855a.
+                int channels = wfm->signal.channels_;
+                contribution = (length * channels) / pagesNeeded;
+            } else {
+                // 0x1c8567..0x1c8616: inline computeWaveformMemoryBytes.
+                uint16_t channels = wfm->signal.channels_;
+                uint32_t wfmLength = wfm->signal.length_;
+                const DeviceConstants* dc = wfm->deviceConstants;
+                uint32_t waveGranularity = dc->maxWaveformLength;
+                uint32_t grainSize = dc->grainSize;
+                uint32_t numPages;
+                if (wfmLength != 0) {
+                    numPages = ((wfmLength + grainSize - 1) / grainSize) * grainSize;
+                    if (waveGranularity > numPages)
+                        numPages = waveGranularity;
+                } else {
+                    numPages = 0;
+                }
+                int bitsPerSample = dc->bitsPerSample;
+                uint64_t totalBits = static_cast<uint64_t>(numPages) *
+                                     static_cast<uint64_t>(channels) *
+                                     static_cast<uint64_t>(bitsPerSample);
+                int bytes = static_cast<int>((totalBits + 7) / 8);
+
+                // Unsigned division at 0x1c8613, *no* negation
+                // (contrast with the Load branch above).
+                contribution = static_cast<int>(
+                    static_cast<uint32_t>(bytes) / static_cast<uint32_t>(pagesNeeded));
+            }
+        }
+        // state == 0 (Loaded): contribution stays 0.
+    }
+    // All other NodeType values: contribution stays 0.
+
+    // ── Recursive walk (next, loop, branches) ─────────────────────
+    int total = contribution;
+    if (node->next)                                  // 0x1c7f57 Node+0xB8
+        total += getUsedCache(node->next);           // 0x1c7f90
+    if (node->loop)                                  // 0x1c7fc0 Node+0xE0
+        total += getUsedCache(node->loop);           // 0x1c7ff6
+    for (auto& branch : node->branches) {            // 0x1c8024 Node+0xC8..+0xD0
+        if (branch)                                  // 0x1c805e null-check per entry
+            total += getUsedCache(branch);           // 0x1c807f
+    }
+    return total;                                    // 0x1c80ef
 }
 
 } // namespace zhinst

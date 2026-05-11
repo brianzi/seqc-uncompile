@@ -333,23 +333,28 @@ cross-reference pages so the backlog is discoverable.
         marker in recon comments, deferred to dedicated
         follow-up.  1600/1600 tests, build clean, 0 doxygen
         warnings.
-  - [ ] **D4 Batch 2e-iii follow-up (IF-226)** — reconstruct
-        `Prefetch::getUsedCache` body
-        (`prefetch_helpers.cpp:799-815`, original `0x1c7eb0`).
-        Currently a stub that always returns 0.  `objdump -d
-        --start-address=0x1c7eb0 --stop-address=...
-        _seqc_compiler.so` to identify the function body and
-        end address (expected to be the next `.text` symbol
-        boundary).  Determine the recursion shape (likely walks
-        `Node::next`, `Node::loop`, `Node::branches` summing
-        per-leaf waveform memory via
-        `computeWaveformMemoryBytes`, or sums
-        `PrefetcherNodeState::usedCache_` across visited
-        nodes).  Reconstruct the body.  Optionally add a unit
-        test asserting expected total over a hand-crafted Node
-        tree; difftests will not exercise this since the only
-        caller is `Prefetch::print` (debug-only printer to
-        `std::cout`).  See IF-226 for full evidence.
+  - [x] **D4 Batch 2e-iii follow-up (IF-226)** — fixed.
+        `Prefetch::getUsedCache` body reconstructed at
+        `prefetch_helpers.cpp:806-948`.  Simple recursive walk
+        over `next`/`loop`/`branches` with per-node leaf
+        contribution gated on `Node::type` and `PrefetcherNodeState::state`.
+        Disassembly range `0x1c7eb0..0x1c8738` (next function
+        `preparePlays` at `0x1c8740`).  **Correction to the IF**:
+        original entry claimed the only caller was `Prefetch::print`
+        (debug-only), but `getUsedCache` is in fact called from
+        production code at `prefetch.cpp:1112,1118` (the
+        `mergeWaveforms`-adjacent loop at `0x1cdcfd-0x1cddab`),
+        where the result debits `nodeStates_[current].usedCache_`.
+        Stub returning 0 silently turned that debit into a no-op
+        and masked the `Load + length == 0` refund (negated
+        contribution) entirely.  `computeWaveformMemoryBytes` is
+        inlined in the body, matching the binary at
+        `0x1c843a..0x1c8485` / `0x1c855d..0x1c8616`.  Tests
+        remain 1602/1602 — the bug was latent because the
+        difftest corpus doesn't stress mis-balanced cache
+        accounting.  No regression test added (effect is on
+        internal state, not ELF output).  IF-226 marked **fixed**
+        in `incidental_findings.md`.
   - [x] **D4 Batch 3a** — `WavetableIR` accessors and the shared
         `detail::getUniqueName` helper (8 briefs):
         `getUniqueName`, `WavetableIR::{begin, end, size,
