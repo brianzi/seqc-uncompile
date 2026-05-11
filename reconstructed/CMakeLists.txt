@@ -185,10 +185,11 @@ find_package(Doxygen QUIET)
 if(DOXYGEN_FOUND)
     set(DOXYGEN_OUTPUT_DIR    "${CMAKE_CURRENT_BINARY_DIR}/docs")
     # Promoted notes/ pages — D6-A added the 13 EVERGREEN files;
-    # D6-B is incrementally promoting the 16 MIXED files after
-    # per-file cleanup.  The remaining 10 files are working-doc
-    # tracking files (incidental_findings, unknowns, etc.) that
-    # are not user-facing reference material and stay excluded.
+    # D6-B promoted 14 of the 16 MIXED files after per-file cleanup.
+    # The remaining 12 notes/ files are working-doc tracking files
+    # (incidental_findings, unknowns, struct_layouts,
+    # placeholder_field_names, etc.) that are not user-facing
+    # reference material and stay excluded.
     set(DOXYGEN_NOTES_PAGES
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/cervino_vs_hirzel.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_format.md"
@@ -217,6 +218,9 @@ if(DOXYGEN_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_parser_grammar.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/splitreg_loop_model.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/writeToNode_block_d_protocol.md"
+        # D6-B batch 3
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/libcpp_abi.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/optimization_passes.md"
     )
     string(REPLACE ";" " " DOXYGEN_NOTES_PAGES_STR "${DOXYGEN_NOTES_PAGES}")
     set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md ${DOXYGEN_NOTES_PAGES_STR}")

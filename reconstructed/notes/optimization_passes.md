@@ -1,8 +1,16 @@
-# AsmOptimize — Optimization Passes
+# AsmOptimize — Optimization Passes {#notes_optimization_passes}
 
-Reconstructed from Phase 6 disassembly. AsmOptimize operates on a working
-copy of the AsmList (vector<AsmList::Asm>). Passes are selected by a
-bitmask at +0x08 (optFlags_).
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
+
+`AsmOptimize` operates on a working copy of the `AsmList`
+(`vector<AsmList::Asm>`).  Passes are selected by a bitmask at +0x08
+(`optFlags_`).
 
 ## Pass Pipeline
 
@@ -224,59 +232,49 @@ writes the register (same write semantics as isWritten).
 
 ---
 
-# Register field semantics — critical correction (Phase 15c, 2026-04-23)
+# Register field semantics
 
-`Assembler` register field semantics were **inverted** in early
-reconstruction and propagated through all AsmOptimize methods. Phase 15c
-discovered and corrected this.
-
-## Correct semantics (from disassembly of `isRead` @0x27d900 and `isWritten` @0x27d960)
+The `Assembler` register fields and their semantics, as observed in
+`isRead` @0x27d900 and `isWritten` @0x27d960:
 
 | Field | Assembler offset | Asm offset | Semantic |
-|-------|----------------------|------------|----------|
-| regSrc  | +0x20                | +0x28      | **READ source** (isRead checks with cmdType & 1) |
-| regDst  | +0x28                | +0x30      | **WRITE destination** (isWritten checks cmdType bit 1) |
-| regAux  | +0x30                | +0x38      | **Dual**: read if cmdType==1 or 7; written if cmdType==7 |
+|-------|-----------------:|-----------:|----------|
+| `regSrc`  | +0x20 | +0x28 | **READ source** (`isRead` checks with `cmdType & 1`) |
+| `regDst`  | +0x28 | +0x30 | **WRITE destination** (`isWritten` checks `cmdType` bit 1) |
+| `regAux`  | +0x30 | +0x38 | **Dual**: read if `cmdType==1` or `7`; written if `cmdType==7` |
 
-Prior code had regSrc as "dest" and regDst as "src1" — exactly backwards.
-The field **names** in `assembler.hpp` were NOT changed (to avoid
-cascading rename across 20+ files), but all **semantic usage** in
-asm_optimize.cpp was corrected with offset citations in comments.
+The historical field **names** in `assembler.hpp` are kept (the
+shorthand was useful and a rename would cascade across many files);
+all consumers in `asm_optimize.cpp` carry inline offset citations.
 
-## Functions corrected by Phase 15c
+Verified consumers of these semantics:
 
-| Function | Address | Fix |
-|----------|---------|-----|
-| `isRead` | 0x27d900 | Checks regSrc(+0x20), not regDst |
-| `isWritten` | 0x27d960 | Checks regDst(+0x28), not regSrc |
-| `getNextActionForReg` | 0x281a10 | Rewritten: correct 3-field scan (regSrc→bit0, regDst→bit1, regAux→3); branch commands return 3 early |
-| `registerIsNeverWritten` | 0x280f50 | Field references corrected |
-| `registerUpdate` | 0x281680 | Updates all 3 register fields correctly |
-| `isLabelCalled` | 0x27d9c0 | Iteration direction fixed: begin..it (not it..end) |
-
-## Functions still using pre-correction field references (carry-forward)
-
-- `simplifyAssign` @0x280e10 — not in scope of Phase 15c. Should be
-  revisited if this function is ever exercised by tests.
-- `splitReg` @0x281000 — current stub is ~20 lines; real binary is ~500.
+| Function | Address | Behaviour |
+|----------|---------|-----------|
+| `isRead`                  | 0x27d900 | Checks `regSrc` (+0x20) |
+| `isWritten`               | 0x27d960 | Checks `regDst` (+0x28) |
+| `getNextActionForReg`     | 0x281a10 | 3-field scan (`regSrc`→bit0, `regDst`→bit1, `regAux`→3); branch commands return 3 early |
+| `registerIsNeverWritten`  | 0x280f50 | |
+| `registerUpdate`          | 0x281680 | Updates all 3 register fields |
+| `isLabelCalled`           | 0x27d9c0 | Iterates `begin..it` (not `it..end`) |
 
 ---
 
-# Algorithm reconstructions (Phase 15c)
+# Algorithm reconstructions
 
 ## `removeUnusedRegs` @0x27e760 (291 lines, fully reconstructed)
 
 Algorithm:
 1. Cancel-callback lock pattern at entry.
-2. Skip bitmask 0x29 = 0b101001: skips INVALID(-1), LABEL(2), and cmd=4
-   (NOT NOP/MESSAGE/ERROR_MSG as previously claimed).
-3. For each writing instruction: determine dest reg (try regDst, fallback
-   regAux for cmdType==7).
+2. Skip bitmask 0x29 = 0b101001: skips INVALID(-1), LABEL(2), and cmd=4.
+3. For each writing instruction: determine dest reg (try `regDst`,
+   fallback `regAux` for `cmdType==7`).
 4. Track seen dest regs in vector to avoid re-processing.
-5. Inner forward scan builds bitmask: bit0=reg in regSrc (read),
-   bit1=reg in regDst (overwritten); regAux match or both bits → abandon.
+5. Inner forward scan builds bitmask: bit0 = reg in `regSrc` (read),
+   bit1 = reg in `regDst` (overwritten); `regAux` match or both bits
+   → abandon.
 6. After scan:
-   - never-read → eliminate (cmd=INVALID, dest=AsmRegister(-1))
+   - never-read → eliminate (cmd=INVALID, dest=`AsmRegister(-1)`)
    - read-but-not-overwritten → call `simplifyAssign`
 
 ## `registerAllocation` @0x27ebb0 (1466 lines, structurally reconstructed)
@@ -302,21 +300,20 @@ Two-pass algorithm:
 
 - **Pass 1**: Build rewritten instruction list with "barrier" entries
   (cmd=INVALID, dest=`magicSkipRegister()`).
-- **Pass 2**: Scan for constant loads (regDst==r0) and call `splitReg` to
-  split live ranges.
-- **Post-pass**: Move entries back to asm_, stripping barrier entries.
+- **Pass 2**: Scan for constant loads (regDst==r0) and call `splitReg`
+  to split live ranges.
+- **Post-pass**: Move entries back to `asm_`, stripping barrier entries.
 
 ## Skip bitmask 0x29 pattern
 
-Multiple AsmOptimize functions use:
+Multiple `AsmOptimize` functions use:
 
 ```
 (cmd+1) <= 5 && ((0x29 >> (cmd+1)) & 1)
 ```
 
 Bitmask 0x29 = bits 0,3,5 → skips cmd values: INVALID(-1), LABEL(2),
-and cmd=4 (undocumented value between MESSAGE=3 and ERROR_MSG=5). This
-pattern was previously incorrectly claimed to skip NOP/MESSAGE/ERROR_MSG.
+and cmd=4 (an undocumented value between MESSAGE=3 and ERROR_MSG=5).
 
 ## `AsmRegister::magicSkipRegister()` @0x28ebb0
 

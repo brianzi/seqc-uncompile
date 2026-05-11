@@ -1,13 +1,21 @@
-# libc++ vs libstdc++ ABI patterns
+# libc++ vs libstdc++ ABI patterns {#notes_libcpp_abi}
 
-This binary (`_seqc_compiler.so`) is compiled against **libc++** (the
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
+
+The original `_seqc_compiler.so` is compiled against **libc++** (the
 LLVM/Clang C++ standard library, `std::__1::*` inline namespace),
 while our reconstructed source is built against the host's **libstdc++**
 (`std::__cxx11::*` inline namespace).
 
 Several standard-library types differ in size and internal layout
-between the two implementations. This document catalogs the
-differences relevant to layout reconstruction work.
+between the two implementations.  This page catalogues the differences
+relevant to layout reconstruction work.
 
 ## Type sizes (x86_64 SysV)
 
@@ -171,7 +179,7 @@ This pattern was used to confirm `AsmExpression` size (0xA8) at
 | Class with std::function | Disassembly |
 | Class derived from std::exception | Disassembly (multiple inheritance with boost::exception varies) |
 
-## Refactoring pattern: raw+ctrl pair → weak_ptr (Phase 10.8a)
+## Refactoring pattern: raw+ctrl pair → weak_ptr
 
 Earlier reconstruction passes sometimes modeled an embedded weak_ptr
 field as two separate raw pointers (e.g. `Node* foo_ptr` + `void*
@@ -187,9 +195,6 @@ the (alleged) reference. This is incorrect:
 The correct pattern: declare the field as `std::weak_ptr<Node> foo`
 (16 bytes, exactly matching `[Node*; __shared_weak_count*]` layout),
 and at use sites write `if (auto sp = node->foo.lock()) { ... }`.
-This was applied to `Node::loadRef` in Phase 10.8a, fixing
-~12 call sites across 5 files (prefetch.cpp, prefetch_print.cpp,
-prefetch_splitplay.cpp, prefetch_placesingle.cpp, node.cpp).
 
 Watch for this pattern in remaining files: any `_ptr`/`_ctrl` field
 pair with 16-byte total footprint inside a class with weak/shared
@@ -200,7 +205,7 @@ semantics is almost certainly a `weak_ptr<T>`.
 Cases where our reconstruction does not match the binary's exact ABI
 but where the behavioural difference is nil or negligible.
 
-### Internal-linkage globals declared `extern` (Phase 20a)
+### Internal-linkage globals declared `extern`
 
 The binary mangles these three namespace-scope globals with the `L`
 prefix, indicating they were declared `static` inside `namespace zhinst`
@@ -227,7 +232,7 @@ constant strings.
 these as mutable globals via per-TU views, the single-definition form
 would become incorrect — but no such mutation has been observed.
 
-### Inlined-ctor bodies emitted as standalone symbols (Phase 20c)
+### Inlined-ctor bodies emitted as standalone symbols
 
 The binary inlines two ctors directly into their `allocate_shared`
 dispatchers — there is no standalone `WaveformIRC1E.../WaveformFrontC1E...`
@@ -252,91 +257,60 @@ link against. Without out-of-line bodies, link-time `U` references go
 unresolved.
 
 **Risk**: zero for behaviour. The fields each ctor must initialise are
-fully recovered from the dispatcher disassembly (see WP-C audit notes).
-Frame-pointer omission and zero-then-overwrite patterns differ, but no
-field is left uninitialised in either form.
+fully recovered from the dispatcher disassembly. Frame-pointer omission
+and zero-then-overwrite patterns differ, but no field is left
+uninitialised in either form.
+
+## Dual-build strategy (g++/libstdc++ + clang/libc++)
+
+The reconstructed source uses ~45 `reinterpret_cast` to raw byte
+offsets, ~15 placement-new sites, ~25 `static_assert`s (some
+dual-accept or disabled), and 2 GCC pragma suppressions to bridge the
+libc++/libstdc++ ABI mismatch.  The code compiles under g++/libstdc++
+but struct sizes, `std::string` layout, and `std::function` sizes are
+"wrong" relative to the binary.
+
+To validate ABI correctness, the project supports a parallel
+`build-libcxx/` directory configured with `clang++ -stdlib=libc++`:
+
+- **Primary build**: g++ / libstdc++ (`build/`).  Fast.  One known
+  warning at `value.cpp:237` (placement-new of `std::string` into
+  24-byte storage; benign under libc++, kept as a marker).
+- **Validation build**: clang++ / libc++ (`build-libcxx/`).
+  ABI-correct struct sizes; six warnings (4 `-Wnontrivial-memcall` on
+  `Value::Storage` memcpy, 2 `-Wunknown-warning-option` for the
+  GCC-only pragma).
+
+To make headers compile under both ABIs, sizes that depend on
+`sizeof(std::string)` are written as expressions rather than literals,
+e.g.:
+
+- `AwgPathPatterns`: `3 * sizeof(std::string)` → 72 (libc++) / 96 (libstdc++)
+- `AwgDeviceProps`:  `32 + 4 * sizeof(std::string)` → 128 (libc++) / 160 (libstdc++)
+
+`std::function` size asserts are made ABI-conditional with
+`#ifdef _LIBCPP_VERSION` (libc++: function spans all 3 raw fields;
+libstdc++: function fits in `functionStorage_` alone).
+
+Workaround inventory across the codebase:
+
+| Category | Count | Notes |
+|---|---|---|
+| `reinterpret_cast` to raw offsets | ~45 | Access string/function fields at byte offsets |
+| Placement-new sites | ~15 | Construct `std::string`/`function` into raw storage |
+| `static_assert`s | ~25 | Some dual-accept (`\|\| sizeof==X`), some disabled (`\|\| true`), some comment-only |
+| GCC pragma suppressions | 2 | `-Wplacement-new=` (GCC-only, ignored by clang) |
+| `#ifdef _LIBCPP_VERSION` | 1 | `resources_static_global.cpp` |
+
+Under the dual-build approach the raw-byte workarounds could
+gradually be replaced with proper `std::function` / `std::string`
+member access on a per-file basis, guarded by `#ifdef _LIBCPP_VERSION`
+where the two ABIs diverge.  Priority candidates: the `functionStorage_`
+field in `resources_static_global.cpp`, the placement-new in
+`value.cpp`, and the field-offset reads in `resources.cpp` /
+`custom_functions.cpp`.
 
 ## See also
 
-- `notes/struct_layouts.md` — verified offset tables for major structs
-- `notes/node_tree_structure.md` — example of weak_ptr decomposition
-- `notes/unknowns.md` — open layout questions
-
-## Phase 21g: Dual-build strategy (decided 2026-04-24)
-
-### Problem statement
-
-The reconstructed source uses ~45 `reinterpret_cast` to raw byte offsets,
-~15 placement-new sites, ~25 `static_assert`s (some dual-accept or
-disabled), and 2 GCC pragma suppressions — all to work around the
-libc++/libstdc++ ABI mismatch. The code compiles under g++/libstdc++
-but struct sizes, std::string layout, and std::function sizes are wrong
-relative to the binary.
-
-### Strategies evaluated
-
-| Strategy | Effort | Benefit | Verdict |
-|---|---|---|---|
-| **(a) clang + libc++** dual build | Low (one `pacman -S libc++` + CMake flags) | Perfect ABI match; validates struct sizes; enables future runtime testing | **Adopted** |
-| **(b) Translation header** (`#ifdef _LIBCPP_VERSION` everywhere) | Very high (~45+ `#ifdef` blocks) | Would make one source build correctly under both | **Rejected** — enormous complexity, marginal benefit |
-| **(c) Accept libstdc++ as canonical** | Zero | Current state; works for compilation; raw byte casts never execute | **Retained** as primary fast build |
-
-### Decision: (a) + (c) dual-build
-
-- **Primary build**: g++ / libstdc++ (fast, existing `build/` directory).
-  The 1 known warning (`value.cpp:237` placement-new) is tolerated.
-- **Validation build**: clang++ / libc++ (`build-libcxx/` directory,
-  configured with `-stdlib=libc++`). ABI-correct struct sizes.
-  6 warnings (4 `-Wnontrivial-memcall` on Value::Storage memcpy,
-  2 `-Wunknown-warning-option` for GCC pragma).
-
-### Changes made to support dual-build
-
-1. **`build-libcxx/`** directory created with cmake configured for
-   `clang++ -stdlib=libc++`.
-
-2. **`awg_device_props.hpp`**: static_asserts changed from hardcoded
-   sizes to `N * sizeof(std::string)` expressions that auto-adapt:
-   - `AwgPathPatterns`: `3 * sizeof(std::string)` → 72 (libc++) / 96 (libstdc++)
-   - `AwgDeviceProps`: `32 + 4 * sizeof(std::string)` → 128 (libc++) / 160 (libstdc++)
-
-3. **`resources_static_global.cpp`**: `std::function` size assert made
-   ABI-conditional with `#ifdef _LIBCPP_VERSION`:
-   - libc++: asserts `== 0x30` (the function spans all 3 raw fields)
-   - libstdc++: asserts `<= 0x28` (the function fits in `functionStorage_` alone)
-
-### Workaround inventory (for future cleanup)
-
-Totals across the codebase:
-
-| Category | Count | Files | Notes |
-|---|---|---|---|
-| `reinterpret_cast` to raw offsets | ~45 | 7 files (resources.cpp:16, custom_functions.cpp:14, prefetch_print.cpp:8, prefetch_emit.cpp:3, prefetch.cpp:1, awg_assembler_impl_pipeline.cpp:1, wavetable_front.cpp:2) | Access string/function fields at byte offsets |
-| Placement-new sites | ~15 | 4 files (resources.cpp:6, value.cpp:5, waveform.cpp:3, resources_static_global.cpp:2) | Construct std::string/function into raw storage |
-| static_asserts | ~25 | 9 headers | Some dual-accept (`\|\| sizeof==X`), some disabled (`\|\| true`), some comment-only |
-| GCC pragma suppressions | 2 | resources.cpp | `-Wplacement-new=` (GCC-only, ignored by clang) |
-| Conditional compilation | 1 | resources_static_global.cpp | The `#ifdef _LIBCPP_VERSION` added in this phase |
-
-### Future work
-
-Under the dual-build approach, the raw-byte workarounds could gradually
-be replaced with proper `std::function` / `std::string` member access
-on a per-file basis, guarded by `#ifdef _LIBCPP_VERSION` where the two
-ABIs diverge. Priority candidates:
-
-1. `resources_static_global.cpp` — replace functionStorage_/functionPtr_
-   with a real `std::function` member under libc++ (the 3 raw fields
-   are exactly one `std::function<void(std::string const&)>` in the
-   binary).
-2. `value.cpp` — the placement-new of `std::string` into 24-byte
-   `Value::Storage` is correct under libc++ (string is 24 bytes) but
-   overflows under libstdc++ (string is 32 bytes). Could use a real
-   `std::string` member under libc++.
-3. The remaining ~45 reinterpret_casts in resources.cpp and
-   custom_functions.cpp are mostly accessing string fields inside
-   `Variable` / `Value` at hardcoded offsets. Under libc++ these
-   offsets are actually correct.
-
-This cleanup is tracked as potential future work, not an immediate
-priority — the dual-build validates correctness without requiring
-source changes.
+- \ref notes_node_tree_structure — example of weak_ptr decomposition
+- \ref notes_awg_device_props — concrete per-ABI size table for AwgDeviceProps

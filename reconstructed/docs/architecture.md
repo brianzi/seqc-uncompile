@@ -255,6 +255,8 @@ API-documentation voice rules (no binary citations outside
 | **Magic numbers & missing named constants** | \ref notes_magic_numbers_proposal |
 | **`splitReg` loop model** | \ref notes_splitreg_loop_model |
 | **`writeToNode` Block-D emit protocol** | \ref notes_writeToNode_block_d_protocol |
+| **libc++ vs libstdc++ ABI patterns** | \ref notes_libcpp_abi |
+| **AsmOptimize passes & register allocator** | \ref notes_optimization_passes |
 
 The remainder of `reconstructed/notes/` (status-tracking files,
 in-progress audits, dated phase logs) is intentionally kept out of
