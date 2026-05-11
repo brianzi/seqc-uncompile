@@ -409,7 +409,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
     auto const& assignments = playArgs.waveAssignments_[deviceIdx];
 
     std::vector<EvalResultValue> channelArgs;
-    uint32_t mask = 0x3fff;                                                    // r12d = 0x3fff
+    uint32_t mask = kPlayTriggerMaskFull;                                                    // r12d = 0x3fff
 
     for (size_t i = 0; i < assignments.size(); ++i) {                          // @0x134055
         auto const& wa = assignments[i];

@@ -186,14 +186,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
         auto& assignments = playArgs.waveAssignments_[channelIndex];   // @0x135812
         // Spill `rate` for later use as asmPlay's rate @0x1357ec.
         std::shared_ptr<WaveformFront> combinedWf;                     // [rbp-0xe0]
-        unsigned int mask = 0x3FFF;                                    // r15d default
+        unsigned int mask = kPlayTriggerMaskFull;                                    // r15d default
 
         if (assignments.empty()) {
             // --- : empty-assignments path — @0x1359ec..0x1359f9 ---
             // mask stays 0x3FFF; combinedWf stays null; skip directly to
             // checkOffspecWaveLength + asmPlay block (which will be skipped
             // unless config_->[+0x18] is set).
-            mask = 0x3FFF;
+            mask = kPlayTriggerMaskFull;
         } else {
             // ---- : validate every wave name — @0x135849..0x135884 -
             // For each WaveAssignment wa:
@@ -274,7 +274,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             // play instruction differs from playDIOWave in that the trigger
             // bit pattern is fixed (no dynamic per-bit clearing from
             // wa.bits — those bits were used for channel scattering).
-            mask = 0x3FC3;
+            mask = kPlayTriggerMaskAuxMerge;
         }
 
         // --- Phase 9: validate sample length — @0x135ef6..0x135f0d ---
@@ -494,14 +494,14 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
         auto& assignments = playArgs.waveAssignments_[channelIndex];
 
         std::vector<EvalResultValue> channelArgs;                         // @0x136c09
-        int mask = 0x3FFF;                                                // @0x136c2d / @0x136cd3
+        int mask = kPlayTriggerMaskFull;                                                // @0x136c2d / @0x136cd3
         bool dryRun = true;  // tracks whether merged-string is empty
                              // (ultimately bound to bl flag at @0x136cc4)
 
         if (assignments.empty()) {
             // @0x136cb7..0x136cce: zero combined wf, dryRun=true,
             // mask=0x3FFF, jump straight to checkOffspecWaveLength path.
-            mask = 0x3FFF;
+            mask = kPlayTriggerMaskFull;
         } else {
             // @0x136c40..0x136ca5: outer loop over WaveAssignment entries.
             for (auto const& wa : assignments) {
@@ -972,7 +972,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playZero(                         
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
         false /*isHold*/, false /*fourChannel*/, false /*hold*/,
-        rate, 0x3FFF /*suppress*/, false /*is4Channel*/,
+        rate, kPlayTriggerMaskFull /*suppress*/, false /*is4Channel*/,
         reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain (binary 0x138a4b-0x138a86)
     auto playNode = asmEntry.node;  // copy shared_ptr before move
@@ -1022,7 +1022,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playHold(                         
     auto asmEntry = asmCommands_->asmPlay(
         std::move(emptyWfs), channelIndex,
         false /*isHold — binary 0x1391b8: xor r8d*/, false /*fourChannel*/, true /*hold — binary 0x1391d7: push $0x1*/,
-        rate, 0x3FFF /*suppress*/, false /*is4Channel*/,
+        rate, kPlayTriggerMaskFull /*suppress*/, false /*is4Channel*/,
         reg0, length, regArg, 0 /*trigger*/);
     // Link the node into results->node_ chain
     auto playNode = asmEntry.node;

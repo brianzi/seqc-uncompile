@@ -5389,7 +5389,7 @@ brief alone documents the intended semantics.
 ## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
 
 **Severity**: cosmetic (readability / doc-accuracy hazard).
-**Status**: partially fixed (E1 done 2026-05-11; E2-E5 still open).
+**Status**: partially fixed (E1+E2 done 2026-05-11; E3-E5 still open).
 **Discovered**: D4 Batch 4e while writing briefs for
 `playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
 `playZero`, `playHold` in
@@ -5476,11 +5476,18 @@ user agreement):
   `(UHFLI | HDAWG | UHFQA)` because the bitwise-OR result is
   `int` and needs the cast back to `AwgDeviceType`.  Build
   clean, 1603/1603 tests pass — fully NFC.
-- E2: introduce named constants for the trigger-mask
-  defaults (`kPlayTriggerMaskFull = 0x3FFF`,
-  `kPlayTriggerMaskAuxMerge = 0x3FC3`) and a helper
-  `clearChannelTriggerByte(mask, bit)` for the
-  `0x40 << (7*b)` pattern.
+- E2: ✅ **done 2026-05-11**.  Added `kPlayTriggerMaskFull =
+  0x3FFF` and `kPlayTriggerMaskAuxMerge = 0x3FC3` to
+  `core/types.hpp` (with briefs explaining the 14-bit mask
+  layout and aux-wave variant).  Replaced 17 literal sites
+  across `custom_functions_play.cpp` (3),
+  `custom_functions_playback.cpp` (6), and
+  `custom_functions_dio.cpp` (1).  The `clearChannelTriggerByte`
+  helper proposal is dropped: the `mask &= ~(0x40 << shiftBits)`
+  pattern appears in only one live site
+  (`custom_functions_playback.cpp:518`); a helper would
+  obscure rather than clarify.  Build clean, 1603/1603 tests
+  pass — fully NFC.
 - E3: name the ZSYNC shift constants in `playWaveZSync`.
 - E4: name `AsmRegister(-1)` and the rate-validity floors.
 - E5: audit `PlayConfig` field encoding for promotion to

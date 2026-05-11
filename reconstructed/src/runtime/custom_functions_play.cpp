@@ -527,7 +527,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
     std::vector<std::shared_ptr<WaveformFront>> channelWaveforms(
         static_cast<size_t>(numChannels));                           // @0x15f679
 
-    int mask = 0x3FFF;                                               // @0x15f6bb
+    int mask = kPlayTriggerMaskFull;                                               // @0x15f6bb
 
     for (int ch = 0; ch < numChannels; ++ch) {                      // @0x15f6e6
         auto& assignments = playArgs.waveAssignments_[ch];
@@ -861,7 +861,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // Local channel-arg vector, populated below (Phase 7) on the
     // non-Aux path. On the Aux path it remains empty until merging.
     std::vector<EvalResultValue> channelArgs;                        // [rbp-0x90] in binary
-    int triggerMask = 0x3fff;                                        // r13d init @0x1613d6 / @0x161405
+    int triggerMask = kPlayTriggerMaskFull;                                        // r13d init @0x1613d6 / @0x161405
 
     if (subFunc == SubFunc::Aux) {
         // --- 6 (Aux only). Name validation loop (@0x1612b4..0x161319) ---
@@ -879,7 +879,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
             wavetableFront_->checkWaveformInitialized(wa.value.value_.toString());
         }
 
-        triggerMask = 0x3fff;                                        // @0x1613d6
+        triggerMask = kPlayTriggerMaskFull;                                        // @0x1613d6
         // r14b=1 @0x1613dc — flag indicating Aux path taken; used in
         // later phases to gate the asmPlay variant.
     } else {

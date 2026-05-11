@@ -97,6 +97,27 @@ constexpr int kNoWaveIndex  = -1;   //!< Sentinel: no waveform index assigned (w
 constexpr int kNoNodeId     = -1;   //!< Sentinel: no AST node ID assigned (node.cpp).
 constexpr int kNoPlayIndex  = -1;   //!< Sentinel: no play index assigned (wave_index_tracker.cpp).
 
+// Playback trigger-mask constants (IF-228 E2).
+//
+// The 14-bit mask encodes per-channel "suppress" bits passed to
+// `asmPlay`/`asmPlayDIO` and friends.  Bits are arranged as two
+// 7-bit groups; bit 6 of each group (`0x40` and `0x2000`) is the
+// per-channel marker-trigger bit cleared by
+// `mask &= ~(0x40 << (7 * b))` for each `b` in a wave assignment's
+// `bits` set.
+//! \brief Default 14-bit trigger mask (all bits set).  Used as the
+//! initial value for trigger-mask bookkeeping in `playAuxWave`,
+//! `playDIOWave`, `playWaveDIO`, `assignWaveIndex`, and the
+//! `play_*` low-level helpers before any per-channel marker bits
+//! are cleared.
+constexpr unsigned int kPlayTriggerMaskFull     = 0x3FFF;
+//! \brief Aux-wave variant of `kPlayTriggerMaskFull` with the
+//! marker-trigger bit pre-cleared in both 7-bit groups
+//! (`0x3FFF & ~(0x40 | 0x2000)`).  Used by `playAuxWave` after
+//! the merge step because the aux-wave instruction has a fixed
+//! trigger-bit pattern (no dynamic per-bit clearing).
+constexpr unsigned int kPlayTriggerMaskAuxMerge = 0x3FC3;
+
 // I/Q channel tags in writeToNode (A16)
 constexpr int kChannelTag_I = 0x0C; //!< Channel tag identifying the I component in `writeToNode`.
 constexpr int kChannelTag_Q = 0x0D; //!< Channel tag identifying the Q component in `writeToNode`.
