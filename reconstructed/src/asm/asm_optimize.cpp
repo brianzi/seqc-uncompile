@@ -632,7 +632,7 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             // Eliminate: set dest reg to invalid(-1), set cmd to dead
             // 27eaa2: AsmRegister(-1) → store at [rcx] (the dest slot)
             // 27eac5: mov DWORD PTR [rax],0xffffffff (cmd)
-            *destSlot = AsmRegister(-1);
+            *destSlot = AsmRegister::UnsetSlot();
             it->assembler.cmd = Assembler::INVALID;
         } else if (!(usageFlags & 2)) {
             // Register is READ but NEVER OVERWRITTEN → try simplifyAssign

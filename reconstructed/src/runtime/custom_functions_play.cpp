@@ -2451,7 +2451,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generateWaveform(
         nameVal.varType_ = VarType_String;                              // @0x15aaa7: first arg must be string type for generate()
         nameVal.varSubType_ = VarSubType_Vect;                       // @0x15ab04: movl $3
         nameVal.value_ = Value(name);                                   // @0x15aab4: copy string
-        nameVal.reg_ = AsmRegister(-1);                                 // @0x15ab70
+        nameVal.reg_ = AsmRegister::UnsetSlot();                        // @0x15ab70
         newArgs.insert(newArgs.begin(), std::move(nameVal));             // @0x15ab7d
     }
 

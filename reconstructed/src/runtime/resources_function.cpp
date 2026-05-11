@@ -374,7 +374,7 @@ void Resources::Function::addArgument(std::string const& name,
     temp.type        = type;
     temp.subTypeRaw  = VarSubType_Default;
     // temp.value is default-constructed Value; see comment above.
-    temp.reg         = AsmRegister(-1);   // explicit (-1, valid=true)
+    temp.reg         = AsmRegister::UnsetSlot();   // {value=0, valid=false}; matches binary's AsmRegister(-1) construction
     temp.name        = name;
     temp.flags       = 0x0001;            // written=true, frozen=false
     arguments.push_back(temp);

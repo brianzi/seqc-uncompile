@@ -910,7 +910,7 @@ int PlayArgs::parseImplicitChannels(
                     EvalResultValue syntheticArg;
                     syntheticArg.varType_ = VarType_Const;
                     syntheticArg.varSubType_ = VarSubType(0);
-                    syntheticArg.reg_ = AsmRegister(-1);
+                    syntheticArg.reg_ = AsmRegister::UnsetSlot();
 
                     addChannelWave(channelIdx - 1, syntheticArg);  // @0x16fca5
                     channelIdx++;

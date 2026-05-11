@@ -5389,7 +5389,7 @@ brief alone documents the intended semantics.
 ## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
 
 **Severity**: cosmetic (readability / doc-accuracy hazard).
-**Status**: partially fixed (E1+E2+E3 done 2026-05-11; E4-E5 still open).
+**Status**: partially fixed (E1+E2+E3+E4 done 2026-05-11; E5 still open).
 **Discovered**: D4 Batch 4e while writing briefs for
 `playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
 `playZero`, `playHold` in
@@ -5496,7 +5496,23 @@ user agreement):
   (`@0x137fab`, `@0x138049`, `@0x1380ea`) are kept for
   trace-back to the binary.  Build clean, 1603/1603 tests
   pass — fully NFC.
-- E4: name `AsmRegister(-1)` and the rate-validity floors.
+- E4: ✅ **done 2026-05-11**.  Added factory
+  `AsmRegister::UnsetSlot()` returning `{0, false}` — the
+  binary's actual stored bytes for `AsmRegister(-1)`
+  construction (the `cmovg`/`setns` idiom collapses `-1` to
+  `value=0`).  Distinct from `Invalid()` (`{-1, false}`) in
+  bytes, equivalent under the equality rule.  Replaced 6 live
+  `AsmRegister(-1)` sites: `custom_functions_playback.cpp`
+  (×2: `regInv` in `playAuxWave` and `playDIOWave`),
+  `custom_functions_play.cpp:2454`,
+  `custom_functions.cpp:913`, `asm_optimize.cpp:635`,
+  `resources_function.cpp:377` (whose stale "valid=true"
+  comment is also corrected).  Added rate-floor constants
+  `kMinRatePlayAux=4` and `kMinRatePlayDIO=1` in the
+  `custom_functions_playback.cpp` anonymous namespace,
+  replacing the bare `rate <= 4` and `rate <= 1` literals at
+  lines 181 and 482.  Build clean, 1603/1603 tests pass —
+  fully NFC.
 - E5: audit `PlayConfig` field encoding for promotion to
   named members.
 

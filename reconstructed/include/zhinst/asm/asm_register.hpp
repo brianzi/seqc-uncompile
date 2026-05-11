@@ -57,6 +57,18 @@ struct AsmRegister {
     //! \return  An `AsmRegister` with `valid == true` and `value == n`.
     static AsmRegister Reg(int n) { return {n, true}; }
 
+    //! \brief Factory for the "unset second-register slot" used at
+    //!        `asmPlay` and similar emit sites.
+    //!
+    //! Equivalent to the binary's `AsmRegister(-1)` single-arg
+    //! construction, which the `cmovg`/`setns` idiom collapses to
+    //! `{value=0, valid=false}` — distinct in stored bytes from
+    //! `Invalid()` (`{-1, false}`) but indistinguishable under the
+    //! equality rule that treats all invalid slots as equal.
+    //!
+    //! \return  An `AsmRegister` with `valid == false` and `value == 0`.
+    static AsmRegister UnsetSlot() { return {0, false}; }
+
     //! \brief Sentinel register used internally by `splitConstRegisters`
     //!        to mark barrier entries that should be stripped.
     //!

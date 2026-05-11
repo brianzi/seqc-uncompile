@@ -48,6 +48,13 @@ inline void appendSuser(std::vector<AsmList::Asm>& vec, std::shared_ptr<AsmComma
 constexpr int kZSyncShiftRaw        = 1;     //!< Bit position for `ZSYNC_DATA_RAW`.
 constexpr int kZSyncShiftProcessedA = 9;     //!< Bit position for `ZSYNC_DATA_PROCESSED_A`.
 constexpr int kZSyncShiftProcessedB = 0xd;   //!< Bit position for `ZSYNC_DATA_PROCESSED_B`.
+
+// Minimum sample-rate exponents accepted by the playback built-ins
+// (IF-228 E4).  `rate` here is the integer rate exponent passed in
+// the SeqC source; values at or below the floor are rejected with
+// an error.
+constexpr int kMinRatePlayAux = 4;   //!< `playAuxWave` rejects `rate <= 4`.
+constexpr int kMinRatePlayDIO = 1;   //!< `playDIOWave` rejects `rate <= 1`.
 } // anonymous namespace
 
 extern ErrorMessages errMsg;
@@ -171,7 +178,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
 
     // --- Phase 5: rate sanity check — @0x135798..0x13579f ---
     // jle 0x13651c → throw format(0xa0, "playAuxWave") — invalid rate.
-    if (rate <= 4) {
+    if (rate <= kMinRatePlayAux) {
         // @0x13651c..0x1365a2: throw format(0xa0, cmdName).
         // (NOTE: playDIOWave uses 0xa1 with no string arg; playAuxWave uses
         //  0xa0 which expects the command name as its sole format arg.)
@@ -311,7 +318,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
             //   reg  = AsmRegister(0)   @0x136093
             //   reg2 = AsmRegister(-1)  @0x1360a4
             AsmRegister reg(0);
-            AsmRegister regInv(-1);
+            AsmRegister regInv = AsmRegister::UnsetSlot();
 
             // The argument list pushed at @0x1360c2..0x1360dc (right-to-left,
             // 8 stack args after the 6 register args) is:
@@ -472,7 +479,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 
     // --- Phase 6: rate sanity check — @0x136b71..0x136b74 ---
     // jle 0x13742a → throw format(0xa1) — invalid/insufficient rate.
-    if (rate <= 1) {
+    if (rate <= kMinRatePlayDIO) {
         // @0x13742a..0x137464: throw format(0xa1)
         throw CustomFunctionsException(
             ErrorMessages::format(DioSampleRateTooHigh));
@@ -591,7 +598,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
 
             // asmRegisters @0x137007..0x137026
             AsmRegister reg0(0);                                           // @0x137010
-            AsmRegister regInv(-1);                                        // @0x137021
+            AsmRegister regInv = AsmRegister::UnsetSlot();                 // @0x137021
 
             // bool isHoldArg = dryRun (loaded from [rbp-0x60]).
             // The argument list pushed at @0x13702b..0x13705e (right-to-left):
