@@ -22,7 +22,13 @@
 
 // Forward-declare util::wave::hash and hash2str used by getHash/cacheFile.
 namespace zhinst { namespace util { namespace wave {
+    //! \brief Forward declaration; see `zhinst/waveform/rawwave.hpp` for documentation.
+    //! \param filePath Path to file to hash.
+    //! \return SHA-1 digest as five 32-bit words.
     std::vector<unsigned int> hash(const std::string& filePath);
+    //! \brief Forward declaration; see `zhinst/waveform/rawwave.hpp` for documentation.
+    //! \param digest Digest words.
+    //! \return Lowercase hex string representation.
     std::string hash2str(const std::vector<unsigned int>& hash);
 }}}
 

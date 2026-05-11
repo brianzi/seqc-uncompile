@@ -57,20 +57,36 @@
 #include <opentelemetry/trace/scope.h>
 #include <opentelemetry/trace/span.h>
 
+//! \brief OpenTelemetry-based distributed tracing facade for the
+//! SeqC compiler.
+//!
+//! Hosts a process-wide `TraceProvider` singleton plus the helper
+//! `ScopedSpan` RAII type that compiler stages use to bracket their
+//! work.  Until `TraceProvider::configure()` is called, every
+//! `ScopedSpan` is a no-op; once configured (typically with the OTLP
+//! batch processor built by `makeDefaultSpanProcessor()`), spans are
+//! published asynchronously via the SDK's batch span processor.
 namespace zhinst::tracing {
 
-// Returns the cached function-local-static Resource describing this
-// service: name=labone, namespace=zhinst, version=26.01,
-// commitHash=<hex>.
-//
-// Reconstruction: 0xfa3b0. Magic-init-once guarded.
+//! \brief Returns the cached `service.*` `Resource` advertised on
+//! every emitted span.
+//!
+//! \details Function-local static initialised on first call.  The
+//! resource carries `service.name=labone`, `service.namespace=zhinst`,
+//! `service.version=26.01`, and a build-time commit hash; tracing
+//! backends use these attributes to attribute spans to this build.
+//! \return Reference to the singleton `Resource`.
 const opentelemetry::sdk::resource::Resource& getDefaultLabOneResource();
 
-// Builds the default span processor: a BatchSpanProcessor wrapping
-// an OtlpHttpExporter pointed at http://localhost:31318.
-//
-// Reconstruction: 0xfa680. Pulls timeout/headers from the env via
-// opentelemetry::v1::exporter::otlp::GetOtlpDefaultTraces{Timeout,Headers}.
+//! \brief Constructs the default OTLP/HTTP batch span processor.
+//!
+//! \details Wraps an `OtlpHttpExporter` aimed at
+//! `http://localhost:31318` in a `BatchSpanProcessor` configured with
+//! the SDK defaults, after sourcing timeout and HTTP headers from
+//! the standard `OTEL_EXPORTER_OTLP_*` environment variables.  The
+//! returned processor is intended to be handed to
+//! `TraceProvider::configure()`.
+//! \return Owning pointer to the freshly-constructed processor.
 std::unique_ptr<opentelemetry::sdk::trace::SpanProcessor>
 makeDefaultSpanProcessor();
 

@@ -68,13 +68,13 @@ public:
     // +0xA1   7     (padding to 0xA8)
     // sizeof(AsmList::Asm) = 0xA8
     struct Asm {
-        int sequenceId = 0;               // +0x00
+        int sequenceId = 0;               //!< Stable per-instance identifier from `createUniqueID(false)`, used to track this instruction across optimisation passes. +0x00
         // +0x04: 4 bytes padding
-        Assembler assembler;         // +0x08  (0x80 bytes)
-        int wavetableFront = 0;           // +0x88  (dual-purpose; see lineNumber())
+        Assembler assembler;         //!< The actual instruction record (opcode, operands, encoding state). +0x08  (0x80 bytes)
+        int wavetableFront = 0;           //!< Waveform-table context index propagated from `AsmCommands::wavetableFrontIndex_`; for `MESSAGE` / `ERROR_MSG` entries this field is overloaded as a source line number, see `lineNumber()`. +0x88  (dual-purpose; see lineNumber())
         // +0x8C: 4 bytes padding
-        std::shared_ptr<Node> node;       // +0x90  (16 bytes: ptr + ctrl)
-        bool noOpt = false;       // +0xA0
+        std::shared_ptr<Node> node;       //!< Optional link back to the IR `Node` that produced this instruction; used by the prefetch pass to recover placeholder positions. +0x90  (16 bytes: ptr + ctrl)
+        bool noOpt = false;       //!< When true, exempts this entry from optimiser rewrites; derived in the binary from `(cmd-3) < 3u`. +0xA0
         // +0xA1..+0xA7: padding to 0xA8
 
         // The +0x88 int is dual-purpose depending on command type:

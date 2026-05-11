@@ -1572,13 +1572,22 @@ private:
     //   +0xD8  precompFlags (init 0)
     //   +0xDD  hold
     //   +0xDE  dummy
-    // UsageEntry — 0x20 byte struct used in usageEntries_ vector.
-    // Confirmed: first 0x20 bytes is a PlayConfig (matches stride from
-    // vector grow operations and PlayConfig=0x20 size). No additional fields.
+    //! \brief Per-cwvf usage record collected as the prefetch pass walks
+    //! `playWave` sites.
+    //!
+    //! \details Each entry pairs a `PlayConfig` (channel mask, rate,
+    //! suppress flag, marker bits, trigger, precomp flags, hold /
+    //! `dummy` slots) with whatever auxiliary state the cwvf validity
+    //! analysis needs.  The 0x20 byte stride observed in the
+    //! `usageEntries_` vector grow operations matches `sizeof(PlayConfig)`
+    //! exactly, so no additional fields are present in the binary.
     struct UsageEntry {
-        PlayConfig config;  // first 0x20 bytes is a PlayConfig
-        // Implicit conversion from PlayConfig
+        PlayConfig config;  //!< Captured `PlayConfig` for one observed `playWave` site.  First 0x20 bytes is a PlayConfig.
+        //! \brief Default-constructs an `UsageEntry` holding a zero-initialised `PlayConfig`.
         UsageEntry() = default;
+        //! \brief Wraps an existing `PlayConfig` (implicit; used by the
+        //! prefetch pass to push the current play context onto the usage list).
+        //! \param pc Configuration captured for this usage record.
         UsageEntry(const PlayConfig& pc) : config(pc) {}
     };
 

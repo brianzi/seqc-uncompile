@@ -68,6 +68,10 @@ double awg2double16(uint32_t sample) {
 
 // 0x299d60 — format SHA-1 digest words as hex string
 // Binary uses ostringstream with hex, setfill('0'), setw(8) per word.
+//! \brief Renders a SHA-1 digest (`hash()` output) as a lowercase
+//! hexadecimal string by concatenating each word as eight hex digits.
+//! \param data Digest words to format.
+//! \return Lowercase hex string, eight characters per word.
 std::string hash2str(const std::vector<uint32_t>& data) {
     std::ostringstream oss;
     oss << std::hex << std::setfill('0');

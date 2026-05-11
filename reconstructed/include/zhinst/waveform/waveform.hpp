@@ -149,6 +149,7 @@ struct WaveformFile {
 //! flags. JSON round-tripping (`toJson` / `fromJson`) supports the
 //! metadata sections written into the output ELF.
 struct Waveform {
+    //! \brief Convenience alias for the per-waveform source-file descriptor type.
     using File = WaveformFile;
 
     std::string name;                                //!< User-visible waveform name (the SeqC variable name or generated identifier). JSON key `"name"`. +0x00

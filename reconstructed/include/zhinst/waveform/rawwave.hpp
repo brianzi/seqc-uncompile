@@ -26,14 +26,62 @@ namespace zhinst {
 // Forward declarations
 using MarkerBitsPerChannel = std::vector<uint8_t>;
 
-namespace util { namespace wave {
+//! \brief Miscellaneous utility namespace; presently exposes the
+//! waveform helpers in `wave`.
+namespace util {
+
+//! \brief Helpers for encoding doubles to AWG sample words and for
+//! hashing waveform-source files.
+//!
+//! Each `double2awg*` function clamps to `[-1, 1]`, scales to the
+//! device's full-scale integer, rounds, and packs the optional
+//! marker bits into the low bits of the result.  `hash()` returns a
+//! SHA-1 of a file's contents, used by the waveform cache to key
+//! parsed CSV / raw entries.
+namespace wave {
+    //! \brief Encodes one double to a 14-bit signed AWG sample with
+    //! two marker bits in the low two bits.
+    //! \param sample Source sample, clamped to `[-1, 1]` then scaled
+    //!        to `[-8191, 8191]`.
+    //! \param marker Marker bits packed into bits 0..1 of the result.
+    //! \return `(round(sample * 8191) << 2) | (marker & 0x3)`.
     uint16_t double2awg(double sample, unsigned int marker);     // 0x299630
+    //! \brief Encodes one double to a 15-bit signed AWG sample with a
+    //! single marker bit in the low bit.
+    //! \param sample Source sample, clamped to `[-1, 1]` then scaled
+    //!        to `[-16383, 16383]`.
+    //! \param marker Marker bit packed into bit 0 of the result.
+    //! \return `(round(sample * 16383) << 1) | (marker & 0x1)`.
     uint16_t double2awg1m(double sample, unsigned int marker);   // 0x299680
+    //! \brief Encodes one double to a 16-bit signed AWG sample (no
+    //! marker bits).
+    //! \details Replicates the binary's `maxsd`-based NaN propagation
+    //! exactly (NaN inputs produce a `NaN`-derived sample word) so
+    //! that bit-for-bit output equivalence with the original encoder
+    //! is preserved.
+    //! \param sample Source sample, clamped to `[-1, 1]` then scaled
+    //!        to `[-32767, 32767]`.
+    //! \return 16-bit signed sample word.
     uint16_t double2awg16(double sample);                        // 0x299700
-    // SHA-256 of file contents at filePath. Returns 8 uint32 words
-    // (256 bits). Used by CachedParser::getHash for waveform-cache
-    // keys. Empty vector on file-open failure.                       // 0x299760
+    //! \brief Computes the SHA-1 digest of the file at `filePath`.
+    //!
+    //! \details Returns the five 32-bit words of the digest in
+    //! big-endian-from-bytes order so the host-`uint32` form matches
+    //! the textual SHA-1 read MSB-first. On file-open failure the
+    //! function still returns five words — the SHA-1 IV — matching
+    //! the binary, which never short-circuits on open failure. Used
+    //! by `CachedParser::getHash` as the waveform-cache key.
+    //!
+    //! \binarynote Despite the SHA-256 hint in early notes the binary
+    //! actually uses Boost's SHA-1 implementation (160 bits / 5 words).
     std::vector<unsigned int> hash(const std::string& filePath);
+    //! \brief Renders a digest vector returned by `hash()` as a
+    //! lowercase hexadecimal string.
+    //! \details Concatenates each word as eight hexadecimal characters
+    //! in MSB-first order, producing a stable string key suitable for
+    //! file names inside the waveform cache (the cached parser uses
+    //! the result to derive `csv<hash2str>.wave`).
+    std::string hash2str(const std::vector<unsigned int>& digest);
 }}
 
 // ==========================================================================

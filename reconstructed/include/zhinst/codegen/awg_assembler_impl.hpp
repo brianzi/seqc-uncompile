@@ -131,8 +131,8 @@ public:
     //! caller-supplied severity level — `getReport` formats them
     //! uniformly as a leading integer followed by `text`.
     struct Message {
-        int code = 0;          // +0x00 — see note above
-        std::string text;      // +0x08
+        int code = 0;          //!< Overloaded numeric tag: holds the source line number for compiler errors (written by `errorMessage`) or the caller-supplied severity level for parser-issued messages (written by `parserMessage`). `getReport` formats it as the leading integer of each line. +0x00 — see note above
+        std::string text;      //!< Human-readable message body rendered after `code` in the assembled report. +0x08
     };
 
     // ---- Lifecycle ----

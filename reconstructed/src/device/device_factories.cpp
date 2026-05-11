@@ -16,6 +16,13 @@
 #include <memory>
 
 namespace zhinst {
+//! \brief Internal implementation details: helpers, factories, and
+//! constants not part of the public compiler API.
+//!
+//! Includes the per-device-family `DeviceTypeImpl` factories, the
+//! `AddressImpl` strong-typed address wrapper, the SFC mapping
+//! helpers, and a handful of free helpers used internally by the
+//! compiler pipeline.
 namespace detail {
 
 // Subtype selector constants — extracted from binary .rodata selector masks.
@@ -299,6 +306,18 @@ std::unique_ptr<DeviceTypeImpl> VhfFactory::doMakeDeviceType(unsigned long opts)
 // makeDeviceFamilyFactory — DeviceFamily-keyed dispatcher
 // @ 0x2e05d0
 // ===========================================================================
+//! \brief Returns a freshly-allocated `DeviceFamilyFactory` capable of
+//! constructing every `DeviceTypeImpl` in the requested family.
+//!
+//! \details Dispatches on `family` to one of the per-family factory
+//! types (`Hf2Factory`, `UhfFactory`, ...).  Unknown or unhandled
+//! families resolve to `NoDeviceTypeFactory`, which refuses every
+//! construction request — call sites use this to surface "no such
+//! device" errors uniformly.
+//!
+//! \param family Device family identifier from the parsed device-type
+//! string.
+//! \return Owning pointer to the chosen factory; never null.
 std::unique_ptr<DeviceFamilyFactory>
 makeDeviceFamilyFactory(DeviceFamily family) {
     switch (family) {

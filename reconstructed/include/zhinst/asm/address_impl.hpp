@@ -25,12 +25,20 @@ namespace detail {
 //! intent and selects the address-formatting overload of `operator<<`.
 template <typename T>
 struct AddressImpl {
-    T value;
+    T value;  //!< Underlying address value held by this strongly-typed wrapper.
 
+    //! \brief Default-constructs the wrapper holding a zero address.
     AddressImpl() : value(0) {}
+    //! \brief Implicitly wraps a raw address value.
+    //! \param v Address value to store.
     AddressImpl(T v) : value(v) {}  // implicit — binary assigns uint directly
 
+    //! \brief Reassigns the wrapped address value.
+    //! \param v New address value to store.
+    //! \return Reference to `*this`.
     AddressImpl& operator=(T v) { value = v; return *this; }
+    //! \brief Implicit conversion back to the raw address value, so the
+    //! wrapper participates transparently in arithmetic and comparisons.
     operator T() const { return value; }
 };
 

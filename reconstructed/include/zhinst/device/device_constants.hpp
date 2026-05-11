@@ -124,7 +124,9 @@ struct DeviceConstants {
     //! generation-A sync register pair written by the Cervino
     //! sync handshake (`syncCervino` / `unsyncCervino`).
     struct Register {
+        //! \brief Anonymous enum carrying the Cervino sync-A register address as a compile-time constant.
         enum : uint32_t { SyncRegA = 0x44 };  //!< Cervino sync register A address (used by `suser`).
+        //! \brief Anonymous enum carrying the Cervino sync-B register address as a compile-time constant.
         enum : uint32_t { SyncRegB = 0x45 };  //!< Cervino sync register B address (used by `suser`).
     };
 

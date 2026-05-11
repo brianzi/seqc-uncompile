@@ -49,20 +49,28 @@
 
 #include <exception>
 
+//! \brief LabOne-flavoured wrapper around Boost.Log.
+//!
+//! Defines the global logger tag `ZiLogger`, the `Severity` scale used
+//! by every record, and (in the inner `detail` namespace) the
+//! `LogRecord` RAII helper that the `LOG_*` macros instantiate.  Host
+//! applications normally interact with this namespace only through
+//! those macros; direct use of `LogRecord` is reserved for internal
+//! diagnostics.
 namespace zhinst::logging {
 
-// Severity levels for LabOne logging.
-//
-// Values are not directly observable from any exported symbol — the only
-// consumer in the binary is boost::log's `attribute_value_impl<Severity>`
-// which treats it as an opaque uint32. The enumerator names below are
-// inferred from string literals present in the binary
-// ("Trace", "Debug", "Info", "Status", "Warning", "Error", "Critical",
-// "Fatal") and from LabOne's documented logger conventions.
-//
-// Note: ordering and underlying type inferred from string table order
-// ("Trace".."Fatal") and LabOne conventions. Will self-confirm as more
-// callers are reconstructed.
+//! \brief Severity ordering for the LabOne logging facade.
+//!
+//! Each `LogRecord` is opened at one of these levels; the active
+//! Boost.Log filter accepts or rejects it based on the configured
+//! threshold.  Values increase with importance so range comparisons
+//! (`severity >= Warning`) behave as expected.
+//!
+//! \verifyme Underlying type, enumerator order, and underlying integer
+//! values are inferred from string-table order ("Trace".."Fatal") and
+//! LabOne conventions.  Only the attribute's wire form (opaque `uint32`
+//! in `attribute_value_impl`) is directly observable; no exported symbol
+//! pins the integer mapping.
 enum class Severity : unsigned int {
     Trace    = 0,
     Debug    = 1,
@@ -88,10 +96,23 @@ enum class Severity : unsigned int {
 // exiting after.
 namespace zhinst::logging {
 
+/*! \brief Declares the global LabOne logger tag `ZiLogger`.
+ *
+ *  The Boost.Log macro expands to a tag struct with a static
+ *  `get()` accessor returning the process-wide
+ *  `severity_logger_mt<Severity>` instance.  Every `LogRecord`
+ *  resolves the active logger through this tag so that callers
+ *  never see the underlying Boost.Log type.
+ */
 BOOST_LOG_GLOBAL_LOGGER(
     ZiLogger,
     boost::log::sources::severity_logger_mt<Severity>)
 
+//! \brief Internal helpers backing the `LOG_*` macros.
+//!
+//! Holds the `LogRecord` RAII type and the `logExceptionToClog`
+//! fallback used when the logging core itself throws.  Not part of
+//! the public logging API.
 namespace detail {
 
 // RAII record holder for one log record. Constructed by the LOG_*
@@ -171,6 +192,19 @@ inline LogRecord& LogRecord::operator<<(const T& value) {
 //     void logExceptionToClog(std::exception_ptr eptr,
 //                             const char* context,
 //                             bool include_what);
+//! \brief Routes an exception caught inside the logging machinery to
+//! `std::clog` so that logging failures never propagate to the caller.
+//!
+//! \details Rethrows the supplied exception pointer inside a try/catch
+//! to discover its actual type, then writes a diagnostic line prefixed
+//! with `"Exception caught in <context>"`.  Boost exceptions are
+//! formatted via `boost::diagnostic_information`; standard exceptions
+//! via `what()`; everything else as `"Unknown exception."`.  Returns
+//! immediately if the exception pointer is null.  An outermost
+//! `catch(...)` swallows any exception thrown by the logging logic
+//! itself, so this helper never throws.  The third boolean parameter
+//! is currently unused and preserved purely for binary compatibility
+//! with the original signature.
 void logExceptionToClog(std::exception_ptr eptr,
                         const char* context,
                         bool include_what);

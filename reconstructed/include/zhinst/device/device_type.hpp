@@ -198,6 +198,14 @@ enum class DeviceOption : uint32_t {
 // additional unmapped bits (the loop simply ignores any bit not present
 // in the array).
 // ============================================================================
+//! \brief Service-Feature-Code (SFC) bitfields encoding the licensed /
+//! installed option set for each device family.
+//!
+//! Each device family contributes one strongly-typed `*Option` enum
+//! plus a `FeaturesCode` value carrying the same bits in a single
+//! 64-bit word; the user-facing `DeviceOptionSet` is built by mapping
+//! these bits through the family-specific `initialize*SfcOptions`
+//! helpers.  Bits not listed in those tables are silently ignored.
 namespace sfc {
 
 // ----------------------------------------------------------------------------
