@@ -31,10 +31,10 @@ std::string getPlatformName();
 //! of caller — concurrent calls into the same directory may
 //! race on `Info.txt`.
 //!
-//! \binarynote The probe filename is not parameterised and not
-//!             unique-per-process.  In practice the only caller
-//!             uses this once at startup against the cache /
-//!             temp directory, so the race window is benign.
+//! \warning The probe filename is not parameterised and not
+//!          unique-per-process.  In practice the only caller
+//!          uses this once at startup against the cache /
+//!          temp directory, so the race window is benign.
 //!
 //! \param dir  Directory to probe.
 //! \return  `true` iff the probe write/delete pair succeeds.

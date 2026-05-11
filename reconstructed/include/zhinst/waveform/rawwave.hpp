@@ -71,9 +71,6 @@ namespace wave {
     //! function still returns five words — the SHA-1 IV — matching
     //! the binary, which never short-circuits on open failure. Used
     //! by `CachedParser::getHash` as the waveform-cache key.
-    //!
-    //! \binarynote Despite the SHA-256 hint in early notes the binary
-    //! actually uses Boost's SHA-1 implementation (160 bits / 5 words).
     std::vector<unsigned int> hash(const std::string& filePath);
     //! \brief Renders a digest vector returned by `hash()` as a
     //! lowercase hexadecimal string.

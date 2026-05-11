@@ -347,7 +347,7 @@ public:
     //! directly, `Bool` returns 0/1, `String` is parsed via
     //! `std::stol`, and `Double` is truncated toward zero.
     //! \return Held payload coerced to `int32_t`.
-    //! \binarynote The `Double` path matches the binary's `cvttsd2si`
+    //! \note The `Double` path uses `cvttsd2si`-style truncation
     //! semantics: values outside `[INT32_MIN, INT32_MAX]` are
     //! reinterpreted via wrapping `uint32_t` truncation, which
     //! preserves the encoding of large hex literals stored as

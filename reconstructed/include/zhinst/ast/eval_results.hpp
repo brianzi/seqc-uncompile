@@ -119,8 +119,6 @@ public:
     //! `Value` if `values_` is empty.
     //! \return The trailing entry's `Value`, or an `Unspecified`
     //! `Value` when `values_` is empty.
-    //! \binarynote The accessor reads only the trailing element; the
-    //! varType/varSubType/register fields are not returned.
     Value getValue() const;                               // @0x211ab0
 
     // --- setValue overloads ---

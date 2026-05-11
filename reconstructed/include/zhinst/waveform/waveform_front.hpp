@@ -52,12 +52,6 @@ struct WaveformFront : Waveform {
      *  \param type  Source-file kind (CSV / RAW / GEN).
      *  \param dc    Device-constants snapshot. Stored by pointer; the
      *               object must outlive the waveform.
-     *
-     *  \binarynote The original binary inlines this constructor into
-     *  the `WavetableManager<WaveformFront>::newWaveformFromFile`
-     *  dispatcher rather than emitting a standalone symbol. The
-     *  reconstruction provides an out-of-line body so generic
-     *  call sites (`make_shared<WaveformFront>(...)`) link.
      */
     WaveformFront(const std::string& name, Waveform::File::Type type,
                   const DeviceConstants& dc);

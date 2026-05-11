@@ -157,16 +157,6 @@ public:
     //! evaluation), so each tracking flag has exactly one
     //! source.
     //!
-    //! \binarynote The asymmetry with `errorMessage` is verified
-    //!             binary-faithful (see IF-233): `parserMessage`
-    //!             is a 5-instruction tail-call to
-    //!             `compilerMessage` with no write to the
-    //!             `hadError_` byte.  Adding such a write would
-    //!             be a regression — post-parse phases must not
-    //!             be short-circuited by parser-only errors,
-    //!             which `parse()` already converts into a
-    //!             thrown exception.
-    //!
     //! \param line  Source line attributed to the diagnostic.
     //! \param msg   Parser error text.
     void parserMessage(int line, const std::string& msg);       // 0x12ba30
