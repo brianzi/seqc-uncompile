@@ -231,13 +231,18 @@ AsmExpression* appendArgList(AsmExpression* list,
 // Stringify an AsmExpression tree (for debug/serialization).
 //! \brief Renders an `AsmExpression` tree as a debug/disassembly
 //! string.
+//! \details Each node prints its head (mnemonic, register, label,
+//! or integer) followed by ` (<tag>)\n` identifying the
+//! discriminator (`cmd`, `reg`, `name`, `value`, or `?` for an
+//! unknown type), then each child indented by two spaces on its
+//! own line.  Out-of-range type discriminators emit a Debug log
+//! record `Unknown AsmOperationType with code <n>.` and contribute
+//! no head text.
 //! \param expr Root expression to stringify; must be non-null.
 //! \return Human-readable representation of the tree.
-//! \verifyme Hypothesis: this function mirrors the textual form
-//! consumed by `Assembler::commandFromString` and the operand
-//! parsers, but the implementation is not present in the
-//! reconstructed sources and the address `0x28cd20` has not been
-//! re-checked against the latest binary.
+//! \verifyme Reconstructed from disassembly; no test exercises
+//! the function so the exact whitespace and tag spelling have not
+//! been confirmed against any reference output.
 std::string str(const std::shared_ptr<AsmExpression>& expr);    // 0x28cd20
 
 }  // namespace zhinst

@@ -6225,7 +6225,16 @@ into orphan state.
 ## IF-236  `str(shared_ptr<AsmExpression>)` declared but never reconstructed
 
 **Severity**: medium (missing reconstruction; live binary symbol)
-**Status**: confirmed
+**Status**: **fixed** — body reconstructed at
+`reconstructed/src/asm/asm_expression.cpp` from full disassembly of
+the 1373-byte binary function. Format is
+`<head> (<tag>)\n` per node followed by recursively rendered
+children indented by two spaces, with five tag values
+(`cmd`/`reg`/`name`/`value`/`?`) and a Debug log record for
+out-of-range type discriminators. Header brief updated; the new
+implementation carries a `\verifyme` because no test exercises it
+and the exact whitespace has not been confirmed against any
+reference output. Build clean + 1602/1602 tests pass.
 **Source**: `reconstructed/include/zhinst/asm/asm_expression.hpp:241`
 **Binary symbol**: `_ZN6zhinst3strERKNSt3__110shared_ptrINS_13AsmExpressionEEE` at `0x28cd20`, size `0x55d` (1373 bytes), hidden visibility.
 
