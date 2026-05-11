@@ -7104,7 +7104,9 @@ trying to coerce a SeqC source through.
 **Severity**: medium (cosmetic / reverse-engineering accuracy;
 no behavioural diff observed in the diff-test suite).
 
-**Status**: confirmed (objdump-traced 2026-05-11).
+**Status**: confirmed (objdump-traced 2026-05-11); promoted to
+TODO.md as **D-AUDIT-2** on 2026-05-12 — see TODO entry for the
+remediation steps.
 
 **Discovered**: D7 `\unclear` triage (subagent
 `ses_1e7d6eb12ffeR6yx6GhCf6l4gO`).
@@ -7192,7 +7194,9 @@ Verify ELF byte-equality after the rename.
 
 **Severity**: cosmetic (observable mapping coincides today).
 
-**Status**: confirmed (disassembly-traced 2026-05-11).
+**Status**: confirmed (disassembly-traced 2026-05-11); promoted to
+TODO.md as **D-AUDIT-3** on 2026-05-12 — see TODO entry for the
+remediation steps.
 
 **Discovered**: D7 `\verifyme` triage batch 2 (subagent
 `ses_1e7d64aa6ffelLz6pUQpwrg6rv`), `error_messages.cpp:142`.
@@ -7234,7 +7238,11 @@ observable result already matches.
 strict-aliasing UB only materialises if a caller actually
 reinterpret-casts the result).
 
-**Status**: confirmed (disassembly + grep, 2026-05-11).
+**Status**: **kept (documented)** (2026-05-12) — `\binarynote` on
+`infra/calver.hpp` already flags the strict-aliasing hazard; zero
+call sites exist in either the binary or the recon, so the UB is
+latent.  No source change required; revisit only if a caller
+materialises or if the function is ever deleted.
 
 **Discovered**: D7 `\binarynote` triage (asm+infra batch).
 
@@ -7282,7 +7290,11 @@ keep it for binary-faithfulness.
 
 **Severity**: cosmetic (constant-`false` stub is observably correct on every PC).
 
-**Status**: confirmed (disassembly + strings, 2026-05-11).
+**Status**: **fixed** (2026-05-12) — the spurious `/proc/device-tree/model`
+narrative and wrong `0x2ce770` address have been scrubbed from
+`reconstructed/src/core/stubs.cpp:19-36`; the surviving comment now
+correctly cites `0x2ec580` and the `isMf(readManifest())` Meyers-singleton
+mechanism.  Stub body remains constant-`false`, observably correct on PC.
 
 **Discovered**: D7 `\verifyme` triage (batch B) of `core/stubs.cpp:36`.
 
