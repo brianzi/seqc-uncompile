@@ -292,8 +292,6 @@ public:
     //! On a miss, an outdated hit (deleted in passing), or any
     //! exception during ELF reading (which also triggers
     //! `cleanCache()`), a default-constructed `CachedFile` is returned.
-    //! \binarynote A miss is signalled by an empty `samples_` /
-    //! all-zero `channel_` rather than a separate `found` flag.
     //! \param hash Content hash to look up.
     //! \return Loaded data on a cache hit; default-constructed value
     //!         on a miss.

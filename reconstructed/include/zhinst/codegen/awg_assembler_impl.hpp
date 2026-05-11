@@ -188,10 +188,10 @@ public:
     //! outputs → label order, then runs `assembleExpressions`.
     //! \param asmList  Instruction list from the SeqC compile
     //!                 pipeline.
-    //! \binarynote `LABEL` entries do not advance the internal
-    //!             label-counter so the per-label index tracks the
-    //!             eventual opcode position rather than the asmList
-    //!             position.
+    //! \note `LABEL` entries do not advance the internal
+    //!       label-counter so the per-label index tracks the
+    //!       eventual opcode position rather than the asmList
+    //!       position.
     void assembleAsmList(std::vector<Assembler> const& asmList);
     //! \brief Parse an `.asm` source string to an expressions vector
     //!        without emitting opcodes.

@@ -438,7 +438,7 @@ public:
         //!         `Void` (raised as `FormatVarReturn`), or when
         //!         `type` is outside the five supported categories
         //!         (raised as `FuncInvalidArgType`).
-        //! \binarynote The `Var`-arg gating against `returnType` is
+        //! \note The `Var`-arg gating against `returnType` is
         //!         applied at parameter-declaration time, so the
         //!         resulting diagnostic carries the function's
         //!         declaration line number rather than the call

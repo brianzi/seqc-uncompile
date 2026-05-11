@@ -872,7 +872,7 @@ std::string toString(DeviceFamily family);
 // bit acts as a saturation sentinel (no defined family uses it).
 //! \brief Decomposes a `DeviceFamily` bitmask into the list of its
 //! constituent single-bit families.
-//! \binarynote `Unknown = 0` and `HF2 = 1` both yield an empty
+//! \note `Unknown = 0` and `HF2 = 1` both yield an empty
 //! vector; bit `0x800` acts as a saturation sentinel (no defined
 //! family uses it) and stops the walk early.
 std::vector<DeviceFamily> expand(DeviceFamily family);
@@ -973,7 +973,7 @@ DeviceTypeCode toDeviceTypeCode(std::string const& s);
 //! \brief Fuzzy reverse lookup from a (possibly option-suffixed)
 //! device-type string to its `DeviceFamily`, using prefix matching
 //! against a small lazily-built name table.
-//! \binarynote Special tokens: `"none"` maps to `DeviceFamily(0)`,
+//! \note Special tokens: `"none"` maps to `DeviceFamily(0)`,
 //! `"DEFAULT"` maps to `DeviceFamily::HF2`, and the SHFACC /
 //! SHFPPC2 / SHFPPC4 prefixes map to `DeviceFamily::SHF`.  On any
 //! other miss the function returns the sentinel `DeviceFamily(0x800)`,
@@ -1019,10 +1019,6 @@ bool isDefined(DeviceType const& dt);   // @ 0x2d2e50 — code != Unknown
 //! `UHFIA` and `MFIA` are unconditionally true; codes covered by an
 //! IA-capable family also return true if the device carries the
 //! `IA` option; all other codes are false.
-//! \binarynote The decision uses two compile-time bitmasks
-//! (`broad_mask = 0x46BF7901` selects codes whose membership is
-//! decided in-line, `unconditional_mask = 0x900` marks the always-IA
-//! codes); see `device_type.cpp` for the decoded logic.
 bool isIa(DeviceType const& dt);        // @ 0x2d2e70
 //! \brief Returns true if the device-type code is `MFIA`.
 bool isMfia(DeviceType const& dt);      // @ 0x2d2ec0 — code == MFIA

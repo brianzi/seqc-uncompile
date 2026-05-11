@@ -257,9 +257,9 @@ public:
     //! does not pass through the ELF writer.
     //! \param path  Destination file path; existing contents are
     //!              truncated.
-    //! \binarynote No-ops when `assemblerText_` is empty (i.e. no
-    //!             prior compile or all-empty compile) — silently
-    //!             leaving any pre-existing file unmodified.
+    //! \note No-ops when `assemblerText_` is empty (i.e. no
+    //!       prior compile or all-empty compile) — silently
+    //!       leaving any pre-existing file unmodified.
     void writeAssemblerToFile(std::string const& path);
 
     //! \brief Build a multi-line text report from

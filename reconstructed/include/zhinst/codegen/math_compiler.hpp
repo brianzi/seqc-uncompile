@@ -110,10 +110,6 @@ public:
     //! `std::bind`/`std::function`; the binary inlines the
     //! emplacements as a long sequence of `__tree::__emplace`
     //! calls.
-    //!
-    //! \binarynote `ln` and `log` are aliases — both bind to
-    //!             `std::log` (natural log).  Callers wanting
-    //!             base-10 must use `log10` explicitly.
     MathCompiler();
 
     // Single-argument math functions
@@ -162,9 +158,6 @@ public:
     //! \return  `e` raised to the power `x`.
     double exp(double);
     //! \brief `std::log(x)`. Natural logarithm.
-    //!
-    //! \binarynote Same implementation as `log` — both bind
-    //!             to `std::log`.
     //! \param x  Operand.
     //! \return  Natural logarithm of `x`.
     double ln(double);
@@ -286,14 +279,14 @@ public:
     //! result is `true` for any matching name regardless of
     //! `argCount`.
     //!
-    //! \binarynote The binary's lazy-evaluation pattern is
-    //!             preserved: `strict | arity_match`.  In the
-    //!             non-strict case the arity bit becomes a
-    //!             don't-care; a known name with the wrong
-    //!             arity still returns `true` so the caller
-    //!             (typically `CustomFunctions::call` doing a
-    //!             pre-check) can defer the arity diagnostic
-    //!             to the eventual `call` site.
+    //! \note The binary's lazy-evaluation pattern is
+    //!       preserved: `strict | arity_match`.  In the
+    //!       non-strict case the arity bit becomes a
+    //!       don't-care; a known name with the wrong
+    //!       arity still returns `true` so the caller
+    //!       (typically `CustomFunctions::call` doing a
+    //!       pre-check) can defer the arity diagnostic
+    //!       to the eventual `call` site.
     //!
     //! \param name      Function name to look up.
     //! \param argCount  Number of arguments the call site

@@ -138,11 +138,6 @@ static const std::string unknownError = "unknownError";
 //! \return Reference to a process-lifetime string owned by either the
 //!         message catalogue or the static `unknownError` fallback;
 //!         never throws.
-//!
-//! \binarynote The reconstruction shares the public message catalogue
-//! for the lookup, while the original binary mirrors the same key/value
-//! set in a separate anonymous-namespace flat-hash table; observable
-//! mapping is identical (see IF-251).
 std::string const& getApiErrorMessage(int ziResultCode)  // 0x2e4820
 {
     // Simplified: the binary does hash table lookup on apiErrorMessages.

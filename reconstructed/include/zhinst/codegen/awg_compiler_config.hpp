@@ -229,10 +229,10 @@ struct AWGCompilerConfig {
     //! codename raises a `ZIAWGCompilerException` formatted
     //! with `ErrorMessageT(0xD9)` carrying `str`.
     //!
-    //! \binarynote The inverse function for the
-    //!             marketing-string form (e.g. `"HDAWG"` →
-    //!             `2`) is **not** provided — callers needing
-    //!             that lookup must do their own table walk.
+    //! \note The inverse function for the marketing-string
+    //!       form (e.g. `"HDAWG"` → `2`) is **not** provided —
+    //!       callers needing that lookup must do their own
+    //!       table walk.
     //!
     //! \param str  Device codename, case-insensitive.
     //! \return  The corresponding `AwgDeviceType` enum value.

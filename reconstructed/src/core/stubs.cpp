@@ -31,12 +31,6 @@ namespace zhinst {
 //! \return `true` only when running on an MF instrument; `false`
 //!         elsewhere (always `false` in the current reconstruction
 //!         stub).
-//!
-//! \binarynote The runtime check parses a LabOne manifest into a
-//! `boost::property_tree::ptree` and applies an `isMf` predicate
-//! to it; the current reconstruction is a constant-`false` stub,
-//! which is observationally correct for all PC-hosted test runs.
-//! See IF-253 for the full divergence note.
 bool runningOnMfDevice() {
     return false;
 }
