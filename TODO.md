@@ -1065,19 +1065,28 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   - Coverage target: drop `\verifyme` to ≤3, `\unclear` to ≤2,
     `\binarynote` to ≤40 (those that genuinely surprise consumers).
 
-- [ ] **D8 — Coverage-gap tests for latent prefetch paths**
+- [~] **D8 — Coverage-gap tests for latent prefetch paths**
   - The IF-223 / IF-244 reconstructions touch code paths the
-    current 1602-case suite does not exercise; the changes are
+    current suite did not exercise; the changes were
     static-only verified.  Author seqc cases that hit:
-    1. Play `cervino_indexed_nonsplit` (Cervino device,
-       indexed-play with `length>0`, `!split_`) — covers the real
-       `0x1db4ad..0x1db55d` Play tail.
+    1. ~~Play `cervino_indexed_nonsplit`~~ — **obsolete** per IF-246.
+       D9.1 GDB-traced the binary block `0x1db4ad..0x1db55d` and
+       confirmed it is reached **only** via the Load dispatch
+       (`load_cervino_prf` Path B1), never via Play.  No Play-side
+       counterpart exists, so no Play test case is needed.  The
+       Load-side test moved to case 4 below.
     2. Table sub-path C2 (`split_==1` AND
        `lengthReg.isValid() && lengthReg != R0`) — covers the
        ssl/addr/prf/wprf path inlined at
-       `prefetch_placesingle.cpp:1258-1432`.
+       `prefetch_placesingle.cpp` (was lines 1258-1432, now
+       shifted after D9.3 deletions).  Still open.
     3. `playWaveTable` with non-empty cache + valid per-channel
-       length register.
+       length register.  Still open.
+    4. [x] **Load Path B1** (`cachePtr->size_ ==
+       waveformMemorySize`) — covered by
+       `core:uhfawg_load_cervino_prf_path_b1` (commit `a6f92d9`,
+       co-landed with D10).  Test was authored red against the
+       old incomplete stub and passes byte-identical after D10.
   - Each test should produce byte-identical ELF between original
     and recon; failures will graduate the affected IFs from
     "static-only verified" to "test-verified" or surface real
@@ -1138,24 +1147,24 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     conditional behaviour that it would obscure rather than clarify.
     Dropped per iteration-cycle review at D9.3 wrap-up.
 
-- [ ] **D10 — Reconstruct `load_cervino_prf` Path B1 fully** (follow-on
-  from IF-246)
-  - The current Path B1 stub at `prefetch_placesingle.cpp:343-349` is
-    incomplete. IF-246 documents the actual binary emission shape:
-    `prf @0x1db2b3` (cacheSize/2) -> `2x addi` -> `wprf @0x1db4bd` ->
-    `prf @0x1db52b` (cacheSize/2 again) -> `jmp 0x1db55d -> 0x1db92e`
-    (load_finalize tail). The Path B1 gate is
-    `loadState.cachePtr->size_ == devConst_->waveformMemorySize`
-    (entered from `0x1d85fa jne` via `load_cervino_prf @0x1d9c33` and
-    Path B `@0x1db1f3`).
-  - Rewrite the stub at lines 343-349 with the full
-    `prf -> 2x addi -> wprf -> prf -> jmp load_finalize` sequence. The
-    `wprf` here also needs the `!isHirzel` gate per IF-247 (the gate
-    site `0x1db92e` is the load_finalize tail immediately after the
-    second `prf` jumps to it).
-  - Verify: UHFAWG `wave w = placeholder(65536); playWaveIndexed(w, 0,
-    128);` is the exact input D9.1 used to reach this path; promote it
-    to a difftest case (D8 case 4 candidate).
+- [x] **D10 — Reconstruct `load_cervino_prf` Path B1 fully** (commit
+  `a6f92d9`, follow-on from IF-246)
+  - Replaced the incomplete stub at `prefetch_placesingle.cpp:342-349`
+    with the full binary emission shape per IF-246:
+    `prf -> 2x addi -> wprf -> prf -> jmp load_finalize`.
+  - **Correction to the original TODO**: the local `wprf` at
+    0x1db4bd is **unconditional**, not gated on `!isHirzel`.  Only
+    the load_finalize tail `wprf` is gated per IF-247.  UHFAWG
+    (the only device reaching this path) therefore emits **two**
+    `wprf` instructions on this code path; a `\verifyme` was added
+    near the local `wprf` to flag this expectation.
+  - **Test verification**: `core:uhfawg_load_cervino_prf_path_b1`
+    (added under D8 case 4) was authored red against the old stub
+    (orig=76 vs recon=60 bytes of `.text`); the rewrite makes it
+    pass byte-identical.
+  - Disassembly was delegated to a subagent
+    (`ses_1e81ed419ffeMdQ2iZx7K8gpxS`); the proposed C++ block
+    matched the binary on first build (no iteration needed).
 
 ## Archives
 

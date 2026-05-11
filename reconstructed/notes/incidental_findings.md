@@ -6858,8 +6858,8 @@ Recorded for completeness; no follow-up action.
 ## IF-246  IF-244's `play_cervino_indexed_nonsplit` block is mis-attributed and incomplete (GDB-confirmed)
 
 **Severity**: **likely-bug** (recon documentation block describes a different binary path than IF-244 claimed).
-**Status**: fixed (D9.3 commit `d1515c8` deleted the mis-attributed block; full Path B1 reconstruction tracked by D10).
-**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:865-941` (deleted in D9.3); IF-244.
+**Status**: fixed (D9.3 commit `d1515c8` deleted the mis-attributed block; D10 commit `a6f92d9` rewrote `load_cervino_prf` Path B1 with the full binary emission shape, verified byte-identical by `core:uhfawg_load_cervino_prf_path_b1`).
+**Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp:865-941` (deleted in D9.3); `prefetch_placesingle.cpp:342-` (Path B1, rewritten in D10); IF-244.
 **Discovered**: D9.1 GDB verification of IF-244 hypotheses.
 
 ### Findings
@@ -6888,7 +6888,7 @@ Tracked as TODO **D9.3** (replace dead block with correct Load-side reconstructi
 ## IF-247  `wprf` gate at shared tail `0x1db935` confirmed `!isHirzel`
 
 **Severity**: confirmed (resolved a `\verifyme`).
-**Status**: fixed (D9.3 commit `d1515c8` promoted the `\verifyme` to a real `if (!config_->isHirzel)` gate at the inline Table-C-split `wprf` site).
+**Status**: fixed (D9.3 commit `d1515c8` promoted the `\verifyme` to a real `if (!config_->isHirzel)` gate at the inline Table-C-split `wprf` site; D10 commit `a6f92d9` additionally test-verified the gate's interaction with the Path B1 local `wprf` — UHFAWG (`isHirzel=0`) emits two `wprf` instructions on Path B1, byte-identical to the binary, via `core:uhfawg_load_cervino_prf_path_b1`).
 **Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp` Table-C-split `wprf` site (was lines 1398-1407, now gated).
 **Discovered**: D9.2 GDB verification of IF-244 caveat.
 
