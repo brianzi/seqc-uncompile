@@ -6732,8 +6732,12 @@ in `prefetch.hpp:58`.  IF-243 is resolved.
 **Severity**: **likely-bug** (recon mislabeled; promotes to TODO).
 **Status**: **fixed** (documentation-only relabel; action items 1
 and 2 below executed in commit following IF-244 entry; action item 3,
-the optional `emitPrfEpilogueAndInsert_` helper, deferred until
-dispatch wiring is reconstructed).
+the optional `emitPrfEpilogueAndInsert_` helper, deferred and
+tracked as a separate TODO entry — see TODO.md). Voice-rule
+cleanup applied to `prefetch_placesingle.cpp` doc comments:
+addresses, register names, and `_seqc_compiler.so` references
+were moved out of `//!` briefs into `//` reconstruction blocks
+per AGENTS.md.
 **Discovered**: D4 IF-223 follow-up, subagent audit
 `ses_1ea02f346ffeXjP1970hUIsRqE`.
 

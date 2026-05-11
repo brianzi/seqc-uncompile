@@ -1083,6 +1083,21 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     "static-only verified" to "test-verified" or surface real
     bugs.
 
+- [ ] **D9 — Extract `emitPrfEpilogueAndInsert_` helper** (deferred
+  IF-244 action item 3)
+  - The Play-side `play_cervino_indexed_nonsplit` body and two
+    Table-C sub-paths in `prefetch_placesingle.cpp` share a
+    near-identical prf-emission + buffer-insert epilogue. IF-244
+    flagged extracting this into a private helper as a code-clarity
+    win once the Play-side dispatch wiring is reconstructed.
+  - Currently only 3 effective callers and the new
+    `play_cervino_indexed_nonsplit` block has no reaching `goto`,
+    so the refactor is mechanically straightforward but not
+    urgent.
+  - **Prerequisite**: complete D8 case 1 (Play
+    `cervino_indexed_nonsplit`) so the refactor is test-verified
+    rather than static-only.
+
 ## Archives
 
 All historical reconstruction work is preserved under

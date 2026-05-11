@@ -897,23 +897,25 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         //       cacheSize >> 1)                  // 0x1db4f0..0x1db520
                         //   jmp 0x1db92e                         // 0x1db55d (skips 0x1db911)
                         //
-                        //! \binarynote IF-244: the
-                        //! `[r15+0x18]` ⇒ `isHirzel` interpretation
-                        //! that justifies the inline-unconditional
-                        //! `wprf` placement here is consistent with
-                        //! the binary's wprf-bypass semantics but is
-                        //! **not GDB-verified**.  If a shared
-                        //! `emitPrfEpilogueAndInsert_` helper is
-                        //! introduced later, gate the wprf emission
-                        //! with `\verifyme`.
+                        // The `isHirzel` interpretation of the
+                        // gate field that justifies the inline-
+                        // unconditional `wprf` placement here is
+                        // not GDB-verified.  See IF-244.
                         //
-                        //! \verifyme  No goto in current recon
-                        //! reaches this label.  When the Play
-                        //! cervino_indexed_nonsplit dispatch gate is
+                        //! \binarynote The unconditional inline
+                        //! `wprf` emission before `prf` (rather
+                        //! than the gated post-prf `wprf` used by
+                        //! the Table-C2 split tail below) matches
+                        //! a binary-specific dispatch quirk in the
+                        //! original implementation.
+                        //
+                        //! \verifyme No call site in the current
+                        //! reconstruction reaches this block.  When
+                        //! the dispatch gate for Play
+                        //! `cervino_indexed_nonsplit` is
                         //! reconstructed, wire it here and confirm
-                        //! against `_seqc_compiler.so` 0x1db4ad with
-                        //! a Play test case (corpus does not
-                        //! currently exercise this path).
+                        //! with a Play test case (the corpus does
+                        //! not currently exercise this path).
 
                         AsmRegister regHirzelP =
                             nodeStates_[node].registerHirzel;       // PNS+0x00, 0x1db4cf
