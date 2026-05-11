@@ -862,164 +862,31 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                     }
                     goto play_finalize;
 
-                play_cervino_indexed_nonsplit:                      // 0x1db4ad
-                    {
-                        // Real Play `cervino_indexed_nonsplit` epilogue.
-                        // The dispatch gate (set in the caller chain)
-                        // is approximately
-                        //   !isHirzel && !split_ && lengthReg.isValid()
-                        //   && pagesNeeded < 2 && indexed && Play-case.
-                        // (No `goto` reaches this label in the current
-                        // recon — it is documentation-only, capturing
-                        // the binary block at 0x1db4ad..0x1db55d so
-                        // that future dispatch reconstruction can wire
-                        // it up.  See IF-244 for the cross-reference
-                        // analysis that distinguished this block from
-                        // the Table-C2 split tail at 0x1db562.)
-                        //
-                        // Three features distinguish this Play tail
-                        // from the Table-C2 tail at
-                        // `table_indexed_with_clamp` below:
-                        //   1. Uses raw `cacheSize >> 1` directly
-                        //      (`shr r8d, 1` then `prf`) — no
-                        //      `clampToCache` call.
-                        //   2. Emits `wprf` **inline before** `prf`,
-                        //      unconditionally (Table-C2 defers `wprf`
-                        //      to the shared `0x1db92e` tail under a
-                        //      `!isHirzel` gate).
-                        //   3. Exits via `0x1db55d jmp 0x1db92e`,
-                        //      bypassing the `0x1db911` 3-way tail
-                        //      (which Table-C2 routes through).
-                        //
-                        // Body (binary 0x1db4ad..0x1db55d):
-                        //   wprf()                              // 0x1db4bd, inline
-                        //   prf(regHirzel, regCervino,
-                        //       cacheSize >> 1)                  // 0x1db4f0..0x1db520
-                        //   jmp 0x1db92e                         // 0x1db55d (skips 0x1db911)
-                        //
-                        // The `isHirzel` interpretation of the
-                        // gate field that justifies the inline-
-                        // unconditional `wprf` placement here is
-                        // not GDB-verified.  See IF-244.
-                        //
-                        //! \binarynote The unconditional inline
-                        //! `wprf` emission before `prf` (rather
-                        //! than the gated post-prf `wprf` used by
-                        //! the Table-C2 split tail below) matches
-                        //! a binary-specific dispatch quirk in the
-                        //! original implementation.
-                        //
-                        //! \verifyme No call site in the current
-                        //! reconstruction reaches this block.  When
-                        //! the dispatch gate for Play
-                        //! `cervino_indexed_nonsplit` is
-                        //! reconstructed, wire it here and confirm
-                        //! with a Play test case (the corpus does
-                        //! not currently exercise this path).
+                    // [D9.3 / IF-246] Removed dead label
+                    // `play_cervino_indexed_nonsplit` block here.
+                    // GDB tracing (D9.1) confirmed the binary block at
+                    // 0x1db4ad..0x1db55d is reached only via the Load
+                    // dispatch (`load_cervino_prf` Path B1), never via
+                    // Play, and its actual emission shape is
+                    // prf -> 2x addi -> wprf -> prf -> jmp load_finalize
+                    // (missing first prf and 2x addi from the prior
+                    // documentation block).  The full corrected
+                    // description lives in IF-246; rewriting it as a
+                    // proper Path B1 tail is tracked by D10.
 
-                        AsmRegister regHirzelP =
-                            nodeStates_[node].registerHirzel;       // PNS+0x00, 0x1db4cf
-                        AsmRegister regCervinoP =
-                            nodeStates_[node].registerCervino;      // PNS+0x08, 0x1db4f7
-                        uint32_t cacheSizeP =
-                            nodeStates_[node].cachePtr->size_;      // PNS+0x28 → +0x04, 0x1db51d
-
-                        // wprf() inline first, unconditional.       // 0x1db4bd
-                        {
-                            AsmList::Asm wprfAsm = asmCommands_->wprf();
-                            tempList.append(wprfAsm);
-                        }
-
-                        // prf(regHirzel, regCervino, cacheSize >> 1)
-                        //   — no clampToCache.                      // 0x1db520
-                        {
-                            AsmList::Asm prfAsm = asmCommands_->prf(
-                                regHirzelP, regCervinoP,
-                                static_cast<int>(cacheSizeP >> 1));
-                            tempList.append(prfAsm);
-                        }
-                    }
-                    // Real Play tail exits via 0x1db55d → 0x1db92e
-                    // (load_finalize), bypassing the 0x1db911 cleanup
-                    // path entirely.  Falling through to play_finalize
-                    // here is the closest semantic match in the recon
-                    // structure (out->insert at the placeholder); when
-                    // a goto is wired in, it should target
-                    // `load_finalize` to mirror the binary exactly.
-                    goto play_finalize;
-
-                table_indexed_with_clamp:                            // 0x1db562
-                    {
-                        // Table sub-path C2 split tail.  The dispatch
-                        // gate (set in the caller chain) is
-                        //   nodeType == Table (0x200)
-                        //   && cachePtr->size_ != 0
-                        //   && lengthReg.isValid() && lengthReg != R0
-                        //   && split_ == 1
-                        //
-                        // **IF-244**: this block was previously
-                        // mislabelled `play_cervino_indexed_nonsplit`.
-                        // The body matches the binary at
-                        // `0x1db562..0x1db60a` (Table sub-path C2
-                        // split tail), **not** `0x1db4ad..0x1db55d`
-                        // (which is the actual Play
-                        // `cervino_indexed_nonsplit`).  The two
-                        // differ in (a) presence of `clampToCache`,
-                        // (b) `wprf` placement (deferred vs inline),
-                        // and (c) shared-tail exit target
-                        // (`0x1db911` vs `0x1db92e`).  See IF-244
-                        // for the full xref evidence.
-                        //
-                        // No `goto` reaches this label in the current
-                        // recon — it is documentation-only.  IF-223
-                        // sub-path C2 dispatch from the Table case
-                        // (line ~1153) will eventually wire to it.
-                        //
-                        // Body (binary 0x1db562..0x1db60a):
-                        //   prf(regHirzel, regCervino,
-                        //       clampToCache(cacheSize >> 1))
-                        // followed by exit via `0x1db60a jmp 0x1db911`
-                        // (3-way shared tail), where `wprf` is emitted
-                        // conditionally on `!isHirzel` at the
-                        // `0x1db935` gate before `out->insert`.
-
-                        AsmRegister regHirzel =
-                            nodeStates_[node].registerHirzel;       // PNS+0x00, 0x1db587
-                        AsmRegister regCervino =
-                            nodeStates_[node].registerCervino;      // PNS+0x08, 0x1db5af
-                        uint32_t cacheSize =
-                            nodeStates_[node].cachePtr->size_;      // PNS+0x28 → +0x04, 0x1db5d5
-
-                        uint32_t clamped =
-                            clampToCache(cacheSize >> 1);           // 0x1db5d8..0x1db5dd
-
-                        {
-                            AsmList::Asm prfAsm = asmCommands_->prf(
-                                regHirzel, regCervino,
-                                static_cast<int>(clamped));         // 0x1db5f5
-                            tempList.append(prfAsm);                 // 0x1db605
-                        }
-
-                        // Shared tail at 0x1db911 → fall-through to
-                        // 0x1db92e: wprf is emitted conditionally on
-                        // `!isHirzel` (gate at 0x1db935).  Modelled
-                        // here as unconditional because the existing
-                        // recon's IF-223-deferred sub-path C2 has not
-                        // yet been wired in to inspect isHirzel; the
-                        // helper extraction noted in IF-244 action
-                        // item 3 would centralise this.
-                        //
-                        //! \verifyme IF-244: when sub-path C2 is
-                        //! reconstructed (IF-223 follow-up), gate the
-                        //! `wprf` emission below on
-                        //! `!config_->isHirzel` to mirror the binary
-                        //! at 0x1db935.
-                        {
-                            AsmList::Asm wprfAsm = asmCommands_->wprf(); // 0x1db942
-                            tempList.append(wprfAsm);                    // 0x1db952
-                        }
-                    }
-                    goto play_finalize;
+                    // [D9.3 / IF-244] Removed dead label
+                    // `table_indexed_with_clamp` block here.  No `goto`
+                    // in the current recon reaches this label — it was
+                    // documentation-only, capturing the binary block at
+                    // 0x1db562..0x1db60a (Table sub-path C2 split tail).
+                    // The C2 dispatch from the Table case is still
+                    // open (IF-223 follow-up); when wired up, the
+                    // shared 0x1db911 -> 0x1db92e tail with the
+                    // !isHirzel gate on `wprf` should be modelled at
+                    // the call site rather than at a dead label.
+                    // The Table-C-split inline emission at the prf+wprf
+                    // pair below is the closest existing model and is
+                    // gated explicitly per IF-247.
 
                 play_cervino_indexed2_hirzel:                       // 0x1d949f area
                     {
@@ -1395,15 +1262,14 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             tempList.append(prfAsm);
                         }
 
-                        //! \verifyme IF-223 sub-path C-split: `wprf`
-                        //! is emitted unconditionally here, but the
-                        //! binary gates it on `!isHirzel` at the
-                        //! shared `0x1db935` tail.  Pending IF-244
-                        //! action item 3 (extract
-                        //! `emitPrfEpilogueAndInsert_` helper).
-                        {
-                            AsmList::Asm wprfAsm = asmCommands_->wprf();
-                            tempList.append(wprfAsm);
+                        // wprf is gated on !isHirzel, mirroring the
+                        // shared 0x1db935 tail (cmpb $0,0x18(%rax) ;
+                        // jne).  GDB-confirmed in D9.2 / IF-247:
+                        // UHFAWG (isHirzel=0) emits wprf;
+                        // HDAWG/SHFSG/SHFQC_SG/SHFLI (isHirzel=1) skip.
+                        if (!config_->isHirzel) {                       // 0x1db931
+                            AsmList::Asm wprfAsm = asmCommands_->wprf(); // 0x1db942
+                            tempList.append(wprfAsm);                    // 0x1db952
                         }
                     }
                 }
