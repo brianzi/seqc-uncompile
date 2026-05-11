@@ -7099,3 +7099,132 @@ in TODO.md.  Future work that needs to exercise these paths
 should consider adding a JSON-AST pybind binding rather than
 trying to coerce a SeqC source through.
 
+## IF-250  `AWGAssemblerImpl::asmSource_` and `unusedStr038_` are layout-swapped
+
+**Severity**: medium (cosmetic / reverse-engineering accuracy;
+no behavioural diff observed in the diff-test suite).
+
+**Status**: confirmed (objdump-traced 2026-05-11).
+
+**Discovered**: D7 `\unclear` triage (subagent
+`ses_1e7d6eb12ffeR6yx6GhCf6l4gO`).
+
+The reconstructed `AWGAssemblerImpl` declares two `std::string`
+slots:
+
+```cpp
+std::string asmSource_;     // 0x020   (per recon)
+std::string unusedStr038_;  // 0x038   (per recon)
+```
+
+with `asmSource_` carrying the cached `.asm` source text and
+`unusedStr038_` documented as a placeholder.  Disassembly
+contradicts that ordering — `this+0x38` is the slot the binary
+actually uses as the cached source, and `this+0x20` is the
+unused one.
+
+### Evidence
+
+`AWGAssemblerImpl::assembleFile` (`0x285ec0`):
+
+```
+0x286047: lea r15, [rbx+0x38]                  ; r15 = &this->str038
+0x28604b: test BYTE PTR [rbx+0x38], 0x1        ; SSO check (free old long form if any)
+0x2860ac: mov rsi, QWORD PTR [rbx+0x38]
+0x2860b0: mov rdi, QWORD PTR [rbx+0x48]
+0x2860b8: call _ZdlPvm                         ; release previous long-form buffer
+0x2860c1: mov QWORD PTR [r15+0x10], rax        ; write new string capacity
+0x2860c9: movups XMMWORD PTR [r15], xmm0       ; write new string size + flag
+0x2860d3: call AWGAssemblerImpl::assembleString(rsi=r15)
+```
+
+i.e. `this->str038 = <file contents>; assembleString(this->str038);`.
+
+`AWGAssemblerImpl::writeToFile` (`0x288570`):
+
+```
+0x288827: mov BYTE PTR [rbp-0x40], 0x8         ; build local string ".asm"
+0x28882b: mov DWORD PTR [rbp-0x3f], 0x6d73612e ;   .asm
+0x288836: movzx eax, BYTE PTR [r14+0x38]       ; SSO byte of this->str038
+0x28883b: lea rsi, [r14+0x39]                  ; short-form data ptr
+0x288845: cmovne rsi, QWORD PTR [r14+0x48]     ; long-form data ptr if SSO bit set
+0x28884a: cmovne rdx, QWORD PTR [r14+0x40]     ; long-form length
+0x28885a: call ElfWriter::addData(elf, data, len, &".asm")
+```
+
+i.e. `elf.addData(this->str038.data(), this->str038.size(), ".asm")`.
+
+The recon's pipeline file even **already documents** the
+correct layout in a comment block —
+`reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp:48-54`:
+
+```
+//   +0x08  std::string filename_          — source filename
+//   +0x20  (padding?)
+//   +0x38  std::string asmSource_         — assembled source text
+```
+
+— but the header declares them inverted, and the pipeline body
+then writes/reads through the wrongly-named slot.
+
+### Why the diff-test still passes
+
+Behaviourally the data still flows the same way: contents go
+into one slot, `assembleString` reads from the same slot,
+`writeToFile` writes from the same slot.  The bug is purely
+that the slot at +0x20 (which the recon calls `asmSource_`) is
+the dead one in the binary, while the binary's real source
+cache lives at +0x38 (which the recon calls `unusedStr038_`).
+
+### Action
+
+Promote to a TODO entry (medium): rename the +0x20 field to
+`unusedStr020_`, rename +0x38 to `asmSource_`, retarget the
+ctor initialiser list and the two consumers
+(`assembleFile`, `writeToFile`) at the new name.  After the
+swap, drop the `\unclear` on the new +0x20 slot and replace
+its brief with the same "constructed/destructed only" wording
+used for the other layout placeholders.
+
+Verify ELF byte-equality after the rename.
+
+## IF-251  `getApiErrorMessage` consults wrong container (recon vs binary)
+
+**Severity**: cosmetic (observable mapping coincides today).
+
+**Status**: confirmed (disassembly-traced 2026-05-11).
+
+**Discovered**: D7 `\verifyme` triage batch 2 (subagent
+`ses_1e7d64aa6ffelLz6pUQpwrg6rv`), `error_messages.cpp:142`.
+
+The reconstructed `ErrorMessages::getApiErrorMessage` body
+calls `ErrorMessages::messages.find(code)` and falls back to
+the unknown-error string at `0x962ba8`.  The binary's
+`getApiErrorMessage` at `0x2e4820` instead consults a separate
+anonymous-namespace flat-hash table:
+
+```
+0x2e4820: ...
+0x2e4??: mov 0x8a0a11(%rip),%r8 # b85238 <_ZN6zhinst12_GLOBAL__N_116apiErrorMessagesE+0x8>
+```
+
+i.e. it reads from `apiErrorMessages` at BSS `0xb85230`, not
+from the public `ErrorMessages::messages` map.
+
+### Why the diff-test still passes
+
+The keys both tables hold (16384–16389, 32768–32800,
+36864–36877) map to identical strings, so user-visible output
+matches.  Any future divergence between the two tables would
+surface as a behavioural diff.
+
+### Action
+
+Promote to a TODO entry (cosmetic): introduce an
+anonymous-namespace static `apiErrorMessages` table mirroring
+the binary's BSS layout, and have `getApiErrorMessage` read
+from it instead of from the public messages map.  This keeps
+the recon faithful to the binary's data-flow even where the
+observable result already matches.
+
+

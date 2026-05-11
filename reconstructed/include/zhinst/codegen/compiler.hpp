@@ -660,16 +660,20 @@ private:
     //!        pipeline; written by `setLineNr` and consumed by
     //!        `messages_` when framing diagnostics.
     int32_t lineNr_;                               // +0x10
-    //! \brief Per-compile feature/flag bitset (see the matching
-    //!        binary symbol table for bit assignments).
-    //! \unclear  Per-bit semantics — no bit consumer has been
-    //!           reconstructed yet.
+    //! \brief 2-byte slot at +0x14 zero-initialised by the
+    //!        binary's `Compiler` constructor (`0x11d0ab: mov
+    //!        WORD PTR [rdi+0x14], 0x0`) and never re-touched by
+    //!        any reader or writer in either binary or recon.
+    //!        Likely an unused flags slot retained for ABI
+    //!        fidelity.
     uint16_t flags_;                               // +0x14
     //! \brief Alignment padding ahead of `reserved18_`.
     uint8_t pad16_[2];                             // +0x16
-    //! \brief 8-byte slot reserved in the binary layout; no
-    //!        reconstructed reader or writer.
-    //! \unclear  Original purpose.
+    //! \brief 8-byte slot zero-initialised by the binary's
+    //!        `Compiler` constructor and re-zeroed at the start
+    //!        of `compile()` (`0x11f76e`); never read by any
+    //!        reconstructed-or-binary code path. Retained for
+    //!        ABI fidelity.
     uint64_t reserved18_;                          // +0x18
     //! \brief Number of physical output channels selected for
     //!        the compile (1, 2, 4, or 8 depending on device).

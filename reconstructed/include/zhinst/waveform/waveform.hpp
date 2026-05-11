@@ -78,7 +78,7 @@ struct WaveformFile {
 
     std::string name;                   //!< Source-file path. +0x00
     FormatType formatType;              //!< Detected text-file layout (relevant for CSV; left at `AutoDetect` for RAW/GEN). +0x18
-    int32_t columnMode;                 //!< CSV column-mode descriptor populated by the parser. \unclear Exact semantics still to be reverse-engineered. +0x1C
+    int32_t columnMode;                 //!< CSV column-mode tag carried alongside `formatType`. Default-constructed to `0`; both `WaveformIR` constructors force it to `1` whenever a `WaveformFile` is attached. Compared field-for-field by `WaveformFile::operator==`. No discriminator-style read of this field has been located in the binary, so the semantic distinction between values `0` and `1` is known only via the "WaveformIR forces to 1" invariant. +0x1C
     int32_t isIntegerFormat;            //!< Cached integer-format flag set by the parser when an integer layout is committed. +0x20
     std::vector<unsigned int> fileHash; //!< Hash of the source-file contents (from `CachedParser::getHash`), used to cache parsed data across compilations. +0x28
 

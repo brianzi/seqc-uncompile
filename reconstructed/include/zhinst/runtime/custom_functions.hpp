@@ -2971,12 +2971,11 @@ private:
     //!        `aliasMap_maxLoadFactor_` and `unusedStringSet_B0_`.
     char                                               pad_AC_[4];             // +0xAC
 
-    // +0xB0: set<string> — no reconstructed consumer found; may be populated by
-    // a not-yet-reconstructed method. Kept for layout fidelity.
-    //! \brief String set present in the binary layout but with
-    //!        no observed reader or writer in the reconstructed
-    //!        pipeline; preserved for ABI fidelity.
-    //! \unclear  Original purpose — likely an extension hook.
+    //! \brief 24-byte `set<string>` slot present in the binary's
+    //!        `CustomFunctions` layout but only constructed
+    //!        (`0x12be14`) and destructed (`0x127e86`) — never
+    //!        inserted into or queried by the binary. Retained
+    //!        for ABI fidelity.
     std::set<std::string>                              unusedStringSet_B0_;    // +0xB0
 
     //! \brief Inline compile-time math-function evaluator

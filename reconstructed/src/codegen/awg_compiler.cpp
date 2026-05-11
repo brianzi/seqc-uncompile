@@ -372,12 +372,12 @@ private:
     //! \brief Path of the most recent `compileFile` source;
     //! surfaced in the assembler banner and the `.arguments` JSON.
     std::string sourceFilename_;                             // +0x200  //!< Path of the most recent `compileFile` source; surfaced in the assembler banner and the `.arguments` JSON.
-    //! \brief Reserved string slot present in the binary layout
-    //! but with no observed reader/writer in the reconstructed
-    //! pipeline.
-    //! \unclear Original purpose (see
-    //! `notes/symbol-renaming-audit/28_awg_compiler.md`).
-    std::string pad_218_;                                // +0x218  //!< Reserved string slot present in the binary layout but with no observed reader/writer in the reconstructed pipeline. \unclear  Original purpose (see `notes/symbol-renaming-audit/28_awg_compiler.md`).
+    //! \brief 24-byte `std::string` slot at +0x218 default-
+    //! constructed by the `AWGCompilerImpl` constructor and
+    //! destructed at end of life. Never assigned, queried, or
+    //! read by any reconstructed-or-binary code path. Retained
+    //! for ABI fidelity.
+    std::string pad_218_;                                // +0x218  //!< 24-byte `std::string` slot at +0x218 default-constructed and destructed; never read or written by any code path. Retained for ABI fidelity.
     //! \brief Cached SeqC source from the most recent
     //! `compileString`; emitted as the `.c` ELF section.
     std::string sourceText_;                             // +0x230  //!< Cached SeqC source from the most recent `compileString`; emitted as the `.c` ELF section.

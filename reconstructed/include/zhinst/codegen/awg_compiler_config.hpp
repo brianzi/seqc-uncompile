@@ -95,8 +95,14 @@ struct AWGCompilerConfig {
     int32_t awgIndex;                   // 0x20 — AWG core index (node paths + channel validation)
     //! \brief Device index used for waveform lookup in multi-device sessions.
     int32_t deviceIndex;                // 0x24 — Device index for waveform lookup
-    //! \brief Round-trip serialisation toggle set by `AWGCompilerImpl`. \unclear — no reconstructed consumer.
-    uint64_t serializeRoundTrip;                // 0x28 — no reconstructed consumer; may be set by AWGCompilerImpl
+    //! \brief Debug round-trip toggle: when set to `1`, the
+    //!        compiler serialises the post-optimise `AsmList` and
+    //!        immediately deserialises it back into place,
+    //!        exercising the serialise/deserialise round-trip as a
+    //!        self-check.  Any other value is a no-op.  Consumed by
+    //!        the main compile pipeline after pre-waveform
+    //!        optimisation.
+    uint64_t serializeRoundTrip;                // 0x28 — read by Compiler::compile after optimizePreWaveform
     //! \brief Filesystem path that receives the debug-dump output when enabled.
     std::string debugDumpPath;              // 0x30 — 24 bytes, conditionally owned
     //! \brief When `true`, the compiler writes a debug dump to `debugDumpPath`.
@@ -111,8 +117,12 @@ struct AWGCompilerConfig {
     char pad_69[7];                     // 0x69
     //! \brief Search directories prepended to the `#include` resolution path.
     std::vector<std::string> includePaths; // 0x70 — begin/end/cap at 0x70/0x78/0x80
-    //! \brief Optimisation-pass bitmask. \unclear — no reconstructed consumer.
-    uint64_t optimizationFlags;                // 0x88 — no reconstructed consumer; adjacent to debugFlags
+    //! \brief Optimisation-pass bitmask passed to the `AsmOptimize`
+    //!        constructor and used to gate individual optimisation
+    //!        passes.  The public binding hardcodes `0xFF` (all
+    //!        passes enabled); per-bit assignments correspond to the
+    //!        switches inside `AsmOptimize`.
+    uint64_t optimizationFlags;                // 0x88 — passed to AsmOptimize ctor; default 0xFF (all passes)
     //! \brief Debug-print bitmask: `0x02` old AST, `0x04` SeqC AST, `0x08` tree/assembly.
     uint32_t debugFlags;                // 0x90 — bitmask: 0x02=old AST, 0x04=SeqC AST, 0x08=tree/asm
     //! \brief Number of AWG cores in this device configuration (binary default `0`).
