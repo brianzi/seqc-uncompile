@@ -44,8 +44,8 @@ using LabelBimap = boost::bimaps::bimap<
 //   ------  ----  ----                                    -----
 //   0x000   0x08  DeviceConstants const*                  deviceConstants_
 //   0x008   0x18  std::string                             filename_
-//   0x020   0x18  std::string                             asmSource_
-//   0x038   0x18  std::string                             unusedStr038_ (no observed reader/writer in reconstructed methods)
+//   0x020   0x18  std::string                             unusedStr020_ (no observed reader/writer in reconstructed methods)
+//   0x038   0x18  std::string                             asmSource_   (binary writes contents here in assembleFile@0x286047/0x2860c9, reads here in writeToFile@0x288836)
 //   0x050   0x18  std::vector<uint32_t>                   opcodes_
 //                                                         (verified by getOpcode()
 //                                                          at 0x289060: lea rax,[rdi+0x50];
@@ -432,15 +432,14 @@ public:
     //! \brief Source filename recorded by `assembleFile`; emitted as
     //!        the `.filename` ELF section by `writeToFile`.
     std::string filename_;                       // 0x008  //!< Source filename recorded by `assembleFile`; surfaced in the `.filename` ELF section by `writeToFile`.
-    //! \brief Cached source text from the most recent
-    //!        `assembleFile`; emitted as the `.asm` ELF section by
-    //!        `writeToFile`.
-    std::string asmSource_;                      // 0x020  //!< Cached source text from the most recent `assembleFile` call; emitted as the `.asm` section by `writeToFile`.
     //! \brief Reserved string slot present in the binary layout but
     //!        with no observed reader or writer in the reconstructed
     //!        pipeline.
-    //! \unclear  Original purpose.
-    std::string unusedStr038_;                    // 0x038  //!< Reserved string slot present in the binary layout but with no observed reader or writer in the reconstructed pipeline. \unclear  Original purpose.
+    std::string unusedStr020_;                    // 0x020  //!< Reserved string slot present in the binary layout but with no observed reader or writer in the reconstructed pipeline.
+    //! \brief Cached source text from the most recent
+    //!        `assembleFile`; emitted as the `.asm` ELF section by
+    //!        `writeToFile`.
+    std::string asmSource_;                       // 0x038  //!< Cached source text from the most recent `assembleFile` call; emitted as the `.asm` section by `writeToFile`.
     //! \brief Emitted 32-bit instruction words; populated by
     //!        `assembleExpressions` and exposed via `getOpcode`.
     std::vector<uint32_t> opcodes_;              // 0x050  //!< Emitted 32-bit instruction words; populated by `assembleExpressions` and exposed via `getOpcode`.

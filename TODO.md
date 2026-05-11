@@ -1205,30 +1205,19 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     (`ses_1e81ed419ffeMdQ2iZx7K8gpxS`); the proposed C++ block
     matched the binary on first build (no iteration needed).
 
-- [ ] **D-AUDIT-2 — Swap layout-misnamed `AWGAssemblerImpl` string slots**
-      *(promoted from IF-250, severity medium)*
+- [x] **D-AUDIT-2 — Swap layout-misnamed `AWGAssemblerImpl` string slots**
+      *(promoted from IF-250, severity medium; completed 2026-05-12)*
 
-  The `AWGAssemblerImpl` header declares two `std::string` slots
-  inverted relative to the binary: `+0x20` is currently named
-  `asmSource_` but is dead in the binary, while `+0x38` is named
-  `unusedStr038_` but is the slot the binary actually uses as the
-  cached `.asm` source text.  Disassembly evidence (objdump traces of
-  `assembleFile` at `0x285ec0` and `writeToFile` at `0x288570`) is
-  recorded in IF-250.  The recon's
-  `reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp:48-54`
-  comment block already documents the correct layout.
-
-  Steps:
-  1. Rename `+0x20` field to `unusedStr020_` and `+0x38` field to
-     `asmSource_` in the `AWGAssemblerImpl` header.
-  2. Retarget the ctor initialiser list and the two consumers
-     (`assembleFile`, `writeToFile`) at the renamed slots.
-  3. Drop the `\unclear` (if any) on the new `+0x20` slot and replace
-     its brief with the standard "constructed/destructed only"
-     placeholder wording.
-  4. Build clean; run the full diff-test suite; confirm ELF
-     byte-equality on every `.asm`-emitting test (HDAWG/SHF/UHF).
-  5. Update IF-250 status to **fixed** with the commit ref.
+  Fixed: `+0x20` slot renamed to `unusedStr020_`, `+0x38` slot
+  renamed to `asmSource_` in the `AWGAssemblerImpl` header (layout
+  comment and field declarations both updated).  Ctor init list in
+  `awg_assembler_impl.cpp` reordered to match the new physical
+  offset order.  Pipeline writer (`assembleFile`) and reader
+  (`writeToFile`) in `awg_assembler_impl_pipeline.cpp` now
+  correctly target the `+0x38` slot by name as well as by data
+  flow.  Dropped the `\unclear` from the new `+0x20` slot's brief.
+  Build clean; full diff-test suite passes 1603/1603 with no ELF
+  byte changes.  IF-250 marked **fixed**.
 
 - [ ] **D-AUDIT-3 — Mirror binary's `apiErrorMessages` anon-namespace table**
       *(promoted from IF-251, severity cosmetic)*

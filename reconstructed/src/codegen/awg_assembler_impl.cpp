@@ -6,8 +6,8 @@ namespace zhinst {
 AWGAssemblerImpl::AWGAssemblerImpl(DeviceConstants const& dc)
     : deviceConstants_(&dc),
       filename_(),                  // 0x08-0x1f zeroed (16 bytes xmm0 store — SSO buffer)
-      asmSource_(),
-      unusedStr038_(),
+      unusedStr020_(),              // 0x20
+      asmSource_(),                 // 0x38 — binary's actual `.asm` source cache
       opcodes_(),                  // 0x50-0x67: begin/end/cap zeroed
       memoryOffset_(0),
       pad_memOffset_(0)

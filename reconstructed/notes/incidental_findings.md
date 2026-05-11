@@ -7104,9 +7104,16 @@ trying to coerce a SeqC source through.
 **Severity**: medium (cosmetic / reverse-engineering accuracy;
 no behavioural diff observed in the diff-test suite).
 
-**Status**: confirmed (objdump-traced 2026-05-11); promoted to
-TODO.md as **D-AUDIT-2** on 2026-05-12 — see TODO entry for the
-remediation steps.
+**Status**: **fixed** (2026-05-12) — `+0x20` slot renamed to
+`unusedStr020_`, `+0x38` slot renamed to `asmSource_`; ctor init
+list reordered to match physical offset order; pipeline writer at
+`assembleFile` and reader at `writeToFile` now correctly target
+the `+0x38` slot by name as well as by data flow.  Full diff-test
+suite passes 1603/1603 with no ELF-byte changes (the swap is
+purely a cosmetic / naming realignment; both fields were
+default-constructed string slots, so semantics are unchanged).
+Promoted to TODO.md as **D-AUDIT-2** on 2026-05-12; closed same
+day.
 
 **Discovered**: D7 `\unclear` triage (subagent
 `ses_1e7d6eb12ffeR6yx6GhCf6l4gO`).
