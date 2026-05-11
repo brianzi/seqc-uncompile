@@ -4809,12 +4809,29 @@ GDB recipe: `tests/gdb/gdb_lock_trace.txt`.
 ## IF-217  `Prefetch::backwardTree` re-enqueues `next` instead of `loop`
 
 **Severity**: likely-bug.
-**Status**: open (recon body unfixed; block-header & inline
-comments corrected in same commit so they match the buggy body
-rather than misleading future readers).
+**Status**: **fixed** (commit pending) — recon body now reads
+`cur->loop` (+0xE0) at the third dispatch, matching the binary.
 **Discovered**: D4 Batch 2d verify-then-write of
 `Prefetch::backwardTree` (`prefetch_helpers.cpp:235-265`,
 original at `0x1d57d0`).
+
+**Resolution**: confirmed against binary disassembly without
+needing GDB.  At `0x1d5af0` the third dispatch begins with:
+
+```
+1d5af0:  mov    0xe0(%r12),%rax        ; cur->loop (+0xE0)
+1d5b87:  mov    0xe8(%r12),%rcx        ; loop's __cntrl_ (+0xE8)
+1d5b8f:  movups 0xe0(%r12),%xmm0       ; copy full shared_ptr<Node>
+```
+
+This unambiguously reads `+0xE0` (loop), not `+0xB8` (next), and
+mirrors the layout of the first dispatch at `0x1d5949`
+(`mov 0xb8(%r12),%rax`) which reads next.  The reconstruction at
+`prefetch_helpers.cpp:264-273` was flipped from `cur->next` →
+`cur->loop` in both the field read and the push.  Full test
+suite remained at 1602/1602 (as predicted in the original IF
+entry — the corpus does not exercise loop bodies whose
+`parent.lock()` is consulted post-`backwardTree`).
 
 The function is a LIFO worklist walk that should set every
 visited node's children to back-link to it via `Node::parent`.
@@ -4844,37 +4861,16 @@ back-link** from `backwardTree`.  Any caller that relies on
 `parent.lock()` from inside a loop body will see a stale or
 default-constructed weak_ptr.
 
-**Why tests still pass at 1600/1600**: callers of
-`backwardTree` are limited (it is only invoked from a small set
-of Prefetch passes that themselves walk the tree top-down and
-already hold parent context).  The `Node::parent` weak_ptr is
-also commonly initialised earlier in the lowering pipeline
-(`AwgCompilerNodes::lower*` sets parents at construction time),
-so the back-link populated by `backwardTree` is largely
-redundant for the inputs the test corpus produces.  A regression
-test specifically exercising loop bodies whose parent link is
-stale would expose this.
-
-The duplicated push also means `next`-children are visited
-twice, doubling the worklist cost on `next`-heavy chains; this
-is wasteful but not incorrect.
-
-**Comment fix applied this commit**: replaced the misleading
-`// For next / loop` comment block at
-`prefetch_helpers.cpp:259-263` with an explicit
-`// IF-217: this re-enqueues cur->next instead of cur->loop` so
-that future readers don't misread the duplicate as intentional.
-
-**Action**:
-1. GDB-trace the original binary at `0x1d57d0` on a SeqC program
-   with a non-trivial loop (e.g. any `repeat (...)` in the
-   manifest's loop tests).  Confirm the third dispatch in the
-   binary reads `+0xE0` (`loop`) rather than `+0xB8` (`next`).
-2. If confirmed, change `cur->next` → `cur->loop` in both lines
-   `260` and `262` of `prefetch_helpers.cpp`.
-3. Run the full test suite — most likely 1600/1600 unchanged.
-4. Add a regression test that asserts `parent.lock()` is non-null
-   on a node inside a loop body after `backwardTree` runs.
+**Historical note** (pre-fix): tests still passed at 1600/1600
+because callers of `backwardTree` are limited (it is only invoked
+from a small set of Prefetch passes that themselves walk the
+tree top-down and already hold parent context).  The
+`Node::parent` weak_ptr is also commonly initialised earlier in
+the lowering pipeline (`AwgCompilerNodes::lower*` sets parents
+at construction time), so the back-link populated by
+`backwardTree` was largely redundant for the inputs the test
+corpus produces.  A regression test specifically exercising
+loop bodies whose parent link is stale would expose this.
 
 ## IF-218  `Prefetch::expandSetVar` body is a stub that creates orphan SetVar clones
 

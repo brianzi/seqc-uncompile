@@ -261,15 +261,16 @@ void Prefetch::backwardTree(std::shared_ptr<Node> node) const // 0x1d57d0
             worklist.push_back(child);
         }
 
-        // IF-217: this re-enqueues cur->next instead of cur->loop.
-        // The intended third visitor (by analogy with every other
-        // walker in this file) is `cur->loop` (+0xE0), so loop bodies
-        // get a parent back-link and are re-walked.  As-written, the
-        // body double-visits cur->next and never visits loop children.
-        // See incidental_findings.md IF-217.
-        if (cur->next) {
-            cur->next->parent = current;
-            worklist.push_back(cur->next);
+        // Third visitor: cur->loop (+0xE0) — the loop-body / else-branch
+        // link.  Confirmed against binary at 0x1d5af0: `mov 0xe0(%r12),%rax`
+        // followed by `mov 0xe8(%r12),%rcx` / `movups 0xe0(%r12),%xmm0` to
+        // copy the shared_ptr.  This back-links parents for loop bodies
+        // (matches every other walker in this file: prepareTree,
+        // countBranches, optimizeSync, nodeByCachePointer,
+        // determineFixedWaves, findLockedPlay).  See IF-217 (closed).
+        if (cur->loop) {
+            cur->loop->parent = current;
+            worklist.push_back(cur->loop);
         }
     }
 }

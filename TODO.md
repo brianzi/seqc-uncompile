@@ -212,20 +212,25 @@ cross-reference pages so the backlog is discoverable.
         in recon comments, deferred to dedicated follow-ups.
         1600/1600 tests, build clean, 0 doxygen warnings.
         (commit `1e7cd32`)
-  - [ ] **D4 Batch 2d follow-up (IF-217)** — fix
-        `Prefetch::backwardTree` to enqueue `cur->loop` instead of
-        re-enqueueing `cur->next` in the third visitor block
-        (`prefetch_helpers.cpp:259-268`).  Currently loop-body
-        children never receive a parent back-link.  GDB-trace the
-        original binary at `0x1d57d0` on a SeqC program with a
-        `repeat (...)` loop to confirm the third dispatch reads
-        `+0xE0` (`loop`) rather than `+0xB8` (`next`); flip the
-        two field reads; add a regression test asserting
-        `parent.lock()` is non-null on a node inside a loop body
-        after `backwardTree` runs.  Tests will likely remain
-        1600/1600 — the bug is latent because `Node::parent` is
-        already populated earlier in the lowering pipeline.  See
-        IF-217 for full evidence.
+  - [x] **D4 Batch 2d follow-up (IF-217)** — fixed.
+        `Prefetch::backwardTree` now enqueues `cur->loop` instead
+        of re-enqueueing `cur->next` in the third visitor block
+        (`prefetch_helpers.cpp:264-273`).  Confirmed against
+        binary disassembly: at `0x1d5af0` the third dispatch
+        reads `mov 0xe0(%r12),%rax` (loop), with the matching
+        control-block read at `0x1d5b87`
+        (`mov 0xe8(%r12),%rcx`) and shared_ptr copy at
+        `0x1d5b8f` (`movups 0xe0(%r12),%xmm0`) — primary
+        evidence from objdump, no GDB needed per AGENTS.md
+        evidence hierarchy.  Tests remain 1602/1602 as
+        predicted (latent bug; `Node::parent` is already
+        populated earlier in the lowering pipeline).  Block-
+        header comment was already neutral and remains
+        accurate.  No regression test added — exercising the
+        bug requires inspecting `parent.lock()` post-
+        `backwardTree`, which no public API surfaces; future
+        work if/when the parent back-link is consulted.  IF-217
+        marked **fixed** in `incidental_findings.md`.
   - [ ] **D4 Batch 2d follow-up (IF-218)** — reconstruct
         `Prefetch::expandSetVar` body
         (`prefetch_helpers.cpp:352-375`, original `0x1d3af0`).
