@@ -326,9 +326,35 @@ cross-reference pages so the backlog is discoverable.
         emitted earlier in `placeSingleCommand` before reaching
         this label.  Block-header comment corrected.  Tests:
         1602/1602 (no behaviour change — corpus does not
-        exercise the gate combination that routes here).  See
-        IF-224 for full disassembly trail.
-  - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
+         exercise the gate combination that routes here).  See
+         IF-224 for full disassembly trail.
+   - [ ] **D4 Batch 2e-i follow-up (IF-244)** — recon mislabel:
+         the block currently at `prefetch_placesingle.cpp:884-908`
+         labelled `play_cervino_indexed_nonsplit` is actually the
+         Table sub-path C2 split tail (`0x1db562..0x1db60a`),
+         which calls `clampToCache` and defers `wprf` to the
+         shared `0x1db92e` tail (gated `!isHirzel` at `0x1db935`).
+         The real Play `cervino_indexed_nonsplit` tail lives at
+         `0x1db4ad..0x1db55d`: emits `wprf` inline first
+         (unconditional), then `prf(regHirzel, regCervino,
+         cacheSize >> 1)` without `clampToCache`, exits via
+         `0x1db55d → 0x1db92e`.  IF-224's earlier "fix" of this
+         block was therefore mis-targeted (correct body, wrong
+         label and dispatch slot).  Action items: (a) move the
+         existing block into the Table dispatch under a new label
+         (e.g. `table_indexed_with_clamp`); (b) add a new block
+         for the real Play tail at the original
+         `play_cervino_indexed_nonsplit` slot; (c) optionally
+         factor the genuine 3-way (`0x1db911`) and 4-way
+         (`0x1db92e`) shared tails into a helper
+         `Prefetch::emitPrfEpilogueAndInsert_`.  Tag the
+         `[r15+0x18]` ⇒ `isHirzel` interpretation `\verifyme` if
+         the helper is extracted (consistent with binary but not
+         GDB-verified).  Tests will remain green: corpus
+         exercises neither Play `cervino_indexed_nonsplit` nor
+         Table sub-path C2.  See IF-244 for the full xref / body
+         comparison.
+   - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
         helpers (7 methods): `clampToCache`, `wvfImpl`,
         `wvfRegImpl`, `wvfs`, `needsNewCwvf`, `splitPlay`,
         `insertPlay`.  No new IFs surfaced; the existing

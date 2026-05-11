@@ -5067,7 +5067,7 @@ Play-case `play_finalize` at `0x1dba0d`):
 |---|---|---|---|
 | **A** cachePtr empty | `loadState->cachePtr->size_ == 0` | `0x1d8b3c..0x1d932b` → jmp `0x1da6df` | `addi(reg2,zero,encodedCwvf)` + `smap(reg1,reg2,0x400\|tableIndex)` |
 | **B** cachePtr non-empty, no lengthReg | `cachePtr.size_!=0 && (!lengthReg.isValid() \|\| lengthReg==R0)` | falls through `0x1d94a5..0x1da6df` | A + `smap(reg1,stateReg,tableIndex)` + `addi(reg2,zero,totalSize)` + `smap(reg1,reg2,0x800\|tableIndex)` where `totalSize = wfir->getSizePerDevice() / (isHirzel ? 1 : pagesNeeded)` and `stateReg = isHirzel ? registerHirzel : registerCervino` |
-| **C** cachePtr non-empty, lengthReg valid | `cachePtr.size_!=0 && lengthReg.isValid() && lengthReg!=R0` | jmp `0x1daed4..0x1db740` | C1 (`!split_`): re-converges with B at `0x1da56e` with `totalSize = 2*node->length*waveform.numChannels`. C2 (`split_==true`): full ssl-loop / addr / prf / wprf path |
+| **C** cachePtr non-empty, lengthReg valid | `cachePtr.size_!=0 && lengthReg.isValid() && lengthReg!=R0` | jmp `0x1daed4..0x1db740` | At `0x1daed4` the gate is `cmpb $1, [r15+0xbc]; jne 0x1db749`. **C-non-split** (`split_ != 1`, `jne` taken): re-converges with sub-path B at `0x1da56e` with `totalSize = 2*length*numChannels` (computed at `0x1db820..0x1db823`). **C-split** (`split_ == 1`, fall-through): emits `addi(idxReg, lengthReg, 0)` + per-channel `ssl(idxReg)` loop bound by `numChannels` + `addr(idxReg, registerHirzel\|Cervino)` + `prf` + `wprf`, same totalSize formula. (Polarity verified by IF-241; prior labelling swapped C1/C2.) |
 
 Window correction: the IF originally cited `0x1d8b3c..0x1dba0d`
 as the Table tail.  In reality that window is only ~20 % Table
@@ -6512,101 +6512,280 @@ against the binary that the family check exists at `0x2cfd80`
 itself (and is not a recon over-correction), the legacy comment
 can be rewritten.
 
-## IF-241  Table sub-path C1 totalSize formula needs GDB confirmation
+## IF-241  Table sub-path C totalSize formula confirmed; sub-path polarity correction
 
-**Severity**: suspicious (sub-path C deferral support).
-**Status**: open — gates IF-223 sub-path C reconstruction.
-**Discovered**: D4 IF-223 consolidated audit, §9 open-question 1.
+**Severity**: confirmed (formula); IF-223 polarity correction needed.
+**Status**: **resolved** (formula); follow-up edit to IF-223 sub-path
+labels required.
+**Discovered**: D4 IF-223 follow-up, subagent audit
+`ses_1ea03f82dffex6rJH4zRXSU33x`.
 
-In sub-path C1 (Table case, `lengthReg.isValid() && lengthReg != R0
-&& !split_`), the binary at `0x1daee5`, `0x1daffa`, `0x1daf1d`
-appears to compute `totalSize = 2 * node->length *
-waveform.numChannels`, then jumps to `0x1da56e` to share the
-smap-triplet emission with sub-path B.
+### Confirmed totalSize formula
 
-This formula differs from sub-path B
-(`getSizePerDevice() / (isHirzel ? 1 : pagesNeeded)`).  The
-factor-of-2 in particular is conjectural from static
-disassembly; needs GDB verification on a `playWaveTable` test
-input that sets a non-empty cache and a valid lengthReg.
+In the Table sub-path that branches via `je 0x1d949f → 0x1daed4`,
+the binary computes:
 
-**Action**: build a SeqC test that exercises Table-C1, GDB-trace
-the original at `0x1daff8..0x1daffd`, confirm the multiplications.
+```
+0x1daee5  mov r12d, [rsi+0x90]              ; r12d = node->length
+0x1daff2  imul r12d, [rbp-0x158]            ; r12d *= numChannels
+0x1daffa  add r12d, r12d                    ; r12d *= 2
+0x1daffd  mov [rbp-0x140], r12d             ; spill totalSize
+```
 
-## IF-242  Table sub-path C `bgReg` allocation purpose unclear
+So:
 
-**Severity**: suspicious (sub-path C deferral support).
-**Status**: open — gates IF-223 sub-path C reconstruction.
-**Discovered**: D4 IF-223 consolidated audit, §9 open-question 2.
+```cpp
+const int32_t totalSize =
+    (static_cast<int32_t>(node->length)
+     * static_cast<int32_t>(waveform->signal_.numChannels())) * 2;
+```
 
-At `0x1daf5c` the Table split-path allocates a fresh
-`AsmRegister bgReg`, then emits `addi(bgReg, lengthReg,
-Immediate(0))` — effectively a `mov bgReg, lengthReg`.  It is
-later used as input to `ssl(bgReg)` and (presumably)
-`addr(bgReg, ...)`.
+`numChannels` is read via `movzx eax, WORD PTR [waveform+0xC8]`, so
+the source is the uint16 `Waveform::signal_.channels_` field.  The
+`imul` and `add` are signed 32-bit; for realistic AWG sizes overflow
+is not a concern.
 
-The semantic role of `bgReg` (background register?  base
-register?  buffer register?) is not yet identified.  The trail
-through the ssl loop continues at `0x1db82b → 0x1dbc7d →
-0x1dbba9`, outside the Part-2 audit window.
+### Polarity correction for IF-223
 
-**Action**: extend the audit window to cover the addr emission
-chain and confirm `bgReg`'s role.  Likely a pointer/offset
-register passed alongside lengthReg into the ssl/addr fetch
-sequence.
+The gate at `0x1daed4` is `cmpb $1, [r15+0xbc]; jne 0x1db749`.
+Therefore:
 
-## IF-243  `awgCfg_+0xC` field unidentified — gates Table prf-encoding choice
+- `split_ == 1` (true) → **falls through** to the formula above
+  (the `addi(idxReg, lengthReg, 0)` + per-channel `ssl(idxReg)`
+  loop + `addr(idxReg, stateReg)` + `prf` chain).
+- `split_ != 1` (false) → **jumps** to `0x1db749`, the simpler
+  branch that re-converges with sub-path B's smap-2 emission.
 
-**Severity**: suspicious (sub-path C deferral support).
-**Status**: open — gates IF-223 sub-path C reconstruction.
-**Discovered**: D4 IF-223 consolidated audit, §9 open-question 3.
+This is the **opposite polarity** to the labelling in the IF-223
+table, where C1 was described as `!split_` and C2 as `split_`.
+The actual mapping is:
 
-Inside the Table split-path tail the binary at `0x1db21c`
-loads `rcx = awgCfg_` (`Prefetch+0x8`, but the read is from
-`+0x8` of `r15` which is `awgCfg_`), then at `0x1db223`
-compares `cmp 0xc(%rcx), %eax` where `eax = cachePtr->size_`.
-The branch on this comparison gates the alternate prf encoding
-at `0x1db562..0x1db60a` versus the main path.
+| Original IF-223 label | Actual binary gate | Body |
+|---|---|---|
+| C1 (was: `!split_`)   | `split_ != 1` → `0x1db749` | smap-2 share-with-B path |
+| C2 (was: `split_==1`) | `split_ == 1` → falls through | `addi+ssl-loop+addr+prf+wprf` |
 
-`awgCfg_+0xC` is not currently named in
-`reconstructed/include/zhinst/codegen/awg_compiler_config.hpp`.
-Plausible candidates: `minIndexedSize`, `cacheLineSize`,
-`pagesPerCacheLine`.
+The IF-223 entry should be edited to swap C1 and C2 labels.  All
+formulae and instruction sequences carry across unchanged; only the
+gate-polarity description was wrong.
 
-**Action**: cross-reference other reads of `awgCfg_+0xC`
-elsewhere in the binary to identify the field by use.  Compare
-against documented `AwgCompilerConfig` fields.
+### Convergence point for the simpler (split_!=1) branch
 
-## IF-244  Table-C2 split tail and `play_cervino_indexed_nonsplit` may share code
+The simpler branch at `0x1db749..0x1db826` does the same
+`length * numChannels` multiplication (and `add r12d, r12d`
+doubling) at `0x1db820..0x1db823`, then jumps to `0x1da56e`
+(the smap-2 emission shared with sub-path B).  So the
+totalSize formula is **the same** for both Table-C branches;
+only the emission shape differs.
 
-**Severity**: suspicious (refactoring opportunity).
-**Status**: open — gates IF-223 sub-path C reconstruction and
-factoring.
-**Discovered**: D4 IF-223 consolidated audit, §9 open-question 4.
+### Action
 
-The Table-C2 split-path tail at `0x1db562..0x1db60a` (the
-`prf(rH, rC, clampToCache(size/2)) + wprf` pair) appears to
-share code with `play_cervino_indexed_nonsplit` in the Play
-case, already reconstructed at
-`prefetch_placesingle.cpp:884-908`.
+Edit IF-223's sub-path table to correct the C1/C2 polarity and
+record the verified formula above.  No other action — IF-241 is
+resolved.
 
-At least four xrefs into `0x1db562 / 0x1db911 / 0x1db92e`
-originate from inside `0x1d9aa0..0x1d9d04` (Play
-cervino_indexed_nonsplit) **and** from `0x1db5dd → 0x1db5e2 →
-0x1db911` (Table-C2 split path).  However, the gating logic
-into these blocks may differ slightly between Play and Table
-contexts.
 
-**Action**: read the gating code on both sides, confirm
-identical preconditions, then either:
-- factor the shared block into a helper (e.g.
-  `emitPrfWprfPair(stateH, stateC, halfSize)`), or
-- keep two separate copies if the gating differs enough to
-  warrant duplication.
+## IF-242  Table sub-path C `bgReg` ≡ Play `idxReg` (rename recommended)
 
-This is a prerequisite for clean Table sub-path C
-reconstruction: duplicating the code into both Play and Table
-contexts before factoring would create a maintenance burden.
+**Severity**: confirmed (naming).
+**Status**: **resolved** — semantic role identified.  Recommend
+naming the variable `idxReg` when reconstructing sub-path C.
+**Discovered**: D4 IF-223 follow-up, subagent audit
+`ses_1ea03a9cbffezFNN5hEzQeoQDj`.
+
+### Verified role
+
+`bgReg` is a fresh `AsmRegister` allocated at `0x1daf6a`, then:
+
+1. Initialised via `addi(bgReg, lengthReg, Imm(0))` at `0x1dafb3`
+   — effectively `mov bgReg, lengthReg`.
+2. Used unchanged inside an ssl loop at `0x1db024..0x1db1ee` that
+   iterates `numChannels` times: each iteration emits
+   `ssl(bgReg)` (single-bit shift left in place; `bgReg <<= 1`
+   per channel).
+3. After the loop, used as the **destination** operand of
+   `addr(bgReg, registerHirzel|Cervino)` at `0x1dbc8d` (Hirzel
+   branch) or `0x1dbba9` (Cervino branch) — folds the per-node
+   prefetch-cache base address into the now-shifted `bgReg`.
+
+The pattern is **identical** to `idxReg` in the existing Play
+recon at `prefetch_placesingle.cpp:739..776` (Cervino indexed
+split-play path).  Same allocation, same `addi(_, lengthReg, 0)`
+init, same per-channel `ssl` loop, same final `addr(_, stateReg)`
+fold, same subsequent feed into `wvfImpl`/`prf`.
+
+### Recommended C++ variable name
+
+**`idxReg`** — for direct symmetry with the existing Play recon
+(three other sites already use this name for the same idiom).
+
+### Open question (minor, won't block C reconstruction)
+
+The Table-case ssl loop body re-fetches the waveform name
+optional and string-allocates each iteration (the
+`0x1db033..0x1db121` block).  This looks redundant compared to
+the Play loop but matches the binary; it does not affect bgReg
+semantics or the emitted instruction stream.  No action.
+
+### Action
+
+When reconstructing IF-223 sub-path C, name the register
+`idxReg` (not `bgReg`).  No other action — IF-242 is resolved.
+
+
+## IF-243  `awgCfg_+0xC` premise corrected: actually `devConst_->waveformMemorySize`
+
+**Severity**: confirmed (premise correction, not a bug).
+**Status**: **resolved** — field already documented in
+`device_constants.hpp`.
+**Discovered**: D4 IF-223 follow-up, subagent audit
+`ses_1ea03532affeTSYYxbzkWiskeB`.
+
+### Premise correction
+
+The IF-223 audit and IF-243 entry described the field at
+`[r15+0x08] + 0xC` as `awgCfg_+0xC`.  This is **wrong**:
+
+- `Prefetch+0x00` = `config_` (`AWGCompilerConfig const*`).
+- `Prefetch+0x08` = `devConst_` (`DeviceConstants const*`),
+  **not** `awgCfg_`.
+
+(`AwgCompilerConfig+0xC` is itself the upper 4 bytes of
+`double deviceSampleRate` at `+0x08`, i.e. padding inside a
+double — no field there.  The header at
+`reconstructed/include/zhinst/codegen/awg_compiler_config.hpp:154`
+explicitly anticipates this exact mistake.)
+
+### Verified field
+
+The field at `0x1db223` (`cmp eax, [rcx+0xc]` where
+`rcx = [r15+0x8] = devConst_`) is:
+
+- **Name**: `DeviceConstants::waveformMemorySize`
+- **Offset**: `+0x0C` of `DeviceConstants`
+- **Type**: `uint32_t`
+- **Header**: already documented at
+  `reconstructed/include/zhinst/device/device_constants.hpp:43-45`.
+- **Per-device values**: HDAWG / SHFQA `0x100000`; UHFLI / UHFQA
+  `0x20000`; SHFSG / SHFQC_SG / SHFLI / GHFLI / VHFLI `0x60000`.
+
+### Comparison semantics
+
+The comparison at `0x1db223` is `cmp/jne` (equality test, not
+ordered).  When `cachePtr->size_ == waveformMemorySize`, the
+fall-through main path runs; otherwise `jne 0x1db876` jumps to a
+specialised handler.  Semantically: "is the play size exactly
+equal to total cache size?" (full-cache-fill specialisation).
+This is **narrower** than the original "selects between main and
+alternate prf encoding" framing — the broader main-vs-alternate
+selection happens at an earlier branch.
+
+### Action
+
+No code change needed; field is already correctly named in
+`device_constants.hpp`.  When reconstructing IF-223 sub-path C,
+the gate at `0x1db223` should be expressed as
+`loadState.cachePtr->size_ == devConst_->waveformMemorySize`,
+not via any `awgCfg_+0xC` reference.
+
+The recon's `Prefetch` member access pattern is `devConst_`
+(via the `DeviceConstants*` member at `Prefetch+0x08`), confirmed
+in `prefetch.hpp:58`.  IF-243 is resolved.
+
+
+## IF-244  Existing `play_cervino_indexed_nonsplit` recon body actually corresponds to Table-C2; Play has its own separate copy
+
+**Severity**: **likely-bug** (recon mislabeled; promotes to TODO).
+**Status**: **open — actionable**.  Distinct enough from the real
+Play block to warrant keeping two separate copies after correction.
+**Discovered**: D4 IF-223 follow-up, subagent audit
+`ses_1ea02f346ffeXjP1970hUIsRqE`.
+
+### Critical finding
+
+The block currently reconstructed at
+`prefetch_placesingle.cpp:884-908` and labelled
+`play_cervino_indexed_nonsplit` is **mislabelled**.  Its body
+matches the binary at `0x1db562..0x1db60a` (which is the
+Table sub-path C2 split tail), **not** the binary at
+`0x1db4ad..0x1db55d` (which is the actual Play
+`cervino_indexed_nonsplit` tail).
+
+Three differences distinguish the two:
+
+| Feature | Real Play (0x1db4ad..0x1db55d) | What recon currently has (= Table-C2, 0x1db562..0x1db60a) |
+|---|---|---|
+| `clampToCache` call? | **No** — uses raw `cacheSize >> 1` directly (`shr r8d, 1` then `prf`) | **Yes** — calls `clampToCache(cacheSize >> 1)` at `0x1db5dd` |
+| `wprf` placement | Emitted **inline before** `prf` at `0x1db4bd` (unconditional) | Deferred to shared `0x1db92e` tail (gated on `!isHirzel` at `0x1db935`) |
+| Final exit | `0x1db55d jmp 0x1db92e` (skips `0x1db911`, bypasses wprf gate) | `0x1db60a jmp 0x1db911` (unified cleanup → wprf-if-needed → insert) |
+
+### Xref evidence
+
+- **`0x1db562`** has **exactly one** xref into it: from `0x1daad8`
+  (Table sub-path C2 path).  No Play xrefs.
+- **`0x1db911`** has 3 distinct predecessors: `0x1d9d03` (Play
+  `cervino_indexed_nonsplit`), `0x1dabb4` (Table sub-path C2
+  alternate), and `0x1db60a` (fall-through from `0x1db562` Table
+  C2 main).
+- **`0x1db92e`** has 4 distinct predecessors: `0x1d8629` and
+  `0x1d86cb` (sub-path A, very early in placeSingleCommand);
+  `0x1db55d` (Play `cervino_indexed_nonsplit` direct exit); and
+  fall-through from `0x1db911`.
+
+So `0x1db911` and `0x1db92e` are **genuine** shared tails (3- and
+4-way respectively).  But the prf+wprf body itself is **not**
+shared between Play and Table.
+
+### Action items (promoting to TODO.md)
+
+1. **Rename** the existing recon block at
+   `prefetch_placesingle.cpp:884-908` from
+   `play_cervino_indexed_nonsplit` to `table_indexed_with_clamp`
+   (or similar) and **move it** out of the Play dispatch into
+   the Table dispatch path.  Its body — which calls
+   `clampToCache` — corresponds to the binary at
+   `0x1db562..0x1db60a` (Table sub-path C2 split).
+2. **Add a new recon block** for the actual Play
+   `cervino_indexed_nonsplit` tail at
+   `0x1db4ad..0x1db55d` that emits `wprf` first (no gate),
+   then `prf(regHirzel, regCervino, cacheSize >> 1)` **without**
+   `clampToCache`, then exits via `0x1db55d jmp 0x1db92e`.
+3. **Optionally** factor the `0x1db911` and `0x1db92e` tails
+   into a shared helper:
+   ```cpp
+   void Prefetch::emitPrfEpilogueAndInsert_(
+       AsmList& tempList, AsmList& out,
+       const std::shared_ptr<Node>& node, bool prfAsmStillLive);
+   ```
+   Body: dtor the prf Asm temporary if requested; if `!isHirzel`
+   (gated), emit and append `wprf()`; then
+   `out.insert(end, tempList.begin(), tempList.end())` and dtor
+   tempList.  Eliminates ~30 lines of duplication across 4 call
+   sites.
+
+### Why tests pass at 1602/1602 even with the mislabel
+
+The test corpus does not currently exercise:
+- Play `cervino_indexed_nonsplit` with `cachePtr->size_` such
+  that `clampToCache` would actually clamp (i.e. the recon
+  emits a clamped value where the binary emits the raw value).
+- Table sub-path C2 (`split_ == 1` AND `lengthReg.isValid() &&
+  != R0`).  This is the same coverage gap as IF-223 sub-path C.
+
+When the corpus is extended, the mislabel will manifest as a
+divergence on Play `cervino_indexed_nonsplit` tests.
+
+### Caveats
+
+- The interpretation of `[r15+0x18]` at `0x1db935` as
+  `isHirzel` (negated) is consistent with the Play wprf-bypass
+  behaviour but **not GDB-verified**.  If the helper extraction
+  in action item 3 is taken, tag the gate `\verifyme`.
+- Did not GDB-trace the actual control flow on a Table-C2 input
+  (corpus does not contain one) or a Play
+  `cervino_indexed_nonsplit` input.  Static disassembly alone.
+
+
 
 ## IF-245  Table-case `cmpb $1, -0x118(%rbp)` checks are cosmetic optional<string> dtor gates
 
