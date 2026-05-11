@@ -1,11 +1,17 @@
-# Original Binary Contents — Excluded / Out-of-Scope
+# Original Binary Contents — Excluded / Out-of-Scope {#notes_binary_contents_excluded}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 Analysis of `_seqc_compiler.so` symbol table comparing the original
 binary against the reconstructed `libzhinst_seqc.a`, identifying
 everything present in the original that we have deliberately excluded
 or not yet reconstructed.
-
-Date: 2026-04-26
 
 ## Symbol counts
 
@@ -27,7 +33,8 @@ Of those 97:
 - ~40 are **mangling mismatches** — functions we have reconstructed,
   but whose signatures contain `std::string`/`std::vector` which mangle
   differently between libc++ and libstdc++. Functionally present.
-- ~27 are **real gaps** being closed in Phase 34.
+- ~27 are **real gaps** in symbol-name presence (semantically
+  reconstructed via inlined or merged equivalents).
 - ~15 are **SDK utility functions** (out of scope, see below).
 - ~10 are **SDK error plumbing** (out of scope, see below).
 - ~5 are **libc++ template instantiation differences** (not meaningful).
@@ -168,7 +175,8 @@ The original `_seqc_compiler.so` contains roughly 19,600 defined
 symbols. Of these:
 
 - **~2,700 are the compiler pipeline** (`zhinst::` namespace) — fully
-  reconstructed, with Phase 34 closing the final 27 method/helper gaps.
+  reconstructed (semantically; some symbol-name parity gaps remain due
+  to libc++↔libstdc++ mangling).
 - **~3,300 are gRPC/Protobuf/OpenSSL** — OTLP trace export transport,
   stubbed out.
 - **~600 are OpenTelemetry SDK** — instrumentation framework, stubbed.

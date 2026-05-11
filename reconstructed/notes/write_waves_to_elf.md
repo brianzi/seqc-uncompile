@@ -1,4 +1,12 @@
-# writeWavesToElf Analysis
+# writeWavesToElf Analysis {#notes_write_waves_to_elf}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Functions
 
@@ -39,30 +47,32 @@ padding = gap & alignMask          // rounds gap down to alignment boundary
 
 After addWaveform: `currentOffset = waveform->addressValue + rawData->size()`
 
-## AWGCompilerConfig::unknown_04 = SampleFormat
+## AWGCompilerConfig +0x04 = SampleFormat
 
-Both lambdas load `config+0x04` as the SampleFormat parameter (ecx) to addWaveform.
-This field was previously listed as `unknown_04` — it is actually the sample format.
+Both lambdas load `config+0x04` as the SampleFormat parameter (ecx) to
+addWaveform.
 
 ## Signal+0x50 = Data Pointer Check
 
 The absolute lambda checks `waveformIR+0xd0` (= Waveform base 0x80 + Signal offset 0x50)
 for null. If null, the waveform has no loaded data and is skipped.
 
-## addWaveform Return Type (RESOLVED in Phase 10.5b)
+## addWaveform return type
 
-`ElfWriter::addWaveform` returns `std::unique_ptr<RawWave>` via sret. This is the
-same unique_ptr produced by `Signal::getRawData(format)` — it passes through
-addWaveform and is returned to the caller. The returned object:
+`ElfWriter::addWaveform` returns `std::unique_ptr<RawWave>` via sret.
+This is the same `unique_ptr` produced by `Signal::getRawData(format)`:
+it passes through `addWaveform` and is returned to the caller. The
+returned object:
 - Has a vtable (RawWave: slot 2 = size(), slot 3 = ptr())
 - vtable+0x08 = deleting destructor
 - vtable+0x10 = size() → returns byte count of the raw waveform data
 
-The absolute lambda uses `rawData->size()` to update the cumulative offset.
-The mapped lambda simply destroys the returned unique_ptr immediately.
+The absolute lambda uses `rawData->size()` to update the cumulative
+offset.  The mapped lambda simply destroys the returned `unique_ptr`
+immediately.
 
-Additionally, the NOBITS path in addWaveform uses `set_size(rawDataSize)` on the
-section (not `set_link(sectionCount)` as previously reconstructed).
+The NOBITS path in `addWaveform` uses `set_size(rawDataSize)` on the
+section (not `set_link(sectionCount)`).
 
 ## writeToStream Context
 

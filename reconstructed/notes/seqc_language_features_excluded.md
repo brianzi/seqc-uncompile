@@ -1,6 +1,12 @@
-# SeqC Language: Non-Features and Semantically Rejected Constructs
+# SeqC Language: Non-Features and Semantically Rejected Constructs {#notes_seqc_language_features_excluded}
 
-Date: 2026-05-08 (Coverage Round 2 follow-up)
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 This file documents constructs that **look like** they should be valid
 SeqC but are **either not in the language at all** or **rejected by a
@@ -10,8 +16,9 @@ generating wasted stress rounds against them.
 
 **Source of truth**: confirmed against
 `reconstructed/src/ast/seqc_lexer.l`, `reconstructed/src/ast/seqc_parser.y`,
-and the original binary's behavior (Coverage Round 2 produced 156
-byte-identical tests covering all the rejection paths below).
+and the original binary's behavior (the `coverage_round_2_tier2`
+manifest group exercises all the rejection paths below
+byte-identically).
 
 ## How to use this file
 
@@ -20,8 +27,7 @@ test density", **check this file first**. If the feature is listed here,
 the low coverage is by design — those tests would only exercise
 error-path agreement, not codegen.
 
-When adding a NEW finding (e.g. a Round-N coverage analysis discovers
-another rejected construct), append a row to the appropriate section
+When adding a NEW finding, append a row to the appropriate section
 with: feature name, exact symptom, where rejected (lexer / parser /
 semantic), and the reference test file under
 `tests/cases/stress/coverage_round_2/` (or successor) that demonstrates it.
@@ -73,8 +79,7 @@ semantics**.
 
 ## Category D — Confirmed-supported features (NOT non-features)
 
-Coverage Round 2 confirmed these are first-class supported. Listed here
-to prevent re-flagging:
+These are first-class supported. Listed here to prevent re-flagging:
 
 - **`var foo() { return …; }`** — typed user functions with return value (use `var`, not `int`/`double`)
 - **`do { … } while (…);`** — do-while loops
@@ -108,11 +113,10 @@ will continue to flag the Category A and Category B items as "ZERO" or
 
 ## Reference test files
 
-All Coverage Round 2 demonstrations live under
-`tests/cases/stress/coverage_round_2/`. Both the original binary and
-the reconstruction agree byte-for-byte on the rejection of every
-Category B and Category C construct listed above. See manifest group
-`coverage_round_2_tier2` for the exact 156-test enumeration.
+Demonstrations live under `tests/cases/stress/coverage_round_2/`. Both
+the original binary and the reconstruction agree byte-for-byte on the
+rejection of every Category B and Category C construct listed above.
+See manifest group `coverage_round_2_tier2` for the full enumeration.
 
-The 4 `_fixed` forks (Phase D of Round 2) demonstrate the Category C
-patterns alongside their corrected counterparts.
+The `_fixed` forks demonstrate the Category C patterns alongside their
+corrected counterparts.

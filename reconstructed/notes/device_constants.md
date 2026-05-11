@@ -1,11 +1,19 @@
-# DeviceConstants — getDeviceConstants(AwgDeviceType) decode
+# DeviceConstants — getDeviceConstants(AwgDeviceType) decode {#notes_device_constants}
 
-Phase 14b-iii.5 notes for `zhinst::getDeviceConstants(AwgDeviceType)`.
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
+
+Decode notes for `zhinst::getDeviceConstants(AwgDeviceType)`.
 
 - Binary: `_seqc_compiler.so`
 - Address: `0x2cc0c0 .. 0x2cc47f` (size `0x3c0`)
 - Source path (debug): `/builds/labone/labone/ziAWG/ziAWGDevice/src/constants.cpp`
-- Same TU as `getAwgDeviceProps<>` specializations (Phase 14b-iii).
+- Same TU as `getAwgDeviceProps<>` specializations.
 - Returns a 0x90-byte `DeviceConstants` zero-initialized then populated
   per-type. Throws `ZIAWGCompilerException` for unsupported types.
 
@@ -90,15 +98,13 @@ Pattern is identical to the `ValueException` throw sites in
 ## Field-population coverage
 
 All 9 valid device types (UHFLI, HDAWG, UHFQA, SHFQA, SHFSG, SHFQC_SG,
-SHFLI, GHFLI, VHFLI) had their `case` blocks populated during Phase 7e.
-This sub-phase only corrected the `default:` branch, which previously
-used a placeholder `std::runtime_error`.
+SHFLI, GHFLI, VHFLI) have populated `case` blocks in the
+reconstruction.
 
 ## Cross-references
 
 - `getDeviceConstants` declared in `include/zhinst/device/device_constants.hpp`.
 - `DeviceConstants` struct: `static_assert(sizeof == 0x90)` (libstdc++).
 - `ZIAWGCompilerException` declared in `include/zhinst/core/exception.hpp`.
-- Compare with sibling `getDeviceConstants(AwgDeviceType)` overload
-  variant for `getAwgDeviceProps<>` family in `awg_device_props.cpp`
-  (Phase 14b-iii) — same TU, same throw idiom.
+- Compare with sibling `getAwgDeviceProps<>` specializations in
+  `awg_device_props.cpp` — same TU, same throw idiom.

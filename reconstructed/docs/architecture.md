@@ -243,6 +243,11 @@ API-documentation voice rules (no binary citations outside
 | **Memory allocator layout** | \ref notes_memory_allocator_analysis |
 | **Logging / tracing internals** | \ref notes_logging_tracing |
 | **ELF output format** | \ref notes_elf_format |
+| **AWG device properties (per-family constants)** | \ref notes_awg_device_props |
+| **`getDeviceConstants` decode** | \ref notes_device_constants |
+| **`writeWavesToElf` lambdas** | \ref notes_write_waves_to_elf |
+| **SeqC language non-features (rejected constructs)** | \ref notes_seqc_language_features_excluded |
+| **Original-binary contents excluded from scope** | \ref notes_binary_contents_excluded |
 
 The remainder of `reconstructed/notes/` (status-tracking files,
 in-progress audits, dated phase logs) is intentionally kept out of

@@ -184,12 +184,11 @@ endif()
 find_package(Doxygen QUIET)
 if(DOXYGEN_FOUND)
     set(DOXYGEN_OUTPUT_DIR    "${CMAKE_CURRENT_BINARY_DIR}/docs")
-    # Promoted notes/ pages — D6-A only includes the 13 EVERGREEN
-    # files audited as PROMOTE-AS-IS (see TODO.md D6).  The other 26
-    # notes/ files are intentionally excluded: 16 await per-file
-    # cleanup (D6-B) and 10 are working-doc tracking files
-    # (incidental_findings, unknowns, etc.) that are not user-facing
-    # reference material.
+    # Promoted notes/ pages — D6-A added the 13 EVERGREEN files;
+    # D6-B is incrementally promoting the 16 MIXED files after
+    # per-file cleanup.  The remaining 10 files are working-doc
+    # tracking files (incidental_findings, unknowns, etc.) that
+    # are not user-facing reference material and stay excluded.
     set(DOXYGEN_NOTES_PAGES
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/cervino_vs_hirzel.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_format.md"
@@ -204,6 +203,12 @@ if(DOXYGEN_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/special_registers.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/static_resources_cervino_consts.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/waveform_generator_funcmap.md"
+        # D6-B batch 1
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/awg_device_props.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/binary_contents_excluded.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/device_constants.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_language_features_excluded.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/write_waves_to_elf.md"
     )
     string(REPLACE ";" " " DOXYGEN_NOTES_PAGES_STR "${DOXYGEN_NOTES_PAGES}")
     set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md ${DOXYGEN_NOTES_PAGES_STR}")

@@ -1,4 +1,12 @@
-# AWG Device Props (Phase 14b-iii)
+# AWG Device Props {#notes_awg_device_props}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 Notes for `reconstructed/include/zhinst/device/awg_device_props.hpp` and
 `reconstructed/src/device/awg_device_props.cpp`.
@@ -26,19 +34,41 @@ Notes for `reconstructed/include/zhinst/device/awg_device_props.hpp` and
 
 ## AwgDeviceProps layout (binary: libc++; reconstruction: libstdc++)
 
-| Offset (libc++) | Offset (libstdc++) | Size | Field | Note |
-|---:|---:|---:|---|---|
-| +0x00 | +0x00 | 4 | `AwgDeviceType deviceType` | one-hot bit per device |
-| +0x04 | +0x04 | 4 | (padding) | |
-| +0x08 | +0x08 | 24 / 32 | `std::string elfDataPattern` | path pattern |
-| +0x20 | +0x28 | 24 / 32 | `std::string elfProgressPattern` | path pattern |
-| +0x38 | +0x48 | 24 / 32 | `std::string enablePattern` | path pattern |
-| +0x50 | +0x68 | 8 | `uint64_t maxWaveformSamples` | **field name INFERRED** |
-| +0x58 | +0x70 | 8 | `uint64_t maxWaveformBytes` | **field name INFERRED** |
-| +0x60 | +0x78 | 1 | `bool supportsExtraFeature` | **field name INFERRED** |
-| +0x61 | +0x79 | 7 | (padding) | |
-| +0x68 | +0x80 | 24 / 32 | `std::string fpgaRevisionPattern` | also "slaverevision" for HDAWG |
-| Total | | | | 0x80 (libc++) / 0xa0 (libstdc++) |
+| Offset (libc++) | Offset (libstdc++) | Size | Field |
+|---:|---:|---:|---|
+| +0x00 | +0x00 | 4 | `AwgDeviceType deviceType` (one-hot bit per device) |
+| +0x04 | +0x04 | 4 | (padding) |
+| +0x08 | +0x08 | 24 / 32 | `std::string elfDataPattern` |
+| +0x20 | +0x28 | 24 / 32 | `std::string elfProgressPattern` |
+| +0x38 | +0x48 | 24 / 32 | `std::string enablePattern` |
+| +0x50 | +0x68 | 8 | `uint64_t maxElfSize` (JSON key `"maxelfsize"`) |
+| +0x58 | +0x70 | 4 | `uint32_t addressImpl` (waveform-memory base / entry point) |
+| +0x5c | +0x74 | 4 | `uint32_t sampleFormat` (`SampleFormat` enum, 0/1/2) |
+| +0x60 | +0x78 | 1 | `bool isHirzel` (Hirzel-generation device family) |
+| +0x61 | +0x79 | 7 | (padding) |
+| +0x68 | +0x80 | 24 / 32 | `std::string fpgaRevisionPattern` (also "slaverevision" for HDAWG) |
+| Total | | | 0x80 (libc++) / 0xa0 (libstdc++) |
+
+The +0x58 region is a single qword store in the binary, but consumers
+read it as two independent `uint32_t` fields (`addressImpl` low,
+`sampleFormat` high).  This explains the per-template values listed
+below:
+
+- UHFLI/UHFQA: 0xd0000000 = `addressImpl=0xd0000000`, `sampleFormat=0`
+- HDAWG:      0x180000000 = `addressImpl=0x80000000`, `sampleFormat=1`
+- SHFQA:      0x200000000 = `addressImpl=0x00000000`, `sampleFormat=2`
+
+`isHirzel` = `true` for HDAWG, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI.
+`isHirzel` = `false` for UHFLI, UHFQA, SHFQA.
+
+Field-name evidence (binary consumers):
+
+| Field | Consumer evidence |
+|-------|-------------------|
+| `maxElfSize` | JSON key `"maxelfsize"` in `compileSeqc` @0xf6a41 |
+| `addressImpl` | `AWGCompilerImpl` ctor @0x103b99 → `config.addressImpl` (+0x10) |
+| `sampleFormat` | `writeWavesToElf*` @0x10e049 → `config.sampleFormat` (+0x04) |
+| `isHirzel` | `compileSeqc` @0xf67cd → `config.isHirzel` (+0x18) |
 
 ## AwgPathPatterns layout
 
@@ -71,17 +101,17 @@ anonymous-namespace helper) directly constructs the final
 
 ## Per-template constants
 
-| T | addr | bool | +0x50 (samples) | +0x58 (bytes) | path patterns | 4th string |
+| T | addr | `isHirzel` | `maxElfSize` | `addressImpl` / `sampleFormat` | path patterns | 4th string |
 |---|---|---:|---:|---:|---|---|
-| UHFLI(1) | 0x2cc900 | 0 | 0x10000000 (256M) | 0xd0000000 (~3.5G) | Default | fpgarevision |
-| HDAWG(2) | 0x2ccb80 | 1 | cond(ME) | 0x180000000 (6G) | Default | slaverevision |
-| UHFQA(4) | 0x2cc5f0 | 0 | 0x10000000 | 0xd0000000 | Default | fpgarevision |
-| SHFQA(8) | 0x2cce30 | 0 | 0x80000000 (2G) | 0x200000000 (8G) | GrimselQa | fpgarevision |
-| SHFSG(16) | 0x2cd0c0 | 1 | 0x80000000 | 0x100000000 (4G) | GrimselSg | fpgarevision |
-| SHFQC_SG(32) | 0x2cd350 | 1 | 0x80000000 | 0x100000000 | GrimselSg | fpgarevision |
-| SHFLI(64) | 0x2cd5e0 | 1 | 0x80000000 | 0x100000000 | GrimselLi | fpgarevision |
-| VHFLI(256) | 0x2cd870 | 1 | 0x80000000 | 0x100000000 | Maloja (= GrimselLi copy) | fpgarevision |
-| GHFLI(128) | 0x2cdb00 | 1 | 0x80000000 | 0x100000000 | Gurnigel (= GrimselLi copy) | fpgarevision |
+| UHFLI(1) | 0x2cc900 | 0 | 0x10000000 (256M) | 0xd0000000 / 0 | Default | fpgarevision |
+| HDAWG(2) | 0x2ccb80 | 1 | cond(ME) | 0x80000000 / 1 | Default | slaverevision |
+| UHFQA(4) | 0x2cc5f0 | 0 | 0x10000000 | 0xd0000000 / 0 | Default | fpgarevision |
+| SHFQA(8) | 0x2cce30 | 0 | 0x80000000 (2G) | 0x00000000 / 2 | GrimselQa | fpgarevision |
+| SHFSG(16) | 0x2cd0c0 | 1 | 0x80000000 | 0x00000000 / 1 | GrimselSg | fpgarevision |
+| SHFQC_SG(32) | 0x2cd350 | 1 | 0x80000000 | 0x00000000 / 1 | GrimselSg | fpgarevision |
+| SHFLI(64) | 0x2cd5e0 | 1 | 0x80000000 | 0x00000000 / 1 | GrimselLi | fpgarevision |
+| VHFLI(256) | 0x2cd870 | 1 | 0x80000000 | 0x00000000 / 1 | Maloja (= GrimselLi copy) | fpgarevision |
+| GHFLI(128) | 0x2cdb00 | 1 | 0x80000000 | 0x00000000 / 1 | Gurnigel (= GrimselLi copy) | fpgarevision |
 
 HDAWG's conditional sample limit:
 ```
@@ -142,26 +172,11 @@ marks SSO/short form), which is why a 4-char string writes `0x08`.
 
 ## Asymmetries / quirks
 
-## Field names — VERIFIED (Phase 21f)
-
-Field names verified from binary consumer analysis:
-
-| Offset | Old name (inferred 14b-iii) | Correct name | Consumer evidence |
-|--------|----------------------------|--------------|-------------------|
-| +0x50 | `maxWaveformSamples` (uint64) | `maxElfSize` (uint64) | JSON key `"maxelfsize"` in `compileSeqc` @0xf6a41 |
-| +0x58 | `maxWaveformBytes` (uint64) | `addressImpl` (uint32) | AWGCompilerImpl ctor @0x103b99 → config.addressImpl (+0x10) |
-| +0x5c | (part of above) | `sampleFormat` (uint32) | writeWavesToElf* @0x10e049 → config.sampleFormat (+0x04) |
-| +0x60 | `supportsExtraFeature` (bool) | `isHirzel` (bool) | compileSeqc @0xf67cd → config.isHirzel (+0x18) |
-
-The +0x58 was a single qword store in the binary but consumers read
-it as two independent uint32_t fields. This explains the previously
-puzzling values:
-- UHFLI/UHFQA: 0xd0000000 = addressImpl=0xd0000000, sampleFormat=0
-- HDAWG: 0x180000000 = addressImpl=0x80000000, sampleFormat=1
-- SHFQA: 0x200000000 = addressImpl=0x00000000, sampleFormat=2
-
-`isHirzel` = true for: HDAWG, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI.
-`isHirzel` = false for: UHFLI, UHFQA, SHFQA.
+1. **+0x58 is a single qword store, two `uint32_t` reads**: the binary
+   stores `addressImpl` (low) and `sampleFormat` (high) as one 8-byte
+   value at +0x58, but every consumer reads them as two independent
+   `uint32_t` fields.  Hence the per-template "addressImpl /
+   sampleFormat" pairs in the constants table above.
 
 2. **AwgSequencerType has no enumerator for "unknown"**: the
    error-message formatter has a default branch that names any
@@ -185,8 +200,6 @@ puzzling values:
 5. **The same source TU also defines `getDeviceConstants(AwgDeviceType)`**
    (binary 0x2cc0c0). The .rodata path-info string at 0x90b1a8 is
    `/builds/labone/labone/ziAWG/ziAWGDevice/src/constants.cpp` — so
-   both `getDeviceConstants` and `getAwgDeviceProps` came from
-   `constants.cpp` in the original tree. The `DeviceConstants` struct
-   header already exists in `device_constants.hpp` (from earlier
-   work); only the `getDeviceConstants` body remains to be
-   reconstructed in a future sub-phase.
+   both `getDeviceConstants` and `getAwgDeviceProps` originate from
+   `constants.cpp` in the original tree.  See
+   \ref notes_device_constants for the `getDeviceConstants` decode.
