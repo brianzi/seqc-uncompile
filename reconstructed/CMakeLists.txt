@@ -209,6 +209,14 @@ if(DOXYGEN_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/device_constants.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_language_features_excluded.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/write_waves_to_elf.md"
+        # D6-B batch 2
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/asm_parser_grammar.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/differential_testing.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_reader.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/magic_numbers_proposal.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_parser_grammar.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/splitreg_loop_model.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/writeToNode_block_d_protocol.md"
     )
     string(REPLACE ";" " " DOXYGEN_NOTES_PAGES_STR "${DOXYGEN_NOTES_PAGES}")
     set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md ${DOXYGEN_NOTES_PAGES_STR}")

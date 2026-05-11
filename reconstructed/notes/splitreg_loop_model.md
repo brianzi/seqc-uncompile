@@ -1,4 +1,12 @@
-# splitReg Loop Model — GDB-Verified Reconstruction of 0x281000..0x2814cc
+# splitReg Loop Model — GDB-Verified Reconstruction of 0x281000..0x2814cc {#notes_splitreg_loop_model}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 Verified for `hb_b_reg_count.seqc` (HDAWG8). Counters and per-iter
 behavior captured by GDB on the original `_seqc_compiler.so` binary.
@@ -136,18 +144,3 @@ EPI call=1 splits=3 allOk=1 didSplit=1
 ```
 
 No BLK2 in this test (end == list.end() for every call).
-
-## Recon bugs (pre-fix at asm_optimize_regalloc.cpp:666-782)
-
-1. Computes ONE `startOff`/`endOff` and writes to those fixed slots every
-   iter. Binary writes to per-iter slots `&list[iter-2]` and `&list[iter-1]`.
-2. Block 1 clones from `end`. Binary clones from `start`.
-3. Block 1 sets `cmd=ADDI`, `regSrc=reg`. Binary leaves `cmd` unchanged
-   (whatever start has) and sets only `regDst = newReg`.
-4. Block 2 unconditionally sets `regSrc = AsmRegister(0)`. Binary chooses
-   based on `start.cmd == ADDI`.
-5. Renames `regDst` + `regAux` of current. Binary renames `regSrc` + `regAux`.
-6. Allocates `newReg` only on first split. Binary allocates fresh per split.
-7. Missing: per-split `sequenceId` (1 or 2 fresh IDs from `createUniqueID`),
-   `wavetableFront` propagation, `noOpt` recomputation, `node` reset.
-8. (Epilogue logic in recon is essentially correct.)

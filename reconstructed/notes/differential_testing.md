@@ -1,4 +1,12 @@
-# Differential Testing
+# Differential Testing {#notes_differential_testing}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Approach
 
@@ -41,126 +49,14 @@ Each entry specifies:
 - `samplerate` (optional) — sample rate in Hz
 - `sequencer` (optional) — sequencer type (`"qa"`, `"sg"`)
 
-## Current coverage (69 test cases, 2026-04-27 — ALL PASS)
-
-### By device type
-
-| Device | Cases | Notes |
-|--------|-------|-------|
-| HDAWG8 | 59 | index 0 (58) + index 1 (1) |
-| SHFQA4 | 6 | sequencer=qa |
-| SHFSG8 | 4 | sequencer=sg |
-
-### By language feature
-
-| Feature | Test cases |
-|---------|------------|
-| Empty program / nop | hdawg_nop, shfqa_nop, shfsg_nop |
-| `playZero` | hdawg_playZero, hdawg_waitWave |
-| `playHold` | hdawg_playHold |
-| `wait` | hdawg_wait |
-| `setTrigger` | hdawg_setTrigger, shfqa_basic |
-| `waitWave` | hdawg_waitWave, hdawg_playHold |
-| `var` declarations | hdawg_variable, hdawg_arithmetic, hdawg_assign_ops |
-| `const` declarations | hdawg_const, hdawg_arithmetic |
-| Arithmetic (+, -, *) | hdawg_arithmetic, hdawg_assign_ops |
-| Comparison (==, <, >=, >) | hdawg_comparisons, hdawg_ternary |
-| Logical (&&, \|\|, !) | hdawg_logical |
-| Bitwise (&, \|, ^, <<, >>) | hdawg_bitwise |
-| Unary (-, ~) | hdawg_unary |
-| Increment/decrement (++, --) | hdawg_inc_dec |
-| Ternary (?:) | hdawg_ternary |
-| `for` loop | hdawg_for_loop, hdawg_mixed_loops |
-| `while` loop | hdawg_while_loop, hdawg_nop |
-| `do-while` loop | hdawg_do_while |
-| `repeat` | hdawg_repeat_playZero, hdawg_nested_repeat, hdawg_mixed_loops, shfsg_loops |
-| `if/else` | hdawg_if_else, hdawg_comparisons |
-| Nested control flow | hdawg_nested_repeat, hdawg_mixed_loops |
-| Multi-AWG index | hdawg_awg1 |
-| Multi-device type | shfqa_basic, shfsg_loops |
-
 ## Known limitations
-
-### ELF size gap
-
-All tests pass section-content comparison, but overall ELF file sizes
-differ consistently (reconstruction is ~10-30% smaller). This is due to
-structural ELF differences — likely section alignment, padding, or
-section header table placement — not code differences. The ELFIO library
-version and configuration used by the reconstruction may produce
-different structural layout than the original binary's ELFIO build.
-
-Example: `hdawg_for_loop` orig=1644 bytes, recon=1320 bytes, but all
-named sections have identical content.
 
 ### Return type mismatch
 
 The pybind11 binding returns `(bytes, json_string)` where the original
 returns `(bytes, dict)`. The test worker handles this by comparing only
-the ELF bytes. The JSON metadata comparison is not yet implemented.
-
-## Potential future developments
-
-### More test cases
-
-**Language features not yet tested:**
-- `switch/case` statements
-- String variables and operations
-- DIO/ZSync playback (`playWaveDIO`, `playWaveZSync`)
-- QA functions (`startQA`, `startQAResult`, `executeTableEntry`)
-- PRNG functions (`setPRNGSeed`, `setPRNGRange`, `getPRNGValue`)
-- Feedback processing (`configureFeedbackProcessing`, `getFeedback`)
-- `generate` (user-defined waveform generation)
-- Nested function calls / recursive patterns
-- Error cases (compile-time errors should match between original and reconstruction)
-
-**Additional device types:**
-- UHFLI, UHFQA (Cervino family)
-- SHFQC (dual-sequencer: qa + sg)
-- GHFLI, VHFLI (newer Cervino-like)
-- HDAWG4 (4-channel variant)
-
-**Edge cases:**
-- Maximum nesting depth
-- Large loop counts (optimizer stress)
-- Empty loops / dead code
-- Multiple AWG indices on same device
-- Programs that produce warnings (non-fatal compilation messages)
-
-### Metadata comparison
-
-The current harness only compares ELF bytes. The compilation also
-returns metadata (JSON dict / string) containing compiler messages,
-waveform info, etc. A future enhancement would compare this metadata
-field-by-field, which would catch differences in:
-- Warning messages (text and line numbers)
-- Waveform memory allocation info
-- Node access lists
-
-### ELF byte-identical matching
-
-Closing the ELF size gap would allow byte-identical comparison (the
-strongest possible validation). This likely requires:
-- Matching the ELFIO version and build configuration used by the
-  original binary
-- Matching section alignment settings in `ElfWriter::prepareHeader()`
-- Potentially matching the section header table offset calculation
-
-### Error case testing
-
-Programs that should fail compilation can also be differentially tested:
-both compilers should produce the same error message. The harness already
-supports this (compares error strings when both fail). Useful error cases:
-- Undefined variable references
-- Type mismatches (`var * var`)
-- Unsupported device functions (`waitWave` on SHFQA)
-- Syntax errors
-
-### Performance regression testing
-
-For large programs, track compilation time as a secondary metric. Not
-critical for correctness but useful for catching algorithmic regressions
-in the optimizer or prefetcher.
+the ELF bytes. The JSON metadata comparison is not currently exercised
+by the harness.
 
 ---
 

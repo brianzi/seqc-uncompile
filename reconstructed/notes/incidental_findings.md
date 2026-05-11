@@ -7322,3 +7322,34 @@ narrative from the header / comment.  No TODO needs to be
 filed for the stub itself; it can stay constant-`false` until
 an MF-hosted test surface materialises.
 
+## IF-254  `magic_numbers_proposal.md` had wrong `Variable::flags` type and Frozen-bit position
+
+**Severity**: cosmetic (notes-file only; no source-code impact).
+
+**Status**: fixed (notes file rewritten to match canonical header,
+2026-05-11).
+
+**Discovered**: D6-B batch 2 promotion audit of
+`reconstructed/notes/magic_numbers_proposal.md`.
+
+The notes file's "A4. `Variable::flags`" entry described the field
+type as `uint16_t` and the Frozen flag as bit 1 (mask `0x02`).  The
+canonical header `reconstructed/include/zhinst/runtime/resources.hpp`
+has been the authority since at least the resources rework:
+
+- `int16_t flags;` (signed, not unsigned) at offset +0x50.
+- `static constexpr int16_t VarFlag_Written = 0x01;` (bit 0 — matches notes).
+- `static constexpr int16_t VarFlag_Frozen  = 0x100;` (bit 8 — notes
+  said bit 1, which is wrong).
+
+`Frozen` lives in the **high byte** of the 16-bit `flags` word; the
+low byte holds `Written`/initialised state and `Frozen` is set by
+`Function::addArgument` to gate subsequent `update*`-with-value calls.
+This was already verified-correct in `resources.cpp` (`v.flags |=
+static_cast<int16_t>(scopeBoundaryFlags_)` patterns, where
+`scopeBoundaryFlags_` is OR'd into the high byte).
+
+The notes file was the only secondary source carrying the wrong
+bit position; corrected during the page promotion.  No source-code
+or test changes were required.
+

@@ -1,4 +1,12 @@
-# SeqC Parser Grammar Reconstruction
+# SeqC Parser Grammar Reconstruction {#notes_seqc_parser_grammar}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Overview
 
@@ -376,11 +384,9 @@ From disassembly of seqc_parse's yyreduce switch (jump table at 0x960c5c):
 
 ## Assignment rules: `$1` vs `$$` field modification
 
-**Discovery (Phase 30f, 2026-04-26):**
-
 Parser rules 52-62 (assignment_expression variants) modify `valueType` and
 `valueCategory` on the **LHS expression (`$1`)**, not on the operator result
-(`$$`). This was confirmed by disassembling the binary at 0x2ca99c:
+(`$$`). Confirmed by disassembling the binary at 0x2ca99c:
 
 ```asm
 ; After: rax = createOperator(ctx, $1, $3, eASSIGN)

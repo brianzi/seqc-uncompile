@@ -1,4 +1,12 @@
-# writeToNode — Block D ([0x164b19..0x169d83]) emit-protocol catalogue
+# writeToNode — Block D ([0x164b19..0x169d83]) emit-protocol catalogue {#notes_writeToNode_block_d_protocol}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Scope
 
@@ -89,10 +97,9 @@ through vtable `@b03dc0`).
 | 4 (freq)| 0x164ee7 | 0x164eec → 0x16a12d (or fallthrough chain) | 1 | (`Immediate(NodeMap::toFrequency(val.toDouble(), getSampleClock()))`, 0x10) | Calls `Value::toDouble()` @0x164ef9, `getSampleClock()` @0x164f06, `NodeMap::toFrequency(double,double)` @0x164f13. Slow-arm var-dispatch at 0x164ee7→0x16a12d. Body 0x164ef2..0x164fb4. |
 | 5 (oscsel/phase) | 0x1652e6 | 0x1653a3 → 0x1676ce | 1 | (`Immediate(NodeMap::toPhase(val.toFloat()))`, 0x10) | Calls `Value::toDouble()` @0x1652f8; `cvtsd2ss; NodeMap::toPhase(float)` @0x165301. Slow arm @0x1652e6→0x16a259. |
 
-NB: typeIdx ↔ semantic-name mapping corrected in Phase 22e (deferred cleanup).
-Previous version had cases 1 and 4 swapped. The authoritative source is
+The authoritative typeIdx ↔ semantic-name mapping is in
 `custom_functions_play.cpp` (writeToNode switch), confirmed against the
-NodeTypeIdx enum in `node_map_data.hpp`:
+`NodeTypeIdx` enum in `node_map_data.hpp`:
 {0:IntegerPassthrough, 1:SinePair, 2:FloatBits, 3:RawDoubleLow32,
 4:Frequency, 5:Phase}.
 
@@ -179,7 +186,7 @@ distinguishing the two halves (offset 0/1 within a stereo channel).
 | BC.4       | 2, 0xc, addr                  | 0x10, 0x11, 0x12  | 3 addi / 3 suser |
 | BC.5       | 0xc, addr, 0xd, addr          | 0x10,0x11,0x12, 0x10,0x11,0x12 | 6 addi+suser pairs (two triplets) |
 
-Variant-dispatch (vtable @b03dc0) tail-handlers are reached via the
+Variant-dispatch (vtable `@b03dc0`) tail-handlers are reached via the
 `jne <slow>` branches at the start of every fast-arm; they do *the same*
 addi chain but with the immediate sourced from `val.toInt()` (calls
 `floatEqual` first to validate the double is integer; throws
@@ -232,26 +239,7 @@ e.g. 0x164e90, 0x164fc0, 0x165210, 0x1653b0 etc.). These are not
 documented per-case because they're emitted by a single shared codegen
 template (rg "Assembler::~Assembler" finds 30+ identical 30-byte loops).
 
-## Open questions
-
-1. The exact jt order at `@0x958f50` and `@0x958f68` is inferred from
-   linear ordering of case bodies. To verify, dump 24 bytes from the
-   binary at those addresses and decode each as `int32_t` offset
-   relative to the table base, then add to find the target VA.
-2. Whether emit-opcodes 0x10/0x11/0x12 correspond to the existing
-   `seqc.user_store_{lo,mid,hi}` opcodes already documented in
-   `opcode_map.md` — should cross-reference.
-3. `[r12+0x30]` is the variant payload — for varType==2 it's an
-    `AsmRegister` (since suser takes one). For other variants the slow
-   arm runs `boost::apply_visitor` via vtable @b03dc0; the visitor
-   layout was not analysed here.
-4. The "addr-as-Immediate" steps (BC.4 step 3, BC.5 step 2 in each
-   triplet) effectively *embed* the resolved node address into the
-   instruction stream as an immediate. This is the mechanism by which
-   user-store opcodes know which device register to target without an
-   extra register move.
-
-## Slow-arm error IDs (21b.5)
+## Slow-arm error IDs
 
 When `varType` doesn't match the expected arm:
 
@@ -267,7 +255,7 @@ When `varType` doesn't match the expected arm:
 A.0/A.1 slow arms and BC.2/BC.3 slow arms are real codegen paths (not
 throws). They use warning 0x80 when `floatEqual(toDouble, toInt)` fails.
 
-## Per-case post-tails (21b.5 discovery, corrected 2026-04-24)
+## Per-case post-tails
 
 Path-A cases have **per-case post-tail** sequences AFTER the case body
 suser(0x17) emission. Each typeIdx has a distinct tail. **Only typeIdx 0

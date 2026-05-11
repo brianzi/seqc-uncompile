@@ -1,4 +1,12 @@
-# ASM Parser Grammar Reconstruction
+# ASM Parser Grammar Reconstruction {#notes_asm_parser_grammar}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Overview
 
@@ -244,9 +252,7 @@ is tracked via:
 - `startBlockComment()` / `endBlockComment()` — `/*` to `*/`
 - Encountering `*/` outside a comment raises "unexpected token '*/'"
 
-## Reconstruction Plan
-
-### Status: COMPLETE
+## Bison parse-table parity
 
 All bison parse tables generated from the reconstructed `asm_parser.y`
 match the binary's tables byte-for-byte:
@@ -261,30 +267,13 @@ match the binary's tables byte-for-byte:
 | yytable      | EXACT |
 | yycheck      | EXACT |
 | yydefact     | EXACT |
-| yypgoto      | EXACT |
+| yypgoto     | EXACT |
 | yydefgoto    | EXACT |
 
-### Files Created
-
-- `src/asm/asm_parser.y` — bison grammar (19 rules, semantic actions)
-- `src/asm/asm_lexer.l` — flex lexer (token patterns, comment handling)
-- CMakeLists.txt updated with flex/bison build rules
-
-### Key Build Notes
+### Build notes
 
 - Generated .c files compiled as C++ (`LANGUAGE CXX` property) since
   semantic actions reference C++ types (AsmExpression*, std::string)
 - `%code requires` block in .y exports forward declarations into .tab.h
 - `#define YYSTYPE ASMSTYPE` in .l bridges flex's bison-bridge to the
   prefixed union name
-
-## Comparison: SeqC Parser (Future Work)
-
-The SeqC parser is much larger but follows the same architecture:
-- ~111 tokens including C operators and DSP keywords (KW_WAVE, KW_CVAR, etc.)
-- ~43 nonterminals following classic ANSI C yacc grammar structure
-- Standard expression-precedence grammar (multiplicative, additive, etc.)
-- Uses `SeqcParserContext` instead of `AsmParserContext`
-- Entry: `seqc_parse` at 0x2ca2a0 (5,777 B)
-- Reconstruction would follow the same methodology but require
-  significantly more effort

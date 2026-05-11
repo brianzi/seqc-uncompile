@@ -248,6 +248,13 @@ API-documentation voice rules (no binary citations outside
 | **`writeWavesToElf` lambdas** | \ref notes_write_waves_to_elf |
 | **SeqC language non-features (rejected constructs)** | \ref notes_seqc_language_features_excluded |
 | **Original-binary contents excluded from scope** | \ref notes_binary_contents_excluded |
+| **ASM parser grammar (flex/bison reconstruction)** | \ref notes_asm_parser_grammar |
+| **SeqC parser grammar (flex/bison reconstruction)** | \ref notes_seqc_parser_grammar |
+| **Differential testing harness** | \ref notes_differential_testing |
+| **ElfReader / ElfWriter** | \ref notes_elf_reader |
+| **Magic numbers & missing named constants** | \ref notes_magic_numbers_proposal |
+| **`splitReg` loop model** | \ref notes_splitreg_loop_model |
+| **`writeToNode` Block-D emit protocol** | \ref notes_writeToNode_block_d_protocol |
 
 The remainder of `reconstructed/notes/` (status-tracking files,
 in-progress audits, dated phase logs) is intentionally kept out of

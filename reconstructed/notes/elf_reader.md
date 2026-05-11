@@ -1,4 +1,12 @@
-# ElfReader / ElfWriter
+# ElfReader / ElfWriter {#notes_elf_reader}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 For a complete description of the ELF output format — all three variants,
 every section, segments, and reader-side consumption — see
@@ -6,13 +14,11 @@ every section, segments, and reader-side consumption — see
 
 ElfWriter (`src/io/elf_writer.cpp`, 248 lines, ctor 0x2934a0, prepareHeader,
 addCode, addData, addWaveform, writeFile ×2, setMemoryOffset) was
-reconstructed in earlier phases without ambiguity. ElfReader required
-significant correction in Phase 14d, documented below.
+reconstructed without ambiguity. ElfReader is documented below.
 
-## ElfReader layout corrections
+## ElfReader layout
 
-Old stub was 0x90 bytes and described the trailing region as a "raw byte
-buffer". Disassembly of the ctor and dtor shows otherwise:
+Disassembly of the ctor and dtor reveals the following layout:
 
 | Offset      | Field             | Type                                 |
 |-------------|-------------------|--------------------------------------|
@@ -30,27 +36,22 @@ The vector identification comes from the dtor at 0x2b18c0, which calls
 
 ## readHeader() sentinel reinterpretation
 
-The original stub described the early-exit checks as
-`get_section_offset() != 1` and `get_section_entry_size() != 1`. Those
-accessors don't exist on `ELFIO::elfio`, and even if they did, neither
-"section table file offset == 1" nor "section header entry size == 1" makes
-semantic sense as a guard.
+The early-exit checks in `readHeader` use vtable offsets +0x20 and
++0x30, which on `ELFIO::elfio` correspond to `get_class()` and
+`get_encoding()`. Both compare against the constant `1`, which decodes
+to `ELFCLASS32` (1) and `ELFDATA2LSB` (1) respectively. This is
+consistent with ElfWriter only ever producing 32-bit little-endian ELF
+files — anything else means a foreign producer and the section table is
+conservatively ignored.
 
-The actual vtable offsets are +0x20 and +0x30, which on `ELFIO::elfio`
-correspond to `get_class()` and `get_encoding()`. Both compare against the
-constant `1`, which decodes to `ELFCLASS32` (1) and `ELFDATA2LSB` (1)
-respectively. This is consistent with ElfWriter only ever producing 32-bit
-little-endian ELF files — anything else means a foreign producer and the
-section table is conservatively ignored.
+## getSection() semantics
 
-## getSection() semantics correction
-
-Old stub claimed `getSection` returned `nullptr` on miss. The disassembly
-at 0x2c4000 walks the linear section list comparing names; if no match is
-found, control falls through to a string-build of `"section not found: "
-+ name` followed by `__cxa_throw` of an `ElfException`. So **getSection
-throws on miss**. This matches how `cached_parser.cpp` uses it (outer
-`try { ... } catch (...) { outdated = true; }` blocks).
+The disassembly at 0x2c4000 walks the linear section list comparing
+names; if no match is found, control falls through to a string-build of
+`"section not found: " + name` followed by `__cxa_throw` of an
+`ElfException`. So **getSection throws on miss**. This matches how
+`cached_parser.cpp` uses it (outer `try { ... } catch (...) { outdated
+= true; }` blocks).
 
 ## ElfException class
 
@@ -83,13 +84,9 @@ Method addresses:
 
 ## ELFIO API gotcha — sectionAsString helper
 
-The pre-Phase-14d cached_parser.cpp called `sec->getDataAsString()`, which
-was a fictional method invented by the old ElfReader stub. Real
 `ELFIO::section` exposes `get_data() : const char*` and
 `get_size() : Elf_Xword` (see `/usr/include/elfio/elfio_section.hpp:53`).
-
-Rather than expanding the boilerplate at every call site, a free helper
-was added to `elf_reader.hpp`:
+A free helper in `elf_reader.hpp` wraps the common case:
 
 ```cpp
 inline std::string sectionAsString(const ELFIO::section* sec) {
@@ -103,8 +100,7 @@ inline std::string sectionAsString(const ELFIO::section* sec) {
 
 The null-check is defensive (the binary doesn't have one because in the
 binary `getSection` throws before nullptr could ever propagate). Five
-call sites in `cached_parser.cpp` were converted; no other current TU
-needed this pattern.
+call sites in `cached_parser.cpp` use this helper.
 
 ## ELFIO version-specific iteration
 
@@ -121,11 +117,6 @@ for (const auto& sec_uptr : sections) {
 A previous attempt that wrote `for (ELFIO::section* sec : sections)`
 fails to compile against this ELFIO build (the iterator dereferences to
 `unique_ptr<section>&`, not `section*`).
-
-## Build verification
-
-`cd reconstructed/build && cmake --build .` succeeds with zero warnings
-after the corrections. All TUs link into `libzhinst_seqc.a` cleanly.
 
 ## `.linenr` section format
 
@@ -182,14 +173,3 @@ source line number.
 
 This is a public API consumed by Python/LabOne; no further use exists
 within this binary.
-
-## Open items
-
-- Field at +0x90 (`ddSectionIndex_`, uint32) is zeroed by the ctor but never read
-  by any of the five reconstructed methods. Could be a flags slot for
-  a method we haven't yet identified, or compiler-inserted padding. Left
-  as a `uint32_t ddSectionIndex_ = 0` for layout fidelity, with a comment.
-- The `~ElfReader` at 0x2b18c0 is curiously placed far from the other
-  ElfReader methods (which cluster around 0x2c3000-0x2c4000). This is
-  likely the ICF/identical-code-folding artefact of a virtual dtor that
-  was merged with another type's trivial-vector-dtor. Not actionable.

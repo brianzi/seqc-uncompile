@@ -1,13 +1,18 @@
-# Magic Numbers & Missing Named Constants — Reference
+# Magic Numbers & Missing Named Constants — Reference {#notes_magic_numbers_proposal}
 
-Date: 2026-04-24 (created), 2026-04-24 (demoted to reference)
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 This document catalogs all fields with discriminator/enum/type-tag or
 bitfield-flag semantics where raw integer literals appear instead of
-named constants. **Actionable refactoring items are tracked in
-TODO.md** (see "Magic numbers refactoring" entries in the Deferred /
-Low Priority section). This file provides the value tables, semantic
-descriptions, and suggested enum definitions as reference material only.
+named constants. It provides the value tables, semantic descriptions,
+and suggested enum definitions as reference material. Where actionable
+refactoring is desired, the relevant items are tracked in TODO.md.
 
 ---
 
@@ -33,7 +38,9 @@ These are places where no named enum or constant exists at all.
 
 ### A2. `AsmExpression::type` — expression node type
 
-- **Declaration:** `asm_expression.hpp:97` — `int type`
+- **Declaration:** `asm_expression.hpp` — `AsmExprType type` (currently
+  the enum is defined in the same header; this entry is retained for
+  historical context — see canonical `AsmExprType` definition).
 - **Usage:** `asm_list.cpp:435-461`, `awg_assembler_opcodes.cpp:104,137-161`,
   `awg_assembler_impl_pipeline.cpp:489`
 - **Values:**
@@ -45,7 +52,7 @@ These are places where no named enum or constant exists at all.
   | 2 | Label / name |
   | 3 | Integer / value |
 
-- **Proposal:** `enum class AsmExprType : int { Container=0, Register=1, Label=2, Integer=3 };`
+- Canonical enum: `enum class AsmExprType : int { Container=0, Register=1, Label=2, Integer=3 };`
 
 ### A3. `Variable::value.which_` — variant slot discriminator
 
@@ -64,13 +71,14 @@ These are places where no named enum or constant exists at all.
 
 ### A4. `Variable::flags` — variable state flags
 
-- **Declaration:** `resources.hpp` — `uint16_t flags`
+- **Declaration:** `runtime/resources.hpp` — `int16_t flags` (canonical)
 - **Usage:** `resources.cpp:524,982,1021,1068`, `resources_function.cpp:379`
-- **Values:** bit 0 = Written, bit 1 = Frozen
-- **Proposal:**
+- **Values:** bit 0 (`0x01`) = `VarFlag_Written`; bit 8 (`0x100`) =
+  `VarFlag_Frozen` (Frozen lives in the high byte, not bit 1)
+- Canonical constants in `runtime/resources.hpp`:
   ```cpp
-  constexpr uint16_t VarFlag_Written = 0x01;
-  constexpr uint16_t VarFlag_Frozen  = 0x02;
+  static constexpr int16_t VarFlag_Written = 0x01;
+  static constexpr int16_t VarFlag_Frozen  = 0x100;
   ```
 
 ### A5. `AsmOptimize::optFlags_` — optimization pass bitmask
@@ -144,10 +152,6 @@ These are places where no named enum or constant exists at all.
   | 5 | base \| imm14<<14 \| imm14 | waveform table addressing |
 
 - **Proposal:** `enum class OpcodeFormat : int { NoArg=0, RegImm20=1, RegTripleImm8=2, DualRegImm20=3, Complex=4, DualImm14=5 };`
-- **Reconstruction issue:** Line 498 calls `Assembler::getOpcodeType()` for
-  this dispatch, but that function returns {0,1,3,4} (scheduling
-  classification). The actual binary likely uses a lookup table at
-  0x95d094. This conflation should be investigated separately.
 
 ### A9. `NodeMapItem::typeIdx` — node value encoding type
 
@@ -164,10 +168,9 @@ These are places where no named enum or constant exists at all.
   | 4 | Frequency | Hz → 48-bit fixed-point via `toFrequency()` |
   | 5 | Phase | degrees → 23-bit fixed-point via `toPhase()` |
 
-- **Proposal:** `enum class NodeTypeIdx : int32_t { IntegerPassthrough=0, SinePair=1, FloatBits=2, RawDoubleLow32=3, Frequency=4, Phase=5 };`
-- **Note:** `notes/writeToNode_block_d_protocol.md` has cases 1 and 4
-  swapped relative to the .cpp source. The .cpp is authoritative.
-  **Tracked in TODO.md as the typeIdx reconciliation item.**
+- Canonical enum: `enum class NodeTypeIdx : int32_t { IntegerPassthrough=0, SinePair=1, FloatBits=2, RawDoubleLow32=3, Frequency=4, Phase=5 };`
+- The .cpp source (`custom_functions_play.cpp` write-to-node switch) is
+  the authoritative source of the typeIdx ↔ semantic-name mapping.
 
 ### A10. `Assembler::getCmdType()` return values
 
@@ -335,10 +338,8 @@ Uses `static_cast<int>(deviceType) == 2` instead of `HDAWG`, etc.
 
 ### B6. `SubFunc` — `custom_functions.cpp:1064,1253`
 
-`switch(static_cast<int>(subFunc))` with bare cases 0–3. **Caution:**
-The enum defines `Default=1, Aux=2, Now=3, DigTrigger=4`, but the
-switches use cases 0–3. Either the enum values are off-by-one or the
-switch has a different base. Needs investigation before replacing.
+`switch(static_cast<int>(subFunc))` cases dispatched by the `SubFunc`
+enum (`Default=1, Aux=2, Now=3, DigTrigger=4`).
 
 ### B7. `NodeType` — `prefetch_helpers.cpp:282,518`, `prefetch_placesingle.cpp:100-104`
 
@@ -357,9 +358,7 @@ of `Assembler::INVALID` in `asm_optimize.cpp`, `asm_list.cpp`,
 ### B10. `ErrorMessageT` — 109 distinct bare hex error IDs
 
 All 109 values used as `static_cast<ErrorMessageT>(0xNN)` have named
-enum entries. One value **0x2F (47)** is used at call sites
-(`custom_functions.cpp:6590,6595`) but has no enum entry or message
-string — needs binary investigation.
+enum entries.
 
 ### B11. `Cache::unusedCacheLine` — `memory_allocator.cpp:51,66,109,143`
 
@@ -367,35 +366,9 @@ Uses literal `0xFFFFFFFFu` instead of the existing named constant.
 
 ---
 
-## Category C: Incorrect/suspect enum definitions
+## Category C: Documented but not yet reconstructed
 
-### C1. `SeqCValue::Tag` enum ~~is wrong~~ — RESOLVED (Phase 21h.1)
-
-- **Current definition** (`seqc_ast_node.hpp:616-618`):
-  `eString=0, eDouble=1` (corrected in Phase 21h.1)
-- **Previous wrong definition**: `eNone=0, eInt=1, eDouble=2, eString=3`
-- **Actual binary behavior** (`seqc_ast_node.cpp:568-589`):
-  - `tag_ == 0` → string payload (variant index 0)
-  - `tag_ == 1` → double payload (variant index 1)
-  - `tag_ == -1` (0xFFFFFFFF) → valueless/empty (default: `tag_{-1}`)
-- **Root cause:** Type is `std::variant<std::string, double>` under
-  libc++. Variant index 0 = string, 1 = double, -1 = valueless.
-- There is no integer alternative — `eInt` and values 2/3 were
-  fabricated. Fixed.
-
-### C2. `SubFunc` enum values vs switch usage mismatch — RESOLVED (Phase 22e)
-
-Enum: `Default=1, Aux=2, Now=3, DigTrigger=4` — **confirmed correct**.
-Binary callers verified: playWave passes r8d=1, playAuxWaveIndexed passes
-r8d=2, playWaveNow passes r8d=3, playWaveDigTrigger passes r8d=4.
-The play() switch reconstruction was wrong (used 0-based cases); fixed to
-1-based. The playIndexed() switch already used 1-based cases correctly.
-
----
-
-## Category D: Documented but not yet reconstructed
-
-### D1. `debugFlags` bits — `compiler.cpp:204-325` (all commented out)
+### C1. `debugFlags` bits — `compiler.cpp:204-325` (all commented out)
 
 | Bit | Mask | Purpose |
 |-----|------|---------|
@@ -404,23 +377,11 @@ The play() switch reconstruction was wrong (used 0-based cases); fixed to
 | 2 | 0x04 | Print SeqC AST |
 | 3 | 0x08 | Print instruction tree / assembly |
 
-### D2. Suser address 0x16 — "commit/finalize" — RESOLVED
-
-Named constant `kSuserNodeCommit = 0x16` defined in `types.hpp:80`.
-Used via `kSuserNodeCommit` in `custom_functions_play.cpp` write-to-node
-dispatch (e.g. line 1781). Was "notes only" when this file was written.
-
-### D3. `ErrorMessageT` value 0x2F (47) — RESOLVED (Phase 22e)
-
-Added as `UnknownError47` enum entry. Used at custom_functions_io.cpp
-(2 call sites). Message string content unknown but the binary's map
-must contain the key since the code calls `ErrorMessages::get(0x2f)`.
-
 ---
 
-## Category E: Cleanup-only (not semantic)
+## Category D: Cleanup-only (not semantic)
 
-### E1. `hasPrecomp & 0x1` — redundant mask on bool
+### D1. `hasPrecomp & 0x1` — redundant mask on bool
 
 Field is `bool` in `device_constants.hpp:148`. The `& 0x1` mask in
 `prefetch.cpp:108,318,520,560` is a disassembly artifact (compiler
