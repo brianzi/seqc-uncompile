@@ -54,9 +54,10 @@ double awg2double(uint16_t sample) {
 }
 
 // 0x2996f0 — extract marker bits (bottom 2) from AWG sample
-// Binary: AND 0x03
-uint16_t awg2marker(uint16_t sample) {
-    return sample & 0x3;
+// Binary: AND 0x03 (mov %edi,%eax; and $0x3,%al; ret) — only %al is
+// written, so the binary's effective return type is uint8_t.
+uint8_t awg2marker(uint16_t sample) {
+    return static_cast<uint8_t>(sample & 0x3);
 }
 
 // 0x299740 — convert 32-bit sample (right-shift 2, sign-extend 16-bit) to double
@@ -83,32 +84,13 @@ std::string hash2str(const std::vector<uint32_t>& data) {
 
 }} // namespace util::wave
 
-// Top-level aliases (the binary exports both namespaced and non-namespaced)
-//! \brief Convert a packed 14-bit-sample-plus-2-marker AWG word into a
-//!        normalised `double` in roughly the range `[-1.0, 1.0)`.
-//!
-//! \details Thin forwarder that delegates to
-//! `util::wave::awg2double()` so call sites that pulled in the legacy
-//! non-namespaced spelling keep compiling.  The conversion clears the
-//! two marker bits with `& 0xFFFC`, sign-extends the remaining 14-bit
-//! signed sample to 16 bits and divides by `32767.0`.
-//!
-//! \param sample  Raw 16-bit AWG word (sample in the high 14 bits,
-//!                markers in the low 2 bits).
-//! \return Sample amplitude as a `double`.
-double awg2double(uint16_t sample) { return util::wave::awg2double(sample); }
-//! \brief Extract the two marker bits from a packed AWG sample word.
-//!
-//! \details Thin forwarder that delegates to
-//! `util::wave::awg2marker()`; equivalent to `sample & 0x3`.
-//!
-//! \param sample  Raw 16-bit AWG word (sample in the high 14 bits,
-//!                markers in the low 2 bits).
-//! \return Two-bit marker pattern in the low bits of a `uint16_t`.
-//!
-//! \binarynote The return type is `uint16_t` here whereas the
-//! `util::wave` overload returns `uint8_t`; both spellings coexist in
-//! the binary's symbol table.
-uint16_t awg2marker(uint16_t sample) { return util::wave::awg2marker(sample); }
+// Note: The binary exports only the `util::wave::` symbols
+// (`_ZN6zhinst4util4wave10awg2doubleEt`,
+// `_ZN6zhinst4util4wave10awg2markerEt`,
+// `_ZN6zhinst4util4wave12awg2double16Ej`).  No top-level
+// `zhinst::awg2double` / `zhinst::awg2marker` wrappers exist in
+// `_seqc_compiler.so`; earlier reconstruction passes added them
+// on hypothesis (see IF-239) but they had no callers and no
+// binary counterpart, and have been removed.
 
 } // namespace zhinst

@@ -1116,9 +1116,9 @@ protected:
     //! \brief Reconstruction-only helper that would re-package the
     //! inline `std::function` into a fresh callable.
     //! \verifyme No call site in the reconstructed tree references
-    //!         this declaration; left in place to document the
-    //!         binary's inline `__function::__base::__invoke` access
-    //!         pattern.
+    //!         this declaration; the body has never been
+    //!         reconstructed.  Left in place as a placeholder for
+    //!         the eventual helper.
     //! \return A callable forwarding to the inline warning-reporter
     //!         `std::function` (or an empty `std::function` when none
     //!         is installed).

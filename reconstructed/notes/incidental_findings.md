@@ -6173,7 +6173,12 @@ forms were covered.
 ## IF-235  `StaticResources::errorReportTarget()` is a declared-but-undefined orphan helper
 
 **Severity**: low (cosmetic / dead declaration)
-**Status**: confirmed
+**Status**: **closed-documented** — kept as a declaration with a
+`\verifyme` brief noting it is a binary-faithful orphan; the
+brief in `resources.hpp` was rewritten to be voice-rule clean
+(no addresses, no binary references). No code change beyond
+documentation; declaration retained to mirror the original
+class layout.
 **Source**: `reconstructed/include/zhinst/runtime/resources.hpp:1081`
 
 ### Observation
@@ -6467,7 +6472,14 @@ This commit:
 ## IF-239 — `awg2marker` return-type mismatch between forward decl and definition
 
 **Severity**: low (cosmetic / type-system)
-**Status**: open
+**Status**: **fixed** — `awg2marker` return type aligned to
+`uint8_t` at `reconstructed/src/core/stubs.cpp:58`; the phantom
+top-level wrappers `zhinst::awg2double` and `zhinst::awg2marker`
+were removed (verified absent from the binary symbol table — the
+Itanium C++ ABI does not mangle return type into the symbol so a
+single `awg2marker` definition with the correct return type
+suffices). Brief in `awg_compiler.cpp` was cleaned of binary
+internals to comply with the voice rules.
 
 **Location**:
 - Forward declaration: `reconstructed/src/codegen/awg_compiler.cpp:52` —
@@ -6498,8 +6510,14 @@ return type is `uint8_t`.
 
 ## IF-240 — `operator==(DeviceOptionSet const&, DeviceOptionSet const&)` block-header summary understates the check
 
-**Severity**: low (documentation / comment drift)
-**Status**: open
+**Severity**: low (recon body diverged from binary)
+**Status**: **fixed** — the spurious `a.family_ == b.family_`
+short-circuit added by an earlier reconstruction pass was removed
+from `reconstructed/src/device/device_type.cpp:325`. The binary
+implementation is a 6-byte tail-call that delegates straight to
+`std::operator==` on the underlying option container; the recon
+now mirrors that. The block-header summary was already
+binary-faithful; only the body needed correction.
 
 **Location**: `reconstructed/src/device/device_type.cpp:291-294`
 
@@ -6602,8 +6620,10 @@ resolved.
 ## IF-242  Table sub-path C `bgReg` ≡ Play `idxReg` (rename recommended)
 
 **Severity**: confirmed (naming).
-**Status**: **resolved** — semantic role identified.  Recommend
-naming the variable `idxReg` when reconstructing sub-path C.
+**Status**: **closed-already-applied** — verification at
+`reconstructed/src/codegen/prefetch_placesingle.cpp:741+`
+confirms the recommended `idxReg` name is already in use in the
+sub-path C reconstruction; no source change is required.
 **Discovered**: D4 IF-223 follow-up, subagent audit
 `ses_1ea03a9cbffezFNN5hEzQeoQDj`.
 

@@ -57,10 +57,7 @@ namespace util { namespace wave {
 //! \return Sample as floating-point amplitude.
 double awg2double(uint16_t raw);                 // @0x2996d0 — extract 18-bit sample as double
 //! \brief Extract the two marker bits from an AWG sample word.
-//! \details Returns `raw & 0x3`. The forward declaration here
-//! advertises `uint8_t`, but the canonical definition in
-//! `src/core/stubs.cpp` returns `uint16_t` (see IF-239 — mismatch
-//! is harmless because all caller use sites narrow the result).
+//! \details Returns `raw & 0x3` as a `uint8_t`.
 //! \param raw 16-bit packed AWG sample word.
 //! \return Marker bits in the low two bits of the return value.
 uint8_t awg2marker(uint16_t raw);                // @0x2996f0 — extract marker bits from raw word

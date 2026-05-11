@@ -312,17 +312,18 @@ void DeviceOptionSet::insert(DeviceOption opt) {
 }
 
 // @ 0x2cfd80 — compares the unordered_sets only.
+// Binary is a 6-byte tail-call to std::operator== for the
+// underlying unordered_set; family_ is not part of the contract.
 //! \brief Compare two `DeviceOptionSet` instances for equality.
-//! \details Equal iff both the `family_` (`DeviceFamily`) and the
-//! `values_` (the unordered set of `DeviceOption` codes) match.
-//! \binarynote The block-header comment "compares the unordered_sets
-//! only" understates the check: the family field is also compared
-//! (see IF-240).
+//! \details Equal iff the option codes (`values_`) match.  The
+//! `family_` field is **not** part of the equality contract — two
+//! sets with identical option codes but different families compare
+//! equal.
 //! \param a Left operand.
 //! \param b Right operand.
-//! \return `true` when family *and* option sets are equal.
+//! \return `true` when both option sets contain the same codes.
 bool operator==(DeviceOptionSet const& a, DeviceOptionSet const& b) {
-    return a.family_ == b.family_ && a.values_ == b.values_;
+    return a.values_ == b.values_;
 }
 
 // ============================================================================
