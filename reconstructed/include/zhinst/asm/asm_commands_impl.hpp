@@ -89,7 +89,7 @@ public:
     //! \param length     Sample count of the waveform.
     //! \param lineNumber Source line tagged on the emitted entry.
     //! \return The encoded assembler entry.
-    //! \binarynote Hirzel throws `AssemblerException` for this
+    //! \note Hirzel throws `AssemblerException` for this
     //! opcode; only Cervino encodes it.
     virtual AsmList::Asm wvfi(AsmRegister waveReg, AsmRegister dstReg,
                           int length, int lineNumber) const = 0;
@@ -101,7 +101,7 @@ public:
     //! \param length     Sample count.
     //! \param lineNumber Source line tagged on the emitted entry.
     //! \return The encoded assembler entry.
-    //! \binarynote Cervino throws for this opcode; only Hirzel
+    //! \note Cervino throws for this opcode; only Hirzel
     //! encodes it.
     virtual AsmList::Asm wvfs(Assembler::PlayDummyType dummyType,
                           AsmRegister reg, int length, int lineNumber) const = 0;
@@ -111,7 +111,7 @@ public:
     //! \param length     Trigger duration in samples.
     //! \param lineNumber Source line tagged on the emitted entry.
     //! \return The encoded assembler entry.
-    //! \binarynote Cervino throws for this opcode; only Hirzel
+    //! \note Cervino throws for this opcode; only Hirzel
     //! encodes it.
     virtual AsmList::Asm wvft(AsmRegister reg, int length, int lineNumber) const = 0;
 
@@ -174,8 +174,6 @@ public:
 
     //! \copydoc AsmCommandsImpl::wwvfq
     //! \details Cervino does not support `wwvfq`; always throws.
-    //! \binarynote Throws `AssemblerException` whose message names
-    //! the unsupported opcode.
     AsmList::Asm wwvfq(int lineNumber) const override;  // throws (unsupported)
     //! \copydoc AsmCommandsImpl::wprf
     //! \details Cervino encodes `wprf` as opcode 0xF0000000.

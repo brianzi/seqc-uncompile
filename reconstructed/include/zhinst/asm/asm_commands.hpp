@@ -126,11 +126,10 @@ public:
     //!        barrier (opcode alias of `WPRF` at
     //!        `0xF0000000`, no operands).
     //!
-    //! \binarynote Hirzel-only.  Cervino's
-    //! `AsmCommandsImplCervino::wwvfq` throws
-    //! `ResourcesException(UnsupportedOp, "wwvfq")` because
-    //! UHF-family devices have no playback queue.  Emitted
-    //! by `waitPlayQueueEmpty`.
+    //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
+    //! back ends throw `ResourcesException(UnsupportedOp, "wwvfq")`
+    //! because they have no playback queue.  Emitted by
+    //! `waitPlayQueueEmpty`.
     //!
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wwvfq() const;
@@ -193,9 +192,8 @@ public:
     //! prefetch-descriptor pair (`addi` + `wvfs`) that
     //! precedes a waveform-fetch.
     //!
-    //! \binarynote Hirzel-only.  Cervino's
-    //! `AsmCommandsImplCervino::wvfs` throws
-    //! `ResourcesException(UnsupportedOp, "wvfs")`.
+    //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
+    //! back ends throw `ResourcesException(UnsupportedOp, "wvfs")`.
     //!
     //! \param type    `PlayDummyType` selector occupying a 1-bit slot;
     //!                must be `0` or `1`, otherwise `ValueOverflow` is
@@ -213,9 +211,8 @@ public:
     //! by `playWaveDIO`, `playZSync`, and `executeTableEntry`
     //! to dispatch a precomposed table entry.
     //!
-    //! \binarynote Hirzel-only.  Cervino's
-    //! `AsmCommandsImplCervino::wvft` throws
-    //! `ResourcesException(UnsupportedOp, "wvft")`.
+    //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
+    //! back ends throw `ResourcesException(UnsupportedOp, "wvft")`.
     //!
     //! \param reg     Table-entry index register.
     //! \param length  Length immediate encoded into the instruction word.
@@ -242,10 +239,9 @@ public:
     //! PlayConfig values that exceed the 24-bit immediate
     //! capacity.
     //!
-    //! \binarynote Hirzel-only — gated by
-    //! `impl_->isCWVFRSupported()`.  This same flag also
-    //! gates marker-bit computation in `genPlayConfig` and
-    //! the Hirzel-only `wvfs` / `wvft` / `wwvfq` factories.
+    //! \note Available only when `impl_->isCWVFRSupported()`; the same
+    //! flag also gates marker-bit computation in `genPlayConfig` and
+    //! the device-restricted `wvfs` / `wvft` / `wwvfq` factories.
     //!
     //! \param reg  Register holding the packed PlayConfig word.
     //! \return  The emitted assembler-instruction descriptor.
@@ -871,7 +867,7 @@ public:
     //! `ResourcesException(InvalidRegister, "smap")` on
     //! failure.
     //!
-    //! \binarynote Address `0x62` is overloaded: it is the
+    //! \note Address `0x62` is overloaded: it is the
     //! `smap` map-key register on most devices, but UHFQA
     //! reuses the same address for
     //! `resetRTLoggerTimestamp()`.  The hardware
@@ -904,10 +900,10 @@ public:
     //! access into the loop-counter bank `0x64..0x65`
     //! (counter index 0 or 1).  Used by `getCnt(idx)`.
     //!
-    //! \binarynote HDAWG-only.  No other device exposes
-    //! hardware loop counters at this register window.
-    //! Raises `ResourcesException(InvalidRegister, "lcnt")`
-    //! on register validation failure.
+    //! \note HDAWG-only; no other device exposes hardware loop counters
+    //! at this register window.  Raises
+    //! `ResourcesException(InvalidRegister, "lcnt")` on register
+    //! validation failure.
     //!
     //! \param reg   Destination register receiving the counter value.
     //! \param addr  Counter index (0 or 1) added to the base `0x64`.
@@ -968,10 +964,10 @@ public:
     //! `0x45`).  The two scratch registers `reg1`/`reg2` are
     //! clobbered.
     //!
-    //! \binarynote Cervino-only.  Hirzel devices use the
-    //! single-instruction `asmSyncHirzel` because their sync
-    //! protocol is implemented entirely in hardware once the
-    //! user-register write at `0x6E` occurs.
+    //! \note UHF-family devices only; HDAWG/SHF sequencers use the
+    //! single-instruction `asmSyncHirzel` because their sync protocol
+    //! is implemented entirely in hardware once the user-register
+    //! write at `0x6E` occurs.
     //!
     //! \param reg1  First scratch register.
     //! \param reg2  Second scratch register.
@@ -1001,8 +997,6 @@ public:
     //! hardware once the user-register write at address
     //! `0x6E` occurs, so the multi-instruction Cervino
     //! sequence is unnecessary.
-    //!
-    //! \binarynote Hirzel-only counterpart of `syncCervino`.
     //!
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm asmSyncHirzel() const;
@@ -1046,12 +1040,11 @@ public:
     //! `wavetableFront` is forced to `0` so the diagnostic
     //! is not bound to any per-waveform context.
     //!
-    //! \binarynote These two opcodes are normally only
-    //! produced by the standalone `AWGAssemblerImpl` parsing
-    //! a hand-written `.asm` source — the SeqC compiler
-    //! frontend does not emit them.  They are consumed by
-    //! `AsmOptimize::reportUserMessages` and routed to the
-    //! warning / error callbacks.
+    // Provenance: these two opcodes are normally produced only by the
+    // standalone AWGAssemblerImpl parsing a hand-written .asm source —
+    // the SeqC compiler frontend does not emit them.  They are consumed
+    // by AsmOptimize::reportUserMessages and routed to the warning /
+    // error callbacks.
     //!
     //! \param msg      Diagnostic text payload stored in the immediates
     //!                 slot.
@@ -1308,10 +1301,9 @@ public:
     //! 0xf000) & 0xffff`), and `threshold` (12 bits at
     //! 11:0).
     //!
-    //! \binarynote Hirzel-only.  Only the processed feedback
-    //! channels are valid sources — `ZSYNC_DATA_RAW` /
-    //! `QA_DATA_RAW` are accepted by `getFeedback()` but
-    //! rejected here.
+    //! \note HDAWG/SHF only.  Only processed feedback channels are
+    //! valid sources here: `ZSYNC_DATA_RAW` and `QA_DATA_RAW` are
+    //! accepted by `getFeedback()` but rejected by this factory.
     //!
     //! \param value  23-bit packed immediate produced by
     //!               `configureFeedbackProcessing`.

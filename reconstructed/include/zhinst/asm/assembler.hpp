@@ -263,10 +263,6 @@ public:
     //! \return `0` when no slot is valid; otherwise
     //! `(1LL << 32) | maxIndex` where `maxIndex` is the highest
     //! valid register number.
-    //! \binarynote The full int value of the maximum register
-    //! number is preserved in the low 32 bits; an earlier
-    //! reconstruction truncated to `uint8_t`, which silently
-    //! aliased registers ≥ 256 (see IF-191).
     int64_t highestRegisterNumber() const;
 
     // 0x28ebd0 — produces disassembly string.

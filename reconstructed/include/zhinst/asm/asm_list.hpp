@@ -280,12 +280,12 @@ public:
     //! expression becomes one `Asm` entry with a fresh
     //! `sequenceId` from `createUniqueID(false)`.
     //!
-    //! \binarynote The device-type parameter is hardwired
-    //!             to HDAWG (`AwgDeviceType(2)`) regardless
-    //!             of which device originally produced the
-    //!             text — round-tripping non-HDAWG
-    //!             instructions relies on the encoded form
-    //!             being device-portable.
+    //! \note The device-type parameter is hardwired
+    //!       to HDAWG (`AwgDeviceType(2)`) regardless
+    //!       of which device originally produced the
+    //!       text — round-tripping non-HDAWG
+    //!       instructions relies on the encoded form
+    //!       being device-portable.
     //!
     //! \param str  Assembler text to parse.
     //! \return  `(parsed_list, diagnostic_text)` pair; the

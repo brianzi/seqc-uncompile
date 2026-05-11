@@ -226,7 +226,7 @@ private:
 //! draw the span from (typically a subsystem name); `span_name`
 //! identifies the operation.
 //!
-//! \binarynote When the global `TraceProvider` is unconfigured or
+//! \note When the global `TraceProvider` is unconfigured or
 //! disabled, both constructors short-circuit to an empty span: no
 //! tracer lookup, no `StartSpan` call, no attached `Scope`. This
 //! makes `ScopedSpan` cheap to leave in hot paths even when tracing

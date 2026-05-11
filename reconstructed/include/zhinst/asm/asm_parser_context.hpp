@@ -111,19 +111,19 @@ public:
     //! \return `true` only while a line-comment scope is active.
     bool isLineComment() const;                            // 0x28e7b0
     //! \brief Begins line-comment state.
-    //! \binarynote No-op when already inside a block comment, so a
-    //! `//` sequence appearing inside a `/* ... */` span does not
-    //! switch the lexer into line-comment mode.
+    //! \note No-op when already inside a block comment, so a `//`
+    //! sequence appearing inside a `/* ... */` span does not switch
+    //! the lexer into line-comment mode.
     void startLineComment();                               // 0x28e7c0
     //! \brief Ends line-comment state at the next newline.
-    //! \binarynote No-op when inside a block comment.
+    //! \note No-op when inside a block comment.
     void endLineComment();                                 // 0x28e7e0
     //! \brief Begins block-comment state.
-    //! \binarynote No-op when already inside a line comment, so a
-    //! `/*` sequence inside a `//` line does not start a block scope.
+    //! \note No-op when already inside a line comment, so a `/*`
+    //! sequence inside a `//` line does not start a block scope.
     void startBlockComment();                              // 0x28e830
     //! \brief Ends block-comment state.
-    //! \binarynote No-op when inside a line comment.
+    //! \note No-op when inside a line comment.
     void endBlockComment();                                // 0x28e850
 
     // ---- Optimization flag ----
@@ -193,8 +193,8 @@ public:
     char* trackedStringCopy(const char* s);                // 0x28e8f0
     //! \brief Frees every string previously returned by
     //! `trackedStringCopy()` and empties the tracking vector.
-    //! \binarynote Invalidates all previously returned pointers; the
-    //! caller is responsible for ensuring no parser-owned
+    //! \warning Invalidates every pointer previously returned by
+    //! `trackedStringCopy()`; the caller must ensure no parser-owned
     //! `AsmExpression` still references them when this is invoked.
     void cleanStringCopies();                              // 0x28ea10
 
