@@ -1049,8 +1049,10 @@ cross-reference pages so the backlog is discoverable.
 **Coverage baseline at end of D0:** 4/2712 symbols documented (0.1%).
 Run `reconstructed/docs/coverage.sh` to track progress.
 
-- [ ] **D7 — Verify-triage sweep** (`\verifyme` / `\unclear` /
-      `\binarynote` backlog)
+- [x] **D7 — Verify-triage sweep** (`\verifyme` / `\unclear` /
+      `\binarynote` backlog) *(complete; see commits `2b4d43d`,
+      `c8df0ca`, `78b1a5d`, `e4b93c8`, `383ba8f` plus prior
+      round-1 / round-2 commits)*
   - Burn down the doc-accuracy backlog accumulated through D2–D6:
     12 `\verifyme` (hypotheses pending GDB or test verification),
     7 `\unclear` (semantics unknown), 82 `\binarynote` (non-idiomatic
@@ -1064,6 +1066,13 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     against the current recon; tighten or remove if no longer apt.
   - Coverage target: drop `\verifyme` to ≤3, `\unclear` to ≤2,
     `\binarynote` to ≤40 (those that genuinely surprise consumers).
+  - **Outcome**: all targets met.  Final tag counts: `\unclear=2`
+    (≤2 ✓), `\verifyme=0` (≤3 ✓), `\binarynote=40` (≤40 ✓).  Round 3
+    triaged 33 sites across 4 commits (~13 Drops, ~14 Tightens to
+    `\note` / `\warning`, plus Keeps for genuine caller-visible API
+    surprises).  Five sites whose hypotheses are structurally
+    unverifiable from SeqC inputs were moved to a new `\unverifiable`
+    bucket (`\unverifiable=5`, no target — see commit `383ba8f`).
 
 - [x] **D8 — Coverage-gap tests for latent prefetch paths**
   - The IF-223 / IF-244 reconstructions touch code paths the

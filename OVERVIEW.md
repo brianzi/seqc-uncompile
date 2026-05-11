@@ -450,9 +450,10 @@ mainpage.
 - Doxygen + Doxygen Awesome CSS configured under `reconstructed/docs/`.
 - `cmake --build . --target docs` builds the site to
   `reconstructed/build/docs/html/`.
-- Custom aliases `\unclear`, `\verifyme`, `\binarynote` carry the
-  accuracy-discipline metadata; each renders to a dedicated
-  cross-reference page so the documentation backlog is discoverable.
+- Custom aliases `\unclear`, `\verifyme`, `\binarynote`,
+  `\unverifiable` carry the accuracy-discipline metadata; each
+  renders to a dedicated cross-reference page so the documentation
+  backlog is discoverable.
 - `reconstructed/docs/coverage.sh` reports current coverage from the
   generated XML.  Baseline at end of D0: 4/2712 symbols (0.1%).
 - `reconstructed/notes/comment_style_guide.md` §13 added: documentation
@@ -1112,6 +1113,29 @@ mainpage.
   "Documentation roadmap" section (was "D2 wrap-up"; now reflects
   D5-closed / D6-A complete / D6-B deferred).
 - 1602/1602 tests passing; 0 doxygen warnings; build clean.
+
+**D7 (verify-triage sweep) complete:**
+
+- Burned down the doc-accuracy backlog accumulated through D2–D6.
+  Final tag counts vs targets: `\unclear=2` (≤2 ✓),
+  `\verifyme=0` (≤3 ✓), `\binarynote=40` (≤40 ✓).
+- Round 3 triaged 33 sites across 4 commits (`2b4d43d` asm+infra,
+  `c8df0ca` ast+core+waveform, `78b1a5d` codegen+runtime+io+device,
+  `e4b93c8` final trim).  Roughly 13 Drops (redundant with `\brief`
+  / `\details`, or pure reconstruction-history meta), 14 Tightens
+  (most to `\note` for device-gating and behavior detail; one to
+  `\warning` for a thread-safety caveat), Keeps for genuine
+  caller-visible API surprises (e.g. operator asymmetry, mid-name
+  vs behavior mismatches, parameter-name asymmetries in error
+  messages, libc++ destructor exception swallowing).
+- New `\unverifiable` tag added (commit `383ba8f`) to distinguish
+  permanently-unverifiable hypotheses from `\verifyme` work that
+  can still be done.  Five sites converted: `NodeType::Table` arm
+  (IF-249), `ddSectionIndex_` write-only field, `AsmExpression::str`
+  with no external caller, `Severity` enum integer mapping.
+  `\unverifiable_list` page joins the cross-reference set.
+- 1603/1603 differential tests passing throughout; 0 doxygen
+  warnings at every commit.
 
 **D4 (public methods of high-traffic classes) complete:**
 
