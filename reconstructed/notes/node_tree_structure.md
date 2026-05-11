@@ -1,4 +1,12 @@
-# Node Tree Structure
+# Node Tree Structure {#notes_node_tree_structure}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 Reconstructed from `Node::insertBefore`, `updateParent`, `remove`, `swap`,
 `last`, `clone`, `toJson`, `fromJson`, `installPointers` at addresses

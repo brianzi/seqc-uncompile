@@ -1061,3 +1061,54 @@ mainpage.
   tests were added: `random_waves_3arg` for IF-231,
   `trig_3arg` for IF-234); build clean and 0 doxygen
   warnings at every commit.
+
+**D5 (internal helpers / opcodes / leaves) complete:**
+
+- Coverage went from 28.4% (start of D5) to **95.2%** (2932/3079
+  symbols) across batches D5-1..D5-20.  Remaining 41 zhinst::
+  undocumented entries are 35 TU-local anonymous namespaces with
+  Doxygen-mangled IDs (not user-meaningful) plus 6 stragglers —
+  judged not worth further pursuit.
+- Class-member gap eliminated: 1048 → 0 across 161 classes
+  (D5-11..D5-17 cumulative).  zhinst:: free-function gap also
+  eliminated end of D5-10.
+- §14 of `notes/comment_style_guide.md` codified during D5-AUDIT
+  (IF-238): documentation passes preserve **content** (binary
+  addresses, field offsets, ABI padding comments, JSON-key
+  inventories, notes/ cross-refs) when adding `//!` briefs;
+  hex-token preservation audits enforce this on subagent dispatch.
+- §15 added at D5-20 wrap-up: macro-body documentation rules
+  covering three pitfalls — `//!` continuation hazard inside
+  backslash-line-continued macro bodies, `MACRO_EXPANSION` brief
+  mis-attachment, per-invocation brief plus `\name` group for
+  macro-defined symbol families.
+- New IFs filed during the phase: IF-235..IF-240.
+- 1602/1602 differential tests passing throughout; 0 doc
+  warnings at every commit.
+
+**D6-A (notes/ pages — promote evergreen as-is) complete:**
+
+- 39 notes-files audited and classified: 13 EVERGREEN (promote
+  as-is, this batch), 16 MIXED (D6-B, deferred), 10 WORKING-DOC
+  (excluded — `incidental_findings.md`, `unknowns.md`, dated
+  audit logs).
+- 13 evergreen notes promoted via per-file include list in
+  `reconstructed/CMakeLists.txt` (the `DOXYGEN_NOTES_PAGES`
+  variable), each carrying a `{#notes_X}` anchor and a
+  one-paragraph "reverse-engineering reference material" banner.
+  Voice-policy carve-out approved: these pages cite binary
+  addresses inline (the standard `\binarynote`-only rule applies
+  to API doc comments, not to RE reference pages).
+- Pages: `notes_pipeline`, `notes_cervino_vs_hirzel`,
+  `notes_opcode_encoding`, `notes_opcode_map`,
+  `notes_fb_instruction`, `notes_goto_policy`,
+  `notes_special_registers`, `notes_node_tree_structure`,
+  `notes_static_resources_cervino_consts`,
+  `notes_waveform_generator_funcmap`,
+  `notes_memory_allocator_analysis`, `notes_logging_tracing`,
+  `notes_elf_format`.
+- `architecture.md` cross-links them under a new
+  "Reverse-engineering reference" section and updates the stale
+  "Documentation roadmap" section (was "D2 wrap-up"; now reflects
+  D5-closed / D6-A complete / D6-B deferred).
+- 1602/1602 tests passing; 0 doxygen warnings; build clean.

@@ -1,4 +1,12 @@
-# `goto` Usage Policy
+# `goto` Usage Policy {#notes_goto_policy}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 Date: 2026-04-29 (Phase 39b, updated Phase 39d)
 

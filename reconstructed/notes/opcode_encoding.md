@@ -1,4 +1,12 @@
-# Opcode Encoding Formats — AWGAssemblerImpl
+# Opcode Encoding Formats — AWGAssemblerImpl {#notes_opcode_encoding}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 ## Summary of Instruction Word Formats (32-bit)
 

@@ -879,11 +879,87 @@ cross-reference pages so the backlog is discoverable.
     count between commits.
 
 - [ ] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**
-  - [ ] `optimization_passes.md`
-  - [ ] `device_type.md`
-  - [ ] `prefetch.md` (if present)
-  - [ ] `wavetable.md` (if present)
-  - [ ] `incidental_findings.md` (as known-issues page)
+
+  Notes-files audit (39 markdown files under `reconstructed/notes/`)
+  classified each file as EVERGREEN (suitable for as-is promotion),
+  MIXED (needs cleanup before promotion), or WORKING-DOC (excluded —
+  status tracking, dated phase entries, audit-in-progress logs).
+  See user-approved split: 13 promote-as-is, 16 promote-with-cleanup,
+  10 exclude.
+
+  - [x] **D6-A — Promote the 13 EVERGREEN files as-is.** Done.
+        Approach: added `\page` headers + a one-paragraph
+        "reverse-engineering reference material" banner to each file
+        (per voice-policy carve-out approved by user — binary
+        addresses and disasm vocabulary remain in-line for these
+        pages, since their audience is reverse-engineering reference,
+        not API documentation).  Wired `notes/` into Doxygen via a
+        per-file include list in `reconstructed/CMakeLists.txt`
+        (`DOXYGEN_NOTES_PAGES` variable) so the 26 non-promoted files
+        stay excluded.  Cross-linked from `architecture.md` mainpage
+        under a new "Reverse-engineering reference" section.
+        Documentation roadmap section in `architecture.md` updated
+        (was "D2 wrap-up"; now reflects D5-closed / D6-A complete /
+        D6-B deferred).
+        Tests 1602/1602; 0 doxygen warnings; build clean.
+
+        Files (PROMOTE-AS-IS):
+    - [x] `cervino_vs_hirzel.md` → `notes_cervino_vs_hirzel`
+    - [x] `elf_format.md` → `notes_elf_format`
+    - [x] `fb_instruction.md` → `notes_fb_instruction`
+    - [x] `goto_policy.md` → `notes_goto_policy`
+    - [x] `logging_tracing.md` → `notes_logging_tracing`
+    - [x] `memory_allocator_analysis.md` → `notes_memory_allocator_analysis`
+    - [x] `node_tree_structure.md` → `notes_node_tree_structure`
+    - [x] `opcode_encoding.md` → `notes_opcode_encoding`
+    - [x] `opcode_map.md` → `notes_opcode_map`
+    - [x] `pipeline.md` → `notes_pipeline`
+    - [x] `special_registers.md` → `notes_special_registers`
+    - [x] `static_resources_cervino_consts.md` → `notes_static_resources_cervino_consts`
+    - [x] `waveform_generator_funcmap.md` → `notes_waveform_generator_funcmap`
+
+  - [ ] **D6-B — Promote 16 MIXED files after cleanup** (deferred).
+        Each file has evergreen content plus phase-tagged / audit /
+        resolution-log framing that must be stripped before promotion.
+        Verify-then-write against current code is required per
+        AGENTS.md — some have stale field names from earlier
+        reconstruction passes.  Files (audit notes recorded inline):
+    - [ ] `asm_parser_grammar.md` — drop reconstruction-plan +
+          future-work sections.
+    - [ ] `awg_device_props.md` — drop phase tags + future-subphase
+          sentence.
+    - [ ] `binary_contents_excluded.md` — drop date + Phase 34
+          progress refs.
+    - [ ] `device_constants.md` — drop "Phase 14b-iii.5" preamble.
+    - [ ] `differential_testing.md` — drop coverage snapshot +
+          "potential future" sections.
+    - [ ] `elf_reader.md` — drop "Open items" + Phase 14d framing.
+    - [ ] `libcpp_abi.md` — drop "Phase 21g Dual-build strategy" +
+          phase subheaders.
+    - [ ] `magic_numbers_proposal.md` — strip RESOLVED tags +
+          investigation pointers.
+    - [ ] `optimization_passes.md` — strip Phase 15c correction +
+          carry-forward list.
+    - [ ] `placeholder_field_names.md` — heavy cleanup; borderline
+          evergreen value, may be EXCLUDED instead.
+    - [ ] `seqc_language_features_excluded.md` — strip
+          coverage-tooling meta.
+    - [ ] `seqc_parser_grammar.md` — strip Phase 30f Discovery framing.
+    - [ ] `splitreg_loop_model.md` — strip trailing "Recon bugs"
+          section.
+    - [ ] `struct_layouts.md` — heavy: strip phase tags + investigation
+          logs.
+    - [ ] `writeToNode_block_d_protocol.md` — strip "Open questions" +
+          phase correction headers.
+    - [ ] `write_waves_to_elf.md` — strip "(RESOLVED in Phase N)" tags.
+
+  - **EXCLUDED (10) — working-doc tracking files, not for `\page`
+    promotion:** `bytes_vs_samples_audit.md`, `comment_style_guide.md`
+    (internal style guide, separate audience), `device_type.md`,
+    `error_message_audit.md`, `frontend_lowering.md`,
+    `incidental_findings.md`, `linker_resolution.md`,
+    `phase43_investigation.md`, `phase_r_leftovers_and_q_scoping.md`,
+    `unknowns.md`.
 
 **Coverage baseline at end of D0:** 4/2712 symbols documented (0.1%).
 Run `reconstructed/docs/coverage.sh` to track progress.

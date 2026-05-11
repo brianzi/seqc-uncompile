@@ -1,4 +1,12 @@
-# Logging and Tracing
+# Logging and Tracing {#notes_logging_tracing}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 The `zhinst::logging` and `zhinst::tracing` namespaces.
 **20 symbols across 17 distinct functions** (8 logging + 12 tracing).

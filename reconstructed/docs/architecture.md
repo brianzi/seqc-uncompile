@@ -214,27 +214,51 @@ Each tag aggregates onto its own cross-reference page, accessible from
 the *Related Pages* section of the navigation, so the entire
 documentation backlog is discoverable rather than scattered.
 
+## Reverse-engineering reference {#re-reference}
+
+A subset of `reconstructed/notes/` is promoted to first-class Doxygen
+pages.  These are deep-dive technical references — instruction
+encodings, struct layouts, ELF format, pipeline anatomy — written for
+contributors working on the reconstruction.  They cite binary
+addresses and disassembly observations directly, so the standard
+API-documentation voice rules (no binary citations outside
+`\binarynote`) do **not** apply on these pages.
+
+| Topic | Page |
+|-------|------|
+| **Compilation pipeline** | \ref notes_pipeline |
+| **Cervino vs Hirzel device classes** | \ref notes_cervino_vs_hirzel |
+| **Instruction encoding** | \ref notes_opcode_encoding |
+| **Opcode / mnemonic / scheduling tables** | \ref notes_opcode_map |
+| **Feedback instruction (`fb`) ISA** | \ref notes_fb_instruction |
+| **Goto policy** | \ref notes_goto_policy |
+| **Special register address map** | \ref notes_special_registers |
+| **Node-tree field offsets** | \ref notes_node_tree_structure |
+| **Static resources — Cervino `addConst` tables** | \ref notes_static_resources_cervino_consts |
+| **`WaveformGenerator::funcMap_` audit** | \ref notes_waveform_generator_funcmap |
+| **Memory allocator layout** | \ref notes_memory_allocator_analysis |
+| **Logging / tracing internals** | \ref notes_logging_tracing |
+| **ELF output format** | \ref notes_elf_format |
+
+The remainder of `reconstructed/notes/` (status-tracking files,
+in-progress audits, dated phase logs) is intentionally kept out of
+the rendered site; consult those files directly under
+`reconstructed/notes/` when needed.
+
 ## Documentation roadmap
 
-This site is in **Phase D2 wrap-up** (architecture overview + a
-`\brief` on every public class).  `WARN_IF_UNDOCUMENTED` is `YES` so
-the doxygen warning log now serves as the coverage tracker.
-Subsequent phases:
-
-- **D3** — full documentation of pipeline-driver functions
-  (`Compiler::*`, `Prefetch::*`, `AsmOptimize::*`); plus cleanup of
-  the parser cross-reference warnings inherited from D2 (overload
-  resolution on out-of-line `evaluate(...)` definitions, macro-hidden
-  factory dtors).
-- **D4** — public methods of high-traffic classes (`AsmCommands`,
-  `WaveformGenerator`, `CustomFunctions`, `Resources`).
-- **D5** — internal helpers; close the `\unclear` / `\verifyme`
-  backlog.
-- **D6** — long-form notes promoted from `notes/` to first-class
-  Doxygen pages.
-
 `TODO.md` carries the live phase plan; `reconstructed/docs/coverage.sh`
-prints the current symbol-coverage percentage.
+prints the current symbol-coverage percentage.  Recent phase status:
+
+- **D2–D4** — class-level briefs, public-method documentation,
+  enum / free-function briefs (complete).
+- **D5** — internal helpers; `\unclear` / `\verifyme` backlog
+  triage (complete; coverage 28.4% → 95.2%).
+- **D6-A** — promote evergreen `notes/` files into Doxygen pages
+  (in progress; the 13 reverse-engineering reference pages above
+  are the first batch).
+- **D6-B** — promote the remaining mixed-content `notes/` files
+  after per-file cleanup (deferred).
 
 ## Project layout pointers
 

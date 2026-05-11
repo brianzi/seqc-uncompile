@@ -1,4 +1,12 @@
-# WaveformGenerator::funcMap_ parity audit
+# WaveformGenerator::funcMap_ parity audit {#notes_waveform_generator_funcmap}
+
+\note **Reverse-engineering reference material.** This page is part of
+the `reconstructed/notes/` set: deep-dive technical notes for
+contributors working on the reconstruction. It cites binary addresses,
+opcodes, and disassembly observations directly so they remain
+discoverable from the rendered site. The standard documentation-voice
+rules for API briefs (no binary citations outside `\binarynote`) do
+**not** apply to this page.
 
 **Audited**: 2026-05-08 (resolves IF-202)
 **Binary range**: `WaveformGenerator` ctor at `0x248200`..`0x249b90`
