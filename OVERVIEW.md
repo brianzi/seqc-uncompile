@@ -1112,3 +1112,70 @@ mainpage.
   "Documentation roadmap" section (was "D2 wrap-up"; now reflects
   D5-closed / D6-A complete / D6-B deferred).
 - 1602/1602 tests passing; 0 doxygen warnings; build clean.
+
+**D4 (public methods of high-traffic classes) complete:**
+
+- ~80 public methods documented across 6 main batches (with
+  sub-batches 2a-e and 3a-c) covering `Compiler`, `Prefetch`,
+  `WavetableIR` / `WavetableFront` / `WavetableManager`,
+  `CustomFunctions`, `AsmOptimize`, and `WaveformGenerator`.  All
+  briefs followed the verify-then-write workflow against the
+  corresponding `.cpp` body and the canonical `.hpp` field names.
+- Surfaced and resolved 7 likely-bug IFs: IF-213
+  (`Prefetch::findLockedPlay` was a stub that always returned
+  `nullptr`; reconstructed from `0x1d3dd0..0x1d4442` as a LIFO
+  worklist walk), IF-217 (`backwardTree` enqueued the wrong
+  shared_ptr — `next` instead of `loop` — in the third visitor
+  block), IF-218 (`expandSetVar` wrong field), IF-219
+  (`createLoad` wrong polarity), IF-223 (Table-case sub-path C
+  missing the ssl/addr/prf/wprf emission for split devices;
+  reconstructed inline at `prefetch_placesingle.cpp:1258-1432`,
+  with C-non-split / C-split branches gated on `split_`), IF-224
+  (Prefetch placement dispatch ordering), IF-226 (cache-query
+  helper diverged).  Plus IF-241..IF-244 from the IF-223 audit:
+  polarity correction, `bgReg ≡ idxReg` identity, `Prefetch+0x08`
+  is `devConst_` not `awgCfg_`, and a documentation-only relabel
+  of `play_cervino_indexed_nonsplit` (the original label at
+  `prefetch_placesingle.cpp:863` was actually
+  `table_indexed_with_clamp`; a new doc-only block above carries
+  the real Play tail body).
+- Surfaced and fixed in the same commits as the briefs that
+  surfaced them: IF-212 (3 block-header summaries in
+  `prefetch_prepare.cpp` swapped Play↔Load case labels and
+  carried stale field names), IF-214 (15-site "BFS" misnomer
+  across `prefetch.cpp` / `prefetch_helpers.cpp` — actually LIFO
+  via `std::deque::back()`/`pop_back()`), IF-215
+  (`Prefetch::optimize` block-header listed the wrong dispatched
+  type), IF-216 (recon body bug: `Prefetch::allocate` dispatched
+  on `NodeType::Wait` where the binary cmps `Lock`; symbol
+  renamed `Wait`→`Lock` and `handleWait`→`handleLock`,
+  GDB-confirmed at `0x1d0fb0`), IF-220 (cosmetic comment drift
+  cluster), IF-229 (cosmetic class brief overstatement),
+  IF-230 (arity-blind parameter-label strings in `rrc` /
+  `sinc` / `chirp` / `lfsrGaloisMarker`), IF-231 (`rand` 3-arg
+  semantic bug), IF-234 (`sin`/`cos`/`sawtooth`/`triangle` 3-arg
+  semantic bug — bound `(length, amplitude, phase)` but binary
+  binds `(length, phase, nPeriods)` with `amplitude=1.0`).
+- D-AUDIT-1 (spawned from Batch 6b) audited all 16 multi-arity
+  `WaveformGenerator` factories for the IF-230 pattern; all
+  remaining label drifts and semantic bugs fixed in the same
+  commit as discovery.
+- `AGENTS.md` gained a new "Verify-then-write: code is the source
+  of truth" section formalising the workflow during Batch 2a;
+  every subsequent brief opened the function body and
+  cross-checked field names against the canonical `.hpp` before
+  being written, catching one false-positive audit claim in the
+  process (the audit reported `PlayConfig::now` as misnamed;
+  verification showed `now` is the canonical field per
+  `play_config.hpp:47`).
+- 1600/1600 → 1602/1602 differential tests passing throughout
+  (incremented as new coverage tests were added: `random_waves_3arg`
+  for IF-231, `trig_3arg` for IF-234); build clean and 0 doxygen
+  warnings at every commit.
+- **Coverage gap acknowledged:** the test corpus does not exercise
+  Play `cervino_indexed_nonsplit` (real `0x1db4ad..0x1db55d`),
+  Table sub-path C2 (`split_==1` with valid lengthReg), or
+  `playWaveTable` with a non-empty cache plus valid per-channel
+  length register.  IF-223 / IF-244 reconstructions on those paths
+  are static-only verified.  TODO **D8** tracks authoring seqc
+  cases to graduate them to test-verified.

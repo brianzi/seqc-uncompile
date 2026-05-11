@@ -114,11 +114,11 @@ cross-reference pages so the backlog is discoverable.
         local-variable `useDA = devConst_->hasPrecomp` shadows in
         `prefetch.cpp` were left as-is per the audit recommendation.
 
-- [ ] **D4 — Public methods of high-traffic classes**
-  - [ ] Order: `Compiler` → `Prefetch` → `WavetableIR/Front` →
+- [x] **D4 — Public methods of high-traffic classes**
+  - [x] Order: `Compiler` → `Prefetch` → `WavetableIR/Front` →
         `CustomFunctions` (subdivided) → `AsmOptimize` →
         `WaveformGenerator` → `Resources` family → AST nodes
-  - [ ] Per-class commits and `\unclear` triage
+  - [x] Per-class commits and `\unclear` triage
   - [x] **D4 Batch 1** — `Compiler` class (16 public methods):
         constructor, destructor, `unifyLineEndings`, `parse`,
         `printAST`, `reset`, `setCancelCallback`,
@@ -648,7 +648,9 @@ cross-reference pages so the backlog is discoverable.
     semantic bugs (IF-231 `rand`, IF-234 trig family) and label
     drifts (`chirp`, `lfsrGaloisMarker`, `gauss`) all fixed.
 
-- [ ] **D5 — Internal helpers / opcodes / leaves**
+- [x] **D5 — Internal helpers / opcodes / leaves** _(complete; 95.2%
+      coverage achieved, remaining 41 entries deemed not worth pursuit
+      per D5-20 wrap-up)_
   - Scoping data captured 2026-05-10 from `reconstructed/build/docs/xml/`:
     coverage 874/3081 (28.4%); largest unbriefed compounds (gap = total - documented):
     - `zhinst::` namespace free functions / types: 177
@@ -1037,16 +1039,49 @@ cross-reference pages so the backlog is discoverable.
           phase correction headers.
     - [ ] `write_waves_to_elf.md` — strip "(RESOLVED in Phase N)" tags.
 
-  - **EXCLUDED (10) — working-doc tracking files, not for `\page`
+  - **EXCLUDED (8) — working-doc tracking files, not for `\page`
     promotion:** `bytes_vs_samples_audit.md`, `comment_style_guide.md`
     (internal style guide, separate audience), `device_type.md`,
     `error_message_audit.md`, `frontend_lowering.md`,
     `incidental_findings.md`, `linker_resolution.md`,
-    `phase43_investigation.md`, `phase_r_leftovers_and_q_scoping.md`,
     `unknowns.md`.
 
 **Coverage baseline at end of D0:** 4/2712 symbols documented (0.1%).
 Run `reconstructed/docs/coverage.sh` to track progress.
+
+- [ ] **D7 — Verify-triage sweep** (`\verifyme` / `\unclear` /
+      `\binarynote` backlog)
+  - Burn down the doc-accuracy backlog accumulated through D2–D6:
+    12 `\verifyme` (hypotheses pending GDB or test verification),
+    7 `\unclear` (semantics unknown), 82 `\binarynote` (non-idiomatic
+    behaviour the caller must know about).
+  - For each `\verifyme`: GDB-trace or write a targeted test to
+    confirm the hypothesis; on pass, drop the tag and rewrite the
+    brief in declarative voice.  On fail, log an IF and fix.
+  - For each `\unclear`: investigate the actual semantics (binary
+    + test corpus); resolve to a concrete brief or escalate as IF.
+  - For each `\binarynote`: re-confirm the surprise still holds
+    against the current recon; tighten or remove if no longer apt.
+  - Coverage target: drop `\verifyme` to ≤3, `\unclear` to ≤2,
+    `\binarynote` to ≤40 (those that genuinely surprise consumers).
+
+- [ ] **D8 — Coverage-gap tests for latent prefetch paths**
+  - The IF-223 / IF-244 reconstructions touch code paths the
+    current 1602-case suite does not exercise; the changes are
+    static-only verified.  Author seqc cases that hit:
+    1. Play `cervino_indexed_nonsplit` (Cervino device,
+       indexed-play with `length>0`, `!split_`) — covers the real
+       `0x1db4ad..0x1db55d` Play tail.
+    2. Table sub-path C2 (`split_==1` AND
+       `lengthReg.isValid() && lengthReg != R0`) — covers the
+       ssl/addr/prf/wprf path inlined at
+       `prefetch_placesingle.cpp:1258-1432`.
+    3. `playWaveTable` with non-empty cache + valid per-channel
+       length register.
+  - Each test should produce byte-identical ELF between original
+    and recon; failures will graduate the affected IFs from
+    "static-only verified" to "test-verified" or surface real
+    bugs.
 
 ## Archives
 
@@ -1064,6 +1099,8 @@ All historical reconstruction work is preserved under
 | [`IF-105_update_log.md`](reconstructed/notes/archive/IF-105_update_log.md) | Chronological update history for IF-105 | ~390 |
 | [`unknowns_full_1-116.md`](reconstructed/notes/archive/unknowns_full_1-116.md) | Pre-2026-04-22 history of `unknowns.md` items 1–116 | ~1200 |
 | [`phase_15b_prefetch_audit.md`](reconstructed/notes/archive/phase_15b_prefetch_audit.md) | Phase 15b prefetch audit | ~80 |
+| [`phase43_investigation.md`](reconstructed/notes/archive/phase43_investigation.md) | Phase 43: 54-function binary-vs-recon size audit | ~490 |
+| [`phase_r_leftovers_and_q_scoping.md`](reconstructed/notes/archive/phase_r_leftovers_and_q_scoping.md) | Phase R leftovers + Phase Q scoping (2026-04-29) | ~310 |
 | [`todo_audit.md`](reconstructed/notes/archive/todo_audit.md) | Phase audit pass | ~250 |
 
 ## Commit conventions
