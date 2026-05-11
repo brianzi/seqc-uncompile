@@ -364,6 +364,97 @@ bool dummy = false;     // +0x1E
 
 ---
 
+## 15. Documentation comments inside macro bodies
+
+Both pitfalls below were observed in practice (D5-8 SEQC_LIST work,
+D5-20 BOOST_LOG_GLOBAL_LOGGER work).  Treat the rule as mandatory.
+
+### 15.1 Inside a backslash-continued macro body — always use `/*! */`
+
+A `//!` comment inside a backslash-continued macro body **eats every
+subsequent token in the macro**.  Phase-2 line splicing concatenates
+the continuation lines into one logical line *before* comment
+recognition; the `//!` then extends to the end of that spliced line,
+which now ends only at the macro's final non-continued newline.  The
+remaining macro tokens become part of the comment and disappear from
+the program.
+
+Example of the bug:
+
+```cpp
+#define SEQC_LIST(NAME, ELEM)                              \
+    class NAME : public Node {                             \
+    public:                                                \
+        //! \brief List of ELEM nodes.        ← BUG: eats the rest \
+        std::vector<ELEM> elements_;                       \
+        void accept(Visitor& v) override;                  \
+    };
+```
+
+Use `/*! */` regardless of how short the brief is:
+
+```cpp
+#define SEQC_LIST(NAME, ELEM)                              \
+    class NAME : public Node {                             \
+    public:                                                \
+        /*! \brief List of `ELEM` nodes owned by this list. */ \
+        std::vector<ELEM> elements_;                       \
+        void accept(Visitor& v) override;                  \
+    };
+```
+
+The same applies to `///` and `/**` if those forms were ever used
+(they are forbidden by §13 anyway, but the splicing hazard is the
+same — single-line forms are unsafe inside macro bodies).
+
+### 15.2 `MACRO_EXPANSION=YES` can mis-attach briefs to invocations
+
+When `MACRO_EXPANSION=YES` is on (it is, in our Doxyfile), Doxygen
+treats the macro *invocation* as the documented declaration.  A `//!`
+or `/*! */` block placed elsewhere in the file may be silently
+re-attached to a nearby macro invocation, especially when:
+
+- the brief precedes a forward declaration that follows a macro
+  invocation (the brief drifts upward to the invocation), or
+- the brief carries `\param` / `\return` tags whose names do not
+  match the macro's expanded parameter list (Doxygen still attaches
+  the brief, then warns about "argument X not found").
+
+Symptom in `doxygen-warnings.log`:
+
+```
+warning: argument 'eptr' of command @param is not found in the
+argument list of zhinst::logging::BOOST_LOG_GLOBAL_LOGGER(...)
+```
+
+When a brief refuses to attach to its intended target despite being
+adjacent in source, **prefer one of these workarounds**:
+
+1. Inline the parameter / return prose into the `\details` body and
+   drop the explicit `\param` / `\return` tags.  This loses the
+   per-parameter table on the rendered page but eliminates the
+   warning and silently-wrong attachment.
+2. Move the brief immediately above the function declaration with no
+   intervening blank lines or other comment blocks.
+3. As a last resort, document the macro invocation itself with the
+   needed brief, leaving the underlying declaration without an
+   attached doc.
+
+### 15.3 Macro-defined symbol families (`\name` groups)
+
+Macro invocations that generate one symbol per call (e.g. the
+`ZHINST_DECLARE_EXCEPTION` family, the `ZHINST_DECLARE_FACTORY`
+device family, the `BOOST_LOG_GLOBAL_LOGGER` global-logger tag)
+require a `//!` or `/*! */` brief on **each invocation** — the brief
+inside the macro body propagates field-level documentation to the
+generated members, but the class-level brief is per-invocation.
+
+Wrap large invocation groups in `\name … \{ … \}` blocks (see §13)
+so the rendered page collects them as a labelled member group rather
+than a flat list.
+
+---
+
 ## What is NOT used in source files
 
 | Pattern | Reason removed |

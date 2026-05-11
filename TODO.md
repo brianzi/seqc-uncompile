@@ -738,13 +738,18 @@ cross-reference pages so the backlog is discoverable.
             length. See comment_style_guide.md follow-up below.
           - Diff is pure-additive (0 lines removed verified
             via \`git diff | grep -cE '^-[^-]'\` = 0).
-    - [ ] **D5-8 follow-up — macro doc-comment style note**
-          Add a one-paragraph note to `comment_style_guide.md`
-          §13 (or §14) clarifying that //! inside a
-          backslash-continued macro body MUST use the /*! */
-          form regardless of line count, because phase-2 line
-          splicing turns // into a logical-line-eating black
-          hole. Encountered during D5-8 SEQC_LIST work.
+    - [x] **D5-8 follow-up — macro doc-comment style note**
+          Done in this commit. Added §15 to
+          `comment_style_guide.md` covering three macro-body
+          pitfalls: (15.1) `//!` inside backslash-continued macro
+          bodies eats subsequent tokens — must use `/*! */`
+          regardless of brief length; (15.2) `MACRO_EXPANSION=YES`
+          can mis-attach briefs to nearby macro invocations,
+          producing spurious "argument X not found" warnings —
+          inline `\param` prose in `\details` as the workaround
+          (encountered with `BOOST_LOG_GLOBAL_LOGGER` in D5-20);
+          (15.3) macro-defined symbol families need a per-invocation
+          brief plus an enclosing `\name` group.
     - [x] **D5-9** — `zhinst::` namespace free functions
           (diffuse; tackle by file).  Closed in three parallel
           sub-batches:
@@ -792,6 +797,81 @@ cross-reference pages so the backlog is discoverable.
           namespacezhinst undoc gap: 61 → 0. Commit 048d357.
     - [x] **zhinst:: free-function gap eliminated** end of D5-10.
           ~150 entries documented across D5-8/9/10.
+    - [x] **D5-11..D5-15** — Bulk class-member sweep across 27
+          files in parallel sub-batches (subagent-dispatched).
+          AST cluster (53 SeqC AST classes including macro-body
+          field briefs for SEQC_BINARY/SEQC_UNARY/SEQC_LIST
+          generators), device cluster (32 device subclasses +
+          ZHINST_DECLARE_FACTORY invocations + DeviceType /
+          DeviceOptionSet), asm cluster (Hirzel/Cervino variants,
+          AsmCommands family), waveform cluster (rawwave,
+          wave_index_tracker, wavetable_front, waveform_generator,
+          wavetable_ir), io cluster (elf_reader, elf_writer,
+          zi_folder), runtime cluster (csv_parser, get_node_map,
+          wavetable_manager_{front,ir}). +929 documented (+30.1pp);
+          coverage 52.9% → 83.0%. Class-member gap 1048 → 80.
+          §14 hex-token-count audit verified pure-additive on
+          all 6 files where D5-14 had 137 line deltas (proven
+          §14-compliant `//!` rewrites, not `//` recon removals).
+          Subagent-dispatch contract refined after D5-13
+          self-mis-classified as complete and D5-14 rewrote
+          existing `//!` briefs: explicit "verify before edit",
+          "pure additive", and pre/post gap-scan reproducibility
+          required. Commit 396adf3.
+    - [x] **D5-16** — redispatched after D5-13 self-mis-classified
+          as "complete". 111 members across 11 classes
+          (CustomFunctions/Compiler/Prefetch/AWGAssemblerImpl/
+          AWGAssembler + 6 small): all → 0. +110, 83.0% → 86.6%.
+          0 deletions, +3 `\unclear`, +2 `\binarynote`. Commit
+          188bd25.
+    - [x] **D5-17** — final class-member sweep: 69 → 0 across 33
+          small classes. +79, 86.6% → 88.9%. Macro-body field
+          briefs for SEQC_BINARY/SEQC_UNARY/SEQC_LIST propagate
+          to 4/5/3 instantiations respectively; per §15.3 the
+          per-class invocation brief is still required.
+          0 deletions. Commit b289920.
+    - [x] **Class-member gap closed** end of D5-17.
+          1048 → 0 across 161 classes (D5-11..D5-17 cumulative).
+    - [x] **D5-18 + D5-19** — top zhinst:: structs (~104:
+          AWGCompilerConfig 29, Expression 13, AsmRegister 12,
+          WaveformIR 11, Prefetch::PrefetcherNodeState 11, CalVer
+          11, PlayArgs 10, AwgPathPatterns 10, AwgDeviceProps 10,
+          PlayArgs::WaveAssignment 7) plus long-tail structs +
+          nested-namespace free functions (~80: FrontendLoweringContext
+          6, ErrorCode 6, AddressImpl 5, FrontendLoweringState 5,
+          AsmList::Asm 5, Prefetch::UsageEntry 4, util::wave 7,
+          tracing 3, logging 3, etc.). +171 documented;
+          coverage 88.9% → 94.4%. zhinst:: undoc 237 → 77.
+          35 line "deletions" across 6 headers verified
+          §14-compliant: old "// +0xNN — outer type tag" recon
+          comments folded into //!< briefs on the same line with
+          the offset annotation preserved verbatim; hex-token
+          counts preserved 1:1 in all 6 files. 2 `\unclear` on
+          `serializeRoundTrip` / `optimizationFlags` (no
+          reconstructed consumer); 1 `\binarynote` on
+          `CalVer::triple`. Commit 6256e53.
+    - [x] **D5-20** — final long-tail sweep targeting the 33
+          real (non-anonymous-namespace) gaps left after D5-18/19:
+          struct members (AddressImpl, AsmList::Asm,
+          UsageEntry, AWGAssemblerImpl::Message, Register
+          anon-enum briefs, Waveform::File typedef);
+          namespace briefs + free functions (tracing namespace
+          + getDefaultLabOneResource + makeDefaultSpanProcessor,
+          logging namespace + Severity + ZiLogger macro +
+          logging::detail + logExceptionToClog, util namespace +
+          util::wave + double2awg/double2awg1m/double2awg16/
+          hash/hash2str, sfc namespace, detail namespace +
+          makeDeviceFamilyFactory). Five missing `\param` /
+          `\return` slots filled after WARN_NO_PARAMDOC=YES
+          surfaced them; one BOOST_LOG_GLOBAL_LOGGER attachment
+          warning worked around per §15.2 by inlining `\param`
+          prose. Coverage 94.4% → 95.2%; zhinst:: undoc 77 → 41
+          (35 anonymous-namespace artefacts + 6 stragglers).
+          Commit 3ce51ec.
+    - [x] **D5 complete.** Coverage 28.4% → 95.2% across the full
+          phase. 1602/1602 tests passing throughout; 0 doxygen
+          warnings at end. 7 `\unclear`, 10 `\verifyme`, 82
+          `\binarynote`. New IFs introduced this phase: 235–240.
   - Workflow: each sub-batch follows the AGENTS.md
     verify-then-write rule.  Subagent dispatch is encouraged
     for mechanical sweeps; user-verifies before commit.
