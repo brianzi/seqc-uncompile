@@ -231,20 +231,23 @@ cross-reference pages so the backlog is discoverable.
         `backwardTree`, which no public API surfaces; future
         work if/when the parent back-link is consulted.  IF-217
         marked **fixed** in `incidental_findings.md`.
-  - [ ] **D4 Batch 2d follow-up (IF-218)** — reconstruct
-        `Prefetch::expandSetVar` body
-        (`prefetch_helpers.cpp:352-375`, original `0x1d3af0`).
-        Current recon body walks the sibling chain and constructs
-        `make_shared<Node>(NodeType::SetVar, ...)` clones in a
-        `for (i=1; i<numGroups; ++i)` loop, but the clones are
-        never linked into the IR — the temporary goes out of
-        scope each iteration.  `objdump -d
-        --start-address=0x1d3af0 --stop-address=0x1d3dd0
-        _seqc_compiler.so` to identify the per-clone field-copy
-        and splice; GDB-trace on a multi-channel-group SeqC
-        program that exercises SetVar emission to confirm the
-        per-group splat semantics; add regression test.  See
-        IF-218 for full evidence.
+  - [x] **D4 Batch 2d follow-up (IF-218)** — fixed.
+        `Prefetch::expandSetVar` rewritten at
+        `prefetch_helpers.cpp:372-432` to match the binary
+        (`0x1d3af0..0x1d3dd0`).  The function walks the **parent
+        chain** via `node->parent.lock()` (not the sibling
+        `next` chain), gates each ancestor on
+        `parent->type == NodeType::Loop` (not `node->type ==
+        SetVar`), and at every Loop ancestor whose `loop` body
+        head is the currently-tracked child, splices a thin
+        `make_shared<Node>(SetVar, asmId, config_->numChannelGroups)`
+        clone in front of that child via
+        `Node::insertBefore`.  Only `lengthReg` is copied from
+        the original.  IF-218 hypothesis was wrong on all three
+        points (sibling walk, SetVar gate, orphan clones); see
+        the updated IF-218 entry for the full disassembly trail.
+        Tests: 1602/1602 (no behaviour change — corpus does not
+        exercise SetVar-inside-Loop on multi-group devices).
   - [x] **D4 Batch 2d follow-up (IF-219)** — fixed.
         `Prefetch::createLoad` now has the already-loaded
         short-circuit at `prefetch.cpp:2215-2225`:

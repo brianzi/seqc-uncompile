@@ -4875,63 +4875,51 @@ loop bodies whose parent link is stale would expose this.
 ## IF-218  `Prefetch::expandSetVar` body is a stub that creates orphan SetVar clones
 
 **Severity**: likely-bug (stub).
-**Status**: open.
+**Status**: **fixed** (commit pending) — body rewritten at
+`prefetch_helpers.cpp:372-432` to match the binary's parent-chain
+walk; block-header summary updated. The original IF hypothesis
+("walks sibling chain, gates on SetVar type, drops clones") was
+**wrong on all three points** — see "Resolution" below.
 **Discovered**: D4 Batch 2d verify-then-write of
 `Prefetch::expandSetVar` (`prefetch_helpers.cpp:352-375`,
 original at `0x1d3af0`).
 
-The recon body walks the sibling chain via `n = n->next.get()`,
-and on each `NodeType::SetVar` node:
+**Resolution**: full disassembly of `0x1d3af0..0x1d3dd0` (subagent
+report, this session) showed the binary does the following:
 
-```cpp
-int numSlots  = n->asmId;
-int numGroups = config_->numChannelGroups;
-for (int i = 1; i < numGroups; ++i) {
-    auto newNode = std::make_shared<Node>(
-        NodeType::SetVar, n->asmId, numSlots);
-    // Copy wave names and adjust for device index
-    // Insert after current node
-}
-```
+1. Outer loop walks **node's parent chain** via the
+   `parent` weak_ptr at `+0xF0/+0xF8` (locks at `0x1d3b23` for the
+   initial parent and `0x1d3c3d` for each subsequent
+   `parent->parent`).  No `next` (sibling-chain) walk exists.
+2. Per-iteration gate at `0x1d3b6d` is
+   `cmpl $0x8, 0x44(%r13)` — i.e. `parent->type == NodeType::Loop`
+   — **not** `node->type == SetVar`.  The caller
+   (`prepareTree`'s `NodeType::SetVar` case) is trusted to pass a
+   SetVar node; the function gates on the *ancestor* being a Loop.
+3. When the gate fires, `allocate_shared<Node>(SetVar, asmId,
+   config_->numChannelGroups)` at `0x1d3ba1` produces a thin clone;
+   only `lengthReg` (`+0x88`) is copied from the original at
+   `0x1d3baa..0x1d3bb2`.  The clone is then conditionally spliced
+   via `Node::insertBefore` at `0x1d3cf2` — but only when
+   `parent->loop.__ptr_ == current_child.get()`
+   (cmp at `0x1d3bc0`).  This guard ensures we only insert in
+   front of a Loop ancestor's body **head**, not a mid-chain
+   descendant.
+4. The "scratch" slot `[rbx]/[rbx+8]` is the input shared_ptr's own
+   stack storage, repurposed mid-function to track the current
+   child as the walk advances upward (`mov [rbx], r13` at
+   `0x1d3c09`); the original input is preserved in `[rbp-0x78]`.
 
-The `make_shared<Node>` result is **stored in `newNode` and never
-used**.  The two comments inside the loop ("Copy wave names…",
-"Insert after current node") describe behaviour that **does not
-exist in the body**.  Every clone is destroyed at end of loop
-iteration when `newNode` goes out of scope.
+The recon now matches semantics.  `nodeStates_` is intentionally
+not updated for the clone — downstream lookups rely on
+`operator[]` default-construction.
 
-This is the same anti-pattern as IF-216 (stub body whose intended
-behaviour exists only as a comment), but in a function that the
-recon body never finished.  `expandSetVar` is functionally a
-no-op past walking the chain.
-
-**Caller**: `Prefetch::prepareTree` dispatches
-`NodeType::SetVar` to `expandSetVar(node)` and then pushes
-`node->next`.  If the binary's `expandSetVar` produces additional
-linked SetVar nodes per channel-group, they would be visited on
-subsequent stack pops via the spliced-in `next` pointers — none
-of which the recon ever creates.
-
-**Why tests still pass at 1600/1600**: SetVar nodes are produced
-by the lowering of variable-modification statements in `playWave`
-expressions on multi-channel-group devices.  No test in the
-current corpus appears to exercise this path on a multi-group
-device with `numChannelGroups > 1` in a way that requires the
-expansion.  The single-group case (`numGroups == 1`) makes the
-loop body never execute, so the recon's bug is invisible.
-
-**Action**:
-1. Identify the original binary's `expandSetVar` body via
-   `objdump -d --start-address=0x1d3af0 --stop-address=0x1d3dd0
-   _seqc_compiler.so` and reconstruct the per-clone fields:
-   what is copied from the source node, what is mutated
-   (probably `deviceIndex` or the per-group slot of
-   `wavesPerDev`), and how the clone is linked into the tree
-   (`Node::insertAfter` or similar).
-2. GDB-trace the original on a multi-channel-group SeqC program
-   that exercises `setUserReg`-like SetVar emission to confirm
-   the per-group splat semantics.
-3. Fix the body, run the suite, add a regression test.
+**Why tests still pass at 1602/1602 even before the fix**: no test
+in the manifest currently exercises a SetVar nested inside a Loop
+on a multi-channel-group device, so the missing splice was
+invisible.  The fix is latent for the current corpus; ELF output
+is unchanged.  A regression test that places a SetVar inside a
+Loop on a multi-group HDAWG would exercise the new splice path.
 
 ## IF-219  `Prefetch::createLoad` missing already-loaded short-circuit
 

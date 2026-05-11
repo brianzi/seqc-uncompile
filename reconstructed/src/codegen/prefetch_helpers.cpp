@@ -359,38 +359,62 @@ void Prefetch::removeBranches(
 // 0x1d3af0 — Prefetch::expandSetVar(shared_ptr<Node>) const
 // Ends at 0x1d3dd0.
 //
-// Walks the sibling chain (n = n->next.get()) looking for SetVar
-// (NodeType::SetVar = 0x10) nodes.  For each one, the body intends to
-// produce one cloned SetVar per channel-group beyond the first; the
-// recon's loop only constructs the clones via std::make_shared and
-// then drops them when the temporary `newNode` goes out of scope.
+// Lifts a SetVar so it fires before every enclosing Loop body.  The
+// walk threads "current child" upward through `node`'s parent chain;
+// at every Loop ancestor whose `loop` body head is the current child,
+// a fresh SetVar clone is spliced immediately in front of that head
+// via Node::insertBefore.  Iteration advances child <- parent and
+// parent <- parent->parent.lock() until the chain terminates.
 //
-// IF-218: the body is a stub.  The clones are never linked into the IR
-// (no Node::insertAfter or splice into n->next), and no per-group
-// adjustment is applied.  See incidental_findings.md IF-218.
+// The clone is allocated via make_shared<Node>(SetVar, asmId,
+// config_->numChannelGroups) — i.e. asmId carried from the original
+// SetVar and one empty optional<string> slot per channel group — and
+// only `lengthReg` (+0x88) is copied from the original.  wavesPerDev,
+// deviceIndex, and tree links remain at their ctor defaults.  The
+// clone is not registered in nodeStates_; downstream lookups fall
+// through to operator[] default-construction.
+//
+// Binary key sites:
+//   0x1d3b23/0x1d3c3d  weak_ptr::lock on parent / parent->parent
+//   0x1d3b6d           cmpl $0x8, 0x44(%r13)  — parent->type == Loop
+//   0x1d3ba1           allocate_shared<Node>(SetVar, asmId, numGroups)
+//   0x1d3baa..0x1d3bb2 clone->lengthReg = original->lengthReg
+//   0x1d3bb9/0x1d3bc0  cmp parent->loop.__ptr_, current_child.get()
+//   0x1d3cf2           Node::insertBefore(current_child, clone)
 // ============================================================================
 void Prefetch::expandSetVar(std::shared_ptr<Node> node) const // 0x1d3af0
 {
-    Node* n = node.get();
+    // Track the "current child" as we climb; initially the SetVar itself.
+    std::shared_ptr<Node> current = node;
+    std::shared_ptr<Node> parent  = node->parent.lock();
 
-    // Walk sibling chain
-    while (n) {
-        if (n->type == NodeType::SetVar) {
-            // Get slot count from node->asmId (+0x14)
-            int numSlots = n->asmId;
-            int numGroups = config_->numChannelGroups;  // +0x1C
+    while (parent) {
+        if (parent->type == NodeType::Loop) {
+            // Thin clone — only asmId and slot count are seeded by the ctor;
+            // lengthReg is patched in below.  All other Node fields keep
+            // their default-constructed values (deviceIndex = -1, empty
+            // wavesPerDev slots, invalid registers, empty tree links).
+            auto clone = std::make_shared<Node>(
+                NodeType::SetVar,
+                node->asmId,
+                config_->numChannelGroups);
 
-            // For each group beyond the first, clone the node
-            for (int i = 1; i < numGroups; ++i) {
-                auto newNode = std::make_shared<Node>(
-                    NodeType::SetVar, n->asmId, numSlots);
-                // Copy wave names and adjust for device index
-                // Insert after current node
+            clone->lengthReg = node->lengthReg;
+
+            // Only splice when this Loop ancestor's body actually starts
+            // with `current` — otherwise the clone is discarded.  The
+            // guard prevents inserting in front of a non-head node when
+            // we are mid-way up a chain (e.g. when a Branch sits between
+            // two Loops).
+            if (parent->loop.get() == current.get()) {
+                current->insertBefore(clone);
             }
         }
 
-        // Advance to next sibling via parent chain
-        n = n->next.get();
+        // Advance one level up: the parent we just processed becomes the
+        // next "current child", and we re-lock that node's own parent.
+        current = parent;
+        parent  = parent->parent.lock();
     }
 }
 
