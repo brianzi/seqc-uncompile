@@ -5389,7 +5389,7 @@ brief alone documents the intended semantics.
 ## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
 
 **Severity**: cosmetic (readability / doc-accuracy hazard).
-**Status**: open.
+**Status**: partially fixed (E1 done 2026-05-11; E2-E5 still open).
 **Discovered**: D4 Batch 4e while writing briefs for
 `playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
 `playZero`, `playHold` in
@@ -5461,11 +5461,21 @@ describe.
 **Suggested fix scope** (NOT promoted to TODO.md without
 user agreement):
 
-- E1: replace `static_cast<AwgDeviceType>(N)` arguments to
-  `checkFunctionSupported` with the matching `kDev*` alias
-  from `core/types.hpp`.  All required aliases already exist;
-  no new constants needed.  Easiest sub-task; expected to
-  close ~30 call sites.
+- E1: ✅ **done 2026-05-11**.  Replaced
+  `static_cast<AwgDeviceType>(5)` (= `UHFLI | UHFQA`) with
+  `kDevCervino` (9 sites in `custom_functions_playback.cpp`).
+  Replaced redundant `static_cast<AwgDeviceType>(HDAWG)`,
+  `(UHFLI)`, `(UHFQA)`, `(SHFLI)`, `(VHFLI)`, `(GHFLI)`,
+  `(SHFQC_SG)` with the bare enumerator (the cast was a no-op
+  since the operand was already `AwgDeviceType`).  Replaced
+  numeric `(2)`, `(4)`, `(8)` with `HDAWG` / `UHFQA` / `SHFQA`
+  enumerators (`custom_functions_registers.cpp` ×7,
+  `custom_functions_playback.cpp` ×1).  Total: ~24 call sites.
+  Two casts kept legitimately: `(devConst_->deviceType)` and
+  `(current)` are int→enum widening casts; two more kept for
+  `(UHFLI | HDAWG | UHFQA)` because the bitwise-OR result is
+  `int` and needs the cast back to `AwgDeviceType`.  Build
+  clean, 1603/1603 tests pass — fully NFC.
 - E2: introduce named constants for the trigger-mask
   defaults (`kPlayTriggerMaskFull = 0x3FFF`,
   `kPlayTriggerMaskAuxMerge = 0x3FC3`) and a helper

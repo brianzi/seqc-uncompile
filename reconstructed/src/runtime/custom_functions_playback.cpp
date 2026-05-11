@@ -55,7 +55,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playWave(  // @0x1352f0 (189B)
 
 std::shared_ptr<EvalResults> CustomFunctions::playWaveNow(  // @0x1353b0 (192B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("playWaveNow", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playWaveNow", kDevCervino);
     return play(args, std::move(res), SubFunc::Now);
 }
 
@@ -66,13 +66,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveIndexed(  // @0x135480 (18
         throw CustomFunctionsException(
             ErrorMessages::format(DeprecatedFuncFifo, "playWaveIndexed"));
     }
-    checkFunctionSupported("playWaveIndexed", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playWaveIndexed", kDevCervino);
     return playIndexed(args, std::move(res), SubFunc::Default);
 }
 
 std::shared_ptr<EvalResults> CustomFunctions::playWaveIndexedNow(  // @0x135550 (182B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("playWaveIndexedNow", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playWaveIndexedNow", kDevCervino);
     return playIndexed(args, std::move(res), SubFunc::Now);
 }
 
@@ -80,13 +80,13 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveIndexedNow(  // @0x135550 
 
 std::shared_ptr<EvalResults> CustomFunctions::playAuxWaveIndexed(  // @0x136930 (182B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("playAuxWaveIndexed", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playAuxWaveIndexed", kDevCervino);
     return playIndexed(args, std::move(res), SubFunc::Aux);
 }
 
 std::shared_ptr<EvalResults> CustomFunctions::playWaveDigTrigger(  // @0x1386a0 (512B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("playWaveDigTrigger", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playWaveDigTrigger", kDevCervino);
     return play(args, std::move(res), SubFunc::DigTrigger);
 }
 
@@ -130,7 +130,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
     // --- Phase 1: device-type support — @0x13562d..0x135669 ---
     // No external triggering mode check (unlike playDIOWave/playWaveDIO/playWaveZSync).
     // 0x5 = same support bitmask as playDIOWave.
-    checkFunctionSupported("playAuxWave", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playAuxWave", kDevCervino);
 
     // --- Phase 2: arg-count check — @0x13566e..0x135675 ---
     // Empty-args branch jumps to error path @0x136490 which constructs a
@@ -429,7 +429,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playDIOWave(  // @0x1369f0
     // --- Phase 2: device-type support check — @0x136a2b..0x136a54 ---
     // 0x5 = bitmask of devices supporting playDIOWave (unusual; most other
     // wrappers use 0x1f2). Confirmed @0x136a4f: `mov edx, 0x5`.
-    checkFunctionSupported("playDIOWave", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("playDIOWave", kDevCervino);
 
     // --- Phase 3: arg-count check — @0x136a59..0x136a60 ---
     // Empty-args branch jumps to error path @0x1373f8 which constructs a
@@ -832,7 +832,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitWave(  // @0x13a980 (620B)
 
 std::shared_ptr<EvalResults> CustomFunctions::waitPlayQueueEmpty(  // @0x145240 (626B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("waitPlayQueueEmpty", static_cast<AwgDeviceType>(2));
+    checkFunctionSupported("waitPlayQueueEmpty", HDAWG);
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, "waitPlayQueueEmpty"));
@@ -875,7 +875,7 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
 
 std::shared_ptr<EvalResults> CustomFunctions::now(  // @0x14cbc0 (611B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("now", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("now", kDevCervino);
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, "now"));
@@ -909,7 +909,7 @@ std::shared_ptr<EvalResults> CustomFunctions::info(  // @0x14da50 (531B)
 
 std::shared_ptr<EvalResults> CustomFunctions::setRate(  // @0x14c370 (933B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("setRate", static_cast<AwgDeviceType>(5));
+    checkFunctionSupported("setRate", kDevCervino);
     if (args.size() != 1)                                                                          // @0x14c3cb: cmp $0x38
         throw CustomFunctionsException(
             ErrorMessages::format(SetRateOneConst));           // error 0xc0

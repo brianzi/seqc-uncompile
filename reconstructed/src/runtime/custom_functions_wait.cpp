@@ -635,7 +635,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitZSyncTrigger(  // @0x13dcf0 (1
 std::shared_ptr<EvalResults> CustomFunctions::waitCntTrigger(  // @0x13e460 (1336B, ends ~0x13eba0)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
     // @0x13e481..0x13e4c0: checkFunctionSupported("waitCntTrigger", 0x2)
-    checkFunctionSupported("waitCntTrigger", static_cast<AwgDeviceType>(HDAWG));
+    checkFunctionSupported("waitCntTrigger", HDAWG);
 
     // @0x13e4c5..0x13e4d1: args.size() == 1
     if (args.size() != 1) {                                                          // @0x13e4d1: jne error
@@ -691,7 +691,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitCntTrigger(  // @0x13e460 (133
 std::shared_ptr<EvalResults> CustomFunctions::waitDemodOscPhase(                                                                                                               // @0x13eba0 (~3KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
     // @0x13ebc4..0x13ebf1: checkFunctionSupported("waitDemodOscPhase", 0x1)
-    checkFunctionSupported("waitDemodOscPhase", static_cast<AwgDeviceType>(UHFLI));
+    checkFunctionSupported("waitDemodOscPhase", UHFLI);
 
     // @0x13ebf6..0x13ec20: check args.size() == 1 or 2
     if (args.size() == 2) {                                                                      // @0x13ec1c: cmp rax,2
@@ -814,7 +814,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitSineOscPhase(                 
 }
 std::shared_ptr<EvalResults> CustomFunctions::waitTimestamp(                                                                                                                // @0x1401c0 (500B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("waitTimestamp", static_cast<AwgDeviceType>(HDAWG));
+    checkFunctionSupported("waitTimestamp", HDAWG);
     // Binary @0x1401c0: no args check — accepts 0 or more args, ignores them all
     auto results = std::make_shared<EvalResults>();
     AsmRegister reg(0);
@@ -1225,7 +1225,7 @@ std::shared_ptr<EvalResults> CustomFunctions::incrementSinePhase(
 std::shared_ptr<EvalResults> CustomFunctions::waitDemodSample(
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
     // @0x143d74..0x143dba: checkFunctionSupported("waitDemodSample", 0x1)
-    checkFunctionSupported("waitDemodSample", static_cast<AwgDeviceType>(UHFLI));      // @0x143dba
+    checkFunctionSupported("waitDemodSample", UHFLI);      // @0x143dba
 
     // @0x143dbf: args.size() == 1 (byte size 0x38)
     if (args.size() != 1)                                                            // @0x143dcd

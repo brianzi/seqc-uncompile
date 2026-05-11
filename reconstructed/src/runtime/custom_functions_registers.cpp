@@ -556,7 +556,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getSweeperLength(  // @0x14bca0 (1
 }
 std::shared_ptr<EvalResults> CustomFunctions::setPrecompClear(                                                                                                              // @0x14c720 (~1KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("setPrecompClear", static_cast<AwgDeviceType>(HDAWG));
+    checkFunctionSupported("setPrecompClear", HDAWG);
     if (args.size() != 1)
         throw CustomFunctionsException(
             ErrorMessages::format(SetPrecompOneConst));
@@ -686,7 +686,7 @@ std::shared_ptr<EvalResults> CustomFunctions::unlock(                           
 std::shared_ptr<EvalResults> CustomFunctions::getCnt(  // @0x14e8d0 (1258B, ends ~0x14edba)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
     // @0x14e8ed..0x14e91d: checkFunctionSupported("getCnt", 0x2)
-    checkFunctionSupported("getCnt", static_cast<AwgDeviceType>(HDAWG));
+    checkFunctionSupported("getCnt", HDAWG);
 
     // @0x14e922..0x14e930: args.size() == 1
     if (args.size() != 1) {                                                          // @0x14e930: jne error
@@ -740,7 +740,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitQAResultTrigger(              
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
 
     // @0x14ede0-0x14ee19: build function name string and check device support
-    checkFunctionSupported("waitQAResultTrigger", static_cast<AwgDeviceType>(UHFQA));                    // @0x14ee19: call checkFunctionSupported
+    checkFunctionSupported("waitQAResultTrigger", UHFQA);                    // @0x14ee19: call checkFunctionSupported
 
     // @0x14ee1e-0x14ee25: args must be empty (args.end == args.begin)
     if (!args.empty())                                                                                 // @0x14ee25: jne 0x14f1ff (throw)
@@ -801,7 +801,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitQAResultTrigger(              
 }
 std::shared_ptr<EvalResults> CustomFunctions::getQAResult(                                                                                                                  // @0x14f380 (700B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("getQAResult", static_cast<AwgDeviceType>(UHFQA));
+    checkFunctionSupported("getQAResult", UHFQA);
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, std::string("getQAResult")));
@@ -815,7 +815,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getQAResult(                      
 }
 std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                                                                                                             // @0x14f620 (~2.7KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("startQAResult", static_cast<AwgDeviceType>(UHFQA));                               // @0x14f67a
+    checkFunctionSupported("startQAResult", UHFQA);                               // @0x14f67a
 
     // @0x14f67f: max 2 args (throws 0x45 if >= 3)
     if (args.size() >= 3)                                                                                   // @0x14f688
@@ -876,7 +876,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQAResult(                    
 }
 std::shared_ptr<EvalResults> CustomFunctions::startQAMonitor(                                                                                                               // @0x1500b0 (~2.1KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> /*res*/) {
-    checkFunctionSupported("startQAMonitor", static_cast<AwgDeviceType>(UHFQA));                              // @0x150110
+    checkFunctionSupported("startQAMonitor", UHFQA);                              // @0x150110
 
     // @0x150115: max 1 arg (throws 0x45 if >= 2)
     if (args.size() >= 2)                                                                                   // @0x15011e
@@ -979,7 +979,7 @@ std::shared_ptr<EvalResults> CustomFunctions::executeTableEntry(                
                     results->assemblers_.push_back(std::move(asmEntry));
                     constMatched = true;
                 }
-                if (!constMatched && config_->deviceType == static_cast<AwgDeviceType>(SHFQC_SG)) {
+                if (!constMatched && config_->deviceType == SHFQC_SG) {
                     // Binary @0x151254: QA_DATA_RAW / QA_DATA_PROCESSED_D have no case in the
                     // const dispatch table for SHFQC_SG — the original crashes with map::at
                     // (binary bug, m[47] absent from binary's own error map). We throw
@@ -1152,7 +1152,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
     checkFunctionSupported("startQA", kDevQA);                                     // @0x1526f0
 
     // @0x1526f5: validate arg count — max depends on device type
-    size_t maxArgs = (config_->deviceType == static_cast<AwgDeviceType>(8)) ? 5 : 4;                       // @0x152700
+    size_t maxArgs = (config_->deviceType == SHFQA) ? 5 : 4;                       // @0x152700
     if (args.size() > maxArgs)
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsMaxArgs, std::string("startQA"),
@@ -1177,7 +1177,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
 
     // @0x152840: if deviceType == 8 (SHFQA), read QA_GEN_ALL and extract first arg as weights mask
     bool qaGenAllEnabled = false;
-    if (config_->deviceType == static_cast<AwgDeviceType>(8)) {                                            // @0x152840
+    if (config_->deviceType == SHFQA) {                                            // @0x152840
         auto qaGenAllErv = res->readConst("QA_GEN_ALL", EDirection::eOUT);                        // @0x152870
         int qaGenAll = qaGenAllErv.value_.toInt();                                                          // @0x152880
 
@@ -1195,7 +1195,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
     qaIntAll = qaIntAllErv.value_.toInt();                                                                  // @0x152940
 
     // @0x152960: args[1] (or args[0] for non-SHFQA) — integration trigger mask
-    size_t intTrigIdx = (config_->deviceType == static_cast<AwgDeviceType>(8)) ? 1 : 0;
+    size_t intTrigIdx = (config_->deviceType == SHFQA) ? 1 : 0;
     if (args.size() > intTrigIdx) {
         int intTrigMask = args[intTrigIdx].value_.toInt();                                                  // @0x152970
         if (~qaIntAll & intTrigMask)                                                                        // @0x152980: validate
@@ -1205,7 +1205,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
     }
 
     // qaGenAllEnabled: set based on whether qaIntAll is nonzero (for SHFQA only)
-    if (config_->deviceType == static_cast<AwgDeviceType>(8)) {
+    if (config_->deviceType == SHFQA) {
         qaGenAllEnabled = (qaIntAll != 0);                                                                  // @0x1529b0 (approx)
     }
 
@@ -1234,7 +1234,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
 
     AsmRegister zero(0);
 
-    if (config_->deviceType == static_cast<AwgDeviceType>(8)) {                                            // @0x152f2c: SHFQA path
+    if (config_->deviceType == SHFQA) {                                            // @0x152f2c: SHFQA path
         // @0x152aa0: first register — integration weights / result address composite
         {
             int regNum = Resources::getRegisterNumber();                                                    // @0x152aa4
@@ -1258,7 +1258,7 @@ std::shared_ptr<EvalResults> CustomFunctions::startQA(                          
 
             appendSuser(results->assemblers_, asmCommands_, reg, detail::AddressImpl<unsigned int>(kSuserQATrigger)); // @0x152dc0
         }
-    } else if (config_->deviceType == static_cast<AwgDeviceType>(4)) {                                     // @0x1533df: UHFQA path
+    } else if (config_->deviceType == UHFQA) {                                     // @0x1533df: UHFQA path
         // UHFQA arg layout:
         //   args[0] → qaIntAll (integration trigger mask)
         //   args[1] → monitorEnable
@@ -1310,7 +1310,7 @@ std::shared_ptr<EvalResults> CustomFunctions::resetRTLoggerTimestamp(           
     auto results = std::make_shared<EvalResults>(VarType_Void);
     AsmRegister reg(0);
     // Address depends on device type: 0x62 for UHFQA (type 4), else 0x6d
-    unsigned int addr = (config_->deviceType == static_cast<AwgDeviceType>(4)) ? 0x62u : 0x6du;
+    unsigned int addr = (config_->deviceType == UHFQA) ? 0x62u : 0x6du;
     auto asmEntry = asmCommands_->st(reg, detail::AddressImpl<unsigned int>(addr));
     results->assemblers_.push_back(std::move(asmEntry));
     return results;

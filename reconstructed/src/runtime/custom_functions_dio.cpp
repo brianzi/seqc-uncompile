@@ -518,7 +518,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
 }
 std::shared_ptr<EvalResults> CustomFunctions::prefetch(                                                                                                                    // @0x1351d0 (300B)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    checkFunctionSupported("prefetch", static_cast<AwgDeviceType>(HDAWG));
+    checkFunctionSupported("prefetch", HDAWG);
     return play(args, std::move(res), SubFunc::Prefetch);                      // forwards to play() with SubFunc 0
 }
 std::shared_ptr<EvalResults> CustomFunctions::prefetchIndexed(                                                                                                              // @0x135290 (100B)

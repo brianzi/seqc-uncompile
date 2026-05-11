@@ -1286,9 +1286,9 @@ void CustomFunctions::checkExternalTriggeringMode(ExternalTriggeringMode expecte
 // Not in binary — extracted from 3 sites in custom_functions_io.cpp.
 bool CustomFunctions::isShfFamily() const {
     auto dt = config_->deviceType;
-    return dt == static_cast<AwgDeviceType>(SHFLI) ||
-           dt == static_cast<AwgDeviceType>(VHFLI) ||
-           dt == static_cast<AwgDeviceType>(GHFLI);
+    return dt == SHFLI ||
+           dt == VHFLI ||
+           dt == GHFLI;
 }
 
 } // namespace zhinst
