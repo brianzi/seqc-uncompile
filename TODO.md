@@ -1083,20 +1083,76 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     "static-only verified" to "test-verified" or surface real
     bugs.
 
-- [ ] **D9 — Extract `emitPrfEpilogueAndInsert_` helper** (deferred
-  IF-244 action item 3)
-  - The Play-side `play_cervino_indexed_nonsplit` body and two
-    Table-C sub-paths in `prefetch_placesingle.cpp` share a
-    near-identical prf-emission + buffer-insert epilogue. IF-244
-    flagged extracting this into a private helper as a code-clarity
-    win once the Play-side dispatch wiring is reconstructed.
-  - Currently only 3 effective callers and the new
-    `play_cervino_indexed_nonsplit` block has no reaching `goto`,
-    so the refactor is mechanically straightforward but not
-    urgent.
-  - **Prerequisite**: complete D8 case 1 (Play
-    `cervino_indexed_nonsplit`) so the refactor is test-verified
-    rather than static-only.
+- [ ] **D9 — Resolve IF-244 dead label blocks and Table-C-split wprf gate**
+  - **Background**: IF-244 action items 1+2 produced two label-only
+    blocks in `prefetch_placesingle.cpp` (`play_cervino_indexed_nonsplit`
+    at lines 865-941; `table_indexed_with_clamp` at lines 951-1022).
+    Neither block has any incoming `goto` — they are dead
+    documentation. GDB tracing in D9.1/D9.2 (now complete; see
+    IF-246 / IF-247 / IF-248) reframed the situation: the
+    `play_cervino_indexed_nonsplit` block is **mis-attributed** (binary
+    `0x1db4ad..0x1db55d` is reached only via the Load dispatch —
+    `load_cervino_prf` Path B1 — never via Play) and incomplete
+    (missing the first `prf` and `2x addi`). The Table-C-split inline
+    emission at lines 1398-1407 emits `wprf` unconditionally, but the
+    binary gates it on `!isHirzel` (read from `AWGCompilerConfig` via
+    `Prefetch::config_`).
+
+  - [x] **D9.1 — GDB-verify the Play indexed-nonsplit divergences**
+    (subagent `ses_1e9b705b9ffe6stbJmBc71NSAF`). Outcome: IF-244's
+    Play-side claim disproved. The `0x1db4ad..0x1db55d` block is
+    Load-side Path B1 only; recon's inline Play emission at lines
+    675-722 is **not** the counterpart of this block. See **IF-246**.
+
+  - [x] **D9.2 — GDB-verify the Table-C-split `wprf` gate** (subagent
+    `ses_1e9a95462ffesKCS1nbPbpLpOH`). Outcome: gate confirmed at
+    `0x1db92e`: `cmpb $0,0x18(%rax); jne` reads
+    `AWGCompilerConfig::isHirzel` (offset `+0x18`) and **skips** `wprf`
+    when set. UHFAWG (isHirzel=0) emits wprf;
+    HDAWG/SHFSG/SHFQC_SG/SHFLI (isHirzel=1) skip. See **IF-247**. A
+    separate "isHirzel inversion" alarm raised during D9.1 was
+    investigated and dismissed — recon's per-device assignments in
+    `awg_device_props.cpp` already match the binary. See **IF-248**.
+
+  - [ ] **D9.3 — Apply the resolved actions to source**:
+    - Delete the dead `play_cervino_indexed_nonsplit` block at
+      `prefetch_placesingle.cpp:865-941` (mis-attributed and
+      incomplete; full corrected description preserved in IF-246).
+    - Delete the dead `table_indexed_with_clamp` block at
+      `prefetch_placesingle.cpp:951-1022` (no incoming goto; content
+      documented in IF-244).
+    - Promote the `\verifyme` at lines 1398-1407 to a real
+      `if (!config_->isHirzel)` gate around the inline Table-C-split
+      `wprf` emission. Per IF-247 this is a latent over-emission for
+      modern devices on Table sub-path C2; no current test exercises
+      this path so the change cannot be difftest-verified, but the
+      gate should match the binary regardless.
+
+  - [ ] **D9.4 — Optional: extract `emitPrfEpilogueAndInsert_` helper**
+    (former IF-244 action item 3). Only worth doing if D9.3 leaves
+    multiple call sites with the same prf+wprf+insert epilogue.
+    Mechanical refactor, no semantic change. Likely demoted/dropped
+    after D9.3 since the dead blocks are being deleted rather than
+    wired in.
+
+- [ ] **D10 — Reconstruct `load_cervino_prf` Path B1 fully** (follow-on
+  from IF-246)
+  - The current Path B1 stub at `prefetch_placesingle.cpp:343-349` is
+    incomplete. IF-246 documents the actual binary emission shape:
+    `prf @0x1db2b3` (cacheSize/2) -> `2x addi` -> `wprf @0x1db4bd` ->
+    `prf @0x1db52b` (cacheSize/2 again) -> `jmp 0x1db55d -> 0x1db92e`
+    (load_finalize tail). The Path B1 gate is
+    `loadState.cachePtr->size_ == devConst_->waveformMemorySize`
+    (entered from `0x1d85fa jne` via `load_cervino_prf @0x1d9c33` and
+    Path B `@0x1db1f3`).
+  - Rewrite the stub at lines 343-349 with the full
+    `prf -> 2x addi -> wprf -> prf -> jmp load_finalize` sequence. The
+    `wprf` here also needs the `!isHirzel` gate per IF-247 (the gate
+    site `0x1db92e` is the load_finalize tail immediately after the
+    second `prf` jumps to it).
+  - Verify: UHFAWG `wave w = placeholder(65536); playWaveIndexed(w, 0,
+    128);` is the exact input D9.1 used to reach this path; promote it
+    to a difftest case (D8 case 4 candidate).
 
 ## Archives
 
