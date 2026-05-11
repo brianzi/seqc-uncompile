@@ -225,9 +225,10 @@ private:
     //! Trailing dword zeroed by the constructor; the binary's
     //! purpose for this slot is not yet established (see
     //! `notes/elf_reader.md`).
-    //! \verifyme — exact role of this index has not been
-    //! verified.  Treated as a pass-through accessor for the time
-    //! being.
+    //! \verifyme Unverifiable from SeqC: the field is written by the
+    //! constructor but never read by any reconstructed accessor, so
+    //! no observable behaviour drives its semantic role.  Treated as
+    //! a pass-through layout slot for the time being.
     std::uint32_t ddSectionIndex_ = 0;                          // +0x90
 };
 

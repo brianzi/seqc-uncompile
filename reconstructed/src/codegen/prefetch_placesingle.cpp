@@ -388,14 +388,12 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                                     for (auto& a : addiVec2) tempList.append(a);
                                 }
 
-                                //! \verifyme Two `wprf` emissions are expected on
-                                //! UHFAWG (the local one here at 0x1db4bd plus the
-                                //! `!isHirzel`-gated one at the load_finalize tail
-                                //! per IF-247).  Difftest case
-                                //! `core:uhfawg_load_cervino_prf_path_b1` verifies
-                                //! the byte-identical output; if the difftest
-                                //! starts failing with a single-`wprf` divergence,
-                                //! one of IF-246/IF-247 needs re-examination.
+                                // 0x1db4bd: local `wprf`. Together with the
+                                // `!isHirzel`-gated `wprf` at the load_finalize
+                                // tail (see IF-247), this produces the two `wprf`
+                                // emissions UHFAWG Path B1 requires. Verified
+                                // byte-identical by difftest case
+                                // `core:uhfawg_load_cervino_prf_path_b1`.
                                 {
                                     AsmList::Asm wprfAsm = asmCommands_->wprf();    // 0x1db4bd
                                     tempList.append(wprfAsm);
@@ -1106,8 +1104,13 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     }
     // --- nodeType > 0x1ff ---
     else if (nodeType <= 0x3fff) {
-        // --- nodeType == 0x200: Table (sub-paths A+B implemented;
-        //     sub-path C deferred — see IF-223 \verifyme below) ---
+        // --- nodeType == 0x200: Table (sub-paths A+B reconstructed;
+        //     sub-path C left stubbed) ---
+        //! \verifyme Unverifiable from SeqC: `NodeType::Table` is
+        //! unreachable from the SeqC front-end (IF-249).  Sub-paths A
+        //! and B are fully reconstructed for layout fidelity; sub-path
+        //! C remains stubbed.  See IF-223 (closed) for the prior
+        //! incremental reconstruction history.
         if (nodeType == 0x200) {                                   // 0x1d7a5b
             // 0x1d7ebb: lock weak_ptr at np+0x18..+0x20
             std::shared_ptr<Node> loadNode = np->loadRef.lock();
@@ -1169,8 +1172,8 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             //                             / (isHirzel ? 1 : pagesNeeded).
             //   C. cachePtr->size_ != 0 AND lengthReg valid && != R0
             //         → branch to 0x1daed4 (split / non-split tail
-            //           emitting ssl/addi/prf/wprf).  Deferred —
-            //           see \verifyme below.
+            //           emitting ssl/addi/prf/wprf).  Stubbed; see
+            //           class-level Table-arm note for IF-223 / IF-249.
             // ------------------------------------------------------------
             int32_t tableIndex = npSync->tableIndex;                 // +0x9C
 

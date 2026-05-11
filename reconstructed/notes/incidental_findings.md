@@ -7278,3 +7278,47 @@ are confident no out-of-tree consumer relies on it; for now
 keep it for binary-faithfulness.
 
 
+## IF-253  `runningOnMfDevice` recon claims `/proc/device-tree/model` check, binary parses LabOne manifest
+
+**Severity**: cosmetic (constant-`false` stub is observably correct on every PC).
+
+**Status**: confirmed (disassembly + strings, 2026-05-11).
+
+**Discovered**: D7 `\verifyme` triage (batch B) of `core/stubs.cpp:36`.
+
+The reconstructed stub at `reconstructed/src/core/stubs.cpp:18-40`
+carries an inline comment "`0x2ce770` — checks `/proc/device-tree/model`
+for `Zurich Instruments MF`" and a `\details` paragraph repeating
+the same claim.  Both are wrong on two counts:
+
+1. **Wrong address.**  `0x2ce770` is inside
+   `ZiFolder::sessionSaveDirectoryName`, not at any function
+   boundary.  The actual `zhinst::runningOnMfDevice()` symbol
+   lives at `0x2ec580` (a separate single-arg overload taking a
+   `std::string const&` exists at `0x2ec160`).
+2. **Wrong mechanism.**  The body at `0x2ec580` does not touch
+   `/proc/device-tree/model` (no such literal exists in the
+   binary; `strings _seqc_compiler.so | grep device-tree` is
+   empty).  Instead it calls
+   `(anonymous namespace)::readManifest()` (which lazily parses
+   a `boost::property_tree::ptree` into a function-local static
+   `laboneManifest`) and then
+   `(anonymous namespace)::isMf(laboneManifest)`, caching the
+   resulting `bool` in a function-local static `runningOnMf`
+   gated by a Meyers-singleton `__cxa_guard`.
+
+The current constant-`false` stub remains observationally
+correct on any PC-hosted test run because the manifest lookup
+on a workstation also returns `false`; all 1603 difftests pass.
+
+### Action
+
+Cosmetic only.  When `runningOnMfDevice` is reconstructed for
+real, model the
+`readManifest` / `isMf(boost::property_tree::ptree)` /
+`__cxa_guard`-protected cached `bool` triple at the correct
+address `0x2ec580`, and delete the spurious `device-tree`
+narrative from the header / comment.  No TODO needs to be
+filed for the stub itself; it can stay constant-`false` until
+an MF-hosted test surface materialises.
+

@@ -66,11 +66,11 @@ namespace zhinst::logging {
 //! threshold.  Values increase with importance so range comparisons
 //! (`severity >= Warning`) behave as expected.
 //!
-//! \verifyme Underlying type, enumerator order, and underlying integer
-//! values are inferred from string-table order ("Trace".."Fatal") and
-//! LabOne conventions.  Only the attribute's wire form (opaque `uint32`
-//! in `attribute_value_impl`) is directly observable; no exported symbol
-//! pins the integer mapping.
+//! \verifyme Unverifiable from SeqC: no exported symbol or non-inlined
+//! call site fixes the integer mapping; only the wire-form `uint32` in
+//! `attribute_value_impl` is observable.  Underlying type, enumerator
+//! order, and integer values are inferred from string-table order
+//! (`"Trace"`..`"Fatal"`) and LabOne conventions.
 enum class Severity : unsigned int {
     Trace    = 0,
     Debug    = 1,

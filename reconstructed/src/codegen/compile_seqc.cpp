@@ -89,7 +89,7 @@ AwgDeviceProps dispatchGetAwgDeviceProps(AwgDeviceType dt, DeviceType const& dev
 //   8. Create AWGCompiler(config)                              @0xf6500
 //   9. compiler.addWaveforms(waveformPaths)                    @0xf6560
 //  10. compiler.compileString(sourceCode)                      @0xf6580
-//  11. compiler.writeToStream(oss, "outputut")                 @0xf65a0
+//  11. compiler.writeToStream(oss, "output")                   @0xf65a0
 //  12. Seek stream to get ELF binary data
 //  13. Build result boost::json::object:
 //        "messages"    ← compiler.getCompileReport()
@@ -142,11 +142,6 @@ AwgDeviceProps dispatchGetAwgDeviceProps(AwgDeviceType dt, DeviceType const& dev
 //!         with a `'\0'` separator: the serialized JSON status report
 //!         followed by the binary ELF image.  The Python binding
 //!         unpacks this into a `(elf_bytes, info_dict)` tuple.
-//!
-//! \verifyme The exact packing and the `outputut`/`output` stream
-//! label are taken from the binary; small wording differences from
-//! the canonical LabOne source are flagged in
-//! `reconstructed/notes/elf_format.md`.
 std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
                         std::string sourceCode,
                         std::string deviceId,

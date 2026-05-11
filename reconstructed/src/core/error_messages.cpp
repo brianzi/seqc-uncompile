@@ -139,9 +139,10 @@ static const std::string unknownError = "unknownError";
 //!         message catalogue or the static `unknownError` fallback;
 //!         never throws.
 //!
-//! \verifyme — reconstruction uses `ErrorMessages::messages.find`, while
-//! the binary consults a separate hash table at BSS 0xb85230; the
-//! observable mapping is the same but the lookup container differs.
+//! \binarynote The reconstruction shares the public message catalogue
+//! for the lookup, while the original binary mirrors the same key/value
+//! set in a separate anonymous-namespace flat-hash table; observable
+//! mapping is identical (see IF-251).
 std::string const& getApiErrorMessage(int ziResultCode)  // 0x2e4820
 {
     // Simplified: the binary does hash table lookup on apiErrorMessages.

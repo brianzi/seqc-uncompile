@@ -202,9 +202,11 @@ AsmExpression* appendArgList(AsmExpression* list,  // 0x28bec0
 // All field offsets used here are verified against asm_expression.hpp:
 // type @+0x00, name @+0x08, command @+0x38, value @+0x3c, children @+0x40.
 // ============================================================================
-//! \verifyme Reconstructed from disassembly only; no test exercises
-//! this function and the exact whitespace / capitalisation has not
-//! been confirmed against any reference output.
+//! \verifyme Unverifiable from SeqC: the function has no external
+//! caller in the binary (only a recursive self-call inside its body),
+//! so no `compile_seqc` input drives a difftest of its output.
+//! Reconstructed from disassembly; whitespace and capitalisation
+//! cannot be confirmed against any reference output.
 std::string str(const std::shared_ptr<AsmExpression>& expr) {  // 0x28cd20
     std::ostringstream out;
 

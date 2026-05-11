@@ -16,25 +16,27 @@
 
 namespace zhinst {
 
-// 0x2ce770 — checks /proc/device-tree/model for "Zurich Instruments MF"
-// Always false on PC.
+// 0x2ec580 — caches the result of isMf(readManifest()) in a Meyers-
+// singleton bool guarded by __cxa_guard. Always false on PC.
 //! \brief Reports whether the compiler is hosted on a Zurich
 //!        Instruments MF-class device (an instrument running the
 //!        LabOne stack on its own embedded SoC) rather than on a
 //!        regular workstation.
 //!
-//! \details The host check inspects `/proc/device-tree/model` for the
-//! `"Zurich Instruments MF"` signature.  On any normal PC the path is
-//! either missing or carries a different model string, so the function
-//! returns `false`; on an MF device it returns `true`, which gates
-//! behaviour such as on-device wave-path resolution.
+//! \details On any normal PC this returns `false`; on an MF
+//! instrument it returns `true`, gating behaviour such as
+//! on-device wave-path resolution.  The result is computed once
+//! and cached in a function-local static.
 //!
 //! \return `true` only when running on an MF instrument; `false`
 //!         elsewhere (always `false` in the current reconstruction
 //!         stub).
 //!
-//! \verifyme — the reconstruction returns a constant `false`; the
-//! binary performs the device-tree check at runtime.
+//! \binarynote The runtime check parses a LabOne manifest into a
+//! `boost::property_tree::ptree` and applies an `isMf` predicate
+//! to it; the current reconstruction is a constant-`false` stub,
+//! which is observationally correct for all PC-hosted test runs.
+//! See IF-253 for the full divergence note.
 bool runningOnMfDevice() {
     return false;
 }
