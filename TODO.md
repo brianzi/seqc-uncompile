@@ -462,9 +462,10 @@ cross-reference pages so the backlog is discoverable.
           `isLabelCalled` (scan range is `[begin, it)`, not
           "after `it`") in the same commit.
         1600/1600 tests, 0 doxygen warnings.
-   - [ ] **D4 Batch 6** — `WaveformGenerator` class, sub-batched.
-         6a/6b/6c/6d complete; remaining sub-batches TBD if
-         further coverage gaps appear.
+   - [x] **D4 Batch 6** — `WaveformGenerator` class, sub-batched.
+         6a/6b/6c/6d complete; coverage audit confirmed 0
+         undocumented WaveformGenerator members and 0 doxygen
+         warnings, so no further sub-batches needed.
          - **6a** (`389b48e`): ~14 briefs — lifecycle / readers /
            shape helpers.  Surfaced IF-229 (cosmetic class brief
            overstatement).
