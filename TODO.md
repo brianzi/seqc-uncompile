@@ -1004,47 +1004,67 @@ cross-reference pages so the backlog is discoverable.
     - [x] `static_resources_cervino_consts.md` → `notes_static_resources_cervino_consts`
     - [x] `waveform_generator_funcmap.md` → `notes_waveform_generator_funcmap`
 
-  - [ ] **D6-B — Promote 16 MIXED files after cleanup** (deferred).
-        Each file has evergreen content plus phase-tagged / audit /
-        resolution-log framing that must be stripped before promotion.
-        Verify-then-write against current code is required per
-        AGENTS.md — some have stale field names from earlier
-        reconstruction passes.  Files (audit notes recorded inline):
-    - [ ] `asm_parser_grammar.md` — drop reconstruction-plan +
-          future-work sections.
-    - [ ] `awg_device_props.md` — drop phase tags + future-subphase
-          sentence.
-    - [ ] `binary_contents_excluded.md` — drop date + Phase 34
-          progress refs.
-    - [ ] `device_constants.md` — drop "Phase 14b-iii.5" preamble.
-    - [ ] `differential_testing.md` — drop coverage snapshot +
-          "potential future" sections.
-    - [ ] `elf_reader.md` — drop "Open items" + Phase 14d framing.
-    - [ ] `libcpp_abi.md` — drop "Phase 21g Dual-build strategy" +
-          phase subheaders.
-    - [ ] `magic_numbers_proposal.md` — strip RESOLVED tags +
-          investigation pointers.
-    - [ ] `optimization_passes.md` — strip Phase 15c correction +
-          carry-forward list.
-    - [ ] `placeholder_field_names.md` — heavy cleanup; borderline
-          evergreen value, may be EXCLUDED instead.
-    - [ ] `seqc_language_features_excluded.md` — strip
-          coverage-tooling meta.
-    - [ ] `seqc_parser_grammar.md` — strip Phase 30f Discovery framing.
-    - [ ] `splitreg_loop_model.md` — strip trailing "Recon bugs"
-          section.
-    - [ ] `struct_layouts.md` — heavy: strip phase tags + investigation
-          logs.
-    - [ ] `writeToNode_block_d_protocol.md` — strip "Open questions" +
-          phase correction headers.
-    - [ ] `write_waves_to_elf.md` — strip "(RESOLVED in Phase N)" tags.
+  - [x] **D6-B — Promote 14 of 16 MIXED files after cleanup**
+        *(complete; see commits `64a1601` batch 1, `a837454` batch 2,
+        `de1f165` batch 3)*.  Each promoted file gained a `\page`
+        anchor + the standard reverse-engineering banner; phase
+        tags, dated audit logs, RESOLVED markers, "Open items /
+        Open questions" lists, "Recon bugs" trailers, future-work
+        sections and similar transient framing were stripped.
+        Verify-then-write per AGENTS.md caught one notes-only
+        field-name discrepancy (IF-254: `Variable::flags` type and
+        Frozen-bit position).  Two files moved to EXCLUDED instead
+        of promoted (see below).  Files (audit notes recorded inline):
+    - [x] `asm_parser_grammar.md` — drop reconstruction-plan +
+          future-work sections. *(batch 2)*
+    - [x] `awg_device_props.md` — drop phase tags + future-subphase
+          sentence; collapsed inferred-vs-verified field names to
+          canonical names. *(batch 1)*
+    - [x] `binary_contents_excluded.md` — drop date + Phase 34
+          progress refs. *(batch 1)*
+    - [x] `device_constants.md` — drop "Phase 14b-iii.5" preamble.
+          *(batch 1)*
+    - [x] `differential_testing.md` — drop coverage snapshot +
+          "potential future" sections. *(batch 2)*
+    - [x] `elf_reader.md` — drop "Open items" + Phase 14d framing.
+          *(batch 2)*
+    - [x] `libcpp_abi.md` — drop "Phase 21g Dual-build strategy" +
+          phase subheaders. *(batch 3)*
+    - [x] `magic_numbers_proposal.md` — strip RESOLVED tags +
+          investigation pointers; IF-254 fix to Variable::flags
+          description. *(batch 2)*
+    - [x] `optimization_passes.md` — strip Phase 15c correction +
+          carry-forward list (verified `simplifyAssign` and
+          `splitReg` are real implementations now, so the
+          carry-forward warning was stale). *(batch 3)*
+    - [x] `placeholder_field_names.md` — **moved to EXCLUDED**
+          (working-doc audit log; see EXCLUDED section below).
+    - [x] `seqc_language_features_excluded.md` — strip
+          coverage-tooling meta. *(batch 1)*
+    - [x] `seqc_parser_grammar.md` — strip Phase 30f Discovery framing.
+          *(batch 2)*
+    - [x] `splitreg_loop_model.md` — strip trailing "Recon bugs"
+          section. *(batch 2)*
+    - [x] `struct_layouts.md` — **moved to EXCLUDED** (1925-line
+          working-doc with phase tags in nearly every section
+          header; content has largely migrated into per-header
+          struct comments in canonical `.hpp`s; see EXCLUDED
+          section below).
+    - [x] `writeToNode_block_d_protocol.md` — strip "Open questions" +
+          phase correction headers. *(batch 2)*
+    - [x] `write_waves_to_elf.md` — strip "(RESOLVED in Phase N)" tags.
+          *(batch 1)*
 
-  - **EXCLUDED (8) — working-doc tracking files, not for `\page`
+  - **EXCLUDED (10) — working-doc tracking files, not for `\page`
     promotion:** `bytes_vs_samples_audit.md`, `comment_style_guide.md`
     (internal style guide, separate audience), `device_type.md`,
     `error_message_audit.md`, `frontend_lowering.md`,
     `incidental_findings.md`, `linker_resolution.md`,
-    `unknowns.md`.
+    `placeholder_field_names.md` *(audit log of completed
+    placeholder-field renames; tracking artifact)*,
+    `struct_layouts.md` *(1925-line cumulative offset table; content
+    largely migrated into per-header struct comments in canonical
+    `.hpp`s)*, `unknowns.md`.
 
 **Coverage baseline at end of D0:** 4/2712 symbols documented (0.1%).
 Run `reconstructed/docs/coverage.sh` to track progress.

@@ -1111,8 +1111,36 @@ mainpage.
 - `architecture.md` cross-links them under a new
   "Reverse-engineering reference" section and updates the stale
   "Documentation roadmap" section (was "D2 wrap-up"; now reflects
-  D5-closed / D6-A complete / D6-B deferred).
+  D5-closed / D6-A complete / D6-B complete).
 - 1602/1602 tests passing; 0 doxygen warnings; build clean.
+
+**D6-B (promote 14 of 16 MIXED notes/ files) complete:**
+
+- 14 MIXED notes promoted across 3 commits (`64a1601` batch 1 of 5,
+  `a837454` batch 2 of 7, `de1f165` batch 3 of 2).  Each gained a
+  `{#anchor}` title and the standard reverse-engineering banner;
+  phase tags, dated audit snapshots, RESOLVED markers, "Open items
+  / Open questions" lists, "Recon bugs" trailers, and similar
+  transient framing were stripped.
+- New pages: `notes_awg_device_props`, `notes_binary_contents_excluded`,
+  `notes_device_constants`, `notes_seqc_language_features_excluded`,
+  `notes_write_waves_to_elf`, `notes_asm_parser_grammar`,
+  `notes_differential_testing`, `notes_elf_reader`,
+  `notes_magic_numbers_proposal`, `notes_seqc_parser_grammar`,
+  `notes_splitreg_loop_model`, `notes_writeToNode_block_d_protocol`,
+  `notes_libcpp_abi`, `notes_optimization_passes`.
+- Two MIXED files moved to EXCLUDED instead of promoted:
+  `placeholder_field_names.md` (audit log of completed
+  placeholder-field renames; tracking artifact) and
+  `struct_layouts.md` (1925-line cumulative offset table whose
+  content has largely migrated into per-header struct comments in
+  canonical `.hpp`s).  EXCLUDED set now totals 10 files.
+- Verify-then-write per AGENTS.md caught one notes-only field-name
+  discrepancy (IF-254: `Variable::flags` was described as
+  `uint16_t` with Frozen=bit 1; canonical
+  `runtime/resources.hpp` declares `int16_t` with Frozen=bit 8).
+  Notes file fixed; no source change needed.
+- 1603/1603 tests passing; 0 doxygen warnings; build clean.
 
 **D7 (verify-triage sweep) complete:**
 
