@@ -835,10 +835,6 @@ public:
     //! \brief Returns the device-type-code string only; options are
     //! NOT appended.  Use `getOptionsAsString()` for the options
     //! portion.
-    //! \binarynote The single-arg `toString(DeviceType)` mirrored by
-    //! this method does not stringify options — the binary
-    //! intentionally splits the model name and the options into two
-    //! separate calls.
     //! \return Device-type-code name string.
     std::string     toString() const;                               // @ 0x2d2cb0
     //! \brief Writes `toString()` to `os`.

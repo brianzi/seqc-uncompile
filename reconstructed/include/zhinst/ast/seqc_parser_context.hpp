@@ -87,7 +87,7 @@ public:
     //! \binarynote No-op when already inside a block comment.
     void startLineComment();                  // 0x247c00
     //! \brief Ends line-comment state at the next newline.
-    //! \binarynote No-op when inside a block comment.
+    //! \note No-op when inside a block comment (mirrors `startLineComment`).
     void endLineComment();                    // 0x247c20
 
     // --- Lifecycle ---
