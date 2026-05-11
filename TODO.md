@@ -183,23 +183,29 @@ cross-reference pages so the backlog is discoverable.
         symbol fixes applied above.  GDB driver and recipe
         committed at `tests/gdb/gdb_trace_lock.py` and
         `tests/gdb/gdb_lock_trace.txt`.
-  - [ ] **D4 Batch 2c follow-up (IF-213)** — reconstruct
-        `Prefetch::findLockedPlay` (currently a stub at
-        `prefetch_helpers.cpp:388-424`).  GDB-confirmed during
-        IF-216 investigation that the binary at `0x1d3dd0` is a
-        ~1.4 KB function that walks the tree, dispatches on Play
-        (`0x02`) and Unlock (`0x80`) types, performs `bcmp` on
-        waveform names, and returns the matched node via the
-        success path at `0x1d43ad`.  Recon stub always returns
-        `nullptr`; tests pass only because `prepareTree`'s
-        `createLoad` fallback happens to produce the same ELF for
-        the trivial `lock(w); playWave(w); unlock(w);` pattern in
-        the corpus.  Reconstruction is non-trivial:
-        jump-table-style dispatch, two `bcmp` sites, dual return
-        paths, weak_ptr handling.  Deferred to a dedicated
-        reconstruction effort.  See IF-213 for full evidence.
-        GDB driver: `tests/gdb/gdb_trace_lock.py`; recipe:
-        `tests/gdb/gdb_findlocked_trace.txt`.
+  - [x] **D4 Batch 2c follow-up (IF-213)** — fixed.
+        `Prefetch::findLockedPlay` reconstructed at
+        `prefetch_helpers.cpp:432-525` from full disassembly of
+        `0x1d3dd0..0x1d4442` (the earlier `0x1d4a10` end
+        estimate overstated the range — everything past
+        `0x1d4442` is `Node::remove`, a separate function).
+        Implementation is a LIFO `std::deque` worklist walk:
+        for each popped node, if `type == Play` and
+        `wavesPerDev[deviceIndex]` matches `waveform->name`,
+        return it; otherwise push all `branches` entries, push
+        `loop` if present, then push `next` unless this is an
+        `Unlock` whose own wave name matches the target (in
+        which case the Unlock closes the Lock scope and we drop
+        the sibling chain).  `waveform->name` is read directly
+        from the inherited `Waveform::name` field at WaveformIR
+        offset 0.  Tests: 1602/1602 (no behaviour change for
+        the existing corpus — the only Lock test has the
+        trivial `lock; play; unlock` pattern where the
+        `createLoad` fallback happens to produce identical
+        ELF).  Recommend a future regression test exercising
+        an `Unlock` that terminates an in-scope chain to close
+        the last static-only verification gap.  See IF-213 for
+        full disassembly trail.
   - [x] **D4 Batch 2d** — Prefetch tree-rewrite helpers (13
         methods): `getUsedWavesForDevice`, `collectUsedWaves`,
         `linkLoad`, `removeBranches`, `expandSetVar`,

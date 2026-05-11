@@ -4489,87 +4489,60 @@ for similar drift before D4 Batch 2a writes briefs against them.
 ## IF-213  `Prefetch::findLockedPlay` body is a stub that always returns null
 
 **Severity**: likely-bug.
-**Status**: open — GDB-confirmed during D4-2c follow-up; recon
-fix deferred to a dedicated reconstruction effort.
+**Status**: **fixed** (commit pending) — body reconstructed at
+`prefetch_helpers.cpp:432-525` from full disassembly of
+`0x1d3dd0..0x1d4442`.  The previously-recorded end address
+`0x1d4a10` overstated the function range by ~2 KB; everything
+above `0x1d4442` belongs to a different function
+(`Node::remove`).
 **Discovered**: D4 Batch 2a verify-then-write check of `prepareTree`'s
 `Lock`-handling branch.
 
-`reconstructed/src/codegen/prefetch_helpers.cpp:388-424` defines
-`Prefetch::findLockedPlay` as a worklist walk over the node tree
-that *should* search for a `Play` node referencing the supplied
-`waveform` inside a `Lock` scope.  The body:
+**Resolution**: confirmed by GDB (Play branch, see original IF-213
+trace in this entry's history) plus full static disassembly
+covering the Unlock branch (which the GDB trace did not exercise
+because no current corpus test routes an Unlock-with-matching-wave
+through it).  The function is a LIFO `std::deque` worklist walk
+over the AST with the following per-node logic:
 
-- enqueues children correctly,
-- has the type-dispatch shell for `Play` and `Unlock`,
-- but the `if (cur->type == NodeType::Play)` block (lines 405-412)
-  contains only the comment `// If match: return current` with no
-  actual return statement and no waveform comparison,
-- and the function unconditionally falls through to
-  `return nullptr` at line 423.
+1. If `node->type == NodeType::Play` and
+   `node->wavesPerDev[node->deviceIndex]` is engaged and equal to
+   `waveform->name`, return the node immediately
+   (binary site `0x1d3f8f..0x1d43cc`, `bcmp` at `0x1d404a`).
+2. Unconditionally push every `branches` entry, then push `loop`
+   if non-null (binary `0x1d4080..0x1d41c6`).
+3. If `next` is null, do nothing further.  Otherwise, if
+   `node->type == NodeType::Unlock` **and** the Unlock node's own
+   wave name at `deviceIndex` equals `waveform->name`, do NOT
+   push `next` (the Unlock closes the Lock scope for our wave);
+   otherwise push `next`
+   (binary `0x1d41c6..0x1d42d0`, second `bcmp` at `0x1d428e`).
 
-The `waveform` parameter is never read.  Compilers do not warn
-because `nullptr` is a valid `shared_ptr<Node>`.
+`waveform->name` is read directly out of the inherited
+`Waveform::name` field at WaveformIR offset 0.
 
-The `prepareTree` `Lock` branch (line 227) calls this function and
-takes one of two divergent code paths based on the result: a hit
-removes the wait node and merges loads via `mergeLoads`; a miss
-synthesises a fresh load via `createLoad`.  With the current stub,
-the hit path is dead code on every input, so every `Lock` node
-produces a freshly-created load even when an existing locked play
-would have served.
+The function does not touch `nodeStates_`, `wavetableIR_`,
+`Cache`, or any other `Prefetch` member.  Push order
+(branches → loop → next) is preserved so the LIFO pop order
+matches the binary for any differential test that turns up
+multiple-Play scenarios in the future.
 
-This may be benign (extra load, same end result) or may produce a
-real diff against the binary on programs that use `Lock` blocks.
-The differential test suite passes 1600/1600, which suggests either:
-(a) no test exercises the locked-play merge path, or
-(b) the redundant-load output happens to match the binary on every
-covered case (e.g. because the binary's optimiser later merges
-them anyway).
+**Why tests still pass at 1602/1602 even before the fix**: the
+only `Lock` test in the manifest (`tests/cases/uhfli_misc_funcs.seqc`)
+has a trivial `lock(w); playWave(w); unlock(w);` pattern where
+`prepareTree`'s `createLoad` fallback (the always-taken path
+when `findLockedPlay` returns null) happens to produce the same
+ELF the binary would produce on the match path.  More elaborate
+Lock patterns (multiple Plays sharing a waveform inside a Lock,
+or nested Locks) would diverge silently — no such tests exist.
+ELF output for the existing test is unchanged with the fix in
+place.
 
-**Action**: GDB-trace `_ZNK6zhinst8Prefetch14findLockedPlayE...`
-on a Lock-using test (if one exists) and confirm the binary's
-match logic.  If no test covers it, write a minimal `playWave`-
-inside-Lock case to expose the path before fixing.  The fix should
-add the missing waveform-name comparison and `return current` in
-the `Play` branch.
-
-**GDB confirmation (D4-2c follow-up)**: traced
-`findLockedPlay` (`0x1d3dd0`) on `tests/cases/uhfli_misc_funcs.seqc`
-(which contains `lock(w); playWave(w); unlock(w);`).  Trace
-output shows the binary:
-
-  1. Enters `findLockedPlay` (initial entry).
-  2. Hits the `cmpl $0x2, 0x44(%r13)` site at `0x1d3f8f` —
-     i.e. the body really does test `node->type == Play`.
-  3. Calls `bcmp` at `0x1d404a` — waveform-name comparison.
-  4. Reaches `mov %rax, 0x8(%rbx)` at `0x1d43ad` — the
-     success-return path that writes the matched node into
-     the return shared_ptr.
-  5. Re-enters `findLockedPlay` (second invocation, presumably
-     for the matching `Unlock` side).
-
-So `findLockedPlay` is a real ~1.4 KB function that walks the
-tree, checks Play-type nodes against the supplied waveform, and
-returns the matching node.  The recon stub at
-`prefetch_helpers.cpp:388-424` does none of this and always
-returns `nullptr` — exactly as suspected.
-
-The reason `tests/cases/uhfli_misc_funcs.seqc` still passes
-byte-identical is that `prepareTree`'s downstream `createLoad`
-fallback happens to produce the same ELF for this particular
-trivial Lock pattern.  More elaborate Lock-pattern programs
-(e.g. multiple Plays sharing the same waveform inside a Lock,
-or nested Locks) likely diverge silently — there are no tests
-exercising them.
-
-The actual reconstruction of `findLockedPlay` is non-trivial
-(jump-table-style dispatch on node types `0x02` and `0x80`,
-weak_ptr handling, two `bcmp` sites, dual return paths).  See
-`TODO.md` "D4 Batch 2c follow-up" for the dedicated work item.
-
-GDB driver: `tests/gdb/gdb_trace_lock.py`; trace recipe:
-`/tmp/gdb_findlocked_trace.txt` (kept in scratch — promote to
-`tests/gdb/` if recreating the trace later).
+**Open**: the Unlock-terminates-scope branch is confirmed only
+by static disassembly; a GDB trace on a hand-written
+`Lock { playWave(w); } ... Unlock; playWave(w);` style test
+would close the last verification gap.  Recommend adding such a
+test in a future regression-coverage pass.
 
 ## IF-214  "BFS" misnomer pervasive in Prefetch traversal comments
 

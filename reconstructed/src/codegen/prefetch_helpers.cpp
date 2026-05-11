@@ -420,51 +420,102 @@ void Prefetch::expandSetVar(std::shared_ptr<Node> node) const // 0x1d3af0
 
 // ============================================================================
 // 0x1d3dd0 — Prefetch::findLockedPlay(shared_ptr<Node>, shared_ptr<WaveformIR>) const
-// Ends at 0x1d4a10.
+// Ends at 0x1d4442 (the previously-reported 0x1d4a10 end address overstated
+// the function range by ~2 KB; 0x1d4442..0x1d4a10 is Node::remove which lives
+// elsewhere in the file).
 //
-// Searches the tree for a Play node that uses the given waveform and is
-// within a Lock scope. Returns the found node or null.
+// LIFO worklist walk over the AST searching for a Play node whose
+// wave-name at the current device index equals `waveform->name`.
+// Pushes branches and loop unconditionally; pushes `next` unless the
+// current node is an `Unlock` whose wave name matches the target
+// (which closes the Lock scope for that wave).
 //
-// Walks the node chain following next/branches. For each Play(0x02) node,
-// checks if its waveform matches. For Lock(0x08) containers, recurses
-// into children. For Unlock(0x80), stops searching that branch.
+// Binary key sites (from objdump disassembly of 0x1d3dd0..0x1d4442):
+//   0x1d3f8f   cmpl $0x2, 0x44(%r13)     — node->type == NodeType::Play
+//   0x1d404a   call bcmp                  — Play wave-name comparison
+//   0x1d4080.. push every branches entry
+//   0x1d4130.. push loop if non-null
+//   0x1d41c6   test next == null
+//   0x1d41d4   cmpl $0x80, 0x44(%r13)    — node->type == NodeType::Unlock
+//   0x1d428e   call bcmp                  — Unlock wave-name comparison
+//   0x1d42d0   push next
+//   0x1d43cc   success: copy current into sret
+//
+// GDB-confirmed (see IF-213): the Play-branch type check, the bcmp
+// call, and the success-store all fire on a Lock-using test case.
+// The Unlock-branch behaviour is confirmed by static disassembly only;
+// no current corpus test exercises an Unlock-with-matching-wave
+// terminating the scope.
 // ============================================================================
 std::shared_ptr<Node> Prefetch::findLockedPlay(
     std::shared_ptr<Node> node,
     std::shared_ptr<WaveformIR> waveform) const // 0x1d3dd0
 {
-    // LIFO worklist walk looking for Play nodes with matching waveform
-    // inside Lock scopes
     std::deque<std::shared_ptr<Node>> worklist;
-    worklist.push_back(node);
+    worklist.push_back(node);                                   // 0x1d3dfd
 
-    while (!worklist.empty()) {
-        auto current = worklist.back();
+    // Target wave-name is the inherited Waveform::name field at +0x00
+    // of WaveformIR.  The binary reads this string directly out of the
+    // shared_ptr at 0x1d402b..0x1d4041 (and again at 0x1d4248..0x1d425e
+    // for the Unlock branch).
+    const std::string& targetName = waveform->name;
+
+    while (!worklist.empty()) {                                 // 0x1d3e7d
+        std::shared_ptr<Node> current = worklist.back();
         worklist.pop_back();
 
         Node* cur = current.get();
-        if (!cur) continue;
+        if (!cur) {                                             // 0x1d3f86
+            return std::shared_ptr<Node>{};
+        }
 
-        // Check type
+        // ----- Play-match check ------------------------------- 0x1d3f8f
+        // Returns the matching node directly when found; otherwise
+        // falls through to the child-enqueue block below.
         if (cur->type == NodeType::Play) {
-            // Check if waveform matches
-            // Look up waveform name → WavetableIR → compare with target
-            // If match: return current
-        } else if (cur->type == NodeType::Unlock) {
-            // Stop searching this branch
+            int devIdx = cur->deviceIndex;                      // +0x40
+            if (devIdx >= 0) {
+                const auto& slot = cur->wavesPerDev[devIdx];    // +0x28
+                if (slot.has_value() && *slot == targetName) {
+                    return current;                              // 0x1d43cc
+                }
+            }
+        }
+
+        // ----- Enqueue children ------------------------------- 0x1d4080
+        // Branches and loop are pushed unconditionally.  Push order
+        // matters: the binary pushes branches in vector order, then
+        // loop, then next, so LIFO pop order is next, loop,
+        // branches.back()..branches.front().
+        for (const auto& child : cur->branches) {               // 0x1d4080..0x1d4128
+            worklist.push_back(child);
+        }
+        if (cur->loop) {                                        // 0x1d4130..0x1d41c6
+            worklist.push_back(cur->loop);
+        }
+
+        if (!cur->next) {                                       // 0x1d41c6
             continue;
         }
 
-        // Enqueue children
-        if (cur->next)
-            worklist.push_back(cur->next);
-        for (auto& child : cur->branches)
-            worklist.push_back(child);
-        if (cur->next)  // +0xB8 (was elseBranch)
-            worklist.push_back(cur->next);
+        // ----- Unlock-terminates-scope check ------------------ 0x1d41d4
+        // An Unlock whose wave name matches the target closes the
+        // Lock scope and stops the sibling-chain walk.  Other Unlocks
+        // (for unrelated waves) are walked through normally.
+        if (cur->type == NodeType::Unlock) {
+            int devIdx = cur->deviceIndex;
+            if (devIdx >= 0) {
+                const auto& slot = cur->wavesPerDev[devIdx];
+                if (slot.has_value() && *slot == targetName) {
+                    continue;                                    // 0x1d42a0 / 0x1d42bb
+                }
+            }
+        }
+
+        worklist.push_back(cur->next);                          // 0x1d42d0
     }
 
-    return nullptr;
+    return std::shared_ptr<Node>{};                             // 0x1d435a
 }
 
 // ============================================================================
