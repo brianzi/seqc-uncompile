@@ -5389,7 +5389,7 @@ brief alone documents the intended semantics.
 ## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
 
 **Severity**: cosmetic (readability / doc-accuracy hazard).
-**Status**: partially fixed (E1+E2 done 2026-05-11; E3-E5 still open).
+**Status**: partially fixed (E1+E2+E3 done 2026-05-11; E4-E5 still open).
 **Discovered**: D4 Batch 4e while writing briefs for
 `playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
 `playZero`, `playHold` in
@@ -5488,7 +5488,14 @@ user agreement):
   (`custom_functions_playback.cpp:518`); a helper would
   obscure rather than clarify.  Build clean, 1603/1603 tests
   pass — fully NFC.
-- E3: name the ZSYNC shift constants in `playWaveZSync`.
+- E3: ✅ **done 2026-05-11**.  Added `kZSyncShiftRaw=1`,
+  `kZSyncShiftProcessedA=9`, `kZSyncShiftProcessedB=0xd` as
+  file-scope constexpr in the anonymous namespace of
+  `custom_functions_playback.cpp` (single-site usage; doesn't
+  warrant a public header).  The disassembly comments
+  (`@0x137fab`, `@0x138049`, `@0x1380ea`) are kept for
+  trace-back to the binary.  Build clean, 1603/1603 tests
+  pass — fully NFC.
 - E4: name `AsmRegister(-1)` and the rate-validity floors.
 - E5: audit `PlayConfig` field encoding for promotion to
   named members.

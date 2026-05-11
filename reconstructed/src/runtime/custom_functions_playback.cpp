@@ -40,6 +40,14 @@ inline void appendSuser(std::vector<AsmList::Asm>& vec, std::shared_ptr<AsmComma
                         AsmRegister reg, detail::AddressImpl<unsigned int> addr) {
     vec.push_back(cmds->suser(reg, addr));
 }
+
+// ZSync data-source bit positions (IF-228 E3).  These match the
+// `ZSYNC_DATA_RAW`, `ZSYNC_DATA_PROCESSED_A`, and
+// `ZSYNC_DATA_PROCESSED_B` constants registered in `Resources` and
+// are used by `playWaveZSync` to compute the per-source shift.
+constexpr int kZSyncShiftRaw        = 1;     //!< Bit position for `ZSYNC_DATA_RAW`.
+constexpr int kZSyncShiftProcessedA = 9;     //!< Bit position for `ZSYNC_DATA_PROCESSED_A`.
+constexpr int kZSyncShiftProcessedB = 0xd;   //!< Bit position for `ZSYNC_DATA_PROCESSED_B`.
 } // anonymous namespace
 
 extern ErrorMessages errMsg;
@@ -774,19 +782,19 @@ std::shared_ptr<EvalResults> CustomFunctions::playWaveZSync(  // @0x137a50
                                        EDirection::eOUT);        // @0x137beb
         if (tableIndex == zsyncRaw.value_.toInt()) {
             matched = true;
-            shift = 1;                                                      // @0x137fab: mov eax,0x1
+            shift = kZSyncShiftRaw;                                         // @0x137fab: mov eax,0x1
         } else {
             auto zsyncProcA = res->readConst("ZSYNC_DATA_PROCESSED_A",
                                              EDirection::eOUT); // @0x137c47
             if (tableIndex == zsyncProcA.value_.toInt()) {
                 matched = true;
-                shift = 9;                                                  // @0x138049: mov eax,0x9
+                shift = kZSyncShiftProcessedA;                              // @0x138049: mov eax,0x9
             } else {
                 auto zsyncProcB = res->readConst("ZSYNC_DATA_PROCESSED_B",
                                                  EDirection::eOUT); // @0x137ca1
                 if (tableIndex == zsyncProcB.value_.toInt()) {
                     matched = true;
-                    shift = 0xd;                                            // @0x1380ea: mov eax,0xd
+                    shift = kZSyncShiftProcessedB;                          // @0x1380ea: mov eax,0xd
                 }
             }
         }
