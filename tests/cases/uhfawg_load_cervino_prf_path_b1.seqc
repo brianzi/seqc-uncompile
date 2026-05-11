@@ -1,0 +1,7 @@
+// D8 case 4 / D10 verification: UHFAWG load_cervino_prf Path B1.
+// Triggers the gate `loadState.cachePtr->size_ == devConst_->waveformMemorySize`
+// (entered via 0x1d85fa jne -> load_cervino_prf @0x1d9c33 -> Path B
+// @0x1db1f3 -> Path B1 @0x1db223). D9.1 GDB trace confirmed this
+// reaches binary block 0x1db4ad..0x1db55d. See IF-246, TODO D10.
+wave w = placeholder(65536);
+playWaveIndexed(w, 0, 128);

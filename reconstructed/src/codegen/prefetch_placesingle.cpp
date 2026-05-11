@@ -340,13 +340,78 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             int wfMemSize = devConst_->waveformMemorySize;         // +0x0C
 
                             if (cacheSize == wfMemSize) {
-                                // Path B1 (0x1db22c): equal — uses Load node state, size/2, + extra
-                                // TODO: implement B1 fully (complex path with extra reg alloc)
-                                AsmRegister regH = nodeStates_[node].registerHirzel;
-                                AsmRegister regC = nodeStates_[node].registerCervino;
+                                // Path B1 (0x1db223): cacheSize == waveformMemorySize.
+                                // Emits a split prefetch covering the cache in two
+                                // halves, bracketed by an unconditional `wprf`:
+                                //   prf(Hirzel, Cervino, size/2)
+                                //   regNew1 = Cervino + size/2          (via addi)
+                                //   regNew2 = Hirzel  + size/2          (via addi)
+                                //   wprf()                              (unconditional here,
+                                //                                        in addition to the
+                                //                                        !isHirzel wprf at
+                                //                                        load_finalize; see
+                                //                                        IF-246 / IF-247)
+                                //   prf(regNew2, regNew1, size/2)
+                                //   jmp 0x1db92e (load_finalize)        (handled by outer
+                                //                                        `goto load_finalize`)
+                                //
+                                // D9.1 GDB-verified reachable from UHFAWG via
+                                // `wave w = placeholder(65536); playWaveIndexed(w, 0, 128);`
+                                // (test case `core:uhfawg_load_cervino_prf_path_b1`).
+                                AsmRegister regH = nodeStates_[node].registerHirzel;   // +0x20
+                                AsmRegister regC = nodeStates_[node].registerCervino;  // +0x28
                                 int halfSize = cacheSize / 2;
-                                AsmList::Asm prfAsm = asmCommands_->prf(regH, regC, halfSize);
-                                tempList.append(prfAsm);
+
+                                // 0x1db2b3: prf(Hirzel, Cervino, size/2).  Raw shift, no clampToCache.
+                                {
+                                    AsmList::Asm prfAsm = asmCommands_->prf(regH, regC, halfSize);
+                                    tempList.append(prfAsm);
+                                }
+
+                                // 0x1db2d4 / 0x1db2e8: allocate two scratch registers.
+                                AsmRegister regNew1(resources_->getRegisterNumber());  // 0x1db2d4
+                                AsmRegister regNew2(resources_->getRegisterNumber());  // 0x1db2e8
+
+                                // 0x1db383: addi(regNew1, Cervino, Immediate(size/2)).
+                                {
+                                    auto addiVec1 = asmCommands_->addi(
+                                        regNew1, regC,
+                                        Immediate(static_cast<uint32_t>(halfSize)));
+                                    for (auto& a : addiVec1) tempList.append(a);
+                                }
+
+                                // 0x1db462: addi(regNew2, Hirzel, Immediate(size/2)).
+                                {
+                                    auto addiVec2 = asmCommands_->addi(
+                                        regNew2, regH,
+                                        Immediate(static_cast<uint32_t>(halfSize)));
+                                    for (auto& a : addiVec2) tempList.append(a);
+                                }
+
+                                //! \verifyme Two `wprf` emissions are expected on
+                                //! UHFAWG (the local one here at 0x1db4bd plus the
+                                //! `!isHirzel`-gated one at the load_finalize tail
+                                //! per IF-247).  Difftest case
+                                //! `core:uhfawg_load_cervino_prf_path_b1` verifies
+                                //! the byte-identical output; if the difftest
+                                //! starts failing with a single-`wprf` divergence,
+                                //! one of IF-246/IF-247 needs re-examination.
+                                {
+                                    AsmList::Asm wprfAsm = asmCommands_->wprf();    // 0x1db4bd
+                                    tempList.append(wprfAsm);
+                                }
+
+                                // 0x1db52b: prf(regNew2, regNew1, size/2).
+                                // Operand order: regNew2 (Hirzel+half) takes the
+                                // Hirzel slot, regNew1 (Cervino+half) takes the
+                                // Cervino slot.
+                                {
+                                    AsmList::Asm prfAsm2 = asmCommands_->prf(
+                                        regNew2, regNew1, halfSize);
+                                    tempList.append(prfAsm2);
+                                }
+                                // Falls through to the shared `goto load_finalize`
+                                // below, matching `0x1db55d jmp 0x1db92e`.
                             } else {
                                 // Path B2 (0x1db876): not-equal — uses Load node's own state, full size
                                 AsmRegister regH = nodeStates_[node].registerHirzel;   // 0x1db8a0: +0x20

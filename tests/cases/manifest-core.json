@@ -1158,6 +1158,12 @@
           "@base": "@uhfawg"
         },
         {
+          "name": "uhfawg_load_cervino_prf_path_b1",
+          "comment": "D8 case 4 / D10: triggers load_cervino_prf Path B1 (cachePtr->size_ == waveformMemorySize) on UHFAWG. D9.1 GDB-verified entry. See IF-246, TODO D10.",
+          "file": "uhfawg_load_cervino_prf_path_b1.seqc",
+          "@base": "@uhfawg"
+        },
+        {
           "name": "ghfli_combo",
           "file": "ghfli_combo.seqc",
           "@base": "@ghfli"
