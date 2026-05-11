@@ -6899,7 +6899,7 @@ Tracked as TODO **D9.3** (replace dead block with correct Load-side reconstructi
 ## IF-247  `wprf` gate at shared tail `0x1db935` confirmed `!isHirzel`
 
 **Severity**: confirmed (resolved a `\verifyme`).
-**Status**: fixed (D9.3 commit `d1515c8` promoted the `\verifyme` to a real `if (!config_->isHirzel)` gate at the inline Table-C-split `wprf` site; D10 commit `a6f92d9` additionally test-verified the gate's interaction with the Path B1 local `wprf` — UHFAWG (`isHirzel=0`) emits two `wprf` instructions on Path B1, byte-identical to the binary, via `core:uhfawg_load_cervino_prf_path_b1`).
+**Status**: fixed (D9.3 commit `d1515c8` promoted the `\verifyme` to a real `if (!config_->isHirzel)` gate at the inline Table-C-split `wprf` site; D10 commit `a6f92d9` additionally test-verified the gate's interaction with the Path B1 local `wprf` — UHFAWG (`isHirzel=0`) emits two `wprf` instructions on Path B1, byte-identical to the binary, via `core:uhfawg_load_cervino_prf_path_b1`). The Table-C-split site itself **cannot be test-verified** from SeqC because `NodeType::Table` is unreachable from the front-end (see IF-249); the gate is correct on its own merits and protects future code paths.
 **Source**: `reconstructed/src/codegen/prefetch_placesingle.cpp` Table-C-split `wprf` site (was lines 1398-1407, now gated).
 **Discovered**: D9.2 GDB verification of IF-244 caveat.
 
@@ -6947,4 +6947,104 @@ What the D9.1 subagent observed as "inversion" is a **prose-naming inconsistency
 ### Action
 
 None on code or tests. Optional follow-up: when documentation pass D7 sweeps `\verifyme` / `\unclear` tags, audit prose uses of "Hirzel" / "Cervino" in code comments for naming consistency. Not promoted to a TODO entry — too low-value to schedule.
+
+## IF-249  `NodeType::Table` is unreachable from the SeqC front-end (both binary and recon)
+
+**Severity**: cosmetic / documentation (rules out a class of latent-path test cases).
+**Status**: confirmed.
+**Discovered**: D8 case 2 scoping (subagent `ses_1e80272b8ffeib81kyIXaNE8hf`, 2026-05-11).
+
+### Background
+
+D8 case 2 set out to author a SeqC test that exercises the
+**Table sub-path C-split** in
+`reconstructed/src/codegen/prefetch_placesingle.cpp:1270-1339`,
+which would test-verify the `!isHirzel`-gated `wprf` emission
+fixed in D9.3 (IF-247).  The path requires a `Sync` node whose
+parent is `NodeType::Table` (`0x200`) and whose `lengthReg` is
+valid && != R0, with `split_==1`.
+
+### Investigation
+
+The subagent attempted **eleven** different SeqC inputs against
+the original `_seqc_compiler.so` with breakpoints at:
+
+- `placeSingleCommand` entry (`0x1d7940`)
+- The `case NodeType::Table` arm (`0x1d7ebb`)
+- The C-split dispatch (`0x1daed4`)
+- The C-split body (`0x1daf55`)
+- The C-non-split arm (`0x1db749`)
+
+Inputs covered HDAWG8, SHFSG4, SHFQC, UHFQA, and UHFAWG, with
+combinations of `placeholder()` (sizes 8192–524288),
+`assignWaveIndex`, `executeTableEntry` (singletons, branches,
+1000-iteration loops), `playWave`, `playWaveIndexed`, the
+existing `tests/cases/hdawg_cmd_table*.seqc`, and
+`tests/cases/stress/many_placeholders.seqc`.
+
+**The `case NodeType::Table` branch was never entered for any
+input.**  Counter at the Table case stayed at 0 across all
+runs, while `placeSingleCommand` itself was entered 3..20
+times per run.
+
+### Structural confirmation
+
+The subagent then audited the binary directly:
+
+1. `AsmCommands::asmTable` at `0x2797c0` (the only function in
+   either binary or recon that emits `NodeType::Table` via
+   `emitNodeEntry`) has **zero call sites** —
+   `objdump -dC _seqc_compiler.so | grep -E "call.*AsmCommands::asmTable"`
+   returns no hits.
+2. No `mov $0x200, %esi` immediately precedes any `Node::Node`
+   ctor call (`0x12ace0` / `0x26c4a0`) in `.text`.
+3. No direct `movl $0x200, 0x44(...)` store of the type field
+   exists in `.text` outside of unrelated openssl/dl noise.
+
+The recon mirrors this: `grep -rn 'asmTable\b' reconstructed/`
+shows only the declaration in `asm_commands.hpp:1274` and the
+definition at `asm_commands.cpp:1107`.  No callers.
+
+`executeTableEntry` itself does **not** create Table-typed
+nodes; it emits a `wvft` asm instruction directly into the
+result list, leaving any surrounding Sync/Play nodes typed as
+Play / SyncCervino / SyncHirzel.
+
+The only remaining production site for `NodeType::Table` is
+`Node::from_json` (matched by the `"table"` string in
+`node.cpp:179`), which deserialises a pre-built JSON AST.  The
+`compile_seqc(...)` Python entry point (the only public binding
+exposed by `_seqc_compiler.so`) never feeds this path — `dir(sc)`
+returns only `['compile_seqc']`.
+
+### Implications
+
+- **D8 case 2 is unreachable from the SeqC front-end** and was
+  dropped (TODO update co-landed with this IF).
+- **D8 case 3** (`playWaveTable` with non-empty cache + valid
+  per-channel length register) was speculative on the existence
+  of a `playWaveTable` custom function; that function does not
+  exist (`grep` for "playWaveTable" returns no source hits).
+  Also dropped.
+- **IF-247's `!isHirzel` gate fix** (D9.3, the inline
+  Table-C-split `wprf` emission in
+  `prefetch_placesingle.cpp:1335-1338`) is correct on its own
+  merits — the code shape matches the binary's shared tail at
+  `0x1db935` — but **cannot be test-verified from SeqC**.  The
+  fix protects against future code paths that might wire the
+  Table dispatch up (e.g. via JSON-AST input or a future custom
+  function), without affecting any currently-reachable behaviour.
+- The `case NodeType::Table` arms across the prefetch pipeline
+  (`prepareTree`, `countBranches`, `placeSingleCommand`,
+  `print_tree`) and `AsmCommands::asmTable` are **dead in both
+  binary and recon for the SeqC entry point**.  They are kept for
+  binary fidelity (the `vtable` and dispatch tables in the
+  binary still reference these branches).
+
+### Action
+
+None on code.  Documentation: D8 cases 2 and 3 marked obsolete
+in TODO.md.  Future work that needs to exercise these paths
+should consider adding a JSON-AST pybind binding rather than
+trying to coerce a SeqC source through.
 

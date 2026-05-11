@@ -1065,7 +1065,7 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   - Coverage target: drop `\verifyme` to ≤3, `\unclear` to ≤2,
     `\binarynote` to ≤40 (those that genuinely surprise consumers).
 
-- [~] **D8 — Coverage-gap tests for latent prefetch paths**
+- [x] **D8 — Coverage-gap tests for latent prefetch paths**
   - The IF-223 / IF-244 reconstructions touch code paths the
     current suite did not exercise; the changes were
     static-only verified.  Author seqc cases that hit:
@@ -1075,13 +1075,21 @@ Run `reconstructed/docs/coverage.sh` to track progress.
        (`load_cervino_prf` Path B1), never via Play.  No Play-side
        counterpart exists, so no Play test case is needed.  The
        Load-side test moved to case 4 below.
-    2. Table sub-path C2 (`split_==1` AND
-       `lengthReg.isValid() && lengthReg != R0`) — covers the
-       ssl/addr/prf/wprf path inlined at
-       `prefetch_placesingle.cpp` (was lines 1258-1432, now
-       shifted after D9.3 deletions).  Still open.
-    3. `playWaveTable` with non-empty cache + valid per-channel
-       length register.  Still open.
+    2. ~~Table sub-path C2 (`split_==1` AND
+       `lengthReg.isValid() && lengthReg != R0`)~~ — **obsolete**
+       per IF-249.  D8 case 2 scoping (subagent
+       `ses_1e80272b8ffeib81kyIXaNE8hf`) GDB-confirmed that
+       `NodeType::Table` is unreachable from the SeqC front-end
+       across 11 inputs spanning every device type.  The shared
+       `AsmCommands::asmTable` helper has zero call sites in both
+       binary and recon; only `Node::from_json` produces Table
+       nodes, and the public `compile_seqc(...)` binding never
+       feeds that path.  IF-247's `!isHirzel` gate at this site
+       is correct on its own merits but cannot be test-verified.
+    3. ~~`playWaveTable` with non-empty cache + valid per-channel
+       length register~~ — **obsolete** per IF-249.  No such
+       custom function exists in the SeqC API; the case was
+       speculative on the existence of `playWaveTable`.
     4. [x] **Load Path B1** (`cachePtr->size_ ==
        waveformMemorySize`) — covered by
        `core:uhfawg_load_cervino_prf_path_b1` (commit `a6f92d9`,
