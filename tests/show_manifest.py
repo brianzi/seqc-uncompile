@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Pretty-print test manifest with colors and formatting.
+"""Pretty-print test manifest with colors and formatting.
 
 Shows tests organized by group with metadata (tags, comments, source size).
 """
@@ -9,7 +8,9 @@ import argparse
 import sys
 from pathlib import Path
 from collections import defaultdict
-from typing import List, Optional
+from manifest_loader import load_manifest, TestCase
+import json
+
 
 # Terminal colors
 RESET = "\033[0m"
@@ -34,48 +35,47 @@ HEADER_COLOR = BOLD + WHITE
 
 
 def colorize_test_name(name: str, dim_prefix: bool = False) -> tuple:
-    """
-    Colorize hierarchical test name: group:subgroup:name[device, args]
-    
+    """Colorize hierarchical test name: group:subgroup:name[device, args].
+
     Returns: (colored_name_part, colored_params_part, raw_name_without_params, raw_params_with_brackets)
     """
-    if '[' not in name:
+    if "[" not in name:
         colored = f"{NAME_COLOR}{name}{RESET}"
         return (colored, "", name, "")
-    
+
     # Split name and bracket parts
-    parts = name.split('[', 1)
+    parts = name.split("[", 1)
     hierarchy = parts[0]
-    params_with_brackets = '[' + parts[1]
-    
+    params_with_brackets = "[" + parts[1]
+
     # Colorize hierarchy: group:subgroup:testname
-    hierarchy_parts = hierarchy.split(':')
+    hierarchy_parts = hierarchy.split(":")
     if len(hierarchy_parts) > 1:
         # Dim all but last part (group prefix), last part is GREEN
         colored_hierarchy = f"{DIM}{':'.join(hierarchy_parts[:-1])}:{RESET}{GREEN}{hierarchy_parts[-1]}{RESET}"
     else:
         colored_hierarchy = f"{GREEN}{hierarchy_parts[0]}{RESET}"
-    
+
     # Colorize bracket: [device, args] - both brackets dimmed, content yellow
-    bracket_content = parts[1].rstrip(']')
+    bracket_content = parts[1].rstrip("]")
     colored_bracket = f"{DIM}[{RESET}{YELLOW}{bracket_content}{RESET}{DIM}]{RESET}"
-    
+
     return (colored_hierarchy, colored_bracket, hierarchy, params_with_brackets)
 
 
-def count_seqc_lines(cases_dir: Path, test_dict: dict) -> Optional[int]:
+def count_seqc_lines(cases_dir: Path, test_dict: dict) -> int | None:
     """Count lines in SeqC source (file or inline code)."""
-    if 'code' in test_dict:
-        return len(test_dict['code'].strip().split('\n'))
-    elif 'file' in test_dict:
-        seqc_path = cases_dir / test_dict['file']
+    if "code" in test_dict:
+        return len(test_dict["code"].strip().split("\n"))
+    elif "file" in test_dict:
+        seqc_path = cases_dir / test_dict["file"]
         if seqc_path.exists():
             with open(seqc_path) as f:
                 return len(f.readlines())
     return None
 
 
-def format_tags(tags: List[str]) -> str:
+def format_tags(tags: list[str]) -> str:
     """Format tag list with color."""
     if not tags:
         return f"{DIM}—{RESET}"
@@ -88,19 +88,25 @@ def format_tags(tags: List[str]) -> str:
     return formatted
 
 
-def format_comment(comment: Optional[str], max_len: int = 50) -> str:
+def format_comment(comment: str | None, max_len: int = 50) -> str:
     """Format comment with truncation."""
     if not comment:
         return f"{DIM}—{RESET}"
     if len(comment) <= max_len:
         return f"{COMMENT_COLOR}{comment}{RESET}"
-    return f"{COMMENT_COLOR}{comment[:max_len-3]}...{RESET}"
+    return f"{COMMENT_COLOR}{comment[: max_len - 3]}...{RESET}"
+
+
+def show_tests_json(tests: list[TestCase], cases_dir: str):
+    """Output JSON describing test cases."""
+    tests_dicts = [t.resolve(cases_dir=cases_dir).to_dict() for t in tests]
+
+    json.dump(tests_dicts, fp=sys.stdout, indent=2)
 
 
 def show_manifest(args):
     """Display manifest in tabular format."""
-    from manifest_loader import load_manifest
-    
+
     # Load tests
     if args.manifest:
         manifest_path = Path(args.manifest)
@@ -109,77 +115,85 @@ def show_manifest(args):
     else:
         manifest_path = args.cases_dir / "manifest.json"
     tests = load_manifest(manifest_path)
-    
+
     # Apply filtering (reuse logic from diff_test.py)
     if args.tags:
-        tag_set = set(args.tags.split(','))
+        tag_set = set(args.tags.split(","))
         tests = [t for t in tests if tag_set & set(t.tags)]
     if args.exclude_tags:
-        exclude_tag_set = set(args.exclude_tags.split(','))
+        exclude_tag_set = set(args.exclude_tags.split(","))
         tests = [t for t in tests if not (exclude_tag_set & set(t.tags))]
     if args.groups:
-        group_set = set(args.groups.split(','))
+        group_set = set(args.groups.split(","))
         tests = [t for t in tests if any(g in group_set for g in t.groups)]
     if args.exclude_groups:
-        exclude_group_set = set(args.exclude_groups.split(','))
+        exclude_group_set = set(args.exclude_groups.split(","))
         tests = [t for t in tests if not any(g in exclude_group_set for g in t.groups)]
     if args.filter:
         tests = [t for t in tests if args.filter in t.name]
-    
+
     if not tests:
-        print(f"{RED}No tests match the filters{RESET}")
+        print(f"{RED}No tests match the filters{RESET}", file=sys.stderr)
         return 1
-    
+
+    if args.json:
+        show_tests_json(tests, args.cases_dir)
+        return
+
     # Group by top-level group, then by subgroup
     by_group = defaultdict(lambda: defaultdict(list))
     for test in tests:
-        top_group = test.groups[0] if test.groups else 'ungrouped'
+        top_group = test.groups[0] if test.groups else "ungrouped"
         # Determine subgroup from the name hierarchy
-        name_parts = test.name.split(':')
-        
+        name_parts = test.name.split(":")
+
         # Examples:
         # "core:shfli_playZero[...]" -> top=core, sub=None (only 2 parts, no subgroup)
         # "core:general:nop[...]" -> top=core, sub=general (3+ parts, has subgroup)
         # "ziasm:register:test_0[...]" -> top=ziasm, sub=register
-        
+
         if len(name_parts) >= 3 and name_parts[0] == top_group:
             # Has subgroup: group:subgroup:testname
             subgroup = name_parts[1]
         else:
             # No subgroup: just group:testname
             subgroup = None
-        
+
         by_group[top_group][subgroup].append(test)
-    
+
     # Print header
     total = len(tests)
     num_groups = len(by_group)
     print(f"\n{HEADER_COLOR}{'=' * 80}{RESET}")
     print(f"{HEADER_COLOR}Test Manifest: {total} tests across {num_groups} groups{RESET}")
     print(f"{HEADER_COLOR}{'=' * 80}{RESET}\n")
-    
+
     # Print each group
     for group_name in sorted(by_group.keys()):
         subgroups = by_group[group_name]
         total_group_tests = sum(len(tests) for tests in subgroups.values())
-        
+
         # Count subgroups (excluding None)
         num_subgroups = sum(1 for sg in subgroups.keys() if sg is not None)
-        
+
         # Group header with arrow
         if num_subgroups > 0:
-            print(f"{DIM}→{group_name}:{RESET} {CYAN}{total_group_tests}{RESET} {DIM}tests in{RESET} {CYAN}{num_subgroups}{RESET} {DIM}subgroups{RESET}")
+            print(
+                f"{DIM}→{group_name}:{RESET} {CYAN}{total_group_tests}{RESET} {DIM}tests in{RESET} {CYAN}{num_subgroups}{RESET} {DIM}subgroups{RESET}"
+            )
         else:
             print(f"{DIM}→{group_name}:{RESET} {CYAN}{total_group_tests}{RESET} {DIM}tests{RESET}")
-        
+
         # Print each subgroup
         for subgroup_name in sorted(subgroups.keys(), key=lambda x: (x is not None, x)):
             subgroup_tests = subgroups[subgroup_name]
-            
+
             # Subgroup header (if there are subgroups)
             if subgroup_name is not None:
-                print(f"  {DIM}→{group_name}:{RESET}{WHITE}{subgroup_name}:{RESET} {CYAN}{len(subgroup_tests)}{RESET} {DIM}tests{RESET}")
-            
+                print(
+                    f"  {DIM}→{group_name}:{RESET}{WHITE}{subgroup_name}:{RESET} {CYAN}{len(subgroup_tests)}{RESET} {DIM}tests{RESET}"
+                )
+
             if args.compact:
                 # Compact mode: just names
                 for test in subgroup_tests:
@@ -191,58 +205,61 @@ def show_manifest(args):
                 # First pass: calculate maximum name length (hierarchy part only, without params)
                 test_data = []
                 max_name_len = 0
-                
+
                 for test in subgroup_tests:
                     # Get source line count
                     test_dict = test.to_dict()
                     if test.code:
-                        test_dict['code'] = test.code
+                        test_dict["code"] = test.code
                     if test.file:
-                        test_dict['file'] = test.file
+                        test_dict["file"] = test.file
                     lines = count_seqc_lines(args.cases_dir, test_dict)
-                    
+
                     # Parse name into hierarchy and params
-                    colored_name_part, colored_params_part, raw_name, raw_params = colorize_test_name(test.name, dim_prefix=True)
-                    
+                    colored_name_part, colored_params_part, raw_name, raw_params = colorize_test_name(
+                        test.name, dim_prefix=True
+                    )
+
                     # Track maximum hierarchy length (for alignment)
                     max_name_len = max(max_name_len, len(raw_name))
-                    
+
                     test_data.append((test, lines, colored_name_part, colored_params_part, raw_name, raw_params))
-                
+
                 # Second pass: print with proper alignment
                 for test, lines, colored_name_part, colored_params_part, raw_name, raw_params in test_data:
                     tags = format_tags(test.tags[:5])  # Show up to 5 tags
-                    
+
                     # Line count
                     if lines is not None:
                         lines_str = f"{GREEN}{lines:3}L{RESET}"
                     else:
                         lines_str = f"{DIM}  —{RESET}"
-                    
+
                     # Calculate padding to align params column
                     # All hierarchy parts should end at the same column
                     name_padding = max_name_len - len(raw_name) + 3  # +3 for spacing
-                    
+
                     # Indentation based on nesting
                     indent = "    " if subgroup_name else "  "
-                    
+
                     # Print row: indent + colored_name + padding + colored_params + lines + tags
                     print(f"{indent}{colored_name_part}{' ' * name_padding}{colored_params_part}  {lines_str}  {tags}")
-            
+
             # Blank line after each subgroup
             if subgroup_name is not None:
                 print()
-        
+
         print()  # Blank line between groups
-    
+
     # Summary footer
     print(f"{DIM}{'─' * 80}{RESET}")
     print(f"{HEADER_COLOR}Total: {total} tests{RESET}\n")
-    
+
     return 0
 
 
 def main():
+    """CLI main function."""
     parser = argparse.ArgumentParser(
         description="Pretty-print test manifest with colors and metadata",
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -262,36 +279,32 @@ Examples:
   
   # Filter by name pattern
   python3 show_manifest.py --filter arithmetic
-        """
+        """,
     )
-    
-    parser.add_argument("--cases-dir", type=Path,
-                        default=Path(__file__).parent / "cases",
-                        help="Directory containing test case files")
-    
-    parser.add_argument("--manifest", type=str, default=None,
-                        help="Manifest file to load (default: manifest.json in cases-dir)")
-    
+
+    parser.add_argument(
+        "--cases-dir", type=Path, default=Path(__file__).parent / "cases", help="Directory containing test case files"
+    )
+
+    parser.add_argument(
+        "--manifest", type=str, default=None, help="Manifest file to load (default: manifest.json in cases-dir)"
+    )
+
     # Filtering options (same as test runners)
-    parser.add_argument("--filter", default=None,
-                        help="Only show tests whose name contains this string")
-    parser.add_argument("--tags", default=None,
-                        help="Only show tests with these tags (comma-separated)")
-    parser.add_argument("--exclude-tags", default=None,
-                        help="Exclude tests with these tags (comma-separated)")
-    parser.add_argument("--groups", default=None,
-                        help="Only show tests from these groups (comma-separated)")
-    parser.add_argument("--exclude-groups", default=None,
-                        help="Exclude tests from these groups (comma-separated)")
-    
+    parser.add_argument("--filter", default=None, help="Only show tests whose name contains this string")
+    parser.add_argument("--tags", default=None, help="Only show tests with these tags (comma-separated)")
+    parser.add_argument("--exclude-tags", default=None, help="Exclude tests with these tags (comma-separated)")
+    parser.add_argument("--groups", default=None, help="Only show tests from these groups (comma-separated)")
+    parser.add_argument("--exclude-groups", default=None, help="Exclude tests from these groups (comma-separated)")
+
     # Display options
-    parser.add_argument("-v", "--verbose", action="store_true",
-                        help="Verbose output (multi-line per test)")
-    parser.add_argument("--compact", action="store_true",
-                        help="Compact output (names only)")
-    
+    parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output (multi-line per test)")
+    parser.add_argument("--compact", action="store_true", help="Compact output (names only)")
+
+    parser.add_argument("-j", "--json", action="store_true", help="Output test cases in json format.")
+
     args = parser.parse_args()
-    
+
     try:
         return show_manifest(args)
     except Exception as e:

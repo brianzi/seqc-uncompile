@@ -460,8 +460,8 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 // 0x29e5e0 — WavetableIR::forEachUsedWaveform(function, WaveOrder) const
 //
 // 1. Gets usedWaveforms_ size, allocates index array [0..N-1]
-// 2. If WaveOrder == ByIndex (2): stable_sort by wave index comparison
-//    If WaveOrder == ByWaveIndex (1): stable_sort by name comparison
+// 2. If WaveOrder == ByIndex (2): stable_sort by addressValue ascending
+//    If WaveOrder == ByWaveIndex (1): stable_sort by waveIndex ascending
 // 3. Iterates sorted indices, for each calls callback(usedWaveforms_[index])
 // 4. Frees index array
 void WavetableIR::forEachUsedWaveform(

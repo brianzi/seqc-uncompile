@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Manifest loader for SeqC differential testing framework.
+"""Manifest loader for SeqC differential testing framework.
 
 Supports two manifest formats:
 - v1.0: Flat array of test cases (backward compatible)
@@ -15,28 +14,76 @@ Key features:
 """
 
 import json
-import os
+from os import grantpt
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
-from dataclasses import dataclass, field
+from sys import byteorder
+from typing import Any, Literal
+from dataclasses import dataclass, field, asdict
+import base64
+
+
+@dataclass(frozen=True)
+class TestCasePayload:
+    code: str
+    devtype: Literal["UHFQA", "HDAWG4", "HDAWG8", "SHFQA4", "SHFSG4", "SHFSG8", "SHFQC"] | str
+    index: int | None = None
+    options: str | None = None
+    samplerate: float | None = None
+    sequencer: Literal["auto", "sg", "qa"] | str | None = None
+    wavepath: str | None = None
+    waveforms: str | None = None
+    filename: str | None = None
+
+    def to_compile_kwargs(self):
+        dct = {k: v for k, v in asdict(self).items() if v is not None}
+        return dct
+
+
+@dataclass(frozen=True)
+class ResolvedTestCase:
+    """Normalized Test case."""
+
+    name: str
+    payload: TestCasePayload
+    comment: str | None = None
+    file: str | None = None
+    tags: tuple[str, ...] = ()
+    groups: tuple[str, ...] = ()
+
+    @property
+    def uid(self) -> bytes:
+        hash_self = hash(self).to_bytes(signed=True, length=8)
+        return hash_self
+
+    def fullname(self):
+        enc_hash = base64.urlsafe_b64encode(self.uid[:6]).decode()
+        return f"{self.name}__{enc_hash}"
+
+    def to_dict(self) -> dict:
+        return (
+            {"_uid": self.fullname()}
+            | {k: v for k, v in asdict(self).items() if v}
+            | {"payload": self.payload.to_compile_kwargs()}
+        )
 
 
 @dataclass
 class TestCase:
     """Canonical test case after all expansion and flattening."""
+
     name: str
     devtype: str
-    code: Optional[str] = None
-    file: Optional[str] = None
+    code: str | None = None
+    file: str | None = None
     index: int = 0
     options: str = ""
-    samplerate: Optional[float] = None
-    sequencer: Optional[str] = None
-    comment: Optional[str] = None
-    tags: List[str] = field(default_factory=list)
-    groups: List[str] = field(default_factory=list)  # Hierarchical path
+    samplerate: float | None = None
+    sequencer: str | None = None
+    comment: str | None = None
+    tags: list[str] = field(default_factory=list)
+    groups: list[str] = field(default_factory=list)  # Hierarchical path
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for test runner compatibility."""
         d = {
             "name": self.name,
@@ -54,6 +101,31 @@ class TestCase:
             d["sequencer"] = self.sequencer
         return d
 
+    def resolve(self, cases_dir: str = ".") -> ResolvedTestCase:
+
+        code = self.code
+        if code is None:
+            if self.file is None:
+                raise ValueError(f"Test case without code or file: {self}")
+            code = (Path(cases_dir) / self.file).read_text(encoding="utf-8")
+
+        payload = TestCasePayload(
+            code=code,
+            devtype=self.devtype,
+            options=self.options,
+            index=self.index,
+            sequencer=self.sequencer,
+            samplerate=self.samplerate,
+        )
+
+        return ResolvedTestCase(
+            name=self.name,
+            payload=payload,
+            comment=self.comment,
+            tags=tuple(sorted(self.tags or ())),
+            groups=tuple(self.groups),
+        )
+
 
 class ManifestLoader:
     """Load and process test manifests in v1.0 or v2.0 format."""
@@ -61,10 +133,10 @@ class ManifestLoader:
     def __init__(self, manifest_path: Path):
         self.manifest_path = Path(manifest_path)
         self.base_dir = self.manifest_path.parent
-        self.definitions: Dict[str, Dict[str, Any]] = {}
-        self.loaded_files: Set[Path] = set()  # Circular import detection
+        self.definitions: dict[str, dict[str, Any]] = {}
+        self.loaded_files: set[Path] = set()  # Circular import detection
 
-    def load(self) -> List[TestCase]:
+    def load(self) -> list[TestCase]:
         """Load manifest and return flattened list of test cases."""
         with open(self.manifest_path) as f:
             data = json.load(f)
@@ -85,14 +157,14 @@ class ManifestLoader:
         else:
             raise ValueError(f"Invalid manifest format: {type(data)}")
 
-    def _load_v1(self, test_list: List[Dict[str, Any]]) -> List[TestCase]:
+    def _load_v1(self, test_list: list[dict[str, Any]]) -> list[TestCase]:
         """Load v1.0 format (flat array of test cases)."""
         tests = []
         for i, test_dict in enumerate(test_list):
             # Auto-tag with device type
             devtype = test_dict.get("devtype", "")
             tags = self._auto_tags(devtype)
-            
+
             test = TestCase(
                 name=test_dict.get("name", f"test_{i}"),
                 devtype=devtype,
@@ -108,7 +180,7 @@ class ManifestLoader:
             tests.append(test)
         return tests
 
-    def _load_v2(self, data: Dict[str, Any]) -> List[TestCase]:
+    def _load_v2(self, data: dict[str, Any]) -> list[TestCase]:
         """Load v2.0 format (hierarchical groups with imports)."""
         # Load definitions
         self.definitions = data.get("definitions", {})
@@ -124,7 +196,7 @@ class ManifestLoader:
 
         return tests
 
-    def _load_import(self, import_path: str) -> List[TestCase]:
+    def _load_import(self, import_path: str) -> list[TestCase]:
         """Load and merge an imported manifest file."""
         # Resolve path relative to current manifest's directory
         full_path = (self.base_dir / import_path).resolve()
@@ -137,9 +209,7 @@ class ManifestLoader:
         loader = ManifestLoader(full_path)
         return loader.load()
 
-    def _load_group(
-        self, group: Dict[str, Any], parent_groups: List[str]
-    ) -> List[TestCase]:
+    def _load_group(self, group: dict[str, Any], parent_groups: list[str]) -> list[TestCase]:
         """Load a test group (recursive for nested groups)."""
         group_name = group.get("name", "unnamed")
         group_comment = group.get("comment")
@@ -163,27 +233,23 @@ class ManifestLoader:
         for case in group.get("cases", []):
             # Check if this is a multi-device test
             if "devices" in case:
-                tests.extend(
-                    self._expand_multi_device(case, defaults, group_tags, current_groups)
-                )
+                tests.extend(self._expand_multi_device(case, defaults, group_tags, current_groups))
             else:
-                tests.append(
-                    self._load_test_case(case, defaults, group_tags, current_groups)
-                )
+                tests.append(self._load_test_case(case, defaults, group_tags, current_groups))
 
         return tests
 
     def _expand_multi_device(
         self,
-        case: Dict[str, Any],
-        defaults: Optional[Dict[str, Any]],
-        group_tags: List[str],
-        current_groups: List[str],
-    ) -> List[TestCase]:
+        case: dict[str, Any],
+        defaults: dict[str, Any] | None,
+        group_tags: list[str],
+        current_groups: list[str],
+    ) -> list[TestCase]:
         """Expand a test case with 'devices' into multiple tests."""
         devices = case["devices"]
         base_name = case.get("name", "unnamed")
-        
+
         tests = []
         for device_spec in devices:
             # Resolve device spec if it's a reference
@@ -197,29 +263,27 @@ class ManifestLoader:
             # Create test-specific config by merging
             test_config = case.copy()
             del test_config["devices"]
-            
+
             # Merge: defaults < device_config < test_config
             merged = {}
             if defaults:
                 merged.update(defaults)
             merged.update(device_config)
             merged.update(test_config)
-            
+
             # Generate expanded name
             merged["name"] = f"{base_name}_{device_suffix.lower()}"
-            
-            tests.append(
-                self._load_test_case(merged, None, group_tags, current_groups)
-            )
+
+            tests.append(self._load_test_case(merged, None, group_tags, current_groups))
 
         return tests
 
     def _load_test_case(
         self,
-        case: Dict[str, Any],
-        defaults: Optional[Dict[str, Any]],
-        group_tags: List[str],
-        current_groups: List[str],
+        case: dict[str, Any],
+        defaults: dict[str, Any] | None,
+        group_tags: list[str],
+        current_groups: list[str],
     ) -> TestCase:
         """Load a single test case with defaults applied."""
         # Handle @base reference for inline override
@@ -245,19 +309,19 @@ class ManifestLoader:
         # Generate hierarchical name
         groups_str = ":".join(current_groups)
         case_name = case.get("name", "unnamed")
-        
+
         # Format device args for name suffix
         dev_args = [devtype]
         if case.get("sequencer"):
             dev_args.append(f"seq={case['sequencer']}")
         if case.get("samplerate"):
             # Format without the '+' sign: 2.4e9 instead of 2.4e+09
-            sr_str = f"{case['samplerate']:.1e}".replace('e+0', 'e').replace('e-0', 'e-')
+            sr_str = f"{case['samplerate']:.1e}".replace("e+0", "e").replace("e-0", "e-")
             dev_args.append(f"sr={sr_str}")
         if case.get("index", 0) != 0:
             dev_args.append(f"idx={case['index']}")
         dev_args_str = ", ".join(dev_args)
-        
+
         full_name = f"{groups_str}:{case_name}[{dev_args_str}]"
 
         return TestCase(
@@ -274,7 +338,7 @@ class ManifestLoader:
             groups=current_groups,
         )
 
-    def _resolve_reference(self, ref: str) -> Dict[str, Any]:
+    def _resolve_reference(self, ref: str) -> dict[str, Any]:
         """Resolve a @reference to a definition."""
         if not ref.startswith("@"):
             raise ValueError(f"Invalid reference syntax: {ref}")
@@ -285,10 +349,10 @@ class ManifestLoader:
 
         return self.definitions[key].copy()
 
-    def _auto_tags(self, devtype: str) -> List[str]:
+    def _auto_tags(self, devtype: str) -> list[str]:
         """Generate automatic tags based on device type."""
         tags = []
-        
+
         if not devtype:
             return tags
 
@@ -312,14 +376,13 @@ class ManifestLoader:
         return tags
 
 
-def load_manifest(manifest_path: Optional[Path] = None) -> List[TestCase]:
-    """
-    Load a test manifest and return flattened list of test cases.
-    
+def load_manifest(manifest_path: Path | None = None) -> list[TestCase]:
+    """Load a test manifest and return flattened list of test cases.
+
     Args:
-        manifest_path: Path to manifest file. If None, uses 'manifest.json' in 
+        manifest_path: Path to manifest file. If None, uses 'manifest.json' in
                       the current test directory.
-    
+
     Supports both v1.0 (flat array) and v2.0 (hierarchical) formats.
     """
     if manifest_path is None:
@@ -328,14 +391,13 @@ def load_manifest(manifest_path: Optional[Path] = None) -> List[TestCase]:
     return loader.load()
 
 
-def load_manifest_as_dicts(manifest_path: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """
-    Load manifest and return as list of dictionaries for backward compatibility.
-    
+def load_manifest_as_dicts(manifest_path: Path | None = None) -> list[dict[str, Any]]:
+    """Load manifest and return as list of dictionaries for backward compatibility.
+
     Args:
-        manifest_path: Path to manifest file. If None, uses 'manifest.json' in 
+        manifest_path: Path to manifest file. If None, uses 'manifest.json' in
                       the current test directory.
-    
+
     This is a convenience wrapper for existing test runners that expect
     the v1.0 dictionary format.
     """

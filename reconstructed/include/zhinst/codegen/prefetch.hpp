@@ -837,14 +837,12 @@ public:
     /*! \brief Expand each `SetVar` node in the sibling chain into
      *  one clone per additional channel group.
      *
-     *  \verifyme The recon body is a stub: it walks the chain and
-     *  on each `NodeType::SetVar` (`0x10`) node constructs
-     *  `std::make_shared<Node>(NodeType::SetVar, asmId, numSlots)`
-     *  in a loop bounded by `config_->numChannelGroups`, but the
-     *  fresh clones are never linked into the IR — they go out of
-     *  scope at the end of each loop iteration.  The intended
-     *  per-group field-copy and splice are missing.  See
-     *  incidental_findings.md IF-218.
+     *  \details Walks the parent chain upward from `node`; for each
+     *  `Loop` ancestor whose body head is the current child, splices
+     *  a thin `SetVar` clone (carrying only the original's
+     *  `lengthReg`) in front of the loop body via `Node::insertBefore`.
+     *  No-op when no ancestor is a `Loop`.  See IF-218 (closed) for
+     *  the prior stub history.
      *
      *  \param node  Head of the sibling chain to scan.
      */
@@ -852,19 +850,16 @@ public:
     /*! \brief Search the subtree rooted at `node` for a `Play` of
      *  `waveform` that lives inside an unmatched `Lock` scope.
      *
-     *  \verifyme The recon body is a stub: it walks the tree LIFO
-     *  but the `NodeType::Play` match block is empty and the
-     *  function always returns `nullptr`.  The original binary at
-     *  `0x1d3dd0` performs a real search (GDB-confirmed: hits a
-     *  `cmpl $0x2,0x44(%r13)` on Play nodes followed by `bcmp` on
-     *  the wave-name string and a success store via
-     *  `mov %rax,0x8(%rbx)`).  See incidental_findings.md IF-213.
+     *  \details LIFO-walks the subtree rooted at `node`, comparing
+     *  each `Play` node's wave name against `waveform`'s.  Returns
+     *  the matched `Play` node, or `nullptr` if none lies within an
+     *  open `Lock` scope.  See IF-213 (closed) for the prior stub
+     *  history.
      *
      *  \param node      Subtree root to search.
      *  \param waveform  Target waveform the matching `Play` must
      *                   reference.
-     *  \return  The matched `Play` node, or `nullptr` (currently
-     *           always `nullptr` in the stubbed recon).
+     *  \return  The matched `Play` node, or `nullptr` if none.
      */
     std::shared_ptr<Node> findLockedPlay(std::shared_ptr<Node> node,
         std::shared_ptr<WaveformIR> waveform) const;                   // 0x1d3dd0
@@ -895,10 +890,10 @@ public:
      *       neighbouring `fixed_` flag at `+0xD9`).
      *    7. Calls `collectUsedWaves(node)`.
      *
-     *  \verifyme The legacy block-header documents an
-     *  "already-loaded short-circuit" (parent.lock() && loadRef
-     *  set → return null) that the recon body does not implement.
-     *  See incidental_findings.md IF-219.
+     *  Returns `nullptr` early when `node`'s parent is a `Load`
+     *  that already references this play, avoiding a duplicate
+     *  load.  See IF-219 (closed) for the prior history of the
+     *  missing short-circuit.
      *
      *  \param node  Source `Play` or `Table` node.
      *  \return  The freshly constructed `Load`, or `nullptr` when
@@ -985,11 +980,10 @@ public:
      *      `cur->next->parent = current` and pushes `cur->next`.
      *    - For every entry of `cur->branches`, sets
      *      `child->parent = current` and pushes `child`.
-     *
-     *  \verifyme A third visitor block re-enqueues `cur->next`
-     *  again instead of visiting `cur->loop`, so loop-body children
-     *  never receive a parent back-link.  See
-     *  incidental_findings.md IF-217.
+     *    - When `cur->loop` is non-null, sets
+     *      `cur->loop->parent = current` and pushes `cur->loop`,
+     *      so loop-body children also receive a parent back-link.
+     *      See IF-217 (closed) for the prior bug.
      *
      *  \param node  Subtree root whose descendants should be
      *               back-linked.
@@ -1141,10 +1135,11 @@ public:
      *  - `Table (0x200)`       : encodes the table cwvf and emits it,
      *                            either as a single `cwvf` or as
      *                            `addi`+`cwvfr` for large immediates.
-     *                            \verifyme  The table-fetch tail (smap
-     *                            / ssl loop / addr / prf) is currently
-     *                            unimplemented; see incidental finding
-     *                            IF-223.
+     *                            \verifyme  The `Table` arm is
+     *                            reconstructed from disassembly only
+     *                            and is unverifiable from SeqC inputs:
+     *                            `NodeType::Table` is unreachable from
+     *                            the SeqC front-end (see IF-249).
      *  - `SyncHirzel (0x2000)` : emits `asmSyncHirzel` when the device
      *                            is HDAWG with at least two channel
      *                            groups; otherwise no-op.
@@ -1157,9 +1152,6 @@ public:
      *  `AsmList` and inserted into `out` at the placeholder position
      *  (re-found on each insert because the underlying vector may
      *  reallocate).
-     *
-     *  \verifyme  The `play_cervino_indexed_nonsplit` label inside the
-     *  `Play` case is presently a stub; see incidental finding IF-224.
      *
      *  \param out   Output `AsmList` containing placeholder slots for
      *               this node's instructions.
@@ -1399,16 +1391,12 @@ public:
      *         descendants.
      *
      *  \details
-     *  Intended to walk the node's `next`, `loop`, and `branches`
-     *  links, accumulating per-leaf waveform-memory consumption (or
-     *  the cached `PrefetcherNodeState::usedCache_` value) for every
-     *  visited node.  The result feeds the debug printer
-     *  (`Prefetch::print`) which displays a `(usedCache,
-     *  perNodeUsedCache)` pair next to each Play node.
-     *
-     *  \verifyme  The current body is a stub that always returns 0;
-     *  see incidental finding IF-226.  Difftests do not exercise
-     *  this since the only caller is the debug-only `print`.
+     *  Walks the node's `next`, `loop`, and `branches` links and
+     *  accumulates each visited node's
+     *  `PrefetcherNodeState::usedCache_` contribution.  The result
+     *  feeds the debug printer (`Prefetch::print`), which displays a
+     *  `(usedCache, perNodeUsedCache)` pair next to each Play node.
+     *  See IF-226 (closed) for the prior stub history.
      *
      *  \param node  Root of the subtree whose cache footprint is
      *               wanted.

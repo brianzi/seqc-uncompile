@@ -108,9 +108,10 @@ public:
     //! \param startOffset First byte (in waveform-memory address space)
     //!                    available for allocation.
     //!
-    //! \verifyme — initialisation values are taken from the inlined
-    //! constructor patterns visible at the call sites in `WavetableIR`;
-    //! the standalone constructor symbol does not exist in the binary.
+    //! \binarynote The constructor is inlined at every call site in the
+    //! original binary; no standalone symbol exists.  Initialisation
+    //! values were recovered from the inlined patterns visible at the
+    //! `WavetableIR` call sites.
     // Constructor is inlined at call sites — no standalone function.
     MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset);
 

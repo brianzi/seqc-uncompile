@@ -26,13 +26,15 @@ import tempfile
 import threading
 import time
 from pathlib import Path
-from typing import Dict, List, Optional
 
 # Import comparison machinery from the original harness
 sys.path.insert(0, str(Path(__file__).parent))
 from diff_test import (
-    CompareResult, CompileResult, ElfInfo, SectionDiff, TestCase,
-    compare_results, load_test_cases,
+    CompareResult,
+    CompileResult,
+    TestCase,
+    compare_results,
+    load_test_cases,
 )
 
 # ── Terminal colors ────────────────────────────────────────────────────────
@@ -47,13 +49,14 @@ BOLD = "\033[1m"
 
 # ── Manifest helpers ───────────────────────────────────────────────────────
 
-def resolve_manifest(cases: List[TestCase]) -> List[dict]:
+
+def resolve_manifest(cases: list[TestCase]) -> list[dict]:
     """Convert TestCase list to JSON-serializable manifest for the batch worker."""
     entries = []
     for i, c in enumerate(cases):
         entry = {
             "name": c.name,
-            "_uid": f"{c.name}_{i}",   # unique file/event key, stable across runs
+            "_uid": f"{c.name}_{i}",  # unique file/event key, stable across runs
             "code": c.code,
             "devtype": c.devtype,
             "options": c.options,
@@ -68,6 +71,7 @@ def resolve_manifest(cases: List[TestCase]) -> List[dict]:
 
 
 # ── Streaming reader ───────────────────────────────────────────────────────
+
 
 def _reader_thread(proc: subprocess.Popen, side: str, q: queue.Queue):
     """Read JSON lines from proc.stdout and push (side, event) to queue."""
@@ -88,6 +92,7 @@ def _reader_thread(proc: subprocess.Popen, side: str, q: queue.Queue):
 
 # ── Result reading ─────────────────────────────────────────────────────────
 
+
 def _read_compile_result(output_dir: str, uid: str) -> CompileResult:
     """Read a single compile result from the output directory."""
     elf_path = os.path.join(output_dir, f"{uid}.elf")
@@ -95,8 +100,7 @@ def _read_compile_result(output_dir: str, uid: str) -> CompileResult:
 
     elf_bytes = b""
     if os.path.exists(elf_path):
-        with open(elf_path, "rb") as f:
-            elf_bytes = f.read()
+        elf_bytes = Path(elf_path).read_bytes()
 
     meta = {}
     error = None
@@ -112,15 +116,16 @@ def _read_compile_result(output_dir: str, uid: str) -> CompileResult:
 
 # ── Pretty printing ───────────────────────────────────────────────────────
 
+
 def _fmt_time(seconds: float) -> str:
     if seconds < 1.0:
-        return f"{seconds*1000:.0f}ms"
+        return f"{seconds * 1000:.0f}ms"
     return f"{seconds:.1f}s"
 
 
-def _print_result_line(index: int, total: int, name: str, status: str,
-                       detail: str, orig_time: Optional[float],
-                       recon_time: Optional[float]):
+def _print_result_line(
+    index: int, total: int, name: str, status: str, detail: str, orig_time: float | None, recon_time: float | None
+):
     """Print one result line with counter, status, and timing."""
     counter = f"{DIM}[{index:>{len(str(total))}}/{total}]{RESET}"
     timing = ""
@@ -140,11 +145,9 @@ def _print_equiv_details(oe: dict, re: dict, result: CompareResult):
     recon_size = re.get("elf_size", 0)
     if oe.get("elf_sha256") != re.get("elf_sha256"):
         if orig_size != recon_size:
-            print(f"{indent}{DIM}elf differs "
-                  f"(orig {orig_size} bytes, recon {recon_size} bytes){RESET}")
+            print(f"{indent}{DIM}elf differs (orig {orig_size} bytes, recon {recon_size} bytes){RESET}")
         else:
-            print(f"{indent}{DIM}elf differs ({orig_size} bytes both, "
-                  f"layout/headers differ){RESET}")
+            print(f"{indent}{DIM}elf differs ({orig_size} bytes both, layout/headers differ){RESET}")
     # Meta hash
     if oe.get("meta_sha256") != re.get("meta_sha256"):
         print(f"{indent}{DIM}meta differs{RESET}")
@@ -165,58 +168,44 @@ def _print_failure_details(result: CompareResult):
     for note in result.notes:
         print(f"{indent}{DIM}{note}{RESET}")
     for sd in result.section_diffs:
-        print(f"{indent}{DIM}section '{sd.section}':{RESET} "
-              f"{sd.kind} — {sd.detail}")
+        print(f"{indent}{DIM}section '{sd.section}':{RESET} {sd.kind} — {sd.detail}")
 
 
 # ── Main ───────────────────────────────────────────────────────────────────
 
+
 def main():
-    p = argparse.ArgumentParser(
-        description="Fast SeqC differential ELF test harness (fork-per-test)")
-    p.add_argument("--cases-dir", type=Path,
-                   default=Path(__file__).parent / "cases",
-                   help="Directory containing test case files")
-    p.add_argument("--manifest", type=str, default=None,
-                   help="Manifest file to load (default: manifest.json in cases-dir)")
-    p.add_argument("--original-dir", type=Path, default=None,
-                   help="Directory containing the original _seqc_compiler.so")
-    p.add_argument("--recon-dir", type=Path, default=None,
-                   help="Directory containing the reconstructed _seqc_compiler.so")
-    p.add_argument("--recon-module", default="_seqc_compiler",
-                   help="Module name for the reconstruction")
-    p.add_argument("--original-only", action="store_true",
-                   help="Only run the original compiler (smoke test)")
+    p = argparse.ArgumentParser(description="Fast SeqC differential ELF test harness (fork-per-test)")
+    p.add_argument(
+        "--cases-dir", type=Path, default=Path(__file__).parent / "cases", help="Directory containing test case files"
+    )
+    p.add_argument("--manifest", type=str, default=None, help="Manifest file to load (default: manifest.json in cases-dir)")
+    p.add_argument("--original-dir", type=Path, default=None, help="Directory containing the original _seqc_compiler.so")
+    p.add_argument("--recon-dir", type=Path, default=None, help="Directory containing the reconstructed _seqc_compiler.so")
+    p.add_argument("--recon-module", default="_seqc_compiler", help="Module name for the reconstruction")
+    p.add_argument("--original-only", action="store_true", help="Only run the original compiler (smoke test)")
     p.add_argument("-v", "--verbose", action="store_true")
-    p.add_argument("--filter", default=None,
-                   help="Only run test cases whose name contains this string")
-    p.add_argument("-j", "--jobs", type=int, default=os.cpu_count(),
-                   help="Parallelism per side (default: cpu_count)")
-    
+    p.add_argument("--filter", default=None, help="Only run test cases whose name contains this string")
+    p.add_argument("-j", "--jobs", type=int, default=os.cpu_count(), help="Parallelism per side (default: cpu_count)")
+
     # v2.0 manifest filtering
-    p.add_argument("--tags", default=None,
-                   help="Only run tests with these tags (comma-separated)")
-    p.add_argument("--exclude-tags", default=None,
-                   help="Exclude tests with these tags (comma-separated)")
-    p.add_argument("--groups", default=None,
-                   help="Only run tests from these groups (comma-separated)")
-    p.add_argument("--exclude-groups", default=None,
-                   help="Exclude tests from these groups (comma-separated)")
-    
+    p.add_argument("--tags", default=None, help="Only run tests with these tags (comma-separated)")
+    p.add_argument("--exclude-tags", default=None, help="Exclude tests with these tags (comma-separated)")
+    p.add_argument("--groups", default=None, help="Only run tests from these groups (comma-separated)")
+    p.add_argument("--exclude-groups", default=None, help="Exclude tests from these groups (comma-separated)")
+
     # Discovery
-    p.add_argument("--list-groups", action="store_true",
-                   help="List all groups and exit")
-    p.add_argument("--list-tags", action="store_true",
-                   help="List all tags and exit")
-    p.add_argument("--show-only", action="store_true",
-                   help="Show selected tests in pretty format (don't run)")
-    
+    p.add_argument("--list-groups", action="store_true", help="List all groups and exit")
+    p.add_argument("--list-tags", action="store_true", help="List all tags and exit")
+    p.add_argument("--show-only", action="store_true", help="Show selected tests in pretty format (don't run)")
+
     args = p.parse_args()
-    
+
     # Handle discovery commands
     if args.list_groups or args.list_tags:
         from manifest_loader import load_manifest
         from collections import Counter
+
         if args.manifest:
             manifest = Path(args.manifest)
             if not manifest.is_absolute():
@@ -224,14 +213,14 @@ def main():
         else:
             manifest = args.cases_dir / "manifest.json"
         tests = load_manifest(manifest)
-        
+
         if args.list_groups:
-            groups = Counter(t.groups[0] if t.groups else '(none)' for t in tests)
+            groups = Counter(t.groups[0] if t.groups else "(none)" for t in tests)
             print("Groups:")
             for group, count in sorted(groups.items()):
                 print(f"  {group:30} {count:4} tests")
             return 0
-        
+
         if args.list_tags:
             all_tags = Counter()
             for t in tests:
@@ -240,10 +229,11 @@ def main():
             for tag, count in sorted(all_tags.items()):
                 print(f"  {tag:30} {count:4} tests")
             return 0
-    
+
     # Handle show-only (delegate to show_manifest.py)
     if args.show_only:
         import subprocess
+
         cmd = [sys.executable, str(Path(__file__).parent / "show_manifest.py")]
         if args.cases_dir:
             cmd.extend(["--cases-dir", str(args.cases_dir)])
@@ -273,10 +263,10 @@ def main():
         args.recon_dir = repo_root / "reconstructed" / "build"
 
     # Parse filter arguments
-    tags = args.tags.split(',') if args.tags else None
-    exclude_tags = args.exclude_tags.split(',') if args.exclude_tags else None
-    groups = args.groups.split(',') if args.groups else None
-    exclude_groups = args.exclude_groups.split(',') if args.exclude_groups else None
+    tags = args.tags.split(",") if args.tags else None
+    exclude_tags = args.exclude_tags.split(",") if args.exclude_tags else None
+    groups = args.groups.split(",") if args.groups else None
+    exclude_groups = args.exclude_groups.split(",") if args.exclude_groups else None
 
     # Load and filter test cases
     cases = load_test_cases(args.cases_dir, tags, exclude_tags, groups, exclude_groups, args.manifest)
@@ -303,27 +293,33 @@ def main():
         recon_dir = os.path.join(tmpdir, "recon")
 
         if args.original_only:
-            return _run_original_only(
-                worker, args, manifest_json, orig_dir, total, wall_t0)
+            return _run_original_only(worker, args, manifest_json, orig_dir, total, wall_t0)
 
-        return _run_differential(
-            worker, args, manifest_json, orig_dir, recon_dir, total, wall_t0)
+        return _run_differential(worker, args, manifest_json, orig_dir, recon_dir, total, wall_t0)
 
 
-def _spawn_worker(worker: Path, module_dir: Path, module_name: str,
-                  output_dir: str, jobs: int, manifest_json: str
-                  ) -> subprocess.Popen:
+def _spawn_worker(
+    worker: Path, module_dir: Path, module_name: str, output_dir: str, jobs: int, manifest_json: str
+) -> subprocess.Popen:
     """Launch a batch worker subprocess, pipe manifest to stdin, return Popen."""
     cmd = [
-        sys.executable, str(worker),
-        "--module-dir", str(module_dir),
-        "--module-name", module_name,
-        "--output-dir", output_dir,
-        "-j", str(jobs),
+        sys.executable,
+        str(worker),
+        "--module-dir",
+        str(module_dir),
+        "--module-name",
+        module_name,
+        "--output-dir",
+        output_dir,
+        "-j",
+        str(jobs),
     ]
     proc = subprocess.Popen(
-        cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE, text=True,
+        cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
     )
     # Write manifest and close stdin so the worker can start immediately
     proc.stdin.write(manifest_json)
@@ -333,12 +329,10 @@ def _spawn_worker(worker: Path, module_dir: Path, module_name: str,
 
 def _run_original_only(worker, args, manifest_json, orig_dir, total, wall_t0):
     """Run only the original side with streaming output."""
-    proc = _spawn_worker(worker, args.original_dir, "_seqc_compiler",
-                         orig_dir, args.jobs, manifest_json)
+    proc = _spawn_worker(worker, args.original_dir, "_seqc_compiler", orig_dir, args.jobs, manifest_json)
 
     q = queue.Queue()
-    t = threading.Thread(target=_reader_thread, args=(proc, "orig", q),
-                         daemon=True)
+    t = threading.Thread(target=_reader_thread, args=(proc, "orig", q), daemon=True)
     t.start()
 
     passed = failed = 0
@@ -360,44 +354,36 @@ def _run_original_only(worker, args, manifest_json, orig_dir, total, wall_t0):
         elf_size = event.get("elf_size", 0)
 
         if error:
-            _print_result_line(index, total, name, FAIL,
-                               f": {error[:120]}", elapsed, None)
+            _print_result_line(index, total, name, FAIL, f": {error[:120]}", elapsed, None)
             failed += 1
         else:
-            _print_result_line(index, total, name, PASS,
-                               f" ({elf_size} bytes)", elapsed, None)
+            _print_result_line(index, total, name, PASS, f" ({elf_size} bytes)", elapsed, None)
             passed += 1
 
     proc.wait()
     wall_time = time.monotonic() - wall_t0
 
     print()
-    print(f"Results: {passed}/{passed+failed} passed, {failed} failed")
-    print(f"{DIM}Wall: {_fmt_time(wall_time)} | "
-          f"Cumulative compile: {_fmt_time(cum_time)}{RESET}")
+    print(f"Results: {passed}/{passed + failed} passed, {failed} failed")
+    print(f"{DIM}Wall: {_fmt_time(wall_time)} | Cumulative compile: {_fmt_time(cum_time)}{RESET}")
     return 0 if failed == 0 else 1
 
 
-def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
-                      total, wall_t0):
+def _run_differential(worker, args, manifest_json, orig_dir, recon_dir, total, wall_t0):
     """Run both sides with streaming comparison."""
-    orig_proc = _spawn_worker(worker, args.original_dir, "_seqc_compiler",
-                              orig_dir, args.jobs, manifest_json)
-    recon_proc = _spawn_worker(worker, args.recon_dir, args.recon_module,
-                               recon_dir, args.jobs, manifest_json)
+    orig_proc = _spawn_worker(worker, args.original_dir, "_seqc_compiler", orig_dir, args.jobs, manifest_json)
+    recon_proc = _spawn_worker(worker, args.recon_dir, args.recon_module, recon_dir, args.jobs, manifest_json)
 
     q = queue.Queue()
-    orig_thread = threading.Thread(
-        target=_reader_thread, args=(orig_proc, "orig", q), daemon=True)
-    recon_thread = threading.Thread(
-        target=_reader_thread, args=(recon_proc, "recon", q), daemon=True)
+    orig_thread = threading.Thread(target=_reader_thread, args=(orig_proc, "orig", q), daemon=True)
+    recon_thread = threading.Thread(target=_reader_thread, args=(recon_proc, "recon", q), daemon=True)
     orig_thread.start()
     recon_thread.start()
 
     # Collect events per uid, per side; also track uid->name for display
-    orig_events: Dict[str, dict] = {}
-    recon_events: Dict[str, dict] = {}
-    uid_to_name: Dict[str, str] = {}
+    orig_events: dict[str, dict] = {}
+    recon_events: dict[str, dict] = {}
+    uid_to_name: dict[str, str] = {}
     compared = set()  # uids already compared
 
     passed = equiv = failed = 0
@@ -443,9 +429,13 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
 
         # Fast path: identical outcome without reading files
         # Case 1: both succeeded and ELF hashes match
-        if (oe.get("error") is None and re.get("error") is None
-                and oe.get("elf_sha256") and re.get("elf_sha256")
-                and oe["elf_sha256"] == re["elf_sha256"]):
+        if (
+            oe.get("error") is None
+            and re.get("error") is None
+            and oe.get("elf_sha256")
+            and re.get("elf_sha256")
+            and oe["elf_sha256"] == re["elf_sha256"]
+        ):
             _print_result_line(index, total, name, PASS, "", ot, rt)
             passed += 1
             continue
@@ -487,34 +477,31 @@ def _run_differential(worker, args, manifest_json, orig_dir, recon_dir,
         index += 1
         name = uid_to_name.get(uid, uid)
         if uid not in orig_events:
-            _print_result_line(index, total, name, FAIL,
-                               " (original side never completed)", None, None)
+            _print_result_line(index, total, name, FAIL, " (original side never completed)", None, None)
             failed += 1
         elif uid not in recon_events:
-            _print_result_line(index, total, name, FAIL,
-                               " (recon side never completed)", None, None)
+            _print_result_line(index, total, name, FAIL, " (recon side never completed)", None, None)
             failed += 1
         compared.add(uid)
 
     # Check for import failures
     if orig_proc.returncode == 2:
         stderr = orig_proc.stderr.read() if orig_proc.stderr else ""
-        print(f"\n{BOLD}ERROR:{RESET} original batch worker import failed: "
-              f"{stderr}", file=sys.stderr)
+        print(f"\n{BOLD}ERROR:{RESET} original batch worker import failed: {stderr}", file=sys.stderr)
     if recon_proc.returncode == 2:
         stderr = recon_proc.stderr.read() if recon_proc.stderr else ""
-        print(f"\n{BOLD}ERROR:{RESET} recon batch worker import failed: "
-              f"{stderr}", file=sys.stderr)
+        print(f"\n{BOLD}ERROR:{RESET} recon batch worker import failed: {stderr}", file=sys.stderr)
 
     wall_time = time.monotonic() - wall_t0
 
     print()
     result_total = passed + equiv + failed
-    print(f"Results: {passed} passed, {equiv} equiv, {failed} failed"
-          f"  ({result_total} total)")
-    print(f"{DIM}Wall: {_fmt_time(wall_time)} | "
-          f"Orig cumulative: {_fmt_time(orig_cum)} | "
-          f"Recon cumulative: {_fmt_time(recon_cum)}{RESET}")
+    print(f"Results: {passed} passed, {equiv} equiv, {failed} failed  ({result_total} total)")
+    print(
+        f"{DIM}Wall: {_fmt_time(wall_time)} | "
+        f"Orig cumulative: {_fmt_time(orig_cum)} | "
+        f"Recon cumulative: {_fmt_time(recon_cum)}{RESET}"
+    )
     return 0 if failed == 0 else 1
 
 
