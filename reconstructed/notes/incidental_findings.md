@@ -5389,7 +5389,7 @@ brief alone documents the intended semantics.
 ## IF-228  Pervasive integer-literal magic numbers in reconstructed sources
 
 **Severity**: cosmetic (readability / doc-accuracy hazard).
-**Status**: partially fixed (E1+E2+E3+E4 done 2026-05-11; E5 still open).
+**Status**: ✅ **fixed 2026-05-11** (E1+E2+E3+E4+E5 all done).
 **Discovered**: D4 Batch 4e while writing briefs for
 `playAuxWave`, `playDIOWave`, `playWaveDIO`, `playWaveZSync`,
 `playZero`, `playHold` in
@@ -5513,8 +5513,19 @@ user agreement):
   replacing the bare `rate <= 4` and `rate <= 1` literals at
   lines 181 and 482.  Build clean, 1603/1603 tests pass —
   fully NFC.
-- E5: audit `PlayConfig` field encoding for promotion to
-  named members.
+- E5: ✅ **done 2026-05-11**.  Audit confirmed `PlayConfig`
+  already exposes named position-aligned `*Mask` /
+  `*Shift` constants for every encoded field, plus the
+  `holdSuppressExceptSigouts` sentinel.  The remaining magic
+  literals lived in `play_config.cpp::encodeCwvf`'s packing
+  block as per-field width masks (`0x3u`, `0xFu`, `0x3FFFu`,
+  `0x1u`).  Rewrote each line as
+  `(value << fieldShift) & fieldMask` using the existing named
+  constants — bit-exact equivalent because each `fieldMask`
+  equals `(widthMask << fieldShift)`.  `genPlayConfig` in
+  `asm_commands.cpp` carries no encoded-word literals (it only
+  stores raw field values), so no changes there.  Build clean,
+  1603/1603 tests pass — fully NFC.
 
 **Verification requirement for any fix**: must be NFC at the
 binary level — every replacement is a literal-for-name swap

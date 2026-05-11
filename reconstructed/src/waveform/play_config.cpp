@@ -52,17 +52,20 @@ uint32_t PlayConfig::encodeCwvf(int defaultRate) const {
     // Dummy bit: same as dummyFlag
     uint32_t dummyBit = dummyFlag ? 1u : 0u;
 
-    // Pack everything
+    // Pack everything.  Each field is shifted into position then masked
+    // with the named position-aligned mask from PlayConfig — bit-exact
+    // equivalent to (value & widthMask) << shift since each *Mask equals
+    // (widthMask << *Shift).  See PlayConfig header for layout.
     uint32_t word = 0;
-    word |= (channels      & 0x3u)  << channelsShift;      // [1:0]
-    word |= (rateBits      & 0xFu)  << rateShift;           // [5:2]
-    word |= (suppressVal   & 0x3FFFu) << suppressShift;     // [19:6]
-    word |= (fourChannelVal & 0x3u) << fourChannelShift;     // [21:20]
-    word |= (defaultRateBit & 0x1u) << defaultRateShift;     // [22]
-    word |= (dummyBit      & 0x1u)  << dummyShift;          // [23]
-    word |= (markerBits.value & 0xFu) << markerBitsShift;   // [27:24]
-    word |= (trigger.value  & 0x3u) << triggerShift;         // [29:28]
-    word |= (precompFlags.value & 0x3u) << precompFlagShift; // [31:30]
+    word |= (channels             << channelsShift)     & channelsMask;     // [1:0]
+    word |= (rateBits             << rateShift)          & rateMask;         // [5:2]
+    word |= (suppressVal          << suppressShift)      & suppressMask;     // [19:6]
+    word |= (fourChannelVal       << fourChannelShift)   & fourChannelMask;  // [21:20]
+    word |= (defaultRateBit       << defaultRateShift)   & defaultRateMask;  // [22]
+    word |= (dummyBit             << dummyShift)         & dummyMask;        // [23]
+    word |= (markerBits.value     << markerBitsShift)    & markerBitsMask;   // [27:24]
+    word |= (trigger.value        << triggerShift)       & triggerMask;      // [29:28]
+    word |= (precompFlags.value   << precompFlagShift)   & precompFlagMask;  // [31:30]
 
     return word;
 }
