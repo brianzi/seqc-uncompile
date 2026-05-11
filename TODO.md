@@ -328,32 +328,29 @@ cross-reference pages so the backlog is discoverable.
         1602/1602 (no behaviour change — corpus does not
          exercise the gate combination that routes here).  See
          IF-224 for full disassembly trail.
-   - [ ] **D4 Batch 2e-i follow-up (IF-244)** — recon mislabel:
-         the block currently at `prefetch_placesingle.cpp:884-908`
-         labelled `play_cervino_indexed_nonsplit` is actually the
-         Table sub-path C2 split tail (`0x1db562..0x1db60a`),
-         which calls `clampToCache` and defers `wprf` to the
-         shared `0x1db92e` tail (gated `!isHirzel` at `0x1db935`).
-         The real Play `cervino_indexed_nonsplit` tail lives at
-         `0x1db4ad..0x1db55d`: emits `wprf` inline first
-         (unconditional), then `prf(regHirzel, regCervino,
-         cacheSize >> 1)` without `clampToCache`, exits via
-         `0x1db55d → 0x1db92e`.  IF-224's earlier "fix" of this
-         block was therefore mis-targeted (correct body, wrong
-         label and dispatch slot).  Action items: (a) move the
-         existing block into the Table dispatch under a new label
-         (e.g. `table_indexed_with_clamp`); (b) add a new block
-         for the real Play tail at the original
-         `play_cervino_indexed_nonsplit` slot; (c) optionally
-         factor the genuine 3-way (`0x1db911`) and 4-way
-         (`0x1db92e`) shared tails into a helper
-         `Prefetch::emitPrfEpilogueAndInsert_`.  Tag the
-         `[r15+0x18]` ⇒ `isHirzel` interpretation `\verifyme` if
-         the helper is extracted (consistent with binary but not
-         GDB-verified).  Tests will remain green: corpus
-         exercises neither Play `cervino_indexed_nonsplit` nor
-         Table sub-path C2.  See IF-244 for the full xref / body
-         comparison.
+   - [x] **D4 Batch 2e-i follow-up (IF-244)** — fixed
+         (documentation-only relabel; no goto graph changes).
+         The block at `prefetch_placesingle.cpp:884-908`
+         (now relocated and renamed `table_indexed_with_clamp`)
+         is the Table sub-path C2 split tail at
+         `0x1db562..0x1db60a`, which calls `clampToCache` and
+         exits via `0x1db60a → 0x1db911`.  A new
+         documentation-only `play_cervino_indexed_nonsplit` block
+         was added immediately above it covering the real Play
+         tail at `0x1db4ad..0x1db55d` (inline unconditional
+         `wprf` before raw `prf`, no `clampToCache`, exits
+         `0x1db55d → 0x1db92e`).  Neither label is `goto`'d in
+         the current recon — both are documentation captures so
+         that future dispatch reconstruction (Play side, and
+         IF-223 sub-path C on the Table side) can wire them up
+         with the correct body.  IF-223 sub-path C `\verifyme`
+         note updated to reference the new `table_indexed_with_clamp`
+         label.  File-header IF-224 reference updated to IF-244
+         + IF-223.  Optional `emitPrfEpilogueAndInsert_` helper
+         (action item 3 from IF-244) deferred — will be revisited
+         when the dispatch wiring is reconstructed.  Tests:
+         1602/1602 (no behaviour change — neither label
+         executes).  Build clean, 0 new doxygen warnings.
    - [x] **D4 Batch 2e-ii** — Prefetch waveform-instruction
         helpers (7 methods): `clampToCache`, `wvfImpl`,
         `wvfRegImpl`, `wvfs`, `needsNewCwvf`, `splitPlay`,

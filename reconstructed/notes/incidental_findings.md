@@ -6696,8 +6696,10 @@ in `prefetch.hpp:58`.  IF-243 is resolved.
 ## IF-244  Existing `play_cervino_indexed_nonsplit` recon body actually corresponds to Table-C2; Play has its own separate copy
 
 **Severity**: **likely-bug** (recon mislabeled; promotes to TODO).
-**Status**: **open — actionable**.  Distinct enough from the real
-Play block to warrant keeping two separate copies after correction.
+**Status**: **fixed** (documentation-only relabel; action items 1
+and 2 below executed in commit following IF-244 entry; action item 3,
+the optional `emitPrfEpilogueAndInsert_` helper, deferred until
+dispatch wiring is reconstructed).
 **Discovered**: D4 IF-223 follow-up, subagent audit
 `ses_1ea02f346ffeXjP1970hUIsRqE`.
 
