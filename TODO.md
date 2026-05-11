@@ -1092,7 +1092,7 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     "static-only verified" to "test-verified" or surface real
     bugs.
 
-- [ ] **D9 — Resolve IF-244 dead label blocks and Table-C-split wprf gate**
+- [x] **D9 — Resolve IF-244 dead label blocks and Table-C-split wprf gate** *(all sub-items D9.1–D9.4 done/dropped; commits `f97effd`, `8423555`, `d1515c8`, `d0b4170`)*
   - **Background**: IF-244 action items 1+2 produced two label-only
     blocks in `prefetch_placesingle.cpp` (`play_cervino_indexed_nonsplit`
     at lines 865-941; `table_indexed_with_clamp` at lines 951-1022).
