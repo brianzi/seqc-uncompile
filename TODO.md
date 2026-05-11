@@ -964,7 +964,9 @@ cross-reference pages so the backlog is discoverable.
     Sub-batches commit independently; tests + docs warning
     count between commits.
 
-- [ ] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**
+- [x] **D6 — Convert evergreen `notes/` files into Doxygen `\page`s**
+      *(complete; D6-A promoted 13 EVERGREEN files, D6-B promoted 14
+      of 16 MIXED files with 2 moved to EXCLUDED)*
 
   Notes-files audit (39 markdown files under `reconstructed/notes/`)
   classified each file as EVERGREEN (suitable for as-is promotion),
