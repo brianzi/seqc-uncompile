@@ -2172,31 +2172,36 @@ void Prefetch::assignLoad(std::shared_ptr<Node> node,
 // dummy flag (n->config.dummy at +0x66).
 //
 // IF-219: the legacy block-header documented an "already-loaded short-
-// circuit" (parent.lock() && loadRef set → return null) that the recon
-// body does **not** implement.  Every eligible source produces a fresh
-// load.  See incidental_findings.md IF-219.
+// circuit" (parent.lock() && loadRef set → return null) which had been
+// dropped from the recon body.  It has been restored at the position
+// indicated below, confirmed against binary `0x1d4a54-0x1d4aa0` /
+// `0x1d4f51-0x1d4f8a`.  See incidental_findings.md IF-219.
 //
 // Steps actually performed by the body:
-//   1. Bail on null / wrong type / dummy.
-//   2. Allocate a register via Resources::getRegisterNumber().
-//   3. Construct std::make_shared<Node>(NodeType::Load, asmId,
+//   1. Bail on null source.
+//   2. Bail unless type is Play (0x02) or Table (0x200).
+//   3. Already-loaded short-circuit: if n->loadRef.lock() yields a
+//      live Load → return null (duplicate suppression).
+//   4. Bail on the dummy flag (n->config.dummy at +0x66).
+//   5. Allocate a register via Resources::getRegisterNumber().
+//   6. Construct std::make_shared<Node>(NodeType::Load, asmId,
 //      numChannelGroups).
-//   4. Copy n->wavesPerDev (+0x28) and n->lengthReg (+0x88) onto the
+//   7. Copy n->wavesPerDev (+0x28) and n->lengthReg (+0x88) onto the
 //      new load; set the load's deviceIndex from config_->deviceIndex.
-//   5. Emplace the new load into nodeStates_ and store the AsmRegister
+//   8. Emplace the new load into nodeStates_ and store the AsmRegister
 //      in either registerHirzel (PNS+0x00) or registerCervino (PNS+0x08)
 //      according to config_->isHirzel.
-//   6. Call assignLoad(node, result, isHirzel) — 3-arg form, despite
+//   9. Call assignLoad(node, result, isHirzel) — 3-arg form, despite
 //      the legacy comment — to back-link the source to the new load
 //      and copy the matching register slot.
-//   7. Push the source node into result->play (+0xA0,
+//  10. Push the source node into result->play (+0xA0,
 //      vector<weak_ptr<Node>>).  Field is named `play`, not
 //      `loadTargets_` as legacy text claimed.
-//   8. For each named wave on the source, look up the WaveformIR via
+//  11. For each named wave on the source, look up the WaveformIR via
 //      wavetableIR_ and set wfm->markedForLoad = true (+0xD8 byte).
 //      This is the `markedForLoad` flag, not the (similarly located)
 //      `fixed_` flag at +0xD9.
-//   9. Call collectUsedWaves(node) to populate waveformMaps_.
+//  12. Call collectUsedWaves(node) to populate waveformMaps_.
 // ============================================================================
 std::shared_ptr<Node>
 Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
@@ -2212,9 +2217,17 @@ Prefetch::createLoad(std::shared_ptr<Node> node) // 0x1d4a10
   if (nodeType != 0x200 && nodeType != 0x2)
     return result;
 
-  // IF-219: the legacy "already-loaded" guard documented in the
-  // block-header is not implemented in the recon body.  We fall
-  // straight through to the dummy check.
+  // 0x1d4a54-0x1d4aa0: already-loaded short-circuit.  If n->loadRef
+  // already points to a live Load node, this play has already had a
+  // load attached on a previous pass — return null without creating
+  // a duplicate.  The binary inlines weak_ptr::lock() down to a
+  // direct __shared_weak_count::lock() call with an extra defensive
+  // re-check of __ptr_ at +0x18; that __ptr_ check is redundant in
+  // practice (weak_ptr never zeros __ptr_ on expiration, only the
+  // strong count) so the idiomatic `lock()` form below is equivalent.
+  // See incidental_findings.md IF-219.
+  if (auto loaded = n->loadRef.lock())
+    return result;
 
   // 0x1d4aac: check dummy flag (+0x66)
   if (n->config.dummy)

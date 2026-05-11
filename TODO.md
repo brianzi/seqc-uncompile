@@ -245,17 +245,24 @@ cross-reference pages so the backlog is discoverable.
         program that exercises SetVar emission to confirm the
         per-group splat semantics; add regression test.  See
         IF-218 for full evidence.
-  - [ ] **D4 Batch 2d follow-up (IF-219)** — investigate whether
-        `Prefetch::createLoad` is missing an "already-loaded"
-        early-return that the legacy block-header documented.
-        `objdump -d --start-address=0x1d4a10
-        --stop-address=0x1d5040 _seqc_compiler.so` to confirm
-        whether the binary actually has the `parent.lock() &&
-        loadRef set → return null` guard before the
-        `Resources::getRegisterNumber` call.  If yes, add the
-        guard.  Bug is latent on the current call graph (each node
-        is only visited once per pass).  See IF-219 for full
-        evidence.
+  - [x] **D4 Batch 2d follow-up (IF-219)** — fixed.
+        `Prefetch::createLoad` now has the already-loaded
+        short-circuit at `prefetch.cpp:2215-2225`:
+        `if (auto loaded = n->loadRef.lock()) return result;`.
+        Confirmed against objdump (no GDB needed): binary at
+        `0x1d4a54-0x1d4aa0` inlines `weak_ptr::lock()` and
+        returns null when the lock yields a live Load; the
+        extra `__ptr_ == 0` defensive check the compiler emits
+        at `0x1d4a6b` is redundant in practice (weak_ptr never
+        zeroes `__ptr_` on expiration) so the idiomatic
+        `lock()` form is the source-level equivalent.  Block-
+        header summary rewritten to reflect the restored guard
+        and the previously-noted stale labels (Play/Load swap,
+        assignLoad 3-arg form, `Node::play` not `loadTargets_`,
+        `markedForLoad` not `fixed_`).  Tests remain 1602/1602
+        as predicted (bug was latent — single-pass
+        `preparePlays` only visits each node once).  IF-219
+        marked **fixed** in `incidental_findings.md`.
   - [x] **D4 Batch 2e-i** — Prefetch placement dispatch (3
         methods): `placeCommands`, `findPlaceholder`,
         `placeSingleCommand`.  Surfaced two cosmetic

@@ -4936,69 +4936,68 @@ loop body never execute, so the recon's bug is invisible.
 ## IF-219  `Prefetch::createLoad` missing already-loaded short-circuit
 
 **Severity**: likely-bug.
-**Status**: open (recon body unfixed; block-header rewritten in
-same commit to match the buggy body).
+**Status**: **fixed** (commit pending) — guard restored at
+`prefetch.cpp:2215-2225`, block-header summary updated to match.
 **Discovered**: D4 Batch 2d verify-then-write of
 `Prefetch::createLoad` (`prefetch.cpp:2192-2279`, original at
 `0x1d4a10`).
 
-The pre-existing block-header at `prefetch.cpp:2167-2191`
-documents step 2 as:
+**Resolution**: confirmed by objdump (no GDB needed).  The
+binary at `0x1d4a54-0x1d4aa0` (with continuation at
+`0x1d4f51-0x1d4f8a`) implements an already-loaded guard that
+the optimizer expanded inline from `weak_ptr::lock()`:
 
-> 2. Check if load already exists (via parent weak_ptr at +0x20)
->    - If parent exists AND loadNode (+0x18) is set → already
->      loaded, skip
->    - Special case: if parent exists but loadNode is null,
->      check isPlaceholder
+```
+1d4a54:  mov  0x20(%rbx),%rdi              ; n->loadRef.__cntrl_
+1d4a58:  test %rdi,%rdi                    ; cntrl null?
+1d4a5f:  je   1d4aac                       ; → dummy check (no guard)
+1d4a61:  call __shared_weak_count::lock    ; rax = locked cntrl or null
+1d4a66:  test %rax,%rax
+1d4a69:  je   1d4aa5                       ; expired → reload n, dummy check
+1d4a6b:  cmpq $0,0x18(%rbx)                ; n->loadRef.__ptr_ (defensive)
+1d4a70:  je   1d4f51                       ; __ptr_ == 0 → release, continue
+1d4a76..1d4aa0:                            ; __ptr_ != 0 → release, return null
+```
 
-The actual recon body does **not** implement this check.  After
-the type-test (`nodeType != 0x200 && nodeType != 0x2`) it falls
-straight through to the `n->config.dummy` check.  There is no
-`n->loadRef.lock()` (or equivalent) test, no parent walk, no
-"already-loaded" early-return.
+The recon body now reads:
 
-This means every Play / Table node visited by `linkLoad` (which
-is the sole caller in the prepare-tree pass) gets a *fresh*
-load synthesised even if a previous pass already attached one.
-For the current single-pass `preparePlays` invocation the bug is
-latent: each node is only visited once and `linkLoad` is the
-first opportunity to attach a load.  But callers that legitimately
-expect re-entry safety would silently get duplicate loads,
-duplicate `nodeStates_` entries (the second `emplace` for the
-same node is a no-op for the entry but the freshly allocated
-`AsmRegister` is leaked), and a `markedForLoad` flag that gets
-re-set on every wave.
+```cpp
+if (auto loaded = n->loadRef.lock())
+    return result;
+```
 
-The block-header also contains several stale labels:
+which is the idiomatic source-level equivalent.  The extra
+`__ptr_ == 0` check in the binary is defensive: a `weak_ptr`
+never zeroes its `__ptr_` field on expiration (only the strong
+count is decremented), so under normal use `lock()` returning a
+non-null `shared_ptr` implies `__ptr_` is non-null.  The
+defensive re-check is the compiler's lowering of
+`shared_ptr::operator bool` on the inlined temporary, not a
+source-level safety net.
 
-- `0x200` is called "SetPlay" at lines 2168, 2172, 2179, 2201,
-  2204; the verified `NodeType` enum has `0x200 = Table` and
+**Why tests still pass at 1602/1602**: the bug was latent on
+the current call graph (single-pass `preparePlays` only invokes
+`linkLoad` once per node, so duplicate loads never had a chance
+to form on the test corpus).  The guard now ensures re-entry
+safety for any future caller that consults `loadRef` after a
+prior pass attached a load.
+
+**Related stale labels in the legacy block-header** (now also
+corrected in the same edit):
+
+- `0x200` had been called "SetPlay" at several block-header
+  lines; the verified `NodeType` enum has `0x200 = Table` and
   `SetVar = 0x10`.  Same Play↔Load swap pattern as IF-215.
-- Line 2186 documents the call as `assignLoad(this, node,
+- The block-header documented `assignLoad(this, node,
   loadNode, isHirzel)` (4 args); the actual call is
   `assignLoad(node, result, isHirzel)` (3 args).
-- Line 2187 says "loadTargets_ (+0xA0)"; the field is
+- The block-header said "loadTargets_ (+0xA0)"; the field is
   `Node::play` (verified at `node.hpp:104`).
-- Lines 2188-2189 say "mark waveform as not fixed (+0xD8 =
+- The block-header said "mark waveform as not fixed (+0xD8 =
   false)"; the body sets `wfm->markedForLoad = true` at
-  `prefetch.cpp:2270` (the inline comment correctly notes this
-  is *not* the `fixed_` flag — the contradiction is purely with
-  the block-header summary above).
-
-**Comment fix applied this commit**: rewrote the block-header at
-`prefetch.cpp:2165-2191` from the verified body, with an
-explicit note that the documented "already-loaded" guard is
-absent (IF-219).
-
-**Action**:
-1. `objdump -d --start-address=0x1d4a10 --stop-address=0x1d5040
-   _seqc_compiler.so` to confirm whether the binary actually has
-   the early-return guard the legacy comment described.
-2. If yes, add the guard before the `Resources::getRegisterNumber`
-   call.  GDB-trace a Play node that has been visited twice to
-   confirm.
-3. Run the full suite.  No regressions expected (the bug is
-   latent on the current call graph).
+  `prefetch.cpp:2270` — the inline comment correctly notes this
+  is *not* the `fixed_` flag; the contradiction was purely with
+  the (now-rewritten) block-header summary.
 
 ## IF-220  Block-header & inline-comment drift across batch 2d Prefetch helpers
 
