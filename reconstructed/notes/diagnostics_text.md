@@ -734,34 +734,42 @@ Function-local static `boost::basic_regex<char,…> regex` at
 | `0x90d072` | `&#x[0-9a-fA-F]+;\|&#[0-9]+;\|&amp;\|&lt;\|&gt\|&quot;\|&apos;\0` | XML entity regex |
 | `0x901eed` | `Attempt to access an uninitialized boost::match_res…` | logic_error msg    |
 
-#### Algorithm (verified from disassembly)
+#### Algorithm (verified from disassembly + GDB on the original)
+
+GDB-confirmed against `_seqc_compiler.so` on
+`("abc&amp;def", 5)`: the original returns `"abc"` — i.e. the entire
+`&amp;def` tail is erased because the entity's end iterator extends
+past `data+5`.  See IF-265 in `incidental_findings.md` for the trace.
 
 1. If `s.size() <= maxBytes` → return immediately (no truncation).
 2. If `maxBytes == 0` → empty the string in place and return.
-3. Walk **backwards** from `data() + maxBytes` to find the most-recent
-   `&` byte (loop at `2fc700..2fc712`).  Let `truncPoint` be either
-   `data() + maxBytes` (if no `&` was found in the suffix) or
-   `(position-of-trailing-&) + 1` (one past the `&`).  This narrows
-   the regex search range to skip a possible final partial entity.
-4. Run `boost::regex_search` over the full live string up to
-   `truncPoint`, with `match_default = 0` flags.
-5. **If the search succeeds and the third capture group has a valid
-   range**: compute the entity end-iterator via the `match_results`'
-   third sub_match.  If that end iterator is past the original
-   byte-limit, erase from the entity start (the ENTITY's `&`)
-   through end-of-string with `__erase_external_with_move`.  This
-   trims a partial entity that would have straddled the cut.
-6. **If the search fails** (no entity found in the suffix): fall
-   through to `truncateUtf8Safe(s, maxBytes)` to do a clean UTF-8
-   boundary cut.
+3. Walk **backwards** from `data() + maxBytes` looking for the most
+   recent `&` in `[data, data+maxBytes)` (loop at
+   `2fc700..2fc712`).  Let `entityCandidate` be the position of
+   that `&` (NOT one past it), or `data` if no `&` was found.  This
+   becomes the **search START** for the regex — the search range is
+   `[entityCandidate, end)` over the full live string.  The
+   back-up exists so that a partial entity straddling the cut is
+   the first thing the regex sees.
+4. Run `boost::regex_search` on `[entityCandidate, end)` with
+   `match_default = 0` flags.
+5. If the search succeeds **and** the matched entity's end iterator
+   `m[0].second` is past `data + maxBytes`, the entity straddles
+   the cut: erase from the entity's `&` (`m[0].first - data`)
+   through end-of-string with `__erase_external_with_move`.
+6. Otherwise (no match, or the match ends at or before the cut):
+   fall through to `truncateUtf8Safe(s, maxBytes)` for a clean
+   UTF-8 boundary cut.
 7. Drop the temporary `match_results` (release the shared regex
    implementation refcount).
 
-The `lea -0x68(%rbp),%r8 / cmovge %rdi,%r8` block selects which
-sub-match (`m[0]` head iterator at `-0x70..-0x68` vs.
-`m[3]` second pointer at offset `+0x38`) to inspect — depending on
-whether `m.size() >= 3` (the `imul $0xaaaaaaab` is the 8-byte-stride
-divide-by-3 trick to compute sub-match count).
+The pattern has **no capture groups** — every alternative is a
+literal or character class.  `m[1..]` are therefore always empty
+sub_matches; only `m[0]` (the whole match) carries useful
+iterators.  An earlier reconstruction misread the
+`lea -0x68(%rbp),%r8 / cmovge %rdi,%r8` block as selecting between
+`m[0]` and `m[3]`; it actually selects between `m[0].first` and
+`m[0].second` based on the un-init-access guard.  See IF-265.
 
 A `std::logic_error("Attempt to access an uninitialized
 boost::match_results")` is thrown in the un-init-access guard at
@@ -776,32 +784,28 @@ void truncateXmlSafe(std::string& s, std::size_t maxBytes) {
 
     const char* data = s.data();
     const char* end  = data + s.size();
-    const char* searchEnd = data + maxBytes;
-    // Back up to the most recent '&' to expose any partial entity.
-    for (const char* p = searchEnd; p > data; --p) {
-        if (p[-1] == '&') { searchEnd = p; break; }
+    const char* cut  = data + maxBytes;
+
+    // Walk backwards from `cut` to the most recent '&'.  This is the
+    // search START — passed as the first iterator to regex_search so
+    // the engine only sees entities that begin at or before the cut.
+    const char* entityCandidate = data;
+    for (const char* p = cut; p > data; --p) {
+        if (p[-1] == '&') { entityCandidate = p - 1; break; }
     }
     static const boost::regex regex(
         "&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;");
     boost::cmatch m;
-    if (boost::regex_search(data, end, m, regex,
-                            boost::regex_constants::match_default,
-                            searchEnd)) {
-        auto entityEnd = m.size() >= 3 ? m[3].second : m[0].first;
-        if (entityEnd > data + maxBytes) {
-            // partial entity straddles the cut — erase from its '&' onwards
-            s.erase(m[0].first - data, std::string::npos);
-            return;
-        }
+    if (boost::regex_search(entityCandidate, end, m, regex,
+                            boost::regex_constants::match_default)
+        && m[0].second > cut) {
+        s.erase(static_cast<std::size_t>(m[0].first - data),
+                std::string::npos);
+        return;
     }
     truncateUtf8Safe(s, maxBytes);
 }
 ```
-
-\verifyme — the precise sub_match selection (`m[3].second` vs
-`m[0].first`) is deduced from the offset arithmetic; GDB trace on
-input `"abc&am"` truncated at 5 would confirm whether the `&am`
-prefix is preserved or erased.
 
 ---
 
