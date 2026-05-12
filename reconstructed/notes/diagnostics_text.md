@@ -1582,18 +1582,26 @@ SAME pattern string** at `0x90d057`.
 
 #### Boost regex pattern
 
-`.rodata @ 0x90d057` (NUL-terminated, 47 bytes incl. NUL):
+`.rodata @ 0x90d057` (NUL-terminated, 26 bytes incl. NUL):
 
 ```
-&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;
+&#x[0-9a-fA-F]+;|&#[0-9]+;
 ```
 
-Note: `&gt` (no trailing `;`) is intentional — the pattern matches the
-malformed-but-common form too, and `xmlEscapeSeqToInt` happily decodes
-it.  The regex is the **whitelist of valid entity escapes**; the
-malicious-sequence escaper uses the same regex pattern (its own
-finder logic differs from xmlUnescape's, but the alternation is
-shared).
+**Note (corrected 2026-05-12, IF-263):** an earlier draft of this
+note claimed a 47-byte pattern that also alternated on the named
+entities `&amp;|&lt;|&gt|&quot;|&apos;`.  Direct file-offset readout
+of `_seqc_compiler.so` and a GDB trace of the original on `"&amp;"`
+both confirm the actual pattern is the 26-byte numeric-only
+alternation above.  Named entities pass through `xmlUnescape`
+verbatim.  The `xmlEscapeSeqToInt` helper happily decodes the
+malformed-but-common `&gt` (no trailing `;`) form for any input that
+makes it that far — but our regex won't accept that shape either, so
+in practice only the two well-formed numeric forms reach the
+helper.  The regex is the **whitelist of valid numeric entity
+escapes**; the malicious-sequence escaper uses the same regex
+pattern (its own finder logic differs from xmlUnescape's, but the
+alternation is shared).
 
 #### External calls observed
 
@@ -1632,7 +1640,7 @@ own guarded check, and each one has its own throw site.
 void xmlUnescape(std::string& s)
 {
     static const boost::regex re(
-        "&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;");
+        "&#x[0-9a-fA-F]+;|&#[0-9]+;");
 
     boost::match_results<const char*> m;
     std::string out;

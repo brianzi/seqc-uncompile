@@ -276,40 +276,56 @@ std::string escapeStringForMatlab(std::string s) {  // @0x2f9110
 // ---------------------------------------------------------------------------
 // xmlEscapeSeqToInt — @0x2fc280, ~280 bytes
 // Parses an XML numeric character reference from [begin, end).
-// If the range contains 'x' or 'X', parses the remainder as hexadecimal;
-// otherwise parses as decimal. Uses std::istringstream.
+// Input is the FULL match including the surrounding `&#...;` (or
+// `&#x...;`); this helper trims the boilerplate before parsing the
+// digit payload via std::istringstream.
+//
+//   Decimal form `&# DD...DD ;`  → skip 2 bytes off front, 1 off back.
+//   Hex form     `&#x HH...HH ;` → start one past the 'x'/'X', drop ';'.
+//
+// IF-264: the trim was missing in an earlier reconstruction; without
+// it, every numeric reference parsed as 0 because operator>>(int&)
+// stopped at the leading '&'.  GDB-confirmed against the binary at
+// offsets 0x2fc2f0 (`add $2,%r15 ; dec %rbx` — decimal trim) and
+// 0x2fc3af (`inc %r14 ; dec %rbx` — hex trim).
 // ---------------------------------------------------------------------------
 //! \brief Decode the digit payload of an XML numeric character
 //!        reference (`&#NNN;` or `&#xNNN;`) to its integer codepoint.
 //!
-//! \details The iterator range `[begin, end)` must span just the digit
-//! portion of the escape — i.e. the characters between `&#` and the
-//! terminating `;` (the leading `x`/`X` of a hexadecimal reference may
-//! still be present and is detected and skipped).  Parsing uses
-//! `std::istringstream` with either `std::hex` or `std::dec` and stops
-//! at the first non-digit, so malformed input silently yields `0`
-//! rather than throwing.  Named entities such as `&amp;`, `&lt;` and
-//! `&quot;` are handled elsewhere; this helper only resolves the
-//! numeric form.
+//! \details The iterator range `[begin, end)` must span the **entire**
+//! escape including the surrounding `&#`/`&#x` prefix and the
+//! terminating `;`.  The helper trims those bytes itself before
+//! handing the digit payload to `std::istringstream` with either
+//! `std::hex` or `std::dec`.  Parsing stops at the first non-digit, so
+//! malformed input silently yields `0` rather than throwing.  Named
+//! entities such as `&amp;`, `&lt;` and `&quot;` are filtered out by
+//! the caller's regex and never reach this helper.
 //!
-//! \param begin Iterator to the first character of the digit payload.
-//! \param end   Iterator one past the last character of the payload.
+//! \param begin Iterator to the leading `&` of the escape.
+//! \param end   Iterator one past the trailing `;`.
 //! \return Decoded Unicode codepoint as `int`; `0` on malformed input.
 int xmlEscapeSeqToInt(std::string::const_iterator begin,
                       std::string::const_iterator end) {  // @0x2fc280
     // @0x2fc2c0: search for 'x' or 'X' in range
-    auto it = begin;
+    auto digitsBegin = begin;
+    auto digitsEnd   = end;
     bool isHex = false;
     for (auto p = begin; p != end; ++p) {
         if (*p == 'x' || *p == 'X') {
             isHex = true;
-            it = p + 1;  // skip past the 'x'/'X'
+            digitsBegin = p + 1;     // skip past the 'x'/'X'
             break;
         }
     }
+    if (!isHex && std::distance(begin, end) >= 2) {
+        digitsBegin = begin + 2;     // skip leading "&#"
+    }
+    if (digitsEnd != digitsBegin && *(digitsEnd - 1) == ';') {
+        --digitsEnd;                 // skip trailing ';'
+    }
 
     int result = 0;
-    std::string digits(isHex ? it : begin, end);
+    std::string digits(digitsBegin, digitsEnd);
     std::istringstream iss(digits);
     if (isHex) {
         iss >> std::hex >> result;   // @0x2fc2f0: hex stringstream parse

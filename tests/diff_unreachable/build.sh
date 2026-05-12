@@ -47,6 +47,7 @@ if [[ ! -f CMakeCache.txt ]]; then
     cmake -S "$SRC_DIR" -B . \
           -DCMAKE_TOOLCHAIN_FILE="$BUILD_DIR/conan_toolchain.cmake" \
           -DCMAKE_BUILD_TYPE=Release \
+          -DDIFF_UNREACHABLE_SHIM="$REPO_ROOT/tests/diff_unreachable/shim.cpp" \
           -G "Unix Makefiles"
 fi
 

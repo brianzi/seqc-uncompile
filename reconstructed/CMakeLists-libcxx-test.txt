@@ -65,10 +65,33 @@ set(LIBCXX_TEST_SOURCES
     src/core/platform.cpp
     src/core/exception.cpp
     src/device/device_type.cpp
+    src/device/device_factories.cpp
     src/device/mf_sfc.cpp
 )
 
-add_library(diagtxt_libcxx SHARED ${LIBCXX_TEST_SOURCES})
+# C-ABI shim for the harness — heap-allocates and inspects libc++
+# std::string objects.  Lives outside reconstructed/src/ so the
+# main libstdc++ build does not see it (its static_assert on
+# sizeof(std::string)==24 would fail).  Path is supplied by
+# build.sh via -DDIFF_UNREACHABLE_SHIM=...
+if(NOT DEFINED DIFF_UNREACHABLE_SHIM)
+    message(FATAL_ERROR
+        "DIFF_UNREACHABLE_SHIM must be set to the absolute path of "
+        "tests/diff_unreachable/shim.cpp.  Use tests/diff_unreachable/build.sh.")
+endif()
+set(LIBCXX_TEST_SHIM "${DIFF_UNREACHABLE_SHIM}")
+
+add_library(diagtxt_libcxx SHARED ${LIBCXX_TEST_SOURCES} ${LIBCXX_TEST_SHIM})
+# Permit unresolved symbols at link time: the libc++ test build is a
+# *strict subset* of the main library — it pulls in only the TUs
+# transitively reachable from the in-scope D16 surface, plus a few
+# device TUs needed to construct DeviceFamily factories.  Those
+# factories themselves reference concrete Device subclasses
+# (`Uhfawg`, etc.) which we do NOT compile in.  As long as the
+# harness never exercises a code path that actually dereferences
+# those undefined symbols, the .so loads and the targeted
+# functions work.
+target_link_options(diagtxt_libcxx PRIVATE -Wl,--unresolved-symbols=ignore-all)
 target_include_directories(diagtxt_libcxx PRIVATE include)
 target_link_libraries(diagtxt_libcxx PRIVATE
     Boost::regex Boost::filesystem Boost::locale

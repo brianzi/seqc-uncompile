@@ -786,42 +786,78 @@ reconstructed shared object via `dlopen`, resolves the mangled
 symbols on each side, and calls them with curated inputs while
 comparing byte-for-byte outputs.
 
-- [ ] **E1 — Scoping: enumerate target symbols**
-      *(scope: small; outcome: a list of symbols + signatures that
-      the harness will exercise, plus per-symbol input corpora)*
+- [x] **E1 — Scoping: enumerate target symbols** *(done 2026-05-12, commit 33962e0)*
 
-  Sources:
-  - 20 D16 symbols in `core/diagnostics_text.hpp`.
-  - Helpers from D11..D19 that carry `\verifyme` or `\unverifiable`
-    because they had no caller path.
-  - Open `IF-262` (xmlUnescape secondary pass) is a known-divergent
-    case that this harness will surface immediately.
+      Outcome: 20 D16 symbols inventoried with verified mangled names
+      (libc++ ABI, `std::__1`).  7 non-D16 `\verifyme`/`\unverifiable`
+      markers triaged — none in scope for the E2 first pass.  See
+      `reconstructed/notes/phase_e_harness.md`.
 
-- [ ] **E2 — Harness implementation**
-      *(scope: medium; outcome: a runnable `tests/diff_unreachable.py`
-      or `tests/diff_unreachable/` directory that follows the
-      `diff_test_fast.py` shape: fork-per-test workers, color output,
-      tag-filterable)*
+- [~] **E2 — Harness implementation** *(in progress; first-pass
+      9 in-place mutators landed)*
 
-  Sketch:
-  - Use Python `ctypes` to open both `.so` files separately.
-  - For each target symbol, declare the libc++ ABI signature
-    (string-by-value parameters require constructing libc++ `string`
-    objects manually — 24-byte SSO layout).
-  - Curate inputs (ASCII, unicode, edge cases: empty, max-length,
-    surrogate pairs, malformed UTF-8, etc.).
-  - Call both implementations, compare results byte-for-byte.
-  - Report differences with the same color/format conventions as
-    `diff_test_fast.py`.
+  Done so far:
+  - libc++ test target (`reconstructed/CMakeLists-libcxx-test.txt`)
+    builds `libdiagtxt_libcxx.so` from a strict subset of recon TUs
+    plus a C-ABI shim, linked against libc++/static Boost via Conan
+    profile `clang20-libcxx`.  Linker uses
+    `-Wl,--unresolved-symbols=ignore-all` because the test build
+    deliberately omits concrete `Device` subclasses; harness-side
+    `dlopen` uses `RTLD_LAZY` to tolerate the resulting undefined
+    symbols.
+  - `tests/diff_unreachable/shim.cpp` — C-ABI helpers to construct,
+    inspect, and free libc++ `std::string` heap objects.  Includes
+    `static_assert(sizeof(std::string)==24)` as the build-time gate
+    against accidental libstdc++ linkage.
+  - `tests/diff_unreachable/harness.py` — runner mirroring
+    `diff_test_fast.py`'s UI conventions.  Loads both `.so`s with
+    `RTLD_LAZY|RTLD_LOCAL`, resolves original-side symbols by raw
+    text-segment offset (parsed from `/proc/self/maps`) and
+    candidate-side by mangled name.
+  - First-pass coverage: 9 `void f(string&)` / `void f(string&, n)`
+    symbols (xmlEscapeCritical, xmlEscapeUtf8Critical, xmlUnescape,
+    escapeStringForJson, sanitizeFilename, sanitizeInvalidFilename,
+    quote, truncateUtf8Safe, truncateXmlSafe).  475/481 cases pass
+    after fixes for IF-263 and IF-264 (see below).
+
+  Remaining E2 follow-ups:
+  - [ ] **E2a — Extend harness to sret return-by-value symbols.**
+        Add ABI-correct invocation for the 10 `string f(const string&)`
+        / `string f(string)` D16 helpers: `xmlUnescapeCopy`,
+        `entityNumberToTxt`, `entityNameToNumber`, `linkToQuery`,
+        `queryToLink`, `escapeStringForCsharp`, `escapeStringForPython`,
+        `replaceUnit`, `toCheckedString`, `generateSfc`.  Itanium ABI
+        passes the result via a hidden first pointer (sret); ctypes
+        does not natively model this — needs a small helper that
+        allocates a libc++ string slot and threads its address as the
+        sret arg.
+  - [ ] **E2b — Investigate `truncateXmlSafe` divergence.**  Harness
+        E2 first-pass surfaced 6/16 fails: recon does a raw byte
+        truncation that splits XML entities mid-sequence, whereas the
+        original truncates **before** the entity to keep the result
+        well-formed.  Recon is missing entity-aware backoff logic.
+        Needs GDB-trace of the original on `"abc&amp;def"` with
+        `n=5` to confirm the exact backoff rule (probably: scan
+        backwards from `n` looking for an unmatched `&`).  Likely
+        outcome: recon fix + new IF entry.
 
 - [ ] **E3 — Triage findings**
       *(scope: variable, depends on E2 output; outcome: each
       divergence becomes either an IF, a recon fix, or a documented
       `\binarynote` preserving an intentional binary quirk)*
 
-  Anticipated findings:
-  - `xmlUnescape` lacks IF-262's post-pass — confirmable on input
-    `&amp;amp;`.
+  Findings to date (Phase E2 first-pass):
+  - **IF-262 (xmlUnescape post-pass):** dismissed — based on a wrong
+    notes claim about the `.rodata` regex pattern.  See IF-263.
+  - **IF-263 (wrong regex pattern in `xmlUnescape`):** fixed.
+    Original `.rodata @ 0x90d057` pattern is the 26-byte
+    numeric-only `&#x[0-9a-fA-F]+;|&#[0-9]+;` — earlier notes had
+    invented named-entity alternations.  Notes corrected.
+  - **IF-264 (`xmlEscapeSeqToInt` missing trim of `&#`/`;`):** fixed.
+    Latent bug surfaced by IF-263's fix.
+  - **`truncateXmlSafe`:** open — see E2b above.
+
+  Anticipated remaining findings (still expected):
   - `xmlEscapeUtf8Critical` sign-extension quirk — confirmable on
     any high-byte input; behaviour matches binary, so this becomes
     a confirmed `\binarynote`.

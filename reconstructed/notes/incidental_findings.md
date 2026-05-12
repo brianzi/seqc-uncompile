@@ -4127,8 +4127,8 @@ through that scan.
 
 ## IF-262  `xmlUnescape` recon lacks `escapeMaliciousXmlEscapedSequences` post-pass
 
-**Severity**: likely-bug (semantic gap, no difftest path)
-**Status**: open
+**Severity**: cosmetic
+**Status**: dismissed (superseded by IF-263; see below)
 
 During D16 reconstruction of `zhinst::xmlUnescape` (@0x2fadd0), the
 disassembly was observed to construct TWO function-local static
@@ -4155,3 +4155,116 @@ Action: identify the second-pass helper symbol (candidate names:
 something in an anonymous namespace).  Disassemble at the address
 identified by the b85350 guard's protected call.  Reconstruct as a
 helper in the same TU.
+
+**Update (2026-05-12, Phase E2):** Both the regex-pattern claim and
+the prediction in this entry were wrong.  Direct file-offset readout
+of `.rodata @ 0x90d057` shows the actual NUL-terminated pattern is
+26 bytes:
+
+    &#x[0-9a-fA-F]+;|&#[0-9]+;
+
+— numeric character references **only**, no named-entity
+alternations.  GDB-tracing the original on `"&amp;"` confirmed that
+the first `regex_search` returns `false` immediately and the input
+is appended verbatim as the trailing tail.  The post-pass
+`escapeMaliciousXmlEscapedSequences` (also a numeric-only regex)
+is consequently a no-op for any input the first pass leaves intact,
+because no decoded UTF-8 byte sequence can re-form a `&#...;`
+shape.  The "post-pass gap" hypothesis was based on a notes line
+(`diagnostics_text.md:1588`) that invented the named-entity
+alternations from intuition rather than from reading the bytes.
+
+Promoted to IF-263 (the actual recon bug — wrong regex pattern,
+fixed) and IF-264 (the latent bug surfaced by IF-263's fix —
+`xmlEscapeSeqToInt` failing to trim the `&#...;` boilerplate, also
+fixed).
+
+---
+
+## IF-263  `xmlUnescape` recon used a regex pattern that did not match the binary
+
+**Severity**: bug
+**Status**: fixed (2026-05-12, Phase E2)
+
+`reconstructed/src/core/diagnostics_text.cpp` (function
+`xmlUnescape`) initialised its function-local `static boost::regex`
+from the literal
+
+    "&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;"
+
+— a 47-byte pattern that matches the two numeric-character-reference
+forms **and** five named entities.  The `diagnostics_text.md` notes
+(line 1588) and the body sketch (lines 1631..1689) both cited this
+same 47-byte string as living at `.rodata @ 0x90d057`.
+
+Phase-E2 diff-test harness probed the original `xmlUnescape` with
+named-entity inputs and found:
+
+    "&amp;"      → "&amp;"        (unchanged)
+    "&gt;"       → "&gt;"         (unchanged)
+    "a &amp; b"  → "a &amp; b"    (unchanged)
+    "&#65;"      → "A"            (decoded)
+    "&#1234;"    → "\xd3\x92"     (decoded — U+04D2 in UTF-8)
+
+Direct readout of `_seqc_compiler.so` at file offset `0x90d057`
+(.rodata is loaded at the same VA on x86_64-linux PIC `.so`s) shows
+26 NUL-terminated bytes:
+
+    "&#x[0-9a-fA-F]+;|&#[0-9]+;"
+
+— numeric forms only.  GDB-tracing the original on `"&amp;"`
+additionally confirmed that the first `regex_search` returns
+`false`, the temp string `out` stays empty until the trailing-tail
+append at the end of the loop, and the post-pass
+`escapeMaliciousXmlEscapedSequences` (which uses the SAME 26-byte
+pattern via the `b85350` guard) leaves the result untouched.
+
+Fix: corrected the regex literal in `xmlUnescape` to the actual
+26-byte pattern.  Updated the body-sketch and pattern-listing in
+`reconstructed/notes/diagnostics_text.md` to match.
+
+After this fix, `tests/diff_unreachable/harness.py --filter
+xmlUnescape` passes 22/24 cases; the remaining 2 (`&#65;`,
+`&#1234;`) surfaced IF-264.
+
+---
+
+## IF-264  `xmlEscapeSeqToInt` recon did not trim `&#`/`;` boilerplate
+
+**Severity**: bug
+**Status**: fixed (2026-05-12, Phase E2)
+
+`reconstructed/src/core/platform.cpp::xmlEscapeSeqToInt` is called
+by `xmlUnescape` with the **full match** of an XML numeric character
+reference, e.g. `"&#65;"` or `"&#x41;"`, including the leading `&#`
+prefix and the trailing `;`.  The recon's body fed the entire range
+to `std::istringstream`'s `operator>>(int&)`, which stops at the
+first non-digit (`&`) and leaves `result` at its initial value `0`.
+Every numeric reference therefore decoded to U+0000 (a single NUL
+byte after UTF-8 encoding).
+
+The original binary at `0x2fc280` trims the boilerplate before
+parsing:
+
+  - **Decimal path** (`0x2fc2f0`):
+    `add $0x2,%r15 ; dec %rbx`
+    — drop the leading two bytes (`&#`) and the trailing `;`.
+  - **Hex path** (`0x2fc3af`):
+    `inc %r14 ; dec %rbx`
+    — start one past the `x`/`X` (whose position was found by the
+    initial `memchr`) and drop the trailing `;`.
+
+Fix: in `xmlEscapeSeqToInt`, after the `'x'`/`'X'` scan, advance
+`digitsBegin` by 2 in the decimal path (skip `&#`) and decrement
+`digitsEnd` if the last byte is `;`.
+
+This bug was latent until IF-263 was fixed: previously the
+named-entity alternations in the bogus regex meant `xmlEscapeSeqToInt`
+was called on a wider variety of matches and the wrong-zero return
+was hidden by other regex-pattern mismatches.
+
+After this fix, `tests/diff_unreachable/harness.py --filter
+xmlUnescape` passes **24/24**, and the regular regression suite
+remains at **1603/1603** (no caller of `xmlEscapeSeqToInt` is
+reachable via the Python bindings, so this latent bug never broke a
+difftest).

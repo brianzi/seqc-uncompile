@@ -76,34 +76,45 @@ int xmlEscapeSeqToInt(std::string::const_iterator first,
 
 // ---- xmlUnescape — binary @0x2fadd0, 5290 B ----
 //
-// Notes: diagnostics_text.md lines 1564..1713.
+// Notes: diagnostics_text.md lines 1564..1713.  See IF-263 for the
+// regex-pattern correction history.
 //
 // Two function-local static `boost::regex` objects (at b85308 and
 // b85350 in the binary) are constructed from the SAME pattern string
-// at .rodata @0x90d057.  The first regex drives the in-place decoder
-// here; the second belongs to the `(anonymous namespace)`
-// `escapeMaliciousXmlEscapedSequences` helper invoked as a
-// post-pass.  That helper has not yet been reconstructed, so this
-// implementation performs the regex-driven decode + UTF-8 encode +
-// surrogate-pair fold-up, then assigns the result back to `s`
-// without the secondary malicious-sequence escape pass.  See
-// IF-tracker for the post-pass gap (see IF-262 logged separately).
+// at .rodata @0x90d057.  Direct file-offset readout of those 26
+// bytes (NUL-terminated) is:
 //
-// Algorithm (from notes "Body sketch", lines 1631..1689):
-//   1. Iterate matches of the entity regex over [s.begin, s.end).
-//   2. For each match: append pre-match literal; decode the match
-//      via xmlEscapeSeqToInt; if the decoded value is a high
-//      surrogate (D800..DBFF), require the very next match to be
-//      immediately adjacent and decode it as the low surrogate,
-//      folding the pair into a supplementary-plane code point;
-//      otherwise pass the BMP code point through.
+//     &#x[0-9a-fA-F]+;|&#[0-9]+;
+//
+// i.e. ONLY the two numeric-character-reference forms.  Named
+// entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`, `&apos;`) are NOT
+// matched and pass through verbatim — confirmed by GDB-tracing the
+// original on those inputs (the regex_search loop body never fires
+// and the entire input is appended to `out` as the trailing tail).
+//
+// The first regex drives the in-place decoder here; the second
+// belongs to the `(anonymous namespace)`
+// `escapeMaliciousXmlEscapedSequences` helper invoked as a
+// post-pass.  Because the post-pass uses the SAME numeric-only
+// regex, any numeric reference that survives the decode (none can,
+// in practice — they all reduce to UTF-8 bytes that never form a
+// `&#...;` shape) would be re-escaped.  In normal operation the
+// post-pass is a no-op; it is preserved here for byte-parity.
+//
+// Algorithm:
+//   1. Iterate matches of the numeric-entity regex over s.
+//   2. For each match: append the pre-match literal; decode the
+//      match via xmlEscapeSeqToInt to a code point; if it is a high
+//      surrogate (D800..DBFF), require the immediately-following
+//      match to be a low surrogate and fold the pair into a
+//      supplementary-plane code point; otherwise pass through.
 //   3. UTF-8 encode the resulting code point and append.
 //   4. Append the tail after the last match.
 //   5. Swap the assembled buffer back into `s`.
 void xmlUnescape(std::string& s) {
-    // .rodata @0x90d057 — 47 bytes incl. NUL.
+    // .rodata @0x90d057 — 26 bytes incl. NUL.
     static const boost::regex re(
-        "&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;");
+        "&#x[0-9a-fA-F]+;|&#[0-9]+;");
 
     std::string out;
     auto it  = s.cbegin();
