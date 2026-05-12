@@ -3974,3 +3974,93 @@ When a TODO description cites a specific function as the source of
 a bug, verify it exists with the claimed signature in the cited
 file before designing a fix.  A 30-second `grep` would have caught
 the AST-vs-codegen confusion months before D18 was scheduled.
+
+## IF-259  D19 audit: most "absent" small-cluster symbols are already covered or non-actionable
+
+**Severity**: cosmetic / informational.
+
+**Status**: documented (2026-05-12, D19) — closure note for the
+small-cluster bundle.  See OVERVIEW.md "D19 (small-cluster bundle)
+complete" section for the full per-cluster triage table.
+
+**Discovered**: D19 audit (small-cluster bundle).
+
+The D19 cluster list of ~28 symbols across 10 small clusters
+(`exceptions`, `numeric`, `random`, `base64`, `awg_config`,
+`node_misc`, `compiler_helpers`, `misc`, `anon_helpers`,
+`device_option`) was triaged against the current recon state.
+Findings:
+
+1. **`Random::seedRandom()` (297 B @0x16be80)** — already
+   functionally covered.  The binary's body opens
+   `std::random_device("/dev/urandom")` and seeds
+   `mt19937_64` into the TLS state array
+   `GlobalResources::random[313]`.  The recon does the exact same
+   work via `seqc_libcxx_mt19937_seed_urandom(GlobalResources::random)`
+   called from `CustomFunctions::randomSeed`
+   (`runtime/custom_functions_playback.cpp:887`), wrapping the
+   libc++ shim in `infra/prng_libcxx.cpp:63`.  The binary's
+   `Random::seedRandom()` is just the inlined version of that
+   exact sequence on the TLS array, treated as a `Random`
+   "this" pointer.  No additional reconstruction needed.
+
+2. **`WavetableFront::dummyWarning(string const&, int)` (159 B
+   @0x29ac60)** — stub filled with a one-line `boost::log` warning
+   record matching the binary's behaviour: `LogRecord(Severity::
+   Warning) << "Warning not tracked: " << msg`.  The binary's
+   159 B include inlined LogRecord ctor/dtor + two
+   `formatted_write` calls; the recon defers to the
+   `infra/logging.hpp` `operator<<` overloads for identical
+   semantics.  Test suite always installs a real callback so the
+   change is invisible to difftests.
+
+3. **`tracing::TraceProvider::~TraceProvider() (105 B @0x0fa5e0)`**
+   — `= default` is exact-equivalent.  The binary's 105 B body
+   inlines the refcount-decrement and conditional vtable-call
+   shutdown sequence for `nostd::shared_ptr<TracerProvider>`
+   `provider_`; the recon's `= default` defers the same sequence to
+   the member's own dtor.  Comment upgraded; no code change.
+
+4. **`SeqCIfElse::operator=(SeqCIfElse) (367 B @0x201f70)` and
+   `SeqCCondExpr::operator=(SeqCCondExpr) (367 B @0x203d20)`** —
+   already correct as copy-and-swap (`swap(*this, o); return
+   *this;`).  The binary's 367 B inline the per-child
+   `doClone()` into the operator body itself rather than relying
+   on the by-value parameter's copy-ctor invocation; behavioural
+   semantics are identical.  Comments upgraded; no code change.
+
+5. **`exceptions::core` cluster (13 boost::wrapexcept thunks)** —
+   D14 inventory already noted "no hand-written code is required;
+   this cluster is informational only".  These are MI offset
+   thunks auto-emitted by the compiler when the exception class
+   hierarchy uses multiple inheritance.  No recon work needed.
+
+6. **`base64::encode` (910 B), `numeric::*` (3 helpers, 394 B),
+   `compiler_helpers::nodeListToJson` (796 B, currently inlined
+   into `awg_compiler.cpp`), `awg_config::AwgPathPatterns ctor`
+   (254 B), `device_option::*` (90 B), `node_misc::pauPoffIwrap`
+   (43 B), `misc::*` (5 helpers, 570 B)** — zero observable
+   callers outside the binary; difftest suite cannot exercise
+   them.  Subject to the D16 caveat (`\unverifiable` regime).
+   Deferred to the grand finale per user direction.
+
+### Conclusion
+
+The original D19 work estimate ("~28 symbols across 10 clusters
+reconstructed in a single batched commit series") was based on
+the D14 inventory's "absent" tag, which conflated three distinct
+states: (a) symbol absent because the binary inlines what the
+recon does as a free function, (b) symbol absent because the
+recon stubbed it, and (c) symbol absent because nobody calls it
+in difftests so it was deferred.  Only (b) requires real
+reconstruction work — and after this audit, only `dummyWarning`
+fell into that bucket cleanly (the two `operator=` were already
+correct in semantics; only their comments needed updating).
+
+### Lesson
+
+Cluster-level counts in the D14 inventory should be treated as
+upper bounds on remaining work, not as estimates.  Triage is
+mandatory before scheduling: every "absent" symbol may be
+already-covered, semantically-equivalent-via-different-shape, or
+genuinely-stubbed; only the third category needs source changes.

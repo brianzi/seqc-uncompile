@@ -552,6 +552,11 @@ std::vector<const SeqCAstNode*> SeqCIfElse::children() const {  // 0x2022c0
     return { cond_.get(), ifBody_.get(), elseBody_.get() };
 }
 
+// 0x201f70 — copy-and-swap assignment.  The binary inlines the
+// per-child `doClone()` calls into the body itself rather than
+// relying on the parameter-passing copy-ctor; the observable
+// semantics are identical.  See IF-258-equivalent note for
+// SeqCCondExpr::operator= below.
 SeqCIfElse& SeqCIfElse::operator=(SeqCIfElse o) { swap(*this, o); return *this; }
 
 //! \brief ADL-friendly free-function swap for `SeqCIfElse`:
@@ -606,6 +611,10 @@ std::vector<const SeqCAstNode*> SeqCCondExpr::children() const {
     return { cond_.get(), ifBody_.get(), elseBody_.get() };
 }
 
+// 0x203d20 — copy-and-swap assignment.  Same structural pattern as
+// `SeqCIfElse::operator=` above: binary inlines the per-child
+// `doClone()` into the body, recon defers to the by-value
+// parameter's copy-ctor.  Behaviourally equivalent.
 SeqCCondExpr& SeqCCondExpr::operator=(SeqCCondExpr o) { swap(*this, o); return *this; }
 
 //! \brief ADL-friendly free-function swap for `SeqCCondExpr`:

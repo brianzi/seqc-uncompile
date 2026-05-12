@@ -12,6 +12,7 @@
 #include "zhinst/waveform/wave_index_tracker.hpp"
 #include "zhinst/waveform/waveform_front.hpp"
 #include "zhinst/core/error_messages.hpp"
+#include "zhinst/infra/logging.hpp"
 
 namespace zhinst {
 
@@ -96,10 +97,20 @@ WavetableFront::WavetableFront(
 }
 
 // 0x29ac60 — WavetableFront::dummyWarning(const string&, int)
+//
+// Default warning sink installed by `WavetableFront::warningCallback_`
+// when the user has not provided a custom callback.  The binary emits
+// a single Boost.Log record at Severity=4 (Warning) of the form
+// `"Warning not tracked: " + msg`.  The `int /*level*/` parameter is
+// the warning level the call site requested; it is intentionally
+// dropped here because there is no per-warning-level filtering on the
+// default sink.
+//
+// Behaviour is invisible to the difftest suite because every test
+// installs a real callback via `setWarningCallback`.
 void WavetableFront::dummyWarning(const std::string& msg, int /*level*/) {
-    // Creates a LogRecord with severity=4 (WARNING)
-    // Logs "Unhandled warning: " + msg
-    // (using boost::log formatting)
+    logging::detail::LogRecord rec(logging::Severity::Warning);
+    rec << "Warning not tracked: " << msg;
 }
 
 // 0x29ad00 — WavetableFront::begin() const

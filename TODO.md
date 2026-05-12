@@ -675,28 +675,48 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   **Verification.**  Build clean; 1603/1603 difftests pass; 0 new
   doxygen warnings.
 
-- [ ] **D19 — Reconstruct small clusters bundle (`exceptions`,
+- [x] **D19 — Reconstruct small clusters bundle (`exceptions`,
       `numeric`, `random`, `base64`, `awg_config`, `node_misc`,
       `compiler_helpers`, `misc`, `anon_helpers`, remaining stubs)**
-      *(scope: small; expected outcome: ~28 small symbols across 10
-      clusters reconstructed in a single batched commit series)*
+      — closed 2026-05-12
+      *(scope: tight after audit; expected outcome: 1 stub fill +
+      4 docstring upgrades + audit closure for ~24 deferred-to-
+      grand-finale symbols)*
 
-  Bundles all small/cosmetic clusters from the D14 inventory not
-  covered by D16/D17/D18.  See `reconstructed/notes/d14_inventory.md`
-  for per-symbol detail.  Notable:
-  - `Random::seedRandom()` (297B) — invoked from
-    `custom_functions_playback.cpp:879`; reconstruction may shift
-    `randomUniform` / `randomGaussian` sequences in difftests.
-  - `WavetableFront::dummyWarning()` and
-    `tracing::TraceProvider::~TraceProvider()` — two of the 5
-    user-code stubs whose binary bodies are non-trivial.
-  - `nodeListToJson` (796B, currently inlined into
-    `awg_compiler.cpp:1182`) — pure refactor, no behaviour change.
+  **Audit outcome (IF-259).**  Triaging the ~28-symbol cluster
+  list found that "absent" in the D14 inventory conflated three
+  states: already-covered-by-equivalent-recon, semantically-
+  equivalent-but-shape-different, and genuinely-stubbed.  Only the
+  last category needed source changes.
 
-  Most cluster members have zero recon callers; D16 caveat applies
-  (likely `\unverifiable` regime).  Recommended approach: pick the
-  ones with observable callers first (`Random::seedRandom`,
-  `dummyWarning`, `TraceProvider` dtor), defer the rest.
+  **Three high-value items resolved:**
+  - `Random::seedRandom()` (297 B) — already covered by
+    `seqc_libcxx_mt19937_seed_urandom` shim called from
+    `CustomFunctions::randomSeed`.  No code change; documented.
+  - `WavetableFront::dummyWarning` (159 B) — stub filled with
+    `LogRecord(Severity::Warning) << "Warning not tracked: " << msg`
+    matching the binary's behaviour.
+  - `tracing::TraceProvider::~TraceProvider()` (105 B) — `= default`
+    is exact-equivalent (member `nostd::shared_ptr` dtor performs
+    the inlined refcount-drop and conditional vtable-call shutdown
+    visible in the binary).  Comment upgraded; no code change.
+  - `SeqCIfElse::operator=` and `SeqCCondExpr::operator=`
+    (367 B each) — already correct as copy-and-swap; binary
+    inlines per-child `doClone()` into the body, recon defers to
+    the by-value parameter's copy-ctor.  Comments upgraded; no
+    code change.
+
+  **Deferred to grand finale** (subject to `\unverifiable` regime
+  per D16 caveat — zero difftest callers, cannot be exercised
+  without dlsym-style external use): 13 `boost::wrapexcept` MI
+  offset thunks (auto-emitted, no source change required),
+  `base64::encode`, three `numeric::*` helpers, inlined
+  `nodeListToJson` (refactor candidate), `AwgPathPatterns` copy
+  ctor, two `device_option` helpers, `pauPoffIwrap`, and five
+  `misc::*` helpers.
+
+  **Verification.**  Build clean; 1603/1603 difftests pass; 0 new
+  doxygen warnings.
 
 - [x] **D15 — Tracking-docs cleanup, cross-check, and archive cut**
       _(complete; commits `f321e91` D15.1 cross-check, `0d3eed4` D15.2

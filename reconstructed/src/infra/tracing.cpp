@@ -101,6 +101,15 @@ makeDefaultSpanProcessor() {
 TraceProvider::TraceProvider() : provider_(), enabled_(false) {}
 
 // 0x0fa5e0 — releases the held shared_ptr<TracerProvider>.
+//
+// `= default` is exact-equivalent here: the only non-trivial
+// member is `provider_` (a `nostd::shared_ptr<TracerProvider>`)
+// whose own destructor performs the refcount-decrement and
+// conditional vtable-call shutdown sequence visible in the
+// binary's 105 B body at 0x0fa5e0.  The binary inlines that
+// sequence into the dtor body whereas the recon defers it to
+// the member's own dtor; behaviour is identical.  Tracing is
+// disabled at runtime in the test suite so no observable diff.
 TraceProvider::~TraceProvider() = default;
 
 // 0x0fa570

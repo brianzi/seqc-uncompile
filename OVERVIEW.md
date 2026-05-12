@@ -374,7 +374,7 @@ Source-of-truth analysis remains at
 In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
 mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
-**D11, D12, D13, D14, D15, D17, and D18 are complete; D16, D19 are open**
+**D11, D12, D13, D14, D15, D17, D18, and D19 are complete; D16 is open (deferred to grand finale)**
 (cluster reconstruction promoted from the D14 inventory in
 `reconstructed/notes/d14_inventory.md`).  Current backlog tags (per `docs/coverage.sh`):
 `\unclear=0`, `\verifyme=1`, `\binarynote=17`, `\unverifiable=5`.
@@ -1246,3 +1246,31 @@ virtualisation) complete (2026-05-12):**
   header explaining the binary's quirky accessor name (the field
   is semantically a count, but spelled `cond`).
 - Tests 1603/1603; 0 new doxygen warnings.
+
+**D19 (small-cluster bundle audit & closure) complete (2026-05-12):**
+
+Per IF-259, the D19 cluster list (~28 symbols across 10 clusters)
+was triaged and resolved with one stub fill plus four docstring
+upgrades.  The remaining ~24 symbols are deferred to the grand
+finale under the `\unverifiable` regime per the D16 caveat (zero
+difftest callers, semantically-equivalent-via-different-shape, or
+auto-emitted MI thunks).
+
+Per-cluster outcomes:
+
+| Cluster | Symbol(s) | Outcome |
+| ------- | --------- | ------- |
+| `random::infra` | `Random::seedRandom()` | Already covered by `seqc_libcxx_mt19937_seed_urandom` shim; doc-only. |
+| stub-only user code | `WavetableFront::dummyWarning` | Stub filled — `LogRecord(Warning) << "Warning not tracked: " << msg`. |
+| stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
+| stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
+| `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
+| `base64::infra`, `numeric::core`, `compiler_helpers::codegen`, `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~14 helpers | Zero difftest callers; deferred under `\unverifiable` regime. |
+
+- Tests 1603/1603 (the `dummyWarning` change is invisible to the
+  suite because every test installs a real callback).  Doxygen 0
+  new warnings.
+
+With D19 closed, the only remaining open phase is **D16** (grand
+finale), which encompasses the deferred D19 items above plus the
+broader `\unverifiable` cleanup.
