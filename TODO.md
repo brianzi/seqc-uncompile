@@ -821,16 +821,21 @@ comparing byte-for-byte outputs.
     after fixes for IF-263, IF-264, and IF-265.
 
   Remaining E2 follow-ups:
-  - [ ] **E2a — Extend harness to sret return-by-value symbols.**
-        Add ABI-correct invocation for the 10 `string f(const string&)`
-        / `string f(string)` D16 helpers: `xmlUnescapeCopy`,
-        `entityNumberToTxt`, `entityNameToNumber`, `linkToQuery`,
-        `queryToLink`, `escapeStringForCsharp`, `escapeStringForPython`,
-        `replaceUnit`, `toCheckedString`, `generateSfc`.  Itanium ABI
-        passes the result via a hidden first pointer (sret); ctypes
-        does not natively model this — needs a small helper that
-        allocates a libc++ string slot and threads its address as the
-        sret arg.
+  - [x] **E2a — Extend harness to sret return-by-value symbols.**
+        *(done 2026-05-12)*  Added 8 sret symbols to the harness
+        (`toCheckedString`, `entityNumberToTxt`, `entityNameToNumber`,
+        `linkToQuery`, `queryToLink`, `xmlUnescapeCopy`,
+        `escapeStringForCsharp`, `escapeStringForPython`) using three
+        new ABI shapes: `sret_cstr` (`string(const char*)`),
+        `sret_cref` (`string(const string&)`), `sret_byval`
+        (`string(string)` — caller heap-allocates argument storage,
+        callee destroys).  Shim grew `alloc_uninit` /
+        `free_uninit` / `destroy_in_place` / `place_construct`
+        helpers.  All 17 covered symbols pass: 640/640 cases on
+        first run, no recon divergences.  Deferred from E2a:
+        `replaceUnit` (3-arg `string(const string&, ...)`) and
+        `generateSfc` (POD return + multi-arg + throw path) — fold
+        into E2c if needed.
   - [x] **E2b — Investigate `truncateXmlSafe` divergence.**
         *(done 2026-05-12; see IF-265)*  GDB-traced the original on
         `("abc&amp;def", n=5)`: confirmed it walks back to the most

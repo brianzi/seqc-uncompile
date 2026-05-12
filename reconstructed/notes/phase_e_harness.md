@@ -129,6 +129,42 @@ classes of input to drive each symbol:
 
 ## E2 — Harness implementation (in progress)
 
+### E2a status (done 2026-05-12)
+
+8 sret return-by-value symbols added: `toCheckedString`,
+`entityNumberToTxt`, `entityNameToNumber`, `linkToQuery`,
+`queryToLink`, `xmlUnescapeCopy`, `escapeStringForCsharp`,
+`escapeStringForPython`.  All 640 cases (17 symbols total) pass on
+first attempt — no recon divergences surfaced by E2a.
+
+ABI shapes implemented:
+
+| kind         | C++ signature                | ctypes lowering                                 |
+|--------------|------------------------------|-------------------------------------------------|
+| `sret_cstr`  | `string f(const char*)`      | `void(slot, c_char_p)` — None ⇒ NULL            |
+| `sret_cref`  | `string f(const string&)`    | `void(slot, string*)`                           |
+| `sret_byval` | `string f(string)`           | `void(slot, string*)` — callee owns destruction |
+
+`slot` is a 24 B raw allocation produced by
+`diff_unreachable_string_alloc_uninit()`; the callee
+placement-constructs a `std::string` into it.  After reading the
+result via `string_data` / `string_size`, the harness calls
+`destroy_in_place` (runs `~basic_string`) then `free_uninit`
+(reclaims the raw 24 B).
+
+For `sret_byval` the argument is also a slot, populated by
+`diff_unreachable_string_place_construct(slot, data, n)`.  The
+callee runs the argument's destructor; the harness only frees the
+raw 24 B afterwards.
+
+Deferred for a possible E2c:
+- `replaceUnit(const string&, const string&, const string&)` —
+  3-arg `sret_cref`.  Trivial extension; not run yet because the
+  D16 first-pass goals are met.
+- `generateSfc(const string&, const string&) -> FeaturesCode` —
+  POD-returning, plus a throwing path on non-MF families.
+  Different return convention (RAX, not sret); separate machinery.
+
 ### Feasibility milestone (verified)
 
 A minimal libc++ build of the in-scope D16 surface compiles and

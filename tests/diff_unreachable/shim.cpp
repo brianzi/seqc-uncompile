@@ -46,6 +46,46 @@ void diff_unreachable_string_free(void* p) {
     delete static_cast<std::string*>(p);
 }
 
+// ---------- sret support ----------
+//
+// The Itanium C++ ABI lowers `std::string f(...)` to
+// `void f(std::string* sret, ...)`: the caller owns 24 B of raw
+// storage and the callee placement-constructs the return value
+// there.  These helpers let Python ctypes drive that pattern:
+//
+//   slot = diff_unreachable_string_alloc_uninit();   // 24 B raw
+//   fn(slot, ...);                                   // sret call
+//   bytes = string_data/size(slot);                  // read result
+//   diff_unreachable_string_destroy_in_place(slot);  // ~basic_string
+//   diff_unreachable_string_free_uninit(slot);       // free raw 24 B
+//
+// Splitting destruction from deallocation is necessary because the
+// callee constructed the string in caller-owned storage; we must
+// run its destructor before reclaiming that storage.
+
+void* diff_unreachable_string_alloc_uninit() {
+    // operator new for raw 24 B aligned for std::string.
+    return ::operator new(sizeof(std::string),
+                          std::align_val_t{alignof(std::string)});
+}
+
+void diff_unreachable_string_free_uninit(void* p) {
+    ::operator delete(p, std::align_val_t{alignof(std::string)});
+}
+
+void diff_unreachable_string_destroy_in_place(void* p) {
+    static_cast<std::string*>(p)->~basic_string();
+}
+
+// Placement-construct a libc++ std::string into caller-owned raw
+// storage (typically obtained from diff_unreachable_string_alloc_uninit).
+// Used by the harness to materialise a by-value `string` argument
+// that the callee will destroy.
+void diff_unreachable_string_place_construct(
+        void* slot, const char* data, std::size_t n) {
+    new (slot) std::string(data, n);
+}
+
 const char* diff_unreachable_string_data(const void* p) {
     return static_cast<const std::string*>(p)->data();
 }

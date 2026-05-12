@@ -125,6 +125,23 @@ _size = _cand.diff_unreachable_string_size
 _size.restype = ctypes.c_size_t
 _size.argtypes = [ctypes.c_void_p]
 
+# sret helpers — see shim.cpp.
+_alloc_uninit = _cand.diff_unreachable_string_alloc_uninit
+_alloc_uninit.restype = ctypes.c_void_p
+_alloc_uninit.argtypes = []
+
+_free_uninit = _cand.diff_unreachable_string_free_uninit
+_free_uninit.restype = None
+_free_uninit.argtypes = [ctypes.c_void_p]
+
+_destroy_in_place = _cand.diff_unreachable_string_destroy_in_place
+_destroy_in_place.restype = None
+_destroy_in_place.argtypes = [ctypes.c_void_p]
+
+_place_construct = _cand.diff_unreachable_string_place_construct
+_place_construct.restype = None
+_place_construct.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -139,6 +156,15 @@ def string_bytes(p: int) -> bytes:
         return b""
     buf = _data(p)
     return ctypes.string_at(buf, n)
+
+
+def alloc_uninit_slot() -> int:
+    """Raw 24-byte slot for sret-returned std::string."""
+    return _alloc_uninit()
+
+def destroy_and_free_slot(p: int) -> None:
+    _destroy_in_place(p)
+    _free_uninit(p)
 
 
 # ---------------------------------------------------------------- #
@@ -184,6 +210,14 @@ def cand_fn(mangled: str, restype, argtypes) -> Callable:
 #   escapeStringForJson, sanitizeFilename, sanitizeInvalidFilename,
 #   truncateUtf8Safe, truncateXmlSafe, quote.
 # (That's 9 — counted as one batch.)
+#
+# E2a extension: sret return-by-value symbols.  `string f(...)` lowers
+# to `void f(string* sret, ...)` under the Itanium ABI — the caller
+# owns 24 B of raw storage at `sret` and the callee placement-
+# constructs the result there.  For by-value `string` parameters
+# (`xmlUnescapeCopy`, `escapeStringFor{Csharp,Python}`) the caller
+# constructs a copy into heap-owned storage and passes the pointer;
+# the callee owns destruction.
 
 
 @dataclass(frozen=True)
@@ -191,7 +225,11 @@ class Symbol:
     name: str
     orig_offset: int
     cand_mangled: str
-    # 'inplace' = void(string&); 'inplace_n' = void(string&, size_t)
+    # 'inplace'      = void(string&)
+    # 'inplace_n'    = void(string&, size_t)
+    # 'sret_cstr'    = string(const char*)            -> void(sret, c_char_p)
+    # 'sret_cref'    = string(const string&)          -> void(sret, string*)
+    # 'sret_byval'   = string(string)                 -> void(sret, string*) [callee destroys arg]
     kind: str
 
 # Curated D16 in-place mutators only (first-pass scope).
@@ -223,6 +261,31 @@ SYMBOLS: list[Symbol] = [
     Symbol("truncateXmlSafe",        0x2fc690,
            "_ZN6zhinst15truncateXmlSafeERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEm",
            "inplace_n"),
+    # ---- E2a sret return-by-value batch ----
+    Symbol("toCheckedString",        0x2f2700,
+           "_ZN6zhinst15toCheckedStringEPKc",
+           "sret_cstr"),
+    Symbol("entityNumberToTxt",      0x2f4e90,
+           "_ZN6zhinst17entityNumberToTxtERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_cref"),
+    Symbol("entityNameToNumber",     0x2f4290,
+           "_ZN6zhinst18entityNameToNumberERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_cref"),
+    Symbol("linkToQuery",            0x2f2f20,
+           "_ZN6zhinst11linkToQueryERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_cref"),
+    Symbol("queryToLink",            0x2f4030,
+           "_ZN6zhinst11queryToLinkERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_cref"),
+    Symbol("xmlUnescapeCopy",        0x2fcba0,
+           "_ZN6zhinst15xmlUnescapeCopyENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_byval"),
+    Symbol("escapeStringForCsharp",  0x2f9df0,
+           "_ZN6zhinst21escapeStringForCsharpENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_byval"),
+    Symbol("escapeStringForPython",  0x2f9780,
+           "_ZN6zhinst21escapeStringForPythonENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_byval"),
 ]
 
 
@@ -290,7 +353,57 @@ PER_SYMBOL_EXTRA: dict[str, list[bytes]] = {
     "truncateXmlSafe": [
         b"abc&amp;def", b"abc&lt;def&gt;", b"a&#65;b",
     ],
+    "toCheckedString": [
+        # Curated separately (allows None for nullptr); see iter_inputs.
+    ],
+    "entityNumberToTxt": [
+        b"&#65;", b"&#x41;", b"&#1234;", b"&#0;", b"&#1114111;",
+        b"&#x10ffff;", b"&#xff;", b"&#9;",
+        b"&unknown;", b"&amp;", b"plain text",
+    ],
+    "entityNameToNumber": [
+        b"&amp;", b"&lt;", b"&gt;", b"&quot;", b"&apos;",
+        b"&nbsp;", b"&copy;", b"&unknown;", b"&", b"plain",
+    ],
+    "linkToQuery": [
+        b"http://example.com/path?a=1",
+        b"a b c", b"hello+world", b"%20encoded%20",
+        b"key=value&other=thing",
+    ],
+    "queryToLink": [
+        b"a%20b", b"hello+world", b"%2F%3F",
+        b"key=value&other=thing", b"plain",
+    ],
+    "xmlUnescapeCopy": [
+        b"&amp;", b"&lt;", b"&gt;", b"&quot;",
+        b"&#65;", b"&#x41;", b"&#1234;",
+        b"&amp;amp;", b"a &amp; b", b"&unknown;", b"&amp",
+    ],
+    "escapeStringForCsharp": [
+        b'\\', b'"', b'\n', b'\r', b'\t',
+        b'\x00abc', b'\x1f',
+        b'a"b\\c\nd',
+    ],
+    "escapeStringForPython": [
+        b'\\', b'"', b"'", b'\n', b'\r', b'\t',
+        b'\x00abc', b'\x1f',
+        b"a'b\"c\\d\ne",
+    ],
 }
+
+# toCheckedString takes `const char*`.  None encodes nullptr; the
+# rest are encoded as bytes and passed via ctypes.c_char_p.
+TOCHECKEDSTRING_INPUTS: list[bytes | None] = [
+    None,                               # nullptr
+    b"",                                # empty C string
+    b"a",
+    b"hello",
+    b"hello, world",
+    b"a" * 22,
+    b"a" * 23,
+    b"\x01\x02",                        # control bytes (no embedded NUL)
+    b"\xc3\xa9",                        # UTF-8
+]
 
 TRUNCATE_LIMITS = [0, 1, 2, 3, 5, 7, 10, 22, 23, 100]
 
@@ -318,9 +431,63 @@ def call_inplace_n(fn: Callable, data: bytes, n: int) -> bytes:
         free_string(p)
 
 
+def call_sret_cstr(fn: Callable, cstr: bytes | None) -> bytes:
+    """Call `string f(const char*)`: void(sret, c_char_p)."""
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, cstr)              # ctypes converts None -> NULL
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+def call_sret_cref(fn: Callable, data: bytes) -> bytes:
+    """Call `string f(const string&)`: void(sret, string*)."""
+    arg = make_string(data)
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, arg)
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+        free_string(arg)
+
+def call_sret_byval(fn: Callable, data: bytes) -> bytes:
+    """Call `string f(string)`: void(sret, string*).
+
+    The Itanium ABI passes a non-trivially-copyable class type by
+    value as a pointer to caller-constructed storage; the **callee**
+    runs the destructor.  So we allocate the argument with the shim
+    (placement-new'd `std::string`), pass its pointer, and DO NOT
+    free it after the call — only free the underlying raw allocation.
+    Since `diff_unreachable_string_make` uses `new std::string(...)`
+    we have to skip the `delete` and just `::operator delete` the
+    raw block; but ctypes can't easily do that without another shim
+    helper.  Practical workaround: use the alloc_uninit slot for the
+    argument too, placement-construct via make-then-move... too
+    fiddly.  Simpler: re-alloc-uninit the argument and let the
+    callee destroy in place, then free the raw 24 B.
+    """
+    arg_slot = alloc_uninit_slot()
+    # Placement-construct the argument string into arg_slot via an
+    # extra shim helper:
+    _place_construct(arg_slot, data, len(data))
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, arg_slot)
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+        # arg_slot was destroyed by the callee; just free the raw 24 B.
+        _free_uninit(arg_slot)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
-    parameters of `call_inplace` / `call_inplace_n`."""
+    parameters of the per-kind call_* helper."""
+    if sym.kind == "sret_cstr":
+        for data in TOCHECKEDSTRING_INPUTS:
+            yield ((data,), "NULL" if data is None else _label(data))
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -329,6 +496,11 @@ def iter_inputs(sym: Symbol):
         for data in inputs:
             for n in TRUNCATE_LIMITS:
                 yield ((data, n), f"{_label(data)}|n={n}")
+    elif sym.kind in ("sret_cref", "sret_byval"):
+        for data in inputs:
+            yield ((data,), _label(data))
+    else:
+        raise ValueError(f"unknown kind: {sym.kind}")
 
 def _label(b: bytes) -> str:
     if len(b) > 24:
@@ -342,6 +514,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "inplace_n":
         proto_args = [ctypes.c_void_p, ctypes.c_size_t]
+    elif sym.kind == "sret_cstr":
+        proto_args = [ctypes.c_void_p, ctypes.c_char_p]
+    elif sym.kind in ("sret_cref", "sret_byval"):
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -354,11 +530,25 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data: bytes = args[0]  # type: ignore[assignment]
             o = call_inplace(fn_orig, data)
             c = call_inplace(fn_cand, data)
-        else:
+        elif sym.kind == "inplace_n":
             data2: bytes = args[0]  # type: ignore[assignment]
             n: int     = args[1]    # type: ignore[assignment,misc]
             o = call_inplace_n(fn_orig, data2, n)
             c = call_inplace_n(fn_cand, data2, n)
+        elif sym.kind == "sret_cstr":
+            cstr = args[0]
+            o = call_sret_cstr(fn_orig, cstr)
+            c = call_sret_cstr(fn_cand, cstr)
+        elif sym.kind == "sret_cref":
+            data3: bytes = args[0]  # type: ignore[assignment]
+            o = call_sret_cref(fn_orig, data3)
+            c = call_sret_cref(fn_cand, data3)
+        elif sym.kind == "sret_byval":
+            data4: bytes = args[0]  # type: ignore[assignment]
+            o = call_sret_byval(fn_orig, data4)
+            c = call_sret_byval(fn_cand, data4)
+        else:
+            raise ValueError(f"unknown kind: {sym.kind}")
 
         ok = o == c
         if ok:
