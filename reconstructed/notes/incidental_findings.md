@@ -3751,3 +3751,59 @@ The notes file was the only secondary source carrying the wrong
 bit position; corrected during the page promotion.  No source-code
 or test changes were required.
 
+## IF-255  `swap(SeqCValue&, SeqCValue&)` header brief contradicted the cpp body
+
+**Severity**: low (documentation only; no behavioural impact).
+
+**Status**: fixed (header brief rewritten to match the verified body,
+2026-05-12).
+
+**Discovered**: D12 `\binarynote` triage audit
+(`reconstructed/src/ast/seqc_ast_node.cpp:1007` vs
+`reconstructed/include/zhinst/ast/seqc_ast_node.hpp:2023`).
+
+### Observation
+
+The header declaration
+
+```cpp
+friend void swap(SeqCValue& a, SeqCValue& b);
+```
+
+carried a `\brief` claiming the function "exchanges the base
+subobject and the tagged payload (`payload_` + `tag_`)".  The
+verified body at `0x1fe410` (recon at `seqc_ast_node.cpp:1007`)
+swaps **only** `varType_` and the tagged payload; the base subobject
+fields (`valueCategory_`, `lineNr_`, `direction_`) stay with their
+respective objects.  The body itself carries a `\binarynote` that
+correctly describes this asymmetry, but the header brief contradicted
+it — a textbook secondary-source drift of the kind AGENTS.md
+"Verify-then-write" §2-3 specifically warns against (the brief was
+likely written from the surrounding "SeqCAstNode-family swap"
+pattern rather than from the function body).
+
+### Why this matters
+
+D12 audit confirmed the cpp-side `\binarynote` is genuine
+"non-idiomatic caller-visible surprise" (kept, not demoted).  A
+caller relying on the header brief would assume full memberwise
+swap and silently keep the wrong `lineNr_` / `valueCategory_` /
+`direction_` values on each operand — exactly the contract this
+function does not provide.
+
+### Action
+
+Header brief rewritten to spell out the partial-swap contract and
+cross-reference the definition's `\binarynote` for the rationale.
+Body unchanged.  No tests exercise the asymmetry directly (and
+`SeqCValue::swap` does not appear on any difftest path), so no
+regression test added; the inline brief alignment is the canonical
+remediation.
+
+### Lesson
+
+Reinforces the verify-then-write rule: when writing a header brief
+for a function whose definition lives in a separate `.cpp`, the
+authoritative source is the **body**, not the surrounding "looks
+like the other swaps in this family" pattern.
+

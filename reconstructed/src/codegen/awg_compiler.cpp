@@ -175,7 +175,7 @@ public:
     //! \throws zhinst::Exception  On invalid device type, opcode
     //!         overflow, waveform overflow, or wrapped inner
     //!         exceptions.
-    //! \binarynote Resets `wavetableIR_` and clears
+    //! \warning Resets `wavetableIR_` and clears
     //!             `compileMessages_` before running, so any
     //!             previous state is silently dropped on re-entry.
     void compileString(std::string const& source);
@@ -207,7 +207,7 @@ public:
     //! \param paths  Filesystem paths to register, in order.
     //! \throws zhinst::Exception  On per-file I/O failure
     //!         (`ErrorMessageT(0xE3)`).
-    //! \binarynote Always extends `wavePaths_` even for
+    //! \note Always extends `wavePaths_` even for
     //!             unrecognised extensions; the warning-and-skip
     //!             path leaves the entry recorded for the
     //!             arguments JSON.
@@ -231,7 +231,7 @@ public:
     //! \param format  Originating filename used for the
     //!                `.filename` and `.arguments` sections.
     //! \throws zhinst::Exception  On `EmptyInput`.
-    //! \binarynote Returns silently with no output when the most
+    //! \warning Returns silently with no output when the most
     //!             recent compile recorded a syntax error — no
     //!             exception is raised.
     void writeToStream(std::ostream& os, std::string const& format);

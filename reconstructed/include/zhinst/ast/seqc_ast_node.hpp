@@ -2020,8 +2020,10 @@ public:
         return payload_.str;
     }
 
-    //! \brief ADL-friendly swap — exchanges the base subobject and
-    //! the tagged payload (`payload_` + `tag_`).
+    //! \brief ADL-friendly swap — exchanges only `varType_` and the
+    //! tagged payload (`payload_` + `tag_`); the base subobject
+    //! (`valueCategory_`, `lineNr_`, `direction_`) is **not** swapped.
+    //! See the definition's `\binarynote` for the rationale.
     //! \param a First value node.
     //! \param b Second value node.
     friend void swap(SeqCValue& a, SeqCValue& b);
