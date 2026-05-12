@@ -562,11 +562,45 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      should produce the cluster table here in this TODO entry, not
      in a separate notes file.
 
-- [ ] **D16 — Reconstruct `diagnostics_text` cluster (saved for grand finale)**
-      *(scope: large; expected outcome: ~33 KB of XML/JSON/HTML escape,
-      entity-table, URL-rewrite, filename-sanitiser helpers reconstructed;
-      caveat: zero in-recon callers, no difftest can validate, every
-      function will likely carry `\verifyme` or `\unverifiable`)*
+- [x] **D16 — Reconstruct `diagnostics_text` cluster** *(2026-05-12)*
+      *(scope: large; outcome: 20 of 21 cluster functions reconstructed
+      under `\verifyme` policy in
+      `reconstructed/{include,src}/core/diagnostics_text.{hpp,cpp}`;
+      `zhinst::quote` was already present in `platform.cpp`; the
+      `csv_waveform_2arg` cluster was correctly skipped.  1603/1603
+      tests pass, 0 new doxygen warnings.)*
+
+  **Resolution summary** (full per-step plan archived below):
+
+  - 20 public symbols implemented: `xmlUnescape`, `xmlUnescapeCopy`,
+    `entityNumberToTxt`, `entityNameToNumber`, `linkToQuery`,
+    `queryToLink`, `escapeStringForCsharp`, `escapeStringForJson`,
+    `escapeStringForPython`, `sanitizeFilename`,
+    `sanitizeInvalidFilename`, `replaceUnit`, `browseTo`,
+    `truncateUtf8Safe`, `truncateXmlSafe`, `xmlEscapeUtf8Critical`,
+    `xmlEscapeCritical`, `generateSfc`, `toCheckedString`.  The 20th,
+    `zhinst::quote`, was already implemented in
+    `src/core/platform.cpp:193`; D16 retains the platform.cpp body
+    as canonical (IF-261).
+  - Disassembly notes for every symbol live in
+    `reconstructed/notes/diagnostics_text.md` (2000+ lines).
+  - Tag policy: blanket `\verifyme` on all 19 new public functions
+    (no recon caller, no difftest path).  Two `\binarynote` entries
+    document preserved binary quirks:
+      * `xmlEscapeUtf8Critical` emits `&#-NNN;` for high bytes
+        (signed-extension fold inside `boost::format("&#%03d;")`).
+      * `sanitizeInvalidFilename`'s `COM[1-9]|PRN` regex is missing
+        `LPT[1-9]`, `AUX`, `CON`, `NUL` and lacks anchors.
+  - IF-260: stale cluster-wide summary in `diagnostics_text.md` was
+    rewritten mid-D16.
+  - IF-261: D14 inventory missed `zhinst::quote` (already-reconstructed
+    leaf); scope expanded retroactively.
+  - IF-262: `xmlUnescape` recon omits the secondary
+    `escapeMaliciousXmlEscapedSequences` post-pass observed in the
+    binary; open work for future investigation under the new diff-test
+    harness (Phase E).
+
+  Original plan (archived):
 
   Cluster details: 21 functions, ~33,844 B aggregate
   (`xmlUnescape` 5290B, `entityNumberToTxt` 4853B, `linkToQuery`
@@ -736,6 +770,63 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   | `reconstructed/notes/unknowns.md` | 144 | 144 |
 
   This phase ran independently of D11/D12/D13/D14.
+
+## Phase E — diff-test harness for binding-unreachable reconstructions
+
+The Python compile API (`_seqc_compiler.compile_seqc`) only reaches a
+fraction of the reconstructed surface.  All 20 functions in
+`core/diagnostics_text.{hpp,cpp}` (D16), plus a handful of other
+binding-unreachable helpers identified across D11..D19, are validated
+only against disassembly — no test exercises them against the
+original binary.
+
+This phase designs and implements a separate diff-test harness that
+loads BOTH `_seqc_compiler.so` (the original binary) and the
+reconstructed shared object via `dlopen`, resolves the mangled
+symbols on each side, and calls them with curated inputs while
+comparing byte-for-byte outputs.
+
+- [ ] **E1 — Scoping: enumerate target symbols**
+      *(scope: small; outcome: a list of symbols + signatures that
+      the harness will exercise, plus per-symbol input corpora)*
+
+  Sources:
+  - 20 D16 symbols in `core/diagnostics_text.hpp`.
+  - Helpers from D11..D19 that carry `\verifyme` or `\unverifiable`
+    because they had no caller path.
+  - Open `IF-262` (xmlUnescape secondary pass) is a known-divergent
+    case that this harness will surface immediately.
+
+- [ ] **E2 — Harness implementation**
+      *(scope: medium; outcome: a runnable `tests/diff_unreachable.py`
+      or `tests/diff_unreachable/` directory that follows the
+      `diff_test_fast.py` shape: fork-per-test workers, color output,
+      tag-filterable)*
+
+  Sketch:
+  - Use Python `ctypes` to open both `.so` files separately.
+  - For each target symbol, declare the libc++ ABI signature
+    (string-by-value parameters require constructing libc++ `string`
+    objects manually — 24-byte SSO layout).
+  - Curate inputs (ASCII, unicode, edge cases: empty, max-length,
+    surrogate pairs, malformed UTF-8, etc.).
+  - Call both implementations, compare results byte-for-byte.
+  - Report differences with the same color/format conventions as
+    `diff_test_fast.py`.
+
+- [ ] **E3 — Triage findings**
+      *(scope: variable, depends on E2 output; outcome: each
+      divergence becomes either an IF, a recon fix, or a documented
+      `\binarynote` preserving an intentional binary quirk)*
+
+  Anticipated findings:
+  - `xmlUnescape` lacks IF-262's post-pass — confirmable on input
+    `&amp;amp;`.
+  - `xmlEscapeUtf8Critical` sign-extension quirk — confirmable on
+    any high-byte input; behaviour matches binary, so this becomes
+    a confirmed `\binarynote`.
+  - `sanitizeInvalidFilename` regex gaps for `LPT[1-9]`, `AUX`, etc.
+    — confirmable; binary has the same gap, so `\binarynote`.
 
 ## Archives
 

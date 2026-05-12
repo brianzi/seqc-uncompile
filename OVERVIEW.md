@@ -371,14 +371,14 @@ Source-of-truth analysis remains at
 
 ## Phase D — Inline code documentation
 
-In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
+In progress.  See `TODO.md` for the phase breakdown (D0..D19) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
 mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
-**D11, D12, D13, D14, D15, D17, D18, and D19 are complete; D16 is open (deferred to grand finale)**
-(cluster reconstruction promoted from the D14 inventory in
-`reconstructed/notes/d14_inventory.md`).  Current backlog tags (per `docs/coverage.sh`):
-`\unclear=0`, `\verifyme=1`, `\binarynote=17`, `\unverifiable=5`.
-Documentation coverage: 95.2% (2941/3088 symbols); 0 doxygen
+**D11–D19 are all complete**; Phase E (diff-test harness for
+binding-unreachable reconstructions, including the 20 D16 symbols)
+is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
+`\unclear=0`, `\verifyme=24`, `\binarynote=20`, `\unverifiable=5`.
+Documentation coverage: 95.3% (2960/3107 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 
@@ -1271,6 +1271,38 @@ Per-cluster outcomes:
   suite because every test installs a real callback).  Doxygen 0
   new warnings.
 
-With D19 closed, the only remaining open phase is **D16** (grand
-finale), which encompasses the deferred D19 items above plus the
-broader `\unverifiable` cleanup.
+**D16 (diagnostics_text cluster reconstruction) complete (2026-05-12):**
+
+Twenty user-facing text helpers — HTML/XML/JSON/CSV escaping, URL
+rewriting, filename sanitisation, UTF-8 truncation — were
+reconstructed from disassembly in `core/diagnostics_text.{hpp,cpp}`.
+The cluster had zero callers in the reconstructed compiler and no
+test path through the Python bindings, so every public function
+carries `\verifyme` pending validation by the new Phase E diff-test
+harness.
+
+Highlights:
+
+- New files: `reconstructed/include/zhinst/core/diagnostics_text.hpp`
+  (declarations + doc comments) and
+  `reconstructed/src/core/diagnostics_text.cpp` (definitions).
+- Disassembly notes: `reconstructed/notes/diagnostics_text.md`
+  (per-symbol bodies, .rodata literals, regex patterns, replacement
+  tables, pseudo-C sketches; ~2000 lines).
+- `zhinst::quote` was already reconstructed in
+  `src/core/platform.cpp:193`; the D16 header does NOT redeclare it
+  (IF-261).
+- Two `\binarynote` entries record preserved binary quirks:
+  `xmlEscapeUtf8Critical` emits `&#-NNN;` for high bytes due to a
+  signed-extension fold; `sanitizeInvalidFilename`'s Windows
+  reserved-name regex `COM[1-9]|PRN` lacks `LPT[1-9]`/`AUX`/`CON`/`NUL`
+  and lacks anchors.
+- IF-262: `xmlUnescape` recon omits the secondary
+  `escapeMaliciousXmlEscapedSequences` post-pass observed in the
+  binary; deferred to Phase E.
+- Tests 1603/1603 pass; 0 new doxygen warnings.  Backlog deltas:
+  `\verifyme` 1 → 24, `\binarynote` 18 → 20.
+
+With D16 closed, every D-phase is complete.  The next phase is
+**Phase E** (diff-test harness for binding-unreachable
+reconstructions) — see `TODO.md` for the E1/E2/E3 breakdown.

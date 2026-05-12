@@ -4064,3 +4064,94 @@ upper bounds on remaining work, not as estimates.  Triage is
 mandatory before scheduling: every "absent" symbol may be
 already-covered, semantically-equivalent-via-different-shape, or
 genuinely-stubbed; only the third category needs source changes.
+
+---
+
+## IF-260  diagnostics_text "Cluster-wide observations" claimed entity strings unused
+
+**Severity**: cosmetic (stale documentation)
+**Status**: fixed
+
+The "Cluster-wide observations" block at the end of the D16-cluster-5
+section of `diagnostics_text.md` claimed that the rodata literals
+`"&amp;"`, `"&Omega;"`, `"&#937;"` at `0x90ce98..0x90ceaf` were
+"not referenced from any of the five functions above" and tracked
+them as "a pointer to a not-yet-analyzed sibling that does HTML-entity
+escaping".
+
+This was already obsolete: the D16 batch section *immediately below*
+in the same file fully documents `entityNameToNumber`,
+`entityNumberToTxt`, `xmlUnescape`, and `xmlUnescapeCopy` as the
+consumers of that table, with full byte-mapped entity tables at lines
+1776..1790 and 1845..1855.
+
+Re-verified by `objdump -d --start-address=0x2f4290 ...` showing
+27+ `lea` instructions in `entityNameToNumber` referencing
+`0x90ce47..0x90cef1`, and by inspection of the existing notes section.
+
+Fixed by rewriting the bullet at line ~1535 to point readers to the
+D16 batch and to identify the still-unanalyzed siblings
+(`zhinst::quote` @0x2fa6a0, `zhinst::xmlEscapeCritical` @0x2fa7e0,
+`zhinst::xmlEscapeUtf8Critical` @0x2faaa0) that ALSO consume the
+same rodata block at `0x2fa8b7`/`0x2fa957` etc.
+
+This is exactly the failure mode the verify-then-write rule warns
+about: a summary written in an earlier session became false when a
+later session added the D16 batch but did not back-update the
+cluster-wide summary.
+
+
+## IF-261  D14 inventory missed `zhinst::quote` from diagnostics_text cluster
+
+**Severity**: cosmetic (scope inventory gap)
+**Status**: fixed (scope expanded in D16)
+
+The D14 inventory cluster `diagnostics_text::core` listed 19 symbols
+totalling 33,844 B.  During D16 subagent analysis, a 20th symbol was
+discovered that uses the same `.rodata` entity table:
+
+- `zhinst::quote(std::string&)` @0x2fa6a0, 311 B
+
+The symbol was already reconstructed in `src/core/platform.cpp:193`
+under an older pass, so no new code is needed.  D16 scope was
+expanded to acknowledge it (notes file `diagnostics_text.md`
+documents the body), but no duplicate body was added to
+`src/core/diagnostics_text.cpp` — the platform.cpp implementation
+remains canonical.
+
+Lesson: when a cluster is enumerated by reading caller graphs, leaf
+functions with only callsite-string-table evidence can be missed.
+D14's enumeration relied on call-graph traversal; `quote` is a
+pure leaf (no callers, no callees of interest), so it didn't surface
+through that scan.
+
+## IF-262  `xmlUnescape` recon lacks `escapeMaliciousXmlEscapedSequences` post-pass
+
+**Severity**: likely-bug (semantic gap, no difftest path)
+**Status**: open
+
+During D16 reconstruction of `zhinst::xmlUnescape` (@0x2fadd0), the
+disassembly was observed to construct TWO function-local static
+`boost::regex` objects (Itanium guards at b85308 and b85350), both
+from the same pattern at `.rodata` 0x90d057
+(`&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;`).  The
+second static is used to drive a secondary `regex_search` pass over
+the decoded output — likely a sanitiser that re-escapes
+maliciously-encoded XML escape sequences (e.g. an input that decodes
+to a literal `&amp;` should not be left as `&amp;` after decoding).
+
+The recon at `src/core/diagnostics_text.cpp:42` implements only the
+first decoding pass and assigns the result back to `s` without the
+secondary sanitiser pass.  There is no test path through the Python
+bindings that exercises `xmlUnescape`, so the gap is invisible to the
+test suite.
+
+Reproduction (when a diff-test harness exists): input a string like
+`"&amp;amp;"` — the binary should produce `"&amp;"` (one decode +
+re-escape), the recon currently produces `"&"` (one decode).
+
+Action: identify the second-pass helper symbol (candidate names:
+`escapeMaliciousXmlEscapedSequences`, `escapeAlreadyEscaped`,
+something in an anonymous namespace).  Disassemble at the address
+identified by the b85350 guard's protected call.  Reconstruct as a
+helper in the same TU.
