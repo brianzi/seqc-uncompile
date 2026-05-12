@@ -16,24 +16,9 @@
 
 namespace zhinst {
 
-// 0x2ec580 — caches the result of isMf(readManifest()) in a Meyers-
-// singleton bool guarded by __cxa_guard. Always false on PC.
-//! \brief Reports whether the compiler is hosted on a Zurich
-//!        Instruments MF-class device (an instrument running the
-//!        LabOne stack on its own embedded SoC) rather than on a
-//!        regular workstation.
-//!
-//! \details On any normal PC this returns `false`; on an MF
-//! instrument it returns `true`, gating behaviour such as
-//! on-device wave-path resolution.  The result is computed once
-//! and cached in a function-local static.
-//!
-//! \return `true` only when running on an MF instrument; `false`
-//!         elsewhere (always `false` in the current reconstruction
-//!         stub).
-bool runningOnMfDevice() {
-    return false;
-}
+// 0x2ec580 — runningOnMfDevice() lives in src/io/zi_environment.cpp
+// (manifest-driven, was a constant-`false` stub here until the D17
+// reconstruction; see IF-253 for history).
 
 // Waveform sample conversion utilities (used by ELF writer / waveform code).
 // These convert between AWG hardware sample format and double/marker.

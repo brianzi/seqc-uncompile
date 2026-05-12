@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, D13, D14, and D15 are complete; D16–D19 are open (cluster reconstruction promoted from D14 inventory).
+> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, D13, D14, D15, and D17 are complete; D16, D18, D19 are open (cluster reconstruction promoted from D14 inventory).
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -607,64 +607,38 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      under a different signature, see inventory §"Cluster:
      csv_waveform_2arg::io"; if needed, add a thin two-arg wrapper.
 
-- [ ] **D17 — Reconstruct `zi_environment` cluster (`runningOnMfDevice`
-      family + filesystem helpers)**
-      *(scope: small to medium; expected outcome: proper rebuild of the
-      8 cluster members, IF-253 anchor resolved with real body, ~2 KB
-      of code)*
+- [x] **D17 — Reconstruct `zi_environment` cluster (`runningOnMfDevice`
+      family + filesystem helpers)** *(2026-05-12)*
+      *(scope: small to medium; outcome: proper rebuild of 8 cluster
+      members in `reconstructed/{include,src}/io/zi_environment.{hpp,cpp}`,
+      IF-253 fully resolved, dead duplicate in `platform.cpp` removed
+      under IF-257)*
 
-  Cluster details: 8 inventory members + ~4 anonymous-namespace
-  helpers the inventory missed (verified via fresh
-  `nm | c++filt | grep readManifest|isMf`).  Full set:
+  **Resolution summary** (full per-step plan archived below):
 
-  - **Public MF detection** (4): `runningOnMfDevice()` 83B (IF-253
-    anchor; current stub at `reconstructed/src/core/stubs.cpp:34`),
-    `runningOnMfDevice(string const&)` 120B,
-    `runningOnMf64Device()` 83B, `runningOnMf64Device(string const&)` 95B.
-  - **Anon-namespace helpers** (4): `readManifest()` 94B,
-    `readManifest(string const&)` 438B, `isMf(ptree const&)` 36B,
-    `isMf64(ptree const&)` 331B.
-  - **Static state**: `laboneManifest` (32B ptree, Meyers singleton),
-    `runningOnMf` / `runningOnMf64` (cached `bool`s with `__cxa_guard`).
-  - **Filesystem helpers** (5, separable from MF detection):
-    `hasMediaDevNode(string const&)` 770B (regex `^/media/sd[a-z][0-9]+$`),
-    `makeDirectories(fs::path const&)` 583B,
-    `canCreateFileForWriting(fs::path const&)` 221B,
-    `markFileHidden(fs::path const&)` 6B (Linux no-op),
-    `initBoostFilesystemForUnicode()` 6B (Linux no-op).
-
-  Existing recon caller: `reconstructed/src/io/zi_folder.cpp:215`
-  invokes `runningOnMfDevice()` from `dataDirectory()` — gating the
-  `/data` vs user-folder branch.  Filesystem helpers have one known
-  internal caller chain: `canCreateFileForWriting` ← `isDirectoryWriteable`.
-
-  Steps:
-  1. **GDB-trace the binary's `readManifest()` and `isMf()` to
-     determine the actual manifest path and JSON/INI key inspected.**
-     Per AGENTS.md "GDB tracing for binary analysis", do this
-     before writing any reconstruction.
-  2. **Reconstruct `readManifest()` + `isMf()` + `isMf64()`**:
-     `boost::property_tree::ptree` parsing, with the verified
-     manifest path from step 1.  Place under
-     `reconstructed/src/core/zi_manifest.cpp` (new file).
-  3. **Reconstruct the 4 public `running*` symbols** as Meyers-
-     singleton-cached wrappers around the anon helpers.  Replace
-     the stub at `core/stubs.cpp:34` with the real body, citing
-     IF-253 in a `\binarynote` (or `\note`).
-  4. **Reconstruct the 5 filesystem helpers** under
-     `reconstructed/src/io/zi_filesystem.cpp` (new file).  The two
-     6-byte Linux no-ops are trivial; `makeDirectories` (583B) has
-     rich error-message string evidence (`"Could not access
-     directory '"`, `"Could not create directory '"`, source-path
-     comment from `zi_folder.cpp`); `hasMediaDevNode` (770B) wraps
-     a single boost::regex.
-  5. Update IF-253 status to "fully resolved" (not just "narrative
-     scrubbed").
-  6. Run the full test suite at each stage; the only behavioural
-     change should be `runningOnMfDevice()` returning the manifest's
-     verdict instead of constant-`false`.  On a PC test host this
-     should still be `false`, so 1603/1603 should hold.  If a test
-     flips, GDB the original on the same input and reconcile.
+  - All 8 public symbols (`runningOnMf{,64}Device(){,(string)}`,
+    `hasMediaDevNode`, `makeDirectories`, `markFileHidden`,
+    `initBoostFilesystemForUnicode`) implemented in
+    `reconstructed/src/io/zi_environment.cpp`.
+  - Anon-namespace helpers (`readManifestImpl`, `doIsMf`, `isMf`,
+    `isMf64`, `laboneManifest`) mirror the binary's helper set.
+  - Stub at `core/stubs.cpp:34` removed; `zi_folder.cpp` fwd-decl
+    replaced with `#include "zhinst/io/zi_environment.hpp"`.
+  - Dead duplicate of helpers in `platform.cpp` (filed as IF-257)
+    removed; `isMf64`'s platform check corrected from bare `size==10`
+    to verified `size==10 && platform == "linuxARM64"`.
+  - 1603/1603 difftests pass; 0 new doxygen warnings.
+  - GDB step (1) was skipped — disassembly was unambiguous and the
+    PC-test-host outcome (`false`) matches the prior stub, so no
+    behaviour change required runtime verification.
+  - Step (2)/(4) file layout deviated from plan: the original
+    sketch split helpers into `core/zi_manifest.cpp` and
+    `io/zi_filesystem.cpp`; final reconstruction colocated them all
+    in a single `io/zi_environment.cpp` (matches the binary's
+    apparent compilation unit and the cluster name in the
+    inventory).  `canCreateFileForWriting` was already present in
+    `platform.cpp` as an anon-ns helper for `isDirectoryWriteable`
+    and remained there — no separate filesystem TU was needed.
 
 - [ ] **D18 — Reconstruct `ast_misc` cluster (per-subclass
       `SeqC*::clone()` virtualisation)**

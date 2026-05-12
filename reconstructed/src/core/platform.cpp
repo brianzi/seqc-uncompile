@@ -11,9 +11,6 @@
 #include <boost/filesystem/operations.hpp>
 #include <boost/tokenizer.hpp>
 
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/json_parser.hpp>
-
 #include <cstring>
 #include <fstream>
 #include <locale>
@@ -23,82 +20,11 @@
 
 namespace zhinst {
 
-// =========================================================================
-// Anonymous-namespace helpers for manifest / device-identity queries
-// =========================================================================
-namespace {
-
-// ---------------------------------------------------------------------------
-// readManifest(const string&) — @0x2ec210, ~0x3D0 bytes
-// Reads a JSON manifest file. If the file does not exist (filesystem status
-// <= 1 = file_not_found | status_error), returns an empty ptree.
-// Otherwise parses via boost::property_tree::json_parser::read_json.
-// ---------------------------------------------------------------------------
-boost::property_tree::ptree readManifest(std::string const& path) {  // @0x2ec210
-    boost::property_tree::ptree pt;
-    // @0x2ec2b0: boost::filesystem::detail::status() — returns file_type enum
-    // @0x2ec360: cmp $0x1, %r15d; jbe → file_not_found or status_error → return empty
-    auto st = boost::filesystem::status(boost::filesystem::path(path));
-    if (st.type() <= boost::filesystem::regular_file) {
-        // file_not_found(1) or status_error(0) — return empty ptree
-        return pt;
-    }
-    boost::property_tree::json_parser::read_json(path, pt);  // @0x2ec3e0
-    return pt;
-}
-
-// ---------------------------------------------------------------------------
-// readManifest() — @0x2ec5e0, ~0x120 bytes
-// Lazy-init function-local static. Calls readManifest("/opt/zi/LabOne/manifest.json")
-// once, caches in static, registers ~ptree with __cxa_atexit.
-// Guard variable at 0xb852d0 in binary.
-// ---------------------------------------------------------------------------
-boost::property_tree::ptree const& readManifest() {  // @0x2ec5e0
-    static boost::property_tree::ptree manifest =
-        readManifest("/opt/zi/LabOne/manifest.json");  // @0x90ce08 in rodata
-    return manifest;
-}
-
-// ---------------------------------------------------------------------------
-// doIsMf(const ptree&) — @0x2ec700, ~0x1E0 bytes
-// Gets ptree.get<string>("device", ""), checks length==2 and content=="mf"
-// (0x666d as 16-bit compare). Uses SSO string operations.
-// ---------------------------------------------------------------------------
-bool doIsMf(boost::property_tree::ptree const& pt) {  // @0x2ec700
-    std::string device = pt.get<std::string>("device", "");  // @0x2ec790
-    return device.size() == 2 && device == "mf";             // @0x2ec7da: cmp $0x2 + cmpw $0x666d
-}
-
-// ---------------------------------------------------------------------------
-// isMf(const ptree&) — @0x2ec1e0, ~0x30 bytes
-// Wraps doIsMf in try/catch; returns false on any exception.
-// ---------------------------------------------------------------------------
-bool isMf(boost::property_tree::ptree const& pt) {  // @0x2ec1e0
-    try {
-        return doIsMf(pt);
-    } catch (...) {
-        return false;
-    }
-}
-
-// ---------------------------------------------------------------------------
-// isMf64(const ptree&) — @0x2ec430, ~0x1B0 bytes
-// First checks doIsMf(). If not MF, returns false. Then checks
-// ptree.get<string>("platform", "") has length 10 (the string "mf_dev5640").
-// Same try/catch pattern as isMf.
-// ---------------------------------------------------------------------------
-bool isMf64(boost::property_tree::ptree const& pt) {  // @0x2ec430
-    try {
-        if (!doIsMf(pt))
-            return false;
-        std::string platform = pt.get<std::string>("platform", "");  // @0x2ec520
-        return platform.size() == 10;  // @0x2ec560: cmp $0xa — "mf_dev5640" is 10 chars
-    } catch (...) {
-        return false;
-    }
-}
-
-} // anonymous namespace
+// Note: the manifest-driven helpers (readManifest, doIsMf, isMf,
+// isMf64) and the public runningOnMfDevice / runningOnMf64Device
+// entry points live in `src/io/zi_environment.cpp`.  They were
+// briefly stubbed here in an earlier reconstruction pass; that
+// duplicate has been removed in favour of the proper rebuild.
 
 // @0x2ec6e0 — returns SSO string "linux64" (7 chars, length tag 0x0e)
 std::string getPlatformName() {

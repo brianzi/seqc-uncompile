@@ -6,6 +6,7 @@
 #include "zhinst/io/zi_folder.hpp"
 #include "zhinst/core/exception.hpp"
 #include "zhinst/core/format_time.hpp"
+#include "zhinst/io/zi_environment.hpp"
 
 #include <boost/filesystem/path.hpp>
 #include <boost/filesystem/operations.hpp>
@@ -19,11 +20,6 @@
 
 #include <unistd.h>  // readlink, getuid
 #include <pwd.h>     // getpwuid_r
-
-// Forward-declared helpers from the binary (used by sessionSaveDirectoryName/ziFolder).
-namespace zhinst {
-bool runningOnMfDevice();
-} // namespace zhinst
 
 namespace zhinst {
 

@@ -3674,20 +3674,26 @@ keep it for binary-faithfulness.
 
 ## IF-253  `runningOnMfDevice` recon claims `/proc/device-tree/model` check, binary parses LabOne manifest
 
-**Severity**: cosmetic (constant-`false` stub is observably correct on every PC).
+**Severity**: cosmetic (constant-`false` stub was observably correct on every PC).
 
-**Status**: **fixed** (2026-05-12) — the spurious `/proc/device-tree/model`
-narrative and wrong `0x2ce770` address have been scrubbed from
-`reconstructed/src/core/stubs.cpp:19-36`; the surviving comment now
-correctly cites `0x2ec580` and the `isMf(readManifest())` Meyers-singleton
-mechanism.  Stub body remains constant-`false`, observably correct on PC.
+**Status**: **fully resolved** (2026-05-12, D17) — the symbol family
+has been reconstructed for real in
+`reconstructed/{include,src}/io/zi_environment.{hpp,cpp}` (eight
+public entry points: `runningOnMf{,64}Device(){,(string)}`,
+`hasMediaDevNode`, `makeDirectories`, `markFileHidden`,
+`initBoostFilesystemForUnicode`).  The stub at
+`reconstructed/src/core/stubs.cpp:34` was removed in the same
+change-set; the comment that remains there is a one-line breadcrumb
+pointing at the new home.  All 1603 difftests pass on a PC test-host
+(manifest absent → `false` cached → behaviour unchanged from the
+old stub for the workstation case).
 
 **Discovered**: D7 `\verifyme` triage (batch B) of `core/stubs.cpp:36`.
 
 The reconstructed stub at `reconstructed/src/core/stubs.cpp:18-40`
-carries an inline comment "`0x2ce770` — checks `/proc/device-tree/model`
+carried an inline comment "`0x2ce770` — checks `/proc/device-tree/model`
 for `Zurich Instruments MF`" and a `\details` paragraph repeating
-the same claim.  Both are wrong on two counts:
+the same claim.  Both were wrong on two counts:
 
 1. **Wrong address.**  `0x2ce770` is inside
    `ZiFolder::sessionSaveDirectoryName`, not at any function
@@ -3705,20 +3711,23 @@ the same claim.  Both are wrong on two counts:
    resulting `bool` in a function-local static `runningOnMf`
    gated by a Meyers-singleton `__cxa_guard`.
 
-The current constant-`false` stub remains observationally
+The original constant-`false` stub remained observationally
 correct on any PC-hosted test run because the manifest lookup
-on a workstation also returns `false`; all 1603 difftests pass.
+on a workstation also returns `false`; all difftests passed
+through both the stub era and the proper reconstruction.
 
-### Action
+### Resolution
 
-Cosmetic only.  When `runningOnMfDevice` is reconstructed for
-real, model the
-`readManifest` / `isMf(boost::property_tree::ptree)` /
-`__cxa_guard`-protected cached `bool` triple at the correct
-address `0x2ec580`, and delete the spurious `device-tree`
-narrative from the header / comment.  No TODO needs to be
-filed for the stub itself; it can stay constant-`false` until
-an MF-hosted test surface materialises.
+`reconstructed/src/io/zi_environment.cpp` mirrors the binary's
+anon-namespace helpers (`readManifestImpl`, `doIsMf`, `isMf`,
+`isMf64`, `laboneManifest`) and the eight public entry points.
+The `0xb852b0` Meyers-singleton ptree is modelled by the
+`laboneManifest()` function-local static; the per-public-entry
+`__cxa_guard`-protected `bool` caches at `0xb85290` /
+`0xb852a0` are modelled by separate function-local statics in
+`runningOnMfDevice()` / `runningOnMf64Device()`.  Path-arg
+overloads bypass the cache and call the helpers fresh, matching
+the binary's split between the cached and uncached forms.
 
 ## IF-254  `magic_numbers_proposal.md` had wrong `Variable::flags` type and Frozen-bit position
 
@@ -3859,4 +3868,52 @@ When filing an `\unverifiable` rationale, distinguish "no read
 sites" from "no observable non-default value".  Confirm against the
 current `.cpp` body, not against a prior recollection of the field
 state.
+
+## IF-257  `platform.cpp` carried a duplicate, partially-wrong copy of the manifest helpers
+
+**Severity**: cosmetic (anon-namespace duplicates with no callers; no
+linker collision, no observable behaviour).
+
+**Status**: fixed (2026-05-12, D17) — the dead anon-namespace block in
+`reconstructed/src/core/platform.cpp` has been removed; canonical
+implementations live in `reconstructed/src/io/zi_environment.cpp`.
+
+**Discovered**: D17 (zi_environment cluster reconstruction).
+
+While reconstructing `zhinst::runningOnMfDevice` and friends, the
+binary's anon-namespace helpers (`readManifest(string)`,
+`readManifest()`, `doIsMf`, `isMf`, `isMf64`) were found to be
+already present as a dead anon-namespace block in
+`reconstructed/src/core/platform.cpp:29-101`.  They had no callers in
+that translation unit (the only intended caller was the manifest-
+driven `runningOnMfDevice`, which never landed there because the
+symbol was stubbed in `core/stubs.cpp` instead).
+
+In addition to being dead code, the `isMf64` body in `platform.cpp`
+documented the platform-string check as just `platform.size() == 10`
+with a stale `// "mf_dev5640" is 10 chars` annotation.  The actual
+binary at `0x2ec430` checks `platform.size() == 10 AND
+platform == "linuxARM64"`, encoded as a 10-byte XOR against the
+literal `"linuxARM64"` (8-byte XOR `0x4d524178756e696c` = "linuxARM"
+plus 2-byte XOR `0x3436` = "64").  The body would have been
+behaviourally wrong on any non-linuxARM64 manifest with a
+length-10 platform string (e.g. a hypothetical `"mf_dev5640"` value
+would have been mis-classified as MF64).
+
+### Resolution
+
+The whole anon-namespace block, plus the unused
+`#include <boost/property_tree/...>` lines, were removed from
+`platform.cpp`.  A short breadcrumb comment in their place points
+at `src/io/zi_environment.cpp` for the canonical home.  The new
+implementation in `zi_environment.cpp` carries the correct
+`platform == "linuxARM64"` byte-for-byte check.
+
+### Lesson
+
+Speculative anon-namespace stubs in unrelated TUs are easy to lose
+track of; whenever a stub gets written ahead of its real
+reconstruction, leave a TODO entry pointing at it.  When the proper
+reconstruction lands, sweep for older copies in sibling files
+before declaring the cluster done.
 

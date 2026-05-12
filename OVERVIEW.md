@@ -374,11 +374,11 @@ Source-of-truth analysis remains at
 In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
 mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
-**D11, D12, D13, D14, and D15 are complete; D16–D19 are open**
+**D11, D12, D13, D14, D15, and D17 are complete; D16, D18, D19 are open**
 (cluster reconstruction promoted from the D14 inventory in
 `reconstructed/notes/d14_inventory.md`).  Current backlog tags (per `docs/coverage.sh`):
 `\unclear=0`, `\verifyme=1`, `\binarynote=17`, `\unverifiable=5`.
-Documentation coverage: 95.2% (2934/3081 symbols); 0 doxygen
+Documentation coverage: 95.2% (2941/3088 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 
@@ -1193,3 +1193,31 @@ table) complete (2026-05-12, commit `ac0fc85`):**
   literals (faithful to the binary), not copy-derived from
   `messages`.  IF-251 marked **fixed**.  Tests 1603/1603 (no
   observable change since the two tables agree on shared keys).
+
+**D17 (reconstruct `zi_environment` cluster) complete (2026-05-12):**
+
+- Replaced the constant-`false` `runningOnMfDevice()` stub at
+  `core/stubs.cpp:34` with a proper rebuild of the 8-symbol cluster
+  in `reconstructed/{include,src}/io/zi_environment.{hpp,cpp}`.
+  Public surface: `runningOnMf{,64}Device(){,(string const&)}`,
+  `hasMediaDevNode(string const&)`, `makeDirectories(fs::path const&)`,
+  `markFileHidden(fs::path const&)`,
+  `initBoostFilesystemForUnicode()`.  Anon-namespace helpers
+  (`readManifestImpl`, `doIsMf`, `isMf`, `isMf64`, `laboneManifest`)
+  mirror the binary's helper set; cached `bool` Meyers singletons
+  back the 0-arg detection forms; path-arg overloads bypass the
+  cache and parse fresh.
+- IF-253 upgraded from "narrative scrubbed" to **fully resolved**.
+- IF-257 filed and immediately fixed: a dead anon-namespace copy
+  of the manifest helpers had been sitting in `core/platform.cpp`
+  with a partially-wrong `isMf64` body (claimed bare
+  `platform.size() == 10`; binary actually XOR-checks
+  `platform == "linuxARM64"` byte-for-byte).  Removed the
+  duplicate; sole authoritative implementation now lives in
+  `io/zi_environment.cpp` with the verified `linuxARM64` check.
+- `zi_folder.cpp` now `#include`s `zhinst/io/zi_environment.hpp`
+  instead of forward-declaring `runningOnMfDevice()`.
+- Tests 1603/1603 (no behavioural change on a PC test-host: the
+  manifest is absent, so the cached `bool` is `false`, matching
+  the prior stub's verdict).  Doxygen 0 new warnings; coverage
+  95.2% (2941/3088 symbols, 8 newly documented).
