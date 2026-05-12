@@ -453,19 +453,21 @@ std::string replaceUnit(const std::string& text,
 }
 
 // ---- browseTo — binary @0x2eb950, 1739 B ----
-void browseTo(std::string url)
+bool browseTo(std::string url)
 {
-    if (url.empty()) return;
+    if (url.empty()) return false;
 
     namespace bfs = boost::filesystem;
 
     // Walk up while parents exist and are not files.  Loop while the
-    // current parent's status <= file_not_found (status_error=0 or
-    // file_not_found=1).
+    // current parent's status type ≤ file_not_found (status_error=0
+    // or file_not_found=1).  An empty parent breaks out of the loop
+    // (NOT a function-level return — the binary continues to the
+    // post-loop status probe and shellout in that case).
     while (true) {
         bfs::path p(url);
         const bfs::path parent = p.parent_path();
-        if (parent.empty()) return;
+        if (parent.empty()) break;
         boost::system::error_code ec;
         const bfs::file_status st = bfs::status(parent, ec);
         if (st.type() > bfs::file_not_found) {
@@ -474,23 +476,35 @@ void browseTo(std::string url)
         url = parent.string();
     }
 
-    // If url itself is a regular file, browse to its containing dir.
+    // Probe the surviving path.  If it doesn't exist (status_error
+    // or file_not_found), bail with `false` — there's nothing to
+    // browse to.
     {
         boost::system::error_code ec;
         const bfs::file_status st = bfs::status(bfs::path(url), ec);
-        if (st.type() == bfs::regular_file) {
+        if (st.type() <= bfs::file_not_found) return false;
+
+        // If the path is anything other than a directory (regular
+        // file, symlink, block/char/fifo/socket, type_unknown),
+        // browse to its containing directory instead.  Only true
+        // directories are passed unchanged.
+        if (st.type() != bfs::directory_file) {
             url = bfs::path(url).parent_path().string();
         }
     }
 
-    // Build "xdg-open \"<path>\"" and shell out.  No quoting / escaping
-    // of `url`; this is binary-faithful behaviour (\binarynote).
+    // Build "xdg-open \"<path>\"" and shell out.  No quoting /
+    // escaping of `url`; this is binary-faithful behaviour
+    // (\binarynote: paths containing `"` will break the quoted
+    // argument).  Return value is `system()`'s status sign-extended
+    // into a bool: `rc >= 0` → true.
     std::string cmd;
     cmd.reserve(11 + url.size());
     cmd.append("xdg-open \"", 10);
     cmd.append(url);
     cmd.append("\"", 1);
-    (void)std::system(cmd.c_str());
+    const int rc = std::system(cmd.c_str());
+    return rc >= 0;
 }
 
 

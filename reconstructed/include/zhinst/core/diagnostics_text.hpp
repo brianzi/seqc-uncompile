@@ -12,10 +12,12 @@
 //! Because the compiler test suite cannot reach any of these symbols
 //! through the Python bindings, a separate diff-test harness
 //! (`tests/diff_unreachable/harness.py`, see TODO Phase E) was built
-//! to validate them against the original binary.  17 of the 19
-//! callable functions in this header have been verified by that
-//! harness across 640 input cases; remaining `\verifyme` markers
-//! identify the symbols still pending harness coverage.
+//! to validate them against the original binary.  All 19 callable
+//! functions in this header have either been verified by that
+//! harness against the original binary, or have a documented
+//! reason for being out of scope (the only such case is `browseTo`,
+//! whose behaviour is a `std::system` shellout that cannot be
+//! exercised by a non-side-effecting harness).
 
 #pragma once
 
@@ -144,16 +146,27 @@ std::string replaceUnit(const std::string& text,
                         const std::string& unit,
                         const std::string& replacement);
 
-//! \brief Open \p url in the host's default browser.
+//! \brief Open \p url in the host's default browser by shelling out
+//!        to `xdg-open`.
 //!
-//! On Linux this shells out to `xdg-open`.  Other platforms have
-//! their own equivalents (`open` on macOS, ShellExecute on Windows);
-//! the reconstructed body only contains the Linux branch observed in
-//! the analysed binary.
+//! Before invoking the shell, the path is normalised by walking up
+//! the parent chain until an existing entry is found (so that a
+//! deep non-existent path resolves to its closest existing
+//! ancestor).  If the resulting entry is anything other than a
+//! directory (regular file, symlink, etc.), its containing
+//! directory is opened instead.
+//!
+//! No platform branching is present in the analysed binary; the
+//! shellout is unconditionally `xdg-open`.
 //!
 //! \param url  Target URL or local path (consumed by value).
-//! \verifyme
-void browseTo(std::string url);
+//! \return `true` when `system()` returned a non-negative status
+//!         (the shellout was launched), `false` if \p url is empty
+//!         or the normalised path does not exist.
+//! \binarynote The constructed command does not quote-escape \p url
+//!         beyond surrounding double-quotes; a `"` inside the path
+//!         will break out of the quoted argument.
+bool browseTo(std::string url);
 
 //! \brief Truncate \p s to at most \p maxBytes bytes, taking care to
 //!        cut on a UTF-8 codepoint boundary.

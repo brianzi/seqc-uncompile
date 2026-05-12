@@ -935,8 +935,20 @@ comparing byte-for-byte outputs.
     sanitizeInvalidFilename, truncateUtf8Safe, truncateXmlSafe,
     xmlEscapeUtf8Critical, xmlEscapeCritical, quote, toCheckedString.
   - Header-level brief updated to reflect partial verification.
-  - `\verifyme` count: 8 → 3 (after E2c `generateSfc`).  Remaining:
-    `browseTo` (out of scope) plus 2 elsewhere.
+  - `\verifyme` count: 8 → 0 (after E2c `generateSfc` and the
+    2026-05-13 cleanup of the last two markers).
+    - `browseTo` *(2026-05-13)*: static-disasm pass at `0x2eb950`
+      revealed three recon-body bugs (wrong return type, wrong
+      empty-parent loop exit, narrower file-type predicate); see
+      IF-268.  All fixed; brief rewritten to describe the actual
+      behaviour.  No harness coverage (shellout via `std::system`
+      is not amenable to differential testing) but the body is
+      now verified against the binary by static reading.
+    - `errorReportTarget` *(2026-05-13)*: retagged from `\verifyme`
+      to `\unclear`.  Per AGENTS.md tag rules, `\verifyme` implies
+      a hypothesis with a binary referent; this declaration has
+      no matching binary symbol and no caller, so `\unclear` is
+      the accurate marker.  See updated IF-235.
 
 ## Archives
 

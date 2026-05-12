@@ -2605,12 +2605,15 @@ forms were covered.
 ## IF-235  `StaticResources::errorReportTarget()` is a declared-but-undefined orphan helper
 
 **Severity**: low (cosmetic / dead declaration)
-**Status**: **closed-documented** — kept as a declaration with a
-`\verifyme` brief noting it is a binary-faithful orphan; the
-brief in `resources.hpp` was rewritten to be voice-rule clean
-(no addresses, no binary references). No code change beyond
-documentation; declaration retained to mirror the original
-class layout.
+**Status**: **closed-documented** — kept as a declaration with an
+`\unclear` brief (retagged from `\verifyme` in 2026-05-13:
+`\verifyme` implies a hypothesis with a binary referent that
+could be GDB- or test-verified, but no binary symbol matching
+this declaration has been located, so the more accurate marker
+per AGENTS.md tag rules is `\unclear`).  The brief in
+`resources.hpp` notes the absence of both a caller in the
+reconstructed tree and a matching binary symbol; declaration
+retained to mirror the original class layout.
 **Source**: `reconstructed/include/zhinst/runtime/resources.hpp:1081`
 
 ### Observation
@@ -4700,3 +4703,81 @@ because the downstream consumer (`makeDeviceType`) only uses
 the family value where the binary's same lookup also produces
 0x800.  A future regression that adds a code path which
 **reads** the family value will now get the correct one.
+
+## IF-268  `browseTo` recon body diverges from binary on three points
+
+**Severity**: medium (correctness — wrong return type, wrong loop
+exit, narrower file-type check)
+**Status**: **fixed**
+**Source**: `reconstructed/src/core/diagnostics_text.cpp:455`,
+            `reconstructed/include/zhinst/core/diagnostics_text.hpp:147`
+
+### Observation
+
+Static disasm pass at `0x2eb950` (1739 B) revealed three
+divergences between the recon body and the binary:
+
+1. **Return type**: recon was `void browseTo(std::string)`; binary
+   returns `bool` via `setns %bl; mov eax,ebx; ret` — the value
+   is `(system_result >= 0)`.  Notes file already documented this
+   correctly (`bool zhinst::browseTo(std::string path)` at
+   `notes/diagnostics_text.md:1465`); only the source files were
+   stale.
+2. **Empty-parent handling**: recon's outer parent-walk loop did
+   `if (parent.empty()) return;` — exiting the function entirely.
+   Binary's `find_parent_path_size == 0` check at `0x2eb9f6`
+   jumps to `0x2ebbd7`, which is the post-loop second-status
+   probe, not the function exit.  Effect: recon would skip the
+   shellout for any path whose initial `parent_path()` is empty,
+   while the binary would still attempt to `xdg-open` the
+   original path in that case.  Fixed by changing `return` to
+   `break`.
+3. **File-type predicate**: recon stripped to parent only when
+   `st.type() == regular_file` (2).  Binary at `0x2ebd2d`
+   `cmp r14d,0x3; je 0x2ebe6f` strips to parent for **any
+   non-directory type** (regular file, symlink, block/char/fifo/
+   socket, type_unknown — i.e. type ≠ 3).  Effect: recon would
+   open a symlink or other special file directly, while the
+   binary opens its containing directory.  Fixed by changing
+   `== regular_file` to `!= directory_file`.
+
+A fourth gap (also fixed): the binary returns `false` early when
+the surviving path's status type is ≤ `file_not_found` (the
+`cmp r15d,0x1; jbe 0x2ebc50` at `0x2ebc2f`).  Recon was missing
+this guard entirely.
+
+### Action
+
+Source body and header brief rewritten to match the binary.
+Header brief replaces the inaccurate "Linux branch only" framing
+with a description of the actual behaviour (parent-walk
+normalisation, non-directory-to-parent stripping, unconditional
+`xdg-open` shellout) and documents the `bool` return contract.
+The `\binarynote` about the missing quote-escaping is preserved.
+`\verifyme` removed from the brief: the body has been verified
+against the binary by static disasm reading and the recon now
+matches.  The function still has no harness coverage (the
+shellout is not amenable to differential testing without
+intercepting `system()`), but lack of harness coverage is not
+sufficient justification for `\verifyme` once the static
+verification is complete.
+
+### Verification
+
+- Disasm of `0x2eb950..0x2ec01f` cross-checked against recon
+  body line-by-line.
+- 1603/1603 main difftest suite (no regressions; nothing in the
+  test suite reaches `browseTo`).
+- 739/739 diff_unreachable harness (browseTo not covered;
+  unchanged).
+- No new doxygen warnings.
+
+### Lesson
+
+A `\verifyme` marker can hide multiple distinct bugs.  When
+clearing the last few markers in a phase wrap-up, **always**
+re-verify the body against disasm rather than trusting the
+existing recon body or the absence of test failures (the test
+suite never reaches `browseTo`, so static disasm reading is the
+only available verification path).
+

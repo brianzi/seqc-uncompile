@@ -1112,13 +1112,12 @@ protected:
     // dispatches via `[functionPtr_->vtable + 0x30]` which is the standard
     // libc++ __function::__base::__invoke entry. The wrapper hides that ABI
     // detail from call sites in static_resources.cpp.
-    //!
     //! \brief Reconstruction-only helper that would re-package the
     //! inline `std::function` into a fresh callable.
-    //! \verifyme No call site in the reconstructed tree references
-    //!         this declaration and the body has never been
-    //!         reconstructed; retained as a binary-faithful
-    //!         placeholder pending evidence of an actual caller.
+    //! \unclear No call site in the reconstructed tree references
+    //!         this declaration and no matching binary symbol has
+    //!         been located; retained as a hypothesised placeholder
+    //!         pending evidence of an actual caller or symbol.
     //!         See IF-235 (closed-documented).
     //! \return A callable forwarding to the inline warning-reporter
     //!         `std::function` (or an empty `std::function` when none
