@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, D13, and D15 are complete; D14 is open.
+> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, D13, D14, and D15 are complete; D16–D19 are open (cluster reconstruction promoted from D14 inventory).
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -517,8 +517,13 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      a fresh D11-style ticket) to run the trace and resolve.
   4. After the sweep, update the OVERVIEW.md status block.
 
-- [ ] **D14 — Scout still-stubbed surface and unreconstructed library
+- [x] **D14 — Scout still-stubbed surface and unreconstructed library
       symbols for new reconstruction-target clusters**
+      *(closed: full inventory written to
+      `reconstructed/notes/d14_inventory.md` (989 lines, commit
+      `d5fc793`); 14 clusters identified covering 114 absent symbols
+      (~70 KB), 5 hand-written stubs, 62 ABI-divergent entries.
+      Cluster-level work items D16–D19 promoted below.)*
       *(scope: medium; expected outcome: a prioritised cluster list
       with cluster-level work items added back to TODO.md)*
 
@@ -556,6 +561,161 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      subagents for parallelizable mechanical sweeps").  The agent
      should produce the cluster table here in this TODO entry, not
      in a separate notes file.
+
+- [ ] **D16 — Reconstruct `diagnostics_text` cluster (saved for grand finale)**
+      *(scope: large; expected outcome: ~33 KB of XML/JSON/HTML escape,
+      entity-table, URL-rewrite, filename-sanitiser helpers reconstructed;
+      caveat: zero in-recon callers, no difftest can validate, every
+      function will likely carry `\verifyme` or `\unverifiable`)*
+
+  Cluster details: 21 functions, ~33,844 B aggregate
+  (`xmlUnescape` 5290B, `entityNumberToTxt` 4853B, `linkToQuery`
+  4365B, `entityNameToNumber` 3061B, plus 17 smaller helpers — see
+  `reconstructed/notes/d14_inventory.md` §"Cluster:
+  diagnostics_text::core" for per-symbol address/size/string-evidence).
+
+  **Recon-side analysis (D16 prep, 2026-05-12):**
+  - Zero references in `reconstructed/src/` or `reconstructed/include/`
+    to any of the 21 symbols.  Not exposed via `pybind_seqc.cpp`.
+  - Inventory states omitting them does not affect difftests.
+  - Internal call edges (only 3): `xmlUnescapeCopy → xmlUnescape`,
+    `sanitizeInvalidFilename → sanitizeFilename`,
+    `truncateXmlSafe → truncateUtf8Safe`.  All other 18 are leaves.
+  - Same regime as the (closed) `\unverifiable AsmExpression::str`
+    site from D13 — no caller path → no difftest validation → every
+    reconstructed body would carry `\verifyme` or `\unverifiable`,
+    re-inflating the backlog D11/D12/D13 just drained.
+  - Implementation cost: ~10 of 21 use `boost::regex` (string evidence
+    shows literal patterns like `"&#x[0-9a-fA-F]+;|&#[0-9]+;"`), ~8 KB
+    of static XML entity-name/number tables to transcribe byte-for-byte,
+    UTF-8 boundary handling.
+
+  **Decision (2026-05-12)**: deferred to grand finale.  Picking
+  zi_environment (D17) first because it has actual recon callers and
+  observable behaviour.
+
+  Steps when D16 is taken up:
+  1. Decide tag policy up front: blanket `\unverifiable` with
+     "no recon caller" rationale, or attempt boost::regex-based
+     reconstructions with `\verifyme` and accept ~21 new backlog
+     entries.
+  2. Pick a home: new `reconstructed/{include/zhinst,src}/core/diagnostics_text.{hpp,cpp}`
+     pair (no existing file fits).
+  3. Reconstruct in size-descending order so the largest tables /
+     regex patterns get the most-rested attention.
+  4. Skip `csv_waveform_2arg` (cluster 2) — already-reconstructed
+     under a different signature, see inventory §"Cluster:
+     csv_waveform_2arg::io"; if needed, add a thin two-arg wrapper.
+
+- [ ] **D17 — Reconstruct `zi_environment` cluster (`runningOnMfDevice`
+      family + filesystem helpers)**
+      *(scope: small to medium; expected outcome: proper rebuild of the
+      8 cluster members, IF-253 anchor resolved with real body, ~2 KB
+      of code)*
+
+  Cluster details: 8 inventory members + ~4 anonymous-namespace
+  helpers the inventory missed (verified via fresh
+  `nm | c++filt | grep readManifest|isMf`).  Full set:
+
+  - **Public MF detection** (4): `runningOnMfDevice()` 83B (IF-253
+    anchor; current stub at `reconstructed/src/core/stubs.cpp:34`),
+    `runningOnMfDevice(string const&)` 120B,
+    `runningOnMf64Device()` 83B, `runningOnMf64Device(string const&)` 95B.
+  - **Anon-namespace helpers** (4): `readManifest()` 94B,
+    `readManifest(string const&)` 438B, `isMf(ptree const&)` 36B,
+    `isMf64(ptree const&)` 331B.
+  - **Static state**: `laboneManifest` (32B ptree, Meyers singleton),
+    `runningOnMf` / `runningOnMf64` (cached `bool`s with `__cxa_guard`).
+  - **Filesystem helpers** (5, separable from MF detection):
+    `hasMediaDevNode(string const&)` 770B (regex `^/media/sd[a-z][0-9]+$`),
+    `makeDirectories(fs::path const&)` 583B,
+    `canCreateFileForWriting(fs::path const&)` 221B,
+    `markFileHidden(fs::path const&)` 6B (Linux no-op),
+    `initBoostFilesystemForUnicode()` 6B (Linux no-op).
+
+  Existing recon caller: `reconstructed/src/io/zi_folder.cpp:215`
+  invokes `runningOnMfDevice()` from `dataDirectory()` — gating the
+  `/data` vs user-folder branch.  Filesystem helpers have one known
+  internal caller chain: `canCreateFileForWriting` ← `isDirectoryWriteable`.
+
+  Steps:
+  1. **GDB-trace the binary's `readManifest()` and `isMf()` to
+     determine the actual manifest path and JSON/INI key inspected.**
+     Per AGENTS.md "GDB tracing for binary analysis", do this
+     before writing any reconstruction.
+  2. **Reconstruct `readManifest()` + `isMf()` + `isMf64()`**:
+     `boost::property_tree::ptree` parsing, with the verified
+     manifest path from step 1.  Place under
+     `reconstructed/src/core/zi_manifest.cpp` (new file).
+  3. **Reconstruct the 4 public `running*` symbols** as Meyers-
+     singleton-cached wrappers around the anon helpers.  Replace
+     the stub at `core/stubs.cpp:34` with the real body, citing
+     IF-253 in a `\binarynote` (or `\note`).
+  4. **Reconstruct the 5 filesystem helpers** under
+     `reconstructed/src/io/zi_filesystem.cpp` (new file).  The two
+     6-byte Linux no-ops are trivial; `makeDirectories` (583B) has
+     rich error-message string evidence (`"Could not access
+     directory '"`, `"Could not create directory '"`, source-path
+     comment from `zi_folder.cpp`); `hasMediaDevNode` (770B) wraps
+     a single boost::regex.
+  5. Update IF-253 status to "fully resolved" (not just "narrative
+     scrubbed").
+  6. Run the full test suite at each stage; the only behavioural
+     change should be `runningOnMfDevice()` returning the manifest's
+     verdict instead of constant-`false`.  On a PC test host this
+     should still be `false`, so 1603/1603 should hold.  If a test
+     flips, GDB the original on the same input and reconcile.
+
+- [ ] **D18 — Reconstruct `ast_misc` cluster (per-subclass
+      `SeqC*::clone()` virtualisation)**
+      *(scope: medium; expected outcome: 54 missing `clone()` overrides
+      restored, silent-slicing risk eliminated)*
+
+  Cluster details: 54 `SeqC*::clone() const` overrides totalling
+  ~8.5 KB.  Recon currently routes every clone through a single
+  non-virtual `Node::clone()` at `reconstructed/src/ast/node.cpp:221`,
+  meaning per-subclass payloads can be silently sliced when cloned
+  through a `Node*` base pointer.  See inventory §"Cluster:
+  ast_misc::ast" for the condensed per-subclass size table.
+
+  This is a **correctness** issue (unlike D16/D17 which are fidelity).
+  Any AST pass that clones through the base pointer (loop unrolling,
+  template-argument expansion, inlined function bodies) is currently
+  at risk of dropping subclass state.
+
+  Steps:
+  1. Audit every existing clone call site in recon for actual
+     polymorphic vs static use.
+  2. Make `Node::clone()` virtual; provide overrides for every
+     subclass.  Most overrides are 52–212 B (member-wise copy +
+     child-recurse for branches/loops); use the per-subclass binary
+     size as the upper bound on body complexity.
+  3. Add a difftest specifically exercising AST cloning paths if
+     none currently does (loop bodies with nested vars are a
+     candidate).
+
+- [ ] **D19 — Reconstruct small clusters bundle (`exceptions`,
+      `numeric`, `random`, `base64`, `awg_config`, `node_misc`,
+      `compiler_helpers`, `misc`, `anon_helpers`, remaining stubs)**
+      *(scope: small; expected outcome: ~28 small symbols across 10
+      clusters reconstructed in a single batched commit series)*
+
+  Bundles all small/cosmetic clusters from the D14 inventory not
+  covered by D16/D17/D18.  See `reconstructed/notes/d14_inventory.md`
+  for per-symbol detail.  Notable:
+  - `Random::seedRandom()` (297B) — invoked from
+    `custom_functions_playback.cpp:879`; reconstruction may shift
+    `randomUniform` / `randomGaussian` sequences in difftests.
+  - `WavetableFront::dummyWarning()` and
+    `tracing::TraceProvider::~TraceProvider()` — two of the 5
+    user-code stubs whose binary bodies are non-trivial.
+  - `nodeListToJson` (796B, currently inlined into
+    `awg_compiler.cpp:1182`) — pure refactor, no behaviour change.
+
+  Most cluster members have zero recon callers; D16 caveat applies
+  (likely `\unverifiable` regime).  Recommended approach: pick the
+  ones with observable callers first (`Random::seedRandom`,
+  `dummyWarning`, `TraceProvider` dtor), defer the rest.
 
 - [x] **D15 — Tracking-docs cleanup, cross-check, and archive cut**
       _(complete; commits `f321e91` D15.1 cross-check, `0d3eed4` D15.2
