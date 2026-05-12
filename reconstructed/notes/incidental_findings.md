@@ -4268,3 +4268,53 @@ xmlUnescape` passes **24/24**, and the regular regression suite
 remains at **1603/1603** (no caller of `xmlEscapeSeqToInt` is
 reachable via the Python bindings, so this latent bug never broke a
 difftest).
+
+---
+
+## IF-265  `truncateXmlSafe` recon used wrong submatch index and search start
+
+**Severity**: bug
+**Status**: fixed (2026-05-12, Phase E2b)
+
+`reconstructed/src/core/diagnostics_text.cpp::truncateXmlSafe` had
+two interlocking bugs that together caused 6 of 16 diff-test cases
+to fail:
+
+1. **Wrong regex search start.**  The recon walked back from byte
+   `maxBytes` to find the most recent `&` and stored the position in
+   a variable named `searchEnd`, but then passed `data` (not
+   `searchEnd`) as the regex search start.  The `searchEnd`
+   variable was never used.
+
+2. **Wrong submatch index for the boundary check.**  The recon used
+
+       const char* entityEnd = (m.size() >= 3) ? m[3].second
+                                                : m[0].first;
+
+   The pattern `&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|...|&apos;` has no
+   capture groups, so `m[3]` is empty/unmatched (`.first ==
+   .second`).  Worse, the fallback used `m[0].first` (the entity
+   START), so the boundary check was effectively comparing the
+   entity-START to the cut, not the entity-END.  In practice the
+   `if (entityEnd > data + maxBytes)` body almost never fired, and
+   the recon fell through to the raw byte-truncation in
+   `truncateUtf8Safe` — splitting entities mid-sequence.
+
+GDB-tracing the original on `("abc&amp;def", n=5)` showed the
+binary:
+- starts the regex at `data + 3` (the `&` found by the back-up loop),
+- gets `m[0]` = `"&amp;"` at offsets 3..8,
+- compares `m[0].second (= data+8)` to `cut (= data+5)`,
+- since `8 > 5`, calls `string::__erase_external_with_move(s, 3, npos)`,
+- yields `"abc"`.
+
+Fix: pass the back-up `&` position as the regex search start,
+rename the local from `searchEnd` to `entityCandidate`, replace the
+`m.size() >= 3` boundary check with the straightforward
+`m[0].second > cut` test, and erase from `m[0].first - data` (the
+entity start in the string) to end.
+
+After this fix, `tests/diff_unreachable/harness.py` passes
+**481/481** cases across 9 in-place mutators, and the regression
+suite remains at **1603/1603** (truncateXmlSafe is binding-
+unreachable).

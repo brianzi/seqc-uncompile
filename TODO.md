@@ -794,7 +794,7 @@ comparing byte-for-byte outputs.
       `reconstructed/notes/phase_e_harness.md`.
 
 - [~] **E2 — Harness implementation** *(in progress; first-pass
-      9 in-place mutators landed)*
+      9 in-place mutators landed; 481/481 passing)*
 
   Done so far:
   - libc++ test target (`reconstructed/CMakeLists-libcxx-test.txt`)
@@ -817,8 +817,8 @@ comparing byte-for-byte outputs.
   - First-pass coverage: 9 `void f(string&)` / `void f(string&, n)`
     symbols (xmlEscapeCritical, xmlEscapeUtf8Critical, xmlUnescape,
     escapeStringForJson, sanitizeFilename, sanitizeInvalidFilename,
-    quote, truncateUtf8Safe, truncateXmlSafe).  475/481 cases pass
-    after fixes for IF-263 and IF-264 (see below).
+    quote, truncateUtf8Safe, truncateXmlSafe).  481/481 cases pass
+    after fixes for IF-263, IF-264, and IF-265.
 
   Remaining E2 follow-ups:
   - [ ] **E2a — Extend harness to sret return-by-value symbols.**
@@ -831,15 +831,14 @@ comparing byte-for-byte outputs.
         does not natively model this — needs a small helper that
         allocates a libc++ string slot and threads its address as the
         sret arg.
-  - [ ] **E2b — Investigate `truncateXmlSafe` divergence.**  Harness
-        E2 first-pass surfaced 6/16 fails: recon does a raw byte
-        truncation that splits XML entities mid-sequence, whereas the
-        original truncates **before** the entity to keep the result
-        well-formed.  Recon is missing entity-aware backoff logic.
-        Needs GDB-trace of the original on `"abc&amp;def"` with
-        `n=5` to confirm the exact backoff rule (probably: scan
-        backwards from `n` looking for an unmatched `&`).  Likely
-        outcome: recon fix + new IF entry.
+  - [x] **E2b — Investigate `truncateXmlSafe` divergence.**
+        *(done 2026-05-12; see IF-265)*  GDB-traced the original on
+        `("abc&amp;def", n=5)`: confirmed it walks back to the most
+        recent `&`, runs `regex_search` from THAT position (not
+        `data`), and erases from `m[0].first - data` if
+        `m[0].second > cut`.  Recon had two bugs: (a) ignored the
+        back-up `&` position, (b) used wrong submatch index `m[3]`
+        instead of straightforward `m[0]`.  Both fixed.
 
 - [ ] **E3 — Triage findings**
       *(scope: variable, depends on E2 output; outcome: each
@@ -855,9 +854,10 @@ comparing byte-for-byte outputs.
     invented named-entity alternations.  Notes corrected.
   - **IF-264 (`xmlEscapeSeqToInt` missing trim of `&#`/`;`):** fixed.
     Latent bug surfaced by IF-263's fix.
-  - **`truncateXmlSafe`:** open — see E2b above.
+  - **IF-265 (`truncateXmlSafe` wrong submatch index + ignored
+    back-up search start):** fixed.
 
-  Anticipated remaining findings (still expected):
+  Anticipated remaining findings (still expected from E2a):
   - `xmlEscapeUtf8Critical` sign-extension quirk — confirmable on
     any high-byte input; behaviour matches binary, so this becomes
     a confirmed `\binarynote`.

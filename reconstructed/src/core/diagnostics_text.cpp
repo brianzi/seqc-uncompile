@@ -552,34 +552,67 @@ std::string escapeStringForPython(std::string s) {
 }
 
 // ---- truncateXmlSafe — binary @0x2fc690, 817 B ----
+//
+// Notes: diagnostics_text.md §truncateXmlSafe.  Per the binary the
+// regex pattern at .rodata @0x90d072 is the FULL 55-byte
+// numeric+named-entity alternation (distinct from `xmlUnescape`'s
+// numeric-only pattern at @0x90d057).
+//
+// Algorithm:
+//   1. If `s.size() <= maxBytes`, no truncation needed.
+//   2. If `maxBytes == 0`, clear `s`.
+//   3. Walk backwards from byte `maxBytes` looking for the most
+//      recent `&` in `[data, data+maxBytes)`.  This is the search
+//      START for the regex (not the search end); it lets the regex
+//      skip irrelevant prose and only consider entities that begin
+//      within or just before the truncation window.  If no `&` is
+//      found in the window, the search starts at `data`.
+//   4. Run `regex_search` on `[entityCandidate, end)`.  If a match
+//      is found and the matched entity extends past the cut
+//      (`m[0].second > data + maxBytes`), erase from the entity's
+//      start byte (`m[0].first - data`) to the end of the string.
+//   5. Otherwise the cut lands clear of any entity boundary; defer
+//      to `truncateUtf8Safe` to land on a UTF-8 codepoint boundary.
+//
+// IF-265 (fixed): an earlier reconstruction passed `data` (not the
+// back-up search-start) to `regex_search`, used `m.size() >= 3 ?
+// m[3].second : m[0].first` as the boundary test (boost has no
+// capture groups in this pattern → `m[3]` is empty), and named the
+// search-start variable `searchEnd`.  Net effect: the regex picked
+// up the FIRST entity in the string regardless of where it sat
+// relative to the cut, the boundary check resolved to comparing
+// the entity-START to the cut (not the entity-END), and the recon
+// fell through to a raw byte truncation in many cases.  Diff-test
+// surfaced 6 failures, all fixed by the rewrite below.
 void truncateXmlSafe(std::string& s, unsigned long maxBytes) {
     if (s.size() <= maxBytes) return;
     if (maxBytes == 0) { s.clear(); return; }
 
     const char* data = s.data();
     const char* end  = data + s.size();
-    const char* searchEnd = data + maxBytes;
+    const char* cut  = data + maxBytes;
 
-    // Back up to the most recent '&' to expose any partial entity.
-    for (const char* p = searchEnd; p > data; --p) {
-        if (p[-1] == '&') { searchEnd = p; break; }
+    // Walk backwards from `cut` looking for the most recent '&'.
+    // The regex search will start at that '&' (so it only sees
+    // entities that begin at or before the truncation point).  If
+    // no '&' is found, the search starts at `data`.
+    const char* entityCandidate = data;
+    for (const char* p = cut; p > data; --p) {
+        if (p[-1] == '&') { entityCandidate = p - 1; break; }
     }
 
     static const boost::regex regex(
         "&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;");
 
     boost::cmatch m;
-    if (boost::regex_search(data, end, m, regex,
-                            boost::regex_constants::match_default)) {
-        const char* entityEnd =
-            (m.size() >= 3) ? m[3].second : m[0].first;
-        if (entityEnd > data + maxBytes) {
-            // Partial entity straddles the cut — erase from its '&'
-            // onwards.
-            s.erase(static_cast<std::size_t>(m[0].first - data),
-                    std::string::npos);
-            return;
-        }
+    if (boost::regex_search(entityCandidate, end, m, regex,
+                            boost::regex_constants::match_default)
+        && m[0].second > cut) {
+        // The entity straddles or extends past the cut — erase
+        // from its '&' onwards to keep the result well-formed XML.
+        s.erase(static_cast<std::size_t>(m[0].first - data),
+                std::string::npos);
+        return;
     }
     truncateUtf8Safe(s, maxBytes);
 }
