@@ -967,13 +967,18 @@ DeviceTypeCode toDeviceTypeCode(std::string const& s);
 // On miss, returns DeviceFamily(0x800) (one bit beyond VHF=0x400 — the
 // Unknown sentinel that toString renders as "unknown").
 //! \brief Fuzzy reverse lookup from a (possibly option-suffixed)
-//! device-type string to its `DeviceFamily`, using prefix matching
-//! against a small lazily-built name table.
-//! \note Special tokens: `"none"` maps to `DeviceFamily(0)`,
-//! `"DEFAULT"` maps to `DeviceFamily::HF2`, and the SHFACC /
-//! SHFPPC2 / SHFPPC4 prefixes map to `DeviceFamily::SHF`.  On any
-//! other miss the function returns the sentinel `DeviceFamily(0x800)`,
-//! which renders as `"unknown"`.
+//! device-type string to its `DeviceFamily`, using **case-sensitive**
+//! prefix matching against a small lazily-built name table of
+//! uppercase canonical family names.
+//! \note Special tokens (case-sensitive literals): `""` and `"none"`
+//! map to `DeviceFamily(0)`; `"DEFAULT"` maps to `DeviceFamily::HF2`;
+//! `"SHFACC"`, `"SHFPPC2"` and `"SHFPPC4"` map to
+//! `DeviceFamily::SHFACC`.  Any other input is matched against the
+//! 10-entry prefix table (`HF2`, `UHF`, `MF`, `HDAWG`, `SHF`, `PQSC`,
+//! `HWMOCK`, `GHF`, `QHUB`, `VHF`); on a miss the function returns
+//! the sentinel `DeviceFamily(0x800)`, which renders as `"unknown"`.
+//! \binarynote Lower-case input strings (`"hdawg8"`, `"mfli"`, ...)
+//! do **not** match — only uppercase prefixes are recognised.
 DeviceFamily toDeviceFamily(std::string const& s);
 
 // @ 0x2d05b0 — reverse-lookup string -> DeviceOption. Throws on miss

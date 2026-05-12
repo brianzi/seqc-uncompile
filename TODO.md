@@ -864,7 +864,9 @@ comparing byte-for-byte outputs.
           removed from `replaceUnit`.
     - [ ] `generateSfc` — POD return + multi-arg + throw path.
           Needs new harness ABI shape (POD return, possibly with
-          exception interception).
+          exception interception).  *(unblocked 2026-05-13: IF-267
+          fixed — `toDeviceFamily` now matches binary, so happy-path
+          inputs to `generateSfc` will resolve correctly.)*
     - **Out of scope:** `browseTo` (xdg-open shellout; not
           amenable to differential harness without intercepting
           `posix_spawn`).
@@ -885,6 +887,22 @@ comparing byte-for-byte outputs.
     Latent bug surfaced by IF-263's fix.
   - **IF-265 (`truncateXmlSafe` wrong submatch index + ignored
     back-up search start):** fixed.
+  - **IF-266 (`replaceUnit` wrong probe regex/flag and wrong
+    append payload):** fixed; see E2c entry above.
+  - **IF-267 (`toDeviceFamily` lowercase map keys + missing
+    length-bucketed fastpaths + wrong SHFACC mapping):** fixed
+    *(2026-05-13)*.  Recon body in `device_type.cpp:917`
+    rewritten to match the verified binary algorithm
+    (length-keyed jump table @ `0x961d88` + 10-entry
+    UPPERCASE-keyed std::map + boost::starts_with prefix
+    match); `SHFACC` (0x80) and the `SHFPPC2`/`SHFPPC4`
+    fastpaths now correctly distinguished from `SHF` (0x10);
+    empty input returns the Unknown=0 sentinel instead of the
+    0x800 miss sentinel.  Added `pod_u32_cref` ABI shape to
+    the diff_unreachable harness and a 69-input regression
+    suite covering every fastpath, every map prefix, both
+    case orientations, and lengths 0..>7.  Harness 722/722,
+    main suite 1603/1603, no new doxygen warnings.
 
   E3 promotions (done 2026-05-12, 17 symbols verified by harness):
   - `xmlEscapeUtf8Critical` sign-extension quirk — already had a

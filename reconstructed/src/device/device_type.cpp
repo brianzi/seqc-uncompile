@@ -885,76 +885,93 @@ DeviceOptionSet toDeviceOptions(std::vector<std::string> const& opts,
 
 // @ 0x2debd0
 //
-// Fuzzy device-family lookup. Two layers:
+// Fuzzy device-family lookup with two layers (verified by static
+// disassembly + 87-input ctypes probe; see IF-267):
 //
-//   1. Inline fast-path string comparisons via packed-int xor for a
-//      handful of fixed tokens:
-//        "none"     -> DeviceFamily(0)         [the "no family" sentinel]
-//        "DEFAULT"  -> DeviceFamily::HF2       [used by code paths that
-//                                                fall back to HF2]
-//        "SHFACC"   -> DeviceFamily::SHF
-//        "SHFPPC2"  -> DeviceFamily::SHF
-//        "SHFPPC4"  -> DeviceFamily::SHF
-//      (the binary uses 4- and 7-byte packed-int constants like
-//      0x41464853="SHFA"+0x4343="CC" and 0x656e6f6e="none" to compare
-//      the first few characters in a single instruction).
+//   1. A length-keyed jump-table at .rodata 0x961d88 (8 entries,
+//      indexed by `min(len, 7)`; len > 7 bypasses the table and goes
+//      straight to layer 2):
+//        - len 0           -> return DeviceFamily(0) (Unknown=0 sentinel)
+//        - len 1, 2, 3, 5  -> straight to layer 2
+//        - len 4           -> if s == "none" return 0; else layer 2
+//        - len 6           -> if s == "SHFACC" return SHFACC; else layer 2
+//        - len 7           -> if s == "DEFAULT" return HF2;
+//                             if s == "SHFPPC2" or "SHFPPC4" return SHFACC;
+//                             else layer 2
+//      The literal compares are emitted as packed-int xor (e.g.
+//      0x656e6f6e = "none", 0x41464853 ^ 0x4343 = "SHFACC",
+//      0x41464544 ^ 0x544c5541 = "DEFAULT", 0x50464853 ^ 0x32435050
+//      = "SHFPPC2").
 //
 //   2. Slow path: a function-local-static
-//      std::map<std::string, DeviceFamily> populated lazily (under a
-//      __cxa_guard) with 10 entries from anonymous-namespace constant
-//      strings — one per documented family except SHFACC and Unknown:
-//        hf2, uhf, mf, hdawg, shf, pqsc, hwmock, ghf, qhub, vhf.
-//      The lookup uses `upper_bound(s) - 1` to find the candidate key
-//      then verifies via `boost::algorithm::starts_with(s, key)`. On
-//      miss returns DeviceFamily(0x800), the Unknown sentinel.
+//      std::map<std::string, DeviceFamily> populated lazily under
+//      __cxa_guard with **exactly 10 entries**, all UPPERCASE keys:
+//        {"HF2",1}, {"UHF",2}, {"MF",4}, {"HDAWG",8}, {"SHF",0x10},
+//        {"PQSC",0x20}, {"HWMOCK",0x40}, {"GHF",0x100}, {"QHUB",0x200},
+//        {"VHF",0x400}.
+//      Note SHFACC (0x80) is NOT in the map — it is reachable only via
+//      the layer-1 fastpaths.
+//      Lookup uses `upper_bound(s)` then steps back to the largest key
+//      <= s, and verifies via `boost::algorithm::starts_with(s, key)`.
+//      On miss returns DeviceFamily(0x800) (rendered as "unknown").
 //
-// At source level the fast-path tokens are subsumed by the map
-// (DEFAULT is the only one that needs special handling — it's not in
-// the lazy-init table, so without the fast-path it would resolve to
-// Unknown). The reconstruction below preserves DEFAULT and SHFACC/
-// SHFPPCx as explicit checks so it behaves identically to the binary;
-// the rest goes through the table.
+// Lookups are case-sensitive; lower-case device-type strings do not
+// match.
 DeviceFamily toDeviceFamily(std::string const& s) {
-    // Fast-path tokens that don't appear in the lazy-init table:
-    if (s == "none") {
+    auto const n = s.size();
+
+    // jump-table[0]: empty input returns the Unknown=0 sentinel
+    // (distinct from the 0x800 miss sentinel).
+    if (n == 0) {
         return static_cast<DeviceFamily>(0u);
     }
-    if (s == "DEFAULT") {
-        return DeviceFamily::HF2;
-    }
-    // SHFACC / SHFPPC2 / SHFPPC4 also resolve to SHF via the prefix
-    // table below ("shf" prefix-match), but the binary checks them
-    // explicitly first as a string-compare optimization.
-    if (s == "SHFACC" || s == "SHFPPC2" || s == "SHFPPC4") {
-        return DeviceFamily::SHF;
+
+    // Length-keyed literal fastpaths (len 1..7).  len > 7 bypasses
+    // these and goes straight to the map lookup.
+    if (n <= 7) {
+        if (n == 4 && s == "none") {
+            return static_cast<DeviceFamily>(0u);
+        }
+        if (n == 6 && s == "SHFACC") {
+            return DeviceFamily::SHFACC;
+        }
+        if (n == 7) {
+            if (s == "DEFAULT") {
+                return DeviceFamily::HF2;
+            }
+            if (s == "SHFPPC2" || s == "SHFPPC4") {
+                return DeviceFamily::SHFACC;
+            }
+        }
+        // Fall through to map lookup for all other 1..7-length inputs.
     }
 
-    // Lazy-init prefix table. Order doesn't matter for std::map
-    // (alphabetical by key); the values are the one-hot DeviceFamily
-    // bitmask values.
+    // Lazy-init prefix table — 10 uppercase canonical family names.
+    // std::map orders alphabetically; the upper_bound + step-back
+    // idiom locates the largest key <= s, which `starts_with` then
+    // verifies as an actual prefix of s.
     static std::map<std::string, DeviceFamily> const familyNames = {
-        {"hf2",    DeviceFamily::HF2},
-        {"uhf",    DeviceFamily::UHF},
-        {"mf",     DeviceFamily::MF},
-        {"hdawg",  DeviceFamily::HDAWG},
-        {"shf",    DeviceFamily::SHF},
-        {"pqsc",   DeviceFamily::PQSC},
-        {"hwmock", DeviceFamily::HWMOCK},
-        {"ghf",    DeviceFamily::GHF},
-        {"qhub",   DeviceFamily::QHUB},
-        {"vhf",    DeviceFamily::VHF},
+        {"GHF",    DeviceFamily::GHF},
+        {"HDAWG",  DeviceFamily::HDAWG},
+        {"HF2",    DeviceFamily::HF2},
+        {"HWMOCK", DeviceFamily::HWMOCK},
+        {"MF",     DeviceFamily::MF},
+        {"PQSC",   DeviceFamily::PQSC},
+        {"QHUB",   DeviceFamily::QHUB},
+        {"SHF",    DeviceFamily::SHF},
+        {"UHF",    DeviceFamily::UHF},
+        {"VHF",    DeviceFamily::VHF},
     };
 
-    // Find the largest key that is <= s, then verify by prefix.
     auto it = familyNames.upper_bound(s);
     if (it == familyNames.begin()) {
-        return static_cast<DeviceFamily>(0x800u);  // Unknown
+        return static_cast<DeviceFamily>(0x800u);  // miss sentinel
     }
     --it;
     if (boost::algorithm::starts_with(s, it->first)) {
         return it->second;
     }
-    return static_cast<DeviceFamily>(0x800u);  // Unknown
+    return static_cast<DeviceFamily>(0x800u);  // miss sentinel
 }
 
 // ============================================================================

@@ -233,6 +233,7 @@ class Symbol:
     # 'sret_cref3'   = string(const string&,
     #                         const string&,
     #                         const string&)          -> void(sret, string*, string*, string*)
+    # 'pod_u32_cref' = uint32_t f(const string&)      -> uint32_t(string*) [ret in %eax]
     kind: str
 
 # Curated D16 in-place mutators only (first-pass scope).
@@ -293,6 +294,10 @@ SYMBOLS: list[Symbol] = [
     Symbol("replaceUnit",            0x2f7ae0,
            "_ZN6zhinst11replaceUnitERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_S8_",
            "sret_cref3"),
+    # ---- IF-267: scalar return, single string& argument ----
+    Symbol("toDeviceFamily",         0x2debd0,
+           "_ZN6zhinst14toDeviceFamilyERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "pod_u32_cref"),
 ]
 
 
@@ -395,6 +400,40 @@ PER_SYMBOL_EXTRA: dict[str, list[bytes]] = {
         b'\\', b'"', b"'", b'\n', b'\r', b'\t',
         b'\x00abc', b'\x1f',
         b"a'b\"c\\d\ne",
+    ],
+    # IF-267 — exercises every fastpath and every map prefix, plus
+    # case-sensitivity and edge lengths.  Inputs cover:
+    #   - empty (jump-table[0]: returns Unknown=0, distinct from 0x800)
+    #   - lengths 1..7 with and without map-key matches
+    #   - the 4-byte "none" literal fastpath
+    #   - the 6-byte "SHFACC" literal fastpath
+    #   - the 7-byte "DEFAULT", "SHFPPC2", "SHFPPC4" literal fastpaths
+    #   - lower-case counterparts of every uppercase prefix (must
+    #     fall through to the 0x800 sentinel)
+    #   - strings longer than 7 (bypasses the jump table) with and
+    #     without map-key prefixes
+    #   - inputs starting with a key-prefix substring but with a
+    #     suffix (boost::starts_with semantics)
+    "toDeviceFamily": [
+        b"",                                  # jump-table[0] -> 0
+        b"a", b"H", b"S",                     # len 1, no fastpath/map -> 0x800
+        b"MF", b"mf", b"HF", b"hf", b"UH",    # len 2: only "MF" hits map
+        b"SHF", b"shf", b"GHF", b"VHF",       # len 3 map keys
+        b"HF2", b"UHF", b"MFI", b"HDA",
+        b"none", b"NONE", b"MFLI", b"MFIA",   # len 4: none + map prefixes
+        b"PQSC", b"QHUB", b"HDAW", b"SHFA",
+        b"SHFLI", b"UHFLI", b"HDAWG",         # len 5
+        b"SHFQC", b"shfli", b"PQSC1",
+        b"HWMOCK", b"hwmock", b"SHFACC",      # len 6: SHFACC fastpath
+        b"shfacc", b"HDAWG8", b"hdawg8",      # case-sensitive
+        b"SHFSG2", b"SHFQA4", b"UHFAWG",
+        b"GHFLI", b"VHFLI",
+        b"DEFAULT", b"default", b"Default",   # len 7: DEFAULT fastpath
+        b"SHFPPC2", b"shfppc2", b"SHFPPC4",
+        b"SHFPPC8",                           # similar but no fastpath
+        b"HDAWG88", b"SHFQA42",               # len 7 falling through to map
+        b"HDAWG822", b"Something", b"shfqa4", # len > 7 (bypasses jump table)
+        b"VHFLI24", b"UHFLI88",
     ],
 }
 
@@ -523,6 +562,16 @@ def call_sret_cref3(fn: Callable, a: bytes, b: bytes, c: bytes) -> bytes:
         free_string(pa)
 
 
+def call_pod_u32_cref(fn: Callable, data: bytes) -> int:
+    """Call `uint32_t f(const string&)`: the value comes back in
+    %eax (no sret slot)."""
+    arg = make_string(data)
+    try:
+        return int(fn(arg)) & 0xffffffff
+    finally:
+        free_string(arg)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -543,6 +592,9 @@ def iter_inputs(sym: Symbol):
             for n in TRUNCATE_LIMITS:
                 yield ((data, n), f"{_label(data)}|n={n}")
     elif sym.kind in ("sret_cref", "sret_byval"):
+        for data in inputs:
+            yield ((data,), _label(data))
+    elif sym.kind == "pod_u32_cref":
         for data in inputs:
             yield ((data,), _label(data))
     else:
@@ -566,11 +618,17 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "sret_cref3":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p,
                       ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "pod_u32_cref":
+        proto_args = [ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
     fn_orig = orig_fn(sym.orig_offset, None, proto_args)
     fn_cand = cand_fn(sym.cand_mangled, None, proto_args)
+    if sym.kind == "pod_u32_cref":
+        # Override the void return with uint32_t for both sides.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
 
     passed = failed = 0
     for args, label in iter_inputs(sym):
@@ -601,6 +659,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             c3: bytes = args[2]  # type: ignore[assignment]
             o = call_sret_cref3(fn_orig, a3, b3, c3)
             c = call_sret_cref3(fn_cand, a3, b3, c3)
+        elif sym.kind == "pod_u32_cref":
+            data5: bytes = args[0]  # type: ignore[assignment]
+            o = call_pod_u32_cref(fn_orig, data5)
+            c = call_pod_u32_cref(fn_cand, data5)
         else:
             raise ValueError(f"unknown kind: {sym.kind}")
 

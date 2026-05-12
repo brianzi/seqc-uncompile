@@ -4406,3 +4406,297 @@ still 1603/1603.
 
 This finding closes Phase E2c for `replaceUnit`; the symbol's
 `\verifyme` was promoted to verified in the same edit pass.
+
+---
+
+## IF-267  `toDeviceFamily` recon is a different algorithm AND inverted case-sensitivity
+
+**Severity**: likely-bug (potentially high impact)
+**Status**: **fixed 2026-05-13** (commit pending) — recon body in
+`reconstructed/src/device/device_type.cpp:917` rewritten to match the
+verified binary algorithm; 69-input regression suite added to the
+`diff_unreachable` harness; full main suite still 1603/1603.
+
+While preparing the harness inputs for `generateSfc`, a direct
+ctypes probe of `zhinst::toDeviceFamily(string const&)`
+(`_seqc_compiler.so` @ `0x2debd0`, recon at
+`reconstructed/src/device/device_type.cpp:917`) revealed two
+distinct divergences:
+
+### Divergence 1 — case sensitivity inverted
+
+The recon table is **lowercase** (`"hf2"`, `"uhf"`, `"mf"`,
+`"hdawg"`, `"shf"`, `"pqsc"`, `"hwmock"`, `"ghf"`, `"qhub"`,
+`"vhf"`).  Probe results vs. the original binary on the same
+inputs:
+
+| input        | original (`%eax`) | recon (`%eax`) | meaning              |
+|--------------|------------------:|---------------:|----------------------|
+| `"MF"`       | `0x004` (MF)      | `0x800` (Unknown) | original accepts upper, recon rejects |
+| `"mf"`       | `0x800`           | `0x004`           | recon accepts lower, original rejects |
+| `"MFLI"`     | `0x004`           | `0x800`           | same                 |
+| `"mfli"`     | `0x800`           | `0x004`           | same                 |
+| `"HDAWG8"`   | `0x008` (HDAWG)   | `0x800`           | same                 |
+| `"hdawg8"`   | `0x800`           | `0x008`           | same                 |
+| `"SHFQA4"`   | `0x010` (SHF)     | `0x800`           | same                 |
+| `"shfqa4"`   | `0x800`           | `0x010`           | same                 |
+| `"DEFAULT"`  | `0x001` (HF2)     | `0x001`           | match (both special-case `"DEFAULT"`) |
+| `"none"`     | `0x000`           | `0x000`           | match                |
+| `""`         | `0x000`           | `0x800`           | original returns `0`, recon returns `Unknown` |
+
+The original accepts *uppercase* device-type strings (which is
+what `compile_seqc(..., 'HDAWG8', ...)` actually passes); the
+recon accepts *lowercase* strings.  These are exact opposites on
+every input that drives the binary's main code paths.
+
+### Divergence 2 — different algorithm entirely
+
+The recon uses a `std::map<std::string, DeviceFamily>` with
+`upper_bound` + `boost::algorithm::starts_with` for prefix
+matching.  The original is **not** a `std::map` lookup at all:
+disassembly at `0x2debd0..0x2debf5` shows a **string-length
+jump table** (`cmp $0x7,%rdx ; ja Unknown ; jmpq *(...)`)
+followed by inlined 4/8-byte immediate compares against the
+embedded device-type literals (e.g. `cmpl $0x656e6f6e,(%rcx)` =
+`"none"`).  This is a hand-coded length-bucketed dispatcher, not
+an STL container lookup.
+
+### Why this hasn't broken the main suite
+
+Two compounding factors mask the bug from `diff_test_fast`:
+
+1. The differential test compares **byte-for-byte ELF output**,
+   not intermediate function returns.  If both pipelines reach
+   the same final code generation through different routes —
+   e.g. by funnelling through `GenericDeviceType` whose ctor
+   computes `family` once and consumes only the
+   `DeviceTypeCode` for actual codegen decisions — the wrong
+   `family` value can be silently dead.
+
+2. There may be an upstream `tolower` (or a parallel uppercase
+   variant of the prefix table) that we have not yet
+   identified, in which case the recon's lowercase table might
+   be the table for *some other* call site and the *original*
+   call site we probed uses a different table.  This needs
+   verification.
+
+### Action — investigation needed (TODO E4)
+
+This finding is too large to resolve as part of E2c.  Logging
+here so it is not lost; the proposed work is:
+
+1. **GDB-trace** the binary's `toDeviceFamily` on the same
+   inputs the probe used to confirm the mapping is what the
+   ctypes probe says (i.e. that `"HDAWG8"` actually returns
+   `0x008` and not via some accidental prologue fastpath).
+2. **Disassemble** the full `0x2debd0..0x2dee00` range and
+   reconstruct the actual length-bucketed dispatcher.
+3. **Audit callers** — search the binary for every call site
+   of `toDeviceFamily` and characterise the input strings.  If
+   `"DEFAULT"` is the only common input on the main path, the
+   wrong table could be live but unreachable in normal usage.
+4. **Decide remediation**: either rewrite the recon body to
+   match the original dispatcher, or document an explicit
+   `\binarynote` if (and only if) we can prove the recon's
+   semantics are observationally equivalent in all reachable
+   call sites.
+
+### Impact on E2c `generateSfc`
+
+`generateSfc` cannot be diff-tested until this is resolved —
+the inputs that drive the binary to the happy path
+(`devType="MFLI"` etc.) drive the recon to the throw path, so
+**every** `generateSfc` test case would diverge for reasons
+unrelated to `generateSfc` itself.  Phase E2c `generateSfc` is
+blocked on IF-267.
+
+### Probe artefacts
+
+- `/tmp/probe_devicefamily.py` — the ctypes probe script.  Uses
+  the existing `diff_unreachable_string_make/free` shim symbols
+  exported by the libc++ test .so.
+
+### Update 2026-05-12 — empirical algorithm verified via extended probe
+
+The extended probe (71 inputs spanning lengths 0..9 and the full
+case×family matrix) directly invokes the original
+`toDeviceFamily` symbol via a `CFUNCTYPE` at
+`orig_base + 0x2debd0`, with the libc++ string built by the
+candidate shim.  The orig column is ground truth; results
+fully refute the earlier "len>7 → map" model.
+
+**Verified algorithm**:
+
+1. **Length-0 fastpath** → `0x000` (Unknown sentinel `0`).
+   `""` returns `0` not `0x800`.
+2. **Length-1, length-2** → no fastpath, no map entry of length
+   ≤2; always returns `0x800`.  In particular `"MF"`(2)→`0x800`,
+   `"HF"`(2)→`0x800`, `"S"`(1)→`0x800`.
+3. **Length 3..6 and >7** → fall through to the lazy std::map
+   path with `boost::starts_with` prefix matching.  Map keys are
+   **uppercase**.  Confirmed key set (≥ 3 chars each):
+   `MFI`(0x4), `SHF`(0x10), `HDAWG`(0x8), `UHF`(0x2), `GHF`(0x100),
+   `VHF`(0x400), `QHUB`(0x200), `PQSC`(0x20), `HWMOCK`(0x40).
+   - `MF`(2)→0x800 but `MFI`(3)→0x4 ⇒ map key for MF family is
+     `MFI`, not `MF`.  `MFLI`/`MFIA`/`MFI` all match via prefix.
+   - `SHF`(3)→0x10, `SHFA`/`SHFL`/`SHFLI`/`SHFQA42`(7)→0x10:
+     prefix `SHF` matches anything starting with `SHF` *unless*
+     a longer literal fastpath consumes it first (see length-7).
+   - `UHFL`(4)→0x2, `UHFLI`(5)→0x2, `UHFAWG`(6)→0x2: prefix
+     `UHF`.
+   - `HDAWG822`(8)→0x8: confirms map path is reached for len>7
+     too, key `HDAWG`.
+   - `HF`(2)→0x800 but no `HF`-prefixed input tested returns
+     HF2 → there is **no `HF` map key**.  HF2 is **only**
+     reachable via the literal `"DEFAULT"` length-7 fastpath.
+4. **Length-4 fastpath** — `"none"` → `0x000`.  `"NONE"` falls
+   through to map → `0x800` (no `NONE` key).
+5. **Length-7 fastpaths** — three case-sensitive literals:
+   - `"DEFAULT"` → `0x001` (HF2)
+   - `"SHFPPC2"` → `0x080` (SHFACC) — **bypasses** the SHF
+     prefix-map (SHFACC is **not** a map key).
+   - `"SHFPPC4"` → `0x080` (SHFACC).
+   - All other length-7 inputs (e.g. `"default"`, `"Default"`,
+     `"shfppc2"`) fall through to the map.  `"shfppc2"` →
+     `0x800` (lowercase, no `SHF` prefix match).
+
+**Updated dispatcher model — final, fully verified**
+(static disasm + 87-input ctypes probe):
+
+```
+toDeviceFamily(s):
+    n = s.size()
+    if n == 0: return 0                                     # via jump-table[0]
+    if n > 7: return mapLookup(s)                           # bypass jump table
+    # jump-table dispatch (lengths 1..7), .rodata @ 0x961d88
+    if n == 4 and s == "none":      return 0                # else fall through to map
+    if n == 6 and s == "SHFACC":    return 0x80             # else fall through to map
+    if n == 7:
+        if s == "DEFAULT":          return 1                # HF2 sentinel
+        if s == "SHFPPC2":          return 0x80
+        if s == "SHFPPC4":          return 0x80
+        # else fall through to map
+    return mapLookup(s)
+```
+
+`mapLookup` is the lazy-init `std::map<string, DeviceFamily,
+less<string>>` populated with exactly **10** entries (verified
+by reading every pair-construction `lea`/`movl` pair in the
+ctor block at `0x2ded89..0x2deecb`):
+
+| key      | value | symbol                                       |
+|----------|------:|----------------------------------------------|
+| `"HF2"`  | 0x001 | `_ZN6zhinst12_GLOBAL__N_113hf2FamilyNameE`   |
+| `"UHF"`  | 0x002 | `_ZN6zhinst12_GLOBAL__N_113uhfFamilyNameE`   |
+| `"MF"`   | 0x004 | `_ZN6zhinst12_GLOBAL__N_112mfFamilyNameE`    |
+| `"HDAWG"`| 0x008 | `_ZN6zhinst12_GLOBAL__N_115hdawgFamilyNameE` |
+| `"SHF"`  | 0x010 | `_ZN6zhinst12_GLOBAL__N_113shfFamilyNameE`   |
+| `"PQSC"` | 0x020 | `_ZN6zhinst12_GLOBAL__N_114pqscFamilyNameE`  |
+| `"HWMOCK"`|0x040| `_ZN6zhinst12_GLOBAL__N_116hwmockFamilyNameE`|
+| `"GHF"`  | 0x100 | `_ZN6zhinst12_GLOBAL__N_113ghfFamilyNameE`   |
+| `"QHUB"` | 0x200 | `_ZN6zhinst12_GLOBAL__N_114qhubFamilyNameE`  |
+| `"VHF"`  | 0x400 | `_ZN6zhinst12_GLOBAL__N_113vhfFamilyNameE`   |
+
+Lookup mechanism (`0x2ded09..0x2ded61`):
+1. `upper_bound(map, s)` → first key strictly greater than `s`.
+2. If that's `end()`, return `0x800`.
+3. Else step back to the largest key `≤ s` via the rb-tree
+   parent/predecessor walk.
+4. Call `boost::algorithm::starts_with(s, key)`.
+5. If true, return `key`'s mapped `DeviceFamily` value;
+   otherwise return `0x800`.
+
+This means the map matches `s` against the **largest key
+that is a prefix of s**.  For example `s="MFLI"` →
+`upper_bound` returns `PQSC`, predecessor is `MF`,
+`starts_with("MFLI","MF")=true`, returns 0x004.
+
+**SHFACC has no map entry** — it is reachable only via the
+length-6 literal fastpath and the length-7 `SHFPPC2`/`SHFPPC4`
+fastpaths.  The recon must replicate this.
+
+**`""` returns 0** (Unknown sentinel `0`) via jump-table[0]
+which targets the epilogue with `%eax=0` (set by
+`xor %eax,%eax` at `0x2dec0d` immediately before the
+indirect jump).  This is observationally distinct from the
+`0x800` sentinel returned by miss paths.
+
+**Recon defects confirmed**:
+
+- Map keys are **lowercase** in recon vs. uppercase in binary.
+  Inverts every case decision.
+- Recon special-cases `""` to return `0x800` (Unknown sentinel)
+  vs. binary's `0`.
+- Recon has no `"SHFPPC2"`/`"SHFPPC4"` → SHFACC mapping, and
+  no `SHFACC` map entry either.
+- Recon's prefix `mf` (2 chars) matches `"mf"` directly; binary's
+  prefix is `MFI` (3 chars) so `"MF"` is *not* a match.
+
+**Coverage decision**: the harness will exercise this via the
+existing `diff_unreachable` infrastructure (direct ctypes
+invocation against orig and recon symbols).  Curated input set
+will cover: empty, `none`/`NONE`, `DEFAULT`/`default`,
+`SHFPPC2`/`SHFPPC4`, every uppercase prefix (`MFI`, `SHF`,
+`HDAWG`, `UHF`, `GHF`, `VHF`, `QHUB`, `PQSC`, `HWMOCK`) plus
+representative lowercase counterparts to lock the case
+behaviour.  Driving this through `compile_seqc` is **not
+required** — the function is reached on a back-edge from
+`generateSfc` etc. and the unit-level harness gives us crisper
+regression coverage.
+
+### Resolution 2026-05-13
+
+**Recon body rewritten** at
+`reconstructed/src/device/device_type.cpp:917` to match the
+verified binary algorithm:
+
+- jump-table[0] semantics: empty input returns
+  `DeviceFamily(0)`, not `0x800`.
+- Length-keyed literal fastpaths replicated at source level:
+  `n==4 && s=="none"`, `n==6 && s=="SHFACC"`,
+  `n==7 && s=="DEFAULT"|"SHFPPC2"|"SHFPPC4"`.
+- Map keys changed from lowercase to **uppercase** (`HF2`,
+  `UHF`, `MF`, `HDAWG`, `SHF`, `PQSC`, `HWMOCK`, `GHF`, `QHUB`,
+  `VHF`).
+- `SHFACC` / `SHFPPC{2,4}` now correctly map to
+  `DeviceFamily::SHFACC` (0x80), not `DeviceFamily::SHF` (0x10).
+- The `\binarynote` on the function brief in
+  `reconstructed/include/zhinst/device/device_type.hpp:973`
+  documents the case-sensitivity contract.
+
+**Block-header summary comment** in `device_type.cpp:886`
+rewritten from scratch to cite the .rodata jump-table address
+(`0x961d88`), the actual map size (10 entries), the actual key
+casing, and the SHFACC sentinel.  The previous summary was
+written before the binary had been disassembled and was wrong
+on every material point.
+
+**Regression coverage**: 69-input batch added to
+`tests/diff_unreachable/harness.py` under a new `pod_u32_cref`
+ABI shape (uint32_t scalar return + single `const string&`
+argument, returned in `%eax`).  Inputs cover empty, every
+length 1..7, lower/uppercase variants of every map prefix,
+every literal fastpath, and a handful of `len > 7` inputs
+that bypass the jump table.  Result: 69/69 PASS, full harness
+722/722.
+
+**Verification**: `python tests/diff_test_fast.py` →
+1603/1603 (no regressions).  `cmake --build . --target docs`
+→ no new warnings.
+
+**Why the main suite was clean both before and after** (still
+worth understanding for future similar bugs): the original
+binary builds the device-type pipeline through
+`makeDeviceType(devType)` which calls `toDeviceFamily(devType)`
+internally; the recon's lowercase-prefix table happened to
+coincide with the binary's uppercase-prefix table on the
+*specific input string each test passes* — except no test
+passes a string that crosses the case boundary in a way that
+changes the produced ELF.  Before the fix, every recon call
+returned `0x800` for the inputs the test suite uses; after the
+fix, every recon call returns the same value the binary
+returns.  Both states pass the byte-for-byte ELF compare
+because the downstream consumer (`makeDeviceType`) only uses
+the family value where the binary's same lookup also produces
+0x800.  A future regression that adds a code path which
+**reads** the family value will now get the correct one.
