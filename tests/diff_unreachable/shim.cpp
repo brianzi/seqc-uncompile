@@ -18,6 +18,7 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <cstdint>
 #include <new>
 #include <string>
 
@@ -101,5 +102,61 @@ std::size_t diff_unreachable_string_size(const void* p) {
 static_assert(sizeof(std::string) == 24,
               "libc++ std::string is expected to be 24 bytes; "
               "this TU was built against the wrong stdlib.");
+
+}  // extern "C"
+
+// ---------- exception-safe trampoline ----------
+//
+// Several of the in-scope D16 symbols throw on bad input
+// (`generateSfc` raises for non-MF families, `generateMfSfc` raises
+// for unrecognised MF subtypes, etc.).  Letting the throw escape
+// across the ctypes boundary terminates the Python process via
+// libc++abi's terminate handler.  This trampoline catches anything
+// the target throws, copies the exception's `what()` text into the
+// caller's optional out-buffer, and returns a status code:
+//
+//   0 = success, *out_value populated, *what untouched
+//   1 = std::exception thrown; *what populated, *out_value untouched
+//   2 = unknown exception thrown; *what set to "<unknown>"
+//
+// The caller passes a function-pointer cast to the canonical
+// "two-string-args returning uint64_t" shape, which currently
+// covers `generateSfc`.  Adding more shapes is a matter of one
+// extra trampoline each; that's intentional, since each shape has
+// a different ABI.
+
+#include <exception>
+#include <cstring>
+
+extern "C" {
+
+using Fn_pod_u64_cref2 = std::uint64_t (*)(const std::string*,
+                                           const std::string*);
+
+int diff_unreachable_try_pod_u64_cref2(
+        Fn_pod_u64_cref2 fn,
+        const std::string* a,
+        const std::string* b,
+        std::uint64_t* out_value,
+        char* what_buf,
+        std::size_t what_cap) {
+    try {
+        std::uint64_t v = fn(a, b);
+        if (out_value) *out_value = v;
+        return 0;
+    } catch (const std::exception& e) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, e.what(), what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 1;
+    } catch (...) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, "<unknown>", what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 2;
+    }
+}
 
 }  // extern "C"

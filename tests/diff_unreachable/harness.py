@@ -142,6 +142,19 @@ _place_construct = _cand.diff_unreachable_string_place_construct
 _place_construct.restype = None
 _place_construct.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
 
+# Exception-safe trampoline (see shim.cpp).  Lets the harness invoke
+# functions that may throw without aborting the Python process.
+_try_pod_u64_cref2 = _cand.diff_unreachable_try_pod_u64_cref2
+_try_pod_u64_cref2.restype = ctypes.c_int
+_try_pod_u64_cref2.argtypes = [
+    ctypes.c_void_p,  # fn pointer
+    ctypes.c_void_p,  # const string* a
+    ctypes.c_void_p,  # const string* b
+    ctypes.POINTER(ctypes.c_uint64),  # out value
+    ctypes.c_char_p,  # what buffer
+    ctypes.c_size_t,  # what cap
+]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -234,6 +247,8 @@ class Symbol:
     #                         const string&,
     #                         const string&)          -> void(sret, string*, string*, string*)
     # 'pod_u32_cref' = uint32_t f(const string&)      -> uint32_t(string*) [ret in %eax]
+    # 'pod_u64_cref2'= uint64_t f(const string&,
+    #                              const string&)      -> uint64_t(string*, string*) [ret in %rax]
     kind: str
 
 # Curated D16 in-place mutators only (first-pass scope).
@@ -298,6 +313,10 @@ SYMBOLS: list[Symbol] = [
     Symbol("toDeviceFamily",         0x2debd0,
            "_ZN6zhinst14toDeviceFamilyERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
            "pod_u32_cref"),
+    # ---- E2c: 64-bit POD return, two const string& args ----
+    Symbol("generateSfc",            0x2d10b0,
+           "_ZN6zhinst11generateSfcERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_",
+           "pod_u64_cref2"),
 ]
 
 
@@ -472,6 +491,31 @@ TOCHECKEDSTRING_INPUTS: list[bytes | None] = [
 
 TRUNCATE_LIMITS = [0, 1, 2, 3, 5, 7, 10, 22, 23, 100]
 
+# generateSfc: only the MF family reaches the happy path; other families
+# raise (and their throw paths are out of scope at E2c — see TODO.md).
+# Curated (devType, options) pairs cover empty options, single options,
+# multi-option lists, unknown options (silently swallowed), and the
+# four MF devType variants {"MF", "MFI", "MFLI", "MFIA"}.
+GENERATESFC_INPUTS: list[tuple[bytes, bytes]] = [
+    (b"MF",   b""),
+    (b"MFI",  b""),
+    (b"MFLI", b""),
+    (b"MFIA", b""),
+    (b"MFLI", b"F5M"),
+    (b"MFLI", b"MD"),
+    (b"MFLI", b"PID"),
+    (b"MFLI", b"DIG"),
+    (b"MFLI", b"F5M,MD"),
+    (b"MFLI", b"F5M,MD,PID"),
+    (b"MFLI", b"F5M,MD,PID,DIG"),
+    (b"MFLI", b"PID,F5M,MD"),         # ordering should not matter
+    (b"MFLI", b"UNKNOWN"),             # swallowed by the catch-all
+    (b"MFLI", b"F5M,UNKNOWN,MD"),      # mixed valid + unknown
+    (b"MFLI", b","),                   # empty token
+    (b"MFLI", b"F5M,"),                # trailing separator
+    (b"MFLI", b"PLL,MOD,RT"),
+]
+
 
 # ---------------------------------------------------------------- #
 # Test driver.
@@ -572,6 +616,28 @@ def call_pod_u32_cref(fn: Callable, data: bytes) -> int:
         free_string(arg)
 
 
+def call_pod_u64_cref2(fn_addr: int, a: bytes, b: bytes) -> tuple[int | None, str | None]:
+    """Call `uint64_t f(const string&, const string&)` via the
+    exception-safe trampoline.  Returns `(value, None)` on success
+    or `(None, what)` if the callee threw.
+
+    `fn_addr` is the raw function-pointer address (an integer);
+    the trampoline casts it back to the right shape internally."""
+    pa = make_string(a)
+    pb = make_string(b)
+    out = ctypes.c_uint64(0)
+    buf = ctypes.create_string_buffer(256)
+    try:
+        rc = _try_pod_u64_cref2(fn_addr, pa, pb,
+                                ctypes.byref(out), buf, len(buf))
+        if rc == 0:
+            return (int(out.value) & 0xffffffffffffffff, None)
+        return (None, buf.value.decode("utf-8", errors="replace"))
+    finally:
+        free_string(pb)
+        free_string(pa)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -582,6 +648,10 @@ def iter_inputs(sym: Symbol):
     if sym.kind == "sret_cref3":
         for triple in REPLACEUNIT_INPUTS:
             yield (triple, f"({_label(triple[0])}, {_label(triple[1])}, {_label(triple[2])})")
+        return
+    if sym.kind == "pod_u64_cref2":
+        for pair in GENERATESFC_INPUTS:
+            yield (pair, f"({_label(pair[0])}, {_label(pair[1])})")
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
@@ -620,6 +690,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
                       ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "pod_u32_cref":
         proto_args = [ctypes.c_void_p]
+    elif sym.kind == "pod_u64_cref2":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -629,6 +701,12 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         # Override the void return with uint32_t for both sides.
         fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
         fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
+    elif sym.kind == "pod_u64_cref2":
+        # The trampoline takes raw function-pointer addresses, not
+        # ctypes callables.  Resolve both sides to integer addresses.
+        fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
+        fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
+                              ctypes.c_void_p).value or 0    # type: ignore[assignment]
 
     passed = failed = 0
     for args, label in iter_inputs(sym):
@@ -663,6 +741,24 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data5: bytes = args[0]  # type: ignore[assignment]
             o = call_pod_u32_cref(fn_orig, data5)
             c = call_pod_u32_cref(fn_cand, data5)
+        elif sym.kind == "pod_u64_cref2":
+            a6: bytes = args[0]  # type: ignore[assignment]
+            b6: bytes = args[1]  # type: ignore[assignment]
+            o = call_pod_u64_cref2(fn_orig, a6, b6)  # type: ignore[arg-type]
+            c = call_pod_u64_cref2(fn_cand, a6, b6)  # type: ignore[arg-type]
+            # When both sides throw, compare only the *fact* of throw,
+            # not the exception text: RTTI for `zhinst::Exception`
+            # differs between the original (statically-linked,
+            # hidden-visibility libc++) and the candidate (dynamically-
+            # linked libc++), so the original's throw escapes the
+            # trampoline's `catch(const std::exception&)` and is
+            # caught by `catch(...)` as "<unknown>", while the
+            # candidate's throw is caught with full `what()`.  This
+            # is a harness limitation, not a behavioural divergence.
+            if o[0] is None and c[0] is None:
+                # Both threw — collapse to a sentinel pair.
+                o = (None, "<threw>")
+                c = (None, "<threw>")
         else:
             raise ValueError(f"unknown kind: {sym.kind}")
 

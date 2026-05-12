@@ -198,7 +198,6 @@ void xmlEscapeCritical(std::string& s);
 //! \throws zhinst::Exception if the device family resolves to anything
 //!         other than MF (the only family for which an SFC table
 //!         exists in this binary).
-//! \verifyme
 sfc::FeaturesCode generateSfc(const std::string& devType,
                               const std::string& options);
 

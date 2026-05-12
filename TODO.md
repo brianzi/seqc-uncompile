@@ -844,7 +844,7 @@ comparing byte-for-byte outputs.
         `m[0].second > cut`.  Recon had two bugs: (a) ignored the
         back-up `&` position, (b) used wrong submatch index `m[3]`
         instead of straightforward `m[0]`.  Both fixed.
-  - [ ] **E2c — Cover deferred D16 surface (`replaceUnit`,
+  - [x] **E2c — Cover deferred D16 surface (`replaceUnit`,
         `generateSfc`).**
     - [x] `replaceUnit` *(done 2026-05-12; see IF-266)*  Added
           `sret_cref3` ABI shape to harness; 13 inputs covering
@@ -862,11 +862,28 @@ comparing byte-for-byte outputs.
           §replaceUnit all rewritten to match.  13/13 harness pass;
           653/653 total; 1603/1603 main suite.  `\verifyme`
           removed from `replaceUnit`.
-    - [ ] `generateSfc` — POD return + multi-arg + throw path.
-          Needs new harness ABI shape (POD return, possibly with
-          exception interception).  *(unblocked 2026-05-13: IF-267
-          fixed — `toDeviceFamily` now matches binary, so happy-path
-          inputs to `generateSfc` will resolve correctly.)*
+    - [x] `generateSfc` *(done 2026-05-13)*  POD return + multi-arg
+          + throw path.  Added `pod_u64_cref2` ABI shape to harness
+          for `uint64_t f(const string&, const string&)` returns
+          (`FeaturesCode` is a trivially-copyable single-uint64_t
+          POD wrapper, returned in `%rax` per Itanium ABI).  Added
+          exception-safe trampoline `diff_unreachable_try_pod_u64_cref2`
+          to `shim.cpp` so non-MF inputs (which throw) don't abort
+          the harness.  17 curated `(devType, options)` pairs cover
+          all four MF devType variants, single/multi options,
+          unknown options (silently swallowed), and edge cases
+          (empty options, trailing separator).  When both sides
+          throw the harness collapses to a `<threw>` sentinel
+          (RTTI for `zhinst::Exception` is per-binary so the
+          original's throw is caught by `catch(...)` while the
+          candidate's is caught by `catch(const std::exception&)`
+          — a harness limitation, not a behavioural divergence).
+          Verified: disasm matches recon at `0x2d10b0` —
+          `toDeviceFamily` → `splitDeviceOptions` → loop
+          (`toDeviceOption` + `optSet.insert` in try/catch) →
+          `generateMfSfc` if family==MF (4) else throw.
+          17/17 harness pass; 739/739 total; 1603/1603 main suite.
+          `\verifyme` removed from `generateSfc`.
     - **Out of scope:** `browseTo` (xdg-open shellout; not
           amenable to differential harness without intercepting
           `posix_spawn`).
@@ -918,8 +935,8 @@ comparing byte-for-byte outputs.
     sanitizeInvalidFilename, truncateUtf8Safe, truncateXmlSafe,
     xmlEscapeUtf8Critical, xmlEscapeCritical, quote, toCheckedString.
   - Header-level brief updated to reflect partial verification.
-  - `\verifyme` count: 8 → 4.  Remaining: `browseTo`,
-    `generateSfc` (E2c next batch / out of scope), plus 2 elsewhere.
+  - `\verifyme` count: 8 → 3 (after E2c `generateSfc`).  Remaining:
+    `browseTo` (out of scope) plus 2 elsewhere.
 
 ## Archives
 

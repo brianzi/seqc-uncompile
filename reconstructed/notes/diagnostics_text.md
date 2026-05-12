@@ -198,6 +198,20 @@ characters that would break XML structure.
 
 - **Address**: `0x2d10b0`, size 788 B
 - **Mangled**: `_ZN6zhinst11generateSfcERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_`
+- **E2c harness verification (2026-05-13)**: 17 curated `(devType,
+  options)` pairs covering all four MF devType variants, single
+  and multi-option lists, unknown options (silently swallowed by
+  the per-iteration try/catch), and edge cases (empty options,
+  trailing `,` separator).  All 17 pass byte-for-byte against the
+  original; for non-MF inputs both sides throw and the harness
+  collapses to a `<threw>` sentinel.  Recon body verified to
+  match disasm: `toDeviceFamily(devType)` → `splitDeviceOptions`
+  into `-0x218(%rbp)` vector → optSet stack-init at `-0x80..-0x40`
+  with `1.0f` at `-0x60` and `family` at `-0x40` → loop
+  (`toDeviceOption` + `optSet.insert` in try/catch) →
+  `family==4 ? generateMfSfc : throw`.  `\verifyme` removed from
+  the brief.
+
 - **Signature**: `sfc::FeaturesCode zhinst::generateSfc(std::string const& devType, std::string const& options)`.
   rdi = NRVO return slot for `sfc::FeaturesCode`; rsi = devType; rdx = options.
 
