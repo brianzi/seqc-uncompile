@@ -122,7 +122,7 @@ struct PlayConfig {
     //! excluded as a transient dispatch flag). `hold` is only
     //! compared when `rate > 0` because `hold` is irrelevant for a
     //! default-rate or stopped playback.
-    //! \binarynote The asymmetry around `now` and `hold` means two
+    //! \warning The asymmetry around `now` and `hold` means two
     //! configurations may compare equal despite differing `now` /
     //! `hold` values; do not use this operator as a substitute for
     //! exact memberwise equality.

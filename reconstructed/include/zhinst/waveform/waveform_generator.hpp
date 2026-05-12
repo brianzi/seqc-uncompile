@@ -783,7 +783,7 @@ public:
      *  \return  Signal of `length` samples (single channel).
      *  \throws WaveformGeneratorException  on wrong argument count
      *          or if `beta == 0`.
-     *  \binarynote The 4-argument overload reports its third
+     *  \note The 4-argument overload reports its third
      *          parameter in error messages as `"3 (position)"` and
      *          its fourth as `"3 (beta)"` — both literal strings
      *          are arity-blind and do not track the user-visible
@@ -853,7 +853,7 @@ public:
      *  \param args  3 or 4 arguments.
      *  \return  Signal of `length` samples (single channel).
      *  \throws WaveformGeneratorException  on wrong argument count.
-     *  \binarynote The user-visible parameter name in error messages is
+     *  \note The user-visible parameter name in error messages is
      *              `sigma`, not `width`; the recon previously used
      *              `"width"` (see IF-232).
      */
@@ -1122,7 +1122,7 @@ public:
      *  \param args  3, 4, or 5 arguments.
      *  \return  Signal of `length` samples (single channel).
      *  \throws WaveformGeneratorException  on wrong argument count.
-     *  \binarynote The 3-argument overload reports its `position` and
+     *  \note The 3-argument overload reports its `position` and
      *          `beta` parameters in error messages as
      *          `"3 (position)"` and `"4 (beta)"` even though the
      *          user passes them in slots 2 and 3 — the literal
