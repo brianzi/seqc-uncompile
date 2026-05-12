@@ -73,18 +73,18 @@ public:
     //! \return `true` only while a line-comment scope is active.
     bool isLineComment() const;
     //! \brief Begins block-comment state.
-    //! \binarynote No-op when already inside a line comment, so an
+    //! \note No-op when already inside a line comment, so an
     //! embedded `/` followed by `*` inside `//` line text does not
     //! start a block scope.  See IF-169 for the symmetric end-marker
     //! no-op.
     void startBlockComment();                 // 0x247c40
     //! \brief Ends block-comment state.
-    //! \binarynote No-op when inside a line comment, so a stray
+    //! \note No-op when inside a line comment, so a stray
     //! block-comment end marker inside a `//` line is harmless
     //! rather than terminating comment state mid-line (IF-169).
     void endBlockComment();                   // 0x247c60
     //! \brief Begins line-comment state.
-    //! \binarynote No-op when already inside a block comment.
+    //! \note No-op when already inside a block comment.
     void startLineComment();                  // 0x247c00
     //! \brief Ends line-comment state at the next newline.
     //! \note No-op when inside a block comment (mirrors `startLineComment`).

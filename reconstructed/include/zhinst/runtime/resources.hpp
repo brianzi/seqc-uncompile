@@ -478,7 +478,7 @@ public:
         //! \brief Return a fresh clone of the stored body via
         //! `body->doClone()`.
         //! \return Newly-cloned AST tree owning its nodes.
-        //! \binarynote Performs no null check on `body`; calling
+        //! \warning Performs no null check on `body`; calling
         //!         this on a `Function` that has not had a body
         //!         installed dereferences a null pointer, matching
         //!         the binary.
@@ -877,7 +877,7 @@ public:
     //! \return `EvalResultValue` with `varType_ = Cvar`.
     //! \throws ResourcesException On unknown name, write-direction
     //!         read of an unwritten slot, or wrong type.
-    //! \binarynote The wrong-type diagnostic uses
+    //! \note The wrong-type diagnostic uses
     //!         `TypeMismatchWrite` (not `TypeMismatchRead`) and
     //!         names the expected type as the literal `"CVAR"`
     //!         rather than `str(VarType_Cvar)`.

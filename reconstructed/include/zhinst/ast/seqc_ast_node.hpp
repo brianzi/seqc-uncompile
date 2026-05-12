@@ -235,7 +235,7 @@ protected:
     EValueCategory  valueCategory_;  // +0x08
     //! \brief 1-based source line number recorded at construction;
     //! used by diagnostics and AST printing.
-    //! \binarynote `SeqCVariable::print()` reinterprets this slot as a
+    //! \note `SeqCVariable::print()` reinterprets this slot as a
     //! `VarType` for display — an overloaded meaning in that one
     //! subclass.
     int             lineNr_;         // +0x0C  Source line number. (Resolves unknown #96.)
