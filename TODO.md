@@ -1236,6 +1236,192 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   suite passes 1603/1603 (no observable change since the two
   tables agree on shared keys).  IF-251 marked **fixed**.
 
+- [ ] **D11 — Resolve the lone remaining `\unclear` site (and any new `\verifyme`)**
+      *(scope: small; expected outcome: drive `\unclear` count to 0)*
+
+  After D7 the open backlog is `\unclear=1`, `\verifyme=0`.  The single
+  surviving `\unclear` is unknown without inspection — the first task
+  is to identify it via `./reconstructed/docs/coverage.sh` plus a
+  targeted grep across `reconstructed/{include,src}/`.
+
+  Steps:
+  1. Locate the `\unclear` site; record the symbol, file:line, and
+     the surrounding behavioural question in a short audit table at
+     the top of this entry.
+  2. Triage the site against the verify-then-write rules in AGENTS.md:
+     - If a hypothesis exists → demote to `\verifyme` with the
+       hypothesis spelled out, then fall through to step 3.
+     - If the behaviour is genuinely unknowable from disassembly →
+       upgrade to `\unverifiable` with a brief justification.
+     - If the behaviour can be confirmed by GDB / reading the body →
+       resolve outright (delete the tag, replace with verified prose).
+  3. For any `\verifyme` produced in step 2, run a GDB trace against
+     `_seqc_compiler.so` per the AGENTS.md "GDB tracing" recipe to
+     confirm or refute the hypothesis; convert to verified prose on
+     confirm, or to `\unverifiable` on refute.
+  4. Final state: `\unclear=0`, `\verifyme=0`.  Update the OVERVIEW.md
+     status block with the new counts.
+
+- [ ] **D12 — Audit `\binarynote` sites (40) for reclassification**
+      *(scope: medium; expected outcome: drive count down via Tighten
+      to `\note` / `\warning` / verified prose where appropriate)*
+
+  Per AGENTS.md voice rules, `\binarynote` is reserved for
+  **non-idiomatic caller-visible surprise** that the caller must be
+  aware of.  Many of the 40 surviving sites were filed before `\note`
+  and `\warning` were sanctioned as Tighten targets and likely qualify
+  for demotion.  D-AUDIT-1 already established the precedent of
+  demoting parameter-label `\binarynote`s; this phase generalises that
+  sweep.
+
+  Steps:
+  1. Enumerate all 40 sites
+     (`grep -rn '\\binarynote' reconstructed/{include,src}/`).
+     Build a one-row-per-site triage table with: file:line, symbol,
+     current `\binarynote` body, and a proposed disposition:
+     - **keep** — genuine non-idiomatic caller-visible surprise.
+     - **→ `\note`** — informational, no caller invalidation hazard
+       (e.g. device-gating notes, internal-codename → family-name
+       rephrasings per AGENTS.md voice-rule guidance).
+     - **→ `\warning`** — caller-invalidation surprise (returned
+       reference invalidated by the next call, etc.).
+     - **delete** — the surprise no longer applies after a later
+       reconstruction or rename; replace with verified prose.
+  2. Apply the proposed dispositions in batches (≤10 sites per
+     commit) so any incidental discoveries stay attributable.
+  3. After the sweep, update the OVERVIEW.md status block with the
+     new `\binarynote` count and a one-line summary of the
+     disposition split.
+  4. **Followup**: any **\\binarynote → keep** disposition that
+     points to a still-stubbed binary behaviour should be promoted
+     into D14 (scout cluster) for prioritisation as a real
+     reconstruction target.
+
+- [ ] **D13 — Audit `\unverifiable` sites (5) for promotability**
+      *(scope: small; expected outcome: confirm each truly is unverifiable
+      from disassembly, or promote to `\verifyme` + GDB trace)*
+
+  Five `\unverifiable` sites exist (per current coverage.sh):
+  `reconstructed/include/zhinst/codegen/prefetch.hpp:1138`,
+  `reconstructed/src/codegen/prefetch_placesingle.cpp:1109`,
+  `reconstructed/include/zhinst/io/elf_reader.hpp:228`,
+  `reconstructed/include/zhinst/asm/asm_expression.hpp:243` +
+  `reconstructed/src/asm/asm_expression.cpp:205`,
+  `reconstructed/include/zhinst/infra/logging.hpp:69`.
+
+  Steps:
+  1. For each site, re-read the surrounding context plus the
+     original `\unverifiable` rationale prose.  Decide whether the
+     "cannot be verified from disassembly" claim still holds in
+     light of subsequently-developed reconstruction tooling
+     (GDB recipes in AGENTS.md, IF-244/246 dead-label techniques,
+     the libc++/libstdc++ ABI notes, etc.).
+  2. If still genuinely unverifiable: tighten the rationale prose
+     so it explains *why* (e.g. "compiled-out diagnostic path with
+     no observable side effect") and leave `\unverifiable` in
+     place.
+  3. If now verifiable by GDB: demote to `\verifyme` with a
+     concrete hypothesis and add a follow-up sub-task to D11 (or
+     a fresh D11-style ticket) to run the trace and resolve.
+  4. After the sweep, update the OVERVIEW.md status block.
+
+- [ ] **D14 — Scout still-stubbed surface and unreconstructed library
+      symbols for new reconstruction-target clusters**
+      *(scope: medium; expected outcome: a prioritised cluster list
+      with cluster-level work items added back to TODO.md)*
+
+  No structured inventory currently exists of which `_seqc_compiler.so`
+  symbols are still stub-only or absent from the recon.  This phase
+  produces one and groups the remaining surface into clusters worth
+  attacking together.  IF-253's `runningOnMfDevice` proper rebuild is
+  one such candidate and should appear in the resulting cluster list.
+
+  Steps:
+  1. Build the inventory.  For each defined symbol in
+     `_seqc_compiler.so` (via `nm -D --defined-only` filtered to
+     `zhinst::` namespace), classify as one of:
+     - **reconstructed** — has a body in `reconstructed/src/`
+       beyond a trivial stub.
+     - **stubbed** — present in recon but body is constant /
+       trivially short / has a "stub" comment.
+     - **absent** — no recon counterpart exists at all.
+  2. Cluster the stubbed/absent set by subsystem (asm/ ast/
+     codegen/ core/ device/ infra/ io/ runtime/ waveform/) and by
+     functional theme (e.g. "device-environment detection",
+     "LabOne manifest parsing", "diagnostics formatting", "ELF
+     reader corner cases", "wavemem accounting helpers").
+  3. For each cluster: count members, estimate per-symbol size from
+     `nm --print-size` or objdump, and write a 2-3 sentence
+     description of what the cluster appears to implement.  Flag
+     clusters where a single symbol gates many others ("anchor
+     symbols").
+  4. Promote each cluster (or promising single anchor symbol) into
+     a TODO.md entry sized appropriately — small/medium clusters
+     become individual D-NN entries; large clusters get their own
+     parent + sub-tasks.
+  5. Delegation: this phase is largely mechanical inventory work
+     and is a natural fit for a subagent (per AGENTS.md "use
+     subagents for parallelizable mechanical sweeps").  The agent
+     should produce the cluster table here in this TODO entry, not
+     in a separate notes file.
+
+- [ ] **D15 — Tracking-docs cleanup, cross-check, and archive cut**
+      *(scope: medium; expected outcome: living docs trimmed,
+      historical content archived, all three tracking surfaces in
+      sync)*
+
+  The active tracking surfaces have grown to:
+
+  | Surface | Lines | Notes |
+  | ------- | ----:| ----- |
+  | `TODO.md` | 1277 | 14 closed top-level work items inline; only oldest archived to `archive/TODO_phases_*.md` |
+  | `OVERVIEW.md` | 1233 | 4 historical "Phase D/R/S — Symbol Renames" sections still inline |
+  | `reconstructed/notes/incidental_findings.md` | 7383 | 155 IFs (IF-100..IF-254); only IF-1..IF-99 archived |
+  | `reconstructed/notes/unknowns.md` | 144 | small, current |
+
+  Existing archive precedent (`reconstructed/notes/archive/IF_1-99.md`,
+  ~1363 lines) shows IFs are archived in batches of ~100; IF-100..IF-200
+  is the obvious next cut, ideally restricted to entries whose status
+  is **fixed / dismissed / kept / resolved / kept (documented)** so
+  open IFs stay surfaced in the active file.
+
+  Steps:
+  1. **Cross-check pass** (no archiving yet): walk TODO.md, OVERVIEW.md,
+     and incidental_findings.md and verify they agree on the closed
+     state of each completed phase / IF.  Fix any disagreement
+     (typically OVERVIEW status blocks or IF status fields lagging
+     a TODO close).  Record any inconsistency found as an IF
+     entry before fixing it (per AGENTS.md incidental-discovery
+     rule).
+  2. **TODO.md trim**: identify closed top-level items whose entire
+     body content is reproduced elsewhere (commit messages, OVERVIEW
+     status blocks).  Compress those to a one-line summary +
+     commit-ref + "see archive" pointer; full body moves to a new
+     `archive/TODO_phases_D0-D10_D-AUDIT-1-3.md` (or similar) only
+     if length-warranted.  Items completed within the last ~5
+     commits stay inline as a recency window.
+  3. **OVERVIEW.md trim**: move the three "Symbol Renames (Phase D/R/S)"
+     sections (lines 356–442 inclusive, per current grep) to
+     `archive/OVERVIEW_symbol_renames_phases_DRS.md`; replace with
+     a short pointer paragraph.
+  4. **IF archive cut**: move all **closed** IFs in the IF-100..IF-200
+     range from `incidental_findings.md` to a new
+     `archive/IF_100-200.md`.  Open IFs in that range stay in the
+     active file.  Keep IF-201..IF-254 inline.  Update the
+     "Other living references" block in TODO.md and the README of
+     `archive/` to point at the new archive file.
+  5. **Coherence final check**: re-run a grep-based audit that the
+     archive split didn't break any inline references
+     (`grep -rn 'IF-1[0-9][0-9]' reconstructed/ TODO.md OVERVIEW.md`
+     against the post-split active file should not produce
+     dangling pointers).
+  6. Commit the cleanup as one or two focused commits (cross-check
+     fixes; archive cut), each with the test score and 0 doxygen
+     warnings verified.
+
+  This phase is independent of D11/D12/D13/D14 and may run in
+  parallel with them.
+
 ## Archives
 
 All historical reconstruction work is preserved under
