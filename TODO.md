@@ -850,7 +850,7 @@ comparing byte-for-byte outputs.
       divergence becomes either an IF, a recon fix, or a documented
       `\binarynote` preserving an intentional binary quirk)*
 
-  Findings to date (Phase E2 first-pass):
+  Findings to date (Phase E2 first-pass + E2a):
   - **IF-262 (xmlUnescape post-pass):** dismissed — based on a wrong
     notes claim about the `.rodata` regex pattern.  See IF-263.
   - **IF-263 (wrong regex pattern in `xmlUnescape`):** fixed.
@@ -862,12 +862,22 @@ comparing byte-for-byte outputs.
   - **IF-265 (`truncateXmlSafe` wrong submatch index + ignored
     back-up search start):** fixed.
 
-  Anticipated remaining findings (still expected from E2a):
-  - `xmlEscapeUtf8Critical` sign-extension quirk — confirmable on
-    any high-byte input; behaviour matches binary, so this becomes
-    a confirmed `\binarynote`.
-  - `sanitizeInvalidFilename` regex gaps for `LPT[1-9]`, `AUX`, etc.
-    — confirmable; binary has the same gap, so `\binarynote`.
+  E3 promotions (done 2026-05-12, 17 symbols verified by harness):
+  - `xmlEscapeUtf8Critical` sign-extension quirk — already had a
+    `\binarynote`; updated to record that the harness has now
+    confirmed the negative-decimal output across high-byte inputs.
+  - `sanitizeInvalidFilename` `COM[1-9]|PRN`-only gap — promoted
+    from `\note` to `\binarynote` (24 harness cases including all
+    eight reserved-stem families confirm the gap is binary-faithful).
+  - 17 in-scope D16 functions had `\verifyme` removed: xmlUnescape,
+    xmlUnescapeCopy, entityNumberToTxt, entityNameToNumber,
+    linkToQuery, queryToLink, escapeStringForCsharp,
+    escapeStringForJson, escapeStringForPython, sanitizeFilename,
+    sanitizeInvalidFilename, truncateUtf8Safe, truncateXmlSafe,
+    xmlEscapeUtf8Critical, xmlEscapeCritical, quote, toCheckedString.
+  - Header-level brief updated to reflect partial verification.
+  - `\verifyme` count: 8 → 5.  Remaining: `replaceUnit`, `browseTo`,
+    `generateSfc` (all in TODO E2c / out of scope).
 
 ## Archives
 

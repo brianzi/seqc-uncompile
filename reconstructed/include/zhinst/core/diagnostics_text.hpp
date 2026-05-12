@@ -10,9 +10,12 @@
 //! purposes (e.g. AWG status panels, error-report formatters).
 //!
 //! Because the compiler test suite cannot reach any of these symbols
-//! through the Python bindings, every public function in this header
-//! carries \verifyme.  A separate diff-test harness (see TODO Phase E)
-//! is required to validate them against the original binary.
+//! through the Python bindings, a separate diff-test harness
+//! (`tests/diff_unreachable/harness.py`, see TODO Phase E) was built
+//! to validate them against the original binary.  17 of the 19
+//! callable functions in this header have been verified by that
+//! harness across 640 input cases; remaining `\verifyme` markers
+//! identify the symbols still pending harness coverage.
 
 #pragma once
 
@@ -32,13 +35,11 @@ namespace zhinst {
 //! into the corresponding 4-byte UTF-8 sequence.
 //!
 //! \param s  String to decode in place.
-//! \verifyme
 void xmlUnescape(std::string& s);
 
 //! \brief Copy-returning wrapper around xmlUnescape.
 //! \param s  Input string (consumed by value).
 //! \return Decoded copy of \p s.
-//! \verifyme
 std::string xmlUnescapeCopy(std::string s);
 
 //! \brief Replace numeric HTML entities (`&#NNN;`) with short symbolic
@@ -49,7 +50,6 @@ std::string xmlUnescapeCopy(std::string s);
 //!
 //! \param s  Input string.
 //! \return Copy of \p s with numeric entities substituted.
-//! \verifyme
 std::string entityNumberToTxt(const std::string& s);
 
 //! \brief Replace seven named HTML entities (`&amp;`, `&Omega;`,
@@ -61,14 +61,12 @@ std::string entityNumberToTxt(const std::string& s);
 //!
 //! \param s  Input string.
 //! \return Copy of \p s with named entities converted to numeric form.
-//! \verifyme
 std::string entityNameToNumber(const std::string& s);
 
 //! \brief URL-decode the query portion of an external link (turns
 //!        `%XX` triples back into raw bytes).
 //! \param link  URL-encoded query string.
 //! \return Decoded copy.
-//! \verifyme
 std::string linkToQuery(const std::string& link);
 
 //! \brief URL-encode reserved characters (`+`, `,`, `/`, CR, LF) into
@@ -76,14 +74,12 @@ std::string linkToQuery(const std::string& link);
 //!        character set actually escaped.
 //! \param q  Query string to encode.
 //! \return URL-encoded copy.
-//! \verifyme
 std::string queryToLink(const std::string& q);
 
 //! \brief Escape \p s as a C# string literal body (`\\`, `\"`, `\n`,
 //!        ...).  Does not add surrounding quotes.
 //! \param s  Input string (consumed by value).
 //! \return Escaped copy.
-//! \verifyme
 std::string escapeStringForCsharp(std::string s);
 
 //! \brief Escape \p s as a JSON string literal body in-place (without
@@ -91,7 +87,6 @@ std::string escapeStringForCsharp(std::string s);
 //!        replaces XML-encoded quote entities `&quot;` / `&#34;` /
 //!        `&#x22;` with `\\$&` and a final `"` → `&#0034;` swap.
 //! \param s  String to escape in place.
-//! \verifyme
 void escapeStringForJson(std::string& s);
 
 //! \brief Escape \p s as a Python string literal body.  Handles ten
@@ -100,7 +95,6 @@ void escapeStringForJson(std::string& s);
 //!        non-printables.
 //! \param s  Input string (consumed by value).
 //! \return Escaped copy.
-//! \verifyme
 std::string escapeStringForPython(std::string s);
 
 //! \brief Replace filesystem-reserved characters and `../` traversal
@@ -111,19 +105,21 @@ std::string escapeStringForPython(std::string s);
 //! (only `..` followed by a path separator is stripped).
 //!
 //! \param s  Filename string to sanitise in place.
-//! \verifyme
 void sanitizeFilename(std::string& s);
 
 //! \brief Apply sanitizeFilename and additionally rename Windows
 //!        reserved stems (e.g. `COM1..COM9`, `PRN`).
 //!
-//! \note The pattern observed in the binary is `COM[1-9]|PRN` with no
-//!       anchors; classical reserved names `LPT[1-9]`, `AUX`, `CON`,
-//!       `NUL` are NOT covered.  This may be a defect in the original
-//!       but is preserved verbatim for byte-for-byte compatibility.
+//! \binarynote The pattern in the binary is `COM[1-9]|PRN` with no
+//!             anchors; classical reserved names `LPT[1-9]`, `AUX`,
+//!             `CON`, `NUL` are NOT covered, and substring matches
+//!             (e.g. `"COM1.txt"` → `"COMx.txt"`) trigger.  Confirmed
+//!             by the diff-test harness across 24 cases including all
+//!             eight reserved-stem families and `COM1.txt` /
+//!             `PRN.log`.  Surprising for callers who expect the full
+//!             Win32 reserved-name set — preserved verbatim.
 //!
 //! \param s  Filename string to sanitise in place.
-//! \verifyme
 void sanitizeInvalidFilename(std::string& s);
 
 //! \brief Replace each unit substring in \p text matching \p unit with
@@ -154,14 +150,12 @@ void browseTo(std::string url);
 //!        cut on a UTF-8 codepoint boundary.
 //! \param s         String to truncate in place.
 //! \param maxBytes  Maximum permitted byte length.
-//! \verifyme
 void truncateUtf8Safe(std::string& s, unsigned long maxBytes);
 
 //! \brief Truncate \p s like truncateUtf8Safe but additionally avoid
 //!        cutting inside an XML character/entity reference.
 //! \param s         String to truncate in place.
 //! \param maxBytes  Maximum permitted byte length.
-//! \verifyme
 void truncateXmlSafe(std::string& s, unsigned long maxBytes);
 
 //! \brief In-place escape of bytes for inclusion as XML character data:
@@ -171,9 +165,10 @@ void truncateXmlSafe(std::string& s, unsigned long maxBytes);
 //!             `boost::format("&#%03d;")` call, which means high bytes
 //!             render as **negative** decimals (`&#-NNN;`) — invalid
 //!             XML but preserved here for byte-for-byte compatibility.
+//!             Confirmed by the diff-test harness across high-byte
+//!             inputs (`\x80`, `\xa0\xff`, etc.).
 //!
 //! \param s  String to escape in place.
-//! \verifyme
 void xmlEscapeUtf8Critical(std::string& s);
 
 //! \brief In-place escape of the three structurally critical XML
@@ -184,7 +179,6 @@ void xmlEscapeUtf8Critical(std::string& s);
 //! lookahead but never produced (double quotes pass through).
 //!
 //! \param s  String to escape in place.
-//! \verifyme
 void xmlEscapeCritical(std::string& s);
 
 //! \brief Generate the SFC FeaturesCode for an MF-family device.
@@ -204,7 +198,6 @@ sfc::FeaturesCode generateSfc(const std::string& devType,
 //! \param p  C string pointer (may be null).
 //! \return `std::string(p)` if \p p is non-null, otherwise an empty
 //!         string.
-//! \verifyme
 std::string toCheckedString(const char* p);
 
 }  // namespace zhinst

@@ -70,8 +70,10 @@ int xmlEscapeSeqToInt(std::string::const_iterator first,
 // "normalise" them (e.g. the `&gt` with no trailing semicolon in the
 // xmlUnescape regex is intentional and matches the binary).
 //
-// All four functions carry \verifyme in the public header — they have
-// no in-tree callers and are tested via the diff-test harness only.
+// All four functions are tested via the diff-test harness
+// (`tests/diff_unreachable/harness.py`) — they have no in-tree callers
+// and the harness has confirmed binary-faithful behaviour across the
+// curated input corpus (see Phase E2/E2a in TODO.md).
 // ---------------------------------------------------------------------------
 
 // ---- xmlUnescape — binary @0x2fadd0, 5290 B ----
@@ -409,7 +411,9 @@ std::string replaceUnit(const std::string& text,
     if (hasIndex) {
         // Suffix-stripping streaming path.  Binary appends the *entire
         // original input* after " (", not the suffix-stripped form —
-        // preserved verbatim; see \verifyme in diagnostics_text.md.
+        // preserved verbatim; see diagnostics_text.md §replaceUnit.
+        // (replaceUnit is still pending diff-test harness coverage —
+        // tracked as Phase E2c in TODO.md.)
         std::string out;
         boost::regex_replace(
             std::back_inserter(out),
@@ -669,7 +673,8 @@ void xmlEscapeUtf8Critical(std::string& s) {
     // SIGN-EXTENDED int, so 0xC3 → -61 → "&#-61;".  The binary uses a
     // signed load (movsbl) followed by boost::format("&#%03d;") on the
     // signed int; this is reproduced verbatim for byte-for-byte
-    // compatibility.  See diagnostics_text.md \verifyme note.
+    // compatibility.  See the \binarynote on xmlEscapeUtf8Critical
+    // and diagnostics_text.md.
     for (std::size_t i = 0; i < s.size(); /* incremented inside */) {
         signed char c = static_cast<signed char>(s[i]);
         if (c >= 0) {
