@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10, D-AUDIT-1/2/3, and D15 are complete; D11–D14 are open.
+> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, and D15 are complete; D12–D14 are open.
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -420,31 +420,26 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   suite passes 1603/1603 (no observable change since the two
   tables agree on shared keys).  IF-251 marked **fixed**.
 
-- [ ] **D11 — Resolve the lone remaining `\unclear` site (and any new `\verifyme`)**
-      *(scope: small; expected outcome: drive `\unclear` count to 0)*
+- [x] **D11 — Resolve the lone remaining `\unclear` site**
+      _(complete; `\unclear` count 1 → 0)_
 
-  After D7 the open backlog is `\unclear=1`, `\verifyme=0`.  The single
-  surviving `\unclear` is unknown without inspection — the first task
-  is to identify it via `./reconstructed/docs/coverage.sh` plus a
-  targeted grep across `reconstructed/{include,src}/`.
+  The surviving `\unclear` was on
+  `StaticResources::errorReportTarget()` in
+  `reconstructed/include/zhinst/runtime/resources.hpp:1118` —
+  a declared-but-undefined orphan helper.  IF-235 had already
+  reached the resolution (keep the declaration for binary
+  layout fidelity, document as `\verifyme` not `\unclear`),
+  but the source still carried `\unclear`.  Aligned the tag
+  with IF-235's recorded disposition.  No body change; pure
+  documentation bookkeeping.
 
-  Steps:
-  1. Locate the `\unclear` site; record the symbol, file:line, and
-     the surrounding behavioural question in a short audit table at
-     the top of this entry.
-  2. Triage the site against the verify-then-write rules in AGENTS.md:
-     - If a hypothesis exists → demote to `\verifyme` with the
-       hypothesis spelled out, then fall through to step 3.
-     - If the behaviour is genuinely unknowable from disassembly →
-       upgrade to `\unverifiable` with a brief justification.
-     - If the behaviour can be confirmed by GDB / reading the body →
-       resolve outright (delete the tag, replace with verified prose).
-  3. For any `\verifyme` produced in step 2, run a GDB trace against
-     `_seqc_compiler.so` per the AGENTS.md "GDB tracing" recipe to
-     confirm or refute the hypothesis; convert to verified prose on
-     confirm, or to `\unverifiable` on refute.
-  4. Final state: `\unclear=0`, `\verifyme=0`.  Update the OVERVIEW.md
-     status block with the new counts.
+  Post-D11 tag counts: `\unclear=0`, `\verifyme=1`,
+  `\binarynote=40`, `\unverifiable=5`.  The lone new
+  `\verifyme` is the same `errorReportTarget()` site and is
+  already surfaced via IF-235 — no GDB trace warranted
+  because the declaration has no caller and no body, so
+  there is nothing for GDB to observe.  D12 / D13 / D14
+  cover the remaining backlog.
 
 - [ ] **D12 — Audit `\binarynote` sites (40) for reclassification**
       *(scope: medium; expected outcome: drive count down via Tighten
