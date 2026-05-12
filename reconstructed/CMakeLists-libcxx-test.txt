@@ -1,0 +1,86 @@
+# reconstructed/CMakeLists-libcxx-test.txt
+#
+# Separate top-level CMake project that builds a libc++-ABI test
+# shared library for Phase E (diff-test harness for binding-
+# unreachable reconstructions).
+#
+# This project is NOT included from the main CMakeLists.txt.  Build
+# it separately:
+#
+#   mkdir -p reconstructed/build-libcxx-test
+#   cd reconstructed/build-libcxx-test
+#   conan install --requires=boost/1.91.0 \
+#       -pr:h clang20-libcxx -pr:b clang20-libcxx \
+#       -s build_type=Release \
+#       -o 'boost/*:shared=False' \
+#       -o 'boost/*:without_python=True' \
+#       -o 'boost/*:without_test=True' \
+#       -o 'boost/*:without_graph=True' \
+#       -o 'boost/*:without_graph_parallel=True' \
+#       -o 'boost/*:without_mpi=True' \
+#       -o 'boost/*:without_wave=True' \
+#       -o 'boost/*:without_log=True' \
+#       -o 'boost/*:without_stacktrace=True' \
+#       --build=missing -of .
+#   cmake -f ../CMakeLists-libcxx-test.txt -S .. -B . \
+#         -DCMAKE_BUILD_TYPE=Release \
+#         -DCMAKE_TOOLCHAIN_FILE=./conan_toolchain.cmake
+#   cmake --build .
+#
+# Output: libdiagtxt_libcxx.so — exports the 19 in-scope D16
+# symbols (plus dependencies) under the libc++ (`__1`) std::string
+# ABI, matching the original `_seqc_compiler.so`.
+#
+# A wrapper script `tests/diff_unreachable/build.sh` automates this.
+
+cmake_minimum_required(VERSION 3.20)
+project(zhinst_seqc_libcxx_test LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Force clang+libc++ (the whole point of this build).
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(FATAL_ERROR
+        "This project must be configured with clang++ (got "
+        "${CMAKE_CXX_COMPILER_ID}).  Set CC/CXX in the Conan profile or "
+        "pass -DCMAKE_CXX_COMPILER=/path/to/clang++.")
+endif()
+add_compile_options(-stdlib=libc++)
+add_link_options(-stdlib=libc++)
+
+# Boost (libc++ build, supplied by Conan toolchain).  Conan's
+# CMakeDeps generator emits both component targets (`Boost::regex`,
+# `Boost::filesystem`, `Boost::locale`) and an aggregate
+# `boost::boost`.  We use the components for clarity.
+find_package(Boost REQUIRED)
+
+# In-scope translation units.  Keep this list minimal: it's the
+# transitive closure of `core/diagnostics_text.cpp`, no more.
+# Adding a TU here means committing to keep it libc++-buildable.
+set(LIBCXX_TEST_SOURCES
+    src/core/diagnostics_text.cpp
+    src/core/platform.cpp
+    src/core/exception.cpp
+    src/device/device_type.cpp
+    src/device/mf_sfc.cpp
+)
+
+add_library(diagtxt_libcxx SHARED ${LIBCXX_TEST_SOURCES})
+target_include_directories(diagtxt_libcxx PRIVATE include)
+target_link_libraries(diagtxt_libcxx PRIVATE
+    Boost::regex Boost::filesystem Boost::locale
+)
+# Match the original binary's hidden-by-default visibility scheme,
+# but DO NOT use it here — the harness needs the recon symbols
+# resolvable via dlsym, so we keep default (public) visibility.
+set_target_properties(diagtxt_libcxx PROPERTIES
+    CXX_VISIBILITY_PRESET default
+    VISIBILITY_INLINES_HIDDEN OFF
+    OUTPUT_NAME "diagtxt_libcxx"
+)
+
+message(STATUS "libcxx-test target: diagtxt_libcxx — "
+               "${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
