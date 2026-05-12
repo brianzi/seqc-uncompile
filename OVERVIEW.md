@@ -374,8 +374,8 @@ Source-of-truth analysis remains at
 In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
 mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
-**D11, D12, and D15 are complete; D13–D14 are open** (tag-backlog audits
-and scout pass).  Current backlog tags (per `docs/coverage.sh`):
+**D11, D12, D13, and D15 are complete; D14 is open** (scout pass for
+new reconstruction-target clusters).  Current backlog tags (per `docs/coverage.sh`):
 `\unclear=0`, `\verifyme=1`, `\binarynote=17`, `\unverifiable=5`.
 Documentation coverage: 95.2% (2934/3081 symbols); 0 doxygen
 warnings under strict

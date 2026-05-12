@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, and D15 are complete; D13–D14 are open.
+> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, D13, and D15 are complete; D14 is open.
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -482,7 +482,14 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      into D14 (scout cluster) for prioritisation as a real
      reconstruction target.
 
-- [ ] **D13 — Audit `\unverifiable` sites (5) for promotability**
+- [x] **D13 — Audit `\unverifiable` sites (5) for promotability**
+      *(closed: all 5 sites audited; 4 confirmed genuinely unverifiable
+      with concrete rationales (prefetch Table arm via IF-249,
+      `AsmExpression::str` recursive-only, `logging::Severity` enum
+      ordering, prefetch_placesingle sub-path C).  1 rationale rewritten:
+      `ElfReader::ddSectionIndex_` (IF-256) — field IS read by
+      `getWaveform()`; corrected to "no non-zero write observed" framing.
+      Tag count unchanged at 5.  Tests 1603/1603, docs clean.)*
       *(scope: small; expected outcome: confirm each truly is unverifiable
       from disassembly, or promote to `\verifyme` + GDB trace)*
 

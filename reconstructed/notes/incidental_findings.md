@@ -3807,3 +3807,56 @@ for a function whose definition lives in a separate `.cpp`, the
 authoritative source is the **body**, not the surrounding "looks
 like the other swaps in this family" pattern.
 
+---
+
+## IF-256  `ElfReader::ddSectionIndex_` `\unverifiable` rationale was wrong about reads
+
+**Severity**: low (documentation only; no behavioural impact).
+
+**Status**: fixed (rationale rewritten to match verified usage,
+2026-05-12).
+
+**Discovered**: D13 `\unverifiable` audit
+(`reconstructed/include/zhinst/io/elf_reader.hpp:228` vs
+`reconstructed/src/io/elf_reader.cpp:175`).
+
+### Observation
+
+The header carried an `\unverifiable` rationale claiming the field
+is "written by the constructor but never read by any reconstructed
+accessor."  The verified body of `ElfReader::getWaveform()`
+(recon at `elf_reader.cpp:177-178`, binary `@0x2c3d40`) explicitly
+reads `ddSectionIndex_` as the index into `ddSections_`:
+
+```cpp
+if (ddSectionIndex_ >= ddSections_.size()) return result;
+auto* sec = ddSections_[ddSectionIndex_];
+```
+
+The brief at line 222 of the same header even acknowledges this
+("Current selector into `ddSections_` used by `getWaveform()`"),
+so the rationale text contradicts both the body and the sibling
+brief in the same file.
+
+### Why the site is still `\unverifiable`
+
+The field is **read** but never **written to a non-zero value** in
+any reconstructed code path, and there is no `compile_seqc` input
+that drives `getWaveform()` to observe a non-zero selector.  The
+"unverifiable" property is "the binary's purpose for a non-zero
+selector cannot be confirmed", not "the field is never read".
+
+### Action
+
+Header rationale rewritten to accurately describe the situation:
+field is read by `getWaveform()` but always observed as 0 in
+reconstructed paths, so the semantic role of a non-zero value
+remains unverified.  Tag remains `\unverifiable`.
+
+### Lesson
+
+When filing an `\unverifiable` rationale, distinguish "no read
+sites" from "no observable non-default value".  Confirm against the
+current `.cpp` body, not against a prior recollection of the field
+state.
+

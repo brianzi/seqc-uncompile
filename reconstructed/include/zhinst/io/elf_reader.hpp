@@ -225,10 +225,13 @@ private:
     //! Trailing dword zeroed by the constructor; the binary's
     //! purpose for this slot is not yet established (see
     //! `notes/elf_reader.md`).
-    //! \unverifiable Unverifiable from SeqC: the field is written by the
-    //! constructor but never read by any reconstructed accessor, so
-    //! no observable behaviour drives its semantic role.  Treated as
-    //! a pass-through layout slot for the time being.
+    //! \unverifiable Unverifiable from SeqC: the field is read by
+    //! `getWaveform()` as the index into `ddSections_`, but no
+    //! reconstructed code path writes it to a non-zero value and no
+    //! `compile_seqc` input drives `getWaveform()` to observe a
+    //! non-zero selector.  The semantic role of a non-zero value
+    //! (single fixed slot vs rotating selector vs flag) therefore
+    //! cannot be established from current observations.
     std::uint32_t ddSectionIndex_ = 0;                          // +0x90
 };
 
