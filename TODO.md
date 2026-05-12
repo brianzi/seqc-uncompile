@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10 plus D-AUDIT-1/2/3 are complete; D11–D15 are open.
+> Sub-phases D0–D10, D-AUDIT-1/2/3, and D15 are complete; D11–D14 are open.
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -549,62 +549,24 @@ Run `reconstructed/docs/coverage.sh` to track progress.
      should produce the cluster table here in this TODO entry, not
      in a separate notes file.
 
-- [ ] **D15 — Tracking-docs cleanup, cross-check, and archive cut**
-      *(scope: medium; expected outcome: living docs trimmed,
-      historical content archived, all three tracking surfaces in
-      sync)*
+- [x] **D15 — Tracking-docs cleanup, cross-check, and archive cut**
+      _(complete; commits `f321e91` D15.1 cross-check, `0d3eed4` D15.2
+      OVERVIEW symbol-rename archive, `a87372e` D15.3 IF-100..IF-200
+      archive, `c2e6c6b` D15.4 TODO.md D3/D4/D5/D-AUDIT-1 archive,
+      D15.5 final coherence grep — all IF refs in TODO/OVERVIEW
+      resolve to either active or archived definitions, all 50
+      commit-hash refs resolve)_
 
-  The active tracking surfaces have grown to:
+  Pre-cleanup surface sizes (for the record):
 
-  | Surface | Lines | Notes |
-  | ------- | ----:| ----- |
-  | `TODO.md` | 1277 | 14 closed top-level work items inline; only oldest archived to `archive/TODO_phases_*.md` |
-  | `OVERVIEW.md` | 1233 | 4 historical "Phase D/R/S — Symbol Renames" sections still inline |
-  | `reconstructed/notes/incidental_findings.md` | 7383 | 155 IFs (IF-100..IF-254); only IF-1..IF-99 archived |
-  | `reconstructed/notes/unknowns.md` | 144 | small, current |
+  | Surface | Lines (pre) | Lines (post) |
+  | ------- | ----------:| -----------:|
+  | `TODO.md` | 1277 | 654 |
+  | `OVERVIEW.md` | 1233 | 1194 |
+  | `reconstructed/notes/incidental_findings.md` | 7383 | 3753 |
+  | `reconstructed/notes/unknowns.md` | 144 | 144 |
 
-  Existing archive precedent (`reconstructed/notes/archive/IF_1-99.md`,
-  ~1363 lines) shows IFs are archived in batches of ~100; IF-100..IF-200
-  is the obvious next cut, ideally restricted to entries whose status
-  is **fixed / dismissed / kept / resolved / kept (documented)** so
-  open IFs stay surfaced in the active file.
-
-  Steps:
-  1. **Cross-check pass** (no archiving yet): walk TODO.md, OVERVIEW.md,
-     and incidental_findings.md and verify they agree on the closed
-     state of each completed phase / IF.  Fix any disagreement
-     (typically OVERVIEW status blocks or IF status fields lagging
-     a TODO close).  Record any inconsistency found as an IF
-     entry before fixing it (per AGENTS.md incidental-discovery
-     rule).
-  2. **TODO.md trim**: identify closed top-level items whose entire
-     body content is reproduced elsewhere (commit messages, OVERVIEW
-     status blocks).  Compress those to a one-line summary +
-     commit-ref + "see archive" pointer; full body moves to a new
-     `archive/TODO_phases_D0-D10_D-AUDIT-1-3.md` (or similar) only
-     if length-warranted.  Items completed within the last ~5
-     commits stay inline as a recency window.
-  3. **OVERVIEW.md trim**: move the three "Symbol Renames (Phase D/R/S)"
-     sections (lines 356–442 inclusive, per current grep) to
-     `archive/OVERVIEW_symbol_renames_phases_DRS.md`; replace with
-     a short pointer paragraph.
-  4. **IF archive cut**: move all **closed** IFs in the IF-100..IF-200
-     range from `incidental_findings.md` to a new
-     `archive/IF_100-200.md`.  Open IFs in that range stay in the
-     active file.  Keep IF-201..IF-254 inline.  Update the
-     "Other living references" block in TODO.md and the README of
-     `archive/` to point at the new archive file.
-  5. **Coherence final check**: re-run a grep-based audit that the
-     archive split didn't break any inline references
-     (`grep -rn 'IF-1[0-9][0-9]' reconstructed/ TODO.md OVERVIEW.md`
-     against the post-split active file should not produce
-     dangling pointers).
-  6. Commit the cleanup as one or two focused commits (cross-check
-     fixes; archive cut), each with the test score and 0 doxygen
-     warnings verified.
-
-  This phase is independent of D11/D12/D13/D14 and may run in
-  parallel with them.
+  This phase ran independently of D11/D12/D13/D14.
 
 ## Archives
 
@@ -616,6 +578,7 @@ All historical reconstruction work is preserved under
 | [`TODO_phases_1-12.md`](reconstructed/notes/archive/TODO_phases_1-12.md) | 1–12 (initial reconstruction; 597 items) | ~2700 |
 | [`TODO_phases_13-39.md`](reconstructed/notes/archive/TODO_phases_13-39.md) | 13, 15–39, 30 (method bodies, code-smell sweeps) + Differential Testing narrative | ~3900 |
 | [`TODO_phases_43-62.md`](reconstructed/notes/archive/TODO_phases_43-62.md) | 43, 44, 45, 47–62 (symbol-size investigations, IF-109 audit, IF resolutions, stress suite, 4-device coverage) | ~2100 |
+| [`TODO_phases_D3-D5_D-AUDIT-1.md`](reconstructed/notes/archive/TODO_phases_D3-D5_D-AUDIT-1.md) | Phase D3, D4 (all batches), D5 (all sub-batches), D-AUDIT-1 — full per-batch narrative | ~930 |
 | [`OVERVIEW_phases_1-12.md`](reconstructed/notes/archive/OVERVIEW_phases_1-12.md) | OVERVIEW phase narrative for Phases 1–12 | ~2300 |
 | [`OVERVIEW_phases_13-25.md`](reconstructed/notes/archive/OVERVIEW_phases_13-25.md) | OVERVIEW phase narrative for Phases 14a–25 | ~320 |
 | [`OVERVIEW_phase_13_14_narrative.md`](reconstructed/notes/archive/OVERVIEW_phase_13_14_narrative.md) | Phase 13–14 supplementary narrative | ~250 |
