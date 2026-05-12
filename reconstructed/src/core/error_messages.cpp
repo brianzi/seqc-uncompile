@@ -122,30 +122,111 @@ const char* ResourcesException::what() const noexcept  // 0x1f1340
 //!        the supplied code is not present in the message table.
 static const std::string unknownError = "unknownError";
 
+namespace {
+
+// ============================================================================
+// apiErrorMessages — anonymous-namespace flat table at BSS 0xb85230 in the
+// binary, separate from ErrorMessages::messages (BSS 0xb84c38).
+//
+// The binary maintains two independently-populated catalogues whose entries
+// happen to agree on every shared key.  D-AUDIT-3 (IF-251) restores that
+// data-flow shape: getApiErrorMessage now consults this anon-ns table, not
+// the public ErrorMessages::messages map.
+//
+// Keys mirror the 52 entries the binary's apiErrorMessages contains:
+//   16384..16389 (gap at 16388) — general status
+//   32768..32800                — LabOne API
+//   36864..36877                — device firmware
+// ============================================================================
+std::map<int, std::string> apiErrorMessages;
+
+struct ApiErrorMessagesInitializer {
+    ApiErrorMessagesInitializer() {
+        auto& m = apiErrorMessages;
+
+        // 16384..16389 (gap at 16388) — general status
+        m[16384] = "Success (no error)";
+        m[16385] = "Warning (general)";
+        m[16386] = "FIFO underrun";
+        m[16387] = "FIFO overflow";
+        m[16389] = "Value or node not found";
+
+        // 32768..32800 — LabOne API
+        m[32768] = "Keyword could not be resolved";
+        m[32769] = "Error (general)";
+        m[32770] = "USB communication failed";
+        m[32771] = "Memory allocation failed";
+        m[32772] = "Unable to initialize mutex";
+        m[32773] = "Unable to destroy mutex";
+        m[32774] = "Unable to lock mutex";
+        m[32775] = "Unable to unlock mutex";
+        m[32776] = "Unable to start thread";
+        m[32777] = "Unable to join thread";
+        m[32778] = "Unable to initialize socket";
+        m[32779] = "Unable to connect to socket";
+        m[32780] = "Hostname not found";
+        m[32781] = "Connection invalid";
+        m[32782] = "Command timed out";
+        m[32783] = "Command failed internally";
+        m[32784] = "Command failed on the server";
+        m[32785] = "Provided buffer is too small";
+        m[32786] = "Unable to open file or read from it";
+        m[32787] = "There is already a similar item";
+        m[32788] = "Attempt to get a write-only node";
+        m[32789] = "Device is not visible to the server";
+        m[32790] = "Device is already connected to a different server";
+        m[32791] = "Device does not support the specified interface";
+        m[32792] = "Device connection attempt timed out";
+        m[32793] = "Device already connected over a different interface";
+        m[32794] = "Device needs a firmware upgrade";
+        m[32795] = "Device not found";
+        m[32796] = "Data type mismatch. Trying to get data from a poll event with wrong target data type";
+        m[32797] = "Command or provided arguments combination is not supported within this context";
+        m[32798] = "The maximum number of allowed simultaneous sessions (32) exceeded. Ensure unused sessions are closed";
+        m[32799] = "This functionality is not supported on HF2 devices";
+        m[32800] = "Attempt to set a read-only node";
+
+        // 36864..36877 — device firmware
+        m[36864] = "Invalid argument received";
+        m[36865] = "An error occurred on the device, but the error code was not provided. Please report";
+        m[36866] = "Requested block address does not belong to any known aperture";
+        m[36867] = "Requested block address belongs to an aperture, but the offset is above the active range";
+        m[36868] = "Requested block address belongs to an aperture, but the offset+length is above the active range";
+        m[36869] = "Write access attempted to a read-only aperture or a read-only node";
+        m[36870] = "Access to the requested register cannot be handled by the firmware (firmware configuration error)";
+        m[36871] = "Number of indices requested on a non-indexed vector node";
+        m[36872] = "Vector transfer header error: received less data than the header size";
+        m[36873] = "Vector transfer header error: indicated frame index is greater than the indicated frame count";
+        m[36874] = "Vector transfer header error: the indicated offset and payload length exceeds the indicated overall length";
+        m[36875] = "Vector transfer header error: the indicated number of extra words exceeds the indicated overall length";
+        m[36876] = "Received out-of-sequence frame (may never be reported if we keep the agreement, that the entire vector transfer has to be ACKed in case its first frame was ACKed)";
+        m[36877] = "Vector transfer error: accessing indexed element outside the current active range";
+    }
+};
+ApiErrorMessagesInitializer apiErrorMessagesInitializer;
+
+}  // anonymous namespace
+
 //! \brief Translate a LabOne API / device-firmware return code into its
 //!        human-readable diagnostic string.
 //!
-//! \details Looks up `ziResultCode` in the same message catalogue that
-//! drives the compiler's own diagnostics (`ErrorMessages::messages`),
-//! covering the high-id ranges 16384–16389 (general status),
-//! 32768–32800 (LabOne API), and 36864–36877 (device firmware).  If the
-//! code is not registered the function falls back to a fixed
-//! `"unknownError"` string rather than throwing, so callers can use it
-//! unconditionally on any non-zero return value.
+//! \details Looks up `ziResultCode` in a dedicated catalogue (separate from
+//! the compiler-diagnostic `ErrorMessages::messages` map) covering the
+//! high-id ranges 16384–16389 (general status), 32768–32800 (LabOne API),
+//! and 36864–36877 (device firmware).  If the code is not registered the
+//! function falls back to a fixed `"unknownError"` string rather than
+//! throwing, so callers can use it unconditionally on any non-zero return
+//! value.
 //!
 //! \param ziResultCode  Numeric `ZIResult_enum` value as returned by a
 //!                      LabOne C API call.
 //! \return Reference to a process-lifetime string owned by either the
-//!         message catalogue or the static `unknownError` fallback;
+//!         API-error catalogue or the static `unknownError` fallback;
 //!         never throws.
 std::string const& getApiErrorMessage(int ziResultCode)  // 0x2e4820
 {
-    // Simplified: the binary does hash table lookup on apiErrorMessages.
-    // The table contains entries for keys 16384-16389, 32768-32800, 36864-36877.
-    // These are the same keys that appear in ErrorMessages::messages,
-    // but stored in a separate hash table for fast O(1) lookup.
-    auto it = ErrorMessages::messages.find(ziResultCode);
-    if (it != ErrorMessages::messages.end()) {
+    auto it = apiErrorMessages.find(ziResultCode);
+    if (it != apiErrorMessages.end()) {
         return it->second;
     }
     return unknownError;

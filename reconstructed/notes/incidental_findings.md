@@ -7201,9 +7201,18 @@ Verify ELF byte-equality after the rename.
 
 **Severity**: cosmetic (observable mapping coincides today).
 
-**Status**: confirmed (disassembly-traced 2026-05-11); promoted to
-TODO.md as **D-AUDIT-3** on 2026-05-12 — see TODO entry for the
-remediation steps.
+**Status**: **fixed** (2026-05-12) — `getApiErrorMessage` in
+`reconstructed/src/core/error_messages.cpp` now consults a
+dedicated anonymous-namespace `apiErrorMessages` map populated
+at static-init time with the same 52 entries (16384–16389 minus
+16388, 32768–32800, 36864–36877) the binary's BSS table at
+`0xb85230` holds.  The compiler-diagnostic
+`ErrorMessages::messages` map is no longer the lookup target.
+Strings are duplicated rather than copy-derived, mirroring the
+binary's two-independent-tables data flow.  Full diff-test suite
+passes 1603/1603 (no observable change since the two tables
+agree on shared keys).  Promoted to TODO.md as **D-AUDIT-3** on
+2026-05-12; closed same day.
 
 **Discovered**: D7 `\verifyme` triage batch 2 (subagent
 `ses_1e7d64aa6ffelLz6pUQpwrg6rv`), `error_messages.cpp:142`.

@@ -1219,24 +1219,22 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   Build clean; full diff-test suite passes 1603/1603 with no ELF
   byte changes.  IF-250 marked **fixed**.
 
-- [ ] **D-AUDIT-3 — Mirror binary's `apiErrorMessages` anon-namespace table**
-      *(promoted from IF-251, severity cosmetic)*
+- [x] **D-AUDIT-3 — Mirror binary's `apiErrorMessages` anon-namespace table**
+      *(promoted from IF-251, severity cosmetic; completed 2026-05-12)*
 
-  The reconstructed `ErrorMessages::getApiErrorMessage` reads from the
-  public `ErrorMessages::messages` map.  The binary's
-  `getApiErrorMessage` at `0x2e4820` instead consults a separate
-  anonymous-namespace flat table `apiErrorMessages` at BSS `0xb85230`.
-  The two tables hold identical key→string mappings today (codes
-  16384–16389, 32768–32800, 36864–36877), so observable behaviour
-  matches and all difftests pass; only data-flow faithfulness is at
-  stake.
-
-  Steps:
-  1. Introduce an anonymous-namespace static `apiErrorMessages` table
-     in `error_messages.cpp` mirroring the binary's BSS contents.
-  2. Retarget `ErrorMessages::getApiErrorMessage` at the new table.
-  3. Build clean; run the full suite; confirm no regressions.
-  4. Update IF-251 status to **fixed** with the commit ref.
+  Fixed: introduced an anonymous-namespace `apiErrorMessages`
+  `std::map<int, std::string>` in
+  `reconstructed/src/core/error_messages.cpp`, populated at
+  static-init time by an `ApiErrorMessagesInitializer` struct with
+  all 52 entries the binary's BSS table at `0xb85230` holds
+  (16384–16389 minus 16388; 32768–32800; 36864–36877).
+  `getApiErrorMessage` now reads from this dedicated table instead
+  of from `ErrorMessages::messages`, restoring the binary's
+  two-independent-tables data-flow shape.  Strings are duplicated
+  literals (per user direction "duplicate literals (faithful)"),
+  not copy-derived from `messages`.  Build clean; full diff-test
+  suite passes 1603/1603 (no observable change since the two
+  tables agree on shared keys).  IF-251 marked **fixed**.
 
 ## Archives
 
