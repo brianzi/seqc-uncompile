@@ -1439,6 +1439,8 @@ All historical reconstruction work is preserved under
 | [`OVERVIEW_phase_13_14_narrative.md`](reconstructed/notes/archive/OVERVIEW_phase_13_14_narrative.md) | Phase 13–14 supplementary narrative | ~250 |
 | [`OVERVIEW_symbol_renames_phases_DRS.md`](reconstructed/notes/archive/OVERVIEW_symbol_renames_phases_DRS.md) | Symbol-rename Phases D, R, S per-commit tables | ~100 |
 | [`IF-105_update_log.md`](reconstructed/notes/archive/IF-105_update_log.md) | Chronological update history for IF-105 | ~390 |
+| [`IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md) | Closed Incidental Findings IF-1..IF-99 | ~1360 |
+| [`IF_100-200.md`](reconstructed/notes/archive/IF_100-200.md) | Closed Incidental Findings IF-100..IF-200 (98 entries; 3 open in range kept inline) | ~3650 |
 | [`unknowns_full_1-116.md`](reconstructed/notes/archive/unknowns_full_1-116.md) | Pre-2026-04-22 history of `unknowns.md` items 1–116 | ~1200 |
 | [`phase_15b_prefetch_audit.md`](reconstructed/notes/archive/phase_15b_prefetch_audit.md) | Phase 15b prefetch audit | ~80 |
 | [`phase43_investigation.md`](reconstructed/notes/archive/phase43_investigation.md) | Phase 43: 54-function binary-vs-recon size audit | ~490 |
@@ -1458,8 +1460,12 @@ All historical reconstruction work is preserved under
 - [`OVERVIEW.md`](OVERVIEW.md) — class hierarchy, current
   reconstruction status, file structure, open questions.
 - [`reconstructed/notes/incidental_findings.md`](reconstructed/notes/incidental_findings.md)
-  — IF-100..IF-254 (oldest entries IF-1..IF-99 archived to
-  [`archive/IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md)).
+  — active entries: 3 still-open IFs from IF-100..IF-200
+  (IF-100, IF-102, IF-104) plus IF-201..IF-254.  Closed entries
+  in IF-1..IF-99 archived to
+  [`archive/IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md);
+  closed entries in IF-100..IF-200 archived to
+  [`archive/IF_100-200.md`](reconstructed/notes/archive/IF_100-200.md).
 - [`reconstructed/notes/`](reconstructed/notes/) — topic-organized
   technical notes (struct layouts, opcodes, optimization passes, etc.).
 - [`AGENTS.md`](AGENTS.md) — working process, GDB recipe,
