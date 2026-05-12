@@ -1,7 +1,7 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
 > **Phase D (Inline code documentation) is the active phase.**
-> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, and D15 are complete; D12–D14 are open.
+> Sub-phases D0–D10, D-AUDIT-1/2/3, D11, D12, and D15 are complete; D13–D14 are open.
 > All earlier reconstruction phases (1–62, plus the symbol-renaming
 > Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
@@ -441,7 +441,13 @@ Run `reconstructed/docs/coverage.sh` to track progress.
   there is nothing for GDB to observe.  D12 / D13 / D14
   cover the remaining backlog.
 
-- [ ] **D12 — Audit `\binarynote` sites (40) for reclassification**
+- [x] **D12 — Audit `\binarynote` sites (40) for reclassification**
+      *(closed: 46 sites triaged → 19 keep / 17 →note / 9 →warning / 1
+      delete; applied in 5 batches `7a20a16`, `24620f6`, `bb09ce3`,
+      `12c8be0`, `75c1c50`.  Surviving `\binarynote` count: 17.
+      Incidental IF-255 filed for `seqc_ast_node.hpp:2023` swap-brief
+      contradiction; fixed in same batch.  Tests 1603/1603, docs
+      clean throughout.)*
       *(scope: medium; expected outcome: drive count down via Tighten
       to `\note` / `\warning` / verified prose where appropriate)*
 
