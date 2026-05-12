@@ -134,7 +134,7 @@ namespace detail {
 //! making `LOG_TRACE() << expensiveCall()` safe (the call still runs,
 //! but its result is discarded cheaply).
 //!
-//! \binarynote The destructor swallows any exception thrown while
+//! \note The destructor swallows any exception thrown while
 //! pushing the record and routes it through `logExceptionToClog()`
 //! rather than allowing it to propagate; logging never throws to
 //! its caller.

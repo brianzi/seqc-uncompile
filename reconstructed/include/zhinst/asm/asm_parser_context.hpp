@@ -298,7 +298,7 @@ AsmExpression* addNode(AsmParserContext* ctx, const char* text);      // 0x28bfd
 //! \param label Optional label C string; may be null.
 //! \return The (possibly newly allocated) `argList` expression
 //! with command, label, and pc fields populated.
-//! \binarynote Both `cmdToken` and `label` must not be null
+//! \warning Both `cmdToken` and `label` must not be null
 //! simultaneously; the function raises an error and returns
 //! `nullptr` in that case.  The `cmdToken` argument is consumed
 //! (destroyed) by this call regardless of whether the lookup

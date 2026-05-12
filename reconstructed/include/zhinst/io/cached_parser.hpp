@@ -116,7 +116,7 @@ public:
     //! content hash. Serialised verbatim to the cache index file via
     //! Boost.Serialization.
     //!
-    //! \binarynote The `pinned_` flag is intentionally not serialised:
+    //! \note The `pinned_` flag is intentionally not serialised:
     //! pinning is a per-run concept (set when the entry is hit in the
     //! current run to protect it from eviction). On load it always
     //! starts `false`.
@@ -158,7 +158,7 @@ public:
         //! \details Persists exactly five fields: `name_`, `filePath_`,
         //! `byteSize_`, `timestamp_`, `hash_`. `pinned_` is deliberately
         //! omitted because it is a per-run flag (see the class-level
-        //! `\binarynote`).
+        //! note).
         //! \tparam Archive Boost.Archive instantiation (text input or
         //!                 text output).
         //! \param ar Archive to read from or write to.
@@ -247,7 +247,7 @@ public:
     //! `.format`, `.file_name`, `.channels`, `.marker_bits`, `.data`,
     //! `.marker`, and `.config` sections, the index entry is
     //! inserted (or replaced), and the index is flushed.
-    //! \binarynote The byte budget charged is
+    //! \note The byte budget charged is
     //! `samples.size() * sizeof(double) / 4`, not the actual on-disk
     //! file size — the cache accounting is intentionally an estimate.
     //! \param name           Display name of the original source file.

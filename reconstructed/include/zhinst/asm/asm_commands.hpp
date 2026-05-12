@@ -1173,7 +1173,7 @@ public:
     //!   (Cervino) devices skip marker processing and leave
     //!   `markerBits == 0`.
     //!
-    //! \binarynote Two `bool` arguments duplicate
+    //! \note Two `bool` arguments duplicate
     //!             playback-mode information: `fourChannel`
     //!             is unused inside `genPlayConfig` itself
     //!             (it is consumed by the surrounding

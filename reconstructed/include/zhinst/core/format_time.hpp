@@ -17,7 +17,7 @@ namespace zhinst {
 //! current locale, and streams `t` through it.  Returns the
 //! resulting string.
 //!
-//! \binarynote The intermediate locale is derived from
+//! \note The intermediate locale is derived from
 //!             `std::cout`'s locale, not the global C++
 //!             locale, so changes to global locale state
 //!             between calls do not affect formatting unless

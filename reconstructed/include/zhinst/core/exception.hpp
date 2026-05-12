@@ -261,7 +261,7 @@ public:
     //! \param msg Human-readable message; if empty, the message is
     //!        replaced with the default text derived from the error
     //!        code's category.
-    //! \binarynote An empty `msg` triggers a fallback that fills the
+    //! \note An empty `msg` triggers a fallback that fills the
     //! message from the error category rather than leaving it blank.
     // 0x2e54b0 — string ctor (by value, moved into message_).
     // If `msg` is empty (SSO byte 0 == 0), falls back to
