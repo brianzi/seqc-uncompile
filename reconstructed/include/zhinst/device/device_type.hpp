@@ -894,7 +894,7 @@ std::string toString(DeviceTypeCode code);
 // on whether `family == DeviceFamily::HF2`.
 //! \brief Renders a `DeviceOption` as its short name, scoped to the
 //! given `family`.
-//! \binarynote `DeviceOption(0)` renders as `"MFK"` on
+//! \note `DeviceOption(0)` renders as `"MFK"` on
 //! `DeviceFamily::HF2` and `"MF"` everywhere else; `DeviceOption(6)`
 //! renders as `"RTK"` on HF2 and `"RT"` elsewhere.  All other
 //! values are family-agnostic.
@@ -905,7 +905,7 @@ std::string toString(DeviceOption opt, DeviceFamily family);
 // options, use the (DeviceOptionSet, DeviceFamily, separator) overload
 // below to format `dt.options()` separately and concatenate.
 //! \brief Returns the device-type-code name of `dt`.
-//! \binarynote Options are intentionally NOT appended; combine with
+//! \note Options are intentionally NOT appended; combine with
 //! `getOptionsAsString()` to render a device together with its
 //! options.
 std::string toString(DeviceType const& dt);

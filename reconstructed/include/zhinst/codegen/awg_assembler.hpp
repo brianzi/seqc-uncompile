@@ -105,7 +105,7 @@ public:
     //!              exists).
     //! \throws zhinst::Exception  When the underlying writer
     //!         fails.
-    //! \binarynote The impl clears the opcode buffer on the
+    //! \warning The impl clears the opcode buffer on the
     //!             success path; `getOpcode()` returns an empty
     //!             vector after a successful `writeToFile`.
     void writeToFile(std::string const& path);

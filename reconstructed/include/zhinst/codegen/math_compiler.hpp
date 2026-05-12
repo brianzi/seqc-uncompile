@@ -312,7 +312,7 @@ public:
     //! `MathCompilerException` formatted with
     //! `ErrorMessageT::UnknownFunction` and `name`.
     //!
-    //! \binarynote Wrong-arity for a variadic function is
+    //! \warning Wrong-arity for a variadic function is
     //!             *not* diagnosed here — only `pow` self-checks
     //!             arity; `avg`/`max`/`min`/`sum` accept any
     //!             non-zero count and may produce undefined

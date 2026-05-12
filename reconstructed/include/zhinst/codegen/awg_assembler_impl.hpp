@@ -232,7 +232,7 @@ public:
     //! \param path  Destination ELF path (truncated if it exists).
     //! \throws zhinst::Exception  Formatted with `CantWriteFile`
     //!         when the underlying writer fails.
-    //! \binarynote The opcode buffer is cleared on the success
+    //! \warning The opcode buffer is cleared on the success
     //!             path; `getOpcode()` returns an empty vector
     //!             after `writeToFile`.
     void writeToFile(std::string const& path);              // 0x288570
@@ -412,7 +412,7 @@ public:
     //! \param level  Severity level passed in by the lexer/parser
     //!               error callback.
     //! \param msg    Diagnostic text.
-    //! \binarynote Like `errorMessage`, this also flips
+    //! \warning Like `errorMessage`, this also flips
     //!             `parserCtx_.setSyntaxError()`, so any parser
     //!             call site treating it as a non-fatal warning
     //!             will still cause subsequent emission stages to
