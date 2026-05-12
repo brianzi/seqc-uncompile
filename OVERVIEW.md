@@ -134,8 +134,11 @@ refactor, AST evaluate body expansion, pybind11 binding layer) has
 been moved to
 [`reconstructed/notes/archive/OVERVIEW_phases_13-25.md`](reconstructed/notes/archive/OVERVIEW_phases_13-25.md)
 to keep this file focused on current-state reference.  All listed
-phases are fully complete; the corresponding TODO entries are in
-[`reconstructed/notes/archive/TODO_phases_13-39.md`](reconstructed/notes/archive/TODO_phases_13-39.md).
+phases are fully complete; the corresponding TODO entries are
+archived under `reconstructed/notes/archive/` across three files:
+[`TODO_phases_1-12.md`](reconstructed/notes/archive/TODO_phases_1-12.md),
+[`TODO_phases_13-39.md`](reconstructed/notes/archive/TODO_phases_13-39.md), and
+[`TODO_phases_43-62.md`](reconstructed/notes/archive/TODO_phases_43-62.md).
 
 For phase-by-phase context including reconstruction milestones
 after pybind11 (Phases 30+, the differential-testing era and
@@ -442,9 +445,15 @@ case-by-case. No further Phase Q phase planned.
 
 ## Phase D — Inline code documentation
 
-In progress.  See `TODO.md` for the phase breakdown (D0..D6) and
+In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
-mainpage.
+mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
+**D11–D15 are open** (tag-backlog audits, scout pass, and tracking-
+docs cleanup).  Current backlog tags (per `docs/coverage.sh`):
+`\unclear=1`, `\verifyme=0`, `\binarynote=40`, `\unverifiable=5`.
+Documentation coverage: 95.2% (2934/3081 symbols); 0 doxygen
+warnings under strict
+`WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 
 **D0 (setup) complete (2026-05-09):**
 - Doxygen + Doxygen Awesome CSS configured under `reconstructed/docs/`.
@@ -544,7 +553,7 @@ mainpage.
     items share the same column.
 - 1600/1600 differential tests passing throughout the phase.
 
-**D4 (per-class public-method briefs) — in progress:**
+**D4 (per-class public-method briefs) complete:**
 
 - D4 ordering: `Compiler` → `Prefetch` → `WavetableIR` /
   `FrontEndLoweringFacade` → `CustomFunctions` → `AsmOptimize` →
@@ -1145,7 +1154,7 @@ mainpage.
 **D7 (verify-triage sweep) complete:**
 
 - Burned down the doc-accuracy backlog accumulated through D2–D6.
-  Final tag counts vs targets: `\unclear=2` (≤2 ✓),
+  Final tag counts vs targets: `\unclear=1` (≤2 ✓),
   `\verifyme=0` (≤3 ✓), `\binarynote=40` (≤40 ✓).
 - Round 3 triaged 33 sites across 4 commits (`2b4d43d` asm+infra,
   `c8df0ca` ast+core+waveform, `78b1a5d` codegen+runtime+io+device,
@@ -1165,69 +1174,95 @@ mainpage.
 - 1603/1603 differential tests passing throughout; 0 doxygen
   warnings at every commit.
 
-**D4 (public methods of high-traffic classes) complete:**
+**D8 (coverage-gap tests for latent prefetch paths) complete:**
 
-- ~80 public methods documented across 6 main batches (with
-  sub-batches 2a-e and 3a-c) covering `Compiler`, `Prefetch`,
-  `WavetableIR` / `WavetableFront` / `WavetableManager`,
-  `CustomFunctions`, `AsmOptimize`, and `WaveformGenerator`.  All
-  briefs followed the verify-then-write workflow against the
-  corresponding `.cpp` body and the canonical `.hpp` field names.
-- Surfaced and resolved 7 likely-bug IFs: IF-213
-  (`Prefetch::findLockedPlay` was a stub that always returned
-  `nullptr`; reconstructed from `0x1d3dd0..0x1d4442` as a LIFO
-  worklist walk), IF-217 (`backwardTree` enqueued the wrong
-  shared_ptr — `next` instead of `loop` — in the third visitor
-  block), IF-218 (`expandSetVar` wrong field), IF-219
-  (`createLoad` wrong polarity), IF-223 (Table-case sub-path C
-  missing the ssl/addr/prf/wprf emission for split devices;
-  reconstructed inline at `prefetch_placesingle.cpp:1258-1432`,
-  with C-non-split / C-split branches gated on `split_`), IF-224
-  (Prefetch placement dispatch ordering), IF-226 (cache-query
-  helper diverged).  Plus IF-241..IF-244 from the IF-223 audit:
-  polarity correction, `bgReg ≡ idxReg` identity, `Prefetch+0x08`
-  is `devConst_` not `awgCfg_`, and a documentation-only relabel
-  of `play_cervino_indexed_nonsplit` (the original label at
-  `prefetch_placesingle.cpp:863` was actually
-  `table_indexed_with_clamp`; a new doc-only block above carries
-  the real Play tail body).
-- Surfaced and fixed in the same commits as the briefs that
-  surfaced them: IF-212 (3 block-header summaries in
-  `prefetch_prepare.cpp` swapped Play↔Load case labels and
-  carried stale field names), IF-214 (15-site "BFS" misnomer
-  across `prefetch.cpp` / `prefetch_helpers.cpp` — actually LIFO
-  via `std::deque::back()`/`pop_back()`), IF-215
-  (`Prefetch::optimize` block-header listed the wrong dispatched
-  type), IF-216 (recon body bug: `Prefetch::allocate` dispatched
-  on `NodeType::Wait` where the binary cmps `Lock`; symbol
-  renamed `Wait`→`Lock` and `handleWait`→`handleLock`,
-  GDB-confirmed at `0x1d0fb0`), IF-220 (cosmetic comment drift
-  cluster), IF-229 (cosmetic class brief overstatement),
-  IF-230 (arity-blind parameter-label strings in `rrc` /
-  `sinc` / `chirp` / `lfsrGaloisMarker`), IF-231 (`rand` 3-arg
-  semantic bug), IF-234 (`sin`/`cos`/`sawtooth`/`triangle` 3-arg
-  semantic bug — bound `(length, amplitude, phase)` but binary
-  binds `(length, phase, nPeriods)` with `amplitude=1.0`).
-- D-AUDIT-1 (spawned from Batch 6b) audited all 16 multi-arity
-  `WaveformGenerator` factories for the IF-230 pattern; all
-  remaining label drifts and semantic bugs fixed in the same
-  commit as discovery.
-- `AGENTS.md` gained a new "Verify-then-write: code is the source
-  of truth" section formalising the workflow during Batch 2a;
-  every subsequent brief opened the function body and
-  cross-checked field names against the canonical `.hpp` before
-  being written, catching one false-positive audit claim in the
-  process (the audit reported `PlayConfig::now` as misnamed;
-  verification showed `now` is the canonical field per
-  `play_config.hpp:47`).
-- 1600/1600 → 1602/1602 differential tests passing throughout
-  (incremented as new coverage tests were added: `random_waves_3arg`
-  for IF-231, `trig_3arg` for IF-234); build clean and 0 doxygen
-  warnings at every commit.
-- **Coverage gap acknowledged:** the test corpus does not exercise
-  Play `cervino_indexed_nonsplit` (real `0x1db4ad..0x1db55d`),
-  Table sub-path C2 (`split_==1` with valid lengthReg), or
-  `playWaveTable` with a non-empty cache plus valid per-channel
-  length register.  IF-223 / IF-244 reconstructions on those paths
-  are static-only verified.  TODO **D8** tracks authoring seqc
-  cases to graduate them to test-verified.
+- The IF-223 / IF-244 reconstructions originally listed three
+  candidate test cases (Play `cervino_indexed_nonsplit`, Table
+  sub-path C2, `playWaveTable` with non-empty cache).  D9.1 / D8
+  scoping reframed all three: IF-246 GDB-confirmed the
+  `0x1db4ad..0x1db55d` block is reached only via the Load
+  dispatch (no Play counterpart exists); IF-249 GDB-confirmed
+  `NodeType::Table` is unreachable from the public
+  `compile_seqc(...)` binding (only `Node::from_json` produces
+  Table nodes); `playWaveTable` does not exist as a SeqC API.
+- Only one new test case was authorable:
+  `core:uhfawg_load_cervino_prf_path_b1` covers Load Path B1
+  (`cachePtr->size_ == waveformMemorySize`) and graduated
+  IF-246's reconstruction from "static-only verified" to
+  "test-verified" once D10 landed the full Path B1 emission.
+- Tests 1602/1602 → 1603/1603 (added `path_b1`); 0 doc warnings.
+
+**D9 (resolve IF-244 dead label blocks and Table-C-split wprf gate)
+complete:**
+
+- D9.1 (commit `f97effd`): GDB-traced the original binary at
+  `0x1db4ad..0x1db55d` and disproved IF-244's Play-side claim — the
+  block is Load-side Path B1 only.  Promoted finding to **IF-246**.
+- D9.2 (commit `8423555`): GDB-confirmed the Table-C-split `wprf`
+  gate at `0x1db92e` reads `AWGCompilerConfig::isHirzel` (offset
+  `+0x18`) and skips `wprf` when set.  UHFAWG (isHirzel=0) emits
+  wprf; HDAWG/SHFSG/SHFQC_SG/SHFLI (isHirzel=1) skip.  Promoted to
+  **IF-247**.  A separate "isHirzel inversion" alarm raised during
+  D9.1 was investigated and dismissed as a naming-convention
+  confusion (**IF-248**); recon's per-device assignments in
+  `awg_device_props.cpp` already match the binary.
+- D9.3 (commit `d1515c8`): deleted the two dead label-only blocks
+  (`play_cervino_indexed_nonsplit` at the old
+  `prefetch_placesingle.cpp:865-941`, `table_indexed_with_clamp` at
+  `:951-1022`); promoted the `\verifyme` at the Table-C-split
+  inline emission to a real `if (!config_->isHirzel)` gate.
+  Backlog tag deltas: `\verifyme` 16→13, `\binarynote` 81→80.
+- D9.4 (commit `d0b4170`): dropped — extracting a shared
+  `emitPrfEpilogueAndInsert_` helper would have to wrap so much
+  conditional behaviour (clamp vs no-clamp, gated vs unconditional
+  `wprf`) that it would obscure rather than clarify.
+- 1602/1602 tests passing throughout; 0 doxygen warnings.
+
+**D10 (reconstruct `load_cervino_prf` Path B1 fully) complete
+(commit `a6f92d9`):**
+
+- Replaced the incomplete stub at `prefetch_placesingle.cpp:342-349`
+  with the full binary emission shape per IF-246:
+  `prf → 2x addi → wprf → prf → jmp load_finalize`.
+- Correction folded into the recon: the local `wprf` at `0x1db4bd`
+  is **unconditional**, not gated on `!isHirzel`.  Only the
+  load_finalize tail `wprf` is gated per IF-247.  UHFAWG (the only
+  device reaching this path) therefore emits **two** `wprf`
+  instructions on this code path; a `\verifyme` was added near the
+  local `wprf` to flag the expectation.
+- Test verification: `core:uhfawg_load_cervino_prf_path_b1` (added
+  under D8) was authored red against the old stub (orig=76 vs
+  recon=60 bytes of `.text`); the rewrite makes it pass
+  byte-identical.  Disassembly was delegated to a subagent and the
+  proposed C++ block matched the binary on first build (no
+  iteration needed).  Tests 1603/1603.
+
+**D-AUDIT-2 (swap layout-misnamed `AWGAssemblerImpl` string slots)
+complete (2026-05-12, commit `282bd16`):**
+
+- Promoted from IF-250.  Renamed `+0x20` slot → `unusedStr020_`
+  and `+0x38` slot → `asmSource_` in the `AWGAssemblerImpl` header
+  (layout comment and field declarations both updated).  Ctor
+  init list in `awg_assembler_impl.cpp` reordered to match the new
+  physical offset order.  Pipeline writer (`assembleFile`) and
+  reader (`writeToFile`) in `awg_assembler_impl_pipeline.cpp` now
+  correctly target the `+0x38` slot by name as well as by data
+  flow.  Dropped the `\unclear` from the new `+0x20` slot's brief.
+  IF-250 marked **fixed**.  Tests 1603/1603 with no ELF byte
+  changes.
+
+**D-AUDIT-3 (mirror binary's `apiErrorMessages` anon-namespace
+table) complete (2026-05-12, commit `ac0fc85`):**
+
+- Promoted from IF-251.  Introduced an anonymous-namespace
+  `apiErrorMessages` `std::map<int, std::string>` in
+  `reconstructed/src/core/error_messages.cpp`, populated at
+  static-init time by an `ApiErrorMessagesInitializer` struct with
+  all 52 entries the binary's BSS table at `0xb85230` holds
+  (16384–16389 minus 16388; 32768–32800; 36864–36877).
+  `getApiErrorMessage` now reads from this dedicated table instead
+  of from `ErrorMessages::messages`, restoring the binary's
+  two-independent-tables data-flow shape.  Strings are duplicated
+  literals (faithful to the binary), not copy-derived from
+  `messages`.  IF-251 marked **fixed**.  Tests 1603/1603 (no
+  observable change since the two tables agree on shared keys).

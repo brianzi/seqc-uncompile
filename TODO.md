@@ -1,7 +1,9 @@
 # TODO — Reconstructed zhinst SeqC Compiler
 
-> **All historical phases archived.**  Reconstruction has reached a
-> steady state with no open work items as of 2026-05-08.
+> **Phase D (Inline code documentation) is the active phase.**
+> Sub-phases D0–D10 plus D-AUDIT-1/2/3 are complete; D11–D15 are open.
+> All earlier reconstruction phases (1–62, plus the symbol-renaming
+> Phases D/R/S) are archived under `reconstructed/notes/archive/`.
 
 ## Current state
 
@@ -1455,7 +1457,7 @@ All historical reconstruction work is preserved under
 - [`OVERVIEW.md`](OVERVIEW.md) — class hierarchy, current
   reconstruction status, file structure, open questions.
 - [`reconstructed/notes/incidental_findings.md`](reconstructed/notes/incidental_findings.md)
-  — IF-1..IF-200 (oldest entries IF-1..IF-99 archived to
+  — IF-100..IF-254 (oldest entries IF-1..IF-99 archived to
   [`archive/IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md)).
 - [`reconstructed/notes/`](reconstructed/notes/) — topic-organized
   technical notes (struct layouts, opcodes, optimization passes, etc.).
