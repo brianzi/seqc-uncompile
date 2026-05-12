@@ -640,33 +640,40 @@ Run `reconstructed/docs/coverage.sh` to track progress.
     `platform.cpp` as an anon-ns helper for `isDirectoryWriteable`
     and remained there — no separate filesystem TU was needed.
 
-- [ ] **D18 — Reconstruct `ast_misc` cluster (per-subclass
-      `SeqC*::clone()` virtualisation)**
-      *(scope: medium; expected outcome: 54 missing `clone()` overrides
-      restored, silent-slicing risk eliminated)*
+- [x] **D18 — Reconstruct `ast_misc` cluster (per-subclass
+      `SeqC*::clone()` virtualisation)** — closed 2026-05-12
+      *(scope: trivial after audit; expected outcome: confirmed
+      cluster already substantially reconstructed; one accessor
+      misnamed)*
 
-  Cluster details: 54 `SeqC*::clone() const` overrides totalling
-  ~8.5 KB.  Recon currently routes every clone through a single
-  non-virtual `Node::clone()` at `reconstructed/src/ast/node.cpp:221`,
-  meaning per-subclass payloads can be silently sliced when cloned
-  through a `Node*` base pointer.  See inventory §"Cluster:
-  ast_misc::ast" for the condensed per-subclass size table.
+  **Audit outcome (IF-258).**  The original TODO description was
+  based on a misread of the codebase.  `Node::clone()` at
+  `reconstructed/src/ast/node.cpp:221` is the **codegen IR**
+  `Node`, not the AST base.  The actual AST base
+  `SeqCAstNode::doClone()` is already pure virtual at
+  `seqc_ast_node.hpp:191`, and all 53 subclasses already override
+  it via the family macros (`SEQC_TRIVIAL_LEAF_IMPL` ×6,
+  `SEQC_UNARY_IMPL` ×5, `SEQC_OPERATOR_IMPL` ×22,
+  `SEQC_BINARY_IMPL` ×5, `SEQC_LIST_IMPL` ×4) plus 11 hand-written
+  overrides — matching the binary's 53 `SeqC*::clone() const`
+  symbols.  No silent-slicing risk existed.
 
-  This is a **correctness** issue (unlike D16/D17 which are fidelity).
-  Any AST pass that clones through the base pointer (loop unrolling,
-  template-argument expansion, inlined function bodies) is currently
-  at risk of dropping subclass state.
+  **Naming asymmetry (deliberate).**  Recon spells the slot
+  `doClone()` while the binary spells it `clone()`; the recon-side
+  rename disambiguates from the unrelated codegen IR
+  `Node::clone()` and is intentionally retained.
 
-  Steps:
-  1. Audit every existing clone call site in recon for actual
-     polymorphic vs static use.
-  2. Make `Node::clone()` virtual; provide overrides for every
-     subclass.  Most overrides are 52–212 B (member-wise copy +
-     child-recurse for branches/loops); use the per-subclass binary
-     size as the upper bound on body complexity.
-  3. Add a difftest specifically exercising AST cloning paths if
-     none currently does (loop bodies with nested vars are a
-     candidate).
+  **Real fix landed.**  The only genuine divergence was
+  `SeqCRepeat`'s first-child accessor: recon called it `count()`,
+  binary publishes `SeqCRepeat::cond() const` at `0x203b80`.
+  Renamed `count` → `cond` in the `SEQC_BINARY` instantiation,
+  the `SEQC_BINARY_IMPL` instantiation, and the sole caller in
+  `seqc_ast_eval_control.cpp:2368`.  Added a `\binarynote` to
+  `seqc_ast_node.hpp` explaining the binary's quirky accessor
+  name (semantically a count, named `cond`).
+
+  **Verification.**  Build clean; 1603/1603 difftests pass; 0 new
+  doxygen warnings.
 
 - [ ] **D19 — Reconstruct small clusters bundle (`exceptions`,
       `numeric`, `random`, `base64`, `awg_config`, `node_misc`,

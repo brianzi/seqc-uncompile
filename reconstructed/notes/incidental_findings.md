@@ -3917,3 +3917,60 @@ reconstruction, leave a TODO entry pointing at it.  When the proper
 reconstruction lands, sweep for older copies in sibling files
 before declaring the cluster done.
 
+
+## IF-258  D18 cluster `ast_misc` was already substantially reconstructed; only `SeqCRepeat::cond()` accessor was misnamed `count()`
+
+**Severity**: minor (one accessor name disagreed with binary; no
+behavioural divergence — field semantics and clone wiring were
+correct).
+
+**Status**: fixed (2026-05-12, D18) — `SeqCRepeat`'s `SEQC_BINARY`
+instantiation in `seqc_ast_node.hpp:1196` and `SEQC_BINARY_IMPL` in
+`seqc_ast_node.cpp:508` both renamed first child accessor from
+`count` → `cond`; sole caller in `seqc_ast_eval_control.cpp:2368`
+updated; `\binarynote` added to header explaining the binary's
+quirky accessor name (the field is semantically the repeat count
+but the binary spells the accessor `cond()`).
+
+**Discovered**: D18 audit (clone-virtualisation cluster).
+
+The TODO description for D18 claimed:
+
+> recon currently routes every clone through one non-virtual
+> `Node::clone()` at `reconstructed/src/ast/node.cpp:221`, meaning
+> per-subclass payloads can be silently sliced when cloned through a
+> `Node*` base pointer.
+
+This was based on a misread.  `Node::clone()` at
+`src/ast/node.cpp:221` is the **codegen IR** `Node`, an unrelated
+class hierarchy.  The AST base `SeqCAstNode::doClone()` is **already
+pure virtual** at `seqc_ast_node.hpp:191`, and all 53 subclasses
+already override it via the family macros (`SEQC_TRIVIAL_LEAF_IMPL`
+×6, `SEQC_UNARY_IMPL` ×5, `SEQC_OPERATOR_IMPL` ×22, `SEQC_BINARY_IMPL`
+×5, `SEQC_LIST_IMPL` ×4) plus 11 hand-written overrides
+(`SeqCOperation`, `SeqCOperator`, `SeqCFunctionCall`, `SeqCArray`,
+`SeqCCaseEntry`, `SeqCIfElse`, `SeqCCondExpr`, `SeqCFunction`,
+`SeqCForLoop`, `SeqCVariable`, `SeqCValue`).  Total: 53 = the binary's
+53 `SeqC*::clone() const` symbols.
+
+The only real divergence was that the binary publishes
+`SeqCRepeat::cond() const` at `0x203b80` (returns +0x18) and
+`SeqCRepeat::body() const` at `0x203b90` (returns +0x20), with no
+`count()` symbol — so the recon's accessor name `count()` did not
+match.  The fix is purely cosmetic at the API level (no callers
+outside `seqc_ast_eval_control.cpp` used the old name).
+
+### Naming asymmetry (deliberate)
+
+The recon spells the AST clone slot `doClone()` while the binary
+spells it `clone()`.  This recon-side rename is **deliberate** —
+it disambiguates the AST clone from the unrelated codegen IR
+`Node::clone()` at `src/ast/node.cpp:221`.  No fix needed; left
+as-is.
+
+### Lesson
+
+When a TODO description cites a specific function as the source of
+a bug, verify it exists with the claimed signature in the cited
+file before designing a fix.  A 30-second `grep` would have caught
+the AST-vs-codegen confusion months before D18 was scheduled.

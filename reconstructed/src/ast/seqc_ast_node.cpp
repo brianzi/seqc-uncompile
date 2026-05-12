@@ -505,7 +505,7 @@ void swap(SeqCCaseEntry& a, SeqCCaseEntry& b) {
 SEQC_BINARY_IMPL(SeqCSwitchCase,   cond, body, "SwitchCase",   10)  // print @0x202350, doClone @0x202430
 SEQC_BINARY_IMPL(SeqCWhileLoop,    cond, body, "WhileLoop",     9)  // print @0x203060, doClone @0x203140
 SEQC_BINARY_IMPL(SeqCDoWhile,      body, cond, "DoWhile",       7)  // print @0x203420, doClone @0x203500
-SEQC_BINARY_IMPL(SeqCRepeat,       count, body, "Repeat",        6)  // print @0x2037e0, doClone @0x2038c0
+SEQC_BINARY_IMPL(SeqCRepeat,       cond,  body, "Repeat",        6)  // print @0x2037e0, doClone @0x2038c0; cond() @0x203b80, body() @0x203b90
 
 #undef SEQC_BINARY_IMPL
 

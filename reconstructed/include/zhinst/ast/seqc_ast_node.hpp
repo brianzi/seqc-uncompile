@@ -1190,10 +1190,15 @@ SEQC_BINARY(SeqCWhileLoop,    cond,     body,  cond, body, 0xb055d0);
 //! but with body-first semantics; `body` is always evaluated at least
 //! once before `cond` is tested.
 SEQC_BINARY(SeqCDoWhile,      body,     cond,  body, cond, 0xb05620);
-//! \brief `repeat (count) body` loop node — evaluates `body` exactly
-//! `count` times; the body is unrolled when `count` is a compile-time
+//! \brief `repeat (cond) body` loop node — evaluates `body` exactly
+//! `cond` times; the body is unrolled when `cond` is a compile-time
 //! constant (subject to the loop-unroll limit on the lowering context).
-SEQC_BINARY(SeqCRepeat,       count,    body,  count, body, 0xb05670);
+//!
+//! \binarynote The first child is exposed as `cond()` (not `count()`)
+//! to match the symbol the original binary publishes
+//! (`SeqCRepeat::cond() const` at 0x203b80); semantically it is the
+//! repeat-count expression, but the binary's accessor name is `cond`.
+SEQC_BINARY(SeqCRepeat,       cond,     body,  cond, body, 0xb05670);
 
 #undef SEQC_BINARY
 

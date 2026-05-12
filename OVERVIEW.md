@@ -374,7 +374,7 @@ Source-of-truth analysis remains at
 In progress.  See `TODO.md` for the phase breakdown (D0..D15) and
 `reconstructed/docs/architecture.md` for the rendered Doxygen
 mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
-**D11, D12, D13, D14, D15, and D17 are complete; D16, D18, D19 are open**
+**D11, D12, D13, D14, D15, D17, and D18 are complete; D16, D19 are open**
 (cluster reconstruction promoted from the D14 inventory in
 `reconstructed/notes/d14_inventory.md`).  Current backlog tags (per `docs/coverage.sh`):
 `\unclear=0`, `\verifyme=1`, `\binarynote=17`, `\unverifiable=5`.
@@ -1221,3 +1221,28 @@ table) complete (2026-05-12, commit `ac0fc85`):**
   manifest is absent, so the cached `bool` is `false`, matching
   the prior stub's verdict).  Doxygen 0 new warnings; coverage
   95.2% (2941/3088 symbols, 8 newly documented).
+
+**D18 (reconstruct `ast_misc` cluster, per-subclass clone
+virtualisation) complete (2026-05-12):**
+
+- **Audit outcome (IF-258).**  The original TODO premise was based
+  on a misread.  `Node::clone()` at `src/ast/node.cpp:221` is the
+  codegen IR `Node`, not the AST base.  The actual AST base
+  `SeqCAstNode::doClone()` was already pure virtual at
+  `seqc_ast_node.hpp:191`, with all 53 subclasses already
+  overriding it via the family macros (`SEQC_TRIVIAL_LEAF_IMPL` ×6,
+  `SEQC_UNARY_IMPL` ×5, `SEQC_OPERATOR_IMPL` ×22,
+  `SEQC_BINARY_IMPL` ×5, `SEQC_LIST_IMPL` ×4) plus 11 hand-written
+  overrides — matching the binary's 53 `SeqC*::clone() const`
+  symbols.  No silent-slicing risk existed.
+- Naming asymmetry retained: recon spells the slot `doClone()`,
+  binary spells it `clone()`; the recon-side rename intentionally
+  disambiguates from the codegen IR `Node::clone()`.
+- Real fix: `SeqCRepeat`'s first-child accessor renamed `count` →
+  `cond` to match the binary's `SeqCRepeat::cond() const` symbol
+  at `0x203b80`.  Updated `SEQC_BINARY` / `SEQC_BINARY_IMPL`
+  instantiations and the sole caller in
+  `seqc_ast_eval_control.cpp:2368`.  Added a `\binarynote` to the
+  header explaining the binary's quirky accessor name (the field
+  is semantically a count, but spelled `cond`).
+- Tests 1603/1603; 0 new doxygen warnings.

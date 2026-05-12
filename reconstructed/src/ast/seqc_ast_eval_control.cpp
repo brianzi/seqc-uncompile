@@ -2364,8 +2364,8 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
     // ---- Create sub-scope("repeat") for count eval ----           // @0x221cab
     auto subRes = res->createSubScope("repeat");                     // @0x1e36a0
 
-    // ---- Evaluate count() ----                                    // @0x221d0e
-    auto countResult = count()->evaluate(subRes, ctx, state);
+    // ---- Evaluate cond() ----                                     // @0x221d0e
+    auto countResult = cond()->evaluate(subRes, ctx, state);
 
     // ---- Null countResult check ----                              // @0x221d78
     if (!countResult) {
