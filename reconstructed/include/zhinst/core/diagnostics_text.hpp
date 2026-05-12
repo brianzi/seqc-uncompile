@@ -122,15 +122,24 @@ void sanitizeFilename(std::string& s);
 //! \param s  Filename string to sanitise in place.
 void sanitizeInvalidFilename(std::string& s);
 
-//! \brief Replace each unit substring in \p text matching \p unit with
-//!        \p replacement, ignoring occurrences inside parenthesised
-//!        regex `\\E)` markers.
+//! \brief Annotate \p text with the renamed \p unit, splitting into
+//!        two presentation forms by whether \p text already contains
+//!        a parenthesised `(<unit>)` token.
+//!
+//! When \p text does **not** contain a literal `(<unit>)` substring,
+//! a trailing `[N]` index (if any) is stripped and the result is
+//! emitted as `"<stripped> (<replacement>)"`.
+//!
+//! When \p text **does** contain `(<unit>)`, every occurrence is
+//! rewritten to `(<replacement>)` (preserving surrounding text via
+//! `(.*?) *\(\Q<unit>\E\)(.*)` and replacement `$1 (<rep>)$2`); a
+//! trailing `[N]` index is then stripped from the substituted form.
+//!
 //! \param text         Input text.
 //! \param unit         Unit substring to find (treated as a literal
 //!                     inside a `\\Q...\\E` regex bracket).
 //! \param replacement  Replacement string.
-//! \return Copy of \p text with substitutions applied.
-//! \verifyme
+//! \return Annotated copy of \p text.
 std::string replaceUnit(const std::string& text,
                         const std::string& unit,
                         const std::string& replacement);

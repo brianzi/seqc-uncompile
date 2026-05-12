@@ -4318,3 +4318,91 @@ After this fix, `tests/diff_unreachable/harness.py` passes
 **481/481** cases across 9 in-place mutators, and the regression
 suite remains at **1603/1603** (truncateXmlSafe is binding-
 unreachable).
+
+---
+
+## IF-266  `replaceUnit` recon diverges on every input — wrong append arg + branch logic
+
+**Severity**: likely-bug
+**Status**: **fixed** (2026-05-12, Phase E2c)
+
+`reconstructed/src/core/diagnostics_text.cpp::replaceUnit`
+diverged from the binary on **all 13** harness inputs.  Failure
+shape: the recon's suffix-stripping branch appended the function's
+`text` argument inside the trailing parentheses, but the original
+uses `replacement` instead.  Even simpler cases like
+`("5 V", "V", "volt")` showed the divergence:
+
+| input                                | original                | recon (pre-fix)                |
+|--------------------------------------|-------------------------|--------------------------------|
+| `("5 V", "V", "volt")`               | `"5 V (volt)"`          | `"5 V (5 V)"`                  |
+| `("a (V) b", "V", "volt")`           | `"a (volt) b"`          | `"a (V) b (a (V) b)"`          |
+| `("VVV", "V", "volt")`               | `"VVV (volt)"`          | `"VVV (VVV)"`                  |
+| `("5\\E V", "V", "volt")`            | `"5\\E V (volt)"`       | `"5\\E V (5\\E V)"`            |
+
+### Root cause (GDB-verified)
+
+Three independent reconstruction errors compounded:
+
+1. **Wrong probe regex.**  The probing `regex_match` call at
+   `+544 (0x2f7d00)` was reconstructed to use `matchSuffix`
+   (the static `(.*?)(?: *\[[0-9]+\])+$` regex) but actually
+   uses the **per-call regex `re`** built earlier — pattern
+   `(.*?) *\(\Q<unit>\E\)(.*)`.  The `rcx = -0xc0(%rbp)`
+   argument loaded at `+0x230 (0x2f7cf3)` is the per-call
+   regex, written by `do_assign` at `0x2f7c4b`.
+
+2. **Wrong probe flag.**  The flag passed in `r8d` is
+   `0x400 = match_any`, not `match_partial` (`0x2000`).  The
+   prior recap mis-mapped the bit value.
+
+3. **Branch direction inverted.**  `bl=0` (no `(<unit>)` in
+   `text`) takes the **plain-prose** path at `+0x294 (0x2f7d74)`:
+   strip a trailing `[N]` from `text`, then append
+   `" (<replacement>)"`.  `bl=1` (text already contains
+   `(<unit>)`) takes the **bracketed-unit** path: substitute via
+   the per-call regex with replacement `"$1 (<replacement>)$2"`,
+   then strip a trailing `[N]` from the result.  The recon had
+   these branches reversed AND used the wrong arg in the appends.
+
+GDB output confirming the regex_match return for representative
+inputs:
+
+```
+("5 V", "V", "volt")     -> regex_match(text, re, match_any) = 0  -> plain-prose path
+("a (V) b", "V", "volt") -> regex_match(text, re, match_any) = 1  -> bracketed-unit path
+("abc", "x", "y")        -> regex_match(text, re, match_any) = 0  -> plain-prose path
+```
+
+### Fix
+
+`reconstructed/src/core/diagnostics_text.cpp::replaceUnit` was
+rewritten to:
+
+- probe with the per-call `re` (not `matchSuffix`) using
+  `match_any` (not `match_partial`);
+- on `!hasParenForm` (plain-prose), strip `[N]` from `text` and
+  emit `"<stripped> (<replacement>)"`;
+- on `hasParenForm` (bracketed-unit), `regex_replace(text, re,
+  "$1 (<replacement>)$2")` then strip `[N]` from the result.
+
+Result: 13/13 harness cases pass; full diff_test_fast suite
+still 1603/1603.
+
+### Lessons (logged into AGENTS.md spirit)
+
+- Do not trust block-header summary comments (the recon's
+  comment at lines 412–414 attributed the wrong arg to the
+  binary and was cited as evidence — classic stale-secondary-
+  source failure mode the AGENTS.md "Verify-then-write" rule
+  warns about).
+- When tracing argument-passing through a function with many
+  intermediate calls, breakpoint **at the call instruction**
+  and read `rcx`/`rdx`/etc — do not infer arg sources from a
+  static read of the disassembly.
+- `match_flags` numeric values: `match_any = 1024 = 0x400`,
+  `match_partial = 8192 = 0x2000`.  Confirm against the Boost
+  enum before naming a flag bit.
+
+This finding closes Phase E2c for `replaceUnit`; the symbol's
+`\verifyme` was promoted to verified in the same edit pass.

@@ -1230,41 +1230,32 @@ double-quoted string literal (not a verbatim `@""` literal).
 
 - **Address**: `0x2f7ae0`, size 1860B
 - **Mangled**: `_ZN6zhinst11replaceUnitERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_S8_`
-- **Signature**: `std::string zhinst::replaceUnit(std::string const& input,
-                                                  std::string const& oldUnit,
-                                                  std::string const& newUnit)`
+- **Signature**: `std::string zhinst::replaceUnit(std::string const& text,
+                                                  std::string const& unit,
+                                                  std::string const& replacement)`
 
-**Algorithm**
+**Algorithm** (verified end-to-end via GDB on `_seqc_compiler.so`,
+IF-266; previous description here was wrong on the probe regex,
+the probe flag, **and** the branch payload — see "History"
+below.)
 
-Finds the substring `(<oldUnit>)` in `input`, optionally followed by
-trailing array indices `[N]`, and rewrites it to `(<newUnit>)` while
-preserving the indices.  Implemented as **two `boost::regex_replace`
-passes**:
+Annotates `text` with a unit, picking one of two output shapes
+depending on whether `text` already mentions the unit in
+parenthesised form:
 
-1. **Suffix-match check** against a function-local static
-   `boost::regex` (built on first call, guarded by `__cxa_guard_*`
-   and registered with `__cxa_atexit` for destruction):
+- "plain prose" inputs (no embedded `(<unit>)`):
+  `"<text with trailing [N] stripped> (<replacement>)"`.
+- "bracketed-unit" inputs (containing `(<unit>)`):
+  every `(<unit>)` occurrence is rewritten to `(<replacement>)`
+  via the per-call regex, then a trailing `[N]` index (if any)
+  is stripped from the result.
 
-   ```
-   matchSuffix = boost::regex("(.*?)(?: *\\[[0-9]+\\])+$",
-                              boost::regex_constants::normal /*0*/);
-   ```
-   (rodata `0x90cf71`, 25 chars).
+The body is structured as one **probe** + one of two **rewrites**:
 
-   The static lives at `0xb852d8`, its guard byte at `0xb852e8`.
-   This is the only place `matchSuffix` is referenced (verified by
-   the `lea` to `0xb852d8` at offsets `0x2f7d9d` and `0x2f7f7e`).
-
-   `boost::regex_match(input.begin(), input.end(), what,
-   matchSuffix, 0x400)` is invoked at `0x2f7d00`.  Flag `0x400` is
-   `boost::regex_constants::match_partial` — kept for
-   reference; it does not affect the rewrite logic, only whether a
-   partial input could match.
-
-2. **Build the per-call regex** from `oldUnit`:
+1. **Build the per-call regex** from `unit`:
 
    ```
-   pattern = "(.*?) *\\(\\Q" + oldUnit + "\\E\\)(.*)"
+   pattern = "(.*?) *\\(\\Q" + unit + "\\E\\)(.*)"
    ```
    - prefix `"(.*?) *\\(\\Q"` is assembled in two MOV-immediate
      instructions:
@@ -1275,56 +1266,85 @@ passes**:
    - The pattern is constructed in a stack-local `std::string`,
      then handed to
      `boost::basic_regex<char,...>::do_assign(begin, end, 0)`
-     at `0x176cd0`.
+     at `0x176cd0` (called from `0x2f7c4b`); the assembled
+     `basic_regex` lives at `-0xc0(%rbp)`.
 
-3. **Build the replacement string** from `newUnit`:
+2. **Build the per-call replacement string** from `replacement`:
 
    ```
-   replacement = "$1 (" + newUnit + ")$2"
+   repl = "$1 (" + replacement + ")$2"
    ```
    - `"$1 ("` from MOV-immediate `0x28203124` (4 bytes).
    - `")$2"` (3 bytes) loaded from `.rodata` at `0x90cf89`.
 
-4. Two paths from here, depending on whether the suffix-match in
-   step 1 succeeded:
+3. **Probe** at `0x2f7d00` (`+0x220`):
 
-   - **If `match_partial` reported a hit** (`bl != 0`): the rewrite
-     uses the streaming-iterator overload
-     `boost::regex_replace<boost::re_detail_500::string_out_iterator
-     <std::string>, ...>` at `0x307970`.  The output is built into
-     a stack `std::string`, then the literal `" ("` (rodata
-     `0x8ff092`, 2 chars) is appended, then the original `input`
-     (already an arg, not the rewritten one), then the literal `")"`
-     (rodata `0x8ff095`, 1 char).  The result is the rewritten
-     prefix + " (" + original-input + ")".
+   ```
+   regex_match(text.begin(), text.end(), m,
+               re,                             // the per-call regex
+               boost::regex_constants::match_any /*0x400*/);
+   ```
 
-     This branch handles the case where the input had a trailing
-     `[N]` index — the streaming form is used because the static
-     `matchSuffix` was passed instead of the per-call pattern.
+   The `regex` argument is the **per-call `re`** built in step 1
+   (loaded from `-0xc0(%rbp)`, the slot just initialised by
+   `do_assign`), **not** the static `matchSuffix`.  The flag is
+   `match_any` (the engine returns true as soon as any valid
+   match is found and does not bother filling out captures
+   beyond what's needed for that decision), **not**
+   `match_partial`.  The result is saved to `%bl` at `0x2f7d05`
+   for use as the branch selector.
 
-     **Note**: this branch's wiring is unusual and may be a leftover
-     code path; in practice `replaceUnit` callers always exercise
-     the non-suffix branch.  Worth verifying with a unit test that
-     covers an input like `"signal[3] (mV)"`.
+   GDB observation, base+`0x2f7d05`:
 
-   - **Otherwise**: a clean
-     `boost::regex_replace(input, pattern, replacement,
-     boost::regex_constants::match_default)` is performed by the
-     value-returning overload at `0x2f8230`.
+   | text input        | `%bl` | meaning                       |
+   |-------------------|------:|-------------------------------|
+   | `"5 V"`           |     0 | no `(V)` substring            |
+   | `"a (V) b"`       |     1 | contains `(V)`                |
+   | `"abc"`           |     0 | no `(x)` substring            |
+
+4. **Two rewrite paths**, selected by `%bl`:
+
+   - **`%bl == 0`** — plain-prose path (`+0x294 = 0x2f7d74`).
+     Strip a trailing `[N]` from `text` via the streaming
+     `back_insert_iterator` overload of `regex_replace` at
+     `0x307970`, using `matchSuffix` and replacement `"$1"`
+     (no-op when no `[N]` is present); then append the literal
+     `" ("`, the `replacement` string, and the literal `")"`.
+     Output: `"<stripped> (<replacement>)"`.
+
+     This is the path on which the prior recap claimed the
+     binary "appends the entire original input" — that was
+     factually wrong; the appended payload is `replacement`.
+
+   - **`%bl == 1`** — bracketed-unit path.  Run the
+     value-returning `regex_replace(text, re, repl,
+     match_default)` overload at `0x2f8230` to substitute every
+     `(<unit>)` (matched by the per-call `re`'s anchored form
+     `(.*?) *\(\Q<unit>\E\)(.*)`) with `"$1 (<replacement>)$2"`,
+     producing a temporary; then run the streaming overload
+     again with `matchSuffix` + `"$1"` to strip a trailing
+     `[N]` from that temporary into the final `sret` slot.
+     Output: `"<text-with-(unit)→(replacement)>"` minus a
+     trailing `[N]`.
 
 5. Stack-local `boost::match_results` is destroyed; the per-call
    regex's `shared_ptr<basic_regex_implementation>` is released.
 
 **Static data**:
-- `b852d8`: `boost::regex matchSuffix` — function-local static.
-- `b852e8`: guard byte for `matchSuffix`.
+- `b852d8`: `boost::regex matchSuffix` — function-local static,
+  pattern `"(.*?)(?: *\\[[0-9]+\\])+$"` (rodata `0x90cf71`, 25
+  chars), built on first call (guarded by `__cxa_guard_*` byte
+  at `b852e8`) and registered with `__cxa_atexit` for
+  destruction.  Referenced only at the two `lea` sites
+  `0x2f7d9d` (plain-prose strip) and `0x2f7f7e` (bracketed-unit
+  strip).  **Not used** in the probe.
 
 **External calls** (in order of first use):
 - `operator new(unsigned long)` (`0x8c6b30`) — for the assembled
   pattern string when it overflows SSO (≤22 bytes is SSO; the
-  pattern is `12 + oldUnit.size() + 8 = 20 + oldUnit.size()`, so
-  any `oldUnit` ≥ 3 chars triggers the heap path).
-- `memmove@plt` (`0xca890`) — copies `oldUnit` into the assembled
+  pattern is `12 + unit.size() + 8 = 20 + unit.size()`, so any
+  `unit` ≥ 3 chars triggers the heap path).
+- `memmove@plt` (`0xca890`) — copies `unit` into the assembled
   pattern.
 - `std::string::append(const char*, size_t)` (`0x85ce40`)
 - `boost::basic_regex<...>::do_assign(const char*, const char*,
@@ -1333,9 +1353,12 @@ passes**:
 - `std::__shared_weak_count::__release_weak()` (`0x85b9c0`) —
   release the per-call match_results allocator.
 - `boost::re_detail_500::string_out_iterator ...
-   boost::regex_replace<...>(...)` (`0x307970`) — streaming form.
+   boost::regex_replace<...>(...)` (`0x307970`) — streaming form,
+  used by both branches to strip the `[N]` suffix.
 - `boost::regex_replace<..., std::string>(input, regex, fmt,
-  flags)` (`0x2f8230`) — value-returning form.
+  flags)` (`0x2f8230`) — value-returning form, used only by the
+  bracketed-unit branch for the `(<unit>) → (<replacement>)`
+  substitution.
 - `std::string::__init_copy_ctor_external` (`0xf14c0`)
 - `boost::basic_regex<...>::basic_regex(const char*, unsigned int)`
   (`0x15d560`) — used only for `matchSuffix` construction.
@@ -1355,51 +1378,69 @@ passes**:
 `"$1 ("` (4B) — these are inlined into the instruction stream and
 do not occupy `.rodata`.)
 
-**Pseudo-C body sketch**
+**Pseudo-C body sketch** (matches the verified recon in
+`reconstructed/src/core/diagnostics_text.cpp::replaceUnit`):
 
 ```cpp
 std::string zhinst::replaceUnit(
-        std::string const& input,
-        std::string const& oldUnit,
-        std::string const& newUnit) {
+        std::string const& text,
+        std::string const& unit,
+        std::string const& replacement) {
 
     static const boost::regex matchSuffix(
-        "(.*?)(?: *\\[[0-9]+\\])+$");          // function-local static
+        R"((.*?)(?: *\[[0-9]+\])+$)");          // function-local static
 
-    std::string pattern  = "(.*?) *\\(\\Q" + oldUnit + "\\E\\)(.*)";
+    std::string pattern  = "(.*?) *\\(\\Q" + unit + "\\E\\)(.*)";
     boost::regex re(pattern);
 
     boost::cmatch m;
-    bool hasIndex = boost::regex_match(
-        input.data(), input.data() + input.size(), m,
-        matchSuffix, boost::regex_constants::match_partial);
+    const bool hasParenForm = boost::regex_match(
+        text.data(), text.data() + text.size(), m,
+        re, boost::regex_constants::match_any);   // per-call re, match_any
 
-    std::string replacement = "$1 (" + newUnit + ")$2";
+    std::string repl = "$1 (" + replacement + ")$2";
 
-    if (hasIndex) {
-        // suffix-stripping path (streaming): rewrite the suffix-stripped
-        // form, then re-append the parens-suffix from the original input.
+    if (!hasParenForm) {
+        // plain-prose path: strip trailing [N] (no-op if none),
+        // then append " (<replacement>)".
         std::string out;
         boost::regex_replace(
             std::back_inserter(out),
-            input.data(), input.data() + input.size(),
-            matchSuffix, "$1");                 // strip "[N][N]..."
-        out += " (";
-        out += input;
-        out += ")";
+            text.data(), text.data() + text.size(),
+            matchSuffix, std::string("$1"));
+        out.append(" (", 2);
+        out.append(replacement);
+        out.append(")", 1);
         return out;
     }
-    return boost::regex_replace(input, re, replacement);
+    // bracketed-unit path: substitute (<unit>) → (<replacement>),
+    // then strip trailing [N] from the result.
+    std::string tmp = boost::regex_replace(text, re, repl);
+    std::string out;
+    boost::regex_replace(
+        std::back_inserter(out),
+        tmp.data(), tmp.data() + tmp.size(),
+        matchSuffix, std::string("$1"));
+    return out;
 }
 ```
 
-**\verifyme**: the suffix-handling branch (used when `regex_match`
-with `match_partial` returns true) is unusual — it appends the
-*entire original input* rather than the substring matched by the
-regex.  This may be a binary bug that the recon should preserve
-verbatim until a differential test exercises it.  Add a test case
-like `"signal[3] (mV)"` with `oldUnit="mV"`, `newUnit="V"` to nail
-down the expected output.
+**Differential coverage**: 13 inputs in `tests/diff_unreachable/
+harness.py::REPLACEUNIT_INPUTS` exercise both branches, including
+the `\Q…\E` quoting around metacharacters in `unit` and the `[N]`
+stripping in both branches; all 13 match the binary byte-for-byte.
+
+**History**
+
+The original notes here described a "two `regex_replace` passes"
+algorithm whose probe used `matchSuffix` with `match_partial` and
+whose suffix-stripping branch appended the entire original
+`input`.  Each of those three claims (probe regex, probe flag,
+append payload) was wrong.  The recon written from those notes
+diverged on every harness input.  Resolved during Phase E2c
+(IF-266) by GDB-tracing the probe call and the `out.append` site
+on the binary; see `incidental_findings.md` IF-266 for the full
+trace data and the lessons captured.
 
 ---
 

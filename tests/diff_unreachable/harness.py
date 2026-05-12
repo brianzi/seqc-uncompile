@@ -230,6 +230,9 @@ class Symbol:
     # 'sret_cstr'    = string(const char*)            -> void(sret, c_char_p)
     # 'sret_cref'    = string(const string&)          -> void(sret, string*)
     # 'sret_byval'   = string(string)                 -> void(sret, string*) [callee destroys arg]
+    # 'sret_cref3'   = string(const string&,
+    #                         const string&,
+    #                         const string&)          -> void(sret, string*, string*, string*)
     kind: str
 
 # Curated D16 in-place mutators only (first-pass scope).
@@ -286,6 +289,10 @@ SYMBOLS: list[Symbol] = [
     Symbol("escapeStringForPython",  0x2f9780,
            "_ZN6zhinst21escapeStringForPythonENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
            "sret_byval"),
+    # ---- E2c: 3-arg sret ----
+    Symbol("replaceUnit",            0x2f7ae0,
+           "_ZN6zhinst11replaceUnitERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_S8_",
+           "sret_cref3"),
 ]
 
 
@@ -391,6 +398,25 @@ PER_SYMBOL_EXTRA: dict[str, list[bytes]] = {
     ],
 }
 
+# replaceUnit takes 3 strings: (text, unit, replacement).  Curated
+# triples target each documented behaviour: literal substitution,
+# the `\Q...\E`-bracketed exclusion, and unit boundaries.
+REPLACEUNIT_INPUTS: list[tuple[bytes, bytes, bytes]] = [
+    (b"5 V", b"V", b"volt"),
+    (b"5V and 10V", b"V", b"volt"),
+    (b"", b"V", b"volt"),
+    (b"5 V", b"", b"x"),
+    (b"5 V", b"V", b""),
+    (b"hello world", b"world", b"earth"),
+    (b"abc", b"x", b"y"),                  # no match
+    (b"VVV", b"V", b"volt"),               # adjacent matches
+    (b"a (V) b", b"V", b"volt"),           # parenthesised — \Q...\E exclusion?
+    (b"5\\E V", b"V", b"volt"),            # literal \E in input
+    (b"5 V 10 V 15 V", b"V", b"_"),
+    (b"\xff\xfe V \xfd", b"V", b"x"),      # high bytes around the unit
+    (b"a" * 100 + b" V", b"V", b"volt"),   # long-form input
+]
+
 # toCheckedString takes `const char*`.  None encodes nullptr; the
 # rest are encoded as bytes and passed via ctypes.c_char_p.
 TOCHECKEDSTRING_INPUTS: list[bytes | None] = [
@@ -481,12 +507,32 @@ def call_sret_byval(fn: Callable, data: bytes) -> bytes:
         _free_uninit(arg_slot)
 
 
+def call_sret_cref3(fn: Callable, a: bytes, b: bytes, c: bytes) -> bytes:
+    """Call `string f(const string&, const string&, const string&)`."""
+    pa = make_string(a)
+    pb = make_string(b)
+    pc = make_string(c)
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, pa, pb, pc)
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+        free_string(pc)
+        free_string(pb)
+        free_string(pa)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
     if sym.kind == "sret_cstr":
         for data in TOCHECKEDSTRING_INPUTS:
             yield ((data,), "NULL" if data is None else _label(data))
+        return
+    if sym.kind == "sret_cref3":
+        for triple in REPLACEUNIT_INPUTS:
+            yield (triple, f"({_label(triple[0])}, {_label(triple[1])}, {_label(triple[2])})")
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
@@ -501,7 +547,6 @@ def iter_inputs(sym: Symbol):
             yield ((data,), _label(data))
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
-
 def _label(b: bytes) -> str:
     if len(b) > 24:
         return f"{b[:20]!r}...({len(b)}B)"
@@ -518,6 +563,9 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_char_p]
     elif sym.kind in ("sret_cref", "sret_byval"):
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_cref3":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p,
+                      ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -547,6 +595,12 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data4: bytes = args[0]  # type: ignore[assignment]
             o = call_sret_byval(fn_orig, data4)
             c = call_sret_byval(fn_cand, data4)
+        elif sym.kind == "sret_cref3":
+            a3: bytes = args[0]  # type: ignore[assignment]
+            b3: bytes = args[1]  # type: ignore[assignment]
+            c3: bytes = args[2]  # type: ignore[assignment]
+            o = call_sret_cref3(fn_orig, a3, b3, c3)
+            c = call_sret_cref3(fn_cand, a3, b3, c3)
         else:
             raise ValueError(f"unknown kind: {sym.kind}")
 

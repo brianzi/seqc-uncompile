@@ -395,11 +395,17 @@ std::string replaceUnit(const std::string& text,
     pattern.append("\\E\\)(.*)");
     boost::regex re(pattern);
 
-    // Suffix-match probe using match_partial (flag 0x400).
+    // Probe whether `text` already contains a literal "(<unit>)"
+    // substring matching the per-call regex.  Binary passes flag
+    // 0x400 = match_any (the engine returns true as soon as any
+    // valid match is found; we don't care which capture groups
+    // are populated since `m` is discarded).  IF-266: the original
+    // recap mis-identified this as a `matchSuffix` probe with
+    // match_partial — both the regex AND the flag were wrong.
     boost::cmatch m;
-    const bool hasIndex = boost::regex_match(
+    const bool hasParenForm = boost::regex_match(
         text.data(), text.data() + text.size(), m,
-        matchSuffix, boost::regex_constants::match_partial);
+        re, boost::regex_constants::match_any);
 
     // Build per-call replacement: "$1 (" + replacement + ")$2"
     std::string repl;
@@ -408,12 +414,18 @@ std::string replaceUnit(const std::string& text,
     repl.append(replacement);
     repl.append(")$2");
 
-    if (hasIndex) {
-        // Suffix-stripping streaming path.  Binary appends the *entire
-        // original input* after " (", not the suffix-stripped form —
-        // preserved verbatim; see diagnostics_text.md §replaceUnit.
-        // (replaceUnit is still pending diff-test harness coverage —
-        // tracked as Phase E2c in TODO.md.)
+    // GDB-verified branch direction (IF-266): regex_match returns
+    // 0 for "plain prose" inputs (no embedded "(<unit>)"); the
+    // streaming strip+append path emits "<text-with-trailing-[N]-
+    // stripped> (<replacement>)".  It returns 1 when `text` already
+    // contains the bracketed "(<unit>)" form; the substitute+suffix-
+    // strip path rewrites every "(<unit>)" occurrence to
+    // "(<replacement>)" and trims a trailing [N] index from the
+    // result.
+    if (!hasParenForm) {
+        // Plain-prose path: strip any trailing [N] from `text`
+        // (no-op when none is present) and emit
+        // "<stripped> (<replacement>)".
         std::string out;
         boost::regex_replace(
             std::back_inserter(out),
@@ -421,12 +433,23 @@ std::string replaceUnit(const std::string& text,
             matchSuffix, std::string("$1"),
             boost::regex_constants::match_default);
         out.append(" (", 2);
-        out.append(text);
+        out.append(replacement);
         out.append(")", 1);
         return out;
     }
-    return boost::regex_replace(text, re, repl,
-                                boost::regex_constants::match_default);
+    // Bracketed-unit path: substitute every "(<unit>)" via the
+    // per-call `re` (matching "<lhs> *(<unit>)<rhs>" with `(.*?)`
+    // and `(.*)` captures), then strip any trailing [N] index from
+    // the result.
+    std::string tmp = boost::regex_replace(
+        text, re, repl, boost::regex_constants::match_default);
+    std::string out;
+    boost::regex_replace(
+        std::back_inserter(out),
+        tmp.data(), tmp.data() + tmp.size(),
+        matchSuffix, std::string("$1"),
+        boost::regex_constants::match_default);
+    return out;
 }
 
 // ---- browseTo — binary @0x2eb950, 1739 B ----

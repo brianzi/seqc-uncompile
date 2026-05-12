@@ -844,6 +844,30 @@ comparing byte-for-byte outputs.
         `m[0].second > cut`.  Recon had two bugs: (a) ignored the
         back-up `&` position, (b) used wrong submatch index `m[3]`
         instead of straightforward `m[0]`.  Both fixed.
+  - [ ] **E2c — Cover deferred D16 surface (`replaceUnit`,
+        `generateSfc`).**
+    - [x] `replaceUnit` *(done 2026-05-12; see IF-266)*  Added
+          `sret_cref3` ABI shape to harness; 13 inputs covering
+          plain prose, bracketed `(unit)` form, trailing `[N]`
+          indices, escapable metacharacters, and empty strings.
+          Uncovered two tangled bugs (wrong probe regex/flag and
+          wrong append payload); GDB-traced binary at `0x2f7d00`
+          to confirm the probe is `regex_match(text, re,
+          match_any /*0x400*/)` — per-call regex, not
+          `matchSuffix`; flag is `match_any`, not `match_partial`.
+          The `bl=0` path is plain prose and appends
+          `replacement` (not `text`); the `bl=1` path rewrites
+          via the per-call regex and then strips trailing `[N]`.
+          Recon body, header brief, and `notes/diagnostics_text.md`
+          §replaceUnit all rewritten to match.  13/13 harness pass;
+          653/653 total; 1603/1603 main suite.  `\verifyme`
+          removed from `replaceUnit`.
+    - [ ] `generateSfc` — POD return + multi-arg + throw path.
+          Needs new harness ABI shape (POD return, possibly with
+          exception interception).
+    - **Out of scope:** `browseTo` (xdg-open shellout; not
+          amenable to differential harness without intercepting
+          `posix_spawn`).
 
 - [ ] **E3 — Triage findings**
       *(scope: variable, depends on E2 output; outcome: each
@@ -876,8 +900,8 @@ comparing byte-for-byte outputs.
     sanitizeInvalidFilename, truncateUtf8Safe, truncateXmlSafe,
     xmlEscapeUtf8Critical, xmlEscapeCritical, quote, toCheckedString.
   - Header-level brief updated to reflect partial verification.
-  - `\verifyme` count: 8 → 5.  Remaining: `replaceUnit`, `browseTo`,
-    `generateSfc` (all in TODO E2c / out of scope).
+  - `\verifyme` count: 8 → 4.  Remaining: `browseTo`,
+    `generateSfc` (E2c next batch / out of scope), plus 2 elsewhere.
 
 ## Archives
 
