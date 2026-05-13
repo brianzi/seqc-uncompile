@@ -317,6 +317,41 @@ SYMBOLS: list[Symbol] = [
     Symbol("generateSfc",            0x2d10b0,
            "_ZN6zhinst11generateSfcERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_",
            "pod_u64_cref2"),
+    # ---- F2: infra/calver.cpp — POD-only batch (9 symbols) ----
+    # Single-blob accessors: size_t (CalVer const&) — return in %rax.
+    Symbol("CalVer::year",           0x100220,
+           "_ZNK6zhinst6CalVer4yearEv",
+           "pod_u64_blob"),
+    Symbol("CalVer::month",          0x100230,
+           "_ZNK6zhinst6CalVer5monthEv",
+           "pod_u64_blob"),
+    Symbol("CalVer::patch",          0x100240,
+           "_ZNK6zhinst6CalVer5patchEv",
+           "pod_u64_blob"),
+    Symbol("CalVer::build",          0x100250,
+           "_ZNK6zhinst6CalVer5buildEv",
+           "pod_u64_blob"),
+    # uint32_t (CalVer const&) — return in %eax.
+    Symbol("asDecimal",              0x1006e0,
+           "_ZN6zhinst9asDecimalERKNS_6CalVerE",
+           "pod_u32_blob"),
+    Symbol("asBinary",               0x1007c0,
+           "_ZN6zhinst8asBinaryERKNS_6CalVerE",
+           "pod_u32_blob"),
+    # bool (CalVer const&) and bool (array<size_t,3> const&).
+    Symbol("isSet(CalVer)",          0x100470,
+           "_ZN6zhinst5isSetERKNS_6CalVerE",
+           "pod_bool_blob"),
+    Symbol("isSet(array)",           0x1020d0,
+           "_ZN6zhinst5isSetERKNSt3__15arrayImLm3EEE",
+           "pod_bool_blob"),
+    # bool (CalVer const&, CalVer const&) — comparison operators.
+    Symbol("operator==(CalVer)",     0x100bc0,
+           "_ZN6zhinsteqERKNS_6CalVerES2_",
+           "pod_bool_blob2"),
+    Symbol("operator<(CalVer)",      0x100c00,
+           "_ZN6zhinstltERKNS_6CalVerES2_",
+           "pod_bool_blob2"),
 ]
 
 
@@ -491,6 +526,80 @@ TOCHECKEDSTRING_INPUTS: list[bytes | None] = [
 
 TRUNCATE_LIMITS = [0, 1, 2, 3, 5, 7, 10, 22, 23, 100]
 
+# ----------------------------------------------------------------- #
+# CalVer / array<size_t,3> blob inputs.  CalVer is 4 x size_t = 32 B
+# (year_, month_, patch_, build_); array<size_t,3> is 3 x size_t =
+# 24 B.  Both are POD and passed via const-ref (i.e. by pointer)
+# under the Itanium ABI, so the harness only needs raw bytes.
+# ----------------------------------------------------------------- #
+
+def _pack_calver(year: int, month: int, patch: int, build: int) -> bytes:
+    """Pack a 32-byte CalVer struct (4 x size_t little-endian)."""
+    import struct
+    return struct.pack("<QQQQ", year, month, patch, build)
+
+def _pack_arr3(a: int, b: int, c: int) -> bytes:
+    """Pack a 24-byte std::array<size_t,3>."""
+    import struct
+    return struct.pack("<QQQ", a, b, c)
+
+# Curated CalVer values: zero, common LabOne versions, field-boundary
+# stressors, and asDecimal/asBinary edge cases.
+CALVER_INPUTS: list[tuple[bytes, str]] = [
+    (_pack_calver(0, 0, 0, 0),                "zero"),
+    (_pack_calver(26, 1, 3, 9),               "26.01.3.9 (LabOne)"),
+    (_pack_calver(25, 12, 0, 0),              "25.12.0.0"),
+    (_pack_calver(1, 1, 1, 1),                "1.1.1.1"),
+    (_pack_calver(99, 99, 9, 9999),           "asDecimal-max-fields"),
+    (_pack_calver(100, 100, 10, 10000),       "asDecimal-overflow-by-1"),
+    (_pack_calver(255, 255, 15, 4095),        "asBinary-max-fields"),
+    (_pack_calver(256, 256, 16, 4096),        "asBinary-overflow-by-1"),
+    (_pack_calver(0, 0, 0, 1),                "build-only"),
+    (_pack_calver(0, 0, 1, 0),                "patch-only"),
+    (_pack_calver(0, 1, 0, 0),                "month-only"),
+    (_pack_calver(1, 0, 0, 0),                "year-only"),
+    (_pack_calver(0xFFFFFFFFFFFFFFFF, 0, 0, 0), "year=u64-max"),
+]
+
+# Pairs of CalVer values for binary operators.
+CALVER_PAIRS: list[tuple[bytes, bytes, str]] = [
+    (_pack_calver(0, 0, 0, 0),  _pack_calver(0, 0, 0, 0),  "0==0"),
+    (_pack_calver(26, 1, 3, 9), _pack_calver(26, 1, 3, 9), "26.01.3.9 ==self"),
+    (_pack_calver(26, 1, 3, 9), _pack_calver(26, 1, 3, 0), "differ-build"),
+    (_pack_calver(26, 1, 3, 9), _pack_calver(26, 1, 4, 9), "differ-patch"),
+    (_pack_calver(26, 1, 3, 9), _pack_calver(26, 2, 3, 9), "differ-month"),
+    (_pack_calver(26, 1, 3, 9), _pack_calver(27, 1, 3, 9), "differ-year"),
+    (_pack_calver(0, 0, 0, 0),  _pack_calver(0, 0, 0, 1),  "0 < build=1"),
+    (_pack_calver(25, 12, 9, 9999), _pack_calver(26, 0, 0, 0), "year-roll"),
+    (_pack_calver(1, 0, 0, 0),  _pack_calver(0, 99, 99, 9999), "year>everything"),
+]
+
+# array<size_t,3> values for the sibling toString/isSet overloads.
+ARR3_INPUTS: list[tuple[bytes, str]] = [
+    (_pack_arr3(0, 0, 0),       "zero"),
+    (_pack_arr3(26, 1, 3),      "26.1.3"),
+    (_pack_arr3(0, 0, 1),       "0.0.1"),
+    (_pack_arr3(1, 0, 0),       "1.0.0"),
+    (_pack_arr3(0, 1, 0),       "0.1.0"),
+    (_pack_arr3(99, 99, 99),    "99.99.99"),
+    (_pack_arr3(0xFFFFFFFFFFFFFFFF, 0, 0), "max,0,0"),
+    (_pack_arr3(0, 0xFFFFFFFFFFFFFFFF, 0), "0,max,0"),
+    (_pack_arr3(0, 0, 0xFFFFFFFFFFFFFFFF), "0,0,max"),
+]
+
+# Maps each blob-input symbol name to the corpus to draw from.
+# Single-arg blob symbols only.
+BLOB_CORPUS: dict[str, str] = {
+    "CalVer::year":      "calver",
+    "CalVer::month":     "calver",
+    "CalVer::patch":     "calver",
+    "CalVer::build":     "calver",
+    "asDecimal":         "calver",
+    "asBinary":          "calver",
+    "isSet(CalVer)":     "calver",
+    "isSet(array)":      "arr3",
+}
+
 # generateSfc: only the MF family reaches the happy path; other families
 # raise (and their throw paths are out of scope at E2c — see TODO.md).
 # Curated (devType, options) pairs cover empty options, single options,
@@ -638,6 +747,29 @@ def call_pod_u64_cref2(fn_addr: int, a: bytes, b: bytes) -> tuple[int | None, st
         free_string(pa)
 
 
+def call_pod_u64_blob(fn: Callable, blob: bytes) -> int:
+    """Call `size_t f(Blob const&)` (1 blob arg, u64 return in %rax)."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    return int(fn(ctypes.cast(buf, ctypes.c_void_p))) & 0xffffffffffffffff
+
+def call_pod_u32_blob(fn: Callable, blob: bytes) -> int:
+    """Call `uint32_t f(Blob const&)` (1 blob arg, u32 return in %eax)."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    return int(fn(ctypes.cast(buf, ctypes.c_void_p))) & 0xffffffff
+
+def call_pod_bool_blob(fn: Callable, blob: bytes) -> int:
+    """Call `bool f(Blob const&)` (1 blob arg, bool return in %al)."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    return int(fn(ctypes.cast(buf, ctypes.c_void_p))) & 0xff
+
+def call_pod_bool_blob2(fn: Callable, a: bytes, b: bytes) -> int:
+    """Call `bool f(Blob const&, Blob const&)` (2 blob args)."""
+    ba = ctypes.create_string_buffer(a, len(a))
+    bb = ctypes.create_string_buffer(b, len(b))
+    return int(fn(ctypes.cast(ba, ctypes.c_void_p),
+                  ctypes.cast(bb, ctypes.c_void_p))) & 0xff
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -652,6 +784,20 @@ def iter_inputs(sym: Symbol):
     if sym.kind == "pod_u64_cref2":
         for pair in GENERATESFC_INPUTS:
             yield (pair, f"({_label(pair[0])}, {_label(pair[1])})")
+        return
+    if sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob"):
+        # Blob inputs come from CALVER_INPUTS or ARR3_INPUTS, picked
+        # by per-symbol corpus name.
+        corpus = {
+            "calver": CALVER_INPUTS,
+            "arr3":   ARR3_INPUTS,
+        }[BLOB_CORPUS[sym.name]]
+        for blob, label in corpus:
+            yield ((blob,), label)
+        return
+    if sym.kind == "pod_bool_blob2":
+        for a, b, label in CALVER_PAIRS:
+            yield ((a, b), label)
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
@@ -692,6 +838,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "pod_u64_cref2":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob"):
+        proto_args = [ctypes.c_void_p]
+    elif sym.kind == "pod_bool_blob2":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -701,6 +851,15 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         # Override the void return with uint32_t for both sides.
         fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
         fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
+    elif sym.kind == "pod_u64_blob":
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint64, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint64, proto_args)
+    elif sym.kind == "pod_u32_blob":
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
+    elif sym.kind in ("pod_bool_blob", "pod_bool_blob2"):
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
     elif sym.kind == "pod_u64_cref2":
         # The trampoline takes raw function-pointer addresses, not
         # ctypes callables.  Resolve both sides to integer addresses.
@@ -741,6 +900,23 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data5: bytes = args[0]  # type: ignore[assignment]
             o = call_pod_u32_cref(fn_orig, data5)
             c = call_pod_u32_cref(fn_cand, data5)
+        elif sym.kind == "pod_u64_blob":
+            blob: bytes = args[0]  # type: ignore[assignment]
+            o = call_pod_u64_blob(fn_orig, blob)
+            c = call_pod_u64_blob(fn_cand, blob)
+        elif sym.kind == "pod_u32_blob":
+            blob2: bytes = args[0]  # type: ignore[assignment]
+            o = call_pod_u32_blob(fn_orig, blob2)
+            c = call_pod_u32_blob(fn_cand, blob2)
+        elif sym.kind == "pod_bool_blob":
+            blob3: bytes = args[0]  # type: ignore[assignment]
+            o = call_pod_bool_blob(fn_orig, blob3)
+            c = call_pod_bool_blob(fn_cand, blob3)
+        elif sym.kind == "pod_bool_blob2":
+            ba2: bytes = args[0]  # type: ignore[assignment]
+            bb2: bytes = args[1]  # type: ignore[assignment]
+            o = call_pod_bool_blob2(fn_orig, ba2, bb2)
+            c = call_pod_bool_blob2(fn_cand, ba2, bb2)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
