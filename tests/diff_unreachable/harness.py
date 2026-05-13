@@ -379,6 +379,13 @@ SYMBOLS: list[Symbol] = [
     Symbol("CalVer::triple",         0x100260,
            "_ZNK6zhinst6CalVer6tripleEv",
            "ref_blob"),
+    # CalVer(string const&) C2 base-ctor — writes 32-byte CalVer blob
+    # into the *this slot supplied in %rdi from a parsed version
+    # string in %rsi.  Restricted to non-throwing inputs (empty + dotted
+    # numeric forms); throwing inputs are deferred to a separate shape.
+    Symbol("CalVer::ctor(string)",   0xffdb0,
+           "_ZN6zhinst6CalVerC2ERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE",
+           "ctor_blob_cref"),
 ]
 
 
@@ -616,6 +623,26 @@ ARR3_INPUTS: list[tuple[bytes, str]] = [
 
 # uint32 inputs for fromDecimal(uint32_t) / fromBinary(uint32_t).
 # Cover zero, common LabOne encodings, and bit/decimal-domain edges.
+# Non-throwing inputs for `CalVer::CalVer(string const&)`.  The ctor
+# routes empty input to a zero-blob short-circuit and otherwise calls
+# `extractVersionTriple` (and `boost::lexical_cast<size_t>` for the
+# build component when 4 dots are present); both throw on
+# non-numeric or out-of-range parts.  Restrict here to inputs that
+# parse cleanly so the harness can compare blob outputs without an
+# exception trampoline.
+CTOR_STRING_INPUTS: list[tuple[bytes, str]] = [
+    (b"",               "empty"),
+    (b"0.0.0",          "0.0.0"),
+    (b"1.2.3",          "1.2.3"),
+    (b"26.1.3",         "26.1.3"),
+    (b"0.0.0.0",        "0.0.0.0"),
+    (b"1.2.3.4",        "1.2.3.4"),
+    (b"26.1.3.9",       "current LabOne 4-comp"),
+    (b"99.12.31.999",   "large 4-comp"),
+    (b"100.200.300",    "3-digit fields"),
+]
+
+
 U32_INPUTS: list[tuple[int, str]] = [
     (0,                   "zero"),
     (1,                   "1"),
@@ -862,6 +889,23 @@ def call_sret_blob_u32(fn: Callable, val: int, blob_size: int) -> bytes:
     return ctypes.string_at(buf, blob_size)
 
 
+def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
+    """Call `void T::T(string const&)` (Itanium C2 base ctor):
+    void(this*, string const*).
+
+    sret-style: the *this* slot is allocated zeroed by the caller in
+    %rdi, the string argument pointer goes in %rsi, and the callee
+    writes its fields into the slot.  Caller owns destruction; for
+    POD-only types like CalVer no destructor call is needed."""
+    arg = make_string(data)
+    buf = ctypes.create_string_buffer(blob_size)
+    try:
+        fn(ctypes.cast(buf, ctypes.c_void_p), arg)
+        return ctypes.string_at(buf, blob_size)
+    finally:
+        free_string(arg)
+
+
 def call_ref_blob(fn: Callable, blob: bytes) -> int:
     """Call `Blob const& m(Blob const*)` (member that returns a
     reference; in particular the identity case where %rax = %rdi).
@@ -919,6 +963,10 @@ def iter_inputs(sym: Symbol):
         for val, label in U32_INPUTS:
             yield ((val,), label)
         return
+    if sym.kind == "ctor_blob_cref":
+        for data, label in CTOR_STRING_INPUTS:
+            yield ((data,), label)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -972,6 +1020,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_uint32]
     elif sym.kind == "ref_blob":
         proto_args = [ctypes.c_void_p]
+    elif sym.kind == "ctor_blob_cref":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1071,6 +1121,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             blob5: bytes = args[0]  # type: ignore[assignment]
             o = call_ref_blob(fn_orig, blob5)
             c = call_ref_blob(fn_cand, blob5)
+        elif sym.kind == "ctor_blob_cref":
+            data6: bytes = args[0]  # type: ignore[assignment]
+            o = call_ctor_blob_cref(fn_orig, 32, data6)  # CalVer = 32 B
+            c = call_ctor_blob_cref(fn_cand, 32, data6)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
