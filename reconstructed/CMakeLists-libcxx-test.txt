@@ -66,6 +66,7 @@ set(LIBCXX_TEST_SOURCES
     src/core/exception.cpp
     src/device/device_type.cpp
     src/device/device_factories.cpp
+    src/device/generic_device_type.cpp
     src/device/mf_sfc.cpp
     src/device/awg_device_props.cpp
     src/infra/calver.cpp

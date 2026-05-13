@@ -191,6 +191,30 @@ _try_cref_ostream.argtypes = [
     ctypes.c_size_t,  # what cap
 ]
 
+# DeviceType / AwgDeviceProps helpers — for the `sret_props_cref`
+# shape used by the `getAwgDeviceProps<T>` family.  Both sides link
+# the same libc++ AND the same DeviceType / AwgDeviceProps machinery
+# (the relevant ctors and dtors live in the same TU as the targets),
+# so a single instance constructed here can be passed safely to
+# either.
+_devicetype_make = _cand.diff_unreachable_devicetype_make
+_devicetype_make.restype = ctypes.c_void_p
+_devicetype_make.argtypes = [ctypes.c_char_p, ctypes.c_size_t,
+                             ctypes.c_char_p, ctypes.c_size_t]
+_devicetype_free = _cand.diff_unreachable_devicetype_free
+_devicetype_free.restype = None
+_devicetype_free.argtypes = [ctypes.c_void_p]
+
+_awgprops_alloc_uninit = _cand.diff_unreachable_awgdeviceprops_alloc_uninit
+_awgprops_alloc_uninit.restype = ctypes.c_void_p
+_awgprops_alloc_uninit.argtypes = []
+_awgprops_free_uninit = _cand.diff_unreachable_awgdeviceprops_free_uninit
+_awgprops_free_uninit.restype = None
+_awgprops_free_uninit.argtypes = [ctypes.c_void_p]
+_awgprops_destroy_in_place = _cand.diff_unreachable_awgdeviceprops_destroy_in_place
+_awgprops_destroy_in_place.restype = None
+_awgprops_destroy_in_place.argtypes = [ctypes.c_void_p]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -454,6 +478,37 @@ SYMBOLS: list[Symbol] = [
     Symbol("makeUnsupportedAwgSequencerErrorMessage", 0x2cbdd0,
            "_ZN6zhinst39makeUnsupportedAwgSequencerErrorMessageENS_14DeviceTypeCodeENS_16AwgSequencerTypeE",
            "sret_str_2u32"),
+    # ---- Phase G: getAwgDeviceProps<T> family (9 specializations) ----
+    # Signature: AwgDeviceProps getAwgDeviceProps<T>(DeviceType const&).
+    # Only HDAWG actually consults `dt` (calls dt.hasOption(ME)); the
+    # others ignore it.  All 9 wired with the `sret_props_cref` shape.
+    Symbol("getAwgDeviceProps<UHFLI>",    0x2cc900,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE1EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<HDAWG>",    0x2ccb80,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE2EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<UHFQA>",    0x2cc5f0,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE4EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<SHFQA>",    0x2cce30,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE8EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<SHFSG>",    0x2cd0c0,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE16EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<SHFQC_SG>", 0x2cd350,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE32EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<SHFLI>",    0x2cd5e0,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE64EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<VHFLI>",    0x2cd870,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE256EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
+    Symbol("getAwgDeviceProps<GHFLI>",    0x2cdb00,
+           "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE128EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
+           "sret_props_cref"),
 ]
 
 
@@ -819,6 +874,35 @@ AWG_SEQUENCER_TYPES: list[tuple[int, str]] = [
     (3, "out-of-range"),
 ]
 
+# Per-symbol DeviceType corpora for `sret_props_cref`.  Most of the 9
+# `getAwgDeviceProps<T>` specializations ignore `dt` (the binary
+# never reads through the pointer), so a single placeholder "HDAWG8"
+# DeviceType is sufficient to exercise the full sret-decode path.
+# Only `getAwgDeviceProps<HDAWG>` actually consults `dt` (calls
+# `dt.hasOption(ME)` to choose between two `maxElfSize` limits), so
+# we feed it both ME-on and ME-off variants.
+AWGPROPS_DT_CORPUS: dict[str, list[tuple[bytes, bytes, str]]] = {
+    "getAwgDeviceProps<HDAWG>": [
+        (b"HDAWG8", b"",   "HDAWG8/no-options"),
+        (b"HDAWG8", b"ME", "HDAWG8/ME"),
+        (b"HDAWG4", b"",   "HDAWG4/no-options"),
+        (b"HDAWG4", b"ME", "HDAWG4/ME"),
+    ],
+}
+# Default corpus for the 8 dt-ignoring specializations.  Use the
+# "matching" device-type name when one exists so the DeviceType is
+# at least sensible, even though the callee never reads it.
+AWGPROPS_DT_DEFAULT: dict[str, list[tuple[bytes, bytes, str]]] = {
+    "getAwgDeviceProps<UHFLI>":    [(b"UHFLI",  b"", "UHFLI")],
+    "getAwgDeviceProps<UHFQA>":    [(b"UHFQA",  b"", "UHFQA")],
+    "getAwgDeviceProps<SHFQA>":    [(b"SHFQA4", b"", "SHFQA4")],
+    "getAwgDeviceProps<SHFSG>":    [(b"SHFSG4", b"", "SHFSG4")],
+    "getAwgDeviceProps<SHFQC_SG>": [(b"SHFQC",  b"", "SHFQC")],
+    "getAwgDeviceProps<SHFLI>":    [(b"SHFLI",  b"", "SHFLI")],
+    "getAwgDeviceProps<VHFLI>":    [(b"VHFLI",  b"", "VHFLI")],
+    "getAwgDeviceProps<GHFLI>":    [(b"GHFLI",  b"", "GHFLI")],
+}
+
 # generateSfc: only the MF family reaches the happy path; other families
 # raise (and their throw paths are out of scope at E2c — see TODO.md).
 # Curated (devType, options) pairs cover empty options, single options,
@@ -1112,6 +1196,68 @@ def call_sret_str_2u32(fn: Callable, a: int, b: int) -> bytes:
         destroy_and_free_slot(slot)
 
 
+# AwgDeviceProps layout (libc++; verified in awg_device_props.hpp):
+#   +0x00  AwgDeviceType deviceType    (uint32_t one-hot bit; 4 B + 4 B pad)
+#   +0x08  std::string   elfDataPattern        (24 B)
+#   +0x20  std::string   elfProgressPattern    (24 B)
+#   +0x38  std::string   enablePattern         (24 B)
+#   +0x50  uint64_t      maxElfSize            (8 B)
+#   +0x58  uint32_t      addressImpl           (4 B)
+#   +0x5c  uint32_t      sampleFormat          (4 B)
+#   +0x60  bool          isHirzel              (1 B + 7 B pad)
+#   +0x68  std::string   fpgaRevisionPattern   (24 B)
+#   Total: 0x80 bytes.
+AWGPROPS_SIZE = 0x80
+AWGPROPS_STR_OFFSETS = (0x08, 0x20, 0x38, 0x68)
+
+
+def make_devicetype(dtype: bytes, opts: bytes) -> int:
+    """Heap-allocate a libc++ DeviceType from the (name, options) pair.
+    Caller releases via `free_devicetype`."""
+    return _devicetype_make(dtype, len(dtype), opts, len(opts))
+
+
+def free_devicetype(p: int) -> None:
+    _devicetype_free(p)
+
+
+def call_sret_props_cref(
+        fn: Callable, dt_ptr: int
+) -> tuple[int, bytes, bytes, bytes, int, int, int, int, bytes]:
+    """Call `AwgDeviceProps f(DeviceType const&)`: void(sret, DeviceType*).
+
+    sret pointer in %rdi, dt pointer in %rsi.  Decode the 128-byte
+    slot into a normalized tuple
+    `(deviceType, elfData, elfProgress, enable, maxElfSize,
+       addressImpl, sampleFormat, isHirzel, fpgaRevision)`
+    so heap-pointer differences in the std::string fields don't
+    cause spurious diffs.
+
+    The slot is destroyed via `~AwgDeviceProps()` after read-out and
+    the raw 128 B reclaimed via the matching free_uninit helper."""
+    slot = _awgprops_alloc_uninit()
+    try:
+        fn(slot, dt_ptr)
+        # Decode POD fields by direct memory read.
+        device_type   = ctypes.c_uint32.from_address(slot + 0x00).value
+        max_elf_size  = ctypes.c_uint64.from_address(slot + 0x50).value
+        address_impl  = ctypes.c_uint32.from_address(slot + 0x58).value
+        sample_format = ctypes.c_uint32.from_address(slot + 0x5c).value
+        is_hirzel     = ctypes.c_uint8.from_address(slot + 0x60).value
+        # Decode strings via the libc++ shim helpers (work on any
+        # pointer to a valid std::string, including interior offsets).
+        s_elfdata     = string_bytes(slot + 0x08)
+        s_elfprog     = string_bytes(slot + 0x20)
+        s_enable      = string_bytes(slot + 0x38)
+        s_fpga        = string_bytes(slot + 0x68)
+        return (device_type, s_elfdata, s_elfprog, s_enable,
+                max_elf_size, address_impl, sample_format, is_hirzel,
+                s_fpga)
+    finally:
+        _awgprops_destroy_in_place(slot)
+        _awgprops_free_uninit(slot)
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1204,6 +1350,11 @@ def iter_inputs(sym: Symbol):
         for data, label in corpus:
             yield ((data,), label)
         return
+    if sym.kind == "sret_props_cref":
+        corpus = AWGPROPS_DT_CORPUS.get(sym.name) or AWGPROPS_DT_DEFAULT[sym.name]
+        for dtype, opts, label in corpus:
+            yield ((dtype, opts), label)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1269,6 +1420,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_uint32]
     elif sym.kind == "sret_str_2u32":
         proto_args = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32]
+    elif sym.kind == "sret_props_cref":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1419,6 +1572,15 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             bi2: int = args[1]  # type: ignore[assignment]
             o = call_sret_str_2u32(fn_orig, ai2, bi2)
             c = call_sret_str_2u32(fn_cand, ai2, bi2)
+        elif sym.kind == "sret_props_cref":
+            dtype: bytes = args[0]  # type: ignore[assignment]
+            opts: bytes  = args[1]  # type: ignore[assignment]
+            dt_ptr = make_devicetype(dtype, opts)
+            try:
+                o = call_sret_props_cref(fn_orig, dt_ptr)
+                c = call_sret_props_cref(fn_cand, dt_ptr)
+            finally:
+                free_devicetype(dt_ptr)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

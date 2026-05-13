@@ -1403,3 +1403,32 @@ verify-then-write throughout.
 
   Net harness coverage at F4 close: 1254/1254 cases (was 970;
   +284).  Main test suite: 1603/1603 (unchanged).
+
+- **F5 (harness expansion: `getAwgDeviceProps<T>` family).**  Closed
+  2026-05-13.  Added all 9 `getAwgDeviceProps<T>` template
+  specializations from `awg_device_props.cpp` to the diff-test
+  harness via a new shape `sret_props_cref` —
+  `void f(AwgDeviceProps* sret, DeviceType const* dt)`.  The
+  `AwgDeviceProps` slot (0x80 B) embeds 4 `std::string` fields, so
+  the shape decodes the slot field-by-field (POD scalars by direct
+  read; strings via the existing libc++ shim helpers applied to
+  interior offsets) into a 9-tuple, which normalises away the
+  heap-pointer differences that would otherwise dominate every
+  byte-blob diff.  Cleanup runs `~AwgDeviceProps()` in place via
+  a new shim helper.  Five new shim helpers added
+  (`_devicetype_make`/`_free`,
+  `_awgprops_alloc_uninit`/`_free_uninit`/`_destroy_in_place`);
+  `generic_device_type.cpp` added to `CMakeLists-libcxx-test.txt`
+  (transitive dep of the production `DeviceType(string,
+  vector<string>)` ctor).  Corpora: HDAWG (sole spec consulting
+  `dt`, calling `dt.hasOption(ME)`) fed HDAWG{8,4} × {none, ME} =
+  4 cases; the other 8 dt-ignoring specs each fed 1 placeholder
+  DeviceType.  +12 cases, all PASS, no new IF — the recon's
+  per-spec field assignments are byte-identical with the binary
+  even where the function-body shape differs significantly (recon
+  ~0x40-0x200 B vs binary ~0x280 B, the difference being
+  whole-program inlining of the `AwgDeviceProps` ctor and per-field
+  `std::string` ctors, not behavioural divergence).
+
+  Net harness coverage at F5 close: 1266/1266 cases (was 1254;
+  +12).  Main test suite: 1603/1603 (unchanged).

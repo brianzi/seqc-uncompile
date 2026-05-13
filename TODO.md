@@ -1088,6 +1088,60 @@ new module, applying verify-then-write throughout.
       *Tests at close:* 1603/1603 main + 1254/1254 harness (was
       970; +284).
 
+- [x] **F5 — Harness expansion: `getAwgDeviceProps<T>` family (9 syms)**
+
+      *Closed 2026-05-13.*  Added all 9 `getAwgDeviceProps<T>`
+      template specializations from `device/awg_device_props.cpp`
+      to the diff-test harness via a new shape `sret_props_cref`:
+
+      - `void f(AwgDeviceProps* sret, DeviceType const* dt)` —
+        sret-via-`%rdi`, `dt`-cref-via-`%rsi`.
+      - 9 covered: UHFLI, HDAWG, UHFQA, SHFQA, SHFSG, SHFQC_SG,
+        SHFLI, VHFLI, GHFLI (the full bitmask enum range
+        `{1,2,4,8,16,32,64,128,256}`).
+
+      *Shape mechanics:* `AwgDeviceProps` is 0x80 B with 4 embedded
+      `std::string` fields (offsets 0x08, 0x20, 0x38, 0x68) plus
+      POD scalars (deviceType u32, maxElfSize u64, addressImpl u32,
+      sampleFormat u32, isHirzel u8).  A raw byte-blob compare
+      diverges on every call (heap pointers in the long-form
+      strings), so the new shape decodes the slot field-by-field
+      into a 9-tuple `(deviceType, elfData, elfProgress, enable,
+      maxElfSize, addressImpl, sampleFormat, isHirzel,
+      fpgaRevision)`.  Strings are extracted via the existing libc++
+      shim helpers (`_size`/`_data`) applied to interior offsets.
+      Cleanup runs `~AwgDeviceProps()` in place via a new shim
+      helper before reclaiming the raw 128 B.
+
+      *Build wiring:* 5 new shim helpers in
+      `tests/diff_unreachable/shim.cpp` —
+      `_devicetype_make`/`_devicetype_free` (constructs DeviceType
+      via the production `DeviceType(string,vector<string>)` ctor),
+      `_awgprops_alloc_uninit`/`_awgprops_free_uninit`/
+      `_awgprops_destroy_in_place`.  `generic_device_type.cpp`
+      added to `CMakeLists-libcxx-test.txt` (transitive dep of
+      `DeviceType` ctor).
+
+      *Corpora:* HDAWG is the sole spec that consults `dt`
+      (calls `dt.hasOption(ME)` to switch between two `maxElfSize`
+      limits) — fed 4 cases: HDAWG{8,4} × {no-options, ME}.  The
+      other 8 specs ignore `dt`; each fed 1 placeholder DeviceType
+      with the matching device-name string.  Total +12 harness
+      cases, all PASS.
+
+      *Yield:* no new IF.  All 9 specializations byte-identical
+      with the binary across all probed DeviceType inputs — the
+      decode-tuple shape correctly normalizes heap-pointer
+      differences, and the recon's per-spec field assignments
+      match the binary's even where the function body shape
+      differs significantly (recon ~0x40-0x200 B vs binary
+      ~0x280 B; difference is whole-program-inlining of the
+      `AwgDeviceProps` ctor and per-field `std::string` ctors,
+      not behavioural divergence).
+
+      *Tests at close:* 1603/1603 main + 1266/1266 harness (was
+      1254; +12).
+
 ## Archives
 
 All historical reconstruction work is preserved under

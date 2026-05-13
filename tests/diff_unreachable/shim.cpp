@@ -283,3 +283,54 @@ int diff_unreachable_try_cref_ostream(
 }
 
 }  // extern "C"
+
+// ---------- DeviceType / AwgDeviceProps support ----------
+//
+// Helpers for the `sret_props_cref` harness shape used by symbols of
+// the form `AwgDeviceProps f(DeviceType const&)` — specifically the 9
+// `getAwgDeviceProps<T>` specialisations.  Both sides link the same
+// libc++, and the original `_seqc_compiler.so` statically links the
+// same `DeviceType` / `AwgDeviceProps` machinery (the relevant ctors
+// and dtors live in the same TU as the targets), so a single
+// `DeviceType` instance constructed here can be passed to either.
+//
+// Construction goes through `DeviceType(string const&, string const&)`
+// (the "name + newline-separated options" overload at orig 0x2d2a00),
+// which is exactly what user-facing callers in the production
+// pipeline use, so any factory-side bug we surface is real.
+
+#include "zhinst/device/awg_device_props.hpp"
+#include "zhinst/device/device_type.hpp"
+
+extern "C" {
+
+void* diff_unreachable_devicetype_make(
+        const char* dtype, std::size_t n_dtype,
+        const char* opts,  std::size_t n_opts) {
+    std::string dt(dtype, n_dtype);
+    std::string op(opts,  n_opts);
+    return static_cast<void*>(new zhinst::DeviceType(dt, op));
+}
+
+void diff_unreachable_devicetype_free(void* p) {
+    delete static_cast<zhinst::DeviceType*>(p);
+}
+
+// Run AwgDeviceProps' explicit out-of-line dtor on a 128 B slot
+// previously written by an sret-style call to getAwgDeviceProps<T>.
+// Caller separately reclaims the raw 128 B via free_uninit.
+void diff_unreachable_awgdeviceprops_destroy_in_place(void* p) {
+    static_cast<zhinst::AwgDeviceProps*>(p)->~AwgDeviceProps();
+}
+
+void* diff_unreachable_awgdeviceprops_alloc_uninit() {
+    return ::operator new(sizeof(zhinst::AwgDeviceProps),
+                          std::align_val_t{alignof(zhinst::AwgDeviceProps)});
+}
+
+void diff_unreachable_awgdeviceprops_free_uninit(void* p) {
+    ::operator delete(p,
+                      std::align_val_t{alignof(zhinst::AwgDeviceProps)});
+}
+
+}  // extern "C"
