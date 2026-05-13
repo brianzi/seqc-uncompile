@@ -165,6 +165,32 @@ _try_sret_blob_cref.argtypes = [
     ctypes.c_size_t,  # what cap
 ]
 
+# ostream helpers — for `cref_ostream_throws` shape (e.g. op<<(ostream&,
+# CalVer const&)).  Both sides link the same libc++, so a single
+# ostringstream constructed here can be passed to either.
+_oss_make = _cand.diff_unreachable_ostringstream_make
+_oss_make.restype = ctypes.c_void_p
+_oss_make.argtypes = []
+_oss_free = _cand.diff_unreachable_ostringstream_free
+_oss_free.restype = None
+_oss_free.argtypes = [ctypes.c_void_p]
+_oss_as_ostream = _cand.diff_unreachable_ostringstream_as_ostream
+_oss_as_ostream.restype = ctypes.c_void_p
+_oss_as_ostream.argtypes = [ctypes.c_void_p]
+_oss_str = _cand.diff_unreachable_ostringstream_str
+_oss_str.restype = ctypes.c_size_t
+_oss_str.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_size_t]
+
+_try_cref_ostream = _cand.diff_unreachable_try_cref_ostream
+_try_cref_ostream.restype = ctypes.c_int
+_try_cref_ostream.argtypes = [
+    ctypes.c_void_p,  # fn pointer
+    ctypes.c_void_p,  # ostream* (upcast)
+    ctypes.c_void_p,  # const Blob* arg
+    ctypes.c_char_p,  # what buffer
+    ctypes.c_size_t,  # what cap
+]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -408,6 +434,11 @@ SYMBOLS: list[Symbol] = [
     Symbol("extractVersionTriple",   0x101570,
            "_ZN6zhinst20extractVersionTripleERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
            "sret_blob_cref_throws"),
+    # std::ostream& operator<<(std::ostream&, CalVer const&) — captures
+    # toString(CalVer) output via a libc++ ostringstream.
+    Symbol("operator<<(CalVer)",     0x100b40,
+           "_ZN6zhinstlsERNSt3__113basic_ostreamIcNS0_11char_traitsIcEEEERKNS_6CalVerE",
+           "cref_ostream_throws"),
 ]
 
 
@@ -737,7 +768,8 @@ BLOB_CORPUS: dict[str, str] = {
     "isSet(array)":      "arr3",
     "toString(CalVer)":  "calver",
     "toString(array)":   "arr3",
-    "CalVer::triple":    "calver",
+    "CalVer::triple":      "calver",
+    "operator<<(CalVer)":  "calver",
 }
 
 # Per-symbol sret blob size (bytes).  Currently only used by the
@@ -919,6 +951,34 @@ def call_sret_blob_cref_throws(fn_addr: int, blob_size: int,
         free_string(arg)
 
 
+def call_cref_ostream_throws(fn_addr: int,
+                             blob: bytes) -> tuple[str | None, str | None]:
+    """Call `std::ostream& f(std::ostream&, Blob const&)` via the
+    exception-safe trampoline; return `(captured_string, None)` on
+    success or `(None, what)` if the callee threw.
+
+    A fresh `std::ostringstream` is constructed for each call so the
+    captured output reflects only this invocation.  `fn_addr` is the
+    raw function-pointer address; the trampoline casts it back to the
+    right shape internally."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    oss = _oss_make()
+    os = _oss_as_ostream(oss)
+    what_buf = ctypes.create_string_buffer(256)
+    try:
+        rc = _try_cref_ostream(fn_addr,
+                               os,
+                               ctypes.cast(buf, ctypes.c_void_p),
+                               what_buf, len(what_buf))
+        if rc == 0:
+            out = ctypes.create_string_buffer(4096)
+            n = _oss_str(oss, out, len(out))
+            return (out.value.decode("utf-8", errors="replace"), None)
+        return (None, what_buf.value.decode("utf-8", errors="replace"))
+    finally:
+        _oss_free(oss)
+
+
 def call_pod_u64_blob(fn: Callable, blob: bytes) -> int:
     """Call `size_t f(Blob const&)` (1 blob arg, u64 return in %rax)."""
     buf = ctypes.create_string_buffer(blob, len(blob))
@@ -1032,7 +1092,7 @@ def iter_inputs(sym: Symbol):
             yield (pair, f"({_label(pair[0])}, {_label(pair[1])})")
         return
     if sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob",
-                    "sret_blob", "ref_blob"):
+                    "sret_blob", "ref_blob", "cref_ostream_throws"):
         # Single-arg blob input drawn from CALVER_INPUTS or ARR3_INPUTS
         # per BLOB_CORPUS.
         corpus = {
@@ -1125,6 +1185,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "sret_blob_cref_throws":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "cref_ostream_throws":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1157,6 +1219,11 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "sret_blob_cref_throws":
         # Same convention as pod_u64_cref2: trampoline takes raw
         # function-pointer addresses.
+        fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
+        fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
+                              ctypes.c_void_p).value or 0    # type: ignore[assignment]
+    elif sym.kind == "cref_ostream_throws":
+        # Same convention: trampoline takes raw fn-pointer addresses.
         fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
         fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
                               ctypes.c_void_p).value or 0    # type: ignore[assignment]
@@ -1242,6 +1309,14 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             # Both-threw collapse — see pod_u64_cref2 for the full
             # rationale on RTTI-divergence between the statically-linked
             # original and dynamically-linked candidate.
+            if o[0] is None and c[0] is None:
+                o = (None, "<threw>")
+                c = (None, "<threw>")
+        elif sym.kind == "cref_ostream_throws":
+            blob8: bytes = args[0]  # type: ignore[assignment]
+            o = call_cref_ostream_throws(fn_orig, blob8)  # type: ignore[arg-type]
+            c = call_cref_ostream_throws(fn_cand, blob8)  # type: ignore[arg-type]
+            # Both-threw collapse for the same RTTI reason as above.
             if o[0] is None and c[0] is None:
                 o = (None, "<threw>")
                 c = (None, "<threw>")

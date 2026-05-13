@@ -20,6 +20,7 @@
 #include <cstring>
 #include <cstdint>
 #include <new>
+#include <sstream>
 #include <string>
 
 extern "C" {
@@ -178,6 +179,93 @@ int diff_unreachable_try_sret_blob_cref(
         std::size_t what_cap) {
     try {
         fn(out_blob, arg);
+        return 0;
+    } catch (const std::exception& e) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, e.what(), what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 1;
+    } catch (...) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, "<unknown>", what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 2;
+    }
+}
+
+// ---------- ostream support ----------
+//
+// Helpers for the `cref_ostream_returns_ostream` harness shape used
+// by symbols of the form `std::ostream& f(std::ostream&, T const&)`
+// — e.g. `zhinst::operator<<(ostream&, CalVer const&)`.  The harness
+// constructs a `std::ostringstream`, hands its `void*` to the
+// trampoline as the first arg, then reads back the resulting string
+// to compare original-vs-recon output.
+//
+// Both the original `_seqc_compiler.so` and this libc++ test library
+// link the same libc++, so the `std::ostringstream` / `std::ostream`
+// vtables are identical and a single instance can be passed safely
+// to either side.
+//
+// Layout note: a `std::ostringstream` is much larger than a
+// `std::string` (it embeds `std::ostream` + `std::streambuf` +
+// `std::stringbuf`), so we always heap-allocate via `new` and pass
+// pointers around — never inline buffers.
+
+void* diff_unreachable_ostringstream_make() {
+    return static_cast<void*>(new std::ostringstream());
+}
+
+void diff_unreachable_ostringstream_free(void* p) {
+    delete static_cast<std::ostringstream*>(p);
+}
+
+// Returns the upcast `std::ostream*` for a previously-allocated
+// ostringstream.  Necessary because the orig's `op<<` takes
+// `std::ostream&`, not `std::ostringstream&`, and the upcast involves
+// a vtable-aware adjustment that Python ctypes cannot perform.
+void* diff_unreachable_ostringstream_as_ostream(void* p) {
+    auto* oss = static_cast<std::ostringstream*>(p);
+    std::ostream* os = oss;  // implicit upcast
+    return static_cast<void*>(os);
+}
+
+// Copy the current contents of the ostringstream into out_buf
+// (NUL-terminated, truncated to out_cap-1 bytes).  Returns the
+// untruncated byte length so the caller can detect truncation.
+std::size_t diff_unreachable_ostringstream_str(void* p,
+                                               char* out_buf,
+                                               std::size_t out_cap) {
+    auto* oss = static_cast<std::ostringstream*>(p);
+    std::string s = oss->str();
+    if (out_buf && out_cap > 0) {
+        std::size_t n = s.size() < out_cap - 1 ? s.size() : out_cap - 1;
+        std::memcpy(out_buf, s.data(), n);
+        out_buf[n] = '\0';
+    }
+    return s.size();
+}
+
+// Trampoline for `std::ostream& f(std::ostream&, Blob const&)`.
+// `fn` is called as `fn(os, blob_arg)`; the harness compares the
+// captured ostringstream string after the call.  Exception-safe
+// (catches throws so the harness sees a deterministic outcome).
+//
+// Returns 0 on success, 1 if a std::exception was thrown, 2 if an
+// unknown exception was thrown.  `what_buf` receives the exception
+// message on non-zero return.
+using Fn_cref_ostream = void* (*)(void* os, const void* blob_arg);
+
+int diff_unreachable_try_cref_ostream(
+        Fn_cref_ostream fn,
+        void* os,
+        const void* blob_arg,
+        char* what_buf,
+        std::size_t what_cap) {
+    try {
+        fn(os, blob_arg);
         return 0;
     } catch (const std::exception& e) {
         if (what_buf && what_cap > 0) {
