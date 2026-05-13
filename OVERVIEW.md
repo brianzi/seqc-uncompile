@@ -1365,4 +1365,21 @@ verify-then-write throughout.
   Net harness coverage at F2 close: 957/957 cases.  Main test
   suite: 1603/1603 (unchanged).
 
-- **F3 (triage + wrap-up).**  Pending.
+- **F3 (triage + wrap-up).**  Closed 2026-05-13.  Picked up the
+  one F2 deferral by adding the `cref_ostream_throws` harness
+  shape: shim helpers wrap a libc++ `std::ostringstream` (both
+  sides link the same libc++, so a single instance is safe to
+  pass to either) and a new `diff_unreachable_try_cref_ostream`
+  trampoline applies the established raw-fn-pointer + 0/1/2
+  exception convention.  Wired `operator<<(ostream&, CalVer
+  const&)` at binary `0x100b40` using the existing CALVER blob
+  corpus.
+
+  Calver harness coverage now 21/21 unique exported symbols
+  (was 20/21).  No new IF surfaced — the 13 CalVer inputs all
+  produced byte-identical captured strings between original and
+  candidate, confirming `toString(CalVer)` and `op<<` are both
+  binary-faithful.
+
+  Net harness coverage at F3 close: 970/970 cases (was 957;
+  +13).  Main test suite: 1603/1603 (unchanged).

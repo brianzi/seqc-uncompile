@@ -1019,11 +1019,33 @@ new module, applying verify-then-write throughout.
 
       *Tests at close:* 1603/1603 main + 957/957 harness.
 
-- [ ] **F3 — Triage + wrap-up**
+- [x] **F3 — Triage + wrap-up**
 
-      Same shape as E3.  Promote any F1/F2 findings to IFs, recon
-      fixes, or `\binarynote` entries; update OVERVIEW.md and any
-      affected topic notes; archive transient scratch files.
+      *Closed 2026-05-13.*  Picked up the one F2 deferral by adding
+      the `cref_ostream_throws` harness shape:
+
+      *New shim helpers* in `tests/diff_unreachable/shim.cpp`:
+      `diff_unreachable_ostringstream_make` / `_free` / `_as_ostream`
+      / `_str` (wrap a libc++ `std::ostringstream`; both sides link
+      the same libc++ so a single instance is safe to pass to either)
+      and the `diff_unreachable_try_cref_ostream` trampoline applying
+      the established raw-fn-pointer + 0/1/2 exception convention.
+
+      *Harness wiring* in `tests/diff_unreachable/harness.py`:
+      new `cref_ostream_throws` shape; bound to `operator<<(ostream&,
+      CalVer const&)` at binary `0x100b40`; uses the existing
+      `CALVER_INPUTS` corpus via `BLOB_CORPUS`.
+
+      *Yield:* no new IF.  All 13 CalVer inputs produced byte-identical
+      captured strings between original and candidate, confirming both
+      `toString(CalVer)` and `op<<` are binary-faithful at the public
+      ABI boundary.
+
+      *Coverage:* calver harness now exercises 21/21 unique exported
+      symbols (was 20/21).
+
+      *Tests at close:* 1603/1603 main + 970/970 harness (was 957;
+      +13).
 
 ## Archives
 
