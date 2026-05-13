@@ -278,17 +278,31 @@ CalVer fromDecimal(uint32_t d) {  // @0x100490
 // ---------------------------------------------------------------------------
 // getLaboneVersionWithCommitHash() — @0x1002a0, 0x14f bytes
 //
-// Returns "26.01.3.9 (203353afa6d977a08b0d4178e005ccfb3132992e)"
+// Returns "26.01.3.9 (203353afa6d9)"
 //
-// The version string "26.01.3.9" is built inline from immediate bytes:
-//   0x12 = SSO length 9; bytes "26.01.3.9\0"
-// The commit hash is a 40-char hex string loaded from immediates at 0x8fecfd.
-// Separator " (" at 0x8ff092, closing ")" at 0x8ff095.
+// Build sequence (verified via objdump):
+//   1. SSO-init "26.01.3.9" inline (0x12 = SSO len 9 byte at -0x28(%rbp)).
+//   2. append(" (", 2)  → static rodata @0x8ff092.
+//   3. heap-allocate 0x30 bytes (long-form std::string holding the full
+//      40-char hash "203353afa6d977a08b0d4178e005ccfb3132992e", loaded
+//      via three movups + one movabs from @0x8fecfd).
+//   4. append(hashBuf, 0xc) — only the FIRST 12 bytes of the hash are
+//      appended ("203353afa6d9"); the remaining 28 chars are constructed
+//      and then immediately discarded.
+//   5. append(")", 1) → static rodata @0x8ff095.
+//
+// Net result: version + " (" + first 12 hex chars + ")".
 // ---------------------------------------------------------------------------
 std::string getLaboneVersionWithCommitHash() {  // @0x1002a0
-    // Version "26.01.3.9" + " (" + 40-char commit hash + ")"
-    // Hash at rodata 0x8fecfd: "203353afa6d977a08b0d4178e005ccfb3132992e"
-    return std::string("26.01.3.9 (203353afa6d977a08b0d4178e005ccfb3132992e)");
+    std::string s("26.01.3.9");
+    s.append(" (", 2);
+    // Binary materialises the full 40-char hash on the heap, then appends
+    // only the first 12 bytes. Modelled directly so visible behaviour
+    // matches even though the 28 trailing chars are unobservable.
+    std::string fullHash("203353afa6d977a08b0d4178e005ccfb3132992e");
+    s.append(fullHash.data(), 12);
+    s.append(")", 1);
+    return s;
 }
 
 // ---------------------------------------------------------------------------

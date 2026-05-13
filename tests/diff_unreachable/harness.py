@@ -352,6 +352,10 @@ SYMBOLS: list[Symbol] = [
     Symbol("operator<(CalVer)",      0x100c00,
            "_ZN6zhinstltERKNS_6CalVerES2_",
            "pod_bool_blob2"),
+    # No-arg sret string return.
+    Symbol("getLaboneVersionWithCommitHash", 0x1002a0,
+           "_ZN6zhinst30getLaboneVersionWithCommitHashEv",
+           "sret_void"),
 ]
 
 
@@ -770,6 +774,16 @@ def call_pod_bool_blob2(fn: Callable, a: bytes, b: bytes) -> int:
                   ctypes.cast(bb, ctypes.c_void_p))) & 0xff
 
 
+def call_sret_void(fn: Callable) -> bytes:
+    """Call `string f()` (no args, sret string return)."""
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot)
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -798,6 +812,10 @@ def iter_inputs(sym: Symbol):
     if sym.kind == "pod_bool_blob2":
         for a, b, label in CALVER_PAIRS:
             yield ((a, b), label)
+        return
+    if sym.kind == "sret_void":
+        # Zero-arg sret string return: only one "input" — call once.
+        yield ((), "()")
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
@@ -842,6 +860,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "pod_bool_blob2":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_void":
+        proto_args = [ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -917,6 +937,9 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             bb2: bytes = args[1]  # type: ignore[assignment]
             o = call_pod_bool_blob2(fn_orig, ba2, bb2)
             c = call_pod_bool_blob2(fn_cand, ba2, bb2)
+        elif sym.kind == "sret_void":
+            o = call_sret_void(fn_orig)
+            c = call_sret_void(fn_cand)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
