@@ -360,6 +360,13 @@ SYMBOLS: list[Symbol] = [
     Symbol("getLaboneVersion",       0x100270,
            "_ZN6zhinst16getLaboneVersionEv",
            "sret_blob_void"),
+    # std::string sret from single blob arg.
+    Symbol("toString(CalVer)",       0x1007f0,
+           "_ZN6zhinst8toStringERKNS_6CalVerE",
+           "sret_blob"),
+    Symbol("toString(array)",        0x101d80,
+           "_ZN6zhinst8toStringERKNSt3__15arrayImLm3EEE",
+           "sret_blob"),
 ]
 
 
@@ -606,6 +613,8 @@ BLOB_CORPUS: dict[str, str] = {
     "asBinary":          "calver",
     "isSet(CalVer)":     "calver",
     "isSet(array)":      "arr3",
+    "toString(CalVer)":  "calver",
+    "toString(array)":   "arr3",
 }
 
 # generateSfc: only the MF family reaches the happy path; other families
@@ -799,6 +808,19 @@ def call_sret_blob_void(fn: Callable, blob_size: int) -> bytes:
     return ctypes.string_at(buf, blob_size)
 
 
+def call_sret_blob(fn: Callable, blob: bytes) -> bytes:
+    """Call `string f(Blob const&)` (1 blob arg, sret string return).
+
+    sret pointer in %rdi, blob pointer in %rsi."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, ctypes.cast(buf, ctypes.c_void_p))
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -814,9 +836,10 @@ def iter_inputs(sym: Symbol):
         for pair in GENERATESFC_INPUTS:
             yield (pair, f"({_label(pair[0])}, {_label(pair[1])})")
         return
-    if sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob"):
-        # Blob inputs come from CALVER_INPUTS or ARR3_INPUTS, picked
-        # by per-symbol corpus name.
+    if sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob",
+                    "sret_blob"):
+        # Single-arg blob input drawn from CALVER_INPUTS or ARR3_INPUTS
+        # per BLOB_CORPUS.
         corpus = {
             "calver": CALVER_INPUTS,
             "arr3":   ARR3_INPUTS,
@@ -883,6 +906,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "sret_blob_void":
         proto_args = [ctypes.c_void_p]
+    elif sym.kind == "sret_blob":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -965,6 +990,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             # CalVer is 32 B (4 x size_t).
             o = call_sret_blob_void(fn_orig, 32)
             c = call_sret_blob_void(fn_cand, 32)
+        elif sym.kind == "sret_blob":
+            blob4: bytes = args[0]  # type: ignore[assignment]
+            o = call_sret_blob(fn_orig, blob4)
+            c = call_sret_blob(fn_cand, blob4)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
