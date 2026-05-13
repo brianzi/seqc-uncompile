@@ -356,6 +356,10 @@ SYMBOLS: list[Symbol] = [
     Symbol("getLaboneVersionWithCommitHash", 0x1002a0,
            "_ZN6zhinst30getLaboneVersionWithCommitHashEv",
            "sret_void"),
+    # No-arg sret CalVer (32-byte POD blob) return.
+    Symbol("getLaboneVersion",       0x100270,
+           "_ZN6zhinst16getLaboneVersionEv",
+           "sret_blob_void"),
 ]
 
 
@@ -784,6 +788,17 @@ def call_sret_void(fn: Callable) -> bytes:
         destroy_and_free_slot(slot)
 
 
+def call_sret_blob_void(fn: Callable, blob_size: int) -> bytes:
+    """Call `Blob f()` (no args, sret POD blob return).
+
+    The Itanium ABI passes the return-value pointer in %rdi.  We
+    allocate `blob_size` bytes of zeroed scratch, hand its address to
+    the callee, and return its post-call contents."""
+    buf = ctypes.create_string_buffer(blob_size)
+    fn(ctypes.cast(buf, ctypes.c_void_p))
+    return ctypes.string_at(buf, blob_size)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -815,6 +830,10 @@ def iter_inputs(sym: Symbol):
         return
     if sym.kind == "sret_void":
         # Zero-arg sret string return: only one "input" — call once.
+        yield ((), "()")
+        return
+    if sym.kind == "sret_blob_void":
+        # Zero-arg sret POD-blob return: only one "input" — call once.
         yield ((), "()")
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
@@ -861,6 +880,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "pod_bool_blob2":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "sret_void":
+        proto_args = [ctypes.c_void_p]
+    elif sym.kind == "sret_blob_void":
         proto_args = [ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
@@ -940,6 +961,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         elif sym.kind == "sret_void":
             o = call_sret_void(fn_orig)
             c = call_sret_void(fn_cand)
+        elif sym.kind == "sret_blob_void":
+            # CalVer is 32 B (4 x size_t).
+            o = call_sret_blob_void(fn_orig, 32)
+            c = call_sret_blob_void(fn_cand, 32)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
