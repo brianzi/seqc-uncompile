@@ -4781,3 +4781,72 @@ existing recon body or the absence of test failures (the test
 suite never reaches `browseTo`, so static disasm reading is the
 only available verification path).
 
+## IF-269  `Node::type2str` recon emits `"unknnown"` (3 n's); binary emits `"unknown"` (2 n's)
+
+**Source**: F1 `\binarynote` audit (Phase F, 2026-05-13)
+**Severity**: likely-bug (cosmetic — only triggered for unrecognised
+`NodeType` values, which the test suite never reaches)
+**Status**: **fixed 2026-05-13** (commit pending)
+
+### Symptom
+
+`reconstructed/src/ast/node.cpp:157` returned `"unknnown"` (8 chars,
+three n's) from the default branch of `Node::type2str(NodeType)`,
+with the comment `// sic — typo matches binary`.  The header brief
+in `reconstructed/include/zhinst/ast/node.hpp:274..278` carried a
+matching `\binarynote` claiming the literal `"unknnown"` was
+"preserved from the binary."
+
+Static-disasm verification at `0x269b71` (default branch of the
+type2str jump-table dispatch) shows the binary emits `"unknown"`
+(7 chars, two n's), not `"unknnown"`.  Both the recon body and
+the `\binarynote` were inventions.
+
+### Verification
+
+Default-branch byte sequence at `0x269b71`:
+
+```
+269b71: c6 00 0e            movb $0x0e, (%rax)        ; size byte = 7<<1
+269b74: c7 41 03 6e 6f 77 6e movl $0x6e776f6e, 3(%rcx) ; "n o w n" at +3..+6
+269b7b: c7 01 75 6e 6b 6e   movl $0x6e6b6e75, (%rcx)  ; "u n k n" at +0..+3
+269b81: b9 08 00 00 00      mov  $0x8, %ecx
+269b86: c6 04 08 00         movb $0x0, (%rax,%rcx,1)  ; null at +8
+```
+
+The two `movl` writes overlap at offset +3 (both put `0x6e` = `n`),
+so the SSO buffer ends up holding bytes `u n k n o w n` at offsets
+0..6 — i.e. the 7-character string `"unknown"`, with size byte
+`0x0e/2 = 7`.  The candidate `"unknnown"` would require an
+8-character string with size byte `0x10`, and a non-overlapping
+write pattern that does not appear in the binary.
+
+`strings _seqc_compiler.so | grep unknnown` returns nothing,
+further confirming no triple-n literal exists anywhere in the
+binary.
+
+### Fix
+
+- `reconstructed/src/ast/node.cpp:157`: `"unknnown"` → `"unknown"`;
+  comment updated.
+- `reconstructed/include/zhinst/ast/node.hpp:274..278`:
+  `\brief`/`\return` lines updated to say `"unknown"`;
+  `\binarynote` removed (the now-correct return is unsurprising
+  and does not need a flag).
+
+### Test impact
+
+None expected: no test in the 1603-case main suite or the 739-case
+harness invokes `type2str` with an unrecognised `NodeType`.  Full
+suite re-run after fix.
+
+### Lesson
+
+A `\binarynote` claiming "preserved from binary" is the strongest
+form of authority a doc comment can claim — and therefore the
+most damaging when wrong.  F1's audit caught this at the cost of
+~30 seconds of disasm reading per site; the fabricated typo
+might otherwise have survived indefinitely (no test ever exercised
+the default branch).  Reinforces the F1 hypothesis that older
+`\binarynote` entries are the highest-yield drift targets.
+

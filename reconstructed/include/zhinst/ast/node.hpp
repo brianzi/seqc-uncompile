@@ -272,10 +272,7 @@ public:
     //! name used as the `"type"` JSON key).
     //! \param t NodeType discriminator to render.
     //! \return Canonical string name of `t`, or the literal
-    //! `"unknnown"` (sic) for any value not in the recognised set.
-    //! \binarynote Returns the literal `"unknnown"` (sic — typo
-    //! preserved from the binary) for any value not in the
-    //! recognised set.
+    //! `"unknown"` for any value not in the recognised set.
     static std::string type2str(NodeType t);
 
     // Node::str2type(string const&) — static, reverse of type2str

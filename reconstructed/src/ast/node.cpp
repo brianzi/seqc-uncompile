@@ -154,7 +154,7 @@ std::string Node::type2str(NodeType t) {  // 0x269970
     case 0x2000: return "sync_hirzel";
     case 0x4000: return "plainload";
     case 0x8000: return "awg_ready";
-    default:     return "unknnown";  // sic — typo matches binary
+    default:     return "unknown";  // verified: binary @0x269b71 emits 7-char "unknown" (size=7), not the previously-claimed "unknnown".  See IF-269.
     }
 }
 
