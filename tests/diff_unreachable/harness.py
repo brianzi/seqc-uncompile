@@ -678,31 +678,20 @@ THROW_STRING_INPUTS: list[tuple[bytes, str]] = [
 ]
 
 
-# Restricted corpus for `extractVersionTriple` — see IF-270.
-# The recon uses `boost::lexical_cast` and throws on malformed input,
-# while the binary uses `boost::detail::lcast_ret_unsigned::convert`
-# (the non-throwing form) and silently zeroes the slot on failure.
-# Until IF-270 is resolved, exclude inputs that expose this divergence
-# (any input where one side throws and the other doesn't, or where the
-# zero-on-failure-out-the-whole-array semantic differs from per-slot
-# zero-on-failure).
-EXTRACT_TRIPLE_INPUTS: list[tuple[bytes, str]] = [
-    (b"0.0.0",           "0.0.0"),
-    (b"1.2.3",           "1.2.3"),
-    (b"26.1.3",          "current 3-comp"),
-    (b"100.200.300",     "3-digit fields"),
-    (b"0",               "single 0"),
-    (b"42",              "single int"),
-    (b"-1.2.3",          "negative leading (both throw)"),
-    (b"1.2.3.4.5",       "too many parts (both throw)"),
-]
+# Note: prior to the IF-270 fix, `extractVersionTriple` required a
+# restricted corpus (`EXTRACT_TRIPLE_INPUTS`) excluding inputs that
+# triggered the divergence (orig caught and zeroed; recon threw).
+# After the fix the full `THROW_STRING_INPUTS` corpus passes 13/13.
 
 
 # Per-symbol corpus override for `sret_blob_cref_throws`.  Symbols
 # absent from this map fall back to `THROW_STRING_INPUTS`.
-THROW_CORPUS_OVERRIDE: dict[str, list[tuple[bytes, str]]] = {
-    "extractVersionTriple": EXTRACT_TRIPLE_INPUTS,
-}
+# Per-symbol corpus override for `sret_blob_cref_throws`.  Symbols
+# absent from this map fall back to `THROW_STRING_INPUTS`.  Currently
+# empty: IF-270 (extractVersionTriple's missing outer try/catch and
+# wrong token-compress mode) was fixed, so the symbol now passes the
+# full corpus.
+THROW_CORPUS_OVERRIDE: dict[str, list[tuple[bytes, str]]] = {}
 
 
 CTOR_STRING_INPUTS: list[tuple[bytes, str]] = [

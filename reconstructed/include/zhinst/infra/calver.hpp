@@ -237,15 +237,19 @@ CalVer fromBinary(uint32_t b);
 std::string getLaboneVersionWithCommitHash();
 
 //! \brief Splits a dotted version string into up to three numeric components.
-//! \details Tokenises `s` on `'.'` (with adjacent dots compressed),
-//! then converts the first up to three tokens via
-//! `boost::lexical_cast<size_t>`. Missing trailing components default
-//! to zero, so `""` yields `{0,0,0}`, `"1"` yields `{1,0,0}`, `"1.2"`
-//! yields `{1,2,0}`, and any extra tokens beyond the third are ignored.
+//! \details Tokenises `s` on `'.'` (adjacent dots are NOT compressed —
+//! `"1..2"` yields three tokens `{"1","","2"}`), then converts the
+//! first up to three tokens via `boost::lexical_cast<size_t>`.
+//! Missing trailing components default to zero, so `""` yields
+//! `{0,0,0}`, `"1"` yields `{1,0,0}`, `"1.2"` yields `{1,2,0}`, and
+//! any extra tokens beyond the third are ignored.
 //! \param s Dotted version string (e.g. `"26.01.3"`).
 //! \return Three-element array `{year, month, patch}`.
-//! \throws boost::bad_lexical_cast if a present token is not a valid
-//! unsigned integer.
+//! \binarynote Any internal parse failure is caught and the entire
+//! result is reset to `{0,0,0}` — the function never propagates
+//! exceptions.  Consequently malformed inputs such as `""`, `"abc"`,
+//! `"1..2"` (empty middle token), `".1.2"` (empty leading token) and
+//! `"1.2.x"` all yield `{0,0,0}`.
 // Splits a version string on '.' and parses up to 3 numeric components.
 // @0x101570, 0x590 bytes
 std::array<size_t, 3> extractVersionTriple(std::string const& s);

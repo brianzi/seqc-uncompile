@@ -19,7 +19,7 @@ namespace zhinst {
 // ---------------------------------------------------------------------------
 // extractVersionTriple(string const&) — @0x101570, 0x590 bytes
 //
-// Splits the input on '.' via boost::algorithm::split (token_compress_on),
+// Splits the input on '.' via boost::algorithm::split (token_compress_off),
 // then parses up to 3 components via boost::lexical_cast<size_t>.
 //
 // Returns:
@@ -28,12 +28,17 @@ namespace zhinst {
 //   2 parts → {parts[0], parts[1], 0}
 //   3+ parts → {parts[0], parts[1], parts[2]}
 //
-// Throws boost::bad_lexical_cast if any component is not a valid integer.
+// Any parse failure is caught internally and the entire result is
+// reset to {0, 0, 0}.  Verified via GDB trace at base+0x101bb7
+// (__cxa_begin_catch handler that zeros all three slots before
+// returning).  Token-compress mode verified via the size-3 dispatch
+// taken on input "1..2" (which produces {0,0,0} because parts[1]=""
+// throws inside the wrapped parse loop).
 // ---------------------------------------------------------------------------
 std::array<size_t, 3> extractVersionTriple(std::string const& s) {
     std::vector<std::string> parts;
     boost::algorithm::split(parts, s, boost::is_any_of("."),
-                            boost::token_compress_on);
+                            boost::token_compress_off);
 
     std::array<size_t, 3> result = {{0, 0, 0}};
 
@@ -41,13 +46,16 @@ std::array<size_t, 3> extractVersionTriple(std::string const& s) {
     if (n == 0)
         return result;
 
-    // Parse each available component
-    if (n >= 1)
-        result[0] = boost::lexical_cast<size_t>(parts[0]);
-    if (n >= 2)
-        result[1] = boost::lexical_cast<size_t>(parts[1]);
-    if (n >= 3)
-        result[2] = boost::lexical_cast<size_t>(parts[2]);
+    try {
+        if (n >= 1)
+            result[0] = boost::lexical_cast<size_t>(parts[0]);
+        if (n >= 2)
+            result[1] = boost::lexical_cast<size_t>(parts[1]);
+        if (n >= 3)
+            result[2] = boost::lexical_cast<size_t>(parts[2]);
+    } catch (...) {
+        return std::array<size_t, 3>{{0, 0, 0}};
+    }
 
     return result;
 }

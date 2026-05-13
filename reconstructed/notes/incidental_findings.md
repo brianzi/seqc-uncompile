@@ -4858,7 +4858,7 @@ the default branch).  Reinforces the F1 hypothesis that older
 coverage), 2026-05-13
 **Severity**: likely-bug (semantic divergence; orig swallows
 parse errors silently, recon raises `boost::bad_lexical_cast`)
-**Status**: open
+**Status**: **fixed** 2026-05-13 (commit pending)
 
 ### Symptom
 
@@ -4941,9 +4941,68 @@ TODO for separate investigation and fix.
 ### Knock-on
 
 `fromDecimal(string const&)` (orig @ `0x100520`) shares the
-recon convention (`boost::lexical_cast`) and may have the same
-issue, but it short-circuits empty input and the harness corpus
-chose values for which both sides happen to agree on the throw
-boundary; needs separate audit once IF-270 is resolved.
+recon convention (`std::stoul`) and was audited at fix time:
+the orig wraps `std::stoul` in a `try/catch` and *re-throws*
+the failure as a `zhinst::Exception` (call to
+`boost::throw_exception<zhinst::Exception>` at `0x100676`,
+following `__cxa_begin_catch` at `0x10060c`).  This is a
+different pattern from `extractVersionTriple` (translate, not
+swallow); the harness collapses both-threw outcomes via the
+sentinel pair so the divergence is invisible to differential
+testing.  Recon currently lets the `std::stoul` exception
+propagate as `std::invalid_argument` / `std::out_of_range`,
+which is observably different at the C++ type level but not at
+the harness shape level.  Logged here for completeness; not
+promoted to its own IF unless a future shape exercises the
+exception type.
+
+### Resolution (2026-05-13, GDB-verified)
+
+Two bugs in the recon, both confirmed by GDB-tracing the orig
+on input `"1..2"`:
+
+1. **Wrong token-compress mode.**  The 4th argument to
+   `boost::algorithm::split` is `mov $0x1, %ecx` at `0x1015df`.
+   The Boost enum is **`token_compress_on = 0,
+   token_compress_off = 1`** (per
+   `boost/algorithm/string/constants.hpp`), so the orig uses
+   `token_compress_off`, not the recon's `token_compress_on`.
+   GDB confirmed: at the size-dispatch site `0x10161b` for
+   input `"1..2"`, `%rcx == 3` (orig sees three tokens
+   `["1", "", "2"]`), not the two tokens `["1", "2"]` that
+   `compress_on` would produce.
+
+2. **Missing outer try/catch.**  The orig wraps the entire
+   parse loop in `try { ... } catch (...) { result = {0,0,0}; }`
+   — verified via `__cxa_begin_catch` at `0x101bb7` followed by
+   three `xorps`/`movups`/`movq $0` writes that zero the
+   sret blob before `__cxa_end_catch` at `0x101bcd` and the
+   jump to the epilogue at `0x1019d4`.  GDB trace on `"1..2"`
+   shows the path `entry → after_split → dispatch (rcx=3) →
+   throw_b09 (parts[1]="" empty-string check) → begin_catch →
+   epilogue` returning `{0,0,0}`.
+
+Recon fix at `reconstructed/src/infra/calver.cpp:33..56`:
+switched the `split` call to `boost::token_compress_off` and
+wrapped the three `lexical_cast` lines in `try { ... } catch
+(...) { return {{0,0,0}}; }`.  Note: the recon does **not**
+need to switch to `try_lexical_convert` — the orig also calls
+the throwing `lcast_ret_unsigned::convert` (which routes to
+`boost::throw_exception<bad_lexical_cast>` at `0x1010a0`),
+proving that the binary swallows the throw via the outer
+`catch`, not via a non-throwing convert.  The earlier hypothesis
+in this entry was wrong on that point.
+
+Header doc at `reconstructed/include/zhinst/infra/calver.hpp:240..253`
+updated: removed the spurious `\throws bad_lexical_cast` and
+the "adjacent dots compressed" claim, added a `\binarynote`
+documenting the catch-and-zero behaviour with the verified
+input list (`""`, `"abc"`, `"1..2"`, `".1.2"`, `"1.2.x"`).
+
+Harness corpus override (`THROW_CORPUS_OVERRIDE` for
+`extractVersionTriple` in `tests/diff_unreachable/harness.py`)
+removed; the symbol now PASSes 13/13 cases (was restricted to
+8/8 non-divergent cases pre-fix).  Net harness count
+952 → 957.  Main test suite 1603/1603 unchanged.
 
 
