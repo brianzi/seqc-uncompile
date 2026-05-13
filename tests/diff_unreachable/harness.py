@@ -367,6 +367,13 @@ SYMBOLS: list[Symbol] = [
     Symbol("toString(array)",        0x101d80,
            "_ZN6zhinst8toStringERKNSt3__15arrayImLm3EEE",
            "sret_blob"),
+    # CalVer sret from uint32 arg.
+    Symbol("fromDecimal(u32)",       0x100490,
+           "_ZN6zhinst11fromDecimalEj",
+           "sret_blob_u32"),
+    Symbol("fromBinary",             0x100780,
+           "_ZN6zhinst10fromBinaryEj",
+           "sret_blob_u32"),
 ]
 
 
@@ -602,6 +609,25 @@ ARR3_INPUTS: list[tuple[bytes, str]] = [
     (_pack_arr3(0, 0, 0xFFFFFFFFFFFFFFFF), "0,0,max"),
 ]
 
+# uint32 inputs for fromDecimal(uint32_t) / fromBinary(uint32_t).
+# Cover zero, common LabOne encodings, and bit/decimal-domain edges.
+U32_INPUTS: list[tuple[int, str]] = [
+    (0,                   "zero"),
+    (1,                   "1"),
+    (26010309,            "asDecimal(26.01.3.9)"),  # 26*1e7+1*1e5+3*1e4+9
+    (25120000,            "asDecimal(25.12.0.0)"),
+    (99999999,            "all-9s decimal"),
+    (0xFFFFFFFF,          "u32-max"),
+    (0x1A011009,          "asBinary(26.01.3.9)"),   # year=0x1a, month=01, patch=1, build=9
+    (0x00000001,          "binary-build-only"),
+    (0x00001000,          "binary-patch-only"),
+    (0x00010000,          "binary-month-only"),
+    (0x01000000,          "binary-year-only"),
+    (0xFF00F000,          "binary-fields-mixed"),
+    (10000,               "decimal-build-rollover"),
+    (10000000,            "decimal-year=1"),
+]
+
 # Maps each blob-input symbol name to the corpus to draw from.
 # Single-arg blob symbols only.
 BLOB_CORPUS: dict[str, str] = {
@@ -821,6 +847,15 @@ def call_sret_blob(fn: Callable, blob: bytes) -> bytes:
         destroy_and_free_slot(slot)
 
 
+def call_sret_blob_u32(fn: Callable, val: int, blob_size: int) -> bytes:
+    """Call `Blob f(uint32_t)` (sret POD blob from uint32 arg).
+
+    sret pointer in %rdi, value in %esi."""
+    buf = ctypes.create_string_buffer(blob_size)
+    fn(ctypes.cast(buf, ctypes.c_void_p), ctypes.c_uint32(val))
+    return ctypes.string_at(buf, blob_size)
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -858,6 +893,11 @@ def iter_inputs(sym: Symbol):
     if sym.kind == "sret_blob_void":
         # Zero-arg sret POD-blob return: only one "input" — call once.
         yield ((), "()")
+        return
+    if sym.kind == "sret_blob_u32":
+        # uint32_t arg, sret POD-blob return.
+        for val, label in U32_INPUTS:
+            yield ((val,), label)
         return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
@@ -908,6 +948,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "sret_blob":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_blob_u32":
+        proto_args = [ctypes.c_void_p, ctypes.c_uint32]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -994,6 +1036,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             blob4: bytes = args[0]  # type: ignore[assignment]
             o = call_sret_blob(fn_orig, blob4)
             c = call_sret_blob(fn_cand, blob4)
+        elif sym.kind == "sret_blob_u32":
+            val32: int = args[0]    # type: ignore[assignment]
+            o = call_sret_blob_u32(fn_orig, val32, 32)  # CalVer = 32 B
+            c = call_sret_blob_u32(fn_cand, val32, 32)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
