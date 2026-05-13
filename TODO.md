@@ -888,7 +888,7 @@ comparing byte-for-byte outputs.
           amenable to differential harness without intercepting
           `posix_spawn`).
 
-- [ ] **E3 — Triage findings**
+- [x] **E3 — Triage findings**
       *(scope: variable, depends on E2 output; outcome: each
       divergence becomes either an IF, a recon fix, or a documented
       `\binarynote` preserving an intentional binary quirk)*
@@ -949,6 +949,59 @@ comparing byte-for-byte outputs.
       a hypothesis with a binary referent; this declaration has
       no matching binary symbol and no caller, so `\unclear` is
       the accurate marker.  See updated IF-235.
+
+## Phase F — Backlog hardening
+
+Goal: clear inherited tag-debt and extend differential coverage to a
+new module, applying verify-then-write throughout.
+
+- [ ] **F1 — `\binarynote` audit (27 entries, 17 files)**
+
+      *Scope:* every active `\binarynote` in `reconstructed/include`
+      and `reconstructed/src`.  For each one, verify against current
+      `_seqc_compiler.so` that:
+
+      1. The described behaviour still matches the binary (re-read
+         the body / disasm; do not trust the existing prose).
+      2. The phrasing follows voice rules — naming the original
+         binary is permitted only inside the `\binarynote` body and
+         only when it explains a genuine surprise.
+      3. The note flags an intentional binary quirk, not a TODO in
+         disguise.  Misclassified entries get retagged
+         (`\verifyme` → testable hypothesis, `\unclear` → orphan,
+         plain prose → ordinary contract).
+
+      *Order:* highest-risk-first.  Start with
+      `core/diagnostics_text.{hpp,cpp}` (most likely to harbour
+      stale prose from the recent IF-265..IF-268 wave), then the
+      remaining 15 files in arbitrary order, one per session.
+
+      *Process:* log every drift discovery as an IF entry; promote
+      `likely-bug` IFs to recon fixes inside the same sub-phase.
+      Wrap-up (steps 2–4 of the iteration cycle) after each file.
+
+      *Expected yield (based on E2/E3 priors):* 1–3 new IFs total,
+      0–2 retags, 0–1 silent-bug fixes.
+
+- [ ] **F2 — Harness expansion to a new module**
+
+      *Scope:* extend `tests/diff_unreachable/` to a second module
+      after F1.  Module to be picked at F1 wrap-up; current
+      candidates are `infra/calver.cpp`, `device/awg_device_props.cpp`,
+      and `io/cached_parser.cpp`, ordered by expected harness fit.
+
+      *Deliverables:* enumerate exported symbols in the chosen
+      module, classify by ABI shape (re-using existing 8 shapes
+      where possible; add new shapes only when forced), build a
+      curated input corpus, run differential, fix divergences as
+      they surface.  Maintain 1603/1603 main + harness green at
+      every commit.
+
+- [ ] **F3 — Triage + wrap-up**
+
+      Same shape as E3.  Promote any F1/F2 findings to IFs, recon
+      fixes, or `\binarynote` entries; update OVERVIEW.md and any
+      affected topic notes; archive transient scratch files.
 
 ## Archives
 
