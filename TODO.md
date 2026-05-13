@@ -955,33 +955,31 @@ comparing byte-for-byte outputs.
 Goal: clear inherited tag-debt and extend differential coverage to a
 new module, applying verify-then-write throughout.
 
-- [ ] **F1 — `\binarynote` audit (27 entries, 17 files)**
+- [x] **F1 — `\binarynote` audit (27 entries, 17 files)**
 
-      *Scope:* every active `\binarynote` in `reconstructed/include`
-      and `reconstructed/src`.  For each one, verify against current
-      `_seqc_compiler.so` that:
+      *Closed 2026-05-13.*  All 26 in-tree `\binarynote` sites
+      across 17 files audited against `_seqc_compiler.so`.
 
-      1. The described behaviour still matches the binary (re-read
-         the body / disasm; do not trust the existing prose).
-      2. The phrasing follows voice rules — naming the original
-         binary is permitted only inside the `\binarynote` body and
-         only when it explains a genuine surprise.
-      3. The note flags an intentional binary quirk, not a TODO in
-         disguise.  Misclassified entries get retagged
-         (`\verifyme` → testable hypothesis, `\unclear` → orphan,
-         plain prose → ordinary contract).
+      *Yield:* 1 IF surfaced and fixed (IF-269 — fabricated
+      `"unknnown"` typo claim in `Node::type2str`; binary actually
+      emits `"unknown"`).  The recon body was returning an
+      8-character `"unknnown"` and the `\binarynote` claimed the
+      typo was preserved from the binary; static disasm at
+      `0x269b71` proved the binary emits a 7-character `"unknown"`
+      via two overlapping `movl` writes.  Recon body, `\brief`,
+      `\return`, and `\binarynote` all corrected.  No test impact
+      (no case in the 1603-suite reaches the default branch).
 
-      *Order:* highest-risk-first.  Start with
-      `core/diagnostics_text.{hpp,cpp}` (most likely to harbour
-      stale prose from the recent IF-265..IF-268 wave), then the
-      remaining 15 files in arbitrary order, one per session.
+      *Other 25 sites:* all verified accurate against current
+      binary, all phrased per voice rules, all flag genuine
+      intentional quirks.  No retags, no other corrections.
 
-      *Process:* log every drift discovery as an IF entry; promote
-      `likely-bug` IFs to recon fixes inside the same sub-phase.
-      Wrap-up (steps 2–4 of the iteration cycle) after each file.
-
-      *Expected yield (based on E2/E3 priors):* 1–3 new IFs total,
-      0–2 retags, 0–1 silent-bug fixes.
+      *Backlog:* `\binarynote` 24 → 23 (one removed).  No new IFs
+      beyond IF-269.  Confirms the F1 hypothesis that the highest
+      drift risk lives in older `\binarynote` claims of "preserved
+      from binary" — these are the strongest authority claims a
+      doc comment can make and therefore the most damaging when
+      wrong.
 
 - [ ] **F2 — Harness expansion to a new module**
 
