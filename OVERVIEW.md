@@ -1383,3 +1383,23 @@ verify-then-write throughout.
 
   Net harness coverage at F3 close: 970/970 cases (was 957;
   +13).  Main test suite: 1603/1603 (unchanged).
+
+- **F4 (harness expansion: `device/awg_device_props.cpp`).**  Closed
+  2026-05-13.  Added the three POD-arg / (POD-or-string)-return
+  symbols from `awg_device_props.cpp` to the diff-test harness:
+  `toAwgDeviceType(DeviceTypeCode, AwgSequencerType)`,
+  `toString(AwgSequencerType)`, and
+  `makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode,
+  AwgSequencerType)`.  Three new ABI shapes (`pod_u32_2u32`,
+  `sret_str_u32`, `sret_str_2u32`); `awg_device_props.cpp` added to
+  `CMakeLists-libcxx-test.txt` (sole new dep `device_type.hpp`
+  already present).  Original-side targets are `.hidden`, resolved
+  by raw offset.  Corpora cover the full `DeviceTypeCode` 0..32 plus
+  out-of-range probes, crossed with `AwgSequencerType` {Auto, QA,
+  SG, out-of-range}: +284 cases, all PASS, no new IF.  The
+  `getAwgDeviceProps<*>` family is deferred — `AwgDeviceProps`
+  carries `std::string` fields, requiring a destructor-aware
+  per-field-string-decode shape.
+
+  Net harness coverage at F4 close: 1254/1254 cases (was 970;
+  +284).  Main test suite: 1603/1603 (unchanged).

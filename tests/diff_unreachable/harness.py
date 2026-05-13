@@ -439,6 +439,21 @@ SYMBOLS: list[Symbol] = [
     Symbol("operator<<(CalVer)",     0x100b40,
            "_ZN6zhinstlsERNSt3__113basic_ostreamIcNS0_11char_traitsIcEEEERKNS_6CalVerE",
            "cref_ostream_throws"),
+    # ---- Phase G: device/awg_device_props.cpp ----
+    # AwgDeviceType toAwgDeviceType(DeviceTypeCode, AwgSequencerType) — POD u32 return,
+    # two POD u32 args.
+    Symbol("toAwgDeviceType",        0x2cbd60,
+           "_ZN6zhinst15toAwgDeviceTypeENS_14DeviceTypeCodeENS_16AwgSequencerTypeE",
+           "pod_u32_2u32"),
+    # std::string toString(AwgSequencerType) — sret string, single POD u32 arg.
+    Symbol("toString(AwgSequencerType)", 0x2cbce0,
+           "_ZN6zhinst8toStringENS_16AwgSequencerTypeE",
+           "sret_str_u32"),
+    # std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode, AwgSequencerType) —
+    # sret string, two POD u32 args.
+    Symbol("makeUnsupportedAwgSequencerErrorMessage", 0x2cbdd0,
+           "_ZN6zhinst39makeUnsupportedAwgSequencerErrorMessageENS_14DeviceTypeCodeENS_16AwgSequencerTypeE",
+           "sret_str_2u32"),
 ]
 
 
@@ -780,6 +795,30 @@ BLOB_SIZE: dict[str, int] = {
     "extractVersionTriple":  24,   # array<size_t,3>
 }
 
+# ---- AWG device-props corpora (Phase G / Task 4) ----
+# DeviceTypeCode covers 0..32 plus a couple of out-of-range probes to
+# exercise the "unsupported" path; AwgSequencerType is the full {Auto,
+# QA, SG} set plus an out-of-range probe.
+DEVICE_TYPE_CODES: list[tuple[int, str]] = [
+    (0,  "Unknown"), (1,  "HF2"),     (2,  "HF2LI"),  (3,  "HF2IS"),
+    (4,  "UHF"),     (5,  "UHFLI"),   (6,  "UHFAWG"), (7,  "UHFQA"),
+    (8,  "UHFIA"),   (9,  "MF"),      (10, "MFLI"),   (11, "MFIA"),
+    (12, "HDAWG"),   (13, "HDAWG4"),  (14, "HDAWG8"), (15, "SHF"),
+    (16, "SHFQA2"),  (17, "SHFQA4"),  (18, "SHFSG2"), (19, "SHFSG4"),
+    (20, "SHFSG8"),  (21, "SHFQC"),   (22, "SHFLI"),  (23, "PQSC"),
+    (24, "SHFACC"),  (25, "SHFPPC2"), (26, "SHFPPC4"), (27, "GHF"),
+    (28, "GHFLI"),   (29, "HWMOCK"),  (30, "QHUB"),   (31, "VHF"),
+    (32, "VHFLI"),
+    (33, "out-of-range-low"), (0xFFFFFFFF, "u32-max"),
+]
+
+AWG_SEQUENCER_TYPES: list[tuple[int, str]] = [
+    (0, "Auto"),
+    (1, "QA"),
+    (2, "SG"),
+    (3, "out-of-range"),
+]
+
 # generateSfc: only the MF family reaches the happy path; other families
 # raise (and their throw paths are out of scope at E2c — see TODO.md).
 # Curated (devType, options) pairs cover empty options, single options,
@@ -1045,6 +1084,34 @@ def call_sret_blob_u32(fn: Callable, val: int, blob_size: int) -> bytes:
     return ctypes.string_at(buf, blob_size)
 
 
+def call_pod_u32_2u32(fn: Callable, a: int, b: int) -> int:
+    """Call `uint32_t f(uint32_t, uint32_t)`: both args in %edi/%esi,
+    return in %eax.  Used for AwgDeviceType toAwgDeviceType(...)."""
+    return int(fn(ctypes.c_uint32(a), ctypes.c_uint32(b))) & 0xffffffff
+
+
+def call_sret_str_u32(fn: Callable, val: int) -> bytes:
+    """Call `string f(uint32_t)`: void(sret, c_uint32).
+    sret pointer in %rdi, value in %esi."""
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, ctypes.c_uint32(val))
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+
+def call_sret_str_2u32(fn: Callable, a: int, b: int) -> bytes:
+    """Call `string f(uint32_t, uint32_t)`: void(sret, c_uint32, c_uint32).
+    sret pointer in %rdi, args in %esi/%edx."""
+    slot = alloc_uninit_slot()
+    try:
+        fn(slot, ctypes.c_uint32(a), ctypes.c_uint32(b))
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1123,6 +1190,15 @@ def iter_inputs(sym: Symbol):
         for data, label in CTOR_STRING_INPUTS:
             yield ((data,), label)
         return
+    if sym.kind == "pod_u32_2u32" or sym.kind == "sret_str_2u32":
+        for dval, dlbl in DEVICE_TYPE_CODES:
+            for sval, slbl in AWG_SEQUENCER_TYPES:
+                yield ((dval, sval), f"({dlbl},{slbl})")
+        return
+    if sym.kind == "sret_str_u32":
+        for sval, slbl in AWG_SEQUENCER_TYPES:
+            yield ((sval,), slbl)
+        return
     if sym.kind == "sret_blob_cref_throws":
         corpus = THROW_CORPUS_OVERRIDE.get(sym.name, THROW_STRING_INPUTS)
         for data, label in corpus:
@@ -1187,6 +1263,12 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "cref_ostream_throws":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "pod_u32_2u32":
+        proto_args = [ctypes.c_uint32, ctypes.c_uint32]
+    elif sym.kind == "sret_str_u32":
+        proto_args = [ctypes.c_void_p, ctypes.c_uint32]
+    elif sym.kind == "sret_str_2u32":
+        proto_args = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1194,6 +1276,9 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     fn_cand = cand_fn(sym.cand_mangled, None, proto_args)
     if sym.kind == "pod_u32_cref":
         # Override the void return with uint32_t for both sides.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
+    elif sym.kind == "pod_u32_2u32":
         fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint32, proto_args)
         fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint32, proto_args)
     elif sym.kind == "pod_u64_blob":
@@ -1320,6 +1405,20 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             if o[0] is None and c[0] is None:
                 o = (None, "<threw>")
                 c = (None, "<threw>")
+        elif sym.kind == "pod_u32_2u32":
+            ai: int = args[0]  # type: ignore[assignment]
+            bi: int = args[1]  # type: ignore[assignment]
+            o = call_pod_u32_2u32(fn_orig, ai, bi)
+            c = call_pod_u32_2u32(fn_cand, ai, bi)
+        elif sym.kind == "sret_str_u32":
+            v32: int = args[0]  # type: ignore[assignment]
+            o = call_sret_str_u32(fn_orig, v32)
+            c = call_sret_str_u32(fn_cand, v32)
+        elif sym.kind == "sret_str_2u32":
+            ai2: int = args[0]  # type: ignore[assignment]
+            bi2: int = args[1]  # type: ignore[assignment]
+            o = call_sret_str_2u32(fn_orig, ai2, bi2)
+            c = call_sret_str_2u32(fn_cand, ai2, bi2)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

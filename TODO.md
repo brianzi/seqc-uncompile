@@ -1047,6 +1047,47 @@ new module, applying verify-then-write throughout.
       *Tests at close:* 1603/1603 main + 970/970 harness (was 957;
       +13).
 
+- [x] **F4 — Harness expansion: `device/awg_device_props.cpp` (3 syms)**
+
+      *Closed 2026-05-13.*  Added the three POD-arg / (POD-or-string)-return
+      symbols from `device/awg_device_props.cpp` to the diff-test
+      harness:
+
+      - `toAwgDeviceType(DeviceTypeCode, AwgSequencerType)` →
+        `AwgDeviceType` (POD u32→u32 dispatch; new shape
+        `pod_u32_2u32`).
+      - `toString(AwgSequencerType)` → `std::string` (sret + 1 POD
+        u32 arg; new shape `sret_str_u32`).
+      - `makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode,
+        AwgSequencerType)` → `std::string` (sret + 2 POD u32 args;
+        new shape `sret_str_2u32`).
+
+      *Build wiring:* `awg_device_props.cpp` added to
+      `reconstructed/CMakeLists-libcxx-test.txt`; sole new dep
+      (`device_type.hpp`) was already present.  `_seqc_compiler.so`
+      side targets confirmed `.hidden` and resolved by raw offset
+      (no exported symbol).
+
+      *Corpora:* exhaustive `DeviceTypeCode` 0..32 (33 named
+      values) plus 2 out-of-range probes (33, u32-max), crossed with
+      `AwgSequencerType` {Auto, QA, SG, out-of-range=3} →
+      35 × 4 = 140 cases per 2-arg symbol; 4 cases for the 1-arg
+      symbol.  Total +284 harness cases, all PASS.
+
+      *Yield:* no new IF.  All 3 symbols byte-identical with the
+      binary across the full enum cross-product including the
+      "unsupported" / out-of-range fall-throughs.
+
+      *Deferred:* `getAwgDeviceProps<*>` family and
+      `buildAwgDeviceProps` — `AwgDeviceProps` (128 B) and
+      `AwgPathPatterns` (3×24 B `std::string`) contain non-POD
+      `std::string` fields, so a raw sret-blob compare diverges on
+      every call (heap pointers).  A future shape with
+      destructor-aware per-field-string decode would be needed.
+
+      *Tests at close:* 1603/1603 main + 1254/1254 harness (was
+      970; +284).
+
 ## Archives
 
 All historical reconstruction work is preserved under
