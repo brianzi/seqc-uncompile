@@ -5006,3 +5006,63 @@ removed; the symbol now PASSes 13/13 cases (was restricted to
 952 → 957.  Main test suite 1603/1603 unchanged.
 
 
+
+## IF-271  Post-F3 audit of `\unverifiable` + `\unclear` backlog — all 6 entries verified accurate
+
+**Status**: confirmed-no-action 2026-05-13
+
+**Discovered**: post-F3 backlog audit (Phase F follow-up).
+
+**Severity**: cosmetic / housekeeping.
+
+**Sites audited:**
+
+| File | Line | Tag | Subject |
+|------|-----:|-----|---------|
+| `reconstructed/include/zhinst/io/elf_reader.hpp` | 228 | `\unverifiable` | `ElfReader::ddSectionIndex_` |
+| `reconstructed/include/zhinst/infra/logging.hpp` | 69 | `\unverifiable` | `zhinst::logging::Severity` enum integer mapping |
+| `reconstructed/src/asm/asm_expression.cpp` | 205 | `\unverifiable` | `zhinst::str(AsmExpression)` body |
+| `reconstructed/include/zhinst/asm/asm_expression.hpp` | 243 | `\unverifiable` | `zhinst::str(AsmExpression)` declaration |
+| `reconstructed/src/codegen/prefetch_placesingle.cpp` | 1109 | `\unverifiable` | `Table` (0x200) sub-paths in `placeSingleCommand` |
+| `reconstructed/include/zhinst/codegen/prefetch.hpp` | 1138 | `\unverifiable` | `Table` arm doc in dispatch overview |
+| `reconstructed/include/zhinst/runtime/resources.hpp` | 1117 | `\unclear` | `StaticResources::errorReportTarget()` |
+
+**Verification:**
+
+- `ddSectionIndex_`: rationale was already corrected by IF-256
+  (closed); no `compile_seqc` input drives `getWaveform()` to
+  observe a non-zero selector.  Tag remains accurate.
+- `Severity` enum: confirmed only the `LogRecord(Severity)` ctor
+  and `severity_logger_mt<Severity>` template instantiations are
+  exported; the integer-to-name mapping itself is not fixed by any
+  exported symbol.  Tag remains accurate.
+- `str(AsmExpression)` at `0x28cd20`: confirmed via objdump that
+  the only call to this symbol is the recursive self-call at
+  `0x28d017` (inside the function's own range
+  `0x28cd20`–`0x28d280`).  No external caller exists in the binary;
+  no `compile_seqc` input drives a difftest.  Tag remains accurate
+  in both `.cpp` and `.hpp`.
+- `Table` arm: NodeType::Table is structurally unreachable from the
+  SeqC front-end per IF-249 (closed).  Reachability is a front-end
+  design constraint, not a momentary gap.  Tag remains accurate at
+  both sites.
+- `errorReportTarget()`: confirmed via `objdump -t` that no symbol
+  matching `errorReportTarget` / `warningReport` / `reportTarget`
+  exists in `_seqc_compiler.so`.  The reconstructed inline comment
+  at `resources.hpp:1110-1114` notes that `StaticResources::getVariable`
+  inlines the equivalent dispatch at `0x12a256-0x12a26d` (load
+  `functionPtr_` at `+0x100`, call `*0x30(%rax)` — libc++
+  `__function::__base::__invoke` vtable slot).  Verified the
+  disassembly matches: `mov 0x100(%rax),%rdi; test %rdi,%rdi;
+  je ...; mov (%rdi),%rax; call *0x30(%rax)`.  The hypothesised
+  helper has no discrete symbol — the binary inlines it everywhere.
+  `\unclear` (rather than `\unverifiable`) is the correct tag:
+  the function may never have existed as a separate definition.
+
+**Outcome**: No source changes.  All 6 sites are appropriately
+tagged, accurately phrased, and continue to flag genuine
+verification gaps that future evidence (e.g. a non-SeqC entry
+point or a debug build of LabOne) could close.
+
+**Action items**: None.  Audit closure recorded so a future
+session does not re-audit the same backlog.
