@@ -374,6 +374,11 @@ SYMBOLS: list[Symbol] = [
     Symbol("fromBinary",             0x100780,
            "_ZN6zhinst10fromBinaryEj",
            "sret_blob_u32"),
+    # Identity reinterpret: array<size_t,3> const& (CalVer const&) — returns
+    # the same pointer in %rax (treated as opaque blob reference).
+    Symbol("CalVer::triple",         0x100260,
+           "_ZNK6zhinst6CalVer6tripleEv",
+           "ref_blob"),
 ]
 
 
@@ -641,6 +646,7 @@ BLOB_CORPUS: dict[str, str] = {
     "isSet(array)":      "arr3",
     "toString(CalVer)":  "calver",
     "toString(array)":   "arr3",
+    "CalVer::triple":    "calver",
 }
 
 # generateSfc: only the MF family reaches the happy path; other families
@@ -856,6 +862,20 @@ def call_sret_blob_u32(fn: Callable, val: int, blob_size: int) -> bytes:
     return ctypes.string_at(buf, blob_size)
 
 
+def call_ref_blob(fn: Callable, blob: bytes) -> int:
+    """Call `Blob const& m(Blob const*)` (member that returns a
+    reference; in particular the identity case where %rax = %rdi).
+
+    Returns the offset of the returned pointer from the input
+    pointer, so a 0 result means "returned the input pointer
+    unchanged".  Comparing offsets (rather than absolute addresses)
+    keeps the result independent of allocator placement."""
+    buf = ctypes.create_string_buffer(blob, len(blob))
+    in_addr = ctypes.cast(buf, ctypes.c_void_p).value or 0
+    out_addr = int(fn(ctypes.cast(buf, ctypes.c_void_p)) or 0)
+    return out_addr - in_addr
+
+
 def iter_inputs(sym: Symbol):
     """Yield (call_args_tuple, label).  call_args_tuple matches the
     parameters of the per-kind call_* helper."""
@@ -872,7 +892,7 @@ def iter_inputs(sym: Symbol):
             yield (pair, f"({_label(pair[0])}, {_label(pair[1])})")
         return
     if sym.kind in ("pod_u64_blob", "pod_u32_blob", "pod_bool_blob",
-                    "sret_blob"):
+                    "sret_blob", "ref_blob"):
         # Single-arg blob input drawn from CALVER_INPUTS or ARR3_INPUTS
         # per BLOB_CORPUS.
         corpus = {
@@ -950,6 +970,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "sret_blob_u32":
         proto_args = [ctypes.c_void_p, ctypes.c_uint32]
+    elif sym.kind == "ref_blob":
+        proto_args = [ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -968,6 +990,11 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind in ("pod_bool_blob", "pod_bool_blob2"):
         fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
         fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
+    elif sym.kind == "ref_blob":
+        # Returns a pointer (Blob const&); model as c_void_p for
+        # raw-address comparison.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_void_p, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_void_p, proto_args)
     elif sym.kind == "pod_u64_cref2":
         # The trampoline takes raw function-pointer addresses, not
         # ctypes callables.  Resolve both sides to integer addresses.
@@ -1040,6 +1067,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             val32: int = args[0]    # type: ignore[assignment]
             o = call_sret_blob_u32(fn_orig, val32, 32)  # CalVer = 32 B
             c = call_sret_blob_u32(fn_cand, val32, 32)
+        elif sym.kind == "ref_blob":
+            blob5: bytes = args[0]  # type: ignore[assignment]
+            o = call_ref_blob(fn_orig, blob5)
+            c = call_ref_blob(fn_cand, blob5)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
