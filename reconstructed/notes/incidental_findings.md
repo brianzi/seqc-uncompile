@@ -150,7 +150,13 @@ itself which is incomplete (see IF-103).
 ## IF-104  ELFIO NOBITS section file-offset layout differs between vendored and system builds
 
 **Source**: `shfsg_doc_ct_placeholder` test failure investigation
-**Status**: confirmed
+**Status**: confirmed-fixed-cosmetic (fix applied at test harness; recon
+unaffected; re-verified post-F3 2026-05-13 — `compare_results` in
+`tests/diff_test.py:382-399` special-cases `SHT_NOBITS` correctly,
+and `tests/diff_test_fast.py:36` reuses the same function via
+import, so both harnesses are NOBITS-aware.  The 1603-case suite
+exercises the `manualdocs_ai_synthesized:shfsg:ct_placeholder`
+case and PASSes.)
 **Severity**: cosmetic (diff-test artifact, not a semantic bug)
 
 The original binary statically links its own copy of ELFIO, while the
