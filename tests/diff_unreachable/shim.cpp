@@ -159,4 +159,39 @@ int diff_unreachable_try_pod_u64_cref2(
     }
 }
 
+// Trampoline for `Blob f(const std::string&)` where Blob is a POD
+// struct/array returned by sret (Itanium ABI: void(BlobOut*, string*)).
+// The caller supplies a pre-allocated `out_blob` buffer big enough to
+// hold the return value (CalVer = 32 B, array<size_t,3> = 24 B, etc.).
+//
+// Same return convention as the generic trampoline:
+//   0 = success; out_blob filled
+//   1 = std::exception thrown; *what_buf set to e.what()
+//   2 = unknown exception thrown; *what_buf set to "<unknown>"
+using Fn_sret_blob_cref = void (*)(void*, const std::string*);
+
+int diff_unreachable_try_sret_blob_cref(
+        Fn_sret_blob_cref fn,
+        void* out_blob,
+        const std::string* arg,
+        char* what_buf,
+        std::size_t what_cap) {
+    try {
+        fn(out_blob, arg);
+        return 0;
+    } catch (const std::exception& e) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, e.what(), what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 1;
+    } catch (...) {
+        if (what_buf && what_cap > 0) {
+            std::strncpy(what_buf, "<unknown>", what_cap - 1);
+            what_buf[what_cap - 1] = '\0';
+        }
+        return 2;
+    }
+}
+
 }  // extern "C"

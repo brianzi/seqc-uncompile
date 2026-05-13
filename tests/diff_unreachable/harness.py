@@ -155,6 +155,16 @@ _try_pod_u64_cref2.argtypes = [
     ctypes.c_size_t,  # what cap
 ]
 
+_try_sret_blob_cref = _cand.diff_unreachable_try_sret_blob_cref
+_try_sret_blob_cref.restype = ctypes.c_int
+_try_sret_blob_cref.argtypes = [
+    ctypes.c_void_p,  # fn pointer
+    ctypes.c_void_p,  # void* out_blob
+    ctypes.c_void_p,  # const string* arg
+    ctypes.c_char_p,  # what buffer
+    ctypes.c_size_t,  # what cap
+]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -386,6 +396,18 @@ SYMBOLS: list[Symbol] = [
     Symbol("CalVer::ctor(string)",   0xffdb0,
            "_ZN6zhinst6CalVerC2ERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE",
            "ctor_blob_cref"),
+    # Throwing sret-blob-from-string-cref shapes.  Use the
+    # exception-safe trampoline to compare both sides on inputs that
+    # may throw `boost::bad_lexical_cast`; both-threw outcomes collapse
+    # to a sentinel pair.
+    # CalVer fromDecimal(string const&) — sret 32-byte CalVer.
+    Symbol("fromDecimal(string)",    0x100520,
+           "_ZN6zhinst11fromDecimalERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_blob_cref_throws"),
+    # array<size_t,3> extractVersionTriple(string const&) — sret 24-byte array.
+    Symbol("extractVersionTriple",   0x101570,
+           "_ZN6zhinst20extractVersionTripleERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE",
+           "sret_blob_cref_throws"),
 ]
 
 
@@ -630,6 +652,59 @@ ARR3_INPUTS: list[tuple[bytes, str]] = [
 # non-numeric or out-of-range parts.  Restrict here to inputs that
 # parse cleanly so the harness can compare blob outputs without an
 # exception trampoline.
+# Mixed valid + throwing inputs for `extractVersionTriple(string)` and
+# `fromDecimal(string)`.  Both call `boost::lexical_cast<size_t>` on
+# parts of the string and throw on non-numeric / out-of-range parts.
+# `fromDecimal(string)` short-circuits empty input to a zero CalVer;
+# `extractVersionTriple` does not.  Each input drives both shapes:
+# valid inputs produce a blob match, throwing inputs produce a
+# both-threw sentinel collapse.
+THROW_STRING_INPUTS: list[tuple[bytes, str]] = [
+    # ---- non-throwing ----
+    (b"",                "empty"),
+    (b"0.0.0",           "0.0.0"),
+    (b"1.2.3",           "1.2.3"),
+    (b"26.1.3",          "current 3-comp"),
+    (b"100.200.300",     "3-digit fields"),
+    (b"0",               "single 0"),
+    (b"42",              "single int"),
+    # ---- throwing (lexical_cast<size_t> rejects) ----
+    (b"abc",             "non-numeric"),
+    (b"1.2.x",           "trailing non-numeric"),
+    (b"1..2",            "empty middle"),
+    (b".1.2",            "leading dot"),
+    (b"-1.2.3",          "negative leading"),
+    (b"1.2.3.4.5",       "too many parts"),
+]
+
+
+# Restricted corpus for `extractVersionTriple` — see IF-270.
+# The recon uses `boost::lexical_cast` and throws on malformed input,
+# while the binary uses `boost::detail::lcast_ret_unsigned::convert`
+# (the non-throwing form) and silently zeroes the slot on failure.
+# Until IF-270 is resolved, exclude inputs that expose this divergence
+# (any input where one side throws and the other doesn't, or where the
+# zero-on-failure-out-the-whole-array semantic differs from per-slot
+# zero-on-failure).
+EXTRACT_TRIPLE_INPUTS: list[tuple[bytes, str]] = [
+    (b"0.0.0",           "0.0.0"),
+    (b"1.2.3",           "1.2.3"),
+    (b"26.1.3",          "current 3-comp"),
+    (b"100.200.300",     "3-digit fields"),
+    (b"0",               "single 0"),
+    (b"42",              "single int"),
+    (b"-1.2.3",          "negative leading (both throw)"),
+    (b"1.2.3.4.5",       "too many parts (both throw)"),
+]
+
+
+# Per-symbol corpus override for `sret_blob_cref_throws`.  Symbols
+# absent from this map fall back to `THROW_STRING_INPUTS`.
+THROW_CORPUS_OVERRIDE: dict[str, list[tuple[bytes, str]]] = {
+    "extractVersionTriple": EXTRACT_TRIPLE_INPUTS,
+}
+
+
 CTOR_STRING_INPUTS: list[tuple[bytes, str]] = [
     (b"",               "empty"),
     (b"0.0.0",          "0.0.0"),
@@ -674,6 +749,14 @@ BLOB_CORPUS: dict[str, str] = {
     "toString(CalVer)":  "calver",
     "toString(array)":   "arr3",
     "CalVer::triple":    "calver",
+}
+
+# Per-symbol sret blob size (bytes).  Currently only used by the
+# `sret_blob_cref_throws` shape, which would otherwise need a separate
+# kind per blob size.
+BLOB_SIZE: dict[str, int] = {
+    "fromDecimal(string)":   32,   # CalVer
+    "extractVersionTriple":  24,   # array<size_t,3>
 }
 
 # generateSfc: only the MF family reaches the happy path; other families
@@ -823,6 +906,30 @@ def call_pod_u64_cref2(fn_addr: int, a: bytes, b: bytes) -> tuple[int | None, st
         free_string(pa)
 
 
+def call_sret_blob_cref_throws(fn_addr: int, blob_size: int,
+                               data: bytes) -> tuple[bytes | None, str | None]:
+    """Call `Blob f(const std::string&)` (sret POD blob, may throw) via
+    the exception-safe trampoline.  Returns `(blob_bytes, None)` on
+    success or `(None, what)` if the callee threw.
+
+    `fn_addr` is the raw function-pointer address (an integer); the
+    trampoline casts it back to the right shape internally.  `blob_size`
+    is the byte size of the sret return value (CalVer = 32, array<3> =
+    24)."""
+    arg = make_string(data)
+    out_blob = ctypes.create_string_buffer(blob_size)
+    what_buf = ctypes.create_string_buffer(256)
+    try:
+        rc = _try_sret_blob_cref(fn_addr,
+                                 ctypes.cast(out_blob, ctypes.c_void_p),
+                                 arg, what_buf, len(what_buf))
+        if rc == 0:
+            return (ctypes.string_at(out_blob, blob_size), None)
+        return (None, what_buf.value.decode("utf-8", errors="replace"))
+    finally:
+        free_string(arg)
+
+
 def call_pod_u64_blob(fn: Callable, blob: bytes) -> int:
     """Call `size_t f(Blob const&)` (1 blob arg, u64 return in %rax)."""
     buf = ctypes.create_string_buffer(blob, len(blob))
@@ -967,6 +1074,11 @@ def iter_inputs(sym: Symbol):
         for data, label in CTOR_STRING_INPUTS:
             yield ((data,), label)
         return
+    if sym.kind == "sret_blob_cref_throws":
+        corpus = THROW_CORPUS_OVERRIDE.get(sym.name, THROW_STRING_INPUTS)
+        for data, label in corpus:
+            yield ((data,), label)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1022,6 +1134,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p]
     elif sym.kind == "ctor_blob_cref":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_blob_cref_throws":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1048,6 +1162,12 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "pod_u64_cref2":
         # The trampoline takes raw function-pointer addresses, not
         # ctypes callables.  Resolve both sides to integer addresses.
+        fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
+        fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
+                              ctypes.c_void_p).value or 0    # type: ignore[assignment]
+    elif sym.kind == "sret_blob_cref_throws":
+        # Same convention as pod_u64_cref2: trampoline takes raw
+        # function-pointer addresses.
         fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
         fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
                               ctypes.c_void_p).value or 0    # type: ignore[assignment]
@@ -1125,6 +1245,17 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data6: bytes = args[0]  # type: ignore[assignment]
             o = call_ctor_blob_cref(fn_orig, 32, data6)  # CalVer = 32 B
             c = call_ctor_blob_cref(fn_cand, 32, data6)
+        elif sym.kind == "sret_blob_cref_throws":
+            data7: bytes = args[0]  # type: ignore[assignment]
+            blob_size = BLOB_SIZE[sym.name]
+            o = call_sret_blob_cref_throws(fn_orig, blob_size, data7)  # type: ignore[arg-type]
+            c = call_sret_blob_cref_throws(fn_cand, blob_size, data7)  # type: ignore[arg-type]
+            # Both-threw collapse — see pod_u64_cref2 for the full
+            # rationale on RTTI-divergence between the statically-linked
+            # original and dynamically-linked candidate.
+            if o[0] is None and c[0] is None:
+                o = (None, "<threw>")
+                c = (None, "<threw>")
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

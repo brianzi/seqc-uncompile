@@ -4850,3 +4850,100 @@ might otherwise have survived indefinitely (no test ever exercised
 the default branch).  Reinforces the F1 hypothesis that older
 `\binarynote` entries are the highest-yield drift targets.
 
+---
+
+## IF-270  `extractVersionTriple` recon throws on malformed input; binary uses non-throwing convert
+
+**Source**: F2 step 2b-vii harness wiring (CalVer throwing-shape
+coverage), 2026-05-13
+**Severity**: likely-bug (semantic divergence; orig swallows
+parse errors silently, recon raises `boost::bad_lexical_cast`)
+**Status**: open
+
+### Symptom
+
+The new `sret_blob_cref_throws` harness shape exposed a
+divergence between `_seqc_compiler.so` and the libc++ recon
+build for `zhinst::extractVersionTriple(std::string const&)`
+(orig @ `0x101570`).
+
+For non-numeric / partially-empty inputs the original returns a
+zero-filled `std::array<size_t, 3>`, while the recon throws.
+Specific failures from the harness:
+
+| Input        | orig                 | recon                       |
+|--------------|----------------------|-----------------------------|
+| `""`         | `{0,0,0}`            | throws bad_lexical_cast     |
+| `"abc"`      | `{0,0,0}`            | throws bad_lexical_cast     |
+| `"1.2.x"`    | `{0,0,0}`            | throws bad_lexical_cast     |
+| `"1..2"`     | `{0,0,0}`            | `{1, 2, 0}` (compress_on)   |
+| `".1.2"`     | `{0,0,0}`            | throws bad_lexical_cast     |
+
+The `{1,2,0}` case for `"1..2"` is especially telling: with
+`token_compress_on` the recon parses both numeric parts cleanly
+(no throw) and yet the orig still returns all zeros — so the
+divergence is not just "swallows the throw", there is also a
+different result-on-failure path.
+
+### Hypothesis (verifyme)
+
+Disasm of the orig at `0x101570..0x101bef` shows direct calls
+to `boost::detail::lcast_ret_unsigned<...>::convert` (orig
+`0x100c40`), which is the `bool`-returning convert path used by
+`boost::conversion::try_lexical_convert`, **not** the throwing
+`boost::lexical_cast<size_t>`.  Each call site does a
+`test %al,%al` immediately afterwards, consistent with branching
+on the bool result.  The result array is initialised to all
+zeros up-front and slot writes appear to be guarded by the
+convert success bool, so a failed parse leaves the slot at 0
+without throwing.
+
+The `"1..2"` → `{0,0,0}` case suggests the orig **does not**
+use `token_compress_on` and may have an additional outer guard
+that zeroes the entire array on any sub-parse failure — needs
+GDB verification to characterise the failure-handling exactly.
+
+### Recon (current)
+
+```cpp
+// reconstructed/src/infra/calver.cpp:33..53
+std::array<size_t, 3> extractVersionTriple(std::string const& s) {
+    std::vector<std::string> parts;
+    boost::algorithm::split(parts, s, boost::is_any_of("."),
+                            boost::token_compress_on);   // wrong: orig likely token_compress_off
+    std::array<size_t, 3> result = {{0, 0, 0}};
+    size_t n = parts.size();
+    if (n == 0) return result;
+    if (n >= 1) result[0] = boost::lexical_cast<size_t>(parts[0]);  // wrong: should be try_lexical_convert
+    if (n >= 2) result[1] = boost::lexical_cast<size_t>(parts[1]);
+    if (n >= 3) result[2] = boost::lexical_cast<size_t>(parts[2]);
+    return result;
+}
+```
+
+### Fix sketch (not yet applied)
+
+Replace `boost::lexical_cast<size_t>(part)` with
+`boost::conversion::try_lexical_convert<size_t>(part, slot)` and
+investigate (via GDB) whether a single failure should also zero
+the *prior* slots — the `"1..2"` case suggests an outer
+"zero everything on any sub-failure" guard that recon currently
+lacks.  Compress-mode also needs verifying.
+
+### Harness impact
+
+The `sret_blob_cref_throws` SYMBOLS entry for
+`extractVersionTriple` is in place but expected to FAIL on 5 of
+13 inputs until this is fixed.  Per workflow we land the harness
+wiring with the FAILs surfacing the bug, then file this IF as a
+TODO for separate investigation and fix.
+
+### Knock-on
+
+`fromDecimal(string const&)` (orig @ `0x100520`) shares the
+recon convention (`boost::lexical_cast`) and may have the same
+issue, but it short-circuits empty input and the harness corpus
+chose values for which both sides happen to agree on the throw
+boundary; needs separate audit once IF-270 is resolved.
+
+
