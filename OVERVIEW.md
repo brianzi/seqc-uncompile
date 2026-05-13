@@ -1306,3 +1306,63 @@ Highlights:
 With D16 closed, every D-phase is complete.  The next phase is
 **Phase E** (diff-test harness for binding-unreachable
 reconstructions) — see `TODO.md` for the E1/E2/E3 breakdown.
+
+## Phase E — diff-test harness for binding-unreachable reconstructions
+
+The Phase D coverage push exposed a structural gap: many recon
+symbols are unreachable from the Python `compile_seqc()` entry
+point and therefore invisible to the 1603-case differential test
+suite.  These functions carry `\verifyme` because they have no
+behaviour-level proof against the binary.  Phase E built a second
+differential harness (`tests/diff_unreachable/`) that loads
+`_seqc_compiler.so` *and* a recon-only shared library
+(`reconstructed/build-libcxx-test/libdiagtxt_libcxx.so`) into the
+same process and invokes matched symbol pairs directly via
+`ctypes` + a small C-ABI trampoline shim, comparing return values
+and exception outcomes.
+
+Highlights:
+
+- New driver: `tests/diff_unreachable/harness.py` (symbol table,
+  ABI-shape dispatch, corpus inputs, both-threw collapse for RTTI
+  divergence between statically-linked orig and dynamically-linked
+  candidate).
+- New shim: `tests/diff_unreachable/shim.cpp` (exception-safe
+  trampolines so a candidate-side throw never aborts the harness).
+- New build system: `reconstructed/CMakeLists-libcxx-test.txt` —
+  a separate cmake project that builds the same recon TUs against
+  libc++ (matching the orig's ABI) into a shared library that the
+  harness can `dlopen`.
+- Initial coverage at Phase E close: ~944 cases across the
+  diagnostics-text module (`core/diagnostics_text.cpp`), exercising
+  ~30 symbols.  Several IFs surfaced and were fixed during the
+  push (IF-265..IF-269).
+
+## Phase F — Backlog hardening
+
+Phase F clears inherited tag-debt (`\binarynote` audit) and
+extends the diff-unreachable harness to a second module, applying
+verify-then-write throughout.
+
+- **F1 (`\binarynote` audit).**  Closed 2026-05-13.  All 26 in-tree
+  `\binarynote` sites across 17 files audited against the binary.
+  One IF surfaced and fixed (IF-269 — `Node::type2str` recon
+  emitted `"unknnown"` (3 n's); binary emits `"unknown"` (2 n's)).
+  Remaining 25 sites all verified accurate.
+
+- **F2 (harness expansion to `infra/calver.cpp`).**  Closed
+  2026-05-13.  Reconstructed 4 missing calver symbols
+  (`getLaboneVersion`, `getLaboneVersionWithCommitHash`,
+  `fromDecimal(string const&)`, `extractVersionTriple`); added 7
+  new harness ABI shapes (`sret_void`, `sret_blob_void`,
+  `sret_blob`, `sret_blob_u32`, `ref_blob`, `ctor_blob_cref`,
+  `sret_blob_cref_throws`); covered 20 of 21 unique calver
+  symbols (deferred: `operator<<(ostream, CalVer)` — needs a fake
+  ostream shape).  Yield: IF-270 (`extractVersionTriple` missing
+  outer `try/catch` + wrong `token_compress_mode` enum value;
+  GDB-verified, fixed in commit `2d97867`).
+
+  Net harness coverage at F2 close: 957/957 cases.  Main test
+  suite: 1603/1603 (unchanged).
+
+- **F3 (triage + wrap-up).**  Pending.

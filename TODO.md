@@ -981,19 +981,43 @@ new module, applying verify-then-write throughout.
       doc comment can make and therefore the most damaging when
       wrong.
 
-- [ ] **F2 — Harness expansion to a new module**
+- [x] **F2 — Harness expansion to a new module**
 
-      *Scope:* extend `tests/diff_unreachable/` to a second module
-      after F1.  Module to be picked at F1 wrap-up; current
-      candidates are `infra/calver.cpp`, `device/awg_device_props.cpp`,
-      and `io/cached_parser.cpp`, ordered by expected harness fit.
+      *Closed 2026-05-13.*  Module: `infra/calver.cpp`.  All 21 unique
+      exported calver symbols covered by the diff-test harness, except
+      `operator<<(ostream&, CalVer const&)` which would require a new
+      "fake ostream" shape (deferred — narrow value, large shape).
 
-      *Deliverables:* enumerate exported symbols in the chosen
-      module, classify by ABI shape (re-using existing 8 shapes
-      where possible; add new shapes only when forced), build a
-      curated input corpus, run differential, fix divergences as
-      they surface.  Maintain 1603/1603 main + harness green at
-      every commit.
+      *Yield:* IF-270 surfaced and fixed (`extractVersionTriple`
+      missing outer `try/catch` + wrong token-compress mode; recon
+      diverged from orig on 5 of 13 inputs).  GDB trace was decisive
+      in identifying both bugs; static disasm reading alone had
+      produced a wrong hypothesis (switch to `try_lexical_convert`)
+      that the GDB trace disproved — the orig also throws internally,
+      and the catch swallows it.
+
+      *Reconstructed-on-demand:* 4 calver symbols absent from recon at
+      F2 start were reconstructed before harnessing (`getLaboneVersion`,
+      `getLaboneVersionWithCommitHash`, `fromDecimal(string const&)`,
+      `extractVersionTriple`).
+
+      *New harness shapes added:* `sret_void`, `sret_blob_void`,
+      `sret_blob`, `sret_blob_u32`, `ref_blob`, `ctor_blob_cref`,
+      `sret_blob_cref_throws`.  Trampoline
+      `diff_unreachable_try_sret_blob_cref` in `tests/diff_unreachable/shim.cpp`
+      handles both 32-byte (`CalVer`) and 24-byte (`array<size_t,3>`)
+      sret returns; per-symbol blob size dispatched via the `BLOB_SIZE`
+      map in `harness.py`.
+
+      *Deferred:* `operator<<(ostream&, CalVer const&)` coverage
+      (ostream-fake shape); `fromDecimal(string)` exception-translation
+      difference (orig translates `std::stoul` failure to
+      `zhinst::Exception`, recon lets it propagate as
+      `std::invalid_argument` / `std::out_of_range`; logged in IF-270
+      "Knock-on" section, invisible at harness shape level via
+      both-threw collapse).
+
+      *Tests at close:* 1603/1603 main + 957/957 harness.
 
 - [ ] **F3 — Triage + wrap-up**
 
