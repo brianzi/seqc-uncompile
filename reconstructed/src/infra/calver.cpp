@@ -10,6 +10,7 @@
 #include <boost/throw_exception.hpp>
 #include <array>
 #include <cstdint>
+#include <ostream>
 #include <string>
 #include <vector>
 
@@ -288,6 +289,49 @@ std::string getLaboneVersionWithCommitHash() {  // @0x1002a0
     // Version "26.01.3.9" + " (" + 40-char commit hash + ")"
     // Hash at rodata 0x8fecfd: "203353afa6d977a08b0d4178e005ccfb3132992e"
     return std::string("26.01.3.9 (203353afa6d977a08b0d4178e005ccfb3132992e)");
+}
+
+// ---------------------------------------------------------------------------
+// fromDecimal(string const&) — @0x100520, 0xc0 bytes
+//
+// Parses s as decimal via std::stoul, then forwards to fromDecimal(uint32_t).
+// Empty string short-circuits to the all-zero CalVer.
+// ---------------------------------------------------------------------------
+CalVer fromDecimal(std::string const& s) {  // @0x100520
+    if (s.empty()) {
+        return CalVer{};
+    }
+    return fromDecimal(static_cast<uint32_t>(std::stoul(s, nullptr, 10)));
+}
+
+// ---------------------------------------------------------------------------
+// operator<<(ostream&, CalVer const&) — @0x100b40, 0x80 bytes
+//
+// Equivalent to: os << toString(v).
+// ---------------------------------------------------------------------------
+std::ostream& operator<<(std::ostream& os, CalVer const& v) {  // @0x100b40
+    return os << toString(v);
+}
+
+// ---------------------------------------------------------------------------
+// toString(array<size_t,3> const&) — @0x101d80, 0x350 bytes
+//
+// "a[0].a[1].a[2]" via std::to_string + ".".
+// ---------------------------------------------------------------------------
+std::string toString(std::array<size_t, 3> const& a) {  // @0x101d80
+    return std::to_string(a[0]) + "." +
+           std::to_string(a[1]) + "." +
+           std::to_string(a[2]);
+}
+
+// ---------------------------------------------------------------------------
+// isSet(array<size_t,3> const&) — @0x1020d0, 0x18 bytes
+//
+// True iff any of the three components is non-zero.
+// Binary form: (a[0] | a[1] | a[2]) != 0.
+// ---------------------------------------------------------------------------
+bool isSet(std::array<size_t, 3> const& a) {  // @0x1020d0
+    return (a[0] | a[1] | a[2]) != 0;
 }
 
 } // namespace zhinst

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iosfwd>
 #include <string>
 
 namespace zhinst {
@@ -178,6 +179,16 @@ bool operator==(CalVer const& a, CalVer const& b);
 // @0x100c00, 0x3e bytes
 bool operator<(CalVer const& a, CalVer const& b);
 
+//! \brief Stream-insertion operator: writes `toString(v)` to `os`.
+//! \details Equivalent to `os << toString(v)`. Returns `os` to permit
+//! chaining. Note that the output omits the `build` field (consistent
+//! with `toString(CalVer const&)`).
+//! \param os Output stream.
+//! \param v Version to format.
+//! \return `os`, for chaining.
+// @0x100b40, 0x80 bytes
+std::ostream& operator<<(std::ostream& os, CalVer const& v);
+
 //! \brief Unpacks a decimal-packed `uint32_t` into a `CalVer`.
 //! \details Inverse of `asDecimal()`. Extracts
 //! `year  = (d / 10000000) % 100`,
@@ -190,6 +201,20 @@ bool operator<(CalVer const& a, CalVer const& b);
 // Unpacks decimal → CalVer
 // @0x100490
 CalVer fromDecimal(uint32_t d);
+
+//! \brief String-input overload of `fromDecimal()`.
+//! \details Parses `s` as a decimal `uint32_t` via
+//! `std::stoul(s, nullptr, 10)`, then forwards to
+//! `fromDecimal(uint32_t)`. The empty string is treated as zero (no
+//! exception is thrown), matching the binary's short-circuit for
+//! zero-length input.
+//! \param s Dotted-free decimal string (e.g. `"2601039"`).
+//! \return Decoded `CalVer`, or the all-zero value when `s` is empty.
+//! \throws std::invalid_argument if `s` is non-empty and not a valid
+//! unsigned-integer literal.
+//! \throws std::out_of_range if the parsed value exceeds `unsigned long` range.
+// @0x100520, 0xc0 bytes
+CalVer fromDecimal(std::string const& s);
 
 //! \brief Unpacks a bit-packed `uint32_t` into a `CalVer`.
 //! \details Inverse of `asBinary()`. Extracts `year = b >> 24`,
@@ -224,5 +249,26 @@ std::string getLaboneVersionWithCommitHash();
 // Splits a version string on '.' and parses up to 3 numeric components.
 // @0x101570, 0x590 bytes
 std::array<size_t, 3> extractVersionTriple(std::string const& s);
+
+//! \brief Formats a three-component version triple as `"a.b.c"`.
+//! \details Concatenates `std::to_string(a[0]) + "." +
+//! std::to_string(a[1]) + "." + std::to_string(a[2])`. Sibling of
+//! `toString(CalVer const&)` for the `extractVersionTriple()` output
+//! shape; components are formatted without zero-padding.
+//! \param a Three-element version triple.
+//! \return `"a[0].a[1].a[2]"` string.
+// @0x101d80, 0x350 bytes
+std::string toString(std::array<size_t, 3> const& a);
+
+//! \brief Tests whether a three-component version triple carries any
+//! non-zero component.
+//! \details Returns `true` if at least one of `a[0]`, `a[1]`, `a[2]`
+//! is non-zero; returns `false` only for the all-zero triple. Sibling
+//! of `isSet(CalVer const&)` for the `extractVersionTriple()` output
+//! shape.
+//! \param a Three-element version triple.
+//! \return `true` if any component is non-zero, `false` otherwise.
+// @0x1020d0, 0x18 bytes
+bool isSet(std::array<size_t, 3> const& a);
 
 } // namespace zhinst
