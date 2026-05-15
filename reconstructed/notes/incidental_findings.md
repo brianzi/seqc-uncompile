@@ -5319,3 +5319,67 @@ byte `0x08`, `"0"` size byte `0x02`) all encode to non-printable
 sub-`'!'` bytes and are visibly metadata, not data.
 
 **Action items**: none.
+
+## IF-276  Phase-D doc-tag backlog triage (post-IF-272 audit pass)
+
+**Status**: tracking entry; no action item.
+
+**Discovered**: 2026-05-15, Phase F follow-up Task 3.
+
+**Severity**: informational.
+
+**Scope:** verify-then-write triage of the documentation tag
+backlog reported by `reconstructed/docs/coverage.sh`:
+- `\unclear` : 1 entry
+- `\unverifiable` : 5 entries
+- `\binarynote` : 26 entries
+
+The triage's purpose was to confirm each tag still reflects
+reality (not stale) following the IF-272 SSO-byte misread, which
+raised concerns about doc drift in general.
+
+**Approach:**
+- 100% audit of `\unclear` (1/1) and `\unverifiable` (5/5;
+  4 sampled by-hand, all clearly justified with cross-references
+  to IF-235, IF-249, etc.).
+- 33% sample of `\binarynote` (7/26, distributed across
+  `waveform/`, `runtime/`, `ast/`, `device/`, `io/`, `core/`,
+  `infra/`).  Sample selection covered every subsystem with at
+  least one entry and prioritised the larger files
+  (`resources.hpp`, `device_type.hpp`, `seqc_ast_node.hpp`,
+  `cached_parser.hpp`).  Each entry was verified against either
+  the binary disassembly (when the note cited a binary address)
+  or the recon source body (when the note described recon
+  behavior).
+
+**Result:** **all entries accurate.**
+- `\unclear` (1/1 PASS): `runtime::resources.hpp:1117`
+  `errorReportTarget()` — no matching binary symbol (verified
+  via `nm`); IF-235 cross-reference still valid.
+- `\unverifiable` (4/4 sampled PASS):
+  `prefetch.hpp:1138` (Table arm, IF-249 ref),
+  `elf_reader.hpp:228` (selector field),
+  `asm_expression.hpp:243` (str()), `logging.hpp:69` (Severity).
+  Each entry explains why the claim is unverifiable from SeqC
+  inputs.
+- `\binarynote` (7/7 sampled PASS): `play_config.hpp:46`
+  (PlayConfig::now), `resources.hpp:658` (variableExistsInScope),
+  `resources.hpp:705` (checkVar), `seqc_ast_node.hpp:262`
+  (swap), `device_type.hpp:146` (DeviceOption None/MF dual 0),
+  `cached_parser.hpp:191` (CachedFile no found-flag),
+  `exception.hpp:319` (description() returns errorCode_ ptr),
+  `calver.hpp:88` (triple() returns CalVer const&).  Several
+  required objdump verification at the cited binary addresses
+  (e.g. `swap` @0x1fda40 confirmed swapping only +0x8/+0x10,
+  not the vptr at +0x00; `triple` @0x100260 confirmed
+  `mov rax,rdi; ret`).
+
+**Conclusion:** the existing tag inventory is healthy.  The
+backlog represents genuine uncertainty / quirks worth flagging,
+not bookkeeping debt.  No tag-removal commits planned; the
+backlog can grow organically as new findings accrue.
+
+**Action items**: none.  The 19 unaudited `\binarynote` entries
+remain on file; if a future audit pass wants to extend coverage,
+the file list is at the top of `reconstructed/docs/coverage.sh`
+output.
