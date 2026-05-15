@@ -985,7 +985,7 @@ Signal WaveformGenerator::randomGauss(std::vector<Value> const& args) {        /
     if (length == 0) return sig;
 
     std::vector<double> samples(length);
-    seqc_libcxx_normal_amplitude(GlobalResources::random, amplitude, mean, stddev,
+    seqc_libcxx_normal_amplitude(GlobalResources::random.data(), amplitude, mean, stddev,
                                   samples.data(), static_cast<size_t>(length));
     for (int i = 0; i < length; ++i) {
         sig.append(samples[i], 0);
@@ -1032,7 +1032,7 @@ Signal WaveformGenerator::randomUniform(std::vector<Value> const& args) {      /
     // The binary computes min = -amplitude, max = +amplitude
     // and uses uniform_real_distribution<double>(min, max).
     std::vector<double> samples(length);
-    seqc_libcxx_uniform(GlobalResources::random, -amplitude, amplitude,
+    seqc_libcxx_uniform(GlobalResources::random.data(), -amplitude, amplitude,
                          samples.data(), static_cast<size_t>(length));
     for (int i = 0; i < length; ++i) {                                        // 0x2538d0
         sig.append(samples[i], 0);

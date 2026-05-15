@@ -628,48 +628,78 @@ Reconstruction difficulty: **small**. Recommended approach: read disassembly + c
 
 Five symbols that didn't cluster well: a mix of small leaf helpers from different subsystems. Triage individually.
 
+**F-followup status (2026-05-16)**: 3 of 5 closed; 2
+deferred-by-design.  See `OVERVIEW.md` chronology and IF-283
+/ IF-284 for the rationale.
+
 ### Symbols
 
 #### `zhinst::getKind(zhinst::Exception const&)`
 
 - **Mangled**: `_ZN6zhinst7getKindERKNS_9ExceptionE`
-- **Address**: `0x2e5180` | **Size**: 189 B | **Status**: absent
+- **Address**: `0x2e5180` | **Size**: 189 B | **Status**: deferred-by-design (IF-284)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
+- **Why deferred**: zero recon callers; faithful body needs
+  `dynamic_cast` over `boost::wrapexcept<...>` thunks plus
+  tail-call into the `error_code` overload below.  Cost
+  greatly outweighs value while no caller exists.
 
 #### `zhinst::getKind(boost::system::error_code const&)`
 
 - **Mangled**: `_ZN6zhinst7getKindERKN5boost6system10error_codeE`
-- **Address**: `0x2e50d0` | **Size**: 170 B | **Status**: absent
+- **Address**: `0x2e50d0` | **Size**: 170 B | **Status**: deferred-by-design (IF-284)
 - **First insn**: `mov    0x10(%rdi),%rax`
 - **Callers**: `_ZN6zhinst7special9toApiCodeERKNS_9ExceptionE`
 - **String evidence**: _none observed_
+- **Why deferred**: needs real `boost::system::error_category*`
+  comparison against an anon-namespace `singleErrorKindCategory`
+  (binary @0xb7c5a8) plus `boost::system::detail::generic_cat_holder`
+  interop.  Recon currently uses a stand-in `ErrorCode` (not
+  `boost::system::error_code`); building out the interop would
+  add ~200 LoC for zero in-tree callers.
 
 #### `TLS init function for zhinst::GlobalResources::random`
 
 - **Mangled**: `_ZTHN6zhinst15GlobalResources6randomE`
-- **Address**: `0x1f6090` | **Size**: 164 B | **Status**: absent
+- **Address**: `0x1f6090` | **Size**: 164 B | **Status**: present (IF-283)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst17WaveformGenerator13randomUniformERKNSt3__16vectorINS_5ValueENS1_9...`, `_ZN6zhinst15GlobalResourcesC2ERKNSt3__110shared_ptrINS_9ResourcesEEE`, `_ZN6zhinst17WaveformGenerator11randomGaussERKNSt3__16vectorINS_5ValueENS1_9al...`, `_ZN6zhinst15CustomFunctions10randomSeedERKNSt3__16vectorINS_15EvalResultValue...`
 - **String evidence**: _none observed_
+- **Recon**: gcc-emitted from
+  `thread_local std::array<uint64_t, 313> GlobalResources::random
+   = seed_mt19937_64_state();` in
+  `src/runtime/global_resources.cpp`.  Matches binary
+  semantics (once-per-thread MT19937-64 seeding); fixed
+  IF-283 (per-construction re-seed regression).
 
 #### `zhinst::ErrorCodeTraits<boost::system::error_code>::defaultMessage(boost::system::error_code const&)`
 
 - **Mangled**: `_ZN6zhinst15ErrorCodeTraitsIN5boost6system10error_codeEE14defaultMessageERKS3_`
-- **Address**: `0x2ea170` | **Size**: 24 B | **Status**: absent
+- **Address**: `0x2ea170` | **Size**: 24 B | **Status**: present (template-arg mangling diverges)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst9ExceptionC1ERKN5boost6system10error_codeENSt3__112basic_stringIcNS...`, `_ZN6zhinst9ExceptionC1ENSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9alloc...`, `_ZN6zhinst9ExceptionC1ERKN5boost6system10error_codeE`
 - **String evidence**: _none observed_
-- **Notes**: candidate qualified-name match in reconstructed/src/core/exception.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
+- **Recon**: out-of-line specialisation in
+  `src/core/exception.cpp` for
+  `ErrorCodeTraits<ErrorCode>` (recon stand-in for
+  `boost::system::error_code`).  Body matches `objdump`
+  byte-for-byte; mangled name diverges only in the
+  template-arg portion (`IN6zhinst9ErrorCodeE` vs
+  `IN5boost6system10error_codeE`).  Faithful name match
+  would require faking `boost::system::error_code` — out
+  of scope.
 
 #### `zhinst::ErrorCodeTraits<boost::system::error_code>::successCode()`
 
 - **Mangled**: `_ZN6zhinst15ErrorCodeTraitsIN5boost6system10error_codeEE11successCodeEv`
-- **Address**: `0x2ea150` | **Size**: 23 B | **Status**: absent
+- **Address**: `0x2ea150` | **Size**: 23 B | **Status**: present (template-arg mangling diverges)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
+- **Recon**: same approach as `defaultMessage` above;
+  template-arg portion of mangling diverges by design.
 
 ## Cluster: `numeric::core`
 

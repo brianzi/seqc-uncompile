@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `misc::?` | ~5 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra`, `node_misc::core` covered, and `awg_config::device`, `device_option::device` documented/restored (F-followups, 2026-05-16). |
+| `misc::?` | 2 helpers | Three of five symbols covered: `ErrorCodeTraits<ErrorCode>::successCode`/`defaultMessage` (template specialisations defined out-of-line in `core/exception.cpp`; mangling matches except template-arg portion since recon uses `ErrorCode` stand-in vs binary's `boost::system::error_code`), and TLS init wrapper `_ZTHN6zhinst15GlobalResources6randomE` (auto-emitted by gcc once `random` was given a function-call initializer; ctor-side re-seeding removed → matches binary's once-per-thread guard).  Two `getKind` overloads remain deferred (zero callers in recon, would require ~200 LoC of fake `boost::system::error_code` + `singleErrorKindCategory` infrastructure).  F-followup, 2026-05-16. |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1756,3 +1756,53 @@ verify-then-write throughout.
     - **Note**: the public helper is now available for any
       future PAU/POFF (Phase Accumulator Update / Phase Offset)
       immediate-encoding call-site that needs the same fold.
+
+- **2026-05-16** F-followup: cluster `misc::?` (3 of 5 helpers
+  closed; 2 deferred-by-design).
+    - **Approach**: option 1 — take the three easy wins, defer
+      the two `getKind(...)` overloads whose recon footprint
+      would dwarf their value (zero callers, ~200 LoC of fake
+      `boost::system::error_code` infrastructure).
+    - **`ErrorCodeTraits<ErrorCode>::successCode`** and
+      **`ErrorCodeTraits<ErrorCode>::defaultMessage`**: added
+      `template <typename T> struct ErrorCodeTraits` to
+      `core/exception.hpp` with the two member declarations,
+      and out-of-line specialisations for the recon
+      `ErrorCode` stand-in in `src/core/exception.cpp`.  The
+      definitions are non-`inline` so the symbols are emitted
+      even with no in-tree callers.  Bodies match
+      `objdump` of @0x2ea150 / @0x2ea170 byte for byte; only
+      the template-arg portion of the mangled name diverges
+      (recon `IN6zhinst9ErrorCodeE` vs binary
+      `IN5boost6system10error_codeE`), reflecting the
+      pre-existing decision to use a stand-in `ErrorCode`
+      rather than fake `boost::system::error_code`.
+    - **TLS init `_ZTHN6zhinst15GlobalResources6randomE`**:
+      changed `GlobalResources::random` from
+      `uint64_t[313]` to
+      `std::array<uint64_t, 313>` and added a
+      function-call initializer (`seed_mt19937_64_state()` in
+      an anonymous namespace in `global_resources.cpp`).
+      gcc auto-emits both `_ZTHN...random` (init wrapper,
+      strong, matches binary @0x1f6090) and `_ZTWN...random`
+      (access wrapper, matches binary @0x1f6180).  The
+      MT19937-64 seeding loop moves out of
+      `GlobalResources::GlobalResources` into the dynamic-init
+      function, **also fixing a behavioural divergence**
+      (IF-283): the binary seeds once-per-thread (TLS+0xa18
+      guard byte); recon previously re-seeded on every
+      `GlobalResources` construction.  Three call sites that
+      decayed the array to `uint64_t*` now use `.data()`
+      (`custom_functions_playback.cpp:887`,
+      `waveform_generator_dsp.cpp:988,1035`).
+    - **Deferred**: `getKind(Exception const&)` @0x2e5180
+      (189 B) and `getKind(boost::system::error_code const&)`
+      @0x2e50d0 (170 B).  Both have zero recon callers; the
+      latter additionally needs `singleErrorKindCategory`
+      anon-namespace static plus `boost::system::detail::
+      generic_cat_holder` interop.  Documented in IF-284 as
+      *deferred-by-design*, not as bugs.
+    - **Result**: 1603/1603 main; 1626/1626 harness.  D14
+      deferred-cluster count: 1 cluster / ~5 helpers → 1
+      cluster / 2 helpers (deferred-by-design).  All
+      *closeable* D14 work is now done.

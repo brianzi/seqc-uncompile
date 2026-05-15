@@ -281,4 +281,33 @@ ZHINST_DEFINE_EXCEPTION(ZIIllegalPathException);           // 0x2e75b0 / 0x2e762
 
 #undef ZHINST_DEFINE_EXCEPTION
 
+// ---------------------------------------------------------------------------
+// ErrorCodeTraits<ErrorCode>::successCode    @0x2ea150 (23 B)
+// ErrorCodeTraits<ErrorCode>::defaultMessage @0x2ea170 (24 B)
+//
+// Binary instantiates `ErrorCodeTraits<boost::system::error_code>` and
+// emits both members as ordinary external definitions.  Recon mirrors
+// the same primary template specialised on the in-tree `ErrorCode`
+// stand-in and emits the same two symbols.
+//
+// successCode body (verified objdump @0x2ea150):
+//   xorps + movups (zero 16 B); movq $0,0x10(%rdi) (zero last 8 B).
+//   = a default-constructed (value-initialised) error_code returned via
+//     hidden sret pointer in %rdi.
+//
+// defaultMessage body (verified objdump @0x2ea170):
+//   call boost::system::error_code::message() then return.
+//   Recon delegates to ErrorCode::to_string(), which is the
+//   stand-in's equivalent message helper.
+// ---------------------------------------------------------------------------
+template <>
+ErrorCode ErrorCodeTraits<ErrorCode>::successCode() {  // @0x2ea150
+    return ErrorCode{};  // value-initialised, all 24 bytes zero
+}
+
+template <>
+std::string ErrorCodeTraits<ErrorCode>::defaultMessage(ErrorCode const& ec) {  // @0x2ea170
+    return ec.to_string();
+}
+
 } // namespace zhinst

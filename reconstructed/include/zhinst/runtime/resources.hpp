@@ -12,6 +12,7 @@
 // ============================================================================
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -1224,10 +1225,15 @@ public:
     //! `randomSeed` / `getPRNGValue`.
     //!
     //! 313-element layout: state vector in `[0..311]`, refill
-    //! counter in `[312]`.  The constructor re-seeds with the
-    //! deterministic seed `0x1571` so successive compilations on
-    //! the same thread produce reproducible random-driven output.
-    static thread_local uint64_t random[313];  // MT19937-64 state
+    //! counter in `[312]`.  Seeded once per thread (via the
+    //! TLS dynamic-init wrapper that the compiler emits for
+    //! this declaration) with the deterministic constant
+    //! `0x1571`, so the first SeqC compilation on a given
+    //! thread sees a reproducible PRNG sequence.  Subsequent
+    //! `GlobalResources` constructions on the same thread do
+    //! NOT re-seed, matching the binary's per-thread guard at
+    //! TLS+0xa18.
+    static thread_local std::array<uint64_t, 313> random;  // MT19937-64 state
 };
 
 //! \brief Render a `VarType` enumerator as the human-readable name

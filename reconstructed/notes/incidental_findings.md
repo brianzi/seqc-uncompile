@@ -5716,3 +5716,155 @@ instead of re-deriving it inline.
 identifies binary PAU/POFF call-sites in the assembler/codegen
 that do this fold inline, route them through the new public
 helper.
+
+---
+
+## IF-283  `GlobalResources` ctor re-seeds `random[]` MT19937-64 every construction; binary seeds once-per-thread
+
+- **Severity**: low (behavioural divergence with no observed
+  test impact; tests construct `GlobalResources` once per
+  compile, so the second-and-subsequent-construction case
+  doesn't fire in the suite).
+- **Status**: fixed (2026-05-16).
+- **Domain**: `runtime/global_resources.cpp`,
+  `include/zhinst/runtime/resources.hpp`.
+- **Symbols**: `_ZTHN6zhinst15GlobalResources6randomE`
+  (binary @0x1f6090, recon was missing pre-fix);
+  `_ZTWN6zhinst15GlobalResources6randomE` (binary @0x1f6180);
+  `_ZN6zhinst15GlobalResourcesC1ERKSt10shared_ptrINS_9ResourcesEE`
+  (binary @0x12a710).
+
+### Symptom
+
+The D14 inventory listed `_ZTHN6zhinst15GlobalResources6randomE`
+as missing from the recon: the binary has it as a strong text
+symbol; the recon emitted only weak `_ZTH...` for `regNumber`
+and `labelIndex` and **nothing** for `random`.
+
+### Root cause
+
+In the binary, `GlobalResources::random` is a `thread_local`
+array whose first-touch in any thread runs the gcc-emitted
+TLS init wrapper (`_ZTH...`).  That wrapper is gated on a
+guard byte at TLS+0xa18 and seeds the MT19937-64 state
+(loop @0x1f60d7..0x1f6125 in the binary).  The
+`GlobalResources` constructor itself does NOT re-seed: at
+@0x12a80f..0x12a898 it inlines the *same* MT19937-64
+recurrence, but the entire region is dead-coded behind the
+same TLS+0xa18 guard — once the wrapper has run on this
+thread, the ctor's region falls through.
+
+In the recon, `random` was declared
+`thread_local uint64_t random[313]` (zero-init, **no**
+dynamic initializer), so gcc never emitted `_ZTH...random`.
+The seeding lived only in the ctor body, and re-ran every
+time `GlobalResources` was constructed on the same thread —
+producing the same observable PRNG sequence per construction
+(deterministic seed `0x1571`), but doing the work multiple
+times and not matching the binary's once-per-thread guard.
+
+### Fix
+
+Change the type from `uint64_t[313]` to
+`std::array<uint64_t, 313>` and add a function-call
+initializer:
+
+```cpp
+thread_local std::array<uint64_t, 313> GlobalResources::random
+    = seed_mt19937_64_state();
+```
+
+`seed_mt19937_64_state()` (anonymous namespace in
+`global_resources.cpp`) builds the seeded state and returns
+it.  gcc auto-emits both `_ZTHN...random` (init wrapper,
+strong, matches binary @0x1f6090) and `_ZTWN...random`
+(access wrapper, matches binary @0x1f6180).  The seeding
+loop is removed from the ctor; a single
+`(void)random[0];` touch ensures the wrapper runs at least
+once before the ctor returns, matching observable behaviour
+for the first construction on any thread.
+
+Three call sites that decayed the array to `uint64_t*` now
+use `.data()`:
+
+- `custom_functions_playback.cpp:887` —
+  `reinterpret_cast<Random*>(GlobalResources::random.data())`.
+- `waveform_generator_dsp.cpp:988,1035` —
+  `seqc_libcxx_normal_amplitude` /
+  `seqc_libcxx_uniform` first-arg.
+
+### Verification
+
+- `nm reconstructed/build/_seqc_compiler.so | grep
+  GlobalResources.*random`: `_ZTHN6zhinst15GlobalResources6randomE`
+  now strong (`T`), matching binary.  `_ZTW...random` also
+  emitted as expected.
+- `cmake --build .` clean.
+- `python tests/diff_test_fast.py`: 1603/1603 PASS.
+- `python tests/diff_unreachable/harness.py`: 1626/1626 PASS.
+
+### Why no test regression
+
+Every difftest constructs `GlobalResources` exactly once
+per compile and runs in a fresh process per test (fork-per-
+test workers in `diff_test_fast.py`).  The
+construct-twice-on-same-thread path the fix repairs is not
+exercised by the suite.
+
+**Action items**: none — fix landed.
+
+---
+
+## IF-284  `getKind(Exception const&)` and `getKind(boost::system::error_code const&)` deferred-by-design
+
+- **Severity**: cosmetic (zero callers in recon; deferred
+  with explicit rationale).
+- **Status**: deferred (2026-05-16).
+- **Domain**: `core/exception.hpp` / `core/exception.cpp`.
+- **Symbols**:
+  - `_ZN6zhinst7getKindERKNS_9ExceptionE` — binary @0x2e5180,
+    189 B.
+  - `_ZN6zhinst7getKindERKN5boost6system10error_codeE` —
+    binary @0x2e50d0, 170 B.
+
+### Why deferred
+
+Both helpers exist in the binary as part of the
+`ErrorCodeTraits` family closure but have **zero callers**
+in any recon translation unit.  Faithful reconstruction
+would require:
+
+1. **For `getKind(Exception const&)`**: a `dynamic_cast`
+   chain over `boost::wrapexcept<...>` thunks that read the
+   inner `error_code`; this is mechanical but adds another
+   `\verifyme` symbol with nothing to verify against.
+2. **For `getKind(boost::system::error_code const&)`**: a
+   real `boost::system::error_category*` comparison against
+   an anon-namespace static `singleErrorKindCategory` (binary
+   @0xb7c5a8) and the `boost::system::detail::generic_cat_holder`
+   sentinel.  The recon currently uses a `ErrorCode` stand-in
+   instead of `boost::system::error_code`, and faking
+   `error_code` plus the category-holder machinery would
+   add ~200 LoC of infrastructure used by exactly two
+   functions that nobody calls.
+
+The cost-benefit therefore tilts heavily against
+reconstruction.  Both symbols are documented here as
+*deferred-by-design* so future audits know to skip them
+unless a recon caller appears (in which case the
+`boost::system` interop must be built out properly).
+
+### Verification trail (binary side)
+
+- `objdump -d --disassemble=_ZN6zhinst7getKindERKNS_9ExceptionE
+  _seqc_compiler.so`: 189 B; opens with
+  vptr/RTTI dispatch on the passed `Exception&`, follows a
+  `boost::wrapexcept` thunk path, ultimately tail-calls into
+  the `error_code` overload.
+- `objdump -d --disassemble=_ZN6zhinst7getKindERKN5boost6system10error_codeE
+  _seqc_compiler.so`: 170 B; loads the
+  category pointer from `error_code+0x8`, compares to
+  `singleErrorKindCategory`'s vtable slot, and branches.
+
+**Action items**: none unless a recon caller appears.  If
+this changes, log a follow-up IF and reopen.

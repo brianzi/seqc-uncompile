@@ -201,6 +201,36 @@ inline ErrorCode makeDefaultErrorCode() {
     return ec;
 }
 
+//! \brief Traits class providing the `ErrorCode`-specific operations
+//! used by the `Exception` machinery.
+//!
+//! In the binary this is a primary template
+//! `ErrorCodeTraits<boost::system::error_code>` whose two static
+//! members supply (a) the "no error" sentinel value and (b) the
+//! default human-readable message produced from a code.  Recon
+//! mirrors the two static functions over the in-tree `ErrorCode`
+//! stand-in; both return shapes match the binary's sret-by-hidden-
+//! pointer convention.
+template <typename T>
+struct ErrorCodeTraits {
+    //! \brief Returns the "no error" sentinel for this error-code
+    //! type — a default-constructed `T`.
+    //! \return Zero-valued `T`.
+    static T successCode();                              // @0x2ea150 (T = ErrorCode)
+    //! \brief Returns the default human-readable message for `ec`,
+    //! delegating to `T`'s own message helper (`to_string()` for
+    //! `ErrorCode`, `message()` for `boost::system::error_code`).
+    //! \param ec  Error code to describe.
+    //! \return Newly-built message string.
+    static std::string defaultMessage(T const& ec);      // @0x2ea170 (T = ErrorCode)
+};
+
+template <>
+ErrorCode ErrorCodeTraits<ErrorCode>::successCode();           // @0x2ea150 — defined in exception.cpp
+
+template <>
+std::string ErrorCodeTraits<ErrorCode>::defaultMessage(ErrorCode const& ec);  // @0x2ea170 — defined in exception.cpp
+
 // Carries an error_code together with an explanatory message. Used as
 // a constructor input for Exception. Verified layout at the call site
 // 0x2e5810.

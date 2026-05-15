@@ -884,7 +884,7 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
     // array; the binary's call site reinterpret_casts
     // &GlobalResources::random[0] as Random* and invokes seedRandom()
     // on it.  We mirror that exact call shape here.
-    reinterpret_cast<Random*>(GlobalResources::random)->seedRandom();   // @0x16be80
+    reinterpret_cast<Random*>(GlobalResources::random.data())->seedRandom();   // @0x16be80
     return std::make_shared<EvalResults>();
 }
 
