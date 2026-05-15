@@ -611,8 +611,7 @@ public:
     //! identity.
     //! \return Newly-allocated copy whose dynamic type matches the
     //!         most-derived subclass.
-    virtual DeviceTypeImpl* clone() const;  // vtable[0]; impl @ 0x2d3280
-                                            // (doClone in mangled name).
+    virtual DeviceTypeImpl* doClone() const;  // vtable[0]; impl @ 0x2d3280
 
     //! \brief Returns the broad product family this implementation
     //! belongs to.
@@ -831,7 +830,7 @@ public:
     //! subsystems that need to access the polymorphic identity
     //! directly.
     //! \return Non-owning pointer to the underlying implementation.
-    detail::DeviceTypeImpl* impl() const;                     // @ 0x2d2c20
+    detail::DeviceTypeImpl* deviceType() const;               // @ 0x2d2c20
     //! \brief Returns the device-type-code string only; options are
     //! NOT appended.  Use `getOptionsAsString()` for the options
     //! portion.

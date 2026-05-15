@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `device_option::device`, `node_misc::core`, `misc::?` | ~7 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra` covered, and `awg_config::device` documented as ABI-divergence (F-followups, 2026-05-16). |
+| `node_misc::core`, `misc::?` | ~6 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra` covered, and `awg_config::device`, `device_option::device` documented/restored (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1710,3 +1710,28 @@ verify-then-write throughout.
       binary, neither matching nor filling the inventory gap.
     - **Result**: no source change.  Tests unchanged (1603/1603
       main + 1626/1626 harness).  Deferred-cluster count: ~8 → ~7.
+
+- **2026-05-16** F-followup: cluster `device_option::device` (2
+  helpers, 90 B — `DeviceType::deviceType()` @0x2d2c20 +
+  `DeviceTypeImpl::doClone()` @0x2d3280) **fixed by rename**
+  (IF-281).
+    - **Symptom**: D14 inventory flagged both symbols as absent.
+      The recon had both functions but under different names
+      (`impl()` and `clone()`); bodies were already
+      semantically identical.
+    - **Fix**: mechanical rename across 15 files — header
+      decls, base impls in `device_type.cpp`, 33 subclass
+      overrides spread across `device_subclasses.hpp` +
+      `device_{ghf,hdawg,hf2,hwmock,mf,pqsc,qhub,shf,shfacc,uhf,unknown,vhf}.cpp`,
+      plus 2 callsites in `DeviceType`'s copy ctor and
+      copy-assignment.  `Node::clone` and `NodeMapData::clone`
+      are unrelated and untouched.
+    - **Result**: `_ZNK6zhinst10DeviceType10deviceTypeEv` and
+      `_ZNK6zhinst6detail14DeviceTypeImpl7doCloneEv` now emitted
+      (matching binary mangled names).  1603/1603 main; no
+      harness-relevant change.  Deferred-cluster count: ~7 → ~6.
+    - **Note**: cluster overview prose ("DeviceOption hash /
+      compare") was wrong — actual symbols are the pimpl
+      accessor and polymorphic deep-copy.  Re-confirms AGENTS.md
+      rule: always cross-check the symbol-list section, never
+      trust the cluster prose.

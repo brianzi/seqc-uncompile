@@ -48,7 +48,7 @@ constexpr std::array<OptionCodePair<sfc::MfOption>, 8> kMfiaKnownOptions = {{
 // ---------------------------------------------------------------------------
 Mf::Mf() : DeviceTypeImpl(DeviceTypeCode::MF, DeviceFamily::MF) {}
 Mf::~Mf() = default;
-DeviceTypeImpl* Mf::clone() const { return new Mf(*this); }
+DeviceTypeImpl* Mf::doClone() const { return new Mf(*this); }
 
 // ---------------------------------------------------------------------------
 // Mfli — vtable @ .rodata 0xb09498
@@ -58,7 +58,7 @@ Mfli::Mfli(unsigned long opts)
                      initializeSfcOptions(kMfliKnownOptions,
                                           DeviceFamily::MF, opts)) {}
 Mfli::~Mfli() = default;
-DeviceTypeImpl* Mfli::clone() const { return new Mfli(*this); }
+DeviceTypeImpl* Mfli::doClone() const { return new Mfli(*this); }
 
 // ---------------------------------------------------------------------------
 // Mfia — vtable @ .rodata 0xb094c0
@@ -68,7 +68,7 @@ Mfia::Mfia(unsigned long opts)
                      initializeSfcOptions(kMfiaKnownOptions,
                                           DeviceFamily::MF, opts)) {}
 Mfia::~Mfia() = default;
-DeviceTypeImpl* Mfia::clone() const { return new Mfia(*this); }
+DeviceTypeImpl* Mfia::doClone() const { return new Mfia(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

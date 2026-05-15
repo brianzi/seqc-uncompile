@@ -42,21 +42,21 @@ constexpr std::array<OptionCodePair<sfc::HdawgOption>, 6> kHdawg8KnownOptions = 
 
 Hdawg::Hdawg() : DeviceTypeImpl(DeviceTypeCode::HDAWG, DeviceFamily::HDAWG) {}
 Hdawg::~Hdawg() = default;
-DeviceTypeImpl* Hdawg::clone() const { return new Hdawg(*this); }
+DeviceTypeImpl* Hdawg::doClone() const { return new Hdawg(*this); }
 
 Hdawg4::Hdawg4(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::HDAWG4, DeviceFamily::HDAWG,
                      initializeSfcOptions(kHdawg4KnownOptions,
                                           DeviceFamily::HDAWG, opts)) {}
 Hdawg4::~Hdawg4() = default;
-DeviceTypeImpl* Hdawg4::clone() const { return new Hdawg4(*this); }
+DeviceTypeImpl* Hdawg4::doClone() const { return new Hdawg4(*this); }
 
 Hdawg8::Hdawg8(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::HDAWG8, DeviceFamily::HDAWG,
                      initializeSfcOptions(kHdawg8KnownOptions,
                                           DeviceFamily::HDAWG, opts)) {}
 Hdawg8::~Hdawg8() = default;
-DeviceTypeImpl* Hdawg8::clone() const { return new Hdawg8(*this); }
+DeviceTypeImpl* Hdawg8::doClone() const { return new Hdawg8(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

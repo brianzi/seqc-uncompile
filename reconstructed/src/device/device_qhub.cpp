@@ -11,7 +11,7 @@ namespace detail {
 
 Qhub::Qhub() : DeviceTypeImpl(DeviceTypeCode::QHUB, DeviceFamily::QHUB) {}
 Qhub::~Qhub() = default;
-DeviceTypeImpl* Qhub::clone() const { return new Qhub(*this); }
+DeviceTypeImpl* Qhub::doClone() const { return new Qhub(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

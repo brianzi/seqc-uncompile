@@ -42,7 +42,7 @@ UnknownDevice::UnknownDevice()
 
 UnknownDevice::~UnknownDevice() = default;
 
-DeviceTypeImpl* UnknownDevice::clone() const {
+DeviceTypeImpl* UnknownDevice::doClone() const {
     return new UnknownDevice(*this);
 }
 

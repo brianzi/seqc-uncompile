@@ -44,7 +44,7 @@ Ghf::Ghf(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::GHF, DeviceFamily::GHF,
                      buildGhfFf(opts)) {}
 Ghf::~Ghf() = default;
-DeviceTypeImpl* Ghf::clone() const { return new Ghf(*this); }
+DeviceTypeImpl* Ghf::doClone() const { return new Ghf(*this); }
 
 // vtable @ .rodata 0xb09b80
 Ghfli::Ghfli(unsigned long opts)
@@ -52,7 +52,7 @@ Ghfli::Ghfli(unsigned long opts)
                      initializeSfcOptions(kGhfliKnownOptions,
                                           DeviceFamily::GHF, opts)) {}
 Ghfli::~Ghfli() = default;
-DeviceTypeImpl* Ghfli::clone() const { return new Ghfli(*this); }
+DeviceTypeImpl* Ghfli::doClone() const { return new Ghfli(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

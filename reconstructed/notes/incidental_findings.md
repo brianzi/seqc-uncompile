@@ -5574,3 +5574,77 @@ documented (count drops from ~8 to ~7).
   from prior baseline — semantics already match).
 
 **Action items**: none — close-by-design.
+
+## IF-281  `device_option::device` cluster — restored binary-matching names: `DeviceType::deviceType()` and `DeviceTypeImpl::doClone()`
+
+**Status**: fixed; cluster `device_option::device` retired.
+
+**Severity**: cosmetic — observable behavior unchanged; restores 2 mangled symbols to binary parity.
+
+### Symptom
+
+D14 inventory (`reconstructed/notes/d14_inventory.md:763-778`) flagged
+two symbols as **absent** in the recon:
+
+- `_ZNK6zhinst10DeviceType10deviceTypeEv` @0x2d2c20 (9 B)
+- `_ZNK6zhinst6detail14DeviceTypeImpl7doCloneEv` @0x2d3280 (81 B)
+
+Both functions existed in the recon under different names:
+`DeviceType::impl()` and `DeviceTypeImpl::clone()` respectively.
+The bodies were semantically identical (single-field load,
+`new DeviceTypeImpl(*this)`), but the source-level identifiers
+diverged from the binary's mangled names.
+
+### Root cause
+
+Naming choice during initial reconstruction.  The cluster note
+called these "DeviceOption hash/compare" — that prose is wrong;
+the actual symbols are the pimpl accessor and the polymorphic
+deep-copy method.  The recon followed C++ idiom (`impl()` for
+a pimpl accessor; `clone()` for a virtual deep-copy) rather than
+the binary's `deviceType()` / `doClone()` pair.
+
+### Fix
+
+Mechanical rename across 15 files:
+
+- `reconstructed/include/zhinst/device/device_type.hpp`:
+  `DeviceType::impl()` → `DeviceType::deviceType()`;
+  `DeviceTypeImpl::clone()` → `DeviceTypeImpl::doClone()`.
+- `reconstructed/include/zhinst/device/device_subclasses.hpp`:
+  33 subclass overrides renamed `clone() const override` →
+  `doClone() const override`.
+- `reconstructed/src/device/device_type.cpp`:
+  base impl renamed; both `impl_->clone()` callsites in the
+  copy ctor and copy-assignment updated to `impl_->doClone()`.
+- `reconstructed/src/device/device_{ghf,hdawg,hf2,hwmock,mf,pqsc,qhub,shf,shfacc,uhf,unknown,vhf}.cpp`:
+  33 subclass definitions renamed.
+
+`Node::clone()` and `NodeMapData::clone()` are unrelated and
+left untouched.  `DeviceType::impl()` had zero callers in the
+recon (and the binary), so the rename had no callsite impact
+beyond the 2 sites inside `device_type.cpp` itself.
+
+`GenericDeviceType` correctly retains no override (its vtable
+slot reuses `DeviceTypeImpl::doClone` directly per
+`generic_device_type.hpp:68-71`); the comments there already
+referred to `doClone` and required no edit.
+
+### Verification
+
+- `nm reconstructed/build/_seqc_compiler.so | grep -E
+  "10deviceTypeEv|7doCloneEv"`: both symbols now present
+  (T = exported text).  The old `4implEv` / `5cloneEv`
+  manglings are gone.
+- `cmake --build .` clean (no new warnings).
+- `python tests/diff_test_fast.py`: 1603/1603 PASS.
+
+### Notes
+
+The cluster overview prose ("hash/compare") in the inventory
+was incorrect; it has been struck-through in the inventory
+update.  Confirms AGENTS.md guidance that the D14 inventory's
+"overview" prose is unreliable and one must always cross-check
+the actual mangled symbol in the symbol-list section.
+
+**Action items**: none — fix landed.

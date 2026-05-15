@@ -79,7 +79,7 @@ DeviceTypeImpl::DeviceTypeImpl(
 
 DeviceTypeImpl::~DeviceTypeImpl() = default;
 
-DeviceTypeImpl* DeviceTypeImpl::clone() const {
+DeviceTypeImpl* DeviceTypeImpl::doClone() const {
     return new DeviceTypeImpl(*this);
 }
 
@@ -134,7 +134,7 @@ DeviceType::DeviceType(std::string const& deviceType,
 
 // @ 0x2d2b40 — vtable[0] virtual clone.
 DeviceType::DeviceType(DeviceType const& other)
-    : impl_(other.impl_ ? other.impl_->clone() : nullptr) {}
+    : impl_(other.impl_ ? other.impl_->doClone() : nullptr) {}
 
 // @ 0x2d2b50 — pointer steal.
 DeviceType::DeviceType(DeviceType&& other) noexcept
@@ -145,7 +145,7 @@ DeviceType::DeviceType(DeviceType&& other) noexcept
 DeviceType& DeviceType::operator=(DeviceType const& other) {
     if (this != &other) {
         detail::DeviceTypeImpl* new_impl =
-            other.impl_ ? other.impl_->clone() : nullptr;
+            other.impl_ ? other.impl_->doClone() : nullptr;
         delete impl_;
         impl_ = new_impl;
     }
@@ -197,7 +197,7 @@ DeviceType::DeviceType(DeviceFamily family, unsigned long options) {
 }
 
 // @ 0x2d2c20 — returns raw impl_ pointer.
-detail::DeviceTypeImpl* DeviceType::impl() const {
+detail::DeviceTypeImpl* DeviceType::deviceType() const {
     return impl_;
 }
 

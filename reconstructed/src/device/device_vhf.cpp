@@ -43,7 +43,7 @@ Vhf::Vhf(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::VHF, DeviceFamily::VHF,
                      buildVhfFf(opts)) {}
 Vhf::~Vhf() = default;
-DeviceTypeImpl* Vhf::clone() const { return new Vhf(*this); }
+DeviceTypeImpl* Vhf::doClone() const { return new Vhf(*this); }
 
 // vtable @ .rodata 0xb09de0
 Vhfli::Vhfli(unsigned long opts)
@@ -51,7 +51,7 @@ Vhfli::Vhfli(unsigned long opts)
                      initializeSfcOptions(kVhfliKnownOptions,
                                           DeviceFamily::VHF, opts)) {}
 Vhfli::~Vhfli() = default;
-DeviceTypeImpl* Vhfli::clone() const { return new Vhfli(*this); }
+DeviceTypeImpl* Vhfli::doClone() const { return new Vhfli(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

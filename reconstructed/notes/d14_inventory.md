@@ -753,9 +753,9 @@ Reconstruction difficulty: **trivial**.
 
 ### Overview
 
-**Members:** 2  |  **Aggregate size:** 90 B  |  **Subsystem:** device (DeviceOption hash/compare)
+**Members:** 2  |  **Aggregate size:** 90 B  |  **Subsystem:** device (DeviceType pimpl accessor + polymorphic deep-copy)
 
-Two small functions implementing hash and equality for `DeviceOption`. Likely needed only when `unordered_set<DeviceOption>` operations are used outside the existing recon.
+Two small `DeviceType` / `DeviceTypeImpl` accessors: a 9 B pimpl getter and an 81 B virtual deep-copy.  (Original cluster prose said "hash/compare" — that was wrong; cross-checked against actual symbol-list per AGENTS.md guidance.)
 
 Reconstruction difficulty: **trivial**.
 
@@ -764,7 +764,7 @@ Reconstruction difficulty: **trivial**.
 #### `zhinst::detail::DeviceTypeImpl::doClone() const`
 
 - **Mangled**: `_ZNK6zhinst6detail14DeviceTypeImpl7doCloneEv`
-- **Address**: `0x2d3280` | **Size**: 81 B | **Status**: absent
+- **Address**: `0x2d3280` | **Size**: 81 B | **Status**: **fixed (IF-281, 2026-05-16)** — recon had it as `DeviceTypeImpl::clone()`; renamed to `doClone()` matching binary mangling.
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -772,7 +772,7 @@ Reconstruction difficulty: **trivial**.
 #### `zhinst::DeviceType::deviceType() const`
 
 - **Mangled**: `_ZNK6zhinst10DeviceType10deviceTypeEv`
-- **Address**: `0x2d2c20` | **Size**: 9 B | **Status**: absent
+- **Address**: `0x2d2c20` | **Size**: 9 B | **Status**: **fixed (IF-281, 2026-05-16)** — recon had it as `DeviceType::impl()`; renamed to `deviceType()` matching binary mangling.
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_

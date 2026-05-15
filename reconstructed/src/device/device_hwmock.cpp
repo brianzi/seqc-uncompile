@@ -11,7 +11,7 @@ namespace detail {
 
 Hwmock::Hwmock() : DeviceTypeImpl(DeviceTypeCode::HWMOCK, DeviceFamily::HWMOCK) {}
 Hwmock::~Hwmock() = default;
-DeviceTypeImpl* Hwmock::clone() const { return new Hwmock(*this); }
+DeviceTypeImpl* Hwmock::doClone() const { return new Hwmock(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

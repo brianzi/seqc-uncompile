@@ -11,7 +11,7 @@ namespace detail {
 
 Pqsc::Pqsc() : DeviceTypeImpl(DeviceTypeCode::PQSC, DeviceFamily::PQSC) {}
 Pqsc::~Pqsc() = default;
-DeviceTypeImpl* Pqsc::clone() const { return new Pqsc(*this); }
+DeviceTypeImpl* Pqsc::doClone() const { return new Pqsc(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

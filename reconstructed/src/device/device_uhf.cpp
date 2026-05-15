@@ -76,35 +76,35 @@ constexpr std::array<OptionCodePair<sfc::UhfOption>, 12> kUhfiaKnownOptions = {{
 
 Uhf::Uhf() : DeviceTypeImpl(DeviceTypeCode::UHF, DeviceFamily::UHF) {}
 Uhf::~Uhf() = default;
-DeviceTypeImpl* Uhf::clone() const { return new Uhf(*this); }
+DeviceTypeImpl* Uhf::doClone() const { return new Uhf(*this); }
 
 Uhfli::Uhfli(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::UHFLI, DeviceFamily::UHF,
                      initializeSfcOptions(kUhfliKnownOptions,
                                           DeviceFamily::UHF, opts)) {}
 Uhfli::~Uhfli() = default;
-DeviceTypeImpl* Uhfli::clone() const { return new Uhfli(*this); }
+DeviceTypeImpl* Uhfli::doClone() const { return new Uhfli(*this); }
 
 Uhfawg::Uhfawg(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::UHFAWG, DeviceFamily::UHF,
                      initializeSfcOptions(kUhfawgKnownOptions,
                                           DeviceFamily::UHF, opts)) {}
 Uhfawg::~Uhfawg() = default;
-DeviceTypeImpl* Uhfawg::clone() const { return new Uhfawg(*this); }
+DeviceTypeImpl* Uhfawg::doClone() const { return new Uhfawg(*this); }
 
 Uhfqa::Uhfqa(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::UHFQA, DeviceFamily::UHF,
                      initializeSfcOptions(kUhfqaKnownOptions,
                                           DeviceFamily::UHF, opts)) {}
 Uhfqa::~Uhfqa() = default;
-DeviceTypeImpl* Uhfqa::clone() const { return new Uhfqa(*this); }
+DeviceTypeImpl* Uhfqa::doClone() const { return new Uhfqa(*this); }
 
 Uhfia::Uhfia(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::UHFIA, DeviceFamily::UHF,
                      initializeSfcOptions(kUhfiaKnownOptions,
                                           DeviceFamily::UHF, opts)) {}
 Uhfia::~Uhfia() = default;
-DeviceTypeImpl* Uhfia::clone() const { return new Uhfia(*this); }
+DeviceTypeImpl* Uhfia::doClone() const { return new Uhfia(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

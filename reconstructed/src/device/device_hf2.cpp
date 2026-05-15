@@ -50,7 +50,7 @@ Hf2::Hf2()
 
 Hf2::~Hf2() = default;
 
-DeviceTypeImpl* Hf2::clone() const { return new Hf2(*this); }
+DeviceTypeImpl* Hf2::doClone() const { return new Hf2(*this); }
 
 // ---------------------------------------------------------------------------
 // Hf2li — vtable @ .rodata 0xb09390
@@ -63,7 +63,7 @@ Hf2li::Hf2li(unsigned long opts)
 
 Hf2li::~Hf2li() = default;
 
-DeviceTypeImpl* Hf2li::clone() const { return new Hf2li(*this); }
+DeviceTypeImpl* Hf2li::doClone() const { return new Hf2li(*this); }
 
 // ---------------------------------------------------------------------------
 // Hf2is — vtable @ .rodata 0xb093b8
@@ -76,7 +76,7 @@ Hf2is::Hf2is(unsigned long opts)
 
 Hf2is::~Hf2is() = default;
 
-DeviceTypeImpl* Hf2is::clone() const { return new Hf2is(*this); }
+DeviceTypeImpl* Hf2is::doClone() const { return new Hf2is(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

@@ -85,7 +85,7 @@ Shf::Shf(unsigned long opts)
                      buildInlineShfOptions(opts, DeviceFamily::SHF,
                                            false, false, false)) {}
 Shf::~Shf() = default;
-DeviceTypeImpl* Shf::clone() const { return new Shf(*this); }
+DeviceTypeImpl* Shf::doClone() const { return new Shf(*this); }
 
 // ---------------------------------------------------------------------------
 // Shfqa2 — template path, vtable @ .rodata 0xb09830.
@@ -95,7 +95,7 @@ Shfqa2::Shfqa2(unsigned long opts)
                      initializeSfcOptions(kShfqa2KnownOptions,
                                           DeviceFamily::SHF, opts)) {}
 Shfqa2::~Shfqa2() = default;
-DeviceTypeImpl* Shfqa2::clone() const { return new Shfqa2(*this); }
+DeviceTypeImpl* Shfqa2::doClone() const { return new Shfqa2(*this); }
 
 // ---------------------------------------------------------------------------
 // Shfqa4 — inline FF + PLUS + LRT. vtable @ .rodata 0xb09858.
@@ -105,7 +105,7 @@ Shfqa4::Shfqa4(unsigned long opts)
                      buildInlineShfOptions(opts, DeviceFamily::SHF,
                                            false, true, true)) {}
 Shfqa4::~Shfqa4() = default;
-DeviceTypeImpl* Shfqa4::clone() const { return new Shfqa4(*this); }
+DeviceTypeImpl* Shfqa4::doClone() const { return new Shfqa4(*this); }
 
 // ---------------------------------------------------------------------------
 // Shfsg2 / Shfsg4 / Shfsg8 — inline FF + RTR + PLUS, all identical.
@@ -115,21 +115,21 @@ Shfsg2::Shfsg2(unsigned long opts)
                      buildInlineShfOptions(opts, DeviceFamily::SHF,
                                            true, true, false)) {}
 Shfsg2::~Shfsg2() = default;
-DeviceTypeImpl* Shfsg2::clone() const { return new Shfsg2(*this); }
+DeviceTypeImpl* Shfsg2::doClone() const { return new Shfsg2(*this); }
 
 Shfsg4::Shfsg4(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::SHFSG4, DeviceFamily::SHF,
                      buildInlineShfOptions(opts, DeviceFamily::SHF,
                                            true, true, false)) {}
 Shfsg4::~Shfsg4() = default;
-DeviceTypeImpl* Shfsg4::clone() const { return new Shfsg4(*this); }
+DeviceTypeImpl* Shfsg4::doClone() const { return new Shfsg4(*this); }
 
 Shfsg8::Shfsg8(unsigned long opts)
     : DeviceTypeImpl(DeviceTypeCode::SHFSG8, DeviceFamily::SHF,
                      buildInlineShfOptions(opts, DeviceFamily::SHF,
                                            true, true, false)) {}
 Shfsg8::~Shfsg8() = default;
-DeviceTypeImpl* Shfsg8::clone() const { return new Shfsg8(*this); }
+DeviceTypeImpl* Shfsg8::doClone() const { return new Shfsg8(*this); }
 
 // ---------------------------------------------------------------------------
 // Shfqc — template path, vtable @ .rodata 0xb098f8.
@@ -139,7 +139,7 @@ Shfqc::Shfqc(unsigned long opts)
                      initializeSfcOptions(kShfqcKnownOptions,
                                           DeviceFamily::SHF, opts)) {}
 Shfqc::~Shfqc() = default;
-DeviceTypeImpl* Shfqc::clone() const { return new Shfqc(*this); }
+DeviceTypeImpl* Shfqc::doClone() const { return new Shfqc(*this); }
 
 // ---------------------------------------------------------------------------
 // Shfli — template path, vtable @ .rodata 0xb09920.
@@ -149,7 +149,7 @@ Shfli::Shfli(unsigned long opts)
                      initializeSfcOptions(kShfliKnownOptions,
                                           DeviceFamily::SHF, opts)) {}
 Shfli::~Shfli() = default;
-DeviceTypeImpl* Shfli::clone() const { return new Shfli(*this); }
+DeviceTypeImpl* Shfli::doClone() const { return new Shfli(*this); }
 
 }  // namespace detail
 }  // namespace zhinst

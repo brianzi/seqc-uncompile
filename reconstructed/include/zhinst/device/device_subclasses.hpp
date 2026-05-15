@@ -47,7 +47,7 @@ public:
     ~Hf2() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hf2`.
     //! \return Newly-allocated `Hf2` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief HF2LI lock-in amplifier; decodes options via
@@ -62,7 +62,7 @@ public:
     ~Hf2li() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hf2li`.
     //! \return Newly-allocated `Hf2li` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief HF2IS impedance spectroscope; decodes options via
@@ -77,7 +77,7 @@ public:
     ~Hf2is() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hf2is`.
     //! \return Newly-allocated `Hf2is` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -92,7 +92,7 @@ public:
     ~Mf() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Mf`.
     //! \return Newly-allocated `Mf` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief MFLI lock-in amplifier; decodes options via
@@ -107,7 +107,7 @@ public:
     ~Mfli() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Mfli`.
     //! \return Newly-allocated `Mfli` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief MFIA impedance analyser; decodes options via
@@ -123,7 +123,7 @@ public:
     ~Mfia() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Mfia`.
     //! \return Newly-allocated `Mfia` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ public:
     ~Uhf() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Uhf`.
     //! \return Newly-allocated `Uhf` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief UHFLI lock-in amplifier; decodes options via
@@ -153,7 +153,7 @@ public:
     ~Uhfli() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Uhfli`.
     //! \return Newly-allocated `Uhfli` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief UHF AWG variant; decodes options via `initializeSfcOptions`
@@ -168,7 +168,7 @@ public:
     ~Uhfawg() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Uhfawg`.
     //! \return Newly-allocated `Uhfawg` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief UHFQA quantum analyser; decodes options via
@@ -183,7 +183,7 @@ public:
     ~Uhfqa() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Uhfqa`.
     //! \return Newly-allocated `Uhfqa` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief UHFIA impedance analyser; decodes options via
@@ -198,7 +198,7 @@ public:
     ~Uhfia() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Uhfia`.
     //! \return Newly-allocated `Uhfia` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -213,7 +213,7 @@ public:
     ~Hdawg() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hdawg`.
     //! \return Newly-allocated `Hdawg` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief HDAWG 4-channel arbitrary waveform generator; decodes
@@ -228,7 +228,7 @@ public:
     ~Hdawg4() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hdawg4`.
     //! \return Newly-allocated `Hdawg4` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief HDAWG 8-channel arbitrary waveform generator; decodes
@@ -243,7 +243,7 @@ public:
     ~Hdawg8() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hdawg8`.
     //! \return Newly-allocated `Hdawg8` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -261,7 +261,7 @@ public:
     ~Shf() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shf`.
     //! \return Newly-allocated `Shf` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFQA 2-channel quantum analyser; decodes options via
@@ -276,7 +276,7 @@ public:
     ~Shfqa2() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfqa2`.
     //! \return Newly-allocated `Shfqa2` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFQA 4-channel quantum analyser; tests inline FF / PLUS /
@@ -293,7 +293,7 @@ public:
     ~Shfqa4() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfqa4`.
     //! \return Newly-allocated `Shfqa4` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFSG 2-channel signal generator; tests inline FF / RTR /
@@ -309,7 +309,7 @@ public:
     ~Shfsg2() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfsg2`.
     //! \return Newly-allocated `Shfsg2` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFSG 4-channel signal generator; tests inline FF / RTR /
@@ -325,7 +325,7 @@ public:
     ~Shfsg4() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfsg4`.
     //! \return Newly-allocated `Shfsg4` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFSG 8-channel signal generator; tests inline FF / RTR /
@@ -341,7 +341,7 @@ public:
     ~Shfsg8() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfsg8`.
     //! \return Newly-allocated `Shfsg8` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFQC quantum controller (QA + SG sequencer in one box);
@@ -356,7 +356,7 @@ public:
     ~Shfqc() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfqc`.
     //! \return Newly-allocated `Shfqc` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFLI lock-in amplifier; decodes options via
@@ -371,7 +371,7 @@ public:
     ~Shfli() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfli`.
     //! \return Newly-allocated `Shfli` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ public:
     ~Shfacc() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfacc`.
     //! \return Newly-allocated `Shfacc` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFPPC2 2-channel parametric pump controller; tests an
@@ -404,7 +404,7 @@ public:
     ~Shfppc2() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfppc2`.
     //! \return Newly-allocated `Shfppc2` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief SHFPPC4 4-channel parametric pump controller; tests an
@@ -419,7 +419,7 @@ public:
     ~Shfppc4() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Shfppc4`.
     //! \return Newly-allocated `Shfppc4` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -437,7 +437,7 @@ public:
     ~Ghf() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Ghf`.
     //! \return Newly-allocated `Ghf` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief GHFLI lock-in amplifier; decodes options via
@@ -454,7 +454,7 @@ public:
     ~Ghfli() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Ghfli`.
     //! \return Newly-allocated `Ghfli` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -470,7 +470,7 @@ public:
     ~Pqsc() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Pqsc`.
     //! \return Newly-allocated `Pqsc` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -485,7 +485,7 @@ public:
     ~Qhub() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Qhub`.
     //! \return Newly-allocated `Qhub` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -501,7 +501,7 @@ public:
     ~Hwmock() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Hwmock`.
     //! \return Newly-allocated `Hwmock` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -519,7 +519,7 @@ public:
     ~Vhf() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Vhf`.
     //! \return Newly-allocated `Vhf` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 //! \brief VHFLI lock-in amplifier; decodes options via
@@ -534,7 +534,7 @@ public:
     ~Vhfli() override;
     //! \brief Returns a heap-allocated copy whose dynamic type is `Vhfli`.
     //! \return Newly-allocated `Vhfli` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 // ---------------------------------------------------------------------------
@@ -560,7 +560,7 @@ public:
     //! \brief Returns a heap-allocated copy whose dynamic type is
     //!        `UnknownDevice`, preserving the sentinel identity.
     //! \return Newly-allocated `UnknownDevice` copy.
-    DeviceTypeImpl* clone() const override;
+    DeviceTypeImpl* doClone() const override;
 };
 
 }  // namespace detail
