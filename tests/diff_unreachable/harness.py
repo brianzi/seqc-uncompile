@@ -582,6 +582,22 @@ SYMBOLS: list[Symbol] = [
     Symbol("util::wave::awg2double16",    0x299740,
            "_ZN6zhinst4util4wave12awg2double16Ej",
            "pod_double_u32"),
+    # zhinst::almostEqual(double, double) — boost::math::epsilon_difference
+    # within 1 ULP.  No recon caller; coverage by harness only.
+    Symbol("almostEqual",                 0x2ec070,
+           "_ZN6zhinst11almostEqualEdd",
+           "pod_bool_2double"),
+    # zhinst::toRawByteArray(string_view, span<uint8_t>) — bounded copy
+    # with NUL terminator; returns true iff src fit entirely.
+    Symbol("toRawByteArray",              0x2f27c0,
+           "_ZN6zhinst14toRawByteArrayENSt3__117basic_string_viewIcNS0_11char_traitsIcEEEENS0_4spanIhLm18446744073709551615EEE",
+           "pod_bool_strview_spanu8"),
+    # zhinst::fromRawByteArray(span<uint8_t const>) — find first NUL,
+    # return string_view from data to that NUL.  Returns string_view
+    # via two registers: %rax (data ptr) + %rdx (size).
+    Symbol("fromRawByteArray",            0x2f2830,
+           "_ZN6zhinst16fromRawByteArrayENSt3__14spanIKhLm18446744073709551615EEE",
+           "strview_spanu8"),
 ]
 
 
@@ -1147,6 +1163,83 @@ U32_AWG_INPUTS: list[tuple[int, str]] = [
 ]
 
 
+# `zhinst::almostEqual(double, double)` corpus.  Pairs span: identical,
+# 1-ULP-apart, denormal-region, sign flip, ±0, ±Inf, NaN.  The binary
+# uses `boost::math::epsilon_difference(a,b) <= 1.0`, which is
+# symmetric in a/b *except* for NaN handling — both orderings are
+# tested for symmetry.
+def _ulp_next(x: float, direction: float = 1.0) -> float:
+    """Return the next representable double in the given direction."""
+    return _math.nextafter(x, _math.copysign(_math.inf, direction))
+
+
+_ALMOST_EQUAL_BASE: list[tuple[float, float, str]] = [
+    (1.0, 1.0,                            "1.0==1.0"),
+    (1.0, _ulp_next(1.0),                 "1.0 vs 1.0+1ULP"),
+    (1.0, _ulp_next(_ulp_next(1.0)),      "1.0 vs 1.0+2ULP"),
+    (1.0, _ulp_next(1.0, -1.0),           "1.0 vs 1.0-1ULP"),
+    (0.0, 0.0,                            "+0==+0"),
+    (0.0, -0.0,                           "+0 vs -0"),
+    (-0.0, -0.0,                          "-0==-0"),
+    (1e-300, 1e-300,                      "tiny==tiny"),
+    (1e-300, _ulp_next(1e-300),           "tiny vs tiny+1ULP"),
+    (5e-324, 1e-323,                      "denormal pair"),
+    (1e10, 1e10 + 1.0,                    "large vs large+1"),
+    (1.0, 2.0,                            "1.0 vs 2.0 (far)"),
+    (1.0, -1.0,                           "1.0 vs -1.0 (sign)"),
+    (_math.inf,  _math.inf,               "+inf vs +inf"),
+    (_math.inf, -_math.inf,               "+inf vs -inf"),
+    (_math.inf,  1e308,                   "+inf vs finite"),
+    (_math.nan,  _math.nan,               "NaN vs NaN"),
+    (_math.nan,  1.0,                     "NaN vs 1.0"),
+    (1.0,        _math.nan,               "1.0 vs NaN"),
+]
+ALMOST_EQUAL_INPUTS: list[tuple[float, float, str]] = list(_ALMOST_EQUAL_BASE)
+
+
+# `zhinst::toRawByteArray(string_view, span<uint8_t>)` corpus.
+# Tuples of (src_bytes, dst_size, label).  Dst sizes exercise:
+#   - 0  : early-return false, no write.
+#   - 1  : NUL-only, returns true iff src is empty.
+#   - len(src)        : src does NOT fit (no room for NUL); returns false.
+#   - len(src)+1      : exact fit, returns true.
+#   - len(src)+8      : extra room, returns true.
+TO_RAW_INPUTS: list[tuple[bytes, int, str]] = [
+    (b"",        0,  "empty|dst=0"),
+    (b"",        1,  "empty|dst=1"),
+    (b"",        4,  "empty|dst=4"),
+    (b"a",       0,  "1B|dst=0"),
+    (b"a",       1,  "1B|dst=1 (truncate)"),
+    (b"a",       2,  "1B|dst=2 (exact fit)"),
+    (b"a",       8,  "1B|dst=8"),
+    (b"hello",   0,  "5B|dst=0"),
+    (b"hello",   3,  "5B|dst=3 (truncate)"),
+    (b"hello",   5,  "5B|dst=5 (truncate, no NUL room)"),
+    (b"hello",   6,  "5B|dst=6 (exact fit)"),
+    (b"hello",   16, "5B|dst=16"),
+    (b"\x00abc", 8,  "embedded-NUL|dst=8"),
+    (b"\xff" * 32, 16, "32B-ff|dst=16 (truncate)"),
+    (b"\xff" * 32, 33, "32B-ff|dst=33 (exact fit)"),
+]
+
+
+# `zhinst::fromRawByteArray(span<uint8_t const>)` corpus.
+# Exercises: empty span; no-NUL; NUL-at-start; NUL-mid; NUL-at-end;
+# all-NUL; multi-byte before NUL.
+FROM_RAW_INPUTS: list[tuple[bytes, str]] = [
+    (b"",                       "empty"),
+    (b"\x00",                   "single NUL"),
+    (b"\x00\x00\x00",           "all-NUL"),
+    (b"abc",                    "no NUL"),
+    (b"abc\x00",                "NUL at end"),
+    (b"abc\x00def",             "NUL in middle"),
+    (b"\x00abc",                "NUL at start"),
+    (b"hello\x00world\x00",     "two NULs"),
+    (b"\xff" * 32,              "32B no NUL"),
+    (b"\xff" * 31 + b"\x00",    "32B with terminal NUL"),
+]
+
+
 # ---------------------------------------------------------------- #
 # Test driver.
 # ---------------------------------------------------------------- #
@@ -1598,6 +1691,68 @@ def call_pod_double_u32(fn: Callable, sample: int) -> float:
     return float(fn(sample))
 
 
+# 16-byte aggregate matching SysV {ptr, size} return classification.
+# Two INTEGER eightbytes → returned in (%rax, %rdx).  Used to model
+# `string_view` returned by-value.
+class _StringViewRet(ctypes.Structure):
+    _fields_ = [("data", ctypes.c_uint64), ("size", ctypes.c_uint64)]
+
+
+def call_pod_bool_2double(fn: Callable, a: float, b: float) -> int:
+    """Call `bool f(double, double)` — return in %al."""
+    return int(fn(a, b)) & 1
+
+
+def call_pod_bool_strview_spanu8(
+    fn: Callable, src: bytes, dst_size: int
+) -> tuple[int, bytes]:
+    """Call `bool f(string_view, span<uint8_t>)`.
+
+    string_view passes as (data, size) in (%rdi, %rsi); span passes as
+    (data, size) in (%rdx, %rcx).  Returns the bool result *and* the
+    post-call dst buffer so mutations are visible to the differ.
+
+    When dst_size==0 the binary returns false without touching memory;
+    we still allocate a 1-byte buffer so the pointer is valid (callee
+    never dereferences when size==0).
+    """
+    src_buf = ctypes.create_string_buffer(src, len(src))
+    # Allocate at least one byte so c_void_p is non-NULL even at
+    # dst_size==0 (callee branches on size before any deref).
+    dst = ctypes.create_string_buffer(max(dst_size, 1))
+    result = int(fn(ctypes.cast(src_buf, ctypes.c_void_p), len(src),
+                    ctypes.cast(dst, ctypes.c_void_p), dst_size)) & 1
+    return result, bytes(dst.raw[:dst_size])
+
+
+def call_strview_spanu8(fn: Callable, data: bytes) -> bytes:
+    """Call `string_view f(span<uint8_t const>)` — search for first NUL.
+
+    Returns the bytes of the resulting view (data[:size]).  We capture
+    the returned (data, size) pair via libffi's 16-byte aggregate
+    return convention (%rax, %rdx) and slice the input buffer at the
+    returned pointer offset.
+    """
+    if not data:
+        # Empty input — callee returns (rax=rdi=ptr, rdx=0) without
+        # entering the search loop.  Use a 1-byte placeholder to keep
+        # the pointer non-NULL.
+        buf = ctypes.create_string_buffer(1)
+        buf_addr = ctypes.cast(buf, ctypes.c_void_p).value or 0
+        ret = fn(buf_addr, 0)
+        # ret is a _StringViewRet; size must be 0.
+        assert ret.size == 0, f"expected size=0 for empty input, got {ret.size}"
+        return b""
+    buf = ctypes.create_string_buffer(data, len(data))
+    buf_addr = ctypes.cast(buf, ctypes.c_void_p).value or 0
+    ret = fn(buf_addr, len(data))
+    # The returned data ptr equals the input ptr (callee returns
+    # `rax = rdi`); reconstruct the slice by length.
+    assert ret.data == buf_addr, (
+        f"unexpected returned ptr: 0x{ret.data:x} != input 0x{buf_addr:x}")
+    return bytes(buf.raw[:ret.size])
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1724,6 +1879,18 @@ def iter_inputs(sym: Symbol):
         for sample, slbl in U32_AWG_INPUTS:
             yield ((sample,), slbl)
         return
+    if sym.kind == "pod_bool_2double":
+        for a, b, lbl in ALMOST_EQUAL_INPUTS:
+            yield ((a, b), lbl)
+        return
+    if sym.kind == "pod_bool_strview_spanu8":
+        for src, dst_size, lbl in TO_RAW_INPUTS:
+            yield ((src, dst_size), lbl)
+        return
+    if sym.kind == "strview_spanu8":
+        for data, lbl in FROM_RAW_INPUTS:
+            yield ((data,), lbl)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1808,6 +1975,15 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_uint16]
     elif sym.kind == "pod_double_u32":
         proto_args = [ctypes.c_uint32]
+    elif sym.kind == "pod_bool_2double":
+        proto_args = [ctypes.c_double, ctypes.c_double]
+    elif sym.kind == "pod_bool_strview_spanu8":
+        # string_view (data, size) + span (data, size).
+        proto_args = [ctypes.c_void_p, ctypes.c_size_t,
+                      ctypes.c_void_p, ctypes.c_size_t]
+    elif sym.kind == "strview_spanu8":
+        # span<uint8_t const> (data, size).
+        proto_args = [ctypes.c_void_p, ctypes.c_size_t]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1863,6 +2039,19 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         # uint8_t f(uint16_t) — return in %al.
         fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
         fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
+    elif sym.kind == "pod_bool_2double":
+        # bool f(double, double) — return in %al.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
+    elif sym.kind == "pod_bool_strview_spanu8":
+        # bool f(string_view, span<uint8_t>) — return in %al.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
+    elif sym.kind == "strview_spanu8":
+        # string_view f(span<uint8_t const>) — 16-byte aggregate
+        # returned in (%rax, %rdx) per SysV INTEGER+INTEGER rule.
+        fn_orig = orig_fn(sym.orig_offset, _StringViewRet, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, _StringViewRet, proto_args)
 
     passed = failed = 0
     for args, label in iter_inputs(sym):
@@ -2021,6 +2210,20 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             if _math.isnan(o) or _math.isnan(c):
                 o = struct.pack('<d', o)  # type: ignore[assignment]
                 c = struct.pack('<d', c)  # type: ignore[assignment]
+        elif sym.kind == "pod_bool_2double":
+            ad: float = args[0]  # type: ignore[assignment]
+            bd: float = args[1]  # type: ignore[assignment]
+            o = call_pod_bool_2double(fn_orig, ad, bd)
+            c = call_pod_bool_2double(fn_cand, ad, bd)
+        elif sym.kind == "pod_bool_strview_spanu8":
+            src_b:    bytes = args[0]  # type: ignore[assignment]
+            dst_size: int   = args[1]  # type: ignore[assignment]
+            o = call_pod_bool_strview_spanu8(fn_orig, src_b, dst_size)
+            c = call_pod_bool_strview_spanu8(fn_cand, src_b, dst_size)
+        elif sym.kind == "strview_spanu8":
+            data_sv: bytes = args[0]  # type: ignore[assignment]
+            o = call_strview_spanu8(fn_orig, data_sv)
+            c = call_strview_spanu8(fn_cand, data_sv)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

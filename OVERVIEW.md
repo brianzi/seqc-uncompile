@@ -1544,3 +1544,39 @@ verify-then-write throughout.
    user SeqC (samples come from in-range generators); detected
    only via the harness's NaN corpus.
 
+- **F-followup (harness expansion: `numeric::core` cluster).**
+   Reconstructed and harness-covered the three `zhinst::numeric`
+   helpers — `almostEqual`, `toRawByteArray`, `fromRawByteArray`
+   — none of which are reachable from the Python bindings.
+
+   - **New files**: `reconstructed/include/zhinst/core/numeric.hpp`
+     and `reconstructed/src/core/numeric.cpp`.  The two raw-byte
+     helpers take `std::span` arguments and are gated on
+     `__cplusplus >= 202002L` so the main C++17 build silently
+     omits them (the libcxx-test build is C++20).  `almostEqual`
+     is always visible.
+   - **Implementations**:
+     - `almostEqual(double, double) → bool`: returns
+       `boost::math::epsilon_difference(a, b) <= 1.0`, which
+       compiles to the same SSE2 sequence as the binary.
+     - `toRawByteArray(string_view, span<uint8_t>) → bool`:
+       bounded `memmove` + NUL-terminate; returns true iff the
+       source plus its NUL fit entirely in the destination.
+     - `fromRawByteArray(span<uint8_t const>) → string_view`:
+       returns a view from the span's start up to the first NUL
+       (or the full span if no NUL is present).
+   - **Harness shapes added** (`tests/diff_unreachable/harness.py`):
+     `pod_bool_2double`, `pod_bool_strview_spanu8`, `strview_spanu8`.
+     The last is the first kind to exercise libffi's 16-byte
+     aggregate return convention (`%rax`+`%rdx` per SysV
+     INTEGER+INTEGER), modelled via a local
+     `_StringViewRet(c_uint64, c_uint64)` `Structure`.
+   - **Coverage added**: 19 + 15 + 10 = 44 new harness cases.
+     Curated corpora exercise NaN/±Inf/±0/ULP-boundary pairs for
+     `almostEqual`, dst-buffer overflow/exact-fit/empty/embedded-
+     NUL for `toRawByteArray`, and NUL-at-start/mid/end + no-NUL
+     for `fromRawByteArray`.
+   - **Result**: 1603/1603 main + 1603/1603 harness (was 1559).
+     No incidental binary divergence found — recon matches binary
+     bit-for-bit on the curated corpus.
+
