@@ -747,7 +747,7 @@ Reconstruction difficulty: **trivial**.
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE8EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE1EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE256EEENS_14AwgDevicePropsER...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE2EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE4EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE64EEENS_14AwgDevicePropsERK...`, `_GLOBAL__sub_I_properties.cpp`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE128EEENS_14AwgDevicePropsER...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE16EEENS_14AwgDevicePropsERK...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE32EEENS_14AwgDevicePropsERK...`
 - **String evidence**: _none observed_
-- **Notes**: candidate qualified-name match in reconstructed/src/device/awg_device_props.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
+- **Notes**: **closed as ABI-divergence by design (IF-280, 2026-05-16)**.  Header declares copy ctor `= default`; libstdc++-built recon inlines it at all 9 callsites.  Binary's body is libc++-string-shaped (SSO bit-0 test) and cannot be reproduced from a libstdc++ TU.  A libc++ shim TU would emit a symbol with no caller.  Observable behavior is identical (member-wise copy of 3 strings with proper exception cleanup).
 
 ## Cluster: `device_option::device`
 

@@ -5493,3 +5493,84 @@ The seed difference is invisible to the difftest suite because no test combines 
 
 **Action items**: none — fix landed.  No harness coverage added because `seedRandom`'s observable output is non-deterministic (reads `/dev/urandom` per call); a deterministic-mode harness would require fd-injection or `LD_PRELOAD` machinery that is currently unjustified by any test scenario.
 
+
+## IF-280  `AwgPathPatterns(AwgPathPatterns const&)` — binary symbol is libc++-string copy ctor; recon (libstdc++) inlines `= default` at all callsites
+
+**Status**: documented (close-by-design); cluster `awg_config::device` retired.
+
+**Severity**: cosmetic — observable behavior is identical; no test regression possible.
+
+### Symptom
+
+D14 inventory (`reconstructed/notes/d14_inventory.md:743`) flags
+`_ZN6zhinst15AwgPathPatternsC2ERKS0_` @0x2cc4f0 (254 B) as **absent**
+in the recon.  `nm reconstructed/build/_seqc_compiler.so | grep
+AwgPathPatternsC` confirms only the **3-arg ctor** is emitted
+out-of-line; the copy ctor symbol does not exist in the recon.
+
+### Root cause
+
+The header (`reconstructed/include/zhinst/device/awg_device_props.hpp:122`)
+declares the copy ctor as `= default`, which is the correct C++
+semantics — member-wise copy of three `std::string`s.  Whether the
+compiler emits an out-of-line symbol for a defaulted ctor is purely
+an inlining decision driven by `-O2` heuristics and call-site
+counts.
+
+The binary's body (verified by `objdump -d --start-address=0x2cc4f0`)
+is the textbook libc++ 3-string copy sequence:
+
+- For each of the 3 strings: `testb $0x1, (%rsi)` SSO-flag check
+  on byte 0; if SSO-short, `movups`/`mov` 24-byte inline copy; if
+  SSO-long, call `__init_copy_ctor_external`.
+- Plus exception-cleanup unwind path that reverse-destroys
+  partially-constructed members.
+
+This is exactly what `= default` produces under libc++.  The
+recon, built against **libstdc++**, would need an entirely
+different body (libstdc++ string is a single pointer to a
+heap-allocated control block — no SSO bit-0 flag at offset 0,
+different copy dispatch).
+
+### Why no fix
+
+Two options were considered:
+
+1. **Mirror via libc++ shim TU** (analogous to
+   `Random::seedRandom` in `prng_libcxx.cpp`).  Rejected: the
+   symbol would operate on libc++-shaped strings, but every
+   caller in the recon (`getAwgDeviceProps<*>` instantiations,
+   `_GLOBAL__sub_I_properties.cpp`) is compiled against
+   libstdc++.  The libc++ symbol would have **no caller** and
+   would be dead code.
+
+2. **Force out-of-lining of the libstdc++ copy ctor** (e.g. via
+   explicit out-of-line definition in
+   `awg_device_props.cpp`).  This would emit a symbol with a
+   different body (libstdc++ shape) and a different linkage name
+   (`_ZNSt7__cxx11...`-flavoured caller-side code).  It would
+   neither match the binary's body nor fill the inventory's
+   "absent" gap, since the inventory specifically flags the
+   libc++ mangling.
+
+The semantic equivalent — three string copies in declaration
+order with proper exception cleanup — is already produced by the
+recon at every callsite.  No observable behavior differs.
+
+### Decision
+
+Close cluster `awg_config::device` as **ABI-divergence by
+design**.  No source change.  The deferred-cluster table in
+OVERVIEW.md is updated to reflect that this cluster is now
+documented (count drops from ~8 to ~7).
+
+### Verification
+
+- `nm reconstructed/build/_seqc_compiler.so | grep AwgPathPatternsC`:
+  3-arg ctor present (T), copy ctor absent — confirmed inlining.
+- `objdump -d _seqc_compiler.so` @0x2cc4f0: confirmed libc++
+  3-string copy semantics with cleanup unwind.
+- `python tests/diff_test_fast.py`: 1603/1603 PASS (no change
+  from prior baseline — semantics already match).
+
+**Action items**: none — close-by-design.

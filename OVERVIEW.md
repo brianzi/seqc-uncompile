@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~8 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen` and `random::infra` covered (F-followups, 2026-05-16). |
+| `device_option::device`, `node_misc::core`, `misc::?` | ~7 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra` covered, and `awg_config::device` documented as ABI-divergence (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1686,3 +1686,27 @@ verify-then-write throughout.
    - **Result**: 1603/1603 main + 1626/1626 harness — no
      regressions.  Cluster count: ~9 → ~8 deferred helpers.
 
+
+- **2026-05-16** F-followup: cluster `awg_config::device` (1
+  helper, 254 B — `AwgPathPatterns(AwgPathPatterns const&)` @
+  0x2cc4f0) **closed as ABI-divergence by design** (IF-280).
+    - **Symptom**: D14 inventory flagged
+      `_ZN6zhinst15AwgPathPatternsC2ERKS0_` as absent in the
+      recon; only the 3-arg ctor is emitted out-of-line.
+    - **Root cause**: header declares the copy ctor `= default`
+      (correct C++ semantics).  Whether the compiler emits it
+      out-of-line is a pure inlining decision; under `-O2` with
+      libstdc++, gcc inlines it at every callsite.  The binary's
+      body is the textbook **libc++** 3-string copy sequence
+      (SSO bit-0 test, inline 24-byte `movups`, fallback
+      `__init_copy_ctor_external`), which cannot be reproduced
+      from a libstdc++ TU because the string layout differs.
+    - **Why no fix**: a libc++ shim TU (cf. `Random::seedRandom`)
+      would emit a libc++-string symbol with no caller, since
+      every recon caller (`getAwgDeviceProps<*>` family +
+      `_GLOBAL__sub_I_properties.cpp`) is libstdc++-built.
+      Forcing out-of-line emission of the libstdc++ ctor would
+      produce a different body and a different mangling than the
+      binary, neither matching nor filling the inventory gap.
+    - **Result**: no source change.  Tests unchanged (1603/1603
+      main + 1626/1626 harness).  Deferred-cluster count: ~8 → ~7.
