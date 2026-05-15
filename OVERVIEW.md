@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `base64::infra`, `numeric::core`, `compiler_helpers::codegen`, `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~14 helpers | Zero difftest callers; deferred under `\unverifiable` regime. |
+| `compiler_helpers::codegen`, `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~10 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core` and `base64::infra` covered (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1579,4 +1579,29 @@ verify-then-write throughout.
    - **Result**: 1603/1603 main + 1603/1603 harness (was 1559).
      No incidental binary divergence found — recon matches binary
      bit-for-bit on the curated corpus.
+
+- **F-followup (harness expansion: `base64::infra` cluster).**
+   Reconstructed and harness-covered the single `zhinst::base64::encode`
+   helper — standard RFC 4648 base64 codec, 910 B in the binary.
+
+   - **New files**: `reconstructed/include/zhinst/core/base64.hpp`
+     and `reconstructed/src/core/base64.cpp`.  Span-using API
+     C++20-gated so the main C++17 build silently omits it.
+   - **Implementation**: direct `std::string::push_back` build using
+     the standard alphabet (located at `.rodata` 0x90cf90 in the
+     binary).  The original uses `std::ostringstream` internally,
+     but only the emitted byte sequence is observable at the API
+     boundary; harness verifies bit-identity.
+   - **Harness shape added**: `string_spanu8` —
+     `string f(span<uint8_t const>)` with sret in `%rdi` and span
+     `(data, size)` in `(%rsi, %rdx)`.  Reuses the existing libc++
+     uninit-slot helpers (`alloc_uninit_slot`/`string_bytes`/
+     `destroy_and_free_slot`).
+   - **Coverage added**: 23 cases — empty, all three pad classes
+     (n%3 ∈ {0,1,2}), RFC 4648 examples, all-bits-set bytes, the
+     22-byte SSO boundary, and a 64-byte payload that pushes the
+     result into long-string form.
+   - **Result**: 1603/1603 main + 1626/1626 harness (was 1603).
+     No incidental binary divergence — recon matches binary
+     bit-for-bit on the full corpus.
 

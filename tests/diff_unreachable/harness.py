@@ -598,6 +598,12 @@ SYMBOLS: list[Symbol] = [
     Symbol("fromRawByteArray",            0x2f2830,
            "_ZN6zhinst16fromRawByteArrayENSt3__14spanIKhLm18446744073709551615EEE",
            "strview_spanu8"),
+    # zhinst::base64::encode(span<uint8_t const>) — standard base64
+    # codec, alphabet at .rodata 0x90cf90.  Returns std::string by
+    # value (libc++ SSO, sret in %rdi).  Span passes in (%rsi, %rdx).
+    Symbol("base64::encode",              0x2f8620,
+           "_ZN6zhinst6base646encodeENSt3__14spanIKhLm18446744073709551615EEE",
+           "string_spanu8"),
 ]
 
 
@@ -1240,6 +1246,40 @@ FROM_RAW_INPUTS: list[tuple[bytes, str]] = [
 ]
 
 
+# `zhinst::base64::encode(span<uint8_t const>)` corpus.
+# Covers: empty (returns ""); n=1, 2, 3 (the three pad classes); a
+# few small ASCII strings to spot-check alphabet ordering; non-ASCII /
+# all-bits-set bytes to exercise the full 6-bit table; a string at the
+# libc++ SSO boundary (22 input bytes → 32 output bytes, which still
+# fits short-string form); a longer payload to push into long-string
+# form.
+BASE64_INPUTS: list[tuple[bytes, str]] = [
+    (b"",                                         "empty"),
+    (b"\x00",                                     "1B NUL"),
+    (b"\x00\x00",                                 "2B NUL"),
+    (b"\x00\x00\x00",                             "3B NUL"),
+    (b"f",                                        "'f'"),
+    (b"fo",                                       "'fo'"),
+    (b"foo",                                      "'foo'"),
+    (b"foob",                                     "'foob'"),
+    (b"fooba",                                    "'fooba'"),
+    (b"foobar",                                   "'foobar'"),
+    (b"Man",                                      "'Man' (RFC 4648)"),
+    (b"Ma",                                       "'Ma' (RFC 4648)"),
+    (b"M",                                        "'M' (RFC 4648)"),
+    (b"\xff",                                     "1B 0xff"),
+    (b"\xff\xff",                                 "2B 0xff"),
+    (b"\xff\xff\xff",                             "3B 0xff"),
+    (b"\x00\x10\x83\x10\x51\x87",                 "all-alphabet sample"),
+    (bytes(range(16)),                            "16B 0..15"),
+    (b"a" * 22,                                   "22B (output 32B, SSO edge)"),
+    (b"a" * 23,                                   "23B (output 32B, n%3==2)"),
+    (b"a" * 24,                                   "24B (output 32B, n%3==0)"),
+    (b"\xff" * 64,                                "64B 0xff (long string)"),
+    (bytes(range(48)),                            "48B 0..47"),
+]
+
+
 # ---------------------------------------------------------------- #
 # Test driver.
 # ---------------------------------------------------------------- #
@@ -1753,6 +1793,26 @@ def call_strview_spanu8(fn: Callable, data: bytes) -> bytes:
     return bytes(buf.raw[:ret.size])
 
 
+def call_string_spanu8(fn: Callable, data: bytes) -> bytes:
+    """Call `string f(span<uint8_t const>)`: void(sret, span_data, span_size).
+
+    sret pointer goes in %rdi (allocated via the libc++ uninit slot
+    helper); span passes as (data, size) in (%rsi, %rdx).  Caller owns
+    destruction of the returned string."""
+    slot = alloc_uninit_slot()
+    try:
+        if not data:
+            # Empty span — pass NULL/0; the binary's loop bound check
+            # never dereferences.
+            fn(slot, ctypes.c_void_p(0), 0)
+        else:
+            buf = ctypes.create_string_buffer(data, len(data))
+            fn(slot, ctypes.cast(buf, ctypes.c_void_p), len(data))
+        return string_bytes(slot)
+    finally:
+        destroy_and_free_slot(slot)
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1891,6 +1951,10 @@ def iter_inputs(sym: Symbol):
         for data, lbl in FROM_RAW_INPUTS:
             yield ((data,), lbl)
         return
+    if sym.kind == "string_spanu8":
+        for data, lbl in BASE64_INPUTS:
+            yield ((data,), lbl)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1984,6 +2048,9 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "strview_spanu8":
         # span<uint8_t const> (data, size).
         proto_args = [ctypes.c_void_p, ctypes.c_size_t]
+    elif sym.kind == "string_spanu8":
+        # void(sret_string, span_data, span_size).
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -2224,6 +2291,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             data_sv: bytes = args[0]  # type: ignore[assignment]
             o = call_strview_spanu8(fn_orig, data_sv)
             c = call_strview_spanu8(fn_cand, data_sv)
+        elif sym.kind == "string_spanu8":
+            data_b64: bytes = args[0]  # type: ignore[assignment]
+            o = call_string_spanu8(fn_orig, data_b64)
+            c = call_string_spanu8(fn_cand, data_b64)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]
