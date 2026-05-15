@@ -1460,3 +1460,39 @@ verify-then-write throughout.
   test suite: 1603/1603 (unchanged — none of the SeqC inputs
   reach `folderPath` in a byte-observable way, which is why the
   bug went undetected before the harness was built).
+
+- **F-followup (audit: `io/zi_folder.cpp` + `io/zi_environment.cpp`).**
+  Disasm-audited every reconstructed function in both files
+  against the binary as a defensive sweep after IF-272, looking
+  for further latent SSO-byte misreads.  Eleven functions
+  audited; 9 verified clean (`ZiFolder` ctor, `ziFolder` factory,
+  `sessionSaveDirectoryName`, `readManifestImpl`,
+  `laboneManifest`, `doIsMf`, `isMf`, `isMf64`, both cached and
+  both string-arg `runningOnMf*Device` overloads, plus the
+  `markFileHidden` / `initBoostFilesystemForUnicode` Linux
+  no-ops); 2 had divergences:
+
+  - **IF-273 (`makeDirectories`, fixed).**  Recon wrapped the
+    body in a spurious outer `try { ... } catch (std::exception
+    const&)` that translated the message to `"Could not create
+    directory ..."`; the binary has no `__cxa_begin_catch` in
+    this function and emits only the
+    `"Could not access directory '<dir>'."` message.  Recon also
+    threw with the default sentinel error code `0x8000`; the
+    binary throws with the explicit code `0x8011` (a
+    `\binarynote` was added because the matching enum slot
+    `ApiBufferTooSmall` is semantically inappropriate for a
+    directory-permissions failure — but that's the value the
+    binary really emits).
+  - **IF-274 (`hasMediaDevNode`, cosmetic).**  Binary calls
+    `boost::filesystem::status` twice on the same path/ec pair;
+    recon calls it once.  Output identical for every input;
+    recorded for future audits but not changed.
+
+  Conclusion (IF-275): the IF-272 misread was an isolated
+  incident, not a systemic pattern.  The vendor literal
+  `"Zurich Instruments"` was unusually exposed because its size
+  byte `0x24` falls in the printable-ASCII range; every other
+  SSO literal in this code (`"device"`/`0x0c`,
+  `"platform"`/`0x10`, `"/dev"`/`0x08`, `"0"`/`0x02`) encodes
+  to a sub-`'!'` byte that is visibly metadata.

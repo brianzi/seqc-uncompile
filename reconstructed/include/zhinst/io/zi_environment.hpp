@@ -131,18 +131,29 @@ bool runningOnMf64Device(std::string const& manifestPath);      // @0x2ec3d0
 bool hasMediaDevNode(std::string const& p);                     // @0x2eb550
 
 //! \brief Recursively creates \p dir and any missing parent
-//!        directories.
+//!        directories, then verifies the result is writeable.
 //!
-//! Equivalent to `boost::filesystem::create_directories` but with
-//! richer diagnostics: throws a \ref zhinst::Exception with
-//! `"Could not access directory '<path>'"` when a path component
-//! cannot be statted, and `"Could not create directory '<path>'"`
-//! when a missing component cannot be created.
+//! Equivalent to `boost::filesystem::create_directories` but with a
+//! writeability post-check: if the directory cannot be written to
+//! after creation, throws a \ref zhinst::Exception with the message
+//! `"Could not access directory '<path>'."`.  The underlying
+//! `create_directories` call uses the non-throwing `error_code`
+//! overload, so a pre-existing directory or a failed mkdir alone
+//! does not throw — only the writeability check gates success.
 //!
-//! \param dir  Target directory.  Already-existing directories are
-//!             accepted as success.
-//! \throws zhinst::Exception  On any filesystem error encountered
-//!         while statting or creating a path component.
+//! \param dir  Target directory.  Already-existing writeable
+//!             directories are accepted as success.
+//! \throws zhinst::Exception  When \p dir is not writeable after the
+//!         `create_directories` call returns.  The exception carries
+//!         the integer error code `0x8011`.
+//! \binarynote The error code attached to the thrown exception is
+//!             `0x8011`, which occupies the
+//!             `ZIResult_enum::ApiBufferTooSmall` slot in the
+//!             top-level error-code enum.  This is the value the
+//!             original binary emits and is preserved verbatim;
+//!             the semantic mismatch between the slot's name and a
+//!             directory-permissions failure is a quirk of the
+//!             original code, not a reconstruction choice.
 void makeDirectories(boost::filesystem::path const& dir);       // @0x2cdef0
 
 //! \brief Marks \p p as hidden in the host's file manager.

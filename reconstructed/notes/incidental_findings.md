@@ -5166,3 +5166,156 @@ declarations were unchanged.
 
 **Action items**: None.  Bug fixed; harness regression-locks the
 behaviour going forward.
+
+## IF-273  `makeDirectories` recon adds a spurious outer try/catch and drops the 0x8011 error code
+
+**Status**: open (likely-bug, low-impact).
+
+**Discovered**: 2026-05-15, Phase F follow-up audit of
+`reconstructed/src/io/zi_environment.cpp`.
+
+**Severity**: likely-bug.  Functionally observable only when the
+caller catches the resulting `Exception` and inspects either
+`code()` or the message text.
+
+**Two divergences against the binary at `0x2cdef0`–`0x2cdfb5`:**
+
+1. **Wrong `Exception` constructor.**  The recon throws
+   `Exception(oss.str())` — single-arg string ctor, default
+   sentinel error code `0x8000`.  The binary calls
+   `Exception(ErrorCode const&, string)` with the explicit code
+   `0x8011` (verified at `2cdf80: mov esi,0x8011` immediately
+   before `call 2e5700` = the 2-arg ctor at `0x2e5700`).  The
+   value `0x8011 = 32785` corresponds to the
+   `ZIResult_enum::ApiBufferTooSmall` slot in
+   `reconstructed/include/zhinst/core/error_messages.hpp:374`;
+   the semantic mismatch (a buffer-size error code attached to a
+   filesystem permissions failure) is a binary quirk worth a
+   `\binarynote`, not a recon error to "fix" by renaming.
+
+2. **Spurious outer `try { ... } catch (std::exception const&)`
+   block** that translates the message
+   `"Could not access directory '<dir>'."`
+   into
+   `"Could not create directory '<dir>'." + inner.what()`.
+   The binary has **no `__cxa_begin_catch` / `__cxa_end_catch`**
+   in this function — the prologue/epilogue pattern (push rbp /
+   push r14 / push rbx / sub rsp,0x1b0 ... pop rbx / pop r14 /
+   pop rbp / ret) and the linear instruction stream from entry
+   to the throw site at `0x2cdfb5` show only the cleanup landing
+   pad for the throw itself (at `0x2cdfba+`), not a catch
+   handler.  The `"Could not create directory '"` literal does
+   exist in the binary's `.rodata` but is referenced by a
+   different function (not yet identified — likely a separate
+   higher-level call site), not by `makeDirectories` itself.
+
+**Fix plan:**
+- Drop the outer try/catch from
+  `reconstructed/src/io/zi_environment.cpp:251-270`.
+- Switch the `BOOST_THROW_EXCEPTION(Exception(oss.str()))` call
+  to `Exception(ErrorCode(...0x8011...), oss.str())`.  The
+  two-arg ctor signature is at `exception.hpp:288`; the
+  ErrorCode form needs to follow whatever pattern the rest of
+  the recon already uses for explicit `ZIResult_enum` codes.
+- Add a `\binarynote` to the brief explaining that the 0x8011
+  code is what the binary emits, even though the matching enum
+  name is `ApiBufferTooSmall` (semantically inappropriate for a
+  directory-access failure — a binary quirk, not a recon
+  decision).
+
+**Action items**: addressed in the same commit as this entry —
+see fix in `reconstructed/src/io/zi_environment.cpp` and brief in
+`reconstructed/include/zhinst/io/zi_environment.hpp`.
+
+## IF-274  `hasMediaDevNode` recon calls `boost::filesystem::status` once; binary calls it twice
+
+**Status**: open (cosmetic, behavior-equivalent).
+
+**Discovered**: 2026-05-15, same audit pass as IF-273.
+
+**Severity**: cosmetic.  Both forms produce the same boolean
+result for every input; the only observable difference is one
+extra syscall in the binary.
+
+**Evidence:** at `0x2eb6d6` and `0x2eb6f7` the binary calls the
+same `boost::filesystem::detail::status` symbol (`0x36f280`)
+twice on the same path / error_code pair.  The first call's
+result type is checked (`cmp DWORD PTR [rbp-0x20],0x1; jbe →
+return false`) as an early-out for `status_error` /
+`file_not_found`; the second call repeats the syscall and its
+result is then used both for the `error_code.value()` check
+(`0x2eb70f: cmp DWORD PTR [rbp-0xd0],0x0`) and for the
+`character_file` (= 5) test (`0x2eb718: cmp DWORD PTR
+[rbp-0x20],0x5; sete bl`).
+
+The recon at `reconstructed/src/io/zi_environment.cpp:215-229`
+issues a single `status` call.  Result is identical (an existing
+`/dev` child whose status changes between two back-to-back
+syscalls is not a case any caller can rely on).  The likely
+explanation is a missed common-subexpression elimination in the
+original build, or a deliberate re-stat to defeat a cache layer
+not visible in this snippet.
+
+**Action items**: leave as-is (no behavioural impact).  Recorded
+for completeness so a future agent doesn't waste a session
+"finding" the same divergence.
+
+## IF-275  zi_folder/zi_environment audit — 9 of 11 functions verified clean against the binary
+
+**Status**: tracking entry; no action item.
+
+**Discovered**: 2026-05-15, Phase F follow-up Task 2.
+
+**Severity**: informational.
+
+**Scope:** disasm-audit of every reconstructed function in
+`reconstructed/src/io/zi_folder.cpp` and
+`reconstructed/src/io/zi_environment.cpp` after the IF-272
+folderPath bug raised the question "are there other latent
+SSO-byte misreads in the same files?".
+
+**Verified clean:**
+- `ZiFolder::ZiFolder(string)` @0x2ce2c0 — trivial 24-byte move.
+- `ZiFolder::ziFolder(DirectoryType)` @0x2cf0c0 (446 disasm
+  lines) — MF branch returns `/data` or `/settings`; HOME-fallback
+  uses `getenv("HOME")` then `getpwuid_r` reading `pw_dir` at
+  `pw+0x18`; throw site at `0x2cf7a1`.
+- `ZiFolder::sessionSaveDirectoryName` @0x2ce620 — ostringstream
+  chain `"session_" + formatTime(now,true) + "_" + suffix +
+  serial` with `suffix = "0"` iff `serial.size()==1`.  All
+  rodata literals at `0x90b505` (`"0"`), `0x90b507`
+  (`"session_"`), `0x90a347` (`"_"`) verified.
+- anon-namespace `readManifestImpl` @0x2ec210 — short-circuits on
+  `status.type() <= regular_file`.
+- anon-namespace `laboneManifest` @0x2ec5e0 — Meyers singleton
+  reading `/opt/zi/LabOne/manifest.json`.
+- anon-namespace `doIsMf` @0x2ec700 — `[rbp-0x30]=0x0c` =
+  `(6<<1)` for the 6-byte key `"device"`; `cmp WORD PTR
+  [rcx],0x666d` = `"mf"` little-endian; `cmp rcx,0x2` for
+  size==2.
+- anon-namespace `isMf` @0x2ec1e0 — `try { doIsMf } catch(...) {
+  return false; }`.
+- anon-namespace `isMf64` @0x2ec430 — `[rbp-0x48]=0x10` =
+  `(8<<1)` for `"platform"`; XOR vs `0x6d726f6674616c70` =
+  `"linuxARM"` then XOR vs `0x3436` = `"64"`; size==10 check.
+- `runningOnMfDevice` / `runningOnMf64Device` (both 0-arg cached
+  forms and both string-arg fresh forms) — Meyers singletons
+  guarded by `__cxa_guard`; cached forms share the
+  `laboneManifest()` singleton.
+- `markFileHidden` @0x2eb940, `initBoostFilesystemForUnicode`
+  @0x2ec020 — Linux no-ops, exactly as recon documents.
+
+**Divergences found:** filed as IF-273 (`makeDirectories`) and
+IF-274 (`hasMediaDevNode`).  No further latent SSO-byte misreads
+of the IF-272 shape were found.
+
+**Conclusion:** the IF-272 misread was an isolated incident, not
+a systemic pattern across the io/ subsystem.  The vendor-segment
+literal `"Zurich Instruments"` (size byte `0x24`, length 18,
+boundary on the printable-ASCII range) was unusually likely to
+trigger the misread; other SSO literals in this code (`"device"`
+size byte `0x0c`, `"platform"` size byte `0x10`, `"/dev"` size
+byte `0x08`, `"0"` size byte `0x02`) all encode to non-printable
+sub-`'!'` bytes and are visibly metadata, not data.
+
+**Action items**: none.

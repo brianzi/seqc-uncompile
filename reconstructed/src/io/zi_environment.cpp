@@ -231,42 +231,56 @@ bool hasMediaDevNode(std::string const& p)  // @0x2eb550
 // ---------------------------------------------------------------------------
 // makeDirectories(boost::filesystem::path const&)                @0x2cdef0
 //
-// Recursively creates `dir` and any missing parent components, with
-// richer error reporting than bare `boost::filesystem::create_directories`.
-// Flow:
-//   1. `boost::filesystem::create_directories(dir, ec)` — error_code
-//      overload, never throws.
+// Recursively creates `dir` and any missing parent components, then
+// verifies the result is actually writeable.  On failure throws a
+// `zhinst::Exception` carrying the ZI API code `0x8011` and the
+// message `"Could not access directory '<dir>'."`.
+//
+// Binary flow (linear, no try/catch):
+//   1. `boost::filesystem::detail::create_directories(dir, ec)` —
+//      error_code overload, never throws.  The ec result is discarded
+//      (the writeability check below is what gates success).
 //   2. `isDirectoryWriteable(dir)` — if true, return cleanly.
 //   3. Otherwise build the message
-//      `"Could not access directory '" + dir.string() + "'."` and
-//      throw `zhinst::Exception(0x8011, msg)` via
-//      `boost::throw_exception` (carries source-location info).
-//   4. Any exception thrown out of step 1/3 is caught at the
-//      outer `__cxa_begin_catch` and translated into a fresh
-//      `zhinst::Exception(0x8011, "Could not create directory '" +
-//      dir.string() + "'." + inner.what())` which is then
-//      re-thrown.  The error-code constant 0x8011 corresponds to
-//      ZIIOException-class semantics in the ZI API enum.
+//      `"Could not access directory '" + dir.string() + "'."` (rodata
+//      `0x90b4be` + `0x8ff0aa`) and throw
+//      `Exception(ErrorCode{0x8011}, msg)` via
+//      `boost::throw_exception` with `BOOST_CURRENT_LOCATION`
+//      (source-location pair at rodata `0x90b456` / `0x90b48f`,
+//      line/column packed as `0x3e0000002c`).
+//
+// Note on the error code: the binary uses constant `0x8011`, which
+// occupies the `ZIResult_enum::ApiBufferTooSmall` slot in
+// `error_messages.hpp`.  The semantic mismatch (a buffer-size code
+// attached to a directory-permissions failure) is a binary quirk —
+// see the `\binarynote` on the public declaration in
+// `zhinst/io/zi_environment.hpp`.
+//
+// History (IF-273): an earlier reconstruction added a spurious outer
+// `try { ... } catch (std::exception const&)` block that translated
+// the message to `"Could not create directory ..."`.  The binary has
+// no `__cxa_begin_catch` in this function; that translation does not
+// happen here and the `"Could not create directory '"` literal in the
+// binary's rodata is referenced from a different (unidentified) call
+// site.
 // ---------------------------------------------------------------------------
 void makeDirectories(boost::filesystem::path const& dir)  // @0x2cdef0
 {
     namespace fs = boost::filesystem;
-    try {
-        boost::system::error_code ec;
-        fs::create_directories(dir, ec);
 
-        if (isDirectoryWriteable(dir)) {
-            return;
-        }
+    boost::system::error_code ec;
+    fs::create_directories(dir, ec);
 
-        std::ostringstream oss;
-        oss << "Could not access directory '" << dir << "'.";
-        BOOST_THROW_EXCEPTION(Exception(oss.str()));
-    } catch (std::exception const& inner) {
-        std::ostringstream oss;
-        oss << "Could not create directory '" << dir << "'." << inner.what();
-        BOOST_THROW_EXCEPTION(Exception(oss.str()));
+    if (isDirectoryWriteable(dir)) {
+        return;
     }
+
+    std::ostringstream oss;
+    oss << "Could not access directory '" << dir << "'.";
+
+    ErrorCode code;
+    code.value_ = 0x8011;
+    BOOST_THROW_EXCEPTION(Exception(code, oss.str()));
 }
 
 // ---------------------------------------------------------------------------
