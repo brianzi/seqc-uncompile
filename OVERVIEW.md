@@ -1432,3 +1432,31 @@ verify-then-write throughout.
 
   Net harness coverage at F5 close: 1266/1266 cases (was 1254;
   +12).  Main test suite: 1603/1603 (unchanged).
+
+- **F-followup (harness: `ZiFolder::folderPath`).**  Built a new
+  `sret_zifolder_2cref` harness shape exercising the `this`-bearing
+  `string ZiFolder::folderPath(string const&, string const&) const`
+  binding-unreachable method (`@0x2ce2f0`).  The shape reuses the
+  existing 24-byte placement-construct slot mechanism since
+  `ZiFolder` is layout-equivalent to a single `std::string` at
+  offset 0 (`basePath_`).
+
+  The first run uncovered three independent recon divergences from
+  the binary, all logged as **IF-272** (fixed):
+  1. The vendor-segment branch was inverted (recon always inserted
+     `Zurich Instruments`; binary inserts it only when `subdir` is
+     NOT `"/data"` or `"/settings"`).
+  2. The vendor literal had a stray `'$'` prefix from misreading
+     the libc++ short-string SIZE byte (`0x24 = 36 = (18 << 1)`)
+     as a data character.
+  3. `basePath_` was guarded by a spurious `!empty()` check that
+     the binary does not have (only `extra` is non-empty-guarded).
+
+  The corresponding `\brief` and supporting comment block in
+  `zhinst/io/zi_folder.hpp` were also corrected (the brief had the
+  vendor-segment condition stated backwards).
+
+  Net harness coverage: 1283/1283 cases (was 1266; +17).  Main
+  test suite: 1603/1603 (unchanged — none of the SeqC inputs
+  reach `folderPath` in a byte-observable way, which is why the
+  bug went undetected before the harness was built).

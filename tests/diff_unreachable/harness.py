@@ -509,6 +509,15 @@ SYMBOLS: list[Symbol] = [
     Symbol("getAwgDeviceProps<GHFLI>",    0x2cdb00,
            "_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE128EEENS_14AwgDevicePropsERKNS_10DeviceTypeE",
            "sret_props_cref"),
+    # ZiFolder::folderPath(string const&, string const&) const
+    # ABI: void(sret, this*, string*, string*).  this* is a ZiFolder
+    # which is layout-equivalent to a single std::string at offset 0
+    # (basePath_).  Per IF-272 the recon body diverged from the
+    # binary on the "/data"/"/settings" subdir-length branch; the
+    # harness exists primarily to prevent regression of that fix.
+    Symbol("ZiFolder::folderPath",        0x2ce2f0,
+           "_ZNK6zhinst8ZiFolder10folderPathERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_",
+           "sret_zifolder_2cref"),
 ]
 
 
@@ -929,6 +938,40 @@ GENERATESFC_INPUTS: list[tuple[bytes, bytes]] = [
 ]
 
 
+# ZiFolder::folderPath corpus: each entry is (basePath_, subdir, extra,
+# label).  basePath_ becomes the ZiFolder's only field; subdir drives
+# the three-way branch (`/data` and `/settings` skip the
+# `$Zurich Instruments` segment, anything else inserts it); extra is
+# appended verbatim if non-empty.  The empty-extra cases verify the
+# `result /= extra` skip.
+ZIFOLDER_FOLDERPATH_INPUTS: list[tuple[bytes, bytes, bytes, str]] = [
+    # The two canonical "vendor-skip" subdirs.
+    (b"dev1234", b"/data",      b"",         "/data + empty extra"),
+    (b"dev1234", b"/settings",  b"",         "/settings + empty extra"),
+    (b"dev1234", b"/data",      b"foo",      "/data + extra"),
+    (b"dev1234", b"/settings",  b"bar.json", "/settings + extra"),
+    # Non-canonical subdirs of various lengths — must trigger the
+    # `$Zurich Instruments` insertion.
+    (b"dev1234", b"/cache",     b"",         "/cache (size 6) -> vendor"),
+    (b"dev1234", b"/tmp",       b"",         "/tmp (size 4) -> vendor"),
+    (b"dev1234", b"/datax",     b"",         "/datax (size 6, similar) -> vendor"),
+    (b"dev1234", b"/dat",       b"",         "/dat (size 4, prefix) -> vendor"),
+    (b"dev1234", b"/setting",   b"",         "/setting (size 8, near-9) -> vendor"),
+    (b"dev1234", b"/settings1", b"",         "/settings1 (size 10) -> vendor"),
+    (b"dev1234", b"",           b"",         "empty subdir + empty extra"),
+    # Length-9 subdir that is NOT "/settings" — should still get vendor.
+    (b"dev1234", b"123456789",  b"",         "9-char non-/settings -> vendor"),
+    # Length-5 subdir that is NOT "/data" — should still get vendor.
+    (b"dev1234", b"12345",      b"",         "5-char non-/data -> vendor"),
+    # Empty basePath_ — exercises the path's empty-string append.
+    (b"",        b"/data",      b"",         "empty basePath /data"),
+    (b"",        b"/cache",     b"foo",      "empty basePath /cache + extra"),
+    # Long basePath_ (forces libc++ long-string layout).
+    (b"a" * 32,  b"/data",      b"",         "long basePath /data"),
+    (b"a" * 32,  b"/cache",     b"",         "long basePath /cache"),
+]
+
+
 # ---------------------------------------------------------------- #
 # Test driver.
 # ---------------------------------------------------------------- #
@@ -1258,6 +1301,35 @@ def call_sret_props_cref(
         _awgprops_free_uninit(slot)
 
 
+def call_sret_zifolder_2cref(fn: Callable,
+                             base_path: bytes,
+                             subdir: bytes,
+                             extra: bytes) -> bytes:
+    """Call `string T::method(string const&, string const&) const`
+    where `T` is layout-equivalent to a single std::string at offset 0.
+    ABI: void(sret, this*, string*, string*).
+
+    The `this` argument is built by allocating a 24-byte raw slot and
+    placement-constructing a libc++ std::string into it (== a ZiFolder
+    whose `basePath_` member is `base_path`).  The slot is destroyed
+    in place and freed after the call.
+    """
+    this_slot = alloc_uninit_slot()
+    _place_construct(this_slot, base_path, len(base_path))
+    sub_p = make_string(subdir)
+    ext_p = make_string(extra)
+    sret  = alloc_uninit_slot()
+    try:
+        fn(sret, this_slot, sub_p, ext_p)
+        return string_bytes(sret)
+    finally:
+        destroy_and_free_slot(sret)
+        free_string(ext_p)
+        free_string(sub_p)
+        _destroy_in_place(this_slot)
+        _free_uninit(this_slot)
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1355,6 +1427,10 @@ def iter_inputs(sym: Symbol):
         for dtype, opts, label in corpus:
             yield ((dtype, opts), label)
         return
+    if sym.kind == "sret_zifolder_2cref":
+        for base, sub, ext, label in ZIFOLDER_FOLDERPATH_INPUTS:
+            yield ((base, sub, ext), label)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1422,6 +1498,9 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         proto_args = [ctypes.c_void_p, ctypes.c_uint32, ctypes.c_uint32]
     elif sym.kind == "sret_props_cref":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_zifolder_2cref":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p,
+                      ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1581,6 +1660,12 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
                 c = call_sret_props_cref(fn_cand, dt_ptr)
             finally:
                 free_devicetype(dt_ptr)
+        elif sym.kind == "sret_zifolder_2cref":
+            base_z: bytes = args[0]  # type: ignore[assignment]
+            sub_z:  bytes = args[1]  # type: ignore[assignment]
+            ext_z:  bytes = args[2]  # type: ignore[assignment]
+            o = call_sret_zifolder_2cref(fn_orig, base_z, sub_z, ext_z)
+            c = call_sret_zifolder_2cref(fn_cand, base_z, sub_z, ext_z)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

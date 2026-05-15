@@ -70,6 +70,8 @@ set(LIBCXX_TEST_SOURCES
     src/device/mf_sfc.cpp
     src/device/awg_device_props.cpp
     src/infra/calver.cpp
+    src/io/zi_folder.cpp
+    src/io/zi_environment.cpp
 )
 
 # C-ABI shim for the harness — heap-allocates and inspects libc++

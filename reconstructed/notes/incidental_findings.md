@@ -5072,3 +5072,97 @@ point or a debug build of LabOne) could close.
 
 **Action items**: None.  Audit closure recorded so a future
 session does not re-audit the same backlog.
+
+---
+
+## IF-272  `ZiFolder::folderPath` recon diverged from the binary on three independent points
+
+**Status**: fixed 2026-05-15 (commit pending; this entry).
+
+**Discovered**: Phase F follow-up.  Built a `diff_unreachable`
+harness shape `sret_zifolder_2cref` for
+`ZiFolder::folderPath(string const&, string const&) const`
+(`@0x2ce2f0`) using the existing 24-byte placement-construct slot
+mechanism (a `ZiFolder` is layout-equivalent to a single
+`std::string` at offset 0).  All 17 corpus inputs failed before
+the fix; all 17 pass after.
+
+**Severity**: likely-bug (silently wrong output for any caller).
+
+**Three divergences against the binary at `0x2ce2f0`–`0x2ce5a9`:**
+
+1. **Vendor-segment branch inverted.**  The recon body
+   unconditionally appended `"$Zurich Instruments"` between
+   `subdir` and `"LabOne"`.  The binary actually inserts the
+   vendor segment **only when `subdir` is NOT one of the two
+   canonical host-side roots** `"/data"` (size 5) or
+   `"/settings"` (size 9):
+   - `2ce374: cmp $0x5,%rcx` → `jne 2ce440` (size!=5 → APPEND)
+   - `2ce39b: jne 2ce440` (XOR vs `/data` mismatch → APPEND)
+   - `2ce3a1: jmp 2ce480` (`/data` match → SKIP)
+   - `2ce43e: je  2ce480` (XOR vs `/settings` zero → SKIP)
+   The two block-header summary comments in `zi_folder.cpp:42-54`
+   self-flagged the confusion; the body picked the wrong branch
+   anyway.
+
+2. **Vendor-segment literal had a stray `$` prefix.**  The recon
+   wrote `"$Zurich Instruments"` (19 chars, leading `$`).  The
+   binary writes `"Zurich Instruments"` (18 chars, no prefix).
+   The `'$'` character in the recon was a misreading of the
+   libc++ short-string SIZE byte: `2ce440: movb $0x24,-0x40(%rbp)`
+   sets the SSO header byte to `0x24 = 36 = (18 << 1)` — the
+   encoded length, not a data character.  rodata at `0x90b4eb`
+   confirms the literal is 18 bytes `"Zurich Instruments"`.
+
+3. **`basePath_` had a spurious empty-string guard.**  The recon
+   wrote `if (!basePath_.empty()) result /= basePath_`.  The
+   binary unconditionally appends `basePath_` (no guard at
+   `2ce4bf`–`2ce507`) — only `extra` has the non-empty guard at
+   `2ce539`.  This produces the same output for typical inputs
+   but diverges when `basePath_` is empty (e.g. the
+   `"empty basePath /data"` corpus row): binary emits
+   `"/data/LabOne"` (note the `LabOne` segment after the empty
+   slot), recon emits `"/data/$Zurich Instruments/LabOne"`
+   (compounded with bug 1).  The harness exercises this with the
+   `(b"", b"/data", b"")` input.
+
+**Fix:** rewrote the body in
+`reconstructed/src/io/zi_folder.cpp:62-83` to:
+
+```cpp
+fs::path result(subdir);
+const bool isCanonicalRoot =
+    (subdir.size() == 5 && subdir == "/data") ||
+    (subdir.size() == 9 && subdir == "/settings");
+if (!isCanonicalRoot) {
+    result /= "Zurich Instruments";
+}
+result /= "LabOne";
+result /= basePath_;
+if (!extra.empty()) {
+    result /= extra;
+}
+return result.string();
+```
+
+Also corrected the inverted `\brief` and supporting comment block
+in `reconstructed/include/zhinst/io/zi_folder.hpp:35-40` and
+`:68-89` (these had the vendor-segment condition stated
+backwards: "inserted only when `/data` or `/settings`" → "omitted
+only when `/data` or `/settings`").  The signature and other
+declarations were unchanged.
+
+**Verification:**
+- `tests/diff_unreachable/harness.py --filter folderPath`:
+  17/17 PASS (was 17/17 FAIL pre-fix).
+- Full `tests/diff_unreachable/harness.py`: 1283/1283 PASS
+  (was 1266/1266 pre-change; +17 new from this symbol).
+- Full `tests/diff_test_fast.py`: 1603/1603 PASS (no regression).
+  No `compile_seqc` test reaches `ZiFolder::folderPath` in a
+  byte-observable way — the `ziFolder()` factory feeds it but
+  none of the SeqC test inputs cause the result to be embedded
+  in an emitted ELF, which is why the bug went undetected before
+  the harness was built.
+
+**Action items**: None.  Bug fixed; harness regression-locks the
+behaviour going forward.

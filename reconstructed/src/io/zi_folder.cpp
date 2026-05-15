@@ -37,41 +37,43 @@ ZiFolder::ZiFolder(std::string basePath)
 // --------------------------------------------------------------------------
 // ZiFolder::folderPath                                           @0x2ce2f0
 // --------------------------------------------------------------------------
-// Builds: basePath / [optional "$Zurich Instruments"] / "LabOne" / serial / extra
+// Builds: subdir / [optional "Zurich Instruments"] / "LabOne" /
+//         basePath_ / [extra-if-non-empty]
 //
-// The binary constructs a boost::filesystem::path from basePath_ (via strlen +
-// new string), then:
-//   1. Checks subdir length:
-//      - 9 => compare with "/settings" => if match, append "$Zurich Instruments"
-//      - 5 => compare with "/data"     => if match, append "$Zurich Instruments"
-//      - else => append "$Zurich Instruments" always? No — the jne at 0x2ce440
-//        leads to the append at 0x2ce444. Actually the else-branch *does* append
-//        the literal "$Zurich Instruments".
-//      Correction: the binary appends "$Zurich Instruments" for /data and /settings
-//      matches, and also for non-matching subdirs (the jne at 0x2ce39b and 0x2ce43e
-//      both fall through to the append). Re-reading: the jne at 0x2ce378 (len!=5)
-//      jumps to 0x2ce440 which *is* the append block. So it always appends
-//      "$Zurich Instruments" regardless.
-//   2. Appends "LabOne".
-//   3. Appends deviceSerial (the second const string& arg = `this` pointer's
-//      caller passes serial). Actually looking at the prototype, the args
-//      are (subdir, extra), and `this` contains basePath_.
-//   4. Appends extra if non-empty.
+// The literal "Zurich Instruments" (18 chars, NO leading '$') is
+// inserted unless `subdir` matches one of the two canonical
+// host-side roots:
+//   - subdir.size() == 5 AND subdir == "/data"
+//   - subdir.size() == 9 AND subdir == "/settings"
+// In those two cases the vendor segment is SKIPPED.  All other
+// subdir values (including the empty string and length-5 /
+// length-9 strings that don't match) get the vendor segment.
 //
-// Simplified reconstruction:
+// Disassembly notes:
+//   - The "Zurich Instruments" literal lives at rodata 0x90b4eb.
+//     The binary's `movb $0x24,-0x40(%rbp)` at 0x2ce440 sets the
+//     libc++ short-string SIZE byte to `0x24 = 36 = (18 << 1)`,
+//     i.e. an 18-char SSO string — NOT a leading '$' character.
+//   - The branch decisions at 2ce39b/2ce3a1 (size==5 path) and
+//     2ce43e (size==9 path) jump to 0x2ce480 (skip-vendor /
+//     LabOne block) on MATCH and to 0x2ce440 (append-vendor) on
+//     mismatch.
+//   - basePath_ is appended unconditionally; only `extra` has the
+//     non-empty guard at 2ce539.
 std::string ZiFolder::folderPath(const std::string& subdir,
                                  const std::string& extra) const
 {
     namespace fs = boost::filesystem;
 
-    // Binary builds: subdir / "$Zurich Instruments" / "LabOne" / basePath_ / extra
-    // Initial path from subdir (rdx); basePath_ is the device serial.
     fs::path result(subdir);
-    result /= "$Zurich Instruments";
-    result /= "LabOne";
-    if (!basePath_.empty()) {
-        result /= basePath_;
+    const bool isCanonicalRoot =
+        (subdir.size() == 5 && subdir == "/data") ||
+        (subdir.size() == 9 && subdir == "/settings");
+    if (!isCanonicalRoot) {
+        result /= "Zurich Instruments";
     }
+    result /= "LabOne";
+    result /= basePath_;
     if (!extra.empty()) {
         result /= extra;
     }

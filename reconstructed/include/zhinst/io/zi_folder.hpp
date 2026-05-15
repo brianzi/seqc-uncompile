@@ -33,9 +33,10 @@ namespace zhinst {
 //! location.
 //!
 //! `folderPath()` composes a full
-//! `<base>/<subdir>/$Zurich Instruments/LabOne/<deviceSerial>/<extra>`
-//! path (the `$Zurich Instruments` segment is inserted only for the
-//! standard `data` and `settings` subdirs). `sessionSaveDirectoryName()`
+//! `<subdir>[/Zurich Instruments]/LabOne/<basePath_>[/<extra>]`
+//! path (the `Zurich Instruments` segment is inserted for every
+//! `subdir` *except* the canonical `"/data"` and `"/settings"`
+//! literals). `sessionSaveDirectoryName()`
 //! produces a timestamped, per-device directory name suitable for
 //! storing one session's output.
 class ZiFolder {
@@ -65,24 +66,27 @@ public:
     //!                 paths derived from this instance.
     explicit ZiFolder(std::string basePath);
 
-    // Build a folder path:  <basePath> / <subdir> / "LabOne" / <deviceSerial> / <extra>
-    // where <subdir> is determined by the value of `subdir`:
-    //   - "/settings" (len 9)  => "$Zurich Instruments" is appended first
-    //   - "/data"     (len 5)  => "$Zurich Instruments" is appended first
-    //   - anything else        => no intermediate "$Zurich Instruments" component
-    // Then "LabOne" is always appended, followed by `deviceSerial` (if non-empty)
-    // and `extra` (if non-empty).
+    // Build a folder path:  <subdir> / [optional "Zurich Instruments"] /
+    //                       "LabOne" / <basePath_> / [extra]
+    // The "Zurich Instruments" segment is inserted unless `subdir` is
+    // one of the two canonical host-side roots:
+    //   - "/data"     (size 5) => SKIP "Zurich Instruments"
+    //   - "/settings" (size 9) => SKIP "Zurich Instruments"
+    //   - anything else        => INSERT "Zurich Instruments"
+    // Then "LabOne" and `basePath_` are always appended; `extra` is
+    // appended only when non-empty.  Verified by IF-272 against the
+    // binary at 0x2ce2f0 and by the diff_unreachable harness.
     //
     // Returns a boost::filesystem::path encoded as std::string. @0x2ce2f0
     //! \brief Composes
-    //! `<basePath_>/<subdir>[/$Zurich Instruments]/LabOne/[<extra>]`
-    //! where the `$Zurich Instruments` segment is inserted only when
-    //! `subdir` is the canonical `"/data"` or `"/settings"` literal.
-    //! \param subdir Sub-directory marker; the literal strings
-    //!               `"/data"` and `"/settings"` trigger the vendor
-    //!               segment, any other value is appended verbatim.
-    //! \param extra  Optional tail segment appended after `LabOne`
-    //!               (e.g. device serial); empty value is skipped.
+    //! `<subdir>[/Zurich Instruments]/LabOne/<basePath_>[/<extra>]`,
+    //! omitting the `Zurich Instruments` segment iff `subdir` is the
+    //! canonical `"/data"` or `"/settings"` literal.
+    //! \param subdir Sub-directory marker; `"/data"` and `"/settings"`
+    //!               suppress the vendor segment, any other value
+    //!               inserts it.
+    //! \param extra  Optional tail segment appended after `basePath_`
+    //!               (e.g. a leaf filename); empty value is skipped.
     //! \return Composed path encoded as `std::string`.
     std::string folderPath(const std::string& subdir,
                            const std::string& extra) const;
