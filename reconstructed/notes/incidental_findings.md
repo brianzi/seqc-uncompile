@@ -5447,3 +5447,49 @@ The body was inlined into `writeToStream` directly (awg_compiler.cpp:1182–1198
 
 **Action items**: none — extraction landed; intermediate-set copy intentionally omitted; remaining minor divergence (string-construction route) is functionally invisible.
 
+## IF-279  `Random::seedRandom` had no recon symbol; old C-shim read 4 bytes from /dev/urandom where binary reads 8
+
+**Severity**: low (functionally indistinguishable from a user perspective; promoted to mangled symbol)
+**Status**: fixed
+**Location**: `reconstructed/src/infra/prng_libcxx.cpp` (definition, libc++ shim TU); `reconstructed/include/zhinst/infra/random.hpp` (declaration); `reconstructed/src/runtime/custom_functions_playback.cpp` (caller updated)
+**Binary symbol**: `_ZN6zhinst6Random10seedRandomEv` @ `0x16be80`, 297 B
+**Caller**: `CustomFunctions::randomSeed` @ `0x1497c0`, single call at `0x149832`
+
+### What the binary does
+1. Construct an inline `std::string` `"/dev/urandom"` on the stack (24-byte SSO form, size byte 0x18 = `(12<<1)`).
+2. Call `std::random_device(string const&)` → opens `/dev/urandom` (file descriptor stored in the random_device).
+3. Call `std::uniform_int_distribution<uint64_t>::operator()<random_device>(rd, default_param_type)`.  Default `param_type` is `[0, UINT64_MAX]`.  libc++'s implementation calls `rd()` (which returns `unsigned int`, 4 bytes) twice and combines as `lo | (uint64_t)hi << 32` to fill the 64-bit range.  Net effect: **8 bytes consumed from `/dev/urandom`** for the seed.
+4. Store the 64-bit seed at `state[0]`.
+5. Run libc++'s mt19937_64 seed-expansion to fill `state[1..312]` (multiplier `0x5851F42D4C957F2D`).
+6. Reset `state[312] = 0` (read-index slot).
+
+### What the recon used to do (pre-fix, before IF-279)
+The body lived as an `extern "C"` helper `seqc_libcxx_mt19937_seed_urandom(uint64_t* state)` in `prng_libcxx.cpp`.  It:
+- Opened `/dev/urandom` via `fopen("/dev/urandom","rb")`.
+- Read **4 bytes** into an `unsigned int seed`.
+- Ran `std::mt19937_64(seed)` and `memcpy`'d the resulting state.
+
+Two divergences from the binary:
+- **No mangled `Random::seedRandom` symbol** was exported.  The recon `.so` was missing the symbol entirely.
+- The seed was a 32-bit value zero-extended to 64 bits; the binary uses a full 64-bit value drawn as two 4-byte reads.  The resulting mt19937_64 state bits differ.
+
+The seed difference is invisible to the difftest suite because no test combines `randomSeed()` with subsequent `randomGauss()` / `randomUniform()` calls — `grep -l "randomSeed" tests/cases/` returns five files, all of which call only `randomSeed()` standalone.
+
+### What the recon now does
+- New `class Random` declared in `reconstructed/include/zhinst/infra/random.hpp` — a thin typed view onto a 313 × `uint64_t` state array.
+- Definition of `Random::seedRandom()` lives in `prng_libcxx.cpp` (the existing libc++ shim TU), built with `clang++ -stdlib=libc++` so the underlying `std::mt19937_64` seed-expansion implementation matches the binary byte-for-byte.
+- The `/dev/urandom` read is implemented manually as **two consecutive 4-byte fread calls combined as `lo | (uint64_t)hi << 32`** rather than via `std::random_device + std::uniform_int_distribution`.  Reasons:
+  - libc++'s `std::random_device::operator()` is a runtime-resolved symbol (`_ZNSt3__113random_deviceclEv`) provided only by `libc++.so`.  The host `_seqc_compiler.so` is a libstdc++ binary; it has no libc++.so runtime dependency, so calling that symbol would fail at load time (verified by `ImportError: undefined symbol: _ZNSt3__113random_deviceclEv` after a first-attempt fix).
+  - The two-4-byte-fread sequence is exactly what libc++'s `random_device("/dev/urandom") + uniform_int_distribution<uint64_t>(default)` would emit observably: 8 bytes consumed in a known order, combined into a uint64 with the low 32 bits in `lo`.
+- `randomSeed()` user fn in `custom_functions_playback.cpp` now invokes the method via `reinterpret_cast<Random*>(GlobalResources::random)->seedRandom()`, mirroring the binary's call shape at `0x149832`.
+- The legacy `seqc_libcxx_mt19937_seed_urandom` C-shim was removed; the seed-default helper (`seqc_libcxx_mt19937_seed_default`) remains for the deterministic-init path used by `GlobalResources` ctor (separate concern).
+
+### Evidence
+- `objdump -d --start-address=0x16be80 --stop-address=0x16bfb0 _seqc_compiler.so`: full disassembly of the 297-byte body confirms the 6-step structure above.
+- libc++ source (`<random>` header): `__independent_bits_engine` / `uniform_int_distribution<uint64_t>::__call` calls the URNG `(64 + 31) / 32 = 2` times and combines `result = lo | (uint64_t)hi << bits` where `bits = 32`.
+- `nm reconstructed/build/_seqc_compiler.so | grep 6Random`: confirms `_ZN6zhinst6Random10seedRandomEv` is now defined in the recon `.so` (local visibility, intra-`.so` linkage).
+- `python tests/diff_test_fast.py`: 1603/1603 PASS after the change (was 1598/1603 in the intermediate state where libc++ `random_device` was used directly and failed at load time with `ImportError`).
+- `python tests/diff_unreachable/harness.py`: 1626/1626 PASS, no regressions.
+
+**Action items**: none — fix landed.  No harness coverage added because `seedRandom`'s observable output is non-deterministic (reads `/dev/urandom` per call); a deterministic-mode harness would require fd-injection or `LD_PRELOAD` machinery that is currently unjustified by any test scenario.
+

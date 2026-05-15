@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~9 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra` and `compiler_helpers::codegen` covered (F-followups, 2026-05-16). |
+| `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~8 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen` and `random::infra` covered (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1643,4 +1643,46 @@ verify-then-write throughout.
    - **Result**: 1603/1603 main + 1626/1626 harness — no
      observable byte difference before vs. after the
      extraction.  Cluster count: ~10 → ~9 deferred helpers.
+
+- **F-followup (cluster: `random::infra`).**
+   Promoted the binary's `Random::seedRandom()` (the 297 B
+   `/dev/urandom` PRNG seeder, binary symbol @ `0x16be80`) from
+   an `extern "C"` shim (`seqc_libcxx_mt19937_seed_urandom`) into
+   a real mangled C++ method matching the binary signature.
+
+   - **New files**: `reconstructed/include/zhinst/infra/random.hpp`
+     declaring `class Random { void seedRandom(); uint64_t state_[313]; }`
+     — a thin typed view onto the 313 × `uint64_t` mt19937_64
+     state.  Definition lives in `prng_libcxx.cpp` (the existing
+     libc++ shim TU) so the `std::mt19937_64` seed-expansion
+     matches the binary byte-for-byte.
+   - **Edits**:
+     - `prng_libcxx.cpp` gained the `Random::seedRandom()` body
+       and lost the now-redundant `seqc_libcxx_mt19937_seed_urandom`
+       C-shim.  The `/dev/urandom` read is implemented as two
+       `fread(uint32_t)` calls combined into a `uint64_t` —
+       observably identical to libc++'s
+       `random_device("/dev/urandom") + uniform_int_distribution<uint64_t>`
+       sequence the binary uses, but without taking a libc++.so
+       runtime dependency.
+     - `custom_functions_playback.cpp::randomSeed` now calls
+       `reinterpret_cast<Random*>(GlobalResources::random)->seedRandom()`,
+       mirroring the binary's call shape at `0x149832`.
+     - `CMakeLists.txt`: added `-I include` to the
+       `prng_libcxx_obj` custom-build command so the shim TU can
+       see the new header.
+     - `custom_functions.hpp::randomSeed` doc comment updated to
+       reference `Random::seedRandom()` in place of the old shim.
+   - **Pre-fix divergence (logged in IF-279)**: the old C-shim
+     read 4 bytes (uint32) from `/dev/urandom`; the binary reads
+     8 bytes (uint64).  Invisible to difftest because no test
+     case combines `randomSeed()` with subsequent `randomGauss()`
+     / `randomUniform()`.  The new implementation matches the
+     binary's 8-byte-read shape.
+   - **No harness coverage**: `seedRandom`'s output is
+     non-deterministic by design (reads `/dev/urandom`); a
+     deterministic-mode harness would need fd-injection or
+     `LD_PRELOAD` plumbing that no current scenario justifies.
+   - **Result**: 1603/1603 main + 1626/1626 harness — no
+     regressions.  Cluster count: ~9 → ~8 deferred helpers.
 

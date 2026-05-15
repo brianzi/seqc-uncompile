@@ -19,6 +19,7 @@
 #include "zhinst/ast/eval_result_value.hpp"
 #include "zhinst/runtime/resources.hpp"
 #include "zhinst/core/types.hpp"
+#include "zhinst/infra/random.hpp"
 #include "zhinst/waveform/wavetable_front.hpp"
 #include "zhinst/waveform/waveform_front.hpp"
 #include "zhinst/waveform/waveform_generator.hpp"
@@ -30,7 +31,6 @@
 #include <sstream>
 #include <stdexcept>
 
-extern "C" void seqc_libcxx_mt19937_seed_urandom(uint64_t*);
 
 
 namespace zhinst {
@@ -880,11 +880,11 @@ std::shared_ptr<EvalResults> CustomFunctions::randomSeed(  // @0x1497c0 (384B)
     // seedRandom @0x16be80 opens std::random_device("/dev/urandom") and
     // uses it to seed the mt19937-64 state array.
     //
-    // Use libc++ shim so the seed/state layout matches the binary
-    // exactly (libstdc++ and libc++ disagree on Box-Muller pair order
-    // in normal_distribution; routing all PRNG ops through the libc++
-    // shim ensures byte-identical output).
-    seqc_libcxx_mt19937_seed_urandom(GlobalResources::random);
+    // The Random class is a thin typed view onto the 313-uint64 state
+    // array; the binary's call site reinterpret_casts
+    // &GlobalResources::random[0] as Random* and invokes seedRandom()
+    // on it.  We mirror that exact call shape here.
+    reinterpret_cast<Random*>(GlobalResources::random)->seedRandom();   // @0x16be80
     return std::make_shared<EvalResults>();
 }
 

@@ -2328,11 +2328,11 @@ public:
     //! mt19937-64 PRNG used by host-side `randomGauss`/`randomUniform`
     //! evaluations from `/dev/urandom`.  No assembly is emitted.
     //!
-    //! Routed through `seqc_libcxx_mt19937_seed_urandom` so the
-    //! seed-state layout matches the libc++ ABI exactly; this is
-    //! what `normal_distribution` in the same shim consumes when
-    //! producing Box-Muller pairs in the order the original binary
-    //! requires.
+    //! Routed through `zhinst::Random::seedRandom()` (built in the
+    //! libc++ shim TU) so the seed-state layout matches the libc++
+    //! ABI exactly; this is what `normal_distribution` in the same
+    //! shim consumes when producing Box-Muller pairs in the order
+    //! the original binary requires.
     //!
     //! \param args  Must be empty.
     //! \param res   Unused.

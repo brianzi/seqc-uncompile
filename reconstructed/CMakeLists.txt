@@ -81,6 +81,7 @@ if(CLANGXX_EXECUTABLE AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         OUTPUT ${PRNG_SHIM_OBJ}
         COMMAND ${CLANGXX_EXECUTABLE} -stdlib=libc++ -fPIC -O2
                 -std=c++17 -fvisibility=hidden
+                -I ${CMAKE_CURRENT_SOURCE_DIR}/include
                 -c ${PRNG_SHIM} -o ${PRNG_SHIM_OBJ}
         DEPENDS ${PRNG_SHIM}
         COMMENT "Building PRNG shim with libc++ (clang++)"

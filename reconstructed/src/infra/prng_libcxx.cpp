@@ -44,6 +44,51 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstdio>
+#include <cstring>
+
+#include "zhinst/infra/random.hpp"
+
+// ----------------------------------------------------------------------------
+// zhinst::Random::seedRandom — exact recon of binary symbol @0x16be80
+//
+// The binary uses std::random_device("/dev/urandom") +
+// std::uniform_int_distribution<uint64_t>::operator()<random_device> to
+// draw a single 64-bit seed, then runs libc++'s mt19937_64
+// seed-expansion to fill state[1..312], finally resetting state[312] to
+// 0.
+//
+// We can't link libc++'s `std::random_device` runtime here — the
+// `_seqc_compiler.so` host process uses libstdc++, and libc++'s
+// `random_device::operator()` is a runtime-resolved symbol
+// (`_ZNSt3__113random_deviceclEv`) not provided by libstdc++.so.
+// Instead we open /dev/urandom directly and emit the exact same byte
+// sequence libc++'s `uniform_int_distribution<uint64_t>` would
+// produce: two consecutive 4-byte reads (because libc++'s random_device
+// returns `unsigned int` per call, and `uniform_int_distribution<uint64_t>`
+// with the default full-range request needs 64 bits, which it draws as
+// two 32-bit URNG calls combined as `lo | (hi << 32)`).
+// ----------------------------------------------------------------------------
+namespace zhinst {
+
+void Random::seedRandom() {                                             // @0x16be80
+    uint32_t lo = 0, hi = 0;
+    if (FILE* f = std::fopen("/dev/urandom", "rb")) {
+        (void)std::fread(&lo, sizeof(lo), 1, f);
+        (void)std::fread(&hi, sizeof(hi), 1, f);
+        std::fclose(f);
+    }
+    uint64_t seed = static_cast<uint64_t>(lo) |
+                    (static_cast<uint64_t>(hi) << 32);
+
+    std::mt19937_64 rng(seed);
+    static_assert(sizeof(std::mt19937_64) == 313 * sizeof(uint64_t),
+                  "mt19937_64 must be 313*8 bytes");
+    std::memcpy(state_, &rng, sizeof(rng));
+    // mt19937_64 leaves state[312] (read-index) at 0 after seed();
+    // matches the explicit `movq $0, 0x9c0(%rbx)` at 0x16bf58.
+}
+
+}  // namespace zhinst
 
 extern "C" {
 
@@ -57,18 +102,12 @@ void seqc_libcxx_mt19937_seed_default(uint64_t* state) {
     __builtin_memcpy(state, &rng, sizeof(std::mt19937_64));
 }
 
-// Re-seed from /dev/urandom (matches the binary's randomSeed()).
-// Reads 4 bytes (matching binary's std::random_device::operator() which
-// returns unsigned int) and seeds the mt19937_64 with that.
-void seqc_libcxx_mt19937_seed_urandom(uint64_t* state) {
-    unsigned int seed = 0;
-    if (FILE* f = std::fopen("/dev/urandom", "rb")) {
-        (void)std::fread(&seed, sizeof(seed), 1, f);
-        std::fclose(f);
-    }
-    std::mt19937_64 rng(seed);
-    __builtin_memcpy(state, &rng, sizeof(std::mt19937_64));
-}
+// Note: the urandom-seeded variant used to live here as a C shim
+// (`seqc_libcxx_mt19937_seed_urandom`).  It has been promoted into the
+// real `zhinst::Random::seedRandom()` member function above, which the
+// `randomSeed()` user-facing built-in now invokes via a
+// `reinterpret_cast<Random*>(GlobalResources::random)->seedRandom()`
+// call (matching the binary's symbol shape at `0x149832`).
 
 // Generate `n` normal-distributed samples with the given (mean, stddev),
 // scaled by `amplitude` (i.e. sample = amplitude * dist(rng)).
