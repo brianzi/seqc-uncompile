@@ -94,6 +94,24 @@ public:
     //! \param value  Phase in degrees (positive or negative).
     //! \return  The encoded 23-bit phase ready for a node write.
     static int toPhase(float value);  // @0x1c5680
+    //! \brief Fold a 32-bit unsigned value into the device's 23-bit
+    //! two's-complement representation.
+    //!
+    //! Used by `toPhase` and by per-channel PAU/POFF (Phase
+    //! Accumulator Update / Phase Offset) immediate-encoding
+    //! sites that need to wrap a 23-bit signed integer for
+    //! transmission to the device.  The encoding is:
+    //!
+    //! - if `value == 0x400000` (lone sign bit, the encoded
+    //!   `INT23_MIN`): returned unchanged as a saturation guard;
+    //! - otherwise if bit 22 (`0x400000`) is set: sign-extended
+    //!   into bits 23..31 (`value | 0xffc00000`);
+    //! - otherwise: zero-extended (`value & 0x3fffff`).
+    //!
+    //! \param value  23-bit value to wrap (top 9 bits ignored).
+    //! \return  Wrapped representation suitable for a 32-bit
+    //!          device-side register write.
+    static unsigned int pauPoffIwrap(unsigned int value);  // @0x1c5650
     //! \brief Encode a frequency-in-Hz value as the device's
     //! 48-bit phase-increment representation.
     //!

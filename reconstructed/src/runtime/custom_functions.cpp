@@ -1184,21 +1184,12 @@ int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict
 //                uint64_t for protocol encoding. Header keeps uint64_t to match
 //                callers in CustomFunctions.
 //   toPhase: roundf(phase * (2^23 / 360.0f)) → int32, then 23-bit two's-complement
-//            wrap via the same logic as pauPoffIwrap (mask 0x3fffff for positive,
+//            wrap via pauPoffIwrap (mask 0x3fffff for positive,
 //            sign-extend with 0xffc00000 for negative). Constant at .rodata
 //            0x8fd2b4 = 0x46b60b61 ≈ 23301.689f = 2^23 / 360.
-//   pauPoffIwrap: 23-bit two's-complement wrap, identical wrap as toPhase tail.
+//   pauPoffIwrap: 23-bit two's-complement wrap.  Public static so PAU/POFF
+//                 immediate-encoding sites can share the same fold.
 // ============================================================================
-
-namespace {
-// 23-bit two's-complement wrap, used by both toPhase and pauPoffIwrap.
-// Special-case: 0x400000 (sign bit alone) is left as-is (not sign-extended).
-inline uint32_t wrap23(uint32_t v) {
-    if (v == 0x400000u) return 0x400000u;
-    if (v & 0x400000u) return v | 0xffc00000u;
-    return v & 0x3fffffu;
-}
-} // namespace
 
 // NodeMap::retrieve — @0x1c55d0
 // Looks up path in entries_ map. Returns the NodeMapItem if found,
@@ -1219,11 +1210,17 @@ uint64_t NodeMap::toFrequency(double freq, double sampleClock) {  // @0x1c5630
     return static_cast<uint64_t>(static_cast<int64_t>(freq * kTwoPow48 / sampleClock));
 }
 
+unsigned int NodeMap::pauPoffIwrap(unsigned int value) {  // @0x1c5650
+    if (value == 0x400000u) return 0x400000u;
+    if (value & 0x400000u) return value | 0xffc00000u;
+    return value & 0x3fffffu;
+}
+
 int NodeMap::toPhase(float value) {  // @0x1c5680
     // 2^23 / 360 ≈ 23301.689453125f (exact bit pattern 0x46b60b61)
     constexpr float kPhaseScale = 23301.689453125f;
     int32_t scaled = static_cast<int32_t>(std::roundf(value * kPhaseScale));
-    return static_cast<int>(wrap23(static_cast<uint32_t>(scaled)));
+    return static_cast<int>(NodeMap::pauPoffIwrap(static_cast<uint32_t>(scaled)));
 }
 
 // ============================================================================

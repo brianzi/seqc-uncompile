@@ -792,7 +792,7 @@ Reconstruction difficulty: **trivial**. Probably auto-resolved once read.
 #### `zhinst::NodeMap::pauPoffIwrap(unsigned int)`
 
 - **Mangled**: `_ZN6zhinst7NodeMap12pauPoffIwrapEj`
-- **Address**: `0x1c5650` | **Size**: 43 B | **Status**: absent
+- **Address**: `0x1c5650` | **Size**: 43 B | **Status**: **fixed (IF-282, 2026-05-16)** — recon had the wrap logic as anon-namespace `wrap23` helper; promoted to public static `NodeMap::pauPoffIwrap` matching binary mangling.
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_

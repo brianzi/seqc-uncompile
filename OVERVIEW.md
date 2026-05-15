@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `node_misc::core`, `misc::?` | ~6 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra` covered, and `awg_config::device`, `device_option::device` documented/restored (F-followups, 2026-05-16). |
+| `misc::?` | ~5 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra`, `compiler_helpers::codegen`, `random::infra`, `node_misc::core` covered, and `awg_config::device`, `device_option::device` documented/restored (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1735,3 +1735,24 @@ verify-then-write throughout.
       accessor and polymorphic deep-copy.  Re-confirms AGENTS.md
       rule: always cross-check the symbol-list section, never
       trust the cluster prose.
+
+- **2026-05-16** F-followup: cluster `node_misc::core` (1
+  helper, 43 B — `NodeMap::pauPoffIwrap` @0x1c5650) **fixed by
+  promotion** (IF-282).
+    - **Symptom**: D14 inventory flagged the symbol as absent.
+      Recon already had the equivalent logic as an
+      anonymous-namespace `wrap23` helper called only from
+      `NodeMap::toPhase`.
+    - **Fix**: promote `wrap23` to a public static
+      `NodeMap::pauPoffIwrap(unsigned int)` (header + cpp);
+      route `toPhase` through it.  Body is the textbook 23-bit
+      two's-complement wrap with the `0x400000` lone-sign-bit
+      saturation guard, matching `objdump` of @0x1c5650 byte
+      for byte.
+    - **Result**: `_ZN6zhinst7NodeMap12pauPoffIwrapEj` now
+      emitted (matching binary mangled name).  1603/1603 main;
+      no harness-relevant change.  Deferred-cluster count: ~6
+      → ~5.
+    - **Note**: the public helper is now available for any
+      future PAU/POFF (Phase Accumulator Update / Phase Offset)
+      immediate-encoding call-site that needs the same fold.

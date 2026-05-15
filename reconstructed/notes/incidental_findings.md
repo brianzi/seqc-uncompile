@@ -5648,3 +5648,71 @@ update.  Confirms AGENTS.md guidance that the D14 inventory's
 the actual mangled symbol in the symbol-list section.
 
 **Action items**: none — fix landed.
+
+## IF-282  `node_misc::core` cluster — promoted anonymous-namespace `wrap23` helper to public `NodeMap::pauPoffIwrap`
+
+**Status**: fixed; cluster `node_misc::core` retired.
+
+**Severity**: cosmetic — observable behavior unchanged; restores 1 mangled symbol to binary parity.
+
+### Symptom
+
+D14 inventory (`reconstructed/notes/d14_inventory.md:792-798`)
+flagged `_ZN6zhinst7NodeMap12pauPoffIwrapEj` @0x1c5650 (43 B) as
+**absent** in the recon.  The 23-bit two's-complement wrap logic
+already existed in `reconstructed/src/runtime/custom_functions.cpp`
+as `wrap23` in an anonymous namespace, called only from
+`NodeMap::toPhase`.  The binary, by contrast, exposes it as a
+public static `NodeMap::pauPoffIwrap(unsigned int)`.
+
+### Binary body (verified via `objdump -d --start-address=0x1c5650`)
+
+```
+00000000001c5650 <_ZN6zhinst7NodeMap12pauPoffIwrapEj>:
+  mov    $0x400000, %eax
+  cmp    $0x400000, %edi
+  je     <ret>                  ; v == 0x400000 → return 0x400000
+  test   $0x400000, %edi
+  jne    <or-extend>             ; bit-22 set → sign-extend
+  and    $0x3fffff, %edi         ; else → mask 23 bits
+  jmp    <out>
+or-extend:
+  or     $0xffc00000, %edi
+out:
+  mov    %edi, %eax
+  ret
+```
+
+23-bit two's-complement wrap with a special-case for the
+sign-bit-only pattern `0x400000` (the encoded `INT23_MIN`,
+left as-is to act as a saturation guard).
+
+### Fix
+
+- `reconstructed/include/zhinst/runtime/custom_functions.hpp`:
+  add `static unsigned int NodeMap::pauPoffIwrap(unsigned int)`
+  declaration with full doc-comment.
+- `reconstructed/src/runtime/custom_functions.cpp`: drop the
+  anonymous-namespace `wrap23` helper; emit
+  `NodeMap::pauPoffIwrap` definition; route `NodeMap::toPhase`
+  through `NodeMap::pauPoffIwrap`.
+
+The function name `pauPoffIwrap` reads as "PAU/POFF immediate
+wrap" — i.e. the 23-bit fold used by the per-channel
+**Phase Accumulator Update** and **Phase Offset** sites that
+need to encode a signed-23-bit immediate.  Now that it is
+public, future PAU/POFF call-sites can share the same fold
+instead of re-deriving it inline.
+
+### Verification
+
+- `nm reconstructed/build/_seqc_compiler.so | grep
+  pauPoffIwrap`: `_ZN6zhinst7NodeMap12pauPoffIwrapEj` present
+  (T = exported text).
+- `cmake --build .` clean.
+- `python tests/diff_test_fast.py`: 1603/1603 PASS.
+
+**Action items**: none — fix landed.  If a future audit
+identifies binary PAU/POFF call-sites in the assembler/codegen
+that do this fold inline, route them through the new public
+helper.
