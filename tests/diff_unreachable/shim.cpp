@@ -376,6 +376,20 @@ std::size_t diff_unreachable_vec_u32_size(const void* p) {
     return static_cast<const std::vector<unsigned int>*>(p)->size();
 }
 
+// Heap-allocate and value-construct a vector<unsigned int> from
+// `n_words` u32s starting at `data`.  Caller releases via
+// diff_unreachable_vec_u32_free.  Used as the argument for
+// `hash2str(vector<u32> const&)`.
+void* diff_unreachable_vec_u32_make(const unsigned int* data,
+                                    std::size_t n_words) {
+    auto* v = new std::vector<unsigned int>(data, data + n_words);
+    return static_cast<void*>(v);
+}
+
+void diff_unreachable_vec_u32_free(void* p) {
+    delete static_cast<std::vector<unsigned int>*>(p);
+}
+
 static_assert(sizeof(std::vector<unsigned int>) == 24,
               "libc++ vector<unsigned int> is expected to be 24 bytes");
 

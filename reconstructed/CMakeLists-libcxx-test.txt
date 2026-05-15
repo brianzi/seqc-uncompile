@@ -64,6 +64,7 @@ set(LIBCXX_TEST_SOURCES
     src/core/diagnostics_text.cpp
     src/core/platform.cpp
     src/core/exception.cpp
+    src/core/stubs.cpp
     src/device/device_type.cpp
     src/device/device_factories.cpp
     src/device/generic_device_type.cpp

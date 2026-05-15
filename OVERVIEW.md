@@ -1508,5 +1508,39 @@ verify-then-write throughout.
   `util_wave.cpp` registered in `CMakeLists-libcxx-test.txt`.
   Corpus has 14 inputs covering 0/1/63/64/65/1023/1024/1025/4096-byte
   files, NUL/0xFF/all-bytes payloads, and the missing-file path.
-  All 14 byte-equal between original and recon (1297/1297 harness
-  cases total, was 1283).  Main test suite unchanged at 1603/1603.
+   All 14 byte-equal between original and recon (1297/1297 harness
+   cases total, was 1283).  Main test suite unchanged at 1603/1603.
+
+- **F-followup (harness expansion: `util::wave` POD batch + `hash2str`).**
+   Extended the diff-unreachable harness to cover the rest of
+   `util::wave`: `hash2str`, `double2awg`, `double2awg1m`,
+   `double2awg16`, `awg2double`, `awg2marker`, `awg2double16`.
+   Added six new shape kinds — `sret_str_vec_u32_cref` (string
+   sret from `vector<u32>` arg), `pod_u16_double_u32` (uint16
+   from double+uint32), `pod_u16_double` (uint16 from double),
+   `pod_double_u16` (double from uint16, with NaN-aware bit-equal
+   compare), `pod_u8_u16` (uint8 from uint16), and
+   `pod_double_u32` (double from uint32, NaN-aware).  Shim now
+   ships `vec_u32_make` / `vec_u32_free` so the `hash2str` corpus
+   can synthesise digest vectors directly without chaining
+   through `hash()`.  `src/core/stubs.cpp` (which actually
+   contains the binary-verified bodies of `awg2*` and `hash2str`)
+   pulled into `CMakeLists-libcxx-test.txt`.  Corpora total 262
+   new cases: 10 hash2str payloads, 17 double samples × 6 markers
+   for `double2awg{,1m}` (102 each), 17 for `double2awg16`,
+   12 each for `awg2double` / `awg2marker`, 7 for `awg2double16`.
+   Coverage includes NaN, ±Inf, ±0, denormals, and the SSE2
+   `maxsd`-clamp boundary.  Harness total now 1559/1559 (was
+   1297).  Main test suite unchanged at 1603/1603.
+
+   **Incidental fix (IF-277):** the harness immediately uncovered
+   a real recon bug — `double2awg` and `double2awg1m` used
+   `std::max(-1.0, sample) * kFullScale`, which mishandles NaN
+   (returns -1.0 rather than NaN).  The binary uses a single
+   `maxsd xmm0(=-1.0), xmm1(=sample)` instruction whose semantics
+   propagate NaN from the second source — the same pattern
+   `double2awg16` already used.  Fix replaces `std::max` with
+   `_mm_max_sd` in both functions.  Bug was unreachable from
+   user SeqC (samples come from in-range generators); detected
+   only via the harness's NaN corpus.
+

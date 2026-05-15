@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import ctypes
 import os
+import struct
 import sys
 from dataclasses import dataclass
 from typing import Callable, Iterable
@@ -230,6 +231,12 @@ _vec_u32_data.argtypes = [ctypes.c_void_p]
 _vec_u32_size = _cand.diff_unreachable_vec_u32_size
 _vec_u32_size.restype = ctypes.c_size_t
 _vec_u32_size.argtypes = [ctypes.c_void_p]
+_vec_u32_make = _cand.diff_unreachable_vec_u32_make
+_vec_u32_make.restype = ctypes.c_void_p
+_vec_u32_make.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+_vec_u32_free = _cand.diff_unreachable_vec_u32_free
+_vec_u32_free.restype = None
+_vec_u32_free.argtypes = [ctypes.c_void_p]
 
 
 def make_string(b: bytes) -> int:
@@ -541,6 +548,40 @@ SYMBOLS: list[Symbol] = [
     Symbol("util::wave::hash",            0x299760,
            "_ZN6zhinst4util4wave4hashERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE",
            "sret_vec_u32_cref"),
+    # util::wave::hash2str(vector<u32> const&) — format SHA-1 digest as
+    # lowercase hex.  String sret + vector<u32> by const-ref.
+    Symbol("util::wave::hash2str",        0x299d60,
+           "_ZN6zhinst4util4wave8hash2strERKNSt3__16vectorIjNS2_9allocatorIjEEEE",
+           "sret_str_vec_u32_cref"),
+    # util::wave::double2awg(double, uint) — 14-bit signed sample with
+    # 2 marker bits in the low 2 bits.  Returns uint16_t in %ax.
+    Symbol("util::wave::double2awg",      0x299630,
+           "_ZN6zhinst4util4wave10double2awgEdj",
+           "pod_u16_double_u32"),
+    # util::wave::double2awg1m(double, uint) — 15-bit signed sample
+    # with 1 marker bit in the low bit.
+    Symbol("util::wave::double2awg1m",    0x299680,
+           "_ZN6zhinst4util4wave12double2awg1mEdj",
+           "pod_u16_double_u32"),
+    # util::wave::double2awg16(double) — 16-bit signed sample, no
+    # markers.  NaN propagates via SSE2 maxsd semantics.
+    Symbol("util::wave::double2awg16",    0x299700,
+           "_ZN6zhinst4util4wave12double2awg16Ed",
+           "pod_u16_double"),
+    # util::wave::awg2double(u16) — inverse of double2awg: clear marker
+    # bits, sign-extend, divide by 32767.0.
+    Symbol("util::wave::awg2double",      0x2996d0,
+           "_ZN6zhinst4util4wave10awg2doubleEt",
+           "pod_double_u16"),
+    # util::wave::awg2marker(u16) — extract bottom 2 marker bits.
+    Symbol("util::wave::awg2marker",      0x2996f0,
+           "_ZN6zhinst4util4wave10awg2markerEt",
+           "pod_u8_u16"),
+    # util::wave::awg2double16(u32) — inverse of double2awg16: shift
+    # right 2, sign-extend, divide by 32767.0.
+    Symbol("util::wave::awg2double16",    0x299740,
+           "_ZN6zhinst4util4wave12awg2double16Ej",
+           "pod_double_u32"),
 ]
 
 
@@ -1026,6 +1067,86 @@ WAVE_HASH_INPUTS: list[tuple[bytes | None, str]] = [
 ]
 
 
+# `util::wave::hash2str` corpus.  Inputs are vectors of unsigned ints
+# (the SHA-1-like 5-word digest is the natural input, but this function
+# accepts any vector size).
+import math as _math
+
+WAVE_HASH2STR_INPUTS: list[tuple[list[int], str]] = [
+    ([],                                        "empty vector"),
+    ([0x00000000],                              "single 0"),
+    ([0xffffffff],                              "single 0xffffffff"),
+    ([0xdeadbeef],                              "single 0xdeadbeef"),
+    ([0x00000001],                              "single 1 (leading zero pad)"),
+    ([0x12345678, 0x9abcdef0],                  "two words"),
+    ([0xda39a3ee, 0x5e6b4b0d, 0x3255bfef,
+      0x95601890, 0xafd80709],                  "SHA-1 of empty"),
+    ([0x00, 0x00, 0x00, 0x00, 0x00],            "5 zeros"),
+    ([0xffffffff] * 5,                          "5 ffs"),
+    (list(range(10)),                           "10 small ints"),
+]
+
+
+# `util::wave::double2awg{,1m,16}` corpora.
+# Boundary inputs cover: clamp floor (-1.0), saturate threshold (>1.0),
+# zero, sub-/sup-normal, NaN/Inf (critical for double2awg16 NaN
+# propagation per the SSE2 maxsd binary-faithful path).
+DOUBLE2AWG_INPUTS: list[tuple[float, str]] = [
+    (-1.5,            "-1.5 (below clamp)"),
+    (-1.0,            "-1.0 (clamp floor)"),
+    (-0.5,            "-0.5"),
+    (-1e-9,           "-1e-9"),
+    (0.0,             "0.0"),
+    (-0.0,            "-0.0"),
+    (1e-9,            "1e-9"),
+    (0.25,            "0.25"),
+    (0.5,             "0.5"),
+    (0.999,           "0.999"),
+    (1.0,             "1.0 (boundary)"),
+    (1.0 + 1e-9,      "1.0+eps (just over)"),
+    (1.5,             "1.5 (over threshold)"),
+    (1e9,             "1e9"),
+    (_math.inf,       "+inf"),
+    (-_math.inf,      "-inf"),
+    (_math.nan,       "NaN"),
+]
+
+# Marker corpus for the 2-arg double2awg / double2awg1m: covers all
+# low-bit patterns (only low 2 / low 1 bits matter; high bits should
+# be ignored).
+MARKER_INPUTS: list[int] = [0, 1, 2, 3, 0xff, 0xff_ff_ff_ff]
+
+# Inverse-direction corpus for awg2double / awg2marker / awg2double16.
+# 16-bit input space is small enough to sample boundary + a few
+# representative middle values.
+U16_INPUTS: list[tuple[int, str]] = [
+    (0x0000, "0x0000"),
+    (0x0001, "0x0001 (marker bit only)"),
+    (0x0002, "0x0002 (marker bit only)"),
+    (0x0003, "0x0003 (both markers)"),
+    (0x0004, "0x0004 (sample=1, no marker)"),
+    (0x7fff, "0x7fff (max positive area)"),
+    (0x8000, "0x8000 (min negative)"),
+    (0x8003, "0x8003 (min neg + markers)"),
+    (0xfffc, "0xfffc (-1, no marker)"),
+    (0xffff, "0xffff (-1 + markers)"),
+    (0x1234, "0x1234 (mid)"),
+    (0xabcd, "0xabcd (mid)"),
+]
+
+# u32 input corpus for awg2double16: sample is in bits [17:2] after
+# `shr 2` then sign-extended from 16-bit.
+U32_AWG_INPUTS: list[tuple[int, str]] = [
+    (0x00000000, "0x00000000"),
+    (0x00000004, "0x00000004 (sample=1)"),
+    (0x0001fffc, "0x0001fffc (sample=0x7fff)"),
+    (0x00020000, "0x00020000 (sample=0x8000)"),
+    (0x0003fffc, "0x0003fffc (sample=0xffff = -1)"),
+    (0xfffffffc, "0xfffffffc (high bits set)"),
+    (0xdeadbeef, "0xdeadbeef"),
+]
+
+
 # ---------------------------------------------------------------- #
 # Test driver.
 # ---------------------------------------------------------------- #
@@ -1432,6 +1553,51 @@ def call_sret_vec_u32_cref(fn: Callable, contents: bytes | None) -> bytes:
                 pass
 
 
+def call_sret_str_vec_u32_cref(fn: Callable, words: list[int]) -> bytes:
+    """Call `string f(vector<unsigned int> const&)`.
+    ABI: void(sret_string, vector*).  Builds the vector argument from
+    `words`, calls the sret-string function, returns the result bytes.
+    """
+    arr = (ctypes.c_uint32 * len(words))(*words) if words else (ctypes.c_uint32 * 0)()
+    vec_arg = _vec_u32_make(ctypes.cast(arr, ctypes.c_void_p), len(words))
+    sret = alloc_uninit_slot()
+    try:
+        fn(sret, vec_arg)
+        return string_bytes(sret)
+    finally:
+        destroy_and_free_slot(sret)
+        _vec_u32_free(vec_arg)
+
+
+def call_pod_u16_double_u32(fn: Callable, sample: float, marker: int) -> int:
+    """Call `uint16_t f(double, uint32_t)`."""
+    return int(fn(sample, marker))
+
+
+def call_pod_u16_double(fn: Callable, sample: float) -> int:
+    """Call `uint16_t f(double)`."""
+    return int(fn(sample))
+
+
+def call_pod_double_u16(fn: Callable, sample: int) -> float:
+    """Call `double f(uint16_t)`."""
+    v = fn(sample)
+    # NaN-aware comparison: bitwise representation comparison via
+    # struct.pack rounds NaN bit patterns into a stable form for
+    # equality checks.
+    return float(v)
+
+
+def call_pod_u8_u16(fn: Callable, sample: int) -> int:
+    """Call `uint8_t f(uint16_t)`."""
+    return int(fn(sample)) & 0xff
+
+
+def call_pod_double_u32(fn: Callable, sample: int) -> float:
+    """Call `double f(uint32_t)`."""
+    return float(fn(sample))
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1537,6 +1703,27 @@ def iter_inputs(sym: Symbol):
         for contents, label in WAVE_HASH_INPUTS:
             yield ((contents,), label)
         return
+    if sym.kind == "sret_str_vec_u32_cref":
+        for words, label in WAVE_HASH2STR_INPUTS:
+            yield ((words,), label)
+        return
+    if sym.kind == "pod_u16_double_u32":
+        for sample, slbl in DOUBLE2AWG_INPUTS:
+            for marker in MARKER_INPUTS:
+                yield ((sample, marker), f"{slbl}|m=0x{marker:x}")
+        return
+    if sym.kind == "pod_u16_double":
+        for sample, slbl in DOUBLE2AWG_INPUTS:
+            yield ((sample,), slbl)
+        return
+    if sym.kind in ("pod_double_u16", "pod_u8_u16"):
+        for sample, slbl in U16_INPUTS:
+            yield ((sample,), slbl)
+        return
+    if sym.kind == "pod_double_u32":
+        for sample, slbl in U32_AWG_INPUTS:
+            yield ((sample,), slbl)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1609,6 +1796,18 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
                       ctypes.c_void_p, ctypes.c_void_p]
     elif sym.kind == "sret_vec_u32_cref":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_str_vec_u32_cref":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "pod_u16_double_u32":
+        proto_args = [ctypes.c_double, ctypes.c_uint32]
+    elif sym.kind == "pod_u16_double":
+        proto_args = [ctypes.c_double]
+    elif sym.kind == "pod_double_u16":
+        proto_args = [ctypes.c_uint16]
+    elif sym.kind == "pod_u8_u16":
+        proto_args = [ctypes.c_uint16]
+    elif sym.kind == "pod_double_u32":
+        proto_args = [ctypes.c_uint32]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1652,6 +1851,18 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
         fn_orig = ORIG_BASE + sym.orig_offset                 # type: ignore[assignment]
         fn_cand = ctypes.cast(getattr(_cand, sym.cand_mangled),
                               ctypes.c_void_p).value or 0    # type: ignore[assignment]
+    elif sym.kind in ("pod_u16_double_u32", "pod_u16_double"):
+        # uint16_t f(double[, uint32_t])  — return in %ax.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint16, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint16, proto_args)
+    elif sym.kind in ("pod_double_u16", "pod_double_u32"):
+        # double f(uint16_t|uint32_t) — return in %xmm0.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_double, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_double, proto_args)
+    elif sym.kind == "pod_u8_u16":
+        # uint8_t f(uint16_t) — return in %al.
+        fn_orig = orig_fn(sym.orig_offset, ctypes.c_uint8, proto_args)
+        fn_cand = cand_fn(sym.cand_mangled, ctypes.c_uint8, proto_args)
 
     passed = failed = 0
     for args, label in iter_inputs(sym):
@@ -1778,6 +1989,38 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             contents_v: bytes | None = args[0]  # type: ignore[assignment]
             o = call_sret_vec_u32_cref(fn_orig, contents_v)
             c = call_sret_vec_u32_cref(fn_cand, contents_v)
+        elif sym.kind == "sret_str_vec_u32_cref":
+            words_v: list[int] = args[0]  # type: ignore[assignment]
+            o = call_sret_str_vec_u32_cref(fn_orig, words_v)
+            c = call_sret_str_vec_u32_cref(fn_cand, words_v)
+        elif sym.kind == "pod_u16_double_u32":
+            samp_d: float = args[0]  # type: ignore[assignment]
+            mark_u: int   = args[1]  # type: ignore[assignment]
+            o = call_pod_u16_double_u32(fn_orig, samp_d, mark_u)
+            c = call_pod_u16_double_u32(fn_cand, samp_d, mark_u)
+        elif sym.kind == "pod_u16_double":
+            samp_d2: float = args[0]  # type: ignore[assignment]
+            o = call_pod_u16_double(fn_orig, samp_d2)
+            c = call_pod_u16_double(fn_cand, samp_d2)
+        elif sym.kind == "pod_double_u16":
+            samp_u16: int = args[0]  # type: ignore[assignment]
+            o = call_pod_double_u16(fn_orig, samp_u16)
+            c = call_pod_double_u16(fn_cand, samp_u16)
+            # Bit-equal compare for NaN; raw float == otherwise.
+            if _math.isnan(o) or _math.isnan(c):
+                o = struct.pack('<d', o)  # type: ignore[assignment]
+                c = struct.pack('<d', c)  # type: ignore[assignment]
+        elif sym.kind == "pod_u8_u16":
+            samp_u8: int = args[0]  # type: ignore[assignment]
+            o = call_pod_u8_u16(fn_orig, samp_u8)
+            c = call_pod_u8_u16(fn_cand, samp_u8)
+        elif sym.kind == "pod_double_u32":
+            samp_u32: int = args[0]  # type: ignore[assignment]
+            o = call_pod_double_u32(fn_orig, samp_u32)
+            c = call_pod_double_u32(fn_cand, samp_u32)
+            if _math.isnan(o) or _math.isnan(c):
+                o = struct.pack('<d', o)  # type: ignore[assignment]
+                c = struct.pack('<d', c)  # type: ignore[assignment]
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

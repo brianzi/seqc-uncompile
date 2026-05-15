@@ -5383,3 +5383,29 @@ backlog can grow organically as new findings accrue.
 remain on file; if a future audit pass wants to extend coverage,
 the file list is at the top of `reconstructed/docs/coverage.sh`
 output.
+
+
+## IF-277  `double2awg` / `double2awg1m` mishandled NaN (std::max vs SSE2 `maxsd`)
+
+**Status**: fixed (recon)
+**Severity**: cosmetic-bug — the NaN path is unreachable from SeqC user code (sample values come from `wave w = ones(...)`-style generators that produce in-range doubles), so no main-suite test was impacted.  Detected only by the diff_unreachable harness extension to `util::wave::double2*` (Task 4 follow-up).
+
+**Where**: `reconstructed/src/waveform/util_wave.cpp`
+- `double2awg`   @ binary 0x299630
+- `double2awg1m` @ binary 0x299680
+(`double2awg16` @ 0x299700 was already correct — it uses `_mm_max_sd` for exactly this reason.)
+
+**Symptom**: harness comparison of `double2awg(NaN, marker)` yielded:
+- original (binary): `marker & 0x3` (e.g. 0, 1, 2, 3)
+- recon:             `32768 + marker` (e.g. 32772, 32773, 32774, 32775)
+
+**Root cause**: recon used `std::max(-1.0, sample) * kFullScale`.  When `sample` is NaN, `std::max` returns the first argument (-1.0), producing `-8191`, then `lround = -8191`, then `(-8191 << 2) | marker = -32764` reinterpreted as `uint16_t = 32772`.  The binary instead emits a single `maxsd xmm0(=-1.0), xmm1(=sample)` (objdump confirmed at 0x299658 and 0x2996a8) whose semantics are "NaN propagates from second source".  Hence binary computes `lround(NaN) = 0` (glibc x86_64 implementation-defined behaviour) and returns `0 + (marker & 3) = marker`.
+
+**Fix**: replaced `std::max(-1.0, sample) * kFullScale` with the same `_mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample))` pattern already in use by `double2awg16`.  All three `double2*` now share identical NaN-propagation semantics, matching the binary.
+
+**Verification**:
+- `objdump -d _seqc_compiler.so` at both addresses shows the expected `maxsd xmm0,xmm1` instruction.
+- diff_unreachable harness: 102/102 PASS for both `double2awg` and `double2awg1m` after the fix, including 6 NaN×marker combinations each.
+- Full main suite: 1603/1603 unchanged (no NaN inputs reach this code path from user SeqC).
+
+**Action items**: none — fix already landed.
