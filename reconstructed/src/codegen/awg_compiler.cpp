@@ -343,6 +343,29 @@ public:
     //! \return  Serialised JSON document.
     std::string getJsonVersion() const;                            // @0x10ac60
 
+    //! \brief Build the `.nodes_json` body for non-UHF devices.
+    //! \details Walks the compiler's node-access list, calls
+    //! `NodeMapItem::toJson()` to obtain the per-node object,
+    //! and looks each node up in `modeMap`.  When the node is
+    //! present, attaches a `"modes"` array whose entries are the
+    //! string forms (`"soft"` / `"direct"` / `"custom"`) of the
+    //! associated `AccessMode` values, in `set<AccessMode>` sort
+    //! order.  Each per-node object is appended to the returned
+    //! object's `"nodes"` array.  Called from `writeToStream`
+    //! after compilation succeeds; the returned object is
+    //! `boost::json::serialize`d into the `.nodes_json` ELF
+    //! section.
+    //! \param nodes    Compiler-side node-access list (already
+    //!                 ordered by registration).
+    //! \param modeMap  Per-node access-mode set; nodes absent from
+    //!                 the map produce a `"modes"`-less entry.
+    //! \return         A `boost::json::object` of the form
+    //!                 `{"nodes": [ {...}, ... ]}`.
+    boost::json::object nodeListToJson(
+        std::vector<NodeMapItem> const& nodes,
+        std::unordered_map<NodeMapItem, std::set<AccessMode>> const& modeMap)
+        const;                                                     // @0x1088d0
+
 private:
     //! \brief Compilation configuration captured by the ctor (raw
     //! pointer; caller-owned).
@@ -1012,6 +1035,45 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 }
 
 // ============================================================================
+// AWGCompilerImpl::nodeListToJson @0x1088d0
+//
+// Builds the `.nodes_json` body for non-UHF devices.  Iterates the
+// supplied node-access list, calls NodeMapItem::toJson() (@0x1c54f0)
+// for each node, then looks the node up in the mode-map.  When found,
+// attaches a "modes" array whose entries are toString(AccessMode) for
+// each AccessMode in the (already-sorted) set value.
+//
+// Binary structurally builds a temporary local `std::set<AccessMode>`
+// from the unordered_map's value-set (@0x108992 set::insert(begin,end))
+// and iterates that local copy when emitting "modes".  Since the value
+// is *already* a sorted set<AccessMode>, this intermediate copy is a
+// behavioural no-op and is omitted here — the emitted JSON byte
+// sequence is identical.  See incidental_findings.md (IF entry) for
+// the structural divergence note.
+// ============================================================================
+boost::json::object AWGCompilerImpl::nodeListToJson(
+    std::vector<NodeMapItem> const& nodes,
+    std::unordered_map<NodeMapItem, std::set<AccessMode>> const& modeMap)
+    const {                                                       // @0x1088d0
+    boost::json::object root;
+    boost::json::array items;
+    for (auto const& node : nodes) {
+        boost::json::object entry = node.toJson().as_object();    // @0x1c54f0
+        auto it = modeMap.find(node);                              // @0x1153f0
+        if (it != modeMap.end()) {
+            boost::json::array modesArr;
+            for (auto m : it->second) {
+                modesArr.push_back(boost::json::string(toString(m)));
+            }
+            entry["modes"] = std::move(modesArr);
+        }
+        items.emplace_back(std::move(entry));
+    }
+    root["nodes"] = std::move(items);
+    return root;
+}
+
+// ============================================================================
 // AWGCompilerImpl::writeToStream @0x108cc0
 //
 // Binary flow (~5KB, 0x108cc0..0x10a1b0):
@@ -1178,23 +1240,7 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
             auto const* nodeList = compiler_.getNodeAccessList();
             auto const* modeMap = compiler_.getNodeToModeMap();
             if (nodeList && modeMap) {
-                // nodeListToJson @0x1088d0
-                boost::json::object root;
-                boost::json::array items;
-                for (auto const& node : *nodeList) {
-                    boost::json::object entry = node.toJson().as_object();
-                    auto it = modeMap->find(node);
-                    if (it != modeMap->end()) {
-                        boost::json::array modesArr;
-                        for (auto m : it->second) {
-                            modesArr.push_back(
-                                boost::json::string(toString(m)));
-                        }
-                        entry["modes"] = std::move(modesArr);
-                    }
-                    items.emplace_back(std::move(entry));
-                }
-                root["nodes"] = std::move(items);
+                boost::json::object root = nodeListToJson(*nodeList, *modeMap);  // @0x1088d0
                 std::string json = boost::json::serialize(root);
                 elfWriter.addData(json.data(), json.size(),
                     std::string(".nodes_json"));

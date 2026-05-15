@@ -5409,3 +5409,41 @@ output.
 - Full main suite: 1603/1603 unchanged (no NaN inputs reach this code path from user SeqC).
 
 **Action items**: none — fix already landed.
+
+## IF-278  `AWGCompilerImpl::nodeListToJson` was inlined into `writeToStream`; binary has it as a separate symbol with a redundant intermediate `set` copy
+
+**Severity**: cosmetic (structural divergence, no observable byte difference)
+**Status**: fixed (separate symbol now exists; intermediate-set copy intentionally omitted)
+**Location**: `reconstructed/src/codegen/awg_compiler.cpp` (function now @ awg_compiler.cpp:~1015 region)
+**Binary symbol**: `_ZNK6zhinst15AWGCompilerImpl14nodeListToJson...` @ `0x1088d0`, 796 B
+**Caller**: `AWGCompilerImpl::writeToStream` @ `0x108cc0`, single call at `0x109258`
+
+### What the binary does
+`nodeListToJson(vector<NodeMapItem> const&, unordered_map<NodeMapItem, set<AccessMode>> const&) const` is a separate non-inlined member returning `boost::json::object` by sret.  Its body:
+1. Initialises the sret slot to an empty `boost::json::object` (24-byte SSO form: `{0, 0x07, &boost::json::object::empty_}`).
+2. Builds a local `boost::json::array items`.
+3. For each `NodeMapItem` in the input vector:
+   a. Calls `node.toJson()` (@`0x1c54f0`) → `boost::json::value`.
+   b. Looks the node up via `unordered_map::find` (@`0x1153f0`).
+   c. **If found**: constructs a *local* `std::set<AccessMode>` and inserts the iterator-pair from `it->second` into it (@`0x115600` `set::insert(begin,end)`), then iterates the local set to build a `boost::json::array modesArr` of inline `boost::json::string` values (constructed at `0x108a8c` from the `(string_view, storage_ptr)` overload, with text drawn from the static SSO table at `0x9573c0` — entries `"soft"`, `"direct"`, `"custom"`).  Inserts `entry["modes"] = modesArr`.
+   d. Appends the entry to `items` via `array::emplace_back<object>(...)`.
+4. Stores `items` into `root["nodes"]` and returns.
+
+### What the recon used to do
+The body was inlined into `writeToStream` directly (awg_compiler.cpp:1182–1198 in commit `2bfaeec`), with no separate `nodeListToJson` member.  This produced byte-identical `.nodes_json` output, but:
+- The exported recon `.so` was missing the `nodeListToJson` symbol entirely.
+- The recon iterated `it->second` directly without the redundant local-set copy.
+
+### What the recon now does
+- Promoted the body into a real public member `AWGCompilerImpl::nodeListToJson(...)` matching the binary signature; `writeToStream` now calls it and serializes the result.
+- The intermediate `std::set<AccessMode>` copy step is **intentionally omitted**: the source value is *already* a sorted `std::set<AccessMode>`, so a copy-then-iterate is observationally identical to iterating the source directly.  The emitted JSON byte sequence is unchanged (verified by 1603/1603 difftest pass before and after).
+- The recon uses `boost::json::string(toString(m))` rather than the binary's `boost::json::string(string_view, storage_ptr)` constructor with a static-table view.  Output bytes are identical because `toString(AccessMode)` returns the same `"soft"` / `"direct"` / `"custom"` strings.
+
+### Evidence
+- `objdump -d --start-address=0x1088d0 --stop-address=0x108be0 _seqc_compiler.so`: full 200-line disassembly confirms the body sketch above.
+- `objdump -s --start-address=0x9573c0 _seqc_compiler.so`: confirms the AccessMode SSO string table.
+- `objdump -d _seqc_compiler.so | grep "call.*1088d0"`: single caller, `writeToStream` @ `0x109258`.
+- `python tests/diff_test_fast.py`: 1603/1603 before and after extraction — `.nodes_json` bytes identical.
+
+**Action items**: none — extraction landed; intermediate-set copy intentionally omitted; remaining minor divergence (string-construction route) is functionally invisible.
+

@@ -1265,7 +1265,7 @@ Per-cluster outcomes:
 | stub-only user code | `tracing::TraceProvider::~TraceProvider()` | `= default` is exact-equivalent (member shared_ptr dtor); doc-only. |
 | stub-only user code | `SeqCIfElse::operator=`, `SeqCCondExpr::operator=` | Already correct copy-and-swap; binary inlines `doClone` differently; doc-only. |
 | `exceptions::core` | 13 `boost::wrapexcept` thunks | MI offset thunks, auto-emitted, no source change. |
-| `compiler_helpers::codegen`, `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~10 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core` and `base64::infra` covered (F-followups, 2026-05-16). |
+| `awg_config::device`, `device_option::device`, `node_misc::core`, `misc::?` | ~9 helpers | Zero difftest callers; deferred under `\unverifiable` regime.  `numeric::core`, `base64::infra` and `compiler_helpers::codegen` covered (F-followups, 2026-05-16). |
 
 - Tests 1603/1603 (the `dummyWarning` change is invisible to the
   suite because every test installs a real callback).  Doxygen 0
@@ -1604,4 +1604,43 @@ verify-then-write throughout.
    - **Result**: 1603/1603 main + 1626/1626 harness (was 1603).
      No incidental binary divergence — recon matches binary
      bit-for-bit on the full corpus.
+
+- **F-followup (cluster: `compiler_helpers::codegen`).**
+   Promoted `AWGCompilerImpl::nodeListToJson` (the 796 B
+   `.nodes_json` builder, binary symbol @ `0x1088d0`) from an
+   inlined block inside `writeToStream` into a real public
+   member function matching the binary signature.
+
+   - **Edits** (`reconstructed/src/codegen/awg_compiler.cpp`):
+     added the `nodeListToJson(vector<NodeMapItem> const&,
+     unordered_map<NodeMapItem, set<AccessMode>> const&) const`
+     declaration to the `AWGCompilerImpl` class, factored the
+     pre-existing inlined body (lines 1182–1198 in commit
+     `2bfaeec`) into the new definition, and replaced the
+     `writeToStream` call site with a one-line invocation +
+     `boost::json::serialize`.
+   - **Body**: walks the input vector, calls
+     `NodeMapItem::toJson()` per node, looks each node up in the
+     mode map, and when present attaches a `"modes"` array of
+     `boost::json::string` entries (`"soft"` / `"direct"` /
+     `"custom"`) sourced via `toString(AccessMode)`.  Returns
+     `{"nodes": [...]}`.
+   - **Intentional divergences from the binary** (logged in
+     IF-278): the binary builds an intermediate
+     `std::set<AccessMode>` from `it->second` before iterating to
+     emit `"modes"`; recon iterates `it->second` directly because
+     the source is already a sorted set and the copy is
+     observationally a no-op.  The binary also constructs the
+     mode strings directly via the
+     `boost::json::string(string_view, storage_ptr)` overload
+     using a static SSO table at `.rodata 0x9573c0`, while recon
+     routes through `std::string`.  Both routes emit identical
+     JSON byte sequences.
+   - **No new harness needed**: this is a member function called
+     from `writeToStream` along the normal compile pipeline, so
+     it is exercised by the existing 1603 difftest cases that
+     produce `.nodes_json` sections.
+   - **Result**: 1603/1603 main + 1626/1626 harness — no
+     observable byte difference before vs. after the
+     extraction.  Cluster count: ~10 → ~9 deferred helpers.
 
