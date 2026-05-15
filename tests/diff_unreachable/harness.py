@@ -215,6 +215,22 @@ _awgprops_destroy_in_place = _cand.diff_unreachable_awgdeviceprops_destroy_in_pl
 _awgprops_destroy_in_place.restype = None
 _awgprops_destroy_in_place.argtypes = [ctypes.c_void_p]
 
+_vec_u32_alloc_uninit = _cand.diff_unreachable_vec_u32_alloc_uninit
+_vec_u32_alloc_uninit.restype = ctypes.c_void_p
+_vec_u32_alloc_uninit.argtypes = []
+_vec_u32_free_uninit = _cand.diff_unreachable_vec_u32_free_uninit
+_vec_u32_free_uninit.restype = None
+_vec_u32_free_uninit.argtypes = [ctypes.c_void_p]
+_vec_u32_destroy_in_place = _cand.diff_unreachable_vec_u32_destroy_in_place
+_vec_u32_destroy_in_place.restype = None
+_vec_u32_destroy_in_place.argtypes = [ctypes.c_void_p]
+_vec_u32_data = _cand.diff_unreachable_vec_u32_data
+_vec_u32_data.restype = ctypes.c_void_p
+_vec_u32_data.argtypes = [ctypes.c_void_p]
+_vec_u32_size = _cand.diff_unreachable_vec_u32_size
+_vec_u32_size.restype = ctypes.c_size_t
+_vec_u32_size.argtypes = [ctypes.c_void_p]
+
 
 def make_string(b: bytes) -> int:
     """Heap-allocate a libc++ std::string from `b`; return its address."""
@@ -518,6 +534,13 @@ SYMBOLS: list[Symbol] = [
     Symbol("ZiFolder::folderPath",        0x2ce2f0,
            "_ZNK6zhinst8ZiFolder10folderPathERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEES9_",
            "sret_zifolder_2cref"),
+    # util::wave::hash(string const&) — SHA-1 of file contents at the
+    # given path.  Returns vector<unsigned int> by sret (24-byte slot).
+    # Exercises file I/O + boost::uuids::detail::sha1 pipeline plus the
+    # open-fail SHA-1-IV branch.
+    Symbol("util::wave::hash",            0x299760,
+           "_ZN6zhinst4util4wave4hashERKNSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE",
+           "sret_vec_u32_cref"),
 ]
 
 
@@ -972,6 +995,37 @@ ZIFOLDER_FOLDERPATH_INPUTS: list[tuple[bytes, bytes, bytes, str]] = [
 ]
 
 
+# `util::wave::hash` corpus.  The function reads bytes from a file on
+# disk and SHA-1's them.  Each entry is (file_contents_or_None, label):
+# None means "do not create the file", which exercises the open-fail
+# path that returns the SHA-1 IV.  A sentinel "<missing>" label is
+# tagged below.
+#
+# Boundary inputs cover the 1024-byte chunked-read loop:
+#   - empty file (0 chunks)
+#   - <1024 B (1 partial chunk)
+#   - exactly 1024 B (1 full chunk + EOF)
+#   - exactly 1025 B (1 full + 1 1-byte chunk)
+#   - >>1024 B multi-chunk
+#   - exactly 64 B (matches boost's internal SHA-1 block size)
+WAVE_HASH_INPUTS: list[tuple[bytes | None, str]] = [
+    (None,            "<missing-file>"),
+    (b"",             "empty file"),
+    (b"a",            "1 byte"),
+    (b"hello",        "5 bytes"),
+    (b"a" * 63,       "63 bytes (just under SHA-1 block)"),
+    (b"a" * 64,       "64 bytes (exactly SHA-1 block)"),
+    (b"a" * 65,       "65 bytes"),
+    (b"a" * 1023,     "1023 bytes (just under chunk)"),
+    (b"a" * 1024,     "1024 bytes (exactly one chunk)"),
+    (b"a" * 1025,     "1025 bytes (one chunk + 1)"),
+    (b"a" * 4096,     "4096 bytes (4 chunks)"),
+    (b"\x00" * 100,   "100 NULs"),
+    (b"\xff" * 100,   "100 0xFF bytes"),
+    (bytes(range(256)), "0..255 bytes"),
+]
+
+
 # ---------------------------------------------------------------- #
 # Test driver.
 # ---------------------------------------------------------------- #
@@ -1330,6 +1384,54 @@ def call_sret_zifolder_2cref(fn: Callable,
         _free_uninit(this_slot)
 
 
+def call_sret_vec_u32_cref(fn: Callable, contents: bytes | None) -> bytes:
+    """Call `vector<unsigned int> f(string const&)`.
+    ABI: void(sret, string*) where sret is a 24-byte raw slot for a
+    libc++ vector<unsigned int> (3-pointer layout).
+
+    The string argument is a filesystem path.  When `contents` is not
+    None, this helper materialises a temp file with those bytes and
+    passes its path; when None, it passes a deterministic
+    non-existent path to exercise the open-fail SHA-1-IV branch.
+
+    Returns the raw digest bytes (size * 4 = typically 20 for SHA-1).
+    """
+    import os
+    import tempfile
+
+    if contents is None:
+        # Path that almost certainly does not exist.
+        path = b"/tmp/diff_unreachable_nonexistent_" + os.urandom(8).hex().encode()
+        cleanup_path = None
+    else:
+        fd, path_str = tempfile.mkstemp(prefix="diff_unreachable_wave_")
+        try:
+            os.write(fd, contents)
+        finally:
+            os.close(fd)
+        path = path_str.encode()
+        cleanup_path = path_str
+
+    arg = make_string(path)
+    sret = _vec_u32_alloc_uninit()
+    try:
+        fn(sret, arg)
+        n_words = _vec_u32_size(sret)
+        if n_words == 0:
+            return b""
+        data_ptr = _vec_u32_data(sret)
+        return ctypes.string_at(data_ptr, n_words * 4)
+    finally:
+        _vec_u32_destroy_in_place(sret)
+        _vec_u32_free_uninit(sret)
+        free_string(arg)
+        if cleanup_path is not None:
+            try:
+                os.unlink(cleanup_path)
+            except OSError:
+                pass
+
+
 def call_ctor_blob_cref(fn: Callable, blob_size: int, data: bytes) -> bytes:
     """Call `void T::T(string const&)` (Itanium C2 base ctor):
     void(this*, string const*).
@@ -1431,6 +1533,10 @@ def iter_inputs(sym: Symbol):
         for base, sub, ext, label in ZIFOLDER_FOLDERPATH_INPUTS:
             yield ((base, sub, ext), label)
         return
+    if sym.kind == "sret_vec_u32_cref":
+        for contents, label in WAVE_HASH_INPUTS:
+            yield ((contents,), label)
+        return
     inputs = list(GENERIC_INPUTS) + PER_SYMBOL_EXTRA.get(sym.name, [])
     if sym.kind == "inplace":
         for data in inputs:
@@ -1501,6 +1607,8 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
     elif sym.kind == "sret_zifolder_2cref":
         proto_args = [ctypes.c_void_p, ctypes.c_void_p,
                       ctypes.c_void_p, ctypes.c_void_p]
+    elif sym.kind == "sret_vec_u32_cref":
+        proto_args = [ctypes.c_void_p, ctypes.c_void_p]
     else:
         raise ValueError(f"unknown kind: {sym.kind}")
 
@@ -1666,6 +1774,10 @@ def run_symbol(sym: Symbol) -> tuple[int, int]:
             ext_z:  bytes = args[2]  # type: ignore[assignment]
             o = call_sret_zifolder_2cref(fn_orig, base_z, sub_z, ext_z)
             c = call_sret_zifolder_2cref(fn_cand, base_z, sub_z, ext_z)
+        elif sym.kind == "sret_vec_u32_cref":
+            contents_v: bytes | None = args[0]  # type: ignore[assignment]
+            o = call_sret_vec_u32_cref(fn_orig, contents_v)
+            c = call_sret_vec_u32_cref(fn_cand, contents_v)
         elif sym.kind == "pod_u64_cref2":
             a6: bytes = args[0]  # type: ignore[assignment]
             b6: bytes = args[1]  # type: ignore[assignment]

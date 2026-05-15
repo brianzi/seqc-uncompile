@@ -334,3 +334,49 @@ void diff_unreachable_awgdeviceprops_free_uninit(void* p) {
 }
 
 }  // extern "C"
+
+// ---------- vector<unsigned int> sret support ----------
+//
+// `util::wave::hash(string const&)` returns `std::vector<unsigned int>`,
+// which under the Itanium ABI lowers to an sret call: caller owns 24 B
+// of raw storage in %rdi, callee placement-constructs the vector there.
+//
+// libc++ vector layout (3 pointers, 24 B total):
+//   +0x00: T*       __begin_
+//   +0x08: T*       __end_
+//   +0x10: T*       __end_cap_  (compressed-pair with allocator)
+//
+// The harness allocates 24 B raw, calls the target, then reads the
+// digest bytes via `vec_u32_data` / `vec_u32_size_bytes`, and finally
+// destroys the vector in place to reclaim the heap-owned buffer.
+
+#include <vector>
+
+extern "C" {
+
+void* diff_unreachable_vec_u32_alloc_uninit() {
+    return ::operator new(sizeof(std::vector<unsigned int>),
+                          std::align_val_t{alignof(std::vector<unsigned int>)});
+}
+
+void diff_unreachable_vec_u32_free_uninit(void* p) {
+    ::operator delete(p,
+                      std::align_val_t{alignof(std::vector<unsigned int>)});
+}
+
+void diff_unreachable_vec_u32_destroy_in_place(void* p) {
+    static_cast<std::vector<unsigned int>*>(p)->~vector();
+}
+
+const unsigned int* diff_unreachable_vec_u32_data(const void* p) {
+    return static_cast<const std::vector<unsigned int>*>(p)->data();
+}
+
+std::size_t diff_unreachable_vec_u32_size(const void* p) {
+    return static_cast<const std::vector<unsigned int>*>(p)->size();
+}
+
+static_assert(sizeof(std::vector<unsigned int>) == 24,
+              "libc++ vector<unsigned int> is expected to be 24 bytes");
+
+}  // extern "C"

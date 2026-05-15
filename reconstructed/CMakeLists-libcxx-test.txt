@@ -72,6 +72,7 @@ set(LIBCXX_TEST_SOURCES
     src/infra/calver.cpp
     src/io/zi_folder.cpp
     src/io/zi_environment.cpp
+    src/waveform/util_wave.cpp
 )
 
 # C-ABI shim for the harness — heap-allocates and inspects libc++

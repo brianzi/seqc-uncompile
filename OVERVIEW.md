@@ -1496,3 +1496,17 @@ verify-then-write throughout.
   SSO literal in this code (`"device"`/`0x0c`,
   `"platform"`/`0x10`, `"/dev"`/`0x08`, `"0"`/`0x02`) encodes
   to a sub-`'!'` byte that is visibly metadata.
+
+- **F-followup (harness expansion: `util::wave::hash`).**
+  Added `util::wave::hash(string const&)` to the diff-unreachable
+  harness via a new `sret_vec_u32_cref` shape.  The function
+  returns `vector<unsigned int>` (24 B sret slot, 3-pointer libc++
+  layout) holding the SHA-1 digest of a file's contents; the
+  shape exercises full file-I/O + boost-SHA-1 + open-fail-IV
+  paths.  Shim helpers added: `vec_u32_alloc_uninit`,
+  `vec_u32_destroy_in_place`, `vec_u32_data`, `vec_u32_size`.
+  `util_wave.cpp` registered in `CMakeLists-libcxx-test.txt`.
+  Corpus has 14 inputs covering 0/1/63/64/65/1023/1024/1025/4096-byte
+  files, NUL/0xFF/all-bytes payloads, and the missing-file path.
+  All 14 byte-equal between original and recon (1297/1297 harness
+  cases total, was 1283).  Main test suite unchanged at 1603/1603.
