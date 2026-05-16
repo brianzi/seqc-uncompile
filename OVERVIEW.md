@@ -377,8 +377,8 @@ mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
 **D11–D19 are all complete**; Phase E (diff-test harness for
 binding-unreachable reconstructions, including the 20 D16 symbols)
 is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
-`\unclear=1`, `\verifyme=1`, `\binarynote=27`, `\unverifiable=5`.
-Documentation coverage: 95.2% (2970/3120 symbols); 0 doxygen
+`\unclear=1`, `\verifyme=1`, `\binarynote=28`, `\unverifiable=5`.
+Documentation coverage: 94.7% (2979/3145 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 
@@ -1876,3 +1876,51 @@ verify-then-write throughout.
   initializeSfcOptions cluster, since `asException` already
   closed one above).  1603/1603 main; 1626/1626 harness; 0
   new doxygen warnings.
+
+- **2026-05-16** F-followup: `api_error_translation::core`
+  ErrorKind subset (4 of 8).  Reconstructed
+  `toApiCode(ErrorKind)` @ 0x2e5280,
+  `make_error_condition(ErrorKind)` @ 0x2e50c0,
+  `toZiErrorKind(ErrorKind)` @ 0x2e5240, and
+  `fromZiErrorKind(ZIErrorKind_enum)` @ 0x2e5260 in a new
+  TU `reconstructed/src/core/error_kind.cpp` with header
+  `reconstructed/include/zhinst/core/error_kind.hpp`.  Per
+  user direction, scope limited to the ErrorKind-only
+  subset — avoids fabricating the
+  `boost::system::error_code` / `error_category` /
+  `RemoteErrorCode` / `Exception::getKind` infrastructure
+  needed for the other 4 symbols (all of which have zero
+  recon callers today).  Key reconstruction decisions:
+  `ErrorKind` underlying = `uint16_t` (per `cmp $0xa,%di`
+  at 0x2e5280); `ZIErrorKind_enum` underlying = `int` (per
+  `cmp $0xa,%edi` at 0x2e5240+offset); `ZIErrorKind_enum`
+  declared at global scope (matches unqualified
+  `16ZIErrorKind_enum` mangling token); `ErrorCondition`
+  stand-in is a 16-byte `{int value; int _pad; void const*
+  category;}` matching the `rax:rdx` sret layout of
+  `make_error_condition`; `singleErrorKindCategory`
+  modelled as an opaque `ErrorKindCategoryTag` constexpr
+  sentinel in an anonymous namespace (observationally
+  equivalent for category-pointer comparison, which is the
+  only exposed use; avoids fabricating a full
+  `boost::system::error_category` vtable).  Accepted the
+  binary's odd `BadRequest → ApiHF2NotSupported (0x801f)`
+  and `Timeout → ApiConnectionInvalid (0x800d)` jump-table
+  entries (@ 0x962bc0) as-is and tagged `\binarynote`.
+  Category name `"zi:kind"` @ 0x90c668; singleton @
+  0xb7c5a8.  All 4 mangled symbols
+  (`_ZN6zhinst9toApiCodeENS_9ErrorKindE`,
+  `_ZN6zhinst20make_error_conditionENS_9ErrorKindE`,
+  `_ZN6zhinst13toZiErrorKindENS_9ErrorKindE`,
+  `_ZN6zhinst15fromZiErrorKindE16ZIErrorKind_enum`) now
+  present in `reconstructed/build/_seqc_compiler.so` (each
+  `[1]` in nm).  Truly-absent function count: 97 → 93 (−4).
+  1603/1603 main; both builds clean; 0 doxygen warnings
+  referencing the new symbols.  Coverage 95.2% → ~94.7%
+  (2979/3145) — expected dip from adding new symbols
+  faster than briefs; `\binarynote` count 27 → 28.
+  Remaining 4 deferred-by-design:
+  `isApiError(error_code)` @ 0x2e4490,
+  `isApiError(RemoteErrorCode)` @ 0x2e44f0,
+  `getApiErrorBase(ZIResult_enum)` @ 0x2e4980,
+  `special::toApiCode(Exception)` @ 0x2e7690.

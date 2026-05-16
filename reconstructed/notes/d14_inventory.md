@@ -575,7 +575,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::toApiCode(zhinst::ErrorKind)`
 
 - **Mangled**: `_ZN6zhinst9toApiCodeENS_9ErrorKindE`
-- **Address**: `0x2e5280` | **Size**: 41 B | **Status**: absent
+- **Address**: `0x2e5280` | **Size**: 41 B | **Status**: **present** (reconstructed 2026-05-16, `src/core/error_kind.cpp`; symbol verified in recon `.so`; binary's BadRequest→0x801f and Timeout→0x800d quirks preserved and tagged `\binarynote`)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst7special9toApiCodeERKNS_9ExceptionE`
 - **String evidence**: _none observed_
@@ -591,7 +591,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::toZiErrorKind(zhinst::ErrorKind)`
 
 - **Mangled**: `_ZN6zhinst13toZiErrorKindENS_9ErrorKindE`
-- **Address**: `0x2e5240` | **Size**: 18 B | **Status**: absent
+- **Address**: `0x2e5240` | **Size**: 18 B | **Status**: **present** (reconstructed 2026-05-16, `src/core/error_kind.cpp`; passthrough <10 else clamp to 2)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -599,7 +599,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::fromZiErrorKind(ZIErrorKind_enum)`
 
 - **Mangled**: `_ZN6zhinst15fromZiErrorKindE16ZIErrorKind_enum`
-- **Address**: `0x2e5260` | **Size**: 17 B | **Status**: absent
+- **Address**: `0x2e5260` | **Size**: 17 B | **Status**: **present** (reconstructed 2026-05-16, `src/core/error_kind.cpp`; passthrough <10 else clamp to 2)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -607,7 +607,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::make_error_condition(zhinst::ErrorKind)`
 
 - **Mangled**: `_ZN6zhinst20make_error_conditionENS_9ErrorKindE`
-- **Address**: `0x2e50c0` | **Size**: 15 B | **Status**: absent
+- **Address**: `0x2e50c0` | **Size**: 15 B | **Status**: **present** (reconstructed 2026-05-16, `src/core/error_kind.cpp`; sret-returns 16-byte `ErrorCondition{value, _pad, &singleErrorKindCategory}`)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -1065,21 +1065,22 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **97** | **−13** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **93** | **−17** |
 
-The "truly absent" delta of −4 is the net effect of all
+The "truly absent" delta of −17 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
 their canonical mangled names net of ones whose mangled name
 diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 110 functions before initializeSfcOptions cluster, 97 after)
+### Truly-absent breakdown (2026-05-16; 97 functions before ErrorKind subset, 93 after)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
 | `ErrorMessages::format<Args...>` template instantiations | 54 | Recon emits these implicitly via `<boost/format>` template machinery; the binary's listed instantiations are the explicit per-call-site ones the original source happens to bake.  No reconstruction work — recon would emit the same instantiations *if* something forced them, but our call sites use the same template differently.  **Informational, not actionable.** |
 | `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | **Closed 2026-05-16.**  Header template was already correct (verified body @ 0x2e0d50 against `<Hf2Option,6>`); the binary's 13 instantiations were going un-emitted because every recon caller inlined the body.  Fix: converted the header template to a declaration with `extern template` for all 13 `<T,N>` pairs, moved the definition into `src/device/device_sfc_options.cpp`, and added the 13 explicit instantiation definitions there.  All 13 mangled symbols now appear in `reconstructed/build/_seqc_compiler.so` (as `W` weak symbols rather than `t` local — global linkage divergence is reconstruction-wide and out of scope here).  Mangling diverges in the `std::array` template-arg portion (recon `St5array` libstdc++, binary `NSt3__15arrayE` libc++) — this is the standard libcxx ABI mismatch documented elsewhere in this file; qualified name + body shape match.  No test or byte-diff regression; 1603/1603 main + 1626/1626 harness still passing. |
+| `api_error_translation::core` ErrorKind subset (4 of 8) | 4 | **Closed 2026-05-16.**  `toApiCode(ErrorKind)`, `make_error_condition(ErrorKind)`, `toZiErrorKind(ErrorKind)`, `fromZiErrorKind(ZIErrorKind_enum)` reconstructed in `src/core/error_kind.cpp` against verified disasm (0x2e5280 / 0x2e50c0 / 0x2e5240 / 0x2e5260) and singleton-category sentinel @0xb7c5a8 / name `"zi:kind"` @0x90c668.  All 4 mangled symbols verified in `reconstructed/build/_seqc_compiler.so` (each `[1]` in nm).  `ZIErrorKind_enum` declared at global scope to match `16ZIErrorKind_enum` mangling token.  Binary's odd `BadRequest→0x801f` and `Timeout→0x800d` mappings preserved and tagged `\binarynote`.  No test regression; 1603/1603 main + 1626/1626 harness still passing.  Remaining 4 boost/Exception-coupled helpers deferred by design — see "API/error-translation surface" below. |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |
@@ -1091,15 +1092,16 @@ than the headline number suggests.
 
 Listed for future cluster promotion or per-symbol decisions:
 
-- **API/error-translation surface** (8): `isApiError(error_code)`,
-  `isApiError(RemoteErrorCode)`, `toApiCode(ErrorKind)`,
-  `special::toApiCode(Exception)`, `make_error_condition(ErrorKind)`,
-  `fromZiErrorKind(ZIErrorKind_enum)`, `toZiErrorKind(ErrorKind)`,
-  `getApiErrorBase(ZIResult_enum)` — all part of the
-  `boost::system::error_code` interop layer that the recon currently
-  sidesteps via the `ErrorCode` stand-in.  Cluster candidate
-  `api_error_translation::core` (~10 helpers); zero recon callers
-  today.  Defer until a caller materialises.
+- **API/error-translation surface** (8 → 4 remaining): ErrorKind-based
+  subset (4 of 8) — `toApiCode(ErrorKind)`,
+  `make_error_condition(ErrorKind)`, `toZiErrorKind(ErrorKind)`,
+  `fromZiErrorKind(ZIErrorKind_enum)` — **closed 2026-05-16** in
+  `src/core/error_kind.cpp`.  Still deferred (require real
+  `boost::system::error_code` / `Exception` interop, zero recon
+  callers): `isApiError(error_code)`,
+  `isApiError(RemoteErrorCode)`, `special::toApiCode(Exception)`,
+  `getApiErrorBase(ZIResult_enum)`.  Defer until a caller
+  materialises.
 - **NodeMap dispatcher** (1): `GetNodeMapDispatcher<…AwgDeviceType…>::call`.
   Template-method form of the existing `GetNodeMap` factory; recon
   emits the underlying `GetNodeMap` per-device specialisations but
@@ -1139,7 +1141,7 @@ Listed for future cluster promotion or per-symbol decisions:
 
 ### Action items proposed (subject to user review per AGENTS.md)
 
-The refresh did **not** surface any latent bug — all 110
+The refresh did **not** surface any latent bug — all 93
 absent symbols fall into pre-known categories (deferred by
 design, ABI-mangling divergence, C++20-gated, or
 zero-caller).  Two **incremental** opportunities worth
@@ -1148,14 +1150,18 @@ considering:
 1. **`ErrorCodeTraits<…>::asException`** — sibling of the two
    already done; same pattern (out-of-line specialisation of
    `ErrorCodeTraits<ErrorCode>`); cheap to add and would
-   round out the trio.  Mangling diverges only in the
-   template-arg portion (same caveat as
-   `successCode`/`defaultMessage`).
+   round out the trio.  **Closed 2026-05-16** (see commit
+   `4206e85`).
 2. **API-error-translation cluster scout** — formalise the
    8-symbol `api_error_translation::core` candidate above
    into a cluster note + decide whether the public API
    surfaces any of them through the binding layer.  If yes,
-   promote to a real reconstruction phase.
+   promote to a real reconstruction phase.  **Partially
+   closed 2026-05-16**: ErrorKind-only subset (4 of 8)
+   reconstructed in `src/core/error_kind.cpp`; remaining 4
+   require `boost::system::error_code` / `Exception` interop
+   that the recon currently sidesteps — deferred until a
+   recon caller materialises.
 
 The other 100 entries are no-action under current
 constraints (zero callers, ABI-mangling divergence by
