@@ -894,11 +894,34 @@ private:
 // ============================================================================
 // Free string conversion functions
 // ============================================================================
+//
+//! \name Free string-conversion and lookup helpers
+//! \brief Free functions in the `zhinst` namespace that convert
+//! between `DeviceFamily` / `DeviceTypeCode` / `DeviceOption` /
+//! `DeviceType` values and their canonical string representations,
+//! and the inverse reverse-lookups.
+//!
+//! Conventions shared by every overload below:
+//! - `family` parameters select the device-family scope used to
+//!   disambiguate options whose name varies by family (notably
+//!   `DeviceOption(0)` and `DeviceOption(6)` on `HF2`).
+//! - `dt` parameters are read-only views into a `DeviceType`; no
+//!   ownership is transferred.
+//! - `os` parameters are the destination stream for `operator<<`
+//!   overloads; the same reference is returned to allow chaining.
+//! - String inputs to reverse-lookup helpers (`toDeviceTypeCode`,
+//!   `toDeviceFamily`, `toDeviceOption`, `toDeviceOptions`,
+//!   `splitDeviceOptions`) are matched **case-sensitively** unless
+//!   the per-function brief states otherwise.
+//!
+//! \{
 
 // @ 0x2df610
 //! \brief Renders a `DeviceFamily` as its canonical uppercase name
 //! (e.g. `"HDAWG"`, `"SHF"`).  Unrecognised single-bit values render
 //! as `"unknown"`.
+//! \param family Single-bit family value to render.
+//! \return The canonical uppercase family name, or `"unknown"`.
 std::string toString(DeviceFamily family);
 
 // @ 0x2dfbc0 — decompose a DeviceFamily bitmask into its single-bit
@@ -909,22 +932,32 @@ std::string toString(DeviceFamily family);
 //! \note `Unknown = 0` and `HF2 = 1` both yield an empty
 //! vector; bit `0x800` acts as a saturation sentinel (no defined
 //! family uses it) and stops the walk early.
+//! \param family Bitmask of one or more single-bit families.
+//! \return The constituent single-bit families, in ascending bit
+//!         order; empty for `Unknown` and `HF2`.
 std::vector<DeviceFamily> expand(DeviceFamily family);
 
 // @ 0x2df760 — apply toString() to each entry of `families`.
 //! \brief Returns the names of each family in `families` via
 //! `toString(DeviceFamily)`.
+//! \param families Families to render.
+//! \return One name string per input family, in input order.
 std::vector<std::string>
 toStrings(std::vector<DeviceFamily> const& families);
 
 // @ 0x2dfa00 — operator<< writes toString(family) to ostream.
 //! \brief Writes `toString(family)` to `os`.
+//! \param os Destination stream.
+//! \param family Family to render.
+//! \return Reference to `os`.
 std::ostream& operator<<(std::ostream& os, DeviceFamily family);
 
 // @ 0x2d40b0
 //! \brief Renders a `DeviceTypeCode` as its canonical name (e.g.
 //! `"HDAWG8"`, `"SHFQA4"`).  Out-of-range values render as
 //! `"unknown"`.
+//! \param code Device-type code to render.
+//! \return The canonical code name, or `"unknown"`.
 std::string toString(DeviceTypeCode code);
 
 // @ 0x2cfee0 — looks up option name in the 31-entry jump table; for
@@ -936,6 +969,10 @@ std::string toString(DeviceTypeCode code);
 //! `DeviceFamily::HF2` and `"MF"` everywhere else; `DeviceOption(6)`
 //! renders as `"RTK"` on HF2 and `"RT"` elsewhere.  All other
 //! values are family-agnostic.
+//! \param opt Option value to render.
+//! \param family Family scope used to disambiguate family-sensitive
+//!        option names.
+//! \return The canonical short option name.
 std::string toString(DeviceOption opt, DeviceFamily family);
 
 // @ 0x2d2e20 — surprisingly simple: returns toString(dt.code()). Options
@@ -946,6 +983,8 @@ std::string toString(DeviceOption opt, DeviceFamily family);
 //! \note Options are intentionally NOT appended; combine with
 //! `getOptionsAsString()` to render a device together with its
 //! options.
+//! \param dt Device to render.
+//! \return The device-type-code name of `dt`.
 std::string toString(DeviceType const& dt);
 
 // @ 0x2d0130 — joins option names from `set` (in alphabetical order, per
@@ -954,6 +993,11 @@ std::string toString(DeviceType const& dt);
 //! \brief Joins the family-scoped names of every option in `set`
 //! using `separator`.  Options appear in the alphabetical order
 //! enforced by the set's name-keyed map.
+//! \param set Options to render.
+//! \param family Family scope passed to the per-option
+//!        `toString(DeviceOption, DeviceFamily)` overload.
+//! \param separator String inserted between adjacent option names.
+//! \return The joined option-name string; empty if `set` is empty.
 std::string toString(DeviceOptionSet const& set,
                      DeviceFamily family,
                      std::string const& separator);
@@ -963,16 +1007,26 @@ std::string toString(DeviceOptionSet const& set,
 //   toString(dt.options(), dt.family(), separator)
 //! \brief Convenience wrapper that renders `dt.options()` joined by
 //! `separator`, scoped to `dt.family()`.
+//! \param dt Device whose option set is rendered.
+//! \param separator String inserted between adjacent option names.
+//! \return The joined option-name string; empty if `dt` has no
+//!         options.
 std::string getOptionsAsString(DeviceType const& dt,
                                std::string const& separator);
 
 // @ 0x2d2d90 — free function: delegates to dt.hasOption(opt).
 //! \brief Free-function form of `DeviceType::hasOption`; delegates
 //! to the member function.
+//! \param dt Device to query.
+//! \param opt Option to test for.
+//! \return `true` iff `dt` carries `opt` in its option set.
 bool hasOption(DeviceType const& dt, DeviceOption const& opt);
 
 // @ 0x2d4350 — operator<< writes toString(code) to ostream.
 //! \brief Writes `toString(code)` to `os`.
+//! \param os Destination stream.
+//! \param code Device-type code to render.
+//! \return Reference to `os`.
 std::ostream& operator<<(std::ostream& os, DeviceTypeCode code);
 
 // @ 0x2d43d0 — reverse lookup; returns DeviceTypeCode(33) on failure.
@@ -982,6 +1036,8 @@ std::ostream& operator<<(std::ostream& os, DeviceTypeCode code);
 //! \brief Reverse lookup from a device-type name to its
 //! `DeviceTypeCode`.  The string `"none"` maps to
 //! `DeviceTypeCode::Unknown`.
+//! \param s Canonical device-type name (e.g. `"HDAWG8"`,
+//!        `"SHFQA4"`, `"none"`).
 //! \return The matching code, or the sentinel value `DeviceTypeCode(33)`
 //!         on a parse miss.
 DeviceTypeCode toDeviceTypeCode(std::string const& s);
@@ -1017,6 +1073,9 @@ DeviceTypeCode toDeviceTypeCode(std::string const& s);
 //! the sentinel `DeviceFamily(0x800)`, which renders as `"unknown"`.
 //! \binarynote Lower-case input strings (`"hdawg8"`, `"mfli"`, ...)
 //! do **not** match — only uppercase prefixes are recognised.
+//! \param s Device-type or family name to classify.
+//! \return The matching `DeviceFamily`, or `DeviceFamily(0x800)` on
+//!         a miss (renders as `"unknown"`).
 DeviceFamily toDeviceFamily(std::string const& s);
 
 // @ 0x2d05b0 — reverse-lookup string -> DeviceOption. Throws on miss
@@ -1025,6 +1084,8 @@ DeviceFamily toDeviceFamily(std::string const& s);
 // are silently dropped during DeviceType parsing).
 //! \brief Reverse lookup from an option name to its `DeviceOption`
 //! value.
+//! \param s Canonical option name.
+//! \return The matching `DeviceOption`.
 //! \throws std::out_of_range if `s` is not a recognised option name.
 DeviceOption toDeviceOption(std::string const& s);
 
@@ -1035,6 +1096,9 @@ DeviceOption toDeviceOption(std::string const& s);
 //! \brief Builds a `DeviceOptionSet` bound to `family` from the
 //! given option-name strings.  Unrecognised names are silently
 //! dropped (the per-entry `toDeviceOption` exception is caught).
+//! \param opts Option names to insert.
+//! \param family Family scope recorded on the resulting set.
+//! \return The populated option set.
 DeviceOptionSet toDeviceOptions(std::vector<std::string> const& opts,
                                 DeviceFamily family);
 
@@ -1046,39 +1110,66 @@ DeviceOptionSet toDeviceOptions(std::vector<std::string> const& opts,
 //! surrounding whitespace.  An all-whitespace input yields an empty
 //! vector; empty lines between options are preserved as empty
 //! tokens.
+//! \param s Newline-separated options string.
+//! \return The split tokens, in source order.
 std::vector<std::string> splitDeviceOptions(std::string const& s);
 
 // ============================================================================
 // Free predicate functions
 // ============================================================================
+//! \}
+//
+//! \name Free `DeviceType` predicate helpers
+//! \brief Free functions in the `zhinst` namespace that classify a
+//! `DeviceType` by code or option set.  Every predicate takes a
+//! single `dt` parameter (read-only view into the device under
+//! test) and returns a `bool` describing whether `dt` matches the
+//! named property.
+//! \{
 //! \brief Returns true if `dt` has a known device-type code (i.e.
 //! is not the default-constructed `Unknown`).
+//! \param dt Device to query.
+//! \return `true` iff `dt.code() != DeviceTypeCode::Unknown`.
 bool isDefined(DeviceType const& dt);   // @ 0x2d2e50 — code != Unknown
 //! \brief Returns true if `dt` is an Impedance Analyzer.  Codes
 //! `UHFIA` and `MFIA` are unconditionally true; codes covered by an
 //! IA-capable family also return true if the device carries the
 //! `IA` option; all other codes are false.
+//! \param dt Device to query.
+//! \return `true` iff `dt` is an impedance analyzer per the rule above.
 bool isIa(DeviceType const& dt);        // @ 0x2d2e70
 //! \brief Returns true if the device-type code is `MFIA`.
+//! \param dt Device to query. \return `true` iff `dt.code() == MFIA`.
 bool isMfia(DeviceType const& dt);      // @ 0x2d2ec0 — code == MFIA
 //! \brief Returns true if the device-type code is `UHFQA`.
+//! \param dt Device to query. \return `true` iff `dt.code() == UHFQA`.
 bool isUhfqa(DeviceType const& dt);     // @ 0x2d2ee0 — code == UHFQA
 //! \brief Returns true if the device-type code is one of `SHFQA2`,
 //! `SHFQA4`, or `SHFQC`.
+//! \param dt Device to query. \return `true` iff `dt.code()` is in
+//!         {`SHFQA2`, `SHFQA4`, `SHFQC`}.
 bool isShfqa(DeviceType const& dt);     // @ 0x2d2f00 — code in {SHFQA2, SHFQA4, SHFQC}
 //! \brief Returns true if the device-type code is one of `SHFSG2`,
 //! `SHFSG4`, or `SHFSG8`.
+//! \param dt Device to query. \return `true` iff `dt.code()` is in
+//!         {`SHFSG2`, `SHFSG4`, `SHFSG8`}.
 bool isShfsg(DeviceType const& dt);     // @ 0x2d2f40 — code in {SHFSG2, SHFSG4, SHFSG8}
 //! \brief Returns true if the device-type code is `SHFQC`.
+//! \param dt Device to query. \return `true` iff `dt.code() == SHFQC`.
 bool isShfqc(DeviceType const& dt);     // @ 0x2d2f80 — code == SHFQC
 //! \brief Returns true if the device-type code is one of `SHFPPC2`
 //! or `SHFPPC4`.
+//! \param dt Device to query. \return `true` iff `dt.code()` is in
+//!         {`SHFPPC2`, `SHFPPC4`}.
 bool isShfppc(DeviceType const& dt);    // @ 0x2d2fa0 — code in {SHFPPC2, SHFPPC4}
 //! \brief Returns true if the device-type code is `SHFLI`.
+//! \param dt Device to query. \return `true` iff `dt.code() == SHFLI`.
 bool isShfli(DeviceType const& dt);     // @ 0x2d2fd0 — code == SHFLI
 //! \brief Returns true if the device-type code is `GHFLI`.
+//! \param dt Device to query. \return `true` iff `dt.code() == GHFLI`.
 bool isGhfli(DeviceType const& dt);     // @ 0x2d2ff0 — code == GHFLI
 //! \brief Returns true if the device-type code is `VHFLI`.
+//! \param dt Device to query. \return `true` iff `dt.code() == VHFLI`.
 bool isVhfli(DeviceType const& dt);     // @ 0x2d3010 — code == VHFLI
 //! \brief Returns true if the device carries an MF-style marker
 //! option in its options set.
@@ -1088,6 +1179,9 @@ bool isVhfli(DeviceType const& dt);     // @ 0x2d3010 — code == VHFLI
 //! `DeviceOption::MF` (code 0).  This swap mirrors the binary's use
 //! of code 1 as the "this is an MF-flavoured unit" marker on the MF
 //! family itself.
+//! \param dt Device to query.
+//! \return `true` iff `dt` carries the family-appropriate MF
+//!         marker option.
 bool hasMf(DeviceType const& dt);       // @ 0x2d3030
 
 // @ 0x2d4c30 — returns the lazily-initialized
@@ -1098,7 +1192,9 @@ bool hasMf(DeviceType const& dt);       // @ 0x2d3030
 //! \brief Returns a reference to a lazily-initialised flat set
 //! containing every named `DeviceTypeCode` value (0..32).  Used as
 //! the universe of valid codes by validation paths.
+//! \return Reference to the singleton flat-set of all named codes.
 boost::container::flat_set<DeviceTypeCode> const& allDevices();
+//! \}
 
 }  // namespace zhinst
 
