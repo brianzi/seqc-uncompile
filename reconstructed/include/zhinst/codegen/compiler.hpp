@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -662,6 +663,83 @@ private:
     //!        read access to `customFunctions_` for emission of
     //!        the compile-result JSON.
     friend class AWGCompilerImpl;  // getJsonVersion reads customFunctions_ directly
+
+public:
+    // ------------------------------------------------------------------
+    // T5b.3 / T5b.4 — pipeline step methods.  `compile()` is a one-
+    // liner that calls these in sequence; the seqcc driver (T5b.5)
+    // calls them individually to honour `--to=<stage>` / `--from=
+    // <stage>` semantics.  Each step reads from / writes to the
+    // lifted `compile*_` members so intermediate state is observable
+    // between calls.  The binary has no equivalent member methods —
+    // the recon partitioning lands on verified binary step boundaries
+    // (see IF-306) but the entry points themselves are recon-local.
+    // ------------------------------------------------------------------
+
+    //! \brief Steps 1-3b: reset state, normalise line endings, parse,
+    //!        and detect the empty-input early-out.
+    //!
+    //! Populates `compileExpr_` on success.  Returns an empty
+    //! `optional` to indicate "continue with the rest of the pipeline";
+    //! returns an engaged `optional` carrying the empty-input
+    //! `CompileResult` when the parser produced a null `Expression`
+    //! (the binary's `0x11f283 → 0x11f557 → 0x11f5b1` early-exit path).
+    //! The caller short-circuits the remaining steps in that case.
+    std::optional<CompileResult> stepParse(const std::string& source);
+
+    //! \brief Steps 5-6: build `StaticResources` (with warning callback),
+    //!        wrap in `GlobalResources`, publish to
+    //!        `customFunctions_->resources_`, clear `reserved18_`, and
+    //!        convert the parser AST to the SeqC AST.
+    void stepToSeqCAst();
+
+    //! \brief Steps 7-9: optional SeqC-AST debug dump,
+    //!        `FrontEndLoweringFacade::lower` (gated on a non-null
+    //!        `compileSeqcAst_`), store the lowered root into `ast_`,
+    //!        and re-raise as `CompilerException` when
+    //!        `messages_.hadCompilerError()`.
+    void stepLower();
+
+    //! \brief Steps 10-11d: build the assembly preamble (start label,
+    //!        load placeholder), graft the root node (`Load`-typed
+    //!        wrapper) on top of `ast_` or `evalResult->node_`, walk
+    //!        the node tree to back-fill parent pointers, then append
+    //!        the placeholder + `evalResult` assemblers + trailer
+    //!        triple (`wwvf` / `nop` / `end`).
+    void stepBuildAsmPreamble();
+
+    //! \brief Step 12 + step 13 debug dump + step 13b round-trip +
+    //!        step 13c WavetableIR construction: construct
+    //!        `AsmOptimize` and store it in `compileOptimizer_`, run
+    //!        `optimizePreWaveform`, then optionally serialise the
+    //!        post-optimise list to a debug file and/or round-trip it
+    //!        through `serialize`/`deserialize`.  Finally allocates the
+    //!        `WavetableIR` that the prefetcher will populate.
+    void stepOptPre();
+
+    //! \brief Step 14: drive the waveform / prefetch sub-pipeline,
+    //!        populating `compileWavetableIR_` and rewriting `asmList_`
+    //!        with the prefetch-aware instruction list.
+    void stepPrefetch();
+
+    //! \brief Step 15: run `compileOptimizer_->optimizePostWaveform`,
+    //!        re-raising `OptimizeException` after framing it as a
+    //!        compiler error.
+    void stepOptPost();
+
+    //! \brief Step 16: on UHFLI / UHFQA targets, prepend the
+    //!        `AsmCommands::unsyncCervino` sequence to `asmList_`.
+    //!        No-op on other devices.
+    void stepUnsyncCervino();
+
+    //! \brief Steps 17-19b: optional final-assembly debug print, final
+    //!        error check, project `asmList_` into a `vector<Assembler>`
+    //!        (skipping `INVALID` entries), and cache `usedSampleRate_`
+    //!        from `compileStaticResources_`.  Returns the final
+    //!        `CompileResult`.
+    CompileResult stepProject();
+
+private:
     //! \brief Owning compilation's configuration (sequencer
     //!        index, debug flags, sample rate); captured by raw
     //!        pointer.

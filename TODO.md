@@ -452,12 +452,12 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
             still monolithic; only the storage moves.  Update
             `Compiler::reset()` to zero the new members.  Verify
             `diff_test_fast` 1612/1612 holds.
-      - [ ] **T5b.3** — split `Compiler::compile()` into the 9
+      - [x] **T5b.3** — split `Compiler::compile()` into the 9
             step methods, calling them sequentially from the
             public entry point.  Verify the suite after each
             split (not just at the end) so a regression
             bisects to a single step boundary.
-      - [ ] **T5b.4** — promote the 9 step methods to public in
+      - [x] **T5b.4** — promote the 9 step methods to public in
             `compiler.hpp`.  Pure visibility change.
       - [ ] **T5b.5** — split `AWGCompilerImpl::compileString()`
             into `stepInnerCompile` + `stepAssembleOpcodes` +

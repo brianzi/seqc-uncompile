@@ -247,7 +247,40 @@ void Compiler::printAST(std::shared_ptr<Expression> expr,
 // ============================================================================
 
 // 0x11f150 (~13KB)
+//
+// T5b.3: the body has been split into the 9 named step methods below;
+// `compile()` is now the canonical sequence.  Behaviour is identical
+// to the pre-T5b.3 monolithic body (verified via diff_test_fast 1612
+// + test_seqcc_diff 46 + test_seqcc_ab 15).
 CompileResult Compiler::compile(const std::string& source) {
+    if (auto earlyOut = stepParse(source)) {
+        return std::move(*earlyOut);
+    }
+    stepToSeqCAst();
+    stepLower();
+    stepBuildAsmPreamble();
+    stepOptPre();
+    stepPrefetch();
+    stepOptPost();
+    stepUnsyncCervino();
+    return stepProject();
+}
+
+// ============================================================================
+// T5b.3 — pipeline step methods
+// ============================================================================
+//
+// These are the named partitions of the original `Compiler::compile()`
+// body.  Each step boundary lands on a verified binary address (see
+// IF-306 for the cross-reference table).  Step methods read from /
+// write to the lifted `compile*_` members so intermediate state is
+// observable between them; the seqcc driver (T5b.5) calls them
+// individually after T5b.4 promotes them to public visibility.
+
+// ----------------------------------------------------------------------------
+// stepParse — steps 1-3b (entry @0x11f150, parse @0x11f27e, early-out @0x11f5b1)
+// ----------------------------------------------------------------------------
+std::optional<CompileResult> Compiler::stepParse(const std::string& source) {
     // --- 1. Reset messages, set up callbacks ---
     messages_.reset();                                          // 0x11f179
 
@@ -304,6 +337,13 @@ CompileResult Compiler::compile(const std::string& source) {
     // if (config_->debugFlags & 0x02)                          // 0x11f376
     //     printAST(compileExpr_, "...");
 
+    return std::nullopt;
+}
+
+// ----------------------------------------------------------------------------
+// stepToSeqCAst — steps 5-6 (@0x11f66f .. @0x11f7b0)
+// ----------------------------------------------------------------------------
+void Compiler::stepToSeqCAst() {
     // --- 5. Construct StaticResources with warning callback (0x11f66f) ---
     // then init with device-specific constants.
     // Binary: allocate_shared<StaticResources>(alloc,
@@ -327,7 +367,12 @@ CompileResult Compiler::compile(const std::string& source) {
 
     // --- 6. Convert to SeqC AST (0x11f7b0) ---
     compileSeqcAst_ = toSeqCAst(compileExpr_);
+}
 
+// ----------------------------------------------------------------------------
+// stepLower — steps 7-9 (@0x11f7da .. @0x11fb0d)
+// ----------------------------------------------------------------------------
+void Compiler::stepLower() {
     // The binary (libc++ ABI) handles null seqcAst gracefully: the libc++
     // shared_ptr does not assert on null dereference. In the recon (libstdc++),
     // operator* asserts non-null. Guard here: skip steps 7-8 if null.
@@ -375,7 +420,12 @@ CompileResult Compiler::compile(const std::string& source) {
     if (messages_.hadCompilerError()) {
         throw CompilerException("Compiler error while evaluating sequence");
     }
+}
 
+// ----------------------------------------------------------------------------
+// stepBuildAsmPreamble — steps 10-11d (@0x11fb1a .. @0x1205b8)
+// ----------------------------------------------------------------------------
+void Compiler::stepBuildAsmPreamble() {
     // --- 10. Build assembly preamble (0x11fb1a) ---
     // 10a: Reset wavetableFrontIndex on asmCommands
     asmCommands_->setWavetableFrontIndex(0);                                // [rbx+0x50] = 0
@@ -477,7 +527,12 @@ CompileResult Compiler::compile(const std::string& source) {
         asmList_.append(nopAsm);
         asmList_.append(endAsm);
     }
+}
 
+// ----------------------------------------------------------------------------
+// stepOptPre — step 12 + 13 + 13b + 13c (@0x120707 .. @0x120c92)
+// ----------------------------------------------------------------------------
+void Compiler::stepOptPre() {
     // --- 12. Pre-waveform optimization (0x120707) ---
     // Construct AsmOptimize with error/info callbacks bound to messages_
     auto errorCb = [this](std::string const& msg, int line) {
@@ -530,11 +585,21 @@ CompileResult Compiler::compile(const std::string& source) {
         static_cast<size_t>(config_->wavetableSize),
         config_->searchPath,
         cancelCallback_);
+}
 
+// ----------------------------------------------------------------------------
+// stepPrefetch — step 14 (@0x120d60)
+// ----------------------------------------------------------------------------
+void Compiler::stepPrefetch() {
     // --- 14. Run prefetcher (0x120d60) ---
     runPrefetcher(compileWavetableIR_, asmList_, asmCommands_,
                   compilePlaceholderAsm_, *deviceConstants_, *config_);
+}
 
+// ----------------------------------------------------------------------------
+// stepOptPost — step 15 (@0x120e2d)
+// ----------------------------------------------------------------------------
+void Compiler::stepOptPost() {
     // --- 15. Post-waveform optimization (0x120e2d) ---
     try {
         asmList_ = compileOptimizer_->optimizePostWaveform(asmList_);
@@ -544,6 +609,12 @@ CompileResult Compiler::compile(const std::string& source) {
         messages_.errorMessage(std::string(e.what()), e.lineNumber());
         throw;
     }
+}
+
+// ----------------------------------------------------------------------------
+// stepUnsyncCervino — step 16 (@0x120f2b)
+// ----------------------------------------------------------------------------
+void Compiler::stepUnsyncCervino() {
     // --- 16. Insert unsyncCervino (platform-specific) (0x120f2b) ---
     // Binary at 0x120f08: only called when deviceType == UHFLI(1) or UHFQA(4)
     if (deviceConstants_->deviceType == static_cast<uint32_t>(AwgDeviceType::UHFLI) ||
@@ -557,7 +628,12 @@ CompileResult Compiler::compile(const std::string& source) {
             ++insertPos;  // advance past just-inserted element
         }
     }
+}
 
+// ----------------------------------------------------------------------------
+// stepProject — steps 17-19b (@0x1212db .. @0x121421)
+// ----------------------------------------------------------------------------
+CompileResult Compiler::stepProject() {
     // --- 17. (Optional debug) Print final assembly (0x1212db) ---
     if (config_->debugFlags & 0x08) {
         asmList_.print(true, std::cout, true);
