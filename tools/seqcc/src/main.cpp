@@ -56,7 +56,7 @@ namespace {
 // TODO(IF-293): unify with zhinst::LaboneVersion::fullVersionWithBuild once
 // those globals are moved out of `#ifdef ZHINST_HAS_PYBIND11`.  See
 // reconstructed/notes/incidental_findings.md "IF-293".
-constexpr const char* kSeqccVersion = "0.8.0-T5a";
+constexpr const char* kSeqccVersion = "0.9.0-T5b";
 
 enum class Personality { Seqcc, Seqas, Seqdump };
 

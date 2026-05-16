@@ -838,12 +838,17 @@ passed a flag.
 
 **Severity**: process-note (no behavioural bug; structure-preserving
 refactor).
-**Status**: sanctioned exception under AGENTS.md "Tooling vs
-reconstructed code".  Approved by user before edit lands (Phase
-T5b).  **Sub-phases T5b.1 – T5b.5 landed; T5b.6 wrap-up
-pending.**  Driver-side consumption (T5b.5) verified: 5/5
-regression gates green and back-end short-circuit confirmed
-via `tests/tools/test_seqcc_to.py`.
+**Status**: **fixed (T5b.6, 2026-05)**.  All six sub-phases
+(T5b.1 – T5b.6) have landed; the stepwise refactor is in place
+on both `Compiler` and `AWGCompilerImpl`, the seqcc driver
+consumes the step methods, and the design document (§3.1 and
+§5.4 of `tools/seqcc/DESIGN.md`) has been updated to reflect
+the realised pipeline.  Final regression sweep: all 5 gates
+green (`diff_test_fast` 1612/1612, `test_seqcc_diff` 46/46,
+`test_seqcc_ab` 15/15, `test_seqcc_smoke` 4/4, `test_seqdump`
+16/16, `test_seqcc_to` 4/4).  Sanctioned under AGENTS.md
+"Tooling vs reconstructed code" / "Allowed exceptions"; user
+approval recorded before each sub-phase edit landed.
 
 ### Motivation
 

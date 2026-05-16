@@ -474,9 +474,14 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
             asserts user-visible payload shape for the three
             stages.  Partially closes IF-304 (back-end stages
             literally skipped; front-end stages still run).
-      - [ ] **T5b.6** — wrap-up: regression sweep, update
-            IF-306 status to "fixed", DESIGN.md §3 pipeline
-            diagram refresh, driver version bump to
+      - [x] **T5b.6** — wrap-up: regression sweep all green
+            (5 tool-test gates + diff_test_fast 1612/1612);
+            IF-306 status → "fixed"; DESIGN.md §3 refreshed
+            with step-method mapping table (new §3.1) and the
+            pipeline diagram now shows the `Compiler::compile`
+            / `AWGCompilerImpl::compileString` partitions;
+            DESIGN.md §5.4 withdrawal note updated to mark the
+            T5b replacement as landed; driver version bumped to
             `0.9.0-T5b`.
 
 - [ ] **T6 — `--from=<stage>`.**  Start-at-stage for `ast-lowered`,

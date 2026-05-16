@@ -83,44 +83,81 @@ natural stage boundaries already present in
 
 The driver vocabulary mirrors the stages already documented in
 `reconstructed/notes/pipeline.md` and implemented in
-`Compiler::compile()` (`reconstructed/src/codegen/compiler.cpp`):
+`Compiler::compile()` (`reconstructed/src/codegen/compiler.cpp`).
+Since **T5b** each numbered stage below is a public step method on
+`Compiler` (and the three back-end stages are public step methods on
+`AWGCompiler`), so the driver calls them one at a time and inspects
+the IR between calls — no callback machinery needed.  See §5.4.
 
 ```
 .seqc source
   │
-  ├─[parse]      flex/bison (seqc_parse)        → shared_ptr<Expression>
+  ├─[parse]      flex/bison (seqc_parse)        → shared_ptr<Expression>     ┐
+  │                                                                          │
+  ├─[astgen]     toSeqCAst()                    → shared_ptr<SeqCAstNode>    │
+  │                                                                          │
+  ├─[lower]      FrontEndLoweringFacade::lower  → LowerResult                │
+  │                                                + initial AsmList         │ Compiler::compile()
+  │                                                                          │ — 9 public step methods
+  ├─[opt-pre]    AsmOptimize::optimizePreWaveform                            │ (T5b.3, see below)
+  │                 └─ deadCodeElimination             (flag bit 0x04)       │
+  │                                                                          │
+  ├─[prefetch]   Compiler::runPrefetcher        → WavetableIR + AsmList'     │
+  │                                                                          │
+  ├─[opt-post]   AsmOptimize::optimizePostWaveform                           │
+  │                 ├─ oneStepJumpElimination          (flag bit 0x01)       │
+  │                 ├─ removeUnusedLabels + mergeLabels (flag bit 0x02)      │
+  │                 ├─ mergeRegisterZeroing            (flag bit 0x08)       │
+  │                 ├─ removeUnusedRegs + registerAllocation (flag bit 0x10) │
+  │                 └─ reportUserMessages              (always)              ┘
   │
-  ├─[astgen]     toSeqCAst()                    → shared_ptr<SeqCAstNode>
-  │
-  ├─[lower]      FrontEndLoweringFacade::lower  → LowerResult{ astResult: shared_ptr<Node>, ... }
-  │                                                + initial AsmList from AsmCommands
-  │
-  ├─[opt-pre]    AsmOptimize::optimizePreWaveform
-  │                 └─ deadCodeElimination             (flag bit 0x04)
-  │
-  ├─[prefetch]   Compiler::runPrefetcher        → WavetableIR + AsmList' (placeholders filled)
-  │
-  ├─[opt-post]   AsmOptimize::optimizePostWaveform
-  │                 ├─ oneStepJumpElimination          (flag bit 0x01)
-  │                 ├─ removeUnusedLabels + mergeLabels (flag bit 0x02)
-  │                 ├─ mergeRegisterZeroing            (flag bit 0x08)
-  │                 ├─ removeUnusedRegs + registerAllocation (flag bit 0x10)
-  │                 └─ reportUserMessages              (always)
-  │
-  ├─[assemble]   AsmList → encoded opcode bytes (.text section)
-  │
-  └─[link]       AWGCompilerImpl::writeToStream → ELF (all sections, segments, headers)
+  ├─[assemble]   AsmList → encoded opcode bytes (.text section)   ┐ AWGCompilerImpl
+  │                                                               │ ::compileString()
+  ├─[check]      device-limit enforcement (max ELF, wavemem)      │ — 3 public step
+  │                                                               │   methods (T5b.5)
+  └─[link]       AWGCompilerImpl::writeToStream → ELF             ┘
 ```
-
-(Pass bitmask values are from `reconstructed/notes/optimization_passes.md`.
-The default value of `optimizationFlags` is `0xFF` — every pass on —
-hardcoded in `compileSeqc()`.)
 
 The legacy second entry point `AWGAssembler` consumes `.seqasm` text
 directly and produces an ELF whose `e_entry` is shifted by `+0x80`
 relative to the main pipeline's output (per
 `reconstructed/notes/elf_format.md`).  `seqcc -x asm` (or `seqas`)
 exposes that path.
+
+### 3.1 Step-method mapping (T5b)
+
+`Compiler::compile()` is now a 1-line dispatcher that calls 9 public
+`step*` methods in sequence (see
+`reconstructed/include/zhinst/codegen/compiler.hpp`):
+
+| Step method        | Pipeline stage(s) above            | Binary boundary |
+|--------------------|------------------------------------|-----------------|
+| `stepParse`        | parse (steps 1–3b in source)       | `0x11f150`      |
+| `stepToSeqCAst`    | astgen (5–6)                       | `0x11f7b0`      |
+| `stepLower`        | lower (7–9)                        | `0x11f911`      |
+| `stepBuildAsmPreamble` | preamble + node-tree walk (10–11d) | `0x11fb1a`  |
+| `stepOptPre`       | opt-pre + WavetableIR build (12–13c) | `0x120707`    |
+| `stepPrefetch`     | prefetch (14)                      | `0x120c92`      |
+| `stepOptPost`      | opt-post (15)                      | `0x120e2d`      |
+| `stepUnsyncCervino`| unsync-cervino (16)                | `0x120f2b`      |
+| `stepProject`      | project + final checks (17–19b)    | `0x121345`      |
+
+`AWGCompilerImpl::compileString()` is similarly a 3-line dispatcher
+calling three public `step*` forwarders on `AWGCompiler`:
+
+| Step method            | Pipeline stage above |
+|------------------------|----------------------|
+| `stepInnerCompile`     | wraps `Compiler::compile()` + asm-text build |
+| `stepAssembleOpcodes`  | assemble |
+| `stepCheckLimits`      | check |
+
+`writeToStream()` (link) remains a separate public entry point on
+`AWGCompiler`.
+
+(Pass bitmask values are from `reconstructed/notes/optimization_passes.md`.
+The default value of `optimizationFlags` is `0xFF` — every pass on —
+hardcoded in `compileSeqc()`; seqcc overrides it via the
+`optimizationFlags` `jsonConfig` key, see IF-305.)
 
 ## 4. Command-line surface
 
@@ -370,27 +407,32 @@ via `Node::fromJson`, `AsmList::deserialize`, or
 > or hooks on reconstructed classes — `passTap_` is exactly such
 > an addition.
 >
-> **Replacement:** the stepwise `Compiler` / `AWGCompilerImpl`
-> API planned in **T5b** (see TODO.md).  Once `Compiler::compile()`
-> and `AWGCompilerImpl::compileString()` are split into named
-> step methods (`stepParse`, `stepLower`, `stepBuildAsmPreamble`,
-> `stepOptPre`, `stepPrefetch`, `stepOptPost`, ...), the driver
-> calls them sequentially and inspects the IRs *between* calls.
-> No new callback machinery on reconstructed types; no per-pass
-> branches inside the reconstructed `.cpp`.  Sub-pass granularity
-> (e.g. taps inside `AsmOptimize` between individual optimisation
-> passes) is deferred to a future phase if a concrete consumer
-> need ever materialises — at which point the same stepwise
-> refactor pattern would be applied to `AsmOptimize::run()`.
+> **Replacement (landed):** the stepwise `Compiler` /
+> `AWGCompilerImpl` API delivered in **T5b** — see §3.1 above.
+> `Compiler::compile()` is now a dispatcher over 9 public step
+> methods (T5b.3) and `AWGCompilerImpl::compileString()` is a
+> dispatcher over 3 public step forwarders on `AWGCompiler`
+> (T5b.5).  The driver in `tools/seqcc/src/driver.cpp` calls
+> these forwarders sequentially and inspects the IR sinks
+> between calls; `--to=lower` and `--to=asm` skip the back-end
+> forwarders entirely (IF-304 partial closure, T5b.5).  No new
+> callback machinery on reconstructed types; no per-pass
+> branches inside the reconstructed `.cpp`.  Sub-pass
+> granularity (e.g. taps inside `AsmOptimize` between individual
+> optimisation passes) is deferred to a future phase if a
+> concrete consumer need ever materialises — at which point the
+> same stepwise refactor pattern would be applied to
+> `AsmOptimize::run()`.
 >
 > The T5b refactor is itself a recon edit, but it is *sanctioned*
-> under AGENTS.md "Allowed exceptions": the step boundaries are
-> already documented in `reconstructed/notes/pipeline.md` against
-> verified binary addresses (`0x11f268`, `0x11f27e`, `0x11f7b0`,
-> `0x11fb1a`, `0x120707`, `0x120c92`, `0x120d60`, `0x120e2d`,
-> `0x120f2b`, `0x121345`).  The refactor preserves those
-> boundaries; it does not introduce new APIs that the original
-> binary lacks at the public-vtable level.
+> under AGENTS.md "Allowed exceptions": the step boundaries land
+> on verified binary addresses already documented in
+> `reconstructed/notes/pipeline.md` (`0x11f268`, `0x11f27e`,
+> `0x11f7b0`, `0x11fb1a`, `0x120707`, `0x120c92`, `0x120d60`,
+> `0x120e2d`, `0x120f2b`, `0x121345`).  The refactor preserves
+> those boundaries; it does not introduce new APIs that the
+> original binary lacks at the public-vtable level.  See IF-306
+> for the full sanctioned-exception write-up.
 >
 > The original `passTap_` description is retained below for
 > historical context; do not implement it.
