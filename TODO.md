@@ -1146,6 +1146,59 @@ new module, applying verify-then-write throughout.
       *Tests at close:* 1603/1603 main + 1266/1266 harness (was
       1254; +12).
 
+## Phase G — `\binarynote` re-audit
+
+Goal: re-verify all 34 in-tree `\binarynote` sites against
+`_seqc_compiler.so`.  F1 closed 2026-05-13 with 26 audited (yielding
+IF-269); 8 net-new sites have landed since via Phases F2/F3/F4/F5
+and ad-hoc doc work without binary re-verification.  These are the
+strongest authority claims a doc comment can make ("binary
+intentionally does X") and therefore the most damaging when wrong.
+
+Methodology (per F1):
+- For each site, read the body of the function it documents and the
+  cited binary address.  Verify with `objdump -d` (or GDB if
+  control-flow is non-obvious) that the binary actually exhibits
+  the claim.
+- A wrong claim → log as IF, fix recon if behaviour diverges, fix
+  doc text either way.
+- A correct claim where current voice rules want different phrasing
+  → fix in place, no IF (cosmetic).
+- A claim that has been silently fixed in recon since the
+  `\binarynote` was written (i.e. recon now matches binary normally;
+  the "quirk" is gone) → demote to plain prose or remove.
+
+- [ ] **G1 — Audit batch 1: core/ (11 sites)**
+
+      `core/diagnostics_text.cpp:498`, `:713`;
+      `core/error_kind.hpp:167`; `core/base64.hpp:27`;
+      `core/numeric.hpp:37`, `:63`; `core/diagnostics_text.hpp:115`,
+      `:166`, `:186`; `core/exception.hpp:373`; `core/platform.hpp:133`.
+      (Split into G1a/G1b mid-session if too large for one pass.)
+
+- [ ] **G2 — Audit batch 2: device/ + ast/ + asm/ (9 sites)**
+
+      `device/device_type.hpp:146`, `:1074`, `:1176`;
+      `ast/eval_results.hpp:150`; `ast/seqc_ast_node.cpp:1009`;
+      `ast/seqc_ast_node.hpp:262`, `:1200`, `:2034`;
+      `asm/asm_parser_context.hpp:159`.
+
+- [ ] **G3 — Audit batch 3: io/ + runtime/ + waveform/ + codegen/ + infra/ (14 sites)**
+
+      `io/zi_environment.cpp:256`; `io/zi_environment.hpp:149`;
+      `io/cached_parser.hpp:191`, `:279`;
+      `runtime/resources.hpp:659`, `:706`;
+      `waveform/play_config.hpp:46`; `waveform/signal.hpp:192`;
+      `waveform/waveform_generator.hpp:1028`, `:1052`;
+      `codegen/math_compiler.hpp:166`;
+      `infra/random.hpp:53`; `infra/calver.hpp:88`, `:248`.
+
+- [ ] **G4 — Triage + wrap-up**
+
+      Roll up findings: IFs filed, recon fixes landed, demotions/
+      removals applied.  Update OVERVIEW Phase G entry.  Confirm
+      full suite + harness clean before close.
+
 ## Archives
 
 All historical reconstruction work is preserved under
