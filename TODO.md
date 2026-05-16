@@ -369,15 +369,41 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       `Compiler::compile` path's assemble stage) so users can compare
       both paths.  Document the e_entry difference in driver `--help`.
 
-- [ ] **T8 — Optimisation-pass taps.**  Add the
+- [x] **T8a — `-O<n>` / `-f[no-]<pass>` / `--print-passes`.**
+      Plumb `AWGCompilerConfig::optimizationFlags` through a new
+      `optimizationFlags` jsonConfig key (sanctioned recon edit,
+      IF-305 — pre-approved by user, "Path 1": one-shot additive
+      read of an existing config field, default 0xFF preserves
+      byte-identical behaviour for all pre-T8 callers).  Driver:
+      `tools/seqcc/src/optflags.{hpp,cpp}` defines the pass table
+      (jump-elim 0x01, label-cleanup 0x02, dead-code-elim 0x04,
+      reg-zero-merge 0x08, reg-alloc 0x10), curated levels
+      (`-O0`..`-O3`; `-O2` computed from table, `-O3` = 0xFF for
+      gcc parity), `applyPassToggle`, `printPassTable`.
+      `main.cpp::extractOptFlags` pre-parses argv before CLI11
+      sees it (gcc-style: many short flags sharing the `-O`/`-f`
+      prefix don't fit CLI11's option model).  Rightmost-wins on
+      `-O` conflict; `-f<pass>` composes on top of preceding
+      `-O<n>` (or seeds 0xFF when no `-O` was given).  Unknown
+      `-f<name>` left in argv for CLI11 to surface as
+      "unrecognised option".  `options.cpp::buildJsonConfig`
+      emits `"optimizationFlags": N` only when the user actually
+      passed a flag.  Tests (`T8OptimizationFlags`, +8 cases):
+      default == pybind baseline, `-O3` == default, `-O0` differs
+      and is larger, `-O0 -freg-alloc` composes, `-fno-reg-alloc`
+      differs, unknown pass rejected, `--print-passes` lists
+      passes + levels, rightmost-`-O` wins.  Verified:
+      diff_test_fast 1612/1612, seqcc_diff 43/43, smoke 4/4.
+      Driver version `0.6.0-T8`.
+
+- [ ] **T8b — Optimisation-pass dump taps.**  Add the
       `std::function<void(std::string_view, …)>` taps to `AsmOptimize`,
       `Prefetch`, `Cache`.  Insert tap calls at each named pass
       boundary.  Implement `--dump-after=<pass>` and
-      `--dump-before=<pass>` in the driver.  Implement `-O<n>`
-      (mapping to `optimizationFlags` bitmask) and `-f[no-]<pass>`
-      toggle flags.  Add `--print-passes` listing all known pass
-      names.  Update `notes/optimization_passes.md` with the pass
-      name → bit mapping.
+      `--dump-before=<pass>` in the driver.  Update
+      `notes/optimization_passes.md` with the pass name → bit
+      mapping (T8a already cross-checked the mapping against
+      `asm_optimize.cpp` L236/L252/L257/L263/L268).
 
 - [ ] **T9 — `seqdump` mode.**  Port the section-listing logic from
       `tests/dump_elf.py` to C++ in `tools/seqcc/seqdump.cpp` (or as

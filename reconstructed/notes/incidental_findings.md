@@ -725,3 +725,70 @@ performance lever.
 
 **TODO references**: TODO.md Phase T → "T5 follow-up: optional
 literal early-exit" (to add if needed).
+
+---
+
+## IF-305  Sanctioned recon edit: `optimizationFlags` jsonConfig key for `compileSeqc()`
+
+**Severity**: process-note (no behavioural bug).
+**Status**: sanctioned exception under AGENTS.md "Tooling vs
+reconstructed code".  Approved by user before edit landed
+(Phase T8, "Path 1").
+
+The `seqcc` driver needs to expose gcc-style `-O<n>` and
+`-f[no-]<pass>` flags that ultimately control the bitmask in
+`AWGCompilerConfig::optimizationFlags` (+0x88), consumed by
+`AsmOptimize`.  The original binary hardcodes this field to
+`0xFF` in `compile_seqc.cpp`; the pybind binding offers no
+kwarg for it.
+
+**Edit**: `reconstructed/src/codegen/compile_seqc.cpp` (~L242)
+reads an optional `optimizationFlags` key from the existing
+`jsonConfig` `boost::json::object`, accepting `int64`, `uint64`,
+or non-negative `double`.  Default remains `0xFF` when the key
+is absent, so:
+
+- The pybind path (which never injects the key) is
+  byte-identical to pre-T8.
+- diff_test_fast 1612/1612 holds with no regressions.
+- The recon side has no new function/type/header surface; only
+  one local variable + one `if-contains` block + one
+  assignment changed from a literal to a variable.
+
+**Why this exception is justified**:
+
+1. The field already exists in `AWGCompilerConfig`; the original
+   binary already wires it through to `AsmOptimize`.  We are
+   not introducing new compiler behaviour — only making an
+   existing knob reachable from the tooling.
+2. `jsonConfig` is by design a free-form key-value channel for
+   callers to inject overrides without expanding the C++ ABI of
+   `compileSeqc()`.  Adding a new recognised key is the
+   idiomatic extension point.
+3. The alternative (Path 2 — a new `compileSeqcWithFlags()`
+   wrapper that takes an explicit `optimizationFlags`
+   parameter) would add a third public entry point alongside
+   `compileSeqc()`/`compileSeqcWithIR()`, plus a friend grant
+   to `AWGCompiler`, plus duplicate plumbing.  The user
+   explicitly chose Path 1 to minimise recon surface.
+4. The change is one-shot: T8 closes this lane.  Future
+   optimisation work in seqcc reuses the same jsonConfig key
+   with no further recon edits.
+
+**Driver-side wiring**: `tools/seqcc/src/optflags.{hpp,cpp}`
+(pass table, `-O<n>` mask computation, `applyPassToggle`,
+`printPassTable`); `tools/seqcc/src/main.cpp::extractOptFlags`
+pre-parses argv before CLI11 sees it; `tools/seqcc/src/options.cpp`
+emits `"optimizationFlags": N` only when the user actually
+passed a flag.
+
+**Verification**:
+- diff_test_fast 1612/1612 (default-path byte-identical).
+- seqcc_diff 43/43 (+8 T8 cases).
+- `-O3` ELF byte-equals default ELF (both 0xFF).
+- `-O0` ELF byte-differs from default and is strictly larger.
+- `-fno-reg-alloc` byte-differs from default.
+- Unknown `-f<name>` surfaces as a CLI11 "unrecognised option"
+  diagnostic (not silently ignored).
+
+**TODO references**: TODO.md Phase T → T8 (done).

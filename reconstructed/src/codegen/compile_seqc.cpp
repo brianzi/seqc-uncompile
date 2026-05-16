@@ -239,6 +239,29 @@ static std::string compileSeqcImpl(std::string const& jsonConfig,
         }
     }
 
+    // T8 (IF-305): optional override for AWGCompilerConfig::optimizationFlags.
+    // Defaults to 0xFF (all passes — matches the original binary's
+    // hardcoded value).  Accepts a JSON number (integer bitmask).  The
+    // pybind binding does not forward this key, so existing callers
+    // see no behaviour change; only the seqcc driver injects it.
+    //
+    // Sanctioned recon exception per AGENTS.md: pure additive read of
+    // an existing config field that the original binary already
+    // wires through to `AsmOptimize`.  No new API surface; jsonConfig
+    // is already a free-form key-value channel.
+    uint64_t optimizationFlags = 0xFF;
+    if (auto* ofVal = jobj.if_contains("optimizationFlags")) {
+        if (ofVal->is_int64()) {
+            int64_t v = ofVal->as_int64();
+            if (v >= 0) optimizationFlags = static_cast<uint64_t>(v);
+        } else if (ofVal->is_uint64()) {
+            optimizationFlags = ofVal->as_uint64();
+        } else if (ofVal->is_double()) {
+            double d = ofVal->as_double();
+            if (d >= 0.0) optimizationFlags = static_cast<uint64_t>(d);
+        }
+    }
+
     // --- 7. Populate AWGCompilerConfig ---
     AWGCompilerConfig config{};
     config.deviceType = props.deviceType;                       // +0x00
@@ -252,7 +275,7 @@ static std::string compileSeqcImpl(std::string const& jsonConfig,
     config.numChannelGroups = 1;                                // +0x1C
     config.awgIndex = static_cast<int32_t>(awgIndex);           // +0x20
     config.deviceIndex = 0;                                     // +0x24
-    config.optimizationFlags = 0xFF;                                   // +0x88 — binary hardcodes 0xFF
+    config.optimizationFlags = optimizationFlags;                      // +0x88 — T8/IF-305: jsonConfig key, default 0xFF
     config.numCores = 0;                                        // +0x94 — binary sets 0 (not 1)
     config.loopUnrollLimit = 0x20000;                           // +0x98 — 131072; compile-time loop unroll limit
 

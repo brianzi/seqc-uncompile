@@ -21,6 +21,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <optional>
 #include <string>
@@ -137,6 +138,34 @@ struct Options {
     //! difference between `--to=lower` and `--to=link` is
     //! therefore zero.  Documented as IF-304.
     std::string toStage{"link"};
+
+    //! T8: `AsmOptimize` pass bitmask, forwarded into the JSON
+    //! config under the key `"optimizationFlags"`.  When the
+    //! optional is unset, the key is omitted and the recon-side
+    //! default (`0xFF` — all passes enabled, matching the original
+    //! binary) takes effect.  Set by `-O<n>` and `-f[no-]<pass>`
+    //! flags in `main.cpp`.
+    //!
+    //! Bit map (verified against `asm_optimize.cpp`):
+    //!   - 0x01  jump elimination
+    //!   - 0x02  label cleanup
+    //!   - 0x04  dead-code elimination
+    //!   - 0x08  register-zero merging
+    //!   - 0x10  register allocation
+    //!
+    //! Curated levels:
+    //!   - `-O0` ⇒ 0x00 (no passes)
+    //!   - `-O1` ⇒ 0x05 (jump-elim + dead-code-elim)
+    //!   - `-O2` ⇒ 0x1F (all passes; equivalent to 0xFF since bits
+    //!                    above 0x10 are unused — kept narrow for
+    //!                    forward compatibility)
+    //!   - `-O3` ⇒ 0xFF (all passes; same effective output as -O2
+    //!                    on the current binary, kept for gcc
+    //!                    parity)
+    //!
+    //! See `reconstructed/notes/optimization_passes.md` for the
+    //! per-bit semantics and IF-305 for the recon-side plumbing.
+    std::optional<uint64_t> optimizationFlags;
 };
 
 //! Build the JSON config string that compileSeqc() expects.

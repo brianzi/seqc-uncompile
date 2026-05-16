@@ -684,5 +684,106 @@ class SeqccDiffTest(unittest.TestCase):
                              "expected ELF after -c overrides -S")
 
 
+class T8OptimizationFlags(unittest.TestCase):
+    """T8: gcc-style `-O<n>` and `-f[no-]<pass>` reach AsmOptimize.
+
+    The recon side reads an optional `optimizationFlags` jsonConfig key
+    (IF-305).  When seqcc omits the key, the recon falls back to 0xFF,
+    which is byte-identical to every pre-T8 invocation.
+    """
+
+    SRC = "wave w = ones(64);\nrepeat (4) { playWave(w); }\n"
+    DEV_ARGS = ["--march=HDAWG8", "--samplerate=2.4e9"]
+
+    def _run(self, extra_args):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(self.SRC)
+            out_path = tmp / "out.elf"
+            proc = subprocess.run(
+                [str(SEQCC), *self.DEV_ARGS, *extra_args,
+                 "-o", str(out_path), str(tmp / "t.seqc")],
+                capture_output=True, text=True)
+            return proc, (out_path.read_bytes() if out_path.exists() else None)
+
+    def test_default_matches_pybind_baseline(self):
+        """No -O flag ⇒ jsonConfig omits optimizationFlags ⇒ recon
+        defaults to 0xFF ⇒ byte-identical to pybind compile_seqc()."""
+        sc = _import_pybind()
+        pybind_elf, _ = sc.compile_seqc(self.SRC, "HDAWG8", "", 0,
+                                        samplerate=2.4e9)
+        proc, seqcc_elf = self._run([])
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(seqcc_elf, pybind_elf,
+                         "default seqcc ELF must match pybind baseline")
+
+    def test_O3_byte_identical_to_default(self):
+        """`-O3` ⇒ 0xFF ⇒ same as omitting the flag."""
+        _, default_elf = self._run([])
+        _, o3_elf = self._run(["-O3"])
+        self.assertEqual(o3_elf, default_elf,
+                         "-O3 (0xFF) must equal default (0xFF)")
+
+    def test_O0_differs_from_default(self):
+        """`-O0` ⇒ 0x00 ⇒ no passes ⇒ larger, byte-different ELF."""
+        _, default_elf = self._run([])
+        _, o0_elf = self._run(["-O0"])
+        self.assertIsNotNone(o0_elf)
+        self.assertIsNotNone(default_elf)
+        assert o0_elf is not None and default_elf is not None
+        self.assertNotEqual(o0_elf, default_elf,
+                            "-O0 must change codegen vs default 0xFF")
+        # No-opt build should be strictly larger (no dead-code-elim,
+        # no jump-elim).
+        self.assertGreater(len(o0_elf), len(default_elf),
+                           "unoptimised ELF should not be smaller")
+
+    def test_O0_freg_alloc_composes(self):
+        """`-O0 -freg-alloc` ⇒ 0x10 ⇒ differs from both -O0 and default."""
+        _, o0 = self._run(["-O0"])
+        _, o0_ra = self._run(["-O0", "-freg-alloc"])
+        _, default_elf = self._run([])
+        self.assertNotEqual(o0_ra, o0,
+                            "-freg-alloc must compose with -O0")
+        self.assertNotEqual(o0_ra, default_elf,
+                            "-O0 -freg-alloc (0x10) ≠ default (0xFF)")
+
+    def test_fno_reg_alloc_disables_pass(self):
+        """`-fno-reg-alloc` ⇒ default 0xFF cleared bit 0x10 ⇒ differs."""
+        _, default_elf = self._run([])
+        _, no_ra = self._run(["-fno-reg-alloc"])
+        self.assertNotEqual(no_ra, default_elf,
+                            "-fno-reg-alloc must change codegen")
+
+    def test_unknown_pass_rejected(self):
+        """`-f<unknown>` is left in argv; CLI11 rejects it."""
+        proc, _ = self._run(["-fbogus-pass"])
+        self.assertNotEqual(proc.returncode, 0,
+                            "unknown -f<name> must fail")
+        self.assertIn("bogus-pass", (proc.stderr + proc.stdout).lower())
+
+    def test_print_passes_lists_known(self):
+        """`--print-passes` lists every pass with its bit value."""
+        proc = subprocess.run([str(SEQCC), "--print-passes"],
+                              capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0,
+                         f"--print-passes failed: {proc.stderr}")
+        out = proc.stdout
+        for name in ("jump-elim", "label-cleanup", "dead-code-elim",
+                     "reg-zero-merge", "reg-alloc"):
+            self.assertIn(name, out,
+                          f"--print-passes omits pass {name!r}")
+        for level in ("-O0", "-O1", "-O2", "-O3"):
+            self.assertIn(level, out,
+                          f"--print-passes omits level {level!r}")
+
+    def test_rightmost_O_wins(self):
+        """`-O2 -O0` ⇒ 0x00 (rightmost -O wins)."""
+        _, o0 = self._run(["-O0"])
+        _, o2_then_o0 = self._run(["-O2", "-O0"])
+        self.assertEqual(o2_then_o0, o0,
+                         "rightmost -O<n> must take precedence")
+
+
 if __name__ == "__main__":
     unittest.main()

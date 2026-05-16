@@ -109,6 +109,17 @@ std::string buildJsonConfig(Options const& opts) {
         emitted.insert("samplerate");
     }
 
+    // T8: optimisation flags.  Forward as a JSON integer under
+    // `optimizationFlags`; the recon-side reader (IF-305) honours it
+    // and falls back to 0xFF when absent.  Emitted as an integer
+    // literal (not the double formatter) so the boost::json::is_int64
+    // branch in compile_seqc.cpp fires.
+    if (opts.optimizationFlags.has_value()) {
+        appendKey(out, first, "optimizationFlags");
+        out += std::to_string(*opts.optimizationFlags);
+        emitted.insert("optimizationFlags");
+    }
+
     // Escape-hatch kwargs.
     for (auto const& [k, v] : opts.tune) {
         if (emitted.count(k)) continue;  // dedicated flag wins

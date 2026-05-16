@@ -26,11 +26,14 @@
 #include "CLI11.hpp"
 
 #include "compile.hpp"
+#include "optflags.hpp"
 #include "options.hpp"
 #include "stage.hpp"
 
 #include <array>
+#include <cctype>
 #include <climits>
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -52,7 +55,7 @@ namespace {
 // TODO(IF-293): unify with zhinst::LaboneVersion::fullVersionWithBuild once
 // those globals are moved out of `#ifdef ZHINST_HAS_PYBIND11`.  See
 // reconstructed/notes/incidental_findings.md "IF-293".
-constexpr const char* kSeqccVersion = "0.5.0-T5";
+constexpr const char* kSeqccVersion = "0.6.0-T8";
 
 enum class Personality { Seqcc, Seqas, Seqdump };
 
@@ -142,12 +145,88 @@ void appendDevoptsPacked(seqcc::Options& opts, std::string const& packed) {
     }
 }
 
+// T8: extract gcc-style optimisation flags from argv in a pre-parse
+// pass, mutating `opts.optimizationFlags` and stripping the consumed
+// tokens so CLI11 never sees them.  Recognised tokens:
+//
+//   -O<digit>            curated level (0..9, capped at 3)
+//   -f<pass>             enable individual pass
+//   -fno-<pass>          disable individual pass
+//
+// CLI11 doesn't model "many short flags that share a prefix and
+// carry meaning per character" naturally, so a pre-parse pass is
+// the cleanest fit.  This mirrors how gcc itself handles these
+// flags (via its own specparser, not getopt).
+//
+// Rightmost wins on conflict (e.g. `-O0 -O2` ⇒ 0x1F;
+// `-O2 -fno-dead-code-elim` ⇒ 0x1B).  Unknown `-f<pass>` throws
+// `std::invalid_argument`; the caller turns it into a user-facing
+// error.
+std::vector<std::string>
+extractOptFlags(std::vector<std::string> const& argv,
+                seqcc::Options& opts) {
+    std::vector<std::string> out;
+    out.reserve(argv.size());
+    bool any = false;
+    uint64_t flags = 0xFF;  // start at recon default; user can override
+    for (auto const& a : argv) {
+        // -O<n>
+        if (a.size() >= 3 && a[0] == '-' && a[1] == 'O' &&
+            std::isdigit(static_cast<unsigned char>(a[2])) &&
+            a.size() == 3) {
+            unsigned level = static_cast<unsigned>(a[2] - '0');
+            flags = seqcc::optimizationLevelMask(level);
+            any = true;
+            continue;
+        }
+        // -fno-<pass>
+        if (a.rfind("-fno-", 0) == 0 && a.size() > 5) {
+            std::string name = a.substr(5);
+            seqcc::applyPassToggle(flags, name, /*enable=*/false);
+            any = true;
+            continue;
+        }
+        // -f<pass> — skip well-known CLI11 long-form `-f` collisions
+        // (none today, but if `-foo` were added it would be a flag
+        // name, not an opt-pass).  We restrict to bare `-f<name>`
+        // where <name> matches a known pass; unknown names throw.
+        if (a.rfind("-f", 0) == 0 && a.size() > 2 && a[2] != '=') {
+            std::string name = a.substr(2);
+            if (seqcc::findPass(name) != nullptr) {
+                seqcc::applyPassToggle(flags, name, /*enable=*/true);
+                any = true;
+                continue;
+            }
+            // Unknown -f<name>: leave in argv.  CLI11 will surface
+            // the usual "unrecognised option" diagnostic, which is
+            // better than us claiming the namespace.
+        }
+        out.push_back(a);
+    }
+    if (any) {
+        opts.optimizationFlags = flags;
+    }
+    return out;
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
     Personality pers = detectPersonality(argc > 0 ? argv[0] : "seqcc");
 
+    seqcc::Options opts;
+
     std::vector<std::string> rewritten = rewriteGccLongFlags(argc, argv);
+    // T8: extract `-O<n>` / `-f<pass>` / `-fno-<pass>` into
+    // opts.optimizationFlags before CLI11 sees the argv.  Unknown
+    // `-f<name>` is left in place so CLI11 surfaces it as a normal
+    // "unrecognised option" diagnostic.
+    try {
+        rewritten = extractOptFlags(rewritten, opts);
+    } catch (std::invalid_argument const& e) {
+        std::cerr << e.what() << '\n';
+        return 2;
+    }
     std::vector<char*> rewrittenArgv;
     rewrittenArgv.reserve(rewritten.size());
     for (auto& s : rewritten) rewrittenArgv.push_back(s.data());
@@ -160,8 +239,6 @@ int main(int argc, char** argv) {
 
     bool showVersion = false;
     app.add_flag("--version", showVersion, "Print driver version and exit.");
-
-    seqcc::Options opts;
 
     app.add_option("-o,--output", opts.output,
                    "Output ELF path (default: <input>.elf).")
@@ -314,6 +391,11 @@ int main(int argc, char** argv) {
                  "List the pipeline stages this driver knows about "
                  "(with supported/unsupported flag) and exit.");
 
+    bool printPasses = false;
+    app.add_flag("--print-passes", printPasses,
+                 "List the AsmOptimize passes (with their bit values) "
+                 "and curated -O levels, then exit.");
+
     CLI11_PARSE(app, rewrittenArgc, rewrittenArgvPtr);
 
     if (showVersion) {
@@ -323,6 +405,11 @@ int main(int argc, char** argv) {
 
     if (printStages) {
         seqcc::printStageTable(std::cout);
+        return 0;
+    }
+
+    if (printPasses) {
+        seqcc::printPassTable(std::cout);
         return 0;
     }
 
