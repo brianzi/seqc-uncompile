@@ -403,7 +403,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::makeDirectories(boost::filesystem::path const&)`
 
 - **Mangled**: `_ZN6zhinst15makeDirectoriesERKN5boost10filesystem4pathE`
-- **Address**: `0x2cdef0` | **Size**: 583 B | **Status**: absent
+- **Address**: `0x2cdef0` | **Size**: 583 B | **Status**: **present** (recon exports exact mangling; impl at `reconstructed/src/io/zi_environment.cpp:267`)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"Could not access directory '"`, `"/builds/labone/labone/utils/filesystem/src/zi_folder.cpp"`, `"void zhinst::makeDirectories(const fs::path &)"`, `"Could not create directory '"`
@@ -435,7 +435,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::runningOnMf64Device()`
 
 - **Mangled**: `_ZN6zhinst19runningOnMf64DeviceEv`
-- **Address**: `0x2ec680` | **Size**: 83 B | **Status**: absent
+- **Address**: `0x2ec680` | **Size**: 83 B | **Status**: **present** (recon exports exact mangling; impl at `reconstructed/src/io/zi_environment.cpp:177`)
 - **First insn**: `movzbl 0x898c21(%rip),%eax        # b852a8 <_ZGVZN6zhinst19runningOnMf64DeviceEvE13runningOnMf64>`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -443,7 +443,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::markFileHidden(boost::filesystem::path const&)`
 
 - **Mangled**: `_ZN6zhinst14markFileHiddenERKN5boost10filesystem4pathE`
-- **Address**: `0x2eb940` | **Size**: 6 B | **Status**: absent
+- **Address**: `0x2eb940` | **Size**: 6 B | **Status**: **present** (recon exports exact mangling; impl at `reconstructed/src/io/zi_environment.cpp:294`)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -451,7 +451,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::initBoostFilesystemForUnicode()`
 
 - **Mangled**: `_ZN6zhinst29initBoostFilesystemForUnicodeEv`
-- **Address**: `0x2ec020` | **Size**: 6 B | **Status**: absent
+- **Address**: `0x2ec020` | **Size**: 6 B | **Status**: **present** (recon exports exact mangling; impl at `reconstructed/src/io/zi_environment.cpp:306`)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -758,7 +758,7 @@ Reconstruction difficulty: **trivial**. Reconstruct after consulting callers.
 #### `zhinst::almostEqual(double, double)`
 
 - **Mangled**: `_ZN6zhinst11almostEqualEdd`
-- **Address**: `0x2ec070` | **Size**: 234 B | **Status**: absent
+- **Address**: `0x2ec070` | **Size**: 234 B | **Status**: **present** (recon exports exact mangling; impl at `reconstructed/src/core/numeric.cpp:33` — `boost::math::epsilon_difference(a, b) <= 1.0`)
 - **First insn**: `ucomisd %xmm1,%xmm0`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -794,11 +794,10 @@ Reconstruction difficulty: **trivial**. Cross-check with existing PRNG reconstru
 #### `zhinst::Random::seedRandom()`
 
 - **Mangled**: `_ZN6zhinst6Random10seedRandomEv`
-- **Address**: `0x16be80` | **Size**: 297 B | **Status**: absent
+- **Address**: `0x16be80` | **Size**: 297 B | **Status**: **present (IF-283-adjacent)** (recon exports exact mangling; impl at `reconstructed/src/infra/prng_libcxx.cpp:73`)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst15CustomFunctions10randomSeedERKNSt3__16vectorINS_15EvalResultValue...`
 - **String evidence**: _none observed_
-- **Notes**: candidate qualified-name match in reconstructed/src/runtime/custom_functions_playback.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
 
 ## Cluster: `awg_config::device`
 
@@ -1075,16 +1074,16 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **92** | **−18** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **86** | **−24** |
 
-The "truly absent" delta of −18 is the net effect of all
+The "truly absent" delta of −24 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
 their canonical mangled names net of ones whose mangled name
 diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 93 functions before compiler_helpers audit, 92 after)
+### Truly-absent breakdown (2026-05-16; 92 functions before exact-mangling audit, 86 after)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
@@ -1092,6 +1091,7 @@ than the headline number suggests.
 | `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | **Closed 2026-05-16.**  Header template was already correct (verified body @ 0x2e0d50 against `<Hf2Option,6>`); the binary's 13 instantiations were going un-emitted because every recon caller inlined the body.  Fix: converted the header template to a declaration with `extern template` for all 13 `<T,N>` pairs, moved the definition into `src/device/device_sfc_options.cpp`, and added the 13 explicit instantiation definitions there.  All 13 mangled symbols now appear in `reconstructed/build/_seqc_compiler.so` (as `W` weak symbols rather than `t` local — global linkage divergence is reconstruction-wide and out of scope here).  Mangling diverges in the `std::array` template-arg portion (recon `St5array` libstdc++, binary `NSt3__15arrayE` libc++) — this is the standard libcxx ABI mismatch documented elsewhere in this file; qualified name + body shape match.  No test or byte-diff regression; 1603/1603 main + 1626/1626 harness still passing. |
 | `api_error_translation::core` ErrorKind subset (4 of 8) | 4 | **Closed 2026-05-16.**  `toApiCode(ErrorKind)`, `make_error_condition(ErrorKind)`, `toZiErrorKind(ErrorKind)`, `fromZiErrorKind(ZIErrorKind_enum)` reconstructed in `src/core/error_kind.cpp` against verified disasm (0x2e5280 / 0x2e50c0 / 0x2e5240 / 0x2e5260) and singleton-category sentinel @0xb7c5a8 / name `"zi:kind"` @0x90c668.  All 4 mangled symbols verified in `reconstructed/build/_seqc_compiler.so` (each `[1]` in nm).  `ZIErrorKind_enum` declared at global scope to match `16ZIErrorKind_enum` mangling token.  Binary's odd `BadRequest→0x801f` and `Timeout→0x800d` mappings preserved and tagged `\binarynote`.  No test regression; 1603/1603 main + 1626/1626 harness still passing.  Remaining 4 boost/Exception-coupled helpers deferred by design — see "API/error-translation surface" below. |
 | `AWGCompilerImpl::nodeListToJson` | 1 | **Bookkeeping correction 2026-05-16** (no source change).  Cluster `compiler_helpers::codegen` was reconstructed back at IF-278 (recon exports the symbol under libstdc++ mangling, same qualified name, byte-identical JSON output); the inventory's cluster header had drifted out of sync.  Per AGENTS.md cluster-overview-prose-is-unreliable warning, this was a stale entry, not a real absence.  Truly-absent decremented by 1 (93 → 92). |
+| Exact-mangling cross-recon audit (6 stale entries) | 6 | **Bookkeeping correction 2026-05-16** (no source change).  Systematic `nm --defined-only reconstructed/build/_seqc_compiler.so` cross-check on all 47 still-"absent" entries revealed 6 with **exact mangled-name matches** between binary and recon, mis-classified as absent: `makeDirectories(boost::filesystem::path const&)` @0x2cdef0 → `src/io/zi_environment.cpp:267`; `runningOnMf64Device()` @0x2ec680 → `:177`; `markFileHidden(boost::filesystem::path const&)` @0x2eb940 → `:294`; `initBoostFilesystemForUnicode()` @0x2ec020 → `:306`; `almostEqual(double, double)` @0x2ec070 → `src/core/numeric.cpp:33`; `Random::seedRandom()` @0x16be80 → `src/infra/prng_libcxx.cpp:73`.  All 6 verified `[1]` in recon nm with identical mangling — no ABI divergence at all.  Each cross-referenced via `@0x<addr>` comment in the implementing TU.  Status flipped to **present**; truly-absent decremented by 6 (92 → 86). |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |
@@ -1158,7 +1158,7 @@ Listed for future cluster promotion or per-symbol decisions:
 
 ### Action items proposed (subject to user review per AGENTS.md)
 
-The refresh did **not** surface any latent bug — all 92
+The refresh did **not** surface any latent bug — all 86
 absent symbols fall into pre-known categories (deferred by
 design, ABI-mangling divergence, C++20-gated, or
 zero-caller).  Two **incremental** opportunities worth

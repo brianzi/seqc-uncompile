@@ -1954,3 +1954,24 @@ verify-then-write throughout.
   flipped the symbol status to **present (IF-278)**, and
   decremented the truly-absent count.  No source change.
   Truly-absent function count: 93 → 92.
+
+- **2026-05-16** F-followup (bookkeeping): systematic
+  exact-mangling audit of all remaining "absent" entries
+  in `d14_inventory.md` (IF-286).  Cached recon `nm`,
+  cross-checked each of the 47 still-absent entries for
+  exact mangled-name matches.  Found **6 stale-absent
+  classifications** with zero ABI divergence (recon
+  exports the symbol under the binary's exact mangled
+  name): `makeDirectories(path)`,
+  `runningOnMf64Device()` (nullary), `markFileHidden(path)`,
+  `initBoostFilesystemForUnicode()`, `almostEqual(double,
+  double)`, `Random::seedRandom()`.  Each cross-referenced
+  to its implementing TU via the `@0x<addr>` comment
+  convention.  Inventory statuses flipped to **present**;
+  truly-absent count: 92 → 86.  No source change.
+
+  Validates the pattern from IF-285 / commit `7d0d0c3`:
+  the D14 inventory has drifted out of sync as
+  reconstruction has progressed, and per-cluster prose
+  cannot be trusted.  Truly-absent count timeline:
+  114 (D14 baseline) → 110 → 109 → 97 → 93 → 92 → **86**.

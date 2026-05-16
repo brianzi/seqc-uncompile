@@ -5920,3 +5920,65 @@ re-running it.  If a future reconstruction step exposes a
 caller (e.g. via a new public binding for
 `Exception::getApiCode()`), reopen, log a follow-up IF,
 and reconsider the cost/benefit.
+
+## IF-286  d14_inventory.md systematic exact-mangling audit: 6 stale-absent entries refreshed
+
+**Status**: bookkeeping (no source change)
+
+**Date**: 2026-05-16
+
+**Context**: Building on IF-285 and the
+compiler_helpers::codegen refresh (commit `7d0d0c3`),
+ran a systematic exact-mangling cross-check on all
+remaining "absent" entries in `d14_inventory.md`.
+
+**Method**:
+  1. Cache recon symbols: `nm --defined-only
+     reconstructed/build/_seqc_compiler.so | awk '$2 ~
+     /^[TtWw]$/'`.
+  2. Parse `d14_inventory.md` for all entries still marked
+     `Status: absent` (n=47 at time of audit).
+  3. For each, grep recon symbols for the binary's exact
+     mangled name.
+
+**Findings**: 6 entries with **exact mangled-name matches**
+(zero ABI divergence — these were unambiguously
+mis-classified, not the usual libstdc++/libc++ shift):
+
+  - `_ZN6zhinst15makeDirectoriesERKN5boost10filesystem4pathE`
+    @0x2cdef0 → `src/io/zi_environment.cpp:267`
+  - `_ZN6zhinst19runningOnMf64DeviceEv`              @0x2ec680
+    → `src/io/zi_environment.cpp:177` (nullary overload;
+    the `(string const&)` overload at 0x2ec3d0 is a
+    distinct symbol and genuinely remains absent)
+  - `_ZN6zhinst14markFileHiddenERKN5boost10filesystem4pathE`
+    @0x2eb940 → `src/io/zi_environment.cpp:294`
+  - `_ZN6zhinst29initBoostFilesystemForUnicodeEv`     @0x2ec020
+    → `src/io/zi_environment.cpp:306`
+  - `_ZN6zhinst11almostEqualEdd`                       @0x2ec070
+    → `src/core/numeric.cpp:33`
+  - `_ZN6zhinst6Random10seedRandomEv`                  @0x16be80
+    → `src/infra/prng_libcxx.cpp:73`
+
+Each cross-referenced via an `@0x<addr>` comment in the
+implementing TU.  All 6 statuses flipped to **present** in
+`d14_inventory.md`; truly-absent decremented 92 → 86.
+
+The remaining 41 "absent" entries either:
+  - genuinely absent (no recon match anywhere), or
+  - qualified-name match only with ABI-mangling divergence
+    (libstdc++ vs libc++ string/container template args) —
+    these need per-symbol verification before flipping and
+    are out of scope for this exact-mangling sweep.
+
+**Why this matters**: the inventory is the authoritative
+work-list for D14 follow-ups.  6 entries silently mis-
+classified as `absent` means future agents could waste
+time "reconstructing" already-present symbols (exactly
+what nearly happened with `compiler_helpers::codegen` in
+commit `7d0d0c3`).
+
+**Action items**: none.  Audit captured here; a future
+session may want to extend the sweep with a qualified-name-
+plus-body-shape matcher for the remaining 41 ABI-divergence
+candidates.
