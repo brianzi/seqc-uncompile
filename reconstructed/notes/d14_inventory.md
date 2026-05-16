@@ -1100,8 +1100,14 @@ Listed for future cluster promotion or per-symbol decisions:
   `boost::system::error_code` / `Exception` interop, zero recon
   callers): `isApiError(error_code)`,
   `isApiError(RemoteErrorCode)`, `special::toApiCode(Exception)`,
-  `getApiErrorBase(ZIResult_enum)`.  Defer until a caller
-  materialises.
+  `getApiErrorBase(ZIResult_enum)`.  **Caller scout 2026-05-16
+  (IF-285)**: all 4 are `t` (local linkage), none in `.dynsym`,
+  and `objdump -d` over the full binary shows the only call edge
+  in the entire `.so` is `special::toApiCode` → `isApiError(error_code)`
+  (intra-group).  The 4 form a self-contained dead island already in
+  the original; reconstruction would not be exercised by any
+  difftest or harness case.  Deferred indefinitely — reopen only if
+  a future binding exposes a caller.
 - **NodeMap dispatcher** (1): `GetNodeMapDispatcher<…AwgDeviceType…>::call`.
   Template-method form of the existing `GetNodeMap` factory; recon
   emits the underlying `GetNodeMap` per-device specialisations but
@@ -1156,12 +1162,12 @@ considering:
    8-symbol `api_error_translation::core` candidate above
    into a cluster note + decide whether the public API
    surfaces any of them through the binding layer.  If yes,
-   promote to a real reconstruction phase.  **Partially
-   closed 2026-05-16**: ErrorKind-only subset (4 of 8)
-   reconstructed in `src/core/error_kind.cpp`; remaining 4
-   require `boost::system::error_code` / `Exception` interop
-   that the recon currently sidesteps — deferred until a
-   recon caller materialises.
+   promote to a real reconstruction phase.  **Resolved
+   2026-05-16**: ErrorKind-only subset (4 of 8)
+   reconstructed in `src/core/error_kind.cpp`; caller scout
+   (IF-285) confirmed the remaining 4 are a self-contained
+   dead island (local linkage, not in `.dynsym`, intra-group
+   call edge only) — deferred indefinitely.
 
 The other 100 entries are no-action under current
 constraints (zero callers, ABI-mangling divergence by

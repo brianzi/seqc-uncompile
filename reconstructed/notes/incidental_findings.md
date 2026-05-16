@@ -5868,3 +5868,55 @@ unless a recon caller appears (in which case the
 
 **Action items**: none unless a recon caller appears.  If
 this changes, log a follow-up IF and reopen.
+
+## IF-285  `api_error_translation::core` — remaining 4 helpers are a dead island in the binary
+
+**Status**: deferred-by-design (cosmetic / informational)
+
+**Date**: 2026-05-16
+
+**Context**: Closing 4 of 8 helpers in commit `3824cd5`
+(ErrorKind subset), a caller scout was run on the
+remaining 4 to validate the deferral.
+
+**Scope**: 4 helpers, all `t` (local linkage), none in
+`.dynsym`, so they can only be reached from within
+`_seqc_compiler.so`:
+
+  - `isApiError(boost::system::error_code const&)`     @ 0x2e4490
+  - `isApiError(zhinst::RemoteErrorCode const&)`       @ 0x2e44f0
+  - `getApiErrorBase(ZIResult_enum)`                   @ 0x2e4980
+  - `special::toApiCode(zhinst::Exception const&)`     @ 0x2e7690
+
+**Observation**: `grep -E "call.*\b<addr>\b"` over the
+full `objdump -d` of the binary returns:
+
+  - 0x2e4490 — 1 caller: 0x2e76ac (which is inside
+    `special::toApiCode(Exception)` itself, i.e. another
+    member of the same deferred set).
+  - 0x2e44f0 — **zero callers** anywhere in the binary.
+  - 0x2e4980 — **zero callers** anywhere in the binary.
+  - 0x2e7690 — **zero callers** anywhere in the binary.
+
+Combined with their absence from `.dynsym`, this means the
+4 helpers form a self-contained dead island already in the
+original `.so`: the only call edge is intra-group and
+neither `special::toApiCode` nor anything else upstream is
+reachable from any exported entry point.
+
+**Why this matters for reconstruction**: even a perfectly
+faithful reconstruction would not be exercised by any
+difftest, harness case, or runtime invocation.  The cost
+of building the supporting
+`boost::system::error_code` + `error_category` +
+`RemoteErrorCode` + `Exception::getKind` infrastructure
+(~200+ LoC of fake-boost glue per IF-284) buys zero
+observable behaviour change and would only validate
+itself.
+
+**Action items**: none.  This entry exists so the next
+agent can find the caller-scout evidence without
+re-running it.  If a future reconstruction step exposes a
+caller (e.g. via a new public binding for
+`Exception::getApiCode()`), reopen, log a follow-up IF,
+and reconsider the cost/benefit.
