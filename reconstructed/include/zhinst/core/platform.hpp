@@ -123,12 +123,11 @@ void quote(std::string& s);
 //!        HTML entities.
 //!
 //! \details Converts `n` to its decimal string form via
-//! `std::to_string`, then maps each digit `'0'..'9'` to its
-//! HTML entity `&#8320;..&#8329;`.  Used for pretty-printing
-//! channel/index suffixes in human-readable diagnostics.
-//! Negative numbers carry their `-` sign through unchanged
-//! (the `-` is non-digit and is dropped — see overload
-//! below).
+//! `std::to_string`, then forwards to the `toSubscript(string)`
+//! overload below, which maps each digit `'0'..'9'` to its HTML
+//! entity `&#8320;..&#8329;` and drops every non-digit character.
+//! Used for pretty-printing channel/index suffixes in
+//! human-readable diagnostics.
 //!
 //! \binarynote Non-digit characters in the intermediate
 //!             string (notably the leading `-` for negative

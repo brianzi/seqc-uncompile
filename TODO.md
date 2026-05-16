@@ -1168,13 +1168,34 @@ Methodology (per F1):
   `\binarynote` was written (i.e. recon now matches binary normally;
   the "quirk" is gone) → demote to plain prose or remove.
 
-- [ ] **G1 — Audit batch 1: core/ (11 sites)**
+- [x] **G1 — Audit batch 1: core/ (11 sites)** *(closed 2026-05-16)*
 
-      `core/diagnostics_text.cpp:498`, `:713`;
-      `core/error_kind.hpp:167`; `core/base64.hpp:27`;
-      `core/numeric.hpp:37`, `:63`; `core/diagnostics_text.hpp:115`,
-      `:166`, `:186`; `core/exception.hpp:373`; `core/platform.hpp:133`.
-      (Split into G1a/G1b mid-session if too large for one pass.)
+      Audited all 11 cited locations.  Verdict:
+      - 9 actual `//!` `\binarynote` doc-tags — all verified accurate
+        against `_seqc_compiler.so`.  Spot-checks: `toApiCode` 0x801f/
+        0x800d/0x8000 emit at @0x2e5280; `base64::encode` ostringstream
+        path + alphabet @0x90cf90 / pad @0x90cfd1; `almostEqual`
+        unpcklpd/maxpd/subpd/divpd at @0x2ec070; `toRawByteArray`
+        size==0/1 fast paths + exact-fit returns true at @0x2f27c0;
+        `sanitizeInvalidFilename` regex `COM[1-9]|PRN` literal at
+        @0x90d0b2; `browseTo` no escape calls between url and shell
+        at @0x2eb950; `xmlEscapeUtf8Critical` movsbl + `&#%03d;` at
+        @0x2faaa0; `Exception::description()` returns `&errorCode_`
+        (+0x30) at @0x2e58b0; `toSubscript(long)` forwards to string
+        overload which drops `-` at @0x2fdb80.
+      - 2 of the 11 cited lines turned out to be `//` cross-reference
+        comments (not `//!` doc-tags) inside `diagnostics_text.cpp`
+        bodies referring to the public-header `\binarynote`s — out of
+        audit scope (don't render in the docs site).
+
+      *Yield*: 0 IFs.  1 cosmetic fix: rewrote `toSubscript(long)`'s
+      `\details` block in `core/platform.hpp` which contradicted its
+      own sibling `\binarynote` ("carry their `-` sign through
+      unchanged" then immediately "the `-` is non-digit and is
+      dropped").  Now reads coherently as "forward to string overload,
+      which drops every non-digit".
+
+      *Tests at close*: 1603/1603 main, build clean.
 
 - [ ] **G2 — Audit batch 2: device/ + ast/ + asm/ (9 sites)**
 
