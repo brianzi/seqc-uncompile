@@ -92,7 +92,7 @@ bool runningOnMfDevice(std::string const& manifestPath);        // @0x2ec160
 //!        (an MF-class device running the LabOne stack on a 64-bit
 //!        Linux/ARM kernel).
 //!
-//! Stricter than \ref runningOnMfDevice: requires both that the
+//! Stricter than `runningOnMfDevice()`: requires both that the
 //! manifest's `device` key starts with `mf` *and* that its
 //! `platform` key equals `linuxARM64`.  Caches like its non-64
 //! sibling.

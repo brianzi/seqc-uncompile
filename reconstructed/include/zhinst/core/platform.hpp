@@ -86,6 +86,8 @@ bool isValidUtf8(const char* begin, const char* end);
 //!
 //! \details Forwards to `isValidUtf8(s.data(), s.data() +
 //! s.size())`; same semantics.
+//! \param s String to validate.
+//! \return `true` iff `s` is well-formed UTF-8.
 bool isValidUtf8(std::string const& s);
 
 //! \brief Test whether `item` appears in the comma-separated

@@ -262,12 +262,15 @@ static_assert(sizeof(SeqCAstNode) == 0x18,
 //! \binarynote The vptrs are intentionally **not** swapped, so
 //! the dynamic types of `a` and `b` are preserved across the
 //! call; only the base-class scalar fields move.
+//! \param a First node.
+//! \param b Second node.
 void swap(SeqCAstNode& a, SeqCAstNode& b);                       // 0x1fda40
 
 // Free function — pretty-prints an AST tree to std::cout.
 // Internally calls anonymous-namespace helper @0x1fa430 with empty indent.
 //! \brief Pretty-prints the AST rooted at `node` to `std::cout`,
 //! recursing through `children()` with increasing indentation.
+//! \param node Root of the AST subtree to print.
 void printSeqCAst(const SeqCAstNode& node);                      // 0x1fa3c0
 
 // ============================================================================

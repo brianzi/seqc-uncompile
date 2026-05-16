@@ -192,6 +192,8 @@ enum class AccessMode : int32_t {
 //! \brief Render an `AccessMode` value as one of the lowercase
 //! strings `"soft"` / `"direct"` / `"custom"` (or `"unknown"` for
 //! out-of-range inputs).
+//! \param mode Access mode to render.
+//! \return The canonical lowercase name, or `"unknown"`.
 std::string toString(AccessMode mode);
 
 //! \brief Total order on `AccessMode` by underlying integer value.
@@ -582,6 +584,8 @@ private:
 //! list.  When the trailing element is a `String`, it is removed
 //! from `args` in place and its rendered text is returned;
 //! otherwise `args` is left unchanged and `nullopt` is returned.
+//! \param args Argument vector; may be modified in place.
+//! \return The trailing `String` argument's text, or `std::nullopt`.
 std::optional<std::string> parseOptionalString(std::vector<EvalResultValue>& args);  // @0x15d3e0
 //! \brief Decode a rate argument from `val` and return its
 //! integer rate code.

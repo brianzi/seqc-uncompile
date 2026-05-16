@@ -191,6 +191,7 @@ struct ErrorCode {
 //! value `0x8000`.  Every `Exception` default- or message-only
 //! constructor seeds its `errorCode_` from this helper so that callers
 //! inspecting `code()` always see a well-defined value.
+//! \return The unspecified-error sentinel `ErrorCode`.
 // Sentinel value for the Exception default ctor (unknowns #91).
 // Binary calls make_error_code(ZIResult_enum) @0x2e4550 with value 0x8000.
 // The real implementation uses a custom ZiApiErrorCategory singleton at

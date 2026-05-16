@@ -39,6 +39,11 @@ namespace zhinst {
  * the boost-headers-only specialisation into a hand-vectorised SSE2
  * sequence (`unpcklpd`/`maxpd`/`subpd`/`divpd`).  The recon defers
  * directly to boost so the compiler emits the same lowering.
+ *
+ * \param a First operand.
+ * \param b Second operand.
+ * \return `true` iff `a` and `b` are within one ULP per the rule
+ *         described above.
  */
 bool almostEqual(double a, double b);
 

@@ -166,11 +166,16 @@ enum class ImmediateKind : uint32_t {
 //! \brief Renders an `Immediate` as the string the assembler
 //! emits for its active alternative (`%u` for addresses, decimal
 //! for integers, the literal string for label kinds).
+//! \param imm Immediate to render.
+//! \return The assembler-syntax string for `imm`.
 std::string toString(Immediate const& imm);
 
 // operator<<(ostream&, Immediate const&) — 0x290b90
 // Copies Immediate, calls toString, writes to ostream.
 //! \brief Writes `toString(imm)` to `os`.
+//! \param os Destination stream.
+//! \param imm Immediate to render.
+//! \return Reference to `os`.
 std::ostream& operator<<(std::ostream& os, Immediate const& imm);
 
 // ============================================================================
