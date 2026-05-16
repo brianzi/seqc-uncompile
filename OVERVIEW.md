@@ -2097,3 +2097,126 @@ verify-then-write throughout.
   `\verifyme` backlog: 1 → 0 (cleared).  `\binarynote`
   count: 28 → 29.  No source-code change.  Tests 1603/1603
   main + 1626/1626 harness still passing.
+
+## Phase G — `\binarynote` re-audit (round 2)
+
+Phase F1 audited the 26 `\binarynote` sites that existed at
+2026-05-13 and surfaced IF-269 (`Node::type2str` typo).  Between
+F1 close and Phase G start, 8 net-new `\binarynote`s landed via
+F2/F3/F4/F5 and the doc-coverage push without binary
+re-verification.  Phase G re-audits **all 34 in-tree sites**
+(F1 set + the 8 new) on the same methodology — read the body,
+disassemble the cited address, log any divergence as an IF,
+demote `\binarynote`s where the recon has been silently fixed
+since the note was written.
+
+- **G1 (`core/` batch, 11 sites).**  Closed 2026-05-16.  All 9
+  actual doc-tag sites verified accurate against the binary
+  (spot-checks: `toApiCode` jump-table at @0x2e5280;
+  `base64::encode` alphabet @0x90cf90 + pad @0x90cfd1;
+  `almostEqual` SSE2 unpcklpd/maxpd/subpd/divpd at @0x2ec070;
+  `toRawByteArray` size==0/1 fast paths at @0x2f27c0;
+  `sanitizeInvalidFilename` regex literal `COM[1-9]|PRN` at
+  @0x90d0b2; `browseTo` no-escape-between-url-and-shell at
+  @0x2eb950; `xmlEscapeUtf8Critical` movsbl + `&#%03d;` at
+  @0x2faaa0; `Exception::description` returns `&errorCode_` at
+  @0x2e58b0; `toSubscript(long)` forwards to string overload at
+  @0x2fdb80).  Two of the 11 cited lines turned out to be `//`
+  cross-reference comments inside `diagnostics_text.cpp` bodies
+  (out of audit scope; don't render).  *Yield*: 0 IFs.  One
+  cosmetic fix: `toSubscript(long)`'s `\details` block in
+  `core/platform.hpp` contradicted its own sibling `\binarynote`
+  ("carry `-` through unchanged" then "drop `-`"); rewritten
+  coherently as "forward to string overload, which drops every
+  non-digit".  Tests at close: 1603/1603 main.
+
+- **G2 (`device/` + `ast/` + `asm/` batch, 9 sites).**  Closed
+  2026-05-16.  All 9 verified accurate against the binary via
+  static disasm + rodata cross-checks: `device_type.hpp:146`
+  (`None==MF==0` dual emit of `"MFK"` @0x90b60e and `"MF"`
+  @0x90b612 via family-conditional `lea` @0x2cfee0);
+  `device_type.hpp:1074` lowercase-doesn't-match (already
+  re-verified during IF-267); `device_type.hpp:1176` `hasMf`
+  family swap (`cmp $0x4,%eax; sete %sil` @0x2d3030);
+  `eval_results.hpp:150` `setValue(double)` sub-type `Vect=3`
+  (`movl $0x3` @0x2136a0); `seqc_ast_node.cpp:1009` +
+  `.hpp:2034` `SeqCValue` partial swap (only `[+0x14]`
+  varType + `[+0x18..]` payload @0x1fe410, base fields
+  untouched); `seqc_ast_node.hpp:262` `SeqCAstNode` swap
+  excludes vptr `[+0x0]` (swaps `[+0x10]` and `[+0x8]`
+  @0x1fda40); `seqc_ast_node.hpp:1200` `SeqCRepeat::cond` not
+  `count` (only `cond` symbol exists in `.dynsym`);
+  `asm_parser_context.hpp:159` `clearSyntaxError` zeroes 4-byte
+  flag DWORD + sets `lineNumber_=1` (@0x28e890), leaves
+  `doOpt_`/`programCounter_`/`errorCallback_`/`stringCopies_`/
+  `labels_` untouched.  *Yield*: 0 IFs, 0 fixes.  Tests at
+  close: 1603/1603 main (no source change since G1).
+
+- **G3 (`io/` + `runtime/` + `waveform/` + `codegen/` +
+  `infra/` batch, 14 sites).**  Closed 2026-05-16.  13/14
+  verified accurate; **1 critical bug surfaced (IF-291)**.
+
+  Verified accurate (12 doc-tags + 1 cross-ref out of scope):
+  `io/zi_environment.hpp:149` `makeDirectories` 0x8011 error
+  code (@0x2cdef0); `io/cached_parser.hpp:191` `CachedFile`
+  field layout (`channel_`/`markerBits_`/`samples_`/`markers_`
+  @+0x00/+0x08/+0x20/+0x38; dtor @0x2b1f70 destroys exactly
+  3 vectors; sizeof 0x50, no `found` field);
+  `io/cached_parser.hpp:279` `cacheFileOutdated` first call
+  passes name (@0x2b14f5); `runtime/resources.hpp:659`
+  `variableExistsInScope` tail-jump on `grandparent_.get()`
+  (@0x1e4390, loads `[r14+0x18]`, never touches `parent_`
+  @+0x40); `runtime/resources.hpp:706` `checkVar` accepts
+  everything except `VarType_String=3` (`cmpl $0x3,(%rax)`
+  @0x1e4e4f, runtime enum not ast enum);
+  `waveform/play_config.hpp:46` `now` excluded from
+  `operator!=` (only `[+0x1e] dummy` loaded @0x1d57ad);
+  `waveform/signal.hpp:192` non-const-ref `Signal::append`
+  (mangling confirms; body @0x25f310 calls `checkAllocation`
+  on both); `waveform/waveform_generator.hpp:1028,1052`
+  `rand`/`randomGauss` 3-arg defaults amplitude=1.0
+  (arg-count forks @0x251d27 / @0x252937; rodata 1.0
+  @0x956030); `infra/random.hpp:53` `Random::seedRandom`
+  call site (@0x149832 uses `__tls_get_addr` result for
+  `GlobalResources::random` as `this`); `infra/calver.hpp:88`
+  `triple()` returns reference (body @0x100260 is
+  `mov %rdi,%rax; ret`); `infra/calver.hpp:248`
+  `extractVersionTriple` swallows parse errors (catch
+  handler @0x101bb4 zeros all 24 B of sret with
+  `xorps`+`movups`+`movq`).  Out of scope: 1 `//` cross-ref
+  in `io/zi_environment.cpp:256` (covered by `:149`).
+
+  **IF-291** (`MathCompiler::log` divergence).  The
+  `\binarynote` on `MathCompiler::log` claimed the function
+  was natural log ("same implementation as `ln`"), and the
+  recon body matched that claim (`std::log(x)`).  Binary
+  @0x1c3940 actually tail-jumps `log10@plt`, not `log@plt` —
+  `log` is **base-10**.  Both sides had drifted in agreement
+  while diverging from the binary.  Fixed: recon body now
+  `std::log10(x)`; `\binarynote` rewritten to describe the
+  base-10 behaviour and to flag it as a surprise relative to
+  most ecosystems' natural-log convention.  No `tests/cases/*`
+  exercises `log(`, so 1603/1603 stayed clean both before and
+  after — exactly the class of bug Phase G is designed to
+  catch (recon and doc agreed, binary disagreed, no test
+  reached it).
+
+  Tests at close: 1603/1603 main + 1626/1626 harness.
+
+- **G4 (triage + wrap-up).**  Closed 2026-05-16.  Phase G
+  audited all 34 in-tree `\binarynote` sites:
+  - 33 verified accurate (G1: 11, G2: 9, G3: 13).
+  - 1 IF surfaced and fixed (IF-291, G3).
+  - 1 cosmetic doc fix (G1: `toSubscript(long)` `\details`
+    self-contradiction).
+  - 0 demotions / removals — no `\binarynote` had been
+    silently superseded.
+
+  Phase G yield rate (1 IF / 34 sites = ~3%) is in line with
+  F1 (1 IF / 26 sites).  The recurring pattern across both
+  audits is that wrong `\binarynote`s tend to be ones whose
+  matching recon body also drifted with them, so the existing
+  difftest corpus does not catch them — the audit is the only
+  signal.  Suggests Phase H-or-similar should be scheduled
+  every time the `\binarynote` count grows by ~10 net-new
+  sites without a re-audit.

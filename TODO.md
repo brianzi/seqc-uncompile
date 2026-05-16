@@ -1295,11 +1295,21 @@ Methodology (per F1):
 
       *Tests at close*: 1603/1603 main + 1626/1626 harness.
 
-- [ ] **G4 — Triage + wrap-up**
+- [x] **G4 — Triage + wrap-up** *(closed 2026-05-16)*
 
-      Roll up findings: IFs filed, recon fixes landed, demotions/
-      removals applied.  Update OVERVIEW Phase G entry.  Confirm
-      full suite + harness clean before close.
+      Phase G audit complete: 34/34 sites covered across G1+G2+G3.
+      33 verified accurate, 1 IF (IF-291 — `MathCompiler::log` was
+      base-10, doc + recon both wrong), 1 cosmetic doc fix
+      (`toSubscript(long)` self-contradiction in `core/platform.hpp`).
+      0 demotions / removals.  OVERVIEW updated with full Phase G
+      narrative.  Final tests: 1603/1603 main + 1626/1626 harness.
+
+      Pattern observed (both F1 and G): wrong `\binarynote`s tend
+      to drift in lockstep with the recon body that implements
+      them, so the difftest corpus does not catch them.  Audit is
+      the only signal.  Suggests re-auditing whenever the
+      `\binarynote` count grows by ~10 net-new sites without
+      re-verification.
 
 ## Archives
 
