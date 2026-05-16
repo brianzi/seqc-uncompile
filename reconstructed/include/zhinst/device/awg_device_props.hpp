@@ -270,41 +270,39 @@ static_assert(sizeof(AwgDeviceProps) == 32 + 4 * sizeof(std::string),
 //! present).  The set of explicit specialisations matches the set of
 //! one-hot `AwgDeviceType` bits exactly — there is no fallback for
 //! an arbitrary `AwgDeviceType` value.
+//!
+//! \tparam T One-hot `AwgDeviceType` selecting the family whose
+//!         properties to return.  Must be one of `UHFLI`, `HDAWG`,
+//!         `UHFQA`, `SHFQA`, `SHFSG`, `SHFQC_SG`, `SHFLI`, `GHFLI`,
+//!         or `VHFLI`; any other value is a link-time error
+//!         (no primary-template definition exists).
+//! \param dt Device handle, consulted only by the HDAWG
+//!         specialisation; ignored by all other specialisations.
+//! \return The fixed `AwgDeviceProps` value table for the selected
+//!         family.  The HDAWG return is parameterised on
+//!         `dt.options()` to honour the Memory Extension option's
+//!         larger ELF-size limit.
 template <AwgDeviceType T>
 AwgDeviceProps getAwgDeviceProps(DeviceType const& dt);
 
+//! \cond INTERNAL
 // Explicit specialization DECLARATIONS (definitions in awg_device_props.cpp).
 // We do not provide a primary template definition: the binary contains
 // only these 9 specializations, each emitted as a unique function body.
+// Hidden from the public Doxygen site because Doxygen 1.9.x cannot
+// bind doc blocks to explicit specialisations; the primary template
+// above carries the full public contract.
 
-//! \brief Specialisation returning the AWG device properties for the
-//! UHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! HDAWG family; the only specialisation that consults the
-//! `DeviceType` argument (to honour the Memory Extension option).
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! UHFQA family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! SHFQA family (and the SHFQC when its QA generator is selected).
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! SHFSG family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! SHFQC when its SG sequencer is selected.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! SHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! GHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const&);
-//! \brief Specialisation returning the AWG device properties for the
-//! VHFLI family.
 template <> AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const&);
+//! \endcond
 
 // ----------------------------------------------------------------------------
 // toAwgDeviceType(DeviceTypeCode, AwgSequencerType) — @ 0x2cbd60

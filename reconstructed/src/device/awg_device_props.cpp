@@ -184,7 +184,15 @@ AwgDeviceProps buildAwgDeviceProps(AwgDeviceType        type,
 //   maxSamples = r14d ? 0x80000000 : 0x10000000
 // ----------------------------------------------------------------------------
 
-//! \brief AWG device properties for the UHFLI family.
+//! \cond INTERNAL
+// The 9 explicit specialisations below carry no per-definition Doxygen
+// docs: their public contract is fully described by the primary
+// template declaration in awg_device_props.hpp. Doxygen 1.9.x cannot
+// bind \param/\return blocks to explicit specialisation definitions
+// (the warnings fire even with full annotation), so we hide them the
+// same way D11 (commit 2cd360b) handled explicit instantiations.
+
+// AWG device properties for the UHFLI family.
 // 0x2cc900
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const& /*dt*/) {
@@ -193,9 +201,9 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFLI>(DeviceType const& /*dt*/)
         0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the HDAWG family; selects the
-//! larger ELF-size limit when the Memory Extension (ME) device option
-//! is present.
+// AWG device properties for the HDAWG family; selects the
+// larger ELF-size limit when the Memory Extension (ME) device option
+// is present.
 // 0x2ccb80
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const& dt) {
@@ -208,7 +216,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::HDAWG>(DeviceType const& dt) {
         maxElfSize, 0x80000000u, 1u, true, kSlaveRevisionPattern);
 }
 
-//! \brief AWG device properties for the UHFQA family.
+// AWG device properties for the UHFQA family.
 // 0x2cc5f0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const& /*dt*/) {
@@ -217,8 +225,8 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::UHFQA>(DeviceType const& /*dt*/)
         0x10000000ull, 0xd0000000u, 0u, false, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the SHFQA family (and the SHFQC
-//! when its QA generator is selected).
+// AWG device properties for the SHFQA family (and the SHFQC
+// when its QA generator is selected).
 // 0x2cce30
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const& /*dt*/) {
@@ -227,7 +235,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQA>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 2u, false, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the SHFSG family.
+// AWG device properties for the SHFSG family.
 // 0x2cd0c0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const& /*dt*/) {
@@ -236,8 +244,8 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFSG>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the SHFQC when its SG sequencer
-//! is selected.
+// AWG device properties for the SHFQC when its SG sequencer
+// is selected.
 // 0x2cd350
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const& /*dt*/) {
@@ -246,7 +254,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFQC_SG>(DeviceType const& /*dt
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the SHFLI family.
+// AWG device properties for the SHFLI family.
 // 0x2cd5e0
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const& /*dt*/) {
@@ -255,7 +263,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::SHFLI>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the GHFLI family.
+// AWG device properties for the GHFLI family.
 // 0x2cdb00
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const& /*dt*/) {
@@ -264,7 +272,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::GHFLI>(DeviceType const& /*dt*/)
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
 
-//! \brief AWG device properties for the VHFLI family.
+// AWG device properties for the VHFLI family.
 // 0x2cd870
 template <>
 AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/) {
@@ -272,6 +280,7 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/)
         AwgDeviceType::VHFLI, awgPathPatternsMaloja(),
         0x80000000ull, 0x00000000u, 1u, true, kFpgaRevisionPattern);
 }
+//! \endcond
 
 // ----------------------------------------------------------------------------
 // toAwgDeviceType(DeviceTypeCode, AwgSequencerType)  @ 0x2cbd60
