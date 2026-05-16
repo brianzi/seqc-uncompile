@@ -2611,16 +2611,21 @@ forms were covered.
 ## IF-235  `StaticResources::errorReportTarget()` is a declared-but-undefined orphan helper
 
 **Severity**: low (cosmetic / dead declaration)
-**Status**: **closed-documented** — kept as a declaration with an
-`\unclear` brief (retagged from `\verifyme` in 2026-05-13:
-`\verifyme` implies a hypothesis with a binary referent that
-could be GDB- or test-verified, but no binary symbol matching
-this declaration has been located, so the more accurate marker
-per AGENTS.md tag rules is `\unclear`).  The brief in
-`resources.hpp` notes the absence of both a caller in the
-reconstructed tree and a matching binary symbol; declaration
-retained to mirror the original class layout.
-**Source**: `reconstructed/include/zhinst/runtime/resources.hpp:1081`
+**Status**: **fixed (2026-05-16)** — phantom declaration removed
+from `resources.hpp`.  Earlier marker was `\unclear` with a "kept
+to mirror class layout" justification; on re-verification that
+justification doesn't hold: `StaticResources` is polymorphic
+(vtable at 0xb03930) but its vtable contains only `D2`, `D0`,
+and `getVariable` — there is no `errorReportTarget` slot — and
+the helper was non-virtual anyway, so a non-virtual declaration
+has zero effect on class layout.  The declaration was a phantom
+from earlier reconstruction.  Removed; the archaeology
+(binary's inline `__function::__base::__invoke` dispatch pattern
+at 0x12a256-0x12a26d) is preserved in this IF entry and in a
+short comment at the former declaration site.
+**Source**: previously
+`reconstructed/include/zhinst/runtime/resources.hpp:1110-1126`
+(removed); commentary now in lines 1110-1120.
 
 ### Observation
 
@@ -2654,11 +2659,20 @@ named accessor, so the placeholder was never filled in.
 
 ### Action
 
-Documented inline with a `\verifyme` doc comment so the
-member shows up on the verify-me backlog page; the
-declaration is left in place to preserve the existing
-research note.  No code change to source files — purely a
-documentation bookkeeping entry.
+**2026-05-13**: Initially documented inline with a `\unclear`
+doc comment so the member would surface on the verify-me/unclear
+backlog page; the declaration was left in place to preserve the
+existing research note.
+
+**2026-05-16** (this update): Phantom declaration removed.
+Re-verification of the layout-preservation argument showed it
+was incorrect — non-virtual declarations don't affect class
+layout, and the vtable evidence (only `D2`/`D0`/`getVariable`
+in the binary's `_ZTVN6zhinst15StaticResourcesE`) confirms
+there's no virtual slot for `errorReportTarget` either.  The
+inline `std::function` dispatch archaeology is preserved in a
+short comment block at the former declaration site, plus this
+IF entry.  `\unclear` backlog reduced 1 → 0.
 
 ### Lesson
 

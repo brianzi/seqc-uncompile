@@ -377,7 +377,7 @@ mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
 **D11–D19 are all complete**; Phase E (diff-test harness for
 binding-unreachable reconstructions, including the 20 D16 symbols)
 is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
-`\unclear=1`, `\verifyme=1`, `\binarynote=28`, `\unverifiable=5`.
+`\unclear=0`, `\verifyme=1`, `\binarynote=28`, `\unverifiable=5`.
 Documentation coverage: 94.7% (2979/3145 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
@@ -2056,3 +2056,19 @@ verify-then-write throughout.
   Lesson recorded: when an audit finds the first N matches,
   search exhaustively before declaring diminishing returns
   (IF-289 found ~25% of the supposedly-converged set).
+
+- **2026-05-16** Doc backlog cleanup: removed the phantom
+  `StaticResources::errorReportTarget()` declaration from
+  `include/zhinst/runtime/resources.hpp` (IF-235 follow-up).
+  The declaration had been retained with an `\unclear` marker
+  on the justification that it "mirrored the original class
+  layout", but re-verification showed that argument doesn't
+  hold: the helper was non-virtual (so layout-independent),
+  and the binary's `StaticResources` vtable
+  (`_ZTVN6zhinst15StaticResourcesE` @0xb03930) contains only
+  `D2`/`D0`/`getVariable` — no `errorReportTarget` slot.
+  Phantom removed; archaeology of the binary's inline
+  `__function::__base::__invoke` dispatch (0x12a256-0x12a26d)
+  preserved in IF-235 and a short comment block at the former
+  declaration site.  `\unclear` backlog: 1 → 0.  Tests
+  1603/1603 main + 1626/1626 harness still passing.

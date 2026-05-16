@@ -1107,23 +1107,15 @@ public:
     //! \return true when at least one such constant was read.
     bool usedSampleRate() const { return usedSampleRate_; }
 
-protected:
-    // Returns a callable that forwards to the std::function stored inline at
-    // (functionStorage_, functionPtr_). The binary at 0x12a256-0x12a26d
-    // dispatches via `[functionPtr_->vtable + 0x30]` which is the standard
-    // libc++ __function::__base::__invoke entry. The wrapper hides that ABI
-    // detail from call sites in static_resources.cpp.
-    //! \brief Reconstruction-only helper that would re-package the
-    //! inline `std::function` into a fresh callable.
-    //! \unclear No call site in the reconstructed tree references
-    //!         this declaration and no matching binary symbol has
-    //!         been located; retained as a hypothesised placeholder
-    //!         pending evidence of an actual caller or symbol.
-    //!         See IF-235 (closed-documented).
-    //! \return A callable forwarding to the inline warning-reporter
-    //!         `std::function` (or an empty `std::function` when none
-    //!         is installed).
-    std::function<void(std::string const&)> errorReportTarget() const;
+    // Note: an earlier reconstruction pass added a protected
+    // `errorReportTarget()` accessor here as a hypothesised wrapper
+    // around the binary's inline `std::function` re-packaging at
+    // 0x12a256-0x12a26d.  The binary does NOT expose such a named
+    // helper — it inlines the libc++ `__function::__base::__invoke`
+    // dispatch (`[functionPtr_->vtable + 0x30]`) at every call site,
+    // and `nm` confirms no matching symbol exists.  The declaration
+    // was removed in IF-289 follow-up (2026-05-16); see IF-235 for
+    // the full archaeology of the inline dispatch pattern.
 
 private:
     bool    usedSampleRate_;        //!< Set by `getVariable` whenever a sample-rate-bearing constant is read; mirrored into compile-result metadata.  +0xD8

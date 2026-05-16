@@ -23,9 +23,12 @@ extern const std::string zsyncDataPqscRegister;       // BSS @0xb846a8 — "ZSYN
 extern const std::string zsyncDataPqscDecoder;        // BSS @0xb846c0 — "ZSYNC_DATA_PQSC_DECODER"
 
 // ============================================================================
-// StaticResources constructor, destructor, errorReportTarget, and getVariable
-// are defined in resources_static_global.cpp (the more detailed reconstruction).
-// Only StaticResources::init lives in this file.
+// StaticResources constructor, destructor, and getVariable are defined in
+// resources_static_global.cpp (the more detailed reconstruction).  Only
+// StaticResources::init lives in this file.  (An earlier comment also
+// mentioned `errorReportTarget` — that was a phantom declaration removed
+// per IF-235 / IF-289 follow-up; the binary inlines the underlying
+// std::function dispatch rather than exposing a named helper.)
 // ============================================================================
 
 // ============================================================================
