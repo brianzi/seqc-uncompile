@@ -81,6 +81,11 @@ void appendTune(seqcc::Options& opts, std::string const& kv) {
 // it are then collected into a parallel argv-style vector for
 // CLI11_PARSE.  We deliberately do NOT rewrite `-o` or `-h` (those are
 // legitimate single-char options) — only the gcc -m* family.
+//
+// TODO(IF-294): this hand-maintained allowlist will silently fail to
+// catch new gcc-style flags added in T3+; consider switching to a
+// parser that supports single-dash long names natively, or patching
+// CLI11.  See reconstructed/notes/incidental_findings.md IF-294.
 std::vector<std::string> rewriteGccLongFlags(int argc, char** argv) {
     static const std::array<std::string_view, 3> kRewrite{{
         "-march", "-mtune", "-mdevopts"
@@ -142,22 +147,34 @@ int main(int argc, char** argv) {
                    "newline-separated).  Single-dash -mdevopts=... also "
                    "accepted.")
         ->type_name("STR");
+    // TODO(IF-297): `-mdevopts=` is a coined name and the newline-separated
+    // packed string is awkward to type at a shell.  T3 should promote to
+    // repeatable `-mdevopt=FEATURE` (singular) and keep the current form
+    // as a deprecated alias.  See incidental_findings.md IF-297.
 
     // -mtune=KEY=VALUE — repeatable.  We capture each occurrence as a
     // raw string and parse it in `appendTune()` so we control the
     // KEY=VALUE shape (CLI11's built-in pair-of-strings option would
     // require a different syntax).
+    //
+    // TODO(IF-295): `-mtune` is currently overloaded as the generic
+    // JSON-kwarg channel.  Promote wavepath/waveforms/filename/sequencer
+    // to dedicated flags in T3 and keep -mtune as an escape hatch for
+    // genuine tuning knobs only.  See incidental_findings.md IF-295.
     std::vector<std::string> tuneRaw;
     app.add_option("--mtune", tuneRaw,
                    "JSON config key/value: -mtune=KEY=VALUE.  "
                    "Recognised keys: sequencer, samplerate, filename, "
-                   "wavepath, waveforms, index.  Repeatable.  Single-dash "
-                   "-mtune=... also accepted.")
+                   "wavepath, waveforms.  Repeatable.  Single-dash "
+                   "-mtune=... also accepted.  Note: -mtune=index=N is "
+                   "silently a no-op (IF-296) — use --index=N instead.")
         ->type_name("KEY=VALUE");
 
     app.add_option("--index", opts.awgIndex,
-                   "AWG core index (zero-based; default 0).  "
-                   "Equivalent to -mtune=index=N.");
+                   "AWG core index (zero-based; default 0).");
+    // TODO(IF-296): -mtune=index=N collides with --index=N and is
+    // silently dropped by compileSeqc(); detect it in appendTune() and
+    // either reject or fold into opts.awgIndex.
 
     std::vector<std::filesystem::path> inputs;
     app.add_option("inputs", inputs, "Input .seqc file (exactly one).")

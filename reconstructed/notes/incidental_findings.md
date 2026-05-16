@@ -247,3 +247,174 @@ after the move.
 **TODO references**: `tools/seqcc/src/main.cpp` carries a `// TODO(IF-293):`
 comment at the version-string definition pointing to this entry.
 
+## IF-294  seqcc: single-dash long flags require ad-hoc argv pre-rewrite
+
+**Severity**: cosmetic
+**Status**: open
+**Discovered**: while implementing T2 default compile path.
+
+**Symptom**: CLI11 (vendored v2.4.2, single-header) rejects long option
+names with a single leading dash at registration time with
+`CLI::BadNameString: Long names strings require 2 dashes -march`.  This
+makes the gcc-style spelling `-march=HDAWG8` / `-mtune=key=value` /
+`-mdevopts=...` impossible to register directly.
+
+**Current workaround** (`tools/seqcc/src/main.cpp::rewriteGccLongFlags`):
+walk argv before `CLI11_PARSE`, and for any token that starts with
+`-march`, `-mtune`, or `-mdevopts` followed by end-of-string or `=`,
+prepend a second `-` to produce `--march=`/`--mtune=`/`--mdevopts=`.
+Tagged `// TODO(IF-294)` in `main.cpp`.
+
+**Issues with the workaround**:
+1. **Manually-maintained allowlist** — every new gcc-style flag added in
+   T3+ (`-mtune` extensions, possibly `-mfloat-abi=`, etc.) has to
+   remember to extend `kRewrite`.  Easy to forget; failure mode is a
+   confusing "long names strings require 2 dashes" abort at startup.
+2. **No round-trip in help text** — `seqcc --help` advertises `--march`,
+   not `-march`; users discovering the flag from `--help` won't realise
+   the gcc-style spelling works.  The current help blurb mentions it in
+   prose only.
+3. **Doesn't compose with CLI11 features** — flags registered by the
+   workaround can't use CLI11's `->envname()`, completion hints, or
+   subcommand routing without further special-casing.
+
+**Possible fixes** (none implemented):
+- Switch to a parser that allows single-dash long flags natively
+  (`argparse`, `cxxopts`, hand-written).  CLI11's rejection is by
+  design and won't be changed upstream.
+- Patch CLI11 locally to relax the check.  Vendored header; trivial
+  one-line change but creates a maintenance debt vs upstream.
+- Drop the gcc-style spelling and use only `--march`, `--mtune`,
+  `--mdevopts`.  Breaks the stated design goal of "gcc-style flags"
+  in `tools/seqcc/DESIGN.md` §3.
+
+**Verification**: confirmed by directly registering `-march` as a CLI11
+long name during T2 development — produces the abort quoted above.
+
+## IF-295  seqcc: `-mtune` channel conflates tuning, config, and pipeline knobs
+
+**Severity**: cosmetic
+**Status**: open
+**Discovered**: while implementing T2 default compile path.
+
+**Symptom**: in gcc, `-mtune=<microarch>` selects an instruction
+scheduling target — a micro-optimisation hint.  seqcc T2 currently uses
+`-mtune=KEY=VALUE` as a generic "JSON config kwarg" channel: legitimate
+tuning keys (none yet exist), per-call config (`samplerate`,
+`sequencer`), and core compilation inputs (`wavepath`, `waveforms`,
+`filename`) all share the same syntax.
+
+**Why this exists**: it's a one-line implementation that mirrors the
+Python binding's `**kwargs` dict — every kwarg becomes a JSON key, no
+per-key special-casing.  T2 prioritised byte-equality over surface
+ergonomics.
+
+**Concrete problems**:
+1. **`--wave-path`/`--waveforms` from the Phase T design doc are
+   not actually registered** as dedicated flags; they only work via
+   `-mtune=wavepath=...` / `-mtune=waveforms=...`.  Users following
+   `tools/seqcc/DESIGN.md` §3 will hit "unknown option".
+2. **`filename` and `sequencer` aren't tuning knobs** — they shape the
+   compile output, not its quality.  Better surfaced as
+   `--filename=` / `--sequencer=` first-class flags.
+3. **`-mtune` as the dumping ground for everything** means future
+   genuine tuning knobs (loop-unroll limit, optimisation-pass flags,
+   etc.) collide semantically with the existing keys.
+
+**Proposed surface for T3** (not yet implemented):
+- Promote `wavepath`, `waveforms`, `filename`, `sequencer` to dedicated
+  `--wave-path`, `--waveforms`, `--filename`, `--sequencer` flags.
+- Keep `-mtune=KEY=VALUE` as the **escape hatch** for kwargs the driver
+  doesn't yet have a first-class flag for (matches gcc's `-mtune=`
+  semantics: a way to set a low-level knob without a dedicated flag).
+- Drop the `isNumericKey` allowlist in `options.cpp` — make it a CLI
+  validation rule on the dedicated `--samplerate=` flag instead.
+
+**Verification**: `seqcc --help` output shows only `--mtune` /
+`--march` / `--mdevopts` / `--index` / `-o` registered; the
+design-doc-promised `--wave-path` and `--waveforms` are absent.
+
+## IF-296  seqcc: `--index` and `-mtune=index=` collide; the latter is silently a no-op
+
+**Severity**: likely-bug
+**Status**: open
+**Discovered**: while triaging IF-295.
+
+**Symptom**: seqcc accepts both `--index=N` (which writes
+`opts.awgIndex`) and `-mtune=index=N` (which writes a JSON `index` key
+into the config object).  `compileSeqc()` reads the AWG index **only**
+from its `awgIndex` positional parameter (see
+`reconstructed/src/codegen/compile_seqc.cpp` ~L137-148) — it never
+inspects the JSON config for an `index` key.  The Python binding hides
+this by routing `index=N` kwargs through a special-cased positional;
+seqcc doesn't replicate that special case, so `-mtune=index=N` is
+**silently dropped** by the compiler.
+
+**Reproduction** (T2 build):
+```
+echo 'playZero(64);' > /tmp/t.seqc
+seqcc -march=HDAWG8 -mtune=samplerate=2.4e9 -mtune=index=3 -o /tmp/a.elf /tmp/t.seqc
+seqcc -march=HDAWG8 -mtune=samplerate=2.4e9                -o /tmp/c.elf /tmp/t.seqc
+cmp /tmp/a.elf /tmp/c.elf   # → identical
+```
+
+The user intent was "AWG core 3"; the actual compile happened on core
+0 with no warning.
+
+**Two distinct fixes needed**:
+1. **seqcc-side**: when `-mtune=index=N` is parsed in `options.cpp`,
+   either (a) reject it with "use --index=N instead" or (b) special-case
+   it to populate `opts.awgIndex` and drop it from `opts.tune`.  (b) is
+   the binding's behaviour and what users probably expect.
+2. **Defensive check**: in T3 when `--index=` becomes the canonical
+   flag, drop the `index` entry from `isNumericKey` so the kwarg
+   channel can't even take a numeric `index` value.  Tagged
+   `// TODO(IF-296)` in `options.cpp`.
+
+**Verification**: confirmed empirically; ELF byte-identical with and
+without `-mtune=index=3`.  Disassembly of compileSeqc @0xf58a0 shows
+no JSON-key lookup for `"index"`.
+
+**Severity rationale**: marked likely-bug because the failure mode
+is a silent miscompile (wrong AWG core), not a hard error.  Only saved
+from being user-visible because seqcc is brand-new in T2 and has no
+production users yet.
+
+## IF-297  seqcc: `-mdevopts=` is a coined name; not idiomatic
+
+**Severity**: cosmetic
+**Status**: open
+**Discovered**: while reviewing T2 surface.
+
+**Symptom**: the third positional argument to the binding's
+`compile_seqc()` is a *device-options string* — a newline-separated
+list of feature flags like `"MF\nME"` for HDAWG multi-frequency /
+multi-execution.  seqcc T2 exposes this as `-mdevopts=...` — a name
+that doesn't appear in gcc, clang, or any toolchain prior art and
+doesn't match either the binding's parameter name (`options`) or the
+internal name (`upperOptions`).
+
+**Why it's awkward**:
+- gcc uses `-m<single-feature>` (e.g. `-msse4`, `-mavx2`), not a packed
+  newline-separated string.
+- A newline in a shell flag value is unwieldy: users have to write
+  `-mdevopts=$'MF\nME'` or `-mdevopts="MF
+  ME"`.
+- The binding calls this parameter `options`, so the natural seqcc
+  flag would be `--options=...` — but that's too generic and easily
+  confused with seqcc's own driver options.
+
+**Proposed surface for T3**:
+- Promote to repeatable `-mdevopt=FEATURE` (note: singular) so multiple
+  features stack: `-mdevopt=MF -mdevopt=ME`.  seqcc joins them with
+  `\n` when building the binding's `options` string.
+- Keep `-mdevopts=` (plural) as a deprecated alias accepting the raw
+  newline-separated string, for users who already have it in a script.
+
+**Verification**: not yet attempted; confirmed via reading
+`reconstructed/src/codegen/compile_seqc.cpp` ~L172 and the docstring
+in `pybind_seqc.cpp`.
+
+**TODO references**: `tools/seqcc/src/main.cpp` carries
+`// TODO(IF-297)` at the `--mdevopts` registration.
+

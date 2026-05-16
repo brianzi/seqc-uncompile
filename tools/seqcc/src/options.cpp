@@ -22,6 +22,12 @@ namespace {
 //! today (see compile_seqc.cpp ~L196); the others are kept as a small
 //! allowlist so that future numeric config keys "just work" without
 //! having to extend seqcc again.
+//!
+//! TODO(IF-296): `index` is listed here but compileSeqc() ignores the
+//! JSON `"index"` key entirely — it reads the AWG core only from its
+//! positional `awgIndex` parameter.  Anything a user passes via
+//! `-mtune=index=N` is silently dropped.  Remove from this allowlist
+//! once appendTune() rejects or redirects the key in T3.
 bool isNumericKey(std::string const& k) {
     static const std::unordered_set<std::string> kNumeric{
         "samplerate", "index"
