@@ -147,6 +147,50 @@ correction commit.
 - Every `.cpp` file should note the binary addresses of the functions
   it reconstructs, in comments next to each function definition.
 
+## Tooling vs reconstructed code: hands off
+
+External tooling (currently `tools/seqcc/` and anything else outside
+`reconstructed/`) **must not** modify reconstructed source — neither
+headers nor `.cpp` files — to make its own job easier.  This includes
+seemingly innocuous additions such as:
+
+- New public accessors / getters on reconstructed classes.
+- `friend` declarations to reach private members.
+- New overloads (e.g. `print(std::ostream&)`) "just for the driver".
+- Inserting null-default `std::function` taps at pass boundaries.
+- Comment-tagged `// NEW (seqcc tap):` insertions of any kind.
+
+Any change to `reconstructed/` triggers the full reconstruction
+discipline: re-verify against the binary, re-run the full diff suite,
+re-audit affected doc comments, and update incidental findings.  That
+cost is not justified for a tooling convenience.
+
+**Work around it instead**, even when awkward:
+
+- If a private member isn't reachable, drive the existing public API
+  in whatever sequence yields the needed state.  Re-parse / re-compile
+  if necessary — duplication of work is cheaper than a recon edit.
+- If a `print()` only writes to `std::cout`, capture stdout
+  (`freopen`, `dup2`, `std::cout.rdbuf` swap) from the tool side.
+- If a needed JSON shape isn't exposed, parse the existing
+  `compileSeqc()` packed return string and reshape from there.
+- If the only path requires inheritance from a reconstructed class,
+  build a header-only adapter inside the tool that exposes what's
+  needed via `reinterpret_cast` over verified struct offsets — and
+  document the offset assumption as an `IF-` finding.
+
+**Allowed exceptions** (must be discussed with the user first and
+explicitly approved in TODO.md before the edit lands):
+
+- A reconstruction bug surfaced *by* tooling and confirmed against the
+  binary.  Fix it as a regular recon change, not as a tooling shortcut.
+- A pure additive declaration that the binary already exports as a
+  public symbol but the recon header omits.  Verify the symbol with
+  `objdump -T` / `nm -D` before adding.
+
+If a tool can only be implemented by editing `reconstructed/`, **stop
+and ask the user** rather than proceeding.
+
 ## Git commit discipline
 
 - **Commit after every sub-phase wrap-up** (step 2 of the iteration
