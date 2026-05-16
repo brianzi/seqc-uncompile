@@ -197,83 +197,177 @@ static_assert(sizeof(Expression) == 0x58 || sizeof(Expression) == 0x60,
 
 //! \brief Renders an `EOperationType` as its enumerator name (e.g.
 //! `"eVALUE"`); used for debug logging and error messages.
+//! \param t Operation-type enumerator to render.
+//! \return Static enumerator-name string (e.g. `"eVALUE"`); never
+//!         allocates beyond the SSO-fitting result.
 std::string str(EOperationType t);   // 0x1c1530
 //! \brief Renders an `EOperator` as the source operator token it
 //! corresponds to (e.g. `"+"`, `"<<"`); `eNONE` renders as `""`.
+//! \param op Operator enumerator to render.
+//! \return Source-token string (e.g. `"+"`, `"<<"`, or `""` for
+//!         `eNONE`).
 std::string str(EOperator op);       // 0x1c1790
 //! \brief Renders an `ECommandType` as its enumerator name (e.g.
 //! `"eIF"`); used for debug logging and error messages.
+//! \param ct Command-type enumerator to render.
+//! \return Static enumerator-name string (e.g. `"eIF"`).
 std::string str(ECommandType ct);    // 0x1c18e0
 
 // ---- Free functions: parser actions ("create*") ---------------------------
 
 // Returns raw Expression* — callers wrap in shared_ptr.
+//
+// Convention for every `create*` / `addVariableType` parser-action
+// helper below: `ctx` is the active `SeqcParserContext` driving the
+// parse (used to stamp the current source line, raise errors, and
+// own newly-created nodes); the returned `Expression*` is
+// heap-allocated and ownership is transferred to the caller (the
+// generated bison parser wraps each result in a `shared_ptr`
+// immediately).  Per-function `\param ctx` lines are omitted for
+// brevity; only operand-specific parameters are documented.
 
 //! \brief Parser action: builds a numeric-literal `eVALUE`
 //! `Expression` carrying `val` and the current source line number.
+//! \param ctx Active parser context (carries source-line state).
+//! \param val Numeric literal value.
+//! \return Heap-allocated `eVALUE` node carrying `val`.
 Expression* createValue(SeqcParserContext* ctx, double val);                     // 0x1bf260
 //! \brief Parser action: builds a string-literal `eVALUE`
 //! `Expression` (with `varType = VarType_String`) carrying `s` as
 //! its name and the current source line number.
+//! \param ctx Active parser context.
+//! \param s NUL-terminated string-literal lexeme (including the
+//!          surrounding quote characters as the lexer produced them).
+//! \return Heap-allocated `eVALUE` node with `varType = VarType_String`.
 Expression* createString(SeqcParserContext* ctx, const char* s);                 // 0x1bf2d0
 //! \brief Parser action: builds an `eVARIABLE` `Expression`
 //! referencing the named identifier.
+//! \param ctx Active parser context.
+//! \param name NUL-terminated identifier lexeme.
+//! \return Heap-allocated `eVARIABLE` node naming `name`.
 Expression* createVariable(SeqcParserContext* ctx, const char* name);            // 0x1bf420
 //! \brief Parser action: stamps the type carried by `typeExpr` onto
 //! `expr` (or every child of `expr` when `expr` is an `eDECLLIST`),
 //! creating placeholder nodes for nullptr inputs and disposing of
 //! `typeExpr` unless `isConst` requests it be kept.
+//! \param ctx Active parser context.
+//! \param expr Target expression (or `eDECLLIST`) to receive the
+//!             type stamp; may be `nullptr` (placeholder is created).
+//! \param typeExpr `eVARIABLETYPE` node carrying the type to stamp;
+//!                 may be `nullptr`.
+//! \param isConst When true, marks the result as `const` and
+//!                preserves `typeExpr` rather than freeing it.
+//! \return `expr` (or the placeholder created in its place) with
+//!         the type now stamped on every relevant subtree.
 Expression* addVariableType(SeqcParserContext* ctx, Expression* expr,
                             Expression* typeExpr, bool isConst);                 // 0x1bf560
 //! \brief Parser action: builds a free-standing `eVARIABLETYPE`
 //! `Expression` carrying the given `VarType`.
+//! \param ctx Active parser context.
+//! \param vt Variable-type enumerator to attach.
+//! \return Heap-allocated `eVARIABLETYPE` node carrying `vt`.
 Expression* createVariableType(SeqcParserContext* ctx, VarType vt);              // 0x1bf7c0
 //! \brief Parser action: builds an `eOPERATOR` `Expression` with
 //! the given operator and `[lhs, rhs]` as its child operands.
+//! \param ctx Active parser context.
+//! \param lhs Left operand (becomes child 0).
+//! \param rhs Right operand (becomes child 1).
+//! \param op Operator enumerator to attach.
+//! \return Heap-allocated `eOPERATOR` node.
 Expression* createOperator(SeqcParserContext* ctx, Expression* lhs,
                            Expression* rhs, EOperator op);                       // 0x1bf830
 //! \brief Parser action: builds a compound-assignment `eOPERATOR`
 //! `Expression` (e.g. `+=`, `<<=`) by combining `op` with `eASSIGN`.
+//! \param ctx Active parser context.
+//! \param lhs Left operand (assignee; becomes child 0).
+//! \param rhs Right operand (rvalue; becomes child 1).
+//! \param op Underlying arithmetic/bitwise operator combined with
+//!           assign (e.g. `eADD` for `+=`).
+//! \return Heap-allocated compound-assignment `eOPERATOR` node.
 Expression* createAssignOperator(SeqcParserContext* ctx, Expression* lhs,
                                  Expression* rhs, EOperator op);                 // 0x1bf9c0
 //! \brief Parser action: builds an `eARRAY` indexing `Expression`
 //! with `[lhs, rhs]` as its child operands.
+//! \param ctx Active parser context.
+//! \param lhs Array expression being indexed (child 0).
+//! \param rhs Index expression (child 1).
+//! \return Heap-allocated `eARRAY` indexing node.
 Expression* createArray(SeqcParserContext* ctx, Expression* lhs,
                         Expression* rhs);                                        // 0x1bfb50
 //! \brief Parser action: builds a list-kind `Expression` of the
 //! given `EOperationType` (e.g. `eARGLIST`, `eDECLLIST`,
 //! `ePARAMLIST`, `eSTMTLIST`) with `[lhs, rhs]` as its initial
 //! children.
+//! \param ctx Active parser context.
+//! \param opType List-kind enumerator (must be one of the list
+//!               operation types).
+//! \param lhs First initial child.
+//! \param rhs Second initial child.
+//! \return Heap-allocated list-kind node carrying both children.
 Expression* createListType(SeqcParserContext* ctx, EOperationType opType,
                            Expression* lhs, Expression* rhs);                    // 0x1bfb70
 //! \brief Parser action: appends `rhs` to `lhs` if `lhs` is already
 //! a list of `opType`, otherwise constructs a fresh list via
 //! `createListType`.
+//! \param ctx Active parser context.
+//! \param opType List-kind enumerator to match against `lhs`.
+//! \param lhs Existing list (extended in place) or any other
+//!            expression (becomes the first child of a fresh list).
+//! \param rhs Element to append.
+//! \return Either `lhs` (when reused) or a fresh list-kind node.
 Expression* createOrAppendListType(SeqcParserContext* ctx,
                                    EOperationType opType,
                                    Expression* lhs, Expression* rhs);            // 0x1bfd20
 //! \brief Parser action: append-or-create wrapper specialised for
 //! `eARGLIST`.
+//! \param ctx Active parser context.
+//! \param lhs Existing `eARGLIST` (extended) or any other
+//!            expression (wrapped in a fresh list).
+//! \param rhs Argument to append.
+//! \return `eARGLIST` node containing the combined arguments.
 Expression* createOrAppendArgList(SeqcParserContext* ctx,
                                   Expression* lhs, Expression* rhs);             // 0x1bfd00
 //! \brief Parser action: append-or-create wrapper specialised for
 //! `eDECLLIST`.
+//! \param ctx Active parser context.
+//! \param lhs Existing `eDECLLIST` or any other expression.
+//! \param rhs Declaration to append.
+//! \return `eDECLLIST` node containing the combined declarations.
 Expression* createOrAppendDeclList(SeqcParserContext* ctx,
                                    Expression* lhs, Expression* rhs);            // 0x1bfe00
 //! \brief Parser action: append-or-create wrapper specialised for
 //! `ePARAMLIST`.
+//! \param ctx Active parser context.
+//! \param lhs Existing `ePARAMLIST` or any other expression.
+//! \param rhs Parameter to append.
+//! \return `ePARAMLIST` node containing the combined parameters.
 Expression* createOrAppendParamList(SeqcParserContext* ctx,
                                     Expression* lhs, Expression* rhs);           // 0x1bfe20
 //! \brief Parser action: append-or-create wrapper specialised for
 //! `eSTMTLIST`.
+//! \param ctx Active parser context.
+//! \param lhs Existing `eSTMTLIST` or any other expression.
+//! \param rhs Statement to append.
+//! \return `eSTMTLIST` node containing the combined statements.
 Expression* createOrAppendStmtList(SeqcParserContext* ctx,
                                    Expression* lhs, Expression* rhs);            // 0x1bfe40
 //! \brief Parser action: builds an `eFUNCTIONCALL` `Expression`
 //! pairing the callee `func` with its `args` (an `eARGLIST`).
+//! \param ctx Active parser context.
+//! \param func Callee expression (typically an `eVARIABLE`
+//!             naming the function).
+//! \param args Argument list (typically an `eARGLIST`).
+//! \return Heap-allocated `eFUNCTIONCALL` node.
 Expression* createFunctionCall(SeqcParserContext* ctx,
                                Expression* func, Expression* args);              // 0x1bfe60
 //! \brief Parser action: builds an `eFUNCTION` `Expression`
 //! grouping a return-type expression, parameter list, and body.
+//! \param ctx Active parser context.
+//! \param returnTypeExpr Expression describing the function's
+//!                       return type.
+//! \param params `ePARAMLIST` with the function's parameters.
+//! \param body `eSTMTLIST` with the function's body statements.
+//! \return Heap-allocated `eFUNCTION` node.
 Expression* createFunction(SeqcParserContext* ctx, Expression* returnTypeExpr,
                            Expression* params, Expression* body);                // 0x1c0000
 //! \brief Parser action: builds an `eCOMMAND` `Expression` of the
@@ -281,50 +375,100 @@ Expression* createFunction(SeqcParserContext* ctx, Expression* returnTypeExpr,
 //! by the `createIf` / `createWhile` / etc. helpers below as well
 //! as directly for the no-operand control-flow forms (`continue`,
 //! `break`, `return`).
+//! \param ctx Active parser context.
+//! \param cmd Command-type enumerator to attach.
+//! \param count Number of variadic `Expression*` operands that
+//!              follow.
+//! \return Heap-allocated `eCOMMAND` node carrying `count` children.
 Expression* createCommand(SeqcParserContext* ctx, ECommandType cmd,
                            int count, ...);                                      // 0x1c0330
 //! \brief Parser action: builds an `eIF` command from condition
 //! and body.
+//! \param ctx Active parser context.
+//! \param cond Condition expression.
+//! \param body Body executed when `cond` is non-zero.
+//! \return Heap-allocated `eIF` command node.
 Expression* createIf(SeqcParserContext* ctx, Expression* cond,
                      Expression* body);                                          // 0x1c0530
 //! \brief Parser action: builds an `eIFELSE` command from
 //! condition, then-body, and else-body.
+//! \param ctx Active parser context.
+//! \param cond Condition expression.
+//! \param thenBody Body executed when `cond` is non-zero.
+//! \param elseBody Body executed when `cond` is zero.
+//! \return Heap-allocated `eIFELSE` command node.
 Expression* createIfElse(SeqcParserContext* ctx, Expression* cond,
                          Expression* thenBody, Expression* elseBody);            // 0x1c06c0
 //! \brief Parser action: builds an `eSWITCH` command from
 //! discriminant value and body.
+//! \param ctx Active parser context.
+//! \param val Discriminant expression.
+//! \param body `eSTMTLIST` of `eCASE` commands forming the switch
+//!             body.
+//! \return Heap-allocated `eSWITCH` command node.
 Expression* createSwitch(SeqcParserContext* ctx, Expression* val,
                          Expression* body);                                      // 0x1c08d0
 //! \brief Parser action: builds an `eCASE` command (label value +
 //! body) inside a `switch`.
+//! \param ctx Active parser context.
+//! \param val Case-label value expression.
+//! \param body Body executed when the switch discriminant matches
+//!             `val`.
+//! \return Heap-allocated `eCASE` command node.
 Expression* createCase(SeqcParserContext* ctx, Expression* val,
                        Expression* body);                                        // 0x1c0a60
 //! \brief Parser action: builds an `eCONDEXP` command (ternary
 //! `cond ? trueBranch : falseBranch`).
+//! \param ctx Active parser context.
+//! \param cond Condition expression.
+//! \param trueBranch Expression evaluated when `cond` is non-zero.
+//! \param falseBranch Expression evaluated when `cond` is zero.
+//! \return Heap-allocated `eCONDEXP` command node.
 Expression* createCondExpression(SeqcParserContext* ctx, Expression* cond,
                                  Expression* trueBranch,
                                  Expression* falseBranch);                       // 0x1c0bf0
 //! \brief Parser action: builds an `eFOR` command from init /
 //! cond / incr / body.
+//! \param ctx Active parser context.
+//! \param init Initialiser statement.
+//! \param cond Continuation condition.
+//! \param incr Per-iteration increment statement.
+//! \param body Loop body.
+//! \return Heap-allocated `eFOR` command node.
 Expression* createFor(SeqcParserContext* ctx, Expression* init,
                       Expression* cond, Expression* incr,
                       Expression* body);                                         // 0x1c0e00
 //! \brief Parser action: builds an `eWHILE` command from cond and
 //! body.
+//! \param ctx Active parser context.
+//! \param cond Continuation condition.
+//! \param body Loop body.
+//! \return Heap-allocated `eWHILE` command node.
 Expression* createWhile(SeqcParserContext* ctx, Expression* cond,
                         Expression* body);                                       // 0x1c1080
 //! \brief Parser action: builds an `eREPEAT` command from a count
 //! expression and body (`repeat (count) body`).
+//! \param ctx Active parser context.
+//! \param count Iteration-count expression.
+//! \param body Loop body.
+//! \return Heap-allocated `eREPEAT` command node.
 Expression* createRepeat(SeqcParserContext* ctx, Expression* count,
                          Expression* body);                                      // 0x1c1210
 //! \brief Parser action: builds an `eDOWHILE` command from body
 //! and cond (`do body while (cond)`).
+//! \param ctx Active parser context.
+//! \param body Loop body (executed at least once).
+//! \param cond Continuation condition.
+//! \return Heap-allocated `eDOWHILE` command node.
 Expression* createDoWhile(SeqcParserContext* ctx, Expression* body,
                           Expression* cond);                                     // 0x1c13a0
 
 //! \brief Recursive deep copy of an `Expression` tree — clones
 //! every node and the entire `children` subtree as fresh
 //! `shared_ptr<Expression>` instances.
+//! \param expr Root of the source expression tree.
+//! \return Independent copy of `expr` with every descendant cloned
+//!         into a fresh `shared_ptr<Expression>`.
 std::shared_ptr<Expression> copyExpression(std::shared_ptr<Expression> expr);
 
 //! \brief Bison parser error callback invoked by the generated
@@ -332,6 +476,9 @@ std::shared_ptr<Expression> copyExpression(std::shared_ptr<Expression> expr);
 //! `ctx->raiseError()` and then sets the parser-context syntax-error
 //! flag via `ctx->setSyntaxError()`.  The `lval` and `scanner`
 //! parameters are unused.
+//! \param ctx Active parser context to receive the error.
+//! \param msg NUL-terminated error message produced by the bison
+//!            runtime.
 //! \return Always 1 (the value the bison runtime expects on error).
 int seqc_error(SeqcParserContext* ctx, Expression** /*lval*/,
                void* /*scanner*/, const char* msg);
