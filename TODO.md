@@ -198,14 +198,15 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
 
 ### Sub-phases
 
-- [ ] **T1 — Scaffolding.**  Create `tools/seqcc/` with `CMakeLists.txt`,
+- [X] **T1 — Scaffolding.**  Create `tools/seqcc/` with `CMakeLists.txt`,
       vendored `CLI11.hpp`, minimal `main.cpp` that only handles
       `--help` / `--version`.  Hook into `reconstructed/CMakeLists.txt`
       via `add_subdirectory(../tools/seqcc seqcc)`.  Build target
       produces `build/seqcc/seqcc`.  Add `tests/tools/` directory
       and a smoke test that verifies `seqcc --help` exits 0.
+      _Commit `47b3b09` — 1612/1612 difftest, 4/4 smoke._
 
-- [ ] **T2 — Full default path.**  Implement enough flag parsing for
+- [X] **T2 — Full default path.**  Implement enough flag parsing for
       `seqcc -march=HDAWG8 -mtune=samplerate=2.4e9 foo.seqc -o foo.elf`
       to produce a byte-identical ELF to what `compileSeqc()` produces.
       Implement `-march=<devtype>`, `-mtune=<k>=<v>` (sequencer, index,
@@ -214,6 +215,13 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       harness at `tests/tools/test_seqcc_diff.py` that runs a
       curated subset of manifest cases through both pipelines and
       requires byte-equal ELFs.
+      _15/15 diff cases pass byte-equal across HDAWG/SHFQA/SHFSG/SHFQC/UHF.
+      `--wave-path` / `--waveforms` are covered via the generic
+      `-mtune=wavepath=...` / `-mtune=waveforms=...` channel; dedicated
+      flag aliases deferred to T3 alongside the dump-flag surface.
+      Output ELF is built by calling the existing `zhinst::compileSeqc()`
+      free function — T5/T6 will refactor into direct `AWGCompiler` use
+      when pipeline-stage granularity is needed._
 
 - [ ] **T3 — JSON IR dumps.**  Implement `--dump=ast-lowered`,
       `--dump=asm`, `--dump=wavetable-ir`, `--dump=compile-report`

@@ -22,6 +22,8 @@ endif()
 # Source list — kept hand-maintained (small TU count, GLOB not justified).
 set(SEQCC_SOURCES
     src/main.cpp
+    src/options.cpp
+    src/compile.cpp
 )
 
 add_executable(seqcc ${SEQCC_SOURCES})
@@ -33,8 +35,14 @@ target_include_directories(seqcc PRIVATE
 # When built from reconstructed/CMakeLists.txt, the zhinst_seqc target is
 # available and we link it.  Stand-alone builds (which T1 does not yet
 # support fully) would need to find it instead.
+#
+# zhinst_seqc's source-compression path (awg_compiler.cpp::compressSourceString)
+# calls zlib's deflate*() directly; the static archive does not pull libz in,
+# so seqcc must request it explicitly — matching what the _seqc_compiler
+# Python module does at its own link step.
 if(TARGET zhinst_seqc)
-    target_link_libraries(seqcc PRIVATE zhinst_seqc)
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(seqcc PRIVATE zhinst_seqc ZLIB::ZLIB)
 endif()
 
 # Make warnings strict — this is fresh code, not reconstructed.
@@ -52,4 +60,4 @@ target_include_directories(seqcc SYSTEM PRIVATE
 # T7+: install symlinks seqas → seqcc, seqdump → seqcc.
 # Held until T7 to keep T1 install footprint minimal.
 
-message(STATUS "seqcc: scaffolding (T1) — pipeline flags arrive in T2+")
+message(STATUS "seqcc: default compile path (T2) — pipeline-stage flags arrive in T3+")
