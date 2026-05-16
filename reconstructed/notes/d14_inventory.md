@@ -100,7 +100,7 @@ section.
 - [`waveform_misc::waveform`](#cluster-waveform-misc-waveform) — 3 members, 1,655 B total — waveform (raw-wave + JSON helpers)
 - [`exceptions::core`](#cluster-exceptions-core) — 13 members, 1,173 B total — core (boost::wrapexcept thunk vtables)
 - [`base64::infra`](#cluster-base64-infra) — 1 members, 910 B total — infra (base64 codec)
-- [`compiler_helpers::codegen`](#cluster-compiler-helpers-codegen) — 1 members, 796 B total — codegen (helper not yet identified)
+- [`compiler_helpers::codegen`](#cluster-compiler-helpers-codegen) — 1 members, 796 B total — codegen (`AWGCompilerImpl::nodeListToJson`, closed by IF-278)
 - [`misc::?`](#cluster-misc) — 5 members, 570 B total — ? (mixed)
 - [`numeric::core`](#cluster-numeric-core) — 3 members, 394 B total — core (numeric helpers)
 - [`random::infra`](#cluster-random-infra) — 1 members, 297 B total — infra (PRNG)
@@ -636,21 +636,31 @@ Reconstruction difficulty: **trivial**. Recommended approach: standard 3-byte �
 
 ### Overview
 
-**Members:** 1  |  **Aggregate size:** 796 B  |  **Subsystem:** codegen (helper not yet identified)
+**Members:** 1  |  **Aggregate size:** 796 B  |  **Subsystem:** codegen (`AWGCompilerImpl::nodeListToJson`)
 
-Single 796 B helper `zhinst::compileWithRetry` (or similar — exact signature in member list). Called from a code-generation entry point.
+Single 796 B helper `AWGCompilerImpl::nodeListToJson` — emits the
+`"nodes"` JSON array consumed by `writeToStream` for the
+`.nodes_json` ELF section.  Body iterates the supplied node-access
+list, calls `NodeMapItem::toJson()` per entry, and attaches a
+`"modes"` array (string-formed `AccessMode` values) where the
+mode-map has an entry.
 
-Reconstruction difficulty: **small**. Recommended approach: read disassembly + caller context to determine retry policy.
+**Status (2026-05-16): closed.**  Reconstructed by IF-278 (promoted
+from an inlined-into-`writeToStream` body to a real public member
+matching the binary signature).  Recon exports the symbol under
+libstdc++ mangling
+(`_ZNK6zhinst15AWGCompilerImpl14nodeListToJsonERKSt6vector...`)
+while the binary uses libc++ mangling
+(`...ERKNSt3__16vector...`) — the standard libcxx ABI divergence
+documented throughout this file.  Qualified name + body shape +
+emitted JSON byte sequence all match.
 
 ### Symbols
 
 #### `zhinst::AWGCompilerImpl::nodeListToJson(std::__1::vector<zhinst::NodeMapItem, std::__1::allocator<zhinst::NodeMapItem> > const&, std::__1::unordered_map<zhinst::NodeMapItem, std::__1::set<zhinst::AccessMode, std::__1::less<zhinst::AccessMode>, std::__1::allocator<zhinst::AccessMode> >, std::__1::hash<zhinst::NodeMapItem>, std::__1::equal_to<zhinst::NodeMapItem>, std::__1::allocator<std::__1::pair<zhinst::NodeMapItem const, std::__1::set<zhinst::AccessMode, std::__1::less<zhinst::AccessMode>, std::__1::allocator<zhinst::AccessMode> > > > > const&) const`
 
 - **Mangled**: `_ZNK6zhinst15AWGCompilerImpl14nodeListToJsonERKNSt3__16vectorINS_11NodeMapItemENS1_9allocatorIS3_EEEERKNS1_13unordered_mapIS3_NS1_3setINS_10AccessModeENS1_4lessISB_EENS4_ISB_EEEENS1_4hashIS3_EENS1_8equal_toIS3_EENS4_INS1_4pairIKS3_SF_EEEEEE`
-- **Address**: `0x1088d0` | **Size**: 796 B | **Status**: absent
-- **First insn**: `push   %rbp`
-- **Callers**: `_ZN6zhinst15AWGCompilerImpl13writeToStreamERNSt3__113basic_ostreamIcNS1_11cha...`
-- **String evidence**: `".soft"`, `"modes"`, `"nodes"`, `"array::at"`, `"unordered_map::at: key not found"`
+- **Address**: `0x1088d0` | **Size**: 796 B | **Status**: **present (IF-278, 2026-05-something)** — libcxx ABI mangling divergence by design.  Recon exports `_ZNK6zhinst15AWGCompilerImpl14nodeListToJsonERKSt6vector...` (libstdc++); same qualified name + body shape.  Binary's redundant intermediate `set<AccessMode>` copy at @0x108992 is observationally a no-op (the unordered_map value is already a sorted set) and is omitted from recon — emitted JSON is byte-identical.
 
 ## Cluster: `misc::?`
 
@@ -1065,22 +1075,23 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **93** | **−17** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **92** | **−18** |
 
-The "truly absent" delta of −17 is the net effect of all
+The "truly absent" delta of −18 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
 their canonical mangled names net of ones whose mangled name
 diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 97 functions before ErrorKind subset, 93 after)
+### Truly-absent breakdown (2026-05-16; 93 functions before compiler_helpers audit, 92 after)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
 | `ErrorMessages::format<Args...>` template instantiations | 54 | Recon emits these implicitly via `<boost/format>` template machinery; the binary's listed instantiations are the explicit per-call-site ones the original source happens to bake.  No reconstruction work — recon would emit the same instantiations *if* something forced them, but our call sites use the same template differently.  **Informational, not actionable.** |
 | `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | **Closed 2026-05-16.**  Header template was already correct (verified body @ 0x2e0d50 against `<Hf2Option,6>`); the binary's 13 instantiations were going un-emitted because every recon caller inlined the body.  Fix: converted the header template to a declaration with `extern template` for all 13 `<T,N>` pairs, moved the definition into `src/device/device_sfc_options.cpp`, and added the 13 explicit instantiation definitions there.  All 13 mangled symbols now appear in `reconstructed/build/_seqc_compiler.so` (as `W` weak symbols rather than `t` local — global linkage divergence is reconstruction-wide and out of scope here).  Mangling diverges in the `std::array` template-arg portion (recon `St5array` libstdc++, binary `NSt3__15arrayE` libc++) — this is the standard libcxx ABI mismatch documented elsewhere in this file; qualified name + body shape match.  No test or byte-diff regression; 1603/1603 main + 1626/1626 harness still passing. |
 | `api_error_translation::core` ErrorKind subset (4 of 8) | 4 | **Closed 2026-05-16.**  `toApiCode(ErrorKind)`, `make_error_condition(ErrorKind)`, `toZiErrorKind(ErrorKind)`, `fromZiErrorKind(ZIErrorKind_enum)` reconstructed in `src/core/error_kind.cpp` against verified disasm (0x2e5280 / 0x2e50c0 / 0x2e5240 / 0x2e5260) and singleton-category sentinel @0xb7c5a8 / name `"zi:kind"` @0x90c668.  All 4 mangled symbols verified in `reconstructed/build/_seqc_compiler.so` (each `[1]` in nm).  `ZIErrorKind_enum` declared at global scope to match `16ZIErrorKind_enum` mangling token.  Binary's odd `BadRequest→0x801f` and `Timeout→0x800d` mappings preserved and tagged `\binarynote`.  No test regression; 1603/1603 main + 1626/1626 harness still passing.  Remaining 4 boost/Exception-coupled helpers deferred by design — see "API/error-translation surface" below. |
+| `AWGCompilerImpl::nodeListToJson` | 1 | **Bookkeeping correction 2026-05-16** (no source change).  Cluster `compiler_helpers::codegen` was reconstructed back at IF-278 (recon exports the symbol under libstdc++ mangling, same qualified name, byte-identical JSON output); the inventory's cluster header had drifted out of sync.  Per AGENTS.md cluster-overview-prose-is-unreliable warning, this was a stale entry, not a real absence.  Truly-absent decremented by 1 (93 → 92). |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |
@@ -1147,7 +1158,7 @@ Listed for future cluster promotion or per-symbol decisions:
 
 ### Action items proposed (subject to user review per AGENTS.md)
 
-The refresh did **not** surface any latent bug — all 93
+The refresh did **not** surface any latent bug — all 92
 absent symbols fall into pre-known categories (deferred by
 design, ABI-mangling divergence, C++20-gated, or
 zero-caller).  Two **incremental** opportunities worth

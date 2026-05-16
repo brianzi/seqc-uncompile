@@ -1924,3 +1924,33 @@ verify-then-write throughout.
   `isApiError(RemoteErrorCode)` @ 0x2e44f0,
   `getApiErrorBase(ZIResult_enum)` @ 0x2e4980,
   `special::toApiCode(Exception)` @ 0x2e7690.
+
+- **2026-05-16** F-followup (bookkeeping): caller scout on
+  the 4 still-deferred `api_error_translation::core`
+  helpers (commit `887b5b7`, IF-285).  `grep -E
+  "call.*\b<addr>\b"` over the full binary disasm: 3 of 4
+  have zero callers anywhere; the 4th
+  (`isApiError(error_code)` @0x2e4490) has exactly one
+  caller, `special::toApiCode(Exception)` @0x2e76ac —
+  another deferred member of the same set.  Combined with
+  all 4 being `t` (local linkage) and absent from `.dynsym`,
+  the group is a self-contained dead island in the original
+  `.so`.  Reconstruction would not be exercised by any
+  difftest or harness case; deferred indefinitely.  No code
+  change; `d14_inventory.md` action item #2 marked
+  resolved.
+
+- **2026-05-16** F-followup (bookkeeping): audit of
+  `compiler_helpers::codegen` cluster header in
+  `d14_inventory.md` found stale prose.  The single member
+  `AWGCompilerImpl::nodeListToJson` @0x1088d0 was already
+  reconstructed by IF-278 (recon exports the symbol under
+  libstdc++ mangling — same qualified name, byte-identical
+  `.nodes_json` output, standard libcxx ABI divergence).
+  Inventory header described "compileWithRetry (or similar
+  — helper not yet identified)" and listed status as
+  `absent`, both incorrect.  Per AGENTS.md cluster-prose-is-
+  unreliable guidance, refreshed the cluster overview,
+  flipped the symbol status to **present (IF-278)**, and
+  decremented the truly-absent count.  No source change.
+  Truly-absent function count: 93 → 92.
