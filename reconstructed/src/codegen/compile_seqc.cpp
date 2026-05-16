@@ -17,6 +17,7 @@
 
 #include "zhinst/codegen/awg_compiler.hpp"
 #include "zhinst/codegen/awg_compiler_config.hpp"
+#include "zhinst/codegen/compile_seqc.hpp"
 #include "zhinst/device/awg_device_props.hpp"
 #include "zhinst/device/device_type.hpp"
 #include "zhinst/core/exception.hpp"
@@ -142,11 +143,18 @@ AwgDeviceProps dispatchGetAwgDeviceProps(AwgDeviceType dt, DeviceType const& dev
 //!         with a `'\0'` separator: the serialized JSON status report
 //!         followed by the binary ELF image.  The Python binding
 //!         unpacks this into a `(elf_bytes, info_dict)` tuple.
-std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
-                        std::string sourceCode,
-                        std::string deviceId,
-                        unsigned long awgIndex,
-                        std::string const& options)
+//
+// T3c refactor: the body is now a `compileSeqcImpl` helper carrying
+// an optional `CompileSeqcIntrospection*` sink.  `compileSeqc()`
+// (the original-binary signature) and the additive
+// `compileSeqcWithIR()` variant are thin wrappers below.  The ELF
+// output is identical regardless of sink presence.
+static std::string compileSeqcImpl(std::string const& jsonConfig,
+                                   std::string sourceCode,
+                                   std::string deviceId,
+                                   unsigned long awgIndex,
+                                   std::string const& options,
+                                   CompileSeqcIntrospection* sink)   // @0xf58a0 (original body)
 {
     // --- 1. Parse JSON config ---
     boost::json::value jv;
@@ -316,6 +324,15 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
         throw Exception(msg);
     }
 
+    // --- T3c: populate optional introspection sink ---
+    // Done before the `compiler` destructor runs (i.e. before this
+    // function returns) so the AST `shared_ptr` survives in the
+    // caller's hands.  Capturing into the sink does not perturb any
+    // ELF-affecting state — it's a pure read of `compiler_.ast_`.
+    if (sink != nullptr) {
+        sink->loweredAst = compilerLoweredAst(compiler);
+    }
+
     // Return format: JSON result string + '\0' separator + ELF binary data
     // The binary packs these as: first string = JSON, second = ELF
     // Exact serialization: return as single string with JSON first, then
@@ -328,6 +345,42 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     packed.append(elfData);
 
     return packed;
+}
+
+std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
+                        std::string sourceCode,
+                        std::string deviceId,
+                        unsigned long awgIndex,
+                        std::string const& options)
+{
+    return compileSeqcImpl(jsonConfig, std::move(sourceCode),
+                           std::move(deviceId), awgIndex, options,
+                           /*sink=*/nullptr);
+}
+
+// ============================================================================
+// compileSeqcWithIR — additive T3c entry point.
+//
+// Not present in the original binary.  Runs the exact same pipeline
+// as `compileSeqc()` (the two share `compileSeqcImpl`) and
+// additionally returns IR handles that survive the
+// `AWGCompiler`'s destructor scope.
+//
+// The ELF half of the return is byte-identical to `compileSeqc()`
+// for the same inputs — the implementation is shared.
+// ============================================================================
+std::pair<std::string, CompileSeqcIntrospection>
+compileSeqcWithIR(std::string const& jsonConfig,
+                  std::string sourceCode,
+                  std::string deviceId,
+                  unsigned long awgIndex,
+                  std::string const& options)
+{
+    CompileSeqcIntrospection sink;
+    std::string packed = compileSeqcImpl(jsonConfig, std::move(sourceCode),
+                                         std::move(deviceId), awgIndex,
+                                         options, &sink);
+    return std::make_pair(std::move(packed), std::move(sink));
 }
 
 }  // namespace zhinst

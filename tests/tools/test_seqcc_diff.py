@@ -345,6 +345,82 @@ class SeqccDiffTest(unittest.TestCase):
             self.assertFalse((tmp / "out.asm.asm").exists(),
                              "explicit :PATH should suppress default name")
 
+    # ---- T3c: --dump=ast-lowered (IR-sink-sourced) -----------------------
+    # ast-lowered is the first dump kind that flows from
+    # `compileSeqcWithIR()`'s introspection sink rather than from the
+    # produced ELF or info-JSON.  The two tests below pin:
+    #   1. JSON shape — file exists, parses as JSON, has the expected
+    #      Node-root keys.
+    #   2. ELF byte-equality — requesting --dump=ast-lowered must not
+    #      perturb the compiled ELF (guaranteed by the shared
+    #      `compileSeqcImpl` between `compileSeqc()` and
+    #      `compileSeqcWithIR()`).
+
+    def test_dump_ast_lowered_emits_json(self):
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf = tmp / "out.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--dump=ast-lowered",
+                 "-o", str(elf), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            ast_path = tmp / "out.ast-lowered.json"
+            self.assertTrue(ast_path.exists(),
+                            f"expected dump {ast_path} to exist")
+            self.assertGreater(ast_path.stat().st_size, 0,
+                               "ast-lowered dump is empty")
+
+            import json
+            data = json.loads(ast_path.read_text())
+            self.assertIsInstance(data, dict,
+                                  "ast-lowered JSON root must be an object")
+            # Node::toJson emits a fixed set of keys; pin a few that
+            # are unambiguous so the test surfaces structural changes
+            # to Node serialisation without being over-specific about
+            # the full key list.
+            for required in ("asmId", "type", "nodeId",
+                             "branches", "config"):
+                self.assertIn(required, data,
+                              f"ast-lowered JSON missing required key "
+                              f"{required!r}: have {sorted(data)}")
+
+    def test_dump_ast_lowered_preserves_elf_byte_equality(self):
+        """compileSeqcWithIR's ELF must match compileSeqc's byte-for-byte."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf_with_dump = tmp / "with.elf"
+            elf_no_dump   = tmp / "without.elf"
+
+            # With --dump=ast-lowered → drives compileSeqcWithIR().
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--dump=ast-lowered",
+                 "-o", str(elf_with_dump), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            # Without any dump → drives compileSeqc() (no IR sink).
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-o", str(elf_no_dump), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(elf_with_dump.read_bytes(),
+                             elf_no_dump.read_bytes(),
+                             "compileSeqcWithIR perturbs ELF output")
+
+            # And both must still match the pybind binding.
+            sc = self.sc
+            pybind_elf, _ = sc.compile_seqc(src, "HDAWG8", "", 0,
+                                            samplerate=2.4e9)
+            self.assertEqual(elf_with_dump.read_bytes(), bytes(pybind_elf),
+                             "with-dump ELF diverges from pybind baseline")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,6 +5,9 @@
 #include "compile.hpp"
 
 #include "dump.hpp"
+#include "ir_sinks.hpp"
+
+#include "zhinst/codegen/compile_seqc.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -13,18 +16,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-
-// Forward-declared from reconstructed/src/codegen/compile_seqc.cpp.
-// No public header exposes this symbol today (the Python binding uses
-// the same local forward decl in pybind_seqc.cpp); we mirror that
-// pattern rather than adding a header just for seqcc.
-namespace zhinst {
-std::string compileSeqc(std::string const& jsonConfig,
-                        std::string sourceCode,
-                        std::string deviceId,
-                        unsigned long awgIndex,
-                        std::string const& options);
-}
+#include <utility>
 
 namespace seqcc {
 
@@ -75,8 +67,33 @@ int runCompile(Options const& opts) {
         std::string jsonConfig = buildJsonConfig(opts);
         std::string devoptsStr = buildDevoptsString(opts);
 
-        std::string packed = zhinst::compileSeqc(
-            jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+        // Parse dump specs up-front so we can decide which compile
+        // entry point to use.  Errors here are user-facing and must
+        // fail the run (unlike emission errors, which are logged but
+        // non-fatal once an ELF exists).
+        std::vector<DumpSpec> dumpSpecs;
+        dumpSpecs.reserve(opts.dumpRequests.size());
+        for (auto const& tok : opts.dumpRequests) {
+            dumpSpecs.push_back(parseDumpSpec(tok));
+        }
+        bool wantSinks = needsIRSinks(dumpSpecs);
+
+        // Drive compileSeqc() (no IR introspection) or its T3c
+        // variant (compileSeqcWithIR — captures lowered AST and any
+        // future IR handles).  The ELF half is byte-identical
+        // between the two entry points; the variant exists solely
+        // to make IR survive the compiler's destructor scope.
+        std::string packed;
+        IRSinks sinks;
+        if (wantSinks) {
+            auto pair = zhinst::compileSeqcWithIR(
+                jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+            packed = std::move(pair.first);
+            sinks  = std::move(pair.second);
+        } else {
+            packed = zhinst::compileSeqc(
+                jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+        }
 
         // Packed layout matches pybind_seqc.cpp::pyCompileSeqc: the
         // info-JSON, a single NUL, then the ELF bytes.  An absent NUL
@@ -106,17 +123,13 @@ int runCompile(Options const& opts) {
         // diagnosed but do not fail the compile (the ELF is already
         // on disk) — mirrors gcc, where `-fdump-*` write failures
         // print a warning rather than aborting -c.
-        if (!opts.dumpRequests.empty()) {
+        if (!dumpSpecs.empty()) {
             try {
-                std::vector<DumpSpec> specs;
-                specs.reserve(opts.dumpRequests.size());
-                for (auto const& tok : opts.dumpRequests) {
-                    specs.push_back(parseDumpSpec(tok));
-                }
                 DumpFormat fmt = DumpFormat::Auto;
                 if (opts.dumpFormat == "json")      fmt = DumpFormat::Json;
                 else if (opts.dumpFormat == "text") fmt = DumpFormat::Text;
-                emitDumps(specs, opts.dumpDir, outPath, elf, infoJson, fmt);
+                emitDumps(dumpSpecs, opts.dumpDir, outPath, elf, infoJson,
+                          sinks, fmt);
             } catch (std::exception const& e) {
                 std::cerr << "seqcc: dump emission failed: "
                           << e.what() << '\n';

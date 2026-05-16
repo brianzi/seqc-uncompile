@@ -522,3 +522,112 @@ silent drops without depending on subtle ELF-byte differences.
 (`--mdevopt`, `--mdevopts`, `--mtune`, `--dump`).
 
 
+## IF-301  Sanctioned recon edit: introspection sink for `compileSeqc()`
+
+**Severity**: process-note (no behavioural bug).
+**Status**: sanctioned exception under AGENTS.md "Tooling vs
+reconstructed code".  Approved by user before edit landed.
+
+The `seqcc` driver needs access to intermediate IRs (currently the
+lowered AST, with more stages to follow in Phase T) for its `--dump`
+surface.  Those IRs live behind `AWGCompiler`'s private impl and
+were not reachable via any public API.  Three minimum-footprint
+edits to reconstructed code were made instead of carrying the
+plumbing as a tool-side hack:
+
+1. `reconstructed/include/zhinst/codegen/awg_compiler.hpp`:
+   - Forward declaration `class Node;` (needed for the free-fn
+     decl below).
+   - Single `friend` grant on `AWGCompiler` for a non-member helper:
+     `friend std::shared_ptr<Node const> compilerLoweredAst(AWGCompiler const&) noexcept;`
+   - Free-function declaration outside the class (matching
+     namespace scope).
+   - **No public method added.**
+2. `reconstructed/src/codegen/awg_compiler.cpp`:
+   - Private inline accessor `AWGCompilerImpl::getLoweredAst()`.
+   - Free function `zhinst::compilerLoweredAst(AWGCompiler const&)`
+     defined here (where `AWGCompilerImpl` is complete), delegates
+     to the impl accessor.
+3. `reconstructed/include/zhinst/codegen/compile_seqc.hpp` (new) +
+   `reconstructed/src/codegen/compile_seqc.cpp` refactor:
+   - Existing `compileSeqc()` body extracted into static
+     `compileSeqcImpl(..., CompileSeqcIntrospection* sink)`.
+   - Public `compileSeqc()` calls it with `sink == nullptr`
+     (byte-identical behaviour to pre-edit).
+   - New `compileSeqcWithIR()` calls it with a real sink that
+     receives `loweredAst` via `compilerLoweredAst(compiler)`.
+
+**Why this exception was allowed**:
+
+- The driver could not be implemented without it.  Workarounds
+  (re-running parse/lower in the driver, RTTI hacks on
+  `AWGCompiler`'s vtable, reinterpret-cast over the layout) were
+  all more invasive or fragile than the friend grant.
+- The new surface is strictly additive — `compileSeqc()` and
+  every existing caller of `AWGCompiler` are byte-equivalent
+  before and after the edit (verified: diff_test_fast 1612/1612,
+  seqcc ELF-byte-equality test confirms `compileSeqcWithIR`
+  produces identical bytes to `compileSeqc`).
+- Footprint is minimal: 1 friend decl + 1 free-fn decl in the
+  public header; 1 private accessor + 1 free-fn defn in the .cpp;
+  1 new small public header for the introspection struct; an
+  internal refactor of `compile_seqc.cpp` that adds a single
+  static function and a second entry point.
+
+**Retirement plan**: when/if the reconstruction grows a first-
+class introspection API (e.g. a `Compiler::passManager()` style
+hook that returns per-stage IRs), `compileSeqcWithIR` and
+`compilerLoweredAst` should be removed in favour of that.  Until
+then the surface remains, gated by the seqcc dump pipeline.
+
+**TODO references**: TODO.md Phase T → T3c (done in this commit).
+Future Phase T entries that need additional IR stages
+(`asm-pre-opt`, `wavetable-ir`, etc.) extend
+`CompileSeqcIntrospection` rather than adding new entry points.
+
+
+## IF-302  `Node::toJson(idMap)` requires asm-id remap not exposed to seqcc
+
+**Severity**: low (workaround in place, output is structurally
+valid but ids differ from pybind serialisation).
+**Status**: open; queued in TODO.md Phase T as a refinement of
+the `ast-lowered` dump.
+
+`Node::toJson(const std::unordered_map<int,int>& idMap) const`
+(`reconstructed/src/ast/node.cpp:506`) unconditionally calls
+`idMap.at(asmId)` to look up the JSON-serialisable id for the
+current node.  The proper map is built in `AsmList::serialize()`
+pass 1 (`reconstructed/src/asm/asm_list.cpp:187-200`): iterate
+asm entries, skip `opcode == 4` (NOP) and
+`opcode == -1 && !node`, assign sequential indices keyed by
+`entry.sequenceId`.
+
+The seqcc driver only captures the lowered AST root through
+`CompileSeqcIntrospection`; it has no AsmList in hand at dump
+time (the AsmList is built later, deeper in
+`compileSeqcImpl`).  Calling `toJson({})` with an empty map
+throws `std::out_of_range` for any node with `asmId >= 0`, which
+is all of them.
+
+**Workaround currently shipping** (`tools/seqcc/src/dump.cpp`
+`collectAsmIdsIdentity`): walk the AST via `next`, `loop`, and
+`branches`, collecting every reachable node's `asmId` into an
+identity map (`asmId → asmId`).  This makes
+`toJson` succeed and produces structurally-valid JSON.  The
+resulting `asmId` cross-references in the JSON, however, point at
+the original ids rather than the densified post-pass-1 indices
+that pybind's serialisation would use, so the output is not
+byte-identical to a hypothetical pybind equivalent.  For
+debugging the dump is fully usable.
+
+**Proper fix** (queued in TODO.md): capture the `AsmList`
+alongside the AST in `CompileSeqcIntrospection`, run the
+pass-1 densification driver-side, and feed the real map to
+`toJson`.  Defer until a second IR stage (`asm-pre-opt` or
+similar) is wired up — capturing the AsmList for ast-lowered
+alone would be wasteful since later dump kinds will need it
+anyway.
+
+**TODO references**: TODO.md Phase T → "ast-lowered idMap parity"
+(to be added when the AsmList introspection lands).
+

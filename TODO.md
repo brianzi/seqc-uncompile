@@ -244,12 +244,30 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       Also fixed IF-300: T3a's repeatable `-mdevopt`/`-mtune` silently
       dropped all but the last occurrence.
 
-- [ ] **T3c — AST-lowered dump.**  Implement `--dump=ast-lowered`.
-      Requires either a recon accessor (e.g. `AWGCompiler::getAst()`)
-      or a per-dump bypass of `compileSeqc()` so the driver can hold
-      onto the `AWGCompiler` instance after compile and reach the AST
-      via offset shim.  Discuss approach with user before starting per
-      AGENTS.md "Tooling vs reconstructed code" policy.
+- [X] **T3c — AST-lowered dump.**  Implemented `--dump=ast-lowered`.
+      Sanctioned recon edit under AGENTS.md "Tooling vs reconstructed
+      code" policy (approved by user before edit; documented as
+      IF-301): added a minimum-footprint introspection sink
+      (`CompileSeqcIntrospection`) and a second compile entry point
+      `compileSeqcWithIR()` that shares its body with `compileSeqc()`
+      via a static `compileSeqcImpl()` — so ELF output is byte-equal
+      whether the driver requests dumps or not (verified by a new
+      test `test_dump_ast_lowered_preserves_elf_byte_equality`).
+      AST root reachable via free function
+      `compilerLoweredAst(AWGCompiler const&)` with a single
+      `friend` grant; no public method added to `AWGCompiler`.
+      Driver passes an identity `asmId → asmId` map to
+      `Node::toJson()` because the proper densified map (built in
+      `AsmList::serialize()` pass 1) requires capturing the AsmList
+      alongside the AST — deferred (IF-302) until a second
+      asm-stage dump kind needs it.
+
+- [ ] **T3d (follow-up) — ast-lowered idMap parity.**  Capture the
+      `AsmList` into `CompileSeqcIntrospection` and run pass-1
+      densification driver-side so `Node::toJson()` receives the
+      same map pybind would use.  Land alongside whichever first
+      asm-stage dump kind in T4 needs the AsmList anyway.
+      See IF-302 for the workaround currently shipping.
 
 - [ ] **T4 — Text-only IR dumps.**  Add `--dump=ast-raw`,
       `--dump=ast-seqc`, `--dump=prefetch`, `--dump=cache`,
@@ -257,7 +275,10 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       `std::cout` only, add a `print(std::ostream&)` overload
       delegating to the existing implementation (minor cleanup of
       reconstructed code).  Where the existing API already takes a
-      stream, use it directly.
+      stream, use it directly.  Extend `CompileSeqcIntrospection`
+      (the T3c sink) with whatever stage-specific IRs are needed
+      — that's the supported extension point now; do **not** add
+      more friend grants or free helpers on `AWGCompiler`.
 
 - [ ] **T5 — `-S`, `-E`, `--to=<stage>`.**  Stop-after-stage support.
       The chosen IR is emitted to `-o` in its native format (JSON for

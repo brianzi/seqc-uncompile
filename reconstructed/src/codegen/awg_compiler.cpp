@@ -310,6 +310,15 @@ public:
     //! \param cb  Weak handle; pass an empty `weak_ptr` to detach.
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // @0x103f90
 
+    //! \brief Return the embedded `Compiler`'s lowered AST root.
+    //! \details Tooling accessor added in T3c; no counterpart in the
+    //! original binary.  Wraps the friend-access read of
+    //! `compiler_.ast_`.  Returns an empty `shared_ptr` before the
+    //! first successful compile.
+    std::shared_ptr<Node const> getLoweredAst() const {
+        return compiler_.ast_;
+    }
+
     //! \brief Build the multi-line "do not edit" header prepended
     //!        to assembler-listing files by `writeAssemblerToFile`.
     //! \details Combines the banner, the destination path, the
@@ -1666,6 +1675,21 @@ void AWGCompiler::setCancelCallback(std::weak_ptr<CancelCallback> cb) {  // @0x1
 
 void AWGCompiler::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {  // @0x103360
     impl_->setProgressCallback(std::move(cb));
+}
+
+// ------------------------------------------------------------------
+// Introspection accessor — not present in the original binary.
+// Added in T3c to support seqcc's --dump=ast-lowered.  Implemented as
+// a free function (declared in awg_compiler.hpp with a `friend`
+// grant on AWGCompiler) rather than a member, to keep the public
+// AWGCompiler method set unchanged.  Reads `compiler_.ast_` via the
+// existing `friend class AWGCompilerImpl` on `Compiler` (see
+// compiler.hpp:650), through the TU-private
+// `AWGCompilerImpl::getLoweredAst()`.
+// ------------------------------------------------------------------
+std::shared_ptr<Node const>
+compilerLoweredAst(AWGCompiler const& c) noexcept {
+    return c.impl_->getLoweredAst();
 }
 
 }  // namespace zhinst

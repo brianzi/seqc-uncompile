@@ -7,12 +7,15 @@
 // require no access to live `AWGCompiler` state and therefore no
 // recon-side edits — see AGENTS.md "Tooling vs reconstructed code".
 //
-// `ast-lowered` is documented but unimplemented in T3b; it requires
-// either a recon accessor or a per-dump bypass of `compileSeqc()`
-// that constructs `AWGCompiler` directly so the AST can be reached
-// via a header-only offset shim.  Deferred to T3c.
+// T3c adds `ast-lowered`, sourced from a recon-side
+// `CompileSeqcIntrospection` sink populated by the new additive
+// `compileSeqcWithIR()` entry point.  See the IF entry under
+// reconstructed/notes/incidental_findings.md for the sanctioned
+// recon exception that landed alongside it.
 // =============================================================================
 #pragma once
+
+#include "ir_sinks.hpp"
 
 #include <filesystem>
 #include <string>
@@ -34,9 +37,15 @@ struct DumpSpec {
 //! all T3b kinds emit their native format regardless.
 enum class DumpFormat { Auto, Json, Text };
 
-//! All T3b-implemented kinds.  Returned list is the canonical
-//! order used by `--dump=all` (when that lands in T6).
+//! All implemented kinds, in pipeline order.  Returned list is the
+//! canonical order used by `--dump=all` (when that lands in T6).
 std::vector<std::string> knownDumpKinds();
+
+//! Returns true when at least one spec in `specs` needs IR sinks
+//! (currently: `ast-lowered`).  Used by the driver to decide
+//! whether to call `compileSeqcWithIR()` vs the cheaper
+//! `compileSeqc()`.
+bool needsIRSinks(std::vector<DumpSpec> const& specs);
 
 //! Parse one `KIND[:PATH]` token.  Throws `std::invalid_argument`
 //! on an unknown kind.
@@ -61,14 +70,17 @@ std::filesystem::path resolveDumpPath(DumpSpec const& spec,
                                       std::filesystem::path const& outputElf);
 
 //! Emit every requested dump.  Inputs are the ELF bytes (for
-//! section-extracting dumps) and the info-JSON returned by
-//! `compileSeqc()` (for `compile-report`).  Throws on I/O errors;
-//! callers should catch and report.
+//! section-extracting dumps), the info-JSON returned by
+//! `compileSeqc()` (for `compile-report`), and the optional
+//! `IRSinks` populated by `compileSeqcWithIR()` (for IR-introspection
+//! dumps such as `ast-lowered`).  Throws on I/O errors; callers
+//! should catch and report.
 void emitDumps(std::vector<DumpSpec> const& specs,
                std::filesystem::path const& dumpDir,
                std::filesystem::path const& outputElf,
                std::string_view elfBytes,
                std::string_view infoJson,
+               IRSinks const& sinks,
                DumpFormat formatHint);
 
 }  // namespace seqcc
