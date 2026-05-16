@@ -377,8 +377,8 @@ mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
 **D11–D19 are all complete**; Phase E (diff-test harness for
 binding-unreachable reconstructions, including the 20 D16 symbols)
 is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
-`\unclear=0`, `\verifyme=24`, `\binarynote=20`, `\unverifiable=5`.
-Documentation coverage: 95.3% (2960/3107 symbols); 0 doxygen
+`\unclear=1`, `\verifyme=1`, `\binarynote=27`, `\unverifiable=5`.
+Documentation coverage: 95.3% (2964/3111 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 

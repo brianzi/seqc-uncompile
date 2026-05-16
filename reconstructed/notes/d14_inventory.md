@@ -1,6 +1,38 @@
 # D14 Inventory: Unreconstructed `zhinst::` Surface
 Generated 2026-05-12.  Source binary: `_seqc_compiler.so`.
 
+## Status (2026-05-16)
+
+All 14 D14 clusters have been processed.  The inventory below is
+preserved as a historical reference for the as-of-2026-05-12
+absent / divergent surface; per-cluster status notes have been
+added in-line under each cluster header.
+
+**Closeable work: complete.**  Remaining un-closed entries fall
+into two categories:
+
+1. **Deferred-by-design** (zero recon callers; faithful
+   reconstruction would require disproportionate
+   infrastructure).  Currently 2 symbols, both in
+   `misc::?`: the two `getKind(...)` overloads (see IF-284).
+2. **`csv_waveform_2arg::io`** (2 large CSV→Waveform
+   parser symbols, 20 222 B total) — never promoted to a
+   reconstruction phase because the diff-test suite has no
+   case that loads CSV-shaped waveforms via the public
+   binding.  Listed in the inventory but not in the active
+   backlog.
+
+All other clusters were either reconstructed
+(`diagnostics_text`, `ast_misc`, `zi_environment`,
+`waveform_misc`, `base64`, `compiler_helpers`,
+`numeric`, `random`, `awg_config`, `device_option`,
+`node_misc`, `misc::?` 3-of-5) or determined to be
+auto-emitted compiler thunks (`exceptions::core`).
+
+For the chronological narrative of how each cluster was
+closed, see `OVERVIEW.md` Phase D and the F-followups
+section.
+
 ## Methodology
 
 1. **Symbol enumeration.**  All symbols defined in `_seqc_compiler.so`
