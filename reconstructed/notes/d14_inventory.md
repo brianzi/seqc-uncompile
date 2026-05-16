@@ -1064,8 +1064,8 @@ validate D14 cluster closure and surface any drift.
 | Function symbols in recon                       | (n/a) | 2022 | — |
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
-| ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 614 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **110** | **−4** |
+| ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **97** | **−13** |
 
 The "truly absent" delta of −4 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
@@ -1074,12 +1074,12 @@ diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 110 functions)
+### Truly-absent breakdown (2026-05-16; 110 functions before initializeSfcOptions cluster, 97 after)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
 | `ErrorMessages::format<Args...>` template instantiations | 54 | Recon emits these implicitly via `<boost/format>` template machinery; the binary's listed instantiations are the explicit per-call-site ones the original source happens to bake.  No reconstruction work — recon would emit the same instantiations *if* something forced them, but our call sites use the same template differently.  **Informational, not actionable.** |
-| `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | All 13 SFC option initialisers (HdawgOption, Hf2Option, MfOption, ShfOption, UhfOption, VhfOption — 6 families × varying N).  Recon has matching call-site stubs in `device/mf_sfc.cpp` and the `sfc::*` enums in headers; the function template itself was never reconstructed.  **Candidate cluster** for a future small reconstruction phase if a caller appears. |
+| `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | **Closed 2026-05-16.**  Header template was already correct (verified body @ 0x2e0d50 against `<Hf2Option,6>`); the binary's 13 instantiations were going un-emitted because every recon caller inlined the body.  Fix: converted the header template to a declaration with `extern template` for all 13 `<T,N>` pairs, moved the definition into `src/device/device_sfc_options.cpp`, and added the 13 explicit instantiation definitions there.  All 13 mangled symbols now appear in `reconstructed/build/_seqc_compiler.so` (as `W` weak symbols rather than `t` local — global linkage divergence is reconstruction-wide and out of scope here).  Mangling diverges in the `std::array` template-arg portion (recon `St5array` libstdc++, binary `NSt3__15arrayE` libc++) — this is the standard libcxx ABI mismatch documented elsewhere in this file; qualified name + body shape match.  No test or byte-diff regression; 1603/1603 main + 1626/1626 harness still passing. |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |

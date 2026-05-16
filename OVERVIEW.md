@@ -1847,3 +1847,32 @@ verify-then-write throughout.
       1626/1626 harness; 0 new doxygen warnings; doc
       coverage 95.2% (2970/3120, +6 from the
       `asException` addition).
+
+- **2026-05-16** F-followup: cluster
+  `detail::initializeSfcOptions<T,N>` (13 instantiations).
+  Investigation found the header template was already a
+  byte-for-byte correct reconstruction (verified against
+  binary @ 0x2e0d50 for `<Hf2Option,6>` — `DeviceOptionSet`
+  ctor + N×bit-test+insert).  All 13 instantiations were
+  going un-emitted in `_seqc_compiler.so` because the body
+  is small enough that every caller (`Hdawg{4,8}`,
+  `Hf2{li,is}`, `Mf{li,ia}`, `Uhf{li,awg,qa,ia}`,
+  `Shf{qa2,qc,li}`, `Ghfli`, `Vhfli`) inlined it during
+  `-O0` codegen.  Fix: converted the header template to a
+  forward declaration with `extern template` declarations
+  for all 13 `<T,N>` pairs (suppresses implicit
+  instantiation in every TU that includes the header), moved
+  the definition into a new TU
+  `reconstructed/src/device/device_sfc_options.cpp`, and
+  emitted the 13 explicit instantiation definitions there.
+  All 13 mangled symbols now appear (as `W` weak symbols —
+  global vs. local linkage divergence is reconstruction-wide
+  and out of scope here).  Symbol mangling diverges only in
+  the `std::array` template-arg portion (recon `St5array`
+  via libstdc++; binary `NSt3__15arrayE` via libc++) — the
+  standard libcxx ABI mismatch noted throughout
+  `d14_inventory.md`.  Qualified name + body shape match.
+  Truly-absent function count: 110 → 97 (−13 net for the
+  initializeSfcOptions cluster, since `asException` already
+  closed one above).  1603/1603 main; 1626/1626 harness; 0
+  new doxygen warnings.

@@ -688,15 +688,54 @@ template <class T, std::size_t N>
 DeviceOptionSet initializeSfcOptions(
     std::array<OptionCodePair<T>, N> const& known,
     DeviceFamily family,
-    unsigned long options) {
-    DeviceOptionSet set(family);
-    for (std::size_t i = 0; i < N; ++i) {
-        if ((options & static_cast<unsigned long>(known[i].mask)) != 0u) {
-            set.insert(known[i].code);
-        }
-    }
-    return set;
-}
+    unsigned long options);
+
+// `extern template` declarations suppress implicit instantiation in
+// every translation unit that includes this header.  The matching
+// explicit instantiation definitions live in
+// `src/device/device_sfc_options.cpp` and emit one out-of-line copy
+// of each instantiation, mirroring the binary which has all 13
+// `<T,N>` pairs as addressable text symbols (verified at @ 0x2e0d50
+// for `<Hf2Option,6>`; same body shape for the rest).
+extern template DeviceOptionSet initializeSfcOptions<sfc::Hf2Option, 6>(
+    std::array<OptionCodePair<sfc::Hf2Option>, 6> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::Hf2Option, 7>(
+    std::array<OptionCodePair<sfc::Hf2Option>, 7> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::MfOption, 8>(
+    std::array<OptionCodePair<sfc::MfOption>, 8> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::MfOption, 9>(
+    std::array<OptionCodePair<sfc::MfOption>, 9> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::UhfOption, 5>(
+    std::array<OptionCodePair<sfc::UhfOption>, 5> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::UhfOption, 7>(
+    std::array<OptionCodePair<sfc::UhfOption>, 7> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::UhfOption, 10>(
+    std::array<OptionCodePair<sfc::UhfOption>, 10> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::UhfOption, 12>(
+    std::array<OptionCodePair<sfc::UhfOption>, 12> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::HdawgOption, 6>(
+    std::array<OptionCodePair<sfc::HdawgOption>, 6> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::ShfOption, 4>(
+    std::array<OptionCodePair<sfc::ShfOption>, 4> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::ShfOption, 5>(
+    std::array<OptionCodePair<sfc::ShfOption>, 5> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::ShfOption, 8>(
+    std::array<OptionCodePair<sfc::ShfOption>, 8> const&, DeviceFamily,
+    unsigned long);
+extern template DeviceOptionSet initializeSfcOptions<sfc::VhfOption, 6>(
+    std::array<OptionCodePair<sfc::VhfOption>, 6> const&, DeviceFamily,
+    unsigned long);
 
 // generateMfSfc — @ 0x2de910
 //
