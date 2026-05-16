@@ -180,6 +180,70 @@ public:
     //!             `compileMessages_` before running, so any
     //!             previous state is silently dropped on re-entry.
     void compileString(std::string const& source);
+
+    // ------------------------------------------------------------------
+    // T5b.5 — pipeline step methods.  `compileString()` is a one-liner
+    // dispatcher calling these in sequence; the seqcc driver
+    // (`SeqcDriver::compile()`) calls them individually via
+    // `AWGCompiler`'s public forwarders to honour `--to=<stage>`
+    // semantics (closes IF-304 partially — back-end work is skipped
+    // when --to=lower/asm; front-end work inside Compiler::compile()
+    // still runs since AWGCompiler does not expose Compiler internals).
+    //
+    // The binary has no equivalent member methods.  The recon
+    // partitioning lands on verified binary step boundaries:
+    //
+    //   stepInnerCompile      0x106cb0..0x107341  (validate, source
+    //                                              capture, message
+    //                                              clear, Compiler
+    //                                              compile, asm-text
+    //                                              build)
+    //   stepAssembleOpcodes   0x107341..0x10739e  (assembler_
+    //                                              .assembleAsmList)
+    //   stepCheckLimits       0x10739e..0x107478  (opcode + wavemem
+    //                                              limit checks +
+    //                                              progress callback)
+    //
+    // Each step reads from / writes to the lifted
+    // `compileString_asmList_` member so intermediate state survives
+    // between calls.  See IF-306 for sanction.
+    // ------------------------------------------------------------------
+
+    //! \brief Steps 1-8 of `compileString()`: validate device type
+    //!        against `deviceConstants_`, stash `source` into
+    //!        `sourceText_`, clear `compileMessages_`, reset
+    //!        `wavetableIR_`, call `compiler_.compile(source)`,
+    //!        pretty-print the resulting `AsmList` into
+    //!        `assemblerText_`, and append the inner pipeline's
+    //!        messages.  Populates `compileString_asmList_` for the
+    //!        next two steps.  Exception escaping `compiler_.compile`
+    //!        is wrapped in `ZIAWGCompilerException` after appending
+    //!        the inner pipeline's messages.
+    void stepInnerCompile(std::string const& source);
+
+    //! \brief Step 9 of `compileString()`: hand the captured
+    //!        `compileString_asmList_` to `assembler_.assembleAsmList`
+    //!        to produce the device-encoded opcode word vector.
+    void stepAssembleOpcodes();
+
+    //! \brief Steps 10-12 of `compileString()`: enforce the device's
+    //!        opcode-memory limit (`deviceConstants_.maxProgramSize`)
+    //!        and waveform-program limit
+    //!        (`deviceConstants_.maxSequenceLen` against the
+    //!        non-null waveform count in `wavetableIR_`), then invoke
+    //!        `progressCallback_` with `1.0` on success.
+    void stepCheckLimits();
+
+    //! \brief Read-only view of the pretty-printed assembler text
+    //!        produced by `stepInnerCompile`.
+    //! \details Tooling accessor added in T5b.5; no counterpart in the
+    //! original binary.  Returns a reference to the cached
+    //! `assemblerText_` member so the seqcc driver can route
+    //! `--to=asm` without going through `writeToStream` (which would
+    //! require running `stepAssembleOpcodes` + `stepCheckLimits` to
+    //! produce an ELF and parsing it back).  Returns an empty string
+    //! before the first successful `stepInnerCompile`.
+    std::string const& assemblerText() const { return assemblerText_; }
     //! \brief Slurp a SeqC source file from disk and forward to
     //!        `compileString`.
     //! \details `boost::filesystem::status`-checks the path
@@ -466,6 +530,20 @@ private:
     //! \brief Trailing alignment padding to round the impl size to
     //! 0x2C0.
     char pad_2B8_[8];                                    // +0x2B8  //!< Trailing alignment padding to round the impl size to 0x2C0.
+
+    // ------------------------------------------------------------------
+    // T5b.5 — lifted cross-step local (recon-only; not part of binary
+    // layout).  The original `compileString()` declares `asmList` as a
+    // stack local that's populated inside the try-block by
+    // `compiler_.compile()`, then consumed after the try by both the
+    // asm-text pretty-printer (step 6) and the assembler
+    // (`stepAssembleOpcodes`).  When `compileString()` is split into
+    // step methods, this state must survive across the boundary —
+    // hence it is lifted to a member.  Cleared at the start of
+    // `stepInnerCompile` (analogous to `compileMessages_` /
+    // `wavetableIR_` resets), so a fresh call starts clean.
+    // ------------------------------------------------------------------
+    std::vector<Assembler> compileString_asmList_;
 };
 
 // ============================================================================
@@ -721,7 +799,27 @@ std::string AWGCompilerImpl::getJsonWaveformMemoryInfo() const {  // @0x10a1b0
 //! \brief Drive the full SeqC → opcode pipeline (validate device,
 //!        compile, pretty-print, assemble, enforce limits, signal
 //!        progress).
+//!
+//! T5b.5: this is now a 3-line dispatcher calling the named step
+//! methods in sequence.  The driver-side `SeqcDriver::compile()`
+//! also calls these steps individually (through public forwarders
+//! on `AWGCompiler`) so it can short-circuit between them based on
+//! `--to=<stage>`.  Behaviour preserved by construction — the
+//! steps execute the same blocks in the same order as the original
+//! monolithic body.
 void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
+    stepInnerCompile(source);
+    stepAssembleOpcodes();
+    stepCheckLimits();
+}
+
+// ----------------------------------------------------------------------------
+// T5b.5 step methods (verbatim partition of the pre-T5b.5 compileString
+// body).  See AWGCompilerImpl class declaration for the public-facing
+// brief on each step.
+// ----------------------------------------------------------------------------
+
+void AWGCompilerImpl::stepInnerCompile(std::string const& source) {  // @0x106cb0..0x107341
     // 1. Validate device type
     bool isHirzel = config_->isHirzel;                 // config+0x18
     bool hasDeviceConstants = (deviceConstants_.deviceType != kDevNone); // simplified check
@@ -750,11 +848,13 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 4. Reset wavetableIR_
     wavetableIR_.reset();
 
+    // T5b.5: clear lifted asmList for the next stepAssembleOpcodes call
+    compileString_asmList_.clear();
+
     // 5. Compile
-    std::vector<Assembler> asmList;
     try {
         auto compileResult = compiler_.compile(source);   // @0x11f150
-        asmList = std::move(compileResult.asmList);
+        compileString_asmList_ = std::move(compileResult.asmList);
         wavetableIR_ = std::move(compileResult.wavetableIR);  // @0x106ebc: store sret+0x18 into this+0xA8
     } catch (...) {
         // @0x10791b: exception handler
@@ -775,7 +875,7 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
     // 6. Build assembly text from asmList into ostringstream
     std::ostringstream oss;
     bool afterLabel = false;
-    for (auto const& instr : asmList) {
+    for (auto const& instr : compileString_asmList_) {
         if (instr.cmd == Assembler::INVALID) continue;  // skip invalid entries
 
         // Write assembly text representation
@@ -803,10 +903,14 @@ void AWGCompilerImpl::compileString(std::string const& source) {  // @0x106cb0
         auto msgs = compiler_.getCompileMessages();
         compileMessages_.insert(compileMessages_.end(), msgs.begin(), msgs.end());
     }
+}
 
+void AWGCompilerImpl::stepAssembleOpcodes() {  // @0x107341 (entry to assembleAsmList block)
     // 9. Assemble the ASM list
-    assembler_.assembleAsmList(asmList);
+    assembler_.assembleAsmList(compileString_asmList_);
+}
 
+void AWGCompilerImpl::stepCheckLimits() {  // @0x10739e..0x107478
     // 10. Check opcode size vs hardware instruction-memory depth.
     //
     // Binary check at AWGCompilerImpl::compileString @0x107341..0x10739e:
@@ -1668,6 +1772,27 @@ AWGCompiler::~AWGCompiler() {  // @0x103260
 
 void AWGCompiler::compileString(std::string const& source) {  // @0x1032b0
     impl_->compileString(source);
+}
+
+// T5b.5: forwarders to the AWGCompilerImpl step methods.  No
+// counterpart in the binary; added so `SeqcDriver::compile()` can
+// drive the back end stage by stage, honouring `--to=<stage>`
+// without paying for stages past the requested stop point.  Each
+// forwarder is a one-line tail-call.
+void AWGCompiler::stepInnerCompile(std::string const& source) {
+    impl_->stepInnerCompile(source);
+}
+
+void AWGCompiler::stepAssembleOpcodes() {
+    impl_->stepAssembleOpcodes();
+}
+
+void AWGCompiler::stepCheckLimits() {
+    impl_->stepCheckLimits();
+}
+
+std::string const& AWGCompiler::assemblerText() const {
+    return impl_->assemblerText();
 }
 
 void AWGCompiler::compileFile(std::string const& path) {  // @0x1032a0

@@ -330,6 +330,18 @@ std::string renderStagePrimary(std::string const& stage,
         return emitAstLoweredJson(sinks);
     }
     if (stage == "asm") {
+        // T5b.5: prefer the driver-cached assembler text (populated
+        // by `SeqcDriver` after `stepInnerCompile`) — that is
+        // byte-identical to what the ELF's `.asm` section would carry
+        // and is available even when `--to=asm` short-circuited the
+        // back end, so no ELF was produced.  Fall back to the legacy
+        // ELF-extraction path when `assemblerText` is empty (which
+        // happens on the non-owned-driver build, where the driver
+        // does not populate the field).  Empty payload behaviour is
+        // unchanged either way.
+        if (!sinks.assemblerText.empty()) {
+            return sinks.assemblerText;
+        }
         // The `.asm` section is plain text (per notes/elf_format.md).
         // It may be empty if the device-config disabled assembler
         // text emission; callers see an empty payload in that case,

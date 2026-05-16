@@ -153,6 +153,35 @@ public:
     //!                overflow, or any wrapped exception escaping
     //!                the inner compile.
     void compileString(std::string const& source);            // @0x1032b0
+
+    // ------------------------------------------------------------------
+    // T5b.5 — pipeline step forwarders.  `compileString()` above is a
+    // one-line dispatcher calling these in sequence (via the pimpl);
+    // the seqcc driver (`SeqcDriver::compile()`) calls them
+    // individually to honour `--to=<stage>` semantics without paying
+    // for back-end stages past the requested stop point.  No binary
+    // counterpart — the recon-only step partitioning is documented in
+    // `awg_compiler.cpp` next to the `AWGCompilerImpl::stepXxx`
+    // bodies.  See IF-306 for the sanctioned-exception rationale.
+    // ------------------------------------------------------------------
+
+    //! \brief Steps 1-8 of `compileString()`.  See
+    //!        `AWGCompilerImpl::stepInnerCompile`.
+    void stepInnerCompile(std::string const& source);
+
+    //! \brief Step 9 of `compileString()`.  See
+    //!        `AWGCompilerImpl::stepAssembleOpcodes`.
+    void stepAssembleOpcodes();
+
+    //! \brief Steps 10-12 of `compileString()`.  See
+    //!        `AWGCompilerImpl::stepCheckLimits`.
+    void stepCheckLimits();
+
+    //! \brief Read-only view of the pretty-printed assembler text
+    //!        cached after `stepInnerCompile` (or `compileString`).
+    //!        Returns an empty string before the first successful
+    //!        compile.  See `AWGCompilerImpl::assemblerText`.
+    std::string const& assemblerText() const;
     //! \brief Read a SeqC source file from disk and compile it.
     //!
     //! \details The path is `boost::filesystem::status`-checked;

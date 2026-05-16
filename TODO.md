@@ -459,13 +459,21 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
             bisects to a single step boundary.
       - [x] **T5b.4** — promote the 9 step methods to public in
             `compiler.hpp`.  Pure visibility change.
-      - [ ] **T5b.5** — split `AWGCompilerImpl::compileString()`
+      - [x] **T5b.5** — split `AWGCompilerImpl::compileString()`
             into `stepInnerCompile` + `stepAssembleOpcodes` +
             `stepCheckLimits`; promote.  Rewrite
-            `SeqcDriver::compile()` to construct a `Compiler`
-            directly and call its step methods, branching on
-            `opts.toStage` to short-circuit early.  Closes
-            IF-304.
+            `SeqcDriver::compile()` to call the three step
+            forwarders, branching on `opts.toStage` to skip the
+            back end for `--to=lower` / `--to=asm`.  **Scope:
+            partial AWGCompiler-level short-circuit** —
+            `Compiler::compile()` still runs to completion inside
+            `stepInnerCompile`; deeper short-circuit (skipping
+            front-end steps) would require exposing `Compiler`'s
+            stepwise interface on `AWGCompiler` and is deferred.
+            New test `tests/tools/test_seqcc_to.py` (4 cases)
+            asserts user-visible payload shape for the three
+            stages.  Partially closes IF-304 (back-end stages
+            literally skipped; front-end stages still run).
       - [ ] **T5b.6** — wrap-up: regression sweep, update
             IF-306 status to "fixed", DESIGN.md §3 pipeline
             diagram refresh, driver version bump to

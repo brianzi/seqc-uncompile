@@ -167,7 +167,12 @@ int runCompile(Options const& opts) {
         {
             SeqcDriver driver(opts);
             DriverResult dr = driver.compile(source, jsonConfig, devoptsStr);
-            if (dr.elf.empty()) {
+            // T5b.5: an empty ELF is legal when `--to=<stage>` short-
+            // circuited the back end before `writeToStream`.  The
+            // driver guarantees ELF is non-empty for `--to=link` (the
+            // default), so we only treat empty-ELF as an error in
+            // that case.
+            if (dr.elf.empty() && opts.toStage == "link") {
                 std::cerr << "seqcc: driver returned empty ELF payload\n";
                 return 1;
             }
@@ -182,7 +187,14 @@ int runCompile(Options const& opts) {
                 auto pair = zhinst::compileSeqcWithIR(
                     jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
                 packed = std::move(pair.first);
-                sinks  = std::move(pair.second);
+                // T5b.5: IRSinks is now a wrapper that adds
+                // `assemblerText` to the recon-side
+                // `CompileSeqcIntrospection`.  Assign into the base
+                // sub-object explicitly to avoid object slicing.  The
+                // legacy path leaves `assemblerText` empty (its
+                // consumer routes through the produced ELF instead).
+                static_cast<zhinst::CompileSeqcIntrospection&>(sinks) =
+                    std::move(pair.second);
             } else {
                 packed = zhinst::compileSeqc(
                     jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);

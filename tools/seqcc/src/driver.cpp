@@ -1,5 +1,6 @@
 // =============================================================================
-// seqcc — owned compilation driver (Phase T5a.1 skeleton, T5a.2 owned flow)
+// seqcc — owned compilation driver (Phase T5a.1 skeleton, T5a.2 owned flow,
+//         T5b.5 stepwise back end).
 //
 // See driver.hpp for the multi-sub-phase roadmap.
 //
@@ -7,28 +8,38 @@
 // `compileSeqcWithIR()`, kept byte-identical to the legacy
 // `compile.cpp::runCompile()` path.
 //
-// T5a.2 (this revision): `compile()` now owns the outer compile flow
+// T5a.2: `compile()` took ownership of the outer compile flow
 // — config marshalling, `AWGCompiler` construction, waveform
 // registration, source compile, ELF capture, info-JSON assembly, and
-// IR-sink population.  The body mirrors `compileSeqcImpl` in
-// `reconstructed/src/codegen/compile_seqc.cpp` line-for-line (modulo
-// the packed-string assembly, which is now done in the driver from
-// separate `elf` / `infoJson` fields rather than from a `'\0'`-
-// glued blob).
+// IR-sink population — line-for-line mirroring `compileSeqcImpl()`
+// in `reconstructed/src/codegen/compile_seqc.cpp`.
+//
+// T5b.5 (this revision): `compile()` now drives the back end stage by
+// stage via the three `AWGCompiler::stepXxx()` forwarders that wrap
+// the new `AWGCompilerImpl::stepInnerCompile` / `stepAssembleOpcodes`
+// / `stepCheckLimits` partition.  The driver short-circuits between
+// the steps based on `opts.toStage`:
+//   - `--to=lower` / `--to=asm` stop after `stepInnerCompile`.
+//     `assemblerText_` is populated by then (suffices for `-S`); the
+//     lowered AST / wavetable handles are populated by then too
+//     (suffices for `-E`).  `stepAssembleOpcodes` /
+//     `stepCheckLimits` / `writeToStream` are skipped — that is the
+//     literal `--to=` early-exit that closes IF-304 (partially —
+//     full short-circuit of front-end stages would require exposing
+//     the inner `Compiler`'s step methods on `AWGCompiler`, which
+//     this phase deferred).
+//   - `--to=link` (default) runs all three back-end steps then
+//     `writeToStream` as before.
 //
 // The two anonymous-namespace helpers from `compile_seqc.cpp`
 // (`parseSequencerType`, `dispatchGetAwgDeviceProps`) are not
 // reachable from outside that TU, so the driver re-implements them
 // here.  Both are pure dispatch on enum values; behaviour is
-// preserved by construction.  Promoting them out of the anonymous
-// namespace would constitute a recon edit, which T5a explicitly
-// avoids per the file-level roadmap comment.
+// preserved by construction.
 //
-// Routing: gated by `SEQCC_USE_OWNED_DRIVER` (CMake option, OFF by
-// default through T5a.2; flipped ON in T5a.3 after the A/B fixture
-// confirms byte-identical output across the device matrix).  When
-// the gate is OFF this TU is still compiled and linked but no call
-// site references `SeqcDriver`.
+// Routing: gated by `SEQCC_USE_OWNED_DRIVER` (CMake option, ON since
+// T5a.4).  When the gate is OFF this TU is still compiled and linked
+// but no call site references `SeqcDriver`.
 // =============================================================================
 
 #include "driver.hpp"
@@ -90,6 +101,16 @@ dispatchGetAwgDeviceProps(zhinst::AwgDeviceType dt,
     default:
         throw zhinst::Exception("Unsupported AWG device type");
     }
+}
+
+// T5b.5: decide whether the driver should run the back-end steps
+// (`stepAssembleOpcodes` + `stepCheckLimits` + `writeToStream`) for a
+// given `--to=<stage>` value.  `lower` and `asm` short-circuit;
+// `link` (default) does not.  Unknown stages reach the driver only
+// when CLI validation has been bypassed, so we treat them as
+// `link` to preserve full-pipeline behaviour.
+bool needsBackEnd(std::string const& stage) {
+    return !(stage == "lower" || stage == "asm");
 }
 
 }  // namespace
@@ -210,23 +231,42 @@ DriverResult SeqcDriver::compile(std::string const& source,
         config.searchPath = waveSearchPath;
     }
 
-    // ---- 8-12. Compile (L297-348).  ELF capture and error wrapping
-    //            match compileSeqcImpl exactly; the only structural
-    //            difference is that we keep `elf` / `infoJson`
-    //            separate rather than packing them with a NUL byte. ----
+    // ---- 8. Construct compiler + register external waveforms. ----
     zhinst::AWGCompiler compiler(config);
     if (!waveformPaths.empty()) {
         compiler.addWaveforms(waveformPaths);
     }
 
+    // ---- 9-12. Run the back end stage by stage.  Short-circuit
+    //            between the AWGCompilerImpl steps based on
+    //            opts.toStage (closes IF-304 for the back-end stages
+    //            — the front-end Compiler::compile inside step 9
+    //            still runs to completion since AWGCompiler does not
+    //            expose Compiler's stepwise interface). ----
+    bool const runBackEnd = needsBackEnd(opts_.toStage);
+
     std::string elfData;
     std::string jsonResult;
     try {
-        compiler.compileString(source);
+        // T5b.5: step 9 — inner Compiler::compile + asm-text build +
+        // message append.  Always required (the IR sinks would
+        // otherwise be empty and `-E` would have nothing to emit).
+        compiler.stepInnerCompile(source);
 
-        std::ostringstream oss;
-        compiler.writeToStream(oss, "output");
-        elfData = oss.str();
+        if (runBackEnd) {
+            // T5b.5: step 10 + 11+12 — AsmList → opcode words, then
+            // device-limit enforcement.  Skipped for --to=lower and
+            // --to=asm.
+            compiler.stepAssembleOpcodes();
+            compiler.stepCheckLimits();
+
+            // Produce the ELF only when the back end ran — otherwise
+            // the assembler has no opcodes and writeToStream would
+            // throw `EmptyInput`.
+            std::ostringstream oss;
+            compiler.writeToStream(oss, "output");
+            elfData = oss.str();
+        }
 
         std::string compileReport = compiler.getCompileReport();
         std::string waveMemInfo = compiler.getJsonWaveformMemoryInfo();
@@ -265,7 +305,17 @@ DriverResult SeqcDriver::compile(std::string const& source,
     // consumer needed the IR; this driver elides that branching since
     // the cost of always populating sinks is negligible and it
     // simplifies the T5b stepwise API.
-    zhinst::fillIntrospection(compiler, result.sinks);
+    //
+    // T5b.5: `IRSinks` now derives from `CompileSeqcIntrospection`;
+    // pass the base sub-object to the legacy fill helper, then
+    // populate the driver-only `assemblerText` field on top.  The
+    // assembler text is always cached here (whether we ran the back
+    // end or not) so `--to=asm` can read it from sinks without going
+    // through the ELF.
+    zhinst::fillIntrospection(
+        compiler,
+        static_cast<zhinst::CompileSeqcIntrospection&>(result.sinks));
+    result.sinks.assemblerText = compiler.assemblerText();
 
     result.elf = std::move(elfData);
     result.infoJson = std::move(jsonResult);

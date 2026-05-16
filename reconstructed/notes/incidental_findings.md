@@ -695,57 +695,77 @@ WavetableFront::toJson() delegate" (to be added if/when needed).
 
 **Severity**: low (documentation / user-expectation).
 
-**Status**: documented; no fix planned.
+**Status**: **partially fixed at T5b.5 (2026-05)**.  The back-end
+stages (`stepAssembleOpcodes`, `stepCheckLimits`, `writeToStream`
+ELF link) are now literally skipped when `opts.toStage` is
+`lower` or `asm`.  The front-end stages inside
+`Compiler::compile()` still run to completion — see "Remaining
+gap" below.
 
-`seqcc --to=STAGE` (and its sugar `-S` / `-E`) is advertised as
-"stop after STAGE" in the spirit of `gcc -S` / `gcc -E`.  In
-gcc the early-exit is literal: with `-E`, the backend is never
-invoked.  With seqcc, the early-exit is **logical only** — the
-compile always runs to completion internally, and only the
-*output routing* changes.
+### Resolution achieved at T5b.5
 
-Concretely:
+`SeqcDriver::compile()` was rewritten to call the three
+`AWGCompiler::stepXxx` forwarders sequentially:
 
-- `seqcc -E foo.seqc` calls `zhinst::compileSeqcWithIR()`,
-  which runs the full pipeline (parse → astgen → lower → opt-pre
-  → prefetch → opt-post → assemble → link to ELF), then routes
-  the captured `loweredAst` IR sink to `-o` and discards the
-  ELF.
-- `seqcc -S foo.seqc` calls `zhinst::compileSeqc()` (or
-  `compileSeqcWithIR()` when `--dump=ast-lowered` is also
-  present), then pulls the `.asm` section out of the produced
-  ELF and routes that to `-o`.
+1. `stepInnerCompile(source)` — always required (populates the
+   IR sinks and the cached `assemblerText`).
+2. If `opts.toStage` is `link` (default): call
+   `stepAssembleOpcodes()`, `stepCheckLimits()`, then
+   `writeToStream()` to produce the ELF.
+3. If `opts.toStage` is `lower` or `asm`: return immediately
+   with an empty ELF.  The driver's `dump.cpp::renderStagePrimary`
+   reads `sinks.assemblerText` (for `--to=asm`) or the lowered-
+   IR JSON from `sinks` (for `--to=lower`) — no ELF parsing
+   needed.
 
-The user-visible compile-cost difference between `--to=lower`,
-`--to=asm`, and `--to=link` is therefore **zero**.
+For HDAWG8 `hdawg_doc_simple.seqc`:
 
-**Why**: `zhinst::compileSeqc()` and `compileSeqcWithIR()` are
-single-shot end-to-end entry points; the underlying
-`AWGCompiler::compile()` does not expose stage-by-stage
-suspension.  Introducing a real early-exit would require:
+| Stage | Output size | Back-end run? |
+|---|---|---|
+| `--to=link` | 27088 bytes (ELF) | yes |
+| `--to=asm`  | 360 bytes (text) | no |
+| `--to=lower`| 609 bytes (JSON) | no |
 
-- Either a new `AWGCompiler::compileUpTo(stage)` entry point
-  with its own state machine and a way to harvest partial
-  output — significant additive recon surface, and a maintenance
-  burden every time a new pass lands.
-- Or a `setjmp/longjmp`-style abort-mid-compile that bypasses
-  destructors — incompatible with the current implementation's
-  RAII-heavy state.
+### Remaining gap
 
-Neither is justified at T5: the dominant cost of `seqcc -E` is
-already the lexer + parser + lowering passes, which a literal
-early-exit would only marginally accelerate.  The full-pipeline
-run on a typical sequence takes a few milliseconds.
+The user-chosen T5b.5 scope was "partial: AWGCompiler-level
+only".  `Compiler::compile()` (the front-end stack) still runs
+end-to-end inside `stepInnerCompile` even when the driver only
+wants the lowered AST.  A full literal early-exit for `-E`
+would additionally require:
 
-**Recommended action when revisited**: if a future workload
-makes the wasted post-lower passes measurable (e.g. very large
-sequences in a tight `-E` loop), add `compileUpTo(stage)` as a
-B3 sanctioned recon exception.  Until then, treat `--to=` as a
-selector for "which IR do you want as primary output", not a
-performance lever.
+- Either constructing a `Compiler` directly from the driver
+  and calling its public `stepParse` … `stepLower` methods,
+  stopping at `stepLower`.  This needs an accessor on
+  `AWGCompiler` that exposes the inner `Compiler&` (or a way
+  to construct a free-standing `Compiler` — currently blocked
+  because `Compiler`'s constructor needs `WavetableFront` and
+  `DeviceConstants` owned by `AWGCompilerImpl`).
+- Or new `AWGCompiler::compileUpToLower()` / similar
+  short-circuit entry points that internally drive only the
+  needed front-end steps.
 
-**TODO references**: TODO.md Phase T → "T5 follow-up: optional
-literal early-exit" (to add if needed).
+Neither is justified at T5b: the dominant cost saving is
+already realised (the back-end stages — `Project`, the AsmList
+→ opcode translation, the device-limit checks, and ELF
+serialisation — were the bulk of the post-lower cost).  A
+future workload that makes the residual front-end cost
+measurable in `-E` mode would be the trigger to revisit this
+as a B3 sanctioned recon exception.
+
+### Verification
+
+- `tests/tools/test_seqcc_to.py` (T5b.5, 4 cases): asserts
+  payload shape for `--to=link` / `--to=asm` / `--to=lower`
+  and that the three byte streams differ in size as expected.
+- All 5 regression gates clear at T5b.5:
+  `diff_test_fast` 1612/1612, `test_seqcc_diff` 46/46,
+  `test_seqcc_ab` 15/15, `test_seqcc_smoke` 4/4,
+  `test_seqdump` 16/16.
+
+**TODO references**: TODO.md Phase T → T5b.5 (done); residual
+gap tracked here, no separate TODO item until profiling
+justifies it.
 
 ---
 
@@ -820,7 +840,10 @@ passed a flag.
 refactor).
 **Status**: sanctioned exception under AGENTS.md "Tooling vs
 reconstructed code".  Approved by user before edit lands (Phase
-T5b).
+T5b).  **Sub-phases T5b.1 – T5b.5 landed; T5b.6 wrap-up
+pending.**  Driver-side consumption (T5b.5) verified: 5/5
+regression gates green and back-end short-circuit confirmed
+via `tests/tools/test_seqcc_to.py`.
 
 ### Motivation
 
