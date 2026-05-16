@@ -1234,15 +1234,66 @@ Methodology (per F1):
       *Tests at close*: build clean (no source changes, so 1603/1603
       from G1 commit still applies).
 
-- [ ] **G3 — Audit batch 3: io/ + runtime/ + waveform/ + codegen/ + infra/ (14 sites)**
+- [x] **G3 — Audit batch 3: io/ + runtime/ + waveform/ + codegen/ + infra/ (14 sites)** *(closed 2026-05-16)*
 
-      `io/zi_environment.cpp:256`; `io/zi_environment.hpp:149`;
-      `io/cached_parser.hpp:191`, `:279`;
-      `runtime/resources.hpp:659`, `:706`;
-      `waveform/play_config.hpp:46`; `waveform/signal.hpp:192`;
-      `waveform/waveform_generator.hpp:1028`, `:1052`;
-      `codegen/math_compiler.hpp:166`;
-      `infra/random.hpp:53`; `infra/calver.hpp:88`, `:248`.
+      All 14 cited locations audited.  Verdict: 13 verified accurate
+      against `_seqc_compiler.so`; **1 critical bug found** —
+      `MathCompiler::log` was mis-documented as natural log but the
+      binary actually emits base-10.  See IF-291 below.
+
+      Verified accurate (12 doc-tags):
+      - `io/zi_environment.hpp:149` `makeDirectories`: error code
+        `0x8011` confirmed at @0x2cdef0 / 0x2ce0aa.
+      - `io/cached_parser.hpp:191` (no `found` flag in CachedFile):
+        struct has only the 4 fields named (`channel_`, `markerBits_`,
+        `samples_`, `markers_` at +0x00/+0x08/+0x20/+0x38, padded to
+        0x50); dtor @0x2b1f70 destroys exactly the 3 vectors.
+      - `io/cached_parser.hpp:279` `cacheFileOutdated`: confirmed
+        first call at @0x2b14f5 is `ElfReader(name)` — name is the
+        artifact path.
+      - `runtime/resources.hpp:659` `variableExistsInScope` fallback:
+        @0x1e4390 confirms tail-jump to `Resources::variableExists`
+        on `this->grandparent_.get()` (loaded from `[r14+0x18]` after
+        `mov %rdi,%r14`); `parent_` (+0x40) never accessed.
+      - `runtime/resources.hpp:706` `checkVar` accept-set: only
+        `cmpl $0x3,(%rax)` at @0x1e4e4f rejects, where 3 ==
+        `VarType_String` per the runtime enum (not the ast enum).
+      - `waveform/play_config.hpp:46` `now` excluded from
+        `operator!=`: only `[+0x1e]` (`dummy`) loaded at @0x1d57ad;
+        `[+0x1c]` (`now`) never accessed.
+      - `waveform/signal.hpp:192` non-const ref required: mangling
+        `_ZN6zhinst6Signal6appendERS0_` is non-const; body @0x25f310
+        calls `checkAllocation()` on both this and other.
+      - `waveform/waveform_generator.hpp:1028` `rand` 3-arg defaults
+        amplitude=1.0: arg-count fork at @0x251d27/@0x251d2d; 3-arg
+        path @0x251d37 skips amplitude slot; rodata @0x956030 = 1.0.
+      - `waveform/waveform_generator.hpp:1052` `randomGauss` same
+        convention: parallel layout to `rand`.
+      - `infra/random.hpp:53` `Random::seedRandom` call site: @0x149832
+        confirms call with `__tls_get_addr` result for
+        `GlobalResources::random` as `this`.
+      - `infra/calver.hpp:88` `triple()` returns by reference: @0x100260
+        body is `mov %rdi,%rax; ret` — returns `this` as a pointer.
+      - `infra/calver.hpp:248` `extractVersionTriple` swallows parse
+        errors: catch handler at @0x101bb4 zeros all 24 bytes of the
+        sret buffer (`xorps`+`movups`+`movq`) before `__cxa_end_catch`.
+
+      Out of scope (1 cross-ref): `io/zi_environment.cpp:256` is a
+      `//` comment cross-referencing the public-header `\binarynote`,
+      not a doc-tag itself; covered by the `:149` audit above.
+
+      *Yield*: **1 IF (IF-291)** — `MathCompiler::log` divergence.
+      The `\binarynote` claimed natural log; binary @0x1c3940 actually
+      tail-jumps `log10@plt` (base-10).  The recon body
+      (`std::log(x)`) had drifted to match the wrong note.  Fixed
+      both sides: recon body now `std::log10(x)`, doc rewrites the
+      `\binarynote` to describe the actual base-10 behaviour and to
+      flag it as a surprise (since most languages default `log` to
+      natural).  No test caught this because no
+      `tests/cases/*.seqc` exercises `log(`; this is exactly the
+      class of bug Phase G is designed to surface.
+
+      *Tests at close*: 1603/1603 main + 1626/1626 harness.
 
 - [ ] **G4 — Triage + wrap-up**
 

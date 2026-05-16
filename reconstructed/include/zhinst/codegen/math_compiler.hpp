@@ -161,13 +161,19 @@ public:
     //! \param x  Operand.
     //! \return  Natural logarithm of `x`.
     double ln(double);
-    //! \brief `std::log(x)`. Natural logarithm.
+    //! \brief `std::log10(x)`. Base-10 logarithm.
     //!
-    //! \binarynote In SeqC `log` is the **natural** logarithm,
-    //!             not base-10 — same implementation as `ln`.
-    //!             Use `log10` for base-10.
+    //! \binarynote In SeqC, `log` is the **base-10** logarithm
+    //!             (matching the C99 `log10` and common
+    //!             scientific-calculator convention), **not** the
+    //!             natural log.  Use `ln` for the natural log.
+    //!             This is surprising in many language ecosystems
+    //!             where `log` defaults to the natural log; the
+    //!             binary's `MathCompiler::log` at `0x1c3940`
+    //!             tail-jumps directly to `log10` after a non-positive
+    //!             input check.  See IF-291.
     //! \param x  Operand.
-    //! \return  Natural logarithm of `x`.
+    //! \return  Base-10 logarithm of `x`.
     double log(double);
     //! \brief `std::log2(x)`. Base-2 logarithm.
     //! \param x  Operand.

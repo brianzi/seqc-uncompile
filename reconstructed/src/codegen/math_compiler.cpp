@@ -85,7 +85,7 @@ double MathCompiler::cos(double x)   { return std::cos(x); }       // @0x1c3850
 double MathCompiler::cosh(double x)  { return std::cosh(x); }      // @0x1c3860
 double MathCompiler::exp(double x)   { return std::exp(x); }       // @0x1c3870
 double MathCompiler::ln(double x)    { return std::log(x); }       // @0x1c3880
-double MathCompiler::log(double x)   { return std::log(x); }       // @0x1c3940
+double MathCompiler::log(double x)   { return std::log10(x); }     // @0x1c3940
 double MathCompiler::log2(double x)  { return std::log2(x); }      // @0x1c3a00
 double MathCompiler::log10(double x) { return std::log10(x); }     // @0x1c3ac0
 double MathCompiler::sign(double x)  { return (x > 0) - (x < 0); } // @0x1c3b80

@@ -6346,3 +6346,74 @@ documented for future maintainers*.  The latter is
 the verify-me backlog page.
 
 **Action items**: none.
+
+## IF-291  `MathCompiler::log` is base-10, not natural log
+
+**Status**: open (recon fix + doc fix applied in same commit).
+
+**Severity**: behavioural divergence (uncovered by test suite).
+
+**Summary**: The `\binarynote` on `MathCompiler::log` in
+`reconstructed/include/zhinst/codegen/math_compiler.hpp:166`
+claimed:
+
+> In SeqC `log` is the **natural** logarithm, not base-10 — same
+> implementation as `ln`.  Use `log10` for base-10.
+
+This is **wrong in two directions at once**:
+
+1. The binary's `MathCompiler::log` at `0x1c3940` tail-jumps to
+   `log10@plt` (base-10), not `log@plt` (natural).  Disasm:
+
+   ```
+   1c3940 <_ZN6zhinst12MathCompiler3logEd>:
+     1c394d:  xorpd  %xmm1,%xmm1
+     1c3951:  ucomisd %xmm0,%xmm1
+     1c3955:  ja     1c3966           # if x <= 0, throw
+     1c3961:  jmp    cb040 <log10@plt>   # else tail-jump base-10
+   ```
+
+2. The recon body in
+   `reconstructed/src/codegen/math_compiler.cpp:88` was
+   `return std::log(x);` — natural log.  So recon was matching
+   the (wrong) doc claim, not the binary.
+
+**Why no test caught this**: nothing in `tests/cases/*.seqc` calls
+`log(`.  The 1603/1603 byte-identical pass therefore says nothing
+about this code path.  Confirmed by `rg '\blog\s*\(' tests/cases/`.
+
+**Cross-checked sibling functions** (all at `MathCompiler::*Ed`
+manglings):
+- `ln`  @0x1c3880 → tail-jumps `log@plt`   (natural)  ✓ recon ok
+- `log` @0x1c3940 → tail-jumps `log10@plt` (base-10)  ✗ **fixed**
+- `log10` @0x1c3ac0 → tail-jumps `log10@plt` (base-10) ✓ recon ok
+- `log2` @0x1c3a00 → calls `log@plt` then divides — natural log
+  used as primitive for base-2; equivalent to `std::log2` to user.
+  No divergence.
+
+**Resolution**:
+- `reconstructed/src/codegen/math_compiler.cpp:88` —
+  `MathCompiler::log` body changed from `return std::log(x);` to
+  `return std::log10(x);`.
+- `reconstructed/include/zhinst/codegen/math_compiler.hpp:160-171` —
+  `\brief` and `\binarynote` rewritten to describe the actual
+  base-10 behaviour and to flag the surprise (in many languages
+  `log` is the natural log; in SeqC it follows the C99 / common
+  scientific-calculator convention of base-10).
+
+**Backlog impact**: `\binarynote` count unchanged (rewrite, not
+addition/removal).  No `\unverifiable` change.
+
+**Why this matters**: This is exactly the kind of bug that
+`\binarynote` re-audit (Phase G) is supposed to catch.  A
+`\binarynote` is the strongest authority claim a doc comment can
+make ("the binary intentionally does X"); when it's wrong, both
+the documentation and any recon body that was "fixed to match the
+note" are wrong together.  The recon body and the doc had drifted
+into agreement with each other while drifting away from the
+binary.  Static disasm of the cited address takes 30 seconds and
+catches both errors at once — the cost of not doing it was a
+silent base-10/natural-log mismatch in user-facing math.
+
+Test impact: 1603/1603 main still passes (no test exercised the
+divergent path).
