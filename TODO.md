@@ -1197,12 +1197,42 @@ Methodology (per F1):
 
       *Tests at close*: 1603/1603 main, build clean.
 
-- [ ] **G2 — Audit batch 2: device/ + ast/ + asm/ (9 sites)**
+- [x] **G2 — Audit batch 2: device/ + ast/ + asm/ (9 sites)** *(closed 2026-05-16)*
 
-      `device/device_type.hpp:146`, `:1074`, `:1176`;
-      `ast/eval_results.hpp:150`; `ast/seqc_ast_node.cpp:1009`;
-      `ast/seqc_ast_node.hpp:262`, `:1200`, `:2034`;
-      `asm/asm_parser_context.hpp:159`.
+      All 9 sites verified accurate against `_seqc_compiler.so` by
+      static disasm + rodata cross-checks at the cited binary
+      addresses.  Spot-checks:
+      - `device_type.hpp:146` (None==MF==0 dual): `toString` @0x2cfee0
+        emits both `"MFK"` (0x90b60e) and `"MF"` (0x90b612) via
+        family-conditional `lea`.
+      - `device_type.hpp:1074` (lowercase doesn't match): already
+        re-verified during IF-267 (`toDeviceFamily` rewrite to
+        UPPERCASE-keyed map).
+      - `device_type.hpp:1176` (`hasMf` family swap): @0x2d3030
+        confirms `cmp $0x4,%eax; sete %sil` → passes 1 (=MD) when
+        family==MF (4), else 0 (=MF) into `hasOption`.
+      - `eval_results.hpp:150` (`setValue(double)` sub-type Vect):
+        @0x2136a0 emits `movl $0x3` for sub-type field (Vect=3).
+      - `seqc_ast_node.cpp:1009` + `.hpp:2034` (SeqCValue swap
+        partial): @0x1fe410 swaps only `[+0x14]` (varType_, 4B) and
+        `[+0x18..]` (variant payload via tail-call); base subobject
+        fields (`valueCategory_`/`lineNr_`/`direction_`) untouched.
+      - `seqc_ast_node.hpp:262` (SeqCAstNode swap, no vptrs):
+        @0x1fda40 swaps `[+0x10]` (direction_) and `[+0x8]`
+        (valueCategory_+lineNr_); vptr at `[+0x0]` untouched.
+      - `seqc_ast_node.hpp:1200` (SeqCRepeat::cond not count):
+        symbol table confirms `_ZNK6zhinst10SeqCRepeat4condEv`
+        at @0x203b80; no `count()` symbol exists.
+      - `asm_parser_context.hpp:159` (`clearSyntaxError` clears
+        more): @0x28e890 zeroes 4-byte DWORD at `+0x00` (all four
+        comment+syntax flags) and writes `lineNumber_=1`; leaves
+        `doOpt_`, `programCounter_`, `errorCallback_`,
+        `stringCopies_`, `labels_` untouched.
+
+      *Yield*: 0 IFs, 0 fixes.
+
+      *Tests at close*: build clean (no source changes, so 1603/1603
+      from G1 commit still applies).
 
 - [ ] **G3 — Audit batch 3: io/ + runtime/ + waveform/ + codegen/ + infra/ (14 sites)**
 
