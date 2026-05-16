@@ -34,14 +34,18 @@ set(SEQCC_SOURCES
 
 add_executable(seqcc ${SEQCC_SOURCES})
 
-# T5a: A/B gate for the driver-owned compile flow.  When OFF (the
-# default through T5a.2), `compile.cpp::runCompile()` keeps calling
-# `compileSeqcWithIR()` directly — the driver TU is compiled and
-# linked but unreferenced.  T5a.2 will flip the gate ON to route
-# `runCompile()` through `SeqcDriver`.  T10a removes the option
-# alongside `compileSeqcWithIR()` itself.
+# T5a: A/B gate for the driver-owned compile flow.  ON by default
+# from T5a.4 onward — `compile.cpp::runCompile()` routes through
+# `SeqcDriver::compile()`, which owns the outer compile flow
+# (config marshalling → AWGCompiler ctor → addWaveforms →
+# compileString → writeToStream → info-JSON pack).  Flip OFF only
+# to bisect a suspected driver regression against the legacy
+# `compileSeqcWithIR` path — both paths must produce byte-identical
+# ELFs, asserted by `tests/tools/test_seqcc_ab.py` on every build.
+#
+# Retires at T10a alongside `compileSeqcWithIR` itself.
 option(SEQCC_USE_OWNED_DRIVER
-       "Route seqcc compiles through SeqcDriver instead of compileSeqcWithIR" OFF)
+       "Route seqcc compiles through SeqcDriver instead of compileSeqcWithIR" ON)
 if(SEQCC_USE_OWNED_DRIVER)
     target_compile_definitions(seqcc PRIVATE SEQCC_USE_OWNED_DRIVER=1)
 endif()

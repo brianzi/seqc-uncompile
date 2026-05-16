@@ -366,7 +366,7 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       - Verified: `diff_test_fast` 1612/1612; `test_seqcc_smoke` 4/4;
         `test_seqcc_diff` 35/35.
 
-  - [ ] **T5a — seqcc-owned outer driver (`SeqcDriver`).**  Move
+  - [x] **T5a — seqcc-owned outer driver (`SeqcDriver`).**  Move
         the ~30-line outer compile flow (`AWGCompiler` ctor →
         `addWaveforms` → `compileString` → `writeToStream` → assemble
         compile-report + wavemem-JSON → pack) from
@@ -402,7 +402,7 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
             ELFs between `seqcc` (legacy) and `seqcc_owned`
             (driver).  Both targets retire alongside the option at
             T10a.  Verified 15/15.
-      - [ ] **T5a.4** — flip the default and prepare for T5b: set
+      - [x] **T5a.4** — flip the default and prepare for T5b: set
             `SEQCC_USE_OWNED_DRIVER` default to ON in
             `tools/seqcc/CMakeLists.txt` (driver is now the
             primary path; legacy `compileSeqcWithIR` retained only

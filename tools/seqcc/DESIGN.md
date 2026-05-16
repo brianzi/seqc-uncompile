@@ -361,7 +361,43 @@ For `--from=` modes, `loadInput()` constructs the `Compiler` /
 via `Node::fromJson`, `AsmList::deserialize`, or
 `WavetableIR::fromJson` as appropriate.
 
-### 5.4 Pass-boundary taps
+### 5.4 Pass-boundary taps — **WITHDRAWN (superseded by T5b)**
+
+> **Status:** The `passTap_` callback design described below is
+> withdrawn as of T5a.4.  It conflicts with AGENTS.md commit
+> `6b2d504` ("tooling vs reconstructed code: hands off"), which
+> bans tooling-driven additions of new members, `friend` grants,
+> or hooks on reconstructed classes — `passTap_` is exactly such
+> an addition.
+>
+> **Replacement:** the stepwise `Compiler` / `AWGCompilerImpl`
+> API planned in **T5b** (see TODO.md).  Once `Compiler::compile()`
+> and `AWGCompilerImpl::compileString()` are split into named
+> step methods (`stepParse`, `stepLower`, `stepBuildAsmPreamble`,
+> `stepOptPre`, `stepPrefetch`, `stepOptPost`, ...), the driver
+> calls them sequentially and inspects the IRs *between* calls.
+> No new callback machinery on reconstructed types; no per-pass
+> branches inside the reconstructed `.cpp`.  Sub-pass granularity
+> (e.g. taps inside `AsmOptimize` between individual optimisation
+> passes) is deferred to a future phase if a concrete consumer
+> need ever materialises — at which point the same stepwise
+> refactor pattern would be applied to `AsmOptimize::run()`.
+>
+> The T5b refactor is itself a recon edit, but it is *sanctioned*
+> under AGENTS.md "Allowed exceptions": the step boundaries are
+> already documented in `reconstructed/notes/pipeline.md` against
+> verified binary addresses (`0x11f268`, `0x11f27e`, `0x11f7b0`,
+> `0x11fb1a`, `0x120707`, `0x120c92`, `0x120d60`, `0x120e2d`,
+> `0x120f2b`, `0x121345`).  The refactor preserves those
+> boundaries; it does not introduce new APIs that the original
+> binary lacks at the public-vtable level.
+>
+> The original `passTap_` description is retained below for
+> historical context; do not implement it.
+
+---
+
+**Historical design (do not implement):**
 
 To support `--dump-before/after=<pass>`, three reconstructed classes
 gain a single null-by-default callback member:
