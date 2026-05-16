@@ -24,6 +24,7 @@ set(SEQCC_SOURCES
     src/main.cpp
     src/options.cpp
     src/compile.cpp
+    src/driver.cpp
     src/elf_reader.cpp
     src/dump.cpp
     src/stage.cpp
@@ -32,6 +33,44 @@ set(SEQCC_SOURCES
 )
 
 add_executable(seqcc ${SEQCC_SOURCES})
+
+# T5a: A/B gate for the driver-owned compile flow.  When OFF (the
+# default through T5a.2), `compile.cpp::runCompile()` keeps calling
+# `compileSeqcWithIR()` directly — the driver TU is compiled and
+# linked but unreferenced.  T5a.2 will flip the gate ON to route
+# `runCompile()` through `SeqcDriver`.  T10a removes the option
+# alongside `compileSeqcWithIR()` itself.
+option(SEQCC_USE_OWNED_DRIVER
+       "Route seqcc compiles through SeqcDriver instead of compileSeqcWithIR" OFF)
+if(SEQCC_USE_OWNED_DRIVER)
+    target_compile_definitions(seqcc PRIVATE SEQCC_USE_OWNED_DRIVER=1)
+endif()
+
+# T5a.3: A/B target.  `seqcc_owned` always defines
+# `SEQCC_USE_OWNED_DRIVER=1` regardless of the option above, so
+# `tests/tools/test_seqcc_ab.py` can compare `seqcc` (legacy by
+# default) and `seqcc_owned` (driver path) on the same inputs and
+# assert byte-identical ELFs.  Both binaries share the same source
+# list, third-party include path, link list, and warning flags via
+# the helper below — keeping the A/B comparison meaningful even as
+# T5b lands stepwise-API changes that touch the driver TU.
+#
+# Retires alongside `SEQCC_USE_OWNED_DRIVER` at T10a (no more legacy
+# path to compare against).
+add_executable(seqcc_owned ${SEQCC_SOURCES})
+target_include_directories(seqcc_owned PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+)
+target_include_directories(seqcc_owned SYSTEM PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
+)
+target_compile_options(seqcc_owned PRIVATE
+    -Wall -Wextra -Wpedantic
+)
+target_compile_definitions(seqcc_owned PRIVATE SEQCC_USE_OWNED_DRIVER=1)
+if(TARGET zhinst_seqc)
+    target_link_libraries(seqcc_owned PRIVATE zhinst_seqc ZLIB::ZLIB)
+endif()
 
 target_include_directories(seqcc PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party

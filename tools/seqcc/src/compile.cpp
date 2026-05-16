@@ -8,6 +8,10 @@
 #include "ir_sinks.hpp"
 #include "stage.hpp"
 
+#ifdef SEQCC_USE_OWNED_DRIVER
+#  include "driver.hpp"
+#endif
+
 #include "zhinst/codegen/compile_seqc.hpp"
 
 #include <cerrno>
@@ -144,34 +148,73 @@ int runCompile(Options const& opts) {
         // future IR handles).  The ELF half is byte-identical
         // between the two entry points; the variant exists solely
         // to make IR survive the compiler's destructor scope.
-        std::string packed;
+        //
+        // T5a.2: when `SEQCC_USE_OWNED_DRIVER` is defined at build
+        // time, route through `SeqcDriver::compile()` instead — the
+        // driver owns the outer flow directly and produces an
+        // equivalent `(elf, infoJson, sinks)` triple.  Validation:
+        // `tests/tools/test_seqcc_diff.py` (full ELF byte-equal vs
+        // the pybind path).  Default OFF through T5a.2; T5a.3 flips
+        // the gate ON after the A/B fixture clears.
+        //
+        // `elfStorage` / `infoStorage` back the `string_view`s used
+        // by downstream dump emission; keep them alive in the
+        // enclosing scope.
+        std::string elfStorage;
+        std::string infoStorage;
         IRSinks sinks;
-        if (wantSinks) {
-            auto pair = zhinst::compileSeqcWithIR(
-                jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
-            packed = std::move(pair.first);
-            sinks  = std::move(pair.second);
-        } else {
-            packed = zhinst::compileSeqc(
-                jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+#ifdef SEQCC_USE_OWNED_DRIVER
+        {
+            SeqcDriver driver(opts);
+            DriverResult dr = driver.compile(source, jsonConfig, devoptsStr);
+            if (dr.elf.empty()) {
+                std::cerr << "seqcc: driver returned empty ELF payload\n";
+                return 1;
+            }
+            elfStorage  = std::move(dr.elf);
+            infoStorage = std::move(dr.infoJson);
+            sinks       = std::move(dr.sinks);
         }
+#else
+        {
+            std::string packed;
+            if (wantSinks) {
+                auto pair = zhinst::compileSeqcWithIR(
+                    jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+                packed = std::move(pair.first);
+                sinks  = std::move(pair.second);
+            } else {
+                packed = zhinst::compileSeqc(
+                    jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
+            }
 
-        // Packed layout matches pybind_seqc.cpp::pyCompileSeqc: the
-        // info-JSON, a single NUL, then the ELF bytes.  An absent NUL
-        // means the compiler emitted only an info report (no ELF) —
-        // currently treated as a hard error for seqcc.
-        auto sep = packed.find('\0');
-        if (sep == std::string::npos) {
-            std::cerr << "seqcc: compileSeqc returned no ELF payload\n"
-                      << "info:  " << packed << '\n';
-            return 1;
+            // Packed layout matches pybind_seqc.cpp::pyCompileSeqc:
+            // info-JSON, a single NUL, then the ELF bytes.  An absent
+            // NUL means the compiler emitted only an info report
+            // (no ELF) — currently treated as a hard error.
+            auto sep = packed.find('\0');
+            if (sep == std::string::npos) {
+                std::cerr << "seqcc: compileSeqc returned no ELF payload\n"
+                          << "info:  " << packed << '\n';
+                return 1;
+            }
+            infoStorage.assign(packed, 0, sep);
+            elfStorage.assign(packed, sep + 1, std::string::npos);
+            if (elfStorage.empty()) {
+                std::cerr << "seqcc: compileSeqc returned empty ELF payload\n";
+                return 1;
+            }
         }
-        std::string elf = packed.substr(sep + 1);
-        std::string_view infoJson(packed.data(), sep);
-        if (elf.empty()) {
-            std::cerr << "seqcc: compileSeqc returned empty ELF payload\n";
-            return 1;
-        }
+#endif
+        // Suppress unused-warning for `wantSinks` in the owned-driver
+        // build (the driver always populates sinks regardless).
+        (void)wantSinks;
+
+        // Re-bind the names downstream code reads.  These are views /
+        // refs into the backing storage above and remain valid for
+        // the rest of the function.
+        std::string const& elf = elfStorage;
+        std::string_view infoJson(infoStorage);
 
         // T5: route the primary `-o` output by stage.  `link` keeps
         // the T2 behaviour (write ELF); other stages render their

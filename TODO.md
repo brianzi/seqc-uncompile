@@ -366,18 +366,92 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       - Verified: `diff_test_fast` 1612/1612; `test_seqcc_smoke` 4/4;
         `test_seqcc_diff` 35/35.
 
-  - [ ] **T5 follow-up — literal stage early-exit (IF-304).**  Add
-        `AWGCompiler::compileUpTo(stage)` so `seqcc -E` can skip
-        post-lower passes.  Only worthwhile if a measurable
-        workload makes the wasted passes painful; defer until that
-        evidence exists.
+  - [ ] **T5a — seqcc-owned outer driver (`SeqcDriver`).**  Move
+        the ~30-line outer compile flow (`AWGCompiler` ctor →
+        `addWaveforms` → `compileString` → `writeToStream` → assemble
+        compile-report + wavemem-JSON → pack) from
+        `compileSeqcImpl()` into a new `tools/seqcc/src/driver.{hpp,
+        cpp}` class.  Replicates config-marshalling on the driver
+        side (built by the existing `target.cpp` from `-march`/
+        `-mtune`).  **Zero recon edits.**  Initially gated by a
+        `SEQCC_USE_OWNED_DRIVER=ON/OFF` CMake option so the existing
+        `compileSeqcWithIR` path remains a fallback during T5a–T5c.
+        A/B byte-equality regression: extend `test_seqcc_diff.py`
+        to run every existing case through both paths.  Prerequisite
+        for T5b and T6.  No new IFs expected (driver-side only).
+      - [x] **T5a.1** — driver skeleton: `tools/seqcc/src/driver.{hpp,
+            cpp}` with `SeqcDriver::compile()` pass-through to
+            `compileSeqcWithIR()`; CMake `SEQCC_USE_OWNED_DRIVER`
+            option (default OFF); zero call sites.
+      - [x] **T5a.2** — own the outer flow: port `compileSeqcImpl`
+            L159–360 into `SeqcDriver::compile()` (JSON-config parse,
+            sequencer/device dispatch, `AwgDeviceProps` lookup,
+            waveform-path defaults, `AWGCompilerConfig` population,
+            `AWGCompiler` ctor + `addWaveforms` + `compileString` +
+            `writeToStream`, info-JSON assembly, `fillIntrospection`).
+            `compile.cpp::runCompile()` routes through `SeqcDriver`
+            under `#ifdef SEQCC_USE_OWNED_DRIVER`.  Two anonymous-
+            namespace helpers (`parseSequencerType`,
+            `dispatchGetAwgDeviceProps`) re-implemented locally in
+            `driver.cpp` — no recon edits.  Verified gate ON:
+            seqcc_diff 46/46 byte-equal, diff_test_fast 1612/1612.
+      - [x] **T5a.3** — A/B fixture: second `seqcc_owned` CMake
+            target with `SEQCC_USE_OWNED_DRIVER=1` always defined,
+            plus `tests/tools/test_seqcc_ab.py` (15 cases, reusing
+            `test_seqcc_diff.py::CASES`) asserting byte-identical
+            ELFs between `seqcc` (legacy) and `seqcc_owned`
+            (driver).  Both targets retire alongside the option at
+            T10a.  Verified 15/15.
+      - [ ] **T5a.4** — flip the default and prepare for T5b: set
+            `SEQCC_USE_OWNED_DRIVER` default to ON in
+            `tools/seqcc/CMakeLists.txt` (driver is now the
+            primary path; legacy `compileSeqcWithIR` retained only
+            as a comparison reference until T10a).  Update
+            DESIGN.md §5.4 — withdraw the `passTap_` approach,
+            point to T5b as the stepwise plan.  Bump driver
+            version to `0.8.0-T5a`.
+
+  - [ ] **T5b — stepwise compilation API (supersedes T5
+        follow-up).**  Refactor `Compiler::compile()` (the 779-line
+        monolith in `reconstructed/src/codegen/compiler.cpp` L235–
+        ~780) into 9 public step methods on `Compiler` named for
+        the 12 annotated pipeline steps (`stepParse`,
+        `stepToSeqCAst`, `stepLower`, `stepBuildAsmPreamble`,
+        `stepOptPre`, `stepPrefetch`, `stepOptPost`,
+        `stepUnsyncCervino`, `stepProject`).  Lift cross-step stack
+        locals (`expr`, `seqcAst`, `lowerResult`, `resources`,
+        `staticResources`, `rootNode`) into private `Compiler`
+        members.  `Compiler::compile(source)` is rewritten as the
+        canonical step sequence.  Then refactor
+        `AWGCompilerImpl::compileString()` similarly into
+        `stepInnerCompile` + `stepAssembleOpcodes` +
+        `stepCheckLimits`; public `AWGCompiler::compileString(s)`
+        stays a one-liner.  **Structure-preserving refactor** —
+        diff_test_fast 1612/1612 is the byte-equality invariant.
+        Sanctioned recon exception authorised by the binary
+        addresses already documented in `notes/pipeline.md` for the
+        step boundaries (`0x11f268`, `0x11f27e`, `0x11f7b0`,
+        `0x11fb1a`, `0x120707`, `0x120c92`, `0x120d60`, `0x120e2d`,
+        `0x120f2b`, `0x121345`).  New IF entry documents the
+        refactor and the address cross-references.  Driver consumes
+        the new API: `--to=<stage>` becomes a literal stop (closes
+        IF-304); new dump artefacts unlocked (`asm-pre-opt`,
+        `asm-post-pre-opt`, `asm-post-prefetch`, `asm-final`,
+        `wavetable-ir`).  DESIGN.md §5.4 `passTap_` approach is
+        withdrawn in this entry's opening commit (superseded; no
+        longer compatible with AGENTS.md `6b2d504` hands-off
+        policy).
 
 - [ ] **T6 — `--from=<stage>`.**  Start-at-stage for `ast-lowered`,
       `asm`, `wavetable-ir`.  Input file format is auto-detected from
       extension (`.node.json`, `.seqasm`, `.wavetable.json`) or
       forced via `-x <lang>`.  Validates that the supplied stage is a
       legal start point and that no skipped stage is required by the
-      target's pipeline.
+      target's pipeline.  **Depends on T5b** — the stepwise
+      `Compiler` API is what makes mid-pipeline entry feasible
+      (driver constructs a `Compiler`, hand-populates `ast_` /
+      `asmList_` / `wavetableIR_` from the deserialised IR, then
+      calls the step methods from the appropriate point forward).
 
 - [ ] **T7 — `seqas` mode + `-x asm` dual path.**  When invoked as
       `seqas` (or `seqcc -x asm`), route `.seqasm` inputs through the
@@ -478,6 +552,23 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       from the reconstructed-code modifications (T8 taps).  Add any
       deferred work as new TODO items under Phase T or follow-up
       phases.
+
+  - [ ] **T10a — Retire `compileSeqcWithIR`.**  Once T5a/T5b/T6
+        are landed and `SeqcDriver` is the default seqcc path,
+        delete `compileSeqcWithIR()` and `CompileSeqcIntrospection`
+        from `reconstructed/include/zhinst/codegen/compile_seqc.{hpp,
+        cpp}`; delete `fillIntrospection` and the friend grant on
+        `AWGCompiler`; delete the private
+        `AWGCompilerImpl::getLoweredAst/getWavetable/getAsmList`
+        accessors and the `asmList`/`loweredAst`/`wavetable` fields
+        on the introspection struct.  Driver-side: delete
+        `tools/seqcc/src/ir_sinks.hpp` and re-source every dump
+        artefact from the driver's own captured state (which is
+        strictly richer post-T5b).  Remove the
+        `SEQCC_USE_OWNED_DRIVER` CMake option (owned driver is the
+        only path).  Pybind's `compileSeqc()` keeps its current
+        shape unchanged.  Single retirement commit; full regression
+        sweep must stay clean.
 
 ### Deferred / out-of-scope
 
