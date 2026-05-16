@@ -36,8 +36,12 @@ std::string getPlatformName() {
 // Helper: tries to open `path` for writing (ios::out). If open succeeds
 // (rdstate & 0x5 == 0, i.e. no failbit|badbit), removes the file and
 // returns true. Otherwise returns false without removing.
+//
+// Exported in the binary as `zhinst::canCreateFileForWriting` (global linkage,
+// not in an anonymous namespace) — promoted here to match the binary's symbol
+// surface (see IF-289).  The only known caller is `isDirectoryWriteable`
+// in this TU.
 // ---------------------------------------------------------------------------
-namespace {
 bool canCreateFileForWriting(boost::filesystem::path const& p) {
     // @0x2eb8b6: open with ios::out (mode 0x10)
     std::ofstream ofs(p.string().c_str(), std::ios::out);
@@ -51,7 +55,6 @@ bool canCreateFileForWriting(boost::filesystem::path const& p) {
     }
     return ok;
 }
-} // anonymous namespace
 
 // ---------------------------------------------------------------------------
 // isDirectoryWriteable — @0x2cdda0, ~0xDD bytes

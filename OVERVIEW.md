@@ -2028,3 +2028,31 @@ verify-then-write throughout.
   No source change — promoting `WaveformFile` to a nested
   class would change ABI for every reference for no
   behavioural gain.
+
+- **2026-05-16** F-followup: `diagnostics_text` /
+  `zi_environment` / `platform` mass-flip (IF-289).
+  Systematic re-audit of the remaining 35 still-"absent"
+  entries in `d14_inventory.md` revealed **20 Bucket A
+  presents** (libstdc++ `__cxx11::basic_string` vs binary
+  libc++ `std::__1::basic_string` mangling, all fully
+  reconstructed in `src/core/diagnostics_text.cpp` and
+  `src/io/zi_environment.cpp`): `xmlUnescape`,
+  `xmlUnescapeCopy`, `entityNumberToTxt`,
+  `entityNameToNumber`, `linkToQuery`, `queryToLink`,
+  `escapeStringForCsharp`, `replaceUnit`, `browseTo`,
+  `sanitizeFilename`, `sanitizeInvalidFilename`,
+  `escapeStringForJson`, `escapeStringForPython`,
+  `truncateXmlSafe`, `truncateUtf8Safe`,
+  `xmlEscapeUtf8Critical`, `xmlEscapeCritical`,
+  `generateSfc`, `toCheckedString` (`B5cxx11` ABI tag),
+  `hasMediaDevNode`.  Plus 1 **anon-namespace hoist** as a
+  real source change: `canCreateFileForWriting` @0x2eb860 was
+  wrapped in an anonymous namespace in
+  `src/core/platform.cpp`; hoisted to `zhinst::` scope so
+  recon emits the binary's exact symbol name.  Largest
+  single-audit drop to date.  Truly-absent timeline:
+  114 → 110 → 109 → 97 → 93 → 92 → 86 → 83 → 80 → **59**.
+  Tests 1603/1603 main + 1626/1626 harness still passing.
+  Lesson recorded: when an audit finds the first N matches,
+  search exhaustively before declaring diminishing returns
+  (IF-289 found ~25% of the supposedly-converged set).

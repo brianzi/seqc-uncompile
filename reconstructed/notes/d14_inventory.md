@@ -130,7 +130,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::xmlUnescape(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst11xmlUnescapeERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2fadd0` | **Size**: 5290 B | **Status**: absent
+- **Address**: `0x2fadd0` | **Size**: 5290 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst15xmlUnescapeCopyENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9...`
 - **String evidence**: `"&amp;"`, `"Attempt to access an uninitialized boost::match_results<> class."`, `"&#x[0-9a-fA-F]+;|&#[0-9]+;"`
@@ -138,7 +138,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::entityNumberToTxt(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst17entityNumberToTxtERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f4e90` | **Size**: 4853 B | **Status**: absent
+- **Address**: `0x2f4e90` | **Size**: 4853 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"Ohm"`
@@ -146,7 +146,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::linkToQuery(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst11linkToQueryERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f2f20` | **Size**: 4365 B | **Status**: absent
+- **Address**: `0x2f2f20` | **Size**: 4365 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"%0A"`, `"%0D"`, `"%2B"`, `"%2C"`, `"%2F"`
@@ -154,7 +154,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::entityNameToNumber(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst18entityNameToNumberERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f4290` | **Size**: 3061 B | **Status**: absent
+- **Address**: `0x2f4290` | **Size**: 3061 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"&amp;"`, `"&Omega;"`, `"&deg;"`, `"&Theta;"`, `"&plusmn;"`
@@ -162,7 +162,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::escapeStringForCsharp(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
 - **Mangled**: `_ZN6zhinst21escapeStringForCsharpENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f9df0` | **Size**: 2213 B | **Status**: absent
+- **Address**: `0x2f9df0` | **Size**: 2213 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -170,7 +170,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::sanitizeFilename(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst16sanitizeFilenameERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2fcbe0` | **Size**: 2060 B | **Status**: absent
+- **Address**: `0x2fcbe0` | **Size**: 2060 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst23sanitizeInvalidFilenameERNSt3__112basic_stringIcNS0_11char_traits...`
 - **String evidence**: _none observed_
@@ -178,7 +178,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::replaceUnit(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst11replaceUnitERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_S8_`
-- **Address**: `0x2f7ae0` | **Size**: 1860 B | **Status**: absent
+- **Address**: `0x2f7ae0` | **Size**: 1860 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"\E\)(.*)"`
@@ -186,7 +186,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::browseTo(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
 - **Mangled**: `_ZN6zhinst8browseToENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2eb950` | **Size**: 1739 B | **Status**: absent
+- **Address**: `0x2eb950` | **Size**: 1739 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -194,7 +194,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::escapeStringForJson(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst19escapeStringForJsonERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f89b0` | **Size**: 1663 B | **Status**: absent
+- **Address**: `0x2f89b0` | **Size**: 1663 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"&((#0*34)|(#x0*22)|(quot));"`
@@ -202,7 +202,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::escapeStringForPython(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
 - **Mangled**: `_ZN6zhinst21escapeStringForPythonENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f9780` | **Size**: 1644 B | **Status**: absent
+- **Address**: `0x2f9780` | **Size**: 1644 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -210,7 +210,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::sanitizeInvalidFilename(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst23sanitizeInvalidFilenameERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2fd3f0` | **Size**: 829 B | **Status**: absent
+- **Address**: `0x2fd3f0` | **Size**: 829 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"COM[1-9]|PRN"`
@@ -218,7 +218,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::truncateXmlSafe(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&, unsigned long)`
 
 - **Mangled**: `_ZN6zhinst15truncateXmlSafeERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEm`
-- **Address**: `0x2fc690` | **Size**: 817 B | **Status**: absent
+- **Address**: `0x2fc690` | **Size**: 817 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"Attempt to access an uninitialized boost::match_results<> class."`, `"&#x[0-9a-fA-F]+;|&#[0-9]+;|&amp;|&lt;|&gt|&quot;|&apos;"`
@@ -226,7 +226,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::xmlEscapeUtf8Critical(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst21xmlEscapeUtf8CriticalERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2faaa0` | **Size**: 803 B | **Status**: absent
+- **Address**: `0x2faaa0` | **Size**: 803 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"&#%03d;"`
@@ -234,7 +234,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::generateSfc(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&, std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst11generateSfcERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEES8_`
-- **Address**: `0x2d10b0` | **Size**: 788 B | **Status**: absent
+- **Address**: `0x2d10b0` | **Size**: 788 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"Request to generate SFC code for an unsupported device family ("`, `"/builds/labone/labone/device/types/src/device_option.cpp"`, `"sfc::FeaturesCode zhinst::generateSfc(const std::string &, const std::string &)"`
@@ -242,7 +242,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::xmlEscapeCritical(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&)`
 
 - **Mangled**: `_ZN6zhinst17xmlEscapeCriticalERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2fa7e0` | **Size**: 689 B | **Status**: absent
+- **Address**: `0x2fa7e0` | **Size**: 689 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"&amp;"`, `"&lt;"`, `"&gt;"`, `"&(?![gl]t;|amp;|quot;|#[0-9]+;|#x[0-9a-fA-F]+;)"`
@@ -250,7 +250,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::queryToLink(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst11queryToLinkERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2f4030` | **Size**: 596 B | **Status**: absent
+- **Address**: `0x2f4030` | **Size**: 596 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -258,7 +258,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::truncateUtf8Safe(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >&, unsigned long)`
 
 - **Mangled**: `_ZN6zhinst16truncateUtf8SafeERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEEm`
-- **Address**: `0x2fca40` | **Size**: 337 B | **Status**: absent
+- **Address**: `0x2fca40` | **Size**: 337 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst15truncateXmlSafeERNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_...`
 - **String evidence**: _none observed_
@@ -266,7 +266,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::toCheckedString(char const*)`
 
 - **Mangled**: `_ZN6zhinst15toCheckedStringEPKc`
-- **Address**: `0x2f2700` | **Size**: 179 B | **Status**: absent
+- **Address**: `0x2f2700` | **Size**: 179 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -274,7 +274,7 @@ Reconstruction difficulty: **medium per symbol** (sizable bodies, regex usage, b
 #### `zhinst::xmlUnescapeCopy(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
 - **Mangled**: `_ZN6zhinst15xmlUnescapeCopyENSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2fcba0` | **Size**: 58 B | **Status**: absent
+- **Address**: `0x2fcba0` | **Size**: 58 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -395,7 +395,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::hasMediaDevNode(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst15hasMediaDevNodeERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2eb550` | **Size**: 770 B | **Status**: absent
+- **Address**: `0x2eb550` | **Size**: 770 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: `"^/media/sd[a-z][0-9]+$"`
@@ -411,7 +411,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::canCreateFileForWriting(boost::filesystem::path const&)`
 
 - **Mangled**: `_ZN6zhinst23canCreateFileForWritingERKN5boost10filesystem4pathE`
-- **Address**: `0x2eb860` | **Size**: 221 B | **Status**: absent
+- **Address**: `0x2eb860` | **Size**: 221 B | **Status**: present (IF-289)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst20isDirectoryWriteableERKN5boost10filesystem4pathE`
 - **String evidence**: _none observed_
@@ -475,7 +475,7 @@ Reconstruction difficulty: **small**. Recommended approach: read the existing `R
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZNK6zhinst8Waveform6toJsonEv`
 - **String evidence**: `"unordered_map::at: key not found"`, `"csv"`, `"raw"`, `"gen"`
-- **Notes**: Reconstructed in `src/waveform/waveform.cpp:669` with full body (lazy-init `unordered_map<Type, string>`, identical key/value layout, same `at()` throw path).  Recon emits as `_ZN6zhinst12WaveformFile9typeToStrB5cxx11ENS0_4TypeE` (libstdc++ `__cxx11` + flat `WaveformFile` class) versus binary's nested `Waveform::File` (`_ZN6zhinst8Waveform4File9typeToStrENS1_4TypeE`).  Recon header uses `struct WaveformFile { ... }; using Waveform::File = WaveformFile;` — semantically equivalent at C++ source level (the `File` qualified name resolves), mangling-divergent at ABI level.  Reachable from `Waveform::toJson` in both binary and recon.
+- **Notes**: Reconstructed in `reconstructed/src/core/platform.cpp:41`.  Originally written inside an anonymous namespace in recon (mangled `_ZN6zhinst12_GLOBAL__N_1L23canCreateFileForWritingE...`); hoisted to `zhinst::` scope as part of IF-289 so the recon mangling now matches the binary exactly (`_ZN6zhinst23canCreateFileForWritingERKN5boost10filesystem4pathE`).  Verified `T` symbol in recon nm; tests 1603/1603 + 1626/1626 pass after hoist.
 
 #### `zhinst::Waveform::File::typeFromStr(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
@@ -1074,7 +1074,7 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **80** | **−30** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **59** | **−55** |
 
 The "truly absent" delta of −27 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
@@ -1083,7 +1083,7 @@ diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 86 functions before qualified-name audit, 80 after waveform_misc audit)
+### Truly-absent breakdown (2026-05-16; 86 functions before qualified-name audit, 59 after diagnostics_text mass-flip)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
@@ -1094,6 +1094,7 @@ than the headline number suggests.
 | Exact-mangling cross-recon audit (6 stale entries) | 6 | **Bookkeeping correction 2026-05-16** (no source change).  Systematic `nm --defined-only reconstructed/build/_seqc_compiler.so` cross-check on all 47 still-"absent" entries revealed 6 with **exact mangled-name matches** between binary and recon, mis-classified as absent: `makeDirectories(boost::filesystem::path const&)` @0x2cdef0 → `src/io/zi_environment.cpp:267`; `runningOnMf64Device()` @0x2ec680 → `:177`; `markFileHidden(boost::filesystem::path const&)` @0x2eb940 → `:294`; `initBoostFilesystemForUnicode()` @0x2ec020 → `:306`; `almostEqual(double, double)` @0x2ec070 → `src/core/numeric.cpp:33`; `Random::seedRandom()` @0x16be80 → `src/infra/prng_libcxx.cpp:73`.  All 6 verified `[1]` in recon nm with identical mangling — no ABI divergence at all.  Each cross-referenced via `@0x<addr>` comment in the implementing TU.  Status flipped to **present**; truly-absent decremented by 6 (92 → 86). |
 | Qualified-name + body-shape cross-recon audit (3 entries) | 3 | **Bookkeeping correction 2026-05-16** (no source change, IF-287).  Extension of IF-286: matched the remaining 41 "absent" entries by qualified name + body shape (not just exact mangling).  Found 2 ABI-divergence presents (`runningOnMfDevice(string)` @0x2ec160 → `src/io/zi_environment.cpp:160`, `runningOnMf64Device(string)` @0x2ec3d0 → `:191` — both libstdc++ `__cxx11::basic_string` vs binary libc++ `std::__1::basic_string`) plus 1 stale-status entry (`AwgPathPatterns(AwgPathPatterns const&)` @0x2cc4f0 — Status field said "absent" but Notes already documented IF-280 closure; refreshed Status to "deferred-by-design (IF-280)").  Truly-absent decremented by 3 (86 → 83).  Also refined the 4 still-absent `ZIIOException(string, ZIResult_enum)` / `ZIAPIException(string, error_code)` ctor entries (C1 + C2 each) with clarification that they are **signature mismatches, not ABI divergence** — recon's `ZHINST_DECLARE_EXCEPTION` macro emits only `()` and `(string)` overloads. |
 | `waveform_misc::waveform` class-structure-divergence audit (3 entries) | 3 | **Bookkeeping correction 2026-05-16** (no source change, IF-288).  All 3 cluster members (`Waveform::File::typeToStr`, `Waveform::File::typeFromStr`, `Waveform::File::operator==`) were already fully reconstructed in `src/waveform/waveform.cpp` with verified bodies @0x2a3a90 / @0x2a63c0 / @0x2a9680.  Recon exports them under flat class name (`zhinst::WaveformFile::...`) via `struct WaveformFile { ... }; using Waveform::File = WaveformFile;`, whereas the binary uses nested class (`zhinst::Waveform::File::...`).  Both forms emit working `at()`-based lookup with identical `unordered_map` semantics; reachable from `Waveform::{toJson,fromJson,operator==}` in both binary and recon.  Class-structure-divergence (not just ABI string-form divergence) — recorded as a new variety alongside Bucket A.  Truly-absent decremented by 3 (83 → 80). |
+| `diagnostics_text` / `zi_environment` / `platform` mass-flip (21 entries) | 21 | **2026-05-16** (1 small source change, IF-289).  Systematic re-audit of remaining 35 still-"absent" entries by qualified function-name match against recon `nm` output revealed **20 fully-reconstructed Bucket A presents** in `src/core/diagnostics_text.cpp` and `src/io/zi_environment.cpp` (libstdc++ `__cxx11::basic_string` vs binary libc++ `std::__1::basic_string` mangling, full bodies verified): `xmlUnescape`, `entityNumberToTxt`, `linkToQuery`, `entityNameToNumber`, `escapeStringForCsharp`, `sanitizeFilename`, `replaceUnit`, `browseTo`, `escapeStringForJson`, `escapeStringForPython`, `sanitizeInvalidFilename`, `truncateXmlSafe`, `xmlEscapeUtf8Critical`, `generateSfc`, `xmlEscapeCritical`, `queryToLink`, `truncateUtf8Safe`, `toCheckedString` (with `B5cxx11` tag), `xmlUnescapeCopy`, `hasMediaDevNode`.  Plus 1 **anon-namespace hoist**: `canCreateFileForWriting` (@0x2eb860) was in an anonymous namespace in recon (`_GLOBAL__N_1L23` prefix) — promoted to `zhinst::` scope so recon mangling exactly matches the binary's `_ZN6zhinst23canCreateFileForWritingERKN5boost10filesystem4pathE`.  Truly-absent decremented by 21 (80 → 59).  1603/1603 main + 1626/1626 harness still passing. |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |

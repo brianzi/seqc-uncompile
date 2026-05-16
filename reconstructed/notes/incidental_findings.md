@@ -6152,3 +6152,99 @@ promoting `WaveformFile` to a nested class would change ABI
 for every `Waveform::File` reference in the recon `.so` for no
 behavioural gain.  If a future pass decides to align with the
 binary's class structure, this IF entry is the starting point.
+
+## IF-289  `diagnostics_text` / `zi_environment` / `platform` mass-flip: 20 Bucket A presents + 1 anon-namespace hoist
+
+**Severity**: significant bookkeeping correction + 1 small source change
+**Status**: confirmed
+**Date**: 2026-05-16
+
+**Finding**: Of the 35 remaining `Status: absent` entries in
+`d14_inventory.md`, **21 are in fact reconstructed** but were
+mis-classified.  This is the largest single audit-flip to date.
+
+**Method**: Same as IF-286/IF-287 — `nm --defined-only
+reconstructed/build/_seqc_compiler.so` cross-checked by
+qualified function name against the inventory's still-"absent"
+list.  Spotted by grouping the absent entries by address range
+(0x2eb…0x2fd cluster of free `zhinst::` string/path helpers).
+
+**Outcomes** (21 entries):
+
+### 20 Bucket A presents (libstdc++ vs libc++ `std::string`)
+
+All reconstructed in
+`reconstructed/src/core/diagnostics_text.cpp` (19) and
+`reconstructed/src/io/zi_environment.cpp` (1).  Each has a
+complete recon body with the binary address in a comment.
+Recon emits libstdc++ `__cxx11::basic_string` mangling; binary
+uses libc++ `std::__1::basic_string` — classic Bucket A pattern
+from IF-287.
+
+| Address | Function | Recon location |
+|---|---|---|
+| 0x2fadd0 | `xmlUnescape(string&)` | `src/core/diagnostics_text.cpp:116` |
+| 0x2fcba0 | `xmlUnescapeCopy(string)` | `src/core/diagnostics_text.cpp:171` |
+| 0x2f4e90 | `entityNumberToTxt(string const&)` | `src/core/diagnostics_text.cpp:189` |
+| 0x2f4290 | `entityNameToNumber(string const&)` | `src/core/diagnostics_text.cpp:225` |
+| 0x2f2f20 | `linkToQuery(string const&)` | `src/core/diagnostics_text.cpp:252` |
+| 0x2f4030 | `queryToLink(string const&)` | `src/core/diagnostics_text.cpp:278` |
+| 0x2f9df0 | `escapeStringForCsharp(string)` | `src/core/diagnostics_text.cpp:329` |
+| 0x2f7ae0 | `replaceUnit(string c&, string c&, string c&)` | `src/core/diagnostics_text.cpp:383` |
+| 0x2eb950 | `browseTo(string)` | `src/core/diagnostics_text.cpp:456` |
+| 0x2fcbe0 | `sanitizeFilename(string&)` | `src/core/diagnostics_text.cpp:519` |
+| 0x2fd3f0 | `sanitizeInvalidFilename(string&)` | `src/core/diagnostics_text.cpp:538` |
+| 0x2f89b0 | `escapeStringForJson(string&)` | `src/core/diagnostics_text.cpp:552` |
+| 0x2f9780 | `escapeStringForPython(string)` | `src/core/diagnostics_text.cpp:572` |
+| 0x2fc690 | `truncateXmlSafe(string&, unsigned long)` | `src/core/diagnostics_text.cpp:628` |
+| 0x2fca40 | `truncateUtf8Safe(string&, unsigned long)` | `src/core/diagnostics_text.cpp:662` |
+| 0x2faaa0 | `xmlEscapeUtf8Critical(string&)` | `src/core/diagnostics_text.cpp:708` |
+| 0x2fa7e0 | `xmlEscapeCritical(string&)` | `src/core/diagnostics_text.cpp:729` |
+| 0x2d10b0 | `generateSfc(string const&, string const&)` | `src/core/diagnostics_text.cpp:755` |
+| 0x2f2700 | `toCheckedString(char const*)` | `src/core/diagnostics_text.cpp:794` |
+| 0x2eb550 | `hasMediaDevNode(string const&)` | `src/io/zi_environment.cpp:215` |
+
+**`toCheckedString` subtlety**: Recon emits with the `B5cxx11`
+ABI tag (`_ZN6zhinst15toCheckedStringB5cxx11EPKc`).  This is
+libstdc++'s `[[gnu::abi_tag("cxx11")]]` inline-namespace marker
+indicating the return type's `std::string` uses `__cxx11`.  The
+binary's libc++ build doesn't emit this tag (libc++ uses
+`std::__1` as the inline namespace instead).  Semantically
+identical; same Bucket A family.
+
+### 1 anon-namespace hoist (real source change)
+
+`canCreateFileForWriting(boost::filesystem::path const&)` @0x2eb860
+was wrapped in an anonymous namespace in
+`reconstructed/src/core/platform.cpp` (mangled
+`_ZN6zhinst12_GLOBAL__N_1L23canCreateFileForWritingE...`).  The
+binary exports it as a global `zhinst::canCreateFileForWriting`
+(`_ZN6zhinst23canCreateFileForWritingE...`), with an
+inter-instruction caller at 0x2cde1a from
+`isDirectoryWriteable` referencing the global symbol name.
+
+**Fix**: Removed the `namespace { ... }` wrapper.  After
+rebuild, recon emits the symbol with the binary's exact
+mangling.  Tests 1603/1603 main + 1626/1626 harness still pass.
+
+The recon function was already correctly written; only the
+linkage was wrong.  This is the kind of bookkeeping error the
+"verify-then-write" rule is designed to catch.
+
+**Truly-absent count**: 80 → 59 (largest single drop in the
+audit sweep).
+
+**Why this matters**: The previous IF-287 audit had already
+"closed" the sweep with diminishing-returns reasoning.  But
+that audit had only checked a few representative samples,
+not the full set of qualified-name matches.  This IF-289 mass
+audit demonstrates that ~25% of the "remaining" absents were
+actually trivial bookkeeping flips.  **Lesson**: when an audit
+finds the first 6, search exhaustively before declaring
+diminishing returns.
+
+**Action items**: none for source.  Audit tooling could be
+automated (a Python script that does the qualified-name
+intersection of binary symbols and recon nm output, then
+flags mismatched entries) — recorded as a future possibility
+but not committed as a TODO.
