@@ -27,6 +27,7 @@
 
 #include "compile.hpp"
 #include "options.hpp"
+#include "stage.hpp"
 
 #include <array>
 #include <climits>
@@ -51,7 +52,7 @@ namespace {
 // TODO(IF-293): unify with zhinst::LaboneVersion::fullVersionWithBuild once
 // those globals are moved out of `#ifdef ZHINST_HAS_PYBIND11`.  See
 // reconstructed/notes/incidental_findings.md "IF-293".
-constexpr const char* kSeqccVersion = "0.4.1-T4a";
+constexpr const char* kSeqccVersion = "0.5.0-T5";
 
 enum class Personality { Seqcc, Seqas, Seqdump };
 
@@ -278,10 +279,50 @@ int main(int argc, char** argv) {
         ->type_name("FMT")
         ->check(CLI::IsMember({"auto", "json", "text"}));
 
+    // T5: pipeline-stage selector for the primary `-o` output.
+    // `--to=STAGE` is the canonical form; `-S` / `-E` are the
+    // gcc-style sugar.  Sugar wins last-write (matches gcc's
+    // "rightmost wins" semantics for `-S -E -c`).
+    app.add_option("--to", opts.toStage,
+                   "Pipeline stage to emit as the primary output "
+                   "(default: link → ELF).  Run with --print-stages "
+                   "for the full list.  Stages flagged (unsupported) "
+                   "are reserved for future driver releases.")
+        ->type_name("STAGE")
+        ->check(CLI::IsMember(seqcc::stageNames()));
+
+    app.add_flag_callback("-E",
+                          [&opts] { opts.toStage = "lower"; },
+                          "Stop after frontend lowering; emit the "
+                          "lowered SeqC AST as JSON.  Sugar for "
+                          "--to=lower.");
+
+    app.add_flag_callback("-S",
+                          [&opts] { opts.toStage = "asm"; },
+                          "Stop after assembly; emit the .seqasm text "
+                          "from the ELF's .asm section.  Sugar for "
+                          "--to=asm.");
+
+    app.add_flag_callback("-c",
+                          [&opts] { opts.toStage = "link"; },
+                          "Compile and link to ELF (the default).  "
+                          "Provided for symmetry with -S/-E and to "
+                          "let scripts override an earlier -S/-E.");
+
+    bool printStages = false;
+    app.add_flag("--print-stages", printStages,
+                 "List the pipeline stages this driver knows about "
+                 "(with supported/unsupported flag) and exit.");
+
     CLI11_PARSE(app, rewrittenArgc, rewrittenArgvPtr);
 
     if (showVersion) {
         std::cout << "seqcc " << kSeqccVersion << '\n';
+        return 0;
+    }
+
+    if (printStages) {
+        seqcc::printStageTable(std::cout);
         return 0;
     }
 

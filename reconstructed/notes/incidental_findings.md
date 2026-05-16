@@ -667,3 +667,61 @@ debugging need arises for the JSON form.
 
 **TODO references**: TODO.md Phase T → "T4a follow-up:
 WavetableFront::toJson() delegate" (to be added if/when needed).
+
+## IF-304  seqcc: `--to=<stage>` is a logical stop, not a literal one
+
+**Discovered**: 2026-05, during T5 implementation.
+
+**Severity**: low (documentation / user-expectation).
+
+**Status**: documented; no fix planned.
+
+`seqcc --to=STAGE` (and its sugar `-S` / `-E`) is advertised as
+"stop after STAGE" in the spirit of `gcc -S` / `gcc -E`.  In
+gcc the early-exit is literal: with `-E`, the backend is never
+invoked.  With seqcc, the early-exit is **logical only** — the
+compile always runs to completion internally, and only the
+*output routing* changes.
+
+Concretely:
+
+- `seqcc -E foo.seqc` calls `zhinst::compileSeqcWithIR()`,
+  which runs the full pipeline (parse → astgen → lower → opt-pre
+  → prefetch → opt-post → assemble → link to ELF), then routes
+  the captured `loweredAst` IR sink to `-o` and discards the
+  ELF.
+- `seqcc -S foo.seqc` calls `zhinst::compileSeqc()` (or
+  `compileSeqcWithIR()` when `--dump=ast-lowered` is also
+  present), then pulls the `.asm` section out of the produced
+  ELF and routes that to `-o`.
+
+The user-visible compile-cost difference between `--to=lower`,
+`--to=asm`, and `--to=link` is therefore **zero**.
+
+**Why**: `zhinst::compileSeqc()` and `compileSeqcWithIR()` are
+single-shot end-to-end entry points; the underlying
+`AWGCompiler::compile()` does not expose stage-by-stage
+suspension.  Introducing a real early-exit would require:
+
+- Either a new `AWGCompiler::compileUpTo(stage)` entry point
+  with its own state machine and a way to harvest partial
+  output — significant additive recon surface, and a maintenance
+  burden every time a new pass lands.
+- Or a `setjmp/longjmp`-style abort-mid-compile that bypasses
+  destructors — incompatible with the current implementation's
+  RAII-heavy state.
+
+Neither is justified at T5: the dominant cost of `seqcc -E` is
+already the lexer + parser + lowering passes, which a literal
+early-exit would only marginally accelerate.  The full-pipeline
+run on a typical sequence takes a few milliseconds.
+
+**Recommended action when revisited**: if a future workload
+makes the wasted post-lower passes measurable (e.g. very large
+sequences in a tight `-E` loop), add `compileUpTo(stage)` as a
+B3 sanctioned recon exception.  Until then, treat `--to=` as a
+selector for "which IR do you want as primary output", not a
+performance lever.
+
+**TODO references**: TODO.md Phase T → "T5 follow-up: optional
+literal early-exit" (to add if needed).

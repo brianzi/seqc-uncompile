@@ -290,4 +290,35 @@ void emitDumps(std::vector<DumpSpec> const& specs,
     }
 }
 
+std::string renderStagePrimary(std::string const& stage,
+                               std::string_view elfBytes,
+                               IRSinks const& sinks) {
+    if (stage == "link") {
+        return std::string(elfBytes);
+    }
+    if (stage == "lower") {
+        // Reuses the same JSON emitter as `--dump=ast-lowered` so
+        // `-E -o foo.json` and `--dump=ast-lowered:foo.json` are
+        // byte-identical artifacts.
+        return emitAstLoweredJson(sinks);
+    }
+    if (stage == "asm") {
+        // The `.asm` section is plain text (per notes/elf_format.md).
+        // It may be empty if the device-config disabled assembler
+        // text emission; callers see an empty payload in that case,
+        // not an error.
+        ElfSections sections = parseElfSections(elfBytes);
+        if (!sections.valid) {
+            throw std::runtime_error(
+                "seqcc: produced ELF could not be parsed for --to=asm");
+        }
+        std::string_view asmView = sections.get(".asm", elfBytes);
+        return std::string(asmView);
+    }
+    // Reaching here means CLI parse-time validation let through an
+    // unsupported / unknown stage — that's a driver bug.
+    throw std::invalid_argument(
+        "seqcc: renderStagePrimary: unsupported stage '" + stage + "'");
+}
+
 }  // namespace seqcc

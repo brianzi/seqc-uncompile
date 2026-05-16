@@ -320,11 +320,40 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
         gated so default callers pay zero cost.  Larger recon edit
         than T4a/T4b; discuss before starting.
 
-- [ ] **T5 — `-S`, `-E`, `--to=<stage>`.**  Stop-after-stage support.
-      The chosen IR is emitted to `-o` in its native format (JSON for
-      Node/WavetableIR, text DSL for AsmList, text tree for AST).
-      `-S` is sugar for `--to=opt-post` (emits `.seqasm`).  `-E` is
-      sugar for `--to=lower` with `--dump=ast-lowered`.
+- [X] **T5 — `-S`, `-E`, `--to=<stage>`.**  Stop-after-stage routing
+      for the primary `-o` output.  Implemented in commit (T5):
+      - New `tools/seqcc/src/stage.{hpp,cpp}` defines the canonical
+        pipeline-stage table consumed by both CLI validation
+        (`CLI::IsMember(stageNames())`) and `--print-stages`.
+      - `--to=STAGE` selects the primary output; `-E` is sugar for
+        `--to=lower`, `-S` for `--to=asm`, `-c` for `--to=link`
+        (default).  Rightmost wins, matching gcc semantics.
+      - `dump.cpp` gains `renderStagePrimary(stage, elf, sinks)`,
+        shared with the existing `--dump=ast-lowered` and
+        `--dump=asm` renderers — so `-E -o X` and
+        `--dump=ast-lowered:X` produce byte-identical files.
+      - `-o -` writes the primary artifact to stdout (pipe-friendly
+        for `-E | jq .` and `-S | less`).
+      - Supported stages today: `link`, `lower`, `asm`.  Other
+        known stages (`parse`, `astgen`, `opt-pre`, `prefetch`,
+        `opt-post`, `assemble`) are listed by `--print-stages` as
+        `(unsupported)` and rejected at parse time with a clear
+        diagnostic.
+      - 9 new test cases in `tests/tools/test_seqcc_diff.py`
+        (default ≡ explicit, `-E`/`-S` parity with `--dump=`,
+        stage rejection, `--print-stages`, rightmost-wins).
+      - **Caveat**: `--to=` is a *logical* stop, not a literal one
+        — the full pipeline always runs internally and only the
+        output routing changes.  Documented as **IF-304**.
+      - Driver version bumped to `0.5.0-T5`.
+      - Verified: `diff_test_fast` 1612/1612; `test_seqcc_smoke` 4/4;
+        `test_seqcc_diff` 35/35.
+
+  - [ ] **T5 follow-up — literal stage early-exit (IF-304).**  Add
+        `AWGCompiler::compileUpTo(stage)` so `seqcc -E` can skip
+        post-lower passes.  Only worthwhile if a measurable
+        workload makes the wasted passes painful; defer until that
+        evidence exists.
 
 - [ ] **T6 — `--from=<stage>`.**  Start-at-stage for `ast-lowered`,
       `asm`, `wavetable-ir`.  Input file format is auto-detected from

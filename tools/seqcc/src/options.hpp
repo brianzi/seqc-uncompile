@@ -112,6 +112,31 @@ struct Options {
     //! regardless).  Reserved for T4+ kinds whose representation may
     //! be selectable.
     std::string dumpFormat{"auto"};
+
+    //! T5: pipeline-stage selector for the primary output (`-o`).
+    //! "link" (default) emits the compiled ELF — the original T2
+    //! behaviour.  Other accepted values stop *conceptually* after
+    //! the named stage and emit that stage's IR as the primary
+    //! artifact instead.
+    //!
+    //! Currently supported:
+    //!   - "link"   — ELF (default).
+    //!   - "lower"  — lowered SeqC AST JSON (alias: `-E`).
+    //!   - "asm"    — .seqasm text from the produced ELF's `.asm`
+    //!                section (alias: `-S`).
+    //!
+    //! See `stage.cpp::knownStages()` for the canonical list and
+    //! per-stage "supported" status.  Unsupported stages are
+    //! rejected at parse time with a clear diagnostic.
+    //!
+    //! \note Stopping is currently logical, not literal: the
+    //! compile always runs to completion internally (full ELF
+    //! produced) because the underlying `compileSeqc()` /
+    //! `compileSeqcWithIR()` entry points don't expose early-exit.
+    //! Only the *output routing* changes.  The compile cost
+    //! difference between `--to=lower` and `--to=link` is
+    //! therefore zero.  Documented as IF-304.
+    std::string toStage{"link"};
 };
 
 //! Build the JSON config string that compileSeqc() expects.

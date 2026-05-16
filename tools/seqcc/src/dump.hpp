@@ -83,4 +83,24 @@ void emitDumps(std::vector<DumpSpec> const& specs,
                IRSinks const& sinks,
                DumpFormat formatHint);
 
+//! T5: render the primary-output bytes for `stage`.  Used when
+//! `--to=<stage>` (or its `-S`/`-E` aliases) selects a non-link
+//! stage as the main `-o` target.
+//!
+//! Stage semantics:
+//!   - "link"  — returns `elfBytes` verbatim.
+//!   - "lower" — returns the JSON-serialised lowered AST from
+//!               `sinks` (caller must have used `compileSeqcWithIR`).
+//!               Empty string if the sink has no AST.
+//!   - "asm"   — returns the ELF `.asm` section payload.  Empty if
+//!               absent.
+//!
+//! Unknown / unsupported stage names throw `std::invalid_argument`
+//! — they should have been rejected at CLI parse time, so reaching
+//! here is a driver bug.  The CLI-parse-time check is the user-
+//! visible diagnostic.
+std::string renderStagePrimary(std::string const& stage,
+                               std::string_view elfBytes,
+                               IRSinks const& sinks);
+
 }  // namespace seqcc

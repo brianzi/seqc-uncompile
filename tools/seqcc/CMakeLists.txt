@@ -26,6 +26,7 @@ set(SEQCC_SOURCES
     src/compile.cpp
     src/elf_reader.cpp
     src/dump.cpp
+    src/stage.cpp
 )
 
 add_executable(seqcc ${SEQCC_SOURCES})

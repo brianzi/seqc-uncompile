@@ -499,5 +499,190 @@ class SeqccDiffTest(unittest.TestCase):
                              "with-dump ELF diverges from pybind baseline")
 
 
+    # ---- T5: pipeline-stage selector ------------------------------------
+    # `--to=STAGE` (and its sugar `-S`/`-E`/`-c`) routes the primary
+    # `-o` output through `renderStagePrimary()` instead of writing the
+    # ELF.  The compile still runs end-to-end internally — IF-304
+    # documents that "stop after STAGE" is logical, not literal.
+
+    def test_to_link_default_byte_equals_no_to(self):
+        """`--to=link` is the implicit default; explicit form must match."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf_default  = tmp / "default.elf"
+            elf_explicit = tmp / "explicit.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-o", str(elf_default), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--to=link",
+                 "-o", str(elf_explicit), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(elf_default.read_bytes(),
+                             elf_explicit.read_bytes(),
+                             "--to=link diverges from the implicit default")
+
+    def test_dash_E_emits_ast_lowered_json(self):
+        """`-E` is sugar for --to=lower: emits the same JSON as --dump=ast-lowered."""
+        import json
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            primary = tmp / "t.ast.json"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-E", "-o", str(primary), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertTrue(primary.exists())
+            self.assertGreater(primary.stat().st_size, 0,
+                               "-E primary output is empty")
+
+            data = json.loads(primary.read_text())
+            self.assertIsInstance(data, dict,
+                                  "-E output root must be a JSON object")
+            for required in ("asmId", "type", "nodeId",
+                             "branches", "config"):
+                self.assertIn(required, data,
+                              f"-E JSON missing required key {required!r}")
+
+    def test_dash_E_matches_dump_ast_lowered(self):
+        """`-E -o X` and `--dump=ast-lowered:X` must produce identical bytes."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            via_E    = tmp / "via_E.json"
+            via_dump = tmp / "via_dump.json"
+            elf_sink = tmp / "discard.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-E", "-o", str(via_E), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 f"--dump=ast-lowered:{via_dump}",
+                 "-o", str(elf_sink), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(via_E.read_bytes(), via_dump.read_bytes(),
+                             "-E and --dump=ast-lowered must emit identical "
+                             "JSON (shared renderer)")
+
+    def test_dash_S_emits_asm_text(self):
+        """`-S` is sugar for --to=asm: emits the ELF's .asm section as text."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            primary = tmp / "t.asm"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-S", "-o", str(primary), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertTrue(primary.exists())
+            text = primary.read_text()
+            self.assertGreater(len(text), 0, "-S primary output is empty")
+            self.assertIn("wvfe", text,
+                          "-S output missing `wvfe` opcode")
+
+    def test_dash_S_matches_dump_asm(self):
+        """`-S -o X` and `--dump=asm:X` must produce identical bytes."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            via_S    = tmp / "via_S.asm"
+            via_dump = tmp / "via_dump.asm"
+            elf_sink = tmp / "discard.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-S", "-o", str(via_S), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 f"--dump=asm:{via_dump}",
+                 "-o", str(elf_sink), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(via_S.read_bytes(), via_dump.read_bytes(),
+                             "-S and --dump=asm must emit identical bytes")
+
+    def test_unsupported_stage_rejected(self):
+        """`--to=<unsupported stage>` exits 2 with a clear diagnostic."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            proc = subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--to=parse",
+                 "-o", str(tmp / "x"), str(tmp / "t.seqc")],
+                capture_output=True, text=True)
+            self.assertEqual(proc.returncode, 2,
+                             f"expected exit 2, got {proc.returncode}; "
+                             f"stderr: {proc.stderr}")
+            self.assertIn("not implemented", proc.stderr.lower())
+
+    def test_unknown_stage_rejected_at_parse(self):
+        """`--to=bogus` is rejected by CLI11's IsMember validator."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            proc = subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--to=bogus",
+                 "-o", str(tmp / "x"), str(tmp / "t.seqc")],
+                capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("bogus", proc.stderr.lower())
+
+    def test_print_stages_lists_known_and_supported(self):
+        """`--print-stages` lists every known stage with its supported flag."""
+        proc = subprocess.run(
+            [str(SEQCC), "--print-stages"],
+            capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0,
+                         f"--print-stages failed: {proc.stderr}")
+        out = proc.stdout
+        for stage in ("parse", "astgen", "lower", "opt-pre", "prefetch",
+                      "opt-post", "asm", "assemble", "link"):
+            self.assertIn(stage, out,
+                          f"--print-stages omits stage {stage!r}")
+        self.assertIn("(supported)", out)
+        self.assertIn("(unsupported)", out)
+
+    def test_dash_c_overrides_earlier_dash_S(self):
+        """`-S -c` ⇒ link (gcc-style rightmost wins for stage selectors)."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            out_path = tmp / "out.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-S", "-c",
+                 "-o", str(out_path), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            data = out_path.read_bytes()
+            self.assertEqual(data[:4], b"\x7fELF",
+                             "expected ELF after -c overrides -S")
+
+
 if __name__ == "__main__":
     unittest.main()
