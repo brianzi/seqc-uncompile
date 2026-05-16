@@ -223,7 +223,19 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       free function — T5/T6 will refactor into direct `AWGCompiler` use
       when pipeline-stage granularity is needed._
 
-- [ ] **T3 — JSON IR dumps.**  Implement `--dump=ast-lowered`,
+- [X] **T3a — Option-surface cleanup.**  Replace T2's catch-all
+      `-mtune=KEY=VALUE` with dedicated gcc-style flags for the
+      common kwargs, and reject the silent-no-op `-mtune=index=`.
+      New flags: `--sequencer`, `--samplerate`, `--filename`,
+      `--wave-path`, `--waveforms`, `--index`, repeatable
+      `-mdevopt=FEATURE` (singular).  Keeps `-mtune=` as an
+      escape hatch for kwargs without a dedicated flag, and
+      keeps `-mdevopts=PACKED` as a deprecated back-compat alias.
+      _Closes IF-295 / IF-296 / IF-297 / IF-298.  19/19 diff harness
+      cases byte-equal (15 existing + 4 new surface-specific), 4/4
+      smoke, 1612/1612 difftest, no new build warnings._
+
+- [ ] **T3b — JSON IR dumps.**  Implement `--dump=ast-lowered`,
       `--dump=asm`, `--dump=wavetable-ir`, `--dump=compile-report`
       using the existing `toJson`/`serialize` methods.  `--dump-dir=`
       and `--dump-format=` (auto|json|text).  Each `--dump=` may be

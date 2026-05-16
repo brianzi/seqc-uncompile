@@ -1,5 +1,5 @@
 // =============================================================================
-// seqcc — option-model implementation (T2)
+// seqcc — option-model implementation
 // =============================================================================
 
 #include "options.hpp"
@@ -13,26 +13,24 @@ namespace seqcc {
 
 namespace {
 
-//! Keys whose values must be serialized as JSON numbers (double),
-//! matching the binding's kwarg handling: `cast<double>` is tried
-//! before `cast<string>`, so numeric kwargs land as JSON numbers in
-//! the merged config object.
+//! Keys that `-mtune=KEY=VALUE` rejects outright.  These keys either
+//! have a dedicated flag now (use that instead) or are silently
+//! ignored by compileSeqc() (use the right flag instead).
 //!
-//! Only `samplerate` is actually consumed as a number by compileSeqc()
-//! today (see compile_seqc.cpp ~L196); the others are kept as a small
-//! allowlist so that future numeric config keys "just work" without
-//! having to extend seqcc again.
-//!
-//! TODO(IF-296): `index` is listed here but compileSeqc() ignores the
-//! JSON `"index"` key entirely — it reads the AWG core only from its
-//! positional `awgIndex` parameter.  Anything a user passes via
-//! `-mtune=index=N` is silently dropped.  Remove from this allowlist
-//! once appendTune() rejects or redirects the key in T3.
-bool isNumericKey(std::string const& k) {
-    static const std::unordered_set<std::string> kNumeric{
-        "samplerate", "index"
-    };
-    return kNumeric.count(k) != 0;
+//! Currently:
+//!   - `index` — was silently a no-op in T2 (see IF-296 in
+//!     reconstructed/notes/incidental_findings.md).  Use `--index=N`.
+bool isReservedTuneKey(std::string const& k) {
+    static const std::unordered_set<std::string> kReserved{"index"};
+    return kReserved.count(k) != 0;
+}
+
+//! Keys recognised by compileSeqc() as JSON numbers (not strings).
+//! Currently only `samplerate`; the binding's kwarg merge tries
+//! `cast<double>` before `cast<string>`, so any numeric value the user
+//! supplies via the escape hatch should land as a JSON number.
+bool isNumericTuneKey(std::string const& k) {
+    return k == "samplerate";
 }
 
 //! Minimal JSON string escaper.  compileSeqc() runs the input through
@@ -50,7 +48,6 @@ void appendJsonString(std::string& out, std::string const& s) {
             case '\t': out += "\\t";  break;
             default:
                 if (static_cast<unsigned char>(c) < 0x20) {
-                    // Rare in practice — emit \u00XX.
                     char buf[8];
                     std::snprintf(buf, sizeof(buf), "\\u%04x",
                                   static_cast<unsigned char>(c));
@@ -63,21 +60,60 @@ void appendJsonString(std::string& out, std::string const& s) {
     out.push_back('"');
 }
 
+//! Append a JSON number in a form that round-trips through
+//! `boost::json::parse` losslessly.  Uses max-digits10 precision so
+//! `samplerate=2.4e9` doesn't drift to `2399999999.something` via the
+//! default `<<` precision.
+void appendJsonNumber(std::string& out, double d) {
+    std::ostringstream os;
+    os.precision(17);
+    os << d;
+    out += os.str();
+}
+
+//! Append a `"key":value` pair to a JSON-object-in-progress.
+//! Sets `first` to false; caller initialises it to true.
+void appendKey(std::string& out, bool& first, std::string const& key) {
+    if (!first) out.push_back(',');
+    first = false;
+    appendJsonString(out, key);
+    out.push_back(':');
+}
+
 }  // namespace
 
 std::string buildJsonConfig(Options const& opts) {
     std::string out;
     out.push_back('{');
     bool first = true;
+
+    // Dedicated fields first.  Track which keys we've emitted so the
+    // escape-hatch loop below doesn't re-emit them (it's harmless for
+    // boost::json::parse — last-wins — but tidy output makes
+    // `--dump=compile-config` readable in T3b).
+    std::unordered_set<std::string> emitted;
+    auto emitStringField = [&](char const* key, std::string const& val) {
+        if (val.empty()) return;
+        appendKey(out, first, key);
+        appendJsonString(out, val);
+        emitted.insert(key);
+    };
+    emitStringField("sequencer", opts.sequencer);
+    emitStringField("filename",  opts.filename);
+    emitStringField("wavepath",  opts.wavePath);
+    emitStringField("waveforms", opts.waveforms);
+
+    if (opts.samplerate.has_value()) {
+        appendKey(out, first, "samplerate");
+        appendJsonNumber(out, *opts.samplerate);
+        emitted.insert("samplerate");
+    }
+
+    // Escape-hatch kwargs.
     for (auto const& [k, v] : opts.tune) {
-        if (!first) out.push_back(',');
-        first = false;
-        appendJsonString(out, k);
-        out.push_back(':');
-        if (isNumericKey(k)) {
-            // Validate via std::stod; reuse the canonical decimal form
-            // it parses so we never emit JSON-illegal tokens like "inf"
-            // or thousands separators.
+        if (emitted.count(k)) continue;  // dedicated flag wins
+        appendKey(out, first, k);
+        if (isNumericTuneKey(k)) {
             std::size_t consumed = 0;
             double d;
             try {
@@ -92,21 +128,32 @@ std::string buildJsonConfig(Options const& opts) {
                     "-mtune=" + k + "=" + v +
                     ": trailing characters after numeric value");
             }
-            // Round-trip through ostringstream for a stable JSON-safe
-            // representation.  std::to_string truncates to 6 digits;
-            // the original binding emits boost::json's default double
-            // formatting which preserves enough precision for an exact
-            // round-trip — ostringstream with max_digits10 matches.
-            std::ostringstream os;
-            os.precision(17);
-            os << d;
-            out += os.str();
+            appendJsonNumber(out, d);
         } else {
             appendJsonString(out, v);
         }
     }
+
     out.push_back('}');
     return out;
+}
+
+std::string buildDevoptsString(Options const& opts) {
+    std::string out;
+    bool first = true;
+    for (auto const& d : opts.devopts) {
+        if (d.empty()) continue;  // tolerate empty entries from -mdevopts= splits
+        if (!first) out.push_back('\n');
+        first = false;
+        out += d;
+    }
+    return out;
+}
+
+// Exposed for main.cpp's -mtune= validation; defined here so the
+// reserved-key list lives in one place.
+bool tuneKeyIsReserved(std::string const& k) {
+    return isReservedTuneKey(k);
 }
 
 }  // namespace seqcc

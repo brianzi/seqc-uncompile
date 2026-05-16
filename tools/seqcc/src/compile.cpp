@@ -71,9 +71,10 @@ int runCompile(Options const& opts) {
 
         std::string source = slurpFile(opts.input);
         std::string jsonConfig = buildJsonConfig(opts);
+        std::string devoptsStr = buildDevoptsString(opts);
 
         std::string packed = zhinst::compileSeqc(
-            jsonConfig, source, opts.devtype, opts.awgIndex, opts.devopts);
+            jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
 
         // Packed layout matches pybind_seqc.cpp::pyCompileSeqc: the
         // info-JSON, a single NUL, then the ELF bytes.  An absent NUL

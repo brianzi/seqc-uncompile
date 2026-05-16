@@ -83,17 +83,46 @@ CASES = [
 
 def _seqcc_compile(tmp: Path, src: str, devtype: str,
                    kwargs: dict, options: str) -> bytes:
-    """Drive seqcc as a subprocess; return ELF bytes."""
+    """Drive seqcc as a subprocess; return ELF bytes.
+
+    Uses dedicated flags (T3a surface) for kwargs that have them and
+    falls back to -mtune=KEY=VALUE for anything unrecognised — this
+    way the harness exercises the new surface as the user would.
+    """
     src_path = tmp / "input.seqc"
     elf_path = tmp / "input.elf"
     src_path.write_text(src)
 
-    argv = [str(SEQCC), f"-march={devtype}", "-o", str(elf_path),
-            str(src_path)]
+    argv = [str(SEQCC), f"--march={devtype}", "-o", str(elf_path)]
+
+    # Map dedicated kwargs to dedicated flags.  Keep a copy so we can
+    # detect which ones are still "escape hatch" candidates.
+    leftover = dict(kwargs)
+    if "sequencer" in leftover:
+        argv.append(f"--sequencer={leftover.pop('sequencer')}")
+    if "samplerate" in leftover:
+        argv.append(f"--samplerate={leftover.pop('samplerate')}")
+    if "filename" in leftover:
+        argv.append(f"--filename={leftover.pop('filename')}")
+    if "wavepath" in leftover:
+        argv.append(f"--wave-path={leftover.pop('wavepath')}")
+    if "waveforms" in leftover:
+        argv.append(f"--waveforms={leftover.pop('waveforms')}")
+
     if options:
-        argv.append(f"-mdevopts={options}")
-    for k, v in kwargs.items():
+        # T3a: split on newlines and use repeatable -mdevopt= flags
+        # for the parts we know how to.  Tests below also exercise the
+        # legacy -mdevopts= packed form via the explicit_packed_devopts
+        # case.
+        for line in options.split("\n"):
+            if line:
+                argv.append(f"-mdevopt={line}")
+
+    # Anything left over goes through the escape hatch.
+    for k, v in leftover.items():
         argv.append(f"-mtune={k}={v}")
+
+    argv.append(str(src_path))
 
     proc = subprocess.run(argv, capture_output=True, text=True)
     if proc.returncode != 0:
@@ -139,6 +168,87 @@ class SeqccDiffTest(unittest.TestCase):
         locals()[f"test_{_name}"] = _make()
     if CASES:
         del _entry, _name, _dev, _src, _kw, _opts
+
+    # ---- T3a surface-specific tests ----------------------------------
+    # These don't fit the table-driven model because they exercise
+    # CLI-surface details (legacy spellings, error paths) rather than
+    # device/source matrix coverage.
+
+    def test_legacy_mtune_samplerate_matches_dedicated_flag(self):
+        """T3a back-compat: -mtune=samplerate=... still works."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf_legacy = tmp / "legacy.elf"
+            elf_new    = tmp / "new.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8",
+                 "-mtune=samplerate=2.4e9",
+                 "-o", str(elf_legacy), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8",
+                 "--samplerate=2.4e9",
+                 "-o", str(elf_new), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(elf_legacy.read_bytes(), elf_new.read_bytes())
+
+    def test_legacy_packed_mdevopts_matches_repeatable(self):
+        """T3a back-compat: -mdevopts=$'MF\\nME' equals two -mdevopt=."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf_packed = tmp / "packed.elf"
+            elf_single = tmp / "single.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-mdevopts=MF\nME",
+                 "-o", str(elf_packed), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-mdevopt=MF", "-mdevopt=ME",
+                 "-o", str(elf_single), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(elf_packed.read_bytes(), elf_single.read_bytes())
+
+    def test_mtune_index_is_rejected(self):
+        """IF-296: -mtune=index= used to be a silent no-op; T3a rejects it."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            proc = subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-mtune=index=3",
+                 "-o", str(tmp / "x.elf"), str(tmp / "t.seqc")],
+                capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertIn("index", proc.stderr.lower())
+
+    def test_index_flag_changes_elf(self):
+        """--index=N is honoured (smoke-level: different index ⇒ different ELF)."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            for idx in (0, 1):
+                subprocess.run(
+                    [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                     f"--index={idx}",
+                     "-o", str(tmp / f"i{idx}.elf"), str(tmp / "t.seqc")],
+                    check=True, capture_output=True)
+            # The pybind binding receives `index` as the positional
+            # awgIndex; verify seqcc matches for index=1.
+            sc = self.sc
+            elf, _ = sc.compile_seqc(src, "HDAWG8", "", 1, samplerate=2.4e9)
+            self.assertEqual((tmp / "i1.elf").read_bytes(), bytes(elf))
 
 
 if __name__ == "__main__":

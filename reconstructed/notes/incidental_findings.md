@@ -418,3 +418,41 @@ in `pybind_seqc.cpp`.
 **TODO references**: `tools/seqcc/src/main.cpp` carries
 `// TODO(IF-297)` at the `--mdevopts` registration.
 
+## IF-298  seqcc: repeatable options consume the trailing positional argument
+
+**Date**: 2026-05-16
+**Severity**: low (usability quirk; not a correctness issue)
+**Status**: fixed in T3a — `->expected(1)->allow_extra_args(false)` on
+each repeatable option (`-mdevopt`, `-mdevopts`, `-mtune`).
+
+**Context**: With the T3a flag surface, `-mdevopt`, `-mtune`,
+`--waveforms`, and similar option flags are registered as repeatable
+(`std::vector<std::string>`) CLI11 options.  CLI11's default greedy
+matching causes invocations such as
+
+```
+seqcc --march=HDAWG8 -mdevopt=MF input.seqc
+```
+
+to interpret `input.seqc` as a second value for `-mdevopt`, producing
+`seqcc: no input file`.
+
+**Workarounds**:
+- Insert `--` before the positional input:
+  `seqcc --march=HDAWG8 -mdevopt=MF -- input.seqc`
+- Place the positional input before any repeatable option:
+  `seqcc --march=HDAWG8 input.seqc -mdevopt=MF`
+
+The diff harness (`tests/tools/test_seqcc_diff.py`) takes the `--`
+route uniformly.
+
+**Possible fixes for a later sub-phase**:
+- Pin each repeatable option to `->expected(1)` so CLI11 takes one
+  value per occurrence only.  This is the gcc-style behaviour users
+  actually expect from `-mdevopt=FEATURE`.
+- Or register the positional as `->required()` and document the `--`
+  pattern in `--help`.
+
+**TODO references**: none yet in source; revisit in T3b when other
+repeatable options (`--dump=`) land.
+
