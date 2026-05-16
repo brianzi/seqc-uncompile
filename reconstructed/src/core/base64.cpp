@@ -4,10 +4,15 @@
 // `_seqc_compiler.so` 0x2f8620.
 //
 // The binary uses `std::ostringstream` internally to build the output
-// before extracting via `.str()` into the sret slot.  This
-// reconstruction uses direct `std::string::push_back` since only the
-// emitted byte sequence is observable at the API boundary; the
-// `string_spanu8` harness shape verifies bit-identity.
+// before extracting via `.str()` into the sret slot (each character
+// emitted through `__put_character_sequence`, the libc++ ostream<<char
+// path; the final `.str()` copies the streambuf into the return slot
+// via libc++'s small-string-optimization logic).  This reconstruction
+// uses direct `std::string::push_back` after a single `reserve()`
+// since only the emitted byte sequence is observable at the API
+// boundary; the `string_spanu8` harness shape verifies bit-identity
+// across 23 inputs (see harness.py BASE64_INPUTS).  Verified
+// 2026-05-16 via objdump + harness — see IF-290.
 
 #include "zhinst/core/base64.hpp"
 

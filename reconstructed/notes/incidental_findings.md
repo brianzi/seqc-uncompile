@@ -6262,3 +6262,87 @@ automated (a Python script that does the qualified-name
 intersection of binary symbols and recon nm output, then
 flags mismatched entries) — recorded as a future possibility
 but not committed as a TODO.
+
+## IF-290  `base64::encode` verified: ostringstream vs push_back is API-equivalent
+
+**Severity**: low (doc cleanup; promote `\verifyme` to `\binarynote`)
+**Status**: confirmed
+**Date**: 2026-05-16
+
+**Finding**: The lone remaining `\verifyme` on
+`zhinst::base64::encode` @0x2f8620 — covering the
+implementation choice of `std::string::push_back` (recon) vs
+`std::ostringstream` (binary) — has been verified via combined
+disassembly inspection and exhaustive harness testing.  Tag
+promoted to `\binarynote` to reflect the documented
+intentional divergence.
+
+**Verification (structural)**:
+
+Disassembly of 0x2f8620 confirms the binary builds output via
+`std::ostringstream`:
+- 0x2f8645: `call basic_ostringstream::C1`
+- Loop body (0x2f8670-0x2f8717): each base64 character is
+  emitted via `__put_character_sequence` (libc++'s
+  `ostream<<char` path), `r12` holding alphabet base
+  0x90cf90, `rbx` starting at 2 and stepping by 3.
+- 0x2f8812: `lea 0x90cfd1` (the `"=="` padding literal),
+  passed to `__put_character_sequence` with length 2 — the
+  binary emits both `=` characters in a single call.
+- 0x2f8824-0x2f889c: `.str()` extraction copies the
+  stringbuf's content into the sret slot via libc++ SSO
+  copy logic (`test $0x10, %al` long-form bit, etc.).
+
+`.rodata` confirms:
+- 0x90cf90: 64-byte alphabet `"ABCD...+/"` (no trailing NUL
+  in the binary's literal).
+- 0x90cfd1: `"=="` padding bytes (followed by NUL).
+
+**Verification (behavioural)**: The
+`tests/diff_unreachable/harness.py` `base64::encode` suite
+exercises 23 inputs covering all known edge cases:
+- Empty input → `""`.
+- All three pad classes (`n%3 ∈ {0,1,2}`): `'M'`, `'Ma'`,
+  `'Man'`, etc. (RFC 4648 reference vectors).
+- All-bits-set bytes (`\xff` × 1, 2, 3, 64).
+- Full-alphabet sample (`\x00\x10\x83\x10\x51\x87`).
+- libc++ SSO boundary: 22B input → 32B output (still
+  short-form), 23B input → 32B output (`n%3==2`), 24B input
+  → 32B output (`n%3==0`).
+- Long-string form: 48B and 64B payloads.
+
+All 23 cases pass byte-for-byte equality between binary
+and reconstruction.
+
+**Divergences that are API-invisible**:
+
+| Aspect | Binary | Recon | Observable? |
+|---|---|---|---|
+| Accumulator | `std::ostringstream` | `std::string` + `reserve()` | No |
+| Per-char emission | `__put_character_sequence` | `push_back` | No |
+| Padding emission | Single 2-byte sequence call | Two single-byte `push_back`s | No |
+| Alphabet storage | 64 bytes (no NUL) at 0x90cf90 | 65 bytes (with NUL) `kAlphabet[65]` | No (always indexed [0..63]) |
+| Allocation profile | streambuf + final `.str()` copy | Single pre-reserved string | No |
+| Exception path | `std::bad_alloc` from streambuf | `std::bad_alloc` from string | Equivalent |
+
+**Action taken**: Promoted `\verifyme` to `\binarynote` in
+`reconstructed/include/zhinst/core/base64.hpp`; expanded the
+brief to enumerate the divergences and reference the harness
+coverage shape.  Updated the `.cpp` file comment to mention
+this IF entry and the `__put_character_sequence` /
+`.str()` SSO copy details.  No source-code change; same
+1603/1603 main + 1626/1626 harness pass.
+
+**Backlog impact**: `\verifyme` count 1 → 0 (cleared);
+`\binarynote` count 28 → 29 (the promoted note).
+
+**Why this matters**: This was the last remaining
+`\verifyme` in the codebase.  The decision to clear it
+formally rather than leave it indefinitely matters because
+`\verifyme` is for *testable hypotheses awaiting
+verification*, not for *known-acceptable divergences
+documented for future maintainers*.  The latter is
+`\binarynote`'s purpose.  Mis-tagging accumulates noise on
+the verify-me backlog page.
+
+**Action items**: none.

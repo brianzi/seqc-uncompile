@@ -377,7 +377,7 @@ mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
 **D11–D19 are all complete**; Phase E (diff-test harness for
 binding-unreachable reconstructions, including the 20 D16 symbols)
 is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
-`\unclear=0`, `\verifyme=1`, `\binarynote=28`, `\unverifiable=5`.
+`\unclear=0`, `\verifyme=0`, `\binarynote=29`, `\unverifiable=5`.
 Documentation coverage: 94.7% (2979/3145 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
@@ -2072,3 +2072,22 @@ verify-then-write throughout.
   preserved in IF-235 and a short comment block at the former
   declaration site.  `\unclear` backlog: 1 → 0.  Tests
   1603/1603 main + 1626/1626 harness still passing.
+
+- **2026-05-16** Doc backlog cleanup: cleared the last
+  `\verifyme` (IF-290).  `base64::encode` @0x2f8620 used a
+  `\verifyme` to flag the implementation choice of recon's
+  `std::string::push_back` vs binary's `std::ostringstream`.
+  Verified via combined methods: disassembly inspection of
+  0x2f8620-0x2f88a0 (confirming `__put_character_sequence`
+  emission path, `.rodata` alphabet at 0x90cf90, `"=="`
+  padding at 0x90cfd1, and `.str()` SSO-copy epilogue), plus
+  exhaustive harness coverage of 23 inputs (empty, three
+  pad classes, RFC 4648 vectors, all-bits-set, full-alphabet,
+  libc++ SSO boundary, long-string form).  All 23 cases pass
+  byte-for-byte.  Promoted `\verifyme` to `\binarynote` with
+  an enumerated table of the API-invisible divergences
+  (accumulator, per-char emission, padding emission, alphabet
+  storage size, allocation profile, exception path).
+  `\verifyme` backlog: 1 → 0 (cleared).  `\binarynote`
+  count: 28 → 29.  No source-code change.  Tests 1603/1603
+  main + 1626/1626 harness still passing.
