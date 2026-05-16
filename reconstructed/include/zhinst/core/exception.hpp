@@ -211,6 +211,12 @@ inline ErrorCode makeDefaultErrorCode() {
 //! mirrors the two static functions over the in-tree `ErrorCode`
 //! stand-in; both return shapes match the binary's sret-by-hidden-
 //! pointer convention.
+
+// Forward declarations: ErrorCodeTraits references both types,
+// but their full definitions appear below.
+template <typename T> struct GenericErrorDescription;
+class Exception;
+
 template <typename T>
 struct ErrorCodeTraits {
     //! \brief Returns the "no error" sentinel for this error-code
@@ -223,6 +229,19 @@ struct ErrorCodeTraits {
     //! \param ec  Error code to describe.
     //! \return Newly-built message string.
     static std::string defaultMessage(T const& ec);      // @0x2ea170 (T = ErrorCode)
+    //! \brief Build an `Exception` from a description bundle by
+    //! moving its message into the exception's slot.
+    //!
+    //! Equivalent to `Exception{std::move(desc)}`.  The binary
+    //! inlines the move + the moved-from string's dtor instead of
+    //! relying on a temporary; both shapes are observationally
+    //! identical.
+    //! \param desc  Description carrying the code and message
+    //!              (taken by value so the message can be moved
+    //!              into the exception).
+    //! \return Newly-constructed `Exception`.
+    static Exception asException(GenericErrorDescription<T> desc);
+                                                          // @0x2ea190 (T = ErrorCode)
 };
 
 template <>
@@ -230,6 +249,10 @@ ErrorCode ErrorCodeTraits<ErrorCode>::successCode();           // @0x2ea150 — 
 
 template <>
 std::string ErrorCodeTraits<ErrorCode>::defaultMessage(ErrorCode const& ec);  // @0x2ea170 — defined in exception.cpp
+
+template <>
+Exception ErrorCodeTraits<ErrorCode>::asException(GenericErrorDescription<ErrorCode> desc);
+                                                                // @0x2ea190 — defined in exception.cpp
 
 // Carries an error_code together with an explanatory message. Used as
 // a constructor input for Exception. Verified layout at the call site

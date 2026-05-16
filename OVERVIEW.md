@@ -378,7 +378,7 @@ mainpage.  Sub-phases **D0–D10 plus D-AUDIT-1/2/3 are complete**;
 binding-unreachable reconstructions, including the 20 D16 symbols)
 is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
 `\unclear=1`, `\verifyme=1`, `\binarynote=27`, `\unverifiable=5`.
-Documentation coverage: 95.3% (2964/3111 symbols); 0 doxygen
+Documentation coverage: 95.2% (2970/3120 symbols); 0 doxygen
 warnings under strict
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`.
 
@@ -1806,3 +1806,44 @@ verify-then-write throughout.
       deferred-cluster count: 1 cluster / ~5 helpers → 1
       cluster / 2 helpers (deferred-by-design).  All
       *closeable* D14 work is now done.
+
+- **2026-05-16** D14 inventory refresh + opportunistic
+  `ErrorCodeTraits<ErrorCode>::asException` add.
+    - **Refresh**: re-ran the `nm`-difference sweep against
+      the current recon `_seqc_compiler.so` (post `8770bf6`)
+      to validate D14 cluster closure.  Truly-absent
+      function count dropped from D14's 114 → **110**;
+      delta is the net effect of all F-followups since
+      D14.  Full breakdown appended to
+      `reconstructed/notes/d14_inventory.md` "Refresh
+      2026-05-16".  No latent bug surfaced; remaining
+      surface is 54 `ErrorMessages::format<…>` template
+      instantiations (informational), 13
+      `detail::initializeSfcOptions<…>` (cluster
+      candidate, no caller), 8 API-error-translation
+      helpers (cluster candidate, no caller),
+      `csv_waveform_2arg` (still deferred), C++20-gated
+      symbols (`base64::encode`, `toRawByteArray`,
+      `fromRawByteArray` — by design), and ~30 misc
+      one-offs.
+    - **`ErrorCodeTraits<ErrorCode>::asException`**: the
+      one immediately actionable item from the refresh —
+      sibling of `successCode`/`defaultMessage` already
+      done.  Added to the trait template in
+      `core/exception.hpp` plus an out-of-line
+      specialisation in `src/core/exception.cpp` that
+      reduces to `Exception{std::move(desc)}` (the
+      binary's @0x2ea190 inlines the move + the
+      moved-from string's conditional-delete on the
+      unwind path; both shapes are observationally
+      identical).  Added forward declarations of
+      `GenericErrorDescription` and `Exception` ahead of
+      the trait definition because the trait now
+      references both.
+    - **Result**: `_ZN6zhinst15ErrorCodeTraitsINS_9ErrorCodeEE11asException…`
+      now emitted (recon mangling; template-arg portion
+      diverges from binary as before by design).  Truly-
+      absent function count: 110 → 109.  1603/1603 main;
+      1626/1626 harness; 0 new doxygen warnings; doc
+      coverage 95.2% (2970/3120, +6 from the
+      `asException` addition).

@@ -1049,3 +1049,115 @@ Sixty-two binary symbols whose `Class::method` qualified name matches an existin
 - **`AwgPathPatterns::AwgPathPatterns` candidate match.**  Recon exposes the constructor but the binary's mangling differs.  Determine whether the recon ctor is byte-equivalent or a different overload.
 - **`Random::seedRandom` overload.**  Recon already implements a function called `seedRandom` in two files; the absent symbol may be a second overload (different argument list) or a TLS-init helper.  Resolution is a one-line nm grep but was deferred from this scout.
 - **Vtable-slot ordering for `SeqC*::clone()`.**  All 53 clone overrides are mechanical, but the binary's vtables must be matched slot-for-slot for downcasts to work.  Need to confirm slot order via `objdump -s -j .data.rel.ro` before bulk-emitting them.
+
+## Refresh 2026-05-16: current-build symbol-diff
+
+Re-ran the `nm`-difference sweep against the current
+`reconstructed/build/_seqc_compiler.so` (commit `8770bf6`) to
+validate D14 cluster closure and surface any drift.
+
+### Numbers
+
+| Bucket                                         | D14 (2026-05-12) | Refresh (2026-05-16) | Delta |
+|---|---:|---:|---:|
+| Function symbols in original `_seqc_compiler.so` (T/t, `_ZN6zhinst…`) | 1632 | 1632 | 0 |
+| Function symbols in recon                       | (n/a) | 2022 | — |
+| Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
+| Original symbols NOT exported by recon          | (n/a) | 724 | — |
+| ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 614 | (informational) |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **110** | **−4** |
+
+The "truly absent" delta of −4 is the net effect of all
+F-followups landed since D14: helpers reconstructed under
+their canonical mangled names net of ones whose mangled name
+diverged (template-arg ABI).  Closer inspection (below) shows
+the qualified-name distribution has shifted significantly more
+than the headline number suggests.
+
+### Truly-absent breakdown (2026-05-16; 110 functions)
+
+| Sub-bucket | Count | Disposition |
+|---|---:|---|
+| `ErrorMessages::format<Args...>` template instantiations | 54 | Recon emits these implicitly via `<boost/format>` template machinery; the binary's listed instantiations are the explicit per-call-site ones the original source happens to bake.  No reconstruction work — recon would emit the same instantiations *if* something forced them, but our call sites use the same template differently.  **Informational, not actionable.** |
+| `detail::initializeSfcOptions<SfcType, N>` instantiations | 13 | All 13 SFC option initialisers (HdawgOption, Hf2Option, MfOption, ShfOption, UhfOption, VhfOption — 6 families × varying N).  Recon has matching call-site stubs in `device/mf_sfc.cpp` and the `sfc::*` enums in headers; the function template itself was never reconstructed.  **Candidate cluster** for a future small reconstruction phase if a caller appears. |
+| `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
+| `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
+| `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |
+| `fromRawByteArray`, `toRawByteArray` (`numeric::core`) | 2 | Same story as `base64::encode`: recon uses `std::span` (C++20-only).  C++20-gated; harness-covered; main-build `.so` does not export.  Status: by design. |
+| Five-or-six `CsvException`/`CsvParser`/`csvFileToWaveform` symbols | 5 | Member of the still-open `csv_waveform_2arg::io` cluster.  Never reconstructed; no public-binding caller. |
+| Other one-offs | ~30 | Triage list below. |
+
+### Other one-offs needing triage (~30)
+
+Listed for future cluster promotion or per-symbol decisions:
+
+- **API/error-translation surface** (8): `isApiError(error_code)`,
+  `isApiError(RemoteErrorCode)`, `toApiCode(ErrorKind)`,
+  `special::toApiCode(Exception)`, `make_error_condition(ErrorKind)`,
+  `fromZiErrorKind(ZIErrorKind_enum)`, `toZiErrorKind(ErrorKind)`,
+  `getApiErrorBase(ZIResult_enum)` — all part of the
+  `boost::system::error_code` interop layer that the recon currently
+  sidesteps via the `ErrorCode` stand-in.  Cluster candidate
+  `api_error_translation::core` (~10 helpers); zero recon callers
+  today.  Defer until a caller materialises.
+- **NodeMap dispatcher** (1): `GetNodeMapDispatcher<…AwgDeviceType…>::call`.
+  Template-method form of the existing `GetNodeMap` factory; recon
+  emits the underlying `GetNodeMap` per-device specialisations but
+  not this dispatcher wrapper.  Likely callable only via the binding
+  layer — needs a caller scout.
+- **Tracing / logging** (2): `tracing::TraceProvider::getProvider()`,
+  `detail::logExceptionToClog(exception_ptr, char const*, bool)`.
+  Both simple; reconstruct opportunistically if encountered.
+- **CompilerMessageCollection dtor + setLineNr** (2): suggests the
+  full class is stub-only in recon.  Worth a scout.
+- **Waveform / Front IR helpers** (4): `WaveformIR::toJsonElement`,
+  `Waveform::File::typeFromStr` / `typeToStr`,
+  `WaveIndexTracker<WaveformFront/IR>` ctor template instantiations.
+  Possibly downstream of the deferred CSV cluster.
+- **PlayArgs** (2): `WaveAssignment::~WaveAssignment`,
+  `secureLoadWaveform`.  `secureLoadWaveform` is an interesting name
+  — wave-loading with bounds-check semantics?  Caller scout.
+- **Misc destructors** (4): `MathCompiler::~MathCompiler`,
+  `AwgPathPatterns::~AwgPathPatterns`,
+  `DeviceOptionSet::~DeviceOptionSet`,
+  `Assembler::Assembler(Assembler const&)`.  Likely auto-emitted
+  defaults in recon under different mangling; verify via
+  `c++filt`.
+- **Pybind helpers** (2): `pyTryCast<string>`, the
+  `operator<<` ostream insertion for `AddressImpl<unsigned-integral>`.
+  Templated; recon may emit only different instantiations.
+- **Boost archive serialise** (2): `CachedParser::CacheEntry::serialize`
+  for both text iarchive and oarchive.  Recon's `CachedParser` was
+  reconstructed without persistence; these are the
+  `boost::archive`-driven serialise hooks.  No recon caller.
+- **Filesystem** (1): `canCreateFileForWriting(boost::filesystem::path)`.
+  Pre-existing stub or absent entirely?  Scout.
+- **Exception ctor instantiation** (1): the
+  `Exception::Exception<requires ErrorCodeEnum, ZIResult_enum>(string)`
+  C++20 `requires`-clause-mangled instantiation.  Recon's
+  `Exception` ctor uses different overload resolution.
+
+### Action items proposed (subject to user review per AGENTS.md)
+
+The refresh did **not** surface any latent bug — all 110
+absent symbols fall into pre-known categories (deferred by
+design, ABI-mangling divergence, C++20-gated, or
+zero-caller).  Two **incremental** opportunities worth
+considering:
+
+1. **`ErrorCodeTraits<…>::asException`** — sibling of the two
+   already done; same pattern (out-of-line specialisation of
+   `ErrorCodeTraits<ErrorCode>`); cheap to add and would
+   round out the trio.  Mangling diverges only in the
+   template-arg portion (same caveat as
+   `successCode`/`defaultMessage`).
+2. **API-error-translation cluster scout** — formalise the
+   8-symbol `api_error_translation::core` candidate above
+   into a cluster note + decide whether the public API
+   surfaces any of them through the binding layer.  If yes,
+   promote to a real reconstruction phase.
+
+The other 100 entries are no-action under current
+constraints (zero callers, ABI-mangling divergence by
+design, or C++20-gating).
+

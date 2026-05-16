@@ -310,4 +310,37 @@ std::string ErrorCodeTraits<ErrorCode>::defaultMessage(ErrorCode const& ec) {  /
     return ec.to_string();
 }
 
+// ---------------------------------------------------------------------------
+// ErrorCodeTraits<ErrorCode>::asException @0x2ea190 (~104 B)
+//
+// Binary body (verified objdump @0x2ea190):
+//   - Copies the 40-byte GenericErrorDescription onto the stack in
+//     two 16-byte movups + one 8-byte mov (the std::string body
+//     occupies +0x18..+0x30).
+//   - Zeros the source description's std::string members
+//     (xmm0 = 0; movups %xmm0,0x18(%rsi); movq $0,0x28(%rsi)) —
+//     this puts the source into the libc++ "small/empty" form so
+//     its dtor is a no-op.
+//   - Calls Exception::Exception(GenericErrorDescription<error_code>)
+//     on %rdi (sret) with the stack copy.
+//   - On the unwind path, conditionally deletes the stack-copy's
+//     long-form heap (test bit 0 of byte at -0x28(%rbp); if set,
+//     load size from -0x18 and call operator delete on -0x10).
+//
+// In C++ source this is exactly:
+//
+//   return Exception{std::move(desc)};
+//
+// where the move steals the std::string out of `desc`.  The
+// move-construct + delete-source-on-throw pattern is what the
+// compiler open-codes; nothing observable distinguishes the
+// hand-written move from the inlined version at the API boundary.
+// ---------------------------------------------------------------------------
+template <>
+Exception ErrorCodeTraits<ErrorCode>::asException(  // @0x2ea190
+    GenericErrorDescription<ErrorCode> desc)
+{
+    return Exception{std::move(desc)};
+}
+
 } // namespace zhinst
