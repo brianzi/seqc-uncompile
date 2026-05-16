@@ -81,7 +81,10 @@
                 },
                 {
                   "name": "wave_file",
-                  "file": "hdawg_doc_wave_file.seqc"
+                  "file": "hdawg_doc_wave_file.seqc",
+                  "wavepath": "",
+                  "waveforms": "waves/wave_file.csv",
+                  "tags": ["csv", "external-wave"]
                 },
                 {
                   "name": "IQ_modulation",
@@ -236,7 +239,10 @@
                 },
                 {
                   "name": "wave_file",
-                  "file": "shfsg_doc_wave_file.seqc"
+                  "file": "shfsg_doc_wave_file.seqc",
+                  "wavepath": "",
+                  "waveforms": "waves/wave_file.csv",
+                  "tags": ["csv", "external-wave"]
                 },
                 {
                   "name": "marker_gauss",
@@ -370,7 +376,10 @@
                 },
                 {
                   "name": "wave_file",
-                  "file": "uhfqa_doc_wave_file.seqc"
+                  "file": "uhfqa_doc_wave_file.seqc",
+                  "wavepath": "",
+                  "waveforms": "waves/wave_file.csv",
+                  "tags": ["csv", "external-wave"]
                 },
                 {
                   "name": "marker_gauss",

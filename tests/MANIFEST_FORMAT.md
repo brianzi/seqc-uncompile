@@ -217,6 +217,9 @@ Nested test names: `parent:child:testname[devtype, ...]`
   "options": "",
   "samplerate": 2.4e9,
   "sequencer": "qa",
+  "wavepath": "waves",
+  "waveforms": "waves/wave_a.csv;waves/wave_b.txt",
+  "filename": "virtual/source.seqc",
   
   "@base": "@definition_name"
 }
@@ -302,6 +305,18 @@ Sequencer type. **Required for SHFQC devices.**
 - `"qa"` — QA sequencer
 - `"sg"` — SG sequencer
 - `"auto"` — Auto-select
+
+**`wavepath` (string, optional)**
+
+Waveform search directory passed through to the Python `compile_seqc` binding. Relative paths are resolved against `tests/cases/`. The sentinel `"@none"` passes Python `None` to the binding.
+
+**`waveforms` (string, optional)**
+
+Semicolon-separated list of external waveform files passed through to `compile_seqc`. Relative paths in each list element are resolved against `tests/cases/`. The sentinel `"@none"` passes Python `None` to the binding (loads every CSV in `wavepath`).
+
+**`filename` (string, optional)**
+
+Debug/source filename passed through to `compile_seqc`. The sentinel `"@none"` passes Python `None`.
 
 #### `@base` (string, optional)
 

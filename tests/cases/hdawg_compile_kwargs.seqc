@@ -1,0 +1,2 @@
+wave w = "wave_file";
+playWave(w);

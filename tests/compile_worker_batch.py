@@ -15,7 +15,8 @@ Interface:
     < [JSON array of test cases on stdin]
 
 Each test case dict has keys: name, code, devtype, options, index,
-samplerate (optional), sequencer (optional).
+samplerate (optional), sequencer (optional), and any additional
+compile_seqc kwargs such as wavepath, waveforms, or filename.
 The "code" field is either inline source or "@/absolute/path.seqc".
 
 Output per test:
@@ -66,6 +67,13 @@ def compile_one(mod, case: dict, output_dir: str):
         kwargs["samplerate"] = case["samplerate"]
     if case.get("sequencer") is not None:
         kwargs["sequencer"] = case["sequencer"]
+    for key in ("wavepath", "waveforms", "filename"):
+        if case.get(key) is not None:
+            val = case[key]
+            # Manifest sentinel: "@none" means "pass Python None explicitly"
+            if val == "@none":
+                val = None
+            kwargs[key] = val
 
     try:
         result = mod.compile_seqc(code, case["devtype"], case.get("options", ""), case.get("index", 0), **kwargs)

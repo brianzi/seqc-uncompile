@@ -39,6 +39,9 @@ def main():
     p.add_argument("--index", type=int, default=0)
     p.add_argument("--samplerate", type=float, default=None)
     p.add_argument("--sequencer", default=None)
+    p.add_argument("--wavepath", default=None)
+    p.add_argument("--waveforms", default=None)
+    p.add_argument("--filename", default=None)
     p.add_argument("--output-elf", required=True)
     p.add_argument("--output-meta", required=True)
     args = p.parse_args()
@@ -71,6 +74,12 @@ def main():
         kwargs["samplerate"] = args.samplerate
     if args.sequencer is not None:
         kwargs["sequencer"] = args.sequencer
+    if args.wavepath is not None:
+        kwargs["wavepath"] = None if args.wavepath == "@none" else args.wavepath
+    if args.waveforms is not None:
+        kwargs["waveforms"] = None if args.waveforms == "@none" else args.waveforms
+    if args.filename is not None:
+        kwargs["filename"] = None if args.filename == "@none" else args.filename
 
     # Compile
     try:

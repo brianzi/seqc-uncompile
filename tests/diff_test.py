@@ -159,6 +159,9 @@ class TestCase:
     index: int = 0
     samplerate: Optional[float] = None
     sequencer: Optional[str] = None
+    wavepath: Optional[str] = None
+    waveforms: Optional[str] = None
+    filename: Optional[str] = None
 
 
 def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, exclude_groups=None, manifest_file=None) -> List[TestCase]:
@@ -199,6 +202,24 @@ def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, 
 
     # Convert to old TestCase format for compatibility
     cases = []
+    def resolve_case_path(value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if value == "" or value == "@none":
+            return value
+        path = Path(value)
+        if path.is_absolute():
+            return value
+        return str(cases_dir / path)
+
+    def resolve_case_path_list(value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        if value == "@none":
+            return value
+        parts = [resolve_case_path(part) for part in value.split(";")]
+        return ";".join(part for part in parts if part)
+
     for tc in filtered:
         # If "file" key is present, read code from that file
         code = tc.code or ""
@@ -218,6 +239,9 @@ def load_test_cases(cases_dir: Path, tags=None, exclude_tags=None, groups=None, 
             index=tc.index,
             samplerate=tc.samplerate,
             sequencer=tc.sequencer,
+            wavepath=resolve_case_path(tc.wavepath) if tc.wavepath is not None else None,
+            waveforms=resolve_case_path_list(tc.waveforms),
+            filename=tc.filename,
         ))
     return cases
 
@@ -253,6 +277,12 @@ def run_compile(worker: Path, module_dir: Path, module_name: str,
         cmd += ["--samplerate", str(case.samplerate)]
     if case.sequencer is not None:
         cmd += ["--sequencer", case.sequencer]
+    if case.wavepath is not None:
+        cmd += ["--wavepath", case.wavepath]
+    if case.waveforms is not None:
+        cmd += ["--waveforms", case.waveforms]
+    if case.filename is not None:
+        cmd += ["--filename", case.filename]
 
     proc = subprocess.run(
         cmd, capture_output=True, text=True, timeout=60,

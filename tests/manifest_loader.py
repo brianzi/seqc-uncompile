@@ -79,6 +79,9 @@ class TestCase:
     options: str = ""
     samplerate: float | None = None
     sequencer: str | None = None
+    wavepath: str | None = None
+    waveforms: str | None = None
+    filename: str | None = None
     comment: str | None = None
     tags: list[str] = field(default_factory=list)
     groups: list[str] = field(default_factory=list)  # Hierarchical path
@@ -99,6 +102,12 @@ class TestCase:
             d["samplerate"] = self.samplerate
         if self.sequencer is not None:
             d["sequencer"] = self.sequencer
+        if self.wavepath is not None:
+            d["wavepath"] = self.wavepath
+        if self.waveforms is not None:
+            d["waveforms"] = self.waveforms
+        if self.filename is not None:
+            d["filename"] = self.filename
         return d
 
     def resolve(self, cases_dir: str = ".") -> ResolvedTestCase:
@@ -116,6 +125,9 @@ class TestCase:
             index=self.index,
             sequencer=self.sequencer,
             samplerate=self.samplerate,
+            wavepath=self.wavepath,
+            waveforms=self.waveforms,
+            filename=self.filename,
         )
 
         return ResolvedTestCase(
@@ -174,6 +186,9 @@ class ManifestLoader:
                 options=test_dict.get("options", ""),
                 samplerate=test_dict.get("samplerate"),
                 sequencer=test_dict.get("sequencer"),
+                wavepath=test_dict.get("wavepath"),
+                waveforms=test_dict.get("waveforms"),
+                filename=test_dict.get("filename"),
                 tags=tags,
                 groups=["v1"],
             )
@@ -333,6 +348,9 @@ class ManifestLoader:
             options=case.get("options", ""),
             samplerate=case.get("samplerate"),
             sequencer=case.get("sequencer"),
+            wavepath=case.get("wavepath"),
+            waveforms=case.get("waveforms"),
+            filename=case.get("filename"),
             comment=case.get("comment"),
             tags=tags,
             groups=current_groups,

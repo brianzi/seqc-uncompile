@@ -66,6 +66,12 @@ def resolve_manifest(cases: list[TestCase]) -> list[dict]:
             entry["samplerate"] = c.samplerate
         if c.sequencer is not None:
             entry["sequencer"] = c.sequencer
+        if c.wavepath is not None:
+            entry["wavepath"] = c.wavepath
+        if c.waveforms is not None:
+            entry["waveforms"] = c.waveforms
+        if c.filename is not None:
+            entry["filename"] = c.filename
         entries.append(entry)
     return entries
 
