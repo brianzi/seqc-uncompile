@@ -109,19 +109,31 @@ enum class NodeType : int {
 //! @{
 
 //! \brief Returns `true` when `a`'s integer value equals `b`.
+//! \param a NodeType operand. \param b Raw integer value.
+//! \return `true` iff `int(a) == b`.
 inline bool operator==(NodeType a, int b) { return static_cast<int>(a) == b; }
 //! \brief Returns `true` when `a` equals `b`'s integer value.
+//! \param a Raw integer value. \param b NodeType operand.
+//! \return `true` iff `a == int(b)`.
 inline bool operator==(int a, NodeType b) { return a == static_cast<int>(b); }
 //! \brief Returns `true` when `a`'s integer value differs from `b`.
+//! \param a NodeType operand. \param b Raw integer value.
+//! \return `true` iff `int(a) != b`.
 inline bool operator!=(NodeType a, int b) { return static_cast<int>(a) != b; }
 //! \brief Returns `true` when `a` differs from `b`'s integer value.
+//! \param a Raw integer value. \param b NodeType operand.
+//! \return `true` iff `a != int(b)`.
 inline bool operator!=(int a, NodeType b) { return a != static_cast<int>(b); }
 //! \brief Bitwise OR of two `NodeType` values, returning a combined
 //! mask cast back to `NodeType` for tree-walk predicates.
+//! \param a First mask operand. \param b Second mask operand.
+//! \return `NodeType(int(a) | int(b))`.
 inline NodeType operator|(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) | static_cast<int>(b)); }
 //! \brief Bitwise AND of two `NodeType` values, returning the
 //! intersection cast back to `NodeType` (zero / empty mask when no
 //! bits overlap).
+//! \param a First mask operand. \param b Second mask operand.
+//! \return `NodeType(int(a) & int(b))`.
 inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>(static_cast<int>(a) & static_cast<int>(b)); }
 //! @}
 

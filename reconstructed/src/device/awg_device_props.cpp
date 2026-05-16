@@ -313,6 +313,10 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/)
 //! \brief Resolves a `(DeviceTypeCode, AwgSequencerType)` pair to the
 //! one-hot `AwgDeviceType` bit, or `AwgDeviceType(0)` when the
 //! combination is unsupported.
+//! \param code Device-type code being classified.
+//! \param seq Sequencer selector; only consulted for `SHFQC` (code 21).
+//! \return The matching one-hot `AwgDeviceType`, or `AwgDeviceType(0)`
+//!         for unsupported combinations.
 AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq) {
     const int c = static_cast<int>(code);
     switch (c) {
@@ -363,6 +367,10 @@ AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq) {
 //! \brief Builds the diagnostic message used when `toAwgDeviceType`
 //! returns the no-match sentinel; format is
 //! `"Unsupported device or sequencer type (<device>, sequencer: <seq>)."`.
+//! \param code Device-type code rendered into the message.
+//! \param seq Sequencer selector rendered into the message
+//!        (`"auto"` / `"QA"` / `"SG"` / `"unknown"`).
+//! \return The formatted diagnostic string.
 std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
                                                     AwgSequencerType seq)
 {
@@ -386,6 +394,8 @@ std::string makeUnsupportedAwgSequencerErrorMessage(DeviceTypeCode code,
 
 //! \brief Renders an `AwgSequencerType` as `"auto"`, `"QA"`, `"SG"`,
 //! or `"unknown"` for out-of-range values.
+//! \param seq Sequencer selector to render.
+//! \return The canonical name, or `"unknown"` for out-of-range values.
 // toString(AwgSequencerType) @0x2cbce0
 std::string toString(AwgSequencerType seq) {
     switch (seq) {
