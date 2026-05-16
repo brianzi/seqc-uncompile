@@ -262,12 +262,29 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       alongside the AST — deferred (IF-302) until a second
       asm-stage dump kind needs it.
 
-- [ ] **T3d (follow-up) — ast-lowered idMap parity.**  Capture the
-      `AsmList` into `CompileSeqcIntrospection` and run pass-1
-      densification driver-side so `Node::toJson()` receives the
-      same map pybind would use.  Land alongside whichever first
-      asm-stage dump kind in T4 needs the AsmList anyway.
-      See IF-302 for the workaround currently shipping.
+- [x] **T3d (follow-up) — ast-lowered idMap parity.**  Captured the
+      `AsmList` snapshot into `CompileSeqcIntrospection` via a new
+      `AWGCompilerImpl::getAsmList()` accessor (Strategy B — no new
+      friend grant; the existing `fillIntrospection()` friend
+      already reaches the pimpl).  The accessor returns a
+      `shared_ptr<AsmList const>` copy of `compiler_.asmList_`
+      so the captured list outlives the AWGCompiler's destructor.
+      Driver-side: `dump.cpp::buildDenseIdMap` runs pass-1 of
+      `AsmList::serialize()` (skip NOPs and empty placeholders,
+      assign sequential indices keyed by `sequenceId`); the
+      resulting map is fed to `Node::toJson()`.  The previous
+      identity-map workaround is retained only as a safety net
+      (`fillMissingIdsIdentity`) for AST nodes whose `asmId` isn't
+      present in the captured AsmList — without it,
+      `Node::toJson(idMap)` would throw `std::out_of_range`.
+      During implementation discovered that pybind has no
+      "ast-lowered" dump at all — `Node::toJson(idMap)` is only
+      called inside `AsmList::serialize()`, so the framing
+      "byte-identical to pybind" in IF-302 was incorrect; corrected
+      in the IF-302 update.  +3 tests in `T3dAstLoweredIdMap`
+      (deterministic dump, valid JSON, no out-of-range across
+      several program shapes).  Verified: diff_test_fast 1612/1612,
+      seqcc_diff 50/50.
 
 - [ ] **T4 — Text-only IR dumps.**  Add `--dump=ast-raw`,
       `--dump=ast-seqc`, `--dump=prefetch`, `--dump=cache`,

@@ -590,8 +590,29 @@ Future Phase T entries that need additional IR stages
 
 **Severity**: low (workaround in place, output is structurally
 valid but ids differ from pybind serialisation).
-**Status**: open; queued in TODO.md Phase T as a refinement of
-the `ast-lowered` dump.
+**Status**: **fixed in T3d** (commit landing alongside this update).
+The proper densified pass-1 map is now computed driver-side
+from `CompileSeqcIntrospection::asmList`, populated by
+`fillIntrospection()` via a new `AWGCompilerImpl::getAsmList()`
+accessor.  The identity-map workaround is retained only as a
+safety net (`fillMissingIdsIdentity` in `tools/seqcc/src/dump.cpp`)
+for AST nodes whose `asmId` is not present in the captured
+AsmList — without it, `Node::toJson()` would throw
+`std::out_of_range` from `idMap.at()`.
+
+**Caveat on "parity"**: closer inspection during T3d shows that
+the pybind path **never** serialises `Node` standalone — the
+only call site of `Node::toJson(idMap)` is inside
+`AsmList::serialize()` at `asm_list.cpp:76`, where the map and
+the call happen at the same point in the pipeline.  There is
+therefore no "pybind ast-lowered dump" for seqcc to be
+byte-identical to; the `--dump=ast-lowered` artifact is a
+seqcc-only diagnostic.  T3d still does the right thing — feed
+the densified map computed from the same algorithm pybind
+uses internally — but the framing "byte-identical to pybind"
+in the original IF text was incorrect.
+
+**Historical workaround text** (kept for archaeology):
 
 `Node::toJson(const std::unordered_map<int,int>& idMap) const`
 (`reconstructed/src/ast/node.cpp:506`) unconditionally calls

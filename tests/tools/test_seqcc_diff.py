@@ -785,5 +785,73 @@ class T8OptimizationFlags(unittest.TestCase):
                          "rightmost -O<n> must take precedence")
 
 
+class T3dAstLoweredIdMap(unittest.TestCase):
+    """T3d: `--dump=ast-lowered` now uses the real densified pass-1
+    id map computed from `CompileSeqcIntrospection::asmList`,
+    replacing the pre-T3d identity-map workaround (IF-302).
+
+    `Node::toJson()` only emits a single node (the root); successors
+    flow through integer `next`/`loop`/`branches` references rather
+    than nested objects.  The densified map therefore manifests as
+    the root's `asmId` field, plus any referenced asm-ids in its
+    inner config blobs.
+    """
+
+    SRC = "wave w = ones(64);\nrepeat (4) { playWave(w); }\n"
+    DEV_ARGS = ["--march=HDAWG8", "--samplerate=2.4e9"]
+
+    def _dump(self, extra_args):
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(self.SRC)
+            out = tmp / "ast.json"
+            proc = subprocess.run(
+                [str(SEQCC), *self.DEV_ARGS, *extra_args,
+                 "-o", str(out), str(tmp / "t.seqc")],
+                capture_output=True, text=True, check=True)
+            return out.read_text()
+
+    def test_ast_lowered_stable_across_runs(self):
+        """The dump must be deterministic — same input → same JSON."""
+        a = self._dump(["-E"])
+        b = self._dump(["-E"])
+        self.assertEqual(a, b, "ast-lowered dump must be deterministic")
+
+    def test_ast_lowered_is_valid_json(self):
+        """T3d shouldn't have broken structural validity."""
+        import json
+        text = self._dump(["-E"])
+        obj = json.loads(text)
+        self.assertIn("nodeId", obj)
+        self.assertIn("asmId", obj)
+        self.assertIn("type", obj)
+
+    def test_ast_lowered_no_out_of_range(self):
+        """When the AsmList is captured, the safety-net identity
+        fallback covers any AST node whose `asmId` isn't in the
+        dense map — `Node::toJson()` must not throw."""
+        # Exercise several shapes that historically tripped the
+        # identity workaround.
+        srcs = [
+            "playZero(64);",
+            "wave w = ones(64); playWave(w);",
+            "wave w = ones(64); repeat (4) { playWave(w); }",
+            "var x = 0; repeat (10) { x += 1; }",
+        ]
+        for src in srcs:
+            with tempfile.TemporaryDirectory() as td:
+                tmp = Path(td)
+                (tmp / "t.seqc").write_text(src)
+                out = tmp / "ast.json"
+                proc = subprocess.run(
+                    [str(SEQCC), *self.DEV_ARGS, "-E",
+                     "-o", str(out), str(tmp / "t.seqc")],
+                    capture_output=True, text=True)
+                self.assertEqual(proc.returncode, 0,
+                                 f"-E failed for {src!r}: {proc.stderr}")
+                self.assertGreater(len(out.read_text()), 0,
+                                   f"empty dump for {src!r}")
+
+
 if __name__ == "__main__":
     unittest.main()

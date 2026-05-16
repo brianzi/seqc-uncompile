@@ -6,6 +6,7 @@
 
 #include "elf_reader.hpp"
 
+#include "zhinst/asm/asm_list.hpp"
 #include "zhinst/ast/node.hpp"
 #include "zhinst/waveform/wavetable_front.hpp"
 
@@ -79,26 +80,50 @@ void writeFileSv(std::filesystem::path const& path, std::string_view data) {
     }
 }
 
-//! Build an identity `asmId → asmId` map by walking every node
-//! reachable from `root` along `next`, `loop`, and `branches`.
-//! Used to feed `Node::toJson(idMap)` when seqcc has no AsmList in
-//! hand — the proper map would come from
-//! `AsmList::serialize()`'s pass-1 (mapping `sequenceId` to a
-//! sequential index for asm-line cross-references).  An identity
-//! map produces JSON whose `asmId` cross-references point at the
-//! original ids rather than re-densified ones; that's still a
-//! useful debugging artifact, just not byte-identical to the
-//! pybind path.
-void collectAsmIdsIdentity(std::shared_ptr<zhinst::Node const> const& node,
-                           std::unordered_set<zhinst::Node const*>& seen,
-                           std::unordered_map<int,int>& idMap) {
+//! Build the densified `sequenceId → dense-index` map used by
+//! `Node::toJson(idMap)`.  Mirrors pass-1 of
+//! `AsmList::serialize()` (asm_list.cpp:187-200): walk every
+//! entry, skip `opcode == 4` (NOP) and `opcode == -1 && !node`
+//! (empty placeholders), assign sequential indices keyed by
+//! `entry.sequenceId`.  This is the same map pybind's
+//! serialisation path computes — feeding it to `toJson()` makes
+//! the seqcc dump's `asmId` cross-references match what the
+//! pybind path would produce for the same input.
+//!
+//! \details T3d: replaces the identity-map workaround (IF-302).
+//! Requires that `CompileSeqcIntrospection::asmList` is
+//! populated; if not, falls back to an empty map so callers can
+//! detect the missing-AsmList case via the `is_long_running`
+//! tag in the dump-spec table.
+std::unordered_map<int,int> buildDenseIdMap(zhinst::AsmList const& list) {
+    std::unordered_map<int,int> idMap;
+    int nextIdx = 0;
+    for (auto const& entry : list.entries) {
+        int opcode = static_cast<int>(entry.assembler.cmd);
+        if (opcode == 4) continue;                       // skip NOP
+        if (opcode == -1 && !entry.node) continue;       // skip empty placeholders
+        idMap[entry.sequenceId] = nextIdx++;
+    }
+    return idMap;
+}
+
+//! Walk every node reachable from `root` along `next`, `loop`,
+//! and `branches`, filling in any `asmId` that the dense map
+//! doesn't already cover with an identity entry.  Safety net for
+//! AST nodes whose `asmId` isn't represented in the AsmList
+//! (e.g. nodes lowered after the captured snapshot, or asm-id
+//! sentinels).  Without this guard, `Node::toJson()` throws
+//! `std::out_of_range` from `idMap.at()`.
+void fillMissingIdsIdentity(std::shared_ptr<zhinst::Node const> const& node,
+                            std::unordered_set<zhinst::Node const*>& seen,
+                            std::unordered_map<int,int>& idMap) {
     if (!node) return;
     if (!seen.insert(node.get()).second) return;
-    idMap[node->asmId] = node->asmId;
-    collectAsmIdsIdentity(node->next, seen, idMap);
-    collectAsmIdsIdentity(node->loop, seen, idMap);
+    idMap.try_emplace(node->asmId, node->asmId);
+    fillMissingIdsIdentity(node->next, seen, idMap);
+    fillMissingIdsIdentity(node->loop, seen, idMap);
     for (auto const& b : node->branches) {
-        collectAsmIdsIdentity(b, seen, idMap);
+        fillMissingIdsIdentity(b, seen, idMap);
     }
 }
 
@@ -106,22 +131,24 @@ void collectAsmIdsIdentity(std::shared_ptr<zhinst::Node const> const& node,
 //! boost::json's default formatter).  Returns an empty string when
 //! the sink doesn't carry an AST.
 //!
-//! \note The `idMap` passed to `Node::toJson()` would normally come
-//! from `AsmList::serialize()` pass-1 (mapping `sequenceId` to a
-//! dense sequential index).  Seqcc doesn't currently capture the
-//! AsmList into the introspection sink, so we feed an identity map
-//! built by walking the AST.  The resulting JSON's `asmId` cross-
-//! references therefore point at the original ids rather than the
-//! densified ones; structurally identical, ids just differ.  Full
-//! parity requires capturing the AsmList alongside the AST (queued
-//! in TODO.md Phase T).
+//! \note T3d: the `idMap` passed to `Node::toJson()` is now the
+//! real densified pass-1 map computed from
+//! `sinks.asmList`, matching pybind's serialisation.  Any AST
+//! node whose `asmId` isn't present in the AsmList (rare; see
+//! `fillMissingIdsIdentity`) gets an identity entry so
+//! `Node::toJson()` doesn't throw.  When `sinks.asmList` is
+//! missing (older introspection caller), the function degrades
+//! to a pure identity map — same behaviour as pre-T3d.
 std::string emitAstLoweredJson(IRSinks const& sinks) {
     if (!sinks.loweredAst) {
         return {};
     }
     std::unordered_map<int,int> idMap;
+    if (sinks.asmList) {
+        idMap = buildDenseIdMap(*sinks.asmList);
+    }
     std::unordered_set<zhinst::Node const*> seen;
-    collectAsmIdsIdentity(sinks.loweredAst, seen, idMap);
+    fillMissingIdsIdentity(sinks.loweredAst, seen, idMap);
     try {
         boost::json::value jv = sinks.loweredAst->toJson(idMap);
         return boost::json::serialize(jv);

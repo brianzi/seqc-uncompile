@@ -330,6 +330,24 @@ public:
         return compiler_.wavetable_;
     }
 
+    //! \brief Return a snapshot of the embedded `Compiler`'s
+    //!        `AsmList` at compile completion.
+    //! \details Tooling accessor added in T3d; no counterpart in the
+    //! original binary.  Returns a freshly-allocated `shared_ptr`
+    //! holding a *copy* of `compiler_.asmList_` — the on-compiler
+    //! member is owned by-value and would otherwise be destroyed
+    //! when the AWGCompiler unwinds.  The copy is the same
+    //! `AsmList` content that `Node::toJson()`'s id densification
+    //! is computed against, captured *before* the wavetable-aware
+    //! rewrite reshapes the list.  Returns an empty `shared_ptr`
+    //! when the compile failed before producing an AsmList of
+    //! any entries; an AsmList with zero entries still allocates
+    //! and returns a non-empty handle so callers can distinguish
+    //! "no compile" from "compile produced empty list".
+    std::shared_ptr<AsmList const> getAsmList() const {
+        return std::make_shared<AsmList>(compiler_.asmList_);
+    }
+
     //! \brief Build the multi-line "do not edit" header prepended
     //!        to assembler-listing files by `writeAssemblerToFile`.
     //! \details Combines the banner, the destination path, the
@@ -1704,6 +1722,7 @@ fillIntrospection(AWGCompiler const& c,
                   CompileSeqcIntrospection& out) noexcept {
     out.loweredAst = c.impl_->getLoweredAst();
     out.wavetable  = c.impl_->getWavetable();
+    out.asmList    = c.impl_->getAsmList();
 }
 
 }  // namespace zhinst

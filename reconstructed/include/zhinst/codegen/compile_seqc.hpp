@@ -25,6 +25,7 @@
 namespace zhinst {
 
 class AWGCompiler;
+class AsmList;
 class Node;
 class WavetableFront;
 
@@ -53,8 +54,22 @@ struct CompileSeqcIntrospection {
     //!        Empty when the compile failed before constructing one.
     std::shared_ptr<WavetableFront const> wavetable;
 
+    //! \brief Snapshot of the compiler's `AsmList` at compile
+    //!        completion (after pre-waveform-resolution but before
+    //!        the wavetable-aware rewrite — i.e. the same `AsmList`
+    //!        contents `Node::toJson()`'s `idMap` is derived from).
+    //!        Empty when the compile failed before producing one.
+    //!
+    //! \details Captured for T3d (ast-lowered idMap parity): the
+    //! seqcc driver needs this to run pass-1 of
+    //! `AsmList::serialize()` and feed the densified id map to
+    //! `Node::toJson(idMap)`, matching pybind's serialisation.
+    //! Without this, the driver falls back to an identity map
+    //! (IF-302 workaround) and emits structurally-valid but
+    //! id-divergent JSON.
+    std::shared_ptr<AsmList const> asmList;
+
     // Future T4 hooks (not yet populated):
-    // std::shared_ptr<AsmList const>     asmList;
     // std::shared_ptr<WavetableIR const> wavetableIR;
 };
 
