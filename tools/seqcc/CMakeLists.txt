@@ -28,6 +28,7 @@ set(SEQCC_SOURCES
     src/dump.cpp
     src/stage.cpp
     src/optflags.cpp
+    src/seqdump.cpp
 )
 
 add_executable(seqcc ${SEQCC_SOURCES})
@@ -61,7 +62,14 @@ target_include_directories(seqcc SYSTEM PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party
 )
 
-# T7+: install symlinks seqas → seqcc, seqdump → seqcc.
-# Held until T7 to keep T1 install footprint minimal.
+# T9: create `seqdump` symlink → seqcc so `argv[0]`-based personality
+# dispatch can find the seqdump entry point at the install/build path.
+# `seqas` symlink kept on hold until T7 (legacy AWGAssembler pipeline).
+add_custom_command(TARGET seqcc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E create_symlink seqcc
+            $<TARGET_FILE_DIR:seqcc>/seqdump
+    COMMENT "Linking seqdump → seqcc"
+    VERBATIM
+)
 
 message(STATUS "seqcc: default compile path (T2) — pipeline-stage flags arrive in T3+")

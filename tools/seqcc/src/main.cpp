@@ -28,6 +28,7 @@
 #include "compile.hpp"
 #include "optflags.hpp"
 #include "options.hpp"
+#include "seqdump.hpp"
 #include "stage.hpp"
 
 #include <array>
@@ -55,7 +56,7 @@ namespace {
 // TODO(IF-293): unify with zhinst::LaboneVersion::fullVersionWithBuild once
 // those globals are moved out of `#ifdef ZHINST_HAS_PYBIND11`.  See
 // reconstructed/notes/incidental_findings.md "IF-293".
-constexpr const char* kSeqccVersion = "0.6.0-T8";
+constexpr const char* kSeqccVersion = "0.7.0-T9";
 
 enum class Personality { Seqcc, Seqas, Seqdump };
 
@@ -213,6 +214,18 @@ extractOptFlags(std::vector<std::string> const& argv,
 
 int main(int argc, char** argv) {
     Personality pers = detectPersonality(argc > 0 ? argv[0] : "seqcc");
+
+    // T9: seqdump owns its own argument parser; route there before
+    // CLI11/gcc-flag rewriting kicks in.  seqdump has no `-O<n>`,
+    // no devopts, no -mtune; the shared rewriting would just clutter
+    // the diagnostics.
+    if (pers == Personality::Seqdump) {
+        std::string argv0 = argc > 0 ? argv[0] : "seqdump";
+        std::vector<std::string> rest;
+        rest.reserve(static_cast<std::size_t>(argc > 1 ? argc - 1 : 0));
+        for (int i = 1; i < argc; ++i) rest.emplace_back(argv[i]);
+        return seqcc::seqdumpMain(argv0, std::move(rest));
+    }
 
     seqcc::Options opts;
 
@@ -414,8 +427,11 @@ int main(int argc, char** argv) {
     }
 
     if (pers != Personality::Seqcc) {
+        // Seqdump was dispatched earlier; only Seqas remains
+        // unimplemented at this point (held for T7 — legacy
+        // AWGAssembler entry-point pipeline).
         std::cerr << personalityName(pers)
-                  << ": personality not yet implemented (Phase T3a); "
+                  << ": personality not yet implemented (Phase T7); "
                      "use `seqcc` for now.\n";
         return 2;
     }

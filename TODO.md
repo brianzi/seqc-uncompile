@@ -422,11 +422,54 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       mapping (T8a already cross-checked the mapping against
       `asm_optimize.cpp` L236/L252/L257/L263/L268).
 
-- [ ] **T9 — `seqdump` mode.**  Port the section-listing logic from
+- [x] **T9 — `seqdump` mode.**  Port the section-listing logic from
       `tests/dump_elf.py` to C++ in `tools/seqcc/seqdump.cpp` (or as
       a sub-mode of the main binary).  Supports `--section=<name>`,
       `--all`, `--diff <other.elf>` (side-by-side comparison like the
       Python tool's `--both`).
+      - **Status:** done.
+      - **Commit:** TBD.
+      - **What landed.**  New `tools/seqcc/src/seqdump.{hpp,cpp}` —
+        hand-rolled argparser (no CLI11; seqdump's surface is too
+        small and too gcc-style for CLI11 to add value).  Built as a
+        `seqdump` symlink to the `seqcc` binary (POST_BUILD custom
+        command in `tools/seqcc/CMakeLists.txt`); dispatch happens
+        via argv[0] before any seqcc CLI11 / gcc-flag rewriting in
+        `main.cpp`.  Driver version bumped to `0.7.0-T9`.
+      - **Features.**  Single-ELF dump enumerates every section with
+        a heuristic pretty-printer matching `tests/dump_elf.py`:
+        `.text` decoded as 32-bit LE instruction words; `.linenr`
+        decoded as 16-byte `(abs, ctr, seq, line)` records;
+        `.channels` / `.version_bin` printed as hex; `.wf_*` printed
+        as a 16-sample 16-bit LE preview; textual sections detected
+        by printable-ASCII heuristic; other sections shown as
+        64-byte hex preview.  `--section=<name>` (repeatable)
+        filters; unknown section warns but exits 0.  `--max-lines=N`
+        (default 200) truncates long text dumps.
+      - **Diff mode.**  `--diff <other.elf> <elf>` reports each
+        section as `IDENTICAL`, `DIFFERS`, or `MISSING IN
+        LEFT|RIGHT`; differing sections print full side-by-side
+        decoded contents with `--- LEFT ---` / `--- RIGHT ---`
+        labels.  Trailing summary line `=== N section(s) differ
+        ===`.  Exit always 0 — `seqdump --diff` is a reporting
+        tool, not a pass/fail gate (callers grep `DIFFERS` or parse
+        the count to gate).
+      - **Tests.**  New `tests/tools/test_seqdump.py` — 16 cases
+        covering: symlink topology, `--version` / `--help` /
+        no-args, unrecognised flags, full-dump enumerates expected
+        sections (`.text`, `.asm`, `.waveforms`, `.wavemem`), `.asm`
+        decoded as text, `.linenr` decoded as records, single &
+        repeated `--section=` filter, unknown-section warning,
+        non-ELF rejection, identical-vs-self diff reports `=== 0
+        section(s) differ ===`, default-vs-`-O0` diff reports
+        non-zero count, `--- LEFT ---` / `--- RIGHT ---` labels,
+        `--section=` honoured in diff mode.
+      - **Recon edits.**  None — pure driver work.  Reused existing
+        `tools/seqcc/src/elf_reader.{hpp,cpp}` for ELF parsing.
+      - **Held until T7.**  `seqas` symlink not yet created — Phase
+        T7 owns assembler personality.
+      - **Verified.**  diff_test_fast 1612/1612, test_seqcc_smoke
+        4/4, test_seqcc_diff 46/46, test_seqdump 16/16.
 
 - [ ] **T10 — Wrap-up.**  Update OVERVIEW.md with the toolchain
       section.  Add `reconstructed/notes/tools.md` documenting the
