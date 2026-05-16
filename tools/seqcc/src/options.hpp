@@ -96,6 +96,22 @@ struct Options {
 
     //! Zero-based AWG core index, set via `--index=N`.  Defaults to 0.
     unsigned long awgIndex{0};
+
+    //! `--dump=KIND[:PATH]` tokens (repeatable).  Parsed into
+    //! `DumpSpec` by `dump.cpp`.  Stored as raw strings here so the
+    //! options layer stays free of the dump module.
+    std::vector<std::string> dumpRequests;
+
+    //! `--dump-dir=DIR`: directory to place generated dumps when a
+    //! `--dump=` token does not carry an explicit `:PATH`.  Empty ⇒
+    //! place dumps next to the compile output (or per per-spec path).
+    std::filesystem::path dumpDir;
+
+    //! `--dump-format={auto|json|text}`: advisory hint for T3b
+    //! (each implemented kind currently emits its native format
+    //! regardless).  Reserved for T4+ kinds whose representation may
+    //! be selectable.
+    std::string dumpFormat{"auto"};
 };
 
 //! Build the JSON config string that compileSeqc() expects.

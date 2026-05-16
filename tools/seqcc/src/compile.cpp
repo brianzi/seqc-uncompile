@@ -4,6 +4,8 @@
 
 #include "compile.hpp"
 
+#include "dump.hpp"
+
 #include <cerrno>
 #include <cstring>
 #include <fstream>
@@ -87,6 +89,7 @@ int runCompile(Options const& opts) {
             return 1;
         }
         std::string elf = packed.substr(sep + 1);
+        std::string_view infoJson(packed.data(), sep);
         if (elf.empty()) {
             std::cerr << "seqcc: compileSeqc returned empty ELF payload\n";
             return 1;
@@ -98,6 +101,28 @@ int runCompile(Options const& opts) {
             outPath.replace_extension(".elf");
         }
         writeFile(outPath, elf);
+
+        // Emit any --dump=KIND[:PATH] artifacts.  Dump failures are
+        // diagnosed but do not fail the compile (the ELF is already
+        // on disk) — mirrors gcc, where `-fdump-*` write failures
+        // print a warning rather than aborting -c.
+        if (!opts.dumpRequests.empty()) {
+            try {
+                std::vector<DumpSpec> specs;
+                specs.reserve(opts.dumpRequests.size());
+                for (auto const& tok : opts.dumpRequests) {
+                    specs.push_back(parseDumpSpec(tok));
+                }
+                DumpFormat fmt = DumpFormat::Auto;
+                if (opts.dumpFormat == "json")      fmt = DumpFormat::Json;
+                else if (opts.dumpFormat == "text") fmt = DumpFormat::Text;
+                emitDumps(specs, opts.dumpDir, outPath, elf, infoJson, fmt);
+            } catch (std::exception const& e) {
+                std::cerr << "seqcc: dump emission failed: "
+                          << e.what() << '\n';
+                // Non-fatal: ELF is already written.
+            }
+        }
         return 0;
     } catch (std::exception const& e) {
         std::cerr << "seqcc: " << e.what() << '\n';

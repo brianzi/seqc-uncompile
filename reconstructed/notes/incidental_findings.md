@@ -456,3 +456,69 @@ route uniformly.
 **TODO references**: none yet in source; revisit in T3b when other
 repeatable options (`--dump=`) land.
 
+## IF-300  seqcc: `add_option_function<std::string>->expected(1, INT_MAX)` silently drops repeated occurrences
+
+**Date**: 2026-05-16
+**Severity**: high (silent data loss; affected T3a `-mdevopt`/`-mtune`)
+**Status**: fixed in T3b — switched to
+`add_option(vector)->expected(1)->take_all()->allow_extra_args(false)`.
+
+**Context**: T3a's IF-298 "fix" used CLI11's callback-style
+`add_option_function<std::string>` with `expected(1, INT_MAX)` for
+repeatable single-value options.  The intent was: callback fires once
+per occurrence, each with one value.  The actual behaviour: the
+callback fires **exactly once**, with only the **last** occurrence's
+value.  Earlier occurrences are silently discarded.
+
+Concretely, `seqcc -mdevopt=MF -mdevopt=ME ...` registered only `ME`.
+The T3a test suite never asserted multi-occurrence behaviour
+(IF-297's `test_legacy_packed_mdevopts_matches_repeatable` ran
+against `playZero(64);` which compiles to the same ELF regardless of
+`MF`/`ME`), so the regression hid behind a green suite for a full
+sub-phase.
+
+Symptomatic in T3b when wiring `--dump=KIND` repeatable; only the
+last `--dump=` value was processed, despite the callback being
+identical to `-mdevopt`'s.
+
+**Correct CLI11 idiom for repeatable single-value, no positional
+slurping** (verified against the CLI11 documentation, section
+"Containers of options" and the multi-option-policy table):
+
+```cpp
+std::vector<std::string> values;
+app.add_option("--flag", values, "help text")
+    ->expected(1)              // exactly one value per occurrence
+    ->take_all()               // policy: TakeAll across occurrences
+    ->allow_extra_args(false); // do not slurp trailing positionals
+```
+
+All three modifiers are required:
+- Without `expected(1)`, CLI11 allows multi-value occurrences and
+  slurps anything that doesn't look like a flag.
+- Without `take_all()`, the default `Throw` policy aborts on the
+  second occurrence ("At Most 1 required but received N").
+- Without `allow_extra_args(false)`, CLI11's vector-default
+  `allow_extra_args` re-enables positional slurping.
+
+The earlier `add_option_function<std::string>` form is fundamentally
+unsuited for this case: CLI11 packages all values across all
+occurrences as a single string vector before invoking the user
+callback, then `lexical_cast`s to the template `T`.  With `T =
+std::string`, only the *last* element ends up bound to the callback
+parameter (it's a `Throw`-policy single-value option type that
+overflowed silently).
+
+**Regression test**: `test_repeatable_mdevopt_registers_all_occurrences`
+in `tests/tools/test_seqcc_diff.py` uses the compile-report
+`maxelfsize` field as a witness: HDAWG8 with `ME` present yields
+2 GiB, without `ME` yields 256 MiB.  Comparing
+`-mdevopt=MF` vs `-mdevopt=MF -mdevopt=ME` thus reliably detects
+silent drops without depending on subtle ELF-byte differences.
+
+**TODO references**: none in source; the fix lives at the four
+`add_option(..., vector_target)->expected(1)->take_all()
+->allow_extra_args(false)` call sites in `tools/seqcc/src/main.cpp`
+(`--mdevopt`, `--mdevopts`, `--mtune`, `--dump`).
+
+

@@ -235,12 +235,21 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       cases byte-equal (15 existing + 4 new surface-specific), 4/4
       smoke, 1612/1612 difftest, no new build warnings._
 
-- [ ] **T3b — JSON IR dumps.**  Implement `--dump=ast-lowered`,
-      `--dump=asm`, `--dump=wavetable-ir`, `--dump=compile-report`
-      using the existing `toJson`/`serialize` methods.  `--dump-dir=`
-      and `--dump-format=` (auto|json|text).  Each `--dump=` may be
-      repeated and optionally takes `:path` to override the default
-      filename.
+- [X] **T3b — JSON IR dumps (partial).**  Implemented `--dump=asm`,
+      `--dump=waveforms`, `--dump=wavemem`, `--dump=compile-report`
+      via ELF section extraction (asm/waveforms/wavemem) and
+      info-JSON parsing (compile-report) — no recon edits required.
+      `--dump-dir=` and `--dump-format=` wired (format is advisory in
+      T3b).  Each `--dump=` is repeatable and accepts optional `:path`.
+      Also fixed IF-300: T3a's repeatable `-mdevopt`/`-mtune` silently
+      dropped all but the last occurrence.
+
+- [ ] **T3c — AST-lowered dump.**  Implement `--dump=ast-lowered`.
+      Requires either a recon accessor (e.g. `AWGCompiler::getAst()`)
+      or a per-dump bypass of `compileSeqc()` so the driver can hold
+      onto the `AWGCompiler` instance after compile and reach the AST
+      via offset shim.  Discuss approach with user before starting per
+      AGENTS.md "Tooling vs reconstructed code" policy.
 
 - [ ] **T4 — Text-only IR dumps.**  Add `--dump=ast-raw`,
       `--dump=ast-seqc`, `--dump=prefetch`, `--dump=cache`,

@@ -250,6 +250,101 @@ class SeqccDiffTest(unittest.TestCase):
             elf, _ = sc.compile_seqc(src, "HDAWG8", "", 1, samplerate=2.4e9)
             self.assertEqual((tmp / "i1.elf").read_bytes(), bytes(elf))
 
+    # ---- T3b: repeatable -mdevopt and --dump --------------------------
+    # IF-300: an earlier CLI11 idiom silently dropped all but the last
+    # `-mdevopt=` occurrence.  This test pins that two distinct
+    # `-mdevopt=` flags produce an ELF that matches the equivalent
+    # newline-packed `-mdevopts=` form (which is independently exercised
+    # above against the pybind binding).
+
+    def test_repeatable_mdevopt_registers_all_occurrences(self):
+        """IF-300 regression: -mdevopt=A -mdevopt=B must register both.
+
+        Verified via the compile-report `maxelfsize` field, which the
+        binary scales by 8× when the ME device option is present.  If
+        repeatability is broken, the ME flag is silently dropped and
+        `maxelfsize` would equal the single-option case.
+        """
+        import json
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+
+            def report(opts):
+                elf = tmp / f"out.elf"
+                report_path = tmp / "out.compile-report.json"
+                cmd = [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                       "--dump=compile-report",
+                       "-o", str(elf), str(tmp / "t.seqc"), *opts]
+                subprocess.run(cmd, check=True, capture_output=True)
+                data = json.loads(report_path.read_text())
+                elf.unlink()
+                report_path.unlink()
+                return data
+
+            r_one = report(["-mdevopt=MF"])
+            r_two = report(["-mdevopt=MF", "-mdevopt=ME"])
+
+            # Both runs succeed; ME presence scales maxelfsize 8× in
+            # the binary's compile report.
+            self.assertNotEqual(
+                r_one["maxelfsize"], r_two["maxelfsize"],
+                "second -mdevopt= was silently dropped — IF-300 regressed "
+                f"(one={r_one}, two={r_two})")
+
+    def test_dump_emits_requested_artifacts(self):
+        """--dump=K[:P] writes per-kind files; ELF is unaffected."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf = tmp / "out.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--dump=asm", "--dump=waveforms",
+                 "--dump=wavemem", "--dump=compile-report",
+                 "-o", str(elf), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            # All four kinds should land in the same dir as the ELF.
+            for kind, ext in [("asm", "asm"),
+                              ("waveforms", "json"),
+                              ("wavemem", "json"),
+                              ("compile-report", "json")]:
+                path = tmp / f"out.{kind}.{ext}"
+                self.assertTrue(path.exists(),
+                                f"expected dump {path} to exist")
+                self.assertGreater(path.stat().st_size, 0,
+                                   f"dump {path} is empty")
+
+            # The ELF must still match the pybind binding byte-for-byte
+            # — emitting dumps must not perturb the compile output.
+            sc = self.sc
+            pybind_elf, _ = sc.compile_seqc(src, "HDAWG8", "", 0,
+                                            samplerate=2.4e9)
+            self.assertEqual(elf.read_bytes(), bytes(pybind_elf))
+
+    def test_dump_explicit_path_overrides_default(self):
+        """--dump=KIND:PATH writes to the explicit path."""
+        src = "playZero(64);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf = tmp / "out.elf"
+            asm_out = tmp / "custom.asm.txt"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 f"--dump=asm:{asm_out}",
+                 "-o", str(elf), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertTrue(asm_out.exists())
+            self.assertFalse((tmp / "out.asm.asm").exists(),
+                             "explicit :PATH should suppress default name")
+
 
 if __name__ == "__main__":
     unittest.main()

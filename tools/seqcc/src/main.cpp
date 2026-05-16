@@ -51,7 +51,7 @@ namespace {
 // TODO(IF-293): unify with zhinst::LaboneVersion::fullVersionWithBuild once
 // those globals are moved out of `#ifdef ZHINST_HAS_PYBIND11`.  See
 // reconstructed/notes/incidental_findings.md "IF-293".
-constexpr const char* kSeqccVersion = "0.3.0-T3a";
+constexpr const char* kSeqccVersion = "0.3.2-T3b";
 
 enum class Personality { Seqcc, Seqas, Seqdump };
 
@@ -201,45 +201,82 @@ int main(int argc, char** argv) {
 
     // Repeatable -mdevopt=FEATURE.  Plural -mdevopts=PACKED kept as
     // back-compat alias (T2 surface).  See IF-297.
-    // Repeatable single-value option pattern.  CLI11 doesn't have a
-    // first-class "single value per occurrence, repeatable any number
-    // of times" mode, but add_option_function with a callback gives
-    // us exactly that: the callback fires once per occurrence with
-    // that occurrence's single argument, with no greedy slurping of
-    // the trailing positional (see IF-298).
-    std::vector<std::string> devoptSingle;
-    app.add_option_function<std::string>(
-           "--mdevopt",
-           [&devoptSingle](std::string const& v) { devoptSingle.push_back(v); },
-           "Device feature flag; repeatable.  Example: "
-           "-mdevopt=MF -mdevopt=ME for HDAWG multi-frequency "
-           "+ multi-execution.")
+    //
+    // CLI11 idiom for "repeatable, single-value, doesn't slurp the
+    // trailing positional" (verified against CLI11 docs):
+    //   add_option(vector) + expected(1) + take_all() + allow_extra_args(false)
+    //
+    //   - expected(1) constrains each occurrence to exactly one value
+    //   - take_all() switches multi-option policy from Throw to TakeAll
+    //     so the option may appear more than once
+    //   - allow_extra_args(false) defeats CLI11's default-for-vectors
+    //     greedy consumption of subsequent positionals
+    //
+    // The earlier `add_option_function<std::string>->expected(1, INT_MAX)`
+    // pattern from T3a silently dropped all but the last occurrence;
+    // logged as IF-300.
+    app.add_option("--mdevopt", opts.devopts,
+                   "Device feature flag; repeatable.  Example: "
+                   "-mdevopt=MF -mdevopt=ME for HDAWG multi-frequency "
+                   "+ multi-execution.")
         ->type_name("FEATURE")
-        ->expected(1, INT_MAX);   // any number of occurrences, 1 value each
+        ->expected(1)
+        ->take_all()
+        ->allow_extra_args(false);
 
     std::vector<std::string> devoptsPacked;
-    app.add_option_function<std::string>(
-           "--mdevopts",
-           [&devoptsPacked](std::string const& v) { devoptsPacked.push_back(v); },
-           "[deprecated] Packed device options (newline-separated).  "
-           "Prefer repeatable -mdevopt=FEATURE.")
+    app.add_option("--mdevopts", devoptsPacked,
+                   "[deprecated] Packed device options (newline-separated).  "
+                   "Prefer repeatable -mdevopt=FEATURE.")
         ->type_name("STR")
-        ->expected(1, INT_MAX);
+        ->expected(1)
+        ->take_all()
+        ->allow_extra_args(false);
 
     std::vector<std::string> tuneRaw;
-    app.add_option_function<std::string>(
-           "--mtune",
-           [&tuneRaw](std::string const& v) { tuneRaw.push_back(v); },
-           "Escape-hatch JSON kwarg: -mtune=KEY=VALUE.  Repeatable.  "
-           "Prefer the dedicated --sequencer / --samplerate / "
-           "--filename / --wave-path / --waveforms flags when "
-           "available.")
+    app.add_option("--mtune", tuneRaw,
+                   "Escape-hatch JSON kwarg: -mtune=KEY=VALUE.  Repeatable.  "
+                   "Prefer the dedicated --sequencer / --samplerate / "
+                   "--filename / --wave-path / --waveforms flags when "
+                   "available.")
         ->type_name("KEY=VALUE")
-        ->expected(1, INT_MAX);
+        ->expected(1)
+        ->take_all()
+        ->allow_extra_args(false);
 
     std::vector<std::filesystem::path> inputs;
     app.add_option("inputs", inputs, "Input .seqc file (exactly one).")
         ->type_name("FILE");
+
+    // --dump=KIND[:PATH], repeatable.  CLI11 idiom for "repeatable
+    // single-value option that doesn't slurp positionals": bind a
+    // vector target with `expected(1)` (forces exactly one value per
+    // occurrence) and `allow_extra_args(false)` (defeats CLI11's
+    // default for vector options to greedily consume trailing tokens
+    // up to the next option-looking arg, which would swallow the
+    // positional INPUT.seqc).  Each `--dump=X` then appends one
+    // element to the vector.
+    app.add_option("--dump", opts.dumpRequests,
+                   "Emit an intermediate artifact alongside the ELF.  "
+                   "KIND ∈ {compile-report, asm, waveforms, wavemem}.  "
+                   "Optional :PATH overrides the auto-derived filename.  "
+                   "Repeatable.  (ast-lowered and other IR kinds: TODO T3c+.)")
+        ->type_name("KIND[:PATH]")
+        ->expected(1)
+        ->take_all()
+        ->allow_extra_args(false);
+
+    app.add_option("--dump-dir", opts.dumpDir,
+                   "Directory for --dump outputs that have no explicit "
+                   ":PATH (default: alongside the compile output).")
+        ->type_name("DIR");
+
+    app.add_option("--dump-format", opts.dumpFormat,
+                   "Format hint for --dump outputs: auto (default), "
+                   "json, text.  Currently advisory — each implemented "
+                   "dump kind emits its native format regardless.")
+        ->type_name("FMT")
+        ->check(CLI::IsMember({"auto", "json", "text"}));
 
     CLI11_PARSE(app, rewrittenArgc, rewrittenArgvPtr);
 
@@ -255,9 +292,10 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    // Fold devopt flag forms into opts.devopts.  Order: singular flags
-    // first (in argv order), then any packed strings appended.
-    for (auto const& d : devoptSingle) opts.devopts.push_back(d);
+    // Fold devopt flag forms into opts.devopts.  The --mdevopt= form
+    // already populated opts.devopts directly (vector target).  Then
+    // splice in any packed --mdevopts= strings, newline-split per
+    // the T2 surface contract.
     for (auto const& d : devoptsPacked) appendDevoptsPacked(opts, d);
 
     for (auto const& kv : tuneRaw) {
