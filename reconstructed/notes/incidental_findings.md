@@ -5982,3 +5982,81 @@ commit `7d0d0c3`).
 session may want to extend the sweep with a qualified-name-
 plus-body-shape matcher for the remaining 41 ABI-divergence
 candidates.
+
+## IF-287  d14_inventory.md qualified-name + body-shape audit: 2 more ABI-divergence presents + 1 stale-status fix
+
+**Status**: bookkeeping (no source change)
+
+**Date**: 2026-05-16
+
+**Context**: Extension of IF-286's exact-mangling audit
+to the remaining 41 "absent" entries whose mangled names
+don't match exactly.  The IF-286 entry explicitly flagged
+that these "need per-symbol verification before flipping".
+
+**Method**:
+  1. Demangle the recon symbol list to qualified names
+     (cached at `/tmp/recon_demangled.txt`).
+  2. For each remaining-absent entry, search the recon
+     demangled list by qualified name.
+  3. Manually triage each hit: confirm body-shape /
+     overload match via objdump and recon source.
+
+**Findings**: 6 qualified-name matches, split into 3
+distinct symbols (the duplicates were C1/C2 ctor pairs
+at the same address):
+
+**Bucket A — ABI-mangling divergence (recon HAS the
+function, libstdc++ vs libc++ string mangling)**, flipped
+to **present**:
+
+  - `runningOnMfDevice(std::string const&)`   @0x2ec160
+    binary:  `_ZN6zhinst17runningOnMfDeviceERKNSt3__112basic_string...`
+    recon:   `_ZN6zhinst17runningOnMfDeviceERKNSt7__cxx1112basic_string...`
+    impl at `src/io/zi_environment.cpp:160` — same body
+    shape (single-shot manifest reader + `doIsMf` ptree
+    predicate).
+  - `runningOnMf64Device(std::string const&)` @0x2ec3d0
+    same libstdc++/libc++ string divergence; impl at
+    `src/io/zi_environment.cpp:191`.
+
+**Bucket B — qualified-name match but genuine signature
+mismatch (recon has a DIFFERENT overload)**, kept absent
+with refined notes:
+
+  - `ZIIOException(std::string, ZIResult_enum)`        @0x2e5be0
+  - `ZIAPIException(std::string, boost::system::error_code)` @0x2e59a0
+    Both: recon's `ZHINST_DECLARE_EXCEPTION(ClassName)`
+    macro (in `exception.hpp:459`) emits only `()` and
+    `(std::string msg)` ctors.  The binary's two-arg
+    forms (delegating to `make_error_code(ZIResult_enum)`
+    + `Exception(error_code, string)` @0x2e5700) are not
+    exposed.  Zero recon callers; defer until needed.
+    These remain absent in the count.  Refined the Notes
+    field to distinguish "signature mismatch" from "ABI
+    divergence" so future audits don't conflate them.
+
+**Bucket C — stale Status field**, fixed:
+
+  - `AwgPathPatterns(AwgPathPatterns const&)` @0x2cc4f0
+    Notes already said "closed as ABI-divergence by
+    design (IF-280)" but the Status field still read
+    `absent`.  Flipped Status to
+    `deferred-by-design (IF-280)`.
+
+**Net effect on truly-absent count**: 86 → 83 (Bucket A +
+Bucket C).
+
+**Why this matters**: same motivation as IF-286 — D14
+inventory needs to be trustworthy for future
+reconstruction decisions.  In particular, the "signature
+mismatch" cases (Bucket B) are *latent reconstruction
+opportunities* — if a recon caller for the two-arg
+exception ctors ever materialises, those are real work
+items, not bookkeeping.
+
+**Action items**: none.  Remaining ~38 "absent" entries
+(post this audit) appear to be genuine absences — no
+qualified-name matches in recon at all.  A future session
+may want to spot-check a sample to confirm, but the
+diminishing returns suggest stopping here.

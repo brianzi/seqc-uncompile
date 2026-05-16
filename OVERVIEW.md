@@ -1975,3 +1975,33 @@ verify-then-write throughout.
   reconstruction has progressed, and per-cluster prose
   cannot be trusted.  Truly-absent count timeline:
   114 (D14 baseline) → 110 → 109 → 97 → 93 → 92 → **86**.
+
+- **2026-05-16** F-followup (bookkeeping): qualified-name
+  + body-shape audit of remaining 41 "absent" entries in
+  `d14_inventory.md` (IF-287, follow-on to IF-286).
+  Demangled the recon symbol list and matched by
+  qualified name.  Found 3 distinct outcomes:
+
+  - 2 more **ABI-divergence presents** flipped:
+    `runningOnMfDevice(string)` @0x2ec160 and
+    `runningOnMf64Device(string)` @0x2ec3d0 — both
+    libstdc++ `__cxx11::basic_string` vs binary libc++
+    `std::__1::basic_string` mangling; impls at
+    `src/io/zi_environment.cpp:160` and `:191`.
+  - 4 entries kept absent but **refined as "signature
+    mismatch, not ABI divergence"**: the binary's
+    `ZIIOException(string, ZIResult_enum)` and
+    `ZIAPIException(string, error_code)` two-arg ctors
+    (C1 + C2 each) — recon's `ZHINST_DECLARE_EXCEPTION`
+    macro emits only `()` and `(string)` overloads.
+    These are latent reconstruction opportunities if a
+    recon caller ever materialises.
+  - 1 stale Status fix: `AwgPathPatterns(AwgPathPatterns
+    const&)` @0x2cc4f0 — Notes said "closed (IF-280)"
+    but Status still read "absent"; refreshed.
+
+  Truly-absent count: 86 → 83.  Truly-absent timeline:
+  114 → 110 → 109 → 97 → 93 → 92 → 86 → **83**.
+  Stopping the sweep here — remaining ~38 absents have
+  no qualified-name matches in recon and appear to be
+  genuine absences.  No source change.

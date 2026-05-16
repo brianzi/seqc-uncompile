@@ -419,7 +419,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::runningOnMfDevice(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst17runningOnMfDeviceERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2ec160` | **Size**: 120 B | **Status**: absent
+- **Address**: `0x2ec160` | **Size**: 120 B | **Status**: **present (ABI-mangling divergence)** — recon exports `_ZN6zhinst17runningOnMfDeviceERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE` (libstdc++ `__cxx11::basic_string` vs binary's libc++ `std::__1::basic_string`).  Impl at `reconstructed/src/io/zi_environment.cpp:160`; same qualified name and body shape (single-shot manifest reader + `doIsMf` ptree predicate).
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -427,7 +427,7 @@ Reconstruction difficulty: **small to medium** — bodies are short (most under 
 #### `zhinst::runningOnMf64Device(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> > const&)`
 
 - **Mangled**: `_ZN6zhinst19runningOnMf64DeviceERKNSt3__112basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE`
-- **Address**: `0x2ec3d0` | **Size**: 95 B | **Status**: absent
+- **Address**: `0x2ec3d0` | **Size**: 95 B | **Status**: **present (ABI-mangling divergence)** — recon exports `_ZN6zhinst19runningOnMf64DeviceERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE` (libstdc++ vs libc++ string).  Impl at `reconstructed/src/io/zi_environment.cpp:191`; same qualified name and body shape (single-shot wrapper around the cached `runningOnMf64Device()` guard).
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -510,7 +510,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::ZIIOException::ZIIOException(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, ZIResult_enum)`
 
 - **Mangled**: `_ZN6zhinst13ZIIOExceptionC1ENSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE13ZIResult_enum`
-- **Address**: `0x2e5be0` | **Size**: 175 B | **Status**: absent
+- **Address**: `0x2e5be0` | **Size**: 175 B | **Status**: absent (signature mismatch, not ABI divergence) — recon's `ZHINST_DECLARE_EXCEPTION(ZIIOException)` macro emits only `()` and `(std::string msg)` ctors (per `exception.hpp:459`); the binary's `(string, ZIResult_enum)` two-arg form that delegates to `make_error_code(ZIResult_enum)` + `Exception(error_code, string)` is not exposed.  Zero recon callers; defer until a caller needs it.
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -518,7 +518,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::ZIIOException::ZIIOException(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, ZIResult_enum)`
 
 - **Mangled**: `_ZN6zhinst13ZIIOExceptionC2ENSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE13ZIResult_enum`
-- **Address**: `0x2e5be0` | **Size**: 175 B | **Status**: absent
+- **Address**: `0x2e5be0` | **Size**: 175 B | **Status**: absent (C2 sibling of C1 above; same signature-mismatch story)
 - **First insn**: `(not seen in disasm)`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -526,7 +526,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::ZIAPIException::ZIAPIException(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, boost::system::error_code)`
 
 - **Mangled**: `_ZN6zhinst14ZIAPIExceptionC1ENSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEN5boost6system10error_codeE`
-- **Address**: `0x2e59a0` | **Size**: 139 B | **Status**: absent
+- **Address**: `0x2e59a0` | **Size**: 139 B | **Status**: absent (signature mismatch, not ABI divergence) — recon's `ZHINST_DECLARE_EXCEPTION(ZIAPIException)` macro emits only `()` and `(std::string msg)` ctors; the binary's `(string, boost::system::error_code)` two-arg form delegating to `Exception(error_code, string)` @0x2e5700 is not exposed.  Zero recon callers; defer.
 - **First insn**: `push   %rbp`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -534,7 +534,7 @@ Reconstruction difficulty: **trivial / no source change**. These will be auto-em
 #### `zhinst::ZIAPIException::ZIAPIException(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >, boost::system::error_code)`
 
 - **Mangled**: `_ZN6zhinst14ZIAPIExceptionC2ENSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEEN5boost6system10error_codeE`
-- **Address**: `0x2e59a0` | **Size**: 139 B | **Status**: absent
+- **Address**: `0x2e59a0` | **Size**: 139 B | **Status**: absent (C2 sibling of C1 above; same signature-mismatch story)
 - **First insn**: `(not seen in disasm)`
 - **Callers**: _none found_
 - **String evidence**: _none observed_
@@ -814,7 +814,7 @@ Reconstruction difficulty: **trivial**.
 #### `zhinst::AwgPathPatterns::AwgPathPatterns(zhinst::AwgPathPatterns const&)`
 
 - **Mangled**: `_ZN6zhinst15AwgPathPatternsC2ERKS0_`
-- **Address**: `0x2cc4f0` | **Size**: 254 B | **Status**: absent
+- **Address**: `0x2cc4f0` | **Size**: 254 B | **Status**: **deferred-by-design (IF-280)** — libstdc++ recon inlines the implicit copy ctor at all callsites; binary's libc++-string body cannot be reproduced from a libstdc++ TU.  Observable behavior is identical.  See Notes below.
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE8EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE1EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE256EEENS_14AwgDevicePropsER...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE2EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE4EEENS_14AwgDevicePropsERKN...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE64EEENS_14AwgDevicePropsERK...`, `_GLOBAL__sub_I_properties.cpp`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE128EEENS_14AwgDevicePropsER...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE16EEENS_14AwgDevicePropsERK...`, `_ZN6zhinst17getAwgDevicePropsILNS_13AwgDeviceTypeE32EEENS_14AwgDevicePropsERK...`
 - **String evidence**: _none observed_
@@ -1074,16 +1074,16 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **86** | **−24** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **83** | **−27** |
 
-The "truly absent" delta of −24 is the net effect of all
+The "truly absent" delta of −27 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
 their canonical mangled names net of ones whose mangled name
 diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 92 functions before exact-mangling audit, 86 after)
+### Truly-absent breakdown (2026-05-16; 86 functions before qualified-name audit, 83 after)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
@@ -1092,6 +1092,7 @@ than the headline number suggests.
 | `api_error_translation::core` ErrorKind subset (4 of 8) | 4 | **Closed 2026-05-16.**  `toApiCode(ErrorKind)`, `make_error_condition(ErrorKind)`, `toZiErrorKind(ErrorKind)`, `fromZiErrorKind(ZIErrorKind_enum)` reconstructed in `src/core/error_kind.cpp` against verified disasm (0x2e5280 / 0x2e50c0 / 0x2e5240 / 0x2e5260) and singleton-category sentinel @0xb7c5a8 / name `"zi:kind"` @0x90c668.  All 4 mangled symbols verified in `reconstructed/build/_seqc_compiler.so` (each `[1]` in nm).  `ZIErrorKind_enum` declared at global scope to match `16ZIErrorKind_enum` mangling token.  Binary's odd `BadRequest→0x801f` and `Timeout→0x800d` mappings preserved and tagged `\binarynote`.  No test regression; 1603/1603 main + 1626/1626 harness still passing.  Remaining 4 boost/Exception-coupled helpers deferred by design — see "API/error-translation surface" below. |
 | `AWGCompilerImpl::nodeListToJson` | 1 | **Bookkeeping correction 2026-05-16** (no source change).  Cluster `compiler_helpers::codegen` was reconstructed back at IF-278 (recon exports the symbol under libstdc++ mangling, same qualified name, byte-identical JSON output); the inventory's cluster header had drifted out of sync.  Per AGENTS.md cluster-overview-prose-is-unreliable warning, this was a stale entry, not a real absence.  Truly-absent decremented by 1 (93 → 92). |
 | Exact-mangling cross-recon audit (6 stale entries) | 6 | **Bookkeeping correction 2026-05-16** (no source change).  Systematic `nm --defined-only reconstructed/build/_seqc_compiler.so` cross-check on all 47 still-"absent" entries revealed 6 with **exact mangled-name matches** between binary and recon, mis-classified as absent: `makeDirectories(boost::filesystem::path const&)` @0x2cdef0 → `src/io/zi_environment.cpp:267`; `runningOnMf64Device()` @0x2ec680 → `:177`; `markFileHidden(boost::filesystem::path const&)` @0x2eb940 → `:294`; `initBoostFilesystemForUnicode()` @0x2ec020 → `:306`; `almostEqual(double, double)` @0x2ec070 → `src/core/numeric.cpp:33`; `Random::seedRandom()` @0x16be80 → `src/infra/prng_libcxx.cpp:73`.  All 6 verified `[1]` in recon nm with identical mangling — no ABI divergence at all.  Each cross-referenced via `@0x<addr>` comment in the implementing TU.  Status flipped to **present**; truly-absent decremented by 6 (92 → 86). |
+| Qualified-name + body-shape cross-recon audit (3 entries) | 3 | **Bookkeeping correction 2026-05-16** (no source change, IF-287).  Extension of IF-286: matched the remaining 41 "absent" entries by qualified name + body shape (not just exact mangling).  Found 2 ABI-divergence presents (`runningOnMfDevice(string)` @0x2ec160 → `src/io/zi_environment.cpp:160`, `runningOnMf64Device(string)` @0x2ec3d0 → `:191` — both libstdc++ `__cxx11::basic_string` vs binary libc++ `std::__1::basic_string`) plus 1 stale-status entry (`AwgPathPatterns(AwgPathPatterns const&)` @0x2cc4f0 — Status field said "absent" but Notes already documented IF-280 closure; refreshed Status to "deferred-by-design (IF-280)").  Truly-absent decremented by 3 (86 → 83).  Also refined the 4 still-absent `ZIIOException(string, ZIResult_enum)` / `ZIAPIException(string, error_code)` ctor entries (C1 + C2 each) with clarification that they are **signature mismatches, not ABI divergence** — recon's `ZHINST_DECLARE_EXCEPTION` macro emits only `()` and `(string)` overloads. |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |
@@ -1158,7 +1159,7 @@ Listed for future cluster promotion or per-symbol decisions:
 
 ### Action items proposed (subject to user review per AGENTS.md)
 
-The refresh did **not** surface any latent bug — all 86
+The refresh did **not** surface any latent bug — all 83
 absent symbols fall into pre-known categories (deferred by
 design, ABI-mangling divergence, C++20-gated, or
 zero-caller).  Two **incremental** opportunities worth
