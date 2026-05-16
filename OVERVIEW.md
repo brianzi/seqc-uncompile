@@ -381,12 +381,12 @@ is the next open phase.  Current backlog tags (per `docs/coverage.sh`):
 Documentation coverage: 94.7% (2979/3145 symbols).  Strict-mode
 doxygen warnings under
 `WARN_IF_UNDOCUMENTED=YES`/`WARN_IF_DOC_ERROR=YES`/`WARN_NO_PARAMDOC=YES`/`WARN_IF_INCOMPLETE_DOC=YES`:
-12 entries, all in `awg_device_props.hpp` for the 9 explicit
-specialisations of `getAwgDeviceProps<T>` — Doxygen refuses to
-attach `\brief`/`\param`/`\return` blocks to template-specialisation
-declarations regardless of pattern (verified 2026-05-16).  All
-other 153 historical undoc-param/return warnings cleared in
-`c662138`/`cd939f3`/`1aab213`/`a2584ee` (162 → 10 binding warnings).
+**0 binding warnings** as of `63cda64`.  Cleanup commits
+`c662138`/`cd939f3`/`1aab213`/`a2584ee`/`63cda64` cleared 162 → 0;
+the final commit applied the D11 `\cond INTERNAL` idiom (commit
+2cd360b) to the 9 explicit specialisations of
+`getAwgDeviceProps<T>` whose `\param`/`\return` blocks Doxygen
+1.9.x cannot bind.
 
 **D0 (setup) complete (2026-05-09):**
 - Doxygen + Doxygen Awesome CSS configured under `reconstructed/docs/`.
