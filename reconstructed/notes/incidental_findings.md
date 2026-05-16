@@ -207,3 +207,43 @@ FAIL for recon).
   `AWGCompilerImpl::addWaveforms` / `WaveformTable::newWaveformFromFile`).
 - Implement both pieces and re-tag the manifest case.
 
+## IF-293  `LaboneVersion` globals trapped behind `#ifdef ZHINST_HAS_PYBIND11`
+
+**Severity**: cosmetic
+**Status**: open
+**Discovered**: while wiring `tools/seqcc/src/main.cpp` (Phase T1).
+
+**Symptom**: the version strings `zhinst::LaboneVersion::fullVersionWithBuild`
+and `zhinst::LaboneVersion::commitHash` are *declared* (`extern`) and
+*defined* inside the `#ifdef ZHINST_HAS_PYBIND11` block of
+`reconstructed/src/pybind_seqc.cpp` (lines 14 and 259).  In the binary
+they live at `0xb01ad0` and `0xb01ad8` and are populated by the LabOne
+build system at link time — they are not pybind-specific data, they are
+part of the LabOne core ABI that pybind11 happens to read.
+
+**Consequence**: any non-pybind consumer (the new `seqcc` driver in
+`tools/seqcc/`, and any future C++ binary or test fixture that wants the
+version) cannot link against these symbols even though the static
+archive `zhinst_seqc.a` would happily provide them if the `#ifdef`
+weren't in the way.  As a workaround, `tools/seqcc/src/main.cpp` defines
+its own private `kSeqccVersion` string.
+
+**Fix sketch** (deferred — purely cosmetic, no behaviour difference):
+
+1. Move the two `const char*` definitions out of the
+   `#ifdef ZHINST_HAS_PYBIND11` block — they belong with the rest of
+   the LabOne version data, not with the pybind glue.
+2. Move the matching `extern` declarations into a new tiny header
+   `reconstructed/include/zhinst/infra/labone_version.hpp` so consumers
+   don't have to re-declare them.
+3. `tools/seqcc/src/main.cpp` then unifies `kSeqccVersion` to use
+   `zhinst::LaboneVersion::fullVersionWithBuild` (with a fallback for
+   the local build-system default).
+
+**Verification**: not yet attempted; trivial to confirm with `nm
+reconstructed/build/libzhinst_seqc.a | grep LaboneVersion` before and
+after the move.
+
+**TODO references**: `tools/seqcc/src/main.cpp` carries a `// TODO(IF-293):`
+comment at the version-string definition pointing to this entry.
+

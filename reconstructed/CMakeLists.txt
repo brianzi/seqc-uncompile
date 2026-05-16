@@ -249,3 +249,13 @@ if(DOXYGEN_FOUND)
 else()
     message(STATUS "Doxygen not found — `make docs` target unavailable")
 endif()
+
+# --- seqcc toolchain driver ---
+# The newly-written CLI driver lives at the repository top level under
+# tools/seqcc/ (kept separate from reconstructed/ which is reserved for
+# reconstruction of binary behaviour).  Built as a sibling target that
+# links zhinst_seqc.  See tools/seqcc/DESIGN.md and TODO.md "Phase T".
+set(SEQCC_TOOLS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../tools/seqcc")
+if(EXISTS "${SEQCC_TOOLS_DIR}/CMakeLists.txt")
+    add_subdirectory("${SEQCC_TOOLS_DIR}" "${CMAKE_BINARY_DIR}/seqcc")
+endif()
