@@ -6060,3 +6060,95 @@ items, not bookkeeping.
 qualified-name matches in recon at all.  A future session
 may want to spot-check a sample to confirm, but the
 diminishing returns suggest stopping here.
+
+## IF-288  `waveform_misc::waveform` cluster: class-structure-divergence, not absence
+
+**Severity**: cosmetic (bookkeeping correction; no source change)
+**Status**: confirmed
+**Date**: 2026-05-16
+
+**Finding**: All 3 members of the D14 `waveform_misc::waveform`
+cluster were classified as `Status: absent` in `d14_inventory.md`,
+but all 3 are in fact **fully reconstructed and reachable** —
+the divergence is purely in C++ class structure, which propagates
+to mangling but not to behaviour.
+
+**Members audited**:
+- `Waveform::File::typeToStr(File::Type)` @0x2a3a90
+- `Waveform::File::typeFromStr(std::string)` @0x2a63c0
+- `Waveform::File::operator==(File const&) const` @0x2a9680
+
+**Evidence**:
+
+1. **Bodies exist**: `reconstructed/src/waveform/waveform.cpp`
+   lines 669, 713, and the `operator==` body further down all
+   contain full reconstructions with detailed disassembly-cited
+   commentary (lazy-init `unordered_map` for the two enum
+   converters, field-for-field compare for `operator==`).
+2. **Symbols exported in recon**: `nm --defined-only
+   reconstructed/build/_seqc_compiler.so` shows all three under
+   flat names: `_ZN6zhinst12WaveformFile9typeToStrB5cxx11ENS0_4TypeE`,
+   `_ZN6zhinst12WaveformFile11typeFromStrE...`, and
+   `_ZNK6zhinst12WaveformFileeqERKS0_`.
+3. **Reachable in both**: `Waveform::toJson`, `Waveform::fromJson`,
+   and `Waveform::operator==` (recon counterparts of the binary's
+   callers) all call into these helpers at the source level.
+
+**Mangling divergence root cause**:
+
+Recon defines `WaveformFile` as a **top-level struct**:
+
+```cpp
+struct WaveformFile { ... };
+// inside Waveform:
+using File = WaveformFile;
+```
+
+The binary defines `File` as a **nested class of `Waveform`**.
+At the C++ source level both forms allow callers to write
+`Waveform::File::typeToStr(...)` (the alias resolves in the recon
+case), so all source-level uses compile identically.  At the ABI
+level the mangler emits different names — `12WaveformFile` (flat)
+versus `8Waveform4File` (nested) — and `typeFromStr`'s string
+argument also picks up the libstdc++ `__cxx11` tag in recon versus
+the binary's libc++ `std::__1` form, compounding the divergence.
+
+**New divergence variety**: This is a *third* kind of mangling
+divergence in the inventory, distinct from:
+- **String ABI divergence** (Bucket A / IF-287): same class
+  structure, different `std::string` namespace.
+- **Template-arg ABI divergence** (`std::array`, IF-281): same
+  class structure, different stdlib container mangling.
+- **NEW — class-structure divergence**: different C++ class
+  nesting between recon and binary, semantically equivalent via
+  a `using` alias.
+
+**Why the binary uses nested class**: The original Hirzel/Zurich
+Instruments source presumably declares `File` inside `class
+Waveform`, which is the more natural C++ design for a type whose
+identity is tied to its outer class.  Recon's flat-struct +
+alias workaround was likely chosen for header layout reasons
+(forward declarations, separation of `WaveformFile` reuse outside
+`Waveform`) but produces this benign ABI divergence.  Promoting
+the type to a real nested class would change the ABI further and
+gain nothing observable.
+
+**Fix applied** (bookkeeping only):
+- `d14_inventory.md`: 3 Status entries flipped `absent` →
+  `present (class-structure-divergence, IF-288)`, Notes
+  rewritten to cite the recon location and explain the
+  divergence.
+- Truly-absent counter: 83 → 80.
+- New audit row added to the truly-absent breakdown table.
+
+**Why this matters**: Same motivation as IF-286 / IF-287 —
+inventory must be trustworthy for future reconstruction
+decisions.  Without this entry, a future session looking at the
+"absent" list would re-derive these three functions from scratch,
+duplicating ~1.6 KB of carefully-reconstructed code.
+
+**Action items**: none.  No source change is warranted —
+promoting `WaveformFile` to a nested class would change ABI
+for every `Waveform::File` reference in the recon `.so` for no
+behavioural gain.  If a future pass decides to align with the
+binary's class structure, this IF entry is the starting point.

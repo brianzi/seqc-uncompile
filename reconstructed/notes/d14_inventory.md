@@ -471,29 +471,29 @@ Reconstruction difficulty: **small**. Recommended approach: read the existing `R
 #### `zhinst::Waveform::File::typeToStr(zhinst::Waveform::File::Type)`
 
 - **Mangled**: `_ZN6zhinst8Waveform4File9typeToStrENS1_4TypeE`
-- **Address**: `0x2a3a90` | **Size**: 932 B | **Status**: absent
+- **Address**: `0x2a3a90` | **Size**: 932 B | **Status**: present (class-structure-divergence, IF-288)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZNK6zhinst8Waveform6toJsonEv`
 - **String evidence**: `"unordered_map::at: key not found"`, `"csv"`, `"raw"`, `"gen"`
-- **Notes**: candidate qualified-name match in reconstructed/src/waveform/waveform.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
+- **Notes**: Reconstructed in `src/waveform/waveform.cpp:669` with full body (lazy-init `unordered_map<Type, string>`, identical key/value layout, same `at()` throw path).  Recon emits as `_ZN6zhinst12WaveformFile9typeToStrB5cxx11ENS0_4TypeE` (libstdc++ `__cxx11` + flat `WaveformFile` class) versus binary's nested `Waveform::File` (`_ZN6zhinst8Waveform4File9typeToStrENS1_4TypeE`).  Recon header uses `struct WaveformFile { ... }; using Waveform::File = WaveformFile;` — semantically equivalent at C++ source level (the `File` qualified name resolves), mangling-divergent at ABI level.  Reachable from `Waveform::toJson` in both binary and recon.
 
 #### `zhinst::Waveform::File::typeFromStr(std::__1::basic_string<char, std::__1::char_traits<char>, std::__1::allocator<char> >)`
 
 - **Mangled**: `_ZN6zhinst8Waveform4File11typeFromStrENSt3__112basic_stringIcNS2_11char_traitsIcEENS2_9allocatorIcEEEE`
-- **Address**: `0x2a63c0` | **Size**: 528 B | **Status**: absent
+- **Address**: `0x2a63c0` | **Size**: 528 B | **Status**: present (class-structure-divergence, IF-288)
 - **First insn**: `push   %rbp`
 - **Callers**: `_ZN6zhinst8Waveform8fromJsonERKN5boost4json5valueERKNS_15DeviceConstantsE`
 - **String evidence**: `"csv"`, `"raw"`, `"gen"`, `"unordered_map::at: key not found"`
-- **Notes**: candidate qualified-name match in reconstructed/src/waveform/waveform.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
+- **Notes**: Reconstructed in `src/waveform/waveform.cpp:713` with full body (lazy-init `unordered_map<string, Type>` reverse map, identical `at()` throw path).  Recon emits as `_ZN6zhinst12WaveformFile11typeFromStrENSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE` (libstdc++ `__cxx11::basic_string` + flat `WaveformFile`) versus binary's nested `Waveform::File` with libc++ `std::__1::basic_string`.  Both class-structure and string ABI diverge.  Semantically equivalent; reachable from `Waveform::fromJson` in both.
 
 #### `zhinst::Waveform::File::operator==(zhinst::Waveform::File const&) const`
 
 - **Mangled**: `_ZNK6zhinst8Waveform4FileeqERKS1_`
-- **Address**: `0x2a9680` | **Size**: 195 B | **Status**: absent
+- **Address**: `0x2a9680` | **Size**: 195 B | **Status**: present (class-structure-divergence, IF-288)
 - **First insn**: `movzbl (%rdi),%eax`
 - **Callers**: `_ZNK6zhinst8WaveformeqERKS0_`
 - **String evidence**: _none observed_
-- **Notes**: candidate qualified-name match in reconstructed/src/waveform/waveform.cpp — verify whether the recon implements the same overload (likely signature-divergent rather than truly absent)
+- **Notes**: Reconstructed in `src/waveform/waveform.cpp` with full body documentation (field-for-field compare of `formatType`/`columnMode`/`filename`).  Recon emits as `_ZNK6zhinst12WaveformFileeqERKS0_` (flat `WaveformFile`) versus binary's nested `Waveform::File` (`_ZNK6zhinst8Waveform4FileeqERKS1_`).  Class-structure-divergence only — argument self-reference (`S0_`/`S1_`) tracks correctly in each mangling.  Reachable from `Waveform::operator==` in both.
 
 ## Cluster: `exceptions::core`
 
@@ -1074,7 +1074,7 @@ validate D14 cluster closure and surface any drift.
 | Original symbols also exported by recon (strict mangling) | (n/a) | 908 | — |
 | Original symbols NOT exported by recon          | (n/a) | 724 | — |
 | ↳ qualified-name match in recon (libc++/libstdc++ ABI mismatch — divergent) | 159 (data+func) | 627 | (informational) |
-| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **83** | **−27** |
+| ↳ truly absent (no qualified-name match anywhere in recon) | 114 (D14 "absent" bucket) | **80** | **−30** |
 
 The "truly absent" delta of −27 is the net effect of all
 F-followups landed since D14: helpers reconstructed under
@@ -1083,7 +1083,7 @@ diverged (template-arg ABI).  Closer inspection (below) shows
 the qualified-name distribution has shifted significantly more
 than the headline number suggests.
 
-### Truly-absent breakdown (2026-05-16; 86 functions before qualified-name audit, 83 after)
+### Truly-absent breakdown (2026-05-16; 86 functions before qualified-name audit, 80 after waveform_misc audit)
 
 | Sub-bucket | Count | Disposition |
 |---|---:|---|
@@ -1093,6 +1093,7 @@ than the headline number suggests.
 | `AWGCompilerImpl::nodeListToJson` | 1 | **Bookkeeping correction 2026-05-16** (no source change).  Cluster `compiler_helpers::codegen` was reconstructed back at IF-278 (recon exports the symbol under libstdc++ mangling, same qualified name, byte-identical JSON output); the inventory's cluster header had drifted out of sync.  Per AGENTS.md cluster-overview-prose-is-unreliable warning, this was a stale entry, not a real absence.  Truly-absent decremented by 1 (93 → 92). |
 | Exact-mangling cross-recon audit (6 stale entries) | 6 | **Bookkeeping correction 2026-05-16** (no source change).  Systematic `nm --defined-only reconstructed/build/_seqc_compiler.so` cross-check on all 47 still-"absent" entries revealed 6 with **exact mangled-name matches** between binary and recon, mis-classified as absent: `makeDirectories(boost::filesystem::path const&)` @0x2cdef0 → `src/io/zi_environment.cpp:267`; `runningOnMf64Device()` @0x2ec680 → `:177`; `markFileHidden(boost::filesystem::path const&)` @0x2eb940 → `:294`; `initBoostFilesystemForUnicode()` @0x2ec020 → `:306`; `almostEqual(double, double)` @0x2ec070 → `src/core/numeric.cpp:33`; `Random::seedRandom()` @0x16be80 → `src/infra/prng_libcxx.cpp:73`.  All 6 verified `[1]` in recon nm with identical mangling — no ABI divergence at all.  Each cross-referenced via `@0x<addr>` comment in the implementing TU.  Status flipped to **present**; truly-absent decremented by 6 (92 → 86). |
 | Qualified-name + body-shape cross-recon audit (3 entries) | 3 | **Bookkeeping correction 2026-05-16** (no source change, IF-287).  Extension of IF-286: matched the remaining 41 "absent" entries by qualified name + body shape (not just exact mangling).  Found 2 ABI-divergence presents (`runningOnMfDevice(string)` @0x2ec160 → `src/io/zi_environment.cpp:160`, `runningOnMf64Device(string)` @0x2ec3d0 → `:191` — both libstdc++ `__cxx11::basic_string` vs binary libc++ `std::__1::basic_string`) plus 1 stale-status entry (`AwgPathPatterns(AwgPathPatterns const&)` @0x2cc4f0 — Status field said "absent" but Notes already documented IF-280 closure; refreshed Status to "deferred-by-design (IF-280)").  Truly-absent decremented by 3 (86 → 83).  Also refined the 4 still-absent `ZIIOException(string, ZIResult_enum)` / `ZIAPIException(string, error_code)` ctor entries (C1 + C2 each) with clarification that they are **signature mismatches, not ABI divergence** — recon's `ZHINST_DECLARE_EXCEPTION` macro emits only `()` and `(string)` overloads. |
+| `waveform_misc::waveform` class-structure-divergence audit (3 entries) | 3 | **Bookkeeping correction 2026-05-16** (no source change, IF-288).  All 3 cluster members (`Waveform::File::typeToStr`, `Waveform::File::typeFromStr`, `Waveform::File::operator==`) were already fully reconstructed in `src/waveform/waveform.cpp` with verified bodies @0x2a3a90 / @0x2a63c0 / @0x2a9680.  Recon exports them under flat class name (`zhinst::WaveformFile::...`) via `struct WaveformFile { ... }; using Waveform::File = WaveformFile;`, whereas the binary uses nested class (`zhinst::Waveform::File::...`).  Both forms emit working `at()`-based lookup with identical `unordered_map` semantics; reachable from `Waveform::{toJson,fromJson,operator==}` in both binary and recon.  Class-structure-divergence (not just ABI string-form divergence) — recorded as a new variety alongside Bucket A.  Truly-absent decremented by 3 (83 → 80). |
 | `ErrorCodeTraits<boost::system::error_code>::{successCode,defaultMessage,asException}` | 3 | `successCode` and `defaultMessage` reconstructed against recon's `ErrorCode` stand-in (mangled-name divergence by design); `asException` was not — **NEW finding**, sibling of the two we did. |
 | `getKind(Exception)`, `getKind(error_code)` | 2 | **Deferred-by-design** (IF-284). |
 | `base64::encode` | 1 | Reconstructed in `src/core/base64.cpp` but **C++20-gated** (`#if __cplusplus >= 202002L`); main build is C++17 so the symbol is empty in the production `.so`.  Harness-covered via the libcxx-test build (C++20).  Status: by design. |

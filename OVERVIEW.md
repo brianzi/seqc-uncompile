@@ -2005,3 +2005,26 @@ verify-then-write throughout.
   Stopping the sweep here — remaining ~38 absents have
   no qualified-name matches in recon and appear to be
   genuine absences.  No source change.
+
+- **2026-05-16** F-followup (bookkeeping): `waveform_misc::waveform`
+  cluster class-structure-divergence audit (IF-288).  All 3
+  members (`Waveform::File::typeToStr` @0x2a3a90,
+  `Waveform::File::typeFromStr` @0x2a63c0,
+  `Waveform::File::operator==` @0x2a9680) were already fully
+  reconstructed in `src/waveform/waveform.cpp` with verified
+  bodies and detailed disassembly commentary; they were
+  mis-classified as `absent` only because recon emits them
+  under flat class name (`zhinst::WaveformFile::...`) via
+  `using Waveform::File = WaveformFile;` whereas the binary
+  uses nested class (`zhinst::Waveform::File::...`).  This
+  is a third variety of ABI-mangling divergence in the
+  inventory, distinct from string-form (IF-287) and
+  template-arg (IF-281) divergences.  All three are reachable
+  from `Waveform::{toJson,fromJson,operator==}` in both
+  binary and recon.  Status flipped to `present
+  (class-structure-divergence, IF-288)`; truly-absent
+  decremented by 3.  Truly-absent timeline:
+  114 → 110 → 109 → 97 → 93 → 92 → 86 → 83 → **80**.
+  No source change — promoting `WaveformFile` to a nested
+  class would change ABI for every reference for no
+  behavioural gain.
