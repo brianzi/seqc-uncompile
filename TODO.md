@@ -429,18 +429,47 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
         stays a one-liner.  **Structure-preserving refactor** —
         diff_test_fast 1612/1612 is the byte-equality invariant.
         Sanctioned recon exception authorised by the binary
-        addresses already documented in `notes/pipeline.md` for the
-        step boundaries (`0x11f268`, `0x11f27e`, `0x11f7b0`,
-        `0x11fb1a`, `0x120707`, `0x120c92`, `0x120d60`, `0x120e2d`,
-        `0x120f2b`, `0x121345`).  New IF entry documents the
-        refactor and the address cross-references.  Driver consumes
+        addresses already documented inline in
+        `reconstructed/src/codegen/compiler.cpp` (verified comment
+        anchors at L234, L248, L251, L300, L327, L350, L453, L496,
+        L506, L510, L519, L543).  IF-306 documents the refactor
+        and the address cross-references in full.  Driver consumes
         the new API: `--to=<stage>` becomes a literal stop (closes
         IF-304); new dump artefacts unlocked (`asm-pre-opt`,
         `asm-post-pre-opt`, `asm-post-prefetch`, `asm-final`,
-        `wavetable-ir`).  DESIGN.md §5.4 `passTap_` approach is
-        withdrawn in this entry's opening commit (superseded; no
-        longer compatible with AGENTS.md `6b2d504` hands-off
-        policy).
+        `wavetable-ir`).  DESIGN.md §5.4 `passTap_` approach was
+        withdrawn at T5a.4 (superseded; no longer compatible with
+        AGENTS.md `6b2d504` hands-off policy).
+      - [x] **T5b.1** — open the entry: file IF-306 with the
+            verified-address authorisation table and the risk
+            register (member ordering, state leakage between
+            compiles, exception safety in step boundaries,
+            `reset()` semantics under partial pipelines).
+      - [x] **T5b.2** — lift `Compiler::compile()` cross-step
+            locals (`expr`, `seqcAst`, `lowerResult`, `resources`,
+            `staticResources`, `rootNode`, `placeholderAsm`,
+            `wavetableIR`, `optimizer`) to private members.  Body
+            still monolithic; only the storage moves.  Update
+            `Compiler::reset()` to zero the new members.  Verify
+            `diff_test_fast` 1612/1612 holds.
+      - [ ] **T5b.3** — split `Compiler::compile()` into the 9
+            step methods, calling them sequentially from the
+            public entry point.  Verify the suite after each
+            split (not just at the end) so a regression
+            bisects to a single step boundary.
+      - [ ] **T5b.4** — promote the 9 step methods to public in
+            `compiler.hpp`.  Pure visibility change.
+      - [ ] **T5b.5** — split `AWGCompilerImpl::compileString()`
+            into `stepInnerCompile` + `stepAssembleOpcodes` +
+            `stepCheckLimits`; promote.  Rewrite
+            `SeqcDriver::compile()` to construct a `Compiler`
+            directly and call its step methods, branching on
+            `opts.toStage` to short-circuit early.  Closes
+            IF-304.
+      - [ ] **T5b.6** — wrap-up: regression sweep, update
+            IF-306 status to "fixed", DESIGN.md §3 pipeline
+            diagram refresh, driver version bump to
+            `0.9.0-T5b`.
 
 - [ ] **T6 — `--from=<stage>`.**  Start-at-stage for `ast-lowered`,
       `asm`, `wavetable-ir`.  Input file format is auto-detected from

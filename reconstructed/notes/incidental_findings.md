@@ -813,3 +813,204 @@ passed a flag.
   diagnostic (not silently ignored).
 
 **TODO references**: TODO.md Phase T → T8 (done).
+
+## IF-306  Sanctioned recon edit: stepwise `Compiler::compile()` / `AWGCompilerImpl::compileString()` refactor (T5b)
+
+**Severity**: process-note (no behavioural bug; structure-preserving
+refactor).
+**Status**: sanctioned exception under AGENTS.md "Tooling vs
+reconstructed code".  Approved by user before edit lands (Phase
+T5b).
+
+### Motivation
+
+The `seqcc` driver needs to drive the compile pipeline stage by
+stage so that:
+
+- `--to=<stage>` becomes a literal stop (closes IF-304), not a
+  logical one — `seqcc -E foo.seqc` should not pay the full
+  post-lower cost.
+- `--from=<stage>` (T6) can construct a `Compiler`, hand-populate
+  mid-pipeline state from a deserialised IR, and resume from the
+  step that follows the chosen entry point.
+- Additional dump artefacts unlocked by mid-pipeline observation
+  (`asm-pre-opt`, `asm-post-pre-opt`, `asm-post-prefetch`,
+  `asm-final`, `wavetable-ir`) become trivial — the driver
+  inspects `compiler.asmList_` / `compiler.wavetableIR_` between
+  step calls instead of needing per-pass callback machinery.
+
+The withdrawn DESIGN.md §5.4 `passTap_` approach would have
+satisfied these needs by inserting `std::function` callback
+members on `AsmOptimize`, `Prefetch`, `Cache`, plus ~12 tap
+call sites in the reconstructed `.cpp` files.  That approach
+was withdrawn at T5a.4 because it conflicts with AGENTS.md
+commit `6b2d504` ("tooling vs reconstructed code: hands off"),
+which bans tooling-driven additions of new members, `friend`
+grants, or hooks on reconstructed classes.
+
+The T5b refactor replaces it: split the existing monolithic
+methods into named step methods that are public, structurally
+mirror the binary, and require no new callback infrastructure.
+
+### Scope of the edit
+
+Two files, two methods:
+
+1. `reconstructed/src/codegen/compiler.cpp` — split
+   `Compiler::compile()` (current L235–566) into 9 step methods:
+   - `stepParse` — steps 1–3b (reset, line-ending normalisation,
+     parse, empty-input early-out).
+   - `stepToSeqCAst` — steps 5–6 (static/global resources,
+     SeqC-AST conversion).
+   - `stepLower` — steps 7–9 (front-end lowering, error check).
+   - `stepBuildAsmPreamble` — steps 10–11d (preamble, node-tree
+     walk, EvalResults insert, trailer).
+   - `stepOptPre` — step 12 + step 13 debug-dump + step 13b
+     round-trip + step 13c WavetableIR construction.
+   - `stepPrefetch` — step 14 (`runPrefetcher`).
+   - `stepOptPost` — step 15.
+   - `stepUnsyncCervino` — step 16.
+   - `stepProject` — steps 17–19b (debug print, error check,
+     build output vector, cache `usedSampleRate_`).
+2. `reconstructed/src/codegen/awg_compiler.cpp` — split
+   `AWGCompilerImpl::compileString()` similarly into 3 steps:
+   - `stepInnerCompile` — call `Compiler::compile()`.
+   - `stepAssembleOpcodes` — translate `CompileResult` to opcode
+     vector.
+   - `stepCheckLimits` — apply max-elf-size / wavemem-size limits
+     and emit diagnostics.
+
+   The public `AWGCompiler::compileString()` becomes a one-liner
+   that calls the three steps in order.
+
+Cross-step stack locals in `Compiler::compile()` are promoted to
+private `Compiler` members so they survive between step calls:
+- `expr` (raw `Expression` AST from parse) → `parsedExpr_`
+- `seqcAst` (typed AST for lowering) → `seqcAst_`
+- `lowerResult` (`FrontEndLoweringFacade::LowerResult`) →
+  `lowerResult_`
+- `resources` (`GlobalResources`) → `compileResources_`
+- `staticResources` (`StaticResources`) → `compileStaticResources_`
+- `rootNode` → `compileRootNode_`
+- `placeholderAsm` → `compilePlaceholderAsm_`
+- `wavetableIR` → `compileWavetableIR_`
+- `optimizer` (`AsmOptimize`) → `compileOptimizer_`
+
+Pre-existing `ast_`, `asmList_`, `messages_`, `wavetable_`,
+`asmCommands_`, `customFunctions_`, `waveformGen_`, `config_`,
+`deviceConstants_`, `cancelCallback_`, `usedSampleRate_`,
+`reserved18_` remain unchanged.
+
+The 9 step methods are public so the seqcc driver can call them
+individually.  No new friend grants; no new callback members.
+
+### Authorisation (verified)
+
+Each step boundary cited above corresponds to a verified binary
+address already documented inline in
+`reconstructed/src/codegen/compiler.cpp`:
+
+| Step | Binary address | Source comment |
+|---|---|---|
+| `stepParse` entry | `0x11f150` | `// 0x11f150 (~13KB)` (L234) |
+| step 2 boundary | `0x11f268` | `// 0x11f268` (L248) |
+| step 3 boundary | `0x11f27e` | `// 0x11f27e` (L251) |
+| step 6 boundary | `0x11f7b0` | `// 0x11f7b0` (L300) |
+| step 8 boundary | `0x11f911` | `// 0x11f911` (L327) |
+| step 10 boundary | `0x11fb1a` | `// 0x11fb1a` (L350) |
+| step 12 boundary | `0x120707` | `// 0x120707` (L453) |
+| step 13c boundary | `0x120c92` | `// 0x120c92` (L496) |
+| step 14 boundary | `0x120d60` | `// 0x120d60` (L506) |
+| step 15 boundary | `0x120e2d` | `// 0x120e2d` (L510) |
+| step 16 boundary | `0x120f2b` | `// 0x120f2b` (L519) |
+| step 19 boundary | `0x121345` | `// 0x121345` (L543) |
+
+The proposed step-method split lands its boundaries on these
+verified addresses.  No new control flow is introduced; the
+refactor is a partitioning of the existing straight-line body,
+not a reshaping of it.
+
+### Why this exception is justified
+
+1. **Structural fidelity to the binary**: each new step method
+   maps onto a numbered phase that the original binary already
+   exhibits (the `0x11f...` / `0x120...` addresses above are
+   sequential blocks in the disassembly).  We are not inventing
+   new compile phases; we are giving names to phases the binary
+   already has.
+2. **No new external surface**: no new types, no new free
+   functions, no `friend` grants, no callback fields, no
+   `std::function` storage.  Only existing private locals are
+   lifted to private members, plus the methods themselves are
+   promoted to public.
+3. **Behaviour preserved by construction**: the public
+   `Compiler::compile(source)` becomes a sequential call of the
+   9 step methods in the same order the original body executed
+   them.  The byte-equality invariant is `diff_test_fast 1612/1612`
+   plus `test_seqcc_diff 46/46`.
+4. **Single-shot**: T5b closes this lane.  T6 (`--from=<stage>`)
+   reuses the same stepwise API with no further recon edits; T10a
+   retires the deprecated `compileSeqcWithIR()` /
+   `CompileSeqcIntrospection` introspection sink (no longer
+   needed once the driver owns the `Compiler` and can read its
+   members directly).
+5. **Alternative is worse**: the withdrawn `passTap_` approach
+   would have added ~12 callback fields and call sites scattered
+   across 4 .cpp files, with associated comment markers and
+   condition-checking overhead in every pass.  The stepwise
+   refactor concentrates the change in two .cpp files and adds
+   zero runtime cost.
+
+### Driver-side consumption (forward reference)
+
+The seqcc driver (`tools/seqcc/src/driver.cpp`,
+`SeqcDriver::compile()`) will be rewritten in T5b.5 to construct
+a `Compiler` directly and call its step methods sequentially.
+This replaces the current pass-through to
+`compileSeqcWithIR()` (T5a.2) and lets `--to=<stage>` short-
+circuit after the requested step.
+
+### Verification
+
+Each sub-phase commit must clear:
+
+- `diff_test_fast` 1612/1612 (byte-equality invariant — the
+  refactor is wrong if any test changes output).
+- `test_seqcc_diff` 46/46 (driver still byte-equal to pybind).
+- `test_seqcc_ab` 15/15 (legacy and driver paths still agree).
+- `test_seqcc_smoke` 4/4 + `test_seqdump` 16/16 (no toolchain
+  regression).
+
+### Risks
+
+- **Member ordering churn**: lifting 9 stack locals to members
+  changes the `Compiler` class layout.  Anyone holding raw
+  pointers across `Compiler` instances would be affected; in
+  practice nothing outside the recon tree does this.  The
+  ABI-stability invariant is "this binary is not consumed as a
+  shared library outside the recon project", which holds.
+- **State leakage between compiles**: lifted members survive
+  across `compile()` calls.  Step methods must not assume their
+  inputs are zero-initialised — `Compiler::reset()` (already
+  existing, L125) is the right place to zero the lifted members.
+  Audit `reset()` after the lift; this is part of T5b.2's
+  acceptance criteria.
+- **Exception safety**: the original body has try/catch around
+  `optimizePreWaveform` and `optimizePostWaveform`.  The step
+  split must preserve those — `stepOptPre` and `stepOptPost`
+  contain the try blocks in full, not the calling code.
+- **`reset()` semantics for partial pipelines**: when T6 lands
+  `--from=<stage>`, the driver will call `Compiler::reset()`
+  then populate selected members directly, skipping earlier
+  steps.  `reset()` must leave the object in a state where
+  later step methods can be called without preceding ones
+  having run.  This may surface as an IF if the recon `reset()`
+  has any cross-step initialisation we missed.
+
+### TODO references
+
+- TODO.md Phase T → T5b (in progress).
+- Closes IF-304 at T5b.5.
+- Prerequisite for T6.
+- Prerequisite for T10a (retirement of `compileSeqcWithIR` /
+  `CompileSeqcIntrospection`).

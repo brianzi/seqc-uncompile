@@ -124,6 +124,21 @@ Compiler::~Compiler() = default;
 // 0x11dfe0
 void Compiler::reset() {
     messages_.reset();
+    // T5b.2 — clear lifted cross-step state so a fresh compile() starts
+    // from a clean slate.  The binary does not clear these fields here
+    // because they do not exist in the binary; this is a recon-local
+    // extension that the seqcc driver depends on (the driver calls
+    // step methods in sequence and must not see stale state from a
+    // previous compile).
+    compileExpr_.reset();
+    compileSeqcAst_.reset();
+    compileLowerResult_ = FrontEndLoweringFacade::LowerResult{};
+    compileStaticResources_.reset();
+    compileResources_.reset();
+    compilePlaceholderAsm_ = AsmList::Asm{};
+    compileRootNode_.reset();
+    compileWavetableIR_.reset();
+    compileOptimizer_.reset();
 }
 
 // ============================================================================
@@ -236,6 +251,19 @@ CompileResult Compiler::compile(const std::string& source) {
     // --- 1. Reset messages, set up callbacks ---
     messages_.reset();                                          // 0x11f179
 
+    // T5b.2 — also clear lifted cross-step state from any previous
+    // run.  The binary has no equivalent because these fields are
+    // recon-local (see header for the rationale).
+    compileExpr_.reset();
+    compileSeqcAst_.reset();
+    compileLowerResult_ = FrontEndLoweringFacade::LowerResult{};
+    compileStaticResources_.reset();
+    compileResources_.reset();
+    compilePlaceholderAsm_ = AsmList::Asm{};
+    compileRootNode_.reset();
+    compileWavetableIR_.reset();
+    compileOptimizer_.reset();
+
     // Lock progress callback
     // auto progress = progressCallback_.lock();
     // if (progress) progress->setProgress(0.0);
@@ -248,7 +276,7 @@ CompileResult Compiler::compile(const std::string& source) {
     std::string normalized = unifyLineEndings(source);          // 0x11f268
 
     // --- 3. Parse → shared_ptr<Expression> ---
-    auto expr = parse(normalized);                              // 0x11f27e
+    compileExpr_ = parse(normalized);                           // 0x11f27e
 
     // --- 3b. Early-out for empty input (parser returned null Expression*) ---
     // Binary @0x11f283: test r14, r14; je 0x11f557 — when the raw parse
@@ -258,10 +286,10 @@ CompileResult Compiler::compile(const std::string& source) {
     // asmList; downstream `AWGCompilerImpl::writeToStream` then sees an
     // empty opcode vector and throws ZIAWGCompilerException(EmptyInput =
     // "nothing to write, empty input").  See IF-155.
-    if (!expr) {                                                // 0x11f28a..0x11f28d
+    if (!compileExpr_) {                                        // 0x11f28a..0x11f28d
         // Binary @0x11f5b1: same allocate_shared<WavetableIR>(...) as the
         // non-null path at 0x11f348.
-        auto wavetableIR = std::allocate_shared<WavetableIR>(
+        compileWavetableIR_ = std::allocate_shared<WavetableIR>(
             std::allocator<WavetableIR>(),
             *wavetable_,
             *deviceConstants_,
@@ -269,12 +297,12 @@ CompileResult Compiler::compile(const std::string& source) {
             static_cast<size_t>(config_->wavetableSize),
             config_->searchPath,
             cancelCallback_);
-        return CompileResult{std::vector<Assembler>{}, std::move(wavetableIR)};
+        return CompileResult{std::vector<Assembler>{}, compileWavetableIR_};
     }
 
     // --- 4. (Optional debug) Print old AST ---
     // if (config_->debugFlags & 0x02)                          // 0x11f376
-    //     printAST(expr, "...");
+    //     printAST(compileExpr_, "...");
 
     // --- 5. Construct StaticResources with warning callback (0x11f66f) ---
     // then init with device-specific constants.
@@ -283,22 +311,22 @@ CompileResult Compiler::compile(const std::string& source) {
     auto warningCb = [this](std::string const& msg) {
         messages_.warningMessage(msg, -1);
     };
-    auto staticResources = std::make_shared<StaticResources>(
+    compileStaticResources_ = std::make_shared<StaticResources>(
         std::function<void(std::string const&)>(warningCb));
-    staticResources->init(*config_, *deviceConstants_);                  // 0x11f6c5
+    compileStaticResources_->init(*config_, *deviceConstants_);  // 0x11f6c5
 
     // --- 5b. Wrap in GlobalResources (adds TLS register/label counters) (0x11f6df) ---
-    auto resources = std::make_shared<GlobalResources>(
-        std::static_pointer_cast<Resources>(staticResources));
+    compileResources_ = std::make_shared<GlobalResources>(
+        std::static_pointer_cast<Resources>(compileStaticResources_));
 
     // --- 5c. Store resources into customFunctions_->resources_ (0x11f6f2) ---
-    customFunctions_->resources_ = std::static_pointer_cast<Resources>(resources);
+    customFunctions_->resources_ = std::static_pointer_cast<Resources>(compileResources_);
 
     // --- 5d. Clear reserved field (binary writes 0 to [r15+0x18]) (0x11f76e) ---
     reserved18_ = 0;
 
     // --- 6. Convert to SeqC AST (0x11f7b0) ---
-    auto seqcAst = toSeqCAst(expr);
+    compileSeqcAst_ = toSeqCAst(compileExpr_);
 
     // The binary (libc++ ABI) handles null seqcAst gracefully: the libc++
     // shared_ptr does not assert on null dereference. In the recon (libstdc++),
@@ -317,18 +345,17 @@ CompileResult Compiler::compile(const std::string& source) {
     // Binary: at +1644 tests seqcAst raw ptr; if null, continues past refcount
     // incr into FrontEndLoweringFacade::lower (libc++ handles null shared_ptr
     // deref differently from libstdc++).
-    FrontEndLoweringFacade::LowerResult lowerResult;
-    if (seqcAst) {
+    if (compileSeqcAst_) {
         // --- 7. (Optional debug) Print SeqC AST (0x11f7da) ---
         if (config_->debugFlags & 0x04) {
-            printSeqCAst(*seqcAst);
+            printSeqCAst(*compileSeqcAst_);
         }
 
         // --- 8. Frontend lowering (0x11f911) ---
         // Binary reads config_->unknown_98 (offset 0x98) as loopUnrollLimit int
-        lowerResult = FrontEndLoweringFacade::lower(
-            std::static_pointer_cast<Resources>(resources),
-            *seqcAst,
+        compileLowerResult_ = FrontEndLoweringFacade::lower(
+            std::static_pointer_cast<Resources>(compileResources_),
+            *compileSeqcAst_,
             messages_,
             asmCommands_,
             customFunctions_,
@@ -337,10 +364,12 @@ CompileResult Compiler::compile(const std::string& source) {
             config_->loopUnrollLimit);                                   // [config+0x98]
 
         // --- 8b. Store lowered AST into Compiler.ast_ (0x11f92f) ---
-        ast_ = std::move(lowerResult.astResult);
+        ast_ = std::move(compileLowerResult_.astResult);
     }
 
-    // seqcAst destroyed here (shared_ptr dtor)                             // 0x11faec
+    // compileSeqcAst_ retained on the Compiler until reset(); the binary
+    // releases here, but holding it through end-of-compile is benign —
+    // the SeqC AST is small and read-only after lowering.        // 0x11faec
 
     // --- 9. Check for errors (0x11fb0d) ---
     if (messages_.hadCompilerError()) {
@@ -363,39 +392,38 @@ CompileResult Compiler::compile(const std::string& source) {
     }
 
     // 10d: Generate load placeholder
-    auto placeholderAsm = asmCommands_->asmLoadPlaceholder();               // 0x11fd78
+    compilePlaceholderAsm_ = asmCommands_->asmLoadPlaceholder();             // 0x11fd78
 
     // --- 10e. Build root node from lowered AST (0x11fd7d) ---
-    std::shared_ptr<Node> rootNode;
-    bool hasMainAndAst = resources->hasMain() && (ast_ != nullptr);          // 0x11fd84
+    bool hasMainAndAst = compileResources_->hasMain() && (ast_ != nullptr); // 0x11fd84
 
     // Create a wrapper Node(NodeType::Entry, placeholderAsm.sequenceId,
     //                       config_->numChannelGroups)
     // Both branches create the same kind of node — the difference is in
     // how the lowered AST is grafted.
-    rootNode = std::make_shared<Node>(
+    compileRootNode_ = std::make_shared<Node>(
         NodeType::Load,
-        placeholderAsm.sequenceId,
+        compilePlaceholderAsm_.sequenceId,
         config_->numChannelGroups);                                          // 0x11fdc8 / 0x11fe8e
 
     if (hasMainAndAst) {
-        // Graft the lowered AST as rootNode's next chain                   // 0x11fe43
-        rootNode->next = ast_;
-        ast_ = rootNode;
+        // Graft the lowered AST as compileRootNode_'s next chain          // 0x11fe43
+        compileRootNode_->next = ast_;
+        ast_ = compileRootNode_;
     } else {
         // Use evalResult's node tree                                       // 0x11ff09
-        if (lowerResult.evalResult) {
-            rootNode->next = lowerResult.evalResult->node_;
+        if (compileLowerResult_.evalResult) {
+            compileRootNode_->next = compileLowerResult_.evalResult->node_;
         } else {
         }
-        ast_ = rootNode;
+        ast_ = compileRootNode_;
     }
 
     // --- 11. Walk node tree setting parent pointers (0x11ff85) ---
     // Use a deque for BFS traversal
     {
         std::deque<std::shared_ptr<Node>> worklist;
-        worklist.push_back(rootNode);
+        worklist.push_back(compileRootNode_);
 
         while (!worklist.empty()) {
             auto current = worklist.back();                                  // 0x120020
@@ -425,11 +453,11 @@ CompileResult Compiler::compile(const std::string& source) {
     }
 
     // --- 11b. Append placeholder Asm to asmList_ (0x120471) ---
-    asmList_.append(placeholderAsm);
+    asmList_.append(compilePlaceholderAsm_);
 
     // --- 11c. Insert EvalResults assemblers into asmList_ (0x120549) ---
-    if (lowerResult.evalResult) {
-        auto& assemblers = lowerResult.evalResult->assemblers_;
+    if (compileLowerResult_.evalResult) {
+        auto& assemblers = compileLowerResult_.evalResult->assemblers_;
 
         asmList_.entries.insert(
             asmList_.entries.end(),
@@ -459,16 +487,16 @@ CompileResult Compiler::compile(const std::string& source) {
         messages_.infoMessage(msg, line);
     };
     auto cancelLocked = cancelCallback_.lock();
-    AsmOptimize optimizer(
+    compileOptimizer_ = std::make_unique<AsmOptimize>(
         std::function<void(const std::string&, int)>(errorCb),
         std::function<void(const std::string&, int)>(infoCb),
         static_cast<uint32_t>(deviceConstants_->registerDepth),             // +0x28
         static_cast<uint32_t>(config_->optimizationFlags),                       // +0x88
         cancelLocked);
 
-    optimizer.prepareResources(asmList_);                                 // 0x120857
+    compileOptimizer_->prepareResources(asmList_);                        // 0x120857
     try {
-        asmList_ = optimizer.optimizePreWaveform(asmList_);               // 0x120879
+        asmList_ = compileOptimizer_->optimizePreWaveform(asmList_);      // 0x120879
     } catch (OptimizeException const& e) {
         // Binary @0x121d09: catches OptimizeException, calls
         // messages_.errorMessage(e.what(), e.lineNumber()) so that the
@@ -494,7 +522,7 @@ CompileResult Compiler::compile(const std::string& source) {
     }
 
     // --- 13c. Construct WavetableIR from WavetableFront (0x120c92) ---
-    auto wavetableIR = std::allocate_shared<WavetableIR>(
+    compileWavetableIR_ = std::allocate_shared<WavetableIR>(
         std::allocator<WavetableIR>(),
         *wavetable_,
         *deviceConstants_,
@@ -504,12 +532,12 @@ CompileResult Compiler::compile(const std::string& source) {
         cancelCallback_);
 
     // --- 14. Run prefetcher (0x120d60) ---
-    runPrefetcher(wavetableIR, asmList_, asmCommands_,
-                  placeholderAsm, *deviceConstants_, *config_);
+    runPrefetcher(compileWavetableIR_, asmList_, asmCommands_,
+                  compilePlaceholderAsm_, *deviceConstants_, *config_);
 
     // --- 15. Post-waveform optimization (0x120e2d) ---
     try {
-        asmList_ = optimizer.optimizePostWaveform(asmList_);
+        asmList_ = compileOptimizer_->optimizePostWaveform(asmList_);
     } catch (OptimizeException const& e) {
         // Binary @0x121d09: catches OptimizeException, calls
         // messages_.errorMessage(e.what(), e.lineNumber()).  See IF-165.
@@ -560,9 +588,9 @@ CompileResult Compiler::compile(const std::string& source) {
     // The Compiler-side field is a cache read by usedDeviceSampleRate(),
     // which is consulted by AWGCompilerImpl when emitting the
     // ".required_sample_rate" ELF section.
-    usedSampleRate_ = staticResources->usedSampleRate();
+    usedSampleRate_ = compileStaticResources_->usedSampleRate();
 
-    return CompileResult{std::move(result), std::move(wavetableIR)};  // 0x121421: sret+0x18 = wavetableIR
+    return CompileResult{std::move(result), compileWavetableIR_};  // 0x121421: sret+0x18 = wavetableIR (recon retains the member; binary moves out)
 }
 
 // ============================================================================

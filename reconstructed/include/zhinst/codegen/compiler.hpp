@@ -23,6 +23,9 @@ namespace zhinst {
 // Forward declarations for types used only as pointers/refs in this header
 // (types fully included via transitive headers do not need forward decls here)
 class WavetableIR;  // not transitively included
+class AsmOptimize;       // T5b.2 lifted member; full header included in compiler.cpp
+class StaticResources;   // T5b.2 lifted member; ditto
+class GlobalResources;   // T5b.2 lifted member; ditto
 
 // ---- FrontEndLoweringFacade ----
 // Thin static facade that dispatches to SeqCAstNode virtual method
@@ -149,6 +152,17 @@ struct CompileResult {
 // +0xF0   16    weak_ptr<ProgressCallback>               progressCallback_
 // +0x100  56    SeqcParserContext                        parserContext_
 // sizeof(Compiler) = 0x138
+//
+// NOTE (T5b.2): The lifted members appended below (compileExpr_, …,
+// compileOptimizer_) extend the binary's class footprint with
+// recon-local pipeline state.  They are not present in the binary
+// layout above and do not participate in the binary-fidelity offset
+// table; the layout table above remains valid for the binary-derived
+// members only.  The lifted members exist solely to let the seqcc
+// driver call the pipeline's step methods (T5b.3) without losing
+// intermediate state.  No external code consumes `sizeof(Compiler)`
+// or `offsetof(Compiler, X)` for the binary-side members, so adding
+// trailing recon-only members is safe.
 
 // ---- Compiler ----
 
@@ -738,6 +752,47 @@ private:
     //!        `messages_.parserMessage`.
     SeqcParserContext parserContext_;                // +0x100 (0x38 bytes)
     // +0x138 END
+    // ------------------------------------------------------------------
+    // T5b.2 — lifted cross-step locals (recon-only; not part of binary
+    // layout).  These survive between the step methods that T5b.3 will
+    // split `compile()` into, so the seqcc driver can call them
+    // individually and inspect intermediate state.  All are reset by
+    // `reset()` so a fresh `compile()` call starts from a clean slate.
+    // ------------------------------------------------------------------
+    //! \brief Raw parser AST produced by `parse()`; consumed by
+    //!        `toSeqCAst` in the next step.  Reset before each
+    //!        `compile()`.
+    std::shared_ptr<Expression> compileExpr_;
+    //! \brief Typed SeqC AST produced from `compileExpr_`; consumed
+    //!        by `FrontEndLoweringFacade::lower`.
+    std::shared_ptr<SeqCAstNode> compileSeqcAst_;
+    //! \brief Result of front-end lowering; its `astResult` is moved
+    //!        into `ast_` and `evalResult` is consumed by the
+    //!        preamble-building step.
+    FrontEndLoweringFacade::LowerResult compileLowerResult_;
+    //! \brief Per-compile `StaticResources` (carries the warning
+    //!        callback bound to `messages_`).  Read by the project
+    //!        step to populate `usedSampleRate_`.
+    std::shared_ptr<StaticResources> compileStaticResources_;
+    //! \brief `GlobalResources` wrapping `compileStaticResources_`;
+    //!        published to `customFunctions_->resources_` and consumed
+    //!        by the preamble-building step.
+    std::shared_ptr<GlobalResources> compileResources_;
+    //! \brief Load placeholder emitted between lowering and
+    //!        prefetch; the anchor that `runPrefetcher` expands.
+    AsmList::Asm compilePlaceholderAsm_;
+    //! \brief Root node grafted on top of either `ast_` or
+    //!        `evalResult->node_`; written to `ast_` and walked to
+    //!        back-fill parent pointers.
+    std::shared_ptr<Node> compileRootNode_;
+    //! \brief `WavetableIR` populated by the prefetcher; returned in
+    //!        the final `CompileResult`.
+    std::shared_ptr<WavetableIR> compileWavetableIR_;
+    //! \brief Pre/post-waveform optimisation pass; constructed in
+    //!        `stepOptPre` and reused by `stepOptPost`.  Held by
+    //!        `unique_ptr` because `AsmOptimize` is not default-
+    //!        constructible (callbacks + flags required).
+    std::unique_ptr<AsmOptimize> compileOptimizer_;
 };
 
 }  // namespace zhinst
