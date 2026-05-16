@@ -200,14 +200,24 @@ bool runningOnMf64Device(std::string const& manifestPath)  // @0x2ec3d0
 // ---------------------------------------------------------------------------
 // hasMediaDevNode(string const&)                                 @0x2eb550
 //
-// Two-stage check:
+// Three-stage check (matching the binary's two `status` calls):
 //   1. Match `p` against the function-local-static regex
 //      `^/media/sd[a-z][0-9]+$` (a Meyers singleton; the regex
 //      object lives at 0xb85278 with guard at 0xb85288 in the
 //      binary).  If no match, return false.
 //   2. Append "/dev" to `p`, call `boost::filesystem::status` on the
-//      result, and return true only if the status call set no error
-//      AND the file-type equals `character_file` (5).
+//      result, and early-out with `false` if the type is
+//      `status_error` (0) or `file_not_found` (1) — i.e. `type <= 1`
+//      (binary @0x2eb6d6 + cmp @0x2eb70a).
+//   3. Call `boost::filesystem::status` a second time on the same
+//      path/ec pair (binary @0x2eb6f7).  Return true only if the
+//      ec is unset AND `type == character_file` (5).
+//
+// The duplicate `status` call (IF-274) is binary-faithful: the
+// original lacks the CSE that would collapse the two calls.  Both
+// calls go to the same `boost::filesystem::detail::status` symbol
+// (@0x36f280) with the same arguments; semantically the second call
+// is what determines the result.
 //
 // In short: "is `p` a `/media/sdX1` mount whose `/dev` child is a
 // character device?".
@@ -221,11 +231,20 @@ bool hasMediaDevNode(std::string const& p)  // @0x2eb550
 
     boost::filesystem::path devPath = boost::filesystem::path(p) / "dev";
     boost::system::error_code ec;
-    auto st = boost::filesystem::status(devPath, ec);
+
+    // First status call (binary @0x2eb6d6): early-out on
+    // status_error / file_not_found before the ec is even inspected.
+    auto st1 = boost::filesystem::status(devPath, ec);
+    if (static_cast<int>(st1.type()) <= boost::filesystem::file_not_found) {
+        return false;
+    }
+
+    // Second status call (binary @0x2eb6f7) — same args, no CSE.
+    auto st2 = boost::filesystem::status(devPath, ec);
     if (ec) {
         return false;
     }
-    return st.type() == boost::filesystem::character_file;
+    return st2.type() == boost::filesystem::character_file;
 }
 
 // ---------------------------------------------------------------------------

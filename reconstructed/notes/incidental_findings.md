@@ -5183,7 +5183,7 @@ behaviour going forward.
 
 ## IF-273  `makeDirectories` recon adds a spurious outer try/catch and drops the 0x8011 error code
 
-**Status**: open (likely-bug, low-impact).
+**Status**: fixed (2026-05-15 in the same audit commit; status flip 2026-05-16 after Phase G G3 re-verification).
 
 **Discovered**: 2026-05-15, Phase F follow-up audit of
 `reconstructed/src/io/zi_environment.cpp`.
@@ -5243,7 +5243,7 @@ see fix in `reconstructed/src/io/zi_environment.cpp` and brief in
 
 ## IF-274  `hasMediaDevNode` recon calls `boost::filesystem::status` once; binary calls it twice
 
-**Status**: open (cosmetic, behavior-equivalent).
+**Status**: fixed (2026-05-16 — second `status` call added to match the binary; behaviour-equivalent change, kept binary-faithful).
 
 **Discovered**: 2026-05-15, same audit pass as IF-273.
 
@@ -5270,9 +5270,14 @@ explanation is a missed common-subexpression elimination in the
 original build, or a deliberate re-stat to defeat a cache layer
 not visible in this snippet.
 
-**Action items**: leave as-is (no behavioural impact).  Recorded
-for completeness so a future agent doesn't waste a session
-"finding" the same divergence.
+**Action items**: ~~leave as-is (no behavioural impact)~~.  Resolved
+2026-05-16: added the second `boost::filesystem::status` call to
+`reconstructed/src/io/zi_environment.cpp:215` so the recon matches
+the binary's two-call shape exactly.  The first call's result is now
+used for the `type <= file_not_found` early-out (binary @0x2eb70a)
+and the second drives the `ec.value()` + `character_file` checks
+(binary @0x2eb70f / @0x2eb718).  Behaviour unchanged for any input;
+status-flow now matches.  Tests: 1603/1603 main + 1626/1626 harness.
 
 ## IF-275  zi_folder/zi_environment audit — 9 of 11 functions verified clean against the binary
 
@@ -6349,7 +6354,7 @@ the verify-me backlog page.
 
 ## IF-291  `MathCompiler::log` is base-10, not natural log
 
-**Status**: open (recon fix + doc fix applied in same commit).
+**Status**: fixed (recon body + doc both corrected; status flipped 2026-05-16 after commit `c4fad2c` landed).
 
 **Severity**: behavioural divergence (uncovered by test suite).
 
