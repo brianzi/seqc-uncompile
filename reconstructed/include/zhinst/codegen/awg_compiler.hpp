@@ -34,7 +34,7 @@ namespace zhinst {
 class AWGCompilerConfig;
 class AWGCompilerImpl;
 class CancelCallback;
-class Node;  // for T3c additive accessor `compilerLoweredAst()` only
+struct CompileSeqcIntrospection;  // for T3c/T4 fillIntrospection friend
 class ProgressCallback;
 
 // ============================================================================
@@ -371,25 +371,16 @@ private:
     //! or propagates `std::bad_alloc` before storing here).
     AWGCompilerImpl* impl_;  // +0x00, sole member
 
-    // T3c: additive friend grant for the seqcc introspection helper
-    // declared below.  Not present in the original binary; lets
-    // `compilerLoweredAst()` read `impl_` from compile_seqc.cpp's
-    // `compileSeqcWithIR` without widening the public API surface.
-    friend std::shared_ptr<Node const>
-    compilerLoweredAst(AWGCompiler const&) noexcept;
+    // T3c/T4: additive friend grant for the seqcc introspection
+    // helper declared in compile_seqc.hpp.  Not present in the
+    // original binary; lets `fillIntrospection()` populate a
+    // `CompileSeqcIntrospection` from `impl_`'s private accessors
+    // without widening AWGCompiler's public API.  All future Phase-T
+    // IR captures route through this single helper rather than
+    // adding more friend grants per stage.
+    friend void
+    fillIntrospection(AWGCompiler const&,
+                      CompileSeqcIntrospection&) noexcept;
 };
-
-//! \brief Tooling-only accessor returning the lowered SeqC AST root
-//!        produced by the most recent compile on `c`.
-//!
-//! \details Additive helper for the `seqcc` driver (`--dump=ast-lowered`).
-//! Not part of the original `_seqc_compiler.so` binary.  Implemented in
-//! `awg_compiler.cpp` where `AWGCompilerImpl` is complete; declared
-//! here as a free function (rather than a member) to avoid widening
-//! `AWGCompiler`'s public method set.  Returns an empty `shared_ptr`
-//! when no compile has been run yet, or when the previous compile
-//! failed before producing an AST.
-std::shared_ptr<Node const>
-compilerLoweredAst(AWGCompiler const& c) noexcept;
 
 }  // namespace zhinst

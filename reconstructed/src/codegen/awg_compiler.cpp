@@ -15,6 +15,7 @@
 #include "zhinst/codegen/awg_assembler.hpp"
 #include "zhinst/core/callbacks.hpp"
 #include "zhinst/infra/calver.hpp"
+#include "zhinst/codegen/compile_seqc.hpp"
 #include "zhinst/codegen/compiler.hpp"
 #include "zhinst/core/compiler_message.hpp"
 #include "zhinst/device/device_constants.hpp"
@@ -1679,17 +1680,19 @@ void AWGCompiler::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {  // 
 
 // ------------------------------------------------------------------
 // Introspection accessor — not present in the original binary.
-// Added in T3c to support seqcc's --dump=ast-lowered.  Implemented as
-// a free function (declared in awg_compiler.hpp with a `friend`
-// grant on AWGCompiler) rather than a member, to keep the public
-// AWGCompiler method set unchanged.  Reads `compiler_.ast_` via the
-// existing `friend class AWGCompilerImpl` on `Compiler` (see
-// compiler.hpp:650), through the TU-private
-// `AWGCompilerImpl::getLoweredAst()`.
+// Added in T3c; refactored in T4 to be the single tooling entry
+// point for capturing compiler IR into CompileSeqcIntrospection.
+// Declared in compile_seqc.hpp; friend grant lives in
+// awg_compiler.hpp.  Defined here (rather than in compile_seqc.cpp)
+// because AWGCompilerImpl is only complete in this TU.  Future
+// Phase-T IR captures extend the body of this function plus the
+// CompileSeqcIntrospection struct — no per-stage friend grant is
+// required.
 // ------------------------------------------------------------------
-std::shared_ptr<Node const>
-compilerLoweredAst(AWGCompiler const& c) noexcept {
-    return c.impl_->getLoweredAst();
+void
+fillIntrospection(AWGCompiler const& c,
+                  CompileSeqcIntrospection& out) noexcept {
+    out.loweredAst = c.impl_->getLoweredAst();
 }
 
 }  // namespace zhinst

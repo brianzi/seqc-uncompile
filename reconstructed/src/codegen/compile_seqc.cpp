@@ -324,13 +324,16 @@ static std::string compileSeqcImpl(std::string const& jsonConfig,
         throw Exception(msg);
     }
 
-    // --- T3c: populate optional introspection sink ---
+    // --- T3c/T4: populate optional introspection sink ---
     // Done before the `compiler` destructor runs (i.e. before this
-    // function returns) so the AST `shared_ptr` survives in the
+    // function returns) so captured `shared_ptr`s survive in the
     // caller's hands.  Capturing into the sink does not perturb any
-    // ELF-affecting state — it's a pure read of `compiler_.ast_`.
+    // ELF-affecting state — it's a pure read of internal members.
+    // Routed through the single `fillIntrospection()` friend so new
+    // IR stages can be added by extending the helper rather than
+    // adding more friend grants on AWGCompiler.
     if (sink != nullptr) {
-        sink->loweredAst = compilerLoweredAst(compiler);
+        fillIntrospection(compiler, *sink);
     }
 
     // Return format: JSON result string + '\0' separator + ELF binary data

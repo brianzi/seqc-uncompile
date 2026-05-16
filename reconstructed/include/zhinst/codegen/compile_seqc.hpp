@@ -24,6 +24,7 @@
 
 namespace zhinst {
 
+class AWGCompiler;
 class Node;
 
 //! \brief Optional out-bag populated by `compileSeqcWithIR()` to give
@@ -36,7 +37,10 @@ class Node;
 //!
 //! Adding new fields here is backward-compatible — the struct is
 //! returned by value from a function the original binary doesn't
-//! export, and there are no external consumers.
+//! export, and there are no external consumers.  This is the
+//! preferred extension point for Phase-T dumps: extend the struct
+//! and teach `fillIntrospection()` to populate the new field, rather
+//! than adding another friend grant on `AWGCompiler`.
 struct CompileSeqcIntrospection {
     //! \brief Root of the lowered SeqC AST after the front-end
     //!        lowering / optimisation passes.  Empty when the
@@ -44,10 +48,27 @@ struct CompileSeqcIntrospection {
     std::shared_ptr<Node const> loweredAst;
 
     // Future T4 hooks (not yet populated):
-    // std::shared_ptr<AsmList const>     asmList;
-    // std::shared_ptr<WavetableIR const> wavetableIR;
-    // std::shared_ptr<CustomFunctions const> resources;
+    // std::shared_ptr<WavetableFront const> wavetable;
+    // std::shared_ptr<AsmList const>        asmList;
+    // std::shared_ptr<WavetableIR const>    wavetableIR;
 };
+
+//! \brief Populate `out` from `c`'s internal compile state.
+//!
+//! \details Single tooling entry point for capturing compiler IR
+//! into a `CompileSeqcIntrospection`.  Friend of `AWGCompiler`
+//! (declared in awg_compiler.hpp) so it can reach the pimpl's
+//! private accessors.  All Phase-T dump kinds extend this function
+//! plus the struct above — no per-stage friend grant on
+//! `AWGCompiler` is needed.
+//!
+//! \param c    Compiler whose internal IR should be captured.
+//! \param out  Sink to populate.  Existing fields are overwritten;
+//!             callers typically pass a default-constructed instance.
+//!
+//! Tooling-only; not present in the original binary.
+void fillIntrospection(AWGCompiler const& c,
+                       CompileSeqcIntrospection& out) noexcept;
 
 //! \brief Original-binary entry point.  Unchanged signature; see
 //!        compile_seqc.cpp for full semantics.
