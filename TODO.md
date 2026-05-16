@@ -7,24 +7,28 @@
 
 ## Current state
 
-**Build**: clean (g++ + clang++/libc++), 0 errors, 1 documented warning.
-**Differential tests: 2407/2407 byte-identical** across all 10 unique
+**Build**: clean (g++ + clang++/libc++), 0 errors, 0 doxygen warnings
+(2 environmental latex errors in `doxygen-warnings.log` only).
+**Differential tests: 2693/2693 byte-identical** across all 10 unique
 leaf manifests:
 
 | Manifest                     | Cases |
 | ---------------------------- | -----:|
-| default `manifest.json`      | 1600 |
+| default `manifest.json`      | 1603 |
 | &nbsp;&nbsp;`manifest-core.json`          | 248 |
 | &nbsp;&nbsp;`manifest-zhinst.json`        |  74 |
 | &nbsp;&nbsp;`manifest-ziai.json`          | 459 |
 | &nbsp;&nbsp;`manifest-ziasm.json`         | 468 |
-| &nbsp;&nbsp;`manifest-zivibes.json`       | 259 |
+| &nbsp;&nbsp;`manifest-zivibes.json`       | 262 |
 | &nbsp;&nbsp;`manifest-documentation.json` |  92 |
-| `manifest-stress.json` (standalone) | 774 |
+| `manifest-stress.json` (standalone) | 1057 |
 | `manifest-labone.json` (standalone) |  14 |
 | `manifest-large.json` (standalone)  |  13 |
 | `manifest-errors.json` (standalone) |   6 |
-| **Total unique**             | **2407** |
+| **Total unique**             | **2693** |
+
+**Diff-test harness** (`tests/diff_unreachable/harness.py`): 1626/1626
+binding-unreachable cases passing.
 
 Standalone manifests are not auto-imported by `manifest.json` and must
 be invoked explicitly via `--manifest <name>.json`.
