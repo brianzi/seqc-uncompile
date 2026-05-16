@@ -320,6 +320,16 @@ public:
         return compiler_.ast_;
     }
 
+    //! \brief Return the embedded `Compiler`'s front-end wavetable
+    //!        (registered waveforms + per-waveform IR + name index).
+    //! \details Tooling accessor added in T4a; no counterpart in the
+    //! original binary.  Wraps the friend-access read of
+    //! `compiler_.wavetable_`.  Returns an empty `shared_ptr` when
+    //! the compile failed before constructing the wavetable.
+    std::shared_ptr<WavetableFront const> getWavetable() const {
+        return compiler_.wavetable_;
+    }
+
     //! \brief Build the multi-line "do not edit" header prepended
     //!        to assembler-listing files by `writeAssemblerToFile`.
     //! \details Combines the banner, the destination path, the
@@ -1693,6 +1703,7 @@ void
 fillIntrospection(AWGCompiler const& c,
                   CompileSeqcIntrospection& out) noexcept {
     out.loweredAst = c.impl_->getLoweredAst();
+    out.wavetable  = c.impl_->getWavetable();
 }
 
 }  // namespace zhinst

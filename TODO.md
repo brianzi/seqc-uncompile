@@ -280,6 +280,46 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       — that's the supported extension point now; do **not** add
       more friend grants or free helpers on `AWGCompiler`.
 
+  - [X] **T4-prep — strategy-B introspection refactor.**  Retired
+        per-stage `compilerLoweredAst()` friend grant + free helper
+        in favour of a single `fillIntrospection(AWGCompiler const&,
+        CompileSeqcIntrospection&)` friend declared in
+        `compile_seqc.hpp`.  All future Phase-T IR captures extend
+        the helper body + struct fields rather than adding more
+        friend grants on `AWGCompiler`.  Zero behaviour change.
+
+  - [X] **T4a — `--dump=wavetable` (text).**  First T4 dump kind,
+        sourced from a new `wavetable` field on
+        `CompileSeqcIntrospection` (populated by `fillIntrospection()`
+        via a private `AWGCompilerImpl::getWavetable()` accessor),
+        rendered via `WavetableFront::toString()` — the only public
+        wavetable serialiser the recon exposes.  JSON variant
+        deferred (IF-303): `WavetableFront::toJson()` doesn't exist
+        in the recon, only the private inner
+        `WavetableManager<>::toJson()` does, and exposing it would
+        require another friend grant outside our single-friend
+        principle on `AWGCompiler`.  ELF byte-equality regression
+        confirmed.
+
+  - [ ] **T4b — text dumps from `std::cout`-bound print methods.**
+        `--dump=prefetch`, `--dump=cache`, `--dump=resources`.
+        Each requires a `print(std::ostream&)` overload on the
+        respective recon class (currently `std::cout`-only —
+        `Prefetch::print(node, indent)`, `Cache::print()`,
+        `Resources::print()/printAll()/printScopes()`).  Per-method
+        sanctioned recon edits; each documented as its own IF.
+        Sink-side: capture the relevant object handles into
+        `CompileSeqcIntrospection`.  Discuss approach with user
+        before starting — multiple small recon edits add up.
+
+  - [ ] **T4c — `ast-raw` / `ast-seqc`.**  Requires the `Compiler`
+        to optionally retain `seqcAst` (the parser-output AST,
+        currently a local in `Compiler::compile()` destroyed before
+        return).  A `bool keepRawAst_` config flag plus a
+        `std::shared_ptr<SeqCAstNode> rawAst_` member on `Compiler`,
+        gated so default callers pay zero cost.  Larger recon edit
+        than T4a/T4b; discuss before starting.
+
 - [ ] **T5 — `-S`, `-E`, `--to=<stage>`.**  Stop-after-stage support.
       The chosen IR is emitted to `-o` in its native format (JSON for
       Node/WavetableIR, text DSL for AsmList, text tree for AST).

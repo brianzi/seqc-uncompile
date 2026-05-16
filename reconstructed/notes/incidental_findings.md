@@ -631,3 +631,39 @@ anyway.
 **TODO references**: TODO.md Phase T → "ast-lowered idMap parity"
 (to be added when the AsmList introspection lands).
 
+
+## IF-303  `WavetableFront` has no public JSON serialiser
+
+**Severity**: low (workaround in place via text dump).
+**Status**: open; queued in TODO.md Phase T as a follow-up to T4a.
+
+`WavetableFront` exposes only `toString()` publicly
+(`reconstructed/include/zhinst/waveform/wavetable_front.hpp:228`),
+which produces a per-waveform text block.  The JSON serialiser
+`toJson()` lives on the *inner* templated
+`detail::WavetableManager<WaveformT>` class
+(`wavetable_front.hpp:303`) and is reached through
+`WavetableFront::manager_`, a private member
+(`wavetable_front.hpp:26`).
+
+For seqcc's T4a `--dump=wavetable` we picked the text path so the
+introspection sink stays clean (single friend grant on
+`AWGCompiler`).  Exposing the JSON would require either:
+
+- A new public `WavetableFront::toJson()` method that delegates
+  to `manager_->toJson()`.  Strictly additive; minimal recon
+  surface increase; would let us add `--dump=wavetable-json`
+  alongside the text variant.
+- A friend grant on `WavetableFront` for the seqcc helper.
+  Worse — violates the single-friend principle we just
+  established for `AWGCompiler`, and the same logic would have
+  to recur for every future "private-inner-serialiser" case.
+
+**Recommended fix when revisited**: add the public
+`WavetableFront::toJson()` delegate, document as a B3 sanctioned
+exception, then register `wavetable-json` as a sibling dump kind
+to the existing text `wavetable`.  Defer until a concrete
+debugging need arises for the JSON form.
+
+**TODO references**: TODO.md Phase T → "T4a follow-up:
+WavetableFront::toJson() delegate" (to be added if/when needed).

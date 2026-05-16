@@ -421,6 +421,83 @@ class SeqccDiffTest(unittest.TestCase):
             self.assertEqual(elf_with_dump.read_bytes(), bytes(pybind_elf),
                              "with-dump ELF diverges from pybind baseline")
 
+    # ---- T4a: --dump=wavetable (IR-sink-sourced, text) -------------------
+    # First T4 dump kind.  Sourced from `CompileSeqcIntrospection`'s
+    # `wavetable` field (T4 added it alongside `loweredAst`), rendered
+    # via the public `WavetableFront::toString()` method (text format,
+    # one block per registered waveform).  No recon edit beyond
+    # extending `fillIntrospection()` was needed — this is the
+    # template for future text-only sub-phases (prefetch, cache,
+    # resources).
+
+    def test_dump_wavetable_emits_text(self):
+        # Two named waves so the output is non-trivial; the
+        # underlying `WavetableFront::toString()` formats one entry
+        # per registered waveform.
+        src = ("wave w1 = ones(64);\n"
+               "wave w2 = ramp(128, 0.0, 1.0);\n"
+               "playWave(w1);\n"
+               "playWave(w2);\n")
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf = tmp / "out.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--dump=wavetable",
+                 "-o", str(elf), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            wt_path = tmp / "out.wavetable.txt"
+            self.assertTrue(wt_path.exists(),
+                            f"expected dump {wt_path} to exist")
+            self.assertGreater(wt_path.stat().st_size, 0,
+                               "wavetable dump is empty")
+
+            text = wt_path.read_text()
+            # `WavetableFront::toString()` prefixes each waveform
+            # block with "Name: <internal-name>".  Pin that token
+            # and the two user-facing waveform stems so the test
+            # catches both "the dump ran" and "the right wavetable
+            # was captured".
+            self.assertIn("Name:", text,
+                          "wavetable dump missing expected per-waveform "
+                          "header token 'Name:'")
+            self.assertIn("w1", text,
+                          "wavetable dump does not mention 'w1'")
+            self.assertIn("w2", text,
+                          "wavetable dump does not mention 'w2'")
+
+    def test_dump_wavetable_preserves_elf_byte_equality(self):
+        """--dump=wavetable must not perturb the compiled ELF."""
+        src = "wave w = ones(64); playWave(w);"
+        with tempfile.TemporaryDirectory() as td:
+            tmp = Path(td)
+            (tmp / "t.seqc").write_text(src)
+            elf_with_dump = tmp / "with.elf"
+            elf_no_dump   = tmp / "without.elf"
+
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "--dump=wavetable",
+                 "-o", str(elf_with_dump), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+            subprocess.run(
+                [str(SEQCC), "--march=HDAWG8", "--samplerate=2.4e9",
+                 "-o", str(elf_no_dump), str(tmp / "t.seqc")],
+                check=True, capture_output=True)
+
+            self.assertEqual(elf_with_dump.read_bytes(),
+                             elf_no_dump.read_bytes(),
+                             "--dump=wavetable perturbs ELF output")
+
+            sc = self.sc
+            pybind_elf, _ = sc.compile_seqc(src, "HDAWG8", "", 0,
+                                            samplerate=2.4e9)
+            self.assertEqual(elf_with_dump.read_bytes(), bytes(pybind_elf),
+                             "with-dump ELF diverges from pybind baseline")
+
 
 if __name__ == "__main__":
     unittest.main()

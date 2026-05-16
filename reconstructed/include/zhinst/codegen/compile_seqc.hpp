@@ -26,6 +26,7 @@ namespace zhinst {
 
 class AWGCompiler;
 class Node;
+class WavetableFront;
 
 //! \brief Optional out-bag populated by `compileSeqcWithIR()` to give
 //!        tooling read-only access to internal compiler IR that would
@@ -47,10 +48,14 @@ struct CompileSeqcIntrospection {
     //!        compile failed before producing an AST.
     std::shared_ptr<Node const> loweredAst;
 
+    //! \brief Front-end wavetable tracker (registered waveforms,
+    //!        per-waveform IR, name index) at compile completion.
+    //!        Empty when the compile failed before constructing one.
+    std::shared_ptr<WavetableFront const> wavetable;
+
     // Future T4 hooks (not yet populated):
-    // std::shared_ptr<WavetableFront const> wavetable;
-    // std::shared_ptr<AsmList const>        asmList;
-    // std::shared_ptr<WavetableIR const>    wavetableIR;
+    // std::shared_ptr<AsmList const>     asmList;
+    // std::shared_ptr<WavetableIR const> wavetableIR;
 };
 
 //! \brief Populate `out` from `c`'s internal compile state.

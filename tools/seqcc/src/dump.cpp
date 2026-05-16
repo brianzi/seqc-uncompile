@@ -7,6 +7,7 @@
 #include "elf_reader.hpp"
 
 #include "zhinst/ast/node.hpp"
+#include "zhinst/waveform/wavetable_front.hpp"
 
 #include <boost/json.hpp>
 
@@ -44,6 +45,14 @@ KindInfo const& kindInfo(std::string const& kind) {
         {"compile-report", {"json", nullptr,      true,  false, true}},
         // T3c: sourced from compileSeqcWithIR()'s introspection sink.
         {"ast-lowered",    {"json", nullptr,      false, true,  true}},
+        // T4a: sourced from the introspection sink's `wavetable`
+        // field; rendered via `WavetableFront::toString()` (text
+        // dump, one block per registered waveform).  JSON variant
+        // is deferred — `WavetableFront::toJson()` doesn't exist
+        // publicly; only the private `WavetableManager<>::toJson()`
+        // does, and reaching it would require another friend grant
+        // outside our single-friend principle on `AWGCompiler`.
+        {"wavetable",      {"txt",  nullptr,      false, true,  true}},
         // Reserved for future sub-phases (T4: text-only IRs).
         {"ast-raw",        {"txt",  nullptr,      false, false, false}},
         {"ast-seqc",       {"seqc", nullptr,      false, false, false}},
@@ -124,12 +133,30 @@ std::string emitAstLoweredJson(IRSinks const& sinks) {
     }
 }
 
+//! Serialise the front-end wavetable as text via
+//! `WavetableFront::toString()` — one block per registered
+//! waveform.  Returns an empty string when the sink doesn't carry
+//! a wavetable (compile failed before one was built) or when the
+//! wavetable has no waveforms (a valid outcome for sequences that
+//! play none, distinguished from "sink empty" only by inspecting
+//! `sink.wavetable` itself; the dump pipeline treats both as
+//! "skip with diagnostic", which is fine for a debug artifact).
+//!
+//! JSON variant deferred — see `kindInfo` table comment.
+std::string emitWavetableText(IRSinks const& sinks) {
+    if (!sinks.wavetable) {
+        return {};
+    }
+    return sinks.wavetable->toString();
+}
+
 }  // namespace
 
 std::vector<std::string> knownDumpKinds() {
-    // Stable order mirrors the pipeline: source → AST → asm → wavetable
-    // → report.  `all` (T6) will iterate this list.
-    return {"ast-lowered", "asm", "waveforms", "wavemem", "compile-report"};
+    // Stable order mirrors the pipeline: source → AST → wavetable
+    // → asm → report.  `all` (T6) will iterate this list.
+    return {"ast-lowered", "wavetable", "asm", "waveforms", "wavemem",
+            "compile-report"};
 }
 
 bool needsIRSinks(std::vector<DumpSpec> const& specs) {
@@ -199,6 +226,8 @@ void emitDumps(std::vector<DumpSpec> const& specs,
     // the sink is empty (e.g. a compile that failed mid-pipeline).
     std::string astLoweredCache;
     bool astLoweredEvaluated = false;
+    std::string wavetableCache;
+    bool wavetableEvaluated = false;
 
     for (DumpSpec const& spec : specs) {
         KindInfo const& info = kindInfo(spec.kind);
@@ -212,9 +241,6 @@ void emitDumps(std::vector<DumpSpec> const& specs,
 
         std::string_view payload;
         if (info.fromIRSinks) {
-            // Currently only `ast-lowered` lives here.  Cache the
-            // serialisation so a (hypothetical) future kind sharing
-            // the same source doesn't re-serialise.
             if (spec.kind == "ast-lowered") {
                 if (!astLoweredEvaluated) {
                     astLoweredCache = emitAstLoweredJson(sinks);
@@ -227,6 +253,19 @@ void emitDumps(std::vector<DumpSpec> const& specs,
                     continue;
                 }
                 payload = astLoweredCache;
+            } else if (spec.kind == "wavetable") {
+                if (!wavetableEvaluated) {
+                    wavetableCache = emitWavetableText(sinks);
+                    wavetableEvaluated = true;
+                }
+                if (wavetableCache.empty()) {
+                    std::cerr << "seqcc: --dump=wavetable: no wavetable "
+                                 "captured (compile failed before "
+                                 "construction, or sequence registered "
+                                 "no waveforms); skipped.\n";
+                    continue;
+                }
+                payload = wavetableCache;
             } else {
                 // Defensive: a future fromIRSinks kind without a
                 // handler.  Skip with a diagnostic rather than
