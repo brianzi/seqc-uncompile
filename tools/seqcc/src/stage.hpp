@@ -36,8 +36,8 @@ struct StageInfo {
     //! today.  False entries are listed by `--print-stages` as
     //! "(unsupported)" and rejected by `--to=` with a clear
     //! diagnostic.  Flipping false→true requires both an emitter
-    //! in `compile.cpp` (or `dump.cpp`) and any necessary recon
-    //! plumbing into `CompileSeqcIntrospection`.
+    //! in `compile.cpp` (or `dump.cpp`) and any necessary capture
+    //! plumbing into `IRSinks` populated by `SeqcDriver`.
     bool supported;
 
     //! Short human-readable description for `--print-stages` and

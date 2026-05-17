@@ -525,8 +525,27 @@ silent drops without depending on subtle ELF-byte differences.
 ## IF-301  Sanctioned recon edit: introspection sink for `compileSeqc()`
 
 **Severity**: process-note (no behavioural bug).
-**Status**: sanctioned exception under AGENTS.md "Tooling vs
-reconstructed code".  Approved by user before edit landed.
+**Status**: **retired (T10a, 2026-05)**.  The introspection scaffold
+(`compileSeqcWithIR()` entry point, `CompileSeqcIntrospection`
+carrier struct, `fillIntrospection()` friend helper, and the three
+private `AWGCompilerImpl::get{LoweredAst,Wavetable,AsmList}()`
+accessors) was deleted once the owned `SeqcDriver` (T5a) became the
+only seqcc compile path.  The driver now captures the same IR
+handles directly via the public `AWGCompiler::compiler() →
+Compiler::{ast(), wavetable(), asmList()}` accessors — two of which
+(`ast()` and `wavetable()`) were added at T10a as a small sanctioned
+recon edit parallel to the existing IF-307 `asmList()` accessor.
+Net surface change is a reduction: one public `AWGCompiler`
+accessor (`compiler()`, IF-307) + three inline `Compiler` getters
+replace one parallel entry point + one carrier struct + one friend
+grant + one helper + three pImpl accessors.  Recon-side
+`compile_seqc.{hpp,cpp}` is back to the original-binary
+single-entry-point footprint.
+
+The historical notes that follow describe the design before T10a
+and are kept for the audit trail.
+
+---
 
 The `seqcc` driver needs access to intermediate IRs (currently the
 lowered AST, with more stages to follow in Phase T) for its `--dump`

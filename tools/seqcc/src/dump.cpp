@@ -91,10 +91,10 @@ void writeFileSv(std::filesystem::path const& path, std::string_view data) {
 //! pybind path would produce for the same input.
 //!
 //! \details T3d: replaces the identity-map workaround (IF-302).
-//! Requires that `CompileSeqcIntrospection::asmList` is
-//! populated; if not, falls back to an empty map so callers can
-//! detect the missing-AsmList case via the `is_long_running`
-//! tag in the dump-spec table.
+//! Requires that `IRSinks::asmList` is populated; if not,
+//! falls back to an empty map so callers can detect the
+//! missing-AsmList case via the `is_long_running` tag in the
+//! dump-spec table.
 std::unordered_map<int,int> buildDenseIdMap(zhinst::AsmList const& list) {
     std::unordered_map<int,int> idMap;
     int nextIdx = 0;
@@ -342,11 +342,10 @@ std::string renderStagePrimary(std::string const& stage,
         // by `SeqcDriver` after `stepInnerCompile`) — that is
         // byte-identical to what the ELF's `.asm` section would carry
         // and is available even when `--to=asm` short-circuited the
-        // back end, so no ELF was produced.  Fall back to the legacy
-        // ELF-extraction path when `assemblerText` is empty (which
-        // happens on the non-owned-driver build, where the driver
-        // does not populate the field).  Empty payload behaviour is
-        // unchanged either way.
+        // back end, so no ELF was produced.  T10a: with the legacy
+        // `compileSeqcWithIR` path retired, the driver always
+        // populates `assemblerText`; the ELF-extraction fallback
+        // below is retained as a defensive safety net only.
         if (!sinks.assemblerText.empty()) {
             return sinks.assemblerText;
         }

@@ -4,15 +4,10 @@
 
 #include "compile.hpp"
 
+#include "driver.hpp"
 #include "dump.hpp"
 #include "ir_sinks.hpp"
 #include "stage.hpp"
-
-#ifdef SEQCC_USE_OWNED_DRIVER
-#  include "driver.hpp"
-#endif
-
-#include "zhinst/codegen/compile_seqc.hpp"
 
 #include <cerrno>
 #include <cstring>
@@ -129,41 +124,24 @@ int runCompile(Options const& opts) {
             return 2;
         }
 
-        // Parse dump specs up-front so we can decide which compile
-        // entry point to use.  Errors here are user-facing and must
-        // fail the run (unlike emission errors, which are logged but
-        // non-fatal once an ELF exists).
+        // Parse dump specs up-front.  Errors here are user-facing and
+        // must fail the run (unlike emission errors, which are logged
+        // but non-fatal once an ELF exists).
         std::vector<DumpSpec> dumpSpecs;
         dumpSpecs.reserve(opts.dumpRequests.size());
         for (auto const& tok : opts.dumpRequests) {
             dumpSpecs.push_back(parseDumpSpec(tok));
         }
-        // The lowered-AST primary output reuses the same sink as
-        // `--dump=ast-lowered`; promote `wantSinks` accordingly so a
-        // bare `-E` (no --dump=) still captures it.
-        bool wantSinks = needsIRSinks(dumpSpecs) || opts.toStage == "lower";
 
-        // Drive compileSeqc() (no IR introspection) or its T3c
-        // variant (compileSeqcWithIR — captures lowered AST and any
-        // future IR handles).  The ELF half is byte-identical
-        // between the two entry points; the variant exists solely
-        // to make IR survive the compiler's destructor scope.
-        //
-        // T5a.2: when `SEQCC_USE_OWNED_DRIVER` is defined at build
-        // time, route through `SeqcDriver::compile()` instead — the
-        // driver owns the outer flow directly and produces an
-        // equivalent `(elf, infoJson, sinks)` triple.  Validation:
-        // `tests/tools/test_seqcc_diff.py` (full ELF byte-equal vs
-        // the pybind path).  Default OFF through T5a.2; T5a.3 flips
-        // the gate ON after the A/B fixture clears.
-        //
-        // `elfStorage` / `infoStorage` back the `string_view`s used
-        // by downstream dump emission; keep them alive in the
-        // enclosing scope.
+        // T10a: the owned `SeqcDriver` is the sole compile path.
+        // The driver always populates `IRSinks` (cheap shared_ptr
+        // copies); `needsIRSinks` is no longer consulted to gate
+        // path selection.  `elfStorage` / `infoStorage` back the
+        // `string_view`s used by downstream dump emission; keep
+        // them alive in the enclosing scope.
         std::string elfStorage;
         std::string infoStorage;
         IRSinks sinks;
-#ifdef SEQCC_USE_OWNED_DRIVER
         {
             SeqcDriver driver(opts);
             DriverResult dr = driver.compile(source, jsonConfig, devoptsStr);
@@ -180,47 +158,6 @@ int runCompile(Options const& opts) {
             infoStorage = std::move(dr.infoJson);
             sinks       = std::move(dr.sinks);
         }
-#else
-        {
-            std::string packed;
-            if (wantSinks) {
-                auto pair = zhinst::compileSeqcWithIR(
-                    jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
-                packed = std::move(pair.first);
-                // T5b.5: IRSinks is now a wrapper that adds
-                // `assemblerText` to the recon-side
-                // `CompileSeqcIntrospection`.  Assign into the base
-                // sub-object explicitly to avoid object slicing.  The
-                // legacy path leaves `assemblerText` empty (its
-                // consumer routes through the produced ELF instead).
-                static_cast<zhinst::CompileSeqcIntrospection&>(sinks) =
-                    std::move(pair.second);
-            } else {
-                packed = zhinst::compileSeqc(
-                    jsonConfig, source, opts.devtype, opts.awgIndex, devoptsStr);
-            }
-
-            // Packed layout matches pybind_seqc.cpp::pyCompileSeqc:
-            // info-JSON, a single NUL, then the ELF bytes.  An absent
-            // NUL means the compiler emitted only an info report
-            // (no ELF) — currently treated as a hard error.
-            auto sep = packed.find('\0');
-            if (sep == std::string::npos) {
-                std::cerr << "seqcc: compileSeqc returned no ELF payload\n"
-                          << "info:  " << packed << '\n';
-                return 1;
-            }
-            infoStorage.assign(packed, 0, sep);
-            elfStorage.assign(packed, sep + 1, std::string::npos);
-            if (elfStorage.empty()) {
-                std::cerr << "seqcc: compileSeqc returned empty ELF payload\n";
-                return 1;
-            }
-        }
-#endif
-        // Suppress unused-warning for `wantSinks` in the owned-driver
-        // build (the driver always populates sinks regardless).
-        (void)wantSinks;
 
         // Re-bind the names downstream code reads.  These are views /
         // refs into the backing storage above and remain valid for

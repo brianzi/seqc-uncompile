@@ -144,17 +144,19 @@ AwgDeviceProps dispatchGetAwgDeviceProps(AwgDeviceType dt, DeviceType const& dev
 //!         followed by the binary ELF image.  The Python binding
 //!         unpacks this into a `(elf_bytes, info_dict)` tuple.
 //
-// T3c refactor: the body is now a `compileSeqcImpl` helper carrying
-// an optional `CompileSeqcIntrospection*` sink.  `compileSeqc()`
-// (the original-binary signature) and the additive
-// `compileSeqcWithIR()` variant are thin wrappers below.  The ELF
-// output is identical regardless of sink presence.
-static std::string compileSeqcImpl(std::string const& jsonConfig,
-                                   std::string sourceCode,
-                                   std::string deviceId,
-                                   unsigned long awgIndex,
-                                   std::string const& options,
-                                   CompileSeqcIntrospection* sink)   // @0xf58a0 (original body)
+// T3c refactor history: between T3c and T10a the body lived in a
+// `compileSeqcImpl` helper carrying an optional
+// `CompileSeqcIntrospection*` sink, with `compileSeqc()` and an
+// additive `compileSeqcWithIR()` as thin wrappers.  T10a retired
+// both the wrapper and the sink (the owned seqcc driver captures
+// IR handles directly via the public `Compiler::{ast(),
+// wavetable(), asmList()}` accessors), restoring the single
+// original-binary entry point below.
+std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
+                        std::string sourceCode,
+                        std::string deviceId,
+                        unsigned long awgIndex,
+                        std::string const& options)
 {
     // --- 1. Parse JSON config ---
     boost::json::value jv;
@@ -347,17 +349,10 @@ static std::string compileSeqcImpl(std::string const& jsonConfig,
         throw Exception(msg);
     }
 
-    // --- T3c/T4: populate optional introspection sink ---
-    // Done before the `compiler` destructor runs (i.e. before this
-    // function returns) so captured `shared_ptr`s survive in the
-    // caller's hands.  Capturing into the sink does not perturb any
-    // ELF-affecting state — it's a pure read of internal members.
-    // Routed through the single `fillIntrospection()` friend so new
-    // IR stages can be added by extending the helper rather than
-    // adding more friend grants on AWGCompiler.
-    if (sink != nullptr) {
-        fillIntrospection(compiler, *sink);
-    }
+    // --- T10a: introspection sink retired alongside the parallel
+    // `compileSeqcWithIR()` entry point.  The seqcc driver now
+    // captures any IR it needs directly via the public
+    // `Compiler::{ast(), wavetable(), asmList()}` accessors.
 
     // Return format: JSON result string + '\0' separator + ELF binary data
     // The binary packs these as: first string = JSON, second = ELF
@@ -371,42 +366,6 @@ static std::string compileSeqcImpl(std::string const& jsonConfig,
     packed.append(elfData);
 
     return packed;
-}
-
-std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
-                        std::string sourceCode,
-                        std::string deviceId,
-                        unsigned long awgIndex,
-                        std::string const& options)
-{
-    return compileSeqcImpl(jsonConfig, std::move(sourceCode),
-                           std::move(deviceId), awgIndex, options,
-                           /*sink=*/nullptr);
-}
-
-// ============================================================================
-// compileSeqcWithIR — additive T3c entry point.
-//
-// Not present in the original binary.  Runs the exact same pipeline
-// as `compileSeqc()` (the two share `compileSeqcImpl`) and
-// additionally returns IR handles that survive the
-// `AWGCompiler`'s destructor scope.
-//
-// The ELF half of the return is byte-identical to `compileSeqc()`
-// for the same inputs — the implementation is shared.
-// ============================================================================
-std::pair<std::string, CompileSeqcIntrospection>
-compileSeqcWithIR(std::string const& jsonConfig,
-                  std::string sourceCode,
-                  std::string deviceId,
-                  unsigned long awgIndex,
-                  std::string const& options)
-{
-    CompileSeqcIntrospection sink;
-    std::string packed = compileSeqcImpl(jsonConfig, std::move(sourceCode),
-                                         std::move(deviceId), awgIndex,
-                                         options, &sink);
-    return std::make_pair(std::move(packed), std::move(sink));
 }
 
 }  // namespace zhinst

@@ -678,6 +678,20 @@ iteration cycle.
   (side-by-side, like `dump_elf.py --both`).
 
 ### T10 — Wrap-up
+- **T10a (landed).**  Retired the `compileSeqcWithIR()` /
+  `CompileSeqcIntrospection` / `fillIntrospection()` introspection
+  scaffold that the early seqcc driver used to capture
+  mid-pipeline IR.  Also retired the parallel `seqcc_owned`
+  CMake target and the `SEQCC_USE_OWNED_DRIVER` option.  The
+  owned `SeqcDriver` is now the only seqcc compile path; it
+  captures IR handles directly via the public
+  `AWGCompiler::compiler() → Compiler::{ast(), wavetable(),
+  asmList()}` accessors.  Recon-side `compile_seqc.{hpp,cpp}` is
+  back to the original-binary single-entry-point footprint.
+  Two new sanctioned recon accessors landed alongside (parallel
+  to the existing `Compiler::asmList()`): `Compiler::ast()` and
+  `Compiler::wavetable()`.  No friend grants on `AWGCompiler` —
+  the public `compiler()` accessor (IF-307) carries everything.
 - Add `reconstructed/notes/tools.md` documenting the driver
   architecture and pass map.
 - Update `OVERVIEW.md` with a toolchain section.

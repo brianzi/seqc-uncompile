@@ -37,7 +37,6 @@ class AWGCompilerConfig;
 class AWGCompilerImpl;
 class CancelCallback;
 class Compiler;  // forward-decl for T6 compiler() accessor; full def in compiler.hpp
-struct CompileSeqcIntrospection;  // for T3c/T4 fillIntrospection friend
 class ProgressCallback;
 
 // ============================================================================
@@ -438,16 +437,15 @@ private:
     //! or propagates `std::bad_alloc` before storing here).
     AWGCompilerImpl* impl_;  // +0x00, sole member
 
-    // T3c/T4: additive friend grant for the seqcc introspection
-    // helper declared in compile_seqc.hpp.  Not present in the
-    // original binary; lets `fillIntrospection()` populate a
-    // `CompileSeqcIntrospection` from `impl_`'s private accessors
-    // without widening AWGCompiler's public API.  All future Phase-T
-    // IR captures route through this single helper rather than
-    // adding more friend grants per stage.
-    friend void
-    fillIntrospection(AWGCompiler const&,
-                      CompileSeqcIntrospection&) noexcept;
+    // T3c/T4 added a friend grant here for a `fillIntrospection()`
+    // helper that the early seqcc driver used to read mid-pipeline
+    // IR out of the pimpl.  T10a retired the helper (and the
+    // `compileSeqcWithIR` / `CompileSeqcIntrospection` carrier)
+    // once the owned `SeqcDriver` started capturing IR directly via
+    // the public `compiler() → Compiler::{ast(), wavetable(),
+    // asmList()}` accessors.  No friend grant lives here today;
+    // `AWGCompiler`'s public surface is back to the original-binary
+    // footprint plus the IF-307 `compiler()` accessor.
 };
 
 }  // namespace zhinst

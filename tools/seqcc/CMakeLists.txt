@@ -34,47 +34,10 @@ set(SEQCC_SOURCES
 
 add_executable(seqcc ${SEQCC_SOURCES})
 
-# T5a: A/B gate for the driver-owned compile flow.  ON by default
-# from T5a.4 onward — `compile.cpp::runCompile()` routes through
-# `SeqcDriver::compile()`, which owns the outer compile flow
-# (config marshalling → AWGCompiler ctor → addWaveforms →
-# compileString → writeToStream → info-JSON pack).  Flip OFF only
-# to bisect a suspected driver regression against the legacy
-# `compileSeqcWithIR` path — both paths must produce byte-identical
-# ELFs, asserted by `tests/tools/test_seqcc_ab.py` on every build.
-#
-# Retires at T10a alongside `compileSeqcWithIR` itself.
-option(SEQCC_USE_OWNED_DRIVER
-       "Route seqcc compiles through SeqcDriver instead of compileSeqcWithIR" ON)
-if(SEQCC_USE_OWNED_DRIVER)
-    target_compile_definitions(seqcc PRIVATE SEQCC_USE_OWNED_DRIVER=1)
-endif()
-
-# T5a.3: A/B target.  `seqcc_owned` always defines
-# `SEQCC_USE_OWNED_DRIVER=1` regardless of the option above, so
-# `tests/tools/test_seqcc_ab.py` can compare `seqcc` (legacy by
-# default) and `seqcc_owned` (driver path) on the same inputs and
-# assert byte-identical ELFs.  Both binaries share the same source
-# list, third-party include path, link list, and warning flags via
-# the helper below — keeping the A/B comparison meaningful even as
-# T5b lands stepwise-API changes that touch the driver TU.
-#
-# Retires alongside `SEQCC_USE_OWNED_DRIVER` at T10a (no more legacy
-# path to compare against).
-add_executable(seqcc_owned ${SEQCC_SOURCES})
-target_include_directories(seqcc_owned PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-)
-target_include_directories(seqcc_owned SYSTEM PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party
-)
-target_compile_options(seqcc_owned PRIVATE
-    -Wall -Wextra -Wpedantic
-)
-target_compile_definitions(seqcc_owned PRIVATE SEQCC_USE_OWNED_DRIVER=1)
-if(TARGET zhinst_seqc)
-    target_link_libraries(seqcc_owned PRIVATE zhinst_seqc ZLIB::ZLIB)
-endif()
+# T10a: `SeqcDriver` is the sole compile path; the legacy
+# `compileSeqcWithIR` route, the `SEQCC_USE_OWNED_DRIVER` CMake
+# option, and the parallel `seqcc_owned` A/B target were all retired
+# together once Phase-T regression evidence was settled.
 
 target_include_directories(seqcc PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party

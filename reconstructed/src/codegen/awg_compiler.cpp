@@ -421,42 +421,14 @@ public:
     //! \param cb  Weak handle; pass an empty `weak_ptr` to detach.
     void setProgressCallback(std::weak_ptr<ProgressCallback> cb);  // @0x103f90
 
-    //! \brief Return the embedded `Compiler`'s lowered AST root.
-    //! \details Tooling accessor added in T3c; no counterpart in the
-    //! original binary.  Wraps the friend-access read of
-    //! `compiler_.ast_`.  Returns an empty `shared_ptr` before the
-    //! first successful compile.
-    std::shared_ptr<Node const> getLoweredAst() const {
-        return compiler_.ast_;
-    }
-
-    //! \brief Return the embedded `Compiler`'s front-end wavetable
-    //!        (registered waveforms + per-waveform IR + name index).
-    //! \details Tooling accessor added in T4a; no counterpart in the
-    //! original binary.  Wraps the friend-access read of
-    //! `compiler_.wavetable_`.  Returns an empty `shared_ptr` when
-    //! the compile failed before constructing the wavetable.
-    std::shared_ptr<WavetableFront const> getWavetable() const {
-        return compiler_.wavetable_;
-    }
-
-    //! \brief Return a snapshot of the embedded `Compiler`'s
-    //!        `AsmList` at compile completion.
-    //! \details Tooling accessor added in T3d; no counterpart in the
-    //! original binary.  Returns a freshly-allocated `shared_ptr`
-    //! holding a *copy* of `compiler_.asmList_` — the on-compiler
-    //! member is owned by-value and would otherwise be destroyed
-    //! when the AWGCompiler unwinds.  The copy is the same
-    //! `AsmList` content that `Node::toJson()`'s id densification
-    //! is computed against, captured *before* the wavetable-aware
-    //! rewrite reshapes the list.  Returns an empty `shared_ptr`
-    //! when the compile failed before producing an AsmList of
-    //! any entries; an AsmList with zero entries still allocates
-    //! and returns a non-empty handle so callers can distinguish
-    //! "no compile" from "compile produced empty list".
-    std::shared_ptr<AsmList const> getAsmList() const {
-        return std::make_shared<AsmList>(compiler_.asmList_);
-    }
+    // T10a: the three legacy tooling accessors —
+    // `getLoweredAst()`, `getWavetable()`, and `getAsmList()` —
+    // were retired together with the `compileSeqcWithIR` /
+    // `CompileSeqcIntrospection` / `fillIntrospection` scaffold.
+    // The owned `SeqcDriver` captures the same fields directly
+    // via the public `AWGCompiler::compiler() → Compiler::{ast(),
+    // wavetable(), asmList()}` accessors on the inner pipeline
+    // driver; no pimpl-side helper is needed any more.
 
     //! \brief Access the inner `Compiler` pipeline driver.
     //!
@@ -2000,22 +1972,14 @@ void AWGCompiler::setProgressCallback(std::weak_ptr<ProgressCallback> cb) {  // 
 }
 
 // ------------------------------------------------------------------
-// Introspection accessor — not present in the original binary.
-// Added in T3c; refactored in T4 to be the single tooling entry
-// point for capturing compiler IR into CompileSeqcIntrospection.
-// Declared in compile_seqc.hpp; friend grant lives in
-// awg_compiler.hpp.  Defined here (rather than in compile_seqc.cpp)
-// because AWGCompilerImpl is only complete in this TU.  Future
-// Phase-T IR captures extend the body of this function plus the
-// CompileSeqcIntrospection struct — no per-stage friend grant is
-// required.
+// T3c/T4 added an `fillIntrospection(AWGCompiler const&,
+// CompileSeqcIntrospection&)` helper here (with a matching friend
+// grant in `awg_compiler.hpp`) that the early seqcc driver used to
+// capture mid-pipeline IR.  T10a retired the helper alongside the
+// `compileSeqcWithIR` / `CompileSeqcIntrospection` carrier — the
+// owned `SeqcDriver` now reads the same fields directly via the
+// public `compiler() → Compiler::{ast(), wavetable(), asmList()}`
+// accessors and no friend-access helper is needed any more.
 // ------------------------------------------------------------------
-void
-fillIntrospection(AWGCompiler const& c,
-                  CompileSeqcIntrospection& out) noexcept {
-    out.loweredAst = c.impl_->getLoweredAst();
-    out.wavetable  = c.impl_->getWavetable();
-    out.asmList    = c.impl_->getAsmList();
-}
 
 }  // namespace zhinst

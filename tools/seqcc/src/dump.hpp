@@ -2,16 +2,17 @@
 // seqcc — `--dump=KIND[:PATH]` registry
 //
 // T3b ships three dump kinds that source their content from the ELF
-// produced by `compileSeqc()` (`asm`, `waveforms`) or from the
-// info-JSON it returns alongside the ELF (`compile-report`).  These
-// require no access to live `AWGCompiler` state and therefore no
-// recon-side edits — see AGENTS.md "Tooling vs reconstructed code".
+// produced by the driver (`asm`, `waveforms`) or from the info-JSON
+// it returns alongside the ELF (`compile-report`).  These require no
+// access to live `AWGCompiler` state and therefore no recon-side
+// edits — see AGENTS.md "Tooling vs reconstructed code".
 //
-// T3c adds `ast-lowered`, sourced from a recon-side
-// `CompileSeqcIntrospection` sink populated by the new additive
-// `compileSeqcWithIR()` entry point.  See the IF entry under
-// reconstructed/notes/incidental_findings.md for the sanctioned
-// recon exception that landed alongside it.
+// T3c added `ast-lowered`, sourced from `IRSinks` populated by
+// `SeqcDriver::compile`.  T4a added `wavetable`, same source.
+// T10a: `IRSinks` is now a standalone driver-side struct (no
+// `CompileSeqcIntrospection` dependency); the driver captures handles
+// directly via the public `AWGCompiler::compiler() →
+// Compiler::{ast(), wavetable(), asmList()}` accessors.
 // =============================================================================
 #pragma once
 
@@ -42,9 +43,11 @@ enum class DumpFormat { Auto, Json, Text };
 std::vector<std::string> knownDumpKinds();
 
 //! Returns true when at least one spec in `specs` needs IR sinks
-//! (currently: `ast-lowered`).  Used by the driver to decide
-//! whether to call `compileSeqcWithIR()` vs the cheaper
-//! `compileSeqc()`.
+//! (currently: `ast-lowered`, `wavetable`).  Historical: pre-T10a
+//! the driver used this to decide between `compileSeqc()` and
+//! `compileSeqcWithIR()`.  Post-T10a sinks are always populated by
+//! the owned driver so this is informational only — kept for
+//! diagnostic / future use.
 bool needsIRSinks(std::vector<DumpSpec> const& specs);
 
 //! Parse one `KIND[:PATH]` token.  Throws `std::invalid_argument`
@@ -70,10 +73,10 @@ std::filesystem::path resolveDumpPath(DumpSpec const& spec,
                                       std::filesystem::path const& outputElf);
 
 //! Emit every requested dump.  Inputs are the ELF bytes (for
-//! section-extracting dumps), the info-JSON returned by
-//! `compileSeqc()` (for `compile-report`), and the optional
-//! `IRSinks` populated by `compileSeqcWithIR()` (for IR-introspection
-//! dumps such as `ast-lowered`).  Throws on I/O errors; callers
+//! section-extracting dumps), the info-JSON returned by the driver
+//! (for `compile-report`), and the `IRSinks` populated by
+//! `SeqcDriver::compile` (for IR-introspection dumps such as
+//! `ast-lowered` / `wavetable`).  Throws on I/O errors; callers
 //! should catch and report.
 void emitDumps(std::vector<DumpSpec> const& specs,
                std::filesystem::path const& dumpDir,
@@ -90,8 +93,9 @@ void emitDumps(std::vector<DumpSpec> const& specs,
 //! Stage semantics:
 //!   - "link"  — returns `elfBytes` verbatim.
 //!   - "lower" — returns the JSON-serialised lowered AST from
-//!               `sinks` (caller must have used `compileSeqcWithIR`).
-//!               Empty string if the sink has no AST.
+//!               `sinks` (always populated by `SeqcDriver`).
+//!               Empty string if the sink has no AST (compile
+//!               failed before `stepLower`).
 //!   - "asm"   — returns the ELF `.asm` section payload.  Empty if
 //!               absent.
 //!

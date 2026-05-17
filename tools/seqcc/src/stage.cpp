@@ -16,8 +16,9 @@ namespace {
 // opt-post → assemble → link.  Only "lower", "asm-pre", "asm", and
 // "link" are reachable from the current driver release:
 //   - "lower" (alias `-E`) pulls the lowered AST out of
-//     `CompileSeqcIntrospection::loweredAst` (T3c plumbing) and
-//     emits it as JSON via the existing `emitAstLoweredJson()`.
+//     `IRSinks::loweredAst` (T3c plumbing, captured directly from
+//     `Compiler::ast()` by the driver since T10a) and emits it as
+//     JSON via the existing `emitAstLoweredJson()`.
 //   - "asm-pre" (T6.2) emits the pre-prefetch AsmList via
 //     `AsmList::serialize()` — the binary's natural round-trip cut
 //     point (after `stepOptPre`, before `stepPrefetch`).  This is

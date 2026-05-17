@@ -781,6 +781,33 @@ public:
     //!        accessor.
     AsmList const& asmList() const { return asmList_; }
 
+    //! \brief Read-only access to `ast_` (lowered SeqC AST root).
+    //!        Used by the seqcc driver's `--dump=ast-lowered` /
+    //!        `--to=lower` path to capture the AST without going
+    //!        through a separate introspection helper.  No
+    //!        counterpart in the original binary; pure tooling
+    //!        accessor — parallel to `asmList()` / `wavetable()`.
+    //!        Empty `shared_ptr` before `stepLower` has run.
+    //!
+    //! \details Landed at T10a alongside the retirement of the
+    //! `compileSeqcWithIR` / `CompileSeqcIntrospection` /
+    //! `fillIntrospection` introspection machinery, which used a
+    //! `friend` grant on `AWGCompiler` plus three private pImpl
+    //! accessors to reach the same field.  This public accessor
+    //! collapses that scaffold into a single inline getter.
+    std::shared_ptr<Node const> ast() const { return ast_; }
+
+    //! \brief Read-only access to `wavetable_` (front-end
+    //!        wavetable: registered waveforms + per-waveform IR +
+    //!        name index).  Used by the seqcc driver's
+    //!        `--dump=wavetable` path.  No counterpart in the
+    //!        original binary; pure tooling accessor — parallel to
+    //!        `asmList()` / `ast()`.  Always non-null after the
+    //!        `Compiler` constructor has run (the wavetable is
+    //!        constructed by the enclosing `AWGCompilerImpl` and
+    //!        shared in by `shared_ptr` copy).
+    std::shared_ptr<WavetableFront const> wavetable() const { return wavetable_; }
+
 private:
     //! \brief Owning compilation's configuration (sequencer
     //!        index, debug flags, sample rate); captured by raw

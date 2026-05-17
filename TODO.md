@@ -683,22 +683,26 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       deferred work as new TODO items under Phase T or follow-up
       phases.
 
-  - [ ] **T10a — Retire `compileSeqcWithIR`.**  Once T5a/T5b/T6
-        are landed and `SeqcDriver` is the default seqcc path,
-        delete `compileSeqcWithIR()` and `CompileSeqcIntrospection`
+  - [x] **T10a — Retire `compileSeqcWithIR`.**  Landed 2026-05.
+        Deleted `compileSeqcWithIR()` + `CompileSeqcIntrospection`
         from `reconstructed/include/zhinst/codegen/compile_seqc.{hpp,
-        cpp}`; delete `fillIntrospection` and the friend grant on
-        `AWGCompiler`; delete the private
-        `AWGCompilerImpl::getLoweredAst/getWavetable/getAsmList`
-        accessors and the `asmList`/`loweredAst`/`wavetable` fields
-        on the introspection struct.  Driver-side: delete
-        `tools/seqcc/src/ir_sinks.hpp` and re-source every dump
-        artefact from the driver's own captured state (which is
-        strictly richer post-T5b).  Remove the
-        `SEQCC_USE_OWNED_DRIVER` CMake option (owned driver is the
-        only path).  Pybind's `compileSeqc()` keeps its current
-        shape unchanged.  Single retirement commit; full regression
-        sweep must stay clean.
+        cpp}`; deleted `fillIntrospection()` and the matching
+        friend grant on `AWGCompiler`; deleted the three private
+        `AWGCompilerImpl::get{LoweredAst,Wavetable,AsmList}()`
+        accessors.  Driver-side: `tools/seqcc/src/ir_sinks.hpp` is
+        now a standalone struct (no recon-header dependency) with
+        its own owning fields; `SeqcDriver::compile()` populates
+        them directly via `AWGCompiler::compiler() →
+        Compiler::{ast(), wavetable(), asmList()}` (IF-307 +
+        T10a-added `ast()` / `wavetable()` accessors parallel to
+        the existing T6.1 `asmList()` accessor).  Removed the
+        `SEQCC_USE_OWNED_DRIVER` CMake option, the `seqcc_owned`
+        A/B target, and `tests/tools/test_seqcc_ab.py`.  Pybind's
+        `compileSeqc()` keeps its current shape unchanged.  Driver
+        version bumped to `0.11.0-T10a`.  Verified: diff_test_fast
+        1612/1612, test_seqcc_smoke 4/4, test_seqcc_diff 46/46,
+        test_seqcc_to 4/4, test_seqdump 16/16.  Closes IF-301
+        (introspection scaffold retired).
 
 ### Deferred / out-of-scope
 

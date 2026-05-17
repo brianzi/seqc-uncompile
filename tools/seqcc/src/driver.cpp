@@ -50,9 +50,9 @@
 
 #include "driver.hpp"
 
+#include "zhinst/asm/asm_list.hpp"
 #include "zhinst/codegen/awg_compiler.hpp"
 #include "zhinst/codegen/awg_compiler_config.hpp"
-#include "zhinst/codegen/compile_seqc.hpp"
 #include "zhinst/codegen/compiler.hpp"
 #include "zhinst/core/exception.hpp"
 #include "zhinst/device/awg_device_props.hpp"
@@ -335,36 +335,38 @@ DriverResult SeqcDriver::compile(std::string const& source,
         throw zhinst::Exception(msg);
     }
 
-    // ---- 13. Populate IR sinks (L350-360). ----
+    // ---- 13. Populate IR sinks. ----
     //
     // The driver always captures sinks (cheap shared_ptr copies that
     // outlive `compiler` because we move the result out below).  The
-    // legacy `compile.cpp` path conditionally chose
+    // pre-T10a `compile.cpp` path conditionally chose
     // `compileSeqc()` vs `compileSeqcWithIR()` based on whether any
     // consumer needed the IR; this driver elides that branching since
     // the cost of always populating sinks is negligible and it
     // simplifies the T5b stepwise API.
     //
-    // T5b.5: `IRSinks` now derives from `CompileSeqcIntrospection`;
-    // pass the base sub-object to the legacy fill helper, then
-    // populate the driver-only `assemblerText` field on top.  The
-    // assembler text is always cached here (whether we ran the back
-    // end or not) so `--to=asm` can read it from sinks without going
-    // through the ELF.
+    // T10a: captured directly via the public `compiler() →
+    // Compiler::{ast(), wavetable(), asmList()}` accessors, replacing
+    // the pre-T10a `fillIntrospection()` friend helper and the
+    // `CompileSeqcIntrospection` carrier struct.  The `asmList()`
+    // accessor returns a const ref to the on-`Compiler` member —
+    // copy it into a fresh `shared_ptr` so the snapshot survives the
+    // `AWGCompiler` destructor.  `ast()` / `wavetable()` already
+    // return `shared_ptr` to the same recon-side objects.
     //
-    // T6.2: skip `fillIntrospection` + `assemblerText` capture on
-    // the `--to=asm-pre` path.  That path stops after the inner
-    // `stepOptPre`, before `stepPrefetch` / `stepOptPost` /
-    // `stepProject`, so the AWGCompiler-side state that
-    // `fillIntrospection` reads (`compileString_asmList_`,
-    // `wavetableIR_`, `assemblerText_`) is empty or partial and
-    // would either crash on null derefs or surface misleading
-    // half-populated fields.  The `asm-pre` dump path consumes only
-    // `sinks.preprefetchAsmText`, which was populated above.
+    // T6.2: skip the IR capture on the `--to=asm-pre` path.  That
+    // path stops after the inner `stepOptPre`, before
+    // `stepPrefetch` / `stepOptPost` / `stepProject`, so the
+    // AWGCompiler-side state (`compileString_asmList_`,
+    // `wavetableIR_`, `assemblerText_`) is empty or partial and the
+    // `asm-pre` dump path consumes only `sinks.preprefetchAsmText`,
+    // which was populated above.
     if (!isAsmPre) {
-        zhinst::fillIntrospection(
-            compiler,
-            static_cast<zhinst::CompileSeqcIntrospection&>(result.sinks));
+        zhinst::Compiler const& innerCompiler = compiler.compiler();
+        result.sinks.loweredAst = innerCompiler.ast();
+        result.sinks.wavetable  = innerCompiler.wavetable();
+        result.sinks.asmList    =
+            std::make_shared<zhinst::AsmList>(innerCompiler.asmList());
         result.sinks.assemblerText = compiler.assemblerText();
     }
 
