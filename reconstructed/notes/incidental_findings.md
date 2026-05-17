@@ -1750,3 +1750,139 @@ so this is a low-risk rename.
 
 - `special_registers.md` §8 — correct documentation of `0x5F`.
 - IF-228 — earlier suser-address audit.
+
+## IF-313  `ErrorMessageT` cluster A: slots 12/13/15 three-cycle rotation
+
+**Severity:** medium (silent mis-labelling; binary semantics preserved).
+**Status:** fixed (Phase D7-C.1bis sub-batches 1-3, commit 8a83a2e).
+
+**Discovered:** during D7-C.1bis enum/template realignment audit.
+
+### Problem
+
+In the pre-D7-C.1bis reconstructed `ErrorMessageT` enum, the names at
+slots 12, 13, 15 did not match the string templates the binary's
+`ErrorMessages::messages` initializer assigns to those slots.  The
+mis-naming was a value-preserving three-cycle:
+
+| slot | pre-D7-C.1bis name      | template text (binary)              | post-rotation name   |
+|-----:|--------------------------|--------------------------------------|----------------------|
+|   12 | `ArrayIndexOutOfRange`  | "program is too large to fit..."     | `ProgramTooLarge`    |
+|   13 | `ProgramTooLarge`       | "array operand must be a single wave"| `ArraysOnlyWave`     |
+|   15 | `ArraysOnlyWave`        | "array index out of range"           | `ArrayIndexOutOfRange` |
+
+### Resolution
+
+Rotated the three names in `error_messages.hpp` so each enumerator now
+sits at the slot whose template it actually describes.  Symbolic
+call-site grep flagged 2 hits in `awg_compiler.cpp` and 2 in
+`seqc_ast_eval_control.cpp`; context inspection confirmed each call's
+intent matches the post-rotation name (e.g. `control.cpp:548,619` were
+under comments referencing slot indices `0xd`/`0xf` — the rotated
+names match those slots).
+
+### Cross-references
+
+- `error_message_audit.md` cluster A.
+- IF-315 — same pattern at slots 30/31/32 (`ModifyConst` cluster), the
+  one where stale resources.cpp prose was discovered.
+
+## IF-314  `ErrorMessageT` cluster C: slots 39/40/42 three-cycle rotation
+
+**Severity:** medium.
+**Status:** fixed (Phase D7-C.1bis sub-batches 1-3, commit 8a83a2e).
+
+**Discovered:** during D7-C.1bis enum/template realignment audit;
+originally surfaced as `unknowns.md#92`'s sibling concern about slot 32
+mis-naming (see IF-315).
+
+### Problem
+
+Value-preserving three-cycle in the pre-D7-C.1bis enum:
+
+| slot | pre-D7-C.1bis name        | template text                              | post-rotation name      |
+|-----:|----------------------------|---------------------------------------------|-------------------------|
+|   39 | `CantDivConstByWave`      | "%1% expects a var or const argument"       | `ExpectsVarOrConst`     |
+|   40 | `ExpectsVarOrConst`       | "invalid device number..."                  | `InvalidDeviceNr`       |
+|   42 | `InvalidDeviceNr`         | "can't divide a const by a wave"            | `CantDivConstByWave`    |
+
+### Resolution
+
+Rotated names; verified the 16 symbolic call sites for `ExpectsVarOrConst`
+all sit in `expects-a-var-or-const` argument-validation paths
+(`seqc_ast_eval_control.cpp`, `seqc_ast_eval_arithmetic.cpp`).  Single
+call site for `CantDivConstByWave` is in `seqc_ast_eval_arithmetic.cpp`
+inside the divide-by-wave operand branch.
+
+### Cross-references
+
+- `error_message_audit.md` cluster C.
+
+## IF-315  `ErrorMessageT` cluster B: slots 30/31/32 three-cycle rotation (closes `resources.cpp` open comment)
+
+**Severity:** medium (had triggered an explicit `static_cast<ErrorMessageT>(32)`
+workaround in `resources.cpp` with a "halt!" comment from a prior agent).
+**Status:** fixed (Phase D7-C.1bis sub-batches 1-3 commit 8a83a2e for the
+enum rotation; sub-batch 5 commit 4b18daa for the call-site rename;
+sub-batch 6 for the stale prose at `resources.cpp:1269-1276,1549-1553,1585-1587`).
+
+**Discovered:** during D7-C.1bis enum/template realignment audit;
+the divergence at slot 32 had been independently flagged by a prior
+agent in `resources.cpp:1269-1276` ("Either the slot name in the
+reconstructed enum is wrong, or the message file just happens to
+reuse this slot. To stay faithful to the binary we cast to slot 32
+directly with a cast.").
+
+### Problem
+
+Value-preserving three-cycle in the pre-D7-C.1bis enum:
+
+| slot | pre-D7-C.1bis name           | template text                                  | post-rotation name        |
+|-----:|-------------------------------|-------------------------------------------------|---------------------------|
+|   30 | `ModifyConst`                | "could not compress sections in output file..." | `CompressError`           |
+|   31 | `CompressError`              | "conditional expression expects a var..."       | `ConditionalNeedVarConst` |
+|   32 | `ConditionalNeedVarConst`    | "tried to modify const value"                   | `ModifyConst`             |
+
+### Resolution
+
+Rotated names.  `resources.cpp:1589` now reads `errMsg[ModifyConst]`
+instead of `errMsg[static_cast<ErrorMessageT>(32)]`.  The three stale
+prose blocks at `:1269-1276`, `:1549-1553`, `:1585-1587` that
+explained the mis-naming and the workaround were rewritten to reflect
+the resolved state (they now reference IF-315 instead of the
+ambiguous `unknowns.md item #92`).
+
+### Cross-references
+
+- `error_message_audit.md` cluster B.
+- `resources.cpp:1269-1276,1549-1553,1585-1587` — stale prose
+  rewritten in same sub-batch.
+
+## IF-316  `ErrorMessageT` cluster D: slots 250/251/252 three-cycle rotation
+
+**Severity:** medium.
+**Status:** fixed (Phase D7-C.1bis sub-batches 1-3, commit 8a83a2e).
+
+**Discovered:** during D7-C.1bis enum/template realignment audit.
+
+### Problem
+
+Value-preserving three-cycle in the pre-D7-C.1bis enum:
+
+| slot | pre-D7-C.1bis name           | template text                              | post-rotation name      |
+|-----:|-------------------------------|---------------------------------------------|-------------------------|
+|  250 | `WaveNameInUse`              | "waveform index exceeds wavetable size"     | `WaveIndexExceedsTable` |
+|  251 | `WaveIndexExceedsTable`      | "invalid waveform name '%1%'"               | `InvalidWaveformName`   |
+|  252 | `InvalidWaveformName`        | "waveform name '%1%' is already in use"     | `WaveNameInUse`         |
+
+### Resolution
+
+Rotated names; one symbolic call site (`dio.cpp:376`) for what is now
+`InvalidWaveformName` (slot 251 / 0xFB) was inspected — the surrounding
+code does invalid-waveform-name validation, so post-rotation name fits.
+The site for `WaveIndexExceedsTable` is in `wave_index_tracker.cpp` next
+to the `WaveIndexUsed` sibling slot, both wavetable-index validators.
+
+### Cross-references
+
+- `error_message_audit.md` cluster D.

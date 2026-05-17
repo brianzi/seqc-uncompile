@@ -1267,13 +1267,11 @@ void Resources::addCvar(std::string const& name, VarSubType st)  // @0x1e8650
 //                                  re-bound through the update path.
 //
 //   * The forced-reassignment guard in updateConst (`!force && (flags low
-//     byte != 0)`) throws a no-args message at index 0x20 (=32) in errMsg.
-//     The reconstructed ErrorMessageT enum names slot 32 as
-//     `ConditionalNeedVarConst`, but the binary's actual string at index
-//     32 is the "can't modify const" message. Either the slot name in the
-//     reconstructed enum is wrong, or the message file just happens to
-//     reuse this slot. To stay faithful to the binary we cast to slot 32
-//     directly with a cast. See unknowns.md item #92.
+//     byte != 0)`) throws a no-args message at index 0x20 (=32) in errMsg,
+//     now named `ErrorMessageT::ModifyConst`. (Prior to IF-315 this slot
+//     was misnamed `ConditionalNeedVarConst` in the reconstructed enum,
+//     forcing a bare-int cast here; the rotation in Phase D7-C.1bis fixed
+//     the naming and this site now uses the named enumerator.)
 //
 //   * The dependency guard `variableDependsOnVar(name)` throws
 //     `CantModifyVarInRepeat` (=228=0xe4). This makes sense: in a repeat
@@ -1546,11 +1544,9 @@ void Resources::updateWave(std::string const& name,
 //      str(VarType_Const) and str(v->type).
 //   3. variableDependsOnVar(name) → CantModifyVarInRepeat (0xe4 at
 //      1e7b5f) with str(VarType_Const).
-//   4. if (!force && [v+0x50] != 0) → throw errMsg[32] (no args, fetched
-//      directly via the global errMsg singleton's operator[]). Slot 32
-//      in the binary is the "can't modify const" message; the
-//      reconstructed enum labels slot 32 as `ConditionalNeedVarConst`
-//      — see unknowns.md item for details.
+//   4. if (!force && [v+0x50] != 0) → throw errMsg[ModifyConst] (slot 32,
+//      no args, fetched directly via the global errMsg singleton's
+//      operator[]).
 //   5. if ([v+0x51] != 0) skip the value write (frozen, jump to mark-
 //      written at 1e7a7d).
 //   6. v->value.type_ = ValueType::Double (Numeric tag at 1e7a40).
@@ -1582,9 +1578,6 @@ void Resources::updateConst(std::string const& name,
     }
     if (!force &&
         (v->flags & 0xFF) != 0) {
-        // No-args message at slot 32. The enum name for slot 32
-        // (`ConditionalNeedVarConst`) may not match the binary's actual
-        // string here; see unknowns.md item #92.
         throw ResourcesException(
             errMsg[ModifyConst]);
     }
