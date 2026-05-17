@@ -233,11 +233,17 @@ path and the ELF inspector respectively.
 | `seqdump` | ELF inspector.  Decodes every section documented under [ELF output](#elf-output). |
 
 The toolchain is **newly-written** tooling — it drives only existing
-public reconstructed APIs and never reimplements compiler logic.  The
-topic-organised cross-reference entry point is \ref notes_tools; the
-authoritative deep-dive (CLI surface, stage table with binary
-addresses, source layout, design rationale, deferred work) lives in
-`tools/seqcc/DESIGN.md` under the source tree.
+public reconstructed APIs and never reimplements compiler logic.
+Documentation is split across four pages:
+
+- \ref notes_tools — overview and quick start (hub page).
+- \ref notes_tools_user_guide — user-facing CLI reference (man-page style).
+- \ref notes_tools_design — design rationale and internal architecture.
+- \ref notes_tools_testing — test harness and CI gates.
+
+The authoritative upstream design document is `tools/seqcc/DESIGN.md`
+under the source tree; the pages above are the user-facing
+distillation.
 
 ## Reverse-engineering reference {#re-reference}
 

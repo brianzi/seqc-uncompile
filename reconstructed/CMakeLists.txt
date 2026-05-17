@@ -305,8 +305,12 @@ if(DOXYGEN_FOUND)
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/libcpp_abi.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/optimization_passes.md"
         # Phase T — toolchain reference (not RE material; documents
-        # newly-written seqcc/seqas/seqdump driver).
+        # newly-written seqcc/seqas/seqdump driver).  tools.md is the
+        # hub page; the three companion pages are reached via \subpage.
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools_user_guide.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools_design.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools_testing.md"
     )
     string(REPLACE ";" " " DOXYGEN_NOTES_PAGES_STR "${DOXYGEN_NOTES_PAGES}")
     set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md ${DOXYGEN_NOTES_PAGES_STR}")
