@@ -2537,30 +2537,49 @@ runtime cast and was left alone.
 ## IF-319 — `DeviceTypeCode(33)` / `DeviceFamily(0x800u)` "unknown" sentinels
 
 **Severity:** suspicious
-**Status:** open
+**Status:** fixed
 
-`device/device_unknown.cpp` and the `DeviceTypeImpl` default
-construction in `device_type.cpp` construct sentinel values for
-"unknown device":
+`device/device_unknown.cpp` and the parse-miss branches of
+`toDeviceTypeCode()` / `toDeviceFamily()` returned non-zero
+out-of-range sentinels as raw `static_cast` literals:
 
-- `DeviceTypeCode::Unknown = 0` is the documented sentinel.
-- `DeviceFamily::Unknown = 0` is the documented sentinel.
+- `DeviceTypeCode(33)` — one past the last valid enumerator
+  (`VHFLI = 32`).
+- `DeviceFamily(0x800u)` — one bit past the last valid family
+  (`VHF = 0x400`).
 
-However, two non-zero literals appear elsewhere in the device
-subsystem and are claimed by the original audit (§5 D3) to be
-out-of-range sentinels:
+Both are distinct in intent from the in-enum `Unknown = 0`
+sentinels: `Unknown` is "no family was ever set" (the default-ctor
+state); the out-of-range values are "a name was looked up and not
+found" (parse miss).  The `expand(DeviceFamily)` function in
+`device_type.cpp` also uses `0x800` as a defensive saturation
+marker if a caller hands it a family value with bit 0x800 (or
+higher) set.
 
-- `DeviceTypeCode(33)` — needs site re-confirmation; not found in
-  current `device_type.cpp` or `device_unknown.cpp`.  May have been
-  removed during reconstruction or was mis-classified.
-- `DeviceFamily(0x800u)` — same.
+**Resolution** (commit pending after this entry):
+1. Added two namespace-scope `inline constexpr` sentinels in
+   `include/zhinst/device/device_type.hpp`:
+   - `DeviceTypeCode_ParseMiss` = `DeviceTypeCode(33)`
+   - `DeviceFamily_ParseMiss`  = `DeviceFamily(0x800u)`
+   Declared as `constexpr` rather than as enum values so that
+   `switch` statements over the valid range remain closed at 0..32
+   / bits 0..10 without needing to spell out a sentinel they
+   should never see.
+2. Swept the four call sites:
+   - `device_type.cpp:403`  `expand()` saturation push.
+   - `device_type.cpp:651`  `toDeviceTypeCode()` parse-miss return.
+   - `device_type.cpp:968`  `toDeviceFamily()` parse-miss return.
+   - `device_type.cpp:974`  `toDeviceFamily()` parse-miss return.
+   - `device_unknown.cpp:40-41`  `UnknownDevice` ctor.
 
-**Action:** rescan the `device/` subsystem for these literals.
-If they're gone, dismiss this IF; if present, GDB-confirm whether
-they represent (a) "outside the valid range" markers vs (b)
-a missing enumerator that should be added to the enum.
+   `device_type.cpp:1005` (`makeDevicesSet`) is **not** swept: it
+   converts a loop counter `i = 0..32` into `DeviceTypeCode` and is
+   not a sentinel use.
 
-**Files** (claimed; needs verification)
+**Verified:** build clean; 1613/1613 difftests; 70/70 pytest.
+
+**Files**
+- `reconstructed/include/zhinst/device/device_type.hpp`
 - `reconstructed/src/device/device_type.cpp`
 - `reconstructed/src/device/device_unknown.cpp`
 

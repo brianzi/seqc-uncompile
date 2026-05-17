@@ -37,8 +37,8 @@ namespace detail {
 // three writes plus the redundant base-vtable set that gets
 // immediately overridden by the derived vtable).
 UnknownDevice::UnknownDevice()
-    : DeviceTypeImpl(static_cast<DeviceTypeCode>(33),
-                     static_cast<DeviceFamily>(0x800)) {}
+    : DeviceTypeImpl(DeviceTypeCode_ParseMiss,
+                     DeviceFamily_ParseMiss) {}
 
 UnknownDevice::~UnknownDevice() = default;
 

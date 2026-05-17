@@ -400,7 +400,7 @@ std::vector<DeviceFamily> expand(DeviceFamily family) {
     for (uint32_t bit = 1; bit < f; bit <<= 1) {
         if (bit == 0x800u) {
             // Defensive saturation: see header comment above.
-            out.push_back(static_cast<DeviceFamily>(0x800u));
+            out.push_back(DeviceFamily_ParseMiss);
             break;
         }
         if ((bit & f) != 0) {
@@ -648,7 +648,7 @@ DeviceTypeCode toDeviceTypeCode(std::string const& s) {
         return it->second;
     }
     // Not found: return out-of-range "unknown" sentinel (33).
-    return static_cast<DeviceTypeCode>(33);
+    return DeviceTypeCode_ParseMiss;
 }
 
 // ============================================================================
@@ -965,13 +965,13 @@ DeviceFamily toDeviceFamily(std::string const& s) {
 
     auto it = familyNames.upper_bound(s);
     if (it == familyNames.begin()) {
-        return static_cast<DeviceFamily>(0x800u);  // miss sentinel
+        return DeviceFamily_ParseMiss;
     }
     --it;
     if (boost::algorithm::starts_with(s, it->first)) {
         return it->second;
     }
-    return static_cast<DeviceFamily>(0x800u);  // miss sentinel
+    return DeviceFamily_ParseMiss;
 }
 
 // ============================================================================

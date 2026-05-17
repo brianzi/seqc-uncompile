@@ -63,6 +63,19 @@ enum class DeviceFamily : uint32_t {
     VHF     = 0x400,
 };
 
+//! \brief Sentinel returned by `toDeviceFamily()` on parse miss.
+//!
+//! \details Numerically `0x800`, one bit past the last valid family
+//! (`VHF = 0x400`).  Distinct from `DeviceFamily::Unknown` (= 0):
+//! `Unknown` is the "no family was ever set" default; `_ParseMiss` is
+//! "a name was looked up and not found".  Declared as a `constexpr
+//! DeviceFamily` at namespace scope rather than added to the enum so
+//! that bitwise-mask uses of the family values (e.g.
+//! `DeviceType::belongsTo()`) remain closed at bits 0..10.
+//! `toString(DeviceFamily_ParseMiss)` renders as `"unknown"`.
+inline constexpr DeviceFamily DeviceFamily_ParseMiss =
+    static_cast<DeviceFamily>(0x800u);
+
 // ============================================================================
 // enum class DeviceTypeCode : uint32_t  (plain 0..32)
 //
@@ -115,6 +128,18 @@ enum class DeviceTypeCode : uint32_t {
     VHF     = 31,
     VHFLI   = 32,
 };
+
+//! \brief Sentinel returned by `toDeviceTypeCode()` on parse miss.
+//!
+//! \details Numerically `33`, one past the last valid enumerator
+//! (`VHFLI = 32`).  Not an enum value (would force `switch` cases
+//! to spell out a sentinel they should never see); declared as a
+//! `constexpr DeviceTypeCode` at namespace scope so the parse-miss
+//! branch and the `DeviceTypeImpl` "unknown" constructor can return
+//! a distinct, named value while leaving the enum closed at 0..32.
+//! `toString(DeviceTypeCode_ParseMiss)` renders as `"unknown"`.
+inline constexpr DeviceTypeCode DeviceTypeCode_ParseMiss =
+    static_cast<DeviceTypeCode>(33);
 
 // ============================================================================
 // enum class DeviceOption : uint32_t
