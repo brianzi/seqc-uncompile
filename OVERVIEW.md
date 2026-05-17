@@ -2289,7 +2289,89 @@ material in `reconstructed/notes/` source files only.
   Tests at close: 1603/1603 main + 1626/1626 harness (no code
   edits in this phase).
 
-- **D7-B (content cleanup & authoring).**  Open.  Six batches:
-  toolchain banner cleanup, ELF output, target architecture,
-  runtime / language, pipeline core, pipeline new internals.
-  See `TODO.md :: Phase D7-B`.
+- **D7-B (content cleanup & authoring).**  Closed 2026-05-17.
+  Six batches landed in order:
+
+  - **B.1 — Toolchain banner cleanup** (commit `4c3e6ed`).
+    Stripped the address column and the IF-300..309 log table
+    from `tools_design.md`; added the `\note **WIP**` banner
+    declaring the page tooling-owned.
+
+  - **B.2 — ELF Output cleanup** (commit `7806011`).
+    `elf_format.md` lost three address citations and its RE
+    banner.  `elf_reader.md` was rewritten down to the
+    `.linenr` format reference and the reader API; previous
+    reconstruction archaeology dropped.
+
+  - **B.3 — Target Architecture** (commit `5c3af40` + follow-ups
+    `a26a5da`).  Banner stripped on all six §1 pages.
+    `opcode_encoding.md` lead-in rewritten; offset tables and
+    error-ID table dropped.  `fb_instruction.md` Source-Locations
+    appendix removed.  `cervino_vs_hirzel.md` selection-bitmask
+    aside and numeric `AwgDeviceType` column dropped.
+    `awg_device_props.md` rewritten end-to-end as a per-device
+    property table.  Follow-up f1: `special_registers.md`
+    audited against `src/asm/asm_commands*.cpp` and
+    `core/types.hpp`; added `0x14` (slow commit) and `0x18`
+    (frequency commit) entries; added See-also block and naming
+    caveat for the misnamed `kSuserUserRegBase=0x5F` (logged as
+    IF-312).  Follow-up f2: `\ref notes_custom_functions`
+    crosslinks added to `cervino_vs_hirzel.md`, `opcode_encoding.md`,
+    `device_constants.md`, and `opcode_map.md`.  Follow-up f3:
+    `architecture.md` §1 ISA prose expanded to three paragraphs
+    (32-bit word, R0..R15 with hard-zero R0, memory-mapped
+    state via ld/st/luser/suser, `fb` instruction, Cervino /
+    Hirzel split).  Follow-up f4: decision not to promote
+    `device_type.md` (Class B working note); `awg_device_props.md`
+    covers the user-facing needs.
+
+  - **B.4 — Runtime & SeqC Language** (commit `974b81b`).
+    Authored `custom_functions.md` from scratch covering the 76
+    unique built-ins (plus 5 aliases) registered by
+    `CustomFunctions::CustomFunctions()`, grouped across the
+    five `custom_functions_*.cpp` files.  Trimmed
+    `seqc_parser_grammar.md`.  Reduced `logging_tracing.md` to a
+    short summary plus the public API surface.  Rewrote
+    `device_constants.md` as a per-device limits table covering
+    waveform memory, length limits, sequencer / clock,
+    feature flags, identical constants, accessors, and the
+    unsupported-device throw.
+
+  - **B.5 — Compiler Pipeline core** (commit `9efdf0f`).
+    Rewrote `pipeline.md` as a 12-step walkthrough with
+    cross-references.  Rewrote `node_tree_structure.md` as the
+    link-semantics + mutating-API reference (ASCII diagram kept;
+    addresses / offsets dropped).  Reframed
+    `waveform_generator_funcmap.md` as the DSL catalogue (33
+    generators grouped by topic, deprecated-alias table,
+    internal-only methods table).
+
+  - **B.6 — Compiler Pipeline new internals** (commit `c0ffacd`).
+    `frontend_lowering.md` wholesale rewrite from 833-line
+    reconstruction log to user-facing reference covering
+    `FrontEndLoweringFacade::lower`, the read-only
+    `FrontendLoweringContext`, the mutable
+    `FrontendLoweringState`, the universal `EvalResults` return
+    type, the polymorphic `SeqCAstNode::evaluate` dispatch
+    model, control-flow state, `CustomFunctions` dispatch, and
+    back-end outputs.  `prefetch_scheduling.md` stub replaced
+    with the three prefetcher phases, the cache model,
+    cache-line crossing, `cwvfConfig_` tracking, and outputs
+    consumed by the rest of the compiler.  `play_config.md`
+    authored from scratch covering fields, JSON serialisation,
+    the 32-bit CWVF encoded-word bit layout, `hold` / `dummy`
+    entanglement, and `operator!=` asymmetry.
+    `magic_numbers_proposal.md` trimmed to gap-tracker tables
+    (Declaration / Usage bullets and source-line citations
+    dropped; suser table loses Source-locations column).
+    `asm_parser_grammar.md` trimmed (Binary Addresses section,
+    bison / flex table forensics, parse-table verification
+    trace, and parse-table parity section dropped).
+    `optimization_passes.md` trimmed (parenthetical addresses
+    dropped from headings; standalone Register-field-semantics
+    and Algorithm-reconstructions appendix sections deleted).
+    Build clean at the 12-warning baseline throughout; final
+    coverage 96.9%.
+
+  Tests at close of D7-B: 1600/1600 (no source code edits in
+  D7-B; documentation-only changes).

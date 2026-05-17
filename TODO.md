@@ -88,69 +88,60 @@ Plan file: `.opencode/plans/1779007408145-misty-panda.md`.
 - [x] **A.5** Build the docs (`cmake --build . --target docs` from
       `reconstructed/build/`).  Warning log unchanged from prior
       state; all `\subpage` / `\ref` links resolve.  Coverage 94.6%.
-- [ ] **A.6** Commit + sub-phase wrap-up.
+- [x] **A.6** Commit + sub-phase wrap-up.
 
 ### Phase D7-B — Per-page content cleanup & authoring (six batches)
 
-Each batch ends with a build, warnings triage, and commit.
+All six batches closed 2026-05-17.  Per-batch summaries are recorded
+in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
 
-- [ ] **B.1 — §6 Toolchain banner cleanup.**  Drop the
-      "reconstruction reference material" banner from `tools.md` /
-      `tools_user_guide.md` / `tools_design.md` / `tools_testing.md`.
-      Drop the binary-address column and the IF-300..309 sanctioned-
-      edit log from `tools_design.md`.  Tool page *contents* remain
-      WIP-owned independently.
+- [x] **B.1 — §6 Toolchain banner cleanup.**  Commit `4c3e6ed`.
+      Banner cleanup on the four tool pages; binary-address column
+      and IF-300..309 sanctioned-edit log removed from
+      `tools_design.md`.  Tool page *contents* remain WIP-owned
+      independently.
 
-- [ ] **B.2 — §5 ELF Output.**  Strip address citations in
-      `elf_format.md`.  Trim `elf_reader.md` to `.linenr` + reader
-      API only — drop layout offsets and exception-class forensics.
-      Optionally fold a single paragraph from the archived
-      `write_waves_to_elf.md` into `elf_format.md`.
+- [x] **B.2 — §5 ELF Output.**  Commit `7806011`.  Three address
+      citations stripped from `elf_format.md`; `elf_reader.md`
+      rewritten down to `.linenr` format reference + reader API.
 
-- [ ] **B.3 — §1 Target Architecture.**  Trim `opcode_encoding.md`
-      (drop trailing struct-offset annotations).  Trim
-      `fb_instruction.md` (delete "Source Locations" address
-      appendix).  Trim `cervino_vs_hirzel.md` (drop bitmask aside).
-      Verify `special_registers.md` against the codebase, fill
-      missing `ld`/`st` pair entries, add code-link crossrefs to
-      `custom_functions` and `play_config`.  Rewrite
-      `awg_device_props.md` as a clean per-device properties table.
-      Author short ISA-overview prose on the mainpage §1 landing.
-      Optional bonus: promote `device_type.md` if it adds value.
+- [x] **B.3 — §1 Target Architecture.**  Commit `5c3af40` plus
+      follow-ups `a26a5da`.  Banner stripped on all six §1 pages.
+      `opcode_encoding.md` lead-in rewritten; offset tables and
+      error-ID table dropped.  `fb_instruction.md` Source-Locations
+      appendix removed.  `cervino_vs_hirzel.md` bitmask aside and
+      numeric `AwgDeviceType` column dropped.  `awg_device_props.md`
+      rewritten as a per-device property table.  Follow-ups added
+      0x14 / 0x18 entries to `special_registers.md` (with IF-312
+      for the `kSuserUserRegBase` misnomer), added `custom_functions`
+      crosslinks across four §1 pages, and expanded the mainpage §1
+      ISA prose to three paragraphs.  Decision: do not promote
+      `device_type.md` (Class B working note).
 
-- [ ] **B.4 — §4 Runtime & §2 SeqC Language.**  Rewrite
-      `device_constants.md` as a clean per-device constants table.
-      Reduce `logging_tracing.md` to a short "boost.log + stubbed
-      OpenTelemetry" paragraph plus the public API surface; drop
-      symbol tables and struct offsets.  Author new
-      `custom_functions.md` from `symbol-renaming-audit/05a..05d_*`
-      batches.  Trim `seqc_parser_grammar.md` to keep token table +
-      grammar overview + UTF-8 finding; drop parse-table parity
-      tables and addresses.  Confirm
-      `seqc_language_features_excluded.md` placement.
+- [x] **B.4 — §4 Runtime & §2 SeqC Language.**  Commit `974b81b`.
+      Authored `custom_functions.md` from scratch.  Trimmed
+      `seqc_parser_grammar.md`.  Reduced `logging_tracing.md` to a
+      short summary plus the public API surface.  Rewrote
+      `device_constants.md` as a per-device limits table.
 
-- [ ] **B.5 — §3 Compiler Pipeline (core).**  Rewrite `pipeline.md`
-      as an instructive narrative (what each phase consumes /
-      produces); keep flow + participants; drop layout offsets +
-      TLS notes.  Rewrite `node_tree_structure.md` as a conceptual
-      IR overview with a mermaid diagram (verify mermaid renders in
-      our Doxygen setup); drop byte offsets and addresses.  Rewrite
-      `waveform_generator_funcmap.md` as a supported-DSL-functions
-      catalogue (name, arity, optional args, brief semantics,
-      code link); drop addresses + emplace sites.
+- [x] **B.5 — §3 Compiler Pipeline (core).**  Commit `9efdf0f`.
+      Rewrote `pipeline.md` as a 12-step walkthrough.  Rewrote
+      `node_tree_structure.md` as the link-semantics + mutating-API
+      reference.  Reframed `waveform_generator_funcmap.md` as the
+      DSL catalogue (33 generators grouped by topic).
 
-- [ ] **B.6 — §3 Compiler Pipeline (new internals).**  Author
-      `frontend_lowering.md` (scrub the existing top-level file: drop
-      phase IDs, binary addresses; promote as user-facing reference).
-      Author `prefetch_scheduling.md` from
-      `symbol-renaming-audit/09_prefetch*.md` and
-      `archive/phase_15b_prefetch_audit.md`.  Author `play_config.md`
-      from `symbol-renaming-audit/38_play_config.md`.  Either expand
-      `optimization_passes.md` to cover DCE + register allocation
-      properly, or split `register_allocation.md` out — decide based
-      on length.  Trim `magic_numbers_proposal.md` to gap-tracker
-      rename suggestions; drop backstory + source-line refs.  Trim
-      or fold `asm_parser_grammar.md` (`.seqasm` is internal IR).
+- [x] **B.6 — §3 Compiler Pipeline (new internals).**  Commit
+      `c0ffacd`.  Wholesale-rewrote `frontend_lowering.md` as
+      user-facing reference.  Replaced `prefetch_scheduling.md`
+      stub with the three-phase walkthrough + cache model + CWVF
+      tracking.  Authored `play_config.md` from scratch.  Trimmed
+      `magic_numbers_proposal.md` (Declaration / Usage / source-line
+      citations dropped).  Trimmed `asm_parser_grammar.md` (Binary
+      Addresses, table forensics, parity section dropped).  Trimmed
+      `optimization_passes.md` (heading addresses, Register-field-
+      semantics section, Algorithm-reconstructions appendix dropped).
+      Final docs build clean at the 12-warning baseline; coverage
+      96.9%.
 
 ### Phase D7-C — Follow-up audits (separate, deferred)
 
