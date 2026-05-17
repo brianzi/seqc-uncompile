@@ -739,6 +739,40 @@ public:
     //!        `CompileResult`.
     CompileResult stepProject();
 
+    // ------------------------------------------------------------------
+    // T6 (IF-307) — entry points for the seqcc --from=<stage> driver.
+    // The driver constructs / resets a `Compiler`, calls
+    // `setupResources()` to populate the per-compile scaffolding
+    // (normally built inside `stepToSeqCAst`), then seeds the
+    // mid-pipeline state via `setAsmList` / `setPlaceholderAsm` from
+    // a deserialised `.seqasm`, then jumps directly to `stepOptPre`
+    // onwards.  No binary counterpart; the helper is a code-move
+    // factored out of `stepToSeqCAst` so there is a single source of
+    // truth for resources construction.
+    // ------------------------------------------------------------------
+
+    //! \brief Build the per-compile resource scaffolding
+    //!        (`compileStaticResources_`, `compileResources_`),
+    //!        publish to `customFunctions_->resources_`, and clear
+    //!        `reserved18_`.  Called by `stepToSeqCAst` as its first
+    //!        action; also called directly by the seqcc T6 driver
+    //!        before re-entering at `stepOptPre`.
+    void setupResources();
+
+    //! \brief Replace `asmList_` with `list`.  Driver-only entry for
+    //!        the T6 `--from=asm` path; the normal pipeline
+    //!        populates `asmList_` incrementally across
+    //!        `stepBuildAsmPreamble` and `stepPrefetch`.  Calling
+    //!        this outside the `reset() → setupResources() →
+    //!        setAsmList(...) → setPlaceholderAsm(...) → stepOptPre`
+    //!        sequence is undefined.
+    void setAsmList(AsmList list);
+
+    //! \brief Replace `compilePlaceholderAsm_` with `asm`.
+    //!        Companion to `setAsmList` for the T6 `--from=asm`
+    //!        resume sequence; see the warning on `setAsmList`.
+    void setPlaceholderAsm(AsmList::Asm asm_);
+
 private:
     //! \brief Owning compilation's configuration (sequencer
     //!        index, debug flags, sample rate); captured by raw

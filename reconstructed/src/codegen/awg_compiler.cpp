@@ -412,6 +412,15 @@ public:
         return std::make_shared<AsmList>(compiler_.asmList_);
     }
 
+    //! \brief Access the inner `Compiler` pipeline driver.
+    //!
+    //! \details Public for the T6 `seqcc --from=<stage>` path,
+    //! which needs to drive the compiler stage-by-stage from
+    //! deserialised mid-pipeline IR.  Pure additive surface;
+    //! no behaviour change to existing callers.  See IF-307.
+    Compiler& compiler() { return compiler_; }
+    Compiler const& compiler() const { return compiler_; }
+
     //! \brief Build the multi-line "do not edit" header prepended
     //!        to assembler-listing files by `writeAssemblerToFile`.
     //! \details Combines the banner, the destination path, the
@@ -1793,6 +1802,17 @@ void AWGCompiler::stepCheckLimits() {
 
 std::string const& AWGCompiler::assemblerText() const {
     return impl_->assemblerText();
+}
+
+// T6 (IF-307): forwarders to the AWGCompilerImpl compiler() accessor.
+// Exposes the inner Compiler so SeqcDriver can drive the pipeline
+// stage-by-stage when handling --from=<stage>.
+Compiler& AWGCompiler::compiler() {
+    return impl_->compiler();
+}
+
+Compiler const& AWGCompiler::compiler() const {
+    return impl_->compiler();
 }
 
 void AWGCompiler::compileFile(std::string const& path) {  // @0x1032a0

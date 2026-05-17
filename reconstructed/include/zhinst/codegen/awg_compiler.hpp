@@ -34,6 +34,7 @@ namespace zhinst {
 class AWGCompilerConfig;
 class AWGCompilerImpl;
 class CancelCallback;
+class Compiler;  // forward-decl for T6 compiler() accessor; full def in compiler.hpp
 struct CompileSeqcIntrospection;  // for T3c/T4 fillIntrospection friend
 class ProgressCallback;
 
@@ -182,6 +183,23 @@ public:
     //!        Returns an empty string before the first successful
     //!        compile.  See `AWGCompilerImpl::assemblerText`.
     std::string const& assemblerText() const;
+
+    //! \brief Access the inner `Compiler` pipeline driver owned by
+    //!        the pimpl.
+    //!
+    //! \details Exposed for the seqcc `--from=<stage>` driver
+    //! (T6), which needs to populate mid-pipeline state via
+    //! `Compiler::setAsmList` / `setPlaceholderAsm` and resume
+    //! at a non-initial step method.  Callers using the normal
+    //! `compileString` entry point should not need this.
+    //!
+    //! \warning  Returned reference is owned by the pimpl and is
+    //!           invalidated when this `AWGCompiler` is destroyed.
+    //!
+    //! \return  Mutable reference to the inner `Compiler`.
+    Compiler& compiler();
+    //! \copydoc compiler()
+    Compiler const& compiler() const;
     //! \brief Read a SeqC source file from disk and compile it.
     //!
     //! \details The path is `boost::filesystem::status`-checked;

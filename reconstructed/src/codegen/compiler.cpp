@@ -344,6 +344,22 @@ std::optional<CompileResult> Compiler::stepParse(const std::string& source) {
 // stepToSeqCAst — steps 5-6 (@0x11f66f .. @0x11f7b0)
 // ----------------------------------------------------------------------------
 void Compiler::stepToSeqCAst() {
+    // --- 5/5b/5c/5d. Build per-compile resource scaffolding (0x11f66f .. 0x11f76e) ---
+    // Factored into setupResources() so the T6 seqcc --from=asm driver
+    // can call it independently before re-entering at stepOptPre.
+    setupResources();
+
+    // --- 6. Convert to SeqC AST (0x11f7b0) ---
+    compileSeqcAst_ = toSeqCAst(compileExpr_);
+}
+
+// ----------------------------------------------------------------------------
+// setupResources — T6 (IF-307) factor of stepToSeqCAst steps 5/5b/5c/5d.
+// Code move only; called from the top of stepToSeqCAst so the binary
+// pipeline path is unchanged.  Also a public entry point for the seqcc
+// driver, which calls it directly when handling --from=<stage>.
+// ----------------------------------------------------------------------------
+void Compiler::setupResources() {
     // --- 5. Construct StaticResources with warning callback (0x11f66f) ---
     // then init with device-specific constants.
     // Binary: allocate_shared<StaticResources>(alloc,
@@ -364,9 +380,18 @@ void Compiler::stepToSeqCAst() {
 
     // --- 5d. Clear reserved field (binary writes 0 to [r15+0x18]) (0x11f76e) ---
     reserved18_ = 0;
+}
 
-    // --- 6. Convert to SeqC AST (0x11f7b0) ---
-    compileSeqcAst_ = toSeqCAst(compileExpr_);
+// ----------------------------------------------------------------------------
+// setAsmList / setPlaceholderAsm — T6 (IF-307) driver-only seeders for
+// --from=asm.  No binary counterpart.
+// ----------------------------------------------------------------------------
+void Compiler::setAsmList(AsmList list) {
+    asmList_ = std::move(list);
+}
+
+void Compiler::setPlaceholderAsm(AsmList::Asm asm_) {
+    compilePlaceholderAsm_ = std::move(asm_);
 }
 
 // ----------------------------------------------------------------------------
