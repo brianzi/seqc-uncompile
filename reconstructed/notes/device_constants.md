@@ -1,110 +1,103 @@
-# DeviceConstants — getDeviceConstants(AwgDeviceType) decode {#notes_device_constants}
+# DeviceConstants {#notes_device_constants}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+`DeviceConstants` is the per-device hardware-configuration block
+the compiler threads through every pass.  It carries the values
+that vary between sequencer generations: waveform-memory geometry,
+length and alignment limits, sequencer-register addresses,
+sampling rate, and per-feature availability flags.
 
-Decode notes for `zhinst::getDeviceConstants(AwgDeviceType)`.
+Built once per compile by `getDeviceConstants(AwgDeviceType)` and
+passed around as `const DeviceConstants*`.  The pass-the-pointer
+discipline is what lets the front-end, prefetch scheduler,
+wavetable IR, assembler, and ELF writer share a single
+consistent view of the target device.
 
-- Binary: `_seqc_compiler.so`
-- Address: `0x2cc0c0 .. 0x2cc47f` (size `0x3c0`)
-- Source path (debug): `/builds/labone/labone/ziAWG/ziAWGDevice/src/constants.cpp`
-- Same TU as `getAwgDeviceProps<>` specializations.
-- Returns a 0x90-byte `DeviceConstants` zero-initialized then populated
-  per-type. Throws `ZIAWGCompilerException` for unsupported types.
+Header / source:
 
-## Control flow
+- `reconstructed/include/zhinst/device/device_constants.hpp`
+- `reconstructed/src/device/device_constants.cpp`
 
-1. Zero-init the 0x90 output struct (`memset`).
-2. Store the integer device-type code into `dc.deviceType` (offset 0).
-3. Compute `idx = deviceType - 1`.
-4. If `idx < 64`: jump through table at `.rodata 0x961aac`
-   (64 × int32_t relative offsets, indexed by `idx`).
-5. If `deviceType == 128` (GHFLI): GHFLI block.
-6. Else if `deviceType == 256` (VHFLI): VHFLI block.
-7. Else: throw branch.
+For higher-level device metadata (path patterns, ELF size limits,
+on-wire sample format) see \ref notes_awg_device_props.  For the
+sequencer-register-address constants nested under
+`DeviceConstants::SuserAddr`, see \ref notes_special_registers.
 
-## Jump table @ .rodata 0x961aac (64 entries)
+## Per-device values
 
-Only 7 indices land on real per-type populate blocks; the rest fall
-through to the throw branch.
+Constants that are identical across all nine device families are
+listed once below the table to keep the comparison readable.
 
-| idx | deviceType | label    |
-|-----|------------|----------|
-|   0 |     1      | UHFLI    |
-|   1 |     2      | HDAWG    |
-|   3 |     4      | UHFQA    |
-|   7 |     8      | SHFQA    |
-|  15 |    16      | SHFSG    |
-|  31 |    32      | SHFQC_SG |
-|  63 |    64      | SHFLI    |
+### Waveform memory & cache
 
-Note that the table indexes by `(type - 1)`, so the 7 valid bit-flag
-positions correspond to the 7 valid powers of 2 in
-`enum AwgDeviceType { UHFLI=1, HDAWG=2, UHFQA=4, SHFQA=8, SHFSG=16,
-SHFQC_SG=32, SHFLI=64, GHFLI=128, VHFLI=256 }`.
+| Field                | UHFLI    | UHFQA    | HDAWG     | SHFQA     | SHFSG    | SHFQC_SG | SHFLI    | GHFLI    | VHFLI    |
+|----------------------|---------:|---------:|----------:|----------:|---------:|---------:|---------:|---------:|---------:|
+| `waveformRegBase`    | `0x95b2` | `0x95b2` | `0x11203` | `0x110f6` | `0x11202`| `0x11202`| `0x110f6`| `0x110f6`| `0x110f6`|
+| `waveformMemorySize` |`0x20000` |`0x20000` |`0x100000` |`0x100000` |`0x60000` |`0x60000` |`0x60000` |`0x60000` |`0x60000` |
+| `sampleLength`       | 32       | 32       | 64        | 64        | 64       | 64       | 16       | 48       | 16       |
+| `waveformAlignment`  | 4096     | 4096     | 4096      | 4096      | 4096     | 4096     | 16       | 48       | 16       |
+| `cachePageCount`     | 4        | 4        | 4         | 4         | 104      | 104      | `0x6000` | `0x2000` | `0x6000` |
 
-## XMM constant table @ .rodata 0x8fc760 .. 0x8fc870
+### Waveform-length / play-length limits
 
-11 × 16-byte aligned constants. Each per-device block loads 2-4 of
-these via `movaps xmm0, [rip+disp]` and stores them at fixed offsets
-in the output struct, batching adjacent uint32 fields.
+| Field                | UHFLI | UHFQA | HDAWG | SHFQA | SHFSG | SHFQC_SG | SHFLI | GHFLI | VHFLI |
+|----------------------|------:|------:|------:|------:|------:|---------:|------:|------:|------:|
+| `maxWaveformLength`  | 16    | 16    | 32    | 32    | 32    | 32       | 32    | 96    | 32    |
+| `grainSize`          | 8     | 8     | 16    | 16    | 16    | 16       | 16    | 48    | 16    |
+| `playMinSamples`     | 0     | 0     | 128   | 128   | 128   | 128      | 128   | 384   | 128   |
+| `waveformMinSamples` | 16    | 16    | 32    | 32    | 16    | 16       | 16    | 96    | 16    |
 
-All values are cross-checked against the populated field assignments
-in `reconstructed/src/device/device_constants.cpp` and match exactly.
+### Sequencer / clock
 
-## Sampling-rate doubles (IEEE-754 LE in .rodata)
+| Field                  | UHFLI    | UHFQA    | HDAWG    | SHFQA    | SHFSG    | SHFQC_SG | SHFLI    | GHFLI     | VHFLI    |
+|------------------------|---------:|---------:|---------:|---------:|---------:|---------:|---------:|----------:|---------:|
+| `sequencerRegBase`     | `0x115c` | `0x115c` | `0x0d05` | `0x0d05` | `0x0d05` | `0x0d05` | `0x0d05` | `0x0d05`  | `0x0d05` |
+| `maxProgramSize`       | 1024     | 1024     | 16384    | 16384    | 32768    | 32768    | 32768    | 32768     | 32768    |
+| `seqClockDivider`      | 0        | 0        | 1165     | 1165     | 1165     | 1165     | 1165     | 1165      | 1165     |
+| `samplingRate` (Hz)    | 1.8e9    | 1.8e9    | 2.4e9    | 2.0e9    | 2.0e9    | 2.0e9    | 2.0e9    | 12.0e9    | 2.0e9    |
+| `execTableIndexBits`   | 0        | 0        | 10       | 10       | 12       | 12       | 12       | 12        | 12       |
+| `numAWGCores`          | 0        | 0        | 5        | 0        | 3        | 3        | 3        | 3         | 3        |
 
-| Bits                | Value (Hz)  | Used by                                |
-|---------------------|-------------|----------------------------------------|
-| 0x41dad27480000000  | 1.8e9       | UHFLI, UHFQA                           |
-| 0x41ddcd6500000000  | 2.0e9       | SHFQA, SHFSG, SHFQC_SG, SHFLI, VHFLI   |
-| 0x41e1e1a300000000  | 2.4e9       | HDAWG                                  |
-| 0x42065a0bc0000000  | 12.0e9      | GHFLI                                  |
+### Feature flags
 
-## Throw branch (0x2cc3f7 .. 0x2cc44d)
+| Field             | UHFLI | UHFQA | HDAWG | SHFQA | SHFSG | SHFQC_SG | SHFLI | GHFLI | VHFLI |
+|-------------------|:-----:|:-----:|:-----:|:-----:|:-----:|:--------:|:-----:|:-----:|:-----:|
+| `hasExtendedReg`  |   ·   |   ·   |   ✓   |   ·   |   ·   |    ·     |   ·   |   ·   |   ·   |
+| `hasDIO`          |   ·   |   ·   |   ✓   |   ✓   |   ✓   |    ✓     |   ✓   |   ✓   |   ✓   |
+| `numDIOBits`      | 0     | 0     | 8     | 6     | 8     | 8        | 8     | 8     | 8     |
+| `numCounters`     | 0     | 0     | 2     | 2     | 2     | 2        | 2     | 2     | 2     |
+| `hasPrecomp`      |   ·   |   ·   |   ✓   |   ·   |   ✓   |    ✓     |   ✓   |   ✓   |   ✓   |
 
-Equivalent to:
+### Constants identical across every device
 
-```cpp
-BOOST_THROW_EXCEPTION(ZIAWGCompilerException(
-    "Instantiated compiler for unsupported device type"));
-```
+| Field                  | Value  | Notes                                                  |
+|------------------------|-------:|--------------------------------------------------------|
+| `maxBlocks`            | 2      | Cache page count for `cacheType=1`                     |
+| `sineNodeBase`         | 16     | Base offset for the oscillator / sine-node index space |
+| `waveformElfAlignment` | 64     | ELF segment alignment for waveform data                |
+| `registerDepth`        | 16     | Sequencer register-index upper bound                   |
+| `memoryDepth`          | 1024   | User-memory address upper bound                        |
+| `triggerLatencyCycles` | 6      | Trigger / wait-instruction latency, in cycles          |
+| `bitsPerSample`        | 16     | Bits per waveform sample                               |
+| `maxSequenceLen`       | 16000  | Max sequence length (IR nodes)                         |
 
-Disassembly steps:
+## Convenience accessors
 
-1. Construct `std::string` from C-string at `.rodata 0x90b170`
-   = `"Instantiated compiler for unsupported device type"`.
-2. Construct `ZIAWGCompilerException(string)` in stack slot
-   `[rbp-0x98]` (ctor `0x2e7360`).
-3. Build `boost::source_location` literal:
-   - `file     = .rodata 0x90b1a2`
-     = `/builds/labone/labone/ziAWG/ziAWGDevice/src/constants.cpp`
-   - `function = .rodata 0x90b1dc`
-     = `"DeviceConstants zhinst::getDeviceConstants(AwgDeviceType)"`
-   - `line     = 0x138 = 312`
-   - `column   = 0x41  = 65`
-4. Tail-call `boost::throw_exception<ZIAWGCompilerException>(
-   ex, src_loc)` @ `0x270ab0`.
+| Method                    | Aliases                                                  |
+|---------------------------|----------------------------------------------------------|
+| `maxDioTableEntries()`    | `waveformMemorySize`                                     |
+| `maxWaveIndex()`          | `static_cast<uint32_t>(maxSequenceLen)`                  |
 
-Pattern is identical to the `ValueException` throw sites in
-`src/ast/value.cpp` and the `Exception` throw sites in `src/device/device_type.cpp`
-(reconstructed in 14b-ii-b2-followup).
+## Unsupported devices
 
-## Field-population coverage
+`getDeviceConstants(d)` throws `ZIAWGCompilerException` with the
+message *"Instantiated compiler for unsupported device type"* when
+`d` is not one of the nine supported families above.
 
-All 9 valid device types (UHFLI, HDAWG, UHFQA, SHFQA, SHFSG, SHFQC_SG,
-SHFLI, GHFLI, VHFLI) have populated `case` blocks in the
-reconstruction.
+## See also
 
-## Cross-references
-
-- `getDeviceConstants` declared in `include/zhinst/device/device_constants.hpp`.
-- `DeviceConstants` struct: `static_assert(sizeof == 0x90)` (libstdc++).
-- `ZIAWGCompilerException` declared in `include/zhinst/core/exception.hpp`.
-- Compare with sibling `getAwgDeviceProps<>` specializations in
-  `awg_device_props.cpp` — same TU, same throw idiom.
+- \ref notes_awg_device_props — per-device path patterns, ELF size
+  limits, on-wire sample format, `isHirzel` flag.
+- \ref notes_special_registers — addresses listed under
+  `DeviceConstants::SuserAddr`.
+- \ref notes_cervino_vs_hirzel — which device maps to which
+  assembler back-end.

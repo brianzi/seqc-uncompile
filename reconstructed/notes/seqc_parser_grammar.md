@@ -1,410 +1,205 @@
-# SeqC Parser Grammar Reconstruction {#notes_seqc_parser_grammar}
+# SeqC Parser Grammar {#notes_seqc_parser_grammar}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+The SeqC parser is a **bison + flex** reentrant pair for a C-like
+domain-specific language: ANSI-C-style expression precedence with
+domain keywords (`wave`, `cvar`, `string`, `repeat`).  This page
+documents the token set, the lexer rules, the semantic-value
+type, and the AST-building actions invoked at each grammar
+reduction.
 
-## Overview
+The parser produces an AST that is consumed by the front-end
+lowering pass; see \ref notes_frontend_lowering.
 
-The SeqC parser is a bison + flex reentrant parser pair for a C-like
-domain-specific language used by ZI's AWG (Arbitrary Waveform Generator)
-compiler. It follows a classic ANSI C yacc grammar structure, extended
-with domain keywords (`wave`, `cvar`, `string`, `repeat`).
+## Lexer
 
-## Binary Addresses
+The lexer is a flex DFA with **80 rules** and a 65-entry character
+equivalence-class table.
 
-| Symbol          | Address    | Size     |
-|-----------------|------------|----------|
-| `seqc_parse`    | 0x2ca2a0   | 5,777 B  |
-| `seqc_lex`      | 0x2c7bb0   | 6,902 B  |
-| `seqc_error`    | 0x2ca1b0   | 240 B    |
+### Rule groups
 
-## Source File Names
+**Comment handling (rules 1-3):**
 
-From .rodata strings: `SeqcLexer.cpp` (flex output), `AsmLexer.cpp`
-(ASM flex output).
+- Rule 1: `/*` → start block comment
+- Rule 2: `*/` → end block comment
+- Rule 3: `//` → start line comment
 
----
+**Keywords (rules 4-21):** `const`, `cvar`, `string`, `var`,
+`void`, `wave`, `break`, `case`, `continue`, `default`, `do`,
+`else`, `for`, `if`, `repeat`, `return`, `switch`, `while`.
 
-## Bison Parser
-
-### Parser Constants
-
-| Constant      | Value |
-|---------------|-------|
-| YYNTOKENS     | 67    |
-| YYNNTOKENS    | 43    |
-| YYNRULES      | 129   |
-| YYNSTATES     | 233   |
-| YYLAST        | 503   |
-| YYPACT_NINF   | -117  |
-| YYTABLE_NINF  | 0     |
-
-### Bison Table Addresses
-
-| Table | Address | Type | Count |
-|-------|---------|------|-------|
-| yypact | 0x960e70 | int16_t | 233 |
-| yytranslate | 0x961050 | uint8_t | 304 |
-| yycheck | 0x961180 | int16_t | 504 |
-| yytable | 0x961570 | uint8_t | 504 |
-| yydefact | 0x961770 | uint8_t | 233 |
-| yyr2 | 0x961860 | uint8_t | 130 |
-| yyr1 | 0x9618f0 | uint8_t | 130 |
-| yypgoto | 0x961980 | int16_t | 43 |
-| yydefgoto | 0x9619e0 | int16_t | 43 |
-| yytname | 0xb08b80 | char*[] | 110 |
-| jump table | 0x960c5c | int32_t rel | 128 (rules 2-129) |
-
-### Grammar Verification Status
-
-| Table         | Status           | Notes |
-|---------------|------------------|-------|
-| yyr1          | **BYTE-EXACT**   | 130 uint8_t entries |
-| yyr2          | **BYTE-EXACT**   | 130 uint8_t entries |
-| yytranslate   | **MATCH**        | Values identical, padding length differs (299 vs 304) |
-| yypact        | Differs          | State machine packing differs (233 vs 232 states) |
-| yydefact      | Differs          | Same root cause |
-| yytable       | Differs          | Same root cause |
-| yycheck       | Differs          | Same root cause |
-| yypgoto       | Differs          | NT count 43 vs 42 + different packing |
-| yydefgoto     | Differs          | NT count + state numbering |
-
-**Verdict: Grammar verified correct.** The yyr1/yyr2 exact match proves
-the grammar rules are identical. State machine differences are a bison
-version artifact (see below).
-
-### Root Cause of State Machine Difference
-
-The nonterminal `statement_list` (NT 101) is defined in the grammar but
-unreachable from the start symbol. No rule outside `statement_list` itself
-references it. The binary was compiled with a bison version that retains
-unreachable nonterminals and their states in the LR automaton (producing
-233 states, 43 NTs, 129 rules). All tested bison versions (2.3, 3.0.5,
-3.3, 3.8.2) strip unreachable nonterminals, producing 232 states, 42 NTs,
-127 rules.
-
-Inserting a reference to `statement_list` in `compound_body` produces 129
-rules and 43 NTs (matching the binary) but 234 states (1 too many) and 70
-shift/reduce conflicts (vs 47 for the correct grammar). The extra conflicts
-come from ambiguity between `statement_list` and `statement` in the
-compound body.
-
----
-
-## Flex Lexer
-
-### DFA Constants
-
-| Constant | Binary | Generated |
-|----------|--------|-----------|
-| States | 177 | 168 |
-| Equivalence classes | 65 | 65 |
-| Meta classes | 6 (0-5) | 6 (0-5) |
-| Rules | 80 (1-79, 81) | 80 |
-| Backing states | 5 (178-181) | 4 (168-171) |
-
-### Flex DFA Table Addresses
-
-| Table | Address | Type | Count |
-|-------|---------|------|-------|
-| yy_ec | 0x95fd40 | uint8_t | 256 |
-| yy_accept | 0x95fe40 | int16_t | 177 |
-| yy_chk | 0x95ffb0 | int16_t | 608 |
-| yy_base | 0x960470 | int16_t | 182 (177+5 backing) |
-| yy_def | 0x9605e0 | int16_t | 182 |
-| yy_meta | 0x960750 | uint8_t | 65 |
-| yy_nxt | 0x9607a0 | int16_t | 606 |
-
-Action switch: jump table at 0x95fbf0, max action 82 (83 entries).
-
-### Lexer Verification Status
-
-| Table | Status | Notes |
-|-------|--------|-------|
-| yy_ec (256) | **BYTE-EXACT MATCH** | All 256 byte→ec mappings identical |
-| yy_meta (65) | **BYTE-EXACT MATCH** | All 65 meta class values identical |
-| Rule count | **EXACT MATCH** | 80 rules: 1-79 + 81 (EOF) |
-| yy_accept | Differs | 168 states vs 177 — see below |
-| yy_base/def | Differs | State count + numbering |
-| yy_chk/nxt | Differs | Table compression layout |
-
-**Verdict: Lexer verified functionally correct.** The yy_ec and yy_meta
-exact matches prove the lexer's character classification and DFA
-compression strategy are identical. The state count difference is a DFA
-minimization artifact (see below).
-
-### Root Cause of State Count Difference (177 vs 168)
-
-The binary's DFA contains **un-minimized duplicate states**. Specifically,
-two parallel chains of float-exponent states exist:
-
-- Path via rule 28 (`[0-9]*\.[0-9]+`): states 66→110→137→138
-- Path via rule 29 (`[0-9]+\.`+digits): states 111→139→157→158
-
-States 66 and 111 have identical structure (accept=28, digit self-loop,
-e/E transition to sign/digits), as do 110/139, 137/157, and 138/158.
-A fully minimized DFA merges these. Additionally, 3 states for UTF-8
-lead bytes from the start state (48/49/50, all accept=79) are kept
-separate in the binary but could share structure.
-
-Our flex 2.6.4 performs full DFA minimization, merging these duplicate
-states and producing 168 states instead of 177. The binary was likely
-compiled with a flex version that performs less aggressive minimization.
-
-No flex 2.6.4 option (`-Cem`, `-Ca`, `-Cf`, `-Cr`) changes the DFA
-state count — table compression affects packing, not the DFA itself.
-
-### Key Finding: UTF-8 in Identifiers
-
-The original lexer allows **UTF-8 characters in identifier continuations**:
-
+**Identifier (rule 22):**
 ```
 [a-zA-Z_]([a-zA-Z0-9_]|{U2}{UCONT}|{U3}{UCONT}{UCONT}|{U4}{UCONT}{UCONT}{UCONT})*
 ```
+returning `IDENTIFIER` with the matched text stored in
+`yylval->sval`.
 
-Where:
-- `U2` = `[\xc2-\xdf]` (2-byte UTF-8 lead)
-- `U3` = `[\xe0-\xef]` (3-byte UTF-8 lead)
-- `U4` = `[\xf0-\xf4]` (4-byte UTF-8 lead)
-- `UCONT` = `[\x80-\xbf]` (continuation byte)
+**Numeric constants (rules 23-29)** — all return `CONSTANT` with
+the value stored in `yylval->dval` as a `double`:
 
-This is confirmed by two independent lines of evidence:
+| Rule | Pattern                                            | Notes                              |
+|------|----------------------------------------------------|------------------------------------|
+| 23   | `0[xX][0-9a-fA-F]+`                                | Hex (int → double)                 |
+| 24   | `0[bB][01]+`                                       | Binary (int → double)              |
+| 25   | `0[0-9]+`                                          | Leading-zero integer (decimal)     |
+| 26   | `[0-9]+`                                           | Decimal integer                    |
+| 27   | `[0-9]+[eE][+-]?[0-9]+`                            | Int with exponent (float)          |
+| 28   | `[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?`                 | Float, dotted                      |
+| 29   | `[0-9]+\.([eE][+-]?[0-9]+)?`                       | Float, trailing dot                |
 
-1. **yy_ec mapping**: Bytes 0xC2-0xDF, 0xE0-0xEF, 0xF0-0xF4 each get
-   distinct equivalence classes (62, 63, 64), while 0x80-0xBF gets ec 61.
-   Invalid UTF-8 bytes 0xC0-0xC1 and 0xF5-0xFF map to ec 1 (junk class),
-   proving the original patterns referenced the exact valid UTF-8 ranges.
+**String literals (rules 30-31)** — both return `STRING_LITERAL`,
+both accept an optional `L` prefix:
 
-2. **yy_meta values**: meta[62]=meta[63]=meta[64]=5 (same as identifier
-   character classes like letters/digits). This only happens when the
-   UTF-8 lead bytes participate in the same DFA patterns as identifier
-   characters. Without UTF-8 in identifiers, meta[62-64]=1 (junk).
+- Rule 30: `L?'([^'\\\n]|\\.)+'` — single-quoted, must be non-empty.
+- Rule 31: `L?"([^"\\\n]|\\.)*"` — double-quoted, `""` is valid.
 
-String literal patterns use plain `[^'\\\n]` / `[^"\\\n]`, which
-matches all high bytes as single characters. The binary's DFA confirms
-this: inside a string state, all high bytes (ec 61-64) transition to the
-same "string interior" state with no UTF-8 validation.
+**Operators (rules 32-51):** `>>=`, `<<=`, `+=`, `-=`, `*=`, `/=`,
+`%=`, `&=`, `^=`, `|=`, `>>`, `<<`, `++`, `--`, `&&`, `||`, `<=`,
+`>=`, `==`, `!=`.
 
-### UTF-8 Equivalence Classes
+**Single-character tokens (rules 52-75):** `; { } , : = ( ) [ ] .
+& ! ~ - + * / % < > ^ | ?`.
 
-| EC | Byte Range | Meta | Description |
-|----|------------|------|-------------|
-| 61 | 0x80-0xBF | 1 | Continuation bytes (UCONT) |
-| 62 | 0xC2-0xDF | 5 | 2-byte lead (U2) |
-| 63 | 0xE0-0xEF | 5 | 3-byte lead (U3) |
-| 64 | 0xF0-0xF4 | 5 | 4-byte lead (U4) |
-| 1  | 0xC0-0xC1, 0xF5-0xFF | 1 | Invalid UTF-8 (same ec as ASCII junk) |
+**Whitespace / newline (rules 76-78):**
 
-### Backing State Mechanism
+- Rule 76: `[ \t\v\f]+` → skip.
+- Rule 77: `\n` → increment line counter.
+- Rule 78: `\r` → end line comment.
 
-The flex DFA engine at 0x2c7d80 uses compressed tables with a backing
-state mechanism:
+**Fallback (rule 79):** `.` → "Unexpected character" error.
 
-- States 0-176 (binary) are regular DFA states; state 177 = jam/end-of-buffer
-- States 178-181 are **backing states** used for compressed table defaults
-- When `yy_def[s] >= 178`, the engine applies `yy_meta[ec]` to remap
-  the equivalence class before continuing the lookup in the backing state
-- This is how string literals handle all characters (including UTF-8)
-  despite having only a few explicit transitions per state
+**EOF (rule 81):** `<<EOF>>` → return 0.
 
-### Complete Lexer Rule Map (80 rules)
+### UTF-8 in identifiers
 
-**Comment handling (rules 1-3):**
-- Rule 1: `/*` → startBlockComment
-- Rule 2: `*/` → endBlockComment
-- Rule 3: `//` → startLineComment
+The lexer accepts **valid UTF-8 in identifier continuations** —
+the second-and-later characters of an identifier may be any
+2-, 3-, or 4-byte UTF-8 sequence.  The leading character must
+still be ASCII `[a-zA-Z_]`.
 
-**Keywords (rules 4-21):** const(4), cvar(5), string(6), var(7),
-void(8), wave(9), break(10), case(11), continue(12), default(13),
-do(14), else(15), for(16), if(17), repeat(18), return(19), switch(20),
-while(21)
+The character equivalence-class table reserves dedicated classes
+for each UTF-8 lead-byte range:
 
-**Identifier (rule 22):** `[a-zA-Z_]([a-zA-Z0-9_]|UTF-8)*` → IDENTIFIER
-(259), `yylval->sval = yytext`
+| EC | Byte Range            | Description                              |
+|----|-----------------------|------------------------------------------|
+| 61 | `0x80`–`0xBF`         | Continuation byte                        |
+| 62 | `0xC2`–`0xDF`         | 2-byte lead (U2)                         |
+| 63 | `0xE0`–`0xEF`         | 3-byte lead (U3)                         |
+| 64 | `0xF0`–`0xF4`         | 4-byte lead (U4)                         |
+| 1  | `0xC0`–`0xC1`, `0xF5`–`0xFF` | Invalid UTF-8 (junk)              |
 
-**Numeric constants (rules 23-29), all return CONSTANT (258) with
-`yylval->dval`:**
-- Rule 23: `0[xX][0-9a-fA-F]+` → sscanf(yytext+2, "%x"), cast int64→double
-- Rule 24: `0[bB][01]+` → stoull(str.substr(2), nullptr, 2), cast to double
-- Rule 25: `0[0-9]+` → sscanf(yytext, "%d"), cvtsi2sd (leading-zero integer)
-- Rule 26: `[0-9]+` → sscanf(yytext, "%d"), cvtsi2sd (decimal integer)
-- Rule 27: `[0-9]+[eE][+-]?[0-9]+` → sscanf(yytext, "%lf") (int with exponent)
-- Rule 28: `[0-9]*\.[0-9]+([eE][+-]?[0-9]+)?` → sscanf(yytext, "%lf")
-- Rule 29: `[0-9]+\.([eE][+-]?[0-9]+)?` → sscanf(yytext, "%lf")
+String literal bodies match every high byte as a single character
+with no UTF-8 validation — invalid byte sequences are passed
+through verbatim inside `"…"` and `'…'`.
 
-**String literals (rules 30-31):** Both return STRING_LITERAL (260),
-`yylval->sval = yytext`. Both support optional `L` prefix:
-- Rule 30: `L?'([^'\\\n]|\\.)+' ` → single-quoted (requires ≥1 char)
-- Rule 31: `L?"([^"\\\n]|\\.)*"` → double-quoted (empty `""` valid)
+## Token Set
 
-**Operators (rules 32-51):** >>=(32), <<=(33), +=(34), -=(35), *=(36),
-/=(37), %=(38), &=(39), ^=(40), |=(41), >>(42), <<(43), ++(44), --(45),
-&&(46), ||(47), <=(48), >=(49), ==(50), !=(51)
+The grammar declares 67 terminals.  The first six and the
+identifier / literal tokens are listed below; the remainder are
+keywords and single-character punctuation.
 
-**Single-character tokens (rules 52-75):** ;(52), {(53), }(54), ,(55),
-:(56), =(57), ((58), )(59), [(60), ](61), .(62), &(63), !(64), ~(65),
--(66), +(67), *(68), /(69), %(70), <(71), >(72), ^(73), |(74), ?(75)
-
-**Whitespace/newline (rules 76-78):**
-- Rule 76: `[ \t\v\f]+` → skip
-- Rule 77: `\n` → incrementLineNumber()
-- Rule 78: `\r` → endLineComment()
-
-**Fallback (rule 79):** `.` → raiseError("Unexpected character")
-
-**EOF (rule 81):** `<<EOF>>` → return 0
-
----
-
-## Token Set (from yytname, 110 entries)
-
-### Terminals (0-66)
-
-| Index | Name           | Bison # | Description |
-|-------|----------------|---------|-------------|
-| 0     | "end of file"  | 0       | EOF         |
-| 1     | error          | 256     | error token |
-| 2     | "invalid token"| —       | undefined   |
-| 3     | CONSTANT       | 258     | numeric literal (stored as double) |
-| 4     | IDENTIFIER     | 259     | identifier  |
-| 5     | STRING_LITERAL | 260     | string literal |
-| 6     | INC_OP         | 261     | `++`        |
-| 7     | DEC_OP         | 262     | `--`        |
-| 8     | LSH_OP         | 263     | `<<`        |
-| 9     | RSH_OP         | 264     | `>>`        |
-| 10    | LE_OP          | 265     | `<=`        |
-| 11    | GE_OP          | 266     | `>=`        |
-| 12    | EQ_OP          | 267     | `==`        |
-| 13    | NE_OP          | 268     | `!=`        |
-| 14    | AND_OP         | 269     | `&&`        |
-| 15    | OR_OP          | 270     | `||`        |
-| 16    | MUL_ASSIGN     | 271     | `*=`        |
-| 17    | DIV_ASSIGN     | 272     | `/=`        |
-| 18    | MOD_ASSIGN     | 273     | `%=`        |
-| 19    | ADD_ASSIGN     | 274     | `+=`        |
-| 20    | SUB_ASSIGN     | 275     | `-=`        |
-| 21    | LSH_ASSIGN     | 276     | `<<=`       |
-| 22    | RSH_ASSIGN     | 277     | `>>=`       |
-| 23    | AND_ASSIGN     | 278     | `&=`        |
-| 24    | XOR_ASSIGN     | 279     | `^=`        |
-| 25    | OR_ASSIGN      | 280     | `\|=`       |
-| 26    | KW_CONST       | 281     | `const`     |
-| 27    | KW_CVAR        | 282     | `cvar`      |
-| 28    | KW_STRING      | 283     | `string`    |
-| 29    | KW_VAR         | 284     | `var`       |
-| 30    | KW_VOID        | 285     | `void`      |
-| 31    | KW_WAVE        | 286     | `wave`      |
-| 32    | KW_CASE        | 287     | `case`      |
-| 33    | KW_DEFAULT     | 288     | `default`   |
-| 34    | KW_IF          | 289     | `if`        |
-| 35    | KW_ELSE        | 290     | `else`      |
-| 36    | KW_SWITCH      | 291     | `switch`    |
-| 37    | KW_WHILE       | 292     | `while`     |
-| 38    | KW_DO          | 293     | `do`        |
-| 39    | KW_FOR         | 294     | `for`       |
-| 40    | KW_CONTINUE    | 295     | `continue`  |
-| 41    | KW_BREAK       | 296     | `break`     |
-| 42    | KW_RETURN      | 297     | `return`    |
-| 43    | KW_REPEAT      | 298     | `repeat`    |
-| 44-66 | single-char    | ASCII   | `()[],-+~!*/%<>&^|?:=;{}` |
-
-### Nonterminals (67-109)
-
-Standard C expression-precedence grammar nonterminals plus
-declaration/statement nonterminals. See yytname dump for full list.
+| Name           | Meaning                                  |
+|----------------|------------------------------------------|
+| `CONSTANT`     | Numeric literal (stored as `double`)     |
+| `IDENTIFIER`   | Identifier                               |
+| `STRING_LITERAL` | String literal                         |
+| `INC_OP`       | `++`                                     |
+| `DEC_OP`       | `--`                                     |
+| `LSH_OP`       | `<<`                                     |
+| `RSH_OP`       | `>>`                                     |
+| `LE_OP`        | `<=`                                     |
+| `GE_OP`        | `>=`                                     |
+| `EQ_OP`        | `==`                                     |
+| `NE_OP`        | `!=`                                     |
+| `AND_OP`       | `&&`                                     |
+| `OR_OP`        | `\|\|`                                    |
+| `MUL_ASSIGN` … `OR_ASSIGN` | Compound-assignment operators (`*=` … `\|=`) |
+| `KW_CONST` … `KW_REPEAT`   | Keyword tokens (`const`, `cvar`, `string`, `var`, `void`, `wave`, `case`, `default`, `if`, `else`, `switch`, `while`, `do`, `for`, `continue`, `break`, `return`, `repeat`) |
+| Single-char    | `( ) [ ] , - + ~ ! * / % < > & ^ \| ? : = ; { }` |
 
 ## Semantic Value Type
 
-The %union has:
 ```c
 %union {
-    double dval;
-    const char* sval;
-    Expression* expr;
+    double       dval;
+    const char*  sval;
+    Expression*  expr;
 }
 ```
 
-## Semantic Actions Summary
+## AST construction
 
-From disassembly of seqc_parse's yyreduce switch (jump table at 0x960c5c):
+Each grammar reduction calls one of the AST-builder helpers on the
+parser context:
 
-### Expression Rules
-- Binary operators: `createOperator(ctx, $1, $3, EOperator)`
-- Assignment operators: `createAssignOperator(ctx, $1, $3, EOperator)`
-- Unary prefix: `createCommand(ctx, ECommandType, 1, $2)`
-- Postfix ++/--: `createOperator(ctx, $1, NULL, eINC/eDEC)`
-- Array subscript: `createArray(ctx, $1, $3)`
-- Function call: `createFunctionCall(ctx, $1, $3)` or `($1, NULL)`
-- Conditional: `createCondExpression(ctx, $1, $3, $5)`
+### Expressions
 
-### Statement Rules
-- if: `createIf(ctx, $3, $5)`
-- if-else: `createIfElse(ctx, $3, $5, $7)`
-- switch: `createSwitch(ctx, $3, $5)`
-- while: `createWhile(ctx, $3, $5)`
-- do-while: `createDoWhile(ctx, $2, $5)`
-- for (4 variants): `createFor(ctx, $3, $5, $7, $9)` etc.
-- repeat: `createRepeat(ctx, $3, $5)`
-- case: `createCase(ctx, $2, $4)` or `(NULL, $3)` for default
-- continue/break: `createCommand(ctx, eCONTINUE/eBREAK, 0)`
-- return: `createCommand(ctx, eRETURN, 1, $2)`
+| Production                | Action                                                |
+|---------------------------|-------------------------------------------------------|
+| Binary operator           | `createOperator(ctx, $1, $3, EOperator)`              |
+| Compound assignment       | `createAssignOperator(ctx, $1, $3, EOperator)`        |
+| Unary prefix              | `createCommand(ctx, ECommandType, 1, $2)`             |
+| Postfix `++` / `--`       | `createOperator(ctx, $1, NULL, eINC/eDEC)`            |
+| Array subscript           | `createArray(ctx, $1, $3)`                            |
+| Function call             | `createFunctionCall(ctx, name, args)`                 |
+| Conditional `?:`          | `createCondExpression(ctx, $1, $3, $5)`               |
 
-### Declaration Rules
-- Variable type: `createVariableType(ctx, VarType)`
-- Declaration: `addVariableType(ctx, $2, $1, false/true)`
-- Init declarator: `createOperator(ctx, $1, $3, eASSIGN)` with stmt flags
+### Statements
 
-### Function Rules
-- Function def: `createFunction(ctx, $1, params, body)`
-- Function call: `createFunctionCall(ctx, name, args)`
+| Production       | Action                                              |
+|------------------|-----------------------------------------------------|
+| `if`             | `createIf(ctx, $3, $5)`                             |
+| `if … else`      | `createIfElse(ctx, $3, $5, $7)`                     |
+| `switch`         | `createSwitch(ctx, $3, $5)`                         |
+| `while`          | `createWhile(ctx, $3, $5)`                          |
+| `do … while`     | `createDoWhile(ctx, $2, $5)`                        |
+| `for` (4 forms)  | `createFor(ctx, $3, $5, $7, $9)` and variants       |
+| `repeat`         | `createRepeat(ctx, $3, $5)`                         |
+| `case` / `default` | `createCase(ctx, $2, $4)` / `createCase(ctx, NULL, $3)` |
+| `continue` / `break` | `createCommand(ctx, eCONTINUE/eBREAK, 0)`       |
+| `return`         | `createCommand(ctx, eRETURN, 1, $2)`                |
 
-### List Rules
-- Arg list: `createOrAppendArgList(ctx, $1, $3)`
-- Decl list: `createOrAppendDeclList(ctx, $1, $3)`
-- Stmt list: `createOrAppendStmtList(ctx, $1, $2)`
+### Declarations & functions
 
----
+| Production         | Action                                                |
+|--------------------|-------------------------------------------------------|
+| Variable type      | `createVariableType(ctx, VarType)`                    |
+| Declaration        | `addVariableType(ctx, $2, $1, isConst)`               |
+| Initialiser        | `createOperator(ctx, $1, $3, eASSIGN)` (with stmt flags) |
+| Function definition| `createFunction(ctx, signature, params, body)`        |
+| List append        | `createOrAppendArgList`, `createOrAppendDeclList`,    |
+|                    | `createOrAppendStmtList`                              |
 
-## Reconstructed Files
+### Assignment-side modification
 
-| File | Description | Status |
-|------|-------------|--------|
-| `src/ast/seqc_parser.y` | Bison grammar | Grammar correct (yyr1/yyr2 exact match) |
-| `src/ast/seqc_lexer.l` | Flex scanner | Functionally correct (yy_ec/yy_meta exact match) |
-| `src/ast/seqc_parser.tab.c` | Generated parser | bison output |
-| `src/ast/seqc_parser.tab.h` | Token enum | bison output |
-| `src/ast/seqc_lexer.c` | Generated scanner | flex output |
-| `include/zhinst/ast/seqc_parser_context.hpp` | Parser context | Updated with comment methods |
-| `src/ast/seqc_parser_context.cpp` | Context impl | Comment/line tracking methods |
+For assignment productions (rules 52–62), the LHS expression
+(`$1`) has its `direction_` field set to `eIN = 0` and
+`valueCategory_` set to `eLVALUE = 1`.  This propagates through
+the shared-pointer expression tree into the operator result.
 
-## Assignment rules: `$1` vs `$$` field modification
+The effect: the LHS variable in `var i; i = 0;` is *not*
+subject to the `checkVar` uninitialised-use check in
+`SeqCVariable::evaluate` — that check is gated on
+`direction_ != 0`, so the parser-set `direction_ = 0` deliberately
+suppresses the false-positive uninitialised-use error on the
+first assignment.
 
-Parser rules 52-62 (assignment_expression variants) modify `valueType` and
-`valueCategory` on the **LHS expression (`$1`)**, not on the operator result
-(`$$`). Confirmed by disassembling the binary at 0x2ca99c:
+## Reconstructed sources
 
-```asm
-; After: rax = createOperator(ctx, $1, $3, eASSIGN)
-; rbx was saved from r9 (parser value stack pointer)
-mov -0x10(%rbx), %rcx      ; rcx = $1 (LHS expression), NOT $$ (rax)
-movl $0x0, 0x54(%rcx)       ; $1->valueType = 0 (= eIN direction)
-mov -0x10(%rbx), %rcx       ; reload $1
-movl $0x1, 0x4(%rcx)        ; $1->valueCategory = 1 (= eLVALUE)
-```
+| File                                       | Description                              |
+|--------------------------------------------|------------------------------------------|
+| `src/ast/seqc_parser.y`                    | Bison grammar                            |
+| `src/ast/seqc_lexer.l`                     | Flex scanner                             |
+| `src/ast/seqc_parser.tab.c` / `.tab.h`     | Generated parser + token enum            |
+| `src/ast/seqc_lexer.c`                     | Generated scanner                        |
+| `include/zhinst/ast/seqc_parser_context.hpp` | Parser context (AST builder methods)   |
+| `src/ast/seqc_parser_context.cpp`          | Context implementation                   |
 
-The effect: The LHS variable in an assignment gets `direction_ = eIN = 0`
-and `valueCategory_ = eLVALUE = 1`. Since `createOperator` wraps `$1` by
-pointer (via shared_ptr), the modification propagates to the child stored
-inside the operator Expression.
+## See also
 
-**Why this matters:** In `SeqCVariable::evaluate`, the resolved VarType_Var
-case (0x209fd0) checks `if (direction_ != 0 && !atScopeBoundary())
-checkVar(name)`. With `direction_ = 0` (set by the parser), `checkVar` is
-skipped for assignment LHS variables. Without this fix, `checkVar` throws
-UninitializedVar on the first assignment to a newly declared variable
-(e.g., `var i; i = 0;` would erroneously fail).
+- \ref notes_seqc_language_features_excluded — language features
+  the parser accepts but the front-end / back-end reject.
+- \ref notes_custom_functions — `playWave(...)` and friends; how a
+  parsed call expression reaches its emit implementation.
+- \ref notes_frontend_lowering — what happens to the AST after
+  parsing.
