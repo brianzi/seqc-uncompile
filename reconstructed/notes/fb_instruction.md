@@ -1,24 +1,22 @@
 # `fb` — Feedback Configuration Instruction {#notes_fb_instruction}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+`fb` configures the sequencer's feedback-processing pipeline: which
+source channel to read from, how many bits to extract, where to
+shift, and what threshold to apply.  It is the single ISA-level
+configuration knob behind the SeqC `configureFeedbackProcessing`
+built-in.
 
 ## Opcode & Properties
 
-| Property | Value |
-|----------|-------|
-| Mnemonic | `fb` |
-| Enum | `Assembler::FB` |
-| Opcode | `0xFF000000` |
-| Size | 4 bytes |
-| Cycles | 1 |
-| Format | opcode4, 0 children — full word is `0xFF000000 \| immediate` |
-| Device support | Hirzel only (`kDevHirzel`: HDAWG, SHFQA, SHFSG, SHFQC\_SG, SHFLI, GHFLI, VHFLI) |
+| Property        | Value |
+|-----------------|-------|
+| Mnemonic        | `fb` |
+| Enum            | `Assembler::FB` |
+| Opcode          | `0xFF000000` |
+| Size            | 4 bytes |
+| Cycles          | 1 |
+| Format          | `opcode4`, 0 children — full word is `0xFF000000 \| immediate` |
+| Device support  | Hirzel only (HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI, GHFLI, VHFLI) |
 
 ## SeqC Surface
 
@@ -28,11 +26,10 @@ Emitted exclusively by the built-in function:
 configureFeedbackProcessing(source, shift, numBits, threshold)
 ```
 
-- `source`: one of the SeqC feedback constants (see below). May be a variable.
-- `shift`, `numBits`, `threshold`: must all be **compile-time constants** (not register-bound).
-
-Registered in `custom_functions.cpp:238`.  
-Implementation: `CustomFunctions::configureFeedbackProcessing` @ `0x157e60` in `custom_functions_io.cpp:3269`.
+- `source` — one of the SeqC feedback constants (see below).  May
+  be a variable.
+- `shift`, `numBits`, `threshold` — must all be **compile-time
+  constants** (not register-bound).
 
 ## Source Argument — SeqC Constants to Mode Encoding
 
@@ -99,14 +96,11 @@ masked to 16 bits is equivalent to `((numBits - 1) & 0xf) << 12`.
   | `QA_DATA_RAW` | `ld reg, 0xc0` | SHFQC\_SG only |
   | `QA_DATA_PROCESSED_D` | `ld reg, 0xc1` | SHFQC\_SG only |
 
-  `getFeedback` is implemented at `0x132420` (`custom_functions_io.cpp:211`).
+## See also
 
-## Source Locations
-
-| Item | Binary address | Source |
-|---|---|---|
-| `configureFeedbackProcessing` | `0x157e60` | `custom_functions_io.cpp:3269` |
-| `AsmCommands::fb()` | `0x279560` (approx) | `asm_commands.cpp:1124` |
-| Constant definitions (HDAWG/SHFSG/SHFQC\_SG) | `0x1ee430–0x1ee67f` | `static_resources.cpp:210–222` |
-| `getFeedback` | `0x132420` | `custom_functions_io.cpp:211` |
-| Opcode encoding (opcode4, 0-child path) | — | `awg_assembler_opcodes.cpp:581` |
+- \ref notes_opcode_encoding — `opcode4` family the `fb` word
+  belongs to.
+- \ref notes_special_registers — `0x6a`/`0x6b`/`0x6c`/`0xc0`/`0xc1`
+  feedback registers read by `getFeedback`.
+- \ref notes_custom_functions — `configureFeedbackProcessing`
+  and `getFeedback` SeqC built-ins.

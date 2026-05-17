@@ -1,12 +1,10 @@
-# Opcode Encoding Formats — AWGAssemblerImpl {#notes_opcode_encoding}
+# Opcode Encoding Formats {#notes_opcode_encoding}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+The SeqC sequencer ISA is a fixed-width 32-bit encoding.  Every
+instruction word follows one of six formats (`opcode0`..`opcode5`),
+selected by the opcode family.  This page documents the bit layout
+of each format; the per-mnemonic opcode table lives at
+\ref notes_opcode_map.
 
 ## Summary of Instruction Word Formats (32-bit)
 
@@ -16,7 +14,7 @@ All opcodes produce a 32-bit instruction word.
 ```
 [31:0] = opcode_base (unchanged)
 ```
-Children: 0 expected. Error if any children present.
+Children: 0 expected.  Error if any children present.
 
 ### opcode1 — 1 Register + 20-bit Immediate (ADDI, ADDIU, ANDI, etc.)
 ```
@@ -42,23 +40,26 @@ Children: 4 — [0]=register, [1..3]=immediates
 [19:0]  = immediate value (20-bit)
 ```
 Children: 2-3 depending on format.
-Special: opcode==1 → literal 0x40000000 (internal encoding trick).
-Special: 0x30000001 (WVFS_H) uses child[0] as 1-bit selector for upper byte.
+Special: opcode==1 → literal `0x40000000` (internal encoding trick).
+Special: `0x30000001` (`WVFS_H`) uses child[0] as 1-bit selector for upper byte.
 
-### opcode4 — Complex dispatch (branch/load/store/trap)
+### opcode4 — Complex dispatch (branch / load / store / trap)
+
 Variable format depending on opcode and child count:
 
 **0 children** (opcode is self-contained):
-- 0xF0000000 (WPRF), 0xF1000000 (WWVF), 0xF7000000 (TRAP), 0xF8000000 (IRPT), 0xFF000000 (FB)
+- `0xF0000000` (WPRF), `0xF1000000` (WWVF), `0xF7000000` (TRAP),
+  `0xF8000000` (IRPT), `0xFF000000` (FB)
 
 **1 child** (immediate only):
-- 0xFE000000 (JMP): `[19:0] = val(20)` → `val | 0xFE000000`
-- 0xFD000000 (WTRIGI): `[4:0] = val(5)` → `val | 0xFD000000`  
+- `0xFE000000` (JMP): `[19:0] = val(20)` → `val | 0xFE000000`
+- `0xFD000000` (WTRIGI): `[4:0] = val(5)` → `val | 0xFD000000`
 - Others: `val(20) | opcode_base` or `val(24) | opcode_base`
 
 **2 children** (register + immediate):
-- 0xF6000000 (ST): `reg<<20 | val(20) | 0xF6000000` (with memory bounds check)
-- 0xD0-D2 (LD/WTRIG/etc): `reg<<20 | val(20) | opcode_base`
+- `0xF6000000` (ST): `reg<<20 | val(20) | 0xF6000000` (with memory
+  bounds check against device memory depth)
+- `0xD0`–`0xD2` (LD / WTRIG / etc.): `reg<<20 | val(20) | opcode_base`
 - Others: `reg<<20 | val(20) | opcode_base`
 
 ### opcode5 — 2×14-bit Immediates (waveform table addressing)
@@ -69,42 +70,29 @@ Variable format depending on opcode and child count:
 ```
 Children: 2 — [0]=high immediate, [1]=low immediate
 
----
+## Operand types accepted by the assembler
 
-## AsmExpression Interface (Reconstructed)
+The assembler accepts three operand kinds in `.seqasm` source:
 
-```cpp
-struct AsmExpression {
-    int type;                    // +0x00: 1=register, 2=label/symbol, 3=integer literal
-    std::string name;            // +0x08: symbol/label name (used when type==2)
-    Assembler::Command command;  // +0x38: the command enum for the instruction
-    int value;                   // +0x3C: register number (type==1) or immediate (type==3)
-    std::vector<std::shared_ptr<AsmExpression>> children;  // +0x40: operands
-};
-```
+- **Register** — validated against the device's `registerDepth`.
+- **Label / symbol** — looked up in the label bimap; the resolved
+  integer is masked to fit the operand's bit width.
+- **Integer literal** — checked against `(1 << bits) - 1` for
+  overflow.
 
-### Type semantics:
-- **type 1** (Register): `value` = register index. Validated against `deviceConstants->registerDepth`.
-- **type 2** (Label/Symbol): `name` = label string. Looked up in `labelBimap` (at `this+0xD8`, string↔int bimap). The resolved integer is masked to fit the bit width.
-- **type 3** (Integer literal): `value` = the literal integer. Checked against `(1<<bits)-1` overflow.
+## Diagnostics
 
-### Error Message IDs used:
-- 1: "expected register at argument position X of opcode Y"
-- 2: "expected value at argument position X of opcode Y"  
-- 3: "invalid register" (negative)
-- 4: "wrong number of arguments" (with command name, expected, got)
-- 5: "value overflow" (value, max_bits)
-- 6: "wrong format for register-register operation"
-- 7: "wrong argument count" (command_name, opcode_type, expected)
-- 8: "expected register expression"
-- 9: "expected value expression (integer or label)"
-- 10: "memory address out of range" (max_depth)
-- 0x78: "undefined label" (label_name)
+Encoding-time errors are surfaced through the assembler's error
+catalogue; the most common are wrong argument count, register where
+an immediate was expected (and vice versa), value overflow against
+the operand width, undefined label, and memory-address out of range
+for `ST`.
 
-### DeviceConstants offsets used:
-- `+0x28`: `registerDepth` (uint64_t) — max register count
-- `+0x30`: `memoryDepth` (uint64_t) — max memory address for ST bounds check
+## See also
 
-### AWGAssemblerImpl layout (relevant offsets):
-- `+0x00`: pointer to DeviceConstants
-- `+0xD8`: label bimap (boost::bimaps::bimap<string, int>)
+- \ref notes_opcode_map — complete opcode → mnemonic table with
+  scheduling class.
+- \ref notes_fb_instruction — the feedback (`fb`) instruction.
+- \ref notes_special_registers — addresses targeted by `LD`/`ST`/
+  `luser` / `suser`.
+

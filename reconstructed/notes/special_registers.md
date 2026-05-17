@@ -1,24 +1,18 @@
 # Special Register Address Map {#notes_special_registers}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
-
-Complete tabulation of all memory-mapped register addresses used by `ld`/`st`
-(and their aliases `luser`/`suser`) machine instructions in the SeqC sequencer.
-Traced from binary disassembly through `asm_commands.cpp` up to each SeqC
-user-facing function.
+Complete tabulation of all memory-mapped register addresses used by
+`ld` / `st` (and their aliases `luser` / `suser`) in the SeqC
+sequencer.  Each entry lists the assembler primitive that emits the
+access and the SeqC-level function(s) the access originates from.
 
 ## Device Families
 
 - **Cervino**: UHFLI(1), UHFQA(4), GHFLI(128), VHFLI(256)
-- **Hirzel**: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC\_SG(32), SHFLI(64)
-- **SHF+**: SHFSG(16), SHFQC\_SG(32), SHFQA(8) — subset of Hirzel with
-  frequency-sweep support
+- **Hirzel**: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32), SHFLI(64)
+- **SHF+**: SHFSG(16), SHFQC_SG(32), SHFQA(8) — subset of Hirzel with
+  frequency-sweep support.
+
+See \ref notes_cervino_vs_hirzel for the broader ISA split.
 
 ---
 

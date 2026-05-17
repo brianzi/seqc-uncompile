@@ -1,15 +1,10 @@
 # Opcode Map {#notes_opcode_map}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
-
-Determined from disassembly of `AsmCommands`, `AsmCommandsImpl*` methods,
-and the global `cmdMap` at 0xb84c20 (43 entries, `map<string, Command>`).
+Complete table of SeqC assembler mnemonics, their numeric opcode
+values, and the `Assembler::Command` enum each one maps to.  For
+the bit-layout of each instruction word see
+\ref notes_opcode_encoding; for the per-family split see
+\ref notes_cervino_vs_hirzel.
 
 ## Command→String Mapping (cmdMap)
 
