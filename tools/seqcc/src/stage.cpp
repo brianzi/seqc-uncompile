@@ -13,11 +13,15 @@ namespace {
 
 // Canonical pipeline-stage table.  Order mirrors `Compiler::compile()`
 // (DESIGN.md §3): parse → astgen → lower → opt-pre → prefetch →
-// opt-post → assemble → link.  Only "lower", "asm", and "link" are
-// reachable from the current driver release:
+// opt-post → assemble → link.  Only "lower", "asm-pre", "asm", and
+// "link" are reachable from the current driver release:
 //   - "lower" (alias `-E`) pulls the lowered AST out of
 //     `CompileSeqcIntrospection::loweredAst` (T3c plumbing) and
 //     emits it as JSON via the existing `emitAstLoweredJson()`.
+//   - "asm-pre" (T6.2) emits the pre-prefetch AsmList via
+//     `AsmList::serialize()` — the binary's natural round-trip cut
+//     point (after `stepOptPre`, before `stepPrefetch`).  This is
+//     the input format consumed by `--from=asm`.
 //   - "asm" (alias `-S`) extracts the `.asm` section from the
 //     produced ELF via the existing `parseElfSections()` reader.
 //   - "link" is the default: emit the compiled ELF as-is.
@@ -39,6 +43,9 @@ std::vector<StageInfo> const& stageTable() {
          "Waveform prefetch + WavetableIR build."},
         {"opt-post",   "",                   false,
          "Post-waveform AsmOptimize passes."},
+        {"asm-pre",    ".seqasm",            true,
+         "Pre-prefetch AsmList serialised via AsmList::serialize() "
+         "(natural round-trip cut).  Input format for --from=asm."},
         {"asm",        ".asm",               true,
          "Assembled .asm text (from ELF .asm section).  Alias: -S."},
         {"assemble",   "",                   false,

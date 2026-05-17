@@ -133,10 +133,40 @@ disable_opt {
             }
         }
 
-placeholder_line {
-            /* PLACEHOLDER_LINE keyword */
+    /* IF-309: the original recon spelling was `placeholder_line`, but
+     * `strings` on `_seqc_compiler.so` shows only `placeholder` (no
+     * `placeholder_line` token-data string), and the serialiser
+     * (`AsmList::serialize`) emits `placeholder # {JSON}` lines that
+     * the original binary's lexer round-trips successfully.  The
+     * recon keyword was therefore a typo / misread that left
+     * `AsmList::deserialize` unable to round-trip its own output.
+     *
+     * The keyword spelling is substituted by cmake from the
+     * `ZHINST_RECON_ASMLIST_KEYWORD` cache variable, which defaults
+     * to `placeholder` (binary-correct).  Configure with
+     * `-DZHINST_RECON_ASMLIST_KEYWORD_FIX=OFF` to restore the
+     * original `placeholder_line` spelling for validation against
+     * pre-fix recon builds.  CPP-level gating inside the `.l` file
+     * is not workable (flex chokes on `#ifdef` in the rules
+     * section), hence the cmake-side substitution via
+     * `configure_file`.
+     *
+     * Pattern: when the fix is ON, match the keyword PLUS the rest
+     * of the line so the trailing `# {JSON}` comment is captured
+     * in `yytext`.  The parser action then forwards the whole
+     * captured string to `addNode(ctx, text)`, which already knows
+     * how to split it on `#` and stash the comment portion on the
+     * AsmExpression for `parseStringToAsmList` to re-hydrate as a
+     * Node via `Node::fromJson`.  When the fix is OFF, match only
+     * the bare keyword (pre-fix recon behaviour); the parser
+     * action passes NULL and `addNode` raises its `nullptr`
+     * diagnostic (also pre-fix behaviour).
+     */
+@ZHINST_RECON_ASMLIST_KEYWORD@@ZHINST_RECON_ASMLIST_KEYWORD_LINE_TAIL@ {
+            /* PLACEHOLDER_LINE keyword — see IF-309 note above. */
             if (CTX->isComment()) { /* skip */ }
             else {
+@ZHINST_RECON_ASMLIST_KEYWORD_LINE_CAPTURE@
                 return PLACEHOLDER_LINE;
             }
         }

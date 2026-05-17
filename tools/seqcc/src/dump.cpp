@@ -329,6 +329,14 @@ std::string renderStagePrimary(std::string const& stage,
         // byte-identical artifacts.
         return emitAstLoweredJson(sinks);
     }
+    if (stage == "asm-pre") {
+        // T6.2: pre-prefetch AsmList serialised via
+        // `AsmList::serialize()`.  Populated by the driver's
+        // front-end-only path when `--to=asm-pre` is selected.
+        // Unlike `--to=asm`, there is no ELF fallback — the
+        // back end never ran, so no `.asm` section exists.
+        return sinks.preprefetchAsmText;
+    }
     if (stage == "asm") {
         // T5b.5: prefer the driver-cached assembler text (populated
         // by `SeqcDriver` after `stepInnerCompile`) — that is

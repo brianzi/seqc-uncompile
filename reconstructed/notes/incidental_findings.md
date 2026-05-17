@@ -1270,10 +1270,11 @@ compare the resulting ELF to the original direct-compile ELF).
 
 ## IF-308  seqcc: `--to=asm` dumps post-pipeline asm, not the binary's natural round-trip cut
 
-**Status:** proposed (driver design issue surfaced during T6.2
-implementation analysis)
+**Status:** partially fixed (Q3-demoted; round-trip resume deferred
+indefinitely, see "Resolution" below)
 **Severity:** likely-bug (design)
 **Discovered:** during T6.2 implementation planning (post-T6.1).
+**Amended:** T6.2 wrap-up.
 
 ### Observation
 
@@ -1429,3 +1430,255 @@ Marked likely-bug (design) because:
   primary T6.2 work).
 - Fix lands as part of T6.2.  Status flips "proposed" → "fixed"
   on T6.3 wrap-up.
+
+### Resolution (T6.2 wrap-up)
+
+The partial fix landed as the new `--to=asm-pre` stage rather
+than as an overhaul of `--to=asm`.  `--to=asm` continues to dump
+the post-pipeline assembly listing (now correctly labelled as a
+*debug* artifact); `--to=asm-pre` is the new front-end-only path
+that captures `asmList_.serialize()` at the binary's natural
+round-trip cut (post-`stepOptPre`, pre-`stepPrefetch`) via the
+IF-307 `AWGCompiler::compiler()` accessor.
+
+**The round-trip `--from=asm` resume path was demoted to Q3 and
+will not be pursued.**  During T6.2 implementation we discovered
+that reconstructing the post-`stepOptPre` state cleanly requires
+transporting more than just the AsmList:
+
+1. **AsmList** — captured by `--to=asm-pre`. ✓
+2. **WavetableIR** — `compileWavetableIR_` is constructed inside
+   `stepOptPre` step 13c and consumed by `stepPrefetch`; would
+   require a `<out>.wavetableir.json` sidecar plus matching
+   `WavetableIR::toJson`/`fromJson` plus a recon-side
+   `Compiler::setWavetableIR` setter.
+3. **`Compiler::ast_`** — the next would-be sidecar.  `Prefetch`'s
+   constructor takes `ast_` as `root`, and
+   `Prefetch::optimizeSync(root_)` dereferences a null `Node` at
+   offset 0xB8 (`Node::next`) when `ast_` is absent.  Would
+   require an AST sidecar plus the existing `Node::fromJson`
+   path plus a `Compiler::setAst` setter.
+4. **Possibly more** — each new sidecar revealed the next during
+   debugging; no clean stopping point was apparent without a
+   full audit of every field `stepPrefetch` and downstream
+   passes consume.
+
+Each sidecar would also require a new recon-side setter, which
+violates the "minimum-footprint" rule for sanctioned recon edits
+(IF-307 only added one such accessor; widening it that far would
+amount to a substantial recon-side ABI expansion).
+
+The user chose Q3 (drop the round-trip goal) as the clean
+stopping point.  `--to=asm-pre` remains as a one-way diagnostic
+dump for inspecting the binary's natural cut point, which is
+useful in its own right for debugging asm-list serialisation
+(and indeed drove the discovery of IF-309/310/311 below).
+
+What landed in the working tree and stayed:
+
+- `--to=asm-pre` driver path + `IRSinks::preprefetchAsmText` +
+  dump renderer (`tools/seqcc/src/{driver,dump,stage}.cpp`).
+- IF-307 extensions to `AWGCompiler` (the existing
+  `stepInnerCompileFromAsmList` overload + `setAsmList` /
+  `setPlaceholderAsm` setters) — now dead-code with no driver
+  caller, but the cost of reverting the recon commit was
+  judged not worth the churn.
+
+What was reverted from the T6.2 in-flight changes:
+
+- `--from=asm` CLI option + `-x LANG` option + reconciliation
+  logic + `validateFromToCombination` + `fromStageNames`.
+- `wavetableJsonForResume` parameter on `SeqcDriver::compile()`.
+- `IRSinks::preprefetchWavetableJson` sidecar field.
+- `Compiler::setWavetableIRFromJson` + `Compiler::wavetableIR()`
+  accessor (added during the sidecar push, then removed).
+- 4th `wavetableJson` parameter on
+  `AWGCompiler::stepInnerCompileFromAsmList` (reverted to 3-arg
+  form to match the in-binary signature).
+- Sidecar write / read blocks in `tools/seqcc/src/compile.cpp`.
+
+Three GDB-/objdump-verified binary-fidelity fixes (IF-309/310/311
+below) were *kept* — they were discovered during the round-trip
+debugging but are independently correct regardless of whether
+round-trip resume is ever revived.
+
+Status: **partially fixed** rather than "fixed" because the
+original design goal ("byte-equal round-trip resume from
+`.seqasm`") is not achieved; only the one-way dump-point
+correction landed.
+
+---
+
+## IF-309  Bison grammar: `placeholder_line` keyword + line-tail capture vs `placeholder` + post-`#` JSON
+
+**Status:** fixed (working tree, gated by
+`ZHINST_RECON_ASMLIST_KEYWORD_FIX`)
+**Severity:** likely-bug (binary mismatch)
+**Discovered:** during T6.2 round-trip debugging when the
+`--to=asm-pre` dump showed `placeholder_line {…json…}` instead of
+the binary's `placeholder # {…json…}`.
+
+### Observation
+
+The reconstructed `asm_lexer.l.in` / `asm_parser.y.in` defined a
+single token `placeholder_line` whose semantic value captured the
+entire rest of the line as a free-form string.  GDB tracing of
+the original binary's lexer/parser on the same input showed two
+distinct tokens: a bare `placeholder` keyword followed by a
+standard `# <json>` comment, with the JSON parsed by the existing
+`#`-comment lex rule that writes to `AsmExpression::comment`
+(offset +0x80, populated by `AsmParserContext::addNode`).
+
+### Why it matters
+
+`AsmList::parseStringToAsmList` Case D
+(`reconstructed/src/asm/asm_list.cpp:555-579`) reads
+`expr->noOpt()` (alias for `hasComment`, offset +0x98) and feeds
+`expr->comment` (offset +0x80) through `boost::json::parse` →
+`Node::fromJson`.  With the reconstructed `placeholder_line`
+token, the JSON ended up in a *different* field
+(`AsmExpression::nopComment` at +0x20, the `//` line-comment
+slot, written by `assembleStringToExpressionsVec`) and Case D
+silently saw an empty `comment` — every placeholder round-trip
+lost its node payload.
+
+### Fix
+
+`reconstructed/src/asm/asm_lexer.l.in`:
+
+- Replace single `placeholder_line` rule + line-tail capture with
+  a bare `placeholder` keyword token.
+
+`reconstructed/src/asm/asm_parser.y.in`:
+
+- Replace the `placeholder placeholder_line` production with
+  `placeholder` (which inherits the existing
+  `instruction_with_optional_comment` machinery that routes the
+  trailing `#` JSON into `addNode()` → `comment` / `hasComment`).
+
+`reconstructed/CMakeLists.txt`:
+
+- Add `configure_file()` substitution variables for the two
+  templated `.in` sources so the keyword swap can be ifdef-gated
+  via `ZHINST_RECON_ASMLIST_KEYWORD_FIX` (ON by default).
+- Add `target_compile_definitions(... PUBLIC
+  ZHINST_RECON_ASMLIST_KEYWORD_FIX=$<BOOL:...>)` so dependent TUs
+  see the same gate.
+
+### Verification
+
+- `--to=asm-pre` now produces text that matches the binary's
+  `serializeRoundTrip` debug-flag output byte-for-byte (verified
+  on `wave w = ones(64); playWave(w);`).
+- Full diff suite 1612/1612 passing — no regression with the
+  flag ON.
+- IF-310 and IF-311 below are the addNode and
+  `assembleStringToExpressionsVec` corrections that go with this
+  one; the three together restore complete `placeholder # {json}`
+  round-trip fidelity.
+
+### Cross-references
+
+- IF-310 — `addNode()` `comment`/`hasComment` writeback.
+- IF-311 — `assembleStringToExpressionsVec()` `nopComment` /
+  `noOptOverride_` fields.
+- AsmExpression layout: `nopComment` @ +0x20 (`//` line comment),
+  `comment` @ +0x80 (`#` JSON), `hasComment` @ +0x98 (alias
+  `noOpt()`), `noOptOverride_` @ +0xA0.
+
+---
+
+## IF-310  `AsmParserContext::addNode()`: missing `comment` / `hasComment` writeback
+
+**Status:** fixed (working tree, gated by
+`ZHINST_RECON_ASMLIST_KEYWORD_FIX`)
+**Severity:** likely-bug (binary mismatch)
+**Discovered:** during IF-309 debugging.
+
+### Observation
+
+GDB-verified at `_seqc_compiler.so` `+0x28c243-0x28c297`: the
+binary's `AsmParserContext::addNode` copies the trailing `#`
+comment string into `AsmExpression::comment` (offset +0x80) and
+sets `AsmExpression::hasComment = true` (offset +0x98) so that
+the downstream `parseStringToAsmList` Case D recognises this
+entry as a node-bearing placeholder.
+
+The reconstruction in
+`reconstructed/src/asm/asm_parser_context.cpp::addNode()` was
+missing both writes — the `comment` field stayed empty and
+`hasComment` stayed false even when a `#`-JSON suffix was
+present, so Case D never triggered.
+
+### Fix
+
+```cpp
+node->comment = std::move(comment);
+node->hasComment = true;
+```
+
+added inside `addNode()` immediately after the existing field
+population, gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX`.
+
+### Verification
+
+- Direct address verification via GDB breakpoint at the binary's
+  `addNode` entry confirmed the two writes to +0x80 / +0x98.
+- Combined with IF-309 + IF-311, the `--to=asm-pre` output
+  round-trips through `parseStringToAsmList` Case D and recovers
+  the node payload.
+
+---
+
+## IF-311  `assembleStringToExpressionsVec()`: wrong `AsmExpression` fields written for `//`-style line comments
+
+**Status:** fixed (working tree, gated by
+`ZHINST_RECON_ASMLIST_KEYWORD_FIX`)
+**Severity:** likely-bug (binary mismatch)
+**Discovered:** during IF-309/310 debugging.
+
+### Observation
+
+objdump-verified at `_seqc_compiler.so` `+0x286e40`: the binary's
+`assembleStringToExpressionsVec` (the inner helper called by
+`AsmList::serialize`) writes the `//`-style line comment into
+`AsmExpression::nopComment` (offset +0x20, via `r13 += 0x20`) and
+sets `AsmExpression::noOptOverride_` (offset +0xA0, via `mov
+%al, 0xa0(%rcx)`).
+
+The reconstruction in
+`reconstructed/src/codegen/awg_assembler_impl_pipeline.cpp::
+assembleStringToExpressionsVec()` was writing to `ast->comment`
+(the `#` JSON slot at +0x80) and `ast->noOpt()` (the
+`hasComment` alias at +0x98) — the wrong two fields, both
+belonging to the placeholder-node payload path.  This corrupted
+the round-trip in the opposite direction: serialised text
+emitted `//` content into the JSON-bearing field, then
+`parseStringToAsmList` Case D saw a non-empty `comment` on
+non-placeholder entries and tried to JSON-parse the `//` text.
+
+### Fix
+
+Re-route the two writes in
+`assembleStringToExpressionsVec()` to the correct fields:
+
+```cpp
+ast->nopComment = …;        // was ast->comment
+ast->noOptOverride_ = true; // was ast->noOpt() = true
+```
+
+gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX`.
+
+### Verification
+
+- Field offsets verified via objdump on the original binary
+  (`r13 += 0x20` for `nopComment`; `mov %al, 0xa0(%rcx)` for
+  `noOptOverride_`).
+- With IF-309 + IF-310 + IF-311 all applied, the full diff suite
+  (1612/1612) passes with no regression.
+
+### Cross-references
+
+- IF-309 — lexer/parser keyword swap.
+- IF-310 — `addNode()` comment writeback.
+- AsmExpression layout: see IF-309.

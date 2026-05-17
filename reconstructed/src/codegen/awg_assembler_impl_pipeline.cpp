@@ -227,11 +227,43 @@ AWGAssemblerImpl::assembleStringToExpressionsVec(const std::string& src) {  // 0
             // Extract comment after "//" using $_1 lambda
             std::string comment = extractComment(line);
 
+#if ZHINST_RECON_ASMLIST_KEYWORD_FIX
+            // IF-311: the binary writes the extracted `//`-line-comment
+            // into `ast->nopComment` (+0x20), NOT `ast->comment` (+0x80),
+            // and the `!doOpt()` flag goes into `ast->noOptOverride_`
+            // (+0xA0), NOT `ast->hasComment` (+0x98).  The original
+            // recon scrambled the two field pairs, which had two bad
+            // effects: (1) the `nopComment` slot stayed empty so
+            // `caseC` (NOP marker) in `parseStringToAsmList` always saw
+            // an empty `instr.comment`, and (2) any `addNode`-attached
+            // `# {JSON}` placeholder text written into `ast->comment`
+            // was immediately clobbered with the empty `//`-comment
+            // string and the `hasComment` flag flipped to false — so
+            // the noOpt-JSON branch at `asm_list.cpp:555` never fired
+            // for placeholder lines and `Node::fromJson` was never
+            // called.  This made `--from=asm` round-trip impossible.
+            //
+            // Binary evidence (assembleStringToExpressionsVec @0x286e40):
+            //   0x2870f3: r13 = ast; testb $0x1, 0x20(%r13)  — name SSO check
+            //   0x28710f: add $0x20, %r13                    — r13 = &nopComment
+            //   0x287113-287122: move comment into [r13]/[r13+0x10]
+            //   0x287135: mov %al, 0xa0(%rcx)                — write to noOpt-override
+            //
+            // Gated under the same `ZHINST_RECON_ASMLIST_KEYWORD_FIX`
+            // flag as IF-309/IF-310 because the three findings form a
+            // single logical round-trip-correctness fix; the upstream
+            // pieces (lexer keyword + parser comment attachment) are
+            // useless without this downstream piece preserving the
+            // attachment instead of clobbering it.
+            ast->nopComment      = comment;
+            ast->noOptOverride_  = !parserCtx_.doOpt();
+#else
             // Set comment field on the AST node (at +0x20)
             ast->comment = comment;
 
             // Set noOpt flag
             ast->noOpt() = !parserCtx_.doOpt();
+#endif
 
             // Add to result
             result.push_back(ast);

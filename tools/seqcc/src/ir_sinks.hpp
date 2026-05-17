@@ -34,6 +34,16 @@ struct IRSinks : public zhinst::CompileSeqcIntrospection {
     //! the driver was not invoked (e.g. unit tests that build an
     //! `IRSinks` from scratch).
     std::string assemblerText;
+
+    //! T6.2: pre-prefetch AsmList serialised via `AsmList::serialize()`
+    //! at the binary's natural round-trip cut (after `stepOptPre`,
+    //! before `stepPrefetch`).  Populated only when the driver took
+    //! the `--to=asm-pre` front-end-only path.  Consumed by
+    //! `renderStagePrimary("asm-pre")`.  Empty otherwise.
+    //!
+    //! One-way diagnostic dump only.  The round-trip resume path was
+    //! demoted to Q3 — see IF-308 for the rationale.
+    std::string preprefetchAsmText;
 };
 
 }  // namespace seqcc

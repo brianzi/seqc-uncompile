@@ -274,7 +274,35 @@ AsmExpression* addNode(AsmParserContext* ctx, const char* text) {
     // (with hasComment flag at +0x98)
     // Binary: if node->hasComment (+0x98) is true, assign into existing;
     //         otherwise, move-assign and set hasComment = true.
+#if ZHINST_RECON_ASMLIST_KEYWORD_FIX
+    // IF-310: the binary's `addNode` (0x28c243-0x28c297) attaches the
+    // post-`#` comment text onto the freshly-allocated AsmExpression
+    // and sets `hasComment = true`.  The recon previously elided this
+    // attachment with a `// node->setComment(comment);` placeholder,
+    // which left every `placeholder # {JSON}` line in a deserialised
+    // `.seqasm` dump with `comment.empty()` and `hasComment == false`.
+    // `AsmList::parseStringToAsmList` then skipped the JSON path at
+    // `asm_list.cpp:555-579` (which calls `Node::fromJson`) and the
+    // resulting `AsmList::Asm` entries had no `node` attached, so the
+    // `--from=asm` resume path in seqcc found zero `NodeType::Load`
+    // entries and bailed out.  Restoring the attachment closes the
+    // round-trip.  Gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX` because
+    // it is the second half of the same logical fix as the
+    // lexer/parser keyword changes; without that fix the lexer/parser
+    // never feed `# JSON` text to `addNode` at all, so this branch is
+    // unreachable and the gate value is irrelevant for fix-OFF runs.
+    //
+    // The binary distinguishes "hasComment already set" (assign into
+    // existing string) from "hasComment unset" (move-construct +
+    // raise flag), but `addNode` always operates on a fresh node from
+    // `new AsmExpression()` with `hasComment == false`, so the
+    // already-set branch is dead here.  We replicate the live branch
+    // only.
+    node->comment    = std::move(comment);
+    node->hasComment = true;
+#else
     // node->setComment(comment);
+#endif
 
     return node;
 }

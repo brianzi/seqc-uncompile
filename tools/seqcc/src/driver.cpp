@@ -14,22 +14,28 @@
 // IR-sink population — line-for-line mirroring `compileSeqcImpl()`
 // in `reconstructed/src/codegen/compile_seqc.cpp`.
 //
-// T5b.5 (this revision): `compile()` now drives the back end stage by
-// stage via the three `AWGCompiler::stepXxx()` forwarders that wrap
-// the new `AWGCompilerImpl::stepInnerCompile` / `stepAssembleOpcodes`
-// / `stepCheckLimits` partition.  The driver short-circuits between
+// T5b.5: `compile()` drives the back end stage by stage via the three
+// `AWGCompiler::stepXxx()` forwarders that wrap the new
+// `AWGCompilerImpl::stepInnerCompile` / `stepAssembleOpcodes` /
+// `stepCheckLimits` partition.  The driver short-circuits between
 // the steps based on `opts.toStage`:
 //   - `--to=lower` / `--to=asm` stop after `stepInnerCompile`.
 //     `assemblerText_` is populated by then (suffices for `-S`); the
 //     lowered AST / wavetable handles are populated by then too
-//     (suffices for `-E`).  `stepAssembleOpcodes` /
-//     `stepCheckLimits` / `writeToStream` are skipped — that is the
-//     literal `--to=` early-exit that closes IF-304 (partially —
-//     full short-circuit of front-end stages would require exposing
-//     the inner `Compiler`'s step methods on `AWGCompiler`, which
-//     this phase deferred).
+//     (suffices for `-E`).  `stepAssembleOpcodes` / `stepCheckLimits`
+//     / `writeToStream` are skipped.
 //   - `--to=link` (default) runs all three back-end steps then
 //     `writeToStream` as before.
+//
+// T6.2 (one-way diagnostic): `--to=asm-pre` drives the inner
+// `Compiler` directly to capture its `AsmList` at the natural cut
+// point (post-`stepOptPre`, pre-`stepPrefetch`) into
+// `IRSinks::preprefetchAsmText`.  Back end is skipped — there is no
+// ELF and no assembler text.  This is a one-way dump only: the
+// round-trip resume path (`--from=asm`) was demoted to Q3 because
+// reconstructing the post-`stepOptPre` state cleanly would require
+// transporting additional sidecars (WavetableIR, Compiler::ast_,
+// possibly more) which the user judged not worth pursuing.
 //
 // The two anonymous-namespace helpers from `compile_seqc.cpp`
 // (`parseSequencerType`, `dispatchGetAwgDeviceProps`) are not
@@ -47,6 +53,7 @@
 #include "zhinst/codegen/awg_compiler.hpp"
 #include "zhinst/codegen/awg_compiler_config.hpp"
 #include "zhinst/codegen/compile_seqc.hpp"
+#include "zhinst/codegen/compiler.hpp"
 #include "zhinst/core/exception.hpp"
 #include "zhinst/device/awg_device_props.hpp"
 #include "zhinst/device/device_type.hpp"
@@ -105,12 +112,12 @@ dispatchGetAwgDeviceProps(zhinst::AwgDeviceType dt,
 
 // T5b.5: decide whether the driver should run the back-end steps
 // (`stepAssembleOpcodes` + `stepCheckLimits` + `writeToStream`) for a
-// given `--to=<stage>` value.  `lower` and `asm` short-circuit;
-// `link` (default) does not.  Unknown stages reach the driver only
-// when CLI validation has been bypassed, so we treat them as
-// `link` to preserve full-pipeline behaviour.
+// given `--to=<stage>` value.  `lower`, `asm`, and (T6.2) `asm-pre`
+// short-circuit; `link` (default) does not.  Unknown stages reach
+// the driver only when CLI validation has been bypassed, so we treat
+// them as `link` to preserve full-pipeline behaviour.
 bool needsBackEnd(std::string const& stage) {
-    return !(stage == "lower" || stage == "asm");
+    return !(stage == "lower" || stage == "asm" || stage == "asm-pre");
 }
 
 }  // namespace
@@ -237,21 +244,53 @@ DriverResult SeqcDriver::compile(std::string const& source,
         compiler.addWaveforms(waveformPaths);
     }
 
-    // ---- 9-12. Run the back end stage by stage.  Short-circuit
-    //            between the AWGCompilerImpl steps based on
-    //            opts.toStage (closes IF-304 for the back-end stages
-    //            — the front-end Compiler::compile inside step 9
-    //            still runs to completion since AWGCompiler does not
-    //            expose Compiler's stepwise interface). ----
+    // ---- 9-12. Run the inner compile (one of two strategies) +
+    //            back end (when required).  See file-level comment
+    //            for the path matrix. ----
     bool const runBackEnd = needsBackEnd(opts_.toStage);
+    bool const isAsmPre   = (opts_.toStage == "asm-pre");
 
     std::string elfData;
     std::string jsonResult;
     try {
-        // T5b.5: step 9 — inner Compiler::compile + asm-text build +
-        // message append.  Always required (the IR sinks would
-        // otherwise be empty and `-E` would have nothing to emit).
-        compiler.stepInnerCompile(source);
+        // ---- 9. Inner compile — dispatch on path. ----
+        if (isAsmPre) {
+            // T6.2 front-end-only path (one-way diagnostic dump).
+            // Drive the inner Compiler stage by stage so we can
+            // capture its `AsmList` at the natural cut point
+            // (post-`stepOptPre`, pre-`stepPrefetch`) — see IF-308.
+            // No back end runs; sinks are populated only with
+            // `preprefetchAsmText` below.
+            //
+            // We deliberately don't go through `stepInnerCompile`
+            // because that one drives all front-end steps to
+            // completion and we want to stop after `stepOptPre`.
+            // The device-type validation that `stepInnerCompile`
+            // performs is also not needed here — `--to=asm-pre` is
+            // a front-end dump and the device-type only constrains
+            // back-end opcode assembly.
+            auto& inner = compiler.compiler();
+            inner.reset();
+            // stepParse may return an engaged optional (empty input
+            // early-out).  In that case there is no asm to capture;
+            // leave `preprefetchAsmText` empty so the dump shows the
+            // input was a no-op program.
+            auto early = inner.stepParse(source);
+            if (!early.has_value()) {
+                inner.stepToSeqCAst();
+                inner.stepLower();
+                inner.stepBuildAsmPreamble();
+                inner.stepOptPre();
+                result.sinks.preprefetchAsmText =
+                    inner.asmList().serialize();
+            }
+        } else {
+            // T5b.5: step 9 — inner Compiler::compile + asm-text
+            // build + message append.  Always required on the
+            // from-source path (the IR sinks would otherwise be
+            // empty and `-E` would have nothing to emit).
+            compiler.stepInnerCompile(source);
+        }
 
         if (runBackEnd) {
             // T5b.5: step 10 + 11+12 — AsmList → opcode words, then
@@ -312,10 +351,22 @@ DriverResult SeqcDriver::compile(std::string const& source,
     // assembler text is always cached here (whether we ran the back
     // end or not) so `--to=asm` can read it from sinks without going
     // through the ELF.
-    zhinst::fillIntrospection(
-        compiler,
-        static_cast<zhinst::CompileSeqcIntrospection&>(result.sinks));
-    result.sinks.assemblerText = compiler.assemblerText();
+    //
+    // T6.2: skip `fillIntrospection` + `assemblerText` capture on
+    // the `--to=asm-pre` path.  That path stops after the inner
+    // `stepOptPre`, before `stepPrefetch` / `stepOptPost` /
+    // `stepProject`, so the AWGCompiler-side state that
+    // `fillIntrospection` reads (`compileString_asmList_`,
+    // `wavetableIR_`, `assemblerText_`) is empty or partial and
+    // would either crash on null derefs or surface misleading
+    // half-populated fields.  The `asm-pre` dump path consumes only
+    // `sinks.preprefetchAsmText`, which was populated above.
+    if (!isAsmPre) {
+        zhinst::fillIntrospection(
+            compiler,
+            static_cast<zhinst::CompileSeqcIntrospection&>(result.sinks));
+        result.sinks.assemblerText = compiler.assemblerText();
+    }
 
     result.elf = std::move(elfData);
     result.infoJson = std::move(jsonResult);

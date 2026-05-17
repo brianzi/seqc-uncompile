@@ -63,7 +63,7 @@
 %token <sval> STRING            /* 259 — identifier / opcode name */
 %token <sval> STRING_LITERAL    /* 260 — quoted string literal */
 %token <ival> NUMBER            /* 261 — integer (decimal or hex) */
-%token        PLACEHOLDER_LINE  /* 262 — placeholder marker */
+%token        @ZHINST_RECON_PLACEHOLDER_LINE_TOKEN_TYPE@ PLACEHOLDER_LINE  /* 262 — placeholder marker */
 %token        DISABLE_OPT       /* 263 — optimization disable flag */
 
 /* Nonterminal types */
@@ -141,7 +141,20 @@ placeholder
     : PLACEHOLDER_LINE                      /* Rule 11 — @0x292e25 */
         {
             (void)ctx->programCounter();
-            $$ = NULL;  /* placeholder has no string value */
+            /* IF-309: when the lexer captures the full
+             * `placeholder # {JSON}` line text into yylval->sval
+             * (fix-ON path), forward it to `addNode`, which
+             * splits on `#` and attaches the JSON to the
+             * AsmExpression so `parseStringToAsmList` can
+             * rehydrate the IR `Node` via `Node::fromJson`.
+             * When the lexer only matches the bare keyword
+             * (fix-OFF / pre-fix path), $1 is NULL and the
+             * `addNode` action below is overridden by cmake to
+             * be `NULL`, preserving the original `inst :
+             * placeholder { addNode(ctx, NULL) }` diagnostic
+             * behaviour.
+             */
+            $$ = @ZHINST_RECON_PLACEHOLDER_RULE_VALUE@;
         }
     ;
 

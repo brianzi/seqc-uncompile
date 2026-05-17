@@ -121,10 +121,13 @@ struct Options {
     //! artifact instead.
     //!
     //! Currently supported:
-    //!   - "link"   — ELF (default).
-    //!   - "lower"  — lowered SeqC AST JSON (alias: `-E`).
-    //!   - "asm"    — .seqasm text from the produced ELF's `.asm`
-    //!                section (alias: `-S`).
+    //!   - "link"    — ELF (default).
+    //!   - "lower"   — lowered SeqC AST JSON (alias: `-E`).
+    //!   - "asm-pre" — pre-prefetch AsmList serialised via
+    //!                 `AsmList::serialize()` (T6.2, one-way
+    //!                 diagnostic dump only).
+    //!   - "asm"     — .seqasm text from the produced ELF's `.asm`
+    //!                 section (alias: `-S`).
     //!
     //! See `stage.cpp::knownStages()` for the canonical list and
     //! per-stage "supported" status.  Unsupported stages are

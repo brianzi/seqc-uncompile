@@ -505,7 +505,7 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       at the binary's natural cut point.  Test contract: strict
       byte-equal ELF round-trip.
 
-  - [ ] **T6.1 — recon edits (IF-307).**  Add forward-declared
+  - [x] **T6.1 — recon edits (IF-307).**  Add forward-declared
         `class Compiler;` + public `Compiler& compiler()` accessor
         to `awg_compiler.hpp`; implement in `awg_compiler.cpp`.
         Factor `setupResources()` out of `stepToSeqCAst`; add
@@ -514,40 +514,59 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
         `test_seqcc_diff` 46/46, `test_seqcc_ab` 15/15,
         `test_seqcc_smoke` 4/4, `test_seqdump` 16/16,
         `test_seqcc_to` 4/4) — pure additive change, byte-equality
-        must hold.
+        must hold.  **Landed**, commit `fa0229c`.  Note: the
+        added `stepInnerCompileFromAsmList` overload + `setAsmList`
+        / `setPlaceholderAsm` setters are now dead-code after the
+        T6.2 Q3 demotion (no driver caller), but the cost of
+        reverting was judged not worth the churn.
 
-  - [ ] **T6.2 — driver wiring + round-trip test.**  Two-part:
-        **(a)** refactor `--to=asm` to dump `asmList_` at the
-        binary's natural round-trip cut point (after `stepOptPre`,
-        before `stepPrefetch`), per **IF-308**.  Driver drives the
+  - [x] **T6.2 — driver wiring + round-trip test (Q3-demoted).**
+        Original plan (a + b below) was partially executed; the
+        round-trip resume path (b) was demoted to Q3 (deferred
+        indefinitely) when implementation surfaced that
+        reconstructing the post-`stepOptPre` state cleanly requires
+        transporting more than just the AsmList (WavetableIR,
+        `Compiler::ast_`, possibly more sidecars).  See **IF-308**
+        Resolution section for the full rationale.
+
+        **(a) LANDED** — `--to=asm-pre` stage: driver drives the
         front end stage-by-stage via the IF-307 `compiler()`
         accessor (`reset → setupResources → stepParse →
         stepToSeqCAst → stepLower → stepBuildAsmPreamble →
-        stepOptPre`), then emits `asmList_.serialize()` as the
-        primary output.  This is the same cut point the binary's
-        own `serializeRoundTrip` debug flag uses
-        (`compiler.cpp:598-602`).
-        **(b)** add `opts.fromStage` CLI wiring + `--from=asm`
-        path: read input as `.seqasm`, `AsmList::deserialize`,
-        scan deserialised list for the unique `NodeType::Load`
-        entry (the asmLoadPlaceholder anchor — verified unique
-        pre-prefetch), then drive `compiler().reset() →
-        setupResources() → setAsmList(...) → setPlaceholderAsm(...)
-        → stepPrefetch → stepOptPost → stepUnsyncCervino →
-        stepProject`, then hand off to
-        `AWGCompiler::stepAssembleOpcodes → stepCheckLimits →
-        writeToStream`.  No sidecar; placeholder identified by
-        node type.  Add `tests/tools/test_seqcc_from.py` (curated
-        cases compile to `.seqasm` via `--to=asm`, then re-compile
-        via `--from=asm` to ELF, assert byte-equal ELF vs direct
-        compile).  Stage compatibility: reject `--from=asm
-        --to={parse,astgen,lower}` at flag-parse time.
+        stepOptPre`), then captures `asmList_.serialize()` into
+        `IRSinks::preprefetchAsmText` for dump rendering.  This is
+        a one-way diagnostic dump only.  `--to=asm` continues to
+        dump the post-pipeline assembly listing (relabelled as a
+        debug artifact in DESIGN.md).
 
-  - [ ] **T6.3 — wrap-up.**  Bump driver version (`0.10.0-T6`);
-        IF-307 status → "fixed"; close out IF-304 in full (literal
-        short-circuit now reachable from the driver via the
-        `compiler()` accessor); update DESIGN.md §6 T6 entry with
-        the "landed" marker; commit.
+        **(b) DROPPED (Q3)** — `--from=asm` CLI option, `-x LANG`
+        option, sidecar transport, byte-equal-ELF round-trip test.
+        All in-flight driver code reverted.  The IF-307
+        `stepInnerCompileFromAsmList` / `setAsmList` /
+        `setPlaceholderAsm` recon-side surface remains in the
+        binary's reconstruction as landed (now dead-code).
+
+        **Incidental fidelity fixes LANDED** during the round-trip
+        debugging (independently correct, kept regardless of Q3):
+        - **IF-309**: lexer/parser keyword `placeholder_line` →
+          `placeholder` + line-tail capture re-routed through the
+          existing `#`-comment lex rule.
+        - **IF-310**: `AsmParserContext::addNode()` restored
+          `comment` / `hasComment` writeback (GDB-verified at
+          `+0x28c243-0x28c297`).
+        - **IF-311**: `assembleStringToExpressionsVec()` retargeted
+          to write `nopComment` (+0x20) / `noOptOverride_` (+0xA0)
+          instead of `comment` (+0x80) / `hasComment` (+0x98)
+          (objdump-verified at `+0x286e40`).
+        - All three gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX`
+          (ON by default).
+
+  - [x] **T6.3 — wrap-up.**  Driver version bumped to `0.10.0-T6`.
+        IF-307 status: landed but partially dead-code.  IF-308
+        status: partially fixed (`--to=asm-pre` dump-point
+        correction landed; round-trip resume Q3-demoted).
+        IF-309/310/311 status: fixed (gated).  DESIGN.md §T6
+        updated with the Q3-demotion narrative.
 
 - [ ] **T6-future-a — `--from=ast-lowered`.**  Deferred from T6.
       The existing `--dump=ast-lowered` artefact is a single-node

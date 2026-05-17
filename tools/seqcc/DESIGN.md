@@ -584,52 +584,70 @@ iteration cycle.
   `--to=lower`.
 - Driver emits the chosen IR to `-o` in its native format.
 
-### T6 — Start-at-stage (`--from=`)
+### T6 — Start-at-stage (`--from=`) — **Q3-DEMOTED (2026-05)**
 - **Re-scoped (2026-05) per
   `reconstructed/notes/seqcc_from_design.md`.**  Original sketch
   proposed three modes (`ast-lowered`, `asm`, `wavetable-ir`);
   data-flow analysis showed only `--from=asm` is round-trippable
   from a single input file.  The other two are deferred (see §2
   "Out of scope").
-- **Dump-point correction (IF-308, 2026-05):** the existing
-  `--to=asm` implementation dumps post-full-pipeline assembler
-  text — not suitable as `--from=asm` input.  T6.2 refactors
-  `--to=asm` to dump `asmList_` at the binary's natural cut
-  point (after `stepOptPre`, before `stepPrefetch`,
-  `compiler.cpp:598-602`) so that round-trip works.
-- Implement `--from=asm` only (input = `.seqasm` via
-  `AsmList::deserialize`).  Auto-detect from `.seqasm`
-  extension; `-x asm` forces.
-- Resume boundary: after `stepOptPre`, before `stepPrefetch`
-  (the same point where the binary's `serializeRoundTrip` debug
-  flag re-enters at `compiler.cpp:598-602`).
-- Driver flow for `--to=asm`: drive front end stage-by-stage via
-  the IF-307 `compiler()` accessor (`reset → setupResources →
-  stepParse → stepToSeqCAst → stepLower → stepBuildAsmPreamble →
-  stepOptPre`), then `asmList_.serialize()` → primary output.
-- Driver flow for `--from=asm`: `AsmList::deserialize`, scan for
-  the unique `node->type == NodeType::Load` entry (the
-  `asmLoadPlaceholder` anchor — verified unique pre-prefetch),
-  then `compiler.compiler().reset() → setupResources() →
-  setAsmList(deserialised) → setPlaceholderAsm(found) →
-  stepPrefetch → stepOptPost → stepUnsyncCervino → stepProject`,
-  then hand off to the back end (`stepAssembleOpcodes →
-  stepCheckLimits → writeToStream`).  No sidecar; the placeholder
-  is identified by node type.
-- Sanctioned recon edit: see IF-307 (forward-declared
-  `Compiler` + `AWGCompiler::compiler()` accessor, factored
-  public `Compiler::setupResources()` helper, two narrow public
-  setters `setAsmList` / `setPlaceholderAsm`).  ~5 lines of
-  header additions, ~15 lines of `.cpp` additions, ~2 lines of
-  refactor inside `stepToSeqCAst`.  No additional recon surface
-  needed for the dump-point fix — the driver re-uses the same
-  T6.1 accessor it would have needed for `--from=asm`.
-- Validate stage compatibility at flag-parse time
-  (`--from=asm --to=parse` is rejected).
-- Test contract: strict byte-equal ELF round-trip in
-  `tests/tools/test_seqcc_from.py` (`--to=asm` produces a
-  `.seqasm`; `--from=asm` resumes; ELF must equal the
-  direct-compile ELF for the same source).
+- **Q3 demotion (2026-05, T6.2 wrap-up):** the round-trip resume
+  path (`--from=asm`) was dropped.  Implementation surfaced that
+  reconstructing the post-`stepOptPre` state cleanly requires
+  transporting more than just the AsmList — WavetableIR,
+  `Compiler::ast_`, and possibly more state via sidecars, each
+  needing a new recon-side setter.  Each sidecar added during
+  debugging revealed the next missing piece, with no clean
+  stopping point apparent.  The user chose Q3 (drop the
+  round-trip goal) rather than continue expanding the
+  sanctioned recon surface.  See **IF-308** Resolution section
+  in `reconstructed/notes/incidental_findings.md` for the full
+  rationale.
+
+#### What landed
+- **`--to=asm-pre`** stage — one-way diagnostic dump.  Driver
+  drives the front end stage-by-stage via the IF-307
+  `compiler()` accessor (`reset → stepParse → stepToSeqCAst →
+  stepLower → stepBuildAsmPreamble → stepOptPre`), then captures
+  `asmList_.serialize()` into `IRSinks::preprefetchAsmText` and
+  routes it through `dump.cpp::renderStagePrimary("asm-pre")`.
+  No back end runs; there is no ELF.  Default output extension:
+  `.seqasm`.
+- **`--to=asm`** unchanged — continues to dump the post-pipeline
+  assembly listing (now correctly labelled as a *debug* artifact,
+  not a round-trip input).
+- IF-307 recon surface (forward-declared `Compiler` +
+  `AWGCompiler::compiler()` accessor, factored public
+  `Compiler::setupResources()` helper, `setAsmList` /
+  `setPlaceholderAsm` setters, `stepInnerCompileFromAsmList`
+  overload) — landed in commit `fa0229c`.  The
+  `stepInnerCompileFromAsmList` overload + the two setters are
+  now dead-code with no driver caller; kept in tree because
+  reverting the recon commit was judged not worth the churn.
+- Three GDB-/objdump-verified binary-fidelity fixes discovered
+  during round-trip debugging (gated by
+  `ZHINST_RECON_ASMLIST_KEYWORD_FIX`, ON by default):
+  - **IF-309**: lexer/parser `placeholder_line` keyword removed;
+    placeholder lines now use the standard `placeholder # {json}`
+    grammar.
+  - **IF-310**: `AsmParserContext::addNode()` restored
+    `comment` / `hasComment` writeback.
+  - **IF-311**: `assembleStringToExpressionsVec()` retargeted to
+    write `nopComment` / `noOptOverride_` (the correct
+    `//`-comment fields) instead of `comment` / `hasComment`.
+
+#### What was dropped
+- `--from=asm` CLI option, `-x LANG` option, `--from=`/`--to=`
+  compatibility validator, `fromStageNames()`, sidecar transport
+  (`<out>.wavetableir.json`), `wavetableJsonForResume` parameter,
+  `IRSinks::preprefetchWavetableJson`, `Compiler::setWavetableIR`
+  setter, `Compiler::wavetableIR()` accessor, the 4th
+  `wavetableJson` parameter on `AWGCompiler::
+  stepInnerCompileFromAsmList`, `tests/tools/test_seqcc_from.py`.
+- Driver-side: removed the `isFromAsm` branch and the
+  `findLoadPlaceholder` helper from `driver.cpp`; removed the
+  sidecar slurp/write blocks from `compile.cpp`; removed the
+  `--from` / `-x` parsing + reconciliation from `main.cpp`.
 
 ### T7 — `seqas` mode + `-x asm` dual path
 - Symlink `seqas` → `seqcc` install rule.
