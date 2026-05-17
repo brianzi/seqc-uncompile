@@ -2660,55 +2660,84 @@ updated.
 ## IF-333 — `varSubType_ == 2` used as "marker" sentinel in WaveAssignment iteration
 
 **Severity:** suspicious
-**Status:** open
+**Status:** fixed (interpretation 1 confirmed; literal swept to `VarSubType_FunctionArg`)
 
-`reconstructed/src/runtime/custom_functions.cpp:1086` reads:
+`reconstructed/src/runtime/custom_functions.cpp:1086` (pre-fix) read:
 
 ```cpp
 for (auto& wa : inner) {                               // inner stride 0x50
-    if (wa.value.varSubType_ == 2)                     // @0x15da7f: marker → break inner (see IF-333)
+    if (wa.value.varSubType_ == 2)                     // @0x15da7f: marker → break inner
         break;
     ...
 }
 ```
 
-The recon comment labels this an end-of-list marker.  But
+The recon comment labelled this an end-of-list marker.  But
 `VarSubType` (`runtime/resources.hpp:131`) declares value 2 as
 `VarSubType_FunctionArg` ("Function parameter binding;
 pre-marks variable as written and frozen"), not as a sentinel.
 
-Two possible interpretations:
+**Resolution: interpretation (1) confirmed by static analysis;
+GDB unnecessary.**  Producer/consumer chain is fully visible
+and unambiguous:
 
-1. The recon comment is wrong, and the test really does reject
-   function-argument-bound `WaveAssignment` entries from the
-   max-sample-length scan.  This is plausible — for a free wave
-   the assignment carries a real waveform name, but for a
-   bound-to-a-FuncArg slot the name is yet-to-be-resolved and
-   has no length to scan.
-2. The binary reuses `varSubType=2` as an in-band end-of-list
-   sentinel in this one container (and the `FunctionArg`
-   labelling is incidental), making the literal `2` a
-   sentinel-not-an-enum-value.
+1. **Every write site of `varSubType_ = 2` uses the named
+   constant.**  Surveyed (D7-C.3, this session):
+   - `custom_functions_registers.cpp:258,275` — explicit
+     `varSubType_ = VarSubType_FunctionArg;`.
+   - `resources_function.cpp:335-348` — `Function::addArgument`
+     calls `scope->addVar/addString/addConst/addWave/addCvar(name,
+     VarSubType_FunctionArg)`, which lands at `resources.cpp:1117,
+     1189, 1213, 1239, 1343` as `v.flags = (st == VarSubType_FunctionArg)
+     ? 1 : 0;` and `var->subTypeRaw = st;`.
+   - All other paths into `EvalResultValue::varSubType_` come from
+     copy assignments (`out.varSubType_ = var->subTypeRaw` at
+     `resources.cpp:591,1715,1762,1859`) or from the
+     `seqc_ast_eval_arithmetic.cpp:773` propagation site (see
+     point 2).  No site appends a synthetic terminator entry
+     to a `WaveAssignment` inner vector.
 
-P10 (C.2) left the literal `2` un-renamed because the right name
-depends on which interpretation holds.  Verification path:
+2. **The producer comment at the smoking-gun site says it
+   verbatim.**  `seqc_ast_eval_arithmetic.cpp:763-775`:
 
-- Inspect every site that writes `varSubType_ = 2` (or
-  constructs an `EvalResultValue` with subType=2): if they are
-  all the `FunctionArg` path, interpretation (1) is correct and
-  the literal should become `VarSubType_FunctionArg`.
-- If any write site is a deliberate end-of-vector terminator
-  (e.g., the `WaveAssignment` builder appending a final sentinel
-  entry), interpretation (2) holds and a separate `kSentinelSubType`
-  alias should be added.
+   > *"Special case: rhsSub == FunctionArg means the rhs is a
+   > wave function parameter (empty waveform name). The lhs
+   > gets an empty/unresolved result with FunctionArg subtype so
+   > downstream consumers (e.g. playWave) know this wave is
+   > deferred. We do NOT call updateWave here — the lhs variable
+   > keeps its initial empty string value so getMaxSampleLength()
+   > skips it."*
 
-The accompanying `varType_ == 4` literal at the same site WAS
-swept to `VarType_Const` in C.2 P10 (provably correct per
-`VarType` enum).
+   And then calls `updateWave(name, std::string{},
+   VarSubType_FunctionArg)` followed by `result->setValue(
+   VarType_Wave, VarSubType_FunctionArg, …)`.  The next line
+   contains a comment specifically referencing the
+   `getMaxSampleLength` break:
+   `"skip this wave (varSubType_==2 → break in getMaxSampleLength)"`.
+
+3. **Same-TU consumers all use the name.**  In the very same
+   `custom_functions.cpp`, lines 835, 898, 959, 1000 all read
+   `it->varSubType_ {==,!=} VarSubType_FunctionArg` in
+   structurally identical iteration patterns.  The literal `2`
+   at line 1086 was the sole inconsistency.
+
+**Why `break` and not `continue`?**  The semantic isn't "skip
+this entry, keep scanning"; it's "the maximum sample length is
+unknowable once a FunctionArg-bound wave is present, because
+its length can only be determined at the call site, not at
+function-definition time."  Once the scan encounters such an
+entry, the answer it would have produced is meaningless for any
+subsequent entry too, so it bails.  This matches the
+producer-side narrative at `seqc_ast_eval_arithmetic.cpp:763-775`
+exactly.
+
+**Fix applied:** Literal `2` swept to `VarSubType_FunctionArg`;
+recon comment rewritten to document the FunctionArg semantic and
+explicitly note that this is NOT an end-of-vector sentinel.
 
 **Files**
-- `reconstructed/src/runtime/custom_functions.cpp:1086` (literal `2` retained)
-- `reconstructed/include/zhinst/runtime/resources.hpp:131-136` (`VarSubType` enum)
+- `reconstructed/src/runtime/custom_functions.cpp:1086` (literal → named)
+- `reconstructed/include/zhinst/runtime/resources.hpp:131-136` (`VarSubType` enum, unchanged)
 
 
 ## IF-334 — `magic_number_audit.md` P10 Category B description is stale

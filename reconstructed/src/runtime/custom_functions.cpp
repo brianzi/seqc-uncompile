@@ -1083,7 +1083,15 @@ int64_t PlayArgs::getMaxSampleLength() const {                 // @0x15d9f0
 
     for (auto& inner : waveAssignments_) {                     // outer stride 0x18
         for (auto& wa : inner) {                               // inner stride 0x50
-            if (wa.value.varSubType_ == 2)                               // @0x15da7f: marker → break inner (see IF-333)
+            // @0x15da7f: a FunctionArg-tagged WaveAssignment is a wave
+            // function parameter — its waveform name is unresolved at
+            // compile time (see propagation in seqc_ast_eval_arithmetic.cpp
+            // ::handleSimpleAssignment row 11), so its sample length is
+            // unknowable and the scan terminates here.  Not an
+            // end-of-vector sentinel (IF-333 resolved: every write site
+            // sets this field via the named VarSubType_FunctionArg
+            // constant; no synthetic terminator entry is ever appended).
+            if (wa.value.varSubType_ == VarSubType_FunctionArg)
                 break;
             if (wa.value.varType_ == VarType_Const)                      // @0x15da86: VarType_Const → skip
                 continue;
