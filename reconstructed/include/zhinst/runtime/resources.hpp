@@ -78,6 +78,28 @@ inline bool isConstOrCvar(VarType t) {
     return (static_cast<int>(t) | 0x2) == 6;
 }
 
+//! \brief Bitmask selecting the `VarType` categories that hold an
+//!        integer-valued operand: `Var` (runtime register-backed),
+//!        `Const` (compile-time constant), and `Cvar` (compile-time
+//!        variable).
+//!
+//! Indexed directly by `static_cast<int>(VarType)`; valid for the
+//! `VarType <= 6` window (the only range emitted by current
+//! evaluators).  `0x54 = 0b01010100` sets bits 2, 4, 6 only.
+//!
+//! Used at six call sites (two in `custom_functions.cpp`, two in
+//! `custom_functions_play.cpp`, two in `custom_functions_registers.cpp`)
+//! to either **accept** an argument as a scalar integer operand
+//! (length / offset / channel index / setInt RHS) or to **reject**
+//! it as ambiguous when implicit-channel parsing is in effect.
+//! The name matches the comment "arg1 must be numeric" already
+//! present at one of the call sites and the `SetIntVarConstSecond`
+//! diagnostic raised on rejection.
+//!
+//! Excludes `Unset` (0), `Void` (1), `String` (3), and `Wave` (5),
+//! none of which carry an integer-typed operand.
+constexpr uint8_t kVarTypeScalarNumericMask = 0x54u;
+
 // VarSubType — secondary classification tag stored in Variable record at +0x08.
 // Values observed across add/update overloads:
 //   0 = default                       (general constants, AWG_RATE_*, etc.)

@@ -753,19 +753,19 @@ std::shared_ptr<EvalResults> CustomFunctions::playIndexed(
     // Binary validates parseEnd[0] and parseEnd[1] (the index and length
     // args) BEFORE calling parseOptionalRate.  These two args are consumed
     // here; parseOptionalRate receives parseEnd+2 as its cursor.
-    // Binary @0x1610fb: parseEnd[0].varType_ must pass bt $0x54 (bits 2,4,6 set).
+    // Binary @0x1610fb: parseEnd[0].varType_ must pass kVarTypeScalarNumericMask (bits 2,4,6 set).
     // Accepts VarType values {2=Var, 4=Const, 6=Cvar}. Error 0x98 on mismatch.
     {
         int vt0 = static_cast<int>(parseEnd[0].varType_);
-        if (vt0 > 6 || !((0x54 >> vt0) & 1)) {
+        if (vt0 > 6 || !((kVarTypeScalarNumericMask >> vt0) & 1)) {
             throw CustomFunctionsException(
                 ErrorMessages::format(ExpectsOffsetAndLength, cmdName));  // 0x98 @0x162976
         }
     }
-    // Binary @0x161145: parseEnd[1].varType_ must pass the same bt $0x54 test.
+    // Binary @0x161145: parseEnd[1].varType_ must pass the same kVarTypeScalarNumericMask test.
     {
         int vt1 = static_cast<int>(parseEnd[1].varType_);
-        if (vt1 > 6 || !((0x54 >> vt1) & 1)) {
+        if (vt1 > 6 || !((kVarTypeScalarNumericMask >> vt1) & 1)) {
             throw CustomFunctionsException(
                 ErrorMessages::format(ExpectsOffsetAndLength, cmdName));  // 0x98 @0x16299d
         }

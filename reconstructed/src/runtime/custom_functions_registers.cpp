@@ -246,9 +246,9 @@ std::shared_ptr<EvalResults> CustomFunctions::setInt(                           
     if (arg0.varType_ != VarType_String)
         throw CustomFunctionsException(
             ErrorMessages::format(SetIntArgs));
-    // Validate: arg1 must be numeric (bitmask 0x54: bits 2,4,6 = types 2,4,6)                    // @0x1483d5..1483dd: bt 0x54,ecx
+    // Validate: arg1 must be numeric via kVarTypeScalarNumericMask                                 // @0x1483d5..1483dd: bt 0x54,ecx
     int arg1Type = static_cast<int>(arg1.varType_);
-    if (arg1Type > 6 || !((0x54 >> arg1Type) & 1))
+    if (arg1Type > 6 || !((kVarTypeScalarNumericMask >> arg1Type) & 1))
         throw CustomFunctionsException(
             ErrorMessages::format(SetIntVarConstSecond, std::string("setInt")));
     // Call writeToNode(arg0, arg1, defaultEvalResultValue, res)                                   // @0x1486f2: call writeToNode
@@ -281,9 +281,9 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
     if (arg0.varType_ != VarType_String)
         throw CustomFunctionsException(
             ErrorMessages::format(SetDoubleArgs));
-    // Validate: arg1 must be numeric (bitmask 0x54)                                               // @0x148e43..148e51: bt 0x54,eax
+    // Validate: arg1 must be numeric via kVarTypeScalarNumericMask                                 // @0x148e43..148e51: bt 0x54,eax
     int arg1Type = static_cast<int>(arg1.varType_);
-    if (arg1Type > 6 || !((0x54 >> arg1Type) & 1))
+    if (arg1Type > 6 || !((kVarTypeScalarNumericMask >> arg1Type) & 1))
         throw CustomFunctionsException(
             ErrorMessages::format(SetDoubleVarConstSecond, std::string("setDouble")));
     // Validate: arg2.varType_ must be int type ((varType & ~1) == 4)                              // @0x148e5a..148e63: and eax,0xfffffffd; cmp eax,0x4

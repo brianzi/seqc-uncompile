@@ -2595,7 +2595,7 @@ outputs" derivation.
 ## IF-322 — `0x54` VarType-set semantic name (6 sites)
 
 **Severity:** suspicious
-**Status:** open
+**Status:** fixed (named `kVarTypeScalarNumericMask` in C.2 P6)
 
 Six sites in three files test `((0x54 >> vt) & 1)` against
 `VarType` values to check membership in `{2, 4, 6}` = `{VarType_Var,
@@ -2635,6 +2635,21 @@ the accept-sites to confirm the rejected types and the error
 message issued, so the semantic name reflects the actual rejection
 criterion (e.g. "must be assignable to a register", not just
 "numeric").
+
+**Resolution (D7-C.2 P6):** GDB verification not strictly needed —
+the set is provable from `VarType` (`runtime/resources.hpp:55`)
+plus the per-site error messages and the pre-existing in-source
+comment "arg1 must be numeric" (`custom_functions_registers.cpp:249`).
+The three accepted types (`Var`, `Const`, `Cvar`) are exactly the
+integer-valued operand categories; excluded types
+(`Unset`/`Void`/`String`/`Wave`) are non-numeric.  Error names
+align: `SetIntVarConstSecond` / `SetDoubleVarConstSecond` for the
+setInt/setDouble RHS, `ExpectsOffsetAndLength` for playWave-style
+length/offset args, `MixedChannelNumbering` for implicit channel
+indices.  Named `kVarTypeScalarNumericMask` next to the existing
+`isConstOrCvar` helper in `runtime/resources.hpp` (`zhinst::`
+scope, already included by all three call sites).  Six call sites
+updated.
 
 **Files**
 - `reconstructed/src/runtime/custom_functions.cpp:871-884, 949-950`

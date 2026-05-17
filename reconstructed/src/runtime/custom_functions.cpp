@@ -880,8 +880,8 @@ int PlayArgs::parseImplicitChannels(
     for (auto it = begin; it != end; ++it) {
         int vt = static_cast<int>(it->varType_);
 
-        // @0x16fb7a: reject VarType {2,4,6} via bitmask 0x54
-        if (vt <= 6 && ((0x54 >> vt) & 1)) {
+        // @0x16fb7a: reject scalar-numeric VarTypes via kVarTypeScalarNumericMask
+        if (vt <= 6 && ((kVarTypeScalarNumericMask >> vt) & 1)) {
             throw CustomFunctionsValueException(
                 ErrorMessages::format(MixedChannelNumbering, cmdName_),
                 static_cast<size_t>(it - begin));
@@ -946,8 +946,8 @@ int PlayArgs::parseExplicitChannels(
     while (it != end) {
         int vt = static_cast<int>(it->varType_);
 
-        // @0x170068: accept VarType {2,4,6} via bitmask 0x54
-        if (vt > 6 || !((0x54 >> vt) & 1)) {
+        // @0x170068: accept scalar-numeric VarTypes via kVarTypeScalarNumericMask
+        if (vt > 6 || !((kVarTypeScalarNumericMask >> vt) & 1)) {
             throw CustomFunctionsValueException(
                 ErrorMessages::format(MixedChannelNumbering, cmdName_),
                 static_cast<size_t>(it - begin));

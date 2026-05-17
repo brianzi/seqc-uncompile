@@ -316,10 +316,25 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         already include it as their own class header).  4 sites
         converted in `src/asm/asm_optimize.cpp` and
         `src/asm/asm_optimize_regalloc.cpp`.
-  - [ ] **C.2.d — Remaining P-items (P6, P9, P10).**
-        Deferred — each needs design or GDB verification before
-        execution:
-        - P6: blocked on IF-322 (`0x54` VarType-set GDB verification).
+  - [x] **C.2.d.5 — P6 kVarTypeScalarNumericMask (6 sites).**
+        IF-322 resolved without GDB: of `VarType` values in
+        `[0,6]`, only `Var`/`Const`/`Cvar` are integer-valued
+        operand categories; excluded types (`Unset`/`Void`/`String`/
+        `Wave`) are non-numeric.  Error names at every call site
+        confirm the criterion: `SetIntVarConstSecond` /
+        `SetDoubleVarConstSecond` for setInt/setDouble RHS,
+        `ExpectsOffsetAndLength` for playWave length/offset args,
+        `MixedChannelNumbering` for implicit channel indices.
+        Pre-existing in-source comment "arg1 must be numeric"
+        already used this framing.  Named `kVarTypeScalarNumericMask`
+        next to the existing `isConstOrCvar` helper in
+        `include/zhinst/runtime/resources.hpp` (already included by
+        all three consumer files).  6 sites converted in
+        `src/runtime/custom_functions.cpp` (2),
+        `src/runtime/custom_functions_play.cpp` (2),
+        `src/runtime/custom_functions_registers.cpp` (2).
+  - [ ] **C.2.d — Remaining P-items (P9, P10).**
+        Deferred — each needs design discussion or is open-ended:
         - P9: deduplicate `kSuser*` vs `DeviceConstants::*` (~20
           overlapping addresses, two parallel naming schemes) —
           structural and contentious, needs design discussion.
