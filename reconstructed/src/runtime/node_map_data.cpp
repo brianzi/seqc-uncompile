@@ -14,6 +14,14 @@
 
 namespace zhinst {
 
+// Splitmix-style hash-combine constants used by VirtAddrNodeMapData::hash
+// and DirectAddrNodeMapData::hash. Both functions use the same golden-
+// ratio seed and multiplier (matching the disasm at 0x1c4f10 and 0x1c5370);
+// hoisted to file scope so the same value can't drift between the two
+// users.
+constexpr size_t kGoldenRatioHash = 0x9e3779b9ULL;  //!< Golden-ratio seed for hash_combine (splitmix-style).
+constexpr size_t kHashMul         = 0x0e9846af9b1a615dULL;  //!< Splitmix64 multiplier.
+
 // ============================================================================
 // NodeMapData
 // ============================================================================
@@ -50,25 +58,23 @@ size_t VirtAddrNodeMapData::hash() const {
     // Combine with addresses: iterative hash_combine using golden-ratio seed
     // (matches the 0x9e3779b9 constant and splitmix finalizer in the disasm)
     size_t seed = 0;
-    constexpr size_t kGoldenRatioHash = 0x9e3779b9ULL;
-    constexpr size_t kMul    = 0x0e9846af9b1a615dULL;
     for (int32_t addr : addresses_) {
         seed += kGoldenRatioHash;
         size_t v = static_cast<size_t>(addr) + seed;
-        v = (v ^ (v >> 32)) * kMul;
-        v = (v ^ (v >> 32)) * kMul;
+        v = (v ^ (v >> 32)) * kHashMul;
+        v = (v ^ (v >> 32)) * kHashMul;
         v = v ^ (v >> 28);
         seed = v;
     }
     // Final combine: splitmix the wyhash result, then combine with address seed
     // and splitmix again (matches binary at 0x1c517d–0x1c51cf).
     size_t tmp = h + kGoldenRatioHash;
-    tmp = (tmp ^ (tmp >> 32)) * kMul;
-    tmp = (tmp ^ (tmp >> 32)) * kMul;
+    tmp = (tmp ^ (tmp >> 32)) * kHashMul;
+    tmp = (tmp ^ (tmp >> 32)) * kHashMul;
     tmp = tmp ^ (tmp >> 28);
     size_t combined = tmp + seed + kGoldenRatioHash;
-    combined = (combined ^ (combined >> 32)) * kMul;
-    combined = (combined ^ (combined >> 32)) * kMul;
+    combined = (combined ^ (combined >> 32)) * kHashMul;
+    combined = (combined ^ (combined >> 32)) * kHashMul;
     combined = combined ^ (combined >> 28);
     return combined;
 }
@@ -107,11 +113,9 @@ bool DirectAddrNodeMapData::compareEq(NodeMapData const& other) const {
 
 // @0x1c5370 — splitmix-style hash of addr_ with seed kGoldenRatioHash
 size_t DirectAddrNodeMapData::hash() const {
-    constexpr size_t kGoldenRatioHash = 0x9e3779b9ULL;
-    constexpr size_t kMul = 0x0e9846af9b1a615dULL;
     size_t v = static_cast<size_t>(addr_) + kGoldenRatioHash;
-    v = (v ^ (v >> 32)) * kMul;
-    v = (v ^ (v >> 32)) * kMul;
+    v = (v ^ (v >> 32)) * kHashMul;
+    v = (v ^ (v >> 32)) * kHashMul;
     v = v ^ (v >> 28);
     return v;
 }
