@@ -262,7 +262,7 @@ std::shared_ptr<EvalResults> CustomFunctions::playAuxWave(  // @0x135610 (~5KB)
                 // 3. Fill empty slots with the zero waveform name
                 std::string zeroName = zeroWf->name;                                  // @0x135bec
                 for (size_t i = 0; i < channelArgs.size(); ++i) {
-                    if (channelArgs[i].varType_ == VarType(0)) {
+                    if (channelArgs[i].varType_ == VarType_Unset) {
                         // Default/empty slot — fill with zero waveform name
                         channelArgs[i].varType_ = VarType_String;
                         channelArgs[i].value_ = Value(zeroName);                      // @0x135d4d
@@ -839,7 +839,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitWave(  // @0x13a980 (620B)
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, "waitWave"));
-    auto result = std::make_shared<EvalResults>(static_cast<VarType>(1));
+    auto result = std::make_shared<EvalResults>(VarType_Void);
     auto asm_entry = asmCommands_->wwvf();
     result->assemblers_.push_back(std::move(asm_entry));
     return result;
@@ -851,7 +851,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitPlayQueueEmpty(  // @0x145240 
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, "waitPlayQueueEmpty"));
-    auto result = std::make_shared<EvalResults>(static_cast<VarType>(1));
+    auto result = std::make_shared<EvalResults>(VarType_Void);
     auto asm_entry = asmCommands_->wwvfq();
     result->assemblers_.push_back(std::move(asm_entry));
     return result;
@@ -863,7 +863,7 @@ std::shared_ptr<EvalResults> CustomFunctions::sync(  // @0x14e690 (569B)
     if (!args.empty())
         throw CustomFunctionsException(
             ErrorMessages::format(FuncExpectsNoArgs, "sync"));
-    auto result = std::make_shared<EvalResults>(static_cast<VarType>(1));
+    auto result = std::make_shared<EvalResults>(VarType_Void);
     addSyncCommand(result, std::move(res));
     return result;
 }

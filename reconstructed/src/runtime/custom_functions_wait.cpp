@@ -975,19 +975,19 @@ std::shared_ptr<EvalResults> CustomFunctions::resetOscPhase(
             EvalResultValue pathErv{};                                                   // @0x14109f
             pathErv.varType_ = VarType_String;                                           // @0x1410b1
             pathErv.value_ = Value(std::string("oscs/phasereset"));                      // @0x1410bb..0x1410dd
-            pathErv.varSubType_ = VarSubType(0);                                         // @0x1410e8
+            pathErv.varSubType_ = VarSubType_Default;                                         // @0x1410e8
 
             // Build val EvalResultValue: varType_=VarType_Const, value_=oscMask
             EvalResultValue valErv{};
             valErv.varType_ = VarType_Const;
             valErv.value_ = Value(oscMask);
-            valErv.varSubType_ = VarSubType(0);
+            valErv.varSubType_ = VarSubType_Default;
 
             // Build type EvalResultValue: varType_=VarType_Const, default
             EvalResultValue typeErv{};
             typeErv.varType_ = VarType_Const;
             typeErv.value_ = Value(0);
-            typeErv.varSubType_ = VarSubType(0);
+            typeErv.varSubType_ = VarSubType_Default;
 
             return writeToNode(pathErv, valErv, typeErv, std::move(res));
         }

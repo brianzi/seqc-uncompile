@@ -923,9 +923,9 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
 
     // 3. Check result and dispatch.
     if (!childResult) {                                        // @0x228582
-        // Null result — error 0x7c with VarSubType(0).        // @0x2285ea
+        // Null result — error 0x7c with VarSubType_Default.        // @0x2285ea
         auto msg = ErrorMessages::format(
-            OnlyConstVarNegated, str(VarSubType(0)));          // @0x2285f3
+            OnlyConstVarNegated, str(VarSubType_Default));          // @0x2285f3
         ctx.messages->errorMessage(msg, -1);                   // @0x228620
         auto result = std::make_shared<EvalResults>();         // @0x228661
         return result;                                         // @0x228b4a
@@ -1038,9 +1038,9 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
 
     // 3. Check result and dispatch.
     if (!childResult) {                                        // @0x228ff2
-        // Null result — error 0x77 with VarSubType(0).        // @0x22905a
+        // Null result — error 0x77 with VarSubType_Default.        // @0x22905a
         auto msg = ErrorMessages::format(
-            OnlyConstVarInverted, str(VarSubType(0)));          // @0x229079
+            OnlyConstVarInverted, str(VarSubType_Default));          // @0x229079
         ctx.messages->errorMessage(msg, -1);                   // @0x229096
         auto result = std::make_shared<EvalResults>();         // @0x2290e0
         return result;                                         // @0x229779
@@ -1172,9 +1172,9 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
 
     // 3. Check result and dispatch.
     if (!childResult) {                                        // @0x229a2d
-        // Null result — error 0x86 with VarSubType(0).        // @0x229a95
+        // Null result — error 0x86 with VarSubType_Default.        // @0x229a95
         auto msg = ErrorMessages::format(
-            ConstVarLogicalInvert, str(VarSubType(0)));          // @0x229aa1
+            ConstVarLogicalInvert, str(VarSubType_Default));          // @0x229aa1
         ctx.messages->errorMessage(msg, -1);                   // @0x229acd
         auto result = std::make_shared<EvalResults>();         // @0x229b12
         return result;                                         // @0x229c2a

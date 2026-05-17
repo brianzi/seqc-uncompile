@@ -471,7 +471,7 @@ std::shared_ptr<EvalResults> WaveformGenerator::eval(
     Value v(wf->name);  // Value(string) sets type_=4, which_=3             // 0x25c5bf
 
     // 0x25c5fa-0x25c5ff: setValue(VarType_Wave, value) — VarType 5 = Waveform
-    results->setValue(static_cast<VarType>(5), v);                           // 0x25c5ff → 0x211b70
+    results->setValue(VarType_Wave, v);                           // 0x25c5ff → 0x211b70
 
     // 0x25c63c-0x25c640: store wf into results->waveformFront_ (+0x48)
     results->waveformFront_ = std::move(wf);                                // 0x25c640

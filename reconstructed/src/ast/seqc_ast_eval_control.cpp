@@ -3077,7 +3077,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             if (ifResult->values_.size() >= 2) {
                 // Multiple values: error 0xe4 (type mismatch)       // @0x224519
                 VarType vt = (ifResult->values_.size() > 1)
-                    ? static_cast<VarType>(0) : ifVal.varType_;
+                    ? VarType_Unset : ifVal.varType_;
                 ctx.messages->errorMessage(
                     ErrorMessages::format(CantModifyVarInRepeat, str(vt)), -1);
                 // Fall through to name construction                 // @0x2257ee
@@ -3139,7 +3139,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             if (elseResult->values_.size() >= 2) {
                 // Multiple values: error 0xe4                       // @0x225761
                 VarType vt = (elseResult->values_.size() > 1)
-                    ? static_cast<VarType>(0) : elseVal.varType_;
+                    ? VarType_Unset : elseVal.varType_;
                 ctx.messages->errorMessage(
                     ErrorMessages::format(CantModifyVarInRepeat, str(vt)), -1);
             } else if (elseVal.varType_ == VarType_Var) {
@@ -3253,14 +3253,14 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                         // Non-Var (Const/Cvar/etc): use actual varType // @0x224b9b
                         result->setValue(
                             ifVal.varType_,
-                            static_cast<VarSubType>(0),
+                            VarSubType_Default,
                             ifResult->getValue());
                     }
                 } else {
-                    // Multiple values: setValue with VarType(0)      // @0x224872
+                    // Multiple values: setValue with VarType_Unset      // @0x224872
                     result->setValue(
-                        static_cast<VarType>(0),
-                        static_cast<VarSubType>(0),
+                        VarType_Unset,
+                        VarSubType_Default,
                         ifResult->getValue());
                 }
             }
@@ -3308,14 +3308,14 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                         // Non-Var: use actual varType/subType
                         result->setValue(
                             elseVal.varType_,
-                            static_cast<VarSubType>(0),
+                            VarSubType_Default,
                             elseResult->getValue());
                     }
                 } else {
-                    // Multiple values: setValue with VarType(0)
+                    // Multiple values: setValue with VarType_Unset
                     result->setValue(
-                        static_cast<VarType>(0),
-                        static_cast<VarSubType>(0),
+                        VarType_Unset,
+                        VarSubType_Default,
                         elseResult->getValue());
                 }
             }

@@ -255,7 +255,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setInt(                           
     EvalResultValue defaultTypeArg{};
     defaultTypeArg.varType_ = VarType_String;
     defaultTypeArg.value_ = Value(1.0);
-    defaultTypeArg.varSubType_ = VarSubType(2);
+    defaultTypeArg.varSubType_ = VarSubType_FunctionArg;
     return writeToNode(arg0, arg1, defaultTypeArg, std::move(res));    // @0x1486f2
 }
 std::shared_ptr<EvalResults> CustomFunctions::setDouble(                                                                                                             // @0x148ac0 (~3.3KB)
@@ -268,11 +268,11 @@ std::shared_ptr<EvalResults> CustomFunctions::setDouble(                        
             ErrorMessages::format(SetDoubleArgs));
     auto const& arg0 = args[0];
     auto const& arg1 = args[1];
-    // Default 3rd arg: VarType_Const, double 1.0, VarSubType(2)                                      // @0x148d88..148dd0
+    // Default 3rd arg: VarType_Const, double 1.0, VarSubType_FunctionArg                                      // @0x148d88..148dd0
     EvalResultValue arg2{};
     arg2.varType_ = VarType_Const;
     arg2.value_ = Value(1.0);
-    arg2.varSubType_ = VarSubType(2);
+    arg2.varSubType_ = VarSubType_FunctionArg;
     // If 3 args provided, copy the 3rd arg over                                                   // @0x148df6: cmp rax,0xa8
     if (args.size() == 3) {
         arg2 = args[2];
@@ -314,7 +314,7 @@ std::shared_ptr<EvalResults> CustomFunctions::generate(                         
     if (args[1].varType_ == VarType_Var && args[1].varSubType_ == VarSubType_FunctionArg) {  // @0x149bc1: je 149d57
         auto results = std::make_shared<EvalResults>();
         Value emptyVal;                                                                            // @0x149d61..149d77: VarType_Const, default Value
-        results->setValue(VarType_Wave, VarSubType(2), emptyVal);                                    // @0x149d8c: call setValue(VarType,VarSubType,Value)
+        results->setValue(VarType_Wave, VarSubType_FunctionArg, emptyVal);                                    // @0x149d8c: call setValue(VarType,VarSubType,Value)
         return results;
     }
     // Build EvalResults and gather args[1..end] into vector<Value>, skipping VarSubType==2        // @0x149a55..149c48
@@ -519,7 +519,7 @@ std::shared_ptr<EvalResults> CustomFunctions::getSweeperLength(  // @0x14bca0 (1
     // Initialize an empty EvalResultValue with AsmRegister(-1) placeholder
     EvalResultValue constResult;
     constResult.varType_ = VarType_Unset;
-    constResult.varSubType_ = VarSubType(0);
+    constResult.varSubType_ = VarSubType_Default;
 
     // @0x14bdff..0x14bf04: choose constant name based on sweepIdx
     sweepIdx = arg0.value_.toInt();                                                  // @0x14be02: second toInt call

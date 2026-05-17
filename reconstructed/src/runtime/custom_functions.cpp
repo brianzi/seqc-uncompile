@@ -832,7 +832,7 @@ PlayArgs::parse(std::vector<EvalResultValue> const& args) {   // @0x15d7b0
 
     auto boundary = end;                                       // rbx = end initially (@0x15d7dd)
     for (auto scan = it; scan != end; ++scan) {
-        if (scan->varSubType_ == static_cast<VarSubType>(2)) {
+        if (scan->varSubType_ == VarSubType_FunctionArg) {
             hasMarker_ = true;                                 // @0x15d819
         }
         if (scan->varType_ == VarType_Wave || scan->varType_ == VarType_String) {
@@ -895,7 +895,7 @@ int PlayArgs::parseImplicitChannels(
         // Convert value to string for waveform lookup
         std::string waveName = it->value_.toString();
 
-        if (it->varSubType_ != static_cast<VarSubType>(2) && !waveName.empty()) {
+        if (it->varSubType_ != VarSubType_FunctionArg && !waveName.empty()) {
             // Load waveform to check channel count
             auto wf = secureLoadWaveform(waveName, static_cast<size_t>(it - begin));
 
@@ -909,7 +909,7 @@ int PlayArgs::parseImplicitChannels(
                     // Synthetic EvalResultValue with VarType=4 (Cvar)       @0x16fc60
                     EvalResultValue syntheticArg;
                     syntheticArg.varType_ = VarType_Const;
-                    syntheticArg.varSubType_ = VarSubType(0);
+                    syntheticArg.varSubType_ = VarSubType_Default;
                     syntheticArg.reg_ = AsmRegister::UnsetSlot();
 
                     addChannelWave(channelIdx - 1, syntheticArg);  // @0x16fca5
@@ -956,7 +956,7 @@ int PlayArgs::parseExplicitChannels(
         // Inner loop: consume channel-number (Cvar) args, then one waveform arg
         while (true) {
             if (it->varType_ == VarType_Const) {                 // @0x1700c9
-                if (it->varSubType_ == static_cast<VarSubType>(2)) {
+                if (it->varSubType_ == VarSubType_FunctionArg) {
                     // Marker subtype — skip
                     ++it;
                     if (it == end) break;
@@ -997,7 +997,7 @@ int PlayArgs::parseExplicitChannels(
             // Non-Cvar arg → waveform reference                @0x170284
             std::string waveName = it->value_.toString();
 
-            if (it->varSubType_ != static_cast<VarSubType>(2) && !waveName.empty()) {
+            if (it->varSubType_ != VarSubType_FunctionArg && !waveName.empty()) {
                 auto wf = secureLoadWaveform(waveName, static_cast<size_t>(it - begin));
                 // Explicit mode rejects multi-channel waveforms   @0x170310
                 if (wf->signal.channels() >= 2) {
