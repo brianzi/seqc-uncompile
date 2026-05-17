@@ -12,6 +12,7 @@
 
 #include "zhinst/codegen/memory_allocator.hpp"
 #include "zhinst/device/device_constants.hpp"
+#include "zhinst/runtime/cache.hpp"   // for unusedCacheLine sentinel
 
 #include <algorithm>
 #include <cstring>
@@ -37,18 +38,18 @@ namespace zhinst {
 // patterns visible in WavetableIR::allocateWaveforms*):
 //   +0x00  deviceConstants_     = dc
 //   +0x08  startOffset_         = startOffset
-//   +0x0C  lastAllocEnd_        = 0xFFFFFFFF (sentinel)
+//   +0x0C  lastAllocEnd_        = unusedCacheLine (sentinel)
 //   +0x10  memorySizeInBytes_   = dc->waveformMemorySize        (DC+0x0C)
 //   +0x14  cacheLineSizeBytes_  = dc->waveformAlignment         (DC+0x14)
 //   +0x18  maxBlocksPerCL_      = dc->cachePageCount            (DC+0x18)
-//   +0x20  cacheLineUsage_      = vector<uint32_t> of numCLs slots, all 0xFFFFFFFF
+//   +0x20  cacheLineUsage_      = vector<uint32_t> of numCLs slots, all unusedCacheLine
 //   +0x38  numCacheLines_       = memorySizeInBytes_ / cacheLineSizeBytes_
 //   +0x40  freeBlocks_          = empty deque<MemoryBlock>
 // ---------------------------------------------------------------------------
 MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset)
     : deviceConstants_(dc),
       startOffset_(startOffset),
-      lastAllocEnd_(0xFFFFFFFFu),
+      lastAllocEnd_(unusedCacheLine),
       memorySizeInBytes_(dc->waveformMemorySize),
       cacheLineSizeBytes_(dc->waveformAlignment),
       maxBlocksPerCL_(dc->cachePageCount),
@@ -63,7 +64,7 @@ MemoryAllocator::MemoryAllocator(const DeviceConstants* dc, uint32_t startOffset
     // "CL slot" per sample, which the binary tolerates.
     if (cacheLineSizeBytes_ != 0) {
         numCacheLines_ = memorySizeInBytes_ / cacheLineSizeBytes_;
-        cacheLineUsage_.assign(numCacheLines_, 0xFFFFFFFFu);
+        cacheLineUsage_.assign(numCacheLines_, unusedCacheLine);
     }
 }
 
@@ -99,7 +100,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
     // Binary: this stage uses waveformElfAlignment (DC+0x24, always 64)
     // for alignment, NOT waveformAlignment (DC+0x14, 4096 for HDAWG).
     // The fast path is strictly a "re-use within already-claimed CL" path.
-    // Free CL slots (0xFFFFFFFF) cause rejection — only slots already owned
+    // Free CL slots (unusedCacheLine) cause rejection — only slots already owned
     // by the correct clBase are accepted.  First-time allocations always
     // fall through to the general multi-CL path which claims the CL slots.
     //
@@ -124,7 +125,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
                     return {0, 0, 0};
 
                 // CL ownership check: slot must already be claimed with matching clBase.
-                // Free slots (0xFFFFFFFF) are NOT accepted — the fast path only re-uses.
+                // Free slots (unusedCacheLine) are NOT accepted — the fast path only re-uses.
                 uint32_t slot = (aligned % memorySizeInBytes_) / cacheLineSizeBytes_;
                 uint32_t clBase = aligned - (aligned % cacheLineSizeBytes_);
                 if (slot >= cacheLineUsage_.size() ||
@@ -174,7 +175,7 @@ MemoryBlock MemoryAllocator::allocateCLAligned(unsigned int size) {
             if (endSlot > memorySizeInBytes_ / cacheLineSizeBytes_)
                 endSlot = memorySizeInBytes_ / cacheLineSizeBytes_;
             for (uint32_t s = startSlot; s < endSlot && s < cacheLineUsage_.size(); ++s) {
-                if (cacheLineUsage_[s] != 0xFFFFFFFF)
+                if (cacheLineUsage_[s] != unusedCacheLine)
                     return {0, 0, 0};  // slot occupied
             }
             // Claim slots
@@ -296,7 +297,7 @@ MemoryBlock MemoryAllocator::allocateFirstSuitableFreeBlock(Pred pred) {
         }
     }
 
-    // Try tail region: binary uses lastAllocEnd_ (initially 0xFFFFFFFF) as
+    // Try tail region: binary uses lastAllocEnd_ (initially unusedCacheLine) as
     // the end bound, not startOffset_ + memorySizeInBytes_.
     // @+579: eax = startOffset_, r11d = lastAllocEnd_.
     // @+409: eax = freeBlocks_.back().end, r10d = lastAllocEnd_.

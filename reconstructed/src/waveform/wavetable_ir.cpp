@@ -7,6 +7,7 @@
 #include "zhinst/waveform/wavetable_front.hpp"
 #include "zhinst/waveform/wavetable_helpers.hpp"
 #include "zhinst/codegen/memory_allocator.hpp"
+#include "zhinst/runtime/cache.hpp"   // for unusedCacheLine sentinel
 #include "zhinst/core/callbacks.hpp"
 
 #include <boost/filesystem/path.hpp>
@@ -372,7 +373,7 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
 
     std::vector<uint32_t> cacheLineUsage;
     if (alignment <= memorySizeBytes) {                                // 0x29e461
-        cacheLineUsage.resize(numCacheLines, 0xFFFFFFFF);                 // sentinel // 0x29e472
+        cacheLineUsage.resize(numCacheLines, unusedCacheLine);                 // sentinel // 0x29e472
     }
 
     // Allocate waveforms within cache-line structure               // 0x29e477
@@ -419,10 +420,10 @@ void WavetableIR::allocateWaveforms(bool fifoMode)  // 0x29e340
             uint32_t startBlock = offsetInCL / alignment;
             uint32_t endBlock = (offsetInCL + allocationBytes - 1) / alignment + 1;
 
-            // 6. Verify all blocks in range are unused (0xFFFFFFFF)     // 0x2a9d60
+            // 6. Verify all blocks in range are unused (unusedCacheLine)     // 0x2a9d60
             bool conflict = false;
             for (uint32_t i = startBlock; i < endBlock; ++i) {
-                if (cacheLineUsage[i] != 0xFFFFFFFF) {
+                if (cacheLineUsage[i] != unusedCacheLine) {
                     conflict = true;
                     break;
                 }

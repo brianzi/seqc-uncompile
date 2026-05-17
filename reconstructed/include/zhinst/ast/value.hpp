@@ -83,7 +83,7 @@ public:
     // --- Constructors (all confirmed from disassembly) ---
     //! \brief Default-constructs a `Valueless` immediate; any
     //! conversion will throw.
-    Immediate() : index_(0xFFFFFFFF) {}       // default: valueless state
+    Immediate() : index_(0xFFFFFFFFu) {}       // default: valueless state, see ImmediateKind::Valueless
     //! \brief Constructs an `Address`-kind immediate from an
     //! existing `AddressImpl` wrapper.
     //! \param addr Pre-wrapped address payload.

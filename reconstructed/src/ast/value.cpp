@@ -14,6 +14,14 @@
 
 namespace zhinst {
 
+// Discriminator value for the moved-from / default-constructed
+// "valueless" state of Immediate::index_.  Mirrors the
+// ImmediateKind::Valueless enumerator declared in value.hpp; kept
+// as a uint32_t alias because index_ itself is uint32_t (the
+// header documents the enum mapping but stores the raw int form).
+static constexpr uint32_t kImmediateValueless =
+    static_cast<uint32_t>(ImmediateKind::Valueless);
+
 // ============================================================================
 // operator<<(ostream&, AddressImpl<uint>) — 0x1c7ce0
 //
@@ -96,7 +104,7 @@ Immediate::Immediate(Immediate&& other) noexcept
     if (other.index_ == 2) {
         other.data_.str.~basic_string();
     }
-    other.index_ = 0xFFFFFFFF;
+    other.index_ = kImmediateValueless;
 }
 
 Immediate& Immediate::operator=(Immediate const& other) {
@@ -118,15 +126,15 @@ Immediate& Immediate::operator=(Immediate const& other) {
 // ============================================================================
 // Immediate::~Immediate() — 0x15c4f0
 //
-// Dispatches through vtable if index_ != 0xFFFFFFFF.
+// Dispatches through vtable if index_ != kImmediateValueless.
 // Only index=2 (string) actually needs destruction.
-// Sets index_ = 0xFFFFFFFF afterwards (valueless state).
+// Sets index_ = kImmediateValueless afterwards (valueless state).
 // ============================================================================
 Immediate::~Immediate() {  // 0x15c4f0
     if (index_ == 2) {
         data_.str.~basic_string();
     }
-    index_ = 0xFFFFFFFF;
+    index_ = kImmediateValueless;
 }
 
 // ============================================================================
@@ -149,7 +157,7 @@ Immediate::operator int() const {  // 0x290cc0
         case 2:  // string → int conversion (likely stoi, but uncommon path)
             return std::stoi(data_.str);
         default:
-            throw std::bad_variant_access();  // index_ == 0xFFFFFFFF
+            throw std::bad_variant_access();  // index_ == kImmediateValueless
     }
 }
 
@@ -175,7 +183,7 @@ Immediate::operator unsigned int() const {  // 0x290d00
 // Otherwise dispatches per-type comparison via vtable at b070e0[index_].
 // ============================================================================
 bool Immediate::operator==(Immediate const& other) const {  // 0x290d40
-    if (index_ == 0xFFFFFFFF) return false;
+    if (index_ == kImmediateValueless) return false;
     if (index_ != other.index_) return false;
     switch (index_) {
         case 0: return data_.address.value == other.data_.address.value;
