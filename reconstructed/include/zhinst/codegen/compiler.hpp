@@ -773,6 +773,14 @@ public:
     //!        resume sequence; see the warning on `setAsmList`.
     void setPlaceholderAsm(AsmList::Asm asm_);
 
+    //! \brief Read-only access to `asmList_`.  Used by the seqcc
+    //!        T6 `--to=asm` driver to dump the AsmList at the
+    //!        binary's natural round-trip cut point (after
+    //!        `stepOptPre`, before `stepPrefetch`) — see IF-308.
+    //!        No counterpart in the original binary; pure tooling
+    //!        accessor.
+    AsmList const& asmList() const { return asmList_; }
+
 private:
     //! \brief Owning compilation's configuration (sequencer
     //!        index, debug flags, sample rate); captured by raw

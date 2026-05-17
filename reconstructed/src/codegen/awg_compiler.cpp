@@ -234,6 +234,52 @@ public:
     //!        `progressCallback_` with `1.0` on success.
     void stepCheckLimits();
 
+    //! \brief T6 (IF-307 extension): resume-equivalent of
+    //!        `stepInnerCompile` for the seqcc `--from=asm` path.
+    //!
+    //! Same prelude as `stepInnerCompile` (device-type validate,
+    //! source-text stash, message-clear, wavetableIR reset, asmList
+    //! clear), but instead of `compiler_.compile(source)` it drives
+    //! the inner `Compiler` via the IF-307 T6 entry points:
+    //!
+    //! \code
+    //!   compiler_.reset();
+    //!   compiler_.setupResources();
+    //!   compiler_.setAsmList(std::move(list));
+    //!   compiler_.setPlaceholderAsm(std::move(placeholder));
+    //!   compiler_.stepPrefetch();
+    //!   compiler_.stepOptPost();
+    //!   compiler_.stepUnsyncCervino();
+    //!   auto cr = compiler_.stepProject();
+    //! \endcode
+    //!
+    //! After the inner pipeline returns the `CompileResult`, the
+    //! same asm-text pretty-print loop and message-append work
+    //! that `stepInnerCompile` performs are duplicated here so the
+    //! outer state (`compileString_asmList_`, `wavetableIR_`,
+    //! `assemblerText_`, `compileMessages_`) is left in the same
+    //! shape `stepAssembleOpcodes` / `stepCheckLimits` /
+    //! `writeToStream` expect.
+    //!
+    //! \param source       SeqC-text equivalent stashed into
+    //!                     `sourceText_` (typically the original
+    //!                     `.seqasm` text, exposed via the `.c`
+    //!                     ELF section for traceability).
+    //! \param list         The deserialised `AsmList` to resume
+    //!                     from (the post-`stepOptPre` state).
+    //! \param placeholder  The `Asm` entry from `list` whose
+    //!                     `node->type == NodeType::Load` (the
+    //!                     `asmLoadPlaceholder` anchor that
+    //!                     `stepPrefetch` rewrites).
+    //!
+    //! \warning No binary counterpart; pure tooling resume path.
+    //!          The driver is responsible for identifying the
+    //!          placeholder entry — there is no auto-detection
+    //!          on this side.
+    void stepInnerCompileFromAsmList(std::string const& source,
+                                     AsmList list,
+                                     AsmList::Asm placeholder);
+
     //! \brief Read-only view of the pretty-printed assembler text
     //!        produced by `stepInnerCompile`.
     //! \details Tooling accessor added in T5b.5; no counterpart in the
@@ -985,6 +1031,101 @@ void AWGCompilerImpl::stepCheckLimits() {  // @0x10739e..0x107478
     // @0x10744e: lock weak_ptr at +0x2A8, call setProgress(1.0)
     if (auto progress = progressCallback_.lock()) {                            // @0x10744e
         progress->setProgress(1.0);                                            // @0x107468
+    }
+}
+
+// ----------------------------------------------------------------------------
+// T6 (IF-307 extension, IF-308): resume-equivalent of
+// stepInnerCompile that re-enters the inner Compiler at the binary's
+// natural round-trip cut point (after stepOptPre).  No binary
+// counterpart.
+// ----------------------------------------------------------------------------
+void AWGCompilerImpl::stepInnerCompileFromAsmList(
+    std::string const& source,
+    AsmList list,
+    AsmList::Asm placeholder)
+{
+    // 1. Validate device type (same as stepInnerCompile prelude).
+    bool isHirzel = config_->isHirzel;
+    bool hasDeviceConstants = (deviceConstants_.deviceType != kDevNone);
+
+    if (isHirzel && !hasDeviceConstants) {
+        std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
+            static_cast<AwgDeviceType>(config_->deviceType));
+        throw ZIAWGCompilerException(
+            ErrorMessages::format(ErrorMessageT(0xDA), devStr));
+    }
+    if (!isHirzel && !hasDeviceConstants) {
+        std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
+            static_cast<AwgDeviceType>(config_->deviceType));
+        throw ZIAWGCompilerException(
+            ErrorMessages::format(ErrorMessageT(0xDB), devStr));
+    }
+
+    // 2-4. Same outer-state preludes as stepInnerCompile.
+    sourceText_ = source;
+    compileMessages_.clear();
+    wavetableIR_.reset();
+    compileString_asmList_.clear();
+
+    // 5. Drive the inner Compiler via the IF-307 T6 entry points.
+    try {
+        compiler_.reset();
+        compiler_.setupResources();
+        compiler_.setAsmList(std::move(list));
+        compiler_.setPlaceholderAsm(std::move(placeholder));
+        // Skip stepOptPre — the input is already in the
+        // post-stepOptPre state (that is the contract of the
+        // dump-point in --to=asm, per IF-308).  Resume at
+        // stepPrefetch and run the remaining steps in order.
+        compiler_.stepPrefetch();
+        compiler_.stepOptPost();
+        compiler_.stepUnsyncCervino();
+        auto cr = compiler_.stepProject();
+        compileString_asmList_ = std::move(cr.asmList);
+        wavetableIR_ = std::move(cr.wavetableIR);
+    } catch (...) {
+        // Mirror the exception path in stepInnerCompile: append
+        // inner-compiler messages, wrap in ZIAWGCompilerException.
+        auto msgs = compiler_.getCompileMessages();
+        compileMessages_.insert(compileMessages_.end(),
+                                msgs.begin(), msgs.end());
+        try {
+            std::rethrow_exception(std::current_exception());
+        } catch (std::exception const& e) {
+            const char* what = e.what();
+            throw ZIAWGCompilerException(
+                what ? std::string(what) : std::string());
+        }
+    }
+
+    // 6. Build assembly text (identical loop to stepInnerCompile
+    //    step 6 — must stay in sync if that loop ever changes).
+    std::ostringstream oss;
+    bool afterLabel = false;
+    for (auto const& instr : compileString_asmList_) {
+        if (instr.cmd == Assembler::INVALID) continue;
+        std::string s = instr.str(/*verbose=*/true);
+        if (instr.cmd == Assembler::LABEL) {
+            int indent = 8 - static_cast<int>(s.size());
+            if (indent < 0) indent = 0;
+            oss << s << std::string(indent, ' ');
+            afterLabel = true;
+        } else {
+            if (!afterLabel) {
+                oss << "        ";
+            }
+            oss << s << "\n";
+            afterLabel = false;
+        }
+    }
+    assemblerText_ = oss.str();
+
+    // 7. Append inner-compiler messages (success path).
+    {
+        auto msgs = compiler_.getCompileMessages();
+        compileMessages_.insert(compileMessages_.end(),
+                                msgs.begin(), msgs.end());
     }
 }
 
@@ -1798,6 +1939,13 @@ void AWGCompiler::stepAssembleOpcodes() {
 
 void AWGCompiler::stepCheckLimits() {
     impl_->stepCheckLimits();
+}
+
+void AWGCompiler::stepInnerCompileFromAsmList(std::string const& source,
+                                              AsmList list,
+                                              AsmList::Asm placeholder) {
+    impl_->stepInnerCompileFromAsmList(source, std::move(list),
+                                       std::move(placeholder));
 }
 
 std::string const& AWGCompiler::assemblerText() const {

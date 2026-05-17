@@ -1048,7 +1048,8 @@ Each sub-phase commit must clear:
 **Severity**: process-note (no behavioural bug; additive surface
 to enable `seqcc --from=asm`).
 **Status**: **proposed (2026-05)** — pre-approved by user before
-T6.1 edits land.  Will be updated to "fixed" when T6 closes.
+T6.1 edits land.  Extended at T6.2 (see "T6.2 extensions" section
+below).  Will be updated to "fixed" when T6 closes.
 
 ### Motivation
 
@@ -1156,26 +1157,73 @@ and `reconstructed/notes/seqcc_from_design.md` §1.
    was rejected because the placeholder may carry state that is
    not solely identifiable from its opcode.
 
+### T6.2 extensions (landed 2026-05, status proposed)
+
+Three additions to the originally-sanctioned T6.1 surface, all
+additive and verified byte-clean against `diff_test_fast 1612/1612`
++ all 85 tool-side tests on the working-tree build:
+
+1. **`Compiler::asmList() const` accessor**
+   (`reconstructed/include/zhinst/codegen/compiler.hpp`, inline
+   one-liner after `setPlaceholderAsm`).  Returns
+   `AsmList const& asmList_`.  Needed by the driver's refactored
+   `--to=asm` path so that the dump can capture `asmList_` at the
+   binary's natural cut (after `stepOptPre`, before `stepPrefetch`)
+   — see IF-308 for why that cut matters.  Read-only; does not
+   widen the mutation surface.
+2. **`AWGCompilerImpl::stepInnerCompileFromAsmList(source, list,
+   placeholder)`** (declaration + ~95-line implementation in
+   `reconstructed/src/codegen/awg_compiler.cpp`).  Mirrors the
+   prelude of `stepInnerCompile` but drives the inner `Compiler`
+   via the resume sequence
+   `reset → setupResources → setAsmList → setPlaceholderAsm →
+   stepPrefetch → stepOptPost → stepUnsyncCervino → stepProject`
+   (skipping `stepOptPre` because the input is already
+   post-`stepOptPre` per IF-308).  Copies the result to
+   `compileString_asmList_` and `wavetableIR_`, re-builds
+   `assemblerText_` with the identical pretty-print loop used by
+   `stepInnerCompile`, and wraps inner exceptions as
+   `ZIAWGCompilerException` with the same message-append
+   contract.  This keeps the resume entry point inside the recon
+   side (one source of truth for assembler-text formatting) and
+   gives the driver a single back-end-equivalent entry to call.
+3. **`AWGCompiler::stepInnerCompileFromAsmList` forwarder**
+   (`reconstructed/include/zhinst/codegen/awg_compiler.hpp` +
+   `awg_compiler.cpp`) — pImpl forwarder symmetric with the other
+   `step*` forwarders.  Also adds `#include
+   "zhinst/asm/asm_list.hpp"` to the header because the signature
+   takes `AsmList::Asm` by value (forward-declare insufficient).
+
+These additions preserve the IF-307 minimum-footprint rationale:
+the alternative — driving the resume sequence directly from the
+driver — would force `stepInnerCompileFromAsmList`'s ~95-line
+prelude (including the assembler-text pretty-print loop, the
+exception-wrapping contract, and the `wavetableIR_` / 
+`compileString_asmList_` copy-out) to live in `tools/seqcc/`,
+duplicating recon logic in a place where it would silently drift.
+Keeping it on the recon side means the driver's `--from=asm`
+branch is the same three-line shape as a normal compile.
+
 ### Driver-side consumption (forward reference)
 
 The seqcc driver (`tools/seqcc/src/driver.cpp`) will be extended in
 T6.2 with a new resume path:
 
 ```cpp
-// pseudocode
+// pseudocode (post-T6.2 extensions — single recon-side entry)
 AsmList list = AsmList::deserialize(/* contents of input.seqasm */);
-AsmList::Asm placeholder = list.recoverPlaceholder();  // or supplied separately
-auto& c = compiler.compiler();
-c.reset();
-c.setupResources();                  // built from config_ / deviceConstants_
-c.setAsmList(std::move(list));
-c.setPlaceholderAsm(placeholder);
-c.stepOptPre();
-c.stepPrefetch();
-c.stepOptPost();
-c.stepUnsyncCervino();
-c.stepProject();
-// ... then back-end stages via compileString step methods
+// Identify the placeholder by NodeType::Load — sole pre-prefetch
+// producer (verified at asm_commands.cpp:939-941).  Replaces the
+// earlier sidecar-file design.
+AsmList::Asm placeholder = /* scan `list` for node->type == NodeType::Load */;
+// One call into the recon side handles reset → setupResources →
+// setAsmList → setPlaceholderAsm → stepPrefetch → stepOptPost →
+// stepUnsyncCervino → stepProject, plus assembler-text pretty-print
+// and exception wrapping.  Resumes at stepPrefetch because input is
+// already post-stepOptPre per IF-308.
+awgCompiler.stepInnerCompileFromAsmList(source, std::move(list), placeholder);
+// ... then back-end stages via stepAssembleOpcodes / stepCheckLimits
+// / writeToStream as in the normal compile path.
 ```
 
 ### Verification

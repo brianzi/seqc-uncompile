@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "zhinst/asm/asm_list.hpp"  // T6: AsmList + AsmList::Asm by-value in stepInnerCompileFromAsmList
+
 namespace zhinst {
 
 class AWGCompilerConfig;
@@ -177,6 +179,24 @@ public:
     //! \brief Steps 10-12 of `compileString()`.  See
     //!        `AWGCompilerImpl::stepCheckLimits`.
     void stepCheckLimits();
+
+    //! \brief T6 (IF-307 ext, IF-308): resume-equivalent of
+    //!        `stepInnerCompile` for the seqcc `--from=asm` path.
+    //!        See `AWGCompilerImpl::stepInnerCompileFromAsmList`
+    //!        for the full contract.
+    //!
+    //! \param source       SeqC-text equivalent (typically the
+    //!                     original `.seqasm` text), stashed into
+    //!                     the outer `sourceText_` so the `.c` ELF
+    //!                     section still carries a meaningful
+    //!                     traceback.
+    //! \param list         The deserialised `AsmList` to resume
+    //!                     from (post-`stepOptPre` state).
+    //! \param placeholder  The `Asm` entry from `list` whose
+    //!                     `node->type == NodeType::Load`.
+    void stepInnerCompileFromAsmList(std::string const& source,
+                                     AsmList list,
+                                     AsmList::Asm placeholder);
 
     //! \brief Read-only view of the pretty-printed assembler text
     //!        cached after `stepInnerCompile` (or `compileString`).
