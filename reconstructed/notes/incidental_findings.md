@@ -2305,6 +2305,47 @@ for `Value::which_`) has no consuming `switch` and was not added.
 - `reconstructed/include/zhinst/ast/value.hpp:157` (existing enum)
 
 
+## IF-330 — `magic_number_audit.md` P8 frames a non-existent enum extension
+
+**Severity:** cosmetic (documentation)
+**Status:** fixed (P8 pivoted; this note records the discrepancy)
+
+Audit §8 P8 reads "Extend `WaveformFile::Type` enum (or add a sibling)
+for the `.bin / .bin16 / .wave / .wave16` extension ladder in
+`codegen/awg_compiler.cpp:1196,1202,1245`."
+
+Verification in Phase D7-C.2 found:
+
+- All four extensions in question map to **only two** existing
+  enumerators of `WaveformFile::Type` (`waveform.hpp:58`):
+  - `.csv` / `.txt` → `Type::CSV` (= 0)
+  - `.bin` / `.wave` → `Type::RAW` (= 1)
+  - `.bin16` / `.wave16` → `Type::RAW` (= 1) (same enumerator,
+    different binary-sample-width handling done at parse time)
+- The three audit-cited call sites pass bare `Type(0)` / `Type(1)`,
+  not raw extension-derived constants — they are literal-→-named
+  conversions against the existing enum, not an enum extension.
+- Extending `Type` would break two binary-faithful symbols:
+  `WaveformFile::typeToStr` (0x2a3a90) and
+  `WaveformFile::typeFromStr` (0x2a63c0).  Both have lazy-initialised
+  static maps containing exactly the three known strings (`"csv"`,
+  `"raw"`, `"gen"`); a fourth enumerator would throw `std::out_of_range`
+  on round-trip.
+- The "extension ladder" is in fact a `std::string` match on `ext`
+  (see `awg_compiler.cpp:1196,1202,1245`), not an enum dispatch.
+  The right shape for that is a string→enum mapping, which already
+  exists implicitly in the if-else chain — no enum surface is required.
+
+P8 was pivoted to "literal→named, 3 sites in `awg_compiler.cpp`" — a
+trivial cleanup using the existing enum.  The audit's "extend the
+enum" framing was not actioned.
+
+**Files**
+- `reconstructed/notes/magic_number_audit.md:787` (P8 row)
+- `reconstructed/src/codegen/awg_compiler.cpp:1199,1244,1284`
+- `reconstructed/include/zhinst/waveform/waveform.hpp:58` (existing enum)
+
+
 ## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
 
 **Severity:** suspicious

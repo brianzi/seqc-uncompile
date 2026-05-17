@@ -1194,9 +1194,9 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
         // 2c. Match extension
         if (ext.size() >= 4 && ext.size() <= 7) {
             if (ext == ".csv" || ext == ".txt") {
-                // @0x104b17: wavetable_->newWaveformFromFile(stem, pathStr, Type=0)
+                // @0x104b17: wavetable_->newWaveformFromFile(stem, pathStr, Type=CSV)
                 wavetable_->newWaveformFromFile(stem, pathStr,
-                    Waveform::File::Type(0));
+                    Waveform::File::Type::CSV);
                 // Then create WaveformIR from front — allocate_shared<WaveformIR>
                 // @0x104b44: allocate_shared<WaveformIR>(waveformFront)
             } else if (ext == ".bin" || ext == ".wave") {
@@ -1241,7 +1241,7 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
                 // Create waveform via WavetableFront
                 wavetable_->newWaveformFromFile(
                     stem, signal, pathStr,
-                    Waveform::File::Type(1));                        // @0x29b520 via 0x1050b3
+                    Waveform::File::Type::RAW);                      // @0x29b520 via 0x1050b3
             } else if (ext == ".bin16" || ext == ".wave16") {
                 // @0x104991: HDAWG 32-bit sample format
                 // Each sample is a uint32_t: bits[31:2] = 16-bit signed sample
@@ -1281,7 +1281,7 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
 
                 wavetable_->newWaveformFromFile(
                     stem, signal, pathStr,
-                    Waveform::File::Type(1));
+                    Waveform::File::Type::RAW);
             } else {
                 // Unrecognized extension — log warning and skip
                 // @0x1049c0: LogRecord dtor (log message about skipping)
