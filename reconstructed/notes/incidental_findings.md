@@ -1893,9 +1893,38 @@ to the `WaveIndexUsed` sibling slot, both wavetable-index validators.
 
 **Severity:** suspicious (binary semantics preserved; the question is
 whether the binary itself picked the right slot).
-**Status:** open.
+**Status:** **dismissed** — resolved as hypothesis 2 (closest-fit template).
 
 **Discovered:** during Phase D7-C.1bis sub-batch 5 context-eyeball pass.
+**Resolved:** during D7-C.1.i targeted investigation.
+
+### Resolution
+
+Investigation under C.1.i confirmed:
+
+1. **The throw branch is unreachable through any current caller.**
+   `AsmCommands::alui` (the only function with the `else throw` path)
+   is called only with `ADDI`, `ANDI`, `ORI`, `XNORI` (grep of
+   `reconstructed/src/asm/asm_commands.cpp`).  `ADDI` is handled by
+   Case 1 / Case 2 earlier in the body; `ANDI` / `ORI` / `XNORI` are
+   the three explicit mappings.  No caller ever passes another opcode.
+
+2. **No better-fit template exists in the binary.**  `strings
+   _seqc_compiler.so` finds no "no register-form equivalent",
+   "unsupported opcode", "cannot lower immediate", or similar
+   templates that would describe the actual failure mode.  The
+   binary's choice of `UnknownFunction` is the closest-available
+   message for "we don't know how to assemble this command".
+
+3. **Diff-tests stay clean.**  Since the path is unreachable from
+   any documented SeqC input, the misleading English of the rendered
+   message is academic.
+
+The branch is defensive code against future ALU-immediate opcodes
+that the lowering pass doesn't recognise.  Leaving the recon as-is
+(faithful to the binary) is correct.
+
+### Original observation (preserved for history)
 
 ### Observation
 
@@ -1958,9 +1987,52 @@ ALU opcode reached the immediate-→register lowering pass).
 **Severity:** suspicious — possible pre-existing recon bug, possibly
 also present in the binary, possibly handled gracefully by
 `boost::format`.
-**Status:** open.
+**Status:** **dismissed** — false alarm; template has two placeholders,
+not one.
 
 **Discovered:** during Phase D7-C.1bis sub-batch 5 context-eyeball pass.
+**Resolved:** during D7-C.1.i targeted investigation.
+
+### Resolution
+
+The IF-324 observation quoted the template at slot 159 as:
+
+> `"%1% sample rate can only be described with a const"`
+
+This quote was incomplete.  The actual template in
+`reconstructed/src/core/error_messages.cpp:412` is:
+
+```
+"%1% sample rate can only be described with a const, not with a %2%"
+```
+
+— **two placeholders**, matching the 2-arg call site
+(`name`, `str(val.varType_)`).  The binary's template is identical
+(verified via `strings _seqc_compiler.so`):
+
+```
+$ strings _seqc_compiler.so | grep -F "sample rate can only"
+%1% sample rate can only be described with a const, not with a %2%
+```
+
+End-to-end verification: compiling `var myRate; myRate = 1;
+playZero(64, myRate);` on HDAWG8 throws the expected message:
+
+```
+Compiler Error (line: 4): playZero sample rate can only be
+described with a const, not with a var
+```
+
+Both `%1% = "playZero"` and `%2% = "var"` substitute correctly.
+The boost::format default-strict mode is satisfied (2 placeholders,
+2 args).
+
+The IF was filed based on a truncated quote from
+`error_message_audit.md`; no actual bug.  The broader 628-site
+arg-count audit is therefore lower priority — but still worth
+running at some point to catch genuine mismatches if any exist.
+
+### Original observation (preserved for history)
 
 ### Observation
 

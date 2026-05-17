@@ -223,18 +223,27 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         (closes IF-312).  F10.a `0xFFFFFFFF` 10 code + 7 doc sites —
         c223242.  F10.b `-1` 8 sites (per-site triage; partial
         scope) — 8131b73 (filed IF-327, IF-328).
-  - [ ] **C.1.i — ErrorMessages::format arg-count / placeholder-count
-        audit.**  Triggered by IF-324 (`SampleRateConstOnly` template
-        has 1 placeholder but is called with 2 args).  Grep all 164
-        post-C.1bis named call sites; for each, count `%N%` placeholders
-        in the template (from `error_messages.cpp`) and arg count at
-        the call site; report mismatches.  For each mismatch decide:
-        (a) template is underspecified — extend it, (b) call site has
-        extra args — drop them, (c) binary itself is wrong — file as
-        IF and leave recon faithful.  Cheap audit, may surface more
-        latent bugs hidden by `boost::format` permissive mode.  Should
-        also investigate IF-323 (`UnknownFunction` used for an opcode
-        dispatch failure) in the same pass.
+  - [x] **C.1.i — ErrorMessages::format arg-count / placeholder-count
+        audit.**  Targeted investigation of triggering IFs (IF-323,
+        IF-324) done in this session; both **dismissed**:
+        - IF-324: template at slot 159 actually has two placeholders
+          (`"%1% sample rate can only be described with a const, not
+          with a %2%"`); the IF quoted a truncated version with only
+          `%1%`.  Binary and recon identical (verified via `strings`
+          and end-to-end recompile).
+        - IF-323: throw branch unreachable through any current
+          caller (`AsmCommands::alui` only invoked with
+          ADDI/ANDI/ORI/XNORI, all handled); no better-fit template
+          exists in the binary; `UnknownFunction` is the
+          closest-available message.  Defensive code; leave faithful.
+
+        The broader 628-site arg-count sweep across all named
+        `ErrorMessages::format` call sites is **deferred** — neither
+        triggering IF was a real bug, so the priority is low.  If
+        pursued: parse template `%N%` counts from
+        `error_messages.cpp`, count args at each call site, report
+        mismatches.  Defer until either (a) another IF-324-like
+        observation arises, or (b) a future phase has spare cycles.
   - [x] **C.1.h — Sub-phase wrap-up.**  Done in commit 8a6b5ec
         (this session): re-ran full diff suite + seqcc tools after
         F10.b, updated `magic_number_audit.md` F-summary with
