@@ -291,11 +291,16 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         justified per the comment block (IF-121 had removed an
         unreferenced `DeviceOpts` namespace; new constants
         re-introduced because they have real call sites this time).
-  - [ ] **C.2.d — Remaining P-items (P3, P5, P6, P7, P9, P10).**
+  - [x] **C.2.d.2 — P3 NodeType literal→named (6 sites).**  Commit
+        83e5485.  Audit's "separate NodeTypeMask cluster" framing was
+        wrong — the 5 literals are exactly the existing `NodeType`
+        enumerators (`SyncCervino`/`Table`/`SyncHirzel`/`PlainLoad`/
+        `AwgReady`).  Pivoted to literal→named in
+        `prefetch_placesingle.cpp` (5 audit-cited + 1 bonus
+        `NodeType::Play` swept at line 575).  IF-331 filed.
+  - [ ] **C.2.d — Remaining P-items (P5, P6, P7, P9, P10).**
         Deferred — each needs design or GDB verification before
         execution:
-        - P3: `NodeTypeMask*` cluster in `prefetch_placesingle.cpp`
-          — needs disambiguation from existing `NodeType` enum.
         - P5: blocked on IF-317 (`0x29` cmd-set LUT GDB verification).
         - P6: blocked on IF-322 (`0x54` VarType-set GDB verification).
         - P7: opcode-byte tag constants — needs investigation of the
