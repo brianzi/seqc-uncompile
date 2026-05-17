@@ -2257,3 +2257,39 @@ since the note was written.
   signal.  Suggests Phase H-or-similar should be scheduled
   every time the `\binarynote` count grows by ~10 net-new
   sites without a re-audit.
+
+## Phase D7 — Doxygen topical reorganisation
+
+Reshape the doxygen site from a flat collection of per-file
+promoted notes into a six-section topical reference covering the
+workings of the reconstructed implementation: §1 Target
+Architecture, §2 SeqC Language, §3 Compiler Pipeline, §4 Runtime &
+Resources, §5 ELF Output, §6 Toolchain.  Drive principle: drop
+reconstruction narrative (no addresses, no struct memory layouts,
+no disassembly snippets) from promoted pages; keep all such
+material in `reconstructed/notes/` source files only.
+
+- **D7-A (structural).**  Closed 2026-05-17.  Rewrote the
+  `DOXYGEN_NOTES_PAGES` list in `reconstructed/CMakeLists.txt`
+  around six topical sections.  Archived 9 pure-narrative pages
+  to `reconstructed/notes/archive/`: `goto_policy`,
+  `memory_allocator_analysis`,
+  `static_resources_cervino_consts`, `binary_contents_excluded`,
+  `write_waves_to_elf`, `differential_testing`,
+  `splitreg_loop_model`, `writeToNode_block_d_protocol`,
+  `libcpp_abi`.  Created 3 new page stubs
+  (`custom_functions.md`, `prefetch_scheduling.md`,
+  `play_config.md`) and added a `\page` anchor to the existing
+  top-level `frontend_lowering.md` so it can be promoted.
+  Rewrote `reconstructed/docs/architecture.md` mainpage around
+  the six topical sections; removed the flat
+  "Reverse-engineering reference" table.  Build clean; coverage
+  unchanged at 94.6%; all `\subpage` / `\ref` links resolve.
+
+  Tests at close: 1603/1603 main + 1626/1626 harness (no code
+  edits in this phase).
+
+- **D7-B (content cleanup & authoring).**  Open.  Six batches:
+  toolchain banner cleanup, ELF output, target architecture,
+  runtime / language, pipeline core, pipeline new internals.
+  See `TODO.md :: Phase D7-B`.

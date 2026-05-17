@@ -103,7 +103,8 @@ For single-test verbose runs:
 python tests/diff_test.py --filter <name> -v
 ```
 
-See \ref notes_differential_testing for the harness's full design.
+See `tests/diff_test_fast.py` and `tests/diff_test.py` for the
+harness implementation.
 
 ## Smoke tests (`test_seqcc_smoke.py`)
 
@@ -240,5 +241,3 @@ AGENTS.md "Git commit discipline").
 - \ref notes_tools — toolchain entry point and quick start.
 - \ref notes_tools_user_guide — user-facing CLI reference.
 - \ref notes_tools_design — design rationale and internals.
-- \ref notes_differential_testing — main differential-test harness
-  design.

@@ -1,10 +1,12 @@
-# Frontend Lowering Data Model
+# Frontend Lowering {#notes_frontend_lowering}
 
-Data types flowing through `FrontEndLoweringFacade::lower()` and the
-`SeqCAstNode::evaluate()` virtual: **EvalResults**, **EvalResultValue**,
-**Value**, **LowerResult**, **FrontendLoweringState**.
-
-Reconstructed in Phase 15a-i (2026-04-23).
+\warning This page is being reworked into a user-facing reference
+during Phase D7-B.  The current contents below describe the data
+types flowing through `FrontEndLoweringFacade::lower()` and the
+`SeqCAstNode::evaluate()` virtual — **EvalResults**, **EvalResultValue**,
+**Value**, **LowerResult**, **FrontendLoweringState** — but still
+include reconstruction-narrative material (phase IDs, addresses) that
+will be stripped in Phase B5 / B6.
 
 ## Types reconstructed
 

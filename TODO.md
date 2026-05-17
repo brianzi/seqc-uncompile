@@ -50,6 +50,118 @@ Final state at archive cut: 1603/1603 main difftests + 1626/1626
 harness cases passing; 0 doxygen warnings; `\binarynote` count
 audited twice (Phases F1 and G).
 
+## Phase D7 — Doxygen topical reorganisation
+
+Reshape the doxygen site from a flat collection of per-file promoted
+notes into a six-section topical reference covering the workings of
+the reconstructed implementation: target architecture, SeqC language,
+compiler pipeline, runtime, ELF output, and toolchain.  Drive
+principle: drop reconstruction narrative (no addresses, no struct
+layouts, no disassembly) from promoted pages; keep all such material
+in `reconstructed/notes/` source files only.
+
+Plan file: `.opencode/plans/1779007408145-misty-panda.md`.
+
+### Phase D7-A — Structural changes (single commit)
+
+- [x] **A.1** Rewrite `DOXYGEN_NOTES_PAGES` in `reconstructed/CMakeLists.txt`
+      as the new six-section ordered list; add the 5 new topical
+      pages; drop the 9 archived pages.
+- [x] **A.2** Move 9 Class B files to `reconstructed/notes/archive/`:
+      `goto_policy.md`, `memory_allocator_analysis.md`,
+      `static_resources_cervino_consts.md`, `binary_contents_excluded.md`,
+      `write_waves_to_elf.md`, `differential_testing.md`,
+      `splitreg_loop_model.md`, `writeToNode_block_d_protocol.md`,
+      `libcpp_abi.md`.  Drop dead `\ref` links from `tools.md` and
+      `tools_testing.md`.
+- [x] **A.3** Create 3 new page stubs (`custom_functions.md`,
+      `prefetch_scheduling.md`, `play_config.md`).  Add `\page`
+      anchor to existing-but-unpromoted `frontend_lowering.md`.
+      Each stub is a single `\unclear` block with a scope statement
+      and crosslinks so the IA resolves cleanly.
+- [x] **A.4** Rewrite `reconstructed/docs/architecture.md` mainpage
+      around six topical sections (Target Architecture / SeqC
+      Language / Compiler Pipeline / Runtime & Resources / ELF
+      Output / Toolchain), each linking into its subpages via
+      `\subpage`.  Removed the flat "Reverse-engineering reference"
+      table.
+- [x] **A.5** Build the docs (`cmake --build . --target docs` from
+      `reconstructed/build/`).  Warning log unchanged from prior
+      state; all `\subpage` / `\ref` links resolve.  Coverage 94.6%.
+- [ ] **A.6** Commit + sub-phase wrap-up.
+
+### Phase D7-B — Per-page content cleanup & authoring (six batches)
+
+Each batch ends with a build, warnings triage, and commit.
+
+- [ ] **B.1 — §6 Toolchain banner cleanup.**  Drop the
+      "reconstruction reference material" banner from `tools.md` /
+      `tools_user_guide.md` / `tools_design.md` / `tools_testing.md`.
+      Drop the binary-address column and the IF-300..309 sanctioned-
+      edit log from `tools_design.md`.  Tool page *contents* remain
+      WIP-owned independently.
+
+- [ ] **B.2 — §5 ELF Output.**  Strip address citations in
+      `elf_format.md`.  Trim `elf_reader.md` to `.linenr` + reader
+      API only — drop layout offsets and exception-class forensics.
+      Optionally fold a single paragraph from the archived
+      `write_waves_to_elf.md` into `elf_format.md`.
+
+- [ ] **B.3 — §1 Target Architecture.**  Trim `opcode_encoding.md`
+      (drop trailing struct-offset annotations).  Trim
+      `fb_instruction.md` (delete "Source Locations" address
+      appendix).  Trim `cervino_vs_hirzel.md` (drop bitmask aside).
+      Verify `special_registers.md` against the codebase, fill
+      missing `ld`/`st` pair entries, add code-link crossrefs to
+      `custom_functions` and `play_config`.  Rewrite
+      `awg_device_props.md` as a clean per-device properties table.
+      Author short ISA-overview prose on the mainpage §1 landing.
+      Optional bonus: promote `device_type.md` if it adds value.
+
+- [ ] **B.4 — §4 Runtime & §2 SeqC Language.**  Rewrite
+      `device_constants.md` as a clean per-device constants table.
+      Reduce `logging_tracing.md` to a short "boost.log + stubbed
+      OpenTelemetry" paragraph plus the public API surface; drop
+      symbol tables and struct offsets.  Author new
+      `custom_functions.md` from `symbol-renaming-audit/05a..05d_*`
+      batches.  Trim `seqc_parser_grammar.md` to keep token table +
+      grammar overview + UTF-8 finding; drop parse-table parity
+      tables and addresses.  Confirm
+      `seqc_language_features_excluded.md` placement.
+
+- [ ] **B.5 — §3 Compiler Pipeline (core).**  Rewrite `pipeline.md`
+      as an instructive narrative (what each phase consumes /
+      produces); keep flow + participants; drop layout offsets +
+      TLS notes.  Rewrite `node_tree_structure.md` as a conceptual
+      IR overview with a mermaid diagram (verify mermaid renders in
+      our Doxygen setup); drop byte offsets and addresses.  Rewrite
+      `waveform_generator_funcmap.md` as a supported-DSL-functions
+      catalogue (name, arity, optional args, brief semantics,
+      code link); drop addresses + emplace sites.
+
+- [ ] **B.6 — §3 Compiler Pipeline (new internals).**  Author
+      `frontend_lowering.md` (scrub the existing top-level file: drop
+      phase IDs, binary addresses; promote as user-facing reference).
+      Author `prefetch_scheduling.md` from
+      `symbol-renaming-audit/09_prefetch*.md` and
+      `archive/phase_15b_prefetch_audit.md`.  Author `play_config.md`
+      from `symbol-renaming-audit/38_play_config.md`.  Either expand
+      `optimization_passes.md` to cover DCE + register allocation
+      properly, or split `register_allocation.md` out — decide based
+      on length.  Trim `magic_numbers_proposal.md` to gap-tracker
+      rename suggestions; drop backstory + source-line refs.  Trim
+      or fold `asm_parser_grammar.md` (`.seqasm` is internal IR).
+
+### Phase D7-C — Follow-up audits (separate, deferred)
+
+- [ ] **C.1 — `static_cast<>` / magic-number audit.**  Per
+      `temp-NOTES-review-seqc-compiler-doxygen.md` §"Code quality
+      improvements": audit `static_cast<>` sites for enums that
+      should be used, missing enum values, named-constant
+      candidates, and enum/int round-trip opportunities (overloads,
+      auto-cast).  Not coupled to the docs phase; tracked here so
+      it isn't lost.
+
 ## Phase X — `compile_seqc` binding-kwarg coverage
 
 Differential-test coverage of every keyword argument in the public

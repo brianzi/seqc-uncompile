@@ -267,46 +267,48 @@ endif()
 find_package(Doxygen QUIET)
 if(DOXYGEN_FOUND)
     set(DOXYGEN_OUTPUT_DIR    "${CMAKE_CURRENT_BINARY_DIR}/docs")
-    # Promoted notes/ pages — D6-A added the 13 EVERGREEN files;
-    # D6-B promoted 14 of the 16 MIXED files after per-file cleanup.
-    # The remaining 12 notes/ files are working-doc tracking files
-    # (incidental_findings, unknowns, struct_layouts,
-    # placeholder_field_names, etc.) that are not user-facing
-    # reference material and stay excluded.
+    # Promoted notes/ pages — Phase D7 reorganised these into six
+    # topical sections rendered from the architecture.md mainpage:
+    # §1 Target Architecture, §2 SeqC Language, §3 Compiler Pipeline,
+    # §4 Runtime & Resources, §5 ELF Output, §6 Toolchain.
+    #
+    # Pages that were pure reconstruction narrative (goto_policy,
+    # memory_allocator_analysis, static_resources_cervino_consts,
+    # binary_contents_excluded, write_waves_to_elf, differential_testing,
+    # splitreg_loop_model, writeToNode_block_d_protocol, libcpp_abi)
+    # were moved to notes/archive/ during Phase D7-A.  Other working-doc
+    # tracking files (incidental_findings, unknowns, struct_layouts,
+    # placeholder_field_names, etc.) remain unpromoted at the top level.
     set(DOXYGEN_NOTES_PAGES
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/cervino_vs_hirzel.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_format.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/fb_instruction.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/goto_policy.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/logging_tracing.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/memory_allocator_analysis.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/node_tree_structure.md"
+        # §1 Target Architecture
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/opcode_encoding.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/opcode_map.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/pipeline.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/fb_instruction.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/special_registers.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/static_resources_cervino_consts.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/waveform_generator_funcmap.md"
-        # D6-B batch 1
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/cervino_vs_hirzel.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/awg_device_props.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/binary_contents_excluded.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/device_constants.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_language_features_excluded.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/write_waves_to_elf.md"
-        # D6-B batch 2
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/asm_parser_grammar.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/differential_testing.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_reader.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/magic_numbers_proposal.md"
+        # §2 SeqC Language
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_parser_grammar.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/splitreg_loop_model.md"
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/writeToNode_block_d_protocol.md"
-        # D6-B batch 3
-        "${CMAKE_CURRENT_SOURCE_DIR}/notes/libcpp_abi.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/seqc_language_features_excluded.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/custom_functions.md"
+        # §3 Compiler Pipeline
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/pipeline.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/frontend_lowering.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/node_tree_structure.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/asm_parser_grammar.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/prefetch_scheduling.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/optimization_passes.md"
-        # Phase T — toolchain reference (not RE material; documents
-        # newly-written seqcc/seqas/seqdump driver).  tools.md is the
-        # hub page; the three companion pages are reached via \subpage.
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/play_config.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/waveform_generator_funcmap.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/magic_numbers_proposal.md"
+        # §4 Runtime & Resources
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/device_constants.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/logging_tracing.md"
+        # §5 ELF Output
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_format.md"
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/elf_reader.md"
+        # §6 Toolchain — newly-written seqcc/seqas/seqdump driver
+        # (not reconstruction material).  tools.md is the hub page.
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools_user_guide.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools_design.md"

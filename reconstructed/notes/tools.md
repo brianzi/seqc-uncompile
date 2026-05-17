@@ -99,5 +99,3 @@ source tree; the pages above are the user-facing distillation.
 - \ref notes_optimization_passes — `-O` / `-f` flag semantics and the
   optimisation-pass bitmask.
 - \ref notes_elf_format — section formats that `seqdump` decodes.
-- \ref notes_differential_testing — the main differential-test
-  harness that backstops the toolchain.
