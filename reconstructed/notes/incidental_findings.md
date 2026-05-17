@@ -2346,6 +2346,43 @@ enum" framing was not actioned.
 - `reconstructed/include/zhinst/waveform/waveform.hpp:58` (existing enum)
 
 
+## IF-331 — `magic_number_audit.md` P3 frames an enum that doesn't need creating
+
+**Severity:** cosmetic (documentation)
+**Status:** fixed (P3 pivoted; this note records the discrepancy)
+
+Audit §8 P3 reads "`NodeTypeMask*` constants for the
+`0x100/0x200/0x2000/0x4000/0x8000` hex-bitmask cluster in
+`codegen/prefetch_placesingle.cpp`.  Needs disambiguation from the
+`NodeType` enum itself, which uses different values."
+
+Verification in Phase D7-C.2 found:
+
+- The five literals are not a separate bitmask cluster; they are
+  exactly the `NodeType` enumerators (`ast/node.hpp:53`):
+    `0x0100` = `NodeType::SyncCervino`
+    `0x0200` = `NodeType::Table`
+    `0x2000` = `NodeType::SyncHirzel`
+    `0x4000` = `NodeType::PlainLoad`
+    `0x8000` = `NodeType::AwgReady`
+  The audit's claim that `NodeType` "uses different values" is wrong
+  — the call sites compare `nodeType` (held as `int`, line 80) against
+  these exact bit values that `NodeType` enumerates.
+- The header already provides mixed-mode `==` overloads for
+  `NodeType` against `int` (`ast/node.hpp:100-109`), so the rewrite is
+  a one-token substitution per site.
+
+P3 was pivoted to "literal→named, 5 sites + 1 ancillary in
+`prefetch_placesingle.cpp`" (line 575 also has `nodeType == 2`
+= `NodeType::Play`, swept in the same commit).  No new enum was
+added.
+
+**Files**
+- `reconstructed/notes/magic_number_audit.md:782` (P3 row)
+- `reconstructed/src/codegen/prefetch_placesingle.cpp:575,1088,1115,1377,1388,1432`
+- `reconstructed/include/zhinst/ast/node.hpp:53,100-109` (existing enum + int overloads)
+
+
 ## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
 
 **Severity:** suspicious

@@ -572,7 +572,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         // --- Hirzel dummy shortcut (0x1d90ca) ---
                         // For type==2 (Play) nodes on Hirzel devices with default rate,
                         // emit wvfs directly without going through wvfImpl.
-                        if (nodeType == 2) {                        // 0x1d90ca: cmpl $0x2, 0x44(%rdi)
+                        if (nodeType == NodeType::Play) {           // 0x1d90ca: cmpl $0x2, 0x44(%rdi)
                             auto* dc = devConst_;
                             int rate = npD->config.rate;            // +0x4C = config+0x04
                             bool rateOk = (rate == 0) ||
@@ -1085,7 +1085,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             }
         }
         // --- nodeType == 0x100: Sync (Cervino) ---
-        else if (nodeType == 0x100) {                              // 0x1d7ba7
+        else if (nodeType == NodeType::SyncCervino) {              // 0x1d7ba7
             auto* cfg = config_;
             if (cfg->numChannelGroups < 2)
                 return;
@@ -1112,7 +1112,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
         //! and B are fully reconstructed for layout fidelity; sub-path
         //! C remains stubbed.  See IF-223 (closed) for the prior
         //! incremental reconstruction history.
-        if (nodeType == 0x200) {                                   // 0x1d7a5b
+        if (nodeType == NodeType::Table) {                         // 0x1d7a5b
             // 0x1d7ebb: lock weak_ptr at np+0x18..+0x20
             std::shared_ptr<Node> loadNode = np->loadRef.lock();
             if (!loadNode)
@@ -1374,7 +1374,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             out->insert(placeholderIter(), tempList.begin(), tempList.end());
         }
         // --- nodeType == 0x2000: SyncHirzel ---
-        else if (nodeType == 0x2000) {                             // 0x1d7a66
+        else if (nodeType == NodeType::SyncHirzel) {               // 0x1d7a66
             auto* cfg = config_;
             if (cfg->numChannelGroups < 2 || cfg->deviceType != AwgDeviceType::HDAWG)
                 return;
@@ -1385,7 +1385,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
     }
     else {
         // --- nodeType == 0x4000: PlainLoad node (prefetch-only) ---
-        if (nodeType == 0x4000) {                                  // 0x1d7aeb → 0x1d7f68
+        if (nodeType == NodeType::PlainLoad) {                     // 0x1d7aeb → 0x1d7f68
             int devIdx = (int)np->deviceIndex;
             if (devIdx < 0)
                 return;
@@ -1429,7 +1429,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
             out->insert(placeholderIter(), tempList.begin(), tempList.end());
         }
         // --- nodeType == 0x8000: AwgReady node ---
-        else if (nodeType == 0x8000) {                             // 0x1d7afb
+        else if (nodeType == NodeType::AwgReady) {                 // 0x1d7afb
             AsmList tempList;
             AsmList::Asm stAsm = asmCommands_->st(AsmRegister(0), 0x92);        // 0x1d7b34
             tempList.push_back(stAsm);
