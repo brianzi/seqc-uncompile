@@ -1042,3 +1042,180 @@ Each sub-phase commit must clear:
 - Prerequisite for T6.
 - Prerequisite for T10a (retirement of `compileSeqcWithIR` /
   `CompileSeqcIntrospection`).
+
+## IF-307  Sanctioned recon edit: `AWGCompiler::compiler()` accessor + `Compiler::setupResources()` helper + narrow setters (T6)
+
+**Severity**: process-note (no behavioural bug; additive surface
+to enable `seqcc --from=asm`).
+**Status**: **proposed (2026-05)** — pre-approved by user before
+T6.1 edits land.  Will be updated to "fixed" when T6 closes.
+
+### Motivation
+
+Phase T6 lands `seqcc --from=asm`, the start-at-stage entry point
+that round-trips an `.seqasm` file through `AsmList::deserialize`
+and resumes the pipeline at `stepOptPre`.  The data-flow analysis
+in `reconstructed/notes/seqcc_from_design.md` shows that to do this
+from the driver side, three pieces of `Compiler` state must be
+reachable that are not reachable today:
+
+1. The driver needs a handle to the inner `Compiler` instance
+   owned by `AWGCompilerImpl`, in order to call `stepOptPre`
+   onwards.  `AWGCompiler` is a pImpl over `AWGCompilerImpl`
+   (sole member `impl_*`); the inner `Compiler compiler_` lives
+   at `AWGCompilerImpl+0x0C0` (0x138 bytes), and there is no
+   public accessor.
+2. The driver needs to populate `compileStaticResources_` and
+   `compileResources_` — per-compile scaffolding built by
+   `stepToSeqCAst:351-363` from `config_`, `deviceConstants_`,
+   and `messages_`.  These cannot be supplied from a single
+   input file; the driver must run the same construction
+   sequence as `stepToSeqCAst`.
+3. The driver needs to write `asmList_` (private, binary-layout
+   member at `compiler.hpp:803`) and `compilePlaceholderAsm_`
+   (private, T5b.2 lifted, at `compiler.hpp:843+`) from the
+   deserialised `.seqasm` contents.
+
+### Scope of the edit
+
+Three files, four additions.  Total: ~5 lines of header
+additions, ~15 lines of `.cpp` additions, ~2 lines of in-place
+refactor inside `stepToSeqCAst`.
+
+1. **`reconstructed/include/zhinst/codegen/awg_compiler.hpp`** —
+   forward-declare `class Compiler`; add public
+   `Compiler& compiler()` and `Compiler const& compiler() const`
+   accessors.  Implementation lives in `awg_compiler.cpp` so
+   the public header does not need to include `compiler.hpp`.
+2. **`reconstructed/src/codegen/awg_compiler.cpp`** — implement
+   the two `compiler()` accessors as one-liners returning
+   `impl_->compiler_`.
+3. **`reconstructed/include/zhinst/codegen/compiler.hpp`** /
+   **`reconstructed/src/codegen/compiler.cpp`** — factor the
+   resources-construction block (`stepToSeqCAst` body lines
+   351-363) into a new public `void setupResources()` member.
+   `stepToSeqCAst` becomes a 1-line call to `setupResources()`
+   followed by the existing AST-conversion code.  Binary path
+   is unchanged (same code, same order, called from the same
+   site).
+4. **`reconstructed/include/zhinst/codegen/compiler.hpp`** /
+   **`.cpp`** — add two narrow public setters (Option 7b from
+   the design note):
+   - `void setAsmList(AsmList list)` — stores into private
+     `asmList_`.
+   - `void setPlaceholderAsm(AsmList::Asm asm)` — stores into
+     private `compilePlaceholderAsm_`.
+
+   Both are one-line bodies in the `.cpp` to keep the header
+   independent of `AsmList`'s full definition where the
+   forward-declare suffices.
+
+### Authorisation (verified)
+
+All claims below were verified by reading the cited source files
+in this session.  Binary-address claims are sourced from the
+verified-address table in IF-306 (T5b sanctioned exception)
+and `reconstructed/notes/seqcc_from_design.md` §1.
+
+| Slot | Header line | Section |
+|---|---|---|
+| `asmList_` | `compiler.hpp:803` | private (started at 742) |
+| `compilePlaceholderAsm_` | `compiler.hpp:843+` | private (started at 742) |
+| `compileResources_` / `compileStaticResources_` | `compiler.hpp:843+` | private |
+| `stepToSeqCAst` resources block | `compiler.cpp:351-363` | inside `step*` method body |
+| Inner `Compiler compiler_` member | `awg_compiler.cpp` pImpl, offset +0x0C0 | `AWGCompilerImpl` private |
+| Existing public sections on `Compiler` | `compiler.hpp:194` (ctor + API), `compiler.hpp:667` (T5b.4 step methods) | public |
+
+### Why this exception is justified
+
+1. **Minimum-footprint** under the AGENTS.md "Tooling vs
+   reconstructed code" policy: the alternative (re-implementing
+   `setupResources` inside the driver) would duplicate per-compile
+   scaffolding that is not part of `seqcc`'s scope, and would risk
+   silent drift between the driver's copy and the recon body if
+   `stepToSeqCAst` ever changes.  The factored helper keeps a
+   single source of truth.
+2. **No new external surface beyond what `--from=` requires**: no
+   new types, no new free functions, no `friend` grants, no
+   callback fields.  One pImpl accessor (already idiomatic on
+   `AWGCompiler`), one helper method, two setters.
+3. **Behaviour preserved by construction**: `setupResources()`
+   is a code move, not a behaviour change; the public entry
+   `Compiler::compile(source)` still calls `stepToSeqCAst` which
+   still calls `setupResources()` as its first action.
+   `diff_test_fast 1612/1612` is the byte-equality invariant.
+4. **Symmetric with T5b**: T5b made the pipeline addressable
+   stage-by-stage; T6 makes the per-stage state addressable.
+   `setAsmList` / `setPlaceholderAsm` are the input-side mirror of
+   the step-method outputs.
+5. **Alternative considered and rejected**: 7a (promote
+   `asmList_` and `compilePlaceholderAsm_` to public) would zigzag
+   the public/private boundary in the binary-layout member region
+   (line 742+), forcing surrounding members to move and risking
+   layout-related regressions.  7c (recover placeholder by scanning)
+   was rejected because the placeholder may carry state that is
+   not solely identifiable from its opcode.
+
+### Driver-side consumption (forward reference)
+
+The seqcc driver (`tools/seqcc/src/driver.cpp`) will be extended in
+T6.2 with a new resume path:
+
+```cpp
+// pseudocode
+AsmList list = AsmList::deserialize(/* contents of input.seqasm */);
+AsmList::Asm placeholder = list.recoverPlaceholder();  // or supplied separately
+auto& c = compiler.compiler();
+c.reset();
+c.setupResources();                  // built from config_ / deviceConstants_
+c.setAsmList(std::move(list));
+c.setPlaceholderAsm(placeholder);
+c.stepOptPre();
+c.stepPrefetch();
+c.stepOptPost();
+c.stepUnsyncCervino();
+c.stepProject();
+// ... then back-end stages via compileString step methods
+```
+
+### Verification
+
+T6.1 commit must clear:
+
+- `diff_test_fast` 1612/1612 (byte-equality invariant — the
+  factor/setter additions are wrong if any test changes output).
+- `test_seqcc_diff` 46/46.
+- `test_seqcc_ab` 15/15.
+- `test_seqcc_smoke` 4/4 + `test_seqdump` 16/16 + `test_seqcc_to`
+  4/4.
+
+T6.2 additionally requires `tests/tools/test_seqcc_from.py` to pass
+strict byte-equal ELF round-trip (compile to `.seqasm` via
+`--to=asm`, then resume from `.seqasm` via `--from=asm`, then
+compare the resulting ELF to the original direct-compile ELF).
+
+### Risks
+
+- **State leakage**: `setAsmList` / `setPlaceholderAsm` are write-
+  any-time entry points.  Calling them outside the
+  `reset() → setupResources() → set*()  → stepOptPre()` sequence
+  is undefined; document this in the doc comment.
+- **Layout invariants**: adding new public methods does not change
+  binary layout of existing members; the two new setters live in
+  the existing public method region (started at `compiler.hpp:667`
+  by T5b.4).  No member-data additions in this IF.
+- **Resource construction divergence**: if a future recon change
+  modifies `stepToSeqCAst`'s resource-construction block without
+  also moving the change into `setupResources()`, the T6 resume
+  path would silently see different resources from a normal
+  compile.  Mitigation: `stepToSeqCAst` calls `setupResources()`
+  directly, so there is only one resource-construction site to
+  maintain.
+
+### TODO references
+
+- TODO.md Phase T → T6 (re-scoped per `seqcc_from_design.md`).
+- Closes IF-304 in full at T6.1 (the `Compiler` accessor unlocks
+  literal short-circuit on `--to=lower` / `--to=asm`).
+- Prerequisite for T10a (retirement of `compileSeqcWithIR` —
+  no change in scope from IF-306).

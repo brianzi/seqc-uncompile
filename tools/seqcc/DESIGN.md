@@ -62,6 +62,23 @@ natural stage boundaries already present in
   `--from=ast-seqc` are *not* supported in Phase T.  Adding them
   would require designing a JSON schema and writing both halves of
   the round-trip — a separate phase if a use case emerges.
+- **`--from=ast-lowered` and `--from=wavetable-ir` are deferred
+  beyond Phase T6.**  The data-flow analysis in
+  `reconstructed/notes/seqcc_from_design.md` showed that:
+  - The existing `--dump=ast-lowered` artefact is a single-node
+    `Node::toJson(idMap)` blob, not a whole-tree dump; no
+    whole-tree `Node` serialisation format exists outside the
+    `AsmList::serialize` / `deserialize` round-trip.  Re-entering
+    at this boundary would require designing and emitting that
+    format on the `--to=` side first.
+  - `--from=wavetable-ir` cannot be driven from a single input
+    file: `stepOptPost` reads both `asmList_` and
+    `compileWavetableIR_`, so the user would have to supply two
+    coherent IR blobs simultaneously.
+  Phase T6 keeps only `--from=asm` (the round-trip already
+  exercised by the binary's `serializeRoundTrip` debug flag at
+  `compiler.cpp:574-577`).  The deferred modes are tracked as
+  TODO.md "T6-future" entries.
 - **Separate linker binary `seqld`.**  The ELF writer in
   `AWGCompilerImpl::writeToStream` is tightly coupled to the
   in-memory `Compiler` and `WavetableIR` state; there is no
@@ -568,13 +585,34 @@ iteration cycle.
 - Driver emits the chosen IR to `-o` in its native format.
 
 ### T6 — Start-at-stage (`--from=`)
-- Implement `--from=ast-lowered` (input = JSON via
-  `Node::fromJson`), `--from=asm` (input = `.seqasm` via
-  `AsmList::deserialize`), `--from=wavetable-ir` (JSON via
-  `WavetableIR::fromJson`).
-- Auto-detect from extension; `-x` forces.
-- Validate stage compatibility (e.g. `--from=ast-lowered --to=parse`
-  is rejected at flag-parse time).
+- **Re-scoped (2026-05) per
+  `reconstructed/notes/seqcc_from_design.md`.**  Original sketch
+  proposed three modes (`ast-lowered`, `asm`, `wavetable-ir`);
+  data-flow analysis showed only `--from=asm` is round-trippable
+  from a single input file.  The other two are deferred (see §2
+  "Out of scope").
+- Implement `--from=asm` only (input = `.seqasm` via
+  `AsmList::deserialize`).  Auto-detect from `.seqasm`
+  extension; `-x asm` forces.
+- Resume boundary: after `stepBuildAsmPreamble`, before
+  `stepOptPre` (the same point where the binary's
+  `serializeRoundTrip` debug flag re-enters at
+  `compiler.cpp:574-577`).
+- Driver flow: `compiler.compiler().reset() → setupResources()
+  → setAsmList(deserialised) → setPlaceholderAsm(recovered)`,
+  then `stepOptPre` onwards via the T5b API.
+- Sanctioned recon edit: see IF-307 (forward-declared
+  `Compiler` + `AWGCompiler::compiler()` accessor, factored
+  public `Compiler::setupResources()` helper, two narrow public
+  setters `setAsmList` / `setPlaceholderAsm`).  ~5 lines of
+  header additions, ~15 lines of `.cpp` additions, ~2 lines of
+  refactor inside `stepToSeqCAst`.
+- Validate stage compatibility at flag-parse time
+  (`--from=asm --to=parse` is rejected).
+- Test contract: strict byte-equal ELF round-trip in
+  `tests/tools/test_seqcc_from.py` (`--to=asm` produces a
+  `.seqasm`; `--from=asm` resumes; ELF must equal the
+  direct-compile ELF for the same source).
 
 ### T7 — `seqas` mode + `-x asm` dual path
 - Symlink `seqas` → `seqcc` install rule.
@@ -618,6 +656,15 @@ iteration cycle.
   `--from=ast-raw` / `--from=ast-seqc` symmetrically with the other
   IRs.  Requires a stable JSON schema for ~30 AST node types.
   Deferred until a concrete use case appears.
+- **`--from=ast-lowered`.**  Deferred at T6 re-scope (see §2 and
+  `reconstructed/notes/seqcc_from_design.md`).  Requires designing
+  a whole-tree `Node` dump format and emitting it on the `--to=`
+  side; the current `Node::toJson(idMap)` is single-node only.
+- **`--from=wavetable-ir`.**  Deferred at T6 re-scope.  Resume at
+  `stepOptPost` requires *both* `asmList_` and `compileWavetableIR_`
+  to be populated coherently; a single input file is not
+  sufficient.  Would need a multi-file `--from=` convention or a
+  packed driver-input format.
 - **`seqld`-style object format.**  Would require defining a stable
   on-disk representation for `AsmList + WavetableIR + symbol
   table` and refactoring the ELF writer to consume it.  Larger

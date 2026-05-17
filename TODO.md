@@ -484,16 +484,68 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
             T5b replacement as landed; driver version bumped to
             `0.9.0-T5b`.
 
-- [ ] **T6 — `--from=<stage>`.**  Start-at-stage for `ast-lowered`,
-      `asm`, `wavetable-ir`.  Input file format is auto-detected from
-      extension (`.node.json`, `.seqasm`, `.wavetable.json`) or
-      forced via `-x <lang>`.  Validates that the supplied stage is a
-      legal start point and that no skipped stage is required by the
-      target's pipeline.  **Depends on T5b** — the stepwise
-      `Compiler` API is what makes mid-pipeline entry feasible
-      (driver constructs a `Compiler`, hand-populates `ast_` /
-      `asmList_` / `wavetableIR_` from the deserialised IR, then
-      calls the step methods from the appropriate point forward).
+- [ ] **T6 — `--from=asm` (re-scoped).**  Start-at-stage entry
+      for the assembly IR.  **Re-scoped 2026-05** per
+      `reconstructed/notes/seqcc_from_design.md`: the original
+      sketch covered three modes (`ast-lowered`, `asm`,
+      `wavetable-ir`); data-flow analysis showed only `--from=asm`
+      is round-trippable from a single input file.  The other two
+      modes are deferred to T6-future entries below.
+      Input is auto-detected from the `.seqasm` extension; `-x asm`
+      forces.  Resume boundary is between `stepBuildAsmPreamble`
+      and `stepOptPre` — the same point exercised by the binary's
+      `serializeRoundTrip` debug flag at `compiler.cpp:574-577`.
+      **Depends on T5b** and adds a sanctioned recon edit
+      (**IF-307**, pre-approved): `AWGCompiler::compiler()` pImpl
+      accessor, factored public `Compiler::setupResources()`
+      helper (code-move from `stepToSeqCAst:351-363`), two narrow
+      public setters `setAsmList` / `setPlaceholderAsm`.  Test
+      contract: strict byte-equal ELF round-trip.
+
+  - [ ] **T6.1 — recon edits (IF-307).**  Add forward-declared
+        `class Compiler;` + public `Compiler& compiler()` accessor
+        to `awg_compiler.hpp`; implement in `awg_compiler.cpp`.
+        Factor `setupResources()` out of `stepToSeqCAst`; add
+        `setAsmList` / `setPlaceholderAsm` to `compiler.hpp`/`.cpp`.
+        Verify 5 gates green (`diff_test_fast` 1612/1612,
+        `test_seqcc_diff` 46/46, `test_seqcc_ab` 15/15,
+        `test_seqcc_smoke` 4/4, `test_seqdump` 16/16,
+        `test_seqcc_to` 4/4) — pure additive change, byte-equality
+        must hold.
+
+  - [ ] **T6.2 — driver wiring + round-trip test.**  Extend
+        `SeqcDriver::compile()` to handle `opts.fromStage == "asm"`:
+        read input as `.seqasm` text, `AsmList::deserialize`,
+        construct/reset `Compiler` via `compiler().reset() →
+        setupResources() → setAsmList(...) → setPlaceholderAsm(...)`,
+        then call `stepOptPre` onwards.  Add
+        `tests/tools/test_seqcc_from.py` (round-trip: compile a
+        curated set of cases with `--to=asm` to produce
+        `.seqasm`, then re-compile with `--from=asm` to ELF, then
+        assert byte-equal ELF vs the direct-compile output of the
+        same cases).  Stage compatibility: reject `--from=asm
+        --to={parse,astgen,lower}` at flag-parse time.
+
+  - [ ] **T6.3 — wrap-up.**  Bump driver version (`0.10.0-T6`);
+        IF-307 status → "fixed"; close out IF-304 in full (literal
+        short-circuit now reachable from the driver via the
+        `compiler()` accessor); update DESIGN.md §6 T6 entry with
+        the "landed" marker; commit.
+
+- [ ] **T6-future-a — `--from=ast-lowered`.**  Deferred from T6.
+      The existing `--dump=ast-lowered` artefact is a single-node
+      `Node::toJson(idMap)` blob; no whole-tree `Node` dump format
+      exists outside `AsmList::serialize` / `deserialize`.  Would
+      require designing and emitting a whole-tree format on the
+      `--to=` side first, then writing a matching deserialiser.
+      Re-open if a concrete use case appears.
+
+- [ ] **T6-future-b — `--from=wavetable-ir`.**  Deferred from T6.
+      `stepOptPost` reads both `asmList_` and `compileWavetableIR_`,
+      so a single input file is insufficient.  Would require a
+      multi-file `--from=` convention or a packed driver-input
+      format that bundles both IRs.  Re-open if a concrete use
+      case appears.
 
 - [ ] **T7 — `seqas` mode + `-x asm` dual path.**  When invoked as
       `seqas` (or `seqcc -x asm`), route `.seqasm` inputs through the
