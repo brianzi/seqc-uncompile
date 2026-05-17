@@ -258,6 +258,50 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         enumerators (`UHFLI`, `HDAWG`, `UHFQA`, `SHFQA`, `SHFSG`,
         `SHFQC_SG`, `SHFLI`, `GHFLI`, `VHFLI`).  IF-320 closed.
 
+- **C.2 — PROPOSE-ENUM promotion (P-batch).**  Followup to C.1
+      executing the audit's PROPOSE-ENUM items.  Each P-item is
+      verified against current source before execution; the audit's
+      P1/P8 framing turned out to mistarget the actual code (see
+      IF-329/IF-330), so executed scope is literal→named conversions
+      against existing enums plus one genuinely-new constant.
+
+  - [x] **C.2.a — P1 `ImmediateKind` literal→named (7 sites).**
+        Commit f338d12.  Audit proposed a new `VariantSlot` enum for
+        `Value::which_`, but verification found zero consuming
+        switches.  The 7 switches in `ast/value.cpp` dispatch on
+        `Immediate::index_` (existing `ImmediateKind` enum, A1).
+        Pivoted to literal→named.  IF-329 filed.
+  - [x] **C.2.b — P4 `kPrefetchAddr20BitMask` (7 sites).**
+        Commit fa7ad4d.  Declared `kPrefetchAddr20BitMask = 0xFFFFFu`
+        in `core/types.hpp` alongside existing prefetch sentinels.
+        Converted 5 sites in `prefetch_emit.cpp` and 2 in
+        `prefetch_placesingle.cpp`; `>= 0x100000` boundary tests
+        rewritten as `> kPrefetchAddr20BitMask`.
+  - [x] **C.2.c — P8 `WaveformFile::Type` literal→named (3 sites).**
+        Commit 9f39e82.  Audit proposed extending the enum, but
+        verification found the 4 extensions map to only 2 existing
+        enumerators (CSV, RAW), and extending would break
+        `typeToStr`/`typeFromStr` static maps (binary symbols at
+        0x2a3a90 / 0x2a63c0).  Pivoted to literal→named.  IF-330 filed.
+  - [ ] **C.2.d — Remaining P-items (P2, P3, P5, P6, P7, P9, P10).**
+        Deferred — each needs design or GDB verification before
+        execution:
+        - P2: device factory feature bits (`kDevFlagFF/RTR/PLUS/LRT`)
+          — A7 residual, ~4 named bit constants + factory-table sites.
+        - P3: `NodeTypeMask*` cluster in `prefetch_placesingle.cpp`
+          — needs disambiguation from existing `NodeType` enum.
+        - P5: blocked on IF-317 (`0x29` cmd-set LUT GDB verification).
+        - P6: blocked on IF-322 (`0x54` VarType-set GDB verification).
+        - P7: opcode-byte tag constants — needs investigation of the
+          5-way chain in `awg_assembler_opcodes.cpp:599`.
+        - P9: deduplicate `kSuser*` vs `DeviceConstants::*` (~20
+          overlapping addresses, two parallel naming schemes) —
+          structural and contentious, needs design discussion.
+        - P10: Category B long-tail enum-cast sweep — open-ended.
+  - [x] **C.2.e — Sub-phase wrap-up.**  Audit doc (§8 PROPOSE-ENUM
+        table) updated with per-item DONE markers; IF-329/IF-330
+        recorded; TODO.md updated.
+
 ## Phase X — `compile_seqc` binding-kwarg coverage
 
 Differential-test coverage of every keyword argument in the public
