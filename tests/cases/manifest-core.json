@@ -109,6 +109,11 @@
               "name": "wave_as_int",
               "file": "err_wave_as_int.seqc",
               "@base": "@hdawg8"
+            },
+            {
+              "name": "divide_by_wave",
+              "file": "err_divide_by_wave.seqc",
+              "@base": "@hdawg8"
             }
           ]
         },
@@ -408,42 +413,60 @@
               "file": "hdawg_csv_wavepath.seqc",
               "wavepath": "",
               "waveforms": "waves/wave_file.csv",
-              "tags": ["csv", "external-wave"]
+              "tags": [
+                "csv",
+                "external-wave"
+              ]
             },
             {
               "name": "csv_waveforms_list",
               "code": "wave a = \"wave_file\";\nwave b = \"wave_comments\";\nwave w = a + b;\nplayWave(w);",
               "wavepath": "",
               "waveforms": "waves/wave_file.csv;waves/wave_comments.csv",
-              "tags": ["csv", "external-wave"]
+              "tags": [
+                "csv",
+                "external-wave"
+              ]
             },
             {
               "name": "csv_comments",
               "file": "hdawg_csv_comments.seqc",
               "wavepath": "",
               "waveforms": "waves/wave_comments.csv",
-              "tags": ["csv", "external-wave"]
+              "tags": [
+                "csv",
+                "external-wave"
+              ]
             },
             {
               "name": "compile_kwargs_wave_io",
               "file": "hdawg_compile_kwargs.seqc",
               "wavepath": "",
               "waveforms": "waves/wave_file.csv",
-              "tags": ["compile-kwargs", "external-wave"]
+              "tags": [
+                "compile-kwargs",
+                "external-wave"
+              ]
             },
             {
               "name": "options_hdawg_mf",
               "code": "playZero(64);",
               "options": "MF",
               "@base": "@hdawg8",
-              "tags": ["compile-kwargs", "options"]
+              "tags": [
+                "compile-kwargs",
+                "options"
+              ]
             },
             {
               "name": "options_hdawg_multi",
               "code": "playZero(64);",
               "options": "MF\nME\nPC",
               "@base": "@hdawg8",
-              "tags": ["compile-kwargs", "options"]
+              "tags": [
+                "compile-kwargs",
+                "options"
+              ]
             },
             {
               "name": "options_uhfqa_awgqa",
@@ -451,7 +474,10 @@
               "devtype": "UHFQA",
               "samplerate": null,
               "options": "AWG\nQA",
-              "tags": ["compile-kwargs", "options"]
+              "tags": [
+                "compile-kwargs",
+                "options"
+              ]
             },
             {
               "name": "sequencer_auto_shfqa",
@@ -459,7 +485,10 @@
               "devtype": "SHFQA4",
               "samplerate": null,
               "sequencer": "auto",
-              "tags": ["compile-kwargs", "sequencer-auto"]
+              "tags": [
+                "compile-kwargs",
+                "sequencer-auto"
+              ]
             },
             {
               "name": "sequencer_auto_shfsg",
@@ -467,7 +496,10 @@
               "devtype": "SHFSG8",
               "samplerate": null,
               "sequencer": "auto",
-              "tags": ["compile-kwargs", "sequencer-auto"]
+              "tags": [
+                "compile-kwargs",
+                "sequencer-auto"
+              ]
             },
             {
               "name": "all_alu",

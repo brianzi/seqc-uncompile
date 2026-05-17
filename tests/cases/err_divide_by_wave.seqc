@@ -1,0 +1,6 @@
+wave w = 0.5 + 0.2*ones(64);
+
+wave w2 = 0.3 / w;
+
+playWave(w2);
+

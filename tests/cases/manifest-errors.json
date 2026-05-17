@@ -105,6 +105,13 @@
           "devtype": "HDAWG8",
           "index": 0,
           "samplerate": 2400000000.0
+        },
+        {
+          "name": "er_divide_by_wave",
+          "file": "err_divide_by_wave.seqc",
+          "devtype": "HDAWG8",
+          "index": 0,
+          "samplerate": 2400000000.0
         }
       ]
     }
