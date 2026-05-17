@@ -2655,3 +2655,97 @@ updated.
 - `reconstructed/src/runtime/custom_functions.cpp:871-884, 949-950`
 - `reconstructed/src/runtime/custom_functions_play.cpp:756-768`
 - `reconstructed/src/runtime/custom_functions_registers.cpp:249-286`
+
+
+## IF-333 — `varSubType_ == 2` used as "marker" sentinel in WaveAssignment iteration
+
+**Severity:** suspicious
+**Status:** open
+
+`reconstructed/src/runtime/custom_functions.cpp:1086` reads:
+
+```cpp
+for (auto& wa : inner) {                               // inner stride 0x50
+    if (wa.value.varSubType_ == 2)                     // @0x15da7f: marker → break inner (see IF-333)
+        break;
+    ...
+}
+```
+
+The recon comment labels this an end-of-list marker.  But
+`VarSubType` (`runtime/resources.hpp:131`) declares value 2 as
+`VarSubType_FunctionArg` ("Function parameter binding;
+pre-marks variable as written and frozen"), not as a sentinel.
+
+Two possible interpretations:
+
+1. The recon comment is wrong, and the test really does reject
+   function-argument-bound `WaveAssignment` entries from the
+   max-sample-length scan.  This is plausible — for a free wave
+   the assignment carries a real waveform name, but for a
+   bound-to-a-FuncArg slot the name is yet-to-be-resolved and
+   has no length to scan.
+2. The binary reuses `varSubType=2` as an in-band end-of-list
+   sentinel in this one container (and the `FunctionArg`
+   labelling is incidental), making the literal `2` a
+   sentinel-not-an-enum-value.
+
+P10 (C.2) left the literal `2` un-renamed because the right name
+depends on which interpretation holds.  Verification path:
+
+- Inspect every site that writes `varSubType_ = 2` (or
+  constructs an `EvalResultValue` with subType=2): if they are
+  all the `FunctionArg` path, interpretation (1) is correct and
+  the literal should become `VarSubType_FunctionArg`.
+- If any write site is a deliberate end-of-vector terminator
+  (e.g., the `WaveAssignment` builder appending a final sentinel
+  entry), interpretation (2) holds and a separate `kSentinelSubType`
+  alias should be added.
+
+The accompanying `varType_ == 4` literal at the same site WAS
+swept to `VarType_Const` in C.2 P10 (provably correct per
+`VarType` enum).
+
+**Files**
+- `reconstructed/src/runtime/custom_functions.cpp:1086` (literal `2` retained)
+- `reconstructed/include/zhinst/runtime/resources.hpp:131-136` (`VarSubType` enum)
+
+
+## IF-334 — `magic_number_audit.md` P10 Category B description is stale
+
+**Severity:** cosmetic (documentation)
+**Status:** fixed (P10 swept what remained, this note records that the description was out of date)
+
+Audit §8 P10 says: "Category B from `magic_numbers_proposal.md`
+(`VarType`, `AwgDeviceType`, `DeviceTypeCode`, `DeviceOption`,
+`AwgSequencerType`, `SubFunc`, `NodeType`, `ValueType`,
+`Assembler::INVALID`, `Cache::unusedCacheLine`)."  The
+implication is that all these enums have meaningful surviving
+literal-vs-named sites.
+
+Site survey during D7-C.2 P10 found that earlier phases had
+already cleaned up nearly all of these.  Real (non-comment, in
+actual code) literal sites remaining:
+
+| item | sites in code |
+|---|---|
+| B1 `VarType`            | 1 (`custom_functions.cpp:1088`, `varType_ == 4`) |
+| B2 `AwgDeviceType`      | 0 (19 hits, all in comments) |
+| B3 `DeviceTypeCode`     | 1 (`device_type.cpp:651`, the `(33)` unknown-sentinel — already gated by IF-319) |
+| B4 `DeviceOption`       | 0 (1 hit, comment only) |
+| B5 `AwgSequencerType`   | 0 |
+| B6 `SubFunc`            | 0 |
+| B7 `NodeType`           | 0 (swept by P3) |
+| B8 `ValueType`          | 0 |
+| B9 `Assembler::INVALID` | 0 (1 comment using `cm == -1` framing — updated for clarity) |
+| B10 `ErrorMessageT`     | (owned by C.1bis) |
+| B11 `Cache::unusedCacheLine` | 0 (all real sites already use `unusedCacheLine`) |
+
+C.2 P10 swept the B1 and B9 sites and filed IF-333 for the
+adjacent `varSubType_ == 2` ambiguity.  B3 remains for IF-319
+follow-up.
+
+**Files**
+- `reconstructed/notes/magic_numbers_proposal.md` §322-386 (Category B descriptions)
+- `reconstructed/src/runtime/custom_functions.cpp:1088` (B1, swept)
+- `reconstructed/src/asm/asm_optimize.cpp:152` (B9, comment updated)

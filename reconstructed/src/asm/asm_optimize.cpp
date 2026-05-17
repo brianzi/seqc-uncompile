@@ -149,7 +149,7 @@ int AsmOptimize::getNextActionForReg(AsmList::const_iterator it,
     int result = 0;  // r12
 
     for (auto pos = it; pos != endIt; ++pos) {
-        // Skip dead instructions (cmd == -1)  — 281a57
+        // Skip dead instructions (Assembler::INVALID)  — 281a57
         if (pos->assembler.cmd == Assembler::INVALID)
             continue;
 

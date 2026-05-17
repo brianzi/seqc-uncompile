@@ -1083,9 +1083,9 @@ int64_t PlayArgs::getMaxSampleLength() const {                 // @0x15d9f0
 
     for (auto& inner : waveAssignments_) {                     // outer stride 0x18
         for (auto& wa : inner) {                               // inner stride 0x50
-            if (wa.value.varSubType_ == 2)                               // @0x15da7f: marker → break inner
+            if (wa.value.varSubType_ == 2)                               // @0x15da7f: marker → break inner (see IF-333)
                 break;
-            if (wa.value.varType_ == 4)                                  // @0x15da86: type 4 → skip
+            if (wa.value.varType_ == VarType_Const)                      // @0x15da86: VarType_Const → skip
                 continue;
 
             // @0x15da8e: get wave name from EvalResultValue

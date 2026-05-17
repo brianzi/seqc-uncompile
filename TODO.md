@@ -350,9 +350,30 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         `0`-literal call sites in
         `src/runtime/custom_functions_registers.cpp:399,401`.  Net:
         single canonical naming, no remaining duplication.
-  - [ ] **C.2.d — Remaining P-items (P10).**
-        Deferred — open-ended:
-        - P10: Category B long-tail enum-cast sweep — open-ended.
+  - [x] **C.2.d.7 — P10 Category B long-tail sweep.**
+        Site survey found earlier phases had already cleaned
+        nearly all Category B entries (see IF-334 for the per-item
+        table).  Real (non-comment, in code) literal sites
+        remaining:
+        - B1 `VarType` — 1 site
+          (`custom_functions.cpp:1088`, `varType_ == 4`).  Swept to
+          `VarType_Const`.  Adjacent `varSubType_ == 2` literal
+          left unrenamed pending IF-333 verification (the recon
+          comment labels it a "marker" but the enum value 2 is
+          `VarSubType_FunctionArg`).
+        - B9 `Assembler::INVALID` — 0 real sites; one stale
+          `cmd == -1` comment at `asm_optimize.cpp:152` updated for
+          consistency.
+        - B3 `DeviceTypeCode(33)` — gated by IF-319 (unknown-sentinel
+          handling); not in scope for P10.
+        - B10 `ErrorMessageT` — owned by C.1bis.
+        - All other B-items (B2/B4/B5/B6/B7/B8/B11) had no remaining
+          literal sites in code.
+        IF-334 filed to record that the audit's "long tail"
+        framing was based on stale surveys.
+  - [ ] **C.2.d — Remaining P-items.**  None — all P1..P10 landed
+        or formally deferred to non-D7-C scope (B3 via IF-319, B10
+        via C.1bis).
   - [x] **C.2.e — Sub-phase wrap-up.**  Audit doc (§8 PROPOSE-ENUM
         table) updated with per-item DONE markers; IF-329/IF-330
         recorded; TODO.md updated.
