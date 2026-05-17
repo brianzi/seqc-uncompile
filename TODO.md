@@ -371,12 +371,19 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
           literal sites in code.
         IF-334 filed to record that the audit's "long tail"
         framing was based on stale surveys.
-  - [ ] **C.2.d — Remaining P-items.**  None — all P1..P10 landed
-        or formally deferred to non-D7-C scope (B3 via IF-319, B10
-        via C.1bis).
+  - [x] **C.2.d — All 10 P-items landed or formally deferred.**
+        P1/P2/P3/P4/P5/P6/P7/P8/P9/P10 done (sub-entries
+        C.2.d.1..C.2.d.7 plus the initial f338d12/fa7ad4d/9f39e82
+        batch).  Out-of-scope deferrals: P-row B3
+        (`DeviceTypeCode(33)` Unknown sentinel) gated by IF-319;
+        P-row B10 (`ErrorMessageT`) owned by C.1bis.
   - [x] **C.2.e — Sub-phase wrap-up.**  Audit doc (§8 PROPOSE-ENUM
-        table) updated with per-item DONE markers; IF-329/IF-330
-        recorded; TODO.md updated.
+        table) updated with per-item DONE markers for all 10 rows;
+        IF-329 (P1 mistarget), IF-330 (P8 mistarget), IF-331 (P3
+        mistarget), IF-332 (P7 mistarget), IF-333 (`varSubType_ == 2`
+        ambiguity surfaced during P10), IF-334 (P10 audit
+        description was stale) recorded; IF-317 and IF-322
+        marked fixed (P5/P6 resolutions).  TODO.md updated.
 
 ## Phase X — `compile_seqc` binding-kwarg coverage
 

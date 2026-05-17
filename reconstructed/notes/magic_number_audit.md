@@ -775,6 +775,22 @@ substitution targets:
 Recorded here so the gaps are not lost.  Each needs design
 discussion before implementation.
 
+**Status: all 10 P-items closed in D7-C.2.**  Notable pattern:
+4 of 10 audit rows (P1, P3, P7, P8) framed work as "create a
+new enum" when the relevant enum already existed and the actual
+fix was a literal-→named conversion.  See IF-329 / IF-330 /
+IF-331 / IF-332 for per-item records.  Two further rows (P5, P6)
+proposed GDB verification that turned out to be resolvable by
+enumeration of existing enums + per-site error messages.  P9
+("two parallel naming schemes") turned out to be one active
+scheme plus an unreferenced recon-invented duplicate; deletion
+sufficed.  P10 ("long-tail B-series sweep") was nearly empty:
+prior phases had already cleaned almost every cited site, and
+the residue was 2 literals (one swept, one deferred to IF-333
+pending interpretation).  Net code change across all 10:
+~30 call-site swaps, 5 new constants, 1 deleted struct, no
+behaviour changes (1613/1613 difftests preserved at every step).
+
 | ID | scope | gap |
 |---|---|---|
 | **P1** | A3 (residual) | ✅ **DONE (C.2)** — Audit mistargeted `Value::which_` (no consuming switches in source). Pivoted to literal→named against existing `ImmediateKind` enum: 7 switches in `ast/value.cpp` converted (IF-329). |
