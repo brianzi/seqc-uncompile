@@ -1709,7 +1709,9 @@ gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX`.
 - **Source**: B.3 follow-up audit of `special_registers.md` ld/st
   pairs against `reconstructed/src/asm/asm_commands*.cpp` and the
   `kSuser*` constants in `reconstructed/include/zhinst/core/types.hpp`.
-- **Status**: open
+- **Status**: fixed (Phase D7-C.1 F9 — renamed `kSuserUserRegBase`
+  → `kAddrOscPhaseReset` and moved to the `kAddr*` block in
+  `types.hpp`).
 - **Severity**: cosmetic (misleading name)
 
 ### Observation

@@ -242,9 +242,3 @@ UHFQA. The hardware disambiguates by context (different devices).
   "Asm Primitive" column.
 - \ref notes_cervino_vs_hirzel — which device-family-specific
   registers are emitted by which assembler back-end.
-
-> **Naming caveat.** The `kSuserUserRegBase = 0x5F` constant in
-> `reconstructed/include/zhinst/core/types.hpp` is misnamed —
-> `0x5F` is the oscillator-phase-reset address (§8 above), not a
-> user-register base.  General user-register access uses
-> `0x00..0x3FF` (§2).  Tracked as IF-312.

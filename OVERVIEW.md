@@ -2313,9 +2313,9 @@ material in `reconstructed/notes/` source files only.
     property table.  Follow-up f1: `special_registers.md`
     audited against `src/asm/asm_commands*.cpp` and
     `core/types.hpp`; added `0x14` (slow commit) and `0x18`
-    (frequency commit) entries; added See-also block and naming
-    caveat for the misnamed `kSuserUserRegBase=0x5F` (logged as
-    IF-312).  Follow-up f2: `\ref notes_custom_functions`
+    (frequency commit) entries; added See-also block; flagged
+    `kSuserUserRegBase=0x5F` misnomer as IF-312 (later renamed
+    to `kAddrOscPhaseReset` in Phase D7-C.1 F9).  Follow-up f2: `\ref notes_custom_functions`
     crosslinks added to `cervino_vs_hirzel.md`, `opcode_encoding.md`,
     `device_constants.md`, and `opcode_map.md`.  Follow-up f3:
     `architecture.md` §1 ISA prose expanded to three paragraphs

@@ -157,7 +157,6 @@ constexpr uint32_t kSuserSyncHirzel    = 0x6E;  //!< Hirzel sync register.
 
 // -- AWG core / wait --
 constexpr uint32_t kSuserWaitCycles    = 0x69;  //!< Wait-cycles / AWG-core count.
-constexpr uint32_t kSuserUserRegBase   = 0x5F;  //!< User-register base (`getUserReg` / `setUserReg`).
 constexpr uint32_t kSuserQAResult      = 0x61;  //!< QA result read (`getQAResult`).
 constexpr uint32_t kSuserRTLoggerReset = 0x62;  //!< RT-logger timestamp reset (non-HDAWG).
 constexpr uint32_t kSuserRTLoggerResetHdawg = 0x6D; //!< RT-logger timestamp reset (HDAWG).
@@ -203,6 +202,7 @@ constexpr uint32_t kSuserWaitOnSync    = 0x92;  //!< `waitOnSync` register.
 //! \{
 constexpr uint32_t kAddrTrigger        = 0x22;  //!< Trigger register (`ltrig` / `strig`).
 constexpr uint32_t kAddrInternalTrig   = 0x23;  //!< Internal trigger register (`sinttrig`).
+constexpr uint32_t kAddrOscPhaseReset  = 0x5F;  //!< Oscillator phase reset (pulse, written via `st`/`st 0`).  See `notes/special_registers.md` §8.
 //! \}
 
 } // namespace zhinst

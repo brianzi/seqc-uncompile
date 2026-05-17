@@ -74,7 +74,7 @@ exclude type names that are mangled and therefore authoritative.
 | `zhinst::kSuserSyncA` / `kSuserSyncB` | no | medium | pair, used in `syncCervino` impl | keep current | not-misnomer |
 | `zhinst::kSuserSyncHirzel` | no | medium | used in `asmSyncHirzel` impl | keep current | not-misnomer |
 | `zhinst::kSuserWaitCycles` | no | medium | many uses in wait/cycle paths | keep current | not-misnomer |
-| `zhinst::kSuserUserRegBase` | unsure | low | declared, never referenced | keep current; remove if dead | — |
+| `zhinst::kAddrOscPhaseReset` (was `kSuserUserRegBase`) | renamed | low | declared, never referenced; misnomer fixed (IF-312, F9) | keep current | — |
 | `zhinst::kSuserQAResult` | no | low | single use; matches getQAResult role | keep current | — |
 | `zhinst::kSuserRTLoggerReset` | unsure | low | declared, never referenced | keep current; remove if dead | — |
 | `zhinst::kSuserRTLoggerResetHdawg` | unsure | low | declared, never referenced | keep current; remove if dead | — |

@@ -1135,7 +1135,7 @@ judgement" (B2).
 | `01_types.md:48` | `zhinst::kNoNodeId` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
 | `01_types.md:49` | `zhinst::kNoPlayIndex` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
 | `01_types.md:59` | `zhinst::kSuserNodeFreqCommit` | keep current | **4** | hardware-address constant; audit said keep / dead-but-documented |
-| `01_types.md:68` | `zhinst::kSuserUserRegBase` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
+| `01_types.md:68` | `zhinst::kAddrOscPhaseReset` (was `kSuserUserRegBase`) | renamed via F9 / IF-312 | **4** | hardware-address constant; misnomer fixed |
 | `01_types.md:70` | `zhinst::kSuserRTLoggerReset` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
 | `01_types.md:71` | `zhinst::kSuserRTLoggerResetHdawg` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
 | `01_types.md:81` | `zhinst::kSuserQAResultLen` | keep current; remove if dead | **4** | hardware-address constant; audit said keep / dead-but-documented |
