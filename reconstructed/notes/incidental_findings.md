@@ -1701,3 +1701,52 @@ gated by `ZHINST_RECON_ASMLIST_KEYWORD_FIX`.
 - IF-309 — lexer/parser keyword swap.
 - IF-310 — `addNode()` comment writeback.
 - AsmExpression layout: see IF-309.
+
+---
+
+## IF-312  `kSuserUserRegBase = 0x5F` is misnamed: 0x5F is the oscillator-phase-reset address, not a user-register base
+
+- **Source**: B.3 follow-up audit of `special_registers.md` ld/st
+  pairs against `reconstructed/src/asm/asm_commands*.cpp` and the
+  `kSuser*` constants in `reconstructed/include/zhinst/core/types.hpp`.
+- **Status**: open
+- **Severity**: cosmetic (misleading name)
+
+### Observation
+
+`reconstructed/include/zhinst/core/types.hpp:160` declares
+
+```cpp
+constexpr uint32_t kSuserUserRegBase   = 0x5F;  //!< User-register base (`getUserReg` / `setUserReg`).
+```
+
+but `0x5F` is **not** the user-register base.
+
+- `setUserReg` / `getUserReg` access the general user-register
+  space starting at address `0x00`
+  (`reconstructed/src/runtime/custom_functions_registers.cpp:399,
+  401, 456, 549`), passed through `luser(reg, idx)` /
+  `suser(reg, idx)` with `idx` in `[0, 0x3FF]`.
+- `0x5F` is emitted in `resetOscPhase` as a `st(reg, 0x5f)` /
+  `st(R0, 0x5f)` pulse pair on the UHFQA path
+  (`custom_functions_wait.cpp:918, 941, 945`).
+
+`special_registers.md` §8 already documents `0x5F` correctly as
+*Oscillator phase reset (pulse)*.  The discrepancy is purely in
+the constant name in `types.hpp`.
+
+### Suggested fix
+
+Rename `kSuserUserRegBase` → `kAddrOscPhaseReset` (or similar,
+matching the `kAddr*` convention for `ld`/`st`-direct addresses
+rather than `kSuser*` which is reserved for `suser`-addressed
+registers).  Update the `\brief` to "Oscillator phase reset
+(pulse, written via `st`/`st 0`)."
+
+Grep callers before renaming — none currently consume the constant,
+so this is a low-risk rename.
+
+### Cross-references
+
+- `special_registers.md` §8 — correct documentation of `0x5F`.
+- IF-228 — earlier suser-address audit.

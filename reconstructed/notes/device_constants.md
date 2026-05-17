@@ -101,3 +101,6 @@ message *"Instantiated compiler for unsupported device type"* when
   `DeviceConstants::SuserAddr`.
 - \ref notes_cervino_vs_hirzel — which device maps to which
   assembler back-end.
+- \ref notes_custom_functions — SeqC builtins (`getUserReg`,
+  `setUserReg`, `getCnt`, `getPRNGValue`, ...) that consult these
+  per-device limits during validation.

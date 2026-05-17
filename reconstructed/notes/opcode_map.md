@@ -323,3 +323,12 @@ ADDI (low 12 bits) followed by an ADDIU that adds the upper bits shifted left by
 | Opcode       | Name    | Notes                                    |
 |--------------|---------|------------------------------------------|
 | `0xFFFFFFFF` | INVALID | Used for Node-creating pseudo-entries and Hirzel wprf no-op |
+
+## See also
+
+- \ref notes_opcode_encoding — bit layout of each mnemonic above.
+- \ref notes_fb_instruction — extended encoding for `fb`.
+- \ref notes_cervino_vs_hirzel — which mnemonics each back-end
+  emits.
+- \ref notes_custom_functions — the SeqC builtins that ultimately
+  lower to the mnemonics listed here.

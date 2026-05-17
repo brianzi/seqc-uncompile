@@ -58,4 +58,7 @@ Cervino devices have:
 - \ref notes_opcode_encoding — instruction word formats.
 - \ref notes_opcode_map — full mnemonic table.
 - \ref notes_fb_instruction — Hirzel-only `fb` instruction.
+- \ref notes_custom_functions — SeqC builtins whose lowering
+  diverges across the two back-ends (e.g. `wait`, `syncCervino`,
+  `setSinePhase`, `resetOscPhase`).
 

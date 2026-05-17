@@ -24,8 +24,10 @@ See \ref notes_cervino_vs_hirzel for the broader ISA split.
 | `0x11` | ST  | `suser(reg, 0x11)`   | `setUserReg`, `setInt`, `setDouble` (via `writeToNode`)  | All     | Multi-word write: mid word / reg index  |
 | `0x12` | ST  | `suser(reg, 0x12)`   | `writeToNode` block D                                    | All     | Multi-word write: high word             |
 | `0x13` | ST  | `suser(reg, 0x13)`   | `writeToNode` block D (double-precision)                 | All     | Double-precision high 32 bits           |
+| `0x14` | ST  | `suser(reg, 0x14)`   | `writeToNode` (slow-path commit)                         | All     | Slow-path commit                        |
 | `0x16` | ST  | `suser(reg, 0x16)`   | `writeToNode` block D                                    | All     | Write commit/finalize                   |
 | `0x17` | ST  | `suser(reg, 0x17)`   | `writeToNode` block D (fast path)                        | All     | Direct single-value write               |
+| `0x18` | ST  | `suser(reg, 0x18)`   | `writeToNode` (frequency commit, typeIdx=4)              | All     | Frequency commit                        |
 | `0x19` | ST  | `suser(reg, 0x19)`   | `writeToNode` block D (stereo/Q-channel)                 | All     | Direct write B (companion channel)      |
 
 ## 2. User Register Space
@@ -176,8 +178,10 @@ UHFQA. The hardware disambiguates by context (different devices).
 | `0x11`   | ST    | Write protocol        | Node write mid word              |
 | `0x12`   | ST    | Write protocol        | Node write high word             |
 | `0x13`   | ST    | Write protocol        | Double-precision high bits       |
+| `0x14`   | ST    | Write protocol        | Slow-path commit                 |
 | `0x16`   | ST    | Write protocol        | Write commit                     |
 | `0x17`   | ST    | Write protocol        | Direct single-value write        |
+| `0x18`   | ST    | Write protocol        | Frequency commit                 |
 | `0x19`   | ST    | Write protocol        | Direct write B (Q-channel)       |
 | `0x1A`   | ST    | Trigger               | Trigger value load               |
 | `0x1B`   | ST    | Wait                  | Timestamp wait (HDAWG)           |
@@ -226,3 +230,21 @@ UHFQA. The hardware disambiguates by context (different devices).
 | `0xC1`   | LD    | ZSync (extended)      | QA data processed (SHFQC\_SG)   |
 | `0x1FE`  | LD/ST | DIO                   | DIO high bank                    |
 | `0x1FF`  | ST    | DIO                   | Set ID high bank                 |
+
+## See also
+
+- \ref notes_custom_functions — the SeqC-level functions named in
+  the "SeqC Function(s)" column above.  Each entry there lists the
+  runtime helper that emits the `suser` / `luser` / `st` / `ld`
+  pair for the register documented here.
+- \ref notes_opcode_encoding — bit-level encoding of `ld` / `st`
+  / `wtrig` and the other primitives referenced in the
+  "Asm Primitive" column.
+- \ref notes_cervino_vs_hirzel — which device-family-specific
+  registers are emitted by which assembler back-end.
+
+> **Naming caveat.** The `kSuserUserRegBase = 0x5F` constant in
+> `reconstructed/include/zhinst/core/types.hpp` is misnamed —
+> `0x5F` is the oscillator-phase-reset address (§8 above), not a
+> user-register base.  General user-register access uses
+> `0x00..0x3FF` (§2).  Tracked as IF-312.

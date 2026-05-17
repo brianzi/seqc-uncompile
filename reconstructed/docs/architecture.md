@@ -115,6 +115,26 @@ branching.  Two device families share the bulk of the ISA but differ
 in capabilities and a handful of opcodes; the compiler emits a
 device-tailored instruction stream from a common `AsmList`.
 
+Each instruction is a single 32-bit word with the opcode in the high
+byte and a family-specific operand layout in the low 24 bits (see
+\ref notes_opcode_encoding).  Register state lives in a small bank
+addressed `R0..R15`; `R0` is hard-zero on read and discards on write.
+Hardware state outside the register bank — triggers, DIO, oscillator
+phase, user registers, ZSync data, QA results, PRNG, frequency sweep
+— is reached through a memory-mapped address space accessed by `ld`
+/ `st` and their aliases `luser` / `suser` (see
+\ref notes_special_registers).  The feedback path uses a dedicated
+multi-source `fb` instruction (see \ref notes_fb_instruction) that
+samples a ZSync / QA / DIO source and branches on the result in a
+single fixed-latency operation.
+
+The Cervino back-end targets UHFLI / UHFQA / GHFLI / VHFLI; the
+Hirzel back-end targets HDAWG / SHFQA / SHFSG / SHFQC / SHFLI.  The
+two share the bulk of the ISA but Hirzel adds extended waveform
+commands, a dedicated unconditional jump opcode, and the feedback
+path on the high-bandwidth devices.  See \ref notes_cervino_vs_hirzel
+for the full capability matrix.
+
 - \subpage notes_opcode_encoding — bit-format breakdown of every
   opcode family.
 - \subpage notes_opcode_map — complete opcode→mnemonic table with

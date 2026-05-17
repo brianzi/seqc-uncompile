@@ -95,4 +95,6 @@ for `ST`.
 - \ref notes_fb_instruction — the feedback (`fb`) instruction.
 - \ref notes_special_registers — addresses targeted by `LD`/`ST`/
   `luser` / `suser`.
+- \ref notes_custom_functions — the SeqC builtins that emit these
+  instructions.
 
