@@ -1,11 +1,11 @@
 # Toolchain Design {#notes_tools_design}
 
-\note **Toolchain reference material.**  Design rationale and internal
-architecture of the `seqcc` / `seqas` / `seqdump` toolchain.  For
-user-facing CLI documentation see \ref notes_tools_user_guide; for
-the test harness see \ref notes_tools_testing.  The authoritative
-upstream design document is `tools/seqcc/DESIGN.md` in the source
-tree — this page is the user-facing distillation.
+Design rationale and internal architecture of the `seqcc` / `seqas` /
+`seqdump` toolchain.  For user-facing CLI documentation see
+\ref notes_tools_user_guide; for the test harness see
+\ref notes_tools_testing.  The authoritative upstream design document
+is `tools/seqcc/DESIGN.md` in the source tree — this page is the
+user-facing distillation.
 
 [TOC]
 
@@ -36,8 +36,7 @@ binary but inadequate for:
 `seqcc` is a stand-alone command-line driver, modelled on
 `gcc` / `clang`, that exposes the compilation pipeline at the natural
 stage boundaries already present in `zhinst::Compiler::compile()`
-(reconstructed in `reconstructed/src/codegen/compiler.cpp` from
-binary address `0x11f150`).
+(implemented in `reconstructed/src/codegen/compiler.cpp`).
 
 ## Scope
 
@@ -130,17 +129,17 @@ when implemented) exposes that path.
 `step*` methods in sequence (see
 `reconstructed/include/zhinst/codegen/compiler.hpp`):
 
-| Step method             | Pipeline stage(s)                      | Binary boundary |
-|-------------------------|----------------------------------------|-----------------|
-| `stepParse`             | parse                                  | `0x11f150`      |
-| `stepToSeqCAst`         | astgen                                 | `0x11f7b0`      |
-| `stepLower`             | lower                                  | `0x11f911`      |
-| `stepBuildAsmPreamble`  | preamble + node-tree walk              | `0x11fb1a`      |
-| `stepOptPre`            | opt-pre + `WavetableIR` build          | `0x120707`      |
-| `stepPrefetch`          | prefetch                               | `0x120c92`      |
-| `stepOptPost`           | opt-post                               | `0x120e2d`      |
-| `stepUnsyncCervino`     | unsync-cervino                         | `0x120f2b`      |
-| `stepProject`           | project + final checks                 | `0x121345`      |
+| Step method             | Pipeline stage(s)                      |
+|-------------------------|----------------------------------------|
+| `stepParse`             | parse                                  |
+| `stepToSeqCAst`         | astgen                                 |
+| `stepLower`             | lower                                  |
+| `stepBuildAsmPreamble`  | preamble + node-tree walk              |
+| `stepOptPre`            | opt-pre + `WavetableIR` build          |
+| `stepPrefetch`          | prefetch                               |
+| `stepOptPost`           | opt-post                               |
+| `stepUnsyncCervino`     | unsync-cervino                         |
+| `stepProject`           | project + final checks                 |
 
 `AWGCompilerImpl::compileString()` is similarly a 3-line dispatcher
 calling three public `step*` forwarders on `AWGCompiler`:
@@ -179,24 +178,6 @@ The earlier `compileSeqcWithIR()` / `CompileSeqcIntrospection` /
 `fillIntrospection()` introspection scaffold (incidental finding
 IF-301) has been retired; `compile_seqc.{hpp,cpp}` is back to the
 original-binary single-entry-point footprint.
-
-## Sanctioned reconstruction edits
-
-The toolchain has driven a small number of carefully-scoped
-modifications to reconstructed code, each documented as an
-incidental finding (see the source-tree `incidental_findings.md`):
-
-| IF      | What                                                                                          |
-|---------|-----------------------------------------------------------------------------------------------|
-| IF-300  | seqcc: `add_option_function<std::string>->expected(1, INT_MAX)` silently drops repeated occurrences (fixed at T3a). |
-| IF-305  | `optimizationFlags` `jsonConfig` key for `compileSeqc()` — additive surface; no behavioural change. |
-| IF-306  | Stepwise `Compiler::compile()` / `AWGCompilerImpl::compileString()` refactor (T5b).            |
-| IF-307  | `AWGCompiler::compiler()` accessor + narrow `Compiler` setters (T6).                          |
-| IF-308  | `--to=asm` dumps post-pipeline asm, not the binary's natural round-trip cut.                  |
-| IF-309  | Bison grammar: `placeholder_line` keyword + line-tail capture vs `placeholder` + post-`#` JSON. |
-
-Every entry was approved by the maintainer before landing and
-re-verified against the differential test suite.
 
 ## Internal architecture
 

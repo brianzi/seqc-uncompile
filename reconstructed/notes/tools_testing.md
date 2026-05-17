@@ -1,10 +1,10 @@
 # Toolchain Testing {#notes_tools_testing}
 
-\note **Toolchain reference material.**  How the
-`seqcc` / `seqas` / `seqdump` toolchain is tested, how it relates to
-the main differential-test harness, and how to add new test cases.
-For user-facing CLI documentation see \ref notes_tools_user_guide;
-for design rationale see \ref notes_tools_design.
+How the `seqcc` / `seqas` / `seqdump` toolchain is tested, how it
+relates to the main differential-test harness, and how to add new
+test cases.  For user-facing CLI documentation see
+\ref notes_tools_user_guide; for design rationale see
+\ref notes_tools_design.
 
 [TOC]
 

@@ -1,12 +1,11 @@
 # Toolchain User Guide {#notes_tools_user_guide}
 
-\note **Toolchain reference material.**  User-facing reference manual
-for the `seqcc` / `seqas` / `seqdump` command-line tools as shipped
-in the current build (driver version **`0.11.0-T10a`**).  Anything
-not listed here is either not yet implemented or has been deferred —
-see \ref notes_tools_design for the full forward-looking design and
-the `tools/seqcc/DESIGN.md` source-tree document for the deferred
-roadmap.
+User-facing reference manual for the `seqcc` / `seqas` / `seqdump`
+command-line tools as shipped in the current build (driver version
+**`0.11.0-T10a`**).  Anything not listed here is either not yet
+implemented or has been deferred — see \ref notes_tools_design for
+the full forward-looking design and the `tools/seqcc/DESIGN.md`
+source-tree document for the deferred roadmap.
 
 [TOC]
 

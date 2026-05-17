@@ -1,13 +1,8 @@
 # SeqC Toolchain {#notes_tools}
 
-\note **Toolchain reference material.**  This page and its three
-sub-pages document the `seqcc` / `seqas` / `seqdump` command-line
-toolchain — newly-written tooling that drives the existing public
-reconstructed APIs at finer-grained boundaries than the
-`_seqc_compiler.so` Python entry point exposes.  No tool reimplements
-compiler logic.  Unlike the reverse-engineering reference pages in
-this section, the content here is *not* disassembled binary
-behaviour.
+The `seqcc` / `seqas` / `seqdump` command-line toolchain wraps the
+reconstructed compiler in a stand-alone driver — no Python dependency
+required.
 
 [TOC]
 
