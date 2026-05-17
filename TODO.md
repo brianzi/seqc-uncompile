@@ -283,11 +283,17 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         enumerators (CSV, RAW), and extending would break
         `typeToStr`/`typeFromStr` static maps (binary symbols at
         0x2a3a90 / 0x2a63c0).  Pivoted to literal→named.  IF-330 filed.
-  - [ ] **C.2.d — Remaining P-items (P2, P3, P5, P6, P7, P9, P10).**
+  - [x] **C.2.d.1 — P2 device feature bits (7 sites).**  Commit
+        f6d9471.  Declared `kDevFlagFF/RTR/Plus/LRT` in
+        `device_factories.hpp` under `zhinst::detail`; converted 7
+        literal sites across `device_ghf.cpp`, `device_shf.cpp`,
+        `device_shfacc.cpp`, `device_vhf.cpp`.  Header-level placement
+        justified per the comment block (IF-121 had removed an
+        unreferenced `DeviceOpts` namespace; new constants
+        re-introduced because they have real call sites this time).
+  - [ ] **C.2.d — Remaining P-items (P3, P5, P6, P7, P9, P10).**
         Deferred — each needs design or GDB verification before
         execution:
-        - P2: device factory feature bits (`kDevFlagFF/RTR/PLUS/LRT`)
-          — A7 residual, ~4 named bit constants + factory-table sites.
         - P3: `NodeTypeMask*` cluster in `prefetch_placesingle.cpp`
           — needs disambiguation from existing `NodeType` enum.
         - P5: blocked on IF-317 (`0x29` cmd-set LUT GDB verification).

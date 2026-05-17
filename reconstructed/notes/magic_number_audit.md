@@ -778,7 +778,7 @@ discussion before implementation.
 | ID | scope | gap |
 |---|---|---|
 | **P1** | A3 (residual) | ✅ **DONE (C.2)** — Audit mistargeted `Value::which_` (no consuming switches in source). Pivoted to literal→named against existing `ImmediateKind` enum: 7 switches in `ast/value.cpp` converted (IF-329). |
-| **P2** | A7 (residual) | Device factory feature-bit constants `kDevFlagFF = 0x020`, `kDevFlagRTR = 0x2000`, `kDevFlagPlus = 0x4000`, `kDevFlagLRT = 0x8000`.  Only the 5 subtype-slot bits are named; the 4 feature bits are still raw across `device_*.cpp` factory tables. |
+| **P2** | A7 (residual) | ✅ **DONE (C.2)** — `kDevFlagFF=0x0020`, `kDevFlagRTR=0x2000`, `kDevFlagPlus=0x4000`, `kDevFlagLRT=0x8000` declared in `device_factories.hpp` under `zhinst::detail`; 7 sites converted across `device_ghf.cpp`, `device_shf.cpp`, `device_shfacc.cpp`, `device_vhf.cpp`. |
 | **P3** | new | `NodeTypeMask*` constants for the `0x100/0x200/0x2000/0x4000/0x8000` hex-bitmask cluster in `codegen/prefetch_placesingle.cpp`.  Needs disambiguation from the `NodeType` enum itself, which uses different values. |
 | **P4** | new | ✅ **DONE (C.2)** — `kPrefetchAddr20BitMask = 0xFFFFFu` declared in `core/types.hpp`; 7 sites converted (`prefetch_emit.cpp` ×5, `prefetch_placesingle.cpp` ×2). `>= 0x100000` boundary tests rewritten as `> kPrefetchAddr20BitMask`. |
 | **P5** | D1 follow-up | `kCmdSet…` name for the `0x29` LUT once D1 (IF-317) confirms semantic. |
