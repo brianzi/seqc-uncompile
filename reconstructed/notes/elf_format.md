@@ -1,21 +1,15 @@
 # ELF Output Format {#notes_elf_format}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+The SeqC compiler emits an ELF32 little-endian container — a custom
+firmware bundle, not a standard executable.  Three distinct ELF
+variants are produced by this codebase, all sharing the same base
+header settings but distinguished by `e_machine`:
 
-Three distinct ELF file variants are produced by this codebase, all
-sharing the same base header settings but distinguished by `e_machine`:
-
-| Variant | Producer | `e_machine` | Purpose |
-|---------|----------|-------------|---------|
-| Main compiler output | `AWGCompilerImpl::writeToStream` @0x108cc0 | 2 | Full SeqC compilation result |
-| Legacy assembler output | `AWGAssemblerImpl::writeToFile` @0x10a630 | 2 | Direct-assembly pipeline (simpler) |
-| Waveform cache | `CachedParser::cacheFile` @0x115b40 | 3 | Cached parsed waveform data |
+| Variant                 | Producer                       | `e_machine` | Purpose                              |
+|-------------------------|--------------------------------|-------------|--------------------------------------|
+| Main compiler output    | `AWGCompilerImpl::writeToStream` | 2         | Full SeqC compilation result         |
+| Legacy assembler output | `AWGAssemblerImpl::writeToFile`  | 2         | Direct-assembly pipeline (simpler)   |
+| Waveform cache          | `CachedParser::cacheFile`        | 3         | Cached parsed waveform data          |
 
 ## Common ELF header
 
