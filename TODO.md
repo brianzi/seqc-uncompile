@@ -243,13 +243,11 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         not 6 — UHFQA is NOT in the family).  IF-312 closed by F9.
         TODO updated for C.1.b/e/f/g.  PROPOSE-ENUM items
         (P1..P10) promotion to Phase D7-C.2 deferred.
-  - [ ] **C.1.j — FIX-NOW follow-up: IF-320 (`getAwgDeviceType
-        FromString` raw returns, 9 sites).**  Surfaced during
-        C.1.c.  Replace the 9 `static_cast<AwgDeviceType>(N)`
-        returns in `codegen/awg_compiler_config.cpp:57-65` with
-        named enumerators (`UHFLI`, `HDAWG`, `UHFQA`, `SHFQA`,
-        `SHFSG`, `SHFQC_SG`, `SHFLI`, `GHFLI`, `VHFLI`).  Risk
-        low; byte-identical guaranteed.  Closes IF-320.
+  - [x] **C.1.j — FIX-NOW follow-up: IF-320 (`getAwgDeviceType
+        FromString` raw returns, 9 sites).**  Done.  Replaced
+        9 `static_cast<AwgDeviceType>(N)` returns with named
+        enumerators (`UHFLI`, `HDAWG`, `UHFQA`, `SHFQA`, `SHFSG`,
+        `SHFQC_SG`, `SHFLI`, `GHFLI`, `VHFLI`).  IF-320 closed.
 
 ## Phase X — `compile_seqc` binding-kwarg coverage
 

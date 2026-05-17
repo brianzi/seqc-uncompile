@@ -672,17 +672,16 @@ hypotheses: (a) `33` and `0x800u` are sentinel-but-not-zero values
 chosen for "outside the valid range"; (b) the enums are missing
 the right enumerator.  GDB-confirm which.
 
-### D4 (IF-320) — `getAwgDeviceTypeFromString` raw-numeric returns  — **PROMOTED to FIX-NOW**
+### D4 (IF-320) — `getAwgDeviceTypeFromString` raw-numeric returns  — **DONE**
 
-`codegen/awg_compiler_config.cpp:57-65` returns 9 raw integer values
-from a string-keyed lookup.  Audit's function name `parseCpuType`
-was inaccurate — the actual function is
-`AWGCompilerConfig::getAwgDeviceTypeFromString`.  All 9 values map
-cleanly to existing `AwgDeviceType` enumerators
+`codegen/awg_compiler_config.cpp:57-65` returned 9 raw integer
+values from a string-keyed lookup.  Audit's function name
+`parseCpuType` was inaccurate — the actual function is
+`AWGCompilerConfig::getAwgDeviceTypeFromString`.  All 9 values
+mapped cleanly to existing `AwgDeviceType` enumerators
 (`UHFLI=1, HDAWG=2, UHFQA=4, SHFQA=8, SHFSG=16, SHFQC_SG=32,
-SHFLI=64, GHFLI=128, VHFLI=256`); see IF-320 for the full table.
-Filed for follow-up FIX-NOW (cheap; ~9-line substitution, byte-
-identical guaranteed).
+SHFLI=64, GHFLI=128, VHFLI=256`); replaced in C.1.j.  IF-320
+closed.
 
 ### D5 (IF-321) — `holdSuppressExceptSigouts = 0x27C`
 

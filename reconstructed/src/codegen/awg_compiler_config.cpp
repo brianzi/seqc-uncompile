@@ -54,15 +54,15 @@ std::string AWGCompilerConfig::getAwgDeviceTypeString(AwgDeviceType type) {  // 
 // Case-insensitive comparison using boost::algorithm::iequals against codenames.
 // Throws ZIAWGCompilerException (ErrorMessageT=0xd9) if no match.
 AwgDeviceType AWGCompilerConfig::getAwgDeviceTypeFromString(std::string const& str) {  // 0x270180
-    if (boost::algorithm::iequals(str, "cervino"))       return static_cast<AwgDeviceType>(1);    // 0x2701bb
-    if (boost::algorithm::iequals(str, "hirzel"))        return static_cast<AwgDeviceType>(2);    // 0x2701f3
-    if (boost::algorithm::iequals(str, "klausen"))       return static_cast<AwgDeviceType>(4);    // 0x27022b
-    if (boost::algorithm::iequals(str, "grimsel_qa"))    return static_cast<AwgDeviceType>(8);    // 0x270263
-    if (boost::algorithm::iequals(str, "grimsel_sg"))    return static_cast<AwgDeviceType>(16);   // 0x27029b
-    if (boost::algorithm::iequals(str, "grimsel_qc_sg")) return static_cast<AwgDeviceType>(32);   // 0x2702d3
-    if (boost::algorithm::iequals(str, "grimsel_li"))    return static_cast<AwgDeviceType>(64);   // 0x27030b
-    if (boost::algorithm::iequals(str, "gurnigel"))      return static_cast<AwgDeviceType>(128);  // 0x27033f
-    if (boost::algorithm::iequals(str, "maloja"))        return static_cast<AwgDeviceType>(256);  // 0x270373
+    if (boost::algorithm::iequals(str, "cervino"))       return AwgDeviceType::UHFLI;     // 0x2701bb
+    if (boost::algorithm::iequals(str, "hirzel"))        return AwgDeviceType::HDAWG;     // 0x2701f3
+    if (boost::algorithm::iequals(str, "klausen"))       return AwgDeviceType::UHFQA;     // 0x27022b
+    if (boost::algorithm::iequals(str, "grimsel_qa"))    return AwgDeviceType::SHFQA;     // 0x270263
+    if (boost::algorithm::iequals(str, "grimsel_sg"))    return AwgDeviceType::SHFSG;     // 0x27029b
+    if (boost::algorithm::iequals(str, "grimsel_qc_sg")) return AwgDeviceType::SHFQC_SG;  // 0x2702d3
+    if (boost::algorithm::iequals(str, "grimsel_li"))    return AwgDeviceType::SHFLI;     // 0x27030b
+    if (boost::algorithm::iequals(str, "gurnigel"))      return AwgDeviceType::GHFLI;     // 0x27033f
+    if (boost::algorithm::iequals(str, "maloja"))        return AwgDeviceType::VHFLI;     // 0x270373
 
     // No match — throw ZIAWGCompilerException with ErrorMessageT=0xd9 (217)
     // throw ZIAWGCompilerException(ErrorMessages::format<string>(0xd9, str));  // 0x2703b6

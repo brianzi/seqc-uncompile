@@ -2291,7 +2291,7 @@ a missing enumerator that should be added to the enum.
 ## IF-320 — `getAwgDeviceTypeFromString` raw-integer returns (was "parseCpuType")
 
 **Severity:** likely-bug
-**Status:** open — trivial FIX-NOW candidate
+**Status:** fixed (C.1.j)
 
 `reconstructed/src/codegen/awg_compiler_config.cpp:56-68`
 (`AWGCompilerConfig::getAwgDeviceTypeFromString`) returns 9
