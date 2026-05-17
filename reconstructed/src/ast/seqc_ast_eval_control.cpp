@@ -95,7 +95,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
 
             // 0x20d5da  Error 0x4C: function not found
             ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x4C), fullSig), -1);
+                ErrorMessages::format(FuncNotFound, fullSig), -1);
 
             // 0x20d63f  List possible overloads
             auto overloads = res->getPossibleFunctions(funName);  // @0x20d63f
@@ -130,7 +130,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
             if (argCount != paramCount) {
                 // 0x20d2d9  Error 0x4D: wrong argument count
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0x4D),
+                    ErrorMessages::format(FuncExactArgs,
                         funName,
                         paramCount,
                         argCount), -1);                           // @0x20da14
@@ -184,7 +184,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                         funcScope->updateCvar(paramName, val, argVal.varSubType_);
                     } else {
                         ctx.messages->errorMessage(
-                            ErrorMessages::format(ErrorMessageT(0x46),
+                            ErrorMessages::format(FuncInvalidArgType,
                                 str(argType), funName, paramName,
                                 str(VarType_Cvar)), -1);
                     }
@@ -198,7 +198,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                         funcScope->updateConst(paramName, val, argVal.varSubType_, true);
                     } else {
                         ctx.messages->errorMessage(
-                            ErrorMessages::format(ErrorMessageT(0x46),
+                            ErrorMessages::format(FuncInvalidArgType,
                                 str(argType), funName, paramName,
                                 str(VarType_Const)), -1);
                     }
@@ -212,7 +212,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                         funcScope->updateWave(paramName, waveStr, argVal.varSubType_);
                     } else {
                         ctx.messages->errorMessage(
-                            ErrorMessages::format(ErrorMessageT(0x46),
+                            ErrorMessages::format(FuncInvalidArgType,
                                 str(argType), funName, paramName,
                                 str(VarType_Wave)), -1);
                     }
@@ -226,7 +226,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                         funcScope->updateString(paramName, strVal, argVal.varSubType_);
                     } else {
                         ctx.messages->errorMessage(
-                            ErrorMessages::format(ErrorMessageT(0x46),
+                            ErrorMessages::format(FuncInvalidArgType,
                                 str(argType), funName, paramName,
                                 str(VarType_String)), -1);
                     }
@@ -236,7 +236,7 @@ std::shared_ptr<EvalResults> SeqCFunctionCall::evaluate(
                 default:
                     // Unknown param type — error 0x46
                     ctx.messages->errorMessage(
-                        ErrorMessages::format(ErrorMessageT(0x46),
+                        ErrorMessages::format(FuncInvalidArgType,
                             str(argVal.varType_), funName, paramName,
                             str(paramType)), -1);
                     break;
@@ -692,7 +692,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     // ---- Null condResult check ----                               // @0x213a6d
     if (!condResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x213aad
+            ExpectsVarOrConst, "if");                              // @0x213aad
         ctx.messages->errorMessage(msg, -1);                         // @0x213ac1
         return result;                                               // → @0x2146f1 cleanup
     }
@@ -709,7 +709,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     {
         // Error: bad condition value count.                          // @0x213ce5
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x213cff
+            ExpectsVarOrConst, "if");                              // @0x213cff
         ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x213d19
         return result;                                               // → @0x2146d3 cleanup
     }
@@ -822,7 +822,7 @@ std::shared_ptr<EvalResults> SeqCIfCondition::evaluate(
     // ================================================================
     {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x213cff
+            ExpectsVarOrConst, "if");                              // @0x213cff
         ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x213d19
     }
 
@@ -860,7 +860,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
     // ---- Switch context check ----                                // @0x21aa5b
     if (!state.inSwitch_) {
         throw CompilerException(                                     // @0x21b331
-            errMsg[ErrorMessageT(0x1d)]);
+            errMsg[CaseOutsideSwitch]);
     }
 
     // ---- Prologue: set lineNr on subsystems ----                  // @0x21aa6f
@@ -887,7 +887,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
             (dynamic_cast<const SeqCValue*>(label()) != nullptr);
         if (!validLbl) {
             throw CompilerException(                                 // @0x21b370
-                errMsg[ErrorMessageT(0x17)]);
+                errMsg[CaseNeedsConst]);
         }
     }
 
@@ -903,7 +903,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
         labelResult->values_.back().varType_ != VarType_Const)       // @0x21abf3
     {
         throw CompilerException(                                     // @0x21b306
-            errMsg[ErrorMessageT(0x17)]);
+            errMsg[CaseNeedsConst]);
     }
 
     // ---- Extract case value ----                                  // @0x21abfd
@@ -915,7 +915,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
     if (!floatEqual(dVal, static_cast<double>(iVal))) {              // @0x21ad52
         // Non-integer case value — emit warning.                    // @0x21adaf
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x1c), dVal, iVal);                        // @0x21af31
+            CaseRounded, dVal, iVal);                        // @0x21af31
         ctx.messages->warningMessage(msg, -1);                       // @0x21af47
     }
 
@@ -923,7 +923,7 @@ std::shared_ptr<EvalResults> SeqCCaseEntry::evaluate(
     if (caseVal.toInt() < 0) {                                       // @0x21b0a2
         throw CompilerException(                                     // @0x21b3b5
             ErrorMessages::format(
-                ErrorMessageT(0x1b), caseVal.toInt()));              // @0x21b3e6
+                CasePositiveNatural, caseVal.toInt()));              // @0x21b3e6
     }
 
     // ---- Set result value and name ----                           // @0x21b0aa
@@ -1035,7 +1035,7 @@ void evalCaseBody(
         // condResult is null or empty — error 0x19 if case has no values
         if (caseResult->values_.empty()) {                           // @0x217360
             auto const& msg = ErrorMessages::messages.at(
-                ErrorMessageT(0x19));                                // @0x2173aa
+                RedefinedDefaultCase);                                // @0x2173aa
             ctx.messages->errorMessage(msg, caseEntry.lineNr());    // @0x2173b8
         }
     }
@@ -1242,7 +1242,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     // ---- Null condResult check ----                               // @0x217bfd
     if (!condResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "switch");                          // @0x217e53
+            ExpectsVarOrConst, "switch");                          // @0x217e53
         ctx.messages->errorMessage(msg, -1);                         // @0x217e73
         state.inSwitch_ = savedInSwitch;                             // @0x217e1f
         return result;
@@ -1256,7 +1256,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         condResult->values_.size() != 1)                             // @0x217da1
     {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "switch");                          // @0x217dd6
+            ExpectsVarOrConst, "switch");                          // @0x217dd6
         ctx.messages->errorMessage(msg, -1);                         // @0x217df6
         state.inSwitch_ = savedInSwitch;                             // @0x217e1f
         return result;
@@ -1277,7 +1277,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         } else {
             // No cases — emit warning 0xd6.                         // @0x2185e2
             auto const& msg = ErrorMessages::messages.at(
-                ErrorMessageT(0xd6));                                // @0x21865e
+                SwitchNoCases);                                // @0x21865e
             ctx.messages->warningMessage(msg, -1);                   // @0x218677
             state.inSwitch_ = savedInSwitch;                         // @0x217e1f
             return result;
@@ -1539,7 +1539,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
                 // ---- Error: bad case value type ----              // @0x219023
                 // varType is not Const/Cvar and not Unset → error 0x17
                 auto const& msg = ErrorMessages::messages.at(
-                    ErrorMessageT(0x17));                             // @0x21905c
+                    CaseNeedsConst);                             // @0x21905c
                 ctx.messages->errorMessage(msg, -1);                 // @0x219107
             }
         } // end for each case
@@ -1614,7 +1614,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
         } else {
             // No cases — emit warning 0xd6.                         // @0x218624
             auto const& msg = ErrorMessages::messages.at(
-                ErrorMessageT(0xd6));
+                SwitchNoCases);
             ctx.messages->warningMessage(msg, -1);                   // @0x218677
             state.inSwitch_ = savedInSwitch;
             return result;
@@ -1724,7 +1724,7 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
     // ================================================================
     {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "switch");
+            ExpectsVarOrConst, "switch");
         ctx.messages->errorMessage(msg, -1);
     }
 
@@ -1786,7 +1786,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
     // ---- Null condResult check ----                               // @0x21e28c
     if (!condResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "while");                           // @0x21e4f5
+            ExpectsVarOrConst, "while");                           // @0x21e4f5
         ctx.messages->errorMessage(msg, -1);                         // @0x21e509
         return result;
     }
@@ -1873,7 +1873,7 @@ std::shared_ptr<EvalResults> SeqCWhileLoop::evaluate(
             // Null condResult → error                               // @0x21eb05
             if (!condResult) {
                 std::string msg = ErrorMessages::format(
-                    ErrorMessageT(0x27), "while");                   // @0x21ec62
+                    ExpectsVarOrConst, "while");                   // @0x21ec62
                 ctx.messages->errorMessage(msg, cond()->lineNr());     // @0x21ec79
                 break;  // normalExit stays false → no node copy     // r14d = 1
             }
@@ -2061,7 +2061,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
     // ---- Null condResult check ----                               // @0x22005d
     if (!condResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "do");                               // @0x22033e
+            ExpectsVarOrConst, "do");                               // @0x22033e
         ctx.messages->errorMessage(msg, -1);                          // @0x220356
         return result;
     }
@@ -2171,7 +2171,7 @@ std::shared_ptr<EvalResults> SeqCDoWhile::evaluate(
             // Null condResult → error                               // @0x22091a
             if (!condResult) {
                 std::string msg = ErrorMessages::format(
-                    ErrorMessageT(0x27), "do");                       // @0x220a14
+                    ExpectsVarOrConst, "do");                       // @0x220a14
                 ctx.messages->errorMessage(msg, -1);                  // @0x220a28
                 break;  // doEpilogue stays false
             }
@@ -2370,7 +2370,7 @@ std::shared_ptr<EvalResults> SeqCRepeat::evaluate(
     // ---- Null countResult check ----                              // @0x221d78
     if (!countResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "repeat");                          // @0x221e21
+            ExpectsVarOrConst, "repeat");                          // @0x221e21
         ctx.messages->errorMessage(msg, -1);                         // @0x221e47
         return result;
     }
@@ -2734,7 +2734,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     // ---- Null condResult check ----                               // @0x214ea6
     if (!condResult) {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x214ed1
+            ExpectsVarOrConst, "if");                              // @0x214ed1
         ctx.messages->errorMessage(msg, -1);                         // @0x214ee5
         return result;
     }
@@ -2748,7 +2748,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     {
         // Error: bad condition value count.                          // @0x21507b
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x215098
+            ExpectsVarOrConst, "if");                              // @0x215098
         ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x2150b3
         return result;
     }
@@ -2970,7 +2970,7 @@ std::shared_ptr<EvalResults> SeqCIfElse::evaluate(
     // ================================================================
     {
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x27), "if");                              // @0x215098
+            ExpectsVarOrConst, "if");                              // @0x215098
         ctx.messages->errorMessage(msg, cond()->lineNr());              // @0x2150b3
     }
 
@@ -3021,7 +3021,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
     {
         // Lookup error message 0x1f in ErrorMessages::messages map   // @0x223ecf
         ctx.messages->errorMessage(
-            ErrorMessages::messages[ErrorMessageT(0x1f)], -1);       // @0x223f14
+            ErrorMessages::messages[ConditionalNeedVarConst], -1);       // @0x223f14
         result = std::make_shared<EvalResults>();
         return result;
     }
@@ -3079,7 +3079,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                 VarType vt = (ifResult->values_.size() > 1)
                     ? static_cast<VarType>(0) : ifVal.varType_;
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0xe4), str(vt)), -1);
+                    ErrorMessages::format(CantModifyVarInRepeat, str(vt)), -1);
                 // Fall through to name construction                 // @0x2257ee
             } else if (ifVal.varType_ == VarType_Var) {
                 // Var: merge assemblers, then addi to copy register  // @0x2245ae
@@ -3118,7 +3118,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             } else {
                 // Unsupported type: error 0xe4                      // @0x224519
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0xe4),
+                    ErrorMessages::format(CantModifyVarInRepeat,
                         str(ifVal.varType_)), -1);
             }
         }
@@ -3141,7 +3141,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
                 VarType vt = (elseResult->values_.size() > 1)
                     ? static_cast<VarType>(0) : elseVal.varType_;
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0xe4), str(vt)), -1);
+                    ErrorMessages::format(CantModifyVarInRepeat, str(vt)), -1);
             } else if (elseVal.varType_ == VarType_Var) {
                 // Var: merge assemblers + addi copy                 // @0x225934
                 result->assemblers_.insert(
@@ -3177,7 +3177,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
             } else {
                 // Unsupported type: error 0xe4                      // @0x225761
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0xe4),
+                    ErrorMessages::format(CantModifyVarInRepeat,
                         str(elseVal.varType_)), -1);
             }
         }
@@ -3335,7 +3335,7 @@ std::shared_ptr<EvalResults> SeqCCondExpr::evaluate(
     // ================================================================
     {
         ctx.messages->errorMessage(
-            ErrorMessages::messages[ErrorMessageT(0x1f)], -1);
+            ErrorMessages::messages[ConditionalNeedVarConst], -1);
     }
 
     return result;

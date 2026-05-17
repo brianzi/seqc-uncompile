@@ -377,7 +377,7 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
         regCmd = Assembler::XNORR;
     else
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT(0xd8),
+            ErrorMessages::format(UnknownFunction,
                                   Assembler::commandToString(cmd).c_str()));
 
     // Final ALU register-register operation

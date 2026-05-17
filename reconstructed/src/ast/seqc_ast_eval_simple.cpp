@@ -147,7 +147,7 @@ std::shared_ptr<EvalResults> SeqCContinueStatement::evaluate(
     FrontendLoweringState& /*state*/) const
 {                                                           // @0x226890
     ctx.messages->errorMessage(                             // @0x2268ca
-        ErrorMessages::format(ErrorMessageT(0xd5),          // @0x2268bb
+        ErrorMessages::format(StatementNotSupported,          // @0x2268bb
                               "continue"),                   // rodata @0x905b6a
         lineNr_);                                             // lineNr = this->lineNr_
     return std::make_shared<EvalResults>();                  // @0x2268eb
@@ -165,7 +165,7 @@ std::shared_ptr<EvalResults> SeqCBreakStatement::evaluate(
     // There is no inSwitch_ guard: the first instructions are format(0xd5, "break")
     // followed immediately by errorMessage(...), with no branch beforehand.
     ctx.messages->errorMessage(                               // @0x2269aa
-        ErrorMessages::format(ErrorMessageT(0xd5),            // @0x22699b
+        ErrorMessages::format(StatementNotSupported,            // @0x22699b
                               "break"),                        // rodata @0x905b73
         lineNr_);                                              // lineNr = this->lineNr_
     return std::make_shared<EvalResults>();
@@ -510,7 +510,7 @@ std::shared_ptr<EvalResults> SeqCMod::evaluate(
             errRhs = rhsResult.values_.back().varType_;       // @0x2320d9
 
         ctx.messages->errorMessage(                           // @0x232116
-            ErrorMessages::format(ErrorMessageT(0x8e),        // @0x232105
+            ErrorMessages::format(CantModuloTypes,        // @0x232105
                                   str(errLhs), str(errRhs)),
             -1);
         goto name_tail;
@@ -662,7 +662,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             if (!rhsVals.empty() && rhsVals.size() <= 1)        // @0x23cc1a
                 vt = rhsVals.back().varType_;
             ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x6f),
+                ErrorMessages::format(CantIncrement,
                     str(vt), rhsResult.name_), -1);             // @0x23cc98
 
             // Catch handler falls through to rhsResult Cvar setValue.
@@ -690,7 +690,7 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
             if (!lhsVals.empty() && lhsVals.size() <= 1)        // @0x23d09d
                 vt = lhsVals.back().varType_;
             ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x6f),
+                ErrorMessages::format(CantIncrement,
                     str(vt), lhsResult.name_), -1);             // @0x23d119
             updateOK = false;  // skip setValue, go to name_tail @0x23d163→23cdb3
         }
@@ -708,14 +708,14 @@ std::shared_ptr<EvalResults> SeqCInc::evaluate(
     else if (lhsHas1 && lhsVals.back().varType_ != VarType_Unset) {
         VarType vt = lhsVals.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x6f),
+            ErrorMessages::format(CantIncrement,
                 str(vt), lhsResult.name_), -1);                 // @0x23c398
     }
     // --- Path 6: rhsResult other (error) --- @0x23c034
     else if (rhsHas1 && rhsVals.back().varType_ != VarType_Unset) {
         VarType vt = rhsVals.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x6f),
+            ErrorMessages::format(CantIncrement,
                 str(vt), rhsResult.name_), -1);                 // @0x23c5f8
     }
     // else: both empty/Unset — fall through to name_tail
@@ -831,7 +831,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             if (!rhsVals.empty() && rhsVals.size() <= 1)
                 vt = rhsVals.back().varType_;
             ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x70),
+                ErrorMessages::format(CantDecrement,
                     str(vt), rhsResult.name_), -1);
 
             // Catch falls through to rhsResult Cvar setValue.
@@ -856,7 +856,7 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
             if (!lhsVals.empty() && lhsVals.size() <= 1)
                 vt = lhsVals.back().varType_;
             ctx.messages->errorMessage(
-                ErrorMessages::format(ErrorMessageT(0x70),
+                ErrorMessages::format(CantDecrement,
                     str(vt), lhsResult.name_), -1);
             updateOK = false;  // skip setValue, go to name_tail
         }
@@ -873,14 +873,14 @@ std::shared_ptr<EvalResults> SeqCDec::evaluate(
     else if (lhsHas1 && lhsVals.back().varType_ != VarType_Unset) {
         VarType vt = lhsVals.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x70),
+            ErrorMessages::format(CantDecrement,
                 str(vt), lhsResult.name_), -1);
     }
     // --- Path 6: rhsResult other (error) ---
     else if (rhsHas1 && rhsVals.back().varType_ != VarType_Unset) {
         VarType vt = rhsVals.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x70),
+            ErrorMessages::format(CantDecrement,
                 str(vt), rhsResult.name_), -1);
     }
 
@@ -925,7 +925,7 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
     if (!childResult) {                                        // @0x228582
         // Null result — error 0x7c with VarSubType(0).        // @0x2285ea
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x7c), str(VarSubType(0)));          // @0x2285f3
+            OnlyConstVarNegated, str(VarSubType(0)));          // @0x2285f3
         ctx.messages->errorMessage(msg, -1);                   // @0x228620
         auto result = std::make_shared<EvalResults>();         // @0x228661
         return result;                                         // @0x228b4a
@@ -936,7 +936,7 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
     if (count == 0) {                                          // @0x228591
         // Empty values — same null-result error path.         // @0x2286ec
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x7c), str(VarType_Unset));             // @0x22870e
+            OnlyConstVarNegated, str(VarType_Unset));             // @0x22870e
         ctx.messages->errorMessage(msg, -1);                   // @0x228722
         return childResult;                                    // @0x228b4a
     }
@@ -946,7 +946,7 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
     if (count > 1) {                                           // @0x2285b3
         // Multiple values — error 0x7c.                       // @0x2286f1
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x7c), str(vt));                     // @0x22870e
+            OnlyConstVarNegated, str(vt));                     // @0x22870e
         ctx.messages->errorMessage(msg, -1);                   // @0x228722
         return childResult;                                    // @0x228b4a
     }
@@ -998,7 +998,7 @@ std::shared_ptr<EvalResults> SeqCNeg::evaluate(
     } else {
         // Unsupported type — error 0x7c.                      // @0x2285b9
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x7c), str(vt));                     // @0x22870e
+            OnlyConstVarNegated, str(vt));                     // @0x22870e
         ctx.messages->errorMessage(msg, -1);                   // @0x228722
         return childResult;                                    // @0x228b4a
     }
@@ -1040,7 +1040,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
     if (!childResult) {                                        // @0x228ff2
         // Null result — error 0x77 with VarSubType(0).        // @0x22905a
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x77), str(VarSubType(0)));          // @0x229079
+            OnlyConstVarInverted, str(VarSubType(0)));          // @0x229079
         ctx.messages->errorMessage(msg, -1);                   // @0x229096
         auto result = std::make_shared<EvalResults>();         // @0x2290e0
         return result;                                         // @0x229779
@@ -1050,7 +1050,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
     size_t count = values.size();
     if (count == 0) {                                          // @0x229001
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x77), str(VarType_Unset));             // @0x22918e
+            OnlyConstVarInverted, str(VarType_Unset));             // @0x22918e
         ctx.messages->errorMessage(msg, -1);                   // @0x2291a7
         return childResult;                                    // @0x229779
     }
@@ -1059,7 +1059,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
 
     if (count > 1) {                                           // @0x229023
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x77), str(vt));                     // @0x22918e
+            OnlyConstVarInverted, str(vt));                     // @0x22918e
         ctx.messages->errorMessage(msg, -1);                   // @0x2291a7
         return childResult;                                    // @0x229779
     }
@@ -1117,7 +1117,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
         // Warn if negative (error 0xfe).                      // @0x2296ad
         if (intVal < 0) {
             auto msg = ErrorMessages::format(
-                ErrorMessageT(0xfe), std::to_string(intVal));  // @0x2296d7
+                BitwiseNegativeOp1, std::to_string(intVal));  // @0x2296d7
             ctx.messages->errorMessage(msg, -1);               // @0x2296eb
         }
 
@@ -1132,7 +1132,7 @@ std::shared_ptr<EvalResults> SeqCInv::evaluate(
     } else {
         // Unsupported type (including Wave) — error 0x77.     // @0x229029
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x77), str(vt));                     // @0x22918e
+            OnlyConstVarInverted, str(vt));                     // @0x22918e
         ctx.messages->errorMessage(msg, -1);                   // @0x2291a7
         return childResult;                                    // @0x229779
     }
@@ -1174,7 +1174,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
     if (!childResult) {                                        // @0x229a2d
         // Null result — error 0x86 with VarSubType(0).        // @0x229a95
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x86), str(VarSubType(0)));          // @0x229aa1
+            ConstVarLogicalInvert, str(VarSubType(0)));          // @0x229aa1
         ctx.messages->errorMessage(msg, -1);                   // @0x229acd
         auto result = std::make_shared<EvalResults>();         // @0x229b12
         return result;                                         // @0x229c2a
@@ -1185,7 +1185,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
     if (count == 0) {                                          // @0x229a39
         // Empty values — error 0x86.                          // @0x229ba4
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x86), str(VarType_Unset));             // @0x229bb0
+            ConstVarLogicalInvert, str(VarType_Unset));             // @0x229bb0
         ctx.messages->errorMessage(msg, -1);                   // @0x229bdc
         return childResult;                                    // @0x229c2a
     }
@@ -1195,7 +1195,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
     if (count > 1) {                                           // @0x229a5e
         // Multiple values — error 0x86 with VarType_Unset.       // @0x229a64
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x86), str(VarType_Unset));             // @0x229bb0
+            ConstVarLogicalInvert, str(VarType_Unset));             // @0x229bb0
         ctx.messages->errorMessage(msg, -1);                   // @0x229bdc
         return childResult;                                    // @0x229c2a
     }
@@ -1276,7 +1276,7 @@ std::shared_ptr<EvalResults> SeqCNotExpr::evaluate(
     } else {
         // Unsupported type — error 0x86.                      // @0x229a64 (via 22a095)
         auto msg = ErrorMessages::format(
-            ErrorMessageT(0x86), str(vt));                     // @0x229bb0
+            ConstVarLogicalInvert, str(vt));                     // @0x229bb0
         ctx.messages->errorMessage(msg, -1);                   // @0x229bdc
         return childResult;                                    // @0x229c2a
     }
@@ -1324,7 +1324,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
         if (returnType != VarType_Void) {                           // @0x226bdd
             // Error 0xb2: bare return in non-void function.        // @0x226ccf
             auto msg = ErrorMessages::format(
-                ErrorMessageT(0xb2), str(returnType));              // @0x226cff
+                ExpectedReturnValue, str(returnType));              // @0x226cff
             ctx.messages->errorMessage(msg, -1);                    // @0x226d13
             return std::make_shared<EvalResults>();                 // @0x226d58
         }
@@ -1343,7 +1343,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
             // Null child result — BST lookup for error 0xb6.       // @0x226dd4
             ctx.messages->errorMessage(
                 ErrorMessages::messages.at(
-                    static_cast<int>(ErrorMessageT(0xb6))),
+                    static_cast<int>(InvalidReturnArg)),
                 -1);                                                // @0x226e27
             return result;                                          // @0x226e2c
         }
@@ -1404,7 +1404,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
             // Mismatch: error 0xb5.                                // @0x226eea
             {
                 auto msg = ErrorMessages::format(
-                    ErrorMessageT(0xb5),
+                    ReturnTypeMismatch,
                     str(returnType), str(childVarType));            // @0x226f63
                 ctx.messages->errorMessage(msg, -1);                // @0x226f77
                 return std::make_shared<EvalResults>();             // @0x226fb6
@@ -1437,7 +1437,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
                 childVarType = childResult->values_.back().varType_;
             {
                 auto msg = ErrorMessages::format(
-                    ErrorMessageT(0xb5),
+                    ReturnTypeMismatch,
                     str(returnType), str(childVarType));            // @0x22708f
                 ctx.messages->errorMessage(msg, -1);                // @0x2270a3
                 return std::make_shared<EvalResults>();             // @0x2270e2
@@ -1467,7 +1467,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
             // Mismatch: error 0xb5.                                // @0x227665
             {
                 auto msg = ErrorMessages::format(
-                    ErrorMessageT(0xb5),
+                    ReturnTypeMismatch,
                     str(returnType), str(childVarType));            // @0x2276de
                 ctx.messages->errorMessage(msg, -1);                // @0x2276f2
                 return std::make_shared<EvalResults>();             // @0x227731
@@ -1526,7 +1526,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
                             // Waveform not found: error 0xe9.      // @0x227eb6
                             Value val2 = childResult->getValue();   // @0x227ec4
                             auto msg = ErrorMessages::format(
-                                ErrorMessageT(0xe9),
+                                WaveformNotFound,
                                 val2.toString());                   // @0x227eec
                             ctx.messages->errorMessage(msg, -1);    // @0x227efd
                         }
@@ -1542,7 +1542,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
                 childVarType = childResult->values_.back().varType_;
             {
                 auto msg = ErrorMessages::format(
-                    ErrorMessageT(0xb5),
+                    ReturnTypeMismatch,
                     str(returnType), str(childVarType));            // @0x2275e0
                 ctx.messages->errorMessage(msg, -1);                // @0x2275f4
                 return std::make_shared<EvalResults>();             // @0x227633
@@ -1555,7 +1555,7 @@ std::shared_ptr<EvalResults> SeqCReturnStatement::evaluate(
             if (childResult->values_.size() == 1)
                 childVarType = childResult->values_.back().varType_;
             auto msg = ErrorMessages::format(
-                ErrorMessageT(0xb4), str(childVarType));            // @0x227799
+                UnexpectedReturnValue, str(childVarType));            // @0x227799
             ctx.messages->errorMessage(msg, -1);                    // @0x2277ad
             return std::make_shared<EvalResults>();                 // @0x2277f2
         }
@@ -1634,7 +1634,7 @@ std::shared_ptr<EvalResults> SeqCArgList::evaluate(
         } else {
             // Null result — error 0x12.                          @0x212005-212028
             std::string msg = ErrorMessages::format(
-                ErrorMessageT(0x12), std::string("arglist"));
+                BrokenList, std::string("arglist"));
             ctx.messages->errorMessage(msg, -1);
             hasError = true;
         }
@@ -1697,7 +1697,7 @@ std::shared_ptr<EvalResults> SeqCDeclList::evaluate(
         } else {
             // Null result — error 0x12.                          @0x212515-212538
             std::string msg = ErrorMessages::format(
-                ErrorMessageT(0x12), std::string("decllist"));
+                BrokenList, std::string("decllist"));
             ctx.messages->errorMessage(msg, -1);
             hasError = true;
         }
@@ -1816,7 +1816,7 @@ std::shared_ptr<EvalResults> SeqCStmtList::evaluate(
         } else {
             // Null result — error 0x12.                          @0x212905
             std::string msg = ErrorMessages::format(
-                ErrorMessageT(0x12), std::string("stmtlist"));
+                BrokenList, std::string("stmtlist"));
             ctx.messages->errorMessage(msg, -1);
             childUnwound = true;
         }

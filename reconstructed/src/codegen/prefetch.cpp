@@ -526,7 +526,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
         if (!foundSetPrecomp) {
           // 0x1d0e38: throw ZIAWGCompilerException(ErrorMessages::format(0xC3))
           throw ZIAWGCompilerException(
-              ErrorMessages::format(ErrorMessageT(0xC3)));
+              ErrorMessages::format(PrecompFlagsBranch));
         }
         // If found, continue with current state.
       }
@@ -673,7 +673,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
               // 0x1d0e83: throw
               // ZIAWGCompilerException(ErrorMessages::format(0xC4))
               throw ZIAWGCompilerException(
-                  ErrorMessages::format(ErrorMessageT(0xC4)));
+                  ErrorMessages::format(PrecompFlagsLoop));
             }
             // Adopt the tail's defaultPrecompFlags.
             defaultPrecompFlags = loopTail->defaultPrecompFlags; // 0x1d0d95
@@ -1863,7 +1863,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
                                       // confirmed: Node+0x66 = config.dummy
           // 0x1d2106: throw ZIAWGCompilerException(format(0xA2, "..."))
           throw ZIAWGCompilerException(ErrorMessages::format(
-              ErrorMessageT(0xA2), "missing load for table node"));
+              PrefetchError, "missing load for table node"));
         }
         goto advance;
       }
@@ -1909,7 +1909,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
         if (!cur->config.dummy) { // 0x1d14cf: cmpb $0x0,0x66(%rax)
           // 0x1d20b1: throw ZIAWGCompilerException(format(0xA2, "..."))
           throw ZIAWGCompilerException(ErrorMessages::format(
-              ErrorMessageT(0xA2), "missing load for node"));
+              PrefetchError, "missing load for node"));
         }
         goto advance;
       }
@@ -2406,7 +2406,7 @@ void Prefetch::placeLoads() // 0x1cbf60
       double memAvail = static_cast<double>(cacheSize) /
                         (devConst_->bitsPerSample / 8) / 1024.0;
       throw ZIAWGCompilerException(
-          ErrorMessages::format(ErrorMessageT(0x33), memUsed, memAvail));
+          ErrorMessages::format(WaveNotFittingMemory, memUsed, memAvail));
     }
   }
 

@@ -81,14 +81,14 @@ int WaveIndexTracker::assignAuto(int index)  // 0x29a620
     if (it != indices_.end()) {
         // Duplicate index — throw ErrorMessage 0xF9
         throw WavetableException(
-            ErrorMessages::format(ErrorMessageT(0xF9)));
+            ErrorMessages::format(WaveIndexUsed));
     }
 
     // Check if index >= maxIndex
     if (index >= maxIndex) {
         // Out of range — throw ErrorMessage 0xFA
         throw WavetableException(
-            ErrorMessages::format(ErrorMessageT(0xFA)));
+            ErrorMessages::format(WaveIndexExceedsTable));
     }
 
     // Insert into set

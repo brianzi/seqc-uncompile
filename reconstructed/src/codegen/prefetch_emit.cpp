@@ -103,7 +103,7 @@ AsmList::Asm* Prefetch::findPlaceholder(                        // 0x1d6b50
     }
 
     // Not found — throw error
-    std::string msg = ErrorMessages::format(ErrorMessageT(0xA3));
+    std::string msg = ErrorMessages::format(InvalidPrefetchId);
     throw ZIAWGCompilerException(msg);
 }
 

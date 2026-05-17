@@ -205,7 +205,7 @@ void CsvParser::setSampleFromString<WaveformFront>(    // @0x2b85c0
             // format<string, size_t>(0x25, file->name, row)
             throw CsvException(
                 ErrorMessages::format(
-                    static_cast<ErrorMessageT>(0x25),
+                    CsvValueOutOfRange,
                     filePtr->name, row));
         }
 
@@ -267,7 +267,7 @@ void CsvParser::setSampleFromString<WaveformIR>(       // @0x2b8420
         if (val < 0 || static_cast<uint32_t>(val) > maxVal) {
             throw CsvException(
                 ErrorMessages::format(
-                    static_cast<ErrorMessageT>(0x25),
+                    CsvValueOutOfRange,
                     filePtr->name, row));
         }
 
@@ -533,7 +533,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
     // --- 1. Null checks ---
     if (!wf || !wf->file) {
         // errMsg[0xe9] = ErrorMessageT(233) = WaveformNotFound
-        throw CsvException(errMsg[static_cast<ErrorMessageT>(0xe9)]);
+        throw CsvException(errMsg[WaveformNotFound]);
     }
 
     auto& fileRef = *wf->file;
@@ -568,7 +568,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
     if (!ifs.is_open()) {
         throw CsvException(
             ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x23),  // CsvInconsistentChannels
+                CsvInconsistentChannels,  // CsvInconsistentChannels
                 fileRef.name));
     }
 
@@ -710,7 +710,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
             if (tokens.size() != static_cast<size_t>(channels)) {
                 throw CsvException(
                     ErrorMessages::format(
-                        static_cast<ErrorMessageT>(0x23),
+                        CsvInconsistentChannels,
                         fileRef.name));
             }
 
@@ -742,7 +742,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
             // Empty CSV
             throw CsvException(
                 ErrorMessages::format(
-                    static_cast<ErrorMessageT>(0x23),
+                    CsvInconsistentChannels,
                     fileRef.name));
         }
 
@@ -815,7 +815,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
             if (toks.size() != static_cast<size_t>(channels)) {
                 throw CsvException(
                     ErrorMessages::format(
-                        static_cast<ErrorMessageT>(0x23),
+                        CsvInconsistentChannels,
                         fileRef.name));
             }
 
@@ -856,7 +856,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         AwgDeviceType deviceType)
 {
     if (!wf || !wf->file) {
-        throw CsvException(errMsg[static_cast<ErrorMessageT>(0xe9)]);
+        throw CsvException(errMsg[WaveformNotFound]);
     }
 
     auto& fileRef = *wf->file;
@@ -885,7 +885,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
     if (!ifs.is_open()) {
         throw CsvException(
             ErrorMessages::format(
-                static_cast<ErrorMessageT>(0x23),
+                CsvInconsistentChannels,
                 fileRef.name));
     }
 
@@ -1008,7 +1008,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
             if (tokens.size() != static_cast<size_t>(channels)) {
                 throw CsvException(
                     ErrorMessages::format(
-                        static_cast<ErrorMessageT>(0x23),
+                        CsvInconsistentChannels,
                         fileRef.name));
             }
 
@@ -1032,7 +1032,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
         if (numTokens == 0) {
             throw CsvException(
                 ErrorMessages::format(
-                    static_cast<ErrorMessageT>(0x23),
+                    CsvInconsistentChannels,
                     fileRef.name));
         }
 
@@ -1082,7 +1082,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
             if (toks.size() != static_cast<size_t>(channels)) {
                 throw CsvException(
                     ErrorMessages::format(
-                        static_cast<ErrorMessageT>(0x23),
+                        CsvInconsistentChannels,
                         fileRef.name));
             }
             for (size_t col = 0; col < toks.size(); ++col) {

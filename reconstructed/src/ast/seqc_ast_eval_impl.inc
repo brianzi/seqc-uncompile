@@ -563,7 +563,7 @@ std::shared_ptr<EvalResults> invertBool(                    // @0x238fb0
         // Error: expected exactly 1 value for boolean inversion.    @0x23914e-239225
         VarType vt = vals.empty() ? VarType_Unset : vals[0].varType_;
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x10), str(vt));                  // @0x2391c8-2391d9
+            CantInvertType, str(vt));                  // @0x2391c8-2391d9
         ctx.messages->errorMessage(msg, -1);                // @0x2391ea
         return std::move(result);                           // @0x2394e7
     }
@@ -610,7 +610,7 @@ std::shared_ptr<EvalResults> invertBool(                    // @0x238fb0
     } else {
         // Unsupported type → error 0x10.                            @0x23914e path
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x10), str(varType));
+            CantInvertType, str(varType));
         ctx.messages->errorMessage(msg, -1);
     }
 
@@ -670,7 +670,7 @@ std::shared_ptr<EvalResults> valueToBool(                   // @0x242e40
     if (vals.size() != 1) {
         // count == 0 or count > 1 → error 0x11 with VarType_Unset. @0x242f87-243028
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x11), str(VarType_Unset));
+            CantInterpretAsBool, str(VarType_Unset));
         ctx.messages->errorMessage(msg, -1);
         return out;                                         // @0x24306d
     }
@@ -734,7 +734,7 @@ std::shared_ptr<EvalResults> valueToBool(                   // @0x242e40
     } else {
         // Unsupported type → error 0x11 with actual varType.        @0x243447→242f87
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x11), str(varType));
+            CantInterpretAsBool, str(varType));
         ctx.messages->errorMessage(msg, -1);
     }
 
@@ -981,7 +981,7 @@ std::shared_ptr<EvalResults> evalGreater(                   // @0x235ac0
         std::string lhsStr = str(lvt);                      // @0x235d99
         std::string rhsStr = str(rvt);                       // @0x235dcb
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x92), lhsStr, rhsStr);            // @0x235dd0-235dea
+            CantCompareTypes, lhsStr, rhsStr);            // @0x235dd0-235dea
         ctx.messages->errorMessage(msg, -1);                 // @0x235df6-235dfe
     }
 
@@ -1242,7 +1242,7 @@ std::shared_ptr<EvalResults> evalLower(                     // @0x237440
         std::string lhsStr = str(lvt);                      // @0x23780f
         std::string rhsStr = str(rvt);                       // @0x237840
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x92), lhsStr, rhsStr);            // @0x23785f
+            CantCompareTypes, lhsStr, rhsStr);            // @0x23785f
         ctx.messages->errorMessage(msg, -1);                 // @0x23786e-237873
     }
 
@@ -1526,7 +1526,7 @@ std::shared_ptr<EvalResults> evalEqual(                     // @0x239be0
         std::string lhsStr = str(lvt);
         std::string rhsStr = str(rvt);
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x92), lhsStr, rhsStr);
+            CantCompareTypes, lhsStr, rhsStr);
         ctx.messages->errorMessage(msg, -1);
     }
 
@@ -1852,7 +1852,7 @@ std::shared_ptr<EvalResults> evalShift(                     // @0x232850
         std::string lhsStr = str(lvt);
         std::string rhsStr = str(rvt);
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0xD4), lhsStr, rhsStr);           // @0x234ec0-234ee0
+            CantShiftTypes, lhsStr, rhsStr);           // @0x234ec0-234ee0
         ctx.messages->errorMessage(msg, -1);                 // @0x234ef0
     }
 
@@ -2065,7 +2065,7 @@ std::shared_ptr<EvalResults> evalAnd(                       // @0x23ea20
             std::string lhsStr = std::to_string(lhsInt);
             std::string rhsStr = std::to_string(rhsInt);
             std::string msg = ErrorMessages::format(
-                ErrorMessageT(0xFD), lhsStr, rhsStr);             // @0x23f530-23f560
+                BitwiseNegativeOp2, lhsStr, rhsStr);             // @0x23f530-23f560
             ctx.messages->errorMessage(msg, -1);                   // @0x23f570
             // continues — not fatal
         }
@@ -2089,7 +2089,7 @@ std::shared_ptr<EvalResults> evalAnd(                       // @0x23ea20
         std::string lhsStr = str(lvt);
         std::string rhsStr = str(rvt);
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x8F), lhsStr, rhsStr);                 // @0x23f680-23f6a0
+            CantBitAndTypes, lhsStr, rhsStr);                 // @0x23f680-23f6a0
         ctx.messages->errorMessage(msg, -1);                       // @0x23f6b0
     }
 
@@ -2283,7 +2283,7 @@ std::shared_ptr<EvalResults> evalOr(                        // @0x240a30
             std::string lhsStr = std::to_string(lhsInt);
             std::string rhsStr = std::to_string(rhsInt);
             std::string msg = ErrorMessages::format(
-                ErrorMessageT(0xFD), lhsStr, rhsStr);             // @0x2418e9
+                BitwiseNegativeOp2, lhsStr, rhsStr);             // @0x2418e9
             ctx.messages->errorMessage(msg, -1);
             // continues — not fatal
         }
@@ -2307,7 +2307,7 @@ std::shared_ptr<EvalResults> evalOr(                        // @0x240a30
         std::string lhsStr = str(lvt);
         std::string rhsStr = str(rvt);
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0x90), lhsStr, rhsStr);                 // @0x240eea
+            CantBitOrTypes, lhsStr, rhsStr);                 // @0x240eea
         ctx.messages->errorMessage(msg, -1);                       // @0x240efe
     }
 
@@ -2345,7 +2345,7 @@ std::vector<AsmList::Asm> jumpIfZero(                                // @0x2149f
     if (vals.size() > 1) {
         // Error: condition must produce exactly one value.           // @0x214a3a
         ctx.messages->errorMessage(
-            errMsg[ErrorMessageT(0x7e)], -1);                        // @0x214a7a
+            errMsg[NoValidBranchArg], -1);                        // @0x214a7a
         return result;
     }
 
@@ -2374,7 +2374,7 @@ std::vector<AsmList::Asm> jumpIfZero(                                // @0x2149f
 
     // 5. Unsupported type → error.                                  // @0x214a3a (shared path)
     ctx.messages->errorMessage(
-        errMsg[ErrorMessageT(0x7e)], -1);
+        errMsg[NoValidBranchArg], -1);
     return result;
 }
 

@@ -173,7 +173,7 @@ unsigned int AWGAssemblerImpl::getVal(std::shared_ptr<AsmExpression> const& expr
             return static_cast<unsigned int>(val) & mask;
         }
         // Value overflow — report error #5 with (val, bits)
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(5), val, bits);
+        std::string msg = ErrorMessages::format(ValueOutOfRange, val, bits);
         errorMessage(msg);
         return 0;
     }
@@ -199,7 +199,7 @@ uint64_t AWGAssemblerImpl::opcode0(unsigned int opcode, std::shared_ptr<AsmExpre
     if (e->children.begin() != e->children.end()) {
         // Error: unexpected arguments
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 0, 0);
+        std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 0, 0);
         errorMessage(msg);
     }
 
@@ -224,7 +224,7 @@ uint64_t AWGAssemblerImpl::opcode1(unsigned int opcode, std::shared_ptr<AsmExpre
     if (byte_size <= 0x10) {
         // Wrong number of arguments: expected 1-2 range
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 1, 2);
+        std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 1, 2);
         errorMessage(msg);
         return 0;
     }
@@ -235,7 +235,7 @@ uint64_t AWGAssemblerImpl::opcode1(unsigned int opcode, std::shared_ptr<AsmExpre
         opcode |= (reg << 24);
     } else {
         // Null register child — error #1 "expected register at position 1"
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 1);
+        std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 1);
         errorMessage(msg);
     }
 
@@ -245,7 +245,7 @@ uint64_t AWGAssemblerImpl::opcode1(unsigned int opcode, std::shared_ptr<AsmExpre
         opcode |= val;
     } else {
         // Null value child — error #2
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 1);
+        std::string msg = ErrorMessages::format(OpcodeValNotGiven, 1);
         errorMessage(msg);
     }
 
@@ -268,7 +268,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
     // Expects exactly 0x40 bytes = 4 children
     if (byte_size != 0x40) {
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 2, 4);
+        std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 2, 4);
         errorMessage(msg);
         return 0;
     }
@@ -278,7 +278,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int reg = getReg(children_begin[0]);
         opcode |= (reg << 24);
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 2);
+        std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 2);
         errorMessage(msg);
     }
 
@@ -287,7 +287,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int val = getVal(children_begin[1], 8);
         opcode |= (val << 16);
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 2);
+        std::string msg = ErrorMessages::format(OpcodeValNotGiven, 2);
         errorMessage(msg);
     }
 
@@ -296,7 +296,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int val = getVal(children_begin[2], 8);
         opcode |= (val << 8);
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 2);
+        std::string msg = ErrorMessages::format(OpcodeValNotGiven, 2);
         errorMessage(msg);
     }
 
@@ -305,7 +305,7 @@ uint64_t AWGAssemblerImpl::opcode2(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int val = getVal(children_begin[3], 8);
         opcode |= val;
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 2);
+        std::string msg = ErrorMessages::format(OpcodeValNotGiven, 2);
         errorMessage(msg);
     }
 
@@ -372,7 +372,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
                 unsigned int reg = getReg(children_begin[0]);
                 opcode |= (reg << 24);
             } else {
-                std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 3);
+                std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 3);
                 errorMessage(msg);
             }
         }
@@ -384,7 +384,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
             unsigned int reg2 = getReg(children_begin[1]);
             opcode |= (reg2 << 20);
         } else {
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 3);
+            std::string msg = ErrorMessages::format(OpcodeValNotGiven, 3);
             errorMessage(msg);
         }
 
@@ -395,7 +395,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
             unsigned int val = getVal(children_begin[2], 20);
             return opcode | val;
         } else {
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 3);
+            std::string msg = ErrorMessages::format(OpcodeValNotGiven, 3);
             errorMessage(msg);
             return opcode;
         }
@@ -409,7 +409,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int reg = getReg(children_begin[0]);
         opcode |= (reg << 24);
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 3);
+        std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 3);
         errorMessage(msg);
     }
 
@@ -420,7 +420,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int reg2 = getReg(children_begin[1]);
         opcode |= (reg2 << 20);
     } else {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 3);
+        std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 3);
         errorMessage(msg);
     }
 
@@ -435,7 +435,7 @@ uint64_t AWGAssemblerImpl::opcode3(unsigned int opcode, std::shared_ptr<AsmExpre
         unsigned int val = getVal(children_begin[2], 20);
         return opcode | val;
     } else if (e->children.size() > 2) {
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 3);
+        std::string msg = ErrorMessages::format(OpcodeValNotGiven, 3);
         errorMessage(msg);
         return opcode;
     } else {
@@ -472,7 +472,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
                     unsigned int reg = getReg(children_begin[0]);
                     opcode = (reg << 20) | 0xF6000000;
                 } else {
-                    std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 4);
+                    std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 4);
                     errorMessage(msg);
                     opcode = 0xF6000000;
                 }
@@ -485,7 +485,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
                     DeviceConstants* dc = *(DeviceConstants**)this;
                     if ((unsigned long)val >= dc->memoryDepth) {
                         // Error #10: address out of range
-                        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(10), dc->memoryDepth);
+                        std::string msg = ErrorMessages::format(UserRegNotExist, dc->memoryDepth);
                         errorMessage(msg);
                     }
                     // Reload and get val again for the actual encoding
@@ -519,7 +519,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
             unsigned int reg = getReg(children_begin[0]);
             opcode |= (reg << 20);
         } else {
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 4);
+            std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 4);
             errorMessage(msg);
         }
         // child[1] = val(20)
@@ -529,7 +529,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
             unsigned int val = getVal(children_begin[1], 20);
             opcode |= val;
         } else {
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(2), 4);
+            std::string msg = ErrorMessages::format(OpcodeValNotGiven, 4);
             errorMessage(msg);
         }
         return opcode;
@@ -545,7 +545,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
         if (idxRotated > 0xD) {
             // Unknown opcode for 1-child format — error
             std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-            std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 4, 2);
+            std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 4, 2);
             errorMessage(msg);
             return 0;
         }
@@ -583,7 +583,7 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
                 unsigned int reg = getReg(children_begin[0]);
                 opcode |= (reg << 20);
             } else {
-                std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(1), 4);
+                std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 4);
                 errorMessage(msg);
             }
             return opcode;
@@ -605,14 +605,14 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
         // Unknown opcode for 0-child format — error with child count info
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
         size_t actualChildren = e->children.size();
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(4), cmdName, 4, 1, actualChildren);
+        std::string msg = ErrorMessages::format(TooFewArguments, cmdName, 4, 1, actualChildren);
         errorMessage(msg);
         return 0;
 
     } else {
         // > 2 children: error
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 4, 2);
+        std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 4, 2);
         errorMessage(msg);
         return 0;
     }
@@ -634,7 +634,7 @@ uint64_t AWGAssemblerImpl::opcode5(unsigned int opcode, std::shared_ptr<AsmExpre
     // Expects exactly 0x20 bytes = 2 children
     if (byte_size != 0x20) {
         std::string cmdName = Assembler::commandToString(static_cast<Assembler::Command>(e->command));
-        std::string msg = ErrorMessages::format(static_cast<ErrorMessageT>(7), cmdName, 5, 2);
+        std::string msg = ErrorMessages::format(WrongArgCount, cmdName, 5, 2);
         errorMessage(msg);
         return 0;
     }

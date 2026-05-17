@@ -113,13 +113,13 @@ VarType combine(VarType lhs, VarType rhs) {  // @0x247f50
     if (lhs == VarType_Unset) {
         if (static_cast<unsigned>(rhs) > 6)
             throw VarTypeException(
-                ErrorMessages::format(ErrorMessageT(0x91), str(lhs), str(rhs)));
+                ErrorMessages::format(CantCombineTypes, str(lhs), str(rhs)));
         return rhs;
     }
 
     if (static_cast<unsigned>(lhs) > 6 || static_cast<unsigned>(rhs) > 6)
         throw VarTypeException(
-            ErrorMessages::format(ErrorMessageT(0x91), str(lhs), str(rhs)));
+            ErrorMessages::format(CantCombineTypes, str(lhs), str(rhs)));
 
     // Rows 1-6: static lookup tables from binary .rodata.
     // combineTable[lhs-1][rhs] — indexed by (lhs - 1) since row 0 is handled above.

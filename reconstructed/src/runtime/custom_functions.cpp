@@ -1060,7 +1060,7 @@ std::shared_ptr<WaveformFront> PlayArgs::secureLoadWaveform(
         }
         // @0x1712e7: format error 0xEB with (original name, csv name)
         std::string msg = ErrorMessages::format(
-            static_cast<ErrorMessageT>(0xEB), name, csvName);
+            WaveNotUnique, name, csvName);
         // @0x1712ec: call reportWarning_ (std::function at PlayArgs+0x10)
         if (reportWarning_) {
             reportWarning_(msg);
@@ -1171,7 +1171,7 @@ int getPlayRate(EvalResultValue const& val, std::string const& name, bool strict
     }
     // Not a const/cvar: throw with error 0x9f
     throw CustomFunctionsException(                                      // @0x163770
-        ErrorMessages::format(static_cast<ErrorMessageT>(0x9f), name, str(val.varType_)));
+        ErrorMessages::format(SampleRateConstOnly, name, str(val.varType_)));
 }
 
 // ============================================================================

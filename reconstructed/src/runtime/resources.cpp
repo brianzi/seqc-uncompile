@@ -1586,7 +1586,7 @@ void Resources::updateConst(std::string const& name,
         // (`ConditionalNeedVarConst`) may not match the binary's actual
         // string here; see unknowns.md item #92.
         throw ResourcesException(
-            errMsg[static_cast<ErrorMessageT>(32)]);
+            errMsg[ModifyConst]);
     }
 
     bool const frozen =

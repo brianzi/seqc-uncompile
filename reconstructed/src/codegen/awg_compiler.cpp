@@ -86,7 +86,7 @@ std::string compressSourceString(std::string const& source, std::string const& o
     int ret = deflateInit(&strm, 9);  // @0x109f12: level 9
     if (ret != Z_OK) {
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0x1e), outputName));
+            ErrorMessages::format(CompressError, outputName));
     }
 
     std::string result;
@@ -99,7 +99,7 @@ std::string compressSourceString(std::string const& source, std::string const& o
         if (ret == Z_STREAM_ERROR) {
             deflateEnd(&strm);
             throw ZIAWGCompilerException(
-                ErrorMessages::format(ErrorMessageT(0x1e), outputName));
+                ErrorMessages::format(CompressError, outputName));
         }
         size_t have = sizeof(chunk) - strm.avail_out;
         result.append(reinterpret_cast<char*>(chunk), have);
@@ -109,7 +109,7 @@ std::string compressSourceString(std::string const& source, std::string const& o
 
     if (ret != Z_STREAM_END) {
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0x1e), outputName));
+            ErrorMessages::format(CompressError, outputName));
     }
 
     return result;
@@ -856,14 +856,14 @@ void AWGCompilerImpl::stepInnerCompile(std::string const& source) {  // @0x106cb
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0xDA), devStr));
+            ErrorMessages::format(FifoNotSupported, devStr));
     }
     if (!isHirzel && !hasDeviceConstants) {
         // @0x107730: throw for non-Hirzel device with unsupported type
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0xDB), devStr));
+            ErrorMessages::format(FifoRequired, devStr));
     }
 
     // 2. Store source into sourceText_
@@ -963,7 +963,7 @@ void AWGCompilerImpl::stepCheckLimits() {  // @0x10739e..0x107478
         CompilerMessage msg;
         msg.type = CompilerMessage::Error;
         msg.lineNr = -1;
-        msg.message = ErrorMessages::format(ErrorMessageT(0x0C),
+        msg.message = ErrorMessages::format(ProgramTooLarge,
             static_cast<uint64_t>(opcodeCount),
             static_cast<uint64_t>(maxOpcodes));
         compileMessages_.push_back(std::move(msg));
@@ -992,7 +992,7 @@ void AWGCompilerImpl::stepCheckLimits() {  // @0x10739e..0x107478
         if (nonNullWaveformCount > maxWaveforms) {
             CompilerMessage msg;
             msg.type = CompilerMessage::Error;
-            msg.message = ErrorMessages::format(ErrorMessageT(0xF1),
+            msg.message = ErrorMessages::format(TooManyWavetableWaves,
                 nonNullWaveformCount, maxWaveforms);
             compileMessages_.push_back(std::move(msg));
             throw ZIAWGCompilerException("Waveform memory exceeded");
@@ -1025,13 +1025,13 @@ void AWGCompilerImpl::stepInnerCompileFromAsmList(
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0xDA), devStr));
+            ErrorMessages::format(FifoNotSupported, devStr));
     }
     if (!isHirzel && !hasDeviceConstants) {
         std::string devStr = AWGCompilerConfig::getAwgDeviceTypeString(
             static_cast<AwgDeviceType>(config_->deviceType));
         throw ZIAWGCompilerException(
-            ErrorMessages::format(ErrorMessageT(0xDB), devStr));
+            ErrorMessages::format(FifoRequired, devStr));
     }
 
     // 2-4. Same outer-state preludes as stepInnerCompile.
@@ -1206,7 +1206,7 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
                 ifs.open(fpath.string(), std::ios::in | std::ios::binary | std::ios::ate);  // mode=0xe @0x104c21
                 if (!ifs) {
                     throw ZIAWGCompilerException(
-                        ErrorMessages::format(ErrorMessageT(0xe3), pathStr));
+                        ErrorMessages::format(WaveformNotExist, pathStr));
                 }
 
                 auto fileSize = static_cast<int32_t>(ifs.tellg());  // @0x104c5c
@@ -1250,7 +1250,7 @@ void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // 
                 ifs.open(fpath.string(), std::ios::in | std::ios::binary | std::ios::ate);
                 if (!ifs) {
                     throw ZIAWGCompilerException(
-                        ErrorMessages::format(ErrorMessageT(0xe3), pathStr));
+                        ErrorMessages::format(WaveformNotExist, pathStr));
                 }
 
                 auto fileSize = static_cast<int32_t>(ifs.tellg());

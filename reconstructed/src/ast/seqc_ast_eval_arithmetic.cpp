@@ -427,7 +427,7 @@ std::shared_ptr<EvalResults> SeqCVariable::evaluate(
         //     Binary: ErrorMessages::format<string>(0xE0, name) @0x20a17b,
         //             errorMessage(msg, lineNr_) @0x20a18b.
         std::string msg = ErrorMessages::format(
-            ErrorMessageT(0xE0), name);                     // @0x20a17b
+            CantAssignTypeless, name);                     // @0x20a17b
         ctx.messages->errorMessage(msg, lineNr_);             // @0x20a18b
         break;
     }
@@ -709,7 +709,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                 //                                          // @0x24438e-244398
                 if (rhsType == VarType_String) {
                     ctx.messages->errorMessage(
-                        ErrorMessages::format(ErrorMessageT(0x8b),
+                        ErrorMessages::format(CantAssignType,
                                               str(VarType_String),
                                               str(VarType_Const)),
                         lineNr_);
@@ -778,7 +778,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
                         rhsResult.getValue().toString();
                     if (!ctx.wavetable->waveformExists(rhsName)) {
                         ctx.messages->errorMessage(
-                            ErrorMessages::format(ErrorMessageT(0xe9),
+                            ErrorMessages::format(WaveformNotFound,
                                                   rhsName),
                             lineNr_);
                     } else {
@@ -807,7 +807,7 @@ std::shared_ptr<EvalResults> SeqCAssign::evaluate(
             // missed.)
             if (rhsTypeOrUnset(rhsResult) != VarType_Unset) {
                 ctx.messages->errorMessage(
-                    ErrorMessages::format(ErrorMessageT(0x8b),
+                    ErrorMessages::format(CantAssignType,
                                           str(rhsTypeOrUnset(rhsResult)),
                                           str(lhsType)),
                     lineNr_);
@@ -908,7 +908,7 @@ std::shared_ptr<EvalResults> SeqCPlus::evaluate(
         if (!rhsResult.values_.empty() && rhsResult.values_.size() <= 1)
             rhsT = rhsResult.values_.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x73),
+            ErrorMessages::format(CantAddTypes,
                                   str(lhsT), str(rhsT)),
             -1);                                              // @0x22ad3a
         goto name_tail;
@@ -1162,7 +1162,7 @@ std::shared_ptr<EvalResults> SeqCPlus::evaluate(
             VarType lhsT = lhsType;                           // @0x22acbf-22acc7
             VarType rhsT = rhsTypeOrUnset(rhsResult);                  // @0x22acd7-22acfd
             ctx.messages->errorMessage(                        // @0x22ad3a
-                ErrorMessages::format(ErrorMessageT(0x73),
+                ErrorMessages::format(CantAddTypes,
                                       str(lhsT), str(rhsT)),
                 -1);
         }
@@ -1242,7 +1242,7 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
         if (!rhsResult.values_.empty() && rhsResult.values_.size() <= 1)
             rhsT = rhsResult.values_.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x74),
+            ErrorMessages::format(CantSubtractTypes,
                                   str(lhsT), str(rhsT)),
             -1);                                              // @0x22d4ba
         goto name_tail;
@@ -1515,7 +1515,7 @@ std::shared_ptr<EvalResults> SeqCMinus::evaluate(
             VarType lhsT = lhsType;
             VarType rhsT = rhsTypeOrUnset(rhsResult);
             ctx.messages->errorMessage(                        // @0x22d4ba
-                ErrorMessages::format(ErrorMessageT(0x74),
+                ErrorMessages::format(CantSubtractTypes,
                                       str(lhsT), str(rhsT)),
                 -1);
         }
@@ -1590,7 +1590,7 @@ std::shared_ptr<EvalResults> SeqCMult::evaluate(
         if (!rhsResult.values_.empty() && rhsResult.values_.size() <= 1)
             rhsT = rhsResult.values_.back().varType_;
         ctx.messages->errorMessage(
-            ErrorMessages::format(ErrorMessageT(0x8c),
+            ErrorMessages::format(CantMultiplyTypes,
                                   str(lhsT), str(rhsT)),
             -1);                                              // @0x22f3e2
         goto name_tail;
@@ -1720,7 +1720,7 @@ std::shared_ptr<EvalResults> SeqCMult::evaluate(
             VarType lhsT = lhsType;
             VarType rhsT = rhsTypeOrUnset(rhsResult);
             ctx.messages->errorMessage(                        // @0x22f465
-                ErrorMessages::format(ErrorMessageT(0x8c),
+                ErrorMessages::format(CantMultiplyTypes,
                                       str(lhsT), str(rhsT)),
                 -1);
         }
@@ -1819,7 +1819,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
         // Direct BST lookup for 0xdf → errorMessage(string, -1).
         ctx.messages->errorMessage(                            // @0x2312bd
             ErrorMessages::messages.at(static_cast<int>(
-                ErrorMessageT(0xdf))),
+                DivNotSupportedVar)),
             -1);
         goto name_tail;
     }
@@ -1833,7 +1833,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
     if (lhsCount == 0 || lhsCount > 1) {
         VarType rhsT = rhsTypeOrUnset(rhsResult);
         ctx.messages->errorMessage(                            // @0x23139a
-            ErrorMessages::format(ErrorMessageT(0x8d),
+            ErrorMessages::format(CantDivideTypes,
                                   str(VarType_Unset), str(rhsT)),
             -1);
         goto name_tail;
@@ -1861,7 +1861,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
                 // Divide-by-zero: BST search for 0x29.       // @0x2317a1→2318d9
                 ctx.messages->errorMessage(                    // @0x2318e5
                     ErrorMessages::messages.at(static_cast<int>(
-                        ErrorMessageT(0x29))),
+                        DivisionByZero)),
                     -1);
                 goto name_tail;
             }
@@ -1896,7 +1896,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
         {
             ctx.messages->errorMessage(                        // @0x2312bd
                 ErrorMessages::messages.at(static_cast<int>(
-                    ErrorMessageT(0x2a))),
+                    CantDivConstByWave)),
                 -1);
             goto name_tail;
         }
@@ -1918,7 +1918,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
             if (floatEqual(rhsCheck, 0.0)) {                   // @0x231631
                 // error 0x29 via errMsg[0x29].                // @0x231664→2318dd
                 ctx.messages->errorMessage(                    // @0x2318e5
-                    errMsg[ErrorMessageT(0x29)], -1);
+                    errMsg[DivisionByZero], -1);
                 goto name_tail;
             }
 
@@ -1950,7 +1950,7 @@ std::shared_ptr<EvalResults> SeqCDiv::evaluate(
             VarType lhsT = lhsType;
             VarType rhsT = rhsTypeOrUnset(rhsResult);
             ctx.messages->errorMessage(                        // @0x23139a
-                ErrorMessages::format(ErrorMessageT(0x8d),
+                ErrorMessages::format(CantDivideTypes,
                                       str(lhsT), str(rhsT)),
                 -1);
         }

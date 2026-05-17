@@ -612,7 +612,7 @@ std::shared_ptr<EvalResults> CustomFunctions::play(
         if (!config_->isHirzel) {                                    // @0x15fe0d: cmpb $0x0,0x18(%rax)
             // Non-Hirzel + SubFunc==0 → throw error 0xa5            @0x16098c
             throw CustomFunctionsException(
-                ErrorMessages::format(ErrorMessageT(0xa5)));
+                ErrorMessages::format(PrefetchNotSupported));
         }
         // Hirzel + SubFunc==0: emit asmPrefetch only (no asmPlay)
         {
