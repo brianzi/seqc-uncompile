@@ -591,22 +591,39 @@ iteration cycle.
   data-flow analysis showed only `--from=asm` is round-trippable
   from a single input file.  The other two are deferred (see §2
   "Out of scope").
+- **Dump-point correction (IF-308, 2026-05):** the existing
+  `--to=asm` implementation dumps post-full-pipeline assembler
+  text — not suitable as `--from=asm` input.  T6.2 refactors
+  `--to=asm` to dump `asmList_` at the binary's natural cut
+  point (after `stepOptPre`, before `stepPrefetch`,
+  `compiler.cpp:598-602`) so that round-trip works.
 - Implement `--from=asm` only (input = `.seqasm` via
   `AsmList::deserialize`).  Auto-detect from `.seqasm`
   extension; `-x asm` forces.
-- Resume boundary: after `stepBuildAsmPreamble`, before
-  `stepOptPre` (the same point where the binary's
-  `serializeRoundTrip` debug flag re-enters at
-  `compiler.cpp:574-577`).
-- Driver flow: `compiler.compiler().reset() → setupResources()
-  → setAsmList(deserialised) → setPlaceholderAsm(recovered)`,
-  then `stepOptPre` onwards via the T5b API.
+- Resume boundary: after `stepOptPre`, before `stepPrefetch`
+  (the same point where the binary's `serializeRoundTrip` debug
+  flag re-enters at `compiler.cpp:598-602`).
+- Driver flow for `--to=asm`: drive front end stage-by-stage via
+  the IF-307 `compiler()` accessor (`reset → setupResources →
+  stepParse → stepToSeqCAst → stepLower → stepBuildAsmPreamble →
+  stepOptPre`), then `asmList_.serialize()` → primary output.
+- Driver flow for `--from=asm`: `AsmList::deserialize`, scan for
+  the unique `node->type == NodeType::Load` entry (the
+  `asmLoadPlaceholder` anchor — verified unique pre-prefetch),
+  then `compiler.compiler().reset() → setupResources() →
+  setAsmList(deserialised) → setPlaceholderAsm(found) →
+  stepPrefetch → stepOptPost → stepUnsyncCervino → stepProject`,
+  then hand off to the back end (`stepAssembleOpcodes →
+  stepCheckLimits → writeToStream`).  No sidecar; the placeholder
+  is identified by node type.
 - Sanctioned recon edit: see IF-307 (forward-declared
   `Compiler` + `AWGCompiler::compiler()` accessor, factored
   public `Compiler::setupResources()` helper, two narrow public
   setters `setAsmList` / `setPlaceholderAsm`).  ~5 lines of
   header additions, ~15 lines of `.cpp` additions, ~2 lines of
-  refactor inside `stepToSeqCAst`.
+  refactor inside `stepToSeqCAst`.  No additional recon surface
+  needed for the dump-point fix — the driver re-uses the same
+  T6.1 accessor it would have needed for `--from=asm`.
 - Validate stage compatibility at flag-parse time
   (`--from=asm --to=parse` is rejected).
 - Test contract: strict byte-equal ELF round-trip in

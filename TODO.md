@@ -492,15 +492,18 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       is round-trippable from a single input file.  The other two
       modes are deferred to T6-future entries below.
       Input is auto-detected from the `.seqasm` extension; `-x asm`
-      forces.  Resume boundary is between `stepBuildAsmPreamble`
-      and `stepOptPre` — the same point exercised by the binary's
-      `serializeRoundTrip` debug flag at `compiler.cpp:574-577`.
+      forces.  Resume boundary is between `stepOptPre` and
+      `stepPrefetch` — the same point exercised by the binary's
+      `serializeRoundTrip` debug flag at `compiler.cpp:598-602`
+      (corrected from earlier design note per **IF-308**).
       **Depends on T5b** and adds a sanctioned recon edit
       (**IF-307**, pre-approved): `AWGCompiler::compiler()` pImpl
       accessor, factored public `Compiler::setupResources()`
       helper (code-move from `stepToSeqCAst:351-363`), two narrow
-      public setters `setAsmList` / `setPlaceholderAsm`.  Test
-      contract: strict byte-equal ELF round-trip.
+      public setters `setAsmList` / `setPlaceholderAsm`.  T6.2
+      also addresses **IF-308** by refactoring `--to=asm` to dump
+      at the binary's natural cut point.  Test contract: strict
+      byte-equal ELF round-trip.
 
   - [ ] **T6.1 — recon edits (IF-307).**  Add forward-declared
         `class Compiler;` + public `Compiler& compiler()` accessor
@@ -513,17 +516,31 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
         `test_seqcc_to` 4/4) — pure additive change, byte-equality
         must hold.
 
-  - [ ] **T6.2 — driver wiring + round-trip test.**  Extend
-        `SeqcDriver::compile()` to handle `opts.fromStage == "asm"`:
-        read input as `.seqasm` text, `AsmList::deserialize`,
-        construct/reset `Compiler` via `compiler().reset() →
-        setupResources() → setAsmList(...) → setPlaceholderAsm(...)`,
-        then call `stepOptPre` onwards.  Add
-        `tests/tools/test_seqcc_from.py` (round-trip: compile a
-        curated set of cases with `--to=asm` to produce
-        `.seqasm`, then re-compile with `--from=asm` to ELF, then
-        assert byte-equal ELF vs the direct-compile output of the
-        same cases).  Stage compatibility: reject `--from=asm
+  - [ ] **T6.2 — driver wiring + round-trip test.**  Two-part:
+        **(a)** refactor `--to=asm` to dump `asmList_` at the
+        binary's natural round-trip cut point (after `stepOptPre`,
+        before `stepPrefetch`), per **IF-308**.  Driver drives the
+        front end stage-by-stage via the IF-307 `compiler()`
+        accessor (`reset → setupResources → stepParse →
+        stepToSeqCAst → stepLower → stepBuildAsmPreamble →
+        stepOptPre`), then emits `asmList_.serialize()` as the
+        primary output.  This is the same cut point the binary's
+        own `serializeRoundTrip` debug flag uses
+        (`compiler.cpp:598-602`).
+        **(b)** add `opts.fromStage` CLI wiring + `--from=asm`
+        path: read input as `.seqasm`, `AsmList::deserialize`,
+        scan deserialised list for the unique `NodeType::Load`
+        entry (the asmLoadPlaceholder anchor — verified unique
+        pre-prefetch), then drive `compiler().reset() →
+        setupResources() → setAsmList(...) → setPlaceholderAsm(...)
+        → stepPrefetch → stepOptPost → stepUnsyncCervino →
+        stepProject`, then hand off to
+        `AWGCompiler::stepAssembleOpcodes → stepCheckLimits →
+        writeToStream`.  No sidecar; placeholder identified by
+        node type.  Add `tests/tools/test_seqcc_from.py` (curated
+        cases compile to `.seqasm` via `--to=asm`, then re-compile
+        via `--from=asm` to ELF, assert byte-equal ELF vs direct
+        compile).  Stage compatibility: reject `--from=asm
         --to={parse,astgen,lower}` at flag-parse time.
 
   - [ ] **T6.3 — wrap-up.**  Bump driver version (`0.10.0-T6`);

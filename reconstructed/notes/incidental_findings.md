@@ -1219,3 +1219,165 @@ compare the resulting ELF to the original direct-compile ELF).
   literal short-circuit on `--to=lower` / `--to=asm`).
 - Prerequisite for T10a (retirement of `compileSeqcWithIR` —
   no change in scope from IF-306).
+
+## IF-308  seqcc: `--to=asm` dumps post-pipeline asm, not the binary's natural round-trip cut
+
+**Status:** proposed (driver design issue surfaced during T6.2
+implementation analysis)
+**Severity:** likely-bug (design)
+**Discovered:** during T6.2 implementation planning (post-T6.1).
+
+### Observation
+
+The current `--to=asm` implementation in `tools/seqcc/src/dump.cpp`
+(`renderStagePrimary("asm")`) returns `sinks.assemblerText`, which
+is populated by `AWGCompilerImpl::stepInnerCompile` from
+`compileString_asmList_`.  That `AsmList` is the return value of
+`Compiler::compile()` — i.e. the **post-full-pipeline** AsmList,
+after `stepOptPre` + `stepPrefetch` + `stepOptPost` +
+`stepUnsyncCervino` + `stepProject` have all run.
+
+By contrast, the binary's own serialize/deserialize round-trip
+debug path (`Compiler::stepOptPre`, recon
+`reconstructed/src/codegen/compiler.cpp:598-602`, binary
+`@0x1209a1`) round-trips the AsmList at a very specific point:
+**after `optimizePreWaveform` runs**, but **before**
+`stepPrefetch` and `stepOptPost`.  Quoting the binary's own code:
+
+```cpp
+if (config_->serializeRoundTrip == 1) {
+    auto serialized = asmList_.serialize();
+    asmList_.deserialize(serialized);
+}
+```
+
+This sits inside `stepOptPre` immediately after
+`asmList_ = compileOptimizer_->optimizePreWaveform(asmList_)` and
+immediately before the `WavetableIR` construction that
+`stepPrefetch` consumes.  That is the **only** point in the
+binary's own pipeline where the AsmList round-trips through its
+text DSL.
+
+### Why the mismatch matters
+
+For `--from=asm` (planned in T6.2) to produce byte-equal ELFs, the
+dumped `.seqasm` must be a faithful capture of `asmList_` at a
+point that can be safely re-entered.  The binary's choice of
+"after `optimizePreWaveform`, before prefetch" is correct because:
+
+1. The load placeholder anchor (the unique `NodeType::Load` entry
+   that `runPrefetcher` expands) is still present in `asmList_` at
+   that point — `stepPrefetch` is the consumer that rewrites it.
+2. `compileWavetableIR_` has not yet been populated, so there is
+   no second IR that the dump would need to bundle.
+3. `compileOptimizer_` state past this point is per-instruction
+   register allocation that the post-passes reset per-call, so
+   reconstructing a fresh `AsmOptimize` on the `--from=asm` side
+   is sufficient.
+
+The current `--to=asm` output captures `asmList_` *after* all
+those transformations have already happened.  Specifically:
+
+- The load placeholder has been replaced with prefetched load
+  sequences (one `PlainLoad` per cached waveform).
+- `compileWavetableIR_` is populated and would need to be
+  re-emitted as a sidecar for any meaningful resume.
+- Post-prefetch register allocation has been applied.
+
+Resuming from such an asm would not faithfully reproduce the
+binary's behaviour — the prefetch decisions are baked in, and any
+upstream change (config flag, device retune) would silently apply
+to the second compile but not the first.
+
+### Original T6 design assumption
+
+`reconstructed/notes/seqcc_from_design.md` §2.2 ("`--from=asm`")
+implicitly assumed the dump point was pre-prefetch:
+
+> Resume at `stepOptPre` (if the input is pre-prefetch) **or**
+> `stepOptPost` (if the input already contains prefetch results)
+> [...] Whether `--from=asm` resumes at `stepOptPre` or
+> `stepOptPost` depends on the *content* of the input file.
+
+The design note correctly identified the two possible resume
+points but did not surface that the existing `--to=asm`
+implementation in `dump.cpp` always produces the second form
+(post-prefetch), which closes off the cleaner resume path.
+
+### Fix (planned for T6.2)
+
+Refactor `--to=asm` to dump `asmList_` at the binary's natural
+cut point — i.e. immediately after `stepOptPre` and before
+`stepPrefetch`.  This makes `--from=asm` a clean
+`setAsmList(deserialised) → setPlaceholderAsm(loadPlaceholder) →
+stepPrefetch` resume, mirroring the binary's own round-trip
+exactly.
+
+Driver-side mechanics:
+
+1. Drive the front end stage-by-stage via the IF-307
+   `AWGCompiler::compiler()` accessor instead of going through
+   `AWGCompiler::stepInnerCompile` (which would force the full
+   `Compiler::compile()` sequence).  Call:
+   `compiler().reset() → setupResources() → stepParse → stepToSeqCAst
+   → stepLower → stepBuildAsmPreamble → stepOptPre`, then dump
+   `asmList_.serialize()` as `--to=asm` output.
+2. The placeholder is identifiable in the deserialised list by
+   `node && node->type == NodeType::Load` (verified
+   unique pre-prefetch; only producer is
+   `AsmCommands::asmLoadPlaceholder()`).  No sidecar required.
+3. For `--from=asm`: deserialise, scan for the unique
+   `NodeType::Load` entry, then drive the back end via
+   `setAsmList → setPlaceholderAsm → stepPrefetch → stepOptPost →
+   stepUnsyncCervino → stepProject` plus the
+   `AWGCompilerImpl::stepAssembleOpcodes` + `stepCheckLimits` +
+   `writeToStream` back end.
+
+This means the driver needs to call inner `Compiler` step methods
+*before* the back end as well — which the T6.1 `compiler()`
+accessor already enables.  However the outer `AWGCompilerImpl`
+state (`sourceText_`, `compileMessages_`, `wavetableIR_`,
+`assemblerText_`, `compileString_asmList_`) must still be
+populated for `stepAssembleOpcodes` / `stepCheckLimits` /
+`writeToStream` to function.  Resolution: the driver assembles
+that state from the values it already has on hand (the inner
+`Compiler::stepProject()` return, the assembler-text re-pretty-
+printed from the post-pipeline AsmList) — no new
+`stepInnerCompileFromAsm` recon method needed, only the existing
+T6.1 surface.
+
+### Cross-references
+
+- Original `--to=asm` implementation:
+  `tools/seqcc/src/dump.cpp::renderStagePrimary("asm")` and
+  `tools/seqcc/src/driver.cpp:318` (where
+  `sinks.assemblerText` is captured from
+  `compiler.assemblerText()`).
+- Binary round-trip debug flag:
+  `reconstructed/src/codegen/compiler.cpp:598-602`.
+- T6 design note: `reconstructed/notes/seqcc_from_design.md`
+  §2.2.
+- Sanctioned T6.1 recon surface: IF-307.
+
+### Severity rationale
+
+Marked likely-bug (design) because:
+
+- The current `--to=asm` output is correct *as a debug dump* —
+  the user can read the post-pipeline assembly listing — but
+  unsuitable as `--from=asm` input.
+- T6's central deliverable (round-trip-capable `--from=asm`)
+  requires the dump-point fix.  Without it, T6.2 either ships a
+  test that asserts round-trip on broken inputs (passes by
+  accident or asserts non-equality) or skips the round-trip
+  contract entirely (defeats the design goal).
+- No binary mismatch — the binary's own `--to=asm` equivalent
+  (the debug `serializeRoundTrip` flag) dumps at the correct
+  point.  This is purely a tool-side design correction.
+
+### TODO references
+
+- TODO.md Phase T → T6.2 (refactor `--to=asm` dump point as the
+  primary T6.2 work).
+- Fix lands as part of T6.2.  Status flips "proposed" → "fixed"
+  on T6.3 wrap-up.
