@@ -160,18 +160,41 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         against `notes/magic_numbers_proposal.md`,
         `notes/error_message_audit.md`, `notes/special_registers.md`,
         IF-312.  6 open questions in §10 awaiting review.
+  - [x] **C.1bis — ErrorMessageT structural realignment.**
+        Out-of-band sub-phase inserted between C.1.a and C.1.b.
+        Coupled enum names to format-string templates structurally,
+        replacing F1's flat literal-→named-name substitution with a
+        full realignment pass.  Commits 8a83a2e, 7cae001, 4b18daa,
+        9a90cee.  Findings:
+        - 4 value-preserving 3-cycle rotations (IF-313/314/315/316,
+          clusters A/C/B/D at slots 12-15, 39-42, 30-32, 250-252)
+        - F1's "~57 sites" estimate was a 2.9× undercount; true
+          scope was 164 bare-int call sites across 15 files
+        - `error_messages.cpp`'s 360 `m[N]` table entries rewritten
+          to named-enum indexing so future renames are a compile
+          error rather than a silent mis-binding
+        - 3 stale alias enumerators removed (`InvalidRegister`,
+          `ValueOverflow`, `UnsupportedOp`)
+        - Stale prose in `resources.cpp:1269-1276,1549-1553,1585-1587`
+          (a prior agent's "halt!" comment about the slot-32 cast
+          workaround) rewritten to reflect the resolved state
+        - `magic_number_audit.md` updated: F1 marked superseded, D7
+          superseded by IF-314/315, D1-D6 IF reservations shifted
+          to IF-317..IF-322
+        - Net effect: F1 and D7 are both done; remaining FIX-NOW
+          batches F2..F10 still pending
+        `diff_test_fast` 1613/1613 byte-identical at every sub-batch.
   - [ ] **C.1.b — Resolve open questions from audit §10.**
-        Specifically: D7 rename approval (`CantDivConstByWave` →
-        `VarOrConstExpected`), F5 home (`core/types.hpp` vs new
+        Specifically: F5 home (`core/types.hpp` vs new
         `runtime/custom_functions_internal.hpp`), F4 zero-value
-        sentinel verification, batch-commit granularity, IF-313..IF-319
-        range allocation, pybind scope.
-  - [ ] **C.1.c — File DEFER items IF-313..IF-319.**  Each gets a
+        sentinel verification, batch-commit granularity, pybind
+        scope.  (D7 and IF-313..IF-319 range allocation resolved
+        by C.1bis; now IF-317..IF-322.)
+  - [ ] **C.1.c — File DEFER items IF-317..IF-322.**  Each gets a
         stable IF with call-site table and proposed-but-unverified
-        semantic.  Pulls D7 forward so F1.c can unblock.
-  - [ ] **C.1.d — FIX-NOW batch F1 (ErrorMessageT, ~57 sites).**
-        Sub-batches F1.a (csv_parser, 8 sites), F1.b (opcodes, 33
-        sites), F1.c (control-flow, 14 sites — blocked on D7).
+        semantic.  (D7 done via C.1bis.)
+  - [ ] ~~**C.1.d — FIX-NOW batch F1 (ErrorMessageT, ~57 sites).**~~
+        Done via C.1bis (commits 8a83a2e, 7cae001, 4b18daa, 9a90cee).
   - [ ] **C.1.e — FIX-NOW batches F2..F4 (enum-cast cleanup).**
         F2 `Assembler::Command` (~12), F3 `AccessMode` (~5),
         F4 `VarType` / `VarSubType` (~14).

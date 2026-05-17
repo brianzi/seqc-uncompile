@@ -463,7 +463,20 @@ existing enum or named constant.  Expected to preserve byte
 equality (`diff_test_fast` 2693/2693) because the underlying
 integer values do not change.
 
-### F1.  `ErrorMessageT` literal → named enumerator (~57 sites)
+### F1.  `ErrorMessageT` literal → named enumerator (~57 sites)  — **SUPERSEDED**
+
+> **Done in Phase D7-C.1bis** (commits 8a83a2e, 7cae001, 4b18daa,
+> 9a90cee).  See §6 D7 above for the full story.  The audit's
+> "~57 sites" estimate was a 2.9× undercount; true scope was 164
+> bare-int call sites across 15 files, plus a structural rewrite
+> of all 360 `m[N]` entries in `error_messages.cpp` to named-enum
+> indexing, plus four 3-cycle enum/template rotations
+> (IF-313/314/315/316), plus removal of three stale alias
+> enumerators.  All `diff_test_fast` byte-identical at each
+> sub-batch.
+>
+> The original audit-style scope summary below is preserved for
+> historical reference only.
 
 Replace `ErrorMessages::format(static_cast<ErrorMessageT>(N), …)`
 and `ErrorMessages::format(ErrorMessageT(N), …)` with the named
@@ -602,14 +615,21 @@ across ~25 files.
 
 ---
 
-## 6. DEFER findings (file as IF-313..IF-318)
+## 6. DEFER findings (file as IF-317..IF-322)
+
+> Note: IFs 313-316 were consumed by Phase D7-C.1bis (the
+> ErrorMessageT enum/template rotation clusters A-D); the
+> D-reservations below were shifted up by 4 accordingly.  D7 below
+> (originally reserved IF-319) is now superseded by IF-314
+> (cluster C rotation) and IF-315 (cluster B rotation, which
+> includes the slot-32 cast resolution).
 
 These have a clear literal but the right *name* requires evidence
 beyond what this audit gathered.  Each should be filed as an IF
 with the call-site table and the proposed-but-unverified semantic,
 then picked up when a GDB / disassembly trace confirms intent.
 
-### D1 (IF-313) — `0x29` cmd-set membership LUT
+### D1 (IF-317) — `0x29` cmd-set membership LUT
 
 4 sites in `asm/asm_optimize*.cpp` test `(0x29 >> cmdPlus1) & 1`
 to check if a command is in `{0, 3, 5}` after `+1` adjustment.
@@ -617,7 +637,7 @@ The set semantic (which cmds, what they have in common) isn't
 documented; GDB-confirm whether this is e.g. "branch/jump cmds" or
 "flow-control cmds" before naming.
 
-### D2 (IF-314) — `case static_cast<NodeType>(8):` literal label
+### D2 (IF-318) — `case static_cast<NodeType>(8):` literal label
 
 `codegen/prefetch.cpp` has a `case static_cast<NodeType>(8):`
 switch label with a comment `// 0x1d1273` (a binary address).
@@ -625,7 +645,7 @@ switch label with a comment `// 0x1d1273` (a binary address).
 this is the same value, the substitution is trivial (and is a
 FIX-NOW once confirmed).  Quick check, low risk.
 
-### D3 (IF-315) — `DeviceTypeCode(33)` / `DeviceFamily(0x800u)` sentinels
+### D3 (IF-319) — `DeviceTypeCode(33)` / `DeviceFamily(0x800u)` sentinels
 
 `device/device_type.cpp` and `device/device_unknown.cpp` construct
 these as "unknown" instances.  `DeviceTypeCode` / `DeviceFamily`
@@ -634,7 +654,7 @@ hypotheses: (a) `33` and `0x800u` are sentinel-but-not-zero values
 chosen for "outside the valid range"; (b) the enums are missing
 the right enumerator.  GDB-confirm which.
 
-### D4 (IF-316) — `parseCpuType` raw-numeric returns
+### D4 (IF-320) — `parseCpuType` raw-numeric returns
 
 `codegen/awg_compiler_config.cpp:38` returns 9 raw integer values
 from a string-keyed lookup.  Need to confirm each maps to an
@@ -642,33 +662,44 @@ existing `AwgDeviceType` enumerator before naming.  If they don't,
 this is PROPOSE-ENUM (add the missing values to `AwgDeviceType`)
 not FIX-NOW.
 
-### D5 (IF-317) — `holdSuppressExceptSigouts = 0x27C`
+### D5 (IF-321) — `holdSuppressExceptSigouts = 0x27C`
 
 Named constant in `play_config.hpp:83` but the value derivation
 (636 = 0x27C) isn't documented.  Check whether 0x27C is composable
 from the other `*Mask` constants in the same file.  May be a
 DISMISS once confirmed.
 
-### D6 (IF-318) — `0x54` VarType-set semantic name
+### D6 (IF-322) — `0x54` VarType-set semantic name
 
 `{2,4,6} = {VarType_Var, VarType_Const, VarType_Cvar}` per the
 existing enum, but the *group* name (why these three, what they
 have in common) isn't documented.  Likely "assignable" or
 "non-string non-wave"; needs the caller-side semantic check.
 
-### D7 (IF-319) — `CantDivConstByWave` enum entry is misnamed
+### D7 — SUPERSEDED by IF-314 (cluster C rotation) and IF-315 (cluster B rotation)
 
-`error_messages.hpp:107` declares `CantDivConstByWave = 39`, but
-`error_messages.cpp:292` defines `m[39] = "%1% expects a var or
-const argument"`.  All 14 known users (`seqc_ast_eval_control.cpp`)
-pass control-flow keywords (`"if"`, `"while"`, `"switch"`, `"do"`,
-`"repeat"`) as the first format arg, consistent with the cpp side.
-The enum entry needs to be renamed (proposed: `VarOrConstExpected`
-or `ExpectsVarOrConst`).  **F1.c is blocked on this rename**
-because we can't substitute a wrong name for a wrong literal.
+The original D7 hypothesised that `CantDivConstByWave = 39` was a
+single-entry mis-name, fixable by renaming the enum entry to
+`ExpectsVorOrConst`.  The Phase D7-C.1bis audit found this was
+**one corner of a value-preserving 3-cycle rotation** across slots
+39/40/42 (cluster C), not a standalone mis-name.  The fix landed in
+sub-batches 1-3 (commit 8a83a2e); see IF-314 for the full rotation
+table.
 
-This is technically a name-vs-template mismatch and should also be
-filed as an incidental finding regardless of the audit outcome.
+The audit also discovered three sibling 3-cycles at slots 12/13/15
+(cluster A, IF-313), 30/31/32 (cluster B, IF-315), and 250/251/252
+(cluster D, IF-316).  Cluster B incorporates the slot-32 cast
+workaround in `resources.cpp` that a prior agent had documented as
+an open question.
+
+F1 below (the `ErrorMessageT` literal-→named substitution batch) is
+also superseded by Phase D7-C.1bis sub-batches 4-5 (commits 7cae001
+and 4b18daa), which rewrote both the message-table initializer and
+all 164 call sites to use named enumerators.  The audit's "~57
+sites" estimate was a 2.9× undercount (true count: 164 sites in 15
+files); the undercount and the cluster-rotation issue both
+underline why the audit reserved this as a multi-step batch rather
+than a single grep-and-substitute pass.
 
 ---
 
