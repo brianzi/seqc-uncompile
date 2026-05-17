@@ -119,6 +119,16 @@ constexpr int kNoWaveIndex  = -1;   //!< Sentinel: no waveform index assigned (w
 constexpr int kNoNodeId     = -1;   //!< Sentinel: no AST node ID assigned (node.cpp).
 constexpr int kNoPlayIndex  = -1;   //!< Sentinel: no play index assigned (wave_index_tracker.cpp).
 
+//! \brief Maximum value of the 20-bit immediate field carried by the
+//!        prefetch / waveform-fetch opcodes (`wvf*`, `wvfi*`, `wvfs*`).
+//!
+//! Offsets `> kPrefetchAddr20BitMask` do not fit in the immediate form
+//! and require the codegen to materialise the high bits in a temporary
+//! register before emitting the fetch.  Used as a clamp ceiling for
+//! waveform-cache capacity and as the immediate-overflow boundary in
+//! `codegen/prefetch_emit.cpp` and `codegen/prefetch_placesingle.cpp`.
+constexpr uint32_t kPrefetchAddr20BitMask = 0xFFFFFu;
+
 // Playback trigger-mask constants (IF-228 E2).
 //
 // The 14-bit mask encodes per-channel "suppress" bits passed to

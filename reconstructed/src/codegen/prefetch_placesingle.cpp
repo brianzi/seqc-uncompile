@@ -1007,7 +1007,7 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                         // Compute size for prf: check isHirzel for different size calc
                         int prfSize;
                         if (config_->isHirzel) {                   // 0x1da34f
-                            // Hirzel: compute min(memCapacity * grainSize, totalSize, 0xfffff)
+                            // Hirzel: compute min(memCapacity * grainSize, totalSize, kPrefetchAddr20BitMask)
                             // cacheType selects which entry in the devConst cachePageCount/maxBlocks
                             // pair (uint32_t[2] at devConst+0x18); baseGrain at devConst+0x14.
                             int channelIdx = config_->cacheType;
@@ -1019,15 +1019,16 @@ void Prefetch::placeSingleCommand(AsmList* out, std::shared_ptr<Node> node) {
                             // branches above (lines ~493/529/581). Stack slot
                             // -0x140(%rbp) in the binary; reload here is from that
                             // same slot.
-                            prfSize = std::min({capacity, totalSize, 0xfffff}); // 0x1da373..0x1da395
+                            prfSize = std::min({capacity, totalSize,
+                                static_cast<int>(kPrefetchAddr20BitMask)}); // 0x1da373..0x1da395
                             if (channelIdx == 1) {
                                 // Align to grain boundary           // 0x1da386..0x1da395
                                 prfSize = (prfSize + baseGrain - 1) & ~(baseGrain - 1);
                             }
                         } else {
-                            // Non-Hirzel: clamp to 0xfffff          // 0x1da397
+                            // Non-Hirzel: clamp to kPrefetchAddr20BitMask  // 0x1da397
                             // Same outer-scope totalSize (stack slot -0x140).
-                            prfSize = std::min(totalSize, 0xfffff);
+                            prfSize = std::min(totalSize, static_cast<int>(kPrefetchAddr20BitMask));
                         }
 
                         // prf(stRegH, zeroReg, prfSize)             // 0x1da3c1

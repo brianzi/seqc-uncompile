@@ -58,7 +58,7 @@ extern ErrorMessages errMsg;
 detail::AddressImpl<uint32_t> Prefetch::clampToCache(detail::AddressImpl<uint32_t> addr) const {  // 0x1d6c40
     uint32_t addrVal = addr.value;
     if (!config_->isHirzel) {
-        return detail::AddressImpl<uint32_t>{std::min(addrVal, 0xFFFFFu)};
+        return detail::AddressImpl<uint32_t>{std::min(addrVal, kPrefetchAddr20BitMask)};
     }
 
     uint8_t cacheType = config_->cacheType;
@@ -71,7 +71,7 @@ detail::AddressImpl<uint32_t> Prefetch::clampToCache(detail::AddressImpl<uint32_
 
     uint32_t limit = cachePages * pageSize;
     if (limit > addrVal) limit = addrVal;
-    if (limit > 0xFFFFF) limit = 0xFFFFF;
+    if (limit > kPrefetchAddr20BitMask) limit = kPrefetchAddr20BitMask;
 
     if (cacheType == 1 /* Aligned */) {
         limit = (limit + pageSize - 1) & ~(pageSize - 1);
@@ -678,7 +678,7 @@ AsmList Prefetch::wvfImpl(AsmRegister reg, int offset,
 
     AsmList result;                                               // 0x1d6cd5
 
-    if (offset >= 0x100000) {                                     // 0x1d6ce3
+    if (offset > kPrefetchAddr20BitMask) {                        // 0x1d6ce3
         // Offset too large for immediate — use a temp register
         AsmRegister tempReg(Resources::getRegisterNumber());      // 0x1d6cf4
 
@@ -800,13 +800,13 @@ AsmList Prefetch::wvfs(Assembler::PlayDummyType playDummyType,
 
     AsmList result;                                           // 0x1d742c
 
-    if (offset >= 0x100000) {                                 // 0x1d743c
+    if (offset > kPrefetchAddr20BitMask) {                    // 0x1d743c
         // Large offset — split into high-bits ADDI + low-bits wvfs
         AsmRegister tempReg(Resources::getRegisterNumber());  // 0x1d7454
 
-        // tempReg = reg + (offset - 0xFFFFF)
+        // tempReg = reg + (offset - kPrefetchAddr20BitMask)
         AsmList addiResult = asmCommands_->addi(              // 0x1d749e
-            tempReg, reg, Immediate(offset - 0xFFFFF));
+            tempReg, reg, Immediate(offset - kPrefetchAddr20BitMask));
         result.insert(result.end(),                           // 0x1d74d4
                       addiResult.begin(), addiResult.end());
 
@@ -849,7 +849,7 @@ AsmList Prefetch::wvfs(Assembler::PlayDummyType playDummyType,
 
         // Emit wvfs with tempReg and the low 20-bit mask       // 0x1d77a9
         auto entry = asmCommands_->wvfs(
-            playDummyType, tempReg, 0xFFFFF);
+            playDummyType, tempReg, kPrefetchAddr20BitMask);
         result.push_back(entry);                                 // 0x1d77b8
     } else {
         // Offset fits in 20-bit immediate — emit directly       // 0x1d7560
