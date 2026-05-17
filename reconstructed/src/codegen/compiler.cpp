@@ -839,7 +839,7 @@ std::vector<int> Compiler::getLineMap(int offset) const {
 
     // Iterate asmList_ entries (stride 0xA8)                       // @0x123660
     for (auto& entry : asmList_) {
-        if (entry.assembler.cmd == -1)
+        if (entry.assembler.cmd == Assembler::INVALID)
             continue;
         if (entry.assembler.cmd == Assembler::LABEL) {
             seq++;

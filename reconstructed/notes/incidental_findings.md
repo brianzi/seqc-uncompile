@@ -2150,3 +2150,45 @@ to the slot as `cmd=4` / `cmd4` to use the new name.
 - `asm_list.cpp` Case C handler — only producer of `COMMENT_NOP`.
 - `asm_optimize_regalloc.cpp` — only consumer; treats it as a barrier
   alongside `INVALID`.
+
+
+## IF-327 — `Node()` default ctor passes `-1` for `numWaveSlots`
+
+**Severity:** suspicious
+**Status:** open
+
+The default constructor `Node::Node()` in `reconstructed/src/ast/node.cpp:35-37`
+delegates to `Node(NodeType{0}, 0, -1)`.  The third parameter of the simple
+ctor is documented as `numWaveSlots` and used as `wavesPerDev(numWaveSlots)`
+— i.e. it sizes a `std::vector<std::optional<std::string>>`.  Passing `-1`
+converts to `(size_t)-1 = SIZE_MAX` and would crash with `std::bad_alloc`.
+
+Either:
+
+1. The default ctor is never actually called at runtime (dead code), or
+2. The parameter name / interpretation of the third argument is wrong, or
+3. The body order is wrong — the original binary may initialise `wavesPerDev`
+   from a different source and never look at this parameter.
+
+Discovered during F10.b magic-number cleanup; left as `-1` literal rather
+than mapping to a named sentinel because no semantic interpretation
+applies cleanly.
+
+**Files**
+- `reconstructed/src/ast/node.cpp:35-37` (default ctor)
+- `reconstructed/src/ast/node.cpp:45-50` (simple ctor body)
+
+
+## IF-328 — `wave_index_tracker.cpp` comments call the field `playIndex`, source says `waveIndex`
+
+**Severity:** cosmetic
+**Status:** fixed (comments updated)
+
+`reconstructed/src/waveform/wave_index_tracker.cpp` had three stale `//`
+reconstruction comments referring to `playIndex` at offset 0x6C, while the
+field is actually `Waveform::waveIndex` (confirmed in
+`waveform_front.hpp:142` and `waveform_ir.hpp:149`).  Comments rewritten
+to `waveIndex` as part of F10.b.
+
+**Files**
+- `reconstructed/src/waveform/wave_index_tracker.cpp:139,144,158`

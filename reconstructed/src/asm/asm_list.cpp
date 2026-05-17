@@ -146,7 +146,7 @@ void AsmList::print(bool showNode, std::ostream& os, bool showHeader) const {  /
                << "): ";
         }
 
-        if (static_cast<int>(entry.assembler.cmd) != -1) {
+        if (entry.assembler.cmd != Assembler::INVALID) {
             // Real instruction
             os << entry.assembler.str(true) << "\n";
         } else {
@@ -201,14 +201,13 @@ std::string AsmList::serialize() const {  // 0x2646d0
 
     // Pass 2: serialize
     for (const auto& entry : entries) {
-        int opcode = static_cast<int>(entry.assembler.cmd);
-
-        if (opcode != -1) {
+        if (entry.assembler.cmd != Assembler::INVALID) {
             // Real instruction
             ss << entry.assembler.str(true);
 
             // Append " #disableOpt" for waveform commands with opcode ∉ {3,4,5}
             // Binary 0x26480e: checks noOpt, excludes (opcode-3)<2 and opcode==5
+            int opcode = static_cast<int>(entry.assembler.cmd);
             if (entry.noOpt && opcode != 3 && opcode != 4 && opcode != 5) {
                 ss << " #disableOpt";
             }

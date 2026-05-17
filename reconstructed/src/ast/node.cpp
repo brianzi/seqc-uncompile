@@ -7,6 +7,7 @@
 
 #include "zhinst/ast/node.hpp"
 #include "zhinst/core/error_messages.hpp"
+#include "zhinst/core/types.hpp"   // kNoNodeId sentinel
 
 #include <sstream>
 #include <unordered_map>
@@ -505,20 +506,20 @@ boost::json::value Node::toJson(const std::unordered_map<int,int>& idMap) const 
     // Look up this node's remapped ID from the map
     int remappedId = idMap.at(asmId);  // 0x264fef
 
-    // Serialize next (+0xB8) as ID or -1
-    int nextId = -1;
+    // Serialize next (+0xB8) as ID or kNoNodeId
+    int nextId = kNoNodeId;
     if (next) {
         nextId = next->nodeId;
     }
 
-    // Serialize loop (+0xE0) as ID or -1
-    int loopId = -1;
+    // Serialize loop (+0xE0) as ID or kNoNodeId
+    int loopId = kNoNodeId;
     if (loop) {
         loopId = loop->nodeId;
     }
 
-    // Serialize parent (+0xF0) — lock weak_ptr, get id or -1
-    int parentId = -1;
+    // Serialize parent (+0xF0) — lock weak_ptr, get id or kNoNodeId
+    int parentId = kNoNodeId;
     if (auto par = parent.lock()) {
         parentId = par->nodeId;
     }
@@ -661,7 +662,7 @@ void Node::installPointers(
 
     auto lookupNode = [&localMap](const boost::json::value& v) -> std::shared_ptr<Node> {
         int id = static_cast<int>(v.as_int64());
-        if (id == -1) return nullptr;
+        if (id == kNoNodeId) return nullptr;
         auto it = localMap.find(id);
         if (it != localMap.end()) return it->second;
         return nullptr;
@@ -676,7 +677,7 @@ void Node::installPointers(
     play.clear();
     for (const auto& elem : playArr) {
         int id = static_cast<int>(elem.as_int64());
-        if (id != -1) {
+        if (id != kNoNodeId) {
             auto it = localMap.find(id);
             if (it != localMap.end()) {
                 play.push_back(it->second);  // shared_ptr → weak_ptr

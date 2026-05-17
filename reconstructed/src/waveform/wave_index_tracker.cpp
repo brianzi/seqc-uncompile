@@ -5,6 +5,7 @@
 
 #include "zhinst/waveform/wave_index_tracker.hpp"
 #include "zhinst/core/error_messages.hpp"
+#include "zhinst/core/types.hpp"   // kNoWaveIndex sentinel
 
 namespace zhinst {
 
@@ -136,13 +137,9 @@ bool WaveIndexTracker::hasGaps()  // 0x29a8e0
 //
 // WaveIndexTracker(int maxIndex, WavetableManager<T> const& mgr)
 //
-// Initializes the tracker and populates the set with all non-(-1) playIndex
-// values from the waveforms in the manager's vector (mgr.waveforms_ at +0x30).
-//
-// For each shared_ptr<T> in mgr.waveforms_ (vector at mgr+0x30..mgr+0x38):
-//   - Dereferences the shared_ptr (ptr at [element+0x00])
-//   - Reads waveform->playIndex at offset 0x6C
-//   - If playIndex != -1, inserts it into the set (skipping duplicates)
+// Initializes the tracker and populates the set with all non-(kNoWaveIndex) waveIndex
+//   - Reads waveform->waveIndex at offset 0x6C
+//   - If waveIndex != kNoWaveIndex, inserts it into the set (skipping duplicates)
 // ============================================================================
 template<typename T>
 WaveIndexTracker::WaveIndexTracker(int maxIdx,  // 0x29d000 / 0x29d410
@@ -156,7 +153,7 @@ WaveIndexTracker::WaveIndexTracker(int maxIdx,  // 0x29d000 / 0x29d410
     const auto& waveforms = mgr.waveforms_;
     for (const auto& wp : waveforms) {
         int idx = wp->waveIndex;  // Waveform+0x6C
-        if (idx != -1) {
+        if (idx != kNoWaveIndex) {
             indices_.insert(idx);  // insert (ignores duplicates)
         }
     }

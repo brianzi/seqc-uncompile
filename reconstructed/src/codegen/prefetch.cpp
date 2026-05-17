@@ -10,6 +10,7 @@
 #include "zhinst/runtime/cache.hpp"
 #include "zhinst/device/device_constants.hpp"
 #include "zhinst/core/error_messages.hpp"
+#include "zhinst/core/types.hpp"   // kRateInherit sentinel
 #include "zhinst/ast/node.hpp"
 #include "zhinst/waveform/play_config.hpp"
 #include "zhinst/runtime/resources.hpp"
@@ -548,7 +549,7 @@ void Prefetch::optimizeCwvf(std::shared_ptr<Node> node) // 0x1cfc70
     case NodeType::Table: {                // 0x1d02a8
       curNode->globalRate = globalRate;    // 0x1d02b1
       int nodeRate = curNode->config.rate; // 0x1d02b7: +0x4C
-      if (nodeRate == -1) {
+      if (nodeRate == kRateInherit) {
         curNode->config.rate = globalRate; // 0x1d02c5
       }
       curNode->defaultPrecompFlags = defaultPrecompFlags; // 0x1d02cc

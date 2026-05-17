@@ -7,6 +7,7 @@
 #include "zhinst/waveform/wavetable_helpers.hpp"
 #include "zhinst/io/cached_parser.hpp"
 #include "zhinst/device/device_constants.hpp"
+#include "zhinst/core/types.hpp"   // kNoWaveIndex sentinel
 #include "zhinst/waveform/signal.hpp"
 #include "zhinst/ast/value.hpp"
 #include "zhinst/waveform/wave_index_tracker.hpp"
@@ -382,7 +383,7 @@ void WavetableFront::assignWaveIndex(
 
     if (currentIndex == index) return;
 
-    if (currentIndex != -1) {
+    if (currentIndex != kNoWaveIndex) {
         // Already has a different index assigned — error
         // Binary throws WavetableException with ErrorMessage 0xF8 (=248,
         // WaveAlreadyAssigned): "waveform %1% has already assigned index".

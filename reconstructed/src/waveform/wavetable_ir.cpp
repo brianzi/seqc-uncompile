@@ -9,6 +9,7 @@
 #include "zhinst/codegen/memory_allocator.hpp"
 #include "zhinst/runtime/cache.hpp"   // for unusedCacheLine sentinel
 #include "zhinst/core/callbacks.hpp"
+#include "zhinst/core/types.hpp"   // kNoWaveIndex sentinel
 
 #include <boost/filesystem/path.hpp>
 #include <boost/json.hpp>
@@ -523,7 +524,7 @@ void WavetableIR::assignWaveIndexImplicit()  // 0x29e8a0
     // Waveforms with waveIndex != -1 are skipped immediately (ret at +9).
     auto countFn = [this](const std::shared_ptr<WaveformIR>& wf) {
         // Skip waveforms that already have an explicit index assigned.
-        if (wf->waveIndex != -1)
+        if (wf->waveIndex != kNoWaveIndex)
             return;
 
         // Find next available autoIndex past all used indices.
