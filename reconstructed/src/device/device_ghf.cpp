@@ -12,7 +12,7 @@
 // ============================================================================
 
 #include "zhinst/device/device_subclasses.hpp"
-
+#include "zhinst/device/device_factories.hpp"
 #include <array>
 #include <utility>
 
@@ -33,7 +33,7 @@ constexpr std::array<OptionCodePair<sfc::ShfOption>, 5> kGhfliKnownOptions = {{
 // Inline FF helper for Ghf (same pattern as Shf/Shfacc).
 DeviceOptionSet buildGhfFf(unsigned long opts) {
     DeviceOptionSet set(DeviceFamily::GHF);
-    if (opts & 0x20ul) set.insert(DeviceOption::FF);
+    if (opts & kDevFlagFF) set.insert(DeviceOption::FF);
     return set;
 }
 

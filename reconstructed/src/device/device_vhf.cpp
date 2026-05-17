@@ -11,6 +11,7 @@
 // ============================================================================
 
 #include "zhinst/device/device_subclasses.hpp"
+#include "zhinst/device/device_factories.hpp"
 
 #include <array>
 #include <utility>
@@ -32,7 +33,7 @@ constexpr std::array<OptionCodePair<sfc::VhfOption>, 6> kVhfliKnownOptions = {{
 
 DeviceOptionSet buildVhfFf(unsigned long opts) {
     DeviceOptionSet set(DeviceFamily::VHF);
-    if (opts & 0x20ul) set.insert(DeviceOption::FF);
+    if (opts & kDevFlagFF) set.insert(DeviceOption::FF);
     return set;
 }
 

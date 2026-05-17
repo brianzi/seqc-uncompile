@@ -22,6 +22,7 @@
 // ============================================================================
 
 #include "zhinst/device/device_subclasses.hpp"
+#include "zhinst/device/device_factories.hpp"
 
 #include <array>
 #include <utility>
@@ -68,10 +69,10 @@ DeviceOptionSet buildInlineShfOptions(unsigned long opts,
                                       bool addPlus,   // bit 0x4000 -> PLUS (28)
                                       bool addLrt) {  // bit 0x8000 -> LRT (29)
     DeviceOptionSet set(family);
-    if (opts & 0x0020ul) set.insert(DeviceOption::FF);
-    if (addRtr  && (opts & 0x2000ul)) set.insert(DeviceOption::RTR);
-    if (addPlus && (opts & 0x4000ul)) set.insert(DeviceOption::PLUS);
-    if (addLrt  && (opts & 0x8000ul)) set.insert(DeviceOption::LRT);
+    if (opts & kDevFlagFF)            set.insert(DeviceOption::FF);
+    if (addRtr  && (opts & kDevFlagRTR))  set.insert(DeviceOption::RTR);
+    if (addPlus && (opts & kDevFlagPlus)) set.insert(DeviceOption::PLUS);
+    if (addLrt  && (opts & kDevFlagLRT))  set.insert(DeviceOption::LRT);
     return set;
 }
 

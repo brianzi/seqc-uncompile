@@ -7,6 +7,7 @@
 // ============================================================================
 
 #include "zhinst/device/device_subclasses.hpp"
+#include "zhinst/device/device_factories.hpp"
 
 #include <utility>
 
@@ -16,7 +17,7 @@ namespace detail {
 namespace {
 DeviceOptionSet buildShfaccFf(unsigned long opts) {
     DeviceOptionSet set(DeviceFamily::SHFACC);
-    if (opts & 0x20ul) set.insert(DeviceOption::FF);
+    if (opts & kDevFlagFF) set.insert(DeviceOption::FF);
     return set;
 }
 }  // namespace

@@ -76,12 +76,42 @@
 
 namespace zhinst {
 
-// Device factory option bit constants live in the anonymous namespace inside
-// device_factories.cpp (kSubtypeMask, kSubtype1..kSubtype4 etc.).  An older
-// duplicate `namespace DeviceOpts { ... }` lived here but was never referenced
+// Device factory **subtype-selector** bit constants (kSubtypeMask,
+// kSubtype1..kSubtype4) live in the anonymous namespace inside
+// device_factories.cpp — they are only consumed by the subtype-dispatch
+// switches in that one translation unit.  An older duplicate
+// `namespace DeviceOpts { ... }` lived here but was never referenced
 // from anywhere — removed in Phase R (IF-121).
+//
+// **Feature-bit** constants below are header-level (shared) because
+// they are consumed across multiple per-family TUs:
+//   - `kDevFlagFF`   in device_ghf.cpp, device_shf.cpp,
+//                    device_shfacc.cpp, device_vhf.cpp
+//   - `kDevFlagRTR`  in device_shf.cpp (SHFSG factory)
+//   - `kDevFlagPlus` in device_shf.cpp (SHFQA and SHFSG factories)
+//   - `kDevFlagLRT`  in device_shf.cpp (SHFQA factory)
 
 namespace detail {
+
+//! \brief Option bit selecting the **FF** (firmware/feature)
+//!        device sub-option.  Tested in `opts & kDevFlagFF` in
+//!        `device_ghf.cpp`, `device_shf.cpp`, `device_shfacc.cpp`,
+//!        and `device_vhf.cpp`.
+constexpr unsigned long kDevFlagFF   = 0x0020ul;
+
+//! \brief Option bit selecting the **RTR** (router) device sub-option
+//!        in the SHFSG family factory (`device_shf.cpp`).
+constexpr unsigned long kDevFlagRTR  = 0x2000ul;
+
+//! \brief Option bit selecting the **PLUS** device sub-option in the
+//!        SHFQA / SHFSG family factories (`device_shf.cpp`).
+constexpr unsigned long kDevFlagPlus = 0x4000ul;
+
+//! \brief Option bit selecting the **LRT** (long real-time) device
+//!        sub-option in the SHFQA family factory (`device_shf.cpp`).
+constexpr unsigned long kDevFlagLRT  = 0x8000ul;
+
+
 
 // ---------------------------------------------------------------------------
 // DeviceFamilyFactory — abstract base. 8 bytes (vptr only).
