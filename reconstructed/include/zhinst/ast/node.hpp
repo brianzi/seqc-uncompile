@@ -194,11 +194,20 @@ inline NodeType operator&(NodeType a, NodeType b) { return static_cast<NodeType>
 //! that JSON stores as integer IDs.
 class Node : public std::enable_shared_from_this<Node> {
 public:
-    // --- Default constructor (needed for make_shared<Node>()) ---
-    //! \brief Default-constructs an empty IR node with all fields
-    //! zero/default-initialised; used by `fromJson()` before scalar
-    //! fields are populated.
-    Node();
+    // --- No default constructor ---
+    //
+    // The binary defines no `Node()` default constructor — only the
+    // simple 3-arg ctor (`Node(NodeType, int asmId, int numWaveSlots)`
+    // at 0x12ace0) and the full 20-arg ctor (at 0x26c4a0).
+    // `Node::fromJson` uses the 20-arg ctor; every other call site uses
+    // the 3-arg ctor.  No container in source default-constructs a
+    // `Node` either.  (IF-327 resolved: an earlier reconstruction added
+    // a synthesized `Node()` delegating to `Node(NodeType{0}, 0, -1)`,
+    // but the `-1` for `numWaveSlots` would size a vector to SIZE_MAX
+    // on first invocation; the ctor existed only because the recon
+    // assumed a default ctor was needed, not because the binary has
+    // one.  Confirmed absent via `nm -a ./_seqc_compiler.so | grep
+    // zhinst4NodeC[12]`.)
 
     // --- Simple constructor: Node(NodeType type, int asmId, int numWaveSlots)
     //     Address: 0x12ace0

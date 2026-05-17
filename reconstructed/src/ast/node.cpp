@@ -23,19 +23,14 @@ namespace zhinst {
 thread_local int Node::idCounter_ = 0;  // TLS offset 0x44
 
 // ============================================================================
-// Default constructor addition.
+// No default constructor.
 //
-// Not defined in the binary (no symbol `_ZN6zhinst4NodeC1Ev` present).
-// Caller: asm_commands. Likely used for default-init in a Node-valued
-// container or POD-style aggregate. Delegates to the 3-arg ctor with
-// neutral defaults (NodeType=Invalid/0, no wave slots, asmId=-1).
-//
-// All scalar fields get the same defaults as the 3-arg ctor; the 3-arg
-// ctor in turn handles vector/weak_ptr/shared_ptr default-init.
+// Confirmed absent in binary: `nm -a ./_seqc_compiler.so | grep
+// zhinst4NodeC[12]` shows only the simple 3-arg ctor at 0x12ace0 and the
+// full 20-arg ctor at 0x26c4a0.  No call site in source default-constructs
+// `Node` (verified D7-C.3, IF-327): every `make_shared<Node>(...)` uses
+// the 3-arg or 20-arg ctor; `fromJson` uses the 20-arg ctor.
 // ============================================================================
-Node::Node()
-    : Node(NodeType{0}, 0, -1)
-{}
 
 // ============================================================================
 // Simple constructor — 0x12ace0

@@ -2227,28 +2227,59 @@ to the slot as `cmd=4` / `cmd4` to use the new name.
 ## IF-327 — `Node()` default ctor passes `-1` for `numWaveSlots`
 
 **Severity:** suspicious
-**Status:** open
+**Status:** fixed (synthesized ctor deleted; binary has none)
 
 The default constructor `Node::Node()` in `reconstructed/src/ast/node.cpp:35-37`
-delegates to `Node(NodeType{0}, 0, -1)`.  The third parameter of the simple
-ctor is documented as `numWaveSlots` and used as `wavesPerDev(numWaveSlots)`
+(pre-fix) delegated to `Node(NodeType{0}, 0, -1)`.  The third parameter of the
+simple ctor is `numWaveSlots` and used as `wavesPerDev(numWaveSlots)`
 — i.e. it sizes a `std::vector<std::optional<std::string>>`.  Passing `-1`
 converts to `(size_t)-1 = SIZE_MAX` and would crash with `std::bad_alloc`.
 
-Either:
+**Resolution (D7-C.3, this session):** interpretation (1) confirmed —
+**the default ctor is never called in source.**  Static analysis:
 
-1. The default ctor is never actually called at runtime (dead code), or
-2. The parameter name / interpretation of the third argument is wrong, or
-3. The body order is wrong — the original binary may initialise `wavesPerDev`
-   from a different source and never look at this parameter.
+1. **Binary has no `Node()` symbol.**  `nm -a ./_seqc_compiler.so |
+   grep zhinst4NodeC[12]` returns exactly two ctor symbols:
+   - `0x12ace0` — `Node::Node(NodeType, int, int)` (3-arg simple ctor).
+   - `0x26c4a0` — `Node::Node(int nodeId, int asmId, …)` (20-arg full ctor).
+   No `_ZN6zhinst4NodeC1Ev` / `…C2Ev` is exported.
 
-Discovered during F10.b magic-number cleanup; left as `-1` literal rather
-than mapping to a named sentinel because no semantic interpretation
-applies cleanly.
+2. **No direct call sites.**  `Node()` is referenced only by the
+   header declaration; no `Node{}` / `Node()` / `make_shared<Node>()`
+   without args occurs in any `.cpp` or `.hpp` under `reconstructed/src`.
+   LSP `findReferences` on the definition returns only the header
+   declaration.
+
+3. **No implicit default-construction sites.**  No `std::vector<Node>`,
+   `std::map<…, Node>`, `Node` C-array, or aggregate containing a
+   `Node` value-member exists in source.  All real instantiations
+   (`asm_commands.cpp:79`, `prefetch.cpp:800,2243,2443,2456`,
+   `prefetch_helpers.cpp:397`, `compiler.cpp:479`, `node.cpp:223,627`)
+   use the 3-arg or 20-arg ctor.
+
+4. **`fromJson` uses the 20-arg ctor** (`node.cpp:627`).  The previous
+   header comment claiming "used by `fromJson()` before scalar fields
+   are populated" was fabricated; `fromJson` reads all fields out of
+   the JSON first and then constructs via the full ctor in a single
+   step.
+
+5. **The "asm_commands caller" claim from the original block-header
+   comment was also wrong**: `asm_commands.cpp:79` uses
+   `std::make_shared<Node>(type, sequenceId, numChannelGroups_)`, the
+   3-arg ctor.
+
+**Fix applied:** synthesized `Node()` deleted from both
+`include/zhinst/ast/node.hpp` (declaration) and `src/ast/node.cpp`
+(body).  Block-header comment in `.cpp` rewritten to document the
+absence and cite the `nm` evidence; the header comment block above the
+deleted declaration rewritten as "No default constructor" with the same
+evidence.
+
+Verified: build clean, 1613/1613 difftests, 70/70 pytest.
 
 **Files**
-- `reconstructed/src/ast/node.cpp:35-37` (default ctor)
-- `reconstructed/src/ast/node.cpp:45-50` (simple ctor body)
+- `reconstructed/include/zhinst/ast/node.hpp` (declaration removed)
+- `reconstructed/src/ast/node.cpp` (body removed; block-header rewritten)
 
 
 ## IF-328 — `wave_index_tracker.cpp` comments call the field `playIndex`, source says `waveIndex`
