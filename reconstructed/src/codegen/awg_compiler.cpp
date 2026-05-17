@@ -1440,7 +1440,12 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
     // 7. Add code section
     elfWriter.addCode(opcodes);                                    // @0x108ec6
 
-    // 8. Add filename section
+    // 8. Add filename section — always emitted, may be empty.
+    //    Original (verified via probe + section listing): the
+    //    .filename section is unconditionally present.  With
+    //    filename="" the section has zero bytes.  With
+    //    filename="a/b/c/x.seqc" only the basename "x.seqc" is
+    //    stored — the full path lives in .arguments.destination.
     {
         boost::filesystem::path fmtPath(format);
         std::string filename = fmtPath.filename().string();
@@ -1549,10 +1554,12 @@ void AWGCompilerImpl::writeToStream(std::ostream& os, std::string const& format)
     }
 
     // ".arguments" — JSON arguments @0x10a3c0
+    //   Original passes the full `format` (incl. directory components)
+    //   here, not just the basename — JSON-escaped forward slashes
+    //   land in .arguments.destination as "a\/b\/c\/x.seqc".  Only
+    //   the .filename section above strips to the basename.
     {
-        boost::filesystem::path fmtPath2(format);
-        std::string filename2 = fmtPath2.filename().string();
-        std::string argsJson = getJsonArguments(filename2);
+        std::string argsJson = getJsonArguments(format);
         elfWriter.addData(argsJson.data(), argsJson.size(),
             std::string(".arguments"));
     }

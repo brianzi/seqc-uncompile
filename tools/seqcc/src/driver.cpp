@@ -176,9 +176,13 @@ DriverResult SeqcDriver::compile(std::string const& source,
         else if (v->is_int64()) sampleRate = static_cast<double>(v->as_int64());
     }
 
-    std::string filename;
+    // Default mirrors the binary @0xf5e79..0xf5e93 (compileSeqc local
+    // string at rbp-0xb0): "output" when JSON has no "filename" key.
+    std::string filename = "output";
+    bool filenameWasProvided = false;
     if (auto* v = jobj.if_contains("filename"); v && v->is_string()) {
         filename = std::string(v->as_string());
+        filenameWasProvided = true;
     }
 
     std::string configWavePath;
@@ -229,7 +233,7 @@ DriverResult SeqcDriver::compile(std::string const& source,
     config.numCores = 0;
     config.loopUnrollLimit = 0x20000;
 
-    if (!filename.empty()) {
+    if (filenameWasProvided && !filename.empty()) {
         config.debugDumpPath = filename;
     }
     if (!configWavePath.empty()) {
@@ -303,7 +307,7 @@ DriverResult SeqcDriver::compile(std::string const& source,
             // the assembler has no opcodes and writeToStream would
             // throw `EmptyInput`.
             std::ostringstream oss;
-            compiler.writeToStream(oss, "output");
+            compiler.writeToStream(oss, filename);
             elfData = oss.str();
         }
 

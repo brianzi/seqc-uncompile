@@ -399,27 +399,28 @@ Status snapshot (after this phase's first wave):
 | `sequencer`  | `qa`/`sg`/`auto`     | added `sequencer_auto_shf{qa,sg}` in this phase    |
 | `wavepath`   | `""` form only       | non-empty form blocked on IF-292                   |
 | `waveforms`  | string-list form     | autoscan (`None`) form blocked on IF-292           |
-| `filename`   | none                 | X1 below                                           |
+| `filename`   | full                 | X1 fixed IF-335, three cases added                 |
 | `options`    | smoke only           | string accepted but no ELF-visible diff; X3 below  |
 
-- [ ] **X1 — `filename` kwarg coverage.**  Add a manifest case that
-      passes a non-default `filename=` and produces matching original
-      / recon ELF bytes.  Currently passing `filename` causes the
-      `.filename` and `.arguments` ELF sections to diverge in size
-      between original and recon, so this is a real bug that needs
-      to be fixed before the test can be added in the green slice.
-
-      Workflow:
-      1. GDB-trace the original on a minimal `filename=` input to see
-         what bytes land in `.filename` and how `.arguments` is
-         constructed.
-      2. Locate the recon write site (likely
-         `AWGCompiler::writeToStream` or an ELF-section writer in
-         `reconstructed/src/codegen/`).
-      3. File an IF if a discrete divergence is identified.
-      4. Fix the divergence, then add the test under
-         `manifest-core.json :: core:general` with the
-         `compile-kwargs` tag.
+- [x] **X1 — `filename` kwarg coverage.**  Done.  Root-cause
+      diagnosis recorded as IF-335: `compile_seqc.cpp:314`
+      hardcoded `"output"` as the second arg to `writeToStream`;
+      the local `filename` was misrouted into `config.debugDumpPath`
+      and never reached the ELF writer.  Disassembly of
+      `compileSeqc @0xf58a0` showed the binary initialises its
+      local `filename` string (rbp-0xb0) to `"output"` via four
+      `mov` immediates at `0xf5e79..0xf5e93`, then conditionally
+      overwrites it from the JSON `"filename"` key.  Fixes:
+      defaulted `filename = "output"` + provided-flag tracking in
+      both `reconstructed/src/codegen/compile_seqc.cpp` and
+      `tools/seqcc/src/driver.cpp`; forwarded `filename` directly
+      to `writeToStream`; changed `awg_compiler.cpp:1551-1558` to
+      pass the full `format` (not basename) to `getJsonArguments`;
+      removed the divergent auto-populate block at
+      `tools/seqcc/src/main.cpp:466-472`.  Added three manifest
+      cases (`filename_simple`, `filename_with_path`,
+      `filename_empty`) under `core:general` with the
+      `compile-kwargs` tag.  1616/1616 difftests, 70/70 pytest.
 
 - [ ] **X2 — IF-292 follow-up: `wavepath` + `waveforms=None` autoscan.**
       Two distinct gaps documented in

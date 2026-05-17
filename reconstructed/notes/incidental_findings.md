@@ -2882,3 +2882,87 @@ follow-up.
 - `reconstructed/notes/magic_numbers_proposal.md` §322-386 (Category B descriptions)
 - `reconstructed/src/runtime/custom_functions.cpp:1088` (B1, swept)
 - `reconstructed/src/asm/asm_optimize.cpp:152` (B9, comment updated)
+
+## IF-335 — `compile_seqc` `filename` kwarg never reaches `writeToStream`
+
+**Severity:** likely-bug
+**Status:** fixed
+
+`compile_seqc.cpp:314` hardcoded the literal `"output"` as the
+second argument to `compiler.writeToStream(oss, "output")`.  That
+argument is the `format` parameter consumed by
+`AWGCompilerImpl::writeToStream` at `awg_compiler.cpp:1375` and is
+the **only** source of bytes for the `.filename` ELF section
+(L1443-1449) and for the `"destination"` key in the `.arguments`
+JSON section (L1551-1558).
+
+The kwarg `filename=` *was* read at `compile_seqc.cpp:215-220` and
+stored in a local `filename`, but then routed to
+`config.debugDumpPath` at L286 — the wrong field.  It never
+reached `writeToStream`.
+
+**Evidence** (probe `/tmp/x1_probe.py`, three filename values,
+HDAWG8, no waveforms):
+
+| input `filename=`             | orig `.filename` | orig `.arguments.destination` |
+|-------------------------------|------------------|-------------------------------|
+| `""`                          | section present, 0 bytes | `""`                  |
+| `"foo.seqc"`                  | `foo.seqc`       | `foo.seqc`                    |
+| `"a/b/c/long.seqc"`           | `long.seqc`      | `a\/b\/c\/long.seqc` (full)   |
+
+When the kwarg is **absent**, orig writes `"output"` to both —
+verified directly by disassembling `compileSeqc @0xf58a0`:
+- `0xf5e79: movb $0xc, -0xb0(%rbp)` — sets libc++ SSO size byte to
+  `(6<<1)|0 = 12` for a 6-char short-form string.
+- `0xf5e80: movl $0x7074756f, -0xaf(%rbp)` — `'o','u','t','p'`.
+- `0xf5e8a: movw $0x7475, -0xab(%rbp)` — `'u','t'`.
+- `0xf5e93: movb $0x0, -0xa9(%rbp)` — NUL terminator.
+
+So `"output"` is the default value the local `filename` holds
+before the `if (obj.contains("filename"))` branch overwrites it;
+absent key leaves the default intact.  The `"output"` literal does
+not appear as a `.rodata` xref in any SeqC function — both visible
+xrefs (`ossl_property_merge` @0x5f6825, `OSSL_ENCODER_CTX_add_encoder`
+@0x708fa9) are inside the bundled OpenSSL.
+
+**Fixes** (commit pending after this entry):
+
+1. **`compile_seqc.cpp:215-220`** — initialise local `filename` to
+   `"output"` and track a `filenameWasProvided` flag.
+2. **`compile_seqc.cpp:291`** — only route into `debugDumpPath`
+   when the kwarg was actually provided (not when defaulted to
+   `"output"`).
+3. **`compile_seqc.cpp:314`** — pass `filename` (not the literal
+   `"output"`) to `writeToStream`.
+4. **`awg_compiler.cpp:1551-1558`** — pass the full `format`, not
+   the basename, to `getJsonArguments` so
+   `.arguments.destination` contains the directory components.
+   (Original behaviour: forward slashes JSON-escape to `\/`.)
+5. **`tools/seqcc/src/driver.cpp:179-310`** — mirror the same
+   default/route/pass-through fixes for the standalone driver,
+   which had the identical bug structure.
+6. **`tools/seqcc/src/main.cpp:466-472`** — remove the
+   "auto-populate from input basename" block.  Its comment
+   claimed it mirrored the binding, but the binding defaults to
+   `"output"`, not the input basename.
+
+`awg_compiler.cpp:1443-1449` (write `.filename` section) was
+**not** changed — `addData` already handles size-0 input
+correctly (creates an empty SHT_PROGBITS section), matching the
+original which always emits `.filename` regardless of size.
+
+**Test cases added** in `tests/cases/manifest-core.json`:
+- `filename_simple`     — `filename="my_program.seqc"`
+- `filename_with_path`  — `filename="subdir/nested/my_program.seqc"`
+- `filename_empty`      — `filename=""`
+
+All three produce byte-identical ELFs between original and recon.
+
+**Verified:** 1616/1616 difftests (1613 → 1616), 70/70 pytest.
+
+**Files**
+- `reconstructed/src/codegen/compile_seqc.cpp:215-228,291,314`
+- `reconstructed/src/codegen/awg_compiler.cpp:1551-1558`
+- `tools/seqcc/src/driver.cpp:179-185,232-234,306-311`
+- `tools/seqcc/src/main.cpp:466-472`
+- `tests/cases/manifest-core.json` (3 new cases)

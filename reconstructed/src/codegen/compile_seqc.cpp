@@ -212,10 +212,18 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
         }
     }
 
-    std::string filename;
+    // Default per binary @0xf5e79..0xf5e93: local string at rbp-0xb0
+    // is initialised to "output" before the JSON "filename" key
+    // lookup, so a missing/non-string "filename" key leaves
+    // filename == "output".  Confirmed via probe:
+    // compile_seqc(..., <no filename kwarg>) writes "output" to
+    // .filename and .arguments.destination.
+    std::string filename = "output";
+    bool filenameWasProvided = false;
     if (auto* fnVal = jobj.if_contains("filename")) {
         if (fnVal->is_string()) {
             filename = std::string(fnVal->as_string());
+            filenameWasProvided = true;
         }
     }
 
@@ -282,7 +290,7 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     config.loopUnrollLimit = 0x20000;                           // +0x98 — 131072; compile-time loop unroll limit
 
     // String fields
-    if (!filename.empty()) {
+    if (filenameWasProvided && !filename.empty()) {
         config.debugDumpPath = filename;                             // +0x30
     }
     if (!configWavePath.empty()) {
@@ -311,7 +319,7 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
 
         // Write ELF to ostringstream
         std::ostringstream oss;
-        compiler.writeToStream(oss, "output");                    // @0xf65a0
+        compiler.writeToStream(oss, filename);                    // @0xf68e2: arg3 = filename kwarg (string at rbp-0xb0)
         elfData = oss.str();
 
         // --- 13. Build result JSON ---

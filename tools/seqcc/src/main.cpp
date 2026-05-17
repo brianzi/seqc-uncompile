@@ -463,13 +463,15 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // Auto-populate --filename hint from the input's basename if the user
-    // didn't override it.  Mirrors the binding's behaviour for callers
-    // that don't pass `filename=` explicitly (the compile-report info
-    // section embeds *some* filename; an empty one is unusual).
-    if (opts.filename.empty()) {
-        opts.filename = opts.input.filename().string();
-    }
+    // Mirror the pybind binding's `filename=` default exactly: the
+    // binary's `compileSeqc` initialises its local filename string to
+    // "output" (see compile_seqc.cpp comment block on rbp-0xb0) when
+    // the caller does not pass `filename=`.  Earlier reconstruction
+    // here auto-populated from the input basename, but that diverges
+    // from the binding and produces non-matching ELFs in parity
+    // tests.  Leave `opts.filename` empty when the user didn't set
+    // `--filename`; the driver applies the "output" default itself.
+    // (no auto-populate)
 
     return seqcc::runCompile(opts);
 }

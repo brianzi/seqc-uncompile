@@ -480,6 +480,36 @@
               ]
             },
             {
+              "name": "filename_simple",
+              "code": "playZero(64);",
+              "filename": "my_program.seqc",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "filename"
+              ]
+            },
+            {
+              "name": "filename_with_path",
+              "code": "playZero(64);",
+              "filename": "subdir/nested/my_program.seqc",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "filename"
+              ]
+            },
+            {
+              "name": "filename_empty",
+              "code": "playZero(64);",
+              "filename": "",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "filename"
+              ]
+            },
+            {
               "name": "sequencer_auto_shfqa",
               "code": "playZero(64);",
               "devtype": "SHFQA4",
