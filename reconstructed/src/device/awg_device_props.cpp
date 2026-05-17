@@ -327,31 +327,37 @@ AwgDeviceProps getAwgDeviceProps<AwgDeviceType::VHFLI>(DeviceType const& /*dt*/)
 //! \return The matching one-hot `AwgDeviceType`, or `AwgDeviceType(0)`
 //!         for unsupported combinations.
 AwgDeviceType toAwgDeviceType(DeviceTypeCode code, AwgSequencerType seq) {
-    const int c = static_cast<int>(code);
-    switch (c) {
-        case  4: case  5: case  6: case  8:
+    switch (code) {
+        case DeviceTypeCode::UHF:
+        case DeviceTypeCode::UHFLI:
+        case DeviceTypeCode::UHFAWG:
+        case DeviceTypeCode::UHFIA:
             return AwgDeviceType::UHFLI;       // 1
-        case  7:
+        case DeviceTypeCode::UHFQA:
             return AwgDeviceType::UHFQA;       // 4
-        case 13: case 14:
+        case DeviceTypeCode::HDAWG4:
+        case DeviceTypeCode::HDAWG8:
             return AwgDeviceType::HDAWG;       // 2
-        case 16: case 17:
+        case DeviceTypeCode::SHFQA2:
+        case DeviceTypeCode::SHFQA4:
             return AwgDeviceType::SHFQA;       // 8
-        case 18: case 19: case 20:
+        case DeviceTypeCode::SHFSG2:
+        case DeviceTypeCode::SHFSG4:
+        case DeviceTypeCode::SHFSG8:
             return AwgDeviceType::SHFSG;       // 16
-        case 21: { // SHFQC: depends on sequencer
+        case DeviceTypeCode::SHFQC: { // depends on sequencer
             if (seq == AwgSequencerType::QA) return AwgDeviceType::SHFQA;     // 8
             if (seq == AwgSequencerType::SG) return AwgDeviceType::SHFQC_SG;  // 32
-            return static_cast<AwgDeviceType>(0);                              // unsupported
+            return AwgDeviceType_Unsupported;                                  // no matching sequencer
         }
-        case 22:
+        case DeviceTypeCode::SHFLI:
             return AwgDeviceType::SHFLI;       // 64
-        case 28:
+        case DeviceTypeCode::GHFLI:
             return AwgDeviceType::GHFLI;       // 128
-        case 32:
+        case DeviceTypeCode::VHFLI:
             return AwgDeviceType::VHFLI;       // 256
         default:
-            return static_cast<AwgDeviceType>(0);
+            return AwgDeviceType_Unsupported;
     }
 }
 

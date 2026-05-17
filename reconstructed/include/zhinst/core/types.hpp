@@ -71,6 +71,19 @@ inline constexpr AwgDeviceType kDevHirzelPlusUHFQA = static_cast<AwgDeviceType>(
 //! \brief Empty mask (no devices).
 inline constexpr AwgDeviceType kDevNone       = static_cast<AwgDeviceType>(0x000); // no devices
 
+//! \brief Sentinel returned by `toAwgDeviceType()` when the input
+//! `DeviceTypeCode` has no AWG-bearing sequencer (e.g. PQSC, HWMOCK,
+//! QHUB) or when the input `AwgSequencerType` is invalid for the
+//! given code (e.g. `SHFQC` with `AwgSequencerType::Auto`).
+//!
+//! \details Numerically equal to `kDevNone` (both are
+//! `AwgDeviceType{0}`), but distinct in intent: this name signals a
+//! lookup-miss / unsupported combination, whereas `kDevNone` is the
+//! empty bitmask used in mask arithmetic.  Use this name at any
+//! `toAwgDeviceType()` return site, and the `kDev*` masks at any
+//! bitmask-arithmetic site.
+inline constexpr AwgDeviceType AwgDeviceType_Unsupported = kDevNone;
+
 //! \brief Bitmap indexed by `(devType - 2)` selecting the Hirzel-
 //! implementation device subset that dispatches via the bit-test
 //! fast path in `AsmCommandsImpl::getInstance`, `customPlay*`, and
