@@ -344,6 +344,7 @@ enum ErrorMessageT : int {
     WaveNameInUse               = 252,  // "waveform name %1% is already in use…"
     BitwiseNegativeOp2          = 253,
     BitwiseNegativeOp1          = 254,
+    UnexpectedError             = 255,  // "unexpected error" — catch-all sentinel
 
     // --- General status codes (16384+) ---
     ApiSuccess                  = 16384,
