@@ -435,7 +435,7 @@ no shared named constant):
 
 | value | sites | semantic | proposed name |
 |---|---|---|---|
-| `0x4000000040004041ULL` | `runtime/custom_functions_wait.cpp:72,119,345,487,577`; `runtime/custom_functions_play.cpp:79`; `asm/asm_commands_impl.cpp:22` (7 sites) | bitmap of `(devType-2) ∈ {0,1,6,14,16,30,62}` = {HDAWG, UHFQA, SHFQA, SHFSG, SHFQC_SG, SHFLI} — "device types that support play/wait" | `kPlayWaitDevTypeMask` in `core/types.hpp` (or `runtime/custom_functions_internal.hpp`).  `play.cpp:79` already names it as a local `constexpr kCheckPlaySupportedMask`; hoist that name. |
+| `0x4000000040004041ULL` | `runtime/custom_functions_wait.cpp:72,119,345,487,577`; `runtime/custom_functions_play.cpp:79`; `asm/asm_commands_impl.cpp:22` (7 sites) | bitmap of `(devType-2) ∈ {0, 6, 14, 30, 62}` = {HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI} — the "Hirzel-family" device types (see `core/types.hpp:14-15,50`) | done — F5 hoisted to `kHirzelDevTypeMinus2Mask` in `core/types.hpp`. |
 | `0x800100000000200ULL` | `runtime/csv_parser.cpp:389,478,618,933` (4 sites) | `(mask >> ch) & 1` over ASCII chars ≤ 59 = "CSV separator class" (bits at `,`, `;`, `\t`) | `kCsvSeparatorMask` file-scope `constexpr` in `csv_parser.cpp` |
 | `0x29` | `asm/asm_optimize.cpp:533`; `asm/asm_optimize_regalloc.cpp:39,153,730` (4 sites) | `(0x29 >> cmdPlus1) & 1` over `Assembler::Command` values = membership in {0,3,5} | name depends on which cmd-set this is (`kCmdSet_BranchOrJump`? — verify semantics: DEFER D5) |
 | `0x54` | `runtime/custom_functions.cpp:884,950`; `runtime/custom_functions_play.cpp:763,771`; `runtime/custom_functions_registers.cpp:251,286` (6 sites) | `(0x54 >> vt) & 1` over `VarType` = membership in {2,4,6} = {`VarType_Var`, `VarType_Const`, `VarType_Cvar`} | `kVarTypeAssignable` (or similar — DEFER D6 for semantic name) |
@@ -594,24 +594,43 @@ Sub-task: **F10.a** = `0xFFFFFFFF` substitutions (3 in
 
 ### F-summary
 
-| batch | sites | risk | enum/constant exists? |
-|---|--:|---|---|
-| F1.a (csv) | 8 | low | yes (`CsvInconsistentChannels`) |
-| F1.b (opcodes) | 33 | low | yes (mostly named already) |
-| F1.c (control flow) | 14 | medium | **blocked on D7 enum rename** |
-| F2 (Assembler::Command) | ~12 | low | yes |
-| F3 (AccessMode) | 5 | low | yes |
-| F4 (VarType/VarSubType) | 14 | low/medium | yes for non-zero values; verify zero |
-| F5 (`kPlayWaitDevTypeMask`) | 7 | low | new constant declaration needed |
-| F6 (`kCsvSeparatorMask`) | 4 | low | new constant declaration needed |
-| F7 (golden-ratio hash hoist) | 4 → 2 | low | new file-scope declarations needed |
-| F8 (kFullScale rename) | 3 | low | rename in place |
-| F9 (IF-312 rename) | 1 | low | rename in place; closes IF-312 |
-| F10.a (`0xFFFFFFFF`) | 6 | low | yes |
-| F10.b (`-1`) | 11 | medium | yes; per-site triage |
+All FIX-NOW batches landed in Phase D7-C.1 (this audit's FIX-NOW
+slot).  F1 was executed by the parallel C.1bis session as the
+`ErrorMessageT` rework; F2–F10 by this session.
 
-Total FIX-NOW patches: ~120 individual literal-→name substitutions
-across ~25 files.
+| batch | sites | commit | status |
+|---|--:|---|---|
+| F1.a/b/c (`ErrorMessageT`) | 164+ | 8a83a2e, 7cae001, 4b18daa, 9a90cee (C.1bis) | done — see §6 D7 |
+| F2 (`Assembler::Command`) | 12 | 0b0cd7d | done — also added `COMMENT_NOP = 0x4` and filed IF-326 |
+| F3 (`AccessMode`) | 4+2doc | 95e586a | done — runtime cast at `custom_functions_play.cpp:1508` kept intentionally |
+| F4.a (`VarSubType` bulk) | 213 | d7cf905 | done — single-file mechanical rewrite in `static_resources.cpp` |
+| F4.b (`VarType`/`VarSubType` mixed) | ~25 | eb35ca9 | done — scoped-enum migration deferred (Q3) |
+| F5 (`kHirzelDevTypeMinus2Mask`) | 7 | 3eb3165 | done — also corrected three wrong-list inline comments (IF-325) |
+| F6 (`kCsvSeparatorMask`) | 4 | 65a2694 | done |
+| F7 (`kGoldenRatioHash`/`kHashMul` hoist) | 4 → 2 | 6dff1b9 | done |
+| F8 (`kFullScale14/15/16` rename) | 3 | 926dbc1 | done |
+| F9 (IF-312 `kAddrOscPhaseReset` rename) | 1 | 5961d7c | done — closes IF-312 |
+| F10.a (`0xFFFFFFFF` sentinels) | 10+7doc | c223242 | done — `value.hpp:86` ctor literal kept (forward-decl) |
+| F10.b (`-1` sentinels) | 8 | 8131b73 | done — partial scope; filed IF-327 (broken default ctor), IF-328 (stale field-name comments) |
+
+All commits: `cmake --build .` clean, `diff_test_fast` 1613/1613
+byte-identical, `pytest tests/tools/` 70/70.
+
+Deferred to follow-up phases (out of FIX-NOW scope):
+
+- Scoped-enum migration for `VarType` / `VarSubType` — touches ~250
+  sites including arithmetic patterns (`(t|0x2)==6`,
+  `combineTable[lhs-1][rhs]`).  Per user answer Q3 to §10.
+- F5 home (`kHirzelDevTypeMinus2Mask` stays in `core/types.hpp`;
+  structural reorg to a new internal header is out of scope per Q2).
+- Sentinel families with no existing named constant:
+  - "no source location" line-number `-1` in `messages_.*Message()`.
+  - `sequenceId = -1` placeholder in `asm_list.cpp`.
+  - Register-number `-1` (`lengthRegVal`, `indexOffsetRegVal`)
+    serialization sentinel in `node.cpp`.
+- `value.cpp` implicit-arity sentinel `(0-1)|5)` at
+  `custom_functions.cpp:1259` — needs new named constant.
+- Pybind layer not touched (Q6).
 
 ---
 

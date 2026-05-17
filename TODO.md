@@ -184,27 +184,39 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         - Net effect: F1 and D7 are both done; remaining FIX-NOW
           batches F2..F10 still pending
         `diff_test_fast` 1613/1613 byte-identical at every sub-batch.
-  - [ ] **C.1.b — Resolve open questions from audit §10.**
-        Specifically: F5 home (`core/types.hpp` vs new
-        `runtime/custom_functions_internal.hpp`), F4 zero-value
-        sentinel verification, batch-commit granularity, pybind
-        scope.  (D7 and IF-313..IF-319 range allocation resolved
-        by C.1bis; now IF-317..IF-322.)
+  - [x] **C.1.b — Resolve open questions from audit §10.**
+        Resolved by user this session:
+        - Q2: F5 stays in `core/types.hpp` (structural reorg out of scope).
+        - Q3: Use existing `VarType_Unset=0` / `VarSubType_Default=0`
+          as sentinels; scoped-enum migration deferred to its own phase
+          (would touch ~250 sites including `(t|0x2)==6` and
+          `combineTable[lhs-1][rhs]` arithmetic patterns).
+        - Q4: 10 commits, clean bisection.
+        - Q5: IF range — next available is IF-329 (IF-325..IF-328
+          allocated this session).
+        - Q6: Pybind layer not touched.
   - [ ] **C.1.c — File DEFER items IF-317..IF-322.**  Each gets a
         stable IF with call-site table and proposed-but-unverified
         semantic.  (D7 done via C.1bis.)
   - [ ] ~~**C.1.d — FIX-NOW batch F1 (ErrorMessageT, ~57 sites).**~~
         Done via C.1bis (commits 8a83a2e, 7cae001, 4b18daa, 9a90cee).
-  - [ ] **C.1.e — FIX-NOW batches F2..F4 (enum-cast cleanup).**
-        F2 `Assembler::Command` (~12), F3 `AccessMode` (~5),
-        F4 `VarType` / `VarSubType` (~14).
-  - [ ] **C.1.f — FIX-NOW batches F5..F8 (new/hoisted constants).**
-        F5 `kPlayWaitDevTypeMask` (7→1), F6 `kCsvSeparatorMask`
-        (4→1), F7 golden-ratio-hash hoist (4→2), F8 `kFullScale14/
-        15/16` rename (3).
-  - [ ] **C.1.g — FIX-NOW batches F9..F10 (sentinel cleanup).**
-        F9 IF-312 rename (closes IF-312), F10.a `0xFFFFFFFF` (~6),
-        F10.b `-1` (~11, per-site triage).
+  - [x] **C.1.e — FIX-NOW batches F2..F4 (enum-cast cleanup).**
+        F2 `Assembler::Command` 12 sites — 0b0cd7d (also added
+        `COMMENT_NOP = 0x4`, filed IF-326).  F3 `AccessMode` 4 code +
+        2 doc sites — 95e586a.  F4.a `VarSubType` bulk 213 sites in
+        `static_resources.cpp` — d7cf905.  F4.b `VarType`/`VarSubType`
+        mixed ~25 sites across 7 files — eb35ca9.
+  - [x] **C.1.f — FIX-NOW batches F5..F8 (new/hoisted constants).**
+        F5 `kHirzelDevTypeMinus2Mask` 7 sites — 3eb3165 (also fixed
+        three wrong-list inline comments, IF-325).  F6
+        `kCsvSeparatorMask` 4 sites hoisted — 65a2694.  F7
+        `kGoldenRatioHash`/`kHashMul` hoisted — 6dff1b9.  F8
+        `kFullScale14`/`15`/`16` rename — 926dbc1.
+  - [x] **C.1.g — FIX-NOW batches F9..F10 (sentinel cleanup).**
+        F9 `kSuserUserRegBase` → `kAddrOscPhaseReset` — 5961d7c
+        (closes IF-312).  F10.a `0xFFFFFFFF` 10 code + 7 doc sites —
+        c223242.  F10.b `-1` 8 sites (per-site triage; partial
+        scope) — 8131b73 (filed IF-327, IF-328).
   - [ ] **C.1.i — ErrorMessages::format arg-count / placeholder-count
         audit.**  Triggered by IF-324 (`SampleRateConstOnly` template
         has 1 placeholder but is called with 2 args).  Grep all 164
