@@ -39,6 +39,17 @@
 
 namespace zhinst {
 
+// CSV separator bitmask used by the format auto-detect probes.  For an
+// ASCII character `c <= 59`, `(kCsvSeparatorMask >> c) & 1` is true iff
+// `c` is one of the recognised CSV separators:
+//   bit  9 (0x200)              = '\t' (tab)
+//   bit 44 (0x100000000000)     = ',' (comma)
+//   bit 59 (0x800000000000000)  = ';' (semicolon)
+// The narrow `c <= 59` guard mirrors the binary; characters above 59
+// (e.g. space=32 *is* below 59 but its bit is 0, so it correctly
+// returns false; characters like '|' = 124 are clipped before the test).
+constexpr uint64_t kCsvSeparatorMask = 0x800100000000200ULL;
+
 // ============================================================================
 // CsvException — lightweight exception for CSV parse errors
 // Layout: vptr (8) + std::string (24) = 0x20 bytes
@@ -378,15 +389,13 @@ std::vector<std::string> CsvParser::getLineVector(
             }
 
             // For other comment lines, scan for separator characters to
-            // auto-detect format. Bitmask 0x800100000000200 matches:
-            //   bit 9 = tab, bit 32 = space, bit 44 = comma, bit 59 = semicolon
-            // (but bit 32 is actually beyond 64-bit for space... the bitmask
-            //  0x800100000000200 matches tab(9), comma(44), semicolon(59))
+            // auto-detect format.  See file-scope `kCsvSeparatorMask`
+            // for the bit layout.
             bool hasSep = false;
             for (size_t i = 0; i < line.size(); ++i) {
                 unsigned char ch = static_cast<unsigned char>(line[i]);
                 if (ch <= 59) {
-                    uint64_t mask = 0x800100000000200ULL;
+                    uint64_t mask = kCsvSeparatorMask;
                     if ((mask >> ch) & 1) {
                         hasSep = true;
                         break;
@@ -475,7 +484,7 @@ std::vector<std::string> CsvParser::getLineVector(
             for (size_t i = 0; i < line.size(); ++i) {
                 unsigned char ch = static_cast<unsigned char>(line[i]);
                 if (ch <= 59) {
-                    uint64_t mask = 0x800100000000200ULL;
+                    uint64_t mask = kCsvSeparatorMask;
                     if ((mask >> ch) & 1) {
                         hasSep = true;
                         break;
@@ -615,7 +624,7 @@ void CsvParser::csvFileToWaveform<WaveformFront>(      // @0x2ba8b0
                 for (size_t i = 0; i < len; ++i) {
                     unsigned char ch = static_cast<unsigned char>(p[i]);
                     if (ch <= 59) {
-                        uint64_t mask = 0x800100000000200ULL;
+                        uint64_t mask = kCsvSeparatorMask;
                         if ((mask >> ch) & 1) {
                             // Found separator in comment — auto-detect format
                             // Tokenize with ",;\t"
@@ -930,7 +939,7 @@ void CsvParser::csvFileToWaveform<WaveformIR>(         // @0x2be830
                 for (size_t i = 0; i < len; ++i) {
                     unsigned char ch = static_cast<unsigned char>(p[i]);
                     if (ch <= 59) {
-                        uint64_t mask = 0x800100000000200ULL;
+                        uint64_t mask = kCsvSeparatorMask;
                         if ((mask >> ch) & 1) {
                             boost::char_separator<char> sep(",;\t", "",
                                 boost::drop_empty_tokens);
