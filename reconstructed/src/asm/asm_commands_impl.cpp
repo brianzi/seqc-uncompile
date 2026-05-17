@@ -15,12 +15,13 @@ AsmCommandsImpl::~AsmCommandsImpl() = default;
 std::unique_ptr<AsmCommandsImpl> AsmCommandsImpl::getInstance(AwgDeviceType deviceType) {
     int val = static_cast<int>(deviceType);
 
-    // Test bitmask 0x4000000040004041 on (val - 2).
-    // Bits {0, 6, 14, 30, 62} → device values {2, 8, 16, 32, 64} → Hirzel.
+    // Bit-test fast path: (devType - 2) indexes into the Hirzel-core
+    // bitmap (bits {0, 6, 14, 30, 62} → devType {2, 8, 16, 32, 64}
+    // = HDAWG, SHFQA, SHFSG, SHFQC_SG, SHFLI).  GHFLI and VHFLI
+    // are added below since their (devType-2) doesn't fit in 64 bits.
     unsigned shifted = static_cast<unsigned>(val - 2);
     if (shifted <= 62u) {
-        constexpr uint64_t mask = 0x4000000040004041ULL;
-        if ((mask >> shifted) & 1u) {
+        if ((kHirzelDevTypeMinus2Mask >> shifted) & 1u) {
             return std::make_unique<AsmCommandsImplHirzel>();
         }
     }

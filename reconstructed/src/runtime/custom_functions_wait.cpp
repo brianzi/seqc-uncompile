@@ -69,8 +69,7 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
         {
             int idx = devType - 2;
             if (idx >= 0 && idx <= 62) {
-                uint64_t mask = 0x4000000040004041ULL;
-                isSimpleDevice = (mask >> idx) & 1;
+                isSimpleDevice = (kHirzelDevTypeMinus2Mask >> idx) & 1;
             }
         }
         if (devType == AwgDeviceType::VHFLI || devType == AwgDeviceType::GHFLI)  // @0x139b62-139b72
@@ -110,14 +109,13 @@ std::shared_ptr<EvalResults> CustomFunctions::wait(
         // @0x1399da: get device type
         auto devType = static_cast<int>(devConst_->deviceType);                      // @0x1399dd
 
-        // @0x1399e2..0x139914: check device type bitmask (HDAWG/UHFQA/SHFQA/SHFQC etc.)
-        // Bitmask 0x4000000040004041 checks deviceType-2 for bits 0,6,30,62
+        // @0x1399e2..0x139914: Hirzel-core membership via
+        // `kHirzelDevTypeMinus2Mask`; VHFLI/GHFLI added below.
         bool isSimpleDevice = false;
         {
             int idx = devType - 2;
             if (idx >= 0 && idx <= 62) {
-                uint64_t mask = 0x4000000040004041ULL;
-                isSimpleDevice = (mask >> idx) & 1;
+                isSimpleDevice = (kHirzelDevTypeMinus2Mask >> idx) & 1;
             }
         }
         if (devType == AwgDeviceType::VHFLI || devType == AwgDeviceType::GHFLI)
@@ -336,14 +334,13 @@ std::shared_ptr<EvalResults> CustomFunctions::waitAnaTrigger(                   
 }
 std::shared_ptr<EvalResults> CustomFunctions::waitDigTrigger(                                                                                                                   // @0x13c110 (~4KB)
     std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res) {
-    // @0x13c132..0x13c14d: device type bitmask check for supported devices
-    // Supported: deviceType in {2,3,8,16,18,32,64} (via bt 0x4000000040004041) OR 0x80 OR 0x100
+    // @0x13c132..0x13c14d: Hirzel-core membership via
+    // `kHirzelDevTypeMinus2Mask`; GHFLI/VHFLI added in the lambda.
     auto devType = static_cast<int>(devConst_->deviceType);                                      // @0x13c137
     auto isSupported = [](int dt) -> bool {                                                      // @0x13c137..0x13c1b9
         int idx = dt - 2;
         if (idx >= 0 && idx <= 62) {
-            uint64_t mask = 0x4000000040004041ULL;
-            return (mask >> idx) & 1;
+            return (kHirzelDevTypeMinus2Mask >> idx) & 1;
         }
         return dt == AwgDeviceType::GHFLI || dt == AwgDeviceType::VHFLI;
     };
@@ -478,13 +475,12 @@ std::shared_ptr<EvalResults> CustomFunctions::waitDIOTrigger(  // @0x13d630 (172
     // @0x13d6ae: deviceType = config_->deviceType  ([r14] → [rax])
     int deviceType = static_cast<int>(config_->deviceType);                      // @0x13d6b1: [rax]
 
-    // @0x13d6b3: check deviceType in supported set via bit-test
-    // Supported: {2,3,8,16,18,32,64} via bitmask 0x4000000040004041 on (devType-2)
-    // Also 0x80 and 0x100 via explicit compares
+    // @0x13d6b3: Hirzel-core membership via `kHirzelDevTypeMinus2Mask`;
+    // GHFLI/VHFLI added below.
     bool supported = false;
     unsigned idx = static_cast<unsigned>(deviceType) - 2;
     if (idx <= 0x3e) {                                                           // @0x13d6b6: cmp ecx, 0x3e; ja
-        supported = ((0x4000000040004041ULL >> idx) & 1) != 0;                   // @0x13d6c9: bt rdx, rcx
+        supported = ((kHirzelDevTypeMinus2Mask >> idx) & 1) != 0;                // @0x13d6c9: bt rdx, rcx
     }
     if (!supported) {
         if (deviceType == GHFLI || deviceType == VHFLI)                           // @0x13d82f..0x13d83f
@@ -574,8 +570,7 @@ std::shared_ptr<EvalResults> CustomFunctions::waitZSyncTrigger(  // @0x13dcf0 (1
             // Supported devices: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32)
             // HDAWG uses "AWG_MAP_TRIGGER_INDEX".
             // SHFQA, SHFSG, SHFQC_SG use "AWG_ZSYNC_TRIGGER_INDEX".
-            constexpr uint64_t supportedMask = 0x4000000040004041ULL;
-            if ((supportedMask >> idx) & 1) {
+            if ((kHirzelDevTypeMinus2Mask >> idx) & 1) {
                 supported = true;
                 // SHFQA(8), SHFSG(16), SHFQC_SG(32) → ZSYNC; HDAWG(2) → MAP
                 if (deviceType != HDAWG) {

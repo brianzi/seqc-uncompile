@@ -71,6 +71,28 @@ inline constexpr AwgDeviceType kDevHirzelPlusUHFQA = static_cast<AwgDeviceType>(
 //! \brief Empty mask (no devices).
 inline constexpr AwgDeviceType kDevNone       = static_cast<AwgDeviceType>(0x000); // no devices
 
+//! \brief Bitmap indexed by `(devType - 2)` selecting the Hirzel-
+//! implementation device subset that dispatches via the bit-test
+//! fast path in `AsmCommandsImpl::getInstance`, `customPlay*`, and
+//! the `customWait*` family.  Set bits are {0, 6, 14, 30, 62},
+//! corresponding to devType values {2, 8, 16, 32, 64} =
+//! {`HDAWG`, `SHFQA`, `SHFSG`, `SHFQC_SG`, `SHFLI`}.
+//!
+//! The bitmap is *not* the same as `kDevHirzel` (which is an
+//! `AwgDeviceType`-bit mask): this constant is indexed by the
+//! arithmetic shift amount `devType - 2`, not by the AwgDeviceType
+//! bit position.  Callers also add `GHFLI` and `VHFLI` to the Hirzel
+//! set via a separate `if (devType == 128 || devType == 256)` check
+//! (which doesn't fit in a 64-bit shift, since `(256 - 2) = 254`).
+//!
+//! Usage pattern:
+//! ```
+//! unsigned shifted = static_cast<unsigned>(devType) - 2u;
+//! bool isHirzelCore = shifted <= 62u
+//!     && ((kHirzelDevTypeMinus2Mask >> shifted) & 1u);
+//! ```
+inline constexpr uint64_t kHirzelDevTypeMinus2Mask = 0x4000000040004041ULL;
+
 // EDirection — unified direction enum.
 // Binary name: zhinst::EDirection (mangled: NS_10EDirectionE).
 // Used both as AST parameter direction (eIN/eOUT/eINOUT in SeqCAstNode ctor

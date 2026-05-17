@@ -67,17 +67,14 @@ void CustomFunctions::setWaitCyclesReg(std::vector<EvalResultValue> const& args,
     uint32_t devType = static_cast<uint32_t>(config_->deviceType);
 
     // @0x15cab4: ecx = devType - 2, cmp ecx, 0x3E
-    // @0x15caba: bt 0x4000000040004041, ecx → checks bits 0,6,14,16,30,62
-    // which correspond to devType values: 2,3,8,16,18,32,64
-    // @0x15cb06: also checks devType == 0x100 and 0x80
+    // @0x15caba: bt 0x4000000040004041, ecx — Hirzel-core membership.
+    // See `kHirzelDevTypeMinus2Mask` for the bit→devType decoding.
+    // @0x15cb06: also checks devType == 0x100 (VHFLI) and 0x80 (GHFLI).
     // If none match, skip to move-results-and-return.
     bool supported = false;
     uint32_t shifted = devType - 2;
     if (shifted <= 0x3E) {
-        // Bitmask encoding supported device types: HDAWG(2), UHFQA(4),
-        // SHFQA(8), SHFSG(16), SHFQC_SG(32), SHFLI(64) after subtracting 2
-        constexpr uint64_t kCheckPlaySupportedMask = 0x4000000040004041ULL;
-        supported = (kCheckPlaySupportedMask >> shifted) & 1;
+        supported = (kHirzelDevTypeMinus2Mask >> shifted) & 1;
     }
     if (!supported) {
         if (devType == AwgDeviceType::VHFLI || devType == AwgDeviceType::GHFLI)

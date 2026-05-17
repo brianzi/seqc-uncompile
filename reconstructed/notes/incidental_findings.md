@@ -2034,3 +2034,69 @@ exception type and the wrong error text every time the
 - A grep for similar mismatches (templates with N placeholders called
   with M args, M != N) across all 164 newly-named sites would be a
   cheap follow-up audit and may surface more cases.
+
+## IF-325  Inconsistent reconstruction comments around `0x4000000040004041` mask
+
+**Severity:** cosmetic (documentation-only; binary semantics correct).
+**Status:** partially-fixed by Phase D7-C.1 F5 (uses now reference the
+named constant `kHirzelDevTypeMinus2Mask`; comments revised where the
+literal was inlined).
+
+**Discovered:** during Phase D7-C.1 F5 (cross-file hoist of the
+bitmap to `core/types.hpp`).
+
+### Observation
+
+The bitmask `0x4000000040004041ULL` selects (devType - 2) bit
+positions for the Hirzel-implemented assembler backend subset.  The
+mask contains bits **{0, 6, 14, 30, 62}**, corresponding to devType
+values **{2, 8, 16, 32, 64}** = **{HDAWG, SHFQA, SHFSG, SHFQC_SG,
+SHFLI}** (five devices).
+
+Several reconstruction comments document this incorrectly:
+
+- `src/asm/asm_commands_impl.cpp:19` — correct: "Bits {0, 6, 14, 30,
+  62} → device values {2, 8, 16, 32, 64} → Hirzel."
+- `src/runtime/custom_functions_play.cpp:70` — wrong: "checks bits
+  0,6,14,16,30,62" (claims bit 16 is set; bit 16 is *not* set) and
+  "devType values: 2,3,8,16,18,32,64" (claims 3 and 18; neither is
+  matched).
+- `src/runtime/custom_functions_wait.cpp:114` — incomplete: "checks
+  deviceType-2 for bits 0,6,30,62" (missing bit 14).
+- `src/runtime/custom_functions_wait.cpp:340` — wrong: "Supported:
+  deviceType in {2,3,8,16,18,32,64}" (claims 3 and 18; same error
+  as play.cpp:70).
+- `include/zhinst/core/types.hpp:13-16` block-header — correct:
+  "Hirzel: HDAWG(2), SHFQA(8), SHFSG(16), SHFQC_SG(32), SHFLI(64)".
+
+The audit report `magic_number_audit.md` §4 also propagated the wrong
+set "(devType-2) ∈ {0,1,6,14,16,30,62} = {HDAWG, UHFQA, SHFQA, SHFSG,
+SHFQC_SG, SHFLI}".
+
+### Why this matters
+
+Anyone reading `custom_functions_play.cpp` or `wait.cpp` to learn which
+devices support `play`/`wait` would conclude UHFQA(4) is supported via
+bit-1 (devType 3 = mythical), when in fact UHFQA goes through a
+separate dispatch path entirely (the bitmask test fails for UHFQA, but
+the function may still succeed via the Cervino impl).  Reading any one
+of these files in isolation gives a wrong picture of the dispatch.
+
+### Suggested fix
+
+When F5 lands, all four sites should reference the named constant
+(`kHirzelDevTypeMinus2Mask` in `core/types.hpp`) and the inline wrong-
+list comments should be deleted in favour of a single correct comment
+at the constant declaration.  Audit comment text is updated as part of
+that commit; this IF tracks the residual unverified claim — there may
+be other comments in the recon (away from the literal sites) that
+quote one of the wrong device lists.
+
+### Cross-references
+
+- `notes/cervino_vs_hirzel.md` — authoritative device dispatch map.
+- `core/types.hpp` `kDevHirzel = 0x1F2` — AwgDeviceType-bit mask
+  (different representation: indexed by AwgDeviceType bit, not by
+  (devType-2) bit-position).
+- Magic-number audit §4 (file `notes/magic_number_audit.md`) — the
+  audit propagated the wrong list as part of its consolidation table.
