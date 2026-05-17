@@ -1,151 +1,202 @@
 # Compilation Pipeline {#notes_pipeline}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+`Compiler::compile()` is the single entry point.  It accepts a
+SeqC source string and produces a final `vector<Assembler>`
+ready for ELF emission.  The full pipeline is 12 steps, plus an
+embedded prefetch sub-pipeline.
 
-Reconstructed from `Compiler::compile()` at 0x11f150 (~13KB) and
-`Compiler::runPrefetcher()` at 0x11dff0 (~2.8KB).
+The high-level shape and the directory / class map appear on the
+[mainpage](index.html#pipeline-overview).  This page documents
+the contract of each step in turn.
 
-## High-Level Flow
+[TOC]
+
+## Step 1 — `unifyLineEndings`
+
+The source string is normalised in-place: `\r\n` and bare `\r`
+are replaced by `\n`.  Every subsequent line-number bookkeeping
+step assumes Unix line endings.
+
+## Step 2 — `parse`
+
+A flex/bison front-end (`seqc_lex` / `seqc_parse`, both
+configured by `SeqcParserContext`) consumes the normalised source
+and produces a `shared_ptr<Expression>` — the *raw* parser AST,
+still in the syntactic shape of the original SeqC text.  Grammar
+and token definitions are documented in
+\ref notes_seqc_parser_grammar.
+
+A parse error throws `CompilerException` with the offending
+line number and message; `Compiler::compile()` does not catch
+this and propagates it straight to the caller.
+
+## Step 3 — `toSeqCAst`
+
+The raw `Expression` tree is rewritten into a typed
+`SeqCAstNode` hierarchy.  Operator overloads and shorthand syntax
+are desugared here; every node carries the type information the
+front-end needs to dispatch.
+
+## Step 4 — `FrontEndLoweringFacade::lower`
+
+The front-end traverses the typed AST and dispatches virtually
+on each `SeqCAstNode` to emit:
+
+- `AsmList` instructions (assignments, control flow, function
+  calls, register I/O).
+- A **node tree** (rooted at `Compiler::ast_`) that captures the
+  structural shape — `Loop`, `Branch`, `Play`, `Load`, … — used
+  later by the prefetcher.
+
+`FrontEndLoweringFacade` is documented in
+\ref notes_frontend_lowering.  SeqC built-in functions
+(`playWave`, `setTrigger`, `wait`, …) reach the system through
+`CustomFunctions`; see \ref notes_custom_functions.
+
+If lowering raises a compiler error
+(`Compiler::hadCompilerError()`), the pipeline stops here and
+returns the accumulated messages without proceeding to step 5.
+
+## Step 5 — Assembly preamble
+
+The compiler builds the fixed prologue of the program: entry
+label, placeholder-load instruction (resolved later by the
+prefetcher), and any device-specific initialisation that runs
+before user instructions.
+
+## Step 6 — Linearise the node tree
+
+The node tree built during lowering is walked into a flat
+`AsmList`.  Sibling chains define execution order;
+\ref notes_node_tree_structure documents the link semantics in
+detail.  The list is closed off with terminator instructions
+(`end` / `wwvf` / `nop`).
+
+## Step 7 — `AsmOptimize::optimizePreWaveform`
+
+A first optimisation pass runs *before* waveform placement.  It
+performs dead-code elimination on instructions whose results are
+provably unused.  See \ref notes_optimization_passes.
+
+## Step 8 — Serialise / deserialise
+
+The `AsmList` is round-tripped through its textual canonical
+form (see \ref notes_asm_parser_grammar).  This both validates
+that the in-memory list is reversible and forces every subsequent
+pass to operate on a known-good representation.
+
+## Step 9 — `runPrefetcher`
+
+The waveform placement sub-pipeline.  It is large enough to
+deserve its own section:
 
 ```
-Source Code (string)
+runPrefetcher(wavetableIR, asmList, asmCommands, placeholder,
+              deviceConstants, config)
   │
-  ├─ 1. unifyLineEndings()          — normalize \r\n / \r → \n
+  ├─ (debug) optionally serialise / round-trip WavetableIR JSON
   │
-  ├─ 2. parse()                     — flex/bison (seqc_lex/seqc_parse)
-  │     └→ shared_ptr<Expression>      AST of original SeqC syntax
+  ├─ Construct Prefetch(config, deviceConstants, asmCommands,
+  │                     rootNode, wavetableIR,
+  │                     warningCallback, cancelCallback)
   │
-  ├─ 3. toSeqCAst()                 — free function, converts Expression → SeqCAstNode
-  │     └→ shared_ptr<SeqCAstNode>     typed AST for lowering
-  │
-  ├─ 4. FrontEndLoweringFacade::lower()  — virtual dispatch on SeqCAstNode
-  │     ├─ Inputs: Resources, AsmCommands, CustomFunctions,
-  │     │          WaveformGenerator, WavetableFront
-  │     └→ Populates AsmList with instructions + Node tree
-  │
-  ├─ 5. Build assembly preamble     — labels, load placeholder
-  │
-  ├─ 6. Linearize nodes             — deque<shared_ptr<Node>> → AsmList
-  │     └─ Append end/wwvf/nop
-  │
-  ├─ 7. AsmOptimize::optimizePreWaveform()  — dead code elimination
-  │
-  ├─ 8. Serialize/deserialize       — round-trip (validation/canonical form)
-  │
-  ├─ 9. runPrefetcher()             — waveform placement pipeline (see below)
-  │
-  ├─ 10. AsmOptimize::optimizePostWaveform() — jump elim, label cleanup,
-  │      register zeroing, register allocation, reportUserMessages
-  │
-  ├─ 11. unsyncCervino()            — platform-specific sync teardown
-  │
-  └─ 12. Build output vector<Assembler>  — final instruction list
-```
-
-## runPrefetcher Pipeline (Step 9)
-
-```
-runPrefetcher(wavetableIR, asmList, asmCommands, placeholder, deviceConstants, config)
-  │
-  ├─ (Optional) Serialize WavetableIR to JSON file (debug)
-  ├─ (Optional) WavetableIR JSON round-trip (debug/validation)
-  │
-  ├─ Construct Prefetch(config, deviceConstants, asmCommands, rootNode,
-  │                     wavetableIR, warningCallback, cancelCallback)
-  │
-  ├─ Prefetch::preparePlays()
+  ├─ Prefetch::preparePlays
   │
   ├─ Prefetch::getUsedWavesForDevice(deviceIndex)
-  ├─ WavetableIR::setUsedWaveforms()
-  ├─ WavetableIR::assignWaveIndexImplicit()
-  ├─ WavetableIR::alignWaveformSizes()
-  ├─ WavetableIR::assignWaveformAllocationSizes()
+  ├─ WavetableIR::setUsedWaveforms
+  ├─ WavetableIR::assignWaveIndexImplicit
+  ├─ WavetableIR::alignWaveformSizes
+  ├─ WavetableIR::assignWaveformAllocationSizes
   │
-  ├─ (Conditional) Prefetch::determineFixedWaves()
+  ├─ (conditional) Prefetch::determineFixedWaves
   ├─ WavetableIR::updateWaveforms(fixedFlag, anotherFlag)
   │
-  ├─ Prefetch::placeLoads()
+  ├─ Prefetch::placeLoads
   │
-  ├─ (Optional debug) Prefetch::print(nullptr, 0)
+  ├─ (debug) Prefetch::print
   │
   ├─ Prefetch::fillInPlaceholders(asmList)
   │
-  └─ Copy result AsmList + channel info (getUsedChannels, getUsedFourChannelMode)
+  └─ Copy result AsmList + channel info
+     (getUsedChannels, getUsedFourChannelMode)
 ```
 
-## Key Participants
+The prefetcher decides which waveforms reside in waveform
+memory at any given point in the program and inserts the
+corresponding `wvf`-family loads.  See
+\ref notes_prefetch_scheduling for the algorithm.
 
-| Class | Role | Created by |
-|-------|------|-----------|
-| Compiler | Orchestrator — owns all state, drives pipeline | User code |
-| SeqcParserContext | flex/bison parser state (embedded at Compiler+0x100) | Compiler ctor |
-| Expression | Raw AST from parser | parse() |
-| SeqCAstNode | Typed AST for lowering | toSeqCAst() |
-| FrontEndLoweringFacade | Static dispatch → SeqCAstNode::lower() virtual | compile() step 4 |
-| FrontendLoweringContext | Holds shared_ptrs passed to lower() | FrontEndLoweringFacade |
-| FrontendLoweringState | Accumulates lowering state (vector<string>) | FrontEndLoweringFacade |
-| Resources | Scope/symbol table — vars, consts, functions, registers | Compiler ctor |
-| AsmCommands | Instruction emitter (83 methods) | Compiler ctor |
-| CustomFunctions | SeqC built-in function handlers | Compiler ctor |
-| WaveformGenerator | Waveform DSL (54 methods) | Compiler ctor |
-| WavetableFront | Front-end waveform table management | External (passed in) |
-| WavetableIR | IR waveform table — allocation, sizing | Created during compile |
-| AsmOptimize | Peephole optimizer + register allocator | compile() steps 7, 10 |
-| Prefetch | Waveform prefetch scheduling + cache | runPrefetcher() |
-| Cache | Waveform cache model | Prefetch ctor |
-| StaticResources | Global init (device-specific constants) | compile() step 5 |
-| AWGAssembler | Not used in compile() — separate entry point for .seqc → ELF |
+Exceptions raised inside the prefetcher are caught and rethrown
+as `CompilerException`.
 
-## Compiler Layout (~0x138 bytes)
+## Step 10 — `AsmOptimize::optimizePostWaveform`
 
-| Offset | Size | Type | Name | Notes |
-|--------|------|------|------|-------|
-| +0x00 | 8 | AWGCompilerConfig const* | config_ | |
-| +0x08 | 8 | DeviceConstants const* | deviceConstants_ | |
-| +0x10 | 4 | int32_t | lineNr_ | Propagated to AsmCommands+WavetableFront |
-| +0x14 | 2 | uint16_t | flags_ | |
-| +0x18 | 8 | (reserved) | | |
-| +0x20 | 4 | int32_t | channelCount_ | Set by Prefetch::getUsedChannels() |
-| +0x24 | 1 | uint8_t | usedFourChannelMode_ | Set by Prefetch::getUsedFourChannelMode() |
-| +0x25 | 1 | uint8_t | usedSampleRate_ | |
-| +0x28 | 16 | shared_ptr<Node> | ast_ | |
-| +0x38 | 32 | CompilerMessageCollection | messages_ | Inline (0x20 bytes) |
-| +0x58 | 24 | vector<string> | sourceFiles_ | |
-| +0x70 | 24 | vector<string> | sourceLines_ | Filled by parse() |
-| +0x88 | 24 | AsmList | asmList_ | Working assembly list |
-| +0xA0 | 16 | shared_ptr<WavetableFront> | wavetable_ | From ctor arg |
-| +0xB0 | 16 | shared_ptr<AsmCommands> | asmCommands_ | Created in ctor |
-| +0xC0 | 16 | shared_ptr<WaveformGenerator> | waveformGen_ | Created in ctor |
-| +0xD0 | 16 | shared_ptr<CustomFunctions> | customFunctions_ | Created in ctor |
-| +0xE0 | 16 | weak_ptr<CancelCallback> | cancelCallback_ | |
-| +0xF0 | 16 | weak_ptr<ProgressCallback> | progressCallback_ | |
-| +0x100 | 56 | SeqcParserContext | parserContext_ | Contains std::function for error callback |
+A second, larger pass runs *after* placement.  In order:
 
-## TLS Counter Resets
+1. Dead-jump elimination and label cleanup.
+2. Register zeroing — replace `R0`-using moves with the
+   canonical form so the register allocator sees a normalised
+   list.
+3. Register allocation.
+4. `reportUserMessages` — accumulate any warnings the passes
+   produced.
 
-Both TLS counters are reset at the start of `compile()`:
-- TLS+0x40 (Asm nextID): unconditionally reset to 0 at 0x11f19f
-- TLS+0x44 (Node nodeId): conditionally reset to 0 at 0x1209c6
+See \ref notes_optimization_passes for each sub-pass.
 
-This confirms that sequence IDs restart from 0 for each compilation.
+## Step 11 — `unsyncCervino`
 
-## Error Handling
+On Cervino-family devices a sync teardown sequence is appended
+to undo any earlier `syncCervino` setup.  No-op on Hirzel.
 
-- `CompilerMessageCollection` at Compiler+0x38 accumulates errors/warnings
-- `hadCompilerError()` checked after lowering (step 4) and at the end (step 12)
-- `CompilerException` thrown on fatal parse errors
-- `runPrefetcher` catches `zhinst::Exception` → rethrows as `CompilerException`
-- Duplicate messages are filtered by `compilerMessage()` (same line + same text)
+## Step 12 — Build the output
 
-## Debug Flags
+The final `AsmList` is materialised as `vector<Assembler>`.
+After the build, `hadCompilerError()` is consulted one last
+time: if any pass enqueued an error message after step 4 (most
+commonly the post-waveform optimiser) the result is rejected.
 
-The `AWGCompilerConfig` debug flags field (at +0x90, checked as byte):
-- Bit 1 (0x02): Print old Expression AST after parsing
-- Bit 2 (0x04): Print SeqC AST after conversion
-- Bit 3 (0x08): Print generated tree after prefetch + final assembly
+## Cross-cutting concerns
+
+### Error messages
+
+`Compiler::messages_` accumulates errors and warnings throughout
+the pipeline.  `hadCompilerError()` is checked after lowering
+(step 4) and after the build (step 12); a fatal parser error
+short-circuits via `CompilerException`.  Duplicate messages — same
+line *and* same text — are suppressed by the message-collection
+layer.
+
+### Debug toggles
+
+`AWGCompilerConfig` carries a small set of debug bits that, when
+set, dump intermediate IR to stderr at well-defined cut points:
+
+| Bit  | Dump                                                             |
+|------|------------------------------------------------------------------|
+| 0x02 | Raw `Expression` tree, after step 2                              |
+| 0x04 | Typed `SeqCAstNode` tree, after step 3                           |
+| 0x08 | Node tree after prefetch + final assembly listing, after step 12 |
+
+### Cancellation and progress
+
+`Compiler` holds weak references to two optional callbacks:
+
+- `CancelCallback` — polled at coarse points; raises
+  `CompilerException("cancelled")` if it fires.
+- `ProgressCallback` — invoked with stage-completion notifications
+  for UI / IDE integrations.
+
+Both are no-ops when the weak reference is empty.
+
+## See also
+
+- \ref notes_frontend_lowering — front-end data model
+  (`FrontEndLoweringFacade`, `EvalResults`, `Value`,
+  `LowerResult`).
+- \ref notes_node_tree_structure — node-tree link semantics.
+- \ref notes_prefetch_scheduling — waveform-prefetch algorithm.
+- \ref notes_optimization_passes — pre- and post-waveform
+  passes.
+- \ref notes_custom_functions — SeqC built-in functions.
+- \ref notes_asm_parser_grammar — `.seqasm` text grammar used
+  for the round-trip in step 8.

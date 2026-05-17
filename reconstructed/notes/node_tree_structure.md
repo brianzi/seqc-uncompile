@@ -1,140 +1,195 @@
-# Node Tree Structure {#notes_node_tree_structure}
+# Node Tree {#notes_node_tree_structure}
 
-\note **Reverse-engineering reference material.** This page is part of
-the `reconstructed/notes/` set: deep-dive technical notes for
-contributors working on the reconstruction. It cites binary addresses,
-opcodes, and disassembly observations directly so they remain
-discoverable from the rendered site. The standard documentation-voice
-rules for API briefs (no binary citations outside `\binarynote`) do
-**not** apply to this page.
+The **node tree** is the structural IR the front-end produces
+during lowering (step 4 of \ref notes_pipeline).  It captures
+the program's nested loops, branches, and play operations as a
+tree, and is consumed by the prefetcher and the linearisation
+step to emit assembly in execution order.
 
-Reconstructed from `Node::insertBefore`, `updateParent`, `remove`, `swap`,
-`last`, `clone`, `toJson`, `fromJson`, `installPointers` at addresses
-0x1cd860–0x269020.
+Each `Node` carries:
 
-## Overview
+- **Local data** — opcode-like fields specific to the node kind
+  (device index, waveform indices, register handles, trigger
+  bits, …).
+- **Tree links** — pointers to other nodes that define program
+  shape.
 
-Nodes form a tree with three kinds of child links:
+The node-kind set is small: `Branch`, `Loop`, `Play`, `Load`,
+and a handful of leaf control-flow kinds.  All kinds share the
+same `Node` class and tree-link layout.
+
+[TOC]
+
+## Three kinds of child links
 
 ```
-         ┌──────────┐
-         │  parent   │  (weak_ptr, +0xF0)
-         │  (Loop)   │
-         └─────┬─────┘
+         ┌───────────┐
+         │  parent    │  (weak, set by updateParent)
+         └─────┬──────┘
                │
-     next chain (+0xB8, shared_ptr):
+   next chain (shared, forward only):
                │
-         ┌─────▼─────┐      next      ┌──────────┐      next      ┌──────────┐
-         │  Node A    │──────────────►│  Node B    │──────────────►│  Node C    │──► nullptr
-         │  (Branch)  │               │  (Play)    │               │  (Load)    │
-         └─────┬──────┘               └────────────┘               └────────────┘
+         ┌─────▼─────┐  next   ┌──────────┐  next   ┌──────────┐
+         │  Node A    │────────►│  Node B   │────────►│  Node C   │──► nullptr
+         │  (Branch)  │         │  (Play)   │         │  (Load)   │
+         └─────┬──────┘         └───────────┘         └───────────┘
                │
-               ├── loop (+0xE0, shared_ptr)
-               │         │
-               │   ┌─────▼─────┐
-               │   │  loop node │
-               │   └────────────┘
+               ├── loop   (shared, optional)
+               │      └──► [loop-body node]
                │
-               └── branches (+0xC8, vector<shared_ptr>)
-                         │
-                   ┌─────▼─────┐  ┌────────────┐
-                   │  child 0   │  │  child 1   │  ...
-                   └────────────┘  └────────────┘
+               └── branches (vector<shared>, only for Branch kind)
+                       │
+                  ┌────▼────┐  ┌──────────┐
+                  │ child 0 │  │ child 1  │  …
+                  └─────────┘  └──────────┘
 ```
 
-## Link Fields
+The link semantics, summarised:
 
-| Offset | Type                      | Name     | JSON Key    | Role                                      |
-|--------|---------------------------|----------|-------------|--------------------------------------------|
-| +0xB8  | `shared_ptr<Node>`        | next     | "next"      | Next node in sibling chain (linked list)   |
-| +0xC8  | `vector<shared_ptr<Node>>`| branches | "branches"  | Child nodes (only used for Branch type=4)  |
-| +0xE0  | `shared_ptr<Node>`        | loop     | "loop"      | Loop/else branch link                      |
-| +0xF0  | `weak_ptr<Node>`          | parent   | "parent"    | Back-pointer to parent (weak to avoid cycles)|
+| Link        | Cardinality      | Owner    | Purpose                                                  |
+|-------------|------------------|----------|----------------------------------------------------------|
+| `next`      | 0 or 1           | shared   | Next node in sibling execution order (the primary chain) |
+| `branches`  | 0..N             | shared   | Children of a `Branch` node (one per case arm)           |
+| `loop`      | 0 or 1           | shared   | Loop body, or "else" branch on conditional nodes         |
+| `parent`    | exactly 1 (root: empty) | weak     | Back-pointer; weak so the tree owns its descendants      |
 
-## How Each Method Uses the Links
+The sibling chain (`next`) is the primary execution ordering;
+`branches` and `loop` introduce nested scopes.
 
-### `last(node)` — 0x1d5cb0
-Follows `node->next` chain until null. Returns the tail of the
-sibling list.
+## Why `parent` is weak
 
-### `insertBefore(newNode)` — 0x1cd860
-Inserts `newNode` before `this` in the sibling chain:
+`parent` is held as `weak_ptr` so the only owning edges go
+top-down (`shared_ptr` along `next`, `branches`, `loop`).
+Without this, the bidirectional link would create reference
+cycles and the tree would never be freed.
+
+## Mutating operations
+
+The node-tree API is intentionally small.  All structural edits
+go through a handful of free / member functions; nothing in the
+front-end manipulates the link fields directly.
+
+### `last(node)`
+
+Walks the `next` chain to its tail and returns it.  Used by
+every operation that needs to append onto a sibling list.
+
+### `insertBefore(newNode)`
+
+Splices `newNode` into the chain immediately before `this`:
+
 1. `newNode->next = shared_from_this()`
 2. `newNode->parent = this->parent`
-3. `updateParent(parent, this, newNode)` — parent now points to newNode
-4. `this->parent = newNode` — this node's new "parent" is newNode
+3. `updateParent(parent, this, newNode)` — the parent's pointer
+   that referred to `this` now refers to `newNode`.
+4. `this->parent = newNode` — `this`'s back-pointer is updated.
 
-After: `... → newNode → this → ...`
+After: *… → newNode → this → …*.
 
-### `updateParent(parent, oldChild, newChild)` — 0x1d2f50
-Core dispatch that replaces `oldChild` with `newChild` in whichever slot
-of `parent` currently holds it. Checks in order:
+### `updateParent(parent, oldChild, newChild)`
 
-1. `parent->next == oldChild` → replace
-2. If `parent->type == Branch (4)`: scan `parent->branches` vector
-   - If `newChild` is non-null: replace in-place
-   - If `newChild` is null: erase the element (shifts vector)
-3. `parent->loop == oldChild` → replace
+The central dispatch used by every structural edit.  Replaces
+`oldChild` with `newChild` (which may be `nullptr`) in whichever
+slot of `parent` currently holds `oldChild`.  Checked, in order:
 
-Then sets `newChild->parent = parent` (as weak_ptr).
+1. `parent->next == oldChild` — replace.
+2. If `parent` is a `Branch`: scan `parent->branches`; replace
+   in place if `newChild` is non-null, otherwise erase the
+   element (the vector shifts down).
+3. `parent->loop == oldChild` — replace.
 
-### `remove(node)` — 0x1d4440
+Finally `newChild->parent = parent` (as a weak reference).
+
+### `remove(node)`
+
 Removes `node` from the tree:
-1. If `node->next` exists: splice it into parent's slot via
-   `updateParent(parent, node, node->next)`, then clear next
-2. Else: `updateParent(parent, node, nullptr)` — just remove
-3. Recursively `remove(node->loop)` if present
-4. Recursively `remove` each element in `node->branches`
 
-### `swap(a, b)` — 0x1d2720
-**Precondition:** `b->parent.get() == a.get()` — a must be b's parent.
+1. If `node->next` exists, splice it into `node`'s slot via
+   `updateParent(parent, node, node->next)`, then clear
+   `node->next`.
+2. Otherwise call `updateParent(parent, node, nullptr)` — the
+   slot is emptied (or, for `branches`, the element is erased).
+3. Recursively `remove(node->loop)` if present.
+4. Recursively `remove` each element of `node->branches`.
 
-1. Walk up from `a` through Loop (type 8) and Branch (type 4) ancestors
-   to find the first non-Loop/non-Branch ancestor
-2. Copy that ancestor's `asmId` to `b` if > 0
-3. Save `bNext = b->next`
-4. Three `updateParent` calls:
-   - `updateParent(parentOfA, a, b)` — b takes a's slot in a's parent
-   - `updateParent(b, bNext, a)` — inside b, a replaces bNext
-   - `updateParent(a, b, bNext)` — inside a, bNext replaces b
+### `swap(a, b)`
 
-Net effect: b is promoted to a's position; a becomes a child/sibling of b.
-Throws error 0xa4 if precondition fails.
+**Precondition**: `b->parent == a` (a is b's parent).
 
-### `clone()` — 0x1d5d40
-Creates a **shallow structural copy** — copies data fields but NOT tree
-links. Specifically copies: `deviceIndex`, `wavesPerDev`, `play`,
-`lengthReg`, `indexOffsetReg`, `tableIndex`, `trig`. Does NOT copy:
-`config`/`currentCwvf`, `next`, `loop`, `branches`, `parent`, `globalRate`,
-`defaultPrecompFlags`, `loopBodyRunsAtLeastOnce`, `branchMaySkipAllBodies`.
+The operation is not a symmetric swap — it *promotes* `b` to
+`a`'s position and demotes `a` into `b`'s old slot.  This is the
+shape needed by certain optimisation transforms; the name is
+historical.
 
-### `toJson(idMap)` — 0x264b90
-Serializes all fields to a `boost::json::value` object with 21 key-value
-pairs. Pointer fields serialized as integer IDs (-1 = null). The `idMap`
-remaps `nodeId` values to serializable indices.
+1. Walk up from `a` through any enclosing `Loop` / `Branch`
+   ancestors to find the first non-`Loop`/non-`Branch`
+   ancestor; copy its `asmId` to `b` (if positive) so the
+   promoted node inherits the source-line tag.
+2. Save `bNext = b->next`.
+3. Three `updateParent` calls re-wire the three relevant
+   pointers in one transaction:
+   - `updateParent(parentOfA, a, b)` — `b` takes `a`'s slot in
+     `a`'s parent.
+   - `updateParent(b, bNext, a)` — inside `b`, `a` replaces
+     `bNext`.
+   - `updateParent(a, b, bNext)` — inside `a`, `bNext`
+     replaces `b`.
 
-### `fromJson(json)` — 0x268280 (static)
-Deserializes scalar fields from JSON, constructing a Node via the full
-constructor. Pointer fields left empty — reconnected by `installPointers()`.
+Throws if the precondition fails.
 
-### `installPointers(nodeMap, json)` — 0x269020
-Reconnects pointer fields after deserialization:
-- `play` from `json["play"]` array (int IDs → weak_ptr via nodeMap)
-- `next` from `json["next"]` (int ID → shared_ptr)
-- `branches` from `json["branches"]` array (int IDs → shared_ptr)
-- `loop` from `json["loop"]` (int ID → shared_ptr)
-- `parent` from `json["parent"]` (int ID → weak_ptr)
+### `clone()`
 
-## Observations
+A **shallow structural copy** that duplicates the *data* fields
+but **not** the tree-link fields.  Specifically it copies the
+device index, the waves-per-device flag, the play descriptor,
+the length / index-offset registers, the table index, and the
+trigger bits.  It leaves `next`, `loop`, `branches`, `parent`,
+and the cross-pass-only fields (config / current CWVF, global
+rate, default precomp flags, loop-body-runs-at-least-once,
+branch-may-skip-all-bodies) empty.
 
-- The sibling chain (`next`) is the primary sequencing mechanism —
-  instructions execute in sibling order.
-- Only `Branch` nodes (type 4) use the `branches` vector. Other node types
-  use `next` and optionally `loop`.
-- `parent` is a `weak_ptr` to break reference cycles (parent→child is
-  `shared_ptr`, child→parent is `weak_ptr`).
-- `swap` is not a symmetric swap — it's a "promote child to parent's
-  position" operation. The name is misleading.
-- `play` (+0xA0) is populated externally (not by any Node method we've
-  seen). It may hold play-related dependency links from the optimizer.
-  JSON key "play" confirms the field's semantic role.
+Clones are therefore safe to splice into an unrelated tree.
+
+## JSON serialisation
+
+The node tree round-trips through JSON for the canonical-form
+validation step (step 8 of \ref notes_pipeline) and for the
+debug dump emitted under bit 0x08 of the debug flags.
+
+### `toJson(idMap)`
+
+Emits a JSON object per node.  Pointer fields are serialised as
+integer IDs through `idMap`; the sentinel `-1` represents
+`nullptr`.  `idMap` remaps each node's identity onto a dense,
+serialisation-friendly index.
+
+### `fromJson(json)` and `installPointers(nodeMap, json)`
+
+Deserialisation runs in two phases because pointer fields
+require all sibling nodes to exist first:
+
+- `fromJson` constructs every node from its scalar fields; all
+  pointer fields are left empty.
+- `installPointers` walks the resulting node set a second time,
+  looking each integer ID up in `nodeMap` and reconnecting the
+  `play`, `next`, `branches`, `loop`, and `parent` slots.
+
+## Notes on field meaning
+
+- **`Branch` is the only kind that uses `branches`.**  Every
+  other kind leaves the vector empty and relies on `next` /
+  `loop`.
+- **`play` is populated externally**, not by any of the methods
+  above.  It carries play-related dependency links produced by
+  the optimiser / prefetcher.  The JSON serialisation uses key
+  `"play"`, which is the canonical reference for the field's
+  semantic role.
+
+## See also
+
+- \ref notes_pipeline — where the node tree is built (step 4)
+  and consumed (steps 6, 9, 10).
+- \ref notes_frontend_lowering — `FrontEndLoweringFacade` and
+  the lowering data model that builds the tree.
+- \ref notes_prefetch_scheduling — the pass that walks the tree
+  to decide waveform placement.
