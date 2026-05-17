@@ -71,10 +71,10 @@ enum ErrorMessageT : int {
     InvalidOpcode               = 11,  // "%1% is not a valid opcode"
 
     // --- Array errors (12–15) ---
-    ArrayIndexOutOfRange        = 12,
-    ProgramTooLarge             = 13,
-    ArrayIndexNeedConst         = 14,
-    ArraysOnlyWave              = 15,
+    ProgramTooLarge             = 12,  // "program is too large to fit into memory…"
+    ArraysOnlyWave              = 13,  // "arrays are just supported with type wave"
+    ArrayIndexNeedConst         = 14,  // "an array index always needs to be a const or cvar value"
+    ArrayIndexOutOfRange        = 15,  // "the array index is out of the array range"
 
     // --- Type/memory errors (16–22) ---
     CantInvertType              = 16,
@@ -95,19 +95,19 @@ enum ErrorMessageT : int {
     CaseOutsideSwitch           = 29,
 
     // --- General compiler (30–45) ---
-    ModifyConst                 = 30,
-    CompressError               = 31,
-    ConditionalNeedVarConst     = 32,
+    CompressError               = 30,  // "could not compress sections in output file…"
+    ConditionalNeedVarConst     = 31,  // "conditional expression expects a var, cvar or const argument"
+    ModifyConst                 = 32,  // "tried to modify const value"
     ExpectedCommand             = 33,
     UnreachableCode             = 34,
     CsvInconsistentChannels     = 35,
     CsvWrongValue               = 36,
     CsvValueOutOfRange          = 37,
     CsvEmpty                    = 38,
-    CantDivConstByWave          = 39,
-    ExpectsVarOrConst           = 40,
+    ExpectsVarOrConst           = 39,  // "%1% expects a var or const argument"
+    InvalidDeviceNr             = 40,  // "invalid device nr %1%, just %2% devices activated"
     DivisionByZero              = 41,
-    InvalidDeviceNr             = 42,
+    CantDivConstByWave          = 42,  // "can't divide a const by a wave"
     EmptyInput                  = 43,
     EmptyOperation              = 44,
     ExecTableExpectsArg         = 45,
@@ -339,9 +339,9 @@ enum ErrorMessageT : int {
     WaveNotFittingPreload       = 247,
     WaveAlreadyAssigned         = 248,
     WaveIndexUsed               = 249,
-    WaveNameInUse               = 250,
-    WaveIndexExceedsTable       = 251,
-    InvalidWaveformName         = 252,
+    WaveIndexExceedsTable       = 250,  // "waveform index exceeds wavetable size"
+    InvalidWaveformName         = 251,  // "invalid waveform name encountered…"
+    WaveNameInUse               = 252,  // "waveform name %1% is already in use…"
     BitwiseNegativeOp2          = 253,
     BitwiseNegativeOp1          = 254,
 
@@ -403,21 +403,6 @@ enum ErrorMessageT : int {
     FwVectorExtraWords          = 36875,
     FwOutOfSequence             = 36876,
     FwVectorOutOfRange          = 36877,
-
-    // Aliases for asm_commands.cpp (verified from binary throw sites):
-    //   prf: esi=0  → CmdWithoutRegister (= 0)
-    //   wvfs: esi=5 → ValueOutOfRange    (= 5)
-    //   wvfs/wvft/wwvfq cervino: esi=0xb → InvalidOpcode (= 11)
-    //
-    // After the  renumbering these aliases are now redundant —
-    // they resolve to the same values as the canonical names above:
-    //   InvalidRegister ≡ CmdWithoutRegister  = 0
-    //   ValueOverflow   ≡ ValueOutOfRange     = 5
-    //   UnsupportedOp   ≡ InvalidOpcode       = 11
-    // Kept as aliases for source compatibility (src/ uses these names).
-    InvalidRegister             = 0,    // alias for CmdWithoutRegister
-    ValueOverflow               = 5,    // alias for ValueOutOfRange
-    UnsupportedOp               = 11,   // alias for InvalidOpcode
 };
 
 // ============================================================================

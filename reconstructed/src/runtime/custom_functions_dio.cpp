@@ -373,7 +373,7 @@ std::shared_ptr<EvalResults> CustomFunctions::assignWaveIndex(                  
         if (!boost::regex_match(*optName, m, cLikeIdentifier)) {           // @0x133dc9
             // @0x134bf9: error 0xFB — throw CustomFunctionsException
             throw CustomFunctionsException(
-                ErrorMessages::format(WaveIndexExceedsTable));
+                ErrorMessages::format(InvalidWaveformName));
         }
         // Insert name into assignedWaveNames_                                   // @0x133e2b
         assignedWaveNames_.insert(*optName);

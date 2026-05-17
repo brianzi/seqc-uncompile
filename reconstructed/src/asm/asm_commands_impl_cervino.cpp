@@ -20,7 +20,7 @@ bool AsmCommandsImplCervino::isCWVFRSupported() const {
 
 AsmList::Asm AsmCommandsImplCervino::wwvfq(int lineNumber) const {
     throw ResourcesException(
-        ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wwvfq"));
+        ErrorMessages::format(ErrorMessageT::InvalidOpcode, "wwvfq"));
 }
 
 // --- wprf: opcode 0xF0000000, no registers, no immediates ---
@@ -67,7 +67,7 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister dstRe
                                        int length, int lineNumber) const {
     if (dstReg != AsmRegister::Reg(0)) {
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "wvfi"));
     }
 
     AsmList::Asm result;
@@ -86,14 +86,14 @@ AsmList::Asm AsmCommandsImplCervino::wvfi(AsmRegister waveReg, AsmRegister dstRe
 AsmList::Asm AsmCommandsImplCervino::wvfs(Assembler::PlayDummyType, AsmRegister,
                                        int, int) const {
     throw ResourcesException(
-        ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wvfs"));
+        ErrorMessages::format(ErrorMessageT::InvalidOpcode, "wvfs"));
 }
 
 // --- wvft: unsupported on Cervino ---
 
 AsmList::Asm AsmCommandsImplCervino::wvft(AsmRegister, int, int) const {
     throw ResourcesException(
-        ErrorMessages::format(ErrorMessageT::UnsupportedOp, "wvft"));
+        ErrorMessages::format(ErrorMessageT::InvalidOpcode, "wvft"));
 }
 
 // --- brz: opcode 0xF3000000 ---

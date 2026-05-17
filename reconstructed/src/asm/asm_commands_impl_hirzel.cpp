@@ -67,7 +67,7 @@ AsmList::Asm AsmCommandsImplHirzel::wvf(AsmRegister waveReg, AsmRegister dstReg,
 AsmList::Asm AsmCommandsImplHirzel::wvfi(AsmRegister, AsmRegister,
                                       int, int) const {
     throw ResourcesException(
-        ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
+        ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "wvfi"));
 }
 
 // --- wvfs: opcode 0x30000001, dummyType→bool as first immediate ---

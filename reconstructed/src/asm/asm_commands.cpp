@@ -88,7 +88,7 @@ AsmList::Asm AsmCommands::emitNodeEntry(NodeType type) const {
 AsmList::Asm AsmCommands::prf(AsmRegister reg1, AsmRegister reg2, int intArg) const {
     if (!isValid(reg1) || !isValid(reg2))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "prf"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "prf"));
 
     Assembler instr;
     instr.cmd = Assembler::PRF;
@@ -115,14 +115,14 @@ AsmList::Asm AsmCommands::wwvf() const {
 AsmList::Asm AsmCommands::wvf(AsmRegister reg, AsmRegister dstReg, int length) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvf"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "wvf"));
     return impl_->wvf(reg, dstReg, length, wavetableFrontIndex_);
 }
 
 AsmList::Asm AsmCommands::wvfi(AsmRegister reg, AsmRegister dstReg, int length) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "wvfi"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "wvfi"));
     return impl_->wvfi(reg, dstReg, length, wavetableFrontIndex_);
 }
 
@@ -130,7 +130,7 @@ AsmList::Asm AsmCommands::wvfs(Assembler::PlayDummyType type, AsmRegister reg,
                             int length) const {
     if (static_cast<int>(type) >= 2)
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::ValueOverflow, "wvfs"));
+            ErrorMessages::format(ErrorMessageT::ValueOutOfRange, "wvfs"));
 
     AsmRegister r0 = AsmRegister::Reg(0);
     AsmRegister chosen = (int(r0) < int(reg)) ? reg : r0;
@@ -166,14 +166,14 @@ AsmList::Asm AsmCommands::br(const std::string& label, bool noOpt) const {
 AsmList::Asm AsmCommands::brz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "brz"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "brz"));
     return impl_->brz(reg, label, noOpt, wavetableFrontIndex_);
 }
 
 AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "brnz"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "brnz"));
 
     Assembler instr;
     instr.cmd = Assembler::BRNZ;
@@ -192,7 +192,7 @@ AsmList::Asm AsmCommands::brnz(AsmRegister reg, const std::string& label, bool n
 AsmList::Asm AsmCommands::brgz(AsmRegister reg, const std::string& label, bool noOpt) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "brgz"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "brgz"));
 
     Assembler instr;
     instr.cmd = Assembler::BRGZ;  // 0xF5000000, confirmed from disassembly @0x272175
@@ -216,7 +216,7 @@ AsmList::Asm AsmCommands::alur(Assembler::Command cmd, AsmRegister dst,
                             AsmRegister src) const {
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister,
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister,
                                   Assembler::commandToString(cmd).c_str()));
 
     Assembler instr;
@@ -253,14 +253,14 @@ AsmList::Asm AsmCommands::xnorr(AsmRegister dst, AsmRegister src) const {
 AsmList::Asm AsmCommands::ssl(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "ssl"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "ssl"));
     return impl_->ssl(reg, wavetableFrontIndex_);
 }
 
 AsmList::Asm AsmCommands::ssr(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "ssr"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "ssr"));
     return impl_->ssr(reg, wavetableFrontIndex_);
 }
 
@@ -272,7 +272,7 @@ AsmList::Asm AsmCommands::aluiu(Assembler::Command cmd, AsmRegister dst,
                              AsmRegister src, Immediate imm) const {
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister,
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister,
                                   Assembler::commandToString(cmd).c_str()));
 
     Assembler instr;
@@ -308,7 +308,7 @@ std::vector<AsmList::Asm> AsmCommands::alui(Assembler::Command cmd, AsmRegister 
     if (!isValid(dst) || !isValid(src)) {
 
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister,
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister,
                                   Assembler::commandToString(cmd).c_str()));
     }
 
@@ -398,7 +398,7 @@ std::vector<AsmList::Asm> AsmCommands::addi32(AsmRegister dst, AsmRegister src,
     // Emits: ADDI dst, src, (imm & 0xFFF) + ADDIU dst, dst, (imm >> 12)
     if (!isValid(dst) || !isValid(src))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "addi32"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "addi32"));
 
     std::vector<AsmList::Asm> result;
     uint32_t uval = static_cast<uint32_t>(static_cast<int>(imm));  // was: imm.value
@@ -514,7 +514,7 @@ AsmList::Asm AsmCommands::ld(AsmRegister reg,
                           detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "ld"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "ld"));
 
     Assembler instr;
     instr.cmd = Assembler::LD;
@@ -527,7 +527,7 @@ AsmList::Asm AsmCommands::st(AsmRegister reg,
                           detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "st"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "st"));
 
     Assembler instr;
     instr.cmd = Assembler::ST;
@@ -539,7 +539,7 @@ AsmList::Asm AsmCommands::st(AsmRegister reg,
 AsmList::Asm AsmCommands::ldio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "ldio"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "ldio"));
     unsigned addr = highBank ? kDioAddrHigh : kDioAddrLow;
     return ld(reg, detail::AddressImpl<unsigned int>{addr});
 }
@@ -547,7 +547,7 @@ AsmList::Asm AsmCommands::ldio(AsmRegister reg, bool highBank) const {
 AsmList::Asm AsmCommands::sdio(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "sdio"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "sdio"));
     unsigned addr = highBank ? kDioAddrHigh : kDioAddrLow;
     return st(reg, detail::AddressImpl<unsigned int>{addr});
 }
@@ -556,7 +556,7 @@ AsmList::Asm AsmCommands::luser(AsmRegister reg,
                              detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "luser"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "luser"));
     return ld(reg, addr);  // confirmed: same opcode as ld (delegates directly @0x274b24)
 }
 
@@ -564,7 +564,7 @@ AsmList::Asm AsmCommands::suser(AsmRegister reg,
                              detail::AddressImpl<unsigned int> addr) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "suser"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "suser"));
     return st(reg, addr);  // confirmed: same opcode as st (delegates directly)
 }
 
@@ -575,28 +575,28 @@ AsmList::Asm AsmCommands::suser(AsmRegister reg,
 AsmList::Asm AsmCommands::ltrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "ltrig"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "ltrig"));
     return ld(reg, detail::AddressImpl<unsigned int>{kAddrTrigger});
 }
 
 AsmList::Asm AsmCommands::strig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "strig"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "strig"));
     return st(reg, detail::AddressImpl<unsigned int>{kAddrTrigger});
 }
 
 AsmList::Asm AsmCommands::sinttrig(AsmRegister reg) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "sinttrig"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "sinttrig"));
     return st(reg, detail::AddressImpl<unsigned int>{kAddrInternalTrig});
 }
 
 AsmList::Asm AsmCommands::wtrig(AsmRegister r1, AsmRegister r2) const {
     if (!isValid(r1) || !isValid(r2))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "wtrig"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "wtrig"));
 
     Assembler instr;
     instr.cmd = Assembler::WTRIG;
@@ -619,7 +619,7 @@ AsmList::Asm AsmCommands::wtrigi(int value) const {
 AsmList::Asm AsmCommands::sid(AsmRegister reg, bool highBank) const {
     if (!isValid(reg))
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "sid"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "sid"));
     unsigned addr = highBank ? kIdAddrHigh : kIdAddrLow;
     return st(reg, detail::AddressImpl<unsigned int>{addr});
 }
@@ -629,7 +629,7 @@ AsmList::Asm AsmCommands::sid(AsmRegister reg, bool highBank) const {
 std::vector<AsmList::Asm> AsmCommands::smap(AsmRegister r1, AsmRegister r2, int value) const {
     if (!isValid(r1) || !isValid(r2))                    // 0x275349, 0x27535a
         throw ResourcesException(                        // 0x275506
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "smap"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "smap"));
 
     // Build ADDI r1, regDst, Immediate(value) sequence     // 0x275371–0x2753e2
     std::vector<AsmList::Asm> result = alui(Assembler::ADDI, r1, AsmRegister::Reg(0), Immediate(value));
@@ -656,7 +656,7 @@ AsmList::Asm AsmCommands::lcnt(AsmRegister reg,
     // bank that occupies the upper portion of the regular register address space.
     if (!reg.isValid()) {
         throw ResourcesException(
-            ErrorMessages::format(ErrorMessageT::InvalidRegister, "lcnt"));
+            ErrorMessages::format(ErrorMessageT::CmdWithoutRegister, "lcnt"));
     }
     addr.value += 0x64;    // 0x27571b: add r14d, 0x64
     return ld(reg, addr);  // 0x275728

@@ -59,7 +59,7 @@ namespace zhinst {
 //! so the surrounding `AsmList` retains stable insertion ordering
 //! even across the multi-instruction expansions.  Register-bearing
 //! mnemonics validate their operands via `isValid` and throw
-//! `ResourcesException(ErrorMessageT::InvalidRegister, "<mnemonic>")`
+//! `ResourcesException(ErrorMessageT::CmdWithoutRegister, "<mnemonic>")`
 //! on failure; the diagnostic name matches the public method name.
 class AsmCommands {
 public:
@@ -98,13 +98,13 @@ public:
     //! `reg2` the Cervino-cache slot, and `intArg` carries
     //! the 20-bit length immediate.  Validates both
     //! registers; on failure raises
-    //! `ResourcesException(InvalidRegister, "prf")`.
+    //! `ResourcesException(CmdWithoutRegister, "prf")`.
     //! Emitted by the prefetch family in `prefetch_*.cpp`.
     //!
     //! \param reg1    Hirzel-cache slot register; validated and rejected
-    //!                as `InvalidRegister` on failure.
+    //!                as `CmdWithoutRegister` on failure.
     //! \param reg2    Cervino-cache slot register; validated and rejected
-    //!                as `InvalidRegister` on failure.
+    //!                as `CmdWithoutRegister` on failure.
     //! \param intArg  20-bit length immediate encoded into the instruction
     //!                word.
     //! \return  The emitted assembler-instruction descriptor.
@@ -127,7 +127,7 @@ public:
     //!        `0xF0000000`, no operands).
     //!
     //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
-    //! back ends throw `ResourcesException(UnsupportedOp, "wwvfq")`
+    //! back ends throw `ResourcesException(InvalidOpcode, "wwvfq")`
     //! because they have no playback queue.  Emitted by
     //! `waitPlayQueueEmpty`.
     //!
@@ -151,11 +151,11 @@ public:
     //! factory falls through to the extended-opcode form
     //! `WVFE` (`0xFA000000`, single register) instead.
     //! Validates `reg`; on failure raises
-    //! `ResourcesException(InvalidRegister, "wvf")`.
+    //! `ResourcesException(CmdWithoutRegister, "wvf")`.
     //! Device-specific encoding is delegated to `impl_`.
     //!
     //! \param reg     Marker-source register; validated and rejected
-    //!                as `InvalidRegister` on failure.
+    //!                as `CmdWithoutRegister` on failure.
     //! \param dstReg  Waveform-address register; on Hirzel, `R0` selects
     //!                the extended-opcode `WVFE` form.
     //! \param length  Length immediate encoded into the instruction word.
@@ -167,14 +167,14 @@ public:
     //! \details The `i` suffix means "indexed" (the address
     //! comes from an index register), **not** "interleaved".
     //! Cervino-only — Hirzel's `wvfi` impl throws
-    //! `UnsupportedOp` (the equivalent extended-opcode
+    //! `InvalidOpcode` (the equivalent extended-opcode
     //! `WVFEI` exists in the parser but is never emitted).
     //! Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "wvfi")` on
+    //! `ResourcesException(CmdWithoutRegister, "wvfi")` on
     //! failure.  Delegates to `impl_`.
     //!
     //! \param reg     Index register; validated and rejected as
-    //!                `InvalidRegister` on failure.
+    //!                `CmdWithoutRegister` on failure.
     //! \param dstReg  Destination / address register.
     //! \param length  Length immediate encoded into the instruction word.
     //! \return  The emitted assembler-instruction descriptor.
@@ -184,7 +184,7 @@ public:
     //!
     //! \details `type` is a `PlayDummyType` selector that
     //! occupies a 1-bit slot; valid values are `0` and `1`,
-    //! anything else raises `ResourcesException(ValueOverflow,
+    //! anything else raises `ResourcesException(ValueOutOfRange,
     //! "wvfs")`.  The remaining bits hold a 20-bit offset.
     //! The chosen length register is the higher of `reg` and
     //! `R0` so callers may pass `R0` to mean "no register".
@@ -193,10 +193,10 @@ public:
     //! precedes a waveform-fetch.
     //!
     //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
-    //! back ends throw `ResourcesException(UnsupportedOp, "wvfs")`.
+    //! back ends throw `ResourcesException(InvalidOpcode, "wvfs")`.
     //!
     //! \param type    `PlayDummyType` selector occupying a 1-bit slot;
-    //!                must be `0` or `1`, otherwise `ValueOverflow` is
+    //!                must be `0` or `1`, otherwise `ValueOutOfRange` is
     //!                raised.
     //! \param reg     Length register; pass `R0` to mean "no register".
     //! \param length  20-bit offset immediate encoded into the
@@ -212,7 +212,7 @@ public:
     //! to dispatch a precomposed table entry.
     //!
     //! \note Supported only on HDAWG/SHF (Hirzel) sequencers; UHF-family
-    //! back ends throw `ResourcesException(UnsupportedOp, "wvft")`.
+    //! back ends throw `ResourcesException(InvalidOpcode, "wvft")`.
     //!
     //! \param reg     Table-entry index register.
     //! \param length  Length immediate encoded into the instruction word.
@@ -270,12 +270,12 @@ public:
     //!        (opcode `0xF3000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "brz")` on
+    //! `ResourcesException(CmdWithoutRegister, "brz")` on
     //! failure.  Device-specific encoding via `impl_` (Hirzel
     //! diverts the `reg == R0` case to `JMP`; see `br`).
     //!
     //! \param reg    Operand register tested against zero; validated and
-    //!               rejected as `InvalidRegister` on failure.
+    //!               rejected as `CmdWithoutRegister` on failure.
     //! \param label  Target label name resolved at link time.
     //! \param noOpt  When `true`, marks the emitted instruction as
     //!               non-optimisable so later passes preserve it verbatim.
@@ -285,12 +285,12 @@ public:
     //!        (opcode `0xF4000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "brnz")` on
+    //! `ResourcesException(CmdWithoutRegister, "brnz")` on
     //! failure.  Encoded directly (not via `impl_`) — same
     //! encoding on both device families.
     //!
     //! \param reg    Operand register tested against zero; validated and
-    //!               rejected as `InvalidRegister` on failure.
+    //!               rejected as `CmdWithoutRegister` on failure.
     //! \param label  Target label name resolved at link time.
     //! \param noOpt  When `true`, marks the emitted instruction as
     //!               non-optimisable so later passes preserve it verbatim.
@@ -300,11 +300,11 @@ public:
     //!        (opcode `0xF5000000`, 3-cycle branch penalty).
     //!
     //! \details Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "brgz")` on
+    //! `ResourcesException(CmdWithoutRegister, "brgz")` on
     //! failure.  Encoded directly.
     //!
     //! \param reg    Operand register tested for positivity; validated
-    //!               and rejected as `InvalidRegister` on failure.
+    //!               and rejected as `CmdWithoutRegister` on failure.
     //! \param label  Target label name resolved at link time.
     //! \param noOpt  When `true`, marks the emitted instruction as
     //!               non-optimisable so later passes preserve it verbatim.
@@ -326,7 +326,7 @@ public:
     //! `SUBR=0x..01`, `ANDR=0x..02`, `ORR=0x..03`,
     //! `XNORR=0x..04`, `XORR=0x..07`.  Validates both `dst`
     //! and `src`; raises
-    //! `ResourcesException(InvalidRegister,
+    //! `ResourcesException(CmdWithoutRegister,
     //! commandToString(cmd))` on failure.  The named
     //! convenience wrappers below dispatch through this
     //! function.
@@ -388,11 +388,11 @@ public:
     //! (`Prefetch::wvfRegImpl`, `prefetch_splitplay`,
     //! `prefetch_placesingle`) between `addi` and
     //! `wvf`/`wvfi`.  Delegates to `impl_`; raises
-    //! `ResourcesException(InvalidRegister, "ssl")` on
+    //! `ResourcesException(CmdWithoutRegister, "ssl")` on
     //! register validation failure.
     //!
     //! \param reg  Register shifted in place; validated and rejected as
-    //!             `InvalidRegister` on failure.
+    //!             `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ssl(AsmRegister reg) const;
     //! \brief Emit `SSR` — single-bit shift right of `reg`
@@ -401,11 +401,11 @@ public:
     //! \details Same encoding-pattern split as `ssl` (Cervino
     //! reg-in-both-slots vs Hirzel reg/R0).  Delegates to
     //! `impl_`; raises
-    //! `ResourcesException(InvalidRegister, "ssr")` on
+    //! `ResourcesException(CmdWithoutRegister, "ssr")` on
     //! register validation failure.
     //!
     //! \param reg  Register shifted in place; validated and rejected as
-    //!             `InvalidRegister` on failure.
+    //!             `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ssr(AsmRegister reg) const;
 
@@ -428,7 +428,7 @@ public:
     //!
     //! `imm` is stored as an `outputs` immediate (not the
     //! `immediates` slot).  Validates `dst`/`src`; raises
-    //! `ResourcesException(InvalidRegister, commandToString(cmd))`
+    //! `ResourcesException(CmdWithoutRegister, commandToString(cmd))`
     //! on failure.
     //!
     //! \param cmd  ALU operation selector (`ADDIU`, `ANDIU`, `ORIU`,
@@ -509,7 +509,7 @@ public:
     //!   commandToString(cmd))`.
     //!
     //! Validates `dst`/`src`; raises
-    //! `ResourcesException(InvalidRegister, commandToString(cmd))`
+    //! `ResourcesException(CmdWithoutRegister, commandToString(cmd))`
     //! on failure.
     //!
     //! \param cmd  ALU operation selector (`ADDI`, `ANDI`, `ORI`,
@@ -541,7 +541,7 @@ public:
     //! the pair.  Used when the caller relies on the exact
     //! two-instruction layout (e.g. patchable immediates).
     //! Validates `dst`/`src`; raises
-    //! `ResourcesException(InvalidRegister, "addi32")` on
+    //! `ResourcesException(CmdWithoutRegister, "addi32")` on
     //! failure.
     //!
     //! \param dst  Destination register.
@@ -679,14 +679,14 @@ public:
     //!        (opcode `0xD0000000`).
     //!
     //! \details Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "ld")` on
+    //! `ResourcesException(CmdWithoutRegister, "ld")` on
     //! failure.  `addr.value` is stored in the outputs slot.
     //! See the special-register map for the meaning of
     //! individual addresses (DIO `0x20`, trigger `0x22`,
     //! ZSync `0x6A..0x6C`, PRNG `0x77`, …).
     //!
     //! \param reg   Destination register; validated and rejected as
-    //!              `InvalidRegister` on failure.
+    //!              `CmdWithoutRegister` on failure.
     //! \param addr  Source memory-mapped register address; encoded into
     //!              the outputs slot.
     //! \return  The emitted assembler-instruction descriptor.
@@ -696,12 +696,12 @@ public:
     //!        (opcode `0xF6000000`).
     //!
     //! \details Validates `reg`; raises
-    //! `ResourcesException(InvalidRegister, "st")` on
+    //! `ResourcesException(CmdWithoutRegister, "st")` on
     //! failure.  `addr` carries an internal bounds check
     //! against `DeviceConstants::memoryDepth`.
     //!
     //! \param reg   Source register; validated and rejected as
-    //!              `InvalidRegister` on failure.
+    //!              `CmdWithoutRegister` on failure.
     //! \param addr  Destination memory-mapped register address; bounds-
     //!              checked against `DeviceConstants::memoryDepth`.
     //! \return  The emitted assembler-instruction descriptor.
@@ -714,11 +714,11 @@ public:
     //! bank is only meaningful on SHFLI / VHFLI / GHFLI;
     //! other devices alias both addresses or reject the high
     //! bank at the caller layer.  Raises
-    //! `ResourcesException(InvalidRegister, "ldio")` on
+    //! `ResourcesException(CmdWithoutRegister, "ldio")` on
     //! register validation failure.
     //!
     //! \param reg       Destination register; validated and rejected as
-    //!                  `InvalidRegister` on failure.
+    //!                  `CmdWithoutRegister` on failure.
     //! \param highBank  Selects the high (`0x1FE`) vs low (`0x20`) DIO
     //!                  bank.
     //! \return  The emitted assembler-instruction descriptor.
@@ -728,11 +728,11 @@ public:
     //! \details Convenience wrapping `st(reg, 0x20)` /
     //! `st(reg, 0x1FE)` selected by `highBank` (see
     //! `ldio`).  Raises
-    //! `ResourcesException(InvalidRegister, "sdio")` on
+    //! `ResourcesException(CmdWithoutRegister, "sdio")` on
     //! register validation failure.
     //!
     //! \param reg       Source register; validated and rejected as
-    //!                  `InvalidRegister` on failure.
+    //!                  `CmdWithoutRegister` on failure.
     //! \param highBank  Selects the high (`0x1FE`) vs low (`0x20`) DIO
     //!                  bank.
     //! \return  The emitted assembler-instruction descriptor.
@@ -744,11 +744,11 @@ public:
     //! emits the same `LD` instruction.  Used for the
     //! 0x000–0x3FF user-register page (`getUserReg`,
     //! `getPRNGValue`, …).  Raises
-    //! `ResourcesException(InvalidRegister, "luser")` on
+    //! `ResourcesException(CmdWithoutRegister, "luser")` on
     //! register validation failure.
     //!
     //! \param reg   Destination register; validated and rejected as
-    //!              `InvalidRegister` on failure.
+    //!              `CmdWithoutRegister` on failure.
     //! \param addr  Source user-register address.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm luser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
@@ -758,11 +758,11 @@ public:
     //! aliasing rationale.  Used for the 0x000–0x3FF user
     //! page plus the named control registers in the 0x40+
     //! range (sync, oscillator phase, PRNG, sweep, QA, …).
-    //! Raises `ResourcesException(InvalidRegister, "suser")`
+    //! Raises `ResourcesException(CmdWithoutRegister, "suser")`
     //! on register validation failure.
     //!
     //! \param reg   Source register; validated and rejected as
-    //!              `InvalidRegister` on failure.
+    //!              `CmdWithoutRegister` on failure.
     //! \param addr  Destination user-register address.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm suser(AsmRegister reg, detail::AddressImpl<unsigned int> addr) const;
@@ -776,11 +776,11 @@ public:
     //!
     //! \details Used by `getTrigger` / `getAnaTrigger` /
     //! `getDigTrigger`.  Raises
-    //! `ResourcesException(InvalidRegister, "ltrig")` on
+    //! `ResourcesException(CmdWithoutRegister, "ltrig")` on
     //! register validation failure.
     //!
     //! \param reg  Destination register; validated and rejected as
-    //!             `InvalidRegister` on failure.
+    //!             `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm ltrig(AsmRegister reg) const;
     //! \brief Write `reg` to the trigger register —
@@ -788,22 +788,22 @@ public:
     //!
     //! \details Pre-SHFLI devices only; used by
     //! `setTrigger`, `startQAResult`, `startQAMonitor`.
-    //! Raises `ResourcesException(InvalidRegister, "strig")`
+    //! Raises `ResourcesException(CmdWithoutRegister, "strig")`
     //! on register validation failure.
     //!
     //! \param reg  Source register; validated and rejected as
-    //!             `InvalidRegister` on failure.
+    //!             `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm strig(AsmRegister reg) const;
     //! \brief Write `reg` to the internal-trigger register —
     //!        `st(reg, 0x23)`.
     //!
     //! \details LI-family only; used by `setInternalTrigger`.
-    //! Raises `ResourcesException(InvalidRegister, "sinttrig")`
+    //! Raises `ResourcesException(CmdWithoutRegister, "sinttrig")`
     //! on register validation failure.
     //!
     //! \param reg  Source register; validated and rejected as
-    //!             `InvalidRegister` on failure.
+    //!             `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm sinttrig(AsmRegister reg) const;
     //! \brief Emit `WTRIG r1, r2` — wait for trigger
@@ -813,13 +813,13 @@ public:
     //! source slot and `r1` the aux slot.  The trigger value
     //! is typically pre-loaded into a register via `addi`
     //! before this barrier.  Validates both; raises
-    //! `ResourcesException(InvalidRegister, "wtrig")` on
+    //! `ResourcesException(CmdWithoutRegister, "wtrig")` on
     //! failure.
     //!
     //! \param r1  Aux-slot register; validated and rejected as
-    //!            `InvalidRegister` on failure.
+    //!            `CmdWithoutRegister` on failure.
     //! \param r2  Source-slot register; validated and rejected as
-    //!            `InvalidRegister` on failure.
+    //!            `CmdWithoutRegister` on failure.
     //! \return  The emitted assembler-instruction descriptor.
     AsmList::Asm wtrig(AsmRegister r1, AsmRegister r2) const;
     //! \brief Emit `WTRIGI value` — wait for trigger,
@@ -847,11 +847,11 @@ public:
     //!
     //! \details Hirzel-only; high bank is reserved for
     //! SHFLI / VHFLI / GHFLI.  Raises
-    //! `ResourcesException(InvalidRegister, "sid")` on
+    //! `ResourcesException(CmdWithoutRegister, "sid")` on
     //! register validation failure.
     //!
     //! \param reg       Source register; validated and rejected as
-    //!                  `InvalidRegister` on failure.
+    //!                  `CmdWithoutRegister` on failure.
     //! \param highBank  Selects the high (`0x1FF`) vs low (`0x21`)
     //!                  device-id register.
     //! \return  The emitted assembler-instruction descriptor.
@@ -864,7 +864,7 @@ public:
     //! depending on the magnitude of `value`), followed by
     //! `st(r1, 0x62)` (map key) and `st(r2, 0x63)` (map
     //! value).  Validates `r1` and `r2`; raises
-    //! `ResourcesException(InvalidRegister, "smap")` on
+    //! `ResourcesException(CmdWithoutRegister, "smap")` on
     //! failure.
     //!
     //! \note Address `0x62` is overloaded: it is the
@@ -902,7 +902,7 @@ public:
     //!
     //! \note HDAWG-only; no other device exposes hardware loop counters
     //! at this register window.  Raises
-    //! `ResourcesException(InvalidRegister, "lcnt")` on register
+    //! `ResourcesException(CmdWithoutRegister, "lcnt")` on register
     //! validation failure.
     //!
     //! \param reg   Destination register receiving the counter value.

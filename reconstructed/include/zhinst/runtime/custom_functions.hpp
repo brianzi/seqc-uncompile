@@ -1511,7 +1511,7 @@ public:
     //! \return  `EvalResults(VarType_Void)` carrying the placeholder
     //!          load node.
     //! \throws  `CustomFunctionsException` for invalid identifiers
-    //!          (`WaveIndexExceedsTable`), non-const wave-index
+    //!          (`InvalidWaveformName`), non-const wave-index
     //!          arguments (`OnlyConstWaveIndex`), unsupported
     //!          devices, or off-spec waveform lengths.
     std::shared_ptr<EvalResults> assignWaveIndex(std::vector<EvalResultValue> const& args, std::shared_ptr<Resources> res);       // @0x133c40

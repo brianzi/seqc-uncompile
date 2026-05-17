@@ -545,7 +545,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
         arrayResult->values_.back().varType_ != VarType_Wave) {      // @0x211316
         // Error 0xd: array operand must be a single wave
         std::string msg = ErrorMessages::format(                     // @0x211389
-            ProgramTooLarge);
+            ArraysOnlyWave);
         ctx.messages->errorMessage(msg, -1);                         // @0x211400
 
         // ---- Cleanup indexResult + arrayResult, return result ---- // @0x21140e
@@ -616,7 +616,7 @@ std::shared_ptr<EvalResults> SeqCArray::evaluate(
     if (idx < 0 || idx >= arrayBound) {                              // @0x211739, @0x211742
         // Error 0xf: array index out of bounds
         std::string msg = ErrorMessages::format(                     // @0x2118d6
-            ArraysOnlyWave);
+            ArrayIndexOutOfRange);
         ctx.messages->errorMessage(msg, -1);                         // @0x21191a
         return result;
     }
