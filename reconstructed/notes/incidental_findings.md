@@ -2266,6 +2266,45 @@ to `waveIndex` as part of F10.b.
 - `reconstructed/src/waveform/wave_index_tracker.cpp:139,144,158`
 
 
+## IF-329 — `magic_number_audit.md` P1 mistargets `Value::which_`
+
+**Severity:** cosmetic (documentation)
+**Status:** fixed (P1 pivoted; this note records the discrepancy)
+
+Audit §8 P1 reads "`VariantSlot` enum for `Variable::value.which_`
+(Int/Bool/Double/String = 0..3 per `runtime/resources.cpp` comments).
+7 switches in `ast/value.cpp` would convert."
+
+Verification in Phase D7-C.2 found:
+
+- There are **zero** `switch (which_)` statements in `reconstructed/src/`.
+  The two `which_` references in `runtime/resources.cpp:1786` and
+  `custom_functions.cpp:1155` are descriptive comments about the
+  binary's jump table, not C++ switches.
+- The 7 switches actually present in `reconstructed/src/ast/value.cpp`
+  (lines 84, 95, 117, 154, 170, 188, 203) dispatch on
+  `Immediate::index_`, **not** `Value::which_`.  These belong to the
+  inner `std::variant<AddressImpl<uint>, int, std::string>` of
+  `Immediate`, whose discriminator enum `ImmediateKind` already exists
+  in `reconstructed/include/zhinst/ast/value.hpp:157` (A1 from
+  `magic_numbers_proposal.md`, fully implemented).
+- The two variants are unrelated: `Value::which_` is a
+  `boost::variant<int,bool,double,string>` discriminator
+  (0=Int/1=Bool/2=Double/3=String); `Immediate::index_` is a
+  `std::variant<AddressImpl,int,string>` discriminator
+  (0=Address/1=Integer/2=String).
+
+P1 was pivoted to "`ImmediateKind` literal→named, 7 sites in
+`ast/value.cpp`" — a genuine A1-residual cleanup using the existing
+enum, not a new enum.  The original P1 intent (a `VariantSlot` enum
+for `Value::which_`) has no consuming `switch` and was not added.
+
+**Files**
+- `reconstructed/notes/magic_number_audit.md:780` (P1 row)
+- `reconstructed/src/ast/value.cpp:84,95,117,154,170,188,203`
+- `reconstructed/include/zhinst/ast/value.hpp:157` (existing enum)
+
+
 ## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
 
 **Severity:** suspicious

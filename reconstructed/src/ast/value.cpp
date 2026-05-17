@@ -81,27 +81,27 @@ Immediate::Immediate(std::string const& s)  // 0x290ae0
 Immediate::Immediate(Immediate const& other)
     : index_(other.index_)
 {
-    switch (other.index_) {
-        case 0:  data_.address = other.data_.address;       break;
-        case 1:  data_.integer = other.data_.integer;       break;
-        case 2:  new (&data_.str) std::string(other.data_.str); break;
-        default: /* valueless */                              break;
+    switch (static_cast<ImmediateKind>(other.index_)) {
+        case ImmediateKind::Address: data_.address = other.data_.address;       break;
+        case ImmediateKind::Integer: data_.integer = other.data_.integer;       break;
+        case ImmediateKind::String:  new (&data_.str) std::string(other.data_.str); break;
+        case ImmediateKind::Valueless: default: /* valueless */                 break;
     }
 }
 
 Immediate::Immediate(Immediate&& other) noexcept
     : index_(other.index_)
 {
-    switch (other.index_) {
-        case 0:  data_.address = other.data_.address;                            break;
-        case 1:  data_.integer = other.data_.integer;                            break;
-        case 2:  new (&data_.str) std::string(std::move(other.data_.str));       break;
-        default: /* valueless */                                                  break;
+    switch (static_cast<ImmediateKind>(other.index_)) {
+        case ImmediateKind::Address: data_.address = other.data_.address;                            break;
+        case ImmediateKind::Integer: data_.integer = other.data_.integer;                            break;
+        case ImmediateKind::String:  new (&data_.str) std::string(std::move(other.data_.str));       break;
+        case ImmediateKind::Valueless: default: /* valueless */                                      break;
     }
     // Per the binary's ~Immediate, leave `other` in valueless state so its
     // dtor is a no-op. (Strictly only needed for the string case, but doing
     // it unconditionally costs nothing and matches the variant-move idiom.)
-    if (other.index_ == 2) {
+    if (other.index_ == static_cast<uint32_t>(ImmediateKind::String)) {
         other.data_.str.~basic_string();
     }
     other.index_ = kImmediateValueless;
@@ -110,15 +110,15 @@ Immediate::Immediate(Immediate&& other) noexcept
 Immediate& Immediate::operator=(Immediate const& other) {
     if (this == &other) return *this;
     // Destroy current state, then copy-construct the new one in place.
-    if (index_ == 2) {
+    if (index_ == static_cast<uint32_t>(ImmediateKind::String)) {
         data_.str.~basic_string();
     }
     index_ = other.index_;
-    switch (other.index_) {
-        case 0:  data_.address = other.data_.address;                  break;
-        case 1:  data_.integer = other.data_.integer;                  break;
-        case 2:  new (&data_.str) std::string(other.data_.str);        break;
-        default: /* valueless */                                        break;
+    switch (static_cast<ImmediateKind>(other.index_)) {
+        case ImmediateKind::Address: data_.address = other.data_.address;                  break;
+        case ImmediateKind::Integer: data_.integer = other.data_.integer;                  break;
+        case ImmediateKind::String:  new (&data_.str) std::string(other.data_.str);        break;
+        case ImmediateKind::Valueless: default: /* valueless */                            break;
     }
     return *this;
 }
@@ -131,7 +131,7 @@ Immediate& Immediate::operator=(Immediate const& other) {
 // Sets index_ = kImmediateValueless afterwards (valueless state).
 // ============================================================================
 Immediate::~Immediate() {  // 0x15c4f0
-    if (index_ == 2) {
+    if (index_ == static_cast<uint32_t>(ImmediateKind::String)) {
         data_.str.~basic_string();
     }
     index_ = kImmediateValueless;
@@ -141,7 +141,7 @@ Immediate::~Immediate() {  // 0x15c4f0
 // Immediate::holdsUnsigned() — 0x290b30
 // ============================================================================
 bool Immediate::holdsUnsigned() const {  // 0x290b30
-    return index_ == 0;
+    return index_ == static_cast<uint32_t>(ImmediateKind::Address);
 }
 
 // ============================================================================
@@ -151,11 +151,12 @@ bool Immediate::holdsUnsigned() const {  // 0x290b30
 // Throws bad_variant_access if valueless.
 // ============================================================================
 Immediate::operator int() const {  // 0x290cc0
-    switch (index_) {
-        case 0:  return static_cast<int>(data_.address.value);
-        case 1:  return data_.integer;
-        case 2:  // string → int conversion (likely stoi, but uncommon path)
+    switch (static_cast<ImmediateKind>(index_)) {
+        case ImmediateKind::Address: return static_cast<int>(data_.address.value);
+        case ImmediateKind::Integer: return data_.integer;
+        case ImmediateKind::String:  // string → int conversion (likely stoi, but uncommon path)
             return std::stoi(data_.str);
+        case ImmediateKind::Valueless:
         default:
             throw std::bad_variant_access();  // index_ == kImmediateValueless
     }
@@ -167,10 +168,11 @@ Immediate::operator int() const {  // 0x290cc0
 // Dispatches through visitor vtable at b070c8[index_].
 // ============================================================================
 Immediate::operator unsigned int() const {  // 0x290d00
-    switch (index_) {
-        case 0:  return data_.address.value;
-        case 1:  return static_cast<uint32_t>(data_.integer);
-        case 2:  return static_cast<uint32_t>(std::stoul(data_.str));
+    switch (static_cast<ImmediateKind>(index_)) {
+        case ImmediateKind::Address: return data_.address.value;
+        case ImmediateKind::Integer: return static_cast<uint32_t>(data_.integer);
+        case ImmediateKind::String:  return static_cast<uint32_t>(std::stoul(data_.str));
+        case ImmediateKind::Valueless:
         default:
             throw std::bad_variant_access();
     }
@@ -185,10 +187,11 @@ Immediate::operator unsigned int() const {  // 0x290d00
 bool Immediate::operator==(Immediate const& other) const {  // 0x290d40
     if (index_ == kImmediateValueless) return false;
     if (index_ != other.index_) return false;
-    switch (index_) {
-        case 0: return data_.address.value == other.data_.address.value;
-        case 1: return data_.integer == other.data_.integer;
-        case 2: return data_.str == other.data_.str;
+    switch (static_cast<ImmediateKind>(index_)) {
+        case ImmediateKind::Address: return data_.address.value == other.data_.address.value;
+        case ImmediateKind::Integer: return data_.integer == other.data_.integer;
+        case ImmediateKind::String:  return data_.str == other.data_.str;
+        case ImmediateKind::Valueless: break;
     }
     return false;
 }
@@ -200,10 +203,11 @@ bool Immediate::operator==(Immediate const& other) const {  // 0x290d40
 // Throws bad_variant_access if valueless.
 // ============================================================================
 std::string toString(Immediate const& imm) {  // 0x290b40
-    switch (imm.index_) {
-        case 0: return std::to_string(imm.data_.address.value);
-        case 1: return std::to_string(imm.data_.integer);
-        case 2: return imm.data_.str;
+    switch (static_cast<ImmediateKind>(imm.index_)) {
+        case ImmediateKind::Address: return std::to_string(imm.data_.address.value);
+        case ImmediateKind::Integer: return std::to_string(imm.data_.integer);
+        case ImmediateKind::String:  return imm.data_.str;
+        case ImmediateKind::Valueless:
         default:
             throw std::bad_variant_access();
     }
