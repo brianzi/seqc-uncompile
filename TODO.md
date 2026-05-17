@@ -145,13 +145,49 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
 
 ### Phase D7-C — Follow-up audits (separate, deferred)
 
-- [ ] **C.1 — `static_cast<>` / magic-number audit.**  Per
+- **C.1 — `static_cast<>` / magic-number audit.**  Per
       `temp-NOTES-review-seqc-compiler-doxygen.md` §"Code quality
       improvements": audit `static_cast<>` sites for enums that
       should be used, missing enum values, named-constant
       candidates, and enum/int round-trip opportunities (overloads,
       auto-cast).  Not coupled to the docs phase; tracked here so
       it isn't lost.
+
+  - [x] **C.1.a — Audit report.**  Read-only sweep of all in-scope
+        subsystems with triage classification (FIX-NOW F1..F10,
+        DEFER D1..D7, PROPOSE-ENUM P1..P10, DISMISS).  Deliverable:
+        `reconstructed/notes/magic_number_audit.md`.  Cross-checked
+        against `notes/magic_numbers_proposal.md`,
+        `notes/error_message_audit.md`, `notes/special_registers.md`,
+        IF-312.  6 open questions in §10 awaiting review.
+  - [ ] **C.1.b — Resolve open questions from audit §10.**
+        Specifically: D7 rename approval (`CantDivConstByWave` →
+        `VarOrConstExpected`), F5 home (`core/types.hpp` vs new
+        `runtime/custom_functions_internal.hpp`), F4 zero-value
+        sentinel verification, batch-commit granularity, IF-313..IF-319
+        range allocation, pybind scope.
+  - [ ] **C.1.c — File DEFER items IF-313..IF-319.**  Each gets a
+        stable IF with call-site table and proposed-but-unverified
+        semantic.  Pulls D7 forward so F1.c can unblock.
+  - [ ] **C.1.d — FIX-NOW batch F1 (ErrorMessageT, ~57 sites).**
+        Sub-batches F1.a (csv_parser, 8 sites), F1.b (opcodes, 33
+        sites), F1.c (control-flow, 14 sites — blocked on D7).
+  - [ ] **C.1.e — FIX-NOW batches F2..F4 (enum-cast cleanup).**
+        F2 `Assembler::Command` (~12), F3 `AccessMode` (~5),
+        F4 `VarType` / `VarSubType` (~14).
+  - [ ] **C.1.f — FIX-NOW batches F5..F8 (new/hoisted constants).**
+        F5 `kPlayWaitDevTypeMask` (7→1), F6 `kCsvSeparatorMask`
+        (4→1), F7 golden-ratio-hash hoist (4→2), F8 `kFullScale14/
+        15/16` rename (3).
+  - [ ] **C.1.g — FIX-NOW batches F9..F10 (sentinel cleanup).**
+        F9 IF-312 rename (closes IF-312), F10.a `0xFFFFFFFF` (~6),
+        F10.b `-1` (~11, per-site triage).
+  - [ ] **C.1.h — Sub-phase wrap-up.**  Re-run full diff suite +
+        seqcc tools, update `incidental_findings.md` with closures
+        (IF-312, plus any new findings surfaced during execution),
+        update `magic_number_audit.md` with completion status,
+        commit.  Promote remaining PROPOSE-ENUM items (P1..P10) to
+        sibling Phase D7-C.2.
 
 ## Phase X — `compile_seqc` binding-kwarg coverage
 
