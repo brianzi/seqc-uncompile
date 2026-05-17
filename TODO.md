@@ -306,10 +306,19 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         `awg_assembler_opcodes.cpp` (lines 473, 477, 569, 575,
         599-601).  IF-332 filed.  Third consecutive PROPOSE-ENUM
         mistarget (P1, P3, P7) — pattern documented in IF-332.
-  - [ ] **C.2.d — Remaining P-items (P5, P6, P9, P10).**
+  - [x] **C.2.d.4 — P5 kRegallocBarrierCmdMask (4 sites).**
+        IF-317 resolved by enumeration of `Assembler::Command` (no
+        GDB required): of values with `cmd+1 ∈ [0,5]`, only
+        `INVALID`/`LABEL`/`COMMENT_NOP` are present, and all three
+        are documented barriers in the enum itself.  Named
+        `kRegallocBarrierCmdMask` at namespace scope in
+        `include/zhinst/asm/asm_optimize.hpp` (both consumer files
+        already include it as their own class header).  4 sites
+        converted in `src/asm/asm_optimize.cpp` and
+        `src/asm/asm_optimize_regalloc.cpp`.
+  - [ ] **C.2.d — Remaining P-items (P6, P9, P10).**
         Deferred — each needs design or GDB verification before
         execution:
-        - P5: blocked on IF-317 (`0x29` cmd-set LUT GDB verification).
         - P6: blocked on IF-322 (`0x54` VarType-set GDB verification).
         - P9: deduplicate `kSuser*` vs `DeviceConstants::*` (~20
           overlapping addresses, two parallel naming schemes) —

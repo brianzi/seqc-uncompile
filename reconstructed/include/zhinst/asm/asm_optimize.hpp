@@ -45,6 +45,25 @@ enum OptPassFlag : uint32_t {
     Opt_RegAlloc     = 0x10,   // removeUnusedRegs + registerAllocation
 };
 
+//! \brief Bitmask of `Assembler::Command` values that the
+//!        register-allocation and dead-code passes treat as
+//!        instruction-flow barriers and skip during forward scans.
+//!
+//! Indexed by `(static_cast<uint32_t>(cmd) + 1)` after the guard
+//! `cmdPlus1 <= 5`.  The `+1` shift maps `Assembler::INVALID`
+//! (`0xFFFFFFFF`) onto bit 0 so a single bitmap covers the
+//! barrier sentinel alongside the low-numbered pseudo-ops.  Bits
+//! set correspond to:
+//! - bit 0 → `INVALID` — sentinel for unrecognised or unfilled cmd
+//!                       slots; treated as dead.
+//! - bit 3 → `LABEL`   — pseudo-instruction for label-only lines.
+//! - bit 5 → `COMMENT_NOP` — synthetic comment-carrying barrier
+//!                           (see `Assembler::Command::COMMENT_NOP`).
+//!
+//! `0x29 = 0b101001` selects bits {0, 3, 5}; no other enumerator
+//! in the `cmd+1 <= 5` window falls in that set.
+constexpr uint32_t kRegallocBarrierCmdMask = 0x29u;
+
 // RegAction — return values from getNextActionForReg (A12)
 //! \brief Bitmask classifying the next observed use of a register
 //!        in a forward scan of `AsmList`.

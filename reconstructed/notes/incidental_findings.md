@@ -2428,7 +2428,7 @@ as "new".
 ## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
 
 **Severity:** suspicious
-**Status:** open
+**Status:** fixed (named `kRegallocBarrierCmdMask` in C.2 P5)
 
 Four sites in two files test `(0x29 >> cmdPlus1) & 1` to check
 membership in a 3-element set of `Assembler::Command` values:
@@ -2463,6 +2463,21 @@ scope.
 `INVALID/LABEL/COMMENT_NOP` and no other opcodes (in particular,
 verify nothing else has `(cmd+1) ∈ {0,3,5}` after the COMMENT_NOP
 finding in IF-326).
+
+**Resolution (D7-C.2 P5):** GDB verification not needed — the set
+is provable from `Assembler::Command` (`asm/assembler.hpp:67`) by
+enumeration: of the values with `cmd+1 ∈ [0,5]`, only `INVALID`
+(`0xFFFFFFFF` → `cmd+1=0`), `LABEL` (`0x02` → `cmd+1=3`), and
+`COMMENT_NOP` (`0x04` → `cmd+1=5`) are present; `END/NOP/MESSAGE`
+fall in unset bits and `ERROR_MSG` (`cmd+1=6`) is excluded by the
+`cmdPlus1 <= 5` guard.  All three are documented barriers in the
+enum itself (INVALID = unfilled sentinel; LABEL = pseudo-op;
+COMMENT_NOP = "register-allocation treats it as a skip-when-empty
+boundary" per `assembler.hpp:73-82`).  Named
+`kRegallocBarrierCmdMask` at namespace scope in
+`asm/asm_optimize.hpp` (`zhinst::` — both consuming files
+already include the header as their own class header).  Four call
+sites updated.
 
 **Files**
 - `reconstructed/src/asm/asm_optimize.cpp:529-533`

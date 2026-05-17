@@ -31,12 +31,12 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
     };
 
     // Scan all instructions, recording register usage — 27ec88..27ed42
-    // Same skip bitmask 0x29 (dead/LABEL/COMMENT_NOP)
+    // Skip barriers via kRegallocBarrierCmdMask (dead/LABEL/COMMENT_NOP)
     {
         int instrIdx = 0;
         for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
             uint32_t cmdPlus1 = static_cast<uint32_t>(it->assembler.cmd) + 1;
-            if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
+            if (cmdPlus1 <= 5 && ((kRegallocBarrierCmdMask >> cmdPlus1) & 1))
                 continue;
 
             // Add regDst (+0x28) to live range — 27ecd6: lea rsi,[r14+0x8]
@@ -148,9 +148,9 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
                     auto& instr = std::next(asm_.begin(), scanIdx)->assembler;
                     int cmd = instr.cmd;
 
-                    // Skip bitmask 0x29 — 27f0d7..27f0e7
+                    // Skip via kRegallocBarrierCmdMask — 27f0d7..27f0e7
                     uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
-                    if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
+                    if (cmdPlus1 <= 5 && ((kRegallocBarrierCmdMask >> cmdPlus1) & 1))
                         continue;
 
                     int cmdType = Assembler::getCmdType(static_cast<Assembler::Command>(cmd));
@@ -490,7 +490,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
         auto cmd = it->assembler.cmd;
         uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
-        bool isSkipCmd = (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1));
+        bool isSkipCmd = (cmdPlus1 <= 5 && ((kRegallocBarrierCmdMask >> cmdPlus1) & 1));
 
         if (isSkipCmd) {
             // Emit only the original instruction — 280561..2805c6

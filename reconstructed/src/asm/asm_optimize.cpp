@@ -526,11 +526,11 @@ unsigned long AsmOptimize::removeUnusedRegs() {
             // if true, break out (27e801: jne → epilogue)
         }
 
-        // Skip dead(-1), LABEL(2), and cmd 4 using bitmask 0x29
+        // Skip dead(-1), LABEL(2), and cmd 4 using kRegallocBarrierCmdMask
         // 27e807: mov eax,[r12+0x8]; inc eax; cmp eax,0x5; bt 0x29,eax
         auto cmd = it->assembler.cmd;
         uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
-        if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
+        if (cmdPlus1 <= 5 && ((kRegallocBarrierCmdMask >> cmdPlus1) & 1))
             continue;
 
         // Track highest register number — 27e822
