@@ -343,8 +343,45 @@ reconstructed/
     ├── elf_reader.md                # ElfReader layout corrections + ElfException + ELFIO API gotchas
     ├── logging_tracing.md           # zhinst::logging + zhinst::tracing reconstruction
     ├── frontend_lowering.md         # EvalResults / EvalResultValue / Value layout / LowerResult / lower() pipeline
+    ├── tools.md                     # Toolchain entry point (seqcc/seqas/seqdump) — cross-reference to tools/seqcc/DESIGN.md
     └── differential_testing.md      # Test approach, coverage matrix, future development ideas
+
+tools/                              # Newly-written CLI toolchain over the reconstructed public APIs
+├── seqcc/
+│   ├── DESIGN.md                   # Authoritative design document for the driver
+│   ├── CMakeLists.txt
+│   ├── third_party/CLI11/          # Vendored CLI11 (header-only)
+│   └── src/                        # See reconstructed/notes/tools.md §Source layout
 ```
+
+## Toolchain (`seqcc` / `seqas` / `seqdump`)
+
+The reconstructed compiler is reachable as a stand-alone command-line
+driver (no Python required) since **Phase T**.  A single binary
+`seqcc` provides gcc/clang-style staged compilation; two symlinks
+`seqas` and `seqdump` dispatch on `argv[0]` to the legacy
+`AWGAssembler` path and the ELF inspector respectively.
+
+- Current version: `0.11.0-T10a` (`tools/seqcc/src/main.cpp`).
+- Pipeline mapping: `--from=<stage>` / `--to=<stage>` flags mirror
+  the public `step*` methods on `Compiler` (9 steps) and
+  `AWGCompiler` (3 steps).  Full stage table in
+  `reconstructed/notes/tools.md`.
+- IR capture: since T10a the driver captures intermediate IR
+  exclusively through the public accessors
+  `AWGCompiler::compiler() → Compiler::{ast(), wavetable(), asmList()}`.
+  The legacy `compileSeqcWithIR()` / `CompileSeqcIntrospection`
+  introspection scaffold (IF-301) has been retired;
+  `reconstructed/include/zhinst/codegen/compile_seqc.hpp` is back
+  to the original-binary single-entry-point footprint.
+- Source layout, build details, and the full design rationale live
+  in `tools/seqcc/DESIGN.md`.  The shorter cross-reference entry
+  point is `reconstructed/notes/tools.md`.
+- Test gates: 70 tool-level cases under `tests/tools/`
+  (`test_seqcc_smoke`, `test_seqcc_diff`, `test_seqcc_to`,
+  `test_seqdump`) run independently of the 1612-case
+  `diff_test_fast.py` ELF regression suite.  Both gates must stay
+  green at every sub-phase wrap-up.
 
 ## Open Questions
 

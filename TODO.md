@@ -675,13 +675,19 @@ after optimisation sub-passes, and feed mid-pipeline IRs back in.
       - **Verified.**  diff_test_fast 1612/1612, test_seqcc_smoke
         4/4, test_seqcc_diff 46/46, test_seqdump 16/16.
 
-- [ ] **T10 — Wrap-up.**  Update OVERVIEW.md with the toolchain
-      section.  Add `reconstructed/notes/tools.md` documenting the
-      driver architecture (stage map, pass map, dump catalogue).
-      Run the full diff_test_fast suite to confirm zero regressions
-      from the reconstructed-code modifications (T8 taps).  Add any
-      deferred work as new TODO items under Phase T or follow-up
-      phases.
+- [x] **T10 — Wrap-up.**  Landed 2026-05.  Added toolchain section
+      to `OVERVIEW.md` (between File Structure and Open Questions)
+      with version, pipeline mapping, IR-capture mechanism, and
+      test-gate summary.  Added `reconstructed/notes/tools.md` as
+      the topic-organised cross-reference entry point (indexes
+      `tools/seqcc/DESIGN.md`, the stage table, source layout, IR
+      capture accessors, and test gates).  Final diff_test_fast
+      suite: 1612/1612 green (run at T10a wrap-up).  Tool tests:
+      70/70 across `test_seqcc_smoke` + `test_seqcc_diff` +
+      `test_seqcc_to` + `test_seqdump`.  Deferred items
+      (`--from=ast-lowered`, `--from=wavetable-ir`, `seqld`,
+      `ast-seqc` deserialisation) are filed in DESIGN.md §7 and
+      the "T6-future" TODO entries.  **Phase T complete.**
 
   - [x] **T10a — Retire `compileSeqcWithIR`.**  Landed 2026-05.
         Deleted `compileSeqcWithIR()` + `CompileSeqcIntrospection`
