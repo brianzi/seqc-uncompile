@@ -78,7 +78,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setDIO(                           
     if (!isShf) {
         try {
             auto node = lookupNode(std::string("_/dios/0/output"));           // @0x130cd7
-            addNodeAccess(node, static_cast<AccessMode>(2));                   // @0x130d34
+            addNodeAccess(node, AccessMode::Custom);                   // @0x130d34
         } catch (...) {
             // Silently ignore — node may not exist for this device type
         }

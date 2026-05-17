@@ -1398,7 +1398,7 @@ std::shared_ptr<EvalResults> CustomFunctions::configFreqSweep(                  
     }
     if (!nodePath.empty()) {
         auto nodeItem = lookupNode(nodePath);                                  // @0x154d7a / @0x154f72
-        addNodeAccess(nodeItem, static_cast<AccessMode>(2));                   // @0x154d8b / @0x154f83
+        addNodeAccess(nodeItem, AccessMode::Custom);                   // @0x154d8b / @0x154f83
     }
 
     // @0x154fbf..0x155066: EvalResultValue cleanup (SSO string frees) + epilogue → ret @0x155066
@@ -1503,7 +1503,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setSweepStep(                     
     }
     if (!nodePath.empty()) {
         auto nodeItem = lookupNode(nodePath);
-        addNodeAccess(nodeItem, static_cast<AccessMode>(2));
+        addNodeAccess(nodeItem, AccessMode::Custom);
     }
 
     return results;
@@ -1603,7 +1603,7 @@ std::shared_ptr<EvalResults> CustomFunctions::setOscFreq(                       
     }
     if (!nodePath.empty()) {
         auto nodeItem = lookupNode(nodePath);
-        addNodeAccess(nodeItem, static_cast<AccessMode>(2));
+        addNodeAccess(nodeItem, AccessMode::Custom);
     }
 
     return results;

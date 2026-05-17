@@ -1449,7 +1449,7 @@ std::shared_ptr<EvalResults> CustomFunctions::writeToNode(
     //      Soft(0) when no fast address exists and Direct(1) when one
     //      does — i.e. hasFast doubles as the implicit access-mode
     //      selector for the playback dispatch path.  Custom(2) is
-    //      passed only by explicit `static_cast<AccessMode>(2)` from
+    //      passed only by explicit `AccessMode::Custom` from
     //      other call sites (setDIO/setTrigger paths) and never
     //      derives from hasFast.
     //   4. reg = res->getRegisterNumber(); destReg = AsmRegister(reg);

@@ -2824,7 +2824,7 @@ public:
     //! inserts a 10-cycle settling wait via `addWaitCycles`, and
     //! marks the per-channel `oscs/N/freq` (or per-AWG `sgchannels`
     //! / `qachannels`) node as written via `lookupNode` +
-    //! `addNodeAccess(AccessMode(2))`.  Frequencies are encoded by
+    //! `addNodeAccess(AccessMode::Custom)`.  Frequencies are encoded by
     //! `NodeMap::toFrequency(freq, getSampleClock())`.
     //!
     //! \param args  Three `Const`/`Cvar` arguments: (oscillator
