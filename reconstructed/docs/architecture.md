@@ -218,6 +218,27 @@ Each tag aggregates onto its own cross-reference page, accessible from
 the *Related Pages* section of the navigation, so the entire
 documentation backlog is discoverable rather than scattered.
 
+## Toolchain {#toolchain}
+
+The reconstructed compiler is reachable as a stand-alone command-line
+toolchain (no Python required) — a single binary `seqcc` providing
+gcc/clang-style staged compilation, plus two symlinks `seqas` and
+`seqdump` that dispatch on `argv[0]` to the legacy `AWGAssembler`
+path and the ELF inspector respectively.
+
+| Binary    | Purpose |
+|-----------|---------|
+| `seqcc`   | Full SeqC pipeline driver.  `--from=<stage>` / `--to=<stage>` flags mirror the public `step*` methods on `Compiler` (9 steps) and `AWGCompiler` (3 steps). |
+| `seqas`   | `seqcc -x asm` — exposes the legacy `AWGAssembler` path (consumes `.seqasm`, emits ELF with `e_entry + 0x80`). |
+| `seqdump` | ELF inspector.  Decodes every section documented under [ELF output](#elf-output). |
+
+The toolchain is **newly-written** tooling — it drives only existing
+public reconstructed APIs and never reimplements compiler logic.  The
+topic-organised cross-reference entry point is \ref notes_tools; the
+authoritative deep-dive (CLI surface, stage table with binary
+addresses, source layout, design rationale, deferred work) lives in
+`tools/seqcc/DESIGN.md` under the source tree.
+
 ## Reverse-engineering reference {#re-reference}
 
 A subset of `reconstructed/notes/` is promoted to first-class Doxygen

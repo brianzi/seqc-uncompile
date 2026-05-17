@@ -304,6 +304,9 @@ if(DOXYGEN_FOUND)
         # D6-B batch 3
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/libcpp_abi.md"
         "${CMAKE_CURRENT_SOURCE_DIR}/notes/optimization_passes.md"
+        # Phase T — toolchain reference (not RE material; documents
+        # newly-written seqcc/seqas/seqdump driver).
+        "${CMAKE_CURRENT_SOURCE_DIR}/notes/tools.md"
     )
     string(REPLACE ";" " " DOXYGEN_NOTES_PAGES_STR "${DOXYGEN_NOTES_PAGES}")
     set(DOXYGEN_INPUT_DIRS    "${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/docs/architecture.md ${DOXYGEN_NOTES_PAGES_STR}")

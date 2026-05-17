@@ -1,14 +1,15 @@
-# SeqC toolchain (`tools/`)
+# SeqC toolchain (`tools/`) {#notes_tools}
 
-Cross-reference entry point for the reconstructed SeqC compiler's
-stand-alone command-line toolchain.  The authoritative deep-dive
-lives in `tools/seqcc/DESIGN.md`; this file is the topic note that
-indexes it alongside the rest of `reconstructed/notes/`.
-
-The toolchain is **newly-written tooling, not reconstructed binary
-behaviour**.  It exists only to drive existing public reconstructed
-APIs at finer-grained boundaries than the `_seqc_compiler.so`
-Python entry point exposes.  No tool reimplements compiler logic.
+\note **Toolchain reference material.** This page documents
+newly-written command-line tooling (`seqcc`, `seqas`, `seqdump`)
+that drives the existing public reconstructed APIs at finer-grained
+boundaries than the `_seqc_compiler.so` Python entry point exposes.
+Unlike the reverse-engineering reference pages in this section, it
+is **not** disassembled binary behaviour — every tool stage is a
+call into already-reconstructed code.  The authoritative deep-dive
+lives in `tools/seqcc/DESIGN.md`; this page is the topic-organised
+cross-reference entry point that indexes it alongside the rest of
+`reconstructed/notes/`.
 
 ## Binaries
 
