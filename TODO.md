@@ -205,6 +205,18 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
   - [ ] **C.1.g — FIX-NOW batches F9..F10 (sentinel cleanup).**
         F9 IF-312 rename (closes IF-312), F10.a `0xFFFFFFFF` (~6),
         F10.b `-1` (~11, per-site triage).
+  - [ ] **C.1.i — ErrorMessages::format arg-count / placeholder-count
+        audit.**  Triggered by IF-324 (`SampleRateConstOnly` template
+        has 1 placeholder but is called with 2 args).  Grep all 164
+        post-C.1bis named call sites; for each, count `%N%` placeholders
+        in the template (from `error_messages.cpp`) and arg count at
+        the call site; report mismatches.  For each mismatch decide:
+        (a) template is underspecified — extend it, (b) call site has
+        extra args — drop them, (c) binary itself is wrong — file as
+        IF and leave recon faithful.  Cheap audit, may surface more
+        latent bugs hidden by `boost::format` permissive mode.  Should
+        also investigate IF-323 (`UnknownFunction` used for an opcode
+        dispatch failure) in the same pass.
   - [ ] **C.1.h — Sub-phase wrap-up.**  Re-run full diff suite +
         seqcc tools, update `incidental_findings.md` with closures
         (IF-312, plus any new findings surfaced during execution),

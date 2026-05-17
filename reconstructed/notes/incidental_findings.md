@@ -1886,3 +1886,149 @@ to the `WaveIndexUsed` sibling slot, both wavetable-index validators.
 ### Cross-references
 
 - `error_message_audit.md` cluster D.
+
+## IF-323  `ErrorMessageT::UnknownFunction` used for an ALU opcode-dispatch failure
+
+**Severity:** suspicious (binary semantics preserved; the question is
+whether the binary itself picked the right slot).
+**Status:** open.
+
+**Discovered:** during Phase D7-C.1bis sub-batch 5 context-eyeball pass.
+
+### Observation
+
+`asm/asm_commands.cpp:379-381` falls through to an exception when an
+immediate-form ALU command does not have a register-form equivalent:
+
+```cpp
+if (cmd == Assembler::ANDI)       regCmd = Assembler::ANDR;
+else if (cmd == Assembler::ORI)   regCmd = Assembler::ORR;
+else if (cmd == Assembler::XNORI) regCmd = Assembler::XNORR;
+else
+    throw ResourcesException(
+        ErrorMessages::format(UnknownFunction,
+                              Assembler::commandToString(cmd).c_str()));
+```
+
+`UnknownFunction` is slot 0xD8 (216), template `"calling unknown
+function '%1%'"`.  The argument substituted into `%1%` is an
+**Assembler::Command** name (e.g. `"ADDI"`, `"SUBI"`), not a SeqC
+function name.  The English of the resulting message ("calling unknown
+function 'ADDI'") is misleading for the actual failure (an unsupported
+ALU opcode reached the immediate-→register lowering pass).
+
+### Hypotheses
+
+1. Binary chose slot 216 deliberately and we should leave it (the
+   reconstruction is faithful — diff_test_fast passes byte-identical).
+2. Binary chose 216 because no more specific "no register-form
+   equivalent for opcode X" template exists, and "unknown function" is
+   the closest semantic fit when the user-visible failure is "we don't
+   know how to assemble this command".
+3. Binary has a slot collision / template misalignment we haven't
+   detected — i.e. slot 216 *might* historically have meant "unknown
+   opcode" and the template string drifted to "unknown function" at a
+   later point.
+
+### Investigation TODO
+
+- GDB-trace the binary on an input that triggers this path (e.g.
+  hand-crafted `.asm` source using an ALU immediate-form opcode without
+  a register-form equivalent — verify that even exists in the user-
+  reachable surface area).  Confirm the exact slot and template
+  rendered.
+- Search the binary's templates for any string that better matches
+  "no register-form equivalent for this opcode".  If none exists, this
+  is hypothesis 2 and dismissible.
+- Audit whether this path is reachable from any documented SeqC input
+  at all.  If unreachable through normal SeqC compilation, the
+  user-visible message text is academic.
+
+### Cross-references
+
+- Phase D7-C.1bis sub-batch 5 (commit 4b18daa) made this site use the
+  named enum; the prior bare-int form would have hidden the semantic
+  mismatch.
+- `error_message_audit.md` slot 216 entry.
+
+## IF-324  `SampleRateConstOnly` template ('%1%' only) is called with two arguments
+
+**Severity:** suspicious — possible pre-existing recon bug, possibly
+also present in the binary, possibly handled gracefully by
+`boost::format`.
+**Status:** open.
+
+**Discovered:** during Phase D7-C.1bis sub-batch 5 context-eyeball pass.
+
+### Observation
+
+`runtime/custom_functions.cpp:1172-1174` (function `getPlayRate`,
+@0x163730):
+
+```cpp
+// Not a const/cvar: throw with error 0x9f
+throw CustomFunctionsException(
+    ErrorMessages::format(SampleRateConstOnly, name, str(val.varType_)));
+```
+
+The template at slot 159 (0x9F) is:
+
+```
+"%1% sample rate can only be described with a const"
+```
+
+— **a single placeholder**, but the call site passes **two arguments**
+(`name`, `str(val.varType_)`).
+
+### Why this matters
+
+`boost::format` behaviour with excess arguments depends on stream
+flags.  In strict mode (the default when `boost::io::all_error_bits`
+is set) it throws `boost::io::too_many_args_bit`.  In permissive mode
+(if any `*_bit` is cleared) it silently ignores the excess.
+
+If the binary's `ErrorMessages::format` runs in strict mode, this
+site **would always throw a boost::format exception instead of the
+intended `CustomFunctionsException`** — i.e. the user gets the wrong
+exception type and the wrong error text every time the
+"playRate is not a const/cvar" branch is hit.
+
+### Hypotheses
+
+1. The reconstructed `ErrorMessages::format` happens to run in
+   permissive mode and silently drops the extra arg; the test suite
+   covers a path that hits this site and happens to render correctly
+   on both binary and recon, so diff_test_fast doesn't flag it.
+2. The site is unreachable in the current test corpus (no playRate
+   test passes a non-const/non-cvar argument) and the bug has never
+   manifested in either binary or recon.
+3. The binary's actual call passes one arg, and our reconstruction of
+   `getPlayRate` has an extra arg that doesn't match the binary.  In
+   this case the recon is the bug and the difftest only stays clean
+   because the path isn't exercised.
+
+### Investigation TODO
+
+- Check `ErrorMessages::format` (`reconstructed/src/core/error_messages.cpp`)
+  for its `boost::format` configuration — strict or permissive?
+- GDB-trace `getPlayRate` at @0x163770 in the original binary with an
+  input that hits the throw branch (e.g. `playWave(zeros(64),
+  rate=myVar);` where `myVar` is a `var int`).  Read the actual arg
+  count pushed.
+- If the binary passes 1 arg and recon passes 2: fix the recon (drop
+  `str(val.varType_)`).
+- If the binary passes 2: keep the call but flag the template as
+  underspecified — consider whether the template should be
+  `"%1% sample rate can only be described with a const, %2% given"`
+  (matching the shape of nearby `OnlyConstVarNegated` etc.).
+- Audit other `ErrorMessages::format` call sites for the same
+  arg-count-vs-placeholder-count mismatch.  Could be a broader pattern.
+
+### Cross-references
+
+- Phase D7-C.1bis sub-batch 5 (commit 4b18daa) made this site use the
+  named enum; the prior bare-int form (`static_cast<ErrorMessageT>(0x9f)`)
+  hid the arg-count mismatch behind a numeric literal.
+- A grep for similar mismatches (templates with N placeholders called
+  with M args, M != N) across all 164 newly-named sites would be a
+  cheap follow-up audit and may surface more cases.
