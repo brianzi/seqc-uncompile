@@ -2192,3 +2192,205 @@ to `waveIndex` as part of F10.b.
 
 **Files**
 - `reconstructed/src/waveform/wave_index_tracker.cpp:139,144,158`
+
+
+## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
+
+**Severity:** suspicious
+**Status:** open
+
+Four sites in two files test `(0x29 >> cmdPlus1) & 1` to check
+membership in a 3-element set of `Assembler::Command` values:
+
+| site | snippet |
+|---|---|
+| `reconstructed/src/asm/asm_optimize.cpp:533` | `if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))` |
+| `reconstructed/src/asm/asm_optimize_regalloc.cpp:39` | same |
+| `reconstructed/src/asm/asm_optimize_regalloc.cpp:153` | same |
+| `reconstructed/src/asm/asm_optimize_regalloc.cpp:493` | `bool isSkipCmd = (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1));` |
+
+`cmdPlus1 = static_cast<int>(cmd) + 1` (where `Assembler::INVALID =
+0xFFFFFFFF`, so `cmdPlus1 == 0` for INVALID).  `0x29 = 0b101001`
+selects bits 0, 3, 5 → cmds with `(cmd+1) ∈ {0, 3, 5}` →
+`{INVALID, LABEL, COMMENT_NOP}` (per the comments at
+`asm_optimize_regalloc.cpp:34,422,682`).
+
+The semantic is "barrier opcodes that don't participate in
+register-allocation flow" (INVALID = dead instruction, LABEL =
+unresolved branch target, COMMENT_NOP = pseudo-barrier carrying
+side comment; see IF-326).
+
+**Proposed name:** `kRegallocBarrierCmdMask` (file-scope `constexpr
+uint8_t` in `asm_optimize_regalloc.cpp`, with a brief explaining
+the bit-positions in terms of `(static_cast<int>(cmd) + 1)`).
+Defer naming until verified — the proposed name overlaps three
+files, so the home should likely be a shared header (e.g.
+`include/zhinst/asm/asm_optimize_internal.hpp`) rather than file
+scope.
+
+**GDB verification needed:** confirm the dispatch covers
+`INVALID/LABEL/COMMENT_NOP` and no other opcodes (in particular,
+verify nothing else has `(cmd+1) ∈ {0,3,5}` after the COMMENT_NOP
+finding in IF-326).
+
+**Files**
+- `reconstructed/src/asm/asm_optimize.cpp:529-533`
+- `reconstructed/src/asm/asm_optimize_regalloc.cpp:34-39, 151-153, 488-493`
+
+
+## IF-318 — `case static_cast<NodeType>(8)` literal label in `prefetch.cpp`
+
+**Severity:** cosmetic
+**Status:** fixed
+
+`reconstructed/src/codegen/prefetch.cpp:1970` had a switch-case
+label `case static_cast<NodeType>(8):` despite `NodeType::Loop =
+0x0008` being defined in `include/zhinst/ast/node.hpp:61`.
+Verified Loop = 0x0008 against the enum and the surrounding
+comment (`type=8 (Loop)`); substituted as part of D7-C.1.c.
+
+The sibling site at `prefetch_print.cpp:60`
+(`switch (static_cast<NodeType>(typeCode))`) is a legitimate
+runtime cast and was left alone.
+
+**Files**
+- `reconstructed/src/codegen/prefetch.cpp:1970` (fixed)
+
+
+## IF-319 — `DeviceTypeCode(33)` / `DeviceFamily(0x800u)` "unknown" sentinels
+
+**Severity:** suspicious
+**Status:** open
+
+`device/device_unknown.cpp` and the `DeviceTypeImpl` default
+construction in `device_type.cpp` construct sentinel values for
+"unknown device":
+
+- `DeviceTypeCode::Unknown = 0` is the documented sentinel.
+- `DeviceFamily::Unknown = 0` is the documented sentinel.
+
+However, two non-zero literals appear elsewhere in the device
+subsystem and are claimed by the original audit (§5 D3) to be
+out-of-range sentinels:
+
+- `DeviceTypeCode(33)` — needs site re-confirmation; not found in
+  current `device_type.cpp` or `device_unknown.cpp`.  May have been
+  removed during reconstruction or was mis-classified.
+- `DeviceFamily(0x800u)` — same.
+
+**Action:** rescan the `device/` subsystem for these literals.
+If they're gone, dismiss this IF; if present, GDB-confirm whether
+they represent (a) "outside the valid range" markers vs (b)
+a missing enumerator that should be added to the enum.
+
+**Files** (claimed; needs verification)
+- `reconstructed/src/device/device_type.cpp`
+- `reconstructed/src/device/device_unknown.cpp`
+
+
+## IF-320 — `getAwgDeviceTypeFromString` raw-integer returns (was "parseCpuType")
+
+**Severity:** likely-bug
+**Status:** open — trivial FIX-NOW candidate
+
+`reconstructed/src/codegen/awg_compiler_config.cpp:56-68`
+(`AWGCompilerConfig::getAwgDeviceTypeFromString`) returns 9
+`static_cast<AwgDeviceType>(N)` literals from a codename-keyed
+lookup.  Every value maps to a named `AwgDeviceType` enumerator
+(per `include/zhinst/core/types.hpp:30`):
+
+| line | literal | named target |
+|---|---|---|
+| 57 | `static_cast<AwgDeviceType>(1)` | `AwgDeviceType::UHFLI` |
+| 58 | `static_cast<AwgDeviceType>(2)` | `AwgDeviceType::HDAWG` |
+| 59 | `static_cast<AwgDeviceType>(4)` | `AwgDeviceType::UHFQA` |
+| 60 | `static_cast<AwgDeviceType>(8)` | `AwgDeviceType::SHFQA` |
+| 61 | `static_cast<AwgDeviceType>(16)` | `AwgDeviceType::SHFSG` |
+| 62 | `static_cast<AwgDeviceType>(32)` | `AwgDeviceType::SHFQC_SG` |
+| 63 | `static_cast<AwgDeviceType>(64)` | `AwgDeviceType::SHFLI` |
+| 64 | `static_cast<AwgDeviceType>(128)` | `AwgDeviceType::GHFLI` |
+| 65 | `static_cast<AwgDeviceType>(256)` | `AwgDeviceType::VHFLI` |
+
+The audit (§5 D4) called the function `parseCpuType` — that name
+does not exist in the recon.  Actual symbol is
+`AWGCompilerConfig::getAwgDeviceTypeFromString`.
+
+**Suggested fix:** replace the 9 casts with named enumerators in
+a follow-up FIX-NOW commit.  Risk low.
+
+**Files**
+- `reconstructed/src/codegen/awg_compiler_config.cpp:57-65`
+
+
+## IF-321 — `holdSuppressExceptSigouts = 0x27C` derivation undocumented
+
+**Severity:** cosmetic
+**Status:** open
+
+`reconstructed/include/zhinst/waveform/play_config.hpp:83` defines
+`holdSuppressExceptSigouts = 0x27C` (= 636) as a `static inline
+constexpr uint32_t`.  The brief explains *when* it's used (replaces
+`suppress` in the encoded word when `hold` is set; see
+`play_config.cpp:42-43`) but not *why* this particular bit pattern.
+
+`0x27C = 0b1001111100`.  The 14-bit `suppress` field gates output
+paths; 0x27C suppresses bits {2, 3, 4, 5, 6, 9, 12} of the
+suppress space, equivalently "everything except sigout 0/1 (bits
+0/1), {7,8,10,11,13}".  Need a hardware-doc cross-check to confirm
+which physical outputs map to which bits, then update the brief
+with a one-line "suppresses all destinations except primary signal
+outputs" derivation.
+
+**Files**
+- `reconstructed/include/zhinst/waveform/play_config.hpp:80-83`
+- `reconstructed/src/waveform/play_config.cpp:42-43`
+
+
+## IF-322 — `0x54` VarType-set semantic name (6 sites)
+
+**Severity:** suspicious
+**Status:** open
+
+Six sites in three files test `((0x54 >> vt) & 1)` against
+`VarType` values to check membership in `{2, 4, 6}` = `{VarType_Var,
+VarType_Const, VarType_Cvar}`:
+
+| site | snippet | sense |
+|---|---|---|
+| `custom_functions.cpp:884` | `if (vt <= 6 && ((0x54 >> vt) & 1))` | reject if in set |
+| `custom_functions.cpp:950` | `if (vt > 6 || !((0x54 >> vt) & 1))` | accept if in set |
+| `custom_functions_play.cpp:760` | `if (vt0 > 6 \|\| !((0x54 >> vt0) & 1))` | accept if in set |
+| `custom_functions_play.cpp:768` | `if (vt1 > 6 \|\| !((0x54 >> vt1) & 1))` | accept if in set |
+| `custom_functions_registers.cpp:251` | `if (arg1Type > 6 \|\| !((0x54 >> arg1Type) & 1))` | accept if in set |
+| `custom_functions_registers.cpp:286` | same | same |
+
+`0x54 = 0b01010100`, selecting bits 2, 4, 6.  The audit (§4)
+listed 6 sites; that count matches.
+
+`VarType` definitions (per `runtime/resources.hpp:55`):
+
+- `VarType_Var` = 2 — runtime mutable register
+- `VarType_Const` = 4 — compile-time constant
+- `VarType_Cvar` = 6 — constant variable (compile-time const, but
+  bound to a name)
+
+Common semantic: these are the three types that hold a **scalar
+numeric value** addressable through a register, as opposed to
+`VarType_String` (1), `VarType_Wave` (3), `VarType_FuncArg` (5),
+`VarType_Trigger` (7), etc.
+
+**Proposed name:** `kVarTypeScalarNumericMask` (or
+`kVarTypeRegisterAssignable`), declared as `constexpr uint8_t` in
+a header reachable from all three call sites — e.g.
+`runtime/resources.hpp` next to the `VarType_*` definitions.
+
+**GDB verification needed:** trace the original binary at one of
+the accept-sites to confirm the rejected types and the error
+message issued, so the semantic name reflects the actual rejection
+criterion (e.g. "must be assignable to a register", not just
+"numeric").
+
+**Files**
+- `reconstructed/src/runtime/custom_functions.cpp:871-884, 949-950`
+- `reconstructed/src/runtime/custom_functions_play.cpp:756-768`
+- `reconstructed/src/runtime/custom_functions_registers.cpp:249-286`

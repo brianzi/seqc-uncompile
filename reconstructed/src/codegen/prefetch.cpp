@@ -1967,7 +1967,7 @@ void Prefetch::allocate(std::shared_ptr<Node> node,
     // ==================================================================
     // type=8 (Loop): 0x1d1273 — recurse into loop body
     // ==================================================================
-    case static_cast<NodeType>(8): { // 0x1d1273
+    case NodeType::Loop: { // 0x1d1273
       // 0x1d1273-0x1d127e: Read loop ptr (node+0xE0)
       Node *loopBody = cur->loop.get(); // 0x1d1273: mov 0xe0(%r12)
       if (!loopBody)                    // 0x1d127e: je → advance

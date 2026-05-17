@@ -656,13 +656,12 @@ The set semantic (which cmds, what they have in common) isn't
 documented; GDB-confirm whether this is e.g. "branch/jump cmds" or
 "flow-control cmds" before naming.
 
-### D2 (IF-318) — `case static_cast<NodeType>(8):` literal label
+### D2 (IF-318) — `case static_cast<NodeType>(8):` literal label  — **DONE**
 
-`codegen/prefetch.cpp` has a `case static_cast<NodeType>(8):`
-switch label with a comment `// 0x1d1273` (a binary address).
-`NodeType::Loop` is `0x0008` per `notes/struct_layouts.md`; if
-this is the same value, the substitution is trivial (and is a
-FIX-NOW once confirmed).  Quick check, low risk.
+`codegen/prefetch.cpp:1970` had a `case static_cast<NodeType>(8):`
+switch label with comment `// 0x1d1273`.  `NodeType::Loop = 0x0008`
+verified in `include/zhinst/ast/node.hpp:61`.  Substituted in
+C.1.c (commit alongside IF-318 filing); IF closed.
 
 ### D3 (IF-319) — `DeviceTypeCode(33)` / `DeviceFamily(0x800u)` sentinels
 
@@ -673,13 +672,17 @@ hypotheses: (a) `33` and `0x800u` are sentinel-but-not-zero values
 chosen for "outside the valid range"; (b) the enums are missing
 the right enumerator.  GDB-confirm which.
 
-### D4 (IF-320) — `parseCpuType` raw-numeric returns
+### D4 (IF-320) — `getAwgDeviceTypeFromString` raw-numeric returns  — **PROMOTED to FIX-NOW**
 
-`codegen/awg_compiler_config.cpp:38` returns 9 raw integer values
-from a string-keyed lookup.  Need to confirm each maps to an
-existing `AwgDeviceType` enumerator before naming.  If they don't,
-this is PROPOSE-ENUM (add the missing values to `AwgDeviceType`)
-not FIX-NOW.
+`codegen/awg_compiler_config.cpp:57-65` returns 9 raw integer values
+from a string-keyed lookup.  Audit's function name `parseCpuType`
+was inaccurate — the actual function is
+`AWGCompilerConfig::getAwgDeviceTypeFromString`.  All 9 values map
+cleanly to existing `AwgDeviceType` enumerators
+(`UHFLI=1, HDAWG=2, UHFQA=4, SHFQA=8, SHFSG=16, SHFQC_SG=32,
+SHFLI=64, GHFLI=128, VHFLI=256`); see IF-320 for the full table.
+Filed for follow-up FIX-NOW (cheap; ~9-line substitution, byte-
+identical guaranteed).
 
 ### D5 (IF-321) — `holdSuppressExceptSigouts = 0x27C`
 

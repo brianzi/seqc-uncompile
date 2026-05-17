@@ -195,9 +195,15 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         - Q5: IF range — next available is IF-329 (IF-325..IF-328
           allocated this session).
         - Q6: Pybind layer not touched.
-  - [ ] **C.1.c — File DEFER items IF-317..IF-322.**  Each gets a
-        stable IF with call-site table and proposed-but-unverified
-        semantic.  (D7 done via C.1bis.)
+  - [x] **C.1.c — File DEFER items IF-317..IF-322.**  Done in
+        this session.  IF-318 (D2 `NodeType::Loop`) verified and
+        substituted in the same commit (trivial FIX-NOW, IF closed
+        immediately).  IF-320 (D4 `getAwgDeviceTypeFromString` —
+        audit's "parseCpuType" was an inaccurate name) promoted to
+        FIX-NOW candidate for follow-up: 9 raw `static_cast<
+        AwgDeviceType>(N)` returns, all values mappable to existing
+        enumerators.  IF-317/319/321/322 left as documented
+        suspicious findings pending GDB verification.
   - [ ] ~~**C.1.d — FIX-NOW batch F1 (ErrorMessageT, ~57 sites).**~~
         Done via C.1bis (commits 8a83a2e, 7cae001, 4b18daa, 9a90cee).
   - [x] **C.1.e — FIX-NOW batches F2..F4 (enum-cast cleanup).**
@@ -229,12 +235,21 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         latent bugs hidden by `boost::format` permissive mode.  Should
         also investigate IF-323 (`UnknownFunction` used for an opcode
         dispatch failure) in the same pass.
-  - [ ] **C.1.h — Sub-phase wrap-up.**  Re-run full diff suite +
-        seqcc tools, update `incidental_findings.md` with closures
-        (IF-312, plus any new findings surfaced during execution),
-        update `magic_number_audit.md` with completion status,
-        commit.  Promote remaining PROPOSE-ENUM items (P1..P10) to
-        sibling Phase D7-C.2.
+  - [x] **C.1.h — Sub-phase wrap-up.**  Done in commit 8a6b5ec
+        (this session): re-ran full diff suite + seqcc tools after
+        F10.b, updated `magic_number_audit.md` F-summary with
+        per-batch completion status and commit hashes, fixed the
+        wrong device-list in §4 for the Hirzel mask (5 devices,
+        not 6 — UHFQA is NOT in the family).  IF-312 closed by F9.
+        TODO updated for C.1.b/e/f/g.  PROPOSE-ENUM items
+        (P1..P10) promotion to Phase D7-C.2 deferred.
+  - [ ] **C.1.j — FIX-NOW follow-up: IF-320 (`getAwgDeviceType
+        FromString` raw returns, 9 sites).**  Surfaced during
+        C.1.c.  Replace the 9 `static_cast<AwgDeviceType>(N)`
+        returns in `codegen/awg_compiler_config.cpp:57-65` with
+        named enumerators (`UHFLI`, `HDAWG`, `UHFQA`, `SHFQA`,
+        `SHFSG`, `SHFQC_SG`, `SHFLI`, `GHFLI`, `VHFLI`).  Risk
+        low; byte-identical guaranteed.  Closes IF-320.
 
 ## Phase X — `compile_seqc` binding-kwarg coverage
 
