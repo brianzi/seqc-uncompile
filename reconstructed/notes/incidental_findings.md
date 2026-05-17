@@ -2602,7 +2602,7 @@ a follow-up FIX-NOW commit.  Risk low.
 ## IF-321 — `holdSuppressExceptSigouts = 0x27C` derivation undocumented
 
 **Severity:** cosmetic
-**Status:** open
+**Status:** investigated, not fully resolvable from source alone
 
 `reconstructed/include/zhinst/waveform/play_config.hpp:83` defines
 `holdSuppressExceptSigouts = 0x27C` (= 636) as a `static inline
@@ -2610,17 +2610,71 @@ constexpr uint32_t`.  The brief explains *when* it's used (replaces
 `suppress` in the encoded word when `hold` is set; see
 `play_config.cpp:42-43`) but not *why* this particular bit pattern.
 
-`0x27C = 0b1001111100`.  The 14-bit `suppress` field gates output
-paths; 0x27C suppresses bits {2, 3, 4, 5, 6, 9, 12} of the
-suppress space, equivalently "everything except sigout 0/1 (bits
-0/1), {7,8,10,11,13}".  Need a hardware-doc cross-check to confirm
-which physical outputs map to which bits, then update the brief
-with a one-line "suppresses all destinations except primary signal
-outputs" derivation.
+### Bit-math correction
+
+The original IF note enumerated "bits {2, 3, 4, 5, 6, 9, 12}" — bit
+12 is wrong.  `0x27C = 0b 0010 0111 1100`, set bits are positions
+**{2, 3, 4, 5, 6, 9}** (six bits, not seven; `0x1000` (bit 12) is
+not present).
+
+### Source-side context
+
+The `suppress` field is 14 bits wide ([19:6] of the CWVF word).
+`encodeCwvf()` (`play_config.cpp:43`) substitutes `0x27C` for
+`suppress.value` only when `hold == true`, then shifts it into bits
+[19:6] via `suppressShift = 6`.  So `0x27C` is the unshifted
+suppress-field value.
+
+The SeqC user can set bits of `suppress` by OR-ing predefined
+constants registered in `static_resources.cpp:351-358`:
+
+| constant | value |
+|---|---|
+| `AWG_SUPPRESS_CHAN1_SIGOUT1` | 1 |
+| `AWG_SUPPRESS_CHAN1_SIGOUT2` | 2 |
+| `AWG_SUPPRESS_CHAN2_SIGOUT1` | 4 |
+| `AWG_SUPPRESS_CHAN2_SIGOUT2` | 8 |
+| `AWG_ENABLE_CHAN1_SIGOUT1`   | 1 |
+| `AWG_ENABLE_CHAN1_SIGOUT2`   | 2 |
+| `AWG_ENABLE_CHAN2_SIGOUT1`   | 4 |
+| `AWG_ENABLE_CHAN2_SIGOUT2`   | 8 |
+
+Note the SUPPRESS and ENABLE families reuse the same numeric values
+(1, 2, 4, 8) — i.e. they cannot all live in a single contiguous
+4-bit subfield.  The 14-bit `suppress` field must therefore contain
+**multiple separate sub-fields** (some user-OR-able, some internal-
+only).  The exact subfield layout is **not** derivable from source
+alone — `static_resources.cpp` only documents the user-facing
+constant values, not their bit-positions within the encoded word.
+
+### Why this can't be resolved without external docs
+
+Source determines: the suppress field is 14 bits at [19:6]; the
+user sets it via four SUPPRESS constants (vals 1/2/4/8) and four
+ENABLE constants (vals 1/2/4/8); when `hold` is true, the compiler
+substitutes `0x27C` regardless of what the user wrote.
+
+Source does *not* determine: which physical AWG output each bit
+position of the 14-bit field controls.  That mapping is the AWG
+firmware ABI for the CWVF register and lives in HDAWG hardware
+documentation, not in the compiler.
+
+### Resolution
+
+The existing doc brief at `play_config.hpp:80-83` makes a purely
+behavioural claim ("suppresses every path except the signal
+outputs") which matches the **name** of the constant and the
+**intent** described by the binary author.  That brief is
+accurate without bit-by-bit derivation; no edit is warranted.
+
+A future pass with access to the HDAWG firmware ABI doc could
+back-derive which AWG outputs correspond to bit positions
+{2, 3, 4, 5, 6, 9} and add a `\verifyme` derivation table.
 
 **Files**
 - `reconstructed/include/zhinst/waveform/play_config.hpp:80-83`
 - `reconstructed/src/waveform/play_config.cpp:42-43`
+- `reconstructed/src/runtime/static_resources.cpp:344-358`
 
 
 ## IF-322 — `0x54` VarType-set semantic name (6 sites)
