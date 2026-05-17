@@ -2383,6 +2383,48 @@ added.
 - `reconstructed/include/zhinst/ast/node.hpp:53,100-109` (existing enum + int overloads)
 
 
+## IF-332 — `magic_number_audit.md` P7 frames new constants for existing `Assembler::Command` enumerators
+
+**Severity:** cosmetic (documentation)
+**Status:** fixed (P7 pivoted; this note records the discrepancy)
+
+Audit §8 P7 reads "opcode-byte tag constants for the 5-way chain
+`0xF0/F1/F7/F8/FF000000` in `awg_assembler_opcodes.cpp:599`, plus
+the `|0xF6000000`, `|0xFD000000`, `|0xFE000000` write sites."
+
+Verification in Phase D7-C.2 found:
+
+- All eight literals are already enumerators in
+  `Assembler::Command` (`asm/assembler.hpp:67`), with descriptive
+  briefs already in place:
+    `0xF0000000` = `WPRF`
+    `0xF1000000` = `WWVF`
+    `0xF6000000` = `ST`
+    `0xF7000000` = `TRAP`
+    `0xF8000000` = `IRPT`
+    `0xFD000000` = `WTRIGI`
+    `0xFE000000` = `JMP`
+    `0xFF000000` = `FB`
+- `Assembler::Command` is an unscoped `enum : uint32_t`, so the
+  enumerators are usable directly as `Assembler::WPRF` in the
+  surrounding `unsigned int` arithmetic — no cast required.
+- The header was already included.
+
+P7 was pivoted to "literal→named, 7 sites in
+`awg_assembler_opcodes.cpp`".  No new constants were added.  This
+makes the third consecutive PROPOSE-ENUM item (P1, P3, P7 — plus
+P8 which proposed enum *extension* against existing members)
+where the audit framed an absent enum that already existed.  The
+pattern strongly suggests the original audit pass did not
+cross-reference existing enum headers before classifying literals
+as "new".
+
+**Files**
+- `reconstructed/notes/magic_number_audit.md` (P7 row)
+- `reconstructed/src/codegen/awg_assembler_opcodes.cpp:473,477,569,575,599-601`
+- `reconstructed/include/zhinst/asm/assembler.hpp:67,117-136` (existing enum)
+
+
 ## IF-317 — `0x29` cmd-set membership LUT in `asm_optimize*.cpp`
 
 **Severity:** suspicious

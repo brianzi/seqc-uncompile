@@ -470,11 +470,11 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
                 // But first: child[0] = reg
                 if (children_begin[0].get() != nullptr) {
                     unsigned int reg = getReg(children_begin[0]);
-                    opcode = (reg << 20) | 0xF6000000;
+                    opcode = (reg << 20) | Assembler::ST;
                 } else {
                     std::string msg = ErrorMessages::format(OpcodeRegNotGiven, 4);
                     errorMessage(msg);
-                    opcode = 0xF6000000;
+                    opcode = Assembler::ST;
                 }
                 // child[1] = val(20), with memory depth bounds check
                 e = expr.get();
@@ -566,13 +566,13 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
         case 10: // 0xFD000000 (WTRIGI): val(5)
         {
             unsigned int val = getVal(children_begin[0], 5);
-            return val | 0xFD000000;
+            return val | Assembler::WTRIGI;
         }
 
         case 11: // 0xFE000000 (JMP): val(20)
         {
             unsigned int val = getVal(children_begin[0], 20);
-            return val | 0xFE000000;
+            return val | Assembler::JMP;
         }
 
         case 4:  // 0xF6 with 1 child: getReg<<20 | val (but this is odd for 1-child)
@@ -596,9 +596,9 @@ uint64_t AWGAssemblerImpl::opcode4(unsigned int opcode, std::shared_ptr<AsmExpre
     } else if (nChildren == 0) {
         // --- 0 children: no-arg instructions with specific opcodes ---
         // Check for known zero-arg opcodes
-        if (opcode == 0xF0000000 || opcode == 0xF1000000 ||  // WPRF, WWVF
-            opcode == 0xF7000000 || opcode == 0xF8000000 ||  // TRAP, IRPT  
-            opcode == 0xFF000000) {                           // FB
+        if (opcode == Assembler::WPRF || opcode == Assembler::WWVF ||
+            opcode == Assembler::TRAP || opcode == Assembler::IRPT ||
+            opcode == Assembler::FB) {
             return opcode;
         }
 

@@ -298,13 +298,19 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         `AwgReady`).  Pivoted to literal→named in
         `prefetch_placesingle.cpp` (5 audit-cited + 1 bonus
         `NodeType::Play` swept at line 575).  IF-331 filed.
-  - [ ] **C.2.d — Remaining P-items (P5, P6, P7, P9, P10).**
+  - [x] **C.2.d.3 — P7 Assembler::Command literal→named (7 sites).**
+        Audit's "new `kOpTag…` constants" framing was wrong — all 8
+        literals (`0xF0/F1/F2/F6/F7/F8/FD/FE/FF 000000`) are already
+        enumerators in `Assembler::Command` (`asm/assembler.hpp:67`,
+        unscoped `uint32_t`).  Pivoted to literal→named in
+        `awg_assembler_opcodes.cpp` (lines 473, 477, 569, 575,
+        599-601).  IF-332 filed.  Third consecutive PROPOSE-ENUM
+        mistarget (P1, P3, P7) — pattern documented in IF-332.
+  - [ ] **C.2.d — Remaining P-items (P5, P6, P9, P10).**
         Deferred — each needs design or GDB verification before
         execution:
         - P5: blocked on IF-317 (`0x29` cmd-set LUT GDB verification).
         - P6: blocked on IF-322 (`0x54` VarType-set GDB verification).
-        - P7: opcode-byte tag constants — needs investigation of the
-          5-way chain in `awg_assembler_opcodes.cpp:599`.
         - P9: deduplicate `kSuser*` vs `DeviceConstants::*` (~20
           overlapping addresses, two parallel naming schemes) —
           structural and contentious, needs design discussion.
