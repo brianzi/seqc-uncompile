@@ -398,7 +398,7 @@ AsmExpression* addCommand(AsmParserContext* ctx,
 
         // If no cmdToken was provided, this is a pure label instruction
         if (!cmdToken) {
-            argList->command = static_cast<Assembler::Command>(0x02);  // LABEL
+            argList->command = Assembler::LABEL;
         }
 
         // Store Label data into the AsmExpression

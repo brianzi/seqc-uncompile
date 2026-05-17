@@ -70,7 +70,16 @@ public:
         NOP        = 0x00000001,  //!< No-op.
         LABEL      = 0x00000002,  //!< Pseudo-instruction emitted by the parser for label-only lines.
         MESSAGE    = 0x00000003,  //!< Inline-asm `msg` — emits a warning-level diagnostic at runtime.
-        // 0x00000004 unused?
+        //! \brief Synthetic comment-only pseudo-op (no mnemonic, never
+        //! round-trips through `commandFromString`).  Emitted by the
+        //! pipeline to carry a free-form `comment` field through the
+        //! optimiser as a barrier: register-allocation treats it as a
+        //! skip-when-empty boundary alongside `INVALID`, and the final
+        //! emit step drops the entry entirely when its `regSrc` matches
+        //! the barrier sentinel.  Always sits between `MESSAGE` (0x3)
+        //! and `ERROR_MSG` (0x5) in the opcode space and is reserved
+        //! for in-memory use; it never appears in encoded `.text`.
+        COMMENT_NOP = 0x00000004,
         ERROR_MSG  = 0x00000005,  //!< Inline-asm `rer` — emits an error-level diagnostic at runtime.
 
         // Waveform playback (short-opcode block)

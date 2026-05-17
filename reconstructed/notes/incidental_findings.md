@@ -2100,3 +2100,53 @@ quote one of the wrong device lists.
   (devType-2) bit-position).
 - Magic-number audit §4 (file `notes/magic_number_audit.md`) — the
   audit propagated the wrong list as part of its consolidation table.
+
+---
+
+## IF-326 — `Assembler::Command` enum slot 0x4 mis-labelled "unused?" but is an active barrier opcode
+
+**Severity:** medium (documentation accuracy + structural drift risk)
+**Status:** fixed
+**Found:** Phase D7-C.1 F2 (magic-number audit follow-through).
+**Files:** `reconstructed/include/zhinst/asm/assembler.hpp:73`
+(declaration); `reconstructed/src/asm/asm_list.cpp:374,387,416,420`;
+`reconstructed/src/asm/asm_optimize_regalloc.cpp:537,576,599,613,665`;
+`reconstructed/src/asm/asm_commands.cpp:883`.
+
+### Symptom
+
+The `Assembler::Command` enum declaration carried
+`// 0x00000004 unused?` between `MESSAGE = 0x3` and `ERROR_MSG = 0x5`,
+implying value `4` is an unknown / dead opcode slot.  In fact the
+value is **actively used at 7 sites** across the assembler:
+
+- `asm_list.cpp:416-420` builds an instruction with `cmd = 4` whenever
+  the input expression carries a free-form comment but no code; the
+  inline reconstruction comment correctly calls this a "NOP marker."
+- `asm_optimize_regalloc.cpp` checks for `cmd == 4` in five places,
+  always paired with `cmd == INVALID`, to treat the slot as a
+  register-allocation barrier and to skip emission when the entry's
+  `regSrc` field matches the barrier sentinel register.
+
+So `4` is a deliberate, synthetic pseudo-op that:
+- has no mnemonic in `getCmdMap()` (never round-trips from asm text),
+- is emitted only by the C++ pipeline as a comment-bearing barrier,
+- is dropped before final `.text` encoding when its `regSrc` matches
+  the barrier sentinel.
+
+### Fix
+
+Renamed the enumerator to `COMMENT_NOP` with a doc brief explaining
+the barrier role and the no-mnemonic / never-encoded contract.
+Substituted all 7 bare-`4` sites (5 `static_cast<Assembler::Command>(4)`
+in the optimiser, 1 declaration cast in `asm_list.cpp`, 1 comparison
+in `asm_list.cpp`) with `Assembler::COMMENT_NOP`.  Also updated stale
+reconstruction comments in `asm_optimize_regalloc.cpp` that referred
+to the slot as `cmd=4` / `cmd4` to use the new name.
+
+### Cross-references
+
+- `assembler.hpp` `Assembler::Command` enum.
+- `asm_list.cpp` Case C handler — only producer of `COMMENT_NOP`.
+- `asm_optimize_regalloc.cpp` — only consumer; treats it as a barrier
+  alongside `INVALID`.

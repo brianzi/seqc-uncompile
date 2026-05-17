@@ -369,9 +369,9 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
             result.append(entry);
 
             // 0x266457: Check next expression's type for follow-up processing
-            // If expr->command (+0x38) == 2, jump to no-opt handling at 0x266d87
+            // If expr->command (+0x38) == LABEL, jump to no-opt handling at 0x266d87
             int exprCmd = expr->command;
-            if (exprCmd == 2) {
+            if (exprCmd == Assembler::LABEL) {
                 // Skip to cleanup of vec_output, vec_reg, vec_input
                 // (RAII at scope exit) then next iteration.
                 // 0x266d87 ff: release shared_ptrs in vec_output, vec_reg, vec_input
@@ -384,9 +384,9 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
         {
             int exprCmd = expr->command;
 
-            if (exprCmd == 3 || exprCmd == 5) {
+            if (exprCmd == Assembler::MESSAGE || exprCmd == Assembler::ERROR_MSG) {
                 // --- Case B: MESSAGE or ERROR_MSG ---
-                // 0x266590: Build instr with cmd = exprCmd (3 or 5)
+                // 0x266590: Build instr with cmd = exprCmd (MESSAGE or ERROR_MSG)
                 Assembler instr;
                 instr.cmd = static_cast<Assembler::Command>(exprCmd);
 
@@ -413,11 +413,11 @@ std::tuple<AsmList, std::string> AsmList::parseStringToAsmList(  // 0x266160
 
                 result.append(entry);
 
-            } else if (exprCmd == 4) {
-                // --- Case C: NOP marker ---
-                // 0x2664de: Build instr with cmd = 4
+            } else if (exprCmd == Assembler::COMMENT_NOP) {
+                // --- Case C: comment-only barrier pseudo-op ---
+                // 0x2664de: Build instr with cmd = COMMENT_NOP (0x4)
                 Assembler instr;
-                instr.cmd = static_cast<Assembler::Command>(4);
+                instr.cmd = Assembler::COMMENT_NOP;
 
                 // 0x266555: Copy string from expr (+0x20, comment field) into instr
                 instr.comment = expr->comment;

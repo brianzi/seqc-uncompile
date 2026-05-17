@@ -880,7 +880,7 @@ AsmList::Asm AsmCommands::asmLabel(const std::string& label) const {
 AsmList::Asm AsmCommands::asmMessage(const std::string& msg, bool isError) const {
     // @0x277630: Command is 5 (error) or 3 (message). String stored as Immediate.
     Assembler instr;
-    instr.cmd = isError ? Assembler::Command(5) : Assembler::Command(3);
+    instr.cmd = isError ? Assembler::ERROR_MSG : Assembler::MESSAGE;
     instr.immediates.emplace_back(Immediate(msg));
     return emitEntry(instr, 0);  // wavetableFront forced to 0
 }

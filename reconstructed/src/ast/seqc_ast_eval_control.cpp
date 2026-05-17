@@ -1314,9 +1314,9 @@ std::shared_ptr<EvalResults> SeqCSwitchCase::evaluate(
 
         // ---- Compute total cycles ----                            // @0x21877b
         int cyclesF3 = Assembler::getCycles(
-            Assembler::Command(0xf3000000));                         // @0x28fac0
+            Assembler::BRZ);                                         // @0x28fac0
         int cyclesB0 = Assembler::getCycles(
-            Assembler::Command(0x40000000));                         // @0x28fac0
+            Assembler::ADDI);                                        // @0x28fac0
         int numCases = static_cast<int>(casesResult.size());
         int totalCycles = (numCases + 1) * (cyclesF3 + cyclesB0) - 4; // @0x2187c9
 

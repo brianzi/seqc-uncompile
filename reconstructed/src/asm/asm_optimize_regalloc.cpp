@@ -31,7 +31,7 @@ void AsmOptimize::registerAllocation(unsigned long numRegs) {
     };
 
     // Scan all instructions, recording register usage — 27ec88..27ed42
-    // Same skip bitmask 0x29 (dead/LABEL/cmd4)
+    // Same skip bitmask 0x29 (dead/LABEL/COMMENT_NOP)
     {
         int instrIdx = 0;
         for (auto it = asm_.begin(); it != asm_.end(); ++it, ++instrIdx) {
@@ -408,7 +408,7 @@ cleanup:
 // 0x280440
 // Split constant-value registers to reduce register pressure.
 // Builds a rewritten copy of the instruction list, then scans for registers
-// loaded from r0 (constant loads: ADDI rN, r0, #imm or dead/cmd4 patterns)
+// loaded from r0 (constant loads: ADDI rN, r0, #imm or dead/COMMENT_NOP patterns)
 // and splits their live ranges by inserting reload instructions.
 //
 // Returns the new maximum register number (numRegs + number of splits).
@@ -419,7 +419,7 @@ cleanup:
 //     - Allocate a new sequenceId from GlobalResources::regNumber (TLS+0x40)
 //     - Create a "barrier" entry: copy the instruction but set cmd=INVALID
 //       and regDst(dest)=magicSkipRegister(). Copy wavetableFront from original.
-//     - If original cmd matches skip-bitmask 0x29 (INVALID/LABEL/cmd4):
+//     - If original cmd matches skip-bitmask 0x29 (INVALID/LABEL/COMMENT_NOP):
 //       emit ONLY the original instruction (with its node shared_ptr).
 //     - Otherwise: emit the barrier entry, then emit the original instruction
 //       (with correct noOpt flag).
@@ -427,15 +427,15 @@ cleanup:
 //
 // Pass 2 (280726-2808f2): Walk tmpList looking for splittable patterns.
 //   For each instruction in tmpList:
-//     - Skip unless cmd is INVALID(-1), ADDI(0x40000000), or cmd=4
+//     - Skip unless cmd is INVALID(-1), ADDI(0x40000000), or COMMENT_NOP
 //     - Check if regDst (+0x28, dest) == AsmRegister(0) → this is a
 //       constant load from r0
 //     - If so, get destReg = regAux (+0x30, Assembler+0x28 = the actual
 //       destination register of the ADDI)
-//     - Scan forward, skipping dead and cmd=4 entries:
+//     - Scan forward, skipping dead and COMMENT_NOP entries:
 //       - If find ADDIU(0x50000000) with regAux matching destReg:
 //         check if current is ADDI and regDst also matches → "double load" pattern
-//       - If current cmd is dead(-1) or cmd=4: check if regDst(dest) == r0
+//       - If current cmd is dead(-1) or COMMENT_NOP: check if regDst(dest) == r0
 //         → continue scanning (skip barrier entries)
 //       - Otherwise: call getCmdType on the scanned instruction:
 //         - If regDst(+0x28, dest) matches destReg and cmdType bit1 → register
@@ -448,7 +448,7 @@ cleanup:
 // Post-pass (2808f2-280ad6): Move tmpList back to this->asm_.
 //   - Destroy old asm_ elements (releasing node shared_ptrs)
 //   - Copy tmpList entries back, EXCEPT skip entries where cmd is INVALID(-1)
-//     or cmd=4 AND regDst(dest) == magicSkipRegister() (the barrier entries)
+//     or COMMENT_NOP AND regDst(dest) == magicSkipRegister() (the barrier entries)
 //   - Destroy tmpList
 //   - Return numRegs + splitCount
 unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
@@ -531,10 +531,10 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     for (auto it = tmpList.begin(); it != tmpList.end(); ++it) {
         auto cmd = it->assembler.cmd;
 
-        // Only process INVALID(-1), ADDI(0x40000000), or cmd=4
+        // Only process INVALID(-1), ADDI(0x40000000), or COMMENT_NOP
         // 280764: cmp eax,-1; 28076d: cmp eax,0x40000000; 280774: cmp eax,0x4
         if (cmd != Assembler::INVALID && cmd != Assembler::ADDI &&
-            cmd != static_cast<Assembler::Command>(4))
+            cmd != Assembler::COMMENT_NOP)
             continue;
 
         // Check if regSrc(+0x28, source) == AsmRegister(0) — 280784
@@ -548,21 +548,21 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 
         // Scan forward from next instruction — 280799..280840
         // Binary semantics:
-        //   - Walk scanIt = it+1, skipping cmd==4 and cmd==INVALID
+        //   - Walk scanIt = it+1, skipping cmd==COMMENT_NOP and cmd==INVALID
         //   - On non-ADDIU cmd: scan FAILS (splitEnd = list.end(), cl=0)
         //   - On ADDIU with regDst != destReg: FAILS
         //   - On ADDIU with regDst == destReg:
         //       - If outer cmd is ADDI: require scanIt.regSrc == destReg too
-        //       - If outer cmd is INVALID/cmd4: require scanIt.regSrc == 0,
+        //       - If outer cmd is INVALID/COMMENT_NOP: require scanIt.regSrc == 0,
         //                                       and on success cl=1
         //       - Otherwise (outer cmd is something else — not reachable
-        //         here because we filtered to {INVALID, ADDI, cmd4}, but
+        //         here because we filtered to {INVALID, ADDI, COMMENT_NOP}, but
         //         binary at 0x2808d6 sets cl=1 for "neither" path; this
         //         maps to outer == ADDI branch in our filter).
         //   - On scan SUCCESS: splitEnd = scanIt (the matching ADDIU),
         //                      cl=1
         // The post-check at 0x280846..28085c then decides:
-        //   if outer.cmd in {INVALID, cmd4} and cl==0 → skip outer iter
+        //   if outer.cmd in {INVALID, COMMENT_NOP} and cl==0 → skip outer iter
         //   else → call splitReg(tmpList, destReg, it, splitEnd)
         auto scanEnd = tmpList.end();
         bool scanSuccess = false;
@@ -572,8 +572,8 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         for (; scanIt != tmpList.end(); ++scanIt) {
             auto scanCmd = scanIt->assembler.cmd;
 
-            // Skip cmd==4 and INVALID — 2807cc..2807d7
-            if (scanCmd == static_cast<Assembler::Command>(4) ||
+            // Skip cmd==COMMENT_NOP and INVALID — 2807cc..2807d7
+            if (scanCmd == Assembler::COMMENT_NOP ||
                 scanCmd == Assembler::INVALID)
                 continue;
 
@@ -596,7 +596,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
                 break;
             }
             if (cmd == Assembler::INVALID ||
-                cmd == static_cast<Assembler::Command>(4)) {
+                cmd == Assembler::COMMENT_NOP) {
                 // Require scanIt.regSrc == 0
                 if (!(scanIt->assembler.regSrc == AsmRegister(0)))
                     break;
@@ -609,8 +609,8 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
         }
 
         // Post-check at 0x280846..28085c:
-        //   if outer.cmd in {cmd4, INVALID} AND scan failed → skip
-        if ((cmd == static_cast<Assembler::Command>(4) ||
+        //   if outer.cmd in {COMMENT_NOP, INVALID} AND scan failed → skip
+        if ((cmd == Assembler::COMMENT_NOP ||
              cmd == Assembler::INVALID) && !scanSuccess) {
             continue;
         }
@@ -658,11 +658,11 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
     asm_.clear();
 
     // Copy non-barrier entries from tmpList to asm_
-    // 280980..2809ae: skip entries where cmd is INVALID(-1) or cmd=4
+    // 280980..2809ae: skip entries where cmd is INVALID(-1) or COMMENT_NOP
     //   AND regSrc(at Asm+0x28) == magicSkipRegister
     for (auto& entry : tmpList) {
         auto cmd = entry.assembler.cmd;
-        if ((cmd == Assembler::INVALID || cmd == static_cast<Assembler::Command>(4)) &&
+        if ((cmd == Assembler::INVALID || cmd == Assembler::COMMENT_NOP) &&
             entry.assembler.regSrc == magicReg)
             continue;  // skip barrier entries
 
@@ -679,7 +679,7 @@ unsigned long AsmOptimize::splitConstRegisters(unsigned long numRegs) {
 //   - Loop walks (start, list.end()).  `end` is NOT a loop terminator; it's
 //     used only as a clone source for Block 2 and as the gating value for
 //     whether Block 2 fires.
-//   - Skip-check: cmd in {INVALID, LABEL, cmd4} (bitmask 0x29 on cmd+1).
+//   - Skip-check: cmd in {INVALID, LABEL, COMMENT_NOP} (bitmask 0x29 on cmd+1).
 //   - Reads-reg detection: see 0x2810e7..0x28116f.  Reads via regSrc
 //     (cmdType&1) or regAux (cmdType in {1,7}).  If ALSO writes reg
 //     (regDst with cmdType bit 1 set, or regAux with cmdType==7), abandon.
@@ -725,7 +725,7 @@ void AsmOptimize::splitReg(AsmList& list, AsmRegister reg,
         auto& slot = list.entries[iter];
         auto cmd = slot.assembler.cmd;
 
-        // Skip INVALID(-1→0), LABEL(2→3), cmd4(4→5): bitmask 0x29       // @0x2810cf..0x2810d7
+        // Skip INVALID(-1→0), LABEL(2→3), COMMENT_NOP(4→5): bitmask 0x29       // @0x2810cf..0x2810d7
         uint32_t cmdPlus1 = static_cast<uint32_t>(cmd) + 1;
         if (cmdPlus1 <= 5 && ((0x29 >> cmdPlus1) & 1))
             continue;
