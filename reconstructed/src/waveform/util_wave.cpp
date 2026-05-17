@@ -40,10 +40,10 @@ namespace wave {
 //   3. Pack: (result << 2) | (marker & 0x3)
 // ---------------------------------------------------------------------------
 uint16_t double2awg(double sample, unsigned int marker) {  // 0x299630
-    constexpr double kFullScale = 8191.0;
+    constexpr double kFullScale14 = 8191.0;  // 2^13 - 1
     double scaled;
     if (sample > 1.0) {
-        scaled = kFullScale;
+        scaled = kFullScale14;
     } else {
         // Binary uses `maxsd xmm0(=-1.0), xmm1(=sample)` — see
         // double2awg16 for the full rationale on why std::max /
@@ -51,7 +51,7 @@ uint16_t double2awg(double sample, unsigned int marker) {  // 0x299630
         // lowers to a single `maxsd` and propagates NaN from the
         // second source, matching the binary exactly.
         __m128d r = _mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample));
-        scaled = _mm_cvtsd_f64(r) * kFullScale;
+        scaled = _mm_cvtsd_f64(r) * kFullScale14;
     }
     long rounded = std::lround(scaled);
     return static_cast<uint16_t>((marker & 0x3u) + (rounded * 4));
@@ -69,14 +69,14 @@ uint16_t double2awg(double sample, unsigned int marker) {  // 0x299630
 // Pack: (result << 1) | (marker & 0x1)
 // ---------------------------------------------------------------------------
 uint16_t double2awg1m(double sample, unsigned int marker) {  // 0x299680
-    constexpr double kFullScale = 16383.0;
+    constexpr double kFullScale15 = 16383.0;  // 2^14 - 1
     double scaled;
     if (sample > 1.0) {
-        scaled = kFullScale;
+        scaled = kFullScale15;
     } else {
         // Same SSE2 maxsd NaN-propagation as double2awg / double2awg16.
         __m128d r = _mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample));
-        scaled = _mm_cvtsd_f64(r) * kFullScale;
+        scaled = _mm_cvtsd_f64(r) * kFullScale15;
     }
     long rounded = std::lround(scaled);
     return static_cast<uint16_t>((marker & 0x1u) + (rounded * 2));
@@ -92,10 +92,10 @@ uint16_t double2awg1m(double sample, unsigned int marker) {  // 0x299680
 //   0x956340 = 32767.0       (full-scale, 2^15 - 1)
 // ---------------------------------------------------------------------------
 uint16_t double2awg16(double sample) {  // 0x299700
-    constexpr double kFullScale = 32767.0;
+    constexpr double kFullScale16 = 32767.0;  // 2^15 - 1
     double scaled;
     if (sample > 1.0) {
-        scaled = kFullScale;
+        scaled = kFullScale16;
     } else {
         // Replicate x86 SSE2 maxsd(dst=-1.0, src=sample) NaN-propagation
         // exactly. The binary uses a single `maxsd` instruction whose
@@ -108,7 +108,7 @@ uint16_t double2awg16(double sample) {  // 0x299700
         // _mm_max_sd lowers to a single `maxsd` on x86 with GCC/Clang/MSVC,
         // matching the binary's emitted instruction and its NaN behaviour.
         __m128d r = _mm_max_sd(_mm_set_sd(-1.0), _mm_set_sd(sample));
-        scaled = _mm_cvtsd_f64(r) * kFullScale;
+        scaled = _mm_cvtsd_f64(r) * kFullScale16;
     }
     long rounded = std::lround(scaled);
     return static_cast<uint16_t>(rounded);
