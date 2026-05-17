@@ -333,11 +333,25 @@ in `OVERVIEW.md :: Phase D7 — Doxygen topical reorganisation`.
         `src/runtime/custom_functions.cpp` (2),
         `src/runtime/custom_functions_play.cpp` (2),
         `src/runtime/custom_functions_registers.cpp` (2).
-  - [ ] **C.2.d — Remaining P-items (P9, P10).**
-        Deferred — each needs design discussion or is open-ended:
-        - P9: deduplicate `kSuser*` vs `DeviceConstants::*` (~20
-          overlapping addresses, two parallel naming schemes) —
-          structural and contentious, needs design discussion.
+  - [x] **C.2.d.6 — P9 SuserAddr/kSuser deduplication.**
+        Audit's "two parallel naming schemes" framing was
+        misleading.  Survey: `kSuser*` (`core/types.hpp`) has 100
+        call sites across 36 distinct names;
+        `DeviceConstants::SuserAddr` (`device/device_constants.hpp`)
+        has **0** call sites — it was recon-invented and never
+        referenced (consistent with the existing assessment at
+        `notes/symbol-renaming-audit/31_device_constants.md:493`,
+        which had already flagged the wrapper as "recon-invented").
+        Resolution: deleted the entire `SuserAddr` struct from
+        `device_constants.hpp` (replaced with a comment pointer to
+        `core/types.hpp`), added the one missing `kSuserGenericUser0
+        = 0x00` entry to `core/types.hpp` under a new
+        "Sync handshake (HDAWG only)" sub-section, swept the 2
+        `0`-literal call sites in
+        `src/runtime/custom_functions_registers.cpp:399,401`.  Net:
+        single canonical naming, no remaining duplication.
+  - [ ] **C.2.d — Remaining P-items (P10).**
+        Deferred — open-ended:
         - P10: Category B long-tail enum-cast sweep — open-ended.
   - [x] **C.2.e — Sub-phase wrap-up.**  Audit doc (§8 PROPOSE-ENUM
         table) updated with per-item DONE markers; IF-329/IF-330

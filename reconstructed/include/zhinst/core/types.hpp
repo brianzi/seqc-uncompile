@@ -165,6 +165,9 @@ constexpr int kChannelTag_Q = 0x0D; //!< Channel tag identifying the Q component
 //! address listed here is `reconstructed/notes/special_registers.md`.
 //! \{
 
+// -- Sync handshake (HDAWG only) --
+constexpr uint32_t kSuserGenericUser0  = 0x00;  //!< HDAWG sync-handshake / generic user register 0 (`luser`/`suser(reg, 0)` in the deviceType==HDAWG branch of multi-core writes).
+
 // -- Write protocol registers (used by writeToNode / setInt / setDouble) --
 constexpr uint32_t kSuserNodeTag       = 0x10;  //!< Multi-word write: low word (tag/node ID).
 constexpr uint32_t kSuserNodeAddr      = 0x11;  //!< Multi-word write: mid word (register index).

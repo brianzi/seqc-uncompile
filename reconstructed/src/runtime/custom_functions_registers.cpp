@@ -396,9 +396,9 @@ std::shared_ptr<EvalResults> CustomFunctions::setUserReg(                       
     if (config_->deviceType == HDAWG) {
         int regNum2 = Resources::getRegisterNumber();                                              // @0x14adf5: call getRegisterNumber
         AsmRegister reg2(regNum2);
-        auto luserEntry = asmCommands_->luser(reg2, detail::AddressImpl<unsigned int>(0));          // @0x14ae1d: call luser(reg2, 0)
+        auto luserEntry = asmCommands_->luser(reg2, detail::AddressImpl<unsigned int>(kSuserGenericUser0));   // @0x14ae1d: call luser(reg2, 0)
         results->assemblers_.push_back(std::move(luserEntry));
-        appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(0)); // @0x14aef5: call suser(reg2, 0)
+        appendSuser(results->assemblers_, asmCommands_, reg2, detail::AddressImpl<unsigned int>(kSuserGenericUser0)); // @0x14aef5: call suser(reg2, 0)
     }
     // trap()                                                                                      // @0x14afc7: call trap
     {

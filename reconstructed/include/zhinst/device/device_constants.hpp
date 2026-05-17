@@ -130,53 +130,13 @@ struct DeviceConstants {
         enum : uint32_t { SyncRegB = 0x45 };  //!< Cervino sync register B address (used by `suser`).
     };
 
-    // Suser (user register) address constants (A14)
-    // Used in suser() instruction calls throughout CustomFunctions.
-    //! \brief Sequencer SUSR (user-register) address constants used as
-    //! the immediate operand of `suser` / `luser` instructions.
-    //! \details Each member names the firmware-side meaning of one
-    //! sequencer register address that the AWG runtime reads or
-    //! writes through the user-register channel: multi-word write
-    //! protocol slots, sync handshake registers, sine / PRNG / QA /
-    //! sweep configuration registers, and timestamp / wait / RT-logger
-    //! slots. Consumers spell the address as `suser(reg, SuserAddr::X)`
-    //! throughout the `CustomFunctions` family. Address-to-purpose
-    //! mapping is the same for every device family; whether a given
-    //! address is actually wired up depends on the device.
-    struct SuserAddr {
-        static constexpr uint32_t GenericUser0    = 0x00;  //!< HDAWG sync handshake / generic user register 0.
-        static constexpr uint32_t WriteLow        = 0x10;  //!< Multi-word `writeToNode` protocol: low word / node ID.
-        static constexpr uint32_t WriteMid        = 0x11;  //!< Multi-word `writeToNode` protocol: mid word / register index.
-        static constexpr uint32_t WriteHigh       = 0x12;  //!< Multi-word `writeToNode` protocol: high word.
-        static constexpr uint32_t WriteHigh2      = 0x13;  //!< Multi-word `writeToNode` protocol: double-precision high 32 bits.
-        static constexpr uint32_t WriteCommit     = 0x16;  //!< Commit/finalize the multi-word node write.
-        static constexpr uint32_t DirectWrite     = 0x17;  //!< Single-value direct-write fast path.
-        static constexpr uint32_t DirectWriteB    = 0x19;  //!< Companion direct-write slot for the second (Q / stereo) channel.
-        static constexpr uint32_t TriggerValue    = 0x1A;  //!< Trigger-value load used by `wait` and switch-case AST evaluation on non-simple Cervino devices.
-        static constexpr uint32_t NowTimestamp    = 0x1C;  //!< Current sequencer timestamp ("now") used by playback internals.
-        static constexpr uint32_t RTLoggerData    = 0x1D;  //!< Real-time logger output data slot, written by `at(val)` on Cervino.
-        static constexpr uint32_t SyncRegA        = 0x44;  //!< Cervino sync register A (`syncCervino(true)` / `unsyncCervino`).
-        static constexpr uint32_t SyncRegB        = 0x45;  //!< Cervino sync register B (`syncCervino(false)` / `unsyncCervino`).
-        static constexpr uint32_t WaitCycles      = 0x69;  //!< Wait-cycles register / AWG-core count, written by `wait`, `getZSyncData`, `getFeedback`, `executeTableEntry`, and multi-core `resetOscPhase`.
-        static constexpr uint32_t SyncHirzel      = 0x6E;  //!< Hirzel-variant sync register address used by `asmSyncHirzel` via `addSyncCommand`.
-        static constexpr uint32_t WaitLegacy      = 0x6F;  //!< Legacy / play-internal wait register used inside `play` lowering.
-        static constexpr uint32_t SinePhase0      = 0x70;  //!< Sine phase, oscillator 0 (`setSinePhase(0, ...)`; HDAWG osc 0, SHFSG, SHFQC_SG).
-        static constexpr uint32_t SinePhase1      = 0x71;  //!< Sine phase, oscillator 1 (`setSinePhase(1, ...)`; HDAWG osc 1).
-        static constexpr uint32_t SinePhaseInc0   = 0x72;  //!< Sine phase increment, oscillator 0 (`incrementSinePhase(0, ...)`).
-        static constexpr uint32_t SinePhaseInc1   = 0x73;  //!< Sine phase increment, oscillator 1 (`incrementSinePhase(1, ...)`; HDAWG only).
-        static constexpr uint32_t PRNGSeed        = 0x74;  //!< PRNG seed register (`setPRNGSeed`; Hirzel only).
-        static constexpr uint32_t PRNGRangeLo     = 0x75;  //!< PRNG range low (`setPRNGRange` low half; Hirzel only).
-        static constexpr uint32_t PRNGRangeHi     = 0x76;  //!< PRNG range span (`setPRNGRange` high half; Hirzel only).
-        static constexpr uint32_t QAWeightsAddr   = 0x78;  //!< QA integration-weights address slot, also used by non-SHFQA SHF `resetOscPhase`.
-        static constexpr uint32_t QATriggerMonitor= 0x79;  //!< QA trigger / monitor composite register (`startQA(...)`; UHFQA, SHFQA).
-        static constexpr uint32_t QAResultLength  = 0x7A;  //!< QA result length register (UHFQA `startQA`); doubles as `resetOscPhase` slot on SHFQA.
-        static constexpr uint32_t SweepOscIndex   = 0x8C;  //!< Frequency-sweep oscillator index (`configFreqSweep`, `setSweepStep`, `setOscFreq`; SHF+ only).
-        static constexpr uint32_t SweepControl    = 0x8D;  //!< Frequency-sweep control register (step / reset; SHF+ only).
-        static constexpr uint32_t SweepStartLo    = 0x8E;  //!< Frequency-sweep start frequency, low 32 bits (SHF+ only).
-        static constexpr uint32_t SweepStartHi    = 0x8F;  //!< Frequency-sweep start frequency, high 32 bits (SHF+ only).
-        static constexpr uint32_t SweepStepLo     = 0x90;  //!< Frequency-sweep step frequency, low 32 bits (SHF+ only).
-        static constexpr uint32_t SweepStepHi     = 0x91;  //!< Frequency-sweep step frequency, high 32 bits (SHF+ only).
-    };
+    // Note: SUSR (user-register) address constants live as `kSuser*`
+    // free constants in `core/types.hpp`.  An earlier reconstruction
+    // pass also declared them as a `SuserAddr` member-struct here,
+    // but it was recon-invented and never referenced from the source
+    // tree (the kSuser* free constants are the only consumed form,
+    // with ~100 call sites across the runtime); it has been removed
+    // to leave a single canonical naming for these addresses.
 
     uint32_t       deviceType;            //!< Target device family as the integer value of `AwgDeviceType` (e.g. UHFLI=1, HDAWG=2, SHFQA=8). Set first by the factory before any per-family case populates the rest. +0x00
     bool           hasExtendedReg;        //!< `true` only for HDAWG (the one device that exposes the extended register file used by the assembler's wide-instruction encodings). +0x04
