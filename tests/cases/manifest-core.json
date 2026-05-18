@@ -480,6 +480,54 @@
               ]
             },
             {
+              "name": "options_reset_osc_no_mf",
+              "code": "resetOscPhase();\nplayZero(64);",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "options",
+                "mf-gating",
+                "reset-osc"
+              ]
+            },
+            {
+              "name": "options_reset_osc_with_mf",
+              "code": "resetOscPhase();\nplayZero(64);",
+              "options": "MF",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "options",
+                "mf-gating",
+                "reset-osc"
+              ]
+            },
+            {
+              "name": "options_sine_reset_osc_no_mf",
+              "code": "wave w = sine(64, 1.0, 0, 1);\nplayWave(w);\nresetOscPhase();",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "options",
+                "mf-gating",
+                "reset-osc",
+                "sine"
+              ]
+            },
+            {
+              "name": "options_sine_reset_osc_with_mf",
+              "code": "wave w = sine(64, 1.0, 0, 1);\nplayWave(w);\nresetOscPhase();",
+              "options": "MF",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "options",
+                "mf-gating",
+                "reset-osc",
+                "sine"
+              ]
+            },
+            {
               "name": "filename_simple",
               "code": "playZero(64);",
               "filename": "my_program.seqc",
