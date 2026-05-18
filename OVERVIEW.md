@@ -2375,3 +2375,66 @@ material in `reconstructed/notes/` source files only.
 
   Tests at close of D7-B: 1600/1600 (no source code edits in
   D7-B; documentation-only changes).
+
+## Phase X — `compile_seqc` binding-kwarg coverage
+
+Closed the gap between the Python `compile_seqc(...)` binding's
+declared keyword surface and the test-corpus coverage of those
+kwargs.  Surfaced and fixed four root-cause reconstruction bugs
+along the way.
+
+**Coverage matrix (post-X):**
+
+| kwarg        | coverage              | notes                                             |
+|--------------|-----------------------|---------------------------------------------------|
+| `samplerate` | full (HDAWG)          | every HDAWG case                                  |
+| `sequencer`  | `qa`/`sg`/`auto`      | `sequencer_auto_shf{qa,sg}` added in X            |
+| `wavepath`   | empty + autoscan dir  | `wavepath_autoscan_dir` (X2)                      |
+| `waveforms`  | string list + `None`  | autoscan form fixed via IF-292 (X2)               |
+| `filename`   | full                  | IF-335 fixed in X1; three cases added             |
+| `options`    | parsing + MF gating   | IF-339 fixed in X3; four MF behavioural cases     |
+
+**Sub-phases & landings:**
+
+- **X1** — `filename` kwarg.  IF-335: `compile_seqc.cpp:314`
+  hard-coded `"output"` as the second arg to `writeToStream`; the
+  local `filename` had been mis-routed into
+  `config.debugDumpPath` and never reached the ELF writer.  Fix
+  routes the kwarg through correctly.  Three manifest cases added.
+- **X2** — `wavepath` + `waveforms`.  Commits `80c6f96`
+  (type-aware kwargs binding + strict validators for 4 kwargs) and
+  `2ab32f0` (`wavepath` autoscan when both `wavepath` and
+  `waveforms` keys are present, plus `addWaveforms`
+  directory-walking pre-pass via `recursive_directory_iterator`).
+  Closed IF-292.  Manifest case `wavepath_autoscan_dir`.
+- **X3** — `options`.  Commit `b62542b` wires
+  `splitDeviceOptions(upperOptions)` into `config.includePaths`,
+  mirroring binary `@0xf6847`.  This single line closed IF-336
+  (`writeToNode` Block D MF gate), IF-337 (`resetOscPhase`
+  +24 B), IF-338 (sine + `resetOscPhase` +28 B), and IF-339
+  (the root-cause `includePaths`-never-populated finding).
+  Verified byte-identical on HDAWG8 across `options=""` and
+  `options="MF"` for all three relevant programs.  Commit
+  `4af85d3` added four paired behavioural manifest cases
+  (`options_reset_osc_{no,with}_mf`,
+  `options_sine_reset_osc_{no,with}_mf`).
+- **X4** — wrap-up.  This entry; full diff_test_fast suite at
+  1624/1624, pytest tests/tools/ at 70/70.
+
+**Notes for future work:**
+
+- The `ME` (HDAWG Memory Extension) option flips `maxelfsize` in
+  the returned meta dict (256 MiB ↔ 2 GiB) via
+  `DeviceType::hasOption(ME)` at
+  `awg_device_props.cpp:209-217` — already correctly reconstructed.
+  No compile-time enforcement; `maxelfsize` is a downstream-consumer
+  hint.
+- Meta-dict (`messages`, `wavemem`, `maxelfsize`) differences are
+  not currently caught by the ELF-bytes-only difftest harness.  A
+  Phase X3a meta-dict diff extension would catch ME-style
+  regressions and a class of related option-only behaviours; left
+  as a future enhancement.
+- The `waveforms`-absent + default-`Data/awg/waves` folder probe
+  at `@0xf64a1` remains untested by any existing manifest case;
+  tracked as a follow-up enhancement.
+
