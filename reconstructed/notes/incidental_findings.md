@@ -47,10 +47,14 @@ active file or the archive.
 ## IF-100  `playIndexed` indexed-play codegen still incorrect
 
 **Source**: `uhf_doc_tv_mode` post-IF-99 investigation
-**Status**: Phase 12 Var-branch fixed; remaining diff traced to
-IF-102 (placesingle wrong field) and IF-103 (incomplete
-play_cervino_indexed body).
-**Severity**: likely-bug
+**Status**: fixed.  Phase 12 Var-branch is implemented in
+`custom_functions_play.cpp:1066-1073` (reuses
+`parseEnd[0].reg_` as `indexReg` when `offsetVarType ==
+VarType_Var`, skipping the addi/asmSetVarPlaceholder pair).
+Anchor case `zhinst:manualdocs_ai_synthesized:uhfli:tv_mode` and
+related `playWaveIndexed`, `play_indexed`, `play_dual_indexed`
+cases all pass byte-identical.  Full suite 1624/1624.
+**Severity**: was likely-bug
 
 After IF-99 fix, `uhf_doc_tv_mode` still differs in `.asm`/`.text`/`.linenr`.
 
@@ -125,9 +129,17 @@ deferred from the IF-99 fix to keep that change focused.
 ## IF-102  Prefetch::placeSingleCommand uses wrong field (indexOffsetReg vs lengthReg)
 
 **Source**: `uhf_doc_tv_mode` post-IF-100 investigation
-**Status**: partially fixed
-**Severity**: bug (fixed for indexed-play dispatch; other call sites
-unaudited)
+**Status**: fixed.  All `lengthReg` (+0x88) call sites in
+`prefetch_placesingle.cpp` cite their binary address and `+0x88`
+offset in adjacent comments (lines 189-197, 666-670, 737-739,
+806-810, 967-970).  All remaining `indexOffsetReg` (+0x94) reads
+(lines 603, 612, 614, 617) are verified at their cited binary
+addresses (spot-check: `objdump -d` at 0x1db9b2 confirms
+`mov 0x94(%rdi), %rcx`).  Comment at line 666 explicitly notes
+"= lengthReg (not indexOffsetReg @ +0x94)".  Anchor case
+`uhf_doc_tv_mode` and `playWaveIndexed*` cases all pass
+byte-identical.  Suite 1624/1624.
+**Severity**: was bug
 
 `Prefetch::placeSingleCommand` in `prefetch_placesingle.cpp` had
 multiple sites that referenced `node->indexOffsetReg` (+0x94) where
