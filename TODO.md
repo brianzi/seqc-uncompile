@@ -472,7 +472,7 @@ Status snapshot (after this phase's first wave):
       ELF-bytes-only difftest harness — left as a future enhancement
       (would need a Phase X3a meta-dict diff extension).
 
-- [x] **X4 — Phase wrap-up.**  Done in commit `_____`.  OVERVIEW
+- [x] **X4 — Phase wrap-up.**  Done in commit `0a8d1b0`.  OVERVIEW
       updated with the binding-kwarg coverage matrix.  Full
       diff_test_fast suite: 1624/1624.  pytest tests/tools/: 70/70.
       No new IFs filed during X1–X3 wrap.
