@@ -2995,7 +2995,9 @@ All three produce byte-identical ELFs between original and recon.
 ## IF-336 — `writeToNode` Block D missing MF-option gate; oscselect path differs by 84 bytes when MF present
 
 **Severity**: medium
-**Status**: open
+**Status**: fixed (subsumed by IF-339 — `config.includePaths` now
+populated from `options`; dual-`.so` verification shows byte-identical
+ELF for the sine/oscselect path on HDAWG8 with `options="MF"`).
 **Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
 
 **Symptom**: `setInt("sines/0/oscselect", 1); playZero(64);` on HDAWG8:
@@ -3053,7 +3055,9 @@ per-typeIdx emit dispatch — not yet located).
 ## IF-337 — `resetOscPhase` MF-gated ELF expansion missing in recon
 
 **Severity**: medium
-**Status**: open
+**Status**: fixed (subsumed by IF-339 — byte-identical orig/recon for
+`resetOscPhase();` on HDAWG8 with `options=""` (1596 B) and
+`options="MF"` (1620 B)).
 **Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
 
 **Symptom**: `resetOscPhase(); playZero(64);` on HDAWG8:
@@ -3095,7 +3099,9 @@ not yet honour the MF-enabled per-oscillator expansion.
 ## IF-338 — sine playback + `resetOscPhase` MF-gated expansion (28 B) missing in recon
 
 **Severity**: medium
-**Status**: open
+**Status**: fixed (subsumed by IF-339 — byte-identical orig/recon for
+sine `playWave` + `resetOscPhase()` on HDAWG8 with `options=""`
+(2076 B) and `options="MF"` (2104 B)).
 **Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
 
 **Symptom**: `wave w = sine(64,1.0,0.0,1); playWave(w); resetOscPhase();`
@@ -3117,7 +3123,12 @@ deltas with a single fix.
 ## IF-339 — `compile_seqc` never populates `config.includePaths` from the `options` string
 
 **Severity**: high (root cause for IF-336 / IF-337 / IF-338)
-**Status**: open
+**Status**: fixed (single-line wire-up in `compile_seqc.cpp` —
+`config.includePaths = splitDeviceOptions(upperOptions);`).  Closes
+IF-336, IF-337, IF-338 simultaneously: dual-`.so` comparison shows
+byte-identical ELFs for `resetOscPhase`, sine+`resetOscPhase`, and
+`writeToNode` sines/oscselect programs across `options=""` and
+`options="MF"` on HDAWG8.  Full difftest: 1620/1620; pytest: 70/70.
 **Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
 
 **Symptom**: `compile_seqc(..., options="MF")` does *not* push `"MF"`

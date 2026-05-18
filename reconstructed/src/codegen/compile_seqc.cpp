@@ -353,9 +353,13 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
         config.searchPath = waveSearchPath;
     }
 
-    // splitDeviceOptions for additional config setup
-    // @0xf63xx: calls splitDeviceOptions on the options string
-    // (This populates includePaths or other config fields depending on content)
+    // @0xf6847: populate config.includePaths from the upper-cased option
+    // string.  splitDeviceOptions splits on '\n'.  Consumers in
+    // CustomFunctions (e.g. checkIncludeMF, oscMaskSetAllHirzel,
+    // optionAvailable) scan this vector for option literals such as "MF".
+    // IF-339: prior to this assignment the recon left includePaths empty,
+    // suppressing MF-gated codegen paths.
+    config.includePaths = splitDeviceOptions(upperOptions);
 
     // --- 8. Create AWGCompiler ---
     AWGCompiler compiler(config);
