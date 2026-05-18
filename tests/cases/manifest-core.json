@@ -510,6 +510,39 @@
               ]
             },
             {
+              "name": "filename_none_rejected",
+              "code": "playZero(64);",
+              "filename": "@none",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "filename",
+                "kwarg-type-validation"
+              ]
+            },
+            {
+              "name": "wavepath_none_rejected",
+              "code": "playZero(64);",
+              "wavepath": "@none",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "wavepath",
+                "kwarg-type-validation"
+              ]
+            },
+            {
+              "name": "waveforms_none_no_wavepath",
+              "code": "playZero(64);",
+              "waveforms": "@none",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "waveforms",
+                "kwarg-type-validation"
+              ]
+            },
+            {
               "name": "sequencer_auto_shfqa",
               "code": "playZero(64);",
               "devtype": "SHFQA4",

@@ -203,12 +203,25 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     waveSearchPath /= "waves";
 
     // --- 6. Extract config fields from JSON ---
+    //
+    // Each of {samplerate, filename, wavepath, waveforms} is *strictly*
+    // type-validated against the corresponding boost::json kind:
+    //   * present-but-wrong-type → throw with the binary's exact message
+    //   * absent                 → use default (NaN / "output" / "" / [])
+    //
+    // The binding (pyCompileSeqc) preserves Python None → JSON null, so
+    // a Python ``samplerate=None`` reaches here as a present `null` value
+    // and falls through to the "wrong type" path.  In contrast, int64
+    // and bool are explicit Python types that also fail validation —
+    // ``samplerate=2400000000`` (int) is rejected by the original with
+    // the floating-point error.  Probe at @0xf6178 confirms `cmp $0x4`
+    // against boost::json::kind::double_ only (kind 3 = int64 rejected).
     double sampleRate = std::numeric_limits<double>::quiet_NaN();
     if (auto* srVal = jobj.if_contains("samplerate")) {
         if (srVal->is_double()) {
             sampleRate = srVal->as_double();
-        } else if (srVal->is_int64()) {
-            sampleRate = static_cast<double>(srVal->as_int64());
+        } else {
+            throw Exception("'samplerate' must be a floating point value.");
         }
     }
 
@@ -218,12 +231,18 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     // filename == "output".  Confirmed via probe:
     // compile_seqc(..., <no filename kwarg>) writes "output" to
     // .filename and .arguments.destination.
+    //
+    // When the key IS present but not a string (e.g. ``filename=None``
+    // → JSON null, or ``filename=123`` → JSON int64), the original
+    // throws "'filename' must be a valid string." at @0xf70d8.
     std::string filename = "output";
     bool filenameWasProvided = false;
     if (auto* fnVal = jobj.if_contains("filename")) {
         if (fnVal->is_string()) {
             filename = std::string(fnVal->as_string());
             filenameWasProvided = true;
+        } else {
+            throw Exception("'filename' must be a valid string.");
         }
     }
 
@@ -231,11 +250,23 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     if (auto* wpVal = jobj.if_contains("wavepath")) {
         if (wpVal->is_string()) {
             configWavePath = std::string(wpVal->as_string());
+        } else {
+            throw Exception("'wavepath' must be a string.");
         }
     }
 
-    // "waveforms" — JSON string split by ';' into vector
+    // "waveforms" — JSON string split by ';' into vector.
+    //
+    // Type rules per the binary (string @0x8fef5e, throw @0xf7225):
+    //   * absent              → empty list (no autoscan in core path here;
+    //                           autoscan over wavepath is a separate code
+    //                           path triggered when waveforms IS null).
+    //   * present, string     → split by ';'
+    //   * present, null       → empty list (caller may then autoscan;
+    //                           see commit C for the autoscan trigger)
+    //   * present, other type → throw "'waveforms' must be a string."
     std::vector<std::string> waveformPaths;
+    bool waveformsKeyNull = false;
     if (auto* wfVal = jobj.if_contains("waveforms")) {
         if (wfVal->is_string()) {
             std::string wfStr(wfVal->as_string());
@@ -246,8 +277,13 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
                 std::remove_if(waveformPaths.begin(), waveformPaths.end(),
                                [](std::string const& s) { return s.empty(); }),
                 waveformPaths.end());
+        } else if (wfVal->is_null()) {
+            waveformsKeyNull = true;
+        } else {
+            throw Exception("'waveforms' must be a string.");
         }
     }
+    (void)waveformsKeyNull;  // consumed by autoscan logic (Commit C)
 
     // T8 (IF-305): optional override for AWGCompilerConfig::optimizationFlags.
     // Defaults to 0xFF (all passes — matches the original binary's

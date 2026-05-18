@@ -130,18 +130,43 @@ py::object pyCompileSeqc(std::string const& sourceCode,     // @0xe0000
     // --- 3. Merge kwargs into JSON config (always, regardless of 3rd arg type) ---
     // Binary @0xe0000: kwargs iteration happens unconditionally after the
     // try/catch block for the 3rd arg cast.
+    //
+    // Each kwargs value is serialized into the JSON object preserving its
+    // Python type:
+    //   * None        -> JSON null
+    //   * bool        -> JSON bool
+    //   * int         -> JSON int64
+    //   * float       -> JSON double
+    //   * str / bytes -> JSON string
+    //   * anything else -> silently skipped
+    //
+    // This is critical because the downstream validators in compileSeqc
+    // distinguish *missing key* from *present-but-wrong-type* and emit
+    // distinct error messages.  In particular ``waveforms=None`` triggers
+    // wavepath autoscan, while ``samplerate="2.4e9"`` (string) is rejected
+    // with "'samplerate' must be a floating point value.".
     for (auto& item : kwargs) {
         std::string key = py::str(item.first);
-        try {
-            double val = item.second.cast<double>();
-            jobj[key] = val;
-        } catch (...) {
+        py::handle v = item.second;
+        PyObject* p = v.ptr();
+        if (p == Py_None) {
+            jobj[key] = nullptr;  // JSON null
+        } else if (PyBool_Check(p)) {
+            jobj[key] = (p == Py_True);
+        } else if (PyLong_Check(p)) {
             try {
-                std::string val = item.second.cast<std::string>();
-                jobj[key] = val;
+                jobj[key] = v.cast<int64_t>();
             } catch (...) {
-                // Skip unsupported types
+                // Out-of-range int — fall back to string
+                try { jobj[key] = v.cast<std::string>(); } catch (...) {}
             }
+        } else if (PyFloat_Check(p)) {
+            jobj[key] = v.cast<double>();
+        } else if (PyUnicode_Check(p) || PyBytes_Check(p)) {
+            jobj[key] = v.cast<std::string>();
+        } else {
+            // Unsupported type — skip silently (matches binary behaviour for
+            // values pybind11 cannot resolve to either string or numeric).
         }
     }
 
