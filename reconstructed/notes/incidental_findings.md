@@ -2991,3 +2991,202 @@ All three produce byte-identical ELFs between original and recon.
 - `tools/seqcc/src/driver.cpp:179-185,232-234,306-311`
 - `tools/seqcc/src/main.cpp:466-472`
 - `tests/cases/manifest-core.json` (3 new cases)
+
+## IF-336 — `writeToNode` Block D missing MF-option gate; oscselect path differs by 84 bytes when MF present
+
+**Severity**: medium
+**Status**: open
+**Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
+
+**Symptom**: `setInt("sines/0/oscselect", 1); playZero(64);` on HDAWG8:
+
+| `options` | original                                              | recon                  |
+|-----------|-------------------------------------------------------|------------------------|
+| `""`      | throws `node 'sines/0/oscselect' requires MF option installed` (`NodeNeedsMFOption` = 132) | compiles successfully (1636 B ELF) |
+| `"MF"`    | compiles successfully (1552 B ELF)                     | compiles successfully (1636 B ELF — 84 B larger than original) |
+
+**Root location**: `reconstructed/src/runtime/custom_functions_play.cpp`
+Block D (`writeToNode`, oscselNodeRegex match @ L1486–1500).
+
+Binary disassembly at `@0x164b51..164bd2` shows a `config_->includePaths`
+scan for the literal `"MF"` between the regex match and the
+`usedFeatures_.insert("MF")` call:
+
+- `@0x164b51`: `mov rcx, [r14]` (= `this->config_`, offset 0 in
+  CustomFunctions).
+- `@0x164b54-164b58`: load `config_->includePaths.begin` / `.end`
+  (`+0x70` / `+0x78`).
+- Linear scan for `"MF"`; if not found → `je 169e0d`.
+- `@0x169e0d..169e9b` formats `ErrorMessages::format<string>(132,
+  pathStr)` and throws `CustomFunctionsValueException`.
+
+The reconstruction currently jumps straight from the regex match to
+`usedFeatures_.insert("MF")` and `addNodeAccess`, with no gate.  This
+both (a) lets `options=""` programs through that should error, and
+(b) presumably changes the downstream codegen path (the 84-byte ELF
+delta in the MF-enabled case suggests a second divergence in the
+per-typeIdx emit dispatch — not yet located).
+
+**Next steps** (separate fix commit, not part of Phase X3):
+
+1. Insert the `config_->includePaths` scan + throw gate before the
+   `usedFeatures_.insert("MF")` call in
+   `custom_functions_play.cpp:1488..1500`.  The same scan pattern
+   already exists in `custom_functions.cpp:365-378` (`checkIncludeMF`
+   helper) — reuse if possible.
+2. Investigate the 84-byte ELF delta with `options="MF"` by adding a
+   `dump_elf --both` invocation to a new fixture and comparing `.asm`
+   and `.text` sections.  Likely a missed instruction in one of the
+   per-typeIdx dispatch arms at `@0x164c50..0x165407` (jt @958f68).
+3. Add paired manifest cases (`oscselect_mf_required` errors,
+   `oscselect_mf_enabled` byte-identical) and remove the
+   `kwarg-type-validation` gate once they pass.
+
+**Files** (read-only for now; fix in a follow-up):
+- `reconstructed/src/runtime/custom_functions_play.cpp:1486-1505`
+- `reconstructed/src/runtime/custom_functions.cpp:365-378`
+  (existing `MF`-in-`includePaths` scan helper)
+- Binary: `@0x164b51..164bd2` (gate), `@0x169e0d..169e9b` (throw),
+  `@0x164c50..0x165407` (per-typeIdx dispatch — suspected second
+  divergence).
+
+## IF-337 — `resetOscPhase` MF-gated ELF expansion missing in recon
+
+**Severity**: medium
+**Status**: open
+**Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
+
+**Symptom**: `resetOscPhase(); playZero(64);` on HDAWG8:
+
+| `options` | original size | recon size |
+|-----------|---------------|------------|
+| `""`      | 1596 B        | 1596 B     |
+| `"MF"`    | 1620 B (+24 B) | 1596 B (no change) |
+
+Original emits 24 additional bytes of code when `MF` is in
+`config_->includePaths`; recon emits the same ELF regardless of
+options.  Likely call site:
+`reconstructed/src/runtime/custom_functions_wait.cpp` (`resetOscPhase`
+implementation) or `getAllOscMask` /
+`CustomFunctions::oscMaskSetAllHirzel`
+(`custom_functions.cpp:446-473`) — the latter already branches on
+`hasMF` for the mask value but evidently the call site is not yet
+emitting the extra reset code per oscillator.
+
+Same root family as IF-336 (`oscselect` MF gate) — the codegen does
+not yet honour the MF-enabled per-oscillator expansion.
+
+**Next steps** (separate fix commit):
+
+1. GDB-trace original `resetOscPhase` with `options="MF"` vs `""`
+   to identify the 24-byte expansion (probably 6× 4-byte instructions
+   — one `resetOscPhase` per extra oscillator).
+2. Compare `.asm` sections via
+   `python tests/dump_elf.py <fixture> HDAWG8 --samplerate 2.4e9 --both`.
+3. Locate the call site that uses `oscMaskSetAllHirzel()` and walk the
+   returned mask emitting per-bit reset instructions.
+
+**Files** (read-only for now):
+- `reconstructed/src/runtime/custom_functions_wait.cpp` (search for
+  `resetOscPhase`).
+- `reconstructed/src/runtime/custom_functions.cpp:446-473`
+  (`oscMaskSetAllHirzel`).
+
+## IF-338 — sine playback + `resetOscPhase` MF-gated expansion (28 B) missing in recon
+
+**Severity**: medium
+**Status**: open
+**Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
+
+**Symptom**: `wave w = sine(64,1.0,0.0,1); playWave(w); resetOscPhase();`
+on HDAWG8:
+
+| `options` | original size | recon size |
+|-----------|---------------|------------|
+| `""`      | 2084 B        | 2084 B     |
+| `"MF"`    | 2112 B (+28 B) | 2084 B (no change) |
+
+A near-superset of IF-337 (24 B → 28 B; the extra 4 B is likely a
+single additional instruction tied to the sine waveform's marker
+channel).  Likely a single underlying fix in the per-oscillator
+emission loop closes both this finding and IF-337.
+
+**Next steps**: subsume into the IF-337 investigation; verify both
+deltas with a single fix.
+
+## IF-339 — `compile_seqc` never populates `config.includePaths` from the `options` string
+
+**Severity**: high (root cause for IF-336 / IF-337 / IF-338)
+**Status**: open
+**Discovered**: while synthesizing Phase X3 behavioural `options` test cases.
+
+**Symptom**: `compile_seqc(..., options="MF")` does *not* push `"MF"`
+onto `config.includePaths` in the reconstruction.  The HDAWG MF feature
+paths (`oscMaskSetAllHirzel`, `checkIncludeMF`, the writeToNode Block
+D gate at IF-336) all consult `config_->includePaths`, so the recon
+behaves as if `options=""` for every value of `options`.
+
+**Verification** — probed the full option matrix
+(`MF`/`AWG`/`QA`/`CNT`/`DIG`/`PLUS`/`BWLIM`/`FREQ`/`TRIG`/`CONNECT`)
+across HDAWG4/HDAWG8/SHFQA2/SHFQA4/SHFSG4/SHFSG8/SHFQC/UHFQA/UHFAWG/UHFLI
+with programs `playZero`, `wave_play`, `setTrig`, `wait_trig`,
+`reset_osc`, `wait_wave`.  In the *original* only `MF` on HDAWG with
+oscillator-reset programs produced an ELF delta (+24 B per
+`resetOscPhase()`, +28 B per `resetOscPhase()` + sine `playWave`).  In
+*recon* no option produced any delta on any device.  The MF "diffs"
+documented in IF-337 / IF-338 are therefore *all* explained by this
+single missing wire-up in `compile_seqc.cpp`.
+
+The other `DeviceOption` enum values (`AWG`, `QA`, `CNT`, `DIG`,
+`PLUS`, …) are *device-construction* options carried by
+`DeviceOptionSet` and parsed via the existing `splitDeviceOptions`
+helper at `reconstructed/src/device/device_type.cpp:771`.  These do
+flow through to `DeviceType` construction at
+`compile_seqc.cpp:84,182`, but they do not currently feed
+`config.includePaths`, which is the source of truth for the *runtime*
+feature gates inside `CustomFunctions`.
+
+**Root location**: `reconstructed/src/codegen/compile_seqc.cpp:356-358`
+
+```
+    // splitDeviceOptions for additional config setup
+    // @0xf63xx: calls splitDeviceOptions on the options string
+    // (This populates includePaths or other config fields depending on content)
+```
+
+The comment is correct; the implementation is absent.  The original
+binary at @0xf63xx calls `splitDeviceOptions(options)` and assigns the
+result to `config.includePaths` (vector<string> at config+0x70).
+Recon currently leaves `config.includePaths` default-empty.
+
+**Fix sketch**:
+
+```cpp
+config.includePaths = splitDeviceOptions(upperOptions);
+```
+
+inserted between the existing `searchPath` assignment (L350-354) and
+the `AWGCompiler compiler(config)` construction (L361).  The function
+is already declared in `compile_seqc.cpp:39`.
+
+**Expected impact**:
+
+- IF-336, IF-337, IF-338 collapse into a single root cause; the
+  per-typeIdx codegen divergences in IF-336 may also disappear once
+  `usedFeatures_.insert("MF")` runs at the correct sites (the binary
+  side currently only emits the per-oscillator reset block when MF is
+  in `includePaths`).
+- A handful of difftests that pass today by coincidence (because both
+  sides ignore the `options` kwarg) may start *failing* — the gain in
+  fidelity is worth the regression triage.
+
+**Phase X3 implication**: until this is fixed, **no behavioural
+option-coverage test can show a meaningful orig-vs-recon diff** —
+recon will always agree with `options=""` regardless of the kwarg.
+The currently-passing `options_*` cases (parsing-only) remain valid;
+adding behavioural cases is blocked until IF-339 lands.
+
+**Files** (fix; not landed in this commit):
+- `reconstructed/src/codegen/compile_seqc.cpp:354-360`
+- `reconstructed/src/device/device_type.cpp:771-…` (existing
+  `splitDeviceOptions` implementation — no change required).

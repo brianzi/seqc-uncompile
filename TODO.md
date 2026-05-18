@@ -448,26 +448,55 @@ Status snapshot (after this phase's first wave):
         any existing manifest case; tracked as a future
         enhancement.  IF-292 closed.
 
-- [ ] **X3 — Behavioural `options` coverage.**  The three `options_*`
-      cases added in the first wave verify orig/recon parity for the
-      *parsing* of the options string, but produce byte-identical
-      ELFs whether the option is present or not — so they don't
-      verify the option's *semantic* effect.  Synthesize SeqC
-      programs that exercise option-gated code paths and produce a
-      visible ELF diff between "option present" vs "option absent",
-      then add both pre/post manifest cases so the difference itself
-      is in the corpus.
+- [ ] **X3 — Behavioural `options` coverage.**  **Blocked on IF-339**
+      (root cause).  The original calls
+      `splitDeviceOptions(upperOptions)` at binary `@0xf6847` and
+      assigns the resulting `vector<string>` to `config.includePaths`
+      (offset `+0x70` in `AWGCompilerConfig`).  Recon never makes this
+      assignment, so `compile_seqc(..., options="MF")` does *not*
+      activate the MF feature paths.  Every behavioural option-coverage
+      test produces a recon ELF identical to `options=""`, regardless
+      of the kwarg value.
 
-      Candidate gated paths (from `notes/device_type.md` and
-      `custom_functions.cpp`):
-      - `"MF"` flag in `usedFeatures_` — emitted into
-        `required_options` JSON in `.waveforms`; gates oscillator
-        allocation in `getAllOscMask` / `writeToNode` Block D
-        (custom_functions.cpp:446..460, custom_functions_play.cpp
-        :1441..1507).  Try a program that writes to an oscillator
-        node so the `writeToNode` MF-insert path runs.
-      - `"AWG"` / `"QA"` on UHFQA — gates the
-        `AWG` / `QA` feature insertions in the same family.
+      Sub-findings logged during X3 exploration:
+      - **IF-336** — `writeToNode` Block D missing MF-option gate;
+        oscselect path differs by 84 B when MF present.
+      - **IF-337** — `resetOscPhase()` MF-gated +24 B expansion missing.
+      - **IF-338** — sine playback + `resetOscPhase()` MF-gated +28 B
+        expansion missing (one extra instruction over IF-337).
+      - **IF-339** — root cause: `config.includePaths` never populated
+        from the `options` string.  Single 1-line fix in
+        `compile_seqc.cpp:354-360`; expected to subsume IF-337/IF-338
+        and reduce IF-336 to a residual per-typeIdx codegen
+        investigation.
+
+      Option-matrix probe (orig only) — only `MF` on HDAWG shows any
+      ELF delta:
+      - HDAWG4/HDAWG8 + `resetOscPhase()` → +24 B per reset.
+      - HDAWG4/HDAWG8 + sine `playWave` + `resetOscPhase()` → +28 B.
+      - No other (`AWG`/`QA`/`CNT`/`DIG`/`PLUS`/`BWLIM`/`FREQ`/`TRIG`)
+        option produced a delta on any device for the probed programs.
+        Most non-MF options are device-construction
+        (`DeviceOptionSet`) bitmask values consumed only at
+        `DeviceType` construction; they do not feed runtime feature
+        gates the way `MF` does.
+
+      Workflow once IF-339 lands:
+      1. Apply the 1-line fix in `compile_seqc.cpp`
+         (`config.includePaths = splitDeviceOptions(upperOptions);`).
+      2. Run the full diff_test_fast suite; expect IF-337 / IF-338
+         deltas to vanish (recon matches original byte-for-byte for the
+         existing `options_*` parsing cases when MF is set on HDAWG).
+      3. If IF-336 residual remains (the 84 B `setInt("sines/0/oscselect",1)`
+         delta), GDB-trace the per-typeIdx dispatch arms at
+         `@0x164c50..0x165407` to locate the missing instructions.
+      4. Add paired manifest cases — at minimum:
+         - `hdawg8_reset_osc_no_mf` (current 1596 B) vs
+           `hdawg8_reset_osc_with_mf` (1620 B, options="MF").
+         - `hdawg8_sine_reset_with_mf` (2112 B) vs
+           `hdawg8_sine_reset_no_mf` (2084 B).
+      5. Re-tag the parsing-only `options_*` cases so the corpus
+         reflects which test verifies *parsing* vs *behaviour*.
 
       Verification recipe:
       ```bash
@@ -480,8 +509,9 @@ Status snapshot (after this phase's first wave):
       "
       ```
       A successful candidate program produces a different ELF for the
-      two `opts` values.  Add the program as a `.seqc` fixture plus
-      two manifest cases (one with `options`, one without).
+      two `opts` values.  Today, only `resetOscPhase()`-bearing
+      programs on HDAWG meet this criterion; expanded coverage is
+      blocked on IF-339.
 
 - [ ] **X4 — Phase wrap-up.**  Update OVERVIEW with the binding-kwarg
       coverage matrix.  Confirm full diff_test_fast suite stays
@@ -1093,7 +1123,7 @@ All historical reconstruction work is preserved under
 - [`OVERVIEW.md`](OVERVIEW.md) — class hierarchy, current
   reconstruction status, file structure, open questions.
 - [`reconstructed/notes/incidental_findings.md`](reconstructed/notes/incidental_findings.md)
-  — active entries: 2 still-open IFs (IF-100, IF-102).
+  — active entries: 6 still-open IFs (IF-100, IF-102, IF-336, IF-337, IF-338, IF-339).
   All closed / deferred / tracking-only entries archived to
   [`archive/IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md),
   [`archive/IF_100-200.md`](reconstructed/notes/archive/IF_100-200.md),
