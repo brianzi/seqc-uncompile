@@ -267,7 +267,9 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
     //   * present, other type → throw "'waveforms' must be a string."
     std::vector<std::string> waveformPaths;
     bool waveformsKeyNull = false;
+    bool waveformsKeyPresent = false;
     if (auto* wfVal = jobj.if_contains("waveforms")) {
+        waveformsKeyPresent = true;
         if (wfVal->is_string()) {
             std::string wfStr(wfVal->as_string());
             boost::split(waveformPaths, wfStr, boost::is_any_of(";"),
@@ -283,7 +285,23 @@ std::string compileSeqc(std::string const& jsonConfig,   // @0xf58a0
             throw Exception("'waveforms' must be a string.");
         }
     }
-    (void)waveformsKeyNull;  // consumed by autoscan logic (Commit C)
+
+    // When BOTH `waveforms` and `wavepath` keys are present in the JSON
+    // config, the binary unconditionally appends `wavepath` onto the
+    // waveformPaths vector (binary @0xf6492 takes `jne f64b3` → push at
+    // f64b3 without the status check).  Downstream `addWaveforms` then
+    // recursively expands the directory entry to its contained files.
+    // GDB-confirmed for `waveforms=None, wavepath=<dir>` (the canonical
+    // autoscan trigger documented in IF-292).
+    //
+    // When `waveforms` is *absent* the binary instead status-checks the
+    // default `Data/awg/waves` folder and pushes that if it exists
+    // (@0xf64a1 status + @0xf6492 fallthrough).  That branch is not yet
+    // implemented in the reconstruction — see IF-292 for the open work.
+    if (waveformsKeyPresent && !configWavePath.empty()) {
+        waveformPaths.push_back(configWavePath);
+    }
+    (void)waveformsKeyNull;  // distinct from "absent" — preserved for clarity
 
     // T8 (IF-305): optional override for AWGCompilerConfig::optimizationFlags.
     // Defaults to 0xFF (all passes — matches the original binary's

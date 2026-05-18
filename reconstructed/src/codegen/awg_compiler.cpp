@@ -1173,13 +1173,54 @@ void AWGCompilerImpl::compileFile(std::string const& path) {  // @0x106690
 //! \brief Append the supplied paths to `wavePaths_`, then dispatch
 //!        on file extension to register each waveform with
 //!        `wavetable_`.
+//!
+//! Directory entries are recursively expanded: when an input path
+//! refers to a directory (boost::filesystem::file_type == directory_file,
+//! enum value 3), the binary at @0x10535a constructs a
+//! `boost::filesystem::recursive_directory_iterator` and processes each
+//! contained regular file through the same extension dispatch.  Each
+//! directory entry is replaced by its expansion in the per-path loop,
+//! while the original input vector is still copied verbatim into
+//! `wavePaths_` (so `.arguments.json` exposes the user-supplied roots,
+//! not the expanded file list).  See compile_seqc.cpp where the
+//! `wavepath` JSON kwarg is unconditionally pushed onto the
+//! `waveforms` vector when both keys are present — that is the trigger
+//! that drives directories through this entry point.
 void AWGCompilerImpl::addWaveforms(std::vector<std::string> const& paths) {  // @0x104660
     // 1. Append paths to internal wave path list
     // @0x104681: vector<string>::insert at +0x280
     wavePaths_.insert(wavePaths_.end(), paths.begin(), paths.end());
 
-    // 2. Process each waveform file
+    // 1b. Expand directory entries to their contained regular files via
+    //     recursive_directory_iterator (binary @0x10535a..0x1053f0).
+    //     Non-directory entries pass through unchanged.  Errors from
+    //     status() / iterator construction are swallowed via the
+    //     error_code overloads (binary uses zero error codes and ignores).
+    std::vector<std::string> expanded;
+    expanded.reserve(paths.size());
     for (auto const& pathStr : paths) {
+        boost::system::error_code ec;
+        boost::filesystem::path p(pathStr);
+        auto st = boost::filesystem::status(p, ec);
+        if (!ec && st.type() == boost::filesystem::directory_file) {
+            boost::system::error_code ec2;
+            boost::filesystem::recursive_directory_iterator it(p,
+                boost::filesystem::directory_options::none, ec2);
+            boost::filesystem::recursive_directory_iterator end;
+            for (; !ec2 && it != end; it.increment(ec2)) {
+                boost::system::error_code ec3;
+                auto entSt = boost::filesystem::status(it->path(), ec3);
+                if (!ec3 && entSt.type() == boost::filesystem::regular_file) {
+                    expanded.push_back(it->path().string());
+                }
+            }
+        } else {
+            expanded.push_back(pathStr);
+        }
+    }
+
+    // 2. Process each waveform file
+    for (auto const& pathStr : expanded) {
         // 2a. Check cancel callback                                            // @0x1046e0
         if (auto cancel = cancelCallback_.lock()) {
             if (cancel->isCancelled()) {

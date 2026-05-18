@@ -161,8 +161,8 @@ itself which is incomplete (see IF-103).
 
 ## IF-292  `compile_seqc` binding drops `None` kwargs; `waveforms=None` autoscan path missing
 
-**Severity**: medium  
-**Status**: open  
+**Severity**: medium
+**Status**: fixed (Phase X2 commits A+B+C)
 **Discovered**: while adding difftest cases for `compile_seqc` kwargs.
 
 **Symptom**: when calling `compile_seqc(..., wavepath=<dir>, waveforms=None)`
@@ -206,6 +206,31 @@ FAIL for recon).
   in or near the existing `addWaveforms` dispatch in
   `AWGCompilerImpl::addWaveforms` / `WaveformTable::newWaveformFromFile`).
 - Implement both pieces and re-tag the manifest case.
+
+**Resolution** (Phase X2):
+
+- **Commit A+B** (`80c6f96`): `pybind_seqc.cpp::pyCompileSeqc` rewritten
+  to be type-aware — emits `null` for `None`, `bool` for `bool`, `int64`
+  for `int`, `double` for `float`, `string` for `str`/`bytes`; unknown
+  types silently skipped.  `compile_seqc.cpp` gained strict validators
+  for the four user-facing kwargs (`samplerate`, `filename`, `wavepath`,
+  `waveforms`) with binary-exact error messages.
+- **Commit C** (this commit): GDB-confirmed at `@0xf6492` that the
+  original *unconditionally* appends `wavepath` onto the
+  `waveformPaths` vector whenever both `waveforms` and `wavepath` keys
+  are present in the JSON config (regardless of `waveforms` being a
+  string or `null`).  `compile_seqc.cpp` now mirrors that push.
+  `AWGCompilerImpl::addWaveforms` gained a pre-pass that expands
+  directory entries via `boost::filesystem::recursive_directory_iterator`
+  (matching the binary path at `@0x10535a`), so each contained regular
+  file flows through the existing extension dispatch (`.csv`/`.txt`/
+  `.bin`/`.wave`/`.bin16`/`.wave16`).
+- New difftest case `core:general:wavepath_autoscan_dir` is now
+  byte-identical (1620/1620 fast suite, 70/70 pytest).
+- Remaining open sub-case: `waveforms` *absent* + default
+  `Data/awg/waves` folder probe (binary `@0xf64a1` status fallback).
+  Not exercised by any test today; tracked as a future enhancement —
+  not blocking IF-292.
 
 ## IF-293  `LaboneVersion` globals trapped behind `#ifdef ZHINST_HAS_PYBIND11`
 

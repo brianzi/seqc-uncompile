@@ -397,8 +397,8 @@ Status snapshot (after this phase's first wave):
 |--------------|----------------------|----------------------------------------------------|
 | `samplerate` | full (HDAWG)         | every HDAWG case                                   |
 | `sequencer`  | `qa`/`sg`/`auto`     | added `sequencer_auto_shf{qa,sg}` in this phase    |
-| `wavepath`   | `""` form only       | non-empty form blocked on IF-292                   |
-| `waveforms`  | string-list form     | autoscan (`None`) form blocked on IF-292           |
+| `wavepath`   | `""` form only       | autoscan form covered in X2 (`wavepath_autoscan_dir`) |
+| `waveforms`  | string-list form     | autoscan (`None`) form fixed in X2 (IF-292 closed) |
 | `filename`   | full                 | X1 fixed IF-335, three cases added                 |
 | `options`    | smoke only           | string accepted but no ELF-visible diff; X3 below  |
 
@@ -422,36 +422,31 @@ Status snapshot (after this phase's first wave):
       `filename_empty`) under `core:general` with the
       `compile-kwargs` tag.  1616/1616 difftests, 70/70 pytest.
 
-- [ ] **X2 — IF-292 follow-up: `wavepath` + `waveforms=None` autoscan.**
-      Two distinct gaps documented in
-      `reconstructed/notes/incidental_findings.md` IF-292:
-
-      a. **Binding layer**
-      (`reconstructed/src/pybind_seqc.cpp::pyCompileSeqc`) silently
-         drops `None` kwargs because the merge loop only handles
-         `cast<double>` and `cast<string>`.  Need to serialize Python
-         `None` as JSON `null` (or an agreed sentinel) so the key
-         actually reaches the C++ side.
-
-      b. **Compiler core**
-      (`reconstructed/src/codegen/compile_seqc.cpp` ~L221).  The
-         `waveforms` reader only handles `is_string()`.  When
-         `waveforms` is null and `wavepath` is non-empty, the
-         original scans `wavepath` for `*.csv` and feeds the
-         discovered list into `AWGCompiler::addWaveforms`.  Recon
-         has no equivalent path.
-
-      Workflow:
-      1. GDB-trace original `pyCompileSeqc` with `waveforms=None` to
-         confirm JSON serialisation of Python `None`.
-      2. GDB-trace original `compileSeqc` to find the autoscan call
-         site (likely near the existing `addWaveforms` dispatch in
-         `AWGCompilerImpl::addWaveforms` / `WaveformTable::
-         newWaveformFromFile`).
-      3. Implement (a) and (b) and re-add the `wavepath_nonempty`
-         manifest case (fixtures already in place under
-         `tests/cases/waves/`).
-      4. Close IF-292.
+- [x] **X2 — IF-292 follow-up: `wavepath` + `waveforms=None` autoscan.**
+      **Done** in three commits.
+      - **A+B** (`80c6f96`) — `pybind_seqc.cpp::pyCompileSeqc` rewritten
+        type-aware (`None`→`null`, `bool`/`int`/`float`/`str`/`bytes`
+        each preserved; unknown silently skipped).  Strict validators in
+        `compile_seqc.cpp` for the four user-facing kwargs
+        (`samplerate`, `filename`, `wavepath`, `waveforms`) with
+        binary-exact error messages.  Added
+        `filename_none_rejected`, `wavepath_none_rejected`,
+        `waveforms_none_no_wavepath` manifest cases under
+        `core:general` with the `kwarg-type-validation` tag.
+      - **C** (this commit) — GDB-confirmed at `@0xf6492` that the
+        binary unconditionally appends `wavepath` onto the
+        `waveformPaths` vector whenever both `waveforms` and
+        `wavepath` keys are present (string or `null`).
+        `compile_seqc.cpp` now mirrors that push.
+        `AWGCompilerImpl::addWaveforms` gained a pre-pass that expands
+        directory entries via
+        `boost::filesystem::recursive_directory_iterator` (matching
+        the binary path at `@0x10535a`).  New
+        `wavepath_autoscan_dir` manifest case is byte-identical.
+        Remaining sub-case (`waveforms` *absent* + default
+        `Data/awg/waves` folder probe at `@0xf64a1`) is untested by
+        any existing manifest case; tracked as a future
+        enhancement.  IF-292 closed.
 
 - [ ] **X3 — Behavioural `options` coverage.**  The three `options_*`
       cases added in the first wave verify orig/recon parity for the
@@ -1078,7 +1073,7 @@ All historical reconstruction work is preserved under
 | [`IF-105_update_log.md`](reconstructed/notes/archive/IF-105_update_log.md) | Chronological update history for IF-105 | ~390 |
 | [`IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md) | Closed Incidental Findings IF-1..IF-99 | ~1360 |
 | [`IF_100-200.md`](reconstructed/notes/archive/IF_100-200.md) | Closed Incidental Findings IF-100..IF-200 (99 entries; 2 open in range kept inline: IF-100, IF-102) | ~3700 |
-| [`IF_201-300.md`](reconstructed/notes/archive/IF_201-300.md) | Closed Incidental Findings IF-201..IF-300 (91 entries; IF-292 still open) | ~6280 |
+| [`IF_201-300.md`](reconstructed/notes/archive/IF_201-300.md) | Closed Incidental Findings IF-201..IF-300 (91 entries; IF-292 now closed) | ~6280 |
 | [`unknowns_full_1-116.md`](reconstructed/notes/archive/unknowns_full_1-116.md) | Pre-2026-04-22 history of `unknowns.md` items 1–116 | ~1200 |
 | [`phase_15b_prefetch_audit.md`](reconstructed/notes/archive/phase_15b_prefetch_audit.md) | Phase 15b prefetch audit | ~80 |
 | [`phase43_investigation.md`](reconstructed/notes/archive/phase43_investigation.md) | Phase 43: 54-function binary-vs-recon size audit | ~490 |
@@ -1098,7 +1093,7 @@ All historical reconstruction work is preserved under
 - [`OVERVIEW.md`](OVERVIEW.md) — class hierarchy, current
   reconstruction status, file structure, open questions.
 - [`reconstructed/notes/incidental_findings.md`](reconstructed/notes/incidental_findings.md)
-  — active entries: 3 still-open IFs (IF-100, IF-102, IF-292).
+  — active entries: 2 still-open IFs (IF-100, IF-102).
   All closed / deferred / tracking-only entries archived to
   [`archive/IF_1-99.md`](reconstructed/notes/archive/IF_1-99.md),
   [`archive/IF_100-200.md`](reconstructed/notes/archive/IF_100-200.md),

@@ -543,6 +543,20 @@
               ]
             },
             {
+              "name": "wavepath_autoscan_dir",
+              "code": "wave w = \"wave_file\";\nplayWave(w);",
+              "wavepath": "waves",
+              "waveforms": "@none",
+              "@base": "@hdawg8",
+              "tags": [
+                "compile-kwargs",
+                "wavepath",
+                "waveforms",
+                "autoscan",
+                "external-wave"
+              ]
+            },
+            {
               "name": "sequencer_auto_shfqa",
               "code": "playZero(64);",
               "devtype": "SHFQA4",
